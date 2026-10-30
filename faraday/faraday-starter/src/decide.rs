@@ -171,7 +171,7 @@ impl crate::Starter {
 }
 
 /// The Faraday version `stick` holds, as Home and Which stick say it:
-/// "version not read" when FARADAYBOOT was not read (Windows),
+/// "version not read" when the boot partition was not read (Windows),
 /// kept apart from a stick made before Faraday put its version there.
 pub fn version_of(stick: &FaradayStick) -> String {
     if stick.read {

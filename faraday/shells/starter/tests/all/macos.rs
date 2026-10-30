@@ -104,7 +104,7 @@ fn usb_sticks_are_offered_first_a_faraday_stick_and_a_disk_mounted_elsewhere_is_
 }
 
 #[test]
-fn a_faraday_stick_is_known_by_its_partition_names_and_its_data_partition_is_never_read() {
+fn a_faraday_stick_is_known_by_its_layout_and_its_data_partition_is_never_read() {
     let a = answers("intel-mac.txt");
     let list = a.disks();
     let f = disk(&list, "disk3");
@@ -115,9 +115,26 @@ fn a_faraday_stick_is_known_by_its_partition_names_and_its_data_partition_is_nev
     assert_eq!(boot.id, "disk3s1");
     assert_eq!(boot.mounted, None);
     let labels: Vec<_> = f.disk.volumes.iter().map(|v| v.label.as_deref()).collect();
-    assert_eq!(labels, [Some("FARADAYBOOT"), None]);
-    // A stick whose volumes carry those names as labels alone is not one.
+    assert_eq!(labels, [Some("EFI"), None]);
+    // An ordinary stick is not one.
     assert!(disk(&list, "disk2").disk.faraday.is_none());
+    // The same partitions, the data one elsewhere or of another type,
+    // are another layout (docs/STICK-IDENTITY.md §5.1).
+    let set = |key: &str, value: plist::Value| {
+        let mut a = a.clone();
+        if let Some(plist::Value::Dict(d)) = a.info.get_mut("disk3s2") {
+            d.insert(key.to_string(), value);
+        }
+        disk(&a.disks(), "disk3").disk.faraday.is_some()
+    };
+    assert!(!set(
+        "PartitionMapPartitionOffset",
+        plist::Value::Integer(69_206_016)
+    ));
+    assert!(!set(
+        "Content",
+        plist::Value::String(String::from("0FC63DAF-8483-4772-8E79-3D69D8477DE4"))
+    ));
 }
 
 #[test]

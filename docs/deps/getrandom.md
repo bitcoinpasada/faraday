@@ -9,7 +9,10 @@ random number generator, consumed into the core's session key.
 the shell is the only thing that talks to the OS). `getrandom` is a
 dependency of Faraday's desktop shells (`faraday/shells/window`) alone;
 it does not appear in any `core/` crate. The
-stick shell reads `/dev/random`.
+stick shell reads `/dev/random`. The Starter's shell
+(`faraday/shells/starter`) draws each stick's own disk and partition
+GUIDs and FAT serials from it (`docs/STICK-IDENTITY.md` §4.2); they are
+not secret.
 
 **Why this crate.** It is the standard binding to `getrandom(2)`,
 `getentropy`, `BCryptGenRandom` and friends, with the fallbacks (older

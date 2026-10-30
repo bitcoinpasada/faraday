@@ -1,24 +1,71 @@
-//! A GPT partition table read, and a Faraday stick's layout checked, as
+//! A GPT partition table read, and a Faraday stick known by its layout
+//! (`docs/STICK-IDENTITY.md` §5.1, F174), as
 //! `faraday/image/stick-boot.sh` checks it before keep data writes the
-//! boot partition: GPT with Faraday's disk UUID and exactly two
-//! partitions, the first named `FARADAYBOOT`, an EFI system partition with
-//! Faraday's partition UUID and at least as large as what is written,
-//! the second named `FARADAYDATA` with its own UUID, and the two not
-//! overlapping (`genimage.cfg` sets the UUIDs).
+//! boot partition: exactly two partitions, the first an EFI system
+//! partition of 64 MiB at 1 MiB, the second a basic data partition of
+//! 128 MiB right after it (F80). Names, IDs and labels play no part: each
+//! stick has its own (§4), and a stick made before keeps its old ones
+//! (§5.4).
 
 use std::io;
 
 use faraday_crypto::crc32;
 use faraday_starter::api::StickFault;
 
-/// Faraday's disk UUID (`genimage.cfg`).
-pub const DISK_UUID: &str = "46617261-6461-792D-5374-69636B000000";
-/// The FARADAYBOOT partition's UUID.
-pub const BOOT_UUID: &str = "46617261-6461-792D-5374-69636B000001";
-/// The FARADAYDATA partition's UUID.
-pub const DATA_UUID: &str = "46617261-6461-792D-5374-69636B000002";
 /// The EFI system partition's type.
 pub const ESP_TYPE: &str = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B";
+/// The basic data partition's type.
+pub const DATA_TYPE: &str = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7";
+/// Where a Faraday stick's boot partition starts, in bytes: sector 2048.
+pub const BOOT_AT: u64 = 1 << 20;
+/// Its length (F80).
+pub const BOOT_LEN: u64 = 64 << 20;
+/// Where its data partition starts: sector 133120.
+pub const DATA_AT: u64 = BOOT_AT + BOOT_LEN;
+/// Its length (F80).
+pub const DATA_LEN: u64 = 128 << 20;
+
+/// One partition as a system lists it, in bytes: what §5.1's layout is
+/// read from on each system (udisks2, `diskutil`,
+/// `IOCTL_DISK_GET_DRIVE_LAYOUT_EX`, or the table itself).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Placed<'a> {
+    /// Its type, as a GUID string in either case.
+    pub type_guid: &'a str,
+    /// Its first byte.
+    pub offset: u64,
+    /// Its length in bytes.
+    pub len: u64,
+}
+
+/// Whether `parts`, in their order on the disk, are a Faraday stick's
+/// (§5.1); otherwise why not. A boot partition at 1 MiB shorter than
+/// 64 MiB (a stick made before F80) is [`StickFault::BootSmall`], with
+/// both sizes.
+pub fn layout(parts: &[Placed<'_>]) -> Result<(), StickFault> {
+    let [boot, data] = parts else {
+        return Err(StickFault::Partitions(parts.len()));
+    };
+    if !boot.type_guid.eq_ignore_ascii_case(ESP_TYPE) {
+        return Err(StickFault::BootType);
+    }
+    if !data.type_guid.eq_ignore_ascii_case(DATA_TYPE) {
+        return Err(StickFault::DataType);
+    }
+    if boot.offset == BOOT_AT && boot.len < BOOT_LEN {
+        return Err(StickFault::BootSmall {
+            boot: boot.len,
+            image: BOOT_LEN,
+        });
+    }
+    if boot.offset != BOOT_AT || boot.len != BOOT_LEN {
+        return Err(StickFault::BootPlace);
+    }
+    if data.offset != DATA_AT || data.len != DATA_LEN {
+        return Err(StickFault::DataPlace);
+    }
+    Ok(())
+}
 
 /// One partition.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,47 +236,47 @@ fn read_with(
 }
 
 /// Where a Faraday stick's boot partition is, when `table` is a Faraday
-/// stick's and its boot partition holds `needs` bytes; otherwise why it
-/// is not, in `stick-boot.sh`'s words.
+/// stick's (§5.1) and its boot partition holds `needs` bytes; otherwise
+/// why it is not, in `stick-boot.sh`'s words.
 pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, StickFault> {
-    if !table.disk_guid.eq_ignore_ascii_case(DISK_UUID) {
-        return Err(StickFault::DiskUuid);
+    let mut placed = Vec::with_capacity(table.parts.len());
+    for (i, p) in table.parts.iter().enumerate() {
+        // The sectors are the table's own numbers: a partition that ends
+        // before it starts, or runs past what a disk can address, is
+        // damaged, not wrapped.
+        let bytes = (p.last >= p.first)
+            .then(|| {
+                Some((
+                    p.first.checked_mul(table.sector)?,
+                    (p.last - p.first)
+                        .checked_add(1)?
+                        .checked_mul(table.sector)?,
+                ))
+            })
+            .flatten();
+        let Some((offset, len)) = bytes else {
+            return Err(if i == 0 {
+                StickFault::BootDamaged
+            } else {
+                StickFault::DataPlace
+            });
+        };
+        placed.push(Placed {
+            type_guid: &p.type_guid,
+            offset,
+            len,
+        });
     }
-    if table.parts.len() != 2 {
-        return Err(StickFault::Partitions(table.parts.len()));
-    }
-    let (boot, data) = (&table.parts[0], &table.parts[1]);
-    if boot.name != "FARADAYBOOT" {
-        return Err(StickFault::BootName);
-    }
-    if !boot.guid.eq_ignore_ascii_case(BOOT_UUID) || !boot.type_guid.eq_ignore_ascii_case(ESP_TYPE)
-    {
-        return Err(StickFault::BootType);
-    }
-    if data.name != "FARADAYDATA" || !data.guid.eq_ignore_ascii_case(DATA_UUID) {
-        return Err(StickFault::DataType);
-    }
-    if boot.last < boot.first {
-        return Err(StickFault::BootDamaged);
-    }
-    // The partition's sectors are the table's own numbers: one that
-    // runs past what a disk can address is damaged, not wrapped.
-    let (Some(offset), Some(len)) = (
-        boot.first.checked_mul(table.sector),
-        (boot.last - boot.first)
-            .checked_add(1)
-            .and_then(|n| n.checked_mul(table.sector)),
-    ) else {
-        return Err(StickFault::BootDamaged);
-    };
-    if len < needs {
+    layout(&placed)?;
+    let boot = placed[0];
+    if boot.len < needs {
         return Err(StickFault::BootSmall {
-            boot: len,
+            boot: boot.len,
             image: needs,
         });
     }
-    if boot.last >= data.first {
-        return Err(StickFault::Overlap);
-    }
-    Ok(Boot { offset, len })
+    Ok(Boot {
+        offset: boot.offset,
+        len: boot.len,
+    })
 }

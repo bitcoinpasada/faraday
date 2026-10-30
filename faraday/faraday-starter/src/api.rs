@@ -195,17 +195,17 @@ pub struct Volume {
     pub files: bool,
 }
 
-/// What a Faraday stick's boot partition says (§4.1): the stick has
-/// FARADAYBOOT and FARADAYDATA, and FARADAYBOOT was read, read-only. FARADAYDATA is
-/// never opened.
+/// What a Faraday stick's boot partition says (§4.1): the disk has a Faraday
+/// stick's layout (`docs/STICK-IDENTITY.md` §5.1), and its boot partition was
+/// read, read-only. The data partition is never opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FaradayStick {
-    /// The kernel release string found on FARADAYBOOT
+    /// The kernel release string found on the boot partition
     /// (`faraday_boot::find_release`), or `None` for a stick made before
     /// Faraday put one there.
     pub release: Option<String>,
-    /// FARADAYBOOT was read. On Windows it is not until keep data asks the
-    /// elevated copy ([`StarterCommand::ReadVersion`]): FARADAYBOOT is an
+    /// The boot partition was read. On Windows it is not until keep data asks the
+    /// elevated copy ([`StarterCommand::ReadVersion`]): the boot partition is an
     /// EFI system partition, which Windows lets only an administrator
     /// read. While `false`, `release` is `None` and says
     /// nothing about the stick.
@@ -357,8 +357,10 @@ pub enum WriteStage {
     ReadingBack,
 }
 
-/// Why a partition table is not a Faraday stick's (§4.1), in
-/// `faraday/image/stick-boot.sh`'s terms.
+/// Why a partition table is not a Faraday stick's (§4.1,
+/// `docs/STICK-IDENTITY.md` §5.1), in `faraday/image/stick-boot.sh`'s
+/// terms, or an image not one the Starter can give a stick's own IDs
+/// (§4.2).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StickFault {
     /// The table could not be read: the system's words.
@@ -377,29 +379,37 @@ pub enum StickFault {
     EntriesPastEnd,
     /// The GPT entries' checksum is wrong.
     EntriesChecksum,
-    /// The disk UUID is not a Faraday stick's.
-    DiskUuid,
     /// The number of partitions is not two.
     Partitions(usize),
-    /// The first partition is not named FARADAYBOOT.
-    BootName,
-    /// The first partition is not a Faraday EFI system partition.
+    /// The first partition is not an EFI system partition.
     BootType,
-    /// The second partition is not a Faraday FARADAYDATA partition.
+    /// The second partition is not a basic data partition.
     DataType,
-    /// The FARADAYBOOT partition is damaged.
+    /// The boot partition is damaged.
     BootDamaged,
-    /// The FARADAYBOOT partition is smaller than the image.
+    /// The boot partition is smaller than the image's, or than a
+    /// Faraday stick's 64 MiB (F80).
     BootSmall {
         /// The partition's size in bytes.
         boot: u64,
         /// The image's.
         image: u64,
     },
-    /// The partitions overlap.
-    Overlap,
+    /// The first partition is not 64 MiB at 1 MiB
+    /// (`docs/STICK-IDENTITY.md` §5.1).
+    BootPlace,
+    /// The second partition is not 128 MiB right after the first.
+    DataPlace,
     /// The image's boot partition runs past the image's end.
     BootPastEnd,
+    /// The image is not a Pi card's: an MBR with two FAT partitions of
+    /// 64 MiB and 128 MiB (§5.1).
+    CardLayout,
+    /// A partition of the image holds no FAT volume serial to give the
+    /// stick its own (§4.2).
+    NoSerial,
+    /// The image's backup GPT is not its primary's.
+    BackupTable,
 }
 
 /// Why something the shell was asked to do did not happen: the one list
@@ -481,7 +491,7 @@ pub enum Reason {
         /// The stick's.
         stick: u64,
     },
-    /// The image's boot partition is not FAT32 labelled FARADAYBOOT.
+    /// The image's boot partition is not FAT32 labelled EFI.
     BootLabel,
     /// The boot partition image is shorter than one sector.
     BootShort,
@@ -614,6 +624,18 @@ pub enum Reason {
     ReleaseBootFile(ReleaseFault),
     /// Not on this computer.
     Unsupported,
+    /// The system's randomness could not be read for the stick's own
+    /// IDs (`docs/STICK-IDENTITY.md` §4.2): the system's words.
+    Random(String),
+    /// Reading back: with the stick's own IDs (and a signed boot file)
+    /// put back to the image's, what was read does not have the image's
+    /// SHA-256 (§4.3).
+    BackSum {
+        /// The device.
+        device: String,
+        /// The SHA-256 it has, hex.
+        sha256: String,
+    },
 }
 
 /// Why the release's own boot file could not be read or replaced
@@ -746,7 +768,7 @@ pub enum StarterEvent {
     /// [`StarterCommand::ReadRecoveryKey`] ended: the key, or why not.
     RecoveryKey(Result<RecoveryKey, Reason>),
     /// [`StarterCommand::ReadVersion`] ended: the release string on the
-    /// stick's FARADAYBOOT (`None` for a stick made before Faraday put one
+    /// stick's boot partition (`None` for a stick made before Faraday put one
     /// there), or why not.
     VersionRead {
         /// The disk, as the command named it.
@@ -781,7 +803,7 @@ pub enum StarterEvent {
 pub enum Mode {
     /// The whole disk; everything on it is lost.
     Whole,
-    /// Only the boot partition of a Faraday stick; FARADAYDATA is not read
+    /// Only the boot partition of a Faraday stick; its data partition is not read
     /// and not written.
     KeepData,
 }

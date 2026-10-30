@@ -130,7 +130,7 @@ fn every_disk_is_refused_when_the_windows_folder_cannot_be_placed() {
 }
 
 #[test]
-fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alone() {
+fn a_faraday_stick_is_known_by_its_layout_and_read_from_its_boot_volume_alone() {
     let list = found(&laptop());
     let stick = disk(&list, "Disk 2");
     assert!(stick.disk.faraday.is_some());
@@ -144,9 +144,18 @@ fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alon
         .iter()
         .map(|v| v.label.as_deref())
         .collect();
-    assert_eq!(labels, [Some("FARADAYBOOT"), Some("FARADAYDATA")]);
-    // An MBR stick whose volumes happen to carry those labels is not one.
+    assert_eq!(labels, [Some("EFI"), None]);
+    // An ordinary MBR stick is not one.
     assert!(disk(&list, "Disk 1").disk.faraday.is_none());
+    // Nor the same two partitions with the data partition elsewhere, or
+    // of another type (docs/STICK-IDENTITY.md §5.1): each partition is
+    // 144 bytes after the layout's 48, its offset at 8, its type at 32.
+    for (at, byte) in [(48 + 144 + 8 + 2, 0x11), (48 + 144 + 32, 0xAF)] {
+        let mut s = laptop();
+        let d = s.disks.iter_mut().find(|d| d.number == 2).expect("disk 2");
+        d.layout[at] = byte;
+        assert!(disk(&found(&s), "Disk 2").disk.faraday.is_none());
+    }
     // Its version, read as from the boot volume's root.
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("starter-windows-boot");
     let _ = fs::remove_dir_all(&root);
@@ -218,7 +227,7 @@ fn a_recording_reads_back_as_it_was_written() {
     let s = laptop();
     assert_eq!(Snapshot::parse(&s.record()), Ok(s));
     assert!(Snapshot::parse("disk 1\n  descriptor 0g\n").is_err());
-    assert!(Snapshot::parse("  label FARADAYBOOT\n").is_err());
+    assert!(Snapshot::parse("  label EFI\n").is_err());
 }
 
 fn sz(s: &str) -> Vec<u8> {
@@ -516,6 +525,25 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
     }
 }
 
+/// The reasons a stick's own IDs bring (`docs/STICK-IDENTITY.md` §4).
+fn id_reasons() -> Vec<Reason> {
+    let mut v: Vec<Reason> = [
+        StickFault::BootPlace,
+        StickFault::DataPlace,
+        StickFault::CardLayout,
+        StickFault::NoSerial,
+        StickFault::BackupTable,
+    ]
+    .map(Reason::NotStickImage)
+    .into();
+    v.push(Reason::Random(String::from("words\twith a tab")));
+    v.push(Reason::BackSum {
+        device: "Disk 2".into(),
+        sha256: SUM.into(),
+    });
+    v
+}
+
 fn every_reason() -> Vec<Reason> {
     let s = || String::from("words\twith a tab\\ and\nlines");
     vec![
@@ -560,7 +588,6 @@ fn every_reason() -> Vec<Reason> {
             fault: StickFault::Reading(s()),
         },
         Reason::NotStickImage(StickFault::Partitions(3)),
-        Reason::NotStickImage(StickFault::DiskUuid),
         Reason::BootLarger { image: 5, stick: 6 },
         Reason::BootLabel,
         Reason::BootShort,
@@ -608,6 +635,7 @@ fn every_reason() -> Vec<Reason> {
         Reason::BootFileLarge(s()),
     ]
     .into_iter()
+    .chain(id_reasons())
     .chain(
         pipe::RELEASE_FAULTS
             .iter()

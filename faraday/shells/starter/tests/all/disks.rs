@@ -151,6 +151,33 @@ fn faraday_stick(boot: Option<&Path>, data: Option<&Path>) -> String {
         .replace("DATA_MOUNT", &at(data))
 }
 
+#[test]
+fn a_faraday_stick_is_known_by_its_layout_whatever_its_names_and_another_layout_is_not() {
+    let known = |text: &str| listed(text)[0].faraday.is_some();
+    let stick = faraday_stick(None, None);
+    assert!(known(&stick));
+    // A stick made before, with Faraday's old names and labels, is the
+    // same layout (docs/STICK-IDENTITY.md §5.4).
+    let old = stick
+        .replace("Name s EFI system partition", "Name s FARADAYBOOT")
+        .replace("IdLabel s EFI", "IdLabel s FARADAYBOOT")
+        .replace("Name s Basic data partition", "Name s FARADAYDATA");
+    assert!(known(&old));
+    // Another stick with the same two kinds of partition at other
+    // places, other kinds at the same places, or the same in an MBR.
+    for other in [
+        stick.replace("Offset t 68157440", "Offset t 69206016"),
+        stick.replace("Size t 67108864", "Size t 50331648"),
+        stick.replace(
+            "Type s ebd0a0a2-b9e5-4433-87c0-68b6b72699c7",
+            "Type s 0fc63daf-8483-4772-8e79-3d69d8477de4",
+        ),
+        stick.replace("Type s gpt", "Type s dos"),
+    ] {
+        assert!(!known(&other), "{other}");
+    }
+}
+
 /// A folder standing for a mounted partition, holding the PC stick's
 /// kernel with `release` in it.
 fn partition(name: &str, release: &str) -> PathBuf {

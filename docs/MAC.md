@@ -211,7 +211,8 @@ A new board, faraday/image/boards/arm64-apple/, beside
   EFI system partition (FAT32, labelled `EFI`) holding only
   `EFI/BOOT/BOOTAA64.EFI`, then the data partition, with no label. The
   same names and sizes, so `faraday-grant`, `faraday-disk` and the Starter's keep data
-  work unchanged. The image is
+  work unchanged, and the Starter gives it its own IDs as it writes it
+  (`docs/STICK-IDENTITY.md` §4.2). The image is
   `faraday-stick-X.Y.Z-arm64-apple.img.xz`.
 - **Kernel:** mainline, pinned to one release that has what Apple
   Silicon needs (USB on the Type-C ports from 7.0, the SMC and its
@@ -485,7 +486,15 @@ section's list was folded on 2026-10-13: §1.1 (the release file), §2
 (the `macos` module: `diskutil`, `authopen`, `diskutil unmountDisk`
 after a write, the facts), §3.1 (Home on a Mac), §3.2 (*For which
 computer?*), §3.4 and §7 (the Mac guides), §4.4 (the Mac's own files on
-FARADAYDATA), §5.2 (install), §10.
+the data partition), §5.2 (install), §10.
+
+On a Mac the Starter knows a Faraday stick by its layout
+(`docs/STICK-IDENTITY.md` §5.3) from `diskutil info`: on the whole disk
+`Content` `GUID_partition_scheme`, and on each partition `Content` (its
+type: `EFI`, `Microsoft Basic Data`, or the type's GUID),
+`PartitionMapPartitionOffset` and `Size`, in bytes. These keys were
+written from documentation, not recorded on a Mac; batch A3c checks
+them against a recording.
 
 The list as written: moved to `docs/history/MAC-LOG.md`.
 

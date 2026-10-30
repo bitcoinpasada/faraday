@@ -41,6 +41,12 @@ faraday-boot = { path = "../../faraday-boot" }
 # and wiping it and every buffer it passes through (windows/bitlocker.rs,
 # the sheet's PDF).
 zeroize = { workspace = true, features = ["alloc"] }
+# Each stick's own IDs (docs/STICK-IDENTITY.md §4.2): drawn from the
+# system's randomness (docs/deps/getrandom.md); and the check after
+# writing (§4.3), the SHA-256 of what was read back with the image's own
+# IDs put back (docs/deps/sha2.md).
+getrandom.workspace = true
+sha2 = { workspace = true }
 
 # udisks2 over the system bus, with the file descriptor `OpenDevice`
 # hands back (docs/deps/rustbus.md).

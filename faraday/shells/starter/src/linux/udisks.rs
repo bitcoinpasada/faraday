@@ -21,6 +21,7 @@ use std::path::PathBuf;
 
 use faraday_starter::api::{Bus, Disk, FaradayStick, InUse, Volume};
 
+use crate::gpt;
 use crate::writer::Identity;
 
 /// The interfaces' common prefix.
@@ -323,11 +324,25 @@ impl Objects {
             } else {
                 parts.iter().map(|p| volume(p)).collect()
             };
-            let names: Vec<String> = parts
+            // A Faraday stick by its layout alone
+            // (`docs/STICK-IDENTITY.md` §5.1): udisks2's `Partition.Type`
+            // is the GPT type GUID, `Offset` and `Size` in bytes.
+            let types: Vec<String> = parts
                 .iter()
-                .map(|p| self.str(p, "Partition", "Name"))
+                .map(|p| self.str(p, "Partition", "Type"))
                 .collect();
-            let boot = (names == ["FARADAYBOOT", "FARADAYDATA"]).then(|| BootPart {
+            let placed: Vec<gpt::Placed<'_>> = parts
+                .iter()
+                .zip(&types)
+                .map(|(p, t)| gpt::Placed {
+                    type_guid: t,
+                    offset: self.num(p, "Partition", "Offset"),
+                    len: self.num(p, "Partition", "Size"),
+                })
+                .collect();
+            let stick =
+                self.str(whole, "PartitionTable", "Type") == "gpt" && gpt::layout(&placed).is_ok();
+            let boot = stick.then(|| BootPart {
                 object: parts[0].to_string(),
                 mounted: self.mount_points(parts[0]).first().map(PathBuf::from),
             });

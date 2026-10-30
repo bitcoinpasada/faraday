@@ -423,6 +423,13 @@ strings! {
     starter_done_title: "Written",
     /// Result title.
     starter_failed_title: "Not written",
+    /// Result line: what the check after writing found
+    /// (docs/STICK-IDENTITY.md §4.3).
+    starter_checked: "Matches the release image, except this stick's own IDs, as expected",
+    /// Result line, for a stick written with a boot file the person signed.
+    starter_checked_signed: "Matches the release image, except this stick's own IDs and the boot file you signed, as expected",
+    /// Result line, for a Pi card.
+    starter_checked_card: "Matches the release image, except this card's own IDs, as expected",
     /// Result line.
     starter_pull_stick: "Keep the stick in to start this computer from it. To start another computer, pull it out.",
     /// Result line.
@@ -651,7 +658,7 @@ strings! {
     /// Reason. `{}` sizes.
     starter_why_boot_larger: "The image's boot partition ({}) is larger than the stick's ({})",
     /// Reason.
-    starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled FARADAYBOOT",
+    starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled EFI",
     /// Reason.
     starter_why_boot_short: "The boot partition image is shorter than one sector",
     /// Reason. `{}` device.
@@ -664,6 +671,11 @@ strings! {
     starter_why_back_differs: "Reading back {}: what was read differs from what was written at byte {}",
     /// Reason. `{}` device, `{}` the system's words.
     starter_why_back_failed: "Reading back {} failed: {}",
+    /// Reason. `{}` device, `{}` sum: what was read back, with the
+    /// image's own IDs put back (docs/STICK-IDENTITY.md §4.3).
+    starter_why_back_sum: "Reading back {}: with the image's own IDs put back, its SHA-256 is {}, not the image's",
+    /// Reason. `{}` the system's words.
+    starter_why_random: "This computer's randomness could not be read for the stick's own IDs: {}. Nothing was written.",
     /// Reason. `{}` the system's words.
     starter_why_source_read: "Reading the source failed: {}",
     /// Reason. `{}` the system's words.
@@ -752,24 +764,29 @@ strings! {
     starter_fault_entries_past_end: "its GPT entries lie past the end of the disk",
     /// Fault.
     starter_fault_entries_checksum: "its GPT entries' checksum is wrong",
-    /// Fault.
-    starter_fault_disk_uuid: "its disk UUID is not a Faraday stick's",
     /// Fault. `{}` count.
     starter_fault_partitions: "it has {} partitions, not two",
     /// Fault.
-    starter_fault_boot_name: "its first partition is not named FARADAYBOOT",
+    starter_fault_boot_type: "its first partition is not an EFI system partition",
     /// Fault.
-    starter_fault_boot_type: "its first partition is not a Faraday EFI system partition",
+    starter_fault_data_type: "its second partition is not a basic data partition",
     /// Fault.
-    starter_fault_data_type: "its second partition is not a Faraday FARADAYDATA partition",
-    /// Fault.
-    starter_fault_boot_damaged: "its FARADAYBOOT partition is damaged",
+    starter_fault_boot_damaged: "its boot partition is damaged",
     /// Fault. `{}` sizes.
-    starter_fault_boot_small: "its FARADAYBOOT partition ({}) is smaller than the image ({})",
-    /// Fault.
-    starter_fault_overlap: "its partitions overlap",
+    starter_fault_boot_small: "its boot partition ({}) is smaller than the image's ({})",
+    /// Fault: the first partition is not where a Faraday stick's is
+    /// (docs/STICK-IDENTITY.md §5.1).
+    starter_fault_boot_place: "its first partition is not 64 MiB at 1 MiB",
+    /// Fault: the second partition is not where a Faraday stick's is.
+    starter_fault_data_place: "its second partition is not 128 MiB at 65 MiB",
     /// Fault.
     starter_fault_boot_past_end: "its boot partition runs past its end",
+    /// Fault: an image that is not a Pi card's.
+    starter_fault_card_layout: "it is not two FAT partitions of 64 MiB and 128 MiB in an MBR",
+    /// Fault: an image whose partition has no FAT volume serial to change.
+    starter_fault_no_serial: "a partition holds no FAT volume serial",
+    /// Fault.
+    starter_fault_backup_table: "its backup GPT is not the same as its GPT",
     /// About row.
     starter_version: "Version",
     /// About row.

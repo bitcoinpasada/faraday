@@ -1029,33 +1029,56 @@ unmount what the desktop mounted from it; write; flush; read the whole
 write back and compare; ask the system to read the partition table
 again. *Keep data* writes the boot partition at its offset after the
 same partition-table checks as `faraday/image/stick-boot.sh`, and
-checks the partition table is unchanged afterwards: GPT with the disk
-UUID `46617261-6461-792D-5374-69636B000000` and exactly two partitions,
-`FARADAYBOOT` (an EFI system partition, `…000001`) and `FARADAYDATA`
-(`…000002`). A disk with any other layout or partition names is
-refused, and nothing is relabelled. A stick whose `FARADAYBOOT` is smaller than the image's 64 MiB,
-such as one made with a 48 MB boot partition before F80, is refused
-the same way, with both sizes. The source is
-decompressed from the payload while it is written, and the SHA-256 of
-the decompressed stream must equal the manifest's before the writer
-reports success.
+checks the partition table is unchanged afterwards. A Faraday stick is
+known by its layout alone (`docs/STICK-IDENTITY.md` §5.1, F174): GPT
+with exactly two partitions, an EFI system partition of 64 MiB at
+sector 2048 and a basic data partition of 128 MiB at sector 133120.
+Names, GUIDs and labels play no part, so a stick made before, named
+`FARADAYBOOT` and `FARADAYDATA` with F67's GUIDs, is known the same way.
+A disk with any other layout is refused, and nothing is relabelled. A
+stick whose boot partition is smaller than the image's 64 MiB, such as
+one made with a 48 MB boot partition before F80, is refused the same
+way, with both sizes. The image's boot partition must be FAT32
+labelled `EFI`. The source is decompressed from the payload while it
+is written, and the SHA-256 of the decompressed stream must equal the
+manifest's before the writer reports success.
+
+**Each stick's own IDs** (`docs/STICK-IDENTITY.md` §4, F174). Writing a
+whole stick, the Starter gives it a new disk GUID and partition GUIDs
+(version 4 in form), in the primary and the backup GPT with every CRC
+worked out again, and a new serial for each FAT volume, in its boot
+sector and its FAT32 backup; a Pi card gets a new MBR disk signature
+and new serials. They come from the system's randomness and are not
+secret. An image they have no place in (not a stick's layout or a Pi
+card's) is not written whole. They are patches on the stream, with a
+boot file the person signed (§4.5): written so and compared so when
+read back, and, with the image's own bytes put back in their places,
+the SHA-256 of what was read must be the manifest's. Done says
+"Matches the release image, except this stick's own IDs, as expected"
+(with "and the boot file you signed" before ", as expected" where there
+is one). *Keep data* writes no
+partition table: the stick keeps its GUIDs, and the new boot partition
+gets the serial the stick's had, read from its boot sector first.
 
 **What the Starter reads from a Faraday stick.** Only the boot
 partition, and only to learn which Faraday it holds: the build string
 (F5), compared by `faraday-core/src/build.rs`: the kernel release string in
 `EFI/BOOT/BOOTX64.EFI` on a stick, or `faraday-build.txt` on a Pi
-card (§1.3). On Linux it is read from the desktop's own mount of
-FARADAYBOOT; when FARADAYBOOT is not mounted, the Starter has udisks2 mount it
+card (§1.3). On Linux it is read from the desktop's own mount of the
+boot partition; when it is not mounted, the Starter has udisks2 mount it
 read-only without asking for a password (`auth.no_user_interaction`),
 reads it and unmounts it (batch L: opening the raw partition needs
 `OpenDevice`, whose polkit prompt would ask for a password just to list
-disks, and `faraday-fat` does not enter subdirectories; it only checks
-the boot sector's FARADAYBOOT label). A stick whose version cannot be read
+disks). A stick whose version cannot be read
 shows as one made before versions were recorded. That version is shown
 on Which stick and Confirm and drives the keep-data rules (§3.2).
-FARADAYDATA is never mounted, opened, read or written (§4.4).
+The data partition is never mounted, opened, read or written (§4.4).
+Each system's disk list gives the layout without a password: udisks2's
+`Partition.Type`, `Offset` and `Size`; `diskutil info`'s `Content`,
+`PartitionMapPartitionOffset` and `Size`; `IOCTL_DISK_GET_DRIVE_LAYOUT_EX`'s
+partition type, start and length.
 
-**On Windows** (owner, 2026-10-19, option (e), D22) FARADAYBOOT
+**On Windows** (owner, 2026-10-19, option (e), D22) the boot partition
 is an EFI system partition, which Windows lets only an elevated process
 read, so the Starter's own process cannot read the version. "Could not
 read" is kept apart from "no version on the stick": Home and Which stick
@@ -1064,7 +1087,7 @@ say "Faraday stick · version not read", never "0.1.0 or earlier".
 copy once with `--read-version` (the disk, its serial and size as
 listed, and the pipe to answer on); it checks the disk is still that one,
 reads the partition table as keep data checks it and up to the first 64
-MiB of FARADAYBOOT, and answers the release string found there
+MiB of the boot partition, and answers the release string found there
 (`faraday_boot::find_release`), or none for a stick made before versions
 were recorded. The Starter then applies the same rules as on Linux: the
 same build refused, an older Faraday over a newer stick warned about on
@@ -1114,15 +1137,17 @@ and dismount every volume on the disk and hold the locks for the whole
 write; write `\\.\PhysicalDriveN` unbuffered, write-through, in
 sector-aligned buffers; then `IOCTL_DISK_UPDATE_PROPERTIES`. Batch W
 records what Windows does with the stick after the write (drive letters
-given to FARADAYBOOT and FARADAYDATA, folders it writes such as `System Volume
-Information`) and reports it. FARADAYDATA keeps its drive letter: nothing
+given to the boot and data partitions, folders it writes such as `System Volume
+Information`) and reports it. The data partition keeps its drive letter: nothing
 sets the GPT "no drive letter" attribute, and Faraday reads what
 Windows writes there and ignores Windows' own files (§4.4; §12, D11).
 
 ### 4.4 Keep data
 
 Offered to everyone on a Faraday stick (F11). The writer never reads
-or writes FARADAYDATA. The fact the person should know is that plugging the
+or writes the data partition, and never the partition table: the stick
+keeps its own disk and partition GUIDs, and the new boot partition the
+FAT serial the old one had (`docs/STICK-IDENTITY.md` §4.4). The fact the person should know is that plugging the
 stick into this computer is what exposes it: the computer can read and
 write the data partition whatever the Starter does, and Windows mounts
 it with a drive letter. The vaults there are encrypted; the settings
@@ -1131,8 +1156,8 @@ Keep data is how a Faraday stick is upgraded: Faraday itself writes no
 boot partition, and the Starter checks every image against the
 release's manifest before it writes it (F128).
 
-**FARADAYDATA from Windows and macOS** (owner, 2026-10-19;
-D11). FARADAYDATA keeps the drive letter Windows gives it, so a person can
+**The data partition from Windows and macOS** (owner, 2026-10-19;
+D11). The data partition keeps the drive letter Windows gives it, so a person can
 put a PSBT, or any file, on a Faraday stick from Windows, and a Mac
 mounts it as it mounts any FAT volume. Faraday reads what they write
 there as it reads any file a person puts on a stick. What each writes
@@ -1176,7 +1201,7 @@ partition (F128).
   `.efi` files in the Downloads folder Transfer uses (`--downloads`),
   the newest first, by name; a file dropped on the window is taken as
   one tapped. The signed file reaches Downloads as any file does, from
-  the Faraday stick's FARADAYDATA or another stick. No system file
+  the Faraday stick's data partition or another stick. No system file
   dialog is opened.
 - **What is checked**, when it is tapped and again by the writer
   (`faraday/shells/starter/src/signed.rs`): its Authenticode image hash

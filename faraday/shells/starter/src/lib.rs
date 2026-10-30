@@ -4,8 +4,9 @@
 //! - [`payload`]: the payload built in (`FARADAY_STARTER_PAYLOAD`), and a
 //!   developer's image given with `--image`.
 //! - [`writer`]: the writer, the same on every system, over a
-//!   [`writer::Device`] each system opens its own way; [`gpt`] checks a
-//!   Faraday stick's partition table for keep data.
+//!   [`writer::Device`] each system opens its own way; [`gpt`] knows a
+//!   Faraday stick by its layout, and [`ids`] gives each stick and card
+//!   it writes its own IDs (`docs/STICK-IDENTITY.md`).
 //! - [`platform`]: the seam. Everything that differs between operating
 //!   systems is behind [`platform::Platform`]; [`linux`] is Linux's,
 //!   [`windows`] Windows', [`macos`] macOS's.
@@ -25,6 +26,7 @@
 //! desktop app is.
 
 pub mod gpt;
+pub mod ids;
 #[cfg(target_os = "linux")]
 pub mod linux;
 pub mod macos;

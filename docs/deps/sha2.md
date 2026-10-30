@@ -4,7 +4,10 @@
 
 **Purpose.** SHA-256 for BIP-39 checksums and dice-roll hashing, SHA-512
 as the PRF behind HMAC and PBKDF2 (`faraday_crypto::{sha256, hmac_sha512,
-pbkdf2_hmac_sha512}`).
+pbkdf2_hmac_sha512}`). In the Starter, the SHA-256 of a stick read back
+with the image's own IDs put back, hashed as it is read
+(`faraday/shells/starter/src/writer.rs`, `docs/STICK-IDENTITY.md` §4.3),
+as `faraday-payload` hashes the image it decompresses.
 
 **Why this crate.** RustCrypto's implementation: pure Rust, `no_std`,
 tested against the NIST vectors in its own suite and against the BIP-39

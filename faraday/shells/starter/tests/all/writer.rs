@@ -10,6 +10,12 @@ use faraday_starter_shell::gpt;
 use faraday_starter_shell::payload::{Image, Payload};
 use faraday_starter_shell::writer::{self, Device, Identity, Job};
 
+use crate::sticks::{
+    self, BASIC, BOOT_FIRST, DATA_FIRST, DATA_SECTORS, ESP, FILES, IDS, IMAGE, NAMES, SECTOR,
+    SERIALS, STICK, Sparse, boot_range, read, stick, stick_image, stick_with, unchanged,
+    untouched_outside,
+};
+
 const XZ: &[u8] = include_bytes!("../../../../faraday-payload/tests/vectors/fixture.img.xz");
 const XZ_SHA: &str = "d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f";
 const IMG_SHA: &str = "c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c";
@@ -141,6 +147,48 @@ fn payload_source() -> Confirmed {
     }
 }
 
+/// The Starter's payload carrying `image` as a release's stick image,
+/// and the order's source for it.
+pub(crate) fn release_payload(image: &Sparse) -> (Job, Confirmed) {
+    let img = image.to_vec();
+    let xz = sticks::stored_xz(&img);
+    let img_sha = sticks::sha(&img);
+    drop(img);
+    let manifest = format!(
+        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{img_sha}\t{}\t0.2.0+0123456789ab\n",
+        sticks::sha(&xz),
+        image.len,
+    );
+    let payload =
+        Payload::from_parts(manifest.as_bytes(), vec![(NAME.to_string(), xz)]).expect("a payload");
+    let job = payload.job(NAME, &img_sha).expect("carried");
+    let source = Confirmed::Payload {
+        name: NAME.to_string(),
+        inner_sha256: img_sha,
+    };
+    (job, source)
+}
+
+/// `image` as a developer's image file, hashed as `--image` hashes it,
+/// and the order's source for it.
+pub(crate) fn image_job(name: &str, image: &Sparse) -> (Image, Confirmed) {
+    let path = tmp(name);
+    image.write(&path);
+    let image = Image::hash(&path).expect("hashed");
+    let source = Confirmed::Image {
+        path: image.path.display().to_string(),
+        sha256: image.sum.sha256.to_string(),
+    };
+    (image, source)
+}
+
+/// A disk of `len` bytes at `name`, holding `disk`.
+pub(crate) fn disk_file(name: &str, disk: &Sparse) -> PathBuf {
+    let path = tmp(name);
+    disk.write(&path);
+    path
+}
+
 pub(crate) fn run(
     order: &WriteOrder,
     job: &Job,
@@ -156,19 +204,35 @@ pub(crate) fn run(
     (r, stages)
 }
 
+/// A blank disk of [`STICK`] bytes, with a mark past where the image
+/// ends that a whole write must leave.
+fn blank(name: &str) -> (PathBuf, Sparse) {
+    let mut d = Sparse::new(STICK);
+    d.put(IMAGE + 4096, &[0xEE; 4096]);
+    (disk_file(name, &d), d)
+}
+
+/// What a whole write left on the disk at `path`: the image's length of
+/// it, with the image's own IDs put back.
+fn written_with_ids_back(path: &Path, image: &Sparse) -> Vec<u8> {
+    let mut back = read(path, 0, image.len as usize);
+    sticks::ids_put_back(&mut back, image, &sticks::stick_id_places(image.len));
+    back
+}
+
 #[test]
-fn a_whole_write_from_the_payload_reads_back_equal() {
-    let path = tmp("whole");
-    std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
+fn a_whole_write_from_the_payload_reads_back_as_the_image_with_the_sticks_own_ids() {
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let (path, before) = blank("whole");
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(payload_source(), Mode::Whole);
-    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let order = disk.order(source, Mode::Whole);
     let (r, stages) = run(&order, &job, &mut disk);
     assert_eq!(r, Ok(()));
     assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
-    let after = std::fs::read(&path).expect("read");
-    assert_eq!(&after[..IMG_SIZE], fixture_img().as_slice());
-    assert!(after[IMG_SIZE..].iter().all(|&b| b == 0xEE));
+    // With the image's IDs put back, every byte is the image's.
+    assert!(written_with_ids_back(&path, &image) == image.to_vec());
+    untouched_outside(&before, &path, 0, IMAGE);
     assert_eq!(
         disk.calls,
         [
@@ -228,12 +292,12 @@ fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte(
 
 #[test]
 fn a_disk_that_is_another_once_opened_gets_no_byte() {
-    let path = tmp("swapped");
-    std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
-    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let (image, source) = image_job("swapped.img", &stick_image());
+    let job = Job::Image(image);
     for change in ["serial", "size", "device"] {
+        let (path, before) = blank(&format!("swapped-{change}"));
         let mut disk = FileDisk::new(&path);
-        let order = disk.order(payload_source(), Mode::Whole);
+        let order = disk.order(source.clone(), Mode::Whole);
         let mut other = disk.now.clone();
         match change {
             "serial" => other.serial = String::from("SERIAL2"),
@@ -248,247 +312,131 @@ fn a_disk_that_is_another_once_opened_gets_no_byte() {
             ["identity", "unmount", "open_write", "identity"],
             "{change}"
         );
-        assert!(
-            std::fs::read(&path)
-                .expect("read")
-                .iter()
-                .all(|&b| b == 0xEE),
-            "{change}"
-        );
+        unchanged(&before, &path);
     }
 }
 
 #[test]
 fn a_disk_that_reports_no_serial_is_written_as_any_other() {
-    let path = tmp("no-serial");
+    let image = stick_image();
+    let (img, source) = image_job("no-serial.img", &image);
+    let (path, _) = blank("no-serial");
+    let mut disk = FileDisk::new(&path);
+    disk.now.serial = String::new();
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &Job::Image(img), &mut disk);
+    assert_eq!(r, Ok(()));
+    assert!(written_with_ids_back(&path, &image) == image.to_vec());
+}
+
+#[test]
+fn an_image_with_no_place_for_a_sticks_own_ids_is_not_written_whole() {
+    // The payload fixture is text: no partition table at all.
+    let path = tmp("no-table");
     std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
     let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
     let mut disk = FileDisk::new(&path);
-    disk.now.serial = String::new();
     let order = disk.order(payload_source(), Mode::Whole);
     let (r, _) = run(&order, &job, &mut disk);
-    assert_eq!(r, Ok(()));
-    assert_eq!(
-        &std::fs::read(&path).expect("read")[..IMG_SIZE],
-        fixture_img().as_slice()
+    assert!(matches!(r, Err(Reason::NotStickImage(_))), "{r:?}");
+    assert_eq!(disk.calls, ["identity"]);
+    // A stick image whose data partition is elsewhere.
+    let mut moved = Sparse::new(IMAGE);
+    sticks::gpt(
+        &mut moved,
+        IDS[0],
+        &[
+            (ESP, IDS[1], BOOT_FIRST, DATA_FIRST - 1, NAMES[0]),
+            (
+                BASIC,
+                IDS[2],
+                DATA_FIRST + 2048,
+                DATA_FIRST + DATA_SECTORS - 1,
+                NAMES[1],
+            ),
+        ],
     );
+    let (img, source) = image_job("moved.img", &moved);
+    let (path, before) = blank("moved");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &Job::Image(img), &mut disk);
+    assert_eq!(r, Err(Reason::NotStickImage(StickFault::DataPlace)));
+    unchanged(&before, &path);
 }
 
 // ---- keep data ------------------------------------------------------------
 
-pub(crate) const SECTOR: u64 = 512;
-/// A small stick: 8 MiB, FARADAYBOOT at 1 MiB for 2 MiB, FARADAYDATA after it.
-pub(crate) const STICK: u64 = 8 << 20;
-pub(crate) const BOOT_FIRST: u64 = 2048;
-const BOOT_SECTORS: u64 = 4096;
-pub(crate) const DATA_FIRST: u64 = BOOT_FIRST + BOOT_SECTORS;
-const DATA_LAST: u64 = STICK / SECTOR - 34;
-
-/// A GUID string as GPT stores it.
-fn guid_bytes(s: &str) -> [u8; 16] {
-    let hex: Vec<u8> = s
-        .bytes()
-        .filter(|&c| c != b'-')
-        .collect::<Vec<_>>()
-        .chunks(2)
-        .map(|p| u8::from_str_radix(std::str::from_utf8(p).expect("hex"), 16).expect("hex"))
-        .collect();
-    let mut b = [0u8; 16];
-    b.copy_from_slice(&hex);
-    b[..4].reverse();
-    b[4..6].reverse();
-    b[6..8].reverse();
-    b
+/// A boot partition image of `len` bytes, as `-boot.vfat` is: a FAT32
+/// boot sector labelled EFI with its backup, with `serial`, then `fill`.
+fn boot_partition(len: usize, fill: u8, serial: u32) -> Sparse {
+    let mut s = Sparse::new(len as u64);
+    s.put(0, &vec![fill; len]);
+    sticks::fat(&mut s, 0, true, (len / 512) as u32, b"EFI        ", serial);
+    s
 }
 
-/// A stick image with Faraday's partition table (or another disk UUID),
-/// its data partition filled with `data`.
-pub(crate) fn stick_image(disk_uuid: &str, data: u8) -> Vec<u8> {
-    stick_layout(
-        [disk_uuid, gpt::BOOT_UUID, gpt::DATA_UUID],
-        ["FARADAYBOOT", "FARADAYDATA"],
-        data,
-    )
-}
-
-/// A stick image with the given disk, boot and data partition UUIDs and
-/// partition names, its data partition filled with `data`.
-fn stick_layout(
-    [disk_uuid, boot_uuid, data_uuid]: [&str; 3],
-    names: [&str; 2],
-    data: u8,
-) -> Vec<u8> {
-    let mut img = vec![0u8; STICK as usize];
-    let mut entries = vec![0u8; 128 * 128];
-    let mut entry = |i: usize, ty: &str, id: &str, first: u64, last: u64, name: &str| {
-        let e = &mut entries[i * 128..(i + 1) * 128];
-        e[..16].copy_from_slice(&guid_bytes(ty));
-        e[16..32].copy_from_slice(&guid_bytes(id));
-        e[32..40].copy_from_slice(&first.to_le_bytes());
-        e[40..48].copy_from_slice(&last.to_le_bytes());
-        for (k, u) in name.encode_utf16().enumerate() {
-            e[56 + 2 * k..58 + 2 * k].copy_from_slice(&u.to_le_bytes());
-        }
-    };
-    entry(
-        0,
-        gpt::ESP_TYPE,
-        boot_uuid,
-        BOOT_FIRST,
-        DATA_FIRST - 1,
-        names[0],
-    );
-    entry(
-        1,
-        "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7",
-        data_uuid,
-        DATA_FIRST,
-        DATA_LAST,
-        names[1],
-    );
-    let last = STICK / SECTOR - 1;
-    let header = |current: u64, backup: u64, entries_lba: u64| {
-        let mut h = vec![0u8; 92];
-        h[..8].copy_from_slice(b"EFI PART");
-        h[8..12].copy_from_slice(&0x0001_0000u32.to_le_bytes());
-        h[12..16].copy_from_slice(&92u32.to_le_bytes());
-        h[24..32].copy_from_slice(&current.to_le_bytes());
-        h[32..40].copy_from_slice(&backup.to_le_bytes());
-        h[40..48].copy_from_slice(&34u64.to_le_bytes());
-        h[48..56].copy_from_slice(&(last - 33).to_le_bytes());
-        h[56..72].copy_from_slice(&guid_bytes(disk_uuid));
-        h[72..80].copy_from_slice(&entries_lba.to_le_bytes());
-        h[80..84].copy_from_slice(&128u32.to_le_bytes());
-        h[84..88].copy_from_slice(&128u32.to_le_bytes());
-        h[88..92].copy_from_slice(&faraday_crypto::crc32(&entries).to_le_bytes());
-        let crc = faraday_crypto::crc32(&h);
-        h[16..20].copy_from_slice(&crc.to_le_bytes());
-        h
-    };
-    let primary = header(1, last, 2);
-    let backup = header(last, 1, last - 32);
-    img[512..512 + 92].copy_from_slice(&primary);
-    img[1024..1024 + entries.len()].copy_from_slice(&entries);
-    let b = ((last - 32) * SECTOR) as usize;
-    img[b..b + entries.len()].copy_from_slice(&entries);
-    img[(last * SECTOR) as usize..(last * SECTOR) as usize + 92].copy_from_slice(&backup);
-    let d = (DATA_FIRST * SECTOR) as usize;
-    let e = ((DATA_LAST + 1) * SECTOR) as usize;
-    img[d..e].fill(data);
-    img
-}
-
-/// A boot partition of `len` bytes: a FAT32 boot sector labelled
-/// FARADAYBOOT, then `fill`.
-fn boot_partition(len: usize, fill: u8) -> Vec<u8> {
-    let mut v = vec![fill; len];
-    v[..512].fill(0);
-    v[11..13].copy_from_slice(&512u16.to_le_bytes());
-    v[13] = 8;
-    v[66] = 0x29;
-    v[71..82].copy_from_slice(b"FARADAYBOOT");
-    v[82..90].copy_from_slice(b"FAT32   ");
-    v[510] = 0x55;
-    v[511] = 0xAA;
-    v
-}
-
-fn image_file(name: &str, bytes: &[u8]) -> Image {
-    let path = tmp(name);
-    std::fs::write(&path, bytes).expect("written");
-    Image::hash(&path).expect("hashed")
-}
-
-/// Every byte outside `[from, to)` is as it was.
-pub(crate) fn untouched_outside(before: &[u8], after: &[u8], from: usize, to: usize) {
-    assert_eq!(before.len(), after.len());
-    assert_eq!(
-        &before[..from],
-        &after[..from],
-        "bytes before the boot partition changed"
-    );
-    assert_eq!(
-        &before[to..],
-        &after[to..],
-        "bytes after the boot partition changed"
-    );
+/// `bytes` with the FAT32 serial at its boot sector and backup set to
+/// `serial`: what keep data writes.
+fn with_serial(mut bytes: Vec<u8>, serial: u32) -> Vec<u8> {
+    for at in [67, 6 * 512 + 67] {
+        bytes[at..at + 4].copy_from_slice(&serial.to_le_bytes());
+    }
+    bytes
 }
 
 #[test]
-fn keep_data_writes_only_the_boot_partition_and_leaves_every_byte_after_it() {
-    let path = tmp("keep-boot-only");
-    let before = stick_image(gpt::DISK_UUID, 0xDA);
-    std::fs::write(&path, &before).expect("a stick");
-    let image = image_file(
-        "faraday-x86_64-uefi-strict-dev-boot.vfat",
-        &boot_partition(1536 << 10, 0xB0),
-    );
+fn keep_data_writes_only_the_boot_partition_keeping_the_sticks_own_ids() {
+    let before = stick();
+    let path = disk_file("keep-boot-only", &before);
+    let boot = boot_partition(1536 << 10, 0xB0, 0x0B0B_0B0B);
+    let (image, source) = image_job("faraday-x86_64-uefi-strict-dev-boot.vfat", &boot);
     assert!(image.boot_only);
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(
-        Confirmed::Image {
-            path: image.path.display().to_string(),
-            sha256: image.sum.sha256.to_string(),
-        },
-        Mode::KeepData,
-    );
+    let order = disk.order(source, Mode::KeepData);
     let (r, _) = run(&order, &Job::Image(image.clone()), &mut disk);
     assert_eq!(r, Ok(()));
-    let after = std::fs::read(&path).expect("read");
-    let from = (BOOT_FIRST * SECTOR) as usize;
-    let to = from + image.sum.size as usize;
-    assert_eq!(
-        &after[from..to],
-        std::fs::read(&image.path).expect("read").as_slice()
-    );
-    untouched_outside(&before, &after, from, to);
+    let (from, _) = boot_range();
+    let to = from + image.sum.size;
+    // The boot partition's serial is the one the stick had.
+    assert!(read(&path, from, image.sum.size as usize) == with_serial(boot.to_vec(), SERIALS[0]));
+    // Its GUIDs and the data partition are as they were.
+    untouched_outside(&before, &path, from, to);
 }
 
 #[test]
 fn keep_data_from_a_whole_image_writes_only_its_boot_partition() {
-    let path = tmp("keep-whole");
-    let before = stick_image(gpt::DISK_UUID, 0xDA);
-    std::fs::write(&path, &before).expect("a stick");
-    // A new image: its boot partition new, its data partition empty.
-    let mut new = stick_image(gpt::DISK_UUID, 0x00);
-    let from = (BOOT_FIRST * SECTOR) as usize;
-    let to = (DATA_FIRST * SECTOR) as usize;
-    new[from..to].copy_from_slice(&boot_partition(to - from, 0xB1));
-    let image = image_file("faraday-x86_64-uefi-strict-dev.img", &new);
+    let before = stick();
+    let path = disk_file("keep-whole", &before);
+    // A new image: its own IDs and boot serial, its boot partition new,
+    // its data partition empty.
+    let mut new = stick_with(IMAGE, IDS, NAMES, 0);
+    let (from, to) = boot_range();
+    let boot = boot_partition((to - from) as usize, 0xB1, 0x0B0B_0B0B);
+    new.put(from, &boot.to_vec());
+    let (image, source) = image_job("faraday-x86_64-uefi-strict-dev.img", &new);
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(
-        Confirmed::Image {
-            path: image.path.display().to_string(),
-            sha256: image.sum.sha256.to_string(),
-        },
-        Mode::KeepData,
-    );
+    let order = disk.order(source, Mode::KeepData);
     let (r, _) = run(&order, &Job::Image(image), &mut disk);
     assert_eq!(r, Ok(()));
-    let after = std::fs::read(&path).expect("read");
-    assert_eq!(&after[from..to], &new[from..to]);
-    // The vaults and settings on FARADAYDATA keep their bytes.
-    untouched_outside(&before, &after, from, to);
+    assert!(read(&path, from, (to - from) as usize) == with_serial(boot.to_vec(), SERIALS[0]));
+    // The vaults and settings on the data partition keep their bytes.
+    untouched_outside(&before, &path, from, to);
 }
 
 #[test]
 fn keep_data_from_a_whole_image_counts_only_its_boot_partition_as_written() {
-    let path = tmp("keep-whole-progress");
-    std::fs::write(&path, stick_image(gpt::DISK_UUID, 0xDA)).expect("a stick");
-    let mut new = stick_image(gpt::DISK_UUID, 0x00);
-    let from = (BOOT_FIRST * SECTOR) as usize;
-    let to = (DATA_FIRST * SECTOR) as usize;
-    new[from..to].copy_from_slice(&boot_partition(to - from, 0xB2));
-    let image = image_file("faraday-x86_64-uefi-dev-progress.img", &new);
-    assert!(image.sum.size > (to - from) as u64);
-    let mut disk = FileDisk::new(&path);
-    let order = disk.order(
-        Confirmed::Image {
-            path: image.path.display().to_string(),
-            sha256: image.sum.sha256.to_string(),
-        },
-        Mode::KeepData,
+    let path = disk_file("keep-whole-progress", &stick());
+    let mut new = stick_image();
+    let (from, to) = boot_range();
+    new.put(
+        from,
+        &boot_partition((to - from) as usize, 0xB2, 1).to_vec(),
     );
+    let (image, source) = image_job("faraday-x86_64-uefi-dev-progress.img", &new);
+    assert!(image.sum.size > to - from);
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::KeepData);
     let mut seen = Vec::new();
     let r = writer::write(
         &order,
@@ -499,7 +447,7 @@ fn keep_data_from_a_whole_image_counts_only_its_boot_partition_as_written() {
         },
     );
     assert_eq!(r, Ok(()));
-    let boot = (to - from) as u64;
+    let boot = to - from;
     // Writing and reading back each count the boot partition, to its
     // end, and never the image's data partition.
     for stage in [WriteStage::Writing, WriteStage::ReadingBack] {
@@ -512,74 +460,110 @@ fn keep_data_from_a_whole_image_counts_only_its_boot_partition_as_written() {
     }
 }
 
-#[test]
-fn keep_data_over_a_disk_that_is_not_a_faraday_stick_writes_nothing() {
-    let path = tmp("keep-not-faraday");
-    let before = stick_image("11111111-2222-3333-4444-555555555555", 0xDA);
-    std::fs::write(&path, &before).expect("a disk");
-    let image = image_file("other-boot.vfat", &boot_partition(1 << 20, 0xB0));
-    let mut disk = FileDisk::new(&path);
-    let order = disk.order(
-        Confirmed::Image {
-            path: image.path.display().to_string(),
-            sha256: image.sum.sha256.to_string(),
-        },
-        Mode::KeepData,
+/// A disk with an EFI system partition and a basic data partition
+/// placed as another tool places them, or of other types.
+fn other_layout(boot_first: u64, data_first: u64, data_type: &str) -> Sparse {
+    let mut s = Sparse::new(STICK);
+    sticks::gpt(
+        &mut s,
+        IDS[0],
+        &[
+            (ESP, IDS[1], boot_first, data_first - 1, NAMES[0]),
+            (
+                data_type,
+                IDS[2],
+                data_first,
+                data_first + DATA_SECTORS - 1,
+                NAMES[1],
+            ),
+        ],
     );
-    let (r, _) = run(&order, &Job::Image(image), &mut disk);
-    assert!(
-        matches!(
-            r,
-            Err(Reason::NotStick {
-                fault: StickFault::DiskUuid,
-                ..
-            })
-        ),
-        "{r:?}"
+    s.put(data_first * SECTOR + FILES[0], &[0xDA; 4096]);
+    s
+}
+
+/// A stick with Faraday's boot partition and its data partition 1 MiB
+/// further on.
+fn data_moved() -> Sparse {
+    let mut s = Sparse::new(STICK);
+    let first = DATA_FIRST + 2048;
+    sticks::gpt(
+        &mut s,
+        IDS[0],
+        &[
+            (ESP, IDS[1], BOOT_FIRST, DATA_FIRST - 1, NAMES[0]),
+            (BASIC, IDS[2], first, first + DATA_SECTORS - 1, NAMES[1]),
+        ],
     );
-    assert_eq!(std::fs::read(&path).expect("read"), before);
+    s
 }
 
 #[test]
-fn keep_data_over_a_stick_of_another_layout_or_other_partition_names_writes_nothing() {
-    // Two partitions, an EFI system partition and a data partition, as
-    // another tool lays a stick out: another disk's UUIDs, or Faraday's
-    // UUIDs under other names.
-    let other = [
-        "0B9C1F2E-6D4A-4E8B-9F3C-2A7D5E1B8C40",
-        "0B9C1F2E-6D4A-4E8B-9F3C-2A7D5E1B8C41",
-        "0B9C1F2E-6D4A-4E8B-9F3C-2A7D5E1B8C42",
-    ];
-    let ours = [gpt::DISK_UUID, gpt::BOOT_UUID, gpt::DATA_UUID];
-    for (name, uuids, fault) in [
-        ("keep-other-table", other, StickFault::DiskUuid),
-        ("keep-other-names", ours, StickFault::BootName),
+fn keep_data_over_a_disk_of_another_layout_writes_nothing() {
+    let linux = "0FC63DAF-8483-4772-8E79-3D69D8477DE4";
+    for (name, before, fault) in [
+        (
+            "keep-at-2048",
+            other_layout(2048, DATA_FIRST + 2048, BASIC),
+            StickFault::BootPlace,
+        ),
+        ("keep-data-moved", data_moved(), StickFault::DataPlace),
+        (
+            "keep-linux-data",
+            other_layout(BOOT_FIRST, DATA_FIRST, linux),
+            StickFault::DataType,
+        ),
     ] {
-        let path = tmp(name);
-        let before = stick_layout(uuids, ["BOOT", "DATA"], 0xDA);
-        std::fs::write(&path, &before).expect("a stick");
-        let image = image_file(
+        let path = disk_file(name, &before);
+        let (image, source) = image_job(
             &format!("{name}-boot.vfat"),
-            &boot_partition(1536 << 10, 0xB0),
+            &boot_partition(1536 << 10, 0xB0, 1),
         );
         let mut disk = FileDisk::new(&path);
-        let order = disk.order(
-            Confirmed::Image {
-                path: image.path.display().to_string(),
-                sha256: image.sum.sha256.to_string(),
-            },
-            Mode::KeepData,
-        );
+        let order = disk.order(source, Mode::KeepData);
         let (r, _) = run(&order, &Job::Image(image), &mut disk);
         assert!(
             matches!(&r, Err(Reason::NotStick { fault: f, .. }) if *f == fault),
             "{name}: {r:?}"
         );
-        assert_eq!(std::fs::read(&path).expect("read"), before, "{name}");
+        unchanged(&before, &path);
     }
 }
 
+#[test]
+fn keep_data_over_a_stick_made_before_with_faradays_old_names_and_guids_is_written() {
+    // F67's GUIDs and names (docs/STICK-IDENTITY.md §5.4): the same
+    // layout, so the same stick.
+    let before = stick_with(
+        STICK,
+        [
+            "46617261-6461-792D-5374-69636B000000",
+            "46617261-6461-792D-5374-69636B000001",
+            "46617261-6461-792D-5374-69636B000002",
+        ],
+        ["FARADAYBOOT", "FARADAYDATA"],
+        0xDA,
+    );
+    let path = disk_file("keep-made-before", &before);
+    let (image, source) = image_job(
+        "made-before-boot.vfat",
+        &boot_partition(1536 << 10, 0xB0, 1),
+    );
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::KeepData);
+    let (r, _) = run(&order, &Job::Image(image), &mut disk);
+    assert_eq!(r, Ok(()));
+    let (from, to) = boot_range();
+    untouched_outside(&before, &path, from, to);
+}
+
 // ---- --image --------------------------------------------------------------
+
+fn image_file(name: &str, bytes: &[u8]) -> Image {
+    let path = tmp(name);
+    std::fs::write(&path, bytes).expect("written");
+    Image::hash(&path).expect("hashed")
+}
 
 #[test]
 fn image_gives_the_sha256sum_of_an_img_and_of_the_img_inside_an_xz() {
@@ -593,24 +577,16 @@ fn image_gives_the_sha256sum_of_an_img_and_of_the_img_inside_an_xz() {
 }
 
 #[test]
-fn a_developer_image_written_whole_reads_back_equal() {
-    let path = tmp("whole-image");
-    std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
-    let image = image_file("whole.img.xz", XZ);
+fn a_developer_image_written_whole_reads_back_as_it_with_the_sticks_own_ids() {
+    let image = stick_image();
+    let (img, source) = image_job("whole.img", &image);
+    let (path, before) = blank("whole-image");
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(
-        Confirmed::Image {
-            path: image.path.display().to_string(),
-            sha256: image.sum.sha256.to_string(),
-        },
-        Mode::Whole,
-    );
-    let (r, _) = run(&order, &Job::Image(image), &mut disk);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &Job::Image(img), &mut disk);
     assert_eq!(r, Ok(()));
-    assert_eq!(
-        &std::fs::read(&path).expect("read")[..IMG_SIZE],
-        fixture_img().as_slice()
-    );
+    assert!(written_with_ids_back(&path, &image) == image.to_vec());
+    untouched_outside(&before, &path, 0, IMAGE);
 }
 
 // ---- what a refusal reads as ------------------------------------------------
@@ -645,73 +621,83 @@ fn a_refused_write_reads_as_its_string_from_the_strings_file() {
 /// answers: an offset, a length and a buffer address all on a 4096-byte
 /// boundary. Anything else is refused, as the kernel refuses it (EINVAL),
 /// whatever the filesystem these tests run on allows.
-struct StrictDisk(std::io::Cursor<Vec<u8>>);
+struct StrictDisk {
+    disk: Sparse,
+    pos: u64,
+}
+
+impl StrictDisk {
+    fn new(disk: Sparse) -> StrictDisk {
+        StrictDisk { disk, pos: 0 }
+    }
+}
 
 impl std::io::Read for StrictDisk {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let pos = self.0.position();
-        if !pos.is_multiple_of(4096)
+        if !self.pos.is_multiple_of(4096)
             || !buf.len().is_multiple_of(4096)
             || !(buf.as_ptr() as usize).is_multiple_of(4096)
         {
             return Err(std::io::Error::from_raw_os_error(22));
         }
-        self.0.read(buf)
+        let n = (buf.len() as u64).min(self.disk.len.saturating_sub(self.pos)) as usize;
+        self.disk.read_at(self.pos, &mut buf[..n]);
+        self.pos += n as u64;
+        Ok(n)
     }
 }
 
 impl std::io::Seek for StrictDisk {
     fn seek(&mut self, to: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.0.seek(to)
+        self.pos = match to {
+            std::io::SeekFrom::Start(n) => n,
+            std::io::SeekFrom::End(d) => self.disk.len.saturating_add_signed(d),
+            std::io::SeekFrom::Current(d) => self.pos.saturating_add_signed(d),
+        };
+        Ok(self.pos)
     }
 }
 
 #[test]
 fn keep_data_checks_the_partition_table_with_reads_a_stick_accepts() {
-    let image = stick_image(gpt::DISK_UUID, 0xDA);
-    let table = gpt::read(
-        &mut |at, buf| {
-            buf.copy_from_slice(&image[at as usize..at as usize + buf.len()]);
-            Ok(())
-        },
-        image.len() as u64,
-    )
-    .expect("a Faraday stick's table");
-    let mut disk = StrictDisk(std::io::Cursor::new(image.clone()));
+    let image = stick();
+    let table = read_table(&image).expect("a Faraday stick's table");
+    let mut disk = StrictDisk::new(image.clone());
     let read = writer::regions(&mut disk, &table).expect("read the way a stick allows");
     let expected: Vec<Vec<u8>> = table
         .regions
         .iter()
-        .map(|&(from, to)| image[from as usize..to as usize].to_vec())
+        .map(|&(from, to)| image.bytes(from, (to - from) as usize))
         .collect();
     assert_eq!(read, expected);
 }
 
 /// `image` with the primary GPT header's eight-byte field at `at` set to
 /// `value` and the header's checksum written again.
-fn with_header_field(mut image: Vec<u8>, at: usize, value: u64) -> Vec<u8> {
-    image[512 + at..512 + at + 8].copy_from_slice(&value.to_le_bytes());
-    image[512 + 16..512 + 20].fill(0);
-    let crc = faraday_crypto::crc32(&image[512..512 + 92]);
-    image[512 + 16..512 + 20].copy_from_slice(&crc.to_le_bytes());
+fn with_header_field(mut image: Sparse, at: usize, value: u64) -> Sparse {
+    let mut h = image.bytes(512, 92);
+    h[at..at + 8].copy_from_slice(&value.to_le_bytes());
+    h[16..20].fill(0);
+    let crc = faraday_crypto::crc32(&h);
+    h[16..20].copy_from_slice(&crc.to_le_bytes());
+    image.put(512, &h);
     image
 }
 
 /// The table of `image`, read as a stick is: a read past its end fails.
-fn read_table(image: &[u8]) -> Result<gpt::Table, StickFault> {
+fn read_table(image: &Sparse) -> Result<gpt::Table, StickFault> {
     gpt::read(
         &mut |at, buf| {
-            let from = usize::try_from(at)
-                .ok()
-                .filter(|&a| {
-                    a.checked_add(buf.len())
-                        .is_some_and(|end| end <= image.len())
-                })
-                .ok_or_else(|| std::io::Error::other("past the end"))?;
-            buf.copy_from_slice(&image[from..from + buf.len()]);
+            if at
+                .checked_add(buf.len() as u64)
+                .is_none_or(|end| end > image.len)
+            {
+                return Err(std::io::Error::other("past the end"));
+            }
+            image.read_at(at, buf);
             Ok(())
         },
-        image.len() as u64,
+        image.len,
     )
 }
 
@@ -723,37 +709,32 @@ fn a_partition_table_whose_sectors_run_past_what_a_disk_addresses_is_refused() {
     let past = u64::MAX / SECTOR;
     // The backup header at the last addressable sector: past this stick's
     // end, so no backup region, but the table reads.
-    let image = with_header_field(stick_image(gpt::DISK_UUID, 0xDA), 32, past - 1);
+    let image = with_header_field(stick(), 32, past - 1);
     let table = read_table(&image).expect("a header whose backup is past the end reads");
     assert_eq!(table.regions.len(), 1);
     assert!(gpt::faraday_boot(&table, 0).is_ok());
     // One sector further, its end is past what 64 bits hold.
-    let image = with_header_field(stick_image(gpt::DISK_UUID, 0xDA), 32, past);
+    let image = with_header_field(stick(), 32, past);
     assert!(read_table(&image).is_err());
     // The entries the same way.
     for lba in [past + 1, u64::MAX] {
-        let image = with_header_field(stick_image(gpt::DISK_UUID, 0xDA), 72, lba);
+        let image = with_header_field(stick(), 72, lba);
         assert!(read_table(&image).is_err());
     }
 }
 
 /// A boot partition whose sectors run past what a disk addresses is
-/// damaged; one that ends at the last addressable byte is read.
+/// damaged, not wrapped round; one that ends at the last addressable
+/// byte is read, and is not where a Faraday stick's is.
 #[test]
 fn a_boot_partition_past_what_a_disk_addresses_is_damaged() {
-    let image = stick_image(gpt::DISK_UUID, 0xDA);
-    let mut table = read_table(&image).expect("a Faraday stick's table");
+    let mut table = read_table(&stick()).expect("a Faraday stick's table");
     let past = u64::MAX / SECTOR;
     table.parts[0].first = past - 10;
     table.parts[0].last = past - 1;
     table.parts[1].first = past;
-    assert_eq!(
-        gpt::faraday_boot(&table, 0),
-        Ok(gpt::Boot {
-            offset: (past - 10) * SECTOR,
-            len: 10 * SECTOR,
-        })
-    );
+    table.parts[1].last = past;
+    assert_eq!(gpt::faraday_boot(&table, 0), Err(StickFault::BootPlace));
     table.parts[0].first = past + 1;
     table.parts[0].last = past + 10;
     table.parts[1].first = past + 11;
@@ -769,49 +750,39 @@ fn an_image_that_ends_inside_a_block_is_written_to_a_disk_that_takes_whole_block
     // disk written straight to the disk, as macOS's raw disk is: the
     // write succeeds, the image is on the disk, and the rest of the last
     // block keeps what the disk held there.
-    let path = tmp("raw-blocks");
-    let before = vec![0xA5u8; 64 << 10];
-    std::fs::write(&path, &before).expect("a disk");
-    let mut bytes = fixture_img();
-    bytes.truncate(IMG_SIZE - 512 + 100);
-    let image = image_file("raw-blocks.img", &bytes);
+    let len = IMAGE + 100;
+    let mut image = stick_with(len, IDS, NAMES, 0);
+    image.put(IMAGE, &[0x5C; 100]);
+    let (img, source) = image_job("raw-blocks.img", &image);
+    let mut before = Sparse::new(STICK);
+    before.put(IMAGE - 8192, &[0xA5; 16384]);
+    let path = disk_file("raw-blocks", &before);
     let mut disk = FileDisk::new(&path);
     disk.raw = Some(4096);
-    let order = disk.order(
-        Confirmed::Image {
-            path: image.path.display().to_string(),
-            sha256: image.sum.sha256.to_string(),
-        },
-        Mode::Whole,
-    );
-    let (r, stages) = run(&order, &Job::Image(image), &mut disk);
+    let order = disk.order(source, Mode::Whole);
+    let (r, stages) = run(&order, &Job::Image(img), &mut disk);
     assert_eq!(r, Ok(()));
     assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
-    let after = std::fs::read(&path).expect("read");
-    assert_eq!(&after[..bytes.len()], bytes.as_slice());
-    untouched_outside(&before, &after, 0, bytes.len());
+    assert!(written_with_ids_back(&path, &image) == image.to_vec());
+    untouched_outside(&before, &path, 0, len);
 }
 
 // ---- which Faraday a stick holds, read by the elevated copy (#21) ---------
 
 /// A Faraday stick whose boot partition holds `release` as its kernel
 /// does, a string among other bytes, near the partition's end.
-fn stick_holding(release: &[u8]) -> Vec<u8> {
-    let mut image = stick_image(gpt::DISK_UUID, 0xDA);
-    let from = (BOOT_FIRST * SECTOR) as usize;
-    let to = (DATA_FIRST * SECTOR) as usize;
-    let mut boot = boot_partition(to - from, 0x00);
-    let at = boot.len() - 1003;
-    boot[at..at + release.len()].copy_from_slice(release);
-    image[from..to].copy_from_slice(&boot);
+fn stick_holding(release: &[u8]) -> Sparse {
+    let mut image = stick();
+    let (_, to) = boot_range();
+    image.put(to - 1003, release);
     image
 }
 
 #[test]
 fn the_elevated_copy_reads_which_faraday_a_stick_holds_from_its_boot_partition() {
-    let read = |image: Vec<u8>| {
-        let len = image.len() as u64;
-        writer::release_on_stick(&mut StrictDisk(std::io::Cursor::new(image)), len, "Disk 2")
+    let read = |image: Sparse| {
+        let len = image.len;
+        writer::release_on_stick(&mut StrictDisk::new(image), len, "Disk 2")
     };
     assert_eq!(
         read(stick_holding(
@@ -820,17 +791,16 @@ fn the_elevated_copy_reads_which_faraday_a_stick_holds_from_its_boot_partition()
         Ok(Some(String::from("6.6.84-faraday-0.2.0+0123456789ab.test")))
     );
     // A stick made before Faraday put its version there.
-    assert_eq!(read(stick_image(gpt::DISK_UUID, 0xDA)), Ok(None));
+    assert_eq!(read(stick()), Ok(None));
     // The data partition is not where the version is looked for.
-    let mut image = stick_image(gpt::DISK_UUID, 0xDA);
-    let d = (DATA_FIRST * SECTOR) as usize + 4096;
-    image[d..d + 22].copy_from_slice(b"\x006.6.84-faraday-0.9.0\x00");
+    let mut image = stick();
+    image.put(DATA_FIRST * SECTOR + 8192, b"\x006.6.84-faraday-0.9.0\x00");
     assert_eq!(read(image), Ok(None));
     // A disk that is not a Faraday stick says why.
     assert!(matches!(
-        read(stick_image("11111111-2222-3333-4444-555555555555", 0xDA)),
+        read(data_moved()),
         Err(Reason::NotStick {
-            fault: StickFault::DiskUuid,
+            fault: StickFault::DataPlace,
             ..
         })
     ));

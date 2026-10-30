@@ -7,7 +7,8 @@
 //! A disk is `\\.\PhysicalDriveN`: its storage descriptor
 //! (`IOCTL_STORAGE_QUERY_PROPERTY`: bus type, vendor, product, serial),
 //! its geometry (`IOCTL_DISK_GET_DRIVE_GEOMETRY_EX`: size) and its
-//! partitions (`IOCTL_DISK_GET_DRIVE_LAYOUT_EX`: offsets and GPT names).
+//! partitions (`IOCTL_DISK_GET_DRIVE_LAYOUT_EX`: types, offsets, lengths
+//! and GPT names).
 //! All three answer a handle opened with no access, so no elevation.
 //! A volume is where it lies (`IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS`),
 //! its label and file system, its drive letters and folders, and its NT
@@ -21,6 +22,7 @@ use faraday_core::strings::EN;
 use faraday_core::strings::fill;
 use faraday_starter::api::{Bus, Disk, FaradayStick, InUse, Volume};
 
+use crate::gpt;
 use crate::writer::Identity;
 
 /// `STORAGE_BUS_TYPE`: USB.
@@ -172,6 +174,9 @@ pub struct Partition {
     pub length: u64,
     /// The GPT name; empty on MBR.
     pub name: String,
+    /// The GPT type GUID (`PartitionType`), in `crate::gpt::guid`'s
+    /// form; on MBR the type byte in hex (`0C`).
+    pub type_guid: String,
 }
 
 /// A disk's partitions.
@@ -206,14 +211,14 @@ pub fn layout(b: &[u8]) -> Option<Layout> {
         let offset = u64_at(p, 8)?;
         let length = u64_at(p, 16)?;
         let number = u32_at(p, 24)?;
-        let name = match style {
+        let (name, type_guid) = match style {
             Style::Gpt => {
                 let units: Vec<u16> = p[72..144]
                     .chunks_exact(2)
                     .map(|c| u16::from_le_bytes([c[0], c[1]]))
                     .take_while(|&u| u != 0)
                     .collect();
-                String::from_utf16_lossy(&units)
+                (String::from_utf16_lossy(&units), gpt::guid(&p[32..48]))
             }
             _ => {
                 // 0: unused; 0x05 and 0x0F: an extended partition's
@@ -221,7 +226,7 @@ pub fn layout(b: &[u8]) -> Option<Layout> {
                 if matches!(p[32], 0x00 | 0x05 | 0x0f) || length == 0 {
                     continue;
                 }
-                String::new()
+                (String::new(), format!("{:02X}", p[32]))
             }
         };
         partitions.push(Partition {
@@ -229,6 +234,7 @@ pub fn layout(b: &[u8]) -> Option<Layout> {
             offset,
             length,
             name,
+            type_guid,
         });
     }
     partitions.sort_by_key(|p| p.offset);
@@ -419,9 +425,19 @@ impl Snapshot {
             } else {
                 parts.iter().map(|p| volume(at(p.offset))).collect()
             };
-            let names: Vec<&str> = parts.iter().map(|p| p.name.as_str()).collect();
+            // A Faraday stick by its layout alone
+            // (`docs/STICK-IDENTITY.md` §5.1): each partition's type,
+            // first byte and length.
+            let placed: Vec<gpt::Placed<'_>> = parts
+                .iter()
+                .map(|p| gpt::Placed {
+                    type_guid: &p.type_guid,
+                    offset: p.offset,
+                    len: p.length,
+                })
+                .collect();
             let faraday = table.as_ref().is_some_and(|l| l.style == Style::Gpt)
-                && names == ["FARADAYBOOT", "FARADAYDATA"];
+                && gpt::layout(&placed).is_ok();
             let boot = faraday
                 .then(|| at(parts[0].offset))
                 .flatten()
@@ -483,7 +499,7 @@ impl Snapshot {
     /// volume \\?\Volume{…}\
     ///   device \Device\HarddiskVolume7
     ///   extents …
-    ///   label FARADAYBOOT
+    ///   label EFI
     ///   filesystem FAT32
     ///   path E:\
     /// ```
@@ -612,7 +628,7 @@ fn unhex(s: &str) -> Option<Vec<u8>> {
 
 /// A Faraday stick as Windows reads it without elevation: the release
 /// string found on its boot volume, when Windows let it be read. Windows
-/// lets only an administrator read FARADAYBOOT, an EFI system partition,
+/// lets only an administrator read its boot partition, an EFI system partition,
 /// so nothing found is "not read", never a stick made
 /// before Faraday put its version there; keep data asks the elevated
 /// copy to read it.

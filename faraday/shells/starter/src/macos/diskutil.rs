@@ -26,10 +26,15 @@
 //!   partition, its GPT name: Apple's `iBootSystemContainer`,
 //!   `Container`, `RecoveryOSContainer` in Asahi's recording),
 //!   `TotalSize` and `Size` (an integer, or a real), `DeviceBlockSize`,
-//!   `FilesystemType`, `MountPoint`. From the same two sources, and
-//!   hst-imager's `diskutil-info-disk2-usb-stick.plist`,
+//!   `FilesystemType`, `MountPoint`, `Content` (on a whole disk its
+//!   scheme, `GUID_partition_scheme`; on a partition its type, `EFI`,
+//!   `Microsoft Basic Data` or the type's GUID) and, on a partition,
+//!   `PartitionMapPartitionOffset` (its first byte). From the same two
+//!   sources, and hst-imager's `diskutil-info-disk2-usb-stick.plist`,
 //!   `diskutil-info-disk0.plist`; Home Assistant's installer's fixtures
-//!   README for `Unknown`.
+//!   README for `Unknown`. `PartitionMapPartitionOffset` and the names
+//!   in `Content` are to be checked against a recording made on a Mac
+//!   (A3c).
 //!
 //! A disk is listed only when every key the rule needs is there and
 //! reads as expected, and `diskutil info` answered for each of its
@@ -48,6 +53,7 @@ use std::path::PathBuf;
 use faraday_starter::api::{Bus, Disk, FaradayStick, InUse, Volume};
 
 use super::plist::{self, Value};
+use crate::gpt;
 use crate::writer::Identity;
 
 /// Where macOS mounts what is plugged in: a volume mounted anywhere else
@@ -317,19 +323,24 @@ impl Answers {
                 .filter_map(|p| Some(volume(p, str_of(p, "DeviceIdentifier")?)))
                 .collect()
         };
-        // A Faraday stick, as Linux finds one: two partitions named
-        // FARADAYBOOT and FARADAYDATA (their GPT names, which IOKit gives the
-        // partitions' media).
-        let names: Vec<&str> = parts
+        // A Faraday stick, as Linux finds one: by its layout alone
+        // (`docs/STICK-IDENTITY.md` §5.1), from each partition's
+        // `Content` (its type: the name diskutil knows it by, or the
+        // GUID), `PartitionMapPartitionOffset` and `Size`, in bytes.
+        let placed: Option<Vec<gpt::Placed<'_>>> = parts
             .iter()
             .map(|p| {
-                self.info
-                    .get(*p)
-                    .and_then(|i| str_of(i, "IORegistryEntryName"))
-                    .unwrap_or("")
+                let i = self.info.get(*p)?;
+                Some(gpt::Placed {
+                    type_guid: part_type(str_of(i, "Content")?),
+                    offset: i.get("PartitionMapPartitionOffset")?.as_u64()?,
+                    len: i.get("Size")?.as_u64()?,
+                })
             })
             .collect();
-        let boot = (names == ["FARADAYBOOT", "FARADAYDATA"]).then(|| BootPart {
+        let stick = str_of(info, "Content") == Some("GUID_partition_scheme")
+            && placed.is_some_and(|p| gpt::layout(&p).is_ok());
+        let boot = stick.then(|| BootPart {
             id: parts[0].to_string(),
             mounted: items(entry, "Partitions")
                 .first()
@@ -380,6 +391,17 @@ impl Answers {
             },
             f.block,
         ))
+    }
+}
+
+/// A GPT partition's type from diskutil's `Content`: the name it gives
+/// the two types a Faraday stick has, and the GUID for one it has no
+/// name for.
+fn part_type(content: &str) -> &str {
+    match content {
+        "EFI" => gpt::ESP_TYPE,
+        "Microsoft Basic Data" => gpt::DATA_TYPE,
+        other => other,
     }
 }
 

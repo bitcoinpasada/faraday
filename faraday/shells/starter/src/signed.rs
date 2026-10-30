@@ -35,6 +35,7 @@ use faraday_payload::ImageKind;
 use faraday_sb::pe::{self, Signer, Transplant};
 use faraday_starter::api::{BootFile, BootSigner, Reason, ReleaseFault};
 
+use crate::ids::Patch;
 use crate::writer::{self, Job, Source};
 
 /// Where the boot file is in a stick's boot partition.
@@ -45,16 +46,6 @@ pub const MAX_BOOT_FILE: u64 = faraday_boot::MAX_PARTITION;
 
 /// The most characters of a certificate's name shown.
 const MAX_NAME: usize = 64;
-
-/// The release's boot partition with the signed file in it: where the
-/// partition starts in what the source writes, and its bytes.
-#[derive(Debug, Clone)]
-pub struct Patch {
-    /// The partition's first byte in the source's decompressed stream.
-    pub at: u64,
-    /// The partition as it is written.
-    pub bytes: Vec<u8>,
-}
 
 /// Opens a file to read: on Windows the file itself, never what a
 /// reparse point leads to.
@@ -206,7 +197,8 @@ pub fn choose(path: &Path, job: &Job) -> Result<(BootFile, BootSigner), Reason> 
 /// Costs a read of the boot file, a decompression of the whole source,
 /// its SHA-256 and [`build`]: the writer's own check of the boot file an
 /// order names, made before the disk is touched, and the boot partition
-/// it writes in place of the release's. Refused when the file is not
+/// it writes in place of the release's, with the release's own to put
+/// back (`crate::ids`, `docs/STICK-IDENTITY.md` §4.3). Refused when the file is not
 /// the bytes chosen, then as [`build`] refuses it.
 pub fn prepare(file: &BootFile, source: &Source<'_>) -> Result<Patch, Reason> {
     let signed = read(Path::new(&file.path))?;
@@ -215,6 +207,7 @@ pub fn prepare(file: &BootFile, source: &Source<'_>) -> Result<Patch, Reason> {
     }
     let (at, partition) = writer::boot_partition(source)?;
     let (built, _) = build(&release_file(&partition)?, &signed)?;
+    let was = partition.clone();
     let mut v = faraday_fat::Volume::open(partition)
         .map_err(|e| Reason::ReleaseBootFile(ReleaseFault::Fat(e)))?;
     v.rewrite_in(&BOOT_PATH, &built)
@@ -222,5 +215,6 @@ pub fn prepare(file: &BootFile, source: &Source<'_>) -> Result<Patch, Reason> {
     Ok(Patch {
         at,
         bytes: v.into_disk(),
+        was,
     })
 }

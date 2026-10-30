@@ -16,9 +16,11 @@ use faraday_starter_shell::payload::Payload;
 use faraday_starter_shell::signed::{self, BOOT_PATH};
 use faraday_starter_shell::writer::Job;
 
-use crate::writer::{
-    BOOT_FIRST, DATA_FIRST, FileDisk, SECTOR, run, stick_image, tmp, untouched_outside,
+use crate::sticks::{
+    BOOT_FIRST, DATA_FIRST, SECTOR, Sparse, ids_put_back, read, stick, stick_id_places,
+    stick_image, stored_xz, unchanged, untouched_outside,
 };
+use crate::writer::{FileDisk, run, tmp};
 
 const NOW: u64 = 1_791_000_000;
 const NAME: &str = "faraday-stick-0.3.0-x86_64-uefi-strict.img.xz";
@@ -73,7 +75,7 @@ fn release_program() -> Vec<u8> {
     program(1, 30_000)
 }
 
-/// A FAT32 boot partition of `len` bytes labelled FARADAYBOOT, as
+/// A FAT32 boot partition of `len` bytes labelled EFI, as
 /// `mkfs.fat` and `mcopy` make the stick's (`genimage.cfg`): 512-byte
 /// clusters, the root, `EFI` and `EFI/BOOT` folders first, then
 /// `BUILD.TXT`, then `BOOTX64.EFI` in a row, the rest free.
@@ -97,7 +99,7 @@ fn fat_boot(len: usize, efi: &[u8]) -> Vec<u8> {
     v[64] = 0x80;
     v[66] = 0x29;
     put32(&mut v, 67, 0x1234_5678);
-    v[71..82].copy_from_slice(b"FARADAYBOOT");
+    v[71..82].copy_from_slice(b"EFI        ");
     v[82..90].copy_from_slice(b"FAT32   ");
     v[510] = 0x55;
     v[511] = 0xAA;
@@ -126,7 +128,7 @@ fn fat_boot(len: usize, efi: &[u8]) -> Vec<u8> {
         v[at + 26..at + 28].copy_from_slice(&(first as u16).to_le_bytes());
         v[at + 28..at + 32].copy_from_slice(&size.to_le_bytes());
     };
-    entry(&mut v, cluster(2), b"FARADAYBOOT", 0x08, 0, 0);
+    entry(&mut v, cluster(2), b"EFI        ", 0x08, 0, 0);
     entry(&mut v, cluster(2) + 32, b"EFI        ", 0x10, 3, 0);
     entry(
         &mut v,
@@ -154,12 +156,12 @@ fn fat_boot(len: usize, efi: &[u8]) -> Vec<u8> {
     v
 }
 
-/// The release's stick image: Faraday's partition table, its boot
-/// partition holding `efi`, its data partition empty.
-fn release_image(efi: &[u8]) -> Vec<u8> {
-    let mut img = stick_image(faraday_starter_shell::gpt::DISK_UUID, 0);
+/// The release's stick image: Faraday's layout, its boot partition
+/// holding `efi`, its data partition empty.
+fn release_image(efi: &[u8]) -> Sparse {
+    let mut img = stick_image();
     let (from, to) = boot_range();
-    img[from..to].copy_from_slice(&fat_boot(to - from, efi));
+    img.put(from as u64, &fat_boot(to - from, efi));
     img
 }
 
@@ -168,54 +170,6 @@ fn boot_range() -> (usize, usize) {
         (BOOT_FIRST * SECTOR) as usize,
         (DATA_FIRST * SECTOR) as usize,
     )
-}
-
-/// `data` in an `.xz` whose LZMA2 chunks are stored, not compressed, as
-/// the xz format allows: what a release's payload file is, made here
-/// without an encoder.
-fn stored_xz(data: &[u8]) -> Vec<u8> {
-    let crc = faraday_crypto::crc32;
-    let varint = |out: &mut Vec<u8>, mut n: u64| {
-        while n >= 0x80 {
-            out.push((n as u8) | 0x80);
-            n >>= 7;
-        }
-        out.push(n as u8);
-    };
-    let mut x = vec![0xFD, b'7', b'z', b'X', b'Z', 0, 0, 0];
-    x.extend_from_slice(&crc(&[0, 0]).to_le_bytes());
-    // The block: its header (LZMA2, a 4 MiB dictionary), the chunks.
-    let mut header = vec![2u8, 0x00, 0x21, 0x01, 0x14, 0, 0, 0];
-    header.extend_from_slice(&crc(&header).to_le_bytes());
-    x.extend_from_slice(&header);
-    let mut body = 0u64;
-    for (k, chunk) in data.chunks(1 << 16).enumerate() {
-        x.push(if k == 0 { 0x01 } else { 0x02 });
-        x.extend_from_slice(&((chunk.len() - 1) as u16).to_be_bytes());
-        x.extend_from_slice(chunk);
-        body += 3 + chunk.len() as u64;
-    }
-    x.push(0x00);
-    body += 1;
-    while !x.len().is_multiple_of(4) {
-        x.push(0);
-    }
-    let mut index = vec![0u8];
-    varint(&mut index, 1);
-    varint(&mut index, header.len() as u64 + body);
-    varint(&mut index, data.len() as u64);
-    while !index.len().is_multiple_of(4) {
-        index.push(0);
-    }
-    let sum = crc(&index);
-    index.extend_from_slice(&sum.to_le_bytes());
-    x.extend_from_slice(&index);
-    let mut footer = ((index.len() / 4 - 1) as u32).to_le_bytes().to_vec();
-    footer.extend_from_slice(&[0, 0]);
-    x.extend_from_slice(&crc(&footer).to_le_bytes());
-    x.extend_from_slice(&footer);
-    x.extend_from_slice(b"YZ");
-    x
 }
 
 /// The SHA-256 and size of `bytes`, hex.
@@ -227,7 +181,7 @@ fn sum(bytes: &[u8]) -> (String, u64) {
 /// The Starter's payload carrying the release image of `efi`, and the
 /// order's source for it.
 fn release(efi: &[u8]) -> (Job, Confirmed) {
-    let img = release_image(efi);
+    let img = release_image(efi).to_vec();
     let xz = stored_xz(&img);
     let (xz_sha, _) = sum(&xz);
     let (img_sha, size) = sum(&img);
@@ -260,12 +214,12 @@ fn file(name: &str, bytes: &[u8]) -> PathBuf {
 }
 
 /// A stick that holds an older Faraday and the person's data.
-fn old_stick(name: &str) -> (PathBuf, Vec<u8>) {
+fn old_stick(name: &str) -> (PathBuf, Sparse) {
     let path = tmp(&format!("signed-stick-{name}"));
-    let mut before = stick_image(faraday_starter_shell::gpt::DISK_UUID, 0xDA);
+    let mut before = stick();
     let (from, to) = boot_range();
-    before[from..to].copy_from_slice(&fat_boot(to - from, &program(9, 20_000)));
-    std::fs::write(&path, &before).expect("a stick");
+    before.put(from as u64, &fat_boot(to - from, &program(9, 20_000)));
+    before.write(&path);
     (path, before)
 }
 
@@ -311,16 +265,17 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
     let order = keep_data(&disk, source.clone(), Some(chosen.clone()));
     let (r, _) = run(&order, &job, &mut disk);
     assert_eq!(r, Ok(()));
-    let after = std::fs::read(&stick).expect("read");
     let (from, to) = boot_range();
-    untouched_outside(&before, &after, from, to);
-    let written = after[from..to].to_vec();
+    untouched_outside(&before, &stick, from as u64, to as u64);
+    let written = read(&stick, from as u64, to - from);
     let mut v = Volume::open(written.clone()).expect("a FAT32 boot partition");
     assert_eq!(v.read_in(&BOOT_PATH, 64 << 20).expect("there"), signed);
     assert_eq!(v.read("BUILD.TXT", 1 << 20).expect("there"), BUILD);
     // Everything but the FATs, the folder's entry and the file's
-    // clusters is the release's, byte for byte.
-    let release = &release_image(&release_efi)[from..to];
+    // clusters is the release's, byte for byte; the boot serial is the
+    // stick's, which is the release's here.
+    let image = release_image(&release_efi);
+    let release = image.bytes(from as u64, to - from);
     let mut at = 0;
     for (a, b) in boot_file_places(to - from, signed.len()) {
         assert_eq!(written[at..a], release[at..a], "bytes {at}..{a} changed");
@@ -328,18 +283,21 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
     }
     assert_eq!(written[at..], release[at..], "bytes after the file changed");
 
-    // Written whole: the same boot partition, the release's table.
+    // Written whole: the same boot partition and the release's table,
+    // with this stick's own IDs.
     let blank = tmp("signed-blank");
-    std::fs::write(&blank, vec![0xEE; release_image(&release_efi).len()]).expect("a disk");
+    Sparse::new(image.len).write(&blank);
     let mut disk = FileDisk::new(&blank);
     let order = WriteOrder {
         boot_file: Some(chosen),
         ..disk.order(source, Mode::Whole)
     };
     assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
-    let whole = std::fs::read(&blank).expect("read");
+    let mut whole = read(&blank, 0, image.len as usize);
+    ids_put_back(&mut whole, &image, &stick_id_places(image.len));
     assert_eq!(whole[from..to], written[..]);
-    untouched_outside(&release_image(&release_efi), &whole, from, to);
+    let all = image.to_vec();
+    assert!(whole[..from] == all[..from] && whole[to..] == all[to..]);
 }
 
 #[test]
@@ -364,7 +322,7 @@ fn the_same_program_with_one_code_byte_changed_then_signed_is_refused() {
         }),
     );
     assert_eq!(run(&order, &job, &mut disk).0, Err(Reason::BootFileOther));
-    assert_eq!(std::fs::read(&stick).expect("read"), before);
+    unchanged(&before, &stick);
     assert_eq!(disk.calls, ["identity"]);
 }
 
@@ -388,7 +346,7 @@ fn the_releases_own_boot_file_unsigned_is_refused_as_one_signed() {
         run(&order, &job, &mut disk).0,
         Err(Reason::BootFileUnsigned)
     );
-    assert_eq!(std::fs::read(&stick).expect("read"), before);
+    unchanged(&before, &stick);
 }
 
 #[test]
@@ -454,7 +412,7 @@ fn a_signed_boot_file_with_more_than_one_signature_at_its_end_is_refused() {
             }),
         );
         assert_eq!(run(&order, &job, &mut disk).0, Err(why), "{name}");
-        assert_eq!(std::fs::read(&stick).expect("read"), before, "{name}");
+        unchanged(&before, &stick);
     }
 }
 
@@ -496,7 +454,7 @@ fn a_boot_file_changed_after_it_was_chosen_is_not_written() {
         run(&order, &job, &mut disk).0,
         Err(Reason::BootFileChanged(path.display().to_string()))
     );
-    assert_eq!(std::fs::read(&stick).expect("read"), before);
+    unchanged(&before, &stick);
 }
 
 #[test]
@@ -507,8 +465,10 @@ fn without_a_signed_boot_file_keep_data_writes_the_releases_boot_partition() {
     let mut disk = FileDisk::new(&stick);
     let order = keep_data(&disk, source, None);
     assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
-    let after = std::fs::read(&stick).expect("read");
     let (from, to) = boot_range();
-    untouched_outside(&before, &after, from, to);
-    assert_eq!(after[from..to], release_image(&release_efi)[from..to]);
+    untouched_outside(&before, &stick, from as u64, to as u64);
+    assert!(
+        read(&stick, from as u64, to - from)
+            == release_image(&release_efi).bytes(from as u64, to - from)
+    );
 }

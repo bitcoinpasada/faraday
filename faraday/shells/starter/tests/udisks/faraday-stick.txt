@@ -1,6 +1,7 @@
-# A Faraday stick, its two partitions where the desktop mounted them or
-# not: BOOT_MOUNT and DATA_MOUNT are replaced by the test with a folder,
-# or the MountPoints line is left empty.
+# A Faraday stick, its partitions named as an ordinary stick's are and known
+# by their layout (docs/STICK-IDENTITY.md §3, §5.1), where the desktop
+# mounted them or not: BOOT_MOUNT and DATA_MOUNT are replaced by the test
+# with a folder, or the MountPoints line is left empty.
 /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
   Drive
     Vendor s Acme
@@ -23,10 +24,13 @@
     Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
     IdUsage s filesystem
     IdType s vfat
-    IdLabel s FARADAYBOOT
+    IdLabel s EFI
   Partition
     Number u 1
-    Name s FARADAYBOOT
+    Name s EFI system partition
+    Type s c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+    Offset t 1048576
+    Size t 67108864
     Table o /org/freedesktop/UDisks2/block_devices/sdg
   Filesystem
     MountPoints aay BOOT_MOUNT
@@ -38,10 +42,12 @@
     Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
     IdUsage s filesystem
     IdType s vfat
-    IdLabel s FARADAYDATA
   Partition
     Number u 2
-    Name s FARADAYDATA
+    Name s Basic data partition
+    Type s ebd0a0a2-b9e5-4433-87c0-68b6b72699c7
+    Offset t 68157440
+    Size t 134217728
     Table o /org/freedesktop/UDisks2/block_devices/sdg
   Filesystem
     MountPoints aay DATA_MOUNT

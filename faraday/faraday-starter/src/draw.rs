@@ -713,6 +713,8 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::BackEnds { device, at } => fill(S.starter_why_back_ends, &[device, &n(*at)]),
         Reason::BackDiffers { device, at } => fill(S.starter_why_back_differs, &[device, &n(*at)]),
         Reason::BackFailed { device, detail } => fill(S.starter_why_back_failed, &[device, detail]),
+        Reason::BackSum { device, sha256 } => fill(S.starter_why_back_sum, &[device, sha256]),
+        Reason::Random(d) => fill(S.starter_why_random, &[d]),
         Reason::SourceRead(d) => fill(S.starter_why_source_read, &[d]),
         Reason::WriteFailed(d) => fill(S.starter_why_write_failed, &[d]),
         Reason::PayloadChanged => S.starter_why_payload_changed.to_string(),
@@ -770,17 +772,19 @@ fn fault_text(f: &StickFault) -> String {
         StickFault::EntriesDamaged => S.starter_fault_entries_damaged.to_string(),
         StickFault::EntriesPastEnd => S.starter_fault_entries_past_end.to_string(),
         StickFault::EntriesChecksum => S.starter_fault_entries_checksum.to_string(),
-        StickFault::DiskUuid => S.starter_fault_disk_uuid.to_string(),
         StickFault::Partitions(n) => fill(S.starter_fault_partitions, &[&n.to_string()]),
-        StickFault::BootName => S.starter_fault_boot_name.to_string(),
         StickFault::BootType => S.starter_fault_boot_type.to_string(),
         StickFault::DataType => S.starter_fault_data_type.to_string(),
         StickFault::BootDamaged => S.starter_fault_boot_damaged.to_string(),
         StickFault::BootSmall { boot, image } => {
             fill(S.starter_fault_boot_small, &[&bytes(*boot), &bytes(*image)])
         }
-        StickFault::Overlap => S.starter_fault_overlap.to_string(),
+        StickFault::BootPlace => S.starter_fault_boot_place.to_string(),
+        StickFault::DataPlace => S.starter_fault_data_place.to_string(),
         StickFault::BootPastEnd => S.starter_fault_boot_past_end.to_string(),
+        StickFault::CardLayout => S.starter_fault_card_layout.to_string(),
+        StickFault::NoSerial => S.starter_fault_no_serial.to_string(),
+        StickFault::BackupTable => S.starter_fault_backup_table.to_string(),
     }
 }
 
@@ -1282,6 +1286,14 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += 56.0;
     match &m.result {
         Some(Ok(())) => {
+            // What the check after writing compared
+            // (docs/STICK-IDENTITY.md §4.3).
+            let checked = match m.target {
+                Target::Pi => S.starter_checked_card,
+                Target::Stick if starter.boot_order().is_some() => S.starter_checked_signed,
+                Target::Stick => S.starter_checked,
+            };
+            y += line(ui, x, y, w, checked, Role::OnSurface) + GAP;
             let s = match m.target {
                 Target::Stick => S.starter_pull_stick,
                 Target::Pi => S.starter_pull_card,
