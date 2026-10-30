@@ -90,7 +90,7 @@ none is part of `just`, which stays fast.
    and pykeepass. A disagreement it finds is kept in
    its `found` folder with its seed and inputs
    (`docs/decisions/F79.md`). A full run also writes
-   `out/crosscheck-record.txt` (commit, seed, scale, date, each area's
+   `out/crosscheck-record.txt` (the tree it checked, seed, scale, date, each area's
    cases and answers, each reference's SHA-256, Core's tarball, the
    result); staging puts it beside `SHA256SUMS` as
    `crosscheck-<version>.txt`, listed there so it is signed, and the

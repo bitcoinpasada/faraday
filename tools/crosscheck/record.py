@@ -3,7 +3,8 @@
 carries beside SHA256SUMS to say what was checked.
 
 A full `just crosscheck --fresh` writes `out/crosscheck-record.txt`, plain
-text in a stable order: the commit, the seed, the scale and the UTC date;
+text in a stable order: the tree it checked, the seed, the scale and the UTC
+date;
 each area with its corpus cases, answers compared, known differences and
 result; each reference under `tools/reference/` with the commit its README
 names and the SHA-256 of its files, and Bitcoin Core's tarball with its
@@ -17,7 +18,9 @@ import datetime
 import hashlib
 import pathlib
 import re
+import os
 import subprocess
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REFERENCES = ROOT / "tools" / "reference"
@@ -31,13 +34,21 @@ def git(*args):
     return run.stdout.strip() if run.returncode == 0 else None
 
 
-def commit():
-    """Costs a git call. The commit the run was made at, marked when the
-    tree differs from it."""
-    head = git("rev-parse", "HEAD")
-    if not head:
-        return "unknown"
-    return head + (" (uncommitted changes)" if git("status", "--porcelain") else "")
+def tree():
+    """Costs a git index of the working tree. The git tree of the files as
+    they stand (what git would commit, ignored files left out): the
+    commit a release is made at has this tree when the record is its
+    cross-check, whichever commit the run's checkout stood on."""
+    with tempfile.TemporaryDirectory() as d:
+        env = dict(os.environ, GIT_INDEX_FILE=os.path.join(d, "index"))
+
+        def run(*args):
+            r = subprocess.run(["git", "-c", f"safe.directory={ROOT}", "-C", str(ROOT), *args],
+                               capture_output=True, text=True, env=env)
+            return r.stdout.strip() if r.returncode == 0 else None
+        if run("read-tree", "--empty") is None or run("add", "-A") is None:
+            return "unknown"
+        return run("write-tree") or "unknown"
 
 
 def folder_digest(folder):
@@ -72,7 +83,7 @@ def text(seed, scale, results, core, interpreters, jobs, allow_network=False, no
     """The record. `results` is each area's merged result, in the order run."""
     now = now or datetime.datetime.now(datetime.timezone.utc)
     out = ["Faraday crypto cross-check record",
-           f"commit {commit()}",
+           f"tree {tree()}",
            f"seed {seed}",
            f"scale {scale}",
            f"date {now.strftime('%Y-%m-%d %H:%M:%S')} UTC",

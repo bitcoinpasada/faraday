@@ -148,7 +148,8 @@ Writing them is a few small writes a second at most; it changes no case
 and no answer.
 
 A full `--fresh` run also writes `out/crosscheck-record.txt`
-(`record.py`), the release's record: commit, seed, scale and UTC date;
+(`record.py`), the release's record: the git tree it checked (what
+`git rev-parse <tag>^{tree}` gives for the release), seed, scale and UTC date;
 each area with its cases, answers, known differences and result; each
 reference folder with its commit and the SHA-256 of its files; Bitcoin
 Core's version and tarball SHA-256; and "every answer agreed" or the

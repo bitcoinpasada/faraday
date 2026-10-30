@@ -494,7 +494,7 @@ class Pool(unittest.TestCase):
                                 progress=folder)
         record = (folder.parent / "crosscheck-record.txt").read_text()
         self.assertEqual(r.returncode, 1)
-        for line in ("commit ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
+        for line in ("tree ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
                      "beta: mismatch", "tools/reference/bbqr  commit ",
                      "result: first disagreement in beta at case corpus:"):
             self.assertIn(line, record)

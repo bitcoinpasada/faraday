@@ -946,23 +946,30 @@ def run(args, areas, jobs, only, seed, scale, core):
             if r["status"] == "mismatch" and args.fresh:
                 report.append(keep(area, seed, scale, r))
     total = round(time.monotonic() - started, 1)
-    if args.fresh and not (args.area or args.case or args.no_self_test) and progress.dir:
-        # The release's record (record.py), beside the progress folder.
-        import record
-        (progress.dir.parent / record.NAME).write_text(
-            record.text(seed, scale, merged, core, list(interpreters.values()), jobs,
-                        args.allow_network))
+
+    def write_record():
+        # The release's record (record.py), beside the progress folder;
+        # after the stamp, so the tree it names holds the stamp the run
+        # wrote.
+        if args.fresh and not (args.area or args.case or args.no_self_test) and progress.dir:
+            import record
+            (progress.dir.parent / record.NAME).write_text(
+                record.text(seed, scale, merged, core, list(interpreters.values()), jobs,
+                            args.allow_network))
     if failed:
+        write_record()
         report.append(f"crosscheck: FAILED ({total} s); rerun with --seed {seed} to reproduce")
         return finish(progress, report, "failed", 1)
     report.append(f"crosscheck: every answer agrees ({total} s)")
     if args.area or args.case or args.allow_network or args.no_self_test \
             or args.seed and not args.fresh and args.seed != DEFAULT_SEED:
         report.append("crosscheck: no stamp written for a partial or non-default run")
+        write_record()
         return finish(progress, report, "passed", 0)
     import stamp
     stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases, core)
     report.append(f"crosscheck: stamp written to {stamp.STAMP.relative_to(common.ROOT)}")
+    write_record()
     return finish(progress, report, "passed", 0)
 
 

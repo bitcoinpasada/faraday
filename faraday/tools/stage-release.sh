@@ -63,8 +63,8 @@
 # out/crosscheck-record.txt; --crosscheck FILE names another) is staged
 # beside SHA256SUMS as crosscheck-VERSION.txt and listed in it, so it is
 # signed with the release. The first pass refuses a record that is missing,
-# that names another commit than HEAD, or whose result is not "every answer
-# agreed"; --any-build skips the record, for trying the script.
+# that names another tree than HEAD's, or whose result is not "every answer
+# agreed"; --any-build stages none, for trying the script.
 #
 # The images must carry VERSION as their build ID (a release build,
 # DECISIONS F5); --any-build skips that, for trying the script on a test
@@ -254,15 +254,19 @@ PY
     done
 
     commit="$(git rev-parse HEAD)"
-    # The cross-check's record: from this commit, and every answer agreed.
+    tree="$(git rev-parse 'HEAD^{tree}')"
+    # The cross-check's record: of this commit's tree, and every answer
+    # agreed. The tree, not the commit: the cross-check runs on the tree
+    # the release commit then records, and a builder's checkout stands on
+    # a commit of its own.
     # --any-build stages none, whatever out/ holds, so a trial staging
     # reads nothing a real run left there.
     have_record=0
     if [ "$any" = 1 ]; then
         :
     elif [ -f "$record" ]; then
-        [ "$(sed -n 's/^commit //p' "$record")" = "$commit" ] \
-            || unstage "$record is not the cross-check of commit $commit (just crosscheck --fresh)"
+        [ "$(sed -n 's/^tree //p' "$record")" = "$tree" ] \
+            || unstage "$record is not the cross-check of this tree, $tree (just crosscheck --fresh)"
         grep -qx 'result: every answer agreed' "$record" \
             || unstage "$record does not end in 'every answer agreed'"
         cp "$record" "$out/crosscheck-$version.txt"
