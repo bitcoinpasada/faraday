@@ -58,6 +58,9 @@ pub enum ScanPurpose {
     /// **Scan the public key** on Restore a GPG key: an armoured public
     /// key, filed in Files and restored from (`docs/GPG-PAPERKEY.md` §3).
     GpgPublic,
+    /// **Scan the paperkey** at a restore's step 4: paperkey's base16
+    /// lines or its raw form, every line checked into the restore set.
+    GpgPaperkey,
 }
 
 /// What the camera sheet holds.
@@ -718,11 +721,25 @@ impl Faraday {
 
     // ---- the scanner of a GPG key's restore (docs/GPG-PAPERKEY.md §3) ----
 
-    /// **Scan the public key** on Restore a GPG key: the camera, for the
-    /// public key to restore from. A lookup.
-    pub(crate) fn gpg_restore_scan(&mut self) {
+    /// **Scan the public key** on Restore a GPG key, or `paperkey`, **Scan
+    /// the paperkey** at step 4: the camera, for the public key to restore
+    /// from or for the paperkey. The paperkey's opens only where a key may
+    /// load (no stick in, as for a SeedQR) and step 4 takes its lines. A
+    /// lookup.
+    pub(crate) fn gpg_restore_scan(&mut self, paperkey: bool) {
+        let takes = self
+            .flows
+            .on()
+            .is_some_and(|i| self.flows.restore_typing(i));
+        if paperkey && !(takes && self.may_load_keys()) {
+            return;
+        }
         let mut scan = ScanState::default();
-        scan.purpose = ScanPurpose::GpgPublic;
+        scan.purpose = if paperkey {
+            ScanPurpose::GpgPaperkey
+        } else {
+            ScanPurpose::GpgPublic
+        };
         self.camera.open(scan);
         self.sheet = Some(Sheet::Scan);
         self.out
@@ -738,12 +755,13 @@ impl Faraday {
     /// the scanner, and the camera stays on. Whether the scanner was the
     /// restore's.
     pub(crate) fn gpg_restore_scanned(&mut self, bytes: &[u8]) -> bool {
-        if self
-            .camera
-            .scan()
-            .is_none_or(|s| s.purpose != ScanPurpose::GpgPublic)
-        {
-            return false;
+        match self.camera.scan().map(|s| s.purpose) {
+            Some(ScanPurpose::GpgPublic) => {}
+            Some(ScanPurpose::GpgPaperkey) => {
+                self.gpg_paperkey_scanned(bytes);
+                return true;
+            }
+            _ => return false,
         }
         let c = self.compute();
         let Some((named, _, data)) = self.read_code(zeroize::Zeroizing::new(bytes.to_vec())) else {
@@ -779,5 +797,35 @@ impl Faraday {
         }
         self.out.dirty = true;
         true
+    }
+
+    /// Costs a CRC-24 over each line of the code and over the whole. A code
+    /// read by the paperkey's scanner: every line it holds goes into the
+    /// restore set, checked as a line typed is, and the camera closes; a
+    /// code refused says why on the scanner and leaves the lines typed as
+    /// they were. Nothing is read while a stick is in.
+    fn gpg_paperkey_scanned(&mut self, bytes: &[u8]) {
+        let said = if !self.stick.is_empty() {
+            Err(crate::stick::keys_load(self.medium))
+        } else if let Some(i) = self.flows.on() {
+            self.flows.restore_code(i, bytes)
+        } else {
+            Err(EN.gpg_restore_not_paperkey.to_string())
+        };
+        match said {
+            Ok(()) => {
+                self.camera.close();
+                self.sheet = None;
+                self.out
+                    .commands
+                    .push_back(faraday_shell_api::Command::CameraOff);
+            }
+            Err(why) => {
+                if let Some(s) = self.camera.scan_mut() {
+                    s.note = Some(why);
+                }
+            }
+        }
+        self.out.dirty = true;
     }
 }

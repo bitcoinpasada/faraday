@@ -174,6 +174,48 @@ pub enum LineRefused {
     Paperkey(Refusal),
 }
 
+/// Why a paperkey read from a code is not taken. Public.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodeRefused {
+    /// Neither of paperkey's forms: no line numbered 1, and not its raw
+    /// form.
+    NotPaperkey,
+    /// Line `n` of the code is refused, as it would be typed.
+    Line(u32, LineRefused),
+    /// The data, read whole, is refused: its CRC or what it says.
+    Paperkey(Refusal),
+    /// The code ends before the whole data's CRC ("CRC of secret is
+    /// missing").
+    Short,
+    /// Line `n` follows the whole data's CRC.
+    After(u32),
+}
+
+/// Costs a CRC-24 over each line and over the whole. Whether a code is a
+/// paperkey, of any key, read as **Scan the paperkey** reads one: its
+/// base16 lines whole, or a first line numbered 1 that holds its CRC and
+/// starts with format 0 and key version 4 (a paperkey with a later line
+/// mistyped is still one), or its raw form whole. Secret key material, so
+/// no scanner files it (F167); what was read is wiped here. Public.
+pub fn is_paperkey(bytes: &[u8]) -> bool {
+    if bytes.starts_with(&[0, 4]) {
+        return paperkey::read_raw(bytes).is_ok_and(|d| paperkey::entries(&d).is_ok());
+    }
+    let Ok(text) = core::str::from_utf8(bytes) else {
+        return false;
+    };
+    if paperkey::read_text(text).is_ok() {
+        return true;
+    }
+    let first = text
+        .split('\n')
+        .map(str::trim_start)
+        .find(|t| !t.is_empty() && !t.starts_with('#'));
+    first.is_some_and(|t| {
+        t.starts_with("1:") && paperkey::line(1, t).is_ok_and(|l| l.bytes.starts_with(&[0, 4]))
+    })
+}
+
 /// A paperkey being typed back against its public certificate, line by
 /// line (`docs/GPG-PAPERKEY.md` §6): each line ended is checked at once by
 /// its CRC and by what the data's headers say, and its bytes kept here, in
@@ -255,35 +297,98 @@ impl Restore {
             return Err(LineRefused::Line(LineError::Number { typed: n }));
         }
         let read = paperkey::line(n, digits).map_err(LineRefused::Line)?;
-        let keys = [
-            self.certificate.fingerprint(),
-            self.certificate.subkey_fingerprint(),
-        ];
         if read.bytes.is_empty() {
-            // The whole data's CRC, then the data checked as all there.
-            if read.crc != faraday_pgp::crc24(&self.data) {
-                return Err(LineRefused::Paperkey(Refusal::Crc));
-            }
-            paperkey::check(&self.data, &keys, true).map_err(LineRefused::Paperkey)?;
-            self.done = true;
-            return Ok(());
+            self.take_whole_crc(read.crc)
+        } else {
+            self.take_line_bytes(&read.bytes)
         }
+        .map_err(LineRefused::Paperkey)
+    }
+
+    /// The bytes of a data line read, kept when the data they end with
+    /// passes the header checks; otherwise nothing of them kept.
+    fn take_line_bytes(&mut self, bytes: &[u8]) -> Result<(), Refusal> {
         let before = self.data.len();
-        if before + read.bytes.len() > RESTORE_CAP {
-            return Err(LineRefused::Paperkey(Refusal::Unreadable));
+        if before + bytes.len() > RESTORE_CAP {
+            return Err(Refusal::Unreadable);
         }
-        self.data.extend_from_slice(&read.bytes);
-        match paperkey::check(&self.data, &keys, false) {
+        self.data.extend_from_slice(bytes);
+        match paperkey::check(&self.data, &self.cert_keys(), false) {
             Ok(p) => {
                 self.progress = p;
-                self.lines.push(read.bytes.len());
+                self.lines.push(bytes.len());
                 Ok(())
             }
             Err(e) => {
                 self.cut(before);
-                Err(LineRefused::Paperkey(e))
+                Err(e)
             }
         }
+    }
+
+    /// The whole data's CRC, then the data checked as all there.
+    fn take_whole_crc(&mut self, crc: u32) -> Result<(), Refusal> {
+        if crc != faraday_pgp::crc24(&self.data) {
+            return Err(Refusal::Crc);
+        }
+        paperkey::check(&self.data, &self.cert_keys(), true)?;
+        self.done = true;
+        Ok(())
+    }
+
+    /// The certificate's two fingerprints, the primary key's first.
+    fn cert_keys(&self) -> [[u8; 20]; 2] {
+        [
+            self.certificate.fingerprint(),
+            self.certificate.subkey_fingerprint(),
+        ]
+    }
+
+    /// Costs a CRC-24 over each line and over the whole. A paperkey read
+    /// from a code (`docs/GPG-PAPERKEY.md` §11.2, P5): paperkey's base16
+    /// lines, comment lines and all, or its raw form. Every line is checked
+    /// as a line typed is, and the whole by its CRC and the headers; taken
+    /// whole in place of the lines typed so far, or refused with nothing of
+    /// it kept and the lines typed left as they were.
+    pub fn paperkey_code(&mut self, bytes: &[u8]) -> Result<(), CodeRefused> {
+        let mut read = Restore::new(self.certificate.clone());
+        if bytes.starts_with(&[0, 4]) {
+            let data = paperkey::read_raw(bytes).map_err(|e| match e {
+                paperkey::ReadError::CrcMissing => CodeRefused::Short,
+                _ => CodeRefused::Paperkey(Refusal::Crc),
+            })?;
+            for chunk in data.chunks(LINE_BYTES) {
+                read.take_line_bytes(chunk).map_err(CodeRefused::Paperkey)?;
+            }
+            let crc = faraday_pgp::crc24(&data);
+            read.take_whole_crc(crc).map_err(CodeRefused::Paperkey)?;
+        } else {
+            let text = core::str::from_utf8(bytes).map_err(|_| CodeRefused::NotPaperkey)?;
+            for l in text.split('\n') {
+                let l = l.strip_suffix('\r').unwrap_or(l);
+                let t = l.trim_start();
+                if t.is_empty() || t.starts_with('#') {
+                    continue;
+                }
+                let n = read.next();
+                // The first line of a paperkey is numbered 1.
+                if n == 1 && !t.starts_with("1:") {
+                    return Err(CodeRefused::NotPaperkey);
+                }
+                if read.done {
+                    return Err(CodeRefused::After(n));
+                }
+                read.line(n, l).map_err(|e| CodeRefused::Line(n, e))?;
+            }
+            if read.next() == 1 {
+                return Err(CodeRefused::NotPaperkey);
+            }
+            if !read.done {
+                return Err(CodeRefused::Short);
+            }
+        }
+        *self = read;
+        Ok(())
     }
 
     /// The data cut back to its first `len` bytes, the rest wiped.
@@ -304,11 +409,7 @@ impl Restore {
         self.lines.truncate(keep);
         let len = self.lines.iter().sum();
         self.cut(len);
-        let keys = [
-            self.certificate.fingerprint(),
-            self.certificate.subkey_fingerprint(),
-        ];
-        self.progress = paperkey::check(&self.data, &keys, false).unwrap_or_default();
+        self.progress = paperkey::check(&self.data, &self.cert_keys(), false).unwrap_or_default();
     }
 
     /// Every line forgotten and wiped, the certificate kept: what a lock

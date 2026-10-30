@@ -1877,7 +1877,7 @@ impl Faraday {
                 self.sheet = Some(Sheet::GpgRestore);
             }
             R::From(k) => self.gpg_restore_from(k),
-            R::Scan => self.gpg_restore_scan(),
+            R::Scan | R::ScanPaperkey => self.gpg_restore_scan(p == R::ScanPaperkey),
             R::Restore => self.gpg_restore_finish(),
             _ => {
                 if let Some(i) = self.fi() {

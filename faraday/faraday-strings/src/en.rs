@@ -2747,6 +2747,17 @@ strings! {
     gpg_restore_none: "Copy its public key in on a stick visit first.",
     /// The sheet's button and the title of the scanner it opens.
     gpg_restore_scan: "Scan the public key",
+    /// Step 4's button, while no line is checked, and the title of the
+    /// scanner it opens.
+    gpg_restore_scan_paperkey: "Scan the paperkey",
+    /// The paperkey scanner, on a code that is neither of paperkey's forms.
+    gpg_restore_not_paperkey: "Not a paperkey",
+    /// The paperkey scanner, on a code that ends before the whole data's
+    /// CRC: paperkey's words.
+    gpg_restore_crc_missing: "CRC of secret is missing",
+    /// The paperkey scanner, on a code with a line after the whole data's
+    /// CRC.
+    gpg_restore_after: "Line {} comes after the CRC of secret",
     /// The flow's head card.
     gpg_restore_public_key: "The public key",
     /// The head card's code box of line 1.
@@ -3925,6 +3936,8 @@ strings! {
     read_code_is_seedqr: "That is a SeedQR. Seeds go in through Add a key, not Files",
     /// Text in `read_code`.
     read_code_that_may: "That may be a CompactSeedQR. Seeds go in through Add a key, not Files",
+    /// Text in `read_code`: a paperkey read, filed nowhere.
+    read_code_is_paperkey: "That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files",
     /// Text in `read_code`. `{}`: `ur_type`.
     read_code_ur_unknown: "ur:{} is not a kind this build reads",
     // ----- ur_feed (faraday-core/src/lib.rs) -----

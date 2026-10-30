@@ -315,7 +315,7 @@ impl TransferArea {
         // asked, past the hold, and said to be one.
         let secret = wallet::classify(c, &name, &data).exposure() == Exposure::Secret
             || crate::seed_in_code(c, bytes).is_some()
-            || crate::secret_text(c, &String::from_utf8_lossy(&data)).is_some();
+            || crate::scan_key::secret_code(c, &data, &String::from_utf8_lossy(&data)).is_some();
         if secret {
             return Some((name, zeroize::Zeroizing::new(data)));
         }

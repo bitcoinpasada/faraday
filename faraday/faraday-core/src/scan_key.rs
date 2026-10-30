@@ -455,6 +455,17 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
     Ok(idx)
 }
 
+/// Costs what [`secret_text`] costs and a CRC-24 over a paperkey's lines.
+/// What a code that is a secret is named as: a GPG key's paperkey, in
+/// either of its forms (F167: no scanner files it), or what
+/// [`secret_text`] names in its text.
+pub(crate) fn secret_code(c: &Compute, bytes: &[u8], text: &str) -> Option<&'static str> {
+    if faraday_keys::gpg::is_paperkey(bytes) {
+        return Some(EN.read_code_is_paperkey);
+    }
+    secret_text(c, text)
+}
+
 /// Costs what `faraday_intake::secret_text` costs, and a WIF's checksum.
 /// Why scanned text is refused for holding a secret, never filed (F167):
 /// a seed's words, words of a BIP-39 list that are no English BIP-39 seed
@@ -638,9 +649,10 @@ impl Faraday {
                 | ScanPurpose::KeyPart
                 | ScanPurpose::WalletKey(_)
                 | ScanPurpose::GpgPublic => true,
-                ScanPurpose::VaultEntry | ScanPurpose::CheckCopy(_) | ScanPurpose::CheckCodex32 => {
-                    false
-                }
+                ScanPurpose::VaultEntry
+                | ScanPurpose::CheckCopy(_)
+                | ScanPurpose::CheckCodex32
+                | ScanPurpose::GpgPaperkey => false,
             })
     }
 

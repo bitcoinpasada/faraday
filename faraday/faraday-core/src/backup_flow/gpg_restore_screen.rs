@@ -249,6 +249,17 @@ fn typing(live: &RestoreLive, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         cy += GAP;
     }
     cy += button(ui, (x, cy), EN.gpg_restore_next, Style::Tonal, ra(R::Next));
+    // A paperkey's code fills every line, while none is checked yet.
+    if live.checked() == 0 {
+        let scan = ra(R::ScanPaperkey);
+        cy += button(
+            ui,
+            (x, cy),
+            EN.gpg_restore_scan_paperkey,
+            Style::Secondary,
+            scan,
+        );
+    }
     // Room under it for the next button's touch target.
     cy += GAP;
     cy - y

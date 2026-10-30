@@ -162,7 +162,7 @@ mod guide;
 pub mod pdf;
 pub mod picture;
 mod scan_key;
-use scan_key::{secret_text, what_instead_of_a_seed};
+use scan_key::what_instead_of_a_seed;
 mod screens;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
@@ -4475,8 +4475,8 @@ impl Faraday {
             return None;
         }
         // A wrong arrival is named, not refused generically (`docs/QR.md`
-        // §1): a seed's words or a private key never go in a box.
-        if let Some(why) = secret_text(&c, &text) {
+        // §1): a seed's words, a private key or a paperkey never go in a box.
+        if let Some(why) = scan_key::secret_code(&c, &bytes, &text) {
             scan.note = Some(why.to_string());
             return None;
         }

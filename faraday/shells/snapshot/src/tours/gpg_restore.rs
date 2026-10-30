@@ -2,7 +2,8 @@
 //! restored from its paperkey. The sheet of the public keys in Files, one
 //! that reads and one refused by its algorithm, and its scanner naming a
 //! code that is not a public key; the flow's head card with
-//! line 1 of the paperkey; step 4 with a line checked and one being typed;
+//! line 1 of the paperkey; step 4 before a line, with Scan the paperkey,
+//! then with a line checked and one being typed;
 //! a line in error; every line checked; and a key refused at **Restore the
 //! key**. The keys are GnuPG's, from `tools/vectors/paperkey/`: one of
 //! Faraday's shape with no passphrase, and an RSA key.
@@ -56,6 +57,8 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::Restore(R::Head)));
     t.shot("gpg-restore-2-head")?;
     t.press(Action::Flow(F::Restore(R::Head)));
+    // Step 4 with no line typed: Next line and Scan the paperkey.
+    t.shot("gpg-restore-2-step-four")?;
     let lines: Vec<&str> = PAPER
         .lines()
         .filter(|l| !l.starts_with('#') && !l.trim().is_empty())

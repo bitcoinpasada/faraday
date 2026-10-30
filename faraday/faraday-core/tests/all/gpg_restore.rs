@@ -432,6 +432,44 @@ fn learn_on_a_restore_opens_the_gpg_page() {
     assert_eq!(first, Some("GPG keys"));
 }
 
+/// paperkey 1.6's raw form of the same key (`--output-type raw`).
+const RAW: &[u8] = include_bytes!("../../../../tools/vectors/paperkey/faraday-key.raw");
+
+/// A paperkey's code scanned at step 4 (P5): offered while no line is
+/// checked; a code with a mistyped line is refused on the scanner at that
+/// line and the camera stays on; paperkey's printed lines, or its raw
+/// form, fill every line, checked, and the key restores from them.
+#[test]
+fn a_paperkey_scanned_at_step_four_fills_every_line() {
+    let k = paper_key();
+    for good in [PRINTED.as_bytes(), RAW] {
+        let mut app = with_test_vault();
+        let from = RestoreFrom::read(&cert_file(&k).1).unwrap();
+        restore_at_make(&mut app, from);
+        let press = Action::Flow(F::Restore(R::ScanPaperkey));
+        assert!(offered(&mut app, press), "{:?}", texts(&mut app));
+        app.press(press);
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        assert!(has(&mut app, "Scan the paperkey"));
+        let wrong = PRINTED.replacen("  3: 11", "  3: 12", 1);
+        scan(&mut app, wrong.as_bytes());
+        assert_eq!(
+            scan_note(&app).as_deref(),
+            Some("CRC on line 3 does not match")
+        );
+        assert_eq!(app.sheet, Some(Sheet::Scan), "the camera stays on");
+        scan(&mut app, good);
+        assert_eq!(app.sheet, None, "{:?}", scan_note(&app));
+        assert!(has(&mut app, "Line 7 · checked"), "{:?}", texts(&mut app));
+        assert!(!offered(&mut app, press), "no second code over the lines");
+        app.press(Action::Flow(F::Restore(R::Restore)));
+        assert!(app.flow().unwrap().made, "{:?}", texts(&mut app));
+        let records = gpg_records(&app);
+        let kept = gpg_key_of(records.last().unwrap()).expect("a key");
+        assert_eq!(kept.fingerprint(), k.fingerprint());
+    }
+}
+
 /// What the page drawn now has cut off at its sides, from its top to its
 /// foot.
 fn cut_off(app: &mut Faraday, what: &str) -> Vec<String> {

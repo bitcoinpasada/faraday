@@ -9,7 +9,7 @@
 //! that saves the key into the vaults is `steps.rs`.
 
 use faraday_crypto::work::Compute;
-use faraday_keys::gpg::{LineError, LineRefused, Restore, Restored};
+use faraday_keys::gpg::{CodeRefused, LineError, LineRefused, Restore, Restored};
 use faraday_pgp::{Armor, Certificate, Refusal, fingerprint_text};
 use faraday_shell_api::Key as KeyIn;
 
@@ -322,6 +322,19 @@ impl RestoreLive {
         }
     }
 
+    /// Costs a CRC-24 over each line and over the whole. A paperkey read
+    /// from a code: every line taken at once, in place of those typed, or
+    /// why not, those typed kept.
+    fn paperkey_code(&mut self, bytes: &[u8]) -> Result<(), String> {
+        self.set.paperkey_code(bytes).map_err(|e| code_text(&e))?;
+        self.sync_shown();
+        self.typed.clear();
+        self.error = None;
+        self.refused = None;
+        self.in_vault = None;
+        Ok(())
+    }
+
     /// Line `n` and those after it cleared, to be typed again.
     fn again(&mut self, n: u32) {
         self.set.again(n);
@@ -390,6 +403,17 @@ fn line_text(n: u32, e: &LineRefused) -> String {
         }
         LineRefused::Line(LineError::Crc) => fill(EN.gpg_restore_crc, &[&n.to_string()]),
         LineRefused::Paperkey(r) => refusal_text(r),
+    }
+}
+
+/// What a paperkey code refused says.
+fn code_text(e: &CodeRefused) -> String {
+    match e {
+        CodeRefused::NotPaperkey => EN.gpg_restore_not_paperkey.to_string(),
+        CodeRefused::Line(n, e) => line_text(*n, e),
+        CodeRefused::Paperkey(r) => refusal_text(r),
+        CodeRefused::Short => EN.gpg_restore_crc_missing.to_string(),
+        CodeRefused::After(n) => fill(EN.gpg_restore_after, &[&n.to_string()]),
     }
 }
 
@@ -484,6 +508,17 @@ impl BackupFlowArea {
             && self
                 .restoring(i)
                 .is_some_and(|r| r.focused && !r.complete())
+    }
+
+    /// Costs what `RestoreLive::paperkey_code` costs. A paperkey code read for flow
+    /// `i`'s step 4: its lines taken, or why not.
+    pub(crate) fn restore_code(&mut self, i: usize, bytes: &[u8]) -> Result<(), String> {
+        if !self.restore_typing(i) {
+            return Err(EN.gpg_restore_not_paperkey.to_string());
+        }
+        self.restoring_mut(i)
+            .ok_or_else(|| EN.gpg_restore_not_paperkey.to_string())?
+            .paperkey_code(bytes)
     }
 
     /// A key typed while step 4's line takes typing; whether it took it.

@@ -630,3 +630,119 @@ fn packets_of(armoured: &str) -> Vec<u8> {
     }
     out
 }
+
+/// paperkey 1.6's output for the key of [`paper_made`]: its base16 lines,
+/// comment header and all, and its raw form
+/// (`tools/vectors/paperkey/README.md`).
+const PRINTED: &str = include_str!("../../../tools/vectors/paperkey/faraday-key.txt");
+const RAW: &[u8] = include_bytes!("../../../tools/vectors/paperkey/faraday-key.raw");
+
+/// The key paperkey printed [`PRINTED`] and [`RAW`] from, as Make makes it
+/// (`faraday-pgp`'s example `paperkey_inputs`).
+fn paper_made() -> faraday_keys::gpg::Made {
+    let mut primary = zeroize::Zeroizing::new([0x11u8; 32]);
+    primary[0] = 0;
+    let mut subkey = zeroize::Zeroizing::new([0x22u8; 32]);
+    subkey[..2].fill(0);
+    faraday_keys::gpg::create(
+        &primary,
+        &subkey,
+        MADE,
+        "Test Person <test@example.com>".to_string(),
+        2 * YEAR,
+    )
+}
+
+/// The base16 lines of [`PRINTED`], its comments left out.
+fn printed_lines() -> Vec<&'static str> {
+    PRINTED
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.trim().is_empty())
+        .collect()
+}
+
+/// A paperkey read from a code: paperkey 1.6's base16 lines, comments and
+/// all, and its raw form each fill every line, checked, and restore the
+/// record that typing the lines restores.
+#[test]
+fn a_paperkey_code_in_either_of_paperkeys_forms_restores_the_key() {
+    let c = compute();
+    let made = paper_made();
+    let typed = {
+        let mut r = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
+        for (i, l) in printed_lines().into_iter().enumerate() {
+            r.line(i as u32 + 1, l).expect("each line is taken");
+        }
+        r.finish(&c).expect("restored from the lines")
+    };
+    for code in [PRINTED.as_bytes(), RAW] {
+        let mut r = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
+        r.paperkey_code(code).expect("the code is taken");
+        assert!(r.complete());
+        assert_eq!(r.checked(), 7, "every line, the CRC line included");
+        assert_eq!(
+            r.fingerprints(),
+            &[made.facts.fingerprint, made.facts.subkey_fingerprint]
+        );
+        let restored = r.finish(&c).expect("restored from the code");
+        assert_eq!(restored.made.certificate, made.certificate);
+        assert_eq!(restored.made.certificate, typed.made.certificate);
+        assert_eq!(restored.made.facts.fingerprint, made.facts.fingerprint);
+    }
+}
+
+/// A paperkey code that does not hold is refused where typing it would
+/// be, and the lines typed before it are left as they were.
+#[test]
+fn a_paperkey_code_that_does_not_hold_is_refused_and_keeps_the_lines_typed() {
+    use faraday_keys::gpg::{CodeRefused, LineRefused};
+    use faraday_pgp::Refusal;
+    use faraday_pgp::paperkey::LineError;
+    let made = paper_made();
+    let mut r = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
+    r.line(1, printed_lines()[0]).expect("line 1");
+    // A digit changed on line 3: refused at line 3, as paperkey refuses it.
+    let wrong = PRINTED.replacen("  3: 11", "  3: 12", 1);
+    assert_eq!(
+        r.paperkey_code(wrong.as_bytes()),
+        Err(CodeRefused::Line(3, LineRefused::Line(LineError::Crc)))
+    );
+    // A byte of the raw form changed: its CRC does not match.
+    let mut raw = RAW.to_vec();
+    raw[30] ^= 1;
+    assert_eq!(
+        r.paperkey_code(&raw),
+        Err(CodeRefused::Paperkey(Refusal::Crc))
+    );
+    // The lines without the whole data's CRC.
+    let cut: String = printed_lines()[..6]
+        .iter()
+        .map(|l| format!("{l}\n"))
+        .collect();
+    assert_eq!(r.paperkey_code(cut.as_bytes()), Err(CodeRefused::Short));
+    // Something after the whole data's CRC.
+    let more = format!("{PRINTED}  8: 00 000000\n");
+    assert_eq!(r.paperkey_code(more.as_bytes()), Err(CodeRefused::After(8)));
+    // Something else entirely.
+    assert_eq!(
+        r.paperkey_code(b"cHNidP8BAH0CAAAAAQ"),
+        Err(CodeRefused::NotPaperkey)
+    );
+    // Another key's paperkey: refused at line 1.
+    let other = gpg_made();
+    let mut theirs = faraday_keys::gpg::Restore::new(read_cert(&other.certificate));
+    assert!(matches!(
+        theirs.paperkey_code(PRINTED.as_bytes()),
+        Err(CodeRefused::Line(
+            1,
+            LineRefused::Paperkey(Refusal::OtherKey(_))
+        ))
+    ));
+    assert!(matches!(
+        theirs.paperkey_code(RAW),
+        Err(CodeRefused::Paperkey(Refusal::OtherKey(_)))
+    ));
+    // Line 1 typed before is still there.
+    assert_eq!(r.checked(), 1);
+    assert_eq!(r.next(), 2);
+}

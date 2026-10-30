@@ -98,6 +98,7 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 | Words of a BIP-39 list that are no English BIP-39 seed (checksum failing, aezeed, Electrum) | Named; never filed (F167) |
 | `otpauth://` URI, vault entries | A new entry, filled in, or the entries, in the open vault; with none open, the scanner says to unlock one, and What do you have? says it is not used there; never filed (F167) |
 | Armoured GPG public key, read by Restore a GPG key's **Scan the public key** | Files, as `{name}-{fp8}.asc` (the name Make gives it), and the restore opens on it; one that is not restored here is filed and the sheet says why (`docs/GPG-PAPERKEY.md` §3) |
+| GPG paperkey: paperkey's base16 lines, or its raw form | Taken only by a GPG restore's **Scan the paperkey**, at Type the paperkey; any other scanner names it, "That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files", and files nothing (F167) |
 | Faraday file envelope | The Inbox, after its SHA-256 is checked |
 | Codes read from an image file on a stick | Routed one by one by the rows above, as if scanned |
 | Address, silent payment address | **Is this address mine?** |

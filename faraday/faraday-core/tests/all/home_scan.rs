@@ -236,6 +236,37 @@ fn words_whose_checksum_fails_scanned_on_home_are_named_and_not_filed() {
     named_not_filed(&app, "checksum fails");
 }
 
+/// paperkey 1.6's printed lines and its raw form of one key
+/// (`tools/vectors/paperkey/`).
+const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");
+const PAPERKEY_RAW: &[u8] = include_bytes!("../../../../tools/vectors/paperkey/faraday-key.raw");
+
+/// A paperkey, a GPG key's secret, scanned on Home's Scan or Files' own
+/// scanner, in either of paperkey's forms or with a later line mistyped,
+/// is named with where it is taken and never filed (F167).
+#[test]
+fn a_paperkey_scanned_on_home_or_in_files_is_named_and_not_filed() {
+    let mistyped = PAPERKEY.replacen("  3: 11", "  3: 12", 1);
+    assert_ne!(mistyped, PAPERKEY, "the vector's line 3 changed");
+    for screen in [Screen::Home, Screen::Files] {
+        for code in [PAPERKEY.as_bytes(), PAPERKEY_RAW, mistyped.as_bytes()] {
+            let mut app = testkit::started();
+            app.press(Action::Nav(screen));
+            app.press(Action::Scan);
+            assert_eq!(
+                app.sheet,
+                Some(Sheet::Scan),
+                "{screen:?}'s Scan did not open"
+            );
+            app.event(Event::Scanned {
+                bytes: code.to_vec(),
+            });
+            let _ = app.frame();
+            named_not_filed(&app, "That is a paperkey. Restore a GPG key takes it");
+        }
+    }
+}
+
 #[test]
 fn files_own_scanner_routes_a_share_and_a_totp_code_as_homes_does() {
     let mut app = testkit::started();
