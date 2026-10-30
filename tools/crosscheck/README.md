@@ -147,6 +147,14 @@ done, cases a second, workers busy, an estimate of the time left);
 Writing them is a few small writes a second at most; it changes no case
 and no answer.
 
+A full `--fresh` run also writes `out/crosscheck-record.txt`
+(`record.py`), the release's record: commit, seed, scale and UTC date;
+each area with its cases, answers, known differences and result; each
+reference folder with its commit and the SHA-256 of its files; Bitcoin
+Core's version and tarball SHA-256; and "every answer agreed" or the
+first disagreement. `faraday/tools/stage-release.sh` stages it as
+`crosscheck-<version>.txt` beside `SHA256SUMS`, listed in it.
+
 ## The self-test
 
 Before every run, each area runs against the Rust command started with
@@ -683,6 +691,7 @@ needs `gpg` and `git` (above).
 | `Cargo.toml`, `src/` | `faraday-crosscheck`, the Rust command: one JSON request a line in, one answer out; never shipped |
 | `run.sh` | builds the command offline and runs `crosscheck.py` with no network |
 | `crosscheck.py` | the self-test, the batches on the pool of workers, the progress, the report, the stamp |
+| `record.py` | the release's record, `out/crosscheck-record.txt`, written by a full `--fresh` run |
 | `status.py` | reads a run's progress (`just crosscheck-status`) |
 | `identity.py` | the real areas under several worker counts and Pythons, reports compared (`just crosscheck-identity`) |
 | `common.py` | the Rust process, the comparison, the reference check |

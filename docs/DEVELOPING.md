@@ -285,6 +285,14 @@ A passing full run writes `tools/crosscheck/stamp`; `just lint` fails
 when the crypto changed since the stamp, until the cross-check passes
 again. Commit the stamp with the change.
 
+`just crosscheck --fresh` also writes `out/crosscheck-record.txt`: the
+commit, seed, scale and UTC date; each area's cases, answers, known
+differences and result; each folder of `tools/reference/` with the commit
+its README names and the SHA-256 of its files; Bitcoin Core's tarball with
+its version and SHA-256; and "every answer agreed" or the first
+disagreement. The release flow stages it as `crosscheck-<version>.txt`
+beside `SHA256SUMS` and lists it there.
+
 **Watching a run.** From another terminal, or over ssh:
 
 ```

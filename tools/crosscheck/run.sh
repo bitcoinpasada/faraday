@@ -10,6 +10,8 @@
 #   tools/crosscheck/run.sh --identity      the same report under 1 and 4 workers
 #                                           (and PyPy when found): identity.py
 #
+# A --fresh run also writes out/crosscheck-record.txt (record.py), which the
+# release carries beside SHA256SUMS.
 # The run's progress goes to out/crosscheck/ (progress.log from the build
 # on, progress.json, report.txt); `just crosscheck-status` reads it.
 set -euo pipefail
@@ -17,7 +19,7 @@ cd "$(dirname "$0")/../.."
 
 progress=out/crosscheck
 mkdir -p "$progress"
-rm -f "$progress/progress.json" "$progress/report.txt"
+rm -f "$progress/progress.json" "$progress/report.txt" out/crosscheck-record.txt
 say() { echo "$(date +%H:%M:%S) $*" | tee -a "$progress/progress.log" >&2; }
 : > "$progress/progress.log"
 say "build: the Rust command (cargo build --frozen -p faraday-crosscheck)"

@@ -927,8 +927,10 @@ def run(args, areas, jobs, only, seed, scale, core):
     results = run_pool(batches, queue, jobs, interpreters, progress)
     failed = False
     cases = {}
+    merged = []
     for area in areas:
         r = merge(batches, results, area)
+        merged.append(r)
         cases[area] = r["cases"]
         if r["status"] == "pass":
             known = f", {r['known']} of them a known difference" if r.get("known") else ""
@@ -944,6 +946,12 @@ def run(args, areas, jobs, only, seed, scale, core):
             if r["status"] == "mismatch" and args.fresh:
                 report.append(keep(area, seed, scale, r))
     total = round(time.monotonic() - started, 1)
+    if args.fresh and not (args.area or args.case or args.no_self_test) and progress.dir:
+        # The release's record (record.py), beside the progress folder.
+        import record
+        (progress.dir.parent / record.NAME).write_text(
+            record.text(seed, scale, merged, core, list(interpreters.values()), jobs,
+                        args.allow_network))
     if failed:
         report.append(f"crosscheck: FAILED ({total} s); rerun with --seed {seed} to reproduce")
         return finish(progress, report, "failed", 1)

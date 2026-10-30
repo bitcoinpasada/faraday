@@ -486,6 +486,33 @@ class Pool(unittest.TestCase):
         quiet = self.run_crosscheck("--jobs", "2", "--python", "cpython")
         self.assertEqual(untimed(quiet.stdout), untimed(r.stdout))
 
+    def test_a_fresh_run_writes_the_release_record(self):
+        folder = self.tmp / "record" / "crosscheck"
+        # A fresh disagreement is kept beside the harness; this test's is not.
+        self.addCleanup(lambda: (HERE / "found" / "beta-test-seed.json").unlink(missing_ok=True))
+        r = self.run_crosscheck("--fresh", "--scale", "1", "--jobs", "2", "--python", "cpython",
+                                progress=folder)
+        record = (folder.parent / "crosscheck-record.txt").read_text()
+        self.assertEqual(r.returncode, 1)
+        for line in ("commit ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
+                     "beta: mismatch", "tools/reference/bbqr  commit ",
+                     "result: first disagreement in beta at case corpus:"):
+            self.assertIn(line, record)
+        self.assertRegex(record, r"tools/reference/core  commit .* sha256 [0-9a-f]{64}")
+        # No path of this machine, and the same record twice but for the date.
+        self.assertNotIn(str(HERE.parents[1]), record)
+        self.assertNotIn(str(self.tmp), record)
+        self.run_crosscheck("--fresh", "--scale", "1", "--jobs", "2", "--python", "cpython",
+                                    progress=folder)
+        dated = re.compile(r"^date .*$", re.M)
+        self.assertEqual(dated.sub("", (folder.parent / "crosscheck-record.txt").read_text())
+                         , dated.sub("", record))
+        # A run of one area is not a release's.
+        (folder.parent / "crosscheck-record.txt").unlink()
+        self.run_crosscheck("--fresh", "--area", "alpha", "--jobs", "2", "--python", "cpython",
+                            progress=folder)
+        self.assertFalse((folder.parent / "crosscheck-record.txt").exists())
+
     @unittest.skipUnless(shutil.which("pypy3"), "no pypy3 on the PATH")
     def test_pypy_gives_the_same_report(self):
         cpython = self.run_crosscheck("--jobs", "3", "--python", "cpython")

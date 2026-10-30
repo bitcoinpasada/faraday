@@ -89,7 +89,12 @@ none is part of `just`, which stays fast.
    `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
    and pykeepass. A disagreement it finds is kept in
    its `found` folder with its seed and inputs
-   (`docs/decisions/F79.md`).
+   (`docs/decisions/F79.md`). A full run also writes
+   `out/crosscheck-record.txt` (commit, seed, scale, date, each area's
+   cases and answers, each reference's SHA-256, Core's tarball, the
+   result); staging puts it beside `SHA256SUMS` as
+   `crosscheck-<version>.txt`, listed there so it is signed, and the
+   release notes quote its summary as they do the fuzz record.
 3. The fuzz run, and the corpora published after it (`fuzz/README.md`,
    "Before a release"). On the build machine:
    1. `just fuzz-release`, starting from the last published corpus
@@ -110,6 +115,8 @@ none is part of `just`, which stays fast.
       seconds, executions, corpus size and "no crashes", with the commit,
       the nightly, the cargo-fuzz version and the corpus it started from)
       and the corpus repository's commit from 3.
+   The notes also quote `crosscheck-<version>.txt`: the seed, the scale,
+   each area's answers and "every answer agreed".
 4. The release is staged (`faraday/tools/stage-release.sh`, `docs/STARTER.md`
    §1.3) and signed.
 

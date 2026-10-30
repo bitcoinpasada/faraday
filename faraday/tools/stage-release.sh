@@ -59,6 +59,13 @@
 # entry's board), the screen (its panel), the build (strict or compatible)
 # and the boards it starts (its starts, joined by ", ").
 #
+# The cross-check's record (`just crosscheck --fresh` writes
+# out/crosscheck-record.txt; --crosscheck FILE names another) is staged
+# beside SHA256SUMS as crosscheck-VERSION.txt and listed in it, so it is
+# signed with the release. The first pass refuses a record that is missing,
+# that names another commit than HEAD, or whose result is not "every answer
+# agreed"; --any-build skips the record, for trying the script.
+#
 # The images must carry VERSION as their build ID (a release build,
 # DECISIONS F5); --any-build skips that, for trying the script on a test
 # build. The images must all carry the same build ID, --any-build or not,
@@ -101,12 +108,14 @@ payload=""
 builds=""
 starter=""
 starter_win=""
+record="out/crosscheck-record.txt"
 while [ $# -gt 0 ]; do
     case "$1" in
         --any-build) any=1; shift ;;
         --out) [ $# -ge 2 ] || die "--out needs a directory"; out="$2"; shift 2 ;;
         --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
         --builds) [ $# -ge 2 ] || die "--builds needs a directory"; builds="$(realpath "$2")"; shift 2 ;;
+        --crosscheck) [ $# -ge 2 ] || die "--crosscheck needs the record's file"; record="$2"; shift 2 ;;
         --starter) [ $# -ge 2 ] || die "--starter needs the Starter's file"; starter="$2"; shift 2 ;;
         --starter-windows) [ $# -ge 2 ] || die "--starter-windows needs the Starter's file"; starter_win="$2"; shift 2 ;;
         *) die "unknown argument $1" ;;
@@ -245,6 +254,18 @@ PY
     done
 
     commit="$(git rev-parse HEAD)"
+    # The cross-check's record: from this commit, and every answer agreed.
+    have_record=0
+    if [ -f "$record" ]; then
+        [ "$(sed -n 's/^commit //p' "$record")" = "$commit" ] \
+            || [ "$any" = 1 ] || unstage "$record is not the cross-check of commit $commit (just crosscheck --fresh)"
+        grep -qx 'result: every answer agreed' "$record" \
+            || [ "$any" = 1 ] || unstage "$record does not end in 'every answer agreed'"
+        cp "$record" "$out/crosscheck-$version.txt"
+        have_record=1
+    elif [ "$any" != 1 ]; then
+        unstage "$record: not found (just crosscheck --fresh writes it)"
+    fi
     # The release's image list (IMAGES §4).
     {
         echo "# Faraday $version images, commit $commit"
@@ -260,6 +281,7 @@ PY
             [ "${efi[k]}" = - ] || (cd "$out" && sha256sum "${efi[k]}")
         done
         (cd "$out" && sha256sum IMAGES)
+        [ "$have_record" = 0 ] || (cd "$out" && sha256sum "crosscheck-$version.txt")
         for k in "${!ids[@]}"; do printf '%s  %s\n' "${img_sum[k]}" "${img[k]}"; done
         for k in "${!ids[@]}"; do printf '%s  %s\n' "${boot_sum[k]}" "${img[k]%.img}-boot.vfat"; done
     } > "$out/SHA256SUMS"
