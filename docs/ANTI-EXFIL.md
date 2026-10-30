@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Planned, not built; experimental, for dev builds only, compiled out of every shipped app (F162)
-**Open:** all of it: Faraday as the host that checks a signer (§4) first, Faraday as a signer a host checks (§5) second, the Nonce check's reading of an exchange (§6), the encoding (§7), the tests (§8), and the owner's open questions in §9
+**Open:** all of it: Faraday as the host that checks a signer (§4) first, keeping a protected key (§2.1), Faraday as a signer a host checks (§5) second, the Nonce check's reading of an exchange (§6), the encoding and the draft BIP (§7), the tests (§8), and the owner's open question in §9
 
 The problem it solves: a signer that chooses its own nonce can hide the
 private key in it, and the signature it makes that way verifies like an
@@ -71,7 +71,23 @@ computes `t`, then `k`, then the key, from that one signature. A saved
 transcript, a backup, a PSBT that still carries `rho`, a screen
 recording or a photo of the reveal QR code is a leak of the key. `rho`
 is never written to a file, a PSBT, the vault or a log, and is wiped
-once the exchange ends.
+once the exchange ends. What is safe to keep is everything else: `c`,
+`R1` and the signature. `R1` tells a backdoor's author nothing they do
+not already know, and `R − R1` follows from public values.
+
+**Only an abort after the reveal matters.** After stage 3 the signer
+knows the signature it will make. It can refuse to finish when that
+signature does not carry the bits it wants, and a fresh `rho` gives it
+another draw: about 2ᵇ draws carry `b` bits. A retry with the same `rho`
+gives the same signature, so an abort then leaks at most the fact of the
+abort. Before the reveal the signer has seen only `c`, cannot tell which
+signature it will make, and a fresh `rho` costs nothing.
+
+**One signature checks one signature.** A signature that passed both
+checks carries nothing in its nonce, whatever happens later. The key is
+protected only if every signature it makes is checked: one ordinary
+signature by the same key, made after the person gives up on a failing
+exchange, carries the key out. So there are two levels (§2.1).
 
 ## 2. What it protects, and what it does not
 
@@ -102,6 +118,35 @@ once the exchange ends.
   P2SH-P2WSH standard multisig), explicit `SIGHASH_ALL`, PSBT v0. A
   request with any other input that names a key in the exchange fails
   whole.
+
+### 2.1 Checked signature, protected key
+
+Faraday proposes two levels for the draft standard (§7), and what is
+said about an exchange names one of them:
+
+- **Checked signature** (a verified exchange). Both checks of §1 passed
+  for this signature, and nothing more is claimed: "this signature was
+  checked", never "this key is protected". Every host meets it: both
+  checks, the sighash computed by the host, the reply rebuilt from the
+  host's own frozen copy, `rho` secret for life, a request that fails
+  whole.
+- **Protected key.** The key is marked protected at the host, and from
+  then on:
+  - every signature by it without a passed exchange is refused, at
+    every way out: import, finalizing, export, broadcast;
+  - after the reveal, a retry for the same transaction uses the same
+    `rho`, or the abort is counted;
+  - aborts after the reveal are counted per key for the key's life, kept
+    where they survive a restart, with a hard "move the funds" past the
+    threshold;
+  - turning protection off is a deliberate step, shown as a danger and
+    recorded.
+
+The protection is enforced from the start, before any way of resuming
+an interrupted exchange exists: an exchange that cannot be finished
+leaves the payment unsigned, and a new transaction is a new exchange,
+counted. Faraday as host keeps a protected key (§4.4); a signer cannot
+protect a key from itself (§5).
 
 ## 3. Experimental, in dev builds only
 
@@ -193,8 +238,8 @@ the person adds only adds to it.
 
 ### 4.4 The host's rules
 
-Faraday as host follows these. Each is a refusal; none has a way past
-it (F136).
+Faraday as host follows these, which keep the protected-key level of
+§2.1. Each is a refusal; none has a way past it (F136).
 
 1. **Protected signing is required.** Once the exchange starts for a
    payment, Faraday offers no ordinary signing for it: a failure ends in
@@ -204,20 +249,31 @@ it (F136).
    turns protection on, the screen says that one ordinary signature by
    the key undoes the protection of every protected one, if the signer
    is malicious.
-2. **No fresh `rho` for the same payment after an abort.** A signer that
-   stops after the reveal, or a reply that fails, is retried with the
-   same `rho` and must return the same `R1`. A payment is its unsigned
-   transaction's id. After a lock or a power-off, `rho` is gone (it is
-   never saved), so that payment is not retried with Faraday's own
-   randomness: a new exchange needs a new transaction from the
-   coordinator.
-3. **Aborts are counted.** An abort after the reveal is counted per
-   signer key: the transaction's id, the key's fingerprint, and each
-   slot's `c` and `R1`, never `rho`, in the open vault, or in memory for
-   the session when none is open, and the screen says which. A retry
-   whose `c` or `R1` differs from the counted one is refused. The count
-   is shown at every exchange with that key; past the threshold (§9)
-   the screen says to move the funds to a new key.
+2. **No fresh `rho` for the same payment after the reveal.** A signer
+   that stops after the reveal, or a reply that fails, is retried with
+   the same `rho` and must return the same `R1`; a scan that fails is
+   scanned again with the same `rho`. A payment is its unsigned
+   transaction's id. `rho` is kept in memory only and never saved, so
+   an exchange that ends after the reveal does not leave `rho` anywhere
+   to be found later: after a lock or a power-off, `rho` is gone, that
+   payment is not retried with Faraday's own randomness, and a new
+   exchange needs a new transaction from the coordinator, counted under
+   rule 3. An abort before the reveal is not counted and may start
+   again with a new `rho` (§1). Faraday does not derive `rho` from a
+   kept secret so that a restart could rebuild it: that secret would
+   rebuild every past `rho`, and with it every key a backdoored signer
+   leaked into a checked signature, wherever the vault is copied.
+3. **Aborts are counted, in the vault.** A protected exchange needs an
+   open vault, and is refused without one, so the count survives a
+   restart. An abort after the reveal is counted per signer key for the
+   key's life: the transaction's id, the key's fingerprint, and each
+   slot's `c` and `R1`, never `rho`. A retry whose `c` or `R1` differs
+   from the counted one is refused. The count is shown at every
+   exchange with that key, with a warning from the first abort; past 20
+   (libsecp256k1-zkp's header) the screen says to move the funds to a
+   new key. A copy of the vault from before an abort holds a lower
+   count, and nothing on the device can tell; the count is the vault's,
+   not the key's everywhere.
 4. **Both checks** of §1, for every slot, against the sighash Faraday
    computes.
 5. **Length caps before allocation.** Every length a message declares
@@ -259,10 +315,14 @@ and 4.
   A request with a Taproot input, a non-SegWit-v0 input, a sighash
   other than `SIGHASH_ALL`, or a finalized input under one of its keys
   fails whole. A reply never mixes ordinary and anti-exfil signatures.
-- **Two reviews, one approval.** The stage 2 screen says it signs
-  nothing. The stage 4 review is the full review of the transaction and
-  its approval is the signing. Both show the transaction's fingerprint
-  in large type for the person to compare with the host's.
+- **One review, at stage 4.** Stage 2 approves nothing, so it has no
+  review: one screen says that nothing is signed and shows the
+  transaction's fingerprint in large type, and its Continue shows the
+  commitment QR code. Answering stage 2 gives nothing away: `R1` is
+  safe to show, and a host that sends many commitments gets a different
+  `k1` for each. The stage 4 review is the full review of the
+  transaction and its approval is the signing; it shows the fingerprint
+  in large type too, for the person to compare with the host's.
 - **Ordinary signing stays.** A PSBT that asks for no exchange is signed
   as today. Faraday refusing ordinary signing for a key adds nothing
   against a malicious Faraday: only the host can enforce protection
@@ -302,12 +362,25 @@ No BIP defines anti-exfil or fields for it.
   and a 32-byte session id, and stage 2 and 4 replies carry no PSBT.
 - **Later:** whatever QR scheme Jade publishes, and FractalEncrypt's
   once it is published as a standard.
-- **The recommendation** (review, 2026-10-29): the four-stage semantics
-  carried in BIP-registered PSBT input fields, the host commitment, the
-  signer commitment and the host reveal, with a protocol version and a
-  session id; the host rules of §4.4 written as MUSTs; the reveal field
-  removed before a PSBT leaves the host-to-signer path. Faraday intends
-  to help write that draft BIP.
+- **What Faraday proposes for the draft BIP** (owner, 2026-10-30;
+  F176): the four-stage semantics, with the two levels of §2.1 and the
+  host rules of §4.4 as MUSTs, and shared negative vectors, agreed
+  before any carriage. Then the carriage, split by what may be kept:
+  - the host commitment `c`, the signer commitment `R1` and the
+    signatures in BIP-registered PSBT input fields, with a protocol
+    version and a session id. All three are safe to save, combine and
+    log, and registered fields are what Jade's maintainers asked for;
+  - the reveal never in a PSBT. A PSBT that carries `rho` for one stage
+    is saved, backed up, combined and logged by ordinary PSBT tools
+    before anything can strip it, so `rho` travels in a message of its
+    own, under its own type that no PSBT tool reads, bound to the PSBT
+    by the unsigned transaction's id and the session id.
+
+  The detached form and the in-PSBT form are weighed side by side until
+  the draft settles it. Faraday intends to help write that draft BIP,
+  with a second implementation of the exchange from another codebase:
+  Faraday links upstream libsecp256k1, which has no `ecdsa_s2c` module,
+  so its arithmetic is its own, checked against the module (§8).
 - **No proprietary fields of Faraday's own.** Accepting fields beyond
   BIP-174 is in dev builds only (F162). Once a BIP is published,
   Faraday reads its fields and the dev build's encoding goes.
@@ -336,9 +409,12 @@ high-S or out-of-range signature; a tweak at or past `n` (injected); a
 signature over another sighash; a Taproot input in the request; a
 request that mixes kinds of input; a reply with an unasked, repeated or
 missing slot; a declared length past its cap; a second exchange with a
-new `rho` for an aborted transaction. Kept: a retry with the same `rho`
-returns the same signature; no `rho` is in any PSBT, file or vault
-record after an exchange.
+new `rho` for an aborted transaction; a protected exchange with no vault
+open; an ordinary signature by a protected key, at each way out.
+Kept: a retry with the same `rho` returns the same signature; an abort
+before the reveal is not counted and one after it is, and the count is
+there after the vault is locked and opened again; no `rho` is in any
+PSBT, file or vault record after an exchange.
 
 ## 9. Questions for the owner
 
@@ -350,13 +426,18 @@ only behind `experimental`; Jade's and FractalEncrypt's published
 schemes later; QR only, no USB for Jade; the host rules of §4.4; the
 Nonce check of §6; the references of §8; the wording of §10.
 
+Decided (owner, 2026-10-30; F176): the two levels of §2.1, Faraday as
+host keeping a protected key and enforcing it before any resuming
+exists; `rho` in memory only, never derived from a kept secret; a
+protected exchange needs an open vault, which counts aborts after the
+reveal per key for its life, a warning from the first and "move the
+funds" past 20; no review at stage 2 on Faraday as signer; the reveal
+never in a PSBT, the split carriage of §7 proposed for the draft BIP.
+
 Open:
 
-1. The abort count past which the screen says to move the funds
-   (libsecp256k1-zkp's header suggests a strong warning after about 20
-   in a device's life).
-2. Whether the stage 2 review on Faraday as signer can be left out,
-   since it approves nothing.
+1. Whether the idle lock waits while an exchange is under way, or ends
+   it (after the reveal, ending it is a counted abort, rule 2 of §4.4).
 
 ## 10. How it is described
 
@@ -370,3 +451,5 @@ In the docs, Learn and later the website:
 - What each form protects and does not, as §2 and §5's table say: it
   does not catch a signer that lies about addresses, a malicious host
   that builds a bad transaction, or bad entropy.
+- Which level of §2.1 a statement is about: a checked signature is
+  "checked", and only a protected key is "protected".
