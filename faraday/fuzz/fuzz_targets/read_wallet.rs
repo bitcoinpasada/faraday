@@ -1,5 +1,6 @@
 //! `faraday-intake`'s wallet reader over any text (`docs/INTEROP.md` §5):
-//! a single-key file, a Caravan config or an Electrum wallet file is
+//! a single-key file, a Caravan config, an Electrum wallet file or
+//! Specter DIY's `addwallet` command is
 //! another wallet's file, whose every byte its writer chose. The JSON
 //! they are read with is fuzzed on its own in the root `fuzz/` (`json`).
 

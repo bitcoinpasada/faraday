@@ -4116,6 +4116,8 @@ strings! {
     code_view_multisig: "{} · multisig config",
     /// Text in `code_view`. `{}`: `w.name`.
     code_view_bsms_descriptor: "{} · BSMS descriptor record",
+    /// Text in `code_view`. `{}`: `w.name`.
+    code_view_specter_diy: "{} · Specter DIY addwallet",
     /// Text in `code_view`.
     code_view_public_watch: "Public: watch only, spends nothing",
     /// Error in `code_view`.
@@ -6155,6 +6157,10 @@ strings! {
     public_files_wasabi: "Wasabi file",
     /// Text in `public_files`: who reads the Wasabi file.
     public_files_wasabi_wallet: "Wasabi Wallet",
+    /// Text in `public_files`: the row of Specter DIY's `addwallet` command.
+    public_files_specter_diy: "Specter DIY wallet",
+    /// Text in `public_files`: who reads Specter DIY's `addwallet` command.
+    public_files_specter_diy_reads: "Specter DIY, addwallet",
     /// Text in `public_files`: the row of Bitcoin Core's import file
     /// for Core before 29.
     public_files_core_before_29: "Core before 29",
@@ -9307,6 +9313,8 @@ strings! {
     wallet_single_key_no_type: "its key is not a single-key wallet's",
     /// Error in `caravan::descriptor`. `{}`: why.
     wallet_caravan: "Caravan config: {}",
+    /// Error in `read_wallet`: Specter DIY's `addwallet` with no descriptor after its `&`.
+    wallet_specter_diy_no_descriptor: "Specter DIY addwallet: no descriptor after the &",
     /// Text in `caravan::descriptor`.
     wallet_caravan_address_type: "addressType is not P2WSH, P2SH-P2WSH or P2SH",
     /// Text in `caravan::descriptor`.

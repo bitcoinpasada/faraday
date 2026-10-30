@@ -43,6 +43,8 @@ pub(crate) fn slow(a: Action) -> bool {
             | Action::SamplePsbt
             | Action::PRecord(_)
             | Action::POut
+            // Specter DIY's addwallet as pictures: one per numbered part.
+            | Action::PublicOut(_, 14)
             | Action::PotentialMake
             | Action::SecretHold
             | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)

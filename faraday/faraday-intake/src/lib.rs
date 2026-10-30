@@ -8,7 +8,8 @@
 //! Nothing here holds a word a person reads. Each answer is an enum, and
 //! the app that asked says it in its own strings; the one exception is
 //! [`wallet`], the description reader, and the readers of other
-//! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`]),
+//! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`],
+//! [`specter_diy`]),
 //! whose refusals are Faraday's own lines (`faraday-strings`), a SLIP-132
 //! key's among them (`faraday_bip::slip132` reads the key); the JSON those
 //! readers read is `faraday_bip::json`.
@@ -20,6 +21,7 @@ pub mod caravan;
 pub mod electrum;
 pub mod secret_buf;
 pub mod single_key;
+pub mod specter_diy;
 pub mod wallet;
 
 use faraday_bip::bip39::{Language, Mnemonic};

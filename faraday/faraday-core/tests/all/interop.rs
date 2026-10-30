@@ -816,6 +816,69 @@ fn faradays_caravan_file_reads_back_with_the_same_first_address() {
     }
 }
 
+// Specter DIY's `addwallet` (`docs/INTEROP.md` §5 I8).
+
+/// Public files' Specter DIY row.
+const SPECTER_DIY_ROW: u8 = 12;
+
+#[test]
+fn sparrows_specter_diy_export_loads_from_files_as_sparrow_multisig() {
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let mut app = faraday_core::Faraday::new();
+    app.storage(faraday_core::StorageEvent::Restored {
+        // As a scan is kept: its name says nothing of the wallet.
+        inbox: vec![(
+            "scan-1.txt".to_string(),
+            file("sparrow/specter-diy-export.txt").into_bytes(),
+        )],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(faraday_core::Action::LoadWallet(0));
+    let [loaded] = &app.session.wallets[..] else {
+        panic!("{} wallets", app.session.wallets.len())
+    };
+    assert_eq!(loaded.name, "Sparrow Multisig");
+    assert!(same(loaded.policy(), &w));
+}
+
+#[test]
+fn faradays_specter_diy_file_reads_back_with_the_same_first_address_and_its_name() {
+    let c = faraday_core::testkit::compute();
+    for id in [
+        "savings",
+        "spending",
+        "taproot",
+        "nested",
+        "legacy",
+        "vault-nested",
+        "vault-legacy",
+        "taproot-multisig",
+        "inheritance",
+        "tree",
+    ] {
+        let d = kit(id);
+        let out = public_out(&d, SPECTER_DIY_ROW);
+        let [(name, text)] = &out[..] else {
+            panic!("{id}: {out:?}")
+        };
+        assert_eq!(name, "test-specter-diy.txt");
+        assert!(text.starts_with("addwallet Test&"), "{id}: {text}");
+        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let own = read_wallet(&c, &d).unwrap();
+        assert!(same(&back, &own), "{id}");
+        assert_eq!(
+            first(&back, Network::Testnet),
+            first(&own, Network::Testnet),
+            "{id}"
+        );
+        assert_eq!(
+            faraday_intake::wallet::carried_name(text).as_deref(),
+            Some("Test")
+        );
+    }
+}
+
 // Bitcoin Core before 29 (`docs/INTEROP.md` §5 I4).
 
 /// Public files' row for Bitcoin Core before 29.

@@ -1023,8 +1023,8 @@ impl Faraday {
         found
     }
 
-    /// The name a wallet file gives its wallet: a wallet .json's label,
-    /// or the file's name in words.
+    /// The name a wallet file gives its wallet: a wallet .json's label or
+    /// an addwallet command's name, or the file's name in words.
     pub(crate) fn inbox_wallet_name(&self, index: usize) -> String {
         self.wallet_name_in(&self.inbox, index)
     }
@@ -1048,7 +1048,7 @@ impl Faraday {
             })
             .collect::<Vec<_>>()
             .join(" ");
-        crate::wallet::wallet_name(&crate::wallet::json_label(&text).unwrap_or(name)).into_owned()
+        crate::wallet::wallet_name(&crate::wallet::carried_name(&text).unwrap_or(name)).into_owned()
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds

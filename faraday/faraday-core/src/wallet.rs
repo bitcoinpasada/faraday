@@ -52,7 +52,7 @@ pub fn parse_words(
     faraday_keys::words::parse(c, lang, text)
 }
 
-pub(crate) use faraday_intake::wallet::{json_label, network_of_kind};
+pub(crate) use faraday_intake::wallet::{carried_name, network_of_kind};
 
 /// The most scripts a wallet keeps ([`Wallet::script_at`]); the next one
 /// empties the list.
@@ -2288,8 +2288,8 @@ impl Faraday {
         let text = String::from_utf8_lossy(&item.bytes).into_owned();
         let source = item.name.clone();
         let name = crate::register::name_of_file(&item.name);
-        // A wallet .json carries its own name.
-        let name = wallet::json_label(&text).unwrap_or(name);
+        // A wallet .json or an addwallet command carries its own name.
+        let name = wallet::carried_name(&text).unwrap_or(name);
         match self
             .session
             .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)

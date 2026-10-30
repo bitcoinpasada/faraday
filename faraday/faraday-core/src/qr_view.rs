@@ -1,9 +1,9 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
+use crate::{file_stem, key_label};
 use crate::strings::{EN, fill};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, transfer, wallet};
-use crate::{file_stem, key_label};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 
@@ -357,6 +357,9 @@ pub enum Code {
     MultisigConfig(usize),
     /// A wallet's BIP 129 descriptor record.
     Bsms(usize),
+    /// A wallet as Specter DIY's `addwallet` command, in Specter's
+    /// numbered parts (`docs/INTEROP.md` §5 I8).
+    SpecterDiy(usize),
     /// The account key of Create's slot n, for the cosigners.
     Key(u8),
     /// That key's signed BIP 129 key record.
@@ -694,6 +697,32 @@ impl QrArea {
 }
 
 impl Faraday {
+    /// Costs a QR code made per part. The QR view of Specter DIY's
+    /// `addwallet` command for `w`, in Specter's numbered parts at the
+    /// middle part size, its whole text under it.
+    pub(crate) fn specter_diy_view(
+        &self,
+        c: &Compute,
+        w: &wallet::Wallet,
+    ) -> Result<QrView, String> {
+        let text = faraday_intake::specter_diy::command(&w.name, w.policy())
+            .ok_or(EN.code_view_this_wallet_has)?;
+        let title = fill(EN.code_view_specter_diy, &[&w.name.to_string()]);
+        let name = format!("{}-specter-diy.png", crate::file_stem(&w.name));
+        let mut lines = self.wallet_label(w);
+        lines.push(EN.code_view_public_watch.to_string());
+        let mut view = QrView::of(
+            c,
+            &title,
+            QrSource::Text(text.clone()),
+            QrFormat::Parts,
+            QR_PARTS[1],
+        )?
+        .public(&name, lines);
+        view.whole = Some(text);
+        Ok(view)
+    }
+
     /// The code on show on the QR sheet, while it is open.
     pub fn qr(&self) -> Option<&QrView> {
         self.qr.view()
@@ -973,6 +1002,7 @@ impl Faraday {
                 lines.push(EN.code_view_public_watch.to_string());
                 Ok(QrView::text(c, &title, &text)?.public(&name, lines))
             }
+            Code::SpecterDiy(i) => self.specter_diy_view(c, wallet(i)?),
             Code::Key(k) => {
                 let (fp, text) = self.create_key_text(c, k)?;
                 let kind = self.create.state().map_or("", |c| c.kind.name());
@@ -1258,4 +1288,78 @@ impl Faraday {
         let uri = store.reveal(c, id, i, field::TOTP, why);
         Some(QrView::secret(c, &title, &uri))
     }
+}
+
+/// The file names of the pictures of Specter DIY's `addwallet` command
+/// `text` for the wallet whose file stem is `stem`, as Specter's
+/// numbered parts carry it (`faraday_qr::send::parts_frames`, at the
+/// middle part size), without making them: `{stem}-specter-diy.png` for
+/// one code, else `{stem}-specter-diy-part-{j}-of-{k}.png`. Costs the
+/// splitting of `text` into parts; no code is drawn.
+fn specter_diy_names(stem: &str, text: &str) -> Vec<String> {
+    let part = QR_PARTS[1];
+    let k = if text.chars().count() <= part {
+        1
+    } else {
+        faraday_qr::specter::encode(text, part).len()
+    };
+    if k == 1 {
+        return vec![format!("{stem}-specter-diy.png")];
+    }
+    (1..=k)
+        .map(|j| format!("{stem}-specter-diy-part-{j}-of-{k}.png"))
+        .collect()
+}
+
+/// Costs the splitting of the command into parts and a QR code made per
+/// part. Specter DIY's `addwallet` command for `w` as labelled pictures,
+/// one per numbered part past one code: `shape` and the keys'
+/// fingerprints `fps` on each, with what reads it.
+pub(crate) fn specter_diy_pictures(
+    c: &Compute,
+    w: &wallet::Wallet,
+    shape: String,
+    fps: Vec<String>,
+    stem: &str,
+) -> Vec<picture::Labelled> {
+    let Some(text) = faraday_intake::specter_diy::command(&w.name, w.policy()) else {
+        return Vec::new();
+    };
+    let Ok((_, codes)) = faraday_qr::send::parts_frames(c, &text, QR_PARTS[1]) else {
+        return Vec::new();
+    };
+    let k = codes.len();
+    let mut lines = vec![shape];
+    if !fps.is_empty() {
+        let word = if fps.len() == 1 {
+            EN.public_pictures_key
+        } else {
+            EN.public_pictures_keys
+        };
+        lines.push(format!("{word} {}", fps.join(" · ")));
+    }
+    lines.push(EN.public_files_specter_diy_reads.to_string());
+    lines.push(EN.public_pictures_public_watch.to_string());
+    codes
+        .into_iter()
+        .zip(specter_diy_names(stem, &text))
+        .enumerate()
+        .map(|(j, (code, name))| {
+            let mut label = if k == 1 {
+                Vec::new()
+            } else {
+                vec![fill(
+                    EN.public_pictures_part,
+                    &[&(j + 1).to_string(), &k.to_string()],
+                )]
+            };
+            label.extend(lines.iter().cloned());
+            picture::Labelled {
+                name,
+                code,
+                title: w.name.clone(),
+                lines: label,
+            }
+        })
+        .collect()
 }

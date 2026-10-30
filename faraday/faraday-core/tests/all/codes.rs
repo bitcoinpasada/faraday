@@ -419,6 +419,67 @@ fn a_secret_shown_as_a_code_offers_no_picture() {
     assert_eq!(app.outbox.len(), 1);
 }
 
+/// Specter's numbered parts, read one code after another as the scanner
+/// reads them, put together.
+fn scanned_parts(codes: &[Vec<u8>]) -> String {
+    let mut a = faraday_qr::Assembler::default();
+    let mut last = None;
+    for png in codes {
+        last = Some(a.feed(&read_png(png)));
+    }
+    match last {
+        Some(faraday_qr::Step::Done(faraday_qr::Arrived::Text(t))) => t,
+        other => panic!("not put together: {other:?}"),
+    }
+}
+
+#[test]
+fn specter_diys_addwallet_reads_back_from_its_numbered_parts_shown_and_as_pictures() {
+    let (mut app, w) = holding("Savings", &testkit::savings());
+    app.press(Action::PublicOut(w, 12));
+    let want = text(&outbox(&app, "savings-specter-diy.txt"));
+    assert!(
+        want.starts_with("addwallet Savings&wsh(sortedmulti(2,"),
+        "{want}"
+    );
+    app.press(Action::ShowCode(Code::SpecterDiy(w)));
+    let q = app.qr().expect("no QR sheet");
+    assert!(q.frames.len() > 1, "one code");
+    let shown: Vec<Vec<u8>> = q
+        .frames
+        .iter()
+        .map(|f| faraday_codec::png::qr_png(f, 4))
+        .collect();
+    assert_eq!(scanned_parts(&shown), want);
+    app.press(Action::Cancel);
+    app.press(Action::PublicOut(w, 14));
+    let mut pictures: Vec<(String, Vec<u8>)> = app
+        .outbox
+        .iter()
+        .filter(|i| i.name.starts_with("savings-specter-diy-part-"))
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .collect();
+    assert_eq!(pictures.len(), q_frames(&mut app, w));
+    pictures.sort();
+    let pictures: Vec<Vec<u8>> = pictures.into_iter().map(|(_, b)| b).collect();
+    assert_eq!(scanned_parts(&pictures), want);
+    // Read back, the command is the wallet, under its name.
+    let c = testkit::compute();
+    let back = faraday_core::wallet::read_wallet(&c, &want).unwrap();
+    assert_eq!(
+        back.to_descriptor(),
+        app.session.wallets[w].policy().to_descriptor()
+    );
+}
+
+/// How many codes the sheet shows wallet `w`'s addwallet command in.
+fn q_frames(app: &mut Faraday, w: usize) -> usize {
+    app.press(Action::ShowCode(Code::SpecterDiy(w)));
+    let n = app.qr().expect("no QR sheet").frames.len();
+    app.press(Action::Cancel);
+    n
+}
+
 #[test]
 fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     let spending = testkit::kits()

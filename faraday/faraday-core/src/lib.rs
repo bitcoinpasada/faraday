@@ -664,60 +664,7 @@ pub enum Sheet {
     GpgRestore,
 }
 
-/// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
-/// Text as pictures keep it: one static code while it fits version 25
-/// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
-/// a descriptor on screen), else the BBQr parts the QR view makes, one
-/// code each, which a scanner that assembles parts takes one after the
-/// other.
-pub(crate) fn picture_codes(
-    c: &Compute,
-    text: &str,
-) -> Result<Vec<faraday_codec::qr::QrMatrix>, String> {
-    use faraday_codec::qr::{Ecc, Payload, encode_bounded};
-    if let Ok(m) = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
-        return Ok(vec![m]);
-    }
-    faraday_qr::send::bbqr_frames(c, 'U', text.as_bytes(), QR_PARTS[1])
-        .map(|(_, frames)| frames)
-        .map_err(send_error)
-}
-
-/// The file names of the pictures [`picture_codes`] makes of `text`,
-/// without making them: `{name}.png` for one code, else
-/// `{name}{part}{j}-of-{k}.png` for each of the `k` parts, and none when
-/// the text cannot be sent as parts. Costs the splitting of `text` into
-/// BBQr parts when it needs more than one code, and no code is drawn.
-pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
-    use faraday_codec::qr::{Ecc, byte_capacity};
-    if text.len() <= byte_capacity(25, Ecc::Medium) {
-        return vec![format!("{name}.png")];
-    }
-    let Some(parts) = faraday_qr::bbqr::encode('U', text.as_bytes(), QR_PARTS[1]) else {
-        return Vec::new();
-    };
-    let k = parts.len();
-    if k == 1 {
-        return vec![format!("{name}.png")];
-    }
-    (1..=k)
-        .map(|j| format!("{name}{part}{j}-of-{k}.png"))
-        .collect()
-}
-
-/// Splits `text` into BBQr parts when it needs more than one code: what
-/// each picture [`picture_codes`] makes of `text` holds, in the order
-/// [`picture_names`] names them: the text itself for one code, else each
-/// BBQr part. No code is drawn.
-pub(crate) fn picture_payloads(text: &str) -> Vec<Vec<u8>> {
-    use faraday_codec::qr::{Ecc, byte_capacity};
-    if text.len() <= byte_capacity(25, Ecc::Medium) {
-        return vec![text.as_bytes().to_vec()];
-    }
-    faraday_qr::bbqr::encode('U', text.as_bytes(), QR_PARTS[1])
-        .map(|parts| parts.into_iter().map(String::into_bytes).collect())
-        .unwrap_or_default()
-}
+pub(crate) use picture::{picture_codes, picture_names, picture_payloads};
 
 /// The line that names a cosigner's key under its code: `Key {fp} ·
 /// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
@@ -3839,6 +3786,9 @@ impl Faraday {
                 }
                 out
             }
+            // Specter DIY's `addwallet` command, in Specter's numbered
+            // parts, which Specter DIY scans, past one code.
+            14 => qr_view::specter_diy_pictures(c, w, shape, fps(&|_| true), &stem),
             _ => Vec::new(),
         }
     }
@@ -3849,8 +3799,10 @@ impl Faraday {
     /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
     /// descriptor's code as a labelled picture; under More options
     /// ([`wallet_backup::public_more_files`]), 9 Bitcoin Core's import for Core before
-    /// 29, 10 the Electrum wallet file, 11 the Caravan config, 13 the
-    /// Wasabi file (`docs/INTEROP.md` §5 I4; 12 is Specter DIY's, I8).
+    /// 29, 10 the Electrum wallet file, 11 the Caravan config, 12 Specter
+    /// DIY's `addwallet` command, 13 the Wasabi file (`docs/INTEROP.md` §5
+    /// I4, I8); and 14 that command's codes as labelled pictures, in
+    /// Specter's numbered parts past one code.
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
         let files = self.public_made(wallet, what);
         let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
@@ -3989,6 +3941,16 @@ impl Faraday {
                     .unwrap_or(self.session.network());
                 if let Some(c) = faraday_intake::caravan::file(&w.name, w.policy(), net) {
                     files.push((format!("{stem}-caravan.json"), c.into_bytes()));
+                }
+            }
+            12 => {
+                if let Some(c) = faraday_intake::specter_diy::command(&w.name, w.policy()) {
+                    files.push((format!("{stem}-specter-diy.txt"), c.into_bytes()));
+                }
+            }
+            14 => {
+                for p in self.public_pictures(&c, wallet, 14) {
+                    files.push((p.name.clone(), if bytes { p.png(&c) } else { Vec::new() }));
                 }
             }
             13 => {

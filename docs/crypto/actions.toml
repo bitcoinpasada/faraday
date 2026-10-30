@@ -2223,7 +2223,7 @@ places = [
 [[action]]
 id = "wallet-files"
 name = "Read a wallet export"
-action = "Reads another wallet's export (Coldcard JSON and multisig configuration files) as a wallet and checks the first address it states; writes a native SegWit single-key wallet as Coldcard's file for Wasabi."
+action = "Reads another wallet's export (Coldcard JSON and multisig configuration files, Specter DIY's addwallet command) as a wallet and checks the first address it states; writes a native SegWit single-key wallet as Coldcard's file for Wasabi, and any wallet but a MuSig2 or silent payments one as Specter DIY's addwallet command."
 row = "wallet-files"
 standards = [
   "BIP 388",
@@ -2252,10 +2252,14 @@ functions = [
   "faraday/faraday-core/src/inbox.rs::kind_of_path",
   "faraday/faraday-intake/src/single_key.rs::wasabi_key",
   "faraday/faraday-intake/src/wallet.rs::network_of_kind",
+  "faraday/faraday-intake/src/specter_diy.rs::split",
+  "faraday/faraday-intake/src/specter_diy.rs::name",
+  "faraday/faraday-intake/src/specter_diy.rs::command",
 ]
 code = [
   "core/faraday-bip/src/coldcard.rs::read",
   "core/faraday-bip/src/multisig_config.rs::parse",
+  "faraday/faraday-intake/src/specter_diy.rs::command",
 ]
 
 [action.implementation]
@@ -2263,7 +2267,7 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
-adds = "JSON is read by Faraday's own reader (depth and size limited, an object that names a key twice refused); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth. An account key alone becomes a wallet of the kind its path's purpose names (44 legacy, 49 nested SegWit, 84 native SegWit, 86 taproot), and a purpose of 45, 48 or 87 is a cosigner's key and no wallet on its own; a key of a test network is taken as testnet unless the session is already on a test network; the file for Wasabi is written only for a native SegWit single-key wallet whose key has an origin at exactly 84h/0h/0h or 84h/1h/0h."
+adds = "JSON is read by Faraday's own reader (depth and size limited, an object that names a key twice refused); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth. An account key alone becomes a wallet of the kind its path's purpose names (44 legacy, 49 nested SegWit, 84 native SegWit, 86 taproot), and a purpose of 45, 48 or 87 is a cosigner's key and no wallet on its own; a key of a test network is taken as testnet unless the session is already on a test network; the file for Wasabi is written only for a native SegWit single-key wallet whose key has an origin at exactly 84h/0h/0h or 84h/1h/0h. Specter DIY's addwallet command is read with its name before the last `&`, its descriptor's checksum checked where it has one (Specter DIY drops it unread), and keys none of which carries a derivation as the two chains; a single-key or multisig wallet is written without its keys' derivations and with no checksum, as Sparrow writes it, any other with them."
 
 [action.checked]
 tests = [
@@ -2277,9 +2281,13 @@ tests = [
   "faraday/faraday-core/tests/all/inbox_found.rs::a_cosigners_multisig_xpub_is_not_a_wallet_on_its_own",
   "faraday/faraday-core/tests/all/interop.rs::cores_and_specters_files_of_a_taproot_sortedmulti_a_wallet_read_as_it_with_cores_address",
   "faraday/faraday-core/tests/all/interop.rs::a_taproot_sortedmulti_a_pair_of_two_wallets_or_with_a_wrong_checksum_is_refused",
+  "faraday/faraday-intake/tests/all/wallet_files.rs::sparrows_specter_diy_export_reads_as_its_2_of_3_named_sparrow_multisig",
+  "faraday/faraday-intake/tests/all/wallet_files.rs::faradays_addwallet_for_sparrows_wallet_is_sparrows_own_text",
+  "faraday/faraday-intake/tests/all/wallet_files.rs::an_addwallet_command_faraday_cannot_verify_is_refused",
+  "faraday/faraday-core/tests/all/interop.rs::faradays_specter_diy_file_reads_back_with_the_same_first_address_and_its_name",
 ]
 crosscheck = "import"
-independence = { class = "own-over-outside", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys; Faraday's authors (`area_import.py`) for the files", ours = "the files themselves and what each format's fields mean (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }
+independence = { class = "own-over-outside", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys; Faraday's authors (`area_import.py`) for the files", ours = "the files themselves and what each format's fields mean (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Specter DIY's `addwallet`, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }
 fuzz = [
   "json",
   "read_wallet",

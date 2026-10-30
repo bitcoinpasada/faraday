@@ -25,7 +25,8 @@ read, verified and written as the Create screen and `faraday-keys` do
 
 The files themselves are written here, from each format's documentation
 (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's and
-Keystone's, Coldcard's file for Wasabi, Specter Desktop's, Core's
+Keystone's, Coldcard's file for Wasabi, Specter Desktop's, Specter DIY's
+`addwallet` command, read as its `Wallet.parse` reads it, Core's
 `listdescriptors`, BIP 129's descriptor record): what a format's fields
 mean is the area's reading of it, and the prelude adds the files other
 wallets wrote (BIP 129's examples, Sparrow's and Nunchuk's BSMS records,
@@ -93,7 +94,9 @@ MINI = {
     "tree": ("86h/{coin}h/{acct}h", "tr(@0,{and_v(v:pk(@1),older(4320)),pk(@2)})", 3),
     "tapmulti": ("48h/{coin}h/{acct}h/2h", "tr(" + NUMS + ",sortedmulti_a(2,@0,@1,@2))", 3),
 }
-DESCRIPTOR_FORMATS = ["multipath", "bare", "pair", "labelled", "receive", "core", "specter"]
+DESCRIPTOR_FORMATS = ["multipath", "bare", "pair", "labelled", "receive", "core", "specter",
+                      "specter-diy"]
+NAME_CHARS = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.&é"
 FORMATS = {
     "single": DESCRIPTOR_FORMATS + ["coldcard", "cobo", "electrum", "keyline", "wasabi"],
     "multi": DESCRIPTOR_FORMATS + ["config", "config-each", "caravan", "electrum", "bsms"],
@@ -303,6 +306,29 @@ def read_coldcard(text):
     raise ValueError("no single-key account")
 
 
+def read_specter_diy(text):
+    """Specter DIY's `addwallet {name}&{descriptor}` as Specter DIY reads it
+    (`Wallet.parse` and `Wallet.from_descriptor` in its
+    `src/apps/wallets/wallet.py`): the descriptor after the last `&`; keys
+    none of which carries a derivation are its two chains (embit's
+    `AllowedDerivation.default()`, `/{0,1}/*`). Specter DIY drops a
+    checksum unread; Faraday checks it, which no outside code here does."""
+    if not text.startswith("addwallet "):
+        raise ValueError("Specter DIY: not an addwallet command")
+    _, desc = text[len("addwallet "):].rsplit("&", 1)
+    if "#" in desc:
+        if not descsum_check(desc, require=True):
+            raise Ours("a checksum Specter DIY drops unread")
+        desc = desc.split("#")[0]
+    if not any(m.end() < len(desc) and desc[m.end()] == "/" for m in KEY.finditer(desc)):
+        recv = KEY.sub(lambda m: m.group(0) + "/0/*", desc)
+        change = KEY.sub(lambda m: m.group(0) + "/1/*", desc)
+    else:
+        recv, change = desc.replace("/<0;1>/*", "/0/*"), desc.replace("/<0;1>/*", "/1/*")
+    receive, change = core_scripts(to_core(recv), to_core(change))
+    return {"keys": keys_stated(desc), "receive": receive, "change": change}
+
+
 def read_listdescriptors(text):
     """Core's `listdescriptors`: the receive and change pair of one wallet,
     a multisig or miniscript one before BIP-84's, 86's, 49's, 44's."""
@@ -392,7 +418,8 @@ class Import(Area):
     faraday = (
         "`faraday_intake::wallet::read_wallet` (the wallet a file or text is: descriptors, "
         "`faraday_bip::coldcard`, `faraday_bip::multisig_config`, Caravan's, Electrum's, "
-        "Cobo's, Keystone's and Wasabi's files, `faraday_bip::bsms::DescriptorRecord`), and "
+        "Cobo's, Keystone's and Wasabi's files, Specter DIY's `addwallet`, "
+        "`faraday_bip::bsms::DescriptorRecord`), and "
         "`faraday_bip::bsms::SignerRecord` read and verified and `faraday_bip::bsms::signer_record` "
         "over the BIP-48 account node's key"
     )
@@ -415,14 +442,15 @@ class Import(Area):
         "BIP 129's key and descriptor records (`tools/vectors/bip129/`), and other wallets' "
         "files from their test suites (`faraday/faraday-core/tests/vectors/interop/`): "
         "Sparrow's and Nunchuk's BSMS records, Coldcard Mk4's and Q's exports, a Core "
-        "`listdescriptors`"
+        "`listdescriptors`, Sparrow's Specter DIY `addwallet`"
     )
     corpus = (
         "single-key wallets (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR), `sortedmulti` in P2WSH, "
         "P2SH-P2WSH and P2SH of one to fifteen keys, a miniscript in P2WSH, a taproot tree "
         "and a taproot `sortedmulti_a`, on mainnet and testnet keys, each as a descriptor "
         "(multipath with and without checksum, receive and change lines, labelled, receive "
-        "alone, Core's `listdescriptors`, Specter Desktop's file) or as the files that "
+        "alone, Core's `listdescriptors`, Specter Desktop's file, Specter DIY's `addwallet` "
+        "with and without its keys' derivations) or as the files that "
         "state its kind (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, "
         "Wasabi's, a key alone, a BSMS descriptor record), in BIP-32's or SLIP-132's "
         "spelling; damaged by a wrong checksum, a wrong first address, a SLIP-132 version "
@@ -437,6 +465,9 @@ class Import(Area):
             "is not a template, a key record whose description is over eighty characters or "
             "whose token is not BIP 129's; and which account of a Coldcard export, which pair "
             "of a `listdescriptors`, and what each field of every format means, the area's "
+            "reading of each format's documentation; a checksum in Specter DIY's `addwallet`, "
+            "which Specter DIY drops unread and Faraday checks, is refused when Core's code "
+            "calls it wrong; and the "
             "reading of each format's documentation."
         ),
         (
@@ -491,6 +522,8 @@ class Import(Area):
             self.read(t, lambda t=t: read_coldcard(t))
         t = (INTEROP / "core" / "listdescriptors.json").read_text()
         self.read(t, lambda t=t: read_listdescriptors(t))
+        t = (INTEROP / "sparrow" / "specter-diy-export.txt").read_text().strip()
+        self.read(t, lambda t=t: read_specter_diy(t))
         # Faraday's own record, of both networks and BIP-48 scripts.
         for net in ("mainnet", "testnet"):
             for script in (1, 2):
@@ -538,6 +571,8 @@ class Import(Area):
             recv, whole = flip_checksum(recv), flip_checksum(whole)
             assert not descsum_check(recv, require=True)
             assert not descsum_check(whole, require=True)
+        if fmt == "specter-diy":
+            return self.specter_diy_text(w, damage)
         if fmt == "multipath":
             text = whole
         elif fmt == "bare":
@@ -562,6 +597,21 @@ class Import(Area):
         if damage:
             return text, self.refused("Core's descsum_check: the checksum is wrong")
         return text, w.expected
+
+    def specter_diy_text(self, w, damage):
+        """Specter DIY's `addwallet`, as Sparrow writes it (a single-key
+        or multisig wallet's keys without a derivation, no checksum) or
+        with the two chains and a checksum; a name that may hold `&`."""
+        rng = self.rng
+        bare = w.kind != "mini" and rng.random() < 0.7
+        d = w.desc("") if bare else w.desc("/<0;1>/*")
+        if damage or rng.random() < 0.3:
+            d = checked(d)
+            if damage:
+                d = flip_checksum(d)
+        name = "".join(rng.choice(NAME_CHARS) for _ in range(rng.randrange(1, 30))).strip()
+        text = f"addwallet {name or 'W'}&{d}"
+        return text, lambda t=text: read_specter_diy(t)
 
     @staticmethod
     def refused(why, kind=ValueError):
@@ -589,6 +639,9 @@ class Import(Area):
 
     def file_specter(self, w, damage):
         return self.descriptor_text(w, "specter", damage)
+
+    def file_specter_diy(self, w, damage):
+        return self.descriptor_text(w, "specter-diy", damage)
 
     def file_coldcard(self, w, damage):
         """Coldcard's generic export: some of the four accounts of one

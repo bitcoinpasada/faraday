@@ -1,13 +1,13 @@
 //! The wallet description reader the device uses: a descriptor, a BIP-388 policy,
 //! a threshold or silent payments record, a BIP 129 record, a multisig
 //! config, a Coldcard export, a wallet `.json`, Bitcoin Core's
-//! `listdescriptors`, a single-key file, a Caravan config or an Electrum
-//! wallet file, each read as the one wallet it describes. A text it
+//! `listdescriptors`, a single-key file, a Caravan config, an Electrum
+//! wallet file or Specter DIY's `addwallet` command, each read as the one wallet it describes. A text it
 //! does not read is a [`Refusal`], whose line is Faraday's own
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
-use crate::{caravan, electrum, single_key};
+use crate::{caravan, electrum, single_key, specter_diy};
 use faraday_bip::json::{self, Value};
 use faraday_bip::keys::Network;
 use faraday_bip::policy::WalletPolicy;
@@ -144,13 +144,8 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 /// same wallet, with the same descriptor and checksum, as the one made
 /// here.
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
-    // A silent payments record is read whole: its lines are its fields.
-    if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
-        return WalletPolicy::parse_any(c, text)
-            .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
-    }
-    if faraday_bip::coldcard::looks_like_export(text) {
-        return coldcard_export(c, text);
+    if let Some(read) = read_whole(c, text) {
+        return read;
     }
     let plain =
         |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)));
@@ -276,6 +271,51 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         .collect::<Result<Vec<String>, _>>()?;
     WalletPolicy::parse_any(c, &lines.concat())
         .or_else(|e| multipath(c, &lines).ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e))))
+}
+
+/// Costs what [`read_wallet`] costs: the forms [`read_wallet`] reads
+/// whole before any other, by what the text begins with or holds: a
+/// silent payments record, whose lines are its fields; Coldcard's
+/// account export; Specter DIY's `addwallet` command. `None` for any
+/// other text.
+fn read_whole(c: &Compute, text: &str) -> Option<Result<WalletPolicy, Refusal>> {
+    if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
+        return Some(
+            WalletPolicy::parse_any(c, text)
+                .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e))),
+        );
+    }
+    if faraday_bip::coldcard::looks_like_export(text) {
+        return Some(coldcard_export(c, text));
+    }
+    specter_diy::split(text).map(|(_, d)| specter_diy_wallet(c, d))
+}
+
+/// Costs a parse of the descriptor and of each wallet tried: the
+/// descriptor of Specter DIY's `addwallet {name}&{descriptor}`
+/// ([`specter_diy::split`]), read as any descriptor is, its checksum
+/// checked where it has one, and keys none of which carries a
+/// derivation read as the two chains ([`multipath`]). A command with no
+/// descriptor after its `&` is refused.
+fn specter_diy_wallet(c: &Compute, d: &str) -> Result<WalletPolicy, Refusal> {
+    if !d.contains('(') {
+        return Err(Refusal::NotAWallet(
+            EN.wallet_specter_diy_no_descriptor.into(),
+        ));
+    }
+    let d = slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)))?;
+    WalletPolicy::parse_any(c, &d).or_else(|e| {
+        multipath(c, core::slice::from_ref(&d))
+            .ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e)))
+    })
+}
+
+/// The name a wallet's text carries, when it carries one that is not
+/// blank: an `addwallet` command's ([`specter_diy::name`]) or a wallet
+/// `.json`'s `"label"` ([`json_label`]). Costs a JSON parse of text that
+/// starts as JSON.
+pub fn carried_name(text: &str) -> Option<String> {
+    specter_diy::name(text).or_else(|| json_label(text))
 }
 
 /// Whether text is another wallet's file that holds a secret beside its

@@ -1,5 +1,6 @@
 //! Other wallets' files, read by the description reader and by the
-//! readers it calls (`caravan`, `electrum`, `single_key`). The files are
+//! readers it calls (`caravan`, `electrum`, `single_key`, `specter_diy`).
+//! The files are
 //! the ones those wallets' own test suites carry
 //! (`faraday/faraday-core/tests/vectors/interop/README.md`); each reads as
 //! the wallet it holds, with the first address it shows, and a malformed
@@ -8,8 +9,10 @@
 use crate::common::{interop, parse};
 use faraday_bip::keys::Network;
 use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
-use faraday_intake::wallet::{Refusal, first_address, holds_secret, json_label, read_wallet};
-use faraday_intake::{caravan, electrum, single_key};
+use faraday_intake::wallet::{
+    Refusal, carried_name, first_address, holds_secret, json_label, read_wallet,
+};
+use faraday_intake::{caravan, electrum, single_key, specter_diy};
 
 fn wallet(path: &str) -> WalletPolicy {
     let c = crate::common::compute();
@@ -160,7 +163,6 @@ fn a_file_of_a_kind_that_is_not_a_wallet_is_refused_with_a_reason() {
     for path in [
         "bluewallet/cobo-crypto-account.txt",
         "bluewallet/sparrow-crypto-output.txt",
-        "sparrow/specter-diy-export.txt",
         "sparrow/keystone-singlesig-sp-keystore-1.txt",
         "bluewallet/quicklook-preview-sample.txn",
     ] {
@@ -439,4 +441,91 @@ fn a_bsms_record_with_a_wrong_field_is_refused_and_a_sound_one_is_read() {
         let path = format!("sparrow/bsms/multisig-{n}.bsms");
         assert!(refusal(&path).contains("BSMS"), "{path}");
     }
+}
+
+// Specter DIY's `addwallet` (`docs/INTEROP.md` §5 I8).
+
+#[test]
+fn sparrows_specter_diy_export_reads_as_its_2_of_3_named_sparrow_multisig() {
+    let text = interop("sparrow/specter-diy-export.txt");
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 3));
+    assert!(matches!(wrapper, Wrapper::Wsh));
+    assert!(matches!(w.template(), Template::Multi { sorted: true, .. }));
+    let fingerprints: Vec<String> = w
+        .keys()
+        .iter()
+        .map(|k| k.fingerprint().unwrap().to_string())
+        .collect();
+    assert_eq!(fingerprints, ["7fd1bbf4", "8ff26349", "ff3305c2"]);
+    // Keys written without a derivation are the wallet's two chains.
+    assert_eq!(w.to_descriptor().matches("/<0;1>/*").count(), 3);
+    assert_eq!(carried_name(&text).as_deref(), Some("Sparrow Multisig"));
+    assert_eq!(first(&w).0, Network::Mainnet);
+}
+
+#[test]
+fn faradays_addwallet_for_sparrows_wallet_is_sparrows_own_text() {
+    let text = interop("sparrow/specter-diy-export.txt");
+    let w = wallet("sparrow/specter-diy-export.txt");
+    assert!(specter_diy::writes(&w));
+    assert_eq!(
+        specter_diy::command("Sparrow Multisig", &w).as_deref(),
+        Some(text.trim())
+    );
+}
+
+#[test]
+fn an_addwallet_command_faraday_writes_reads_back_as_the_same_wallet_with_its_name() {
+    let c = crate::common::compute();
+    for path in [
+        "sparrow/specter-diy-keystore.txt",
+        "sparrow/caravan-multisig-export-1.json",
+        "sparrow/descriptor-multipath.txt",
+    ] {
+        let w = wallet(path);
+        let cmd = specter_diy::command("Vault & Co", &w).unwrap();
+        let back = read_wallet(&c, &cmd).unwrap_or_else(|e| panic!("{path}: {}", e.text()));
+        assert_eq!(back.to_descriptor(), w.to_descriptor(), "{path}");
+        assert_eq!(carried_name(&cmd).as_deref(), Some("Vault & Co"), "{path}");
+    }
+}
+
+#[test]
+fn an_addwallet_command_with_its_keys_derived_reads_those_derivations() {
+    let c = crate::common::compute();
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let d = w.to_descriptor();
+    let a = read_wallet(&c, &format!("addwallet W&{d}")).unwrap();
+    assert_eq!(a.to_descriptor(), d);
+    // Other chains are not taken for the two default ones: refused, as
+    // every descriptor of them is.
+    let other = d.replace("/<0;1>/*", "/<2;3>/*");
+    assert!(read_wallet(&c, &format!("addwallet W&{other}")).is_err());
+}
+
+#[test]
+fn an_addwallet_command_faraday_cannot_verify_is_refused() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/specter-diy-export.txt");
+    let w = wallet("sparrow/specter-diy-export.txt");
+    let d = w.to_descriptor_checksummed();
+    // The checksum, where there is one, is checked: Specter DIY drops it.
+    assert!(read_wallet(&c, &format!("addwallet W&{d}")).is_ok());
+    let last = d.chars().last().unwrap();
+    let wrong = format!(
+        "{}{}",
+        &d[..d.len() - 1],
+        if last == 'q' { 'p' } else { 'q' }
+    );
+    assert!(read_wallet(&c, &format!("addwallet W&{wrong}")).is_err());
+    // No descriptor after the `&`, or a key alone.
+    let none = read_wallet(&c, "addwallet Sparrow Multisig&").unwrap_err();
+    assert!(none.text().contains("addwallet"), "{}", none.text());
+    let key = interop("sparrow/specter-diy-keystore.txt");
+    assert!(read_wallet(&c, &format!("addwallet K&{}", key.trim())).is_err());
+    // A multisig key with no origin, as every multisig wallet refuses.
+    let bare = text.replacen("[7fd1bbf4/48h/0h/0h/2h]", "", 1);
+    assert!(read_wallet(&c, &bare).is_err());
 }

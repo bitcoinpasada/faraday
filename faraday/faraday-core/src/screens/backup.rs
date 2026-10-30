@@ -2084,14 +2084,28 @@ fn public_files(
                     EN.public_files_electrum_watch_only,
                 ),
                 11 => (EN.public_files_caravan, EN.public_files_caravan_unchained),
+                12 => (
+                    EN.public_files_specter_diy,
+                    EN.public_files_specter_diy_reads,
+                ),
                 _ => (EN.public_files_wasabi, EN.public_files_wasabi_wallet),
+            };
+            // Specter DIY scans its command: as a code, and as pictures
+            // of its numbered parts.
+            let extra = if what == 12 {
+                codes(
+                    Action::ShowCode(Code::SpecterDiy(i)),
+                    Action::PublicOut(i, 14),
+                )
+            } else {
+                Vec::new()
             };
             (
                 name.to_string(),
                 detail,
                 file,
                 Action::PublicOut(i, what),
-                Vec::new(),
+                extra,
             )
         })
         .collect();

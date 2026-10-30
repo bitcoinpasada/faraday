@@ -40,8 +40,9 @@ use zeroize::Zeroize;
 /// The public files of wallet `w` that are under Public files' More
 /// options (F64, `docs/INTEROP.md` §5 I4), as [`Faraday::public_out`]
 /// numbers them, each with its file's name: Bitcoin Core before 29, the
-/// Electrum wallet file, the Caravan config and the Wasabi file, where
-/// the wallet has each.
+/// Electrum wallet file, the Caravan config, Specter DIY's `addwallet`
+/// command (`docs/INTEROP.md` §5 I8) and the Wasabi file, where the
+/// wallet has each.
 pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, String)> {
     let stem = file_stem(&w.name);
     let p = w.policy();
@@ -49,15 +50,24 @@ pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, String)> {
         (
             9,
             faraday_bip::core_import::writes_pair(p),
-            "bitcoin-core-before-29",
+            "bitcoin-core-before-29.json",
         ),
-        (10, faraday_intake::electrum::writes(p), "electrum"),
-        (11, faraday_intake::caravan::writes(p), "caravan"),
-        (13, faraday_intake::single_key::wasabi_writes(p), "wasabi"),
+        (10, faraday_intake::electrum::writes(p), "electrum.json"),
+        (11, faraday_intake::caravan::writes(p), "caravan.json"),
+        (
+            12,
+            faraday_intake::specter_diy::writes(p),
+            "specter-diy.txt",
+        ),
+        (
+            13,
+            faraday_intake::single_key::wasabi_writes(p),
+            "wasabi.json",
+        ),
     ]
     .into_iter()
     .filter(|(_, writes, _)| *writes)
-    .map(|(what, _, file)| (what, format!("{stem}-{file}.json")))
+    .map(|(what, _, file)| (what, format!("{stem}-{file}")))
     .collect()
 }
 

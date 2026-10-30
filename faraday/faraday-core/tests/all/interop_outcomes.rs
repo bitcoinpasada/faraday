@@ -34,7 +34,7 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
             out.push_str(&format!("slot {kind:?} {k}\n"));
         }
     }
-    if let Some(l) = faraday_intake::wallet::json_label(&text) {
+    if let Some(l) = faraday_intake::wallet::carried_name(&text) {
         out.push_str(&format!("label {l}\n"));
     }
     if let Ok((_, Some(n))) = faraday_bip::multisig_config::parse_named(&c, &text) {

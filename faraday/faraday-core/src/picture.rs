@@ -174,3 +174,58 @@ impl Labelled {
         draw(&self.code, &self.title, &self.lines)
     }
 }
+
+/// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
+/// Text as pictures keep it: one static code while it fits version 25
+/// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
+/// a descriptor on screen), else the BBQr parts the QR view makes, one
+/// code each, which a scanner that assembles parts takes one after the
+/// other.
+pub(crate) fn picture_codes(
+    c: &Compute,
+    text: &str,
+) -> Result<Vec<faraday_codec::qr::QrMatrix>, String> {
+    use faraday_codec::qr::{Ecc, Payload, encode_bounded};
+    if let Ok(m) = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
+        return Ok(vec![m]);
+    }
+    faraday_qr::send::bbqr_frames(c, 'U', text.as_bytes(), crate::QR_PARTS[1])
+        .map(|(_, frames)| frames)
+        .map_err(crate::send_error)
+}
+
+/// The file names of the pictures [`picture_codes`] makes of `text`,
+/// without making them: `{name}.png` for one code, else
+/// `{name}{part}{j}-of-{k}.png` for each of the `k` parts, and none when
+/// the text cannot be sent as parts. Costs the splitting of `text` into
+/// BBQr parts when it needs more than one code, and no code is drawn.
+pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
+    use faraday_codec::qr::{Ecc, byte_capacity};
+    if text.len() <= byte_capacity(25, Ecc::Medium) {
+        return vec![format!("{name}.png")];
+    }
+    let Some(parts) = faraday_qr::bbqr::encode('U', text.as_bytes(), crate::QR_PARTS[1]) else {
+        return Vec::new();
+    };
+    let k = parts.len();
+    if k == 1 {
+        return vec![format!("{name}.png")];
+    }
+    (1..=k)
+        .map(|j| format!("{name}{part}{j}-of-{k}.png"))
+        .collect()
+}
+
+/// Splits `text` into BBQr parts when it needs more than one code: what
+/// each picture [`picture_codes`] makes of `text` holds, in the order
+/// [`picture_names`] names them: the text itself for one code, else each
+/// BBQr part. No code is drawn.
+pub(crate) fn picture_payloads(text: &str) -> Vec<Vec<u8>> {
+    use faraday_codec::qr::{Ecc, byte_capacity};
+    if text.len() <= byte_capacity(25, Ecc::Medium) {
+        return vec![text.as_bytes().to_vec()];
+    }
+    faraday_qr::bbqr::encode('U', text.as_bytes(), crate::QR_PARTS[1])
+        .map(|parts| parts.into_iter().map(String::into_bytes).collect())
+        .unwrap_or_default()
+}

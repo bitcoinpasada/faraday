@@ -1541,7 +1541,7 @@ impl Faraday {
         let name = faraday_bip::multisig_config::parse_named(&c, &text)
             .ok()
             .and_then(|(_, n)| n)
-            .or_else(|| crate::wallet::json_label(&text))
+            .or_else(|| crate::wallet::carried_name(&text))
             .unwrap_or_else(|| crate::file_stem(&item.name));
         let source = item.name.clone();
         match self
