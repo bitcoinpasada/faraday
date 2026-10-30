@@ -315,7 +315,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-pgp"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "ed25519-dalek",
  "sha1",

@@ -1,6 +1,6 @@
 [package]
 name = "faraday-starter"
-version = "0.1.8"
+version = "0.1.9"
 description = "The Starter's state, screens and decisions (docs/STARTER.md): events in, commands out, no I/O"
 edition.workspace = true
 license.workspace = true

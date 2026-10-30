@@ -1,6 +1,6 @@
 [package]
 name = "faraday-desktop"
-version = "0.1.8"
+version = "0.1.9"
 description = "Faraday Demo: its side of a window (sticks as folders, storage, the fresh app a lock starts), shared with the Starter's window, and the developer's window of its own"
 edition.workspace = true
 license.workspace = true

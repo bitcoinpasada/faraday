@@ -10,7 +10,7 @@ Every document, and which one answers which question: `docs/README.md`.
 Building it, checking it, reproducing a release and trying it on your
 own hardware: `docs/DEVELOPING.md`.
 
-> **Use at your own risk.** 0.1.8 is a pre-release. One outside audit,
+> **Use at your own risk.** 0.1.9 is a pre-release. One outside audit,
 > AI-assisted, has read its code; no person outside the project has
 > reviewed its code, its cryptography or its builds, and no second
 > builder has reproduced it. It comes with no warranty of any kind (see
@@ -617,10 +617,10 @@ PowerShell prints a file's sum to compare with its line in
 `SHA256SUMS`:
 
 ```
-Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.8-x86_64-uefi-strict.img.xz
+Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.9-x86_64-uefi-strict.img.xz
 ```
 
-The release tags are signed with the same key: `git tag -v v0.1.8`.
+The release tags are signed with the same key: `git tag -v v0.1.9`.
 
 ## Repository layout
 

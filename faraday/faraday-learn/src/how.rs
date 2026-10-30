@@ -68,8 +68,8 @@ static AREA_BIP39: Area = Area {
     random: &[p("Entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word.")],
     differences: &[p("Both read a BIP-39 sentence in NFKD, so composed words and the Japanese vectors as published parse on both sides (owner, 2026-10-23)."), p("A passphrase typed in Faraday is printable ASCII, at most 256 bytes; python-mnemonic takes any text. Faraday's vector tests and start-up self-test give a non-ASCII passphrase as its NFKD bytes, and the area checks that a typed one, or one past 256 bytes, is still refused.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 30000,
 };
 
 #[rustfmt::skip]
@@ -81,8 +81,8 @@ static AREA_BIP32: Area = Area {
     random: &[p("Seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 400,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 4000,
 };
 
 #[rustfmt::skip]
@@ -94,8 +94,8 @@ static AREA_CODEX32: Area = Area {
     random: &[p("secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets.")],
     differences: &[p("Codex32: Faraday recovers only from exactly k shares without the secret, and derives a share only from exactly k strings at an unused index; the reference also takes more strings or a used index."), p("The codex32 threshold and seed sizes, which the reference leaves to its caller, are written in the area from the BIP's own sentences.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 1000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 10000,
 };
 
 #[rustfmt::skip]
@@ -107,8 +107,8 @@ static AREA_LIGHTNING: Area = Area {
     random: &[p("Random BIP-39 seeds and entropies on every network; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 400,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 4000,
 };
 
 #[rustfmt::skip]
@@ -120,8 +120,8 @@ static AREA_ADDR: Area = Area {
     random: &[p("Scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 4000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 40000,
 };
 
 #[rustfmt::skip]
@@ -133,8 +133,8 @@ static AREA_MINISCRIPT: Area = Area {
     random: &[p("Wallets of the Liana, Nunchuk, Sparrow and recovery shapes in wsh() and sh(wsh()), multi/sortedmulti in sh(), wsh(), sh(wsh()), tr() with trees of one to six leaves or a lone sortedmulti_a, over random accounts on every network, at random indices of both chains; the same made not sane, refused.")],
     differences: &[p("Miniscript: Faraday reads sortedmulti_a only as a tr()'s one leaf; BIP 387 allows it deeper in a tree, and Core reads it there. Two of Bitcoin Core's sane miniscripts are refused, as miniscript refuses them: or_b(0,a:0), which has no satisfaction, and a d: used as a unit under Tapscript. Each is checked and counted.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 250,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 2500,
 };
 
 #[rustfmt::skip]
@@ -146,8 +146,8 @@ static AREA_TAPROOT: Area = Area {
     random: &[p("Trees of 0 to 12 leaves in random shapes with random scripts and leaf versions over random internal keys: leaf hashes, Merkle root, tweak, output key and parity, script, address, control blocks; each control block checked, then changed eleven ways; internal keys that are no point, odd leaf versions and 0x50 refused.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 440,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 4400,
 };
 
 #[rustfmt::skip]
@@ -159,8 +159,8 @@ static AREA_IMPORT: Area = Area {
     random: &[p("single-key wallets (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR), sortedmulti in P2WSH, P2SH-P2WSH and P2SH of one to fifteen keys, a miniscript in P2WSH, a taproot tree and a taproot sortedmulti_a, on mainnet and testnet keys, each as a descriptor (multipath with and without checksum, receive and change lines, labelled, receive alone, Core's listdescriptors, Specter Desktop's file, Specter DIY's addwallet with and without its keys' derivations) or as the files that state its kind (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Wasabi's, a key alone, a BSMS descriptor record), in BIP-32's or SLIP-132's spelling; damaged by a wrong checksum, a wrong first address, a SLIP-132 version of another script or another paths line; key records signed by btclib in each header form, with or without damage, and Faraday's own record of random seeds.")],
     differences: &[p("Still ours, expected from Faraday's rule: a SLIP-132 version that names another script than the file's (F155), a BSMS paths line other than /0/*,/1/* or No path restrictions, which Faraday reads as the two chains (F64), a BSMS descriptor that is not a template, a key record whose description is over eighty characters or whose token is not BIP 129's; and which account of a Coldcard export, which pair of a listdescriptors, and what each field of every format means, the area's reading of each format's documentation; a checksum in Specter DIY's addwallet, which Specter DIY drops unread and Faraday checks, is refused when Core's code calls it wrong; and the reading of each format's documentation."), p("A key record's signature in any of BIP-137's header forms is accepted when it recovers the record's key: btclib is asked with the address that form names (Faraday reads no address from the record).")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 450,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 4500,
 };
 
 #[rustfmt::skip]
@@ -172,8 +172,8 @@ static AREA_MUSIG: Area = Area {
     random: &[p("Sessions of 1 to 3 signers: key sort and aggregation, tweaks, nonces, partial signatures, their verification (and a tampered one), aggregation checked as BIP-340, deterministic signing.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 20,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 200,
 };
 
 #[rustfmt::skip]
@@ -185,8 +185,8 @@ static AREA_ENTROPY: Area = Area {
     random: &[p("Runs of every source at every strength, short of the count, at it and past it, with faces, cards, frames and characters the pads refuse and every source past its limit; mixes of one to six sources given by their inputs.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 30000,
 };
 
 #[rustfmt::skip]
@@ -198,8 +198,8 @@ static AREA_OWN: Area = Area {
     random: &[p("Random sessions of system answers, dice, coins, camera frames (some refused, some empty) and pointer moves and keys (none to several batches), locks, seed draws, fresh bytes and counts, in any order.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 400,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 4000,
 };
 
 #[rustfmt::skip]
@@ -211,8 +211,8 @@ static AREA_ROLLER: Area = Area {
     random: &[p("Random answers (some mostly skipped bytes) under clicks of every size into entries of random room, with resets; the five dice of random faces (2 to 20) under clicks of every reach into codex32 shares of random count and length, answers running out part way; rolls of random dice entered by hand, equal pairs among them.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 30000,
 };
 
 #[rustfmt::skip]
@@ -224,8 +224,8 @@ static AREA_BIP85: Area = Area {
     random: &[p("Random master keys, indices, languages, word counts and lengths, with refusals.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 30000,
 };
 
 #[rustfmt::skip]
@@ -237,8 +237,8 @@ static AREA_VANITY: Area = Area {
     random: &[p("Counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 200,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 2000,
 };
 
 #[rustfmt::skip]
@@ -250,8 +250,8 @@ static AREA_SILENT: Area = Area {
     random: &[p("Inputs of every kind BIP-352 reads, receivers with labels, a sender's outputs and what each receiver finds among them and decoys.")],
     differences: &[p("BIP-352: Faraday's sender arithmetic is test-only and has no K_max, so the vector that exceeds it is checked on the receiving side only."), p("BIP-352's skip of a transaction spending SegWit version 2 or above, which the reference leaves to its caller, is written in the area from the BIP's own sentence."), p("BIP-392 publishes no reference code or vectors: its spscan expression is written and read with the BIP-352 reference's bech32m and curve, as BIP-392 states the payload, and the sp() around it is read in the area from the BIP's text. Faraday's own, expected from its rule: an sp() with no key origin, which BIP-392 allows, is refused, as is an origin other than BIP-352's path.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 100,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 1000,
 };
 
 #[rustfmt::skip]
@@ -263,8 +263,8 @@ static AREA_PSBT: Area = Area {
     random: &[p("Random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, in random order, read field for field as Core reads them and written back byte for byte as read and as Core writes them, then broken one rule at a time; each version 0 PSBT made version 2 as HWI's convert_to_v2 makes it and back to its own bytes; BIP-370's locktime, transaction and version 0 form under every mix of required locktimes.")],
     differences: &[p("Version 0 made version 2: HWI's convert_to_v2 leaves out the PSBT_OUT_SCRIPT of an output whose script is empty, which BIP-370 requires; Faraday writes it, and the rest of the PSBT must be the same."), p("Bitcoin Core reads a version 0 PSBT with a version 2 field as valid, the field as unknown; Faraday refuses it, as BIP-370 does, and so does HWI, which decides it."), p("A taproot signature of 65 bytes whose sighash byte is 0, which neither Core nor HWI refuses, and bytes after a version 2 PSBT's last map or a stream that ends inside one, which HWI reads: Faraday refuses each, as BIP-341 and BIP-174 do, and the refusal is checked by a rule written in the area."), p("PSBT version 2 (faraday_psbt::v2): a BIP-370 key with key data is an unknown key; BIP-174's and BIP-371's fields inside are checked only when the PSBT is bridged to version 0, except a taproot signature whose sighash byte is 0, refused on reading. HWI checks them on reading; the area requires HWI to read the PSBT without those pairs, to Faraday's locktime and transaction. Where HWI reads a value shorter than its length says and makes a version 0 PSBT of it, which Faraday does not, Core must refuse the version 0 PSBT of the PSBT's own pairs.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 1500,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 15000,
 };
 
 #[rustfmt::skip]
@@ -276,8 +276,8 @@ static AREA_REVIEW: Area = Area {
     random: &[p("PSBTs of one to three inputs and one to four outputs over single-key accounts (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR) and registered wallets (sortedmulti in P2WSH, a miniscript in P2WSH, a taproot tree, a taproot sortedmulti_a) or the same wallets unregistered: witness UTXOs, previous transactions and no UTXO data, fees from nothing to a third of the inputs, payments, change on either chain, another wallet's change, and spoofed change over the wallet's own script at another index, another wallet's and a stranger's; one key held, two, or none of the wallet's.")],
     differences: &[p("Change of a script of several keys, a miniscript or a taproot tree: Faraday verifies it only for a registered wallet that holds a loaded key, and counts it as paid to others otherwise, which Core has no notion of. The area expects the same refusal, and does not compare the spoof warning for an unregistered wallet (Faraday's reading of such a claim depends on the account path it states).")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 200,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 2000,
 };
 
 #[rustfmt::skip]
@@ -289,8 +289,8 @@ static AREA_TX: Area = Area {
     random: &[p("Random transactions with and without witnesses (txid, wtxid, weight, bytes), cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash type.")],
     differences: &[p("Legacy sighash: bitcoin hashes the script code as given, Core removes every OP_CODESEPARATOR first. Faraday's legacy spends (P2PKH, P2SH multisig) have none."), p("A raw transaction whose witness stack counts more items than the transaction has bytes is refused in the area: Core's framework reads past the end as zeros and would take hours to write such a stack back. Faraday's full reading refuses it too, since every item is written back as at least one byte, and the harness's own tests check the shortcut.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 30000,
 };
 
 #[rustfmt::skip]
@@ -302,8 +302,8 @@ static AREA_SIGN: Area = Area {
     random: &[p("PSBTs of one to four inputs, each spending a funding output on the node: P2PKH, P2SH-P2WPKH, P2WPKH, multi/sortedmulti in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (pk, pkh, timelocked keys, or_d, multi_a) with the key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on (Core's), every standard sighash type, timelocks met and not; Core's signatures (ECDSA byte for byte, BIP-340 by verification and the deterministic nonce), each final scriptSig and witness and the extracted transaction Core's, the cleared fields, and every finalized transaction accepted by Core's mempool; an origin that derives another key refused; sweeps: a WIF key's P2PKH, P2WPKH and P2SH-P2WPKH outputs (P2PKH alone for an uncompressed key) spent beside another key's, signed by Core from the WIF and by faraday_psbt::sweep::sign, byte for byte, finalized and accepted by the mempool.")],
     differences: &[p("PSBT signing: Faraday refuses to sign a SegWit v0 input with no previous transaction in a transaction of more than one input; Core signs it, and BIP-174's own signer vector is such a PSBT. The refusal is ours, checked and counted. Faraday holds a finalized input to the same rule and refuses the PSBT when such an input is final, except a taproot one, whose final witness is the coordinator's."), p("PSBT signing, wallets: Faraday signs an input spent from a script of several keys (a multi of two or more, a miniscript naming two or more, a taproot script path whose carried leaves name two or more with its internal key, or are not its whole tree) only for a registered wallet that holds one of its keys and whose script it is; Core signs any. The area refuses, by a rule of its own, where no wallet the request registers holds a held key and gives the input, and counts it only where Faraday's refusal is that the wallet is not registered. A miniscript or a taproot tree of one key is signed only through such a wallet, and is otherwise left unsigned while the rest is signed (F141); the area takes Core's signatures off it. Half the corpus's multi, miniscript and taproot-tree inputs come with their wallet registered, so their signatures are still compared. A registered tree's every leaf has its wait met, since Faraday refuses a path that can never be valid, which the area does not work out."), p("PSBT signing: Faraday refuses a PSBT any input of which asks for a NONE or SINGLE sighash, and one that none of the held keys can sign: dangers no hold accepts (F136). Core signs the first and answers the second with nothing signed. The area expects both refusals by a rule of its own, counting a held key as taking part as Faraday's inspection does (a miniscript or a taproot tree only through a wallet in use), checks that Faraday's refusal names the danger, and counts them."), p("Taproot pkh leaves: Faraday signs a taproot leaf that checks its key by hash but does not finalize it: miniscript 12's finalizer looks the key up among the ECDSA origins and panics, and would push 33 bytes where the leaf hashed 32. Core finalizes such a leaf; the area takes the signatures under it off before Core finalizes, and counts each input Core would otherwise have finalized another way.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 158,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 1580,
 };
 
 #[rustfmt::skip]
@@ -315,8 +315,8 @@ static AREA_MSG: Area = Area {
     random: &[p("Random keys, address forms, networks and messages: virtual txids; signatures made byte for byte under both nonce rules and checked by every reference, then checked against a changed message, another address, a changed byte and a moved header; btcd's own simple signatures checked by Faraday.")],
     differences: &[p("BIP-137: Faraday reads the address form from the address rather than the header's range and tries a P2PKH address in both key encodings (faraday_psbt::message), as Electrum and Sparrow do; btclib holds the ranges (with Electrum's for SegWit) and Core reads the key encoding from the header. Counted where btclib accepts the signature with the header the address's form names, or Core with the other key encoding."), p("BIP-322: Faraday refuses the full form and proof of funds, which both references make and accept (for P2PKH and P2SH-P2WPKH addresses they sign in the full form); counted where both accept and Faraday refuses the format."), p("BIP-322: Faraday checks simple signatures for P2WPKH and P2TR addresses only; a P2WSH script both references accept is refused as an unsupported address, and counted."), p("Between the references: btclib's interpreter holds witness v0 scripts alone to MINIMALIF, so it accepts btcd's two negative vectors of a legacy P2SH script, in the full form, whose OP_IF takes a non-minimal true; btcd must call them invalid and Faraday, which reads no full form, refuse them, and each is counted.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 600,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 6000,
 };
 
 #[rustfmt::skip]
@@ -328,8 +328,8 @@ static AREA_SEEDQR: Area = Area {
     random: &[p("Keys of every length and language, both codes and the words read back; digits and bytes malformed; payloads in each mode at each level and version limit; 48-character codex32 strings in either case as Codex32QR codes and the pictures written of them read back, other lengths refused.")],
     differences: &[p("SeedQR digits: SeedSigner reads a string with 1 to 3 digits more than 48 or 96 (it drops the tail) and one with a sign or a space inside a group of four (int() takes them); Faraday refuses both (5 cases, each checked on both sides and counted). SeedSigner takes no CompactSeedQR of 20, 24 or 28 bytes either, and strips checksum bits for 12 and 24 words only; the corpus keeps Faraday's 15, 18 and 21 word compact form on the entropy itself."), p("Codex32QR: Faraday picks the mask Nayuki's encoder picks; the profile's encoder chose another for 6 of its 22 pictures. For those the area swaps the mask of Faraday's code for the picture's with qrcodegen.py's masking, requires the picture, and counts it.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 800,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 8000,
 };
 
 #[rustfmt::skip]
@@ -341,8 +341,8 @@ static AREA_UR: Area = Area {
     random: &[p("Messages as crypto-psbt and bytes at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut.")],
     differences: &[p("UR: Faraday has no minimum fragment length, writes a one-fragment message as a part like any other, and refuses to animate an empty message; foundation-ur-py checks a UR type one character's way ('a' <= type <= 'z'). The area asks the reference with a minimum of 1, makes parts with its fountain encoder, and keeps its types to letters, digits and - not starting with z. Faraday's decoder reduces mixes by each other whichever arrived first, and so sometimes finishes a set URKit's does not; the area then checks the message is the one sent and counts the set.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 600,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 6000,
 };
 
 #[rustfmt::skip]
@@ -354,8 +354,8 @@ static AREA_BBQR: Area = Area {
     random: &[p("Files of every type and size split by Coinkite in each encoding and read in any order, with repeats, a part missing, another transfer's part, a conflicting repeat and a part past the count; what Faraday writes read back by join_qrs; numbered parts written, read in any order and refused when malformed.")],
     differences: &[p("BBQr: Faraday reads the file types P, T, U and J and frames of at most 4,096 characters; Coinkite's library reads every type BBQr defines and a version 40 part of 4,296 characters. Both refusals are checked and counted, and the corpus splits at version 39 at most. Faraday also refuses a set whose parts are not one length but the last, which Coinkite never writes."), p("Numbered parts: SeedSigner matches P and OF in upper case; Faraday does not (checked and counted). Faraday also refuses a part number of 0 or past the count, a count over 1,000, a repeat with other text and a part with no header, which SeedSigner's decoder files, fails on or takes whole; those refusals are written in the area, in front of the decoder.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 1500,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 15000,
 };
 
 #[rustfmt::skip]
@@ -367,8 +367,8 @@ static AREA_CODEX32_CORRECT: Area = Area {
     random: &[p("Random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, ms1 damaged.")],
     differences: &[p("Codex32 correction: python-codex32 reads a character outside the bech32 alphabet as unreadable, and fills more than 8 unreadable boxes that are not one run when its equations allow; Faraday refuses both (docs/CODEX32.md §8.4). The corpus damages strings with bech32 characters and ? only.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 10000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 100000,
 };
 
 #[rustfmt::skip]
@@ -380,8 +380,8 @@ static AREA_SLIP39: Area = Area {
     random: &[p("Splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher.")],
     differences: &[p("SLIP-39: Faraday refuses a group threshold of 1 over several groups; python-shamir-mnemonic makes the shares. The area checks that this still holds, so a change either way is seen.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 1500,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 15000,
 };
 
 #[rustfmt::skip]
@@ -393,8 +393,8 @@ static AREA_XOR: Area = Area {
     random: &[p("Splits and combines in all ten languages and five lengths, with refusals; parts made by Coldcard's xor_split read back to their seed.")],
     differences: &[p("None known.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 4000,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 40000,
 };
 
 #[rustfmt::skip]
@@ -406,8 +406,8 @@ static AREA_SILENT_SEND: Area = Area {
     random: &[p("Proofs made and verified, damaged or not, under two generators; version 2 PSBTs of one to four inputs of every kind BIP-375 reads and some it does not, one to three silent payment outputs, shares added by one signer or two, a global share, and each finished PSBT damaged in one of eighteen ways, judged by the BIP's validator.")],
     differences: &[p("BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH or P2WPKH input only where the input's script commits to it (F89); the validator takes the first key stated, so a PSBT it accepts with an unbound key is refused by Faraday."), p("BIP-375: Faraday accepts the scripts of a scan key's outputs numbered in sorted order of their spend keys, as the BIP's text says, and in output order, as its vectors do; the validator accepts output order only."), p("BIP-375: Faraday refuses an input whose redeem script is not the one its P2SH script hashes, and one whose previous transaction is not the one spent; the validator reads both fields without checking them.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 80,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 800,
 };
 
 #[rustfmt::skip]
@@ -419,8 +419,8 @@ static AREA_VAULT: Area = Area {
     random: &[p("Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types a caller writes (type 12 is retired and refused) with the seal count, encoded, decoded and broken a rule at a time; passphrases in every Unicode form, made and opened; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed with a count one higher, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key, a commitment block not zero and faulty contents.")],
     differences: &[p("Both refuse a record of type 7 or 9 without its required fields, a sheet past 16 KiB, an empty passphrase at create, and a second type 14 or type 10 record, as docs/VAULT.md §7 and §8 say (owner, 2026-10-23).")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3605,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 36050,
 };
 
 #[rustfmt::skip]
@@ -432,8 +432,8 @@ static AREA_KDBX: Area = Area {
     random: &[p("Databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte.")],
     differences: &[p("KDBX: pykeepass strips the characters XML 1.0 cannot hold from a protected value after decrypting it; Faraday writes a Password's bytes as they are. The area expects pykeepass's reading and counts the items that differ. pykeepass also opens a file whose major version is neither 3 nor 4 without reading past it, deriving a key or checking a hash; KeePass refuses such a file, and the area counts a file as opened only when pykeepass read a KDBX 4 body."), p("Pykeepass runs the key derivation the header states before it checks the header's SHA-256, so a changed bit in the Argon2 iterations (2^44 passes) holds it for good; KeePass and KeePassXC check the hash first and refuse at once. The area asks pykeepass first with a key given and nothing decrypted, which checks the version and the header's hash and derives nothing, and only then with the passphrase.")],
     when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
-    seed: "faraday-crosscheck-1",
-    cases: 120,
+    seed: "9c116ea474f3bad8357d24a1c257f3d0",
+    cases: 1200,
 };
 
 /// Every action's block, in the manifest's order.

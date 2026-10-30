@@ -1,6 +1,6 @@
 [package]
 name = "faraday-ui"
-version = "0.1.8"
+version = "0.1.9"
 description = "Faraday's drawing: the Ui, the palettes, the mark and wordmark, cards, buttons, sheets and QR codes the desktop app, Faraday Starter draw with"
 edition.workspace = true
 license.workspace = true

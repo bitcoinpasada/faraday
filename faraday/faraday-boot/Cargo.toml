@@ -1,6 +1,6 @@
 [package]
 name = "faraday-boot"
-version = "0.1.8"
+version = "0.1.9"
 description = "Which Faraday a stick's boot partition holds: the kernel's release string found in its bytes, as Faraday Starter reads a stick's version (docs/STARTER.md §4.1)"
 edition.workspace = true
 license.workspace = true

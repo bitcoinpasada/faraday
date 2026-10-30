@@ -1,6 +1,6 @@
 [package]
 name = "faraday-mediafoundation"
-version = "0.1.8"
+version = "0.1.9"
 description = "Media Foundation capture through one small C file: the Windows twin of faraday-avfoundation"
 edition.workspace = true
 license.workspace = true

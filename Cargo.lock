@@ -711,11 +711,11 @@ dependencies = [
 
 [[package]]
 name = "faraday-alloc-count"
-version = "0.1.8"
+version = "0.1.9"
 
 [[package]]
 name = "faraday-argon2-bench"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-crypto",
  "faraday-vault",
@@ -756,7 +756,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-boot"
-version = "0.1.8"
+version = "0.1.9"
 
 [[package]]
 name = "faraday-codec"
@@ -772,7 +772,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-core"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-alloc-count",
  "faraday-backup",
@@ -835,7 +835,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-desktop"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "faraday-core",
@@ -849,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-disk"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-crypto",
  "faraday-fat",
@@ -879,11 +879,11 @@ dependencies = [
 
 [[package]]
 name = "faraday-fat"
-version = "0.1.8"
+version = "0.1.9"
 
 [[package]]
 name = "faraday-files"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-codec",
  "faraday-crypto",
@@ -905,21 +905,21 @@ dependencies = [
 
 [[package]]
 name = "faraday-grant"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "faraday-guides"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-learn",
 ]
 
 [[package]]
 name = "faraday-intake"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -931,7 +931,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-keys"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-backup",
  "faraday-bip",
@@ -950,14 +950,14 @@ dependencies = [
 
 [[package]]
 name = "faraday-learn"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-strings",
 ]
 
 [[package]]
 name = "faraday-mediafoundation"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "cc",
  "faraday-avfoundation",
@@ -965,7 +965,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-payload"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "lzma-rust2",
  "sha2",
@@ -973,7 +973,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-pgp"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "ed25519-dalek",
  "sha1",
@@ -994,7 +994,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-qr"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -1006,7 +1006,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-samples"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "bip39",
  "faraday-bip",
@@ -1023,7 +1023,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-sb"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "chacha20",
  "faraday-pgp",
@@ -1036,7 +1036,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-scanner"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-codec",
  "faraday-crypto",
@@ -1064,7 +1064,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-snapshot"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -1085,7 +1085,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-starter"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -1106,7 +1106,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-starter-shell"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-boot",
  "faraday-core",
@@ -1128,7 +1128,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-stick"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-core",
  "faraday-crypto",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-storage"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-codec",
  "faraday-core",
@@ -1155,7 +1155,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-strings"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "zeroize",
@@ -1163,7 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-testkit"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-bip",
  "faraday-core",
@@ -1173,7 +1173,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-ui"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-codec",
  "faraday-draw",
@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-vault"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "argon2",
  "chacha20",
@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-window"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "faraday-avfoundation",
  "faraday-core",

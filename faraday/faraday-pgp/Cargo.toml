@@ -1,6 +1,6 @@
 [package]
 name = "faraday-pgp"
-version = "0.1.8"
+version = "0.1.9"
 description = "The OpenPGP subset Faraday makes: v4 Ed25519 keys, certificates, detached signatures, revocations, paperkey, and a key restored from its paperkey and certificate (docs/history/PLAN.md §7, docs/GPG-PAPERKEY.md)"
 edition.workspace = true
 license.workspace = true
