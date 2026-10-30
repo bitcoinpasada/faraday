@@ -113,6 +113,7 @@ need. Each document's header says what kind it is:
 - `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
+- `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174), not built.
 - `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), not built.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which references are Faraday's own (§10, §10.7, F160). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).

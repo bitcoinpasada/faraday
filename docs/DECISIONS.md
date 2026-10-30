@@ -81,7 +81,7 @@ Read this table, then only the decision you need.
 | [F64](decisions/F64.md) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
 | [F65](history/decisions/F65.md) | Upstream's code taken in house: a soft fork | 2026-10-20 | Replaced by F72 | repository |
 | [F66](decisions/F66.md) | Hardened steps are written `h` | 2026-10-20 | Active | wallets |
-| [F67](decisions/F67.md) | The stick's partitions and files have Faraday's names | 2026-10-21 | Amended by F128 | stick |
+| [F67](decisions/F67.md) | The stick's partitions and files have Faraday's names | 2026-10-21 | Amended by F128, F174 | stick |
 | [F68](decisions/F68.md) | One strings file; the upstream app removed | 2026-10-21 | Active | repository |
 | [F69](decisions/F69.md) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
 | [F70](decisions/F70.md) | One crate holds every key: faraday-keys | 2026-10-21 | Amended by F125 | keys |
@@ -188,3 +188,4 @@ Read this table, then only the decision you need.
 | [F171](decisions/F171.md) | A WIF private key is swept, never kept: a sheet of its addresses, its PSBT reviewed against the loaded wallets and signed with a hold | 2026-10-29 | Active | keys |
 | [F172](decisions/F172.md) | A BIP-85 password out of Faraday names neither its parent nor its index; in a vault its entry keeps both | 2026-10-29 | Active | keys |
 | [F173](decisions/F173.md) | A TOTP setup code read with no vault open shows the read card: Unlock {vault}, the code carried, or Make a vault, the code not kept | 2026-10-29 | Active | keys |
+| [F174](decisions/F174.md) | A stick or card does not say it is Faraday's: plain names, its own IDs, known by its layout | 2026-10-30 | Active | stick |
