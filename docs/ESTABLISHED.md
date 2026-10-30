@@ -80,8 +80,9 @@ or that it implements none.
 
 ### 1.4 The text STANDARDS §0 gains
 
-Built with §2 (batch D1), as a bullet after "Checked against an
-implementation Faraday did not write":
+Built (2026-10-30), with the two-sentence summary at §0's top between
+`standards-summary` markers, which the website's /cryptography reads; batch D1
+adds "and §10 lists them" once §10 is generated:
 
 > **Established implementations first** (F178). Faraday uses an
 > established implementation wherever one exists for what it needs: the

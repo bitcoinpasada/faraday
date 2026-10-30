@@ -16,6 +16,10 @@ is in `docs/AUDIT.md` and `docs/CROSSCHECK.md`.
 
 ## 0. What goes into Faraday
 
+<!-- standards-summary: begin -->
+Faraday follows published standards and uses an established implementation wherever one exists. It writes its own only where none exists or none fits its rules for keys, and says why.
+<!-- standards-summary: end -->
+
 The rule for what the app offers (owner, 2026-10-23; written in the
 decision F109):
 
@@ -26,13 +30,23 @@ decision F109):
   part it leaves out, and is checked against that standard's vectors or
   an implementation Faraday did not write (F79's cross-check, other
   wallets; F160).
+- **Established implementations first** (F178). Faraday uses an
+  established implementation wherever one exists for what it needs: the
+  standard's own reference implementation, or the implementation the
+  ecosystem relies on, published by a project F71 trusts. It writes its
+  own only where none exists or none fits its rules for keys. Each piece
+  it writes says which of four reasons holds (Faraday's own
+  specification; no established implementation; one exists but does not
+  fit the key rules, and which rule; only the part used is written). A
+  new piece written here, or a library that is not established, is a
+  decision.
 - **A draft that is stable enough.** A draft whose text has held still,
   that has outside implementations and that Faraday's cross-check
   agrees with, can be in the app; the table says it is a draft (codex32,
   BIP 93).
 - **Faraday's own, conservative.** Where no standard exists, Faraday's
   own format or rule is in the app when it fails closed (a refusal, a
-  record layout) and a decision records it. A cryptographic construction
+  record layout) and a decision records it. A cryptographic specification
   of Faraday's own is in the app only once it has been reviewed, or
   when it can only add to a standard's strength (mixing a person's own
   randomness into the system's); §7 lists them for outside review.
