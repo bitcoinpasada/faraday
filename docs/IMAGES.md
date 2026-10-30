@@ -238,13 +238,13 @@ balenaEtcher or `dd`. The README says so in a few lines per system.
 The download page asks one thing, the hardware, and leads to one build
 per visit (F147):
 
-1. **Tiles**, one per piece of hardware, from `faraday/builds.toml`'s
-   `[[hardware]]` entries, in their order, each image naming the
-   hardware and build it is offered as: the PC, then each Pi screen by
-   size, and an HDMI monitor. Each shows the hardware with Faraday's
-   screen at that size, its name, the Pis it fits, and whether it is
-   tested, looking for testers, or coming soon. The Pi model is not
-   asked (§3).
+1. **Tiles**, one per `[[hardware]]` entry of `faraday/builds.toml`, in
+   their order: the PC, then each Pi screen by size, and a Pi with an
+   HDMI screen; three columns from 840 px wide, fewer below. Each shows
+   the hardware with Faraday's screen at that size, its name, the Pis
+   it fits, and one button, Download or Coming soon; whether a build is
+   tested is said on its page, not here (owner, 2026-10-30). The Pi
+   model is not asked (§3).
 2. **A build's page** offers the Starter for the visitor's system and
    the build's image, each as its own release file (no zip, so every
    file is one line of `SHA256SUMS`), and writing the image without the
@@ -252,8 +252,11 @@ per visit (F147):
    offers the other build: Compatible for a PC that does not start with Strict,
    or for a USB keyboard or stick on the 2.8-inch. What the visitor needs,
    opening the Starter the first time and checking the files are on this
-   page, not on the tiles' page. A build looking for testers asks those
-   who try it to say so.
+   page, not on the tiles' page. Each build on the page, the one
+   offered and the other, carries its state as `docs/HARDWARE.md` §1
+   gives it: tested, looking for testers, or coming soon; one looking
+   for testers asks those who try it to say so, and so does a Pi the
+   hardware fits that no one has started the image on yet.
 
 The hardware page says what each build carries and that every one is
 safe in practice, Strict being the most the hardware allows, and links
