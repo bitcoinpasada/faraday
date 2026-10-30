@@ -502,12 +502,11 @@ class Psbt(Area):
         and HWI's writing of it are left out of both sides; where HWI
         does not read the PSBT, nothing is compared. HWI leaves out the
         `PSBT_OUT_SCRIPT` of an output whose script is empty, which
-        BIP-370 requires; Faraday writes it, a known difference. Such an
-        output has no script to bridge to version 0 (`to_v0` takes an
-        empty script for one not yet given), so it is not turned back;
-        nor is a PSBT with a pair of a type BIP-375 defines for version
-        2 alone (`BIP375_V2`), which version 2 reads as that field and
-        `to_v0` leaves out."""
+        BIP-370 requires; Faraday writes it, a known difference, and
+        turns it back to version 0 as the empty script. A PSBT with a
+        pair of a type BIP-375 defines for version 2 alone (`BIP375_V2`)
+        is not turned back: version 2 reads it as that field and `to_v0`
+        leaves it out."""
         inputs = {"psbt": raw.hex()}
         try:
             p = hwi_read(raw)
@@ -534,10 +533,9 @@ class Psbt(Area):
         # version is written; not for a transaction of no input, whose
         # serialisation reads as a SegWit marker and is not signed.
         glob = r0[0]
-        empty = any(empty_script in m for m in ours[1 + n_in:])
         bip375 = any(k[:1] and k[0] in BIP375_V2[min(i, 1) if i <= n_in else 2]
                      for i, m in enumerate(r0) for k, _ in m)
-        if (n_in and not empty and not bip375 and glob and glob[0][0] == b"\x00"
+        if (n_in and not bip375 and glob and glob[0][0] == b"\x00"
                 and get(glob, 0xfb) is None):
             if got["back"] != raw.hex():
                 raise Mismatch(self.name, "psbt.v0", inputs, ("ok", got["back"]),

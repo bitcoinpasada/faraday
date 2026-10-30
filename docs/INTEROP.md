@@ -356,7 +356,10 @@ through `Spend::out_bytes()`, version 2 again; where `merge_signed`
 refuses, nothing is written or shown (never the version 0 form) and a
 toast says so. A version 2 PSBT with an
 output that has no script yet (a silent payment's, BIP-375) has no
-transaction to sign and is not read as one.
+transaction to sign and is not read as one. An empty `PSBT_OUT_SCRIPT`
+is the empty script, as BIP-370 has it, and turns into version 0 and
+back as one; only on a silent payment output is it a script not yet
+given, as BIP-375's reference reads it (`v2::script_given`).
 
 Tests: BIP-370's valid vectors read in Files, binary and base64, and its
 invalid ones are refused; its locktime cases give their locktime, and

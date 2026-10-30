@@ -67,12 +67,19 @@ fn run(psbt: &Psbt) {
 }
 
 /// A version 0 PSBT made version 2 reads back as version 2 of the same
-/// transaction.
+/// transaction, an output paying the empty script among them; not where
+/// an output carries a pair of BIP-375's silent payment type, unknown to
+/// version 0, which version 2 reads as a silent payment output whose
+/// empty script is not yet given.
 fn to_v2(psbt: &Psbt) {
     let c = Compute::unchecked();
     let v2 = PsbtV2::from_v0(&c, psbt);
     let read = PsbtV2::parse_bytes(&c, &v2.to_bytes()).expect("from_v0 writes a version 2 PSBT");
-    if !psbt.unsigned_tx().input.is_empty() {
+    let silent = read
+        .outputs
+        .iter()
+        .any(|m| m.get_type(faraday_psbt::silent::OUT_SP_V0_INFO).is_some());
+    if !psbt.unsigned_tx().input.is_empty() && !silent {
         assert_eq!(&read.unsigned_tx().expect("every output has its script"), psbt.unsigned_tx());
     }
 }

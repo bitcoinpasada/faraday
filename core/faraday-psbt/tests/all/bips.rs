@@ -259,6 +259,52 @@ fn a_silent_payment_output_alone_may_leave_its_script_out() {
     assert!(PsbtV2::parse_bytes(&c, &write(&m)).is_ok());
 }
 
+/// BIP-370's `PSBT_OUT_SCRIPT` is the scriptPubKey, so an empty one is
+/// the empty script, in the transaction and back in version 0; only a
+/// silent payment output's empty script is one not yet given.
+#[test]
+fn an_empty_output_script_is_the_empty_script_but_for_a_silent_payment() {
+    let c = Compute::unchecked();
+    let mut m = maps(&case("1 input, 2 output PSBTv2, required fields only"), 3);
+    for (k, v) in m[3].iter_mut() {
+        if k == &[0x04] {
+            v.clear();
+        }
+    }
+    let v2 = PsbtV2::parse_bytes(&c, &write(&m)).unwrap();
+    let tx = v2.unsigned_tx().unwrap();
+    assert!(tx.output[1].script_pubkey.is_empty());
+    assert_eq!(v2.to_v0(&c).unwrap().unsigned_tx(), &tx);
+    m[3].push((vec![0x09], vec![0x02; 66]));
+    let pending = PsbtV2::parse_bytes(&c, &write(&m)).unwrap();
+    assert!(matches!(
+        pending.unsigned_tx(),
+        Err(faraday_psbt::v2::Error::NoScript { output: 1 })
+    ));
+}
+
+/// A version 0 PSBT paying the empty script makes a version 2 PSBT of
+/// the same transaction and turns back into itself (the fuzz target
+/// `psbt_parse`'s round trip).
+#[test]
+fn a_version_0_output_with_an_empty_script_makes_version_2_and_back() {
+    let c = Compute::unchecked();
+    let mut m = maps(&case("1 input, 2 output PSBTv2, required fields only"), 3);
+    for (k, v) in m[3].iter_mut() {
+        if k == &[0x04] {
+            v.clear();
+        }
+    }
+    let v0 = PsbtV2::parse_bytes(&c, &write(&m))
+        .unwrap()
+        .to_v0(&c)
+        .unwrap();
+    let v2 = PsbtV2::from_v0(&c, &v0);
+    let again = PsbtV2::parse_bytes(&c, &v2.to_bytes()).unwrap();
+    assert_eq!(&again.unsigned_tx().unwrap(), v0.unsigned_tx());
+    assert_eq!(again.to_v0(&c).unwrap(), v0);
+}
+
 #[test]
 fn a_taproot_signature_whose_sighash_byte_is_0_is_refused() {
     let c = Compute::unchecked();

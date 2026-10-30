@@ -386,6 +386,17 @@ pub struct PsbtV2 {
     pub outputs: Vec<Map>,
 }
 
+/// An output's script, where it has one. BIP-370's `PSBT_OUT_SCRIPT` is
+/// the scriptPubKey, so an empty value is the empty script; only on a
+/// BIP-375 silent payment output (`PSBT_OUT_SP_V0_INFO`) does an empty
+/// value stand for the script not yet given, as BIP-375's reference
+/// reads it.
+fn script_given(map: &Map) -> Option<&[u8]> {
+    let script = map.get_type(OUT_SCRIPT)?;
+    let pending = script.is_empty() && map.get_type(crate::silent::OUT_SP_V0_INFO).is_some();
+    (!pending).then_some(script)
+}
+
 /// What BIP-370 and BIP-341 ask of an input map on reading: its
 /// previous output, the sizes of its sequence and required locktimes, a
 /// required time locktime from 500 000 000 and a required height
@@ -595,7 +606,8 @@ impl PsbtV2 {
         }
     }
 
-    /// The unsigned transaction, once every output has its script.
+    /// The unsigned transaction, once every output has its script
+    /// ([`script_given`]).
     pub fn unsigned_tx(&self) -> Result<Transaction, Error> {
         let version = self
             .global
@@ -630,10 +642,7 @@ impl PsbtV2 {
                     .try_into()
                     .expect("eight bytes"),
             );
-            let script = map
-                .get_type(OUT_SCRIPT)
-                .filter(|s| !s.is_empty())
-                .ok_or(Error::NoScript { output: i })?;
+            let script = script_given(map).ok_or(Error::NoScript { output: i })?;
             output.push(TxOut {
                 value: Amount::from_sat(amount),
                 script_pubkey: ScriptBuf::from_bytes(script.to_vec()),
