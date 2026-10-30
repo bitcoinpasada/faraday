@@ -1371,10 +1371,16 @@ impl Faraday {
             }
             _ => return false,
         };
-        let Some(words) = seed_in_code(c, bytes) else {
-            return false;
+        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        let codex32 = faraday_bip::codex32::Codex32::parse(&given).is_ok_and(|s| s.is_secret());
+        let words = if codex32 {
+            None
+        } else {
+            match seed_in_code(c, bytes) {
+                Some(w) => Some(w),
+                None => return false,
+            }
         };
-        let kind = scan_read::secret_kind(c, bytes).unwrap_or(Kind::SeedWords);
         if !self.may_load_keys() {
             self.scan_say(crate::stick::keys_load(self.medium));
             return true;
@@ -1382,10 +1388,36 @@ impl Faraday {
         if let Some(crate::Ask::Xpub(n)) = ask {
             self.camera.wait_slot(n - 1);
         }
-        self.entry.reset();
-        self.entry.state_mut().back = Some(back);
-        self.seed_scanned(&words, kind);
+        match words {
+            Some(words) => {
+                let kind = scan_read::secret_kind(c, bytes).unwrap_or(Kind::SeedWords);
+                self.entry.reset();
+                self.entry.state_mut().back = Some(back);
+                self.seed_scanned(&words, kind);
+            }
+            None => self.codex32_into_slot(&given, back),
+        }
         true
+    }
+
+    /// Costs a codex32 recovery and a key derivation. A codex32 secret
+    /// read at Restore's or Create's scanner: it loads on Add a key's
+    /// codex32 form, which returns to `back` with the key in the flow's
+    /// slot, as a seed read there does once its sheet is answered
+    /// (`docs/SCANNING.md` §4.3, §10 item 7). A codex32 secret holds no
+    /// passphrase, so there is no sheet to ask one.
+    fn codex32_into_slot(&mut self, given: &str, back: crate::Screen) {
+        self.scan_close();
+        self.act(Action::Entry(None));
+        if let Some(i) = crate::forms::Form::ALL
+            .iter()
+            .position(|f| *f == crate::forms::Form::Codex32)
+        {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.state_mut().back = Some(back);
+        self.entry.state_mut().typed.set(given);
+        self.form_add_part();
     }
 
     /// A key loaded from a seed read at Create's **Scan Key n's xpub**:

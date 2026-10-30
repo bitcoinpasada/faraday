@@ -976,3 +976,25 @@ fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
     let fp = app.session.keys[0].fingerprint.0;
     assert_eq!(slot(&app, 1), faraday_core::create::Source::Here(fp));
 }
+
+/// A codex32 secret read at Create's Scan its xpub is the slot's key, as
+/// a seed is, and Create stays on screen (`docs/SCANNING.md` §10 item 7).
+/// BIP 93's vector 1.
+#[test]
+fn a_codex32_secret_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(4));
+    app.press(Action::CNext(0));
+    app.press(Action::CNext(1));
+    app.press(Action::ScanFor(faraday_core::Ask::Xpub(2)));
+    app.event(Event::Scanned {
+        bytes: b"ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw".to_vec(),
+    });
+    let _ = app.frame();
+    assert!(app.scan().is_none(), "the scanner is still open");
+    assert_eq!(app.screen, faraday_core::Screen::Create, "Create was left");
+    assert_eq!(app.session.keys.len(), 1);
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(slot(&app, 1), faraday_core::create::Source::Here(fp));
+}
