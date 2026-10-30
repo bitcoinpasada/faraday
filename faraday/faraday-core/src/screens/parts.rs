@@ -562,7 +562,8 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
             tokens::ROW_CHEVRON_ROOM
         };
         let aw = w - ax - room;
-        let natural = ay + ui.wrap_height_as(BODY_M.mono(), &a, aw).max(20.0);
+        let laid = ui.wrapped_as(BODY_M.mono(), &a, aw);
+        let natural = ay + laid.h.max(20.0);
         // A row that opens a code is a touch target tall, its text in its
         // middle.
         let pad = if change {
@@ -570,14 +571,13 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         } else {
             ((tokens::TOUCH - natural) / 2.0).max(0.0)
         };
-        ui.text_as(x, cy + pad + 2.0, BODY_S, Role::OnSurfaceVariant, label);
-        let at = (x + ax, cy + pad + ay, aw);
-        ui.wrap_as(at, BODY_M.mono(), Role::OnSurface, &a);
         let band = natural + 2.0 * pad;
         if !change {
             let code = crate::Code::Receive(i, idx);
             row_press(ui, (x, cy, w, band), Action::ShowCode(code));
         }
+        ui.text_as(x, cy + pad + 2.0, BODY_S, Role::OnSurfaceVariant, label);
+        ui.draw_wrapped((x + ax, cy + pad + ay), Role::OnSurface, &laid);
         cy += band + 10.0;
     }
     cy - y
@@ -588,6 +588,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
 /// (`docs/QR.md` §7.1), as `descriptor_row` opens a wallet's.
 pub(crate) fn row_press(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Action) {
     let box_w = tokens::ICON_SMALL;
+    ui.press_box(x, y, w, h, action);
     ui.icon(
         x + w - box_w,
         y + (h - box_w) / 2.0,
@@ -596,7 +597,6 @@ pub(crate) fn row_press(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action:
         tokens::ROW_CHEVRON,
         Role::OnSurfaceVariant,
     );
-    ui.press_box(x, y, w, h, action);
 }
 
 /// An address `text` in `(size, role)`, whole and wrapped, that opens its
@@ -613,11 +613,10 @@ pub(crate) fn address_press(
     let Some(action) = action else {
         return ui.wrap_as((x, y, w), size, role, text);
     };
-    let tw = w - tokens::ROW_CHEVRON_ROOM;
-    let th = ui.wrap_height_as(size, text, tw);
-    let h = th.max(tokens::TOUCH);
-    ui.wrap_as((x, y + (h - th) / 2.0, tw), size, role, text);
+    let laid = ui.wrapped_as(size, text, w - tokens::ROW_CHEVRON_ROOM);
+    let h = laid.h.max(tokens::TOUCH);
     row_press(ui, (x, y, w, h), action);
+    ui.draw_wrapped((x, y + (h - laid.h) / 2.0), role, &laid);
     h
 }
 
@@ -955,6 +954,10 @@ pub(crate) fn descriptor_row(
         .collect();
     let mut value = format!("{} · {}", Session::shape(wl), fps.join(", "));
     value.push_str(&format!(" · #{}", wl.checksum()));
+    // Broken into lines once: the press, under the text, is as tall.
+    let laid = ui.wrapped_as(BODY_M.mono(), &value, w - 28.0);
+    let h = 20.0 + laid.h.max(18.0) + 8.0;
+    row_press(ui, (x, y - 4.0, w, h), action);
     ui.text_as(
         x,
         y,
@@ -962,16 +965,7 @@ pub(crate) fn descriptor_row(
         Role::OnSurfaceVariant,
         EN.descriptor_row_descriptor,
     );
-    let vh = ui
-        .wrap_as(
-            (x, y + 20.0, w - 28.0),
-            BODY_M.mono(),
-            Role::OnSurface,
-            &value,
-        )
-        .max(18.0);
-    let h = 20.0 + vh + 8.0;
-    row_press(ui, (x, y - 4.0, w, h), action);
+    ui.draw_wrapped((x, y + 20.0), Role::OnSurface, &laid);
     ui.rule(x, y + h, w, Role::OutlineVariant);
     h + 12.0
 }
@@ -1799,6 +1793,22 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
     let (gx, gy) = (x + lab, y + lab);
     let side = cell * n as f32;
     ui.fill(gx, gy, side, side, 0.0, PAPER);
+    // Each block (each row) a press, its layer on the paper under the
+    // squares.
+    let marks = if g.rows { n } else { per * per };
+    let mark_at = |i: usize| {
+        if g.rows {
+            (gx, gy + i as f32 * cell, side, cell)
+        } else {
+            let (c0, r0, bw, bh) = copy_block_rect(i, n);
+            let at = |v: usize| v as f32 * cell;
+            (gx + at(c0), gy + at(r0), at(bw), at(bh))
+        }
+    };
+    for i in 0..marks {
+        let (mx, my, mw, mh) = mark_at(i);
+        ui.press_box(mx, my, mw, mh, (g.pick)(i));
+    }
     for row in 0..n {
         for col in 0..n {
             if g.m.module(col, row) {
@@ -1845,19 +1855,10 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
             &row,
         );
     }
-    for i in 0..=if g.rows { n - 1 } else { per * per - 1 } {
-        let (mx, my, mw, mh) = if g.rows {
-            (gx, gy + i as f32 * cell, side, cell)
-        } else {
-            let (c0, r0, bw, bh) = copy_block_rect(i, n);
-            let at = |v: usize| v as f32 * cell;
-            (gx + at(c0), gy + at(r0), at(bw), at(bh))
-        };
-        if i == pin {
-            ui.fill(mx, my, mw, mh, 0.0, Role::Primary.with_alpha(70));
-            ui.stroke(mx, my, mw, mh, 0.0, Role::Primary);
-        }
-        ui.press_box(mx, my, mw, mh, (g.pick)(i));
+    if pin < marks {
+        let (mx, my, mw, mh) = mark_at(pin);
+        ui.fill(mx, my, mw, mh, 0.0, Role::Primary.with_alpha(70));
+        ui.stroke(mx, my, mw, mh, 0.0, Role::Primary);
     }
     lab + side
 }

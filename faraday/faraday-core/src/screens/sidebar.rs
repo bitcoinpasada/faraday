@@ -34,6 +34,11 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     if lit {
         ui.fill(x, y, w, FLOW_ROW, SHAPE_S, Role::SecondaryContainer);
     }
+    ui.press(
+        Shape::new(x, y, w, FLOW_ROW, SHAPE_S),
+        Role::OnSurface.paint(),
+        action,
+    );
     let (tx, right) = (54.0, SIDEBAR_W - 24.0);
     let room = right - tx;
     // The name keeps what it needs up to a little over half the row; the
@@ -45,11 +50,6 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let fg = crate::ui::pal::on_selected(lit, Role::OnSurfaceVariant);
     ui.text_mid_as((tx, y, FLOW_ROW), LABEL_M, fg, &name);
     ui.text_right_as((right, y, FLOW_ROW), BODY_S, fg, &step);
-    ui.press(
-        Shape::new(x, y, w, FLOW_ROW, SHAPE_S),
-        Role::OnSurface.paint(),
-        action,
-    );
 }
 
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
@@ -283,6 +283,7 @@ fn group(
     let rows_w = SIDEBAR_W - 56.0;
     let mut fy = at + HEAD + first as f32 * ROW;
     for (head, tail, mono, action, mark, pass) in rows {
+        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, ROW, action);
         // A wallet's dot: green when the seeds here sign for it alone,
         // grey when some of them are here.
         if let Some(c) = mark {
@@ -308,7 +309,6 @@ fn group(
             let tail = ui.fit_as(BODY_S, &tail, rows_w - hw - GRID - tag_w);
             ui.text_mid_as((36.0 + hw, fy, ROW), BODY_S, tone, &tail);
         }
-        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, ROW, action);
         fy += ROW;
     }
 }
@@ -339,6 +339,9 @@ fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
             Role::SecondaryContainer,
         );
     }
+    if waiting {
+        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, TOUCH, crate::boot_import::OPEN);
+    }
     let muted = on_selected(open, Role::OnSurfaceVariant);
     ui.icon(22.0, fy + 14.0, 20.0, app.medium.icon(), 12.0, muted);
     ui.text_mid_as((46.0, fy, TOUCH), BODY_S, muted, app.medium.caps());
@@ -352,9 +355,6 @@ fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
         },
     );
     ui.text_right_as((SIDEBAR_W - 24.0, fy, TOUCH), BODY_S, tone, &sticks);
-    if waiting {
-        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, TOUCH, crate::boot_import::OPEN);
-    }
     // Room above the buttons, for their targets to reach 48 dp.
     let fy = fy + TOUCH + 12.0;
     if app.holds_secret() {
@@ -372,6 +372,11 @@ fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
     // Material's outlined icon button, round (F108).
     let r = faraday_draw::tokens::shape_full(36.0);
     ui.stroke(px, fy, 36.0, 36.0, r, Role::OutlineVariant);
+    ui.press(
+        Shape::new(px, fy, 36.0, 36.0, r),
+        Role::OnSurface.paint(),
+        Action::PowerAsk,
+    );
     ui.icon(
         px,
         fy,
@@ -379,11 +384,6 @@ fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
         Glyph::Icon(Icon::Power),
         14.0,
         Role::OnSurfaceVariant,
-    );
-    ui.press(
-        Shape::new(px, fy, 36.0, 36.0, r),
-        Role::OnSurface.paint(),
-        Action::PowerAsk,
     );
     ui.tip_plain((px, fy, 36.0, 36.0), Action::PowerAsk, EN.tip_power_off);
     if held {
@@ -407,6 +407,13 @@ fn files_row(app: &View, ui: &mut Ui, fy: f32) {
             Role::SecondaryContainer,
         );
     }
+    ui.press_box(
+        16.0,
+        fy,
+        SIDEBAR_W - 32.0,
+        TOUCH,
+        Action::Nav(Screen::Files),
+    );
     let muted = on_selected(here, Role::OnSurfaceVariant);
     ui.icon(22.0, fy + 14.0, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
     // Two lines in the row: the name and the count, then the stages.
@@ -439,8 +446,6 @@ fn files_row(app: &View, ui: &mut Ui, fy: f32) {
         };
         sx += ui.text_mid_as((sx, line.0, line.1), LABEL_S, fg, label);
     }
-    let open_files = Action::Nav(Screen::Files);
-    ui.press_box(16.0, fy, SIDEBAR_W - 32.0, TOUCH, open_files);
 }
 
 /// The pill's height.

@@ -1662,17 +1662,17 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 // Whole, to compare character for character, in the middle
                 // of its row; the rows meet, each on the 4 dp grid.
                 let tw = w - 24.0 - room;
-                let th = ui.wrap_height_as(BODY_S.mono(), &a, tw);
+                let laid = ui.wrapped_as(BODY_S.mono(), &a, tw);
+                let th = laid.h;
                 let mut band = th + 12.0;
                 if open.is_some() {
                     band = band.max(TOUCH);
                 }
-                ui.text_mid_as((x, cy, band), BODY_S, Role::OnSurfaceVariant, &index);
-                let at = (x + 24.0, cy + (band - th) / 2.0, tw);
-                ui.wrap_as(at, BODY_S.mono(), col, &a);
                 if let Some(o) = open {
                     crate::screens::row_press(ui, (x, cy, w, band), o);
                 }
+                ui.text_mid_as((x, cy, band), BODY_S, Role::OnSurfaceVariant, &index);
+                ui.draw_wrapped((x + 24.0, cy + (band - th) / 2.0), col, &laid);
                 cy += band;
                 continue;
             }
@@ -1685,12 +1685,12 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (row, 2.0)
             };
             let ty = cy + (band - row) / 2.0;
-            ui.text_mid_as((x, ty, row), BODY_S, Role::OnSurfaceVariant, &index);
-            let a = ui.fit_as(BODY_M.mono(), &a, w - 40.0 - room);
-            ui.text_mid_as((x + 40.0, ty, row), BODY_M.mono(), col, &a);
             if let Some(o) = open {
                 crate::screens::row_press(ui, (x, cy, w, band), o);
             }
+            ui.text_mid_as((x, ty, row), BODY_S, Role::OnSurfaceVariant, &index);
+            let a = ui.fit_as(BODY_M.mono(), &a, w - 40.0 - room);
+            ui.text_mid_as((x + 40.0, ty, row), BODY_M.mono(), col, &a);
             cy += band + gap;
         }
         cy += 8.0;

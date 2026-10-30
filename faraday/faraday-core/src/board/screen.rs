@@ -412,76 +412,23 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     } else {
         Role::OnSurface
     };
-    let mut cx = x + tokens::BOARD_PAD;
     let line_h = tokens::BOARD_CHIP;
-    if let Some(g) = glyph(t) {
-        ui.icon(
-            cx,
-            y + (line_h - tokens::BOARD_MARK) / 2.0,
-            tokens::BOARD_MARK,
-            g,
-            tokens::BOARD_MARK,
-            Role::OnSurfaceVariant,
-        );
-        cx += tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
-    }
+    let step = tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
+    let g = glyph(t);
+    let cx = x + tokens::BOARD_PAD + if g.is_some() { step } else { 0.0 };
     // The marks at the right, from the edge in: the ⋮ after its rule, ×,
-    // warning, link.
+    // warning, link, lock; each mark's right edge.
     let mw = if cv.menu { menu_w() } else { 0.0 };
-    let mut right = x + w - mw - tokens::BOARD_PAD;
     let off = cv.off && !cv.fixed && matches!(cv.chip, Chip::Placed(..));
-    if off {
-        if hits && let Chip::Placed(z, t) = cv.chip {
-            let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
-            let off = Action::Board(BoardPress::Off(z, t));
-            ui.press_box(x + w - mw - side, y, side, line_h, off);
-            ui.tip_plain((x + w - mw - side, y, side, line_h), off, EN.tip_remove);
+    let mut right = x + w - mw - tokens::BOARD_PAD;
+    let mut at = |on: bool| {
+        let mark_r = right;
+        if on {
+            right -= step;
         }
-        cross(
-            ui,
-            right - tokens::BOARD_MARK / 2.0,
-            y + line_h / 2.0,
-            Role::OnSurfaceVariant.paint(),
-        );
-        right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
-    }
-    if cv.warn {
-        if hits {
-            mark_tip(ui, cv.chip, MarkTip::Warning, (right, y, line_h));
-        }
-        ui.icon(
-            right - tokens::BOARD_MARK,
-            y + (line_h - tokens::BOARD_MARK) / 2.0,
-            tokens::BOARD_MARK,
-            Icon::Warning,
-            tokens::BOARD_MARK,
-            Role::Warning,
-        );
-        right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
-    }
-    if cv.link {
-        if hits {
-            mark_tip(ui, cv.chip, MarkTip::Link, (right, y, line_h));
-        }
-        link(
-            ui,
-            right - tokens::BOARD_MARK,
-            y + line_h / 2.0,
-            Role::Primary.paint(),
-        );
-        right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
-    }
-    if sealed(cv) {
-        ui.icon(
-            right - tokens::BOARD_MARK,
-            y + (line_h - tokens::BOARD_MARK) / 2.0,
-            tokens::BOARD_MARK,
-            Icon::Lock,
-            tokens::BOARD_MARK,
-            Role::Primary,
-        );
-        right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
-    }
+        mark_r
+    };
+    let (off_r, warn_r, link_r, seal_r) = (at(off), at(cv.warn), at(cv.link), at(sealed(cv)));
     let role = if mono(t) { fit.role.mono() } else { fit.role };
     // A fingerprint is never cut; anything else is fitted.
     let name = if mono(t) {
@@ -491,7 +438,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         // a box placed at a fraction of a pixel.
         ui.fit_as(role, &cv.name, (right - cx).max(0.0) + 0.5)
     };
-    let nw = ui.text_mid_as((cx, y, line_h), role, fg, &name);
+    let nw = ui.measure_as(role, &name);
     // The form toggles, beside the name or on a line under it; drawn
     // after the chip's own press so a press on one is the toggle's.
     let toggles_at = (!cv.forms.is_empty()).then_some({
@@ -501,6 +448,91 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             (cx + nw + tokens::BOARD_CHIP_GAP, y)
         }
     });
+    if hits && !cv.fixed {
+        // The chip's body; its × beside it at the right, pressed after
+        // it. With toggles, the body is its name's part: a press on a
+        // toggle is the toggle's.
+        let body = if off {
+            w - mw - tokens::BOARD_MARK - 2.0 * tokens::BOARD_PAD
+        } else {
+            w - mw
+        };
+        let (body, body_h) = match toggles_at {
+            Some((tx, _)) if h <= line_h => (tx - x, h),
+            Some(_) => (body, line_h),
+            None => (body, h),
+        };
+        // Its state layer and focus ring in the chip's shape, between its
+        // container and its content; the press on its body.
+        ui.press_to(
+            Shape::new(x, y, w, h, r),
+            (x, y, body, body_h),
+            Role::OnSurface.paint(),
+            action,
+        );
+        if held {
+            fr.held_at = Some(((x, y, w, h), cv.clone()));
+        }
+    }
+    if let Some(g) = g {
+        ui.icon(
+            x + tokens::BOARD_PAD,
+            y + (line_h - tokens::BOARD_MARK) / 2.0,
+            tokens::BOARD_MARK,
+            g,
+            tokens::BOARD_MARK,
+            Role::OnSurfaceVariant,
+        );
+    }
+    if off {
+        if hits && let Chip::Placed(z, t) = cv.chip {
+            let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
+            let off = Action::Board(BoardPress::Off(z, t));
+            ui.press_box(x + w - mw - side, y, side, line_h, off);
+            ui.tip_plain((x + w - mw - side, y, side, line_h), off, EN.tip_remove);
+        }
+        cross(
+            ui,
+            off_r - tokens::BOARD_MARK / 2.0,
+            y + line_h / 2.0,
+            Role::OnSurfaceVariant.paint(),
+        );
+    }
+    if cv.warn {
+        if hits {
+            mark_tip(ui, cv.chip, MarkTip::Warning, (warn_r, y, line_h));
+        }
+        ui.icon(
+            warn_r - tokens::BOARD_MARK,
+            y + (line_h - tokens::BOARD_MARK) / 2.0,
+            tokens::BOARD_MARK,
+            Icon::Warning,
+            tokens::BOARD_MARK,
+            Role::Warning,
+        );
+    }
+    if cv.link {
+        if hits {
+            mark_tip(ui, cv.chip, MarkTip::Link, (link_r, y, line_h));
+        }
+        link(
+            ui,
+            link_r - tokens::BOARD_MARK,
+            y + line_h / 2.0,
+            Role::Primary.paint(),
+        );
+    }
+    if sealed(cv) {
+        ui.icon(
+            seal_r - tokens::BOARD_MARK,
+            y + (line_h - tokens::BOARD_MARK) / 2.0,
+            tokens::BOARD_MARK,
+            Icon::Lock,
+            tokens::BOARD_MARK,
+            Role::Primary,
+        );
+    }
+    ui.text_mid_as((cx, y, line_h), role, fg, &name);
     if !cv.marks.is_empty() {
         let marks = format!("· {}", cv.marks);
         if h > line_h {
@@ -523,31 +555,6 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     }
     if held && !lifted {
         edge(ui, (x, y, w, h), r, Role::Primary.paint());
-    }
-    if hits && !cv.fixed {
-        // The chip's body; its × over it at the right. With toggles, the
-        // body is its name's part: a press on a toggle is the toggle's.
-        let body = if off {
-            w - mw - tokens::BOARD_MARK - 2.0 * tokens::BOARD_PAD
-        } else {
-            w - mw
-        };
-        let (body, body_h) = match toggles_at {
-            Some((tx, _)) if h <= line_h => (tx - x, h),
-            Some(_) => (body, line_h),
-            None => (body, h),
-        };
-        // Its state layer and focus ring in the chip's shape; the press
-        // on its body.
-        ui.press_to(
-            Shape::new(x, y, w, h, r),
-            (x, y, body, body_h),
-            Role::OnSurface.paint(),
-            action,
-        );
-        if held {
-            fr.held_at = Some(((x, y, w, h), cv.clone()));
-        }
     }
     // The ⋮, its own press target over the chip's right end, after the
     // chip's own press (§19.20 item 1).
@@ -1139,19 +1146,23 @@ fn vault_head(
     let action = Action::Board(BoardPress::Chip(vc.chip));
     let held = fr.held == Some(vc.chip);
     band(ui, x, y, w, hh, Role::Primary.paint());
-    // Material's state layer in the band's own shape, in its content's
-    // colour.
-    let state = if ui.is_pressed(action) {
-        Some(tokens::STATE_PRESS)
-    } else if ui.focused == Some(action) {
-        Some(tokens::STATE_FOCUS)
-    } else if ui.is_hovered(action) {
-        Some(tokens::STATE_HOVER)
+    let mw = if vc.menu { menu_w() } else { 0.0 };
+    let off_w = if vc.off && matches!(vc.chip, Chip::Placed(..)) {
+        mark + 2.0 * pad
     } else {
-        None
+        0.0
     };
-    if let Some(opacity) = state {
-        band(ui, x, y, w, hh, Role::OnPrimary.at(opacity));
+    // Material's state layer in the band's own shape, in its content's
+    // colour, between the band and what is on it; the ×, pressed after
+    // it, beside its body.
+    ui.press_head(
+        Shape::new(x, y, w, hh, tokens::GAP),
+        (x, y, w - mw - off_w, hh),
+        Role::OnPrimary.paint(),
+        action,
+    );
+    if held {
+        fr.held_at = Some(((x, y, w, hh), vc.clone()));
     }
     ui.icon(
         x + pad,
@@ -1161,13 +1172,10 @@ fn vault_head(
         mark,
         Role::OnPrimary,
     );
-    let mw = if vc.menu { menu_w() } else { 0.0 };
     let mut right = x + w - mw - pad;
-    let mut off_w = 0.0;
     if vc.off
         && let Chip::Placed(z, t) = vc.chip
     {
-        off_w = mark + 2.0 * pad;
         let off = Action::Board(BoardPress::Off(z, t));
         ui.press_box(x + w - mw - off_w, y, off_w, hh, off);
         ui.tip_plain((x + w - mw - off_w, y, off_w, hh), off, EN.tip_remove);
@@ -1213,15 +1221,6 @@ fn vault_head(
             tokens::GAP_SMALL,
             Role::OnPrimary.paint(),
         );
-    }
-    ui.press_to(
-        Shape::new(x, y, w, hh, tokens::GAP),
-        (x, y, w - mw - off_w, hh),
-        Role::OnSurface.paint(),
-        action,
-    );
-    if held {
-        fr.held_at = Some(((x, y, w, hh), vc.clone()));
     }
     if vc.menu {
         dots(

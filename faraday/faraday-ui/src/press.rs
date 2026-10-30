@@ -105,6 +105,26 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         });
     }
 
+    /// As [`Ui::press_to`], the layer a header band's: `shape`'s top
+    /// corners rounded, its foot square, where it meets the box under it.
+    pub fn press_head(
+        &mut self,
+        shape: Shape,
+        target: (f32, f32, f32, f32),
+        ink: Paint,
+        action: A,
+    ) {
+        self.press_custom(target, action, |ui| {
+            // A shape a corner taller, its foot cut off at the band's.
+            let band = ui.rect(shape.x, shape.y, shape.w, shape.h);
+            ui.c.push_clip(band);
+            let tall = Shape::new(shape.x, shape.y, shape.w, shape.h + shape.r, shape.r);
+            ui.state_layer(tall.at(), ink, action);
+            ui.c.pop_clip();
+            ui.focus_ring(shape.at(), action);
+        });
+    }
+
     /// As [`Ui::press`], the ring one segment's. The layer is the
     /// segment's, square where it meets another.
     pub fn press_segment(&mut self, shape: Shape, ring: Ring, ink: Paint, action: A) {

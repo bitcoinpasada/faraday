@@ -28,6 +28,17 @@ impl From<TypeFace> for W {
     }
 }
 
+/// Text broken into lines and not yet drawn ([`Ui::wrapped_as`]): what
+/// it is, its role, where each line starts and ends in it, and the
+/// height its lines take.
+pub struct Wrapped<'s> {
+    s: &'s str,
+    role: TypeRole,
+    lines: Vec<(usize, usize)>,
+    /// The lines times the role's line height, as [`Ui::wrap_as`] returns.
+    pub h: f32,
+}
+
 /// A text field's label kept outside it, above (`docs/LAYOUT.md` §8):
 /// Material's body small.
 pub const FIELD_LABEL: TypeRole = BODY_S;
@@ -248,16 +259,40 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
-        let color = self.ink(color.into());
+        let laid = self.wrapped_as(role, s, width);
+        self.draw_wrapped((x, y), color, &laid);
+        laid.h
+    }
+
+    /// `s` in `role` broken into lines at `width` as [`Ui::wrap_as`]
+    /// breaks it, drawn nowhere: its height known before what goes under
+    /// it is drawn (a row's press), then drawn with [`Ui::draw_wrapped`]
+    /// in the same frame, so it is broken once.
+    pub fn wrapped_as<'s>(&self, role: TypeRole, s: &'s str, width: f32) -> Wrapped<'s> {
         let face = self.font(role.size, role.face.into()).sized(self.c.scale());
         let lines = text::wrap(&face, s, self.px(width));
+        let h = lines.len() as f32 * self.line_as(role);
+        Wrapped { s, role, lines, h }
+    }
+
+    /// `laid` drawn in `color` with its first line's top at (x, y), as
+    /// [`Ui::wrap_as`] draws it.
+    pub fn draw_wrapped(
+        &mut self,
+        (x, y): (f32, f32),
+        color: impl Into<Paint>,
+        laid: &Wrapped<'_>,
+    ) {
+        let color = self.ink(color.into());
+        let role = laid.role;
+        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
         let line = self.line_as(role);
         let x0 = self.px(x + self.ox);
-        for (i, &(start, end)) in lines.iter().enumerate() {
+        for (i, &(start, end)) in laid.lines.iter().enumerate() {
             let ly = self.px(y + self.oy + i as f32 * line);
-            self.c.text_with_face(&face, x0, ly, &s[start..end], color);
+            self.c
+                .text_with_face(&face, x0, ly, &laid.s[start..end], color);
         }
-        lines.len() as f32 * line
     }
 
     /// A text field's label kept outside it, at (x, y) above where the

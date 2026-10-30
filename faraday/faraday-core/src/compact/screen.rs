@@ -983,25 +983,10 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
         t.push_str(caret);
         t
     };
-    // The caret stands before the hint while nothing is typed.
-    if empty && on {
-        ui.caret(x + 10.0, y + 9.0, 18.0);
-    }
-    let th = ui.wrap_as(
-        (
-            x + if empty && on { 16.0 } else { 10.0 },
-            y + 10.0,
-            iw - 20.0,
-        ),
-        BODY_M.mono(),
-        if empty {
-            Role::OnSurfaceVariant
-        } else {
-            Role::OnSurface
-        },
-        &typed,
-    );
-    let bh = th.max(20.0) + 20.0;
+    // Broken into lines once: the box and its press, under the text,
+    // are as tall.
+    let laid = ui.wrapped_as(BODY_M.mono(), &typed, iw - 20.0);
+    let bh = laid.h.max(20.0) + 20.0;
     ui.stroke(
         x,
         y,
@@ -1017,6 +1002,17 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
     if !on {
         ui.press_box(x, y, iw, bh, Action::EntryPassphrase);
     }
+    // The caret stands before the hint while nothing is typed.
+    if empty && on {
+        ui.caret(x + 10.0, y + 9.0, 18.0);
+    }
+    let tx = x + if empty && on { 16.0 } else { 10.0 };
+    let ink = if empty {
+        Role::OnSurfaceVariant
+    } else {
+        Role::OnSurface
+    };
+    ui.draw_wrapped((tx, y + 10.0), ink, &laid);
     y + bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw)
 }
 

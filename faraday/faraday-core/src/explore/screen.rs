@@ -237,7 +237,8 @@ fn code_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str, code: Code)
     let Cols { x, px, pw, width } = at;
     let text = grouped(ui.compact, value);
     let vw = pw - T::ROW_CHEVRON_ROOM;
-    let th = ui.wrap_height_as(BODY_M.mono(), &text, vw);
+    let laid = ui.wrapped_as(BODY_M.mono(), &text, vw);
+    let th = laid.h;
     let under = if ui.compact {
         ui.line_as(BODY_S) + T::GAP_SMALL
     } else {
@@ -245,14 +246,9 @@ fn code_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str, code: Code)
     };
     let band = (under + th).max(T::TOUCH);
     let pad = (band - under - th) / 2.0;
-    ui.text_as(x, y + pad, BODY_S, Role::OnSurfaceVariant, label);
-    ui.wrap_as(
-        (px, y + pad + under, vw),
-        BODY_M.mono(),
-        Role::OnSurface,
-        &text,
-    );
     crate::screens::row_press(ui, (x, y, width, band), Action::ShowCode(code));
+    ui.text_as(x, y + pad, BODY_S, Role::OnSurfaceVariant, label);
+    ui.draw_wrapped((px, y + pad + under), Role::OnSurface, &laid);
     band + T::GAP
 }
 

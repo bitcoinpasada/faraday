@@ -1196,6 +1196,18 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     h
 }
 
+/// A wallet's row's height on a small panel, its press's: its name, its
+/// keys' line and, when it is `ready` to sign, the line saying so.
+fn wallet_row_h(ui: &Ui, ready: bool) -> f32 {
+    let gap = faraday_draw::tokens::GAP_SMALL;
+    let ready_h = if ready {
+        ui.line_as(LABEL_M) + gap
+    } else {
+        0.0
+    };
+    ui.line_as(TITLE_S) + ui.line_as(BODY_S) + 2.0 * gap + ready_h
+}
+
 /// [`inbox_panel`] on a small panel: one column, each row's line under
 /// its name and its button under that, measured before its card is drawn.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -1230,9 +1242,11 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let many = wallets.len() > 1;
             for (i, fw) in wallets.iter().enumerate().take(ROWS) {
                 let chosen = !app.inbox.skip().contains(&fw.descriptor);
+                let ready = fw.seeds_here >= fw.needed;
                 let mut rx = ix;
-                let top = ty;
                 if many {
+                    let h = wallet_row_h(ui, ready);
+                    ui.press_box(ix - 4.0, ty, iw + 8.0, h, Action::InboxChoose(i));
                     ui.checkbox(rx, ty + 4.0, chosen, true);
                     rx += 28.0;
                 }
@@ -1271,12 +1285,9 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 let line = ui.fit_as(BODY_S, &line, ix + iw - rx - 26.0);
                 ui.text_as(rx + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-                if fw.seeds_here >= fw.needed {
+                if ready {
                     ui.text_as(rx + 26.0, ty, LABEL_M, Role::Ok, EN.inbox_ready_to_sign);
                     ty += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
-                }
-                if many {
-                    ui.press_box(ix - 4.0, top, iw + 8.0, ty - top, Action::InboxChoose(i));
                 }
                 ty += 8.0;
             }
@@ -1480,9 +1491,13 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             ty += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             let many = together.len() > 1;
             for wt in together.iter().take(ROWS) {
-                let top = ty;
+                let here = wt.keys.len();
+                let ready = here >= wt.needed;
                 let mut rx = ix;
                 if many {
+                    let h = wallet_row_h(ui, ready);
+                    let choose = Action::Vault(V::Choose(v, wt.record));
+                    ui.press_box(ix - 4.0, ty, iw + 8.0, h, choose);
                     ui.checkbox(rx, ty + 4.0, wt.chosen, true);
                     rx += 28.0;
                 }
@@ -1497,7 +1512,6 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 let name = ui.fit_as(TITLE_S, &wt.name, ix + iw - rx - 26.0);
                 ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
                 ty += ui.line_as(TITLE_S) + faraday_draw::tokens::GAP_SMALL;
-                let here = wt.keys.len();
                 let line = fill(
                     EN.vault_of_in_this_vault,
                     &[
@@ -1512,18 +1526,9 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 );
                 ui.text_as(rx + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-                if here >= wt.needed {
+                if ready {
                     ui.text_as(rx + 26.0, ty, LABEL_M, Role::Ok, EN.vault_ready_to_sign);
                     ty += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
-                }
-                if many {
-                    ui.press_box(
-                        ix - 4.0,
-                        top,
-                        iw + 8.0,
-                        ty - top,
-                        Action::Vault(V::Choose(v, wt.record)),
-                    );
                 }
                 ty += 8.0;
             }
