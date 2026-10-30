@@ -94,15 +94,16 @@ level with the page's first line under the bar.
 
 **The name on Home's bar** (owner, 2026-10-25): the mark, then the
 wordmark where it ends before the bar's actions. Faraday Demo's name,
-FARADAY DEMO, stands on one line where it fits; where it does not
-(Narrow's 400 dp, a phone-wide window, the Pi panel previewed with
-Practice · Testnet beside it) DEMO stands under FARADAY at 0.7 of its
+FARADAY DEMO, and the device's, FARADAY OFFLINE (F165; owner,
+2026-10-26), stand on one line where they fit; where they do not
+(Narrow's 400 dp, a phone-wide window, the Pi's panel with the mode
+pill beside the name) DEMO or OFFLINE stands under FARADAY at 0.7 of its
 height, 0.3 of it below, both from the same left edge, the pair centred
 where the line would be (`Ui::wordmark_stacked`, `WORDMARK_STACK_WORD`,
 `WORDMARK_STACK_GAP`), made smaller where FARADAY needs it down to
 capitals 8 dp tall (`WORDMARK_CAP_MIN`); under
-that the mark stands alone. The device's name, FARADAY alone, stands on
-one line or not at all, as before (`Ui::wordmark_fitted`).
+that the mark stands alone (`Ui::wordmark_fitted`). The expanded rail's
+head holds the name on one line, its capitals 9 dp tall.
 
 **Faraday Demo's sticks** stand outside the app, in its host strip
 at the window's foot (owner, 2026-10-25; F118, `docs/DESKTOP-HOST.md`),

@@ -30,7 +30,7 @@ Read this table, then only the decision you need.
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
 | [F14](decisions/F14.md) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
 | [F15](history/decisions/F15.md) | Faraday Companion: an Android app with no network access | 2026-10-12 | Superseded by F34 | platforms |
-| [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Demo | 2026-10-12 | Amended by F119, F126 | Starter |
+| [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Demo | 2026-10-12 | Amended by F119, F126, F165 | Starter |
 | [F17](history/decisions/F17.md) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
 | [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34, F105 | Starter |
 | [F19](decisions/F19.md) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
@@ -179,3 +179,4 @@ Read this table, then only the decision you need.
 | [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Active | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
 | [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Active | crypto |
+| [F165](decisions/F165.md) | The stick and the Pi read Faraday Offline | 2026-10-26 | Active | design |

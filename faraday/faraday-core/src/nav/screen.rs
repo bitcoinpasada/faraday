@@ -261,8 +261,9 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
         let nx = MARGIN_COMPACT + mw + GRID;
         let ny = (APP_BAR_H - CAPTION) / 2.0;
         // The name where it ends before the bar's actions, as a title is
-        // fitted; Faraday Demo's word under FARADAY where the two do not
-        // fit side by side; the mark alone where they leave no room for it.
+        // fitted; the app's word (DEMO, OFFLINE) under FARADAY where the
+        // two do not fit side by side; the mark alone where they leave no
+        // room for it.
         ui.wordmark_fitted((nx, ny, ends - GAP - nx), CAPTION, Role::OnSurface, suffix);
     } else {
         let (back, name) = crate::compact::page_head(app);

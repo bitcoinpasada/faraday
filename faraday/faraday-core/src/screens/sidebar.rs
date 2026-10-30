@@ -28,12 +28,13 @@ fn sidebar_caps(seeds: usize, wallets: usize, rows: usize) -> (usize, usize) {
     (cap_s, cap_w)
 }
 
-/// The word after the wordmark: the desktop app's, none on the device.
+/// The word after the wordmark: DEMO in the desktop app, OFFLINE on the
+/// device (the stick and the Pi).
 pub(crate) fn name_suffix(app: &View) -> NameSuffix {
     if app.online {
         NameSuffix::Demo
     } else {
-        NameSuffix::None
+        NameSuffix::Offline
     }
 }
 
@@ -72,21 +73,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, Role::SurfaceContainerLow);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     ui.mark(22.0, 20.0, 28.0, 32.0);
-    // The name centred on the mark, its capitals 10 tall; with its word
-    // 9 tall, which keeps it inside the sidebar (at 10 it reaches the edge).
-    let suffix = name_suffix(app);
-    let cap = if suffix == NameSuffix::None {
-        10.0
-    } else {
-        9.0
-    };
-    ui.wordmark_named(
-        58.0,
-        31.0 + (10.0 - cap) / 2.0,
-        cap,
-        Role::OnSurface,
-        suffix,
-    );
+    // The name with its word (DEMO, OFFLINE) centred on the mark, its
+    // capitals 9 tall, which ends it within the rows' labels' edge.
+    ui.wordmark_named(58.0, 31.5, 9.0, Role::OnSurface, name_suffix(app));
 
     // The places that are always offered, in order; Learn (not a place,
     // a sheet) is drawn between Tools and whatever comes after it.

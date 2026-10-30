@@ -1,5 +1,5 @@
-//! The name in a header: FARADAY alone, or with the word of the app it
-//! heads after it (`docs/DECISIONS.md` F16).
+//! The name in a header: FARADAY with the word of the app it heads after
+//! it, DEMO, STARTER or OFFLINE (`docs/DECISIONS.md` F16, F165).
 
 use faraday_core::ui::pal::Role;
 use faraday_core::ui::{NameSuffix, Ui};
@@ -65,7 +65,7 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
 fn every_suffix_adds_its_word_after_the_name_and_none_adds_nothing() {
     let (none_w, none_ink) = drawn(NameSuffix::None);
     assert_eq!(none_ink, 0);
-    for suffix in [NameSuffix::Starter, NameSuffix::Demo] {
+    for suffix in [NameSuffix::Starter, NameSuffix::Demo, NameSuffix::Offline] {
         let (w, ink) = drawn(suffix);
         assert!(w > none_w * 1.5, "{suffix:?}: {w} against {none_w}");
         assert!(ink > 500, "{suffix:?} drew {ink} pixels");
@@ -74,7 +74,17 @@ fn every_suffix_adds_its_word_after_the_name_and_none_adds_nothing() {
 
 /// Faraday Demo, or the device for `demo` false, on Testnet (in Practice
 /// where `practice`), showing Home in a window `w` by `h` pixels at `dpi`.
-fn home(demo: bool, practice: bool, (w, h, dpi): (u16, u16, u16)) -> faraday_core::Faraday {
+fn home(demo: bool, practice: bool, size: (u16, u16, u16)) -> faraday_core::Faraday {
+    home_on(demo, practice, faraday_core::testkit::NET, size)
+}
+
+/// As [`home`], on `net`.
+fn home_on(
+    demo: bool,
+    practice: bool,
+    net: faraday_bip::keys::Network,
+    (w, h, dpi): (u16, u16, u16),
+) -> faraday_core::Faraday {
     use faraday_core::{Action, DESKTOP_MODES, Screen, testkit};
     use faraday_shell_api::{App, Event};
     let mut app = faraday_core::Faraday::new();
@@ -90,7 +100,7 @@ fn home(demo: bool, practice: bool, (w, h, dpi): (u16, u16, u16)) -> faraday_cor
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    app.session = faraday_core::wallet::Session::on(testkit::NET);
+    app.session = faraday_core::wallet::Session::on(net);
     if demo {
         app.online = true;
         app.clipboard = true;
@@ -130,30 +140,46 @@ fn faraday_demos_narrow_top_bar_draws_its_name_clear_of_everything_in_the_bar() 
     for size in [(268, 358, 160), (400, 800, 160), (390, 844, 160)] {
         for practice in [true, false] {
             let mut app = home(true, practice, size);
-            let (name, rest) = name_and_bar(&mut app);
-            assert!(!name.is_empty(), "{size:?} {practice}: no name in the bar");
-            let pill = app
-                .hit_box(faraday_core::Action::ModeSheet)
-                .map(|(x, y, w, h)| Rect::new(x.into(), y.into(), w.into(), h.into()));
-            for n in &name {
-                assert!(
-                    n.x >= 0 && n.x + n.w <= i32::from(size.0),
-                    "{size:?} {practice}: the name leaves the window: {n:?}"
-                );
-                for r in rest.iter().chain(pill.iter()) {
-                    assert!(
-                        n.intersect(r).is_empty(),
-                        "{size:?} {practice}: the name {n:?} is drawn over {r:?}"
-                    );
-                }
-            }
+            name_clear(&mut app, size.0, &format!("{size:?} {practice}"));
         }
     }
 }
 
+/// The name in `app`'s top bar, drawn clear of everything else in the
+/// bar and of the mode pill, inside a window `width` wide.
+fn name_clear(app: &mut faraday_core::Faraday, width: u16, case: &str) -> Vec<Rect> {
+    let (name, rest) = name_and_bar(app);
+    assert!(!name.is_empty(), "{case}: no name in the bar");
+    let pill = app
+        .hit_box(faraday_core::Action::ModeSheet)
+        .map(|(x, y, w, h)| Rect::new(x.into(), y.into(), w.into(), h.into()));
+    for n in &name {
+        assert!(
+            n.x >= 0 && n.x + n.w <= i32::from(width),
+            "{case}: the name leaves the window: {n:?}"
+        );
+        for r in rest.iter().chain(pill.iter()) {
+            assert!(
+                n.intersect(r).is_empty(),
+                "{case}: the name {n:?} is drawn over {r:?}"
+            );
+        }
+    }
+    name
+}
+
 #[test]
-fn the_devices_small_panel_draws_its_name_on_one_line_beside_the_mark() {
+fn the_pis_panel_reads_faraday_offline_on_one_line_without_the_mode_pill() {
+    use faraday_bip::keys::Network;
+    let mut app = home_on(false, false, Network::Mainnet, (480, 640, 286));
+    let name = name_clear(&mut app, 480, "mainnet");
+    assert_eq!(name.len(), 1, "FARADAY OFFLINE in one line: {name:?}");
+}
+
+#[test]
+fn the_pis_panel_puts_offline_under_faraday_beside_the_mode_pill() {
     let mut app = home(false, false, (480, 640, 286));
-    let (name, _) = name_and_bar(&mut app);
-    assert_eq!(name.len(), 1, "FARADAY in one line: {name:?}");
+    let name = name_clear(&mut app, 480, "testnet");
+    assert_eq!(name.len(), 2, "OFFLINE under FARADAY: {name:?}");
+    assert!(name[1].y > name[0].y, "OFFLINE under FARADAY: {name:?}");
 }

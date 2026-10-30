@@ -116,12 +116,14 @@ pub fn wordmark_width(cap: f32, suffix: NameSuffix) -> f32 {
 /// The word drawn after the wordmark in an app's name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NameSuffix {
-    /// Faraday alone: the stick, the Pi card.
+    /// FARADAY alone.
     None,
     /// Faraday Starter.
     Starter,
     /// Faraday Demo.
     Demo,
+    /// Faraday Offline: the stick and the Pi.
+    Offline,
 }
 
 /// The wordmark's cap height in its font units.
@@ -162,11 +164,12 @@ struct SuffixWord {
 
 /// The suffix `which` spelled in the letters of `assets/wordmark-suffix.txt`.
 fn suffix_word(which: NameSuffix) -> Option<&'static SuffixWord> {
-    static WORDS: OnceLock<[SuffixWord; 2]> = OnceLock::new();
+    static WORDS: OnceLock<[SuffixWord; 3]> = OnceLock::new();
     let key = match which {
         NameSuffix::None => return None,
         NameSuffix::Starter => 0,
         NameSuffix::Demo => 1,
+        NameSuffix::Offline => 2,
     };
     let words = WORDS.get_or_init(|| {
         let mut letters: Vec<(char, f32, Outlines)> = Vec::new();
@@ -201,6 +204,7 @@ fn suffix_word(which: NameSuffix) -> Option<&'static SuffixWord> {
         [
             build(spelled.first().copied().unwrap_or("")),
             build(spelled.get(1).copied().unwrap_or("")),
+            build(spelled.get(2).copied().unwrap_or("")),
         ]
     });
     words.get(key)
@@ -1191,7 +1195,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// The wordmark with the word of an app's name after it
-    /// ("Faraday Starter", "Faraday Demo"), as one name in one lettering.
+    /// ("Faraday Starter", "Faraday Demo", "Faraday Offline"), as one name
+    /// in one lettering.
     /// The suffix is in Archivo Expanded Regular, in the grey of
     /// secondary text (`docs/DECISIONS.md` F16).
     pub fn wordmark_named(

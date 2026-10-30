@@ -870,9 +870,9 @@ fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
     } else {
         0.0
     };
-    // The name where it ends before the pill; Faraday Demo's word under
-    // FARADAY where the two do not fit side by side; the mark alone where
-    // the pill leaves no room for it.
+    // The name where it ends before the pill; the app's word (DEMO,
+    // OFFLINE) under FARADAY where the two do not fit side by side; the
+    // mark alone where the pill leaves no room for it.
     let (nx, ny) = (M + 28.0, y + 6.0);
     let room = w - M - pw - faraday_draw::tokens::GAP;
     ui.wordmark_fitted((nx, ny, room - nx), 11.0, Role::OnSurface, suffix);
