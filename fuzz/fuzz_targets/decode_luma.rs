@@ -1,4 +1,4 @@
-//! `faraday_codec::decode_luma`: `rqrr` over a camera frame, which on a
+//! `faraday_codec::decode_luma` and `decode::decode_picture`: `rqrr` over a camera frame, which on a
 //! Tier A device is whatever the sensor sees and on a phone is whatever
 //! an attacker can hold in front of it.
 //!
@@ -25,4 +25,5 @@ fuzz_target!(|data: &[u8]| {
     frame[..n].copy_from_slice(&rest[..n]);
     let c = faraday_crypto::work::Compute::unchecked();
     let _ = faraday_codec::decode_luma(&c, width, height, &frame);
+    let _ = faraday_codec::decode::decode_picture(&c, width, height, &frame);
 });

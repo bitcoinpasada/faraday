@@ -34,6 +34,9 @@ faraday-pgp = { path = "../faraday-pgp" }
 faraday-payload = { path = "../faraday-payload" }
 # `gpt.rs` of the Starter shell is included by path and uses its api.
 faraday-starter = { path = "../faraday-starter" }
+# The Starter shell's library: its readers of what Linux and Windows answer.
+faraday-starter-shell = { path = "../shells/starter" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
 # The token that counts nothing, for the readers the targets call
 # (docs/COMPUTE.md §3): a fuzz target keeps no drawing guarantee.
 faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
@@ -191,6 +194,62 @@ bench = false
 [[bin]]
 name = "release_sums"
 path = "fuzz_targets/release_sums.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "core_text"
+path = "fuzz_targets/core_text.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "memory_kept"
+path = "fuzz_targets/memory_kept.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_tx"
+path = "fuzz_targets/decode_tx.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "qr_specter"
+path = "fuzz_targets/qr_specter.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "payload_line"
+path = "fuzz_targets/payload_line.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "recovery_key"
+path = "fuzz_targets/recovery_key.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "starter_udisks"
+path = "fuzz_targets/starter_udisks.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "starter_windows"
+path = "fuzz_targets/starter_windows.rs"
 test = false
 doc = false
 bench = false

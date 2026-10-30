@@ -1,0 +1,6 @@
+Name: Vault
+Policy: 2 of 2
+Derivation: m/48h/0h/0h/2h
+Format: P2WSH
+
+73C5DA0A: xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V

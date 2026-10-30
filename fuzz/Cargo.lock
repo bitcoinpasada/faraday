@@ -293,12 +293,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-entropy"
+version = "0.1.0"
+dependencies = [
+ "faraday-crypto",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-fuzz"
 version = "0.0.0"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
+ "faraday-entropy",
  "faraday-pgp",
  "faraday-psbt",
  "libfuzzer-sys",

@@ -1,0 +1,5 @@
+faraday-silent 1
+network mainnet
+key 73c5da0a/352h/0h/0h
+labels 0
+sp1

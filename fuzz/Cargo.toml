@@ -18,6 +18,7 @@ libfuzzer-sys = "0.4"
 faraday-bip = { path = "../core/faraday-bip" }
 faraday-codec = { path = "../core/faraday-codec" }
 faraday-psbt = { path = "../core/faraday-psbt" }
+faraday-entropy = { path = "../core/faraday-entropy" }
 faraday-crypto = { path = "../core/faraday-crypto", features = ["unchecked"] }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
 
@@ -146,6 +147,69 @@ bench = false
 [[bin]]
 name = "pgp_verify"
 path = "fuzz_targets/pgp_verify.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "address"
+path = "fuzz_targets/address.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bsms"
+path = "fuzz_targets/bsms.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "master_key"
+path = "fuzz_targets/master_key.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "multisig_config"
+path = "fuzz_targets/multisig_config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "musig"
+path = "fuzz_targets/musig.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "silent"
+path = "fuzz_targets/silent.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ur_single"
+path = "fuzz_targets/ur_single.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "psbt_v2"
+path = "fuzz_targets/psbt_v2.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "raw_hex"
+path = "fuzz_targets/raw_hex.rs"
 test = false
 doc = false
 bench = false

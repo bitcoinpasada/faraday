@@ -9,12 +9,12 @@
 [[parser]]
 file = "core/faraday-bip/src/address.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/address.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/address.rs"
 fn = "parses"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/address.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/aezeed.rs"
@@ -39,7 +39,7 @@ target = "faraday/fuzz/fuzz_targets/bip39_words.rs"
 [[parser]]
 file = "core/faraday-bip/src/bsms.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/bsms.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/codex32/mod.rs"
@@ -59,32 +59,32 @@ target = "fuzz/fuzz_targets/json.rs"
 [[parser]]
 file = "core/faraday-bip/src/keys.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/master_key.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/multisig_config.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/multisig_config.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/multisig_config.rs"
 fn = "parse_named"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/multisig_config.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/musig.rs"
 fn = "from_bytes"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/musig.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/musig.rs"
 fn = "parse_musig_expr"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/musig.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/musig.rs"
 fn = "parse_tr_musig"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/musig.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/policy.rs"
@@ -99,17 +99,17 @@ target = "fuzz/fuzz_targets/policy.rs"
 [[parser]]
 file = "core/faraday-bip/src/policy.rs"
 fn = "parse_script_descriptor"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/policy.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/silent.rs"
 fn = "decode_address"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/silent.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/silent_wallet.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/silent.rs"
 
 [[parser]]
 file = "core/faraday-bip/src/slip132.rs"
@@ -144,7 +144,7 @@ target = "fuzz/fuzz_targets/decode_luma.rs"
 [[parser]]
 file = "core/faraday-codec/src/decode.rs"
 fn = "decode_picture"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/decode_luma.rs"
 
 [[parser]]
 file = "core/faraday-codec/src/ur/bytewords.rs"
@@ -154,7 +154,7 @@ target = "fuzz/fuzz_targets/ur_receive.rs"
 [[parser]]
 file = "core/faraday-codec/src/ur/mod.rs"
 fn = "decode_single"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/ur_single.rs"
 
 [[parser]]
 file = "core/faraday-codec/src/ur/xoshiro.rs"
@@ -169,7 +169,7 @@ excuse = "reads the font files compiled into the app, not input from outside"
 [[parser]]
 file = "core/faraday-entropy/src/hex.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/raw_hex.rs"
 
 [[parser]]
 file = "core/faraday-psbt/src/message.rs"
@@ -189,57 +189,57 @@ target = "fuzz/fuzz_targets/psbt_parse.rs"
 [[parser]]
 file = "core/faraday-psbt/src/v2.rs"
 fn = "parse_base64"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/psbt_v2.rs"
 
 [[parser]]
 file = "core/faraday-psbt/src/v2.rs"
 fn = "parse_bytes"
-excuse = "no target yet"
+target = "fuzz/fuzz_targets/psbt_v2.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/backup_flow/mod.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/memory_kept.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/backups/mod.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/memory_kept.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/decode.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/decode_tx.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/explore/mod.rs"
 fn = "parse_path"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/core_text.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/memory.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/memory_kept.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/receipt.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/memory_kept.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/vault/area.rs"
 fn = "parse_tz_offset"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/core_text.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/version.rs"
 fn = "parse_version_output"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/core_text.rs"
 
 [[parser]]
 file = "faraday/faraday-core/src/wallet.rs"
 fn = "parse_words"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/core_text.rs"
 
 [[parser]]
 file = "faraday/faraday-files/src/proto.rs"
@@ -259,7 +259,7 @@ target = "faraday/fuzz/fuzz_targets/manifest.rs"
 [[parser]]
 file = "faraday/faraday-payload/src/manifest.rs"
 fn = "parse_line"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/payload_line.rs"
 
 [[parser]]
 file = "faraday/faraday-qr/src/cbor.rs"
@@ -269,12 +269,12 @@ target = "faraday/fuzz/fuzz_targets/ur_registry.rs"
 [[parser]]
 file = "faraday/faraday-qr/src/specter.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/qr_specter.rs"
 
 [[parser]]
 file = "faraday/faraday-starter/src/api.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/recovery_key.rs"
 
 [[parser]]
 file = "faraday/faraday-vault/src/entries.rs"
@@ -294,7 +294,7 @@ target = "faraday/fuzz/fuzz_targets/vault_entries.rs"
 [[parser]]
 file = "faraday/shells/starter/src/linux/udisks.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/starter_udisks.rs"
 
 [[parser]]
 file = "faraday/shells/starter/src/macos/plist.rs"
@@ -304,27 +304,27 @@ target = "faraday/fuzz/fuzz_targets/plist.rs"
 [[parser]]
 file = "faraday/shells/starter/src/windows/bitlocker.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/starter_windows.rs"
 
 [[parser]]
 file = "faraday/shells/starter/src/windows/bitlocker.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/starter_windows.rs"
 
 [[parser]]
 file = "faraday/shells/starter/src/windows/disks.rs"
 fn = "parse"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/starter_windows.rs"
 
 [[parser]]
 file = "faraday/shells/starter/src/windows/pipe.rs"
 fn = "decode"
-excuse = "no target yet"
+target = "faraday/fuzz/fuzz_targets/starter_windows.rs"
 
 [[parser]]
 file = "faraday/shells/stick/src/evdev.rs"
 fn = "decode"
-excuse = "no target yet"
+excuse = "a binary crate's module tied to its Wake channel, keyboard, pointer and touch parsers, so it cannot be included alone; it reads fixed-width fields"
 
 [[parser]]
 file = "core/faraday-psbt/src/transaction.rs"
