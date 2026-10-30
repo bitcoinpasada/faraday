@@ -4,7 +4,9 @@
 //! the request's ECDSA nonce rule, the inspection's holdable dangers held
 //! past and no other danger accepted),
 //! then `faraday_psbt::finalize`, which builds each final scriptSig and
-//! witness and extracts the transaction.
+//! witness and extracts the transaction; and `faraday_psbt::sweep::sign`,
+//! a sweep signed with a WIF key (`docs/INTEROP.md` §5 I11), as the Sweep
+//! sheet's hold calls it with no wallet loaded.
 
 use core::str::FromStr;
 
@@ -88,6 +90,30 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
             )
             .map_err(err)?;
+            Ok(json!({
+                "psbt": hex(&psbt.to_bytes()),
+                "signatures": done.signed_inputs.len(),
+                "complete": done.complete,
+            }))
+        }
+        "sweep" => {
+            let network = Network::from_name(text(req, "network")).expect("a network name");
+            let key = faraday_bip::wif::SingleKey::decode(&c, text(req, "wif")).map_err(err)?;
+            let ctx = Context {
+                network,
+                keys: &[],
+                wallets: &[],
+                musig_session: None,
+            };
+            let nonce = match text(req, "nonce") {
+                "low_r" => Nonce::LowR,
+                "first" => Nonce::First,
+                other => return Err(format!("unknown nonce rule {other}")),
+            };
+            let mut psbt = Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
+            let accepted = inspect(&c, &psbt, &ctx).holdable();
+            let done = faraday_psbt::sweep::sign(&c, &mut psbt, &key, &ctx, &accepted, nonce)
+                .map_err(err)?;
             Ok(json!({
                 "psbt": hex(&psbt.to_bytes()),
                 "signatures": done.signed_inputs.len(),

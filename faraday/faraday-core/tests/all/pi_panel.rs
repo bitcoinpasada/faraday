@@ -179,7 +179,8 @@ fn sheets() -> Vec<Sheet> {
         BoardPartials, BoardMenu, SeedRead, Delete, Zeroing, Taken, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, OlderCopy,
         ChildRecord, ChildNotice,
-        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Register, GpgRestore);
+        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Register, GpgRestore,
+        Sweep);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
         own: true,

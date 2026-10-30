@@ -23,6 +23,8 @@
 //!   rule made a signature under a key this device holds, diffs two
 //!   PSBTs and states an inscription envelope (§16.111). Nothing there
 //!   signs.
+//! - [`sweep`]: signs with one private key read from a WIF, matched by
+//!   the scripts it pays rather than by a key origin, for a sweep.
 //! - [`transaction`]: reads a raw transaction, or a PSBT as the
 //!   transaction it carries, with the previous outputs its inputs spend,
 //!   for a check that is not a signature.
@@ -96,6 +98,7 @@ mod reason;
 mod register;
 mod sign;
 pub mod silent;
+pub mod sweep;
 pub mod transaction;
 pub mod v2;
 pub mod verify;

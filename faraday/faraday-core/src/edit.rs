@@ -172,6 +172,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::SeedRead) {
             return self.seed_read.state().is_some_and(|s| s.focus.is_some());
         }
+        if self.sheet == Some(Sheet::Sweep) {
+            return self.sweep_typing();
+        }
         if self.sheet == Some(Sheet::PassphraseSeeds) {
             return self.vaults.focus == Some(vault::Focus::Prompt);
         }
@@ -240,6 +243,9 @@ impl Faraday {
         }
         if self.sheet == Some(Sheet::Register) {
             return Some(Action::RegisterField);
+        }
+        if self.sheet == Some(Sheet::Sweep) {
+            return Some(Action::Sweep(crate::seeds::sweep::SweepAction::Field));
         }
         if self.sheet == Some(Sheet::SeedRead) {
             return self

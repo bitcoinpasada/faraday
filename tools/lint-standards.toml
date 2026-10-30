@@ -75,6 +75,14 @@ file = "faraday/faraday-core/src/decode.rs"
 reason = "Decode's view of a transaction: each output's address with rust-bitcoin's `Address::from_script`, and the txid and wtxid with rust-bitcoin's `compute_txid` and `compute_wtxid`. No secret; no F79 area runs it."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/seeds/read.rs"
+reason = "The Sweep sheet's hold calls faraday-keys' `Keys::sweep_sign` and faraday-psbt's `finalize`, which the stamp covers (the sign area sweeps against Core); computes nothing itself."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/seeds/sweep.rs"
+reason = "The Sweep sheet's review: each input's address with rust-bitcoin's `Address::from_script`, and each output's wallet by faraday-bip's `find_address`, which the stamp covers. No secret; no F79 area runs it."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/drawing/kept.rs"
 reason = "Reads a wallet's script kept on the state; the script is computed by faraday-bip."
 
@@ -193,6 +201,12 @@ where = "app"
 hold = "Action::DevicesHold"
 decision = "F136"
 case = "Hold to continue, the stick's device check after Continue anyway: a TV or a KVM that is the person's own"
+
+[[hold]]
+where = "app"
+hold = "SweepAction::Hold"
+decision = "F171"
+case = "Hold to sign, the Sweep sheet: a WIF key's coins signed to an output no loaded wallet's address is, flagged on the review (a wallet not loaded, an exchange)"
 
 [[hold]]
 where = "app"

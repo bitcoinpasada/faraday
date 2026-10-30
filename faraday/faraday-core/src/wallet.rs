@@ -768,13 +768,13 @@ impl Session {
     /// `register::wallet_xpubs` costs. The keys as the inspection sees
     /// them, with the extended public keys each gives at its wallets'
     /// paths.
-    fn key_refs(&self, c: &Compute) -> Vec<KeyRef> {
+    pub(crate) fn key_refs(&self, c: &Compute) -> Vec<KeyRef> {
         let mut refs = self.keys.key_refs(c);
         crate::register::wallet_xpubs(self, c, &mut refs);
         refs
     }
 
-    fn policies(&self) -> Vec<WalletPolicy> {
+    pub(crate) fn policies(&self) -> Vec<WalletPolicy> {
         self.wallets.iter().map(|w| w.policy.clone()).collect()
     }
 

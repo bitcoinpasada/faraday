@@ -1,9 +1,7 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
 use crate::strings::{EN, fill};
-use crate::{
-    Action, Faraday, Screen, Sheet, part_note, picture, qr_fits, secrets, transfer, wallet,
-};
+use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, transfer, wallet};
 use faraday_crypto::work::Compute;
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -61,6 +59,9 @@ pub enum ScanPurpose {
     /// **Scan the paperkey** at a restore's step 4: paperkey's base16
     /// lines or its raw form, every line checked into the restore set.
     GpgPaperkey,
+    /// The Sweep sheet's: a private key, then the sweep's PSBT
+    /// (`seeds::sweep`, F171).
+    Sweep,
 }
 
 /// What the camera sheet holds.
@@ -830,4 +831,20 @@ impl Faraday {
         }
         self.out.dirty = true;
     }
+}
+
+/// The progress of a multi-part code: parts read, and which are missing.
+pub(crate) fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String {
+    let list: Vec<String> = missing.iter().take(8).map(usize::to_string).collect();
+    let more = if missing.len() > 8 { ", …" } else { "" };
+    fill(
+        EN.part_note_of_missing,
+        &[
+            what,
+            &have.to_string(),
+            &total.to_string(),
+            &list.join(", ").to_string(),
+            more,
+        ],
+    )
 }

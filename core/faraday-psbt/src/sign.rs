@@ -37,7 +37,7 @@ use faraday_crypto::Zeroizing;
 use faraday_crypto::work::{Compute, Work};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 
-use crate::classify::{Classified, ScriptKind, classify, spent_output};
+use crate::classify::{Classified, ScriptKind, classify, legacy_code_separator, spent_output};
 use crate::context::Context;
 use crate::finalize::{is_complete, key_in_script};
 use crate::inspect::{
@@ -266,6 +266,22 @@ pub fn sign(
             .find(|k| k.fingerprint() == *fp)
             .ok_or(Error::NoSuchKey(*fp))?;
         selected.push((*fp, key));
+    }
+
+    // A legacy input whose script code holds OP_CODESEPARATOR, named
+    // by a selected key, refuses the whole PSBT before anything is
+    // signed (INTEROP §5 I11).
+    for (i, input) in psbt.inner().inputs.iter().enumerate() {
+        let names_selected = input
+            .bip32_derivation
+            .values()
+            .any(|(fp, _)| selected.iter().any(|(f, _)| *f == Fingerprint::from(*fp)));
+        if names_selected && legacy_code_separator(psbt.inner(), i) {
+            return Err(Error::Unsupported {
+                input: i,
+                reason: Reason::CodeSeparator,
+            });
+        }
     }
 
     let tx = psbt.inner().unsigned_tx.clone();

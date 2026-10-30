@@ -35,6 +35,10 @@ pub enum Reason {
     NoTaprootLeafOrKey,
     /// A script this crate does not sign or finish.
     UnknownScript,
+    /// A legacy input whose script code holds `OP_CODESEPARATOR`, whose
+    /// signature hash Bitcoin Core computes without it
+    /// (`classify::legacy_code_separator`).
+    CodeSeparator,
     /// A taproot input states no internal key.
     NoInternalKey,
     /// A redeem script too long to push.

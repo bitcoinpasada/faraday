@@ -65,6 +65,18 @@ A witness script or leaf is read from the miniscript text it was
 compiled from (`miniscript_ref.Scripts`, python-bip380): the corpus keeps
 each text, and a fixture's are its wallet policy's.
 
+Sweeping (`faraday_psbt::sweep::sign`, `docs/INTEROP.md` §5 I11): a
+WIF private key, compressed or not, whose own outputs (P2PKH, and for a
+compressed key P2WPKH and P2SH-P2WPKH) a PSBT spends beside an output of
+another key, each funded on the node and carrying its previous
+transaction as a watch-only wallet gives it. Core's
+`descriptorprocesspsbt` signs the same PSBT from `pkh()`, `wpkh()` and
+`sh(wpkh())` descriptors of the WIF (its test-network form, as the node
+on regtest reads one): Faraday's added signatures must be Core's byte
+for byte (both grind for a low R), the other key's input unsigned by
+both; then the finalizing and Core's mempool as above. The key and its
+WIF are Core's `key.py` and `address.py`.
+
 Known differences, counted: the refusals above. Faraday signs a taproot
 leaf with a `pkh` but leaves it unfinalized (`miniscript` 12 cannot
 write that satisfaction), where Core finalizes it: the area takes the
@@ -97,6 +109,7 @@ use_reference("bip352", "secp256k1lab", "src")
 from secp256k1lab.bip340 import schnorr_sign, schnorr_verify  # noqa: E402
 
 import lineage  # noqa: E402
+from test_framework.address import byte_to_base58  # noqa: E402
 
 N = bip32_ref.N
 NUMS_HEX = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
@@ -1014,7 +1027,10 @@ class Sign(Area):
         "met and not; Core's signatures (ECDSA byte for byte, BIP-340 by verification and the "
         "deterministic nonce), each final scriptSig and witness and the extracted transaction "
         "Core's, the cleared fields, and every finalized transaction accepted by Core's "
-        'mempool; an origin that derives another key refused'
+        'mempool; an origin that derives another key refused; sweeps: a WIF key\'s P2PKH, '
+        'P2WPKH and P2SH-P2WPKH outputs (P2PKH alone for an uncompressed key) spent beside '
+        "another key's, signed by Core from the WIF and by `faraday_psbt::sweep::sign`, "
+        'byte for byte, finalized and accepted by the mempool'
     )
     differences = [
         (
@@ -1063,7 +1079,7 @@ class Sign(Area):
         'none'
     )
     CORE = True
-    FUND = {"corpus": 4}
+    FUND = {"corpus": 4, "sweep": 4}
     # Past the longest relative timelock the corpus spends with (`LOCKS`
     # blocks and up to 50 more).
     FUND_DEPTH = LOCKS + 100
@@ -1651,7 +1667,86 @@ class Sign(Area):
         self.finals = {}
         self.sign(raw, [seed], [], "testnet", "low_r", {fp: master})
 
-    LOOPS = (("mismatched", 8), ("corpus", 120))
+    # ----- sweeping a WIF key (INTEROP §5 I11) ------------------------------------
+
+    def sweep_sign(self, raw, wif, core_wif, network, compressed):
+        inputs = {"psbt": raw.hex(), "wif": wif, "network": network, "nonce": "low_r"}
+        answer = self.rust.call("sign.sweep", **inputs)
+        self.compared += 1
+        g, ins, outs, _ = parse(raw)
+        descs = [f"pkh({core_wif})"]
+        if compressed:
+            descs += [f"wpkh({core_wif})", f"sh(wpkh({core_wif}))"]
+        got = core_node.batch([("descriptorprocesspsbt", b64(raw), descs, "ALL", False, False)])
+        added = added_signatures(raw, base64.b64decode(got[0]["psbt"]))
+        signed = write(g, [m + pairs for m, pairs in zip(ins, added)], outs)
+        self.finals = {}
+        ref = ("ok", {"psbt": canonical(signed), "signatures": sum(len(p) for p in added),
+                      "complete": self.core_final(signed)["complete"]})
+        got = answer
+        if answer[0] == "ok":
+            got = ("ok", dict(answer[1], psbt=canonical(bytes.fromhex(answer[1]["psbt"]))))
+        if got != ref:
+            raise Mismatch(self.name, "sign.sweep", inputs, answer, ref)
+        return answer
+
+    def fund_sweep(self):
+        self.collecting = True
+        try:
+            self.sweep_case(fund_only=True)
+        finally:
+            self.collecting = False
+
+    def sweep_case(self, fund_only=False):
+        self.test = self.rng.random() < 0.7
+        network = self.rng.choice(["testnet", "regtest", "signet"]) if self.test else "mainnet"
+        compressed = self.rng.random() < 0.8
+        key = ECKey()
+        key.set(self.rng.randrange(1, N).to_bytes(32, "big"), compressed)
+        secret = key.get_bytes() + (b"\x01" if compressed else b"")
+        wif = byte_to_base58(secret, 0xEF if self.test else 0x80)
+        core_wif = byte_to_base58(secret, 0xEF)
+        h = bip32_ref.hash160(key.get_pubkey().get_bytes())
+        kinds = ["p2pkh", "p2wpkh", "p2sh-p2wpkh"] if compressed else ["p2pkh"]
+        tx = CTransaction()
+        tx.version = 2
+        ins, total = [], 0
+        n_in = self.rng.randrange(1, 4)
+        foreign_at = self.rng.randrange(n_in + 1) if self.rng.random() < 0.5 else None
+        for i in range(n_in + (foreign_at is not None)):
+            value = self.rng.randrange(20_000, 3_000_000)
+            fields = []
+            if i == foreign_at:
+                spk = p2wpkh(bip32_ref.hash160(bip32_ref.point(self.rng.randrange(1, N))))
+            else:
+                kind = self.rng.choice(kinds)
+                spk = {"p2pkh": p2pkh(h), "p2wpkh": p2wpkh(h),
+                       "p2sh-p2wpkh": p2sh(p2wpkh(h))}[kind]
+                if kind == "p2sh-p2wpkh":
+                    fields.append((b"\x04", p2wpkh(h)))
+            prev, at = self.funding(spk, value, i)
+            total += value
+            tx.vin.append(CTxIn(COutPoint(prev.txid_int, at), b"",
+                                self.rng.choice([0xFFFFFFFF, 0xFFFFFFFD])))
+            fields.insert(0, (b"\x00", prev.serialize_without_witness()))
+            if spk[:1] != b"\x76":
+                fields.insert(1, (b"\x01", CTxOut(value, spk).serialize()))
+            ins.append(fields)
+        if fund_only:
+            return
+        self.real = self.fund_coins is not None
+        fee = self.rng.randrange(500, 5_000)
+        tx.vout.append(CTxOut(total - fee, p2wpkh(self.randbytes(20))))
+        raw = write([(b"\x00", tx.serialize_without_witness())], ins, [[]])
+        signed = self.sweep_sign(raw, wif, core_wif, network, compressed)
+        if signed[0] == "ok":
+            self.finalize(bytes.fromhex(signed[1]["psbt"]))
+
+    def case_sweep(self):
+        self.real = False
+        self.sweep_case()
+
+    LOOPS = (("mismatched", 8), ("corpus", 120), ("sweep", 30))
 
     def prelude(self):
         self.bip174()

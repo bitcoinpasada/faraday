@@ -428,6 +428,12 @@ completeness = "Low-R RFC 6979 in the app; the library also offers the first RFC
 standard_note = "Core's low-R grind"
 
 [[row]]
+id = "wif-sweep"
+section = 4
+what = "A WIF private key swept (`core/faraday-bip/src/wif.rs`, `core/faraday-psbt/src/sweep.rs`)"
+completeness = "Read as Bitcoin Core reads a WIF; the key's P2PKH, P2WPKH and P2SH-P2WPKH outputs signed to the person's wallet, the key never kept (F171)"
+
+[[row]]
 id = "schnorr"
 section = 4
 what = "Schnorr"
@@ -925,7 +931,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "39d91b3c9318759bf41cd17def50d75bb61559a95dc0f0bbded445816108dc20"
+fingerprint = "1b06ad19152e654200554bdf6af303e3fd3abefb742608b41d2f7518fc44e67c"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -1056,7 +1062,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "2effae97c32cdb44f738f7a05e93a75c4b418183f56b389b31d3a5d4f8d4bade"
+fingerprint = "536a54b80aa668c2c10f44bfeb8e0f46fc56d8e65f5776ec2912b0256799d18e"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -1151,7 +1157,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "7fedb87fd6603c92fb2d22a8be41a36deb6263de22fc69d7d6ad900af207d2cc"
+fingerprint = "397be35fbeba6248d20e968b6b1147b1cb88de7fbeff5ba87a047dc71aeaabec"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -1272,7 +1278,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "1a365431027e1e520a2321686cf73a50abd2e5fa2134bc15b5e26c3eadbcd418"
+fingerprint = "225450c66ba36feb89b47a56cae441b5636dd3f82bff7f00ce40c53156791252"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -1347,8 +1353,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "dce78479ec18c268739e21f691672e1a99003fbb9ce763c1871b2e4e568df8b2"
-reviewed = "2026-10-29"
+fingerprint = "0a96353f51bdfee8e7ea52f6c87b041f5b31487eb91f3189996862ff52d84236"
+reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
 ]
@@ -1434,8 +1440,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "83f48cccd66a5dd376c76881178c86693647cdcb95f9b27833a515a7d41453db"
-reviewed = "2026-10-29"
+fingerprint = "1114d3ba6da26b9d9caeb20f266f12374caf0dd27e805783586e370b4330178a"
+reviewed = "2026-10-30"
 places = [
   "core/faraday-crypto/README.md",
   "docs/SECURITY-MODEL.md",
@@ -1493,7 +1499,7 @@ lines = [
 ]
 
 [action.review]
-fingerprint = "8ba465ea756d3e4fe7ef3dbc1790c8408841db4f4835bc9a27cfcd2615d2b082"
+fingerprint = "ff00f61dd8d4f9415a993771626e66b1f5b46702a5e887e6f9c9bff0eb1f9160"
 reviewed = "2026-10-30"
 places = [
   "docs/KEYS.md",
@@ -1555,7 +1561,7 @@ lines = [
 ]
 
 [action.review]
-fingerprint = "9000f8ed1293074b0608e94ba02cb3fd57e681fca8e1e75dbb47036aa66102a3"
+fingerprint = "76536ee8727a21daca1967bc95ee58eb9262b39925029c7b0e51fdc42e9284a1"
 reviewed = "2026-10-30"
 places = [
   "docs/KEYS.md",
@@ -1911,7 +1917,7 @@ lines = [
 ]
 
 [action.review]
-fingerprint = "21bbc1f767cbe35297b47a9188182b9156b8bde7216a1b2635026eb4605c5411"
+fingerprint = "f72a6bbed3ccbebe4e99ebce7d825339fdec54c3f517abf63c0043dad3731f3d"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2051,7 +2057,7 @@ kind = "Neutral"
 decision = "F66"
 
 [action.review]
-fingerprint = "ee0fc4523f2391750c127d0c1af12d2afb5cd567f9ace4eb2d6fb6b304af5c67"
+fingerprint = "af69e37418d0b92f79182f25ca8fb10b3404ff0bab4029f2e84e414f26dd0665"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2126,7 +2132,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "d1e1a8f6858e6105db0e7c372967c01bc8de9df279553976d720752f7cb78720"
+fingerprint = "8be7d015b9427b4cdb707069165851612db116bfd9f3fb09f0e7512d4266d1c6"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2208,7 +2214,7 @@ kind = "Conservative"
 decision = "F132"
 
 [action.review]
-fingerprint = "51d94005c053a5dde9988bf5ea4d73ee1786db816986530fe60a839edb265651"
+fingerprint = "cad1aa2e219b95988858802fc5f917972db0e002553370ffd15c2d6b5b005599"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2303,7 +2309,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "25b20e2e5c6118d3e95ea26663477172a809bec03d92192b4d87f8bbf7afdb17"
+fingerprint = "628a5d7633fee50aa8c44c6fb971c17f8d14f38bb56eee7f05d98922865892dc"
 reviewed = "2026-10-30"
 places = [
   "docs/INTEROP.md",
@@ -2389,7 +2395,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "64eb499f63f07573a3090ef4ff076cfa043c84e15157808c4923d2de05f574f3"
+fingerprint = "a1fb56e545c127263b40f149c81ec61bd23e967272975593842cb65f2d4e365d"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2447,7 +2453,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "613049c2748d078b5c0dc0f3e1d530f8cb1e35f932691f59ad3a59e4b0d0cc55"
+fingerprint = "f69b66b9a0dce0684b733612a371f6d2a722ea350e7123c194e883439e6f49cb"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2544,7 +2550,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "28bbf4ab1be76748fecda4adda0609adca722163afd69d9e0adb400775cdec1c"
+fingerprint = "6421a8d52152a360878e1c306264c5728f506d4b6e1ff9ca1f42fed5624b395b"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2624,7 +2630,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "bd242e67d56cd269bcec3b42bc467c3f5c4a6e587e751a4765d5a7b5c86fc2f9"
+fingerprint = "2dc07724318afe4b147e0535617ab2cfa90bf804d883d10090029af0b929c48d"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -2690,7 +2696,7 @@ lines = [
 ]
 
 [action.review]
-fingerprint = "e9b4883cf43097bfcc518ef1ecedc6229d0e2d9b29ad3d44db445d9406d1822c"
+fingerprint = "f9ec19b8e5b6c2c20f3ad9e683a3655e1ef5a41762c3541631712b6eb826e20f"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -3632,7 +3638,7 @@ kind = "Neutral"
 decision = "F27"
 
 [action.review]
-fingerprint = "79798440fd6a8a45eb89fd409d5c9fc39da509c10cc9adfd98d1522331f2751a"
+fingerprint = "904f5ba152bf0ebc22ff8cd7a6ee306971ad085ef3d17a9bd492ba4ff49e6582"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -3701,7 +3707,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "09bfdf9cda583b4eb455557407fa99ca27c426d2e919f33def859450e3831469"
+fingerprint = "f75cec27d5b0eb21d010ab4f375e9ab2b8abe587ef356f6ec4612b9ef15c9793"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -3858,7 +3864,7 @@ lines = [
 ]
 
 [action.review]
-fingerprint = "f426887b64cc23f522427cc3d16a942709604f42fab8707815d5c8c5485e0deb"
+fingerprint = "09876cdcbd9456105d3827588499f65628c4466dfcd698cb52565a8459bbe888"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -3969,7 +3975,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "7d566bff701322c66406855585798888111cff37c4983b53f0aae2f1d8560d8a"
+fingerprint = "e25f88c909b05e3ba8872b8f1907db69f3e4d7274229e7cbd115057e66da8412"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-bip/README.md",
@@ -4036,7 +4042,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "ff97ff3af4f478721e7d048793afbeebbeeba8a00e89c1519b13f3cd7a09494b"
+fingerprint = "9bf372cdabe2135733e33af2a6b4a31f95841734a5b5463b763264bb4a5f451a"
 reviewed = "2026-10-30"
 places = [
   "docs/KEYS.md",
@@ -4205,7 +4211,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "29b5ca737e6c9aebd6b5db08b77751e34c06772546f5315c1b29196ef1cb1968"
+fingerprint = "cbb8b8745f9125e6eaa54c14985d1f59b4a44354aff00d367d0e6075c11a1f82"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#What is refused"]
 
@@ -4279,7 +4285,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "b26286bfe8fe71bc4b4f4b96325ffe25b2a0f3f9f71000c4aa8e5ba9b58ad996"
+fingerprint = "c3f9924cd0211d19ce8316d29dee7d17a2c36d7c15275393aa624310b923cb22"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#What is refused"]
 
@@ -4385,7 +4391,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "657e001a2b1454e8788736a2aad27d8fe102c7ff0118757164cce875811d84a9"
+fingerprint = "b4e6a698401af3f7933e7265fe24d9d74b68ad5687136b36e006ba566656e69a"
 reviewed = "2026-10-30"
 places = [
   "core/faraday-psbt/README.md#What is inspected",
@@ -4454,6 +4460,141 @@ decision = "F136"
 fingerprint = "cc023c96f9d80e5986019d17e245ba2d597a5df81f7380dd42983f2498ac87a9"
 reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#Warning thresholds"]
+
+[[action]]
+id = "wif-read"
+name = "Read a WIF private key"
+action = "Reads a single private key written as WIF, typed or scanned for a sweep, and works out the addresses it pays."
+row = "wif-sweep"
+standards = []
+learn = "tools"
+screens = ["Tools"]
+functions = [
+  "core/faraday-bip/src/wif.rs::SingleKey::decode",
+  "core/faraday-bip/src/wif.rs::SingleKey::from_payload",
+  "core/faraday-bip/src/wif.rs::SingleKey::scripts",
+  "core/faraday-bip/src/wif.rs::blinded",
+  "faraday/faraday-keys/src/sweep.rs::SweepKey::read",
+  "faraday/faraday-keys/src/session.rs::Keys::sweep_read",
+]
+code = [
+  "core/faraday-bip/src/wif.rs::SingleKey::decode",
+  "core/faraday-bip/src/wif.rs::SingleKey::from_payload",
+  "core/faraday-bip/src/wif.rs::SingleKey::scripts",
+]
+
+[action.implementation]
+crate = "core/faraday-bip"
+libraries = ["secp256k1", "bitcoin"]
+adds = "Reads base58check with the bitcoin crate and holds Bitcoin Core's DecodeSecret rules itself: a version of 0x80 or 0xef, 32 bytes of key then nothing or exactly 0x01, a scalar in 1..n; the key is held on a pinned page in a signing context blinded from the key and, in faraday-keys, again from the session's randomness. A key of the other network kind, or read while a stick is attached, is refused; the key pays P2PKH, and if compressed P2WPKH and P2SH-P2WPKH."
+
+[action.checked]
+vectors = ["wif"]
+tests = [
+  "core/faraday-bip/tests/all/wif.rs::cores_valid_private_keys_read_with_their_form_and_chain",
+  "core/faraday-bip/tests/all/wif.rs::nothing_else_in_cores_files_reads_as_a_private_key",
+  "core/faraday-bip/tests/all/wif.rs::a_wif_breaking_a_rule_core_holds_is_refused",
+  "core/faraday-bip/tests/all/wif.rs::the_generators_key_pays_its_published_addresses",
+  "faraday/faraday-core/tests/all/sweep.rs::a_typed_key_shows_its_three_addresses_and_is_never_loaded",
+  "faraday/faraday-core/tests/all/sweep.rs::a_key_of_the_other_network_and_text_that_is_no_key_are_refused",
+]
+crosscheck = "sign"
+independence = { class = "outside", author = "the Bitcoin Core developers: Core's key_io vectors (`tools/vectors/wif`), and in the cross-check Core v31.1 itself, which signs from descriptors of the same WIF what Faraday reads from it" }
+fuzz = ["xkey"]
+
+[action.secrets]
+reveal = "none"
+constant_time = "libsecp256k1 documents its key multiplication as constant time; the base58 decode is not stated to be."
+wiped = "The decoded buffer is zeroized before the reader returns; the key is held on a pinned page and erased when it is dropped, at Done, a lock or leaving the Sweep sheet."
+
+[action.limits]
+lines = [
+  "A key is swept and never kept: no vault record, no key slot, no backup.",
+  "A WIF of the other network kind is refused.",
+]
+
+[[action.own]]
+text = "A WIF key is never loaded as a key or kept: it lives for one sweep."
+kind = "Conservative"
+decision = "F171"
+
+[action.review]
+fingerprint = "b333dba1850e6cce77fb2111878e8145e78f07ec79ac1c022342c5dd9e3e3821"
+reviewed = "2026-10-30"
+places = ["docs/INTEROP.md", "docs/KEYS.md"]
+
+[[action]]
+id = "sweep-sign"
+name = "Sign a WIF key's sweep"
+action = "Signs the inputs of a PSBT that spend a WIF key's own outputs, after a review that names each output's loaded wallet."
+row = "wif-sweep"
+standards = [
+  "BIP 143",
+  "BIP 174",
+  "RFC 6979",
+]
+learn = "nonces"
+screens = ["Tools"]
+functions = [
+  "core/faraday-psbt/src/sweep.rs::sign",
+  "core/faraday-psbt/src/sweep.rs::sign_input",
+  "core/faraday-psbt/src/sweep.rs::inputs_of",
+  "faraday/faraday-keys/src/session.rs::Keys::sweep_sign",
+  "faraday/faraday-core/src/seeds/read.rs::Faraday::sweep_sign",
+  "faraday/faraday-core/src/seeds/sweep.rs::spent_address",
+  "faraday/faraday-core/src/seeds/sweep.rs::whose",
+  "faraday/faraday-core/src/seeds/sweep.rs::out_bytes",
+]
+code = [
+  "core/faraday-psbt/src/sweep.rs::sign",
+  "core/faraday-psbt/src/sweep.rs::sign_input",
+  "core/faraday-psbt/src/sweep.rs::inputs_of",
+]
+
+[action.implementation]
+crate = "core/faraday-psbt"
+libraries = ["secp256k1", "bitcoin"]
+adds = "An input is the key's when the output it spends pays one of the key's scripts, not by a key origin; the PSBT is inspected and a block, or a danger that is not holdable, refuses it, but for no loaded master key taking part; every input of the key is checked before the first is signed; each signature is made twice with the low-R nonce, compared and verified before it is written. The review searches each loaded wallet's first hundred addresses on each chain for every output and flags the others."
+
+[action.checked]
+vectors = ["sighash"]
+tests = [
+  "core/faraday-psbt/tests/all/sweep.rs::bip143s_nested_segwit_example_sweeps_to_its_published_transaction",
+  "core/faraday-psbt/tests/all/sweep.rs::a_sweep_signs_the_keys_inputs_alone_and_finishes_them",
+  "core/faraday-psbt/tests/all/sweep.rs::an_uncompressed_key_sweeps_its_legacy_output_and_needs_its_previous_transaction",
+  "core/faraday-psbt/tests/all/sweep.rs::a_psbt_of_another_key_signs_nothing",
+  "faraday/faraday-core/tests/all/sweep.rs::the_sweeps_psbt_is_reviewed_against_the_wallets_and_signed_with_a_hold",
+  "faraday/faraday-core/tests/all/sweep.rs::a_psbt_of_another_key_signs_nothing",
+]
+crosscheck = "sign"
+independence = { class = "outside", author = "the Bitcoin Core developers: Core v31.1 itself signs the same sweep from `pkh()`, `wpkh()` and `sh(wpkh())` descriptors of the WIF (`descriptorprocesspsbt`), finalizes it and judges it (`testmempoolaccept`); BIP-143's published P2SH-P2WPKH example signs to its transaction" }
+fuzz_none = "No target runs sign: it needs a key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT and xkey the WIF it reads."
+
+[action.secrets]
+reveal = "none"
+constant_time = "libsecp256k1 documents its signing as constant time; the low-R grind repeats the signing until r is small, so the number of signings varies, which the library does not address."
+wiped = "The key never leaves faraday-keys; it is erased when the sweep ends."
+
+[action.limits]
+lines = [
+  "P2PKH, P2WPKH and P2SH-P2WPKH outputs of the key are signed; a legacy input needs its previous transaction.",
+  "An output to no loaded wallet's address is flagged, and the hold signs past it.",
+]
+
+[[action.own]]
+text = "An output to no loaded wallet's first hundred addresses on either chain is flagged on the review, and the hold signs past it."
+kind = "Neutral"
+decision = "F171"
+
+[[action.own]]
+text = "Each signature is made twice and compared, and verified before it is written."
+kind = "Neutral"
+decision = "no decision"
+
+[action.review]
+fingerprint = "6c4b26f09fe15b31c644f69c8fd3d645f48756456e8289333ae271ce5f22858b"
+reviewed = "2026-10-30"
+places = ["docs/INTEROP.md", "core/faraday-psbt/README.md"]
 
 [[action]]
 id = "sign-ecdsa"
@@ -4535,7 +4676,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "966d1c6b77149f1fa6a24be2d3f5f76b1ed4a7612c159937c1ea2c9703ac6f5d"
+fingerprint = "7d775c1f44205718749bc920e2b5a9b8c968f80822d95c942c156ef88c88b7c2"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
@@ -4597,7 +4738,7 @@ kind = "Conservative"
 decision = "F141"
 
 [action.review]
-fingerprint = "4bff4c5d6d6267e91325060af1b751974c0ff0c006bfcdc3583bc57498ca8a89"
+fingerprint = "d5ce7e3633863d72a4746ab178d27fdabc3fca51c401b150077552fce97f5172"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
@@ -4682,7 +4823,7 @@ kind = "Conservative"
 decision = "F109"
 
 [action.review]
-fingerprint = "bc87c945ecfb524b21c103514bb3f26f83632b7cff0c0ea2b1d3c96c07fc64e4"
+fingerprint = "7323692ee81d8d7d2f51e1c131d969033b41d1fc62d470c7a86a97e4545cb66b"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#MuSig2", "docs/learn/13-nonces.md"]
 
@@ -4750,7 +4891,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "6550707d862e05fc53568131b9d7b64d904769897cdc582dc69fb7818b35acfd"
+fingerprint = "69bfae6ca1db8195783635444167ef8e6cfdfc5de5da52036c61269f6ffa8b9a"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
@@ -4811,7 +4952,7 @@ kind = "Neutral"
 decision = "F161"
 
 [action.review]
-fingerprint = "ab6e50aff2c2909e80ead9a2f6e112a5040b1ee6859a052376c6e9a1bcca971c"
+fingerprint = "407eea5cf991230d468fba066ab2966350731d334d6c784e4c7d9ac0af764d15"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/README.md#What is refused"]
 
@@ -4874,7 +5015,7 @@ kind = "Neutral"
 decision = "F156"
 
 [action.review]
-fingerprint = "cf45657544c331811e18e3f87e0c45b752a107d5a7e1deae3b7665f4c7f56f94"
+fingerprint = "1ee1984514254e621269e7209284570e64dca95b5ccffed4d16d28ccb9c8b137"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/src/message.rs"]
 
@@ -4924,7 +5065,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "370068ad0ca93ad51aa6ba7c26ad5a97f28371c85a82dfd4e4aa5256c91a2372"
+fingerprint = "f719cece0e5c284f2c6cd1da2a5d69c06614cedeb3db7e751a227861290f724d"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/src/message.rs"]
 
@@ -5001,7 +5142,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "4b92ed94284284f9e523d146f868985de21e3cb7df94a3adc19dab67ea45d23d"
+fingerprint = "9cb59c5c203fe82d77c2b67d68c9db623bc6e72389f1f76f2ef65dde0c895795"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/src/transaction.rs"]
 
@@ -5074,7 +5215,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "063a936ae7be77f1f6a4834651d8cd207695882e01fd438e6cf4b57dfd460b3e"
+fingerprint = "b3ed0a8a74f2cf49a5d9ae42d6df5b3bf2530d24f0d740ad5f34ae4a72f16ab1"
 reviewed = "2026-10-30"
 places = ["docs/QR.md"]
 
@@ -5184,7 +5325,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "b2b5251afa70a24ffef960d2cca55b2ceda4e11fd730dd9b568ba8bcb0a5b976"
+fingerprint = "57fa5e17be0f32a02d647e23643569ec1719ca92884a65d05be90833f3f5c126"
 reviewed = "2026-10-30"
 places = ["docs/QR.md"]
 
@@ -5250,7 +5391,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "97aba5adff8e276011ce91fddf51db587cf4e4b2db055f92a94b313751bef909"
+fingerprint = "59c782622a5c537d80049ab9c63e7b838f7424f2e805f7701d1c4bc7310ffe2b"
 reviewed = "2026-10-30"
 places = ["docs/QR.md"]
 
@@ -5306,7 +5447,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "f596d1ba8132e560b06612715685ad02790ab5c8735326c9d691593a5a54c192"
+fingerprint = "9653e1a3c55f51550558bfc42d3a8df59d2a7acfcf32f7f09d832d441baffec8"
 reviewed = "2026-10-30"
 places = ["docs/QR.md"]
 
@@ -5423,7 +5564,7 @@ kind = "Neutral"
 decision = "F29"
 
 [action.review]
-fingerprint = "e3ceb75d2ede894e7d622a09d01ce4b5bdcca73f8fab68046cb83bd8983dd0f6"
+fingerprint = "4354d58c72c01fed836b6d42fe4f3d1ae9dfb5c7bbc9507603ba4861e355fd82"
 reviewed = "2026-10-30"
 places = ["tools/vectors/seedqr/README.md", "docs/QR.md"]
 
@@ -5469,7 +5610,7 @@ kind = "Neutral"
 decision = "F29"
 
 [action.review]
-fingerprint = "c4759b7f4057c184d8d96eb963b7d142f0099a6983ed90614e9a338b054747be"
+fingerprint = "42df52c23cd7fb9f51e1045c8d740e84918dc3b5aef3db977a3d89ed780a21bf"
 reviewed = "2026-10-30"
 places = ["tools/vectors/seedqr/README.md"]
 
@@ -5550,7 +5691,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
-fingerprint = "1c917413595daab005ccef5d777a4bf39afa955fe82d4ed235ac2074bf98e267"
+fingerprint = "b8cbaa0cf6842073c5e3c9f3f9c7022cc359b98a4c6262e5e8ae2c72f9b513dc"
 reviewed = "2026-10-30"
 places = ["docs/CODEX32.md", "core/faraday-bip/README.md"]
 
@@ -5632,7 +5773,7 @@ kind = "Conservative"
 decision = "F90"
 
 [action.review]
-fingerprint = "879c4db02c389db8a02a1d4098df8c929f74ac08df6a4fbea16d29ba218cb4c7"
+fingerprint = "c60be9d3ae1458ee8114b4b28062c433bbfeccbf23964d6c51f918a93167d5db"
 reviewed = "2026-10-30"
 places = ["docs/CODEX32.md"]
 
@@ -5688,7 +5829,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "01b68c7e94b00830b17ea6852d50481be62d9a62cdc805fc0752440945fea398"
+fingerprint = "819420fc3f1c617f489b3e5a2b360d2022427730ac82b1d4eea4a0f87a4f6c2f"
 reviewed = "2026-10-30"
 places = ["docs/CODEX32.md"]
 
@@ -5734,7 +5875,7 @@ kind = "Conservative"
 decision = "F95"
 
 [action.review]
-fingerprint = "ee86714d2197a808c79666282c078744d0ac204bc4000dbcab3b1183dae88359"
+fingerprint = "4349600763bb81f40bb641c855506861912a7255a5692bc7f255615514902ba6"
 reviewed = "2026-10-30"
 places = ["tools/vectors/codex32qr/README.md", "docs/CODEX32.md"]
 
@@ -5865,7 +6006,7 @@ wiped = "The parts' accumulator zeroizes on drop and the parts handed out are ze
 lines = ["Two to four parts; one part alone is the seed itself.", "Every part is needed: XOR is not a threshold scheme."]
 
 [action.review]
-fingerprint = "7e8ef477db89ee1e4c8e42122a6816b52d53ec4efaf23278c45af0f490ec7e93"
+fingerprint = "b5439101e5c16992c82009f068609e147063a3205744e763ca6f88da28668bed"
 reviewed = "2026-10-30"
 places = ["tools/vectors/xor/README.md"]
 
@@ -5927,7 +6068,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "b875a58d2a0c652f26d9a26187d74fb08179ee68ab1c1098b9b70b5845af9621"
+fingerprint = "a6a24d5f1557935dd2db0dc1826f99fef4b8c8cce8b994a630796622d2061b34"
 reviewed = "2026-10-30"
 places = [
   "docs/BACKUP-FLOW.md",
@@ -5987,7 +6128,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "929fa159adb897ffe012351b86b970046c9def8a9c2b69ef151e4741f1701af9"
+fingerprint = "fe011211666eb4aa8b5b2c736e32428ecaaeaca70b3027d12ed4e583de43f3b4"
 reviewed = "2026-10-30"
 places = [
   "docs/BACKUP-FLOW.md",
@@ -6061,7 +6202,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "ddc3f939c1e49c995e0a641bfce3cd8146b6f45eca2328a7fabf75b01ef0d1e3"
+fingerprint = "c9312053564aa89bcc89f9642576950a1ea6bb71f1fe4c809b63fc7e909d85c7"
 reviewed = "2026-10-30"
 places = ["docs/KEYS.md"]
 
@@ -6143,7 +6284,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "2ddd175f2bb23415a47a5e4795ecef718489f9b0073083fb388efe40ac88af9c"
+fingerprint = "6793abe2d9051daaeb562a90d2c969a9f5ee46733b995b06e0d22339eb269d76"
 reviewed = "2026-10-30"
 places = ["core/faraday-psbt/src/silent.rs", "core/faraday-bip/src/dleq.rs"]
 
@@ -6370,7 +6511,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "a4741c422cbc5731ca3910e1735f6a0e1954293c55d81e99cd1f4f55f16409e7"
+fingerprint = "7bc659a74b1e7a0eebd001ecdbfcf30a9c801afe1a231a453cae234a32f57cce"
 reviewed = "2026-10-30"
 places = [
   "docs/VAULT.md",
@@ -6475,7 +6616,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "bd14bb9a1dd62473fb84b3f3db036086d2bf716d972b618b7441396d0855222f"
+fingerprint = "899d58f37beb711f12341c1ece5de4fa956d06c54b89d1ce2e8215992e9af3a7"
 reviewed = "2026-10-30"
 places = [
   "docs/VAULT.md",
@@ -6544,7 +6685,7 @@ kind = "Neutral"
 decision = "F159"
 
 [action.review]
-fingerprint = "5e33e125b6dee90b18487e0c551eebe554e54e164f7e98852947b52da9363326"
+fingerprint = "5ba6809b1400a100f5aed620a8241911f050f8c85034eb02498598d0dfa6bedf"
 reviewed = "2026-10-30"
 places = [
   "docs/VAULT.md",
@@ -6614,7 +6755,7 @@ kind = "Conservative"
 decision = "F70"
 
 [action.review]
-fingerprint = "3772bd7e3f15e32f4be8735b81bf78b97f79ed8e89ecc38a83c5ddd9133d4060"
+fingerprint = "a9183605c231c89a8ac8d80d0c4befcecd6633ed63bf5f41e0d115ceeeed57c4"
 reviewed = "2026-10-30"
 places = [
   "docs/KEYS.md",
@@ -6681,8 +6822,8 @@ kind = "Novel"
 decision = "F97"
 
 [action.review]
-fingerprint = "56294f2f05097fe0d35c1983f6f63f1a144cc5a42cfb77d0acf6240133bf1bf6"
-reviewed = "2026-10-29"
+fingerprint = "5d43be2671b44b90b543c203281bb52d73db0e65f8963987bf1bace8833aa268"
+reviewed = "2026-10-30"
 places = [
   "docs/VAULT.md#7. Slot contents",
   "tools/vault/open.py",
@@ -6765,7 +6906,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "f2b528f6efbcb110e72dc71d9e59d6a566cf8956475aeff33a8320d0b53b9398"
+fingerprint = "94baba48bfdfd811d8e700e880ce79f39e7b6f0da61d0e39a2fd2ae83cf47425"
 reviewed = "2026-10-30"
 places = ["docs/VAULT.md#7. Slot contents"]
 
@@ -6864,7 +7005,7 @@ kind = "Neutral"
 decision = "F154"
 
 [action.review]
-fingerprint = "cdc3a74660de6761d0c80cfe2696bbcace6b5279576c05b123db591ea4f6e37e"
+fingerprint = "ffa1254ced0934886c7a49b85f7156197e343b2c668d227c569849826bd9fe8d"
 reviewed = "2026-10-30"
 places = [
   "docs/KDBX.md",
@@ -7025,7 +7166,7 @@ kind = "Neutral"
 decision = "F32"
 
 [action.review]
-fingerprint = "5a67cc98148c29b0a4e195f762787a0d30239e60b767faa3ff409fc20044940e"
+fingerprint = "75f54d98b8e22738ef92cb3a01f590d512137db777db3be431e3df449799ece1"
 reviewed = "2026-10-30"
 places = [
   "docs/learn/faraday/gpg.md",
@@ -7095,7 +7236,7 @@ kind = "Conservative"
 decision = "F32"
 
 [action.review]
-fingerprint = "46d42d27fd61252a7410806603665963319a835da08ac7305bc33ef666ea81da"
+fingerprint = "5a99468920d4ee0740ed2f3995b87b9c6a26df2f23f36720cb04d3b608959fdd"
 reviewed = "2026-10-30"
 places = [
   "docs/learn/faraday/gpg.md",
@@ -7164,7 +7305,7 @@ kind = "Neutral"
 decision = "F32"
 
 [action.review]
-fingerprint = "ffc461e0ad9945acc1774d050e452db41b25f5e8e0a640a4a52489937bb6ca3d"
+fingerprint = "e88013c67625518a6ef7278f6190c516dd6fba15629b3aa40cdc8e1e6e3ec4c5"
 reviewed = "2026-10-30"
 places = [
   "docs/learn/faraday/gpg.md",
@@ -7221,7 +7362,7 @@ kind = "Conservative"
 decision = "F32"
 
 [action.review]
-fingerprint = "861abf450dc1a3481561d3e5d0e2a040c0f150c1713632eb3e2198b9e9f254f4"
+fingerprint = "e1b5cd22cdfd7cb311a80171ac68c8aacfccd4aee27058e1b89c119e68cf22b4"
 reviewed = "2026-10-30"
 places = [
   "docs/learn/faraday/gpg.md",
@@ -7303,7 +7444,7 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
-fingerprint = "462afe38f1582304cdc15a7cd49ded5dc6d0b4da8345b8b624d39b56eb4e5d51"
+fingerprint = "aad32441ef72b98bcd0816601da0e310d0fcc71430184faad2af2707a8a0e768"
 reviewed = "2026-10-30"
 places = [
   "docs/GPG-PAPERKEY.md#4. The flow",
@@ -7371,7 +7512,7 @@ kind = "Conservative"
 decision = "F134"
 
 [action.review]
-fingerprint = "f2f7bef4e6b869bc2461d6999c99a5d7aa4b1beacd5c86c5b99485141537c711"
+fingerprint = "02f6377685598035930a09edf62e6065fffdc06a0b9e76fe02754c1fe0241d43"
 reviewed = "2026-10-30"
 places = [
   "docs/learn/faraday/gpg.md",
@@ -7664,7 +7805,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "cc267b023cd0e62c4d5290ae919871fbb797127f63ec17413a8ba5d14fdbaa8e"
+fingerprint = "a42e2eff58c3c6d39c3d875cd27c1addbfc5e0ea94b8685ad2eb2e581c609f3c"
 reviewed = "2026-10-30"
 places = ["docs/AUDIT.md"]
 

@@ -29,4 +29,5 @@ mod slip132;
 mod slip39;
 mod vanity;
 mod vectors;
+mod wif;
 mod wordlists;

@@ -159,6 +159,7 @@ mod stepper;
 mod stick_copy;
 mod stick_pills;
 mod stick_with_vault;
+mod sweep;
 mod text_size;
 mod toast;
 mod tools;

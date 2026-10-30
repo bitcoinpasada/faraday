@@ -94,7 +94,8 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 | Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | A new wallet card, or the piece a wallet in progress is missing |
 | SeedQR, CompactSeedQR, words | Add a key, added as its own **Scan a SeedQR** adds them; never Files or the Inbox |
 | codex32 string, Codex32QR, SLIP-39 share | Add a key's form for it, the part in, waiting for the rest of its set (F167); never Files |
-| Private key: xprv, WIF, Nostr `nsec` | Named: Add a key takes seeds as words or a SeedQR; never filed (F167) |
+| WIF private key | On Home's Scan and the Sweep sheet's own scanner, the Sweep sheet (`docs/INTEROP.md` §5 I11, F171); on any other scanner, named: Sweep a private key, in Tools, takes it; never filed |
+| Private key: xprv, Nostr `nsec` | Named: Add a key takes seeds as words or a SeedQR; never filed (F167) |
 | Words of a BIP-39 list that are no English BIP-39 seed (checksum failing, aezeed, Electrum) | Named; never filed (F167) |
 | `otpauth://` URI, vault entries | A new entry, filled in, or the entries, in the open vault; with none open, the scanner says to unlock one, and What do you have? says it is not used there; never filed (F167) |
 | Armoured GPG public key, read by Restore a GPG key's **Scan the public key** | Files, as `{name}-{fp8}.asc` (the name Make gives it), and the restore opens on it; one that is not restored here is filed and the sheet says why (`docs/GPG-PAPERKEY.md` §3) |
@@ -506,7 +507,10 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    would, through the same intake and `faraday-keys` path; Home's Scan
    takes a codex32 string and a SLIP-39 share pasted, and a TOTP setup
    code, and sends each where the same code scanned goes (F167). A
-   private key is still refused there. Other text goes where a QR read by
+   private key is still refused there; the Sweep sheet's scanner, where
+   the shell has a clipboard, takes a WIF private key pasted, as typed or
+   scanned (F171), and refuses every other secret. Other text goes where
+   a QR read by
    the camera goes (`scanned`), parts included, and is wiped once
    routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
    on the state line for `NOTE_FLASH_MS` (2 s). A shell with no

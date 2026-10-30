@@ -417,32 +417,6 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
     }
 }
 
-/// The words' BIP-39 numbers a drawn SeedQR holds: a Standard SeedQR's
-/// digits four to a word, or a Compact SeedQR's 16 or 32 bytes. The
-/// digits are read without the checksum, so a copy with one word wrong
-/// still reads and the word is named. Wiped when dropped.
-fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
-    if !bytes.is_empty() && bytes.iter().all(u8::is_ascii_digit) {
-        if !matches!(bytes.len(), 48 | 96) {
-            return None;
-        }
-        let mut out = zeroize::Zeroizing::new(Vec::with_capacity(bytes.len() / 4));
-        for chunk in bytes.chunks(4) {
-            let v = chunk
-                .iter()
-                .fold(0u16, |v, &c| v * 10 + u16::from(c - b'0'));
-            if v >= 2048 {
-                return None;
-            }
-            out.push(v);
-        }
-        return Some(out);
-    }
-    let m = faraday_keys::words::from_compact_seedqr(bytes, faraday_bip::bip39::Language::English)
-        .ok()?;
-    Some(zeroize::Zeroizing::new(m.indices().to_vec()))
-}
-
 /// A file in the Inbox or the Outbox.
 #[derive(Clone)]
 pub struct Item {
@@ -624,6 +598,8 @@ pub enum Sheet {
     BoardMenu,
     /// A seed the camera read, asking how it loads: with no passphrase or with one (`seed_read`).
     SeedRead,
+    /// **Sweep a private key**: a WIF's addresses, its PSBT reviewed and signed (`seeds::sweep`).
+    Sweep,
     /// Delete files: chosen files, the free space or the whole files
     /// partition, asked first (`stick_wipe`).
     Delete,
@@ -766,22 +742,6 @@ pub(crate) fn qr_fits(item: &Item) -> bool {
         }
         _ => !item.bytes.is_empty() && item.bytes.len() <= faraday_qr::envelope::MAX_FILE,
     }
-}
-
-/// The progress of a multi-part code: parts read, and which are missing.
-fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String {
-    let list: Vec<String> = missing.iter().take(8).map(usize::to_string).collect();
-    let more = if missing.len() > 8 { ", …" } else { "" };
-    fill(
-        EN.part_note_of_missing,
-        &[
-            what,
-            &have.to_string(),
-            &total.to_string(),
-            &list.join(", ").to_string(),
-            more,
-        ],
-    )
 }
 
 /// An account key of a loaded wallet held here, as
@@ -2151,7 +2111,7 @@ impl Faraday {
                     EN.pull_what_unlock
                 }
                 Go::NewShares => EN.pull_what_make_a_key,
-                Go::NewKey | Go::AddKey(_) | Go::SeedQr => EN.pull_what_add_a_key,
+                Go::NewKey | Go::AddKey(_) | Go::SeedQr | Go::Sweep => EN.pull_what_add_a_key,
                 // Sign and Decode with nothing to open scan: the Scan
                 // they press waits instead.
                 Go::CheckAddress | Go::Scan => EN.pull_what_scan,
@@ -2544,6 +2504,7 @@ impl Faraday {
         // The order the flows were begun in, and where each was left.
         self.flows_note();
         self.vault_shown_tidy();
+        self.sweep_tidy();
         self.key_path_after(asked, action);
         self.osk_after(action);
     }
@@ -2623,6 +2584,7 @@ impl Faraday {
             // ticked, nothing is signed (F63).
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
+            Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
                 *self.visit.pull_mut() = None;
                 self.vaults.clear_stick_save();
@@ -2841,6 +2803,7 @@ impl Faraday {
             | Action::TransferReceive
             | Action::TransferOpenFolder) => self.transfer_act(a),
             Action::SeedRead(c) => self.seed_read_act(c),
+            Action::Sweep(a) => self.sweep_act(a),
             a @ (Action::DeleteFiles
             | Action::DeleteWhat(..)
             | Action::DeletePick(..)
@@ -4175,7 +4138,10 @@ impl Faraday {
     fn scanned(&mut self, bytes: Vec<u8>) {
         let c = self.compute();
         let bytes = zeroize::Zeroizing::new(bytes);
-        if self.seed_scan_codex32(&bytes) || self.gpg_restore_scanned(&bytes) {
+        if self.seed_scan_codex32(&bytes)
+            || self.gpg_restore_scanned(&bytes)
+            || self.sweep_scanned(&bytes)
+        {
             return;
         }
         let camera = self.sheet == Some(Sheet::Scan);
@@ -4413,7 +4379,7 @@ impl Faraday {
         bytes: zeroize::Zeroizing<Vec<u8>>,
     ) {
         let c = self.compute();
-        let copy = copy_indices(&bytes);
+        let copy = copy_check::copy_indices(&bytes);
         drop(bytes);
         let Some(copy) = copy else {
             if let Some(scan) = self.camera.scan_mut() {
@@ -4490,7 +4456,12 @@ impl Faraday {
                 total,
                 missing,
             } => {
-                scan.note = Some(part_note(transfer_name(what), have, total, &missing));
+                scan.note = Some(qr_view::part_note(
+                    transfer_name(what),
+                    have,
+                    total,
+                    &missing,
+                ));
                 return None;
             }
             faraday_qr::Step::Refused(why) => {
@@ -5651,7 +5622,7 @@ impl Faraday {
         if self.file_key(key) || self.vaults.search_key(self.screen, key) {
             return;
         }
-        if self.seed_read_key(key) {
+        if self.seed_read_key(key) || self.sweep_key(key) {
             return;
         }
         if self.seeds_key(key) {

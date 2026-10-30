@@ -127,6 +127,11 @@ fn = "parse"
 target = "fuzz/fuzz_targets/seed_parts.rs"
 
 [[parser]]
+file = "core/faraday-bip/src/wif.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/xkey.rs"
+
+[[parser]]
 file = "core/faraday-bip/src/xkey.rs"
 fn = "decode_xpriv"
 target = "fuzz/fuzz_targets/xkey.rs"

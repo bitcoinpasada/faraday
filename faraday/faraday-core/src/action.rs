@@ -331,6 +331,8 @@ pub enum Action {
     OpenInstitute,
     /// The sheet of a seed the camera read.
     SeedRead(seeds::read::Choice),
+    /// The Sweep sheet: a private key swept (`seeds::sweep`, F171).
+    Sweep(seeds::sweep::SweepAction),
     /// The stick visit's Delete files: the sheet that chooses what.
     DeleteFiles,
     /// The sheet's choice: chosen files, the free space, the whole
@@ -879,6 +881,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::HoldRestart
             | Action::SecretHold
             | Action::KeyPathHold
+            | Action::Sweep(seeds::sweep::SweepAction::Hold)
             | Action::RegisterHold
             | Action::ReviewHold
             | Action::DevicesHold

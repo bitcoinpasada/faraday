@@ -270,6 +270,11 @@ pub(crate) fn sign_error_text(e: &faraday_psbt::Error) -> String {
         E::Parse(_) => EN.psbt_error_parse.to_string(),
         E::UnsupportedVersion(v) => fill(EN.psbt_error_version, &[&v.to_string()]),
         E::MissingUtxo { input } => fill(EN.psbt_error_no_utxo, &[&n(*input)]),
+        // Said whole, as the spend's refusal (INTEROP §5 I11).
+        E::Unsupported {
+            reason: faraday_psbt::Reason::CodeSeparator,
+            ..
+        } => EN.sign_codeseparator.to_string(),
         E::Unsupported { input, reason } | E::Finalize { input, reason } => {
             fill(EN.psbt_error_input, &[&n(*input), reason_text(*reason)])
         }
@@ -305,6 +310,7 @@ pub(crate) fn reason_text(r: faraday_psbt::Reason) -> &'static str {
         R::NoTaprootPathOurs => EN.psbt_reason_no_taproot_path_ours,
         R::NoTaprootLeafOrKey => EN.psbt_reason_no_taproot_leaf_or_key,
         R::UnknownScript => EN.psbt_reason_unknown_script,
+        R::CodeSeparator => EN.sign_codeseparator,
         R::NoInternalKey => EN.psbt_reason_no_internal_key,
         R::RedeemScriptTooLong => EN.psbt_reason_redeem_too_long,
         R::Musig(M::Participants) => EN.psbt_reason_musig_participants,

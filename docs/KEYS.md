@@ -32,6 +32,10 @@ Moved to `docs/history/KEYS-LOG.md`.
     typed back (the restore set, `gpg::Restore`,
     `faraday/faraday-keys/src/gpg.rs`): the bytes of each line checked;
   - TOTP secrets;
+  - a WIF private key being swept (`Keys::sweep_read`,
+    `faraday/faraday-keys/src/sweep.rs`, F171): one at most, never kept,
+    erased at the sweep's Done, a lock or leaving its sheet; it leaves
+    only as signatures (`Keys::sweep_sign`), and has no reveal;
   - the whole open vault: every decrypted record, passwords and notes
     included (owner, 2026-10-21, Q1 of §9: every decrypted vault byte is
     in faraday-keys);

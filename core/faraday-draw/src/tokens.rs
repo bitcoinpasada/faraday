@@ -386,6 +386,11 @@ pub const fn candidates(class: SizeClass, one_char: bool) -> usize {
 // Codes
 // ---------------------------------------------------------------------
 
+/// Side in dp of each address's QR code on the Sweep sheet, or the
+/// sheet's width where that is less: the size the power sheet's guide
+/// code is drawn at on the desktop.
+pub const SWEEP_QR: f32 = 160.0;
+
 /// Side in dp of a QR code for the size class: 198 on `small`, 260 on
 /// `mobile`, 240 on `wide`. A held SeedQR in a vault is drawn at this
 /// side, or the field's width where that is less; `mobile` scales the

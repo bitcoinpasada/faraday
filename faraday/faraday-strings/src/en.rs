@@ -11221,4 +11221,71 @@ strings! {
     storage_answer_zeroing: "an answer that is not zeroing",
     /// The disk process answered a rename with another answer.
     storage_answer_rename: "an answer that is not a rename",
+    // ----- Sweep a private key (docs/INTEROP.md §5 I11, F171), faraday-core -----
+    /// Text in `TILES`, and the Sweep sheet's title.
+    catalog_sweep_key: "Sweep a private key",
+    /// Text in `TILES`.
+    catalog_sweep_key_line: "A paper wallet's or a WIF key's coins, to your wallet",
+    /// The Sweep sheet's field label.
+    sweep_field: "Private key (WIF)",
+    /// The Sweep sheet's button that reads the key typed.
+    sweep_use: "Use this key",
+    /// The Sweep sheet's button that opens the camera, for the key or the PSBT.
+    sweep_scan: "Scan",
+    /// The Sweep sheet's way out, which wipes the key.
+    sweep_done: "Done",
+    /// Text that is no WIF private key, typed or scanned for the sweep.
+    wif_not_a_key: "This is not a private key",
+    /// A mainnet WIF on a test network. `{}`: the network's name.
+    sweep_mainnet_key: "This is a mainnet key, and this session is on {}",
+    /// A test network's WIF on Mainnet.
+    sweep_test_key: "This key is for the test networks, and this session is on Mainnet",
+    /// Practice's refusal: the tile's need and the scanner's note.
+    sweep_practice: "Practice sweeps no private key",
+    /// A private key scanned on a scanner that does not sweep.
+    sweep_elsewhere: "That is a private key. Sweep a private key, in Tools, takes it",
+    /// The key, named by its legacy address. `{}`: the address.
+    sweep_key_of: "Key of {}",
+    /// What happens to the key.
+    sweep_not_kept: "Not kept: wiped at Done, a lock, or leaving this sheet",
+    /// An uncompressed key's line.
+    wif_uncompressed: "Uncompressed key: legacy addresses only",
+    /// An address's script type on the Sweep sheet.
+    sweep_legacy: "Legacy",
+    /// An address's script type on the Sweep sheet.
+    sweep_native: "Native SegWit",
+    /// An address's script type on the Sweep sheet.
+    sweep_nested: "Nested SegWit",
+    /// The button that scans the sweep's PSBT.
+    sweep_scan_psbt: "Scan the PSBT",
+    /// The scanner's note for a code that is no PSBT, once the key is read.
+    sweep_not_psbt: "Not a PSBT",
+    /// The review's inputs line. `{}`: how many, then the total.
+    sweep_from: "From this key: {} inputs, {}",
+    /// The review's other inputs. `{}`: how many.
+    sweep_others: "Other inputs, not signed: {}",
+    /// The review's outputs heading.
+    sweep_to: "To",
+    /// An output to a loaded wallet. `{}`: the wallet, receive or change, the index.
+    sweep_to_wallet: "{}, {} address {}",
+    /// An output to no loaded wallet's address (its first hundred on each chain).
+    sweep_to_other: "Not a loaded wallet's address",
+    /// The review's fee. `{}`: the amount.
+    sweep_fee: "Fee: {}",
+    /// A PSBT none of whose inputs spends the key.
+    sweep_no_inputs: "No input of this PSBT spends this key",
+    /// The hold that signs.
+    sweep_hold: "Hold to sign",
+    /// After signing, finished. `{}`: how many inputs.
+    sweep_signed_final: "Signed {} inputs. The transaction is in the Outbox",
+    /// After signing, not finished. `{}`: how many inputs.
+    sweep_signed_part: "Signed {} inputs. The PSBT is in the Outbox",
+    /// The button that shows what was signed as a QR code.
+    sweep_show_qr: "Show as QR",
+    /// The QR view's title for the swept transaction.
+    sweep_qr_transaction: "Swept transaction",
+    /// The QR view's title for the swept PSBT.
+    sweep_qr_psbt: "Swept PSBT",
+    /// A signing refusal: a legacy input whose script code holds OP_CODESEPARATOR.
+    sign_codeseparator: "A legacy input with OP_CODESEPARATOR is not signed",
 }

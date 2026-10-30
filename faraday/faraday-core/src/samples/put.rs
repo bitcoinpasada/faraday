@@ -320,7 +320,8 @@ impl Faraday {
             ScanPurpose::Transfer
             | ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
-            | ScanPurpose::GpgPaperkey => false,
+            | ScanPurpose::GpgPaperkey
+            | ScanPurpose::Sweep => false,
         }
     }
 
@@ -463,7 +464,8 @@ impl Faraday {
             ScanPurpose::Transfer
             | ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
-            | ScanPurpose::GpgPaperkey => None,
+            | ScanPurpose::GpgPaperkey
+            | ScanPurpose::Sweep => None,
         }
     }
 

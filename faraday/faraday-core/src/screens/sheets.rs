@@ -676,6 +676,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 | crate::ScanPurpose::KeyPart
                 | crate::ScanPurpose::WalletKey(_)
                 | crate::ScanPurpose::Intake
+                | crate::ScanPurpose::Sweep
         );
     let never_h = if seed_scan {
         ui.wrap_height_as(BODY_S, EN.never_real_seed, side_w) + 8.0
@@ -702,6 +703,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let title = match (sc.purpose, for_wallet) {
         (_, Some((_, wl))) => fill(EN.scan_key_for_wallet, &[&wl.name.to_string()]),
         (crate::ScanPurpose::Intake, _) => EN.scan_scan_what_you.to_string(),
+        (crate::ScanPurpose::Sweep, _) => EN.catalog_sweep_key.to_string(),
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
         (crate::ScanPurpose::CheckCopy(_) | crate::ScanPurpose::CheckCodex32, _) => {
             EN.scan_scan_your_copy.to_string()

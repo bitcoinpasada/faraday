@@ -61,6 +61,8 @@ pub enum Go {
     Calculator(u8),
     /// Scan a QR code into Files.
     Scan,
+    /// Sweep a private key (F171).
+    Sweep,
     /// A word list, by place in `wordlist::LISTS`.
     WordList(u8),
 }
@@ -122,6 +124,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_shares_typed,
         tags: &["SLIP-39"],
         go: Go::AddKey(Form::Slip39),
+    },
+    Tile {
+        group: EN.catalog_keys_and_seeds,
+        name: EN.catalog_sweep_key,
+        line: EN.catalog_sweep_key_line,
+        tags: &["BIP-174"],
+        go: Go::Sweep,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -419,6 +428,7 @@ impl Faraday {
                 EN.catalog_load_a_wallet
             }
             Go::CheckAddress if self.session.wallets.is_empty() => EN.catalog_load_a_wallet,
+            Go::Sweep if !self.makes_secrets() => EN.sweep_practice,
             Go::SignMessage if self.session.message_wallets().is_empty() => {
                 EN.catalog_needs_a_single
             }
@@ -461,12 +471,9 @@ impl Faraday {
 
     /// Opens tile `i`'s flow.
     pub(crate) fn catalog_go(&mut self, i: usize) {
-        let Some(tile) = TILES.get(i) else {
+        let Some(tile) = TILES.get(i).filter(|t| self.tile_opens(t.go)) else {
             return;
         };
-        if !self.tile_opens(tile.go) {
-            return;
-        }
         match tile.go {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::NewShares => self.act(Action::KeyGenSlip39),
@@ -522,6 +529,7 @@ impl Faraday {
                 None => self.act(Action::Scan),
             },
             Go::CheckAddress | Go::Scan => self.act(Action::Scan),
+            Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),
             Go::SignMessage => self.act(Action::SignMessage),
             Go::CheckMessage => {
                 if let Some(k) = self.inbox.iter().position(|i| i.kind == FileKind::Message) {

@@ -514,6 +514,7 @@ impl Faraday {
         match held {
             Action::SecretHold => self.secret_hold(),
             Action::RegisterHold => self.register_act(held),
+            Action::Sweep(a) => self.sweep_act(a),
             Action::ReviewHold => self.wallet_act(held),
             Action::DevicesHold => self.devices_act(held),
             _ => self.power_act(held, c),

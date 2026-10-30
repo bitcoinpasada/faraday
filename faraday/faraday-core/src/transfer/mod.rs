@@ -119,7 +119,7 @@ fn read_any(
             total,
             missing,
         } => {
-            scan.note = Some(crate::part_note(
+            scan.note = Some(crate::qr_view::part_note(
                 crate::qr_view::transfer_name(what),
                 have,
                 total,

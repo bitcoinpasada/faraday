@@ -74,6 +74,7 @@ pub mod slip39;
 pub mod spend;
 pub mod tapmulti;
 pub mod vanity;
+pub mod wif;
 pub mod wordlists;
 pub mod xkey;
 

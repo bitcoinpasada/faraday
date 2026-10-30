@@ -929,6 +929,8 @@ TILE_SCREENS = {
     "Vaults": ("Vaults", "CreateVault", "Unlock"), "Codes": ("Codes",),
     "CreateVault": ("CreateVault",), "VaultCategory": ("VaultContents",),
     "Calculator": ("Tools",), "WordList": ("Tools",),
+    # The Sweep sheet, over Tools.
+    "Sweep": ("Tools",),
 }
 
 

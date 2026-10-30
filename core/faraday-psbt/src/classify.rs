@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use bitcoin::hashes::hash160;
-use bitcoin::opcodes::all::{OP_CHECKMULTISIG, OP_PUSHNUM_1, OP_PUSHNUM_16};
+use bitcoin::opcodes::all::{OP_CHECKMULTISIG, OP_CODESEPARATOR, OP_PUSHNUM_1, OP_PUSHNUM_16};
 use bitcoin::psbt::Input;
 use bitcoin::script::{Builder, Instruction};
 use bitcoin::{PublicKey, Script, ScriptBuf, TxOut};
@@ -257,6 +257,34 @@ pub(crate) fn spent_output(psbt: &bitcoin::Psbt, index: usize) -> Option<&TxOut>
     }
     let vout = psbt.unsigned_tx.input.get(index)?.previous_output.vout;
     input.non_witness_utxo.as_ref()?.output.get(vout as usize)
+}
+
+/// Whether input `index` is spent by the legacy script system (its
+/// output is no witness program, and a P2SH output's redeem script is
+/// none either) and its script code, the output's script or the redeem
+/// script, holds `OP_CODESEPARATOR` as an opcode. The `bitcoin` crate's
+/// legacy signature hash takes the script code as given, and Bitcoin
+/// Core's removes every `OP_CODESEPARATOR` from it first
+/// (`FindAndDelete`), so a signature over such an input could not be
+/// checked against Core's. A lookup over the script's opcodes.
+pub(crate) fn legacy_code_separator(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(out) = spent_output(psbt, index) else {
+        return false;
+    };
+    let spk = out.script_pubkey.as_script();
+    let code: &Script = if spk.is_p2sh() {
+        match &psbt.inputs[index].redeem_script {
+            Some(redeem) => redeem.as_script(),
+            None => return false,
+        }
+    } else {
+        spk
+    };
+    if code.is_witness_program() {
+        return false;
+    }
+    code.instructions()
+        .any(|i| matches!(i, Ok(Instruction::Op(op)) if op == OP_CODESEPARATOR))
 }
 
 /// Whether an input's amount cannot be verified on this device.

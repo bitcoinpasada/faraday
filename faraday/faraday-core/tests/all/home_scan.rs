@@ -4,7 +4,8 @@
 //! setup code to a new entry in the open vault, or the scanner says a
 //! vault must be unlocked first; none goes into Files, from Home's Scan
 //! or any other scanner, and a WIF or Nostr secret key and words that
-//! fail a BIP-39 checksum are named, never filed. On a shell with a
+//! fail a BIP-39 checksum are named, never filed; a WIF read on Home's
+//! Scan opens the Sweep sheet (F171). On a shell with a
 //! clipboard (Faraday Demo) each is taken pasted as it is scanned (F75).
 
 use crate::common::type_text;
@@ -163,13 +164,13 @@ fn a_totp_setup_code_scanned_on_home_with_no_vault_open_asks_for_one() {
 }
 
 #[test]
-fn a_wif_private_key_scanned_on_home_is_refused_and_not_filed() {
+fn a_wif_private_key_scanned_on_home_opens_the_sweep_sheet_and_is_not_filed() {
     let mut app = testkit::started();
     home_scan(&mut app);
     read(&mut app, WIF);
-    assert!(note(&app).contains("private key"), "{}", note(&app));
+    assert_eq!(app.sheet, Some(Sheet::Sweep), "{}", note(&app));
     assert!(app.inbox().is_empty(), "the private key was filed");
-    assert!(app.session.keys.is_empty());
+    assert!(app.session.keys.is_empty(), "the private key was loaded");
 }
 
 #[test]

@@ -11,6 +11,7 @@
 
 pub mod read;
 pub(crate) mod screen;
+pub mod sweep;
 
 use crate::create::{self, NewKind};
 use crate::strings::EN;
@@ -331,11 +332,12 @@ pub fn cosigner_label(key: &str) -> String {
     }
 }
 
-/// The seed reader's area: the sheet that asks how a seed loads, while
-/// it is open.
+/// The seed reader's area: the sheet that asks how a seed loads, and the
+/// sheet that sweeps a private key ([`sweep`]), while each is open.
 #[derive(Default)]
 pub(crate) struct SeedsArea {
     state: Option<read::SeedRead>,
+    sweep: Option<sweep::Sweep>,
 }
 
 impl SeedsArea {
@@ -353,6 +355,11 @@ impl SeedsArea {
     /// Forgets the sheet.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+    }
+
+    /// The Sweep sheet's state, while it is open.
+    pub(crate) fn sweep(&self) -> Option<&sweep::Sweep> {
+        self.sweep.as_ref()
     }
 }
 

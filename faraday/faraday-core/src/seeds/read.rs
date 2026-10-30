@@ -28,9 +28,11 @@ use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
 use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
 
+use crate::qr_view::ScanPurpose;
 use crate::scan_key::{Found, key_of};
 use crate::screens::pass_field;
 use crate::secret_text::SecretText;
+use crate::seeds::sweep::{Signed, Sweep, SweepAction};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
@@ -522,6 +524,316 @@ impl Faraday {
         if let Some(s) = self.seed_read.state.as_mut() {
             s.with = s.with_key_now(&c, &self.session.keys);
         }
+    }
+}
+
+impl Faraday {
+    /// The Sweep sheet's state, while it is open (`seeds::sweep`).
+    pub fn sweep(&self) -> Option<&Sweep> {
+        self.seed_read.sweep()
+    }
+
+    /// Whether typing goes to the Sweep sheet's field.
+    pub(crate) fn sweep_typing(&self) -> bool {
+        self.sheet == Some(Sheet::Sweep) && self.sweep().is_some_and(|s| s.typing)
+    }
+
+    /// Whether the scanner up is the Sweep sheet's own.
+    pub(crate) fn sweep_scanning(&self) -> bool {
+        self.sheet == Some(Sheet::Scan)
+            && self.seed_read.sweep.is_some()
+            && self
+                .camera
+                .scan()
+                .is_some_and(|s| s.purpose == ScanPurpose::Sweep)
+    }
+
+    /// The sweep is left: the sheet and its scanner are gone, so the
+    /// key is erased and the sheet forgotten. Run after every press.
+    pub(crate) fn sweep_tidy(&mut self) {
+        if self.sheet == Some(Sheet::Sweep) || self.sweep_scanning() {
+            return;
+        }
+        if self.seed_read.sweep.is_some() || self.session.keys.sweep().is_some() {
+            self.seed_read.sweep = None;
+            self.session.keys.sweep_forget();
+        }
+    }
+
+    /// The camera closes and the Sweep sheet is up again.
+    pub(crate) fn sweep_back(&mut self) {
+        if self.camera.take().is_some() {
+            self.out
+                .commands
+                .push_back(faraday_shell_api::Command::CameraOff);
+        }
+        self.sheet = Some(Sheet::Sweep);
+    }
+
+    /// Handles the Sweep sheet's presses (`seeds::sweep`).
+    pub(crate) fn sweep_act(&mut self, a: SweepAction) {
+        match a {
+            SweepAction::Open => {
+                if !self.makes_secrets() {
+                    self.toast(EN.sweep_practice);
+                    return;
+                }
+                self.session.keys.sweep_forget();
+                self.seed_read.sweep = Some(Sweep {
+                    typing: true,
+                    ..Sweep::default()
+                });
+                self.sheet = Some(Sheet::Sweep);
+            }
+            SweepAction::Field => {
+                if let Some(s) = self.seed_read.sweep.as_mut() {
+                    s.typing = true;
+                }
+            }
+            SweepAction::Use => {
+                let Some(s) = self.seed_read.sweep.as_mut() else {
+                    return;
+                };
+                let typed = std::mem::take(&mut s.typed);
+                if !typed.is_empty() {
+                    self.sweep_take(typed.as_str());
+                }
+            }
+            SweepAction::Scan => {
+                if self.seed_read.sweep.is_none() {
+                    return;
+                }
+                let mut scan = crate::qr_view::ScanState::default();
+                scan.purpose = ScanPurpose::Sweep;
+                self.camera.open(scan);
+                self.sheet = Some(Sheet::Scan);
+                self.out
+                    .commands
+                    .push_back(faraday_shell_api::Command::CameraOn);
+            }
+            SweepAction::Back => self.sweep_back(),
+            SweepAction::Hold => self.sweep_sign(),
+            SweepAction::ShowQr => {
+                let c = self.compute();
+                let Some(done) = self
+                    .seed_read
+                    .sweep
+                    .as_ref()
+                    .and_then(|s| s.signed.as_ref())
+                else {
+                    return;
+                };
+                let view = match &done.hex {
+                    Some(hex) => crate::QrView::text(&c, EN.sweep_qr_transaction, hex),
+                    None => crate::QrView::psbt(&c, EN.sweep_qr_psbt, &done.psbt),
+                };
+                self.open_qr(view);
+            }
+            SweepAction::Done => {
+                self.seed_read.sweep = None;
+                self.session.keys.sweep_forget();
+                if self.sheet == Some(Sheet::Sweep) {
+                    self.sheet = None;
+                }
+            }
+        }
+    }
+
+    /// Costs what reading a WIF costs. The WIF in `text`, typed or
+    /// scanned, becomes the key the sheet sweeps, the sheet opening on
+    /// its addresses; else the sheet, or the scanner, says why not.
+    fn sweep_take(&mut self, text: &str) {
+        let c = self.compute();
+        let why = if self.makes_secrets() {
+            match self.session.keys.sweep_read(&c, text) {
+                Ok(()) => None,
+                Err(r) => Some(crate::seeds::sweep::refusal_text(
+                    r,
+                    self.session.network(),
+                    self.medium,
+                )),
+            }
+        } else {
+            Some(EN.sweep_practice.to_string())
+        };
+        if let Some(why) = why {
+            match self
+                .camera
+                .scan_mut()
+                .filter(|_| self.sheet == Some(Sheet::Scan))
+            {
+                Some(scan) => scan.note = Some(why),
+                None => {
+                    if let Some(s) = self.seed_read.sweep.as_mut() {
+                        s.error = Some(why);
+                    }
+                }
+            }
+            return;
+        }
+        self.seed_read.sweep = Some(Sweep::default());
+        self.sweep_back();
+    }
+
+    /// Costs a WIF's base58 checksum, and what reading the key or the
+    /// PSBT costs. A code the camera read, or text pasted on its
+    /// scanner, where a private key may be: the Sweep sheet's scanner
+    /// takes the key, and once it is read the PSBT; Home's Scan opens
+    /// the Sweep sheet on a key; every other scanner refuses one, and
+    /// files nothing. Returns whether the code was the sweep's.
+    pub(crate) fn sweep_scanned(&mut self, bytes: &zeroize::Zeroizing<Vec<u8>>) -> bool {
+        let Some(purpose) = self.camera.scan().map(|s| s.purpose) else {
+            return false;
+        };
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        let wif = faraday_keys::identity::is_wif(&text);
+        let home = purpose == ScanPurpose::Files
+            && self.screen == Screen::Home
+            && self.sheet == Some(Sheet::Scan);
+        match purpose {
+            ScanPurpose::Sweep if wif => self.sweep_take(&text),
+            ScanPurpose::Sweep if self.session.keys.sweep().is_some() => {
+                self.sweep_psbt(bytes.clone());
+            }
+            ScanPurpose::Sweep => {
+                if let Some(scan) = self.camera.scan_mut() {
+                    scan.note = Some(EN.wif_not_a_key.to_string());
+                }
+            }
+            _ if wif && home => {
+                self.seed_read.sweep = Some(Sweep::default());
+                self.sweep_take(&text);
+                if self.session.keys.sweep().is_none() {
+                    self.seed_read.sweep = None;
+                }
+            }
+            _ if wif => {
+                if let Some(scan) = self.camera.scan_mut() {
+                    scan.note = Some(EN.sweep_elsewhere.to_string());
+                }
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    /// Costs what reading the code and the review cost. A code read on
+    /// the sweep's scanner once its key is in: a PSBT (in parts as a
+    /// file of the scanner's is) closes the camera and its review opens
+    /// on the sheet; anything else is named on the scanner.
+    fn sweep_psbt(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let c = self.compute();
+        let Some((_, _, data)) = self.read_code(bytes) else {
+            return;
+        };
+        let Some(psbt) = crate::wallet::read_psbt_kept(&c, &data) else {
+            if let Some(scan) = self.camera.scan_mut() {
+                scan.note = Some(EN.sweep_not_psbt.to_string());
+            }
+            return;
+        };
+        let review = crate::seeds::sweep::review(&c, &self.session, psbt);
+        if let Some(s) = self.seed_read.sweep.as_mut() {
+            s.review = Some(review);
+            s.signed = None;
+            s.error = None;
+        }
+        self.sweep_back();
+    }
+
+    /// Costs what `Keys::sweep_sign` and finalizing cost. The hold: the
+    /// key's inputs are signed past the holdable dangers its review
+    /// shows; the signed PSBT, and the finished transaction when every
+    /// input is signed, go to the Outbox.
+    fn sweep_sign(&mut self) {
+        let c = self.compute();
+        let Some(r) = self
+            .seed_read
+            .sweep
+            .as_ref()
+            .and_then(|s| s.review.as_ref())
+        else {
+            return;
+        };
+        if r.stop.is_some() {
+            return;
+        }
+        let (mut psbt, accepted, v2) = (r.psbt.clone(), r.accepted.clone(), r.v2.clone());
+        let refs = self.session.key_refs(&c);
+        let policies = self.session.policies();
+        let ctx = faraday_psbt::Context {
+            network: self.session.network(),
+            keys: &refs,
+            wallets: &policies,
+            musig_session: None,
+        };
+        let signed = self
+            .session
+            .keys
+            .sweep_sign(&c, &mut psbt, (ctx, &accepted));
+        let result = match signed {
+            Some(Ok(result)) => result,
+            Some(Err(e)) => {
+                if let Some(s) = self.seed_read.sweep.as_mut() {
+                    s.error = Some(crate::review::sign_error_text(&e));
+                }
+                return;
+            }
+            None => return,
+        };
+        // In the version it came in, or nothing written (I10).
+        let Ok(bytes) = crate::seeds::sweep::out_bytes(v2.as_ref(), &psbt) else {
+            return self.toast(EN.spend_v2_not_written);
+        };
+        let n = result.signed_inputs.len().to_string();
+        let mut done = psbt.clone();
+        let hex = match faraday_psbt::finalize(&mut done) {
+            Ok(Some(tx)) => Some(faraday_psbt::bitcoin::consensus::encode::serialize_hex(&tx)),
+            _ => None,
+        };
+        self.put_outbox("sweep-signed.psbt", bytes.clone());
+        let line = match &hex {
+            Some(h) => {
+                self.put_outbox("sweep-final.txn", h.clone().into_bytes());
+                fill(EN.sweep_signed_final, &[&n])
+            }
+            None => fill(EN.sweep_signed_part, &[&n]),
+        };
+        if let Some(s) = self.seed_read.sweep.as_mut() {
+            s.signed = Some(Signed {
+                line,
+                psbt: bytes,
+                hex,
+            });
+            s.error = None;
+        }
+    }
+
+    /// Keys typed into the Sweep sheet's field: the characters a WIF is
+    /// written in, Backspace, Enter to read it, Escape to leave the
+    /// field. Returns whether they took the key.
+    pub(crate) fn sweep_key(&mut self, key: KeyIn) -> bool {
+        if !self.sweep_typing() {
+            return false;
+        }
+        let Some(s) = self.seed_read.sweep.as_mut() else {
+            return false;
+        };
+        match key {
+            KeyIn::Char(ch) if ch.is_ascii_alphanumeric() => s.typed.push(ch),
+            KeyIn::Char(_) => {}
+            KeyIn::Backspace => {
+                s.typed.pop();
+            }
+            KeyIn::Escape => s.typing = false,
+            KeyIn::Enter => {
+                self.sweep_act(SweepAction::Use);
+                return true;
+            }
+            _ => return false,
+        }
+        s.error = None;
+        true
     }
 }
 

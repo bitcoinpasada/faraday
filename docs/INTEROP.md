@@ -1,8 +1,8 @@
 # Interoperability with other wallets
 
 **Kind:** Spec
-**Status:** Tested; §2 lists what works; §5 I1 to I6 and I10 built
-**Open:** §5 I7 to I9 and I11: Electrum seed words, Specter DIY `addwallet`, reading BIP-392 `sp()`, sweeping a WIF private key.
+**Status:** Tested; §2 lists what works; §5 I1 to I6, I10 and I11 built
+**Open:** §5 I7 to I9: Electrum seed words, Specter DIY `addwallet`, reading BIP-392 `sp()`.
 
 Faraday is a signer. Other wallets hand it a wallet description, a
 cosigner's key or a PSBT, and take back a signed PSBT, a finished
@@ -42,6 +42,7 @@ the files and codes they write.
 | Bitcoin Core ≥ 29 | `importdescriptors` file, multipath | — | yes | Core, end to end |
 | Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5 I4) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2 or silent payments | Core's own `listdescriptors` strings come back, checksums and all; not yet run against Core 28 |
 | Bitcoin Core | PSBT in, finished transaction or signed PSBT out | yes | yes | Core, end to end |
+| Bitcoin Core (`dumpprivkey`), paper wallets | A WIF private key, swept (§5 I11) | yes, never kept | the swept PSBT and transaction | Core's `key_io` vectors; Core signs the same sweep in the cross-check |
 | Sparrow, Liana, Nunchuk, BlueWallet, Keeper | Descriptor with `<0;1>` | yes | yes | Sparrow's and Coldcard Mk4's files |
 | Coldcard, Sparrow, Electrum, Nunchuk, BlueWallet, Keystone, Jade, Keeper | Coldcard multisig setup `.txt` (one derivation, or one per key) | yes | yes | Coldcard's, Sparrow's and Electrum's files |
 | Nunchuk, Sparrow, Coldcard, Keeper | BIP 129 descriptor record, also with an upper-case bech32 address or `No path restrictions` (§5 I3) | yes, first address checked | yes | Nunchuk's and Sparrow's records |
@@ -92,7 +93,7 @@ list said of them: moved to `docs/history/INTEROP-LOG.md`.
 8. Not read or written: Specter DIY's `addwallet name&descriptor` code
    (§5 I8), BIP-392 `sp()` silent payment descriptors (Sparrow, Keystone;
    §5 I9), BIP-329 label files, and Coldcard's encrypted backup file.
-   PSBT version 2 is read and written (§5 I10). A single WIF private key does not load (§5 I11).
+   PSBT version 2 is read and written (§5 I10). A single WIF private key is swept, never loaded (§5 I11).
 
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
@@ -371,59 +372,78 @@ holds every version 0 PSBT's v2 form against HWI's `convert_to_v2`,
 map by map, and its v0 again against the bytes read; version 2 reading
 and `to_v0` were held against HWI and Core already.
 
-### I11. A single private key: sweep it (owner, 2026-10-20)
+### I11. A single private key: sweep it (owner, 2026-10-20; F171, 2026-10-29)
 
-Reads a WIF private key (`dumpprivkey`; `K…`/`L…` compressed, `5…`
-uncompressed; `c…`/`9…` testnet), typed under Add a key › Other forms ›
-**Type a private key** or scanned, and a descriptor with a private key
-inside (`listdescriptors true`: `wpkh(L1…)`, `wpkh(xprv…/84h/0h/0h/0/*)`),
-which `classify` sends to the secret sheet. A Tools tile, **Sweep a
-private key** (found by "private key", "WIF", "sweep", "paper wallet"),
-opens Add a key on that form.
+Built as F171 has it: a WIF is swept and never kept. The plan of
+2026-10-20 (the key loaded as a key and a wallet, kept in a vault):
+moved to `docs/history/INTEROP-LOG.md`.
 
-A WIF loads as one key and a single-address wallet. A WIF names no
-script, so the key page shows its addresses — legacy, nested SegWit,
-native SegWit, Taproot; legacy only for an uncompressed key — and the
-wallet uses the one chosen there (native SegWit first). It offers the
-key's public description for an online wallet: the chosen script's
-descriptor (`wpkh(02…)`), and for Bitcoin Core `combo(02…)`, which covers
-legacy, nested and native SegWit at once; written as files and QR, never
-the private key. An xprv inside a descriptor loads as a key with its
-paths, as an xprv does today.
-
-The sweep: the online wallet imports the public description watch-only,
-finds the funds and builds a PSBT sending everything to a receive address
-of the person's seed wallet (Faraday shows one to copy or scan); Faraday's
-Spend review shows the inputs from the key's address and the output as
-that wallet's own address, worked out here; the person holds to sign. A
-key with no BIP-32 origin is matched in the PSBT by its public key (the
-PSBT carries no master fingerprint for it). A legacy input needs its full
-previous transaction in the PSBT, as Core and Sparrow put it. Faraday
-refuses to sign a legacy input whose script code holds
-`OP_CODESEPARATOR`, in every legacy spend and not only this key's (owner,
-2026-10-24): the `bitcoin` crate's legacy signature hash takes the script
-code as given and Bitcoin Core's removes every `OP_CODESEPARATOR` first
-(`tools/crosscheck/README.md`, Known differences), so such an input is
-one whose hash cannot be checked against Core. A P2PKH or P2SH multisig
-script code holds none, so no spend Faraday makes today is refused.
-
-The key is never offered as words, SeedQR or shares; it
-may be kept in a vault as a single-key record, and is wiped at a lock
-otherwise. Strings: `keygen_type_private_key` "Type a private key",
-`catalog_sweep_key` "Sweep a private key", `key_single` "A single key",
-`wif_uncompressed` "Uncompressed key: legacy addresses only",
-`wif_not_a_key` "This is not a private key", `sign_codeseparator`
-"A legacy input with OP_CODESEPARATOR is not signed". Tests: BIP-32's and Core's
-published WIF ↔ key ↔ address vectors (compressed and uncompressed,
-main and test); the four addresses of a known key; `combo()`'s checksum
-as Core gives it; a Core PSBT spending a `wpkh` and a `pkh` output of the
-key (built from a test vector, previous transactions included) signs and
-finalises, and the review names the destination as the wallet's own; a
-`wpkh(L1…)` descriptor file goes to the secret sheet and loads the key;
-the key's Backup menu offers no SeedQR; a PSBT whose legacy input's
-script code holds `OP_CODESEPARATOR` is refused with that line and signs
-nothing, and the cross-check's legacy sighash cases still meet the
-known difference only outside what Faraday signs.
+- **Reading.** `faraday_bip::wif::SingleKey::decode` reads a WIF as
+  Bitcoin Core's `DecodeSecret` does: base58check, a version of `0x80`
+  (`K…`, `L…`, `5…`) or `0xef` (`c…`, `9…`), 32 bytes of key then
+  nothing (uncompressed) or exactly `0x01` (compressed), a scalar in
+  `1..n`. The key is held on a pinned page in a signing context blinded
+  from the key, and again from the session's randomness; it pays P2PKH
+  and, compressed, P2WPKH and P2SH-P2WPKH. The session's key store holds
+  at most one (`Keys::sweep_read`, `faraday-keys`' `sweep`), refused while
+  a stick is attached and for the other kind of network: Faraday Demo
+  takes test-network keys and refuses mainnet ones, the device on Mainnet
+  the reverse. Practice sweeps none.
+- **The Sweep sheet** (`faraday-core`'s `seeds/sweep.rs`). Tools' tile
+  **Sweep a private key** (found by "private key", "WIF", "sweep",
+  "paper wallet") opens it on a field the key is typed into, shown as
+  dots, with **Scan**; Home's Scan opens it on a WIF it reads; its own
+  scanner takes the key, and on the desktop the key pasted (F75). Every
+  other scanner refuses a WIF ("That is a private key. Sweep a private
+  key, in Tools, takes it") and files nothing. With the key read, the
+  sheet names it by its legacy address, says it is not kept, and shows
+  each address it pays with its QR code (legacy, native SegWit, nested
+  SegWit; legacy alone and "Uncompressed key: legacy addresses only" for
+  an uncompressed key), for an online wallet to watch.
+- **The sweep.** That wallet builds the PSBT; **Scan the PSBT** reads it
+  (in parts too). The review, worked out once as it is read, shows the
+  key's inputs (their addresses and amounts), the inputs of other keys
+  (not signed), each output with the loaded wallet whose address it is
+  among its first hundred on each chain, or flagged "Not a loaded
+  wallet's address", the fee, and any blocked or danger warning. An
+  input is the key's when the output it spends pays one of the key's
+  scripts: the key has no BIP-32 origin to match. **Hold to sign**
+  signs the key's inputs (`faraday_psbt::sweep::sign`): a block, or a
+  danger with no hold, refuses, but for no loaded key taking part; a
+  holdable one is held past by the hold (F136); every input is checked
+  before the first signature; a legacy input needs its previous
+  transaction. The signed PSBT (`sweep-signed.psbt`) and, every input
+  signed, the finished transaction (`sweep-final.txn`) go to the Outbox,
+  and **Show as QR** shows the transaction, or the PSBT where it is not
+  finished. The key leaves only as
+  signatures (no reveal is added, KEYS §2) and is erased at **Done**, a
+  lock, or leaving the sheet (its own scanner aside).
+- **`OP_CODESEPARATOR`.** Faraday refuses to sign a legacy input whose
+  script code holds `OP_CODESEPARATOR`, in every legacy spend and not
+  only a sweep's, before anything is signed: "A legacy input with
+  OP_CODESEPARATOR is not signed" (owner, 2026-10-24). The `bitcoin`
+  crate's legacy signature hash takes the script code as given and
+  Bitcoin Core's removes every `OP_CODESEPARATOR` first
+  (`tools/crosscheck/README.md`, Known differences). A P2PKH or P2SH
+  multisig script code holds none, so no spend Faraday made before is
+  refused.
+- **Tests.** Core's `key_io_valid.json` and `key_io_invalid.json`
+  (`tools/vectors/wif`): every private key reads to its bytes, form and
+  chain, nothing else reads as one; each rule refused alone; the
+  generator's published addresses; BIP-143's P2SH-P2WPKH example swept
+  to its published signature and transaction; a sweep of the key's three
+  output kinds beside another key's, an uncompressed key's legacy one,
+  a PSBT of another key signing nothing; a legacy input with
+  `OP_CODESEPARATOR` refusing the PSBT with nothing signed; and in the
+  app the sheet from Tools, Home's Scan, a paste, Files' refusal, the
+  other network's key, the review naming the wallet and flagging an
+  output, the hold, the Outbox, and the key erased at Done and on
+  leaving. The cross-check's `sign` area sweeps random WIF keys' outputs
+  funded on Core's node: Core signs the same PSBT from the WIF's
+  descriptors, byte for byte, finalizes it and accepts it to its mempool.
+- **Not built** (F171): a WIF loaded as a key, a single-key vault record,
+  a Taproot address for the key, and a descriptor with a private key
+  inside (`wpkh(L…)`), which is not read as a sweep.
 
 ### Left out (owner, 2026-10-20)
 
@@ -445,6 +465,8 @@ known difference only outside what Faraday signs.
 `spscan`/`sp()` decoding; `faraday_bip::core_import` before 29;
 `faraday_bip::slip132` writing a key in the version that names its script
 (the Electrum file, §5 I6); a receive and a change `sortedmulti_a`
-descriptor read as one wallet, which `miniscript` cannot parse (§5 I4).
+descriptor read as one wallet, which `miniscript` cannot parse (§5 I4);
+`faraday_bip::wif` and `faraday_psbt::sweep`, a WIF key read and its
+sweep signed, and the refusal of a legacy `OP_CODESEPARATOR` (§5 I11).
 `faraday-psbt` matching a key by its account xpub's own fingerprint stays
 refused: BIP-174's fingerprint is the master key's.

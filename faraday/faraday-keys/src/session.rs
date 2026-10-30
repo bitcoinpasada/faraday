@@ -347,6 +347,10 @@ pub struct Keys {
     /// how many blinds have been drawn from it, so that no two are the
     /// same. `None` until the app has randomness. Wiped when dropped.
     blind: Option<(Zeroizing<[u8; 32]>, u64)>,
+    /// The private key being swept, while its sweep is open
+    /// ([`Keys::sweep_read`], F171): one at most, never kept, erased when
+    /// it is dropped.
+    sweep: Option<crate::sweep::SweepKey>,
 }
 
 impl Default for Keys {
@@ -365,6 +369,7 @@ impl Keys {
             network_fixed: false,
             stick: None,
             blind: None,
+            sweep: None,
         }
     }
 
@@ -378,6 +383,39 @@ impl Keys {
         for k in 0..self.entries.len() {
             self.blind_key(c, k);
         }
+        self.blind_sweep(c);
+    }
+
+    /// Costs an elliptic-curve multiplication once the app has handed
+    /// randomness down and a key is being swept: its context randomized
+    /// from the next blind drawn, as [`Keys::blind_key`] draws one.
+    fn blind_sweep(&mut self, c: &Compute) {
+        if self.sweep.is_none() {
+            return;
+        }
+        let Some(blind) = self.next_blind() else {
+            return;
+        };
+        if let Some(s) = self.sweep.as_mut() {
+            s.key_mut().reblind(c, &blind);
+        }
+    }
+
+    /// The next blind drawn from the session's randomness: HKDF-Expand
+    /// (RFC 5869) from the seed, with `info` "faraday key blind" and the
+    /// count (eight bytes, little-endian), 32 bytes; `None` before the
+    /// app has randomness.
+    fn next_blind(&mut self) -> Option<Zeroizing<[u8; 32]>> {
+        const INFO: &[u8] = b"faraday key blind";
+        let (seed, count) = self.blind.as_mut()?;
+        *count += 1;
+        let mut info = [0u8; INFO.len() + 8];
+        info[..INFO.len()].copy_from_slice(INFO);
+        info[INFO.len()..].copy_from_slice(&count.to_le_bytes());
+        let mut blind = Zeroizing::new([0u8; 32]);
+        faraday_crypto::hkdf_sha256_expand(&seed[..], &info, &mut blind[..])
+            .expect("32 bytes is one block");
+        Some(blind)
     }
 
     /// Costs an elliptic-curve multiplication once the app has handed
@@ -386,17 +424,9 @@ impl Keys {
     /// the seed, with `info` "faraday key blind" and the count (eight
     /// bytes, little-endian), 32 bytes.
     fn blind_key(&mut self, c: &Compute, k: usize) {
-        const INFO: &[u8] = b"faraday key blind";
-        let Some((seed, count)) = self.blind.as_mut() else {
+        let Some(blind) = self.next_blind() else {
             return;
         };
-        *count += 1;
-        let mut info = [0u8; INFO.len() + 8];
-        info[..INFO.len()].copy_from_slice(INFO);
-        info[INFO.len()..].copy_from_slice(&count.to_le_bytes());
-        let mut blind = Zeroizing::new([0u8; 32]);
-        faraday_crypto::hkdf_sha256_expand(&seed[..], &info, &mut blind[..])
-            .expect("32 bytes is one block");
         if let Some(entry) = self.entries.get_mut(k) {
             entry.key.master.reblind(c, &blind);
         }
@@ -431,7 +461,55 @@ impl Keys {
     /// Whether any secret is held: the stick rule's test
     /// (`docs/history/PLAN.md` §5.1).
     pub fn holds_secret(&self) -> bool {
-        !self.entries.is_empty()
+        !self.entries.is_empty() || self.sweep.is_some()
+    }
+
+    // ---- a private key swept (F171, `crate::sweep`) ----
+
+    /// Costs what reading a WIF costs (a base58check decode, an
+    /// elliptic-curve multiplication and the addresses) and a blind. The
+    /// WIF in `text` becomes the key being swept, in place of any other;
+    /// refused while a stick is attached, and for the other kind of
+    /// network. Nothing is kept beyond the sweep.
+    pub fn sweep_read(&mut self, c: &Compute, text: &str) -> Result<(), crate::sweep::Refusal> {
+        if self.stick.is_some() {
+            return Err(crate::sweep::Refusal::StickAttached);
+        }
+        self.sweep = Some(crate::sweep::SweepKey::read(c, text, self.network)?);
+        self.blind_sweep(c);
+        Ok(())
+    }
+
+    /// The key being swept, with what it shows; `None` when none is. A
+    /// lookup.
+    pub fn sweep(&self) -> Option<&crate::sweep::SweepKey> {
+        self.sweep.as_ref()
+    }
+
+    /// The key being swept is erased: its sweep is done or left.
+    pub fn sweep_forget(&mut self) {
+        self.sweep = None;
+    }
+
+    /// Costs what `faraday_psbt::sweep::sign` costs. Signs the inputs of
+    /// `psbt` that spend the key being swept, against the context and
+    /// past the holdable dangers in `accepted` (F136); `None` when no key
+    /// is being swept.
+    pub fn sweep_sign(
+        &self,
+        c: &Compute,
+        psbt: &mut faraday_psbt::Psbt,
+        (ctx, accepted): (faraday_psbt::Context<'_>, &[faraday_psbt::WarningKind]),
+    ) -> Option<Result<faraday_psbt::SignResult, faraday_psbt::Error>> {
+        let s = self.sweep.as_ref()?;
+        Some(faraday_psbt::sweep::sign(
+            c,
+            psbt,
+            s.key(),
+            &ctx,
+            accepted,
+            faraday_psbt::Nonce::default(),
+        ))
     }
 
     /// Whether key `i` holds the master seed bytes it was loaded from
@@ -785,6 +863,7 @@ impl Keys {
     /// Drops every key.
     pub fn clear(&mut self) {
         self.entries.clear();
+        self.sweep = None;
     }
 
     /// Sets key `i`'s label.

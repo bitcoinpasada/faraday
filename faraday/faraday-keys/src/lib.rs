@@ -7,7 +7,7 @@
 //! - **Used.** Every operation on a secret is here: signing
 //!   ([`psbt`], [`message`]), derivation and key texts ([`texts`],
 //!   [`identity`]), [`bip85`], [`lightning`], [`silent`],
-//!   [`vanity`], paper forms ([`operations`], and [`codex32`], the work
+//!   [`vanity`], a private key swept ([`sweep`]), paper forms ([`operations`], and [`codex32`], the work
 //!   set of a codex32 set being made), [`gpg`],
 //!   [`secure_boot`], [`totp`], and seed words made into a `Mnemonic` ([`words`]). Each gives back a
 //!   public result. The flow around each (state, sheets, toasts, the
@@ -34,6 +34,7 @@ pub mod psbt;
 pub mod secure_boot;
 pub mod session;
 pub mod silent;
+pub mod sweep;
 pub mod texts;
 pub mod totp;
 pub mod vanity;

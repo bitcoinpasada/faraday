@@ -252,3 +252,29 @@ pub(crate) fn pin_on(b: &BackupState, n: usize) -> usize {
     };
     b.pin.min(count.saturating_sub(1))
 }
+
+/// The words' BIP-39 numbers a drawn SeedQR holds: a Standard SeedQR's
+/// digits four to a word, or a Compact SeedQR's 16 or 32 bytes. The
+/// digits are read without the checksum, so a copy with one word wrong
+/// still reads and the word is named. Wiped when dropped.
+pub(crate) fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
+    if !bytes.is_empty() && bytes.iter().all(u8::is_ascii_digit) {
+        if !matches!(bytes.len(), 48 | 96) {
+            return None;
+        }
+        let mut out = zeroize::Zeroizing::new(Vec::with_capacity(bytes.len() / 4));
+        for chunk in bytes.chunks(4) {
+            let v = chunk
+                .iter()
+                .fold(0u16, |v, &c| v * 10 + u16::from(c - b'0'));
+            if v >= 2048 {
+                return None;
+            }
+            out.push(v);
+        }
+        return Some(out);
+    }
+    let m = faraday_keys::words::from_compact_seedqr(bytes, faraday_bip::bip39::Language::English)
+        .ok()?;
+    Some(zeroize::Zeroizing::new(m.indices().to_vec()))
+}

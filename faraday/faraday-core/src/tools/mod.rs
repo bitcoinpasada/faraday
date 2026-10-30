@@ -411,7 +411,8 @@ impl Faraday {
     /// Typing on the Tools page goes to Find a tool. Returns whether the
     /// key was taken.
     pub(crate) fn catalog_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        if self.screen != Screen::Catalog || !self.tools.find_key(key) {
+        // A sheet over Tools (the Sweep sheet's field) takes its own keys.
+        if self.screen != Screen::Catalog || self.sheet.is_some() || !self.tools.find_key(key) {
             return false;
         }
         self.list_offset = 0.0;

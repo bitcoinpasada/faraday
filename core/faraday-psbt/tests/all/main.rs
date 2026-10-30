@@ -19,6 +19,7 @@ mod registered;
 mod satisfaction;
 mod sign;
 mod silent;
+mod sweep;
 mod tapmulti;
 mod transaction;
 mod vectors;

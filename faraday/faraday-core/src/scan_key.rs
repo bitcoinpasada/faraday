@@ -648,7 +648,8 @@ impl Faraday {
                 | ScanPurpose::Seed
                 | ScanPurpose::KeyPart
                 | ScanPurpose::WalletKey(_)
-                | ScanPurpose::GpgPublic => true,
+                | ScanPurpose::GpgPublic
+                | ScanPurpose::Sweep => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
                 | ScanPurpose::CheckCodex32
@@ -709,13 +710,20 @@ impl Faraday {
         let seeds = self.scan_takes_pasted_seed();
         let until = self.now_ms + faraday_draw::tokens::NOTE_FLASH_MS;
         let t = text.trim();
+        // The Sweep sheet's scanner takes a private key pasted, as typed
+        // or scanned (F171); every other scanner refuses one.
+        let sweep_key = self
+            .camera
+            .scan()
+            .is_some_and(|s| s.purpose == ScanPurpose::Sweep)
+            && faraday_keys::identity::is_wif(t);
         if let Some(scan) = self.camera.scan_mut() {
             if t.is_empty() {
                 scan.nothing_to_paste = Some(until);
                 return;
             }
             scan.nothing_to_paste = None;
-            if let Some(why) = pasted_secret(&c, t, seeds) {
+            if let Some(why) = pasted_secret(&c, t, seeds).filter(|_| !sweep_key) {
                 scan.note = Some(why.to_string());
                 return;
             }
