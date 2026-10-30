@@ -711,7 +711,19 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads.to_string(),
         (crate::ScanPurpose::GpgPublic, _) => EN.gpg_restore_scan.to_string(),
         (crate::ScanPurpose::GpgPaperkey, _) => EN.gpg_restore_scan_paperkey.to_string(),
-        _ => EN.scan_scan_a_qr_code.to_string(),
+        (crate::ScanPurpose::KeyPart, _) => EN.scan_title_part.to_string(),
+        (crate::ScanPurpose::VaultEntry, _) => EN.scan_title_totp.to_string(),
+        // A scanner for anything is titled for what its opener asks for
+        // (`docs/SCANNING.md` §7.1).
+        _ => match sc.ask {
+            crate::Ask::Description => EN.scan_title_description.to_string(),
+            crate::Ask::Xpub(n) => fill(EN.scan_title_xpub, &[&n.to_string()]),
+            crate::Ask::Cosigner => EN.scan_title_cosigner.to_string(),
+            crate::Ask::SpendPsbt | crate::Ask::Sign => EN.scan_title_psbt.to_string(),
+            crate::Ask::Decode => EN.scan_title_transaction.to_string(),
+            crate::Ask::Address => EN.scan_title_address.to_string(),
+            crate::Ask::Any => EN.scan_scan_a_qr_code.to_string(),
+        },
     };
     let title = ui.fit_as(TITLE_M, &title, sw - 64.0);
     ui.text_as(x + 32.0, y + 26.0, TITLE_M, Role::OnSurface, &title);

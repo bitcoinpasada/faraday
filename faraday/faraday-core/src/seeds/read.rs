@@ -24,7 +24,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
-use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
+use faraday_draw::tokens::{BODY_M, BODY_S, GAP as T_GAP, LABEL_L};
 use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
 
@@ -49,6 +49,9 @@ pub enum Choice {
     Field(u8),
     /// Load the seed with the passphrase typed twice.
     WithPass,
+    /// It is a Seed XOR part: Add a key's Seed XOR form opens with these
+    /// words in (`docs/SCANNING.md` §6).
+    Xor,
     /// Not this one: the words go, and the intake scanner comes back.
     Skip,
 }
@@ -154,6 +157,13 @@ pub struct SeedRead {
     /// (`Faraday::seed_read_typed`), never while drawing, and none while
     /// the person types. A fingerprint: public.
     with: Option<Fingerprint>,
+    /// The form the seed was read in, for the sheet's title.
+    read: Option<crate::scan_read::Kind>,
+    /// "Key 2 of Savings": the loaded wallet that has the key, worked out
+    /// when the seed was read.
+    key_of: Option<String>,
+    /// Twelve or 24 words read: the sheet offers **It is a Seed XOR part**.
+    xor: bool,
 }
 
 impl SeedRead {
@@ -298,6 +308,7 @@ impl Faraday {
             }
             Choice::Field(f) => s.focus = Some(f.min(1)),
             Choice::Plain => self.seed_read_choose(false),
+            Choice::Xor => self.seed_read_xor(),
             Choice::WithPass => {
                 if s.pass.as_str() != s.pass2.as_str() {
                     s.error = Some(EN.seed_read_the_two_passphrases.to_string());
@@ -308,6 +319,59 @@ impl Faraday {
                 }
             }
         }
+    }
+
+    /// The seed sheet just opened on words read as `kind`: its title names
+    /// the form, a loaded wallet that has the key is named, and twelve or
+    /// 24 words offer **It is a Seed XOR part** (`docs/SCANNING.md` §6).
+    /// A lookup per loaded wallet's keys.
+    pub(crate) fn seed_read_marked(&mut self, kind: crate::scan_read::Kind) {
+        let Some(s) = self.seed_read.state.as_ref() else {
+            return;
+        };
+        let words = match &s.source {
+            Source::Words(t) => t.as_str().split_whitespace().count(),
+            Source::Loaded(_) => 0,
+        };
+        let key_of = s.plain.and_then(|fp| {
+            (0..self.session.wallets.len()).find_map(|w| match self.wallet_key_found(w, fp) {
+                Found::Missing(n) | Found::Here(n) => Some(fill(
+                    EN.seed_read_key_of,
+                    &[&(n + 1).to_string(), &self.session.wallets[w].name],
+                )),
+                Found::None => None,
+            })
+        });
+        let plain_sheet = s.wallet.is_none() && s.family.is_none();
+        if let Some(s) = self.seed_read.state.as_mut() {
+            s.read = Some(kind);
+            s.key_of = key_of;
+            s.xor = plain_sheet && matches!(words, 12 | 24);
+        }
+    }
+
+    /// Costs what adding a Seed XOR part costs. **It is a Seed XOR part**:
+    /// the sheet closes and Add a key's Seed XOR form opens with the words
+    /// in, the part's line under them.
+    fn seed_read_xor(&mut self) {
+        let Some(s) = self.seed_read.state.take() else {
+            return;
+        };
+        let Source::Words(words) = &s.source else {
+            return;
+        };
+        self.sheet = None;
+        if self.screen != Screen::Entry {
+            self.act(Action::Entry(None));
+        }
+        let xor = crate::forms::Form::ALL
+            .iter()
+            .position(|f| *f == crate::forms::Form::Xor);
+        if let Some(i) = xor {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.state_mut().typed.set(words.as_str());
+        self.form_add_part();
     }
 
     /// Loads the seed as chosen, unless Restore already knows the wallet
@@ -901,6 +965,12 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // The dismissive action first, the confirming one last (Material's
     // dialog).
     items.reverse();
+    if s.xor && !s.adding {
+        items.insert(
+            0,
+            (EN.read_go_xor, Style::Ghost, Action::SeedRead(Choice::Xor)),
+        );
+    }
     items.insert(0, cancel);
     // A key's line: what it is made with, and its fingerprint.
     let key_line = |ui: &mut Ui, x: f32, y: f32, iw: f32, label: &str, fp: Fingerprint| -> f32 {
@@ -917,6 +987,9 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let mut cy = y;
         if let Some(fp) = s.plain {
             cy += key_line(ui, x, cy, iw, EN.seed_read_no_passphrase, fp);
+        }
+        if let Some(line) = &s.key_of {
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, line) + T_GAP;
         }
         if s.adding {
             cy += 6.0;
@@ -965,11 +1038,12 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         cy - y
     };
-    let head = (
-        Icon::Keys.into(),
-        Role::Primary.paint(),
-        EN.seed_read_seedqr_read,
-    );
+    let title = match s.read {
+        Some(crate::scan_read::Kind::SeedWords) => EN.seed_read_words_read,
+        Some(crate::scan_read::Kind::CompactSeedQr) => EN.seed_read_compact_read,
+        _ => EN.seed_read_seedqr_read,
+    };
+    let head = (Icon::Keys.into(), Role::Primary.paint(), title);
     crate::compact::dialog(
         ui,
         (w, h, faraday_draw::tokens::DIALOG_MAX),

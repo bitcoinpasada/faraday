@@ -8,6 +8,7 @@
 use crate::common::type_text;
 use faraday_core::family::{FamilyAction as F, page};
 use faraday_core::forms::Form;
+use faraday_core::seeds::read::Choice;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Ask, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, Command, EntropyBytes, Event, FileKind};
@@ -528,4 +529,67 @@ fn homes_scan_of_an_account_key_is_filed_with_no_card() {
     read(&mut app, key.as_bytes());
     assert!(app.scan().is_none(), "{}", note(&app));
     assert_eq!(app.inbox().len(), 1);
+}
+
+/// Each scanner is titled for what its opener asks for
+/// (`docs/SCANNING.md` §7.1).
+#[test]
+fn a_scanner_is_titled_for_what_it_was_opened_to_read() {
+    for (open_it, title) in [
+        (Action::ScanFor(Ask::SpendPsbt), "Scan the PSBT"),
+        (Action::ScanFor(Ask::Description), "Scan the description"),
+        (Action::ScanFor(Ask::Cosigner), "Scan a cosigner's key"),
+        (Action::ScanFor(Ask::Xpub(2)), "Scan Key 2's xpub"),
+        (Action::ScanFor(Ask::Decode), "Scan a transaction"),
+        (Action::ScanFor(Ask::Address), "Scan an address"),
+        (Action::Scan, "Scan a QR code"),
+    ] {
+        let mut app = testkit::started();
+        app.press(open_it);
+        let text = app.drawn_texts().join("\n");
+        assert!(text.contains(title), "{open_it:?}: {text}");
+    }
+    let mut app = testkit::started();
+    open(&mut app, Opened::Codex32Form);
+    let text = app.drawn_texts().join("\n");
+    assert!(text.contains("Scan a share"), "{text}");
+}
+
+/// The seed sheet names the form read (`docs/SCANNING.md` §6).
+#[test]
+fn the_seed_sheet_is_titled_for_the_form_read() {
+    let c = testkit::compute();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, WORDS)
+        .unwrap();
+    let compact = faraday_codec::seedqr::to_entropy(&m);
+    for (code, title) in [
+        (SEEDQR.as_bytes().to_vec(), "SeedQR read"),
+        (compact.expose().as_bytes().to_vec(), "CompactSeedQR read"),
+        (WORDS.as_bytes().to_vec(), "Words read"),
+    ] {
+        let mut app = testkit::started();
+        open(&mut app, Opened::AddAKey);
+        read(&mut app, &code);
+        assert_eq!(app.sheet, Some(Sheet::SeedRead), "{title}");
+        let text = app.drawn_texts().join("\n");
+        assert!(text.contains(title), "{title}: {text}");
+    }
+}
+
+/// Twelve or 24 words read offer It is a Seed XOR part, which opens Add a
+/// key's Seed XOR form with them in; loading them as a seed stays the
+/// default.
+#[test]
+fn it_is_a_seed_xor_part_opens_the_seed_xor_form_with_the_words_in() {
+    let mut app = testkit::started();
+    open(&mut app, Opened::AddAKey);
+    read(&mut app, SEEDQR.as_bytes());
+    assert!(app.offers(Action::SeedRead(Choice::Xor)));
+    app.press(Action::SeedRead(Choice::Xor));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Entry);
+    let e = testkit::entry(&app);
+    assert_eq!(e.form, Form::Xor);
+    assert_eq!(e.parts.lines(Form::Xor).len(), 1);
+    assert!(app.session.keys.is_empty(), "a part loaded as a key");
 }

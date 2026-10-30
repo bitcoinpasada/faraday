@@ -349,3 +349,17 @@ fn a_codex32_or_slip39_share_read_by_scan_a_key_goes_to_its_form_for_the_wallet(
         assert!(app.inbox().iter().all(|i| !i.name.starts_with("scanned")));
     }
 }
+
+/// A seed read at Add a key's Scan a SeedQR that is a loaded wallet's key
+/// is named so on the seed sheet (`docs/SCANNING.md` §6).
+#[test]
+fn the_seed_sheet_names_the_loaded_wallet_whose_key_the_seed_is() {
+    let (mut app, w) = on_savings();
+    app.press(Action::Entry(None));
+    app.press(Action::ScanSeed);
+    scan_seedqr(&mut app, &testkit::test_words("zebra"));
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    let n = key_number(&app, w, "zebra");
+    let text = drawn(&mut app);
+    assert!(text.contains(&format!("Key {n} of Savings")), "{text}");
+}

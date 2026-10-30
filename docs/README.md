@@ -114,7 +114,7 @@ need. Each document's header says what kind it is:
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which references are Faraday's own (§10, §10.7, F160). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
-- `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Planned, not built.
+- `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Built but for the aezeed hand-over, the text card's eye, the other seed's copy check, a codex32 secret into a flow's slot and one title.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.
 - `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).

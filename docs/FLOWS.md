@@ -98,9 +98,12 @@ its Make action dimmed.
 **A SeedQR asks for its passphrase after it is read** (decision 52).
 Wherever a SeedQR (or a seed's words in a code) is scanned (Add a key,
 Home's Scan, a slot of Create or Restore, the Spend tab's words) the
-camera closes and the sheet **SeedQR read** shows the key it makes
-**Without a passphrase**, with **Use without a passphrase**, **Add a
-passphrase** and Cancel. Add a passphrase shows **Passphrase** and
+camera closes and the sheet, titled for what was read (**SeedQR read**,
+**CompactSeedQR read**, **Words read**), shows the key it makes
+**Without a passphrase**, "Key 2 of Savings" where a loaded wallet has
+it, with **Use without a passphrase**, **Add a passphrase** and Cancel,
+and for 12 or 24 words **It is a Seed XOR part**, which opens Add a
+key's Seed XOR form with them in (`docs/SCANNING.md` §6). Add a passphrase shows **Passphrase** and
 **Passphrase again**, the key they make once they match (**With this
 passphrase**), and **Use with this passphrase**; two that differ load
 nothing. With Restore's description known, a key that is not one of its

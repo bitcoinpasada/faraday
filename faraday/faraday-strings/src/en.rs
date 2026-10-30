@@ -3741,6 +3741,24 @@ strings! {
     read_keep: "Keep in Files",
     /// The read card's Scan again: the code wiped, the camera back on.
     read_again: "Scan again",
+    /// The seed sheet's text button for 12 or 24 words: Add a key's Seed XOR form, the words in.
+    read_go_xor: "It is a Seed XOR part",
+    /// A scanner's title (`docs/SCANNING.md` §7.1): Restore's Scan it and Scan descriptor.
+    scan_title_description: "Scan the description",
+    /// A scanner's title: Create's key slot. `{}`: the key's number.
+    scan_title_xpub: "Scan Key {}'s xpub",
+    /// A scanner's title: Restore's seeds card.
+    scan_title_cosigner: "Scan a cosigner's key",
+    /// A scanner's title: Spend's Scan a copy, the Spend tab's Scan it and Scan the PSBT, Tools' Sign a transaction.
+    scan_title_psbt: "Scan the PSBT",
+    /// A scanner's title: Tools' Decode a transaction.
+    scan_title_transaction: "Scan a transaction",
+    /// A scanner's title: Tools' Check an address.
+    scan_title_address: "Scan an address",
+    /// A scanner's title: an Add a key form's Scan.
+    scan_title_part: "Scan a share",
+    /// A scanner's title: a vault's Scan a setup code.
+    scan_title_totp: "Scan a setup code",
     /// The line under a way over that loads a key, dimmed while a stick is in.
     read_need_no_stick: "Remove the stick first",
     // ----- app (faraday-core/src/lib.rs) -----
@@ -7358,6 +7376,12 @@ strings! {
     seed_read_the_two_passphrases: "The two passphrases differ",
     /// Text in `sheet`.
     seed_read_seedqr_read: "SeedQR read",
+    /// The seed sheet's title for a seed's words read (`docs/SCANNING.md` §6).
+    seed_read_words_read: "Words read",
+    /// The seed sheet's title for a CompactSeedQR read.
+    seed_read_compact_read: "CompactSeedQR read",
+    /// The seed sheet's line for a key a loaded wallet has. `{}`: its place in the wallet, the wallet.
+    seed_read_key_of: "Key {} of {}",
     // ----- seeds (faraday-core/src/seeds/mod.rs) -----
     /// Error in `seeds_take_file`.
     seeds_no_account_key: "No account key in that file",

@@ -1249,7 +1249,7 @@ impl Faraday {
                 if let Some(words) = seed_in_code(&c, &code) {
                     drop(code);
                     self.act(Action::Entry(None));
-                    self.seed_scanned(&words);
+                    self.seed_scanned(&words, kind);
                 }
             }
             Way::Share => {
@@ -1352,6 +1352,7 @@ impl Faraday {
         let Some(words) = seed_in_code(c, bytes) else {
             return false;
         };
+        let kind = scan_read::secret_kind(c, bytes).unwrap_or(Kind::SeedWords);
         if !self.may_load_keys() {
             self.scan_say(crate::stick::keys_load(self.medium));
             return true;
@@ -1361,7 +1362,7 @@ impl Faraday {
         }
         self.entry.reset();
         self.entry.state_mut().back = Some(back);
-        self.seed_scanned(&words);
+        self.seed_scanned(&words, kind);
         true
     }
 
@@ -1477,7 +1478,7 @@ impl Faraday {
             && let Some(words) = seed_in_code(&c, &bytes)
         {
             drop(bytes);
-            return self.seed_scanned(&words);
+            return self.seed_scanned(&words, kind.unwrap_or(Kind::SeedWords));
         }
         let text = match faraday_intake::seedqr_words(&bytes) {
             Some(w) => w,
@@ -1546,7 +1547,7 @@ impl Faraday {
             && let Some(words) = seed_in_code(&c, &bytes)
         {
             drop(bytes);
-            return self.seed_scanned(&words);
+            return self.seed_scanned(&words, Kind::SeedWords);
         }
         if self.screen != crate::Screen::KeyGen
             && scan_read::secret_kind(&c, &bytes) == Some(Kind::Slip39Share)
@@ -1564,6 +1565,11 @@ impl Faraday {
         let Ok(m) = read else {
             return self.scan_not_taken(bytes);
         };
+        let read_as = if digits {
+            Kind::SeedQr
+        } else {
+            Kind::CompactSeedQr
+        };
         zeroize::Zeroize::zeroize(&mut *bytes);
         let words = lang.words();
         let mut typed = crate::secret_text::room();
@@ -1573,7 +1579,7 @@ impl Faraday {
             }
             typed.push_str(words[usize::from(i)]);
         }
-        self.seed_scanned(&typed);
+        self.seed_scanned(&typed, read_as);
     }
 
     /// Costs a mnemonic's checksum, a key part's parse and what a code
@@ -1627,9 +1633,10 @@ impl Faraday {
         // words go to Add a key, as its own Scan does, and never into a
         // box (`docs/QR.md` §2).
         if camera && let Some(words) = seed_in_code(&c, &bytes) {
+            let kind = scan_read::secret_kind(&c, &bytes).unwrap_or(Kind::SeedWords);
             if self.may_load_keys() {
                 self.act(Action::Entry(None));
-                return self.seed_scanned(&words);
+                return self.seed_scanned(&words, kind);
             }
             if sticks {
                 return self.scan_say(crate::stick::keys_load(self.medium));
@@ -1721,9 +1728,10 @@ impl Faraday {
         self.scan_landed(c, at, &name);
     }
 
-    /// A seed's words read by the camera: the camera closes and the
-    /// seed waits on its sheet for how it loads (`seed_read`).
-    pub(crate) fn seed_scanned(&mut self, words: &str) {
+    /// A seed's words read by the camera, as `kind`: the camera closes
+    /// and the seed waits on its sheet for how it loads (`seed_read`),
+    /// the sheet titled for the form read (`docs/SCANNING.md` §6).
+    pub(crate) fn seed_scanned(&mut self, words: &str, kind: Kind) {
         // A scan fills the words from a camera frame, which keeps the
         // status line's probe: it is worked out again for these.
         self.entry.state().forget_probe();
@@ -1733,6 +1741,7 @@ impl Faraday {
             return;
         }
         self.seed_read_open(words);
+        self.seed_read_marked(kind);
     }
 
     /// A code read while the backup's copy item scans the copy of the

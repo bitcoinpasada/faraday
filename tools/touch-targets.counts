@@ -95,7 +95,6 @@ small_240x320 Catalog WordList 1
 small_240x320 Create CStep 6
 small_240x320 CreateVault Vault 5
 small_240x320 CreateVault WordList 3
-small_240x320 Entry Cancel 1
 small_240x320 Entry EntryCandidate 17
 small_240x320 Entry EntryForm 1
 small_240x320 Family Cancel 1
@@ -147,7 +146,6 @@ small_480x640 Catalog WordList 1
 small_480x640 Create CStep 6
 small_480x640 CreateVault Vault 9
 small_480x640 CreateVault WordList 3
-small_480x640 Entry Cancel 1
 small_480x640 Entry EntryCandidate 17
 small_480x640 Entry EntryForm 1
 small_480x640 Entry ScanSeed 1

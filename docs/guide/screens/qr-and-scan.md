@@ -48,7 +48,7 @@ dimmed, **Cancel**.*
 
 | Control | What it does |
 |---|---|
-| the title | **Scan a QR code**; **Scan a SeedQR**, **Scan your copy**, **Scan what you have**, "Scan a key for New wallet 1", **Receive into Downloads**, by what it reads |
+| the title | **Scan a QR code**; **Scan a SeedQR**, **Scan a share**, **Scan a setup code**, **Scan your copy**, **Scan what you have**, "Scan a key for New wallet 1", **Receive into Downloads**, by what it reads; a scanner a flow opens is titled for what the flow asks: **Scan the PSBT**, **Scan the description**, "Scan Key 2's xpub", **Scan a cosigner's key**, **Scan a transaction**, **Scan an address** |
 | **Never type a seed that holds real bitcoin here.** | beside the picture, where the camera reads a seed |
 | the picture | the camera's picture with corner brackets, white while looking and green while a code it read is in view; the code found outlined |
 | the line in the picture | **Starting the camera**, **Hold the QR in front of the camera**, what was read ("UR: 2 of 8 · missing 3, 4, 5, 6, 7, 8"), or why there is no picture: **The camera sends no picture**, **The camera was refused**, **The camera is in use by another app**, **No camera found**. A bar under it fills as the parts of an animated code are read |
@@ -88,7 +88,8 @@ form and a whole seed to [SeedQR read](#seedqr-read).
 
 **Opened from:** a SeedQR read by the camera; on Restore and the Spend
 tab, a seed taken in with no passphrase. A SeedQR holds no passphrase,
-so the sheet asks.
+so the sheet asks. Its title names what was read: **SeedQR read**,
+**CompactSeedQR read**, **Words read**.
 
 ![SeedQR read: Without a passphrase 3dca6805, with Cancel, Add a passphrase and Use without a passphrase](../pictures/qr-and-scan-seedqr-read.png)
 
@@ -103,6 +104,8 @@ so the sheet asks.
 | **Use with this passphrase** | loads the key with the passphrase. Grey until both fields match |
 | **Without a passphrase** | while adding one: loads the key with none |
 | **Not this one** | on the Spend tab, for a seed that is none of the wallet's keys: back to the camera |
+| "Key 2 of Savings" | under the key, where a loaded wallet has it |
+| **It is a Seed XOR part** | for 12 or 24 words: opens Add a key's Seed XOR form with them in, as one part |
 | **Cancel** | closes the sheet; the words are wiped |
 
 ## Transfer
