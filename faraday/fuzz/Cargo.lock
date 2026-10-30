@@ -746,10 +746,12 @@ name = "faraday-core"
 version = "0.1.9"
 dependencies = [
  "faraday-bip",
+ "faraday-boot",
  "faraday-codec",
  "faraday-crypto",
  "faraday-draw",
  "faraday-entropy",
+ "faraday-fat",
  "faraday-intake",
  "faraday-keys",
  "faraday-learn",

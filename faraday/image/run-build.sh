@@ -34,6 +34,15 @@ epoch="${SOURCE_DATE_EPOCH:-$(git -C "$root" log -1 --format=%ct 2>/dev/null || 
 serial_boot="$("$image/fat-serial.sh" boot "$epoch")"
 serial_data="$("$image/fat-serial.sh" data "$epoch")"
 echo "FAT serials: boot $serial_boot, data $serial_data (SOURCE_DATE_EPOCH $epoch)"
+# The partition table's IDs, the same way (image-id.sh,
+# docs/STICK-IDENTITY.md §4.1): the stick's disk and partition GUIDs and
+# the Pi card's disk signature, where genimage.cfg says @DISK_UUID@,
+# @BOOT_UUID@, @DATA_UUID@ and @DISK_SIGNATURE@.
+disk_uuid="$("$image/image-id.sh" disk "$epoch")"
+boot_uuid="$("$image/image-id.sh" boot "$epoch")"
+data_uuid="$("$image/image-id.sh" data "$epoch")"
+disk_signature="$("$image/image-id.sh" signature "$epoch")"
+echo "IDs: disk $disk_uuid, boot $boot_uuid, data $data_uuid, signature $disk_signature"
 
 variant="$board-$panel"
 if [ -n "$build" ]; then
@@ -80,6 +89,8 @@ in_container() {
     "${DOCKER:-docker}" run --rm \
         -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" -e BUILD="$build" \
         -e FAT_SERIAL_BOOT="$serial_boot" -e FAT_SERIAL_DATA="$serial_data" \
+        -e DISK_UUID="$disk_uuid" -e BOOT_UUID="$boot_uuid" -e DATA_UUID="$data_uuid" \
+        -e DISK_SIGNATURE="$disk_signature" \
         -e FARADAY_LOCALVERSION="$localversion" \
         -v "$root/out/pi/buildroot":/buildroot \
         -v "$root/out/pi/$variant/output":/output \

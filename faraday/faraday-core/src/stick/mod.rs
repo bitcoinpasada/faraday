@@ -86,6 +86,8 @@ pub(crate) struct StickArea {
     /// is not in `visited`, kept by [`StickArea::set_sticks`] and
     /// [`StickArea::note_visit`], the only ways either changes.
     waits: bool,
+    /// What the shell found of the medium the machine started from.
+    boot_medium: crate::BootMedium,
 }
 
 impl std::ops::Deref for StickArea {
@@ -96,6 +98,16 @@ impl std::ops::Deref for StickArea {
 }
 
 impl StickArea {
+    /// What the shell found of the medium the machine started from.
+    pub(crate) fn boot_medium(&self) -> crate::BootMedium {
+        self.boot_medium
+    }
+
+    /// What the shell found of it, as it says.
+    pub(crate) fn set_boot_medium(&mut self, m: crate::BootMedium) {
+        self.boot_medium = m;
+    }
+
     /// The sticks the shell reports.
     pub(crate) fn set_sticks(&mut self, sticks: Vec<StickInfo>) {
         self.sticks = sticks;

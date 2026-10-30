@@ -777,11 +777,13 @@ dependencies = [
  "faraday-alloc-count",
  "faraday-backup",
  "faraday-bip",
+ "faraday-boot",
  "faraday-codec",
  "faraday-core",
  "faraday-crypto",
  "faraday-draw",
  "faraday-entropy",
+ "faraday-fat",
  "faraday-files",
  "faraday-intake",
  "faraday-keys",
@@ -851,6 +853,7 @@ dependencies = [
 name = "faraday-disk"
 version = "0.1.9"
 dependencies = [
+ "faraday-boot",
  "faraday-crypto",
  "faraday-fat",
  "faraday-files",
@@ -907,6 +910,7 @@ dependencies = [
 name = "faraday-grant"
 version = "0.1.9"
 dependencies = [
+ "faraday-boot",
  "libc",
 ]
 
@@ -1130,6 +1134,7 @@ dependencies = [
 name = "faraday-stick"
 version = "0.1.9"
 dependencies = [
+ "faraday-boot",
  "faraday-core",
  "faraday-crypto",
  "faraday-scanner",

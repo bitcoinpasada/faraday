@@ -9,8 +9,10 @@ while it plugs sticks in and pulls them out through QMP:
 
 1. At boot no filesystem is mounted, the kernel has no vfat, and the
    grant helper and the disk process are running.
-2. The boot partition (FARADAYBOOT) stays root's; the boot stick's data
-   partition belongs to the disk process (uid 201) while the app is clean.
+2. The boot partition stays root's; the boot stick's data partition,
+   which the grant helper found by its layout and the build it holds
+   (docs/STICK-IDENTITY.md §5.2), belongs to the disk process (uid 201)
+   while the app is clean.
 3. A test stick plugged in while the app is clean is handed out, and the
    app shows its files (a screenshot).
 4. With the clean marker gone, as when a secret is in memory, a handed
@@ -204,7 +206,8 @@ def main():
         expect("NoNewPrivs:\t1" in grant_status,
                "the grant helper has no-new-privileges")
 
-        # 2. The boot stick: FARADAYBOOT root's, its data partition handed out.
+        # 2. The boot stick: its boot partition root's, its data partition
+        # found as the boot medium and handed out.
         expect(console.run("cat /run/faraday-clean/clean 2>/dev/null").strip() == "clean",
                "the app publishes that it is clean")
         # QEMU on the build machine runs the guest's clock slowly: the boot stick's
@@ -215,6 +218,13 @@ def main():
                 expect(False, "the boot stick's partitions appear")
             time.sleep(2)
         expect(True, "the boot stick's partitions appear")
+        deadline = time.monotonic() + 120
+        while "/dev/sda2" not in console.run("cat /etc/faraday/exchange"):
+            if time.monotonic() > deadline:
+                break
+            time.sleep(2)
+        expect("/dev/sda2" in console.run("cat /etc/faraday/exchange"),
+               "the stick it started from is found by its layout and the build it holds")
         expect(owner(console, "sda1") == 0, "the boot partition stays root's")
         expect(wait_owner(console, "sda2", 201, 30),
                "the boot stick's data partition goes to the disk process")

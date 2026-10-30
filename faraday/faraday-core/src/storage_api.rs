@@ -46,9 +46,27 @@ impl StickInfo {
     }
 }
 
+/// What the shell found of the medium the machine started from
+/// (`docs/STICK-IDENTITY.md` §5.2).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum BootMedium {
+    /// Found, or not looked for yet, or not looked for at all: a card, the
+    /// desktop app.
+    #[default]
+    Known,
+    /// Two sticks of the running build were in at start: neither is the
+    /// device's own.
+    Two,
+    /// No stick of the running build was found.
+    NotFound,
+}
+
 /// What the shell tells the app about storage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StorageEvent {
+    /// What was found of the medium the machine started from; sent once it
+    /// is known, and again if it changes.
+    BootMedium(BootMedium),
     /// Every stick present now. Sent at start and whenever the set or a
     /// stick's files change.
     Sticks(Vec<StickInfo>),
@@ -117,6 +135,16 @@ pub enum StorageEvent {
         to: String,
         /// Why it was refused; `None` once renamed.
         refused: Option<Unrenamed>,
+    },
+    /// A naming's answer ([`StorageCommand::NameStick`]): done, or why
+    /// not.
+    StickNamed {
+        /// The stick.
+        stick: String,
+        /// The name asked for; empty for none.
+        label: String,
+        /// Why it was refused; `None` once named.
+        refused: Option<String>,
     },
     /// A file's SHA-256 ([`StorageCommand::Hash`]), or why it was not read.
     Hashed {
@@ -383,6 +411,14 @@ pub enum StorageCommand {
         from: String,
         /// Its new name.
         to: String,
+    },
+    /// Name a stick's volume `label`, or take its name away where it is
+    /// empty ([`StorageEvent::StickNamed`]; `docs/STICK-IDENTITY.md` §6).
+    NameStick {
+        /// The stick's id.
+        stick: String,
+        /// The name, as FAT holds it: in capitals, at most 11 characters.
+        label: String,
     },
     /// A file on a stick read for its SHA-256, for its Details
     /// ([`StorageEvent::Hashed`]). The bytes go no further than the shell.

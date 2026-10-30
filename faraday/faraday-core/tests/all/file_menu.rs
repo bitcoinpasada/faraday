@@ -7,7 +7,7 @@
 use crate::common::*;
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::wallet::FileKind;
-use faraday_core::{Action, Faraday, Item, Screen, Sheet};
+use faraday_core::{Action, BootMedium, Faraday, Item, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
 
 fn file(name: &str, bytes: &[u8]) -> (String, Vec<u8>) {
@@ -432,4 +432,64 @@ fn a_sheet_for_the_stick_offers_show_as_qr_beside_make_pdf_on_desktop() {
     let words = menu_of(&mut app, Row::Out(0));
     assert!(words.iter().any(|w| w == "Make PDF"), "{words:?}");
     assert!(words.iter().any(|w| w == "Show as QR"), "{words:?}");
+}
+
+/// Rename stick on the visit (`docs/STICK-IDENTITY.md` §6): the popup
+/// starts with the stick's name; a name typed in lower case is said and
+/// written in capitals; a boot partition's name, a name FAT cannot hold
+/// and one over 11 characters are refused; an empty name takes the label
+/// away.
+#[test]
+fn a_stick_is_named_in_capitals_and_its_name_taken_away() {
+    let (mut shell, mut app) = visiting(Vec::new(), vec![file("notes.txt", b"n")]);
+    let name_stick = Action::File(FilePress::NameStick);
+    assert!(offered(&mut app, name_stick));
+    shell.press(&mut app, name_stick);
+    assert_eq!(app.sheet, Some(Sheet::Rename));
+    assert_eq!(
+        app.files_menu().renaming.as_ref().map(|r| r.stem.as_str()),
+        Some("TESTSTICK")
+    );
+    assert!(has(&mut app, "Rename stick"));
+    type_name(&mut app, "coffee 1");
+    assert!(has(&mut app, "Written as COFFEE 1"));
+    assert!(rename_offered(&mut app));
+    shell.press(&mut app, Action::File(FilePress::RenameGo));
+    assert_eq!(app.sheet, None);
+    assert_eq!(shell.disk("S1").label, "COFFEE 1");
+    assert!(
+        texts(&mut app)
+            .iter()
+            .any(|t| t.contains("This stick is named COFFEE 1")),
+        "the visit says so"
+    );
+
+    shell.press(&mut app, name_stick);
+    for bad in ["EFI", "bootfs", "faradayboot", "a.b", "twelve chars"] {
+        type_name(&mut app, bad);
+        assert!(!rename_offered(&mut app), "{bad} is refused");
+    }
+    type_name(&mut app, "");
+    assert!(has(&mut app, "No name"));
+    assert!(rename_offered(&mut app));
+    shell.press(&mut app, Action::File(FilePress::RenameGo));
+    assert_eq!(shell.disk("S1").label, "");
+}
+
+/// Files says when the stick a PC started from is not the device's own
+/// (`docs/STICK-IDENTITY.md` §5.2): two sticks of the build were in, or it
+/// was not found.
+#[test]
+fn files_says_when_the_stick_it_started_from_is_not_known() {
+    let (_, mut app) = visiting(Vec::new(), Vec::new());
+    app.press(Action::Nav(Screen::Files));
+    let two = "Two sticks of this build are in";
+    let lost = "The stick Faraday started from was not found";
+    assert!(!has(&mut app, two) && !has(&mut app, lost));
+    app.storage(StorageEvent::BootMedium(BootMedium::Two));
+    assert!(has(&mut app, two));
+    app.storage(StorageEvent::BootMedium(BootMedium::NotFound));
+    assert!(has(&mut app, lost));
+    app.storage(StorageEvent::BootMedium(BootMedium::Known));
+    assert!(!has(&mut app, two) && !has(&mut app, lost));
 }

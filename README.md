@@ -149,8 +149,9 @@ Format it like this:
   neither is FAT12. Sticks larger than 32 GB usually come formatted
   exFAT and need reformatting; most smaller ones come as MBR and FAT32
   and work as they are.
-- **Any label except `FARADAYBOOT`**, which marks a boot partition and is
-  never opened.
+- **Any label except a boot partition's** (`EFI`, `bootfs` or
+  `FARADAYBOOT`), and no partition named `EFI system partition`: those
+  mark a boot partition and are never opened.
 - **Files at the top level.** Files inside folders are not read. The
   largest file read is 18 MiB. Files of any size are specified in
   `docs/LARGE-FILES.md` and not built yet.
@@ -250,11 +251,11 @@ key's), and writes the release's own bytes with that signature in place
 of the release's file (`docs/DECISIONS.md` F133).
 
 Without the Starter, once the stick holds the new release, copy the
-signed file over `EFI/BOOT/BOOTX64.EFI` on its boot partition,
-`FARADAYBOOT`. On Linux and macOS it mounts as any FAT partition. On
-Windows it is an EFI system partition, which gets no drive letter: in
-`diskpart`, run as administrator, `select volume` the one labelled
-FARADAYBOOT and `assign letter=S`, copy the file to
+signed file over `EFI/BOOT/BOOTX64.EFI` on its boot partition, its
+first, labelled `EFI`. On Linux and macOS it mounts as any FAT
+partition. On Windows it is an EFI system partition, which gets no drive
+letter: in `diskpart`, run as administrator, `select disk` the stick,
+`select partition 1` and `assign letter=S`, copy the file to
 `S:\EFI\BOOT\BOOTX64.EFI`, then `remove letter=S`.
 
 ## Choosing a computer
@@ -489,8 +490,9 @@ just release=1 faraday-stick-image        # a published release (Strict; build=c
 
 `faraday-stick-boot` writes the image's boot partition
 (`out/stick/faraday-x86_64-uefi-strict[-dev]-boot.vfat`) over a Faraday
-stick's `FARADAYBOOT` partition and leaves its data partition as it is. It
-refuses a disk that is not a Faraday stick on USB or has anything
+stick's first partition and leaves its data partition as it is. It
+refuses a disk that does not have a Faraday stick's layout
+(`docs/STICK-IDENTITY.md` §5.1), is not on USB or has anything
 mounted, and asks for the device to be typed back; `--dry-run` only
 checks. It is for development only.
 
@@ -535,8 +537,11 @@ FAT filesystem in an image (the boot and the data partition, on the
 stick and on the Pi) is stamped with a volume serial that is a function
 of `SOURCE_DATE_EPOCH` and the partition's role
 (`faraday/image/fat-serial.sh`, given to `mkfs.vfat -i` through the
-board's `genimage.cfg`), so two builds of one commit have the same
-serials; two sticks of one build have the same serials too. The same
+board's `genimage.cfg`), and so are the stick's disk and partition GUIDs
+and the Pi card's disk signature (`faraday/image/image-id.sh`), so two
+builds of one commit have the same bytes. Two sticks written from one
+image by another tool have the same IDs too; the Starter gives each stick
+it writes its own (`docs/STICK-IDENTITY.md` §4). The same
 `extraargs` carry `--invariant`: Buildroot builds dosfstools 4.2 for the
 host, which does not read `SOURCE_DATE_EPOCH` (that came in a later
 release), so `BR2_REPRODUCIBLE` and the exported variable did not reach

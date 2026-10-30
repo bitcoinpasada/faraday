@@ -128,6 +128,9 @@ pub trait Sticks {
     /// file has the name (`faraday_files::rename`).
     fn rename(&mut self, stick: &str, from: &str, to: &str)
     -> Result<(), faraday_files::Unrenamed>;
+    /// The volume named `label`, or its name taken away where it is
+    /// empty (`docs/STICK-IDENTITY.md` §6).
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), String>;
 }
 
 /// A picture read for its codes: its stick, its name, and its bytes and
@@ -235,6 +238,9 @@ impl Sticks for Dirs {
         to: &str,
     ) -> Result<(), faraday_files::Unrenamed> {
         faraday_files::rename(&mut dir(stick), from, to)
+    }
+    fn name(&mut self, _stick: &str, _label: &str) -> Result<(), String> {
+        Err(EN.storage_name_folder.to_string())
     }
 }
 
@@ -775,6 +781,18 @@ fn serve_queued(
                     refused,
                 });
             }
+            StorageCommand::NameStick { stick, label } => {
+                let refused = sticks.name(&stick, &label).err();
+                said.push(match &refused {
+                    None => format!("named {stick} {label:?}"), // not shown: a line for a verbose shell's console
+                    Some(r) => format!("cannot name {stick}: {r}"), // not shown: as above
+                });
+                app.storage(StorageEvent::StickNamed {
+                    stick,
+                    label,
+                    refused,
+                });
+            }
             // A file read for its Details' SHA-256: the bytes are wiped
             // here, and only the hash goes to the app.
             StorageCommand::Hash { stick, name } => {
@@ -1181,6 +1199,18 @@ impl Sticks for DiskProcess {
             Response::NameTaken { same_vault: true } => Err(U::SameVault),
             Response::Failed(why) => Err(U::Failed(why)),
             _ => Err(U::Failed(EN.storage_answer_rename.to_string())),
+        }
+    }
+
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), String> {
+        use faraday_files::proto::{Request, Response};
+        match self.ask(&Request::Name {
+            stick: stick.into(),
+            label: label.into(),
+        })? {
+            Response::Renamed => Ok(()),
+            Response::Failed(why) => Err(why),
+            _ => Err(EN.storage_answer_name.to_string()),
         }
     }
 }

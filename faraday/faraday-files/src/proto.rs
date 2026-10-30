@@ -99,6 +99,14 @@ pub enum Request {
         /// Its new name.
         to: String,
     },
+    /// The volume named `label`, or its name taken away where `label` is
+    /// empty (`docs/STICK-IDENTITY.md` §6); answered `Renamed`.
+    Name {
+        /// The stick.
+        stick: String,
+        /// The name as typed; the disk process writes it as FAT holds it.
+        label: String,
+    },
 }
 
 /// One stick partition, as the disk process lists it.
@@ -352,6 +360,12 @@ impl Request {
                 o.str(to);
                 o
             }
+            Request::Name { stick, label } => {
+                let mut o = Out::tag(10);
+                o.str(stick);
+                o.str(label);
+                o
+            }
         };
         o.0
     }
@@ -398,6 +412,10 @@ impl Request {
                 stick: i.str()?,
                 from: i.str()?,
                 to: i.str()?,
+            },
+            10 => Request::Name {
+                stick: i.str()?,
+                label: i.str()?,
             },
             _ => return Err(Malformed),
         };
@@ -697,6 +715,10 @@ mod tests {
                 stick: "sdb1@7".into(),
                 from: "vault.fvlt".into(),
                 to: "savings.fvlt".into(),
+            },
+            Request::Name {
+                stick: "sdb2@sdb#7".into(),
+                label: "Coffee 1".into(),
             },
         ];
         for r in requests {

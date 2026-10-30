@@ -168,6 +168,10 @@ impl Sticks for Timed<'_> {
     ) -> Result<(), faraday_storage::Unrenamed> {
         self.sticks.rename(stick, from, to)
     }
+
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), String> {
+        self.sticks.name(stick, label)
+    }
 }
 
 /// The row a file the app wrote to a stick or the card is timed on.

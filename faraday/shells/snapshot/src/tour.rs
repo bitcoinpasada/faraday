@@ -205,6 +205,7 @@ impl Tour {
                 | StorageCommand::OpenInstitute
                 | StorageCommand::Wipe { .. }
                 | StorageCommand::Rename { .. }
+                | StorageCommand::NameStick { .. }
                 | StorageCommand::Hash { .. }
                 | StorageCommand::ZeroFree { .. }
                 | StorageCommand::MakeEmpty { .. } => {}

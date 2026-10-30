@@ -12,6 +12,14 @@
 //!
 //! It reads nothing itself: the caller hands it the bytes. It uses std
 //! alone, so the crate builds for every system the Starter runs on.
+//!
+//! [`layout`] says what makes a disk a Faraday stick or card and what
+//! marks a boot partition, and [`medium`] how the device records the
+//! medium it started from (F174, `docs/STICK-IDENTITY.md` §5): the device
+//! finds its own stick with [`holds_release`].
+
+pub mod layout;
+pub mod medium;
 
 /// What the image build puts in the kernel's release string before the
 /// Faraday version: `6.6.84-faraday-0.2.0+4d0680b1a2b3`.
@@ -55,4 +63,26 @@ pub fn find_release(hay: &[u8]) -> Option<String> {
         from = at + 1;
     }
     None
+}
+
+/// Whether `hay` holds the release string `want` as a whole Faraday
+/// release string, anywhere in it: each one [`find_release`] finds is
+/// compared in turn. Costs a search of `hay`.
+#[must_use]
+pub fn holds_release(hay: &[u8], want: &str) -> bool {
+    let mut rest = hay;
+    while let Some(found) = find_release(rest) {
+        if found == want {
+            return true;
+        }
+        // Past the string just found: it is in `rest`, whole.
+        let Some(at) = rest
+            .windows(found.len())
+            .position(|w| w == found.as_bytes())
+        else {
+            return false;
+        };
+        rest = &rest[at + found.len()..];
+    }
+    false
 }

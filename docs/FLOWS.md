@@ -692,6 +692,12 @@ visit** directly.
   source, else "Needs {source name} on this stick"; it is written with
   progress and **Stop**, and "{source name} changed since it was read.
   Nothing written." where a part differs.
+- **Rename stick** (`docs/STICK-IDENTITY.md` §6), a quiet button left of
+  the sticks' chips (beside Delete files on a small panel): the Rename popup for the stick's own name, its FAT label
+  of at most 11 characters, written in capitals, the line under the
+  field saying how it is written, empty for no name; a boot partition's
+  name (EFI, bootfs, FARADAYBOOT) is refused. The visit's line says
+  what was written.
 - **Delete files** (decisions 4, 54 and 55), a quiet button on the
   stick card over its Import buttons, and each row's ⋮ **Delete from the
   stick**. Its sheet, "Delete files from {stick}", has the band **Danger

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Writes a Faraday stick image's boot partition (the -boot.vfat that
-# `just faraday-stick-image` leaves beside the .img) over the partition
-# named FARADAYBOOT on a Faraday stick, and nothing else: the data partition,
+# `just faraday-stick-image` leaves beside the .img) over the first
+# partition of a Faraday stick, and nothing else: the data partition,
 # with its vaults and settings file, keeps its bytes. For development
 # only (docs/history/PLAN.md §5.5); it puts the whole stick on the build computer.
 #
@@ -12,14 +12,17 @@
 #   - a disk is a whole disk, removable and on USB;
 #   - no partition of it is mounted or used as swap (a file: it is not
 #     attached to a loop device);
-#   - its partition table is a Faraday stick's: GPT with Faraday's disk
-#     UUID and exactly two partitions, the first named FARADAYBOOT, an EFI
-#     system partition with Faraday's partition UUID and at least as large
-#     as the .vfat, the second named FARADAYDATA with its own UUID;
-#   - the .vfat is a FAT filesystem labelled FARADAYBOOT;
+#   - its partition table has a Faraday stick's layout
+#     (docs/STICK-IDENTITY.md §5.1): GPT with exactly two partitions, the
+#     first an EFI system partition at sector 2048 of 64 MiB, at least as
+#     large as the .vfat, the second a basic data partition at sector
+#     133120 of 128 MiB. Names, IDs and labels play no part (F174);
+#   - the .vfat is a FAT32 filesystem labelled EFI, as the image's is;
 #   - the target's path is typed back.
 # It then writes at the partition's offset, reads back and compares, and
-# checks that the partition table is what it was.
+# checks that the partition table is what it was. The stick keeps its own
+# disk and partition GUIDs; the boot partition gets the image's FAT
+# serial, where the Starter's keep data keeps the stick's (§4.4).
 #
 # --dry-run runs every check, prints what it would write and where, and
 # writes nothing.
@@ -36,11 +39,11 @@ fi
 vfat="$1"
 target="$2"
 
-# genimage.cfg's fixed UUIDs, and the EFI system partition's type.
-disk_uuid="46617261-6461-792D-5374-69636B000000"
-boot_uuid="46617261-6461-792D-5374-69636B000001"
-data_uuid="46617261-6461-792D-5374-69636B000002"
+# A Faraday stick's layout (docs/STICK-IDENTITY.md §5.1, F80): the two
+# partitions' types, and their starts and sizes in 512-byte sectors.
 esp_type="C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+data_type="EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
+layout_sectors="2048 131072 133120 262144"
 
 # ---- the source ------------------------------------------------------------
 [ -f "$vfat" ] || die "$vfat: no such file (build it with just faraday-stick-image)"
@@ -52,8 +55,8 @@ vfat_size="$(stat -c %s "$vfat")"
 sig="$(od -An -tx1 -j510 -N2 "$vfat" | tr -d ' \n')"
 label="$(dd if="$vfat" bs=1 skip=71 count=11 status=none | tr -d '\0')"
 fstype="$(dd if="$vfat" bs=1 skip=82 count=8 status=none | tr -d '\0')"
-[ "$sig" = "55aa" ] && [ "$fstype" = "FAT32   " ] && [ "$label" = "FARADAYBOOT" ] \
-    || die "$vfat: not a FAT32 filesystem labelled FARADAYBOOT"
+[ "$sig" = "55aa" ] && [ "$fstype" = "FAT32   " ] && [ "$label" = "EFI        " ] \
+    || die "$vfat: not a FAT32 filesystem labelled EFI"
 
 # ---- the target ------------------------------------------------------------
 sudo=""
@@ -85,37 +88,38 @@ fi
 table() { $sudo sfdisk -J "$target"; }
 layout="$(table)" || die "$target: no partition table sfdisk can read"
 
-# "ok <offset> <size>" in bytes of the FARADAYBOOT partition, or "refuse
+# "ok <offset> <size>" in bytes of the boot partition, or "refuse
 # <reason>".
-check="$(LAYOUT="$layout" python3 -B -c '
+check="$(LAYOUT="$layout" python3 -I -B -c '
 import json, os, sys
-disk_uuid, boot_uuid, data_uuid, esp_type, vfat_size = sys.argv[1:6]
+esp_type, data_type, sectors, vfat_size = sys.argv[1:5]
+boot_start, boot_size, data_start, data_size = (int(n) for n in sectors.split())
 t = json.loads(os.environ["LAYOUT"])["partitiontable"]
 def refuse(why):
     print("refuse " + why)
     sys.exit(0)
 if t.get("label") != "gpt":
     refuse("its partition table is not GPT")
-if t.get("id", "").upper() != disk_uuid:
-    refuse("its disk UUID is not a Faraday stick'"'"'s")
 parts = t.get("partitions", [])
 if len(parts) != 2:
     refuse("it has %d partitions, not two" % len(parts))
 boot, data = parts
 ss = int(t.get("sectorsize", 512))
-if boot.get("name") != "FARADAYBOOT":
-    refuse("its first partition is not named FARADAYBOOT")
-if boot.get("uuid", "").upper() != boot_uuid or boot.get("type", "").upper() != esp_type:
-    refuse("its first partition is not a Faraday EFI system partition")
-if data.get("name") != "FARADAYDATA" or data.get("uuid", "").upper() != data_uuid:
-    refuse("its second partition is not a Faraday FARADAYDATA partition")
+# Starts and sizes in 512-byte sectors, whatever the disk reports.
+at = lambda p, k: p[k] * ss // 512
+if boot.get("type", "").upper() != esp_type:
+    refuse("its first partition is not an EFI system partition")
+if (at(boot, "start"), at(boot, "size")) != (boot_start, boot_size):
+    refuse("its first partition is not at sector %d of 64 MiB" % boot_start)
+if data.get("type", "").upper() != data_type:
+    refuse("its second partition is not a basic data partition")
+if (at(data, "start"), at(data, "size")) != (data_start, data_size):
+    refuse("its second partition is not at sector %d of 128 MiB" % data_start)
 size = boot["size"] * ss
 if size < int(vfat_size):
-    refuse("its FARADAYBOOT partition (%d bytes) is smaller than the image (%s bytes)" % (size, vfat_size))
-if boot["start"] + boot["size"] > data["start"]:
-    refuse("its partitions overlap")
+    refuse("its boot partition (%d bytes) is smaller than the image (%s bytes)" % (size, vfat_size))
 print("ok %d %d" % (boot["start"] * ss, size))
-' "$disk_uuid" "$boot_uuid" "$data_uuid" "$esp_type" "$vfat_size")"
+' "$esp_type" "$data_type" "$layout_sectors" "$vfat_size")"
 case "$check" in
     "ok "*) read -r _ offset part_size <<<"$check" ;;
     "refuse "*) die "$target is not a Faraday stick: ${check#refuse }" ;;
@@ -124,14 +128,14 @@ esac
 
 echo "Target : $target ($what)"
 echo "Source : $vfat ($vfat_size bytes)"
-echo "Writes : bytes $offset to $((offset + vfat_size - 1)) of $target, the FARADAYBOOT partition ($part_size bytes)"
-echo "Keeps  : the partition table and the FARADAYDATA partition"
+echo "Writes : bytes $offset to $((offset + vfat_size - 1)) of $target, the boot partition ($part_size bytes)"
+echo "Keeps  : the partition table and the data partition"
 if [ "$dry" = 1 ]; then
     echo "Dry run: nothing written."
     exit 0
 fi
 
-printf 'This replaces the FARADAYBOOT partition on %s. Type %s to write: ' "$target" "$target"
+printf 'This replaces the boot partition on %s. Type %s to write: ' "$target" "$target"
 read -r answer || true
 [ "$answer" = "$target" ] || die "not confirmed; nothing written"
 
@@ -152,4 +156,4 @@ cmp -n "$vfat_size" "$vfat" \
         iflag="skip_bytes,count_bytes$direct" status=none) \
     || die "read-back differs from $vfat"
 [ "$(table)" = "$layout" ] || die "the partition table changed"
-echo "OK: the FARADAYBOOT partition on $target matches $vfat"
+echo "OK: the boot partition on $target matches $vfat"

@@ -3,7 +3,7 @@
 //! its setup code, a Pi card's build file, and a stick made before
 //! Faraday put a version there.
 
-use faraday_boot::{MAX_RELEASE, find_release};
+use faraday_boot::{MAX_RELEASE, find_release, holds_release};
 
 const RELEASE: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
 const MIB: usize = 1 << 20;
@@ -68,4 +68,20 @@ fn only_a_whole_release_string_is_taken() {
     // The first whole one, past one that is not.
     let two = format!("\0x-faraday-0.1.0\0{RELEASE}\0");
     assert_eq!(find_release(two.as_bytes()).as_deref(), Some(RELEASE));
+}
+
+/// The device knows the stick it started from by the build its boot
+/// partition holds (`docs/STICK-IDENTITY.md` §5.2): the running kernel's
+/// release string, and no other build's, a dev build's included.
+#[test]
+fn a_stick_holds_the_running_build_or_another() {
+    assert!(holds_release(&stick_boot(RELEASE), RELEASE));
+    assert!(holds_release(&pi_boot(RELEASE), RELEASE));
+    let dev = "6.6.84-faraday-0.2.0+4d0680b1a2b3.dev";
+    assert!(!holds_release(&stick_boot(dev), RELEASE));
+    assert!(!holds_release(&stick_boot(RELEASE), dev));
+    assert!(!holds_release(&noise(2 * MIB, 4), RELEASE));
+    // Another build's string first, then this one's.
+    let both = format!("\x006.6.84-faraday-0.1.9\0{RELEASE}\0");
+    assert!(holds_release(both.as_bytes(), RELEASE));
 }

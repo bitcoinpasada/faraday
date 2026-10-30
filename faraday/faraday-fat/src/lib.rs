@@ -271,6 +271,8 @@ pub struct Volume<D: Disk> {
     clusters: u32,
     root_cluster: u32,
     fsinfo: Option<u64>,
+    /// Where FAT32's backup boot sector is, in bytes.
+    backup_boot: Option<u64>,
     label: Option<[u8; 11]>,
     serial: Option<u32>,
     /// The volume's length as its boot sector says, in bytes.
@@ -378,13 +380,17 @@ impl<D: Disk> Volume<D> {
         let fat_start = u64::from(reserved) * bps;
         let root_start = fat_start + u64::from(fats) * fat_bytes;
         let data_start = root_start + u64::from(root_sectors) * bps;
-        let (root_cluster, fsinfo) = match kind {
-            Kind::Fat16 => (0, None),
+        let (root_cluster, fsinfo, backup_boot) = match kind {
+            Kind::Fat16 => (0, None, None),
             Kind::Fat32 => {
-                let at = u16_at(&bs, 48);
-                let fsinfo =
-                    (at != 0 && at != 0xFFFF && at < reserved).then(|| u64::from(at) * bps);
-                (u32_at(&bs, 44) & 0x0FFF_FFFF, fsinfo)
+                let sector = |at: u32| {
+                    (at != 0 && at != 0xFFFF && at < reserved).then(|| u64::from(at) * bps)
+                };
+                (
+                    u32_at(&bs, 44) & 0x0FFF_FFFF,
+                    sector(u16_at(&bs, 48)),
+                    sector(u16_at(&bs, 50)),
+                )
             }
         };
         let mut v = Volume {
@@ -400,6 +406,7 @@ impl<D: Disk> Volume<D> {
             clusters,
             root_cluster,
             fsinfo,
+            backup_boot,
             label: boot_sector_label(&bs),
             serial: boot_sector_serial(&bs),
             volume_bytes: u64::from(total) * bps,
@@ -436,6 +443,111 @@ impl<D: Disk> Volume<D> {
     /// The volume serial number in the boot sector, when there is one.
     pub fn serial(&self) -> Option<u32> {
         self.serial
+    }
+
+    /// Costs a read of the root directory: the volume's label as a person
+    /// sees it, trimmed. The root directory's volume-label entry is what
+    /// Windows shows and writes (Microsoft's FAT specification, §6); a
+    /// volume with none has its boot sector's, and `NO NAME` is none.
+    pub fn volume_label(&mut self) -> Result<Option<String>, Error> {
+        let raw = match self.label_slot()? {
+            Some((_, name)) => Some(name),
+            None => self.label,
+        };
+        Ok(raw.and_then(|l| {
+            let s: String = l.iter().map(|&b| char::from(b)).collect();
+            let s = s.trim_end();
+            // not wording: the label FAT writes for none, compared
+            (!s.is_empty() && s != "NO NAME").then(|| String::from(s))
+        }))
+    }
+
+    /// Costs a read of the root directory: the slot of its volume-label
+    /// entry and the label it holds, when it has one.
+    fn label_slot(&mut self) -> Result<Option<(usize, [u8; 11])>, Error> {
+        let chain = self.root_chain()?;
+        let bytes = self.root_bytes(&chain)?;
+        for (i, e) in bytes.chunks_exact(32).enumerate() {
+            match e[0] {
+                0 => break,
+                0xE5 => continue,
+                _ => {}
+            }
+            let attr = e[11];
+            if attr & 0x3F != ATTR_LFN && attr & ATTR_LABEL != 0 && attr & ATTR_DIR == 0 {
+                let mut name = [0u8; 11];
+                name.copy_from_slice(&e[..11]);
+                return Ok(Some((i, name)));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Changes the bytes `at` of the boot sector and, on FAT32, of the
+    /// backup boot sector it names, where each carries the extended boot
+    /// signature: what the label and the serial are written to.
+    fn boot_sectors(&mut self, at32: usize, at16: usize, bytes: &[u8]) -> Result<(), Error> {
+        let at = if self.kind == Kind::Fat32 { at32 } else { at16 };
+        let sig = if self.kind == Kind::Fat32 { 66 } else { 38 };
+        let mut places = vec![0u64];
+        places.extend(self.backup_boot);
+        for place in places {
+            let mut s = [0u8; 512];
+            self.disk.read_at(place, &mut s)?;
+            if s[510] != 0x55 || s[511] != 0xAA || s[sig] != 0x29 {
+                continue;
+            }
+            s[at..at + bytes.len()].copy_from_slice(bytes);
+            self.disk.write_at(place, &s)?;
+        }
+        Ok(())
+    }
+
+    /// Costs a read and a write of the root directory: names the volume
+    /// `label` ([`label_bytes`]), or takes its name away with `None`. The
+    /// label goes in the boot sector, the backup boot sector on FAT32, and
+    /// the root directory's volume-label entry, which is what Windows
+    /// shows (Microsoft's FAT specification, §3.2, §6); with none, the
+    /// boot sector says `NO NAME` and the root directory has no entry, as
+    /// `mkfs.fat` makes a volume with no label (`docs/STICK-IDENTITY.md`
+    /// §6).
+    pub fn set_label(&mut self, label: Option<[u8; 11]>) -> Result<(), Error> {
+        let boot = label.unwrap_or(*b"NO NAME    ");
+        self.boot_sectors(71, 43, &boot)?;
+        let slot = self.label_slot()?;
+        match (slot, label) {
+            (Some((i, _)), Some(name)) => {
+                let chain = self.root_chain()?;
+                let at = self.slot_at(&chain, i);
+                self.disk.write_at(at, &name)?;
+            }
+            (Some((i, _)), None) => {
+                let chain = self.root_chain()?;
+                let at = self.slot_at(&chain, i);
+                self.disk.write_at(at, &[0xE5])?;
+            }
+            (None, Some(name)) => {
+                let mut e = [0u8; 32];
+                e[..11].copy_from_slice(&name);
+                e[11] = ATTR_LABEL;
+                e[24..26].copy_from_slice(&DOS_DATE.to_le_bytes());
+                let (chain, start) = self.free_run(1)?;
+                let at = self.slot_at(&chain, start);
+                self.disk.write_at(at, &e)?;
+            }
+            (None, None) => {}
+        }
+        self.label = Some(boot);
+        self.disk.flush()
+    }
+
+    /// Writes the volume serial number (`BS_VolID`) to the boot sector
+    /// and, on FAT32, the backup boot sector: a stick's own, in place of
+    /// the one every copy of an image has (`docs/STICK-IDENTITY.md` §7).
+    pub fn set_serial(&mut self, serial: u32) -> Result<(), Error> {
+        self.boot_sectors(67, 39, &serial.to_le_bytes())?;
+        self.serial = Some(serial);
+        self.disk.flush()
     }
 
     /// Gives the disk back.
@@ -1396,6 +1508,31 @@ fn check_name(name: &str) -> Result<(), Error> {
         return Err(Error::Name(BadName::Character));
     }
     Ok(())
+}
+
+/// The 11 bytes of a volume label for `name`, as FAT holds one (Microsoft's
+/// FAT specification, §6.1, the rules of a short name's characters):
+/// letters, digits, spaces, the backtick and `! # $ % & ' ( ) - @ ^ _ { } ~`, at most
+/// 11, in capitals as Windows keeps them, a name typed in lower case
+/// written in capitals; padded with spaces. Spaces at the ends are taken
+/// off, and an empty name is `None`: no label (`docs/STICK-IDENTITY.md`
+/// §6). A lookup.
+pub fn label_bytes(name: &str) -> Result<Option<[u8; 11]>, Error> {
+    let name = name.trim_matches(' ');
+    if name.is_empty() {
+        return Ok(None);
+    }
+    if name.chars().count() > 11 {
+        return Err(Error::Name(BadName::Long));
+    }
+    let mut out = [b' '; 11];
+    for (k, c) in name.chars().enumerate() {
+        out[k] = match c {
+            ' ' => b' ',
+            c => short_char(c).ok_or(Error::Name(BadName::Character))?,
+        };
+    }
+    Ok(Some(out))
 }
 
 fn short_char(c: char) -> Option<u8> {

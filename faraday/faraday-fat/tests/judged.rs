@@ -1,10 +1,11 @@
 //! FAT as other implementations see it (`docs/history/PLAN.md` §12.5): volumes made by
 //! `mkfs.fat`, files put there by mtools and read here, files written
-//! here and read by mtools, and every volume written here passed by
-//! `fsck.fat -n`.
+//! here and read by mtools, labels and serials written here read by
+//! dosfstools' `fatlabel` and labels it wrote read here, and every volume
+//! written here passed by `fsck.fat -n`.
 //!
 //! The tools are found in `FARADAY_FATTOOLS` (a directory holding
-//! `mkfs.fat`, `fsck.fat`, `mcopy`, `mmd` and `mdir`), in `/usr/sbin` or
+//! `mkfs.fat`, `fsck.fat`, `fatlabel`, `mcopy`, `mmd` and `mdir`), in `/usr/sbin` or
 //! `/sbin`, or on PATH; a machine without them says so and skips.
 
 use std::ops::Deref;
@@ -12,7 +13,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use faraday_fat::{
-    Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label, boot_sector_serial,
+    BadName, Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label,
+    boot_sector_serial, label_bytes,
 };
 
 fn tool(name: &str) -> PathBuf {
@@ -998,4 +1000,140 @@ fn a_file_in_a_folder_is_read_and_written_over_where_it_is() {
     save(v, &img);
     fsck_clean(&img);
     assert_eq!(read_out("::EFI/BOOT/BOOTX64.EFI"), boot);
+}
+
+/// What dosfstools' `fatlabel` says of a volume: its label, or with `-i`
+/// its serial, as it prints them.
+fn fatlabel(img: &Path, args: &[&str]) -> String {
+    let out = Command::new(tool("fatlabel"))
+        .args(args)
+        .arg(img)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "fatlabel: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// A name given to a data partition (`docs/STICK-IDENTITY.md` §6), on
+/// FAT16 and FAT32, with files on it or none: `fatlabel`, which Faraday
+/// did not write, reads it back as written, in capitals, and `fsck.fat`
+/// finds the volume whole, its backup boot sector included; a label
+/// `fatlabel` wrote reads back the same here.
+#[test]
+fn a_name_given_here_reads_back_in_fatlabel_and_one_fatlabel_gave_reads_here() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("naming");
+    for (name, args, kib, _) in volumes() {
+        for with_files in [false, true] {
+            let img = mkfs(&dir, &args, kib);
+            if with_files {
+                let src = dir.join("note.txt");
+                std::fs::write(&src, pattern(3_000, 2)).unwrap();
+                let i = format!("{}", img.display());
+                let (ok, _) = mtools("mcopy", &["-i", &i, &format!("{}", src.display()), "::"]);
+                assert!(ok, "{name}: mcopy");
+            }
+            let mut v = open(&img);
+            v.set_label(label_bytes("Coffee 1").unwrap()).unwrap();
+            assert_eq!(v.volume_label().unwrap().as_deref(), Some("COFFEE 1"));
+            save(v, &img);
+            assert_eq!(
+                fatlabel(&img, &[]),
+                "COFFEE 1",
+                "{name}, files {with_files}"
+            );
+            fsck_clean(&img);
+            // Named again, over the entry it has now.
+            let mut v = open(&img);
+            v.set_label(label_bytes("SPARE").unwrap()).unwrap();
+            save(v, &img);
+            assert_eq!(fatlabel(&img, &[]), "SPARE", "{name}, files {with_files}");
+            fsck_clean(&img);
+            if with_files {
+                assert!(
+                    open(&img)
+                        .list()
+                        .unwrap()
+                        .iter()
+                        .any(|e| e.name.eq_ignore_ascii_case("note.txt"))
+                );
+            }
+
+            let out = Command::new(tool("fatlabel"))
+                .arg(&img)
+                .arg("ROOM 2")
+                .output()
+                .unwrap();
+            assert!(out.status.success(), "{name}: fatlabel");
+            assert_eq!(
+                open(&img).volume_label().unwrap().as_deref(),
+                Some("ROOM 2")
+            );
+        }
+    }
+}
+
+/// An empty name takes the label away: the volume then reads as
+/// `mkfs.fat` makes one with no label, in `fatlabel` and here.
+#[test]
+fn an_empty_name_leaves_no_label() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("unnamed");
+    for (name, args, kib, _) in volumes() {
+        let plain: Vec<&str> = args.iter().copied().take_while(|a| *a != "-n").collect();
+        let none = mkfs(&dir, &plain, kib);
+        let expected = fatlabel(&none, &[]);
+        assert_eq!(open(&none).volume_label().unwrap(), None);
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        assert_eq!(label_bytes("  ").unwrap(), None);
+        v.set_label(None).unwrap();
+        assert_eq!(v.volume_label().unwrap(), None);
+        save(v, &img);
+        assert_eq!(fatlabel(&img, &[]), expected, "{name}");
+        fsck_clean(&img);
+    }
+}
+
+/// A name FAT cannot hold is refused before anything is written.
+#[test]
+fn a_name_fat_cannot_hold_is_refused() {
+    assert_eq!(label_bytes("ABCDEFGHIJKL"), Err(Error::Name(BadName::Long)));
+    for bad in ["A.B", "A*", "A/B", "Ä"] {
+        assert_eq!(
+            label_bytes(bad),
+            Err(Error::Name(BadName::Character)),
+            "{bad}"
+        );
+    }
+    assert_eq!(label_bytes("photos").unwrap(), Some(*b"PHOTOS     "));
+}
+
+/// A stick's own serial (`docs/STICK-IDENTITY.md` §7): written here, it is
+/// the one `fatlabel -i` reads, and `fsck.fat` finds the backup boot
+/// sector the same as the boot sector.
+#[test]
+fn a_serial_written_here_is_the_one_fatlabel_reads() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("serial-set");
+    for (name, args, kib, _) in volumes() {
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        v.set_serial(0x1A2B_3C4D).unwrap();
+        assert_eq!(v.serial(), Some(0x1A2B_3C4D));
+        save(v, &img);
+        assert_eq!(fatlabel(&img, &["-i"]).to_lowercase(), "1a2b3c4d", "{name}");
+        assert_eq!(open(&img).serial(), Some(0x1A2B_3C4D));
+        fsck_clean(&img);
+    }
 }

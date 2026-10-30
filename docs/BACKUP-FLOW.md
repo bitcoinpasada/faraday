@@ -207,7 +207,8 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
 - **Usable**, else why and what to do, before anything is made:
   - not FAT32 as Faraday reads sticks: "Not a FAT32 stick. Format it as
     FAT32, or use another stick";
-  - an `FARADAYBOOT` partition: "This is a boot partition. Use another
+  - a boot partition, labelled `EFI`, `bootfs` or `FARADAYBOOT`
+    (`docs/STICK-IDENTITY.md` §5.2): "This is a boot partition. Use another
     stick";
   - read-only: "Cannot be written. Use another stick";
   - too little room: "Not enough room: {needed} needed, {free} free".
@@ -854,7 +855,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   a place given a new vault, **A new vault beside them** is chosen; a
   stick bound to Place 1 inserted for Place 2 is refused; a second
   empty stick of the same label and serial needs the hold; a non-FAT,
-  read-only, full or `FARADAYBOOT` stick says why and binds nothing.
+  read-only, full or boot partition's stick says why and binds nothing.
 - **Steps 3 and 4.** New vaults are made with their own passphrases; the
   key is in every vault the plan keeps it in after one **Make the key**;
   **I do not have its passphrase** offers a new vault beside it.

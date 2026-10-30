@@ -254,7 +254,7 @@ pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
-pub use storage_api::{StickInfo, StorageCommand, StorageEvent};
+pub use storage_api::{BootMedium, StickInfo, StorageCommand, StorageEvent};
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
 };
@@ -1433,12 +1433,9 @@ impl Faraday {
             }
             StorageEvent::NotKept => self.not_kept(),
             StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None),
-            StorageEvent::Renamed {
-                stick,
-                from,
-                to,
-                refused,
-            } => self.file_renamed(&stick, &from, &to, refused),
+            e @ StorageEvent::Renamed { .. } => self.file_renamed(e),
+            e @ StorageEvent::StickNamed { .. } => self.stick_named(e),
+            StorageEvent::BootMedium(m) => self.stick.set_boot_medium(m),
             StorageEvent::Hashed { stick, name, sha } => self.file_hashed(&stick, &name, sha),
             StorageEvent::StickSpace { free, size, .. } => self.zero_space(free, size),
             StorageEvent::Zeroing {

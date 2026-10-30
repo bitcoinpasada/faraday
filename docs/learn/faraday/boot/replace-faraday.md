@@ -16,8 +16,12 @@ Faraday Starter takes the file only when it is this release's own program with a
 
 ## What the computer can see
 
+A Faraday stick has the names an ordinary stick has: its boot partition is an EFI system partition labelled EFI, and its data partition has no label, so a file manager, AutoPlay and the computer's record of the drives it has seen show it as any other stick. You may give the data partition a name when the stick is made, or on the device with Rename stick. Each stick the Starter writes has its own IDs; a stick written with another tool, such as dd or Raspberry Pi Imager, has the image's, and Faraday gives its data partition a serial of its own at its first start. Write a stick with the Starter for it to have IDs of its own throughout.
+
+Someone who opens the stick's files can still tell what it is: the settings file is named faraday-settings.txt, and the boot file carries Faraday's name and version.
+
 Plugging the stick into this computer is what exposes its data partition, whatever Faraday Starter does. The computer can read and write it, and Windows gives it a drive letter. The vaults there are encrypted with their passphrases. The settings file is not encrypted. A program on this computer could read the settings file, and could change or delete anything on the data partition.
 
 ## Where this comes from
 
-Faraday's own design: the Starter's specification (sections 3.2, 4.4 and 4.5) and decisions F2, F5, F11, F80, F128 and F133, in Faraday's repository, as of 2026-10-27.
+Faraday's own design: the Starter's specification (sections 3.2, 4.4 and 4.5) and decisions F2, F5, F11, F80, F128, F133 and F174, in Faraday's repository, as of 2026-10-30.

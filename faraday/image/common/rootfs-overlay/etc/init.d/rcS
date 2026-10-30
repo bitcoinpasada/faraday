@@ -57,6 +57,15 @@ chown ofdisk:faraday /run/faraday-disk /run/faraday-disk/requests \
     /run/faraday-disk/responses
 chmod 0750 /run/faraday-disk
 
+# The medium the machine started from (docs/STICK-IDENTITY.md §5.2). On a
+# PC, /etc/faraday/exchange says `layout`, and this finds the one USB
+# stick with a Faraday stick's layout whose boot partition holds the
+# running build, and writes its data partition's node there, or that none
+# or two were found; on the Pi it names the card already and this ends at
+# once. It gives up every capability before it reads anything. Until it
+# has written, the grant helper hands nothing out.
+/usr/bin/faraday-grant --find-boot 2>/dev/kmsg &
+
 # The grant helper starts as root and gives up all but CAP_CHOWN before it
 # reads anything. It is started once: if it dies, no stick is handed out
 # again, which fails closed.

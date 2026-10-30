@@ -410,6 +410,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         crate::learn::Topic::AirGap,
     );
+    if let Some(line) = boot_medium_line(app) {
+        y += ui.wrap_as((x, y, width), BODY_M, Role::Error, line) + SPACER;
+    }
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
         ui.fill(x, y, width, 48.0, SHAPE_M, Role::WarningContainer);
@@ -829,6 +832,17 @@ fn out_line(
         _ => (EN.files_ready, Role::Ok),
     };
     (line, state)
+}
+
+/// Files' line when the medium the PC started from is not the device's
+/// own (`docs/STICK-IDENTITY.md` §5.2): two sticks of this build were in,
+/// or the one it started from was not found. None otherwise.
+fn boot_medium_line(app: &View) -> Option<&'static str> {
+    match app.stick.boot_medium() {
+        crate::BootMedium::Known => None,
+        crate::BootMedium::Two => Some(EN.files_boot_two),
+        crate::BootMedium::NotFound => Some(EN.files_boot_not_found),
+    }
 }
 
 /// The stick, or what waits for one: the line Files shows, and what a
@@ -2009,6 +2023,9 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         EN.files_in_memory_emptied,
     );
     y += ui.advance_as(BODY_S, 26.0);
+    if let Some(line) = boot_medium_line(app) {
+        y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + t::GAP;
+    }
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
         y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));

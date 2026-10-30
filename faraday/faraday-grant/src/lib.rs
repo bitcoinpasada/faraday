@@ -6,14 +6,20 @@
 //!
 //! 1. A partition is considered only when it is a partition, never a whole
 //!    disk, and its disk is on the USB bus or is an SD card.
-//! 2. The boot partition is kept back, so the running system never gets
-//!    to rewrite its own kernel: a partition whose GPT name is `FARADAYBOOT`,
-//!    or the first partition of the Pi's own card. Both are known from
-//!    `/sys`; nothing is read from a stick (`docs/history/PLAN.md` §12, decision 8).
-//!    A boot partition is never handed to any process (F128): Faraday
-//!    writes no boot partition.
+//! 2. Every boot partition is kept back, so the running system never gets
+//!    to rewrite its own kernel nor any other stick's: the first partition
+//!    of the medium the machine started from, any partition whose GPT name
+//!    is a boot partition's (`EFI system partition`, or `FARADAYBOOT` on
+//!    a stick made before F174), and the first partition of the Pi's own
+//!    card (`docs/STICK-IDENTITY.md` §5.2). All are known from `/sys` and
+//!    the medium's record (`faraday_boot::medium`); nothing is read from
+//!    a stick for it (`docs/history/PLAN.md` §12, decision 8). A boot
+//!    partition is never handed to any process (F128): Faraday writes no
+//!    boot partition.
 //! 3. Any other partition is handed to the disk process, mode `0600`, but
-//!    only while the app's clean marker is there.
+//!    only while the app's clean marker is there, and only once the
+//!    medium the machine started from has been looked for: until its
+//!    record says what was found, nothing is handed out.
 //! 4. When the clean marker goes, every partition handed out is taken
 //!    back, and is decided again when the marker returns.
 //!
@@ -28,13 +34,20 @@
 //!
 //! The work that needs privilege is behind [`Owner`], so the decisions
 //! are tested against a stand-in `/sys` and `/dev` by a user who has none.
+//!
+//! [`Finder`] is the other half, run once at start as `faraday-grant
+//! --find-boot` (`docs/STICK-IDENTITY.md` §5.2): it finds the stick the PC
+//! started from among the USB disks with a Faraday stick's layout, by the
+//! build its boot partition holds, and writes the record the rest reads.
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
-/// The boot partition's GPT name and FAT label.
-pub const BOOT: &str = "FARADAYBOOT";
+use faraday_boot::layout::{self, Span};
+use faraday_boot::medium::Record;
 
 /// The changes of ownership the helper makes.
 pub trait Owner {
@@ -78,9 +91,48 @@ pub enum Usb {
 /// card, which has no partition names but a fixed layout.
 const PI_BOOT: &str = "mmcblk0p1";
 
-/// Whether `/sys` says this is the boot partition.
-fn is_boot(name: &str, dir: &Path) -> bool {
-    name == PI_BOOT || partname(dir).as_deref() == Some(BOOT)
+/// Whether `/sys` and the medium's record say this is a boot partition:
+/// the Pi's own card's first, one named as a boot partition is, or the
+/// first partition of the medium the machine started from.
+fn is_boot(name: &str, dir: &Path, record: &Record) -> bool {
+    name == PI_BOOT
+        || partname(dir).is_some_and(|n| layout::is_boot_name(&n))
+        || (number(dir) == Some(1) && dir.parent().is_some_and(|d| boot_disk(d, record)))
+}
+
+/// The partition's number on its disk, as `/sys` states it.
+fn number(dir: &Path) -> Option<u32> {
+    read_u64(&dir.join("partition")).and_then(|n| u32::try_from(n).ok())
+}
+
+fn read_u64(p: &Path) -> Option<u64> {
+    fs::read_to_string(p).ok()?.trim().parse().ok()
+}
+
+/// The partitions of a disk in `/sys`: each one's name, directory and
+/// number, in the order of their numbers.
+fn partitions(disk: &Path) -> Vec<(String, PathBuf, u32)> {
+    let mut out: Vec<(String, PathBuf, u32)> = fs::read_dir(disk)
+        .map(|d| {
+            d.flatten()
+                .filter_map(|e| {
+                    let dir = e.path();
+                    let n = number(&dir)?;
+                    Some((e.file_name().to_string_lossy().into_owned(), dir, n))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    out.sort_by_key(|p| p.2);
+    out
+}
+
+/// Whether the disk at `disk` in `/sys` is the medium the machine started
+/// from, as the record names it.
+fn boot_disk(disk: &Path, record: &Record) -> bool {
+    let seq = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
+    let children = partitions(disk);
+    record.is_boot_disk(children.iter().map(|c| c.0.as_str()), &seq)
 }
 
 /// What became of a partition.
@@ -101,6 +153,8 @@ pub struct Grant<O: Owner> {
     sys: PathBuf,
     dev: PathBuf,
     marker: PathBuf,
+    /// The medium's record (`/etc/faraday/exchange`), read each tick.
+    record: PathBuf,
     /// Each partition by node and disk sequence, and what was decided.
     pub decided: BTreeMap<String, (PathBuf, Decision)>,
     /// Each USB interface by name and its device's number, and what was
@@ -141,13 +195,14 @@ fn partname(dir: &Path) -> Option<String> {
 }
 
 impl<O: Owner> Grant<O> {
-    /// The helper over these roots: `/sys`, `/dev` and the clean marker
-    /// on the device.
-    pub fn new(sys: &Path, dev: &Path, marker: &Path, owner: O) -> Grant<O> {
+    /// The helper over these roots: `/sys`, `/dev`, the clean marker and
+    /// the medium's record on the device.
+    pub fn new(sys: &Path, dev: &Path, marker: &Path, record: &Path, owner: O) -> Grant<O> {
         Grant {
             sys: sys.to_path_buf(),
             dev: dev.to_path_buf(),
             marker: marker.to_path_buf(),
+            record: record.to_path_buf(),
             decided: BTreeMap::new(),
             usb: BTreeMap::new(),
             owner,
@@ -327,7 +382,10 @@ impl<O: Owner> Grant<O> {
     pub fn tick(&mut self) {
         self.usb_tick();
         self.devnodes_tick();
-        let clean = self.marker.exists();
+        let record = Record::parse(&fs::read_to_string(&self.record).unwrap_or_default());
+        // Nothing is handed out before the medium has been looked for: its
+        // boot partition could not yet be told by its place.
+        let clean = self.marker.exists() && record != Record::Waiting;
         let now = self.removable();
         // A partition gone from /sys is forgotten: its node went with it.
         self.decided
@@ -345,7 +403,7 @@ impl<O: Owner> Grant<O> {
         }
         for (id, name, node, dir) in now {
             let before = self.decided.get(&id).map(|(_, d)| *d);
-            let d = if is_boot(&name, &dir) {
+            let d = if is_boot(&name, &dir, &record) {
                 match before {
                     // Never given: root's.
                     None | Some(Decision::Boot) => Decision::Boot,
@@ -365,5 +423,177 @@ impl<O: Owner> Grant<O> {
             };
             self.decided.insert(id, (node, d));
         }
+    }
+}
+
+/// How long the set of USB disks must stay the same, once a stick of this
+/// build is among them, before the finder decides: a second stick put in
+/// with the first appears a moment later, and with two in neither is
+/// taken (`docs/STICK-IDENTITY.md` §11).
+pub const SETTLE: Duration = Duration::from_secs(3);
+
+/// How long the finder looks before it says no stick of this build is in.
+pub const GIVE_UP: Duration = Duration::from_secs(30);
+
+/// How much of a boot partition is read at a time.
+const CHUNK: usize = 1 << 20;
+
+/// A USB disk with a Faraday stick's layout.
+struct Candidate {
+    /// Its name and sequence number this boot: `sdb#7`.
+    id: String,
+    seq: String,
+    /// Its first partition's node.
+    boot: PathBuf,
+    /// Its second partition's name.
+    data: String,
+}
+
+/// The finder (`docs/STICK-IDENTITY.md` §5.2): which USB disk is the
+/// stick the machine started from, by its layout and its boot partition's
+/// release string, looked at again until it can say.
+pub struct Finder {
+    sys: PathBuf,
+    dev: PathBuf,
+    release: String,
+    /// Each candidate read, and whether it holds this build.
+    held: BTreeMap<String, bool>,
+    /// The USB disks last seen, and when that set last changed.
+    seen: Vec<String>,
+    changed: Duration,
+}
+
+impl Finder {
+    /// The finder over `/sys` and `/dev`, for the running kernel's release
+    /// string.
+    pub fn new(sys: &Path, dev: &Path, release: &str) -> Finder {
+        Finder {
+            sys: sys.to_path_buf(),
+            dev: dev.to_path_buf(),
+            release: release.trim().to_string(),
+            held: BTreeMap::new(),
+            seen: Vec::new(),
+            changed: Duration::ZERO,
+        }
+    }
+
+    /// The whole disks on the USB bus, and those among them with a
+    /// Faraday stick's layout as `/sys` states it.
+    fn disks(&self) -> (Vec<String>, Vec<Candidate>) {
+        let mut all = Vec::new();
+        let mut out = Vec::new();
+        let Ok(entries) = fs::read_dir(self.sys.join("class/block")) else {
+            return (all, out);
+        };
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            let Some(dir) = resolve(&e.path()) else {
+                continue;
+            };
+            let on_usb = dir
+                .components()
+                .any(|c| c.as_os_str().to_str().is_some_and(|s| s.starts_with("usb")));
+            if dir.join("partition").exists() || !on_usb {
+                continue;
+            }
+            let seq = fs::read_to_string(dir.join("diskseq"))
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            let id = format!("{name}#{seq}");
+            all.push(id.clone());
+            let parts = partitions(&dir);
+            let spans: Vec<Span> = parts
+                .iter()
+                .filter_map(|(_, d, _)| {
+                    Some(Span {
+                        start: read_u64(&d.join("start"))?,
+                        size: read_u64(&d.join("size"))?,
+                    })
+                })
+                .collect();
+            if spans.len() != parts.len() || !layout::is_stick(&spans) {
+                continue;
+            }
+            out.push(Candidate {
+                id,
+                seq,
+                boot: self.dev.join(&parts[0].0),
+                data: parts[1].0.clone(),
+            });
+        }
+        all.sort();
+        (all, out)
+    }
+
+    /// Costs a read of up to 64 MiB: whether the boot partition at `node`
+    /// holds the running build's release string
+    /// (`faraday_boot::holds_release`), read a piece at a time and stopped
+    /// where it is found.
+    fn holds(&self, node: &Path) -> std::io::Result<bool> {
+        let mut f = fs::File::open(node)?;
+        let keep = faraday_boot::MAX_RELEASE + 1;
+        let mut buf: Vec<u8> = Vec::with_capacity(CHUNK + keep);
+        let mut chunk = vec![0u8; CHUNK];
+        let mut read: u64 = 0;
+        while read < faraday_boot::MAX_PARTITION {
+            let n = f.read(&mut chunk)?;
+            if n == 0 {
+                break;
+            }
+            read += n as u64;
+            buf.extend_from_slice(&chunk[..n]);
+            if faraday_boot::holds_release(&buf, &self.release) {
+                return Ok(true);
+            }
+            // The tail, in case the string runs across two pieces.
+            let cut = buf.len().saturating_sub(keep);
+            buf.drain(..cut);
+        }
+        Ok(false)
+    }
+
+    /// Costs what [`Finder::holds`] costs for each candidate not read
+    /// before. One look, `now` after the finder started: the record once
+    /// it can say what was found, `None` while it cannot yet. One stick of
+    /// this build is found once the USB disks have stayed the same for
+    /// [`SETTLE`]; none, or two, once [`GIVE_UP`] has passed.
+    pub fn look(&mut self, now: Duration) -> Option<Record> {
+        let (all, candidates) = self.disks();
+        if all != self.seen {
+            self.seen = all;
+            self.changed = now;
+        }
+        // A disk gone is forgotten; one whose read failed is read again.
+        self.held
+            .retain(|id, _| candidates.iter().any(|c| &c.id == id));
+        let mut unread = false;
+        for c in &candidates {
+            if self.held.contains_key(&c.id) {
+                continue;
+            }
+            match self.holds(&c.boot) {
+                Ok(h) => {
+                    self.held.insert(c.id.clone(), h);
+                }
+                Err(_) => unread = true,
+            }
+        }
+        let found: Vec<&Candidate> = candidates
+            .iter()
+            .filter(|c| self.held.get(&c.id) == Some(&true))
+            .collect();
+        let settled = !found.is_empty() && !unread && now.saturating_sub(self.changed) >= SETTLE;
+        if !settled && now < GIVE_UP {
+            return None;
+        }
+        Some(match found.as_slice() {
+            [] => Record::NotFound,
+            [one] => Record::Found {
+                partition: one.data.clone(),
+                diskseq: Some(one.seq.clone()),
+            },
+            _ => Record::Two,
+        })
     }
 }

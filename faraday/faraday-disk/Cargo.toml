@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+# A Faraday stick's layout, the boot partitions' names and labels, and the
+# medium's record (docs/STICK-IDENTITY.md §5); std alone.
+faraday-boot = { path = "../faraday-boot" }
 faraday-fat = { path = "../faraday-fat" }
 faraday-files = { path = "../faraday-files" }
 # The words of its refusals.

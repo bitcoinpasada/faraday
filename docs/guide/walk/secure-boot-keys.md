@@ -288,7 +288,7 @@ file; it reads the file again before writing, and refuses it if it
 changed after it was chosen.
 
 Without the Starter, once the stick holds the release, copy the signed
-file over `EFI/BOOT/BOOTX64.EFI` on its boot partition, `FARADAYBOOT`
+file over `EFI/BOOT/BOOTX64.EFI` on its boot partition, the first, labelled `EFI`
 (Faraday's README, "With Secure Boot").
 
 ## 11. Start with Secure Boot on

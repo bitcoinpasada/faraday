@@ -35,8 +35,9 @@
 #   /image      faraday/image, read-only
 #
 # and from run-build.sh, in the environment: FAT_SERIAL_BOOT and
-# FAT_SERIAL_DATA, the FAT volume serials, and FARADAY_LOCALVERSION, the
-# kernel release string's suffix.
+# FAT_SERIAL_DATA, the FAT volume serials; DISK_UUID, BOOT_UUID,
+# DATA_UUID and DISK_SIGNATURE, the partition table's IDs (image-id.sh);
+# and FARADAY_LOCALVERSION, the kernel release string's suffix.
 set -euo pipefail
 
 BOARD="${BOARD:-pi3}"
@@ -233,13 +234,19 @@ for d in $board_dtbs; do
     dtb_list="$dtb_list\"$d.dtb\""
 done
 # The FAT volume serials go in where it says @FAT_SERIAL_BOOT@ and
-# @FAT_SERIAL_DATA@ (run-build.sh, fat-serial.sh).
+# @FAT_SERIAL_DATA@ (run-build.sh, fat-serial.sh), the partition table's
+# IDs where it says @DISK_UUID@, @BOOT_UUID@, @DATA_UUID@ and
+# @DISK_SIGNATURE@ (image-id.sh).
 sed -e "s|@DTBS@|$dtb_list|" \
     -e "s|@FAT_SERIAL_BOOT@|${FAT_SERIAL_BOOT:?}|g" \
     -e "s|@FAT_SERIAL_DATA@|${FAT_SERIAL_DATA:?}|g" \
+    -e "s|@DISK_UUID@|${DISK_UUID:?}|g" \
+    -e "s|@BOOT_UUID@|${BOOT_UUID:?}|g" \
+    -e "s|@DATA_UUID@|${DATA_UUID:?}|g" \
+    -e "s|@DISK_SIGNATURE@|${DISK_SIGNATURE:?}|g" \
     "$board_dir/genimage.cfg" | install_gen "$gen/genimage.cfg"
-if grep -q '@FAT_SERIAL_' "$gen/genimage.cfg"; then
-    echo "$board_dir/genimage.cfg: a FAT serial placeholder is left" >&2
+if grep -qE '@(FAT_SERIAL_[A-Z]+|DISK_UUID|BOOT_UUID|DATA_UUID|DISK_SIGNATURE)@' "$gen/genimage.cfg"; then
+    echo "$board_dir/genimage.cfg: a serial or ID placeholder is left" >&2
     exit 1
 fi
 
@@ -318,11 +325,23 @@ if [ "$DEV" != 1 ]; then
     fi
 fi
 
-# ---- /etc/faraday/exchange: which partition rcS mounts at
-# /mnt/microsd. A card has one place it can be, so the Pi names the node;
-# a stick can come up as sda or sdb, so it names the label instead and rcS
-# asks findfs which node that is.
+# ---- /etc/faraday/exchange: the data partition of the medium the
+# machine started from (docs/STICK-IDENTITY.md §5.2). A card has one
+# place it can be, so the Pi names the node; a stick can come up as sda
+# or sdb and has an ordinary stick's names, so the PC says `layout`, and
+# at start faraday-grant finds the stick by its layout and the build it
+# holds and writes the node here in its place.
+case "$board_exchange" in
+    /dev/* | layout) ;;
+    *) echo "$board_dir/board.conf: EXCHANGE is a node or layout, not '$board_exchange'" >&2; exit 1 ;;
+esac
 echo "$board_exchange" | install_gen "$gen/overlay/etc/faraday/exchange"
+
+# ---- /etc/faraday/data-serial: the data partition's FAT volume serial
+# as the image has it (fat-serial.sh). A stick written by another tool
+# keeps it, so at its first start the disk process gives the partition
+# its own (docs/STICK-IDENTITY.md §7).
+echo "${FAT_SERIAL_DATA:?}" | install_gen "$gen/overlay/etc/faraday/data-serial"
 
 # ---- the dev variant's inittab, which is the release one plus a getty on
 # the board's console tty. The tty is the board's — ttyAMA0 on a Pi,

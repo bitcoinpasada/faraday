@@ -170,14 +170,19 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &none);
         y += ui.advance_as(BODY_S, 28.0);
     }
-    // Delete files: the one way into deleting from the stick.
+    // Delete files: the one way into deleting from the stick; and the
+    // stick's own name (`docs/STICK-IDENTITY.md` §6).
+    let rename = fill(EN.stick_name_button, &[app.medium.noun()]);
     y += wrap_buttons(
         ui,
         x,
         y,
         w,
         BUTTON_H,
-        &[(EN.visit_delete_files, Style::Ghost, Action::DeleteFiles)],
+        &[
+            (EN.visit_delete_files, Style::Ghost, Action::DeleteFiles),
+            (&rename, Style::Ghost, NAME_STICK),
+        ],
     );
     let nin = app.visit.inn.len();
     let enabled = nin > 0;
@@ -426,6 +431,23 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &label);
         ui.press_box(chx, chy, wdt, 32.0, Action::VisitStick(k));
         chx -= 8.0;
+    }
+    // The chosen stick's own name, left of the sticks' chips
+    // (`docs/STICK-IDENTITY.md` §6).
+    if !app.stick.is_empty() {
+        use faraday_draw::tokens::{BUTTON_PAD, GAP_SMALL};
+        let rename = fill(EN.stick_name_button, &[app.medium.noun()]);
+        let bw = ui.measure_as(LABEL_L, &rename) + BUTTON_PAD + BUTTON_PAD;
+        let at = chx - bw;
+        ui.button(
+            at,
+            chy - GAP_SMALL,
+            Some(bw),
+            BUTTON_H,
+            &rename,
+            Style::Ghost,
+            NAME_STICK,
+        );
     }
     y += 64.0;
     y += guide_text_learn(
@@ -1007,3 +1029,6 @@ fn visit_list_bar(
         );
     }
 }
+
+/// The visit's Rename stick: the popup for the stick's own name.
+const NAME_STICK: Action = Action::File(crate::file_menu::FilePress::NameStick);

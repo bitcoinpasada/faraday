@@ -386,6 +386,15 @@ impl Shell {
                     });
                     app.storage(StorageEvent::Sticks(self.infos()));
                 }
+                StorageCommand::NameStick { stick, label } => {
+                    self.disk_mut(&stick).label = label.clone();
+                    app.storage(StorageEvent::StickNamed {
+                        stick,
+                        label,
+                        refused: None,
+                    });
+                    app.storage(StorageEvent::Sticks(self.infos()));
+                }
                 StorageCommand::Hash { stick, name } => {
                     let sha = self
                         .disk(&stick)

@@ -27,6 +27,12 @@ faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-keys = { path = "../faraday-keys" }
+# The boot partitions' names and labels, which a backup refuses
+# (docs/STICK-IDENTITY.md §5.2); std alone.
+faraday-boot = { path = "../faraday-boot" }
+# The rules of a FAT volume's name, which Rename stick checks as it is
+# typed (docs/STICK-IDENTITY.md §6); no_std, no dependency.
+faraday-fat = { path = "../faraday-fat" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]

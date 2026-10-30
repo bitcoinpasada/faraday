@@ -18,7 +18,7 @@ with different boards:
 | What the firmware runs | `zImage`, named in `config.txt` | `EFI/BOOT/BOOTX64.EFI`, which is the kernel |
 | The display | the panel the firmware sets up, 480×640 at 286 dpi; on the HDMI image, the screen vc4 drives at its EDID's mode | whatever the firmware left running, read from sysfs |
 | Input | the Goodix touch controller; on a Compatible image also USB keyboards, mice and touchscreens | the built-in keyboard and touchpad, USB keyboards and mice, a HID touchscreen |
-| Files | the card's `FARADAYDATA` partition, at `/mnt/microsd` | the stick's `FARADAYDATA` partition at `/mnt/microsd`, and every FAT partition on every other USB disk, at `/mnt/usb/<label>` |
+| Files | the card's data partition, at `/mnt/microsd` | the stick's data partition at `/mnt/microsd`, and every FAT partition on every other USB disk, at `/mnt/usb/<label>` |
 | The image | `out/pi/faraday-pi3-waveshare-28dpi.img` (Strict), `-compatible.img`, `out/pi/faraday-pi3-hdmi-compatible.img` | `out/stick/faraday-x86_64-uefi-strict.img` |
 
 Nothing here is shared with any other project.
@@ -151,7 +151,7 @@ A directory under `boards/` with three fragments and a `board.conf`:
   | `FIRMWARE` | `rpi` if the firmware reads `config.txt` and `cmdline.txt` off the boot partition; `none` otherwise |
   | `CMDLINE` | `file` if the firmware passes the kernel its command line; `kernel` if the line is compiled in (`CONFIG_CMDLINE_OVERRIDE`) |
   | `DTBS` | the device trees that go on the boot partition and into `BR2_LINUX_KERNEL_INTREE_DTS_NAME`; absent on a machine described by ACPI |
-  | `EXCHANGE` | the partition `rcS` mounts at `/mnt/microsd`: a node, or `LABEL=FARADAYDATA` for a medium whose node name is not fixed |
+  | `EXCHANGE` | the data partition of the medium the machine started from, written to `/etc/faraday/exchange`: a node, or `layout` for a stick, which `faraday-grant --find-boot` finds at start by its layout and the build it holds (`docs/STICK-IDENTITY.md` §5.2) |
   | `CONSOLE_TTY` | where the dev variant's getty runs |
   | `IMAGE` | what this board's `genimage.cfg` calls the finished image |
 
@@ -236,7 +236,7 @@ the serial port and the root password is empty; and the app is started with
 `--verbose --timings --boot-report`, so it says what it found and records
 what its loop and its costly work cost and what the board reports.
 
-`--timings` writes `faraday-timings.txt` onto the `FARADAYDATA` partition,
+`--timings` writes `faraday-timings.txt` onto the data partition,
 through the disk process since the image mounts nothing: the whole file
 every 30 seconds and once at exit, which a pulled stick may miss, so wait
 half a minute after the last thing to measure. It holds one block for
@@ -291,7 +291,7 @@ To collect a run: boot the card, scroll the Settings list for ten seconds,
 open the scanner and point the camera at anything that is not a QR code for ten seconds (a code is decoded at once and the scanner stops),
 open Learn and scroll a page, then go to Settings → Wipe and exit. The
 device powers itself off after the last block is written. Put the card in
-a computer and read `faraday-timings.txt` from the `FARADAYDATA`
+a computer and read `faraday-timings.txt` from the data
 partition; it is plain text, one number per column, so it reads on a
 phone. **It never goes on a card that signs
 anything.** It exists because the release image has no way in at all, which
@@ -305,7 +305,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/DECISIONS.md` F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
 | C library | musl, static only. BusyBox is the one package Buildroot builds for the target, so there is no shared library in the image at all |
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
-| Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, `findfs` on the stick, and `/usr/bin/faraday`. No `/lib/*.so` |
+| Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |
 | The binary | Built on the host by `just faraday-pi-bin` with the board's toolchain, as a static executable, and installed by `package/faraday`. Buildroot never builds Rust |
 | Overlays | For `waveshare-28dpi`, Waveshare's own `28DPI-DTBO` pack, downloaded at a pinned sha256 |
 
@@ -530,13 +530,13 @@ are a way around that.
 
 Two FAT partitions, both `0x0C`:
 
-1. **boot**, 64 MiB, FAT16, holding about 16 MB. What the Pi firmware reads: `bootcode.bin`,
+1. **boot**, 64 MiB, FAT16, labelled `bootfs` as Raspberry Pi OS's is, holding about 16 MB. What the Pi firmware reads: `bootcode.bin`,
    `start_x.elf`, `fixup_x.dat`, `config.txt`, `cmdline.txt`, `zImage`,
    `overlays/`, and the board's device trees — `bcm2710-rpi-3-b.dtb` and
    `bcm2710-rpi-3-b-plus.dtb` for `pi3`, from its `board.conf`.
    `boards/pi3/genimage.cfg` is the template; `build.sh` fills the device
    trees in.
-2. **exchange**, 128 MiB, FAT32, labelled `FARADAYDATA`, holding one `README.txt` that
+2. **exchange**, 128 MiB, FAT32, with no label, holding one `README.txt` that
    says what it is for. Init mounts it at `/mnt/microsd`
    (`flush,noexec,nosuid,nodev,uid=200,gid=200,umask=077`), and it is the
    file channel: a `.psbt` put
@@ -545,19 +545,25 @@ Two FAT partitions, both `0x0C`:
    repartitioned still boots into the app.
 
 There is no root filesystem partition, and nothing but this partition is
-read or written after boot. The boot partition is never mounted.
+read or written after boot. The boot partition is never mounted. The
+card's MBR disk signature is made from the commit date and its role
+(`image-id.sh`), as the FAT serials are (`fat-serial.sh`); the Starter
+gives each card it writes its own (`docs/STICK-IDENTITY.md` §4).
 
 ### The stick
 
 GPT, because that is what a UEFI firmware looks for on a removable disk,
 and because the EFI system partition is a GPT partition type. Two
-partitions, 1 MB-aligned, with fixed UUIDs so that two builders get the
-same bytes. The UUIDs spell "Faraday-Stick" in ASCII hex and end in a
-number: the disk `46617261-6461-792D-5374-69636B000000`, the boot
-partition `…000001` and the data partition `…000002`. The partitions'
-GPT names are their FAT labels, `FARADAYBOOT` and `FARADAYDATA`:
+partitions, 1 MB-aligned, with the names an ordinary stick has (F174,
+`docs/STICK-IDENTITY.md` §3) and given UUIDs, so that two builders get
+the same bytes: `image-id.sh` makes the disk's and each partition's from
+the commit date and its role, in the form of version 4 UUIDs, so they
+spell nothing and differ from one release to the next. The Starter gives
+each stick it writes its own (§4.2); a stick written by another tool
+keeps these, and its data partition gets a FAT serial of its own at its
+first start (§7). Nothing in Faraday knows the stick by its names or IDs:
 
-1. **FARADAYBOOT**, 64 MiB, the EFI system partition, FAT32, labelled `FARADAYBOOT`,
+1. **EFI system partition** (its GPT name), 64 MiB, FAT32, labelled `EFI`,
    bootable,
    holding exactly one file: `EFI/BOOT/BOOTX64.EFI`. That file is the
    kernel. `CONFIG_EFI_STUB` makes `bzImage` a PE/COFF application with
@@ -571,9 +577,16 @@ GPT names are their FAT labels, `FARADAYBOOT` and `FARADAYDATA`:
    clusters: `mkfs.fat` makes a smaller one anyway, with a warning, and
    OVMF refuses to mount it — which shows up as "failed to load ... Not
    Found" and no boot at all. At 64 MiB it has 129022.
-2. **FARADAYDATA**, 128 MiB, FAT32, labelled `FARADAYDATA`, the same partition and
-   the same note as the Pi's. `rcS` finds it with `findfs LABEL=FARADAYDATA`, because
-   the stick is `sda` on one machine and `sdb` on the next.
+2. **Basic data partition** (its GPT name), 128 MiB, FAT32, with no
+   label, the same partition and the same note as the Pi's. The stick is
+   `sda` on one machine and `sdb` on the next, so at start
+   `faraday-grant --find-boot` looks among the USB disks for the one with
+   this layout (§5.1) whose boot partition holds the running kernel's
+   release string (`faraday_boot::holds_release`), and writes its data
+   partition's node to `/etc/faraday/exchange`. Where none or two are
+   found it writes `none` or `two`: no data partition is the device's
+   own, and Files says which. Until it has written, no partition is handed
+   out.
 
 The image is 193 MiB and 20 KiB: 1 MiB before the first partition, the
 two partitions, and the backup GPT. A stick or card made before F80 has
@@ -583,10 +596,15 @@ the Starter's keep data refuses to write a
 64 MiB boot partition onto it, so its files are moved to a new stick by
 hand.
 
-No partition labelled `FARADAYBOOT` is handed to the app on any
-medium: that is a Faraday stick's EFI system partition, which holds the
-kernel and is the firmware's. `faraday-grant` keeps it root's and
-`faraday-disk` refuses it by its FAT label (`docs/history/PLAN.md` §4.3).
+No boot partition is handed to the app on any medium
+(`docs/STICK-IDENTITY.md` §5.2): `faraday-grant` keeps root's the first
+partition of the medium the machine started from, the Pi's own card's
+first, and every partition whose GPT name is `EFI system partition` (or
+`FARADAYBOOT`, on a stick made before F174), and `faraday-disk` refuses
+the same and any FAT volume labelled `EFI`, `bootfs` or `FARADAYBOOT`, in
+its boot sector or its root directory (`docs/history/PLAN.md` §4.3). That
+keeps back any stick's EFI system partition, which fails closed: Faraday
+writes no boot partition (F128).
 
 ## The USB stick on a laptop
 
@@ -624,7 +642,7 @@ controller, on an i2c bus, or speaking PS/2 or RMI over the SMBus; USB
 keyboards, mice and HID touchscreens, including ones plugged in after the
 app is up, which the shell finds within a couple of seconds; a USB
 webcam, as a V4L2 device the scanner opens; and the file channel, which
-is the `FARADAYDATA` partition on the stick itself at `/mnt/microsd` plus
+is the data partition on the stick itself at `/mnt/microsd` plus
 every FAT partition on every other USB disk, plugged in before or after
 boot, at `/mnt/usb/<label>`.
 
@@ -653,7 +671,7 @@ boot, at `/mnt/usb/<label>`.
 Build the dev variant (`just dev=1 faraday-stick-image`) and boot that. It puts
 the kernel console on the screen as well as on `ttyS0`, so the boot is
 visible on a machine with no serial port, and the app keeps
-`faraday-boot-report.txt` on the stick's `FARADAYDATA` partition: written
+`faraday-boot-report.txt` on the stick's data partition: written
 as soon as the stick is listed at boot, written again whole every 30
 seconds while the app runs, and once more when it ends. The file is the
 kernel log (`dmesg`, which includes the app's own error output), then the

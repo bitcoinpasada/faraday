@@ -15,6 +15,11 @@
 //! **Rename** is a popup: the name before its extension in a field, the
 //! extension fixed after it. **Details** is a sheet: the name, the row's
 //! kind line, the size in bytes and the SHA-256 in groups of eight.
+//!
+//! **Rename stick**, the visit's button by the sticks' chips, is the same
+//! popup for the stick's own name (`docs/STICK-IDENTITY.md` §6): its FAT
+//! label, at most 11 characters, written in capitals, the line under the
+//! field saying how it is written; an empty name takes the label away.
 
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
@@ -61,6 +66,8 @@ pub enum FilePress {
     /// **Delete from the stick**: the Delete files sheet with this file
     /// on the stick alone chosen.
     StickDelete(usize),
+    /// The visit's **Rename stick**: the popup for the stick's own name.
+    NameStick,
 }
 
 /// The Rename popup's field, as the caret and the on-screen keyboard
@@ -97,11 +104,20 @@ pub struct FileMenu {
     pub anchor: Option<(i32, i32, i32, i32)>,
 }
 
+/// What the Rename popup names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Named {
+    /// A file, by its row.
+    File(Row),
+    /// The stick of this id: its volume's own name.
+    Stick(String),
+}
+
 /// The Rename popup.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Renaming {
-    /// The file renamed.
-    pub row: Row,
+    /// What is renamed.
+    pub what: Named,
     /// Its name now.
     pub from: String,
     /// What the field holds: the name before its extension.
@@ -326,7 +342,7 @@ impl Faraday {
                 };
                 let (stem, ext) = split(&from);
                 self.visit.files_menu_mut().renaming = Some(Renaming {
-                    row,
+                    what: Named::File(row),
                     from,
                     stem,
                     ext,
@@ -335,6 +351,31 @@ impl Faraday {
                 self.scroll.reset_sheet();
             }
             FilePress::Field => {}
+            FilePress::NameStick => {
+                let Some(s) = self.stick.get(self.visit.stick) else {
+                    return;
+                };
+                // The field starts with the stick's name where it has one
+                // FAT holds as it reads; a stick shown by its partition's
+                // name or its node starts empty.
+                let named = faraday_fat::label_bytes(&s.label)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|b| b.trim_ascii_end() == s.label.as_bytes());
+                let from = if named {
+                    s.label.clone()
+                } else {
+                    String::new()
+                };
+                self.visit.files_menu_mut().renaming = Some(Renaming {
+                    what: Named::Stick(s.id.clone()),
+                    stem: from.clone(),
+                    from,
+                    ext: String::new(),
+                });
+                self.sheet = Some(Sheet::Rename);
+                self.scroll.reset_sheet();
+            }
             FilePress::RenameGo => self.file_rename_go(),
             FilePress::Details(row) => {
                 let Some((name, size, kind)) = self.file_row(row) else {
@@ -431,6 +472,9 @@ impl Faraday {
         let Some(r) = self.visit.files_menu().renaming.as_ref() else {
             return Err(None);
         };
+        if matches!(r.what, Named::Stick(_)) {
+            return stick_name_checked(&r.stem, &r.from);
+        }
         let stem = r.stem.trim();
         if stem.is_empty() {
             return Err(Some(EN.rename_empty.to_string()));
@@ -451,7 +495,7 @@ impl Faraday {
         if to == r.from {
             return Err(None);
         }
-        if let Row::Out(k) = r.row
+        if let Named::File(Row::Out(k)) = r.what
             && self
                 .outbox
                 .iter()
@@ -477,8 +521,13 @@ impl Faraday {
             return;
         };
         self.sheet = None;
-        match r.row {
-            Row::Out(k) => {
+        match r.what {
+            Named::Stick(stick) => {
+                self.out
+                    .storage_out
+                    .push_back(StorageCommand::NameStick { stick, label: to });
+            }
+            Named::File(Row::Out(k)) => {
                 let Some(item) = self.outbox.get_mut(k) else {
                     return;
                 };
@@ -498,7 +547,7 @@ impl Faraday {
                 }
                 self.save_boxes();
             }
-            Row::Stick(_) => {
+            Named::File(Row::Stick(_)) => {
                 if let Some(s) = self.stick.get(self.visit.stick) {
                     self.out.storage_out.push_back(StorageCommand::Rename {
                         stick: s.id.clone(),
@@ -507,7 +556,7 @@ impl Faraday {
                     });
                 }
             }
-            Row::In(_) => {}
+            Named::File(Row::In(_)) => {}
         }
     }
 
@@ -515,13 +564,17 @@ impl Faraday {
     /// stays chosen under its new name, and a backup's copy is named
     /// anew (`docs/FLOWS.md` decision 61 items 4 and 6). The listing is
     /// the shell's next.
-    pub(crate) fn file_renamed(
-        &mut self,
-        stick: &str,
-        from: &str,
-        to: &str,
-        refused: Option<Unrenamed>,
-    ) {
+    pub(crate) fn file_renamed(&mut self, e: crate::StorageEvent) {
+        let crate::StorageEvent::Renamed {
+            stick,
+            from,
+            to,
+            refused,
+        } = e
+        else {
+            return;
+        };
+        let (stick, from, to) = (stick.as_str(), from.as_str(), to.as_str());
         let noun = self.medium.noun();
         let line = match refused {
             None => {
@@ -541,6 +594,22 @@ impl Faraday {
             Some(Unrenamed::Taken) => (fill(EN.rename_taken_on_medium, &[to, noun]), false),
             Some(Unrenamed::SameVault) => (fill(EN.rename_same_vault, &[to, noun]), false),
             Some(Unrenamed::Failed(why)) => (fill(EN.rename_not_done, &[from, &why]), false),
+        };
+        self.visit.log.push(line);
+    }
+
+    /// A stick named, or its name taken away, or refused
+    /// ([`StorageCommand::NameStick`]): the visit says so. The listing
+    /// with its new name is the shell's next.
+    pub(crate) fn stick_named(&mut self, e: crate::StorageEvent) {
+        let crate::StorageEvent::StickNamed { label, refused, .. } = e else {
+            return;
+        };
+        let noun = self.medium.noun();
+        let line = match refused {
+            None if label.is_empty() => (fill(EN.stick_name_removed, &[noun]), true),
+            None => (fill(EN.stick_name_done, &[noun, &label]), true),
+            Some(why) => (fill(EN.stick_name_not_done, &[&why]), false),
         };
         self.visit.log.push(line);
     }
@@ -722,7 +791,10 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(r) = app.visit.files_menu().renaming.as_ref() else {
         return;
     };
-    let title = fill(EN.rename_title, &[&r.from]);
+    let title = match r.what {
+        Named::Stick(_) => fill(EN.stick_name_button, &[app.medium.noun()]),
+        Named::File(_) => fill(EN.rename_title, &[&r.from]),
+    };
     let checked = app.rename_checked();
     let (place, margin, pad) = place(ui, w, 480.0);
     scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
@@ -760,6 +832,18 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += fh + tokens::GAP_SMALL;
         if let Err(Some(why)) = &checked {
             cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, why) + tokens::GAP_SMALL;
+        }
+        // A stick's name as FAT writes it, where that is not as typed.
+        if let (Named::Stick(_), Ok(to)) = (&r.what, &checked) {
+            let line = if to.is_empty() {
+                EN.stick_name_none.to_string()
+            } else {
+                fill(EN.stick_name_written_as, &[to])
+            };
+            if to.is_empty() || to != r.stem.trim_matches(' ') {
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurfaceVariant, &line)
+                    + tokens::GAP_SMALL;
+            }
         }
         cy += tokens::GAP_SMALL;
         let go = Style::Primary.when(checked.is_ok());
@@ -828,4 +912,28 @@ pub(crate) fn details_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         cy - y
     });
+}
+
+/// Why the Rename popup's name for a stick cannot be used, as its line;
+/// `Err(None)` for the name unchanged; else the name as FAT writes it, in
+/// capitals, empty for none (`docs/STICK-IDENTITY.md` §6). A boot
+/// partition's name is refused: a volume so named is never handed out.
+fn stick_name_checked(typed: &str, from: &str) -> Result<String, Option<String>> {
+    let bytes = match faraday_fat::label_bytes(typed) {
+        Ok(b) => b,
+        Err(faraday_fat::Error::Name(faraday_fat::BadName::Long)) => {
+            return Err(Some(EN.stick_name_long.to_string()));
+        }
+        Err(_) => return Err(Some(EN.stick_name_character.to_string())),
+    };
+    if bytes.is_some_and(|b| faraday_boot::layout::is_boot_label(&b)) {
+        return Err(Some(EN.stick_name_boot.to_string()));
+    }
+    let to = bytes.map_or_else(String::new, |b| {
+        String::from_utf8_lossy(b.trim_ascii_end()).into_owned()
+    });
+    if to == from {
+        return Err(None);
+    }
+    Ok(to)
 }

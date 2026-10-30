@@ -1,8 +1,8 @@
 # A stick that does not say it is Faraday's
 
 **Kind:** Spec
-**Status:** Specified (F174), not built
-**Open:** all of it: the names (§3), each stick's own IDs and the check after writing (§4), knowing a stick by its layout (§5), naming the data partition (§6), the first start of a stick written by another tool (§7), Learn (§8)
+**Status:** Specified (F174); the image and the device built (§3, §4.1, §5.1, §5.2, §6 on the device, §7, §8)
+**Open:** the Starter: each stick's own IDs and the check after writing (§4.2 to §4.4), knowing a stick by its layout (§5.3), the Name field (§6); the checks of §3 (what each system shows for a data partition with no label) and §10 (two sticks in the Windows 11 virtual machine)
 
 A Faraday stick or Pi card has partitions with the same names as any
 other stick or card, its own IDs, and nothing in Faraday that finds it

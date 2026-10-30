@@ -5,7 +5,8 @@ use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 
-use faraday_grant::{Decision, Grant, Owner};
+use faraday_boot::medium::Record;
+use faraday_grant::{Decision, Finder, GIVE_UP, Grant, Owner, SETTLE};
 
 /// Who owns each node, as the helper left it.
 #[derive(Default)]
@@ -100,7 +101,16 @@ impl Machine {
         fs::create_dir_all(root.join("sys/class/block")).unwrap();
         fs::create_dir_all(root.join("dev")).unwrap();
         fs::create_dir_all(root.join("run")).unwrap();
-        Machine { root }
+        let m = Machine { root };
+        // The finder has looked and found no stick of this build, unless
+        // a test says otherwise.
+        m.record("none\n");
+        m
+    }
+
+    /// The medium's record, as the finder or the image wrote it.
+    fn record(&self, text: &str) {
+        fs::write(self.root.join("run/exchange"), text).unwrap();
     }
 
     fn clean(&self, on: bool) {
@@ -116,9 +126,30 @@ impl Machine {
     /// (GPT name, boot sector), linked from class/block as the kernel
     /// does, by a relative link.
     fn disk(&self, bus: &str, disk: &str, parts: &[(&str, Vec<u8>)]) {
+        let spans: Vec<(u64, u64)> = (0..parts.len() as u64)
+            .map(|k| (2048 + k * 4096, 4096))
+            .collect();
+        self.disk_laid(bus, disk, "4", parts, &spans);
+    }
+
+    /// A disk as [`Machine::disk`] makes one, with its sequence number and
+    /// each partition's start and size in sectors.
+    fn disk_laid(
+        &self,
+        bus: &str,
+        disk: &str,
+        seq: &str,
+        parts: &[(&str, Vec<u8>)],
+        spans: &[(u64, u64)],
+    ) {
         let d = self.root.join("sys/devices").join(bus).join(disk);
         fs::create_dir_all(&d).unwrap();
-        fs::write(d.join("diskseq"), "4\n").unwrap();
+        fs::write(d.join("diskseq"), format!("{seq}\n")).unwrap();
+        symlink(
+            PathBuf::from("../../devices").join(bus).join(disk),
+            self.root.join("sys/class/block").join(disk),
+        )
+        .unwrap();
         for (k, (partname, head)) in parts.iter().enumerate() {
             // The kernel puts a `p` between a disk name ending in a digit
             // and the partition number.
@@ -130,7 +161,9 @@ impl Machine {
             let node = format!("{disk}{p}{}", k + 1);
             let part = d.join(&node);
             fs::create_dir_all(&part).unwrap();
-            fs::write(part.join("partition"), "1\n").unwrap();
+            fs::write(part.join("partition"), format!("{}\n", k + 1)).unwrap();
+            fs::write(part.join("start"), format!("{}\n", spans[k].0)).unwrap();
+            fs::write(part.join("size"), format!("{}\n", spans[k].1)).unwrap();
             fs::write(part.join("uevent"), format!("PARTNAME={partname}\n")).unwrap();
             let rel = PathBuf::from("../../devices")
                 .join(bus)
@@ -146,8 +179,36 @@ impl Machine {
             &self.root.join("sys"),
             &self.root.join("dev"),
             &self.root.join("run/clean"),
+            &self.root.join("run/exchange"),
             owners,
         )
+    }
+
+    /// A stick written from a Faraday image of build `release` (or an
+    /// ordinary stick with `None`): a Faraday stick's layout, the names an
+    /// ordinary stick has, and the release string in its boot partition.
+    fn stick(&self, port: &str, disk: &str, seq: &str, release: Option<&str>) {
+        let mut boot = sector("EFI");
+        boot.resize(3 << 20, 0x80);
+        if let Some(r) = release {
+            let at = 1_500_000;
+            let text = format!("\0{r} (user@host) #1 SMP\0");
+            boot[at..at + text.len()].copy_from_slice(text.as_bytes());
+        }
+        self.disk_laid(
+            &format!("pci0/usb1/{port}/host0/block"),
+            disk,
+            seq,
+            &[
+                ("EFI system partition", boot),
+                ("Basic data partition", sector("NO NAME")),
+            ],
+            &[(2048, 131_072), (133_120, 262_144)],
+        );
+    }
+
+    fn finder(&self, release: &str) -> Finder {
+        Finder::new(&self.root.join("sys"), &self.root.join("dev"), release)
     }
 }
 
@@ -410,4 +471,127 @@ fn a_keyboard_or_camera_plugged_in_later_can_be_read_by_the_app() {
     assert_eq!(owners.assigned.get("video0"), Some(&(0, 200)));
     assert_eq!(owners.assigned.get("mice"), None);
     assert_eq!(owners.assigned.get("video-not"), None);
+}
+
+const RELEASE: &str = "6.18.56-faraday-0.1.9+4d0680b1a2b3.test";
+
+/// The finder's answer once the disks have settled.
+fn settled(f: &mut Finder) -> Record {
+    assert_eq!(f.look(std::time::Duration::ZERO), None);
+    f.look(SETTLE).expect("decided once settled")
+}
+
+#[test]
+fn the_pc_finds_the_one_stick_of_its_own_build() {
+    let m = Machine::new("find-one");
+    // The stick it started from, a stick of another build, and an
+    // ordinary stick with the same layout.
+    m.stick("1-1", "sda", "3", Some("6.18.56-faraday-0.1.8"));
+    m.stick("1-2", "sdb", "5", Some(RELEASE));
+    m.stick("1-3", "sdc", "6", None);
+    let mut f = m.finder(RELEASE);
+    assert_eq!(
+        settled(&mut f),
+        Record::Found {
+            partition: "sdb2".into(),
+            diskseq: Some("5".into())
+        }
+    );
+}
+
+#[test]
+fn two_sticks_of_its_build_are_neither_and_none_is_said() {
+    let m = Machine::new("find-two");
+    m.stick("1-1", "sda", "3", Some(RELEASE));
+    m.stick("1-2", "sdb", "5", Some(RELEASE));
+    assert_eq!(settled(&mut m.finder(RELEASE)), Record::Two);
+
+    let m = Machine::new("find-none");
+    m.stick(
+        "1-1",
+        "sda",
+        "3",
+        Some("6.18.56-faraday-0.1.9+4d0680b1a2b3.dev"),
+    );
+    // A disk of the build but another layout is not a Faraday stick.
+    m.disk(
+        "pci0/usb1/1-4/block",
+        "sdd",
+        &[("EFI system partition", {
+            let mut b = sector("EFI");
+            b.extend_from_slice(format!("\0{RELEASE}\0").as_bytes());
+            b
+        })],
+    );
+    let mut f = m.finder(RELEASE);
+    assert_eq!(f.look(SETTLE), None);
+    assert_eq!(f.look(GIVE_UP), Some(Record::NotFound));
+}
+
+#[test]
+fn a_second_stick_put_in_while_settling_is_waited_for() {
+    let m = Machine::new("find-late");
+    m.stick("1-1", "sda", "3", Some(RELEASE));
+    let mut f = m.finder(RELEASE);
+    assert_eq!(f.look(std::time::Duration::ZERO), None);
+    m.stick("1-2", "sdb", "5", Some(RELEASE));
+    assert_eq!(f.look(SETTLE), None);
+    assert_eq!(f.look(SETTLE * 2), Some(Record::Two));
+}
+
+#[test]
+fn every_boot_partition_is_kept_back_and_nothing_goes_before_the_medium_is_known() {
+    let m = Machine::new("keep");
+    // The stick it started from, whose first partition someone renamed;
+    // another Faraday stick; an ordinary stick with an EFI system
+    // partition; and a stick made before F174.
+    m.stick("1-1", "sda", "4", Some(RELEASE));
+    m.stick("1-2", "sdb", "4", Some("6.18.56-faraday-0.1.8"));
+    m.disk(
+        "pci0/usb1/1-3/block",
+        "sdc",
+        &[
+            ("EFI system partition", sector("EFI")),
+            ("Basic data partition", sector("PHOTOS")),
+        ],
+    );
+    m.disk(
+        "pci0/usb1/1-4/block",
+        "sde",
+        &[
+            ("FARADAYBOOT", sector("FARADAYBOOT")),
+            ("FARADAYDATA", sector("FARADAYDATA")),
+        ],
+    );
+    fs::write(
+        m.root
+            .join("sys/devices/pci0/usb1/1-1/host0/block/sda/sda1/uevent"),
+        "PARTNAME=\n",
+    )
+    .unwrap();
+    m.clean(true);
+    let mut owners = Owners::default();
+    {
+        // Not looked for yet: nothing at all is handed out.
+        m.record("layout\n");
+        let mut g = m.grant(&mut owners);
+        g.tick();
+        for (id, (_, d)) in &g.decided {
+            assert_ne!(*d, Decision::Handed, "{id}");
+        }
+        m.record("/dev/sda2 4\n");
+        g.tick();
+        let state = |id: &str| g.decided[id].1;
+        for boot in ["sda1#4", "sdb1#4", "sdc1#4", "sde1#4"] {
+            assert_eq!(state(boot), Decision::Boot, "{boot}");
+        }
+        for data in ["sda2#4", "sdb2#4", "sdc2#4", "sde2#4"] {
+            assert_eq!(state(data), Decision::Handed, "{data}");
+        }
+    }
+    // None was ever the helper's or the disk process's: root's throughout.
+    for node in ["sda1", "sdb1", "sdc1", "sde1"] {
+        let owner = owners.by_node.get(node).copied();
+        assert!(matches!(owner, None | Some("root")), "{node}: {owner:?}");
+    }
 }

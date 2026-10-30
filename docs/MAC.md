@@ -207,9 +207,10 @@ A new board, faraday/image/boards/arm64-apple/, beside
 `kernel.required`, `kernel.forbidden`, `cmdline.txt`, `genimage.cfg`,
 `board.conf`, `buildroot.fragment`).
 
-- **Layout:** as the PC stick: GPT, FARADAYBOOT (FAT32, ESP type) holding
-  only `EFI/BOOT/BOOTAA64.EFI`, then FARADAYDATA. Same partition names and
-  sizes, so `faraday-grant`, `faraday-disk` and the Starter's keep data
+- **Layout:** as the PC stick (`docs/STICK-IDENTITY.md` §5.1): GPT, an
+  EFI system partition (FAT32, labelled `EFI`) holding only
+  `EFI/BOOT/BOOTAA64.EFI`, then the data partition, with no label. The
+  same names and sizes, so `faraday-grant`, `faraday-disk` and the Starter's keep data
   work unchanged. The image is
   `faraday-stick-X.Y.Z-arm64-apple.img.xz`.
 - **Kernel:** mainline, pinned to one release that has what Apple
@@ -441,7 +442,7 @@ exit through the SMC.
 
 A stick is upgraded with the Starter's *Replace Faraday, keep data*
 (F128). It refuses to write one kind's boot partition over the
-other's: it reads which EFI file the stick's FARADAYBOOT holds
+other's: it reads which EFI file the stick's boot partition holds
 (`BOOTX64.EFI` or `BOOTAA64.EFI`) through `faraday-fat`.
 
 With my own key, every release's `BOOTAA64.EFI` is signed by the owner

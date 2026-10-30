@@ -352,6 +352,25 @@ fn an_unusable_stick_says_why_and_binds_nothing() {
     }
 }
 
+/// A second Faraday stick, plugged in after the device started from
+/// another, is not the boot medium (`docs/STICK-IDENTITY.md` §5.2): the
+/// disk process lists its data partition, with no label, as any stick's,
+/// and the backup flow takes it as a stick.
+#[test]
+fn a_second_faraday_stick_is_a_stick_for_a_backup() {
+    let mut shell = Shell::new();
+    shell.add(Disk::empty("S1", "Basic data partition"));
+    let mut app = started(Kind::Gpg);
+    through_where(&mut shell, &mut app);
+    shell.plug(&mut app, "S1");
+    assert!(
+        !has_part(&mut app, "This is a boot partition"),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert!(offered(&mut app, Action::Flow(F::Tap)));
+}
+
 #[test]
 fn new_vaults_have_their_own_passphrases_and_the_key_is_in_every_one() {
     let mut shell = Shell::new();

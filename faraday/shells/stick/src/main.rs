@@ -74,7 +74,7 @@
 //! has no `unsafe` of its own. `--no-camera` refuses, which is how the
 //! file fallback is exercised on a build box that has a webcam.
 //!
-//! Files (§16.16): the boot medium's `FARADAYDATA` partition is mounted at
+//! Files (§16.16): the boot medium's data partition is mounted at
 //! `/mnt/microsd` by init, every other FAT partition on a USB disk under
 //! `/mnt/usb`, and `--files DIR` points the channel at one directory on
 //! a build box. A `RequestFile` is answered with every file in every
@@ -140,9 +140,10 @@ use std::time::{Duration, Instant};
 
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
+use faraday_boot::medium::Record;
 use faraday_core::strings::{EN, fill};
 use faraday_core::{
-    Faraday, Medium, Mode, STICK_MODES, SecureBootAtStart, StickInfo, StorageEvent,
+    BootMedium, Faraday, Medium, Mode, STICK_MODES, SecureBootAtStart, StickInfo, StorageEvent,
 };
 use faraday_scanner::{ReadMode, Scanner};
 use faraday_shell_api::{
@@ -355,8 +356,9 @@ fn mode_at_start(dir: &Path) -> Mode {
 /// Where init mounts every other FAT partition of a USB disk.
 const USB_MOUNTS: &str = "/mnt/usb";
 
-/// Which partition the image mounts at [`DEFAULT_FILES`], as it wrote it:
-/// `/dev/mmcblk0p2` on a Raspberry Pi, `LABEL=FARADAYDATA` on the PC image.
+/// The medium the machine started from (`faraday_boot::medium`):
+/// `/dev/mmcblk0p2` on a Raspberry Pi; on the PC, `layout` until init has
+/// found the stick, then its data partition's node, or `none` or `two`.
 const EXCHANGE: &str = "/etc/faraday/exchange";
 
 /// What the removable medium is called on this machine: an SD card on
@@ -754,6 +756,8 @@ struct Shell {
     boxes: Boxes,
     /// The sticks last reported to the app.
     sticks: Vec<StickInfo>,
+    /// What the medium's record said last (`docs/STICK-IDENTITY.md` §5.2).
+    boot_medium: BootMedium,
     /// When the mounts are looked at next.
     next_scan: Instant,
     /// The disk process, when the image runs one.
@@ -1242,7 +1246,7 @@ impl Shell {
                         pending.push_back(Event::ClipboardNotWritten { kind });
                     }
                     Command::Exit => self.done = true,
-                    // The boot medium's FARADAYDATA partition at
+                    // The boot medium's data partition at
                     // /mnt/microsd and every FAT partition init mounted
                     // under /mnt/usb, looked at again for each request
                     // so a stick plugged in a moment ago is on the
@@ -1554,6 +1558,16 @@ impl Shell {
                 self.usb = Some(usb);
             }
         }
+        // Two sticks of this build, or none found: Files says so.
+        let found = match Record::parse(&std::fs::read_to_string(EXCHANGE).unwrap_or_default()) {
+            Record::Two => BootMedium::Two,
+            Record::NotFound => BootMedium::NotFound,
+            _ => BootMedium::Known,
+        };
+        if let Some(app) = self.app.as_mut().filter(|_| found != self.boot_medium) {
+            self.boot_medium = found;
+            app.storage(StorageEvent::BootMedium(found));
+        }
         let now = self.mounted_sticks();
         if !force && now == self.sticks {
             return;
@@ -1756,6 +1770,7 @@ fn run(args: Args) -> Result<Exit, String> {
         }),
         boxes: Boxes::Dir(PathBuf::from(BOXES)),
         sticks: Vec::new(),
+        boot_medium: BootMedium::Known,
         next_scan: Instant::now(),
         disk: if Path::new(DISK_REQUESTS).exists() {
             DiskProcess::open(Path::new(DISK_REQUESTS), Path::new(DISK_RESPONSES)).ok()

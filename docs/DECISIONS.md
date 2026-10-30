@@ -94,7 +94,7 @@ Read this table, then only the decision you need.
 | [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104, F128 | design |
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Amended by F160 | crypto |
-| [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128 | stick |
+| [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128, F174 | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
 | [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Amended by F126 | release |

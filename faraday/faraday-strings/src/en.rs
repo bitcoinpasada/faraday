@@ -10121,6 +10121,37 @@ strings! {
     rename_same_vault: "{} on this {} is this same vault",
     /// The visit's line: the stick refused the rename. `{}`: the name, why.
     rename_not_done: "{} not renamed: {}",
+    // ----- Rename stick: the data partition's name (docs/STICK-IDENTITY.md §6), faraday-core -----
+    /// The visit's button and its dialog's title. `{}`: "stick", "SD card".
+    stick_name_button: "Rename {}",
+    /// The line under the field when what is typed is written otherwise:
+    /// in capitals, as FAT keeps a name. `{}`: the name as written.
+    stick_name_written_as: "Written as {}",
+    /// The line under the field when it is empty.
+    stick_name_none: "No name",
+    /// Refused: longer than FAT's 11 characters.
+    stick_name_long: "At most 11 characters",
+    /// Refused: a character a FAT name cannot hold.
+    stick_name_character: "Letters, digits, spaces and ! # $ % & ' ( ) - @ ^ _ ` { } ~ only",
+    /// Refused, here and by the disk process: a boot partition's name.
+    stick_name_boot: "EFI, bootfs and FARADAYBOOT are boot partitions' names",
+    /// The visit's line once named. `{}`: "stick", the name.
+    stick_name_done: "This {} is named {}",
+    /// The visit's line once its name is taken away. `{}`: "stick".
+    stick_name_removed: "This {} has no name",
+    /// The visit's line: refused. `{}`: why.
+    stick_name_not_done: "Not renamed: {}",
+    /// What a computer shows the stick as cannot be changed here: the
+    /// desktop app's sticks are folders.
+    storage_name_folder: "a folder has no volume name to change",
+    /// The shell's answer was not the disk process's answer to a naming.
+    storage_answer_name: "an answer that is not a naming",
+    // ----- Files: the medium the device started from (docs/STICK-IDENTITY.md §5.2), faraday-core -----
+    /// Files' line on a PC when two sticks of the running build were in
+    /// at start: neither is the device's own, and no settings are kept.
+    files_boot_two: "Two sticks of this build are in",
+    /// Files' line on a PC when the stick it started from was not found.
+    files_boot_not_found: "The stick Faraday started from was not found",
     /// The Details sheet's labels.
     details_name: "Name",
     /// The Details sheet's label for the row's kind line.

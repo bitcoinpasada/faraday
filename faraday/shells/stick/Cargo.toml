@@ -16,6 +16,9 @@ path = "src/main.rs"
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 faraday-crypto = { path = "../../../core/faraday-crypto", features = ["pin-pages"] }
 faraday-core = { path = "../../faraday-core" }
+# The medium's record, which says whether init found the stick it started
+# from (docs/STICK-IDENTITY.md §5.2); std alone.
+faraday-boot = { path = "../../faraday-boot" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-v4l2 = { path = "../../../faraday/shells/v4l2" }
 faraday-scanner = { path = "../../faraday-scanner" }

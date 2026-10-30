@@ -83,6 +83,15 @@ impl Machine {
         self.root.join("dev")
     }
 
+    /// The disk process told which medium the machine started from, by
+    /// the record `record` as the finder writes it, with the image's data
+    /// serial `image_serial`.
+    fn disks(&self, record: &str, image_serial: Option<u32>) -> Disks {
+        let at = self.root.join("exchange");
+        fs::write(&at, record).unwrap();
+        Disks::new(&self.sys(), &self.dev()).with_medium(&at, image_serial)
+    }
+
     /// A USB disk with these partitions: (partition name, image, handed
     /// out).
     fn disk(&self, disk: &str, seq: u32, parts: &[(&str, Vec<u8>, bool)]) {
@@ -164,8 +173,8 @@ fn sticks(r: Response) -> Vec<faraday_files::proto::Stick> {
 fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
     let c = compute();
     let m = Machine::new("list");
-    // The boot stick: its boot partition, readable here to show it is
-    // refused anyway, and its data partition.
+    // The boot stick, made before F174: its boot partition, readable here
+    // to show it is refused anyway, and its data partition.
     m.disk(
         "sda",
         3,
@@ -190,7 +199,7 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
     // listed with nothing on it.
     m.disk("sdc", 8, &[("", fat16("LATE"), false)]);
 
-    let mut d = Disks::new(&m.sys(), &m.dev());
+    let mut d = m.disks("/dev/sda2 3\n", None);
     let list = sticks(d.handle(&c, Request::List));
     let shown: Vec<(&str, &str, bool)> = list
         .iter()
@@ -472,4 +481,157 @@ fn a_locked_card_that_cannot_be_opened_is_listed_as_locked_not_as_waiting() {
     let list = sticks(d.handle(&c, Request::List));
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].problem, Some(Problem::ReadOnly));
+}
+
+/// A FAT16 volume as [`fat16`] makes one, labelled `label` in its root
+/// directory alone, as Windows names a drive, its boot sector saying
+/// `NO NAME`.
+fn named_by_windows(label: &str) -> Vec<u8> {
+    let mut v = faraday_fat::Volume::open(fat16("NO NAME")).unwrap();
+    v.set_label(faraday_fat::label_bytes(label).unwrap())
+        .unwrap();
+    let mut b = v.into_disk();
+    b[43..54].copy_from_slice(b"NO NAME    ");
+    b
+}
+
+/// A Faraday stick as F174 makes it (`docs/STICK-IDENTITY.md` §3): the
+/// boot medium is the disk the record names, its first partition is never
+/// listed, and every other stick's boot partition is refused by its name
+/// or its label, a label Windows wrote included; its data partition, with
+/// no label, is listed by its GPT name, as any stick with none is.
+#[test]
+fn the_boot_medium_is_the_one_the_record_names_and_no_boot_partition_is_listed() {
+    let c = compute();
+    let m = Machine::new("medium");
+    let faraday = |disk: &str, seq: u32| {
+        m.disk(
+            disk,
+            seq,
+            &[
+                ("EFI system partition", fat16("EFI"), true),
+                ("Basic data partition", fat16("NO NAME"), true),
+            ],
+        );
+    };
+    faraday("sda", 3);
+    faraday("sdb", 5);
+    // An ordinary stick whose first partition someone renamed, labelled
+    // EFI; and one whose only FAT volume Windows named bootfs.
+    m.disk(
+        "sdc",
+        6,
+        &[("", fat16("EFI"), true), ("", fat16("PHOTOS"), true)],
+    );
+    m.disk("sdd", 7, &[("", named_by_windows("bootfs"), true)]);
+    let mut d = m.disks("/dev/sdb2 5\n", None);
+    let list = sticks(d.handle(&c, Request::List));
+    let shown: Vec<(&str, &str, bool)> = list
+        .iter()
+        .map(|s| (s.id.as_str(), s.label.as_str(), s.boot))
+        .collect();
+    assert_eq!(
+        shown,
+        vec![
+            ("sda2@sda#3", "Basic data partition", false),
+            ("sdb2@sdb#5", "Basic data partition", true),
+            ("sdc2@sdc#6", "PHOTOS", false),
+        ]
+    );
+    // The same disk under another sequence number is another stick.
+    let mut d = m.disks("/dev/sdb2 9\n", None);
+    assert!(sticks(d.handle(&c, Request::List)).iter().all(|s| !s.boot));
+    // Two sticks of the build in, or none: no boot medium at all.
+    for record in ["two\n", "none\n", "layout\n"] {
+        let mut d = m.disks(record, None);
+        let list = sticks(d.handle(&c, Request::List));
+        assert!(list.iter().all(|s| !s.boot), "{record}");
+        assert!(list.iter().all(|s| !s.id.starts_with("sdb1")), "{record}");
+    }
+}
+
+/// A stick written with dd has the image's data serial; at its first
+/// start the device gives it one of its own, and keeps it at the next
+/// (`docs/STICK-IDENTITY.md` §7). Another stick with that serial is left
+/// as it is.
+#[test]
+fn a_stick_written_by_another_tool_gets_its_own_serial_once() {
+    let c = compute();
+    let m = Machine::new("serial");
+    let image = 0x5678_ABCD_u32;
+    let with_image_serial = || {
+        let mut b = fat16("NO NAME");
+        b[39..43].copy_from_slice(&image.to_le_bytes());
+        b
+    };
+    m.disk(
+        "sda",
+        3,
+        &[
+            ("EFI system partition", fat16("EFI"), true),
+            ("Basic data partition", with_image_serial(), true),
+        ],
+    );
+    m.disk("sdb", 4, &[("", with_image_serial(), true)]);
+    let serial_of =
+        |list: &[proto::Stick], id: &str| list.iter().find(|s| s.id == id).and_then(|s| s.serial);
+    let own = 0x0BAD_CAFE;
+    let mut d = m
+        .disks("/dev/sda2 3\n", Some(image))
+        .with_serials(Box::new(move || Some(own)));
+    let list = sticks(d.handle(&c, Request::List));
+    assert_eq!(serial_of(&list, "sda2@sda#3"), Some(own));
+    assert_eq!(serial_of(&list, "sdb1@sdb#4"), Some(image));
+    // On the stick itself, where the next start reads it.
+    let bytes = fs::read(m.dev().join("sda2")).unwrap();
+    assert_eq!(faraday_fat::boot_sector_serial(&bytes[..512]), Some(own));
+    let mut next = m
+        .disks("/dev/sda2 3\n", Some(image))
+        .with_serials(Box::new(|| Some(0x1111_2222)));
+    let list = sticks(next.handle(&c, Request::List));
+    assert_eq!(serial_of(&list, "sda2@sda#3"), Some(own));
+}
+
+/// A second Faraday stick plugged in after the device started from
+/// another (`docs/STICK-IDENTITY.md` §5.2) is not the boot medium: its
+/// data partition is listed as any stick's and can be written, and its
+/// boot partition is never listed nor opened.
+#[test]
+fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usable() {
+    let c = compute();
+    let m = Machine::new("second");
+    for (disk, seq) in [("sda", 3), ("sdb", 11)] {
+        m.disk(
+            disk,
+            seq,
+            &[
+                ("EFI system partition", fat16("EFI"), true),
+                ("Basic data partition", fat16("NO NAME"), true),
+            ],
+        );
+    }
+    let mut d = m.disks("/dev/sda2 3\n", None);
+    let list = sticks(d.handle(&c, Request::List));
+    let shown: Vec<(&str, bool)> = list.iter().map(|s| (s.id.as_str(), s.boot)).collect();
+    assert_eq!(shown, vec![("sda2@sda#3", true), ("sdb2@sdb#11", false)]);
+    assert_eq!(list[1].problem, None);
+    let wrote = d.handle(
+        &c,
+        Request::Write {
+            stick: "sdb2@sdb#11".into(),
+            name: "backup.fvlt".into(),
+            replace: false,
+            renamed: false,
+            bytes: b"a vault".to_vec(),
+        },
+    );
+    assert!(matches!(wrote, Response::Written(_)), "{wrote:?}");
+    let refused = d.handle(
+        &c,
+        Request::Read {
+            stick: "sdb1@sdb#11".into(),
+            name: "anything".into(),
+        },
+    );
+    assert!(matches!(refused, Response::Failed(_)));
 }

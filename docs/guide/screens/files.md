@@ -27,6 +27,7 @@ and a finished transaction, each **Ready**.*
 | the stick chip | at the top right: "Waiting for a stick"; "Stick attached · lock to use it" while a secret is held, which locks; "Visit" and the stick's name ("Visit TRANSFER"), which opens the [stick visit](stick-visit.md) |
 | **Scan a QR code** | opens the camera ([Scan](qr-and-scan.md#scan)); what it reads lands in **From the stick** |
 | **In memory · emptied at power-off** | a label beside it |
+| "Two sticks of this build are in", "The stick Faraday started from was not found" | in the error tone, on a PC, when the stick it started from is not known: two sticks of the running build were in at start, or none was found. No data partition is then the device's own, and no settings are kept ([Why](#why)) |
 | "Remove the stick when you are done" | in the warning tone, after **Import and load**, while the stick is still in: the keys copied in load once it is out ("1 key copied in · remove the stick to load it") |
 | an open vault's panel | see [An open vault](#an-open-vault) |
 | what the files give | a panel headed **From the stick**, above the two lists: see [What the files give](#what-the-files-give) |
@@ -218,3 +219,4 @@ stick**, each row's button under its name.
 
 - [The air gap](../../learn/07-air-gap.md)
 - [Coordinator files](../../learn/19-coordinators.md)
+- [Replacing Faraday on a stick](../../learn/faraday/boot/replace-faraday.md)

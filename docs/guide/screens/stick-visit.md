@@ -1,7 +1,7 @@
 # Stick visit
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/lib.rs`)
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/lib.rs`)
 **Screen:** `Visit`, `Taken`, `WriteOut`, `Delete`, `Zeroing`
 **Group:** Files
 
@@ -35,6 +35,7 @@ load**; the band reads **Remove the stick when you are done**, beside
 |---|---|
 | **Stick visit** | the title |
 | **Then: Home** | the chip under the title, at the left: where pulling the stick goes, **Then: Home**, **Then: Unlock**, or "Then: …" naming the flow that opened it |
+| **Rename stick** | left of the sticks' chips (beside **Delete files** on a small panel): opens [Rename stick](#rename-stick) for the stick shown |
 | a stick's chip | one per stick attached, by its name, at the right of the same row, the one shown selected: a press shows that stick |
 | "Write what waits for the stick …" | in Guided mode |
 | **In Faraday** | the left card: what can be written to the stick, each row ticked or not |
@@ -109,6 +110,23 @@ writes them**, over **Not now** and **Lock**.*
 | **Dropped from Files** | the files from the stick the lock drops: each that may be a secret |
 | **Not now** | closes the sheet |
 | **Lock** | locks; the visit after it writes the files |
+
+## Rename stick
+
+**Opened from:** **Rename stick**. Its title is
+**Rename stick** ("Rename SD card" on the Pi).
+
+| Control | What it does |
+|---|---|
+| the field | the stick's name, at most 11 characters: letters, digits, spaces, the backtick and `! # $ % & ' ( ) - @ ^ _ { } ~`. Empty takes the name away |
+| "Written as COFFEE 1" | under the field when what is typed is written otherwise: a name is written in capitals, as FAT keeps it |
+| "No name" | under the field when it is empty |
+| "At most 11 characters", "Letters, digits, spaces and … only", "EFI, bootfs and FARADAYBOOT are boot partitions' names" | why the name cannot be used; **Rename** is dimmed |
+| **Rename** | writes the name; the visit's line says "This stick is named COFFEE 1" or "This stick has no name" |
+| **Cancel** | closes it, nothing written |
+
+The name is the one a computer shows the stick by. A Faraday stick has
+none until one is given (`docs/STICK-IDENTITY.md` §6).
 
 ## Delete files
 

@@ -42,6 +42,20 @@ use faraday_disk::Disks;
 use faraday_files::proto::{self, Request, Response};
 use faraday_strings::EN;
 
+/// The medium the machine started from, as init records it
+/// (`faraday_boot::medium`).
+const RECORD: &str = "/etc/faraday/exchange";
+
+/// The data partition's FAT serial as the image has it, which build.sh
+/// writes (`docs/STICK-IDENTITY.md` §7).
+const DATA_SERIAL: &str = "/etc/faraday/data-serial";
+
+/// The image's data serial, as eight hex digits. Costs a file read.
+fn image_serial() -> Option<u32> {
+    let text = std::fs::read_to_string(DATA_SERIAL).ok()?;
+    u32::from_str_radix(text.trim(), 16).ok()
+}
+
 /// The shell being served now, by the number of its conversation, and
 /// the pipe its answers go down; `None` between shells.
 type Now = Arc<Mutex<Option<(u64, File)>>>;
@@ -189,7 +203,8 @@ fn main() -> ExitCode {
             4 => (args[2].as_str(), args[3].as_str()),
             _ => ("/sys", "/dev"),
         };
-        let disks = Disks::new(Path::new(sys), Path::new(dev));
+        let disks = Disks::new(Path::new(sys), Path::new(dev))
+            .with_medium(Path::new(RECORD), image_serial());
         for line in disks.explain() {
             println!("{line}");
         }
@@ -204,7 +219,8 @@ fn main() -> ExitCode {
         5 => (args[3].as_str(), args[4].as_str()),
         _ => ("/sys", "/dev"),
     };
-    let mut disks = Disks::new(Path::new(sys), Path::new(dev));
+    let mut disks =
+        Disks::new(Path::new(sys), Path::new(dev)).with_medium(Path::new(RECORD), image_serial());
     let now: Now = Arc::new(Mutex::new(None));
     let jobs = pictures(now.clone());
     // Each shell served is a conversation of its own.

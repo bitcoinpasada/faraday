@@ -72,12 +72,6 @@ const MAX_ATTEMPTS: u32 = 1000;
 /// list is newest first, so what is cut is the oldest.
 const MAX_ENTRIES: usize = 64;
 
-/// Which partition `rcS` mounts at the exchange directory, as the image
-/// wrote it: a node, or `LABEL=FARADAYDATA` for a medium whose node name is
-/// not fixed. It is the only place the device records what the file
-/// channel is called.
-const EXCHANGE: &str = "/etc/faraday/exchange";
-
 /// Where init mounts every other FAT partition it finds on a USB disk,
 /// one directory per partition, named by the partition's label or by its
 /// node.
@@ -95,9 +89,9 @@ const CLOCK_SET: u64 = 1_577_836_800;
 /// One directory files are exchanged through, and the name a person
 /// finds it by from another computer.
 struct Place {
-    /// The exchange partition's label, or the mount directory's name for
-    /// a plugged-in partition. A device whose exchange line names a node
-    /// rather than a label has no such name to give.
+    /// The mount directory's name for a plugged-in partition, or the
+    /// directory `--files` named. The device's own medium has no name
+    /// here: its partitions have an ordinary stick's (F174).
     name: Option<String>,
     dir: PathBuf,
 }
@@ -317,14 +311,12 @@ impl Files {
         places
     }
 
-    /// The name of the exchange partition: its label on the device, the
+    /// The name of the exchange partition: none on the device, the
     /// directory's own name when `--files` named one.
     fn exchange_name(&self) -> Option<String> {
-        if self.require_mount {
-            label_of(&fs::read_to_string(EXCHANGE).unwrap_or_default())
-        } else {
-            file_name(&self.dir)
-        }
+        (!self.require_mount)
+            .then(|| file_name(&self.dir))
+            .flatten()
     }
 
     /// Every file that could be what was asked for, with the path it is
@@ -503,12 +495,6 @@ fn sanitise(hint: &str) -> String {
     }
 }
 
-/// The label an exchange line names, if it names one.
-fn label_of(line: &str) -> Option<String> {
-    let label = line.trim().strip_prefix("LABEL=")?.trim();
-    (!label.is_empty()).then(|| String::from(label))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -518,15 +504,6 @@ mod tests {
     /// as well as the boot medium, it names both.
     #[test]
     fn a_listing_names_every_partition_it_looked_on() {
-        assert_eq!(
-            label_of("LABEL=FARADAYDATA\n").as_deref(),
-            Some("FARADAYDATA")
-        );
-        assert_eq!(
-            label_of("/dev/mmcblk0p2\n"),
-            None,
-            "a node is not a name anyone would recognise"
-        );
         let root = std::env::temp_dir().join("faraday-files-places");
         let _ = fs::remove_dir_all(&root);
         let given = root.join("psbt");

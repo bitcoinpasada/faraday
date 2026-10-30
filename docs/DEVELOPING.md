@@ -177,7 +177,7 @@ Never use it for keys that matter.
 - **`--verbose`**: the app says which panel it chose and every input and
   camera device it found, and what it made of each.
 - **The boot report, every 30 seconds.** The app writes
-  `faraday-boot-report.txt` on the `FARADAYDATA` partition (the stick's,
+  `faraday-boot-report.txt` on the data partition (the stick's,
   or the Pi card's) as
   soon as the stick is listed at boot, again whole every 30 seconds
   while it runs, and once more when it ends. It holds the kernel log

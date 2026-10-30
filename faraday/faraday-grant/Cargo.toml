@@ -1,7 +1,7 @@
 [package]
 name = "faraday-grant"
 version = "0.1.9"
-description = "The grant helper (docs/history/PLAN.md §4.3): with CAP_CHOWN alone, it hands each USB or SD partition but a boot partition to the disk process while the app is clean, never a partition named FARADAYBOOT nor the Pi's own boot partition to any process, deciding from /sys alone, and takes them back when the app is not"
+description = "The grant helper (docs/history/PLAN.md §4.3, docs/STICK-IDENTITY.md §5.2): with CAP_CHOWN alone, it hands each USB or SD partition but a boot partition to the disk process while the app is clean, never the boot medium's first partition, a partition named as a boot partition nor the Pi's own boot partition to any process, and takes them back when the app is not; at start it finds the stick the machine started from by its layout and the build it holds"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+# A Faraday stick's layout, the boot partitions' names and the medium's
+# record (docs/STICK-IDENTITY.md §5); std alone.
+faraday-boot = { path = "../faraday-boot" }
 # chown, chmod, prctl, setuid and capset (docs/deps/libc-faraday-grant.md).
 libc.workspace = true
 

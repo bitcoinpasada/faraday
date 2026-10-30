@@ -1,7 +1,9 @@
-# The stick can be sda on one machine and sdb on the next, so rcS asks
-# which node carries the partition labelled FARADAYDATA instead of naming one.
-# `findfs` is the applet that answers, and it reads the label out of the
-# FAT superblock through BusyBox's own volume_id.
-CONFIG_FINDFS=y
-CONFIG_VOLUMEID=y
-CONFIG_FEATURE_VOLUMEID_FAT=y
+# Nothing on the stick is looked up by its label (F174,
+# docs/STICK-IDENTITY.md §5.2): faraday-grant finds the stick the machine
+# started from by its layout and the build its boot partition holds. So
+# the applets that find a filesystem by label or UUID are left out:
+# findfs, which this board had on for that, and blkid and the volume_id
+# reader beneath both, which Buildroot's default BusyBox has on.
+# CONFIG_FINDFS is not set
+# CONFIG_BLKID is not set
+# CONFIG_VOLUMEID is not set

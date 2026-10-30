@@ -5,9 +5,19 @@
 //! this process's, mode `0600`. A USB or SD partition this process cannot
 //! open was not handed out: it is listed with no files, so the app knows
 //! a stick is there and asks to lock (`docs/history/PLAN.md` §5.4). Nothing here mounts anything: the
-//! filesystem is read by `faraday-fat`. A partition named or labelled
-//! `FARADAYBOOT` is never touched, even if it could be opened: the grant
-//! helper keeps it back, and this is the second lock on the same door.
+//! filesystem is read by `faraday-fat`. A boot partition is never touched,
+//! even if it could be opened (`docs/STICK-IDENTITY.md` §5.2): the first
+//! partition of the medium the machine started from, the Pi's own card's
+//! first, one whose GPT name is a boot partition's, and, as the second
+//! lock on the door the grant helper keeps, any FAT volume labelled as a
+//! boot partition is (`EFI`, `bootfs`, or `FARADAYBOOT` on a stick made
+//! before F174; `faraday_boot::layout`).
+//!
+//! Which disk the machine started from is the medium's record
+//! (`faraday_boot::medium`), read at every listing. Its data partition is
+//! the boot medium's; a stick written by another tool has the image's FAT
+//! serial there, and the first listing gives it a serial of its own
+//! (§7).
 //!
 //! Where `/sys` and `/dev` are is a parameter, so the tests can stand a
 //! directory tree and image files in for them.
@@ -19,13 +29,25 @@ use std::io::{Seek, SeekFrom};
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
 
+use faraday_boot::layout;
+use faraday_boot::medium::Record;
 use faraday_fat::{Disk, Volume};
 use faraday_files::proto::{Problem, Request, Response, Stick};
 use faraday_files::{Fat, Place};
 use faraday_strings::EN;
 
-/// The label and partition name the boot partition carries.
-pub const BOOT: &str = "FARADAYBOOT";
+/// Where a serial of a stick's own comes from: four bytes of the
+/// system's randomness, or `None` when it cannot be read. It is not a
+/// secret; it tells two sticks apart.
+pub type Serials = Box<dyn FnMut() -> Option<u32> + Send>;
+
+/// Four bytes from `/dev/urandom`. Costs a file read.
+fn urandom() -> Option<u32> {
+    use std::io::Read;
+    let mut b = [0u8; 4];
+    File::open("/dev/urandom").ok()?.read_exact(&mut b).ok()?;
+    Some(u32::from_le_bytes(b))
+}
 
 /// A partition's device node, as a FAT volume reads it.
 pub struct Node {
@@ -113,6 +135,15 @@ struct Found {
     read_only: bool,
 }
 
+/// A partition's number on its disk, as `/sys` states it.
+fn number(dir: &Path) -> Option<u32> {
+    fs::read_to_string(dir.join("partition"))
+        .ok()?
+        .trim()
+        .parse()
+        .ok()
+}
+
 /// The `PARTNAME=` line of a block device's `uevent`.
 fn partname(dir: &Path) -> Option<String> {
     let uevent = fs::read_to_string(dir.join("uevent")).ok()?;
@@ -138,6 +169,11 @@ fn disk_id(disk: &Path) -> String {
 pub struct Disks {
     sys: PathBuf,
     dev: PathBuf,
+    /// The medium's record, and the data partition's FAT serial as the
+    /// image has it (`/etc/faraday/exchange`, `/etc/faraday/data-serial`).
+    record: Option<PathBuf>,
+    image_serial: Option<u32>,
+    serials: Serials,
     /// Each partition's listing, kept until this process writes to it:
     /// nothing else writes to a stick while it is in the machine, and a
     /// stick read once a second would show it with its light.
@@ -150,12 +186,35 @@ impl Disks {
         Disks {
             sys: sys.to_path_buf(),
             dev: dev.to_path_buf(),
+            record: None,
+            image_serial: None,
+            serials: Box::new(urandom),
             seen: BTreeMap::new(),
         }
     }
 
+    /// The same process, told which medium the machine started from by
+    /// the record at `record`, and given the image's data serial: the
+    /// device's. Without it only the Pi's own card is a boot medium.
+    #[must_use]
+    pub fn with_medium(mut self, record: &Path, image_serial: Option<u32>) -> Disks {
+        self.record = Some(record.to_path_buf());
+        self.image_serial = image_serial;
+        self
+    }
+
+    /// The same process with another source of serials: a test's.
+    #[must_use]
+    pub fn with_serials(mut self, serials: Serials) -> Disks {
+        self.serials = serials;
+        self
+    }
+
     /// Every partition this process may open, with its disk's identity.
     fn found(&self) -> Vec<Found> {
+        let record = self.record.as_ref().map_or(Record::Waiting, |p| {
+            Record::parse(&fs::read_to_string(p).unwrap_or_default())
+        });
         let mut out = Vec::new();
         let Ok(entries) = fs::read_dir(self.sys.join("class/block")) else {
             return out;
@@ -187,16 +246,23 @@ impl Disks {
                         .collect()
                 })
                 .unwrap_or_default();
-            // The boot medium: a disk with a partition named FARADAYBOOT, or
-            // the Pi's own card, which is MBR and has no names.
+            // The boot medium: the disk the record names, or the Pi's own
+            // card, which is MBR and has no names.
+            let seq = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
+            let children: Vec<String> = siblings
+                .iter()
+                .filter_map(|s| s.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .collect();
             let boot = disk.file_name().is_some_and(|n| n == "mmcblk0")
-                || siblings
-                    .iter()
-                    .any(|s| partname(s).as_deref() == Some(BOOT));
+                || record.is_boot_disk(children.iter().map(String::as_str), &seq);
             let partname = partname(&dir);
-            // The boot partition, as faraday-grant knows it: by GPT name,
-            // or as the Pi's own card's first partition.
-            if partname.as_deref() == Some(BOOT) || name == "mmcblk0p1" {
+            // A boot partition, as faraday-grant knows it: by GPT name, as
+            // the Pi's own card's first partition, or as the boot medium's
+            // first.
+            if partname.as_deref().is_some_and(layout::is_boot_name)
+                || name == "mmcblk0p1"
+                || (boot && number(&dir) == Some(1))
+            {
                 continue;
             }
             out.push(Found {
@@ -261,18 +327,30 @@ impl Disks {
 
     /// Opens a partition's volume, unless it is the boot partition or not
     /// FAT.
+    /// Costs a read of the root directory, for its label.
     fn volume(f: &Found) -> Result<Volume<Node>, Unreadable> {
-        if f.partname.as_deref() == Some(BOOT) {
+        if f.partname.as_deref().is_some_and(layout::is_boot_name) {
             return Err(Unreadable::Boot);
         }
         let mut node = Node::open(&f.node).map_err(|e| Unreadable::Other(e.to_string()))?;
         let mut sector = [0u8; 512];
         node.read_at(0, &mut sector)
             .map_err(|e| Unreadable::Other(faraday_files::fat_text(e)))?;
-        if faraday_fat::boot_sector_label(&sector).is_some_and(|l| l.starts_with(BOOT.as_bytes())) {
+        if faraday_fat::boot_sector_label(&sector).is_some_and(|l| layout::is_boot_label(&l)) {
             return Err(Unreadable::Boot);
         }
-        Volume::open(node).map_err(|e| Unreadable::NotFat(faraday_files::fat_text(e)))
+        let mut v =
+            Volume::open(node).map_err(|e| Unreadable::NotFat(faraday_files::fat_text(e)))?;
+        // The label a person sees, which Windows writes in the root
+        // directory alone.
+        if v.volume_label()
+            .ok()
+            .flatten()
+            .is_some_and(|l| layout::is_boot_label(l.as_bytes()))
+        {
+            return Err(Unreadable::Boot);
+        }
+        Ok(v)
     }
 
     /// Costs a read of four bytes of each file of a vault's length on a
@@ -306,7 +384,7 @@ impl Disks {
         if let Some(s) = self.seen.get(&f.id) {
             return Some(s.clone());
         }
-        let v = match Self::volume(f) {
+        let mut v = match Self::volume(f) {
             Ok(v) => v,
             // The boot partition of a stick is never listed.
             Err(Unreadable::Boot) => return None,
@@ -327,9 +405,23 @@ impl Disks {
                 return Some(s);
             }
         };
+        // The boot medium's data partition with the image's serial, as
+        // every stick written by another tool has it: given its own, once
+        // (`docs/STICK-IDENTITY.md` §7). A stick that cannot be written
+        // keeps it and is used as it is.
+        if f.boot
+            && !f.read_only
+            && self.image_serial.is_some()
+            && v.serial() == self.image_serial
+            && let Some(own) = (self.serials)().filter(|s| Some(*s) != self.image_serial)
+        {
+            let _ = v.set_serial(own);
+        }
         let label = v
-            .label()
-            .or_else(|| f.partname.clone())
+            .volume_label()
+            .ok()
+            .flatten()
+            .or_else(|| f.partname.clone().filter(|n| !n.is_empty()))
             .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string());
         let serial = v.serial();
         let mut place = Fat(v);
@@ -360,7 +452,7 @@ impl Disks {
                 } else {
                     match Self::volume(f) {
                         // not wording: the console's line, as above
-                        Ok(v) => format!("FAT, label {:?}", v.label()),
+                        Ok(mut v) => format!("FAT, label {:?}", v.volume_label().ok().flatten()),
                         // not wording: the console's line, as above
                         Err(e) => format!("not listed: {}", e.text()),
                     }
@@ -471,6 +563,14 @@ impl Disks {
                     Err(faraday_files::Unrenamed::Failed(why)) => Response::Failed(why),
                 };
             }
+            Request::Name { stick, label } => {
+                let named = self
+                    .place(&stick)
+                    .and_then(|mut p| name_volume(&mut p, &label));
+                // The listing carries the name.
+                self.seen.remove(&stick);
+                named.map(|()| Response::Renamed)
+            }
             Request::ReadQr { stick, name } => self
                 .place(&stick)
                 .and_then(|mut p| faraday_files::read_qr_png(c, &mut p as &mut dyn Place, &name))
@@ -478,4 +578,17 @@ impl Disks {
         };
         answer.unwrap_or_else(Response::Failed)
     }
+}
+
+/// Costs a read and a write of the root directory: names the volume
+/// `label`, or takes its name away where it is empty
+/// (`docs/STICK-IDENTITY.md` §6). A name FAT cannot hold is refused, and
+/// so is a boot partition's (`EFI`, `bootfs`, `FARADAYBOOT`): a volume
+/// so named is never handed out again.
+fn name_volume(place: &mut Fat<Node>, label: &str) -> Result<(), String> {
+    let bytes = faraday_fat::label_bytes(label).map_err(faraday_files::fat_text)?;
+    if bytes.is_some_and(|b| layout::is_boot_label(&b)) {
+        return Err(EN.stick_name_boot.into());
+    }
+    place.0.set_label(bytes).map_err(faraday_files::fat_text)
 }
