@@ -187,6 +187,7 @@ matched, with **Continue**:
 | ![The copy item reading Your copy scans and matches the seed and Your copy matches the seed](../pictures/4-7-matched.png) **Your copy scans and matches the seed** and **Your copy matches the seed** | the words typed and the SeedQR scanned are this seed's | press **Continue**: the vault's item opens |
 | **Word … differs from the seed** | that word on the paper is wrong | correct the paper from **Show the seed**, **Clear**, type it again |
 | **Your copy scans but word … differs** | that word's squares are wrong | correct those squares and scan again |
+| **This is another seed's SeedQR** | the SeedQR scanned is a whole seed, but not this one | find this seed's copy and scan that |
 
 A match proves the paper holds this seed. It does not prove the paper
 will stay readable: keep it dry, and check it again from time to time.

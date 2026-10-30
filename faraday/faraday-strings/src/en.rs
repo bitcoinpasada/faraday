@@ -3751,6 +3751,8 @@ strings! {
     read_go_xor: "It is a Seed XOR part",
     /// The read card's way over for an LND aezeed: Lightning, the aezeed typed in.
     read_go_lightning: "Use in Lightning",
+    /// A copy check's line: the SeedQR scanned is a whole seed, but another one.
+    read_another_seed: "This is another seed's SeedQR",
     /// A scanner's title (`docs/SCANNING.md` §7.1): Restore's Scan it and Scan descriptor.
     scan_title_description: "Scan the description",
     /// A scanner's title: Create's key slot. `{}`: the key's number.

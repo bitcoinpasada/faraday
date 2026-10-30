@@ -1,8 +1,8 @@
 # Scanning: what each scanner takes, and the way over
 
 **Kind:** Spec
-**Status:** Batches S1 to S5 built (2026-10-30), an LND aezeed told apart by its own checksum and handed to Lightning (§10 item 3), unrecognised text masked behind its eye on the read card (§10 item 8), and a codex32 secret into Restore's or Create's slot (§4.3), but for what the Open line names; the owner's choices decided (§10, 2026-10-29)
-**Open:** a copy check's "This is another seed's SeedQR" (§4.3); the intake's Scan the description titled for it (§7.1). Not scheduled
+**Status:** Batches S1 to S5 built (2026-10-30), an LND aezeed told apart by its own checksum and handed to Lightning (§10 item 3), unrecognised text masked behind its eye on the read card (§10 item 8), a codex32 secret into Restore's or Create's slot (§4.3), and a copy check's "This is another seed's SeedQR" (§4.3), but for what the Open line names; the owner's choices decided (§10, 2026-10-29)
+**Open:** the intake's Scan the description titled for it (§7.1). Not scheduled
 
 Every scanner in Faraday reads every kind of code, and each scanner
 takes only some kinds itself. This document lists what each scanner

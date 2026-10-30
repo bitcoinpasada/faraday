@@ -6,8 +6,8 @@
 //! letters of a word and a word's four-digit number, compares only after
 //! the last word and names the first word that differs. The scan opens
 //! the camera, a copy of the seed on screen says it matches, a copy with a
-//! word wrong or of another seed names the first word that differs and
-//! keeps the camera open, and nothing scanned there is loaded as a key or
+//! word wrong names the first word that differs, a SeedQR of another seed
+//! says it is one, and either keeps the camera open, and nothing scanned there is loaded as a key or
 //! put in Files. Keep the words only drops a SeedQR copy for the words,
 //! offered at the foot after three scans without a match; the grid
 //! dropped stays on the map drawn in part until destroyed.
@@ -589,12 +589,12 @@ fn a_copy_with_one_word_wrong_names_that_word_and_stays_open() {
 }
 
 #[test]
-fn a_seedqr_of_another_seed_is_not_loaded_and_names_the_first_word() {
+fn a_seedqr_of_another_seed_is_not_loaded_and_says_so() {
     let mut app = backing_up(FORUM, true, SEEDQR_ONLY);
     app.press(Action::BScan);
     let inbox = app.inbox().len();
     scan(&mut app, standard(GOOD));
-    assert_eq!(note(&app), "Your copy scans but word 1 differs");
+    assert_eq!(note(&app), "This is another seed's SeedQR");
     assert_eq!(app.session.keys.len(), 1, "the other seed was loaded");
     assert_eq!(app.inbox().len(), inbox);
     // Something that is no SeedQR says so.
@@ -611,7 +611,7 @@ fn a_seedqr_of_another_seed_is_not_loaded_and_names_the_first_word() {
     let b = app.backup().unwrap();
     assert_eq!(
         faraday_core::wallet_backup::copy_scan_line(b.scanned.as_ref().unwrap()),
-        "Your copy scans but word 1 differs"
+        "This is another seed's SeedQR"
     );
 }
 

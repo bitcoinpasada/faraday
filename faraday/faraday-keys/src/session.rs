@@ -990,13 +990,20 @@ impl Keys {
             })
     }
 
-    /// Costs a parse of the words. Compares a copy of key `i`'s words,
+    /// Costs a parse of the words, and a SHA-256 for the copy's own
+    /// checksum where a word differs. Compares a copy of key `i`'s words,
     /// scanned or typed, as BIP-39 numbers, with its words
-    /// ([`compare_words`]). `None` where the key has no words.
+    /// ([`compare_words`]); a copy that is a whole seed of its own, its
+    /// checksum holding, with another length or more than half its words
+    /// different, is another seed ([`CopyCheck::AnotherSeed`]). Nothing of
+    /// either is given back. `None` where the key has no words.
     pub fn words_match(&self, c: &Compute, i: usize, copy: &[u16]) -> Option<CopyCheck> {
         let e = self.entries.get(i)?;
         let m = Mnemonic::parse(c, e.info.language, e.key.words.as_ref()?).ok()?;
-        Some(compare_words(copy, m.indices()))
+        Some(match compare_words(copy, m.indices()) {
+            CopyCheck::WrongWord(k) if another_seed(copy, m.indices()) => CopyCheck::AnotherSeed(k),
+            found => found,
+        })
     }
 
     /// Costs a parse of the words and a digit stream. Whether `payload` is
@@ -1582,6 +1589,23 @@ pub enum CopyCheck {
     Matches,
     /// A word differs, counting from one.
     WrongWord(usize),
+    /// The copy is another seed (`Keys::words_match`): a whole BIP-39
+    /// seed whose own checksum holds, of another length or with more than
+    /// half its words different. The first that differs, counting from
+    /// one, as [`CopyCheck::WrongWord`] would give it.
+    AnotherSeed(usize),
+}
+
+/// A SHA-256. Whether `copy`, which differs from `seed`, is another seed
+/// rather than a copy of it with a word wrong: its own BIP-39 checksum
+/// holds (the numbers are the same in every list), and its length is
+/// another or more than half its words differ.
+fn another_seed(copy: &[u16], seed: &[u16]) -> bool {
+    if Mnemonic::from_indices(Language::English, copy).is_err() {
+        return false;
+    }
+    let differ = copy.iter().zip(seed).filter(|(a, b)| a != b).count();
+    copy.len() != seed.len() || 2 * differ > copy.len()
 }
 
 /// Compares the words of a copy, scanned or typed, with the seed's, by

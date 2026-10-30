@@ -463,7 +463,8 @@ pub struct Kept {
 pub fn copy_scan_line(found: &CopyCheck) -> String {
     match found {
         CopyCheck::WrongWord(k) => fill(EN.backup_your_copy_scans_but, &[&k.to_string()]),
-        _ => EN.backup_your_copy_scans.to_string(),
+        CopyCheck::AnotherSeed(_) => EN.read_another_seed.to_string(),
+        CopyCheck::Matches => EN.backup_your_copy_scans.to_string(),
     }
 }
 
@@ -1709,7 +1710,9 @@ impl Faraday {
             return;
         };
         let off_list = match found {
-            CopyCheck::WrongWord(k) => typed.get(k - 1) == Some(&u16::MAX),
+            CopyCheck::WrongWord(k) | CopyCheck::AnotherSeed(k) => {
+                typed.get(k - 1) == Some(&u16::MAX)
+            }
             CopyCheck::Matches => false,
         };
         typed.zeroize();
@@ -1718,7 +1721,9 @@ impl Faraday {
                 self.backup.check_close();
                 self.copy_matched(fp, CopyForm::Words);
             }
-            CopyCheck::WrongWord(k) => {
+            // Typed words are checked word by word: another seed's are
+            // wrong at the first that differs.
+            CopyCheck::WrongWord(k) | CopyCheck::AnotherSeed(k) => {
                 let line = if off_list {
                     fill(
                         EN.forms_word_not_in_list,

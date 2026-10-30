@@ -353,6 +353,21 @@ fn a_copy_of_the_words_is_compared_by_their_numbers() {
         keys.words_match(&c, 0, &right[..11]),
         Some(CopyCheck::WrongWord(12))
     );
+    // Another seed's words, BIP-39's own vector, are another seed.
+    let other =
+        words("legal winner thank year wave sausage worth useful legal winner thank yellow");
+    assert_eq!(
+        keys.words_match(&c, 0, other.indices()),
+        Some(CopyCheck::AnotherSeed(1))
+    );
+    // Most words different but no checksum of their own: a copy wrong
+    // at its first word.
+    let mut mixed = other.indices()[..7].to_vec();
+    mixed.extend_from_slice(&right[7..]);
+    assert_eq!(
+        keys.words_match(&c, 0, &mixed),
+        Some(CopyCheck::WrongWord(1))
+    );
     assert_eq!(keys.words_match(&c, 3, &right), None);
 }
 
