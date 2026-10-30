@@ -255,15 +255,19 @@ PY
 
     commit="$(git rev-parse HEAD)"
     # The cross-check's record: from this commit, and every answer agreed.
+    # --any-build stages none, whatever out/ holds, so a trial staging
+    # reads nothing a real run left there.
     have_record=0
-    if [ -f "$record" ]; then
+    if [ "$any" = 1 ]; then
+        :
+    elif [ -f "$record" ]; then
         [ "$(sed -n 's/^commit //p' "$record")" = "$commit" ] \
-            || [ "$any" = 1 ] || unstage "$record is not the cross-check of commit $commit (just crosscheck --fresh)"
+            || unstage "$record is not the cross-check of commit $commit (just crosscheck --fresh)"
         grep -qx 'result: every answer agreed' "$record" \
-            || [ "$any" = 1 ] || unstage "$record does not end in 'every answer agreed'"
+            || unstage "$record does not end in 'every answer agreed'"
         cp "$record" "$out/crosscheck-$version.txt"
         have_record=1
-    elif [ "$any" != 1 ]; then
+    else
         unstage "$record: not found (just crosscheck --fresh writes it)"
     fi
     # The release's image list (IMAGES §4).

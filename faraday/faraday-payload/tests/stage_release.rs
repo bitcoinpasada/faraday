@@ -531,3 +531,33 @@ fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
     );
     assert!(out.join("SHA256SUMS").is_file());
 }
+
+/// A trial staging (`--any-build`) stages no cross-check record, even
+/// one that a real `just crosscheck --fresh` left where staging reads it.
+#[test]
+fn a_trial_staging_takes_no_cross_check_record() {
+    let root = fresh("record");
+    let builds = builds(&root);
+    let record = root.join("crosscheck-record.txt");
+    fs::write(&record, "commit 0\nresult: every answer agreed\n").expect("file");
+    let out = root.join("release");
+    let done = stage(&[
+        VERSION,
+        "--any-build",
+        "--crosscheck",
+        record.to_str().expect("a path"),
+        "--builds",
+        builds.to_str().expect("a path"),
+        "--out",
+        out.to_str().expect("a path"),
+        "--payload",
+        root.join("payload").to_str().expect("a path"),
+    ]);
+    assert!(
+        done.status.success(),
+        "staging failed: {}",
+        String::from_utf8_lossy(&done.stderr)
+    );
+    assert!(!names(&out).iter().any(|n| n.starts_with("crosscheck-")));
+    assert!(!sums(&out).iter().any(|(_, n)| n.starts_with("crosscheck-")));
+}

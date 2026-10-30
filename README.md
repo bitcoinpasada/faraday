@@ -580,8 +580,8 @@ either can be checked. Faraday Demo has no file of its own; it is
 inside each Starter (the Starter's own sum covers it). From the release
 after 0.1.7 it lists `faraday-X.Y.Z-BOOTX64.EFI`, the stick's boot
 program as it is, unsigned, published for a person with their own Secure
-Boot keys to sign on Faraday ("With Secure Boot" above); from the release
-after 0.1.8, one for each PC build, `faraday-X.Y.Z-BOOTX64-strict.EFI`
+Boot keys to sign on Faraday ("With Secure Boot" above); from 0.1.9, one
+for each PC build, `faraday-X.Y.Z-BOOTX64-strict.EFI`
 and `…-compatible.EFI`. Faraday checks
 `SHA256SUMS.asc` more strictly than `gpg --verify` before it signs that
 file (DECISIONS F134), so the release is signed as GnuPG's `gpg --armor
@@ -590,7 +590,7 @@ with its checksum line, a binary signature (not `--textmode`) by the
 release key's one signing subkey, whose binding carries its back
 signature.
 
-From the release after 0.1.8 every image is published, one per
+From 0.1.9 every image is published, one per
 platform, screen and build (`docs/IMAGES.md` §4):
 `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible`,
 `faraday-pi-X.Y.Z-waveshare-28dpi-strict.img.xz` and `…-compatible`, and
@@ -617,7 +617,7 @@ PowerShell prints a file's sum to compare with its line in
 `SHA256SUMS`:
 
 ```
-Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.8-x86_64-uefi.img.xz
+Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.8-x86_64-uefi-strict.img.xz
 ```
 
 The release tags are signed with the same key: `git tag -v v0.1.8`.
