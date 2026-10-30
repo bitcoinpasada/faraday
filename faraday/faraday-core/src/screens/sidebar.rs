@@ -9,24 +9,8 @@ use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_M, LABEL_S};
-use faraday_draw::tokens::{SHAPE_S, TOUCH};
+use faraday_draw::tokens::{GAP_SMALL, GRID, SHAPE_S, TOUCH};
 use faraday_draw::widgets::Icon;
-
-/// How many rows of seeds and of wallets the sidebar shows, in `rows`:
-/// all of both when they fit, else the room shared, the smaller group
-/// keeping all it needs when that leaves the other at least half. A
-/// group cut short gives its last row to "+ N more".
-fn sidebar_caps(seeds: usize, wallets: usize, rows: usize) -> (usize, usize) {
-    if seeds + wallets <= rows {
-        return (seeds, wallets);
-    }
-    let half = rows / 2;
-    let cap_s = seeds.min(half.max(rows.saturating_sub(wallets)));
-    let cap_w = wallets.min(rows - cap_s);
-    // What wallets leave unused goes back to seeds.
-    let cap_s = seeds.min(rows - cap_w);
-    (cap_s, cap_w)
-}
 
 /// The word after the wordmark: DEMO in the desktop app, OFFLINE on the
 /// device (the stick and the Pi).
@@ -68,7 +52,6 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     );
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, Role::SurfaceContainerLow);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
@@ -157,126 +140,69 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         }
     }
 
-    // Status at the foot, and above it what is loaded in two groups,
-    // seeds and wallets, as high as the last tab. A group that does not
-    // fit shows its first rows and how many more, which opens the whole
-    // list; each row opens what it names.
-    // The pill under Lock while the idle lock waits for a new wallet's
-    // backup (`docs/history/NEW-WALLET.md` §18) takes its room from the list.
     let held = app.lock_held();
-    let foot = h - 172.0 - if held { LOCK_PILL_H + 8.0 } else { 0.0 };
+    // The Files row stands above the stick's row at the foot; the pill
+    // under Lock while the idle lock waits for a new wallet's backup
+    // (`docs/history/NEW-WALLET.md` §18) takes its room from the lists.
+    let files_top = h - 172.0 - if held { LOCK_PILL_H + GRID } else { 0.0 };
+    lists(app, ui, y + GRID, files_top);
+    foot(app, ui, files_top, held);
+}
+
+/// A row of the lists, a touch target tall: stacked rows leave a target
+/// no room to grow.
+const ROW: f32 = TOUCH;
+/// A group's header's height.
+const HEAD: f32 = 26.0;
+
+/// A row of the lists as drawn: its name, the words after it, whether
+/// the name is a fingerprint, what it opens, its dot and whether it
+/// carries the passphrase tag.
+type ListRow = (String, String, bool, Action, Option<crate::ui::Paint>, bool);
+
+/// What is loaded, in two groups, keys and wallets, from just under the
+/// last tab (`from`) down to the Files row (`to`): as tall as they are,
+/// standing on the Files row, and where they are taller than that room,
+/// one region that scrolls within the sidebar by its own offset, the
+/// wheel, a trackpad and a finger over it moving it (Material 3
+/// Navigation drawer: its content scrolls where it is taller than the
+/// drawer). Each row opens what it names. Only the rows in view are
+/// worked out and drawn.
+fn lists(app: &View, ui: &mut Ui, from: f32, to: f32) {
     let seeds = app.session.keys.len();
     let wallets = app.session.wallets.len();
-    const ROW: f32 = 22.0;
-    const HEAD: f32 = 26.0;
     let groups = usize::from(seeds > 0) + usize::from(wallets > 0);
-    let room = (foot - (y + 8.0) - 54.0 - groups as f32 * HEAD).max(0.0);
-    let (cap_s, cap_w) = sidebar_caps(seeds, wallets, (room / ROW).floor() as usize);
-    let gap = if groups > 0 { 8.0 } else { 0.0 };
-    let block = groups as f32 * HEAD + (cap_s + cap_w) as f32 * ROW + gap;
-    let mut fy = foot - block;
-    ui.rule(12.0, fy, SIDEBAR_W - 24.0, Role::OutlineVariant);
-    fy += 16.0;
-    // The session strip, in the dot line's old place and height: the
-    // four stages of the lock cycle, the one now current in the accent,
-    // the rest dim. It explains the cycle without prose and opens Files,
-    // costing the seed and wallet list below no room of its own.
-    {
-        let stage = app.session_stage();
-        let open_files = Action::Nav(Screen::Files);
-        let mut sx = 24.0;
-        for (i, label) in [
-            EN.sidebar_bring_in_button,
-            EN.sidebar_open,
-            EN.sidebar_work,
-            EN.sidebar_write_out,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            if i > 0 {
-                sx += ui.text_mid_as((sx, fy, 20.0), BODY_S, Role::OnSurfaceVariant, " · ");
-            }
-            let fg = if label == stage {
-                Role::Primary
-            } else {
-                Role::OnSurfaceVariant
-            };
-            sx += ui.text_mid_as((sx, fy, 20.0), LABEL_S, fg, label);
-        }
-        ui.press_box(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, open_files);
+    let gap = if groups > 0 { GRID } else { 0.0 };
+    let content = groups as f32 * HEAD + (seeds + wallets) as f32 * ROW;
+    let bottom = to - gap;
+    // The rule above the lists stands under the last tab at the highest.
+    let view = content.min((bottom - from - 2.0).max(0.0));
+    let top = bottom - view;
+    ui.rule(12.0, top - 2.0, SIDEBAR_W - 24.0, Role::OutlineVariant);
+    if groups == 0 {
+        return;
     }
-    fy += 30.0;
-    let rows_w = SIDEBAR_W - 56.0;
-    // One group: its header with the count, its rows, and the rest as a
-    // line that opens the whole list.
-    let group = |ui: &mut Ui,
-                 fy: &mut f32,
-                 title: &str,
-                 total: usize,
-                 cap: usize,
-                 rows: &mut dyn Iterator<
-        Item = (String, String, bool, Action, Option<crate::ui::Paint>, bool),
-    >,
-                 more: Action| {
-        if total == 0 {
-            return;
-        }
-        ui.text_mid_as((28.0, *fy, HEAD), LABEL_M, Role::OnSurfaceVariant, title);
-        ui.text_right_as(
-            (SIDEBAR_W - 24.0, *fy, HEAD),
-            LABEL_M,
-            Role::OnSurfaceVariant,
-            &total.to_string(),
-        );
-        *fy += HEAD;
-        let shown = if total > cap {
-            cap.saturating_sub(1)
-        } else {
-            total
-        };
-        for (head, tail, mono, action, mark, pass) in rows.take(shown) {
-            // A wallet's dot: green when the seeds here sign for it alone,
-            // grey when some of them are here.
-            if let Some(c) = mark {
-                ui.dot(18.0, *fy + ROW / 2.0, 3.5, c);
-            }
-            let role = if mono { BODY_S.mono() } else { LABEL_M };
-            let head = ui.fit_as(role, &head, rows_w * 0.55);
-            let hw = ui.text_mid_as((28.0, *fy, ROW), role, Role::OnSurface, &head);
-            // A key loaded with a passphrase says so at the row's end:
-            // the same words without it are another key.
-            let tag_w = if pass {
-                let t = EN.sidebar_passphrase;
-                ui.text_right_as(
-                    (SIDEBAR_W - 24.0, *fy, ROW),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    t,
-                );
-                ui.measure_as(BODY_S, t) + 8.0
-            } else {
-                0.0
-            };
-            if !tail.is_empty() {
-                let tone = match mark {
-                    Some(c) if c == Role::Ok.paint() => Role::Ok,
-                    _ => Role::OnSurfaceVariant,
-                };
-                let tail = ui.fit_as(BODY_S, &tail, rows_w - hw - 8.0 - tag_w);
-                ui.text_mid_as((36.0 + hw, *fy, ROW), BODY_S, tone, &tail);
-            }
-            ui.press_box(16.0, *fy, SIDEBAR_W - 32.0, ROW, action);
-            *fy += ROW;
-        }
-        if total > cap && cap > 0 {
-            let line = fill(EN.sidebar_more, &[&(total - shown).to_string()]);
-            ui.text_mid_as((28.0, *fy, ROW), LABEL_M, Role::Primary, &line);
-            ui.press_box(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
-            *fy += ROW;
-        }
+    let max = content - view;
+    let offset = app.scroll.sidebar_offset().clamp(0.0, max);
+    // Which of a group's `total` rows, the first drawn at `y0`, are in
+    // view: the first and how many.
+    let seen = |y0: f32, total: usize| -> (usize, usize) {
+        let first = (((top - y0) / ROW).floor().max(0.0) as usize).min(total);
+        let end = (((top + view - y0) / ROW).ceil().max(0.0) as usize).min(total);
+        (first, end.saturating_sub(first))
     };
-    let mut seed_rows = app.session.keys.all().map(|k| {
+    let clip = ui.rect(0.0, top, SIDEBAR_W, view);
+    ui.c.push_clip(clip);
+    let mark = ui.presses_mark();
+    let keys_at = top - offset;
+    let wallets_at = keys_at
+        + if seeds > 0 {
+            HEAD + seeds as f32 * ROW
+        } else {
+            0.0
+        };
+    let (first, n) = seen(keys_at + HEAD, seeds);
+    let mut seed_rows = app.session.keys.all().skip(first).take(n).map(|k| {
         let fp = fp_text(k.fingerprint);
         // A seed named by its fingerprint is not named twice.
         let name = crate::bip85::key_name(k);
@@ -285,27 +211,14 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         } else {
             name.into_owned()
         };
-        (
-            fp,
-            label,
-            true,
-            Action::ExploreKey(k.fingerprint.0),
-            None,
-            k.has_passphrase,
-        )
+        let open = Action::ExploreKey(k.fingerprint.0);
+        (fp, label, true, open, None, k.has_passphrase)
     });
-    group(
-        ui,
-        &mut fy,
-        EN.sidebar_keys,
-        seeds,
-        cap_s,
-        &mut seed_rows,
-        Action::Explore,
-    );
+    let keys = (EN.sidebar_keys, seeds, first);
+    group(ui, keys_at, keys, &mut seed_rows);
     // Wallets the seeds here sign for alone first, then those with some
-    // of their seeds here, then watch-only ones: a cut list keeps the
-    // ready ones in view.
+    // of their seeds here, then watch-only ones: the ready ones head the
+    // list.
     let mut ranked: Vec<(usize, u8)> = app
         .session
         .wallets
@@ -314,68 +227,98 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         .map(|(i, _)| (i, app.readiness(i)))
         .collect();
     ranked.sort_by_key(|&(i, r)| (std::cmp::Reverse(r), i));
-    let mut wallet_rows = ranked.into_iter().map(|(i, ready)| {
-        let w = &app.session.wallets[i];
-        let (m, n) = Session::quorum(w);
-        // A key not of the wallet spends it alone: no "k of n" (F132).
-        let shape = if crate::wallet::another_key_spends(w) {
-            EN.sidebar_another_key.to_string()
-        } else if n > 1 {
-            fill(EN.sidebar_count, &[&m.to_string(), &n.to_string()])
-        } else {
-            EN.sidebar_single_key.to_string()
-        };
-        let mark = match ready {
-            _ if app.silent_differs(i) => Some(Role::Error.paint()),
-            _ if crate::wallet::another_key_spends(w) => Some(Role::Error.paint()),
-            2 => Some(Role::Ok.paint()),
-            1 => Some(Role::OnSurfaceVariant.paint()),
-            _ => None,
-        };
-        (
-            w.name.clone(),
-            shape,
-            false,
-            Action::OpenWallet(i),
-            mark,
-            false,
-        )
-    });
-    group(
-        ui,
-        &mut fy,
-        EN.sidebar_wallets,
-        wallets,
-        cap_w,
-        &mut wallet_rows,
-        Action::Nav(Screen::Wallets),
-    );
-    fy += gap;
-    let files = app.files_count();
-    let here = app.screen == Screen::Files;
-    if here {
-        ui.fill(
-            16.0,
-            fy - 4.0,
-            SIDEBAR_W - 32.0,
-            28.0,
-            SHAPE_S,
-            Role::SecondaryContainer,
-        );
+    let (first, n) = seen(wallets_at + HEAD, wallets);
+    let mut wallet_rows = ranked
+        .into_iter()
+        .skip(first)
+        .take(n)
+        .map(|(i, ready)| wallet_row(app, i, ready));
+    let group_w = (EN.sidebar_wallets, wallets, first);
+    group(ui, wallets_at, group_w, &mut wallet_rows);
+    // What is scrolled out of the lists takes no press.
+    ui.clip_presses_since(mark, clip);
+    ui.c.pop_clip();
+    let on = (clip, Role::SurfaceContainerLow);
+    ui.report_scroll_beside_on(crate::ui::Slot::Sidebar, on, max, offset);
+}
+
+/// Wallet `i`'s row, `ready` as `View::readiness` has it.
+fn wallet_row(app: &View, i: usize, ready: u8) -> ListRow {
+    let w = &app.session.wallets[i];
+    let (m, n) = Session::quorum(w);
+    // A key not of the wallet spends it alone: no "k of n" (F132).
+    let shape = if crate::wallet::another_key_spends(w) {
+        EN.sidebar_another_key.to_string()
+    } else if n > 1 {
+        fill(EN.sidebar_count, &[&m.to_string(), &n.to_string()])
+    } else {
+        EN.sidebar_single_key.to_string()
+    };
+    let mark = match ready {
+        _ if app.silent_differs(i) => Some(Role::Error.paint()),
+        _ if crate::wallet::another_key_spends(w) => Some(Role::Error.paint()),
+        2 => Some(Role::Ok.paint()),
+        1 => Some(Role::OnSurfaceVariant.paint()),
+        _ => None,
+    };
+    let open = Action::OpenWallet(i);
+    (w.name.clone(), shape, false, open, mark, false)
+}
+
+/// One group at `at`: its header with the count (`title`, `total`),
+/// then `rows`, the first of them its row `first`.
+fn group(
+    ui: &mut Ui,
+    at: f32,
+    (title, total, first): (&str, usize, usize),
+    rows: &mut dyn Iterator<Item = ListRow>,
+) {
+    if total == 0 {
+        return;
     }
-    let muted = on_selected(here, Role::OnSurfaceVariant);
-    ui.icon(22.0, fy, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
-    ui.text_mid_as((46.0, fy, 20.0), BODY_S, muted, EN.sidebar_files);
-    let ink = on_selected(here, Role::OnSurface);
-    ui.text_right_as((SIDEBAR_W - 24.0, fy, 20.0), BODY_S, ink, &files);
-    ui.press_box(
-        16.0,
-        fy - 4.0,
-        SIDEBAR_W - 32.0,
-        28.0,
-        Action::Nav(Screen::Files),
-    );
-    fy += 30.0;
+    let end = SIDEBAR_W - 24.0;
+    ui.text_mid_as((28.0, at, HEAD), LABEL_M, Role::OnSurfaceVariant, title);
+    let count = total.to_string();
+    ui.text_right_as((end, at, HEAD), LABEL_M, Role::OnSurfaceVariant, &count);
+    let rows_w = SIDEBAR_W - 56.0;
+    let mut fy = at + HEAD + first as f32 * ROW;
+    for (head, tail, mono, action, mark, pass) in rows {
+        // A wallet's dot: green when the seeds here sign for it alone,
+        // grey when some of them are here.
+        if let Some(c) = mark {
+            ui.dot(18.0, fy + ROW / 2.0, 3.5, c);
+        }
+        let role = if mono { BODY_S.mono() } else { LABEL_M };
+        let head = ui.fit_as(role, &head, rows_w * 0.55);
+        let hw = ui.text_mid_as((28.0, fy, ROW), role, Role::OnSurface, &head);
+        // A key loaded with a passphrase says so at the row's end: the
+        // same words without it are another key.
+        let tag_w = if pass {
+            let t = EN.sidebar_passphrase;
+            ui.text_right_as((end, fy, ROW), BODY_S, Role::OnSurfaceVariant, t);
+            ui.measure_as(BODY_S, t) + GRID
+        } else {
+            0.0
+        };
+        if !tail.is_empty() {
+            let tone = match mark {
+                Some(c) if c == Role::Ok.paint() => Role::Ok,
+                _ => Role::OnSurfaceVariant,
+            };
+            let tail = ui.fit_as(BODY_S, &tail, rows_w - hw - GRID - tag_w);
+            ui.text_mid_as((36.0 + hw, fy, ROW), BODY_S, tone, &tail);
+        }
+        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, ROW, action);
+        fy += ROW;
+    }
+}
+
+/// The foot of the sidebar from `fy`: the Files row with the session's
+/// stage, the stick's row, Lock and Power off, and under them the pill
+/// while the idle lock is `held`.
+fn foot(app: &View, ui: &mut Ui, fy: f32, held: bool) {
+    files_row(app, ui, fy);
+    let fy = fy + TOUCH;
     // With no stick attached, an import the boot stick brought waits
     // behind this row.
     let waiting = app.import.state().is_some() && app.stick.is_empty();
@@ -389,16 +332,16 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     if open {
         ui.fill(
             16.0,
-            fy - 4.0,
+            fy,
             SIDEBAR_W - 32.0,
-            28.0,
+            TOUCH,
             SHAPE_S,
             Role::SecondaryContainer,
         );
     }
     let muted = on_selected(open, Role::OnSurfaceVariant);
-    ui.icon(22.0, fy, 20.0, app.medium.icon(), 12.0, muted);
-    ui.text_mid_as((46.0, fy, 20.0), BODY_S, muted, app.medium.caps());
+    ui.icon(22.0, fy + 14.0, 20.0, app.medium.icon(), 12.0, muted);
+    ui.text_mid_as((46.0, fy, TOUCH), BODY_S, muted, app.medium.caps());
     let sticks = ui.fit_as(BODY_S, &sticks, 110.0);
     let tone = on_selected(
         open,
@@ -408,17 +351,12 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             Role::OnSurface
         },
     );
-    ui.text_right_as((SIDEBAR_W - 24.0, fy, 20.0), BODY_S, tone, &sticks);
+    ui.text_right_as((SIDEBAR_W - 24.0, fy, TOUCH), BODY_S, tone, &sticks);
     if waiting {
-        ui.press_box(
-            16.0,
-            fy - 4.0,
-            SIDEBAR_W - 32.0,
-            28.0,
-            crate::boot_import::OPEN,
-        );
+        ui.press_box(16.0, fy, SIDEBAR_W - 32.0, TOUCH, crate::boot_import::OPEN);
     }
-    fy += 34.0;
+    // Room above the buttons, for their targets to reach 48 dp.
+    let fy = fy + TOUCH + 12.0;
     if app.holds_secret() {
         ui.button(
             16.0,
@@ -451,6 +389,58 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     if held {
         lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
     }
+}
+
+/// The Files row at `fy`, one touch target tall, which opens Files: its
+/// name and how many files wait, and under them the four stages of the
+/// lock cycle, the one now current in the accent, the rest dim
+/// (the session strip, merged into this row).
+fn files_row(app: &View, ui: &mut Ui, fy: f32) {
+    let here = app.screen == Screen::Files;
+    if here {
+        ui.fill(
+            16.0,
+            fy,
+            SIDEBAR_W - 32.0,
+            TOUCH,
+            SHAPE_S,
+            Role::SecondaryContainer,
+        );
+    }
+    let muted = on_selected(here, Role::OnSurfaceVariant);
+    ui.icon(22.0, fy + 14.0, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
+    // Two lines in the row: the name and the count, then the stages.
+    let half = TOUCH / 2.0;
+    let line = (fy + GAP_SMALL, half - GAP_SMALL);
+    ui.text_mid_as((46.0, line.0, line.1), BODY_S, muted, EN.sidebar_files);
+    let ink = on_selected(here, Role::OnSurface);
+    let files = app.files_count();
+    let end = SIDEBAR_W - 24.0;
+    ui.text_right_as((end, line.0, line.1), BODY_S, ink, &files);
+    let stage = app.session_stage();
+    let line = (fy + half, half - GAP_SMALL);
+    let mut sx = 46.0;
+    for (i, label) in [
+        EN.sidebar_bring_in_button,
+        EN.sidebar_open,
+        EN.sidebar_work,
+        EN.sidebar_write_out,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if i > 0 {
+            sx += ui.text_mid_as((sx, line.0, line.1), LABEL_S, muted, " · ");
+        }
+        let fg = if label == stage {
+            Role::Primary.paint()
+        } else {
+            muted
+        };
+        sx += ui.text_mid_as((sx, line.0, line.1), LABEL_S, fg, label);
+    }
+    let open_files = Action::Nav(Screen::Files);
+    ui.press_box(16.0, fy, SIDEBAR_W - 32.0, TOUCH, open_files);
 }
 
 /// The pill's height.

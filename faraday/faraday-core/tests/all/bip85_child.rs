@@ -275,10 +275,9 @@ fn nothing_written_for_a_recorded_child_seeds_backup_names_its_parent() {
     app.press(Action::Cancel);
     app.press(Action::Backup(w));
     let _ = app.frame();
-    let mut texts = app.drawn_texts();
+    let mut texts = page_texts(&mut app);
     app.press(Action::BXor(2));
-    let _ = app.frame();
-    texts.extend(app.drawn_texts());
+    texts.extend(page_texts(&mut app));
     assert!(
         texts.iter().any(|t| t.contains(&child)),
         "not the child's backup: {texts:?}"
@@ -289,4 +288,18 @@ fn nothing_written_for_a_recorded_child_seeds_backup_names_its_parent() {
         assert!(!names_parent(&it.name, &parent), "{}", it.name);
     }
     assert!(!names_parent(&app.session.wallets[w].name, &parent));
+}
+
+/// The texts the page draws now, beside the sidebar: the sidebar lists
+/// every key loaded, the parent among them, and writes nothing.
+fn page_texts(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    // The Home row spans the sidebar but for its margins: twice its
+    // middle is the sidebar's edge.
+    let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
+    app.drawn_text_boxes()
+        .into_iter()
+        .filter(|(_, (x, _, _, _))| *x >= edge)
+        .map(|(t, _)| t)
+        .collect()
 }

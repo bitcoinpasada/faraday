@@ -1,8 +1,8 @@
 //! The sidebar names what is loaded in two groups, keys and wallets,
-//! as far up as the last tab. A group that does not fit shows its first
-//! rows and "+ N more", which opens the whole list; each row opens what
-//! it names. Under its tab, each flow in progress has a row, its name
-//! and open step, which returns to it as it was left.
+//! as far up as the last tab; where they do not fit, they scroll within
+//! the sidebar, and each row opens what it names. Its Files row names
+//! the stage of the session. Under its tab, each flow in progress has a
+//! row, its name and open step, which returns to it as it was left.
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::testkit::KindText;
@@ -176,7 +176,8 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
 
 #[test]
 fn a_few_are_each_named_and_open_what_they_name() {
-    let mut app = with(3, 2);
+    // Rows are a touch target tall, so five need a taller panel.
+    let mut app = with_height(3, 2, 1200);
     for k in 0..3 {
         assert!(
             app.offers(Action::ExploreKey(fp(&app, k))),
@@ -186,36 +187,170 @@ fn a_few_are_each_named_and_open_what_they_name() {
     for w in 0..2 {
         assert!(app.offers(Action::OpenWallet(w)), "wallet {w} not listed");
     }
-    assert!(
-        !app.offers(Action::Explore),
-        "a '+ more' with room to spare"
-    );
+    assert!(!app.offers(Action::Explore), "a '+ more' row");
     let first = fp(&app, 0);
     app.press(Action::ExploreKey(first));
     assert_eq!(app.screen, Screen::Explore);
     assert_eq!(app.explore().and_then(|e| e.key), Some(first));
 }
 
+/// Over the sidebar's lists, at (x, y) pixels: the wheel turned `notches`
+/// notches down, each 48 pixels as the shells send them, and the motion
+/// left to come to rest.
+fn wheel_at(app: &mut Faraday, (x, y): (u16, u16), notches: usize) {
+    for _ in 0..notches {
+        app.event(Event::Wheel { x, y, dy: 48 });
+    }
+    app.settle();
+    let _ = app.frame();
+}
+
+/// Where the sidebar's lists are, in pixels: on the first key's row.
+fn lists_at(app: &Faraday) -> (u16, u16) {
+    app.where_offered(Action::ExploreKey(fp(app, 0))).unwrap()
+}
+
+/// Many keys and wallets, more than the sidebar has room for: the first
+/// rows show, and the wheel over the lists brings the last key's row
+/// and the last wallet's into view, each of which opens what it names.
 #[test]
-fn many_show_their_first_rows_and_how_many_more() {
-    let app = with(30, 12);
+fn many_scroll_within_the_sidebar_to_their_last_rows() {
+    let mut app = with(30, 12);
     assert!(app.offers(Action::ExploreKey(fp(&app, 0))));
+    let last = fp(&app, 29);
     assert!(
-        !app.offers(Action::ExploreKey(fp(&app, 29))),
-        "every seed is listed: the corner would cover the tabs"
+        !app.offers(Action::ExploreKey(last)),
+        "every key is in view: the lists would cover the tabs"
     );
-    assert!(app.offers(Action::Explore), "no '+ more' for seeds");
-    assert!(app.offers(Action::OpenWallet(0)));
+    assert!(!app.offers(Action::Explore), "a '+ more' row");
+    let at = lists_at(&app);
+    let mut reached = false;
+    for _ in 0..40 {
+        wheel_at(&mut app, at, 1);
+        if app.offers(Action::ExploreKey(last)) {
+            reached = true;
+            break;
+        }
+    }
+    assert!(reached, "the last key is never reached");
     assert!(
-        app.offers(Action::Nav(Screen::Wallets)),
-        "no '+ more' for wallets"
+        !app.offers(Action::ExploreKey(fp(&app, 0))),
+        "the first key still in view"
     );
+    assert!(app.offers(Action::Nav(Screen::Home)), "the tabs stay");
+    assert!(app.offers(Action::PowerAsk), "the foot stays");
+    wheel_at(&mut app, at, 40);
+    assert!(app.offers(Action::OpenWallet(11)), "the last wallet");
+    app.press(Action::OpenWallet(11));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+#[test]
+fn a_key_scrolled_to_opens_what_it_names() {
+    let mut app = with(30, 0);
+    let k = 20;
+    let at = lists_at(&app);
+    for _ in 0..40 {
+        if app.offers(Action::ExploreKey(fp(&app, k))) {
+            break;
+        }
+        wheel_at(&mut app, at, 1);
+    }
+    let fp_k = fp(&app, k);
+    assert!(
+        app.offers(Action::ExploreKey(fp_k)),
+        "key {k} never in view"
+    );
+    app.press(Action::ExploreKey(fp_k));
+    assert_eq!(app.screen, Screen::Explore);
+    assert_eq!(app.explore().and_then(|e| e.key), Some(fp_k));
+}
+
+/// Scrolled to the end of a long list that then shrinks, the lists
+/// stand at their new end: the first key, alone now, is in view.
+#[test]
+fn the_lists_scrolled_to_their_end_follow_a_list_that_shrinks() {
+    let mut app = with(30, 0);
+    let at = lists_at(&app);
+    wheel_at(&mut app, at, 80);
+    assert!(app.offers(Action::ExploreKey(fp(&app, 29))));
+    assert!(!app.offers(Action::ExploreKey(fp(&app, 0))));
+    while app.session.keys.len() > 1 {
+        app.session.keys.remove(1);
+    }
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(app.offers(Action::ExploreKey(fp(&app, 0))), "the one key");
+    // Many again: the lists start from the top, where the shrink left
+    // them, not from the end they were scrolled to before it.
+    let c = testkit::compute();
+    for i in 1..30u8 {
+        let m = Mnemonic::from_entropy(Language::English, &[i + 1; 16]).unwrap();
+        let words: Vec<&str> = m
+            .indices()
+            .iter()
+            .map(|&w| Language::English.words()[usize::from(w)])
+            .collect();
+        app.session
+            .keys
+            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
+            .unwrap();
+    }
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::ExploreKey(fp(&app, 0))),
+        "not at the top"
+    );
+    assert!(!app.offers(Action::ExploreKey(fp(&app, 29))));
+}
+
+/// The Files row names how many files wait and, under that, the four
+/// stages of the session, the stage once a strip of its own: all of it
+/// between the Files row's name and the stick's row under it.
+#[test]
+fn the_files_row_names_the_session_stage() {
+    let mut app = with(1, 0);
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: vec![("wallet.txt".to_string(), b"wpkh".to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
+    let boxes: Vec<(String, (i32, i32, i32, i32))> = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(_, (x, _, _, _))| *x < edge)
+        .collect();
+    let lowest = |want: &dyn Fn(&str) -> bool| {
+        boxes
+            .iter()
+            .filter(|(s, _)| want(s))
+            .map(|(_, b)| *b)
+            .max_by_key(|b| b.1)
+            .unwrap_or_else(|| panic!("not drawn: {boxes:?}"))
+    };
+    let files = lowest(&|t| t == "Files");
+    // The stick's row: nothing attached.
+    let stick = lowest(&|t| t == "none");
+    let count = lowest(&|t| t.starts_with("1 "));
+    assert_eq!(count.1, files.1, "the count beside the name: {boxes:?}");
+    for t in ["Bring in", "Open", "Work", "Write out"] {
+        let b = lowest(&|s| s == t);
+        assert!(
+            files.1 < b.1 && b.1 < stick.1,
+            "{t:?} is not in the Files row: {b:?}, Files {files:?}, stick {stick:?}"
+        );
+    }
+    assert!(app.offers(Action::Nav(Screen::Files)));
 }
 
 #[test]
 fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     let c = testkit::compute();
-    let mut app = with(2, 0);
+    let mut app = with_height(2, 0, 1000);
     let text_of = |app: &Faraday, k: usize, a: usize| {
         faraday_core::create::NewKind::NativeSegwit
             .key_text(&c, app.session.keys.master_for_tests(k))
@@ -245,9 +380,9 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     let _ = app.frame();
     assert!(
         app.offers(Action::OpenWallet(12)),
-        "the wallet that can sign is cut off"
+        "the wallet that can sign is out of view"
     );
-    assert!(app.offers(Action::Nav(Screen::Wallets)), "no '+ more'");
+    assert!(!app.offers(Action::OpenWallet(11)), "every wallet in view");
 }
 
 /// A key loaded with a passphrase says so on its row: the same words
@@ -255,7 +390,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
 #[test]
 fn a_key_with_a_passphrase_says_so() {
     let c = testkit::compute();
-    let mut app = with(1, 0);
+    let mut app = with_height(1, 0, 1400);
     let words = app
         .session
         .keys

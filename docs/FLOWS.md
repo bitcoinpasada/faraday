@@ -161,7 +161,8 @@ carries it. The sidebar's status block carries the session, Files and
 the sticks; its **Files** entry opens Files. **The session strip**
 (decision 15) is one line, **Bring in · Open · Work · Write out**, the
 current stage in the accent, computed from what is attached, loaded and
-waiting; tapping it opens Files. **Bring in** is a stick attached or
+waiting; it stands under Files and its count in the one Files row, which
+opens Files. **Bring in** is a stick attached or
 an import waiting, and also nothing attached, loaded or waiting at all
 (owner, 2026-10-24); **Write out** is files For the stick, or a vault
 changed since it was written (decision 26), with no stick attached;

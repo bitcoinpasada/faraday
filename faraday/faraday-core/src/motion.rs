@@ -503,6 +503,11 @@ pub(crate) struct Scroll {
     /// A list and detail page's list pane: its offset, and Settings'
     /// section (`docs/LAYOUT.md` §5).
     panes: crate::panes::Panes,
+    /// How far the sidebar's lists of keys and wallets are scrolled,
+    /// units. Kept in step with the lists: every frame that draws them
+    /// clamps it to how far they go ([`Scroll::drew`]), so a list that
+    /// shrank leaves no offset past its end.
+    sidebar: f32,
 }
 
 impl Default for Scroll {
@@ -518,6 +523,7 @@ impl Default for Scroll {
             content_h: std::cell::Cell::new(0.0),
             drag_x: 0,
             panes: crate::panes::Panes::default(),
+            sidebar: 0.0,
         }
     }
 }
@@ -528,9 +534,20 @@ impl Scroll {
         &self.panes
     }
 
-    /// The list pane's offset, for the wheel, a trackpad and a finger.
-    pub(crate) fn list_pane_offset_mut(&mut self) -> &mut f32 {
-        self.panes.list_offset_mut()
+    /// The offset this area keeps for `slot`, for the wheel, a trackpad
+    /// and a finger: the list pane's or the sidebar's lists'.
+    pub(crate) fn offset_of(&mut self, slot: ui::Slot) -> Option<&mut f32> {
+        match slot {
+            ui::Slot::ListPane => Some(self.panes.list_offset_mut()),
+            ui::Slot::Sidebar => Some(&mut self.sidebar),
+            _ => None,
+        }
+    }
+
+    /// How far the sidebar's lists of keys and wallets are scrolled,
+    /// units.
+    pub(crate) fn sidebar_offset(&self) -> f32 {
+        self.sidebar
     }
 
     /// The height a scrolled page last drew to: how far its scroll may
@@ -620,6 +637,11 @@ impl Scroll {
 
     /// Takes the regions a frame drew for `key`.
     pub(crate) fn drew(&mut self, key: ScreenKey, scrolled: Vec<ui::Scrolled>) {
+        // The sidebar's lists as drawn: their offset goes no further than
+        // they do now.
+        if let Some(e) = scrolled.iter().find(|e| e.slot == ui::Slot::Sidebar) {
+            self.sidebar = self.sidebar.clamp(0.0, e.max);
+        }
         self.extent = (!scrolled.is_empty()).then_some((key, scrolled));
     }
 
@@ -697,6 +719,8 @@ impl Scroll {
             // Learn's supporting pane scrolls within itself beside the
             // page (`docs/LAYOUT.md` §6); put away, the page has it back.
             ui::Slot::LearnPane if sheet_none => ui::Slot::LearnPane,
+            // The sidebar's lists scroll within it, beside the page.
+            ui::Slot::Sidebar if reach => ui::Slot::Sidebar,
             _ => ui::Slot::Page,
         }
     }

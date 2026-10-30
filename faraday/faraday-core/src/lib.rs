@@ -5768,7 +5768,7 @@ impl Faraday {
             ui::Slot::Card => Some(self.wallets.card_offset_mut()),
             ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
-            ui::Slot::ListPane => Some(self.scroll.list_pane_offset_mut()),
+            s @ (ui::Slot::ListPane | ui::Slot::Sidebar) => self.scroll.offset_of(s),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
             ui::Slot::LearnPane => Some(self.learn.scroll_mut()),
             ui::Slot::Worksheet | ui::Slot::DemoPane | ui::Slot::InputPanel => self.codex32_slot(),

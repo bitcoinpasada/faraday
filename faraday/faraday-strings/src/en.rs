@@ -4507,7 +4507,7 @@ strings! {
     sidebar_write_out: "Write out",
     /// Text in `sidebar`.
     sidebar_passphrase: "passphrase",
-    /// Text in `sidebar`. `{}`: `total - shown`.
+    /// Text in `more`. `{}`: `n - i`.
     sidebar_more: "+ {} more",
     /// Text in `sidebar`.
     sidebar_keys: "Keys",

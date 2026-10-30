@@ -46,6 +46,10 @@ pub enum Slot {
     /// within itself beside the page (`docs/LAYOUT.md` §6;
     /// `LearnState::scroll`, `faraday-core`).
     LearnPane,
+    /// The desktop sidebar's lists of keys and wallets, which scroll
+    /// within the sidebar where they are taller than its room
+    /// (`Scroll::sidebar_offset`, `faraday-core`).
+    Sidebar,
     /// Where the codex32 dice sheet's work is while the step-through
     /// rolls: the marked die's track, or the tree on the character's
     /// step; and, in the tour of the shares made, the marked cells of a
