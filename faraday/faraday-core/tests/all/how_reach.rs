@@ -5,7 +5,7 @@
 //! screens are `faraday-learn`'s generated ones.
 
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
-use faraday_core::{Action, Faraday, Screen, testkit};
+use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_learn::how::{BLOCKS, learn_page};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -48,6 +48,7 @@ fn screen(name: &str) -> Screen {
         "Family" => S::Family,
         "Vanity" => S::Vanity,
         "Decode" => S::Decode,
+        "NonceCheck" => S::NonceCheck,
         "Catalog" => S::Catalog,
         "Transfer" => S::Transfer,
         "BackupFlow" => S::BackupFlow,
@@ -120,7 +121,21 @@ fn screen_names() -> Vec<&'static str> {
 
 fn on_screen(name: &str, w: u16, h: u16, dpi: u16) -> Faraday {
     let mut app = app(w, h, dpi);
-    app.press(Action::Nav(screen(name)));
+    if name == "NonceCheck" {
+        // It opens on a signed file: Savings' spend as its cosigner
+        // signed it, from Files.
+        let (_, cosigner) = testkit::spend().unwrap();
+        app.storage(StorageEvent::Restored {
+            inbox: vec![("signed.psbt".to_string(), cosigner.to_bytes())],
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Inbox(
+            0,
+        )));
+    } else {
+        app.press(Action::Nav(screen(name)));
+    }
     app.settle();
     let _ = app.frame();
     assert_eq!(app.screen, screen(name), "the test puts the app on {name}");

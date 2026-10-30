@@ -46,7 +46,7 @@ This walkthrough uses two groups:
 | **Calculators** | **Hashes**, **Encodings**, **Descriptor checksum**, **Convert an xpub**, **Units**, **Miniscript compiler** |
 
 A tile that needs something first is grey, and its line says what, in
-the warning tone: **Load a wallet first**, **At the end of signing**.
+the warning tone: **Load a wallet first**.
 
 ## 2. Read a PSBT before signing
 
@@ -68,7 +68,7 @@ finished, the one a wallet broadcasts. Open it one of three ways:
 | From | Press |
 |---|---|
 | [Spend](spend.md#67-send-it)'s **Send it** card, under the nonce check | **Decode it** |
-| **Files**, a **Finished transaction** such as `payment-final.txn` | **Decode** |
+| **Files**, a **Finished transaction** such as `payment-final.txn` | **Nonce check**, then **Decode it** |
 | **Tools** | **Decode a transaction**: the first finished transaction in Files, or the camera when there is none; a transaction scanned lands as `scanned-1.txn` |
 
 Under the title, where it came from: the file's name, or "Finished
@@ -107,8 +107,39 @@ explorer that broadcasts it.
 
 The nonce check is on [Spend](spend.md#67-send-it)'s **Send it** card, under
 the files, once the transaction is finished. **Tools → Nonce check**
-opens that card; until a transaction is finished, the tile reads **At
-the end of signing**.
+opens that card.
+
+It also checks a transaction another signer made, with nothing signed
+here. A PSBT that carries signatures and that no key loaded here is
+left to sign, or a finished transaction, opens on the **Nonce check**
+page instead of signing, from every way in:
+
+| From | Press |
+|---|---|
+| The camera | scan it: the page opens, and its way back is to where the scan started |
+| **Files** | the row's **Nonce check** |
+| **Tools** | **Nonce check**, with no spend finished here: the first such file in Files, or the camera |
+
+The page shows the file's name and the same check as Send it. Under
+it, unless a signature is wrong: **Save to a stick** (the finished
+transaction as `payment-final.txn`, or the PSBT as it came, For the
+stick; **Remove** while it waits there), and for a finished one
+**Decode it**, **Show the raw hex** and **Show as QR**; a PSBT still
+wanting signatures reads "Not finished: more signatures are wanted"
+and offers its code. A wrong signature reads "Not finished: a
+signature is wrong" and offers nothing to carry on.
+
+To use Faraday as a check on another signer, a SeedSigner or a
+hardware wallet:
+
+1. Open what it signed under **Tools → Nonce check** (scan its PSBT, or
+   bring the file in on a stick). Every signature is checked against
+   what is in the transaction, and two that share a nonce are refused.
+2. For the strong check, load that signer's seed here once (**Add a
+   key**) and open it again: each of its signatures is signed again here
+   under both nonce rules, and the row says which made it ("Valid ·
+   nonce recomputed, low R"). One that neither rule makes reads **Valid
+   · not the nonce this key makes: do not broadcast**.
 
 Its first line sums it up:
 
@@ -127,13 +158,18 @@ the raw hex** and **Show the finished transaction as QR**.
 |---|---|
 | "Valid · nonce recomputed, low R" | signed with a key here, and the same signature made again here |
 | **Valid · signed elsewhere, its nonce needs that device's key** | valid; its nonce can be checked only on the device that holds the key |
+| **Valid · no key origin: its nonce is not recomputed** | valid; the transaction names no origin for its key (a final raw transaction carries none), so no key here is matched to it |
+| **Valid · finalized: its nonce is not recomputed** | valid, under a key here, but read from a final witness, which is not signed again |
 | **Valid · not the nonce this key makes: do not broadcast** | valid, but not made the way this key signs |
 | **Invalid: not this key's over this transaction** | the signature does not hold |
 | "Not checked ·" and why | it could not be checked here |
 
 Two signatures that share a nonce are named in red, with the inputs
 ("one nonce on inputs … · this gives the key away"). Past twelve rows,
-one line counts the rest ("4 more · none wrong").
+one line counts the rest ("4 more · none wrong"). A raw transaction is
+checked against the PSBT of it in Files, which states what its inputs
+spend; with none, its first line reads "Nonce check · 1 not checked:
+the outputs they spend are not here".
 
 ## 5. Check an address
 

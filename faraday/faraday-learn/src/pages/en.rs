@@ -446,7 +446,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What Faraday checks on a signature that arrived",
                 paragraphs: &[
-                    "A transaction can reach the device with signatures another device or another person already made. Faraday checks each of them against the key it is under and refuses the transaction when one is not a signature of what is in front of you, because that means the transaction was changed after it was signed. It also looks for two signatures under one key that share a nonce, anywhere in the transaction, and refuses that too: those two signatures are the key. Where a signature is under a key this device holds, it signs the same input again under each nonce rule and says which one produced it, so you can see whether another device signed the way it says it does. The Nonce check, on Spend's last card once the transaction is finished (Tools' Nonce check tile opens that card), lists them.",
+                    "A transaction can reach the device with signatures another device or another person already made. Faraday checks each of them against the key it is under and refuses the transaction when one is not a signature of what is in front of you, because that means the transaction was changed after it was signed. It also looks for two signatures under one key that share a nonce, anywhere in the transaction, and refuses that too: those two signatures are the key. Where a signature is under a key this device holds, it signs the same input again under each nonce rule and says which one produced it, so you can see whether another device signed the way it says it does. The Nonce check lists them: on Spend's last card once the transaction is finished, and on its own page for a transaction another device signed and nothing here is left to sign, which Faraday checks instead of signing. A raw transaction names no key origins, so a signature in it is not matched to a key here, and it is checked against a PSBT of the same transaction in Files, which states the outputs its inputs spend.",
                 ],
             },
             Section {
@@ -462,6 +462,12 @@ pub static EN: Learn = Learn {
                     "There are two standard ways to derive an RFC 6979 nonce. \"Low R\" retries the nonce, with a counter added as the RFC's extra data, until the signature comes out in its shortest form. \"First\" stops at the first nonce. Faraday signs with Low R, for transactions and messages alike, and has no setting for it.",
                     "Low R is what Bitcoin Core, Sparrow, and Electrum produce. First is what the RFC's own test vectors, the BIP-174 test vectors, and Trezor produce. Bitcoin Core signs messages without the retry, so a Core message signature does not match Faraday's byte for byte.",
                     "For taproot, Faraday adds no randomness to a single-key signature, so it can be compared against another implementation that does the same. BIP-340 recommends 32 fresh bytes in every signature as a defence against fault and side-channel attacks; a signature made that way cannot be reproduced.",
+                ],
+            },
+            Section {
+                heading: "Checking another signer with Faraday",
+                paragraphs: &[
+                    "Faraday can check what another signer made, such as a SeedSigner or a hardware wallet, without signing anything itself. Open its signed PSBT or finished transaction under Tools, Nonce check, by scanning it or from Files: every signature is checked against what is in the transaction, and two that share a nonce are refused. For the strong check, load that signer's seed here once. Faraday then signs each of its inputs again under both nonce rules and says which one produced each signature. A signature that neither rule produces was not made the way that signer says it signs, and its nonce may carry your key.",
                 ],
             },
             Section {

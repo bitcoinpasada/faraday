@@ -21,7 +21,18 @@ pub(crate) fn decode_back(back: Screen) -> &'static str {
         Screen::Files => EN.decode_back_files,
         Screen::WalletsStart => EN.decode_back_wallets,
         Screen::Catalog => EN.decode_back_tools,
+        Screen::NonceCheck => EN.decode_back_nonce_check,
         _ => EN.decode_back_back,
+    }
+}
+
+/// What the way back from Decode a transaction does: back to the screen
+/// it was opened from, the nonce check checked again when the keys or
+/// wallets changed while Decode was open.
+pub(crate) fn decode_back_to(back: Screen) -> Action {
+    match back {
+        Screen::NonceCheck => Action::NonceCheck(crate::decode::CheckPress::Back),
+        s => Action::Nav(s),
     }
 }
 
@@ -46,7 +57,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = if compact {
         14.0
     } else {
-        let back = app.named_back((decode_back(d.back), Action::Nav(d.back)));
+        let back = app.named_back((decode_back(d.back), decode_back_to(d.back)));
         super::bar_head(ui, Some(back), EN.decode_decode_a_transaction)
     } - app.list_offset;
     let mut y = top;

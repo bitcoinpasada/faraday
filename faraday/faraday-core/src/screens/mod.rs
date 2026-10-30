@@ -16,6 +16,7 @@ mod files;
 mod home;
 mod learn_pane;
 mod message;
+mod nonce_check;
 mod parts;
 pub(crate) mod randomness;
 mod restore;
@@ -36,7 +37,7 @@ use crate::ui::{Style, Ui};
 use crate::{Action, Screen, Sheet};
 pub(crate) use backup::{SOFTWARE_ROWS, extra_copies, held_item, item_title, item_title_now};
 pub(crate) use create::CSTEPS;
-pub(crate) use decode::decode_back;
+pub(crate) use decode::{decode_back, decode_back_to};
 pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
@@ -117,6 +118,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Lightning
         | Screen::Vanity
         | Screen::Decode
+        | Screen::NonceCheck
         | Screen::Family => Area::Reading(READING_PAGE_W),
         // Tools, Transfer and a stick visit are reading content
         // (fields, rows, two lists side by side), each in its own area;
@@ -549,6 +551,7 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Family => crate::family::screen::draw(app, ui, x, cw, h),
         Screen::Vanity => crate::vanity::screen::draw(app, ui, x, cw, h),
         Screen::Decode => decode::draw(app, ui, x, cw, h),
+        Screen::NonceCheck => nonce_check::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),
         Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
         Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),

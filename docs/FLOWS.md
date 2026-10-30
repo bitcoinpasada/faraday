@@ -175,7 +175,8 @@ mainnet.
 
 **One Files screen holds what came from the stick and what goes to it**
 (decision 1). Every file copied in carries the action that uses it: a
-PSBT **Sign in Wallets**, an
+PSBT **Sign in Wallets** (a signed PSBT no key here is left to sign,
+and a finished transaction, **Nonce check**: see Nonce check below), an
 entries file **Import into a vault**, a vault file **Unlock**, a received
 file **Show as QR**. Both halves are emptied at power-off. Each half
 scrolls on its own, with its own scrollbar, under the pointer (decision
@@ -1947,3 +1948,44 @@ Restore or Back up while their key is not made; one whose key is made
 stays, its writes waiting under a row of its own: no Cancel lets go
 of F6's and F31's hold. Cancel closes no vault and seals none: an open vault
 keeps its changes, and a lock asks about them as it does today.
+
+## Nonce check
+
+**A signed transaction brought in is checked, not signed** (owner,
+2026-10-29). A PSBT that carries a signature and that no key loaded here
+is left to sign (each key a key origin names on an input not yet final
+has signed it, or is not here), and a finished transaction, open the
+nonce check (`Screen::NonceCheck`) from every way in, with no choice in
+between:
+
+| From | What opens it |
+|---|---|
+| The camera | the file read: it lands in Files and its check opens; the way back is to where the scan started. The open spend's own PSBT come back stays with the spend |
+| Files | the row's one button, **Nonce check**, in place of **Sign** or **Decode** |
+| Tools | **Nonce check**: the finished spend's Send it card, as before; else the first such file in Files; else the camera |
+
+A PSBT that a key here is still to sign goes to signing as before, and
+the spend's own nonce check on its Send it card is unchanged.
+
+The screen is a page (Material 3's top app bar with its way back, the
+page under it): the file's name; the nonce check as Send it draws it
+(each signature against its key and the transaction, every one wrong
+refusing it, a nonce used twice refusing it, each signature under a key
+loaded here signed again under both nonce rules and the rule named,
+"signed elsewhere" for another device's key, "no key origin" for a
+signature whose key no origin names, as in a final raw transaction, and
+"finalized" for one under a key here read from a final witness); then,
+where nothing is wrong, what a person does with a signed transaction:
+**Save to a stick** (the finished transaction as `{name}-final.txn`, or
+the file as it came; **Remove** while it waits For the stick), **Decode
+it**, **Show the raw hex** and **Show as QR** for a finished one, the
+PSBT's code for one still wanting signatures ("Not finished: more
+signatures are wanted"). A PSBT with every signature it needs is
+finished here as Spend finishes one. A wrong signature offers nothing
+to carry on ("Not finished: a signature is wrong"). A raw transaction
+whose inputs state no output they spend is checked against the PSBT in
+Files of the same transaction, as Decode reads its amounts; with none,
+its headline says how many inputs could not be checked.
+
+The check is made once, when it opens, against the keys and wallets
+loaded then; Decode's way back makes it again when they have changed.

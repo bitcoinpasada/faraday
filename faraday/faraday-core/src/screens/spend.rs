@@ -17,14 +17,26 @@ use faraday_psbt::{Level, OutputKind};
 use faraday_ui::Status;
 use faraday_ui::parts::wrap_buttons;
 
-/// The nonce check: each signature against its key and this
-/// transaction, each one made here recomputed from its key, and any nonce
-/// used twice. Returns its height.
+/// The spend's nonce check (`nonce_card`), kept on the spend. Returns
+/// its height.
 fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
-    use faraday_psbt::verify::Verdict;
     let Some(check) = app.nonce_check(psbt) else {
         return 0.0;
     };
+    nonce_card(ui, &check, x, y, w)
+}
+
+/// The nonce check: each signature against its key and this
+/// transaction, each one made here recomputed from its key, and any nonce
+/// used twice. Drawn on Spend's Send it card and on the nonce check of a
+/// transaction brought in (`Screen::NonceCheck`). Returns its height.
+pub(crate) fn nonce_card(
+    ui: &mut Ui,
+    check: &crate::wallet::NonceCheck,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
     let mut cy = y;
     let head = check.headline();
     // Sound: green. A signature wrong: red. Otherwise some were not
@@ -69,22 +81,7 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
             Role::OnSurface,
             &r.name,
         );
-        let (t, c) = match (r.verdict, r.recomputed) {
-            (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
-            (Verdict::Unchecked(why), _) => (
-                fill(EN.nonce_check_not_checked, &[unchecked_text(why)]),
-                Role::OnSurfaceVariant,
-            ),
-            (Verdict::Valid, Some(Some(mode))) => (
-                fill(EN.nonce_check_valid_nonce, &[nonce_mode_text(mode)]),
-                Role::Ok,
-            ),
-            (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), Role::Error),
-            (Verdict::Valid, None) => (
-                EN.nonce_check_valid_signed.to_string(),
-                Role::OnSurfaceVariant,
-            ),
-        };
+        let (t, c) = row_verdict(r);
         if ui.compact {
             // The verdict in full, under the input.
             let th = ui.wrap_as((x, cy + 28.0, w), BODY_S, c, &t);
@@ -123,6 +120,33 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
         cy += 32.0;
     }
     cy + 12.0 - y
+}
+
+/// A nonce check row's verdict and its tone. A lookup.
+fn row_verdict(r: &crate::wallet::NonceRow) -> (String, Role) {
+    use crate::wallet::Unmatched;
+    use faraday_psbt::verify::Verdict;
+    match (r.verdict, r.recomputed) {
+        (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
+        (Verdict::Unchecked(why), _) => (
+            fill(EN.nonce_check_not_checked, &[unchecked_text(why)]),
+            Role::OnSurfaceVariant,
+        ),
+        (Verdict::Valid, Some(Some(mode))) => (
+            fill(EN.nonce_check_valid_nonce, &[nonce_mode_text(mode)]),
+            Role::Ok,
+        ),
+        (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), Role::Error),
+        (Verdict::Valid, None) => (
+            match r.unmatched {
+                Some(Unmatched::NoOrigin) => EN.nonce_check_no_origin,
+                Some(Unmatched::Finalized) => EN.nonce_check_finalized_here,
+                None => EN.nonce_check_valid_signed,
+            }
+            .to_string(),
+            Role::OnSurfaceVariant,
+        ),
+    }
 }
 
 pub(crate) const STEPS: [&str; 10] = [

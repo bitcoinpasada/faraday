@@ -41,13 +41,14 @@ Each row has one button for what its kind is for, and **⋮** for the rest.
 | Kind | Button | What it does |
 |---|---|---|
 | a PSBT | **Sign** | starts its spend: [Sign a transaction](sign.md) |
+| a PSBT signed elsewhere that no key here is left to sign | **Nonce check** | opens its [nonce check](../walk/check-and-decode.md#4-nonce-check) |
 | a PSBT of the spend under way, from another file | **Add to signatures** | adds its signatures to the spend |
 | a wallet | **Load the wallet** | loads it and opens its card |
 | seed words | **Load this key** | loads the key |
 | a vault | **Unlock**, or **Contents** while it is open | opens its [Unlock](vaults.md#unlock) or its [contents](vault.md) |
 | entries | **Import into the vault** | adds them to the open vault. Shown while a vault is open |
 | a text file | **Add to vault** | adds it to the open vault as a note. Shown while a vault is open |
-| a transaction | **Decode** | opens Decode on it |
+| a finished transaction | **Nonce check** | opens its [nonce check](../walk/check-and-decode.md#4-nonce-check), with **Decode it** on it |
 | a signed message | **Check the signature** | opens Check a signed message on it |
 | shares of a wallet | "Restore the wallet · 3 shares" | opens Restore with them; "2 of 3 keys in hand" while some are missing |
 | a recovery sheet | **Make PDF** | Faraday Demo only: makes its PDF |

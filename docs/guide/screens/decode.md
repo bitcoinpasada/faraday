@@ -5,9 +5,10 @@
 **Screen:** `Decode`
 **Group:** Tools
 
-**Opened from:** **Decode** on a finished transaction in
-[Files](files.md#a-file-from-the-stick); **Decode it** on the last card
-of [Sign a transaction](sign.md); **Tools → Decode a transaction**,
+**Opened from:** **Decode it** on the [Nonce check](nonce-check.md) of
+a finished transaction in [Files](files.md#a-file-from-the-stick);
+**Decode it** on the last card of [Sign a transaction](sign.md);
+**Tools → Decode a transaction**,
 which opens the first finished transaction in Files, or the
 [camera](qr-and-scan.md#scan) while there is none.
 
@@ -23,7 +24,7 @@ transaction.
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from: **Sign a transaction**, **Spend**, **Files**, **Wallets**, **Tools** or **Back** |
+| the way back | at the top left, named after where the page was opened from: **Sign a transaction**, **Spend**, **Files**, **Wallets**, **Tools**, **Nonce check** or **Back** |
 | the source | under the title: the file's name, or "Finished from payment.psbt" |
 
 ### The facts

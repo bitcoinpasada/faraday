@@ -1226,7 +1226,7 @@ pub static BLOCKS: &[Block] = &[
     Block {
         id: "sign-check",
         name: "Check a PSBT's signatures",
-        action: "Checks every signature a PSBT carries, finds a nonce used twice, recomputes this device's signatures and compares two PSBTs.",
+        action: "Checks every signature a PSBT or a finished transaction carries, finds a nonce used twice, recomputes this device's signatures and compares two PSBTs.",
         standards: &[p("RFC 6979, Deterministic Usage of the Digital Signature Algorithm (DSA) and Elliptic Curve Digital Signature Algorithm (ECDSA), Informational"), p("BIP 143, Transaction Signature Verification for Version 0 Witness Program, Deployed"), p("BIP 341, Taproot: SegWit version 1 spending rules, Deployed")],
         implementation: &[m("core/faraday-psbt"), m("secp256k1 0.29.1"), m("bitcoin 0.32.102"), p("Each signature is checked against the key it is under and the sighash the input's fields give, including the ones inside a finalized witness; one r or one R under one key twice is reported; a signature under a key this device holds is recomputed to say which nonce rule produced it.")],
         checked: &[m("tools/vectors/psbt"), m("core/faraday-psbt/tests/all/verify.rs::every_signature_the_committed_fixtures_carry_verifies"), m("core/faraday-psbt/tests/all/verify.rs::the_signatures_this_device_writes_verify_when_they_are_read_back"), m("core/faraday-psbt/tests/all/verify.rs::one_byte_changed_in_a_signature_is_invalid"), m("core/faraday-psbt/tests/all/verify.rs::two_signatures_under_one_nonce_are_found"), m("core/faraday-psbt/tests/all/verify.rs::the_devices_own_signatures_are_recognised_by_their_nonce_rule"), m("core/faraday-psbt/tests/all/verify.rs::two_transactions_are_compared_on_what_they_decode_to"), m("fuzz psbt_parse")],
@@ -1236,7 +1236,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Private keys are used only to recompute this device's signatures; what comes back is a verdict. The library does not state the recomputation's timing."), p("The keypairs made to recompute a signature are overwritten with secp256k1's non_secure_erase, which the library calls best effort.")],
         limits: &[p("A signature with no previous output to check against is not checked."), p("A signature under a sighash type that was not asked for is flagged."), p("A signature of another device is not recomputed.")],
         own_calls: &[p("The nonce check is run on signatures a device writes, comparing them with the RFC 6979 or BIP 340 nonce rule. Neutral."), w("no decision")],
-        screens: &["Spend"],
+        screens: &["Spend", "NonceCheck"],
         learn: "nonces",
     },
     Block {

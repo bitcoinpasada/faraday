@@ -418,14 +418,6 @@ impl Faraday {
             Go::Backup if self.session.wallets.get(self.wallets.wallet()).is_none() => {
                 EN.catalog_load_a_wallet
             }
-            Go::NonceCheck
-                if !self
-                    .wallets
-                    .spend()
-                    .is_some_and(|s| s.spend.finished.is_some()) =>
-            {
-                EN.catalog_at_the_end
-            }
             Go::CheckAddress if self.session.wallets.is_empty() => EN.catalog_load_a_wallet,
             Go::SignMessage if self.session.message_wallets().is_empty() => {
                 EN.catalog_needs_a_single
@@ -502,13 +494,25 @@ impl Faraday {
                 Some(k) => self.act(Action::StartSpend(k)),
                 None => self.act(Action::Scan),
             },
-            Go::NonceCheck => {
+            // The spend finished here: its Send it card. Otherwise the
+            // first file in Files to check rather than sign, or the camera
+            // when there is none (`docs/FLOWS.md`, Nonce check).
+            Go::NonceCheck
+                if self
+                    .wallets
+                    .spend()
+                    .is_some_and(|s| s.spend.finished.is_some()) =>
+            {
                 if let Some(s) = self.wallets.spend_mut() {
                     s.open = Some(crate::wallet::step::FINISH);
                     s.follow = true;
                 }
                 self.act(Action::Nav(Screen::Spend));
             }
+            Go::NonceCheck => match (0..self.inbox.len()).find(|k| self.checked_not_signed(*k)) {
+                Some(k) => self.act(Action::NonceCheck(crate::decode::CheckPress::Inbox(k))),
+                None => self.act(Action::Scan),
+            },
             Go::Decode => match self
                 .inbox
                 .iter()

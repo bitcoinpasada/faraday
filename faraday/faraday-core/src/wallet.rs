@@ -30,6 +30,9 @@ pub use faraday_intake::wallet::{
 pub use faraday_keys::identity::master_id;
 pub use faraday_keys::{WordsId, words_id};
 
+mod nonce;
+pub use nonce::{NonceCheck, NonceRow, Unmatched};
+
 /// Costs a parse of the description and its keys: reads a wallet
 /// description with `faraday_intake`'s reader, which counts through the
 /// token. Every wallet the app takes in is read here.
@@ -244,91 +247,6 @@ pub enum Origin {
     /// Anything else: a file's name, a search, "Test wallet" —
     /// [`source_tag`] puts "From"/"from" before it.
     Named,
-}
-
-/// What the nonce check found ([`Session::nonce_check`]).
-pub struct NonceCheck {
-    /// Every signature, in input order.
-    pub rows: Vec<NonceRow>,
-    /// Nonces used twice under one key: the key, given away.
-    pub reused: Vec<faraday_psbt::verify::NonceReuse>,
-}
-
-impl NonceCheck {
-    /// Whether nothing is wrong and nothing was left out: every signature
-    /// was checked and is valid, every one made here was recomputed, and
-    /// no nonce repeats. A signature that could not be checked (no
-    /// previous output, a script that names no key) is not sound: it is
-    /// not known to be this transaction's. A lookup per row.
-    pub fn sound(&self) -> bool {
-        self.reused.is_empty() && self.rows.iter().all(|r| !r.wrong() && !r.unchecked())
-    }
-
-    /// Whether a signature is wrong or a nonce repeats: an invalid
-    /// signature, one made here by no nonce rule, or a nonce used twice.
-    /// A lookup per row.
-    pub fn wrong(&self) -> bool {
-        !self.reused.is_empty() || self.rows.iter().any(NonceRow::wrong)
-    }
-
-    /// How many signatures could not be checked. A lookup per row.
-    pub fn unchecked(&self) -> usize {
-        self.rows.iter().filter(|r| r.unchecked()).count()
-    }
-
-    /// The check's headline, as the spend screen shows it: how many
-    /// signatures are valid and recomputed here when it is sound, that a
-    /// signature is wrong when one is, and otherwise how many of them
-    /// were not checked. A lookup per row.
-    pub fn headline(&self) -> String {
-        let total = self.rows.len();
-        let noun = if total == 1 {
-            EN.nonce_check_signature
-        } else {
-            EN.nonce_check_signatures
-        };
-        if self.wrong() {
-            EN.nonce_check_nonce_check.to_string()
-        } else if self.unchecked() > 0 {
-            fill(
-                EN.nonce_unchecked_head,
-                &[&self.unchecked().to_string(), &total.to_string(), noun],
-            )
-        } else {
-            let here = self.rows.iter().filter(|r| r.recomputed.is_some()).count();
-            fill(
-                EN.nonce_check_nonce_check_valid,
-                &[&total.to_string(), noun, &here.to_string()],
-            )
-        }
-    }
-}
-
-/// One signature, as the nonce check found it.
-pub struct NonceRow {
-    /// The input it signs.
-    pub input: usize,
-    /// Its key: the master fingerprint, or the key's first characters.
-    pub name: String,
-    /// Whether it is the key's over this transaction.
-    pub verdict: Verdict,
-    /// For a key held here: the nonce rule that recomputed it, or `None`
-    /// inside when none did. `None` outside for a key held elsewhere,
-    /// whose nonce cannot be recomputed without its private key.
-    pub recomputed: Option<Option<faraday_psbt::verify::NonceMode>>,
-}
-
-impl NonceRow {
-    /// Whether this signature is wrong: invalid, or made here by no
-    /// nonce rule. A lookup.
-    pub fn wrong(&self) -> bool {
-        self.verdict.is_invalid() || matches!(self.recomputed, Some(None))
-    }
-
-    /// Whether this signature could not be checked. A lookup.
-    pub fn unchecked(&self) -> bool {
-        matches!(self.verdict, Verdict::Unchecked(_))
-    }
 }
 
 /// One key slot of a wallet, in the descriptor's order.
@@ -876,17 +794,25 @@ impl Session {
                     .iter()
                     .find(|d| d.input == input.index && d.key == sig.key)
                     .map(|d| d.mode);
+                let unmatched = match (recomputed, sig.fingerprint) {
+                    (Some(_), _) => None,
+                    (None, None) => Some(Unmatched::NoOrigin),
+                    (None, Some(_)) if sig.ours && sig.finalized => Some(Unmatched::Finalized),
+                    (None, Some(_)) => None,
+                };
                 rows.push(NonceRow {
                     input: input.index,
                     name: sig.name(),
                     verdict: sig.verdict,
                     recomputed,
+                    unmatched,
                 });
             }
         }
         NonceCheck {
             rows,
             reused: faraday_psbt::verify::repeated_nonces(psbt, &ctx),
+            unread: 0,
         }
     }
 
@@ -1120,6 +1046,12 @@ pub struct PsbtSeen {
     pub txid: Txid,
     /// Partial signatures on all its inputs.
     pub sigs: usize,
+    /// It carries a signature: a partial one, a taproot one or an input
+    /// finalized.
+    pub signed: bool,
+    /// The masters a key origin names on an input not yet final whose
+    /// key has not signed that input, each once.
+    pub unsigned_by: Vec<Fingerprint>,
     /// The first input's script, and each (change, index) its key
     /// origins state.
     first: Option<(faraday_bip::bitcoin::ScriptBuf, Vec<(bool, u32)>)>,
@@ -1159,12 +1091,63 @@ impl PsbtSeen {
             }
             Some((spk, places))
         })();
+        let (signed, unsigned_by) = signing_state(inner);
         PsbtSeen {
             txid: inner.unsigned_tx.compute_txid(),
             sigs,
+            signed,
+            unsigned_by,
             first,
         }
     }
+
+    /// Whether it is checked rather than signed: it carries a signature
+    /// and no key `held` holds is left to sign it (`docs/FLOWS.md`,
+    /// Nonce check). A lookup per master its origins name.
+    pub fn signed_elsewhere(&self, held: impl Fn(Fingerprint) -> bool) -> bool {
+        self.signed && !self.unsigned_by.iter().any(|fp| held(*fp))
+    }
+}
+
+/// Whether a PSBT carries a signature, and the masters its key origins
+/// name on an input not yet final whose key has not signed that input
+/// ([`PsbtSeen::unsigned_by`]). A lookup per field.
+fn signing_state(inner: &faraday_bip::bitcoin::Psbt) -> (bool, Vec<Fingerprint>) {
+    let mut signed = false;
+    let mut unsigned_by: Vec<Fingerprint> = Vec::new();
+    for input in &inner.inputs {
+        if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
+            signed = true;
+            continue;
+        }
+        signed |= !input.partial_sigs.is_empty()
+            || input.tap_key_sig.is_some()
+            || !input.tap_script_sigs.is_empty();
+        let mut waiting: Vec<Fingerprint> = Vec::new();
+        for (pk, (fp, _)) in &input.bip32_derivation {
+            if !input
+                .partial_sigs
+                .contains_key(&faraday_bip::bitcoin::PublicKey::new(*pk))
+            {
+                waiting.push(Fingerprint::from(*fp));
+            }
+        }
+        for (xonly, (leaves, (fp, _))) in &input.tap_key_origins {
+            let key_path = input.tap_internal_key == Some(*xonly) && input.tap_key_sig.is_some();
+            let leaf = leaves
+                .iter()
+                .any(|l| input.tap_script_sigs.contains_key(&(*xonly, *l)));
+            if !key_path && !leaf {
+                waiting.push(Fingerprint::from(*fp));
+            }
+        }
+        for fp in waiting {
+            if !unsigned_by.contains(&fp) {
+                unsigned_by.push(fp);
+            }
+        }
+    }
+    (signed, unsigned_by)
 }
 
 /// Whether the transaction's id is fixed before it is signed: every

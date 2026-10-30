@@ -558,16 +558,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     ) + 8.0;
                 }
             }
-            FileKind::Psbt => {
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    BUTTON_H,
-                    EN.files_sign,
-                    Style::Tonal,
-                    Action::StartSpend(k),
-                ) + 8.0;
+            // Signed, with nothing left for a key here, or finished:
+            // checked, not signed (`docs/FLOWS.md`, Nonce check).
+            FileKind::Psbt | FileKind::Transaction => {
+                let (label, style, action) = if app.checked_not_signed(k) {
+                    (
+                        EN.files_nonce_check,
+                        Style::Primary,
+                        Action::NonceCheck(crate::decode::CheckPress::Inbox(k)),
+                    )
+                } else if item.kind == FileKind::Psbt {
+                    (EN.files_sign, Style::Tonal, Action::StartSpend(k))
+                } else {
+                    (EN.files_decode, Style::Primary, Action::DecodeInbox(k))
+                };
+                bx += ui.button(bx, iy + 64.0, None, BUTTON_H, label, style, action) + 8.0;
             }
             FileKind::Wallet | FileKind::SecretWallet => {
                 bx += ui.button(
@@ -582,17 +587,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
             FileKind::Text => {
                 bx += add_to_vault(app, ui, bx, iy + 64.0, k, Style::Primary);
-            }
-            FileKind::Transaction => {
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    BUTTON_H,
-                    EN.files_decode,
-                    Style::Primary,
-                    Action::DecodeInbox(k),
-                ) + 8.0;
             }
             FileKind::Share => {
                 bx += restore_shares_button(app, ui, bx, iy + 64.0);
@@ -1755,6 +1749,13 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
                     Action::Vault(crate::vault::VaultAction::Open(at)),
                 ));
             }
+        }
+        FileKind::Psbt | FileKind::Transaction if app.checked_not_signed(k) => {
+            out.push((
+                EN.inbox_actions_nonce_check.into(),
+                Style::Primary,
+                Action::NonceCheck(crate::decode::CheckPress::Inbox(k)),
+            ));
         }
         FileKind::Psbt => {
             out.push((

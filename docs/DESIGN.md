@@ -689,7 +689,7 @@ surface or its components.
 
 ## 5. The screens
 
-A screen is one of the thirty-three variants of `Screen` in
+A screen is one of the thirty-four variants of `Screen` in
 `faraday/faraday-core/src/lib.rs`, drawn in the file that file's code
 map names: an area's `screen.rs`, or `screens/<name>.rs` for a screen
 with no area. Each is drawn in one of three ways:
@@ -718,7 +718,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Wallets` | The wallets as a list and the chosen wallet's card: its name and shape, a `tr()` tree's key path line under the shape (the danger line, in the error colour, for a key not of the wallet; F132), the backup line, the signatures possible here, **At a glance** (§4.16), the first receive address and the card's actions (`docs/WALLETS.md`). | Page |
 | `Spend` | Signing a transaction: the review (what it sends, to whom, the fee, change, the txid, warnings), the signers, **Sign with** (§4.4), and the signed PSBT and finished transaction. | Step flow |
 | `Family` | The Spend tab: spending from a backup, step by step (`docs/SPEND-FROM-BACKUP.md`). | Step flow |
-| `Files` | The Inbox and the Outbox: a row per file with its kind, size and ⋮, and what each file can do (Sign, Decode, Load the wallet, Unlock, Import into the vault). | Page |
+| `Files` | The Inbox and the Outbox: a row per file with its kind, size and ⋮, and what each file can do (Sign, Decode, Nonce check, Load the wallet, Unlock, Import into the vault). | Page |
 | `Visit` | A stick visit: what is on the stick, ticked to bring in, and what goes out to it. | Page |
 | `Entry` | Add a key: a seed typed or scanned (§4.3). | Page |
 | `Backup` | Backing up a wallet: the plan, the board (§4.17), each copy made and checked. | Step flow |
@@ -730,6 +730,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Message` | Signing a message with a single-key wallet's key. | Step flow |
 | `CheckMessage` | Checking a signed message against its address. | Page |
 | `Decode` | A transaction taken apart, field by field. | Page |
+| `NonceCheck` | A signed PSBT no key here is left to sign, or a finished transaction, brought in by the camera, Files or Tools: the file's name, Send it's nonce check of it, whether it is finished, and **Save to a stick**, **Decode it**, **Show the raw hex** and **Show as QR** (`docs/FLOWS.md`, Nonce check). | Page |
 | `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
 | `Bip85` | BIP-85's applications from a loaded key: a child seed's words, a private key, a password, at an index. | Step flow |
 | `Silent` | Silent payments: a loaded key's address, its labels and the payments checked. | Step flow |

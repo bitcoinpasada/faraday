@@ -818,6 +818,9 @@ pub enum Action {
     PotentialMake,
     /// Decode the transaction in this Inbox file.
     DecodeInbox(usize),
+    /// A press on the nonce check of a transaction brought in
+    /// (`Screen::NonceCheck`).
+    NonceCheck(crate::decode::CheckPress),
     /// Show or hide the decoded transaction's hex.
     DecodeHex,
     /// The decoded transaction as a QR code.

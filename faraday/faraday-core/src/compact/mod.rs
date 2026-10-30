@@ -82,6 +82,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Tools | Screen::Catalog => EN.compact_tools,
         Screen::Vanity => EN.compact_vanity_address,
         Screen::Decode => EN.compact_transaction,
+        Screen::NonceCheck => EN.compact_nonce_check,
         Screen::Transfer => EN.compact_transfer,
         Screen::BackupFlow => EN.backup_flow_heading,
     }
@@ -505,7 +506,15 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         ),
         // Decode goes back where it was opened from.
         Screen::Decode => match app.decode() {
-            Some(d) => (crate::screens::decode_back(d.back), Action::Nav(d.back)),
+            Some(d) => (
+                crate::screens::decode_back(d.back),
+                crate::screens::decode_back_to(d.back),
+            ),
+            None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
+        },
+        // The nonce check goes back where it was opened from.
+        Screen::NonceCheck => match app.outside_check() {
+            Some(o) => (crate::screens::decode_back(o.back), Action::Nav(o.back)),
             None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },
         Screen::Tools | Screen::Lightning | Screen::Codes => {

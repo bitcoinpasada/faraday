@@ -1335,8 +1335,6 @@ strings! {
     /// Text in `tile_need`.
     catalog_load_a_key: "Load a key first",
     /// Text in `tile_need`.
-    catalog_at_the_end: "At the end of signing",
-    /// Text in `tile_need`.
     catalog_load_a_wallet: "Load a wallet first",
     /// Text in `tile_need`.
     catalog_needs_a_single: "Needs a single-key wallet with its key here",
@@ -1436,6 +1434,8 @@ strings! {
     compact_vanity_address: "Vanity address",
     /// Text in `screen_name`.
     compact_transaction: "Transaction",
+    /// Text in `screen_name`: the nonce check of a transaction brought in.
+    compact_nonce_check: "Nonces",
     /// Text in `page`.
     compact_at_a_glance: "At a glance",
     /// Text in `page`.
@@ -4668,6 +4668,21 @@ strings! {
     nonce_check_none_wrong: "· none wrong",
     /// Text in `nonce_check`.
     nonce_check_one_wrong: "· one is wrong",
+    /// Text in `nonce_check`: a valid signature whose key no key origin names, so its nonce was not recomputed.
+    nonce_check_no_origin: "Valid · no key origin: its nonce is not recomputed",
+    /// Text in `nonce_check`: a valid signature under a key held here, read from a final witness or scriptSig.
+    nonce_check_finalized_here: "Valid · finalized: its nonce is not recomputed",
+    /// Headline of `nonce_check` for a raw transaction whose inputs state no output they spend. `{}`: how many inputs.
+    nonce_unread_head: "Nonce check · {} not checked: the outputs they spend are not here",
+    /// Headline of `nonce_check` when the transaction carries no signature.
+    nonce_check_no_signatures: "Nonce check · no signatures",
+    // ----- nonce check of a transaction brought in (faraday-core/src/screens/nonce_check.rs) -----
+    /// Title of `Screen::NonceCheck`.
+    nonce_screen_title: "Nonce check",
+    /// Line in `Screen::NonceCheck` for a PSBT that is not finished.
+    nonce_screen_more_wanted: "Not finished: more signatures are wanted",
+    /// Line in `Screen::NonceCheck` when a signature is wrong.
+    nonce_screen_refused: "Not finished: a signature is wrong",
     /// Headline of `nonce_check` when some signatures could not be checked. `{}`: how many were not checked, how many there are, `nonce_check_signature(s)`.
     nonce_unchecked_head: "Nonce check · {} of {} {} not checked",
     // ----- inbox_panel (faraday-core/src/screens/files.rs) -----
@@ -4762,6 +4777,8 @@ strings! {
     decode_back_tools: "Tools",
     /// Text in `decode_back`.
     decode_back_back: "Back",
+    /// Text in `decode_back`.
+    decode_back_nonce_check: "Nonce check",
     // ----- decode (faraday-core/src/screens/decode.rs) -----
     /// Title in `decode_screen`.
     decode_decode_a_transaction: "Decode a transaction",
@@ -6135,6 +6152,8 @@ strings! {
     files_load_the_wallet: "Load the wallet",
     /// Button in `files`.
     files_decode: "Decode",
+    /// Button in `files`: a signed PSBT or finished transaction to check rather than sign.
+    files_nonce_check: "Nonce check",
     /// Button in `files`.
     files_load_this_key: "Load this key",
     /// Button in `files`.
@@ -6338,6 +6357,8 @@ strings! {
     inbox_actions_load_wallet: "Load the wallet",
     /// Text in `inbox_actions`.
     inbox_actions_decode: "Decode",
+    /// Text in `inbox_actions`: a signed PSBT or finished transaction to check rather than sign.
+    inbox_actions_nonce_check: "Nonce check",
     /// Text in `inbox_actions`. `{}`: `texts.len()`.
     inbox_actions_restore: "Restore the wallet · {} shares",
     /// Note in `inbox_actions`. `{}`: `m.have.len()`, `m.n`.

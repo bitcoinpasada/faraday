@@ -40,7 +40,7 @@ changes and nothing else has to be kept in step.
   section number still resolves; sections are never renumbered.
   `lint-docs` holds the headers, the Open line, no plan or build log in
   a Reference, and the decisions' index against their files.
-- A screen is one of DESIGN §5's thirty-three screens (a `Screen`
+- A screen is one of DESIGN §5's thirty-four screens (a `Screen`
   variant in `faraday-core`, drawn in the file `lib.rs`'s code map
   names) or one of its sheets (`Sheet`), built from the §4 components.
   The Starter's screens are `docs/STARTER.md` §3, built from the same

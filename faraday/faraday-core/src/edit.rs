@@ -593,6 +593,7 @@ impl Faraday {
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),
+            Screen::NonceCheck => self.outside_check().is_some(),
             Screen::CheckMessage => self.message.checking().is_some(),
             Screen::Visit => !self.stick.is_empty(),
             Screen::Transfer => self.online,

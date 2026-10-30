@@ -36,6 +36,7 @@ pub(crate) mod keygen;
 pub(crate) mod keys;
 pub(crate) mod m3;
 pub(crate) mod menu;
+pub(crate) mod nonce;
 pub(crate) mod panes;
 pub(crate) mod partials;
 pub(crate) mod pass_seeds;

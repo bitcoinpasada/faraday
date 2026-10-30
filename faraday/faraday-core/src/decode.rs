@@ -280,11 +280,75 @@ pub struct DecodeState {
     pub show_hex: bool,
 }
 
+/// A signed PSBT or transaction brought in to be checked rather than
+/// signed (`Screen::NonceCheck`, `docs/FLOWS.md`, Nonce check): its nonce
+/// check, worked out once when it opens, and what the screen offers with
+/// it.
+///
+/// The check is made from the file and the session's keys and wallets as
+/// they were then (`made_with`). The screen is reached only by opening
+/// it, which makes it anew, or by Decode's way back, which makes it anew
+/// when the keys or wallets have changed since
+/// ([`Faraday::nonce_check_back`]). A file's bytes never change, so
+/// nothing else goes out of step.
+pub struct OutsideCheck {
+    /// The file's name.
+    pub source: String,
+    /// What the check found.
+    pub check: crate::wallet::NonceCheck,
+    /// The finished transaction: the one that came, or the PSBT
+    /// finished, when every input is final or has its signatures and no
+    /// signature is wrong. `None` when the check refuses it or more
+    /// signatures are wanted.
+    pub finished: Option<Transaction>,
+    /// The finished transaction in hex, kept with it.
+    pub hex: Option<String>,
+    /// The file Save to a stick puts For the stick: its name and bytes.
+    pub out: (String, Vec<u8>),
+    /// The screen its back link returns to.
+    pub back: Screen,
+    /// The hex is shown.
+    pub show_hex: bool,
+    /// The keys and wallets it was checked with.
+    made_with: crate::wallet::InspectInputs,
+    /// The PSBT checked (a raw transaction wrapped, its signatures
+    /// final), kept to check again.
+    psbt: faraday_psbt::Psbt,
+    /// What the inputs spend, as far as is known, and from where, for
+    /// Decode.
+    prevouts: (Vec<Option<TxOut>>, AmountsFrom),
+}
+
+/// A press on the nonce check of a transaction brought in
+/// (`Screen::NonceCheck`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckPress {
+    /// The nonce check of this Inbox file, a signed PSBT or a finished
+    /// transaction.
+    Inbox(usize),
+    /// Decode's way back to the nonce check, checked again when the keys
+    /// or wallets changed.
+    Back,
+    /// Show or hide the checked transaction's hex.
+    Hex,
+    /// The checked transaction, or the PSBT when it is not finished, as
+    /// a QR code.
+    Qr,
+    /// The checked file For the stick: the finished transaction, or the
+    /// PSBT as it came.
+    Out,
+    /// Decode the checked transaction.
+    Decode,
+}
+
 /// The Decode screen's area: the transaction taken apart, while it is
-/// open.
+/// open, and the nonce check of one brought in.
 #[derive(Default)]
 pub(crate) struct DecodeArea {
     state: Option<DecodeState>,
+    /// Boxed: it holds a PSBT and its check, and `Faraday` is built on
+    /// the stack.
+    outside: Option<Box<OutsideCheck>>,
 }
 
 impl DecodeArea {
@@ -315,6 +379,56 @@ impl DecodeArea {
             d.show_hex = !d.show_hex;
         }
     }
+
+    /// The nonce check of a transaction brought in, while it is kept.
+    pub(crate) fn outside(&self) -> Option<&OutsideCheck> {
+        self.outside.as_deref()
+    }
+}
+
+/// The inputs that carry signature data, final, but state no output they
+/// spend ([`crate::wallet::NonceCheck::unread`]). A lookup per input.
+fn unread(psbt: &faraday_psbt::Psbt) -> usize {
+    psbt.inner()
+        .inputs
+        .iter()
+        .filter(|i| {
+            (i.final_script_sig.is_some() || i.final_script_witness.is_some())
+                && i.witness_utxo.is_none()
+                && i.non_witness_utxo.is_none()
+        })
+        .count()
+}
+
+/// Costs a PSBT parse (through `parse_bytes`). A raw transaction as a
+/// PSBT whose inputs are final with the transaction's own `scriptSig`s
+/// and witnesses, each with the output it spends where `prevouts` states
+/// it: what `faraday_psbt::verify` reads a finalized input from. `None`
+/// where the bytes are no transaction.
+fn raw_as_psbt(
+    c: &Compute,
+    bytes: &[u8],
+    prevouts: &[Option<TxOut>],
+) -> Option<(faraday_psbt::Psbt, Transaction)> {
+    let tx = faraday_psbt::transaction::read_raw(bytes)?;
+    let (wrapped, _) = faraday_psbt::transaction::wrap_raw(bytes)?;
+    let mut psbt = faraday_psbt::Psbt::parse_bytes(c, &wrapped).ok()?;
+    for (i, (input, txin)) in psbt
+        .inner_mut()
+        .inputs
+        .iter_mut()
+        .zip(&tx.input)
+        .enumerate()
+    {
+        if !txin.script_sig.is_empty() {
+            input.final_script_sig = Some(txin.script_sig.clone());
+        }
+        if !txin.witness.is_empty() {
+            input.final_script_witness = Some(txin.witness.clone());
+        }
+        input.witness_utxo = prevouts.get(i).cloned().flatten();
+    }
+    Some((psbt, tx))
 }
 
 impl Faraday {
@@ -380,6 +494,199 @@ impl Faraday {
     /// The transaction on the Decode screen, while it is open.
     pub fn decode(&self) -> Option<&DecodeState> {
         self.decode.state()
+    }
+
+    /// The nonce check of a transaction brought in, while it is kept
+    /// (`Screen::NonceCheck`).
+    pub fn outside_check(&self) -> Option<&OutsideCheck> {
+        self.decode.outside()
+    }
+
+    /// Costs what [`Faraday::nonce_check_open`] costs for a signed
+    /// transaction. Where a file the camera read lands: a signed PSBT no
+    /// key here is left to sign, or a finished transaction, opens its
+    /// nonce check, its way back to where the scan started; the open
+    /// spend's own PSBT come back stays with the spend; anything else is
+    /// in Files (`docs/FLOWS.md`, Nonce check).
+    pub(crate) fn scan_landed(&mut self, c: &Compute, at: usize, name: &str) {
+        let the_spends = self.inbox[at].psbt().is_some_and(|p| {
+            self.wallets
+                .spend()
+                .is_some_and(|s| s.spend.psbt.unsigned_tx().compute_txid() == p.txid)
+        });
+        if !the_spends && self.checked_not_signed(at) {
+            self.nonce_check_open(c, at);
+            return;
+        }
+        self.toast(&fill(EN.scanned_is_in_files, &[name]));
+        if !matches!(
+            self.screen,
+            Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::Family
+        ) {
+            self.screen = Screen::Files;
+        }
+    }
+
+    /// Whether Inbox file `k` is a transaction to check rather than to
+    /// sign: a finished transaction, or a PSBT that carries a signature
+    /// and that no key here is left to sign (`docs/FLOWS.md`, Nonce
+    /// check). A lookup per master its origins name.
+    pub fn checked_not_signed(&self, k: usize) -> bool {
+        let Some(item) = self.inbox.get(k) else {
+            return false;
+        };
+        match item.kind {
+            wallet::FileKind::Transaction => true,
+            wallet::FileKind::Psbt => item.psbt().is_some_and(|p| {
+                p.signed_elsewhere(|fp| self.session.keys.key_label(fp).is_some())
+            }),
+            _ => false,
+        }
+    }
+
+    /// Costs a PSBT read, what [`wallet::Session::nonce_check`] costs and
+    /// a finalize of a copy. Opens the nonce check of Inbox file `k`, a
+    /// signed PSBT or a finished transaction, its way back to the screen
+    /// on show; a file that reads as neither opens nothing.
+    pub(crate) fn nonce_check_open(&mut self, c: &Compute, k: usize) {
+        let back = match self.screen {
+            Screen::NonceCheck | Screen::Decode => {
+                self.decode.outside().map_or(Screen::Catalog, |o| o.back)
+            }
+            s => s,
+        };
+        let Some(item) = self.inbox.get(k) else {
+            return;
+        };
+        let (name, bytes, kind) = (item.name.clone(), item.bytes.clone(), item.kind);
+        let (psbt, raw, prevouts) = match kind {
+            wallet::FileKind::Psbt => {
+                let Some(p) = wallet::read_psbt(c, &bytes) else {
+                    return;
+                };
+                let from = AmountsFrom::Psbt(name.clone());
+                let prevouts = decode::prevouts_of(&p);
+                (p, None, (prevouts, from))
+            }
+            wallet::FileKind::Transaction => {
+                let Some(tx) = faraday_psbt::transaction::read_raw(&bytes) else {
+                    return;
+                };
+                let (prevouts, from) = self.amounts_in(c, &tx);
+                let Some((p, tx)) = raw_as_psbt(c, &bytes, &prevouts) else {
+                    return;
+                };
+                (p, Some(tx), (prevouts, from))
+            }
+            _ => return,
+        };
+        let mut check = self.session.nonce_check(c, &psbt);
+        check.unread = unread(&psbt);
+        // A wrong signature or a nonce used twice refuses the
+        // transaction: nothing finished is offered.
+        let finished = if check.wrong() {
+            None
+        } else if let Some(tx) = &raw {
+            Some(tx.clone())
+        } else {
+            let mut copy = psbt.clone();
+            faraday_psbt::finalize(&mut copy).ok().flatten()
+        };
+        let hex = finished.as_ref().map(serialize_hex);
+        let out = match (&raw, &hex) {
+            (None, Some(h)) => (
+                format!("{}-final.txn", crate::result_stem(&name)),
+                h.clone().into_bytes(),
+            ),
+            _ => (name.clone(), bytes),
+        };
+        self.decode.outside = Some(Box::new(OutsideCheck {
+            source: name,
+            check,
+            finished,
+            hex,
+            out,
+            back,
+            show_hex: false,
+            made_with: self.session.inspect_inputs(),
+            psbt,
+            prevouts,
+        }));
+        self.screen = Screen::NonceCheck;
+        self.list_offset = 0.0;
+    }
+
+    /// Costs what [`wallet::Session::nonce_check`] costs when the keys or
+    /// wallets changed. Decode's way back to the nonce check: the check
+    /// made again when the keys or wallets are not those it was made with
+    /// ([`OutsideCheck`]), so it names no key that has gone and misses
+    /// none that came.
+    pub(crate) fn nonce_check_back(&mut self, c: &Compute) {
+        let now = self.session.inspect_inputs();
+        if let Some(o) = self.decode.outside.as_mut()
+            && o.made_with != now
+        {
+            o.check = self.session.nonce_check(c, &o.psbt);
+            o.check.unread = unread(&o.psbt);
+            if o.check.wrong() {
+                o.finished = None;
+                o.hex = None;
+            }
+            o.made_with = now;
+        }
+        self.screen = Screen::NonceCheck;
+        self.list_offset = 0.0;
+    }
+
+    /// Costs what the presses below cost: the nonce check's own presses
+    /// ([`CheckPress`]).
+    pub(crate) fn nonce_check_act(&mut self, press: CheckPress, c: &Compute) {
+        match press {
+            CheckPress::Inbox(k) => self.nonce_check_open(c, k),
+            CheckPress::Back => self.nonce_check_back(c),
+            CheckPress::Hex => {
+                if let Some(o) = self.decode.outside.as_mut() {
+                    o.show_hex = !o.show_hex;
+                }
+            }
+            CheckPress::Qr => {
+                let Some(o) = self.decode.outside.as_deref().filter(|o| !o.check.wrong()) else {
+                    return;
+                };
+                let view = match &o.hex {
+                    Some(hex) => QrView::text(c, EN.act_transaction, hex),
+                    None => QrView::psbt(c, &o.source, &o.psbt.to_bytes()),
+                };
+                self.open_qr(view);
+            }
+            // A transaction the check refuses is not offered to carry on.
+            CheckPress::Out => {
+                if let Some(o) = self.decode.outside.as_ref()
+                    && !o.check.wrong()
+                {
+                    let (name, bytes) = o.out.clone();
+                    self.put_outbox(&name, bytes);
+                    self.toast_out(&name);
+                }
+            }
+            CheckPress::Decode => {
+                let Some(o) = self.decode.outside.as_ref() else {
+                    return;
+                };
+                let Some(tx) = o.finished.as_ref() else {
+                    return;
+                };
+                let (prevouts, from) = &o.prevouts;
+                match decode::decode(c, tx, prevouts, &self.session, &o.source) {
+                    Ok(mut decoded) => {
+                        decoded.amounts_from = from.clone();
+                        self.decode.show(decoded, &mut self.screen);
+                        self.list_offset = 0.0;
+                    }
+                    Err(line) => self.toast(line),
+                }
+            }
+        }
     }
 
     /// Costs what the actions below cost, the keys' and wallets' work among

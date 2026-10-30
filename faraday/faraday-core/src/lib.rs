@@ -47,7 +47,7 @@
 //!   refuses), `devices` (what else captures the screen or the keys) and
 //!   `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
-//!   (with `seeds/read.rs`), `wallet`, `inbox`, `create`, `create_from`,
+//!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`), `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
 //!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
 //!   `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
@@ -112,6 +112,7 @@
 //! | `Family` | `family/screen.rs` |
 //! | `Vanity` | `vanity/screen.rs` |
 //! | `Decode` | `screens/decode.rs` |
+//! | `NonceCheck` | `screens/nonce_check.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
 //! | `Transfer` | `transfer/screen.rs` |
 //! | `BackupFlow` | `backup_flow/screen.rs` |
@@ -348,6 +349,8 @@ pub enum Screen {
     Vanity,
     /// A transaction taken apart.
     Decode,
+    /// A signed transaction brought in, checked rather than signed.
+    NonceCheck,
     /// Tools: every flow on one page, with its standards.
     Catalog,
     /// The online app as the device's QR link: files out as codes, in by
@@ -3059,6 +3062,7 @@ impl Faraday {
             | Action::QrDecoded
             | Action::DecodeHex
             | Action::SpendHex) => self.decode_act(a, &c),
+            Action::NonceCheck(p) => self.nonce_check_act(p, &c),
             a @ (Action::SignMessage
             | Action::MStep(..)
             | Action::MNext(..)
@@ -4376,22 +4380,13 @@ impl Faraday {
         }
         // A cosigner's key, or a descriptor of one, scanned while a wallet
         // is being made goes to the slot waiting for one.
-        if self.create_scan_arrived(&c, at, &name) {
+        if self.create_scan_arrived(&c, at, &name)
+            || self.family_arrived(at)
+            || (self.screen == Screen::Restore && self.restore_arrived(at))
+        {
             return;
         }
-        if self.family_arrived(at) {
-            return;
-        }
-        if self.screen == Screen::Restore && self.restore_arrived(at) {
-            return;
-        }
-        self.toast(&fill(EN.scanned_is_in_files, &[&name.to_string()]));
-        if !matches!(
-            self.screen,
-            Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::Family
-        ) {
-            self.screen = Screen::Files;
-        }
+        self.scan_landed(&c, at, &name);
     }
 
     /// A seed's words read by the camera: the camera closes and the
