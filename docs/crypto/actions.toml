@@ -6430,7 +6430,7 @@ novel_rank = 2
 
 [[action.screens_not]]
 screen = "Unlock"
-reason = "the vault module serves every vault screen; a press on this screen does not make a vault; it unlocks one slot"
+reason = "the vault module serves every vault screen; a press on this screen does not make a vault; it unlocks one slot, and its Work::Measure runs vault::measure to time one Argon2 pass"
 
 [[action.screens_not]]
 screen = "VaultContents"
@@ -6438,7 +6438,7 @@ reason = "the vault module serves every vault screen; a press on this screen doe
 
 [[action.screens_not]]
 screen = "Vaults"
-reason = "the vault module serves every vault screen; a press on this screen does not make a vault; Create vault does"
+reason = "the vault module serves every vault screen; a press on this screen does not make a vault; its press opens Create vault"
 
 [action.implementation]
 crate = "faraday/faraday-vault"
@@ -7086,7 +7086,7 @@ standards = [
   "RFC 8032",
 ]
 learn = "faraday:gpg"
-screens = ["VaultContents"]
+screens = ["BackupFlow", "VaultContents"]
 functions = [
   "faraday/faraday-keys/src/gpg.rs::create",
   "faraday/faraday-pgp/src/lib.rs::Key::certificate",
@@ -7100,24 +7100,16 @@ code = [
 ]
 
 [[action.screens_not]]
-screen = "BackupFlow"
-reason = "the flow reads a GPG key's fingerprint to name it; it does not make a key"
-
-[[action.screens_not]]
 screen = "CreateVault"
-reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; that is done on an open vault's contents"
-
-[[action.screens_not]]
-screen = "Family"
-reason = "the Spend tab reads a fingerprint; it does not make a GPG key"
+reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; the key is made in the backup flow"
 
 [[action.screens_not]]
 screen = "Unlock"
-reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; it unlocks one slot"
+reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; the key is made in the backup flow"
 
 [[action.screens_not]]
 screen = "Vaults"
-reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; it lists the vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; the key is made in the backup flow"
 
 [action.implementation]
 crate = "faraday/faraday-pgp"

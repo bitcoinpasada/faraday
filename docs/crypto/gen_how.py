@@ -462,6 +462,15 @@ COMMON = {"parse", "hash", "split", "note", "new", "get", "from", "derive", "pus
           "address", "script", "scan", "hold"}
 
 
+def names_type(text, crate, typ):
+    """True where the text names `typ` from `crate`: a `use crate::..Type..;` line or a
+    `crate::..::Type` path. A bare `Type` may be another crate's type of the same name."""
+    t = re.escape(typ)
+    c = re.escape(crate)
+    return bool(re.search(rf"\buse\s+{c}::[^;]*\b{t}\b", text)
+                or re.search(rf"\b{c}::(?:\w+::)*{t}\b", text))
+
+
 def screens_check(root, data, detail=False):
     """[(action id, screen, file)] for each screen whose code, a file of faraday-core, calls
     an action's root and is missing from the action's `screens`.
@@ -481,22 +490,23 @@ def screens_check(root, data, detail=False):
         files[rel] = text
     found = set()
     for a in data["action"]:
+        crates = [f.partition("::")[0].split("/")[1].replace("-", "_") if f.count("/") else ""
+                  for f in as_list(a.get("functions"))]
         have = set(as_list(a.get("screens"))) | {n["screen"] for n in as_list(a.get("screens_not"))}
-        for tail, simple, module in root_names(a):
+        for (tail, simple, module), crate in zip(root_names(a), crates):
             segs = tail.split("::")
             if len(segs) >= 2:
                 typ = segs[-2]
                 path_re = re.compile(rf"\b{re.escape(typ)}::{re.escape(simple)}\b")
                 meth_re = re.compile(rf"\.{re.escape(simple)}\(")
-                type_re = re.compile(rf"\b{re.escape(typ)}\b")
             else:
                 path_re = re.compile(rf"\b{re.escape(module)}::{re.escape(simple)}\b")
-                meth_re = type_re = None
+                meth_re = None
             for rel, text in files.items():
                 if simple not in text:
                     continue
                 m_ = path_re.search(text)
-                if not m_ and meth_re and type_re.search(text) and simple not in COMMON \
+                if not m_ and meth_re and names_type(text, crate, typ) and simple not in COMMON \
                         and ("_" in simple or len(simple) >= 8):
                     m_ = meth_re.search(text)
                 if not m_:
@@ -550,6 +560,10 @@ def self_test():
     expect('c("core/f/src/a.rs", "T::go")' in out, "code splits at the first ::")
     expect(prose("its files `x` are") == "Its files x are.", "prose capitalises a word, not a path")
     expect(prose("faraday_bip::bip39") == "faraday_bip::bip39.", "and leaves an identifier alone")
+    clash = "use faraday_shell_api::Key;\nlet k = FileKind::Key;\n"
+    expect(not names_type(clash, "faraday_pgp", "Key"), "another crate's Key is not faraday_pgp's")
+    expect(names_type("use faraday_pgp::{Key, Other};", "faraday_pgp", "Key"), "a use line names the type")
+    expect(names_type("let k = faraday_pgp::Key::new();", "faraday_pgp", "Key"), "a path names the type")
     if failures:
         print(f"{len(failures)} failed")
         return 1

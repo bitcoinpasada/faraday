@@ -1748,7 +1748,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated by the ed25519-dalek crate."), p("The key's seeds are wiped when it drops; the kept revocation certificate is held in a zeroizing buffer while the record is made.")],
         limits: &[p("One key shape only: an Ed25519 primary that certifies and an Ed25519 subkey that signs."), p("A key's expiry is counted from its creation; 0 means never.")],
         own_calls: &[p("Signing waits until the backup flow has written every place the key's plan gives it, two or more; GnuPG has no such gate. Conservative, F32."), p("The primary key's flags are certify only and the signature hash is SHA-512, as GnuPG 2.4 chooses for Ed25519. Neutral, F32.")],
-        screens: &["VaultContents"],
+        screens: &["BackupFlow", "VaultContents"],
         learn: "faraday:gpg",
     },
     Block {
