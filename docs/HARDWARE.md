@@ -70,7 +70,7 @@ The stick's and the Pi's kernels carry only the drivers
 | | The stick (PC) | The Pi, Strict | The Pi, Compatible |
 |---|---|---|---|
 | Touch, keyboard, pointer | built-in keyboard, touchpad and touchscreen; USB ones once approved | the panel's touch only: no HID driver | the panel's touch, or the HDMI panel's USB touch named by its profile; other USB keyboards, mice and touchscreens once approved, as on the stick |
-| Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB is kept for a webcam") | a Pi camera or a USB webcam | a Pi camera or a USB webcam |
+| Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB is kept for a webcam") | a Raspberry Pi Camera Module v1 or v2 on the board's camera connector, or a USB webcam that offers uncompressed frames; not Camera Module 3 (`faraday/image/boards/pi3/linux.fragment`, "camera, legacy stack") | a USB webcam that offers uncompressed frames; a Camera Module v1 or v2 only with the 2.8-inch panel, because the camera connector's stack needs the firmware to own the display and the HDMI and DSI screens are driven by vc4's kernel mode setting (`faraday/image/panels/hdmi/config.txt`); not Camera Module 3 |
 | Files | USB sticks; an SD card only in a USB reader | its own SD slot; no USB storage | its own SD slot and USB sticks |
 
 On the stick and the Pi, FAT is read by `faraday-disk` in Rust, not by
