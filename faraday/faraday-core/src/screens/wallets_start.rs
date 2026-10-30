@@ -245,6 +245,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let r = faraday_draw::tokens::SHAPE_M;
             ui.fill(tx, y, tw, card_h, r, Role::SurfaceContainerLow);
             ui.stroke(tx, y, tw, card_h, r, Role::OutlineVariant);
+            ui.press(
+                Shape::new(tx, y, tw, card_h, r),
+                Role::OnSurface.paint(),
+                *action,
+            );
             ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, r, Role::SecondaryContainer);
             let on_tile = Role::OnSecondaryContainer;
             ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, on_tile);
@@ -271,11 +276,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 let sub = ui.fit_as(BODY_S, sub, label_room);
                 ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
             }
-            ui.press(
-                Shape::new(tx, y, tw, card_h, r),
-                Role::OnSurface.paint(),
-                *action,
-            );
         }
         y += card_h + 28.0;
         let files = app.vault_files();
@@ -393,6 +393,11 @@ pub(crate) fn wallet_rows(
         let r = faraday_draw::tokens::SHAPE_M;
         ui.fill(rx, ry, rw, 44.0, r, Role::Surface);
         ui.stroke(rx, ry, rw, 44.0, r, Role::OutlineVariant);
+        ui.press(
+            Shape::new(rx, ry, rw, 44.0, r),
+            Role::OnSurface.paint(),
+            action,
+        );
         let (m, _) = Session::quorum(w);
         let here = app
             .session
@@ -444,18 +449,13 @@ pub(crate) fn wallet_rows(
             Role::OnSurfaceVariant,
             &shape,
         );
-        ui.press(
-            Shape::new(rx, ry, rw, 44.0, r),
-            Role::OnSurface.paint(),
-            action,
-        );
     }
     let mut used = shown.div_ceil(cols) as f32 * 52.0;
     if shown < total {
         let more = fill(EN.wallet_rows_more, &[&(total - shown).to_string()]);
         let mw = ui.measure_as(LABEL_M, &more) + 8.0;
-        ui.text_mid_as((x, y + used - 4.0, 24.0), LABEL_M, Role::Primary, &more);
         ui.press_box(x, y + used - 4.0, mw, 24.0, open(order[shown]));
+        ui.text_mid_as((x, y + used - 4.0, 24.0), LABEL_M, Role::Primary, &more);
         used += 24.0;
     }
     used + 6.0

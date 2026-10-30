@@ -325,6 +325,11 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
         let ty = y + (i / cols) as f32 * (tile_h + gap);
         ui.fill(tx, ty, tilew, tile_h, SHAPE_M, Role::SurfaceContainerLow);
         ui.stroke(tx, ty, tilew, tile_h, SHAPE_M, Role::OutlineVariant);
+        ui.press(
+            Shape::new(tx, ty, tilew, tile_h, SHAPE_M),
+            Role::OnSurface.paint(),
+            *action,
+        );
         let (ix, ib) = (HOME_TILE_INSET, HOME_TILE_ICON);
         let iy = (tile_h - ib) / 2.0;
         ui.fill(
@@ -360,11 +365,6 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
             Role::OnSurfaceVariant,
             &sub,
         );
-        ui.press(
-            Shape::new(tx, ty, tilew, tile_h, SHAPE_M),
-            Role::OnSurface.paint(),
-            *action,
-        );
     }
 }
 
@@ -394,6 +394,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         let lead_w = width.min(LEAD_MAX);
         ui.fill(x, y, lead_w, lead_h, SHAPE_M, Role::SurfaceContainerLow);
         ui.stroke(x, y, lead_w, lead_h, SHAPE_M, Role::OutlineVariant);
+        if enabled {
+            ui.press(
+                Shape::new(x, y, lead_w, lead_h, SHAPE_M),
+                Role::OnSurface.paint(),
+                action,
+            );
+        }
         let (ibg, ifg) = if enabled {
             (
                 Role::SecondaryContainer.paint(),
@@ -421,13 +428,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
                     Role::Warning
                 },
                 &sub,
-            );
-        }
-        if enabled {
-            ui.press(
-                Shape::new(x, y, lead_w, lead_h, SHAPE_M),
-                Role::OnSurface.paint(),
-                action,
             );
         }
         y += lead_h + gap;

@@ -11,7 +11,6 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::ui::Shape;
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -167,21 +166,18 @@ pub fn column_wide(
             row += tokens::GAP + tokens::TAG_H;
             (x, cy)
         };
-        let cw = ui.chip(
+        let cw = ui.chip_press(
             cx,
             cy,
             chip,
-            Role::OnSecondaryContainer,
-            Role::SecondaryContainer,
+            (
+                Role::OnSecondaryContainer.paint(),
+                Role::SecondaryContainer.paint(),
+            ),
+            col.chip_tap,
         );
-        if let Some(a) = col.chip_tap {
-            let h = tokens::TAG_H;
-            ui.press(
-                Shape::new(cx, cy, cw, h, tokens::shape_full(h)),
-                Role::OnSurface.paint(),
-                a,
-            );
-            ui.chip_at = Some((cx, cy + h, cw));
+        if col.chip_tap.is_some() {
+            ui.chip_at = Some((cx, cy + tokens::TAG_H, cw));
         }
     }
     if row > 0.0 {
@@ -411,20 +407,18 @@ fn paged(
     let inner = w - 2.0 * M;
     if let Some(chip) = col.chip {
         let chip = ui.fit_as(BODY_S, chip, inner - 34.0);
-        let cw = ui.chip(
+        let cw = ui.chip_press(
             M,
             y,
             &chip,
-            Role::OnSecondaryContainer,
-            Role::SecondaryContainer,
+            (
+                Role::OnSecondaryContainer.paint(),
+                Role::SecondaryContainer.paint(),
+            ),
+            col.chip_tap,
         );
-        if let Some(a) = col.chip_tap {
-            ui.press(
-                Shape::new(M, y, cw, 26.0, tokens::shape_full(26.0)),
-                Role::OnSurface.paint(),
-                a,
-            );
-            ui.chip_at = Some((M, y + 26.0, cw));
+        if col.chip_tap.is_some() {
+            ui.chip_at = Some((M, y + tokens::TAG_H, cw));
         }
         y += 36.0;
     }

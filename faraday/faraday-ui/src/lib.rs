@@ -2041,11 +2041,27 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         fg: impl Into<Paint>,
         bg: impl Into<Paint>,
     ) -> f32 {
-        let bg: Paint = bg.into();
-        let fg: Paint = fg.into();
+        self.chip_press(x, y, label, (fg.into(), bg.into()), None)
+    }
+
+    /// [`Ui::chip`] that a press takes when `action` is given: its state
+    /// layer in its content's colour, between its fill and its dot and
+    /// text (Material: the layer sits between container and content).
+    /// Returns its width.
+    pub fn chip_press(
+        &mut self,
+        x: f32,
+        y: f32,
+        label: &str,
+        (fg, bg): (Paint, Paint),
+        action: Option<A>,
+    ) -> f32 {
         use faraday_draw::tokens::{BODY_S, TAG_DOT_R, TAG_DOT_TEXT_X, TAG_H as H};
         let width = self.chip_width(label);
         self.fill(x, y, width, H, H / 2.0, bg);
+        if let Some(a) = action {
+            self.press(Shape::new(x, y, width, H, H / 2.0), fg, a);
+        }
         self.dot(x + H / 2.0, y + H / 2.0, TAG_DOT_R, fg);
         self.text_mid_as((x + TAG_DOT_TEXT_X, y, H), BODY_S, fg, label);
         width

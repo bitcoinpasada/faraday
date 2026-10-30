@@ -247,9 +247,7 @@ pub(crate) fn bar_eye(app: &View, ui: &mut Ui, right: f32) -> f32 {
     };
     let edge = (TOUCH - ICON_BUTTON) / 2.0;
     let (kx, ky) = (right - edge - ICON_BUTTON, (BAR_H - ICON_BUTTON) / 2.0);
-    eye_icon(ui, kx, ky, masked);
-    let eye = Action::Codex32(crate::codex32::C32::Eye);
-    eye_hit(ui, (kx - edge, ky - edge, TOUCH, TOUCH), eye, !masked);
+    eye_icon(ui, kx, ky, masked, (kx - edge, ky - edge, TOUCH, TOUCH));
     kx - edge
 }
 
@@ -343,8 +341,9 @@ fn eye_state(app: &View) -> Option<bool> {
 }
 
 /// The eye: open while the sheets are shown, struck while they are masked
-/// (the icon shows what a press does, as a password field's eye does).
-fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
+/// (the icon shows what a press does, as a password field's eye does); its
+/// press taken on `target`, the layer between its container and its icon.
+fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool, target: (f32, f32, f32, f32)) {
     use faraday_draw::tokens::{ICON_BUTTON, ICON_GLYPH, shape_full};
     let a = Action::Codex32(crate::codex32::C32::Eye);
     let r = shape_full(ICON_BUTTON);
@@ -358,6 +357,7 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
             crate::ui::pal::selected_or(!masked, Role::SurfaceContainerHighest),
         );
     }
+    eye_hit(ui, target, a, !masked);
     ui.icon(
         x,
         y,
@@ -411,6 +411,11 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         s / 2.0,
         crate::ui::pal::selected_or(shown, Role::OutlineVariant),
     );
+    ui.press(
+        Shape::new(x, y, s, s, s / 2.0),
+        Role::OnSurface.paint(),
+        action,
+    );
     ui.icon(
         x,
         y,
@@ -418,11 +423,6 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         Icon::Keyboard,
         13.0,
         crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant),
-    );
-    ui.press(
-        Shape::new(x, y, s, s, s / 2.0),
-        Role::OnSurface.paint(),
-        action,
     );
     ui.tip_plain(
         (x - 6.0, y - 6.0, s + 12.0, s + 12.0),
@@ -633,6 +633,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let top = y + (card_h - l1 - l2) / 2.0;
     ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
+    ui.press(
+        Shape::new(M, y, inner, card_h, SHAPE_M),
+        Role::OnSurface.paint(),
+        action,
+    );
     ui.dot(M + 16.0, top + l1 / 2.0, 4.0, dot);
     let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
     ui.text_mid_as((M + 28.0, top, l1), LABEL_L, Role::OnSurface, &line);
@@ -643,11 +648,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Role::OnSurfaceVariant,
         &sub,
     );
-    ui.press(
-        Shape::new(M, y, inner, card_h, SHAPE_M),
-        Role::OnSurface.paint(),
-        action,
-    );
     y += card_h + 10.0;
 
     // The session strip: the four stages of the lock cycle, the one now
@@ -655,6 +655,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     {
         let stage = app.session_stage();
         let open_files = Action::Nav(Screen::Files);
+        ui.press(
+            Shape::new(M, y, inner, 22.0, SHAPE_XS),
+            Role::OnSurface.paint(),
+            open_files,
+        );
         let mut sx = M + 4.0;
         for (i, label) in [
             EN.compact_bring_in_button,
@@ -675,11 +680,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             };
             sx += ui.text_mid_as((sx, y, 22.0), LABEL_S, fg, label);
         }
-        ui.press(
-            Shape::new(M, y, inner, 22.0, SHAPE_XS),
-            Role::OnSurface.paint(),
-            open_files,
-        );
         y += 22.0 + 10.0;
     }
 
@@ -720,10 +720,13 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (Role::SecondaryContainer, Role::OnSecondaryContainer)
         };
         ui.fill(M, y, lead_w, 44.0, SHAPE_M, bg);
+        if let Some(a) = action {
+            ui.press(Shape::new(M, y, lead_w, 44.0, SHAPE_M), ink.paint(), a);
+        }
         ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, ink);
         let label = ui.fit_as(LABEL_L, &label, lead_w - 60.0);
         ui.text_mid_as((M + 44.0, y, 44.0), LABEL_L, ink, &label);
-        if let Some(a) = action {
+        if action.is_some() {
             ui.icon(
                 M + lead_w - 26.0,
                 y + 12.0,
@@ -732,7 +735,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 9.0,
                 ink,
             );
-            ui.press(Shape::new(M, y, lead_w, 44.0, SHAPE_M), ink.paint(), a);
         }
         y += 44.0 + 8.0;
     }
@@ -755,6 +757,13 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let ty = y + (i / cols) as f32 * (th + gap);
         ui.fill(tx, ty, tw, th, SHAPE_M, Role::SurfaceContainerLow);
         ui.stroke(tx, ty, tw, th, SHAPE_M, Role::OutlineVariant);
+        if *enabled {
+            ui.press(
+                Shape::new(tx, ty, tw, th, SHAPE_M),
+                Role::OnSurface.paint(),
+                *action,
+            );
+        }
         let (ibg, ifg) = if *enabled {
             (
                 Role::SecondaryContainer.paint(),
@@ -808,13 +817,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 );
             }
         }
-        if *enabled {
-            ui.press(
-                Shape::new(tx, ty, tw, th, SHAPE_M),
-                Role::OnSurface.paint(),
-                *action,
-            );
-        }
     }
     y += tiles.len().div_ceil(cols) as f32 * (th + gap) + 4.0;
 
@@ -858,12 +860,12 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
     // Material's outlined icon button, round (F108).
     let r = faraday_draw::tokens::shape_full(pw);
     ui.stroke(px, y, pw, 44.0, r, Role::OutlineVariant);
-    ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
     ui.press(
         Shape::new(px, y, pw, 44.0, r),
         Role::OnSurface.paint(),
         Action::PowerAsk,
     );
+    ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
     ui.tip_plain((px, y, pw, 44.0), Action::PowerAsk, EN.tip_power_off);
     44.0 + 16.0
 }

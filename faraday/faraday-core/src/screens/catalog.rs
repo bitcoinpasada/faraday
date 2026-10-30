@@ -89,6 +89,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let r = faraday_draw::tokens::SHAPE_M;
             ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
             ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);
+            if opens {
+                ui.press(
+                    Shape::new(tx, ty, tw3, th, r),
+                    Role::OnSurface.paint(),
+                    action,
+                );
+            }
             let name = ui.fit_as(TITLE_S, tile.name, tw3 - 32.0);
             ui.text_as(
                 tx + 16.0,
@@ -135,13 +142,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     tag,
                 );
                 gx += gw + 6.0;
-            }
-            if opens {
-                ui.press(
-                    Shape::new(tx, ty, tw3, th, r),
-                    Role::OnSurface.paint(),
-                    action,
-                );
             }
         }
         y += tiles.len().div_ceil(per) as f32 * (th + 10.0) + 16.0;

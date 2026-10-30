@@ -60,6 +60,9 @@ pub(crate) fn row(
     let h = 56.0 + (lines - 1) as f32 * line_h + (line_h + sub_h) * more;
     ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant.paint());
+    if let Some(a) = action {
+        ui.press(Shape::new(x, y, w, h, SHAPE_M), Role::OnSurface.paint(), a);
+    }
     if let Some(i) = icon {
         let (bg, fg) = if enabled {
             (
@@ -92,7 +95,7 @@ pub(crate) fn row(
         let sub = ui.fit_as(BODY_S, sub, room);
         ui.text_as(tx, sub_y, BODY_S, sub_tone, &sub);
     }
-    if let Some(a) = action {
+    if action.is_some() {
         ui.icon(
             x + w - 24.0,
             y + 18.0,
@@ -101,7 +104,6 @@ pub(crate) fn row(
             9.0,
             Role::OnSurfaceVariant,
         );
-        ui.press(Shape::new(x, y, w, h, SHAPE_M), Role::OnSurface.paint(), a);
     }
     h + 8.0
 }
@@ -175,11 +177,11 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // a tint (`docs/DESIGN.md` §3).
         let ink = Role::OnSecondaryContainer;
         ui.fill(x, cy, iw, 44.0, SHAPE_M, Role::SecondaryContainer);
+        ui.press(Shape::new(x, cy, iw, 44.0, SHAPE_M), ink.paint(), action);
         ui.icon(x + 10.0, cy + 12.0, 20.0, Icon::File, 12.0, ink);
         let line = ui.fit_as(LABEL_L, &line, iw - 64.0);
         ui.text_mid_as((x + 36.0, cy, 44.0), LABEL_L, ink, &line);
         ui.icon(x + iw - 24.0, cy + 12.0, 20.0, Icon::ChevronRight, 9.0, ink);
-        ui.press(Shape::new(x, cy, iw, 44.0, SHAPE_M), ink.paint(), action);
         cy += 56.0;
     }
 
@@ -187,6 +189,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     match app.wallets.renaming() {
         Some(name) => {
             ui.field_box((x, cy, iw), true, None);
+            ui.press_box(x, cy, iw, FIELD_H, Action::Rename);
             ui.typed(
                 x + FIELD_PAD,
                 cy,
@@ -199,7 +202,6 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 true,
                 Action::Rename,
             );
-            ui.press_box(x, cy, iw, FIELD_H, Action::Rename);
             cy += FIELD_H + 8.0;
         }
         None => {

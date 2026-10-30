@@ -99,23 +99,21 @@ pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: crate::ui::Paint) {
 }
 
 /// A ⋮ on its own, as a quiet square button `h` high at (x, y): a press
-/// is `action`; edged in the accent while the keyboard is on it
-/// (`focused`). Returns its width.
+/// is `action`. While the keyboard is on it, by Tab among the screen's
+/// controls or by the ⋮s' own Tab (`focused`), it shows the focus state
+/// and the one focus ring every press draws. Returns its width.
 pub(crate) fn button(ui: &mut Ui, x: f32, y: f32, h: f32, action: Action, focused: bool) -> f32 {
     let w = h;
     let r = tokens::SHAPE_S;
-    ui.press(Shape::new(x, y, w, h, r), Role::OnSurface.paint(), action);
     ui.stroke(x, y, w, h, r, Role::Outline);
-    dots(ui, x + w / 2.0, y + h / 2.0, Role::OnSurfaceVariant.paint());
+    // The ⋮s' own Tab is the keyboard on this press, as the screen's is.
+    let was = ui.focused;
     if focused {
-        outline(
-            ui,
-            (x, y, w, h),
-            r,
-            tokens::FOCUS_STROKE,
-            Role::Primary.paint(),
-        );
+        ui.focused = Some(action);
     }
+    ui.press(Shape::new(x, y, w, h, r), Role::OnSurface.paint(), action);
+    ui.focused = was;
+    dots(ui, x + w / 2.0, y + h / 2.0, Role::OnSurfaceVariant.paint());
     w
 }
 

@@ -84,8 +84,8 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let chosen = !app.inbox.skip().contains(&fw.descriptor);
             let mut rx = x + 20.0;
             if many {
-                ui.checkbox(rx, ty + 8.0, chosen, true);
                 ui.press_box(x + 16.0, ty, w - 32.0, 34.0, Action::InboxChoose(i));
+                ui.checkbox(rx, ty + 8.0, chosen, true);
                 rx += 28.0;
             }
             ui.icon(
@@ -869,15 +869,15 @@ pub(crate) fn stick_chip(app: &View, ui: &mut Ui, right: f32) -> f32 {
     // In secondary-container, never a tint (`docs/DESIGN.md` §3).
     let ink = Role::OnSecondaryContainer;
     ui.fill(bx, by, bw, STATUS_CHIP_H, r, Role::SecondaryContainer);
-    let cx = bx + STATUS_CHIP_PAD + dot / 2.0;
-    ui.dot(cx, mid, dot / 2.0, ink);
-    let tx = bx + STATUS_CHIP_PAD + dot + GAP;
-    ui.text_mid_as((tx, by, STATUS_CHIP_H), LABEL_L, ink, &label);
     if let Some(a) = action {
         let target = (bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP);
         let shape = Shape::new(bx, by, bw, STATUS_CHIP_H, r);
         ui.press_to(shape, target, ink.paint(), a);
     }
+    let cx = bx + STATUS_CHIP_PAD + dot / 2.0;
+    ui.dot(cx, mid, dot / 2.0, ink);
+    let tx = bx + STATUS_CHIP_PAD + dot + GAP;
+    ui.text_mid_as((tx, by, STATUS_CHIP_H), LABEL_L, ink, &label);
     bx
 }
 
@@ -964,19 +964,19 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         let label = EN.vault_panel_select;
         let lw = ui.measure_as(LABEL_L, label);
         let sx = x + w - 24.0 - lw - 28.0;
-        ui.checkbox(sx, y + 19.0, all, true);
-        ui.text_mid_as(
-            (sx + 28.0, y + 14.0, 28.0),
-            LABEL_L,
-            Role::OnSurfaceVariant,
-            label,
-        );
         ui.press_box(
             sx - 8.0,
             y + 8.0,
             lw + 44.0,
             40.0,
             Action::Vault(V::ChooseAll(v)),
+        );
+        ui.checkbox(sx, y + 19.0, all, true);
+        ui.text_mid_as(
+            (sx + 28.0, y + 14.0, 28.0),
+            LABEL_L,
+            Role::OnSurfaceVariant,
+            label,
         );
     }
     if !together.is_empty() {
@@ -994,6 +994,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             let action = Action::Vault(V::Choose(v, wt.record));
             let mut rx = x + 20.0;
             if many {
+                ui.press_box(x + 16.0, ty, w - 32.0, 36.0, action);
                 ui.checkbox(rx, ty + 9.0, wt.chosen, true);
                 rx += 28.0;
             }
@@ -1042,9 +1043,6 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                     Role::OnOkContainer,
                     tag,
                 );
-            }
-            if many {
-                ui.press_box(x + 16.0, ty, w - 32.0, 36.0, action);
             }
             ty += 40.0;
         }
@@ -1109,6 +1107,9 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     for (k, row) in rows.iter().enumerate() {
         let rx = x + 20.0 + (k / per_col) as f32 * (colw + 20.0);
         let ry = y + 56.0 + top + (k % per_col) as f32 * 38.0;
+        if !row.loaded {
+            ui.press_box(rx, ry, colw, 34.0, Action::Vault(V::Choose(v, row.record)));
+        }
         if row.loaded {
             ui.icon(rx - 2.0, ry + 6.0, 22.0, Icon::Done, 12.0, Role::Ok);
         } else {
@@ -1146,9 +1147,6 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             },
             &detail,
         );
-        if !row.loaded {
-            ui.press_box(rx, ry, colw, 34.0, Action::Vault(V::Choose(v, row.record)));
-        }
     }
     let by = y + h - 20.0 - 40.0;
     let seeds = waiting.iter().filter(|r| r.chosen && r.seed).count();
@@ -1572,6 +1570,13 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         // Select all: every row not loaded yet, or none when all are chosen.
         if !waiting.is_empty() {
             let all = waiting.iter().all(|r| r.chosen);
+            ui.press_box(
+                ix - 4.0,
+                ty - 4.0,
+                iw + 8.0,
+                32.0,
+                Action::Vault(V::ChooseAll(v)),
+            );
             ui.checkbox(ix, ty + 4.0, all, true);
             ui.text_as(
                 ix + 28.0,
@@ -1580,16 +1585,18 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 Role::OnSurfaceVariant,
                 EN.vault_select_all,
             );
-            ui.press_box(
-                ix - 4.0,
-                ty - 4.0,
-                iw + 8.0,
-                32.0,
-                Action::Vault(V::ChooseAll(v)),
-            );
             ty += 32.0;
         }
         for row in &rows {
+            if !row.loaded {
+                ui.press_box(
+                    ix - 4.0,
+                    ty - 4.0,
+                    iw + 8.0,
+                    34.0,
+                    Action::Vault(V::Choose(v, row.record)),
+                );
+            }
             if row.loaded {
                 ui.icon(ix - 2.0, ty + 2.0, 22.0, Icon::Done, 12.0, Role::Ok);
             } else {
@@ -1628,15 +1635,6 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             );
             let name = ui.fit_as(TITLE_S, &row.name, iw - 54.0 - dw - 8.0);
             ui.text_as(ix + 54.0, ty + 3.0, TITLE_S, Role::OnSurface, &name);
-            if !row.loaded {
-                ui.press_box(
-                    ix - 4.0,
-                    ty - 4.0,
-                    iw + 8.0,
-                    34.0,
-                    Action::Vault(V::Choose(v, row.record)),
-                );
-            }
             ty += 34.0;
         }
         ty += 6.0;
@@ -1981,12 +1979,12 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     // In secondary-container, never a tint (`docs/DESIGN.md` §3).
     let ink = Role::OnSecondaryContainer;
     ui.fill(x, y, w, 44.0, SHAPE_M, Role::SecondaryContainer);
-    ui.dot(x + 18.0, y + 22.0, 4.0, ink);
-    let label = ui.fit_as(BODY_M, &label, w - 44.0);
-    ui.text_mid_as((x + 32.0, y, 44.0), BODY_M, ink, &label);
     if let Some(a) = action {
         ui.press(Shape::new(x, y, w, 44.0, SHAPE_M), ink.paint(), a);
     }
+    ui.dot(x + 18.0, y + 22.0, 4.0, ink);
+    let label = ui.fit_as(BODY_M, &label, w - 44.0);
+    ui.text_mid_as((x + 32.0, y, 44.0), BODY_M, ink, &label);
     y += 52.0;
     ui.button(
         x,

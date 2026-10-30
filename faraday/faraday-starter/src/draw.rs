@@ -394,6 +394,14 @@ fn nav_row(
     let h = if sub.is_empty() { LIST_1 } else { LIST_2 };
     let enabled = action.is_some();
     ui.card(x, y, w, h, Role::OutlineVariant);
+    if let Some(a) = action {
+        // Its state layer in the card's own corners, under its content.
+        ui.press(
+            Shape::new(x, y, w, h, SHAPE_M),
+            Role::OnSurface.paint(),
+            a.host(),
+        );
+    }
     let ib = if compact { 28.0 } else { 32.0 };
     let (ibg, ifg) = if enabled {
         (
@@ -454,7 +462,7 @@ fn nav_row(
             tail,
         );
     }
-    if let Some(a) = action {
+    if enabled {
         ui.icon(
             x + w - 28.0,
             y + (h - 20.0) / 2.0,
@@ -462,12 +470,6 @@ fn nav_row(
             Icon::ChevronRight,
             9.0,
             Role::OnSurfaceVariant,
-        );
-        // Its state layer in the card's own corners.
-        ui.press(
-            Shape::new(x, y, w, h, SHAPE_M),
-            Role::OnSurface.paint(),
-            a.host(),
         );
     }
     h + 8.0

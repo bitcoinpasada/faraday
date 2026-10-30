@@ -352,6 +352,15 @@ fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f3
                 Role::OutlineVariant
             },
         );
+        if hits {
+            // Material's state layer and focus ring in the pill's shape,
+            // between its container and its content.
+            ui.press(
+                Shape::new(tx, ty, tw, th, th / 2.0),
+                Role::OnSurface.paint(),
+                action,
+            );
+        }
         let mut lx = tx + tokens::BOARD_PAD;
         if *on {
             ui.icon(
@@ -374,14 +383,6 @@ fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f3
             },
             label,
         );
-        if hits {
-            // Material's state layer and focus ring in the pill's shape.
-            ui.press(
-                Shape::new(tx, ty, tw, th, th / 2.0),
-                Role::OnSurface.paint(),
-                action,
-            );
-        }
         tx += tw + tokens::BOARD_CHIP_GAP;
     }
 }
@@ -430,18 +431,18 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     let mut right = x + w - mw - tokens::BOARD_PAD;
     let off = cv.off && !cv.fixed && matches!(cv.chip, Chip::Placed(..));
     if off {
-        cross(
-            ui,
-            right - tokens::BOARD_MARK / 2.0,
-            y + line_h / 2.0,
-            Role::OnSurfaceVariant.paint(),
-        );
         if hits && let Chip::Placed(z, t) = cv.chip {
             let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
             let off = Action::Board(BoardPress::Off(z, t));
             ui.press_box(x + w - mw - side, y, side, line_h, off);
             ui.tip_plain((x + w - mw - side, y, side, line_h), off, EN.tip_remove);
         }
+        cross(
+            ui,
+            right - tokens::BOARD_MARK / 2.0,
+            y + line_h / 2.0,
+            Role::OnSurfaceVariant.paint(),
+        );
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
     if cv.warn {
@@ -727,9 +728,10 @@ fn paper(
     }
 }
 
-/// A stick box `r` with its head: the stick glyph and "Stick n" in slate.
-/// Returns the head's height.
-fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4) -> f32 {
+/// A stick box `r` with its head: the stick glyph and "Stick n" in slate,
+/// a press there `zone`, its layer under the head. Returns the head's
+/// height.
+fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4, zone: Action) -> f32 {
     let (x, y, w, h) = r;
     let sp = tokens::BOARD_STICK_PAD;
     let hh = tokens::BOARD_STICK_HEAD;
@@ -741,6 +743,11 @@ fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4) -> f32 {
         tokens::GAP,
         tokens::BOARD_STICK_EDGE,
         Role::Outline.paint(),
+    );
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
+        zone,
     );
     let gx = x + sp + tokens::GAP_SMALL;
     ui.icon(
@@ -783,17 +790,17 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
     } else {
         dashed(ui, r, tokens::GAP, Role::Outline.paint());
     }
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
+        a,
+    );
     let lw = ui.measure_as(LABEL_M, EN.board_add_stick);
     ui.text_mid_as(
         (x + ((w - lw) / 2.0).max(tokens::GAP_SMALL), y, h),
         LABEL_M,
         Role::OnSurfaceVariant,
         EN.board_add_stick,
-    );
-    ui.press(
-        Shape::new(x, y, w, h, tokens::GAP),
-        Role::OnSurface.paint(),
-        a,
     );
     let on = takes_held && fr.drag.is_none_or(|d| inside(d, r));
     if on {
@@ -942,6 +949,9 @@ fn place_head(
         .collect();
     let tag_w: f32 = tag_ws.iter().sum();
     let room = (right - nx - tag_w).max((right - nx) / 2.0).max(0.0);
+    if let Some((a, _)) = name_press {
+        ui.press_box(nx, y, room, hh, a);
+    }
     // While it is typed, the name is a line of typing: just pressed, the
     // whole of it selected and no caret (§19.18).
     let nw = match name_press {
@@ -966,9 +976,6 @@ fn place_head(
             ui.text_mid_as((nx, y, hh), TITLE_S, Role::OnSurface, &shown)
         }
     };
-    if let Some((a, _)) = name_press {
-        ui.press_box(nx, y, room, hh, a);
-    }
     let mut tx = nx + nw + tokens::GAP;
     for (&(text, tone), &want) in facts.iter().zip(&tag_ws) {
         let tw = (want - tokens::GAP).min(right - tx);
@@ -989,14 +996,14 @@ fn place_head(
         tx += want;
     }
     if let Some(a) = off {
+        let side = mark + 2.0 * pad;
+        ui.press_box(x + w - side, y, side, hh, a);
         cross(
             ui,
             x + w - pad - mark / 2.0,
             y + hh / 2.0,
             Role::OnSurface.paint(),
         );
-        let side = mark + 2.0 * pad;
-        ui.press_box(x + w - side, y, side, hh, a);
         ui.tip_plain((x + w - side, y, side, hh), a, EN.tip_remove);
     }
 }
@@ -1160,16 +1167,16 @@ fn vault_head(
     if vc.off
         && let Chip::Placed(z, t) = vc.chip
     {
+        off_w = mark + 2.0 * pad;
+        let off = Action::Board(BoardPress::Off(z, t));
+        ui.press_box(x + w - mw - off_w, y, off_w, hh, off);
+        ui.tip_plain((x + w - mw - off_w, y, off_w, hh), off, EN.tip_remove);
         cross(
             ui,
             right - mark / 2.0,
             y + hh / 2.0,
             Role::OnPrimary.paint(),
         );
-        off_w = mark + 2.0 * pad;
-        let off = Action::Board(BoardPress::Off(z, t));
-        ui.press_box(x + w - mw - off_w, y, off_w, hh, off);
-        ui.tip_plain((x + w - mw - off_w, y, off_w, hh), off, EN.tip_remove);
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     if vc.warn {
@@ -1261,35 +1268,30 @@ fn stick_parts(ui: &Ui, st: &crate::board::StickView, w: f32) -> (f32, f32) {
 /// and under it the vault box when the stick carries a vault (its band,
 /// what it holds inside).
 fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, custom: bool) {
-    let (x, y, w, h) = r;
+    let (x, y, w, _) = r;
     let sp = tokens::BOARD_STICK_PAD;
     let vp = tokens::BOARD_VAULT_PAD;
     let files: &[ChipView] = &st.files.chips;
     let iw = w - 2.0 * sp;
     let (files_h, vault_h) = stick_parts(ui, st, w);
     let fz = st.files.zone;
-    let hh = stick_box(ui, fr.stick_glyph, &st.label, r);
     // The stick box outside its files box and vault box still keeps a
     // drop as a file (§19.17 item 2).
     let zone = Action::Board(BoardPress::Zone(fz));
-    ui.press(
-        Shape::new(x, y, w, h, tokens::GAP),
-        Role::OnSurface.paint(),
-        zone,
-    );
+    let hh = stick_box(ui, fr.stick_glyph, &st.label, r, zone);
     // Its × (after the lock, only for a stick that carries a vault alone:
     // its files stay as made, §17.8); none while the board is read-only.
     if custom && !(fr.locked && !files.is_empty()) {
         let mark = tokens::BOARD_MARK;
+        let side = mark + 2.0 * tokens::BOARD_PAD;
+        let remove = Action::Board(st.remove);
+        ui.press_box(x + w - side, y, side, hh, remove);
         cross(
             ui,
             x + w - sp - mark / 2.0 - tokens::GAP_SMALL,
             y + hh / 2.0,
             Role::OnSurfaceVariant.paint(),
         );
-        let side = mark + 2.0 * tokens::BOARD_PAD;
-        let remove = Action::Board(st.remove);
-        ui.press_box(x + w - side, y, side, hh, remove);
         ui.tip_plain((x + w - side, y, side, hh), remove, EN.tip_remove);
     }
     let fr_box = (x + sp, y + hh, iw, files_h);
@@ -1379,14 +1381,9 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
     // Its stick of public files: its files in a files box, no vault box
     // (§19.17 item 3).
     if let Some(&r) = lay.sticks.first() {
-        let hh = stick_box(ui, fr.stick_glyph, &sv.stick_label, r);
         let z = Zone::SoftStick;
         let zone = Action::Board(BoardPress::Zone(z));
-        ui.press(
-            Shape::new(r.0, r.1, r.2, r.3, tokens::GAP),
-            Role::OnSurface.paint(),
-            zone,
-        );
+        let hh = stick_box(ui, fr.stick_glyph, &sv.stick_label, r, zone);
         let sp = tokens::BOARD_STICK_PAD;
         let fh = paper_h(ui, chips, r.2 - 2.0 * sp);
         let files_box = (r.0 + sp, r.1 + hh, r.2 - 2.0 * sp, fh);
@@ -1424,17 +1421,17 @@ fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         tokens::GAP,
         Role::OnSurfaceVariant.paint(),
     );
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
+        a,
+    );
     let lw = ui.measure_as(LABEL_M, EN.board_add_place);
     ui.text_mid_as(
         (x + (w - lw) / 2.0, y, h),
         LABEL_M,
         Role::OnSurfaceVariant,
         EN.board_add_place,
-    );
-    ui.press(
-        Shape::new(x, y, w, h, tokens::GAP),
-        Role::OnSurface.paint(),
-        a,
     );
     h
 }
@@ -1495,13 +1492,13 @@ fn entry(
         under = tokens::BOARD_CHIP_GAP + ui.line_as(BODY_S);
     }
     if let Some(a) = off {
+        ui.press_box(x + w - off_w, y, off_w, ch, a);
         cross(
             ui,
             x + w - off_w / 2.0,
             y + tokens::BOARD_CHIP / 2.0,
             Role::OnSurfaceVariant.paint(),
         );
-        ui.press_box(x + w - off_w, y, off_w, ch, a);
     }
     let mut cy = y + ch + under;
     if let Some(line) = &e.holds {

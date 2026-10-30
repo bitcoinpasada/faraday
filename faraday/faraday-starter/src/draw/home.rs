@@ -379,14 +379,6 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Role::SecondaryContainer,
             );
         }
-        ui.badge(
-            x + 4.0,
-            y + (ROW_H - 26.0) / 2.0,
-            &(n + 1).to_string(),
-            row.done,
-            is_next,
-        );
-        let tx = x + 44.0;
         let lit = is_next;
         let fg = faraday_ui::pal::on_selected(
             lit,
@@ -396,6 +388,18 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Role::OnSurface
             },
         );
+        // The pressed layer in the row's content colour, over its
+        // selected fill when it is the next step and under its content.
+        let shape = Shape::new(layer.0, layer.1, layer.2, layer.3, layer.4);
+        ui.press_to(shape, (x - 6.0, y, w + 12.0, ROW_H), fg, action.host());
+        ui.badge(
+            x + 4.0,
+            y + (ROW_H - 26.0) / 2.0,
+            &(n + 1).to_string(),
+            row.done,
+            is_next,
+        );
+        let tx = x + 44.0;
         let muted = faraday_ui::pal::on_selected(lit, Role::OnSurfaceVariant);
         two_lines(
             ui,
@@ -406,10 +410,6 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
         let (cx, cy) = (x + w - 24.0, y + (ROW_H - 20.0) / 2.0);
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
-        // The pressed layer in the row's content colour, over its
-        // selected fill when it is the next step.
-        let shape = Shape::new(layer.0, layer.1, layer.2, layer.3, layer.4);
-        ui.press_to(shape, (x - 6.0, y, w + 12.0, ROW_H), fg, action.host());
         y += ROW_H;
         if row.item == Item::SecureBootOn {
             y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);

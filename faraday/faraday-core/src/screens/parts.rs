@@ -390,6 +390,9 @@ pub(crate) fn kind_list(
             selected_or(on, Role::SurfaceContainerHighest),
         );
         ui.stroke(x, cy, w, h, 8.0, selected_or(on, Role::OutlineVariant));
+        if enabled {
+            ui.press_box(x, cy, w, h, pick(*i as u8));
+        }
         let (ink, muted) = (
             on_selected(on, Role::OnSurface),
             on_selected(on, Role::OnSurfaceVariant),
@@ -415,9 +418,6 @@ pub(crate) fn kind_list(
             if k.shares() {
                 tip = word_at(ui, (left, end, cy + h / 2.0), size, k.name());
             }
-        }
-        if enabled {
-            ui.press_box(x, cy, w, h, pick(*i as u8));
         }
         // Drawn after the row, so a press on the button is the button's.
         if let Some(at) = tip {
