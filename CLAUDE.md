@@ -158,7 +158,11 @@ changes and nothing else has to be kept in step.
     (the few that exist are listed there, to be narrowed). Flows that span
     areas are explicit glue: short `impl Faraday` functions in the area's
     own files.
-- No hosted CI, no GitHub Actions, no metered external services.
+- GitHub Actions runs the check and nothing else (F183):
+  `.github/workflows/check.yml` runs `just` on every push to main and
+  every pull request, reads only (no secrets, GitHub's own actions
+  pinned by commit) and builds nothing for release. No metered external
+  services.
 - `docs/DEVELOPING.md` is how anyone builds, checks, reproduces and
   tries Faraday on their own hardware. A change to any of that (a
   recipe, a prerequisite, a dev-image feature, an output path) changes

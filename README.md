@@ -640,7 +640,7 @@ The release tags are signed with the same key: `git tag -v v0.1.9`.
 | `third_party/` | vendored crates, each with its patches |
 | `supply-chain/` | cargo vet's audits and exemptions; `deny.toml` is cargo deny's policy |
 | `design/` | the mark's drafts |
-| `.github/` | the issue templates; there are no workflows |
+| `.github/` | the issue templates, and the workflow that runs the check on GitHub |
 | `.claude/` | the agent definitions a change may use |
 
 The top level holds nothing else: `tools/lint-tree.sh` fails on a new
@@ -654,7 +654,8 @@ formats.
 alike, and `just` enforces most of them: a change that breaks one fails
 the check.
 
-- No GitHub Actions or hosted CI. Everything builds and tests locally.
+- GitHub Actions runs `just` on every push to main and every pull
+  request, and nothing else; everything builds and tests locally too.
 - Nothing private is committed.
 - Every decision is numbered and kept (`docs/DECISIONS.md`); every
   document says whether it describes what is built or what is planned

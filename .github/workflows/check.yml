@@ -1,0 +1,91 @@
+# The check, `just`, on GitHub's Linux runner (docs/decisions/F183.md):
+# every push to main, every pull request, and by hand. It runs what
+# docs/DEVELOPING.md §2 calls the check and nothing else: no image, no app
+# for publishing, no release, no signature. It reads only: no secrets, the
+# checkout's token not kept, GitHub's own actions pinned by commit. Its
+# cache holds the downloaded crates and the installed tools, never build
+# output.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # The tools DEVELOPING.md §1 names for the check, at fixed versions.
+  JUST_VERSION: 1.58.0
+  NEXTEST_VERSION: 0.9.146
+  DENY_VERSION: 0.20.2
+  VET_VERSION: 0.10.2
+
+jobs:
+  check:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # impact.py check reads the commits since main.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: A local main to compare with
+        if: github.event_name == 'pull_request'
+        run: git branch --force main "origin/${GITHUB_BASE_REF}"
+
+      - name: Build output on the runner's larger disk
+        run: |
+          if sudo mkdir -p /mnt/target; then
+            sudo chown "$(id -u):$(id -g)" /mnt/target
+            ln -s /mnt/target target
+          fi
+          df -h . /mnt
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            gnupg paperkey openssl sbsigntool mtools dosfstools
+
+      - name: Rust toolchain and the Mac targets
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/bin/just
+            ~/.cargo/bin/cargo-nextest
+            ~/.cargo/bin/cargo-deny
+            ~/.cargo/bin/cargo-vet
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ env.JUST_VERSION }}-${{ env.NEXTEST_VERSION }}-${{ env.DENY_VERSION }}-${{ env.VET_VERSION }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ env.JUST_VERSION }}-${{ env.NEXTEST_VERSION }}-${{ env.DENY_VERSION }}-${{ env.VET_VERSION }}-
+
+      - name: The check's tools
+        run: |
+          have() { "$@" >/dev/null 2>&1; }
+          have just --version || cargo install --locked "just@${JUST_VERSION}"
+          have cargo nextest --version || cargo install --locked "cargo-nextest@${NEXTEST_VERSION}"
+          have cargo deny --version || cargo install --locked "cargo-deny@${DENY_VERSION}"
+          have cargo vet --version || cargo install --locked "cargo-vet@${VET_VERSION}"
+          just --version; cargo nextest --version; cargo deny --version; cargo vet --version
+          node --version; python3 --version; gpg --version | head -1
+
+      - name: just
+        run: just

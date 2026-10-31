@@ -197,3 +197,4 @@ Read this table, then only the decision you need.
 | [F180](decisions/F180.md) | The review of 2026-10-31: getrandom trusted, two libraries used as not established, HKDF and the BIP-39 core kept, A1 through libsecp256k1, a FAT32 formatter of Faraday's own | 2026-10-31 | Active | crypto |
 | [F181](decisions/F181.md) | Memory work follows the security model: no wiping allocator, no batch for copies the lock already bounds, none for Faraday Demo and the Starter | 2026-10-31 | Active | crypto |
 | [F182](decisions/F182.md) | A stick Windows leaves whole: the image's first usable sector and boot FAT, a stick the Starter makes for its size, the boot partition kept as released | 2026-10-31 | Active | stick |
+| [F183](decisions/F183.md) | The check runs on GitHub Actions: `just` on every push to main and every pull request, read-only, building nothing for release | 2026-10-31 | Active | repository |

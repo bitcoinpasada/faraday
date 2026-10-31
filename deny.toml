@@ -3,9 +3,9 @@
 #
 #     cargo deny check
 #
-# There is no hosted CI, so this file is the record of which duplicates
-# and which licences were looked at and accepted, and when one of them
-# stops being true the check says so.
+# This file is the record of which duplicates and which licences were
+# looked at and accepted, and when one of them stops being true the
+# check says so.
 
 [graph]
 all-features = false

@@ -25,7 +25,7 @@ cd "$(dirname "$0")/.." || exit 2
 # What each top-level entry is.
 TOP=(
     .claude              # the agent definitions a change may use
-    .github              # issue templates; no workflows (no hosted CI)
+    .github              # issue templates and the check's workflow (F183)
     .gitignore
     CLAUDE.md            # the rules every change follows
     CONTRIBUTING.md      # how to report and how to send a change

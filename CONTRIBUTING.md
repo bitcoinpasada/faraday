@@ -23,7 +23,8 @@ change is held to the same rules, whoever makes it.
    question; read only the section you need.
 2. Build and check as `docs/DEVELOPING.md` says. While working, run the
    tests of the module you touched; before sending, run `just`, the full
-   check, once. A change that fails it is not ready.
+   check, once. A change that fails it is not ready. GitHub Actions
+   runs `just` again on the pull request.
 3. Keep one change to one thing, with its tests and the documents it
    changes. A user-facing behaviour gets a test of what a person or a
    wallet would notice; a cryptographic change is checked against

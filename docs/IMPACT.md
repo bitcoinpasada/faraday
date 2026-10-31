@@ -397,7 +397,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 
 | Id | Triggers on | Kind | Change with it, or what holds it | Source |
 |---|---|---|---|---|
-| `repo.no-hosted-ci` | `.github/workflows/**` added | F | refused | `CLAUDE.md` |
+| `repo.ci-check` | `.github/workflows/**` | R | runs `just` and nothing else, read-only, actions pinned by commit | F183 |
 | `repo.build-machine-unnamed` | any change | R | the build machine is "the build machine" in docs, comments and messages | `CLAUDE.md` |
 | `repo.personal-information` | any commit | R | its diff and message checked for names, addresses, hostnames, paths, keys | `CLAUDE.md` |
 | `repo.upstream-name` | any text file but `LICENSE` | R | the upstream project named only in `LICENSE` (planned check reads the name from `LICENSE`) | F73 |

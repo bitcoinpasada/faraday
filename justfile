@@ -1,4 +1,5 @@
-# The task runner. Everything runs locally; there is no hosted CI.
+# The task runner. Everything runs locally; GitHub Actions runs `just`
+# (.github/workflows/check.yml).
 
 [group('test')]
 default: test lint

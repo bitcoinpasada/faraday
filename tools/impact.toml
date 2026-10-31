@@ -380,12 +380,12 @@ act = "the demo is built and its tests run; its own build refuses a break"
 # ------------------------------------------------------------------ repo
 
 [[rule]]
-id = "repo.no-hosted-ci"
-title = "no hosted CI, no GitHub Actions"
-source = ["CLAUDE.md"]
+id = "repo.ci-check"
+title = "GitHub Actions runs `just` and nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release"
+source = ["CLAUDE.md", "docs/decisions/F183.md"]
 when = [".github/workflows/**"]
-on = ["add"]
-kind = "forbid"
+kind = "review"
+misses = "a tool the check comes to need, until the workflow fails without it"
 
 [[rule]]
 id = "repo.build-machine-unnamed"

@@ -5,8 +5,9 @@
 
 How to build Faraday from a fresh clone, check it, reproduce a release,
 and try it on your own hardware. Each section names the document that
-says more. Everything here runs on your own machine; there is no hosted
-CI.
+says more. Everything here runs on your own machine; GitHub Actions runs
+the check (§2) on every push to main and every pull request, and
+nothing else.
 
 ## 1. What you need
 
@@ -14,7 +15,11 @@ CI.
   the first `cargo` command), and a C compiler: `secp256k1-sys` builds
   libsecp256k1 from source.
 - **just** (the task runner) and, for the check, `cargo install --locked
-  cargo-nextest cargo-deny cargo-vet`.
+  cargo-nextest cargo-deny cargo-vet`, and the two Mac targets, `rustup
+  target add aarch64-apple-darwin x86_64-apple-darwin`
+  (`tools/check-macos.sh` type-checks the Starter's macOS code with them).
+- **Node 22 or later**, for the colour tables' lint
+  (`tools/lint-themes.sh`).
 - **Python 3.11 or later** and **git** for the lints (`tools/impact.py`
   reads TOML with `tomllib` and the history with git) and the
   cross-check. The cross-check's
@@ -57,6 +62,11 @@ cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
 Run the module you touched while working and `just` once at the end.
 `tools/README.md` lists every lint and what it holds; `CLAUDE.md` is the
 rules a change follows. Builds and checks pass `--locked`.
+
+GitHub Actions runs `just` on every push to main and every pull
+request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
+the tools above at the versions it names; its result is shown on the
+commit and the pull request.
 
 ## 3. The desktop app
 
