@@ -10,6 +10,8 @@ publish = false
 
 [dependencies]
 faraday-crypto = { path = "../faraday-crypto" }
+# AES's round function for AEZ (docs/deps/aes.md).
+aes.workspace = true
 zeroize.workspace = true
 bitcoin.workspace = true
 miniscript.workspace = true

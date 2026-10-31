@@ -206,6 +206,13 @@ start = "2026-06-08"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.aes]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/block-ciphers"
+start = "2026-04-10"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
 [[trusted.argon2]]
 criteria = "safe-to-deploy"
 trusted-publisher = "github:RustCrypto/password-hashes"

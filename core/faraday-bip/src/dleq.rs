@@ -14,8 +14,10 @@
 //! through `secp256k1_ecdh`, which takes the same time for every
 //! scalar. Multiplications by the public challenge and response go
 //! through `mul_tweak`, which is right for public values only. The
-//! secret's bytes, the nonce and the hashes they pass through are
-//! zeroized before return.
+//! response `k + e·a` is worked out mod n by `musig`'s scalar
+//! arithmetic, which has no branch on its values. The secret's bytes,
+//! the nonce and the hashes they pass through are zeroized before
+//! return.
 
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey, Verification};
 use faraday_crypto::Zeroize;

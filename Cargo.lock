@@ -35,6 +35,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "aes"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35f0f96ce78e38c3dc6d8948aa8163d06385be74000f3c7a95bf1eef35d3ea32"
+dependencies = [
+ "cipher",
+ "cpubits",
+ "cpufeatures",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -745,6 +756,7 @@ dependencies = [
 name = "faraday-bip"
 version = "0.1.0"
 dependencies = [
+ "aes",
  "bip39",
  "bitcoin",
  "faraday-crypto",

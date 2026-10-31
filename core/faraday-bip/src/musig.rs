@@ -114,33 +114,61 @@ fn bytes(l: &[u64; 4]) -> [u8; 32] {
     out
 }
 
-/// Whether `a` is at or above the curve order.
-pub(crate) fn at_least_order(a: &[u8; 32]) -> bool {
-    *a >= CURVE_ORDER
+// Every function here runs the same instructions whatever its inputs:
+// a carry or a borrow is carried as a number, and where a result is
+// picked from two, a mask picks it. The secret scalars of MuSig2
+// signing, of a DLEQ proof and of BIP-352's sum of input keys pass
+// through them.
+
+/// All ones when `bit` is 1, zero when it is 0. `black_box` keeps the
+/// compiler from turning the mask back into a branch.
+fn mask(bit: u64) -> u64 {
+    core::hint::black_box(0u64.wrapping_sub(bit))
 }
 
-/// `a - n`, which the callers only ask for when `a >= n`.
-fn subtract_order(a: &[u8; 32]) -> [u8; 32] {
-    let (a, n) = (limbs(a), limbs(&CURVE_ORDER));
+/// `x` where `m` is all ones, `y` where it is zero.
+fn select(m: u64, x: &[u64; 4], y: &[u64; 4]) -> [u64; 4] {
+    core::array::from_fn(|i| y[i] ^ (m & (x[i] ^ y[i])))
+}
+
+/// `a - n` modulo 2²⁵⁶, and the borrow out: 1 when `a < n`.
+fn sub_order(a: &[u64; 4]) -> ([u64; 4], u64) {
+    let n = limbs(&CURVE_ORDER);
     let mut out = [0u64; 4];
     let mut borrow = 0u64;
     for i in (0..4).rev() {
-        let (d, b1) = a[i].overflowing_sub(n[i]);
-        let (d, b2) = d.overflowing_sub(borrow);
-        out[i] = d;
-        borrow = u64::from(b1 || b2);
+        let t = u128::from(a[i])
+            .wrapping_sub(u128::from(n[i]))
+            .wrapping_sub(u128::from(borrow));
+        out[i] = t as u64;
+        borrow = (t >> 127) as u64;
     }
-    bytes(&out)
+    (out, borrow)
+}
+
+/// 1 when every limb is zero, 0 otherwise.
+fn zero_bit(a: &[u64; 4]) -> u64 {
+    let z = a[0] | a[1] | a[2] | a[3];
+    1 ^ ((z | z.wrapping_neg()) >> 63)
+}
+
+/// Whether `a` is zero, read without stopping at the first byte that
+/// differs.
+pub(crate) fn is_zero(a: &[u8; 32]) -> bool {
+    zero_bit(&limbs(a)) == 1
+}
+
+/// Whether `a` is at or above the curve order.
+pub(crate) fn at_least_order(a: &[u8; 32]) -> bool {
+    sub_order(&limbs(a)).1 == 0
 }
 
 /// `a mod n` for a 256-bit `a`. One subtraction is enough: `n` is above
 /// `2²⁵⁵`, so `a - n < n` whenever `a < 2²⁵⁶`.
 pub(crate) fn reduce(a: [u8; 32]) -> [u8; 32] {
-    if at_least_order(&a) {
-        subtract_order(&a)
-    } else {
-        a
-    }
+    let a = limbs(&a);
+    let (diff, borrow) = sub_order(&a);
+    bytes(&select(mask(1 ^ borrow), &diff, &a))
 }
 
 /// `(a + b) mod n`, for `a` and `b` already reduced.
@@ -149,34 +177,29 @@ pub(crate) fn add_mod_order(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
     let mut sum = [0u64; 4];
     let mut carry = 0u64;
     for i in (0..4).rev() {
-        let (s, c1) = a[i].overflowing_add(b[i]);
-        let (s, c2) = s.overflowing_add(carry);
-        sum[i] = s;
-        carry = u64::from(c1 || c2);
+        let t = u128::from(a[i]) + u128::from(b[i]) + u128::from(carry);
+        sum[i] = t as u64;
+        carry = (t >> 64) as u64;
     }
-    let sum = bytes(&sum);
-    if carry == 1 || at_least_order(&sum) {
-        subtract_order(&sum)
-    } else {
-        sum
-    }
+    // With a carry out the sum is `2²⁵⁶ + sum`, above `n`, and `sum - n`
+    // modulo 2²⁵⁶ is still the reduced value.
+    let (diff, borrow) = sub_order(&sum);
+    bytes(&select(mask(carry | (1 ^ borrow)), &diff, &sum))
 }
 
-/// `-a mod n`.
+/// `-a mod n`, for `a` already reduced: `n - a`, and zero for zero.
 pub(crate) fn negate_mod_order(a: &[u8; 32]) -> [u8; 32] {
-    if *a == [0u8; 32] {
-        return [0u8; 32];
-    }
     let (n, a) = (limbs(&CURVE_ORDER), limbs(a));
     let mut out = [0u64; 4];
     let mut borrow = 0u64;
     for i in (0..4).rev() {
-        let (d, b1) = n[i].overflowing_sub(a[i]);
-        let (d, b2) = d.overflowing_sub(borrow);
-        out[i] = d;
-        borrow = u64::from(b1 || b2);
+        let t = u128::from(n[i])
+            .wrapping_sub(u128::from(a[i]))
+            .wrapping_sub(u128::from(borrow));
+        out[i] = t as u64;
+        borrow = (t >> 127) as u64;
     }
-    bytes(&out)
+    bytes(&select(mask(zero_bit(&a)), &[0u64; 4], &out))
 }
 
 pub(crate) fn one() -> [u8; 32] {
@@ -752,18 +775,17 @@ fn index_of(text: &str) -> Result<u32, Error> {
 
 /// `(a * b) mod n`, for `a` and `b` already reduced.
 ///
-/// Double-and-add over the bits of `b`, selecting without a branch, so
-/// that a secret scalar's bits do not steer the control flow.
+/// Double-and-add over all 256 bits of `b`, each step adding and then
+/// keeping or dropping the sum by a mask, over [`add_mod_order`], which
+/// has no branch either: a secret scalar's bits steer neither the
+/// control flow nor the memory read.
 pub(crate) fn mul_mod_order(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
     let mut acc = [0u8; 32];
     for i in 0..256 {
         acc = add_mod_order(&acc, &acc);
-        let bit = (b[i / 8] >> (7 - (i % 8))) & 1;
+        let bit = u64::from((b[i / 8] >> (7 - (i % 8))) & 1);
         let added = add_mod_order(&acc, a);
-        let mask = 0u8.wrapping_sub(bit);
-        for (out, add) in acc.iter_mut().zip(added.iter()) {
-            *out ^= mask & (*out ^ *add);
-        }
+        acc = bytes(&select(mask(bit), &limbs(&added), &limbs(&acc)));
     }
     acc
 }
@@ -1066,7 +1088,7 @@ pub fn nonce_gen<C: Verification + bitcoin::secp256k1::Signing>(
                 &[i as u8],
             ],
         ));
-        if *k == [0u8; 32] {
+        if is_zero(k) {
             return Err(Error::SecNonce);
         }
     }
@@ -1173,7 +1195,7 @@ pub fn sign<C: Verification + bitcoin::secp256k1::Signing>(
     let mut k1 = Zeroizing::new(secnonce.k1);
     let mut k2 = Zeroizing::new(secnonce.k2);
     for k in [&*k1, &*k2] {
-        if *k == [0u8; 32] || at_least_order(k) {
+        if is_zero(k) | at_least_order(k) {
             return Err(Error::SecNonce);
         }
     }
@@ -1300,7 +1322,7 @@ pub fn deterministic_sign<C: Verification + bitcoin::secp256k1::Signing>(
                 &[i as u8],
             ],
         ));
-        if *k == [0u8; 32] {
+        if is_zero(k) {
             return Err(Error::SecNonce);
         }
     }
@@ -1331,4 +1353,91 @@ pub fn deterministic_sign<C: Verification + bitcoin::secp256k1::Signing>(
     let session = session_values(secp, pubkeys, tweaks, &AggNonce(aggnonce), msg)?;
     let psig = sign(secp, secnonce, sk, &session)?;
     Ok((pubnonce, psig))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::vec;
+
+    /// The scalars at the edges of the arithmetic: zero, one, the curve
+    /// order less one and two, the top bit alone, and a value whose
+    /// every limb is set.
+    fn edges() -> Vec<[u8; 32]> {
+        let n_minus = |k: u8| {
+            let mut v = CURVE_ORDER;
+            v[31] -= k;
+            v
+        };
+        let mut top = [0u8; 32];
+        top[0] = 0x80;
+        let mut two = [0u8; 32];
+        two[31] = 2;
+        vec![
+            [0u8; 32],
+            one(),
+            two,
+            n_minus(1),
+            n_minus(2),
+            top,
+            sha256(b"a scalar"),
+            reduce([0xa5; 32]),
+        ]
+    }
+
+    /// The sum, product and negation of scalars mod `n` are what
+    /// libsecp256k1's own secret-key arithmetic gives, at every pair of
+    /// edge values; where libsecp256k1 has no answer (a zero key or
+    /// factor, a sum of zero), the result is zero.
+    #[test]
+    fn scalar_arithmetic_matches_libsecp256k1() {
+        let edges = edges();
+        for a in &edges {
+            let key = SecretKey::from_slice(a).ok();
+            let negated = key.map_or([0u8; 32], |k| k.negate().secret_bytes());
+            assert_eq!(negate_mod_order(a), negated, "-{a:02x?}");
+            for b in &edges {
+                let tweak = Scalar::from_be_bytes(*b).expect("below the order");
+                let sum = match key {
+                    Some(k) => k.add_tweak(&tweak).map_or([0u8; 32], |s| s.secret_bytes()),
+                    None => *b,
+                };
+                assert_eq!(add_mod_order(a, b), sum, "{a:02x?} + {b:02x?}");
+                let product = match key {
+                    Some(k) if *b != [0u8; 32] => {
+                        k.mul_tweak(&tweak).expect("nonzero").secret_bytes()
+                    }
+                    _ => [0u8; 32],
+                };
+                assert_eq!(mul_mod_order(a, b), product, "{a:02x?} * {b:02x?}");
+            }
+        }
+    }
+
+    /// A 256-bit value at or above `n` is reduced by one subtraction,
+    /// and one below it is kept.
+    #[test]
+    fn reduction_takes_the_order_off_once() {
+        let mut n_plus_one = CURVE_ORDER;
+        n_plus_one[31] += 1;
+        let mut top = [0xffu8; 32];
+        let mut expected = [0u8; 32];
+        // The bytes of 2²⁵⁶ − 1 − n.
+        let mut borrow = 0i16;
+        for i in (0..32).rev() {
+            let d = i16::from(top[i]) - i16::from(CURVE_ORDER[i]) - borrow;
+            expected[i] = d.rem_euclid(256) as u8;
+            borrow = i16::from(d < 0);
+        }
+        assert_eq!(reduce(top), expected);
+        assert_eq!(reduce(CURVE_ORDER), [0u8; 32]);
+        assert_eq!(reduce(n_plus_one), one());
+        top = CURVE_ORDER;
+        top[31] -= 1;
+        assert_eq!(reduce(top), top);
+        assert!(at_least_order(&CURVE_ORDER));
+        assert!(!at_least_order(&top));
+        assert!(is_zero(&[0u8; 32]));
+        assert!(!is_zero(&one()));
+    }
 }

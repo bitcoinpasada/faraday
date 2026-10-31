@@ -548,7 +548,7 @@ pub fn decode_scan_key(c: &Compute, text: &str) -> Result<ScanKeyRead, Error> {
 /// A scalar BIP-352 derived, refused where it is zero or at or above
 /// the curve order.
 fn checked(value: [u8; 32]) -> Result<[u8; 32], Error> {
-    if value == [0u8; 32] || crate::musig::at_least_order(&value) {
+    if crate::musig::is_zero(&value) | crate::musig::at_least_order(&value) {
         return Err(Error::Scalar);
     }
     Ok(value)

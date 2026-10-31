@@ -83,6 +83,11 @@ chacha20poly1305 = { version = "0.11", default-features = false, features = ["ze
 # body and its inner random stream with plain ChaCha20 (RFC 8439), not
 # with an AEAD. No new crate enters the graph.
 chacha20 = { version = "0.10", default-features = false, features = ["cipher", "zeroize"] }
+# AES's round function alone, for AEZ, which aezeed enciphers with
+# (docs/deps/aes.md). `hazmat` is the feature that exposes the round; it
+# builds on `cipher` 0.5, `cpufeatures` and `cpubits`, already in the
+# lock file.
+aes = { version = "0.9", default-features = false, features = ["hazmat"] }
 # rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (§16.1).
 # `secp-recovery` is a feature of the same crate, not another dependency:
 # it turns on libsecp256k1's public-key recovery and rust-bitcoin's

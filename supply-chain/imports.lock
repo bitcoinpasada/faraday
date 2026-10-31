@@ -6,6 +6,11 @@ version = "0.6.1"
 when = "2026-06-17"
 trusted-publisher = "github:RustCrypto/traits"
 
+[[publisher.aes]]
+version = "0.9.3"
+when = "2026-08-28"
+trusted-publisher = "github:RustCrypto/block-ciphers"
+
 [[publisher.argon2]]
 version = "0.6.0"
 when = "2026-08-27"

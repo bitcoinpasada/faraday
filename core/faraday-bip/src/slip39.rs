@@ -283,26 +283,32 @@ impl ZeroizeOnDrop for SecretBytes {}
 
 // --- GF(256) ---------------------------------------------------------------
 
-const TABLES: ([u8; 255], [u8; 256]) = build_tables();
-const EXP: [u8; 255] = TABLES.0;
-const LOG: [u8; 256] = TABLES.1;
+// The arithmetic runs the same instructions for every byte: no table is
+// indexed by a share's bytes and no branch is taken on them.
 
-const fn build_tables() -> ([u8; 255], [u8; 256]) {
-    let mut exp = [0u8; 255];
-    let mut log = [0u8; 256];
-    let mut poly: u16 = 1;
-    let mut i = 0;
-    while i < 255 {
-        exp[i] = poly as u8;
-        log[poly as usize] = i as u8;
-        // Multiply by 3, the generator, modulo x^8 + x^4 + x^3 + x + 1.
-        poly = (poly << 1) ^ poly;
-        if poly & 0x100 != 0 {
-            poly ^= 0x11B;
-        }
-        i += 1;
+/// `a · b` in GF(256) modulo x⁸ + x⁴ + x³ + x + 1, SLIP-39's field
+/// (and AES's): eight rounds of shift and XOR, each kept or dropped by a
+/// mask.
+fn gf_mul(a: u8, b: u8) -> u8 {
+    let (mut a, mut b, mut product) = (a, b, 0u8);
+    for _ in 0..8 {
+        product ^= a & (b & 1).wrapping_neg();
+        let carry = (a >> 7).wrapping_neg();
+        a = (a << 1) ^ (0x1B & carry);
+        b >>= 1;
     }
-    (exp, log)
+    product
+}
+
+/// `a⁻¹` in GF(256), as `a²⁵⁴`: seven squarings, each multiplied in.
+/// Zero gives zero, which no caller divides by: share indices differ.
+fn gf_inv(a: u8) -> u8 {
+    let (mut square, mut out) = (a, 1u8);
+    for _ in 0..7 {
+        square = gf_mul(square, square);
+        out = gf_mul(out, square);
+    }
+    out
 }
 
 /// Up to sixteen points of one polynomial over GF(256), one byte at a
@@ -343,22 +349,19 @@ impl Points {
                 };
             }
         }
-        let mut log_prod: i32 = 0;
+        // The basis polynomial of each point at `x`: the product over the
+        // other points of (x_j - x) / (x_i - x_j), subtraction being XOR.
+        // It is worked out from the indices, which are public; the values
+        // are multiplied in without a branch.
         for i in 0..self.n {
-            log_prod += i32::from(LOG[(self.x[i] ^ x) as usize]);
-        }
-        for i in 0..self.n {
-            let mut others: i32 = 0;
-            for j in 0..self.n {
-                others += i32::from(LOG[(self.x[i] ^ self.x[j]) as usize]);
+            let (mut num, mut den) = (1u8, 1u8);
+            for j in (0..self.n).filter(|&j| j != i) {
+                num = gf_mul(num, self.x[j] ^ x);
+                den = gf_mul(den, self.x[i] ^ self.x[j]);
             }
-            let basis =
-                (log_prod - i32::from(LOG[(self.x[i] ^ x) as usize]) - others).rem_euclid(255);
+            let basis = gf_mul(num, gf_inv(den));
             for (k, byte) in out.iter_mut().take(self.len).enumerate() {
-                let v = self.y[i][k];
-                if v != 0 {
-                    *byte ^= EXP[((i32::from(LOG[v as usize]) + basis) % 255) as usize];
-                }
+                *byte ^= gf_mul(self.y[i][k], basis);
             }
         }
         SecretBytes {
@@ -431,9 +434,7 @@ fn polymod(customization: &[u8], words: &[u16], trailing_zeros: usize) -> u32 {
         let b = chk >> 20;
         chk = ((chk & 0x000F_FFFF) << 10) ^ v;
         for (i, g) in GEN.iter().enumerate() {
-            if (b >> i) & 1 != 0 {
-                chk ^= *g;
-            }
+            chk ^= *g & ((b >> i) & 1).wrapping_neg();
         }
     };
     for &c in customization {
