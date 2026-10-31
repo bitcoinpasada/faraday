@@ -15,14 +15,18 @@ inputs:
 runs:
   using: composite
   steps:
+    # Mounted, not linked: target/ stays a folder, so the test jobs can
+    # unpack the archive into it (tar refuses to write through a link that
+    # leads outside the folder it unpacks into).
     - name: Build output on the runner's larger disk
       shell: bash
       run: |
+        mkdir -p target
         if sudo mkdir -p /mnt/target; then
           sudo chown "$(id -u):$(id -g)" /mnt/target
-          ln -s /mnt/target target
+          sudo mount --bind /mnt/target target
         fi
-        df -h . /mnt
+        df -h . target
 
     - name: System packages
       if: inputs.packages == 'true'
