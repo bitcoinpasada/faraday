@@ -74,10 +74,15 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: nextest-archive
+      # Unpacked into target/, where the build job compiled it: a test that
+      # names a path fixed when it was compiled (env!("CARGO_BIN_EXE_…"),
+      # env!("CARGO_TARGET_TMPDIR")) finds it at the same place here.
       - name: Run this shard's tests
-        run: >-
-          cargo nextest run --archive-file nextest-archive.tar.zst
-          --workspace-remap . --partition "hash:${{ matrix.shard }}/${SHARDS}"
+        run: |
+          mkdir -p target/tmp
+          cargo nextest run --archive-file nextest-archive.tar.zst \
+            --workspace-remap . --extract-to . --extract-overwrite \
+            --partition "hash:${{ matrix.shard }}/${SHARDS}"
 
   doc-tests:
     name: doc tests
