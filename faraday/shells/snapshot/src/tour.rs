@@ -61,7 +61,47 @@ pub(crate) struct Small {
 
 pub(crate) type Files = Vec<(String, Vec<u8>)>;
 
+/// The online app's Downloads folder as the tours name it to the app:
+/// the desktop app's on a home folder written `~`, as the guide's
+/// pictures name it. The folder itself is under the run's own folder,
+/// wherever that is, and what a tour shows is the same on any machine.
+const DOWNLOADS: &str = "~/Downloads";
+
+/// Where the tours tell the app a PDF was saved, named as [`DOWNLOADS`]
+/// is; the file itself is in the run's folder.
+const PRINT: &str = "~/faraday-print";
+
+/// The file at `path` as the app is told it: its name in `folder`.
+fn shown(folder: &str, path: &Path) -> String {
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    format!("{folder}/{name}")
+}
+
 impl Tour {
+    /// Costs a read of the host's Downloads folder. That folder as the
+    /// app is told it: listed as its host lists it, named [`DOWNLOADS`].
+    /// `None` with no host.
+    pub(crate) fn host_files(&self) -> Option<StorageEvent> {
+        let host = self.host.as_ref()?;
+        Some(StorageEvent::HostFiles {
+            dir: DOWNLOADS.into(),
+            files: faraday_storage::host_listing(&host.downloads),
+            opens: host.opens,
+        })
+    }
+
+    /// The file the app names `path`: one in [`DOWNLOADS`] where the
+    /// host keeps it; any other path as it is.
+    fn host_path(&self, path: &str) -> PathBuf {
+        let name = path
+            .strip_prefix(DOWNLOADS)
+            .and_then(|p| p.strip_prefix('/'));
+        match (self.host.as_ref(), name) {
+            (Some(host), Some(name)) => host.downloads.join(name),
+            _ => PathBuf::from(path),
+        }
+    }
+
     /// Back up's plan made into the plan preset `p` once placed, by the
     /// presses a person makes now (`testkit::backup_as`,
     /// `docs/BACKUP-FLOW.md` §17.21).
@@ -136,10 +176,9 @@ impl Tour {
                     });
                 }
                 StorageCommand::Print { name, bytes } => {
-                    let path = self.out.join(&name);
-                    let ev = match std::fs::write(&path, bytes) {
+                    let ev = match std::fs::write(self.out.join(&name), bytes) {
                         Ok(()) => StorageEvent::Printed {
-                            path: path.display().to_string(),
+                            path: format!("{PRINT}/{name}"),
                         },
                         Err(e) => StorageEvent::PrintFailed {
                             reason: e.to_string(),
@@ -164,7 +203,7 @@ impl Tour {
                     self.app.storage(ev);
                 }
                 StorageCommand::ReadHost { path } => {
-                    let ev = match faraday_storage::read_host(Path::new(&path)) {
+                    let ev = match faraday_storage::read_host(&self.host_path(&path)) {
                         Ok(bytes) => StorageEvent::HostRead { path, bytes },
                         Err(reason) => StorageEvent::HostReadFailed { path, reason },
                     };
@@ -179,13 +218,14 @@ impl Tour {
                     };
                     let ev = match faraday_storage::save_download(&host.downloads, &name, &bytes) {
                         Ok(path) => StorageEvent::Saved {
-                            path: path.display().to_string(),
+                            path: shown(DOWNLOADS, &path),
                         },
                         Err(reason) => StorageEvent::SaveFailed { reason },
                     };
-                    let files = host.files();
                     self.app.storage(ev);
-                    self.app.storage(files);
+                    if let Some(files) = self.host_files() {
+                        self.app.storage(files);
+                    }
                 }
                 // A stick's space as a 8 GB stick's: the tour's sticks are
                 // not partitions.

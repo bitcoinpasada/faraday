@@ -38,8 +38,10 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
         downloads: downloads.clone(),
         opens: true,
     };
-    t.app.storage(host.files());
     t.host = Some(host);
+    if let Some(files) = t.host_files() {
+        t.app.storage(files);
+    }
     t.press(Action::Nav(Screen::Transfer));
     if t.app.screen != Screen::Transfer {
         return Err("Transfer did not open in the online app".into());

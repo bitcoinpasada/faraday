@@ -78,8 +78,19 @@ fn framed<A: Copy + PartialEq>(
     ui.c.pop_clip();
     ui.hits.truncate(mark.0);
     ui.reach.truncate(mark.1);
-    let foot = if items.is_empty() { 0.0 } else { bh + pad };
-    let sh = (ch + 2.0 * pad + foot).min(h - 2.0 * margin);
+    // The buttons' row, a pad above it and one below, is outside what
+    // scrolls: a control of the body cut at the scroll's edge is a pad
+    // from the buttons, and leaves each button its whole touch target.
+    // What scrolls is the body with a pad above it, and below it where
+    // there are no buttons; unscrolled, the sheet is laid out as if the
+    // row were simply under the body.
+    let foot = if items.is_empty() {
+        0.0
+    } else {
+        bh + 2.0 * pad
+    };
+    let content = ch + if items.is_empty() { 2.0 * pad } else { pad };
+    let sh = (content + foot).min(h - 2.0 * margin);
     let sy = ((h - sh) / 2.0).max(margin);
     if let Some(a) = ui.outside {
         ui.press_plain((sx, sy, sw, sh), Plain::Beside, a);
@@ -99,11 +110,18 @@ fn framed<A: Copy + PartialEq>(
     if ui.theme.is_high_contrast() {
         ui.stroke(sx, sy, sw, sh, SHAPE_XL, Role::Outline);
     }
-    // Taller than the panel: what is above the buttons scrolls.
+    // Taller than the panel: what is above the buttons' row scrolls.
+    // Unscrolled, nothing is cut, and the body's own controls keep the
+    // room down to the buttons for their touch targets.
     let view = sh - foot;
-    let max = (ch + 2.0 * pad - view).max(0.0);
+    let max = (content - view).max(0.0);
     let off = ui.offset.clamp(0.0, max);
-    let clip = ui.rect(sx, sy, sw, view);
+    let room = if max > 0.0 || items.is_empty() {
+        view
+    } else {
+        view + pad
+    };
+    let clip = ui.rect(sx, sy, sw, room);
     ui.c.push_clip(clip);
     ui.sheet_pinning = true;
     body(ui, ix, sy + pad - off, iw);
@@ -123,7 +141,7 @@ fn framed<A: Copy + PartialEq>(
                 Role::OutlineVariant,
             );
         }
-        foot_of(ui, sy + view, &items);
+        foot_of(ui, sy + view + pad, &items);
     }
 }
 
@@ -426,4 +444,67 @@ pub fn kv_sheet<A: Copy + PartialEq>(
         },
         actions,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_draw::Canvas;
+    use faraday_draw::tokens::TOUCH;
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+
+    /// A dialog's action takes a press anywhere in its whole touch
+    /// target, at any length of the dialog's body and however far the
+    /// body is scrolled: a control of the body cut at the edge of what
+    /// scrolls takes no part of it.
+    #[test]
+    fn a_dialogs_action_keeps_its_whole_touch_target_however_its_body_is_scrolled() {
+        let (w, h) = (360.0, 320.0);
+        let mut short = Vec::new();
+        for compact in [true, false] {
+            for more in (0..120).step_by(10) {
+                let text = h + more as f32;
+                for offset in (0..240).step_by(4) {
+                    let mut canvas = Canvas::new(&DisplayInfo {
+                        width: w as u16,
+                        height: h as u16,
+                        dpi: 160,
+                        inset_bottom: 0,
+                        inset_top: 0,
+                        buttons: 0,
+                        camera_fixed: false,
+                        secure: SecureHardware::None,
+                        boot: BootState::Unknown,
+                        memory_mib: None,
+                    });
+                    let mut hits = Vec::new();
+                    let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+                    ui.compact = compact;
+                    ui.offset = offset as f32;
+                    dialog(
+                        &mut ui,
+                        (w, h, w),
+                        (Icon::Lock.into(), Role::Warning.paint(), "Save it?"),
+                        &mut |ui, x, y, iw| {
+                            // Text, then a hold at the body's foot.
+                            let at = y + text;
+                            ui.button(x, at, Some(iw), BUTTON_H, "Hold", Style::Secondary, 2);
+                            text + BUTTON_H + GAP
+                        },
+                        &[("Cancel", Style::Ghost, 1)],
+                    );
+                    let floor = ui.px(TOUCH);
+                    for r in ui.reach.iter().filter(|r| r.action == 1) {
+                        if r.target.w < floor || r.target.h < floor {
+                            short.push(format!(
+                                "compact {compact}, body {text}, scrolled {offset}: Cancel's target {} × {}",
+                                r.target.w, r.target.h
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        assert!(short.is_empty(), "{short:#?}");
+    }
 }

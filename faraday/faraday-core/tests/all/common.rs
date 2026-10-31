@@ -1318,9 +1318,22 @@ pub fn device(inbox: Files) -> Faraday {
     app
 }
 
-/// A hold on screen, `a`, held past its time and let go.
+/// A hold, `a`, held past its time and let go: the window scrolled
+/// down first, as a person would, until it shows.
 pub fn hold(app: &mut Faraday, a: Action) {
     let _ = app.frame();
+    for _ in 0..12 {
+        if app.where_offered(a).is_some() {
+            break;
+        }
+        let (w, h) = app.size();
+        app.event(Event::Scroll {
+            x: (w / 2.0) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
     let (x, y) = app.where_offered(a).expect("the hold is on screen");
     let t0 = app.now_ms() + 1_000;
     app.event(Event::Tick { now_ms: t0 });
