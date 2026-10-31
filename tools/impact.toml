@@ -787,6 +787,13 @@ when = ["**/screen.rs", "faraday/faraday-core/src/drawing.rs", "faraday/faraday-
 kind = "review"
 
 [[rule]]
+id = "speed.no-wiping-allocator"
+title = "no shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target"
+source = ["docs/decisions/F181.md", "docs/ESTABLISHED.md §4.9"]
+when = ["faraday/shells/*/src/main.rs", "faraday/faraday-disk/src/main.rs", "core/faraday-crypto/src/wipe.rs"]
+kind = "review"
+
+[[rule]]
 id = "speed.budgets"
 title = "a frame, a pointer move, a press or a key does only the costly work its budget names"
 source = ["CLAUDE.md"]

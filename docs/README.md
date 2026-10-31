@@ -102,7 +102,7 @@ need. Each document's header says what kind it is:
 - `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
-- `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes and the switches to outside code. Specified (F178), not built.
+- `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, and how the cross-check's outside sources are chosen. Specified (F178, F180, F181); AEZ's AES round, SLIP-39's arithmetic and the branch-free scalar arithmetic built.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.

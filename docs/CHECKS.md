@@ -148,6 +148,7 @@ does what is `tools/README.md`'s.
 |---|---|---|---|---|---|---|
 | `speed.kept-in-step`: a value kept on the state for drawing has its invariant written where it lives and a test that changes the source | `faraday/faraday-core/src/**`<br>lines matching `^\+.*\b(kept\|memo)\b` | review | - | - | - | `CLAUDE.md`<br>`docs/SPEED.md` §3 |
 | `speed.late-flow-timed`: work added while drawing or after every event is timed in a late-flow session before it is committed | `**/screen.rs`<br>`faraday/faraday-core/src/drawing.rs`<br>`faraday/faraday-core/src/screens/**` | review | - | - | - | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
+| `speed.no-wiping-allocator`: no shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target | `faraday/shells/*/src/main.rs`<br>`faraday/faraday-disk/src/main.rs`<br>`core/faraday-crypto/src/wipe.rs` | review | - | - | - | `docs/decisions/F181.md`<br>`docs/ESTABLISHED.md` §4.9 |
 | `speed.budgets`: a frame, a pointer move, a press or a key does only the costly work its budget names | `**/screen.rs`<br>`faraday/faraday-core/src/drawing.rs`<br>`faraday/faraday-core/src/screens/**` | held | - | `budget-tests` | - | `CLAUDE.md` |
 
 ### 2.10 structure
@@ -272,6 +273,7 @@ No script holds these; a reviewer reads this list for the change.
 | `keys.home-scan-takes-all`: a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open | `docs/decisions/F167.md`<br>`docs/decisions/F173.md` |
 | `speed.kept-in-step`: a value kept on the state for drawing has its invariant written where it lives and a test that changes the source | `CLAUDE.md`<br>`docs/SPEED.md` §3 |
 | `speed.late-flow-timed`: work added while drawing or after every event is timed in a late-flow session before it is committed | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
+| `speed.no-wiping-allocator`: no shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target | `docs/decisions/F181.md`<br>`docs/ESTABLISHED.md` §4.9 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `docs/STRUCTURE-PASS.md` §7 |
 | `structure.vault-together`: the vault code is not split per screen (F170) | `docs/decisions/F170.md` |
 | `strings.no-explanation`: a working screen carries labels, values and actions, never an explanation; Learn and About explain | `CLAUDE.md`<br>`docs/decisions/F112.md` |
