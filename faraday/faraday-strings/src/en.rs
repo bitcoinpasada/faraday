@@ -7258,16 +7258,16 @@ strings! {
     starter_learn_checking_written: "Checking what is written",
     /// A block's field (`docs/CRYPTO-LEARN.md` §1).
     how_field_action: "Action",
-    /// A block's field.
-    how_field_standards: "Standards",
-    /// A block's field.
-    how_field_implementation: "Implementation",
+    /// A block's field: the specifications the action follows (F179).
+    how_field_standards: "Specification",
+    /// A block's field: its libraries and Faraday's code (F179).
+    how_field_implementation: "Code",
     /// A block's field.
     how_field_checked: "Checked against",
     /// A block's field.
     how_field_crosscheck: "Cross-check",
-    /// A block's field.
-    how_field_code: "Code",
+    /// A block's field: the release, file and function of each entry (F179).
+    how_field_code: "Source",
     /// A block's field.
     how_field_secret: "Secret handling",
     /// A block's field.

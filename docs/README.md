@@ -118,7 +118,7 @@ need. Each document's header says what kind it is:
 - `docs/STICK-SETUP.md`: Sticks and vaults, laid out together. Specified (F175), not built.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174); built except the Windows 11 test with two sticks and macOS keys checked against a Mac.
 - `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), not built.
-- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which of them are outside implementations and which Faraday's own (§10, §10.7, F160, F177). Option A decided (F79) and built (§10.5); options B and C deferred.
+- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.

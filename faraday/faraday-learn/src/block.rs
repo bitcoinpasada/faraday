@@ -80,11 +80,11 @@ pub struct Block {
     pub name: &'static str,
     /// Action: one sentence.
     pub action: &'static str,
-    /// Standards, each by number, name and status.
+    /// Specification: each standard by number, name and status (F179).
     pub standards: &'static [Line],
-    /// Implementation: each library as an outside implementation, with
-    /// its version and author, then the crate as Faraday's own and what
-    /// it adds (F177).
+    /// Code: "Library: <crate> <version>, by <author>." for each
+    /// library, then "Faraday's code: <crate>: <what it adds>." (F177,
+    /// F179).
     pub implementation: &'static [Line],
     /// Checked against: vectors, each with whose answers it holds, tests,
     /// the self-test, the fuzz target.
@@ -94,11 +94,11 @@ pub struct Block {
     /// Drawn first in Cross-check (F160, F177): an own specification's
     /// label ("Own specification, not yet reviewed outside Faraday.")
     /// and what ends it, then what the cross-check compares Faraday
-    /// with: an outside implementation, a second implementation
-    /// Faraday's authors wrote (not checked against an outside source),
-    /// or both. Empty for neither.
+    /// with: others' code, Faraday's second version (a second
+    /// implementation Faraday's authors wrote, not checked against an
+    /// outside source), or both (F179). Empty for neither.
     pub independence: &'static [Line],
-    /// Code: the entries; the repository's address follows them.
+    /// Source: the entries; the repository's address follows them.
     pub code: &'static [Code],
     /// Secret handling.
     pub secret: &'static [Line],

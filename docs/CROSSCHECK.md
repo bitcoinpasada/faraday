@@ -177,8 +177,8 @@ implementation Faraday's authors wrote, over the standard library alone.
 What is compared only with an implementation Faraday's authors wrote is
 not checked against an outside source: the check catches a slip between
 two implementations written in two languages from the specification,
-not a misreading both share. The cross-check's README ("Outside and own
-implementations"), STANDARDS' Verified by cells and the app's and the
+not a misreading both share. The cross-check's README ("Others' code and
+Faraday's second version"), STANDARDS' Verified by cells and the app's and the
 website's Cryptography blocks are generated from it, and
 `docs/crypto/verified.py` fails an action with an area and no class.
 As of 2026-10-29:

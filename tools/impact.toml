@@ -260,7 +260,7 @@ misses = "a function a macro generates or one reached only through a trait objec
 id = "crypto-gen"
 run = "python3 -I -B docs/crypto/gen.py check"
 stage = "just lint"
-catches = "the generated parts of STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's table of outside and own implementations differing from the manifest (F148)"
+catches = "the generated parts of STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's table of others' code and Faraday's second version differing from the manifest (F148)"
 misses = "the text outside the marker lines"
 
 [[check]]
@@ -636,7 +636,7 @@ misses = "whether a reason is true, and whether a listed file should be in the s
 [[rule]]
 id = "crypto.independence-labelled"
 title = "an action with a cross-check area says whether the implementation it is compared with is outside, own or both; an action of Faraday's own specification carries its label; each library and vector folder an action names says whose it is"
-source = ["docs/decisions/F160.md", "docs/decisions/F177.md"]
+source = ["docs/decisions/F160.md", "docs/decisions/F177.md", "docs/decisions/F179.md"]
 when = ["docs/crypto/actions.toml", "tools/crosscheck/area_*.py"]
 kind = "held"
 held_by = ["crypto-verified"]
@@ -645,7 +645,7 @@ misses = "whether a stated class is true of the area's code"
 [[rule]]
 id = "crypto.independence-said"
 title = "no text calls a check outside where the implementation it compares with is Faraday's own, or calls such a check not independent: it is not checked against an outside source"
-source = ["docs/decisions/F160.md", "docs/decisions/F177.md"]
+source = ["docs/decisions/F160.md", "docs/decisions/F177.md", "docs/decisions/F179.md"]
 when = ["docs/CROSSCHECK.md", "docs/STANDARDS.md", "docs/AUDIT.md", "docs/crypto/actions.toml", "tools/crosscheck/README.md", "tools/crosscheck/area_*.py", "tools/reference/**", "tools/vault/**"]
 kind = "review"
 

@@ -18,7 +18,8 @@ marker lines, `<!-- crypto-manifest: begin §3 -->` and
                        `implementation.written_here`, grouped by crate
     tools/crosscheck/README.md, independence
                        what each area compares Faraday with: one row per area
-                       and class (F160, F177), outside or own, with the actions
+                       and class (F160, F177, F179), others' code or Faraday's
+                       second version, with the actions
 
 A row's cells come from the actions whose `row` is its id. A row with `uses`
 (the actions it describes as well as the rows they belong to) takes them from
@@ -61,12 +62,12 @@ HOW = "faraday/faraday-learn/src/how.rs"
 AREAS = "tools/crosscheck"
 CC_README = "tools/crosscheck/README.md"
 
-# What each class compares Faraday with (F160, F177), the one checked against an outside
-# source least last.
+# What each class compares Faraday with (F160, F177, F179), the one checked against an
+# outside source least last.
 INDEPENDENCE = {
-    "outside": "an outside implementation",
-    "outside-and-own": "an outside implementation and, for a part, one Faraday's authors wrote",
-    "own": "an implementation Faraday's authors wrote",
+    "outside": "others' code",
+    "outside-and-own": "others' code and, for a part, Faraday's second version",
+    "own": "Faraday's second version",
 }
 NOT_OUTSIDE = {
     "outside-and-own": "in part not checked against an outside source",
@@ -334,8 +335,8 @@ def gen_novel(data):
 
 def gen_independence(data, areas):
     """tools/crosscheck/README.md: one row per area and class, what it compares Faraday
-    with, the outside implementation, the part Faraday's authors wrote, and the actions
-    (F160, F177)."""
+    with, others' code, Faraday's second version (the part Faraday's authors wrote), and
+    the actions (F160, F177, F179)."""
     groups = {}
     for a in data["action"]:
         chk = a.get("checked", {})
@@ -346,7 +347,7 @@ def gen_independence(data, areas):
         ind = chk.get("independence") or {}
         key = (name, ind.get("class", "?"), ind.get("author", ""), ind.get("ours", ""))
         groups.setdefault(key, []).append(a["id"])
-    lines = ["| Area | Compared with | Outside implementation | Written by Faraday's authors | Actions |",
+    lines = ["| Area | Compared with | Others' code | Faraday's second version | Actions |",
              "|---|---|---|---|---|"]
     for (name, ind, by, ours), ids in groups.items():
         lines.append(f"| `{name}` | {cell(INDEPENDENCE.get(ind, ind))} | {cell(by) if by else 'none'} | "

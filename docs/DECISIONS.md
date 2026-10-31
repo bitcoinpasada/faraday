@@ -191,5 +191,6 @@ Read this table, then only the decision you need.
 | [F174](decisions/F174.md) | A stick or card does not say it is Faraday's: plain names, its own IDs, known by its layout | 2026-10-30 | Active | stick |
 | [F175](decisions/F175.md) | The vaults and the sticks are laid out together, and each stick is drawn as it comes in | 2026-10-30 | Active | backup |
 | [F176](decisions/F176.md) | Anti-exfil names two levels, checked signature and protected key; Faraday as host keeps the second, with rho in memory only and aborts counted in the vault; the reveal never in a PSBT | 2026-10-30 | Active | crypto |
-| [F177](decisions/F177.md) | Each Cryptography block says whose specification, whose implementation and whose check an action rests on, each own or outside | 2026-10-30 | Active | crypto |
+| [F177](decisions/F177.md) | Each Cryptography block says whose specification, whose implementation and whose check an action rests on, each own or outside | 2026-10-30 | Amended by F179 | crypto |
 | [F178](decisions/F178.md) | Established implementations first: Faraday writes its own only where none exists or none fits its key rules, and says why | 2026-10-30 | Active | crypto |
+| [F179](decisions/F179.md) | A Cryptography block's fields are Specification and Code; "implementation" names only a cross-check's second program | 2026-10-30 | Active | crypto |

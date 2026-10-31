@@ -97,7 +97,7 @@ ROW_TEXTS = ("standard", "verified", "own")
 STARTER_PAGES = {"write", "confirm", "writing", "done", "start"}
 ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "learn", "screens", "functions", "code",
                "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review", "label"}
-IMPL_KEYS = {"crate", "libraries", "adds", "written_here"}
+IMPL_KEYS = {"crate", "libraries", "through", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
                 "fuzz_none", "other", "independence"}
 SECRETS_KEYS = {"reveal", "constant_time", "wiped"}
@@ -543,6 +543,8 @@ def schema_sources(e, d):
         impl = a.get("implementation", {}) if isinstance(a.get("implementation"), dict) else {}
         chk = a.get("checked", {}) if isinstance(a.get("checked"), dict) else {}
         named_libs |= {x for x in as_list(impl.get("libraries")) if isinstance(x, str)}
+        named_libs |= {t.get("library") for t in as_list(impl.get("through"))
+                       if isinstance(t, dict) and isinstance(t.get("library"), str)}
         named_vecs |= {x for x in as_list(chk.get("vectors")) if isinstance(x, str)}
     for k, v in libs.items():
         w = f"library.{k}"
@@ -628,6 +630,28 @@ def schema_action(c, a, i):
                 bad(f"implementation.{k} is missing or empty")
         if not isinstance(impl.get("libraries", []), list):
             bad("implementation.libraries is not a list")
+        through = impl.get("through", [])
+        if not isinstance(through, list):
+            bad("implementation.through is not a list")
+            through = []
+        pairs = set()
+        for n, t in enumerate(through):
+            w = f"implementation.through[{n}]"
+            if not isinstance(t, dict):
+                bad(f"{w} is not a table")
+                continue
+            unknown(e, f"action {i}.{w}", t, THROUGH_KEYS, i)
+            if not (str_ok(t.get("library")) and str_ok(t.get("crate"))):
+                bad(f"{w}: `library` and `crate` are both required (F179)")
+                continue
+            if t["crate"] == impl.get("crate"):
+                bad(f"{w}: {t['crate']} is the action's own crate; name {t['library']} in "
+                    "`libraries`")
+            if t["library"] in as_list(impl.get("libraries")):
+                bad(f"{w}: {t['library']} is in `libraries` already")
+            if (t["library"], t["crate"]) in pairs:
+                bad(f"{w}: {t['library']} through {t['crate']} is named twice")
+            pairs.add((t["library"], t["crate"]))
         if "written_here" in impl and not str_ok(impl["written_here"]):
             bad("implementation.written_here is empty")
     if isinstance(chk, dict):
@@ -755,6 +779,7 @@ def check_truth(c):
         for lib in as_list(a.get("implementation", {}).get("libraries")):
             if lib not in c.cargo_lock():
                 e.add("untrue", f"library {lib} is not in Cargo.lock", i)
+        check_through(c, a, i)
         for s in as_list(a.get("standards")):
             if s not in standards:
                 e.add("untrue", f"standard {s} has no [standard.\"{s}\"] table", i)
@@ -1015,6 +1040,91 @@ def package_name(c, crate_dir):
         return tomllib.loads(c.read(f"{crate_dir}/Cargo.toml"))["package"]["name"]
     except (tomllib.TOMLDecodeError, KeyError):
         return crate_dir.rsplit("/", 1)[-1]
+
+
+# ----------------------------------- libraries reached through another crate (F179)
+
+THROUGH_KEYS = {"library", "crate"}
+
+
+def crate_dir_of(file):
+    """The crate directory of a source file: `core/faraday-crypto` for its `src/hash.rs`."""
+    return file.split("/src/", 1)[0]
+
+
+def crate_deps(c, crate_dir):
+    """The packages a crate directory's Cargo.toml lists under `[dependencies]`."""
+    try:
+        t = tomllib.loads(c.read(f"{crate_dir}/Cargo.toml"))
+    except tomllib.TOMLDecodeError:
+        return set()
+    deps = t.get("dependencies", {})
+    return {v.get("package", k) if isinstance(v, dict) else k for k, v in deps.items()}
+
+
+def resolve_cross(inv, call):
+    """The inventory's functions a cross-crate call `crate::path::name` can name: a method
+    by its type, a function under a module by that module, a bare name by any free
+    function of the crate (a re-export at its root)."""
+    crate, _, rest = call.partition("::")
+    segs = rest.split("::")
+    prev = segs[-2] if len(segs) > 1 else None
+    out = []
+    for f, r in inv.fns.items():
+        if r["crate"] != crate:
+            continue
+        parts = r["name"].split("::")
+        if parts[-1] != segs[-1]:
+            continue
+        ty = parts[-2] if len(parts) > 1 else None
+        if prev and prev[:1].isupper():
+            if ty == prev:
+                out.append(f)
+        elif ty is None:
+            mod = r["file"].split("/src/", 1)[-1][:-3].split("/")
+            mod = mod[:-1] if mod[-1] in ("lib", "main", "mod") else mod
+            if prev is None or mod[-1:] == [prev]:
+                out.append(f)
+    return out
+
+
+def reached_crates(c, a):
+    """Costs a walk of the inventory's call graph from the action's functions, across
+    crates: the crate directories whose functions the action reaches."""
+    inv = c.inv
+    seen, stack = set(), [f for f in as_list(a.get("functions")) if f in inv.fns]
+    while stack:
+        f = stack.pop()
+        if f in seen:
+            continue
+        seen.add(f)
+        r = inv.fns[f]
+        stack += [x for x in r["callees"] if x in inv.fns and x not in seen]
+        for call in r["cross"]:
+            stack += [x for x in resolve_cross(inv, call) if x not in seen]
+    return {crate_dir_of(inv.fns[f]["file"]) for f in seen}
+
+
+def check_through(c, a, i):
+    """Each `implementation.through` entry is true: the crate exists, its Cargo.toml
+    depends on the library, the library is in Cargo.lock, and the action's functions
+    reach a function of that crate (F179). Whether every library the action reaches
+    through another crate is listed is not checked."""
+    entries = [t for t in as_list(a.get("implementation", {}).get("through"))
+               if isinstance(t, dict) and str_ok(t.get("library")) and str_ok(t.get("crate"))]
+    reached = reached_crates(c, a) if entries else set()
+    for t in entries:
+        lib, crate = t["library"], t["crate"]
+        if not (c.root / crate / "Cargo.toml").is_file():
+            c.errors.add("untrue", f"implementation.through: crate {crate} does not exist", i)
+            continue
+        if lib not in crate_deps(c, crate):
+            c.errors.add("untrue", f"implementation.through: {crate} does not depend on {lib}", i)
+        if lib not in c.cargo_lock():
+            c.errors.add("untrue", f"implementation.through: library {lib} is not in Cargo.lock", i)
+        if crate not in reached:
+            c.errors.add("untrue", f"implementation.through: the action's functions reach no "
+                         f"function of {crate}", i)
 
 
 def check_audit_crates(c):
@@ -2223,6 +2333,54 @@ def self_test():
                        '[vector.v1]\nsource = "published"\nby = "its authors"\n', "",
                        "schema", "has no [vector.v1]")
         expect(ok, "a vector folder an action names says whose answers it holds")
+
+        print("a library reached through another crate (F179):")
+        (root / "lib/t/src").mkdir(parents=True)
+        (root / "lib/t/Cargo.toml").write_text('[package]\nname = "t"\n\n[dependencies]\nlib2 = "1"\n')
+        (root / "lib/u/src").mkdir(parents=True)
+        (root / "lib/u/Cargo.toml").write_text('[package]\nname = "u"\n\n[dependencies]\n')
+        recs = [json.loads(json.dumps(r)) for r in moved.fns.values()] + moved.tests
+        for r in recs:
+            if r.get("id") == "src/b.rs::f":
+                r["cross"] = ["t::w"]
+        via_inv = Inventory(json.dumps(r) for r in recs + [
+            fn_rec("lib/t/src/lib.rs", "w", "w1", crate="t"),
+            fn_rec("lib/u/src/lib.rs", "w", "w2", crate="u")])
+        cargo_before = (root / "Cargo.lock").read_text()
+        (root / "Cargo.lock").write_text(cargo_before + '\n[[package]]\nname = "lib2"\n'
+                                         'version = "2.0.0"\nchecksum = "def"\n')
+        table = '[library.lib1]\n'
+        lib2 = '[library.lib2]\nauthor = "its authors"\n\n[library.lib1]\n'
+        impl = 'libraries = ["lib1"]\n'
+
+        def through_case(entry, inv, tables=True):
+            path = root / MANIFEST
+            before = path.read_text()
+            text = before.replace(impl, impl + f"through = [{entry}]\n", 1)
+            path.write_text(text.replace(table, lib2, 1) if tables else text)
+            try:
+                c = check(inv)
+            finally:
+                path.write_text(before)
+            return [m for m in msgs(c) if "through" in m or "lib2" in m]
+
+        good = '{ library = "lib2", crate = "lib/t" }'
+        out = through_case(good, via_inv)
+        expect(not out, f"a library the action reaches through a crate that depends on it passes {out}")
+        out = through_case(good, moved)
+        expect(any("reach no function of lib/t" in m for m in out),
+               f"a crate the action's functions do not reach fails {out}")
+        out = through_case('{ library = "lib2", crate = "lib/u" }', via_inv)
+        expect(any("lib/u does not depend on lib2" in m for m in out),
+               f"a crate that does not depend on the library fails {out}")
+        out = through_case('{ library = "lib2", crate = "src" }', via_inv)
+        expect(any("the action's own crate" in m for m in out), f"the action's own crate fails {out}")
+        out = through_case('{ library = "lib1", crate = "lib/t" }', via_inv)
+        expect(any("in `libraries` already" in m for m in out), f"a library named twice fails {out}")
+        out = through_case(good, via_inv, tables=False)
+        expect(any("has no [library.lib2]" in m for m in out),
+               f"a library reached through a crate says who wrote it {out}")
+        (root / "Cargo.lock").write_text(cargo_before)
         c = check(moved)
         expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
 

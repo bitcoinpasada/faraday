@@ -138,7 +138,7 @@ by `docs/crypto/gen.py`, and is never edited by hand. Each is checked
 against a published vector set, a library or tool Faraday did not
 write, a second implementation Faraday's own authors wrote in Python
 (not checked against an outside source: `tools/crosscheck/README.md`,
-"Outside and own implementations", F160, F177),
+"Others' code and Faraday's second version", F160, F177, F179),
 or (BLAKE2b, scrypt) the RFC's own test vectors — see the "Checked
 against" column above — except the in-memory sealing, which nothing
 outside the program reads and its own tests check. Most implement a named, published

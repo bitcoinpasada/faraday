@@ -885,6 +885,7 @@ crate = "core/faraday-bip"
 libraries = [
   "unicode-normalization",
 ]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "The sentence is read in NFKD and split on Unicode whitespace; the first word not in the list is reported by position; a word typed by pinyin, zhuyin, kana or hangul is composed to the listed word."
 written_here = "BIP-39 mnemonics (`faraday-bip::bip39`)"
 
@@ -960,6 +961,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Entropy of 16, 20, 24, 28 or 32 bytes only; the buffer holding it is a Secret."
 
 [action.checked]
@@ -1024,6 +1026,10 @@ code = [
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = []
+through = [
+  { library = "pbkdf2", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "The passphrase is checked to printable ASCII before the derivation; the sentence and salt are built in Secret buffers; a key already held is refused as a duplicate."
 
 [action.checked]
@@ -1115,6 +1121,10 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
   "secp256k1",
+]
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
 ]
 adds = "An extended private key typed or scanned is decoded by Faraday's own strict rules (78 bytes, version, zero parent and child number at depth 0, zero pad byte, scalar in 1..n) before bitcoin sees it; the key is kept on a pinned page; the fingerprint and a 32-byte identity (SHA-256 of the public key and chain code) are worked out once."
 
@@ -1591,6 +1601,7 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
+through = [{ library = "bitcoin", crate = "core/faraday-bip" }]
 adds = "Answers only its own reason; the WIF is compressed and carries the store's network. On Explore's address list an address's key is asked at the account's path, its chain and its index."
 
 [action.checked]
@@ -2516,6 +2527,7 @@ libraries = [
   "secp256k1",
   "bitcoin",
 ]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Written here over libsecp256k1's point and scalar operations; keys inside a musig() are sorted after derivation and before aggregation as BIP 390 requires, while key_agg itself sorts nothing."
 written_here = "BIP-327 MuSig2 (`faraday-bip::musig`)"
 
@@ -2747,6 +2759,7 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "The calculator shows the three hashes of any bytes, says which of Base58, Base58Check, bech32, bech32m or hex a text is, and writes the same bytes in the other spellings."
 
 [action.checked]
@@ -2808,6 +2821,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Hashed rolls are SHA-256 of the rolls as ASCII digits, truncated to the strength; the second procedure writes every 6 as 0 first; the third names every word from five rolls of 1 to 4 and a sixth read as a coin, and the checksum replaces the last word's low bits."
 written_here = "Dice, coin, card, hex and camera entropy accumulation and packing, the mix of sources, and Seed XOR (`faraday-entropy`)"
 
@@ -2884,6 +2898,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Each flip is one bit, packed most significant bit first without hashing; hex is two digits a byte, 32 to 64 digits, taken as they are; the commitment is a separate SHA-256 of what went in."
 
 [action.checked]
@@ -2947,6 +2962,7 @@ novel_rank = 7
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "A deck tracker refuses a card already out, so each draw is worth log2 of the cards left; 25, 31, 39, 50 and 58 draws are asked for, the last more than one deck holds."
 
 [action.checked]
@@ -3017,6 +3033,7 @@ novel_rank = 7
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "A frame is taken only if it has at least 32 distinct luma values and its SHA-256 is not one already taken; three frames are asked for per 128 bits, rounded up, as a guard against a still scene rather than an entropy calculation."
 
 [action.checked]
@@ -3087,6 +3104,7 @@ novel_rank = 3
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Each event is a 17-byte record of its kind, a running count, the time and its position or key code; a batch of at most 64 is committed as SHA-256 of the domain and its records and then wiped, and the count goes on across batches."
 
 [action.checked]
@@ -3148,6 +3166,7 @@ novel_rank = 7
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "The entropy is SHA-256 over the sources' 32-byte commitments, concatenated in the order taken and truncated to the strength; the same commitments in the same order always give the same key, so they can be written down before the words appear."
 
 [action.checked]
@@ -3210,6 +3229,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "The entropy is SHA-256 of the 32 bytes, truncated to the strength, so the key is not the shell's bytes themselves; the source trusts the device. Where the person added randomness of their own, the hash is over a label, the 32 bytes and the accumulator of what was added, so someone who lacks either part cannot predict the key."
 
 [action.checked]
@@ -3606,6 +3626,10 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "The path is m/83696968'/app'/params'/index', fully hardened; the derived private key is run through HMAC-SHA512 with the BIP's key; the passwords' base64 (RFC 4648) and base85 (RFC 1924's alphabet) are written here; every value is a fixed-size buffer that zeroizes on drop and nothing here allocates."
 
 [action.checked]
@@ -3949,6 +3973,7 @@ libraries = [
   "bitcoin",
   "secp256k1",
 ]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "The scan and spend keys are taken at BIP 352's paths; a transaction's eligible inputs give the input hash and shared secret, and every output it pays to the wallet is found with the label it was paid to, up to K_max; the scan private key leaves only as BIP 392's spscan1q text, or the sp() descriptor over it with its key origin, for a named reason. An sp() descriptor, or its key alone after its origin, is read as a silent payments record: the scan key is read for its public key, in constant time, and wiped; an origin that is missing or not BIP 352's path on the key's network is refused, as are sp(KEY,KEY), spspend and a key with a derivation; a text that holds a scan key is a wallet file in Files, and one that holds a spend key a secret no scanner files. The app's check of a transaction takes its previous transactions one at a time and gives the previous outputs, in input order, once every one is known."
 written_here = "BIP-352 silent payments (`faraday-bip::silent`)"
 
@@ -4038,6 +4063,10 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "unicode-normalization", crate = "core/faraday-bip" },
+]
 adds = "The id is all 32 bytes of the SHA-256 of the words' entropy, worked out the first time it is asked and kept beside the key, so two seeds never pass for one; the same words with and without a passphrase share it. What is kept of a secret's fingerprint is keyed by SHA-256 of a tag and the secret, so the secret itself is kept nowhere. The copy check's questions are ordered from the clock and a SHA-256 of the word numbers."
 
 [action.checked]
@@ -4196,6 +4225,10 @@ code = ["core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes", "core/faraday-psbt/s
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
+through = [
+  { library = "miniscript", crate = "core/faraday-bip" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "Refuses a version other than 0, version 2 fields inside a version 0 file, a 65-byte taproot signature whose sighash byte is 0 (BIP 341) and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read. The app tells a file is a PSBT by reading it once as bytes, else as base64 text, when it comes in."
 written_here = "The PSBT format, inspection, signing orchestration and verification logic (`faraday-psbt`, over `faraday-bip`'s keys and `bitcoin`'s secp256k1)"
 
@@ -4349,6 +4382,7 @@ code = ["core/faraday-psbt/src/inspect.rs::inspect"]
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin", "miniscript"]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Change is verified only when the output's script is the address a loaded key's account, or a registered wallet, derives at the stated path; a claim on a loaded key that derives another script is a block. Warnings are ranked Info, Caution, Danger and Blocked. A wallet is offered for registering only when the PSBT's global xpubs give every script of its inputs and outputs. A PSBT's network is read from its global xpubs, else from the coin type of a BIP 44, 49, 84, 86 or 48 key path, else it is the session's. The signed-amount memory keeps the SHA-256 of the unsigned transaction and the amount each input states, and only when every input states one. Another device's signatures are merged only into a PSBT of the same transaction that asks the same sighashes, and are refused when one is invalid. The register sheet's hold registers a wallet only once its descriptor gives the spend's scripts and one of its keys is a loaded key's own at its path. An output over 21,000,000 BTC, outputs whose total is over it, or an amount an input states or their total over it, is a block, as Bitcoin Core's CheckTransaction and CheckTxInputs refuse them (`transaction::money_total`)."
 
 [action.checked]
@@ -4508,6 +4542,10 @@ code = [
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = ["secp256k1", "bitcoin"]
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "Reads base58check with the bitcoin crate and holds Bitcoin Core's DecodeSecret rules itself: a version of 0x80 or 0xef, 32 bytes of key then nothing or exactly 0x01, a scalar in 1..n; the key is held on a pinned page in a signing context blinded from the key and, in faraday-keys, again from the session's randomness. A key of the other network kind, or read while a stick is attached, is refused; the key pays P2PKH, and if compressed P2WPKH and P2SH-P2WPKH."
 
 [action.checked]
@@ -4720,6 +4758,10 @@ code = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/si
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "Signs the key path with the BIP 341 tweaked key and a leaf with the leaf's own key under its leaf hash; each signature is made twice, compared and verified; aux_rand is zero by default, and fresh bytes a caller passes are expanded for each input with HKDF-Expand (RFC 5869, faraday-crypto), which the app does not use; a miniscript or a tree is signed only through a registered wallet."
 
 [action.checked]
@@ -4798,6 +4840,10 @@ code = [
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "BIP 327's signing side is written here over libsecp256k1's point operations (faraday-bip); the signing orchestration over BIP 373's PSBT fields is faraday-psbt's; a secret nonce is consumed by the signature it makes and held in memory for one transaction only; the wallet must be registered."
 
 [action.checked]
@@ -5004,6 +5050,10 @@ code = ["core/faraday-psbt/src/message.rs::sign"]
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "The address is derived from the key that signs, so the address in the result is the one the signature verifies against; BIP 137 low-R is ground here, libsecp256k1 having no low-R recoverable signer; the key's own blinded curve context is used. In the app the key is the one behind an address of a loaded single-key wallet's receive chain, and a wallet of several keys is refused."
 
 [action.checked]
@@ -5199,6 +5249,7 @@ code = ["core/faraday-codec/src/qr.rs::encode", "core/faraday-codec/src/decode.r
 [action.implementation]
 crate = "core/faraday-codec"
 libraries = ["rqrr"]
+through = [{ library = "bitcoin", crate = "core/faraday-bip" }]
 adds = "The encoder is a port of Project Nayuki's qrcodegen, rewritten for no_std and secret payloads: the module grid and every buffer holding payload bits wipe on drop, and the error-correction level is never raised; the PNG writer is here; reading is rqrr's."
 
 [action.checked]
@@ -5297,6 +5348,10 @@ code = [
 [action.implementation]
 crate = "core/faraday-codec"
 libraries = []
+through = [
+  { library = "bitcoin", crate = "core/faraday-bip" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "The whole transport is written here: bytewords in the minimal style with their CRC-32, the xoshiro generator that picks a part's fragments, the fountain parts with their CBOR and the ur: text; SHA-256 and CRC-32 come from faraday-crypto. A decoder reduces a mix by any buffered mix whose fragments are a subset of its own. The registry's crypto-hdkey, crypto-account and crypto-output are read as key lines or a descriptor, and a crypto-account is written for one key as SeedSigner shows it."
 
 [action.checked]
@@ -5558,6 +5613,10 @@ reason = "the vault module serves every vault screen; a press on this screen doe
 [action.implementation]
 crate = "core/faraday-codec"
 libraries = []
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "unicode-normalization", crate = "core/faraday-bip" },
+]
 adds = "The word indices as four decimal digits each in numeric mode, or the entropy bytes in byte mode, at error-correction level L; the matrix and the digit buffer are wiped; the code is the smallest version that holds the payload. The app writes the picture as an eight-bit greyscale PNG with the key's fingerprint as its title, and wipes the pixels drawn once the file is made; the blank sheet's grid is the SeedQR of an all-zero seed of the same length, so its fixed squares are every seed's."
 
 [action.checked]
@@ -5604,6 +5663,7 @@ code = ["faraday/faraday-keys/src/session.rs::Keys::seedqr_reads_as"]
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
+through = [{ library = "unicode-normalization", crate = "core/faraday-bip" }]
 adds = "Parses the key's words, writes their digit stream and compares it with the scanned payload; English words only."
 
 [action.checked]
@@ -5930,6 +5990,10 @@ code = ["core/faraday-bip/src/slip39.rs::split", "core/faraday-bip/src/slip39.rs
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = []
+through = [
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+]
 adds = "Written here over faraday-crypto's HMAC-SHA256 and PBKDF2-HMAC-SHA256: the RS1024 checksum, Shamir over GF(256), the digest share and the Feistel cipher. The recovered master secret is the BIP 32 seed, not BIP 39 entropy. New key's split takes the shares' identifier and the split's randomness from the session's randomness, each 32 bytes from an answer of the system's of its own; the identifier is 15 bits of the first two bytes."
 written_here = "SLIP-39 Shamir backup (`faraday-bip::slip39`)"
 
@@ -6007,6 +6071,10 @@ code = ["core/faraday-entropy/src/xor.rs::SeedXor::push", "faraday/faraday-keys/
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "unicode-normalization", crate = "core/faraday-bip" },
+]
 adds = "The bitwise XOR of the parts' entropy; the random parts are taken in turn, the seed's length each, from 32 fresh bytes for each random part; every part is a valid mnemonic of the same word count."
 
 [action.checked]
@@ -6192,6 +6260,10 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-core"
 libraries = ["bitcoin"]
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "unicode-normalization", crate = "core/faraday-bip" },
+]
 adds = "A words file is read in whichever BIP 39 word list it is in, checksum included; SLIP-39 shares and codex32 strings are gathered from their files and the codex32 seed is recovered from them. The fingerprint is that of the master key, with the passphrase a passphrase file or the person brings, and is kept by a memo keyed by SHA-256 of a tag and the secret, so the secret is kept nowhere. Pasted text is refused when it is words of any list, checksum or not, a SeedQR's 48 or 96 digits, an extended private key, a WIF key, a codex32 string or a SLIP-39 share; a scanner that loads a seed refuses only a private key."
 
 [action.checked]
@@ -6262,6 +6334,7 @@ code = ["core/faraday-psbt/src/silent.rs::add_shares", "core/faraday-bip/src/dle
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "BIP 374's proofs are written here (faraday-bip); each share a·B_scan carries a proof that it came from the input's key, every private multiplication going through secp256k1's ecdh; the scripts are set once every eligible input has a share, and signable gives the version 0 PSBT that sign signs."
 written_here = "BIP-374 DLEQ proofs (`faraday-bip::dleq`) and BIP-375's sending fields (`faraday-psbt::silent`)"
 
@@ -6744,6 +6817,7 @@ reason = "the vault module serves every vault screen; a press on this screen doe
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Returns a borrowed text for one named part of one record, or an empty text where the record has no such part; a key's words are parsed again from the record each time and handed back as a value that wipes on drop."
 
 [action.checked]
@@ -6895,6 +6969,10 @@ reason = "the vault module serves every vault screen; a press on this screen doe
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "unicode-normalization", crate = "core/faraday-bip" },
+]
 adds = "Reads a record's words or seed from the open slot and hands them to the session's key functions; the vault record only decides which key is loaded and with which passphrase. A key loaded from a master seed, as a codex32 or SLIP-39 key is, is known to a vault by the id of a key record made of its seed."
 
 [action.checked]
@@ -7776,6 +7854,13 @@ code = ["core/faraday-selftest/src/lib.rs::run"]
 [action.implementation]
 crate = "core/faraday-selftest"
 libraries = []
+through = [
+  { library = "argon2", crate = "core/faraday-backup" },
+  { library = "bitcoin", crate = "core/faraday-bip" },
+  { library = "hmac", crate = "core/faraday-crypto" },
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "unicode-normalization", crate = "core/faraday-bip" },
+]
 adds = "Each check calls the function the product itself calls and compares with an expected value copied from a vector file; a failure names the check and blocks the app but Exit."
 
 [action.checked]

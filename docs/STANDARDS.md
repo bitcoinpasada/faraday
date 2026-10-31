@@ -17,7 +17,7 @@ is in `docs/AUDIT.md` and `docs/CROSSCHECK.md`.
 ## 0. What goes into Faraday
 
 <!-- standards-summary: begin -->
-Faraday follows published standards and uses an established implementation wherever one exists. It writes its own only where none exists or none fits its rules for keys, and says why.
+Faraday follows published specifications: BIPs, SLIPs, RFCs and conventions other wallets already use. Where a specification has an established implementation, Faraday uses it as a library instead of writing its own.
 <!-- standards-summary: end -->
 
 The rule for what the app offers (owner, 2026-10-23; written in the
@@ -69,8 +69,8 @@ decision F109):
   is described it is said to be compared with an implementation
   Faraday's authors wrote and not checked against an outside source, and
   each action's `independence` in the manifest says whether its
-  cross-check compares with an outside implementation, an own one, or
-  both (F177). Today several areas compare with such own implementations
+  cross-check compares with others' code, Faraday's second version, or
+  both (F177, F179). Today several areas compare with such second versions
   (`docs/CROSSCHECK.md` §10.7 lists them and what replaces them). Where
   no outside implementation can exist (Faraday's own formats and
   procedures), the action is labelled "own specification, not yet

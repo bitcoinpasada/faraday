@@ -29,11 +29,11 @@ block:
 | Field | What it holds | Rules |
 |---|---|---|
 | **Action** | One line: what is computed, from what. "Signs a transaction input with ECDSA, from the key the PSBT's origin names." | One sentence, no "we", no explanation. |
-| **Standards** | Each standard by number and name, with its status: "BIP 174, Partially Signed Bitcoin Transaction Format, Deployed"; "RFC 6979, Deterministic Usage of DSA and ECDSA, Informational". | Names and statuses come from the manifest's standards table (§2.2), the one place a status is written. A convention says so: "Coldcard's seed-xor document, a convention"; an action with no standard reads "Own specification (F86)", and one with the label of an own specification starts with "Own specification" before any standard it follows (F177). |
-| **Implementation** | Each library as "Outside implementation: <library> <version>, by <author>", then "Own implementation: <crate>: <what it adds>", the crate in `core/` or `faraday/` (F177). | A library's version is read from `Cargo.lock` when the block is generated, never typed; its author from the manifest's `[library.<name>]` (§2.2), written once. |
+| **Specification** | Each standard by number and name, with its status: "BIP 174, Partially Signed Bitcoin Transaction Format, Deployed"; "RFC 6979, Deterministic Usage of DSA and ECDSA, Informational". | Names and statuses come from the manifest's standards table (§2.2), the one place a status is written. A convention says so: "Coldcard's seed-xor document, a convention"; an action with no standard reads "Own specification (F86)", and one with the label of an own specification starts with "Own specification" before any standard it follows (F177). The field was "Standards" until F179. |
+| **Code** | Each library as "Library: <library> <version>, by <author>.", the libraries of the action's own crate first, then each one it reaches through another Faraday crate as "Library: <library> <version>, by <author>, through <crate>." (`through`, §2.2), then "Faraday's code: <crate>: <what it adds>.", the crate in `core/` or `faraday/` (F177, F179). | A library's version is read from `Cargo.lock` when the block is generated, never typed; its author from the manifest's `[library.<name>]` (§2.2), written once. |
 | **Checked against** | The vector folders under `tools/vectors/`, each followed by whose answers it holds ("Published, by …", "Computed by …", "Faraday's own known answers"), the tests by name, the self-test check, the fuzz target. | A missing check is written "not checked against vectors", "no fuzz target: <reason>"; never left out. A folder's source is the manifest's `[vector.<folder>]` (§2.2). |
-| **Cross-check** | First, for an action of Faraday's own specification, its label "Own specification, not yet reviewed outside Faraday" and the line saying what ends it, and for an action with an area, what its cross-check compares Faraday with: an outside implementation, a second implementation Faraday's authors wrote, or both, and the part Faraday's authors wrote (F160, F177, §10.3). Then what the F79 cross-check does for this action (owner, 2026-10-28), one line each: the area; the Faraday code it drives; the second implementation it compares against and how that one is itself checked first; the published vectors it runs; what its random cases vary; each known difference, where Faraday refuses what the second implementation accepts; when it runs (whenever the crypto changes, and with a new seed and about ten times the cases before every release); and the last passing run for this release: its seed and its case count for the area. | The independence lines are read from the action's `independence` and `label` in the manifest (§10.3); the rest from the area (§10.1), never typed in the manifest. An action with no area reads "not cross-checked: <reason>", and an area with no second implementation for a part says which part ("AEZ itself has no second implementation here"). |
-| **Code** | Release · file · function, for the functions the entry names as its code; the repository's address as text, `github.com/bitcoinpasada/faraday`. | No line numbers. The release is the build's own release string (F5), filled when the block is drawn, so a version change does not regenerate the blocks. |
+| **Cross-check** | First, for an action of Faraday's own specification, its label "Own specification, not yet reviewed outside Faraday" and the line saying what ends it, and for an action with an area, what its cross-check compares Faraday with: others' code, Faraday's second version (a second implementation Faraday's authors wrote), or both, and the part Faraday's authors wrote (F160, F177, F179, §10.3). Then what the F79 cross-check does for this action (owner, 2026-10-28), one line each: the area; the Faraday code it drives; the second implementation it compares against and how that one is itself checked first; the published vectors it runs; what its random cases vary; each known difference, where Faraday refuses what the second implementation accepts; when it runs (whenever the crypto changes, and with a new seed and about ten times the cases before every release); and the last passing run for this release: its seed and its case count for the area. | The independence lines are read from the action's `independence` and `label` in the manifest (§10.3); the rest from the area (§10.1), never typed in the manifest. An action with no area reads "not cross-checked: <reason>", and an area with no second implementation for a part says which part ("AEZ itself has no second implementation here"). |
+| **Source** | Release · file · function, for the functions the entry names as its code; the repository's address as text, `github.com/bitcoinpasada/faraday`. | No line numbers. The field was "Code" until F179. The release is the build's own release string (F5), filled when the block is drawn, so a version change does not regenerate the blocks. |
 | **Secret handling** | Which `faraday-keys` reveal the action goes through (`Reveal::…`), or "none: no secret leaves `faraday-keys`"; constant time or not, and for which part; what is wiped, and when. | "Constant time" is stated only where the code or the library documents it; otherwise "not stated by the library". |
 | **Limits** | What the action does not do, or refuses: lengths, script kinds, sighashes, cost limits. | Facts from the code and the entry's standard; one line each. |
 | **Faraday's own calls** | Where Faraday is stricter than the standard or departs from it, each with its kind (Conservative, Neutral, Novel; STANDARDS §1) and the decision that records it, or "no decision". | A call with no decision is written as such; F148 does not make one. |
@@ -119,7 +119,7 @@ functions = [                # the roots this entry covers (§4.4)
   "core/faraday-psbt/src/sign.rs::sign_ecdsa",
   "faraday/faraday-keys/src/psbt.rs::sign",
 ]
-code = ["core/faraday-psbt/src/sign.rs::sign_ecdsa"]   # what the block's Code field shows
+code = ["core/faraday-psbt/src/sign.rs::sign_ecdsa"]   # what the block's Source field shows
 novel_rank = 3               # an action with a Novel own call: its place in STANDARDS §7
 label = "own specification, not yet reviewed outside Faraday"   # F160, F177: every action with a novel_rank, and any other of Faraday's own specification
 
@@ -127,6 +127,11 @@ label = "own specification, not yet reviewed outside Faraday"   # F160, F177: ev
 crate = "core/faraday-psbt"
 libraries = ["secp256k1"]    # versions read from Cargo.lock
 adds = "Low-R grinding by default; each signature verified before it is written; signed twice and compared."
+through = [{ library = "pbkdf2", crate = "core/faraday-crypto" }]
+                             # F179: a library the action's code reaches through another Faraday
+                             # crate, and that crate; check.py holds that the crate depends on it,
+                             # that it has a [library.*] table and that the action's functions
+                             # reach the crate; not that every such library is listed
 written_here = "…"           # what the crate writes itself rather than takes from a library (AUDIT §3)
 
 [action.checked]
@@ -135,7 +140,7 @@ tests = ["core/faraday-psbt/tests/all/sign.rs::rfc6979_vectors"]
 crosscheck = "sign"          # tools/crosscheck/area_sign.py; or not_crosschecked = "<reason>"
 independence = { class = "outside-and-own", author = "Bitcoin Core v31.1, by the Bitcoin Core developers …", ours = "Faraday's refusals …" }
                              # F160, F177, with crosscheck only: class outside, outside-and-own or own;
-                             # author, the outside implementation (not for own); ours, the part
+                             # author, others' code (not for own); ours, the part
                              # Faraday's authors wrote (not for outside)
 selftest = ["ecdsa_vector"]
 fuzz_none = "Signing takes no outside input but the PSBT; psbt_parse fuzzes that."
@@ -667,8 +672,8 @@ and on the Pi's panel; only its width changes.
   Body M, on-surface-variant (Material's list item, `Ui::list_item`,
   `LIST_2` for a one-line value, `LIST_3` for two). The Action field's
   value is one sentence and is drawn as any other.
-- **A field with several entries** (Standards, Checked against, Code,
-  Limits, Faraday's own calls, Cross-check) writes each entry as its own
+- **A field with several entries** (Specification, Code, Checked
+  against, Source, Limits, Faraday's own calls, Cross-check) writes each entry as its own
   paragraph of the supporting text, `GAP_SMALL` (4 dp) between
   entries, each wrapped in the room the item leaves; an entry is never
   run into the next on one line.
@@ -688,7 +693,7 @@ and on the Pi's panel; only its width changes.
   library's version, a fingerprint, a seed) are Body M `.mono()`, as
   DESIGN §3 sets data. A path that does not fit wraps after a `/`, a
   function after `::`, and otherwise at the character that reaches the
-  edge; the release string in the Code field is filled when the block is
+  edge; the release string in the Source field is filled when the block is
   drawn (§1).
 - **What is not checked** ("not checked against vectors", "no fuzz
   target: …", "not cross-checked: …", "no decision", "not stated by the
@@ -727,11 +732,11 @@ the strings lint fails a key no code names.
 | `starter_how_title` | Cryptography | The Starter's sheet's head |
 | `starter_how_close` | Close | The Starter's sheet's foot |
 | `how_field_action` | Action | §1 |
-| `how_field_standards` | Standards | §1 |
-| `how_field_implementation` | Implementation | §1 |
+| `how_field_standards` | Specification | §1 |
+| `how_field_implementation` | Code | §1 |
 | `how_field_checked` | Checked against | §1 |
 | `how_field_crosscheck` | Cross-check | §1 |
-| `how_field_code` | Code | §1 |
+| `how_field_code` | Source | §1 |
 | `how_field_secret` | Secret handling | §1 |
 | `how_field_limits` | Limits | §1 |
 | `how_field_own_calls` | Faraday's own calls | §1 |
@@ -745,7 +750,7 @@ the strings lint fails a key no code names.
 | `how_cc_last_run` | Last passing run | Cross-check |
 | `how_cc_seed_cases` | Seed {} · {} cases | Last passing run's value; `{}`: the seed, then the area's case count |
 | `how_code_entry` | {} · {} · {} | One Code entry; `{}`: the release, the file, the function |
-| `how_repository` | github.com/bitcoinpasada/faraday | The Code field's last entry |
+| `how_repository` | github.com/bitcoinpasada/faraday | The Source field's last entry |
 
 The values are the manifest's and the cross-check's, carried by
 `faraday-learn` (§1), not strings of this file.
@@ -867,7 +872,7 @@ was reviewed against its code. They fit together:
   fingerprints changed, so the rerun's reviewer knows which areas and
   which texts to look at.
 
-### 10.3 Outside and own implementations
+### 10.3 Others' code and Faraday's second version
 
 Built (F160, F177, schema 4). An area may compare one action with code
 others wrote and another, in part, with a second implementation
@@ -890,18 +895,22 @@ The block draws them first in Cross-check: the label in the Warning
 role, then "An outside review recorded in a decision ends it; a
 reproduction from the specification by an outside party is asked for
 in docs/AUDIT-SUBMISSIONS.md §10."; for `outside` and `outside-and-own`,
-"Compared with an outside implementation: <author>."; for
-`outside-and-own`, then, in the Warning role, "Compared, for one part,
-with a second implementation Faraday's authors wrote, in Python; that
-part is not checked against an outside source: <ours>."; for `own`, in
-the Warning role, "Compared with a second implementation Faraday's
-authors wrote, in Python, from the specification. Not checked against
-an outside source.", then "What it covers: <ours>.". A check against an
+"Compared with others' code: <author>."; for `outside-and-own`, then,
+in the Warning role, "Compared, for one part, with Faraday's second
+version, written by Faraday's authors in Python; that part is not
+checked against an outside source: <ours>."; for `own`, in the Warning
+role, "Compared with Faraday's second version, written by Faraday's
+authors in Python from the specification. Not checked against an
+outside source.", then "What it covers: <ours>." (F179: "others' code"
+for class `outside`, "Faraday's second version" for `own`, "not
+cross-checked" for an action with no area; "implementation" names only
+a cross-check's second program). A check against an
 implementation Faraday's authors wrote is never called "not
 independent": it catches a slip between two implementations written in
 two languages from the specification; its limit is a misreading both
-share. gen.py writes the cross-check README's "Outside and own
-implementations", marks a STANDARDS Verified by cell whose area compares
+share. gen.py writes the cross-check README's "Others' code and Faraday's
+second version" (its columns "Others' code" and "Faraday's second
+version"), marks a STANDARDS Verified by cell whose area compares
 with an implementation Faraday's authors wrote ("not checked against an
 outside source", or "in part"), and §7's items. `docs/crypto/verified.py`,
 in `just lint`, fails an action with an area and no class, and a novel
@@ -946,14 +955,64 @@ it, each records the manifest's hash, and the publish step
 ### 11.1 The page /cryptography
 
 One page on the website, generated from the pinned manifest and never
-written by hand (owner, 2026-10-28):
+written by hand (owner, 2026-10-28; its words F179, owner, 2026-10-30):
 
-- **The standards.** An index at its top: each standard of the
+- **The title.** "Cryptography in Faraday: specifications, code and
+  checks".
+- **The enforcement lines,** first under the title, with the count of
+  actions, the release and the SHA-256 of actions.toml filled from the
+  pin: "Every cryptographic action in Faraday, <count> in all. The
+  index, the actions and the list of libraries below are generated from
+  Faraday's manifest, docs/crypto/actions.toml, at release <release>
+  (SHA-256 <sha>), and none of them is written by hand. Faraday's own
+  checks hold the manifest to the code: a cryptographic function the
+  manifest does not cover, a change to one since its entry was last
+  reviewed, or a change to the cryptographic code since the last
+  passing cross-check fails Faraday's checks. The page is generated
+  again each time the website is published for a new release."
+- **Faraday's approach,** a paragraph whose first two sentences are
+  STANDARDS §0's summary, read from between its `standards-summary`
+  markers: "Faraday follows published specifications: BIPs, SLIPs, RFCs
+  and conventions other wallets already use. Where a specification has
+  an established implementation, Faraday uses it as a library instead
+  of writing its own. A library is code others wrote, published as a
+  Rust crate and pinned to one version; Faraday's own code calls it,
+  checks what goes in and comes out, refuses what it cannot verify, and
+  does every step the library does not. Faraday writes code of its own
+  only where no established implementation exists or none fits its
+  rules for keys, and says why. Where no specification exists, Faraday
+  writes its own, labelled "Own specification, not yet reviewed outside
+  Faraday" until someone outside reviews it. Each action is checked
+  against its specification's published test vectors where there are
+  any, and its results are compared with a second implementation: code
+  others wrote where it exists, otherwise a second version Faraday's
+  authors wrote, which is not an outside check. Actions with no second
+  implementation are marked not cross-checked." Then: "Each row below
+  is one action. Specification is what it follows. Code is the
+  libraries it uses and the crate of Faraday's code that calls them.
+  Cross-checked with is what its results are compared with.", and a
+  link, "The full rule is on the Standards page", to /standards.
+- **The key,** a card that explains two columns only, Specification
+  and Cross-checked with, by their pills: "Published" and "Own
+  specification"; "Others' code", "Faraday's second version" and "Not
+  cross-checked", each with how many actions carry it.
+- **The rows.** Each action is a row, folded: its name, then the
+  columns Action, Specification, Code and Cross-checked with.
+  Specification names the specifications with a pill. Code is two
+  labelled lines and no pill: "Library: <crate> <version>" for each
+  library, with "(through <crate>)" after one the action reaches
+  through another Faraday crate (`implementation.through`, §2.2), and
+  "Faraday's code: <crate>". Cross-checked with names the
+  second implementation with its pill, "Others' code" (class
+  `outside`), "Faraday's second version" (`own`), both
+  (`outside-and-own`), or "Not cross-checked". Opened, the row is the
+  action's block, its nine fields as the app draws them (§1).
+- **The specifications.** An index after the key: each standard of the
   standards table with its name and status, and the actions that follow
   it, each a link to its block.
-- **The actions.** Every action's block, its nine fields as the app
-  draws them, grouped by §12's groups in their order, each block at its
-  own anchor (`/cryptography#<id>`). The Code field links to the file
+- **The actions.** Every action's row, grouped by §12's groups in their
+  order, each block at its
+  own anchor (`/cryptography#<id>`). The Source field links to the file
   at the release's tag. The actions with no screen follow under "In the
   repository, not in the app".
 - **Filters.** By standard, by status, by unchecked value (not checked
@@ -968,6 +1027,10 @@ written by hand (owner, 2026-10-28):
 - **Constructions.** Each construction of §18 (the vault's account,
   passphrase strength) at its own anchor, before its actions' blocks
   (§18.7).
+- **Libraries.** The closing list: each `[library.*]` table of the
+  manifest with its versions from the pinned Cargo.lock, its author and
+  the actions that name it in `libraries` or reach it through another
+  crate in `through`, each linked.
 
 The page reads only what §11 lists; the hash rule above holds it.
 
@@ -1761,7 +1824,7 @@ What changes in §11.1:
 - **Links:** "Where to learn more" links eff.org/dice,
   theworld.com/~reinhold/diceware.html and NIST SP 800-63B's page; the
   account's `fn` placeholders link to the file at the release's tag, as
-  the Code field does.
+  the Source field does.
 - **The schema:** the website reads `schema = 2`; a build of it that
   knows only 1 stops, as §11 has it.
 
