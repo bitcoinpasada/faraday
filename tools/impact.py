@@ -223,17 +223,28 @@ def load_registry(root=ROOT, extra_env=None):
 
 
 def recipe_commands(justfile_text, name):
-    """The command lines of a justfile recipe (comments and blanks left out)."""
-    out, inside = [], False
+    """The command lines of a justfile recipe and of the recipes it depends
+    on, in the order just runs them (comments and blanks left out)."""
+    before, body, after, inside = [], [], [], False
     for line in justfile_text.splitlines():
         if not inside:
-            inside = re.match(rf"^{re.escape(name)}\s*:", line) is not None
+            m = re.match(rf"^{re.escape(name)}\s*:(?!=)(.*)$", line)
+            if m:
+                inside = True
+                deps, _, later = m.group(1).split("#", 1)[0].partition("&&")
+                before, after = deps.split(), later.split()
             continue
         if line and not line[0].isspace():
             break
         s = line.strip()
         if s and not s.startswith("#"):
-            out.append(s)
+            body.append(s)
+    out = []
+    for dep in before:
+        out += recipe_commands(justfile_text, dep)
+    out += body
+    for dep in after:
+        out += recipe_commands(justfile_text, dep)
     return out
 
 
@@ -1486,6 +1497,10 @@ status = "active"
                      "`tools/extra.sh` is no [[check]]"):
             ok(want in text, want, "|", text)
         ok(lint(load_registry(td, ""), td, tracked, "lint:\n    tools/l.sh\n")[-1:] != [] , "recipe missing a check")
+        # A lint recipe split into recipes it depends on is the same list.
+        split = "lint: lint-a && lint-b\n    # c\n\nlint-a:\n    tools/l.sh\n\nlint-b:\n    tools/m.sh\n"
+        ok(recipe_commands(split, "lint") == ["tools/l.sh", "tools/m.sh"], recipe_commands(split, "lint"))
+        ok(lint(reg, td, tracked, split) == [], lint(reg, td, tracked, split))
         # An amend adds, an extra rule keeps its file's name.
         put("extra.toml", '[[amend]]\nid = "docs.a"\nheld_by = ["m"]\nmisses = "more"\n'
             '[[rule]]\nid = "x.mine"\nwhen = ["private/**"]\nkind = "review"\n')

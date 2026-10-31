@@ -211,9 +211,10 @@ The registry checked against itself and the tree, run by `check` and
 - every pattern without `*`, `{` or `!` names a path that exists, and
   every pattern of a `when` matches at least one tracked path, unless
   the rule's `on` is `add` alone;
-- every command of the `lint` recipe in `justfile` is a `[[check]]`
-  whose `stage` is `just lint`, and every such check is a command of the
-  recipe;
+- every command of the `lint` recipe in `justfile`, and of the recipes
+  it depends on (`lint-clippy`, `lint-deps`, `lint-repo`,
+  `lint-macos`), is a `[[check]]` whose `stage` is `just lint`, and
+  every such check is a command of the recipe;
 - every rule of kind `held` names at least one check whose `status` is
   `built`.
 
@@ -397,7 +398,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 
 | Id | Triggers on | Kind | Change with it, or what holds it | Source |
 |---|---|---|---|---|
-| `repo.ci-check` | `.github/workflows/**` | R | runs `just` and nothing else, read-only, actions pinned by commit | F183 |
+| `repo.ci-check` | `.github/workflows/**`, `.github/actions/**` | R | runs `just` and nothing else, read-only, actions pinned by commit | F183 |
 | `repo.build-machine-unnamed` | any change | R | the build machine is "the build machine" in docs, comments and messages | `CLAUDE.md` |
 | `repo.personal-information` | any commit | R | its diff and message checked for names, addresses, hostnames, paths, keys | `CLAUDE.md` |
 | `repo.upstream-name` | any text file but `LICENSE` | R | the upstream project named only in `LICENSE` (planned check reads the name from `LICENSE`) | F73 |

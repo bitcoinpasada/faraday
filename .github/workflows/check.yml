@@ -1,10 +1,15 @@
-# The check, `just`, on GitHub's Linux runner (docs/decisions/F183.md):
+# The check, `just`, on GitHub's Linux runners (docs/decisions/F183.md):
 # every push to main, every pull request, and by hand. It runs what
 # docs/DEVELOPING.md §2 calls the check and nothing else: no image, no app
 # for publishing, no release, no signature. It reads only: no secrets, the
 # checkout's token not kept, GitHub's own actions pinned by commit. Its
 # cache holds the downloaded crates and the installed tools, never build
 # output.
+#
+# `just` is spread over twenty jobs: one compiles the tests once and
+# archives them, fourteen each run a fourteenth of them, and the doc tests
+# and the four parts of `just lint` run beside them. The last job, check,
+# passes when every part passed.
 name: check
 
 on:
@@ -28,64 +33,98 @@ env:
   NEXTEST_VERSION: 0.9.146
   DENY_VERSION: 0.20.2
   VET_VERSION: 0.10.2
+  TOOLS: just-1.58.0-nextest-0.9.146-deny-0.20.2-vet-0.10.2
+  SHARDS: 14
 
 jobs:
-  check:
+  build-tests:
+    name: build tests
     runs-on: ubuntu-26.04
-    timeout-minutes: 240
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # impact.py check reads the commits since main.
-          fetch-depth: 0
           persist-credentials: false
-
-      - name: A local main to compare with
-        if: github.event_name == 'pull_request'
-        run: git branch --force main "origin/${GITHUB_BASE_REF}"
-
-      - name: Build output on the runner's larger disk
-        run: |
-          if sudo mkdir -p /mnt/target; then
-            sudo chown "$(id -u):$(id -g)" /mnt/target
-            ln -s /mnt/target target
-          fi
-          df -h . /mnt
-
-      - name: System packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            gnupg paperkey openssl sbsigntool mtools dosfstools
-
-      - name: Rust toolchain and the Mac targets
-        run: |
-          rustup show active-toolchain || rustup toolchain install
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - uses: ./.github/actions/setup
+      - name: Compile the tests and archive them
+        run: cargo nextest archive --locked --workspace --archive-file nextest-archive.tar.zst
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          path: |
-            ~/.cargo/bin/just
-            ~/.cargo/bin/cargo-nextest
-            ~/.cargo/bin/cargo-deny
-            ~/.cargo/bin/cargo-vet
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ env.JUST_VERSION }}-${{ env.NEXTEST_VERSION }}-${{ env.DENY_VERSION }}-${{ env.VET_VERSION }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-${{ env.JUST_VERSION }}-${{ env.NEXTEST_VERSION }}-${{ env.DENY_VERSION }}-${{ env.VET_VERSION }}-
+          name: nextest-archive
+          path: nextest-archive.tar.zst
+          retention-days: 1
+          compression-level: 0
 
-      - name: The check's tools
+  tests:
+    name: tests ${{ matrix.shard }}/14
+    needs: build-tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          packages: "true"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: nextest-archive
+      - name: Run this shard's tests
+        run: >-
+          cargo nextest run --archive-file nextest-archive.tar.zst
+          --workspace-remap . --partition "hash:${{ matrix.shard }}/${SHARDS}"
+
+  doc-tests:
+    name: doc tests
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          packages: "true"
+      - run: just test-doc
+
+  lint:
+    name: ${{ matrix.part }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [lint-clippy, lint-deps, lint-repo, lint-macos]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # lint-repo's impact.py check reads the commits since main.
+          # (A string: the number 0 is false in an expression.)
+          fetch-depth: ${{ matrix.part == 'lint-repo' && '0' || '1' }}
+          persist-credentials: false
+      - name: A local main to compare with
+        if: matrix.part == 'lint-repo' && github.event_name == 'pull_request'
+        run: git branch --force main "origin/${GITHUB_BASE_REF}"
+      - uses: ./.github/actions/setup
+        with:
+          mac-targets: ${{ matrix.part == 'lint-macos' }}
+      - run: just ${{ matrix.part }}
+
+  check:
+    name: check
+    if: always()
+    needs: [build-tests, tests, doc-tests, lint]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Every part passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          have() { "$@" >/dev/null 2>&1; }
-          have just --version || cargo install --locked "just@${JUST_VERSION}"
-          have cargo nextest --version || cargo install --locked "cargo-nextest@${NEXTEST_VERSION}"
-          have cargo deny --version || cargo install --locked "cargo-deny@${DENY_VERSION}"
-          have cargo vet --version || cargo install --locked "cargo-vet@${VET_VERSION}"
-          just --version; cargo nextest --version; cargo deny --version; cargo vet --version
-          node --version; python3 --version; gpg --version | head -1
-
-      - name: just
-        run: just
+          echo "$RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || exit 1; done

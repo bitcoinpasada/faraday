@@ -3,6 +3,8 @@
 Every script and helper program in `tools/` and `faraday/tools/`. Stage is
 one of build, test, lint, release, generator, data or dev aid. Recipes are
 in `justfile` and `faraday/faraday.just`.
+`just lint` runs its four parts in order, each a recipe of its own:
+`lint-clippy`, `lint-deps`, `lint-repo` and `lint-macos`.
 
 ## Which folder
 

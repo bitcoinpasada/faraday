@@ -55,7 +55,12 @@ nothing else.
 ```
 just                      the tests, then the lints: what every change passes
 just test                 the tests alone (nextest, then the doc tests)
-just lint                 clippy with warnings as errors, fmt, and the repository's lints
+just test-doc             the doc tests alone
+just lint                 clippy with warnings as errors, fmt, and the repository's lints, in four parts:
+just lint-clippy          clippy over every target
+just lint-deps            cargo deny, cargo vet, the fuzz crates built
+just lint-repo            fmt, the scripts in tools/, the registry
+just lint-macos           the Starter's macOS code for both Mac targets
 cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
 ```
 
@@ -65,8 +70,12 @@ rules a change follows. Builds and checks pass `--locked`.
 
 GitHub Actions runs `just` on every push to main and every pull
 request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
-the tools above at the versions it names; its result is shown on the
-commit and the pull request.
+the tools above at the versions it names, spread over twenty jobs:
+one compiles the tests once and archives them (`cargo nextest
+archive`), fourteen each run a fourteenth of them (`--partition
+hash:k/14`), and the doc tests and the four parts of `just lint` run
+beside them. Its result is shown on the commit and the
+pull request.
 
 ## 3. The desktop app
 

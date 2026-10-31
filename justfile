@@ -9,8 +9,12 @@ default: test lint
 # another; it does not run doc tests, so those
 # follow. `cargo install cargo-nextest --locked` puts it on a machine.
 [group('test')]
-test:
+test: && test-doc
     cargo nextest run --locked --workspace
+
+# The doc tests alone.
+[group('test')]
+test-doc:
     cargo test --locked --workspace --doc
 
 # Clippy with warnings as errors, and failing on a warning about its own
@@ -28,8 +32,16 @@ test:
 # vet: every dependency trusted, audited or exempted (F71), and the guide
 # lint (bold names are the app's strings, links resolve, tools/lint-guide.py).
 [group('lint')]
-lint:
+lint: lint-clippy lint-deps lint-repo lint-macos
+
+# Clippy over the workspace, every target (the costliest part of the lint).
+[group('lint')]
+lint-clippy:
     python3 tools/clippy.py --locked --workspace --all-targets
+
+# The dependencies: cargo deny and cargo vet, and the fuzz crates built.
+[group('lint')]
+lint-deps:
     # Advisories, licences, duplicates and sources, against deny.toml.
     # `cargo install --locked cargo-deny` puts it on a machine (README,
     # "Faraday Demo, for developers").
@@ -48,6 +60,10 @@ lint:
     # check on the workspace's stable toolchain, with no cargo-fuzz.
     cargo check --locked --bins --manifest-path fuzz/Cargo.toml
     cargo check --locked --bins --manifest-path faraday/fuzz/Cargo.toml
+
+# The repository's own lints: fmt, the scripts in tools/, the registry.
+[group('lint')]
+lint-repo:
     cargo fmt --all --check
     tools/lint-secrets.sh
     tools/lint-strings.sh
@@ -86,7 +102,6 @@ lint:
     # makes (docs/THEMES.md §11.3).
     tools/lint-themes.sh
     tools/lint-keys-tests.sh
-    tools/check-macos.sh
     python3 tools/learn/sync.py check
     # The guide's bold names are the app's strings, its links resolve.
     python3 -B tools/lint-guide.py --self-test
@@ -98,6 +113,11 @@ lint:
     python3 -I -B tools/impact.py check --quiet
     # docs/CHECKS.md is what the registry makes (`tools/impact.py docs` writes it).
     python3 -I -B tools/impact.py docs --check
+
+# The Starter's macOS code, checked for both Mac targets.
+[group('lint')]
+lint-macos:
+    tools/check-macos.sh
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
 # imports.lock, and drop exemptions they now cover (F71), keeping those

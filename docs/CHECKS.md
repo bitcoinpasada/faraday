@@ -61,7 +61,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `repo.ci-check`: GitHub Actions runs `just` and nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release | `.github/workflows/**` | review | - | - | a tool the check comes to need, until the workflow fails without it | `CLAUDE.md`<br>`docs/decisions/F183.md` |
+| `repo.ci-check`: GitHub Actions runs `just` and nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release | `.github/workflows/**`<br>`.github/actions/**` | review | - | - | a tool the check comes to need, until the workflow fails without it | `CLAUDE.md`<br>`docs/decisions/F183.md` |
 | `repo.build-machine-unnamed`: the remote build machine is "the build machine" in docs, comments and messages, never its hostname, owner or address | `**` | review | - | - | - | `CLAUDE.md` |
 | `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push | `**` | review | - | - | - | `CLAUDE.md` |
 | `repo.upstream-name`: the upstream project is named only in LICENSE | `**`<br>`!LICENSE` | held | - | `lint-upstream` | - | `docs/decisions/F73.md` |
