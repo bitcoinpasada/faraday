@@ -370,8 +370,9 @@ Moved to `docs/history/SPEED-LOG.md`.
 ## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
 
 After any batch that adds or changes what a screen works out while it
-draws, or what runs after every event, the architect times it with the
-harness of §4, before the batch is committed:
+draws, or what runs after every event, it is timed once with the
+harness of §4, before the work is pushed (owner, 2026-11-01: once for the
+batch, not before each commit):
 
 - one frame, and one scroll frame, of each screen the batch touched,
   in the heaviest session the flow reaches: a 2-of-3 wallet whose three

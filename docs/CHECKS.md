@@ -140,7 +140,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `compute.token`: costly work takes the compute token and says so | `core/*/src/**`<br>`faraday/**/src/**` | held | - | `costs-lint`, `budget-tests` | - | `CLAUDE.md`<br>`docs/decisions/F69.md` |
+| `compute.token`: costly work takes the compute token and says so | `core/*/src/**`<br>`faraday/**/src/**` | held | - | `costs-lint`, `budget-tests` | - | `CLAUDE.md`<br>`docs/COMPUTE.md`<br>`docs/decisions/F69.md` |
 | `compute.new-mint`: a new place that mints the compute token is listed in COMPUTE.md | `core/*/src/**`<br>`faraday/**/src/**`<br>lines matching `^\+.*\bCompute::new\(` | pair | `docs/COMPUTE.md` | `costs-lint` | - | `docs/COMPUTE.md` §8 |
 
 ### 2.9 speed
@@ -148,18 +148,18 @@ does what is `tools/README.md`'s.
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `speed.kept-in-step`: a value kept on the state for drawing has its invariant written where it lives and a test that changes the source | `faraday/faraday-core/src/**`<br>lines matching `^\+.*\b(kept\|memo)\b` | review | - | - | - | `CLAUDE.md`<br>`docs/SPEED.md` §3 |
-| `speed.late-flow-timed`: work added while drawing or after every event is timed in a late-flow session before it is committed | `**/screen.rs`<br>`faraday/faraday-core/src/drawing.rs`<br>`faraday/faraday-core/src/screens/**` | review | - | - | - | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
+| `speed.late-flow-timed`: work added while drawing or after every event is timed once in a late-flow session for the batch, before it is pushed | `**/screen.rs`<br>`faraday/faraday-core/src/drawing.rs`<br>`faraday/faraday-core/src/screens/**` | review | - | - | - | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
 | `speed.no-wiping-allocator`: no shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target | `faraday/shells/*/src/main.rs`<br>`faraday/faraday-disk/src/main.rs`<br>`core/faraday-crypto/src/wipe.rs` | review | - | - | - | `docs/decisions/F181.md`<br>`docs/ESTABLISHED.md` §4.9 |
-| `speed.budgets`: a frame, a pointer move, a press or a key does only the costly work its budget names | `**/screen.rs`<br>`faraday/faraday-core/src/drawing.rs`<br>`faraday/faraday-core/src/screens/**` | held | - | `budget-tests` | - | `CLAUDE.md` |
+| `speed.budgets`: a frame, a pointer move, a press or a key does only the costly work its budget names | `**/screen.rs`<br>`faraday/faraday-core/src/drawing.rs`<br>`faraday/faraday-core/src/screens/**` | held | - | `budget-tests` | - | `CLAUDE.md`<br>`docs/SPEED.md` |
 
 ### 2.10 structure
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>`tools/lint-upstream.counts`<br>`tools/lint-crypto.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
-| `structure.code-map`: lib.rs's code map names every module and every screen's file | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
-| `structure.size`: no new file over 2,500 lines or function over 100 lines | `**/*.rs` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
-| `structure.impl-faraday`: Faraday's field count and the files with impl Faraday only fall | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
+| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>`tools/lint-upstream.counts`<br>`tools/lint-crypto.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
+| `structure.code-map`: lib.rs's code map names every module and every screen's file | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
+| `structure.size`: no new file over 2,500 lines or function over 100 lines | `**/*.rs` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
+| `structure.impl-faraday`: Faraday's field count and the files with impl Faraday only fall | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
 | `structure.no-new-mut`: a new *_mut accessor or DerefMut on an area is avoided; the few that exist are listed in STRUCTURE-PASS.md | `faraday/faraday-core/src/**`<br>lines matching `^\+.*(\bfn \w+_mut\(\|\bDerefMut\b)` | pair | `docs/STRUCTURE-PASS.md` | - | - | `docs/STRUCTURE-PASS.md` §7 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `faraday/faraday-core/src/**` | review | - | - | - | `docs/STRUCTURE-PASS.md` §7 |
 | `structure.vault-together`: the vault code is not split per screen (F170) | `faraday/faraday-core/src/vault/**`<br>on add | review | - | - | - | `docs/decisions/F170.md` |
@@ -179,12 +179,12 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `design.material3`: a screen or component change names the Material 3 page it was checked against | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`core/faraday-draw/src/widgets/**`<br>`faraday/faraday-ui/**`<br>`faraday/faraday-starter/src/**` | trailer | a `Material:` trailer | - | whether the page named is the right one | `CLAUDE.md`<br>`docs/decisions/F91.md`<br>`docs/decisions/F92.md`<br>`docs/decisions/F108.md` |
+| `design.material3`: a screen or component change names the Material 3 page it was checked against | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`core/faraday-draw/src/widgets/**`<br>`faraday/faraday-ui/**`<br>`faraday/faraday-starter/src/**` | trailer | a `Material:` trailer | - | whether the page named is the right one | `CLAUDE.md`<br>`docs/DESIGN.md`<br>`docs/decisions/F91.md`<br>`docs/decisions/F92.md`<br>`docs/decisions/F108.md` |
 | `design.touch-targets`: every press target is at least 48 dp, or listed with its case | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`faraday/faraday-ui/**`<br>`faraday/shells/snapshot/src/tours/**`<br>`faraday/faraday-starter/src/draw/**`<br>`faraday/faraday-starter/src/draw.rs`<br>`faraday/faraday-starter/src/sheets/**`<br>`faraday/faraday-starter/src/sheets.rs`<br>`faraday/faraday-starter/examples/snap.rs` | held | - | `touch-targets` | - | `docs/decisions/F152.md`<br>`docs/decisions/F108.md`<br>`docs/M3-CHECKS.md` §3 |
 | `design.press-layers`: a press is made only through faraday-ui's press constructor, which draws its state layers | `faraday/faraday-ui/src/**`<br>`**/screen.rs`<br>`faraday/faraday-core/src/**`<br>`faraday/faraday-starter/src/**` | held | - | `clippy` | a Plain case chosen where a layer was owed; a layer in the wrong ink | `docs/decisions/F152.md`<br>`docs/M3-CHECKS.md` §4 |
 | `design.left-out`: none of F111's left-out components is added | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`core/faraday-draw/src/widgets/**`<br>`faraday/faraday-ui/**` | review | - | - | - | `docs/decisions/F111.md` |
-| `design.new-component`: a new component is in DESIGN.md §4 | `core/faraday-draw/src/widgets/*.rs`<br>on add | pair | `docs/DESIGN.md` | - | - | `CLAUDE.md` |
-| `design.new-screen`: a new Screen or Sheet is in DESIGN.md §5 and CLAUDE.md's count | `faraday/faraday-core/src/lib.rs`<br>lines matching `^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\)\|\s*\{.*\})?,\s*(//.*)?$` | pair | `docs/DESIGN.md` | - | CLAUDE.md's count of screens, which a new Sheet leaves unchanged | `CLAUDE.md` |
+| `design.new-component`: a new component is in DESIGN.md §4 | `core/faraday-draw/src/widgets/*.rs`<br>on add | pair | `docs/DESIGN.md` | - | - | `CLAUDE.md`<br>`docs/DESIGN.md` |
+| `design.new-screen`: a new Screen or Sheet is in DESIGN.md §5 and CLAUDE.md's count | `faraday/faraday-core/src/lib.rs`<br>lines matching `^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\)\|\s*\{.*\})?,\s*(//.*)?$` | pair | `docs/DESIGN.md` | - | CLAUDE.md's count of screens, which a new Sheet leaves unchanged | `CLAUDE.md`<br>`docs/DESIGN.md` |
 | `design.demo-matches`: Faraday Demo differs from the device only by a decision | `faraday/shells/window/**`<br>`faraday/faraday-core/src/host/**` | review | - | - | - | `docs/decisions/F117.md` |
 | `design.maker-pages`: the Starter's maker pages show several families at once, no model, no maker's screenshot or name | `docs/learn/faraday/boot/**`<br>`faraday/faraday-starter/src/**` | review | - | - | - | `docs/decisions/F14.md`<br>`docs/decisions/F18.md` |
 
@@ -274,7 +274,7 @@ No script holds these; a reviewer reads this list for the change.
 | `keys.child-vault-only`: that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password | `docs/decisions/F166.md`<br>`docs/decisions/F172.md` |
 | `keys.home-scan-takes-all`: a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open | `docs/decisions/F167.md`<br>`docs/decisions/F173.md` |
 | `speed.kept-in-step`: a value kept on the state for drawing has its invariant written where it lives and a test that changes the source | `CLAUDE.md`<br>`docs/SPEED.md` §3 |
-| `speed.late-flow-timed`: work added while drawing or after every event is timed in a late-flow session before it is committed | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
+| `speed.late-flow-timed`: work added while drawing or after every event is timed once in a late-flow session for the batch, before it is pushed | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
 | `speed.no-wiping-allocator`: no shipped program installs WipeOnFree or another global allocator; installing one is a new decision, made with its timings, peak memory, the suite run with it, Miri and a fuzz target | `docs/decisions/F181.md`<br>`docs/ESTABLISHED.md` §4.9 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `docs/STRUCTURE-PASS.md` §7 |
 | `structure.vault-together`: the vault code is not split per screen (F170) | `docs/decisions/F170.md` |
