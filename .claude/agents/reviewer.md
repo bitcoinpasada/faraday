@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Reviews a finished set of commits for correctness and for security bugs within CLAUDE.md's "Security scope"; Opus, read-only. For signing, key and crypto code, specs, and finished work before it is shared.
+description: Reviews finished commits that change critical code (signing and PSBTs, keys, cryptography, vaults and backups, parsers of what the device takes in, boot integrity) for correctness and for security bugs within CLAUDE.md's "Security scope"; Opus, read-only. Not for screens, docs, the website or tooling.
 model: opus
 effort: high
 disallowedTools: Agent, Edit, Write, NotebookEdit
