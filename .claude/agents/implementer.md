@@ -23,6 +23,11 @@ that PNG; never `just faraday-snapshots` unless the brief says the change is to
 the layout engine. Keep check output short (`-q`, `| tail`): read failures,
 not passing lines.
 
+Every turn re-reads your whole context, so keep it small. Past about 150k
+tokens (or about 60 tool calls, if you cannot see the count), finish the
+step you are on, commit what you have, and report what is done and what is
+left; then stop, and the rest goes to a fresh agent.
+
 A risk the brief did not ask about that CLAUDE.md's "Security scope" puts out
 of scope, or calls later work, gets one line in your report, not a fix.
 

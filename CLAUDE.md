@@ -34,9 +34,9 @@ plan <paths>` lists the ones a change touches.
   lints in the `lint` recipe, every lint run to the end (`lint-all`). Keep
   every test passing or change it to the rule it now encodes; do not
   delete a test to make the build pass. The full check is slow, so it runs
-  once for a finished body of work (several changes, before a push), never
-  after each change or each commit: a commit on main need not pass it on
-  its own. While working, run only the test module you touched (`cargo
+  once for a finished body of work, never after each change or each
+  commit: GitHub Actions runs it on every push and pull request, and a
+  commit on main need not pass it on its own. While working, run only the test module you touched (`cargo
   nextest run -p faraday-core -E 'test(/^keygen::/)'`) and the one lint
   script for the files you changed; when the full check fails, fix what it
   lists and run again only the commands that failed. To look at a screen,
