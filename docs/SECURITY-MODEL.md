@@ -345,3 +345,12 @@ file goes wrong are absent by construction, not patched after the fact.
   `docs/learn/faraday/boot/what-else-runs.md` says which computers have
   AMT and what to do.
 - A weak passphrase.
+- Timing and memory side channels on the device, in part. Some of the
+  arithmetic that secrets pass through takes no branch on them and the
+  secrets Faraday's own types hold are wiped, but neither is complete:
+  an attack of this kind needs someone measuring the offline computer
+  while it runs, or its memory after use, which the device's use (in a
+  secure place, powered off afterwards) and cold boot's place above put
+  outside this model. The rest is worth doing and comes later.
+- Secrets in Faraday Demo and the Starter. They run on an online computer
+  and are for trying Faraday with test data, not for keys that hold money.

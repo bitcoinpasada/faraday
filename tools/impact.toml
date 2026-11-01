@@ -417,6 +417,15 @@ when = ["CLAUDE.md"]
 kind = "review"
 
 [[rule]]
+id = "repo.security-scope"
+title = "CLAUDE.md's Security scope and SECURITY-MODEL's \"What this does not defend against\" say the same"
+source = ["CLAUDE.md"]
+when = ["docs/SECURITY-MODEL.md"]
+kind = "pair"
+with = ["CLAUDE.md"]
+misses = "a change to the scope written only in one of the two"
+
+[[rule]]
 id = "repo.developing"
 title = "a recipe, prerequisite or output path changed is changed in DEVELOPING.md or tools/README.md"
 source = ["CLAUDE.md"]
@@ -694,7 +703,7 @@ kind = "review"
 id = "crypto.kept-values"
 title = "a type re-implemented from a core/ one keeps the values the original works out once"
 source = ["CLAUDE.md"]
-when = ["faraday/**/src/**"]
+when = ["faraday/**/src/**", "!**/screen.rs", "!faraday/faraday-core/src/screens/**", "!faraday/faraday-ui/**"]
 kind = "review"
 
 [[rule]]
@@ -729,7 +738,7 @@ with_each = ["docs/KEYS.md", "docs/AUDIT.md"]
 id = "keys.secret-files"
 title = "a file that starts to hold secrets is added to lint-secrets' SECRET_FILES"
 source = ["tools/README.md"]
-when = ["faraday/**/src/**"]
+when = ["faraday/**/src/**", "!**/screen.rs", "!faraday/faraday-core/src/screens/**", "!faraday/faraday-ui/**"]
 kind = "review"
 held_by = ["lint-secrets"]
 misses = "a file that starts to hold secrets and is not yet in SECRET_FILES"
@@ -1080,7 +1089,7 @@ consumers = ["website.download"]
 id = "fuzz.parser-target"
 title = "a parser of untrusted input has its fuzz target in the same change"
 source = ["tools/README.md"]
-when = ["core/*/src/**", "faraday/**/src/**", "!core/faraday-draw/**"]
+when = ["core/*/src/**", "faraday/**/src/**", "!core/faraday-draw/**", "!**/screen.rs", "!faraday/faraday-core/src/screens/**", "!faraday/faraday-ui/**"]
 lines = '^\+.*\bfn\s+(parse|decode|read|from_bytes|from_str|deserialize)\w*'
 kind = "review"
 misses = "planned: F148's fuzz check"

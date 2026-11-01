@@ -70,10 +70,15 @@ changes and nothing else has to be kept in step.
 - Text anywhere in the product is plain statement of fact, never
   mannered prose.
 - `just` is the check: tests, clippy with warnings as errors, fmt and the
-  lints in the `lint` recipe. Keep every test passing or change it to the
-  rule it now encodes; do not delete a test to make the build pass. Run
-  it once, at the end; while working, run the one test module you touched
-  (`cargo nextest run -p faraday-core -E 'test(/^keygen::/)'`). To look at a
+  lints in the `lint` recipe, every lint run to the end (`lint-all`). Keep
+  every test passing or change it to the rule it now encodes; do not delete
+  a test to make the build pass. The full check is slow, so it runs once for
+  a finished body of work (several changes, before a push), never after each
+  change or each commit: a commit on main need not pass it on its own. While
+  working, run only the test module you touched (`cargo nextest run -p
+  faraday-core -E 'test(/^keygen::/)'`) and the one lint script for the files
+  you changed; when the full check fails, fix what it lists and run again
+  only the commands that failed. To look at a
   screen, render one tour at one size (`just faraday-snap 480x640 spend`,
   into `out/snapshots/faraday/480x640/spend/`); `just faraday-snapshots`,
   the default tour at every size, is for a change to the layout engine
@@ -98,6 +103,20 @@ changes and nothing else has to be kept in step.
 - A check that keeps keys or money safe has no way past it unless a
   decision names a legitimate case; that way past is a hold naming the
   case (STANDARDS §0, F136).
+- **Security scope** (`docs/SECURITY-MODEL.md`, "What this does not defend
+  against"). The rules above are sized by it. Faraday is an offline
+  computer, used in a secure place and powered off after use. Everything
+  from the online side is untrusted (the host or coordinator, a PSBT, a
+  file, a QR code) and the device verifies it; its cryptography is right
+  against published vectors. A bug there is fixed now. Timing and memory
+  side channels on the offline device (constant-time arithmetic, wiping
+  copies in freed memory) are worth having but later work: recorded as
+  open work and done when the app is mature, not fixed now. A malicious
+  Faraday binary, firmware and the management engines, cold-boot attacks
+  and a weak passphrase are out of scope. Faraday Demo and the Starter run
+  on an online computer and hold test data. A risk outside this scope, or
+  later work found in passing, gets one line in a report; it is not fixed
+  without the owner asking.
 - A type re-implemented from a `core/` one keeps what the original works
   out once and keeps (a key's fingerprint, its share); a spec that
   re-implements a `core/` type lists those values.
@@ -179,4 +198,5 @@ changes and nothing else has to be kept in step.
 - Before pushing, check every new commit for personal information:
   names, email addresses, hostnames, IP addresses, local paths, keys
   and tokens, in the diff and in the commit message.
-- Do not use `rm`; use `trash`. Use absolute paths in shell commands.
+- Do not use `rm`; move files to the trash (`trash` or `gio trash`). Use
+  absolute paths in shell commands.

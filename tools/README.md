@@ -19,6 +19,7 @@ in `justfile` and `faraday/faraday.just`.
 |---|---|---|---|
 | `tools/clippy.py` | lint | `just lint`, `tools/check-macos.sh` | clippy with warnings as errors; also fails on a warning about `clippy.toml` |
 | `tools/vet-refresh.py` | lint | `just vet-refresh` | fetches the imported audit sets and prunes (online), keeps the exemptions the fuzz workspaces still need, then vets all three workspaces offline (F71) |
+| `tools/lint-all.py` | runner | `just lint-all`, `just` | runs every command of `lint` to the end and lists the ones that failed |
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below) |

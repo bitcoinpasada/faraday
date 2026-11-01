@@ -2,7 +2,7 @@
 # (.github/workflows/check.yml).
 
 [group('test')]
-default: test lint
+default: test lint-all
 
 # Run every unit, integration and doc test in the workspace. nextest runs
 # the test binaries in parallel where `cargo test` runs them one after
@@ -113,6 +113,13 @@ lint-repo:
     python3 -I -B tools/impact.py check --quiet
     # docs/CHECKS.md is what the registry makes (`tools/impact.py docs` writes it).
     python3 -I -B tools/impact.py docs --check
+
+# Every lint of `lint`, run to the end: one line per command, then the
+# output of each that failed and the command to run it again
+# (tools/lint-all.py). `just` runs this in place of `lint`.
+[group('lint')]
+lint-all:
+    python3 -I -B tools/lint-all.py
 
 # The Starter's macOS code, checked for both Mac targets.
 [group('lint')]

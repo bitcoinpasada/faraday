@@ -66,6 +66,7 @@ does what is `tools/README.md`'s.
 | `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push | `**` | review | - | - | - | `CLAUDE.md` |
 | `repo.upstream-name`: the upstream project is named only in LICENSE | `**`<br>`!LICENSE` | held | - | `lint-upstream` | - | `docs/decisions/F73.md` |
 | `repo.contributing`: CONTRIBUTING.md's summary follows CLAUDE.md's rules | `CLAUDE.md` | review | - | - | - | `CONTRIBUTING.md` |
+| `repo.security-scope`: CLAUDE.md's Security scope and SECURITY-MODEL's "What this does not defend against" say the same | `docs/SECURITY-MODEL.md` | pair | `CLAUDE.md` | - | a change to the scope written only in one of the two | `CLAUDE.md` |
 | `repo.developing`: a recipe, prerequisite or output path changed is changed in DEVELOPING.md or tools/README.md | `justfile`<br>`faraday/faraday.just`<br>lines matching `^[+-]( {4}[^\s#]\|[a-z][A-Za-z0-9_-]*( [^:]*)?:( \|$))` | pair | one of `docs/DEVELOPING.md`<br>`tools/README.md` | - | a recipe changed whose text DEVELOPING.md does not show | `CLAUDE.md` |
 | `repo.tests-kept`: a test is changed to the rule it now encodes, never deleted to make the build pass | `**/*.rs`<br>lines matching `^-\s*#\[(test\|rstest)` | review | - | - | - | `CLAUDE.md` |
 | `repo.tests-user-facing`: a test covers user-facing behaviour or a published vector; none states a design rule, a token's value or a screen's geometry against a document | `**/tests/**`<br>`**/*tests.rs` | review | - | - | - | `CLAUDE.md` |
@@ -122,7 +123,7 @@ does what is `tools/README.md`'s.
 | `crypto.generated`: STANDARDS and AUDIT's generated sections match the manifest | `docs/STANDARDS.md`<br>`docs/AUDIT.md`<br>`docs/crypto/actions.toml`<br>`faraday/faraday-learn/src/how.rs` | held | - | `crypto-gen` | - | `docs/decisions/F148.md` |
 | `crypto.established` (planned): a piece of cryptography written here gives one of the four reasons and names its decision; a library the manifest names is established or named with its decision; both counts only fall | `docs/crypto/actions.toml`<br>`supply-chain/audits.toml`<br>`supply-chain/config.toml`<br>`supply-chain/imports.lock`<br>`core/*/Cargo.toml`<br>`faraday/**/Cargo.toml`<br>`tools/lint-crypto.counts` | held | - | `crypto-check` | planned: crypto-check gains the check with the manifest's schema 4 (docs/ESTABLISHED.md §2.2). Whether a stated reason is true, and whether a crate of the graph the manifest does not name is established (cargo vet holds that it is vetted) | `docs/decisions/F178.md`<br>`docs/ESTABLISHED.md` §2 |
 | `crypto.at-source`: core/ is Faraday's own code: a thing is fixed at its source rather than wrapped | `core/**` | review | - | - | - | `CLAUDE.md` |
-| `crypto.kept-values`: a type re-implemented from a core/ one keeps the values the original works out once | `faraday/**/src/**` | review | - | - | - | `CLAUDE.md` |
+| `crypto.kept-values`: a type re-implemented from a core/ one keeps the values the original works out once | `faraday/**/src/**`<br>`!**/screen.rs`<br>`!faraday/faraday-core/src/screens/**`<br>`!faraday/faraday-ui/**` | review | - | - | - | `CLAUDE.md` |
 | `crypto.costs-said`: a function that costs more than a lookup says "Costs" in the first line of its doc | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**` | review | - | `costs-lint` | work that is costly and not marked so | `CLAUDE.md` |
 
 ### 2.7 keys
@@ -131,7 +132,7 @@ does what is `tools/README.md`'s.
 |---|---|---|---|---|---|---|
 | `keys.boundary`: key material lives in faraday-keys and leaves only through its named reveals | `faraday/**` | held | - | `lint-secrets`, `lint-keys-tests` | - | `CLAUDE.md`<br>`docs/decisions/F70.md` |
 | `keys.new-reveal`: a new reveal is listed in KEYS.md and AUDIT.md | `faraday/faraday-keys/src/session.rs`<br>lines matching `^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\))?,` | pair | each of `docs/KEYS.md`<br>`docs/AUDIT.md` | - | - | `docs/KEYS.md` §2 |
-| `keys.secret-files`: a file that starts to hold secrets is added to lint-secrets' SECRET_FILES | `faraday/**/src/**` | review | - | `lint-secrets` | a file that starts to hold secrets and is not yet in SECRET_FILES | `tools/README.md` |
+| `keys.secret-files`: a file that starts to hold secrets is added to lint-secrets' SECRET_FILES | `faraday/**/src/**`<br>`!**/screen.rs`<br>`!faraday/faraday-core/src/screens/**`<br>`!faraday/faraday-ui/**` | review | - | `lint-secrets` | a file that starts to hold secrets and is not yet in SECRET_FILES | `tools/README.md` |
 | `keys.child-vault-only`: that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password | `faraday/faraday-core/src/**`<br>`faraday/faraday-keys/src/**`<br>`faraday/faraday-vault/src/**` | review | - | - | a file, picture, sheet, file name, wallet name or kept state that carries a key's child mark, parent fingerprint, BIP-85 index or path; a KeePass export or password file that carries a BIP-85 password's parent, index or path | `docs/decisions/F166.md`<br>`docs/decisions/F172.md` |
 | `keys.home-scan-takes-all`: a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open | `faraday/faraday-core/src/qr_view.rs`<br>`faraday/faraday-core/src/scan_key.rs` | review | - | - | - | `docs/decisions/F167.md`<br>`docs/decisions/F173.md` |
 
@@ -231,7 +232,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**`<br>lines matching `^\+.*\bfn\s+(parse\|decode\|read\|from_bytes\|from_str\|deserialize)\w*` | review | - | - | planned: F148's fuzz check | `tools/README.md` |
+| `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**`<br>`!**/screen.rs`<br>`!faraday/faraday-core/src/screens/**`<br>`!faraday/faraday-ui/**`<br>lines matching `^\+.*\bfn\s+(parse\|decode\|read\|from_bytes\|from_str\|deserialize)\w*` | review | - | - | planned: F148's fuzz check | `tools/README.md` |
 
 ### 2.20 release
 

@@ -53,7 +53,7 @@ nothing else.
 ## 2. The check
 
 ```
-just                      the tests, then the lints: what every change passes
+just                      the tests, then every lint run to the end (lint-all)
 just test                 the tests alone (nextest, then the doc tests)
 just test-doc             the doc tests alone
 just lint                 clippy with warnings as errors, fmt, and the repository's lints, in four parts:
@@ -61,10 +61,13 @@ just lint-clippy          clippy over every target
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
 just lint-macos           the Starter's macOS code for both Mac targets
+just lint-all             every command of `lint`, run to the end; lists all that failed
 cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
 ```
 
-Run the module you touched while working and `just` once at the end.
+Run the module you touched while working, and `just` once for a finished
+body of work, not after each change or commit. When it fails, run again
+only the command `lint-all` names.
 `tools/README.md` lists every lint and what it holds; `CLAUDE.md` is the
 rules a change follows. Builds and checks pass `--locked`.
 
