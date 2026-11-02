@@ -258,7 +258,7 @@ fn create_a_vault_customised_cost_and_space_move_on() {
 }
 
 #[test]
-fn a_vault_being_made_takes_no_back() {
+fn back_while_a_vault_is_made_makes_none() {
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
@@ -268,11 +268,13 @@ fn a_vault_being_made_takes_no_back() {
     type_text(&mut app, phrase);
     app.press(Action::Vault(V::CFocus(0, true)));
     type_text(&mut app, phrase);
-    app.press(Action::Vault(V::CGo));
+    testkit::press_on_worker(&mut app, Action::Vault(V::CGo));
     assert!(app.vaults().working.is_some(), "the vault is being made");
+    // Back while it is made drops it: no vault file comes of it.
     app.event(Event::Back);
-    assert_eq!(app.screen, Screen::CreateVault);
-    assert_eq!(vault_open(&app), Some(vstep::PHRASES));
+    assert!(app.vaults().working.is_none());
+    testkit::settle(&mut app);
+    assert!(app.vault_files().is_empty(), "a vault was made after Back");
 }
 
 #[test]

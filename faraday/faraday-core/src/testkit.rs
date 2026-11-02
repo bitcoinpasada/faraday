@@ -1802,6 +1802,17 @@ pub fn press_on_worker(app: &mut crate::Faraday, action: crate::Action) {
     app.press_as(action, false);
 }
 
+/// Holds the worker before its next job until [`release_worker`]: for a
+/// test to put something in between a press and its answer.
+pub fn hold_worker() {
+    crate::worker::hold(true);
+}
+
+/// Lets the worker go on (see [`hold_worker`]).
+pub fn release_worker() {
+    crate::worker::hold(false);
+}
+
 /// The screen as it is while a job runs, with no job: for a tour to
 /// picture the busy screen (`docs/WORKERS.md` §4) at a moment of its
 /// own. `done` of `of` is the count, `of` 0 for work with none. Ends

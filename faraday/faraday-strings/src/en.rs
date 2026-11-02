@@ -6653,6 +6653,10 @@ strings! {
     working_node_key: "Working out the node key",
     /// The line of the job that loads the ticked samples.
     working_samples: "Loading the samples",
+    /// The line of the job that opens a vault.
+    working_vault_open: "Unlocking the vault",
+    /// The line of the job that makes a vault.
+    working_vault_make: "Making the vault",
     /// Text in `visit`. `{}`: `app.medium.noun()`.
     visit_no_files: "No files on this {}",
     /// Button in `visit`.

@@ -27,6 +27,7 @@ pub mod bip85;
 pub mod codex32;
 pub mod gpg;
 pub mod identity;
+pub mod job;
 pub mod lightning;
 pub mod message;
 pub mod operations;

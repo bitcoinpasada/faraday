@@ -13,7 +13,7 @@ use faraday_keys::vault::{OpenVaults, RecordView, Records, VaultId};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{self as fv, Cost, Header, Record};
 
-use crate::work::{self, VaultAct, VaultEnded};
+use crate::work::{self, VaultAct};
 use crate::{Action, Screen, flow};
 
 pub use crate::action::is_hold;
@@ -312,14 +312,13 @@ impl VaultArea {
         self.state.passphrase.clear();
     }
 
-    /// Vault `at` unlocked with `passphrase` on the next drawn frame,
-    /// returning to `back`.
+    /// Vault `at` chosen to unlock with `passphrase`, returning to
+    /// `back`: the caller defers the unlock ([`Faraday::vault_defer`]).
     pub(crate) fn unlock_with(&mut self, at: usize, passphrase: &str, back: Screen) {
         self.state.pick = at;
         self.state.passphrase.set(passphrase);
         self.state.unlock_error = None;
         self.state.back_to = Some(back);
-        self.start_work(Work::Unlock);
     }
 
     /// Work waiting for its frame: done once a frame is drawn.
@@ -1518,17 +1517,12 @@ impl Vaults {
         work::refused(VaultAct::Made, mem, passes, refusal)
     }
 
-    /// Costs an Argon2id run at `cost`: vault file `bytes` unlocked with
-    /// the typed passphrase, the stretch noted ([`work::note_vault`]).
-    pub(super) fn unlock_noted(
+    /// The vault a stretch job opened joins the store (no Argon2id run).
+    pub(super) fn adopt(
         &mut self,
-        c: &Compute,
-        bytes: Vec<u8>,
-        cost: Cost,
+        stretched: faraday_keys::job::Stretched,
     ) -> Result<(VaultId, Header), fv::Error> {
-        let result = self.store.unlock(c, bytes, &self.passphrase.text);
-        work::note_vault(VaultAct::Unlocked, cost, VaultEnded::of(&result));
-        result
+        self.store.adopt(stretched)
     }
 
     /// The most unlock memory this computer gives a vault, MiB: the

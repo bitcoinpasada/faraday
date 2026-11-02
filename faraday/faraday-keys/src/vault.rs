@@ -501,7 +501,28 @@ impl OpenVaults {
         file: Vec<u8>,
         passphrase: &str,
     ) -> Result<(VaultId, Header), fv::Error> {
-        let (opened, contents) = fv::open(c, &file, passphrase)?;
+        let (opened, records) = fv::open(c, &file, passphrase)?;
+        Ok(self.keep(file, opened, records))
+    }
+
+    /// Keeps the slot a [`crate::job::StretchJob`] opened, on the thread
+    /// that holds the store: no Argon2id run. Gives its id and the file's
+    /// header, or why the job could not open it. An answer dropped
+    /// unkept is wiped.
+    pub fn adopt(
+        &mut self,
+        stretched: crate::job::Stretched,
+    ) -> Result<(VaultId, Header), fv::Error> {
+        let slot = stretched.into_opened()?;
+        let crate::job::OpenedSlot {
+            file,
+            opened,
+            records,
+        } = *slot;
+        Ok(self.keep(file, opened, records))
+    }
+
+    fn keep(&mut self, file: Vec<u8>, opened: fv::Opened, records: Contents) -> (VaultId, Header) {
         let header = *opened.header();
         let id = VaultId(self.next);
         self.next += 1;
@@ -509,11 +530,11 @@ impl OpenVaults {
             id,
             file,
             opened,
-            records: contents,
+            records,
             version: 0,
             facts: OnceCell::new(),
         });
-        Ok((id, header))
+        (id, header)
     }
 
     /// Closes open vault `id`: its slot key and records are wiped.

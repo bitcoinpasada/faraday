@@ -49,6 +49,15 @@ impl Faraday {
         true
     }
 
+    /// Does the press waiting now, and for a script (`inline`) what that
+    /// leaves in turn: a vault made, then unlocked.
+    pub(crate) fn later_all(&mut self, inline: bool) {
+        self.later_now();
+        while inline && self.later.is_some() {
+            self.later_now();
+        }
+    }
+
     /// Does the press waiting now, whatever has been drawn.
     pub(crate) fn later_now(&mut self) {
         let Some(later) = self.later.take() else {
@@ -59,6 +68,11 @@ impl Faraday {
             self.note_here();
         }
         match later {
+            Later::Vault(w, inline) => {
+                let was = self.worker.set_inline(inline || self.worker.inline());
+                crate::vault::stretch::work(self, w);
+                self.worker.set_inline(was);
+            }
             Later::Press(a) => self.act(a),
             Later::Key(k) => self.key(k),
             Later::PublicOut(w, what) => self.public_out(w, what),
@@ -104,6 +118,7 @@ impl Faraday {
             return;
         }
         let kind = job.kind();
+        self.worker.set_origin(Some((self.screen, self.sheet)));
         self.worker.send(job);
         self.worker.set_busy(Some(Busy {
             kind,
@@ -159,6 +174,7 @@ impl Faraday {
     fn apply_done(&mut self, done: Done) {
         match done {
             Done::SamplesLoad(l) => self.samples_loaded(*l),
+            Done::Stretch(s) => crate::vault::stretch::stretched(self, *s),
         }
     }
 
@@ -171,19 +187,38 @@ impl Faraday {
             return true;
         }
         match action {
+            // Back or Cancel anywhere else (a Lock sheet dismissed, say)
+            // is taken as it always is and leaves the job running.
+            A::Back | A::Cancel
+                if self
+                    .worker
+                    .origin()
+                    .is_some_and(|o| o != (self.screen, self.sheet)) =>
+            {
+                true
+            }
             A::Back | A::Cancel => {
                 self.worker.stale();
                 self.worker.set_busy(None);
+                crate::vault::stretch::ended(self);
                 true
             }
             _ => stays_live(&action),
         }
     }
 
+    /// Whether a key is refused while a job runs: every key but Escape,
+    /// which is Back or Cancel and is taken as the press is. A key that
+    /// would act (Enter in a field) is no more live than its press.
+    pub(crate) fn key_refused_busy(&self, key: faraday_shell_api::Key) -> bool {
+        self.worker.busy().is_some() && key != faraday_shell_api::Key::Escape
+    }
+
     /// A lock: the running job's answer has nowhere to go.
     pub(crate) fn job_locked(&mut self) {
         self.worker.locked();
         self.worker.set_busy(None);
+        crate::vault::stretch::ended(self);
     }
 
     /// The idle clock does not run while a job does and starts again from

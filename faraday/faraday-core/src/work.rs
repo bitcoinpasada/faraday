@@ -250,10 +250,16 @@ pub enum VaultEnded {
 impl VaultEnded {
     /// How a vault's open or make ended, by its error's kind. Cheap.
     pub fn of<T>(result: &Result<T, faraday_vault::Error>) -> VaultEnded {
+        VaultEnded::of_error(result.as_ref().err().copied())
+    }
+
+    /// [`VaultEnded::of`] for a run that gives its error apart from its
+    /// answer. Cheap.
+    pub fn of_error(error: Option<faraday_vault::Error>) -> VaultEnded {
         use faraday_vault::Error as E;
-        match result {
-            Err(E::Memory(_)) => VaultEnded::NoMemory,
-            Err(E::Magic | E::Version | E::SlotSize | E::Length | E::Cost) => VaultEnded::Refused,
+        match error {
+            Some(E::Memory(_)) => VaultEnded::NoMemory,
+            Some(E::Magic | E::Version | E::SlotSize | E::Length | E::Cost) => VaultEnded::Refused,
             _ => VaultEnded::Ran,
         }
     }
@@ -289,6 +295,19 @@ pub fn note_vault(act: VaultAct, cost: faraday_vault::Cost, ended: VaultEnded) {
                 passes: cost.passes,
                 ended,
             });
+        }
+    });
+}
+
+/// Adds the vault stretches noted on another thread (the worker's,
+/// `docs/WORKERS.md` §5) to this thread's. Costs a push for each.
+pub fn absorb_vault(notes: Vec<VaultWork>) {
+    VAULTS.with(|v| {
+        let mut v = v.borrow_mut();
+        for n in notes {
+            if v.len() < VAULT_NOTES {
+                v.push(n);
+            }
         }
     });
 }

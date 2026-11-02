@@ -1549,10 +1549,10 @@ impl Faraday {
         };
         // Nothing is typed or unlocked with a stick in: the vault is made,
         // and its Unlock waits for the stick to go.
-        if !self.may_load_keys() {
-            return true;
+        if self.may_load_keys() {
+            self.vaults.unlock_with(at, passphrase, Screen::BackupFlow);
+            crate::vault::stretch::defer(self, Work::Unlock);
         }
-        self.vaults.unlock_with(at, passphrase, Screen::BackupFlow);
         true
     }
 

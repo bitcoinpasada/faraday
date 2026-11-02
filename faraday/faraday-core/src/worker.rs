@@ -18,6 +18,8 @@ use crate::work;
 pub enum Kind {
     /// Practice's samples loaded.
     SamplesLoad,
+    /// A vault opened or made: its Argon2id runs.
+    VaultStretch,
 }
 
 impl Kind {
@@ -25,7 +27,7 @@ impl Kind {
     /// (the jobs that follow typing, `docs/WORKERS.md` §3.2).
     fn latest_wins(self) -> bool {
         match self {
-            Kind::SamplesLoad => false,
+            Kind::SamplesLoad | Kind::VaultStretch => false,
         }
     }
 }
@@ -50,17 +52,20 @@ pub struct Busy {
 /// The costly part of a press, with what it needs, owned.
 pub(crate) enum Job {
     SamplesLoad(Box<crate::samples::LoadJob>),
+    Stretch(Box<crate::vault::StretchWork>),
 }
 
 /// What a job gives back.
 pub(crate) enum Done {
     SamplesLoad(Box<crate::samples::Loaded>),
+    Stretch(Box<crate::vault::StretchDone>),
 }
 
 impl Job {
     pub(crate) fn kind(&self) -> Kind {
         match self {
             Job::SamplesLoad(_) => Kind::SamplesLoad,
+            Job::Stretch(_) => Kind::VaultStretch,
         }
     }
 
@@ -68,6 +73,7 @@ impl Job {
     pub(crate) fn run(self, c: &Compute) -> Done {
         match self {
             Job::SamplesLoad(j) => Done::SamplesLoad(Box::new(j.run(c))),
+            Job::Stretch(j) => Done::Stretch(Box::new(j.run(c))),
         }
     }
 }
@@ -82,6 +88,8 @@ pub(crate) struct Answer {
     pub(crate) done: Result<Done, ()>,
     pub(crate) generation: u64,
     counts: work::Counts,
+    /// The vault stretches the job noted on the worker's thread.
+    notes: Vec<work::VaultWork>,
 }
 
 /// What the shell gave to be called when an answer is ready
@@ -107,6 +115,9 @@ pub(crate) struct Worker {
     wake: Waker,
     /// What the core keeps of the job that runs.
     busy: Option<Busy>,
+    /// The screen and sheet the running job was started from: the only
+    /// place a Back or Cancel makes its answer stale.
+    origin: Option<(crate::Screen, Option<crate::Sheet>)>,
     /// Whether a frame has been drawn since a press was left to wait.
     drawn: bool,
 }
@@ -120,6 +131,7 @@ impl Worker {
             link: None,
             wake: Waker::default(),
             busy: None,
+            origin: None,
             drawn: false,
         }
     }
@@ -138,6 +150,15 @@ impl Worker {
 
     pub(crate) fn set_busy(&mut self, busy: Option<Busy>) {
         self.busy = busy;
+    }
+
+    /// The screen and sheet the running job was started from.
+    pub(crate) fn origin(&self) -> Option<(crate::Screen, Option<crate::Sheet>)> {
+        self.origin
+    }
+
+    pub(crate) fn set_origin(&mut self, origin: Option<(crate::Screen, Option<crate::Sheet>)>) {
+        self.origin = origin;
     }
 
     pub(crate) fn drawn(&self) -> bool {
@@ -208,6 +229,24 @@ impl Answer {
     /// (`docs/WORKERS.md` §5).
     pub(crate) fn absorb(&self) {
         work::absorb(&self.counts);
+        work::absorb_vault(self.notes.clone());
+    }
+}
+
+/// Whether the worker waits before its next job, for the tests that put
+/// something in between a job's start and its answer.
+#[cfg(feature = "testkit")]
+static HELD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(feature = "testkit")]
+pub(crate) fn hold(on: bool) {
+    HELD.store(on, std::sync::atomic::Ordering::SeqCst);
+}
+
+#[cfg(feature = "testkit")]
+fn hold_gate() {
+    while HELD.load(std::sync::atomic::Ordering::SeqCst) {
+        std::thread::sleep(Duration::from_millis(1));
     }
 }
 
@@ -238,15 +277,19 @@ fn worker_loop(rx: &Receiver<Asked>, tx: &Sender<Answer>, wake: &Waker) {
             if kind.latest_wins() && kinds[i + 1..].contains(&kind) {
                 continue;
             }
+            #[cfg(feature = "testkit")]
+            hold_gate();
             let before = work::snapshot();
             let generation = asked.generation;
             let done = catch_unwind(AssertUnwindSafe(|| asked.job.run(&c))).map_err(|_| ());
             let counts = work::since(&before);
+            let notes = work::take_vault_work();
             if tx
                 .send(Answer {
                     done,
                     generation,
                     counts,
+                    notes,
                 })
                 .is_err()
             {

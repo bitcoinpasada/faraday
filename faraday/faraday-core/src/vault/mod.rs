@@ -22,11 +22,13 @@ pub(crate) mod screen;
 mod seals;
 mod search;
 mod strength;
+pub(crate) mod stretch;
 mod summaries;
 
 pub use area::*;
 pub use seals::{OlderHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
+pub(crate) use stretch::{StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
 use crate::stick;
@@ -35,7 +37,7 @@ use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{IntoRecord, RecordView, VaultId};
 use faraday_vault::records::{self, field, kind};
-use faraday_vault::{self as fv, Contents, Cost, Header, Record};
+use faraday_vault::{self as fv, Cost, Header, Record};
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
@@ -1116,8 +1118,10 @@ impl Faraday {
             self.vaults.state.ms_per_unit = Some(now_ms.saturating_sub(t0).max(1));
             redraw = true;
         }
+        // An unlock and a create are jobs, started by `Later::Vault`.
         if let Some(work) = self.vaults.working
             && self.vaults.drawn
+            && !matches!(work, Work::Unlock | Work::Create)
         {
             self.vaults.state.working = None;
             match work {
@@ -1135,10 +1139,9 @@ impl Faraday {
                     faraday_keys::vault::measure(&c, &header);
                     work::note_vault(VaultAct::Measured, header.cost, VaultEnded::Ran);
                 }
-                Work::Unlock => self.vault_unlock(),
+                Work::Unlock | Work::Create => {}
                 Work::FlowMake => self.flow_make_work(),
                 Work::Kdbx => self.vault_kdbx(),
-                Work::Create => self.vault_create(),
             }
             redraw = true;
         }
@@ -1174,16 +1177,7 @@ impl Faraday {
         };
         self.vaults.state.unlock_error = error;
         if self.vaults.unlock_error.is_none() {
-            self.vaults.state.working = Some(Work::Unlock);
-            self.vaults.state.drawn = false;
-        }
-    }
-
-    fn vault_unlock(&mut self) {
-        let before = self.vaults.open.len();
-        self.vault_unlock_inner();
-        if self.vaults.open.len() > before && self.vaults.older.is_none() {
-            self.vault_unlock_flow();
+            stretch::defer(self, Work::Unlock);
         }
     }
 
@@ -1196,47 +1190,6 @@ impl Faraday {
         if self.screen != screen && from_tab && self.sheet == Some(crate::Sheet::UnlockLoad) {
             self.vaults.state.load = None;
             self.sheet = None;
-        }
-    }
-
-    fn vault_unlock_inner(&mut self) {
-        let c = self.compute();
-        let files = self.vault_files();
-        let Some(f) = files.get(self.vaults.pick) else {
-            return;
-        };
-        let Some(bytes) = self.vault_bytes(f) else {
-            return;
-        };
-        let name = f.name.clone();
-        // Unlocked on the boot import's sheet: the unlock imports.
-        let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.state().is_some();
-        let result = self.vaults.state.unlock_noted(&c, bytes, f.header.cost);
-        match result {
-            Ok((id, header)) => {
-                self.vaults.state.passphrase.clear();
-                self.vaults.state.typed_shown = false;
-                self.vaults.state.focus = None;
-                self.vaults.state.open.push(OpenVault {
-                    name,
-                    id,
-                    header,
-                    changes: 0,
-                    skip: Default::default(),
-                    each_shown: false,
-                    read: Default::default(),
-                    seal_digest: [0; 32],
-                    seal_warn: None,
-                });
-                self.vaults.state.current = self.vaults.open.len() - 1;
-                if !self.vault_unlock_held(self.vaults.current, for_import) {
-                    self.vault_unlock_go_on(for_import);
-                }
-            }
-            Err(e) => {
-                self.vaults.state.passphrase.clear();
-                self.vaults.state.unlock_error = Some(errors::error_text(e));
-            }
         }
     }
 
@@ -2100,91 +2053,7 @@ impl Faraday {
         c.error = error;
         if c.error.is_none() {
             c.done[vstep::PHRASES as usize] = true;
-            self.vaults.state.working = Some(Work::Create);
-            self.vaults.state.drawn = false;
-        }
-    }
-
-    fn vault_create(&mut self) {
-        let c = self.compute();
-        // Everything random in a vault comes from fresh system entropy of
-        // its own; a vault is never made before it has arrived.
-        if self.fresh.pool_is_empty() {
-            self.out.command(faraday_shell_api::Command::RequestEntropy);
-            if let Some(c) = self.vaults.state.create.as_mut() {
-                c.error = Some(EN.vaults_no_randomness.to_string());
-            }
-            return;
-        }
-        let Some((_, mem, passes)) = self.vaults.form_cost() else {
-            return;
-        };
-        let Some(seed) = self.fresh(b"vault create") else {
-            return;
-        };
-        let Some(form) = self.vaults.create.as_ref() else {
-            return;
-        };
-        let cost = Cost {
-            memory_kib: mem * 1024,
-            passes,
-            lanes: 1,
-        };
-        let first_phrase = Zeroizing::new(
-            form.phrases
-                .first()
-                .map(|(a, _)| a.text.to_string())
-                .unwrap_or_default(),
-        );
-        let phrases: Vec<&str> = form.phrases.iter().map(|(a, _)| &*a.text).collect();
-        // Every slot starts with the vault's name: a slot opened under
-        // pressure says nothing of the others (`docs/VAULT.md` §9, F57).
-        let label = match form.name.text.trim() {
-            "" => EN.vaults_vault,
-            typed => {
-                // A slot's label holds 64 bytes (`docs/VAULT.md` §7).
-                let end = (0..=typed.len().min(64))
-                    .rev()
-                    .find(|&i| typed.is_char_boundary(i))
-                    .unwrap_or(0);
-                &typed[..end]
-            }
-        };
-        let contents: Vec<Contents> = phrases
-            .iter()
-            .map(|_| Contents {
-                records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes())],
-            })
-            .collect();
-        let made = faraday_keys::vault::create(&c, form.slot, cost, &phrases, &contents, &seed);
-        work::note_vault(VaultAct::Made, cost, VaultEnded::of(&made));
-        match made {
-            Ok(file) => {
-                let name = self.free_vault_name(&vault_stem(&form.name.text));
-                self.put_outbox(&name, file);
-                // Made inside a backup flow: unlocked at once with the
-                // passphrase just typed twice, never leaving the flow.
-                if self.flow_vault_made(&name, &first_phrase) {
-                    self.toast(EN.vaults_vault_created);
-                    return;
-                }
-                self.vaults.state.just_made = Some(name.clone());
-                self.vaults.state.create = None;
-                self.vaults.state.focus = None;
-                self.screen = Screen::Vaults;
-                self.toast(EN.vaults_vault_created);
-                // Unlock, the new vault picked (FLOWS decision 10): its
-                // passphrase is typed once more, then the flow it was made
-                // for goes on, or its contents open.
-                if let Some(i) = self.vault_files().iter().position(|f| f.name == name) {
-                    self.vault_act(VaultAction::Open(i));
-                }
-            }
-            Err(e) => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.error = Some(errors::error_text(e));
-                }
-            }
+            stretch::defer(self, Work::Create);
         }
     }
 

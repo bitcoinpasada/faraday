@@ -4934,7 +4934,7 @@ impl Faraday {
         if key == KeyIn::Escape && self.pointer.tip_dismiss() {
             return;
         }
-        if self.selftest_failed() {
+        if self.selftest_failed() || self.key_refused_busy(key) {
             return;
         }
         // Ctrl+V is the scanner's Paste, or Paste words on the words form.
@@ -5768,9 +5768,8 @@ impl Faraday {
         // A script does not wait for the worker either: its jobs run here.
         let was_inline = self.worker.set_inline(inline);
         self.press_in(action);
-        // A script does not wait for frames: what a person's press leaves
-        // for the tick after its frame is done now.
-        self.later_now();
+        // A script does not wait for frames: what a press leaves for the tick is done now.
+        self.later_all(inline);
         self.worker.set_inline(was_inline);
         self.backup_settle();
         self.after_input();
@@ -5956,6 +5955,7 @@ enum Later {
     /// The backup's public files of kind `what` for wallet `w`, made again
     /// once a slider that changes them is let go.
     PublicOut(usize, u8),
+    Vault(vault::Work, bool),
 }
 
 use pointer::field_action;

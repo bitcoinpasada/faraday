@@ -75,6 +75,18 @@ Moved to `docs/history/KEYS-LOG.md`.
   - a scanned SeedQR when it is read;
   - a vault passphrase at Open;
   - an Inbox secret file when it is loaded.
+- **A stretch job** (`faraday/faraday-keys/src/job.rs`, WORKERS §6) is
+  where a vault passphrase goes on to be stretched on the worker. An
+  Open's passphrase is moved into a `StretchJob` (a `SecretText`, taken
+  out of the typed box, so no copy is made); Create's passphrases are
+  copied in once, because the form keeps them for a Back or an error,
+  and the first is kept beside the job for a flow that unlocks the vault
+  it made. The answer, `Stretched`, holds the slot key and the records of
+  a vault opened, or the bytes of a vault made. It leaves job.rs only
+  into `OpenVaults::adopt`, on the main thread. Everything wipes as it
+  drops: at the job's end on the worker, or where a stale or locked
+  answer is dropped. The Argon2id call is `faraday_vault::open` and
+  `create`, unchanged.
 - **The crates that compute and keep nothing** stay as they are:
   faraday-bip, -psbt, -crypto, -backup, -vault, -pgp and -sb. Only
   faraday-keys calls their secret-taking functions.

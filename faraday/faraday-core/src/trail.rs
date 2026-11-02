@@ -619,6 +619,8 @@ impl Faraday {
     /// The mouse's back button: the screen's back link, or Escape; a
     /// screen it leaves can be opened again with the forward button.
     pub(crate) fn mouse_back(&mut self) {
+        // A press left to be drawn first is done before the Back, as for any input.
+        self.later_now();
         let before = self.screen;
         self.trail.begin_mouse_back(before);
         let link = self.trail.link_on(self.screen);
@@ -640,6 +642,7 @@ impl Faraday {
     /// while nothing else has been opened since and it can still be
     /// shown as it was left.
     pub(crate) fn mouse_forward(&mut self) {
+        self.later_now();
         if self.step_forward() {
             return;
         }

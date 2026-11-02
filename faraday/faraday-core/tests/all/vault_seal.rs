@@ -45,11 +45,11 @@ fn open(app: &mut Faraday) -> usize {
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
         if !app.vaults().open.is_empty() {
             break;
         }
-        let _ = app.frame();
-        app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     app.vaults()

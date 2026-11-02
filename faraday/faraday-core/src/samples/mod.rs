@@ -393,7 +393,7 @@ impl SampleKey {
             .any(|fp| keys.position_of(fp).is_some())
     }
 
-    /// Costs a stretched key and a master key; a backup, an Argon2id run.
+    /// Costs a stretched key and a master key (PBKDF2); drawn first, not a job.
     /// Adds the key the sample is to the session, with no passphrase,
     /// through the path a typed or scanned key of its form takes. False
     /// when the session refuses it (already there) or it loads no key.
@@ -641,8 +641,8 @@ impl Faraday {
         );
     }
 
-    /// Costs a stretched key and a master key for each key added (an
-    /// Argon2id run for the backup). The back half: the ticked wallets
+    /// Costs a stretched key and a master key for each key added
+    /// (PBKDF2). The back half: the ticked wallets
     /// read by the job go into the session, each with the sample keys it
     /// uses, then the ticked keys, through the paths a typed or scanned
     /// key and wallet take. One already loaded is skipped, not shown as
