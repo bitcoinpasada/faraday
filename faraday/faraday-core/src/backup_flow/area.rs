@@ -240,6 +240,14 @@ impl BackupFlowArea {
         }
     }
 
+    /// Marks slot `k` of flow `i` as the one the stick put in next is for
+    /// (`BackupFlow::want`).
+    pub(crate) fn want(&mut self, i: usize, k: usize) {
+        if let Some(f) = self.all.get_mut(i) {
+            f.want(k);
+        }
+    }
+
     /// The flows, for the tests' kit to set what they hold.
     #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn all_mut(&mut self) -> &mut Vec<BackupFlow> {

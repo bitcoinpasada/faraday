@@ -472,7 +472,7 @@ impl Faraday {
         if let Some(i) = self.flows.on() {
             let slot = (0..self.flows[i].slots.len()).find(|&k| self.flows[i].stick_number(k) == n);
             if let Some(k) = slot {
-                self.flows.all_mut()[i].want(k);
+                self.flows.want(i, k);
             }
         }
     }
