@@ -6638,6 +6638,8 @@ functions = [
   "faraday/faraday-keys/src/vault.rs::OpenVaults::opened_digest",
   "faraday/faraday-vault/src/lib.rs::Opened::copy_seals",
   "faraday/faraday-keys/src/vault.rs::slot_digest",
+  "faraday/faraday-keys/src/job.rs::StretchJob::run",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::adopt",
 ]
 code = [
   "faraday/faraday-vault/src/lib.rs::open",
@@ -6713,7 +6715,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "86f2de42b1044fbfded9aa60454443e4814f252f63d6d0addb44b875f70d9502"
+fingerprint = "9dbe73e8c3d553a7d3be6bc0a02bd372c7a4ce3a52ac552f422197bd152f3ad3"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
