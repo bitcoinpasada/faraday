@@ -51,6 +51,7 @@ need. Each document's header says what kind it is:
 | What are Practice and the developer builds? | `docs/DEMO.md` |
 | Why is a flow fast or slow, and how is costly work kept out of drawing? | `docs/SPEED.md`, `docs/COMPUTE.md` |
 | Which thread does costly work run on, and what does a screen do while it runs? | `docs/WORKERS.md` |
+| How does a frame reach the panel at its refresh rate: a scroll step, the cores, the panel's conversion and write? | `docs/FRAMES.md` |
 | How do the modes, Practice and its samples work? | `docs/MODES.md` |
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; how they are checked, `docs/deps/README.md`; the policy is DECISIONS F71 |
@@ -120,6 +121,7 @@ need. Each document's header says what kind it is:
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built as F174 has it; a stick Windows leaves whole (F182) and macOS keys checked against a Mac are not.
 - `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), not built.
 - `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. Planned, not built.
+- `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Planned, not built.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
