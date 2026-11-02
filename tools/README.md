@@ -3,8 +3,8 @@
 Every script and helper program in `tools/` and `faraday/tools/`. Stage is
 one of build, test, lint, release, generator, data or dev aid. Recipes are
 in `justfile` and `faraday/faraday.just`.
-`just lint` runs its four parts in order, each a recipe of its own:
-`lint-clippy`, `lint-deps`, `lint-repo` and `lint-macos`.
+`just lint` runs its five parts in order, each a recipe of its own:
+`lint-clippy`, `lint-deps`, `lint-repo`, `lint-macos` and `lint-touch-targets`.
 
 ## Which folder
 
@@ -23,7 +23,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below) |
-| `tools/touch-targets.counts` | ratchet | `just test` (faraday-snapshot's and faraday-starter's `targets::` tests, `docs/M3-CHECKS.md` §2) | press targets under 48 dp per size, screen and action kind; a count that rises fails, and so does one that falls until the file is lowered; `FARADAY_TARGETS_WRITE=1` with `-j 1` rewrites it |
+| `tools/touch-targets.counts` | ratchet | `just lint-touch-targets` (faraday-snapshot's and faraday-starter's ignored `targets::` tests, `docs/M3-CHECKS.md` §2) | press targets under 48 dp per size, screen and action kind; a count that rises fails, and so does one that falls until the file is lowered; `FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets` rewrites it |
 | `tools/lint-docs.sh` | lint | `just lint` | documentation lint (below) |
 | `tools/lint-layout.sh` | lint | `just lint` | layout lint: the code map, file sizes, long functions (below) |
 | `tools/lint-builds.py` | lint | `just lint` | `faraday/builds.toml`, the list of builds, against the recipes and the image directories (below) |

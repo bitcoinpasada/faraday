@@ -26,13 +26,14 @@ test-doc:
 # both Mac targets without a Mac (tools/check-macos.sh), the docs lint
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.sh), and the layout lint (the code map, file sizes and
-# long functions, counts that only fall, tools/lint-layout.sh), the tree
+# long functions, counts that only fall, tools/lint-layout.sh), the touch-target
+# ratchet (lint-touch-targets), the tree
 # lint (the top level's entries, no leftovers, no file over 2 MiB,
 # tools/lint-tree.sh), and cargo
 # vet: every dependency trusted, audited or exempted (F71), and the guide
 # lint (bold names are the app's strings, links resolve, tools/lint-guide.py).
 [group('lint')]
-lint: lint-clippy lint-deps lint-repo lint-macos
+lint: lint-clippy lint-deps lint-repo lint-macos lint-touch-targets
 
 # Clippy over the workspace, every target (the costliest part of the lint).
 [group('lint')]
@@ -126,6 +127,15 @@ lint-all:
 [group('lint')]
 lint-macos:
     tools/check-macos.sh
+
+# The touch-target ratchet (docs/M3-CHECKS.md §2): every snapshot tour of
+# Faraday and the Starter's example at the four sizes, held to
+# tools/touch-targets.counts. The tests are `#[ignore]`d for `just test`.
+# `FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets` writes the file
+# again after a change that lowers counts.
+[group('lint')]
+lint-touch-targets:
+    cargo nextest run --locked -p faraday-snapshot -p faraday-starter --run-ignored only -E 'test(/^targets::/)'
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
 # imports.lock, and drop exemptions they now cover (F71), keeping those

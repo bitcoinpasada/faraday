@@ -46,10 +46,8 @@ fn key_of(s: &Small) -> String {
     format!("{} {}", s.screen, kind(&format!("{:?}", s.action)))
 }
 
-/// The frames of the example's default run at one size, held to the
-/// counts file.
-fn at(name: &str, size: (u16, u16), dpi: u16) {
-    let started = std::time::Instant::now();
+/// The counted frames of the example's default run at one size.
+fn collect(name: &str, size: (u16, u16), dpi: u16) -> Vec<Small> {
     // The example writes its PDFs beside its pictures: into a folder of
     // its own, removed after.
     let work = std::env::temp_dir().join(format!("faraday-targets-{name}-{}", std::process::id()));
@@ -67,13 +65,19 @@ fn at(name: &str, size: (u16, u16), dpi: u16) {
     let _ = std::fs::remove_dir_all(&work);
     run.unwrap_or_else(|e| panic!("{name}: {e}"));
     let small = f32::from(size.0) / (f32::from(dpi) / 160.0) < 600.0;
-    let found: Vec<Small> = snap
-        .targets
+    snap.targets
         .expect("collected")
         .into_inner()
         .into_iter()
         .filter(|s| !excepted(&format!("{:?}", s.action), small))
-        .collect();
+        .collect()
+}
+
+/// The frames of the example's default run at one size, held to the
+/// counts file.
+fn at(name: &str, size: (u16, u16), dpi: u16) {
+    let started = std::time::Instant::now();
+    let found = collect(name, size, dpi);
     eprintln!("{name}: {} s", started.elapsed().as_secs());
     let mut now: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for s in &found {
@@ -125,7 +129,7 @@ fn at(name: &str, size: (u16, u16), dpi: u16) {
         let n = now.get(key).copied().unwrap_or(0);
         if n < *l {
             fail.push(format!(
-                "{key}: {n}, held at {l}: lower the line (FARADAY_TARGETS_WRITE=1, with -j 1)"
+                "{key}: {n}, held at {l}: lower the line (FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets)"
             ));
         }
     }
@@ -137,21 +141,32 @@ fn at(name: &str, size: (u16, u16), dpi: u16) {
 }
 
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn starter_240x320() {
     at("starter_240x320", (240, 320), 143);
 }
 
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn starter_480x640() {
     at("starter_480x640", (480, 640), 286);
 }
 
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn starter_1024x600() {
     at("starter_1024x600", (1024, 600), 170);
 }
 
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn starter_1280x800() {
     at("starter_1280x800", (1280, 800), 160);
+}
+
+/// The example's default run reaches its end at the smallest size, nothing
+/// counted: the ratchet above runs in `just lint-touch-targets`.
+#[test]
+fn example_runs_to_its_end() {
+    collect("starter_smoke", (240, 320), 143);
 }

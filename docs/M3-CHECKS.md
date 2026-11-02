@@ -92,7 +92,10 @@ A dimmed control takes no press and is not in the lists.
 
 A unit test module of the snapshot shell, `targets` in
 faraday/shells/snapshot/src/targets.rs (`faraday-snapshot` is a binary;
-nextest runs a binary's unit tests). The tours run as `just faraday-snap`
+nextest runs a binary's unit tests). The four size tests are `#[ignore]`d
+for `just test` and run by `just lint-touch-targets`, which also runs the
+Starter's; `just test` runs one test of each, every tour to its end at
+240 × 320, counting nothing. The tours run as `just faraday-snap`
 runs them (`faraday/shells/snapshot/src/tour.rs`), with two switches on
 the tour driver, `Tour`, which is the tool's state, not the app's:
 
@@ -104,7 +107,7 @@ The test kit is written into a temporary directory from
 `faraday_core::testkit::files()`, as `faraday-testkit` writes it, so the
 test needs nothing under `out/`.
 
-One test function a size, each running every named tour and the default
+One ignored test function a size, each running every named tour and the default
 tour at that size at Standard text:
 
 | Test | Size | Why |
@@ -149,11 +152,11 @@ there:
 desktop_1280x800 Backups Nav 7
 ```
 
-The test fails when a line's count rises or a key is new (listing the
+`just lint-touch-targets` fails when a line's count rises or a key is new (listing the
 targets of §2.4 that make it), and when a count falls (lower the line, so
 the ratchet only tightens). A rise is the owner's decision, recorded in
 DECISIONS (`structure.ratchet-raised`, §7). Writing the file again is
-`FARADAY_TARGETS_WRITE=1` on the test, for a change that lowers counts.
+`FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets`, for a change that lowers counts.
 
 ## 3. Exceptions
 

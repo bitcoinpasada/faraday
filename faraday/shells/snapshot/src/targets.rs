@@ -2,7 +2,8 @@
 //! §2): every press target a frame offers is at least `TOUCH` square,
 //! unless its control is cut by a clip or it is an exception of §3, and
 //! what is under the floor today is held in `tools/touch-targets.counts`,
-//! which only falls. The tool writes the counted targets of a run to
+//! which only falls. The ratchet runs in `just lint-touch-targets`. The tool writes the
+//! counted targets of a run to
 //! `targets.txt` beside its pictures.
 
 use crate::tour::Small;
@@ -183,7 +184,7 @@ fn at(name: &str, size: (u16, u16), dpi: u16) {
         let n = now.get(key).copied().unwrap_or(0);
         if n < *l {
             fail.push(format!(
-                "{key}: {n}, held at {l}: lower the line (FARADAY_TARGETS_WRITE=1, with -j 1)"
+                "{key}: {n}, held at {l}: lower the line (FARADAY_TARGETS_WRITE=1 NEXTEST_TEST_THREADS=1 just lint-touch-targets)"
             ));
         }
     }
@@ -196,24 +197,39 @@ fn at(name: &str, size: (u16, u16), dpi: u16) {
 
 #[cfg(test)]
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn small_240x320() {
     at("small_240x320", (240, 320), 143);
 }
 
 #[cfg(test)]
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn small_480x640() {
     at("small_480x640", (480, 640), 286);
 }
 
 #[cfg(test)]
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn stick_1024x600() {
     at("stick_1024x600", (1024, 600), 170);
 }
 
 #[cfg(test)]
 #[test]
+#[ignore = "the ratchet: `just lint-touch-targets` runs it"]
 fn desktop_1280x800() {
     at("desktop_1280x800", (1280, 800), 160);
+}
+
+/// Every tour runs to its end at the smallest size, nothing counted: the
+/// ratchet above runs in `just lint-touch-targets`.
+#[cfg(test)]
+#[test]
+fn every_tour_runs_to_its_end() {
+    let work = std::env::temp_dir().join(format!("faraday-targets-smoke-{}", std::process::id()));
+    let run = collect((240, 320), 143, &work);
+    let _ = std::fs::remove_dir_all(&work);
+    run.unwrap_or_else(|e| panic!("{e}"));
 }
