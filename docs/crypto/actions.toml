@@ -3853,6 +3853,7 @@ functions = [
   "faraday/faraday-keys/src/lightning.rs::Node::private_hex",
   "faraday/faraday-keys/src/operations.rs::Keys::lightning_node",
   "faraday/faraday-keys/src/lightning.rs::Keys::node_from_aezeed",
+  "faraday/faraday-keys/src/lightning.rs::AezeedJob::run",
 ]
 code = [
   "core/faraday-bip/src/aezeed.rs::node_key",
@@ -3900,7 +3901,7 @@ lines = [
 ]
 
 [action.review]
-fingerprint = "00ac73ff9aa7747a71c467339a7c605fd07c4075c3b6239ed3051c605763a90a"
+fingerprint = "ab5d90b6f79869ab5954f9712cf2e4c7674598b020a9783bc2f1693d9e591e29"
 reviewed = "2026-11-02"
 places = [
   "core/faraday-bip/README.md",
@@ -7035,12 +7036,12 @@ functions = [
   "core/faraday-backup/src/kdbx.rs::hmac",
   "core/faraday-backup/src/kdbx.rs::chacha20",
   "core/faraday-backup/src/lib.rs::argon2id",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_entry",
-  "faraday/faraday-core/src/vault/mod.rs::Faraday::vault_kdbx",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_job",
+  "faraday/faraday-keys/src/job.rs::KdbxJob::run",
 ]
 code = [
   "core/faraday-backup/src/kdbx.rs::write",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_entry",
+  "faraday/faraday-keys/src/job.rs::KdbxJob::run",
 ]
 
 [[action.screens_not]]
@@ -7110,7 +7111,7 @@ kind = "Neutral"
 decision = "F154"
 
 [action.review]
-fingerprint = "f19646cfcd1d0ca990bc1aefb25322df70f2a97c2b4ff7e6349fc1c3147f940a"
+fingerprint = "b9e1bdef2d9dd7ecb40dd5822610f8ce3964d60549582ab839fea2603d82a55b"
 reviewed = "2026-11-02"
 places = [
   "docs/KDBX.md",
@@ -7909,7 +7910,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "c09f70cba8353579f540e7d9cc3bbbfaa3dbafa21e07403b1b7b87fe03ddacef"
+fingerprint = "179de2797507a02ab77fc7ae098161d1d3c4a604eadb971cf50a7c8fd7da084f"
 reviewed = "2026-11-02"
 places = ["docs/AUDIT.md"]
 

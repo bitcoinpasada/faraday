@@ -107,23 +107,69 @@ pub fn wipe_words(words: &mut [u16; AEZEED_WORDS]) {
     words.zeroize();
 }
 
+/// An aezeed read to run on another thread (`docs/WORKERS.md` §6): the
+/// word indices and the passphrase, moved in, wiped as they drop.
+pub struct AezeedJob {
+    words: Zeroizing<[u16; AEZEED_WORDS]>,
+    passphrase: faraday_intake::secret_buf::SecretText,
+    network: Network,
+}
+
+/// What an [`AezeedJob`] gives back: the node key, or why the words are
+/// no aezeed. It joins the screen through [`crate::Keys::aezeed_node`], on
+/// the main thread, and wipes as it drops.
+pub struct AezeedRead {
+    found: Result<Node, String>,
+}
+
+impl AezeedJob {
+    /// Costs what [`node_from_aezeed`] costs. The read, with its inputs
+    /// wiped as it ends.
+    pub fn run(self, c: &Compute) -> AezeedRead {
+        AezeedRead {
+            found: node_from_aezeed(c, &self.words, self.passphrase.as_bytes(), self.network),
+        }
+    }
+}
+
 impl crate::Keys {
+    /// A read of the aezeed `words` (indices into the English list) under
+    /// `passphrase`, which is moved in, on the store's network.
+    pub fn aezeed_job(
+        &self,
+        words: &[u16; AEZEED_WORDS],
+        passphrase: faraday_intake::secret_buf::SecretText,
+    ) -> AezeedJob {
+        AezeedJob {
+            words: Zeroizing::new(*words),
+            passphrase,
+            network: self.network(),
+        }
+    }
+
+    /// The node key an aezeed read gave; while the demo is on, refused
+    /// unless the node is a public one ([`crate::Keys::is_public_node`]),
+    /// as a key that is not a sample is: whatever else is typed would be
+    /// someone's real node. The refused key wipes as it drops.
+    pub fn aezeed_node(&self, read: AezeedRead) -> Result<Node, String> {
+        let node = read.found?;
+        if !self.is_public_node(node.public()) {
+            let id: String = node.public().iter().map(|b| format!("{b:02x}")).collect();
+            return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
+        }
+        Ok(node)
+    }
+
     /// Costs what [`node_from_aezeed`] costs. The node key an aezeed gives,
-    /// on the store's network; while the demo is on, refused unless the
-    /// node is a public one ([`crate::Keys::is_public_node`]), as a key
-    /// that is not a sample is: whatever else is typed would be someone's
-    /// real node.
+    /// on the store's network, with [`crate::Keys::aezeed_node`]'s refusal.
     pub fn node_from_aezeed(
         &self,
         c: &Compute,
         words: &[u16; AEZEED_WORDS],
         passphrase: &[u8],
     ) -> Result<Node, String> {
-        let node = node_from_aezeed(c, words, passphrase, self.network())?;
-        if !self.is_public_node(node.public()) {
-            let id: String = node.public().iter().map(|b| format!("{b:02x}")).collect();
-            return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
-        }
-        Ok(node)
+        self.aezeed_node(AezeedRead {
+            found: node_from_aezeed(c, words, passphrase, self.network()),
+        })
     }
 }

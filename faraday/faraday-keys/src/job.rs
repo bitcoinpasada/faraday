@@ -136,3 +136,62 @@ impl Stretched {
         }
     }
 }
+
+/// A KeePass database to write on another thread: the entry's text and
+/// password and the passphrase it is sealed under, moved in, with the
+/// randomness the file needs. Everything wipes as the job ends.
+pub struct KdbxJob {
+    title: Vec<u8>,
+    notes: Zeroizing<Vec<u8>>,
+    password: Zeroizing<Vec<u8>>,
+    passphrase: SecretText,
+    seed: Zeroizing<[u8; crate::vault::KDBX_SEED_LEN]>,
+}
+
+impl KdbxJob {
+    pub(crate) fn new(
+        title: Vec<u8>,
+        notes: Zeroizing<Vec<u8>>,
+        password: Zeroizing<Vec<u8>>,
+        passphrase: SecretText,
+        seed: Zeroizing<[u8; crate::vault::KDBX_SEED_LEN]>,
+    ) -> KdbxJob {
+        KdbxJob {
+            title,
+            notes,
+            password,
+            passphrase,
+            seed,
+        }
+    }
+
+    /// Costs two Argon2id runs: a KDBX 4 database's own and the check after
+    /// it ([`crate::vault::write_kdbx`], then `faraday_backup::kdbx::verify`
+    /// under the same passphrase). The file, encrypted so public; an error
+    /// where the entry does not fit or the file written does not verify,
+    /// and then no file is given back.
+    pub fn run(self, c: &Compute) -> Result<Vec<u8>, KdbxError> {
+        let file = crate::vault::write_kdbx(
+            c,
+            &self.title,
+            &self.notes,
+            &self.password,
+            self.passphrase.as_bytes(),
+            &self.seed,
+        )
+        .ok_or(KdbxError::TooLarge)?;
+        if !faraday_backup::kdbx::verify(c, &file, self.passphrase.as_bytes()) {
+            return Err(KdbxError::NotVerified);
+        }
+        Ok(file)
+    }
+}
+
+/// Why a KeePass export gave no file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KdbxError {
+    /// The entry does not fit in the database.
+    TooLarge,
+    /// The file written did not verify under its passphrase.
+    NotVerified,
+}

@@ -1796,6 +1796,18 @@ pub fn settle(app: &mut crate::Faraday) {
     app.settle_jobs();
 }
 
+/// Waits for the answer of a job that Back, Escape or a lock made stale,
+/// and takes it as the next tick does, so a test can see it was dropped.
+/// Call it only with such a job outstanding (and the worker released).
+pub fn settle_stale(app: &mut crate::Faraday) {
+    app.settle_stale_job();
+}
+
+/// How many jobs have been asked of the worker so far.
+pub fn jobs_asked(app: &crate::Faraday) -> u64 {
+    app.worker.asked()
+}
+
 /// A press as a person's is: its job goes to the worker, and the answer
 /// is applied by [`settle`] or the next event.
 pub fn press_on_worker(app: &mut crate::Faraday, action: crate::Action) {

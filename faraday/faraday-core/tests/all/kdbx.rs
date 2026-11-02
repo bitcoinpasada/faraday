@@ -16,9 +16,9 @@ fn settle(app: &mut Faraday, from: u64) {
     }
 }
 
-#[test]
-fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
-    let c = testkit::compute();
+/// A device with an entry open on its page and the passphrase of its
+/// KeePass export typed, the press that writes it still to come.
+fn at_the_export_prompt() -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -76,8 +76,27 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     app.press(Action::Vault(V::Item(entries - 1)));
     app.press(Action::Vault(V::ExportKdbx));
     type_text(&mut app, "keepass passphrase");
-    app.press(Action::Vault(V::PromptGo));
-    settle(&mut app, 30);
+    app
+}
+
+#[test]
+fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
+    let c = testkit::compute();
+    let mut app = at_the_export_prompt();
+    // A person's press: the file is written on the worker.
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    for t in 30..40 {
+        if app.busy().is_some() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(
+        app.busy().is_some(),
+        "the screen is busy while it is sealed"
+    );
+    testkit::settle(&mut app);
     let file = app
         .outbox
         .iter()
@@ -122,4 +141,52 @@ fn header_field(file: &[u8], id: u8) -> &[u8] {
         assert_ne!(file[at], 0, "no field {id}");
         at += 5 + len;
     }
+}
+
+fn kdbx_files(app: &Faraday) -> usize {
+    app.outbox
+        .iter()
+        .filter(|i| i.name.ends_with(".kdbx"))
+        .count()
+}
+
+#[test]
+fn back_during_a_keepass_export_leaves_no_file() {
+    let mut app = at_the_export_prompt();
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    for t in 30..40 {
+        if app.busy().is_some() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(app.busy().is_some());
+    app.press(Action::Back);
+    assert!(app.busy().is_none());
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    settle(&mut app, 100);
+    assert_eq!(kdbx_files(&app), 0);
+}
+
+#[test]
+fn a_lock_during_a_keepass_export_leaves_no_file() {
+    let mut app = at_the_export_prompt();
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    for t in 30..40 {
+        if app.busy().is_some() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(app.busy().is_some());
+    app.press(Action::LockUnsealed);
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    settle(&mut app, 100);
+    assert_eq!(kdbx_files(&app), 0);
 }

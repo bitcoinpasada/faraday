@@ -156,6 +156,7 @@ fn lightning_left_by_a_tap_forgets_the_node_key_shown() {
     let _ = app.frame();
     let now = app.now_ms() + 16;
     app.event(Event::Tick { now_ms: now });
+    faraday_core::testkit::settle(&mut app);
     assert!(app.lightning().unwrap().node.is_some());
     let shown = revealed(&mut app, Action::LShow);
     tap(&mut app, Action::Nav(Screen::Settings));

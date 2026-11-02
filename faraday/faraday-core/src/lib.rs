@@ -6030,7 +6030,7 @@ impl App for Faraday {
                 self.typing.blink_from(self.now_ms);
                 if self.sheet == Some(Sheet::IdleWarn) {
                     self.sheet = None;
-                } else if self.key_slow(k) {
+                } else if self.later_then_slow(k) {
                     // Drawn first, done on the tick after (`docs/SPEED.md`
                     // §9).
                     self.later_now();

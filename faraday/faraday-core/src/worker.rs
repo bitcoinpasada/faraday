@@ -20,6 +20,10 @@ pub enum Kind {
     SamplesLoad,
     /// A vault opened or made: its Argon2id runs.
     VaultStretch,
+    /// An aezeed read: its scrypt runs.
+    AezeedRead,
+    /// A KeePass database written: its Argon2id runs.
+    KdbxWrite,
 }
 
 impl Kind {
@@ -27,7 +31,7 @@ impl Kind {
     /// (the jobs that follow typing, `docs/WORKERS.md` §3.2).
     fn latest_wins(self) -> bool {
         match self {
-            Kind::SamplesLoad | Kind::VaultStretch => false,
+            Kind::SamplesLoad | Kind::VaultStretch | Kind::AezeedRead | Kind::KdbxWrite => false,
         }
     }
 }
@@ -53,12 +57,16 @@ pub struct Busy {
 pub(crate) enum Job {
     SamplesLoad(Box<crate::samples::LoadJob>),
     Stretch(Box<crate::vault::StretchWork>),
+    Aezeed(Box<crate::lightning::ReadWork>),
+    Kdbx(Box<crate::vault::KdbxWork>),
 }
 
 /// What a job gives back.
 pub(crate) enum Done {
     SamplesLoad(Box<crate::samples::Loaded>),
     Stretch(Box<crate::vault::StretchDone>),
+    Aezeed(Box<crate::lightning::ReadDone>),
+    Kdbx(Box<crate::vault::KdbxDone>),
 }
 
 impl Job {
@@ -66,6 +74,8 @@ impl Job {
         match self {
             Job::SamplesLoad(_) => Kind::SamplesLoad,
             Job::Stretch(_) => Kind::VaultStretch,
+            Job::Aezeed(_) => Kind::AezeedRead,
+            Job::Kdbx(_) => Kind::KdbxWrite,
         }
     }
 
@@ -74,6 +84,8 @@ impl Job {
         match self {
             Job::SamplesLoad(j) => Done::SamplesLoad(Box::new(j.run(c))),
             Job::Stretch(j) => Done::Stretch(Box::new(j.run(c))),
+            Job::Aezeed(j) => Done::Aezeed(Box::new(j.run(c))),
+            Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
         }
     }
 }
@@ -188,6 +200,12 @@ impl Worker {
         let link = self.link.get_or_insert_with(|| spawn(wake));
         // The thread lives as long as this end does.
         let _ = link.ask.send(Asked { job, generation });
+    }
+
+    /// How many jobs have been asked of the worker.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn asked(&self) -> u64 {
+        self.generation
     }
 
     /// Makes the running job's answer stale.

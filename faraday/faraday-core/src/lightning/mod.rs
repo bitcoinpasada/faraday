@@ -30,6 +30,27 @@ pub enum NodeSource {
 /// The node key, once found.
 pub use faraday_keys::lightning::Node;
 
+/// An aezeed read to run on the worker: faraday-keys' job, holding the
+/// words and the passphrase.
+pub(crate) struct ReadWork {
+    job: faraday_keys::lightning::AezeedJob,
+}
+
+/// An aezeed read's answer: the node key or why there is none, inside
+/// faraday-keys' type.
+pub(crate) struct ReadDone {
+    read: faraday_keys::lightning::AezeedRead,
+}
+
+impl ReadWork {
+    /// Costs an aezeed's scrypt and a key derivation.
+    pub(crate) fn run(self, c: &Compute) -> ReadDone {
+        ReadDone {
+            read: self.job.run(c),
+        }
+    }
+}
+
 /// What the Lightning screen holds.
 pub struct LightningState {
     /// The source chosen.
@@ -84,8 +105,7 @@ impl LightningArea {
         self.state = None;
     }
 
-    /// Costs a key derivation, and an aezeed's scrypt. Finds the node key
-    /// for the source chosen.
+    /// Costs a key derivation. Finds the node key of the loaded key chosen.
     pub(crate) fn resolve(&mut self, c: &Compute, keys: &Keys) {
         let Some(l) = self.state.as_ref() else {
             return;
@@ -97,29 +117,57 @@ impl LightningArea {
                     Some(node) => node,
                 }
             }
-            Some(NodeSource::Aezeed) => {
-                let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
-                let words: Vec<&str> = l.typed.split_whitespace().collect();
-                if words.len() != faraday_keys::lightning::AEZEED_WORDS {
-                    Err(fill(EN.lightning_an_aezeed, &[&words.len().to_string()]))
-                } else if let Some(k) = words
-                    .iter()
-                    .position(|w| Language::English.index_of(w).is_none())
-                {
-                    Err(fill(EN.lightning_word_not_in_list, &[&(k + 1).to_string()]))
-                } else {
-                    for (slot, w) in idx.iter_mut().zip(&words) {
-                        *slot = Language::English.index_of(w).unwrap_or(0);
-                    }
-                    let r = keys
-                        .node_from_aezeed(c, &idx, l.passphrase.as_bytes())
-                        .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
-                    faraday_keys::lightning::wipe_words(&mut idx);
-                    r
-                }
-            }
-            None => return,
+            // A cipher seed is read on the worker ([`LightningArea::read_job`]).
+            Some(NodeSource::Aezeed) | None => return,
         };
+        if let Some(l) = self.state.as_mut() {
+            match found {
+                Ok(n) => {
+                    l.node = Some(n);
+                    l.error = None;
+                }
+                Err(e) => l.error = Some(e),
+            }
+        }
+    }
+
+    /// The typed words checked and, when they are an aezeed's twenty-four,
+    /// the read to run on the worker: the words as indices and a copy of
+    /// the passphrase, both wiped with the job. Says why not otherwise.
+    pub(crate) fn read_job(&mut self, keys: &Keys) -> Option<ReadWork> {
+        let l = self.state.as_mut()?;
+        if l.source != Some(NodeSource::Aezeed) {
+            return None;
+        }
+        let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
+        let words: Vec<&str> = l.typed.split_whitespace().collect();
+        let refused = if words.len() != faraday_keys::lightning::AEZEED_WORDS {
+            Some(fill(EN.lightning_an_aezeed, &[&words.len().to_string()]))
+        } else if let Some(k) = words
+            .iter()
+            .position(|w| Language::English.index_of(w).is_none())
+        {
+            Some(fill(EN.lightning_word_not_in_list, &[&(k + 1).to_string()]))
+        } else {
+            for (slot, w) in idx.iter_mut().zip(&words) {
+                *slot = Language::English.index_of(w).unwrap_or(0);
+            }
+            None
+        };
+        if refused.is_some() {
+            l.error = refused;
+            return None;
+        }
+        let job = keys.aezeed_job(&idx, crate::secret_text::SecretText::of(&l.passphrase));
+        faraday_keys::lightning::wipe_words(&mut idx);
+        Some(ReadWork { job })
+    }
+
+    /// An aezeed read's answer, applied on the main thread.
+    pub(crate) fn read_done(&mut self, keys: &Keys, done: ReadDone) {
+        let found = keys
+            .aezeed_node(done.read)
+            .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
         if let Some(l) = self.state.as_mut() {
             match found {
                 Ok(n) => {
@@ -177,15 +225,9 @@ impl LightningArea {
                 .is_some_and(|l| l.source == Some(NodeSource::Aezeed))
     }
 
-    /// Costs the aezeed's scrypt on Enter. Typing the aezeed and its
-    /// passphrase, on `screen`. Returns whether the key was taken. Escape leaves the screen for where it came from.
-    pub(crate) fn key(
-        &mut self,
-        key: faraday_shell_api::Key,
-        screen: &mut Screen,
-        c: &Compute,
-        keys: &Keys,
-    ) -> bool {
+    /// Typing the aezeed and its passphrase, on `screen`. Returns whether
+    /// the key was taken. Escape leaves the screen for where it came from.
+    pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
         use faraday_shell_api::Key as K;
         if *screen != Screen::Lightning {
             return false;
@@ -224,9 +266,9 @@ impl LightningArea {
                 field.pop();
             }
             K::Tab => l.on_passphrase = !l.on_passphrase,
+            // The read itself is started by `Faraday::lightning_key`.
             K::Enter => {
                 l.on_passphrase = false;
-                self.resolve(c, keys);
                 return true;
             }
             _ => return false,
@@ -299,6 +341,7 @@ impl Faraday {
                 self.lightning.open(self.screen);
                 self.screen = Screen::Lightning;
             }
+            A::LResolve if self.lightning_reads_aezeed() => self.lightning_read(),
             A::LResolve => {
                 let c = self.compute();
                 self.lightning.resolve(&c, &self.session.keys);
@@ -355,18 +398,54 @@ impl Faraday {
     }
 
     /// Whether `key` is left for the tick after a frame: Enter where it
-    /// reads an aezeed, which scrypt stretches for seconds on a Pi.
+    /// reads an aezeed, which scrypt stretches for seconds on a Pi. Not
+    /// while a job runs: then the key is refused as every key is.
     pub(crate) fn key_slow(&self, key: faraday_shell_api::Key) -> bool {
         key == faraday_shell_api::Key::Enter
+            && self.worker.busy().is_none()
             && self.screen == Screen::Lightning
             && self.lightning_reads_aezeed()
     }
 
+    /// [`Faraday::key_slow`] once a key waiting from before is taken, so a
+    /// job it starts is seen running.
+    pub(crate) fn later_then_slow(&mut self, key: faraday_shell_api::Key) -> bool {
+        self.later_now();
+        self.key_slow(key)
+    }
+
+    /// Starts the aezeed read on the worker.
+    fn lightning_read(&mut self) {
+        let Some(job) = self.lightning.read_job(&self.session.keys) else {
+            return;
+        };
+        self.start(
+            crate::worker::Job::Aezeed(Box::new(job)),
+            EN.working_node_key,
+        );
+    }
+
+    /// The aezeed read's answer. Dropped, and wiped, where the screen was
+    /// left meanwhile.
+    pub(crate) fn aezeed_read(&mut self, done: ReadDone) {
+        if self.screen == Screen::Lightning {
+            self.lightning.read_done(&self.session.keys, done);
+        }
+    }
+
     /// Typing the aezeed and its passphrase. Returns whether the key was
-    /// taken.
+    /// taken. Enter reads the aezeed, on the worker.
     pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        let c = self.compute();
-        self.lightning
-            .key(key, &mut self.screen, &c, &self.session.keys)
+        use faraday_shell_api::Key as K;
+        // Escape leaves the screen: a read under way has nowhere to go.
+        if key == K::Escape && self.screen == Screen::Lightning {
+            self.taken_while_busy(crate::Action::Back);
+        }
+        let reads = key == K::Enter && self.lightning_reads_aezeed();
+        let taken = self.lightning.key(key, &mut self.screen);
+        if taken && reads {
+            self.lightning_read();
+        }
+        taken
     }
 }

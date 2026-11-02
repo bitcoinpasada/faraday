@@ -38,6 +38,7 @@ fn an_lnd_cipher_seed_gives_lnds_node_id() {
     let _ = app.frame();
     let now = app.now_ms() + 16;
     app.event(Event::Tick { now_ms: now });
+    faraday_core::testkit::settle(&mut app);
     let l = app.lightning().unwrap();
     let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
     assert_eq!(hex(n.public()), NODE_KEY);
@@ -103,6 +104,7 @@ fn the_node_id_reads_back_from_its_code_and_its_picture() {
     let _ = app.frame();
     let now = app.now_ms() + 16;
     app.event(Event::Tick { now_ms: now });
+    faraday_core::testkit::settle(&mut app);
     app.press(Action::LShow);
     assert_eq!(
         codes_offered(&mut app),

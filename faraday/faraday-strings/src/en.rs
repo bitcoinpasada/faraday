@@ -8746,6 +8746,8 @@ strings! {
     vaults_waits_sealed: "{} waits {}, sealed",
     /// Error in `vault_kdbx`.
     vaults_entry_too_large_kdbx: "That entry is too large for a KeePass export",
+    /// Error when the KeePass export does not verify after it is written.
+    vaults_kdbx_unverified: "The KeePass file written did not verify. No file was made",
     /// Toast in `vault_delete`.
     vaults_deleted_toast: "Deleted from the vault",
     /// Toast in `vault_load_selected`. `{}`: `crate::wallet::fp_text(fp)`.

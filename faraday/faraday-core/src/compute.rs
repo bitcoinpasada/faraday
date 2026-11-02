@@ -154,6 +154,15 @@ impl Faraday {
         self.drain_jobs();
     }
 
+    /// Waits for the answer of a job made stale and takes it, as the next
+    /// tick does: for the tests of a dropped answer (`testkit::settle_stale`).
+    #[cfg(feature = "testkit")]
+    pub(crate) fn settle_stale_job(&mut self) {
+        let answer = self.worker.wait_answer().expect("no answer came");
+        self.take_answer(answer);
+        self.drain_jobs();
+    }
+
     fn take_answer(&mut self, answer: Answer) {
         answer.absorb();
         let Ok(done) = answer.done else {
@@ -175,6 +184,8 @@ impl Faraday {
         match done {
             Done::SamplesLoad(l) => self.samples_loaded(*l),
             Done::Stretch(s) => crate::vault::stretch::stretched(self, *s),
+            Done::Aezeed(r) => self.aezeed_read(*r),
+            Done::Kdbx(k) => crate::vault::stretch::kdbx_written(self, *k),
         }
     }
 

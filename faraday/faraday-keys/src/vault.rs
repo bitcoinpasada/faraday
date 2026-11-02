@@ -1104,28 +1104,23 @@ impl OpenVaults {
         })
     }
 
-    /// Costs a KDBX 4 database's Argon2id run. A KeePass database holding
-    /// entry `i` of open vault `id` (under `words.title`, its notes with
-    /// its username and URL put before them under `words`, and its
-    /// password), sealed under `passphrase`, with its randomness from
-    /// `seed`. A line of the notes that is a BIP-85 path is left out, so
-    /// a password BIP-85 made goes without its index (F172). The bytes
-    /// are encrypted, so public. `None` where the record is no entry or
-    /// the entry does not fit.
-    pub fn kdbx_entry(
+    /// A KeePass database to write on another thread: what
+    /// [`crate::job::KdbxJob::run`] writes, the passphrase moved in. A line
+    /// of the notes that is a BIP-85 path is left out, so a password
+    /// BIP-85 made goes without its index (F172). `None` where the record
+    /// is no entry.
+    pub fn kdbx_job(
         &self,
-        c: &Compute,
         at: (VaultId, usize),
         words: &KdbxWords<'_>,
-        passphrase: &[u8],
-        seed: &[u8; KDBX_SEED_LEN],
-    ) -> Option<Vec<u8>> {
+        passphrase: faraday_intake::secret_buf::SecretText,
+        seed: Zeroizing<[u8; KDBX_SEED_LEN]>,
+    ) -> Option<crate::job::KdbxJob> {
         let (id, i) = at;
         let r = self.slot(id)?.records.records.get(i)?;
         if r.kind != kind::ENTRY {
             return None;
         }
-        let title = words.title;
         let mut notes = String::new();
         for (label, f) in [(words.username, field::USERNAME), (words.url, field::URL)] {
             if let Some(v) = r.text(f) {
@@ -1139,15 +1134,14 @@ impl OpenVaults {
                 }
             }
         }
-        let notes = Zeroizing::new(notes);
-        write_kdbx(
-            c,
-            title.as_bytes(),
-            notes.as_bytes(),
-            r.field(field::PASSWORD).unwrap_or(&[]),
+        let notes = Zeroizing::new(notes.into_bytes());
+        Some(crate::job::KdbxJob::new(
+            words.title.as_bytes().to_vec(),
+            notes,
+            Zeroizing::new(r.field(field::PASSWORD).unwrap_or(&[]).to_vec()),
             passphrase,
             seed,
-        )
+        ))
     }
 
     // ---- GPG keys ----

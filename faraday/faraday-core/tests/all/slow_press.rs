@@ -181,10 +181,13 @@ fn an_aezeed_is_stretched_after_the_frame_that_shows_enter() {
         Some(EN.working_node_key),
         "the frame drawn first says so"
     );
-    let done = frame_then_tick(&mut app);
-    assert!(
-        done.of(Work::Kdf) > 0,
-        "the tick after stretched it: {done:?}"
-    );
+    let _ = app.frame();
+    let before = snapshot();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    assert!(app.busy().is_some(), "the tick started it on the worker");
+    testkit::settle(&mut app);
+    let done = since(&before);
+    assert!(done.of(Work::Kdf) > 0, "the worker stretched it: {done:?}");
     assert!(app.lightning().unwrap().node.is_some(), "the node key");
 }

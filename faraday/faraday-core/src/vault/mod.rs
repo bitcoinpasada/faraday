@@ -28,7 +28,7 @@ mod summaries;
 pub use area::*;
 pub use seals::{OlderHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
-pub(crate) use stretch::{StretchDone, StretchWork};
+pub(crate) use stretch::{KdbxDone, KdbxWork, StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
 use crate::stick;
@@ -1066,8 +1066,7 @@ impl Faraday {
                 if p.text.text.chars().count() < 8 {
                     p.error = Some(EN.vaults_a_passphrase.to_string());
                 } else {
-                    self.vaults.state.working = Some(Work::Kdbx);
-                    self.vaults.state.drawn = false;
+                    stretch::defer(self, Work::Kdbx);
                 }
             }
             Purpose::KeyPassphrase => {
@@ -1118,10 +1117,11 @@ impl Faraday {
             self.vaults.state.ms_per_unit = Some(now_ms.saturating_sub(t0).max(1));
             redraw = true;
         }
-        // An unlock and a create are jobs, started by `Later::Vault`.
+        // An unlock, a create and a KeePass export are jobs, started by
+        // `Later::Vault`.
         if let Some(work) = self.vaults.working
             && self.vaults.drawn
-            && !matches!(work, Work::Unlock | Work::Create)
+            && !matches!(work, Work::Unlock | Work::Create | Work::Kdbx)
         {
             self.vaults.state.working = None;
             match work {
@@ -1139,9 +1139,8 @@ impl Faraday {
                     faraday_keys::vault::measure(&c, &header);
                     work::note_vault(VaultAct::Measured, header.cost, VaultEnded::Ran);
                 }
-                Work::Unlock | Work::Create => {}
+                Work::Unlock | Work::Create | Work::Kdbx => {}
                 Work::FlowMake => self.flow_make_work(),
-                Work::Kdbx => self.vault_kdbx(),
             }
             redraw = true;
         }
@@ -1554,75 +1553,6 @@ impl Faraday {
         wallets += self.session.wallets.len() - before;
         self.refresh_spend();
         (keys, wallets)
-    }
-
-    /// The selected entry as a KeePass database sealed under the prompt's
-    /// passphrase, to the Outbox: sealed, so it goes as it is.
-    fn vault_kdbx(&mut self) {
-        let c = self.compute();
-        let Some(at) = self.vault_selected_index() else {
-            return;
-        };
-        let Some(id) = self.vaults.current_id() else {
-            return;
-        };
-        let Some(title) = self
-            .vaults
-            .records(id)
-            .get(at)
-            .filter(|r| r.kind() == kind::ENTRY)
-            .map(|r| {
-                r.public_text(field::TITLE)
-                    .unwrap_or(EN.vaults_entry)
-                    .to_string()
-            })
-        else {
-            return;
-        };
-        let Some(passphrase) = self
-            .vaults
-            .prompt
-            .as_ref()
-            .map(|p| Zeroizing::new(p.text.text.to_string()))
-        else {
-            return;
-        };
-        // The database's own randomness, every byte the format needs
-        // taken fresh.
-        let Some(draw) = self.fresh_bytes(b"kdbx", faraday_keys::vault::KDBX_SEED_LEN) else {
-            if let Some(p) = self.vaults.state.prompt.as_mut() {
-                p.error = Some(EN.vaults_no_randomness.to_string());
-            }
-            return;
-        };
-        let mut seed = Zeroizing::new([0u8; faraday_keys::vault::KDBX_SEED_LEN]);
-        seed.copy_from_slice(&draw);
-        let (out, name) = crate::bip85::kdbx_out(&self.outbox, &title);
-        let words = faraday_keys::vault::KdbxWords {
-            title: out,
-            username: EN.vaults_username,
-            url: EN.vaults_url,
-        };
-        match self
-            .vaults
-            .store()
-            .kdbx_entry(&c, (id, at), &words, passphrase.as_bytes(), &seed)
-        {
-            Some(file) => {
-                self.vaults.state.prompt = None;
-                self.vaults.state.focus = None;
-                self.put_outbox(&name, file);
-                self.toast(&fill(
-                    EN.vaults_waits_sealed,
-                    &[&name.to_string(), self.medium.for_the()],
-                ));
-            }
-            None => {
-                if let Some(p) = self.vaults.state.prompt.as_mut() {
-                    p.error = Some(EN.vaults_entry_too_large_kdbx.to_string());
-                }
-            }
-        }
     }
 
     /// The position in the slot of the item selected in the kind shown.

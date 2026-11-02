@@ -656,6 +656,7 @@ fn an_aezeed_read_at_a_scanner_is_used_in_lightning() {
         let _ = app.frame();
         let now = app.now_ms() + 16;
         app.event(Event::Tick { now_ms: now });
+        faraday_core::testkit::settle(&mut app);
         let l = app.lightning().unwrap();
         let n = l
             .node

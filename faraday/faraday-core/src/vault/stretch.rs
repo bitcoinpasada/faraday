@@ -1,12 +1,13 @@
 //! A vault's Argon2id runs as jobs on the worker (`docs/WORKERS.md` §6,
 //! `docs/KEYS.md` §2): opening a vault (an Unlock on the Vaults tab, the
-//! Spend tab, the boot import, a backup flow) and making one. The front
+//! Spend tab, the boot import, a backup flow), making one, and writing a
+//! KeePass export. The front
 //! half reads the state and builds the job, the passphrase moved into
 //! faraday-keys' [`StretchJob`]; the back half takes the answer, on the
 //! main thread, and the open vault joins the store there.
 
 use faraday_crypto::work::Compute;
-use faraday_keys::job::{StretchJob, Stretched};
+use faraday_keys::job::{KdbxError, KdbxJob, StretchJob, Stretched};
 use faraday_vault::{Contents, Cost, Record, records::field, records::kind};
 use zeroize::Zeroizing;
 
@@ -77,6 +78,7 @@ pub(crate) fn work(app: &mut Faraday, work: Work) {
     let started = match work {
         Work::Unlock => unlock_start(app),
         Work::Create => create_start(app),
+        Work::Kdbx => kdbx_start(app),
         _ => false,
     };
     if !started {
@@ -87,7 +89,10 @@ pub(crate) fn work(app: &mut Faraday, work: Work) {
 /// The vault job is over, or was never started: the screens stop
 /// saying it runs.
 pub(crate) fn ended(app: &mut Faraday) {
-    if matches!(app.vaults.state.working, Some(Work::Unlock | Work::Create)) {
+    if matches!(
+        app.vaults.state.working,
+        Some(Work::Unlock | Work::Create | Work::Kdbx)
+    ) {
         app.vaults.state.working = None;
     }
 }
@@ -277,6 +282,118 @@ fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str) {
         Err(e) => {
             if let Some(c) = app.vaults.state.create.as_mut() {
                 c.error = Some(errors::error_text(e));
+            }
+        }
+    }
+}
+
+/// A KeePass export to write on the worker, with the name its file takes.
+pub(crate) struct KdbxWork {
+    job: KdbxJob,
+    name: String,
+}
+
+/// A KeePass export's answer: the file (encrypted, so public, written
+/// and verified), or why there is none.
+pub(crate) struct KdbxDone {
+    file: Result<Vec<u8>, KdbxError>,
+    name: String,
+}
+
+impl KdbxWork {
+    /// Costs two Argon2id runs, the database's and the check after it.
+    pub(crate) fn run(self, c: &Compute) -> KdbxDone {
+        KdbxDone {
+            file: self.job.run(c),
+            name: self.name,
+        }
+    }
+}
+
+/// The front half of the KeePass export: the selected entry, sealed
+/// under the prompt's passphrase, which is copied into the job (the prompt
+/// keeps it for an error) and wiped with it. False when nothing started.
+fn kdbx_start(app: &mut Faraday) -> bool {
+    let Some(at) = app.vault_selected_index() else {
+        return false;
+    };
+    let Some(id) = app.vaults.current_id() else {
+        return false;
+    };
+    let Some(title) = app
+        .vaults
+        .records(id)
+        .get(at)
+        .filter(|r| r.kind() == kind::ENTRY)
+        .map(|r| {
+            r.public_text(field::TITLE)
+                .unwrap_or(EN.vaults_entry)
+                .to_string()
+        })
+    else {
+        return false;
+    };
+    let Some(passphrase) = app
+        .vaults
+        .prompt
+        .as_ref()
+        .map(|p| crate::secret_text::SecretText::of(&p.text.text))
+    else {
+        return false;
+    };
+    // The database's own randomness, every byte the format needs
+    // taken fresh.
+    let Some(draw) = app.fresh_bytes(b"kdbx", faraday_keys::vault::KDBX_SEED_LEN) else {
+        if let Some(p) = app.vaults.state.prompt.as_mut() {
+            p.error = Some(EN.vaults_no_randomness.to_string());
+        }
+        return false;
+    };
+    let mut seed = Zeroizing::new([0u8; faraday_keys::vault::KDBX_SEED_LEN]);
+    seed.copy_from_slice(&draw);
+    let (out, name) = crate::bip85::kdbx_out(&app.outbox, &title);
+    let words = faraday_keys::vault::KdbxWords {
+        title: out,
+        username: EN.vaults_username,
+        url: EN.vaults_url,
+    };
+    let Some(job) = app
+        .vaults
+        .store()
+        .kdbx_job((id, at), &words, passphrase, seed)
+    else {
+        return false;
+    };
+    app.start(
+        Job::Kdbx(Box::new(KdbxWork { job, name })),
+        EN.vault_sealing,
+    );
+    true
+}
+
+/// The back half: the file to the Outbox, sealed, so it goes as it is.
+pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
+    ended(app);
+    let KdbxDone { file, name } = done;
+    match file {
+        Ok(file) => {
+            app.vaults.state.prompt = None;
+            app.vaults.state.focus = None;
+            app.put_outbox(&name, file);
+            app.toast(&fill(
+                EN.vaults_waits_sealed,
+                &[&name.to_string(), app.medium.for_the()],
+            ));
+        }
+        Err(why) => {
+            if let Some(p) = app.vaults.state.prompt.as_mut() {
+                p.error = Some(
+                    match why {
+                        KdbxError::TooLarge => EN.vaults_entry_too_large_kdbx,
+                        KdbxError::NotVerified => EN.vaults_kdbx_unverified,
+                    }
+                    .to_string(),
+                );
             }
         }
     }

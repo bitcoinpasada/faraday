@@ -87,6 +87,14 @@ Moved to `docs/history/KEYS-LOG.md`.
   drops: at the job's end on the worker, or where a stale or locked
   answer is dropped. The Argon2id call is `faraday_vault::open` and
   `create`, unchanged.
+  An aezeed read (`lightning::AezeedJob`) and a KeePass export
+  (`job::KdbxJob`) are jobs of the same kind: the word indices and the
+  passphrase, or the entry's text and password and the passphrase, are
+  copied in once (the screen keeps its fields for a Back or an error)
+  and wipe with the job. The node key comes back inside faraday-keys'
+  `Node`, through `Keys::aezeed_node`, which applies the demo's refusal
+  on the main thread; the KeePass file is encrypted, so public. The
+  scrypt and Argon2id calls are unchanged.
 - **The crates that compute and keep nothing** stay as they are:
   faraday-bip, -psbt, -crypto, -backup, -vault, -pgp and -sb. Only
   faraday-keys calls their secret-taking functions.
@@ -286,7 +294,7 @@ faraday-core sees an open vault's public fields and nothing else.
   record's words are written out from its payload (it costs a parse).
   `words_of` gives the words as a held `Mnemonic` for a SeedQR or a file,
   `gpg_paperkey` the paperkey text, `totp` the code and account of an
-  entry, `kdbx_entry` a KeePass database of one.
+  entry, `kdbx_job` a KeePass database of one, written and checked by `KdbxJob::run`.
 - **Operations by record.** `load_from_vault`, `load_key_record`,
   `load_key_with_passphrase`, `same_words`, `stores_passphrase_of`,
   `passphrase_record_is`, `holds_session_words`, `word_count` and
