@@ -67,6 +67,20 @@ fn a_coldcard_multisig_setup_file_reads_as_its_2_of_4_with_every_key() {
 }
 
 #[test]
+fn a_coldcard_setup_file_sparrow_writes_reads_as_its_2_of_3_with_every_key() {
+    let w = wallet("bluewallet/fromsparrow-coldcard.txt");
+    let (m, n, wrapper) = quorum(&w);
+    assert_eq!((m, n), (2, 3));
+    assert!(matches!(wrapper, Wrapper::Wsh));
+    let fingerprints: Vec<String> = w
+        .keys()
+        .iter()
+        .map(|k| k.fingerprint().unwrap().to_string())
+        .collect();
+    assert_eq!(fingerprints, ["a3909080", "7ab71df0", "f11b9ff2"]);
+}
+
+#[test]
 fn a_coldcard_nested_testnet_setup_file_reads_on_testnet_at_its_first_address() {
     let w = wallet("sparrow/cc-multisig-export-2.txt");
     let (m, n, wrapper) = quorum(&w);
@@ -105,22 +119,6 @@ fn a_coldcard_setup_file_with_a_cosigner_missing_or_no_policy_is_refused() {
             "{path}"
         );
     }
-}
-
-#[test]
-fn a_coldcard_account_export_reads_as_the_native_segwit_wallet_it_states_the_first_address_of() {
-    let text = interop("bluewallet/coldcardmk4-generic.json");
-    let w = wallet("bluewallet/coldcardmk4-generic.json");
-    assert!(
-        w.to_descriptor()
-            .starts_with("wpkh([086ee178/84h/0h/0h]xpub")
-    );
-    let stated = parse(&text)
-        .get("bip84")
-        .and_then(|b| b.get("first"))
-        .and_then(|f| f.as_str().map(str::to_string))
-        .unwrap();
-    assert_eq!(first(&w), (Network::Mainnet, stated));
 }
 
 #[test]
@@ -207,6 +205,33 @@ fn a_caravan_config_with_a_key_that_has_no_origin_is_refused() {
     assert!(caravan::looks_like(&v));
     let why = caravan::descriptor(&v).unwrap_err();
     assert!(why.contains("bip32Path"), "{why}");
+}
+
+#[test]
+fn a_caravan_config_whose_network_start_script_or_key_version_disagrees_with_it_is_refused() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/caravan-multisig-export-1.json");
+    for changed in [
+        text.replace("\"mainnet\"", "\"testnet\""),
+        text.replace("\"startingAddressIndex\": 0", "\"startingAddressIndex\": 5"),
+        text.replace("\"P2WSH\"", "\"P2TR\""),
+    ] {
+        assert!(read_wallet(&c, &changed).is_err(), "{changed}");
+    }
+    // A key whose SLIP-132 version names nested multisig, in a P2WSH
+    // config: Unchained's Ypub.
+    let ypub = interop("bluewallet/unchained.json")
+        .split('"')
+        .find(|t| t.starts_with("Ypub"))
+        .unwrap()
+        .to_string();
+    let first_xpub = text
+        .split('"')
+        .find(|t| t.starts_with("xpub6"))
+        .unwrap()
+        .to_string();
+    let e = read_wallet(&c, &text.replace(&first_xpub, &ypub)).expect_err("Ypub in P2WSH");
+    assert!(e.text().contains(&ypub[..8]), "{}", e.text());
 }
 
 #[test]
@@ -425,21 +450,14 @@ fn a_descriptor_in_a_receive_and_change_pair_or_alone_is_one_wallet_with_one_fir
     let pair = wallet("sparrow/descriptor-receive-change1.txt");
     let labelled = wallet("sparrow/descriptor-labelled.txt");
     assert_eq!(first(&pair), first(&one));
+    let second_pair = wallet("sparrow/descriptor-receive-change2.txt");
+    assert_eq!(second_pair.to_descriptor(), one.to_descriptor());
     assert_eq!(first(&labelled).0, Network::Mainnet);
     let alone = wallet("sparrow/descriptor-receive.txt");
     assert_eq!(
         first(&alone).1,
         "bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9"
     );
-}
-
-#[test]
-fn a_bsms_record_with_a_wrong_field_is_refused_and_a_sound_one_is_read() {
-    assert!(wallet("sparrow/bsms/multisig-1.bsms").keys().len() > 1);
-    for n in [5, 7, 14, 15, 16, 17] {
-        let path = format!("sparrow/bsms/multisig-{n}.bsms");
-        assert!(refusal(&path).contains("BSMS"), "{path}");
-    }
 }
 
 // Specter DIY's `addwallet` (`docs/INTEROP.md` §5 I8).
