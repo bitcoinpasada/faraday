@@ -1168,9 +1168,8 @@ fn the_stick_the_machine_started_from_is_offered_as_already_read_and_one_press_t
     info.boot = true;
     app.storage(faraday_core::StorageEvent::Sticks(vec![info]));
     shell.pump(&mut app);
-    expect_part(&mut app, "Use Boot stick, read at");
-    let k = app.sticks().iter().position(|s| s.boot).unwrap();
-    shell.flow(&mut app, F::UseBoot(k));
+    expect_part(&mut app, "Use the boot stick");
+    shell.flow(&mut app, F::UseBootAt(0));
     // The press names the stick: it is bound with no second tap.
     assert!(app.flow().unwrap().slots[0].bound.is_some());
     assert!(!has_part(&mut app, "This is the stick for"));

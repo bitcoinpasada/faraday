@@ -175,6 +175,15 @@ impl Medium {
         }
     }
 
+    /// What offers the stick the device started from: "Use the boot
+    /// stick", "Use the boot SD card".
+    pub const fn use_boot(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_use_boot_stick,
+            Medium::SdCard => EN.medium_use_boot_sd_card,
+        }
+    }
+
     /// Its glyph: the USB stick, or the SD card (`docs/BACKUP-FLOW.md`
     /// §17.17).
     pub const fn icon(self) -> Glyph {

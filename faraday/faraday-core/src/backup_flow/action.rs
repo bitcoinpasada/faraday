@@ -34,6 +34,14 @@ pub enum FlowAction {
     /// Use the stick that is in the machine already, by its place among
     /// the sticks.
     UseBoot(usize),
+    /// Bring in the sticks: the next stick put in is for this slot's
+    /// figure.
+    Want(usize),
+    /// Bring in the sticks: open or close this figure's ⋮ menu.
+    FigMenu(usize),
+    /// Bring in the sticks: the stick the machine started from serves
+    /// this slot's figure.
+    UseBootAt(usize),
     /// The vault is the file of this place in the stick's vault files.
     PickFile(usize, usize),
     /// The vault is a new one beside what the stick holds.

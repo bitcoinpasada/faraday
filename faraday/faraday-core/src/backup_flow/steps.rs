@@ -329,13 +329,14 @@ impl Faraday {
             }
             F::Continue => self.flow_continue(i),
             F::LockBring => self.lock_ask(true),
-            // One stick, one place: the boot stick that holds a place is
-            // not taken for another; at step 6 it is offered for its own.
-            F::UseBoot(_)
-                if (0..self.flows[i].slots.len()).any(|j| {
-                    Some(j) != self.flow_slot_wanted(i) && self.flows[i].boot_holds(j)
-                }) => {}
-            F::UseBoot(k) => self.flow_use_present(i, k),
+            F::UseBoot(k) => self.flow_use_present(i, k, None),
+            F::UseBootAt(s) => {
+                if let Some(k) = self.stick.iter().position(|x| x.boot) {
+                    self.flow_use_present(i, k, Some(s));
+                }
+            }
+            F::Want(s) => self.flows.all[i].want(s),
+            F::FigMenu(s) => self.flows.all[i].toggle_fig_menu(s),
             F::PickFile(v, k) => self.flow_pick_file(i, v, k),
             F::PickBeside(v) => self.flow_pick_beside(i, v),
             F::UseCopy(this) => self.flow_use_copy(i, this),
@@ -705,7 +706,7 @@ impl Faraday {
     fn flow_slot_wanted(&self, i: usize) -> Option<usize> {
         let f = &self.flows[i];
         match f.step {
-            Step::Sticks => (0..f.slots.len()).find(|&s| self.flows[i].needs_bind(s)),
+            Step::Sticks => f.wanted_to_bind(),
             Step::Write => (0..f.slots.len()).find(|&s| f.slots[s].written.is_none()),
             _ => None,
         }
@@ -737,31 +738,29 @@ impl Faraday {
         let Some(slot) = self.flow_slot_wanted(i) else {
             return;
         };
-        let purpose =
-            if self.flows[i].step == Step::Write && self.flows[i].slots[slot].bound.is_some() {
-                Purpose::Check
-            } else {
-                Purpose::Bind
-            };
+        let purpose = self.flows[i].bind_purpose(slot);
         self.flow_start_reading(i, slot, purpose, &st, false);
     }
 
-    fn flow_use_present(&mut self, i: usize, k: usize) {
+    fn flow_use_present(&mut self, i: usize, k: usize, at: Option<usize>) {
         let Some(st) = self.stick.get(k).cloned() else {
             return;
         };
-        let Some(slot) = self.flow_slot_wanted(i) else {
+        let Some(slot) = (match at {
+            Some(s) => self.flows[i].needs_bind(s).then_some(s),
+            None => self.flow_slot_wanted(i),
+        }) else {
             return;
         };
+        // One stick, one place: the boot stick that holds a place is not
+        // taken for another; at step 6 it is offered for its own.
+        if (0..self.flows[i].slots.len()).any(|j| j != slot && self.flows[i].boot_holds(j)) {
+            return;
+        }
         if !self.clean() || self.flows[i].live.reading.is_some() {
             return;
         }
-        let purpose =
-            if self.flows[i].step == Step::Write && self.flows[i].slots[slot].bound.is_some() {
-                Purpose::Check
-            } else {
-                Purpose::Bind
-            };
+        let purpose = self.flows[i].bind_purpose(slot);
         // Use {label} at step 2 is the press that names the stick: once it
         // is read, it is bound with no second tap (owner, 2026-10-25).
         let chosen = self.flows[i].step == Step::Sticks;

@@ -950,10 +950,11 @@ wallet and Restore → step cards (pages on a small panel, "Step 2 of
    for a wallet the one-place warning and, on a single key with no
    passphrase, the passphrase line with **Add a passphrase**;
 2. **Bring in the sticks** (with anything secret open: **Lock and bring
-   in the sticks** first) → "Insert the stick for Vault 1 (Place 1)", or
-   **Use {label}, read at {time}** → usable, else why and what to do →
+   in the sticks** first) → a figure per stick with its state; a stick
+   put in goes to the waiting figure pressed last, else the first, or
+   **Use the boot stick** on any waiting figure → usable, else why and what to do →
    its vaults: "Which vault is Vault 1?", or **A new vault beside them**
-   → **This is the stick for …** (a tap; none after **Use {label}**,
+   → **This is the stick for …** (a tap; none after **Use the boot stick**,
    whose press names the stick), or the hold where two sticks read
    alike; a stick bound to another place refused → pull;
 3. **Vaults**, once every stick is read (nothing is unlocked before):

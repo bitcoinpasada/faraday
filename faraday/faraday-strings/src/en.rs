@@ -4423,6 +4423,10 @@ strings! {
     medium_boot_stick: "Boot stick",
     /// Text in `boot`.
     medium_boot_sd_card: "Boot SD card",
+    /// Text in `use_boot`.
+    medium_use_boot_stick: "Use the boot stick",
+    /// Text in `use_boot`.
+    medium_use_boot_sd_card: "Use the boot SD card",
     // ----- paper (faraday-core/src/paper.rs) -----
     /// Toast in `paper_xor`.
     paper_no_words_to_split: "This key has no words to split",
@@ -9835,6 +9839,18 @@ strings! {
     backup_flow_pull_to_unlock: "Pull the {} to unlock",
     /// While a stick is read.
     backup_flow_reading: "Reading {}",
+    /// A stick of Bring in the sticks with nothing in yet.
+    backup_flow_figure_waiting: "Waiting",
+    /// A stick of Bring in the sticks being read.
+    backup_flow_figure_reading: "Reading",
+    /// A stick of Bring in the sticks read and usable.
+    backup_flow_figure_checked: "Checked",
+    /// The vaults a stick of Bring in the sticks will hold. `{}`: their
+    /// names.
+    backup_flow_figure_holds: "Holds {}",
+    /// The file chosen for a vault already on a stick. `{}`: the vault,
+    /// then the file.
+    backup_flow_figure_file: "{}: {}",
     /// Summary of step 2.
     backup_flow_read_count: "{} of {} read",
     /// Bring in the sticks closed with none read: each is read on Write

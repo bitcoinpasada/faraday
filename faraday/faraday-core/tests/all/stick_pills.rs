@@ -526,8 +526,8 @@ fn the_boot_stick_taken_for_a_place_is_stick_1_and_the_others_count_on_from_2() 
     let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
     assert_eq!(labels, ["Boot stick", "Stick 2"]);
     assert_eq!(asked(&app), [2]);
-    expect(&mut app, "Boot stick · Vault 1 (Place 1)");
-    expect(&mut app, "Stick 2 · Vault 1 (Place 2)");
+    expect(&mut app, "Boot stick");
+    expect(&mut app, "Stick 2");
     expect(&mut app, "Insert Stick 2: Vault 1 (Place 2)");
     assert!(!has_part(&mut app, "Mark it as"), "{:?}", texts(&mut app));
     // One stick, one place: the boot stick is not offered again.
@@ -567,7 +567,7 @@ fn the_pill_edged_and_the_insert_line_name_the_same_stick() {
     assert_eq!(app.sticks_wanted().unwrap().now, Some(4));
     assert_eq!(asked(&app), [4]);
     expect(&mut app, "Insert Stick 4: Vault 2");
-    expect(&mut app, "Stick 3 · Files (Place 1)");
+    expect(&mut app, "Stick 3");
 }
 
 #[test]

@@ -202,6 +202,10 @@ pub const ICON_SMALL: f32 = 20.0;
 // Rows
 // ---------------------------------------------------------------------
 
+/// The least width of a stick's figure at Bring in the sticks; the
+/// figures fill the row in as many as fit.
+pub const STICK_FIGURE_W: f32 = 168.0;
+
 /// Standard list row height.
 pub const ROW: f32 = 56.0;
 /// How far in a multi-choice row's label starts: past its checkbox.

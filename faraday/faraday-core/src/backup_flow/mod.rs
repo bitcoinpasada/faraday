@@ -15,6 +15,7 @@
 
 mod action;
 mod area;
+pub(crate) mod figures;
 pub mod gpg_restore;
 pub(crate) mod gpg_restore_screen;
 pub(crate) mod layout;
@@ -822,6 +823,11 @@ pub struct Live {
     pub making: bool,
     /// Two sticks are in.
     pub crowd: bool,
+    /// The waiting stick the person pressed last at Bring in the sticks:
+    /// the next stick put in goes to it.
+    pub want: Option<usize>,
+    /// The stick whose ⋮ menu is open at Bring in the sticks.
+    pub fig_menu: Option<usize>,
     /// A wallet's plan card open, by [`crate::qstep`]
     /// (`docs/BACKUP-FLOW.md` §15).
     pub plan_q: Option<u8>,

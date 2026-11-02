@@ -467,6 +467,14 @@ impl Faraday {
             backup_folder(n)
         };
         self.stick.toggles.push(folder);
+        // A pill for a stick of the flow at Bring in the sticks says
+        // which one the stick put in next is for.
+        if let Some(i) = self.flows.on() {
+            let slot = (0..self.flows[i].slots.len()).find(|&k| self.flows[i].stick_number(k) == n);
+            if let Some(k) = slot {
+                self.flows.all_mut()[i].want(k);
+            }
+        }
     }
 }
 

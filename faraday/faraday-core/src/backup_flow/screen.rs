@@ -559,7 +559,7 @@ fn sticks_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
         );
         return cy - y;
     }
-    cy += slot_rows(app, f, ui, x, cy, w, false);
+    cy += super::figures::draw(app, f, ui, x, cy, w);
     cy += stick_card(app, f, ui, x, cy, w);
     cy - y
 }
@@ -592,10 +592,11 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             return cy - y;
         }
         cy += insert(app, ui, x, cy, w, &app.flow_insert_line(k));
-        // The stick the machine started from, read already; not once it
-        // holds another place: one stick, one place.
+        // The stick the machine started from, read already: at Bring in
+        // the sticks each waiting figure offers it; not once it holds
+        // another place: one stick, one place.
         let boot_placed = (0..f.slots.len()).any(|j| j != k && f.boot_holds(j));
-        if matches!(f.step, Step::Sticks | Step::Write) && !boot_placed {
+        if f.step == Step::Write && !boot_placed {
             for (i, st) in app.stick.iter().enumerate().filter(|(_, s)| s.boot) {
                 let at = read_time(app, app.clock_now());
                 let label = fill(FEN.backup_flow_use_read, &[&st.label, &at]);
@@ -629,7 +630,10 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         ) + 8.0;
     }
     if let Some(p) = &r.problem {
-        cy += line(ui, x, cy, w, &app.flow_problem_text(p), Role::Error.paint());
+        // At Bring in the sticks the stick's figure says it.
+        if f.step != Step::Sticks {
+            cy += line(ui, x, cy, w, &app.flow_problem_text(p), Role::Error.paint());
+        }
         // Which of the backup's sticks it is, if any (§18).
         if let Some(which) = app.flow_stick_from_elsewhere() {
             cy += line(ui, x, cy, w, &which, Role::OnSurface.paint());

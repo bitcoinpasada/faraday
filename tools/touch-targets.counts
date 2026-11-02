@@ -73,7 +73,7 @@ small_240x320 Backup BStep 3
 small_240x320 Backup BWallets 1
 small_240x320 Backup Board 34
 small_240x320 BackupFlow Board 1
-small_240x320 BackupFlow Flow 17
+small_240x320 BackupFlow Flow 15
 small_240x320 BackupFlow Vault 1
 small_240x320 Bip85 PApp 1
 small_240x320 Bip85 PStep 1
@@ -112,7 +112,7 @@ small_480x640 Backup BStep 4
 small_480x640 Backup BWallets 1
 small_480x640 Backup Board 31
 small_480x640 BackupFlow Board 1
-small_480x640 BackupFlow Flow 19
+small_480x640 BackupFlow Flow 16
 small_480x640 BackupFlow Vault 1
 small_480x640 Bip85 PApp 1
 small_480x640 Bip85 PStep 2
@@ -177,7 +177,7 @@ stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup LearnShares 1
 stick_1024x600 BackupFlow Board 6
-stick_1024x600 BackupFlow Flow 12
+stick_1024x600 BackupFlow Flow 11
 stick_1024x600 BackupFlow LearnTopic 1
 stick_1024x600 BackupFlow Osk 38
 stick_1024x600 BackupFlow Vault 1

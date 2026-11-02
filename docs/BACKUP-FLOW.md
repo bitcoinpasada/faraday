@@ -195,12 +195,19 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
 - **A clean process first.** With anything secret open when step 2
   begins, its card's foot is **Lock and bring in the sticks**: the lock
   of `docs/history/PLAN.md` §5.3, the flow's state kept.
-- **One place at a time, by the plan**: "Insert the stick for Vault 1
-  (Place 1)". Two sticks in: "One stick at a time".
-- **Already read this session.** A stick seen this session (the boot
-  stick, a visit), whose listing and free space Faraday kept, is offered
-  on the card: **Use {label}, read at {time}**, with no insertion, as
-  long as its room is known to be enough. That press names the stick:
+- **Each stick drawn, in any order** (`docs/STICK-SETUP.md` §3): a figure
+  per stick with its name, the vaults it will hold and its state
+  (Waiting, Reading, Checked with a tick, or its problem in one line).
+  A stick put in goes to the waiting figure pressed last, else the first
+  waiting; one at a time ("One stick at a time"); pull it, then the
+  next. "Insert the stick for Vault 1 (Place 1)" names the one wanted.
+- **Already read this session.** The boot stick, in the machine already,
+  is offered by every waiting figure and in its ⋮: **Use the boot
+  stick**, with no insertion, for one stick of the plan at most; it then
+  reads **Boot stick**, the other sticks are numbered again from 2, and
+  only its data partition is read (F128). A visit's stick, whose listing
+  and free space Faraday kept, is offered at step 6 as **Use {label},
+  read at {time}**, as long as its room is known to be enough. That press names the stick:
   once read it is bound to its place with no second tap, unless it reads
   like a stick bound to another place, which asks for the hold below
   (owner, 2026-10-25).

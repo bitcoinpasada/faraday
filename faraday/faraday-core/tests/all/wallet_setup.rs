@@ -37,9 +37,8 @@ fn use_boot_stick_takes_it_for_vault_1_and_its_pull_opens_create_a_vault() {
     shell.add(boot);
     let mut app = on_the_sticks();
     shell.plug(&mut app, "BOOT");
-    expect_part(&mut app, "Use Boot stick, read at");
-    let k = app.sticks().iter().position(|s| s.boot).unwrap();
-    shell.flow(&mut app, F::UseBoot(k));
+    expect_part(&mut app, "Use the boot stick");
+    shell.flow(&mut app, F::UseBootAt(0));
     assert!(app.flow().unwrap().slots[0].bound.is_some(), "one press");
     assert_eq!(step(&app), Step::Vaults);
     assert_eq!(app.sheet, Some(Sheet::Pull));
@@ -170,4 +169,72 @@ fn the_card_names_an_sd_card_on_the_pi() {
     expect_wrapped(&mut app, "SD card 2");
     expect_wrapped(&mut app, "Vault 2 is on no SD card");
     expect_wrapped(&mut app, "SD card 3 holds no vault");
+}
+
+/// Make a new wallet with three vaults on three sticks, at Bring in the
+/// sticks.
+fn on_three_sticks() -> Faraday {
+    let mut app = on_the_card();
+    app.press(Action::CVaultN(3));
+    app.press(Action::CSticks(3));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    assert_eq!(step(&app), Step::Sticks);
+    app
+}
+
+/// A stick put in goes to the figure the person pressed last, else to the
+/// first one waiting.
+#[test]
+fn a_stick_put_in_goes_to_the_figure_pressed_last_else_the_first_waiting() {
+    let mut shell = Shell::new();
+    shell.add(Disk::empty("S1", "KEYSTICK"));
+    let mut app = on_three_sticks();
+    shell.flow(&mut app, F::Want(1));
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    let f = app.flow().unwrap();
+    assert!(f.slots[1].bound.is_some() && f.slots[0].bound.is_none());
+
+    let mut app = on_three_sticks();
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    let f = app.flow().unwrap();
+    assert!(f.slots[0].bound.is_some() && f.slots[1].bound.is_none());
+}
+
+/// The boot stick chosen for the first stick: it is read from where it
+/// is, the figures read Boot stick, Stick 2 and Stick 3, and Continue
+/// waits for the other two.
+#[test]
+fn the_boot_stick_chosen_for_the_first_stick_numbers_the_others_from_2() {
+    let mut shell = Shell::new();
+    let mut boot = Disk::empty("BOOT", "FARADAY");
+    boot.boot = true;
+    shell.add(boot);
+    let mut app = on_three_sticks();
+    shell.plug(&mut app, "BOOT");
+    shell.flow(&mut app, F::UseBootAt(0));
+    assert!(app.flow().unwrap().slots[0].bound.as_ref().unwrap().boot);
+    assert_eq!(step(&app), Step::Sticks, "two sticks to come");
+    for name in ["Boot stick", "Stick 2", "Stick 3"] {
+        expect_part(&mut app, name);
+    }
+    assert!(!texts(&mut app).iter().any(|t| t == "Stick 4"));
+}
+
+/// A stick that is not FAT32 shows its problem on its figure and is not
+/// bound.
+#[test]
+fn a_stick_that_is_not_fat32_shows_its_problem_and_is_not_bound() {
+    let mut shell = Shell::new();
+    let mut bad = Disk::empty("S1", "KEYSTICK");
+    bad.not_fat = true;
+    shell.add(bad);
+    let mut app = on_three_sticks();
+    shell.plug(&mut app, "S1");
+    expect_wrapped(
+        &mut app,
+        "Not a FAT32 stick. Format it as FAT32, or use another stick",
+    );
+    assert!(app.flow().unwrap().slots.iter().all(|s| s.bound.is_none()));
 }
