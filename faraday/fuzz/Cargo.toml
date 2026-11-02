@@ -122,6 +122,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "age_file"
+path = "fuzz_targets/age_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "vault_header"
 path = "fuzz_targets/vault_header.rs"
 test = false

@@ -362,6 +362,7 @@ below includes it.
 | Piece | Where | Action | Decision | Note |
 |---|---|---|---|---|
 | OpenPGP v4 packets for one key shape, the armour's CRC-24, and the paperkey format | `faraday/faraday-pgp` | `gpg-create` | F178 | Faraday writes only the packets of its one key shape, over Ed25519 from dalek and SHA-1/SHA-2 from RustCrypto, each judged by GnuPG and paperkey; the armour's base64 is the base64ct crate's. |
+| age v1 passphrase files: the scrypt stanza, the header MAC and the 64 KiB STREAM payload | `faraday/faraday-vault/src/age.rs` | none yet (the vault format) | F178 | Faraday writes only the passphrase recipient of age v1, over scrypt and HKDF-SHA-256 from `faraday-crypto` and ChaCha20-Poly1305 from RustCrypto, tested against the C2SP testkit's scrypt vectors. |
 | TOTP code derivation | `faraday/faraday-vault/src/totp.rs` | `totp` | F178 | Faraday writes only the few lines RFC 6238 needs, over standard HMAC. |
 | Seed XOR | `core/faraday-entropy/src/xor.rs` | `xor` | F178 | Faraday writes only the few lines the standard needs, over standard XOR. |
 | A 32-byte hash reduced modulo the curve order, without a branch | `core/faraday-bip/src/musig.rs` | `musig-key` | F178 | libsecp256k1's Rust bindings take a scalar only below the order and offer no reduction; Faraday's is a single conditional subtraction (§4.1). |
