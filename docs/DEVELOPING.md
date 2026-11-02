@@ -254,7 +254,7 @@ send with a report of a machine that does not work.
 
 ```
 faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-strict-dev.img --vnc 9 --serial stdio
-just faraday-disk-test                    the stick's disk handling, end to end, under QEMU
+just faraday-disk-test                    the stick's disk handling, end to end, under QEMU (add --no-kvm without KVM)
 ```
 
 The machine's screen is on VNC at `127.0.0.1:5909`, loopback only; with

@@ -188,6 +188,27 @@ impl Machine {
     /// ordinary stick with `None`): a Faraday stick's layout, the names an
     /// ordinary stick has, and the release string in its boot partition.
     fn stick(&self, port: &str, disk: &str, seq: &str, release: Option<&str>) {
+        self.stick_laid(
+            port,
+            disk,
+            seq,
+            release,
+            STICK_SECTORS,
+            &[(2048, 131_072), (133_120, 262_144)],
+        );
+    }
+
+    /// A stick as [`Machine::stick`] makes one, on a disk of
+    /// `disk_sectors` sectors, with each partition's start and size.
+    fn stick_laid(
+        &self,
+        port: &str,
+        disk: &str,
+        seq: &str,
+        release: Option<&str>,
+        disk_sectors: u64,
+        spans: &[(u64, u64)],
+    ) {
         let mut boot = sector("EFI");
         boot.resize(3 << 20, 0x80);
         if let Some(r) = release {
@@ -195,16 +216,23 @@ impl Machine {
             let text = format!("\0{r} (user@host) #1 SMP\0");
             boot[at..at + text.len()].copy_from_slice(text.as_bytes());
         }
-        self.disk_laid(
-            &format!("pci0/usb1/{port}/host0/block"),
-            disk,
-            seq,
-            &[
-                ("EFI system partition", boot),
-                ("Basic data partition", sector("NO NAME")),
-            ],
-            &[(2048, 131_072), (133_120, 262_144)],
-        );
+        let bus = format!("pci0/usb1/{port}/host0/block");
+        let mut parts = vec![
+            ("EFI system partition", boot),
+            ("Basic data partition", sector("NO NAME")),
+        ];
+        // A third partition has a name and a boot sector too.
+        parts.resize(spans.len().max(2), ("Extra", sector("NO NAME")));
+        self.disk_laid(&bus, disk, seq, &parts, spans);
+        fs::write(
+            self.root
+                .join("sys/devices")
+                .join(bus)
+                .join(disk)
+                .join("size"),
+            format!("{disk_sectors}\n"),
+        )
+        .unwrap();
     }
 
     fn finder(&self, release: &str) -> Finder {
@@ -497,6 +525,52 @@ fn the_pc_finds_the_one_stick_of_its_own_build() {
             diskseq: Some("5".into())
         }
     );
+}
+
+/// A 256 MB stick, in sectors; the last usable sector of its GPT is 34
+/// before the end.
+const STICK_SECTORS: u64 = 524_288;
+
+#[test]
+fn a_stick_made_for_its_size_is_known_and_another_layout_is_not() {
+    let last_usable = STICK_SECTORS - 34;
+    let to_the_end = last_usable - 133_120 + 1;
+    let known: [(&str, Vec<(u64, u64)>); 2] = [
+        ("dd", vec![(2048, 131_072), (133_120, 262_144)]),
+        ("to-the-end", vec![(2048, 131_072), (133_120, to_the_end)]),
+    ];
+    let refused: [(&str, Vec<(u64, u64)>); 5] = [
+        ("small-data", vec![(2048, 131_072), (133_120, 262_143)]),
+        ("data-elsewhere", vec![(2048, 131_072), (135_168, 262_144)]),
+        (
+            "past-the-end",
+            vec![(2048, 131_072), (133_120, to_the_end + 1)],
+        ),
+        (
+            "third-partition",
+            vec![(2048, 131_072), (133_120, 262_144), (400_000, 2048)],
+        ),
+        ("other-boot", vec![(2048, 133_120), (135_168, 262_144)]),
+    ];
+    for (name, spans) in known {
+        let m = Machine::new(&format!("layout-{name}"));
+        m.stick_laid("1-1", "sda", "3", Some(RELEASE), STICK_SECTORS, &spans);
+        assert_eq!(
+            settled(&mut m.finder(RELEASE)),
+            Record::Found {
+                partition: "sda2".into(),
+                diskseq: Some("3".into())
+            },
+            "{name}"
+        );
+    }
+    for (name, spans) in refused {
+        let m = Machine::new(&format!("layout-{name}"));
+        m.stick_laid("1-1", "sda", "3", Some(RELEASE), STICK_SECTORS, &spans);
+        let mut f = m.finder(RELEASE);
+        assert_eq!(f.look(SETTLE), None, "{name}");
+        assert_eq!(f.look(GIVE_UP), Some(Record::NotFound), "{name}");
+    }
 }
 
 #[test]

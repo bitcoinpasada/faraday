@@ -12,6 +12,7 @@ mod macos;
 mod platform;
 mod scheme;
 mod signed_boot;
+mod stick_layout;
 mod sticks;
 mod template;
 mod windows;

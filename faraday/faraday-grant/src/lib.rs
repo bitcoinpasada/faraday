@@ -512,7 +512,9 @@ impl Finder {
                     })
                 })
                 .collect();
-            if spans.len() != parts.len() || !layout::is_stick(&spans) {
+            let sectors = read_u64(&dir.join("size")).unwrap_or(0);
+            if spans.len() != parts.len() || !layout::is_stick(&spans, layout::last_usable(sectors))
+            {
                 continue;
             }
             out.push(Candidate {

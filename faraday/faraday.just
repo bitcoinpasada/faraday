@@ -526,7 +526,8 @@ faraday-release-stage-starter VERSION *args:
 # boots the dev stick image, and the script plugs sticks in and out through
 # QMP and checks what is mounted, who owns each partition and which USB
 # devices are authorised. Needs `just dev=1 faraday-stick-image` first, and
-# QEMU, OVMF and mtools; screenshots go to out/stick/disk-test/.
+# QEMU, OVMF and mtools; screenshots go to out/stick/disk-test/. On a
+# machine without /dev/kvm: `just faraday-disk-test out/stick/disk-test --no-kvm`.
 [group('test')]
-faraday-disk-test out="out/stick/disk-test": faraday-testkit
-    python3 -B faraday/tools/disk-test.py out/stick/faraday-x86_64-uefi-strict-dev.img "{{out}}" out/testkit
+faraday-disk-test out="out/stick/disk-test" *args: faraday-testkit
+    python3 -B faraday/tools/disk-test.py out/stick/faraday-x86_64-uefi-strict-dev.img "{{out}}" out/testkit {{args}}

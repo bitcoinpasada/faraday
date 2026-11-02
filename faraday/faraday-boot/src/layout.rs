@@ -3,11 +3,13 @@
 //! sizes).
 //!
 //! A Faraday stick is known by its layout alone: a GPT disk with exactly
-//! two partitions, an EFI system partition at sector 2048 of 64 MiB and a
-//! basic data partition at sector 133120 of 128 MiB. A Pi card is an MBR
-//! disk with two partitions of those sizes. Names, IDs and labels play no
-//! part: they are an ordinary stick's (§3), and a person may name the
-//! data partition (§6).
+//! two partitions, an EFI system partition at sector 2048 of exactly
+//! 64 MiB and a basic data partition at sector 133120 of at least
+//! 128 MiB, ending at or before the disk's last usable sector (F182): a
+//! stick written with `dd` has the 128 MiB, one made for its size runs to
+//! the last usable sector. A Pi card is an MBR disk with two partitions of
+//! exactly those sizes. Names, IDs and labels play no part: they are an
+//! ordinary stick's (§3), and a person may name the data partition (§6).
 //!
 //! A boot partition is kept back from every process by its name or its
 //! label, whichever stick it is on: the names and labels an ordinary
@@ -27,6 +29,18 @@ pub const DATA_START: u64 = 133_120;
 /// 128 MiB (F80).
 pub const DATA_SECTORS: u64 = (128 << 20) / SECTOR;
 
+/// The sectors a GPT takes at the end of a disk: the backup header and
+/// the backup entries (32 sectors of 512 bytes).
+pub const GPT_TAIL: u64 = 34;
+
+/// The last usable sector of a GPT disk of `disk_sectors` sectors, as the
+/// tables of the image and of Windows leave it, where the table itself is
+/// not read (`/sys/block/<disk>/size` counts 512-byte sectors).
+#[must_use]
+pub fn last_usable(disk_sectors: u64) -> u64 {
+    disk_sectors.saturating_sub(GPT_TAIL)
+}
+
 /// The EFI system partition's GPT type.
 pub const ESP_TYPE: &str = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B";
 /// The basic data partition's GPT type.
@@ -43,21 +57,27 @@ pub struct Span {
 }
 
 /// Whether a disk's partitions, in order, are a Faraday stick's: exactly
-/// two, at the starts and of the sizes of §5.1. The types are the
-/// caller's to check where it can read them; `/sys` does not say them.
+/// two, the first at its start and of its size, the second at its start
+/// and of at least its size, ending at or before `last_usable`, the
+/// disk's last usable sector (§5.1; [`last_usable`] where the table is not
+/// read). The types are the caller's to check where it can read them;
+/// `/sys` does not say them.
 #[must_use]
-pub fn is_stick(parts: &[Span]) -> bool {
-    parts
-        == [
-            Span {
-                start: BOOT_START,
-                size: BOOT_SECTORS,
-            },
-            Span {
-                start: DATA_START,
-                size: DATA_SECTORS,
-            },
-        ]
+pub fn is_stick(parts: &[Span], last_usable: u64) -> bool {
+    let [boot, data] = parts else {
+        return false;
+    };
+    *boot
+        == Span {
+            start: BOOT_START,
+            size: BOOT_SECTORS,
+        }
+        && data.start == DATA_START
+        && data.size >= DATA_SECTORS
+        && data
+            .start
+            .checked_add(data.size)
+            .is_some_and(|end| end - 1 <= last_usable)
 }
 
 /// Whether a disk's partitions, in order, are a Pi card's: exactly two,

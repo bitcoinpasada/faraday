@@ -398,7 +398,8 @@ pub enum StickFault {
     /// The first partition is not 64 MiB at 1 MiB
     /// (`docs/STICK-IDENTITY.md` §5.1).
     BootPlace,
-    /// The second partition is not 128 MiB right after the first.
+    /// The second partition is not at least 128 MiB right after the
+    /// first, ending at or before the disk's last usable sector.
     DataPlace,
     /// The image's boot partition runs past the image's end.
     BootPastEnd,

@@ -16,7 +16,8 @@
 #     (docs/STICK-IDENTITY.md §5.1): GPT with exactly two partitions, the
 #     first an EFI system partition at sector 2048 of 64 MiB, at least as
 #     large as the .vfat, the second a basic data partition at sector
-#     133120 of 128 MiB. Names, IDs and labels play no part (F174);
+#     133120 of at least 128 MiB, ending at or before the disk's last
+#     usable sector (F182). Names, IDs and labels play no part (F174);
 #   - the .vfat is a FAT32 filesystem labelled EFI, as the image's is;
 #   - the target's path is typed back.
 # It then writes at the partition's offset, reads back and compares, and
@@ -39,8 +40,9 @@ fi
 vfat="$1"
 target="$2"
 
-# A Faraday stick's layout (docs/STICK-IDENTITY.md §5.1, F80): the two
-# partitions' types, and their starts and sizes in 512-byte sectors.
+# A Faraday stick's layout (docs/STICK-IDENTITY.md §5.1, F80, F182): the two
+# partitions' types, and their starts and least sizes in 512-byte sectors
+# (the boot partition's size is exact).
 esp_type="C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
 data_type="EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
 layout_sectors="2048 131072 133120 262144"
@@ -113,8 +115,12 @@ if (at(boot, "start"), at(boot, "size")) != (boot_start, boot_size):
     refuse("its first partition is not at sector %d of 64 MiB" % boot_start)
 if data.get("type", "").upper() != data_type:
     refuse("its second partition is not a basic data partition")
-if (at(data, "start"), at(data, "size")) != (data_start, data_size):
-    refuse("its second partition is not at sector %d of 128 MiB" % data_start)
+if at(data, "start") != data_start or at(data, "size") < data_size:
+    refuse("its second partition is not at sector %d of at least 128 MiB" % data_start)
+if "lastlba" not in t:
+    refuse("its table does not say its last usable sector")
+if data["start"] + data["size"] - 1 > t["lastlba"]:
+    refuse("its second partition ends past the last usable sector of the disk")
 size = boot["size"] * ss
 if size < int(vfat_size):
     refuse("its boot partition (%d bytes) is smaller than the image (%s bytes)" % (size, vfat_size))

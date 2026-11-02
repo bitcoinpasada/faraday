@@ -2,10 +2,11 @@
 //! (`docs/STICK-IDENTITY.md` §5.1, F174), as
 //! `faraday/image/stick-boot.sh` checks it before keep data writes the
 //! boot partition: exactly two partitions, the first an EFI system
-//! partition of 64 MiB at 1 MiB, the second a basic data partition of
-//! 128 MiB right after it (F80). Names, IDs and labels play no part: each
-//! stick has its own (§4), and a stick made before keeps its old ones
-//! (§5.4).
+//! partition of exactly 64 MiB at 1 MiB, the second a basic data
+//! partition right after it of at least 128 MiB, ending at or before the
+//! disk's last usable sector (F80, F182). Names, IDs and labels play no
+//! part: each stick has its own (§4), and a stick made before keeps its
+//! old ones (§5.4).
 
 use std::io;
 
@@ -22,8 +23,22 @@ pub const BOOT_AT: u64 = 1 << 20;
 pub const BOOT_LEN: u64 = 64 << 20;
 /// Where its data partition starts: sector 133120.
 pub const DATA_AT: u64 = BOOT_AT + BOOT_LEN;
-/// Its length (F80).
+/// Its least length (F80, F182): a stick written with `dd` has this, one
+/// made for its size runs to the disk's last usable sector.
 pub const DATA_LEN: u64 = 128 << 20;
+/// What a GPT takes at a disk's end after the last usable sector: the
+/// backup entries and header, 33 sectors of 512 bytes.
+pub const TAIL: u64 = 33 * 512;
+
+/// The byte after a disk's last usable sector, where the table itself is
+/// not read and only the disk's length in bytes is known: with 512-byte
+/// sectors, the last usable sector is 34 from the end (its byte after
+/// is 33). A disk of 4096-byte sectors keeps more at its end, so this is
+/// only for listing a stick; keep data reads the table's own last usable
+/// sector ([`faraday_boot`]).
+pub fn usable_end(disk_len: u64) -> u64 {
+    disk_len.saturating_sub(TAIL)
+}
 
 /// One partition as a system lists it, in bytes: what §5.1's layout is
 /// read from on each system (udisks2, `diskutil`,
@@ -39,10 +54,11 @@ pub struct Placed<'a> {
 }
 
 /// Whether `parts`, in their order on the disk, are a Faraday stick's
-/// (§5.1); otherwise why not. A boot partition at 1 MiB shorter than
-/// 64 MiB (a stick made before F80) is [`StickFault::BootSmall`], with
-/// both sizes.
-pub fn layout(parts: &[Placed<'_>]) -> Result<(), StickFault> {
+/// (§5.1); otherwise why not. `usable_end` is the byte after the disk's
+/// last usable sector (the table header's, or [`usable_end`]). A boot
+/// partition at 1 MiB shorter than 64 MiB (a stick made before F80) is
+/// [`StickFault::BootSmall`], with both sizes.
+pub fn layout(parts: &[Placed<'_>], usable_end: u64) -> Result<(), StickFault> {
     let [boot, data] = parts else {
         return Err(StickFault::Partitions(parts.len()));
     };
@@ -61,7 +77,13 @@ pub fn layout(parts: &[Placed<'_>]) -> Result<(), StickFault> {
     if boot.offset != BOOT_AT || boot.len != BOOT_LEN {
         return Err(StickFault::BootPlace);
     }
-    if data.offset != DATA_AT || data.len != DATA_LEN {
+    if data.offset != DATA_AT
+        || data.len < DATA_LEN
+        || data
+            .offset
+            .checked_add(data.len)
+            .is_none_or(|e| e > usable_end)
+    {
         return Err(StickFault::DataPlace);
     }
     Ok(())
@@ -89,6 +111,8 @@ pub struct Table {
     pub sector: u64,
     /// The disk's GUID.
     pub disk_guid: String,
+    /// The header's last usable sector.
+    pub last_usable: u64,
     /// The partitions in use, in the table's order.
     pub parts: Vec<Part>,
     /// The byte ranges the table occupies: the protective MBR, the
@@ -135,19 +159,28 @@ pub fn guid(b: &[u8]) -> String {
 
 /// Reads the GPT through `read_at`, which fills a buffer from a byte
 /// offset; `len` is the disk's length in bytes. Tries 512-byte sectors,
-/// then 4096. The header's and the entries' CRCs must hold.
+/// then 4096. The header's and the entries' CRCs must hold. Where a
+/// header is found and damaged, its fault is the one given (the
+/// 512-byte try's first), not "no GPT" from the other try.
 pub fn read(
     read_at: &mut dyn FnMut(u64, &mut [u8]) -> io::Result<()>,
     len: u64,
 ) -> Result<Table, StickFault> {
+    // The first fault of a header that was there: a 4096-byte try that
+    // finds no header must not hide the damage the 512-byte one found.
+    let mut damaged = None;
     let mut last = StickFault::NoHeader;
     for sector in [512u64, 4096] {
         match read_with(read_at, len, sector) {
             Ok(t) => return Ok(t),
-            Err(e) => last = e,
+            Err(StickFault::NotGpt) => last = StickFault::NotGpt,
+            Err(e @ StickFault::Reading(_)) => return Err(e),
+            Err(e) => {
+                damaged.get_or_insert(e);
+            }
         }
     }
-    Err(last)
+    Err(damaged.unwrap_or(last))
 }
 
 fn read_with(
@@ -230,6 +263,7 @@ fn read_with(
     Ok(Table {
         sector,
         disk_guid: guid(&header[56..72]),
+        last_usable: le64(&header, 48),
         parts,
         regions,
     })
@@ -267,7 +301,12 @@ pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, StickFault> {
             len,
         });
     }
-    layout(&placed)?;
+    let usable_end = table
+        .last_usable
+        .checked_add(1)
+        .and_then(|s| s.checked_mul(table.sector))
+        .ok_or(StickFault::HeaderDamaged)?;
+    layout(&placed, usable_end)?;
     let boot = placed[0];
     if boot.len < needs {
         return Err(StickFault::BootSmall {

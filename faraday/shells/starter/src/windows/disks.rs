@@ -437,7 +437,7 @@ impl Snapshot {
                 })
                 .collect();
             let faraday = table.as_ref().is_some_and(|l| l.style == Style::Gpt)
-                && gpt::layout(&placed).is_ok();
+                && gpt::layout(&placed, gpt::usable_end(geo.size)).is_ok();
             let boot = faraday
                 .then(|| at(parts[0].offset))
                 .flatten()

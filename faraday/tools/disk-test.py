@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Boot the dev stick image and prove the stick rule (docs/history/PLAN.md §4.3, §5.1).
 
-    faraday/tools/disk-test.py IMAGE OUT_DIR TESTKIT_DIR
+    faraday/tools/disk-test.py [--no-kvm] IMAGE OUT_DIR TESTKIT_DIR
+
+--no-kvm emulates rather than uses /dev/kvm, for a builder without it;
+every wait is then four times as long.
 
 The dev image has a root login on ttyS0. QEMU's serial port is a unix
 socket here, so this script logs in and looks at the machine itself
@@ -138,8 +141,17 @@ def expect(ok, what):
         raise SystemExit(1)
 
 
+# How many times longer each wait is: more under emulation.
+SLOW = 1
+
+
 def main():
-    image, out, kit = sys.argv[1:4]
+    global SLOW
+    args = sys.argv[1:]
+    kvm = "--no-kvm" not in args
+    if not kvm:
+        SLOW = 4
+    image, out, kit = [a for a in args if a != "--no-kvm"][:3]
     os.makedirs(out, exist_ok=True)
     work = os.path.join(out, "work")
     os.makedirs(work, exist_ok=True)
@@ -155,7 +167,7 @@ def main():
             os.remove(p)
     argv = qemu.command(boot, vars_fd=qemu.vars_copy(work),
                         serial=f"unix:{serial_sock},server=on,wait=off",
-                        qmp=sock, vnc=19)
+                        qmp=sock, vnc=19, kvm=kvm)
     proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     scratch = os.path.join(work, "screen.ppm")
     try:
@@ -165,7 +177,7 @@ def main():
             time.sleep(0.1)
         monitor = st.Qmp(sock)
         console = Serial(serial_sock)
-        check.settle(monitor, scratch, 90)
+        check.settle(monitor, scratch, 90 * SLOW)
         check.shot(monitor, scratch, out, "01-booted.png")
         console.login()
         # The kernel's own lines stop coming to the console, so they cannot
@@ -185,7 +197,7 @@ def main():
         # the kernel; the grant helper authorises the rest by class.
         expect("usbcore.authorized_default=2" in console.run("cat /proc/cmdline"),
                "the kernel authorises only hard-wired USB devices by itself")
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + 60 * SLOW
         while True:
             ifaces = console.run(
                 "for d in /sys/bus/usb/devices/*:*; do "
@@ -212,13 +224,13 @@ def main():
                "the app publishes that it is clean")
         # QEMU on the build machine runs the guest's clock slowly: the boot stick's
         # disk can take a long time to be enumerated.
-        deadline = time.monotonic() + 180
+        deadline = time.monotonic() + 180 * SLOW
         while "sda2" not in console.run("ls /sys/class/block"):
             if time.monotonic() > deadline:
                 expect(False, "the boot stick's partitions appear")
             time.sleep(2)
         expect(True, "the boot stick's partitions appear")
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + 120 * SLOW
         while "/dev/sda2" not in console.run("cat /etc/faraday/exchange"):
             if time.monotonic() > deadline:
                 break
@@ -236,7 +248,7 @@ def main():
         expect(wait_owner(console, "sdb1", 201, 120) or wait_owner(console, "sda1", 201, 5),
                "a stick plugged in while clean is handed out")
         time.sleep(3)
-        check.settle(monitor, scratch, 15)
+        check.settle(monitor, scratch, 15 * SLOW)
         check.shot(monitor, scratch, out, "02-test-stick-visit.png")
         print(console.run("dmesg | grep -A2 'sticks:' | tail -12"))
         print("\n".join(l for l in console.log.decode("utf-8", "replace").splitlines()
@@ -253,7 +265,7 @@ def main():
                         file={"driver": "file", "filename": os.path.abspath(late)})
         monitor.command("device_add", driver="usb-storage", bus="xhci.0",
                         drive="late", id="late-dev")
-        deadline = time.monotonic() + 120
+        deadline = time.monotonic() + 120 * SLOW
         while not re.search(r"sd[a-z][0-9]", console.run("ls /sys/class/block")):
             if time.monotonic() > deadline:
                 expect(False, "the late stick's partition appears")
@@ -264,7 +276,7 @@ def main():
         print("partitions now:", nodes)
         expect(nodes and all(owner(console, n) == 0 for n in nodes),
                "a stick plugged in while not clean stays root's")
-        check.settle(monitor, scratch, 15)
+        check.settle(monitor, scratch, 15 * SLOW)
         check.shot(monitor, scratch, out, "03-late-stick-not-handed.png")
 
         # 5. The helper survived all of it.

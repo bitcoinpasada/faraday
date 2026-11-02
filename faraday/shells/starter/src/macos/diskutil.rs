@@ -339,7 +339,7 @@ impl Answers {
             })
             .collect();
         let stick = str_of(info, "Content") == Some("GUID_partition_scheme")
-            && placed.is_some_and(|p| gpt::layout(&p).is_ok());
+            && placed.is_some_and(|p| gpt::layout(&p, gpt::usable_end(size)).is_ok());
         let boot = stick.then(|| BootPart {
             id: parts[0].to_string(),
             mounted: items(entry, "Partitions")

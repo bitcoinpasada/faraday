@@ -340,8 +340,8 @@ impl Objects {
                     len: self.num(p, "Partition", "Size"),
                 })
                 .collect();
-            let stick =
-                self.str(whole, "PartitionTable", "Type") == "gpt" && gpt::layout(&placed).is_ok();
+            let stick = self.str(whole, "PartitionTable", "Type") == "gpt"
+                && gpt::layout(&placed, gpt::usable_end(size)).is_ok();
             let boot = stick.then(|| BootPart {
                 object: parts[0].to_string(),
                 mounted: self.mount_points(parts[0]).first().map(PathBuf::from),

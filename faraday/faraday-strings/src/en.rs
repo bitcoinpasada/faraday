@@ -799,7 +799,7 @@ strings! {
     /// (docs/STICK-IDENTITY.md §5.1).
     starter_fault_boot_place: "its first partition is not 64 MiB at 1 MiB",
     /// Fault: the second partition is not where a Faraday stick's is.
-    starter_fault_data_place: "its second partition is not 128 MiB at 65 MiB",
+    starter_fault_data_place: "its second partition is not at least 128 MiB at 65 MiB and inside it",
     /// Fault.
     starter_fault_boot_past_end: "its boot partition runs past its end",
     /// Fault: an image that is not a Pi card's.
