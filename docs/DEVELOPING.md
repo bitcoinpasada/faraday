@@ -44,9 +44,9 @@ nothing else.
   GPG and Secure Boot tests run these tools against Faraday's files and
   fail where one is missing; nothing skips them. On Debian or Ubuntu:
   `sudo apt install gnupg paperkey openssl sbsigntool`.
-- **mtools, dosfstools, gdisk** (`mkfs.fat`, `fsck.fat`, `sgdisk`): the
-  FAT and stick-image tests skip with a note without them (`sfdisk` is
-  util-linux's).
+- **mtools, dosfstools, gdisk, fdisk** (`mkfs.fat`, `fsck.fat`, `sgdisk`,
+  `sfdisk`; on some systems `sfdisk` comes with util-linux): the FAT and
+  stick-image tests skip with a note without them.
 - **QEMU and OVMF**, to boot the stick image without a stick (§6.3).
 - On Linux, the X11 or Wayland client libraries at runtime, including
   `libxkbcommon-x11`, for the desktop app.

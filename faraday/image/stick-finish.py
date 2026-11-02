@@ -104,7 +104,10 @@ def fat32(vol):
 
 
 def tool(argv, ok):
-    r = subprocess.run(argv, capture_output=True, text=True)
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True)
+    except FileNotFoundError:
+        die(f"{argv[0]} is not installed")
     out = (r.stdout + r.stderr).strip()
     if r.returncode != 0 or not ok(out):
         die(f"{' '.join(argv)} reports a problem:\n{out}")
