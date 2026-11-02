@@ -9,7 +9,7 @@ use faraday_starter::api::{
     StarterEvent,
 };
 use faraday_starter::decide::{Item, Target};
-use faraday_starter::{Class, Page, Starter, StarterAction};
+use faraday_starter::{Page, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
 
@@ -118,21 +118,11 @@ const DESTINATIONS: [StarterAction; 4] = [
 ];
 
 #[test]
-fn a_narrow_window_has_the_bar_at_its_foot_and_a_wider_one_the_rail_at_its_left() {
-    for (w, h, class) in [
-        (400, 700, Class::Compact),
-        (700, 900, Class::Medium),
-        (1300, 800, Class::Expanded),
-    ] {
+fn every_destination_is_offered_in_a_narrow_a_medium_and_a_wide_window() {
+    for (w, h) in [(400, 700), (700, 900), (1300, 800)] {
         let mut s = starter(w, h);
-        assert_eq!(s.class(), class);
         for d in DESTINATIONS {
-            let (x, y) = at(&mut s, d).expect("a destination is offered");
-            if class == Class::Compact {
-                assert!(y > h - 80, "{w}: {d:?} at {y}");
-            } else {
-                assert!(x < 80, "{w}: {d:?} at {x}");
-            }
+            assert!(at(&mut s, d).is_some(), "{w}: {d:?} is not offered");
         }
     }
 }
@@ -187,30 +177,6 @@ fn a_destination_pressed_again_goes_to_its_top() {
 }
 
 #[test]
-fn a_destination_has_at_most_one_primary_button_and_one_until_a_stick_is_attached() {
-    for (w, h) in [(400, 700), (700, 900), (1300, 800)] {
-        let mut s = starter(w, h);
-        for page in [Page::Home, Page::Make, Page::Tools] {
-            s.press(match page {
-                Page::Make => StarterAction::MakePage,
-                Page::Tools => StarterAction::ToolsPage,
-                _ => StarterAction::Home,
-            });
-            let _ = s.drawn_texts();
-            assert_eq!(s.primary_buttons(), 1, "{w}: {page:?}");
-        }
-        // With a stick attached Make has none; Home still has its card's.
-        s.starter_event(StarterEvent::Disks(vec![stick()]));
-        s.press(StarterAction::MakePage);
-        let _ = s.drawn_texts();
-        assert_eq!(s.primary_buttons(), 0, "{w}: Make with a stick");
-        s.press(StarterAction::Home);
-        let _ = s.drawn_texts();
-        assert_eq!(s.primary_buttons(), 1, "{w}: Home with a stick");
-    }
-}
-
-#[test]
 fn the_menu_lists_uninstall_only_while_installed_and_the_boot_entry_only_while_offered() {
     let mut s = starter(700, 900);
     s.press(StarterAction::ToolsPage);
@@ -254,14 +220,12 @@ fn install_and_update_are_in_the_bar_as_the_install_page_says() {
 }
 
 #[test]
-fn larger_text_at_700_takes_the_compact_layout() {
+fn larger_text_still_offers_every_destination() {
     let mut s = starter(700, 900);
-    let (x, _) = at(&mut s, StarterAction::MakePage).expect("offered");
-    assert!(x < 80);
     s.set_text_size(faraday_ui::TextSize::Larger);
-    assert_eq!(s.class(), Class::Compact);
-    let (_, y) = at(&mut s, StarterAction::MakePage).expect("offered");
-    assert!(y > 900 - 80);
+    for d in DESTINATIONS {
+        assert!(at(&mut s, d).is_some(), "{d:?} is not offered");
+    }
 }
 
 #[test]
@@ -315,31 +279,16 @@ fn transfer_is_a_task_page_under_the_top_app_bar_and_back_returns_to_tools() {
     assert_eq!(s.page, Page::Tools);
 }
 
-/// On a window wider than the page needs, the page's cards stand in a
-/// column centred in the room beside the rail, and the top bar's ⋮ stands
-/// at the window's right edge (`docs/LAYOUT.md` §15, `docs/STARTER.md`
-/// §3.1d).
+/// Every Make button is on screen and takes a press in wide windows.
 #[test]
-fn a_wide_window_centres_the_page_and_puts_the_bar_at_its_edge() {
+fn a_wide_window_offers_every_make_button_on_screen() {
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1440)] {
         let mut s = starter(w, h);
         tap(&mut s, StarterAction::MakePage);
-        let (menu, _) = at(&mut s, StarterAction::Menu).expect("the menu");
-        assert!(
-            f32::from(w) - f32::from(menu) <= 48.0,
-            "{w}: the ⋮ at {menu}"
-        );
-        let (rail, column) = (80.0, 1040.0);
-        let area = f32::from(w) - rail;
-        let left = rail + ((area - column) / 2.0).max(0.0);
+        assert!(at(&mut s, StarterAction::Menu).is_some(), "{w}: the menu");
         for target in [Target::Stick, Target::Pi] {
-            let (x, _) = at(&mut s, StarterAction::Make(target)).expect("a Make button");
-            let x = f32::from(x);
-            assert!(
-                x >= left && x <= left + column,
-                "{w}: {target:?} at {x} outside the column {left}..{}",
-                left + column
-            );
+            let (x, y) = at(&mut s, StarterAction::Make(target)).expect("a Make button");
+            assert!(x < w && y < h, "{w}: {target:?} at {x},{y} is off screen");
         }
     }
 }

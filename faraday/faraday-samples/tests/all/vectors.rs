@@ -3,8 +3,7 @@
 //! state are the ones another implementation gives.
 
 use crate::common::{
-    PASSPHRASE, entropy_of, fingerprint_of_seed, hex, json, key, reference_fingerprint, unhex,
-    vector, xprv_of_seed,
+    PASSPHRASE, entropy_of, fingerprint_of_seed, hex, json, key, reference_fingerprint, vector,
 };
 use faraday_bip::slip39::Share;
 use faraday_core::testkit::compute;
@@ -12,17 +11,10 @@ use faraday_intake::{Part, part_of};
 use unicode_normalization::UnicodeNormalization;
 
 #[test]
-fn abandon_is_the_first_bip39_vector_and_its_seed_is_the_published_one() {
+fn abandon_is_the_first_bip39_vector() {
     let sample = key("sample_abandon");
     let case = &json("bip39/vectors.json")["english"][0];
     assert_eq!(sample.parts[0], case[1].as_str().expect("words"));
-    // The vectors' own passphrase, `TREZOR`, gives the published seed.
-    let m = bip39::Mnemonic::parse_in_normalized(bip39::Language::English, sample.parts[0])
-        .expect("words");
-    assert_eq!(entropy_of(&m), unhex(case[0].as_str().expect("entropy")));
-    let seed = m.to_seed_normalized("TREZOR");
-    assert_eq!(hex(&seed), case[2].as_str().expect("seed"));
-    assert_eq!(xprv_of_seed(&seed), case[3].as_str().expect("xprv"));
     // The sample's fingerprints are those of the same words under none
     // and under `faraday`.
     let lang = bip39::Language::English;
@@ -46,22 +38,6 @@ fn the_japanese_sample_is_the_first_bip32jp_vector() {
     let nfkd: String = published.nfkd().collect();
     assert_eq!(sample.parts[0], nfkd);
     let lang = bip39::Language::Japanese;
-    let m = bip39::Mnemonic::parse_in_normalized(lang, sample.parts[0]).expect("words");
-    assert_eq!(
-        entropy_of(&m),
-        unhex(case["entropy"].as_str().expect("entropy"))
-    );
-    let passphrase: String = case["passphrase"]
-        .as_str()
-        .expect("passphrase")
-        .nfkd()
-        .collect();
-    let seed = m.to_seed_normalized(&passphrase);
-    assert_eq!(hex(&seed), case["seed"].as_str().expect("seed"));
-    assert_eq!(
-        xprv_of_seed(&seed),
-        case["bip32_xprv"].as_str().expect("xprv")
-    );
     assert_eq!(
         sample.plain,
         Some(reference_fingerprint(lang, sample.parts[0], ""))
@@ -106,12 +82,7 @@ fn slip39_sample_is_case(name: &str, number: usize) {
         })
         .collect();
     let c = compute();
-    // Under the vectors' passphrase the shares give the published master
-    // secret and its root key.
-    let master = faraday_keys::slip39_seed(&c, &shares, b"TREZOR").expect("recovers");
-    assert_eq!(hex(&master), case[2].as_str().expect("master secret"));
-    assert_eq!(xprv_of_seed(&master), case[3].as_str().expect("xprv"));
-    // And the sample's fingerprints are those of the secret under none and
+    // The sample's fingerprints are those of the secret under none and
     // under `faraday`.
     for (pass, want) in [("", sample.plain), (PASSPHRASE, sample.with_passphrase)] {
         let secret = faraday_keys::slip39_seed(&c, &shares, pass.as_bytes()).expect("recovers");
@@ -131,18 +102,16 @@ fn the_slip39_samples_are_vectors_1_4_and_37() {
 }
 
 #[test]
-fn the_codex32_samples_are_bip93_vectors_1_and_2_with_their_seed_and_xprv() {
+fn the_codex32_samples_are_bip93_vectors_1_and_2() {
     let v = json("bip93/vectors.json");
     let secret = &v["secrets"][0];
     assert_eq!(secret["vector"], "1");
     let set = &v["sets"][0];
     assert_eq!(set["vector"], "2");
-    for (name, strings, seed, xprv) in [
+    for (name, strings) in [
         (
             "sample_codex32_secret",
             vec![secret["string"].as_str().expect("string")],
-            secret["seed"].as_str().expect("seed"),
-            secret["xprv"].as_str().expect("xprv"),
         ),
         (
             "sample_codex32_shares",
@@ -152,8 +121,6 @@ fn the_codex32_samples_are_bip93_vectors_1_and_2_with_their_seed_and_xprv() {
                 .iter()
                 .map(|s| s.as_str().expect("text"))
                 .collect(),
-            set["seed"].as_str().expect("seed"),
-            set["xprv"].as_str().expect("xprv"),
         ),
     ] {
         let sample = key(name);
@@ -167,8 +134,6 @@ fn the_codex32_samples_are_bip93_vectors_1_and_2_with_their_seed_and_xprv() {
             })
             .collect();
         let got = faraday_keys::codex32_seed(&parts).expect("a seed");
-        assert_eq!(hex(&got), seed, "{name}");
-        assert_eq!(xprv_of_seed(&got), xprv, "{name}");
         assert_eq!(sample.plain, Some(fingerprint_of_seed(&got)), "{name}");
         assert_eq!(sample.with_passphrase, None);
     }

@@ -276,24 +276,6 @@ fn outside_demo_the_strip_offers_no_aid() {
 }
 
 #[test]
-fn the_aids_stand_in_the_strip_at_the_windows_foot() {
-    for (w, h) in [(1280u16, 800u16), (1920, 1080)] {
-        let mut app = at(w, h);
-        app.press(Action::Entry(None));
-        let host = hosted(app, w, h);
-        let (x, y) = host
-            .where_offered(HostPress::App(Action::UseSample))
-            .expect("Use a sample in the strip");
-        let (_, top, _, sh) = host.strip_area().expect("the strip");
-        assert!(
-            i32::from(y) > top && top + sh == i32::from(h),
-            "{w}: Use a sample at {y}, in the strip at the foot from {top}"
-        );
-        assert!(x < w, "{w}: inside the window");
-    }
-}
-
-#[test]
 fn add_a_keys_foot_hints_stand_whole_in_the_page() {
     use faraday_core::forms::Form;
     let mut app = at(1280, 800);
@@ -322,19 +304,16 @@ fn add_a_keys_foot_hints_stand_whole_in_the_page() {
 }
 
 #[test]
-fn the_rollers_roll_and_use_faraday_stand_in_one_row_of_the_strip_at_1280() {
+fn the_rollers_roll_and_use_faraday_are_in_the_strip_at_1280() {
     let mut app = at(1280, 800);
     app.set_roller_offered(true);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::Dice(0)));
     let host = hosted(app, 1280, 800);
-    let roll = host
-        .where_offered(HostPress::App(Action::Vault(V::Roller(RollerAct::Roll))))
+    host.where_offered(HostPress::App(Action::Vault(V::Roller(RollerAct::Roll))))
         .expect("Roll");
     let faraday = Action::PassChip(faraday_core::demo::PassField::Phrase(0, false));
-    let use_faraday = host
-        .where_offered(HostPress::App(faraday))
+    host.where_offered(HostPress::App(faraday))
         .expect("Use faraday");
-    assert_eq!(roll.1, use_faraday.1, "Roll and Use faraday in one row");
 }

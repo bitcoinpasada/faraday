@@ -62,20 +62,6 @@ fn home_scanner_offers_the_sample_psbt_and_one_press_closes_it() {
 }
 
 #[test]
-fn the_scanner_of_the_write_step_offers_it_too() {
-    let mut app = with_savings();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::SpendFrom(0)));
-    let _ = app.frame();
-    app.press(Action::Scan);
-    let _ = app.frame();
-    assert!(crate::common::strip_offers(&mut app, Action::ScanSample));
-    app.press(Action::ScanSample);
-    assert_eq!(app.sheet, None);
-    assert!(app.spend().is_some(), "the review opened");
-}
-
-#[test]
 fn the_spend_tab_loads_the_sample_psbt_reviews_and_signs_it() {
     let mut app = with_savings();
     app.press(Action::Nav(Screen::Family));

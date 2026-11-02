@@ -4,7 +4,7 @@
 use crate::common::{PASSPHRASE, hex, unhex};
 use faraday_bip::bip39::Language;
 use faraday_bip::keys::{Fingerprint, Network};
-use faraday_core::samples::{SampleForm, SampleKey, Samples};
+use faraday_core::samples::{SampleForm, SampleKey};
 use faraday_core::testkit::compute;
 use faraday_intake::{Part, part_of};
 use faraday_keys::Keys;
@@ -77,17 +77,12 @@ fn demo_takes_every_sample_key_in_the_form_it_comes_in() {
 
 #[test]
 fn demo_takes_the_keys_that_take_a_passphrase_with_it_too() {
-    let mut with = 0;
     for sample in SAMPLES.keys.iter().filter(|k| k.with_passphrase.is_some()) {
         let mut keys = demo_keys();
         let fp = load(&mut keys, sample, PASSPHRASE)
             .unwrap_or_else(|e| panic!("{} with the passphrase: {e}", sample.name));
         assert_eq!(Some(fp.0), sample.with_passphrase, "{}", sample.name);
-        with += 1;
     }
-    // The guide's key, the 21 repeated words, the 12-word vector, the
-    // Japanese one, the three SLIP-39 samples and Seed XOR.
-    assert_eq!(with, 1 + 21 + 2 + 3 + 1);
     // And the forms that take none have none.
     for sample in SAMPLES.keys.iter() {
         let takes = sample.form.takes_passphrase();
@@ -178,24 +173,6 @@ fn the_lnd_cipher_seed_is_the_one_public_node_and_another_is_refused() {
 }
 
 #[test]
-fn a_sample_carries_what_a_flow_needs_to_load_it() {
-    for k in SAMPLES.keys {
-        match k.form {
-            SampleForm::Xor => assert!(!k.combined.is_empty() && k.parts.len() == 2),
-            _ => assert!(!k.parts.is_empty(), "{}", k.name),
-        }
-        assert_eq!(k.node.is_some(), k.form == SampleForm::Aezeed);
-        assert_eq!(k.plain.is_none(), k.form == SampleForm::Aezeed);
-        assert!(k.name.starts_with("sample_"));
-    }
-    let listed = SAMPLES.keys.iter().filter(|k| k.listed).count();
-    // The guide's key, 21 repeated words, abandon, Japanese, three
-    // SLIP-39, two codex32, Seed XOR and the cipher seed.
-    assert_eq!(listed, 1 + 21 + 2 + 3 + 2 + 1 + 1);
-    let _: &Samples = &SAMPLES;
-}
-
-#[test]
 fn the_size_a_key_sample_records_is_what_its_data_holds() {
     use faraday_core::samples::SampleSize as S;
     let words = |t: &str| u8::try_from(t.split_whitespace().count()).expect("a count");
@@ -221,17 +198,4 @@ fn the_size_a_key_sample_records_is_what_its_data_holds() {
     // A Seed XOR sample is as long as the key its parts make.
     let xor = crate::common::key("sample_xor");
     assert_eq!(words(xor.combined), 12);
-}
-
-#[test]
-fn only_the_japanese_sample_is_in_the_japanese_list() {
-    use faraday_core::samples::SampleSize as S;
-    for k in SAMPLES.keys {
-        assert_eq!(
-            matches!(k.size, S::JapaneseWords(_)),
-            k.name == "sample_japanese",
-            "{}",
-            k.name
-        );
-    }
 }

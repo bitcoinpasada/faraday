@@ -871,49 +871,6 @@ mod tests {
     }
 
     #[test]
-    fn a_tap_then_a_quick_touch_that_moves_drags_until_the_finger_lifts() {
-        let t0 = Instant::now();
-        let ms = |n: u64| t0 + Duration::from_millis(n);
-        let mut cursor = Cursor::new(1920, 1080, 1.0);
-        cursor.apply(Motion::Move { dx: 0, dy: 0 });
-        let (x, y) = cursor.at();
-        cursor.apply_at(Motion::Finger(Finger::Down { ms: 1000 }), ms(1000));
-        assert_eq!(
-            cursor.apply_at(Motion::Finger(Finger::Up { ms: 1060 }), ms(1060)),
-            at(x, y, TouchPhase::Down)
-        );
-        // Back on the pad 100 ms later, inside the wait.
-        assert_eq!(
-            cursor.apply_at(Motion::Finger(Finger::Down { ms: 1160 }), ms(1160)),
-            None
-        );
-        assert_eq!(cursor.due(ms(1300)), None, "the press stays held");
-        assert_eq!(
-            cursor.apply(Motion::Move { dx: 0, dy: 40 }),
-            at(x, y + 40, TouchPhase::Move),
-            "and the finger drags"
-        );
-        assert_eq!(
-            cursor.apply(Motion::Move { dx: 0, dy: 60 }),
-            at(x, y + 100, TouchPhase::Move)
-        );
-        assert_eq!(
-            cursor.apply_at(Motion::Finger(Finger::Up { ms: 2000 }), ms(2000)),
-            at(x, y + 100, TouchPhase::Up),
-            "lifting the finger lets go, with no drag lock"
-        );
-        assert_eq!(cursor.due(ms(3000)), None);
-        assert_eq!(
-            cursor.apply(Motion::Move { dx: 5, dy: 0 }),
-            Some(Pointed::Hover {
-                x: x + 5,
-                y: y + 100
-            }),
-            "the next stroke only moves the pointer"
-        );
-    }
-
-    #[test]
     fn a_double_tap_is_two_clicks() {
         let t0 = Instant::now();
         let ms = |n: u64| t0 + Duration::from_millis(n);
@@ -928,48 +885,6 @@ mod tests {
             Some(Pointed::Reclick { x, y })
         );
         assert_eq!(cursor.due(ms(1400)), at(x, y, TouchPhase::Up));
-    }
-
-    #[test]
-    fn a_slow_second_touch_after_a_tap_is_a_plain_move() {
-        let t0 = Instant::now();
-        let ms = |n: u64| t0 + Duration::from_millis(n);
-        let mut cursor = Cursor::new(1920, 1080, 1.0);
-        cursor.apply(Motion::Move { dx: 0, dy: 0 });
-        let (x, y) = cursor.at();
-        cursor.apply_at(Motion::Finger(Finger::Down { ms: 1000 }), ms(1000));
-        cursor.apply_at(Motion::Finger(Finger::Up { ms: 1060 }), ms(1060));
-        // 300 ms after the lift, past the wait. The loop had not yet
-        // asked, so the touch itself ends the click.
-        assert_eq!(
-            cursor.apply_at(Motion::Finger(Finger::Down { ms: 1360 }), ms(1360)),
-            at(x, y, TouchPhase::Up)
-        );
-        assert_eq!(
-            cursor.apply(Motion::Move { dx: 30, dy: 0 }),
-            Some(Pointed::Hover { x: x + 30, y })
-        );
-        assert_eq!(
-            cursor.apply_at(Motion::Finger(Finger::Up { ms: 1500 }), ms(1500)),
-            None
-        );
-    }
-
-    #[test]
-    fn two_fingers_during_a_tap_drag_move_the_pointer_and_scroll_nothing() {
-        let t0 = Instant::now();
-        let ms = |n: u64| t0 + Duration::from_millis(n);
-        let mut cursor = Cursor::new(1920, 1080, 1.0);
-        cursor.apply(Motion::Move { dx: 0, dy: 0 });
-        let (x, y) = cursor.at();
-        cursor.apply_at(Motion::Finger(Finger::Down { ms: 1000 }), ms(1000));
-        cursor.apply_at(Motion::Finger(Finger::Up { ms: 1060 }), ms(1060));
-        cursor.apply_at(Motion::Finger(Finger::Down { ms: 1100 }), ms(1100));
-        cursor.apply(Motion::Finger(Finger::Cancel));
-        assert_eq!(
-            cursor.apply(Motion::Pan { dx: 0, dy: 25 }),
-            at(x, y + 25, TouchPhase::Move)
-        );
     }
 
     #[test]

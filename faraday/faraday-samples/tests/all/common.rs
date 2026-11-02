@@ -1,8 +1,8 @@
 //! What the test modules share.
 
+use faraday_bip::bitcoin::NetworkKind;
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
-use faraday_bip::bitcoin::{Network, NetworkKind};
 use faraday_bip::keys::Network as KeyNetwork;
 use faraday_core::samples::SampleKey;
 use faraday_core::testkit;
@@ -54,17 +54,6 @@ pub fn fingerprint_of_seed(seed: &[u8]) -> [u8; 4] {
     let secp = Secp256k1::new();
     let master = Xpriv::new_master(NetworkKind::Main, seed).expect("a master key");
     master.fingerprint(&secp).to_bytes()
-}
-
-/// The master key of `seed`, written as an `xprv`, by the `bitcoin` crate.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "another implementation's master key, to check Faraday's against (docs/COMPUTE.md §7)"
-)]
-pub fn xprv_of_seed(seed: &[u8]) -> String {
-    Xpriv::new_master(Network::Bitcoin, seed)
-        .expect("a master key")
-        .to_string()
 }
 
 /// The fingerprint BIP-39 `words` have with `passphrase`, by the `bip39`

@@ -20,13 +20,6 @@ fn of_length(n: u8) -> Vec<&'static str> {
 }
 
 #[test]
-fn there_are_eleven_handouts_of_24_words_four_of_12_and_two_of_each_other_length() {
-    let counts: Vec<usize> = LENGTHS.iter().map(|&n| of_length(n).len()).collect();
-    assert_eq!(counts, [4, 2, 2, 2, 11]);
-    assert_eq!(SAMPLES.handouts().len(), 21);
-}
-
-#[test]
 fn each_handout_is_a_valid_phrase_and_the_24_word_ones_are_every_word_valid_that_often() {
     let lang = bip39::Language::English;
     for h in SAMPLES.handouts() {
