@@ -106,6 +106,12 @@ impl Pacer {
         }
     }
 
+    /// The core's worker has an answer: the next pass ticks now, which
+    /// applies it, and a job still running keeps the frames coming.
+    pub fn woken(&mut self) {
+        self.next_tick = Instant::now();
+    }
+
     /// Whether `--timings` is on.
     pub fn timed(&self) -> bool {
         self.timings.is_some()

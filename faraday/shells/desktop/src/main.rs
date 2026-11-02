@@ -101,7 +101,7 @@ use faraday_window::view::{self, View};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Window, WindowId};
 
 /// A frame or an event slower than this is reported in a test build.
@@ -158,6 +158,8 @@ fn screen_ppi() -> Option<f64> {
 }
 
 struct Shell {
+    /// What the core's worker calls to wake the loop.
+    proxy: EventLoopProxy<()>,
     /// A device's screen to stand for, when given.
     panel: Option<Panel>,
     /// The Demo's side of the window: sticks, storage, Downloads, the
@@ -203,7 +205,8 @@ impl Shell {
 
     /// `app` held as this window shows it: by the host with its strip, or
     /// bare with `--panel`, whose window is a device's screen.
-    fn held(&self, app: Faraday) -> AppHost {
+    fn held(&self, mut app: Faraday) -> AppHost {
+        faraday_window::wake_on_work(&mut app, &self.proxy);
         if self.panel.is_some() {
             AppHost::bare(app)
         } else {
@@ -292,7 +295,9 @@ impl Shell {
             storage += self.demo.took(&mut app.app);
         }
         if ticked {
-            self.pace.animating = draw;
+            // A job on the worker keeps the frames coming.
+            let working = self.app.as_ref().is_some_and(|h| h.app.busy().is_some());
+            self.pace.animating = draw || working;
         }
         // A stick toggled or a storage command served changes a stick's
         // files: look again now. Otherwise the timer looks.
@@ -582,6 +587,10 @@ impl ApplicationHandler for Shell {
         }
     }
 
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _work: ()) {
+        self.pace.woken();
+    }
+
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.view.is_none() {
             return;
@@ -762,8 +771,11 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+    let proxy = event_loop.create_proxy();
+    let mut app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+    faraday_window::wake_on_work(&mut app, &proxy);
     let mut shell = Shell {
+        proxy,
         panel: o.panel,
         demo,
         open_transfer: o.open_transfer,

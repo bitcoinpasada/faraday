@@ -128,6 +128,7 @@ mod touch;
 #[cfg(test)]
 mod turned_tests;
 mod usb;
+mod work;
 
 use std::fs::{File, OpenOptions};
 use std::io::Read;
@@ -197,6 +198,8 @@ enum Wake {
     InputEnded(u32),
     /// The capture thread has queued a frame.
     Frame,
+    /// The core's worker has an answer; the pass's tick applies it.
+    Work,
     /// What a device not yet believed sent, held back (`docs/history/PLAN.md` §4.6).
     Held(u32, HeldInput),
     /// The panic chord, Super and S, closed (`true`) or opened again
@@ -1734,11 +1737,12 @@ fn run(args: Args) -> Result<Exit, String> {
     // On the device the sender is kept, because a device plugged in later
     // needs one. Off it nothing more can appear, so the last sender goes
     // and a loop with no source left stops waiting on it.
-    let tx = watch.is_some().then_some(tx);
+    let (work_tx, tx) = (tx.clone(), watch.is_some().then_some(tx));
 
     let mut shell = Shell {
         app: Some({
             let mut app = Faraday::new();
+            app.set_wake(work::wake(work_tx));
             app.medium = medium();
             app.session =
                 faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
@@ -2098,7 +2102,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             match wake {
                 // The frame is taken below, from the camera's channel;
                 // the note only ended the wait.
-                Wake::Frame => {}
+                Wake::Frame | Wake::Work => {}
                 Wake::InputEnded(id) => ended.push(id),
                 Wake::Held(id, input) => shell.held_wake(id, input, &mut batch),
                 other => batch.push(other),
@@ -2156,7 +2160,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 Wake::Key(key) => shell.send_timed(Bucket::Touch, Event::Key(key)),
                 Wake::KeyUp(key) => shell.send_timed(Bucket::Touch, Event::KeyUp(key)),
                 Wake::Panic(on) => shell.panic_timer.chord(on, Instant::now()),
-                Wake::Frame | Wake::InputEnded(_) | Wake::Held(..) => {}
+                Wake::Frame | Wake::Work | Wake::InputEnded(_) | Wake::Held(..) => {}
             }
             if shell.done {
                 break;
@@ -2280,7 +2284,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             }
             last_fade_step = shell.last_blend.then_some(began);
         }
-        next_frame = (contact || shell.drawn != drawn).then(|| {
+        // A job on the worker keeps the frames coming (WORKERS §7.1).
+        let working = work::running(shell.app.as_ref());
+        next_frame = (contact || working || shell.drawn != drawn).then(|| {
             let now = Instant::now();
             let step = pace.step();
             next_frame

@@ -43,3 +43,17 @@ pub fn entropy() -> Vec<Event> {
         Err(_) => Vec::new(),
     }
 }
+
+/// Has `app` call the window's loop when its worker has an answer
+/// (`docs/WORKERS.md` §7.2): the loop's next pass sends the tick that
+/// applies it ([`pace::Pacer::woken`]).
+pub fn wake_on_work(
+    app: &mut faraday_core::Faraday,
+    proxy: &winit::event_loop::EventLoopProxy<()>,
+) {
+    let proxy = proxy.clone();
+    app.set_wake(Box::new(move || {
+        // A loop that has ended has no use for the note.
+        let _ = proxy.send_event(());
+    }));
+}

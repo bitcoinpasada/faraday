@@ -86,6 +86,14 @@ impl Faraday {
         self.worker.set_inline(on);
     }
 
+    /// Gives the shell's wake: called from the worker's thread each time
+    /// an answer is ready, so the shell makes its next pass at once and the
+    /// answer is applied there (`docs/WORKERS.md` §7). It must only wake
+    /// the shell's loop.
+    pub fn set_wake(&mut self, wake: Box<dyn Fn() + Send>) {
+        self.worker.set_wake(wake);
+    }
+
     /// Starts `job`, whose line of text is `line`: on the worker, with the
     /// screen busy until its answer is applied; inline, applied now.
     pub(crate) fn start(&mut self, job: Job, line: &'static str) {

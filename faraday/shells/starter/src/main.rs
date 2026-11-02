@@ -70,7 +70,7 @@ use faraday_window::view::{self, View};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Window, WindowId};
 
 /// How often the Downloads folder and the cameras are looked at again,
@@ -86,6 +86,8 @@ const TITLE: &str = EN.starter_window_title;
 
 struct Shell {
     starter: Starter,
+    /// What the held Demo's worker calls to wake the loop.
+    proxy: EventLoopProxy<()>,
     /// The operating system's side (`Platform`).
     system: Arc<dyn Platform>,
     payload: Option<Payload>,
@@ -149,7 +151,9 @@ impl Shell {
             draw |= self.answer(event_loop, &mut events);
         }
         if ticked {
-            self.pace.animating = draw;
+            // A job on the held Demo's worker keeps the frames coming.
+            let working = self.starter.demo().is_some_and(|h| h.app.busy().is_some());
+            self.pace.animating = draw || working;
         }
         if draw {
             self.redraw();
@@ -254,7 +258,8 @@ impl Shell {
                 return;
             }
         };
-        let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+        let mut app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+        faraday_window::wake_on_work(&mut app, &self.proxy);
         self.starter.show_demo(AppHost::new(app));
         if let Some(host) = self.starter.demo() {
             host.event(demo.offered());
@@ -272,7 +277,8 @@ impl Shell {
         let (Some(demo), Some(old)) = (self.demo.as_mut(), self.starter.demo()) else {
             return;
         };
-        let fresh = demo.restart(&old.app);
+        let mut fresh = demo.restart(&old.app);
+        faraday_window::wake_on_work(&mut fresh, &self.proxy);
         self.starter.show_demo(AppHost::new(fresh));
         if let (Some(demo), Some(host)) = (self.demo.as_mut(), self.starter.demo()) {
             host.event(demo.offered());
@@ -709,6 +715,10 @@ impl ApplicationHandler for Shell {
         }
     }
 
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, _work: ()) {
+        self.pace.woken();
+    }
+
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.view.is_none() {
             return;
@@ -951,6 +961,7 @@ fn main() -> ExitCode {
     let (listed, listing) = channel();
     watch_listing(downloads.clone(), opens, listed);
     let mut shell = Shell {
+        proxy: event_loop.create_proxy(),
         starter,
         system,
         payload,

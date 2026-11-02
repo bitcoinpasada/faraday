@@ -660,8 +660,9 @@ impl Faraday {
                 self.session
                     .add_policy(&c, &name, p, EN.samples_source, Origin::Statement)
             });
-            wallets +=
-                usize::from(added.is_some_and(|r| r.is_ok()) && self.session.wallets.len() > before);
+            wallets += usize::from(
+                added.is_some_and(|r| r.is_ok()) && self.session.wallets.len() > before,
+            );
             for fp in w.keys {
                 let sample = set.keys.iter().find(|k| k.plain == Some(*fp));
                 keys += sample.map_or(0, |k| usize::from(k.add(&c, &mut self.session.keys)));

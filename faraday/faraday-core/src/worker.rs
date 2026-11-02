@@ -5,6 +5,7 @@
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use faraday_crypto::work::Compute;
@@ -82,6 +83,10 @@ pub(crate) struct Answer {
     counts: work::Counts,
 }
 
+/// What the shell gave to be called when an answer is ready
+/// (`docs/WORKERS.md` §7): shared with the worker's thread.
+type Waker = Arc<Mutex<Option<Box<dyn Fn() + Send>>>>;
+
 struct Link {
     ask: Sender<Asked>,
     back: Receiver<Answer>,
@@ -97,6 +102,8 @@ pub(crate) struct Worker {
     /// The generation whose answer is applied; any other is stale.
     live: Option<u64>,
     link: Option<Link>,
+    /// Called from the worker's thread after each answer is sent.
+    wake: Waker,
     /// What the core keeps of the job that runs.
     busy: Option<Busy>,
     /// Whether a frame has been drawn since a press was left to wait.
@@ -110,8 +117,17 @@ impl Worker {
             generation: 0,
             live: None,
             link: None,
+            wake: Waker::default(),
             busy: None,
             drawn: false,
+        }
+    }
+
+    /// Sets what is called, from the worker's thread, when an answer
+    /// has been sent.
+    pub(crate) fn set_wake(&mut self, wake: Box<dyn Fn() + Send>) {
+        if let Ok(mut slot) = self.wake.lock() {
+            *slot = Some(wake);
         }
     }
 
@@ -146,7 +162,8 @@ impl Worker {
         self.generation += 1;
         let generation = self.generation;
         self.live = Some(generation);
-        let link = self.link.get_or_insert_with(spawn);
+        let wake = Arc::clone(&self.wake);
+        let link = self.link.get_or_insert_with(|| spawn(wake));
         // The thread lives as long as this end does.
         let _ = link.ask.send(Asked { job, generation });
     }
@@ -192,19 +209,19 @@ impl Answer {
     }
 }
 
-fn spawn() -> Link {
+fn spawn(wake: Waker) -> Link {
     let (ask, rx) = channel();
     let (tx, back) = channel();
     std::thread::Builder::new()
         .name("worker".into())
-        .spawn(move || worker_loop(&rx, &tx))
+        .spawn(move || worker_loop(&rx, &tx, &wake))
         .expect("the worker thread starts");
     Link { ask, back }
 }
 
 /// The worker's loop: one job at a time, in the order asked, those
 /// replaced by a newer of their kind left out.
-fn worker_loop(rx: &Receiver<Asked>, tx: &Sender<Answer>) {
+fn worker_loop(rx: &Receiver<Asked>, tx: &Sender<Answer>, wake: &Waker) {
     #[expect(
         clippy::disallowed_methods,
         reason = "a mint: the worker, which draws nothing"
@@ -223,8 +240,20 @@ fn worker_loop(rx: &Receiver<Asked>, tx: &Sender<Answer>) {
             let generation = asked.generation;
             let done = catch_unwind(AssertUnwindSafe(|| asked.job.run(&c))).map_err(|_| ());
             let counts = work::since(&before);
-            if tx.send(Answer { done, generation, counts }).is_err() {
+            if tx
+                .send(Answer {
+                    done,
+                    generation,
+                    counts,
+                })
+                .is_err()
+            {
                 return;
+            }
+            if let Ok(slot) = wake.lock()
+                && let Some(w) = slot.as_ref()
+            {
+                w();
             }
         }
     }
