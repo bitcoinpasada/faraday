@@ -6,6 +6,7 @@
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "testkit")]
 use std::time::Duration;
 
 use faraday_crypto::work::Compute;
@@ -192,6 +193,7 @@ impl Worker {
     }
 
     /// Waits for the next answer, for tests: `None` when none comes.
+    #[cfg(feature = "testkit")]
     pub(crate) fn wait_answer(&mut self) -> Option<Answer> {
         self.link
             .as_ref()?

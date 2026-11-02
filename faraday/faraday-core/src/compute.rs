@@ -128,6 +128,7 @@ impl Faraday {
 
     /// Waits for the running job and applies its answer: for the tests of
     /// the busy screen (`testkit::settle`).
+    #[cfg(feature = "testkit")]
     pub(crate) fn settle_jobs(&mut self) {
         while self.worker.busy().is_some() {
             let Some(answer) = self.worker.wait_answer() else {
@@ -238,6 +239,7 @@ impl Faraday {
     }
 
     /// Sets the busy state with no job behind it (`testkit::show_busy`).
+    #[cfg(feature = "testkit")]
     pub(crate) fn show_busy(&mut self, busy: Busy) {
         self.worker.set_busy(Some(busy));
         self.out.dirty = true;
