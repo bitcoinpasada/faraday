@@ -1,14 +1,14 @@
 //! The CPU's lowest clock, raised while something moves
-//! (`docs/MOTION.md` §3.5).
+//! (`docs/MOTION.md` §3.2).
 //!
 //! On a CPU whose clock the kernel's schedutil governor sets, the clock
 //! rises only once work has run a while, so a fade, which starts from
 //! idle, draws its first steps slowly and is turned off. While input
 //! arrives or frames are drawn, the shell sets each CPU's lowest clock to
 //! its highest, and puts it back a second after the last. Init lets the
-//! app write `scaling_min_freq` only on a PC whose CPUs run schedutil; a
-//! CPU whose driver sets its own clock, and the Pi, are left alone, and
-//! with nothing writable this does nothing.
+//! app write `scaling_min_freq` only on CPUs that run schedutil, the
+//! PC's and the Pi's; a CPU whose driver sets its own clock is left
+//! alone, and with nothing writable this does nothing.
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};

@@ -83,6 +83,16 @@ CONFIG_BCM2835_WDT=y
 CONFIG_HW_RANDOM=y
 CONFIG_HW_RANDOM_BCM2835=y
 
+# ---- the CPU's clock ----
+# The Pi defconfig's default governor is powersave, which holds the
+# cores at 600 MHz of 1400: every frame took more than twice as long.
+# schedutil raises the clock while frames are drawn and lowers it after,
+# and the app raises the lowest clock while something moves
+# (docs/MOTION.md §3.2). The firmware still lowers it when the SoC runs
+# hot or the supply sags.
+CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+# CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE is not set
+
 # ---- the card ----
 # brcm,bcm2835-sdhost and brcm,bcm2835-mmc are the two controllers the
 # Pi 3 boots and reads the exchange partition from. sdhci-iproc
