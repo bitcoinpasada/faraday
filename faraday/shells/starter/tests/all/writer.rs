@@ -12,8 +12,7 @@ use faraday_starter_shell::writer::{self, Device, Identity, Job};
 
 use crate::sticks::{
     self, BASIC, BOOT_FIRST, DATA_FIRST, DATA_SECTORS, ESP, FILES, IDS, IMAGE, NAMES, SECTOR,
-    SERIALS, STICK, Sparse, boot_range, read, stick, stick_image, stick_with, unchanged,
-    untouched_outside,
+    STICK, Sparse, boot_range, read, stick, stick_image, stick_with, unchanged, untouched_outside,
 };
 
 const XZ: &[u8] = include_bytes!("../../../../faraday-payload/tests/vectors/fixture.img.xz");
@@ -52,6 +51,9 @@ pub(crate) struct FileDisk {
     /// What the disk is once it is open, when it is not what it was:
     /// another stick swapped in between the check and the open.
     after_open: Option<Identity>,
+    /// A byte of the disk to change before it is read back: a disk that
+    /// reads back what it was not given.
+    flip_on_read: Option<u64>,
 }
 
 impl FileDisk {
@@ -67,6 +69,7 @@ impl FileDisk {
             calls: Vec::new(),
             raw: None,
             after_open: None,
+            flip_on_read: None,
         }
     }
 
@@ -81,6 +84,7 @@ impl FileDisk {
             mode,
             boot_file: None,
             name: None,
+            clear_first: false,
         }
     }
 }
@@ -113,6 +117,18 @@ impl Device for FileDisk {
     }
     fn open_read(&mut self) -> Result<File, Reason> {
         self.calls.push("open_read");
+        if let Some(at) = self.flip_on_read {
+            use std::os::unix::fs::FileExt;
+            let f = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&self.path)
+                .map_err(|e| Reason::OpenRead(e.to_string()))?;
+            let mut b = [0u8];
+            f.read_exact_at(&mut b, at)
+                .and_then(|()| f.write_all_at(&[b[0] ^ 1], at))
+                .map_err(|e| Reason::OpenRead(e.to_string()))?;
+        }
         // As udisks2 hands it back: a read straight from the disk
         // (`O_DIRECT`), which refuses an unaligned offset, length or
         // buffer, as a real stick does.
@@ -221,27 +237,41 @@ fn blank(name: &str) -> (PathBuf, Sparse) {
     (disk_file(name, &d), d)
 }
 
-/// What a whole write left on the disk at `path`: the image's length of
-/// it, with the image's own IDs put back.
-fn written_with_ids_back(path: &Path, image: &Sparse) -> Vec<u8> {
-    let mut back = read(path, 0, image.len as usize);
-    sticks::ids_put_back(&mut back, image, &sticks::stick_id_places(image.len));
-    back
+/// Whether the stick written at `path`, a disk of `disk_len` bytes, was
+/// made from `image` for its size: the image's boot partition byte for
+/// byte, and a table that is a Faraday stick's whose data partition runs
+/// to the disk's last usable sector.
+pub(crate) fn made_from(path: &Path, image: &Sparse, disk_len: u64) {
+    use std::os::unix::fs::FileExt;
+    let (from, to) = boot_range();
+    assert!(read(path, from, (to - from) as usize) == image.bytes(from, (to - from) as usize));
+    let file = File::open(path).expect("open");
+    let table = gpt::read(&mut |at, buf| file.read_exact_at(buf, at), disk_len)
+        .expect("a table whose CRCs hold");
+    gpt::faraday_boot(&table, 0).expect("a Faraday stick");
+    assert_eq!(table.last_usable, disk_len / SECTOR - 34);
+    assert_eq!(table.parts[1].last, table.last_usable);
+}
+
+/// Whether the `len` bytes at `at` are still `byte`: a reused stick's
+/// free space is left as it is.
+fn kept(path: &Path, at: u64, byte: u8, len: usize) {
+    assert!(read(path, at, len).iter().all(|&b| b == byte));
 }
 
 #[test]
-fn a_whole_write_from_the_payload_reads_back_as_the_image_with_the_sticks_own_ids() {
+fn a_whole_write_from_the_payload_makes_a_stick_for_the_disk() {
     let image = stick_image();
     let (job, source) = release_payload(&image);
-    let (path, before) = blank("whole");
+    let (path, _) = blank("whole");
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source, Mode::Whole);
     let (r, stages) = run(&order, &job, &mut disk);
     assert_eq!(r, Ok(()));
     assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
-    // With the image's IDs put back, every byte is the image's.
-    assert!(written_with_ids_back(&path, &image) == image.to_vec());
-    untouched_outside(&before, &path, 0, IMAGE);
+    // The stick is made for the disk, from the image's boot partition.
+    made_from(&path, &image, STICK);
+    kept(&path, IMAGE + 4096, 0xEE, 4096);
     assert_eq!(
         disk.calls,
         [
@@ -335,7 +365,7 @@ fn a_disk_that_reports_no_serial_is_written_as_any_other() {
     let order = disk.order(source, Mode::Whole);
     let (r, _) = run(&order, &Job::Image(img), &mut disk);
     assert_eq!(r, Ok(()));
-    assert!(written_with_ids_back(&path, &image) == image.to_vec());
+    made_from(&path, &image, STICK);
 }
 
 #[test]
@@ -374,6 +404,148 @@ fn an_image_with_no_place_for_a_sticks_own_ids_is_not_written_whole() {
     unchanged(&before, &path);
 }
 
+#[test]
+fn a_source_one_byte_off_is_refused_and_nothing_is_written() {
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let Job::Payload { file, .. } = &job else {
+        panic!("a payload");
+    };
+    let mut off = image.to_vec();
+    off[boot_range().0 as usize + 1000] ^= 1;
+    let job = Job::Payload {
+        file: file.clone(),
+        bytes: std::borrow::Cow::Owned(sticks::stored_xz(&off)),
+    };
+    let (path, before) = blank("off-by-one");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert_eq!(r, Err(Reason::PayloadSum));
+    unchanged(&before, &path);
+}
+
+#[test]
+fn a_boot_partition_read_back_one_byte_off_fails_the_write() {
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let (path, _) = blank("read-off");
+    let mut disk = FileDisk::new(&path);
+    disk.flip_on_read = Some(boot_range().0 + 5000);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BackDiffers { .. })), "{r:?}");
+}
+
+#[test]
+fn a_table_read_back_one_byte_off_fails_the_write() {
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let (path, _) = blank("read-off-table");
+    let mut disk = FileDisk::new(&path);
+    disk.flip_on_read = Some(STICK - 100);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BackDiffers { .. })), "{r:?}");
+}
+
+/// Every nonzero byte of the disk at `path` lies in one of `allowed`.
+fn zero_outside(path: &Path, allowed: &[(u64, u64)]) {
+    let len = std::fs::metadata(path).expect("there").len();
+    let chunk = 1u64 << 20;
+    for at in (0..len).step_by(chunk as usize) {
+        let bytes = read(path, at, chunk.min(len - at) as usize);
+        if let Some(i) = bytes.iter().position(|&b| b != 0) {
+            for (k, &b) in bytes.iter().enumerate().skip(i) {
+                let p = at + k as u64;
+                assert!(
+                    b == 0 || allowed.iter().any(|&(a, z)| a <= p && p < z),
+                    "byte {p} is not zero"
+                );
+            }
+        }
+    }
+}
+
+/// The end of the data partition's reserved sectors, FATs and root
+/// directory, the only part of it the Starter writes.
+fn data_head(path: &Path) -> u64 {
+    let bs = read(path, DATA_FIRST * SECTOR, 512);
+    let u16_at = |at: usize| u64::from(u16::from_le_bytes([bs[at], bs[at + 1]]));
+    let fat = u64::from(u32::from_le_bytes(bs[36..40].try_into().expect("four")));
+    (u16_at(14) + 2 * fat + u64::from(bs[13])) * SECTOR
+}
+
+#[test]
+fn clearing_first_leaves_every_sector_outside_what_is_then_written_zero() {
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let mut dirty = Sparse::new(STICK);
+    for at in [0, 3 << 20, 100 << 20, IMAGE + 4096, STICK - 4096] {
+        dirty.put(at, &[0xEE; 4096]);
+    }
+    let path = disk_file("clear-first", &dirty);
+    let mut disk = FileDisk::new(&path);
+    let order = WriteOrder {
+        clear_first: true,
+        ..disk.order(source, Mode::Whole)
+    };
+    let (r, stages) = run(&order, &job, &mut disk);
+    assert_eq!(r, Ok(()));
+    assert_eq!(
+        stages,
+        [
+            WriteStage::Clearing,
+            WriteStage::Writing,
+            WriteStage::ReadingBack
+        ]
+    );
+    made_from(&path, &image, STICK);
+    let data = DATA_FIRST * SECTOR;
+    zero_outside(
+        &path,
+        &[
+            (0, 34 * SECTOR),
+            (gpt::BOOT_AT, gpt::DATA_AT),
+            (data, data + data_head(&path)),
+            (STICK - 33 * SECTOR, STICK),
+        ],
+    );
+}
+
+#[test]
+fn keep_data_does_not_clear_first() {
+    let before = stick();
+    let path = disk_file("keep-clear", &before);
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let mut disk = FileDisk::new(&path);
+    let order = WriteOrder {
+        clear_first: true,
+        ..disk.order(source, Mode::KeepData)
+    };
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::Device { .. })), "{r:?}");
+    unchanged(&before, &path);
+}
+
+#[test]
+fn keep_data_on_a_stick_made_for_its_size_keeps_its_table_and_data_partition() {
+    let image = stick_image();
+    let (job, source) = release_payload(&image);
+    let (path, _) = blank("made-then-kept");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source.clone(), Mode::Whole);
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    let mut before = Sparse::new(STICK);
+    before.put(0, &read(&path, 0, STICK as usize));
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::KeepData);
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    let (from, to) = boot_range();
+    untouched_outside(&before, &path, from, to);
+}
+
 // ---- keep data ------------------------------------------------------------
 
 /// A boot partition image of `len` bytes, as `-boot.vfat` is: a FAT32
@@ -385,17 +557,8 @@ fn boot_partition(len: usize, fill: u8, serial: u32) -> Sparse {
     s
 }
 
-/// `bytes` with the FAT32 serial at its boot sector and backup set to
-/// `serial`: what keep data writes.
-fn with_serial(mut bytes: Vec<u8>, serial: u32) -> Vec<u8> {
-    for at in [67, 6 * 512 + 67] {
-        bytes[at..at + 4].copy_from_slice(&serial.to_le_bytes());
-    }
-    bytes
-}
-
 #[test]
-fn keep_data_writes_only_the_boot_partition_keeping_the_sticks_own_ids() {
+fn keep_data_writes_only_the_boot_partition_as_it_is_and_keeps_the_rest() {
     let before = stick();
     let path = disk_file("keep-boot-only", &before);
     let boot = boot_partition(1536 << 10, 0xB0, 0x0B0B_0B0B);
@@ -407,8 +570,8 @@ fn keep_data_writes_only_the_boot_partition_keeping_the_sticks_own_ids() {
     assert_eq!(r, Ok(()));
     let (from, _) = boot_range();
     let to = from + image.sum.size;
-    // The boot partition's serial is the one the stick had.
-    assert!(read(&path, from, image.sum.size as usize) == with_serial(boot.to_vec(), SERIALS[0]));
+    // The boot partition is the release's as it is, its serial included.
+    assert!(read(&path, from, image.sum.size as usize) == boot.to_vec());
     // Its GUIDs and the data partition are as they were.
     untouched_outside(&before, &path, from, to);
 }
@@ -428,7 +591,7 @@ fn keep_data_from_a_whole_image_writes_only_its_boot_partition() {
     let order = disk.order(source, Mode::KeepData);
     let (r, _) = run(&order, &Job::Image(image), &mut disk);
     assert_eq!(r, Ok(()));
-    assert!(read(&path, from, (to - from) as usize) == with_serial(boot.to_vec(), SERIALS[0]));
+    assert!(read(&path, from, (to - from) as usize) == boot.to_vec());
     // The vaults and settings on the data partition keep their bytes.
     untouched_outside(&before, &path, from, to);
 }
@@ -586,16 +749,16 @@ fn image_gives_the_sha256sum_of_an_img_and_of_the_img_inside_an_xz() {
 }
 
 #[test]
-fn a_developer_image_written_whole_reads_back_as_it_with_the_sticks_own_ids() {
+fn a_developer_image_written_whole_makes_a_stick_for_the_disk() {
     let image = stick_image();
     let (img, source) = image_job("whole.img", &image);
-    let (path, before) = blank("whole-image");
+    let (path, _) = blank("whole-image");
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source, Mode::Whole);
     let (r, _) = run(&order, &Job::Image(img), &mut disk);
     assert_eq!(r, Ok(()));
-    assert!(written_with_ids_back(&path, &image) == image.to_vec());
-    untouched_outside(&before, &path, 0, IMAGE);
+    made_from(&path, &image, STICK);
+    kept(&path, IMAGE + 4096, 0xEE, 4096);
 }
 
 // ---- what a refusal reads as ------------------------------------------------
@@ -772,8 +935,8 @@ fn an_image_that_ends_inside_a_block_is_written_to_a_disk_that_takes_whole_block
     let (r, stages) = run(&order, &Job::Image(img), &mut disk);
     assert_eq!(r, Ok(()));
     assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
-    assert!(written_with_ids_back(&path, &image) == image.to_vec());
-    untouched_outside(&before, &path, 0, len);
+    made_from(&path, &image, STICK);
+    kept(&path, IMAGE - 8192, 0xA5, 16384);
 }
 
 // ---- which Faraday a stick holds, read by the elevated copy (#21) ---------
@@ -910,6 +1073,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
             mode: Mode::Whole,
             boot_file: None,
             name: None,
+            clear_first: false,
         };
         let mut target = Target {
             bus: Recording {

@@ -8,30 +8,31 @@
 //! 1. The disk is still the one confirmed: the same device, serial and
 //!    size, and the computer does not use it.
 //! 2. What is written fits it; a payload file matches its manifest, and
-//!    a developer's image still has the SHA-256 Confirm showed. A boot
-//!    file the person signed is still the file chosen, and the release's
-//!    own program signed (`crate::signed`, §4.5). A whole stick or card
-//!    is given its own IDs, drawn from the system's randomness, and the
-//!    image must be one they have places in: a stick's layout, or a Pi
-//!    card's (`crate::ids`, `docs/STICK-IDENTITY.md` §4.2).
+//!    a developer's image still has the SHA-256 Confirm showed; with no
+//!    boot file signed, the boot partition it carries has the manifest's
+//!    `-boot.vfat` SHA-256. A boot file the person signed is still the
+//!    file chosen, and the release's own program signed
+//!    (`crate::signed`, §4.5). A Pi card is given its own IDs, drawn from
+//!    the system's randomness (`crate::ids`); a stick is made for its
+//!    size (`docs/STICK-IDENTITY.md` §4.2): its table and its data
+//!    partition's FAT32 are regions to write, with its own IDs.
 //! 3. What the desktop mounted from it is unmounted, and it is opened
 //!    to write, exclusively and synchronously; its identity is read
 //!    again after the open and must be what it was.
 //! 4. *Keep data*: its partition table is a Faraday stick's by its
 //!    layout, as `faraday/image/stick-boot.sh` checks it, and only the
-//!    boot partition's range is written, keeping the serial the stick's
-//!    boot partition had (§4.4); a whole image's own boot partition is
-//!    taken from inside it as it streams, and the progress counts that
-//!    partition's bytes alone, the only ones that reach the stick.
-//! 5. The source is decompressed as it is written, and its SHA-256 must
-//!    be the manifest's (or Confirm's); a signed boot file's partition
-//!    and the stick's own IDs go in place of the source's own; then
-//!    everything is flushed.
-//! 6. Everything written is read back from the disk and compared with
-//!    the source, decompressed again with the same changes in place;
-//!    for a whole write, the SHA-256 of what was read, with the source's
-//!    own bytes put back where the changes went, must be the manifest's
-//!    (§4.3).
+//!    boot partition's range is written; *clear first*: zeros over every
+//!    sector. A whole image's own boot partition is taken from inside it
+//!    as it streams, and the progress counts that partition's bytes
+//!    alone, the only ones that reach a stick.
+//! 5. The regions, then the source decompressed as it is written, its
+//!    SHA-256 the manifest's (or Confirm's); a signed boot file's
+//!    partition goes in place of the source's own; then everything is
+//!    flushed.
+//! 6. Everything written is read back from the disk and compared: the
+//!    regions, then the source decompressed again; for a Pi card, the
+//!    SHA-256 of what was read, with the source's own bytes put back
+//!    where the changes went, must be the manifest's (§4.3).
 //! 7. *Keep data*: the partition table is what it was.
 //! 8. The system is asked to read the partition table again.
 
@@ -42,6 +43,7 @@ use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
+use faraday_fat::Region;
 use faraday_payload::{ImageKind, PayloadError, PayloadFile, Sha256Sum};
 use faraday_starter::api::{InUse, Mode, Reason, StarterEvent, StickFault, WriteOrder, WriteStage};
 use sha2::{Digest, Sha256};
@@ -242,12 +244,12 @@ impl Source<'_> {
     }
 
     /// Costs a decompression of the whole source and the SHA-256 of its
-    /// boot partition: for keep data from a payload file with no boot
-    /// file signed, that partition's SHA-256 is the manifest's
-    /// (`docs/STICK-IDENTITY.md` §4.4). The write then puts it on the stick
-    /// byte for byte (less the serial the stick keeps), so the stick's is
-    /// the release's. With a boot file signed the check is byte for byte
-    /// only.
+    /// boot partition: for a stick made or keep data from a payload
+    /// file with no boot file signed, that partition's SHA-256 is the
+    /// manifest's (`docs/STICK-IDENTITY.md` §4.3, §4.4). The write then
+    /// puts it on the stick byte for byte and reads it back so, so the
+    /// stick's is the release's. With a boot file signed the check is
+    /// byte for byte only.
     fn check_boot_sum(&self, order: &WriteOrder) -> Result<(), Reason> {
         let Source::Payload { file, .. } = self else {
             return Ok(());
@@ -255,7 +257,7 @@ impl Source<'_> {
         let Some(want) = file.boot_sha256 else {
             return Ok(());
         };
-        if order.mode != Mode::KeepData || order.boot_file.is_some() {
+        if order.boot_file.is_some() {
             return Ok(());
         }
         let (_, boot) = self.boot_partition()?;
@@ -403,7 +405,7 @@ pub fn write(
     }
     source.check()?;
     source.check_boot_sum(order)?;
-    let (mut patches, captured) = changes(order, &source)?;
+    let (patches, captured) = changes(order, &source)?;
     let block = device.block();
     if !block.is_power_of_two() || !(512..=ALIGN as u64).contains(&block) {
         return Err(Reason::Device {
@@ -423,18 +425,18 @@ pub fn write(
         device: order.device.clone(),
         detail: e.to_string(),
     })?;
-    // 4. Where it goes; keep data keeps the stick's boot serial.
-    let (plan, table, serial) = place(order, &source, &mut disk, len)?;
-    if let Some(serial) = serial {
-        patches.extend(
-            captured
-                .boot_serial(serial)
-                .map_err(Reason::NotStickImage)?,
-        );
+    // 4. Where it goes: a stick is made (its table and data partition
+    // are regions to write besides the source's boot partition); keep
+    // data's table is read, to compare after.
+    let (plan, table, made) = place(order, &source, &mut disk, len, &captured)?;
+    if order.clear_first {
+        clear(order, &mut disk, len, block as usize, &mut |d, t| {
+            progress(WriteStage::Clearing, d, t);
+        })?;
     }
     // Where a whole image's own boot partition lies in it, once the
-    // window has read the image's table: keep data's progress counts its
-    // bytes alone.
+    // window has read the image's table: a stick's and keep data's
+    // progress counts its bytes alone.
     let range = Cell::new(None);
     let mut report = |stage, done, total| match plan {
         Plan::Within(stick, _) => {
@@ -445,14 +447,13 @@ pub fn write(
     };
     // 5. Written and flushed.
     {
-        let out = plan.writer(
-            Writing {
-                disk: &mut disk,
-                buf: None,
-                block: block as usize,
-            },
-            &range,
-        );
+        let mut sink = Writing {
+            disk: &mut disk,
+            buf: None,
+            block: block as usize,
+        };
+        put_regions(&mut sink, &made).map_err(|e| write_failed(e, &order.device))?;
+        let out = plan.writer(sink, &range);
         let mut out = Patched::new(out, &patches);
         source
             .pump(&mut out, &mut |d, t| report(WriteStage::Writing, d, t))
@@ -465,9 +466,11 @@ pub fn write(
     // Closed before it is read back: the last close drops what the
     // system kept of it in memory, so the read comes from the disk.
     drop(disk);
-    // 6. Read back and compared, and with the patches taken back out
-    // of what was read, the source's own SHA-256.
+    // 6. Read back and compared: the regions, then the source; for a Pi
+    // card, with the patches taken back out of what was read, the
+    // source's own SHA-256.
     let mut back = device.open_read()?;
+    compare_regions(&mut back, &made, &order.device)?;
     read_back(
         order,
         &source,
@@ -477,7 +480,7 @@ pub fn write(
         &range,
         &mut |d, t| report(WriteStage::ReadingBack, d, t),
     )?;
-    // 7. The partition table as it was.
+    // 7. Keep data: the partition table as it was.
     if let Some((table, before)) = table
         && regions(&mut back, &table)? != before
     {
@@ -492,14 +495,15 @@ pub fn write(
     Ok(())
 }
 
-/// Costs a decompression of the whole source, and another for a boot
-/// file the person signed: what a write changes in the source
-/// (`docs/STICK-IDENTITY.md` §4.2), in the order it is applied: the
-/// signed boot file's partition, then, for a whole stick or card, its
+/// Costs a decompression of the whole source for a whole write, and
+/// another for a boot file the person signed: what a write changes in
+/// the source (`docs/STICK-IDENTITY.md` §4.2), in the order it is
+/// applied: the signed boot file's partition, then, for a Pi card, its
 /// own IDs drawn from the system's randomness and the data partition's
-/// name, where one is asked for (§6); and the sectors keep data's boot
-/// serial is placed by. A name is written only with a whole stick or
-/// card: keep data does not touch the data partition.
+/// name, where one is asked for (§6). A stick is made, not patched
+/// ([`place`]); the boot partition keeps the release's serial. A name is
+/// written only with a whole stick or card: keep data does not touch the
+/// data partition.
 fn changes(order: &WriteOrder, source: &Source<'_>) -> Result<(Vec<Patch>, Capture), Reason> {
     let mut patches = Vec::new();
     if let Some(f) = &order.boot_file {
@@ -511,21 +515,26 @@ fn changes(order: &WriteOrder, source: &Source<'_>) -> Result<(Vec<Patch>, Captu
         Shape::Whole
     };
     let mut captured = Capture::new(shape, source.size());
-    source
-        .pump(&mut captured, &mut |_, _| {})
-        .map_err(payload_reason)?;
     if order.mode == Mode::Whole {
-        let mut random = Random::new()?;
-        let fresh = captured
-            .fresh(&mut |b| random.fill(b))
-            .map_err(Reason::NotStickImage)?;
-        patches.extend(fresh);
+        source
+            .pump(&mut captured, &mut |_, _| {})
+            .map_err(payload_reason)?;
+        // A Pi card is patched; a stick is made (`place`).
+        if !captured.is_stick() {
+            let mut random = Random::new()?;
+            let fresh = captured
+                .fresh(&mut |b| random.fill(b))
+                .map_err(Reason::NotStickImage)?;
+            patches.extend(fresh);
+        }
     }
     if let Some(name) = &order.name {
         let label = crate::ids::label_of(name)
             .filter(|_| order.mode == Mode::Whole && shape == Shape::Whole)
             .ok_or(Reason::NotStickImage(StickFault::Name))?;
-        patches.extend(captured.name(label).map_err(Reason::NotStickImage)?);
+        if !captured.is_stick() {
+            patches.extend(captured.name(label).map_err(Reason::NotStickImage)?);
+        }
     }
     Ok((patches, captured))
 }
@@ -602,24 +611,41 @@ fn read_back(
 /// read before keep data writes, to compare after.
 type KeptTable = (gpt::Table, Vec<Vec<u8>>);
 
-/// Where a write goes ([`place`]): the plan, keep data's table as it was,
-/// and the boot serial it keeps.
-type Placement = (Plan, Option<KeptTable>, Option<[u8; 4]>);
+/// Where a write goes ([`place`]): the plan, keep data's table as it
+/// was, and the regions of the stick made besides its boot partition
+/// (offsets from the disk's start).
+type Placement = (Plan, Option<KeptTable>, Vec<Region>);
 
-/// Where `source` goes on `disk` (`len` bytes long): from its first
-/// byte, or, for keep data, at the stick's boot partition, with the
-/// stick's partition table and what it holds, to check after the write,
-/// and the serial its boot partition has, which the new one keeps
-/// (`docs/STICK-IDENTITY.md` §4.4): a boot partition with none is given
-/// its own.
+/// Costs a read of the disk's table, for keep data. Where `source` goes
+/// on `disk` (`len` bytes long). A whole stick is made for its size (`docs/STICK-IDENTITY.md` §4.2): the source's boot
+/// partition goes to the image's place, and the table and the data
+/// partition's FAT32 are the regions returned, with the stick's own IDs
+/// drawn from the system's randomness. A Pi card is the image from its
+/// first byte. Keep data goes at the stick's boot partition, with the
+/// stick's partition table and what it holds, to check after the write
+/// (§4.4); its boot partition keeps no serial of the stick's but the
+/// release's (F182).
 fn place(
     order: &WriteOrder,
     source: &Source<'_>,
     disk: &mut File,
     len: u64,
+    captured: &Capture,
 ) -> Result<Placement, Reason> {
     match order.mode {
-        Mode::Whole => Ok((Plan::At(0), None, None)),
+        Mode::Whole if captured.is_stick() => {
+            let mut random = Random::new()?;
+            let label = order.name.as_deref().and_then(crate::ids::label_of);
+            let regions = captured
+                .stick(len, label, &mut |b| random.fill(b))
+                .map_err(Reason::NotStickImage)?;
+            let boot = Boot {
+                offset: gpt::BOOT_AT,
+                len: gpt::BOOT_LEN,
+            };
+            Ok((Plan::Within(boot, source.size()), None, regions))
+        }
+        Mode::Whole => Ok((Plan::At(0), None, Vec::new())),
         Mode::KeepData => {
             let not_stick = |fault| Reason::NotStick {
                 device: order.device.clone(),
@@ -636,21 +662,86 @@ fn place(
             } else {
                 Plan::Within(boot, total)
             };
-            let mut sector = [0u8; 512];
-            read_exact_at(disk, boot.offset, &mut sector)
-                .map_err(|e| Reason::ReadingTable(e.to_string()))?;
-            let serial = match faraday_fat::boot_sector_serial(&sector) {
-                Some(s) if s != 0 => s.to_le_bytes(),
-                _ => {
-                    let mut own = [0u8; 4];
-                    Random::new()?.fill(&mut own);
-                    own[0] |= 1;
-                    own
-                }
-            };
-            Ok((plan, Some((table, before)), Some(serial)))
+            Ok((plan, Some((table, before)), Vec::new()))
         }
     }
+}
+
+/// Costs a write of zeros over every sector of the disk (`len` bytes),
+/// in order, none read back (`docs/STICK-IDENTITY.md` §4.2, Clear the
+/// whole stick first), then flushed. `report` gets the bytes done of
+/// `len`.
+fn clear(
+    order: &WriteOrder,
+    disk: &mut File,
+    len: u64,
+    block: usize,
+    report: &mut dyn FnMut(u64, u64),
+) -> Result<(), Reason> {
+    let device = order.device.as_str();
+    if order.mode != Mode::Whole {
+        return Err(Reason::Device {
+            device: device.to_string(),
+            detail: String::from("clearing first is for a whole write"),
+        });
+    }
+    let zeros = vec![0u8; CHUNK];
+    let mut sink = Writing {
+        disk,
+        buf: None,
+        block,
+    };
+    let mut at = 0;
+    report(0, len);
+    while at < len {
+        let n = (len - at).min(CHUNK as u64);
+        sink.flush_at(at, &zeros[..n as usize])
+            .map_err(|e| write_failed(e, device))?;
+        at += n;
+        report(at, len);
+    }
+    sink.disk.sync_all().map_err(|e| Reason::Flush {
+        device: device.to_string(),
+        detail: e.to_string(),
+    })
+}
+
+/// Sends `regions` to `sink`: bytes as they are, zeros a chunk at a time.
+fn put_regions(sink: &mut dyn Flush, regions: &[Region]) -> io::Result<()> {
+    let mut zeros = Vec::new();
+    for r in regions {
+        match r {
+            Region::Bytes { at, data } => sink.flush_at(*at, data)?,
+            Region::Zeros { at, len } => {
+                zeros.resize(zeros.len().max((*len).min(CHUNK as u64) as usize), 0);
+                let mut done = 0;
+                while done < *len {
+                    let n = (*len - done).min(CHUNK as u64) as usize;
+                    sink.flush_at(at + done, &zeros[..n])?;
+                    done += n as u64;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Costs a read of the regions written: each compared with the disk.
+fn compare_regions(back: &mut File, made: &[Region], device: &str) -> Result<(), Reason> {
+    let none = RefCell::new(None);
+    let mut sink = Comparing {
+        disk: back,
+        revert: &none,
+    };
+    put_regions(&mut sink, made).map_err(|e| read_back_reason(PayloadError::Write(e), device))
+}
+
+/// The reason a write to the disk failed.
+fn write_failed(e: io::Error, device: &str) -> Reason {
+    carried(&e).unwrap_or_else(|| Reason::Device {
+        device: device.to_string(),
+        detail: e.to_string(),
+    })
 }
 
 /// Keep data from a whole image: of the image's first `done` bytes,

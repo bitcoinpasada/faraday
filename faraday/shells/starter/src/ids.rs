@@ -1,13 +1,13 @@
 //! Each stick's and card's own IDs (`docs/STICK-IDENTITY.md` §4, F174).
 //!
-//! The image keeps fixed IDs, so a build is reproducible (§4.1). When the
-//! Starter writes a whole stick it gives it its own: a new disk GUID and
-//! new partition GUIDs in the primary and the backup GPT, with both
-//! headers' and both entry arrays' CRCs worked out again; on a Pi card a
-//! new MBR disk signature; and a new serial for each FAT volume, in its
-//! boot sector and, on FAT32, in the backup boot sector it names (§4.2).
-//! Keep data writes no partition table, and gives the new boot partition
-//! the serial the stick's had (§4.4).
+//! The image keeps fixed IDs, so a build is reproducible (§4.1). A whole
+//! stick is made for its size (§4.2, [`Capture::stick`]): its table with
+//! a new disk GUID and new partition GUIDs, its data partition's FAT32
+//! with a new serial; its boot partition is the release's, serial
+//! included (F182). A Pi card is the image with a new MBR disk signature
+//! and a new serial for each FAT volume, in its boot sector and, on
+//! FAT32, in the backup boot sector it names. Keep data writes no
+//! partition table and changes nothing of the boot partition (§4.4).
 //!
 //! What is changed is a list of [`Patch`]es on the source's stream: the
 //! writer writes and compares the stream with them in place, and takes
@@ -167,14 +167,14 @@ impl Capture {
         Ok(())
     }
 
-    /// The fresh IDs of a whole stick or card (§4.2), drawn from
-    /// `random`: a new disk GUID and partition GUIDs, or a new MBR disk
-    /// signature, and a new serial for each FAT volume.
+    /// The fresh IDs of a whole Pi card (§4.2), drawn from `random`: a
+    /// new MBR disk signature and a new serial for each FAT volume.
     pub fn fresh(&self, random: &mut dyn FnMut(&mut [u8])) -> Result<Vec<Patch>, StickFault> {
         let mut out = Vec::new();
         let table = self.done()?;
         match table {
-            Table::Gpt { .. } => self.fresh_gpt(table, random, &mut out)?,
+            // A stick is made, not patched ([`Capture::stick`]).
+            Table::Gpt { .. } => return Err(StickFault::CardLayout),
             Table::Mbr { .. } => {
                 let was = self.got(MBR_SIGNATURE as u64, 4)?.to_vec();
                 out.push(Patch {
@@ -191,12 +191,123 @@ impl Capture {
         Ok(out)
     }
 
-    /// Keep data's one change (§4.4): the boot partition's serial put
-    /// back to `serial`, the one the stick's boot partition had.
-    pub fn boot_serial(&self, serial: [u8; 4]) -> Result<Vec<Patch>, StickFault> {
+    /// Whether the source is a stick image (GPT), which the Starter
+    /// makes a stick from ([`Capture::stick`]), and not a Pi card's.
+    pub fn is_stick(&self) -> bool {
+        matches!(self.table, Some(Table::Gpt { .. }))
+    }
+
+    /// What a whole stick of `disk_len` bytes is made of
+    /// (`docs/STICK-IDENTITY.md` §4.2), as places on the disk in order
+    /// of offset, with their offsets from the disk's start: the
+    /// protective MBR covering the disk, the primary header at sector 1
+    /// (first usable sector 34, last usable 33 before the backup at the
+    /// disk's last sector), the entries at sector 2 (the image's, with
+    /// the stick's own GUIDs and the data partition running to the last
+    /// usable sector), the backup entries and header at the disk's end,
+    /// every CRC worked out; and the data partition's FAT32 volume from
+    /// `faraday_fat::format32`, hidden sectors 133120, with the stick's
+    /// own serial and `label`. Sectors are 512 bytes whatever the
+    /// disk's own. A lookup and some arithmetic; the FATs come as
+    /// lengths of zeros.
+    pub fn stick(
+        &self,
+        disk_len: u64,
+        label: Option<[u8; 11]>,
+        random: &mut dyn FnMut(&mut [u8]),
+    ) -> Result<Vec<faraday_fat::Region>, StickFault> {
+        use faraday_fat::Region;
+        const S: u64 = 512;
         let table = self.done()?;
-        let first = *parts(table).first().ok_or(StickFault::Partitions(0))?;
-        self.serial(first, serial)
+        let Table::Gpt {
+            sector,
+            header,
+            header_len,
+            entries,
+            entries_len,
+            ..
+        } = *table
+        else {
+            return Err(StickFault::NotGpt);
+        };
+        let entry_sectors = (entries_len as u64).div_ceil(S);
+        if sector != S || entry_sectors != 32 || !(92..=512).contains(&header_len) {
+            return Err(StickFault::EntriesDamaged);
+        }
+        let sectors = disk_len / S;
+        let (data_first, boot_last) = (gpt::DATA_AT / S, gpt::DATA_AT / S - 1);
+        // First usable 34, entries at 2: the last usable sector is 33
+        // before the backup header at the last sector.
+        if sectors < data_first + gpt::DATA_LEN / S + 33 + 1 {
+            return Err(StickFault::DataPlace);
+        }
+        let (last, last_usable) = (sectors - 1, sectors - 34);
+        let mbr_in = self.got(0, 512)?;
+        if mbr_in[510..512] != [0x55, 0xAA] || mbr_in[446 + 4] != 0xEE {
+            return Err(StickFault::NotGpt);
+        }
+        let mut mbr = mbr_in.to_vec();
+        let covered = u32::try_from(last).unwrap_or(u32::MAX);
+        mbr[446 + 12..446 + 16].copy_from_slice(&covered.to_le_bytes());
+        let primary = self.got(header, header_len)?.to_vec();
+        let list = self.got(entries, entries_len)?;
+        let entry_size = le32(&primary, 84) as usize;
+        let disk = guid(random);
+        let mut new_list = list.to_vec();
+        let mut data = false;
+        for e in new_list.chunks_exact_mut(entry_size) {
+            if e[..16].iter().all(|&b| b == 0) {
+                continue;
+            }
+            e[16..32].copy_from_slice(&guid(random));
+            if le64(e, 32) == data_first {
+                e[40..48].copy_from_slice(&last_usable.to_le_bytes());
+                data = true;
+            } else if le64(e, 40) != boot_last {
+                return Err(StickFault::BootPlace);
+            }
+        }
+        if !data {
+            return Err(StickFault::DataPlace);
+        }
+        let list_crc = crc32(&new_list).to_le_bytes();
+        let header_at = |current: u64, other: u64, entries_lba: u64| {
+            let mut h = vec![0u8; 512];
+            h[..header_len].copy_from_slice(&primary);
+            h[24..32].copy_from_slice(&current.to_le_bytes());
+            h[32..40].copy_from_slice(&other.to_le_bytes());
+            h[40..48].copy_from_slice(&34u64.to_le_bytes());
+            h[48..56].copy_from_slice(&last_usable.to_le_bytes());
+            h[56..72].copy_from_slice(&disk);
+            h[72..80].copy_from_slice(&entries_lba.to_le_bytes());
+            h[88..92].copy_from_slice(&list_crc);
+            h[16..20].fill(0);
+            let crc = crc32(&h[..header_len]).to_le_bytes();
+            h[16..20].copy_from_slice(&crc);
+            h
+        };
+        let backup_entries = last - entry_sectors;
+        let mut out = vec![
+            Region::Bytes { at: 0, data: mbr },
+            Region::Bytes {
+                at: S,
+                data: header_at(1, last, 2),
+            },
+            Region::Bytes {
+                at: 2 * S,
+                data: new_list.clone(),
+            },
+        ];
+        out.extend(data_volume(last_usable + 1 - data_first, label, random)?);
+        out.push(Region::Bytes {
+            at: backup_entries * S,
+            data: new_list,
+        });
+        out.push(Region::Bytes {
+            at: last * S,
+            data: header_at(last, 1, backup_entries),
+        });
+        Ok(out)
     }
 
     fn done(&self) -> Result<&Table, StickFault> {
@@ -207,86 +318,6 @@ impl Capture {
             Some(t) if self.wanted.iter().all(|(_, b, n)| *n == b.len()) => Ok(t),
             _ => Err(StickFault::BootPastEnd),
         }
-    }
-
-    fn fresh_gpt(
-        &self,
-        table: &Table,
-        random: &mut dyn FnMut(&mut [u8]),
-        out: &mut Vec<Patch>,
-    ) -> Result<(), StickFault> {
-        let Table::Gpt {
-            header,
-            header_len,
-            entries,
-            entries_len,
-            backup_entries,
-            backup_header,
-            ..
-        } = *table
-        else {
-            return Ok(());
-        };
-        let primary = self.got(header, header_len)?.to_vec();
-        let list = self.got(entries, entries_len)?.to_vec();
-        let backup = self.got(backup_header, header_len)?.to_vec();
-        let backup_list = self.got(backup_entries, entries_len)?.to_vec();
-        // The backup must be the primary's: the same entries, the same
-        // disk GUID, a header whose CRC holds and that names its own
-        // entries where they are.
-        let crc_holds = |h: &[u8]| {
-            let mut c = h.to_vec();
-            c[16..20].fill(0);
-            crc32(&c) == le32(h, 16)
-        };
-        if backup_list != list
-            || &backup[..8] != b"EFI PART"
-            || backup[56..72] != primary[56..72]
-            || !crc_holds(&backup)
-            || le64(&backup, 72).checked_mul(self.sector()?) != Some(backup_entries)
-            || le32(&backup, 88) != le32(&primary, 88)
-        {
-            return Err(StickFault::BackupTable);
-        }
-        let disk = guid(random);
-        let entry_size = le32(&primary, 84) as usize;
-        let mut new_list = list.clone();
-        for e in new_list.chunks_exact_mut(entry_size) {
-            if e[..16].iter().any(|&b| b != 0) {
-                e[16..32].copy_from_slice(&guid(random));
-            }
-        }
-        let list_crc = crc32(&new_list).to_le_bytes();
-        let rewrite = |h: &[u8]| {
-            let mut h = h.to_vec();
-            h[56..72].copy_from_slice(&disk);
-            h[88..92].copy_from_slice(&list_crc);
-            h[16..20].fill(0);
-            let crc = crc32(&h).to_le_bytes();
-            h[16..20].copy_from_slice(&crc);
-            h
-        };
-        out.push(Patch {
-            at: header,
-            bytes: rewrite(&primary),
-            was: primary.clone(),
-        });
-        out.push(Patch {
-            at: entries,
-            bytes: new_list.clone(),
-            was: list,
-        });
-        out.push(Patch {
-            at: backup_entries,
-            bytes: new_list,
-            was: backup_list,
-        });
-        out.push(Patch {
-            at: backup_header,
-            bytes: rewrite(&backup),
-            was: backup,
-        });
-        Ok(())
     }
 
     /// The patches that name the data partition `label` (§6), as
@@ -328,13 +359,6 @@ impl Capture {
             out.extend(changed(base + from, was, &now));
         }
         Ok(out)
-    }
-
-    fn sector(&self) -> Result<u64, StickFault> {
-        match &self.table {
-            Some(Table::Gpt { sector, .. }) => Ok(*sector),
-            _ => Ok(512),
-        }
     }
 
     /// The patches that set the serial of the FAT volume at `part` to
@@ -466,6 +490,35 @@ impl Write for Capture {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
+}
+
+/// The data partition's FAT32 volume for a partition of `sectors` sectors
+/// at the stick's data start: its regions, with offsets from the disk's
+/// start, the stick's own serial and `label`.
+fn data_volume(
+    sectors: u64,
+    label: Option<[u8; 11]>,
+    random: &mut dyn FnMut(&mut [u8]),
+) -> Result<Vec<faraday_fat::Region>, StickFault> {
+    use faraday_fat::Region;
+    let hidden = u32::try_from(gpt::DATA_AT / 512).map_err(|_| StickFault::DataPlace)?;
+    let serial = u32::from_le_bytes(nonzero(random));
+    let format =
+        faraday_fat::format32(sectors, hidden, serial, label).map_err(|_| StickFault::DataPlace)?;
+    Ok(format
+        .regions()
+        .into_iter()
+        .map(|r| match r {
+            Region::Bytes { at, data } => Region::Bytes {
+                at: gpt::DATA_AT + at,
+                data,
+            },
+            Region::Zeros { at, len } => Region::Zeros {
+                at: gpt::DATA_AT + at,
+                len,
+            },
+        })
+        .collect())
 }
 
 /// The 11 bytes of the data partition's name `name` (§6), when it is one

@@ -4430,25 +4430,36 @@ lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4
 
 [starter-write]
 fn 0a1ba50bb62ed6eb9d1e676406619f8a532602c45e3e4174e76f35f24e85a26a faraday/faraday-payload/src/decode.rs::read_some
+fn 126de20685aba0fc6e8bfbae4083af12466214e039f4eff541fcbfddcaf47d18 faraday/shells/starter/src/writer.rs::read_exact_at
 fn 145169dad74a33713d8d7a5b541e67ca2432232b97238a2b2f43d2d0f89062b1 faraday/shells/starter/src/writer.rs::read_back_reason
 fn 15407e87b165db82828a03169b57c06b6710bf7c0dcaa2f3c548c33ce668e63c faraday/shells/starter/src/writer.rs::Placed::new
 fn 1d91e102cd0384aeb9d0b8c9bc738fbe9f00d210685967a6f4d0bbb82d4de822 faraday/shells/starter/src/writer.rs::Buffered::new
 fn 20300151ec656f2c34d14c8642d62ba1bc44a79d1c31e47cdf52b1b86fd3f3d5 faraday/shells/starter/src/writer.rs::Random::new
 fn 21cc47069b614b6947fa5bddf6d1b8162084c2d5b02777e2c66dff9c16dd3a71 faraday/shells/starter/src/writer.rs::Source::size
-fn 248ceac7368bdba55c7567900bea5f4342c0d7b114eedb39009401188e292aab faraday/shells/starter/src/ids.rs::Capture::sector
 fn 358943840d6945a96878a50c8a7bdb12de79fb8e17866031e80efdc944f22e3f faraday/shells/starter/src/writer.rs::Source::sha256
+fn 3614f9c974c32a77ea65791a3fc98593cb459f3e2921e558ed85eceb657322ff faraday/shells/starter/src/ids.rs::Capture::done
 fn 43a017c62a9560a9c67bab8af58a72cdded94b5284e2b5abdef5022cfdeee3df faraday/shells/starter/src/ids.rs::le32
 fn 451e541b7487ec5a8cdd9e18303efbaa02e962f115a8b2d67feb9d053bcc5a54 faraday/faraday-payload/src/decode.rs::hash_image
+fn 4b91f8fcc5c2417be23de32cb57b1ae261995e613772d5598fe15f56c2fd6d55 faraday/shells/starter/src/writer.rs::Writing::flush_at
 fn 68d80cb23086ce4e84165feac9d37ffc1129e26af73e0b5c811cdb863557413a faraday/shells/starter/src/writer.rs::Source::boot_only
 fn 6b836f22c33466006770f91566c7b442aa130d57ddda5bb0c699455e0ff3ca4e faraday/shells/starter/src/ids.rs::le64
+fn 7121a6d142ed26c02db4b28510abe582aea0c61f658c644dccf26cb2b04b0529 faraday/shells/starter/src/writer.rs::Source::check_boot_sum
 fn 725051a5185803e007cfcecbc14339ad1a0a223f145f89c64929e8a6467b067f faraday/faraday-payload/src/decode.rs::stream
+fn 72d547e82fcbabc170bd29edf2682fc7fe0a755a34708f0c0fec311c47d878e0 faraday/shells/starter/src/writer.rs::overlay
+fn 803c6813992a5da649b81232d3eb07178f3746eb519c5cbbdc6dd657cf0cb75f faraday/shells/starter/src/ids.rs::data_volume
 fn 8d56cc8fce6132a130ac17e4e6e17444c905cac94b3c1c658f88ff96fb0f8f5b faraday/shells/starter/src/writer.rs::Window::new
+fn 8f45a456a1e1b630b97ad1895e185fa96705471ca47676143ca989ad2ac1b113 faraday/shells/starter/src/writer.rs::Memory::flush_at
 fn 99181b59add1dbdb7c06d3a2842daf0cef83e39b1bbb7f4b29e66ade15d05582 faraday/shells/starter/src/writer.rs::Source::pump
 fn a1088bcb9ee4b050e1711a9449c68d93023947351e9d0dba0343260a4898e01c faraday/shells/starter/src/writer.rs::Patched::new
+fn a2f74b2844207a4cbd984f385bbfe86a4a7f68465f395d8de7f2d4fc61ffb1f8 faraday/shells/starter/src/writer.rs::fail
+fn a76b4e228fccb2bc6ff84f098df19ebb971ecc62320344c20ebe200483bda337 faraday/shells/starter/src/writer.rs::compare_regions
 fn aacc4c40b5cf99a39f7b1b6fbbf2570fc4b4f677db2b0715835de1982684d6f4 faraday/shells/starter/src/writer.rs::carried
-fn af13b00e720dff1e4b18b5415523e37801d5ec67b105a19a950314718ab5e73e faraday/shells/starter/src/writer.rs::Source::check_boot_sum
 fn b0ff60f5e6bbb258ddd31fa09ce9cb3d94ab5a82c1594fa563aa4169e91bfb32 faraday/shells/starter/src/ids.rs::guid
 fn bad1da98ac165f3bed04413f247e793c0ee12515c492bb8c2b93ab67109b29ca faraday/faraday-payload/src/decode.rs::write_image
+fn bc9ed6c7a98735d359680b4540eb2847fa87f31f4e9be2da3d0f7a05e29d0d0e faraday/shells/starter/src/writer.rs::AlignedBuf::new
+fn be3a13d7aee0b32dc0e56f0a9c9c983b175fa1c076c94b3e690ff6e82048206f faraday/shells/starter/src/ids.rs::Capture::stick
+fn c17616dc6e24ec3bafd82fd911f3768357605fc5a13ff4388e0b9da9471a4f98 faraday/shells/starter/src/writer.rs::put_regions
+fn c2293443e0168c46524800aa8101877da57c4894558c1b32ccdb32d9d8db7021 faraday/shells/starter/src/writer.rs::Comparing::flush_at
 fn c5c42ee8352fc0545df19e8b531259acfa400424d45981dd22600770b5ca69a7 faraday/faraday-payload/src/decode.rs::Verified::finish
 fn c8807643b7f0da8f7619df7451b45610991de62c7442f36a3568e9acd3bc8607 faraday/faraday-payload/src/decode.rs::Verified::new
 fn c999750f415988ec3379400b9561945665679624829fc6a621467c06531806ad faraday/faraday-payload/src/decode.rs::Verified::take
@@ -4456,10 +4467,11 @@ fn d8545b48f1bad79663a1bd73a74bcc6c5a93dffa27e0c300bf1e78e636b0db82 faraday/shel
 fn db9e5fca604cd0ff7ceb8dfdddfff07c5b503d22679fb53ebef0e0d73565fd0d faraday/shells/starter/src/ids.rs::Capture::got
 fn df7585726d0f51ee628dee8f2b559c2444b2b0778ce106f1ca2fdd98febc0aec faraday/shells/starter/src/writer.rs::Random::fill
 fn dfe0046819df338fe1e59663c58ff27aa3d8af77adc9ad3e962c522d8a931bc5 faraday/faraday-payload/src/decode.rs::sum_of
+fn e7882bbf22d3dcc754c3da2cb703ddf8317c5d940ce5f4f7db4fd77278510ba7 faraday/shells/starter/src/ids.rs::nonzero
 fn ed3fb0b81851de3a0184fb864d5ce16698f8bc18d08a74fe3282f9293bed18d0 faraday/shells/starter/src/writer.rs::Plan::writer
 fn f1452907e64224070770cc26779b9f792617ddc33385e3508115816fd5f9c4c6 faraday/shells/starter/src/writer.rs::read_back
 fn f6843e882983670ab698c725737439e7dab4fbe7454469e9b02212804cd5d7be faraday/shells/starter/src/writer.rs::Source::boot_partition
-fn f6ead971e89c0547d832a4731b93b9e58388977f81671992864b6256da02a6a3 faraday/shells/starter/src/ids.rs::Capture::fresh_gpt
+fn f866799f53df033149689465c47735d63dd86eedb7286aa00e4e1f5f650adaad faraday/shells/starter/src/writer.rs::aligned_read_at
 fn f8ef7c3cdd5bc2ae7f6222e059a1fe395fd18cf95587d9e86e10a0ad3ccf4b67 faraday/faraday-payload/src/decode.rs::write_payload
 lib getrandom 0.3.4 899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd
 lib getrandom 0.4.3 300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099

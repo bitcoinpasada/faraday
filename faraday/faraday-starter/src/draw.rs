@@ -1268,6 +1268,7 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         &[&size_text(done), &size_text(total)],
     );
     let s = match stage {
+        WriteStage::Clearing => fill(S.starter_clearing, &[&of]),
         WriteStage::Writing => fill(S.starter_progress_writing, &[&of]),
         WriteStage::ReadingBack => fill(S.starter_reading_back, &[&of]),
     };

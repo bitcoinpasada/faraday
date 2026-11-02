@@ -305,6 +305,7 @@ fn order(source: Source, serial: &str, mode: Mode) -> WriteOrder {
         mode,
         boot_file: None,
         name: None,
+        clear_first: false,
     }
 }
 

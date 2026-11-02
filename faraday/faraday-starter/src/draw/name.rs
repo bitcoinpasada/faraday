@@ -70,19 +70,18 @@ pub(super) fn confirm_row(starter: &Starter, ui: &mut Ui, x: f32, y: f32, w: f32
 pub(super) fn checked_line(starter: &Starter, target: Target, keep: bool) -> &'static str {
     let named = starter.name_order().is_some();
     let signed = starter.boot_order().is_some();
-    if keep {
+    // A stick is made for its size, or keep data writes its boot
+    // partition: what is checked is the boot partition either way.
+    if keep || target == Target::Stick {
         return if signed {
             S.starter_checked_boot_signed
         } else {
             S.starter_checked_boot
         };
     }
-    match (target, named, signed) {
-        (Target::Pi, false, _) => S.starter_checked_card,
-        (Target::Pi, true, _) => S.starter_checked_card_named,
-        (Target::Stick, false, false) => S.starter_checked,
-        (Target::Stick, false, true) => S.starter_checked_signed,
-        (Target::Stick, true, false) => S.starter_checked_named,
-        (Target::Stick, true, true) => S.starter_checked_named_signed,
+    if named {
+        S.starter_checked_card_named
+    } else {
+        S.starter_checked_card
     }
 }

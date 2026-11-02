@@ -468,6 +468,7 @@ impl Message {
             Message::Progress { stage, done, total } => vec![
                 "progress".into(),
                 match stage {
+                    WriteStage::Clearing => "clearing",
                     WriteStage::Writing => "writing",
                     WriteStage::ReadingBack => "reading-back",
                 }
@@ -506,6 +507,7 @@ impl Message {
         let m = match f.s()?.as_str() {
             "progress" => {
                 let stage = match f.s()?.as_str() {
+                    "clearing" => WriteStage::Clearing,
                     "writing" => WriteStage::Writing,
                     "reading-back" => WriteStage::ReadingBack,
                     other => return Err(format!("{other}: not a stage")),

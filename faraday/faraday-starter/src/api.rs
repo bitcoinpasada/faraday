@@ -351,6 +351,9 @@ pub struct Installed {
 /// How far a write is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WriteStage {
+    /// Clearing the whole stick first (`docs/STICK-IDENTITY.md` §4.2):
+    /// bytes of zeros written of the stick's size.
+    Clearing,
     /// Writing: bytes written of the total.
     Writing,
     /// Reading the write back to compare: bytes read of the total.
@@ -886,6 +889,10 @@ pub struct WriteOrder {
     /// (`faraday_fat::label_bytes`, `docs/STICK-IDENTITY.md` §6), for a
     /// whole write; `None` for none, as the image has it.
     pub name: Option<String>,
+    /// Zeros over every sector of the stick before it is made
+    /// (`docs/STICK-IDENTITY.md` §4.2, Clear the whole stick first);
+    /// whole writes only.
+    pub clear_first: bool,
 }
 
 /// What the Starter asks the shell to do.

@@ -2166,6 +2166,7 @@ impl Starter {
             mode,
             boot_file: self.boot_order(),
             name: self.name_order(),
+            clear_first: false,
         }));
         if let Some(m) = self.making.as_mut() {
             m.refused = None;

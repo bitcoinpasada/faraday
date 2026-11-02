@@ -15,10 +15,41 @@ use faraday_starter_shell::gpt;
 use faraday_starter_shell::writer::Job;
 
 use crate::sticks::{
-    self, BOOT_FIRST, DATA_FIRST, DATA_ROOT, DATA_SECTORS, IDS, IMAGE, SECTOR, SERIALS, STICK,
-    Sparse, card_id_places, card_image, ids_put_back, read, stick_id_places, stick_image,
+    self, BOOT_FIRST, DATA_FIRST, IDS, IMAGE, SECTOR, SERIALS, STICK, Sparse, card_id_places,
+    card_image, ids_put_back, read, stick_image,
 };
-use crate::writer::{FileDisk, image_job, release_payload, run, tmp};
+use crate::writer::{FileDisk, image_job, made_from, release_payload, run, tmp};
+
+/// The data partition's length on a stick made for a disk of `disk_len`
+/// bytes: from sector 133120 to the last usable sector.
+fn data_len(disk_len: u64) -> u64 {
+    (disk_len / SECTOR - 33) * SECTOR - DATA_FIRST * SECTOR
+}
+
+/// The FAT32 volume at `at` of the stick at `path`, `len` bytes, as a
+/// sparse file of its own at `to`: only what the Starter wrote (its
+/// reserved sectors, FATs and root directory) is copied, so a volume of
+/// hundreds of gigabytes is not read whole.
+fn extract_volume(path: &Path, at: u64, len: u64, to: &Path) {
+    use std::os::unix::fs::FileExt;
+    let bs = read(path, at, 512);
+    let u16_at = |i: usize| u64::from(u16::from_le_bytes([bs[i], bs[i + 1]]));
+    let fat = u64::from(u32::from_le_bytes(bs[36..40].try_into().expect("four")));
+    let head = (u16_at(14) + 2 * fat + u64::from(bs[13])) * SECTOR;
+    let out = std::fs::File::create(to).expect("a volume");
+    out.set_len(len).expect("its length");
+    let src = std::fs::File::open(path).expect("the stick");
+    let mut done = 0;
+    while done < head {
+        let n = (head - done).min(1 << 20) as usize;
+        let mut buf = vec![0u8; n];
+        src.read_exact_at(&mut buf, at + done).expect("read");
+        if buf.iter().any(|&b| b != 0) {
+            out.write_all_at(&buf, done).expect("written");
+        }
+        done += n as u64;
+    }
+}
 
 /// A stick's IDs as read back from the disk at `path`: its disk GUID,
 /// its partitions' GUIDs, and each FAT volume's serial in its boot
@@ -59,13 +90,11 @@ fn v4(guid: &str) -> bool {
 }
 
 #[test]
-fn two_sticks_written_from_one_image_have_their_own_ids_and_each_checks_against_the_manifest() {
+fn two_sticks_written_from_one_image_have_their_own_ids_and_the_same_boot_partition() {
     let image = stick_image();
     let (job, source) = release_payload(&image);
-    let manifest = match &job {
-        Job::Payload { file, .. } => file.inner_sha256.to_string(),
-        Job::Image(i) => i.sum.sha256.to_string(),
-    };
+    let (from, to) = sticks::boot_range();
+    let boot = image.bytes(from, (to - from) as usize);
     let mut seen = Vec::new();
     for n in 0..2 {
         let path = tmp(&format!("ids-stick-{n}"));
@@ -73,31 +102,28 @@ fn two_sticks_written_from_one_image_have_their_own_ids_and_each_checks_against_
         let mut disk = FileDisk::new(&path);
         let order = disk.order(source.clone(), Mode::Whole);
         assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+        made_from(&path, &image, STICK);
         let ids = ids_on(&path, STICK);
-        // Its own: none of the image's, in GUIDs of version 4's form, and
-        // each FAT volume's backup boot sector the same as its own.
+        // Its own: none of the image's, in GUIDs of version 4's form.
         assert!(
             !IDS.iter()
                 .any(|i| ids.disk == *i || ids.parts.contains(&i.to_string()))
         );
         assert!(v4(&ids.disk) && ids.parts.iter().all(|p| v4(p)), "{ids:?}");
-        for (k, &(own, backup)) in ids.serials.iter().enumerate() {
-            assert_eq!(own, backup);
-            assert_ne!(own, SERIALS[k]);
-        }
-        // With the image's IDs put back, its SHA-256 is the manifest's.
-        let mut back = read(&path, 0, IMAGE as usize);
-        ids_put_back(&mut back, &image, &stick_id_places(IMAGE));
-        assert_eq!(sticks::sha(&back), manifest);
+        // The boot partition keeps the release's serial, and so is the
+        // release's byte for byte; the data partition has its own, in
+        // its backup boot sector too.
+        assert_eq!(ids.serials[0], (SERIALS[0], SERIALS[0]));
+        assert_eq!(ids.serials[1].0, ids.serials[1].1);
+        assert_ne!(ids.serials[1].0, SERIALS[1]);
+        assert!(read(&path, from, boot.len()) == boot);
         seen.push(ids);
     }
-    // And the two sticks have nothing in common.
+    // And the two sticks have nothing in common but the boot partition.
     let (a, b) = (&seen[0], &seen[1]);
     assert_ne!(a.disk, b.disk);
     assert!(a.parts.iter().all(|p| !b.parts.contains(p)));
-    for k in 0..2 {
-        assert_ne!(a.serials[k].0, b.serials[k].0);
-    }
+    assert_ne!(a.serials[1].0, b.serials[1].0);
 }
 
 #[test]
@@ -135,7 +161,7 @@ fn name_on(path: &Path, at: u64, len: u64) -> Option<String> {
 }
 
 #[test]
-fn a_stick_written_with_a_name_shows_it_and_still_checks_against_the_manifest() {
+fn a_stick_written_with_a_name_shows_it_on_the_data_partition_alone() {
     let image = stick_image();
     let (job, source) = release_payload(&image);
     let path = tmp("name-stick");
@@ -145,31 +171,17 @@ fn a_stick_written_with_a_name_shows_it_and_still_checks_against_the_manifest() 
         name: Some(String::from("MY STICK")),
         ..disk.order(source, Mode::Whole)
     };
-    // The writer's own check: read back, and with the IDs and the name
-    // taken back out, the manifest's SHA-256.
     assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
-    let data = DATA_FIRST * SECTOR;
+    made_from(&path, &image, STICK);
     assert_eq!(
-        name_on(&path, data, DATA_SECTORS * SECTOR).as_deref(),
+        name_on(&path, DATA_FIRST * SECTOR, data_len(STICK)).as_deref(),
         Some("MY STICK")
     );
-    // The boot partition keeps its own label; the name is the data
-    // partition's alone.
+    // The boot partition keeps its own label.
     assert_eq!(
         faraday_fat::boot_sector_label(&read(&path, BOOT_FIRST * SECTOR, 512)),
         Some(*b"EFI        ")
     );
-    // What a person puts back by hand: the IDs, the boot sectors' label
-    // and the root directory's first entry.
-    let mut back = read(&path, 0, IMAGE as usize);
-    let mut places = stick_id_places(IMAGE);
-    places.extend([
-        (data + 71, data + 82),
-        (data + 6 * SECTOR + 71, data + 6 * SECTOR + 82),
-        (data + DATA_ROOT, data + DATA_ROOT + 32),
-    ]);
-    ids_put_back(&mut back, &image, &places);
-    assert!(back == image.to_vec());
 }
 
 #[test]
@@ -304,15 +316,15 @@ fn tools_image(dir: &Path) -> PathBuf {
 }
 
 #[test]
-fn a_stick_written_from_an_image_other_tools_made_reads_in_those_tools_with_its_own_ids() {
+fn a_stick_made_for_its_size_reads_clean_in_other_tools_at_1_32_and_256_gb() {
     if !(runs("sfdisk", &["--version"])
         && runs("mkfs.fat", &["--help"])
-        && runs("fsck.fat", &["--help"])
-        && runs("fatlabel", &["--help"]))
+        && runs("fsck.fat", &["--help"]))
     {
         eprintln!("sfdisk or dosfstools is not installed: the check against them is skipped");
         return;
     }
+    let sgdisk = runs("sgdisk", &["--version"]);
     let dir = tmp("ids-tools");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a folder");
@@ -322,42 +334,52 @@ fn a_stick_written_from_an_image_other_tools_made_reads_in_those_tools_with_its_
         path: img.display().to_string(),
         sha256: image.sum.sha256.to_string(),
     };
-    let stick = dir.join("stick");
-    Sparse::new(STICK).write(&stick);
-    let mut disk = FileDisk::new(&stick);
-    let order = disk.order(source, Mode::Whole);
-    assert_eq!(run(&order, &Job::Image(image), &mut disk).0, Ok(()));
-    // sfdisk reads the stick's GPT, both copies, with its own IDs.
-    let dump = Command::new(tool("sfdisk"))
-        .args(["--dump"])
-        .arg(&stick)
-        .output()
-        .expect("sfdisk --dump");
-    assert!(
-        dump.status.success(),
-        "{}",
-        String::from_utf8_lossy(&dump.stderr)
-    );
-    let text = String::from_utf8_lossy(&dump.stdout).to_uppercase();
-    let ids = ids_on(&stick, STICK);
-    assert!(text.contains(&format!("LABEL-ID: {}", ids.disk)), "{text}");
-    for (p, image_id) in ids.parts.iter().zip(&IDS[1..]) {
-        assert!(text.contains(&format!("UUID={p}")), "{text}");
-        assert!(!text.contains(image_id), "{text}");
-    }
-    let stderr = String::from_utf8_lossy(&dump.stderr).to_lowercase();
-    assert!(
-        !stderr.contains("corrupt") && !stderr.contains("checksum"),
-        "{stderr}"
-    );
-    // Each volume passes fsck.fat, its backup boot sector the same as its
-    // own, and fatlabel reads the serial Faraday put there.
-    for (k, (at, len)) in [(BOOT_FIRST, 65536u64 * 1024), (DATA_FIRST, 131_072 * 1024)]
-        .into_iter()
-        .enumerate()
-    {
-        let vol = dir.join(format!("written-{k}.vfat"));
-        std::fs::write(&vol, read(&stick, at * SECTOR, len as usize)).expect("the volume");
+    let (from, to) = sticks::boot_range();
+    let released = sticks::sha(&read(&img, from, (to - from) as usize));
+    for gb in [1u64, 32, 256] {
+        let size = gb << 30;
+        let stick = dir.join(format!("stick-{gb}"));
+        Sparse::new(size).write(&stick);
+        let mut disk = FileDisk::new(&stick);
+        let order = disk.order(source.clone(), Mode::Whole);
+        assert_eq!(run(&order, &Job::Image(image.clone()), &mut disk).0, Ok(()));
+        // The table, both copies, and both partitions.
+        let verify = Command::new(tool("sfdisk"))
+            .arg("--verify")
+            .arg(&stick)
+            .output()
+            .expect("sfdisk --verify");
+        let said = String::from_utf8_lossy(&verify.stdout).to_string()
+            + &String::from_utf8_lossy(&verify.stderr);
+        assert!(
+            verify.status.success() && said.contains("No errors"),
+            "{gb} GB: {said}"
+        );
+        let list = Command::new(tool("sfdisk"))
+            .arg("--list")
+            .arg(&stick)
+            .output()
+            .expect("sfdisk --list");
+        let listed = String::from_utf8_lossy(&list.stdout).to_lowercase();
+        assert!(
+            listed.contains("efi system") && listed.contains("microsoft basic data"),
+            "{gb} GB: {listed}"
+        );
+        if sgdisk {
+            let v = Command::new(tool("sgdisk"))
+                .arg("-v")
+                .arg(&stick)
+                .output()
+                .expect("sgdisk -v");
+            let said = String::from_utf8_lossy(&v.stdout).to_string();
+            assert!(
+                v.status.success() && said.contains("No problems found"),
+                "{gb} GB: {said}"
+            );
+        }
+        // The data partition is clean to fsck.fat, at the disk's size.
+        let vol = dir.join(format!("data-{gb}.vfat"));
+        extract_volume(&stick, DATA_FIRST * SECTOR, data_len(size), &vol);
         let fsck = Command::new(tool("fsck.fat"))
             .arg("-n")
             .arg(&vol)
@@ -365,21 +387,15 @@ fn a_stick_written_from_an_image_other_tools_made_reads_in_those_tools_with_its_
             .expect("fsck.fat");
         assert!(
             fsck.status.success(),
-            "{}",
+            "{gb} GB: {}",
             String::from_utf8_lossy(&fsck.stdout)
         );
-        let label = Command::new(tool("fatlabel"))
-            .arg("-i")
-            .arg(&vol)
-            .output()
-            .expect("fatlabel -i");
-        let shown = String::from_utf8_lossy(&label.stdout).trim().to_lowercase();
-        let serial = format!("{:08x}", ids.serials[k].0);
-        assert!(
-            label.status.success() && shown.contains(&serial),
-            "{shown} {serial}"
+        // The boot partition is the image's: the manifest's value.
+        assert_eq!(
+            sticks::sha(&read(&stick, from, (to - from) as usize)),
+            released
         );
-        assert_ne!(serial, format!("{:08x}", SERIALS[k]));
+        std::fs::remove_file(&stick).expect("removed");
     }
 }
 
@@ -411,15 +427,7 @@ fn a_name_the_starter_wrote_reads_the_same_in_fatlabel_and_the_volume_passes_fsc
     };
     assert_eq!(run(&order, &Job::Image(image), &mut disk).0, Ok(()));
     let vol = dir.join("named.vfat");
-    std::fs::write(
-        &vol,
-        read(
-            &stick,
-            DATA_FIRST * SECTOR,
-            (DATA_SECTORS * SECTOR) as usize,
-        ),
-    )
-    .expect("the volume");
+    extract_volume(&stick, DATA_FIRST * SECTOR, data_len(STICK), &vol);
     let fsck = Command::new(tool("fsck.fat"))
         .arg("-n")
         .arg(&vol)

@@ -8,7 +8,8 @@
 //! --write --pipe \\.\pipe\faraday-starter-… --disk \\.\PhysicalDrive2
 //!   --device "Disk 2" --serial S --size N --mode whole|keep-data
 //!   (--payload NAME | --image PATH --image-size N) --sha256 HEX
-//!   [--boot-file PATH --boot-file-sha256 HEX]
+//!   [--boot-file PATH --boot-file-sha256 HEX] [--name NAME]
+//!   [--clear-first yes]
 //! ```
 //!
 //! `--boot-file` names a boot file the person signed (§4.5) by its full
@@ -100,6 +101,9 @@ impl Elevated {
         if let Some(n) = &o.name {
             a.extend(["--name".into(), n.clone()]);
         }
+        if o.clear_first {
+            a.extend(["--clear-first".into(), "yes".into()]);
+        }
         a
     }
 
@@ -114,7 +118,7 @@ impl Elevated {
         if !rest.len().is_multiple_of(2) {
             return Err(String::from("a key without its value"));
         }
-        const KEYS: [&str; 13] = [
+        const KEYS: [&str; 14] = [
             "--pipe",
             "--disk",
             "--device",
@@ -128,8 +132,9 @@ impl Elevated {
             "--boot-file",
             "--boot-file-sha256",
             "--name",
+            "--clear-first",
         ];
-        let mut got: [Option<&str>; 13] = [None; 13];
+        let mut got: [Option<&str>; 14] = [None; 14];
         for pair in rest.chunks(2) {
             let i = KEYS
                 .iter()
@@ -181,6 +186,11 @@ impl Elevated {
             Some(n) if crate::ids::label_of(n).is_some() => Some(n.to_string()),
             Some(n) => return Err(format!("--name {n}: not a data partition's name")),
         };
+        let clear_first = match got[13] {
+            None => false,
+            Some("yes") if mode == Mode::Whole => true,
+            Some(c) => return Err(format!("--clear-first {c}: not asked for here")),
+        };
         let (source, image_size) = match (got[6], got[7], got[8]) {
             (Some(name), None, None) => {
                 let fine = !name.is_empty()
@@ -230,6 +240,7 @@ impl Elevated {
                 mode,
                 boot_file,
                 name,
+                clear_first,
             },
             image_size,
         })

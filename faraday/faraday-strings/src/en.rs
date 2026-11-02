@@ -415,6 +415,8 @@ strings! {
     starter_writing_title: "Writing",
     /// Progress: `{}` done, `{}` in all.
     starter_progress_bytes: "{} of {}",
+    /// Progress while clearing the whole stick first.
+    starter_clearing: "Clearing · {}",
     /// Progress while writing.
     starter_progress_writing: "Written {}",
     /// Progress while reading back.
@@ -423,22 +425,12 @@ strings! {
     starter_done_title: "Written",
     /// Result title.
     starter_failed_title: "Not written",
-    /// Result line: what the check after writing found
-    /// (docs/STICK-IDENTITY.md §4.3).
-    starter_checked: "Matches the release image, except this stick's own IDs, as expected",
-    /// Done's line after keep data (docs/STICK-IDENTITY.md §4.4).
+    /// Done's line after a stick is made or keep data (docs/STICK-IDENTITY.md §4.3, §4.4).
     starter_checked_boot: "The boot partition matches the release",
-    /// Done's line after keep data with a boot file the person signed.
+    /// Done's line after a stick is made or keep data with a boot file the person signed.
     starter_checked_boot_signed: "The boot partition matches the release, except the boot file you signed, as expected",
-    /// Result line, for a stick written with a boot file the person signed.
-    starter_checked_signed: "Matches the release image, except this stick's own IDs and the boot file you signed, as expected",
     /// Result line, for a Pi card.
     starter_checked_card: "Matches the release image, except this card's own IDs, as expected",
-    /// Done's line for a stick written with a name (§4.3).
-    starter_checked_named: "Matches the release image, except this stick's own IDs and its name, as expected",
-    /// Done's line for a stick written with a name and a boot file the
-    /// person signed (§4.3).
-    starter_checked_named_signed: "Matches the release image, except this stick's own IDs, its name and the boot file you signed, as expected",
     /// Done's line for a Pi card written with a name (§4.3).
     starter_checked_card_named: "Matches the release image, except this card's own IDs and its name, as expected",
     // ----- What to write's Name field (docs/STICK-IDENTITY.md §6) -----

@@ -124,10 +124,7 @@ fn with_nothing_typed_the_stick_is_written_with_no_name() {
     assert!(shows(&mut s, "No name"));
     assert_eq!(written(&mut s), None);
     s.starter_event(StarterEvent::Written(Ok(())));
-    assert!(shows(
-        &mut s,
-        "Matches the release image, except this stick's own IDs, as expected"
-    ));
+    assert!(shows(&mut s, "The boot partition matches the release"));
 }
 
 #[test]
@@ -147,10 +144,7 @@ fn a_name_typed_in_lower_case_is_written_in_capitals_and_the_field_says_so() {
         "{c:?}"
     );
     s.starter_event(StarterEvent::Written(Ok(())));
-    assert!(shows(
-        &mut s,
-        "Matches the release image, except this stick's own IDs and its name, as expected"
-    ));
+    assert!(shows(&mut s, "The boot partition matches the release"));
 }
 
 #[test]

@@ -513,9 +513,7 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
         "Keep the stick in to start this computer from it."
     ));
     // What the check after writing compared (docs/STICK-IDENTITY.md §4.3).
-    assert!(texts(&mut starter).contains(&String::from(
-        "Matches the release image, except this stick's own IDs, as expected"
-    )));
+    assert!(texts(&mut starter).contains(&String::from("The boot partition matches the release")));
     starter.press(StarterAction::Start);
     assert_eq!(starter.page, Page::Start);
 }

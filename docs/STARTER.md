@@ -1056,29 +1056,35 @@ labelled `EFI`. The source is decompressed from the payload while it
 is written, and the SHA-256 of the decompressed stream must equal the
 manifest's before the writer reports success.
 
-**Each stick's own IDs** (`docs/STICK-IDENTITY.md` §4, F174). Writing a
-whole stick, the Starter gives it a new disk GUID and partition GUIDs
-(version 4 in form), in the primary and the backup GPT with every CRC
-worked out again, and a new serial for each FAT volume, in its boot
-sector and its FAT32 backup; a Pi card gets a new MBR disk signature
-and new serials. They come from the system's randomness and are not
-secret. An image they have no place in (not a stick's layout or a Pi
-card's) is not written whole. They are patches on the stream, with a
-boot file the person signed (§4.5): written so and compared so when
-read back, and, with the image's own bytes put back in their places,
-the SHA-256 of what was read must be the manifest's. A name given the
-data partition (§3.2, `docs/STICK-IDENTITY.md` §6) is patches too:
-`faraday-fat`'s label write, run over the data partition's sectors
-gathered as the image streams past (its boot sectors and its root
-directory's first cluster), puts it in the boot sector, the backup boot
-sector and the root directory's volume-label entry, and each byte it
-changed is a patch; an image whose data partition cannot take it is not
-written. Done says
-"Matches the release image, except this stick's own IDs, as expected"
-(with "its name" and "the boot file you signed" named before ", as
-expected" where they apply). *Keep data* writes no
+**A stick is made for its size** (`docs/STICK-IDENTITY.md` §4.2, F182).
+Writing a whole stick, the Starter does not copy the image: it makes
+the stick. The table is its own, for the whole disk (the protective MBR,
+both headers at sectors 1 and the last, first usable sector 34, the
+entries with a new disk GUID and partition GUIDs, version 4 in form,
+and the data partition running to the last usable sector, every CRC
+worked out); the boot partition is the image's sectors 2048 to 133119
+byte for byte, its serial the release's, with a boot file the person
+signed (§4.5) in place; the data partition is a FAT32 volume of the
+partition's size made by `faraday-fat` (hidden sectors 133120, a new
+serial, the name of §3.2 and `docs/STICK-IDENTITY.md` §6), of which
+only the reserved sectors, the FATs and the root directory are
+written. The IDs come from the system's randomness and are not secret.
+Sectors are 512 bytes whatever the disk's own. The source is still
+decompressed as it is written and its SHA-256 must be the manifest's;
+only its boot partition reaches the stick, and with no boot file signed
+that partition's SHA-256 must be the manifest's `-boot.vfat` value,
+checked before the disk is opened. *Clear the whole stick first* writes
+zeros over every sector before this, with its own progress. Read back:
+every region written (the table and the FAT32) and the boot partition
+are compared byte for byte; Done says "The boot partition matches the
+release" (with "except the boot file you signed, as expected"). A Pi
+card is the image with a new MBR disk signature and new serials,
+patches on the stream with the name's, written so and compared so, and
+with the image's own bytes put back the SHA-256 of what was read must be
+the manifest's; Done says "Matches the release image, except this card's
+own IDs, as expected" (with "its name"). *Keep data* writes no
 partition table: the stick keeps its GUIDs, and the new boot partition
-gets the serial the stick's had, read from its boot sector first.
+is the release's as it is, serial included.
 
 **What the Starter reads from a Faraday stick.** Only the boot
 partition, and only to learn which Faraday it holds: the build string
@@ -1166,8 +1172,8 @@ Windows writes there and ignores Windows' own files (§4.4; §12, D11).
 
 Offered to everyone on a Faraday stick (F11). The writer never reads
 or writes the data partition, and never the partition table: the stick
-keeps its own disk and partition GUIDs, and the new boot partition the
-FAT serial the old one had (`docs/STICK-IDENTITY.md` §4.4). The fact the person should know is that plugging the
+keeps its own disk and partition GUIDs, and the new boot partition is
+the release's, its serial included (`docs/STICK-IDENTITY.md` §4.4). The fact the person should know is that plugging the
 stick into this computer is what exposes it: the computer can read and
 write the data partition whatever the Starter does, and Windows mounts
 it with a drive letter. The vaults there are encrypted; the settings

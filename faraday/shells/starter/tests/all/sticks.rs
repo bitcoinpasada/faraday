@@ -230,9 +230,6 @@ pub fn data_fat(s: &mut Sparse, at: u64, sectors: u32, label: &[u8; 11], serial:
 /// The sectors of each FAT of [`data_fat`]'s volume.
 pub const DATA_FAT: u32 = 2032;
 
-/// Where [`data_fat`]'s root directory starts in its volume.
-pub const DATA_ROOT: u64 = (32 + 2 * DATA_FAT as u64) * SECTOR;
-
 /// A stick of `len` bytes with Faraday's layout, the given IDs and
 /// partition names: a FAT32 boot partition labelled EFI and a FAT32
 /// data partition with no label, holding `files` where [`FILES`] says.
@@ -412,23 +409,6 @@ pub fn stored_xz(data: &[u8]) -> Vec<u8> {
     x.extend_from_slice(&footer);
     x.extend_from_slice(b"YZ");
     x
-}
-
-/// Where a stick image holds its IDs (`docs/STICK-IDENTITY.md` §4.2): the
-/// primary GPT's header and entries, the backup's entries and header, and
-/// the serial of each FAT volume in its boot sector and backup.
-pub fn stick_id_places(len: u64) -> Vec<(u64, u64)> {
-    let last = len / SECTOR - 1;
-    let mut v = vec![
-        (SECTOR, SECTOR + 92),
-        (2 * SECTOR, 34 * SECTOR),
-        ((last - 32) * SECTOR, last * SECTOR + 92),
-    ];
-    for part in [BOOT_FIRST * SECTOR, DATA_FIRST * SECTOR] {
-        v.push((part + 67, part + 71));
-        v.push((part + 6 * SECTOR + 67, part + 6 * SECTOR + 71));
-    }
-    v
 }
 
 /// The same for a Pi card image: its MBR's signature and its volumes'

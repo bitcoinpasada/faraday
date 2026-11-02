@@ -17,8 +17,8 @@ use faraday_starter_shell::signed::{self, BOOT_PATH};
 use faraday_starter_shell::writer::Job;
 
 use crate::sticks::{
-    BOOT_FIRST, DATA_FIRST, SECTOR, Sparse, ids_put_back, read, stick, stick_id_places,
-    stick_image, stored_xz, unchanged, untouched_outside,
+    BOOT_FIRST, DATA_FIRST, SECTOR, Sparse, read, stick, stick_image, stored_xz, unchanged,
+    untouched_outside,
 };
 use crate::writer::{FileDisk, run, tmp};
 
@@ -295,8 +295,8 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
     }
     assert_eq!(written[at..], release[at..], "bytes after the file changed");
 
-    // Written whole: the same boot partition and the release's table,
-    // with this stick's own IDs.
+    // Written whole: the same boot partition, on a stick made for its
+    // disk.
     let blank = tmp("signed-blank");
     Sparse::new(image.len).write(&blank);
     let mut disk = FileDisk::new(&blank);
@@ -305,11 +305,14 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
         ..disk.order(source, Mode::Whole)
     };
     assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
-    let mut whole = read(&blank, 0, image.len as usize);
-    ids_put_back(&mut whole, &image, &stick_id_places(image.len));
-    assert_eq!(whole[from..to], written[..]);
-    let all = image.to_vec();
-    assert!(whole[..from] == all[..from] && whole[to..] == all[to..]);
+    assert_eq!(read(&blank, from as u64, to - from), written);
+    let file = std::fs::File::open(&blank).expect("open");
+    let table = faraday_starter_shell::gpt::read(
+        &mut |at, buf| std::os::unix::fs::FileExt::read_exact_at(&file, buf, at),
+        image.len,
+    )
+    .expect("a whole table");
+    faraday_starter_shell::gpt::faraday_boot(&table, 0).expect("a Faraday stick");
 }
 
 #[test]
