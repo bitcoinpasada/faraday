@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F178, F180, F181); built: AEZ's AES round from the aes crate (§4.2, §5.3), SLIP-39's GF(256) and checksum without a branch (§4.3), and the scalar arithmetic on secrets in Faraday's own branch-free form (§4.1's starting point)
-**Open:** the scalar arithmetic on secrets through libsecp256k1 (§4.1); the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the documentation fixes (§7); the FAT32 formatter (§3.2, with the stick work of `docs/STICK-IDENTITY.md`)
+**Open:** the scalar arithmetic on secrets through libsecp256k1 (§4.1); the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the documentation fixes (§7)
 
 Faraday uses an established implementation wherever one exists for what
 it needs, and writes its own only where none exists or none fits its
@@ -323,7 +323,7 @@ below, D1 takes the action whose functions reach it, from the inventory.
 | The QR encoder, a port of Nayuki's `qrcodegen`, with its GF(256) and Reed-Solomon (carries) | `core/faraday-codec/src/qr.rs` | `qr` | F178 | No QR encoder comes from a publisher Faraday's dependency review trusts; Faraday's port of Nayuki's code wipes a SeedQR's buffers. |
 | CRC-32 | `core/faraday-crypto/src/crc32.rs` | `ur` | F180 | The CRC-32 crate in the tree, crc32fast 1.5.1, is not covered by an outside review at that version; Faraday's is a branch-free loop checked against the published check values (§6.8). |
 | FAT16 and FAT32, read and written (carries) | `faraday/faraday-fat` | `stick-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts. |
-| The FAT32 formatter for the Starter's data partition (carries) | `faraday/faraday-fat` | `starter-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts; the partition it makes is checked by dosfstools' `fsck.fat`, against what `mkfs.fat` makes. Built in batch E1. |
+| The FAT32 formatter for the Starter's data partition (carries) | `faraday/faraday-fat` | `starter-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts; the partition it makes is checked by dosfstools' `fsck.fat`, against what `mkfs.fat` makes. Built (`faraday/faraday-fat/src/format.rs`). |
 | GPT and MBR tables, read and rewritten (carries) | `faraday/shells/starter/src/gpt.rs`, `faraday/shells/starter/src/ids.rs` | `starter-write` | F180 | No partition-table library comes from a publisher Faraday's dependency review trusts. |
 | The PDF writer (carries) | `faraday/faraday-core/src/pdf.rs`, `faraday/faraday-starter/src/sheets.rs` | `starter-recovery-key` | F180 | No PDF library comes from a publisher Faraday's dependency review trusts. |
 | The plist reader for `diskutil`'s output (carries) | `faraday/shells/starter/src/macos/plist.rs` | `starter-write` | F180 | No plist library comes from a publisher Faraday's dependency review trusts. |
@@ -338,11 +338,13 @@ the Starter's shell, and it is tested against dosfstools: each
 partition it makes passes `fsck.fat -n`, and its boot sector, FSInfo
 and FATs have the fields `mkfs.fat -F 32` gives for the same size and
 label, apart from the serial (skipped with a note where dosfstools is
-missing). faraday-fat's module doc changes "Nothing formats a
-partition" to "The Starter formats the data partition; nothing else
-formats one". Its batch, E1, goes with the Windows stick work of
-STICK-IDENTITY and starts on the owner's word; until it lands, the entry
-is not written and the count does not include it.
+missing). faraday-fat's module doc says "The Starter formats the data
+partition; nothing else formats one". It is built (`format32`, with its
+tests in `faraday/faraday-fat/tests/formatted.rs`, which also hold the
+volume it makes against `mkfs.fat` at the size either side of every
+cluster-size step); its manifest entry is written with the others of the
+`carries` tier in D1, which brings the entry's form (§2.1), and the count
+below includes it.
 
 ### 3.3 One exists but does not fit the key rules
 
@@ -366,7 +368,7 @@ is not written and the count does not include it.
 | The JSON visitor that refuses a key named twice and counts depth | `core/faraday-bip/src/json.rs` | `wallet-files` | F180 | serde_json reads the text; Faraday refuses a key named twice and a nesting deeper than 32. |
 | The form of a version 4 UUID (carries) | `faraday/shells/starter/src/ids.rs` | `starter-write` | F180 | Four lines setting RFC 9562's version and variant bits over bytes from getrandom. |
 
-Thirty-eight pieces in all once E1 lands (thirty-seven before), against
+Thirty-eight pieces in all, the formatter included, against
 the eighteen lines of AUDIT §3 today. The switches remove BLAKE2b, the
 AES round, the scalar arithmetic on secrets, the RSA RNG adapter, X.509
 and the DER writer, the single-key and multisig finalizer, the sealing's
@@ -1693,7 +1695,6 @@ Reference's list of conditions.
 | C14 | The quiz's seed from the session's generator | §5.16 | About an hour |
 | C15 | One copy of each kept piece | §5.17 | About 1 day |
 | D1 | Schema 5: `written_here` as entries with `why`, `note`, `decision`; `[[not_established]]` for lzma-rust2 and rqrr; getrandom's trust entry; `check.py` (§1.2's three ways, the version checked) and `gen.py`; AUDIT §3 grouped; STANDARDS §10 generated and §0's bullet; the counts; `crypto.established` made active; the manifest's entries filled as §3 | §1.2, §1.4, §2, §3 | 1 to 1.5 days |
-| E1 | The FAT32 formatter in faraday-fat, its `written_here` entry and the count raised under F180 | §3.2 | 1.5 to 2 days, on the owner's word, with the Windows stick work |
 
 A0 comes first, because it changes
 fingerprints every later batch re-stamps. A1 and A4 to A7 come before
@@ -1702,9 +1703,8 @@ order, but C15 after A4 (it moves the masked `gf_mul`), and each changes
 the manifest's `written_here` string of its action as it lands.
 D1 comes after them so that the entries it writes are §3's; before D1
 lands, the website's reader of the manifest is changed in its own
-repository. E1 starts on the owner's word. §6's items come as their
-conditions hold. In all, A0 to D1 take about twelve to sixteen working
-days, and E1 one and a half to two more.
+repository. §6's items come as their conditions hold. In all, A0 to D1
+take about twelve to sixteen working days.
 
 ## 9. The cross-check's outside sources
 

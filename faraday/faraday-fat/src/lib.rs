@@ -7,7 +7,8 @@
 //! deleted. Subdirectories are listed and never entered, but by
 //! [`Volume::read_in`] and [`Volume::rewrite_in`], which the Starter alone
 //! calls, on a release's own boot partition, for its `EFI/BOOT/BOOTX64.EFI`
-//! (`docs/STARTER.md` §4.5). Nothing formats a partition, and nothing
+//! (`docs/STARTER.md` §4.5). The Starter formats the data partition;
+//! nothing else formats one ([`format32`]), and nothing
 //! else edits a file in place: a write is a new file, read back, then
 //! renamed over the old one by the caller.
 //!
@@ -32,6 +33,10 @@
 #![no_std]
 
 extern crate alloc;
+
+mod format;
+
+pub use format::{Format32, FormatError, MIN_CLUSTERS, Region, format32};
 
 use alloc::string::String;
 use alloc::vec;
