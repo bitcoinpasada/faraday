@@ -12,10 +12,10 @@ use crate::drawing::View;
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use crate::{Action, menu};
+use crate::{Action, Sheet, menu};
 use faraday_draw::tokens::{
-    self, BOARD_EDGE, BOARD_MARK, BOARD_STICK_HEAD, BOARD_STICK_PAD, BODY_S, GAP, GAP_SMALL,
-    LABEL_M, STICK_FIGURE_W, TOUCH,
+    self, BOARD_EDGE, BOARD_MARK, BOARD_STICK_HEAD, BOARD_STICK_PAD, BODY_M, BODY_S, GAP,
+    GAP_SMALL, LABEL_M, STICK_FIGURE_W, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
@@ -33,16 +33,101 @@ impl BackupFlow {
             .or_else(|| (0..self.slots.len()).find(|&s| self.needs_bind(s)))
     }
 
-    /// A press on the figure of slot `s`: the next stick is for it.
+    /// A press on the figure of slot `s`: the next stick is for it. A
+    /// stick put off is waiting again.
     pub(crate) fn want(&mut self, s: usize) {
-        if self.step == Step::Sticks && self.needs_bind(s) {
+        if self.step != Step::Sticks {
+            return;
+        }
+        if self.is_later(s) {
+            self.slots[s].later = false;
+        }
+        if self.needs_bind(s) {
             self.live.want = Some(s);
         }
     }
 
-    /// A press on slot `s`'s ⋮.
-    pub(crate) fn toggle_fig_menu(&mut self, s: usize) {
-        self.live.fig_menu = (self.live.fig_menu != Some(s)).then_some(s);
+    /// Slot `s`'s ⋮ opened, under the ⋮ where the last frame drew it.
+    /// Returns the sheet to show.
+    pub(crate) fn open_fig_menu(
+        &mut self,
+        s: usize,
+        at: Option<(i32, i32, i32, i32)>,
+    ) -> Option<Sheet> {
+        self.live.fig_menu = Some(s);
+        self.live.fig_anchor = at;
+        Some(Sheet::FigMenu)
+    }
+
+    /// Check it later pressed on slot `s`: the dialog first. Returns the
+    /// sheet to show.
+    pub(crate) fn ask_later(&mut self, s: usize) -> Option<Sheet> {
+        self.can_put_off(s).then(|| {
+            self.live.later_ask = Some(s);
+            Sheet::LaterAsk
+        })
+    }
+
+    /// **Check it later** in the dialog: the stick asked about is put off,
+    /// the dialog closed (no sheet).
+    pub(crate) fn put_off_asked(&mut self) -> Option<Sheet> {
+        if let Some(s) = self.live.later_ask.take() {
+            self.put_off(s);
+        }
+        None
+    }
+
+    /// Slot `k` keeps only new vaults, so its stick may be checked when it
+    /// is written (`docs/STICK-SETUP.md` §4).
+    fn put_off_ok(&self, k: usize) -> bool {
+        let vs = self.vaults_of(k);
+        self.slots.get(k).is_some_and(|s| s.target.vault_stick())
+            && !vs.is_empty()
+            && vs.iter().all(|&v| !self.plan.vaults[v].existing)
+    }
+
+    /// Slot `k`'s stick is put off: not read now, checked when written.
+    pub(crate) fn is_later(&self, k: usize) -> bool {
+        self.slots
+            .get(k)
+            .is_some_and(|s| s.later && s.bound.is_none())
+            && self.put_off_ok(k)
+    }
+
+    /// Slot `k` waits, with nothing being read, and may be put off.
+    pub(crate) fn can_put_off(&self, k: usize) -> bool {
+        self.step == Step::Sticks
+            && self.live.reading.is_none()
+            && self.slots.get(k).is_some_and(|s| s.bound.is_none())
+            && !self.is_later(k)
+            && self.put_off_ok(k)
+    }
+
+    /// Slot `k` put off, once the person chose it in the dialog.
+    pub(crate) fn put_off(&mut self, k: usize) {
+        if self.can_put_off(k) {
+            self.slots[k].later = true;
+            if self.live.want == Some(k) {
+                self.live.want = None;
+            }
+        }
+    }
+
+    /// Every stick is Checked or Checked when written, none being read:
+    /// Continue is live (§3.4).
+    pub(crate) fn sticks_ready(&self) -> bool {
+        self.live.reading.is_none() && (0..self.slots.len()).all(|s| !self.needs_bind(s))
+    }
+
+    /// The room slot `k`'s vaults take, as the write step needs it.
+    fn later_room(&self, k: usize) -> u64 {
+        self.vaults_of(k)
+            .iter()
+            .map(|&v| match self.plan.vaults[v].len {
+                0 => crate::backup_flow::steps::new_vault_len(),
+                n => n as u64,
+            })
+            .sum()
     }
 
     /// What reading a stick for `slot` is for: a stick bound already is
@@ -61,6 +146,8 @@ enum State {
     Waiting,
     Reading,
     Checked,
+    /// Put off: checked when written.
+    Later,
     Problem(String),
 }
 
@@ -72,8 +159,8 @@ enum Item {
     State(Option<Icon>, String, Role),
     /// The boot stick offered, as a button.
     Boot(String),
-    /// The ⋮ menu's row, open.
-    Menu(String),
+    /// Check it later, offered as a button.
+    Later(String),
 }
 
 /// The figure of slot `k`: its name, what it holds, its state.
@@ -94,28 +181,52 @@ fn state_of(app: &View, f: &BackupFlow, k: usize) -> State {
         State::Checked
     } else if r.is_some() {
         State::Reading
+    } else if f.is_later(k) {
+        State::Later
     } else {
         State::Waiting
     }
 }
 
+/// The slot the boot stick holds or is being read for.
+fn boot_slot(f: &BackupFlow) -> Option<usize> {
+    let reading = f.live.reading.as_ref();
+    (0..f.slots.len()).find(|&j| f.boot_holds(j) || reading.is_some_and(|r| r.boot && r.slot == j))
+}
+
+/// Slot `k`'s name: Boot stick, or Stick 2, 3 … with no gap.
+fn name_of(app: &View, f: &BackupFlow, k: usize) -> String {
+    let m = app.medium;
+    let boot = boot_slot(f);
+    if boot == Some(k) {
+        m.boot().to_string()
+    } else {
+        let before = (0..k).filter(|&j| boot != Some(j)).count();
+        fill(stick_word(m), &[&(before + 2).to_string()])
+    }
+}
+
+/// What slot `k`'s figure offers: the boot stick (§3.3), Check it later
+/// (§4). Both on its figure and in its ⋮.
+fn offers(app: &View, f: &BackupFlow, k: usize) -> (bool, bool) {
+    let waiting = f.live.reading.is_none()
+        && f.slots.get(k).is_some_and(|s| s.bound.is_none())
+        && !f.is_later(k);
+    let boot_in = app.stick.iter().any(|s| s.boot);
+    (
+        waiting && boot_in && boot_slot(f).is_none(),
+        f.can_put_off(k),
+    )
+}
+
 /// The figures of the flow's slots.
 fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
     let n = f.slots.len();
-    let reading = f.live.reading.as_ref();
-    // The slot the boot stick holds or is being read for.
-    let boot = (0..n).find(|&j| f.boot_holds(j) || reading.is_some_and(|r| r.boot && r.slot == j));
-    let boot_in = app.stick.iter().any(|s| s.boot);
     let m = app.medium;
     (0..n)
         .map(|k| {
             let state = state_of(app, f, k);
-            let name = if boot == Some(k) {
-                m.boot().to_string()
-            } else {
-                let before = (0..k).filter(|&j| boot != Some(j)).count();
-                fill(stick_word(m), &[&(before + 2).to_string()])
-            };
+            let name = name_of(app, f, k);
             let mut items = Vec::new();
             let vaults = f.vaults_of(k);
             if !vaults.is_empty() {
@@ -156,21 +267,27 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
                     FEN.backup_flow_figure_checked.to_string(),
                     Role::Ok,
                 ),
+                State::Later => Item::State(
+                    None,
+                    FEN.backup_flow_figure_later.to_string(),
+                    Role::Primary,
+                ),
                 State::Problem(t) => Item::Text(t.clone(), Role::Error),
             });
             if let Some(mark) = app.flow_mark_line(k) {
                 items.push(Item::Text(mark, Role::Primary));
             }
             // The stick the machine started from, read already: any
-            // waiting figure may take it, one figure at most (§3.3).
-            let offer =
-                boot_in && boot.is_none() && reading.is_none() && matches!(state, State::Waiting);
-            if offer {
+            // waiting figure may take it, one figure at most (§3.3); a
+            // stick of new vaults may be put off (§4).
+            let (boot, later) = offers(app, f, k);
+            if boot {
                 items.push(Item::Boot(m.use_boot().to_string()));
-                if f.live.fig_menu == Some(k) {
-                    items.push(Item::Menu(m.use_boot().to_string()));
-                }
             }
+            if later {
+                items.push(Item::Later(FEN.backup_flow_later_button.to_string()));
+            }
+            let offer = boot || later;
             Figure {
                 k,
                 name,
@@ -186,7 +303,7 @@ fn item_h(ui: &Ui, it: &Item, w: f32) -> f32 {
     match it {
         Item::Text(t, _) => ui.wrap_height_as(BODY_S, t, w),
         Item::State(..) => BOARD_STICK_HEAD,
-        Item::Boot(_) | Item::Menu(_) => TOUCH,
+        Item::Boot(_) | Item::Later(_) => TOUCH,
     }
 }
 
@@ -232,7 +349,7 @@ fn draw_one(ui: &mut Ui, fr: &board_screen::CardFrame, fg: &Figure, r: (f32, f32
         State::Reading => menu::outline(ui, r, GAP, BOARD_EDGE, Role::Primary.paint()),
         State::Checked => menu::outline(ui, r, GAP, BOARD_EDGE, Role::Ok.paint()),
         State::Problem(_) => menu::outline(ui, r, GAP, BOARD_EDGE, Role::Error.paint()),
-        State::Waiting => {}
+        State::Waiting | State::Later => {}
     }
     let sp = BOARD_STICK_PAD;
     let inner = w - 2.0 * sp;
@@ -274,19 +391,107 @@ fn draw_one(ui: &mut Ui, fr: &board_screen::CardFrame, fg: &Figure, r: (f32, f32
                     fa(F::UseBootAt(fg.k)),
                 );
             }
-            Item::Menu(t) => {
+            Item::Later(t) => {
                 ui.button(
                     x + sp,
                     cy,
                     Some(inner),
                     TOUCH,
                     t,
-                    Style::Ghost,
-                    fa(F::UseBootAt(fg.k)),
+                    Style::Secondary,
+                    fa(F::LaterAsk(fg.k)),
                 );
             }
         }
         cy += ih + GAP_SMALL;
     }
     debug_assert!(cy <= y + h + 1.0);
+}
+
+/// A figure's ⋮ menu (`docs/STICK-SETUP.md` §3.3, §4), as every ⋮ menu is
+/// drawn ([`crate::menu::draw`]): what its figure offers, worked out
+/// again from the flow. Reads only.
+pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(f) = app.flow() else {
+        return;
+    };
+    let Some(k) = f.live.fig_menu.filter(|&k| k < f.slots.len()) else {
+        return;
+    };
+    let (boot, later) = offers(app, f, k);
+    let m = app.medium;
+    let mut lines = Vec::new();
+    if boot {
+        lines.push(menu::Line::Item(
+            m.use_boot().to_string(),
+            fa(F::UseBootAt(k)),
+        ));
+    }
+    if later {
+        lines.push(menu::Line::Item(
+            FEN.backup_flow_later_button.to_string(),
+            fa(F::LaterAsk(k)),
+        ));
+    }
+    let icon = match m {
+        crate::Medium::Stick => Icon::Drive,
+        crate::Medium::SdCard => Icon::SdCard,
+    };
+    menu::draw(
+        ui,
+        w,
+        h,
+        &menu::View {
+            title: &name_of(app, f, k),
+            icon,
+            lines: &lines,
+            at: 0,
+            keys: false,
+            anchor: f.live.fig_anchor,
+            cancel: (FEN.backup_flow_later_cancel, Action::Cancel),
+            shown: 1.0,
+        },
+    );
+}
+
+/// The Check it later dialog (`docs/STICK-SETUP.md` §4, Material 3
+/// Dialogs): four statements, **Check it later** and **Cancel**. Reads
+/// only.
+pub(crate) fn later_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(f) = app.flow() else {
+        return;
+    };
+    let Some(k) = f.live.later_ask.filter(|&k| k < f.slots.len()) else {
+        return;
+    };
+    let m = app.medium.noun();
+    let title = fill(FEN.backup_flow_later_title, &[&name_of(app, f, k)]);
+    let room = crate::vault::file_text(f.later_room(k) as usize);
+    let text = [
+        fill(FEN.backup_flow_later_when, &[m, m]),
+        fill(FEN.backup_flow_later_sealed, &[m]),
+        fill(FEN.backup_flow_later_checks, &[m, &room]),
+        fill(FEN.backup_flow_later_fails, &[m]),
+    ];
+    let actions = [
+        (
+            FEN.backup_flow_later_cancel,
+            Style::Secondary,
+            Action::Cancel,
+        ),
+        (FEN.backup_flow_later_button, Style::Primary, fa(F::LaterDo)),
+    ];
+    crate::compact::dialog(
+        ui,
+        (w, h, tokens::DIALOG_MAX),
+        (Icon::Info.into(), Role::Primary.paint(), &title),
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            for t in &text {
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, t) + GAP_SMALL;
+            }
+            cy - y + GAP - GAP_SMALL
+        },
+        &actions,
+    );
 }

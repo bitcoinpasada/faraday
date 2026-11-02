@@ -516,7 +516,20 @@ impl Shell {
         self.pump(app);
     }
 
+    /// The stick pulled; at Bring in the sticks with every stick Checked
+    /// or Checked when written, the person then presses Continue.
     pub fn pull(&mut self, app: &mut Faraday, id: &str) {
+        self.pull_only(app, id);
+        if app
+            .flow()
+            .is_some_and(|f| f.step == faraday_core::backup_flow::Step::Sticks)
+        {
+            self.flow(app, F::SticksOn);
+        }
+    }
+
+    /// The stick pulled, nothing pressed after it.
+    pub fn pull_only(&mut self, app: &mut Faraday, id: &str) {
         self.present.retain(|p| p != id);
         app.storage(StorageEvent::Sticks(self.infos()));
         self.pump(app);

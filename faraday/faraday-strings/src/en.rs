@@ -9851,6 +9851,23 @@ strings! {
     /// The file chosen for a vault already on a stick. `{}`: the vault,
     /// then the file.
     backup_flow_figure_file: "{}: {}",
+    /// A stick of Bring in the sticks put off to be checked at the write.
+    backup_flow_figure_later: "Checked when written",
+    /// A stick's button, and its ⋮ row, to check it at the write.
+    backup_flow_later_button: "Check it later",
+    /// The dialog's title. `{}`: the stick's name.
+    backup_flow_later_title: "Check {} later?",
+    /// The dialog's first statement. `{}`: the medium's noun, twice.
+    backup_flow_later_when: "A {} is not read while a key or a vault is open, so a {} not read now is read at the write step, after the lock.",
+    /// The dialog's second statement. `{}`: the medium's noun.
+    backup_flow_later_sealed: "The vaults are made now either way. Until the {} is written, each is kept sealed in this device's memory only.",
+    /// The dialog's third statement. `{}`: the medium's noun, then the
+    /// room the vaults need.
+    backup_flow_later_checks: "At the write step the {} must be FAT32, writable, not a boot partition, and have room for its vaults ({}).",
+    /// The dialog's fourth statement. `{}`: the medium's noun.
+    backup_flow_later_fails: "If it fails then, another {} that passes can take its place. With none at hand, turning this device off or restarting it loses those vaults, and any key kept only in them.",
+    /// The dialog's way out.
+    backup_flow_later_cancel: "Cancel",
     /// Summary of step 2.
     backup_flow_read_count: "{} of {} read",
     /// Bring in the sticks closed with none read: each is read on Write

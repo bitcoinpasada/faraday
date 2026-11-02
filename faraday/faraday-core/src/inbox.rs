@@ -334,6 +334,23 @@ impl InboxArea {
 }
 
 impl Faraday {
+    /// The Inbox PSBT to offer first: the one with the fewest signatures,
+    /// so a cosigner's signed copy never stands in for the transaction.
+    /// Reads what each file said when it came in ([`Item::psbt`]).
+    pub fn lead_psbt(&self) -> Option<usize> {
+        self.inbox
+            .iter()
+            .enumerate()
+            .filter_map(|(i, it)| Some((it.psbt()?.sigs, i)))
+            .min()
+            .map(|(_, i)| i)
+    }
+
+    /// Signatures the open spend's wallet needs.
+    pub fn spend_needed(&self) -> usize {
+        self.wallets.spend().map(|s| s.needed).unwrap_or(1)
+    }
+
     /// The files read from sticks.
     pub fn inbox(&self) -> &InboxFiles {
         &self.inbox.files

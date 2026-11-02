@@ -468,7 +468,7 @@ impl BackupFlow {
         let Some(s) = f.slots.get(slot) else {
             return false;
         };
-        if s.bound.is_some() {
+        if s.bound.is_some() || self.is_later(slot) {
             return false;
         }
         match s.target {

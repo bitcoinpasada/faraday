@@ -72,6 +72,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::Hold));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    t.press(Action::Flow(F::SticksOn));
     t.shot("flow-6-vaults")?;
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Vault(V::Unlock));

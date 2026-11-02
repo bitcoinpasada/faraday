@@ -561,7 +561,34 @@ fn sticks_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
     }
     cy += super::figures::draw(app, f, ui, x, cy, w);
     cy += stick_card(app, f, ui, x, cy, w);
+    if f.step == Step::Sticks {
+        cy += sticks_continue(f, ui, x, cy, w);
+    }
     cy - y
+}
+
+/// **Continue**, at the card's foot: live once every stick is Checked or
+/// Checked when written (`docs/STICK-SETUP.md` §3.4).
+fn sticks_continue(f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use faraday_draw::tokens::{GAP, SETUP_CONTINUE_PAD, TOUCH};
+    let label = FEN.create_continue;
+    let lw = ui.measure_as(LABEL_L, label) + SETUP_CONTINUE_PAD;
+    let style = if f.sticks_ready() {
+        Style::Primary
+    } else {
+        Style::Disabled
+    };
+    let at = (x + w - lw, y + GAP);
+    ui.button(
+        at.0,
+        at.1,
+        Some(lw),
+        BUTTON_H,
+        label,
+        style,
+        fa(F::SticksOn),
+    );
+    TOUCH + GAP
 }
 
 /// The card for the stick being asked for or read, at step 2 or 6.

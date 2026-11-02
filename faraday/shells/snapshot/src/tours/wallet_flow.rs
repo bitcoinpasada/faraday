@@ -65,6 +65,13 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::About(0));
     t.shot("wallet-flow-3a-insert-guided")?;
     t.press(Action::About(0));
+    // A figure's ⋮ menu, and Check it later's dialog; Cancel leaves both.
+    t.press(Action::Flow(F::FigMenu(1)));
+    t.shot("wallet-flow-3b-figure-menu")?;
+    t.press(Action::Cancel);
+    t.press(Action::Flow(F::LaterAsk(1)));
+    t.shot("wallet-flow-3c-check-later")?;
+    t.press(Action::Cancel);
     // Vault 1: a stick that holds a vault, and the person picks.
     let first = t.stick();
     t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
@@ -80,6 +87,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::Flow(F::Tap));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    t.press(Action::Flow(F::SticksOn));
     t.shot("wallet-flow-5-vaults")?;
     for v in 0..2 {
         t.press(Action::Flow(F::CreateVault(v)));
@@ -208,6 +216,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         .ok_or("no boot stick")?;
     t.press(Action::Flow(F::UseBoot(k)));
     t.pump();
+    t.press(Action::Flow(F::SticksOn));
     t.shot("wallet-flow-13-open-or-create")?;
     t.press(Action::Flow(F::CreateVault(1)));
     t.shot("wallet-flow-14-boot-pull")?;

@@ -952,11 +952,14 @@ wallet and Restore → step cards (pages on a small panel, "Step 2 of
 2. **Bring in the sticks** (with anything secret open: **Lock and bring
    in the sticks** first) → a figure per stick with its state; a stick
    put in goes to the waiting figure pressed last, else the first, or
-   **Use the boot stick** on any waiting figure → usable, else why and what to do →
+   **Use the boot stick** on any waiting figure, or **Check it later**
+   on a figure whose vaults are all new (a dialog first; the stick is
+   then checked at step 6) → usable, else why and what to do →
    its vaults: "Which vault is Vault 1?", or **A new vault beside them**
    → **This is the stick for …** (a tap; none after **Use the boot stick**,
    whose press names the stick), or the hold where two sticks read
-   alike; a stick bound to another place refused → pull;
+   alike; a stick bound to another place refused → pull → **Continue**,
+   live once every stick is Checked or Checked when written;
 3. **Vaults**, once every stick is read (nothing is unlocked before):
    **Open {vault}** for each one found, then its passphrase and **Unlock
    {vault}**; **Create {vault}** for each new one; both offered where

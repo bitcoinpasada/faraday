@@ -598,6 +598,10 @@ pub enum Sheet {
     /// A chip's ⋮ menu on the backup board (`docs/BACKUP-FLOW.md`
     /// §17.20): a popup under the ⋮ on `wide`, a sheet on the small panel.
     BoardMenu,
+    /// A stick's ⋮ menu at Bring in the sticks (`backup_flow/figures.rs`).
+    FigMenu,
+    /// **Check it later**, asked first (`backup_flow/figures.rs`).
+    LaterAsk,
     /// A seed the camera read, asking how it loads: with no passphrase or with one (`seed_read`).
     SeedRead,
     /// **Sweep a private key**: a WIF's addresses, its PSBT reviewed and signed (`seeds::sweep`).
@@ -2418,23 +2422,6 @@ impl Faraday {
         } else {
             EN.session_stage_bring
         }
-    }
-
-    /// The Inbox PSBT to offer first: the one with the fewest signatures,
-    /// so a cosigner's signed copy never stands in for the transaction.
-    /// Reads what each file said when it came in ([`Item::psbt`]).
-    pub fn lead_psbt(&self) -> Option<usize> {
-        self.inbox
-            .iter()
-            .enumerate()
-            .filter_map(|(i, it)| Some((it.psbt()?.sigs, i)))
-            .min()
-            .map(|(_, i)| i)
-    }
-
-    /// Signatures the open spend's wallet needs.
-    pub fn spend_needed(&self) -> usize {
-        self.wallets.spend().map(|s| s.needed).unwrap_or(1)
     }
 
     fn act(&mut self, action: Action) {

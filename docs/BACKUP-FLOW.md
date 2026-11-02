@@ -189,8 +189,9 @@ plan shows its check lines and, where they apply, §10.3's two lines.
 
 Only the sticks the plan already names: each `VaultStick(v)` at a place.
 Sticks the plan names later (the stick of files, the stick of public
-files, a place added after the key is made) are checked at
-step 6 instead (§4.6), since they hold no vault the key goes into.
+files, a place added after the key is made) and a stick put off with
+**Check it later** are checked at step 6 instead (§4.6), since they hold
+no vault the key goes into.
 
 - **A clean process first.** With anything secret open when step 2
   begins, its card's foot is **Lock and bring in the sticks**: the lock
@@ -201,6 +202,17 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
   A stick put in goes to the waiting figure pressed last, else the first
   waiting; one at a time ("One stick at a time"); pull it, then the
   next. "Insert the stick for Vault 1 (Place 1)" names the one wanted.
+  **Continue** on the card is live once every stick is Checked or
+  Checked when written; nothing goes on by itself.
+- **Check it later.** A waiting figure whose vaults are all new offers
+  **Check it later**, on the figure and in its ⋮ (`docs/STICK-SETUP.md`
+  §4); a dialog states what it means first. A stick put off reads
+  **Checked when written** and is not read at step 2: at step 6 it is
+  checked as a stick named after step 2 is (§4.6), and one that fails
+  there takes another stick that passes. Putting a stick off keeps
+  what it holds: a stick that holds vaults gets the new vault beside
+  them. A figure with a vault already on a stick does not offer it:
+  that vault is read only before the keys.
 - **Already read this session.** The boot stick, in the machine already,
   is offered by every waiting figure and in its ⋮: **Use the boot
   stick**, with no insertion, for one stick of the plan at most; it then
@@ -332,8 +344,10 @@ stick of public files:
   - a stick that holds a file this flow wrote for another stick (by
     SHA-256): "This stick has Place 1's files";
   - a stick the plan named after step 2 (the stick of files, the
-    stick of public files, a place added later): step 2's
-    usability checks and room now, then the tap **This is {stick}**;
+    stick of public files, a place added later) or one put off with
+    **Check it later**: step 2's usability checks and room now, then
+    the tap **This is {stick}**; a put-off stick that holds vaults gets
+    the vault beside them, with no question, the vault being made;
   - two sticks in: "One stick at a time".
 - **Writing**: "Writing {file}", DESIGN §4.14's Progress where the write
   goes in parts (`docs/LARGE-FILES.md`).

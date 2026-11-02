@@ -40,6 +40,8 @@ fn use_boot_stick_takes_it_for_vault_1_and_its_pull_opens_create_a_vault() {
     expect_part(&mut app, "Use the boot stick");
     shell.flow(&mut app, F::UseBootAt(0));
     assert!(app.flow().unwrap().slots[0].bound.is_some(), "one press");
+    assert_eq!(step(&app), Step::Sticks, "Continue goes on");
+    shell.flow(&mut app, F::SticksOn);
     assert_eq!(step(&app), Step::Vaults);
     assert_eq!(app.sheet, Some(Sheet::Pull));
     expect_wrapped(

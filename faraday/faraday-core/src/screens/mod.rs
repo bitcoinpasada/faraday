@@ -349,7 +349,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // stays in view under it, undimmed (`docs/BACKUP-FLOW.md` §17.20).
         if matches!(
             sheet,
-            Sheet::BoardMenu | Sheet::FileMenu | Sheet::KeyLengths
+            Sheet::BoardMenu | Sheet::FileMenu | Sheet::KeyLengths | Sheet::FigMenu
         ) && !app.is_compact()
         {
             ui.still();
@@ -434,6 +434,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::NavMenu(Some(o)) => crate::compact::overflow_sheet(app, ui, w, h, o),
             Sheet::KeyLengths => crate::keygen::screen::lengths_menu(app, ui, w, h),
             Sheet::GpgRestore => crate::backup_flow::gpg_restore_screen::sheet(app, ui, w, h),
+            Sheet::FigMenu => crate::backup_flow::figures::menu_sheet(app, ui, w, h),
+            Sheet::LaterAsk => crate::backup_flow::figures::later_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
         ui.ox = 0.0;

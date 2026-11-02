@@ -374,6 +374,9 @@ pub struct Slot {
     pub files: Vec<String>,
     /// What step 2 (or step 6, for a stick named later) read.
     pub bound: Option<Bound>,
+    /// Put off at Bring in the sticks: checked when written, as a stick
+    /// named after step 2 is (`docs/STICK-SETUP.md` §4).
+    pub later: bool,
     /// What was written to it, read back and matched.
     pub written: Option<Written>,
 }
@@ -828,6 +831,10 @@ pub struct Live {
     pub want: Option<usize>,
     /// The stick whose ⋮ menu is open at Bring in the sticks.
     pub fig_menu: Option<usize>,
+    /// Where that ⋮ was drawn, in pixels: the menu goes under it.
+    pub fig_anchor: Option<(i32, i32, i32, i32)>,
+    /// The stick asked whether to check later, while its dialog shows.
+    pub later_ask: Option<usize>,
     /// A wallet's plan card open, by [`crate::qstep`]
     /// (`docs/BACKUP-FLOW.md` §15).
     pub plan_q: Option<u8>,
@@ -1313,6 +1320,7 @@ impl BackupFlow {
                         target: t,
                         files: Vec::new(),
                         bound: None,
+                        later: false,
                         written: None,
                     },
                 );
@@ -2027,6 +2035,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 target: t,
                 files: Vec::new(),
                 bound: None,
+                later: false,
                 written: None,
             });
             true

@@ -2291,3 +2291,164 @@ fn a_flow_whose_vault_was_not_sealed_at_the_lock_goes_back_to_its_vaults() {
     let app = shell.restart();
     assert_eq!(step(&app), Step::Vaults, "on to the writes unsealed");
 }
+
+/// A GPG flow on Bring in the sticks with two sticks that do not read
+/// alike, S1 and S2, and `S1` for Stick 2 put off through its dialog.
+fn sticks_with_the_first_put_off(shell: &mut Shell) -> Faraday {
+    empties(shell, 2);
+    shell.disks[1].serial = Some(2);
+    shell.disks[1].label = "SECOND".into();
+    let mut app = started(Kind::Gpg);
+    through_where(shell, &mut app);
+    shell.flow(&mut app, F::LaterAsk(0));
+    shell.flow(&mut app, F::LaterDo);
+    app
+}
+
+/// Vault made, key made, locked: step 6 on a fresh process.
+fn made_and_locked(shell: &mut Shell, app: &mut Faraday) -> Faraday {
+    create_vault(shell, app, 0, PHRASE);
+    make_key(shell, app, &GPG_FIELDS);
+    assert!(app.flow().unwrap().made, "{:?}", app.toast_text());
+    shell.flow(app, F::MadeContinue);
+    let app = shell.lock(app);
+    assert_eq!(step(&app), Step::Write);
+    app
+}
+
+#[test]
+fn a_stick_put_off_reads_checked_when_written_and_is_checked_and_written_at_step_six() {
+    let mut shell = Shell::new();
+    let mut app = sticks_with_the_first_put_off(&mut shell);
+    expect(&mut app, "Checked when written");
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Tap);
+    shell.pull_only(&mut app, "S2");
+    // Continue is live with a stick unread, and goes on to the vaults.
+    assert_eq!(step(&app), Step::Sticks);
+    shell.flow(&mut app, F::SticksOn);
+    assert_eq!(step(&app), Step::Vaults);
+    let mut app = made_and_locked(&mut shell, &mut app);
+    // The put-off stick is checked as a stick named after step 2 is.
+    shell.plug(&mut app, "S1");
+    expect(&mut app, "This is the stick for Vault 1 (Place 1)");
+    shell.flow(&mut app, F::Tap);
+    assert!(app.flow().unwrap().slots[0].written.is_some());
+    shell.pull(&mut app, "S1");
+    write_all(&mut shell, &mut app, &[("S2", true)]);
+    assert_eq!(step(&app), Step::Done);
+    assert!(
+        shell
+            .disk("S1")
+            .files
+            .iter()
+            .any(|f| f.0.ends_with(".fvlt"))
+    );
+    assert!(
+        shell
+            .disk("S2")
+            .files
+            .iter()
+            .any(|f| f.0.ends_with(".fvlt"))
+    );
+}
+
+#[test]
+fn continue_is_not_live_while_a_stick_is_neither_checked_nor_put_off() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 2);
+    let mut app = started(Kind::Gpg);
+    through_where(&mut shell, &mut app);
+    shell.flow(&mut app, F::SticksOn);
+    assert_eq!(step(&app), Step::Sticks, "two sticks wait");
+    shell.flow(&mut app, F::LaterAsk(0));
+    shell.flow(&mut app, F::LaterDo);
+    shell.flow(&mut app, F::SticksOn);
+    assert_eq!(step(&app), Step::Sticks, "one stick waits");
+}
+
+#[test]
+fn cancel_in_the_check_it_later_dialog_changes_nothing() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 2);
+    let mut app = started(Kind::Gpg);
+    through_where(&mut shell, &mut app);
+    shell.flow(&mut app, F::LaterAsk(0));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::LaterAsk));
+    expect(&mut app, "Check Stick 2 later?");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(!has(&mut app, "Checked when written"));
+    assert!(offered(&mut app, Action::Flow(F::LaterAsk(0))));
+}
+
+#[test]
+fn a_stick_holding_a_vault_already_on_a_stick_offers_no_check_it_later() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 2);
+    let mut app = started(Kind::Gpg);
+    shell.flow(&mut app, F::VaultExisting(0));
+    through_where(&mut shell, &mut app);
+    assert!(!has(&mut app, "Check it later"));
+    shell.flow(&mut app, F::LaterAsk(0));
+    assert_eq!(app.sheet, None, "no dialog");
+    assert!(!has(&mut app, "Checked when written"));
+}
+
+#[test]
+fn a_put_off_stick_that_fails_at_step_six_takes_another_and_nothing_is_lost() {
+    let mut shell = Shell::new();
+    let mut app = sticks_with_the_first_put_off(&mut shell);
+    shell.disks[0].label = "EFI".into();
+    shell.add(Disk::empty("S3", "SPARE"));
+    shell.disk_mut("S3").serial = Some(77);
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Tap);
+    shell.pull_only(&mut app, "S2");
+    shell.flow(&mut app, F::SticksOn);
+    let mut app = made_and_locked(&mut shell, &mut app);
+    shell.plug(&mut app, "S1");
+    expect_part(&mut app, "This is a boot partition");
+    assert!(app.flow().unwrap().slots[0].written.is_none());
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "S1");
+    shell.plug(&mut app, "S3");
+    shell.flow(&mut app, F::Tap);
+    assert!(app.flow().unwrap().slots[0].written.is_some());
+    shell.pull(&mut app, "S3");
+    write_all(&mut shell, &mut app, &[("S2", true)]);
+    assert_eq!(step(&app), Step::Done);
+    assert!(
+        shell
+            .disk("S3")
+            .files
+            .iter()
+            .any(|f| f.0.ends_with(".fvlt"))
+    );
+    assert!(
+        shell.disk("S1").files.is_empty(),
+        "the failed stick is untouched"
+    );
+}
+
+#[test]
+fn a_put_off_stick_that_holds_vaults_gets_the_new_vault_beside_them() {
+    let mut shell = Shell::new();
+    let mut app = sticks_with_the_first_put_off(&mut shell);
+    let other = vault("Other", &[PHRASE_2], 0x42);
+    shell.disks[0].files = vec![("other.fvlt".into(), other.clone())];
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Tap);
+    shell.pull_only(&mut app, "S2");
+    shell.flow(&mut app, F::SticksOn);
+    let mut app = made_and_locked(&mut shell, &mut app);
+    shell.plug(&mut app, "S1");
+    // The vault is made by now: it goes beside what the stick holds, with
+    // no question.
+    assert!(!has_part(&mut app, "Which vault"));
+    shell.flow(&mut app, F::Tap);
+    assert!(app.flow().unwrap().slots[0].written.is_some());
+    let files = &shell.disk("S1").files;
+    assert!(files.iter().any(|f| f.0 == "other.fvlt" && f.1 == other));
+    assert_eq!(files.iter().filter(|f| f.0.ends_with(".fvlt")).count(), 2);
+}

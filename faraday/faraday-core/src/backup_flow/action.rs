@@ -42,6 +42,14 @@ pub enum FlowAction {
     /// Bring in the sticks: the stick the machine started from serves
     /// this slot's figure.
     UseBootAt(usize),
+    /// Bring in the sticks: ask whether this slot's stick is checked
+    /// when written.
+    LaterAsk(usize),
+    /// Bring in the sticks: the stick asked about is checked when written.
+    LaterDo,
+    /// Bring in the sticks: go on to Vaults once every stick is Checked
+    /// or Checked when written.
+    SticksOn,
     /// The vault is the file of this place in the stick's vault files.
     PickFile(usize, usize),
     /// The vault is a new one beside what the stick holds.

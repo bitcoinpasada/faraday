@@ -20,7 +20,7 @@ pub use super::action::{Built, FlowAction, RestorePress, is_hold};
 
 /// The room a new vault is counted at before its size is chosen: the
 /// default slot's file.
-fn new_vault_len() -> u64 {
+pub(crate) fn new_vault_len() -> u64 {
     fv::file_len(fv::DEFAULT_SLOT) as u64
 }
 
@@ -165,18 +165,12 @@ impl Faraday {
 
     /// Automatic transitions: a step whose work is done goes on.
     pub(crate) fn flow_settle(&mut self) {
-        let mut sticks_done = None;
         for _ in 0..8 {
             let Some(i) = self.fi() else {
                 return;
             };
             let step = self.flows[i].step;
             let next = match step {
-                Step::Sticks => {
-                    let f = &self.flows[i];
-                    let unbound = (0..f.slots.len()).any(|s| self.flows[i].needs_bind(s));
-                    (!unbound && f.live.reading.is_none()).then_some(Step::Vaults)
-                }
                 Step::Vaults => {
                     let ready = self
                         .flow_needed_vaults(i)
@@ -194,9 +188,6 @@ impl Faraday {
             };
             match next {
                 Some(s) => {
-                    if step == Step::Sticks && s == Step::Vaults {
-                        sticks_done = Some(i);
-                    }
                     self.flow_goto(i, s);
                     // A wallet's keys are made in Make a new wallet, not
                     // in a card of the flow: steps 1 to 3 done, it goes
@@ -208,9 +199,6 @@ impl Faraday {
                 }
                 None => break,
             }
-        }
-        if let Some(i) = sticks_done {
-            self.flow_create_first(i);
         }
     }
 
@@ -331,12 +319,24 @@ impl Faraday {
             F::LockBring => self.lock_ask(true),
             F::UseBoot(k) => self.flow_use_present(i, k, None),
             F::UseBootAt(s) => {
+                self.sheet = None;
                 if let Some(k) = self.stick.iter().position(|x| x.boot) {
                     self.flow_use_present(i, k, Some(s));
                 }
             }
             F::Want(s) => self.flows.all[i].want(s),
-            F::FigMenu(s) => self.flows.all[i].toggle_fig_menu(s),
+            F::FigMenu(s) => {
+                let at = self.pointer.rect_of(Action::Flow(a));
+                self.sheet = self.flows.all[i].open_fig_menu(s, at.map(|r| (r.x, r.y, r.w, r.h)));
+            }
+            F::LaterAsk(s) => self.sheet = self.flows.all[i].ask_later(s),
+            F::LaterDo => self.sheet = self.flows.all[i].put_off_asked(),
+            F::SticksOn if self.flows[i].sticks_ready() => {
+                self.flow_goto(i, Step::Vaults);
+                self.flow_settle();
+                self.flow_create_first(i);
+            }
+            F::SticksOn => {}
             F::PickFile(v, k) => self.flow_pick_file(i, v, k),
             F::PickBeside(v) => self.flow_pick_beside(i, v),
             F::UseCopy(this) => self.flow_use_copy(i, this),
