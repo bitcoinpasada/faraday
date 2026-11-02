@@ -7932,6 +7932,7 @@ functions = [
   "faraday/shells/starter/src/writer.rs::Random::fill",
   "faraday/shells/starter/src/ids.rs::Capture::fresh_gpt",
   "faraday/faraday-payload/src/decode.rs::hash_image",
+  "faraday/shells/starter/src/writer.rs::Source::check_boot_sum",
 ]
 code = [
   "faraday/faraday-payload/src/decode.rs::write_payload",
@@ -7945,7 +7946,7 @@ libraries = [
   "lzma-rust2",
   "getrandom",
 ]
-adds = "The payload is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the manifest's size with the manifest's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a whole stick is read back and compared with the stream as written, and the SHA-256 of what was read, with the image's own IDs put back where the stick's went (docs/STICK-IDENTITY.md §4.3), must be the manifest's. The stick's own GUIDs and FAT serials come from getrandom; they are identities, not secrets, and the GPT's CRC-32s are worked out again over them. A name given the data partition (docs/STICK-IDENTITY.md §6) is faraday-fat's label write run over the sectors captured, each byte it changed a patch put back the same way."
+adds = "The payload is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the manifest's size with the manifest's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a whole stick is read back and compared with the stream as written, and the SHA-256 of what was read, with the image's own IDs put back where the stick's went (docs/STICK-IDENTITY.md §4.3), must be the manifest's. The stick's own GUIDs and FAT serials come from getrandom; they are identities, not secrets, and the GPT's CRC-32s are worked out again over them. Keep data from a payload file with no boot file signed first checks that the SHA-256 of the image's boot partition is the manifest's (the `-boot.vfat` value of SHA256SUMS) and writes nothing otherwise. A name given the data partition (docs/STICK-IDENTITY.md §6) is faraday-fat's label write run over the sectors captured, each byte it changed a patch put back the same way."
 
 [action.checked]
 tests = [
@@ -7955,6 +7956,7 @@ tests = [
   "faraday/faraday-payload/tests/payload.rs::a_developers_image_has_the_sum_sha256sum_gives_plain_or_xz",
   "faraday/faraday-payload/tests/payload.rs::a_developers_image_that_changed_after_it_was_confirmed_is_a_failure",
   "faraday/shells/starter/tests/all/ids.rs::two_sticks_written_from_one_image_have_their_own_ids_and_each_checks_against_the_manifest",
+  "faraday/shells/starter/tests/all/signed_boot.rs::keep_data_refuses_a_boot_partition_that_is_not_the_one_the_release_lists_unless_a_boot_file_is_signed",
 ]
 not_crosschecked = "The sums are compared with `sha256sum`'s in the tests; no F79 area runs the decoder."
 fuzz_none = "The manifest target fuzzes the manifest's reading; no target runs the xz decoder or the hash."
@@ -7977,7 +7979,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "883f15ae8395a9819fe8098683f9b23fbbd0da73dcfb4c25e9ee9407632fd1ca"
+fingerprint = "a0cb030f1cbd1a493bfbd065e0d542dc0e4445d6b3d94078ee9b8701e23a0667"
 reviewed = "2026-11-02"
 places = [
   "docs/STARTER.md",
