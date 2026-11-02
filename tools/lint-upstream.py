@@ -5,7 +5,9 @@
     lint-upstream.py --self-test
 
 The name is read from LICENSE's notice, `Copyright (c) <year> The <Name>
-Authors`, and is written nowhere else, this lint included. A file names it
+Authors`, and is written nowhere else, this lint included. A LICENSE
+without that notice names no upstream project: there is then nothing to
+look for, and the counts file must list no file. A file names it
 when its bytes hold the name, or the name without its last capitalised
 word, in any case, its words run together or joined by `-` or `_`. Every
 file git tracks is read, binary files too. `tools/lint-upstream.counts`
@@ -26,9 +28,10 @@ NOTICE = re.compile(r"^Copyright \(c\) \d{4} The (\S+) Authors$", re.M)
 
 
 def pattern(license_text):
+    """The upstream name's forms, or None when LICENSE carries no notice."""
     m = NOTICE.search(license_text)
     if not m:
-        raise SystemExit("lint-upstream: LICENSE has no `Copyright (c) <year> The <Name> Authors` line")
+        return None
     words = re.findall(r"[A-Z][a-z0-9]*|[a-z0-9]+", m.group(1))
     forms = [words] + ([words[:-1]] if len(words) > 2 else [])
     alts = ["[-_]?".join(re.escape(w) for w in ws) for ws in forms]
@@ -89,6 +92,8 @@ def self_test():
         fails.append("a count risen, fallen or new passes")
     if compare({"a": 1}, {"a": 1}):
         fails.append("a count kept fails")
+    if pattern("Copyright (c) 2026 Someone\n") is not None:
+        fails.append("a LICENSE without the notice yields a name")
     for f in fails:
         print(f"lint-upstream self-test: {f}")
     print("lint-upstream self-test: " + ("FAILED" if fails else "ok"))
@@ -105,6 +110,12 @@ def main(argv):
         return 1
     rx = pattern((ROOT / "LICENSE").read_text())
     allowed = read_counts((ROOT / COUNTS).read_text())
+    if rx is None:
+        if allowed:
+            print(f"lint-upstream: LICENSE names no upstream project, so {COUNTS} lists no file")
+            return 1
+        print("lint-upstream: ok (LICENSE names no upstream project)")
+        return 0
     errs = compare(found(ROOT, tracked(ROOT), rx), allowed)
     for e in errs:
         print(f"lint-upstream: {e}")
