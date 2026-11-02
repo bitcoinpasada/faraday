@@ -4,9 +4,10 @@
 
 use faraday_draw::tokens::{ICON_GLYPH_BUTTON as BOX_SIDE, LIST_2};
 use faraday_strings::fill;
-use faraday_ui::{Role, Shape};
+use faraday_ui::Role;
 
-use super::{S, SHAPE_S, Ui, fact_row, two_lines};
+use super::row::{ROW_ROOM, ROW_TEXT, press_row};
+use super::{S, Ui, fact_row, two_lines};
 use crate::clear::minutes;
 use crate::{Starter, StarterAction};
 
@@ -19,21 +20,15 @@ pub(super) fn section(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -
         return 0.0;
     };
     let on = starter.making.as_ref().is_some_and(|m| m.clear_first);
-    let action = StarterAction::ClearFirst.host();
     let y = y0 + 20.0;
     let rh = LIST_2;
-    ui.press_to(
-        Shape::new(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S),
-        (x - 6.0, y, w + 12.0, rh),
-        Role::OnSurface.paint(),
-        action,
-    );
+    press_row(ui, x, y, w, rh, StarterAction::ClearFirst);
     ui.checkbox(x + 3.0, y + (rh - BOX_SIDE) / 2.0, on, true);
     let adds = fill(S.starter_clear_adds, &[&minutes(disk.size).to_string()]);
-    let room = w - 40.0;
+    let room = w - ROW_ROOM;
     two_lines(
         ui,
-        (x + 36.0, y, rh),
+        (x + ROW_TEXT, y, rh),
         (room, room),
         (S.starter_clear_first, Role::OnSurface.paint()),
         (&adds, Role::OnSurfaceVariant.paint()),

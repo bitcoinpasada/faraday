@@ -39,6 +39,9 @@ mod home;
 mod how;
 mod name;
 mod nav;
+mod row;
+
+use row::{ROW_ROOM, ROW_TEXT, press_row};
 
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
@@ -1046,22 +1049,17 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         {
             continue;
         }
-        let action = StarterAction::Mode(m).host();
+        let action = StarterAction::Mode(m);
         let on = chosen == Some(m);
         let enabled = refused.is_none();
         let rh = LIST_2;
         if enabled {
-            ui.press_to(
-                Shape::new(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S),
-                (x - 6.0, y, w + 12.0, rh),
-                Role::OnSurface.paint(),
-                action,
-            );
+            press_row(ui, x, y, w, rh, action);
         }
         // The check: a ring, filled when chosen.
         let cy = y + rh / 2.0;
         radio_mark(ui, x, cy, on, enabled);
-        let tx = x + 36.0;
+        let tx = x + ROW_TEXT;
         let ink = if enabled {
             Role::OnSurface.paint()
         } else {
@@ -1075,7 +1073,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             }
             _ => (sub, Role::OnSurfaceVariant),
         };
-        let rooms = (w - 40.0, w - 40.0);
+        let rooms = (w - ROW_ROOM, w - ROW_ROOM);
         two_lines(ui, (tx, y, rh), rooms, (head, ink), (sub, tone.paint()));
         y += rh;
         // The one fact the Learn page explains (§4.4).
@@ -2298,19 +2296,12 @@ fn tick_row(
     on: bool,
     action: StarterAction,
 ) -> f32 {
-    let a = action.host();
     // At a larger text size a head that does not fit wraps, and the row
     // grows to its lines (`docs/TEXT-SIZE.md` §5).
     let tw = w - 36.0;
     let lines = ui.wrap_height_as(BODY_L, head, tw);
     let rh = ui.row_height(LIST_1, lines, LIST_PAD_V);
-    let layer = Shape::new(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
-    ui.press_to(
-        layer,
-        (x - 6.0, y, w + 12.0, rh),
-        Role::OnSurface.paint(),
-        a,
-    );
+    press_row(ui, x, y, w, rh, action);
     let cy = y + rh / 2.0;
     radio_mark(ui, x, cy, on, true);
     if lines > ui.line_as(BODY_L) {
