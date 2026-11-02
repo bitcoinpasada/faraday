@@ -1512,10 +1512,7 @@ impl Faraday {
                 ],
             ));
         }
-        self.session
-            .wallets
-            .iter()
-            .position(|w| crate::wallet::same_wallet(w.policy()) == want)
+        self.session.wallets.iter().position(|w| w.same() == want)
     }
 
     /// Loads the records `set` names of open vault `v`: its keys and
@@ -3379,12 +3376,7 @@ impl Faraday {
         let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
         let policy = crate::wallet::read_wallet(&c, &text).ok()?;
         let same = crate::wallet::same_wallet(&policy);
-        if let Some(i) = self
-            .session
-            .wallets
-            .iter()
-            .position(|w| crate::wallet::same_wallet(w.policy()) == same)
-        {
+        if let Some(i) = self.session.wallets.iter().position(|w| w.same() == same) {
             return Some(f(self, i));
         }
         self.session.wallets.push(crate::wallet::Wallet::new(

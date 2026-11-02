@@ -14,7 +14,7 @@ use faraday_crypto::work::Compute;
 use faraday_vault::records::{field, kind};
 
 use crate::strings::{EN, fill};
-use crate::wallet::{Session, fp_text, key_line, same_wallet};
+use crate::wallet::{Session, fp_text, key_line};
 use std::collections::BTreeSet;
 
 use faraday_bip::keys::Fingerprint;
@@ -275,12 +275,9 @@ impl super::Vaults {
                         .map(|k| k.fingerprint().map(fp_text))
                         .collect()
                 });
-                let loaded = self.described(c, open.id, i).is_some_and(|d| {
-                    session
-                        .wallets
-                        .iter()
-                        .any(|w| same_wallet(w.policy()) == d.same)
-                });
+                let loaded = self
+                    .described(c, open.id, i)
+                    .is_some_and(|d| session.wallets.iter().any(|w| w.same() == d.same));
                 W {
                     record: i,
                     name,

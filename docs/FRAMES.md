@@ -429,17 +429,52 @@ the pass inside a refresh.
 ## 7. What a frame does beside its pixels
 
 §1's floor is most of a frame on the screens with long lists: 69 % of
-Vault contents and 78 % of Files on the Pi's panel, about 1.4 and 2.7 ms
-on the build machine and so about 15 and 30 ms on the Pi at full clock.
-None of §3 to §6 removes it. The budget tests (SPEED §7) say a frame
-works out nothing costly, so it is cheap work done many times: by its
-look, each row of the list measured or laid out to find the rows below
-it, whether or not it shows. FR0 finds what it is before the rest is
-built: it times each part of those two screens' draw with the canvas
-held to one row, names what costs, and adds the next step to this
-spec (kept as SPEED §2 has it: a value worked out once and kept on the
-state, never in the drawing memo). The batches after it do not wait on
-its answer.
+Vault contents and 78 % of Files on the Pi's panel. None of §3 to §6
+removes it. FR0 found what it is (a probe kept outside the repository,
+the session of SPEED §7 at 480 × 640, release, counting the characters
+measured and timing the parts of Files by hand; the build machine has no
+sampling profiler).
+
+**Found and fixed.**
+
+- **Files: the open vault's card, 90 % of the frame.** The card asked for
+  the vault's rows and for its wallets with seeds, and each wrote the
+  descriptor of every wallet of the session out again to compare it with
+  each wallet record (`same_wallet`, a descriptor and its checksum): the
+  records times the session's wallets, twice a frame. A wallet now keeps
+  that descriptor (`Wallet::same`, dropped with its policy) and the
+  comparisons in the vault code read it. Files drew in about a third of
+  its time; the card's two asks went from 1.35 and 1.40 ms to 0.01 and
+  0.12 ms.
+- **Vault contents: the signing page's file texts.** In the heaviest
+  session this screen is the page that signs the Inbox's files, which
+  wraps each small text file (up to 2 KiB) at every frame: 64 000
+  characters measured, each by a binary search of the outline file.
+  `Outlines::glyph_in_file` now finds the characters of the first block
+  by their offset (one read; same glyph), and `text::wrap` looks the
+  printable ASCII advances up once for a text of 160 bytes or more.
+  Characters measured fell to 43 000 a frame and the frame to about
+  half; the advance of a character fell from 28 to 16 ns.
+
+Pixels are as before (the snapshot and budget tests pass).
+
+**Not yet found or fixed.**
+
+- Home (46 % floor), Wallets (58 %) and a wallet's page (55 %) cost
+  about 1 ms on the build machine with 400 to 700 characters measured
+  and 1 000 to 2 000 allocations: neither is most of it. The part is
+  not yet named; it needs a sampling profile (`perf` on the build
+  machine) or section timers as for Files.
+- Files, what is left: the vault card is still measured and then drawn
+  (two walks of its rows); its wallets with seeds ask the vault's rows a
+  second time inside the accessor; the Inbox's card about a fifth.
+- The signing page still wraps every text at every frame; the lines
+  kept on the state, by file, would remove it.
+- Each `Font::sized` looks the face up by a search of the font list and
+  parses its header (about 10 ns, 100 to 1 100 a frame): a face kept
+  per size on the `Ui` would remove it.
+- `Ui::wrap_lines` rebuilds and measures the whole candidate line for
+  each word, so a long label costs the square of its words.
 
 ## 8. Batches
 

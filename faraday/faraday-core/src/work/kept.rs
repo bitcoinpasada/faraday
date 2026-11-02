@@ -7,7 +7,7 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::App;
 
 use super::budget::{heavy, unlock_test_vault};
-use crate::wallet::{Origin, Wallet, read_wallet};
+use crate::wallet::{Origin, Wallet, read_wallet, same_wallet};
 use crate::{Action, Screen, testkit};
 
 /// A wallet's shape, as the session names it.
@@ -106,11 +106,18 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
     ] {
         assert_eq!(w.address_on(&c, net, false, 0), fresh(&one.descriptor, net));
     }
+    let before = w.same().to_string();
     w.set_policy(read_wallet(&c, &two.descriptor).expect("a test wallet"));
     assert_eq!(
         w.address_on(&c, testkit::NET, false, 0),
         fresh(&two.descriptor, testkit::NET),
         "the address is the new policy's"
+    );
+    assert_ne!(w.same(), before, "the wallet compares as the new policy");
+    assert_eq!(
+        w.same(),
+        same_wallet(w.policy()),
+        "the wallet compares as the new policy"
     );
 }
 

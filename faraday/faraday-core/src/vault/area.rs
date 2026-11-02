@@ -2331,12 +2331,8 @@ impl Vaults {
         let mut rows = Vec::new();
         for (i, r) in self.records(open.id).of(kind::WALLET) {
             let described = self.described(c, open.id, i);
-            let loaded = described.is_some_and(|d| {
-                session
-                    .wallets
-                    .iter()
-                    .any(|w| crate::wallet::same_wallet(w.policy()) == d.same)
-            });
+            let loaded =
+                described.is_some_and(|d| session.wallets.iter().any(|w| w.same() == d.same));
             rows.push(VaultRow {
                 record: i,
                 name: wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),

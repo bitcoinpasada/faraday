@@ -3068,7 +3068,7 @@ fn backup_row(
 /// compares them: from its wallet records as the vault keeps them read
 /// ([`crate::vault::Vaults::described`]).
 pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet) -> bool {
-    let want = crate::wallet::same_wallet(w.policy());
+    let want = w.same();
     app.vaults.open.get(v).is_some_and(|o| {
         app.vaults
             .described_of(c, o.id, kind::WALLET)

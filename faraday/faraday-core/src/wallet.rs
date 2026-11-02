@@ -135,6 +135,8 @@ pub struct Wallet {
     /// each derived once, by chain and index ([`Wallet::script_at`]):
     /// public, and dropped with the policy they come from.
     scripts: std::cell::RefCell<Vec<(bool, u32, Option<faraday_bip::bitcoin::ScriptBuf>)>>,
+    /// [`Wallet::same`], kept; dropped with the policy.
+    same: std::cell::OnceCell<String>,
 }
 
 impl Wallet {
@@ -147,6 +149,7 @@ impl Wallet {
             origin,
             addresses: std::cell::RefCell::new(Vec::new()),
             scripts: std::cell::RefCell::new(Vec::new()),
+            same: std::cell::OnceCell::new(),
         }
     }
 
@@ -216,6 +219,11 @@ impl Wallet {
         &self.policy
     }
 
+    /// [`same_wallet`] of the policy, written out once and kept.
+    pub fn same(&self) -> &str {
+        self.same.get_or_init(|| same_wallet(&self.policy))
+    }
+
     /// The policy's descriptor checksum; a lookup, kept by the policy.
     pub fn checksum(&self) -> &str {
         self.policy.checksum()
@@ -225,6 +233,7 @@ impl Wallet {
     /// the one before.
     pub fn set_policy(&mut self, policy: WalletPolicy) {
         self.policy = policy;
+        self.same = std::cell::OnceCell::new();
         self.addresses.borrow_mut().clear();
         self.scripts.borrow_mut().clear();
     }

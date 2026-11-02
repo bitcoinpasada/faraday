@@ -127,8 +127,9 @@ pub fn measure(face: &SizedFace, text: &str) -> TextMetrics {
 /// (possibly empty) line.
 pub fn wrap(face: &SizedFace, text: &str, max_width: i32) -> Vec<(usize, usize)> {
     let mut lines = Vec::new();
+    let advances = Advances::of(face, text);
     for (para_start, para) in paragraphs(text) {
-        wrap_paragraph(face, para, para_start, max_width, &mut lines);
+        wrap_paragraph(&advances, para, para_start, max_width, &mut lines);
     }
     if lines.is_empty() {
         lines.push((0, 0));
@@ -145,14 +146,46 @@ fn paragraphs(text: &str) -> impl Iterator<Item = (usize, &str)> {
     })
 }
 
+/// The advances of a face, with the printable ASCII ones looked up once
+/// when the text to measure is long enough to pay for it: one lookup in
+/// the outline file for each character is most of what wrapping a page
+/// of text costs.
+struct Advances<'a> {
+    face: &'a SizedFace,
+    ascii: Option<[u32; 95]>,
+}
+
+impl<'a> Advances<'a> {
+    /// Text shorter than this is measured character by character.
+    const LONG: usize = 160;
+
+    fn of(face: &'a SizedFace, text: &str) -> Self {
+        let ascii = (text.len() >= Self::LONG).then(|| {
+            let mut t = [0u32; 95];
+            for (i, a) in t.iter_mut().enumerate() {
+                *a = face.advance_64(char::from(b' ' + i as u8));
+            }
+            t
+        });
+        Advances { face, ascii }
+    }
+
+    fn of_char(&self, c: char) -> u32 {
+        match (&self.ascii, c) {
+            (Some(t), ' '..='~') => t[usize::from(c as u8 - b' ')],
+            _ => self.face.advance_64(c),
+        }
+    }
+}
+
 fn wrap_paragraph(
-    face: &SizedFace,
+    face: &Advances<'_>,
     para: &str,
     base: usize,
     max_width: i32,
     lines: &mut Vec<(usize, usize)>,
 ) {
-    let advance = |c: char| face.advance_64(c);
+    let advance = |c: char| face.of_char(c);
     // Compare rounded pixel widths, exactly as `width` measures them, so
     // that a line measured to fit never wraps when drawn.
     let fits = |pen_64: u32| px_from_64(pen_64) <= max_width.max(0);

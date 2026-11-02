@@ -152,6 +152,15 @@ impl Outlines {
     /// sorted table.
     pub fn glyph_in_file(&self, c: char) -> Option<Outline> {
         let target = c as u32;
+        // The table is sorted and the first code points run on without a
+        // gap (the ASCII block), so a code point there is at its offset
+        // from the first: one read finds it. Any other goes by search.
+        if self.count > 0 {
+            let guess = target.wrapping_sub(u32_at(self.record(0), 0)) as usize;
+            if guess < self.count && u32_at(self.record(guess), 0) == target {
+                return self.glyph_at(guess);
+            }
+        }
         let (mut lo, mut hi) = (0usize, self.count);
         while lo < hi {
             let mid = (lo + hi) / 2;
