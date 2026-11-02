@@ -3,9 +3,8 @@
 # wireless and Bluetooth stacks and every network driver.
 #
 # What one device forbids and another needs is not here. It is in that
-# board's own kernel.forbidden or kernel.required, or in one build's
-# (boards/<board>/builds/): DRM and SOUND, which the PC never builds and
-# the Pi's Compatible build needs for its display (docs/IMAGES.md §2).
+# board's own kernel.forbidden or kernel.required: DRM and SOUND, which
+# the PC never builds and the Pi needs for its display (docs/IMAGES.md §1).
 
 MODULES        a loadable module is a driver that is not in the image and can still be loaded into it
 NET            the device signs offline; with no socket layer there is no interface, no stack and no driver to reach one

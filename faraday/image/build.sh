@@ -11,8 +11,6 @@
 #   BOARD   a directory under boards/   (default pi3)
 #   PANEL   a directory under panels/   (default waveshare-28dpi)
 #   DEV     1 to add variants/dev       (default 0)
-#   BUILD   a directory under the board's builds/, strict or compatible
-#           (docs/IMAGES.md §1); none for a board without one
 #
 # Nothing here knows what a Raspberry Pi is. A board says in its board.conf
 # how its firmware is told where the kernel is (FIRMWARE, CMDLINE), what
@@ -26,7 +24,7 @@
 #
 #   /buildroot  the Buildroot checkout at the pinned tag  (out/pi/buildroot)
 #   /output     this combination's build tree and images
-#               (out/pi/<board>-<panel>[-<build>][-dev]/output)
+#               (out/pi/<board>-<panel>[-dev]/output)
 #   /dl         Buildroot's download cache                (out/pi/dl)
 #   /ccache     the compiler cache, shared by every combination (out/pi/ccache)
 #   /binary     the static binaries from `just faraday-pi-bin` or
@@ -43,7 +41,6 @@ set -euo pipefail
 BOARD="${BOARD:-pi3}"
 PANEL="${PANEL:-waveshare-28dpi}"
 DEV="${DEV:-0}"
-BUILD="${BUILD:-}"
 
 # The dev variant's boot report, on the exchange partition: the kernel log
 # from rcS and the shell's own inventory after it. A laptop has no serial
@@ -60,10 +57,6 @@ dev_dir="$image/variants/dev"
 
 [ -d "$board_dir" ] || { echo "no such board: $BOARD" >&2; exit 1; }
 [ -d "$panel_dir" ] || { echo "no such panel: $PANEL" >&2; exit 1; }
-if [ -n "$BUILD" ]; then
-    build_dir="$board_dir/builds/$BUILD"
-    [ -d "$build_dir" ] || { echo "no such build for $BOARD: $BUILD" >&2; exit 1; }
-fi
 
 # The directories that make up this image, innermost first. Every part
 # below is assembled by walking this list in order, so a later part
@@ -71,11 +64,6 @@ fi
 # what every board's dev image has, and once for what this board's does —
 # the tty a getty goes on is the board's, not the variant's.
 parts=("$image/common" "$board_dir" "$panel_dir")
-# A board's build (strict or compatible) comes after the panel and before the
-# dev variant, which can still remove a word of its command line.
-if [ -n "$BUILD" ]; then
-    parts+=("$build_dir")
-fi
 if [ "$DEV" = 1 ]; then
     parts+=("$dev_dir")
     if [ -d "$board_dir/dev" ]; then
@@ -105,21 +93,10 @@ unset RUST_TARGET CC CFLAGS
 # The panel's values, cleared first so a board.conf that happens to set one
 # of the same names cannot be read as the panel's answer.
 unset NAME WIDTH HEIGHT DPI TOUCH_NAME TOUCH_GRID FB LOGO_WIDTH LOGO_HEIGHT \
-    NATIVE MOUNT TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y BUILDS
+    NATIVE MOUNT TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y
 # shellcheck source=/dev/null
 . "$panel_dir/panel.conf"
 [ -n "${NAME:-}" ] || { echo "$panel_dir/panel.conf has no NAME" >&2; exit 1; }
-
-# A panel that works only in some of a board's builds says which (BUILDS):
-# an HDMI screen needs the kernel mode setting and the USB input only the
-# Pi's Compatible build has. Refused here, before anything is built,
-# rather than by the kernel check after the toolchain.
-if [ -n "${BUILDS:-}" ]; then
-    case " $BUILDS " in
-        *" ${BUILD:-none} "*) ;;
-        *) echo "$PANEL is built only as: $BUILDS (build=$BUILD given)" >&2; exit 1 ;;
-    esac
-fi
 
 # A soldered-on panel knows its size and its density and the shell is told
 # both; a firmware framebuffer reports its size in sysfs and no firmware
@@ -151,10 +128,6 @@ fi
 
 variant="$BOARD-$PANEL"
 what="$board_name with the $NAME"
-if [ -n "$BUILD" ]; then
-    variant="$variant-$BUILD"
-    what="$what, $BUILD build"
-fi
 if [ "$DEV" = 1 ]; then
     variant="$variant-dev"
     what="$what, dev variant"

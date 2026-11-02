@@ -55,7 +55,7 @@
 # 7. Recipes. Every `just <recipe>` that starts a backticked span or a line
 #    of a fenced block in a .md file (not docs/history/) names a recipe of
 #    justfile, faraday/faraday.just or an import of them. Variable
-#    assignments (`build=compatible`) and options (`--fresh`) before the
+#    assignments (`dev=1`) and options (`--fresh`) before the
 #    recipe are skipped; its arguments are not checked.
 #
 # Prints `file:line: message` for each failure and exits non-zero if

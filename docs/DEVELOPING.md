@@ -99,13 +99,10 @@ Demo", and `docs/DEMO.md`.
 ## 4. The images
 
 ```
-just faraday-stick-image                  out/stick/faraday-x86_64-uefi-strict.img
-just build=compatible faraday-stick-image out/stick/faraday-x86_64-uefi-compatible.img
+just faraday-stick-image                  out/stick/faraday-x86_64-uefi.img
 just faraday-pi-image                     out/pi/faraday-pi3-waveshare-28dpi.img
-just build=compatible faraday-pi-image    out/pi/faraday-pi3-waveshare-28dpi-compatible.img
-just panel=hdmi build=compatible faraday-pi-image
-                                          out/pi/faraday-pi3-hdmi-compatible.img
-just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-strict-dev.img
+just panel=hdmi faraday-pi-image          out/pi/faraday-pi3-hdmi.img
+just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-dev.img
 just dev=1 faraday-pi-image               out/pi/faraday-pi3-waveshare-28dpi-dev.img
 just faraday-starter                      the Starter, built and run here
 just faraday-linux-bin                    one Linux file, out/linux/faraday (glibc 2.31 container)
@@ -125,10 +122,7 @@ and not yet made. A tool that offers a choice of
 builds reads it; a new build is added there, and `just lint` fails while
 a board or panel directory has no entry. Its `[[hardware]]` entries are
 the website's download tiles (`docs/IMAGES.md` §7): each image names the
-hardware and the build (Strict or Compatible) it is offered as. On the
-Pi, Strict is the kernel the Pi has always had and Compatible adds a
-display through the kernel, USB input and USB storage (`docs/IMAGES.md`
-§1, §2); the HDMI screen is built Compatible only.
+hardware it is offered under (`docs/IMAGES.md` §1, §2).
 
 ## 5. Reproducing a release
 
@@ -138,16 +132,13 @@ output, and the FAT serials derived from that date (README.md,
 "Reproducible builds"). To check a release:
 
 ```
-git tag -v v0.1.8                         the tag is signed by the release key
-git checkout v0.1.8
+git tag -v vX.Y.Z                        the tag is signed by the release key
+git checkout vX.Y.Z
 just release=1 faraday-stick-image
-just release=1 build=compatible faraday-stick-image
 just release=1 faraday-pi-image
-just release=1 build=compatible faraday-pi-image
-just release=1 panel=hdmi build=compatible faraday-pi-image
-sha256sum out/stick/faraday-x86_64-uefi-strict.img out/stick/faraday-x86_64-uefi-compatible.img \
-    out/pi/faraday-pi3-waveshare-28dpi.img out/pi/faraday-pi3-waveshare-28dpi-compatible.img \
-    out/pi/faraday-pi3-hdmi-compatible.img
+just release=1 panel=hdmi faraday-pi-image
+sha256sum out/stick/faraday-x86_64-uefi.img out/pi/faraday-pi3-waveshare-28dpi.img \
+    out/pi/faraday-pi3-hdmi.img
 ```
 
 Compare each sum with the line for the `.img` (not the `.img.xz`) in the
@@ -155,10 +146,8 @@ release's signed `SHA256SUMS`, or with the third field of its line in
 `IMAGES` (README.md, "Verifying a release"): the published files are
 these images, renamed and compressed (`faraday/tools/stage-release.sh`,
 which publishes every image `faraday/builds.toml` names release files
-for, under those names: `out/pi/faraday-pi3-hdmi-compatible.img` is
-`faraday-pi-X.Y.Z-hdmi-compatible.img.xz`). Releases up to 0.1.8 had
-one stick build and one Pi image; build those with the commands of that
-release's own `docs/DEVELOPING.md`. Same bytes or not, say what you got
+for, under those names: `out/pi/faraday-pi3-hdmi.img` is
+`faraday-pi-X.Y.Z-hdmi.img.xz`). Same bytes or not, say what you got
 in an issue, with the commit, your container engine and your host
 system: no second builder has reproduced a Faraday image yet.
 
@@ -170,7 +159,7 @@ Faraday Starter writes a stick or a card and checks it by reading it
 back. To write an image you built:
 
 ```
-just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
 ```
 
 `--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`. **Write the
@@ -254,7 +243,7 @@ send with a report of a machine that does not work.
 ### 6.3. Without a stick: QEMU
 
 ```
-faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-strict-dev.img --vnc 9 --serial stdio
+faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-dev.img --vnc 9 --serial stdio
 just faraday-disk-test                    the stick's disk handling, end to end, under QEMU (add --no-kvm without KVM)
 ```
 

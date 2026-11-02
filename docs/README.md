@@ -44,7 +44,7 @@ need. Each document's header says what kind it is:
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | Which boards, platforms and screens does Faraday run on, with which layout, and which were considered? | `docs/HARDWARE.md` |
-| Which image does each piece of hardware get, Strict or Open, and how does a person choose and check it? | `docs/IMAGES.md` |
+| Which image does each piece of hardware get, and how does a person choose and check it? | `docs/IMAGES.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
 | How do I build Faraday, check it, reproduce a release, or try it on my own hardware? | `docs/DEVELOPING.md` |

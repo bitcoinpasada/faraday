@@ -6,7 +6,7 @@ directories that exist, a planned entry's document one that exists, and every di
 faraday/image/boards and faraday/image/panels named by a built or untried
 entry; and the [[hardware]] entries the download page's tiles come from:
 every id unique, every field known, a built or planned image offered under
-one of them with its build, no two images of one hardware alike, every
+one of them, no two images of one hardware alike, every
 hardware with an image, and tested only where an image is built; and what
 a release publishes of each image (faraday/tools/stage-release.sh): a
 built image's release files are its .img.xz and at most a boot program,
@@ -20,10 +20,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FILE = ROOT / "faraday/builds.toml"
 FIELDS = {"id", "label", "group", "status", "board", "panel", "recipe", "vars", "args", "env",
-          "needs", "dev", "outputs", "release", "spec", "hardware", "build", "option", "starts"}
+          "needs", "dev", "outputs", "release", "spec", "hardware", "option", "starts"}
 GROUPS = {"app", "image", "starter"}
 HW_FIELDS = {"id", "label", "fits", "soon", "tested"}
-KINDS = {"strict", "compatible"}
 
 
 def main():
@@ -97,17 +96,15 @@ def check_hardware(builds, hardware):
     for b in builds:
         bid = b.get("id", "?")
         if b.get("group") != "image" or b.get("status") == "untried":
-            for k in ("hardware", "build", "option"):
+            for k in ("hardware", "option"):
                 if k in b:
                     errors.append(f"{bid}: {k} is for an image that is built or planned")
             continue
         if b.get("hardware") not in ids:
             errors.append(f"{bid}: hardware {b.get('hardware')!r} is not a [[hardware]] id")
-        if b.get("build") not in KINDS:
-            errors.append(f"{bid}: build is {b.get('build')!r}, not one of {sorted(KINDS)}")
-        key = (b.get("hardware"), b.get("build"), b.get("option"))
+        key = (b.get("hardware"), b.get("option"))
         if key in offered:
-            errors.append(f"{bid}: offered as {offered[key]} is, under the same hardware, build and option")
+            errors.append(f"{bid}: offered as {offered[key]} is, under the same hardware and option")
         offered[key] = bid
         if b.get("status") == "built":
             built.add(b.get("hardware"))

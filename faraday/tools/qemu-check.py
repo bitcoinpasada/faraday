@@ -9,7 +9,7 @@ the first screen, with the boot stick in; after the boot stick is pulled;
 with a test stick holding TESTKIT_DIR's files plugged in; and after that
 stick is pulled. The QMP helpers are upstream's, from faraday/tools/stick-qemu.py.
 The test stick is made with mtools: Buildroot's own, from the stick
-build's host directory (out/pi/x86_64-uefi-efi-framebuffer-<build>[-dev]),
+build's host directory (out/pi/x86_64-uefi-efi-framebuffer[-dev]),
 or the system's.
 
 --no-kvm emulates the CPU instead of using /dev/kvm, for a machine without

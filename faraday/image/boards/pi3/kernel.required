@@ -16,3 +16,17 @@ CPU_FREQ_DEFAULT_GOV_SCHEDUTIL the Pi defconfig's default governor is powersave,
 
 # Faraday (docs/history/PLAN.md §4.3).
 MSDOS_PARTITION           the card's partitions as their own nodes, so the whole card is never handed out
+
+# The display, input and storage (docs/IMAGES.md §1). The screen's own driver is the panel's.
+
+DRM                    the kernel-mode-setting stack a screen behind HDMI or DSI is driven through
+DRM_VC4                vc4's display side: the HVS, the pixel valves and the HDMI and DSI encoders; its V3D binds too, and its render node is root's (F153)
+DRM_FBDEV_EMULATION    /dev/fb0 over DRM, which is what the shell writes every frame to
+HID                    a USB keyboard, mouse and touchscreen are all HIDs
+HID_GENERIC            USB keyboards and mice
+USB_HID                the transport they arrive on
+HID_MULTITOUCH         what a USB touchscreen reports through
+USB_STORAGE            a USB stick, whose partitions reach the disk process through faraday-grant
+SCSI                   the layer USB storage hands its disk to
+BLK_DEV_SD             that disk as /dev/sdX
+EFI_PARTITION          most sticks are GPT; without the parser there is no partition to hand out

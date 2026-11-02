@@ -13,10 +13,9 @@ it.
 
 | Platform | Image or file | Runs on | State |
 |---|---|---|---|
-| The stick | `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (Strict has `efi=disable_early_pci_dma`; Compatible is for PCs that do not start with it); Intel Macs planned (`docs/MAC.md` §1, §3, batch I) | released; booted in QEMU with OVMF (`faraday/image/README.md`, "The boards"), not yet tried on a PC |
-| The Pi, 2.8-inch, Strict | `faraday-pi-X.Y.Z-waveshare-28dpi-strict.img.xz` (up to 0.1.8, `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz`) | a Raspberry Pi 3B or 3B+ with the Waveshare 2.8-inch DPI panel | released, tested |
-| The Pi, 2.8-inch, Compatible | `faraday-pi-X.Y.Z-waveshare-28dpi-compatible.img.xz` (`just build=compatible faraday-pi-image`) | the same Pi and panel, with USB keyboards, mice and sticks (`docs/IMAGES.md` §2) | built, not tried: looking for testers; in the release after 0.1.8 |
-| The Pi, HDMI screen, Compatible | `faraday-pi-X.Y.Z-hdmi-compatible.img.xz` (`just panel=hdmi build=compatible faraday-pi-image`) | a Raspberry Pi 3B, 3B+ or Zero 2 W with an HDMI monitor and a USB keyboard and mouse, or Waveshare's 10.1-inch HDMI LCD (B) with its USB touch (IMAGES §3) | built, not tried: looking for testers; in the release after 0.1.8 |
+| The stick | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (one build, with `efi=disable_early_pci_dma` on its command line); Intel Macs planned (`docs/MAC.md` §1, §3, batch I) | released; booted in QEMU with OVMF (`faraday/image/README.md`, "The boards"), not yet tried on a PC |
+| The Pi, 2.8-inch | `faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` (`just faraday-pi-image`) | a Raspberry Pi 3B or 3B+ with the Waveshare 2.8-inch DPI panel, with USB keyboards, mice and sticks (`docs/IMAGES.md` §2) | released, tried on the panel |
+| The Pi, HDMI screen | `faraday-pi-X.Y.Z-hdmi.img.xz` (`just panel=hdmi faraday-pi-image`) | a Raspberry Pi 3B, 3B+ or Zero 2 W with an HDMI monitor and a USB keyboard and mouse, or Waveshare's 10.1-inch HDMI LCD (B) with its USB touch (IMAGES §3) | built, not tried: looking for testers |
 | The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same panel | built, not tried: the Pi image carries its device tree (F147); nobody has booted it on a Zero 2 W |
 | The Apple Silicon stick | `docs/MAC.md` §4 | Macs with M1 or M2 | planned: its Spec is `docs/MAC.md` |
 | Faraday Demo | inside the Linux and Windows Starters (`docs/DEMO.md` §1) | Linux and Windows, x86_64 | released, for trying Faraday: not air-gapped |
@@ -67,11 +66,11 @@ frames in a row (`docs/MOTION.md`).
 The stick's and the Pi's kernels carry only the drivers
 `docs/SECURITY-MODEL.md` lists ("What the kernel can reach").
 
-| | The stick (PC) | The Pi, Strict | The Pi, Compatible |
-|---|---|---|---|
-| Touch, keyboard, pointer | built-in keyboard, touchpad and touchscreen; USB ones once approved | the panel's touch only: no HID driver | the panel's touch, or the HDMI panel's USB touch named by its profile; other USB keyboards, mice and touchscreens once approved, as on the stick |
-| Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB is kept for a webcam") | a Raspberry Pi Camera Module v1 or v2 on the board's camera connector, or a USB webcam that offers uncompressed frames; not Camera Module 3 (`faraday/image/boards/pi3/linux.fragment`, "camera, legacy stack") | a USB webcam that offers uncompressed frames; a Camera Module v1 or v2 only with the 2.8-inch panel, because the camera connector's stack needs the firmware to own the display and the HDMI and DSI screens are driven by vc4's kernel mode setting (`faraday/image/panels/hdmi/config.txt`); not Camera Module 3 |
-| Files | USB sticks; an SD card only in a USB reader | its own SD slot; no USB storage | its own SD slot and USB sticks |
+| | The stick (PC) | The Pi |
+|---|---|---|
+| Touch, keyboard, pointer | built-in keyboard, touchpad and touchscreen; USB ones once approved | the panel's touch, or the HDMI panel's USB touch once approved by a tap on the target; other USB keyboards, mice and touchscreens once approved, as on the stick |
+| Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB: a webcam, input and sticks") | a USB webcam that offers uncompressed frames; a Camera Module v1 or v2 only with the 2.8-inch panel, because the camera connector's stack needs the firmware to own the display and the HDMI and DSI screens are driven by vc4's kernel mode setting (`faraday/image/panels/hdmi/config.txt`); not Camera Module 3 (`faraday/image/boards/pi3/linux.fragment`, "camera, legacy stack") |
+| Files | USB sticks; an SD card only in a USB reader | its own SD slot and USB sticks |
 
 On the stick and the Pi, FAT is read by `faraday-disk` in Rust, not by
 the kernel. Faraday Demo reads files through the computer's own system

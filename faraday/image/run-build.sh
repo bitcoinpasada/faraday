@@ -7,17 +7,15 @@
 # compiler cache and build trees are under out/pi/, so only what changed
 # is rebuilt.
 #
-#   run-build.sh <board> <panel> <dev> <buildroot tag> <buildroot commit> [<build>]
+#   run-build.sh <board> <panel> <dev> <buildroot tag> <buildroot commit>
 #
-# <build> is strict or compatible, a directory under the board's builds/; the
-# build tree is out/pi/<board>-<panel>-<build>[-dev].
+# The build tree is out/pi/<board>-<panel>[-dev].
 set -euo pipefail
 board="${1:?}"
 panel="${2:?}"
 dev="${3:?}"
 tag="${4:?}"
 commit="${5:?}"
-build="${6:-}"
 root="$(pwd)"
 image="$root/faraday/image"
 binaries="$root/out/faraday/$board"
@@ -45,9 +43,6 @@ disk_signature="$("$image/image-id.sh" signature "$epoch")"
 echo "IDs: disk $disk_uuid, boot $boot_uuid, data $data_uuid, signature $disk_signature"
 
 variant="$board-$panel"
-if [ -n "$build" ]; then
-    variant="$variant-$build"
-fi
 if [ "$dev" != "0" ]; then
     variant="$variant-dev"
 fi
@@ -87,7 +82,7 @@ fi
 # helper (docs/history/PLAN.md §4.3) beside it.
 in_container() {
     "${DOCKER:-docker}" run --rm \
-        -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" -e BUILD="$build" \
+        -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
         -e FAT_SERIAL_BOOT="$serial_boot" -e FAT_SERIAL_DATA="$serial_data" \
         -e DISK_UUID="$disk_uuid" -e BOOT_UUID="$boot_uuid" -e DATA_UUID="$data_uuid" \
         -e DISK_SIGNATURE="$disk_signature" \
@@ -112,20 +107,10 @@ board_fragment="$image/boards/$board/buildroot.fragment"
 kernel_lines() {
     grep -E '^(BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION|BR2_LINUX_KERNEL_PATCH)=' "$1" | sort || true
 }
-# A build (strict or compatible) may add patches of its own (none does:
-# Faraday carries no kernel patch of its own on the Pi, F153); they would
-# count too, and a build without any hashes as the board alone does.
-build_dir="$image/boards/$board/builds/$build"
 kernel_source="$({
     kernel_lines "$board_fragment"
     grep -E '^# KERNEL_SHA256 ' "$board_fragment" || true
     cat "$image/boards/$board/linux-patches/"*.patch 2>/dev/null || true
-    if [ -n "$build" ] && [ -f "$build_dir/buildroot.fragment" ]; then
-        kernel_lines "$build_dir/buildroot.fragment"
-    fi
-    if [ -n "$build" ]; then
-        cat "$build_dir/linux-patches/"*.patch 2>/dev/null || true
-    fi
 } | sha256sum | cut -d' ' -f1)"
 source_stamp="$root/out/pi/$variant/kernel-source"
 config="$root/out/pi/$variant/output/.config"
@@ -138,9 +123,6 @@ elif [ -f "$config" ]; then
     old="$(kernel_lines "$config" | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' || true)"
     new="$({
         kernel_lines "$board_fragment"
-        if [ -n "$build" ] && [ -f "$build_dir/buildroot.fragment" ]; then
-            kernel_lines "$build_dir/buildroot.fragment"
-        fi
     } | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' | sort || true)"
     [ "$old" = "$new" ] || changed=yes
 fi

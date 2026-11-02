@@ -3,3 +3,7 @@
 
 random.trust_cpu=off         a generator inside the CPU cannot be examined, so RDRAND is mixed in without being credited (docs/OWN-RANDOMNESS.md §3.3)
 random.trust_bootloader=off  the firmware's seed was chosen by the firmware; mixed in, not credited
+
+# Words CONFIG_CMDLINE must carry as well (check-kernel-config.sh).
+
+efi=disable_early_pci_dma  no PCI device the firmware left running can write to memory before the kernel has set up the IOMMU (docs/IMAGES.md §1)

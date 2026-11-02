@@ -26,3 +26,6 @@ faraday.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2
 random.trust_cpu=off random.trust_bootloader=off
 fbcon=logo-pos:center
 loglevel=5
+# efi=disable_early_pci_dma keeps the firmware from leaving PCI devices able
+# to write to memory before the kernel's IOMMU is set up (docs/IMAGES.md §1).
+efi=disable_early_pci_dma

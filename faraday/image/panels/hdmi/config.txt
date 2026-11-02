@@ -1,8 +1,7 @@
 
 # ---- An HDMI screen: a monitor, or Waveshare's 10.1inch HDMI LCD (B) ----
-# The kernel drives HDMI through vc4's kernel mode setting (the Compatible
-# build, docs/IMAGES.md §2), and reads the screen's modes from its EDID,
-# so no mode is named here. The overlay and its parameters are the
+# The kernel drives HDMI through vc4's kernel mode setting (docs/IMAGES.md §1),
+# and reads the screen's modes from its EDID, so no mode is named here. The overlay and its parameters are the
 # firmware's (the overlay README in the firmware's boot/overlays,
 # "vc4-kms-v3d"):
 #
