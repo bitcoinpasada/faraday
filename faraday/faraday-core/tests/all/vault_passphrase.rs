@@ -150,7 +150,7 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
             "vault.fvlt".to_string(),
-            faraday_core::testkit::test_vault().unwrap(),
+            crate::common::vault("Test", &[faraday_core::testkit::VAULT_PASSPHRASES[0]], 7),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),

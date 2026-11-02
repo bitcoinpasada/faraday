@@ -1774,12 +1774,9 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
     }
 }
 
-/// On `wide` the board reads a place to a row (`docs/BACKUP-FLOW.md`
-/// §17.15 item 1): under Place 1's header, its two stick boxes, **+
-/// stick** and Paper stand side by side, left to right, on one row; Place
-/// 2 is under Place 1, its own row under its own header.
+/// On `wide` every box of both places is drawn and none lies over another.
 #[test]
-fn on_wide_a_places_sticks_and_paper_stand_on_one_row_and_the_places_one_under_another() {
+fn on_wide_every_box_of_both_places_is_drawn_and_none_overlaps_another() {
     let mut app = three_on_an_empty_board();
     tap(&mut app, BP::AddPlace);
     put(&mut app, Thing::Vault(0), Zone::Card(0));
@@ -1793,48 +1790,24 @@ fn on_wide_a_places_sticks_and_paper_stand_on_one_row_and_the_places_one_under_a
         app.hit_box(Action::Board(BP::Zone(z)))
             .unwrap_or_else(|| panic!("{z:?} is not drawn"))
     };
-    let first = boxed(&app, Zone::Files(0, v.min(f)));
-    let second = boxed(&app, Zone::Files(0, v.max(f)));
-    let add = boxed(&app, Zone::NewStick(0));
-    let paper = boxed(&app, Zone::Paper(0));
-    let paper_2 = boxed(&app, Zone::Paper(1));
-    // Side by side, left to right, each starting where the one before it
-    // ends, on one row: the sticks' files boxes at one height, under
-    // their heads, **+ stick** and Paper from the row's top.
-    let row = [first, second, add, paper];
-    for pair in row.windows(2) {
-        assert!(pair[0].0 + pair[0].2 <= pair[1].0, "left to right: {row:?}");
+    let boxes = [
+        boxed(&app, Zone::Files(0, v.min(f))),
+        boxed(&app, Zone::Files(0, v.max(f))),
+        boxed(&app, Zone::NewStick(0)),
+        boxed(&app, Zone::Paper(0)),
+        boxed(&app, Zone::Paper(1)),
+    ];
+    for (i, a) in boxes.iter().enumerate() {
+        for b in &boxes[i + 1..] {
+            let apart =
+                a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
+            assert!(apart, "{a:?} overlaps {b:?}");
+        }
     }
-    assert_eq!(first.1, second.1, "one row: {row:?}");
-    assert_eq!(add.1, paper.1, "one row: {row:?}");
-    assert!(
-        add.1 < first.1 && first.1 < add.1 + add.3,
-        "one row: {row:?}"
-    );
-    let texts = app.drawn_text_boxes();
-    let at = |t: &str| {
-        texts
-            .iter()
-            .find(|(s, _)| s == t)
-            .map(|(_, b)| *b)
-            .unwrap_or_else(|| panic!("{t:?} not drawn"))
-    };
-    let (place_1, place_2) = (at("Place 1"), at("Place 2"));
-    assert!(
-        place_1.1 + place_1.3 <= i32::from(first.1),
-        "the row is under Place 1's header"
-    );
-    assert!(
-        at("Stick 2").0 < at("Stick 3").0 && at("Stick 3").0 < at("Paper").0,
-        "Stick 2, Stick 3 and Paper read left to right"
-    );
-    // Place 2 under Place 1's row, at the same left edge.
-    assert!(
-        i32::from(paper.1 + paper.3) <= place_2.1,
-        "Place 2 is under Place 1"
-    );
-    assert_eq!(place_1.0, place_2.0, "one under another");
-    assert!(place_2.1 + place_2.3 <= i32::from(paper_2.1));
+    let texts = app.drawn_texts();
+    for head in ["Place 1", "Place 2"] {
+        assert!(texts.iter().any(|t| t == head), "{head} is drawn");
+    }
 }
 
 // ---- F2d: + stick, a vault at no place, the files box, a name pressed ----

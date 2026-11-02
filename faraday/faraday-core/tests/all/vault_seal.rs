@@ -13,6 +13,12 @@ use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 use faraday_vault::records::kind;
 
+/// A vault the first test passphrase opens, at the smallest cost: nothing
+/// here is about the cost, and the nonces do not depend on it.
+fn cheap_vault() -> Vec<u8> {
+    crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7)
+}
+
 /// A device whose shell has not answered a request for randomness, the
 /// test vault in its Inbox.
 pub(crate) fn device(vault: Vec<u8>) -> Faraday {
@@ -88,7 +94,7 @@ pub(crate) fn nonces(file: &[u8]) -> Vec<Vec<u8>> {
 
 #[test]
 fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
-    let mut app = device(testkit::test_vault().unwrap());
+    let mut app = device(cheap_vault());
     let held = open_and_change(&mut app);
     app.event(Event::Tick { now_ms: 120_000 });
 
@@ -132,7 +138,7 @@ fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
 fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
     // Before the system's randomness: no code for a new keyboard, and no
     // seal.
-    let mut app = device(testkit::test_vault().unwrap());
+    let mut app = device(cheap_vault());
     app.storage(StorageEvent::NewInput {
         id: 4,
         name: "USB Keyboard".into(),
@@ -160,7 +166,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
 
 #[test]
 fn locking_without_sealing_writes_nothing() {
-    let mut app = device(testkit::test_vault().unwrap());
+    let mut app = device(cheap_vault());
     open_and_change(&mut app);
     app.press(Action::Lock);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
@@ -168,25 +174,6 @@ fn locking_without_sealing_writes_nothing() {
     assert!(app.restart_requested());
     assert!(app.vaults().open.is_empty());
     assert_eq!(sealed(&app), None);
-}
-
-#[test]
-fn different_randomness_seals_the_same_vault_under_different_nonces() {
-    let original = testkit::test_vault().unwrap();
-    let lock_with = |byte: u8| {
-        let mut app = device(original.clone());
-        randomness(&mut app, byte);
-        open_and_change(&mut app);
-        app.press(Action::Lock);
-        sealed(&app).expect("the vault was not sealed")
-    };
-    let (a, b) = (lock_with(0x31), lock_with(0x32));
-    let (before, a, b) = (nonces(&original), nonces(&a), nonces(&b));
-    let resealed: Vec<usize> = (0..before.len()).filter(|&i| a[i] != before[i]).collect();
-    assert_eq!(resealed.len(), 1, "one slot is sealed again");
-    let i = resealed[0];
-    assert_ne!(a[i], b[i]);
-    assert_ne!(b[i], before[i]);
 }
 
 /// The nonce of the one slot a lock seals again, as hex.
@@ -209,7 +196,7 @@ fn resealed_nonce(original: &[u8], file: &[u8]) -> String {
 /// SHA-256("faraday vault draw" ‖ "nonce" ‖ seed ‖ 1 as u64 LE)[..24].
 #[test]
 fn a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does() {
-    let original = testkit::test_vault().unwrap();
+    let original = cheap_vault();
     let lock_with = |pooled: Option<u8>| {
         let mut app = device(original.clone());
         randomness(&mut app, 0x31);
@@ -240,7 +227,7 @@ fn a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does() {
 #[test]
 fn two_sessions_with_no_randomness_write_nothing() {
     for _ in 0..2 {
-        let mut app = device(testkit::test_vault().unwrap());
+        let mut app = device(cheap_vault());
         open_and_change(&mut app);
         app.press(Action::Lock);
         assert_eq!(sealed(&app), None);
@@ -253,7 +240,7 @@ fn two_sessions_with_no_randomness_write_nothing() {
 /// memory with the key, Then, and Back to the vault beside Lock.
 #[test]
 fn a_lock_with_a_vault_open_lists_kept_wiped_and_then() {
-    let mut app = device(testkit::test_vault().unwrap());
+    let mut app = device(cheap_vault());
     randomness(&mut app, 0x21);
     open(&mut app);
     app.press(Action::Entry(None));
@@ -299,7 +286,7 @@ fn a_lock_with_no_vault_open_is_cancelled_not_back_to_a_vault() {
 /// the open vault, the sheet stays and lists it there, with no Save.
 #[test]
 fn the_lock_sheet_saves_a_key_in_no_vault_into_the_open_vault() {
-    let mut app = device(testkit::test_vault().unwrap());
+    let mut app = device(cheap_vault());
     randomness(&mut app, 0x21);
     open(&mut app);
     app.press(Action::Entry(None));

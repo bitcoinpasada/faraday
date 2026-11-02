@@ -345,7 +345,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
 /// other.
 #[test]
 fn with_two_vault_files_waiting_a_visit_ticks_one() {
-    let vault = testkit::test_vault().unwrap();
+    let vault = crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7);
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);

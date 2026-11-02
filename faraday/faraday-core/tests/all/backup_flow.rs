@@ -92,16 +92,6 @@ fn write_all(shell: &mut Shell, app: &mut Faraday, order: &[(&str, bool)]) {
     }
 }
 
-/// Step 3's card, once done, counts its vault in the singular.
-#[test]
-fn one_vault_is_counted_as_one_vault() {
-    let mut shell = Shell::new();
-    let mut app = to_make(&mut shell, Kind::Gpg);
-    let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "1 vault"), "{texts:?}");
-    assert!(!texts.iter().any(|t| t == "1 vaults"), "{texts:?}");
-}
-
 #[test]
 fn every_make_starts_on_where_it_will_be_kept() {
     for kind in [Kind::Gpg, Kind::SecureBoot] {
@@ -129,6 +119,10 @@ fn make_the_key_is_offered_only_once_the_sticks_are_read_and_the_vaults_open() {
     assert!(app.vaults().open.is_empty());
     create_vault(&mut shell, &mut app, 0, PHRASE);
     assert!(offered(&mut app, Action::Flow(F::Make)));
+    // Step 3's card, once done, counts its vault in the singular.
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "1 vault"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "1 vaults"), "{texts:?}");
 }
 
 #[test]
@@ -864,25 +858,39 @@ fn a_wallets_backup_is_named_alike_on_its_page_and_on_the_rail() {
     assert!(!t.iter().any(|s| s == "Bitcoin wallet"), "{t:?}");
 }
 
-/// A stick being written says so in the text's colour, not in the
-/// colour a link is drawn in: it is a state, not something to press.
+/// A stick being written says so as a state, not as something to press:
+/// touching the line does nothing and the write goes on.
 #[test]
 fn writing_a_stick_reads_as_a_state_not_a_link() {
-    use faraday_core::ui::{Role, Theme};
     use faraday_draw::canvas::InkKind;
+    use faraday_shell_api::{Event, TouchPhase};
     let mut shell = Shell::new();
     let mut app = gpg_locked(&mut shell);
-    let theme = Theme::all().next().expect("a theme");
-    app.draw_in(theme);
     shell.hold_writes = true;
     shell.plug(&mut app, "S1");
     assert!(!shell.stashed.is_empty(), "a write is under way");
-    let color = app.drawn_ink().iter().find_map(|i| match &i.kind {
-        InkKind::Text { text, color, .. } if text.starts_with("Writing ") => Some(*color),
-        _ => None,
-    });
-    assert_eq!(color, Some(theme.role(Role::OnSurface)));
-    assert_ne!(color, Some(theme.role(Role::Primary)));
+    let rect = app
+        .drawn_ink()
+        .iter()
+        .find_map(|i| match &i.kind {
+            InkKind::Text { text, .. } if text.starts_with("Writing ") => Some(i.rect),
+            _ => None,
+        })
+        .expect("the Writing line is drawn");
+    let (x, y) = (
+        u16::try_from(rect.x + rect.w / 2).unwrap(),
+        u16::try_from(rect.y + rect.h / 2).unwrap(),
+    );
+    let stashed = shell.stashed.len();
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    shell.pump(&mut app);
+    assert_eq!(shell.stashed.len(), stashed, "touching it starts nothing");
+    assert!(
+        app.drawn_texts().iter().any(|t| t.starts_with("Writing ")),
+        "the write is still under way"
+    );
 }
 
 #[test]
@@ -1838,10 +1846,15 @@ fn the_public_files_are_written_to_the_stick_of_the_place_the_plan_names() {
             let mut app = locked_of(&mut shell, kind, &fields, Some(at));
             let names = app.flow().unwrap().public.clone();
             assert!(!names.is_empty(), "{kind:?}: public files were made");
-            write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
-            assert_eq!(step(&app), Step::Done, "{kind:?} {at}");
-            // A Secure Boot key's enrolment files go in the last write.
+            // A Secure Boot key's enrolment files go in the last write,
+            // not the first.
             let last = kind == Kind::SecureBoot;
+            write_all(&mut shell, &mut app, &[("S1", false)]);
+            if last {
+                assert_eq!(shell.disk("S1").files.len(), 1, "only the vault copy");
+            }
+            write_all(&mut shell, &mut app, &[("S2", true)]);
+            assert_eq!(step(&app), Step::Done, "{kind:?} {at}");
             let carries = if at == 0 && !last { "S1" } else { "S2" };
             let other = if at == 0 && !last { "S2" } else { "S1" };
             assert_eq!(
@@ -2144,20 +2157,6 @@ fn a_stick_the_space_of_which_cannot_be_asked_is_unusable_and_not_waited_on() {
     assert!(offered(&mut app, Action::Flow(F::UseAnother)));
     assert!(!offered(&mut app, Action::Flow(F::Tap)));
     assert!(app.flow().unwrap().slots[0].bound.is_none());
-}
-
-#[test]
-fn secure_boot_enrolment_files_go_with_the_last_write_not_the_first() {
-    let mut shell = Shell::new();
-    let mut app = locked_of(&mut shell, Kind::SecureBoot, &["Owner"], None);
-    let names = app.flow().unwrap().public.clone();
-    assert!(!names.is_empty());
-    write_all(&mut shell, &mut app, &[("S1", false)]);
-    assert_eq!(shell.disk("S1").files.len(), 1, "only the vault copy");
-    write_all(&mut shell, &mut app, &[("S2", true)]);
-    assert_eq!(step(&app), Step::Done);
-    assert_eq!(shell.disk("S2").files.len(), 1 + names.len());
-    assert!(app.outbox.is_empty());
 }
 
 // ---- the re-check ----

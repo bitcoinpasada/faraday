@@ -10,12 +10,7 @@ use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, Event};
 
 fn vault_bytes() -> Vec<u8> {
-    testkit::files()
-        .unwrap()
-        .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
-        .unwrap()
-        .1
+    testkit::test_vault().unwrap()
 }
 
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {

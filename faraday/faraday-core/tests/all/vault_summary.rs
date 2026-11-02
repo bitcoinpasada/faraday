@@ -71,11 +71,18 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
 /// A vault made here holding test key 1 and the Spending wallet, locked:
 /// what the lock saved, the wallet's name and the key's fingerprint.
 fn locked_with_a_wallet_and_a_key() -> ((Files, Files, Files), String, String) {
-    let wallet = testkit::files()
-        .unwrap()
+    let kit = testkit::kits()
         .into_iter()
-        .find(|(n, _)| n == "spending-wallet.txt")
+        .find(|k| k.id == "spending")
         .unwrap();
+    let wallet = (
+        "spending-wallet.txt".to_string(),
+        format!(
+            "# {}: test wallet over the dummy test seeds\n{}\n",
+            kit.name, kit.descriptor
+        )
+        .into_bytes(),
+    );
     let mut app = shown(vec![wallet], Vec::new(), Vec::new());
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
@@ -246,7 +253,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
 /// reads "Unchanged" (§3.5).
 #[test]
 fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
-    let vault = testkit::test_vault().unwrap();
+    let vault = crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7);
     let mut app = shown(Vec::new(), Vec::new(), Vec::new());
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
         serial: None,

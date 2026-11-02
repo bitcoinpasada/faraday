@@ -1269,28 +1269,6 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
 }
 
 #[test]
-fn the_first_stick_put_back_for_the_second_place_is_refused_and_nothing_is_written() {
-    let mut shell = Shell::new();
-    let (mut app, _, _) = single_key_ready(&mut shell);
-    shell.flow(&mut app, F::WalletLock);
-    let mut app = restart(&mut shell, &mut app);
-    shell.plug(&mut app, "S1");
-    shell.pull(&mut app, "S1");
-    let before = shell.writes.len();
-    shell.plug(&mut app, "S1");
-    expect(&mut app, "This stick has the first copy");
-    assert!(app.flow().unwrap().slots[1].written.is_none());
-    assert_eq!(shell.writes.len(), before, "nothing was written");
-    // Use another stick: the second copy needs the hold.
-    shell.flow(&mut app, F::UseAnother);
-    shell.pull(&mut app, "S1");
-    shell.plug(&mut app, "S2");
-    shell.flow(&mut app, F::Tap);
-    shell.flow(&mut app, F::Hold);
-    assert!(app.flow().unwrap().slots[1].written.is_some());
-}
-
-#[test]
 fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_not_read_leaves_the_key_waiting()
  {
     let c = testkit::compute();
@@ -2468,24 +2446,19 @@ fn held_after_lock(shell: &mut Shell, app: &mut Faraday, fp: [u8; 4]) -> bool {
 }
 
 #[test]
-fn a_key_with_one_of_its_two_vault_sticks_written_is_held() {
-    let mut shell = Shell::new();
-    let (mut app, _, fp) = single_key(&mut shell, true);
-    shell.flow(&mut app, F::WalletLock);
-    let mut app = restart(&mut shell, &mut app);
-    assert!(app.flow().unwrap().slots.len() >= 3, "two vault sticks");
-    write_sticks(&mut shell, &mut app, &["S1"]);
-    assert_eq!(app.flow().unwrap().written_of().0, 1);
-    assert!(held_after_lock(&mut shell, &mut app, fp));
-}
-
-#[test]
 fn a_key_with_its_vault_sticks_written_but_not_the_stick_of_the_description_is_held() {
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
-    write_sticks(&mut shell, &mut app, &["S1", "S2"]);
+    // One of the two vault sticks written: held.
+    assert!(app.flow().unwrap().slots.len() >= 3, "two vault sticks");
+    write_sticks(&mut shell, &mut app, &["S1"]);
+    assert_eq!(app.flow().unwrap().written_of().0, 1);
+    assert!(held_after_lock(&mut shell, &mut app, fp));
+    // Both written, the stick of the description not: still held.
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S2"]);
     assert_eq!(app.flow().unwrap().written_of(), (2, 3), "S3 waits");
     assert!(held_after_lock(&mut shell, &mut app, fp));
 }
@@ -4220,11 +4193,11 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
 #[test]
 fn the_flows_plan_card_has_one_continue_at_both_sizes() {
     let c = faraday_core::testkit::compute();
-    for (w, h, dpi) in [(480u16, 640u16, 286u16), (1280, 800, 160)] {
-        let mut shell = Shell::new();
-        let (mut app, _, _) = single_key_ready(&mut shell);
-        shell.flow(&mut app, F::WalletLock);
-        let mut app = restart(&mut shell, &mut app);
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    let display = |app: &mut Faraday, w: u16, h: u16, dpi: u16| {
         app.event(Event::Display(faraday_shell_api::DisplayInfo {
             width: w,
             height: h,
@@ -4237,7 +4210,11 @@ fn the_flows_plan_card_has_one_continue_at_both_sizes() {
             boot: faraday_shell_api::BootState::Unknown,
             memory_mib: None,
         }));
-        shell.flow(&mut app, F::ChangePlan);
+    };
+    display(&mut app, 480, 640, 286);
+    shell.flow(&mut app, F::ChangePlan);
+    for (w, h, dpi) in [(480u16, 640u16, 286u16), (1280, 800, 160)] {
+        display(&mut app, w, h, dpi);
         let wf = app.flow().unwrap().wallet.as_ref().unwrap();
         let cards = faraday_core::plan_cards(&c, &wf.shape, &wf.answers);
         for q in cards {

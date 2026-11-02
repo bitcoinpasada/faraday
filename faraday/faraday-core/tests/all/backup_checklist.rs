@@ -45,11 +45,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn vault_file() -> (String, Vec<u8>) {
-    testkit::files()
-        .unwrap()
-        .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
-        .unwrap()
+    ("vault.fvlt".to_string(), testkit::test_vault().unwrap())
 }
 
 fn unlock(app: &mut Faraday) {

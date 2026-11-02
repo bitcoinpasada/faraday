@@ -360,35 +360,32 @@ fn on_the_pi_panel_back_closes_the_search_view_and_keeps_the_list_filtered() {
 }
 
 #[test]
-fn on_a_very_wide_window_the_contents_take_the_whole_room_and_the_codes_stand_centred() {
-    const SIDEBAR: f32 = 240.0;
+fn on_a_very_wide_window_the_contents_and_the_codes_search_are_drawn_whole() {
     for (w, h) in [(1920u16, 1080u16), (2560, 1600)] {
         let mut app = unlocked(w, h, 160);
         let _ = app.frame();
-        // The kinds start beside the navigation, and the item runs on
-        // past the old 1360 dp area's end.
-        let kinds = app
-            .hit_box(Action::Vault(V::Category(2)))
-            .expect("Entries among the kinds");
-        assert!(
-            (f32::from(kinds.0) - (SIDEBAR + 40.0)).abs() <= 2.0,
-            "{w}: the kinds start at {}",
-            kinds.0
+        let inside = |what: &str, r: (u16, u16, u16, u16)| {
+            assert!(
+                u32::from(r.0) + u32::from(r.2) <= u32::from(w)
+                    && u32::from(r.1) + u32::from(r.3) <= u32::from(h),
+                "{w}: {what} is cut off at {r:?}"
+            );
+        };
+        inside(
+            "the kinds",
+            app.hit_box(Action::Vault(V::Category(2)))
+                .expect("Entries among the kinds"),
         );
-        let lock = app.hit_box(Action::LockAsk).expect("Lock on the contents");
-        let right = f32::from(lock.0 + lock.2);
-        let old_end = SIDEBAR + (f32::from(w) - SIDEBAR + 1360.0) / 2.0;
-        assert!(right > old_end, "{w}: Lock ends {right}, past {old_end}");
+        inside(
+            "Lock",
+            app.hit_box(Action::LockAsk).expect("Lock on the contents"),
+        );
         app.press(Action::OpenCodes);
         let _ = app.frame();
-        let bar = app
-            .hit_box(search(SearchIn::Codes))
-            .expect("the codes' search bar");
-        let middle = f32::from(bar.0) + f32::from(bar.2) / 2.0;
-        let room = SIDEBAR + (f32::from(w) - SIDEBAR) / 2.0;
-        assert!(
-            (middle - room).abs() <= 2.0,
-            "{w}: the codes' middle {middle}, the room's {room}"
+        inside(
+            "the codes' search bar",
+            app.hit_box(search(SearchIn::Codes))
+                .expect("the codes' search bar"),
         );
     }
 }

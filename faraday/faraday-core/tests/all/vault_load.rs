@@ -444,11 +444,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
 fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
     let c = faraday_core::testkit::compute();
     for off in [false, true] {
-        let vault = testkit::files()
-            .unwrap()
-            .into_iter()
-            .find(|(n, _)| n == "vault.fvlt")
-            .unwrap();
+        let vault = ("vault.fvlt".to_string(), testkit::test_vault().unwrap());
         let mut app = device(vec![vault]);
         // Test key 2 typed in and a one-key wallet over it.
         app.press(Action::Entry(None));

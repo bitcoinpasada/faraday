@@ -24,12 +24,27 @@ const NEW_PHRASE: &str = "test phrase";
 /// flow, which decides where the key will be kept (F31).
 const VAULT_TILES: [(&str, usize); 1] = [("KeePass export", 2)];
 
+/// One file of the test stick, made alone: building the whole stick costs
+/// every kit's spend and the test vault.
 fn kit_file(name: &str) -> (String, Vec<u8>) {
-    testkit::files()
-        .unwrap()
+    if name == "vault.fvlt" {
+        return (name.to_string(), testkit::test_vault().unwrap());
+    }
+    let id = name
+        .strip_suffix("-wallet.txt")
+        .unwrap_or_else(|| panic!("no {name} in the kit"));
+    let kit = testkit::kits()
         .into_iter()
-        .find(|(n, _)| n == name)
-        .unwrap()
+        .find(|k| k.id == id)
+        .unwrap_or_else(|| panic!("no {name} in the kit"));
+    (
+        name.to_string(),
+        format!(
+            "# {}: test wallet over the dummy test seeds\n{}\n",
+            kit.name, kit.descriptor
+        )
+        .into_bytes(),
+    )
 }
 
 fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
