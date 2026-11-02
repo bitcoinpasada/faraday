@@ -48,7 +48,7 @@
 id = "pc"
 label = "A laptop or PC"
 fits = "From a USB stick"
-tested = false
+tested = true
 
 [[hardware]]
 id = "pi-2-8-inch"
