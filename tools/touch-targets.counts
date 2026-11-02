@@ -2,12 +2,12 @@ desktop_1280x800 Backup BC32 31
 desktop_1280x800 Backup BName 1
 desktop_1280x800 Backup BPin 6
 desktop_1280x800 Backup BReveal 1
-desktop_1280x800 Backup Board 82
+desktop_1280x800 Backup Board 74
 desktop_1280x800 Backup Chart 5
 desktop_1280x800 Backup LearnShares 1
 desktop_1280x800 Backup PlanAddPass 1
 desktop_1280x800 Backup Resume 5
-desktop_1280x800 BackupFlow Board 18
+desktop_1280x800 BackupFlow Board 14
 desktop_1280x800 BackupFlow Flow 3
 desktop_1280x800 BackupFlow LearnTopic 1
 desktop_1280x800 BackupFlow Resume 3
@@ -71,7 +71,7 @@ small_240x320 Backup BName 1
 small_240x320 Backup BQ 2
 small_240x320 Backup BStep 3
 small_240x320 Backup BWallets 1
-small_240x320 Backup Board 31
+small_240x320 Backup Board 34
 small_240x320 BackupFlow Board 1
 small_240x320 BackupFlow Flow 17
 small_240x320 BackupFlow Vault 1
@@ -110,7 +110,7 @@ small_480x640 Backup BC32 1
 small_480x640 Backup BQ 2
 small_480x640 Backup BStep 4
 small_480x640 Backup BWallets 1
-small_480x640 Backup Board 26
+small_480x640 Backup Board 31
 small_480x640 BackupFlow Board 1
 small_480x640 BackupFlow Flow 19
 small_480x640 BackupFlow Vault 1
@@ -172,11 +172,11 @@ stick_1024x600 Backup BQ 2
 stick_1024x600 Backup BReveal 1
 stick_1024x600 Backup BStep 7
 stick_1024x600 Backup BWallets 1
-stick_1024x600 Backup Board 64
+stick_1024x600 Backup Board 66
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup LearnShares 1
-stick_1024x600 BackupFlow Board 8
+stick_1024x600 BackupFlow Board 6
 stick_1024x600 BackupFlow Flow 12
 stick_1024x600 BackupFlow LearnTopic 1
 stick_1024x600 BackupFlow Osk 38

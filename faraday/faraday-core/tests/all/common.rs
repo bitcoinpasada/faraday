@@ -1164,6 +1164,14 @@ pub fn no_paper_passphrases(app: &mut Faraday) {
     }
 }
 
+/// Where a finger drops onto `to`: the middle of its box, or for a
+/// vault's box, whose head band is over its top, its lower part.
+pub fn drop_point(app: &Faraday, to: BoardPress) -> Option<(u16, u16)> {
+    let (x, y, w, h) = app.hit_box(Action::Board(to))?;
+    let low = matches!(to, BoardPress::Zone(Zone::Vault(..)));
+    Some((x + w / 2, if low { y + h - 3 } else { y + h / 2 }))
+}
+
 /// `t` dropped into vault `v` at the first place that keeps its stick.
 pub fn into_vault(app: &mut Faraday, v: usize, t: Thing) {
     let places = board_places(app);

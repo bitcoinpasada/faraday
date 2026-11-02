@@ -927,9 +927,8 @@ fn tap(app: &mut Faraday, p: BP) {
 /// the slop, moved over `to`, lifted there. Both are on screen at once.
 fn drag(app: &mut Faraday, from: BP, to: BP) {
     let start = on_board(app, from);
-    let end = app
-        .where_offered(Action::Board(to))
-        .unwrap_or_else(|| panic!("{to:?} is not on screen with {from:?}"));
+    let end =
+        drop_point(app, to).unwrap_or_else(|| panic!("{to:?} is not on screen with {from:?}"));
     touch(app, start, TouchPhase::Down);
     touch(app, (start.0 + 12, start.1 + 4), TouchPhase::Move);
     let _ = app.frame();

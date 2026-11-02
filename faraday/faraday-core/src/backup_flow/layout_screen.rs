@@ -162,14 +162,16 @@ fn vault_list(
             (cv, cw + tokens::GAP + seg_w <= w)
         })
         .collect();
+    // A line of a row is a press target tall: the chip's, and the
+    // segmented buttons' (40 dp drawn, Material's 48 dp target).
     let row_h = |beside: bool| {
         if beside {
-            SEGMENTED_H.max(tokens::BOARD_CHIP)
+            tokens::TOUCH
         } else {
-            tokens::BOARD_CHIP + tokens::GAP_SMALL + SEGMENTED_H
+            2.0 * tokens::TOUCH
         }
     };
-    let list_h: f32 = rows.iter().map(|r| row_h(r.1) + tokens::GAP_SMALL).sum();
+    let list_h: f32 = rows.iter().map(|r| row_h(r.1)).sum();
     if !locked {
         ui.press_box(
             x,
@@ -179,14 +181,15 @@ fn vault_list(
             Action::Board(BoardPress::Zone(Zone::List)),
         );
     }
-    let off = (SEGMENTED_H - tokens::BOARD_CHIP).max(0.0) / 2.0;
+    let off = (tokens::TOUCH - tokens::BOARD_CHIP) / 2.0;
+    let seg_off = (tokens::TOUCH - SEGMENTED_H) / 2.0;
     let top = cy;
     for (v, (cv, beside)) in rows.iter().enumerate() {
         board_screen::card_chips(ui, fr, std::slice::from_ref(cv), (x, cy + off, w));
         let (sx, sy) = if *beside {
-            (x + w - seg_w, cy)
+            (x + w - seg_w, cy + seg_off)
         } else {
-            (x, cy + tokens::BOARD_CHIP + tokens::GAP_SMALL)
+            (x, cy + tokens::TOUCH + seg_off)
         };
         let form = |k: u8| Action::Board(BoardPress::Form(Zone::List, Thing::Vault(v), k));
         let options = [(labels[0], form(0)), (labels[1], form(1))];
@@ -198,9 +201,9 @@ fn vault_list(
             Some(chosen),
             None,
         );
-        cy += row_h(*beside) + tokens::GAP_SMALL;
+        cy += row_h(*beside);
     }
-    top + list_h + tokens::GAP - y
+    top + list_h + tokens::GAP_SMALL - y
 }
 
 /// The sticks, each a box with the vaults on it. Returns their height.

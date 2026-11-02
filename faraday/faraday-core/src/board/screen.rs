@@ -159,14 +159,32 @@ fn marks_w(cv: &ChipView) -> f32 {
         + usize::from(cv.link)
         + usize::from(cv.warn)
         + usize::from(cv.off && matches!(cv.chip, Chip::Placed(..)) && !cv.fixed);
-    n as f32 * one + if cv.menu { menu_w() } else { 0.0 }
+    let off = cv.off && matches!(cv.chip, Chip::Placed(..)) && !cv.fixed;
+    n as f32 * one + if off { off_extra(t) } else { 0.0 } + if cv.menu { menu_w(t) } else { 0.0 }
+}
+
+/// The side in dp of a chip's ⋮ and × parts: a vault's are a press
+/// target of [`tokens::TOUCH`] square, as Material's icon buttons are
+/// (the icon keeps its size); any other chip's are the mark and its
+/// padding.
+fn side(t: Thing) -> f32 {
+    if matches!(t, Thing::Vault(_)) {
+        tokens::TOUCH
+    } else {
+        tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD
+    }
+}
+
+/// What a chip's × part takes beyond a mark and its small gap.
+fn off_extra(t: Thing) -> f32 {
+    side(t) - (tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD)
 }
 
 /// The width of a chip's ⋮ part at its right end, from its rule: the ⋮
 /// and its padding, a press target as the × is (`docs/BACKUP-FLOW.md`
 /// §17.20 item 1).
-fn menu_w() -> f32 {
-    tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD
+fn menu_w(t: Thing) -> f32 {
+    side(t)
 }
 
 /// A chip's ⋮ part at (x, y), `h` tall (`docs/BACKUP-FLOW.md` §17.20):
@@ -185,7 +203,7 @@ fn dots(
     color: crate::ui::Paint,
     hits: bool,
 ) {
-    let mw = menu_w();
+    let mw = menu_w(c.thing());
     let a = Action::Board(BoardPress::Menu(c));
     if hits {
         ui.tip_plain((x, y, mw, h), a, EN.tip_more);
@@ -418,9 +436,15 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     let cx = x + tokens::BOARD_PAD + if g.is_some() { step } else { 0.0 };
     // The marks at the right, from the edge in: the ⋮ after its rule, ×,
     // warning, link, lock; each mark's right edge.
-    let mw = if cv.menu { menu_w() } else { 0.0 };
+    let mw = if cv.menu { menu_w(t) } else { 0.0 };
     let off = cv.off && !cv.fixed && matches!(cv.chip, Chip::Placed(..));
     let mut right = x + w - mw - tokens::BOARD_PAD;
+    // A vault's × is a press target of its own side, its mark centred.
+    let ex = if off { off_extra(t) } else { 0.0 };
+    let off_r = right - ex / 2.0;
+    if off {
+        right -= step + ex;
+    }
     let mut at = |on: bool| {
         let mark_r = right;
         if on {
@@ -428,7 +452,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         }
         mark_r
     };
-    let (off_r, warn_r, link_r, seal_r) = (at(off), at(cv.warn), at(cv.link), at(sealed(cv)));
+    let (warn_r, link_r, seal_r) = (at(cv.warn), at(cv.link), at(sealed(cv)));
     let role = if mono(t) { fit.role.mono() } else { fit.role };
     // A fingerprint is never cut; anything else is fitted.
     let name = if mono(t) {
@@ -486,7 +510,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     }
     if off {
         if hits && let Chip::Placed(z, t) = cv.chip {
-            let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
+            let side = side(t);
             let off = Action::Board(BoardPress::Off(z, t));
             ui.press_box(x + w - mw - side, y, side, line_h, off);
             ui.tip_plain((x + w - mw - side, y, side, line_h), off, EN.tip_remove);
@@ -1146,9 +1170,13 @@ fn vault_head(
     let action = Action::Board(BoardPress::Chip(vc.chip));
     let held = fr.held == Some(vc.chip);
     band(ui, x, y, w, hh, Role::Primary.paint());
-    let mw = if vc.menu { menu_w() } else { 0.0 };
+    let mw = if vc.menu {
+        menu_w(vc.chip.thing())
+    } else {
+        0.0
+    };
     let off_w = if vc.off && matches!(vc.chip, Chip::Placed(..)) {
-        mark + 2.0 * pad
+        side(vc.chip.thing())
     } else {
         0.0
     };
@@ -1181,11 +1209,12 @@ fn vault_head(
         ui.tip_plain((x + w - mw - off_w, y, off_w, hh), off, EN.tip_remove);
         cross(
             ui,
-            right - mark / 2.0,
+            x + w - mw - off_w / 2.0,
             y + hh / 2.0,
             Role::OnPrimary.paint(),
         );
-        right -= mark + tokens::BOARD_CHIP_GAP;
+        // The name may run over the × part's empty side.
+        right = x + w - mw - (off_w + mark) / 2.0 - tokens::GAP_SMALL;
     }
     if vc.warn {
         mark_tip(ui, vc.chip, MarkTip::Warning, (right, y, hh));

@@ -586,8 +586,9 @@ pub const BOARD_STICK_PAD: f32 = GAP_SMALL;
 /// stick reads as a box of its own inside the place card.
 pub const BOARD_STICK_EDGE: f32 = 1.5;
 /// Height in dp of a vault box's head ("Vault 1", its marks and ×): a
-/// chip's height, the head being the vault's chip.
-pub const BOARD_VAULT_HEAD: f32 = BOARD_CHIP;
+/// press target tall, the head being the vault's chip and its ⋮ and ×
+/// icon buttons.
+pub const BOARD_VAULT_HEAD: f32 = TOUCH;
 /// Padding in dp inside a vault box, round the records it holds.
 pub const BOARD_VAULT_PAD: f32 = GAP_SMALL;
 /// Stroke in dp of a vault box's edge.
