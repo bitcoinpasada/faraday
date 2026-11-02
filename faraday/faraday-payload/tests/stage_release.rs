@@ -4,8 +4,8 @@
 //! programs, published on their own for signing on Faraday (F134), and the
 //! release's image list, whose lines and `SHA256SUMS` check a download, the
 //! image inside it and a card or stick already written; images of two
-//! builds are refused. Each Starter's payload holds the Strict stick and
-//! the 2.8-inch Strict Pi and its MANIFEST, and no Faraday Demo file is
+//! builds are refused. Each Starter's payload holds the stick and
+//! the 2.8-inch Pi image and its MANIFEST, and no Faraday Demo file is
 //! needed or staged anywhere: it is compiled into the Starter (F126). A
 //! release folder holding a desktop app is refused by name. The builds are
 //! small stand-ins carrying a build ID where the script reads one; the
@@ -22,53 +22,41 @@ const VERSION: &str = "0.9.0";
 /// The kernel release string a build carries, as the script reads it.
 const RELEASE: &str = "6.6.84-faraday-0.9.0-test";
 /// The boot programs as the release publishes them (F134, IMAGES §4).
-const BOOT: &str = "faraday-0.9.0-BOOTX64-strict.EFI";
-const BOOT_COMPATIBLE: &str = "faraday-0.9.0-BOOTX64-compatible.EFI";
+const BOOT: &str = "faraday-0.9.0-BOOTX64.EFI";
 
 /// One image a release publishes: where its build leaves it under
 /// `builds/`, its release name without `.xz`, and its line in `IMAGES`
-/// after the two sums (platform, screen, build, the boards it starts).
+/// after the two sums (platform, screen, the boards it starts).
 struct Image {
     built: &'static str,
     released: &'static str,
-    listed: [&'static str; 4],
+    listed: [&'static str; 3],
 }
 
 const PI_BOARDS: &str = "Pi 3B, Pi 3B+, Pi Zero 2 W";
 const PC_BOARDS: &str = "a 64-bit PC with UEFI firmware";
 
 /// Every image a release publishes, in `builds.toml`'s order.
-const IMAGES: [Image; 5] = [
+const IMAGES: [Image; 3] = [
     Image {
-        built: "stick/faraday-x86_64-uefi-strict.img",
-        released: "faraday-stick-0.9.0-x86_64-uefi-strict.img",
-        listed: ["x86_64-uefi", "efi-framebuffer", "strict", PC_BOARDS],
-    },
-    Image {
-        built: "stick/faraday-x86_64-uefi-compatible.img",
-        released: "faraday-stick-0.9.0-x86_64-uefi-compatible.img",
-        listed: ["x86_64-uefi", "efi-framebuffer", "compatible", PC_BOARDS],
+        built: "stick/faraday-x86_64-uefi.img",
+        released: "faraday-stick-0.9.0-x86_64-uefi.img",
+        listed: ["x86_64-uefi", "efi-framebuffer", PC_BOARDS],
     },
     Image {
         built: "pi/faraday-pi3-waveshare-28dpi.img",
-        released: "faraday-pi-0.9.0-waveshare-28dpi-strict.img",
-        listed: ["pi3", "waveshare-28dpi", "strict", PI_BOARDS],
+        released: "faraday-pi-0.9.0-waveshare-28dpi.img",
+        listed: ["pi3", "waveshare-28dpi", PI_BOARDS],
     },
     Image {
-        built: "pi/faraday-pi3-waveshare-28dpi-compatible.img",
-        released: "faraday-pi-0.9.0-waveshare-28dpi-compatible.img",
-        listed: ["pi3", "waveshare-28dpi", "compatible", PI_BOARDS],
-    },
-    Image {
-        built: "pi/faraday-pi3-hdmi-compatible.img",
-        released: "faraday-pi-0.9.0-hdmi-compatible.img",
-        listed: ["pi3", "hdmi", "compatible", PI_BOARDS],
+        built: "pi/faraday-pi3-hdmi.img",
+        released: "faraday-pi-0.9.0-hdmi.img",
+        listed: ["pi3", "hdmi", PI_BOARDS],
     },
 ];
-/// The Strict stick's and the 2.8-inch Strict Pi's, which each Starter
-/// carries.
-const STICK: &str = "faraday-stick-0.9.0-x86_64-uefi-strict.img";
-const PI: &str = "faraday-pi-0.9.0-waveshare-28dpi-strict.img";
+/// The stick's and the 2.8-inch Pi's, which each Starter carries.
+const STICK: &str = "faraday-stick-0.9.0-x86_64-uefi.img";
+const PI: &str = "faraday-pi-0.9.0-waveshare-28dpi.img";
 
 fn fresh(name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("stage-release-{name}"));
@@ -130,22 +118,14 @@ fn builds(root: &Path) -> PathBuf {
     builds_with(root, &kernel(), RELEASE)
 }
 
-/// The builds with `boot` as the Strict stick's boot program, and the HDMI
-/// screen's Pi image carrying `hdmi`. The Compatible stick's boot program
-/// differs from the Strict's in its last byte.
+/// The builds with `boot` as the stick's boot program, and the HDMI
+/// screen's Pi image carrying `hdmi`.
 fn builds_with(root: &Path, boot: &[u8], hdmi: &str) -> PathBuf {
     let builds = root.join("builds");
     fs::create_dir_all(builds.join("stick")).expect("folder");
     fs::create_dir_all(builds.join("pi")).expect("folder");
     fs::write(builds.join(IMAGES[0].built), stick_image(root, boot)).expect("stick");
-    let mut compatible = boot.to_vec();
-    *compatible.last_mut().expect("a kernel") = 0x5b;
-    fs::write(builds.join(IMAGES[1].built), stick_image(root, &compatible)).expect("stick");
-    for (image, release) in [
-        (&IMAGES[2], RELEASE),
-        (&IMAGES[3], RELEASE),
-        (&IMAGES[4], hdmi),
-    ] {
+    for (image, release) in [(&IMAGES[1], RELEASE), (&IMAGES[2], hdmi)] {
         fs::write(
             builds.join(image.built),
             pi_image(root, image.built, release),
@@ -306,8 +286,8 @@ fn boot_partition(image: &[u8]) -> &[u8] {
 }
 
 /// With no Faraday Demo built at all, the release holds every image, the
-/// boot programs, `IMAGES` and `SHA256SUMS`, and each payload the Strict
-/// stick image, the 2.8-inch Strict Pi image and its MANIFEST.
+/// boot program, `IMAGES` and `SHA256SUMS`, and each payload the
+/// stick image, the 2.8-inch Pi image and its MANIFEST.
 #[test]
 fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
     let root = fresh("staged");
@@ -318,11 +298,7 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
         .iter()
         .map(|i| format!("{}.xz", i.released))
         .collect();
-    want.extend([
-        BOOT.to_string(),
-        BOOT_COMPATIBLE.to_string(),
-        "IMAGES".into(),
-    ]);
+    want.extend([BOOT.to_string(), "IMAGES".into()]);
     want.extend(IMAGES.iter().map(|i| i.released.to_string()));
     want.extend(
         IMAGES
@@ -336,7 +312,7 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
         .iter()
         .map(|i| format!("{}.xz", i.released))
         .collect();
-    files.extend([BOOT, BOOT_COMPATIBLE, "IMAGES", "SHA256SUMS"].map(String::from));
+    files.extend([BOOT, "IMAGES", "SHA256SUMS"].map(String::from));
     files.sort();
     assert_eq!(names(&out), files);
     // The sums check out from the release folder, as a person runs them.
@@ -437,8 +413,8 @@ fn staging_refuses_images_of_different_builds() {
     assert!(!done.status.success());
     let said = String::from_utf8_lossy(&done.stderr);
     assert!(said.contains("not one build"), "{said}");
-    assert!(said.contains("pi3-monitor-compatible 0.8.0-test"), "{said}");
-    assert!(said.contains("stick-strict 0.9.0-test"), "{said}");
+    assert!(said.contains("pi3-monitor 0.8.0-test"), "{said}");
+    assert!(said.contains("stick 0.9.0-test"), "{said}");
     assert!(!root.join("release").exists(), "nothing staged");
 }
 
@@ -452,10 +428,6 @@ fn staging_publishes_the_boot_program_and_lists_it_in_the_sums() {
     let (out, payload) = first_pass(&root);
     let published = fs::read(out.join(BOOT)).expect("the boot program is published");
     assert_eq!(published, kernel());
-    let compatible =
-        fs::read(out.join(BOOT_COMPATIBLE)).expect("the Compatible boot program is published");
-    assert_ne!(compatible, published);
-    assert_eq!(compatible.len(), published.len());
     let sha = Command::new("sha256sum")
         .arg(out.join(BOOT))
         .output()
@@ -496,7 +468,7 @@ fn staging_refuses_a_stick_image_without_a_boot_program() {
     let root = fresh("no-boot");
     let builds = builds(&root);
     // The stick image's partition table wiped: no GPT, no boot program.
-    let stick = builds.join("stick/faraday-x86_64-uefi-compatible.img");
+    let stick = builds.join("stick/faraday-x86_64-uefi.img");
     let mut bytes = fs::read(&stick).expect("stick");
     bytes[512..520].fill(0);
     fs::write(&stick, bytes).expect("stick");

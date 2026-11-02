@@ -28,14 +28,12 @@
 # Takes every image faraday/builds.toml lists as built with release files
 # (docs/IMAGES.md §4), from where its build leaves it (its first outputs
 # entry, under out/ or the folder --builds names), and publishes it under
-# its release name: today the PC stick's Strict and Compatible, the Pi's
-# 2.8-inch Strict and Compatible and the Pi's HDMI screen's Compatible,
-#   out/stick/faraday-x86_64-uefi-strict.img -> faraday-stick-VERSION-x86_64-uefi-strict.img.xz
-#   out/pi/faraday-pi3-hdmi-compatible.img   -> faraday-pi-VERSION-hdmi-compatible.img.xz
+# its release name: today the PC stick and the Pi's two screens,
+#   out/stick/faraday-x86_64-uefi.img -> faraday-stick-VERSION-x86_64-uefi.img.xz
+#   out/pi/faraday-pi3-hdmi.img       -> faraday-pi-VERSION-hdmi.img.xz
 # and so on. An image that releases a boot program (.EFI) has a GPT whose
 # first partition (FARADAYBOOT) holds EFI/BOOT/BOOTX64.EFI, published as
-# its release name, faraday-VERSION-BOOTX64-strict.EFI and
-# faraday-VERSION-BOOTX64-compatible.EFI: the boot programs as they are,
+# its release name, faraday-VERSION-BOOTX64.EFI: the boot program as it is,
 # unsigned, published so that a person with Secure Boot keys downloads one
 # with SHA256SUMS and SHA256SUMS.asc and signs it on Faraday, which signs
 # only a boot program those sums list (docs/decisions/F134.md). It must
@@ -56,7 +54,7 @@
 # listed in SHA256SUMS: a first line naming the version and the commit,
 # then one line per image, in builds.toml's order, its fields separated by
 # one tab: the .img.xz, its SHA-256, the .img's SHA-256, the platform (the
-# entry's board), the screen (its panel), the build (strict or compatible)
+# entry's board), the screen (its panel)
 # and the boards it starts (its starts, joined by ", ").
 #
 # The cross-check's record (`just crosscheck --fresh` writes
@@ -77,8 +75,8 @@
 #
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
-# system, linux/ and windows/, each with hard links to the Strict stick's and
-# the 2.8-inch Strict Pi's image .xz (builds stick-strict and
+# system, linux/ and windows/, each with hard links to the stick's and
+# the 2.8-inch Pi's image .xz (builds stick and
 # pi3-waveshare-28dpi; the other images are released, not embedded, until
 # the Starter stops carrying images, IMAGES §9 step 6)
 # and its own MANIFEST (the first line is the same in both). The two
@@ -143,7 +141,7 @@ if [ -z "$second" ]; then
     # The images a release publishes (IMAGES §4), read from builds.toml:
     # one line each, tab-separated: the build's id, its file under out/, its
     # .img.xz release name, its .EFI release name or -, its board, panel,
-    # build, and the boards it starts.
+    # and the boards it starts.
     listed="$(python3 -I - "$version" faraday/builds.toml <<'PY'
 import sys, tomllib
 version, path = sys.argv[1], sys.argv[2]
@@ -155,14 +153,14 @@ for b in builds:
     names = [n.replace("{version}", version) for n in b["release"]]
     print("\t".join([b["id"], b["outputs"][0].replace("{dev}", "").removeprefix("out/"),
                      names[0], names[1] if len(names) > 1 else "-", b["board"], b["panel"],
-                     b["build"], ", ".join(b["starts"])]))
+                     ", ".join(b["starts"])]))
 PY
 )" || die "cannot read the released images from faraday/builds.toml"
     [ -n "$listed" ] || die "faraday/builds.toml lists no built image with release files"
-    ids=() src=() img=() efi=() board=() panel=() kind=() starts=() part=()
-    while IFS=$'\t' read -r i s n e bo pa k st; do
+    ids=() src=() img=() efi=() board=() panel=() starts=() part=()
+    while IFS=$'\t' read -r i s n e bo pa st; do
         ids+=("$i") src+=("$builds/$s") img+=("${n%.xz}") efi+=("$e")
-        board+=("$bo") panel+=("$pa") kind+=("$k") starts+=("$st")
+        board+=("$bo") panel+=("$pa") starts+=("$st")
     done <<< "$listed"
 
     is_gpt() { [ "$(dd if="$1" bs=1 skip=512 count=8 2>/dev/null)" = "EFI PART" ]; }
@@ -278,8 +276,8 @@ PY
     {
         echo "# Faraday $version images, commit $commit"
         for k in "${!ids[@]}"; do
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img_sum[k]}" \
-                "${board[k]}" "${panel[k]}" "${kind[k]}" "${starts[k]}"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img_sum[k]}" \
+                "${board[k]}" "${panel[k]}" "${starts[k]}"
         done
     } > "$out/IMAGES"
     {
@@ -312,11 +310,11 @@ PY
     # inside it, that file's SHA-256 and size, the build ID it carries, and,
     # for a stick image, the SHA-256 of its boot partition (the -boot.vfat
     # value of SHA256SUMS; - for any other file).
-    # Both MANIFESTs start with the same line. The Strict stick and the
-    # 2.8-inch Strict Pi, until the Starter carries no images (IMAGES §9
+    # Both MANIFESTs start with the same line. The stick and the
+    # 2.8-inch Pi, until the Starter carries no images (IMAGES §9
     # step 6).
     carried=()
-    for want in stick-strict pi3-waveshare-28dpi; do
+    for want in stick pi3-waveshare-28dpi; do
         found=""
         for k in "${!ids[@]}"; do [ "${ids[k]}" != "$want" ] || found="$k"; done
         [ -n "$found" ] || unstage "faraday/builds.toml releases no $want, which the Starter carries"

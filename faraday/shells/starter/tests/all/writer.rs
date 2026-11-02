@@ -19,7 +19,7 @@ const XZ: &[u8] = include_bytes!("../../../../faraday-payload/tests/vectors/fixt
 const XZ_SHA: &str = "d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f";
 const IMG_SHA: &str = "c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c";
 const IMG_SIZE: usize = 39_936;
-const NAME: &str = "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz";
+const NAME: &str = "faraday-stick-0.2.0-x86_64-uefi.img.xz";
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 
 /// The image inside `fixture.img.xz`, made again as its README says.
@@ -148,7 +148,7 @@ impl Device for FileDisk {
 
 fn manifest() -> Vec<u8> {
     format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\t{IMG_SHA}\n"
+        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\t{IMG_SHA}\n"
     )
     .into_bytes()
 }
@@ -180,7 +180,7 @@ fn release_payload_listing(image: &Sparse, boot_sha: &str) -> (Job, Confirmed) {
     let img_sha = sticks::sha(&img);
     drop(img);
     let manifest = format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{img_sha}\t{}\t0.2.0+0123456789ab\t{boot_sha}\n",
+        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{}\tfaraday-stick-0.2.0-x86_64-uefi.img\t{img_sha}\t{}\t0.2.0+0123456789ab\t{boot_sha}\n",
         sticks::sha(&xz),
         image.len,
     );
@@ -562,7 +562,7 @@ fn keep_data_writes_only_the_boot_partition_as_it_is_and_keeps_the_rest() {
     let before = stick();
     let path = disk_file("keep-boot-only", &before);
     let boot = boot_partition(1536 << 10, 0xB0, 0x0B0B_0B0B);
-    let (image, source) = image_job("faraday-x86_64-uefi-strict-dev-boot.vfat", &boot);
+    let (image, source) = image_job("faraday-x86_64-uefi-dev-boot.vfat", &boot);
     assert!(image.boot_only);
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source, Mode::KeepData);
@@ -586,7 +586,7 @@ fn keep_data_from_a_whole_image_writes_only_its_boot_partition() {
     let (from, to) = boot_range();
     let boot = boot_partition((to - from) as usize, 0xB1, 0x0B0B_0B0B);
     new.put(from, &boot.to_vec());
-    let (image, source) = image_job("faraday-x86_64-uefi-strict-dev.img", &new);
+    let (image, source) = image_job("faraday-x86_64-uefi-dev.img", &new);
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source, Mode::KeepData);
     let (r, _) = run(&order, &Job::Image(image), &mut disk);

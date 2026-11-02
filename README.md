@@ -210,10 +210,8 @@ On Windows, Explorer's Format offers FAT32 only for 32 GB or less; for a
 larger stick, use Disk Management to make a partition of 32 GB or less
 and format it FAT32.
 
-The Raspberry Pi's Strict image reads no USB stick: its kernel has no
-USB storage driver, and the SD card it boots from is its only storage.
-Its Compatible images read USB sticks as the PC does (`docs/IMAGES.md`
-§2). Its screens say
+The Raspberry Pi's images read USB sticks as the PC does (`docs/IMAGES.md`).
+Its screens say
 "SD card" wherever the PC's say "stick": "SD card visit", "Lock and use
 SD card", "Remove the SD card".
 
@@ -457,7 +455,7 @@ cargo run -q -p faraday-testkit -- out/testkit
 just                                         the check: every test and lint
 cargo run -p faraday-desktop --release       Faraday in a window, on testnet
 just dev=1 faraday-stick-image               a stick image for trying a machine
-just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img   write it to a stick
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   write it to a stick
 just crosscheck                              the crypto against its Python references
 just crosscheck-status --follow              a running cross-check, from another terminal
 ```
@@ -474,10 +472,10 @@ The image is built with Buildroot in a container (`DOCKER=podman` or
 
 ```
 just faraday-stick-bin                    # the stick binary, static musl
-just faraday-stick-image                  # out/stick/faraday-x86_64-uefi-strict.img
+just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
-just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img   # write a dev image (below)
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
 ```
 
 A build this way is a test release unless built with `release=1`, which
@@ -485,11 +483,11 @@ refuses a dev image, a version override and a tree that differs from its
 commit (`docs/DECISIONS.md` F5):
 
 ```
-just release=1 faraday-stick-image        # a published release (Strict; build=compatible for the other)
+just release=1 faraday-stick-image        # a published release
 ```
 
 `faraday-stick-boot` writes the image's boot partition
-(`out/stick/faraday-x86_64-uefi-strict[-dev]-boot.vfat`) over a Faraday
+(`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`) over a Faraday
 stick's first partition and leaves its data partition as it is. It
 refuses a disk that does not have a Faraday stick's layout
 (`docs/STICK-IDENTITY.md` §5.1), is not on USB or has anything
@@ -506,7 +504,7 @@ Faraday Starter writes an image built here in place of its own:
 
 ```
 just dev=1 faraday-stick-image
-just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
 ```
 
 `--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`, which only
@@ -586,9 +584,7 @@ either can be checked. Faraday Demo has no file of its own; it is
 inside each Starter (the Starter's own sum covers it). From the release
 after 0.1.7 it lists `faraday-X.Y.Z-BOOTX64.EFI`, the stick's boot
 program as it is, unsigned, published for a person with their own Secure
-Boot keys to sign on Faraday ("With Secure Boot" above); from 0.1.9, one
-for each PC build, `faraday-X.Y.Z-BOOTX64-strict.EFI`
-and `…-compatible.EFI`. Faraday checks
+Boot keys to sign on Faraday ("With Secure Boot" above). Faraday checks
 `SHA256SUMS.asc` more strictly than `gpg --verify` before it signs that
 file (DECISIONS F134), so the release is signed as GnuPG's `gpg --armor
 --detach-sign` or Faraday's own GPG signing does it: one armoured block
@@ -596,13 +592,13 @@ with its checksum line, a binary signature (not `--textmode`) by the
 release key's one signing subkey, whose binding carries its back
 signature.
 
-From 0.1.9 every image is published, one per
-platform, screen and build (`docs/IMAGES.md` §4):
-`faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible`,
-`faraday-pi-X.Y.Z-waveshare-28dpi-strict.img.xz` and `…-compatible`, and
-`faraday-pi-X.Y.Z-hdmi-compatible.img.xz`. `IMAGES`, covered by
+Every image is published, one per
+platform and screen (`docs/IMAGES.md` §4):
+`faraday-stick-X.Y.Z-x86_64-uefi.img.xz`,
+`faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` and
+`faraday-pi-X.Y.Z-hdmi.img.xz`. `IMAGES`, covered by
 `SHA256SUMS`, lists each with the sum of its `.xz` and of the image
-inside, and the platform, screen, build and boards it is for.
+inside, and the platform, screen and boards it is for.
 
 A card or stick already written, and in use, is checked by its boot
 partition, its first, which nothing writes to: `SHA256SUMS` lists it
@@ -623,7 +619,7 @@ PowerShell prints a file's sum to compare with its line in
 `SHA256SUMS`:
 
 ```
-Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.9-x86_64-uefi-strict.img.xz
+Get-FileHash -Algorithm SHA256 .\faraday-stick-X.Y.Z-x86_64-uefi.img.xz
 ```
 
 The release tags are signed with the same key: `git tag -v v0.1.9`.

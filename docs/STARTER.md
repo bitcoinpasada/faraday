@@ -50,11 +50,11 @@ downloads".
 |---|---|
 | `Faraday-Starter-X.Y.Z-Windows.exe` | the Starter for Windows (x86_64) |
 | `Faraday-Starter-X.Y.Z-Linux.tar.gz` | the Starter for Linux (x86_64): one file inside, `Faraday-Starter-X.Y.Z-Linux`, with its executable bit (§1.2) |
-| `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz`, `…-compatible.img.xz` | the stick image, Strict and Compatible (`docs/IMAGES.md` §1) |
-| `faraday-pi-X.Y.Z-waveshare-28dpi-strict.img.xz`, `…-compatible.img.xz` | the Pi image for the 2.8-inch screen, Strict and Compatible, for every supported Pi: the screen's panel directory, then the build (IMAGES §4) |
-| `faraday-pi-X.Y.Z-hdmi-compatible.img.xz` | the Pi image for an HDMI screen, Compatible only (IMAGES §3) |
-| `faraday-X.Y.Z-BOOTX64-strict.EFI`, `…-compatible.EFI` | each stick build's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter's payload |
-| `IMAGES` | the release's image list: one line per image, with its two sums, platform, screen, build and the boards it starts (IMAGES §4) |
+| `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image (`docs/IMAGES.md` §1) |
+| `faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` | the Pi image for the 2.8-inch screen, for every supported Pi: the screen's panel directory (IMAGES §4) |
+| `faraday-pi-X.Y.Z-hdmi.img.xz` | the Pi image for an HDMI screen (IMAGES §3) |
+| `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter's payload |
+| `IMAGES` | the release's image list: one line per image, with its two sums, platform, screen and the boards it starts (IMAGES §4) |
 | `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
 | `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1, batch A1) |
 | `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4, batch A2) |
@@ -82,7 +82,7 @@ partition, so a card or stick already written can be checked (IMAGES
 - No dev image is published, as a file or inside the Starter.
   Developers build dev images (`just dev=1 faraday-stick-image`) and
   write them with the Starter itself: `faraday-starter --image
-  out/stick/faraday-x86_64-uefi-strict-dev.img` (or a `.img.xz`, or a
+  out/stick/faraday-x86_64-uefi-dev.img` (or a `.img.xz`, or a
   `-boot.vfat` for keep data) puts that file in place of the payload's
   stick image, through the same screens and the same writer, with the
   Confirm page saying the image is not the Starter's own and showing
@@ -129,8 +129,8 @@ and is the same bytes the release publishes beside it.
 
 | Starter | Carries |
 |---|---|
-| Linux | the Strict stick image, the 2.8-inch Strict Pi image |
-| Windows | the Strict stick image, the 2.8-inch Strict Pi image |
+| Linux | the stick image, the 2.8-inch Pi image |
+| Windows | the stick image, the 2.8-inch Pi image |
 
 The release's other images are published beside the Starter, not in
 it, until the Starter carries no images (`docs/IMAGES.md` §5, §9 step 6).

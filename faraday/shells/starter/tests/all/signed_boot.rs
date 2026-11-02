@@ -23,7 +23,7 @@ use crate::sticks::{
 use crate::writer::{FileDisk, run, tmp};
 
 const NOW: u64 = 1_791_000_000;
-const NAME: &str = "faraday-stick-0.3.0-x86_64-uefi-strict.img.xz";
+const NAME: &str = "faraday-stick-0.3.0-x86_64-uefi.img.xz";
 const COMMIT: &str = "89abcdef0123456789abcdef0123456789abcdef";
 const BUILD: &[u8] = b"0.3.0+89abcdef0123\n";
 
@@ -198,7 +198,7 @@ fn release_listing(efi: &[u8], off: bool) -> (Job, Confirmed) {
     }
     let (boot_sha, _) = sum(&boot);
     let manifest = format!(
-        "# Faraday Starter payload 0.3.0, commit {COMMIT}\n{NAME}\t{xz_sha}\tfaraday-stick-0.3.0-x86_64-uefi-strict.img\t{img_sha}\t{size}\t0.3.0+89abcdef0123\t{boot_sha}\n"
+        "# Faraday Starter payload 0.3.0, commit {COMMIT}\n{NAME}\t{xz_sha}\tfaraday-stick-0.3.0-x86_64-uefi.img\t{img_sha}\t{size}\t0.3.0+89abcdef0123\t{boot_sha}\n"
     );
     let payload =
         Payload::from_parts(manifest.as_bytes(), vec![(NAME.to_string(), xz)]).expect("a payload");

@@ -426,9 +426,9 @@ fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
 #[test]
 fn a_stick_images_line_needs_its_boot_partitions_sum_and_no_other_line_has_one() {
     let stick = line(
-        "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
+        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
         FIXTURE_XZ_SHA256,
-        "faraday-stick-0.2.0-x86_64-uefi-strict.img",
+        "faraday-stick-0.2.0-x86_64-uefi.img",
         FIXTURE_SHA256,
         1,
     );
