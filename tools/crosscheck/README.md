@@ -714,7 +714,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `slip39` | others' code | python-shamir-mnemonic, by Trezor (SatoshiLabs) | none | slip39 |
 | `xor` | others' code and, for a part, Faraday's second version | Coldcard's `xor` and `xor_split`, by Coinkite, over python-mnemonic, by Trezor (SatoshiLabs) | the count of parts (2 to 4) and the five BIP-39 lengths, Faraday's rule written in `area_xor.py` in front of Coldcard's `xor`, which asserts only equal lengths | xor |
 | `sps` | others' code | BIP-374/375 authors (bitcoin/bips) | none | silent-send |
-| `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20), for the primitives | the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md` | vault-create, vault-unlock, vault-seal, vault-edit |
+| `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20), for the primitives | the container, its slot layout, key schedule and records, written in `area_vault.py` from the FVLT format's account (`docs/history/VAULT-LOG.md`) | vault-create, vault-unlock, vault-seal, vault-edit |
 | `kdbx` | others' code | pykeepass, by the libkeepass project (the distribution's package) | none | kdbx |
 <!-- crypto-manifest: end independence -->
 
