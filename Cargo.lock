@@ -1225,6 +1225,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2",
+ "toml_parser",
  "unicode-normalization",
  "zeroize",
 ]

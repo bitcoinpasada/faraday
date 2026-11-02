@@ -1,0 +1,11 @@
+[vault]
+format = 1
+id = "3f0c9a6e2b7d41c58e19a0b2c4d6e8f0"
+seals = 1
+[[seed]]
+hex = "00112233445566778899aabbccddeeff"
+load = false
+codex32 = {k = 2, id = "name", lengths = [48], unknown = 1, shares = [{index = "a", state = "made"}]}
+[[signed]]
+tx = "abababababababababababababababababababababababababababababababab"
+amounts = [1, 2]

@@ -78,7 +78,7 @@ only which size it is (F189 point 4):
 
 | Size | Contents | File | Suits |
 |---|---|---|---|
-| QR (§2.1) | one item, one line | about 408 B | one seed, one codex32 share, or one passphrase, printed as a code |
+| QR (§2.1) | one item, top-level keys | about 408 B | one seed, one codex32 share, or one passphrase, printed as a code |
 | 64 KiB | 65,536 B | 65,718 B | keys, wallets, a few entries |
 | 256 KiB | 262,144 B | 262,374 B | the default: keys, wallets, notes, GPG and Secure Boot keys, about a hundred entries |
 | 1 MiB | 1,048,576 B | 1,048,998 B | many entries and notes |
@@ -102,19 +102,23 @@ belongs to. No item is longer than a 24-word seed: a passphrase longer
 than that goes in a file vault. A seed of another list, or of another
 word count, goes in a file vault.
 
-Its contents are one line of TOML with the names of §7, the item as an
-inline table in an array (`seed = [{words = "…"}]`, `share = [{codex32
-= "…", for = "…"}]`, `passphrase = [{for = "…", text = "…"}]`), and no
-`vault` table: a QR vault is never
-sealed again, so it has no count and no identifier. The line is padded
-with line feeds to the one length every QR vault has, so a code does
-not show what it holds. The length is fixed when this is built, from
-the longest item's line: a 24-word seed of the list's longest words is
-215 bytes of words. The file is about 408 bytes in all; the code is
-version 15 (77 × 77) at medium error correction where that holds the
-file (412 bytes), else version 16 (81 × 81, 450 bytes). The header's 150
-bytes and the payload's nonce and tag leave version 15 230 bytes for the
-line.
+Its contents are the item's keys at the top of a TOML document, named
+as in §7 and written one to a line: a seed is `words = "…"`; a codex32
+share is `codex32 = "…"` and `for = "…"` (the fingerprint of its key);
+a passphrase is `passphrase = "…"` and `for = "…"`. Exactly one of
+`words`, `codex32` and `passphrase` is present, and there is no `vault`
+table: a QR vault is never sealed again, so it has no count and no
+identifier. The text is padded with line feeds to the one length every
+QR vault has, 226 bytes, so a code does not show what it holds. That
+length is the line of a 24-word seed of the list's longest words: the
+start `words = "` is 9 bytes, the words 215, the closing quote and the
+line feed 2. A
+12-word seed is padded to it. The longest passphrase is 193 bytes of
+TOML text (`QR_PASSPHRASE_MAX`): the `passphrase` line is 13 bytes and the
+text's quotes and line feed 3, the `for` line 17. The age file is 182
+bytes more than its plaintext, 408 bytes; the code is version 15
+(77 × 77 modules) at medium error correction, which holds 412 bytes in
+byte mode.
 
 A QR vault is a vault like the others: it unlocks with its passphrase,
 is listed on Vaults while open, marked as a QR vault, and shows its
@@ -456,7 +460,7 @@ column:
 A seed's `codex32` table is its set's plain facts (`docs/CODEX32.md`
 §9.4), never a string: `k`, the threshold (0, the secret alone, or 2 to
 9); `id`, the identifier, four bech32 characters in lower case;
-`lengths`, each string's length in characters; `unknown`, how many
+`lengths`, the length in characters of the set's strings (one length is built: written as an array of one entry, read when every entry is equal); `unknown`, how many
 strings exist whose share index is not known; `shares`, an array of
 tables, `index` (a bech32 character) and `state` (`made`, `placed`,
 `lost`, `exposed`, `destroyed`). At most 31 strings, each index once.

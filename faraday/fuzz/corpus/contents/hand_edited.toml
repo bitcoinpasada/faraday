@@ -1,0 +1,9 @@
+vault = { format = 1, id = '3f0c9a6e2b7d41c58e19a0b2c4d6e8f0', seals = 2 }
+seed = [{ words = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about' }]
+[[note]]
+text = """
+a
+b"""
+[[share]]
+codex32 = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn"
+for = "73c5da0a"

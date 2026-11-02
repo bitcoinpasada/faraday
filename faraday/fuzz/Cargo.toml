@@ -129,6 +129,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "contents"
+path = "fuzz_targets/contents.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "vault_header"
 path = "fuzz_targets/vault_header.rs"
 test = false
