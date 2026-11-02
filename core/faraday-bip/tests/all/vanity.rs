@@ -66,6 +66,12 @@ fn the_account_index_reaches_the_address_entropylab_reaches() {
         find.address.as_str(),
         "bc1qqpat9khft6dnm9qp0nnrvpyvmyg2ytshn7gglv"
     );
+    // The account the find names is the account that makes the address.
+    let account = master
+        .account_xpub(&c, ScriptType::NativeSegwit, find.account)
+        .expect("an account");
+    let address = account.address(false, 0).expect("the first address");
+    assert_eq!(alloc_string(&address), find.address.as_str());
 }
 
 #[test]
@@ -87,29 +93,6 @@ fn the_passphrase_a_find_names_is_the_passphrase_that_makes_the_address() {
     let opened = master(find.suffix.as_bytes());
     let account = opened
         .account_xpub(&c, ScriptType::NativeSegwit, 0)
-        .expect("an account");
-    let address = account.address(false, 0).expect("the first address");
-    assert_eq!(alloc_string(&address), find.address.as_str());
-}
-
-#[test]
-fn the_account_a_find_names_is_the_account_that_makes_the_address() {
-    let c = Compute::unchecked();
-    let master = master(b"");
-    let find = vanity::grind(
-        &c,
-        &Key::Master(&master),
-        &Method::Account,
-        ScriptType::NativeSegwit,
-        "bc1qq",
-        Network::Mainnet,
-        0,
-        64,
-    )
-    .find
-    .expect("a find");
-    let account = master
-        .account_xpub(&c, ScriptType::NativeSegwit, find.account)
         .expect("an account");
     let address = account.address(false, 0).expect("the first address");
     assert_eq!(alloc_string(&address), find.address.as_str());

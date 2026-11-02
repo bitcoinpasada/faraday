@@ -221,26 +221,3 @@ pub fn origin_fingerprints(text: &str) -> Vec<String> {
     }
     out
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn bip380_examples() {
-        assert_eq!(descriptor_checksum("raw(deadbeef)"), Some(*b"89f8spxm"));
-        assert!(verify_checksum("raw(deadbeef)#89f8spxm"));
-        assert!(!verify_checksum("raw(deadbeef)#89f8spxmx"), "too long");
-        assert!(!verify_checksum("raw(deadbeef)#89f8spx"), "too short");
-        assert!(!verify_checksum("raw(deedbeef)#89f8spxm"), "payload error");
-        assert!(!verify_checksum("raw(deadbeef)#89f8spxn"), "checksum error");
-        assert_eq!(descriptor_checksum("raw(\u{dc})"), None, "non-charset char");
-        assert!(!verify_checksum("raw(\u{dc})#00000000"));
-        assert!(
-            !verify_checksum("raw(deadbeef)#89f8spxb"),
-            "b is not bech32"
-        );
-        assert!(!verify_checksum(""));
-        assert!(!verify_checksum("#89f8spxm"));
-    }
-}

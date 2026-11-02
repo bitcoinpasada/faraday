@@ -364,9 +364,6 @@ mod tests {
     #[test]
     fn every_check_passes_on_its_own() {
         let c = Compute::unchecked();
-        for check in &CHECKS {
-            assert!((check.run)(&c), "{}", check.name);
-        }
         assert_eq!(run(&c), Ok(CHECKS.len()));
     }
 

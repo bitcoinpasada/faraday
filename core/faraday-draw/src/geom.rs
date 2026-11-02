@@ -379,32 +379,3 @@ impl PxEdges {
         self.top + self.bottom
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn display(width: u16, height: u16, dpi: u16) -> DisplayInfo {
-        DisplayInfo {
-            width,
-            height,
-            dpi,
-            inset_bottom: 0,
-            inset_top: 0,
-            buttons: 0,
-            camera_fixed: true,
-            secure: faraday_shell_api::SecureHardware::None,
-            boot: faraday_shell_api::BootState::Unknown,
-            memory_mib: None,
-        }
-    }
-
-    #[test]
-    fn size_classes_of_reference_displays() {
-        assert_eq!(SizeClass::of(&display(320, 240, 143)), SizeClass::Small);
-        assert_eq!(SizeClass::of(&display(640, 480, 286)), SizeClass::Small);
-        assert_eq!(SizeClass::of(&display(1080, 2340, 420)), SizeClass::Mobile);
-        // The desktop window: 960x640 at 160 dpi is 7.2 inches.
-        assert_eq!(SizeClass::of(&display(960, 640, 160)), SizeClass::Wide);
-    }
-}

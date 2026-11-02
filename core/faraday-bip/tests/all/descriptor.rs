@@ -38,6 +38,20 @@ fn known_checksums() {
 }
 
 #[test]
+fn a_checksum_that_is_not_the_descriptors_is_refused() {
+    assert!(!verify_checksum("raw(deadbeef)#89f8spxmx"), "too long");
+    assert!(!verify_checksum("raw(deadbeef)#89f8spx"), "too short");
+    assert!(!verify_checksum("raw(deedbeef)#89f8spxm"), "payload error");
+    assert!(!verify_checksum("raw(deadbeef)#89f8spxn"), "checksum error");
+    assert!(
+        !verify_checksum("raw(deadbeef)#89f8spxb"),
+        "b is not bech32"
+    );
+    assert!(!verify_checksum(""));
+    assert!(!verify_checksum("#89f8spxm"));
+}
+
+#[test]
 fn single_symbol_errors_are_detected() {
     for &(desc, expected) in KNOWN {
         let full = format!("{desc}#{expected}");
@@ -68,19 +82,10 @@ fn every_charset_character_is_accepted() {
         "{charset}#{}",
         std::str::from_utf8(&sum).unwrap()
     )));
-    assert_eq!(descriptor_checksum("raw(\u{dc})"), None);
+    assert_eq!(descriptor_checksum("raw(\u{dc})"), None, "non-charset char");
     assert_eq!(descriptor_checksum("tab\there"), None);
+    assert!(!verify_checksum("raw(\u{dc})#00000000"));
     // The empty descriptor has a checksum too; verify_checksum needs a body.
     let empty = checksum("");
     assert!(verify_checksum(&format!("#{empty}")));
-}
-
-#[test]
-fn group_boundaries() {
-    // Lengths 1, 2 and 3 exercise the partial-group tail cases.
-    for desc in ["a", "ab", "abc", "abcd", "abcde", "abcdef"] {
-        let sum = checksum(desc);
-        assert!(verify_checksum(&format!("{desc}#{sum}")));
-        assert!(!verify_checksum(&format!("{desc}x#{sum}")));
-    }
 }

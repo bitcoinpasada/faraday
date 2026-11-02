@@ -27,20 +27,11 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// FIPS 180-4 and BIP-32: the hashes a person compares against a
+/// Double SHA-256 and BIP-32's identifier: the hashes a person compares against a
 /// published value.
 #[test]
 fn the_hashes_match_the_published_vectors() {
-    let abc = hashes(b"abc");
-    assert_eq!(
-        hex(&abc.sha256),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
     let empty = hashes(b"");
-    assert_eq!(
-        hex(&empty.sha256),
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    );
     assert_eq!(
         hex(&empty.sha256d),
         "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"

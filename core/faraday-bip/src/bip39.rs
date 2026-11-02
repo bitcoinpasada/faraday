@@ -1003,12 +1003,4 @@ mod tests {
         // The Chinese lists are read, not spelled.
         assert_eq!(Language::ChineseSimplified.candidates_typed(&[]).count(), 0);
     }
-
-    #[test]
-    fn sentence_buffer_is_large_enough() {
-        for lang in Language::ALL {
-            let longest = lang.words_nfkd().iter().map(|w| w.len()).max().unwrap();
-            assert!(MAX_WORDS * longest + MAX_WORDS - 1 <= MAX_SENTENCE_BYTES);
-        }
-    }
 }

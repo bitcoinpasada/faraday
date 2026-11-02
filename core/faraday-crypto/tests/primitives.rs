@@ -80,7 +80,7 @@ fn pbkdf2_hmac_sha512_known_answer() {
 }
 
 #[test]
-fn secret_constant_time_eq() {
+fn equal_secrets_compare_equal_and_different_ones_do_not() {
     let a = Secret::new([1u8, 2, 3, 4]);
     let b = Secret::new([1u8, 2, 3, 4]);
     let c = Secret::new([1u8, 2, 3, 5]);

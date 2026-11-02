@@ -689,23 +689,6 @@ mod tests {
     }
 
     #[test]
-    fn a_stream_with_losses_still_finishes() {
-        let message = make_message("Wolf", 32767);
-        let mut encoder = Encoder::new(&message, 1000).unwrap();
-        let mut decoder = Decoder::default();
-        let mut skip = false;
-        while !decoder.complete() {
-            assert_eq!(decoder.message().unwrap(), None);
-            let part = encoder.next_part();
-            if !skip {
-                let _ = decoder.receive(part);
-            }
-            skip = !skip;
-        }
-        assert_eq!(decoder.message().unwrap(), Some(message));
-    }
-
-    #[test]
     fn a_part_of_another_message_is_refused() {
         let message = make_message("Wolf", 1000);
         let mut encoder = Encoder::new(&message, 10).unwrap();

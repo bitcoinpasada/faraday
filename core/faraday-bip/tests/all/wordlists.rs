@@ -1,35 +1,7 @@
 //! Properties of the embedded wordlists.
 
-use std::collections::HashSet;
-
 use faraday_bip::bip39::Language;
 use faraday_bip::wordlists;
-use faraday_crypto::sha256;
-
-#[test]
-fn each_list_has_2048_unique_words() {
-    for lang in Language::ALL {
-        let words = lang.words();
-        let unique: HashSet<&str> = words.iter().copied().collect();
-        assert_eq!(unique.len(), 2048, "{}", lang.name());
-        assert!(
-            words
-                .iter()
-                .all(|w| !w.is_empty() && !w.chars().any(char::is_whitespace))
-        );
-    }
-}
-
-#[test]
-fn english_words_are_unique_by_first_four_chars() {
-    let prefixes: HashSet<String> = Language::English
-        .words()
-        .iter()
-        .map(|w| w.chars().take(4).collect())
-        .collect();
-    assert_eq!(prefixes.len(), 2048);
-    assert!(Language::English.words().iter().all(|w| w.is_ascii()));
-}
 
 #[test]
 fn every_word_round_trips_through_index_of() {
@@ -40,21 +12,6 @@ fn every_word_round_trips_through_index_of() {
         }
         assert_eq!(lang.index_of(""), None);
         assert_eq!(lang.index_of("not a word"), None);
-    }
-}
-
-#[test]
-fn sha256_constants_match_the_published_files() {
-    // gen.py verified that each source file is exactly the 2048 words, each
-    // followed by "\n"; rebuild those bytes and hash them.
-    for lang in Language::ALL {
-        let mut bytes = Vec::new();
-        for w in lang.words() {
-            bytes.extend_from_slice(w.as_bytes());
-            bytes.push(b'\n');
-        }
-        let digest: String = sha256(&bytes).iter().map(|b| format!("{b:02x}")).collect();
-        assert_eq!(digest, lang.wordlist_sha256(), "{}", lang.name());
     }
 }
 

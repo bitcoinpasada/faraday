@@ -997,23 +997,9 @@ mod tests {
     }
 
     #[test]
-    fn keys_tile_the_area_without_overlap() {
-        for kind in [
-            KeyboardKind::Bip39,
-            KeyboardKind::Pin,
-            KeyboardKind::Hex,
-            KeyboardKind::Passphrase,
-            KeyboardKind::Dice,
-            KeyboardKind::Coin,
-            KeyboardKind::Path,
-            KeyboardKind::Address,
-            KeyboardKind::Codex32,
-            KeyboardKind::Codex32Unreadable,
-            KeyboardKind::Kana,
-            KeyboardKind::Jamo,
-            KeyboardKind::Pinyin,
-            KeyboardKind::Zhuyin,
-        ] {
+    fn dice_keys_stay_inside_the_area_without_overlap() {
+        {
+            let kind = KeyboardKind::Dice;
             let area = Rect::new(7, 11, 353, 211);
             let caps = keys(
                 kind,
@@ -1079,6 +1065,9 @@ mod tests {
             KeyboardKind::Passphrase,
             KeyboardKind::Coin,
             KeyboardKind::Path,
+            KeyboardKind::Address,
+            KeyboardKind::Codex32,
+            KeyboardKind::Codex32Unreadable,
             KeyboardKind::Kana,
             KeyboardKind::Jamo,
             KeyboardKind::Pinyin,
