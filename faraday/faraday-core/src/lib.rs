@@ -5582,6 +5582,7 @@ impl Faraday {
                 ui.focused = focused;
                 ui.tips.shown = self.pointer.tip_shown();
                 ui.dimmed = self.demo_dimmed();
+                ui.keep_live = self.keep_live();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
                 ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
@@ -5778,7 +5779,7 @@ impl Faraday {
     }
 
     /// A person's press: done now, or, when its work stretches a key or
-    /// makes pictures ([`slow`]), drawn first and done on the tick after
+    /// makes pictures ([`drawn_first`]), drawn first and done on the tick after
     /// (`docs/SPEED.md` §9). A press left waiting goes first.
     fn press_in(&mut self, action: Action) {
         // A slider moved again replaces the files it asked to be made.
@@ -5787,7 +5788,7 @@ impl Faraday {
         {
             self.later_now();
         }
-        if slow(action) && !field_action(action) {
+        if drawn_first(action) && !field_action(action) {
             self.later = Some(Later::Press(action));
             self.worker.set_drawn(false);
             if let Some(text) = working_text(action) {
@@ -5803,13 +5804,7 @@ impl Faraday {
         // press not left for the tick stretches no key and makes at most
         // one picture.
         let done = work::since(&before);
-        debug_assert!(
-            done.of(work::Work::Kdf) == 0 && done.of(work::Work::Picture) <= 1,
-            "{action:?} stretched a key {} times and made {} pictures with no frame drawn first: \
-             add it to `slow` (docs/SPEED.md §9)",
-            done.of(work::Work::Kdf),
-            done.of(work::Work::Picture),
-        );
+        slow::guard(action, &done);
     }
 
     /// What every press does once it has acted, however it came (a tap,
@@ -5954,7 +5949,7 @@ pub fn result_stem(source: &str) -> String {
 /// What a press leaves for the tick after the frame that shows it (`docs/SPEED.md` §9).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Later {
-    /// A press whose work is [`slow`].
+    /// A press whose work is [`drawn_first`].
     Press(Action),
     /// A key whose work is slow (`Faraday::key_slow`, in `lightning`).
     Key(KeyIn),
@@ -5964,7 +5959,7 @@ enum Later {
 }
 
 use pointer::field_action;
-use slow::{slow, working_text};
+use slow::{drawn_first, working_text};
 
 /// A file name without its extension.
 pub(crate) fn stem(name: &str) -> String {
@@ -6173,6 +6168,7 @@ impl App for Faraday {
                     || self.typing.caret_changed(self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
                     || self.guided_moving.is_some()
+                    || self.busy().is_some()
                     || self.out.toast.as_ref().is_some_and(|(_, until)| {
                         self.out
                             .toast_at

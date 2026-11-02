@@ -6,12 +6,36 @@ use crate::Action;
 use crate::strings::EN;
 use crate::{boot_import, seeds, vanity};
 
+/// Whether a press starts a job on the worker (`docs/WORKERS.md` §2.1):
+/// its work is over the line, so it is not drawn first; the screen stays
+/// and shows the busy line while the worker runs it. Not yet any press
+/// but Practice's samples loaded; the batches that follow move the
+/// others here from [`drawn_first`].
+pub(crate) fn starts_job(a: Action) -> bool {
+    matches!(a, Action::SamplesLoad)
+}
+
+/// The rule `drawn_first` keeps, held in debug builds and every test: a
+/// press that starts no job and is not drawn first stretches no key and
+/// makes at most one picture. `done` is the work the press did.
+pub(crate) fn guard(a: Action, done: &crate::work::Counts) {
+    use crate::work::Work;
+    debug_assert!(
+        starts_job(a) || (done.of(Work::Kdf) == 0 && done.of(Work::Picture) <= 1),
+        "{a:?} stretched a key {} times and made {} pictures with no frame drawn first: \
+         add it to `drawn_first` or `starts_job` (docs/WORKERS.md, the list)",
+        done.of(Work::Kdf),
+        done.of(Work::Picture),
+    );
+}
+
 /// Whether a press stretches a key (PBKDF2, scrypt, Argon2) or makes more
-/// than one picture or PDF, so that the frame that shows it is drawn
-/// first and its work is done on the tick after (`docs/SPEED.md` §9). A
-/// press that does such work and is not here fails the guard in
-/// `Faraday::press_in` in every test.
-pub(crate) fn slow(a: Action) -> bool {
+/// than one picture or PDF and is under the line (`docs/WORKERS.md`
+/// §2.1), so that the frame that shows it is drawn first and its work is
+/// done on the tick after (`docs/SPEED.md` §9). A press that does such
+/// work and is on neither list fails the guard in `Faraday::press_in` in
+/// every test.
+pub(crate) fn drawn_first(a: Action) -> bool {
     use crate::backup_flow::steps::FlowAction as F;
     use crate::glance::sheet::ChartAction as C;
     use crate::vault::VaultAction as V;
@@ -38,7 +62,6 @@ pub(crate) fn slow(a: Action) -> bool {
             | Action::LoadKey(_)
             | Action::Lock
             | Action::NewWalletFrom(_)
-            | Action::SamplesLoad
             | Action::ScanSample
             | Action::SamplePsbt
             | Action::PRecord(_)

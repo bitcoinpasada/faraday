@@ -5,6 +5,7 @@ pub(crate) mod again;
 pub(crate) mod board;
 pub(crate) mod boot;
 pub(crate) mod boot_place;
+pub(crate) mod busy;
 pub(crate) mod cancel;
 pub(crate) mod chart_edit;
 pub(crate) mod codex32;

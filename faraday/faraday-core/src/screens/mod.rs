@@ -55,11 +55,12 @@ pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{home_lead_beside_tiles, tile_grid};
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
-    CopyGrid, address_press, buttons_and_next, code_field, copy_blocks, copy_grid, descriptor_row,
-    first_addresses, grid_never, guide_text, guide_text_learn, keyed_pills, kind_line, kind_name,
-    locked_tag, never_below, never_real_seed, never_real_seed_if, never_under, next_button,
-    next_button_when, pass_field, pin_button, row_press, side_panel_w, sign_readiness, size_text,
-    stepper, ticked, word_keys, working_bar, working_line,
+    CopyGrid, address_press, busy_bar, busy_line, buttons_and_next, code_field, copy_blocks,
+    copy_grid, descriptor_row, first_addresses, grid_never, guide_text, guide_text_learn,
+    keyed_pills, kind_line, kind_name, locked_tag, never_below, never_real_seed,
+    never_real_seed_if, never_under, next_button, next_button_when, pass_field, pin_button,
+    row_press, side_panel_w, sign_readiness, size_text, stepper, ticked, word_keys, working_bar,
+    working_line,
 };
 pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line, word_cell_edge};
 pub(crate) use restore::RSTEPS;
@@ -692,6 +693,10 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
 /// both show.
 fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     let mut foot = h;
+    // Under a sheet the sheet that started the job shows it itself.
+    if let Some(b) = app.busy().filter(|_| app.sheet.is_none()) {
+        foot -= busy_foot(app, ui, (x, cw, foot), b);
+    }
     if app.stick.not_now() && !app.stick.is_empty() && app.sheet.is_none() {
         let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
         foot -= ui.snackbar((x, cw, h), msg, 1.0, 0.0);
@@ -701,6 +706,28 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         let (shown, rise) = app.toast_shown();
         ui.snackbar((x, cw, foot), &t, shown, rise);
     }
+}
+
+/// The job that runs (`docs/WORKERS.md` §4, `docs/DESIGN.md` §4.14): its
+/// line in the accent over Material's linear progress indicator, along
+/// the foot of the window in `cw` from `x`, `foot` its bottom. Moving
+/// where the work has no count, filled by the share done where it has
+/// one; still under reduce motion. Returns the height it took.
+fn busy_foot(
+    app: &View,
+    ui: &mut Ui,
+    (x, cw, foot): (f32, f32, f32),
+    b: &crate::worker::Busy,
+) -> f32 {
+    let (gap, pad) = (faraday_draw::tokens::GAP_SMALL, faraday_draw::tokens::PAD);
+    let line_h = ui.line_as(TITLE_M);
+    let h = line_h + gap + gap + faraday_draw::tokens::PROGRESS_H;
+    let y = foot - h;
+    ui.fill(x, y, cw, h, 0.0, Role::SurfaceContainer);
+    let line = ui.fit_as(TITLE_M, b.line, cw - pad - pad);
+    ui.text_mid_as((x + pad, y + gap, line_h), TITLE_M, Role::Primary, &line);
+    busy_bar(app, ui, (x, foot - faraday_draw::tokens::PROGRESS_H, cw), b);
+    h
 }
 
 /// New key's page area's width on the wide layout, as the frame gives

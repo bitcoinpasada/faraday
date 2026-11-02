@@ -12,7 +12,7 @@ use crate::modes::screen::{head, place};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{BODY_M, GAP, LABEL_L, LABEL_M, PAD, TOUCH};
+use faraday_draw::tokens::{BODY_M, GAP, LABEL_L, LABEL_M, PAD, TITLE_M, TOUCH};
 use faraday_draw::widgets::Icon;
 
 /// The sheet, over the screen it was opened from.
@@ -54,6 +54,13 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let mut cy = y;
     cy += head(ui, (x, cy, w), Icon::Download, EN.samples_title);
+    // The job that runs: its line and bar, at the top where the scrolled
+    // list does not hide them; the buttons are dimmed but Not now.
+    if let Some(b) = app.busy() {
+        let row = ui.line_as(TITLE_M).max(TOUCH);
+        crate::screens::busy_line(app, ui, (x, cy, w, row), b);
+        cy += row + PAD;
+    }
     cy += ui.code_line(
         (x, cy, w),
         BODY_M.size,

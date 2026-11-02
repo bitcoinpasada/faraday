@@ -6,6 +6,7 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{FileKind, Session};
+use crate::worker::Busy;
 use crate::{Action, Faraday};
 use faraday_draw::tokens;
 use faraday_draw::tokens::{
@@ -27,6 +28,23 @@ pub(crate) fn working_bar(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
 pub(crate) fn working_line(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), line: &str) {
     ui.text_mid_as((x, y, h), TITLE_M, Role::Primary, line);
     working_bar(ui, x, y, w, h);
+}
+
+/// The progress indicator of the job that runs (`docs/WORKERS.md` §4):
+/// Material's linear indicator `w` wide at (x, y), filled by the share
+/// done where the work has a count, a bar crossing its track where it has
+/// none, and still under reduce motion.
+pub(crate) fn busy_bar(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), b: &Busy) {
+    let (done, phase) = app.busy_marks(b);
+    ui.progress((x, y, w), done, phase);
+}
+
+/// [`busy_bar`] under the job's line, in the accent, in a row `h` tall at
+/// (x, y), `w` wide.
+pub(crate) fn busy_line(app: &View, ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), b: &Busy) {
+    let line = ui.fit_as(TITLE_M, b.line, w);
+    ui.text_mid_as((x, y, h), TITLE_M, Role::Primary, &line);
+    busy_bar(app, ui, (x, y + h - tokens::PROGRESS_H, w), b);
 }
 
 /// A screen's walk-through in Guided mode, under its title. Returns the

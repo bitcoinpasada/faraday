@@ -222,6 +222,16 @@ pub fn progress(at: Option<u64>, now: u64, ms: u64) -> f32 {
     }
 }
 
+/// How long the indeterminate progress indicator takes to cross its track
+/// once.
+const BUSY_PASS_MS: u64 = 1800;
+
+/// How far across its track the indeterminate bar of a job that began at
+/// `began_ms` is at `now_ms`, 0 to 1; it starts again at the left.
+pub fn busy_phase(began_ms: u64, now_ms: u64) -> f32 {
+    (now_ms.saturating_sub(began_ms) % BUSY_PASS_MS) as f32 / BUSY_PASS_MS as f32
+}
+
 /// How long the overlay scrollbar stays after the content stops, and how
 /// long it then takes to fade.
 const BAR_STAY_MS: u64 = 800;

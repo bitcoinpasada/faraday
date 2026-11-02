@@ -509,7 +509,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         use crate::tooltip::TipKind;
         let s = ICON_BUTTON;
         let r = shape_full(s);
-        if on && !self.dimmed.contains(&action) {
+        if on && !self.is_dimmed(&action) {
             self.stroke(x, y, s, s, r, Role::Outline);
             let ink = Role::OnSurfaceVariant.paint();
             self.press(Shape::new(x, y, s, s, r), ink, action);

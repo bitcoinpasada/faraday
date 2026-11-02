@@ -62,7 +62,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let shown = self.fit_as(LABEL_L, label, w - 2.0 * BUTTON_PAD);
         let tw = self.measure(LABEL_L.size, W::S, &shown);
         let lx = x + (w - tw) / 2.0;
-        if self.dimmed.contains(&action) {
+        if self.is_dimmed(&action) {
             // Faint in every theme: it is not available now.
             let (rect, edge) = (
                 self.rect(x, y, w, h),

@@ -1457,12 +1457,20 @@ fn sheet_foot(
 ) {
     let app = &host.app;
     let look = Look::now(host);
-    ui.fill(mx, fy, mw, 1.0 / ui.f, 0.0, look.rule);
+    let busy = app.busy();
+    if let Some(b) = busy {
+        // The job that runs: Material's progress indicator in the rule's
+        // place and its line at the foot's left.
+        let (done, phase) = app.busy_marks(b);
+        ui.progress((mx, fy, mw), done, phase);
+    } else {
+        ui.fill(mx, fy, mw, 1.0 / ui.f, 0.0, look.rule);
+    }
     let load = Ctl {
         mark: false,
         label: EN.samples_load.to_string(),
         press: HostPress::App(Action::SamplesLoad),
-        kind: if app.sample_area.sheet().any_ticked() && app.selftest_passed() {
+        kind: if app.sample_area.sheet().any_ticked() && app.selftest_passed() && busy.is_none() {
             Kind::Primary
         } else {
             Kind::Off
@@ -1477,6 +1485,17 @@ fn sheet_foot(
     let by = fy + t::GAP;
     let lx = mx + mw - t::PAD - ctl_w(ui, &load);
     let nx = lx - t::GAP - ctl_w(ui, &not_now);
+    if let Some(b) = busy {
+        let room = nx - t::GAP - (mx + t::PAD);
+        let line = ui.fit_as(t::LABEL_L, b.line, room);
+        ui.text_mid_as(
+            (mx + t::PAD, by, t::HOST_MENU_ROW),
+            t::LABEL_L,
+            look.main,
+            &line,
+        );
+        texts.push(line);
+    }
     control(host, ui, &not_now, (nx, by), on_raised(&look));
     control(host, ui, &load, (lx, by), on_raised(&look));
     texts.push(not_now.label);

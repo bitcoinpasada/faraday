@@ -197,7 +197,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         action: A,
         draw: impl FnOnce(&mut Self),
     ) {
-        if self.dimmed.contains(&action) {
+        if self.is_dimmed(&action) {
             return;
         }
         draw(self);

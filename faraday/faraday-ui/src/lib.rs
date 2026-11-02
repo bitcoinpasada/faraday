@@ -528,6 +528,11 @@ pub struct Ui<'a, A> {
     /// screen asked for: what the app refuses while it is in this state
     /// (the demo's actions that would make a secret, `docs/DEMO.md` §7).
     pub dimmed: Vec<A>,
+    /// While set, every action it returns false for is drawn dimmed and
+    /// takes no press, as if it were in [`Ui::dimmed`]: a screen whose
+    /// job is running keeps only Back, Cancel and Lock live
+    /// (`docs/WORKERS.md` §4).
+    pub keep_live: Option<fn(&A) -> bool>,
     /// Where each press drawn this frame takes a press, as large as the
     /// touch floor where its control is drawn smaller, in the order
     /// drawn: also the order Tab moves the keyboard through
@@ -639,6 +644,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             focus_action: None,
             label_at: None,
             dimmed: Vec::new(),
+            keep_live: None,
             reach: Vec::new(),
             primaries: 0,
             focused: None,
@@ -1718,6 +1724,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.fill_contours(&[&body, &plug, &h1, &h2], color);
     }
 
+    /// Whether `action` is drawn dimmed and takes no press this frame.
+    pub fn is_dimmed(&self, action: &A) -> bool {
+        self.dimmed.contains(action) || self.keep_live.is_some_and(|live| !live(action))
+    }
+
     /// Makes a region pressable: the part of it inside the clip, so what
     /// is scrolled out of sight cannot be pressed.
     ///
@@ -1729,7 +1740,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// least [`faraday_draw::tokens::TOUCH`] square ([`Reach`]).
     pub(crate) fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         // A dimmed action takes no press, wherever it is drawn.
-        if self.dimmed.contains(&action) {
+        if self.is_dimmed(&action) {
             return;
         }
         let clip = self.hit_clip.unwrap_or_else(|| self.c.clip());
@@ -1894,7 +1905,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     ) -> f32 {
         use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
         let weight = W::S;
-        let style = if self.dimmed.contains(&action) {
+        let style = if self.is_dimmed(&action) {
             style.off()
         } else {
             style

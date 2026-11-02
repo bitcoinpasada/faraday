@@ -1801,3 +1801,22 @@ pub fn settle(app: &mut crate::Faraday) {
 pub fn press_on_worker(app: &mut crate::Faraday, action: crate::Action) {
     app.press_as(action, false);
 }
+
+/// The screen as it is while a job runs, with no job: for a tour to
+/// picture the busy screen (`docs/WORKERS.md` §4) at a moment of its
+/// own. `done` of `of` is the count, `of` 0 for work with none. Ends
+/// with [`end_busy`].
+pub fn show_busy(app: &mut crate::Faraday, line: &'static str, done: u32, of: u32) {
+    app.show_busy(crate::worker::Busy {
+        kind: crate::worker::Kind::SamplesLoad,
+        line,
+        began_ms: 0,
+        done,
+        of,
+    });
+}
+
+/// Ends what [`show_busy`] showed.
+pub fn end_busy(app: &mut crate::Faraday) {
+    app.job_locked();
+}

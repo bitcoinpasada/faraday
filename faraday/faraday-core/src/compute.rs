@@ -175,9 +175,7 @@ impl Faraday {
                 self.worker.set_busy(None);
                 true
             }
-            A::Lock | A::LockUnsealed | A::LockAsk => true,
-            A::Scale(_) | A::Rotation(_) | A::Theme(_) | A::TextSize(_) => true,
-            _ => false,
+            _ => stays_live(&action),
         }
     }
 
@@ -200,5 +198,49 @@ impl Faraday {
     /// The job that runs, for drawing to read.
     pub fn busy(&self) -> Option<&Busy> {
         self.worker.busy()
+    }
+}
+
+/// Whether `action` stays live, drawn enabled, while a job runs: Back and
+/// Cancel, Lock, and what changes how the screen is drawn
+/// (`docs/WORKERS.md` §4).
+pub(crate) fn stays_live(action: &crate::Action) -> bool {
+    use crate::Action as A;
+    matches!(
+        action,
+        A::Back
+            | A::Cancel
+            | A::Lock
+            | A::LockUnsealed
+            | A::LockAsk
+            | A::Scale(_)
+            | A::Rotation(_)
+            | A::Theme(_)
+            | A::TextSize(_)
+    )
+}
+
+impl Faraday {
+    /// What the frame draws dimmed while a job runs.
+    pub(crate) fn keep_live(&self) -> Option<fn(&crate::Action) -> bool> {
+        self.busy()
+            .map(|_| stays_live as fn(&crate::Action) -> bool)
+    }
+
+    /// Where the job's progress indicator stands, for drawing: the share
+    /// done where the work has a count, and where its moving bar is along
+    /// the track where it has none (still under reduce motion).
+    pub(crate) fn busy_marks(&self, b: &Busy) -> (Option<f32>, Option<f32>) {
+        let done = (b.of > 0).then(|| b.done as f32 / b.of as f32);
+        let phase =
+            (!self.reduce_motion()).then(|| crate::motion::busy_phase(b.began_ms, self.now_ms));
+        (done, phase)
+    }
+
+    /// Sets the busy state with no job behind it (`testkit::show_busy`).
+    pub(crate) fn show_busy(&mut self, busy: Busy) {
+        self.worker.set_busy(Some(busy));
+        self.out.dirty = true;
+        self.out.commands.push_back(crate::Command::Draw);
     }
 }
