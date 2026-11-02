@@ -1269,6 +1269,28 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
 }
 
 #[test]
+fn the_first_stick_put_back_for_the_second_place_is_refused_and_nothing_is_written() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    shell.plug(&mut app, "S1");
+    shell.pull(&mut app, "S1");
+    let before = shell.writes.len();
+    shell.plug(&mut app, "S1");
+    expect(&mut app, "This stick has the first copy");
+    assert!(app.flow().unwrap().slots[1].written.is_none());
+    assert_eq!(shell.writes.len(), before, "nothing was written");
+    // Use another stick: the second copy needs the hold.
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "S1");
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Tap);
+    shell.flow(&mut app, F::Hold);
+    assert!(app.flow().unwrap().slots[1].written.is_some());
+}
+
+#[test]
 fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_not_read_leaves_the_key_waiting()
  {
     let c = testkit::compute();

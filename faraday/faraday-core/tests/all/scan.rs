@@ -103,6 +103,16 @@ fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
 }
 
 #[test]
+fn a_seeds_words_scanned_are_never_filed() {
+    let mut app = scanning(Vec::new());
+    scan(
+        &mut app,
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    );
+    assert!(app.inbox().is_empty());
+}
+
+#[test]
 fn closing_the_camera_mid_transfer_keeps_the_parts_read() {
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     let parts = faraday_qr::bbqr::encode('P', &psbt, 60).unwrap();

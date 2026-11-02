@@ -75,14 +75,7 @@ fn locked_with_a_wallet_and_a_key() -> ((Files, Files, Files), String, String) {
         .into_iter()
         .find(|k| k.id == "spending")
         .unwrap();
-    let wallet = (
-        "spending-wallet.txt".to_string(),
-        format!(
-            "# {}: test wallet over the dummy test seeds\n{}\n",
-            kit.name, kit.descriptor
-        )
-        .into_bytes(),
-    );
+    let wallet = testkit::wallet_file(&kit);
     let mut app = shown(vec![wallet], Vec::new(), Vec::new());
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));

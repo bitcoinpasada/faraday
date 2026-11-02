@@ -378,6 +378,7 @@ fn the_records_sparrow_refuses_are_refused() {
         (13, Policy(Derivation)),
         (14, Lines),
         (15, FirstAddress),
+        (16, Paths),
         (17, Address),
     ] {
         assert_eq!(DescriptorRecord::parse(&c, &sparrow(n)), Err(why), "{n}");

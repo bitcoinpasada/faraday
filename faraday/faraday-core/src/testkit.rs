@@ -573,20 +573,25 @@ pub fn spend() -> Result<(Psbt, Psbt), String> {
     Ok((u, c.ok_or("Savings has a cosigner")?.1))
 }
 
+/// A kit's wallet file: its name and bytes.
+pub fn wallet_file(kit: &Kit) -> (String, Vec<u8>) {
+    (
+        format!("{}-wallet.txt", kit.id),
+        format!(
+            "# {}: test wallet over the dummy test seeds\n{}\n",
+            kit.name, kit.descriptor
+        )
+        .into_bytes(),
+    )
+}
+
 /// The files of the test stick, by name.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     let c = compute();
     let mut out = Vec::new();
     for kit in kits() {
-        out.push((
-            format!("{}-wallet.txt", kit.id),
-            format!(
-                "# {}: test wallet over the dummy test seeds\n{}\n",
-                kit.name, kit.descriptor
-            )
-            .into_bytes(),
-        ));
+        out.push(wallet_file(&kit));
         // The same wallet as a coordinator's export: the wallet .json
         // Sparrow imports, and a multisig's setup file.
         let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{e:?}"))?;

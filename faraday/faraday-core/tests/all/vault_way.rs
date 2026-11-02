@@ -37,14 +37,7 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
         .into_iter()
         .find(|k| k.id == id)
         .unwrap_or_else(|| panic!("no {name} in the kit"));
-    (
-        name.to_string(),
-        format!(
-            "# {}: test wallet over the dummy test seeds\n{}\n",
-            kit.name, kit.descriptor
-        )
-        .into_bytes(),
-    )
+    (name.to_string(), testkit::wallet_file(&kit).1)
 }
 
 fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {

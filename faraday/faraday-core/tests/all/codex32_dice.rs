@@ -14,6 +14,14 @@ use faraday_ui::keyboard::OskPress;
 
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
+/// Vector 2's set in index order, lowercase
+/// (`tools/vectors/bip93/vectors.json`).
+const VECTOR2: [&str; 3] = [
+    "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+    "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+    "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg",
+];
+
 fn on(width: u16, height: u16) -> Faraday {
     on_at(width, height, 160)
 }
@@ -86,6 +94,30 @@ fn faces(ch: u8, lo: u8, hi: u8) -> [u8; 10] {
         (out[d], out[5 + d]) = if bit == 0 { (hi, lo) } else { (lo, hi) };
     }
     out
+}
+
+fn strings(app: &Faraday) -> Vec<String> {
+    make(app)
+        .strings()
+        .map(|s| s.iter().map(|s| s.to_string()).collect())
+        .unwrap_or_default()
+}
+
+#[test]
+fn twenty_faced_dice_make_vector_2s_strings() {
+    let mut app = on(1366, 768);
+    to_entry(&mut app, 20);
+    assert_eq!(make(&app).dice_choice().faces, 20);
+    for s in &VECTOR2[..2] {
+        for &ch in &s.as_bytes()[9..35] {
+            // Faces past six, pressed on the pad's keys.
+            for f in faces(ch, 7, 19) {
+                c32(&mut app, C32::Face(f));
+            }
+        }
+    }
+    let _ = app.frame();
+    assert_eq!(strings(&app), VECTOR2);
 }
 
 #[test]
