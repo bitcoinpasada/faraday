@@ -370,19 +370,25 @@ in some 4,900 functions of `faraday-core` by name alone, and now 37):
 - A **path call** is resolved through the file's `use` lines and taken by
   its last two segments: a method of the type before the name, or a free
   function of the module before the name; a bare name is a free function
-  of the calling file. Where no function is in the module the path says
-  (a glob import, a name re-exported from another module), every function
-  of that name stays.
+  of the calling file. A path starting with `crate`, `super` or `self` is
+  made absolute against the calling function's module and names the
+  functions of that module only, or what a `pub use` there re-exports,
+  or nothing: `use super::gf_mul` is the parent module's `gf_mul`, not
+  every `gf_mul` of the crate. Where no function is in the module a
+  bare or typed path says (a glob import), every function of that name
+  stays.
 - A **method call** is taken only for a method of the caller's own impl
   type, or of a type the calling file names (any identifier of the file,
   its field types included), or of a function that is itself
   cryptographic (rules 1 to 4), whose receiver's type cannot be told. For
   the names the standard library's own types use (`collect`, `push`,
   `get`, `take`, `update`, …; the inventory's `STD_METHODS`) the edge is
-  kept only for the caller's own type, or for a cryptographic callee whose
-  type the calling file names (`Fresh::take` from any file that names
-  `Fresh`): `x.collect()` in a file that names `Faraday` is an iterator's,
-  not `Faraday::collect`'s.
+  kept only for the caller's own type, for a type the calling function's
+  signature or body names (`Points::at` from `recover_secret`, which takes
+  `Points`), or for a cryptographic callee whose type the calling file
+  names (`Fresh::take` from any file that names `Fresh`): `x.collect()`
+  in a function that does not name `Faraday` is an iterator's, not
+  `Faraday::collect`'s.
 - A name passed as a value without a call (`.map(helper)`) is taken as a
   call. A path or call expression `name(...)` is a call even when a local
   of that name exists (`let write = write(…)`); only the bare `name` used
@@ -1039,7 +1045,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 The manifest's 94 actions, each from its entry in `docs/crypto/actions.toml`
 as batch 5 left it (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
-its Learn page. The inventory finds 815 cryptographic functions under
+its Learn page. The inventory finds 861 cryptographic functions under
 `core/` and `faraday/`, and every one is covered by an action or by one
 of the six `[[not_crypto]]` entries. Screens are `Screen` variants;
 an action with no screen is built and offered nowhere in the app.

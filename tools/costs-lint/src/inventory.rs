@@ -284,6 +284,8 @@ pub(crate) struct Inventory {
     pub(crate) sites: Vec<Site>,
     /// Per file, every identifier it holds (the types it names, for §4.4).
     file_names: HashMap<String, HashSet<String>>,
+    /// Every `pub use` of the workspace, by library name of its crate.
+    pub_uses: Vec<(String, PubUse)>,
 }
 
 // ---------------------------------------------------------------- manifests
@@ -512,7 +514,7 @@ fn primitive_path(full: &[String], own_lib: &str, reex: &Reexports) -> bool {
 /// that re-exports another's re-export (`faraday-psbt` over `faraday-bip`)
 /// counts. Costs a second parse of each file with a `pub use`; a glob
 /// (`pub use bitcoin::*`) names nothing and is not followed (§17).
-fn read_reexports(root: &Path, crates: &[Crate]) -> Reexports {
+fn read_reexports(root: &Path, crates: &[Crate]) -> (Reexports, Vec<(String, PubUse)>) {
     let mut uses: Vec<(String, Vec<PubUse>)> = Vec::new();
     for c in crates {
         for m in walk::module_files_cfg(root, &c.src) {
@@ -554,7 +556,11 @@ fn read_reexports(root: &Path, crates: &[Crate]) -> Reexports {
             }
         }
         if !changed {
-            return reex;
+            let all = uses
+                .into_iter()
+                .flat_map(|(lib, found)| found.into_iter().map(move |u| (lib.clone(), u)))
+                .collect();
+            return (reex, all);
         }
     }
 }
@@ -961,13 +967,19 @@ impl Finder<'_> {
                 continue;
             }
             let mut path = path.clone();
+            let mut own = false;
             if path[0] == "Self" {
                 match &self.self_ty {
                     Some(t) => path[0] = t.clone(),
                     None => continue,
                 }
+                own = true;
             }
-            for segs in cx.resolve(&path) {
+            // `Self::f` names the impl's own type: a `use` of the type in
+            // another module of the file (a test module's `use super::T`)
+            // does not move it.
+            let resolved = if own { vec![path] } else { cx.resolve(&path) };
+            for segs in resolved {
                 calls.push(Call {
                     segs,
                     called: *called,
@@ -1099,12 +1111,88 @@ fn names(f: &Func, segs: &[String]) -> bool {
     }
 }
 
+/// The path `segs` starts with `crate`, `super` or `self`, made absolute
+/// against `module`: the modules below the crate's root, then the names.
+/// `None` when a `super` goes above the root.
+fn absolute(segs: &[String], module: &[String]) -> Option<Vec<String>> {
+    let mut base = module.to_vec();
+    let mut i = 0;
+    match segs.first().map(String::as_str) {
+        Some("crate") => {
+            base.clear();
+            i = 1;
+        }
+        Some("self") => i = 1,
+        Some("super") => {
+            while segs.get(i).is_some_and(|s| s == "super") {
+                base.pop()?;
+                i += 1;
+            }
+        }
+        _ => return None,
+    }
+    base.extend(segs[i..].iter().cloned());
+    Some(base)
+}
+
+/// Whether `g` is what the absolute path `full` names: a free function of
+/// the module before the name, or a method of the type before the name
+/// in the module before the type.
+fn is_at(g: &Func, full: &[String]) -> bool {
+    let Some((last, rest)) = full.split_last() else {
+        return false;
+    };
+    if g.ident != *last {
+        return false;
+    }
+    match &g.ty {
+        None => g.module == rest,
+        Some(t) => rest
+            .split_last()
+            .is_some_and(|(ty, m)| ty == t && g.module == m),
+    }
+}
+
+/// The functions of `krate` the absolute path `full` names, followed
+/// through the `pub use` lines of the crate when none is there.
+fn at_path(inv: &Inventory, krate: usize, full: &[String], depth: usize) -> Vec<usize> {
+    let hit: Vec<usize> = (0..inv.funcs.len())
+        .filter(|&j| inv.funcs[j].krate == krate && is_at(&inv.funcs[j], full))
+        .collect();
+    if !hit.is_empty() || depth == 0 {
+        return hit;
+    }
+    let lib = lib_name(&inv.crates[krate].name);
+    let mut out = Vec::new();
+    for (l, u) in &inv.pub_uses {
+        if *l != lib || u.key != full {
+            continue;
+        }
+        let target = absolute(&u.target, &u.mods)
+            .unwrap_or_else(|| u.mods.iter().chain(&u.target).cloned().collect());
+        out.extend(at_path(inv, krate, &target, depth - 1));
+    }
+    out
+}
+
 /// Of the functions a path call's names fit, the ones in the module the
-/// path says: a method of the type before the name, a free function of
-/// the module before the name or, for a bare name, of the caller's own
-/// file. When none is, all of them stay (a name `use`d through a glob or
-/// re-exported from another module).
+/// path says. A path starting with `crate`, `super` or `self` is made
+/// absolute against the caller's module and names the functions of that
+/// module only, or what a `pub use` there re-exports, or nothing. Of the
+/// others: a method of the type before the name, a free function of the
+/// module before the name or, for a bare name, of the caller's own file.
+/// When none is, all of them stay (a name `use`d through a glob).
 fn narrowed(inv: &Inventory, caller: usize, segs: &[String], named: Vec<usize>) -> Vec<usize> {
+    let f = &inv.funcs[caller];
+    if matches!(segs[0].as_str(), "crate" | "super" | "self") {
+        let Some(full) = absolute(segs, &f.module) else {
+            return Vec::new();
+        };
+        return at_path(inv, f.krate, &full, 8)
+            .into_iter()
+            .filter(|j| named.contains(j))
+            .collect();
+    }
     if named.len() < 2 {
         return named;
     }
@@ -1112,9 +1200,7 @@ fn narrowed(inv: &Inventory, caller: usize, segs: &[String], named: Vec<usize>) 
     let fits = |&j: &usize| {
         let g = &inv.funcs[j];
         match want {
-            None => g.ty.is_none() && g.file == inv.funcs[caller].file,
-            Some("self") => g.file == inv.funcs[caller].file,
-            Some("crate" | "super") => true,
+            None => g.ty.is_none() && g.file == f.file,
             Some(w) => {
                 g.ty.as_deref() == Some(w)
                     || (g.ty.is_none() && g.module.last().map(String::as_str) == Some(w))
@@ -1197,6 +1283,7 @@ fn link(inv: &mut Inventory) {
                         inv.funcs[i].ty.as_deref() == Some(t)
                             || ((!std || !g.rules.is_empty())
                                 && named.is_some_and(|n| n.contains(t)))
+                            || (std && inv.funcs[i].idents.contains(t))
                     });
                     if typed || (!g.rules.is_empty() && !std) {
                         callees.insert(j);
@@ -1378,7 +1465,7 @@ fn parse_file(found: &mut Found, file: &Path, mut cx: FileCx, root: &Path) {
 /// Reads every crate under `root` (costs a parse of each source file).
 pub(crate) fn scan(root: &Path) -> Inventory {
     let crates = read_crates(root);
-    let reex = read_reexports(root, &crates);
+    let (reex, pub_uses) = read_reexports(root, &crates);
     let mut found = Found::default();
     for (k, c) in crates.iter().enumerate() {
         let base = |test_file: bool, cfg: &str| FileCx {
@@ -1417,6 +1504,7 @@ pub(crate) fn scan(root: &Path) -> Inventory {
         tests,
         sites: Vec::new(),
         file_names: names,
+        pub_uses,
     };
     link(&mut inv);
     call_sites(&mut inv, &imports);

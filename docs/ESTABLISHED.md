@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F178, F180, F181); built: AEZ's AES round from the aes crate (§4.2, §5.3), SLIP-39's GF(256) and checksum without a branch (§4.3), and the scalar arithmetic on secrets in Faraday's own branch-free form (§4.1's starting point)
-**Open:** the inventory's name matching (§2.5); the scalar arithmetic on secrets through libsecp256k1 (§4.1); the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the documentation fixes (§7); the FAT32 formatter (§3.2, with the stick work of `docs/STICK-IDENTITY.md`)
+**Open:** the scalar arithmetic on secrets through libsecp256k1 (§4.1); the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the documentation fixes (§7); the FAT32 formatter (§3.2, with the stick work of `docs/STICK-IDENTITY.md`)
 
 Faraday uses an established implementation wherever one exists for what
 it needs, and writes its own only where none exists or none fits its
@@ -274,55 +274,16 @@ comes with schema 5.
 ### 2.5 The inventory's name matching (batch A0)
 
 The crypto inventory (`tools/costs-lint/src/inventory.rs`) decides which
-functions an action's fingerprint covers. It gets two cases wrong, and
-both change fingerprints the later batches re-stamp, so A0 comes first.
-
-**(a) A method named like a standard method, on a Faraday type with no
-rule of its own, called from outside its impl, is missed.** SLIP-39's
-`recover_secret` and `split_secret` call `Points::at`
-(`core/faraday-bip/src/slip39.rs`); `at` is in `STD_METHODS`, `Points::at`
-calls no primitive itself, and `recover_secret` is a free function, so
-no branch of `link`'s method rule takes it: `Points::at`, `gf_mul` and
-`gf_inv` are absent from the `slip39` block of `docs/crypto/actions.lock`.
-
-**(b) A same-named free function elsewhere in the crate is counted.**
-`codex32/correct.rs` and `codex32/worksheet.rs` import `gf_mul`,
-`polymod` and `verify_checksum` with `use super::{..}`; `narrowed` keeps
-every free function of that name in the crate for a path starting with
-`crate` or `super`, so `codex32-make` and `codex32-correct` carry
-`slip39.rs`'s `gf_mul` and `polymod`.
-
-The fix:
-
-1. `narrowed`: a path whose first segment is `crate`, `super` or `self`
-   is made absolute against the caller's module (`Func.module`, which is
-   `file_mods(file)` plus inline `mod`s): `crate::a::b::f` names module
-   `[a, b]`; `super::f` the caller's module without its last segment
-   (repeated for each `super`); `self::f` the caller's module. A free
-   function fits only when its `module` equals that module; a method
-   `T::f` when its type is `T` and its module is that module. When none
-   fits, the call is followed through `PubUses` (which
-   `read_reexports` collects) and otherwise links to nothing. The
-   fallback that keeps every function of the name stays only for a bare
-   name with no `use` line and a glob import in the file.
-2. `link`, methods: a callee `T::m` whose name is in `STD_METHODS` is
-   also taken when the caller's signature or body names `T`
-   (`Func.idents`) and `T` is a type of the same crate. The file-level
-   test (`file_names`) stays for names not in `STD_METHODS`.
-3. `tools/costs-lint/src/selftest.rs` gains, in its fixture crate: two
-   modules each with a free `gf_mul`, one importing the other's through
-   `use super::gf_mul`, and a check that the caller links to its
-   parent's only; and a private `struct Pts` with `fn at(&self)` that
-   calls a hash, called from a free function taking `&Pts`, with a check
-   that the free function links to `Pts::at` and that a free function
-   not naming `Pts` but calling `.at()` does not.
-4. After the change, `python3 -I -B docs/crypto/check.py check` names
-   every action whose lock lines change; each is re-stamped with
-   `just crypto-review` in the same commit (at least `slip39`, gaining
-   `Points::at`, `gf_mul` and `gf_inv`, and `codex32-make` and
-   `codex32-correct`, losing SLIP-39's `gf_mul` and `polymod`).
-
-About half a day with the re-stamps.
+functions an action's fingerprint covers. Built: a path starting with
+`crate`, `super` or `self` is made absolute against the caller's module
+and names the functions of that module only, or what a `pub use` there
+re-exports, or nothing (`Self::f` is not moved by a `use` of the type in
+another module of the file); a method whose name is in `STD_METHODS` is
+an edge from a caller whose signature or body names its type, as well as
+from the type's own impls. The fixture crate of `selftest.rs` holds a
+check for each. `slip39` gained `Points::at`, `gf_mul` and `gf_inv`;
+`codex32-make` and `codex32-correct` no longer carry SLIP-39's `gf_mul`
+and `polymod`.
 
 ## 3. What Faraday writes itself
 

@@ -235,7 +235,11 @@ mod far;
 mod loose;
 mod m1;
 mod m2;
+mod g1;
+mod g2;
+mod pts;
 
+pub fn uses_pts(p: &pts::Pts) -> u8 { p.at() }
 pub fn picks() -> u8 { m1::shared() }
 
 pub fn reexport_hash() { let _ = fx_bip::sha2::Sha256::new(); }
@@ -250,10 +254,26 @@ const VIA_LOOSE: &str = r"
 pub fn untyped_caller(x: u8) -> u8 { x.go() }
 pub fn untyped_flagged(x: u8) { x.dig() }
 pub fn std_named(x: u8) { x.collect() }
+pub fn unnamed_at(x: u8) -> u8 { x.at() }
 ";
 
 const VIA_M1: &str = "pub fn shared() -> u8 { 1 }\n";
 const VIA_M2: &str = "pub fn shared() -> u8 { 2 }\n";
+
+/// Two modules each with a free `gf_mul`; the child of the first imports
+/// its parent's through `use super::gf_mul`.
+const VIA_G1: &str = "mod sub;\npub fn gf_mul() -> u8 { 1 }\n";
+const VIA_G1_SUB: &str = "use super::gf_mul;\npub fn sub_call() -> u8 { gf_mul() }\n";
+const VIA_G2: &str = "pub fn gf_mul() -> u8 { 2 }\n";
+
+/// A private type whose `at` reaches a hash through a helper.
+const VIA_PTS: &str = r"
+pub struct Pts;
+impl Pts {
+    fn at(&self) -> u8 { hashed() }
+}
+fn hashed() -> u8 { let _ = sha2::Sha256::new(); 0 }
+";
 
 const VIA_FAR: &str = r"
 pub struct Far;
@@ -307,6 +327,10 @@ fn write_fixture(root: &Path) {
     write(root, "faraday/fx-via/src/loose.rs", VIA_LOOSE);
     write(root, "faraday/fx-via/src/m1.rs", VIA_M1);
     write(root, "faraday/fx-via/src/m2.rs", VIA_M2);
+    write(root, "faraday/fx-via/src/g1.rs", VIA_G1);
+    write(root, "faraday/fx-via/src/g1/sub.rs", VIA_G1_SUB);
+    write(root, "faraday/fx-via/src/g2.rs", VIA_G2);
+    write(root, "faraday/fx-via/src/pts.rs", VIA_PTS);
     write(
         root,
         "faraday/shells/snapshot/Cargo.toml",
@@ -351,6 +375,7 @@ fn expected_rules() -> BTreeMap<String, Vec<u8>> {
         (format!("{bip}::shadow_call"), vec![4]),
         ("faraday/fx-via/src/lib.rs::reexport_hash".into(), vec![3]),
         ("faraday/fx-via/src/far.rs::Far::dig".into(), vec![3]),
+        ("faraday/fx-via/src/pts.rs::hashed".into(), vec![3]),
         ("faraday/fx-via/src/far.rs::Far::collect".into(), vec![3]),
         (format!("{bip}::wrapper"), vec![4]),
         (format!("{bip}::method_wrapper"), vec![4]),
@@ -416,6 +441,28 @@ fn edge_checks(c: &mut Checks, inv: &Inventory) {
     c.ok(
         "a std-named cryptographic method is an edge from a file that names its type",
         calls("typed_std", "Far::collect"),
+    );
+    let gf: Vec<usize> = (0..inv.funcs.len())
+        .filter(|&k| inv.funcs[k].name == "gf_mul")
+        .collect();
+    c.ok(
+        "a call through `use super::name` is an edge to the parent module's function only",
+        pos("sub_call").is_some_and(|p| {
+            let hit: Vec<&str> = gf
+                .iter()
+                .filter(|k| inv.funcs[p].callees.contains(k))
+                .map(|&k| inv.funcs[k].file.as_str())
+                .collect();
+            hit == ["faraday/fx-via/src/g1.rs"]
+        }),
+    );
+    c.ok(
+        "a std-named method is an edge from a function whose signature names its type",
+        calls("uses_pts", "Pts::at"),
+    );
+    c.ok(
+        "a std-named method is not an edge from a function that does not name its type",
+        !calls("unnamed_at", "Pts::at"),
     );
     // Any crate: a root prints with what it reaches, and nothing else does.
     let none = inv.lines(false, &HashSet::new()).join("\n");
