@@ -46,7 +46,7 @@ Nothing on it moves until **Customize backup**.
 |---|---|
 | a place's card | its name, "Place 1"; its tags, what someone who finds that place alone gets: **Sees the balance**, **Can spend alone**, **Can spend alone with the vault's passphrase**, **Spends with 1 more place**, "Spends with 2 more places"; once customized, a press on the name makes it a field, and **×** removes the place |
 | **Paper** | what the place keeps on paper: a seed's words ("3dca6805 · Words"), its SeedQR, **Whole** (the printed wallet sheet), "Share 1" |
-| "Stick 2" | a stick at the place, named by the number its pill has at the top of the window (the Faraday stick is Stick 1), with its boxes: a vault ("Vault 1 · new", "Vault 1 · sealed", "Vault 1 · sealed · made in the checklist") and **Files · not sealed**, the files kept outside a vault |
+| "Stick 2" | a stick at the place, named by the number its pill has at the top of the window (the Faraday stick is Stick 1), with its boxes: each vault it holds, in a box of its own ("Vault 1 · new", "Vault 1 · sealed", "Vault 1 · sealed · made in the checklist") and **Files · not sealed**, the files kept outside a vault |
 | **+ stick** | adds an empty stick to the place |
 | **+ place** | adds a place |
 | **Watch-only software** | the software place, while there is one: **Scanned in**, the description scanned into the software, and a stick of its files |
@@ -63,6 +63,10 @@ A chip on the board is one thing kept at one box:
 | the link mark | a vault kept on sticks at more than one place |
 | **×** | takes the chip off that box |
 | **⋮** | its [menu](#the-menu-of-a-chip) |
+
+![Place 1 with Stick 2 holding Vault 1 and Vault 2, each in a box of its own beside Files](../pictures/back-up-board-two-vaults.png)
+
+*A vault dropped on a stick that already holds one joins it: both are written to that stick, and each opens from it.*
 
 Drag a chip from the list onto a box, or press it and then press the
 box; a press anywhere else lets it go. A chip from the list is never

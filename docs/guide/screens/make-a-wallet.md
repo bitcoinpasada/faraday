@@ -67,6 +67,8 @@ A kind with no **Quorum** has **Account** at the head of **Keys**.
 | **Will you use vaults as part of this backup?** | **Yes** or **No**. "Vaults already on sticks are brought in here, not later." |
 | **Sticks** | on **Sticks and vaults**, after **Yes**: a stepper beside **Vaults**, the vaults laid on the sticks, and **Continue** |
 
+![Make a new wallet on Sticks and vaults: Vaults 3 and Sticks 2, Stick 2 holding Vault 1 and Stick 3 holding Vault 2 and Vault 3, Continue](../pictures/make-a-wallet-sticks-and-vaults.png)
+
 For a backup in shares, **No** goes straight on to [New key](new-key.md#make-codex32-shares)
 at its **Identifier** card, the scheme taken from **Quorum**; **Keys**
 closes on the key once its strings are locked in.

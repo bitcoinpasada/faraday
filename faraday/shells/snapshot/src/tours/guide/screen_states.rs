@@ -6,7 +6,8 @@
 //! dialog of a Coldcard export.
 
 use super::{DICE_FP, DICE_WORDS, files_in, key_session, kind_at, seedqr, single_kit};
-use crate::tour::{Tour, type_text};
+use crate::tour::{Tour, bput, scroll_to, type_text};
+use faraday_core::board::{Thing, Zone};
 use faraday_core::create::NewKind;
 use faraday_core::testkit;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent, cstep};
@@ -27,6 +28,8 @@ pub(super) fn run(c: &Compute, t: &mut Tour) -> Result<(), String> {
     transfer(t)?;
     gpg_restore(t)?;
     sweep(t)?;
+    sticks_and_vaults(t)?;
+    two_vaults_on_a_stick(t)?;
     account(t)
 }
 
@@ -326,4 +329,43 @@ fn account(t: &mut Tour) -> Result<(), String> {
     t.shot("wallets-account")?;
     t.press(Action::LoadAccount(None));
     Ok(())
+}
+
+/// Make a new wallet's Sticks and vaults card: Yes to vaults, three
+/// vaults on two sticks.
+fn sticks_and_vaults(t: &mut Tour) -> Result<(), String> {
+    key_session(t);
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    t.press(Action::CVaults(true));
+    t.press(Action::CVaultN(3));
+    t.press(Action::CSticks(2));
+    if t.app.create().and_then(|c| c.open) != Some(cstep::HOW_MANY) {
+        return Err("Yes did not open Sticks and vaults".into());
+    }
+    t.shot("make-a-wallet-sticks-and-vaults")
+}
+
+/// The board of a single key's wallet with a stick holding two vaults.
+fn two_vaults_on_a_stick(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::BoardPress as B;
+    key_session(t);
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    t.press(Action::CVaults(false));
+    let fp = t.app.session.keys[0].fingerprint.0;
+    t.press(Action::CSlotHere(0, fp));
+    t.press(Action::CNext(cstep::KEYS));
+    let w = super::last_wallet(t)?;
+    t.press(Action::Backup(w));
+    t.app.press(Action::Board(B::Customize));
+    t.pump();
+    t.press(Action::Board(B::AddVault));
+    bput(t, Thing::Vault(0), Zone::Card(0));
+    t.press(Action::Board(B::AddVault));
+    bput(t, Thing::Vault(1), Zone::Files(0, 0));
+    scroll_to(t, Action::Board(B::Zone(Zone::Vault(0, 0, 1))));
+    t.shot("back-up-board-two-vaults")
 }

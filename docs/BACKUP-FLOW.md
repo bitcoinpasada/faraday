@@ -431,7 +431,7 @@ signs.
 
 **B. A single key**: the seed in Vault 1 with its stick at Place 1 and
 Place 2, the descriptor on the stick of files. Create: kind → Use
-vaults: Yes → Number of vaults: 1 → insert the stick for Vault 1 (empty,
+vaults: Yes → Sticks and vaults: 1 vault, 1 stick, New → insert Stick 2 (empty,
 bound, tap) → Create Vault 1 → New key, made into memory → Check →
 Back up's plan: the seed in Vault 1, its stick at Place 1 and Place 2,
 the description as files → checklist: Vault 1 (**Save into** Vault 1),
@@ -443,7 +443,8 @@ Done → Unlock → the done card.
 
 **C. A 2-of-3, each key in its own vault.** Vault 1 an existing vault
 on one stick; Vault 2 and Vault 3 new, on empty sticks. Use vaults: Yes
-→ Number of vaults: 3 → insert the stick for Vault 1: it holds `main.fvlt`
+→ Sticks and vaults: 3 vaults, 3 sticks, Vault 1 Already on a stick → insert
+Stick 2: it holds `main.fvlt`
 and `main-2.fvlt`; "Which vault is Vault 1?" → `main.fvlt`, copied in;
 tap → the stick for Vault 2: empty, checked, bound; tap → the stick for
 Vault 3: empty, reads as the second did, so the hold → every stick is
