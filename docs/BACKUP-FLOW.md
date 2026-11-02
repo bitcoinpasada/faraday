@@ -563,12 +563,19 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
      be read after the keys without the lock, which wipes them). It is
      not done, and shows no check, until the person has answered it and
      pressed Continue. No goes on to Keys.
-  2. **How many vaults.** A count of one to 1024 (the most a saved plan
-     reads back); the count refuses more. Not done until its own
-     Continue, also after the wallet is made.
+  2. **Sticks and vaults** (`docs/STICK-SETUP.md` §2). Two steppers,
+     Vaults and Sticks, each one to 1024 (the most a saved plan reads
+     back), and under them the board's chips: a chip per vault with New
+     or Already on a stick, and a box per stick (Stick 2, Stick 3, …)
+     holding the vaults on it. Moved by drag, tap or the chip's ⋮
+     (Put on…, Move to…, Copy to…, Take off). A vault on no stick holds
+     Continue and is named; vaults sharing a stick, and a stick holding
+     none, are warnings. Not done until its own Continue, also after the
+     wallet is made.
   3. **Each vault set up**, one at a time, in this flow and never on the
      stick visit page: **Bring in the sticks** and **Vaults**, as §4.2
-     and §4.3 describe them. A stick for each vault is inserted with
+     and §4.3 describe them. A stick for each stick of the card, with the
+     vaults it holds named, is inserted with
      nothing secret open and checked (FAT32, room, writable); a stick
      that holds vaults offers which existing vault this is or **A new
      vault beside them**, an empty one a new vault. Every stick is read

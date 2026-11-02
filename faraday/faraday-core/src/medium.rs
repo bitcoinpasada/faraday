@@ -158,6 +158,15 @@ impl Medium {
         }
     }
 
+    /// The card that lays the vaults on the media: "Sticks and vaults",
+    /// "SD cards and vaults".
+    pub const fn and_vaults(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_sticks_and_vaults,
+            Medium::SdCard => EN.medium_sd_cards_and_vaults,
+        }
+    }
+
     /// What the medium the device started from is called.
     pub const fn boot(self) -> &'static str {
         match self {

@@ -1167,6 +1167,12 @@ impl Faraday {
             // How many vaults: Continue opens the setup, which brings in
             // each vault's stick and opens or makes the vault; it comes
             // back to Keys.
+            Action::CNext(k)
+                if k == cstep::HOW_MANY
+                    && self
+                        .create
+                        .state()
+                        .is_some_and(|c| self.flows.layout_blocked(c.owner)) => {}
             Action::CNext(k) if k == cstep::HOW_MANY => {
                 if let Some(c) = self.create.state.as_mut() {
                     c.done[k as usize] = true;
@@ -1203,7 +1209,7 @@ impl Faraday {
                     self.backup.set_from_create();
                 }
             }
-            Action::CVaults(_) | Action::CVaultN(_)
+            Action::CVaults(_) | Action::CVaultN(_) | Action::CSticks(_)
                 if self
                     .create
                     .state()
@@ -1235,6 +1241,16 @@ impl Faraday {
                     let owner = c.owner;
                     c.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
                     c.done[cstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::CSticks(n) => {
+                if let Some(c) = self.create.state.as_mut()
+                    && c.built.is_none()
+                {
+                    let owner = c.owner;
+                    c.done[cstep::HOW_MANY as usize] = false;
+                    self.flows.layout_sticks(owner, usize::from(n));
                     self.wallet_vaults_changed(owner);
                 }
             }
@@ -1922,6 +1938,106 @@ impl Faraday {
                     c.error = Some(e.text());
                 }
             }
+        }
+    }
+}
+
+/// The Sticks and vaults card of Make a new wallet and Restore on screen
+/// (`docs/STICK-SETUP.md` §2): its board's presses and drags go to the
+/// area, `backup_flow/layout.rs`; anything else is the backup board's.
+impl Faraday {
+    /// The Make a new wallet or Restore whose card is on screen and takes
+    /// changes.
+    fn layout_owner(&self) -> Option<u64> {
+        let (owner, locked) = match self.screen {
+            Screen::Create => self.create.state().map(|c| (c.owner, c.built.is_some()))?,
+            Screen::Restore => self
+                .restore
+                .state()
+                .map(|r| (r.owner, r.done[crate::rstep::SEEDS as usize]))?,
+            _ => return None,
+        };
+        self.flows.layout_of(owner)?;
+        (!locked && !self.setup_vault_open(owner)).then_some(owner)
+    }
+
+    /// A press of a board: the card's, or the backup board's.
+    pub(crate) fn board_press(&mut self, p: crate::board::BoardPress) {
+        let Some(owner) = self.layout_owner() else {
+            return self.board_act(p);
+        };
+        let anchor = match p {
+            crate::board::BoardPress::Menu(_) => self
+                .pointer
+                .rect_of(Action::Board(p))
+                .map(|r| (r.x, r.y, r.w, r.h)),
+            _ => None,
+        };
+        let opens = matches!(
+            p,
+            crate::board::BoardPress::Menu(_) | crate::board::BoardPress::MenuVerb(_)
+        );
+        let open = self.flows.layout_press(owner, p, anchor);
+        if open && opens {
+            self.sheet = Some(crate::Sheet::BoardMenu);
+            self.scroll.reset_sheet();
+        } else if !open && self.sheet == Some(crate::Sheet::BoardMenu) {
+            self.sheet = None;
+        }
+    }
+
+    /// The card's ⋮ menu, while it is open.
+    pub(crate) fn layout_menu(&self) -> Option<crate::board::Menu> {
+        self.flows.layout_menu(self.layout_owner()?)
+    }
+
+    /// A finger down: on a chip of the card or of the backup board.
+    pub(crate) fn board_press_down(&mut self, found: Option<Action>, x: i32, y: i32) -> bool {
+        match self.layout_owner() {
+            Some(o) => {
+                let still = self.compact || self.sheet.is_some();
+                self.flows.layout_down(o, found, (x, y), still)
+            }
+            None => self.board_down(found, x, y),
+        }
+    }
+
+    /// The finger moved with a chip pressed.
+    pub(crate) fn board_press_move(&mut self, x: i32, y: i32) -> bool {
+        let slop = crate::motion::SLOP * self.f;
+        let Some(o) = self.layout_owner() else {
+            return self.board_move(x, y);
+        };
+        match self.flows.layout_drag(o, (x, y), slop) {
+            Some(took) => {
+                if took {
+                    self.pointer.set_pressed(None);
+                }
+                took
+            }
+            None => self.board_move(x, y),
+        }
+    }
+
+    /// The finger lifted: a chip dragged is dropped or goes back.
+    pub(crate) fn board_press_up(&mut self, x: i32, y: i32) -> bool {
+        let Some(o) = self.layout_owner() else {
+            return self.board_up(x, y);
+        };
+        let Some(press) = self.flows.layout_lift(o, (x, y), self.pointer.hits()) else {
+            return self.board_up(x, y);
+        };
+        self.pointer.set_pressed(None);
+        self.board_press(press);
+        true
+    }
+
+    /// Costs what `place_setup` costs. The setup of `owner` follows its
+    /// card.
+    pub(crate) fn layout_apply(&mut self, owner: u64) {
+        if let Some(i) = self.wallet_flow_pre_of(owner) {
+            let c = self.compute();
+            self.flows.layout_apply(i, owner, &c);
         }
     }
 }

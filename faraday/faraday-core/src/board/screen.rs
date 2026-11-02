@@ -2126,7 +2126,11 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
 /// placed chip's menu under the chip's own glyph. It reads what the press
 /// that opened it worked out.
 pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(menu) = app.board_state().and_then(|st| st.menu.clone()) else {
+    let Some(menu) = app
+        .board_state()
+        .and_then(|st| st.menu.clone())
+        .or_else(|| app.layout_menu())
+    else {
         return;
     };
     let lines: Vec<crate::menu::Line> = menu
@@ -2155,5 +2159,99 @@ pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cancel: (EN.board_menu_cancel, Action::Board(BoardPress::MenuClose)),
             shown: 1.0,
         },
+    );
+}
+
+/// What the Sticks and vaults card of Make a new wallet and Restore
+/// (`backup_flow/layout_screen.rs`) draws with: the board's own chips and
+/// stick boxes, held and dragged as on the board.
+pub(crate) struct CardFrame(Frame);
+
+/// A card's frame: the chip held, where a dragged one is (pixels), and the
+/// chip the keyboard is on.
+pub(crate) fn card_frame(
+    app: &View,
+    ui: &Ui,
+    held: Option<Chip>,
+    drag: Option<(i32, i32)>,
+    focus: Option<Chip>,
+) -> CardFrame {
+    let (f, ox, oy) = (ui.f.max(0.1), ui.ox, ui.oy);
+    CardFrame(Frame {
+        shape: crate::plan::Shape {
+            m: 1,
+            keys: 1,
+            seeds: Vec::new(),
+            splits: false,
+            vaults: 0,
+        },
+        held,
+        drag: drag.map(|(px, py)| (px as f32 / f - ox, py as f32 / f - oy)),
+        locked: false,
+        held_at: None,
+        stick_glyph: app.medium.icon(),
+        focus,
+    })
+}
+
+/// The height of `chips` flowing in `w`.
+pub(crate) fn card_chips_h(ui: &Ui, chips: &[ChipView], w: f32) -> f32 {
+    flow(ui, chips, 0.0, 0.0, w).1
+}
+
+/// `chips` flowing from (x, y) in `w`, each as the board draws a chip;
+/// the box `edged` (a zone the held chip can go to) is not drawn here.
+/// Returns the height.
+pub(crate) fn card_chips(
+    ui: &mut Ui,
+    fr: &mut CardFrame,
+    chips: &[ChipView],
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let (at, h) = flow(ui, chips, x, y, w);
+    for (cv, (cx, cy, fit)) in chips.iter().zip(at) {
+        chip(ui, &mut fr.0, cv, cx, cy, fit, true);
+    }
+    h
+}
+
+/// A chip's width as the board draws it in `avail`.
+pub(crate) fn card_chip_w(ui: &Ui, cv: &ChipView, avail: f32) -> f32 {
+    chip_size(ui, cv, avail).w
+}
+
+/// A stick box `r` (x, y, w, h): the stick glyph and `label`, a press
+/// there `zone`; edged while the held chip can go there. Returns the
+/// head's height.
+pub(crate) fn card_stick(
+    ui: &mut Ui,
+    fr: &CardFrame,
+    label: &str,
+    r: (f32, f32, f32, f32),
+    zone: Action,
+    takes: bool,
+) -> f32 {
+    let hh = stick_box(ui, fr.0.stick_glyph, label, r, zone);
+    let under = fr.0.drag.is_none_or(|p| inside(p, r));
+    if takes && under {
+        edge(ui, r, tokens::GAP, Role::Primary.paint());
+    }
+    hh
+}
+
+/// The chip being dragged, drawn at the finger.
+pub(crate) fn card_lifted(ui: &mut Ui, fr: &mut CardFrame, cv: &ChipView) {
+    let Some((px, py)) = fr.0.drag else {
+        return;
+    };
+    let fit = chip_size(ui, cv, 1000.0);
+    chip(
+        ui,
+        &mut fr.0,
+        cv,
+        px - fit.w / 2.0,
+        py - fit.h / 2.0,
+        fit,
+        false,
     );
 }

@@ -9,7 +9,6 @@ use crate::Action;
 use crate::backup_flow::steps::FlowAction as F;
 use crate::backup_flow::{BackupFlow, Step};
 use crate::drawing::View;
-use crate::screens::stepper;
 use crate::strings::{EN as FEN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
@@ -25,9 +24,9 @@ fn fa(a: F) -> Action {
 /// (`docs/BACKUP-FLOW.md` §15), drawn by the same code: Places, a card
 /// per place with its rows' sheets, the wallet description, where it
 /// goes, the software, and The plan, the map with its checks. While a
-/// stick is written nothing takes a press. Under The plan, each vault
-/// whose stick is not read yet is New or Existing, then what holds the
-/// way on, or Continue.
+/// stick is written nothing takes a press. Under The plan, what holds the
+/// way on, or Continue. Whether a vault is new or already on a stick is
+/// the Sticks and vaults card's (`docs/STICK-SETUP.md` §2.4).
 pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::plan::cards::{self as cards, PlanCtx};
     let Some(ctx) = PlanCtx::flow(app, app.flow_index_of(f)) else {
@@ -52,45 +51,6 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
         cy += cards::body(app, ui, &ctx, q, x + 12.0, cy, w - 12.0) + 8.0;
         if q != crate::qstep::PLAN {
             continue;
-        }
-        // New, or one that exists already: the latter is read from its
-        // stick at step 2.
-        for v in ctx.answers.vaults_made(&ctx.shape) {
-            let Some(vp) = f.plan.vaults.get(v).filter(|vp| vp.salt.is_none()) else {
-                continue;
-            };
-            let label = fill(FEN.plan_vault, &[&(v + 1).to_string()]);
-            let state = if vp.existing {
-                FEN.backup_flow_existing_vault
-            } else {
-                FEN.backup_flow_new_vault
-            };
-            let other = if vp.existing {
-                FEN.backup_flow_new_vault
-            } else {
-                FEN.backup_flow_existing_vault
-            };
-            ui.text_mid_as(
-                (x + 12.0, cy, 32.0),
-                LABEL_L,
-                Role::OnSurface,
-                &fill(FEN.backup_flow_pick_title, &[&label, state]),
-            );
-            let bw = ui.measure_as(LABEL_L, other) + 32.0;
-            ui.button(
-                x + w - bw,
-                cy,
-                Some(bw),
-                BUTTON_H,
-                other,
-                if ctx.enabled {
-                    Style::Secondary
-                } else {
-                    Style::Disabled
-                },
-                fa(F::VaultExisting(v)),
-            );
-            cy += 40.0;
         }
         // The plan card's way on is the flow's Continue, the one way on
         // (§17.7); what holds it takes its place.
@@ -303,53 +263,6 @@ fn ask_card(
     cy - y
 }
 
-/// The count of vaults, the same in Make a new wallet and Restore: the
-/// question over a stepper from one up, and Continue.
-fn count_card(
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    count: usize,
-    locked: bool,
-    set: fn(u16) -> Action,
-    next: Action,
-) -> f32 {
-    let mut cy = y;
-    cy += ui.wrap_as(
-        (x, cy, w),
-        BODY_M,
-        Role::OnSurface,
-        FEN.backup_flow_how_many_question,
-    ) + 14.0;
-    let n = count.min(usize::from(u16::MAX)) as u16;
-    stepper(
-        ui,
-        x,
-        cy,
-        w,
-        FEN.backup_flow_vault_count_label,
-        count,
-        set(n.saturating_sub(1).max(1)),
-        set(n.saturating_add(1)),
-        !locked,
-    );
-    cy += 52.0;
-    if !locked {
-        let label = FEN.create_continue;
-        let lw = ui.measure_as(LABEL_L, label) + 36.0;
-        ui.button(
-            x + w - lw,
-            cy,
-            Some(lw),
-            BUTTON_H,
-            label,
-            Style::Primary,
-            next,
-        );
-        cy += 48.0;
-    }
-    cy - y
-}
-
 /// Make a new wallet's question of vaults.
 pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let c = app.create.state()?;
@@ -363,16 +276,19 @@ pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> O
     ))
 }
 
-/// Make a new wallet's count of vaults.
+/// Make a new wallet's Sticks and vaults card.
 pub(crate) fn create_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let c = app.create.state()?;
-    Some(count_card(
+    Some(super::layout_screen::card(
+        app,
         ui,
+        c.owner,
         (x, y, w),
-        c.vaults.count,
-        c.built.is_some(),
-        Action::CVaultN,
-        Action::CNext(crate::cstep::HOW_MANY),
+        c.built.is_some() || app.setup_vault_open(c.owner),
+        (
+            (Action::CVaultN, Action::CSticks),
+            Action::CNext(crate::cstep::HOW_MANY),
+        ),
     ))
 }
 
@@ -389,16 +305,19 @@ pub(crate) fn restore_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
     ))
 }
 
-/// Restore's count of vaults.
+/// Restore's Sticks and vaults card.
 pub(crate) fn restore_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let r = app.restore.state()?;
-    Some(count_card(
+    Some(super::layout_screen::card(
+        app,
         ui,
+        r.owner,
         (x, y, w),
-        r.vaults.count,
-        r.done[crate::rstep::SEEDS as usize],
-        Action::RVaultN,
-        Action::RNext(crate::rstep::HOW_MANY),
+        r.done[crate::rstep::SEEDS as usize] || app.setup_vault_open(r.owner),
+        (
+            (Action::RVaultN, Action::RSticks),
+            Action::RNext(crate::rstep::HOW_MANY),
+        ),
     ))
 }
 

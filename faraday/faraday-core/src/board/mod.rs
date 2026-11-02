@@ -16,7 +16,7 @@
 //! screen ([`BoardOf`]).
 
 pub mod codex32;
-mod lines;
+pub(crate) mod lines;
 pub(crate) mod screen;
 mod view;
 

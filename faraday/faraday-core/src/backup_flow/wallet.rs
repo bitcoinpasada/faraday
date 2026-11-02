@@ -147,7 +147,7 @@ impl Faraday {
 
     /// How many vaults Make a new wallet or Restore number `owner` set
     /// out to use, when the person answered yes.
-    fn wallet_vault_count(&self, owner: u64) -> Option<usize> {
+    pub(super) fn wallet_vault_count(&self, owner: u64) -> Option<usize> {
         let ask = match (
             self.create.state().filter(|c| c.owner == owner),
             self.restore.state().filter(|r| r.owner == owner),
@@ -164,7 +164,8 @@ impl Faraday {
     /// way follows. No vaults leaves nothing to set up; another count
     /// adds or drops the last vaults and keeps the rest as they are.
     pub(crate) fn wallet_vaults_changed(&mut self, owner: u64) {
-        let c = self.compute();
+        self.flows
+            .layout_follow(owner, self.wallet_vault_count(owner), self.medium);
         let Some(i) = self.wallet_flow_pre_of(owner) else {
             return;
         };
@@ -173,15 +174,7 @@ impl Faraday {
                 self.flows.all.remove(i);
                 self.flows.on = None;
             }
-            Some(count) => {
-                if self.flows[i]
-                    .wallet
-                    .as_ref()
-                    .is_some_and(|w| w.shape.vaults != count)
-                {
-                    self.flows.all[i].resize_setup(&c, count);
-                }
-            }
+            Some(_) => self.layout_apply(owner),
         }
     }
 
@@ -194,8 +187,10 @@ impl Faraday {
         let Some(count) = self.wallet_vault_count(owner) else {
             return;
         };
+        self.flows
+            .layout_follow(owner, self.wallet_vault_count(owner), self.medium);
         if let Some(i) = self.wallet_flow_pre_of(owner) {
-            self.wallet_vaults_changed(owner);
+            self.layout_apply(owner);
             return self.flow_show(i);
         }
         let Some(shape) = self.wallet_placeholder(owner) else {
@@ -213,6 +208,7 @@ impl Faraday {
             w.owner = owner;
         }
         self.flows.all.push(f);
+        self.layout_apply(owner);
         let i = self.flows.len() - 1;
         self.flow_show(i);
     }

@@ -32,7 +32,8 @@ pub(crate) const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.app_check,
     EN.app_done,
     EN.backup_flow_card_use_vaults,
-    EN.backup_flow_card_vault_count,
+    // Sticks and vaults: named by the medium where it is drawn.
+    "",
 ];
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -48,7 +49,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&k| flow::Card {
-            title: RSTEPS[k as usize].to_string(),
+            title: if k == rstep::HOW_MANY {
+                app.medium.and_vaults().to_string()
+            } else {
+                RSTEPS[k as usize].to_string()
+            },
             summary: match k {
                 rstep::KIND => match wl.filter(|_| r.described) {
                     Some(w) => Session::shape(w),

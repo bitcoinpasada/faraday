@@ -27,7 +27,7 @@ made at **Make the wallet**; its backup follows from **Back up wallet**.
 | **Cancel** | at the top right, while the wallet is in progress: asks, then leaves ([Cancel a flow](prompts.md#cancel-a-flow)) |
 
 The cards: **Kind**, **Quorum** (for a kind of several keys, and for a
-backup in shares), **Use vaults**, **Number of vaults**, "Bring in the
+backup in shares), **Use vaults**, **Sticks and vaults**, "Bring in the
 sticks" and **Vaults** (while the backup uses vaults), **Keys**,
 **Check**.
 
@@ -65,7 +65,7 @@ A kind with no **Quorum** has **Account** at the head of **Keys**.
 | Control | What it does |
 |---|---|
 | **Will you use vaults as part of this backup?** | **Yes** or **No**. "Vaults already on sticks are brought in here, not later." |
-| **How many vaults will be part of this backup?** | on **Number of vaults**, after **Yes**: **Vaults**, a stepper, and **Continue** |
+| **Sticks** | on **Sticks and vaults**, after **Yes**: a stepper beside **Vaults**, the vaults laid on the sticks, and **Continue** |
 
 For a backup in shares, **No** goes straight on to [New key](new-key.md#make-codex32-shares)
 at its **Identifier** card, the scheme taken from **Quorum**; **Keys**

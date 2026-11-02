@@ -456,7 +456,10 @@ impl crate::trail::StepFlow for RestoreSteps {
         Action::RStep(k)
     }
 
-    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+    fn name(&self, app: &Faraday, k: u8) -> &'static str {
+        if k == crate::rstep::HOW_MANY {
+            return app.medium.and_vaults();
+        }
         crate::screens::RSTEPS[usize::from(k)]
     }
 
@@ -514,7 +517,7 @@ impl Faraday {
                         (r.vaults.answer.is_none() && !made)
                             || self.setup_pending(r.owner, r.into_vaults(), made)
                     }) => {}
-            Action::RVaults(_) | Action::RVaultN(_)
+            Action::RVaults(_) | Action::RVaultN(_) | Action::RSticks(_)
                 if self.restore.state.as_ref().is_some_and(|r| {
                     !r.done[rstep::SEEDS as usize] && self.setup_vault_open(r.owner)
                 }) =>
@@ -536,6 +539,12 @@ impl Faraday {
                         .is_some_and(|r| r.vaults.answer.is_none()) => {}
             // How many vaults: Continue opens the setup, which comes back
             // to Seeds.
+            Action::RNext(k)
+                if k == rstep::HOW_MANY
+                    && self
+                        .restore
+                        .state()
+                        .is_some_and(|r| self.flows.layout_blocked(r.owner)) => {}
             Action::RNext(k) if k == rstep::HOW_MANY => {
                 if let Some(r) = self.restore.state.as_mut() {
                     r.done[k as usize] = true;
@@ -567,6 +576,16 @@ impl Faraday {
                     let owner = r.owner;
                     r.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
                     r.done[rstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::RSticks(n) => {
+                if let Some(r) = self.restore.state.as_mut()
+                    && !r.done[rstep::SEEDS as usize]
+                {
+                    let owner = r.owner;
+                    r.done[rstep::HOW_MANY as usize] = false;
+                    self.flows.layout_sticks(owner, usize::from(n));
                     self.wallet_vaults_changed(owner);
                 }
             }

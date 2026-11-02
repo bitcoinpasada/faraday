@@ -211,6 +211,12 @@ pub const LIST_INDENT: f32 = 40.0;
 pub const LIST_RESERVE: f32 = 50.0;
 /// A stepper's row: its buttons and the gap under them.
 pub const STEPPER_ROW: f32 = 50.0;
+/// The Sticks and vaults card's stepper, with the gap under it.
+pub const SETUP_STEPPER_H: f32 = 52.0;
+/// How wide the card's two steppers need to stand side by side.
+pub const SETUP_STEPPER_PAIR_W: f32 = 560.0;
+/// What the card's Continue adds to its label's width.
+pub const SETUP_CONTINUE_PAD: f32 = 36.0;
 /// Primary menu row height: an icon, a label and a chevron.
 pub const MENU_ROW: f32 = 72.0;
 /// Menu row height on a `small` panel, where five rows and the app bar

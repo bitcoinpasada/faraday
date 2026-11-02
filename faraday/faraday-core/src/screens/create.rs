@@ -24,7 +24,8 @@ pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
     // Bring in the sticks: named by the medium where it is drawn.
     "",
     EN.backup_flow_card_vaults,
-    EN.backup_flow_card_vault_count,
+    // Sticks and vaults: named by the medium where it is drawn.
+    "",
 ];
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -43,6 +44,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|&k| flow::Card {
             title: if k == cstep::STICKS {
                 fill(EN.backup_flow_card_sticks, &[app.medium.nouns()])
+            } else if k == cstep::HOW_MANY {
+                app.medium.and_vaults().to_string()
             } else {
                 CSTEPS[k as usize].to_string()
             },

@@ -201,7 +201,10 @@ pub(crate) fn create(
         }
         cstep::CHECK => EN.guide_load_the_wallet.to_string(),
         cstep::WHERE => EN.guide_create_vaults_where.to_string(),
-        cstep::HOW_MANY => fill(EN.guide_create_vaults_how_many, &[medium.noun()]),
+        cstep::HOW_MANY => fill(
+            EN.guide_create_vaults_how_many,
+            &[medium.nouns(), medium.noun()],
+        ),
         cstep::STICKS => fill(EN.guide_create_sticks, &[medium.noun(), medium.noun()]),
         cstep::VAULTS => EN.guide_create_vaults.to_string(),
         _ => String::new(),
@@ -232,7 +235,10 @@ pub(crate) fn restore(n: u8, medium: Medium) -> String {
         rstep::SEEDS => EN.guide_one_slot_per.to_string(),
         rstep::CHECK => EN.guide_compare_these.to_string(),
         rstep::WHERE => EN.guide_create_vaults_where.to_string(),
-        rstep::HOW_MANY => fill(EN.guide_create_vaults_how_many, &[medium.noun()]),
+        rstep::HOW_MANY => fill(
+            EN.guide_create_vaults_how_many,
+            &[medium.nouns(), medium.noun()],
+        ),
         _ => EN.guide_restore_session.to_string(),
     }
 }

@@ -678,7 +678,11 @@ impl Faraday {
                     .open
                     .or_else(|| steps.iter().copied().find(|&k| !r.done[k as usize]))
                     .or_else(|| steps.last().copied())?;
-                let step = crate::screens::RSTEPS[k as usize].to_string();
+                let step = if k == crate::rstep::HOW_MANY {
+                    self.medium.and_vaults().to_string()
+                } else {
+                    crate::screens::RSTEPS[k as usize].to_string()
+                };
                 (wallets, EN.sidebar_flow_restore.to_string(), step)
             }
             Going::Backup => (
@@ -739,6 +743,8 @@ impl Faraday {
             .or_else(|| cards.last().copied())?;
         Some(if k == crate::cstep::STICKS {
             fill(EN.backup_flow_card_sticks, &[self.medium.nouns()])
+        } else if k == crate::cstep::HOW_MANY {
+            self.medium.and_vaults().to_string()
         } else {
             crate::screens::CSTEPS[k as usize].to_string()
         })

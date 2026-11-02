@@ -29,7 +29,7 @@ the first cards at once.
 | **Cancel** | at the top right, while the wallet is in progress: asks, then leaves ([Cancel a flow](prompts.md#cancel-a-flow)) |
 
 The cards: **Kind**, **Quorum** (for several keys), **Description**,
-**Use vaults**, **Number of vaults** (after **Yes**), **Keys**,
+**Use vaults**, **Sticks and vaults** (after **Yes**), **Keys**,
 **Check**, **Done**.
 
 ## Kind
@@ -64,8 +64,8 @@ Closed, the card reads the wallet's name, or **None**.
 ## Use vaults
 
 **Will you use vaults as part of this backup?**: **Yes** or **No**,
-then, after **Yes**, **How many vaults will be part of this backup?**
-on **Number of vaults**.
+then, after **Yes**, the **Sticks and vaults** card: how many vaults and
+sticks, and which vault goes on which stick.
 
 ## Keys
 

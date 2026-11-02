@@ -40,6 +40,9 @@ pub(crate) struct BackupFlowArea {
     /// read only while the flow's certificate names the same key. Boxed: the
     /// certificate it holds is large, and the area sits by value in `Faraday`.
     pub(super) restoring: Option<Box<super::gpg_restore::RestoreLive>>,
+    /// The Sticks and vaults card of each Make a new wallet and Restore
+    /// that has vaults answered Yes (`docs/STICK-SETUP.md` §2).
+    layouts: Vec<super::layout::SetupLayout>,
     /// The Restore a GPG key sheet's rows: the public keys in Files, read
     /// when it opened.
     pub(super) restore_rows: Vec<super::gpg_restore::SheetRow>,
@@ -56,6 +59,52 @@ impl std::ops::Deref for BackupFlowArea {
 }
 
 impl BackupFlowArea {
+    /// The Sticks and vaults card of Make a new wallet or Restore `owner`.
+    pub(crate) fn layout_of(&self, owner: u64) -> Option<&super::layout::SetupLayout> {
+        self.layouts.iter().find(|l| l.owner() == owner)
+    }
+
+    /// The same, to change.
+    pub(crate) fn layout_edit(&mut self, owner: u64) -> Option<&mut super::layout::SetupLayout> {
+        self.layouts.iter_mut().find(|l| l.owner() == owner)
+    }
+
+    /// The card of `owner` has `n` vaults; it is made if there is none.
+    pub(crate) fn layout_vaults(&mut self, owner: u64, n: usize, medium: crate::Medium) {
+        match self.layout_edit(owner) {
+            Some(l) => l.set_vaults(n),
+            None => self
+                .layouts
+                .push(super::layout::SetupLayout::new(owner, n, medium)),
+        }
+    }
+
+    /// The card of `owner` has `n` sticks.
+    pub(crate) fn layout_sticks(&mut self, owner: u64, n: usize) {
+        if let Some(l) = self.layout_edit(owner) {
+            l.set_sticks(n);
+        }
+    }
+
+    /// The card of `owner` is let go.
+    pub(crate) fn layout_drop(&mut self, owner: u64) {
+        self.layouts.retain(|l| l.owner() != owner);
+    }
+
+    /// Costs what `place_setup` costs. Flow `i`'s setup takes the card's
+    /// sticks.
+    pub(crate) fn apply_layout(
+        &mut self,
+        i: usize,
+        c: &Compute,
+        places: Vec<Vec<usize>>,
+        existing: Vec<bool>,
+    ) {
+        if let Some(f) = self.all.get_mut(i) {
+            f.place_setup(c, places, existing);
+        }
+    }
+
     /// The flow on screen.
     pub(crate) fn on(&self) -> Option<usize> {
         self.on

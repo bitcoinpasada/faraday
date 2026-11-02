@@ -473,6 +473,10 @@ pub enum Action {
     CVaultN(u16),
     /// The same on Restore.
     RVaultN(u16),
+    /// Sets how many sticks Make a new wallet's backup uses.
+    CSticks(u16),
+    /// The same on Restore.
+    RSticks(u16),
     /// **Add a passphrase** on the plan's check lines: Create opens on
     /// its Keys with the key in its slot and the fields open
     /// (`docs/BACKUP-FLOW.md` §10.3).

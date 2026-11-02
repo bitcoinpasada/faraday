@@ -17,6 +17,8 @@ mod action;
 mod area;
 pub mod gpg_restore;
 pub(crate) mod gpg_restore_screen;
+pub(crate) mod layout;
+pub(crate) mod layout_screen;
 mod place;
 pub(crate) mod screen;
 pub mod steps;
@@ -1210,33 +1212,6 @@ impl BackupFlow {
             public_on: PublicOn::Place,
             public_stick: None,
         }
-    }
-
-    /// Costs what `sync_slots` costs. The setup has another number of
-    /// vaults: the last ones go, or new ones are added after the others,
-    /// and every stick and vault already read or opened stays as it is.
-    pub(crate) fn resize_setup(&mut self, c: &Compute, count: usize) {
-        self.plan.places.truncate(count);
-        self.plan.vaults.truncate(count);
-        while self.plan.places.len() < count {
-            let v = self.plan.places.len();
-            self.plan.places.push(vec![v]);
-            self.plan.vaults.push(VaultPlan::default());
-        }
-        if let Some(w) = self.wallet.as_mut() {
-            w.shape.vaults = count;
-            w.answers = crate::plan::Answers::defaults(&w.shape);
-            w.answers.custom = true;
-        }
-        self.made_in.retain(|&v| v < count);
-        self.sync_slots(c);
-        for s in &mut self.slots {
-            if let Some(b) = s.bound.as_mut() {
-                b.picks.retain(|(v, _)| *v < count);
-            }
-        }
-        self.step = Step::Sticks;
-        self.live.open = Some(Step::Sticks.n());
     }
 
     /// The sticks read in the setup are kept by vault, so that the plan

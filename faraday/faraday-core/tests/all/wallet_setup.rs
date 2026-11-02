@@ -3,7 +3,7 @@
 //! its vault, Create a vault opens by itself once the last stick is
 //! bound, and Guided says why the sticks come first.
 
-use crate::backup_flow_wallet::step;
+use crate::backup_flow_wallet::{step, sticks};
 use crate::common::*;
 use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
@@ -86,4 +86,88 @@ fn guided_bring_in_the_sticks_says_why_the_sticks_come_first() {
     assert!(why(&mut app), "{:?}", texts(&mut app));
     app.press(Action::Guided(false));
     assert!(!why(&mut app));
+}
+
+/// Make a new wallet on the Sticks and vaults card, Use vaults answered
+/// Yes, for a single key.
+fn on_the_card() -> Faraday {
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_single_key(&mut app);
+    app.press(Action::CVaults(true));
+    app.press(Action::CNext(cstep::WHERE));
+    app
+}
+
+/// Three vaults on two sticks: Vault 1 on Stick 2 and Vaults 2 and 3 on
+/// Stick 3, which the card says they share; Continue is live and the
+/// setup asks for those two sticks.
+#[test]
+fn three_vaults_on_two_sticks_share_the_last_and_continue_is_live() {
+    let mut app = on_the_card();
+    app.press(Action::CVaultN(3));
+    app.press(Action::CSticks(2));
+    expect_wrapped(
+        &mut app,
+        "Vault 2 and Vault 3 share Stick 3: losing it loses both",
+    );
+    app.press(Action::CNext(cstep::HOW_MANY));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(app.flow().unwrap().plan.places, vec![vec![0], vec![1, 2]]);
+    assert_eq!(app.flow().unwrap().slots.len(), 2);
+}
+
+/// A vault taken off every stick holds Continue, and the card names it.
+#[test]
+fn a_vault_on_no_stick_holds_continue_and_is_named() {
+    use faraday_core::board::{BoardPress as BP, Thing, Zone};
+    let mut app = on_the_card();
+    app.press(Action::CVaultN(2));
+    app.press(Action::Board(BP::Off(Zone::Card(1), Thing::Vault(1))));
+    expect_wrapped(&mut app, "Vault 2 is on no stick");
+    app.press(Action::CNext(cstep::HOW_MANY));
+    assert_eq!(app.screen, Screen::Create, "Continue is not live");
+}
+
+/// A stick read for the setup is not kept when the card then changes what
+/// the sticks hold: it is asked for again, for the vaults it now carries.
+#[test]
+fn changing_the_card_after_a_stick_is_read_asks_for_the_stick_again() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 2);
+    let mut app = on_the_card();
+    app.press(Action::CVaultN(2));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    expect(&mut app, "Insert Stick 2: Vault 1");
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    expect(&mut app, "Insert Stick 3: Vault 2");
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Create);
+    app.press(Action::CSticks(1));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    expect(&mut app, "Insert Stick 2: Vault 1, Vault 2");
+    assert!(app.flow().unwrap().slots.iter().all(|s| s.bound.is_none()));
+}
+
+/// On the Pi the Sticks and vaults card says SD card where the PC says
+/// stick: the count's label, the segment, the stick boxes and a check.
+#[test]
+fn the_card_names_an_sd_card_on_the_pi() {
+    use faraday_core::Medium;
+    use faraday_core::board::{BoardPress as BP, Thing, Zone};
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    app.medium = Medium::SdCard;
+    keep_time(&mut app);
+    create_single_key(&mut app);
+    app.press(Action::CVaults(true));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CVaultN(2));
+    app.press(Action::Board(BP::Off(Zone::Card(1), Thing::Vault(1))));
+    expect_wrapped(&mut app, "SD cards and vaults");
+    expect_wrapped(&mut app, "Already on an SD card");
+    expect_wrapped(&mut app, "SD card 2");
+    expect_wrapped(&mut app, "Vault 2 is on no SD card");
+    expect_wrapped(&mut app, "SD card 3 holds no vault");
 }

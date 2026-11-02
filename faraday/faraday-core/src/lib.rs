@@ -2503,10 +2503,9 @@ impl Faraday {
     /// by the way out its own kind has, and what it held is let go.
     pub(crate) fn cancel_act(&mut self, action: Action) {
         match action {
-            // The ⋮ menu's way out is its own: back to the Add sheet it
-            // came from (`docs/BACKUP-FLOW.md` §17.20).
+            // The ⋮ menu's way out: back to the Add sheet (`docs/BACKUP-FLOW.md` §17.20).
             Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
-                self.board_act(board::BoardPress::MenuClose);
+                self.board_press(board::BoardPress::MenuClose);
             }
             Action::Cancel
                 if matches!(
@@ -2891,6 +2890,7 @@ impl Faraday {
             | Action::RStep(..)
             | Action::RVaults(..)
             | Action::RVaultN(..)
+            | Action::RSticks(..)
             | Action::RNext(..)
             | Action::RKind(..)
             | Action::RMoreKinds
@@ -2965,7 +2965,7 @@ impl Faraday {
             | Action::BOmit(..)
             | Action::BOut(..)
             | Action::BC32(..)) => self.backup_act(a, &c),
-            Action::Board(p) => self.board_act(p),
+            Action::Board(p) => self.board_press(p),
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
             a @ (Action::DecodeFinished
             | Action::DecodeInbox(..)
@@ -2992,6 +2992,7 @@ impl Faraday {
             | Action::CBackup
             | Action::CVaults(..)
             | Action::CVaultN(..)
+            | Action::CSticks(..)
             | Action::PlanAddPass
             | Action::CMoreKinds
             | Action::CKindAbout
@@ -5281,9 +5282,8 @@ impl Faraday {
                 }
                 self.pointer.set_pressed(found);
                 self.vaults.pressed(self.now_ms);
-                // A press on a chip of the backup board may be its drag:
-                // the page does not scroll under it (§19.2).
-                if self.board_down(found.map(|f| f.0), x, y) {
+                // A press on a board chip may be its drag: no scroll (§19.2).
+                if self.board_press_down(found.map(|f| f.0), x, y) {
                     self.pointer.set_drag(None);
                 }
                 if let Some((Action::VisitBar(c), _)) = found {
@@ -5299,7 +5299,7 @@ impl Faraday {
                     return;
                 }
                 // A board chip past the slop follows the finger.
-                if self.board_move(x, y) {
+                if self.board_press_move(x, y) {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
                     return;
@@ -5364,7 +5364,7 @@ impl Faraday {
                     return;
                 }
                 // A board chip dragged is dropped where it is lifted.
-                if self.board_up(x, y) {
+                if self.board_press_up(x, y) {
                     self.pointer.set_drag(None);
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);

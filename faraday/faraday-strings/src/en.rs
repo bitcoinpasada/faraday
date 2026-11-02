@@ -3016,8 +3016,9 @@ strings! {
     guide_create_vaults: "Make or unlock each vault now, before the keys exist, so each new seed can be saved into it.",
     /// Text in `create`, bringing in the sticks. `{}`: `medium.noun()` twice.
     guide_create_sticks: "Insert each vault's {} in turn. Keys are made only after the {} is removed.",
-    /// Text in `create` and `restore`, Number of vaults. `{}`: `medium.noun()`.
-    guide_create_vaults_how_many: "How many vaults the backup uses. Each is made on its own {}.",
+    /// Text in `create` and `restore`, Sticks and vaults. `{}`:
+    /// `medium.nouns()`, then `medium.noun()`.
+    guide_create_vaults_how_many: "How many vaults and {} the backup uses, and which vault goes on which {}.",
     /// Text in `create` and `restore`, Use vaults.
     guide_create_vaults_where: "Choose whether vaults are part of the backup. A vault keeps a further copy of the seeds, sealed under a passphrase, beside the paper.",
     /// Text in `restore`.
@@ -4414,6 +4415,10 @@ strings! {
     medium_stick_visit: "Stick visit",
     /// Text in `visit`.
     medium_sd_card_visit: "SD card visit",
+    /// Text in `and_vaults`.
+    medium_sticks_and_vaults: "Sticks and vaults",
+    /// Text in `and_vaults`.
+    medium_sd_cards_and_vaults: "SD cards and vaults",
     /// Text in `boot`.
     medium_boot_stick: "Boot stick",
     /// Text in `boot`.
@@ -9633,8 +9638,6 @@ strings! {
     backup_flow_public_stick: "the {} of public files",
     /// A place's stick of files (§17.2): the place.
     backup_flow_place_files: "Files ({})",
-    /// A place's card's sheet: the row, the place.
-    backup_flow_pick_title: "{} · {}",
     /// The plan's last card, the map approved.
     backup_flow_the_plan: "The plan",
     /// The plan held by a vault that holds nothing: the vault.
@@ -9910,10 +9913,22 @@ strings! {
     /// The muted line under that question (`docs/BACKUP-FLOW.md` §17.21
     /// item 5).
     backup_flow_vaults_on_sticks: "Vaults already on sticks are brought in here, not later.",
-    /// The card that asks how many vaults.
-    backup_flow_card_vault_count: "Number of vaults",
-    /// The line over the count of vaults.
-    backup_flow_how_many_question: "How many vaults will be part of this backup?",
+    /// The second stepper's label. `{}`: `medium.caps()`.
+    backup_flow_stick_count_label: "{}",
+    /// A vault's segment: it is made new.
+    backup_flow_layout_new: "New",
+    /// A vault's segment: it is on a stick already. `{}`: `medium.a()`.
+    backup_flow_layout_existing: "Already on {}",
+    /// A vault chip's menu title and its first item, naming the sticks.
+    backup_flow_layout_put_on: "Put on…",
+    /// A check: `{}`: the vault, `medium.noun()`.
+    backup_flow_layout_on_none: "{} is on no {}",
+    /// A check: `{}`: two vaults, the stick.
+    backup_flow_layout_share_two: "{} and {} share {}: losing it loses both",
+    /// A check: `{}`: the vaults, the stick.
+    backup_flow_layout_share_many: "{} share {}: losing it loses all of them",
+    /// A check: `{}`: the stick.
+    backup_flow_layout_stick_empty: "{} holds no vault",
     /// The count's label.
     backup_flow_vault_count_label: "Vaults",
     /// A stick named by its vault before the keys exist: "the stick for
