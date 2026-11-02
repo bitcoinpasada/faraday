@@ -61,6 +61,7 @@ fn load_ticked_with_a_stick_in_asks_for_it_out_and_then_loads() {
         "{texts:?}"
     );
     stick(&mut app, false);
+    faraday_core::testkit::settle(&mut app);
     assert_eq!(app.sheet, None);
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(app.toast_text(), Some("Loaded 1 wallet and 3 keys"));
@@ -124,6 +125,7 @@ fn load_ticked_with_the_boot_stick_in_asks_for_it_out_and_then_loads() {
     assert_eq!(app.sheet, Some(Sheet::Pull));
     assert!(app.session.wallets.is_empty());
     sticks_in(&mut app, false, true);
+    faraday_core::testkit::settle(&mut app);
     assert_eq!(app.sheet, None);
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert!(!app.session.keys.is_empty());
