@@ -6651,6 +6651,8 @@ strings! {
     /// A toast on the frame drawn before an aezeed is stretched for its
     /// node key.
     working_node_key: "Working out the node key",
+    /// The line of the job that loads the ticked samples.
+    working_samples: "Loading the samples",
     /// Text in `visit`. `{}`: `app.medium.noun()`.
     visit_no_files: "No files on this {}",
     /// Button in `visit`.

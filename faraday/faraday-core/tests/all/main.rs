@@ -194,4 +194,5 @@ mod wide_keyboard;
 mod window_class;
 mod window_drag;
 mod word_lists;
+mod worker;
 mod wordmark;

@@ -1537,7 +1537,7 @@ impl Faraday {
                 // slider is let go and a frame drawn (`docs/SPEED.md` §9).
                 if let Some(w) = remake {
                     self.later = Some(Later::PublicOut(w, 4));
-                    self.later_drawn = false;
+                    self.worker.set_drawn(false);
                 }
             }
             Action::BOut(what) => self.backup_out(what),

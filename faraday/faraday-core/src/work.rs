@@ -195,6 +195,16 @@ pub fn since(before: &Counts) -> Counts {
     snapshot().since(before)
 }
 
+/// Adds work counted on another thread (the worker's, `docs/WORKERS.md`
+/// §5) to this thread's counts.
+pub fn absorb(done: &Counts) {
+    COUNTS.with(|c| {
+        for (cell, n) in c.iter().zip(done.0.iter()) {
+            cell.set(cell.get().wrapping_add(*n));
+        }
+    });
+}
+
 /// What a vault's key stretch was for, for the dev card's timings
 /// (`docs/DEVELOPING.md` §6.2): the act, the cost, which is the vault's
 /// header and not secret, and how it ended. Nothing in it comes from a

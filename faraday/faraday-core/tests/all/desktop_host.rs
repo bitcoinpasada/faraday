@@ -89,6 +89,9 @@ fn tap_at(host: &mut Host, x: u16, y: u16) {
         host.event(Event::Touch { x, y, phase });
     }
     let _ = host.frame();
+    // The worker's answers come as the next tick would bring them.
+    faraday_core::testkit::settle(&mut host.app);
+    let _ = host.frame();
 }
 
 /// The shell of the desktop app, in little: a folder pressed is plugged

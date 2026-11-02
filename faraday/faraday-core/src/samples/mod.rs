@@ -618,29 +618,50 @@ impl Faraday {
         }
     }
 
-    /// Costs what the keys and wallets ticked cost: a stretched key and a
-    /// master key for each key (an Argon2id run for the backup), a wallet
-    /// read for each wallet. Loads what is ticked, wallets first, each with
-    /// the sample keys it uses, then the keys, through the paths a typed or
-    /// scanned key and wallet take. One already loaded is skipped, not
-    /// shown as an error. The sheet closes and one toast counts what
-    /// loaded.
+    /// The front half of Load ticked: reads which wallets are ticked and
+    /// starts the job that reads their descriptions (`docs/WORKERS.md`
+    /// §3.2): public data, so nothing secret crosses to the worker. The
+    /// keys are stretched in the back half (they join the worker in the
+    /// batch that gives faraday-keys its job types).
     fn samples_load(&mut self, set: &'static Samples) {
         if !self.sample_area.sheet.any_ticked() || !self.may_load_keys() {
             return;
         }
+        let wallets = self
+            .sample_area
+            .sheet
+            .wallets
+            .iter()
+            .filter(|r| r.ticked && !r.loaded)
+            .map(|r| r.sample)
+            .collect();
+        self.start(
+            crate::worker::Job::SamplesLoad(Box::new(LoadJob { set, wallets })),
+            EN.working_samples,
+        );
+    }
+
+    /// Costs a stretched key and a master key for each key added (an
+    /// Argon2id run for the backup). The back half: the ticked wallets
+    /// read by the job go into the session, each with the sample keys it
+    /// uses, then the ticked keys, through the paths a typed or scanned
+    /// key and wallet take. One already loaded is skipped, not shown as
+    /// an error. The sheet closes and one toast counts what loaded.
+    pub(crate) fn samples_loaded(&mut self, done: Loaded) {
         let c = self.compute();
+        let set = done.set;
         let sheet = std::mem::take(&mut self.sample_area.sheet);
         let (mut wallets, mut keys) = (0, 0);
-        for r in sheet.wallets.iter().filter(|r| r.ticked && !r.loaded) {
-            let w = &set.wallets[r.sample];
+        for (i, policy) in done.read {
+            let w = &set.wallets[i];
             let name = label(w.name, "", 0).unwrap_or_default();
             let before = self.session.wallets.len();
-            let source = EN.samples_source;
-            let added = self
-                .session
-                .add_wallet(&c, &name, w.text, source, Origin::Statement);
-            wallets += usize::from(added.is_ok() && self.session.wallets.len() > before);
+            let added = policy.map(|p| {
+                self.session
+                    .add_policy(&c, &name, p, EN.samples_source, Origin::Statement)
+            });
+            wallets +=
+                usize::from(added.is_some_and(|r| r.is_ok()) && self.session.wallets.len() > before);
             for fp in w.keys {
                 let sample = set.keys.iter().find(|k| k.plain == Some(*fp));
                 keys += sample.map_or(0, |k| usize::from(k.add(&c, &mut self.session.keys)));
@@ -656,6 +677,35 @@ impl Faraday {
         if wallets + keys > 0 {
             self.refresh_spend();
             self.toast(&fill(EN.samples_loaded, &[&loaded_text(wallets, keys)]));
+        }
+    }
+}
+
+/// What Load ticked is given to work on: the samples and the ticked
+/// wallets' rows (public data: the samples of `faraday-samples`).
+pub(crate) struct LoadJob {
+    set: &'static Samples,
+    wallets: Vec<usize>,
+}
+
+/// What Load ticked gives back: each ticked wallet's description read,
+/// `None` where it did not read.
+pub(crate) struct Loaded {
+    set: &'static Samples,
+    read: Vec<(usize, Option<faraday_bip::policy::WalletPolicy>)>,
+}
+
+impl LoadJob {
+    /// Costs a wallet read for each wallet ticked.
+    pub(crate) fn run(self, c: &Compute) -> Loaded {
+        let read = self
+            .wallets
+            .iter()
+            .map(|&i| (i, read_wallet(c, self.set.wallets[i].text).ok()))
+            .collect();
+        Loaded {
+            set: self.set,
+            read,
         }
     }
 }

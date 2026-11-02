@@ -1789,3 +1789,15 @@ pub fn device_bytes(app: &crate::Faraday, bytes: &[u8; 32]) -> [u8; 32] {
 pub fn seed_draw(app: &crate::Faraday, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {
     app.fresh.draw(what, count)
 }
+
+/// Waits for the job the worker runs and applies its answer, as the
+/// next tick of a shell does (`docs/WORKERS.md` §3.2).
+pub fn settle(app: &mut crate::Faraday) {
+    app.settle_jobs();
+}
+
+/// A press as a person's is: its job goes to the worker, and the answer
+/// is applied by [`settle`] or the next event.
+pub fn press_on_worker(app: &mut crate::Faraday, action: crate::Action) {
+    app.press_as(action, false);
+}

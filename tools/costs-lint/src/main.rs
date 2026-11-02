@@ -60,6 +60,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "Faraday's tests and the snapshot tool's sessions",
     ),
     (
+        "faraday/faraday-core/src/worker.rs",
+        "worker_loop",
+        "the core's worker thread, which draws nothing (a token cannot cross threads)",
+    ),
+    (
         "faraday/faraday-storage/src/lib.rs",
         "Pictures::ask",
         "the pictures' worker thread, which draws nothing (a token cannot cross threads)",

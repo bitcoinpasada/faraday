@@ -30,7 +30,7 @@
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
 //!   the selection), `motion` (scrolling), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
-//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `fade` (a
+//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
 //!   window class, with `nav/screen.rs`), `file_menu`, `in_progress`,
 //!   `compact` (the small panel), `panes` (list and detail), `medium`
@@ -152,6 +152,7 @@ mod trail;
 pub mod ui;
 pub mod visit_taken;
 pub mod work;
+pub mod worker;
 
 // Screens and drawing: what is drawn from the state (each area's `screen.rs` is in its folder).
 pub mod demo;
@@ -1089,7 +1090,9 @@ pub struct Faraday {
     /// A press whose work waits for a frame (`docs/SPEED.md` §9), and
     /// whether a frame has been drawn since it was pressed.
     later: Option<Later>,
-    later_drawn: bool,
+    /// The worker, the job that runs on it and whether a frame has been
+    /// drawn since a press was left to wait.
+    worker: worker::Worker,
     /// The step column's open card, and one opening or closing.
     disclosed: Option<Disclosed>,
     /// A change of screen or sheet fading in, how fast this machine has
@@ -1224,7 +1227,7 @@ impl Faraday {
             trail: trail::Trail::default(),
             seed_read: seeds::SeedsArea::default(),
             later: None,
-            later_drawn: false,
+            worker: worker::Worker::new(),
             disclosed: None,
             fade: fade::Fade::default(),
             guided_moving: None,
@@ -1293,6 +1296,7 @@ impl Faraday {
 
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
+        self.drain_jobs();
         let screen = self.screen;
         self.note_here();
         self.storage_event(event.in_own_words());
@@ -1721,6 +1725,9 @@ impl Faraday {
     /// The idle timers (`docs/history/PLAN.md` §12.3). Returns whether the screen
     /// changed.
     fn idle_tick(&mut self, now_ms: u64) -> bool {
+        if self.hold_idle(now_ms) {
+            return false;
+        }
         let c = self.compute();
         let idle = self.idle.ms_starting(now_ms);
         let min = 60_000u64;
@@ -2315,6 +2322,7 @@ impl Faraday {
 
     /// Lock: what can be sealed is, and the session goes.
     fn lock_now(&mut self) {
+        self.job_locked();
         // The code on show goes first, its text wiped: it may be an
         // entry's TOTP secret (`docs/QR.md` §7.1).
         self.qr.close();
@@ -2430,6 +2438,9 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
+        if !self.taken_while_busy(action) {
+            return;
+        }
         let asked = self.session.key_path_asked().is_some();
         let account_asked = self.session.account_asked().is_some();
         // A choice in a file's ⋮ menu closes the menu first.
@@ -5620,7 +5631,7 @@ impl Faraday {
         self.scroll.drew(drew, scrolled);
         self.typing.set_caret_drawn(caret);
         self.vaults.set_drawn();
-        self.later_drawn = true;
+        self.worker.set_drawn(true);
         self.pointer.set_hits(hits, reach);
         self.pointer.set_tip_anchors(tips);
         self.fade_end(&mut canvas);
@@ -5734,6 +5745,12 @@ impl Faraday {
     /// Acts as if `action` had been pressed: for drivers that script the
     /// screens, such as the snapshot tool.
     pub fn press(&mut self, action: Action) {
+        self.press_as(action, true);
+    }
+
+    /// [`Faraday::press`], its jobs run inline or, as a person's press
+    /// has them, on the worker.
+    pub(crate) fn press_as(&mut self, action: Action, inline: bool) {
         // An action may change the words typed: the status line's key is
         // worked out again, once typing pauses when the action is a
         // character from the on-screen keyboard.
@@ -5747,10 +5764,13 @@ impl Faraday {
         }
         self.note_secrets();
         self.note_here();
+        // A script does not wait for the worker either: its jobs run here.
+        let was_inline = self.worker.set_inline(inline);
         self.press_in(action);
         // A script does not wait for frames: what a person's press leaves
         // for the tick after its frame is done now.
         self.later_now();
+        self.worker.set_inline(was_inline);
         self.backup_settle();
         self.after_input();
         self.out.dirty = true;
@@ -5769,7 +5789,7 @@ impl Faraday {
         }
         if slow(action) && !field_action(action) {
             self.later = Some(Later::Press(action));
-            self.later_drawn = false;
+            self.worker.set_drawn(false);
             if let Some(text) = working_text(action) {
                 self.working(text);
             }
@@ -5790,60 +5810,6 @@ impl Faraday {
             done.of(work::Work::Kdf),
             done.of(work::Work::Picture),
         );
-    }
-
-    /// Says what a press left for the tick is doing, at once: the toast
-    /// shows in full on the frame drawn before the work.
-    fn working(&mut self, text: &str) {
-        self.toast(text);
-        self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
-    }
-
-    /// Does the press waiting, once a frame has been drawn since it was
-    /// pressed. Public files a slider asked for wait until it is let go.
-    /// Returns whether it did.
-    fn later_tick(&mut self) -> bool {
-        let held = matches!(self.pointer.pressed(), Some((Action::Slide(..), _)));
-        if !self.later_drawn
-            || self.later.is_none()
-            || (held && matches!(self.later, Some(Later::PublicOut(..))))
-        {
-            return false;
-        }
-        self.later_now();
-        true
-    }
-
-    /// Does the press waiting now, whatever has been drawn.
-    fn later_now(&mut self) {
-        let Some(later) = self.later.take() else {
-            return;
-        };
-        let toast = self.out.toast.as_ref().map(|(t, _)| t.clone());
-        if let Later::Press(_) | Later::Key(_) = later {
-            self.note_here();
-        }
-        match later {
-            Later::Press(a) => self.act(a),
-            Later::Key(k) => self.key(k),
-            Later::PublicOut(w, what) => self.public_out(w, what),
-        }
-        if let Later::Press(_) | Later::Key(_) = later {
-            self.backup_settle();
-            self.after_input();
-        }
-        // The working toast goes once the work is done, unless the work
-        // said something of its own.
-        if toast.is_some()
-            && self.out.toast.as_ref().map(|(t, _)| t.clone()) == toast
-            && [EN.working_files, EN.working_node_key]
-                .iter()
-                .any(|w| toast.as_deref() == Some(*w))
-        {
-            self.out.toast = None;
-        }
-        self.out.dirty = true;
-        self.out.commands.push_back(Command::Draw);
     }
 
     /// What every press does once it has acted, however it came (a tap,
@@ -6011,6 +5977,7 @@ pub(crate) fn stem(name: &str) -> String {
 impl App for Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn event(&mut self, event: Event) {
+        self.drain_jobs();
         self.vault_shown_tidy();
         // Any event but a pointer's motion, a scroll, a hover, a tick, a
         // camera frame or a modifier may change the words typed on Add a
@@ -6086,7 +6053,7 @@ impl App for Faraday {
                     // §9).
                     self.later_now();
                     self.later = Some(Later::Key(k));
-                    self.later_drawn = false;
+                    self.worker.set_drawn(false);
                     self.working(EN.working_node_key);
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
