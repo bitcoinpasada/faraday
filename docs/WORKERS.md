@@ -352,28 +352,29 @@ builds faraday-keys' `job.rs`; W8 needs only W1.
 
 ## 10. For the owner
 
-1. **Signing keys shared, not copied** (§6). Recommended: the store
+Decided by the owner, 2026-11-02, as below.
+
+1. **Signing keys shared, not copied** (§6). The store
    holds each master key's secret behind an `Arc`, and a signing job
    shares it, so no copy is made and a key forgotten mid-sign is wiped
    when the job ends. The other way, a copy for the job, is a second
    secret in memory for the job's length.
-2. **Leaving a job to run on another screen.** Recommended: no for now.
+2. **Leaving a job to run on another screen.** No for now.
    While a job runs, only Back, Cancel and Lock are taken (§4); letting
    a person open another tab while a vault opens means a job applied to
    a state that may have changed under it.
-3. **The idle clock during a job.** Recommended: held while a job runs
+3. **The idle clock during a job.** Held while a job runs
    and started again from its end, since the job is the person's press
    and the person is waiting on it; a Strong vault on a Pi would
    otherwise warn mid-unlock.
-4. **Pictures and PDFs of secret words on the worker** (§6). Recommended:
-   yes, as a faraday-keys `MakeJob` holding a wiped copy of the revealed
+4. **Pictures and PDFs of secret words on the worker** (§6). Yes, as a faraday-keys `MakeJob` holding a wiped copy of the revealed
    text for the job's length; until then those presses stay frame first
    on the main thread.
 5. **Stopping a stretch early.** After Back or a lock the worker runs
    the stretch to its end and drops it, which holds the next job up to
    its length (seconds on a Pi). Argon2 and PBKDF2 could look at a stop
    flag between passes or blocks, which changes no output but touches
-   the crypto crates' loops. Recommended: not now; record it as later
+   the crypto crates' loops. Not now; record it as later
    work and decide once W4 is timed.
 6. **The decision** (§5): one new decision, "costly work runs on one
    worker in the core", taking its number at the push.
