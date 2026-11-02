@@ -574,7 +574,10 @@ Nothing a person waits on blocks a frame. What holds:
    passphrase on `Sheet::Potential` and `Sheet::SeedRead`, Load a key's
    probe of the words) works it out once typing has paused for
    `motion::TYPED_PAUSE_MS` (400 ms); tests wait with `testkit::pause`.
-   The key budget test (§8.3) holds every field to it.
+   The key budget test (§8.3) holds every field to it. Since F184
+   (owner, 2026-11-02) this holds for short work alone: a press whose
+   work takes longer than a tenth of a second on a Raspberry Pi 3B+ is
+   a job on the core's worker instead (`docs/WORKERS.md` §2.1).
 3. **Rows out of sight are not drawn.** A line of text wholly outside
    the clip, or under a clip with no room (a pass that only measures),
    is measured from its advances, not drawn

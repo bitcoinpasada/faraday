@@ -1,16 +1,18 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** Specified, not built; waits on the owner's answers in §10
-**Open:** all of it: the core's worker (§3), the busy screen (§4), the token on the worker (§5), key material in a job (§6), the shells' wake and the stick's writes (§7), the jobs themselves (§9)
+**Status:** Specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
+**Open:** all of it: the core's worker (§3), the busy screen (§4), the token on the worker (§5), key material in a job (§6), the shells' wake and the stick's writes (§7), the jobs themselves (§9), the list of §2.1 confirmed on a Pi 3B+
 
-Touch and drawing run on each shell's own thread, the main thread; every
-other computation runs on a thread of its own (owner, 2026-10-31,
-2026-11-02). This holds for every Faraday: the stick and the Pi
-(`faraday/shells/stick`, one shell for both) and Faraday Demo
-(`faraday/shells/desktop` over `faraday/shells/window`). The design is
-one worker in the core, so every shell that holds a `Faraday` gets it
-with no code of its own but a wake.
+Touch and drawing run on each shell's own thread, the main thread. Work
+that takes longer than a tenth of a second on a Raspberry Pi 3B+ runs on
+a thread of its own, one worker in the core; shorter work stays where
+it is, drawn first and done on the tick after (owner, 2026-10-31,
+2026-11-02; F184, which amends `docs/SPEED.md` §9 point 2). This holds
+for every Faraday: the stick and the Pi (`faraday/shells/stick`, one
+shell for both) and Faraday Demo (`faraday/shells/desktop` over
+`faraday/shells/window`). The worker is in the core, so every shell that
+holds a `Faraday` gets it with no code of its own but a wake.
 
 ## 1. What runs where today
 
@@ -36,7 +38,10 @@ main thread (`Work::PsbtParse`, `PsbtInspect`), and the sheet stands
 still for them. And the panic chord is timed by the stick's main loop
 (`keyboard::PanicTimer`, polled in `main_loop`): while a key is
 stretched there, the chord held for its whole time does nothing until
-the stretch ends. Moving the work off the main thread fixes both.
+the stretch ends. Moving the long work off the main thread fixes both:
+the inspection and every stretch that holds the screen for seconds are
+jobs (§2.1), and what stays is drawn first and shorter than a tenth of a
+second on a Pi.
 
 **The Starter.** Its own work already runs on threads (the disks,
 the concerns, BitLocker, every write; SPEED §11.2), and only its PDFs are
@@ -47,10 +52,11 @@ Demo's (§7.2).
 
 ## 2. Rules
 
-1. **The main thread draws and takes input.** A shell's main thread
-   hands the core its events, draws, presents, and times the panic
-   chord. Nothing on it works out a key, a signature, a picture, a code
-   or a file, nor waits on a disk.
+1. **The main thread draws, takes input and does short work.** A shell's
+   main thread hands the core its events, draws, presents, and times the
+   panic chord. Work on §2.1's list of jobs runs on the worker; any other
+   costly press is drawn first and done on the tick after, as SPEED §9
+   point 2 says, and is short by the line of §2.1.
 2. **Drawing reads.** The busy screen (§4) reads what the core keeps
    of the job (`Busy`: what it is, when it began, a count where it has
    one); it works nothing out (`docs/SPEED.md` §3.3, §7;
@@ -65,6 +71,46 @@ Demo's (§7.2).
 5. **Nothing waits on a result that will not come.** A lock, Back or a
    new job of the same kind makes the result stale; a stale result is
    dropped where it arrives, and wiped as it drops.
+
+### 2.1 The line, and the list
+
+**The line** (owner, 2026-11-02; F184). A press is a job when its work
+takes longer than a tenth of a second, 100 ms, on a Raspberry Pi 3B+ at
+its full clock (1400 MHz); shorter work is drawn first and done on the
+tick after. A vault's key stretch is a job whatever it measures. Work
+that grows with what it is given is judged at a large ordinary case: a
+2-of-3 spend of 50 inputs, a multisig of fifteen keys.
+
+**Until a Pi measures it.** No Pi has timed these presses yet, so a
+release build on a desktop PC stands in, at a tenth of the line (10 ms):
+SPEED's account of batch S2 found that "a Pi 3 is about ten times
+slower" (`docs/history/SPEED-LOG.md`, "§9 Batch S2"). The list below was
+made that way.
+
+**How an item moves.** The dev card's `work` rows (`costly::label`),
+read on a Pi 3B+ at 1400 MHz, confirm an item or move it: a press drawn
+first whose row shows more than 100 ms becomes a job, and a job whose
+row shows well under it goes back to drawn first, except a vault's
+stretch. A move is one commit that changes `slow.rs`'s list and this
+table together and says in its message what was measured on what.
+
+| Work | Presses | Side |
+|---|---|---|
+| Argon2id for a vault | A vault opened, an older one opened, made, sealed again; the boot import's unlock; the Spend tab's unlock | Job |
+| Argon2id for a KeePass file | The KDBX export written and verified (`V::ExportKdbx`, then `V::PromptGo`) | Job |
+| Argon2id for each key | Practice's samples loaded (`SamplesLoad`) | Job |
+| scrypt | An aezeed read (Lightning) | Job |
+| Signing | A PSBT signed, on the Spend tab or from a review | Job |
+| A PSBT's inspection | A PSBT parsed and inspected, from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`) | Job |
+| A set of files | A wallet's public files (`PublicOut`, Specter's numbered pictures), the backup's checklist (`BChecklist`), the backup stick's files and the flow's writes (`Flow`) | Job |
+| PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered | Drawn first |
+| One picture or one PDF | A SeedQR picture, a seed's words or a paper form, one backup sheet | Drawn first |
+| The self-test | Run self-test (`SelfTestRun`) | Drawn first |
+| Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | Drawn first until W1 times them with the stand-in |
+
+Files written to a stick are not a press's work but a wait on the disk
+process; whether they cross the line is the dev card's `file written`
+row's answer (§7.3).
 
 ## 3. The worker
 
@@ -109,11 +155,13 @@ struct Answer { done: Done, gen: u64, counts: work::Counts }
   `storage` call. An answer whose generation is the current one is
   applied by its area (`Done::Stretch` to the vault's or the seed's
   area, and so on) and clears `busy`; any other is dropped.
-- **Latest wins** for the jobs that follow typing (the passphrase probes
-  of `Sheet::Potential` and `Sheet::SeedRead`, Load a key's probe of the
-  words, SPEED §9 point 2's typed pause): a new one replaces the one not
-  yet started and makes the running one's answer stale, as the scanner
-  takes the newest frame.
+- **Latest wins** for a job asked again while one of its kind waits: a
+  new one replaces the one not yet started and makes the running one's
+  answer stale, as the scanner takes the newest frame. The probes that
+  follow typing (`Sheet::Potential`, `Sheet::SeedRead`, Load a key's
+  probe of the words) stretch PBKDF2 alone and stay drawn first, after
+  SPEED §9 point 2's typed pause (§2.1); one that moves to the worker
+  takes this rule.
 - **Inline.** A scripted press (`Faraday::press`, the snapshot tool,
   most tests) runs the job on the calling thread with the caller's
   token and applies it at once, as it does the work at once today, so
@@ -126,15 +174,21 @@ struct Answer { done: Done, gen: u64, counts: work::Counts }
 
 ### 3.3 What the worker replaces
 
-`Later`, `later_drawn`, `later_tick` and `later_now` go once every press
-on `slow`'s list is a job (§9, W9): a press is drawn at once because the
-work is no longer on the thread that draws. `slow` becomes the list of
-presses that start a job, and the debug guard in `press_in` stays as it
-is: a press not on it that stretches a key or makes more than one
-picture on the main thread panics, naming itself. SPEED §9 point 2 is
-rewritten to say this in the batch that removes `Later`.
+Nothing that is drawn first. `Later`, `later_drawn`, `later_tick` and
+`later_now` stay, for the presses under the line (§2.1): their work is
+short, and the frame drawn first already shows the press. `slow`'s list
+is split in two, the presses that start a job and those drawn first, as
+§2.1's table says (W1), and the debug guard in `press_in` stays as it
+is: a press on neither list that stretches a key or makes more than one
+picture on the main thread panics, naming itself. What the worker
+replaces is the tick after for the jobs alone: a job's press is drawn at
+once and its work no longer runs on the thread that draws.
 
 ## 4. The screen while a job runs
+
+This screen is for the jobs of §2.1 alone. A press drawn first keeps
+what it has today: the frame that shows it, with its toast for files or
+a node key, and the work on the tick after.
 
 `Faraday.busy: Option<Busy>`, public and read by drawing: the job's
 `Kind`, its line of text, the time it began, and `done`/`of` where the
@@ -167,7 +221,7 @@ none once it clears.
 | The idle warning and the idle lock | The idle clock does not run while a job runs and starts again from its end (§10, question 3); a job is the person's own press, and today the frame it held let no idle tick through either |
 | The panic chord, Power off | Taken by the shell on its main thread at once, the job or not; the machine goes off with the worker mid-run (a key in its memory goes with the power, inside the Security scope) |
 | Theme, text size, rotation, Faraday Demo's preview size or window size | Accepted: they change what is drawn, not what the job reads |
-| Typing into a field whose probe is the job | Accepted: each pause starts a new probe, latest wins (§3.2) |
+| Typing into a field | Accepted as today; no typed probe is a job (§2.1), and one that became one would take latest wins (§3.2) |
 | A stick put in or pulled | Taken as today (`storage` events); a job that reads or writes a stick is one of §7.3's, answered by the storage, not by the worker |
 | A scanned code | Taken by the scanner as today; a code that would start a job while one runs is held until the job ends, as a stick plugged in under the camera is held back |
 
@@ -199,30 +253,33 @@ threads, so the doctests of COMPUTE §9 stand unchanged.
   "Costs …" on its doc's first line, and the costs lint holds it as any
   other.
 
-Whether this needs a decision: yes, one, unnumbered here. It binds later
-changes (a new costly press is a job, not work in `act`), it changes a
-built rule (SPEED §9 point 2: frame first, work on the tick after), and
-it lets key material cross a thread inside faraday-keys (§6). Its rule
-goes into `tools/impact.toml` in the batch that builds the worker (W1):
-a change to `slow.rs` or to an `act` arm on its list changes `Job` with
-it.
+The decision is F184 (owner, 2026-11-02): it binds later changes (a new
+costly press is put on one side of the line of §2.1), it amends a built
+rule (SPEED §9 point 2: frame first, work on the tick after, now for
+short work), and it lets key material cross a thread inside faraday-keys
+(§6). Its rule is `speed.worker-line` in `tools/impact.toml`: a change to
+`slow.rs`'s list says which side of the line the press is on and how
+that was measured.
 
 ## 6. Key material in a job
 
 F70 stands: key material lives in faraday-keys and leaves only through
 its named reveals (`docs/KEYS.md` §2). A job's key material never leaves
 faraday-keys' types; the thread it runs on changes, the crate holding it
-does not.
+does not. Only the jobs of §2.1 carry key material to the worker; a
+press drawn first keeps its secrets on the main thread, as today.
 
 **What moves to the worker.**
 
-- **A stretch's secret input, by move.** A vault passphrase at Open, a
-  passphrase typed for a BIP-39 seed, a SLIP-39 or aezeed passphrase:
-  transient input (KEYS §2, "Transient input"), handed in by move into
-  a `faraday_keys::StretchJob` (`SecretText` inside), so no copy is made.
-  The result comes back inside faraday-keys' types (`Stretched`: a slot
-  key, a seed) and joins the store through `Keys`' existing `add_*` or
-  the vault's open, on the main thread. Both wipe on drop.
+- **A stretch's secret input, by move.** A vault passphrase at Open,
+  Make or the boot import's unlock, the passphrase a KDBX export is
+  sealed under, an aezeed passphrase: transient input (KEYS §2,
+  "Transient input"), handed in by move into a `faraday_keys::StretchJob`
+  (`SecretText` inside), so no copy is made. The result comes back
+  inside faraday-keys' types (`Stretched`: a slot key, a node key, a
+  sealed file) and joins the store through `Keys`' existing `add_*` or
+  the vault's open, on the main thread. Both wipe on drop. A BIP-39 or
+  SLIP-39 passphrase is not on the list and does not move.
 - **Signing, by shared reference to what the store holds** (§10,
   question 1). The store keeps each master key's secret behind an
   `Arc` that never changes once made; a `SignJob` holds a clone of the
@@ -234,12 +291,14 @@ does not.
 - **A picture or PDF of secret words** (a backup stick's words, a
   SeedQR picture; `Reveal::BackupStick`, `Reveal::PaperForm`): the
   reveal is a guard that borrows the store and cannot cross a thread.
-  The maker runs inside faraday-keys as a `MakeJob` that takes the
-  revealed text into a `Zeroizing` it owns, a copy that lives as long as
-  the job, and gives back the file's bytes as today's maker does. This
-  is a new copy of a secret (SPEED §2 rule 1 is about kept values; this
-  one is not kept), so it is the owner's (§10, question 4); until then
-  these presses stay on the main thread, frame first, as today.
+  Each is one picture or one PDF, under the line (§2.1), so these
+  presses stay on the main thread, frame first, as today; where a flow's
+  press both seals a vault and makes words pictures, the stretch is the
+  job and the pictures are made when its answer is applied. Should a Pi
+  move one of them over the line, its maker runs inside faraday-keys as
+  a `MakeJob` that takes the revealed text into a `Zeroizing` it owns, a
+  copy that lives as long as the job, as the owner answered (§10,
+  question 4).
 
 **What never moves.** The store (`Keys`), the open vault's records, a
 `Revealed` guard, the codex32 work set, anything drawing reads. The
@@ -277,7 +336,10 @@ this spec's.
 
 ### 7.3 Files written to a stick
 
-A write is a storage request answered by a storage event, as a picture
+Held for a Pi's answer: a write is a wait on the disk process, and only
+the dev card's `file written` row on a Pi 3B+ says whether it crosses
+the line of §2.1. Until it does, files are written as today. If it does,
+a write is a storage request answered by a storage event, as a picture
 read is (`read_qr_later`):
 
 - `faraday_storage::Sticks::write_later` (new): the stick shell sends
@@ -313,18 +375,18 @@ Each states what a person would notice, in the area's tests
   the inline press gives; a vault made through the worker opens with the
   same passphrase in a fresh app; files made through the worker are the
   same bytes.
-- **Typing goes on.** A passphrase typed during a probe: the fingerprint
-  shown at the end is the one of the whole passphrase, and the counts
-  show no probe applied but the last.
+- **A short press is drawn first.** A press on the drawn-first side of
+  §2.1 shows its frame before its work, and its work is done on the tick
+  after, with no busy screen (`tests/all/slow_press.rs`, as today).
 - **A scan goes on.** The Scan sheet with an animated PSBT: frames keep
   being drawn while its last part's PSBT is read and checked, and the
   review opens after `settle`.
 - **The panic chord during work** (`faraday/shells/stick`, its tests of
   `PanicTimer` and the loop): with a job held running, the chord held
   for `PANIC_HOLD` asks for power off at once.
-- **A write that is slow** (`faraday-storage`'s tests, a disk process
-  that answers late): frames go on, and the file's toast comes with the
-  answer; one that never answers ends as "not kept".
+- **A write that is slow**, if W8 is built (`faraday-storage`'s tests, a
+  disk process that answers late): frames go on, and the file's toast
+  comes with the answer; one that never answers ends as "not kept".
 - The budget tests (`work/budget/`), `slow_press.rs` and the snapshot
   tours pass unchanged, since scripted presses run inline and the counts
   come home.
@@ -337,18 +399,19 @@ gets the reviewer before it lands.
 
 | Batch | What | Files | Review |
 |---|---|---|---|
-| W1 | The worker: `Worker`, `Job`, `Done`, generations, latest wins, inline mode, `work::absorb`, `busy`, the refusals of §4, the idle clock held, `testkit::settle`; the mint's row in COMPUTE §3 and `MINTS`; the decision's rule in `impact.toml`. The first job: Practice's samples loaded (`SamplesLoad`, public data), with its tests | `faraday-core/src/worker.rs` (new), `lib.rs` (`press_in`, the drain), `slow.rs`, `idle.rs`, `work.rs`, `testkit.rs`, `tools/costs-lint/src/main.rs`, `tools/impact.toml`, `docs/COMPUTE.md` | No (no key, no crypto); the mint is checked by the costs lint |
+| W1 | The worker: `Worker`, `Job`, `Done`, generations, latest wins, inline mode, `work::absorb`, `busy`, the refusals of §4, the idle clock held, `testkit::settle`; the mint's row in COMPUTE §3 and `MINTS`; `slow`'s list split into jobs and drawn first as §2.1's table says, the presses not yet timed timed with the stand-in and put on their side. The first job: Practice's samples loaded (`SamplesLoad`, public data), with its tests | `faraday-core/src/worker.rs` (new), `lib.rs` (`press_in`, the drain), `slow.rs`, `idle.rs`, `work.rs`, `testkit.rs`, `tools/costs-lint/src/main.rs`, `docs/COMPUTE.md`, `docs/WORKERS.md` §2.1 | No (no key, no crypto); the mint is checked by the costs lint |
 | W2 | The shells' wake and frames while busy: `Wake::Work`, the winit proxy for both windows, the snapshot tool inline; the panic chord test | `faraday/shells/stick/src/main.rs`, `faraday/shells/window/src/lib.rs`, `faraday/shells/desktop/src/main.rs`, `faraday/shells/starter/src/main.rs`, `faraday/shells/snapshot/src/main.rs` | No |
 | W3 | The busy screen: the moving bar, determinate where counted, disabled actions, Back and Cancel stale-making; strings; DESIGN §4.14; one tour of a busy screen (`just faraday-snap 480x640 vault`) | `faraday-core/src/screens/parts.rs`, the sheets that use `working_bar`, `faraday-strings/src/en.rs`, `docs/DESIGN.md`, `faraday/shells/snapshot/src/tours` | No; a screen review against Material's Progress indicators |
-| W4 | Vault stretches as jobs: Open, Make, seal again, the boot import's unlock, Spend's unlock; `StretchJob` and `Stretched` in faraday-keys, the passphrase by move | faraday-keys (a new `job.rs` in its `src/`), `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`, `boot_import/`, `docs/KEYS.md` | **Yes**: keys, crypto |
-| W5 | The other stretches: a BIP-39 passphrase seed (Load a key, `SeedRead`, `Potential`, latest wins), SLIP-39 recovery, aezeed, KDBX write and verify, a chart's passphrase try | faraday-keys' `job.rs` (W4), `faraday-core/src/seeds/`, `glance/sheet.rs`, the KDBX writer's call site | **Yes**: keys, crypto |
-| W6 | Signing and checking: `SignJob` with the store's keys behind `Arc` (on the owner's answer to §10 question 1), a PSBT's parse and inspection from a file or the last scanned part as a job, the Spend tab's signatures counted | `faraday/faraday-keys/src/session.rs`, faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and sign areas | **Yes**: signing, keys, QR intake |
-| W7 | Pictures and PDFs of public values (a wallet's files, `PublicOut`, the checklist's), and on the owner's answer to §10 question 4 those of secret words, as `MakeJob` | `faraday-core/src/picture.rs`, `pdf.rs`, `wallet_backup.rs`, `backup_flow/`; faraday-keys' `job.rs` for the secret ones | **Yes** for the secret ones; no for the public ones |
-| W8 | Files written as storage requests: `Sticks::write_later`, `StorageEvent::Written`, the stick's disk process answer, Faraday Demo's `Dirs` thread, the boot report's write | `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`, `files.rs`, `faraday-core/src/lib.rs` (the storage events), `faraday/shells/desktop/src/lib.rs` | No (no parser, no key); a backup's files are written as before |
-| W9 | `Later` removed; every press on `slow` is a job; SPEED §9 point 2 rewritten; this spec's plan moves to docs/history/WORKERS-LOG.md and it becomes a Reference; one late-flow session timed as SPEED §7 says, the numbers in the report | `faraday-core/src/lib.rs`, `slow.rs`, `docs/SPEED.md`, `docs/WORKERS.md`, `docs/README.md` | No |
+| W4 | Vault stretches as jobs: Open, an older vault's open, Make, seal again, the boot import's unlock, Spend's unlock; `StretchJob` and `Stretched` in faraday-keys, the passphrase by move | faraday-keys (a new `job.rs` in its `src/`), `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`, `boot_import/`, `docs/KEYS.md` | **Yes**: keys, crypto |
+| W5 | The other stretches on the list: an aezeed read, the KDBX export written and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay drawn first (§2.1) | faraday-keys' `job.rs` (W4), `faraday-core/src/lightning/`, the KDBX writer's call site (`faraday/faraday-keys/src/vault.rs`) | **Yes**: keys, crypto |
+| W6 | Signing and checking: `SignJob` with the store's keys behind `Arc` (§10 question 1), a PSBT's parse and inspection from a file or the last scanned part as a job, the Spend tab's signatures counted | `faraday/faraday-keys/src/session.rs`, faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and sign areas | **Yes**: signing, keys, QR intake |
+| W7 | Sets of files of public values as jobs: a wallet's files (`PublicOut`), the checklist's, the backup stick's and the flow's public files. A single picture or PDF, and those of secret words, stay drawn first (§2.1, §6) | `faraday-core/src/picture.rs`, `pdf.rs`, `wallet_backup.rs`, `backup_flow/` | No (public values) |
+| W8 | Held: built only if a Pi's `file written` row crosses the line (§7.3). Files written as storage requests: `Sticks::write_later`, `StorageEvent::Written`, the stick's disk process answer, Faraday Demo's `Dirs` thread, the boot report's write | `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`, `files.rs`, `faraday-core/src/lib.rs` (the storage events), `faraday/shells/desktop/src/lib.rs` | No (no parser, no key); a backup's files are written as before |
+| W9 | The list confirmed on a Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or moved as §2.1 says; one late-flow session timed as SPEED §7 says, the numbers in the report; once W8 is built or dropped on the Pi's answer, this spec's plan moves to docs/history/WORKERS-LOG.md and it becomes a Reference. `Later` stays | `slow.rs`, `docs/WORKERS.md`, `docs/SPEED.md`, `docs/README.md` | No |
 
 W4 and W5 can run in either order after W3; W6 and W7 after W4, which
-builds faraday-keys' `job.rs`; W8 needs only W1.
+builds faraday-keys' `job.rs` (W7 needs only W1 to W3); W8 needs only W1
+and waits on a Pi; W9 needs a Pi dev card.
 
 ## 10. For the owner
 
@@ -376,5 +439,11 @@ Decided by the owner, 2026-11-02, as below.
    flag between passes or blocks, which changes no output but touches
    the crypto crates' loops. Not now; record it as later
    work and decide once W4 is timed.
-6. **The decision** (§5): one new decision, "costly work runs on one
-   worker in the core", taking its number at the push.
+6. **The decision** (§5): one new decision, F184.
+
+**The middle way** (owner, 2026-11-02, F184). Not every costly press is
+a job: draw first and work on the tick after stays the rule for short
+work, and work longer than a tenth of a second on a Pi 3B+ runs on the
+worker (§2.1). The answers above stand for the jobs; answer 4 applies
+to none of today's presses, since a picture or PDF of secret words is
+drawn first, and holds for one a Pi moves over the line.

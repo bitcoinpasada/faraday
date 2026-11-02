@@ -198,3 +198,4 @@ Read this table, then only the decision you need.
 | [F181](decisions/F181.md) | Memory work follows the security model: no wiping allocator, no batch for copies the lock already bounds, none for Faraday Demo and the Starter | 2026-10-31 | Active | crypto |
 | [F182](decisions/F182.md) | A stick Windows leaves whole: the image's first usable sector and boot FAT, a stick the Starter makes for its size, the boot partition kept as released | 2026-10-31 | Active | stick |
 | [F183](decisions/F183.md) | The check runs on GitHub Actions: `just` on every push to main and every pull request, read-only, building nothing for release | 2026-10-31 | Active | repository |
+| [F184](decisions/F184.md) | Work over a tenth of a second on a Pi 3B+ runs on one worker in the core; shorter work is drawn first and done on the next tick | 2026-11-02 | Active | speed |

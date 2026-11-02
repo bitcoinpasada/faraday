@@ -810,6 +810,14 @@ when = ["faraday/shells/*/src/main.rs", "faraday/faraday-disk/src/main.rs", "cor
 kind = "review"
 
 [[rule]]
+id = "speed.worker-line"
+title = "a press whose work takes longer than a tenth of a second on a Pi 3B+ at 1400 MHz is a job on the core's worker, shorter work is drawn first and done on the tick after; a press added to `slow`'s list, or moved on it, says which side of the line it is on and how that was measured"
+source = ["docs/decisions/F184.md", "docs/WORKERS.md §2.1", "docs/SPEED.md §9"]
+when = ["faraday/faraday-core/src/slow.rs"]
+kind = "review"
+misses = "a press whose work grows on a Pi past what the stand-in measured, until the dev card's rows are read"
+
+[[rule]]
 id = "speed.budgets"
 title = "a frame, a pointer move, a press or a key does only the costly work its budget names"
 source = ["CLAUDE.md", "docs/SPEED.md"]
