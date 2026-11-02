@@ -77,6 +77,11 @@ After **Yes**, "Bring in the sticks" ("1 of 2 read") and **Vaults** ("1
 of 2 unlocked") bring the vaults in before the keys; [Back it
 up](../walk/back-up.md) walks through them.
 
+Once the keys are in, **Back up wallet** opens [Back up](back-up-wallet.md) with the
+sticks of this setup already placed: each stick at the place of its
+first vault's key, a vault holding that key. The board stays read-only
+until **Customize backup**, and **Continue** is live with nothing moved.
+
 ## Keys
 
 A row per key, **Key 1**, **Key 2** …, each with what fills it: **Not

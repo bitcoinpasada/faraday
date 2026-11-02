@@ -1419,6 +1419,50 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     if app.board_plan().is_some_and(|(_, a)| !a.custom) {
         press(app, P::Customize);
     }
+    // A wallet whose vaults were set up before its keys opens with their
+    // sticks placed (`docs/STICK-SETUP.md` §6.1): the preset starts from
+    // none, so a stick and what it holds are taken off, and a place the
+    // preset does not have goes.
+    let vault_part = |m: &[Spot]| -> Vec<String> {
+        let m: Vec<Spot> = m
+            .iter()
+            .filter(|s| matches!(s.at, At::Stick(..) | At::Vault(_)))
+            .cloned()
+            .collect();
+        norm(&m)
+    };
+    if vault_part(&now(app)) != vault_part(&want) {
+        for _ in 0..64 {
+            let m = now(app);
+            let Some((p, s, v)) = m.iter().find_map(|x| match x.at {
+                At::Stick(p, s) => plan::stick_vaults(&m, p, s).first().map(|&v| (p, s, v)),
+                _ => None,
+            }) else {
+                break;
+            };
+            for w in held(&m, At::Vault(v)) {
+                for t in things_of(w) {
+                    press(app, P::Off(Zone::Vault(p, s, v), t));
+                }
+            }
+            press(app, P::Off(Zone::Files(p, s), Thing::Vault(v)));
+        }
+    }
+    while plan::places_of(&now(app)) > plan::places_of(&want) {
+        let last = plan::places_of(&now(app)) - 1;
+        press(app, P::RemovePlace(last));
+    }
+    // A passphrase that went with its seed out of a vault goes where the
+    // preset keeps it.
+    for p in 0..plan::places_of(&want) {
+        for w in held(&want, At::Place(p)) {
+            if matches!(w, What::Passphrase(_)) && !held(&now(app), At::Place(p)).contains(&w) {
+                for t in things_of(w) {
+                    add_to(app, t, &|z| z == Zone::Paper(p));
+                }
+            }
+        }
+    }
     // The SeedQR off the paper where the preset keeps the words alone.
     let m = now(app);
     for p in 0..plan::places_of(&m) {

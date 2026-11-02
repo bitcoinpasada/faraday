@@ -242,6 +242,8 @@ impl Faraday {
         // The sticks read for the vaults wait for the plan to say where
         // each vault's stick goes.
         f.park_setup();
+        // The vaults on each stick of the setup, to be placed (STICK-SETUP §6.1).
+        let sticks = f.plan.places.clone();
         let keep = match f.wallet.as_mut() {
             Some(wf) => {
                 wf.checksum = Some(cs.clone());
@@ -249,6 +251,10 @@ impl Faraday {
                 wf.setup = false;
                 wf.answers.remap_seeds(&map, shape.seeds.len());
                 let keep = wf.answers.refit(&shape);
+                // The standard way's places with the setup's sticks on
+                // them, read-only until Customize backup.
+                wf.answers.place_setup_sticks(&c, &shape, &sticks);
+                wf.answers.custom = false;
                 wf.shape = shape;
                 wf.base = base;
                 keep

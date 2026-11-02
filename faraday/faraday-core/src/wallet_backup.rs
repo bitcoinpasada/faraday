@@ -1302,7 +1302,7 @@ impl Faraday {
                     // The plan this wallet's last backup saved into an
                     // open vault, as it was; else the board open on The
                     // standard way, read-only until Customize backup
-                    // (`docs/BACKUP-FLOW.md` §17.6).
+                    // (`docs/BACKUP-FLOW.md` §17.6), with a setup's sticks.
                     let (answers, names, q) = match self.plan_load(c, i, &shape) {
                         Some((mut a, names)) => {
                             plan::codex32::sync(&mut a, &shape, &self.c32_sets(i));
@@ -1311,7 +1311,7 @@ impl Faraday {
                         // A key with a codex32 set places that set: one
                         // string per place (`docs/CODEX32.md` §9.5).
                         None => (
-                            plan::codex32::standard(c, &shape, &self.c32_sets(i)),
+                            self.wallet_start_answers(c, i, &shape),
                             Vec::new(),
                             Some(qstep::BOARD),
                         ),

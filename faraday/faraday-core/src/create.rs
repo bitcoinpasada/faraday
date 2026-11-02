@@ -2040,4 +2040,29 @@ impl Faraday {
             self.flows.layout_apply(i, owner, &c);
         }
     }
+
+    /// Costs what `standard` costs. The answers Back up's board opens on
+    /// for wallet `w`: The standard way, with the setup's sticks placed
+    /// where the wallet's flow set up vaults before its keys and has not
+    /// locked (`docs/STICK-SETUP.md` §6.1).
+    pub(crate) fn wallet_start_answers(
+        &self,
+        c: &Compute,
+        w: usize,
+        shape: &crate::plan::Shape,
+    ) -> crate::plan::Answers {
+        let sets = self.c32_sets(w);
+        let flow = self.session.wallets.get(w).and_then(|wl| {
+            let f = &self.flows[self.wallet_flow_active(wl.checksum())?];
+            f.wallet
+                .as_ref()
+                .filter(|wf| !wf.setup && !f.made && wf.shape.vaults > 0)
+        });
+        match flow {
+            Some(wf) => {
+                crate::plan::codex32::standard_over(c, &wf.shape, &sets, wf.answers.clone())
+            }
+            None => crate::plan::codex32::standard(c, shape, &sets),
+        }
+    }
 }

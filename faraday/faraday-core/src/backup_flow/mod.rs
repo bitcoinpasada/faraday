@@ -1258,8 +1258,13 @@ impl BackupFlow {
                 s.bound = None;
             }
         }
+        let mut seen: Vec<usize> = Vec::new();
         for (v, b) in parked {
-            let Some(&p) = self.plan.places_of(v).first() else {
+            // A vault on more than one stick of the setup has a place for
+            // each, in stick order.
+            let n = seen.iter().filter(|&&u| u == v).count();
+            seen.push(v);
+            let Some(&p) = self.plan.places_of(v).get(n) else {
                 continue;
             };
             let target = if self.plan.one_stick(p) {

@@ -13,6 +13,7 @@
 pub(crate) mod cards;
 pub mod codex32;
 mod groups;
+mod setup_sticks;
 pub use groups::REACH_STEPS;
 pub mod text;
 use text::fp_code;
@@ -21,8 +22,7 @@ pub use text::{at_code, at_read, held_in, tag_of, what_code, what_read};
 
 use faraday_crypto::work::Compute;
 
-use crate::strings::EN;
-use crate::strings::fill;
+use crate::strings::{EN, fill};
 use crate::wallet_backup::split_plan;
 
 /// Where the seeds go, by row of the seeds question.

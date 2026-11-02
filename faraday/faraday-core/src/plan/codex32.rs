@@ -265,7 +265,17 @@ pub fn strings_at(boxes: &[Spot], i: usize, at: &dyn Fn(At) -> bool) -> Vec<usiz
 /// each seed's set, where its key here has one. Read-only until Customize
 /// backup, as any new plan.
 pub fn standard(c: &Compute, shape: &Shape, sets: &[Option<SetFacts>]) -> Answers {
-    let mut a = Answers::preset(shape, Preset::Standard);
+    standard_over(c, shape, sets, Answers::preset(shape, Preset::Standard))
+}
+
+/// Costs what [`standard`] costs. [`standard`] over the answers `a`: The
+/// standard way with other things placed already, such as a setup's sticks.
+pub fn standard_over(
+    c: &Compute,
+    shape: &Shape,
+    sets: &[Option<SetFacts>],
+    mut a: Answers,
+) -> Answers {
     let forms: Vec<C32> = sets
         .iter()
         .enumerate()

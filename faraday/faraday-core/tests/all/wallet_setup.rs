@@ -7,7 +7,12 @@ use crate::backup_flow_wallet::{step, sticks};
 use crate::common::*;
 use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
-use faraday_core::{Action, Faraday, Screen, Sheet, cstep};
+use faraday_core::board::{BoardPress as BP, Thing, Zone};
+use faraday_core::create::NewKind;
+use faraday_core::plan::{self, At, What};
+use faraday_core::testkit;
+use faraday_core::{Action, Faraday, Screen, Sheet, cstep, qstep};
+use faraday_shell_api::{App, Event, Key};
 
 /// A process on the stick, its clock kept, on Make a new wallet's Bring
 /// in the sticks for one vault of a single key.
@@ -239,4 +244,152 @@ fn a_stick_that_is_not_fat32_shows_its_problem_and_is_not_bound() {
         "Not a FAT32 stick. Format it as FAT32, or use another stick",
     );
     assert!(app.flow().unwrap().slots.iter().all(|s| s.bound.is_none()));
+}
+
+/// A key typed in as test seed `n`.
+fn typed_key(app: &mut Faraday, n: usize) -> [u8; 4] {
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[n].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    app.session.keys.last().unwrap().fingerprint.0
+}
+
+/// Make a new wallet (a 2-of-3 if `multi`) with `vaults` new vaults on
+/// `sticks_n` sticks, the sticks brought in, the vaults and the keys made:
+/// Back up's plan on the board.
+fn plan_after_setup(multi: bool, vaults: usize, sticks_n: usize) -> Faraday {
+    let mut shell = Shell::new();
+    sticks(&mut shell, sticks_n);
+    let mut app = on_the_card();
+    if multi {
+        let k = NewKind::ALL
+            .iter()
+            .position(|k| *k == NewKind::Multi)
+            .unwrap() as u8;
+        app.press(Action::CKind(k));
+    }
+    app.press(Action::CVaultN(vaults as u16));
+    app.press(Action::CSticks(sticks_n as u16));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    assert_eq!(step(&app), Step::Sticks);
+    for k in 1..=sticks_n {
+        let d = format!("S{k}");
+        shell.plug(&mut app, &d);
+        shell.flow(&mut app, F::Tap);
+        shell.pull(&mut app, &d);
+    }
+    for v in 0..vaults {
+        create_vault(&mut shell, &mut app, v, &format!("vault phrase {v}"));
+    }
+    let keys = if multi { 3 } else { 1 };
+    let fps: Vec<[u8; 4]> = (0..keys).map(|n| typed_key(&mut app, n)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup);
+    let _ = app.frame();
+    app
+}
+
+/// Whether the board's Continue is offered, anywhere down the page.
+fn continue_is_live(app: &mut Faraday) -> bool {
+    for _ in 0..30 {
+        let _ = app.frame();
+        if app.offers(Action::BQNext(qstep::BOARD)) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    false
+}
+
+/// What place `p` keeps on paper, by key.
+fn words_at(app: &Faraday, p: usize) -> Vec<usize> {
+    backup_held(app, At::Place(p))
+        .into_iter()
+        .filter_map(|w| match w {
+            What::Words(i) => Some(i),
+            _ => None,
+        })
+        .collect()
+}
+
+/// A 2-of-3 set up with three vaults on three sticks opens on the board
+/// with three places, each keeping one key's paper and the stick of that
+/// key's vault, and Continue live with nothing moved; after Customize
+/// backup, a stick moved to another place and a seed added to a vault are
+/// kept in the plan.
+#[test]
+fn three_vaults_on_three_sticks_open_the_board_with_each_stick_at_its_keys_place() {
+    let mut app = plan_after_setup(true, 3, 3);
+    assert_eq!(board_places(&app), 3);
+    for p in 0..3 {
+        assert_eq!(words_at(&app, p), vec![p], "Place {} paper", p + 1);
+        assert!(vault_stick(&app, p, p).is_some(), "Place {} stick", p + 1);
+        assert!(vault_stick(&app, p, (p + 1) % 3).is_none());
+    }
+    assert!(continue_is_live(&mut app), "Continue is live");
+    assert!(app.offers(Action::Board(BP::Customize)));
+    assert!(!app.offers(Action::Board(BP::AddPlace)), "read-only");
+    // Customize backup: everything is the person's to change.
+    app.press(Action::Board(BP::Customize));
+    let s = vault_stick(&app, 0, 0).unwrap();
+    move_to(&mut app, Zone::Files(0, s), Thing::Vault(0), Zone::Card(1));
+    assert!(
+        vault_stick(&app, 1, 0).is_some(),
+        "Stick 2 moved to Place 2"
+    );
+    assert!(vault_stick(&app, 0, 0).is_none());
+    let s = vault_stick(&app, 2, 2).unwrap();
+    put(&mut app, Thing::Seed(0), Zone::Vault(2, s, 2));
+    assert!(backup_held(&app, At::Vault(2)).contains(&What::Seed(0)));
+    let _ = app.frame();
+    assert!(vault_stick(&app, 1, 0).is_some());
+}
+
+/// A single key with two vaults on two sticks: the first stick at the
+/// key's place, the second, holding a copy, at a place added after.
+#[test]
+fn a_single_keys_second_vault_goes_to_an_added_place() {
+    let mut app = plan_after_setup(false, 2, 2);
+    assert_eq!(board_places(&app), 2);
+    assert!(vault_stick(&app, 0, 0).is_some());
+    assert!(vault_stick(&app, 1, 1).is_some());
+    assert_eq!(words_at(&app, 0), vec![0]);
+    assert!(continue_is_live(&mut app), "Continue is live");
+}
+
+/// Three vaults on two sticks: the two vaults of the second stick stay on
+/// it.
+#[test]
+fn vaults_on_one_stick_stay_on_it() {
+    let app = plan_after_setup(true, 3, 2);
+    let m = backup_map(&app);
+    assert_eq!(plan::stick_vaults(&m, 0, 0), vec![0]);
+    assert_eq!(plan::stick_vaults(&m, 1, 0), vec![1, 2]);
+    assert_eq!(plan::sticks_at(&m, 1), 1);
+}
+
+/// A multisig whose setup put two keys' vaults on one stick: the board's
+/// check says two keys are at one place.
+#[test]
+fn two_keys_vaults_on_one_stick_are_said_to_be_at_one_place() {
+    let mut app = plan_after_setup(true, 3, 1);
+    let m = backup_map(&app);
+    assert_eq!(plan::stick_vaults(&m, 0, 0), vec![0, 1, 2]);
+    let t = texts(&mut app);
+    assert!(
+        t.iter()
+            .any(|s| s == "Can spend alone with the vault's passphrase"),
+        "{t:?}"
+    );
 }

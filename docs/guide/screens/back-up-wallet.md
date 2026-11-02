@@ -26,6 +26,12 @@ place.
 
 *A single-key wallet just made, its board the standard way: Place 1 tagged **Sees the balance** and **Can spend alone**, its **Paper** keeping "3dca6805 · Words" and **Whole**; under it **No: a single place**, the passphrase line, and at the right **Add watch-only software** and **Customize backup**.*
 
+After Make a new wallet or Restore with **Yes** on **Use vaults**, the board opens with the
+sticks of the setup placed: each stick at the place of its first vault's key, vault 1 holding
+key 1, vault 2 key 2, a vault past the last key a copy of the key before it, and a vault
+already on a stick keeping what it holds with the key beside it. **Customize backup** makes
+them the person's to move; **Continue** needs nothing moved.
+
 ## The plan
 
 The plan is up to three cards: **Places**, the board; **Software**,

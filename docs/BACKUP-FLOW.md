@@ -1551,8 +1551,16 @@ longer written, is still read, §17.21 item 7), so a plan saved after
 customising reopens customisable and one never customised reopens
 read-only with the buttons. The plan, the checklist and the
 checks under the board are the same in both states. A wallet flow's own
-plan (vaults set up before the keys) takes changes from the start: no
-preset places those vaults.
+plan (vaults set up before the keys) opens on The standard way with the
+setup's sticks placed, read-only until Customize backup like any new
+plan (`docs/STICK-SETUP.md` §6.1): each stick goes to the place of its
+first vault's key, or to a place added after the others when that vault
+holds a copy; vault n holds key n, a vault past the last key holds a copy
+of the key before it, and keys with no vault stay on paper alone; vaults
+laid on one stick stay on it; a vault already on a stick keeps what it
+holds and the key is added beside that. Continue is live with nothing
+moved when §17.5's checks pass; where the placement puts two keys of a
+multisig at one place, the board's check says so.
 
 ### 17.7 A vault's key and wallet, shown and saved
 
