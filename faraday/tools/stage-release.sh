@@ -309,7 +309,9 @@ PY
     # The payload the Starter embeds (STARTER §1.3), one folder per system:
     # the images' .xz as hard links to the staged ones, and MANIFEST. One
     # line per file, tab-separated: the payload file, its SHA-256, what is
-    # inside it, that file's SHA-256 and size, the build ID it carries.
+    # inside it, that file's SHA-256 and size, the build ID it carries, and,
+    # for a stick image, the SHA-256 of its boot partition (the -boot.vfat
+    # value of SHA256SUMS; - for any other file).
     # Both MANIFESTs start with the same line. The Strict stick and the
     # 2.8-inch Strict Pi, until the Starter carries no images (IMAGES §9
     # step 6).
@@ -326,8 +328,10 @@ PY
             echo "# Faraday Starter payload $version, commit $commit"
             for k in "${carried[@]}"; do
                 ln "$out/${img[k]}.xz" "$dir/${img[k]}.xz"
-                printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img[k]}" \
-                    "${img_sum[k]}" "$(stat -c %s "${src[k]}")" "$build"
+                boot="-"
+                case "${img[k]}" in faraday-stick-*) boot="${boot_sum[k]}" ;; esac
+                printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img[k]}" \
+                    "${img_sum[k]}" "$(stat -c %s "${src[k]}")" "$build" "$boot"
             done
         } > "$dir/MANIFEST"
     done

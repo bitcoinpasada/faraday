@@ -426,6 +426,10 @@ strings! {
     /// Result line: what the check after writing found
     /// (docs/STICK-IDENTITY.md §4.3).
     starter_checked: "Matches the release image, except this stick's own IDs, as expected",
+    /// Done's line after keep data (docs/STICK-IDENTITY.md §4.4).
+    starter_checked_boot: "The boot partition matches the release",
+    /// Done's line after keep data with a boot file the person signed.
+    starter_checked_boot_signed: "The boot partition matches the release, except the boot file you signed, as expected",
     /// Result line, for a stick written with a boot file the person signed.
     starter_checked_signed: "Matches the release image, except this stick's own IDs and the boot file you signed, as expected",
     /// Result line, for a Pi card.
@@ -695,6 +699,9 @@ strings! {
     /// Reason. `{}` device, `{}` sum: what was read back, with the
     /// image's own IDs put back (docs/STICK-IDENTITY.md §4.3).
     starter_why_back_sum: "Reading back {}: with the image's own IDs put back, its SHA-256 is {}, not the image's",
+    /// Reason. `{}` sum: the release image's boot partition, which is not
+    /// the one the release lists (docs/STICK-IDENTITY.md §4.4).
+    starter_why_boot_sum: "The image's boot partition has SHA-256 {}, not the release's. Nothing was written.",
     /// Reason. `{}` the system's words.
     starter_why_random: "This computer's randomness could not be read for the stick's own IDs: {}. Nothing was written.",
     /// Reason. `{}` the system's words.

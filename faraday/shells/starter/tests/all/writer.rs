@@ -132,7 +132,7 @@ impl Device for FileDisk {
 
 fn manifest() -> Vec<u8> {
     format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\n"
+        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\t{IMG_SHA}\n"
     )
     .into_bytes()
 }
@@ -151,12 +151,20 @@ fn payload_source() -> Confirmed {
 /// The Starter's payload carrying `image` as a release's stick image,
 /// and the order's source for it.
 pub(crate) fn release_payload(image: &Sparse) -> (Job, Confirmed) {
+    let (from, to) = boot_range();
+    let boot = sticks::sha(&image.to_vec()[from as usize..to as usize]);
+    release_payload_listing(image, &boot)
+}
+
+/// The same, with `boot_sha` as the manifest's SHA-256 of the image's
+/// boot partition.
+fn release_payload_listing(image: &Sparse, boot_sha: &str) -> (Job, Confirmed) {
     let img = image.to_vec();
     let xz = sticks::stored_xz(&img);
     let img_sha = sticks::sha(&img);
     drop(img);
     let manifest = format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{img_sha}\t{}\t0.2.0+0123456789ab\n",
+        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{img_sha}\t{}\t0.2.0+0123456789ab\t{boot_sha}\n",
         sticks::sha(&xz),
         image.len,
     );

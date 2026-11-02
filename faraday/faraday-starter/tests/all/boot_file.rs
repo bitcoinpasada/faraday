@@ -211,6 +211,12 @@ fn a_signed_boot_file_is_checked_shows_its_signer_and_goes_into_the_write() {
             if o.mode == Mode::KeepData && o.boot_file.as_ref() == Some(&want)),
         "{c:?}"
     );
+    // The check after keep data names the boot file as the difference.
+    s.starter_event(StarterEvent::Written(Ok(())));
+    assert!(shows(
+        &mut s,
+        "The boot partition matches the release, except the boot file you signed, as expected"
+    ));
 }
 
 #[test]

@@ -582,6 +582,7 @@ fn id_reasons() -> Vec<Reason> {
         device: "Disk 2".into(),
         sha256: SUM.into(),
     });
+    v.push(Reason::BootSum { sha256: SUM.into() });
     v
 }
 

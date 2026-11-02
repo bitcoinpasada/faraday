@@ -715,6 +715,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::BackDiffers { device, at } => fill(S.starter_why_back_differs, &[device, &n(*at)]),
         Reason::BackFailed { device, detail } => fill(S.starter_why_back_failed, &[device, detail]),
         Reason::BackSum { device, sha256 } => fill(S.starter_why_back_sum, &[device, sha256]),
+        Reason::BootSum { sha256 } => fill(S.starter_why_boot_sum, &[sha256]),
         Reason::Random(d) => fill(S.starter_why_random, &[d]),
         Reason::SourceRead(d) => fill(S.starter_why_source_read, &[d]),
         Reason::WriteFailed(d) => fill(S.starter_why_write_failed, &[d]),
@@ -1292,7 +1293,7 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Some(Ok(())) => {
             // What the check after writing compared
             // (docs/STICK-IDENTITY.md §4.3).
-            let checked = name::checked_line(starter, m.target);
+            let checked = name::checked_line(starter, m.target, m.mode == Some(Mode::KeepData));
             y += line(ui, x, y, w, checked, Role::OnSurface) + GAP;
             let s = match m.target {
                 Target::Stick => S.starter_pull_stick,

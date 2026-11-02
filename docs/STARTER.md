@@ -162,7 +162,11 @@ may differ later. `MANIFEST` is plain text: a
 first line `# Faraday Starter payload VERSION, commit <full hash>`, then
 one line per file, its fields separated by one tab: the payload file's
 name, its SHA-256, the name of what is inside it, that file's SHA-256,
-that file's size in bytes, and the build ID it carries. The Starter's
+that file's size in bytes, the build ID it carries, and, on a stick
+image's line, the SHA-256 of its boot partition (the `-boot.vfat` value
+`SHA256SUMS` lists; `-` on every other line). The reader refuses a stick
+image's line without it or with one that is not 64 lowercase hex digits,
+and another line with one. The Starter's
 build embeds a system's folder, named by `FARADAY_STARTER_PAYLOAD`
 (`out/payload/VERSION/linux` for the Linux Starter,
 `out/payload/VERSION/windows` for the Windows one); a Starter built
@@ -1171,6 +1175,14 @@ file is not. The Learn page "Replacing Faraday on a stick" says this.
 Keep data is how a Faraday stick is upgraded: Faraday itself writes no
 boot partition, and the Starter checks every image against the
 release's manifest before it writes it (F128).
+Where no boot file is signed (§4.5), keep data also checks, before
+anything is written, that the SHA-256 of the boot partition it is about
+to write is the manifest's `-boot.vfat` value; a payload whose boot
+partition is not that is refused with its own fault and nothing is
+written. With a signed boot file the check is the byte-for-byte read
+back only. Done says "The boot partition matches the release", or, with
+a signed boot file, "The boot partition matches the release, except the
+boot file you signed, as expected".
 
 **The data partition from Windows and macOS** (owner, 2026-10-19;
 D11). The data partition keeps the drive letter Windows gives it, so a person can

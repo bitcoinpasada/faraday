@@ -45,7 +45,13 @@ fn sha256(bytes: &[u8]) -> String {
 }
 
 fn line(name: &str, xz_sum: &str, inner: &str, inner_sum: &str, size: u64) -> String {
-    format!("{name}\t{xz_sum}\t{inner}\t{inner_sum}\t{size}\t6.6.84-faraday-0.2.0")
+    // A stick image's line carries its boot partition's sum, any other `-`.
+    let boot = if name.starts_with("faraday-stick-") {
+        FIXTURE_SHA256
+    } else {
+        "-"
+    };
+    format!("{name}\t{xz_sum}\t{inner}\t{inner_sum}\t{size}\t6.6.84-faraday-0.2.0\t{boot}")
 }
 
 fn manifest(lines: &[String]) -> Vec<u8> {
@@ -328,7 +334,7 @@ fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
     refused(
         format!("{header}\n{good}\textra\n"),
         2,
-        ManifestFault::FieldCount(7),
+        ManifestFault::FieldCount(8),
     );
     refused(
         format!("{header}\n{}\n", good.replace('\t', " ")),
@@ -408,11 +414,68 @@ fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
         refused(format!("{header}\n{good}\n{bad}\n"), 3, fault);
     }
 
-    // Windows line ends leave a carriage return in the build ID.
+    // Windows line ends leave a carriage return in the last field.
     refused(format!("{header}\r\n{good}\r\n"), 1, ManifestFault::Header);
-    refused(format!("{header}\n{good}\r\n"), 2, ManifestFault::BuildId);
+    refused(format!("{header}\n{good}\r\n"), 2, ManifestFault::Sum);
 
     // Not text.
     let e = Manifest::parse(b"# Faraday Starter payload \xff").unwrap_err();
     assert_eq!(e.fault, ManifestFault::NotText);
+}
+
+#[test]
+fn a_stick_images_line_needs_its_boot_partitions_sum_and_no_other_line_has_one() {
+    let stick = line(
+        "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
+        FIXTURE_XZ_SHA256,
+        "faraday-stick-0.2.0-x86_64-uefi-strict.img",
+        FIXTURE_SHA256,
+        1,
+    );
+    let entry = PayloadFile::parse_line(&stick).unwrap();
+    assert_eq!(entry.boot_sha256, Some(sum(FIXTURE_SHA256)));
+    let other = PayloadFile::parse_line(&line(
+        "faraday-pi-0.2.0-hdmi.img.xz",
+        FIXTURE_XZ_SHA256,
+        "faraday-pi-0.2.0-hdmi.img",
+        FIXTURE_SHA256,
+        1,
+    ))
+    .unwrap();
+    assert_eq!(other.boot_sha256, None);
+
+    let without = stick.rsplit_once('\t').unwrap().0;
+    assert_eq!(
+        PayloadFile::parse_line(without),
+        Err(ManifestFault::FieldCount(6))
+    );
+    for bad in [
+        "-",
+        "",
+        "xyz",
+        &FIXTURE_SHA256.to_uppercase(),
+        &FIXTURE_SHA256[1..],
+    ] {
+        assert_eq!(
+            PayloadFile::parse_line(&format!("{without}\t{bad}")),
+            Err(ManifestFault::Sum),
+            "{bad}"
+        );
+    }
+    let pi_with_sum = format!("{}\t{FIXTURE_SHA256}", other_line_without_boot());
+    assert_eq!(
+        PayloadFile::parse_line(&pi_with_sum),
+        Err(ManifestFault::Sum)
+    );
+}
+
+fn other_line_without_boot() -> String {
+    let l = line(
+        "faraday-pi-0.2.0-hdmi.img.xz",
+        FIXTURE_XZ_SHA256,
+        "faraday-pi-0.2.0-hdmi.img",
+        FIXTURE_SHA256,
+        1,
+    );
+    l.rsplit_once('\t').unwrap().0.to_string()
 }

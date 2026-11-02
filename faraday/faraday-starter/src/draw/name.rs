@@ -67,9 +67,16 @@ pub(super) fn confirm_row(starter: &Starter, ui: &mut Ui, x: f32, y: f32, w: f32
 
 /// Done's line: what the check after writing compared, and what was
 /// expected to differ (`docs/STICK-IDENTITY.md` §4.3).
-pub(super) fn checked_line(starter: &Starter, target: Target) -> &'static str {
+pub(super) fn checked_line(starter: &Starter, target: Target, keep: bool) -> &'static str {
     let named = starter.name_order().is_some();
     let signed = starter.boot_order().is_some();
+    if keep {
+        return if signed {
+            S.starter_checked_boot_signed
+        } else {
+            S.starter_checked_boot
+        };
+    }
     match (target, named, signed) {
         (Target::Pi, false, _) => S.starter_checked_card,
         (Target::Pi, true, _) => S.starter_checked_card_named,

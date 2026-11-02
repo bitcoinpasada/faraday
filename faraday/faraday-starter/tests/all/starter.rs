@@ -521,6 +521,20 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
 }
 
 #[test]
+fn keep_data_says_the_boot_partition_matches_the_release() {
+    let mut starter = starter_with(vec![faraday_stick(
+        "sdb",
+        "Mine",
+        16 * GB,
+        Some("6.6.84-faraday-0.1.0"),
+    )]);
+    to_confirm(&mut starter, "sdb", Mode::KeepData);
+    starter.press(StarterAction::Write);
+    starter.starter_event(StarterEvent::Written(Ok(())));
+    assert!(texts(&mut starter).contains(&String::from("The boot partition matches the release")));
+}
+
+#[test]
 fn a_write_result_or_progress_with_no_write_asked_changes_nothing() {
     let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
     to_confirm(&mut starter, "sdb", Mode::Whole);

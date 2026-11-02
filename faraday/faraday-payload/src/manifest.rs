@@ -1,9 +1,11 @@
 //! `MANIFEST` (`docs/STARTER.md` §1.3, "The manifest and where it is
 //! built"): a first line `# Faraday Starter payload VERSION, commit <full
-//! hash>`, then one line per payload file, six fields separated by one
+//! hash>`, then one line per payload file, seven fields separated by one
 //! tab each: the payload file's name, its SHA-256, the name of what is
-//! inside it, that file's SHA-256, that file's size in bytes, and the
-//! build ID it carries.
+//! inside it, that file's SHA-256, that file's size in bytes, the
+//! build ID it carries, and, on a stick image's line, the SHA-256 of its
+//! boot partition (the `-boot.vfat` value `SHA256SUMS` lists; `-` on
+//! every other line).
 
 use core::fmt;
 
@@ -11,6 +13,8 @@ use crate::Sha256Sum;
 
 const HEADER_PREFIX: &str = "# Faraday Starter payload ";
 const HEADER_COMMIT: &str = ", commit ";
+/// What a stick image's payload name starts with.
+const STICK_PREFIX: &str = "faraday-stick-";
 
 /// A parsed `MANIFEST`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,6 +39,9 @@ pub struct PayloadFile {
     pub inner_size: u64,
     /// The build ID the image or binary carries.
     pub build_id: String,
+    /// The SHA-256 of the boot partition of a stick image (the
+    /// `-boot.vfat` value `SHA256SUMS` lists); `None` for any other file.
+    pub boot_sha256: Option<Sha256Sum>,
 }
 
 /// Why a `MANIFEST` was refused, and on which line (1 is the first).
@@ -55,13 +62,14 @@ pub enum ManifestFault {
     Header,
     /// An empty line where a file's line belongs.
     EmptyLine,
-    /// A file's line does not have exactly six tab-separated fields.
+    /// A file's line does not have exactly seven tab-separated fields.
     FieldCount(usize),
     /// A file name is empty, holds a path separator or a control
     /// character, or starts with a dot; or a payload name does not end
     /// in `.xz`.
     Name,
-    /// A sum is not 64 lowercase hexadecimal digits.
+    /// A sum is not 64 lowercase hexadecimal digits; or a stick image's
+    /// line has no boot partition sum, or another line has one.
     Sum,
     /// The size is not a decimal number of bytes above zero.
     Size,
@@ -79,7 +87,7 @@ impl fmt::Display for ManifestError {
             ManifestFault::NotText => "not UTF-8 text",
             ManifestFault::Header => "not a payload manifest header",
             ManifestFault::EmptyLine => "empty line",
-            ManifestFault::FieldCount(_) => "not six tab-separated fields",
+            ManifestFault::FieldCount(_) => "not seven tab-separated fields",
             ManifestFault::Name => "bad file name",
             ManifestFault::Sum => "bad SHA-256",
             ManifestFault::Size => "bad size",
@@ -180,7 +188,7 @@ impl PayloadFile {
             return Err(ManifestFault::EmptyLine);
         }
         let fields: Vec<&str> = line.split('\t').collect();
-        let [name, sha256, inner_name, inner_sha256, size, build_id] = fields[..] else {
+        let [name, sha256, inner_name, inner_sha256, size, build_id, boot] = fields[..] else {
             return Err(ManifestFault::FieldCount(fields.len()));
         };
         if !name_ok(name) || name.len() <= ".xz".len() || !name.ends_with(".xz") {
@@ -195,6 +203,15 @@ impl PayloadFile {
         if build_id.is_empty() || build_id.chars().any(char::is_control) {
             return Err(ManifestFault::BuildId);
         }
+        // A stick image's line carries its boot partition's sum; no
+        // other line does.
+        let boot_sha256 = if name.starts_with(STICK_PREFIX) {
+            Some(Sha256Sum::from_hex(boot).ok_or(ManifestFault::Sum)?)
+        } else if boot == "-" {
+            None
+        } else {
+            return Err(ManifestFault::Sum);
+        };
         Ok(Self {
             name: name.to_owned(),
             sha256,
@@ -202,6 +219,7 @@ impl PayloadFile {
             inner_sha256,
             inner_size,
             build_id: build_id.to_owned(),
+            boot_sha256,
         })
     }
 }

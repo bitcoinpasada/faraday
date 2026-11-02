@@ -181,12 +181,24 @@ fn sum(bytes: &[u8]) -> (String, u64) {
 /// The Starter's payload carrying the release image of `efi`, and the
 /// order's source for it.
 fn release(efi: &[u8]) -> (Job, Confirmed) {
+    release_listing(efi, false)
+}
+
+/// The same; with `off` the manifest's boot partition sum is the
+/// partition's with one byte changed.
+fn release_listing(efi: &[u8], off: bool) -> (Job, Confirmed) {
     let img = release_image(efi).to_vec();
     let xz = stored_xz(&img);
     let (xz_sha, _) = sum(&xz);
     let (img_sha, size) = sum(&img);
+    let (from, to) = boot_range();
+    let mut boot = img[from..to].to_vec();
+    if off {
+        boot[1000] ^= 1;
+    }
+    let (boot_sha, _) = sum(&boot);
     let manifest = format!(
-        "# Faraday Starter payload 0.3.0, commit {COMMIT}\n{NAME}\t{xz_sha}\tfaraday-stick-0.3.0-x86_64-uefi-strict.img\t{img_sha}\t{size}\t0.3.0+89abcdef0123\n"
+        "# Faraday Starter payload 0.3.0, commit {COMMIT}\n{NAME}\t{xz_sha}\tfaraday-stick-0.3.0-x86_64-uefi-strict.img\t{img_sha}\t{size}\t0.3.0+89abcdef0123\t{boot_sha}\n"
     );
     let payload =
         Payload::from_parts(manifest.as_bytes(), vec![(NAME.to_string(), xz)]).expect("a payload");
@@ -471,4 +483,23 @@ fn without_a_signed_boot_file_keep_data_writes_the_releases_boot_partition() {
         read(&stick, from as u64, to - from)
             == release_image(&release_efi).bytes(from as u64, to - from)
     );
+}
+
+#[test]
+fn keep_data_refuses_a_boot_partition_that_is_not_the_one_the_release_lists_unless_a_boot_file_is_signed()
+ {
+    let release_efi = release_program();
+    let (job, source) = release_listing(&release_efi, true);
+    let (stick, before) = old_stick("off");
+    let mut disk = FileDisk::new(&stick);
+    let order = keep_data(&disk, source.clone(), None);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BootSum { .. })), "{r:?}");
+    assert!(read(&stick, 0, before.len as usize) == before.to_vec());
+
+    // With a signed boot file the check is byte for byte only.
+    let (signed, _) = signed_by_test_key(&release_efi);
+    let (chosen, _) = signed::choose(&file("off.efi", &signed), &job).expect("taken");
+    let order = keep_data(&disk, source, Some(chosen));
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
 }

@@ -362,6 +362,23 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
             [format!("{STICK}.xz"), format!("{PI}.xz")],
             "{system}"
         );
+        // The stick's line carries its boot partition's sum as
+        // SHA256SUMS lists it; the Pi's carries none.
+        let listed = sums(&out)
+            .into_iter()
+            .find(|(_, n)| *n == format!("{}-boot.vfat", STICK.trim_end_matches(".img")))
+            .map(|(sum, _)| sum);
+        assert_eq!(
+            m.file(&format!("{STICK}.xz"))
+                .and_then(|f| f.boot_sha256)
+                .map(|s| s.to_string()),
+            listed,
+            "{system}"
+        );
+        assert_eq!(
+            m.file(&format!("{PI}.xz")).map(|f| f.boot_sha256),
+            Some(None)
+        );
     }
 }
 

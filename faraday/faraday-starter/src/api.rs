@@ -641,6 +641,14 @@ pub enum Reason {
         /// The SHA-256 it has, hex.
         sha256: String,
     },
+    /// Keep data, no boot file signed: the boot partition the release's
+    /// stick image carries does not have the SHA-256 the payload's
+    /// manifest gives for it (the `-boot.vfat` value, §4.4). Nothing was
+    /// written.
+    BootSum {
+        /// The SHA-256 it has, hex.
+        sha256: String,
+    },
 }
 
 /// Why the release's own boot file could not be read or replaced

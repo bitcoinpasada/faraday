@@ -241,6 +241,33 @@ impl Source<'_> {
         }
     }
 
+    /// Costs a decompression of the whole source and the SHA-256 of its
+    /// boot partition: for keep data from a payload file with no boot
+    /// file signed, that partition's SHA-256 is the manifest's
+    /// (`docs/STICK-IDENTITY.md` §4.4). The write then puts it on the stick
+    /// byte for byte (less the serial the stick keeps), so the stick's is
+    /// the release's. With a boot file signed the check is byte for byte
+    /// only.
+    fn check_boot_sum(&self, order: &WriteOrder) -> Result<(), Reason> {
+        let Source::Payload { file, .. } = self else {
+            return Ok(());
+        };
+        let Some(want) = file.boot_sha256 else {
+            return Ok(());
+        };
+        if order.mode != Mode::KeepData || order.boot_file.is_some() {
+            return Ok(());
+        }
+        let (_, boot) = self.boot_partition()?;
+        let got = Sha256Sum(Sha256::digest(&boot).into());
+        if got != want {
+            return Err(Reason::BootSum {
+                sha256: got.to_string(),
+            });
+        }
+        Ok(())
+    }
+
     /// Checks the source before the disk is touched: a payload file
     /// against its manifest, an image against the sum Confirm showed.
     fn check(&self) -> Result<(), Reason> {
@@ -375,6 +402,7 @@ pub fn write(
         }
     }
     source.check()?;
+    source.check_boot_sum(order)?;
     let (mut patches, captured) = changes(order, &source)?;
     let block = device.block();
     if !block.is_power_of_two() || !(512..=ALIGN as u64).contains(&block) {
