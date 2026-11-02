@@ -351,13 +351,14 @@ pub struct Installed {
 /// How far a write is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WriteStage {
-    /// Clearing the whole stick first (`docs/STICK-IDENTITY.md` §4.2):
-    /// bytes of zeros written of the stick's size.
-    Clearing,
     /// Writing: bytes written of the total.
     Writing,
     /// Reading the write back to compare: bytes read of the total.
     ReadingBack,
+    /// Zeros over every sector of the stick before it is made
+    /// (`WriteOrder::clear_first`): bytes cleared of the stick's size.
+    /// Sent before `Writing`, which then counts the stick's own bytes.
+    Clearing,
 }
 
 /// Why a partition table is not a Faraday stick's (§4.1,
@@ -882,6 +883,10 @@ pub struct WriteOrder {
     pub size: u64,
     /// Whole or keep data.
     pub mode: Mode,
+    /// Zeros over every sector of the stick before it is made
+    /// (`docs/STICK-IDENTITY.md` §4.2, Clear the whole stick first);
+    /// whole writes only.
+    pub clear_first: bool,
     /// A boot file the person signed, in place of the release's; `None`
     /// for the release's own.
     pub boot_file: Option<BootFile>,
@@ -889,10 +894,6 @@ pub struct WriteOrder {
     /// (`faraday_fat::label_bytes`, `docs/STICK-IDENTITY.md` §6), for a
     /// whole write; `None` for none, as the image has it.
     pub name: Option<String>,
-    /// Zeros over every sector of the stick before it is made
-    /// (`docs/STICK-IDENTITY.md` §4.2, Clear the whole stick first);
-    /// whole writes only.
-    pub clear_first: bool,
 }
 
 /// What the Starter asks the shell to do.

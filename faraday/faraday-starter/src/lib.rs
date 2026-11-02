@@ -17,6 +17,7 @@
 pub mod api;
 mod appearance;
 mod boot_file;
+mod clear;
 pub mod concern;
 pub mod decide;
 mod demo;
@@ -226,6 +227,8 @@ pub enum StarterAction {
     Theme(faraday_ui::Theme),
     /// Draw text at this size, from About (`docs/TEXT-SIZE.md` §6).
     TextSize(faraday_ui::TextSize),
+    /// What to write's Clear the whole stick first, ticked or not.
+    ClearFirst,
     /// Boot file: the release's own (`false`) or one I signed (`true`).
     BootChoice(bool),
     /// A boot file of the listing, by its place in it, to be checked.
@@ -431,6 +434,7 @@ impl StarterAction {
             StarterAction::TextSize(t) => (67, u32::from(t.pct())),
             StarterAction::How => (68, 0),
             StarterAction::Name => (69, 0),
+            StarterAction::ClearFirst => (70, 0),
         };
         (kind << 16) | arg
     }
@@ -524,6 +528,7 @@ impl StarterAction {
             ),
             68 => StarterAction::How,
             69 => StarterAction::Name,
+            70 => StarterAction::ClearFirst,
             _ => return None,
         })
     }
@@ -558,6 +563,8 @@ pub struct Making {
     pub boot: boot_file::BootPick,
     /// The data partition's name (`docs/STICK-IDENTITY.md` §6).
     pub name: name::NameField,
+    /// Clear the whole stick first, ticked on What to write.
+    pub clear_first: bool,
 }
 
 /// What a stick or card is written from: a payload file, or a developer's
@@ -1766,6 +1773,7 @@ impl Starter {
                     result: None,
                     boot: boot_file::BootPick::default(),
                     name: name::NameField::default(),
+                    clear_first: false,
                 });
                 if target == Target::Stick && self.asks_which() {
                     self.go(Page::Which);
@@ -2115,6 +2123,7 @@ impl Starter {
             | StarterAction::OpenTemplate => {}
             // Typing goes to the field (`name::name_pressed`).
             StarterAction::Name => {}
+            StarterAction::ClearFirst => self.toggle_clear_first(),
         }
     }
 
@@ -2157,6 +2166,7 @@ impl Starter {
         if !self.may_write(mode) {
             return;
         }
+        let clear = self.clear_first_order();
         self.out.push_back(StarterCommand::Write(WriteOrder {
             source: image.source,
             disk: id,
@@ -2164,13 +2174,17 @@ impl Starter {
             serial,
             size,
             mode,
+            clear_first: self.clear_first_order(),
             boot_file: self.boot_order(),
             name: self.name_order(),
-            clear_first: false,
         }));
         if let Some(m) = self.making.as_mut() {
             m.refused = None;
-            m.progress = Some((WriteStage::Writing, 0, image.size));
+            m.progress = Some(if clear {
+                (WriteStage::Clearing, 0, size)
+            } else {
+                (WriteStage::Writing, 0, image.size)
+            });
         }
         self.go(Page::Writing);
     }

@@ -415,12 +415,28 @@ strings! {
     starter_writing_title: "Writing",
     /// Progress: `{}` done, `{}` in all.
     starter_progress_bytes: "{} of {}",
-    /// Progress while clearing the whole stick first.
-    starter_clearing: "Clearing · {}",
     /// Progress while writing.
     starter_progress_writing: "Written {}",
     /// Progress while reading back.
     starter_reading_back: "Reading back · {}",
+    /// Progress while zeros go over the stick before it is made: `{}` is
+    /// the bytes cleared of the stick's size.
+    starter_clearing: "Clearing · {}",
+    /// Progress under the clearing pass: the time left, at 8 MB/s, a USB 2
+    /// stick's writing speed, rounded up to whole minutes. `{}` minutes.
+    starter_clearing_left: "About {} min left",
+    // ----- What to write's Clear the whole stick first
+    // (docs/STICK-IDENTITY.md §4.2) -----
+    /// The option's tick.
+    starter_clear_first: "Clear the whole stick first",
+    /// Under the tick: the time it adds. `{}` is the stick's size in
+    /// bytes divided by 8 MB/s, a USB 2 stick's writing speed, in
+    /// minutes rounded up.
+    starter_clear_adds: "Adds about {} min",
+    /// Confirm's row label for the option when ticked.
+    starter_clear_row: "Before writing",
+    /// Confirm's row value: `{}` is the same minutes as the option's.
+    starter_clear_row_value: "Clears the whole stick, about {} min",
     /// Result title.
     starter_done_title: "Written",
     /// Result title.

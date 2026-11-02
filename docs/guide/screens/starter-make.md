@@ -142,6 +142,16 @@ Keep data does not change the data partition, so it has no Name.
 | **Letters, digits, spaces and ! # $ % & ' ( ) - @ ^ _ ` { } ~ only** | in the error tone: a character a FAT name cannot hold. Continue waits |
 | **EFI, bootfs and FARADAYBOOT are boot partitions' names** | in the error tone: a boot partition's name. Continue waits |
 
+#### Clear the whole stick first
+
+Under **Boot file**, for **New Faraday stick** only (Material 3,
+Checkbox): not offered for a card or with Replace Faraday, keep data.
+
+| Control | What it does |
+|---|---|
+| **Clear the whole stick first** | a tick, unticked at first. Ticked, zeros are written over every sector of the stick before it is made, and none is read back. It does not reach the flash a stick keeps in reserve ([Checking what is written](../../learn/faraday/checking-written.md)) |
+| **Adds about 67 min** | under the tick: the time it adds, from the stick's size at 8 MB/s, a USB 2 stick's writing speed, so it errs long. 67 minutes is a 32 GB stick |
+
 ### Confirm
 
 ![Confirm for a 32 GB USB Flash Drive: its facts, what is written, the image's SHA-256 and Erase and write](../pictures/starter-make-confirm.png)
@@ -158,6 +168,7 @@ Keep data does not change the data partition, so it has no Name.
 | **Writes** | **New Faraday stick**, **New Faraday card** or **Replace Faraday, keep data** |
 | **Boot file** | **The release's (unsigned)**, or **One I signed** with its **Certificate name** and **Certificate SHA-256: compare it with your db key's** |
 | **Name** | the data partition's name as it is written, when one was typed |
+| **Before writing** | **Clears the whole stick, about 67 min**, when Clear the whole stick first is ticked |
 | **Build** | the Faraday version written, or **Not known** |
 | **SHA-256 of the image** | the image's sum, in groups; **SHA-256 of this image** for a developer's image |
 | **Erase and write** | for a new stick or card: the primary button. The system's own permission prompt follows (Windows: administrator; Linux: the password, where asked) |
@@ -185,7 +196,8 @@ No way back while the disk is written.
 | Control | What it does |
 |---|---|
 | "USB Flash Drive · 32 GB" | the disk being written |
-| the bar | how much of the image is written, then read back |
+| the bar | how much is cleared, where Clear the whole stick first is ticked, then how much is written, then read back |
+| "Clearing · 3.0 GB of 32 GB", then "About 28 min left" | while the stick is cleared first: the time left is at 8 MB/s |
 | "Written 67 MB of 202 MB" | while writing |
 | "Reading back · 67 MB of 202 MB" | while the written disk is read back and compared |
 
@@ -197,7 +209,7 @@ No way back while the disk is written.
 
 | Result | What the page shows |
 |---|---|
-| **Written** | the tick in the ok tone. What the check after writing found: **Matches the release image, except this stick's own IDs, as expected**, with "its name" and "the boot file you signed" named where they apply (a Pi card: **Matches the release image, except this card's own IDs, as expected**). **Keep the stick in to start this computer from it. To start another computer, pull it out.** (a Pi card: **The card can be pulled out.**). For a stick, **In the boot menu**, "something like UEFI: USB Flash Drive, Partition 1": roughly the name this computer's boot menu gives the stick, when the stick reports its maker or model. **Start this computer from the stick** (primary; on an Intel Mac **Start this Mac from the stick**) opens [Start this computer from the stick](starter-learn-and-boot.md#start-this-computer-from-the-stick); **Done** goes to Home. A Pi card has **Done** alone |
+| **Written** | the tick in the ok tone. What the check after writing found: **The boot partition matches the release**, or **The boot partition matches the release, except the boot file you signed, as expected**; the stick's table and data partition are its own and are not named (a Pi card: **Matches the release image, except this card's own IDs, as expected**, with "its name" named where it applies). **Keep the stick in to start this computer from it. To start another computer, pull it out.** (a Pi card: **The card can be pulled out.**). For a stick, **In the boot menu**, "something like UEFI: USB Flash Drive, Partition 1": roughly the name this computer's boot menu gives the stick, when the stick reports its maker or model. **Start this computer from the stick** (primary; on an Intel Mac **Start this Mac from the stick**) opens [Start this computer from the stick](starter-learn-and-boot.md#start-this-computer-from-the-stick); **Done** goes to Home. A Pi card has **Done** alone |
 | **Not written** | the cross in the error tone, and the reason in the error tone ([what each says](../walk/get-faraday.md#16-writing-then-written)). **Try again** goes back to the disk list; **Done** goes to Home |
 
 The boot menu name follows this computer's maker: "UEFI: …, Partition

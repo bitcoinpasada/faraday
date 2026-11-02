@@ -76,6 +76,7 @@ impl FileDisk {
     /// The order a person confirmed for this disk as it was then.
     pub(crate) fn order(&self, source: Confirmed, mode: Mode) -> WriteOrder {
         WriteOrder {
+            clear_first: false,
             source,
             disk: String::from("/org/freedesktop/UDisks2/block_devices/sdx"),
             device: self.now.device.clone(),
@@ -84,7 +85,6 @@ impl FileDisk {
             mode,
             boot_file: None,
             name: None,
-            clear_first: false,
         }
     }
 }
@@ -1065,6 +1065,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
     for (name, size, serial, why) in cases {
         let block = format!("/org/freedesktop/UDisks2/block_devices/{name}");
         let order = WriteOrder {
+            clear_first: false,
             source: payload_source(),
             disk: block.clone(),
             device: format!("/dev/{name}"),
@@ -1073,7 +1074,6 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
             mode: Mode::Whole,
             boot_file: None,
             name: None,
-            clear_first: false,
         };
         let mut target = Target {
             bus: Recording {

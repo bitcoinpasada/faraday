@@ -22,7 +22,7 @@ The stick must still be the one confirmed, by its serial number and
 size. Replace Faraday, keep data also checks the stick's partition
 table first: a Faraday stick's layout, GPT with exactly two partitions,
 an EFI system partition at sector 2048 of 64 MiB and a basic data
-partition at sector 133120 of 128 MiB. Names, IDs and labels play no
+partition at sector 133120 of at least 128 MiB. Names, IDs and labels play no
 part: they are an ordinary stick's. A stick with any other layout is
 refused and nothing is relabelled.
 
@@ -43,45 +43,83 @@ read a second time and its SHA-256 must match the manifest's again, and
 the image written must have the manifest's size and SHA-256. Otherwise
 the write is reported as failed, never as done.
 
-After the write the Starter reads the whole of what it wrote back from
-the stick and compares it, byte for byte, with the image decompressed
-again with this stick's own bytes in place, then has the system read the
-partition table again. Keep data then checks that the partition table is
-unchanged.
+After the write the Starter reads back from the stick what it wrote
+and compares it, byte for byte, with what it meant to write, then has
+the system read the partition table again. Keep data then checks that
+the partition table is unchanged.
 
-## What differs from the image
+## Clearing the whole stick first
 
-A stick written by the Starter is not a copy of the image byte for
-byte. These bytes are its own:
+What to write offers Clear the whole stick first for a new stick: zeros
+are written over every sector of the stick before it is made, and
+Writing shows that pass with its own progress and the time left. None
+of the zeros is read back. It takes about as long again as writing the
+stick (an hour for 32 GB, at the 8 MB/s of a USB 2 stick), so it is
+unticked at first. It removes what the stick held from the sectors a
+computer can read; it does not reach the flash a stick keeps in
+reserve, and the Starter does not say a stick is erased. A stick not
+cleared keeps what it held in the free space of its data partition, as
+a stick written with `dd` does.
 
-- the disk's GUID and each partition's unique GUID, in the primary and
-  the backup GPT, with the CRCs of both headers and both entry arrays
-  worked out again; on a Pi card, the MBR disk signature (4 bytes at
-  offset 440);
-- each FAT volume's serial number, in its boot sector and, on FAT32, in
-  its backup boot sector;
-- the data partition's name, where one was given;
-- the boot file, where one you signed was chosen.
+## What a stick has of its own
+
+A stick written by the Starter is made for its size, not copied from
+the image byte for byte. Its boot partition is the image's; its
+partition table and its data partition are the Starter's own:
+
+- the table holds the disk's GUID and each partition's unique GUID, new
+  for each stick, with the data partition filling the stick from sector
+  133120 to its last usable sector, and the backup table at the stick's
+  end;
+- the data partition is a FAT32 volume of the stick's size, with its
+  own serial number and the name you gave it, where one was given, so
+  a 32 GB stick has about 32 GB for files where the image has 128 MiB;
+- the boot file is the one you signed, where one was chosen.
 
 The IDs are drawn from the system's randomness. They are not secret;
 they make two sticks two disks to a computer. Windows takes a second
 disk with the same GUID offline and writes new IDs to it when it is
 brought online.
 
-With those bytes put back as the image has them, what was written has
-the manifest's SHA-256: the Starter checks that after every write, and
-the screen says "Matches the release image, except this stick's own
-IDs", naming the name and the boot file where they apply.
+## What is compared on a stick
 
-To repeat it by hand on Linux: copy the image's length off the stick
+- The image, as it is read, has the manifest's SHA-256, and the boot
+  partition's SHA-256 is the one the release publishes: the
+  `-boot.vfat` line of `SHA256SUMS`.
+- The boot partition read back from the stick is compared with the
+  image's, byte for byte.
+- The table and the data partition read back are compared with what the
+  Starter made. No published number covers them: they are the stick's
+  own. The Starter's FAT32 is checked against `fsck.fat` and
+  `mkfs.fat`, which Faraday did not write.
+
+The screen says "The boot partition matches the release", or, with a
+boot file you signed, "The boot partition matches the release, except
+the boot file you signed, as expected".
+
+To repeat the boot partition's check by hand on Linux, once the
+signature of `SHA256SUMS` is checked: `sha256sum /dev/sdX1` is the
+`-boot.vfat` line's sum. It holds for a stick written with `dd` too,
+and for a stick that has been in Windows. A stick written with a boot
+file you signed holds that file, so its sum is not the release's.
+
+## What differs on a Pi card
+
+A Pi card is a copy of the image, except these bytes, which are its
+own: the MBR disk signature (4 bytes at offset 440), the data
+partition's FAT serial number in its boot sector and its backup boot
+sector, and its name, where one was given. With those bytes put back
+as the image has them, what was written has the manifest's SHA-256: the
+Starter checks that after every write, and the screen says "Matches the
+release image, except this card's own IDs, as expected", naming the
+name where it applies.
+
+To repeat it by hand on Linux: copy the image's length off the card
 (`dd if=/dev/sdX of=copy.img bs=1M count=…`, the length the manifest
-names); read the image's own GUIDs with `sgdisk --info` and the disk's
-with `sgdisk --print` on the image, and write them into the copy with
-`sgdisk --disk-guid=… --partition-guid=1:… --partition-guid=2:…`, which
-works the CRCs out again; attach the copy (`losetup --partscan`) and put
-each FAT serial back with `fatlabel -i`, and the data partition's label
-with `fatlabel`; then `sha256sum copy.img`. A stick written with a boot
-file you signed holds that file, so its sum is not the manifest's.
+names); put the image's own disk signature back with `sfdisk
+--disk-id`, attach the copy (`losetup --partscan`) and put each FAT
+serial back with `fatlabel -i` and the data partition's label with
+`fatlabel`; then `sha256sum copy.img`.
 
 An image given to the Starter by name (`--image`) has no manifest:
 Confirm shows its SHA-256, and the write must give that sum.

@@ -297,6 +297,7 @@ fn this_computers_facts_come_from_the_registry_and_the_firmware() {
 
 fn order(source: Source, serial: &str, mode: Mode) -> WriteOrder {
     WriteOrder {
+        clear_first: false,
         source,
         disk: String::from(r"\\.\PhysicalDrive2"),
         device: String::from("Disk 2"),
@@ -305,7 +306,6 @@ fn order(source: Source, serial: &str, mode: Mode) -> WriteOrder {
         mode,
         boot_file: None,
         name: None,
-        clear_first: false,
     }
 }
 
@@ -478,6 +478,7 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
     let signed = Elevated {
         pipe: PIPE.into(),
         order: WriteOrder {
+            clear_first: false,
             boot_file: Some(BootFile {
                 path: r"D:\Signed files\BOOTX64 (signed).EFI".into(),
                 sha256: SUM.into(),
@@ -532,6 +533,7 @@ fn the_elevated_writer_takes_the_data_partitions_name_as_fat_writes_it() {
     let named = Elevated {
         pipe: PIPE.into(),
         order: WriteOrder {
+            clear_first: false,
             name: Some(String::from("MY STICK")),
             ..order(
                 Source::Payload {

@@ -237,6 +237,7 @@ fn old_stick(name: &str) -> (PathBuf, Sparse) {
 
 fn keep_data(disk: &FileDisk, source: Confirmed, boot_file: Option<BootFile>) -> WriteOrder {
     WriteOrder {
+        clear_first: false,
         boot_file,
         ..disk.order(source, Mode::KeepData)
     }
@@ -301,6 +302,7 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
     Sparse::new(image.len).write(&blank);
     let mut disk = FileDisk::new(&blank);
     let order = WriteOrder {
+        clear_first: false,
         boot_file: Some(chosen),
         ..disk.order(source, Mode::Whole)
     };

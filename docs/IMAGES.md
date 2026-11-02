@@ -217,8 +217,12 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
   Strict is offered first, saying that some older PCs do not start with
   it, and that Compatible is what to write then. Hardware without its image is
   listed with the exact file to download and where.
-- **What it writes** is the image unchanged, decompressed while written
-  and read back as `docs/STARTER.md` §4.1 says.
+- **What it writes** to a Pi card is the image, decompressed while
+  written and read back as `docs/STARTER.md` §4.1 says. To a stick it
+  writes the image's boot partition and a table and data partition made
+  for the stick's size (`docs/STICK-IDENTITY.md` §4.2), so the data
+  partition has the rest of the stick; the image as published is
+  unchanged, with its 128 MiB data partition, and is what `dd` writes.
 - **Keep data and a boot file the person signed (F133)** take the
   chosen build's boot partition and `BOOTX64.EFI`. The signed file is
   checked against that build's.

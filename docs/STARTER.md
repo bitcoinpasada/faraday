@@ -774,17 +774,27 @@ destinations; Faraday Demo and the device keep their own navigation
      partition's (`EFI`, `bootfs`, `FARADAYBOOT`) is refused there and
      Continue waits. Keep data does not touch the data partition and
      offers no Name.
+   - **Clear the whole stick first**, for a new stick only (Material 3,
+     Checkbox; `docs/STICK-IDENTITY.md` §4.2): unticked at first, not
+     offered with keep data or for a Pi card. Under it, "Adds about N
+     min", N the stick's size over 8 MB/s in minutes, rounded up (32 GB:
+     67). Ticked, zeros are written over every sector of the stick
+     before it is made.
 3. **Confirm** (Record; when the disk is no longer the one confirmed it
    says so, the action button is disabled and **Choose again** returns
    to the disk list) the stick (maker, model, size, device, serial),
    what is on it (its Faraday version, when it is a Faraday stick),
    what is written (the build ID and the `.img` SHA-256), the boot
    file (the release's, or one signed with its certificate's name and
-   SHA-256, §4.5), the name where one is written, the warning
+   SHA-256, §4.5), the name where one is written, "Before
+   writing: Clears the whole stick, about N min" where Clear the whole
+   stick first is ticked, the warning
    from step 2 if there is one, and the action button: *Erase and
    write* or *Write*. Then the system's own prompt where there is one
    (§2).
-4. **Writing** (Progress): written of total, then *Reading back*.
+4. **Writing** (Progress): where Clear the whole stick first is ticked,
+   *Clearing* first (cleared of the stick's size, and "About N min
+   left"); then written of total, then *Reading back*.
    Under *keep data* the total is the boot partition's size, the only
    bytes that reach the stick, also when a whole image is written.
 5. **Done** (Result): "Keep the stick in to start this computer from it. To start another computer, pull it out." (a Pi card: "The card can be pulled out."); a row **In the
@@ -1038,7 +1048,9 @@ equal to the booklet's `tables.json`, no secret in any blank).
 As tools/flash-stick/write.sh did (removed in batch L, D21; this
 section is the reference): refuse unless
 the device is still the stick that was confirmed (serial and size);
-unmount what the desktop mounted from it; write; flush; read the whole
+unmount what the desktop mounted from it; where Clear the whole stick
+first is ticked, write zeros over every sector of the stick (and read
+none of them back); write; flush; read the whole
 write back and compare; ask the system to read the partition table
 again. *Keep data* writes the boot partition at its offset after the
 same partition-table checks as `faraday/image/stick-boot.sh`, and

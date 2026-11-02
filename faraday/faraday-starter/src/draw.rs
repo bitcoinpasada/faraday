@@ -34,6 +34,7 @@ const S: &Strings = &EN;
 
 mod appearance;
 mod boot_file;
+mod clear_first;
 mod home;
 mod how;
 mod name;
@@ -1094,6 +1095,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     y += boot_file::section(starter, ui, x, y, w);
+    y += clear_first::section(starter, ui, x, y, w);
     y += name::section(starter, ui, x, y, w);
     y += 20.0;
     let ready = starter.boot_ready() && starter.name_ready();
@@ -1147,6 +1149,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += fact_row(ui, x, y, w, S.starter_writes, writes);
     y += boot_file::confirm_rows(starter, ui, x, y, w);
     y += name::confirm_row(starter, ui, x, y, w);
+    y += clear_first::confirm_row(starter, ui, x, y, w);
     let build = image
         .build
         .as_deref()
@@ -1272,7 +1275,19 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         WriteStage::Writing => fill(S.starter_progress_writing, &[&of]),
         WriteStage::ReadingBack => fill(S.starter_reading_back, &[&of]),
     };
-    y + line(ui, x, y, w, &s, Role::OnSurface)
+    y += line(ui, x, y, w, &s, Role::OnSurface);
+    if stage == WriteStage::Clearing {
+        let left = crate::clear::minutes(total.saturating_sub(done)).to_string();
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.starter_clearing_left, &[&left]),
+            Role::OnSurfaceVariant,
+        );
+    }
+    y
 }
 
 fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {

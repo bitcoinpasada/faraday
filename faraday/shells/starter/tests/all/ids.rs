@@ -168,6 +168,7 @@ fn a_stick_written_with_a_name_shows_it_on_the_data_partition_alone() {
     Sparse::new(STICK).write(&path);
     let mut disk = FileDisk::new(&path);
     let order = faraday_starter::api::WriteOrder {
+        clear_first: false,
         name: Some(String::from("MY STICK")),
         ..disk.order(source, Mode::Whole)
     };
@@ -192,6 +193,7 @@ fn a_pi_card_written_with_a_name_shows_it() {
     Sparse::new(STICK).write(&path);
     let mut disk = FileDisk::new(&path);
     let order = faraday_starter::api::WriteOrder {
+        clear_first: false,
         name: Some(String::from("CARD-1")),
         ..disk.order(source, Mode::Whole)
     };
@@ -220,6 +222,7 @@ fn a_name_a_fat_label_cannot_be_or_a_boot_partitions_is_refused_and_nothing_is_w
         Sparse::new(STICK).write(&path);
         let mut disk = FileDisk::new(&path);
         let order = faraday_starter::api::WriteOrder {
+            clear_first: false,
             name: Some(name.to_string()),
             ..disk.order(source.clone(), Mode::Whole)
         };
@@ -422,6 +425,7 @@ fn a_name_the_starter_wrote_reads_the_same_in_fatlabel_and_the_volume_passes_fsc
     Sparse::new(STICK).write(&stick);
     let mut disk = FileDisk::new(&stick);
     let order = faraday_starter::api::WriteOrder {
+        clear_first: false,
         name: Some(String::from("SAVINGS 2")),
         ..disk.order(source, Mode::Whole)
     };

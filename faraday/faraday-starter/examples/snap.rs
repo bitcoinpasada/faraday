@@ -838,6 +838,26 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     })));
     s.shot(&mut h, "stick-5-failed")?;
 
+    // Clear the whole stick first, ticked: What to write, Confirm and
+    // Writing's clearing pass (docs/STICK-IDENTITY.md §4.2).
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Disks(many()));
+    h.press(StarterAction::Make(Target::Stick));
+    let n = StarterAction::Disk(h.disk_number("sdf"));
+    h.press(n);
+    h.press(StarterAction::Mode(Mode::Whole));
+    h.press(StarterAction::ClearFirst);
+    s.shot_end(&mut h, "stick-2-what-clear")?;
+    h.press(StarterAction::Continue);
+    s.shot_end(&mut h, "stick-3-confirm-clear")?;
+    h.press(StarterAction::Write);
+    h.starter_event(StarterEvent::WriteProgress {
+        stage: WriteStage::Clearing,
+        done: 3_000_000_000,
+        total: 16_000_000_000,
+    });
+    s.shot(&mut h, "stick-4-clearing")?;
+
     // Make a Pi card.
     let mut h = s.starter();
     let mut reader = disk(

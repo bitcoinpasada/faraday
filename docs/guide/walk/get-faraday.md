@@ -104,7 +104,14 @@ signed** is for a boot file signed with your own Secure Boot keys
 empty: the stick's data partition has no name, and a computer shows it
 as it shows any drive with none. To give it one, press the field and
 type it: at most 11 letters, digits and spaces, written in capitals
-([Name](../screens/starter-make.md#name)). Press **Continue**.
+([Name](../screens/starter-make.md#name)). **Clear the whole stick first**
+is unticked: tick it to write zeros over every sector of the stick
+before it is made, which adds the time **Adds about N min** says
+([Clear the whole stick first](../screens/starter-make.md#clear-the-whole-stick-first)).
+The stick is made for its size: its data partition takes the rest of
+the stick, so a 32 GB stick has about 32 GB for files, where one
+written with `dd` or another tool has the image's 128 MiB. Press
+**Continue**.
 
 A stick that already holds Faraday also offers keeping its data, for
 upgrading: [Replace Faraday, keep the data](starter-tools.md#5-replace-faraday-keep-the-data).
@@ -125,6 +132,7 @@ Every row: [Confirm](../screens/starter-make.md#confirm).
 | **Device**, **Serial** | the system's name for the disk, and its serial number |
 | **Writes** | **New Faraday stick** |
 | **Boot file** | **The release's (unsigned)** or **One I signed** |
+| **Before writing** | **Clears the whole stick, about N min**, when Clear the whole stick first is ticked |
 | **Build** | the Faraday version written |
 | **SHA-256 of the image** | the image's sum; it is the `.img` line of the release's `SHA256SUMS` |
 
@@ -136,8 +144,9 @@ button is grey. Press **Choose again** and choose the stick again.
 
 ![Writing, a bar and Written 67 MB of 202 MB](../pictures/1-5-writing.png)
 
-The page is **Writing**, with a bar and how much is written. The
-Starter writes the image, then reads it back to check it
+The page is **Writing**, with a bar and how much is written. With
+Clear the whole stick first ticked, it shows **Clearing** and the time
+left first. The Starter makes the stick, then reads it back to check it
 ([Writing](../screens/starter-make.md#writing)). Leave the
 stick in until the result shows.
 

@@ -4,6 +4,7 @@ mod appearance;
 mod bitlocker;
 mod boot_file;
 mod budget;
+mod clear_first;
 mod colours_read;
 mod concern_holds;
 mod concern_rules;
