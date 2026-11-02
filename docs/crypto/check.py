@@ -1586,6 +1586,58 @@ def check_para(c, g, i, h, p, items, used):
               "or a name that holds digits is in [[name_with_digits]] with its reason", i)
 
 
+def learn_section_12(text):
+    """CRYPTO-LEARN §12 as (intro, rows): rows are (line, group, first cell) of each table row."""
+    lines = text.splitlines()
+    start = next((i for i, ln in enumerate(lines)
+                  if re.match(r"## 12\. The actions found in the code\s*$", ln)), None)
+    if start is None:
+        return None
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("## ")), len(lines))
+    intro, rows, group = [], [], None
+    for i in range(start + 1, end):
+        ln = lines[i]
+        if ln.startswith("### "):
+            group = ln[4:].strip()
+        elif ln.startswith("|"):
+            cell = ln.strip().strip("|").split("|")[0].strip().strip("`")
+            if cell and cell != "Id" and not set(cell) <= set("-: "):
+                rows.append((i + 1, group, cell))
+        elif group is None:
+            intro.append(ln)
+    return "\n".join(intro), rows
+
+
+def check_learn_actions(c):
+    """CRYPTO-LEARN §12 lists every manifest action once, only manifest actions, and counts them."""
+    e = c.errors
+    rel = "docs/CRYPTO-LEARN.md"
+    sec = learn_section_12(c.read(rel))
+    if sec is None:
+        e.add("learn-list", f"{rel} has no `## 12. The actions found in the code` heading")
+        return
+    intro, rows = sec
+    where = {}
+    for line, group, i in rows:
+        if i not in c.by_id:
+            e.add("learn-list", f"{rel}:{line} (### {group}) has a row for `{i}`, "
+                  "which is no manifest action: remove the row or fix the id")
+        where.setdefault(i, []).append((line, group))
+    for i in sorted(c.by_id):
+        at = where.get(i, [])
+        if not at:
+            e.add("learn-list", f"action `{i}` is in no table of {rel} §12: add its row")
+        elif len(at) > 1:
+            e.add("learn-list", f"action `{i}` is in {len(at)} tables of {rel} §12 "
+                  f"({', '.join(f'line {n}, ### {g}' for n, g in at)}): keep one row")
+    m = re.search(r"The manifest's ([A-Za-z0-9-]+) actions", intro)
+    if not m:
+        e.add("learn-list", f"{rel} §12's intro has no `The manifest's N actions`")
+    elif m.group(1).lower() != count_word(len(c.by_id)):
+        e.add("learn-list", f"{rel} §12 says `{m.group(0)}`, and the manifest has "
+              f"{len(c.by_id)} actions: write `{count_word(len(c.by_id))}`")
+
+
 def run_checks(c):
     check_screens(c)
     check_deps(c)
@@ -1596,6 +1648,7 @@ def run_checks(c):
     check_fingerprints(c)
     check_audit_crates(c)
     check_reveals(c)
+    check_learn_actions(c)
     check_compute(c)
     check_tiles(c)
     check_ratchet(c)
@@ -2007,6 +2060,9 @@ FIXTURE_FILES = {
     "docs/AUDIT.md": "# Audit\n\n## 1. Crates\n\n| Crate | Computes | Written here | Checked |\n"
                      "|---|---|---|---|\n| `src` | things | **written here** | v |\n\n"
                      "## 2. The key boundary\n\nA secret leaves through one named reasons.\n\n## 3. x\n",
+    "docs/CRYPTO-LEARN.md": "## 12. The actions found in the code\n\nThe manifest's two actions.\n\n"
+                            "### Keys\n\n| Id | Action |\n|---|---|\n| one | x |\n\n"
+                            "### Signing\n\n| Id | Action |\n|---|---|\n| two | y |\n\n## 13. Other\n",
     "docs/KEYS.md": "- it leaves through these one named reasons;\n",
     "CLAUDE.md": "its one named reveals (F70)\n",
     "faraday/faraday-keys/src/session.rs": "pub enum Reveal {\n    Words,\n}\n",
@@ -2231,6 +2287,21 @@ def self_test():
                        + "\n## 4. Carries\n\n| `src` | carries |\n\n## 5. y\n", "audit",
                        "§4 has `src` computing nothing")
         expect(ok, "AUDIT §4: a crate that computes nothing and an action that writes there fails")
+        ok, _ = broken("docs/CRYPTO-LEARN.md", "| one | x |\n", "", "learn-list",
+                       "action `one` is in no table")
+        expect(ok, "CRYPTO-LEARN §12: an action with no row fails")
+        ok, _ = broken("docs/CRYPTO-LEARN.md", "| one | x |\n", "| one | x |\n| nine | z |\n",
+                       "learn-list", "row for `nine`")
+        expect(ok, "CRYPTO-LEARN §12: a row for an id that is no action fails")
+        ok, _ = broken("docs/CRYPTO-LEARN.md", "| two | y |\n", "| two | y |\n| one | x |\n",
+                       "learn-list", "action `one` is in 2 tables")
+        expect(ok, "CRYPTO-LEARN §12: an action in two groups fails")
+        ok, _ = broken("docs/CRYPTO-LEARN.md", "manifest's two actions", "manifest's three actions",
+                       "learn-list", "write `two`")
+        expect(ok, "CRYPTO-LEARN §12: a count that differs from the manifest's fails")
+        ok, _ = broken("docs/CRYPTO-LEARN.md", "## 12. The actions", "## 12. The things",
+                       "learn-list", "no `## 12.")
+        expect(ok, "CRYPTO-LEARN §12: a missing heading fails")
         ok, _ = broken("faraday/faraday-keys/src/session.rs", "    Words,\n", "    Words,\n    Seed,\n",
                        "reveal", "Reveal::Seed is named by no action")
         expect(ok, "a Reveal variant no action names fails")

@@ -1788,6 +1788,11 @@ The website links them; the device names them as text.
   does not write;
 - a code name in backticks inside a paragraph is not a placeholder.
 
+`check` also fails when §12 ("The actions found in the code") has no heading, lists a
+manifest action in no table or in two, has a row whose id is no action, or
+states a count in its intro ("The manifest's N actions") that is not the
+manifest's.
+
 `docs/crypto/gen.py` reads what the tables and placeholders name:
 
 - `vault-header`: the offsets from `Header::to_bytes`' slices, failing

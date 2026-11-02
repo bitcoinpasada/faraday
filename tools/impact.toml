@@ -253,8 +253,15 @@ misses = "whether a rule is right"
 id = "crypto-check"
 run = "python3 -I -B docs/crypto/check.py check"
 stage = "just lint"
-catches = "a cryptographic function the inventory finds (crypto-inventory, run by the check) that no action covers and no [[not_crypto]] names; an entry naming a function, test, vector folder, area, fuzz target, self-test check, reveal, Learn page or screen that does not exist; an action whose code, libraries, vectors, area or used actions changed since its fingerprint was written; AUDIT §1's crate rows, the Reveal count, COMPUTE §2.3's roots, the Tools tags, a screen calling a root it does not list, and the not_crypto and screens_not counts in tools/lint-crypto.counts (F148)"
+catches = "a cryptographic function the inventory finds (crypto-inventory, run by the check) that no action covers and no [[not_crypto]] names; an entry naming a function, test, vector folder, area, fuzz target, self-test check, reveal, Learn page or screen that does not exist; an action whose code, libraries, vectors, area or used actions changed since its fingerprint was written; AUDIT §1's crate rows, the Reveal count, COMPUTE §2.3's roots, the Tools tags, a screen calling a root it does not list, and the not_crypto and screens_not counts in tools/lint-crypto.counts (F148); docs/CRYPTO-LEARN.md §12 listing a manifest action in no table or in two, a row for an id that is no action, or an action count differing from the manifest's"
 misses = "a function a macro generates or one reached only through a trait object; in faraday-core, what a closure reaches only through a `Faraday` method (docs/CRYPTO-LEARN.md §4.4); whether an entry's text is true (docs/CRYPTO-LEARN.md §17)"
+
+[[check]]
+id = "crypto-check-self-test"
+run = "python3 -I -B docs/crypto/check.py --self-test"
+stage = "just lint"
+catches = "the crypto checker failing to refuse a case it is meant to refuse: each broken fixture (a missing place, a wrong count, an action missing from CRYPTO-LEARN §12) must fail the check"
+misses = "a case the self-test does not break; whether the real tree passes (crypto-check)"
 
 [[check]]
 id = "crypto-gen"

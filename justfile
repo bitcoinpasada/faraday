@@ -90,6 +90,7 @@ lint-repo:
     # fingerprint was written (docs/CRYPTO-LEARN.md §4 to §7; `just
     # crypto-review ID` re-stamps one).
     python3 -I -B docs/crypto/check.py check
+    python3 -I -B docs/crypto/check.py --self-test
     # STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's
     # independence table are what the manifest makes (`gen.py write`).
     python3 -I -B docs/crypto/gen.py check
