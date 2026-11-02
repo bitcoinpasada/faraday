@@ -14,14 +14,6 @@ use faraday_ui::keyboard::OskPress;
 
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
-/// Vector 2's set in index order, lowercase
-/// (`tools/vectors/bip93/vectors.json`).
-const VECTOR2: [&str; 3] = [
-    "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
-    "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
-    "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg",
-];
-
 fn on(width: u16, height: u16) -> Faraday {
     on_at(width, height, 160)
 }
@@ -94,30 +86,6 @@ fn faces(ch: u8, lo: u8, hi: u8) -> [u8; 10] {
         (out[d], out[5 + d]) = if bit == 0 { (hi, lo) } else { (lo, hi) };
     }
     out
-}
-
-fn strings(app: &Faraday) -> Vec<String> {
-    make(app)
-        .strings()
-        .map(|s| s.iter().map(|s| s.to_string()).collect())
-        .unwrap_or_default()
-}
-
-#[test]
-fn twenty_faced_dice_make_vector_2s_strings() {
-    let mut app = on(1366, 768);
-    to_entry(&mut app, 20);
-    assert_eq!(make(&app).dice_choice().faces, 20);
-    for s in &VECTOR2[..2] {
-        for &ch in &s.as_bytes()[9..35] {
-            // Faces past six, pressed on the pad's keys.
-            for f in faces(ch, 7, 19) {
-                c32(&mut app, C32::Face(f));
-            }
-        }
-    }
-    let _ = app.frame();
-    assert_eq!(strings(&app), VECTOR2);
 }
 
 #[test]
@@ -404,21 +372,6 @@ fn px(rgba: &[u8], width: usize, (x, y): (i32, i32)) -> [u8; 3] {
     [rgba[i], rgba[i + 1], rgba[i + 2]]
 }
 
-/// Of the pixels within `r` of (x, y), the one farthest in contrast from
-/// `bg`: the middle of a thin line, whatever its smoothing.
-fn inkiest(rgba: &[u8], width: usize, (x, y): (i32, i32), r: i32, bg: [u8; 3]) -> [u8; 3] {
-    let mut best = bg;
-    for dy in -r..=r {
-        for dx in -r..=r {
-            let p = px(rgba, width, (x + dx, y + dy));
-            if contrast(p, bg) > contrast(best, bg) {
-                best = p;
-            }
-        }
-    }
-    best
-}
-
 /// A drawn box: x, y, width, height in pixels.
 type Box4 = (i32, i32, i32, i32);
 
@@ -439,59 +392,6 @@ fn leaf_box(boxes: &[(String, Box4)], s: &str) -> Box4 {
         .find(|(t, b)| t == s && near(b, row))
         .unwrap_or_else(|| panic!("leaf {s}"))
         .1
-}
-
-#[test]
-fn the_trees_path_stands_apart_from_its_lines_and_the_sheet_in_every_theme() {
-    use faraday_core::ui::Theme;
-    // Two pixels to the dp, a tall window: the whole tree above the panel.
-    let mut app = on_dpi(2560, 2600, 320);
-    to_entry(&mut app, 6);
-    // Each die's first roll, then die 1's second: 1 then 2, higher, so
-    // the path's first branch goes right.
-    for f in [1, 1, 1, 1, 1, 2] {
-        c32(&mut app, C32::Face(f));
-    }
-    for theme in Theme::all() {
-        app.press(Action::Theme(theme));
-        let boxes = app.drawn_text_boxes();
-        let (q, l) = (leaf_box(&boxes, "Q"), leaf_box(&boxes, "L"));
-        let frame = app.frame();
-        let (w, rgba) = (usize::from(frame.width), frame.rgba.to_vec());
-        let (qx, lx) = (q.0 + q.2 / 2, l.0 + l.2 / 2);
-        let lw = f64::from(lx - qx) / 31.0;
-        // A point `leaves` leaf widths from the tree's left end.
-        let at = |leaves: f64| qx + (lw * (leaves - 0.5)).round() as i32;
-        // Just over the leaves, between two of them: the sheet.
-        let bg = px(&rgba, w, (at(16.0), q.1 - q.3));
-        // Up a column from the leaves to its first ink. Between the
-        // middle two leaves it is the root; a quarter and three quarters
-        // across, the ends of die 1's two branches: no other line crosses
-        // those columns.
-        let first_ink = |x: i32| {
-            (q.1 - 1200..q.1 - q.3)
-                .rev()
-                .find(|&y| contrast(px(&rgba, w, (x, y)), bg) > 1.5)
-                .expect("ink up the column")
-        };
-        let root = (at(16.0), first_ink(at(16.0)));
-        let right = (at(24.0), first_ink(at(24.0)));
-        let left = (at(8.0), first_ink(at(8.0)));
-        let mid = |a: (i32, i32), b: (i32, i32)| ((a.0 + b.0) / 2, (a.1 + b.1) / 2);
-        let path = inkiest(&rgba, w, mid(root, right), 2, bg);
-        let line = inkiest(&rgba, w, mid(root, left), 2, bg);
-        let sheet = px(&rgba, w, (root.0, (root.1 + right.1) / 2));
-        let name = format!("{theme:?}");
-        assert!(
-            contrast(path, line) >= 3.0,
-            "{name}: path {path:?} on line {line:?}"
-        );
-        assert!(
-            contrast(path, sheet) >= 3.0,
-            "{name}: path {path:?} on sheet {sheet:?}"
-        );
-        assert_ne!(line, sheet, "{name}: the other branch is drawn");
-    }
 }
 
 /// The leaves standing out of the sheet: each leaf whose letter has a

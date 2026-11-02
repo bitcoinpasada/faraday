@@ -10,7 +10,7 @@ use faraday_core::create::{NewKind, Source};
 use faraday_core::family::FamilyAction as F;
 use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, HOW_MANY, KIND, QUORUM, SEEDS, WHERE};
 use faraday_core::seeds::read::Choice;
-use faraday_core::seeds::{Focus, SeedsAction as S};
+use faraday_core::seeds::{Focus, SLIDE_N, SeedsAction as S};
 use faraday_core::{Action, Faraday, NOT_A_KEY, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -348,6 +348,9 @@ fn two_seeds_and_a_cosigners_xpub_make_the_two_of_three() {
     let mut app = two_of_three_from_seeds();
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));
+    // The arrow keys move the slider last used: one more key.
+    app.press(Action::Slide(SLIDE_N, 2));
+    app.event(Event::Key(Key::Right));
     app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(&mut app, &testkit::key(2, MULTI_PATH));
     app.event(Event::Key(Key::Enter));
@@ -377,7 +380,8 @@ fn keys_reads_every_slot_filled_once_the_wallet_is_made_from_typed_seeds() {
         type_seed(&mut app, &testkit::test_words(word));
     }
     app.press(Action::Seeds(S::Make));
-    made(&app);
+    let w = made(&app);
+    assert_eq!(desc(&app, w), plain(&testkit::savings()));
     assert!(
         summary_is(&mut app, "Keys", "3 of 3 filled"),
         "{}",

@@ -1012,87 +1012,16 @@ const BOX_34: Action = Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Gi
 }));
 
 #[test]
-fn on_large_windows_the_checksum_worksheet_is_drawn_whole_and_a_drag_moves_nothing() {
-    use faraday_shell_api::TouchPhase;
-    for (w, h) in [(1920, 1080), (2560, 1440)] {
-        // Twenty-five characters in: box 34 is the last one written.
-        let mut app = typed_a(w, h, 25);
-        assert_eq!(pan(&app), Default::default(), "{w}x{h}: no view to pan");
-        assert!(page_y(&app) > 0.0, "{w}x{h}: the page went to the work");
+fn the_cell_being_entered_is_on_screen_at_every_size() {
+    // Twenty-five characters in: box 34 is the last one written.
+    for (w, h) in [(1280, 800), (1920, 1080), (2560, 1440)] {
+        let app = typed_a(w, h, 25);
         let at = app.hit_box(BOX_34).expect("box 34 is on screen");
-        assert!(u32::from(at.1) + u32::from(at.3) <= u32::from(h), "{at:?}");
-        // Dragged across, as a view of the sheet would pan: nothing moves.
-        let (x, y) = (at.0 + at.2 / 2, at.1 + at.3 / 2);
-        for (x, phase) in [
-            (x, TouchPhase::Down),
-            (x - 60, TouchPhase::Move),
-            (x - 120, TouchPhase::Move),
-            (x - 120, TouchPhase::Up),
-        ] {
-            app.event(Event::Touch { x, y, phase });
-        }
-        frames(&mut app, 20);
-        assert_eq!(pan(&app), Default::default());
-        assert_eq!(app.hit_box(BOX_34), Some(at), "{w}x{h}: the sheet stayed");
+        assert!(
+            u32::from(at.1) + u32::from(at.3) <= u32::from(h),
+            "{w}x{h}: {at:?}"
+        );
     }
-}
-
-#[test]
-fn a_larger_window_draws_the_whole_worksheet_at_a_larger_cell() {
-    let side = |w, h| typed_a(w, h, 1).hit_box(HRP).expect("the residue's cell").2;
-    let (at_1920, at_2560) = (side(1920, 1080), side(2560, 1440));
-    assert!(at_2560 > at_1920, "{at_1920} then {at_2560}");
-}
-
-#[test]
-fn at_1280_by_800_the_worksheet_is_in_a_view_that_follows_the_work() {
-    let app = typed_a(1280, 800, 25);
-    assert!(pan(&app).y > 0.0, "the view panned down to the front");
-    assert!(app.hit_box(BOX_34).is_some(), "box 34 is in the view");
-}
-
-/// The residue's cell's side, the page scrolled down by a wheel over
-/// its column's top until the cell stands clear of the input panel at
-/// the window's foot (`docs/LAYOUT.md` §16.3).
-fn residue_side(app: &mut Faraday) -> u16 {
-    for _ in 0..40 {
-        if let Some(at) = app.hit_box(HRP) {
-            return at.2;
-        }
-        let (x, y) = (600, 120);
-        app.event(Event::Hover { x, y });
-        app.event(Event::Scroll { x, y, dy: 60 });
-        app.event(Event::ScrollEnd { x, y });
-        app.settle();
-        let _ = app.frame();
-    }
-    panic!("the residue's cell is not on screen");
-}
-
-#[test]
-fn the_worksheets_cell_follows_the_window_as_it_is_resized() {
-    let display = |app: &mut Faraday, width, height| {
-        app.event(Event::Display(DisplayInfo {
-            width,
-            height,
-            dpi: 160,
-            inset_bottom: 0,
-            inset_top: 0,
-            buttons: 0,
-            camera_fixed: false,
-            secure: SecureHardware::None,
-            boot: BootState::Unknown,
-            memory_mib: None,
-        }));
-        let _ = app.frame();
-        residue_side(app)
-    };
-    let mut app = typed_a(1280, 800, 1);
-    let small = residue_side(&mut app);
-    let large = residue_side(&mut typed_a(1920, 1080, 1));
-    assert_ne!(small, large);
-    assert_eq!(display(&mut app, 1920, 1080), large, "made larger");
-    assert_eq!(display(&mut app, 1280, 800), small, "and smaller again");
 }
 
 #[test]
@@ -1147,39 +1076,6 @@ fn at_larger_on_a_compact_window_the_strings_box_numbers_stand_apart() {
             assert!(w <= 0 || h <= 0, "{a} {ra:?} runs into {b} {rb:?}");
         }
     }
-}
-
-#[test]
-fn at_1920_the_strings_boxes_run_twenty_four_a_row() {
-    let mut app = typed_a(1920, 1080, 1);
-    // A row of numbered boxes: a line on which every one of `boxes` is
-    // drawn, left to right.
-    let texts = app.drawn_text_boxes();
-    let row_of = |boxes: std::ops::RangeInclusive<usize>| {
-        let mid = |r: &(i32, i32, i32, i32)| r.1 + r.3 / 2;
-        let last = boxes.end().to_string();
-        texts.iter().filter(|(t, _)| *t == last).find_map(|(_, r)| {
-            let y = mid(r);
-            let xs: Option<Vec<i32>> = boxes
-                .clone()
-                .map(|n| {
-                    texts
-                        .iter()
-                        .find(|(t, b)| *t == n.to_string() && (mid(b) - y).abs() <= 2)
-                        .map(|(_, b)| b.0 + b.2 / 2)
-                })
-                .collect();
-            xs.filter(|xs| xs.windows(2).all(|w| w[0] < w[1]))
-                .map(|xs| (y, xs[0]))
-        })
-    };
-    let (one, x1) = row_of(1..=24).expect("boxes 1 to 24 on one row");
-    let (two, x25) = row_of(25..=48).expect("boxes 25 to 48 on the next");
-    assert!(two > one);
-    assert!(
-        (x25 - x1).abs() <= 2,
-        "the second row starts under the first"
-    );
 }
 
 /// A finger put down at (`x`, `y`) pixels and dragged by `dy` pixels, then

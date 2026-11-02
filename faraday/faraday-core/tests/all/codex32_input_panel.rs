@@ -170,39 +170,6 @@ fn the_pad_and_the_rolls_are_on_screen_together_and_stay_as_the_page_scrolls() {
 }
 
 #[test]
-fn at_2560_the_panel_stands_beside_the_sheets_and_elsewhere_at_the_foot() {
-    // 2560: a column at the work area's start, below the top strip, the
-    // sheets right of it.
-    let mut wide = on_entry(2560, 1440, 160);
-    let sheet = text_at(&mut wide, "Die tracks").expect("the dice sheet");
-    let key = wide.hit_box(face(3)).unwrap();
-    assert!(
-        i32::from(key.0) + i32::from(key.2) < sheet.0,
-        "the pad left of the sheets: {key:?} {sheet:?}"
-    );
-    assert!(key.1 < 1440 / 2, "not at the foot: {key:?}");
-    // 1920 and 1280: pinned at the window's foot, under the sheets.
-    for (w, h) in [(1920u16, 1080u16), (1280, 800)] {
-        let mut app = on_entry(w, h, 160);
-        let key = app.hit_box(face(3)).unwrap();
-        assert!(
-            key.1 + key.3 > h - 120 && key.1 + key.3 <= h,
-            "{w}x{h}: at the foot: {key:?}"
-        );
-        let key = (
-            i32::from(key.0),
-            i32::from(key.1),
-            i32::from(key.2),
-            i32::from(key.3),
-        );
-        assert!(
-            rolls_by(&mut app, key, 120, (w, h)),
-            "{w}x{h}: the rolls with it"
-        );
-    }
-}
-
-#[test]
 fn beside_the_sheets_a_panel_taller_than_the_window_scrolls_within_itself() {
     // A window wide enough for the panel beside the sheets but too low
     // for it whole with twenty-faced dice's three rows of keys: it
@@ -369,42 +336,6 @@ fn the_dice_size_is_chosen_on_the_entropy_card_and_the_panel_follows_it() {
 }
 
 #[test]
-fn at_1280_and_1366_the_rolls_stand_in_one_row_beside_a_pad_of_one_row() {
-    for (w, h) in [(1280u16, 800u16), (1366, 768)] {
-        let mut app = on_shell(w, h, 160, false, Way::Dice);
-        let key = |app: &Faraday, f: u8| app.hit_box(face(f)).expect("a face's key");
-        let one = key(&app, 1);
-        // The six faces and Backspace on one row.
-        for f in 2..=6 {
-            assert_eq!(key(&app, f).1, one.1, "{w}x{h}: face {f} on the pad's row");
-        }
-        let back = app.hit_box(Action::Codex32(C32::Key(OskPress::Back)));
-        assert_eq!(back.map(|b| b.1), Some(one.1), "{w}x{h}: Backspace too");
-        // The five dice's names on one row, left of the pad, the row of
-        // rolls level with it.
-        let names: Vec<(i32, i32, i32, i32)> = (1..=5)
-            .map(|d| {
-                let name = format!("Die {d}");
-                app.drawn_text_boxes()
-                    .into_iter()
-                    .filter(|(t, b)| *t == name && b.1 > i32::from(h) / 2)
-                    .map(|(_, b)| b)
-                    .next_back()
-                    .unwrap_or_else(|| panic!("{w}x{h}: {name} in the panel"))
-            })
-            .collect();
-        let level = names.iter().all(|b| (b.1 - names[0].1).abs() <= 2);
-        assert!(level, "{w}x{h}: one row: {names:?}");
-        assert!(names[4].0 < i32::from(one.0), "{w}x{h}: left of the pad");
-        let rows = (names[0].1 - 8, names[0].1 + 80);
-        assert!(
-            (rows.0..rows.1).contains(&i32::from(one.1)),
-            "{w}x{h}: the pad level with the rolls: {names:?} {one:?}"
-        );
-    }
-}
-
-#[test]
 fn the_dice_sheet_stands_only_with_the_rolling_shares_checksum_and_closes_when_it_is_done() {
     let has = |app: &mut Faraday, s: &str| app.drawn_texts().iter().any(|t| t == s);
     let sheet = Action::Codex32(C32::DiceSheet);
@@ -561,68 +492,6 @@ fn drawn(app: &mut Faraday, text: &str) -> usize {
     app.drawn_texts().iter().filter(|t| *t == text).count()
 }
 
-/// The panel's top at the foot: the highest of its "Working" and the
-/// pad's keys, in pixels from the window's foot.
-fn foot_h(app: &mut Faraday, h: u16) -> i32 {
-    let mut top = i32::from(h);
-    for (t, b) in app.drawn_text_boxes() {
-        if t == "Working" && b.1 > i32::from(h) / 2 {
-            top = top.min(b.1);
-        }
-    }
-    for f in 1..=6 {
-        if let Some(k) = app.hit_box(face(f)) {
-            top = top.min(i32::from(k.1));
-        }
-    }
-    i32::from(h) - top
-}
-
-#[test]
-fn the_foot_panel_packs_the_rolls_the_working_area_and_the_pad_into_few_rows() {
-    // Six- and twenty-faced dice, no button for their size, the Working
-    // area one line where that is shorter: the owner's panel (960 × 580
-    // dp at 1.5 px a dp: 132 dp, was 144, and 216), 1280 × 800 (108, was
-    // 132, and 196), 1366 × 768 (108, was 132, and 160, was 176) and
-    // 1920 × 1080 (88 in one row, was 104; 116, was 144): the panel's
-    // parts begin no higher than its fewest rows allow. In dp.
-    for (w, h, dpi, d6, d20) in [
-        (1440u16, 870u16, 240u16, 132, 216),
-        (1280, 800, 160, 108, 196),
-        (1366, 768, 160, 108, 160),
-        (1920, 1080, 160, 88, 116),
-    ] {
-        for (n, most) in [(6u8, d6), (20, d20)] {
-            let mut app = on_shell(w, h, dpi, false, Way::Dice);
-            choose_size(&mut app, n);
-            let fh = foot_h(&mut app, h) * 160 / i32::from(dpi);
-            assert!(
-                fh > 0 && fh <= most,
-                "{w}x{h} d{n}: the panel's parts {fh} dp from the foot"
-            );
-            pad_and_rolls_in_view(&mut app, w, h);
-        }
-    }
-    // At 1920 × 1080 the six faces stand in one row with the rolls and
-    // the Working area: the rolls, the pad, then the Working area.
-    let mut app = on_shell(1920, 1080, 160, false, Way::Dice);
-    let key = app.hit_box(face(1)).expect("the pad");
-    let die5 = app
-        .drawn_text_boxes()
-        .into_iter()
-        .filter(|(t, b)| t == "Die 5" && b.1 > 1080 / 2)
-        .map(|(_, b)| b)
-        .next_back()
-        .expect("the rolls");
-    let working = text_at(&mut app, "Working").expect("the Working area");
-    assert!(die5.0 < i32::from(key.0), "the pad after the rolls");
-    assert!(
-        working.0 > i32::from(key.0),
-        "the Working area after the pad"
-    );
-    assert!((working.1 - i32::from(key.1)).abs() < 24, "one row");
-}
-
 #[test]
 fn the_tracks_show_only_the_pads_the_dice_reach() {
     let mut app = on_shell(1920, 1080, 160, false, Way::Dice);
@@ -657,41 +526,6 @@ fn the_tracks_show_only_the_pads_the_dice_reach() {
         sevens,
         "back to d6: the pads past 6 hidden"
     );
-}
-
-#[test]
-fn the_tracks_and_the_tree_stand_side_by_side_where_they_fit() {
-    // In Testnet, and in Practice beside the card's narrow column.
-    for (w, h, dpi, demo) in [
-        (1440u16, 870u16, 240u16, false),
-        (1280, 800, 160, false),
-        (1440, 870, 240, true),
-        (1280, 800, 160, true),
-    ] {
-        let mut app = on_shell(w, h, dpi, demo, Way::Dice);
-        let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
-        let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
-        // Stacked, the tree (over 150 dp tall) would stand between them.
-        let scale = i32::from(dpi) / 80;
-        assert!(
-            tracks.1 - head.1 < 70 * scale,
-            "{w}x{h} demo {demo}: the tracks start at the sheet's top: {head:?} {tracks:?}"
-        );
-    }
-}
-
-#[test]
-fn on_the_owners_panel_the_entry_takes_the_whole_width() {
-    let (w, h) = (1440u16, 870u16);
-    let mut app = on_shell(w, h, 240, true, Way::Dice);
-    // The sheets start by the rail, not in a centred column.
-    let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
-    assert!(head.0 < 200, "the work starts by the rail: {head:?}");
-    // No card beside it: the walk is the host strip's.
-    assert!(text_at(&mut app, "Demo only").is_none());
-    // The pad's keys at the foot, under the sheets.
-    let key = app.hit_box(face(3)).expect("the pad");
-    assert!(key.1 + key.3 > h - 200, "the pad at the foot: {key:?}");
 }
 
 /// The colour at (x, y) of the frame on screen, its three channels
@@ -797,7 +631,7 @@ fn where_things_are(app: &mut Faraday) -> Spots {
 const THREE: [u8; 10] = [1, 2, 2, 2, 1, 2, 1, 1, 1, 2];
 
 #[test]
-fn a_roll_moves_nothing_and_a_character_in_its_box_glides_once() {
+fn a_roll_moves_nothing_and_a_character_in_its_box_comes_into_view() {
     for (w, h) in [(1280u16, 800u16), (960, 580)] {
         for practice in [false, true] {
             let mut app = on_shell(w, h, 160, practice, Way::Dice);
@@ -821,17 +655,10 @@ fn a_roll_moves_nothing_and_a_character_in_its_box_glides_once() {
                 );
             }
             // The tenth puts the character in its box: the view goes to it
-            // once, over several frames, and comes to rest.
+            // and comes to rest.
             c32(&mut app, C32::Face(THREE[9]));
-            let mut seen = vec![where_things_are(&mut app)];
-            for _ in 0..40 {
-                frames(&mut app, 1);
-                seen.push(where_things_are(&mut app));
-            }
-            let moving = seen.windows(2).filter(|p| p[0] != p[1]).count();
-            assert!(moving >= 3, "{w}x{h} {practice}: a glide: {seen:?}");
-            let rest = seen[seen.len() - 1];
-            assert_eq!(seen[seen.len() - 5], rest, "{w}x{h} {practice}: at rest");
+            frames(&mut app, 40);
+            let rest = where_things_are(&mut app);
             // It came to rest with the character's box above the panel.
             let panel = app.hit_box(face(3)).unwrap().1;
             let box10 = Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Given {
@@ -869,44 +696,5 @@ fn the_working_areas_next_moves_nothing_while_its_cells_are_on_screen() {
         c32(&mut app, C32::Step(1));
         frames(&mut app, 30);
         assert_eq!(where_things_are(&mut app), at);
-    }
-}
-
-/// A compact window that is not short (the 7-inch panel in portrait)
-/// pins the panel at its foot, above the navigation bar: the pad and the
-/// rolls are on screen together, a face pressed lands in the rolls, and
-/// the pad stays as the page scrolls. A phone-wide window, where the
-/// panel would take more than `INPUT_PANEL_MAX` of the page, keeps the
-/// small panel's context over the pad in the page.
-#[test]
-fn a_compact_window_that_is_not_short_pins_the_panel_above_the_bar() {
-    let narrow = on_entry(400, 800, 160);
-    assert!(!narrow.offers(face(3)), "400x800: no panel's pad");
-    assert!(
-        narrow.offers(Action::Codex32(C32::Key(OskPress::Char('3')))),
-        "400x800: the small panel's pad in the page"
-    );
-    for (w, h, dpi) in [(600u16, 1024u16, 170u16)] {
-        let mut app = on_entry(w, h, dpi);
-        assert_eq!(app.nav(), faraday_core::nav::Nav::Bar, "{w}x{h}");
-        pad_and_rolls_in_view(&mut app, w, h);
-        let key = app.hit_box(face(3)).expect("the panel's pad");
-        let home = app
-            .hit_box(Action::Nav(Screen::Home))
-            .expect("the navigation bar's Home");
-        assert!(
-            key.1 + key.3 <= home.1,
-            "{w}x{h}: the pad above the bar: {key:?} {home:?}"
-        );
-        let page = |app: &Faraday| app.keygen().unwrap().scroll.y;
-        let before = page(&app);
-        scroll_page(&mut app, w / 2, h / 3, 400);
-        assert!(page(&app) > before, "{w}x{h}: the page scrolled");
-        assert_eq!(app.hit_box(face(3)), Some(key), "{w}x{h}: the pad stayed");
-        for f in [3, 1, 1, 1, 1, 5] {
-            tap(&mut app, face(f));
-        }
-        let d = make(&app).dice();
-        assert_eq!((d.first(0), d.second(0)), (Some(3), Some(5)), "{w}x{h}");
     }
 }

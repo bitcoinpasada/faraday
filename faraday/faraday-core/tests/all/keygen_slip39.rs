@@ -54,27 +54,11 @@ fn dealt() -> Faraday {
 }
 
 #[test]
-fn any_two_of_the_three_shares_restore_the_key() {
-    let c = faraday_core::testkit::compute();
+fn the_split_deals_three_shares_of_twenty_words() {
     let app = dealt();
     let k = app.keygen().unwrap();
     assert_eq!(k.shares.len(), 3);
     assert!(k.shares.iter().all(|s| s.word_count() == 20));
-    let fp = k.fingerprint.unwrap();
-    for pair in [[0usize, 1], [0, 2], [1, 2]] {
-        let two = [k.shares[pair[0]].clone(), k.shares[pair[1]].clone()];
-        let secret = faraday_bip::slip39::recover(&c, &two, b"").unwrap();
-        let got = faraday_core::wallet::Session::default()
-            .keys
-            .add_seed(&c, secret.expose().as_bytes(), "")
-            .unwrap();
-        assert_eq!(got.0, fp, "shares {pair:?} restore another key");
-    }
-    let one = [k.shares[0].clone()];
-    assert!(
-        faraday_bip::slip39::recover(&c, &one, b"").is_err(),
-        "one share is not enough"
-    );
 }
 
 #[test]

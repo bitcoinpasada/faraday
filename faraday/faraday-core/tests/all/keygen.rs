@@ -15,7 +15,7 @@ use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_core::keygen::{Group, Source, Way};
 use faraday_core::{Action, Faraday, Screen};
 use faraday_entropy::DiceProcedure;
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// From the Key card of a key on its own: Lock in, Continue to Words,
 /// the quiz passed, and Done.
@@ -146,12 +146,23 @@ fn one_hundred_twenty_eight_flips_are_a_twelve_word_key_bit_for_bit() {
     assert_eq!(added(&app), vec![fingerprint(&expected)]);
 }
 
+/// A 12-word key from coins, the way a die is read as a coin (`by_die`) and
+/// whether its faces are typed on the keyboard.
+fn coins_opened() -> Faraday {
+    let mut app = opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    app
+}
+
 #[test]
-fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
+fn dice_read_as_flips_make_the_key_the_same_flips_make() {
     let faces: Vec<u8> = (0..128u32)
         .map(|i| ((i * 7 + i / 5) % 6) as u8 + 1)
         .collect();
 
+    // The Dice-flips way, pressed.
     let mut by_dice = opened();
     by_dice.press(Action::KWords(12));
     by_dice.press(Action::KWay(Way::DiceFlips.index()));
@@ -160,23 +171,44 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
         by_dice.press(Action::KRoll(f));
     }
 
-    let mut by_coin = opened();
-    by_coin.press(Action::KWords(12));
-    by_coin.press(Action::KWay(Way::Coins.index()));
-    by_coin.press(Action::KNext);
+    // Coins, flipped.
+    let mut by_coin = coins_opened();
     for &f in &faces {
         by_coin.press(Action::KFlip(f >= 4));
     }
 
-    {
-        let a = by_dice.keygen().unwrap();
-        let b = by_coin.keygen().unwrap();
-        assert!(a.coins.flips().eq(b.coins.flips()));
-        assert_eq!(&a.live_words()[..], &b.live_words()[..]);
+    // Coins with each flip given by a die, pressed.
+    let mut by_die = coins_opened();
+    by_die.press(Action::KByDie(true));
+    for &f in &faces {
+        by_die.press(Action::KDie(f));
     }
 
-    for app in [&mut by_dice, &mut by_coin] {
+    // Coins with each flip given by a die, typed on the keyboard.
+    let mut typed = coins_opened();
+    typed.press(Action::KByDie(true));
+    typed.press(Action::KTyping(false));
+    for &f in &faces {
+        typed.event(Event::Key(Key::Char(char::from(b'0' + f))));
+    }
+
+    {
+        let b = by_coin.keygen().unwrap();
+        for app in [&by_dice, &by_die, &typed] {
+            let a = app.keygen().unwrap();
+            assert!(a.coins.flips().eq(b.coins.flips()));
+            assert_eq!(&a.live_words()[..], &b.live_words()[..]);
+        }
+    }
+
+    for app in [&mut by_dice, &mut by_coin, &mut by_die, &mut typed] {
         app.press(Action::KNext);
+    }
+    let want = by_coin.keygen().unwrap().phrase().unwrap();
+    for app in [&by_dice, &by_die, &typed] {
+        assert_eq!(*app.keygen().unwrap().phrase().unwrap(), *want);
+    }
+    for app in [&mut by_dice, &mut by_coin] {
         finish(app);
     }
     assert_eq!(added(&by_dice), added(&by_coin));

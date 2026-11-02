@@ -159,45 +159,6 @@ fn the_last_word_shows_once_every_flip_is_in() {
 }
 
 #[test]
-fn a_die_read_as_a_coin_makes_the_key_the_same_flips_make() {
-    let faces: Vec<u8> = (0..128u32)
-        .map(|i| ((i * 7 + i / 5) % 6) as u8 + 1)
-        .collect();
-    let mut by_die = coins(12);
-    by_die.press(Action::KByDie(true));
-    for &f in &faces {
-        by_die.press(Action::KDie(f));
-    }
-    let mut by_coin = coins(12);
-    for &f in &faces {
-        by_coin.press(Action::KFlip(f >= 4));
-    }
-    let a = by_die.keygen().unwrap();
-    let b = by_coin.keygen().unwrap();
-    assert!(a.coins.flips().eq(b.coins.flips()));
-    assert_eq!(&a.live_words()[..], &b.live_words()[..]);
-    for app in [&mut by_die, &mut by_coin] {
-        app.press(Action::KNext);
-    }
-    let a = by_die.keygen().unwrap().phrase().unwrap();
-    let b = by_coin.keygen().unwrap().phrase().unwrap();
-    assert_eq!(*a, *b);
-}
-
-#[test]
-fn die_faces_typed_on_the_keyboard_count_as_flips_too() {
-    let mut app = coins(12);
-    app.press(Action::KByDie(true));
-    app.press(Action::KTyping(false));
-    for c in ['1', '3', '4', '6', '2', '5'] {
-        app.event(Event::Key(Key::Char(c)));
-    }
-    let k = app.keygen().unwrap();
-    let got: Vec<bool> = k.coins.flips().collect();
-    assert_eq!(got, [false, false, true, true, false, true]);
-}
-
-#[test]
 fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
     // Dice: Flip mode, 1 to 3 a tails and 4 to 6 a heads.
     let mut dice = shown();

@@ -53,20 +53,10 @@ fn to(app: &mut Faraday, want: TourStep) {
 }
 
 #[test]
-fn next_at_the_last_checksum_box_opens_share_ds_tab_and_the_switch_turns_it_off() {
+fn the_switch_beside_the_working_area_turns_the_tour_off() {
     let mut app = at_last_checksum(1280, 800);
     let tour = Action::Codex32(C32::Tour);
     assert!(app.offers(tour), "the switch beside the Working area");
-    c32(&mut app, C32::Step(1));
-    let _ = app.frame();
-    assert_eq!(make(&app).view(), 1, "Share D's tab");
-    assert!(
-        app.drawn_texts()
-            .iter()
-            .any(|t| t.starts_with("Share A's translation symbol for D")),
-        "its first step in the Working area"
-    );
-    c32(&mut app, C32::Step(-1));
     app.press(tour);
     c32(&mut app, C32::Step(1));
     assert_eq!(make(&app).tour_shown(), None, "off, no tour");

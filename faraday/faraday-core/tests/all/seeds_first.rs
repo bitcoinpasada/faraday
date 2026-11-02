@@ -11,7 +11,7 @@ use faraday_core::rstep::{CHECK, KIND, QUORUM};
 use faraday_core::seeds::{Focus, SLIDE_M, SLIDE_N, SeedsAction as S};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen};
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const MULTI_PATH: &str = "m/48'/1'/0'/2'";
 
@@ -82,33 +82,6 @@ fn restored(app: &Faraday) -> String {
     let w = r.wallet.expect("no wallet made");
     assert_eq!(r.open, Some(CHECK), "the Check card is not next");
     desc(&app.session.wallets[w].policy().to_descriptor())
-}
-
-#[test]
-fn three_seeds_on_restore_make_the_two_of_three() {
-    let mut app = restore_from_seeds(true);
-    for w in ["bacon", "zebra", "summer"] {
-        add_seed(&mut app, w);
-    }
-    // Three keys, two to sign, P2WSH at BIP-48 by default.
-    app.press(Action::Slide(SLIDE_M, 2));
-    app.press(Action::Seeds(S::Make));
-    assert_eq!(restored(&app), desc(&testkit::savings()));
-}
-
-#[test]
-fn two_seeds_and_the_third_cosigners_xpub_make_the_same_wallet() {
-    let mut app = restore_from_seeds(true);
-    add_seed(&mut app, "bacon");
-    add_seed(&mut app, "zebra");
-    // The arrow keys move the slider last used: one more key.
-    app.press(Action::Slide(SLIDE_N, 2));
-    app.event(Event::Key(Key::Right));
-    app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
-    type_text(&mut app, &testkit::key(2, MULTI_PATH));
-    app.event(Event::Key(Key::Enter));
-    app.press(Action::Seeds(S::Make));
-    assert_eq!(restored(&app), desc(&testkit::savings()));
 }
 
 #[test]

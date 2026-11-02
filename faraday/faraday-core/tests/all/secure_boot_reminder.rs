@@ -59,15 +59,11 @@ fn a_mac_stick_never_shows_it() {
 }
 
 #[test]
-fn the_pi_never_shows_it_unread_either() {
-    let t = power_sheet_texts(Medium::SdCard, SecureBootAtStart::Unknown);
-    assert!(!t.iter().any(|s| s == LINE));
-}
-
-#[test]
-fn the_pi_never_shows_it() {
-    let t = power_sheet_texts(Medium::SdCard, SecureBootAtStart::Off);
-    assert!(!t.iter().any(|s| s == LINE));
+fn the_pi_never_shows_it_off_or_unread() {
+    for state in [SecureBootAtStart::Off, SecureBootAtStart::Unknown] {
+        let t = power_sheet_texts(Medium::SdCard, state);
+        assert!(!t.iter().any(|s| s == LINE));
+    }
 }
 
 #[test]
