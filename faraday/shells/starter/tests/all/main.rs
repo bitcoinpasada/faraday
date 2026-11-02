@@ -6,6 +6,7 @@ mod demo;
 mod devices;
 mod disks;
 mod ids;
+mod image_finish;
 mod install;
 mod key_sheets;
 mod macos;

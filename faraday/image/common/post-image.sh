@@ -42,3 +42,10 @@ genimage \
 	--inputpath "${BINARIES_DIR}"  \
 	--outputpath "${BINARIES_DIR}" \
 	--config "${GENIMAGE_CFG}"
+
+# The PC stick's image is then left as Windows leaves it, and checked
+# (docs/STICK-IDENTITY.md §4.1). The Pi card's is not changed.
+if [ -f "${BINARIES_DIR}/faraday-x86_64-uefi.img" ]; then
+	python3 "$(dirname "$0")/../stick-finish.py" \
+		"${BINARIES_DIR}/faraday-x86_64-uefi.img" "${BINARIES_DIR}/esp.vfat"
+fi

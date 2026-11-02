@@ -12,10 +12,12 @@ FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe6
 
 # Buildroot's "Mandatory packages" plus what the Raspberry Pi kernel and the
 # image tools need: bison/flex for the kernel's own parsers, dosfstools and
-# mtools for the FAT boot partition, unzip for Waveshare's overlay pack.
+# mtools for the FAT boot partition, gdisk and util-linux (sgdisk, sfdisk)
+# for checking the stick image's partition table, unzip for Waveshare's
+# overlay pack.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bash bc binutils bison build-essential bzip2 ca-certificates cpio \
-        diffutils dosfstools file findutils flex gawk gcc g++ git gzip \
+        diffutils dosfstools file findutils flex gawk gcc gdisk g++ git gzip \
         libncurses-dev locales make mtools patch perl python3 rsync sed tar \
         unzip util-linux wget which xz-utils \
     && apt-get clean && find /var/lib/apt/lists -type f -delete

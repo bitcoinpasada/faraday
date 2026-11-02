@@ -222,7 +222,7 @@ fn a_name_a_fat_label_cannot_be_or_a_boot_partitions_is_refused_and_nothing_is_w
 
 // ---- against tools Faraday did not write ---------------------------------
 
-fn tool(name: &str) -> PathBuf {
+pub(crate) fn tool(name: &str) -> PathBuf {
     if let Some(dir) = std::env::var_os("FARADAY_FATTOOLS") {
         return Path::new(&dir).join(name);
     }
@@ -235,7 +235,7 @@ fn tool(name: &str) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(name))
 }
 
-fn runs(name: &str, args: &[&str]) -> bool {
+pub(crate) fn runs(name: &str, args: &[&str]) -> bool {
     Command::new(tool(name))
         .args(args)
         .stdout(Stdio::null())
