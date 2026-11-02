@@ -63,7 +63,7 @@ does what is `tools/README.md`'s.
 |---|---|---|---|---|---|---|
 | `repo.ci-check`: GitHub Actions runs `just` and nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release | `.github/workflows/**`<br>`.github/actions/**` | review | - | - | a tool the check comes to need, until the workflow fails without it | `CLAUDE.md`<br>`docs/decisions/F183.md` |
 | `repo.build-machine-unnamed`: the remote build machine is "the build machine" in docs, comments and messages, never its hostname, owner or address | `**` | review | - | - | - | `CLAUDE.md` |
-| `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push | `**` | review | - | - | - | `CLAUDE.md` |
+| `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push, by a git hook or by hand | `**` | review | - | - | - | `CLAUDE.md` |
 | `repo.upstream-name`: the upstream project is named only in LICENSE | `**`<br>`!LICENSE` | held | - | `lint-upstream` | - | `docs/decisions/F73.md` |
 | `repo.contributing`: CONTRIBUTING.md's summary follows CLAUDE.md's rules | `CLAUDE.md` | review | - | - | - | `CONTRIBUTING.md` |
 | `repo.security-scope`: CLAUDE.md's Security scope and SECURITY-MODEL's "What this does not defend against" say the same | `docs/SECURITY-MODEL.md` | pair | `CLAUDE.md` | - | a change to the scope written only in one of the two | `CLAUDE.md` |
@@ -255,7 +255,7 @@ No script holds these; a reviewer reads this list for the change.
 |---|---|
 | `repo.ci-check`: GitHub Actions runs `just` and nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release | `CLAUDE.md`<br>`docs/decisions/F183.md` |
 | `repo.build-machine-unnamed`: the remote build machine is "the build machine" in docs, comments and messages, never its hostname, owner or address | `CLAUDE.md` |
-| `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push | `CLAUDE.md` |
+| `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push, by a git hook or by hand | `CLAUDE.md` |
 | `repo.contributing`: CONTRIBUTING.md's summary follows CLAUDE.md's rules | `CONTRIBUTING.md` |
 | `repo.tests-kept`: a test is changed to the rule it now encodes, never deleted to make the build pass | `CLAUDE.md` |
 | `repo.tests-user-facing`: a test covers user-facing behaviour or a published vector; none states a design rule, a token's value or a screen's geometry against a document | `CLAUDE.md` |

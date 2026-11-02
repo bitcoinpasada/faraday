@@ -66,9 +66,11 @@ plan <paths>` lists the ones a change touches.
   `target/`, scratch files outside the repository.
 - The remote machine that builds the images is "the build machine" in
   everything written here, never its hostname, its owner's name or its
-  address. Before pushing, check every new commit for personal
-  information: names, email addresses, hostnames, IP addresses, local
-  paths, keys and tokens, in the diff and in the commit message.
+  address. Every new commit is checked for personal information before
+  it is pushed: names, email addresses, hostnames, IP addresses, local
+  paths, keys and tokens, in the diff and in the commit message. A git
+  hook that makes this check counts as it; without one, read them by
+  hand.
 - Do not use `rm`; move files to the trash (`trash` or `gio trash`). Use
   absolute paths in shell commands.
 

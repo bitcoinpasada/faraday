@@ -396,7 +396,7 @@ kind = "review"
 
 [[rule]]
 id = "repo.personal-information"
-title = "every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push"
+title = "every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push, by a git hook or by hand"
 source = ["CLAUDE.md"]
 when = ["**"]
 kind = "review"
