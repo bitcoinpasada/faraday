@@ -66,9 +66,10 @@ These steps are the same as a GPG key's ([the backup flow](../screens/backup-flo
    and another at **Place 2**. Two places or more; **Add a place** for a
    third. Press **Continue**
    ([A GPG key, step 2](gpg.md#2-where-it-will-be-kept)).
-2. **Bring in the sticks**: Stick 2 for Place 1, **This is the stick
-   for Vault 1 (Place 1)**, mark it and pull it; then Stick 3 for Place
-   2, with a hold where it reads as the first
+2. **Bring in the sticks**: a figure for Stick 2 (Place 1) and one for
+   Stick 3 (Place 2); plug in a stick, **This is the stick for Vault 1
+   (Place 1)**, mark it and pull it; then the next, with a hold where
+   it reads as the first; **Continue** once both are Checked
    ([A GPG key, step 3](gpg.md#3-bring-in-the-sticks)).
 3. **Vaults**: **Create Vault 1**, its passphrase, **Create vault**
    ([A GPG key, step 4](gpg.md#4-the-vault)).

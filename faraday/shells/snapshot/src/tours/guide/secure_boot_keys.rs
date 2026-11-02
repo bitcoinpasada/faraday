@@ -19,7 +19,7 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     start(t, Kind::SecureBoot)?;
     t.shot_marking("secure-boot-keys-where", Action::Flow(F::Continue))?;
     t.press(Action::Flow(F::Continue));
-    bring_in(t)?;
+    bring_in(t, false)?;
     create_vault(t)?;
     type_text(t, "Example Org");
     t.shot_marking("secure-boot-keys-make", Action::Flow(F::Make))?;

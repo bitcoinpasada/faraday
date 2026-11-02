@@ -1,8 +1,8 @@
 # The backup flow
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs`, `faraday/faraday-core/src/stick/pills.rs`)
-**Screen:** `BackupFlow`, `GpgRestore`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/figures.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs`, `faraday/faraday-core/src/stick/pills.rs`)
+**Screen:** `BackupFlow`, `GpgRestore`, `FigMenu`, `LaterAsk`
 **Group:** Wallets
 
 The flow that makes a key where its backup is planned first: where it
@@ -84,12 +84,16 @@ For a wallet, this card is **The plan**: Back up's own board and cards
 
 ## Bring in the sticks
 
+![Bring in the sticks with Stick 2 Checked and Stick 3 Waiting, each figure with its vaults](../pictures/gpg-sticks.png)
+
 | Control | What it does |
 |---|---|
 | "Lock and bring in the sticks" | while a key is loaded or a vault is open: locks first, then the flow goes on |
-| the slots | a row per stick: "The stick for Vault 1 (Place 1)", or on the Faraday stick "Stick 2 · Vault 1 (Place 1)" by the stick's pill; the stick's label once read |
+| the figures | a figure per stick, in any order: its name ("Stick 2", or "Boot stick"), the vaults it will hold ("Holds Vault 1") and its state, "Waiting", "Reading", "Checked", "Checked when written" or its problem in one line |
 | "Insert the stick for Vault 1 (Place 1)" | the stick it asks for next; on the Faraday stick "Insert Stick 2: Vault 1 (Place 1)", by the stick's pill |
-| "Use Boot stick, read at 14:02" | the Faraday stick, where the plan can use it |
+| the figure's ⋮ | opens its menu: "Use the boot stick", where the plan can use the Faraday stick, and "Check it later", where it applies |
+| "Check it later" | on a waiting figure whose vaults are all new, and in its ⋮: a dialog "Check Stick 3 later?" says what it means, and the figure then reads "Checked when written" |
+| **Continue** | goes on to the vaults once every stick is Checked or Checked when written; nothing goes on by itself |
 | "Reading Stick 2" | while the stick is read |
 | "This is the stick for Vault 1 (Place 1)" | takes this stick for that slot |
 | "Hold: this is the stick for Vault 1 (Place 2)" | the same as a hold, where the stick reads as one read before ("This reads as Stick 2") |

@@ -78,23 +78,44 @@ bring in the sticks**: it locks, then the flow goes on.
 Each stick is read ([Bring in the sticks](../screens/backup-flow.md#bring-in-the-sticks)) before the key exists, so that the vault on it is
 known and nothing secret is open while a stick is in.
 
-On the Faraday stick, the flow names each of its sticks by a pill at
-the top of the screen: **Boot stick**, then **Stick 2** for Place 1's
-and **Stick 3** for Place 2's, each "out" or "in". The cards ask for a
-stick by that name ("Insert Stick 2: Vault 1 (Place 1)"); Faraday Demo
+![Bring in the sticks with Stick 2 Checked and Stick 3 Waiting, each figure holding Vault 1](../pictures/gpg-sticks.png)
+
+The card draws a figure per stick of the plan: its name (on the Faraday
+stick the pill at the top of the screen names it too: **Boot stick**,
+then **Stick 2** for Place 1's and **Stick 3** for Place 2's, each "out" or
+"in"), "Holds Vault 1", and its state: "Waiting", "Reading", "Checked"
+or its problem. The sticks go in in any order: a stick put in goes to
+the waiting figure pressed last, else the first waiting. The card asks
+for one by name ("Insert Stick 2: Vault 1 (Place 1)"); Faraday Demo
 asks for "the stick for Vault 1 (Place 1)".
 
-1. Insert Stick 2, for Vault 1 (Place 1). Plug in the first stick.
-   It is read ("Reading" and its name); an empty stick is taken for the
-   new vault. Press **This is the stick for Vault 1 (Place 1)**. "Mark
-   it as Stick 2" shows under its row: write that on the stick. Then
-   pull it (**Pull the stick**).
-2. Insert Stick 3, for Vault 1 (Place 2). Plug in the second stick. If
-   it reads as the first one did (same label and size), "This reads as
-   Stick 2" shows and the button is a hold: **Hold: this is the stick
-   for Vault 1 (Place 2)**. Mark it as Stick 3 and pull it.
+1. Plug in a stick. It is read ("Reading" and its name); an empty
+   stick is taken for the new vault. Press **This is the stick for
+   Vault 1 (Place 1)**. "Mark it as Stick 2" shows under its figure:
+   write that on the stick. Then pull it (**Pull the stick**).
+2. Plug in the next. If it reads as the first one did (same label and
+   size), "This reads as Stick 2" shows and the button is a hold:
+   **Hold: this is the stick for Vault 1 (Place 2)**. Mark it as Stick
+   3 and pull it.
+3. With every stick Checked, **Continue** is live; it goes on to the
+   vaults.
 
-**Use another stick** under each refuses this stick and asks again.
+![Bring in the sticks with both sticks Checked, Continue outlined](../pictures/gpg-sticks-checked.png)
+
+A waiting figure's ⋮ opens a menu with **Check it later** and, where
+the plan can use the Faraday stick already in the machine, **Use the
+boot stick**, which takes it without inserting it:
+
+![The ⋮ menu of Stick 3's figure: Check it later](../pictures/gpg-sticks-menu.png)
+
+**Check it later** asks "Check Stick 3 later?" first: the stick is read
+at the write step after the lock, the vaults are made now and kept
+sealed in this device's memory only until it is written, and a stick
+that fails then can be replaced. Chosen, the figure reads "Checked when
+written" and counts for **Continue**. A figure whose vault is already on
+a stick does not offer it.
+
+**Use another stick** refuses this stick and asks again.
 A stick that cannot hold the vault says why: **Not a FAT32 stick.
 Format it as FAT32, or use another stick**, **This is a boot partition.
 Use another stick**, **Cannot be written. Use another stick**, or "Not

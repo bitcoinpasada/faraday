@@ -28,7 +28,7 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     t.shot_marking("gpg-where", Action::Flow(F::Continue))?;
     t.shot("backup-flow-where")?;
     t.press(Action::Flow(F::Continue));
-    bring_in(t)?;
+    bring_in(t, true)?;
     t.shot_marking("gpg-vaults", Action::Flow(F::CreateVault(0)))?;
     create_vault(t)?;
     type_text(t, "Example Signer");
@@ -125,20 +125,27 @@ fn stick_press(t: &Tour) -> Action {
     Action::Flow(if hold { F::Hold } else { F::Tap })
 }
 
-/// Bring in the sticks: each place's stick plugged in, taken, pulled.
-pub(super) fn bring_in(t: &mut Tour) -> Result<(), String> {
-    for _ in 0..6 {
+/// Bring in the sticks: each place's stick plugged in, taken, pulled,
+/// then Continue. `pictures`: the card drawn with the first stick
+/// Checked and the next Waiting, and with every stick Checked.
+pub(super) fn bring_in(t: &mut Tour, pictures: bool) -> Result<(), String> {
+    for n in 0..6 {
         let slot = t
             .app
             .flow()
             .and_then(|f| f.slots.iter().position(|s| s.bound.is_none()));
         let Some(slot) = slot else {
-            // The last stick in opens Create Vault 1, and the reminders
-            // before a secret is typed: put off, back on the Vaults card.
+            if pictures {
+                t.shot_marking("gpg-sticks-checked", Action::Flow(F::SticksOn))?;
+            }
+            t.press(Action::Flow(F::SticksOn));
+            // Continue opens Create Vault 1, and the reminders before a
+            // secret is typed: put off, back on the Vaults card.
             if t.app.sheet == Some(faraday_core::Sheet::Devices) {
                 t.press(Action::Cancel);
             }
-            if t.app.screen != Screen::BackupFlow {
+            if t.app.screen != Screen::BackupFlow || !t.app.offers(Action::Flow(F::CreateVault(0)))
+            {
                 t.press(Action::Vault(V::Back));
             }
             return Ok(());
@@ -149,6 +156,12 @@ pub(super) fn bring_in(t: &mut Tour) -> Result<(), String> {
         t.press(press);
         t.app.storage(StorageEvent::Sticks(Vec::new()));
         t.pump();
+        if pictures && n == 0 {
+            t.shot("gpg-sticks")?;
+            t.press(Action::Flow(F::FigMenu(1)));
+            t.shot("gpg-sticks-menu")?;
+            t.press(Action::Cancel);
+        }
     }
     Err("the sticks were not all taken".into())
 }
