@@ -721,7 +721,7 @@ pub(crate) fn boff(t: &mut Tour, z: Zone, th: Thing) {
 /// that carries vault `v`.
 pub(crate) fn vault_stick(c: &Compute, t: &Tour, p: usize, v: usize) -> Option<usize> {
     let m = bmap(c, t);
-    (0..fplan::sticks_at(&m, p)).find(|&s| fplan::stick_vault(&m, p, s) == Some(v))
+    (0..fplan::sticks_at(&m, p)).find(|&s| fplan::stick_vaults(&m, p, s).contains(&v))
 }
 
 /// Costs a map of the plan (through `vault_stick`). The first place

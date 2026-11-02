@@ -1,6 +1,6 @@
 //! The board tour.
 
-use crate::tour::{Tour, bput, scroll, scroll_to, type_text, vault_place, vault_stick};
+use crate::tour::{Tour, boff, bput, scroll, scroll_to, type_text, vault_place, vault_stick};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, qstep};
 use faraday_crypto::work::Compute;
@@ -57,6 +57,13 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // (§19.17).
     scroll_to(t, Action::Board(B::Zone(Zone::Files(p, s))));
     t.shot("board-vault-no-files")?;
+    // A second vault dropped on the same stick joins the first (the
+    // spec's several vaults on a stick), then comes off again.
+    t.press(Action::Board(B::AddVault));
+    bput(t, Thing::Vault(1), Zone::Files(p, s));
+    scroll_to(t, Action::Board(B::Zone(Zone::Vault(p, s, 1))));
+    t.shot("board-two-vaults-on-a-stick")?;
+    boff(t, Zone::Files(p, s), Thing::Vault(1));
     bput(t, Thing::Seed(1), Zone::Files(p, s));
     t.press(Action::Board(B::Chip(Chip::Placed(
         Zone::Files(p, s),

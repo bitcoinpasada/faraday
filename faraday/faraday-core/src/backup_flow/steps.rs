@@ -412,19 +412,7 @@ impl Faraday {
             return;
         }
         let f = &mut self.flows.all[i];
-        f.plan.places.remove(p);
-        f.plan.together.retain(|&q| q != p);
-        f.plan.place_files.retain(|&q| q != p);
-        for q in f.plan.place_files.iter_mut() {
-            if *q > p {
-                *q -= 1;
-            }
-        }
-        for q in f.plan.together.iter_mut() {
-            if *q > p {
-                *q -= 1;
-            }
-        }
+        f.plan.remove_place(p);
         if f.plan.public_at == p {
             f.plan.public_at = 0;
         } else if f.plan.public_at > p {
@@ -489,6 +477,7 @@ impl Faraday {
         }
         f.plan.places[p] = vec![v];
         f.plan.together.retain(|&q| q != p);
+        f.plan.joined.retain(|j| j.0 != p);
         f.live.reading = None;
         self.flow_tidy(i, &used_before);
         self.flows.all[i].sync_slots(&c);
@@ -510,19 +499,15 @@ impl Faraday {
         }
         let used_before = f.plan.used_vaults();
         let mut after = f.plan.clone();
-        if after.places[p].contains(&v) {
-            if after.places[p].len() < 2 {
-                return;
-            }
-            after.places[p].retain(|&x| x != v);
-        } else {
-            after.places[p].push(v);
+        if !after.toggle_place_vault(p, v) {
+            return;
         }
         if f.made && !after.used_vaults().iter().any(|x| f.made_in.contains(x)) {
             return;
         }
         let f = &mut self.flows.all[i];
         f.plan.places[p] = after.places[p].clone();
+        f.plan.joined = after.joined.clone();
         f.live.reading = None;
         self.flow_tidy(i, &used_before);
         self.flows.all[i].sync_slots(&c);

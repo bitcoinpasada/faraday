@@ -1447,7 +1447,7 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
             press(app, P::AddVault);
         }
         let stick_of = |m: &[Spot], p: usize| {
-            (0..plan::sticks_at(m, p)).find(|&s| plan::stick_vault(m, p, s) == Some(v))
+            (0..plan::sticks_at(m, p)).find(|&s| plan::stick_vaults(m, p, s).contains(&v))
         };
         for p in 0..plan::places_of(&want) {
             if stick_of(&want, p).is_some() && stick_of(&now(app), p).is_none() {

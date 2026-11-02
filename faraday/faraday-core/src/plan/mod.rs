@@ -2826,14 +2826,22 @@ pub fn sticks_at(boxes: &[Spot], p: usize) -> usize {
         .count()
 }
 
-/// The vault stick `s` at place `p` carries, on the map `boxes`.
-pub fn stick_vault(boxes: &[Spot], p: usize, s: usize) -> Option<usize> {
-    holds_in(boxes, At::Stick(p, s))
+/// The vaults stick `s` at place `p` carries, in vault order.
+pub fn stick_vaults(boxes: &[Spot], p: usize, s: usize) -> Vec<usize> {
+    let mut out: Vec<usize> = holds_in(boxes, At::Stick(p, s))
         .into_iter()
-        .find_map(|w| match w {
+        .filter_map(|w| match w {
             What::VaultStick(v) => Some(v),
             _ => None,
         })
+        .collect();
+    out.sort_unstable();
+    out
+}
+
+/// The first of [`stick_vaults`].
+pub fn stick_vault(boxes: &[Spot], p: usize, s: usize) -> Option<usize> {
+    stick_vaults(boxes, p, s).first().copied()
 }
 
 /// The map `boxes` with each place's sticks folded into the place: what
@@ -2952,8 +2960,7 @@ fn stick_for(boxes: &[Spot], p: usize, w: What) -> Option<usize> {
 /// spot made for it (a new place after the last, a stick, a stick of
 /// files, a vault). Nothing is added twice to one spot. A thing kept on a
 /// stick added to a place goes on a stick there ([`stick_for`]); a paper
-/// form added to a stick goes to its place; a vault's stick added to a
-/// stick that carries another vault goes on a new stick there.
+/// form added to a stick goes to its place; a vault joins a stick's vaults.
 pub fn with_added(boxes: &[Spot], at: At, what: What) -> Vec<Spot> {
     // A passphrase in a vault (`docs/BACKUP-FLOW.md` §17.12 item 4): with
     // its seed, in the key record; without it, a passphrase record. A seed
@@ -2996,13 +3003,6 @@ pub fn with_added(boxes: &[Spot], at: At, what: What) -> Vec<Spot> {
             }
         }
         (At::Stick(p, _), w) if !on_stick(w) => At::Place(p),
-        (At::Stick(p, s), What::VaultStick(v)) => {
-            let n = sticks_at(&out, p);
-            match stick_vault(&out, p, s.min(n)) {
-                Some(u) if u != v => At::Stick(p, n),
-                _ => At::Stick(p, s.min(n)),
-            }
-        }
         (At::Stick(p, s), _) => At::Stick(p, s.min(sticks_at(&out, p))),
         (at, _) => at,
     };

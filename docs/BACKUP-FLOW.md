@@ -1419,9 +1419,15 @@ A codex32 string's forms per zone are §17.23's.
 
 ### 17.4 Sticks in the model
 
-- New `At::Stick(p, s)`: stick *s* (from 0) at place *p*. It holds at
-  most one `VaultStick(v)` and any of the stick forms of §17.3. Paper
-  forms stay at `At::Place(p)`.
+- New `At::Stick(p, s)`: stick *s* (from 0) at place *p*. It holds any
+  number of `VaultStick(v)` (`docs/STICK-SETUP.md` §6.3) and any of the
+  stick forms of §17.3. Paper forms stay at `At::Place(p)`. The board
+  draws a vault box for each vault on a stick, and a vault dropped on a
+  stick, by drag, tap or the ⋮ menu, joins the vaults already there;
+  dropped on a place, it still goes on the place's first stick with no
+  vault, or a new one. The saved plan's `stick{p}.{s}` line already
+  holds a list and is unchanged. The write step writes every vault on a
+  stick, and its files, in one visit.
 - A plan saved before this change reads as it did: at each place, each
   `VaultStick(v)` becomes a stick of its own, in vault order, and the
   place's files, when it has any, a stick of files after them (the "stick

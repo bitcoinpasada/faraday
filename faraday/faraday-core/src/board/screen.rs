@@ -1239,32 +1239,32 @@ fn vault_head(
 /// A stick box's own height `w` wide: its head, its files box, its vault
 /// box.
 fn stick_h(ui: &Ui, st: &crate::board::StickView, w: f32) -> f32 {
-    let (files_h, vault_h) = stick_parts(ui, st, w);
-    let vault = if vault_h > 0.0 {
-        tokens::BOARD_STICK_PAD + vault_h
-    } else {
-        0.0
-    };
-    tokens::BOARD_STICK_HEAD + files_h + vault + tokens::BOARD_STICK_PAD
+    let (files_h, vault_hs) = stick_parts(ui, st, w);
+    let vaults: f32 = vault_hs.iter().map(|h| tokens::BOARD_STICK_PAD + h).sum();
+    tokens::BOARD_STICK_HEAD + files_h + vaults + tokens::BOARD_STICK_PAD
 }
 
 /// A stick box's parts `w` wide: its files box's height (a chip row at
-/// least, empty), and its vault box's (none without a vault).
-fn stick_parts(ui: &Ui, st: &crate::board::StickView, w: f32) -> (f32, f32) {
+/// least, empty), and each vault box's height (none without a vault).
+fn stick_parts(ui: &Ui, st: &crate::board::StickView, w: f32) -> (f32, Vec<f32>) {
     let sp = tokens::BOARD_STICK_PAD;
     let vp = tokens::BOARD_VAULT_PAD;
     let iw = w - 2.0 * sp;
-    let vault_h = st.vault.as_ref().map_or(0.0, |(_, vz)| {
-        let (_, inner_h) = flow(ui, &vz.chips, 0.0, 0.0, iw - 2.0 * vp);
-        tokens::BOARD_VAULT_HEAD + vp + inner_h.max(tokens::BOARD_CHIP) + vp
-    });
-    (paper_h(ui, &st.files.chips, iw), vault_h)
+    let vault_hs = st
+        .vaults
+        .iter()
+        .map(|vv| {
+            let (_, inner_h) = flow(ui, &vv.inside.chips, 0.0, 0.0, iw - 2.0 * vp);
+            tokens::BOARD_VAULT_HEAD + vp + inner_h.max(tokens::BOARD_CHIP) + vp
+        })
+        .collect();
+    (paper_h(ui, &st.files.chips, iw), vault_hs)
 }
 
 /// Stick `s` of place `p` in box `r` (`docs/DESIGN.md` §4.17): headed
 /// "Stick n" with the × that takes it off; inside it the files box, the
 /// files kept on the stick outside any vault, on every stick (§19.17),
-/// and under it the vault box when the stick carries a vault (its band,
+/// and under it a vault box for each vault the stick carries (its band,
 /// what it holds inside).
 fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, custom: bool) {
     let (x, y, w, _) = r;
@@ -1272,7 +1272,7 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
     let vp = tokens::BOARD_VAULT_PAD;
     let files: &[ChipView] = &st.files.chips;
     let iw = w - 2.0 * sp;
-    let (files_h, vault_h) = stick_parts(ui, st, w);
+    let (files_h, vault_hs) = stick_parts(ui, st, w);
     let fz = st.files.zone;
     // The stick box outside its files box and vault box still keeps a
     // drop as a file (§19.17 item 2).
@@ -1294,10 +1294,16 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
         ui.tip_plain((x + w - side, y, side, hh), remove, EN.tip_remove);
     }
     let fr_box = (x + sp, y + hh, iw, files_h);
-    let vr = (x + sp, y + hh + files_h + sp, iw, vault_h);
+    // Each vault's box, one under the next.
+    let mut vrs: Vec<Box4> = Vec::new();
+    let mut vy = y + hh + files_h + sp;
+    for &vh in &vault_hs {
+        vrs.push((x + sp, vy, iw, vh));
+        vy += vh + sp;
+    }
     // The files box is the edged target while the pointer is on the stick
-    // outside its vault.
-    let in_vault = st.vault.is_some() && fr.drag.is_some_and(|d| inside(d, vr));
+    // outside its vaults.
+    let in_vault = fr.drag.is_some_and(|d| vrs.iter().any(|&vr| inside(d, vr)));
     let hot = if in_vault { (0.0, 0.0, 0.0, 0.0) } else { r };
     paper(
         ui,
@@ -1309,7 +1315,8 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
         FILES,
         hot,
     );
-    if let Some((vc, vz)) = &st.vault {
+    for ((vv, &vr), &vault_h) in st.vaults.iter().zip(&vrs).zip(&vault_hs) {
+        let (vc, vz) = (&vv.head, &vv.inside);
         let (vx, vy, vw, _) = vr;
         ui.fill(
             vx,
@@ -1325,7 +1332,7 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
             Role::OnSurface.paint(),
             zone,
         );
-        vault_head(ui, fr, vc, (&st.sealed, &st.sealed_short), vx, vy, vw);
+        vault_head(ui, fr, vc, (&vv.sealed, &vv.sealed_short), vx, vy, vw);
         let iy = vy + tokens::BOARD_VAULT_HEAD + vp;
         let (places, _) = flow(ui, &vz.chips, vx + vp, iy, vw - 2.0 * vp);
         for (c, at) in vz.chips.iter().zip(places) {
@@ -1958,9 +1965,9 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
         zones.push(&card.paper);
         for st in &card.sticks {
             zones.push(&st.files);
-            if let Some((head, z)) = &st.vault {
-                heads.push(head);
-                zones.push(z);
+            for vv in &st.vaults {
+                heads.push(&vv.head);
+                zones.push(&vv.inside);
             }
         }
     }

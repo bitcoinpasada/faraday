@@ -17,6 +17,7 @@ mod action;
 mod area;
 pub mod gpg_restore;
 pub(crate) mod gpg_restore_screen;
+mod place;
 pub(crate) mod screen;
 pub mod steps;
 pub(crate) mod wallet;
@@ -26,6 +27,7 @@ pub(crate) mod wallet_screen;
 
 pub(crate) use area::BackupFlowArea;
 pub use gpg_restore::RestoreFrom;
+pub use place::{stick_target, target_stick};
 use steps::{Built, RestorePress};
 
 use faraday_crypto::work::Compute;
@@ -399,6 +401,11 @@ pub struct Plan {
     /// The places that keep several vaults on one stick (**One stick for
     /// both**). A place not listed keeps each vault on a stick of its own.
     pub together: Vec<usize>,
+    /// Vaults a stick carries beside its first vault, as `(place, stick,
+    /// vault)`, the stick being its place of `places[place]`: the board's stick with several vaults on it
+    /// (`docs/STICK-SETUP.md` §6.3). `places` lists the stick's first
+    /// vault only.
+    pub joined: Vec<(usize, usize, usize)>,
     /// The place whose stick carries the key's public files.
     pub public_at: usize,
     /// The plan names a stick of files: a wallet's seed files, or the
@@ -437,6 +444,7 @@ impl Plan {
             places: vec![vec![0], vec![0]],
             vaults: vec![VaultPlan::default()],
             together: Vec::new(),
+            joined: Vec::new(),
             public_at: 0,
             files: false,
             public: false,
@@ -509,14 +517,18 @@ impl Plan {
     /// The places that keep vault `v`.
     pub fn places_of(&self, v: usize) -> Vec<usize> {
         (0..self.places.len())
-            .filter(|&p| self.places[p].contains(&v))
+            .filter(|&p| {
+                self.places[p].contains(&v) || self.joined.iter().any(|&(q, _, u)| q == p && u == v)
+            })
             .collect()
     }
 
     /// The vaults some place keeps, in order.
     pub fn used_vaults(&self) -> Vec<usize> {
         (0..self.vaults.len())
-            .filter(|&v| self.places.iter().any(|p| p.contains(&v)))
+            .filter(|&v| {
+                self.places.iter().any(|p| p.contains(&v)) || self.joined.iter().any(|j| j.2 == v)
+            })
             .collect()
     }
 
@@ -535,6 +547,9 @@ impl Plan {
             for v in p.iter_mut() {
                 *v = map(*v);
             }
+        }
+        for j in &mut self.joined {
+            j.2 = map(j.2);
         }
         self.vaults = used.iter().map(|&u| self.vaults[u].clone()).collect();
         dropped
@@ -565,14 +580,20 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
     let mut places: Vec<(usize, Vec<usize>)> = Vec::new();
     let mut place_files: Vec<usize> = Vec::new();
     let mut nv = 0usize;
+    let mut joined: Vec<(usize, usize, usize)> = Vec::new();
     let mut with_wallet: Option<usize> = None;
     for s in boxes {
         match s.at {
             At::Place(p) => {
                 let mut vs: Vec<usize> = Vec::new();
                 for k in 0..crate::plan::sticks_at(sticks, p) {
-                    match crate::plan::stick_vault(sticks, p, k) {
-                        Some(v) => vs.push(v),
+                    let on = crate::plan::stick_vaults(sticks, p, k);
+                    match on.split_first() {
+                        Some((&v, rest)) => {
+                            vs.push(v);
+                            joined.extend(rest.iter().map(|&u| (p, vs.len() - 1, u)));
+                            nv = nv.max(on.iter().map(|u| u + 1).max().unwrap_or(0));
+                        }
                         None => place_files.push(p),
                     }
                 }
@@ -614,6 +635,7 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
         places,
         vaults: vec![VaultPlan::default(); nv],
         together: Vec::new(),
+        joined,
         public_at,
         files: seed_files || (public_on == PublicOn::Files && public_any),
         public: public_on == PublicOn::Own && public_any,
@@ -621,53 +643,6 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
         public_on,
         public_stick,
     }
-}
-
-/// The flow's stick for stick `s` at place `p` of a wallet's map
-/// `sticks` (`docs/BACKUP-FLOW.md` §17.4), as [`plan_of`] names it: the
-/// place's only stick with a vault, [`Target::Place`]; else its vault's
-/// first stick there, [`Target::PlaceVault`], and a later one
-/// [`Target::Another`]; a stick with no vault, the place's first stick of
-/// files [`Target::PlaceFiles`] and a later one [`Target::Another`].
-pub fn stick_target(sticks: &[crate::plan::Spot], p: usize, s: usize) -> Option<Target> {
-    use crate::plan::{stick_vault, sticks_at};
-    let n = sticks_at(sticks, p);
-    if s >= n {
-        return None;
-    }
-    let vault = stick_vault(sticks, p, s);
-    let before = (0..s)
-        .filter(|&k| stick_vault(sticks, p, k) == vault)
-        .count();
-    Some(match vault {
-        Some(v) => {
-            let vault_sticks = (0..n)
-                .filter(|&k| stick_vault(sticks, p, k).is_some())
-                .count();
-            if vault_sticks <= 1 {
-                Target::Place(p)
-            } else if before == 0 {
-                Target::PlaceVault(p, v)
-            } else {
-                Target::Another(p, Some(v), before)
-            }
-        }
-        None if before == 0 => Target::PlaceFiles(p),
-        None => Target::Another(p, None, before),
-    })
-}
-
-/// The stick of a wallet's map `sticks` that the flow's stick `t` is
-/// ([`stick_target`] read back); `None` for a stick no place keeps.
-pub fn target_stick(sticks: &[crate::plan::Spot], t: Target) -> Option<crate::plan::At> {
-    let p = match t {
-        Target::Place(p) | Target::PlaceVault(p, _) | Target::PlaceFiles(p) => p,
-        Target::Another(p, _, _) => p,
-        Target::Files | Target::Public => return None,
-    };
-    (0..crate::plan::sticks_at(sticks, p))
-        .find(|&s| stick_target(sticks, p, s) == Some(t))
-        .map(|s| crate::plan::At::Stick(p, s))
 }
 
 /// What the key is known by once made (§3): the public value, as hex, and
@@ -1106,6 +1081,7 @@ impl BackupFlow {
                 .places
                 .iter()
                 .flatten()
+                .chain(self.plan.joined.iter().map(|j| &j.2))
                 .map(|v| v + 1)
                 .max()
                 .unwrap_or(0),
@@ -1226,6 +1202,7 @@ impl BackupFlow {
             places: (0..count).map(|v| vec![v]).collect(),
             vaults: vec![VaultPlan::default(); count],
             together: Vec::new(),
+            joined: Vec::new(),
             public_at: 0,
             files: false,
             public: false,
@@ -1472,8 +1449,15 @@ impl BackupFlow {
     /// The vaults the stick of `slot` keeps.
     pub(crate) fn vaults_of(&self, slot: usize) -> Vec<usize> {
         match self.slots.get(slot).map(|s| s.target) {
-            Some(Target::Place(p)) => self.plan.places.get(p).cloned().unwrap_or_default(),
-            Some(Target::PlaceVault(_, v) | Target::Another(_, Some(v), _)) => vec![v],
+            Some(Target::Place(p)) => match self.plan.places.get(p) {
+                Some(vs) if vs.len() == 1 && !self.plan.together.contains(&p) => {
+                    self.plan.stick_vaults(p, 0)
+                }
+                Some(vs) => vs.clone(),
+                None => Vec::new(),
+            },
+            Some(Target::PlaceVault(p, v)) => self.plan.nth_stick_vaults(p, v, 0),
+            Some(Target::Another(p, Some(v), n)) => self.plan.nth_stick_vaults(p, v, n),
             _ => Vec::new(),
         }
     }
@@ -1582,6 +1566,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 PublicOn::Own => "o",
             },
         ));
+        for (p, l, v) in &f.plan.joined {
+            out.push_str(&format!("joined\t{p}\t{l}\t{v}\n"));
+        }
         if !f.plan.place_files.is_empty() {
             let list: Vec<String> = f.plan.place_files.iter().map(|p| p.to_string()).collect();
             out.push_str(&format!("pfiles\t{}\n", list.join(",")));
@@ -2006,6 +1993,13 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 None => false,
             }
         }
+        ["joined", p, l, v] => match (p.parse(), l.parse(), v.parse()) {
+            (Ok(p), Ok(l), Ok(v)) if p < MAX_PLACES => {
+                fl.plan.joined.push((p, l, v));
+                true
+            }
+            _ => false,
+        },
         ["pub", name] => {
             fl.public.push(name.to_string());
             true
@@ -2239,6 +2233,11 @@ impl BackupFlow {
         let nv = self.plan.vaults.len();
         let np = self.plan.places.len();
         if self.plan.places.iter().flatten().any(|&v| v >= nv)
+            || self
+                .plan
+                .joined
+                .iter()
+                .any(|&(p, s, v)| p >= np || s >= self.plan.places[p].len() || v >= nv)
             || self.made_in.iter().any(|&v| v >= nv)
             || self.sealing.iter().any(|s| s.vault >= nv)
             || self.plan.together.iter().any(|&p| p >= np)

@@ -18,9 +18,11 @@
 pub mod codex32;
 mod lines;
 pub(crate) mod screen;
+mod view;
 
 use lines::{count_text, description_line, form_label, sees_line, software_name};
 use lines::{stick_numbers, stick_word};
+pub(crate) use view::{StickView, VaultView};
 
 use std::rc::Rc;
 
@@ -427,6 +429,7 @@ fn place_of(z: Zone) -> Option<usize> {
 pub fn target(z: Zone, t: Thing) -> Zone {
     match (t, z) {
         (Thing::Vault(_), Zone::NewStick(_) | Zone::Empty(..)) => z,
+        (Thing::Vault(_), Zone::Files(..)) => z,
         (Thing::Vault(_), z) => place_of(z).map_or(z, Zone::Card),
         _ => z,
     }
@@ -451,7 +454,10 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     match (z, t) {
         (Zone::List, _) => false,
         (_, Thing::Software) => !locked,
-        (Zone::Card(_) | Zone::NewStick(_) | Zone::Empty(..), Thing::Vault(_)) => true,
+        (
+            Zone::Card(_) | Zone::Files(..) | Zone::NewStick(_) | Zone::Empty(..),
+            Thing::Vault(_),
+        ) => true,
         (_, Thing::Vault(_)) | (Zone::Card(_), _) => false,
         (Zone::Vault(..), _) => true,
         _ if locked => false,
@@ -470,6 +476,10 @@ fn added(m: Vec<Spot>, z: Zone, t: Thing) -> Vec<Spot> {
             let m = plan::with_vault(m, v);
             let at = At::Stick(p, plan::sticks_at(&m, p));
             plan::with_added(&m, at, What::VaultStick(v))
+        }
+        (Thing::Vault(v), Zone::Files(p, s)) => {
+            let m = plan::with_vault(m, v);
+            plan::with_added(&m, At::Stick(p, s), What::VaultStick(v))
         }
         (Thing::Vault(v), z) => match place_of(z) {
             Some(p) => plan::with_vault_stick(&plan::with_vault(m, v), p, v),
@@ -638,25 +648,6 @@ pub(crate) struct ZoneView {
     pub zone: Zone,
     /// Its chips.
     pub chips: Vec<ChipView>,
-}
-
-/// One stick at a place.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct StickView {
-    /// "Stick 1".
-    pub label: String,
-    /// What its × does: the stick taken off, or an empty stick.
-    pub remove: BoardPress,
-    /// The vault on it: its chip, and the vault's own zone.
-    pub vault: Option<(ChipView, ZoneView)>,
-    /// The vault's header band, "Vault 1 · sealed", or "Vault 1 · sealed ·
-    /// made in the checklist" while it is not made yet; empty with no
-    /// vault.
-    pub sealed: String,
-    /// The band where `sealed` does not fit: the same, or "Vault 1 · new".
-    pub sealed_short: String,
-    /// Its files.
-    pub files: ZoneView,
 }
 
 /// One place's card.
@@ -1210,33 +1201,37 @@ impl Faraday {
             .map(|p| {
                 let sticks = (0..plan::sticks_at(&m, p))
                     .map(|s| {
-                        let vault = plan::stick_vault(&m, p, s).map(|v| {
-                            let held = plan::holds_at(&m, At::Stick(p, s));
-                            let head = chip(Zone::Files(p, s), Thing::Vault(v), &held, Some(p));
-                            let mut inside =
-                                zone(Zone::Vault(p, s, v), At::Vault(v), Some(p), false);
-                            inside.chips.extend(self.board_before(c, &shape, &a, v));
-                            (head, inside)
-                        });
-                        // A vault not made yet is made in the checklist
-                        // (`docs/BACKUP-FLOW.md` §17.21 item 6).
-                        let (sealed, sealed_short) = match (&vault, plan::stick_vault(&m, p, s)) {
-                            (Some((head, _)), Some(v)) if !self.board_vault_made(&shape, v) => (
-                                fill(EN.board_sealed_made, &[&head.name]),
-                                fill(EN.board_sealed_new, &[&head.name]),
-                            ),
-                            (Some((head, _)), _) => {
-                                let band = fill(EN.board_sealed, &[&head.name]);
-                                (band.clone(), band)
-                            }
-                            _ => (String::new(), String::new()),
-                        };
+                        let vaults = plan::stick_vaults(&m, p, s)
+                            .into_iter()
+                            .map(|v| {
+                                let held = plan::holds_at(&m, At::Stick(p, s));
+                                let head = chip(Zone::Files(p, s), Thing::Vault(v), &held, Some(p));
+                                let mut inside =
+                                    zone(Zone::Vault(p, s, v), At::Vault(v), Some(p), false);
+                                inside.chips.extend(self.board_before(c, &shape, &a, v));
+                                // A vault not made yet is made in the checklist
+                                // (`docs/BACKUP-FLOW.md` §17.21 item 6).
+                                let (sealed, sealed_short) = if self.board_vault_made(&shape, v) {
+                                    let band = fill(EN.board_sealed, &[&head.name]);
+                                    (band.clone(), band)
+                                } else {
+                                    (
+                                        fill(EN.board_sealed_made, &[&head.name]),
+                                        fill(EN.board_sealed_new, &[&head.name]),
+                                    )
+                                };
+                                VaultView {
+                                    head,
+                                    inside,
+                                    sealed,
+                                    sealed_short,
+                                }
+                            })
+                            .collect();
                         StickView {
                             label: fill(stick_word, &[&nums.of(p, s).to_string()]),
                             remove: BoardPress::RemoveStick(p, s),
-                            vault,
-                            sealed,
-                            sealed_short,
+                            vaults,
                             files: zone(Zone::Files(p, s), At::Stick(p, s), Some(p), true),
                         }
                     })
@@ -1248,9 +1243,7 @@ impl Faraday {
                     sticks.push(StickView {
                         label: fill(stick_word, &[&nums.empty(&state.empty, p, k).to_string()]),
                         remove: BoardPress::RemoveEmpty(p),
-                        vault: None,
-                        sealed: String::new(),
-                        sealed_short: String::new(),
+                        vaults: Vec::new(),
                         files: ZoneView {
                             zone: Zone::Empty(p, k),
                             chips: Vec::new(),
@@ -1406,9 +1399,7 @@ impl Faraday {
             zones.push(&c.paper);
             for s in &c.sticks {
                 zones.push(&s.files);
-                if let Some((_, z)) = &s.vault {
-                    zones.push(z);
-                }
+                zones.extend(s.vaults.iter().map(|v| &v.inside));
             }
         }
         zones
@@ -2047,7 +2038,7 @@ impl Faraday {
         let keeps = |z: Zone| -> bool {
             match (t, z) {
                 (Thing::Vault(v), Zone::Card(p)) => {
-                    (0..plan::sticks_at(&m, p)).any(|s| plan::stick_vault(&m, p, s) == Some(v))
+                    (0..plan::sticks_at(&m, p)).any(|s| plan::stick_vaults(&m, p, s).contains(&v))
                 }
                 (_, Zone::NewStick(_) | Zone::Empty(..)) => false,
                 _ => at_of(&m, z).is_some_and(|at| {
@@ -2070,10 +2061,10 @@ impl Faraday {
             let k = empty.get(p).copied().unwrap_or(0);
             let mut boxes: Vec<(String, Zone)> = Vec::new();
             if let Thing::Vault(_) = t {
-                // A vault's stick goes on the place's first stick with no
-                // vault, or a new one.
-                if let Some(s) = (0..n).find(|&s| plan::stick_vault(&m, p, s).is_none()) {
-                    boxes.push((stick(nums.of(p, s)), Zone::Card(p)));
+                // A vault's stick goes on any stick of the place, whether
+                // it carries a vault or not, or on a new one.
+                for s in 0..n {
+                    boxes.push((stick(nums.of(p, s)), Zone::Files(p, s)));
                 }
                 for e in 0..k {
                     boxes.push((stick(nums.empty(&empty, p, e)), Zone::Empty(p, e)));
@@ -2083,7 +2074,7 @@ impl Faraday {
                 for s in 0..n {
                     let label = stick(nums.of(p, s));
                     boxes.push((fill(EN.board_menu_files, &[&label]), Zone::Files(p, s)));
-                    if let Some(v) = plan::stick_vault(&m, p, s) {
+                    for v in plan::stick_vaults(&m, p, s) {
                         boxes.push((
                             fill(EN.board_menu_vault, &[&label, &self.board_vault_title(v)]),
                             Zone::Vault(p, s, v),

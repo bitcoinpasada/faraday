@@ -497,14 +497,7 @@ impl Answers {
             };
             let sticks_ok = edited.iter().all(|s| match s.at {
                 At::Stick(p, k) => {
-                    p < places.len()
-                        && k < 1024
-                        && s.holds.iter().all(|(w, _)| on_stick(*w))
-                        && s.holds
-                            .iter()
-                            .filter(|(w, _)| matches!(w, What::VaultStick(_)))
-                            .count()
-                            <= 1
+                    p < places.len() && k < 1024 && s.holds.iter().all(|(w, _)| on_stick(*w))
                 }
                 _ => true,
             });

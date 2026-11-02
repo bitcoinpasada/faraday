@@ -56,18 +56,18 @@ fn backup_places(app: &Faraday) -> usize {
     app.backup().unwrap().answers.places
 }
 
-fn backup_shape(app: &Faraday) -> Shape {
+pub(crate) fn backup_shape(app: &Faraday) -> Shape {
     app.plan_shape_now(app.backup().unwrap().wallet)
 }
 
 /// The plan's map as it is, sticks and all.
-fn the_map(app: &Faraday) -> Vec<Spot> {
+pub(crate) fn the_map(app: &Faraday) -> Vec<Spot> {
     let c = faraday_core::testkit::compute();
     plan::map(&c, &backup_shape(app), &app.backup().unwrap().answers)
 }
 
 /// What spot `at` holds on the map `m`.
-fn held(m: &[Spot], at: At) -> Vec<What> {
+pub(crate) fn held(m: &[Spot], at: At) -> Vec<What> {
     m.iter()
         .filter(|s| s.at == at)
         .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
@@ -96,7 +96,7 @@ fn three_here() -> Faraday {
 }
 
 /// Saves into the open vaults what the plan puts in each.
-fn save_vaults(app: &mut Faraday) {
+pub(crate) fn save_vaults(app: &mut Faraday) {
     let c = testkit::compute();
     let vaults: Vec<usize> = app
         .backup_items_now(&c)
@@ -116,17 +116,17 @@ fn save_vaults(app: &mut Faraday) {
     }
 }
 
-fn restart(shell: &mut Shell, app: &mut Faraday) -> Faraday {
+pub(crate) fn restart(shell: &mut Shell, app: &mut Faraday) -> Faraday {
     shell.pump(app);
     assert!(app.restart_requested(), "locked");
     shell.restart()
 }
 
-fn step(app: &Faraday) -> Step {
+pub(crate) fn step(app: &Faraday) -> Step {
     app.flow().expect("a flow").step
 }
 
-fn names(shell: &Shell, d: &str) -> Vec<String> {
+pub(crate) fn names(shell: &Shell, d: &str) -> Vec<String> {
     shell.disk(d).files.iter().map(|f| f.0.clone()).collect()
 }
 
@@ -159,7 +159,7 @@ fn stick_name(prefix: &str, fp: [u8; 4], ext: &str) -> String {
 }
 
 /// One stick written as the flow asks: confirmed, held where it must be.
-fn write_stick(shell: &mut Shell, app: &mut Faraday, d: &str) {
+pub(crate) fn write_stick(shell: &mut Shell, app: &mut Faraday, d: &str) {
     shell.plug(app, d);
     for _ in 0..3 {
         let r = app.flow().and_then(|f| f.live.reading.as_ref());
@@ -282,34 +282,10 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
-    let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    keep_time(&mut app);
     // A 2-of-3 with one vault set up before its keys.
-    app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(1));
-    app.press(Action::CNext(cstep::HOW_MANY));
-    assert_eq!(step(&app), Step::Sticks);
-    shell.plug(&mut app, "S1");
-    shell.flow(&mut app, F::Tap);
-    shell.pull(&mut app, "S1");
-    create_vault(&mut shell, &mut app, 0, PHRASE);
-    assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
-    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
-    app.press(Action::Nav(Screen::Create));
-    for (i, fp) in fps.iter().enumerate() {
-        app.press(Action::CSlotHere(i as u8, *fp));
-    }
-    app.press(Action::CNext(cstep::KEYS));
-    app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup);
-    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    let (mut app, fps) = three_with_a_vault(&mut shell);
     // Seed A in Vault 1 at Place 1; Seed C as a file at Place 2; nothing
     // on paper.
-    no_words(&mut app);
-    no_paper_description(&mut app);
     vault_at(&mut app, 0, 0, &[0]);
     files_at(&mut app, 1, &[2]);
     // Seed B's words file dropped on Vault 1's stick at Place 1.
@@ -584,19 +560,34 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
 /// three keys (typed in), its backup open on Back up's plan with nothing
 /// kept: no words, no paper. The keys' fingerprints.
 pub(crate) fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
+    three_with_vaults(shell, 1)
+}
+
+/// [`three_with_a_vault`] with `n` vaults, each on a stick of its own.
+pub(crate) fn three_with_vaults(shell: &mut Shell, n: usize) -> (Faraday, Vec<[u8; 4]>) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(1));
+    app.press(Action::CVaultN(n as u16));
     app.press(Action::CNext(cstep::HOW_MANY));
     assert_eq!(step(&app), Step::Sticks);
-    shell.plug(&mut app, "S1");
-    shell.flow(&mut app, F::Tap);
-    shell.pull(&mut app, "S1");
-    create_vault(shell, &mut app, 0, PHRASE);
+    for k in 0..n {
+        let d = format!("S{}", k + 1);
+        shell.plug(&mut app, &d);
+        shell.flow(&mut app, F::Tap);
+        shell.pull(&mut app, &d);
+    }
+    for k in 0..n {
+        create_vault(
+            shell,
+            &mut app,
+            k,
+            ["first vault phrase", "second vault phrase"][k],
+        );
+    }
     assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
@@ -2633,26 +2624,7 @@ fn a_vault_added_with_new_vault_reads_made_in_the_checklist() {
 fn a_vault_set_up_before_the_keys_reads_sealed() {
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
-    let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    keep_time(&mut app);
-    app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
-    app.press(Action::CVaults(true));
-    app.press(Action::CNext(cstep::WHERE));
-    app.press(Action::CVaultN(1));
-    app.press(Action::CNext(cstep::HOW_MANY));
-    shell.plug(&mut app, "S1");
-    shell.flow(&mut app, F::Tap);
-    shell.pull(&mut app, "S1");
-    create_vault(&mut shell, &mut app, 0, PHRASE);
-    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
-    app.press(Action::Nav(Screen::Create));
-    for (i, fp) in fps.iter().enumerate() {
-        app.press(Action::CSlotHere(i as u8, *fp));
-    }
-    app.press(Action::CNext(cstep::KEYS));
-    app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup);
+    let (mut app, _) = three_with_a_vault(&mut shell);
     vault_at(&mut app, 0, 0, &[0]);
     let band = vault_band(&mut app, "Vault 1");
     assert!(band.ends_with(" · sealed"), "{band}");

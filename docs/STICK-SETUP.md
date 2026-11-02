@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F175), not built
-**Open:** all of it: the Sticks and vaults card (§2), the sticks drawn as they come in (§3), Check it later (§4), what the device tells of a stick (§5), the plan after the keys (§6), the guide (§7)
+**Open:** all of it but several vaults on a stick on the board (§6.3, built): the Sticks and vaults card (§2), the sticks drawn as they come in (§3), Check it later (§4), what the device tells of a stick (§5), the rest of the plan after the keys (§6.1, §6.2), the guide (§7)
 
 Make a new wallet and Restore ask how many vaults the backup uses, then
 want one stick per vault, one at a time, in vault order. This spec puts
