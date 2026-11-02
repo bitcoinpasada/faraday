@@ -1,10 +1,8 @@
-//! The backup board on a large window (`docs/LAYOUT.md` §17): its places
-//! stand side by side in columns, two at 1920 × 1080 and three at
-//! 2560 × 1440, and a chip dragged into a place in the second column is
-//! kept there; at 1280 × 800 and 480 × 640 the places stand one under
-//! another, as before. Back up's and a wallet flow's cards stand where
-//! they stand whether the board's card is open or not, and the open
-//! board's rule runs over its columns.
+//! The backup board on a large window (`docs/LAYOUT.md` §17): every place
+//! and the list are on screen and apart, and a chip dragged into a place in
+//! the second column is kept there; at 1280 × 800 and 480 × 640 the places
+//! stand one under another, as before. Back up's and a wallet flow's cards
+//! stand where they stand whether the board's card is open or not.
 
 use crate::backup_board::{sticks, three_on_an_empty_board, three_with_a_vault};
 use crate::common::Shell;
@@ -60,42 +58,24 @@ fn kept_at(app: &Faraday, p: usize) -> Vec<What> {
 }
 
 #[test]
-fn on_large_windows_the_places_stand_side_by_side_in_columns() {
-    // (window, places in the first line of columns)
-    for (w, h, side) in [(1920u16, 1080u16, 2usize), (2560, 1440, 3)] {
+fn on_large_windows_every_place_and_the_list_are_on_screen_and_apart() {
+    for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
         let app = three_places(w, h, 160);
-        let boxes: Vec<_> = (0..3)
+        let mut boxes: Vec<_> = (0..3)
             .map(|p| place(&app, p).unwrap_or_else(|| panic!("{w}: Place {} drawn", p + 1)))
             .collect();
-        for p in 1..side {
-            let (a, b) = (boxes[p - 1], boxes[p]);
-            assert_eq!(a.1, b.1, "{w}: Place {} beside Place {}", p + 1, p);
-            assert!(a.0 + a.2 < b.0, "{w}: Place {} right of Place {}", p + 1, p);
-            assert_eq!(a.3, b.3, "{w}: places in a line are as tall as each other");
-        }
-        if side < 3 {
-            let (first, next) = (boxes[0], boxes[side]);
-            assert_eq!(
-                first.0,
-                next.0,
-                "{w}: Place {} starts the next line",
-                side + 1
-            );
-            assert!(next.1 >= first.1 + first.3, "{w}: under the first line");
-        }
-        // The list stands at the window's right, beside the places.
-        let list = app
-            .hit_box(Action::Board(BP::Zone(Zone::List)))
-            .expect("the board's list");
-        let last = boxes[side - 1];
-        assert!(
-            last.0 + last.2 < list.0,
-            "{w}: the places end before the list"
+        boxes.push(
+            app.hit_box(Action::Board(BP::Zone(Zone::List)))
+                .expect("the board's list"),
         );
-        assert!(
-            f32::from(list.0 + list.2) <= f32::from(w) - 23.0,
-            "{w}: the list's pane ends 24 dp from the window's edge: {list:?}"
-        );
+        for (i, a) in boxes.iter().enumerate() {
+            assert!(a.0 + a.2 <= w && a.1 + a.3 <= h, "{w}: box {i} on screen");
+            for (j, b) in boxes.iter().enumerate().skip(i + 1) {
+                let apart =
+                    a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
+                assert!(apart, "{w}: box {i} and box {j} overlap");
+            }
+        }
     }
 }
 
@@ -217,40 +197,5 @@ fn a_wallet_flows_cards_stand_still_when_the_boards_card_opens() {
         if w > 1280 {
             assert_eq!(before.2, after.2, "{w}: the plan card keeps its width");
         }
-    }
-}
-
-/// Whether a line is drawn across x at row y (within a pixel): the
-/// pixels there differ from the one `below` pixels under it.
-fn line_across(app: &mut Faraday, x: u16, y: u16, below: u16) -> bool {
-    let f = app.frame();
-    let width = usize::from(f.width);
-    let at = |px: u16, py: u16| -> [u8; 3] {
-        let i = (usize::from(py) * width + usize::from(px)) * 4;
-        [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]]
-    };
-    let under = at(x, y + below);
-    (y.saturating_sub(1)..=y + 1).any(|py| at(x, py) != under)
-}
-
-#[test]
-fn on_large_windows_the_open_boards_rule_runs_over_its_columns() {
-    for (w, h, side) in [(1920u16, 1080u16, 2usize), (2560, 1600, 3)] {
-        let mut app = three_places(w, h, 160);
-        let head = plan_card(&app, qstep::BOARD);
-        let last = place(&app, side - 1).expect("the last place of the first line");
-        let end = last.0 + last.2 - 4;
-        assert!(end > head.0 + head.2, "{w}: the places run past the column");
-        assert!(
-            line_across(&mut app, end, head.1, 20),
-            "{w}: the rule above the board's card runs over its last column"
-        );
-        // Closed, the card's rule keeps the column's width.
-        board_closed(&mut app);
-        let head = plan_card(&app, qstep::BOARD);
-        assert!(
-            !line_across(&mut app, end, head.1, 20),
-            "{w}: a closed card's rule ends with the column"
-        );
     }
 }

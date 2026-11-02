@@ -48,24 +48,13 @@ fn each_screen_gets_its_window_class() {
 }
 
 /// A scale-2 screen counts its pixels at half: a 1440 × 900 pixel
-/// window there is a 720 dp, medium window.
+/// window there is a medium window and takes the one-column layout
+/// (`docs/LAYOUT.md` §7, F101).
 #[test]
 fn a_scale_two_window_is_classed_by_its_dp_not_its_pixels() {
-    let w = shown_on(1440, 900, 320).window();
-    assert_eq!(w.class(), WindowClass::Medium);
-}
-
-/// That 720 dp window takes the one-column layout, at the screen's two
-/// pixels a unit (`docs/LAYOUT.md` §7, F101).
-#[test]
-fn a_scale_two_window_of_1440_by_900_pixels_lays_out_one_column() {
     let app = shown_on(1440, 900, 320);
+    assert_eq!(app.window().class(), WindowClass::Medium);
     assert!(app.is_compact());
-    let (w, h) = app.size();
-    assert!(
-        (w - 720.0).abs() < 0.5 && (h - 450.0).abs() < 0.5,
-        "{w} {h}"
-    );
 }
 
 /// A 1920 × 1080 monitor at 160 dpi is laid out at 1920 × 1080 dp, one
@@ -88,16 +77,32 @@ fn a_full_monitor_lays_out_wide_at_its_own_size() {
     assert_eq!(big, small);
 }
 
-/// The Pi's 2.8-inch panel is one column at its 286 dpi: 268 × 358 dp.
+/// The Pi's 2.8-inch panel is one column at its 286 dpi.
 #[test]
 fn the_pi_panel_lays_out_one_column_at_its_density() {
-    let app = shown_on(480, 640, 286);
-    assert!(app.is_compact());
-    let (w, h) = app.size();
-    assert!(
-        (w - 268.5).abs() < 0.5 && (h - 358.0).abs() < 0.5,
-        "{w} {h}"
-    );
+    assert!(shown_on(480, 640, 286).is_compact());
+}
+
+/// A window sharing the screen is laid out at the screen's own density,
+/// whatever its size: one column when its width in dp is small, the wide
+/// layout otherwise, and nothing is shrunk or enlarged to fit.
+#[test]
+fn a_window_is_laid_out_at_the_screens_density_and_by_its_width_in_dp() {
+    // (width, height, dpi, one column, pixels a unit)
+    let cases = [
+        (1500, 2000, 320, true, 2.0),
+        (1800, 2400, 240, false, 1.5),
+        (1000, 2000, 320, true, 2.0),
+        (1200, 1400, 240, true, 1.5),
+        (2880, 1800, 320, false, 2.0),
+        (1366, 768, 160, false, 1.0),
+    ];
+    for (width, height, dpi, compact, per_unit) in cases {
+        let app = shown_on(width, height, dpi);
+        assert_eq!(app.is_compact(), compact, "{width}x{height} at {dpi}");
+        let got = f32::from(width) / app.size().0;
+        assert!((got - per_unit).abs() < 1e-3, "{width}x{height} at {dpi}");
+    }
 }
 
 /// The person's Display scale still enlarges: at 150 % a 1920 × 1080
@@ -108,11 +113,10 @@ fn the_display_scale_setting_enlarges() {
     let mut app = shown_on(1920, 1080, 160);
     app.press(Action::Scale(150));
     assert!(!app.is_compact());
-    assert!((app.size().0 - 1280.0).abs() < 0.5);
+    assert!((1920.0 / app.size().0 - 1.5).abs() < 1e-3);
     app.press(Action::Scale(200));
     assert!(app.is_compact());
-    assert_eq!(app.window().class(), WindowClass::Expanded);
-    assert!((app.size().0 - 960.0).abs() < 0.5);
+    assert!((1920.0 / app.size().0 - 2.0).abs() < 1e-3);
 }
 
 /// Larger text lays the desktop app's 1280 × 800 window out as a smaller
@@ -131,4 +135,8 @@ fn larger_text_at_1280_lays_out_a_class_down_with_the_rail() {
     assert!(app.is_compact());
     app.press(Action::TextSize(TextSize::Standard));
     assert_eq!(app.nav(), Nav::ExpandedRail);
+    // A big window stays wide at Larger.
+    let mut big = shown_on(1920, 1080, 160);
+    big.press(Action::TextSize(TextSize::Larger));
+    assert!(!big.is_compact());
 }

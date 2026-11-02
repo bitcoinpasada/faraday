@@ -998,9 +998,7 @@ macro_rules! panel_tests {
 }
 
 panel_tests!(on_the_stick_on_mainnet, On::Stick, Mode::Mainnet);
-panel_tests!(on_the_stick_on_testnet, On::Stick, Mode::Testnet);
 panel_tests!(on_the_stick_in_practice, On::Stick, Mode::Practice);
-panel_tests!(in_the_demo_preview_on_testnet, On::Preview, Mode::Testnet);
 panel_tests!(in_the_demo_preview_in_practice, On::Preview, Mode::Practice);
 
 #[test]

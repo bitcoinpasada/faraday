@@ -117,27 +117,16 @@ fn the_boot_sticks_settings_apply_before_the_passphrase() {
     assert_eq!(app.theme(), gruvbox);
 }
 
-/// THEMES §13's table: a file of before, with no `mode=` line, opens
-/// each old theme id in its theme, mode and contrast.
+/// A file of before, with no `mode=` line, opens its old theme id in the
+/// mapped theme, mode and contrast (the whole table is held by
+/// `Theme::from_stored`'s own test).
 #[test]
 fn each_old_theme_id_opens_in_its_mapped_scheme() {
     use Contrast::{High, Standard};
     use Mode::{Dark, Light};
     use ThemeName as T;
     let table = [
-        ("dark", T::Cobalt, Dark, Standard),
-        ("light", T::Cobalt, Light, Standard),
-        ("cobalt", T::Cobalt, Light, Standard),
         ("nord", T::Frost, Dark, Standard),
-        ("catppuccin", T::Lavender, Dark, Standard),
-        ("tokyo-night", T::Dusk, Dark, Standard),
-        ("gruvbox", T::Lamplight, Dark, Standard),
-        ("rose-pine", T::Rose, Light, Standard),
-        ("bitcoin-orange", T::BitcoinOrange, Dark, Standard),
-        ("bitcoin-orange-light", T::BitcoinOrange, Light, Standard),
-        ("lamplight", T::Lamplight, Light, Standard),
-        ("mars", T::Mars, Dark, Standard),
-        ("high-contrast-dark", T::Monochrome, Dark, High),
         ("high-contrast-light", T::Cobalt, Light, High),
     ];
     for (id, name, mode, contrast) in table {

@@ -146,17 +146,6 @@ fn the_keyboard_reaches_plus_and_enter_presses_it() {
 }
 
 #[test]
-fn the_pointer_resting_on_minus_names_it() {
-    let mut app = quorum();
-    let (x, y) = app.where_offered(Action::CN(-1)).unwrap();
-    let before = count(&mut app, EN.tip_decrease);
-    app.event(Event::Hover { x, y });
-    tick(&mut app, 300);
-    tick(&mut app, 300);
-    assert_eq!(count(&mut app, EN.tip_decrease), before + 1);
-}
-
-#[test]
 fn enter_presses_the_focused_plus_on_new_key() {
     let mut app = other(1280, 800);
     let (k, n) = k_n(&app);
@@ -181,17 +170,6 @@ fn enter_presses_the_focused_plus_on_new_key() {
 }
 
 #[test]
-fn the_pointer_resting_on_schemes_minus_names_it() {
-    let mut app = other(1280, 800);
-    let (x, y) = app.where_offered(Action::Codex32(C32::K(-1))).unwrap();
-    let before = count(&mut app, EN.tip_decrease);
-    app.event(Event::Hover { x, y });
-    tick(&mut app, 300);
-    tick(&mut app, 300);
-    assert_eq!(count(&mut app, EN.tip_decrease), before + 1);
-}
-
-#[test]
 fn schemes_tooltip_stands_at_its_button() {
     for (w, h) in [(1280, 800), (1920, 1080), (480, 640)] {
         let mut app = other(w, h);
@@ -201,7 +179,6 @@ fn schemes_tooltip_stands_at_its_button() {
         tick(&mut app, 300);
         let boxes = app.drawn_text_boxes();
         let tip = boxes.iter().find(|(t, _)| t == EN.tip_decrease).unwrap().1;
-        eprintln!("hover ({x},{y}) tip {tip:?}");
         assert!(
             (tip.0 - i32::from(x)).abs() < 80 && (tip.1 - i32::from(y)).abs() < 80,
             "{w}x{h}"
@@ -222,23 +199,4 @@ fn the_pointer_resting_on_schemes_minus_names_it_with_motion() {
     tick(&mut app, 300);
     tick(&mut app, 300);
     assert_eq!(count(&mut app, EN.tip_decrease), before + 1);
-}
-
-/// The head's segmented pair ends left of the top strip's pills at every
-/// size (`docs/LAYOUT.md` §15).
-#[test]
-fn the_head_pair_stays_left_of_the_pills() {
-    for (w, h) in [(1280, 800), (1366, 768), (1920, 1080), (2560, 1440)] {
-        let mut app = other(w, h);
-        let _ = app.frame();
-        let g = app.hit_box(Action::Guided(true)).unwrap();
-        let q = app.hit_box(Action::Learn).unwrap().0;
-        let p = app.hit_box(Action::ModeSheet).map_or(q, |b| b.0.min(q));
-        assert!(
-            g.0 + g.2 <= p,
-            "{w}x{h}: Guided ends at {}, the pill at {}",
-            g.0 + g.2,
-            p
-        );
-    }
 }

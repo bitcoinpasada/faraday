@@ -2,9 +2,10 @@
 //! up. A pan of 48 pixels moves a page by 48, not half a page; a list
 //! moves by the same pixels too, continuously, not a row at a time. A
 //! wheel notch, which the shells send as 48 pixels, glides the content
-//! by the notch's distance in the layout's units (56, `motion.rs`), so
+//! by the notch's distance in the layout's units (`motion.rs`), so
 //! it covers the same amount of page on every screen.
 
+use faraday_core::motion::WHEEL_NOTCH;
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, Event};
@@ -131,13 +132,13 @@ fn a_wheel_notch_glides_and_lands_on_its_pixels() {
     tick(&mut app, 1_016);
     let first = app.list_offset;
     assert!(
-        first > 0.0 && first < 56.0,
+        first > 0.0 && first < WHEEL_NOTCH,
         "the first frame is part of the way: {first}"
     );
     run(&mut app, 1_016, 400);
     assert_eq!(
-        app.list_offset, 56.0,
-        "a notch is 56 units, one unit a pixel here"
+        app.list_offset, WHEEL_NOTCH,
+        "a notch is its distance in units, one unit a pixel here"
     );
 }
 
@@ -149,7 +150,7 @@ fn notches_in_quick_succession_add_up() {
     wheel(&mut app, 48);
     wheel(&mut app, 48);
     run(&mut app, 1_016, 500);
-    assert_eq!(app.list_offset, 168.0, "three notches");
+    assert_eq!(app.list_offset, 3.0 * WHEEL_NOTCH, "three notches");
 }
 
 #[test]
@@ -177,9 +178,8 @@ fn every_offset_is_a_whole_number_of_pixels() {
         let px = app.list_offset * 1.2;
         assert!((px - px.round()).abs() < 1e-3, "{px} pixels");
     }
-    // A notch is 56 units, 67.2 pixels here: it lands on the whole
-    // pixel nearest.
-    assert!((app.list_offset * 1.2 - 56.0 * 1.2).abs() <= 0.5);
+    // A notch lands on the whole pixel nearest its distance.
+    assert!((app.list_offset * 1.2 - WHEEL_NOTCH * 1.2).abs() <= 0.5);
 }
 
 #[test]

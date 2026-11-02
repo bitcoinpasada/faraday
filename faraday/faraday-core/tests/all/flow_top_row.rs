@@ -3,6 +3,8 @@
 //! is under either.
 
 use faraday_bip::keys::Network;
+use faraday_core::codex32::{C32, SPLITS, Split};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, Event, Key};
 
@@ -90,6 +92,28 @@ fn flows_end_before_the_testnet_pill_and_the_question_mark() {
             app.press(Action::Catalog(tile));
             checked += usize::from(clear_of_top_row(&mut app, &format!("tile {tile}")));
         }
+        // Make codex32 shares: the head's segmented pair ends before the
+        // pill and the ?.
+        let mut app = wide_testnet(w, h);
+        app.press(Action::ReduceMotion(true));
+        app.press(Action::Nav(Screen::WalletsStart));
+        let _ = app.frame();
+        app.press(Action::KeyGen(None));
+        let _ = app.frame();
+        let _ = app.frame();
+        app.press(Action::KStart(Start::MakeCodex32.index()));
+        let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap();
+        app.press(Action::Codex32(C32::Split(other as u8)));
+        app.settle();
+        checked += usize::from(clear_of_top_row(&mut app, "Make codex32 shares"));
+        let _ = app.frame();
+        let pair = boxed(&app, Action::Guided(true)).expect("the Guided pair");
+        let q = boxed(&app, Action::Learn).map_or(i32::MAX, |b| b.0);
+        let pill = boxed(&app, Action::ModeSheet).map_or(q, |b| b.0.min(q));
+        assert!(
+            pair.0 + pair.2 <= pill,
+            "{w}x{h}: Guided ends past the pill"
+        );
         assert!(
             CANCELS.load(std::sync::atomic::Ordering::Relaxed) > 0,
             "no flow was open"

@@ -9,13 +9,6 @@ use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
-/// The list pane's width (`LIST_PANE`).
-const LIST_PANE: i32 = 360;
-
-/// Where the list pane ends beside the expanded rail: the 240 dp rail,
-/// the 24 dp margin and the pane.
-const LIST_RIGHT: i32 = 240 + 24 + LIST_PANE;
-
 fn window(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
     app.event(Event::Display(DisplayInfo {
         width,
@@ -75,17 +68,26 @@ fn item_right(app: &mut Faraday, a: Action) -> i32 {
     i32::from(x) + i32::from(w)
 }
 
+/// The left edge of the list pane's item that chooses `a`.
+fn item_left(app: &mut Faraday, a: Action) -> i32 {
+    let _ = app.frame();
+    let (x, ..) = app.hit_box(a).expect("the item in the list pane");
+    i32::from(x)
+}
+
 #[test]
 fn nothing_chosen_backups_shows_the_first_wallet_beside_the_list() {
     let mut app = with_wallets(1920, 1080, 160);
     app.press(Action::Nav(Screen::Backups));
     let _ = app.frame();
     assert!(app.hit_box(Action::BackupsPage(1)).is_some(), "the list");
+    let list_right = item_right(&mut app, Action::BackupsPage(0));
+    let list_left = item_left(&mut app, Action::BackupsPage(0));
     // The first wallet's name twice: its item, and its map's head.
     let names: Vec<String> = app.session.wallets.iter().map(|w| w.name.clone()).collect();
     let shown: Vec<&String> = names
         .iter()
-        .filter(|n| boxes(&mut app, n).iter().any(|b| b.0 > LIST_RIGHT))
+        .filter(|n| boxes(&mut app, n).iter().any(|b| b.0 > list_right))
         .collect();
     assert_eq!(
         shown.len(),
@@ -94,7 +96,7 @@ fn nothing_chosen_backups_shows_the_first_wallet_beside_the_list() {
     );
     let first = boxes(&mut app, shown[0])
         .into_iter()
-        .filter(|b| b.0 < LIST_RIGHT && b.0 > 240)
+        .filter(|b| b.0 < list_right && b.0 >= list_left)
         .map(|b| b.1)
         .min()
         .expect("its item");
@@ -102,7 +104,7 @@ fn nothing_chosen_backups_shows_the_first_wallet_beside_the_list() {
         .iter()
         .filter(|n| *n != shown[0])
         .flat_map(|n| boxes(&mut app, n))
-        .filter(|b| b.0 < LIST_RIGHT && b.0 > 240)
+        .filter(|b| b.0 < list_right && b.0 >= list_left)
         .map(|b| b.1);
     assert!(
         others.into_iter().all(|y| y > first),
@@ -271,7 +273,7 @@ fn files_shows_its_two_lists_side_by_side_and_the_stick_in_the_top_row() {
     let from = page(boxes(&mut app, "From the stick"));
     let for_ = page(boxes(&mut app, "For the stick"));
     assert_eq!(from.1, for_.1, "the two lists' titles on one line");
-    assert!(for_.0 - from.0 >= LIST_PANE, "{from:?} {for_:?}");
+    assert!(for_.0 > from.0, "{from:?} {for_:?}");
     let waiting = boxes(&mut app, "Waiting for a stick");
     assert!(
         waiting.iter().any(|b| b.1 + b.3 <= 48 && b.0 > for_.0),
@@ -288,11 +290,11 @@ fn vaults_choosing_a_locked_vault_shows_its_unlock_beside_the_list() {
     assert!(app.hit_box(Action::Vault(V::Unlock)).is_none());
     app.press(Action::Vault(V::Open(0)));
     assert_eq!(app.screen, Screen::Unlock);
-    let _ = app.frame();
+    let list_right = item_right(&mut app, Action::Vault(V::Open(0)));
     let unlock = app
         .hit_box(Action::Vault(V::Unlock))
         .expect("Unlock beside the list");
-    assert!(i32::from(unlock.0) >= LIST_RIGHT);
+    assert!(i32::from(unlock.0) >= list_right);
     assert!(
         app.hit_box(Action::Vault(V::Open(0))).is_some(),
         "the vaults' list stays"

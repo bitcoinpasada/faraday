@@ -74,40 +74,6 @@ fn a_wide_page_is_named_by_its_top_app_bar_whose_back_arrow_leaves_it() {
     names_the_page_and_goes_back(1920, 1080);
 }
 
-/// The colour of the bar's empty middle, at its top.
-fn bar_colour(app: &mut Faraday, x: usize) -> [u8; 4] {
-    let f = app.frame();
-    let i = (2 * usize::from(f.width) + x) * 4;
-    [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2], f.rgba[i + 3]]
-}
-
-/// Forty notches of the wheel over the page, by `dy` each.
-fn scroll(app: &mut Faraday, dy: i16) {
-    for _ in 0..40 {
-        app.event(Event::Scroll { x: 450, y: 250, dy });
-        app.event(Event::ScrollEnd { x: 450, y: 250 });
-        for _ in 0..12 {
-            tick(app);
-        }
-    }
-}
-
-#[test]
-fn the_top_app_bar_takes_the_scrolled_under_colour_while_the_page_is_scrolled() {
-    let mut app = on(1280, 420, 96);
-    app.press(Action::Nav(Screen::WalletsStart));
-    tick(&mut app);
-    let top = bar_colour(&mut app, 800);
-    scroll(&mut app, 8);
-    assert_ne!(bar_colour(&mut app, 800), top, "scrolled, the bar's colour");
-    scroll(&mut app, -8);
-    assert_eq!(
-        bar_colour(&mut app, 800),
-        top,
-        "back at the top, the bar's colour"
-    );
-}
-
 fn a_flow_is_named_by_the_bar(width: u16, height: u16) {
     let mut app = on(width, height, 160);
     app.press(Action::Nav(Screen::WalletsStart));

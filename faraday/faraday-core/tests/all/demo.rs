@@ -669,14 +669,16 @@ fn in_the_demo_new_key_from_every_source_adds_a_sample_of_its_length_in_place_of
         Way::Mix,
         Way::Device,
     ];
-    for (words, first) in [
-        (12u8, "twelve"),
-        (15, "lucky"),
-        (18, "glad"),
-        (21, "brave"),
-        (24, "bacon"),
-    ] {
-        for way in ways {
+    // Every source at 12 words, and every length from one source: the
+    // sample put in place of the words does not depend on the other.
+    let walks = ways.into_iter().map(|way| (way, 12u8, "twelve")).chain([
+        (Way::Device, 15, "lucky"),
+        (Way::Device, 18, "glad"),
+        (Way::Device, 21, "brave"),
+        (Way::Device, 24, "bacon"),
+    ]);
+    for (way, words, first) in walks {
+        {
             let mut app = app_on(true);
             let made = new_key(&mut app, way, words);
             assert_eq!(made.split(' ').count(), usize::from(words));

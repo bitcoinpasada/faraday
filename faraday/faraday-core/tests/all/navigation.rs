@@ -207,23 +207,6 @@ fn a_flow_in_progress_shows_its_chip_on_every_destination() {
     }
 }
 
-/// The y of Home's Make a new wallet tile and of Restore a wallet's.
-fn home_tile_rows(width: u16, height: u16, dpi: u16) -> (u16, u16) {
-    let mut app = on(width, height, dpi);
-    app.press(Action::Nav(Screen::Home));
-    let a = at(&mut app, Action::CreateWallet).expect("Make a new wallet is not on Home");
-    let b = at(&mut app, Action::RestoreWallet).expect("Restore a wallet is not on Home");
-    (a.1, b.1)
-}
-
-#[test]
-fn homes_tiles_take_as_many_columns_as_the_window_has_room_for() {
-    for (w, h) in [(1280, 800), (1920, 1080)] {
-        let (a, b) = home_tile_rows(w, h, 96);
-        assert_eq!(a, b, "{w}x{h}: the tiles are not side by side");
-    }
-}
-
 /// Whether box `inner` (x, y, w, h) has its middle inside `outer`.
 fn within(inner: (i32, i32, i32, i32), outer: (u16, u16, u16, u16)) -> bool {
     let (cx, cy) = (inner.0 + inner.2 / 2, inner.1 + inner.3 / 2);

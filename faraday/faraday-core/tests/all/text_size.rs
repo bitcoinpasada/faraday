@@ -137,33 +137,6 @@ fn larger_is_kept_across_a_lock() {
     assert!(before > settings_label_at(TextSize::Large));
 }
 
-#[test]
-fn a_desktop_window_keeps_the_sidebar_at_standard_and_not_at_larger() {
-    let mut app = shown_on(1280, 800, 160);
-    assert!(!app.is_compact());
-    app.press(Action::TextSize(TextSize::Larger));
-    assert!(app.is_compact());
-    app.press(Action::TextSize(TextSize::Standard));
-    assert!(!app.is_compact());
-    let mut wide = shown_on(1920, 1080, 160);
-    wide.press(Action::TextSize(TextSize::Larger));
-    assert!(!wide.is_compact());
-}
-
-/// `docs/TEXT-SIZE.md` §1's finding: a 1280 × 800 window at Display scale
-/// 200 % is 640 × 400 dp, too small for the sidebar.
-#[test]
-fn display_scale_200_on_a_1280_by_800_window_lays_out_one_column() {
-    let mut app = shown_on(1280, 800, 160);
-    app.press(Action::Scale(200));
-    assert!(app.is_compact());
-    let (w, h) = app.size();
-    assert!(
-        (w - 640.0).abs() < 0.5 && (h - 400.0).abs() < 0.5,
-        "{w} {h}"
-    );
-}
-
 /// Text boxes, pixels, over one another by more than a pixel each way.
 /// Two marks of a grid, each a character or two, sit close by design.
 fn drawn_over(texts: &[DrawnText]) -> Vec<String> {

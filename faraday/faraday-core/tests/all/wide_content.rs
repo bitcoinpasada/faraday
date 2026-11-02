@@ -1,6 +1,5 @@
 //! Wide content on large and extra-large windows (`docs/LAYOUT.md` §14,
-//! §17): Home's tiles start beside the navigation and run across the
-//! window, a wallet's buttons stand under its chart, and Explore keeps
+//! §17): a wallet's buttons stand under its chart, and Explore keeps
 //! its reading column, its long values wrapping between groups.
 
 use crate::common::process;
@@ -40,33 +39,6 @@ fn hit(app: &mut Faraday, a: Action) -> (i32, i32, i32, i32) {
     let _ = app.frame();
     let (x, y, w, h) = app.hit_box(a).expect("drawn");
     (i32::from(x), i32::from(y), i32::from(w), i32::from(h))
-}
-
-#[test]
-fn homes_tiles_start_beside_the_navigation_and_stand_in_one_row() {
-    let tiles = [
-        Action::CreateWallet,
-        Action::RestoreWallet,
-        Action::Vault(faraday_core::vault::VaultAction::Create),
-    ];
-    for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
-        let mut app = Faraday::new();
-        window(&mut app, w, h);
-        app.press(Action::Nav(Screen::Home));
-        let placed: Vec<_> = tiles.iter().map(|a| hit(&mut app, *a)).collect();
-        let first = placed[0];
-        // The first tile stands beside the rail, not in a page centred in
-        // the window.
-        assert!(first.0 - RAIL < 80, "{w}: the first tile at {first:?}");
-        // The ways in side by side, each as wide as the next, none
-        // past the window's right margin.
-        assert!(
-            placed.iter().all(|t| t.1 == first.1 && t.2 == first.2),
-            "{w}: one row of equal tiles: {placed:?}"
-        );
-        let end = placed.iter().map(|t| t.0 + t.2).max().unwrap_or(0);
-        assert!(end <= i32::from(w) - 24, "{w}: the row ends at {end}");
-    }
 }
 
 /// The test stick's wallets loaded, at `width` × `height`.

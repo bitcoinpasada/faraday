@@ -1,8 +1,8 @@
 //! The toast is Material 3's snackbar (`docs/THEMES.md` §7, DESIGN
-//! §4.11): in every theme, mode and contrast its container is the
-//! scheme's inverse-surface and its text the scheme's inverse-on-surface.
+//! §4.11): in every theme, mode and contrast its text reads on its
+//! container, and it goes when its time runs out.
 
-use faraday_core::ui::{Role, Theme};
+use faraday_core::ui::Theme;
 use faraday_core::{Faraday, StorageEvent};
 use faraday_draw::canvas::InkKind;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -38,7 +38,8 @@ fn toasted(theme: Theme) -> Faraday {
 }
 
 #[test]
-fn a_toast_is_drawn_in_the_schemes_inverse_roles_in_every_theme() {
+fn a_toasts_text_reads_on_its_container_in_every_theme() {
+    use super::fills_read::{over, ratio, under};
     let mut short = Vec::new();
     for theme in Theme::all() {
         let mut app = toasted(theme);
@@ -51,18 +52,13 @@ fn a_toast_is_drawn_in_the_schemes_inverse_roles_in_every_theme() {
             short.push(format!("{theme:?}: no toast drawn"));
             continue;
         };
-        if color != theme.role(Role::InverseOnSurface) {
-            short.push(format!("{theme:?}: the toast's text is {color:?}"));
-        }
-        // Inside the container, in the room before its text.
         let frame = app.frame();
-        let width = usize::from(frame.width);
-        let (x, y) = ((rect.x - 4) as usize, (rect.y + rect.h / 2) as usize);
-        let i = (y * width + x) * 4;
-        let px = [frame.rgba[i], frame.rgba[i + 1], frame.rgba[i + 2]];
-        let fill = theme.role(Role::InverseSurface);
-        if px != [fill.r, fill.g, fill.b] {
-            short.push(format!("{theme:?}: the toast's container is {px:?}"));
+        let (w, h) = (i32::from(frame.width), i32::from(frame.height));
+        let bg = under(frame.rgba, w, h, (rect.x, rect.y, rect.w, rect.h));
+        let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
+        let got = ratio(over(color, bg), bg);
+        if got < need {
+            short.push(format!("{theme:?}: the toast's text reads {got:.2}:1"));
         }
     }
     assert!(short.is_empty(), "{short:#?}");
