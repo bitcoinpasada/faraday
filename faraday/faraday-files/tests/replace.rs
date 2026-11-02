@@ -105,38 +105,3 @@ fn keep_both_writes_beside_the_old_file() {
     assert_eq!(s.files["wallet.json"], b"old");
     assert_eq!(s.files["wallet-2.json"], b"new");
 }
-
-#[test]
-fn a_vault_is_never_written_over_another_vault() {
-    // Two vaults of different salts: the old one stays whatever the
-    // write asks.
-    let vault = |salt: u8| {
-        let mut v = b"FVLT".to_vec();
-        v.extend_from_slice(&[0u8; 13]);
-        v.extend_from_slice(&65_536u32.to_le_bytes());
-        v.extend_from_slice(&[salt; 32]);
-        v.resize(faraday_codec::vault_file::file_len(65_536), 0);
-        v
-    };
-    let old = vault(1);
-    let mut s = stick(&[("vault.fvlt", &old)]);
-    let wrote = write_any(&mut s, "vault.fvlt", &vault(2), true).unwrap();
-    assert_eq!(wrote, "vault-2.fvlt");
-    assert_eq!(s.files["vault.fvlt"], old);
-}
-
-#[test]
-fn a_replacing_write_never_removes_a_vault() {
-    // Whatever name's case or contents the write carries, a vault on the
-    // stick stays, and the new file goes beside it.
-    let old = b"FVLT vault bytes".to_vec();
-    for (name, bytes) in [
-        ("VAULT.FVLT", b"FVLT other".as_slice()),
-        ("vault.fvlt", b"not a vault".as_slice()),
-    ] {
-        let mut s = stick(&[("vault.fvlt", &old)]);
-        let wrote = write_any(&mut s, name, bytes, true).unwrap();
-        assert_ne!(wrote.to_ascii_lowercase(), "vault.fvlt", "{name}");
-        assert_eq!(s.files["vault.fvlt"], old, "{name}");
-    }
-}

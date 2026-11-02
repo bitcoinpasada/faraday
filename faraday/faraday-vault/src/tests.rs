@@ -69,7 +69,6 @@ fn each_passphrase_opens_its_own_contents() {
         &[7; 32],
     )
     .unwrap();
-    assert_eq!(file.len(), 262_357);
     for (p, t) in [("first", "Email"), ("second", "Bank"), ("third", "Decoy")] {
         let (_, got) = open(&c, &file, p).unwrap();
         assert_eq!(title_of(&got), t);

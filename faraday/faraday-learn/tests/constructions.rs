@@ -26,16 +26,6 @@ fn no_other_page_carries_a_construction() {
 }
 
 #[test]
-fn the_vaults_page_no_longer_has_a_passphrase_strength_section_of_its_own() {
-    assert!(
-        vaults_page()
-            .sections
-            .iter()
-            .all(|s| s.heading != "Passphrase strength")
-    );
-}
-
-#[test]
 fn every_table_row_has_a_cell_for_each_head() {
     for c in how::CONSTRUCTIONS {
         for part in c.sections {

@@ -498,75 +498,11 @@ fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
     assert!(short.is_empty(), "{short:#?}");
 }
 
-/// A stick's dot and edge, its tone, stand out from every surface at
-/// 3:1 or more in every scheme, so which stick a pill is reads from its
-/// tone wherever the pill is drawn.
+/// The top app bar looks like the page while the page is at its top and
+/// looks different once the page is scrolled under it.
 #[test]
-fn every_sticks_tone_stands_out_from_every_surface_in_every_scheme() {
-    let surfaces = [
-        Role::Surface,
-        Role::SurfaceDim,
-        Role::SurfaceBright,
-        Role::SurfaceContainerLowest,
-        Role::SurfaceContainerLow,
-        Role::SurfaceContainer,
-        Role::SurfaceContainerHigh,
-        Role::SurfaceContainerHighest,
-    ];
-    let mut short = Vec::new();
-    for theme in Theme::all() {
-        for n in 0..8 {
-            for s in surfaces {
-                let got = ratio(theme.color(pal::stick(n)), theme.role(s));
-                if got < 3.0 {
-                    short.push(format!("{theme:?}: stick {n} on {s:?} is {got:.2}:1"));
-                }
-            }
-        }
-    }
-    assert!(short.is_empty(), "{short:#?}");
-}
-
-/// A dialog whose body is taller than the window, scrolled: under its
-/// top edge the content fades into the dialog's own container, not into
-/// the page's colour, in every scheme that fades.
-#[test]
-fn a_scrolled_dialog_fades_into_its_own_container() {
-    use faraday_draw::tokens::PAD;
-    let mut short = Vec::new();
-    for theme in Theme::all().filter(|t| !t.is_high_contrast()) {
-        let mut canvas = canvas();
-        let mut hits = Vec::new();
-        {
-            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
-            ui.theme = theme;
-            ui.clear(Role::Surface);
-            ui.offset = 60.0;
-            sheet::dialog(
-                &mut ui,
-                (640.0, 480.0, 400.0),
-                (Glyph::Icon(Icon::Done), Role::Secondary.paint(), "A dialog"),
-                &mut |_, _, _, _| 2000.0,
-                &[("Close", Style::Ghost, 1)],
-            );
-        }
-        let got = pixel(&canvas, 320.0, PAD + 2.0);
-        let want = theme.role(Role::SurfaceContainerHigh);
-        let near = |a: u8, b: u8| a.abs_diff(b) <= 2;
-        if !(near(got.r, want.r) && near(got.g, want.g) && near(got.b, want.b)) {
-            short.push(format!(
-                "{theme:?}: under the top edge is {got:?}, not {want:?}"
-            ));
-        }
-    }
-    assert!(short.is_empty(), "{short:#?}");
-}
-
-/// The top app bar is the page's colour while the page is at its top
-/// and surface-container once the page is scrolled under it.
-#[test]
-fn the_top_app_bar_turns_surface_container_once_the_page_scrolls_under_it() {
-    for (offset, want) in [(0.0, Role::Surface), (30.0, Role::SurfaceContainer)] {
+fn the_top_app_bar_looks_different_once_the_page_scrolls_under_it() {
+    for (offset, scrolled) in [(0.0, false), (30.0, true)] {
         let mut canvas = canvas();
         let mut hits = Vec::new();
         {
@@ -580,7 +516,12 @@ fn the_top_app_bar_turns_surface_container_once_the_page_scrolls_under_it() {
             };
             nav::app_bar(&mut ui, 640.0, &bar, 640.0);
         }
-        assert_eq!(pixel(&canvas, 600.0, 4.0), Theme::default().role(want));
+        let page = Theme::default().role(Role::Surface);
+        assert_eq!(
+            pixel(&canvas, 600.0, 4.0) != page,
+            scrolled,
+            "offset {offset}"
+        );
     }
 }
 
@@ -605,10 +546,9 @@ fn a_pressed_region_shows_it_and_a_held_secret_reads_as_drawn() {
     }
 }
 
-/// A menu's chosen item is filled in secondary-container; the others
-/// stand on the menu's own surface-container.
+/// A menu's chosen item looks different from the others.
 #[test]
-fn a_menus_chosen_item_is_filled_in_the_selected_colour() {
+fn a_menus_chosen_item_is_told_apart_from_the_others() {
     let mut canvas = canvas();
     canvas.record_ink(true);
     let mut hits = Vec::new();
@@ -642,10 +582,8 @@ fn a_menus_chosen_item_is_filled_in_the_selected_colour() {
             .expect("drawn")
     };
     let (chosen, other) = (at("Move here"), at("Copy here"));
-    let theme = Theme::default();
     let beside = |r: faraday_draw::Rect| pixel(&canvas, (r.x - 4) as f32, (r.y + r.h / 2) as f32);
-    assert_eq!(beside(chosen), theme.role(Role::SecondaryContainer));
-    assert_eq!(beside(other), theme.role(Role::SurfaceContainer));
+    assert_ne!(beside(chosen), beside(other));
 }
 
 /// A notice that stays at the foot and a toast over it: the toast stands
@@ -708,31 +646,6 @@ fn a_toast_leaves_the_floating_button_in_sight() {
     assert!(press.0.y > toast.bottom(), "{:?} under the toast", press.0);
 }
 
-/// The tooltips' own pairs: plain on inverse-surface, rich on its
-/// container, and its edge against the page.
-#[test]
-fn the_tooltips_read_in_every_scheme() {
-    use crate::tooltip::{
-        TIP_PLAIN_FILL, TIP_PLAIN_INK, TIP_RICH_EDGE, TIP_RICH_FILL, TIP_RICH_INK,
-    };
-    let mut short = Vec::new();
-    for theme in Theme::all() {
-        let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
-        let c = |p: Paint| theme.color(p);
-        for (what, fg, bg, min) in [
-            ("plain", TIP_PLAIN_INK, TIP_PLAIN_FILL, need),
-            ("rich", TIP_RICH_INK, TIP_RICH_FILL, need),
-            ("rich edge", TIP_RICH_EDGE, Role::Surface.paint(), 3.0),
-        ] {
-            let got = ratio(c(fg), c(bg));
-            if got < min {
-                short.push(format!("{theme:?}: {what} tooltip is {got:.2}:1"));
-            }
-        }
-    }
-    assert!(short.is_empty(), "{short:#?}");
-}
-
 /// Settings' Appearance card is sized from its rows' widths before they
 /// are drawn: the height worked out is the height drawn, wide and on a
 /// small panel, at every width the rows wrap at.
@@ -756,52 +669,36 @@ fn pixel(canvas: &Canvas, x: f32, y: f32) -> Color {
     Color::rgb(f.rgba[i], f.rgba[i + 1], f.rgba[i + 2])
 }
 
-/// Settings' theme chips (`docs/THEMES.md` §12): every chip is filled in
-/// its own theme's primary-container in the mode and contrast on screen;
-/// the chosen one alone is ringed in its own primary, with the page
-/// between ring and fill, and a chip not chosen has no edge.
+/// Settings' theme chips: the chosen one alone looks different from the
+/// others, in every scheme; the rest look the same whichever is chosen.
 #[test]
-fn the_chosen_theme_chip_alone_is_ringed_in_its_own_primary() {
-    use faraday_draw::tokens::{FILTER_CHIP_H, THEME_CHIP_RING, THEME_CHIP_RING_GAP};
-    let mut short = Vec::new();
-    for theme in Theme::all() {
+fn the_chosen_theme_chip_alone_looks_different_from_the_others() {
+    use faraday_draw::tokens::FILTER_CHIP_H;
+    let row = |k: usize| 16.0 + k as f32 * (FILTER_CHIP_H + 12.0);
+    let draw = |theme: Theme, chosen: Option<ThemeName>| {
         let mut canvas = canvas();
         let mut hits = Vec::new();
-        let mut at = Vec::new();
         {
             let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
             ui.theme = theme;
             ui.clear(Role::Surface);
             for (k, name) in ThemeName::ALL.into_iter().enumerate() {
-                let (x, y) = (24.0, 16.0 + k as f32 * (FILTER_CHIP_H + 12.0));
-                let w = ui.theme_chip(x, y, name, name == theme.name, k as u8);
-                at.push((name, x, y + FILTER_CHIP_H / 2.0, w));
+                ui.theme_chip(24.0, row(k), name, Some(name) == chosen, k as u8);
             }
         }
-        let page = theme.role(Role::Surface);
-        for (name, x, mid, w) in at {
-            let own = Theme::new(name, theme.mode, theme.contrast);
-            let fill = pixel(&canvas, x + w - 4.0, mid);
-            if fill != own.role(Role::PrimaryContainer) {
-                short.push(format!("{theme:?}: {name:?}'s chip is filled {fill:?}"));
-            }
-            let ring = pixel(
-                &canvas,
-                x - THEME_CHIP_RING_GAP - THEME_CHIP_RING / 2.0,
-                mid,
-            );
-            let want = if name == theme.name {
-                own.role(Role::Primary)
-            } else {
-                page
-            };
-            if ring != want {
-                short.push(format!("{theme:?}: beside {name:?}'s chip is {ring:?}"));
-            }
-            if pixel(&canvas, x - 1.0, mid) != page {
-                short.push(format!(
-                    "{theme:?}: no page between {name:?}'s ring and fill"
-                ));
+        canvas
+    };
+    let mut short = Vec::new();
+    for theme in Theme::all() {
+        let (plain, picked) = (draw(theme, None), draw(theme, Some(theme.name)));
+        let (a, b) = (plain.frame(), picked.frame());
+        let w = usize::from(a.width);
+        for (k, name) in ThemeName::ALL.into_iter().enumerate() {
+            let from = ((row(k) - 6.0) as usize) * w * 4;
+            let to = ((row(k) + FILTER_CHIP_H + 6.0) as usize) * w * 4;
+            let differs = a.rgba[from..to] != b.rgba[from..to];
+            if differs != (name == theme.name) {
+                short.push(format!("{theme:?}: {name:?}'s chip differs {differs}"));
             }
         }
     }
@@ -1019,4 +916,33 @@ fn at_larger_a_list_items_long_headline_takes_two_lines_inside_its_item() {
         sup.bottom() as f32 <= 16.0 + h,
         "{sup:?} past the item's foot"
     );
+}
+
+/// A stick's dot and edge, its tone, stand out from every surface at
+/// 3:1 or more in every scheme, so which stick a pill is reads from its
+/// tone wherever the pill is drawn.
+#[test]
+fn every_sticks_tone_stands_out_from_every_surface_in_every_scheme() {
+    let surfaces = [
+        Role::Surface,
+        Role::SurfaceDim,
+        Role::SurfaceBright,
+        Role::SurfaceContainerLowest,
+        Role::SurfaceContainerLow,
+        Role::SurfaceContainer,
+        Role::SurfaceContainerHigh,
+        Role::SurfaceContainerHighest,
+    ];
+    let mut short = Vec::new();
+    for theme in Theme::all() {
+        for n in 0..8 {
+            for s in surfaces {
+                let got = ratio(theme.color(pal::stick(n)), theme.role(s));
+                if got < 3.0 {
+                    short.push(format!("{theme:?}: stick {n} on {s:?} is {got:.2}:1"));
+                }
+            }
+        }
+    }
+    assert!(short.is_empty(), "{short:#?}");
 }

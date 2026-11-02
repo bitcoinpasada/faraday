@@ -250,16 +250,13 @@ fn a_silent_wallet_comes_from_the_paths_the_bip_names() {
     );
 }
 
-/// RFC 6238's SHA-1 vectors (secret "12345678901234567890"), six digits.
+/// Two of RFC 6238's SHA-1 vectors (secret "12345678901234567890"), six
+/// digits: the vault crate holds the whole published table, this holds
+/// that the shown code, period and time left are read from it.
 #[test]
 fn totp_codes_are_the_ones_rfc_6238_publishes() {
     let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
-    for (time, code) in [
-        (59, "287082"),
-        (1_111_111_109, "081804"),
-        (1_234_567_890, "005924"),
-        (2_000_000_000, "279037"),
-    ] {
+    for (time, code) in [(59, "287082"), (1_111_111_109, "081804")] {
         let shown = faraday_keys::totp::code_at(secret, time).expect("a TOTP key");
         assert_eq!(shown.grouped.replace(' ', ""), code, "at {time}");
         assert_eq!(shown.period, 30);

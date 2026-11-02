@@ -414,9 +414,9 @@ mod tests {
     /// Offers `px` until the worker reads a code, or gives up.
     fn read_by_worker(mode: ReadMode, w: u16, h: u16, px: &[u8]) -> Option<Vec<u8>> {
         let scanner = Scanner::new(mode);
-        for _ in 0..400 {
+        for _ in 0..2000 {
             scanner.offer(w, h, px.to_vec());
-            std::thread::sleep(std::time::Duration::from_millis(25));
+            std::thread::sleep(std::time::Duration::from_millis(5));
             if let Some(c) = scanner.poll() {
                 return Some(c);
             }

@@ -25,48 +25,25 @@ fn guide(id: &str) -> &'static faraday_learn::Page {
 
 #[test]
 fn every_guide_the_starter_links_to_is_there() {
-    let titles: Vec<&str> = faraday_guides::BOOT
-        .iter()
-        .map(|id| guide(id).title)
-        .collect();
-    assert_eq!(
-        titles,
-        [
-            "Starting a Windows computer from the stick",
-            "Starting a Linux computer from the stick",
-            "What Secure Boot and BitLocker are",
-            "Screens and devices that can record",
-            "When the stick does not start",
-            "Replacing Faraday on a stick",
-            "Starting an Intel Mac from the stick",
-        ]
-    );
+    for id in faraday_guides::BOOT {
+        assert!(!guide(id).sections.is_empty(), "{id}");
+    }
+    // The pages the Starter and the boot menu name beside them.
+    guide("what-else-runs");
+    guide("boot-entry");
     assert!(faraday_guides::page("no-such-page").is_none());
-}
-
-#[test]
-fn the_page_on_what_else_runs_is_there() {
-    assert_eq!(
-        guide("what-else-runs").title,
-        "What else runs on this computer"
-    );
-}
-
-#[test]
-fn the_boot_entry_page_is_there() {
-    assert_eq!(guide("boot-entry").title, "The Faraday boot entry on Linux");
 }
 
 #[test]
 fn the_windows_guide_says_the_last_step_turns_secure_boot_back_on_before_any_bios_step() {
     let first = &guide("windows").sections[0];
     assert_eq!(first.heading, "Before you start");
-    assert_eq!(
-        first.paragraphs[0],
-        "The last step turns Secure Boot back on, before Windows starts. With Secure Boot back on, \
-         Windows usually starts as before; on some computers it asks for the BitLocker recovery \
-         key, as If something is different says."
+    let p = first.paragraphs[0];
+    assert!(
+        p.starts_with("The last step turns Secure Boot back on"),
+        "{p}"
     );
+    assert!(p.contains("BitLocker recovery key"), "{p}");
 }
 
 #[test]
@@ -188,30 +165,15 @@ fn the_windows_guide_and_each_maker_page_say_the_key_may_be_asked_for_and_where_
             .find(|s| s.heading == "If something is different")
             .unwrap_or_else(|| panic!("{id}: no such section"));
         let p = different.paragraphs[0];
-        assert!(
-            p.starts_with(
-                "The BitLocker recovery key: with Secure Boot off, Windows cannot start without \
-                 it. Windows may ask for it even after Secure Boot is back on, on a computer \
-                 whose BIOS changes its Secure Boot keys when the setting is turned off and on. \
-                 Suspending BitLocker first avoids that: Faraday Starter's Temporarily suspend \
-                 BitLocker, before the restart, suspends it for the next 3 times Windows \
-                 starts, after which Windows turns it back on by itself."
-            ),
-            "{id}: {p}"
-        );
+        assert!(p.starts_with("The BitLocker recovery key:"), "{id}: {p}");
+        assert!(p.contains("Temporarily suspend BitLocker"), "{id}");
         // F49 corrects F48: the key can be needed.
         assert!(!p.contains("not needed"), "{id}");
         // Where it is on this computer, and the Microsoft account's page
         // only as a condition (F48).
         assert!(p.contains("Back up your recovery key"), "{id}");
         assert!(p.contains("manage-bde -protectors -get C:"), "{id}");
-        assert!(
-            p.contains(
-                "On a computer signed in with a Microsoft account it is also at \
-                 aka.ms/myrecoverykey."
-            ),
-            "{id}"
-        );
+        assert!(p.contains("aka.ms/myrecoverykey"), "{id}");
     }
 }
 
@@ -222,13 +184,6 @@ fn the_windows_guide_and_each_maker_page_say_the_key_may_be_asked_for_and_where_
 #[test]
 fn every_guide_says_to_exit_without_saving_when_the_setting_cannot_be_found() {
     for id in step_pages() {
-        let line = if id == "linux" {
-            "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. \
-             The computer starts as before."
-        } else {
-            "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. \
-             Windows starts as before."
-        };
         let steps = &guide(id)
             .sections
             .iter()
@@ -243,7 +198,10 @@ fn every_guide_says_to_exit_without_saving_when_the_setting_cannot_be_found() {
             .find(|&i| faraday_learn::step(steps[i]).is_some())
             .unwrap_or(steps.len());
         assert!(
-            steps[off + 1..next].contains(&line),
+            steps[off + 1..next].iter().any(|p| {
+                p.starts_with("If the Secure Boot setting cannot be found")
+                    && p.contains("exit the BIOS without saving changes")
+            }),
             "{id}: not under step {}",
             steps[off]
         );

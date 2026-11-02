@@ -120,6 +120,15 @@ fn a_key_written_as_crypto_account_reads_back_as_its_key_line() {
     let want = format!("[9a6a2580/48h/1h/0h/2h]{xpub}");
     assert!(text.lines().any(|l| l == want), "{text}");
     assert!(want.contains("]tpub"));
+    // As a UR, Faraday's reader takes it, type and bytes intact.
+    let text = faraday_codec::ur::encode_single("crypto-account", &cbor);
+    let mut d = faraday_codec::ur::Decoder::new();
+    assert_eq!(d.receive(&text), Ok(true));
+    let Some(faraday_codec::ur::Message::Other { ur_type, cbor: got }) = d.message() else {
+        panic!("not read");
+    };
+    assert_eq!(ur_type, "crypto-account");
+    assert_eq!(got, &cbor);
 }
 
 #[test]
@@ -216,22 +225,4 @@ fn a_finished_transaction_in_hex_is_known_as_one() {
         faraday_qr::classify_text("deadbeef"),
         Arrived::Text(_)
     ));
-}
-
-#[test]
-fn a_key_as_ur_crypto_account_is_read_by_faraday_codec_and_back_here() {
-    let c = compute();
-    let (master, path) = bacon();
-    let xpub = master.derive(&c, &path).to_xpub(&c);
-    let comps: Vec<ChildNumber> = path.into_iter().copied().collect();
-    let cbor = registry::account_cbor(master.fingerprint().0, &comps, &xpub, false);
-    let text = faraday_codec::ur::encode_single("crypto-account", &cbor);
-    // Faraday's UR reader takes it, type and bytes intact.
-    let mut d = faraday_codec::ur::Decoder::new();
-    assert_eq!(d.receive(&text), Ok(true));
-    let Some(faraday_codec::ur::Message::Other { ur_type, cbor: got }) = d.message() else {
-        panic!("not read");
-    };
-    assert_eq!(ur_type, "crypto-account");
-    assert_eq!(got, &cbor);
 }

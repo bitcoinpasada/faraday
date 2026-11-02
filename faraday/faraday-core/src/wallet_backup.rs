@@ -2454,20 +2454,20 @@ impl Faraday {
 mod tests {
     use super::*;
 
-    /// The audit, for the shapes the backup is made in: a 3-of-5 split
-    /// with two keys left off each sheet rebuilds from any three sheets,
-    /// and no single sheet holds every key.
+    /// The audit, for the largest shape the backup is made in (the kits'
+    /// smaller ones are rebuilt from real sheets by `backup_restores`): an
+    /// 8-of-15 split rebuilds from any eight sheets, and no single sheet
+    /// holds every key.
     #[test]
     fn any_quorum_of_split_sheets_rebuilds_the_wallet() {
-        for (n, m) in [(3, 2), (5, 3), (7, 4), (15, 8)] {
-            let plan = split_plan(n, m, m - 1);
-            let a = audit(&plan, m);
-            assert!(a.every_quorum_rebuilds, "{m} of {n}");
-            assert!(
-                a.keys_per_sheet < n,
-                "{m} of {n}: one sheet holds every key"
-            );
-        }
+        let (n, m) = (15, 8);
+        let plan = split_plan(n, m, m - 1);
+        let a = audit(&plan, m);
+        assert!(a.every_quorum_rebuilds, "{m} of {n}");
+        assert!(
+            a.keys_per_sheet < n,
+            "{m} of {n}: one sheet holds every key"
+        );
     }
 
     /// Every test wallet written as a wallet .json reads back as the same

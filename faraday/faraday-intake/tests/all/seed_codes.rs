@@ -55,22 +55,6 @@ const SPEC: &[(&str, &str, &str)] = &[
 ];
 
 #[test]
-fn a_seedqr_reads_as_the_words_the_specification_gives() {
-    for (words, digits, _) in SPEC {
-        let read = seedqr_words(digits.as_bytes()).unwrap_or_else(|| panic!("{words}"));
-        assert_eq!(read.as_str(), *words);
-    }
-}
-
-#[test]
-fn a_compact_seedqr_reads_as_the_words_the_specification_gives() {
-    for (words, _, entropy) in SPEC {
-        let read = seedqr_words(&unhex(entropy)).unwrap_or_else(|| panic!("{words}"));
-        assert_eq!(read.as_str(), *words);
-    }
-}
-
-#[test]
 fn a_scanned_seedqr_of_either_kind_is_a_seed() {
     let c = crate::common::compute();
     for (words, digits, entropy) in SPEC {

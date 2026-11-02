@@ -45,15 +45,13 @@ Pages copy-on-write:                    3456789.
 ";
 
 #[test]
-fn apple_silicon_16k_pages_give_free_inactive_and_speculative() {
-    // (3221 + 316745 + 2337) × 16384 bytes = 5035.98 MiB.
-    assert_eq!(vm_stat_available_mib(APPLE_SILICON), Some(5035));
-}
-
-#[test]
-fn intel_4k_pages_give_free_inactive_and_speculative() {
-    // (45678 + 876543 + 12345) × 4096 bytes = 3650.65 MiB.
-    assert_eq!(vm_stat_available_mib(INTEL), Some(3650));
+fn free_inactive_and_speculative_pages_are_counted_at_the_page_size_printed() {
+    // Apple Silicon, 16 KiB pages: (3221 + 316745 + 2337) × 16384 bytes
+    // = 5035.98 MiB. Intel, 4 KiB pages: (45678 + 876543 + 12345) × 4096
+    // bytes = 3650.65 MiB.
+    for (text, mib) in [(APPLE_SILICON, 5035), (INTEL, 3650)] {
+        assert_eq!(vm_stat_available_mib(text), Some(mib));
+    }
 }
 
 #[test]

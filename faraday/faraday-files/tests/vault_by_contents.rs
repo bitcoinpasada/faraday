@@ -150,6 +150,30 @@ fn a_replacing_write_never_goes_over_a_vault_under_another_name() {
 }
 
 #[test]
+fn a_replacing_write_never_removes_or_overwrites_a_vault() {
+    // Another vault of the same name: the old one stays, the new one goes
+    // beside it.
+    let mut place = Memory::default();
+    place.files.insert("vault.fvlt".into(), vault(1));
+    let wrote = write_any(&mut place, "vault.fvlt", &vault(2), true).unwrap();
+    assert_eq!(wrote, "vault-2.fvlt");
+    assert_eq!(place.files["vault.fvlt"], vault(1));
+    // Whatever name's case or contents the write carries, a vault on the
+    // stick stays, and the new file goes beside it.
+    let old = b"FVLT vault bytes".to_vec();
+    for (name, bytes) in [
+        ("VAULT.FVLT", b"FVLT other".as_slice()),
+        ("vault.fvlt", b"not a vault".as_slice()),
+    ] {
+        let mut place = Memory::default();
+        place.files.insert("vault.fvlt".into(), old.clone());
+        let wrote = write_any(&mut place, name, bytes, true).unwrap();
+        assert_ne!(wrote.to_ascii_lowercase(), "vault.fvlt", "{name}");
+        assert_eq!(place.files["vault.fvlt"], old, "{name}");
+    }
+}
+
+#[test]
 fn a_sealed_vault_goes_back_over_its_own_copy_under_a_short_name() {
     let mut place = Memory::default();
     place.files.insert("VAULT~1.FVL".into(), vault(1));

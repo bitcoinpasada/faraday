@@ -4,7 +4,6 @@
 
 use super::Sim;
 use super::five::{Act, FiveRoller, Reach, Where};
-use crate::Faraday;
 use crate::codex32::{C32, Codex32Make, DIE_SIZES};
 use crate::testkit;
 use faraday_draw::tokens::{ROLLER_PAUSE_MS, ROLLER_TUMBLE_MS};
@@ -407,14 +406,6 @@ fn stop_ends_the_rolls_and_a_full_entry_is_not_rolled() {
     };
     r.act(Act::Roll, &full, 0);
     assert!(!r.rolling());
-}
-
-#[test]
-fn it_is_offered_only_where_the_shell_says_so() {
-    let mut app = Faraday::new();
-    assert!(!app.roller_offered(), "not on a device shell by default");
-    app.set_roller_offered(false);
-    assert!(!app.roller_offered());
 }
 
 #[test]

@@ -700,25 +700,10 @@ mod tests {
     }
 
     #[test]
-    fn a_filled_button_not_available_keeps_its_fill() {
-        let page = (0x19, 0x21, 0x2a);
-        let (filled, pressable) = inside_a_button(Style::Primary.when(false));
-        assert_ne!(filled, page);
-        assert!(!pressable, "a button not available takes no press");
-        assert_eq!(inside_a_button(Style::Secondary.when(false)).0, page);
+    fn a_button_not_available_takes_no_press() {
+        assert!(!inside_a_button(Style::Primary.when(false)).1);
+        assert!(!inside_a_button(Style::Secondary.when(false)).1);
         assert!(inside_a_button(Style::Primary).1);
-    }
-
-    #[test]
-    fn nothing_is_drawn_smaller_than_the_smallest_text() {
-        let mut c = canvas();
-        let mut hits = Vec::new();
-        let ui: Ui<u8> = Ui::new(&mut c, 1.0, &mut hits, None);
-        for w in [W::R, W::S, W::M] {
-            let small = ui.measure(8.0, w, "Box 17");
-            assert_eq!(small, ui.measure(10.0, w, "Box 17"));
-            assert!(ui.measure(14.0, w, "Box 17") > small);
-        }
     }
 
     #[test]

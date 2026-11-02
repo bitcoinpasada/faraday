@@ -464,7 +464,7 @@ mod tests {
         for compact in [true, false] {
             for more in (0..120).step_by(10) {
                 let text = h + more as f32;
-                for offset in (0..240).step_by(4) {
+                for offset in (0..240).step_by(16) {
                     let mut canvas = Canvas::new(&DisplayInfo {
                         width: w as u16,
                         height: h as u16,

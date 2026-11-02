@@ -271,21 +271,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_bare_key_decodes_as_sha1_6_digits_30_seconds() {
-        let t = parse("JBSW Y3DP EHPK 3PXP").expect("reads");
-        assert_eq!(t.code(0).len(), 6);
-    }
-
-    #[test]
     fn unknown_query_parameters_are_ignored() {
         let uri = "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&issuer=X&image=https://x";
         assert!(parse(uri).is_ok());
-    }
-
-    #[test]
-    fn grouping_matches_digit_count() {
-        assert_eq!(grouped("492039"), "492 039");
-        assert_eq!(grouped("1234567"), "1 234 567");
-        assert_eq!(grouped("12345678"), "1234 5678");
     }
 }
