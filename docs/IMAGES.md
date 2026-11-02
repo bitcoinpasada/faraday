@@ -1,12 +1,12 @@
 # Images for each piece of hardware
 
 **Kind:** Spec
-**Status:** Specified (F145, F185, F186), the PC's one build, the Pi's one build, the 2.8-inch's and the HDMI screen's images and the release's files and image list built
-**Open:** one Pi image for every screen, found at boot (§3, §9 steps 9 to 11), each screen tried on its panel, a full release's size and staging time measured, the Starter finding images, the website's choice
+**Status:** Specified (F145, F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built
+**Open:** the one Pi image built and booted under QEMU (§9 step 10), each screen tried on it (§9 step 11), a full release's size and staging time measured, the Starter finding images, the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it: one for the PC stick, and one for the Pi that finds its screen at
-boot (§3, F186; planned, while a Pi image per screen is built today).
+boot (§3, F186, F187).
 Each is its own release file. Nothing is edited after the build. The Starter carries no
 images: the person downloads the Starter and the images they chose, and
 the Starter offers what it finds. The owner's choices are F145, which
@@ -22,7 +22,7 @@ choose. What each carries beyond the common kernel, against
 
 | | The kernel |
 |---|---|
-| The Pi | DRM for HDMI and the DSI panels; USB keyboards, mice and touchscreens; USB storage (§2; `faraday/image/boards/pi3/`) |
+| The Pi | DRM for HDMI and the 2.8-inch DPI panel; USB keyboards, mice and touchscreens; USB storage (§2; `faraday/image/boards/pi3/`) |
 | The PC stick | `efi=disable_early_pci_dma` on its built-in command line, so no PCI device the firmware left running can write to memory before the kernel has set up the IOMMU (`faraday/image/boards/x86_64-uefi/cmdline.txt`); `kernel.cmdline` makes the kernel check require it |
 
 The PC's kernel is the EFI program itself, with its root filesystem
@@ -35,21 +35,17 @@ under `faraday/image/boards/`; there is no layer between the board and
 the panel. The root filesystem, the app and its checks are the same on
 both platforms.
 
-`just faraday-pi-image` builds the 2.8-inch Pi image into
-`out/pi/faraday-pi3-waveshare-28dpi.img` and `just panel=hdmi
-faraday-pi-image` the HDMI screen's, `out/pi/faraday-pi3-hdmi.img`;
-`just faraday-stick-image` builds the stick's,
+`just faraday-pi-image` builds the one Pi image into
+`out/pi/faraday-pi3-any.img`, with the boot script that finds the
+screen (§3.4); `just faraday-stick-image` builds the stick's,
 `out/stick/faraday-x86_64-uefi.img`.
-With the one Pi image (§3, planned), `just faraday-pi-image` builds it
-into `out/pi/faraday-pi3-any.img` and takes no panel; the Pi's root
-filesystem then adds the boot script that finds the screen (§3.4).
 
 ## 2. The Pi's kernel
 
 What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-MODEL.md`:
 
-- **DRM, for the display only.** vc4's display side, the DSI host and
-  the panels' drivers, with their I²C touch controllers. The Pi
+- **DRM, for the display only.** vc4's display side, the DPI panel's
+  driver, and the 2.8-inch's I²C touch controller. The Pi
   builds the board's kernel source as it is: Faraday carries no kernel
   patch of its own (owner, F153). vc4 also binds the GPU's 3D block,
   V3D, and creates a render node, `/dev/dri/renderD128`; Kconfig has no
@@ -105,21 +101,21 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
 ## 3. Screens
 
 One Pi image serves every screen Faraday lists and every Pi it starts
-(F186). The image does not name its screen: a boot script, run as root
+(F186): an HDMI screen and the 2.8-inch, the two screens Faraday lists
+on the Pi for now (F187). The image does not name its screen: a boot script, run as root
 before the app, finds the screen attached, loads that screen's
 device-tree overlay while the system runs, and gives the app the
 screen's values. A screen with no touch controller cannot be found, and
-every screen below has one. No screen found is HDMI. Nothing is written
+the 2.8-inch has one. No screen found is HDMI. Nothing is written
 to the card: the boot partition stays the release's, byte for byte
 (F182), and a card is still checked against `SHA256SUMS` (§4).
 
-Built today, and kept until the one image replaces them, are the
-2.8-inch's image (`faraday/image/panels/waveshare-28dpi`, on the
-firmware's framebuffer) and the HDMI screen's
-(`faraday/image/panels/hdmi`). The one image is planned, built with
-every screen below at once and each screen then tried on its panel as
-it arrives (§9 steps 9 to 11). A screen not yet tried is built, not
-tried, in `docs/HARDWARE.md` and on the website.
+The one image (`faraday/image/panels/any`) replaces the 2.8-inch's
+image, on the firmware's framebuffer, and the HDMI screen's, which
+earlier releases carry. It is built with both screens and is to be
+tried on each (§9 steps 10 and 11). A screen not
+yet tried is built, not tried, in `docs/HARDWARE.md` and on the
+website.
 
 ### 3.1 The screens
 
@@ -133,14 +129,11 @@ HDMI.
 | Screen | Panel | Pixels | dpi | Layout | Found by | Display overlay |
 |---|---|---|---|---|---|---|
 | An HDMI screen | any HDMI monitor with a USB keyboard and mouse, or Waveshare 10.1inch HDMI LCD (B) with its USB touch | the screen's mode, from its EDID | the EDID's on a screen of 11 inches or less; `faraday.dpi=160` otherwise | by its width | its connector reads `connected` | none beyond `vc4-kms-v3d` in `config.txt` |
-| 5-inch | Raspberry Pi Touch Display 2, 5-inch; its touch controller to confirm | 720 × 1280, portrait | 294 | 392 × 697 dp: compact; landscape 697 × 392: medium and short | its touch controller on the DSI connector's I²C, or the firmware's `display_auto_detect` (to confirm) | the firmware's `vc4-kms-dsi-ili9881-5inch` (to confirm) |
-| 7-inch | Waveshare 7inch DSI LCD (C), Goodix | 1024 × 600, landscape | 170 | 964 × 565 dp: expanded and low; portrait: compact | its Goodix on the DSI connector's I²C, reporting 1024 × 600 | the firmware's `vc4-kms-dsi-waveshare-panel` at the 7-inch (C) size (the parameter's name to confirm) |
-| 10-inch, DSI | Waveshare 10.1inch DSI LCD (C), Goodix | 1280 × 800, landscape | 149 | 1372 × 857 dp: large; portrait 857 × 1372: expanded | its Goodix on the DSI connector's I²C, reporting 1280 × 800 | the same overlay at the 10.1-inch (C) size |
 | 2.8-inch | Waveshare 2.8inch DPI LCD, Goodix GT911 | 480 × 640, portrait | 286 | 268 × 358 dp: compact and short | its GT911 on the bit-banged I²C its touch overlay declares | the firmware's `vc4-kms-dpi-generic` with the panel's timings and pins |
 
 - **What the probes expect** is fixed for each screen in its directory
-  (§3.3): the controller's name, its bus and address, and for a DSI
-  panel its reported range. Only an exact match applies a screen.
+  (§3.3): the controller's name, its bus and address. Only an exact
+  match applies a screen.
 - **The values each screen gives the app** are the ones `panel.conf`
   gives today, as the shell's arguments (§3.4): size (`--size`),
   density (`--dpi`), the touch controller's name and grid
@@ -148,11 +141,6 @@ HDMI.
   `--mount` where a case turns the panel).
   - The 2.8-inch: 480 × 640, 286 dpi, `Goodix`, `portrait`; its grid
     and axes are worked out again on the kernel's DPI driver (§3.3).
-  - The 5-inch: 720 × 1280, 294 dpi, `portrait`.
-  - The 7-inch: 1024 × 600, 170 dpi, `landscape`.
-  - The 10-inch: 1280 × 800, 149 dpi, `landscape`.
-  - Each DSI panel's touch name is its controller's, and its grid the
-    range the controller reports.
   - An HDMI screen gives none: the shell reads its size from `/dev/fb0`
     and its density from the EDID (`docs/ORIENTATION.md` §2), and its
     USB touch is let in by tapping a target (§2, F153).
@@ -162,11 +150,14 @@ HDMI.
   sets its preferred mode; no mode is named on the card (F150).
   `NATIVE` and `MOUNT` are not given: the screen's mode says which way
   it is.
-- **A DSI screen does not fit a Zero 2 W**, which has no DSI connector:
-  its probes there find nothing. The 2.8-inch and HDMI fit every Pi the
-  image starts.
-- **No original 7-inch screen.** The original Raspberry Pi Touch Display
-  (800 × 480) is not offered (owner, F145).
+- **Both screens fit every Pi the image starts.**
+- **No DSI screen for now** (owner, F187). Raspberry Pi Touch Display 2
+  and Waveshare's DSI (C) panels are not built: none would be tried, and
+  a person with the money for one has a cheap laptop as a choice. One
+  is added later as its own directory, its drivers and its probe
+  (between HDMI and the 2.8-inch, since the DSI connector's I²C uses no
+  header pin), when its panel is at hand to try. The original
+  Raspberry Pi Touch Display (800 × 480) is not offered (owner, F145).
 - **A screen whose check fails on its panel** (§9 step 11) and cannot
   be put right in its directory's values is not supported on the Pi: `docs/HARDWARE.md` §6 lists it with what failed,
   its tile is taken down, and it gets no image of its own. One case is
@@ -183,23 +174,14 @@ probe that finds nothing removes what it loaded before the next starts.
    `connected`: HDMI wins over any panel also attached, and no panel's
    overlay is loaded, so no panel's touch controller is bound or
    trusted. The Zero 2 W's mini-HDMI is the same connector.
-2. **The DSI connector's touch controller**, on the connector's own I²C,
-   which uses none of the GPIO header's pins: the overlay that declares
-   only the controller is loaded, and the probe passes when its input
-   device appears, with the name expected and on that bus, within a set
-   time (two seconds until §9 step 11 measures it). Touch Display 2
-   first, then the Waveshare (C) controller. For a Waveshare (C) panel
-   the range its Goodix reports, read once from its event node, says
-   which panel it is: 1024 × 600 the 7-inch, 1280 × 800 the 10-inch, as
-   Waveshare documents them (to confirm); any other range is no screen
-   found, and the overlay is removed.
-3. **The 2.8-inch's GT911**, on the bit-banged I²C its touch overlay
-   declares on the GPIO header. It comes after the DSI probes because it
-   drives header pins (the bus and the controller's reset and interrupt
-   lines). The DPI pin setup (GPIO 0-9, 12-17 and 20-25 to alternate
+2. **The 2.8-inch's GT911**, on the bit-banged I²C its touch overlay
+   declares on the GPIO header: the overlay that declares only the
+   controller is loaded, and the probe passes when its input device
+   appears, with the name expected and on that bus, within a set time
+   (two seconds until §9 step 11 measures it). The DPI pin setup (GPIO 0-9, 12-17 and 20-25 to alternate
    function 2) is applied only once the GT911 has answered, never
    tried blind.
-4. **Nothing found:** HDMI, as the HDMI image starts today; a monitor
+3. **Nothing found:** HDMI, as the HDMI image starts today; a monitor
    plugged in later is set up by its hotplug.
 
 The screen is chosen once per boot; a screen changed is a power cycle.
@@ -214,14 +196,16 @@ The screen is chosen once per boot; a screen changed is a power cycle.
   interface takes as it is. They are part of `zImage`, so the release
   signs them.
 - **A screen's directory** (`faraday/image/panels/any/screens/<screen>/`,
-  planned, in place of today's per-screen panel directories) holds its
+  in place of the earlier per-screen panel directories) holds its
   values (the `panel.conf` keys of today), its touch overlay's line and
   its display overlay's line, each a firmware overlay's name and its
-  parameters. A DPI or DSI panel's display settings, its timings and
+  parameters. A DPI panel's display settings, its timings and
   output format included, are that display overlay line and nothing
   else: a change to the 2.8-inch's colour order is a change to that one
-  line. Until the one image is built, they stay in
-  `faraday/image/panels/waveshare-28dpi/config.txt`.
+  line. The 2.8-inch's touch overlay has no source in the board's
+  kernel, so its line names Waveshare's compiled overlay, taken as it
+  is from the pinned overlay pack; the display line is merged with
+  `ovmerge` (`faraday/image/panels/any/README.md`).
 - **Loading.** The display overlay is applied through configfs, then
   vc4's DRM driver is unbound and bound again
   (`/sys/bus/platform/drivers/vc4-drm`), so the DRM device it builds
@@ -248,7 +232,7 @@ The screen is chosen once per boot; a screen changed is a power cycle.
   "camera, legacy stack"), beside a USB webcam with uncompressed frames.
   - **What is known.** The camera runs today beside the 2.8-inch on the
     firmware's framebuffer. Nothing shows it failing beside the HDMI
-    screen or the DSI panels. Beside the 2.8-inch on the kernel's DPI
+    screen. Beside the 2.8-inch on the kernel's DPI
     driver it may not run, since the firmware's camera stack was used
     with the firmware's own display path.
   - **What is to check** (§9 step 11): the ribbon camera beside every
@@ -276,9 +260,7 @@ The screen is chosen once per boot; a screen changed is a power cycle.
   `faraday/image/common/rootfs-overlay/etc/init.d/rcS` as root, after
   `/sys` is mounted and before the app's loop in
   `faraday/image/common/rootfs-overlay/etc/inittab` starts; the PC's
-  image has none. It is BusyBox `sh`, with one small program of
-  Faraday's own beside it that prints the range of the touch event node
-  it is given and opens nothing else.
+  image has none. It is BusyBox `sh`.
 - **What it mounts.** configfs at `/sys/kernel/config`, for the probes
   and the screen's overlay, and unmounts it before it ends, so no
   overlay can be loaded once the app runs.
@@ -303,11 +285,10 @@ Each is a line in the Pi board's
 | `OF_OVERLAY` | applying a device-tree overlay while the kernel runs |
 | `OF_CONFIGFS` | the interface the boot script applies it through (Raspberry Pi's kernel), with `CONFIGFS_FS` |
 | `DRM_PANEL_SIMPLE` | the DPI panel behind `vc4-kms-dpi-generic` |
-| `DRM_PANEL_WAVESHARE_TOUCHSCREEN` | the Waveshare (C) DSI panels (the driver their overlay names, to confirm) |
-| `DRM_PANEL_ILITEK_ILI9881C` | Touch Display 2 (to confirm) |
 | `GPIO_RASPBERRYPI_EXP` | the 3B+'s HDMI hotplug line, behind the firmware's GPIO expander |
-| `I2C_MUX_PINCTRL` | the DSI connector's I²C on a Pi 3, a branch of the SoC's first I²C controller |
-| `TOUCHSCREEN_GOODIX`, `I2C_GPIO`, `I2C_BCM2835` | the touch controllers' buses and driver, from the 2.8-inch's and the HDMI screen's lists today |
+| `BACKLIGHT_CLASS_DEVICE` | `DRM_PANEL_SIMPLE` depends on it |
+| `BACKLIGHT_GPIO` | the backlight on GPIO 18 that the 2.8-inch's touch overlay declares |
+| `TOUCHSCREEN_GOODIX`, `I2C_GPIO`, `I2C_BCM2835` | the 2.8-inch's touch controller and its bus, and the HDMI bus the EDID is read over, from the 2.8-inch's and the HDMI screen's lists today |
 
 `FB_BCM2708` moves to the board's `kernel.forbidden`, so no firmware
 framebuffer competes with DRM's for `/dev/fb0`. `VIDEO_BCM2835` and
@@ -341,7 +322,7 @@ unmounts it before the app starts.
   - the PC's boot program, `faraday-X.Y.Z-BOOTX64.EFI`.
 
   The Pi image is built from the board `pi3` and the panel directory
-  `any` (planned), into `out/pi/faraday-pi3-any.img`. Nothing reads a
+  `any`, into `out/pi/faraday-pi3-any.img`. Nothing reads a
   release file by the names of an earlier release: the website takes
   the names from `faraday/builds.toml`, and the Starter tells a stick
   image from a Pi image by `faraday-stick-` and `faraday-pi-` alone.
@@ -383,8 +364,8 @@ unmounts it before the app starts.
   `tools/lint-builds.py` holds that each names its `.img.xz` first and,
   for the PC, its boot program.
 - **The Starter offers one Pi image.** Make a Pi card offers the one Pi
-  image it found, for a Pi 3B, 3B+ or Zero 2 W with any screen Faraday
-  lists, and says which screens need a Pi with a DSI connector.
+  image it found, for a Pi 3B, 3B+ or Zero 2 W with an HDMI screen or
+  the 2.8-inch.
 - **The website's Pi tiles** stay one per screen, each with its own
   state (tested, looking for testers), and every Pi tile's Download
   leads to the same image's page (§7).
@@ -404,7 +385,7 @@ unmounts it before the app starts.
   named and not offered. A file of another release is named with the
   version this Starter needs.
 - **Make a Faraday stick and Make a Pi card offer what was found**, by
-  its hardware: "Pi 3, Waveshare 7-inch DSI". Hardware without its image is
+  its hardware: "Pi 3, Waveshare 2.8-inch". Hardware without its image is
   listed with the exact file to download and where.
 - **What it writes** to a Pi card is the image, decompressed while
   written and read back as `docs/STARTER.md` §4.1 says. To a stick it
@@ -432,7 +413,7 @@ The download page asks one thing, the hardware, and leads to one image
 per visit (F147):
 
 1. **Tiles**, one per `[[hardware]]` entry of `faraday/builds.toml`, in
-   their order: the PC, then each Pi screen by size, and a Pi with an
+   their order: the PC, then the Pi with the 2.8-inch, and a Pi with an
    HDMI screen; three columns from 840 px wide, fewer below. Each shows
    the hardware with Faraday's screen at that size, its name, the Pis
    it fits, and one button, Download or Coming soon; whether an image is
@@ -456,7 +437,7 @@ marked so (`docs/HARDWARE.md` §6).
 
 | Document | Change |
 |---|---|
-| `docs/HARDWARE.md` | §1 and §2: a row per image and screen; for the one Pi image (§3), each screen built, not tried until tried, §4 the ribbon camera beside each screen as tried, §6 a screen whose check failed |
+| `docs/HARDWARE.md` | §1 and §2: a row per image and screen; for the one Pi image (§3), each of its two screens built, not tried until tried, §4 the ribbon camera beside each screen as tried, §6 a screen whose check failed |
 | `docs/STARTER.md` | §1.1 release files; §1.3 no payload of images, the image list; §3.2 and §3.3 what is offered; §9 points here |
 | `docs/SECURITY-MODEL.md` | the Pi's table and "What the kernel can reach"; the PC's command line; "When root is used": the boot script's probes and overlays, configfs unmounted before the app (§3.4) |
 | `docs/ORIENTATION.md` | §1: the Pi's panel directories; §5 Rotation on them |
@@ -482,12 +463,9 @@ marked so (`docs/HARDWARE.md` §6).
 3. The Pi's kernel: its fragment, its forbidden and required lists,
    and the image that boots with it, starting with the monitor (HDMI
    with a USB keyboard), which needs no new panel (built:
-   `faraday/image/boards/pi3/`, `faraday/image/panels/hdmi`; `just
-   panel=hdmi faraday-pi-image`, and the 2.8-inch with `just
-   faraday-pi-image`; the 2.8-inch is tried on its panel, the HDMI image
-   not yet on a Pi: no HDMI output in QEMU's raspi3b). Left: trying the
-   HDMI image on a Pi 3B+ with a monitor, and the 10-inch HDMI panel's
-   touch name read off the panel (step 7).
+   `faraday/image/boards/pi3/`; the 2.8-inch was tried on its own
+   image, which the one image replaces, step 9). Left: trying an HDMI
+   monitor on a Pi 3B+, on the one image (step 11).
 4. The PC's one build: the command line with
    `efi=disable_early_pci_dma`, one image and one boot program (built:
    `just faraday-stick-image`).
@@ -502,46 +480,43 @@ marked so (`docs/HARDWARE.md` §6).
    offers.
 7. Each screen's values, from its documentation, and tried on the
    panel to be marked tested: the 10-inch HDMI (with the USB
-   touchscreen rule, §2) on the HDMI image today, and every other
-   screen on the one image (steps 9 to 11).
+   touchscreen rule, §2) on the HDMI image today, and the 2.8-inch and
+   an HDMI monitor on the one image (steps 9 to 11).
 8. The website's download page (§7), built around the images released
    today, with a tile for each image as it is built.
-9. **The one Pi image, with every screen** (§3, F186), built before any
-   panel is at hand:
-   - the panel directory `any` with a directory per screen (the 2.8-inch,
-     Touch Display 2, the Waveshare 7-inch and 10.1-inch DSI (C), HDMI),
+9. **The one Pi image, with both screens** (§3, F186, F187; built):
+   - the panel directory `any` with a directory per screen (the 2.8-inch
+     and HDMI),
      each with its values, what its probe expects, and its touch and
      display overlay lines, a vendor's value marked to confirm (§3.1);
    - the overlays merged at build time with `ovmerge` and placed in the
      initramfs (§3.3);
-   - the boot script, the range-reading program, `/run/faraday-screen/args`
+   - the boot script, `/run/faraday-screen/args`
      and the inittab reading it (§3.4);
    - the kernel options and their `kernel.required` and
      `kernel.forbidden` lines (§3.5), the ribbon camera's kept;
    - `faraday/builds.toml` (one Pi image, offered under every Pi
      screen's tile), `faraday/tools/stage-release.sh`, the Starter's one
-     Pi offer, `docs/HARDWARE.md` (every screen but HDMI built, not
-     tried; §4's camera), `docs/STARTER.md`, `docs/ORIENTATION.md`,
+     Pi offer, `docs/HARDWARE.md` (both screens built, not tried on the
+     one image; §4's camera), `docs/STARTER.md`, `docs/ORIENTATION.md`,
      `docs/DEVELOPING.md`, `docs/SECURITY-MODEL.md`;
    - the per-screen panel directories `waveshare-28dpi` and `hdmi`, and
      their release files, go.
 
-   No release is made from the one image until the 2.8-inch has been
-   tried on it (step 11); until then a release carries the two images
-   built today.
+   No Pi image is released from the one image until the 2.8-inch has
+   been tried on it (step 11).
 10. **Tests without a screen**, run by the builder:
     - the boot script's choices against recorded and faked probe
-      answers: HDMI connected with a panel attached; each panel's
-      controller answering; a Waveshare (C) range that matches neither
-      size; a controller that answers late, or under another name or
+      answers: HDMI connected with the 2.8-inch attached; its GT911
+      answering; a controller that answers late, or under another name or
       address; a rebind that leaves no `/dev/fb0`; nothing found. Each
       gives the screen expected, or HDMI, and the arguments the shell
       is given;
     - the image under QEMU's raspi3b, which has no HDMI output and no
       panel: every probe finds nothing, the Pi falls back to HDMI,
       configfs is unmounted, and the app starts.
-11. **Each screen tried on its panel, one at a time as each arrives**
-    (the owner, with the dev image, whose boot report carries each
+11. **Each screen tried on the one image**, the 2.8-inch and an HDMI
+    monitor (the owner, with the dev image, whose boot report carries each
     probe's lines, §3.4). A screen tried becomes tested in
     `docs/HARDWARE.md` and on the website, and its values fact; a value
     found wrong is put right in its directory. What each panel answers:
@@ -560,28 +535,14 @@ marked so (`docs/HARDWARE.md` §6).
       kernel's DPI driver; the panel on a Zero 2 W. If the GT911
       answers but the run-time overlay does not come up, the owner
       decides on the fallback (§3.3).
-    - **The Waveshare 7-inch and 10.1-inch DSI (C).** Whether the Goodix
-      answers on the DSI connector's I²C before the panel's overlay is
-      applied (or the panel's controller holds it in reset until its
-      driver powers it); its address; the range it reports on each
-      panel, 1024 × 600 and 1280 × 800; the overlay's name and size
-      parameters; the panel driver the overlay names.
-    - **Touch Display 2.** Whether the firmware's `display_auto_detect`
-      finds it on a Pi 3, so that its overlay is the firmware's and the
-      script only reads it; otherwise its touch controller, address and
-      grid on the DSI connector's I²C; its overlay and panel driver; the
-      cable it needs on a Pi 3.
     - **HDMI.** Whether `/sys/class/drm/card0-HDMI-A-1/status` reads
       `connected` by the time the boot script runs, on the 3B+ (with
       `GPIO_RASPBERRYPI_EXP`), the 3B and the Zero 2 W; that a monitor
-      attached beside a panel wins and the panel stays dark with its
+      attached beside the 2.8-inch wins and the panel stays dark with its
       touch unbound; that a monitor plugged in after a boot with nothing
       found is set up by its hotplug and the app draws on it.
     - **The camera beside each screen**, the 2.8-inch included: the
       ribbon camera (Camera Module v1 or v2) on the firmware's stack
-      with `gpu_mem=128`, and a USB webcam's frames. Beside the DSI
-      panels, that the camera's sensor and the panel's touch share the
-      connectors' I²C without one hiding the other from the probe.
-      Beside the 2.8-inch on the kernel's DPI driver, if the firmware's
+      with `gpu_mem=128`, and a USB webcam's frames. Beside the 2.8-inch on the kernel's DPI driver, if the firmware's
       stack does not run: whether unicam and the sensor's V4L2 driver
       do, with the ISP or without it (§3.3).

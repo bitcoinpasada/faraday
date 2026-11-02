@@ -14,9 +14,9 @@ it.
 | Platform | Image or file | Runs on | State |
 |---|---|---|---|
 | The stick | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (one build, with `efi=disable_early_pci_dma` on its command line); Intel Macs planned (`docs/MAC.md` §1, §3, batch I) | released; booted in QEMU with OVMF (`faraday/image/README.md`, "The boards") and on a laptop (the kernel with `efi=disable_early_pci_dma`, 2026-10-31) |
-| The Pi, 2.8-inch | `faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` (`just faraday-pi-image`) | a Raspberry Pi 3B or 3B+ with the Waveshare 2.8-inch DPI panel, with USB keyboards, mice and sticks (`docs/IMAGES.md` §2) | released, tried on the panel |
-| The Pi, HDMI screen | `faraday-pi-X.Y.Z-hdmi.img.xz` (`just panel=hdmi faraday-pi-image`) | a Raspberry Pi 3B, 3B+ or Zero 2 W with an HDMI monitor and a USB keyboard and mouse, or Waveshare's 10.1-inch HDMI LCD (B) with its USB touch (IMAGES §3) | built, not tried: looking for testers |
-| The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same panel | built, not tried: the Pi image carries its device tree (F147); nobody has booted it on a Zero 2 W |
+| The Pi, the 2.8-inch screen | `faraday-pi-X.Y.Z.img.xz` (`just faraday-pi-image`), one image for every Pi screen | a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8-inch DPI panel, with USB keyboards, mice and sticks (`docs/IMAGES.md` §2, §3) | built, not tried on the one image: looking for testers (the earlier 2.8-inch image was tried on the panel) |
+| The Pi, HDMI screen | the same file | a Raspberry Pi 3B, 3B+ or Zero 2 W with an HDMI monitor and a USB keyboard and mouse, or Waveshare's 10.1-inch HDMI LCD (B) with its USB touch (IMAGES §3) | built, not tried: looking for testers |
+| The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same screens | built, not tried: the Pi image carries its device tree (F147); nobody has booted it on a Zero 2 W |
 | The Apple Silicon stick | `docs/MAC.md` §4 | Macs with M1 or M2 | planned: its Spec is `docs/MAC.md` |
 | Faraday Demo | inside the Linux and Windows Starters (`docs/DEMO.md` §1) | Linux and Windows, x86_64 | released, for trying Faraday: not air-gapped |
 | The Starter | `Faraday-Starter-X.Y.Z-Linux.tar.gz`, `-Windows.exe` (`docs/STARTER.md` §1.1) | Linux and Windows, x86_64; macOS specified (`docs/MAC.md` §6) | released on Linux and Windows |
@@ -33,25 +33,24 @@ steps the layout down. Navigation by class is LAYOUT §3.
 
 | Screen | Pixels | Density | dp | Class, navigation |
 |---|---|---|---|---|
-| Waveshare 2.8-inch DPI panel (the Pi) | 480 × 640, portrait natively | 286 dpi (`faraday/image/panels/waveshare-28dpi/panel.conf`) | 268 × 358 | compact and short: Home is the menu, every other page has its bar with a back chevron; no Rotation (`docs/ORIENTATION.md` §5) |
+| Waveshare 2.8-inch DPI panel (the Pi) | 480 × 640, portrait natively | 286 dpi (`faraday/image/panels/any/screens/waveshare-28dpi/panel.conf`) | 268 × 358 | compact and short: Home is the menu, every other page has its bar with a back chevron; no Rotation (`docs/ORIENTATION.md` §5) |
 | A 7-inch panel, landscape (a small tablet, a panel PC or a portable monitor on the stick) | 1024 × 600 | 170 dpi, from its EDID | 964 × 565 | expanded and low: the navigation rail |
 | A 7-inch panel, portrait | 600 × 1024 | 170 dpi | 565 × 964 | compact: the navigation bar at the foot |
 | A 10-inch panel, portrait | 800 × 1280 | 150 dpi | 853 × 1365 | expanded: the rail |
 | A 10-inch panel, landscape | 1280 × 800 | 150 dpi | 1365 × 853 | large: the expanded rail |
 | A PC monitor or laptop screen on the stick | its firmware mode | `faraday.dpi=160`, doubled at 2800 pixels wide or more (F101) | its pixels, or half | expanded to extra-large: the rail or the expanded rail |
-| An HDMI screen on the Pi (`faraday/image/panels/hdmi`) | the mode the kernel chose from its EDID | its EDID's on a screen of 11 inches or less, `faraday.dpi=160` otherwise | by its mode | by its width, as on the stick |
+| An HDMI screen on the Pi (`faraday/image/panels/any/screens/hdmi`) | the mode the kernel chose from its EDID | its EDID's on a screen of 11 inches or less, `faraday.dpi=160` otherwise | by its mode | by its width, as on the stick |
 | Faraday Demo's window | 1280 × 800 at first, any size | the system's scale | its size | any class, laid out again at every size; the Size menu shows the panels above (`docs/PREVIEW-SIZE.md`) |
 
 A 7-inch or 10-inch panel starts in landscape, and Settings › Display ›
 Rotation turns it and its touch (`docs/ORIENTATION.md`). A screen of
 11 inches or less takes its density from its EDID (ORIENTATION §2.1).
-The app lays out every one of these sizes. The Pi images are built for
-the 2.8-inch panel and for an HDMI screen: `faraday/image/panels/` holds
-those two and the PC's firmware framebuffer. A DPI or DSI screen needs
-its profile in the image: one image per screen and build, as
-`docs/IMAGES.md` specifies (F145); until the 7-inch DSI's is built, a
-7-inch screen is the stick's, on a small PC or tablet, or an HDMI one on
-the Pi.
+The app lays out every one of these sizes. The Pi image is built for
+the 2.8-inch panel and for an HDMI screen, one image that finds its
+screen at boot: `faraday/image/panels/any` holds the two screens'
+values and overlays, and `faraday/image/panels/` the PC's firmware
+framebuffer. A 7-inch screen is the stick's, on a small PC or tablet, or
+an HDMI one on the Pi.
 
 ## 3. Motion
 
@@ -69,7 +68,7 @@ The stick's and the Pi's kernels carry only the drivers
 | | The stick (PC) | The Pi |
 |---|---|---|
 | Touch, keyboard, pointer | built-in keyboard, touchpad and touchscreen; USB ones once approved | the panel's touch, or the HDMI panel's USB touch once approved by a tap on the target; other USB keyboards, mice and touchscreens once approved, as on the stick |
-| Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB: a webcam, input and sticks") | a USB webcam that offers uncompressed frames; a Camera Module v1 or v2, tried with the 2.8-inch panel, and beside the HDMI and DSI screens to be tried (`docs/IMAGES.md` §3.3); not Camera Module 3 (`faraday/image/boards/pi3/linux.fragment`, "camera, legacy stack") |
+| Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB: a webcam, input and sticks") | a USB webcam that offers uncompressed frames; a Camera Module v1 or v2, tried with the earlier 2.8-inch image, and on the one image beside the 2.8-inch panel and an HDMI screen to be tried (`docs/IMAGES.md` §3.3); not Camera Module 3 (`faraday/image/boards/pi3/linux.fragment`, "camera, legacy stack") |
 | Files | USB sticks; an SD card only in a USB reader | its own SD slot and USB sticks |
 
 On the stick and the Pi, FAT is read by `faraday-disk` in Rust, not by

@@ -1,5 +1,4 @@
 # What this board does not work without, on top of common/kernel.required.
-# The panel's own drivers are in the panel's file.
 
 MMC_BLOCK                 the card as a block device, which the exchange partition is mounted from
 SERIAL_AMBA_PL011_CONSOLE the PL011 on the GPIO header, the only console in the release image
@@ -7,7 +6,7 @@ BCM2835_MBOX              the mailbox the framebuffer and the firmware driver ru
 RASPBERRYPI_FIRMWARE      the in-kernel firmware interface; clocks, power domains and the framebuffer all go through it
 RASPBERRYPI_POWER         the firmware power domains; the USB controller and the camera are behind them
 BCM2835_WDT               poweroff: this driver owns pm_power_off on a Pi, so the board does not power down without it
-DMA_BCM2835               the DMA channel that feeds the DPI panel
+DMA_BCM2835               the DMA engine the SoC's drivers use
 PINCTRL_BCM2835           the pin multiplexing every other on-SoC driver depends on
 VIDEO_BCM2835             the legacy camera: the GPU runs the sensor and this publishes it as V4L2
 BCM2835_VCHIQ_MMAL        the transport VIDEO_BCM2835 talks to the GPU over
@@ -17,7 +16,7 @@ CPU_FREQ_DEFAULT_GOV_SCHEDUTIL the Pi defconfig's default governor is powersave,
 # Faraday (docs/history/PLAN.md §4.3).
 MSDOS_PARTITION           the card's partitions as their own nodes, so the whole card is never handed out
 
-# The display, input and storage (docs/IMAGES.md §1). The screen's own driver is the panel's.
+# The display, input and storage (docs/IMAGES.md §1).
 
 DRM                    the kernel-mode-setting stack a screen behind HDMI or DSI is driven through
 DRM_VC4                vc4's display side: the HVS, the pixel valves and the HDMI and DSI encoders; its V3D binds too, and its render node is root's (F153)
@@ -30,3 +29,15 @@ USB_STORAGE            a USB stick, whose partitions reach the disk process thro
 SCSI                   the layer USB storage hands its disk to
 BLK_DEV_SD             that disk as /dev/sdX
 EFI_PARTITION          most sticks are GPT; without the parser there is no partition to hand out
+
+# The screens found at boot (docs/IMAGES.md §3.3, §3.5).
+OF_OVERLAY             applying a device-tree overlay while the kernel runs
+CONFIGFS_FS            the file system the overlay is applied through, selected by OF_CONFIGFS
+OF_CONFIGFS            the interface the boot script loads a screen's overlay through (Raspberry Pi's kernel)
+DRM_PANEL_SIMPLE       the 2.8-inch's DPI panel, the panel-dpi node vc4-kms-dpi-generic declares
+BACKLIGHT_CLASS_DEVICE the backlight class DRM_PANEL_SIMPLE depends on (not in the Spec's table)
+BACKLIGHT_GPIO         the gpio-backlight node Waveshare's touch overlay declares for the 2.8-inch (not in the Spec's table)
+GPIO_RASPBERRYPI_EXP   the 3B+'s HDMI hotplug line, behind the firmware's GPIO expander
+I2C_GPIO               the bit-banged I2C bus the 2.8-inch's touch overlay declares
+I2C_BCM2835            the SoC's I2C, which carries the HDMI screen's EDID
+TOUCHSCREEN_GOODIX     the 2.8-inch's GT911

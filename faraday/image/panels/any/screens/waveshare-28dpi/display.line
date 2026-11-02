@@ -1,0 +1,1 @@
+vc4-kms-dpi-generic,clock-frequency=32000000,hactive=480,hfp=26,hsync=16,hbp=10,vactive=640,vfp=25,vsync=10,vbp=15,hsync-invert,vsync-invert,pixclk-invert,rgb666-padhi

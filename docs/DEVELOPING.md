@@ -100,10 +100,9 @@ Demo", and `docs/DEMO.md`.
 
 ```
 just faraday-stick-image                  out/stick/faraday-x86_64-uefi.img
-just faraday-pi-image                     out/pi/faraday-pi3-waveshare-28dpi.img
-just panel=hdmi faraday-pi-image          out/pi/faraday-pi3-hdmi.img
+just faraday-pi-image                     out/pi/faraday-pi3-any.img
 just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-dev.img
-just dev=1 faraday-pi-image               out/pi/faraday-pi3-waveshare-28dpi-dev.img
+just dev=1 faraday-pi-image               out/pi/faraday-pi3-any-dev.img
 just faraday-starter                      the Starter, built and run here
 just faraday-linux-bin                    one Linux file, out/linux/faraday (glibc 2.31 container)
 ```
@@ -136,9 +135,7 @@ git tag -v vX.Y.Z                        the tag is signed by the release key
 git checkout vX.Y.Z
 just release=1 faraday-stick-image
 just release=1 faraday-pi-image
-just release=1 panel=hdmi faraday-pi-image
-sha256sum out/stick/faraday-x86_64-uefi.img out/pi/faraday-pi3-waveshare-28dpi.img \
-    out/pi/faraday-pi3-hdmi.img
+sha256sum out/stick/faraday-x86_64-uefi.img out/pi/faraday-pi3-any.img
 ```
 
 Compare each sum with the line for the `.img` (not the `.img.xz`) in the
@@ -146,8 +143,8 @@ release's signed `SHA256SUMS`, or with the third field of its line in
 `IMAGES` (README.md, "Verifying a release"): the published files are
 these images, renamed and compressed (`faraday/tools/stage-release.sh`,
 which publishes every image `faraday/builds.toml` names release files
-for, under those names: `out/pi/faraday-pi3-hdmi.img` is
-`faraday-pi-X.Y.Z-hdmi.img.xz`). Same bytes or not, say what you got
+for, under those names: `out/pi/faraday-pi3-any.img` is
+`faraday-pi-X.Y.Z.img.xz`). Same bytes or not, say what you got
 in an issue, with the commit, your container engine and your host
 system: no second builder has reproduced a Faraday image yet.
 

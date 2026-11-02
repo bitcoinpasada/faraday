@@ -18,3 +18,13 @@ usbcore.authorized_default=2
 # the serial port, which now also carries warnings; the dev variant
 # removes it.
 loglevel=5
+
+# An HDMI screen larger than 11 inches gives no density the shell believes,
+# so dp are pixels, as on the stick (docs/ORIENTATION.md §2.1); a panel's
+# values from the boot script (--dpi) come first.
+faraday.dpi=160
+
+# The boot logo is a small square, since the screen's size is not known
+# when the image is built; this puts it in the middle of the screen rather
+# than at its top left.
+fbcon=logo-pos:center

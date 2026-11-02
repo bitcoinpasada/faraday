@@ -11,7 +11,8 @@
 #             "untried": it has a recipe, but nobody has built or booted it
 #             "planned": a document plans it (spec); it has no recipe yet
 #   board, panel  for an image: the directories under faraday/image/boards
-#             and faraday/image/panels it is built from
+#             and faraday/image/panels it is built from (the Pi's panel is
+#             "any": one image for every screen)
 #   recipe    the just recipe; vars are just variables set before its name
 #             (`just board=pi3 faraday-pi-image`), args its arguments,
 #             env the environment it needs ({version} is the release's)
@@ -26,7 +27,8 @@
 #             built image that names its release files (docs/IMAGES.md §4)
 #   starts    for an image a release publishes: the boards it starts, as a
 #             person reads them, for the release's image list (IMAGES §4)
-#   hardware  for an image: the [[hardware]] entry it is offered under
+#   hardware  for an image: the [[hardware]] entry it is offered under, or
+#             a list of them when one image serves several
 #   option    for an image: what tells it from another image of the same
 #             hardware, as a person reads it ("Ribbon cable (DSI)")
 #
@@ -53,28 +55,7 @@ tested = true
 [[hardware]]
 id = "pi-2-8-inch"
 label = "Pi + 2.8-inch screen"
-fits = "Pi 3"
-soon = "Zero 2 W and Pi 4"
-tested = true
-
-[[hardware]]
-id = "pi-5-inch"
-label = "Pi + 5-inch screen"
-fits = "Pi 3"
-soon = "Pi 4"
-tested = false
-
-[[hardware]]
-id = "pi-7-inch"
-label = "Pi + 7-inch screen"
-fits = "Pi 3"
-soon = "Pi 4"
-tested = false
-
-[[hardware]]
-id = "pi-10-inch"
-label = "Pi + 10-inch screen"
-fits = "Pi 3"
+fits = "Pi 3 or Zero 2 W"
 soon = "Pi 4"
 tested = false
 
@@ -120,34 +101,21 @@ outputs = ["out/stick/faraday-x86_64-uefi{dev}.img"]
 release = ["faraday-stick-{version}-x86_64-uefi.img.xz", "faraday-{version}-BOOTX64.EFI"]
 starts = ["a 64-bit PC with UEFI firmware"]
 
+# One image for every Pi screen (docs/IMAGES.md §3, F186): the boot script
+# finds the screen, so it is offered under each Pi screen's tile.
 [[build]]
-id = "pi3-waveshare-28dpi"
-label = "Raspberry Pi, 2.8-inch screen"
+id = "pi3-any"
+label = "Raspberry Pi, every screen listed (the 2.8-inch panel, an HDMI screen)"
 group = "image"
 status = "built"
 board = "pi3"
-panel = "waveshare-28dpi"
+panel = "any"
 recipe = "faraday-pi-image"
-vars = { board = "pi3", panel = "waveshare-28dpi" }
-hardware = "pi-2-8-inch"
+vars = { board = "pi3" }
+hardware = ["pi-2-8-inch", "pi-monitor"]
 dev = true
-outputs = ["out/pi/faraday-pi3-waveshare-28dpi{dev}.img"]
-release = ["faraday-pi-{version}-waveshare-28dpi.img.xz"]
-starts = ["Pi 3B", "Pi 3B+", "Pi Zero 2 W"]
-
-[[build]]
-id = "pi3-monitor"
-label = "Raspberry Pi, an HDMI screen (a monitor, or the 10-inch HDMI panel)"
-group = "image"
-status = "built"
-board = "pi3"
-panel = "hdmi"
-recipe = "faraday-pi-image"
-vars = { board = "pi3", panel = "hdmi" }
-hardware = "pi-monitor"
-dev = true
-outputs = ["out/pi/faraday-pi3-hdmi{dev}.img"]
-release = ["faraday-pi-{version}-hdmi.img.xz"]
+outputs = ["out/pi/faraday-pi3-any{dev}.img"]
+release = ["faraday-pi-{version}.img.xz"]
 starts = ["Pi 3B", "Pi 3B+", "Pi Zero 2 W"]
 
 # ---------------------------------------------------------------- the Starter
@@ -174,31 +142,3 @@ env = { FARADAY_STARTER_PAYLOAD = "out/payload/{version}/windows" }
 needs = "payload"
 outputs = ["out/windows/faraday-starter.exe"]
 release = ["Faraday-Starter-{version}-Windows.exe"]
-
-# ---------------------------------------------------------------- planned (F145)
-# Each Pi image starts the 3B, 3B+ and Zero 2 W, and the Pi 4 once it is
-# built (F147); the DSI screens fit the 3B, 3B+ and Pi 4.
-
-[[build]]
-id = "pi3-5inch"
-label = "Raspberry Pi, 5-inch screen (Touch Display 2)"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-hardware = "pi-5-inch"
-
-[[build]]
-id = "pi3-7inch"
-label = "Raspberry Pi, 7-inch DSI screen"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-hardware = "pi-7-inch"
-
-[[build]]
-id = "pi3-10inch-dsi"
-label = "Raspberry Pi, 10-inch DSI screen"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-hardware = "pi-10-inch"

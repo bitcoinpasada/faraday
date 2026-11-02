@@ -1,0 +1,224 @@
+#!/bin/sh
+# Finds the screen attached and gives the app its values (docs/IMAGES.md
+# §3, F186). Run by rcS as root, after /sys is mounted and before the
+# app's loop starts; BusyBox sh. The image does not name its screen.
+#
+# In order (§3.2), stopping at the first found:
+#   1. HDMI connected: no panel's overlay is loaded.
+#   2. each panel in /etc/faraday/screens/order (the 2.8-inch's GT911
+#      for now): load its touch overlay through configfs, wait for its
+#      controller (name, bus, address), then load its display overlay, rebind vc4 and check /dev/fb0 is at the panel's
+#      mode. A probe that finds nothing removes what it loaded.
+#   3. nothing found: HDMI.
+#
+# It writes one line, /run/faraday-screen/args, the shell's arguments for
+# the screen (empty for HDMI), and nothing to the card. configfs is
+# mounted for this script alone and unmounted before it ends, so no
+# overlay can be loaded once the app runs. Each result goes to
+# /dev/kmsg. The overlays are read from /etc/faraday/screens/<screen>/
+# (touch.dtbo, display.dtbo) in the initramfs; the screen's values are in
+# its panel.conf and what its probe expects in its probe.conf
+# (faraday/image/panels/any/README.md).
+#
+# The paths below can be set by the environment so the choices can be
+# tested on a host (faraday/faraday-grant/tests/screen.rs); the image sets
+# none of them.
+
+SYS=${FARADAY_SCREEN_SYS:-/sys}
+CFG=${FARADAY_SCREEN_CONFIGFS:-/sys/kernel/config}
+SCREENS=${FARADAY_SCREEN_DIR:-/etc/faraday/screens}
+RUN=${FARADAY_SCREEN_RUN:-/run/faraday-screen}
+DEV=${FARADAY_SCREEN_DEV:-/dev}
+KMSG=${FARADAY_SCREEN_KMSG:-/dev/kmsg}
+MOUNT_CFG=${FARADAY_SCREEN_MOUNT:-mount -t configfs configfs}
+UMOUNT_CFG=${FARADAY_SCREEN_UMOUNT:-umount}
+# Tenths of a second to wait for a controller, and for /dev/fb0 after
+# the rebind (two seconds each until docs/IMAGES.md §9 step 11 measures).
+WAIT=${FARADAY_SCREEN_WAIT:-20}
+FB_WAIT=${FARADAY_SCREEN_FB_WAIT:-20}
+
+OVERLAYS="$CFG/device-tree/overlays"
+VC4="$SYS/bus/platform/drivers/vc4-drm"
+
+log() {
+    echo "faraday-screen: $*" >> "$KMSG" 2>/dev/null || :
+}
+
+# overlay_load <name> <dtbo>: applies the overlay; fails when the kernel
+# refuses it.
+overlay_load() {
+    mkdir "$OVERLAYS/$1" 2>/dev/null || return 1
+    if ! cat "$2" > "$OVERLAYS/$1/dtbo" 2>/dev/null; then
+        overlay_unload "$1"
+        return 1
+    fi
+    if [ -f "$OVERLAYS/$1/status" ] && [ "$(cat "$OVERLAYS/$1/status")" != applied ]; then
+        overlay_unload "$1"
+        return 1
+    fi
+    return 0
+}
+
+overlay_unload() {
+    [ -d "$OVERLAYS/$1" ] || return 0
+    rmdir "$OVERLAYS/$1" 2>/dev/null && return 0
+    # A stand-in directory holds the file the kernel's configfs removes
+    # itself.
+    rm -f "$OVERLAYS/$1/dtbo" "$OVERLAYS/$1/status" 2>/dev/null
+    rmdir "$OVERLAYS/$1" 2>/dev/null || :
+}
+
+# rebind: vc4's DRM device unbound and bound again, so it builds its
+# device with the encoder now in the device tree.
+rebind() {
+    for d in "$VC4"/*; do
+        [ -L "$d" ] || continue
+        n=${d##*/}
+        [ "$n" = module ] && continue
+        echo "$n" > "$VC4/unbind" 2>/dev/null
+        echo "$n" > "$VC4/bind" 2>/dev/null
+    done
+}
+
+# The input device whose name holds $TOUCH_NAME, on bus $I2C_BUS (or
+# any) at address $I2C_ADDR: prints its sysfs directory.
+find_input() {
+    addr=$(printf '%04x' "0x$I2C_ADDR" 2>/dev/null) || return 1
+    for d in "$SYS"/class/input/input*; do
+        [ -e "$d/name" ] || continue
+        case "$(cat "$d/name")" in *"$TOUCH_NAME"*) ;; *) continue ;; esac
+        p=$(readlink -f "$d")
+        case "$p" in *"-$addr/"*) ;; *) continue ;; esac
+        if [ "$I2C_BUS" != any ]; then
+            case "$p" in */"$I2C_BUS"/*) ;; *) continue ;; esac
+        fi
+        echo "$d"
+        return 0
+    done
+    return 1
+}
+
+wait_input() {
+    i=0
+    while [ "$i" -lt "$WAIT" ]; do
+        find_input && return 0
+        sleep 0.1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+# The panel's size from its panel.conf, as W,H (the framebuffer's).
+panel_mode() (
+    . "$1/panel.conf"
+    if [ -n "${SIZE:-}" ]; then
+        echo "${SIZE%x*},${SIZE#*x}"
+    elif [ -n "${WIDTH:-}" ]; then
+        echo "$WIDTH,$HEIGHT"
+    fi
+)
+
+# The shell's arguments for a screen, from its panel.conf, as build.sh
+# builds /etc/faraday/args from a panel today.
+panel_args() (
+    . "$1/panel.conf"
+    a=""
+    if [ -n "${SIZE:-}" ]; then
+        a="$a --size $SIZE"
+    elif [ -n "${WIDTH:-}" ]; then
+        a="$a --size ${WIDTH}x${HEIGHT}"
+    fi
+    [ -n "${DPI:-}" ] && a="$a --dpi $DPI"
+    [ -n "${TOUCH_NAME:-}" ] && a="$a --touch-name $TOUCH_NAME"
+    [ -n "${TOUCH_GRID:-}" ] && a="$a --touch-grid $TOUCH_GRID"
+    [ "${TOUCH_SWAP:-0}" = 1 ] && a="$a --touch-swap"
+    [ "${TOUCH_INVERT_X:-0}" = 1 ] && a="$a --touch-invert-x"
+    [ "${TOUCH_INVERT_Y:-0}" = 1 ] && a="$a --touch-invert-y"
+    [ -n "${NATIVE:-}" ] && a="$a --native $NATIVE"
+    [ -n "${MOUNT:-}" ] && a="$a --mount $MOUNT"
+    echo "${a# }"
+)
+
+# The framebuffer at the panel's mode, within the wait.
+fb_ready() {
+    i=0
+    while [ "$i" -lt "$FB_WAIT" ]; do
+        if [ -e "$DEV/fb0" ]; then
+            want=$(panel_mode "$SCREENS/$1")
+            have=$(cat "$SYS/class/graphics/fb0/virtual_size" 2>/dev/null)
+            [ -z "$want" ] || [ "$have" = "$want" ] && return 0
+        fi
+        sleep 0.1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+# probe <screen>: 0 when the screen is attached and set up.
+probe() {
+    s=$1
+    dir="$SCREENS/$s"
+    KIND= TOUCH_NAME= I2C_BUS= I2C_ADDR=
+    . "$dir/probe.conf"
+    if ! overlay_load "touch" "$dir/touch.dtbo"; then
+        log "$s: touch overlay refused"
+        return 1
+    fi
+    if ! node=$(wait_input); then
+        log "$s: no controller named $TOUCH_NAME on $I2C_BUS at $I2C_ADDR"
+        overlay_unload touch
+        return 1
+    fi
+    if ! overlay_load "display" "$dir/display.dtbo"; then
+        log "$s: display overlay refused"
+        overlay_unload touch
+        return 1
+    fi
+    rebind
+    if ! fb_ready "$s"; then
+        log "$s: no framebuffer at the panel's mode after the rebind"
+        overlay_unload display
+        overlay_unload touch
+        rebind
+        return 2
+    fi
+    return 0
+}
+
+# ---- the script ----
+
+found=
+mkdir -p "$RUN"
+chmod 0755 "$RUN"
+: > "$RUN/args"
+chmod 0644 "$RUN/args"
+
+hdmi=$(cat "$SYS/class/drm/card0-HDMI-A-1/status" 2>/dev/null)
+if [ "$hdmi" = connected ]; then
+    log "HDMI connected: no panel tried"
+elif [ -f "$SCREENS/order" ]; then
+    $MOUNT_CFG "$CFG" 2>/dev/null
+    if [ -d "$OVERLAYS" ]; then
+        while read -r s; do
+            [ -n "$s" ] || continue
+            probe "$s" < /dev/null
+            r=$?
+            if [ "$r" = 0 ]; then
+                found=$s
+                break
+            fi
+            # A rebind that left no framebuffer ends the search: HDMI.
+            [ "$r" = 2 ] && break
+        done < "$SCREENS/order"
+    else
+        log "no overlay interface: HDMI"
+    fi
+    $UMOUNT_CFG "$CFG" 2>/dev/null
+fi
+
+if [ -n "$found" ]; then
+    panel_args "$SCREENS/$found" > "$RUN/args"
+    log "screen found: $found"
+else
+    log "no panel found: HDMI"
+fi

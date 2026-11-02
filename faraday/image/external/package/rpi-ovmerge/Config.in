@@ -1,0 +1,7 @@
+config BR2_PACKAGE_HOST_RPI_OVMERGE
+	bool "host rpi-ovmerge"
+	help
+	  Raspberry Pi's ovmerge, which merges device tree overlay sources
+	  and their parameters into one overlay with no parameters.
+
+	  https://github.com/raspberrypi/utils (ovmerge/)

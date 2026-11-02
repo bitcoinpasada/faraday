@@ -29,11 +29,11 @@ buildroot_commit := "e687e3815f76c1c5ea9fb52b6558bedfe53ab117"
 
 # Which image to build. These are `just` variables, so they are set on
 # the command line before the recipe name (`just dev=1 faraday-pi-image`).
-# board and panel name directories under faraday/image/boards and
-# faraday/image/panels; dev=1 adds faraday/image/variants/dev, a console
-# and a login, which never goes on a device that signs anything.
+# board names a directory under faraday/image/boards (the Pi's one image
+# takes every screen, so it names no panel); dev=1 adds
+# faraday/image/variants/dev, a console and a login, which never goes on a
+# device that signs anything.
 board := "pi3"
-panel := "waveshare-28dpi"
 dev := "0"
 # The stick's board and panel.
 stick_board := "x86_64-uefi"
@@ -439,29 +439,28 @@ faraday-pi-bin:
     file out/faraday/{{board}}/faraday out/faraday/{{board}}/faraday-disk \
         out/faraday/{{board}}/faraday-grant
 
-# The Faraday microSD card image, at
-# out/pi/faraday-<board>-<panel>.img (dev=1: -dev.img, with a console and
-# a login on the board's serial port). Flash it to a card and boot the Pi
-# from it. A test release unless release=1 (docs/DECISIONS.md F5):
+# The Faraday microSD card image, at out/pi/faraday-<board>-any.img
+# (dev=1: -any-dev.img, with a console and a login on the board's serial
+# port). One image for every screen the Pi lists: the boot script finds
+# the screen (docs/IMAGES.md §3). Flash it to a card and boot the Pi from
+# it. A test release unless release=1 (docs/DECISIONS.md F5):
 #
-#   just faraday-pi-image                        the 2.8-inch panel (pi3,
-#                                                  waveshare-28dpi)
-#   just panel=hdmi faraday-pi-image             an HDMI screen
-#   just board=B panel=P dev=0|1 faraday-pi-image any other combination
+#   just faraday-pi-image                        the Pi image (pi3)
+#   just dev=1 faraday-pi-image                  the same, with a console
 #   just release=1 faraday-pi-image              a published release
 [group('build')]
 faraday-pi-image: faraday-pi-bin
     #!/usr/bin/env bash
     set -euo pipefail
-    variant="{{board}}-{{panel}}"
-    name="faraday-{{board}}-{{panel}}"
+    variant="{{board}}-any"
+    name="faraday-{{board}}-any"
     if [ "{{dev}}" != "0" ]; then
         variant="$variant-dev"
         name="$name-dev"
     fi
     DOCKER="{{docker}}" FARADAY_RELEASE="{{release}}" FARADAY_VERSION="{{version}}" \
         faraday/image/run-build.sh \
-        "{{board}}" "{{panel}}" "{{dev}}" "{{buildroot_tag}}" \
+        "{{board}}" "any" "{{dev}}" "{{buildroot_tag}}" \
         "{{buildroot_commit}}"
     mkdir -p out/pi
     cp "out/pi/$variant/output/images/faraday-pi.img" "out/pi/$name.img"

@@ -47,8 +47,8 @@ pub(super) fn payload(stick_build: &str) -> Payload {
                 'a',
             ),
             file(
-                "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
-                "faraday-pi-0.2.0-pi3-waveshare-28dpi.img",
+                "faraday-pi-0.2.0.img.xz",
+                "faraday-pi-0.2.0.img",
                 3 * GB,
                 "0.2.0",
                 'b',
@@ -788,7 +788,7 @@ fn about_lists_the_payload() {
     starter.press(StarterAction::About);
     for s in [
         "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-        "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
+        "faraday-pi-0.2.0.img.xz",
         "aaaa aaaa",
         "AAAA AAAA",
         "SHA-256 of faraday-stick-0.2.0-x86_64-uefi.img",

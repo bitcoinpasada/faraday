@@ -7,6 +7,9 @@
 
 BCM_VCIO       /dev/vcio is the firmware mailbox from userspace, which is how vcgencmd burns the SoC's OTP
 
+# The screen is DRM's, found at boot (docs/IMAGES.md §3.3).
+FB_BCM2708    the firmware's framebuffer, which would compete with DRM's for /dev/fb0
+
 # Faraday (docs/history/PLAN.md §4.2, §4.6).
 FAT_FS        the card's FAT is read by faraday-disk, unprivileged, never by the kernel
 VFAT_FS       as FAT_FS

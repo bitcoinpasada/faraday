@@ -39,8 +39,8 @@ fn payload() -> Payload {
                 'a',
             ),
             file(
-                "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
-                "faraday-pi-0.2.0-pi3-waveshare-28dpi.img",
+                "faraday-pi-0.2.0.img.xz",
+                "faraday-pi-0.2.0.img",
                 "0.2.0",
                 'b',
             ),

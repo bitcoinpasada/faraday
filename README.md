@@ -593,10 +593,9 @@ release key's one signing subkey, whose binding carries its back
 signature.
 
 Every image is published, one per
-platform and screen (`docs/IMAGES.md` §4):
-`faraday-stick-X.Y.Z-x86_64-uefi.img.xz`,
-`faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` and
-`faraday-pi-X.Y.Z-hdmi.img.xz`. `IMAGES`, covered by
+platform (`docs/IMAGES.md` §4):
+`faraday-stick-X.Y.Z-x86_64-uefi.img.xz` and
+`faraday-pi-X.Y.Z.img.xz`, which serves every screen the Pi lists. `IMAGES`, covered by
 `SHA256SUMS`, lists each with the sum of its `.xz` and of the image
 inside, and the platform, screen and boards it is for.
 

@@ -8,8 +8,7 @@ CONFIG_SERIAL_AMBA_PL011=y
 CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
 
 # ---- DMA ----
-# The DPI framebuffer is fed by a DMA channel. The Pi defconfig has these,
-# and a build without them comes up with a blank panel.
+# The SoC's drivers use its DMA channels. The Pi defconfig has these.
 CONFIG_DMADEVICES=y
 CONFIG_DMA_BCM2835=y
 CONFIG_DMA_BCM2708=y
@@ -162,8 +161,8 @@ CONFIG_EXPERT=y
 # CONFIG_COREDUMP is not set
 
 # ---- what the Pi adds to the common fragment (docs/IMAGES.md §1) ----
-# A screen driven through the kernel (HDMI, and the DSI panels once they
-# are built), USB keyboards, mice and touchscreens, and USB sticks. Every
+# A screen driven through the kernel (HDMI, and the 2.8-inch's DPI
+# panel), USB keyboards, mice and touchscreens, and USB sticks. Every
 # addition is checked by this directory's kernel.required and
 # kernel.forbidden.
 
@@ -276,3 +275,42 @@ CONFIG_EFI_PARTITION=y
 # CONFIG_CHR_DEV_SG is not set
 # CONFIG_SCSI_PROC_FS is not set
 # CONFIG_USB_UAS is not set
+
+# ---- screens found at boot: overlays loaded while the kernel runs ----
+# The boot script (common/rootfs-overlay/etc/init.d/screen) loads the
+# screen's device-tree overlay from the initramfs through configfs
+# (docs/IMAGES.md §3.3). Every option below was read from the Kconfig of the
+# pinned Raspberry Pi kernel, not from memory: OF_CONFIGFS (drivers/of/Kconfig)
+# selects CONFIGFS_FS and OF_OVERLAY, and OF_OVERLAY selects OF_DYNAMIC,
+# OF_FLATTREE and OF_RESOLVE.
+CONFIG_OF_OVERLAY=y
+CONFIG_CONFIGFS_FS=y
+CONFIG_OF_CONFIGFS=y
+
+# The 2.8-inch's DPI panel: vc4-kms-dpi-generic declares a `panel-dpi` node,
+# which panel-simple drives. DRM_PANEL_SIMPLE depends on OF, PM and
+# BACKLIGHT_CLASS_DEVICE (drivers/gpu/drm/panel/Kconfig).
+CONFIG_DRM_PANEL=y
+CONFIG_DRM_PANEL_SIMPLE=y
+CONFIG_BACKLIGHT_CLASS_DEVICE=y
+# Waveshare's touch overlay declares the panel's backlight as a
+# gpio-backlight node (GPIO 18, on).
+CONFIG_BACKLIGHT_GPIO=y
+
+# The 3B+'s HDMI hotplug line is behind the firmware's GPIO expander
+# (depends on OF_GPIO and RASPBERRYPI_FIRMWARE): without it vc4 cannot say
+# whether a monitor is connected, which is the boot script's first check.
+CONFIG_GPIO_RASPBERRYPI_EXP=y
+
+# The touch controller on the bit-banged I2C bus the touch overlay declares
+# (I2C_GPIO selects I2C_ALGOBIT; TOUCHSCREEN_GOODIX depends on I2C and
+# GPIOLIB), and the SoC's hardware I2C, whose HDMI DDC bus carries the EDID.
+CONFIG_I2C_GPIO=y
+CONFIG_I2C_BCM2835=y
+CONFIG_INPUT_TOUCHSCREEN=y
+CONFIG_TOUCHSCREEN_GOODIX=y
+
+# ---- the firmware's framebuffer goes ----
+# DRM's framebuffer emulation is /dev/fb0 on every screen; the firmware's
+# driver would compete with it, and the DPI panel is vc4's now.
+# CONFIG_FB_BCM2708 is not set

@@ -46,6 +46,13 @@ for p in /sys/devices/system/cpu/cpufreq/policy*; do
         chown faraday "$p/scaling_min_freq"
 done
 
+# The screen (docs/IMAGES.md §3.4): on an image that lists screens, the
+# script finds the one attached, loads its overlays while configfs is
+# mounted, unmounts it again, and writes the shell's arguments for it to
+# /run/faraday-screen/args, which the inittab reads. It runs before
+# anything below starts, so no helper sees the overlays change.
+[ -f /etc/faraday/screens/order ] && /etc/init.d/screen
+
 # The disk process's two pipes: requests from the app's shell, answers to
 # it. The disk process owns them and the app's group may use them; nobody
 # else can.

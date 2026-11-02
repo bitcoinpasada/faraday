@@ -37,6 +37,14 @@ to the others in `/proc`.
   USB authorisation policy, creates the RAM directories and pipes the
   programs use, and starts the other two programs. It mounts no
   storage.
+- **On the Pi, the screen script** (`/etc/init.d/screen`, planned,
+  `docs/IMAGES.md` §3.4) runs as root from the boot script before
+  anything else is started: it mounts configfs, loads the overlay of the
+  screen it finds from the initramfs's own files (never from the card or a
+  stick), unbinds and binds vc4's driver, writes the shell's arguments to
+  `/run/faraday-screen/args` and unmounts configfs. configfs is root's
+  alone and gone before the application runs, so no overlay can be loaded
+  later.
 - **`faraday-grant`** starts as root and, before it reads anything,
   drops to its own user keeping only `CAP_CHOWN`, empties its capability
   bounding set and sets no-new-privileges.

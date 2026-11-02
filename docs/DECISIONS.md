@@ -200,4 +200,5 @@ Read this table, then only the decision you need.
 | [F183](decisions/F183.md) | The check runs on GitHub Actions: `just` on every push to main and every pull request, read-only, building nothing for release | 2026-10-31 | Active | repository |
 | [F184](decisions/F184.md) | Work over a tenth of a second on a Pi 3B+ runs on one worker in the core; shorter work is drawn first and done on the next tick | 2026-11-02 | Active | speed |
 | [F185](decisions/F185.md) | One build on every platform: the PC stick with `efi=disable_early_pci_dma`, the Pi with what Compatible carried | 2026-10-31 | Amended by F186 | release |
-| [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Active | release |
+| [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187 | release |
+| [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |

@@ -37,11 +37,16 @@ from, the display path as it was before, and the owner's answers are in
   `faraday/shells/stick/src/touch.rs`; a HID touchscreen's grid is the
   ranges its report descriptor declares, `faraday/shells/stick/src/hid.rs`),
   then mapped to the frame (§4).
-- **The Pi.** The firmware drives the 2.8-inch DPI panel, 480 × 640
-  portrait at 286 dpi (`faraday/image/panels/waveshare-28dpi/panel.conf`).
+- **The Pi.** The kernel drives the 2.8-inch DPI panel, 480 × 640
+  portrait at 286 dpi (`faraday/image/panels/any/screens/waveshare-28dpi/panel.conf`).
   It states `NATIVE=portrait` and no `MOUNT`: Rotation is not offered
-  there (§5). There is no 7-inch or 10-inch panel directory under
-  `faraday/image/panels/`. The HDMI screen's (`faraday/image/panels/hdmi`,
+  there (§5). The Pi
+  image takes these values from the found screen's `panel.conf`
+  (`faraday/image/panels/any/screens/<screen>/`): the boot script
+  (`faraday/image/common/rootfs-overlay/etc/init.d/screen`) writes them
+  as arguments to `/run/faraday-screen/args`, which the inittab passes
+  after `/etc/faraday/args`. There is no 7-inch or 10-inch panel directory under
+  `faraday/image/panels/`. The HDMI screen's (`faraday/image/panels/any/screens/hdmi`,
   `docs/IMAGES.md` §3) states neither: the shell decides as on the stick,
   from the framebuffer's size and the EDID it reads from
   `/sys/class/drm`.
@@ -216,7 +221,7 @@ is not affected; the arrow keys move as the screen shows.
 |---|---|
 | A stick on a panel whose EDID diagonal is 6 to 11 inches, or whose framebuffer is taller than wide | offered: the shell sends `Event::RotationOffered` (§6) |
 | A stick on a laptop's screen or a monitor (wider than tall, over 11 inches or no EDID) | not offered; drawn as now |
-| An HDMI screen on the Pi (`faraday/image/panels/hdmi`) | as a stick's screen, by its framebuffer and its EDID (the rows above) |
+| An HDMI screen on the Pi (`faraday/image/panels/any/screens/hdmi`) | as a stick's screen, by its framebuffer and its EDID (the rows above) |
 | The Pi's 2.8-inch panel | not offered: it is a handheld portrait panel, compact either way (480 × 640 at 286 dpi is 268 × 358 dp; turned, 358 × 268, compact and short). It stays as it is |
 | A Pi panel directory for a 7-inch or 10-inch panel, when one is added (`docs/STARTER.md` §9) | offered, by its `panel.conf`; the same shell code |
 | The desktop app (Faraday Demo, a test build) | not offered: it is a window, and the window's shape is its own. Faraday Demo's Size menu shows the panels at both orientations (§10) |

@@ -13,13 +13,13 @@ with different boards:
 
 | | `just faraday-pi-image` | `just faraday-stick-image` |
 |---|---|---|
-| The machine | a Raspberry Pi with a 2.8" touch panel, or with an HDMI screen | any laptop or PC with UEFI firmware |
+| The machine | a Raspberry Pi with a 2.8" touch panel, or with an HDMI screen: one image, which finds the screen at boot | any laptop or PC with UEFI firmware |
 | The medium | a microSD card | a USB stick |
 | What the firmware runs | `zImage`, named in `config.txt` | `EFI/BOOT/BOOTX64.EFI`, which is the kernel |
-| The display | the panel the firmware sets up, 480×640 at 286 dpi; on the HDMI image, the screen vc4 drives at its EDID's mode | whatever the firmware left running, read from sysfs |
+| The display | the screen vc4 drives: an HDMI screen at its EDID's mode, or the 2.8" panel, 480×640 at 286 dpi, whose overlay the boot script loads | whatever the firmware left running, read from sysfs |
 | Input | the Goodix touch controller; also USB keyboards, mice and touchscreens | the built-in keyboard and touchpad, USB keyboards and mice, a HID touchscreen |
 | Files | the card's data partition, at `/mnt/microsd` | the stick's data partition at `/mnt/microsd`, and every FAT partition on every other USB disk, at `/mnt/usb/<label>` |
-| The image | `out/pi/faraday-pi3-waveshare-28dpi.img`, `out/pi/faraday-pi3-hdmi.img` | `out/stick/faraday-x86_64-uefi.img` |
+| The image | `out/pi/faraday-pi3-any.img` | `out/stick/faraday-x86_64-uefi.img` |
 
 Nothing here is shared with any other project.
 
@@ -43,13 +43,14 @@ Each board and panel combination that is built has its entry in
 `faraday/builds.toml`, the repository's list of builds; `just lint`
 fails on a board or panel directory no entry builds.
 
-The owner's Pi is `pi3` and `waveshare-28dpi`, which are the defaults:
+The Pi is `pi3` and the panel `any`, one image for every screen (`panels/any`,
+whose README gives the format of a screen's directory); the stick is
+`x86_64-uefi` and `efi-framebuffer`:
 
 ```
 just faraday-pi-image                                       # a test release
 just dev=1 faraday-pi-image                                 # the same, with a login
-just board=pi3 panel=waveshare-28dpi dev=0 faraday-pi-image # written out in full
-just panel=hdmi faraday-pi-image                            # an HDMI screen
+just board=pi3 dev=0 faraday-pi-image                       # written out in full
 just faraday-stick-image                                    # the USB stick
 just dev=1 faraday-stick-image                              # the same, with a login
 ```
@@ -202,6 +203,12 @@ A directory under `panels/` with four files:
 - `config.txt` — the timings, the pin map and the overlays the firmware
   needs to bring the panel up.
 
+The Pi's one panel, `panels/any`, is different: it names no screen, and
+holds a directory per screen under `screens/` (`panels/any/README.md`
+gives its format: `panel.conf`, `probe.conf`, `touch.line` and
+`display.line`). A new Pi screen is a new directory there and a line in
+`screens/order`; its kernel drivers are in the board's `linux.fragment`.
+
 Nothing in the shell binary is panel-specific, so a new panel needs no
 Rust. Bring it up with `just dev=1 faraday-pi-image`, read the probe lines on the panel
 itself,
@@ -288,7 +295,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
 | Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |
 | The binary | Built on the host by `just faraday-pi-bin` with the board's toolchain, as a static executable, and installed by `package/faraday`. Buildroot never builds Rust |
-| Overlays | For `waveshare-28dpi`, Waveshare's own `28DPI-DTBO` pack, downloaded at a pinned sha256 |
+| Overlays | The Pi's screens' overlays are merged at build time by Raspberry Pi's `ovmerge` (`utils`, at a pinned commit and sha256) from the pinned kernel's overlay sources, and compiled by Buildroot's `dtc`; the 2.8-inch's touch overlay is Waveshare's own `28DPI-DTBO` pack, downloaded at a pinned sha256 |
 
 ### The kernel is the defconfig with its modules dropped
 
@@ -753,7 +760,7 @@ twice.
 
 ```
 lsblk                                   # which one is it? check the size
-sudo dd if=out/pi/faraday-pi3-waveshare-28dpi.img of=/dev/sdX \
+sudo dd if=out/pi/faraday-pi3-any.img of=/dev/sdX \
     bs=4M conv=fsync status=progress    # the Pi's card
 
 sudo dd if=out/stick/faraday-x86_64-uefi.img of=/dev/sdX \
@@ -798,16 +805,17 @@ not:
 - **Panel black, serial silent.** The firmware never started. Check the card
   and re-write it.
 - **Panel black, serial shows the kernel booting.** The display
-  configuration did not take. `config.txt` is on the FAT partition and
-  editable from any computer.
+  configuration did not take. On a panel, the boot script's lines in the
+  kernel log say which probe answered; `config.txt` is on the FAT partition
+  and editable from any computer.
 - **The logo appears and the app never does.** The shell started and could
   not draw. Build the same combination with `dev=1` in front of the recipe
   name and read what `--verbose` says.
-- **Red and blue exchanged.** Change `dpi_output_format=0x7F206` to
-  `0x7F216` in `config.txt`. The two values differ only in the colour order
-  the firmware hands the framebuffer; this image ships the one that matches
-  what the shell writes.
-- **Panel right, touch dead.** Check `/etc/faraday/args`: `--touch-name`
+- **Red and blue exchanged on the 2.8-inch.** The colour order is the pixel
+  format in `panels/any/screens/waveshare-28dpi/display.line`
+  (`docs/IMAGES.md` §3.3); it is worked out again on the panel, and a
+  change is a change to that line.
+- **Panel right, touch dead.** Check `/run/faraday-screen/args`: `--touch-name`
   must be a substring of what the controller calls itself and
   `--touch-grid` its reported range. On the Waveshare panel the Goodix
   controller answers on the bit-banged i2c bus the `waveshare-touch-28dpi`

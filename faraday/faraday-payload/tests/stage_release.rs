@@ -37,26 +37,21 @@ const PI_BOARDS: &str = "Pi 3B, Pi 3B+, Pi Zero 2 W";
 const PC_BOARDS: &str = "a 64-bit PC with UEFI firmware";
 
 /// Every image a release publishes, in `builds.toml`'s order.
-const IMAGES: [Image; 3] = [
+const IMAGES: [Image; 2] = [
     Image {
         built: "stick/faraday-x86_64-uefi.img",
         released: "faraday-stick-0.9.0-x86_64-uefi.img",
         listed: ["x86_64-uefi", "efi-framebuffer", PC_BOARDS],
     },
     Image {
-        built: "pi/faraday-pi3-waveshare-28dpi.img",
-        released: "faraday-pi-0.9.0-waveshare-28dpi.img",
-        listed: ["pi3", "waveshare-28dpi", PI_BOARDS],
-    },
-    Image {
-        built: "pi/faraday-pi3-hdmi.img",
-        released: "faraday-pi-0.9.0-hdmi.img",
-        listed: ["pi3", "hdmi", PI_BOARDS],
+        built: "pi/faraday-pi3-any.img",
+        released: "faraday-pi-0.9.0.img",
+        listed: ["pi3", "any", PI_BOARDS],
     },
 ];
-/// The stick's and the 2.8-inch Pi's, which each Starter carries.
+/// The stick's and the Pi's, which each Starter carries.
 const STICK: &str = "faraday-stick-0.9.0-x86_64-uefi.img";
-const PI: &str = "faraday-pi-0.9.0-waveshare-28dpi.img";
+const PI: &str = "faraday-pi-0.9.0.img";
 
 fn fresh(name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("stage-release-{name}"));
@@ -118,20 +113,18 @@ fn builds(root: &Path) -> PathBuf {
     builds_with(root, &kernel(), RELEASE)
 }
 
-/// The builds with `boot` as the stick's boot program, and the HDMI
-/// screen's Pi image carrying `hdmi`.
-fn builds_with(root: &Path, boot: &[u8], hdmi: &str) -> PathBuf {
+/// The builds with `boot` as the stick's boot program, and the Pi
+/// image carrying `pi`.
+fn builds_with(root: &Path, boot: &[u8], pi: &str) -> PathBuf {
     let builds = root.join("builds");
     fs::create_dir_all(builds.join("stick")).expect("folder");
     fs::create_dir_all(builds.join("pi")).expect("folder");
     fs::write(builds.join(IMAGES[0].built), stick_image(root, boot)).expect("stick");
-    for (image, release) in [(&IMAGES[1], RELEASE), (&IMAGES[2], hdmi)] {
-        fs::write(
-            builds.join(image.built),
-            pi_image(root, image.built, release),
-        )
-        .expect("pi");
-    }
+    fs::write(
+        builds.join(IMAGES[1].built),
+        pi_image(root, IMAGES[1].built, pi),
+    )
+    .expect("pi");
     builds
 }
 
@@ -413,7 +406,7 @@ fn staging_refuses_images_of_different_builds() {
     assert!(!done.status.success());
     let said = String::from_utf8_lossy(&done.stderr);
     assert!(said.contains("not one build"), "{said}");
-    assert!(said.contains("pi3-monitor 0.8.0-test"), "{said}");
+    assert!(said.contains("pi3-any 0.8.0-test"), "{said}");
     assert!(said.contains("stick 0.9.0-test"), "{said}");
     assert!(!root.join("release").exists(), "nothing staged");
 }

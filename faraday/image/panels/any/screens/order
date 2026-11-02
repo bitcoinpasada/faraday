@@ -1,0 +1,4 @@
+# The panel probes after the HDMI check, in the order the boot script
+# tries them (docs/IMAGES.md §3.2): one screen's directory name a line.
+# HDMI is not here: it is the first check and the fallback.
+waveshare-28dpi

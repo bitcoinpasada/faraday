@@ -68,8 +68,8 @@ fn payload() -> Payload {
                 "8be41a07",
             ),
             file(
-                "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
-                "faraday-pi-0.2.0-pi3-waveshare-28dpi.img",
+                "faraday-pi-0.2.0.img.xz",
+                "faraday-pi-0.2.0.img",
                 CARD_IMAGE,
                 "0.2.0",
                 "11d0e2a9",

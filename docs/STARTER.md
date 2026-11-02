@@ -51,8 +51,7 @@ downloads".
 | `Faraday-Starter-X.Y.Z-Windows.exe` | the Starter for Windows (x86_64) |
 | `Faraday-Starter-X.Y.Z-Linux.tar.gz` | the Starter for Linux (x86_64): one file inside, `Faraday-Starter-X.Y.Z-Linux`, with its executable bit (§1.2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image (`docs/IMAGES.md` §1) |
-| `faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` | the Pi image for the 2.8-inch screen, for every supported Pi: the screen's panel directory (IMAGES §4) |
-| `faraday-pi-X.Y.Z-hdmi.img.xz` | the Pi image for an HDMI screen (IMAGES §3) |
+| `faraday-pi-X.Y.Z.img.xz` | the Pi image, for every supported Pi and every Pi screen listed, the 2.8-inch and an HDMI screen: it finds its screen at boot (IMAGES §3, §4) |
 | `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter's payload |
 | `IMAGES` | the release's image list: one line per image, with its two sums, platform, screen and the boards it starts (IMAGES §4) |
 | `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
@@ -72,7 +71,9 @@ partition, so a card or stick already written can be checked (IMAGES
 §4). Up to 0.1.8 the stick image, the Pi image and the boot program were
 `faraday-stick-X.Y.Z-x86_64-uefi.img.xz`,
 `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` and
-`faraday-X.Y.Z-BOOTX64.EFI`.
+`faraday-X.Y.Z-BOOTX64.EFI`; before the one Pi image, the Pi images were
+`faraday-pi-X.Y.Z-waveshare-28dpi.img.xz` and
+`faraday-pi-X.Y.Z-hdmi.img.xz`.
 
 - Images are published as `.xz` only. `SHA256SUMS` lists each `.xz` and
   also the `.img` inside it, under the `.img` name, so `sha256sum -c
@@ -129,8 +130,8 @@ and is the same bytes the release publishes beside it.
 
 | Starter | Carries |
 |---|---|
-| Linux | the stick image, the 2.8-inch Pi image |
-| Windows | the stick image, the 2.8-inch Pi image |
+| Linux | the stick image, the Pi image |
+| Windows | the stick image, the Pi image |
 
 The release's other images are published beside the Starter, not in
 it, until the Starter carries no images (`docs/IMAGES.md` §5, §9 step 6).
@@ -813,8 +814,9 @@ destinations; Faraday Demo and the device keep their own navigation
 As §3.2. Two choices come before the card once there is something to
 choose: **Which Pi?** once there is more than one Pi image (§9.4), and
 **Which screen?** once there is more than one panel profile (§9.3).
-With one image for the 2.8 inch panel (D1), neither is shown and the
-page says which Pi and screen the card is for. The card list also
+With one Pi image for every screen (F186), neither is shown and the
+page says which Pis and screens the card is for (the 2.8 inch panel and
+an HDMI screen). The card list also
 offers the computer's own SD card reader (§4.2). *Replace Faraday,
 keep data* is offered once the Pi image can be replaced that way
 (§9.5).

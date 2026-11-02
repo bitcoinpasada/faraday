@@ -2,14 +2,15 @@
 # header, the board's part and the panel's part.
 #
 # The GPU firmware reads this file before the ARM cores start. It picks the
-# firmware variant, sets the panel up, and hands Linux a ready framebuffer.
-# Everything here is editable on the FAT partition of a written card, so a
-# wrong value can be fixed without rebuilding the image.
+# firmware variant and the kernel's display driver. It names no screen: the
+# boot script finds the screen and loads its overlay while the system runs
+# (docs/IMAGES.md §3). Everything here is editable on the FAT partition of a
+# written card, so a wrong value can be fixed without rebuilding the image.
 
 kernel=zImage
 boot_delay=0
-# No rainbow splash: the kernel's own logo, generated at the panel's size,
-# is what the panel shows until the app's first frame.
+# No rainbow splash: the kernel's own logo, a small square in the middle of
+# the screen, is what it shows until the app's first frame.
 disable_splash=1
 
 # ---- Raspberry Pi 3B/3B+/Zero 2 W ----
@@ -24,12 +25,12 @@ start_file=start_x.elf
 fixup_file=fixup_x.dat
 start_x=1
 
-# The firmware drives both a DPI panel and the camera out of GPU memory.
-# 128 MB is what that pair needs; the stock 64 MB is not enough.
+# The camera runs out of GPU memory. 128 MB is what it needs; the stock
+# 64 MB is not enough.
 gpu_mem=128
 
-# SPI0 is on GPIO 7-11, which the DPI data lines and the touch controller's
-# bit-banged i2c bus both use. Nothing here wants SPI.
+# SPI0 is on GPIO 7-11, which the 2.8-inch's DPI data lines and the touch
+# controller's bit-banged i2c bus use. Nothing here wants SPI.
 dtparam=spi=off
 
 # The device signs offline. No radios, and the analogue audio block is dead
@@ -38,3 +39,24 @@ dtparam=spi=off
 dtoverlay=disable-wifi
 dtoverlay=disable-bt
 dtparam=audio=off
+
+# ---- The screen: the kernel's mode setting (docs/IMAGES.md §3.1, §3.3) ----
+# vc4 drives HDMI and reads the screen's EDID over the HDMI bus, so no mode
+# is named. A panel's overlay is loaded later by the boot script, which
+# binds vc4 again. The overlay and its parameters are the firmware's (the
+# overlay README in the firmware's boot/overlays, "vc4-kms-v3d"):
+#
+#   noaudio  no audio over HDMI: the encoder's audio has no DMA channel,
+#            so no sound card is registered.
+#   cma-64   64 MB of contiguous memory for the framebuffer, where the
+#            overlay's own default is 256 MB: one frame at the Pi 3's
+#            largest HDMI mode is under 9 MB, and a Zero 2 W has 512 MB.
+#
+# The overlay also turns the V3D node on, and vc4 binds it: its render
+# node, /dev/dri/renderD128, is root's alone (common/rootfs-overlay/etc/
+# mdev.conf, F153), and the app never opens it.
+dtoverlay=vc4-kms-v3d,noaudio,cma-64
+
+# The firmware's own HDMI-CEC handling off; the kernel builds no CEC.
+hdmi_ignore_cec=1
+hdmi_ignore_cec_init=1

@@ -28,9 +28,10 @@
 # Takes every image faraday/builds.toml lists as built with release files
 # (docs/IMAGES.md §4), from where its build leaves it (its first outputs
 # entry, under out/ or the folder --builds names), and publishes it under
-# its release name: today the PC stick and the Pi's two screens,
+# its release name: today the PC stick and the Pi (one image for every
+# screen, F186),
 #   out/stick/faraday-x86_64-uefi.img -> faraday-stick-VERSION-x86_64-uefi.img.xz
-#   out/pi/faraday-pi3-hdmi.img       -> faraday-pi-VERSION-hdmi.img.xz
+#   out/pi/faraday-pi3-any.img        -> faraday-pi-VERSION.img.xz
 # and so on. An image that releases a boot program (.EFI) has a GPT whose
 # first partition (FARADAYBOOT) holds EFI/BOOT/BOOTX64.EFI, published as
 # its release name, faraday-VERSION-BOOTX64.EFI: the boot program as it is,
@@ -76,8 +77,8 @@
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
 # system, linux/ and windows/, each with hard links to the stick's and
-# the 2.8-inch Pi's image .xz (builds stick and
-# pi3-waveshare-28dpi; the other images are released, not embedded, until
+# the Pi image .xz (builds stick and
+# pi3-any, the only images released: until
 # the Starter stops carrying images, IMAGES §9 step 6)
 # and its own MANIFEST (the first line is the same in both). The two
 # folders stay apart: each Starter embeds its own.
@@ -311,10 +312,10 @@ PY
     # for a stick image, the SHA-256 of its boot partition (the -boot.vfat
     # value of SHA256SUMS; - for any other file).
     # Both MANIFESTs start with the same line. The stick and the
-    # 2.8-inch Pi, until the Starter carries no images (IMAGES §9
+    # Pi image, until the Starter carries no images (IMAGES §9
     # step 6).
     carried=()
-    for want in stick pi3-waveshare-28dpi; do
+    for want in stick pi3-any; do
         found=""
         for k in "${!ids[@]}"; do [ "${ids[k]}" != "$want" ] || found="$k"; done
         [ -n "$found" ] || unstage "faraday/builds.toml releases no $want, which the Starter carries"

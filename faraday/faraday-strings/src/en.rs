@@ -270,7 +270,7 @@ strings! {
     /// Title: which card becomes the Pi card.
     starter_disks_card: "Which card?",
     /// The Pi card page: which Pi and screen.
-    starter_pi_supported_boards: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen",
+    starter_pi_supported_boards: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen or an HDMI screen",
     /// The Pi card page: which cameras.
     starter_pi_cameras: "Cameras: a USB webcam, or Camera Module v1 or v2",
     /// A Starter with no stick image.

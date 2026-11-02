@@ -354,11 +354,14 @@ then undoes:
 - The shell reads 32 bits as `Depth::Bgra8888`, blue first, whatever the
   driver says (`fb::Depth::from_bits`; the bitfields are read only for
   24 bits, from sysfs files the fbdev driver does not publish).
-- To show the colours right, the image sets
-  `dpi_output_format=0x7F206` where Waveshare's documentation gives
-  `0x7F216` (`faraday/image/panels/waveshare-28dpi/config.txt`): the
-  two differ in the DPI output's colour order, and the firmware's DPI
-  documentation names orders 1 to 4 (RGB, BGR, GRB, BRG), not 0.
+- The colours' order is the pixel format of the panel's display overlay
+  line (`faraday/image/panels/any/screens/waveshare-28dpi/display.line`,
+  `rgb666-padhi`), on the kernel's DPI driver; it is worked out again on
+  the panel (`docs/IMAGES.md` §3.3). On the firmware's framebuffer the
+  image set `dpi_output_format=0x7F206` where Waveshare's documentation
+  gives `0x7F216`: the two differ in the DPI output's colour order, and
+  the firmware's DPI documentation names orders 1 to 4 (RGB, BGR, GRB,
+  BRG), not 0.
 
 The change (FR3):
 
@@ -487,7 +490,7 @@ Each about fifty agent turns. FR0, FR1 to FR3 and FR5 leave
 | FR0 | What the floor is (§7): the Vault contents and Files frames timed part by part at a one-row clip, with a probe kept outside the repository; what costs named here, with the step that removes it | `docs/FRAMES.md` | No |
 | FR1 | Content placed in whole pixels (`Ui::oy_px`), `Ui::region` in place of each clip and `report_scroll*` pair, the content layer taken and the stretch moving it; snapshots rendered again where an edge moved, each named in the report; the clipped-shapes test extended to bands through a shape, a glyph and a shadow | `faraday/faraday-ui/src/lib.rs`, `sheet.rs`, `menu.rs`, the 28 core files that report a region, `faraday-starter/src/draw.rs`, `core/faraday-draw/src/canvas.rs`, `docs/MOTION.md` §3.3 | No; a screen review of the tours that changed against Material's Scrolling |
 | FR2 | The moved frame: `moved.rs`, `out.redraw()` and `out.moved()`, `Moves::Yes` on the long screens, `draw_whole_next`, the two tests of §3.2 and §3.4; `Parts::moved` and its composition; timed as SPEED §7 says, a scroll step of each screen that opted in | `faraday-core/src/moved.rs` (new), `lib.rs`, `motion.rs`, the screens that opt in, `faraday-ui/src/lib.rs`, `core/faraday-shell-api/src/lib.rs`, `docs/MOTION.md`, `docs/SPEED.md` §7 | No |
-| FR3 | The Pi's panel in its own order (§5): `Depth::Rgba8888` from the driver's `fbswap`, the Presenter with no converted copy for it, the panel's `config.txt` and the README's colour line; the present tests at 32 bits in both orders; checked on the dev card | `faraday/shells/stick/src/fb.rs`, `present.rs`, `panel.rs`, `faraday/image/panels/waveshare-28dpi/config.txt`, `faraday/image/README.md`, `docs/HARDWARE.md` if it names the format | No |
+| FR3 | The Pi's panel in its own order (§5): `Depth::Rgba8888` from the driver's `fbswap`, the Presenter with no converted copy for it, the panel's `config.txt` and the README's colour line; the present tests at 32 bits in both orders; checked on the dev card | `faraday/shells/stick/src/fb.rs`, `present.rs`, `panel.rs`, `faraday/image/panels/any/screens/waveshare-28dpi/display.line`, `faraday/image/README.md`, `docs/HARDWARE.md` if it names the format | No |
 | FR4 | The shell after a moved frame (§3.7) and the write (§6): the Presenter moving its copies by `Parts::moved`, `changed_rows` as bands, `Panel::write_known`, no band copy outside the arrow, one buffer for `shown` and `last`; the stick takes `Parts`; `present::tests` for a moved frame (only the strip and the overlays converted, the panel showing the frame) and for a caret and a clock as two bands; measured on the dev card with `--timings` | `faraday/shells/stick/src/present.rs`, `panel.rs`, `fb.rs`, `main.rs` (one call), `docs/SPEED.md` §11.1 | No |
 | FR5 | The bands (§4): the recording mode, the barriers, the pool, the test of §4.6; WORKERS §2 rule 1 worded for the bands; the heat on the dev card (§4.5); timed as SPEED §7 says, a frame of each main screen drawn whole | `core/faraday-draw/src/canvas.rs`, `canvas/list.rs` (new), `faraday-core/src/bands.rs` (new), `lib.rs` (`render_frame`), `docs/WORKERS.md`, `docs/SPEED.md` | No |
 | FR6 | The rest: what FR0 named, as its own spec section; this spec's plan moves to docs/history/FRAMES-LOG.md and it becomes a Reference | as FR0 says, `docs/FRAMES.md`, `docs/README.md` | No |

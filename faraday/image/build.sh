@@ -9,7 +9,8 @@
 # the panel's panel.conf, generates the boot logo, and then runs Buildroot.
 #
 #   BOARD   a directory under boards/   (default pi3)
-#   PANEL   a directory under panels/   (default waveshare-28dpi)
+#   PANEL   a directory under panels/   (default any: the Pi one image, a
+#           directory per screen under panels/any/screens)
 #   DEV     1 to add variants/dev       (default 0)
 #
 # Nothing here knows what a Raspberry Pi is. A board says in its board.conf
@@ -39,7 +40,7 @@
 set -euo pipefail
 
 BOARD="${BOARD:-pi3}"
-PANEL="${PANEL:-waveshare-28dpi}"
+PANEL="${PANEL:-any}"
 DEV="${DEV:-0}"
 
 # The dev variant's boot report, on the exchange partition: the kernel log
@@ -499,6 +500,101 @@ if [ "$got" != "$kernel_sha256" ]; then
     exit 1
 fi
 echo "    $kernel_tarball sha256 $got"
+
+# ---- the screens of a panel that holds several (panels/any/screens, the
+# Pi's one image, docs/IMAGES.md §3.3): each screen's values and probe go
+# into the image as they are, and its touch and display overlay lines are
+# made into one overlay each with no parameters, which the boot script loads
+# through configfs from the initramfs.
+#
+# The overlays' sources are the pinned kernel's (the tarball just checked),
+# merged by Raspberry Pi's ovmerge (a pinned Buildroot host package), run
+# through the C preprocessor as the kernel does, and compiled by Buildroot's
+# dtc. A line is a firmware overlay's name and its parameters, comma
+# separated; an overlay with none ends in a comma, so ovmerge removes the
+# declarations of its parameters. A name with no source in the kernel is a
+# compiled overlay of a vendor's pack, taken as it is (Waveshare's touch
+# overlay for the 2.8-inch).
+screens_src="$panel_dir/screens"
+screens_out="$gen/overlay/etc/faraday/screens"
+if [ -d "$screens_src" ]; then
+    echo "==> the screens' overlays"
+    if [ -d "$screens_out" ]; then
+        find "$screens_out" -mindepth 1 -delete
+    fi
+    make -C /output host-rpi-ovmerge host-dtc waveshare-28dpi-overlays-extract
+    kdts="$gen/kernel-dts"
+    if [ "$(cat "$kdts/.sha256" 2>/dev/null || true)" != "$kernel_sha256" ]; then
+        mkdir -p "$kdts"
+        find "$kdts" -mindepth 1 -delete
+        tar -xzf "$kernel_file" -C "$kdts" --strip-components=1 --wildcards \
+            '*/arch/arm/boot/dts/overlays/*' '*/include/dt-bindings/*'
+        echo "$kernel_sha256" > "$kdts/.sha256"
+    fi
+    ovdir="$kdts/arch/arm/boot/dts/overlays"
+    vendor_dir="$(ls -d /output/build/waveshare-28dpi-overlays-*/ | head -1)"
+    host_bin=/output/host/bin
+
+    # make_overlay <line file> <output .dtbo>
+    make_overlay() {
+        local line spec name
+        line="$(sed 's/#.*//' "$1" | tr -d '\n')"
+        spec="${line// /}"
+        [ -n "$spec" ] && [ "$spec" = "$line" ] || {
+            echo "$1: one overlay name and its parameters, no spaces" >&2; exit 1; }
+        name="${spec%%,*}"
+        if [ -f "$ovdir/$name-overlay.dts" ]; then
+            case "$spec" in *,*) ;; *) spec="$spec," ;; esac
+            # ovmerge reads the overlay's source file, named in the spec.
+            (cd "$ovdir" && "$host_bin/ovmerge" "$name-overlay.dts${spec#"$name"}") \
+                | cpp -nostdinc -undef -D__DTS__ -x assembler-with-cpp -I "$kdts/include" - \
+                | "$host_bin/dtc" -q -@ -I dts -O dtb -o "$2" -
+        elif [ "$spec" = "$name" ] && [ -f "$vendor_dir/$name.dtbo" ]; then
+            install -m 0644 "$vendor_dir/$name.dtbo" "$2"
+        else
+            echo "$1: no overlay named $name in the kernel's sources or the vendor's pack" >&2
+            exit 1
+        fi
+    }
+
+    mkdir -p "$screens_out"
+    screen_names="hdmi"
+    if [ -f "$screens_src/order" ]; then
+        screen_names="$screen_names $(sed 's/#.*//' "$screens_src/order" | tr '\n' ' ')"
+    fi
+    for sc in $screen_names; do
+        [ -f "$screens_src/$sc/panel.conf" ] || {
+            echo "$screens_src/$sc/panel.conf is missing" >&2; exit 1; }
+        mkdir -p "$screens_out/$sc"
+        install -m 0644 "$screens_src/$sc/panel.conf" "$screens_out/$sc/panel.conf"
+        # A screen's values are the app's arguments; a turn that is neither
+        # portrait nor landscape, or a touch name without its grid, would be
+        # misread there.
+        (
+            unset NAME WIDTH HEIGHT SIZE DPI TOUCH_NAME TOUCH_GRID NATIVE MOUNT \
+                TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y
+            # shellcheck source=/dev/null
+            . "$screens_src/$sc/panel.conf"
+            case "${NATIVE:-}" in ""|portrait|landscape) ;;
+                *) echo "$screens_src/$sc/panel.conf: NATIVE is portrait or landscape" >&2; exit 1 ;; esac
+            case "${MOUNT:-}" in ""|90|270) ;;
+                *) echo "$screens_src/$sc/panel.conf: MOUNT is 90 or 270" >&2; exit 1 ;; esac
+            if [ -n "${TOUCH_NAME:-}" ] && [ -z "${TOUCH_GRID:-}" ]; then
+                echo "$screens_src/$sc/panel.conf has TOUCH_NAME but no TOUCH_GRID" >&2; exit 1
+            fi
+        )
+        if [ -f "$screens_src/$sc/probe.conf" ]; then
+            install -m 0644 "$screens_src/$sc/probe.conf" "$screens_out/$sc/probe.conf"
+            make_overlay "$screens_src/$sc/touch.line" "$screens_out/$sc/touch.dtbo"
+            make_overlay "$screens_src/$sc/display.line" "$screens_out/$sc/display.dtbo"
+        fi
+    done
+    if [ -f "$screens_src/order" ]; then
+        sed 's/#.*//' "$screens_src/order" | awk 'NF' > "$screens_out/order"
+    else
+        : > "$screens_out/order"
+    fi
+fi
 
 # Two packages install files they did not build, so Buildroot's stamps
 # say "done" however new the file is. The app is one: an image rebuilt
