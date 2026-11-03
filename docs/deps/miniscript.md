@@ -55,6 +55,11 @@ Command:
 |---|--:|--:|
 | `faraday-bip` | 34 | 35 |
 
+**The descriptor checksum.** `faraday_bip::descriptor::descriptor_checksum` is
+`miniscript::descriptor::checksum::desc_checksum`, which works on the text and
+so serves BIP-392's `sp(..)` descriptors too; `verify_checksum` compares it with
+the eight characters after the last `#`.
+
 **What it is not used for.** Signing. A miniscript or taproot script-path
 input is read, its change is verified, and signing it returns
 `Unsupported` with the reason the review shows. `miniscript`'s
