@@ -21,6 +21,7 @@ sha2 = { workspace = true }
 # from faraday-crypto, AES-256-OCB over the trusted `aes`.
 faraday-crypto = { path = "../../core/faraday-crypto" }
 argon2 = { workspace = true }
+base64ct.workspace = true
 aes = { workspace = true }
 ocb3 = { workspace = true }
 

@@ -107,3 +107,25 @@ fn parse_errors() {
     assert!(Psbt::parse_base64(&c, ok).is_ok());
     assert!(Psbt::parse_base64(&c, &format!("  {ok}\n")).is_ok());
 }
+
+#[test]
+fn a_psbt_with_padding_bits_that_are_not_zero_is_refused() {
+    const ALPHABET: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let c = Compute::unchecked();
+    let mut padded = 0;
+    for rec in records("tools/vectors/psbt/bip174.txt") {
+        let b64 = rec.get("base64");
+        if rec.get("expect") == "invalid" || !b64.ends_with('=') {
+            continue;
+        }
+        let body = b64.trim_end_matches('=');
+        let (head, last) = body.split_at(body.len() - 1);
+        let value = ALPHABET.find(last).unwrap();
+        let other = &ALPHABET[value + 1..value + 2];
+        let spelled = format!("{head}{other}{}", &b64[body.len()..]);
+        assert!(Psbt::parse_base64(&c, b64).is_ok());
+        assert!(Psbt::parse_base64(&c, &spelled).is_err(), "{spelled}");
+        padded += 1;
+    }
+    assert!(padded > 0);
+}

@@ -359,6 +359,7 @@ dependencies = [
  "cfg-if",
  "cipher",
  "cpufeatures",
+ "rand_core",
  "zeroize",
 ]
 
@@ -737,6 +738,7 @@ name = "faraday-backup"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base64ct",
  "chacha20",
  "faraday-crypto",
  "hmac",
@@ -749,6 +751,7 @@ name = "faraday-bip"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "base64ct",
  "bitcoin",
  "faraday-crypto",
  "miniscript",
@@ -803,7 +806,6 @@ name = "faraday-crypto"
 version = "0.1.0"
 dependencies = [
  "blake2",
- "chacha20poly1305",
  "hmac",
  "libc",
  "pbkdf2",
@@ -948,6 +950,7 @@ version = "0.1.9"
 dependencies = [
  "aes",
  "argon2",
+ "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
  "ocb3",
@@ -1046,6 +1049,7 @@ dependencies = [
 name = "faraday-starter-shell"
 version = "0.1.9"
 dependencies = [
+ "base64ct",
  "faraday-boot",
  "faraday-core",
  "faraday-crypto",

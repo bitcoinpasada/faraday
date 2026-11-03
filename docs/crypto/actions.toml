@@ -2364,6 +2364,7 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
   "secp256k1",
+  "base64ct",
 ]
 adds = "The signature is the legacy compact recoverable signature every signer writes: the public key is recovered from it and compared with the record's; a descriptor record's first address is derived and compared; a record signed with a secret that is not the account's is refused rather than written."
 
@@ -3618,12 +3619,13 @@ code = [
 crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
+  "base64ct",
 ]
 through = [
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },
 ]
-adds = "The path is m/83696968'/app'/params'/index', fully hardened; the derived private key is run through HMAC-SHA512 with the BIP's key; the passwords' base64 (RFC 4648) and base85 (RFC 1924's alphabet) are written here; every value is a fixed-size buffer that zeroizes on drop and nothing here allocates."
+adds = "The path is m/83696968'/app'/params'/index', fully hardened; the derived private key is run through HMAC-SHA512 with the BIP's key; the passwords' base64 (RFC 4648) is the base64ct crate's and their base85 (RFC 1924's alphabet) is written here; every value is a fixed-size buffer that zeroizes on drop and nothing here allocates."
 
 [action.checked]
 vectors = [
@@ -3647,7 +3649,7 @@ fuzz_none = "Takes a held key, an application and numbers chosen on a pad; no te
 reveal = [
   "Reveal::Bip85Child",
 ]
-constant_time = "not stated by the library"
+constant_time = "The password's base64 is the base64ct crate's, which documents its encoding as constant time with respect to the data; its base85 is shown (§4.10)."
 wiped = "The derived private key and the 64 bytes are zeroized before the function returns, and every value returned is a buffer that zeroizes on drop. The copies bitcoin makes inside derivation are freed unwiped, until the next lock (ESTABLISHED §4.8)."
 
 [action.limits]
@@ -4226,6 +4228,7 @@ libraries = ["bitcoin"]
 through = [
   { library = "miniscript", crate = "core/faraday-bip" },
   { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base64ct", crate = "core/faraday-bip" },
 ]
 adds = "Refuses a version other than 0, version 2 fields inside a version 0 file, a 65-byte taproot signature whose sighash byte is 0 (BIP 341) and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read. The app tells a file is a PSBT by reading it once as bytes, else as base64 text, when it comes in."
 written_here = "The PSBT format, inspection, signing orchestration and verification logic (`faraday-psbt`, over `faraday-bip`'s keys and `bitcoin`'s secp256k1)"
@@ -7332,6 +7335,7 @@ libraries = [
   "chacha20",
   "hmac",
   "sha2",
+  "base64ct",
 ]
 adds = "Write only: version 4.0, ChaCha20, no compression, the composite key is the passphrase alone; the check after writing reads the header hash, header HMAC and every block HMAC of a file this module wrote and parses no XML; the salt, seed, IV, inner key and UUIDs come from one caller-given seed. In the app that seed is the session's randomness, each 32 bytes from an answer of the system's of its own, and nothing is made until the system has answered."
 written_here = "The KDBX 4 file format (`faraday-backup`)"
@@ -7380,8 +7384,8 @@ kind = "Neutral"
 decision = "F154"
 
 [action.review]
-fingerprint = "b9e1bdef2d9dd7ecb40dd5822610f8ce3964d60549582ab839fea2603d82a55b"
-reviewed = "2026-11-02"
+fingerprint = "c7a19f4eb04dfbd7506316420d1e72d3b92968570ee10d1b4377d7cb1c630b61"
+reviewed = "2026-11-03"
 places = [
   "docs/KDBX.md",
   "tools/vectors/backup/README.md",
@@ -7492,6 +7496,7 @@ libraries = [
   "ed25519-dalek",
   "sha1",
   "sha2",
+  "base64ct",
 ]
 adds = "Version-4 packets for one key shape: EdDSALegacy Ed25519 for the primary (certify) and the subkey (sign), SHA-1 fingerprints, self-signatures over SHA-512, the subkey's back signature, and a revocation certificate kept in the vault record as GnuPG 2.1 and later keep one; every signature is deterministic."
 written_here = "OpenPGP v4 packet construction (`faraday-pgp`)"
@@ -7569,6 +7574,7 @@ crate = "faraday/faraday-pgp"
 libraries = [
   "ed25519-dalek",
   "sha2",
+  "base64ct",
 ]
 adds = "A version-4 binary signature (type 0x00) by the signing subkey; the digest is signed, not the data, as OpenPGP's EdDSA does; output is `{file}.asc`."
 
@@ -7638,6 +7644,7 @@ libraries = [
   "ed25519-dalek",
   "sha1",
   "sha2",
+  "base64ct",
 ]
 adds = "A key-revocation signature (type 0x20) by the primary key over SHA-512 with GnuPG's reason codes; the file is laid out as `openpgp-revocs.d/<FPR>.rev` with a colon before the first dashes so `gpg --import` refuses it until the colon is removed."
 
@@ -7770,6 +7777,7 @@ libraries = [
   "ed25519-dalek",
   "sha1",
   "sha2",
+  "base64ct",
 ]
 adds = "The key is rebuilt only if the seeds make the public key and every self-signature of the certificate comes out again byte for byte; a certificate merged or renewed by GnuPG restores from its newest self-signature, and a revoked one restores marked revoked."
 
@@ -7842,6 +7850,7 @@ libraries = [
   "ed25519-dalek",
   "sha1",
   "sha2",
+  "base64ct",
 ]
 adds = "Takes one armoured block of one version-4 binary signature and refuses everything it does not honour; checks the certificate too, with strict Ed25519 verification of the signature and of the subkey's binding and back signature."
 
@@ -8431,6 +8440,9 @@ reason = "The age passphrase codec is not yet read by an action; the change that
 author = "the RustCrypto developers"
 
 [library.argon2]
+author = "the RustCrypto developers"
+
+[library.base64ct]
 author = "the RustCrypto developers"
 
 [library.bitcoin]

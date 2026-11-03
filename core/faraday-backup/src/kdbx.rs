@@ -63,6 +63,7 @@
 use alloc::vec::Vec;
 
 use argon2::Params;
+use base64ct::{Base64, Encoding};
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use faraday_crypto::work::Compute;
@@ -699,25 +700,9 @@ fn escape(text: &[u8], out: &mut Vec<u8>) {
 
 /// Base64, as the XML stores bytes.
 fn base64(bytes: &[u8], out: &mut Vec<u8>) {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    for chunk in bytes.chunks(3) {
-        let b0 = u32::from(chunk[0]);
-        let b1 = chunk.get(1).copied().map_or(0, u32::from);
-        let b2 = chunk.get(2).copied().map_or(0, u32::from);
-        let n = (b0 << 16) | (b1 << 8) | b2;
-        out.push(ALPHABET[(n >> 18) as usize & 0x3F]);
-        out.push(ALPHABET[(n >> 12) as usize & 0x3F]);
-        out.push(if chunk.len() > 1 {
-            ALPHABET[(n >> 6) as usize & 0x3F]
-        } else {
-            b'='
-        });
-        out.push(if chunk.len() > 2 {
-            ALPHABET[n as usize & 0x3F]
-        } else {
-            b'='
-        });
-    }
+    let start = out.len();
+    out.resize(start + Base64::encoded_len(bytes), 0);
+    Base64::encode(bytes, &mut out[start..]).expect("the buffer is the encoded length");
 }
 
 #[cfg(test)]

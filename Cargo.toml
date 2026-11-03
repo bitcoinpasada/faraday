@@ -74,6 +74,9 @@ pbkdf2 = { version = "0.13", default-features = false }
 # `password-hash` string format and the RNG; the memory is a `Vec<Block>`
 # the caller owns, so no `alloc` feature is needed.
 argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
+# Base64 in four places (docs/deps/base64ct.md): PSBT, BIP-322, BSMS,
+# BIP-85, the OpenPGP armour, KDBX and the Starter's plist.
+base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
 # The vault container's AEAD (docs/deps/chacha20poly1305.md). No `alloc`,
 # no RNG.
 chacha20poly1305 = { version = "0.11", default-features = false, features = ["zeroize"] }

@@ -37,6 +37,7 @@ pub use verify::{Unverified, verify_detached};
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use base64ct::{Base64, Encoding};
 
 use ed25519_dalek::{Signer, SigningKey};
 use sha1::Sha1;
@@ -642,26 +643,7 @@ pub enum Armor {
 
 /// Base64, as armour writes it.
 fn base64(data: &[u8]) -> String {
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
-    for c in data.chunks(3) {
-        let n = (u32::from(c[0]) << 16)
-            | (u32::from(*c.get(1).unwrap_or(&0)) << 8)
-            | u32::from(*c.get(2).unwrap_or(&0));
-        out.push(T[(n >> 18) as usize & 63] as char);
-        out.push(T[(n >> 12) as usize & 63] as char);
-        out.push(if c.len() > 1 {
-            T[(n >> 6) as usize & 63] as char
-        } else {
-            '='
-        });
-        out.push(if c.len() > 2 {
-            T[n as usize & 63] as char
-        } else {
-            '='
-        });
-    }
-    out
+    Base64::encode_string(data)
 }
 
 /// Packets in ASCII armour.
@@ -854,7 +836,7 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
     }
     // The body: base64 across lines, then an optional checksum line, then
     // the end line, and nothing after it.
-    let mut b64 = Base64Reader::default();
+    let mut b64 = String::new();
     let mut checksum: Option<u32> = None;
     loop {
         let line = lines.next()?;
@@ -862,11 +844,9 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
             break;
         }
         if line.len() == 5 && line[0] == b'=' {
-            let mut v = 0u32;
-            for &b in &line[1..] {
-                v = v << 6 | u32::from(base64_value(b)?);
-            }
-            checksum = Some(v);
+            let text = core::str::from_utf8(&line[1..]).ok()?;
+            let crc = Base64::decode_vec(text).ok()?;
+            checksum = Some(crc.iter().fold(0u32, |v, &b| v << 8 | u32::from(b)));
             if lines.next()? != end {
                 return None;
             }
@@ -875,14 +855,18 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
         if line.is_empty() {
             return None;
         }
+        // Armour line widths vary between writers: the body's characters
+        // are gathered without white space and decoded once.
         for &b in line {
-            b64.push(b)?;
+            if !matches!(b, b'\r' | b'\n' | b' ' | b'\t') {
+                b64.push(char::from(b));
+            }
         }
     }
-    if lines.next().is_some() || !b64.complete() {
+    if lines.next().is_some() {
         return None;
     }
-    let data = b64.data;
+    let data = Base64::decode_vec(&b64).ok()?;
     if data.is_empty() {
         return None;
     }
@@ -1163,64 +1147,4 @@ fn subpackets(area: &[u8], texts: &mut Vec<String>, depth: u8) -> Option<()> {
         }
     }
     Some(())
-}
-
-/// The value of one base64 character.
-fn base64_value(b: u8) -> Option<u8> {
-    match b {
-        b'A'..=b'Z' => Some(b - b'A'),
-        b'a'..=b'z' => Some(b - b'a' + 26),
-        b'0'..=b'9' => Some(b - b'0' + 52),
-        b'+' => Some(62),
-        b'/' => Some(63),
-        _ => None,
-    }
-}
-
-/// A base64 decoder fed one character at a time, so that the lines of an
-/// armoured body need no joining.
-#[derive(Default)]
-struct Base64Reader {
-    data: Vec<u8>,
-    quantum: [u8; 4],
-    have: usize,
-    pads: usize,
-    closed: bool,
-}
-
-impl Base64Reader {
-    fn push(&mut self, b: u8) -> Option<()> {
-        if self.closed {
-            return None;
-        }
-        if b == b'=' {
-            if self.have < 2 {
-                return None;
-            }
-            self.pads += 1;
-        } else if self.pads > 0 {
-            return None;
-        } else {
-            self.quantum[self.have] = base64_value(b)?;
-            self.have += 1;
-        }
-        if self.have + self.pads == 4 {
-            let q = self.quantum;
-            let bytes = [
-                q[0] << 2 | q[1] >> 4,
-                q[1] << 4 | q[2] >> 2,
-                q[2] << 6 | q[3],
-            ];
-            self.data.extend_from_slice(&bytes[..self.have - 1]);
-            self.closed = self.pads > 0;
-            self.have = 0;
-            self.pads = 0;
-        }
-        Some(())
-    }
-
-    /// Every quantum was finished.
-    fn complete(&self) -> bool {
-        self.have == 0 && self.pads == 0
-    }
 }

@@ -14,6 +14,7 @@ faraday-crypto = { path = "../faraday-crypto" }
 aes.workspace = true
 zeroize.workspace = true
 bitcoin.workspace = true
+base64ct.workspace = true
 miniscript.workspace = true
 # A typed sentence is read in NFKD, as BIP-39 requires.
 unicode-normalization.workspace = true

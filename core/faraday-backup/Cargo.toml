@@ -13,6 +13,7 @@ faraday-crypto = { path = "../faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 # Argon2id over the passphrase.
 argon2 = { workspace = true }
+base64ct.workspace = true
 # KDBX 4: ChaCha20 over the body and the inner random stream, SHA-256
 # and SHA-512 for its keys, HMAC-SHA-256 over its header and blocks.
 chacha20 = { workspace = true }

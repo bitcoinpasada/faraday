@@ -13,6 +13,7 @@
 //! a binary property list, anything after `</plist>` but white space and
 //! comments.
 
+use base64ct::{Base64, Encoding};
 use std::collections::BTreeMap;
 
 /// A property list value.
@@ -416,35 +417,8 @@ fn entities(raw: &str) -> Option<String> {
 
 /// Standard base64 with white space anywhere and `=` padding.
 fn base64(text: &str) -> Option<Vec<u8>> {
-    let mut bits = 0u32;
-    let mut n = 0;
-    let mut out = Vec::new();
-    let mut pad = 0;
-    for c in text.bytes().filter(|b| !b.is_ascii_whitespace()) {
-        if c == b'=' {
-            pad += 1;
-            continue;
-        }
-        if pad > 0 {
-            return None;
-        }
-        let v = match c {
-            b'A'..=b'Z' => c - b'A',
-            b'a'..=b'z' => c - b'a' + 26,
-            b'0'..=b'9' => c - b'0' + 52,
-            b'+' => 62,
-            b'/' => 63,
-            _ => return None,
-        };
-        bits = (bits << 6) | u32::from(v);
-        n += 6;
-        if n >= 8 {
-            n -= 8;
-            out.push((bits >> n) as u8);
-            bits &= (1 << n) - 1;
-        }
-    }
-    (pad <= 2 && bits == 0).then_some(out)
+    let squeezed: String = text.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+    Base64::decode_vec(&squeezed).ok()
 }
 
 /// `YYYY-MM-DDTHH:MM:SSZ`.

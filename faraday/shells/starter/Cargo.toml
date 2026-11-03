@@ -34,6 +34,7 @@ faraday-window = { path = "../window" }
 faraday-desktop = { path = "../desktop" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
+base64ct.workspace = true
 # A Faraday stick's release string (`find_release`), read from its boot
 # partition (docs/STARTER.md §4.1).
 faraday-boot = { path = "../../faraday-boot" }

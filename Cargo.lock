@@ -763,6 +763,7 @@ name = "faraday-backup"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base64ct",
  "chacha20",
  "faraday-bip",
  "faraday-crypto",
@@ -776,6 +777,7 @@ name = "faraday-bip"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "base64ct",
  "bip39",
  "bitcoin",
  "faraday-crypto",
@@ -1013,6 +1015,7 @@ version = "0.1.9"
 dependencies = [
  "aes",
  "argon2",
+ "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
  "ocb3",
@@ -1149,6 +1152,7 @@ dependencies = [
 name = "faraday-starter-shell"
 version = "0.1.9"
 dependencies = [
+ "base64ct",
  "faraday-boot",
  "faraday-core",
  "faraday-crypto",
