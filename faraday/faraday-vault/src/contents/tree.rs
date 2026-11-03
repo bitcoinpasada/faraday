@@ -23,6 +23,12 @@ use zeroize::Zeroizing;
 /// The deepest nesting of arrays and inline tables read.
 const MAX_DEPTH: u32 = 16;
 
+/// The most keys one table holds. No table of §7 has more than 13, and a
+/// table is searched by key as it is built, so a bound keeps a document
+/// of very many keys in one table from taking quadratic time: it is
+/// refused instead.
+const MAX_KEYS: usize = 64;
+
 /// One TOML value.
 pub(super) enum Val {
     /// A string.
@@ -74,6 +80,10 @@ impl Table {
         }
     }
 
+    fn full(&self) -> bool {
+        self.entries.len() >= MAX_KEYS
+    }
+
     fn at(&self, key: &str) -> Option<usize> {
         self.entries.iter().position(|(k, _)| k == key)
     }
@@ -93,6 +103,9 @@ impl Table {
             let i = match t.at(k) {
                 Some(i) => i,
                 None => {
+                    if t.full() {
+                        return Err(());
+                    }
                     t.entries
                         .push((k.clone(), Val::Table(Table::new(How::Dotted))));
                     t.entries.len() - 1
@@ -103,7 +116,7 @@ impl Table {
                 _ => return Err(()),
             }
         }
-        if t.at(last).is_some() {
+        if t.at(last).is_some() || t.full() {
             return Err(());
         }
         t.entries.push((last.clone(), val));
@@ -165,6 +178,12 @@ impl Builder<'_> {
     fn key_text(&mut self, span: Span, enc: Option<Encoding>) -> Option<String> {
         let mut out: Cow<str> = Cow::Borrowed("");
         let mut err: Option<ParseError> = None;
+        if matches!(enc, Some(Encoding::BasicString))
+            && has_1_1_escape(self.raw(span, enc).as_str())
+        {
+            self.refuse(span.start());
+            return None;
+        }
         self.raw(span, enc).decode_key(&mut out, &mut err);
         if err.is_some() {
             self.refuse(span.start());
@@ -257,6 +276,10 @@ impl Builder<'_> {
             let i = match t.at(k) {
                 Some(i) => i,
                 None => {
+                    if t.full() {
+                        self.fail.get_or_insert(at);
+                        return;
+                    }
                     t.entries
                         .push((k.clone(), Val::Table(Table::new(How::Implicit))));
                     t.entries.len() - 1
@@ -276,6 +299,10 @@ impl Builder<'_> {
                     return;
                 }
             };
+        }
+        if t.at(last).is_none() && t.full() {
+            self.fail.get_or_insert(at);
+            return;
         }
         let ok = match (t.at(last), array) {
             (None, false) => {
@@ -474,3 +501,6 @@ pub(super) fn parse(text: &str) -> Result<Table, usize> {
         None => Ok(builder.root),
     }
 }
+
+#[cfg(test)]
+mod toml_test;

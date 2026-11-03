@@ -15,8 +15,11 @@ through a derive. It forbids `unsafe` unless its `unsafe` feature is on, which i
 publisher), no `std`. The parser reads TOML
 1.1, a superset of 1.0.0; `contents` refuses the three things 1.1 adds
 (a line break or a trailing comma in an inline table, the `\x` and `\e`
-escapes), so what the vault accepts is 1.0.0. A date-time without seconds
-is refused where one is read.
+escapes), so what the vault accepts is 1.0.0. The parser does not check a
+date-time: it comes back as the text written, so `contents` checks the
+one it reads (`sealed`) itself, in ASCII, with seconds, an offset in range
+and a year of four digits. It is checked against toml-test's TOML v1.0.0
+cases (`tools/vectors/toml/`).
 
 **Secrets.** The parser decodes a string into a `Cow<str>`: borrowed from the
 text where it has no escape, owned where it has. `contents` moves each into

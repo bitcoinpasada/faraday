@@ -1,15 +1,15 @@
 //! The text inside an age vault (`docs/VAULT.md` §7, §7.1, §2.1): a vault
 //! of every kind of item written and read back, a hand-edited document
 //! read as the written one, what a document must not hold, and the QR
-//! vault's one line.
+//! vault's top-level keys.
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
 use faraday_vault::child::{ChildOf, payload as child_payload};
 use faraday_vault::codex32::{SetFacts, State, set_payload};
 use faraday_vault::contents::{
-    Document, Form, QR_LEN, QR_PASSPHRASE_MAX, Refusal, Size, Why, form, read, read_qr, write,
-    write_qr,
+    Document, Form, QR_LEN, QR_NOTE_MAX, QR_PASSPHRASE_MAX, Refusal, Size, Why, form, read,
+    read_qr, write, write_qr,
 };
 use faraday_vault::layouts::{seed_payload, sheet_payload, words_payload};
 use faraday_vault::records::{field, kind};
@@ -241,7 +241,8 @@ fn a_document_may_be_any_length_up_to_four_mib_and_no_more() {
     assert!(read(&compute(), &text).is_ok());
     text.resize(4 * 1024 * 1024 + 1, b'\n');
     assert_eq!(read(&compute(), &text).unwrap_err().why, Why::TooLong);
-    // Padding is blank lines: anything else after the document is refused.
+    // Padding is blank lines, and white space and comments may follow; a
+    // NUL after the document is refused.
     let mut text = write(&doc, Size::Kib64).unwrap().to_vec();
     *text.last_mut().unwrap() = 0;
     assert!(matches!(
@@ -273,6 +274,9 @@ fn what_section_7_1_refuses_is_refused_naming_what_and_where() {
         ("[[share]]\ncodex32 = \"ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw\"\nfor = \"73c5da0a\"".into(), Why::BadCodex32, "share", 0, "codex32"),
         ("[[note]]\ntext = \"a\"\ntext = \"b\"".into(), Why::Syntax(0), "", 0, ""),
         ("[[note]]\ntext = \"\\x41\"".into(), Why::Syntax(0), "", 0, ""),
+        ("[[note]]\n\"\\x74ext\" = \"a\"".into(), Why::Syntax(0), "", 0, ""),
+        ("[[note]]\n\"te\\xt\" = \"a\"".into(), Why::Syntax(0), "", 0, ""),
+        (format!("[[note]]\n{}", (0..65).map(|i| format!("k{i} = 1\n")).collect::<String>()), Why::Syntax(0), "", 0, ""),
         ("[[note]]\nx = {a = 1,\n b = 2}".into(), Why::Syntax(0), "", 0, ""),
         ("[[note]]\nx = {a = 1,}".into(), Why::Syntax(0), "", 0, ""),
         ("[[note]]\ntext = \"a\"\n[note]\ntext = \"b\"".into(), Why::Syntax(0), "", 0, ""),
@@ -329,6 +333,80 @@ fn the_vault_table_is_first_and_complete() {
         get("[vault]\nformat = 1\nid = \"3F0C9A6E2B7D41C58E19A0B2C4D6E8F0\"\nseals = 1").why,
         Why::BadHex
     );
+    // A time that is not ASCII, an offset out of range, a time past the
+    // year 9999 (the offset moving it there), and a seal count past i64.
+    for sealed in [
+        "2026-10-28T14:02:00+0\u{e9}00",
+        "2026-10-28T14:02:00+99:99",
+        "2026-10-28T14:02:00+24:00",
+        "2026-10-28T14:02:00+01:60",
+        "9999-12-31T23:59:59-01:00",
+    ] {
+        assert_eq!(
+            get(&format!(
+                "[vault]\nformat = 1\n{id}\nseals = 1\nsealed = {sealed}"
+            ))
+            .why,
+            Why::BadValue,
+            "{sealed}"
+        );
+    }
+    assert!(
+        read(
+            &c,
+            format!("[vault]\nformat = 1\n{id}\nseals = 1\nsealed = 9999-12-31T23:59:59Z")
+                .as_bytes()
+        )
+        .is_ok()
+    );
+    assert!(matches!(
+        get(&format!(
+            "[vault]\nformat = 1\n{id}\nseals = 9223372036854775808"
+        ))
+        .why,
+        Why::Syntax(_)
+    ));
+}
+
+#[test]
+fn what_cannot_be_read_back_is_not_written() {
+    let write_with = |seals: Seals| {
+        let mut doc = one_of_each();
+        doc.seals = seals;
+        write(&doc, Size::Kib64)
+    };
+    let ok = Seals {
+        count: 1,
+        last: Some(253_402_300_799),
+    };
+    assert!(write_with(ok).is_ok());
+    for bad in [
+        Seals {
+            count: 0,
+            last: None,
+        },
+        Seals {
+            count: i64::MAX as u64 + 1,
+            last: None,
+        },
+        Seals {
+            count: 1,
+            last: Some(253_402_300_800),
+        },
+        Seals {
+            count: 1,
+            last: Some(u64::MAX),
+        },
+    ] {
+        assert!(write_with(bad).is_err(), "{bad:?}");
+    }
+    let mut doc = one_of_each();
+    doc.contents.records.push(
+        Record::new(kind::SECURE_BOOT)
+            .with(1, &[1; 16])
+            .with(2, &[]),
+    );
+    assert_eq!(write(&doc, Size::Kib64).unwrap_err().why, Why::BadPem);
 }
 
 #[test]
@@ -420,7 +498,7 @@ fn a_qr_vault_refuses_what_it_cannot_hold() {
         .with(field::PASSPHRASE_KEY, &[0; 4])
         .with(field::PASSPHRASE, &[b'p'; 200]);
     assert_eq!(write_qr(&long).unwrap_err().why, Why::TooLong);
-    let wallet = Record::new(kind::NOTE).with(field::NOTE, b"x");
+    let wallet = Record::new(kind::SECURE_BOOT).with(1, &[1; 16]);
     assert_eq!(write_qr(&wallet).unwrap_err().why, Why::NotQr);
     // Wrong length, two items.
     let mut text = write_qr(&qr_items()[0]).unwrap().to_vec();
@@ -430,6 +508,20 @@ fn a_qr_vault_refuses_what_it_cannot_hold() {
     let mut two = two.into_bytes();
     two.resize(QR_LEN, b'\n');
     assert_eq!(read_qr(&c, &two).unwrap_err().why, Why::Unknown);
+    // Keys the form does not name, beside the ones it does.
+    for extra in ["list = \"english\"", "load = false", "held = true"] {
+        let mut text = format!("words = \"{TWELVE}\"\n{extra}").into_bytes();
+        text.resize(QR_LEN, b'\n');
+        let r = read_qr(&c, &text).unwrap_err();
+        assert_eq!(
+            (r.why, r.key.as_str()),
+            (Why::Unknown, extra.split(' ').next().unwrap())
+        );
+    }
+    let mut text =
+        format!("codex32 = \"{SHARE}\"\nfor = \"73c5da0a\"\nwords = \"{TWELVE}\"").into_bytes();
+    text.resize(QR_LEN, b'\n');
+    assert_eq!(read_qr(&c, &text).unwrap_err().why, Why::Unknown);
     let edge = |n: usize| {
         Record::new(kind::PASSPHRASE)
             .with(field::PASSPHRASE_KEY, &[0; 4])
@@ -440,4 +532,51 @@ fn a_qr_vault_refuses_what_it_cannot_hold() {
         write_qr(&edge(QR_PASSPHRASE_MAX + 1)).unwrap_err().why,
         Why::TooLong
     );
+}
+
+#[test]
+fn a_qr_vault_may_hold_a_note_or_nothing() {
+    let c = compute();
+    let note = |t: &[u8]| Record::new(kind::NOTE).with(field::NOTE, t);
+    let back = |r: &Record| {
+        let text = write_qr(r).unwrap();
+        assert_eq!(text.len(), QR_LEN);
+        assert_eq!(form(&text).unwrap(), Form::Qr);
+        read_qr(&c, &text).unwrap()
+    };
+    // The most a note holds, in bytes of TOML text.
+    let edge = |n: usize| note("a".repeat(n).as_bytes());
+    assert_eq!(
+        back(&edge(QR_NOTE_MAX)).field(field::NOTE).unwrap().len(),
+        QR_NOTE_MAX
+    );
+    assert_eq!(
+        write_qr(&edge(QR_NOTE_MAX + 1)).unwrap_err().why,
+        Why::TooLong
+    );
+    // Quotes and backslashes are two bytes each.
+    let esc = note("\"".repeat(QR_NOTE_MAX / 2).as_bytes());
+    assert_eq!(
+        back(&esc).field(field::NOTE).unwrap().len(),
+        QR_NOTE_MAX / 2
+    );
+    let over = note("\\".repeat(QR_NOTE_MAX / 2 + 1).as_bytes());
+    assert_eq!(write_qr(&over).unwrap_err().why, Why::TooLong);
+    // Line feeds and other text.
+    let text = "line one\nline two\ttab \u{e9}";
+    assert_eq!(
+        back(&note(text.as_bytes())).field(field::NOTE).unwrap(),
+        text.as_bytes()
+    );
+    // Nothing: the padding alone.
+    let empty = write_qr(&note(b"")).unwrap();
+    assert!(empty.iter().all(|&b| b == b'\n'));
+    assert_eq!(back(&note(b"")).field(field::NOTE).unwrap(), b"");
+    // Two forms mixed.
+    let mut mixed = format!("words = \"{TWELVE}\"\nnote = \"a\"").into_bytes();
+    mixed.resize(QR_LEN, b'\n');
+    assert_eq!(read_qr(&c, &mixed).unwrap_err().why, Why::Unknown);
+    let mut mixed = String::from("note = \"a\"\nfor = \"73c5da0a\"").into_bytes();
+    mixed.resize(QR_LEN, b'\n');
+    assert_eq!(read_qr(&c, &mixed).unwrap_err().why, Why::Unknown);
 }

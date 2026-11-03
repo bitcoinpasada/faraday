@@ -1,5 +1,5 @@
 //! The text inside an age vault (`docs/VAULT.md` §7, §7.1, §2, §2.1): the
-//! TOML document of a file vault and the one-line document of a QR vault,
+//! TOML document of a file vault and the top-level keys of a QR vault,
 //! written from and read into the vault's records ([`Record`], whose
 //! fields are the bytes the other modules of this crate lay out).
 //!
@@ -50,8 +50,15 @@ pub const QR_LEN: usize = 226;
 
 /// The longest BIP-39 passphrase a QR vault holds, in bytes of its TOML
 /// text, so that its two lines are no longer than [`QR_LEN`]: the
-/// passphrase's line is 16 bytes and the text's quotes, the key's line 17.
+/// passphrase's line is 13 bytes beside the text, its quotes and line
+/// feed 3, and the `for` line 17: 13 + 3 + 17 = 33.
 pub const QR_PASSPHRASE_MAX: usize = QR_LEN - 33;
+
+/// The longest note a QR vault holds, in bytes of its TOML text (escapes
+/// counted as written, so a quote or a backslash is 2 bytes): the line is
+/// `note = "` of 8 bytes, the text, then the closing quote and the line
+/// feed, 2: 8 + 2 = 10 beside the text.
+pub const QR_NOTE_MAX: usize = QR_LEN - 10;
 
 /// The sizes of a file vault's contents (§2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -369,6 +376,12 @@ pub fn write(doc: &Document, size: Size) -> Result<Zeroizing<Vec<u8>>, Refusal> 
             return Err(refuse(Why::NotCarried));
         }
     }
+    if doc.seals.count == 0 || doc.seals.count > i64::MAX as u64 {
+        return Err(at("vault", 0, "seals", Why::Seals));
+    }
+    if doc.seals.last.is_some_and(|t| t > MAX_TIME) {
+        return Err(at("vault", 0, "sealed", Why::BadValue));
+    }
     out.s("[vault]\n");
     out.line("format", |o| o.num(1));
     out.line("id", |o| {
@@ -415,6 +428,9 @@ fn fault_why(f: Fault) -> Why {
         _ => Why::BadValue,
     }
 }
+
+/// The last second a four-digit year holds: 9999-12-31T23:59:59Z.
+const MAX_TIME: u64 = 253_402_300_799;
 
 fn write_date(o: &mut Out, t: u64) {
     let (days, rem) = (t / 86_400, t % 86_400);
@@ -877,7 +893,7 @@ fn read_pem(pem: &str, label: &str) -> Option<Zeroizing<Vec<u8>>> {
     if begin != label {
         return None;
     }
-    let mut body: Zeroizing<String> = Zeroizing::new(String::new());
+    let mut body: Zeroizing<String> = Zeroizing::new(String::with_capacity(pem.len()));
     let mut ended = false;
     for l in lines {
         let l = l.trim();
@@ -900,7 +916,12 @@ fn read_pem(pem: &str, label: &str) -> Option<Zeroizing<Vec<u8>>> {
 /// The seconds since 1970 of an RFC 3339 date-time with seconds, or `None`.
 fn unix_of(s: &str) -> Option<u64> {
     let b = s.as_bytes();
-    if b.len() < 20 || !matches!(b[10], b'T' | b't' | b' ') || b[4] != b'-' || b[7] != b'-' {
+    if !s.is_ascii()
+        || b.len() < 20
+        || !matches!(b[10], b'T' | b't' | b' ')
+        || b[4] != b'-'
+        || b[7] != b'-'
+    {
         return None;
     }
     if b[13] != b':' || b[16] != b':' {
@@ -926,6 +947,9 @@ fn unix_of(s: &str) -> Option<u64> {
         "Z" | "z" => 0,
         o if o.len() == 6 && (o.starts_with('+') || o.starts_with('-')) && &o[3..4] == ":" => {
             let (oh, om) = (n_of(&o[1..3])?, n_of(&o[4..6])?);
+            if oh > 23 || om > 59 {
+                return None;
+            }
             let v = oh * 3600 + om * 60;
             if o.starts_with('-') { -v } else { v }
         }
@@ -960,7 +984,9 @@ fn unix_of(s: &str) -> Option<u64> {
     let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146_097 + doe - 719_468;
-    u64::try_from(days * 86_400 + h * 3600 + mi * 60 + sec.min(59) - offset).ok()
+    u64::try_from(days * 86_400 + h * 3600 + mi * 60 + sec.min(59) - offset)
+        .ok()
+        .filter(|&t| t <= MAX_TIME)
 }
 
 fn n_of(t: &str) -> Option<i64> {
@@ -1111,9 +1137,11 @@ pub fn form(bytes: &[u8]) -> Result<Form, Refusal> {
 // ------------------------------------------------------------------- QR
 
 /// Writes a QR vault's contents: the one item `record` as top-level keys
-/// (`words`; `codex32` and `for`; `passphrase` and `for`), padded with line feeds to [`QR_LEN`]. The record is a key of
-/// 12 or 24 words of the English list with nothing else, a codex32 share,
-/// or a passphrase of at most [`QR_PASSPHRASE_MAX`] bytes.
+/// (`words`; `codex32` and `for`; `passphrase` and `for`; `note`), padded
+/// with line feeds to [`QR_LEN`]. The record is a key of 12 or 24 words
+/// of the English list with nothing else, a codex32 share, a passphrase
+/// of at most [`QR_PASSPHRASE_MAX`] bytes, or a note of at most
+/// [`QR_NOTE_MAX`]; an empty note is the empty form, the padding alone.
 pub fn write_qr(record: &Record) -> Result<Zeroizing<Vec<u8>>, Refusal> {
     let mut o = Out::new(QR_LEN)?;
     record.check().map_err(|f| at("", 0, "", fault_why(f)))?;
@@ -1141,10 +1169,20 @@ pub fn write_qr(record: &Record) -> Result<Zeroizing<Vec<u8>>, Refusal> {
             o.line("passphrase", |o| o.text(text_of(record, field::PASSPHRASE)));
             o.line("for", |o| qr_for(o, record.field(field::PASSPHRASE_KEY)));
         }
+        kind::NOTE => {
+            if record.fields.len() != 1 {
+                return Err(at("", 0, "note", Why::NotQr));
+            }
+            // An empty note is the empty form: the padding alone.
+            let note = text_of(record, field::NOTE);
+            if !note.is_empty() {
+                o.line("note", |o| o.text(note));
+            }
+        }
         _ => return Err(refuse(Why::NotQr)),
     }
     if o.full {
-        return Err(at("", 0, "passphrase", Why::TooLong));
+        return Err(at("", 0, "note", Why::TooLong));
     }
     let mut bytes = o.bytes;
     bytes.resize(QR_LEN, b'\n');
@@ -1166,10 +1204,36 @@ pub fn read_qr(c: &Compute, bytes: &[u8]) -> Result<Record, Refusal> {
     }
     let mut root = parse_tree(bytes)?;
     let has = |k: &str| root.entries.iter().any(|(n, _)| n == k);
+    if root.entries.is_empty() {
+        return Ok(Record::new(kind::NOTE).with(field::NOTE, b""));
+    }
+    let allowed: &[&str] = if has("words") {
+        &["words"]
+    } else if has("note") {
+        &["note"]
+    } else if has("codex32") {
+        &["codex32", "for"]
+    } else {
+        &["passphrase", "for"]
+    };
+    if let Some((n, _)) = root
+        .entries
+        .iter()
+        .find(|(n, _)| !allowed.contains(&n.as_str()))
+    {
+        let mut key = String::new();
+        key.extend(n.chars().take(64));
+        return Err(at("", 0, &key, Why::Unknown));
+    }
     let (k, name) = if has("words") {
         (kind::KEY, "seed")
     } else if has("codex32") {
         (kind::CODEX32_SHARE, "share")
+    } else if has("note") {
+        for e in root.entries.iter_mut().filter(|e| e.0 == "note") {
+            e.0 = "text".into();
+        }
+        (kind::NOTE, "note")
     } else if has("passphrase") {
         // The file vault's item names its text `text`.
         for e in root.entries.iter_mut().filter(|e| e.0 == "passphrase") {
@@ -1314,7 +1378,6 @@ fn w_entry(o: &mut Out, name: &'static str, index: usize, r: &Record) -> Result<
 }
 
 fn w_secure_boot(o: &mut Out, name: &'static str, index: usize, r: &Record) -> Result<(), Refusal> {
-    let _ = (name, index);
     let g = r.field(1).unwrap_or(&[0; 16]);
     o.line("owner", |o| {
         o.raw(b"\"");
@@ -1323,6 +1386,9 @@ fn w_secure_boot(o: &mut Out, name: &'static str, index: usize, r: &Record) -> R
     });
     for (key, n, label) in PEMS {
         if let Some(der) = r.field(n) {
+            if der.is_empty() {
+                return Err(at(name, index, key, Why::BadPem));
+            }
             o.line(key, |o| write_pem(o, label, der));
         }
     }
