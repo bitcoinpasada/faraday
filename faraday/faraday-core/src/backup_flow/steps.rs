@@ -1,12 +1,10 @@
-//! What the backup flow does at each step (`docs/BACKUP-FLOW.md` §4):
-//! editing the plan, reading a stick with nothing secret open, binding it
-//! to its place, unlocking and making the vaults inside the flow, making
-//! the key into every vault, and writing each stick by place. The state is
-//! `backup_flow.rs`; the cards are `backup_flow/screen.rs`.
+//! What the backup flow does at each step (`docs/BACKUP-FLOW.md` §4): editing the plan,
+//! reading a stick with nothing secret open, binding it to its place, unlocking and making the
+//! vaults inside the flow, making the key into every vault, and writing each stick by place.
+//! The state is `backup_flow.rs`; the cards are `backup_flow/screen.rs`.
 
 use faraday_crypto::work::Compute;
-use faraday_vault as fv;
-use faraday_vault::records::kind;
+use faraday_vault::{self as fv, records::kind};
 
 use crate::backup_flow::{
     BackupFlow, Bound, Confirm, Kind, Pick, Problem, Purpose, Reading, Sealed, Step, Subject,
