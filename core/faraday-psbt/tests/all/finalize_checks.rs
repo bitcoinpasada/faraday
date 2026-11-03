@@ -167,8 +167,9 @@ fn a_multisig_with_the_other_script_field_is_refused() {
     }
 }
 
-/// A 2-of-3 `wsh` where A and B signed validly and C's entry is a shorter
-/// signature over another message: finalized with A's and B's, as Core
+/// A 2-of-3 `wsh` where A and B signed validly and C's entry, shorter
+/// than theirs, signs another message: A and B finalize, the first two
+/// signers in script order, and C's invalid entry is left out, as Core
 /// does.
 #[test]
 fn an_invalid_signature_beyond_the_first_signers_is_left_out() {

@@ -198,9 +198,11 @@ fn build_final(
             }
             match satisfy(psbt, index) {
                 Some(chosen) => Some(by_size(psbt, index, c, chosen)),
-                // `miniscript` takes the k smallest signatures and its
-                // check fails if one of them is invalid; Core takes the
-                // first m signers', so those are tried alone.
+                // `miniscript` 12.3.7 keeps the first m signers of a plain
+                // multisig in script order, as Core does, so this finds
+                // nothing it did not; it guards a later `miniscript` that keeps
+                // the m smallest, whose check would fail on an invalid one
+                // among them: the first m signers' are then tried alone.
                 None => c.utxo.as_ref().and_then(|utxo| {
                     let found = first_signers(c, input, wrapper, &(None, None))?;
                     accepted(psbt, index, utxo, &found).then_some(found)
