@@ -456,6 +456,20 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
         ScriptKind::Unknown
     };
 
+    // A multisig is finished from the one script its output commits to;
+    // the other script field, which a finalizer would clear, is refused.
+    if let ScriptKind::Multisig { wrapper, .. } = kind {
+        match wrapper {
+            Wrapper::P2wsh if input.redeem_script.is_some() => {
+                problems.push(Reason::StrayRedeemScript);
+            }
+            Wrapper::P2sh if input.witness_script.is_some() => {
+                problems.push(Reason::StrayWitnessScript);
+            }
+            _ => {}
+        }
+    }
+
     let amount_unverified = amount_unverified(
         psbt,
         input,

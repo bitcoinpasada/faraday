@@ -109,6 +109,13 @@ use_reference("bip352", "secp256k1lab", "src")
 from secp256k1lab.bip340 import schnorr_sign, schnorr_verify  # noqa: E402
 
 import lineage  # noqa: E402
+
+# btclib-wallet's finalizer (`psbt.finalize`, with its miniscript solver for a
+# witness script), on btclib's own curve: lineage has put the wheels first.
+from btclib.script.taproot import leaf_hash  # noqa: E402
+from btclib.script.witness import Witness  # noqa: E402
+from btclib_wallet.descriptors import miniscript_solver  # noqa: E402
+from btclib_wallet.psbt import psbt as BP  # noqa: E402
 from test_framework.address import byte_to_base58  # noqa: E402
 
 N = bip32_ref.N
@@ -975,6 +982,72 @@ def core_finalize(raw):
             "complete": complete, "more": more}
 
 
+def btclib_final(raw, i, sig=b"", spent=None):
+    """Costs btclib's finalizer (signature checks of the input and, for a
+    miniscript, its satisfier): input `i` of `raw` finalized alone, the
+    other inputs set aside as final. A taproot input signed under
+    several leaves is given only the signatures of the leaf `spent`
+    (Faraday's witness) shows: btclib refuses to choose a leaf, so
+    the choice among leaves stays Core's to judge. A plain multisig is
+    given only the signatures Faraday's scriptSig and witness carry: btclib
+    writes the smallest m of those on hand, Bitcoin Core and Faraday the
+    first m signers' (the choice is Core's to judge). ["ok", script_sig, witness] as hex
+    of their serialized forms, or ["err", why]."""
+    try:
+        psbt = BP.Psbt.parse(raw, check_validity=False)
+        for j, inp in enumerate(psbt.inputs):
+            if j != i:
+                inp.final_script_sig = b"\x00"
+                inp.final_script_witness = Witness([b"\x00"], check_validity=False)
+        inp = psbt.inputs[i]
+        if spent and len(spent) > 1 and spent[-1][0] & 0xFE == 0xC0:
+            want = leaf_hash(spent[-1][0] & 0xFE, spent[-2])
+            inp.taproot_script_spend_signatures = {
+                k: v for k, v in inp.taproot_script_spend_signatures.items() if k[32:] == want}
+        script = inp.witness_script or inp.redeem_script
+        if script and parse_multisig(script):
+            inp.partial_sigs = {k: v for k, v in inp.partial_sigs.items()
+                                if v in (spent or ()) or v in sig}
+        done = BP.finalize(psbt, solver=miniscript_solver).inputs[i]
+        return ["ok", bytes(done.final_script_sig).hex(), done.final_script_witness.serialize().hex()]
+    except Exception as e:  # btclib's refusals are its own exception types
+        return ["err", f"{type(e).__name__}: {e}"[:200]]
+
+
+# What btclib's finalizer cannot write, and says so: a taproot leaf of
+# neither a single key nor `multi_a` (it has no tapscript miniscript). Core
+# alone judges those inputs.
+BTCLIB_CANNOT = ("BTClibValueError: cannot finalize a taproot script path whose leaf script is "
+                 "neither",)
+
+
+def btclib_differs(raw, answer, final=btclib_final, tally=None):
+    """Costs btclib's finalizer, once for each input `answer` (Faraday's
+    finalized PSBT for `raw`) finalizes: None when btclib gives the
+    final scriptSig and witness Faraday did, else what differs. Counts
+    how many inputs btclib judged and how many it cannot finalize
+    (`BTCLIB_CANNOT`) in `tally`."""
+    tally = tally if tally is not None else {}
+    _, before, _, _ = parse(raw)
+    _, after, _, _ = parse(answer)
+    for i, (b, a) in enumerate(zip(before, after)):
+        if any(k[0] in (0x07, 0x08) for k, _ in b):
+            continue
+        sig = next((v for k, v in a if k[0] == 0x07), b"")
+        wit = next((v for k, v in a if k[0] == 0x08), None)
+        if wit is None and not sig:
+            continue
+        got = final(raw, i, sig, Witness.parse(wit, check_validity=False).stack if wit else None)
+        mine = ["ok", sig.hex(), (wit if wit is not None else b"\x00").hex()]
+        if got[0] == "err" and got[1].startswith(BTCLIB_CANNOT):
+            tally["unable"] = tally.get("unable", 0) + 1
+            continue
+        tally["judged"] = tally.get("judged", 0) + 1
+        if got != mine:
+            return (i, mine, got)
+    return None
+
+
 def core_accepts(tx_hex):
     """Costs a request to Bitcoin Core (testmempoolaccept): None when Core
     would take the transaction into its mempool, else its reason."""
@@ -999,7 +1072,9 @@ class Sign(Area):
         "Core's `script.py` sighashes; python-ecdsa (the distribution's package) and btclib "
         "(`btclib/`, its own curve) as a second curve lineage, beside them: every ECDSA "
         "signature again under plain RFC 6979 or verified, every BIP-340 signature verified "
-        "and made again; python-bip380 (`miniscript/`) reads the leaves. "
+        "and made again; btclib-wallet's finalizer (`psbt.finalize` with its miniscript solver) "
+        "finalizes every input Faraday finalizes again and gives the same scriptSig and witness; "
+        "python-bip380 (`miniscript/`) reads the leaves. "
         "Faraday's refusals and the inputs a wallet's rule leaves unsigned are ours, in "
         "`area_sign.py`"
     )
@@ -1074,6 +1149,15 @@ class Sign(Area):
             'before Core finalizes, and counts each input Core would otherwise have '
             'finalized another way.'
         ),
+        (
+            "btclib's finalizer writes no taproot leaf that is neither a single key nor "
+            '`multi_a`, and refuses to choose among leaves a PSBT signs: an input of another '
+            "leaf is judged by Core alone (counted as a known difference), and btclib is "
+            "given only the signatures of the leaf Faraday spent. It writes a plain multisig "
+            "from the smallest m signatures on hand where Core and Faraday write the first m "
+            "signers': btclib is given only the signatures Faraday's input carries, so it "
+            "judges the script written from them and Core judges which were chosen."
+        ),
     ]
     not_compared = (
         'none'
@@ -1087,6 +1171,7 @@ class Sign(Area):
     def __init__(self, *a):
         super().__init__(*a)
         self.known = 0
+        self.btclib = {}
         self.real = False
         self.collecting = False
         self.finals = {}
@@ -1165,6 +1250,16 @@ class Sign(Area):
         a, b = norm(theirs), norm(ref)
         if a[0] != b[0] or (a[0] == "ok" and a != b):
             raise Mismatch(self.name, "sign.finalize", {"psbt": raw.hex()}, theirs, ref)
+        if a[0] == "ok":
+            # btclib's finalizer, beside Core's: the same scriptSig and witness
+            # for every input Faraday finalizes
+            self.compared += 1
+            unable = self.btclib.get("unable", 0)
+            found = btclib_differs(raw, bytes.fromhex(theirs[1]["psbt"]), tally=self.btclib)
+            self.known += self.btclib.get("unable", 0) - unable
+            if found:
+                raise Mismatch(self.name, "sign.finalize", {"psbt": raw.hex(), "input": found[0]},
+                               tuple(found[1]), tuple(found[2]), "btclib's finalizer differs")
         if self.real and a[0] == "ok" and theirs[1]["tx"]:
             reason = core_accepts(theirs[1]["tx"])
             self.compared += 1

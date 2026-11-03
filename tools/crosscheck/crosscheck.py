@@ -152,6 +152,8 @@ def run_batch(req, alternative):
         finally:
             area.close()
         result.update(status="pass", compared=area.compared, known=area.known)
+        if hasattr(area, "btclib"):
+            result["judged"] = area.btclib.get("judged", 0)
         if req["part"] not in ("prelude", "coda"):
             result["cases"] = req["hi"] - req["lo"]
         if req["part"].startswith("fund:"):
@@ -305,6 +307,8 @@ def merge(batches, results, area):
         if r["status"] == "pass":
             out["compared"] += r["compared"]
             out["known"] += r["known"]
+            if "judged" in r:
+                out["judged"] = out.get("judged", 0) + r["judged"]
             out["cases"] += r.get("cases", 0)
             continue
         for key in ("status", "report", "op", "inputs", "rust", "reference", "case"):
@@ -608,6 +612,7 @@ class Progress:
             self.log(f"{area}: done, {a['cases_done']} of {a['cases_total']} cases, "
                      f"{r['compared']} answers agree"
                      + (f", {r['known']} of them a known difference" if r["known"] else "")
+                     + (f", btclib judged {r['judged']} inputs" if "judged" in r else "")
                      + f" ({work} of work)")
         else:
             self.log(f"{area}: {r['status'].upper()}{case_words(r.get('case'))}, stopped there "
@@ -934,7 +939,13 @@ def run(args, areas, jobs, only, seed, scale, core):
         cases[area] = r["cases"]
         if r["status"] == "pass":
             known = f", {r['known']} of them a known difference" if r.get("known") else ""
-            report.append(f"  {area}: {r['compared']} answers agree{known} ({r['seconds']} s)")
+            judged = f", btclib judged {r['judged']} inputs" if "judged" in r else ""
+            report.append(f"  {area}: {r['compared']} answers agree{known}{judged}"
+                          f" ({r['seconds']} s)")
+            if r.get("judged") == 0 and not args.case:
+                # The second finalizer judged nothing: the comparison did not run.
+                failed = True
+                report.append(f"  {area}: FAILED, btclib judged no input of the whole area")
         else:
             failed = True
             report.append(f"  {area}: {r['status'].upper()} after {r['seconds']} s")

@@ -83,7 +83,7 @@ reason = "A unit on the amount calculator; it names no standard."
 id = "psbt-v0"
 section = 4                  # STANDARDS §2 to §5
 what = "PSBT v0 (`core/faraday-psbt`)"
-completeness = "Signs every wallet kind above; the finalizer is written here"
+completeness = "Signs every wallet kind above; miniscript finalizes, and Faraday chooses the smallest witness"
 standard_note = "…"          # optional: a sentence after the standards its actions name
 
 # A row that describes other rows' actions as well: its cells are theirs.

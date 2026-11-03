@@ -5382,6 +5382,10 @@ strings! {
     psbt_reason_unknown_script: "unknown script type",
     /// Why an input is not signed or finished: a taproot input states no internal key.
     psbt_reason_no_internal_key: "taproot input without tap_internal_key",
+    /// Why an input is not signed or finished: a p2wsh multisig input that states a redeem_script.
+    psbt_reason_stray_redeem_script: "p2wsh input with a redeem_script",
+    /// Why an input is not signed or finished: a p2sh multisig input that states a witness_script.
+    psbt_reason_stray_witness_script: "p2sh input with a witness_script",
     /// Why an input is not signed or finished: a redeem script too long to push.
     psbt_reason_redeem_too_long: "redeem script too long",
     /// Why an input is not signed or finished: a MuSig2 participants field that does not read.

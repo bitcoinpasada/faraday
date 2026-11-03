@@ -3,12 +3,12 @@
 //! fields as BIP-174 requires, and extract the transaction when every
 //! input is final.
 //!
-//! `bitcoin` has no finalizer (that lives in `miniscript`), so this is
-//! in-house for single-sig and plain multisig; it is checked against the
-//! BIP-174 finalizer and extractor vectors.
+//! `bitcoin` has no finalizer (that lives in `miniscript`); it is checked
+//! against the BIP-174 finalizer and extractor vectors.
 //!
-//! A miniscript or taproot-tree input is finalized by `miniscript`'s own
-//! finalizer ([`miniscript::psbt::PsbtExt::finalize_inp_mut`]), which
+//! Every input of a supported script (pk-hash and witness pk-hash, plain
+//! and `sh`-wrapped, multisig under `sh`, `wsh` and `sh(wsh)`, miniscript,
+//! taproot) is finalized by `miniscript`'s own finalizer ([`miniscript::psbt::PsbtExt::finalize_inp_mut`]), which
 //! reads the satisfaction out of the PSBT's own fields and runs the
 //! interpreter over the witness it builds. That check is where a
 //! timelock the transaction does not meet, or a cosigner's missing
@@ -18,8 +18,11 @@
 //!
 //! For a `wsh` or `sh(wsh)` miniscript, which of several satisfactions
 //! the witness carries is then chosen again by the real size of its
-//! signatures ([`smallest`]), and that witness, where it differs, goes
-//! through the same interpreter check.
+//! signatures ([`smallest`]; a `multi` inside it keeps its k smallest).
+//! A plain multisig, under any wrapper, carries the signatures of the
+//! first m keys that signed, as Bitcoin Core writes it. Each result,
+//! where it differs from `miniscript`'s, goes through the same
+//! interpreter check.
 //!
 //! For a taproot script path, which leaf the witness spends is chosen
 //! by the real size of the witness each leaf gives ([`by_leaf`]).
@@ -27,6 +30,7 @@
 mod smallest;
 
 use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 
 use bitcoin::opcodes::OP_0;
@@ -35,7 +39,7 @@ use bitcoin::script::{Builder, PushBytesBuf};
 use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
 use bitcoin::sighash::Prevouts;
 use bitcoin::taproot::ControlBlock;
-use bitcoin::{PublicKey, ScriptBuf, Transaction, Witness, ecdsa};
+use bitcoin::{PublicKey, ScriptBuf, Transaction, TxOut, Witness};
 use miniscript::psbt::PsbtExt;
 use miniscript::{ExtParams, Interpreter, Miniscript, Segwitv0, Tap, Terminal};
 
@@ -45,6 +49,9 @@ use crate::reason::Reason;
 
 /// Whether every input is final or has enough signatures to be finalized.
 pub fn is_complete(psbt: &Psbt) -> bool {
+    if prevout_missing(psbt.inner()).is_some() {
+        return false;
+    }
     (0..psbt.inner().inputs.len()).all(|i| {
         let input = &psbt.inner().inputs[i];
         if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
@@ -59,6 +66,17 @@ pub fn is_complete(psbt: &Psbt) -> bool {
 /// extracted transaction when all inputs are final, `None` when some are
 /// still waiting for signatures.
 pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
+    // `miniscript`'s finalizer reads the spent output of every input
+    // before it finalizes one, and `bitcoin`'s extractor does the same
+    // for the fee; both index a `non_witness_utxo` unchecked and panic
+    // on a missing output. So no input is touched until every one is
+    // known to have its spent output.
+    if let Some(input) = prevout_missing(psbt.inner()) {
+        return Err(Error::Finalize {
+            input,
+            reason: Reason::PrevTxNoOutput,
+        });
+    }
     let mut all_final = true;
     for i in 0..psbt.inner().inputs.len() {
         let input = &psbt.inner().inputs[i];
@@ -81,7 +99,9 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
                 let input = &mut psbt.inner_mut().inputs[i];
                 input.final_script_sig = script_sig;
                 input.final_script_witness = witness;
-                // BIP-174: keep the UTXO and unknown fields, clear the rest.
+                // BIP-174 keeps the UTXO and unknown fields and clears the
+                // rest; proprietary fields are cleared too, which it does not
+                // require keeping.
                 input.partial_sigs.clear();
                 input.sighash_type = None;
                 input.redeem_script = None;
@@ -94,6 +114,10 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
                 input.tap_internal_key = None;
                 input.tap_merkle_root = None;
                 input.proprietary.clear();
+                input.ripemd160_preimages.clear();
+                input.sha256_preimages.clear();
+                input.hash160_preimages.clear();
+                input.hash256_preimages.clear();
             }
             None => all_final = false,
         }
@@ -101,24 +125,18 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
     if !all_final {
         return Ok(None);
     }
-    // An input final when it arrived is not classified above. `bitcoin`'s
-    // extractor reads every input's spent output for the fee and treats
-    // a `non_witness_utxo` without the spent output as unreachable (it
-    // panics), so that input is refused here first.
-    let inner = psbt.inner();
-    if let Some(input) = (0..inner.inputs.len())
-        .find(|&i| inner.inputs[i].non_witness_utxo.is_some() && spent_output(inner, i).is_none())
-    {
-        return Err(Error::Finalize {
-            input,
-            reason: Reason::PrevTxNoOutput,
-        });
-    }
     psbt.inner()
         .clone()
         .extract_tx()
         .map(Some)
         .map_err(|e| Error::Extract(e.to_string()))
+}
+
+/// The first input that states no `witness_utxo` and whose
+/// `non_witness_utxo` lacks the output spent, `None` when there is none.
+fn prevout_missing(inner: &bitcoin::Psbt) -> Option<usize> {
+    (0..inner.inputs.len())
+        .find(|&i| inner.inputs[i].non_witness_utxo.is_some() && spent_output(inner, i).is_none())
 }
 
 /// Whether `pk` is the key the input's script pays to (single-sig) or one
@@ -155,91 +173,38 @@ fn build_final(
         input: index,
         reason,
     };
-    let single = || {
-        input
-            .partial_sigs
-            .iter()
-            .find(|(pk, _)| key_in_script(c, input, pk))
-            .map(|(pk, sig)| (*pk, *sig))
-    };
     Ok(match c.kind {
-        ScriptKind::P2pkh => single().map(|(pk, sig)| {
-            let script = Builder::new()
-                .push_slice(push(&sig))
-                .push_key(&pk)
-                .into_script();
-            (Some(script), None)
-        }),
-        ScriptKind::P2wpkh => {
-            single().map(|(pk, sig)| (None, Some(Witness::p2wpkh(&sig, &pk.inner))))
-        }
-        ScriptKind::P2shP2wpkh => match single() {
-            Some((pk, sig)) => {
-                let redeem = input
-                    .redeem_script
-                    .as_ref()
-                    .expect("classified as p2sh-p2wpkh");
-                Some((
-                    Some(push_script(redeem).ok_or(index_err(Reason::RedeemScriptTooLong))?),
-                    Some(Witness::p2wpkh(&sig, &pk.inner)),
-                ))
-            }
-            None => None,
-        },
-        ScriptKind::P2trKey => input
-            .tap_key_sig
-            .map(|sig| (None, Some(Witness::p2tr_key_spend(&sig)))),
-        ScriptKind::Multisig { wrapper, .. } => {
-            let ms = c
-                .multisig
+        ScriptKind::P2pkh | ScriptKind::P2wpkh => satisfy(psbt, index),
+        ScriptKind::P2shP2wpkh => {
+            let redeem = input
+                .redeem_script
                 .as_ref()
-                .expect("multisig kind carries the script");
-            let sigs: Vec<ecdsa::Signature> = ms
-                .keys
-                .iter()
-                .filter_map(|k| input.partial_sigs.get(k).copied())
-                .take(ms.m)
-                .collect();
-            if sigs.len() < ms.m {
-                return Ok(None);
+                .expect("classified as p2sh-p2wpkh");
+            push_script(redeem).ok_or(index_err(Reason::RedeemScriptTooLong))?;
+            satisfy(psbt, index)
+        }
+        ScriptKind::P2trKey => input.tap_key_sig.and_then(|sig| {
+            let found = (None, Some(Witness::p2tr_key_spend(&sig)));
+            // The key-path signature is checked like any witness.
+            let utxo = c.utxo.as_ref()?;
+            accepted(psbt, index, utxo, &found).then_some(found)
+        }),
+        ScriptKind::Multisig { wrapper, .. } => {
+            let redeem = input.redeem_script.as_ref();
+            if matches!(wrapper, Wrapper::P2sh | Wrapper::P2shP2wsh)
+                && redeem.is_some_and(|r| push_script(r).is_none())
+            {
+                return Err(index_err(Reason::RedeemScriptTooLong));
             }
-            match wrapper {
-                Wrapper::P2sh => {
-                    let redeem = input.redeem_script.as_ref().expect("classified as p2sh");
-                    let mut b = Builder::new().push_opcode(OP_0);
-                    for sig in &sigs {
-                        b = b.push_slice(push(sig));
-                    }
-                    let script = b
-                        .push_slice(
-                            PushBytesBuf::try_from(redeem.to_bytes())
-                                .map_err(|_| index_err(Reason::RedeemScriptTooLong))?,
-                        )
-                        .into_script();
-                    Some((Some(script), None))
-                }
-                Wrapper::P2wsh | Wrapper::P2shP2wsh => {
-                    let ws = input.witness_script.as_ref().expect("classified as p2wsh");
-                    let mut elements: Vec<Vec<u8>> = Vec::with_capacity(sigs.len() + 2);
-                    elements.push(Vec::new());
-                    elements.extend(sigs.iter().map(|s| s.to_vec()));
-                    elements.push(ws.to_bytes());
-                    let witness = Witness::from_slice(&elements);
-                    let script_sig = match wrapper {
-                        Wrapper::P2shP2wsh => {
-                            let redeem = input
-                                .redeem_script
-                                .as_ref()
-                                .expect("classified as p2sh-p2wsh");
-                            Some(
-                                push_script(redeem)
-                                    .ok_or(index_err(Reason::RedeemScriptTooLong))?,
-                            )
-                        }
-                        _ => None,
-                    };
-                    Some((script_sig, Some(witness)))
-                }
+            match satisfy(psbt, index) {
+                Some(chosen) => Some(by_size(psbt, index, c, chosen)),
+                // `miniscript` takes the k smallest signatures and its
+                // check fails if one of them is invalid; Core takes the
+                // first m signers', so those are tried alone.
+                None => c.utxo.as_ref().and_then(|utxo| {
+                    let found = first_signers(c, input, wrapper, &(None, None))?;
+                    accepted(psbt, index, utxo, &found).then_some(found)
+                }),
             }
         }
         ScriptKind::Miniscript { .. } => {
@@ -357,56 +322,119 @@ fn compact_size(n: usize) -> usize {
     }
 }
 
-/// Costs one signature check per signature when the witness changes
-/// (the interpreter's): a `wsh` or `sh(wsh)` miniscript input's final
-/// witness as [`smallest`] chooses it, in place of the one `miniscript`
-/// built, `chosen`.
+/// Costs one signature check per signature when the final fields change
+/// (the interpreter's): the signatures of the final fields as Bitcoin
+/// Core's `finalizepsbt` chooses them, in place of the ones `miniscript`
+/// built, `chosen`: a `wsh` or `sh(wsh)` miniscript's by [`smallest`]; a
+/// plain multisig's, under any wrapper, those of the first m keys that
+/// signed (Core does not choose among a multisig's signatures by size).
 ///
-/// Only the stack before the witness script changes. The new witness
-/// is taken only if `miniscript`'s interpreter accepts it for this
-/// input; otherwise, as when the choice is the same, `chosen` stands,
-/// so which inputs are finalized is `miniscript`'s answer alone.
+/// Only the signatures change. The new fields are taken only if
+/// `miniscript`'s interpreter accepts them for this input; otherwise, as
+/// when the choice is the same, `chosen` stands, so which inputs are
+/// finalized is `miniscript`'s answer alone.
 fn by_size(psbt: &bitcoin::Psbt, index: usize, c: &Classified, chosen: Final) -> Final {
-    let (script_sig, Some(witness)) = &chosen else {
+    let Some(utxo) = &c.utxo else {
         return chosen;
     };
-    let (Some(utxo), Some(ws)) = (&c.utxo, &psbt.inputs[index].witness_script) else {
-        return chosen;
+    let input = &psbt.inputs[index];
+    let candidate = match (&c.kind, &input.witness_script, &chosen.1) {
+        (ScriptKind::Multisig { wrapper, .. }, _, _) => first_signers(c, input, *wrapper, &chosen),
+        (_, Some(ws), Some(witness)) => by_size_witness(psbt, index, ws, witness)
+            .map(|candidate| (chosen.0.clone(), Some(candidate))),
+        _ => None,
     };
-    let Ok(ms) = Miniscript::<PublicKey, Segwitv0>::parse_with_ext(ws, &ExtParams::allow_all())
-    else {
-        return chosen;
-    };
-    let Some(mut stack) = smallest::stack(psbt, index, &ms) else {
-        return chosen;
-    };
+    match candidate {
+        Some(found) if found != chosen && accepted(psbt, index, utxo, &found) => found,
+        _ => chosen,
+    }
+}
+
+/// The witness for a `wsh` miniscript input with [`smallest`]'s
+/// signatures, `None` where it is the one `miniscript` built.
+fn by_size_witness(
+    psbt: &bitcoin::Psbt,
+    index: usize,
+    ws: &ScriptBuf,
+    witness: &Witness,
+) -> Option<Witness> {
+    let ms = Miniscript::<PublicKey, Segwitv0>::parse_with_ext(ws, &ExtParams::allow_all()).ok()?;
+    let mut stack = smallest::stack(psbt, index, &ms)?;
     let elements: Vec<Vec<u8>> = witness.iter().map(<[u8]>::to_vec).collect();
     if elements.last() != Some(&ws.to_bytes()) || elements[..elements.len() - 1] == stack[..] {
-        return chosen;
+        return None;
     }
     stack.push(ws.to_bytes());
-    let candidate = Witness::from_slice(&stack);
+    Some(Witness::from_slice(&stack))
+}
+
+/// Costs one signature check per signature (the interpreter's, in
+/// [`accepted`]): a plain multisig input's final fields with the
+/// signatures of the first m keys that signed, in key order, as Bitcoin
+/// Core writes them; `chosen` supplies the scriptSig of a `wsh` wrapper.
+fn first_signers(c: &Classified, input: &Input, wrapper: Wrapper, chosen: &Final) -> Option<Final> {
+    let ms = c.multisig.as_ref()?;
+    let sigs: Vec<Vec<u8>> = ms
+        .keys
+        .iter()
+        .filter_map(|k| input.partial_sigs.get(k).map(|s| s.to_vec()))
+        .take(ms.m)
+        .collect();
+    if sigs.len() < ms.m {
+        return None;
+    }
+    match wrapper {
+        Wrapper::P2sh => {
+            let redeem = input.redeem_script.as_ref()?;
+            let mut b = Builder::new().push_opcode(OP_0);
+            for sig in sigs {
+                b = b.push_slice(PushBytesBuf::try_from(sig).ok()?);
+            }
+            let script_sig = b
+                .push_slice(PushBytesBuf::try_from(redeem.to_bytes()).ok()?)
+                .into_script();
+            Some((Some(script_sig), None))
+        }
+        Wrapper::P2wsh | Wrapper::P2shP2wsh => {
+            let ws = input.witness_script.as_ref()?;
+            let mut elements: Vec<Vec<u8>> = vec![Vec::new()];
+            elements.extend(sigs);
+            elements.push(ws.to_bytes());
+            let script_sig = match wrapper {
+                Wrapper::P2shP2wsh => Some(push_script(input.redeem_script.as_ref()?)?),
+                _ => chosen.0.clone(),
+            };
+            Some((script_sig, Some(Witness::from_slice(&elements))))
+        }
+    }
+}
+
+/// Costs one signature check per signature of the final fields: whether
+/// `miniscript`'s interpreter accepts them for the input.
+fn accepted(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut, fields: &Final) -> bool {
     let empty = ScriptBuf::new();
-    let sig = script_sig.as_ref().unwrap_or(&empty);
+    let sig = fields.0.as_ref().unwrap_or(&empty);
+    let witness = fields.1.clone().unwrap_or_default();
     let tx = &psbt.unsigned_tx;
     let Ok(interpreter) = Interpreter::from_txdata(
         &utxo.script_pubkey,
         sig,
-        &candidate,
+        &witness,
         tx.input[index].sequence,
         tx.lock_time,
     ) else {
-        return chosen;
+        return false;
     };
     let secp = Secp256k1::verification_only();
-    let prevouts = Prevouts::One(index, utxo);
-    if interpreter
+    // Taproot signs every spent output; the others only their own.
+    let all: Option<Vec<&TxOut>> = (0..tx.input.len()).map(|i| spent_output(psbt, i)).collect();
+    let prevouts = match &all {
+        Some(outs) => Prevouts::All(outs),
+        None => Prevouts::One(index, utxo),
+    };
+    interpreter
         .iter(&secp, tx, index, &prevouts)
-        .any(|step| step.is_err())
-    {
-        return chosen;
-    }
-    (script_sig.clone(), Some(candidate))
+        .all(|step| step.is_ok())
 }
 
 /// Whether a taproot leaf, read as a miniscript, checks a key by its
@@ -418,10 +446,6 @@ fn leaf_has_pkh(script: &ScriptBuf) -> bool {
     };
     ms.iter()
         .any(|node| matches!(node.node, Terminal::PkH(_) | Terminal::RawPkH(_)))
-}
-
-fn push(sig: &ecdsa::Signature) -> PushBytesBuf {
-    PushBytesBuf::try_from(sig.to_vec()).expect("a signature is far below 520 bytes")
 }
 
 /// A scriptSig that pushes `script` as a single element.

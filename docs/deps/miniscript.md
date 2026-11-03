@@ -7,7 +7,7 @@ wallet, deriving its addresses, listing the ways it can be spent
 Tools › Miniscript.
 
 **Why this crate.** This project writes formats in-house where the code
-is short: BC-UR, the BIP-388 policy parser, the finalizer. Miniscript is
+is short: BC-UR and the BIP-388 policy parser. Miniscript is
 not short. Its type and correctness system (the base/verify/key/wrapped
 types, the malleability and safety analysis), its script encoding, and
 its satisfaction rules are each a specification in their own right, and
@@ -59,6 +59,22 @@ Command:
 `miniscript::descriptor::checksum::desc_checksum`, which works on the text and
 so serves BIP-392's `sp(..)` descriptors too; `verify_checksum` compares it with
 the eight characters after the last `#`.
+
+**The finalizer.** `faraday-psbt`'s finalizer
+(`PsbtExt::finalize_inp_mut`) builds the final scriptSig and witness of
+every script kind Faraday finalizes: pk-hash, witness pk-hash and
+`sh(wpkh)`, multisig under `sh`, `wsh` and `sh(wsh)`, a `wsh` or
+`sh(wsh)` miniscript, and a taproot key or script path. It infers the
+descriptor from the PSBT's own scripts (`get_descriptor`) and runs
+`miniscript`'s interpreter over the witness it builds. Faraday keeps in
+front of it the choice of the smallest satisfaction by real signature
+size for a miniscript (a `multi` inside it keeps its k smallest), and
+for a plain multisig, under any wrapper, the first m signers' signatures
+as Bitcoin Core writes them, each checked by the same interpreter; the taproot `pkh` leaf left off; and
+the finalizer run on a copy, so that the UTXO and unknown fields stay
+and the signing fields, the hash preimages and the proprietary fields are
+cleared (BIP 174 keeps the UTXO and unknown fields and clears the rest; it
+does not require proprietary fields kept).
 
 **What it is not used for.** Signing. A miniscript or taproot script-path
 input is read, its change is verified, and signing it returns

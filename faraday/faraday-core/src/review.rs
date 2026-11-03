@@ -313,6 +313,8 @@ pub(crate) fn reason_text(r: faraday_psbt::Reason) -> &'static str {
         R::UnknownScript => EN.psbt_reason_unknown_script,
         R::CodeSeparator => EN.sign_codeseparator,
         R::NoInternalKey => EN.psbt_reason_no_internal_key,
+        R::StrayRedeemScript => EN.psbt_reason_stray_redeem_script,
+        R::StrayWitnessScript => EN.psbt_reason_stray_witness_script,
         R::RedeemScriptTooLong => EN.psbt_reason_redeem_too_long,
         R::Musig(M::Participants) => EN.psbt_reason_musig_participants,
         R::Musig(M::EntryKey) => EN.psbt_reason_musig_entry_key,

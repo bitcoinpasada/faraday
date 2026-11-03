@@ -7,6 +7,7 @@
 
 mod bips;
 mod common;
+mod finalize_checks;
 mod fixtures;
 mod inspect;
 mod leaf_wallet;

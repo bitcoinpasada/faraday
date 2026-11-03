@@ -41,6 +41,10 @@ pub enum Reason {
     CodeSeparator,
     /// A taproot input states no internal key.
     NoInternalKey,
+    /// A `wsh` multisig input that also states a redeem script.
+    StrayRedeemScript,
+    /// An `sh` multisig input that also states a witness script.
+    StrayWitnessScript,
     /// A redeem script too long to push.
     RedeemScriptTooLong,
     /// A MuSig2 field that could not be read.

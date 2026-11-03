@@ -232,6 +232,35 @@ class SignParticipation(unittest.TestCase):
         self.assertEqual(A.policy(raw, masters, [wallet])[2], set())
 
 
+class BtclibFinalizer(unittest.TestCase):
+    """`area_sign` asks btclib's finalizer for the scriptSig and witness
+    of every input Faraday finalizes, and fails on a wrong answer."""
+
+    NAMES = ("finalize-or-b", "finalize-multi-smallest", "finalize-thresh-tie")
+
+    def vector(self, name, suffix=""):
+        import area_sign as A
+        text = (A.ROOT / f"tools/vectors/psbt/{name}{suffix}.psbt").read_text()
+        return A.base64.b64decode(text.strip())
+
+    def test_btclib_gives_faradays_final_scripts(self):
+        import area_sign as A
+        for name in self.NAMES:
+            tally = {}
+            self.assertIsNone(A.btclib_differs(self.vector(name), self.vector(name, "-final"),
+                                               tally=tally), name)
+            self.assertGreater(tally["judged"], 0, name)
+
+    def test_a_wrong_btclib_answer_is_found(self):
+        import area_sign as A
+        for name in self.NAMES:
+            def wrong(raw, i, sig=b"", spent=None):
+                got = A.btclib_final(raw, i, sig, spent)
+                return [got[0], got[1], got[2][:-2] + ("00" if got[2][-2:] != "00" else "01")]
+            found = A.btclib_differs(self.vector(name), self.vector(name, "-final"), final=wrong)
+            self.assertIsNotNone(found, name)
+
+
 class Bip39Words(unittest.TestCase):
     """`area_bip39` hands python-mnemonic its wordlists as `Words`: the
     same words, and `index` and `in` answer as the plain list's do."""

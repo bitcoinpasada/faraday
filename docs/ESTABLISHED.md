@@ -1,8 +1,8 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
-**Open:** the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
+**Open:** the timing fixes of §4.4 to §4.7; the switches (§5) but for the finalizer (§5.8); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
 it needs, and writes its own only where none exists or none fits its
@@ -303,7 +303,7 @@ below, D1 takes the action whose functions reach it, from the inventory.
 | The session's random generator: its seed and pool, and the mixing of a person's own randomness | `faraday/faraday-core/src/fresh.rs` | `fresh` | F178 | Faraday's own construction over SHA-256, labelled as not yet independently reviewed (`docs/OWN-RANDOMNESS.md` §2.3, F86). |
 | Dice, coin, card, hex and camera entropy accumulation and packing, and the mix of sources | `core/faraday-entropy` | `dice` | F178 | Faraday's own procedures over SHA-256; the card, camera and mix procedures are labelled as not yet independently reviewed (F158). |
 | PSBT inspection, signing orchestration and verification logic | `core/faraday-psbt` | `psbt-read` | F178 | What Faraday checks before it signs is Faraday's own rule; the PSBT format itself is rust-bitcoin's. |
-| The choice among a script's satisfactions by real signature size | `core/faraday-psbt/src/finalize.rs` | `finalize` | F178 | Faraday picks the smallest witness as Bitcoin Core's `finalizepsbt` does; miniscript builds and checks each witness. |
+| The choice among a script's satisfactions by real signature size | `core/faraday-psbt/src/finalize.rs` | `finalize` | F178 | For a miniscript Faraday picks the smallest witness as Bitcoin Core's `finalizepsbt` does; a plain multisig carries the first m signers' signatures, as Core writes them; miniscript builds and checks each witness. |
 | BIP-39 entry and display: words typed by pinyin, zhuyin, kana or hangul, the last word's candidates, the explorer's view of the checksum | `core/faraday-bip/src/bip39.rs` | `words-read` | F178 | How a person types and sees the words is Faraday's own. |
 
 ### 3.2 No established implementation
@@ -1121,7 +1121,10 @@ before D1 it stays "BIP-39 mnemonics (`faraday-bip::bip39`)".
   the same.
 - **Size.** One and a half to two days.
 
-### 5.8 The single-key and multisig finalizer (batch C6)
+### 5.8 The single-key and multisig finalizer (batch C6, built)
+
+
+**Built.** `build_final` calls miniscript's `finalize_inp_mut` for every script kind, with the interpreter check; a plain multisig carries the first m signers' signatures as Bitcoin Core writes them, and only a miniscript is given the smallest satisfaction by signature size. Area `sign` also asks btclib-wallet's finalizer for the scriptSig and witness of every input Faraday finalizes (batch X3, §9.7). What follows is the plan it was built from.
 
 - **Files.** `core/faraday-psbt/src/finalize.rs` (`build_final` and
   `push`).
@@ -1135,13 +1138,16 @@ before D1 it stays "BIP-39 mnemonics (`faraday-bip::bip39`)".
 - **cargo vet, deps page.** No change; `docs/deps/miniscript.md` adds
   the finalizer for every script kind.
 - **Kept in front.** The interpreter check on every witness; the choice
-  of the smallest satisfaction by real signature size, a `multi()`
-  keeping its k smallest signatures (§3.1), extended to legacy `sh`
-  multisig; the signatures under a taproot `pkh` leaf taken off as today;
+  of the smallest satisfaction by real signature size for a miniscript
+  (a `multi()` inside it keeping its k smallest signatures); a plain
+  multisig, under `sh`, `wsh` or `sh(wsh)`, carrying the first m
+  signers' signatures as Bitcoin Core's `finalizepsbt` writes them (§3.1);
+  the signatures under a taproot `pkh` leaf taken off as today;
   the finalizer run on a copy of the input, as `satisfy` does today,
-  because miniscript's `finalize_input` drops unknown and proprietary
-  fields: Faraday keeps those and clears the signing fields as BIP-174
-  requires.
+  because miniscript's `finalize_input` drops the unknown fields:
+  Faraday keeps the UTXO and unknown fields and clears the signing
+  fields and the hash preimages as BIP-174 requires, and the
+  proprietary fields too (BIP-174 does not require keeping them).
 - **Proof.** `tools/vectors/psbt` (BIP-174's finalizer and extractor
   vectors); area `sign` (Bitcoin Core's `finalizepsbt` and
   `testmempoolaccept`); the wallet fixtures
@@ -1731,7 +1737,7 @@ Reference's list of conditions.
 | C3 | The sealing's counter nonce removed | §5.9 | Built |
 | C4 | The RSA RNG adapter from `ChaCha20Rng`; tests re-pinned | §5.6 | Built |
 | C5 | X.509 from `x509-cert`, DER from `der`; trust entries for x509-cert and der_derive, flagset's exemption; with X2 | §5.7, §9.7 | 1.5 to 2 days, and X2's |
-| C6 | The single-key and multisig finalizer from miniscript; with X3 | §5.8, §9.7 | 1 to 2 days, and X3's |
+| C6 | The single-key and multisig finalizer from miniscript; with X3 | §5.8, §9.7 | Built, with X3 |
 | C7 | (The BIP-39 core: not a switch; kept, §5.5, §6.9) | §5.5 | None |
 | C8 | Base64 from `base64ct`, four copies | §5.10 | Built |
 | C9 | Hex from `base16ct`, one module; with X4 | §5.11, §9.7 | About half a day, and X4's |
@@ -1941,7 +1947,7 @@ not at all).
 | tx-decode | bitcoin; hex through base16ct (C9) | Core's framework | btclib's `Tx.parse`; Core's `decoderawtransaction`, with the known difference where bytes also read as a legacy transaction of no inputs (X15) | retired | outside |
 | psbt-review | bitcoin, miniscript; the change rule Faraday's | Core's `decodepsbt`, `analyzepsbt`, `deriveaddresses` | btclib's `update_psbt_output`, `index_of` and descriptor wallet (X16); Core's watch-only descriptor wallet, `ismine` and `ischange` (X17) | the change rule retired; the registered-wallet rule kept | outside-and-own |
 | wallet-files | bitcoin; serde_json behind Faraday's visitor (C11); base64ct (C8) | Core, btclib | CPython's `json` reading every file the area writes and refusing a duplicate key and a depth over 32 (X5); more real files from the wallets' published test suites (X30) | kept for the formats no outside reader covers; the refusing hook is Faraday's second version over CPython's parser | outside-and-own |
-| finalize | miniscript (C6), and Faraday's choice of the smallest witness | Core's `finalizepsbt`, `testmempoolaccept` | btclib's `psbt.finalize` with its miniscript solver, which also chooses among satisfactions (X3) | kept: the taproot `pkh` leaf left off, the fields BIP-174 keeps | outside-and-own |
+| finalize | miniscript (C6), and Faraday's choice of the smallest witness | Core's `finalizepsbt`, `testmempoolaccept` | btclib's `psbt.finalize` with its miniscript solver, which also chooses among satisfactions (X3, built; the leaf of a taproot input and a plain multisig's signatures stay Core's to judge) | kept: the taproot `pkh` leaf left off, the fields BIP-174 keeps | outside-and-own |
 | sign-ecdsa, sign-schnorr | libsecp256k1, bitcoin; Faraday's refusals | Core, python-ecdsa, btclib, BIP-340's reference | Core named as sharing the curve maths (X13) | kept: F136's and F141's refusals, the inputs a wallet's rule leaves unsigned | outside-and-own |
 | message-sign, message-verify | libsecp256k1; BIP-322 own (§3.2); base64ct (C8) | Core, btclib, btcd's `bip322`, python-ecdsa | Core named as sharing the curve maths (X13) | none | outside |
 | sweep-sign | libsecp256k1, bitcoin, miniscript's finalizer (C6) | Core, BIP-143's example | python-ecdsa's first-nonce signature byte for byte; btclib's signing and finalizing (X13) | none | outside |

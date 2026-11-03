@@ -10,6 +10,9 @@ use core::str::FromStr;
 use bitcoin::absolute::LockTime;
 use bitcoin::ecdsa::Signature;
 use bitcoin::hashes::Hash;
+use bitcoin::opcodes::OP_0;
+use bitcoin::opcodes::all::OP_CHECKMULTISIG;
+use bitcoin::script::{Builder, PushBytesBuf};
 use bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 use bitcoin::sighash::{EcdsaSighashType, SighashCache};
 use bitcoin::transaction::Version;
@@ -383,4 +386,95 @@ fn thresh_with_equal_signatures_satisfies_the_last_branches() {
         spend.finalize(&[(a, sig_a), (b, sig_b), (c, sig_c)]),
         vec![sig_c.to_vec(), sig_b.to_vec(), Vec::new()],
     );
+}
+
+/// A legacy `sh(multi(2,A,B,C))` input with all three signatures on
+/// hand, A's 72 bytes and the other two shorter: the scriptSig carries
+/// A's and B's, the first two keys', as Bitcoin Core's `finalizepsbt`
+/// writes it, though C's is shorter than A's.
+#[test]
+fn legacy_multisig_keeps_the_first_signers() {
+    let secp = Secp256k1::signing_only();
+    let (sb, b) = key(2);
+    let (sc, c3) = key(3);
+    // Everything the sighash covers, built for one candidate A: the
+    // redeem script, the previous transaction and the spending
+    // transaction that names it.
+    let build = |a: PublicKey| {
+        let redeem = Builder::new()
+            .push_int(2)
+            .push_key(&a)
+            .push_key(&b)
+            .push_key(&c3)
+            .push_int(3)
+            .push_opcode(OP_CHECKMULTISIG)
+            .into_script();
+        let prev = Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: Vec::new(),
+            output: vec![TxOut {
+                value: Amount::from_sat(100_000),
+                script_pubkey: ScriptBuf::new_p2sh(&redeem.script_hash()),
+            }],
+        };
+        let tx = Transaction {
+            version: Version::TWO,
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::new(prev.compute_txid(), 0),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+                witness: Witness::new(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(90_000),
+                script_pubkey: ScriptBuf::new_p2sh(&redeem.script_hash()),
+            }],
+        };
+        let hash = SighashCache::new(&tx)
+            .legacy_signature_hash(0, &redeem, EcdsaSighashType::All as u32)
+            .expect("one input");
+        (redeem, prev, tx, Message::from_digest(hash.to_byte_array()))
+    };
+    let (sa, a) = (2..=u8::MAX)
+        .map(key)
+        .filter(|(_, p)| *p != b && *p != c3)
+        .find(|(s, p)| {
+            let (_, _, _, msg) = build(*p);
+            Signature::sighash_all(secp.sign_ecdsa(&msg, s))
+                .to_vec()
+                .len()
+                == 72
+        })
+        .expect("about half the keys sign at 72 bytes");
+    let (redeem, prev, tx, msg) = build(a);
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(tx).expect("unsigned");
+    inner.inputs[0].non_witness_utxo = Some(prev);
+    inner.inputs[0].redeem_script = Some(redeem.clone());
+    inner.inputs[0].partial_sigs = [
+        (a, Signature::sighash_all(secp.sign_ecdsa(&msg, &sa))),
+        (b, Signature::sighash_all(secp.sign_ecdsa_low_r(&msg, &sb))),
+        (c3, Signature::sighash_all(secp.sign_ecdsa_low_r(&msg, &sc))),
+    ]
+    .into_iter()
+    .collect();
+    let sigs = inner.inputs[0].partial_sigs.clone();
+    assert_eq!(
+        sigs[&a].to_vec().len(),
+        72,
+        "the signature the key was picked for"
+    );
+    assert!(sigs[&b].to_vec().len() < 72 && sigs[&c3].to_vec().len() < 72);
+
+    let c = Compute::unchecked();
+    let mut psbt = Psbt::parse_bytes(&c, &inner.serialize()).expect("a PSBT");
+    let tx = finalize(&mut psbt).expect("finalizes").expect("final");
+    let want = Builder::new()
+        .push_opcode(OP_0)
+        .push_slice(PushBytesBuf::try_from(sigs[&a].to_vec()).expect("short"))
+        .push_slice(PushBytesBuf::try_from(sigs[&b].to_vec()).expect("short"))
+        .push_slice(PushBytesBuf::try_from(redeem.to_bytes()).expect("short"))
+        .into_script();
+    assert_eq!(tx.input[0].script_sig, want);
 }
