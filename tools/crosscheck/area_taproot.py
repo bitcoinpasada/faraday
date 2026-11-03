@@ -14,8 +14,8 @@ BIP-350 addresses).
   internal keys that are no point, odd leaf versions and 0x50 refused.
 - Every control block checked against its output key and leaf script
   (`ControlBlock::decode` and `verify_taproot_commitment`, which
-  `miniscript`'s finalizer and interpreter rest on), against BIP-341's
-  script-path rule written out here and against btcd's
+  `miniscript`'s finalizer and interpreter rest on), against btclib's
+  `check_output_pubkey` (pure Python, on its own curve) and against btcd's
   `txscript.ParseControlBlock` and `VerifyTaprootLeafCommitment` from a
   released btcd (`tools/reference/btcd/`, Go, decred's secp256k1); then
   the same block changed: its
@@ -23,13 +23,13 @@ BIP-350 addresses).
   branch hash, a branch hash dropped or added, the wrong leaf script,
   another output key, and lengths BIP-341 does not allow.
 
-BIP-341 leaves two rules to the text, written here as it states them: a
-leaf version is even, and is not 0x50 ("the annex... cannot be confused
-with a leaf version"); `taproot_construct` asserts the first and does not
-check the second. A control block is 33 + 32m bytes with m at most 128.
-btcd checks the lengths, the internal key as a point and the commitment and
-its parity, and hashes a leaf of version 0x50 like any other: that one rule
-stays the area's own, and btcd is not asked about a control block of that
+BIP-341 leaves two rules to the text: a leaf version is even, and is not
+0x50 ("the annex... cannot be confused with a leaf version");
+`taproot_construct` asserts the first and does not check the second. A
+control block is 33 + 32m bytes with m at most 128. btclib and btcd check
+the lengths, the internal key as a point and the commitment and its
+parity, and both hash a leaf of version 0x50 like any other: that one rule
+stays the area's own, and neither is asked about a control block of that
 version. Where the two judges answer a control block differently, the area
 reports it.
 """
@@ -38,7 +38,20 @@ import functools
 import json
 
 from btcd_ref import Btcd
-from common import ROOT, Area, as_verify, reference, use_reference
+from common import ROOT, Area, as_verify, reference, use_reference, use_wheels
+
+use_wheels("btclib", [
+    "typing_extensions-4.16.0-py3-none-any.whl",
+    "ecc-2026.10.23-py3-none-any.whl",
+    "btclib-2026.10.24-py3-none-any.whl",
+    "btclib_wallet-2026.10.29-py3-none-any.whl",
+])
+from ecc import curves  # noqa: E402
+
+# btclib computes on its own pure-Python curve, never libsecp256k1's.
+curves.set_libsecp256k1_serving(serving=False)
+import btclib.script.taproot as btclib_taproot  # noqa: E402
+from btclib.script.taproot import check_output_pubkey  # noqa: E402
 
 use_reference("bip352", "secp256k1lab", "src")
 from secp256k1lab.secp256k1 import GE  # noqa: E402
@@ -47,17 +60,17 @@ use_reference("core")
 import test_framework.key as K  # noqa: E402
 import test_framework.script as S  # noqa: E402
 from test_framework import segwit_addr  # noqa: E402
-from test_framework.key import TaggedHash  # noqa: E402
-from test_framework.messages import ser_string  # noqa: E402
 from test_framework.script import CScript, taproot_construct  # noqa: E402
 
 # A tree's output key is worked out again for each of its control blocks
 # and each one changed: the same key tweaked by the same tweak, a point
-# multiplication each time. `tweak_add_pubkey` is a pure function of two
-# byte strings, and its answer a pair of bytes and a bool, or None:
-# kept answers are the answers it would compute again. `script.py`
-# calls it by the name it imported, so that name is pointed here too;
-# the reference's files are unchanged. About 1.6 times faster.
+# multiplication each time (in btclib's pure Python, the slow one).
+# `tweak_add_pubkey` is a pure function of two byte strings, and its
+# answer a pair of bytes and a bool, or None: kept answers are the
+# answers it would compute again. `script.py` calls it by the name it
+# imported, so that name is pointed here too, as is btclib's
+# `pub_key_tweak_add_var`, a pure function of a key and a tweak whose
+# refusals are not kept; the references' files are unchanged.
 _tweak_add_pubkey = K.tweak_add_pubkey
 _kept_tweak = functools.lru_cache(maxsize=1 << 14)(_tweak_add_pubkey)
 
@@ -69,6 +82,8 @@ def tweak_add_pubkey(key, tweak):
 
 
 K.tweak_add_pubkey = S.tweak_add_pubkey = tweak_add_pubkey
+btclib_taproot.pub_key_tweak_add_var = functools.lru_cache(maxsize=1 << 14)(
+    btclib_taproot.pub_key_tweak_add_var)
 
 TAPSCRIPT = 0xC0
 
@@ -129,30 +144,10 @@ def flat(items):
             yield from flat(item)
 
 
-def verify_control(output_key, control, script):
-    """BIP-341's script-path check: the control block's length, the leaf
-    hash, the branch hashes in order (each pair sorted), the tweak, and
-    the output key and its parity."""
-    if len(control) < 33 or (len(control) - 33) % 32 or (len(control) - 33) // 32 > 128:
-        raise Refused("a control block of the wrong length")
-    version = control[0] & 0xFE
-    if version == 0x50:
-        raise Refused("0x50 is not a leaf version")
-    internal = control[1:33]
-    try:
-        GE.from_bytes_xonly(internal)
-        GE.from_bytes_xonly(output_key)
-    except (ValueError, AssertionError) as e:
-        raise Refused("not a point") from e
-    k = TaggedHash("TapLeaf", bytes([version]) + ser_string(script))
-    for j in range((len(control) - 33) // 32):
-        e = control[33 + 32 * j:65 + 32 * j]
-        k = TaggedHash("TapBranch", k + e if k < e else e + k)
-    t = TaggedHash("TapTweak", internal + k)
-    q = tweak_add_pubkey(internal, t)
-    if q is None:
-        return {"valid": False}
-    return {"valid": q[0] == output_key and int(q[1]) == control[0] & 1}
+def btclib_verifies(output_key, control, script):
+    """btclib's `check_output_pubkey`, which refuses a malformed control block
+    and an internal key that is no point."""
+    return {"valid": check_output_pubkey(output_key, script, control)}
 
 
 class Taproot(Area):
@@ -165,13 +160,13 @@ class Taproot(Area):
         '`verify_taproot_commitment`'
     )
     reference = (
-        "Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; btcd v0.27.0's "
+        "Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py` for the trees; "
+        "btclib's `check_output_pubkey` (`btclib/`, on its own curve) and btcd v0.27.0's "
         '`txscript.ParseControlBlock` and `VerifyTaprootLeafCommitment` (`btcd/`, Go) for '
-        "the control blocks; BIP-341's script-path check written out in "
-        '`area_taproot.py`, and the rule that a leaf version is not 0x50, are ours'
+        'the control blocks; the rule that a leaf version is not 0x50 is ours'
     )
     reference_checked = (
-        'its vendored files and the vendored Go tree are hashed against '
+        'its vendored files, the btclib wheels and the vendored Go tree are hashed against '
         '`references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
         "Faraday; each of BIP-341's wallet vectors is checked against the reference "
@@ -184,14 +179,14 @@ class Taproot(Area):
         'trees of 0 to 12 leaves in random shapes with random scripts and leaf versions '
         'over random internal keys: leaf hashes, Merkle root, tweak, output key and '
         'parity, script, address, control blocks; each control block checked, then '
-        'changed eleven ways, each judged by Core\'s framework and by btcd; internal keys '
+        'changed eleven ways, each judged by btclib and by btcd; internal keys '
         'that are no point, odd leaf versions and 0x50 refused'
     )
     differences = [
         (
-            "btcd hashes a leaf of version 0x50 like any other, where BIP-341's text and "
-            'Faraday refuse it (the annex tag): a control block of that version is judged '
-            'by the area alone, and btcd is not asked'
+            "btclib and btcd hash a leaf of version 0x50 like any other, where BIP-341's "
+            'text and Faraday refuse it (the annex tag): a control block of that version is '
+            'judged by the area alone, and neither is asked'
         ),
     ]
     not_compared = (
@@ -212,20 +207,20 @@ class Taproot(Area):
         super().close()
 
     def judged(self, output_key, control, script):
-        """Core's framework's answer and btcd's. btcd hashes a leaf of version
-        0x50 like any other, so for that version only the area's own rule answers."""
-        core = as_verify(reference(lambda: verify_control(output_key, control, script)))
-        if core[0] != "ok" or control[:1] and control[0] & 0xFE == 0x50:
-            return core[1]
+        """btclib's answer and btcd's. Both hash a leaf of version 0x50 like any
+        other, so for that version only the area's own rule answers."""
+        if control[:1] and control[0] & 0xFE == 0x50:
+            return {"valid": False}
+        ours = as_verify(reference(lambda: btclib_verifies(output_key, control, script)))[1]
         if self.btcd_proc is None:
             self.btcd_proc = Btcd()
         said = self.btcd_proc.ask({"op": "control", "output_key": output_key.hex(),
                                    "control": control.hex(), "script": script.hex()})
         if "valid" not in said:
             raise AssertionError(f"btcd's program: {said}")
-        if said["valid"] != core[1]["valid"]:
-            return {"valid": core[1]["valid"], "judges_differ": {"core": core[1], "btcd": said}}
-        return core[1]
+        if said["valid"] != ours["valid"]:
+            return {"valid": ours["valid"], "judges_differ": {"btclib": ours, "btcd": said}}
+        return ours
 
     def verify(self, output_key, control, script):
         inputs = {"output_key": output_key.hex(), "control": control.hex(), "script": script.hex()}

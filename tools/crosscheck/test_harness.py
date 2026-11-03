@@ -12,7 +12,6 @@ written in Python. `crosscheck-identity.sh` runs the real areas with the
 Rust command under one and several workers and compares their reports.
 """
 
-import io
 import json
 import os
 import random
@@ -21,7 +20,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 import pathlib
 
@@ -29,24 +27,22 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import area_tx  # noqa: E402
-from area_tx import M, CTransaction  # noqa: E402
 
 
-def full_read(raw):
-    """`area_tx.read` without its early refusal: Core's reading in full."""
-    tx = CTransaction()
-    f = io.BytesIO(raw)
-    tx.deserialize(f)
-    if f.read() or tx.serialize() != raw:
-        raise area_tx.Refused(area_tx.NOT_EXACT)
-    return tx
+class TxJudges(unittest.TestCase):
+    """The tx area's judges are heard together: one judge's wrong answer
+    is a disagreement, whichever judge is wrong."""
 
+    def test_a_judge_that_differs_is_named(self):
+        ok = ("ok", "aa")
+        for named in ([("btclib", ("ok", "bb")), ("core", ok)],
+                      [("btclib", ok), ("core", ("err", "refused"))]):
+            self.assertIn("judges_differ", area_tx.agreed(named))
 
-def answer(fn, raw):
-    try:
-        return ("ok", fn(raw).serialize())
-    except Exception as e:  # noqa: BLE001 - every refusal is a refusal
-        return ("err", f"{type(e).__name__}: {e}")
+    def test_judges_that_agree_give_their_answer(self):
+        self.assertEqual(area_tx.agreed([("btclib", ("ok", "aa")), ("core", ("ok", "aa"))]), "aa")
+        with self.assertRaises(area_tx.Refused):
+            area_tx.agreed([("btclib", ("err", "x")), ("core", ("err", "y"))])
 
 
 class Corpus(area_tx.Tx):
@@ -54,58 +50,6 @@ class Corpus(area_tx.Tx):
 
     def __init__(self, seed):
         self.rng = random.Random(seed)
-
-
-def witness_from_locktime(tx, prefix):
-    """A transaction without witnesses with the segwit marker and flag
-    put after its version, so the witness is read from the locktime's
-    bytes onward and past the end, as the tx area's corpus does
-    (`raw[:4] + 00 01 + raw[4:]`); `prefix` is the locktime's bytes."""
-    tx.nLockTime = int.from_bytes(prefix, "little")
-    raw = tx.serialize_without_witness()
-    return raw[:4] + b"\x00\x01" + raw[4:]
-
-
-class TxRead(unittest.TestCase):
-    def setUp(self):
-        self.tx = Corpus("test-harness").random_tx()
-        self.tx.wit.vtxinwit = []
-
-    def test_a_stack_counted_in_millions_is_refused_at_once(self):
-        for prefix in (b"\xfe\xff\xff\xff", b"\xff\xff\xff\xff", b"\xfe\x00\x00\x01"):
-            raw = witness_from_locktime(self.tx, prefix)
-            started = time.monotonic()
-            self.assertEqual(answer(area_tx.read, raw), ("err", "Refused: " + area_tx.NOT_EXACT))
-            self.assertLess(time.monotonic() - started, 1.0)
-
-    def test_the_refusal_is_the_full_readings(self):
-        # Counts just past the transaction's length and up to a few
-        # thousand: the full reading finishes, and refuses alike.
-        raw0 = witness_from_locktime(self.tx, b"\x00\x00\x00\x00")
-        for count in (len(raw0) + 1, len(raw0) + 2, 300, 2999, 5000):
-            raw = witness_from_locktime(self.tx, b"\xfd" + count.to_bytes(2, "little") + b"\x00")
-            self.assertEqual(answer(area_tx.read, raw), answer(full_read, raw))
-            self.assertEqual(answer(area_tx.read, raw), ("err", "Refused: " + area_tx.NOT_EXACT))
-
-    def test_the_reading_is_unchanged_elsewhere(self):
-        # The tx area's corpus transactions and their cut, lengthened and
-        # marked forms, and counts read from a locktime under and over
-        # the length, read alike with and without the early refusal.
-        gen = Corpus("test-harness-corpus")
-        rng = random.Random("test-harness-mutations")
-        whole = M.deser_string_vector
-        for _ in range(400):
-            tx = gen.random_tx()
-            raw = tx.serialize()
-            forms = [raw, raw[:-rng.randint(1, min(10, len(raw)))], raw + b"\x00",
-                     raw[:4] + b"\x00\x01" + raw[4:]]
-            tx.wit.vtxinwit = []
-            count = rng.randrange(0, 2 * len(raw) + 4)
-            forms.append(witness_from_locktime(tx, b"\xfd" + count.to_bytes(2, "little") + b"\x00"))
-            forms.append(witness_from_locktime(tx, bytes([rng.randrange(0xfd)]) + rng.randbytes(3)))
-            for f in forms:
-                self.assertEqual(answer(area_tx.read, f), answer(full_read, f), f.hex())
-                self.assertIs(M.deser_string_vector, whole)
 
 
 # The sign area's corpus case 806 of seed 4fde5465b6aeebd4007b9500d6cbd4f7 at
@@ -315,6 +259,23 @@ class TaprootKept(unittest.TestCase):
         self.assertIs(T.S.tweak_add_pubkey, T.tweak_add_pubkey)
         with self.assertRaises(AssertionError):
             T.tweak_add_pubkey(b"short", tweaks[0])
+
+    def test_btclibs_kept_tweak_is_its_own(self):
+        import area_taproot as T
+        rng = random.Random("test-harness-taproot-btclib")
+        kept = T.btclib_taproot.pub_key_tweak_add_var
+        plain = kept.__wrapped__
+        keys = [T.K.compute_xonly_pubkey(rng.randbytes(32))[0] for _ in range(2)] + [bytes(32)]
+        tweaks = [rng.randrange(1, 2**255) for _ in range(2)] + [2**256 - 1]
+        for _ in range(2):
+            for k in keys:
+                for t in tweaks:
+                    def answer(fn):
+                        try:
+                            return fn(k, t)
+                        except Exception as e:  # noqa: BLE001
+                            return type(e)
+                    self.assertEqual(answer(kept), answer(plain))
 
 
 STAND_IN = r'''#!/usr/bin/env python3

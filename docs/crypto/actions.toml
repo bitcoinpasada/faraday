@@ -2189,7 +2189,7 @@ tests = [
   "core/faraday-bip/tests/all/bip387.rs::sorting_is_of_the_derived_keys",
 ]
 crosscheck = "taproot"
-independence = { class = "outside-and-own", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors; and `ParseControlBlock` and `VerifyTaprootLeafCommitment` of btcd v0.27.0, by the btcd developers", ours = "BIP-341's script-path check of a control block, written in `area_taproot.py`, and the rule that a leaf version is not 0x50, which btcd does not make" }
+independence = { class = "outside-and-own", author = "btclib's `check_output_pubkey`, by the btclib developers, on btclib's own curve; `ParseControlBlock` and `VerifyTaprootLeafCommitment` of btcd v0.27.0, by the btcd developers; and Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for the trees", ours = "the rule that a leaf version is not 0x50, which neither btclib nor btcd makes, written in `area_taproot.py`" }
 fuzz = [
   "policy",
 ]
@@ -4497,7 +4497,7 @@ tests = [
   "core/faraday-psbt/tests/all/inspect.rs::all_and_default_still_sign_with_nothing_held",
 ]
 crosscheck = "tx"
-independence = { class = "outside-and-own", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors", ours = "BIP-341's refusal of SIGHASH_SINGLE with no output and of a hash type it does not list, which the framework hashes anyway, written in `area_tx.py`" }
+independence = { class = "outside", author = "btclib's `sig_hash` (`legacy`, `segwit_v0` and `taproot`), by the btclib developers; and Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",
@@ -5201,7 +5201,7 @@ tests = [
   "faraday/faraday-core/tests/all/finish.rs::decode_refuses_an_amount_going_in_over_21_million_bitcoin",
 ]
 crosscheck = "tx"
-independence = { class = "outside-and-own", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors", ours = "the rule that a raw transaction is read only when its bytes are exactly the serialisation of what was read, where the framework reads past a short input, written in `area_tx.py`" }
+independence = { class = "outside-and-own", author = "btclib's `Tx.parse`, by the btclib developers; and Bitcoin Core v31.1's `decoderawtransaction`, by Bitcoin Core's contributors", ours = "the refusal of a transaction with no inputs, which neither judge makes (Core's `decoderawtransaction` reads bytes that begin with the marker `00 01` as a legacy transaction of no inputs), written in `area_tx.py`" }
 fuzz = ["transaction"]
 
 [action.secrets]
