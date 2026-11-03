@@ -30,6 +30,8 @@ faraday-boot = { path = "../faraday-boot" }
 # `pe_image` signs any image (`sign-any`); `release_sums` checks a
 # release's sums with faraday-pgp (F134).
 faraday-sb = { path = "../faraday-sb", features = ["sign-any"] }
+# The Starter's plist reader, included by path in the plist target.
+base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-payload = { path = "../faraday-payload" }
 # `gpt.rs` of the Starter shell is included by path and uses its api.

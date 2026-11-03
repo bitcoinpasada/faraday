@@ -115,10 +115,6 @@ file = "faraday/faraday-core/src/memory.rs"
 reason = "SHA-256 of an unsigned transaction (rust-bitcoin), the key of the signed-amount memory (F136); no F79 area runs it."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/quiz.rs"
-reason = "SHA-256 of the word indices, mixed with the clock, orders the words a quiz asks; makes no key."
-
-[[uncovered]]
 file = "faraday/faraday-core/src/receipt.rs"
 reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for a file's hash."
 

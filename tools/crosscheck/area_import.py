@@ -483,6 +483,8 @@ class Import(Area):
         "change scripts and every checksum; btclib-wallet 2026.10.29's BIP-32 (btclib's own "
         "curve) for every key, btclib 2026.10.24's SLIP-132 versions and addresses, and its "
         "`bms` for every key record's signature, made, verified and written byte for byte; "
+        "CPython's `json` for the value of every JSON file read and for a key named twice and "
+        "a nesting past 32 refused (those two rules are the reader's own, written beside it); "
         "the files are written in the area from each format's documentation, and the meaning "
         "of their fields is the area's"
     )
