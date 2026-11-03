@@ -9,7 +9,7 @@
 use crate::common::{hex, unhex};
 use faraday_bip::bitcoin::Network;
 use faraday_bip::bitcoin::bip32::Xpriv;
-use faraday_bip::slip39::{self, GroupSpec, Share, recover};
+use faraday_bip::slip39::{self, Ems, GroupSpec, Share, recover};
 use faraday_crypto::sha256;
 use faraday_crypto::work::Compute;
 use serde_json::Value;
@@ -654,4 +654,393 @@ fn a_word_is_found_by_its_first_four_letters() {
         assert_eq!(slip39::index_of(&w[..4]), Some(i));
         assert_eq!(slip39::candidates(w).collect::<Vec<_>>(), vec![i]);
     }
+}
+
+// --- a set's EMS, a new set and a member at an index -----------------------
+
+/// The encrypted master secret behind a case's mnemonics, or the refusal.
+fn ems_of(mnemonics: &[String]) -> Result<Ems, slip39::Error> {
+    let mut shares = Vec::new();
+    for m in mnemonics {
+        shares.push(Share::parse(m)?);
+    }
+    slip39::recover_ems(&shares)
+}
+
+/// Every published set gives an EMS whose decryption under `TREZOR` is
+/// the vector's master secret, and every refused set is refused before
+/// any decryption: no passphrase is needed to tell a set is wrong.
+#[test]
+fn every_published_vector_gives_its_ems_or_is_refused_without_the_passphrase() {
+    let c = Compute::unchecked();
+    let mut recovered = 0;
+    let mut refused = 0;
+    for v in vectors() {
+        match (ems_of(&v.mnemonics), v.master_secret.is_empty()) {
+            (Ok(ems), false) => {
+                let secret = ems.decrypt(&c, PASSPHRASE).unwrap();
+                assert_eq!(
+                    hex(secret.expose().as_bytes()),
+                    v.master_secret,
+                    "{}",
+                    v.description
+                );
+                recovered += 1;
+            }
+            (Ok(_), true) => panic!("{}: accepted, should be refused", v.description),
+            (Err(_), true) => refused += 1,
+            (Err(e), false) => panic!("{}: refused with {e:?}", v.description),
+        }
+    }
+    assert_eq!((recovered, refused), (15, 30));
+}
+
+/// `ems` split into a new set by a stream from `seed`, under these groups.
+fn split_ems_to_shares(
+    ems: &Ems,
+    seed: u8,
+    group_threshold: u8,
+    groups: &[GroupSpec],
+) -> Vec<Share> {
+    let mut stream = Stream(seed);
+    let mut out: Vec<Share> = (0..64).map(|_| Share::default()).collect();
+    let n = slip39::split_ems(
+        ems,
+        group_threshold,
+        groups,
+        &mut |buf| stream.fill(buf),
+        &mut out,
+    )
+    .unwrap();
+    out.truncate(n);
+    out
+}
+
+/// The shapes a set is rotated into, and a quorum of each: 1 of 1, 3 of
+/// 5, and two of three groups.
+fn rotations() -> [(u8, Vec<GroupSpec>, Vec<usize>); 3] {
+    let g = |threshold, count| GroupSpec { threshold, count };
+    [
+        (1, vec![g(1, 1)], vec![0]),
+        (1, vec![g(3, 5)], vec![4, 1, 2]),
+        (2, vec![g(1, 1), g(2, 3), g(3, 5)], vec![2, 3, 5, 8, 6]),
+    ]
+}
+
+/// Rotating a set keeps the wallet: the EMS of a published set, split
+/// again into each shape, recovers under the same passphrase to the
+/// same master secret and root key.
+#[test]
+fn a_rotated_set_opens_the_same_wallet() {
+    let c = Compute::unchecked();
+    let mut rotated = 0;
+    for v in vectors().iter().filter(|v| !v.master_secret.is_empty()) {
+        let ems = ems_of(&v.mnemonics).unwrap();
+        for (seed, (group_threshold, groups, quorum)) in rotations().into_iter().enumerate() {
+            let shares = split_ems_to_shares(&ems, seed as u8 + 3, group_threshold, &groups);
+            assert!(shares.iter().all(|s| s.identifier() == ems.identifier()));
+            let chosen: Vec<Share> = quorum.iter().map(|&i| shares[i].clone()).collect();
+            let secret = recover(&c, &chosen, PASSPHRASE).unwrap();
+            assert_eq!(
+                hex(secret.expose().as_bytes()),
+                v.master_secret,
+                "{}",
+                v.description
+            );
+            let root = Xpriv::new_master(Network::Bitcoin, secret.expose().as_bytes()).unwrap();
+            assert_eq!(root.to_string(), v.xprv, "{}", v.description);
+            rotated += 1;
+        }
+    }
+    assert_eq!(rotated, 45);
+}
+
+/// An extendable set rotated under a new identifier opens the same
+/// wallet; a set without the flag is refused a new identifier, since its
+/// identifier is in the encryption, and one built by hand under another
+/// identifier would open another wallet.
+#[test]
+fn only_an_extendable_set_takes_a_new_identifier() {
+    let c = Compute::unchecked();
+    let mut extendable = 0;
+    let mut clear = 0;
+    for v in vectors().iter().filter(|v| !v.master_secret.is_empty()) {
+        let ems = ems_of(&v.mnemonics).unwrap();
+        let new_id = ems.identifier() ^ 0x0101;
+        if !ems.is_extendable() {
+            clear += 1;
+            assert_eq!(
+                ems.with_identifier(new_id).err(),
+                Some(slip39::Error::NotExtendable),
+                "{}",
+                v.description
+            );
+            continue;
+        }
+        extendable += 1;
+        let other = ems.with_identifier(new_id).unwrap();
+        assert_eq!(other.identifier(), new_id);
+        assert!(other.is_extendable());
+        assert_eq!(other.iteration_exponent(), ems.iteration_exponent());
+        let groups = [GroupSpec {
+            threshold: 2,
+            count: 3,
+        }];
+        let shares = split_ems_to_shares(&other, 5, 1, &groups);
+        assert!(shares.iter().all(|s| s.identifier() == new_id));
+        let secret = recover(&c, &shares[1..], PASSPHRASE).unwrap();
+        assert_eq!(
+            hex(secret.expose().as_bytes()),
+            v.master_secret,
+            "{}",
+            v.description
+        );
+        assert_eq!(
+            ems.with_identifier(1 << 15).err(),
+            Some(slip39::Error::InvalidParameters)
+        );
+    }
+    assert!(extendable > 0 && clear > 0);
+}
+
+/// The shares of `secret` from a stream of its own, under identifier
+/// 0x1234.
+fn split_from(seed: u8, secret: &[u8], group_threshold: u8, groups: &[GroupSpec]) -> Vec<Share> {
+    let c = Compute::unchecked();
+    let mut stream = Stream(seed);
+    let mut out: Vec<Share> = (0..64).map(|_| Share::default()).collect();
+    let n = slip39::split(
+        &c,
+        secret,
+        PASSPHRASE,
+        0x1234,
+        false,
+        0,
+        group_threshold,
+        groups,
+        &mut |buf| stream.fill(buf),
+        &mut out,
+    )
+    .unwrap();
+    out.truncate(n);
+    out
+}
+
+const THREE_OF_FIVE: [GroupSpec; 1] = [GroupSpec {
+    threshold: 3,
+    count: 5,
+}];
+
+/// A share added at an unused index joins the set: with any two of the
+/// old shares it recovers the same master secret.
+#[test]
+fn an_added_share_recovers_with_the_old_ones() {
+    let c = Compute::unchecked();
+    let secret = unhex("989baf9dcaad5b10ca33dfd8cc75e42477025dce88ae83e75a230086a0e00e92");
+    let shares = split_from(7, &secret, 1, &THREE_OF_FIVE);
+    for index in 5..16 {
+        let added = slip39::derive_member(&shares[1..4], index).unwrap();
+        assert_eq!(added.member_index(), index);
+        assert_eq!(added.member_threshold(), 3);
+        assert_eq!(added.identifier(), shares[0].identifier());
+        for pair in [[0, 4], [1, 2], [3, 4]] {
+            let chosen = [
+                added.clone(),
+                shares[pair[0]].clone(),
+                shares[pair[1]].clone(),
+            ];
+            let got = recover(&c, &chosen, PASSPHRASE).unwrap();
+            assert_eq!(got.expose().as_bytes(), &secret[..]);
+        }
+    }
+}
+
+/// A lost share made again from any quorum of the others is the lost
+/// share, word for word.
+#[test]
+fn a_replaced_share_is_the_lost_one_word_for_word() {
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let shares = split_from(7, &secret, 1, &THREE_OF_FIVE);
+    for lost in 0..5 {
+        let others: Vec<Share> = (0..5)
+            .filter(|&i| i != lost)
+            .map(|i| shares[i].clone())
+            .collect();
+        for skip in 0..4 {
+            let quorum: Vec<Share> = (0..4)
+                .filter(|&i| i != skip)
+                .map(|i| others[i].clone())
+                .collect();
+            let again = slip39::derive_member(&quorum, lost as u8).unwrap();
+            assert_eq!(again.indices(), shares[lost].indices());
+        }
+    }
+}
+
+/// In a set of groups, a share added to one group recovers with
+/// another group's quorum.
+#[test]
+fn a_share_added_to_a_group_recovers_with_the_other_groups() {
+    let c = Compute::unchecked();
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let groups = [
+        GroupSpec {
+            threshold: 2,
+            count: 3,
+        },
+        GroupSpec {
+            threshold: 3,
+            count: 5,
+        },
+    ];
+    let shares = split_from(11, &secret, 2, &groups);
+    let added = slip39::derive_member(&shares[3..6], 12).unwrap();
+    assert_eq!(added.group_index(), 1);
+    let chosen = [
+        shares[0].clone(),
+        shares[2].clone(),
+        added,
+        shares[7].clone(),
+        shares[5].clone(),
+    ];
+    let got = recover(&c, &chosen, PASSPHRASE).unwrap();
+    assert_eq!(got.expose().as_bytes(), &secret[..]);
+}
+
+/// A share is made only from a whole quorum of one group, at an index
+/// that is free, of a group that may have more than one share, and
+/// never from shares whose digest fails.
+#[test]
+fn a_share_is_not_made_from_a_wrong_quorum_or_at_a_taken_index() {
+    use slip39::Error as E;
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let shares = split_from(7, &secret, 1, &THREE_OF_FIVE);
+    let derive = |chosen: &[usize], index: u8| {
+        let given: Vec<Share> = chosen.iter().map(|&i| shares[i].clone()).collect();
+        slip39::derive_member(&given, index).err()
+    };
+    let short = E::WrongMemberCount {
+        group_index: 0,
+        needed: 3,
+        given: 2,
+    };
+    assert_eq!(derive(&[0, 1], 9), Some(short));
+    let long = E::WrongMemberCount {
+        group_index: 0,
+        needed: 3,
+        given: 4,
+    };
+    assert_eq!(derive(&[0, 1, 2, 3], 9), Some(long));
+    assert_eq!(derive(&[0, 1, 1], 9), Some(E::DuplicateMemberIndex));
+    assert_eq!(derive(&[0, 1, 2], 16), Some(E::MemberIndexOutOfRange));
+    assert_eq!(derive(&[0, 1, 2], 1), Some(E::MemberIndexTaken));
+    assert_eq!(slip39::derive_member(&[], 0).err(), Some(E::NoShares));
+
+    // Shares of two sets under one identifier: the digest fails.
+    let other = split_from(8, &secret, 1, &THREE_OF_FIVE);
+    let mixed = [shares[0].clone(), shares[1].clone(), other[2].clone()];
+    assert_eq!(slip39::derive_member(&mixed, 9).err(), Some(E::BadDigest));
+
+    // Two groups' shares, and a group of threshold 1.
+    let groups = [
+        GroupSpec {
+            threshold: 1,
+            count: 1,
+        },
+        GroupSpec {
+            threshold: 2,
+            count: 3,
+        },
+    ];
+    let two = split_from(11, &secret, 2, &groups);
+    let across = [two[0].clone(), two[1].clone()];
+    assert_eq!(
+        slip39::derive_member(&across, 9).err(),
+        Some(E::MixedGroups)
+    );
+    assert_eq!(
+        slip39::derive_member(&two[..1], 9).err(),
+        Some(E::SingleMemberGroup)
+    );
+}
+
+/// A set built from parts that no share could carry is refused.
+#[test]
+fn an_ems_is_not_built_from_parts_a_share_cannot_carry() {
+    use slip39::Error as E;
+    let ct = [7u8; 16];
+    assert!(Ems::new(0x7FFF, true, 15, &ct).is_ok());
+    assert_eq!(
+        Ems::new(1 << 15, true, 0, &ct).err(),
+        Some(E::InvalidParameters)
+    );
+    assert_eq!(Ems::new(1, true, 16, &ct).err(), Some(E::InvalidParameters));
+    assert_eq!(
+        Ems::new(1, true, 0, &[7u8; 14]).err(),
+        Some(E::InvalidSecretLength)
+    );
+    assert_eq!(
+        Ems::new(1, true, 0, &[7u8; 17]).err(),
+        Some(E::InvalidSecretLength)
+    );
+    assert_eq!(
+        Ems::new(1, true, 0, &[7u8; 34]).err(),
+        Some(E::InvalidSecretLength)
+    );
+}
+
+/// A new set of a shape SLIP-39 does not allow is refused, not a panic.
+#[test]
+fn a_new_set_of_a_bad_shape_is_refused() {
+    use slip39::Error as E;
+    let ems = Ems::new(0x0123, true, 0, &[9u8; 16]).unwrap();
+    let g = |threshold, count| GroupSpec { threshold, count };
+    let split = |gt: u8, groups: &[GroupSpec], room: usize| {
+        let mut stream = Stream(3);
+        let mut out: Vec<Share> = (0..room).map(|_| Share::default()).collect();
+        slip39::split_ems(&ems, gt, groups, &mut |buf| stream.fill(buf), &mut out).err()
+    };
+    assert!(split(1, &[g(2, 3)], 3).is_none());
+    assert!(split(0, &[g(2, 3)], 3).is_some());
+    assert!(split(1, &[g(4, 3)], 3).is_some());
+    assert!(split(1, &[g(0, 3)], 3).is_some());
+    assert!(split(2, &[g(2, 3)], 3).is_some());
+    assert!(split(1, &[], 3).is_some());
+    assert!(split(1, &[g(2, 3); 17], 64).is_some());
+    assert_eq!(split(1, &[g(2, 3)], 2), Some(E::OutputTooSmall));
+    assert_eq!(split(1, &[g(2, 3)], 0), Some(E::OutputTooSmall));
+    // A threshold of 1 over several members, and over several groups.
+    assert!(split(1, &[g(1, 3)], 3).is_some());
+    assert!(split(1, &[g(2, 3), g(1, 2)], 5).is_some());
+    assert!(split(1, &[g(1, 1)], 1).is_none());
+}
+
+/// A set at an exponent above the highest read is refused by each of the
+/// set functions, naming the exponent, and computes nothing.
+#[test]
+fn the_set_functions_refuse_an_exponent_above_the_highest_read() {
+    use slip39::Error as E;
+    let c = Compute::unchecked();
+    let exponent = slip39::MAX_READ_ITERATION_EXPONENT + 1;
+    let too_high = Some(E::IterationExponentTooHigh { exponent });
+    let ems = Ems::new(0x0123, true, exponent, &[9u8; 16]).unwrap();
+    assert_eq!(ems.decrypt(&c, PASSPHRASE).err(), too_high);
+    let mut stream = Stream(3);
+    let mut out = vec![Share::default(); 1];
+    let groups = [GroupSpec {
+        threshold: 1,
+        count: 1,
+    }];
+    assert_eq!(
+        slip39::split_ems(&ems, 1, &groups, &mut |buf| stream.fill(buf), &mut out).err(),
+        too_high
+    );
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let shares = split_from(7, &secret, 1, &THREE_OF_FIVE);
+    let forged: Vec<Share> = shares[..3]
+        .iter()
+        .map(|s| with_exponent(s, exponent))
+        .collect();
+    assert_eq!(slip39::recover_ems(&forged).err(), too_high);
+    assert_eq!(slip39::derive_member(&forged, 9).err(), too_high);
 }

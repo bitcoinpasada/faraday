@@ -187,13 +187,14 @@ website's Cryptography blocks are generated from it, and
 `docs/crypto/verified.py` fails an action with an area and no class.
 As of 2026-10-29:
 
-- **Outside:** `bip39`, `codex32`, `codex32-correct`, `slip39`, `musig`,
+- **Outside:** `bip39`, `codex32`, `codex32-correct`, `musig`,
   `sp`, `tx`, `ur`, `kdbx`, `bip85`, `miniscript`, the QR encoder in
   `seedqr`, `addr` (the address text by Core's framework, accounts'
   keys and SLIP-132 by btclib, their addresses by Core itself), and
   `bip32`'s derivation (btclib).
 - **Outside and own:** `bip32`'s strict reading
-  (which versions it takes), `vanity`'s search, ldk-node's key in
+  (which versions it takes), `slip39`'s new member (the refusals before
+  the arithmetic), `vanity`'s search, ldk-node's key in
   `lightning`, `psbt` (the whole reader and writer), `sign` (the
   signer, the finalizer, the leaf chosen, the refusals), `msg` (BIP-137
   and BIP-322 written out), `taproot`'s control-block check, the codex32

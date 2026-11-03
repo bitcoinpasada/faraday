@@ -6000,6 +6000,10 @@ functions = [
   "core/faraday-bip/src/slip39.rs::recover",
   "core/faraday-bip/src/slip39.rs::encrypt",
   "core/faraday-bip/src/slip39.rs::decrypt",
+  "core/faraday-bip/src/slip39.rs::Ems::decrypt",
+  "core/faraday-bip/src/slip39.rs::recover_ems",
+  "core/faraday-bip/src/slip39.rs::split_ems",
+  "core/faraday-bip/src/slip39.rs::derive_member",
   "core/faraday-bip/src/slip39.rs::Share::parse",
   "core/faraday-bip/src/slip39.rs::Share::from_indices",
   "faraday/faraday-keys/src/words.rs::slip39_split",
@@ -6027,9 +6031,19 @@ tests = [
   "core/faraday-bip/tests/all/slip39.rs::a_set_above_the_highest_iteration_exponent_read_is_refused",
   "core/faraday-bip/tests/all/slip39.rs::nothing_is_computed_above_the_highest_iteration_exponent_read",
   "core/faraday-bip/tests/all/slip39.rs::changing_one_word_of_a_share_is_refused",
+  "core/faraday-bip/tests/all/slip39.rs::every_published_vector_gives_its_ems_or_is_refused_without_the_passphrase",
+  "core/faraday-bip/tests/all/slip39.rs::a_rotated_set_opens_the_same_wallet",
+  "core/faraday-bip/tests/all/slip39.rs::only_an_extendable_set_takes_a_new_identifier",
+  "core/faraday-bip/tests/all/slip39.rs::an_added_share_recovers_with_the_old_ones",
+  "core/faraday-bip/tests/all/slip39.rs::a_replaced_share_is_the_lost_one_word_for_word",
+  "core/faraday-bip/tests/all/slip39.rs::a_share_added_to_a_group_recovers_with_the_other_groups",
+  "core/faraday-bip/tests/all/slip39.rs::a_share_is_not_made_from_a_wrong_quorum_or_at_a_taken_index",
+  "core/faraday-bip/tests/all/slip39.rs::an_ems_is_not_built_from_parts_a_share_cannot_carry",
+  "core/faraday-bip/tests/all/slip39.rs::a_new_set_of_a_bad_shape_is_refused",
+  "core/faraday-bip/tests/all/slip39.rs::the_set_functions_refuse_an_exponent_above_the_highest_read",
 ]
 crosscheck = "slip39"
-independence = { class = "outside", author = "python-shamir-mnemonic, by Trezor (SatoshiLabs), and bip39_slip39, by the btclib developers (shares read and combined, secrets split under the same random bytes, the passphrase cipher)" }
+independence = { class = "outside-and-own", author = "python-shamir-mnemonic, by Trezor (SatoshiLabs), and bip39_slip39, by the btclib developers (shares read and combined, secrets split under the same random bytes, the passphrase cipher, `recover_ems`, `split_ems` and `_interpolate`)", ours = "Faraday's refusals of a new member in `derive_refused` (`area_slip39.py`), written in front of the references, which have no function for them: shares of more than one group, an index outside 0 to 15, a group of threshold 1, a count other than the threshold, a repeated index, an index among the shares given" }
 fuzz = ["seed_parts"]
 
 [action.secrets]

@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23), not built; the decision, F88, is the owner's (2026-10-23)
-**Open:** all of it, batches S1 to S7 (§10), after the codex32 work (`docs/CODEX32.md` batches C1 and C4)
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8)
+**Open:** batches S2 to S7 (§10): the conversions, the screen, Practice
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -60,8 +60,9 @@ standard it is and which software restores it.
   (`core/faraday-bip/src/codex32/mod.rs`: parse, `from_seed`, `split`,
   `derive_share`, `recover`, `identifier_for`, 16 to 64 bytes), SLIP-39
   (`core/faraday-bip/src/slip39.rs`: `split`, `recover`, `encrypt`,
-  `decrypt`; 16 to 32 bytes; extendable flag and iteration exponent as
-  parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`).
+  `decrypt`, and the set functions `recover_ems`, `split_ems`,
+  `derive_member` of §8; 16 to 32 bytes; extendable flag and iteration
+  exponent as parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`).
 - **Where they surface**: Add a key reads BIP-39, SeedQR, CompactSeedQR,
   codex32, SLIP-39 and Seed XOR (`faraday/faraday-core/src/forms.rs`);
   New key deals SLIP-39 shares (`faraday/faraday-core/src/keygen/mod.rs`,
@@ -71,9 +72,8 @@ standard it is and which software restores it.
   (`faraday/faraday-keys/src/operations.rs`); the BIP-39 words tool
   lists each word's number and bits; New key takes hex entropy; the
   Lightning screen reads an aezeed.
-- **Not built**: a SLIP-39 split of the encrypted master secret without
-  its passphrase, a SLIP-39 member derived at a new index (§8), master
-  seed or xprv shown as text, the tool itself.
+- **Not built**: the SLIP-39 set actions on a screen (§8), master seed
+  or xprv shown as text, the tool itself.
 - **Leaving the store**: a paper form leaves through
   `Reveal::PaperForm` (`faraday/faraday-keys/src/session.rs`), which
   names Seed XOR, codex32 and SLIP-39. A master seed as hex and an xprv
@@ -261,32 +261,37 @@ SLIP-39 needs that codex32 does not:
   shares cannot be told apart by it; a mixed set then fails the
   digest check rather than opening another wallet. Steps 1 to 5 of
   §9.7 (marks, counting, destroying before making) apply as written.
-- **Core functions** (`core/faraday-bip/src/slip39.rs`): `recover_ems`
-  (shares to EMS and its parameters), `split_ems` (an EMS to a new set
-  under given parameters), `derive_member` (a group's quorum to a share
-  at an index). `python-shamir-mnemonic` has the first two, which the
-  tests compare against.
+- **Core functions** (`core/faraday-bip/src/slip39.rs`, built):
+  `recover_ems` (shares to EMS and its parameters), `split_ems` (an EMS
+  to a new set under given parameters), `derive_member` (a group's
+  quorum to a share at an index, refused for a group of threshold 1, an
+  index among the shares given and a quorum whose digest fails).
+  `python-shamir-mnemonic` has the first two, which the cross-check's
+  `slip39` area compares against word for word; `derive_member` is
+  checked against its `_interpolate` at the index, and the share it
+  makes recovers through the reference.
 
 ## 9. Tests
 
 Each conversion against its standard's published vectors and against
 an implementation Faraday did not write (F160; `docs/CROSSCHECK.md` §3's
 references, run
-through §10's cross-check once built; until then their output is
-checked in as fixtures under `tools/vectors/`, each with the script and
-the reference's commit that made it, as `tools/reference/aezeed/README.md`
-records its sources).
+through the cross-check (`tools/crosscheck/`), whose `slip39` area runs
+the set row below; a row whose reference the cross-check does not yet
+run has its output checked in as fixtures under `tools/vectors/`, each
+with the script and the reference's commit that made it, as
+`tools/reference/aezeed/README.md` records its sources).
 
 | Conversion | Published vectors | An implementation Faraday did not write |
 |---|---|---|
 | Words ↔ SeedQR, CompactSeedQR | SeedSigner's SeedQR specification vectors | SeedSigner's own `SeedQrEncoder`, `CompactSeedQrEncoder` and `DecodeQR` (Python, `tools/reference/seedsigner/`) over embit's BIP-39 code; the `seedqr` area keeps only Faraday's stricter rule (48 or 96 digits, 16 or 32 bytes) in front of SeedSigner's reader |
-| Words ↔ entropy, numbers, starts | BIP-39's vectors (`tools/vectors/bip39`) | python-mnemonic |
+| Words ↔ entropy, numbers, starts | BIP-39's vectors (`tools/vectors/bip39`) | python-mnemonic (the `bip39` area) |
 | Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's own `xor` and `xor_split` (Python, `tools/reference/coldcard/`) over python-mnemonic; the `xor` area keeps only Faraday's count (2 to 4 parts) and lengths in front of `xor` |
-| Words → seed, xprv | BIP-39's vectors (seed and xprv columns) | python-mnemonic, embit |
+| Words → seed, xprv | BIP-39's vectors (seed and xprv columns) | python-mnemonic, embit (the `bip39` and `bip32` areas) |
 | codex32 ↔ SLIP-39 | BIP-93's and SLIP-39's vectors (`tools/vectors/slip39`), each read and written the other way | python-codex32 and python-shamir-mnemonic over random seeds: the same fingerprint both ways |
 | SLIP-39 with passphrase → codex32 | SLIP-39's vectors (passphrase `TREZOR`) | python-shamir-mnemonic |
 | codex32, SLIP-39, seed → xprv | BIP-32's vectors; BIP-93's and SLIP-39's xprv columns | embit, Bitcoin Core's test framework |
-| A set → a new set; SLIP-39 add, replace, rotate | SLIP-39's vectors for EMS | python-shamir-mnemonic's `split_ems` and `recover_ems`; the codex32 reference's interpolation |
+| A set → a new set; SLIP-39 add, replace, rotate | SLIP-39's vectors for EMS | python-shamir-mnemonic's `split_ems`, `recover_ems` and `_interpolate`, with bip39_slip39 beside it (the cross-check's `slip39` area); the codex32 reference's interpolation |
 | aezeed → seed, codex32, SLIP-39 | LND's `cipherseed_test.go` vectors (`tools/reference/aezeed/README.md`) | none: LND's published vectors only (Q6) |
 
 And, user-facing: each §5 target is dimmed with its line; a result
@@ -311,6 +316,8 @@ keys loaded from a seed); S6 after C8 (codex32 in the backup).
 | S5 | §4.5 (aezeed) | Sonnet | 0.5 day |
 | S6 | §8 with the backup's set actions | Opus | 1.5 days |
 | S7 | Practice (§7), Learn (`docs/learn/18-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
+
+S1's fixtures cover the rows an area already runs (§9 names it); the two codex32 ↔ SLIP-39 rows (codex32 ↔ SLIP-39, SLIP-39 with passphrase → codex32) are S4's conversions and their cross-checks come with S4, and aezeed's come with S5.
 
 About 8.5 days.
 

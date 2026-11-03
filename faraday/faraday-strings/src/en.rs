@@ -11569,6 +11569,16 @@ strings! {
     bip_slip39_iteration_too_high: "iteration exponent {} asks for {} PBKDF2 rounds; {} is the most read",
     /// SLIP-39 output buffer too small.
     bip_slip39_output_too_small: "not enough room for the shares",
+    /// SLIP-39 shares of one group needed, several groups' given.
+    bip_slip39_mixed_groups: "the shares are from more than one group",
+    /// A SLIP-39 member asked for outside the sixteen a group holds.
+    bip_slip39_member_index: "a group's shares are 1 to 16",
+    /// A SLIP-39 member asked for that is among the shares given.
+    bip_slip39_member_taken: "that share is among those given",
+    /// A SLIP-39 share asked of a group of threshold 1.
+    bip_slip39_single_member: "a group of threshold 1 has one share only",
+    /// A SLIP-39 new identifier asked for a set whose extendable flag is clear.
+    bip_slip39_not_extendable: "a set that is not extendable keeps its identifier",
     // ----- What faraday-storage refuses, worded here (docs/STRUCTURE-PASS.md §7) -----
     /// A download that found no free file name; the name.
     storage_no_free_name: "no free name for {}",

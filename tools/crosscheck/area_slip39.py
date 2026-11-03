@@ -6,7 +6,10 @@ All 45 of the reference's own vectors, then random backups: the same
 random bytes are handed to both splits, so the shares must match word
 for word; then recovery from random qualifying subsets, from subsets
 that do not qualify, and from a set with one word changed; and the
-passphrase encryption on its own. SLIP-39's limits (16 groups, all
+passphrase encryption on its own. A second loop (`sets`) reads a set's
+encrypted master secret, splits it again and makes a member at an
+index, as rotating a set, adding a share and replacing a lost one do.
+SLIP-39's limits (16 groups, all
 needed, 16 members each) are split every run; the random tape is sized
 to what a split draws, which reaches 8 KiB there.
 
@@ -76,6 +79,101 @@ def ref_split(secret, passphrase, identifier, extendable, e, gt, groups, random)
     return {"mnemonics": [s.mnemonic() for g in grouped for s in g], "random_used": tape.at}
 
 
+def ems_answer(identifier, extendable, e, ciphertext):
+    return {"ciphertext": ciphertext.hex(), "identifier": identifier,
+            "extendable": extendable, "exponent": e}
+
+
+def ref_recover_ems(mnemonics):
+    ems = shamir.recover_ems(shamir.decode_mnemonics(mnemonics))
+    return ems_answer(ems.identifier, ems.extendable, ems.iteration_exponent, ems.ciphertext)
+
+
+def btl_recover_ems(mnemonics):
+    ems = B.encrypted_master_secret_from_mnemonics(mnemonics)
+    return ems_answer(ems.identifier, ems.extendable, ems.iteration_exponent, ems.value)
+
+
+def ref_split_ems(ciphertext, identifier, extendable, e, gt, groups, random):
+    tape = Tape(random)
+    saved = shamir.RANDOM_BYTES
+    shamir.RANDOM_BYTES = tape
+    try:
+        ems = shamir.EncryptedMasterSecret(identifier, extendable, e, ciphertext)
+        grouped = S.split_ems(gt, groups, ems)
+    finally:
+        shamir.RANDOM_BYTES = saved
+    return {"mnemonics": [s.mnemonic() for g in grouped for s in g], "random_used": tape.at}
+
+
+def btl_split_ems(ciphertext, identifier, extendable, e, gt, groups, random):
+    tape = Tape(random)
+    ems = B.EncryptedMasterSecret(identifier=identifier, extendable=extendable,
+                                  iteration_exponent=e, value=ciphertext)
+    grouped = B.mnemonics_from_encrypted_master_secret(
+        ems, [tuple(g) for g in groups], gt, tape)
+    return {"mnemonics": [m for g in grouped for m in g], "random_used": tape.at}
+
+
+def derive_refused(group_indices, thresholds, indices, index):
+    """Faraday's own refusals of a new member, before the arithmetic,
+    which neither reference has a function for: shares of more than one
+    group, an index outside 0 to 15, a group of threshold 1 (SLIP-39
+    allows it one share), a count other than the threshold, a repeated
+    index, and an index among the shares given (that share exists)."""
+    if len(set(group_indices)) != 1:
+        return "shares of more than one group"
+    if not 0 <= index < 16:
+        return "member index outside 0 to 15"
+    if len(set(thresholds)) != 1:
+        return "member thresholds differ"
+    t = thresholds[0]
+    if len(set(indices)) != len(indices) or len(indices) != t:
+        return "a repeated index or a count other than the threshold"
+    if t == 1:
+        return "a group of threshold 1"
+    if index in indices:
+        return "the index is among the shares given"
+    return None
+
+
+def ref_derive(mnemonics, index):
+    """A new member through the reference: its own decoding and set
+    checks, the digest checked by `_recover_secret`, and `_interpolate`
+    at the index."""
+    groups = shamir.decode_mnemonics(mnemonics)
+    shares = [s for g in groups.values() for s in g]
+    why = derive_refused([s.group_index for s in shares], [s.member_threshold for s in shares],
+                         [s.index for s in shares], index)
+    if why or len(shares) != len(mnemonics):
+        raise ValueError(why or "a share given twice")
+    first, t = shares[0], shares[0].member_threshold
+    raw = [shamir.RawShare(s.index, s.value) for s in shares]
+    shamir._recover_secret(t, raw)
+    value = shamir._interpolate(raw, index)
+    new = S.share.Share(first.identifier, first.extendable, first.iteration_exponent,
+                        first.group_index, first.group_threshold, first.group_count,
+                        index, t, value)
+    return {"mnemonic": new.mnemonic()}
+
+
+def btl_derive(mnemonics, index):
+    shares = [B.share_from_mnemonic(m) for m in mnemonics]
+    B._common_field(shares)
+    why = derive_refused([s.group_index for s in shares], [s.member_threshold for s in shares],
+                         [s.member_index for s in shares], index)
+    if why:
+        raise ValueError(why)
+    first, t = shares[0], shares[0].member_threshold
+    points = [(s.member_index, s.value) for s in shares]
+    B._recover_secret(t, points)
+    new = B.Share(identifier=first.identifier, extendable=first.extendable,
+                  iteration_exponent=first.iteration_exponent, group_index=first.group_index,
+                  group_threshold=first.group_threshold, group_count=first.group_count,
+                  member_index=index, member_threshold=t, value=B._interpolate(points, index))
+    return {"mnemonic": B.mnemonic_from_share(new)}
+
+
 class Slip39(Area):
     name = "slip39"
     JUDGE = "bip39_slip39"
@@ -83,8 +181,10 @@ class Slip39(Area):
         '`faraday_bip::slip39`'
     )
     reference = (
-        'python-shamir-mnemonic (`slip39/`); bip39_slip39 (`bip39-slip39/`) answering '
-        'every operation beside it'
+        'python-shamir-mnemonic (`slip39/`), its `recover_ems`, `split_ems` and '
+        '`_interpolate` for a set\'s EMS, a new split of it and a member at an index; '
+        'bip39_slip39 (`bip39-slip39/`) answering every operation beside it; the refusals '
+        'of a member at an index before the arithmetic are ours (`derive_refused`)'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -92,11 +192,16 @@ class Slip39(Area):
         'Faraday, and of bip39_slip39 too; all 45 of its own vectors are run'
     )
     vectors = (
-        'all 45 of `tools/vectors/slip39/`'
+        'all 45 of `tools/vectors/slip39/`, each again through its EMS and its decryption'
     )
     corpus = (
         'splits fed the same random bytes, which must match word for word; recovery '
-        'from qualifying and short subsets and a changed word; the passphrase cipher'
+        'from qualifying and short subsets and a changed word; the passphrase cipher; '
+        'a set\'s EMS from a quorum, refused from a short or changed set, split again on '
+        'the same random bytes (some under a new identifier where extendable) and a member '
+        'added or a lost one made again at an index, each recovering the first set\'s '
+        'secret, and a member refused at an index given, past 15, from a short quorum and '
+        'across two groups'
     )
     differences = [
         (
@@ -141,11 +246,38 @@ class Slip39(Area):
             lambda: {"value": fn(value, passphrase.encode(), e, identifier, extendable).hex()},
             also=also)
 
+    def recover_ems(self, mnemonics, expected=None):
+        return self.compare("slip39.recover_ems", {"mnemonics": mnemonics},
+                            lambda: ref_recover_ems(mnemonics), expected,
+                            also=lambda: btl_recover_ems(mnemonics))
+
+    def split_ems(self, ems, gt, groups, random):
+        args = (bytes.fromhex(ems["ciphertext"]), ems["identifier"], ems["extendable"],
+                ems["exponent"], gt, groups, random)
+        return self.compare("slip39.split_ems", {
+            **ems, "group_threshold": gt, "groups": [list(g) for g in groups],
+            "random": random.hex()},
+            lambda: ref_split_ems(*args), also=lambda: btl_split_ems(*args))
+
+    def derive_member(self, mnemonics, index):
+        return self.compare("slip39.derive_member", {"mnemonics": mnemonics, "index": index},
+                            lambda: ref_derive(mnemonics, index),
+                            also=lambda: btl_derive(mnemonics, index))
+
     def published(self):
         for desc, mnemonics, secret, _xprv in vectors("slip39", "vectors.json"):
             want = ("ok", {"secret": secret}) if secret else ("err", None)
             try:
                 self.recover(mnemonics, "TREZOR", want)
+                # The EMS, then its decryption, give the vector's secret;
+                # every refused vector is refused before decryption.
+                ems = self.recover_ems(mnemonics, None if secret else ("err", None))
+                if secret:
+                    ems = ems[1]
+                    got = self.cipher("decrypt", bytes.fromhex(ems["ciphertext"]), "TREZOR",
+                                      ems["identifier"], ems["extendable"], ems["exponent"])
+                    if got[1]["value"] != secret:
+                        raise AssertionError("the EMS does not decrypt to the vector's secret")
             except Mismatch as m:
                 m.note = (m.note + "; " if m.note else "") + f"vector: {desc}"
                 raise
@@ -218,7 +350,92 @@ class Slip39(Area):
             op = rng.choice(["encrypt", "decrypt"])
             self.cipher(op, secret, passphrase, identifier, extendable, e)
 
-    LOOPS = (("corpus", 1500),)
+    def quorum(self, by_group, gt, groups):
+        """A qualifying subset: gt groups, each its threshold of members."""
+        rng = self.rng
+        chosen = rng.sample(range(len(groups)), gt)
+        return {gi: rng.sample(by_group[gi], groups[gi][0]) for gi in chosen}
+
+    def sets_case(self):
+        """A set's EMS, a new set split from it, and a member added to a
+        group or a lost one made again: each against the references, and
+        each recovering the secret the first set was split from."""
+        rng = self.rng
+        secret = self.randbytes(rng.choice([16, 32, 2 * rng.randint(8, 16)]))
+        passphrase = "".join(rng.choice(PRINTABLE) for _ in range(rng.choice([0, 6])))
+        identifier, extendable, e = rng.randrange(1 << 15), rng.random() < 0.5, rng.choice([0, 1])
+        gt, groups = self.random_groups()
+        shares = self.split(secret, passphrase, identifier, extendable, e, gt, groups,
+                            self.randbytes(tape_length(len(secret), gt, groups)))[1]["mnemonics"]
+        by_group, at = [], 0
+        for _t, n in groups:
+            by_group.append(shares[at:at + n])
+            at += n
+
+        # The EMS from a quorum, and refused from a short or changed set.
+        quorum = self.quorum(by_group, gt, groups)
+        subset = [m for ms in quorum.values() for m in ms]
+        rng.shuffle(subset)
+        ems = self.need(self.recover_ems(subset), "the EMS of a quorum")
+        if len(subset) > 1:
+            self.recover_ems(subset[:-1])
+        words = subset[0].split()
+        words[rng.randrange(len(words))] = rng.choice(S.share.wordlist.WORDLIST)
+        self.recover_ems([" ".join(words)] + subset[1:])
+
+        # Rotate: a new split of the EMS opens the same wallet; an
+        # extendable set may take a new identifier.
+        new_gt, new_groups = self.random_groups()
+        rotated = dict(ems)
+        if extendable and rng.random() < 0.5:
+            rotated["identifier"] = rng.randrange(1 << 15)
+        new = self.need(self.split_ems(
+            rotated, new_gt, new_groups,
+            self.randbytes(tape_length(len(secret), new_gt, new_groups))), "a rotated set")
+        new_by_group, at = [], 0
+        for _t, n in new_groups:
+            new_by_group.append(new["mnemonics"][at:at + n])
+            at += n
+        again = [m for ms in self.quorum(new_by_group, new_gt, new_groups).values() for m in ms]
+        if self.recover(again, passphrase)[1]["secret"] != secret.hex():
+            raise AssertionError("the rotated set does not recover the secret")
+
+        # A member at an index: of a group whose threshold is above 1.
+        wide = [gi for gi, (t, _n) in enumerate(groups) if t > 1]
+        if not wide:
+            gi = rng.randrange(len(groups))
+            self.derive_member(rng.sample(by_group[gi], groups[gi][0]), rng.randrange(16))
+            return
+        gi = rng.choice(wide)
+        t, n = groups[gi]
+        members = rng.sample(range(n), t)
+        given = [by_group[gi][mi] for mi in members]
+        free = [i for i in range(16) if i not in members]
+        index = rng.choice(free)
+        made = self.need(self.derive_member(given, index), "a new member")["mnemonic"]
+        if index < n and made != by_group[gi][index]:
+            raise AssertionError("a lost share made again differs from the original")
+        others = {g: ms for g, ms in self.quorum(by_group, gt, groups).items() if g != gi}
+        if len(others) == gt:
+            others.pop(next(iter(others)))
+        with_new = [made] + given[1:] + [m for ms in others.values() for m in ms]
+        if self.recover(with_new, passphrase)[1]["secret"] != secret.hex():
+            raise AssertionError("a new member does not recover the secret")
+        # Refused: an index given, one past 15, a short quorum, two groups.
+        self.derive_member(given, rng.choice(members))
+        self.derive_member(given, 16)
+        self.derive_member(given[:-1], index)
+        if len(groups) > 1:
+            other = rng.choice([g for g in range(len(groups)) if g != gi])
+            self.derive_member(given[:-1] + [by_group[other][0]], index)
+        # Refused at the digest: a quorum drawn from two splits of the
+        # secret under one identifier.
+        twin = self.split(secret, passphrase, identifier, extendable, e, gt, groups,
+                          self.randbytes(tape_length(len(secret), gt, groups)))[1]["mnemonics"]
+        twin_at = sum(n for _t, n in groups[:gi])
+        self.derive_member(given[:-1] + [twin[twin_at + members[-1]]], index)
+
+    LOOPS = (("corpus", 1500), ("sets", 500))
 
     def prelude(self):
         self.published()
@@ -227,3 +444,6 @@ class Slip39(Area):
 
     def case_corpus(self):
         self.corpus_case()
+
+    def case_sets(self):
+        self.sets_case()

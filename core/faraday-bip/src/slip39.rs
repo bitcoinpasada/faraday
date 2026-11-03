@@ -175,6 +175,21 @@ pub enum Error {
     },
     /// The output slice is too short for the shares asked for.
     OutputTooSmall,
+    /// Shares of one group were needed, and more than one group's were
+    /// given.
+    MixedGroups,
+    /// A member index above 15 was asked for.
+    MemberIndexOutOfRange,
+    /// The member index asked for is one of the shares given: that share
+    /// exists.
+    MemberIndexTaken,
+    /// A share was asked of a group whose threshold is 1, which SLIP-39
+    /// allows one share only.
+    SingleMemberGroup,
+    /// A new identifier was asked for a set whose extendable flag is
+    /// clear: its identifier is in the encryption's salt, so the new set
+    /// would recover another master secret.
+    NotExtendable,
 }
 
 // --- the wordlist ----------------------------------------------------------
@@ -922,23 +937,109 @@ fn feistel_call(
 
 // --- recovery --------------------------------------------------------------
 
-/// Costs a PBKDF2 (through `feistel`). The master secret behind
-/// `shares`, under `passphrase`.
+/// An encrypted master secret (EMS) and what decrypting it needs besides
+/// the passphrase: the identifier, the extendable flag and the iteration
+/// exponent. It is what a set of shares holds, one level below the
+/// passphrase: [`recover_ems`] reads it from a quorum and [`split_ems`]
+/// writes it to a new set, so a set can be rotated without the
+/// passphrase being typed.
 ///
-/// The result is the BIP-32 seed: hand it to
-/// `bitcoin::bip32::Xpriv::new_master`. It is not BIP-39 entropy.
-///
-/// Every refusal names what is wrong with the set: a share from another
-/// backup, a group short of shares, a digest that does not match. A wrong
-/// passphrase is not one of them — it gives a different master secret,
-/// and so a different wallet. A set whose iteration exponent is above
-/// [`MAX_READ_ITERATION_EXPONENT`] is refused before any PBKDF2 round.
-pub fn recover(
-    c: &Compute,
-    shares: &[Share],
-    passphrase: &[u8],
-) -> Result<Secret<SecretBytes>, Error> {
-    check_passphrase(passphrase)?;
+/// The ciphertext is a secret: with an empty passphrase it decrypts to
+/// the wallet's master secret. `Ems` has no `Debug` and no text form,
+/// and its bytes are erased when it is dropped.
+pub struct Ems {
+    identifier: u16,
+    extendable: bool,
+    iteration_exponent: u8,
+    ciphertext: Secret<SecretBytes>,
+}
+
+impl Ems {
+    /// An EMS from its parts, the ciphertext as [`encrypt`] gives it.
+    /// Refused: an identifier above fifteen bits or an exponent above the
+    /// four-bit field ([`Error::InvalidParameters`]), and a ciphertext
+    /// that is not 16 to 32 bytes of even length. The parameters must be
+    /// the set's own, since decrypting uses them: a new identifier goes
+    /// through [`Ems::with_identifier`].
+    pub fn new(
+        identifier: u16,
+        extendable: bool,
+        iteration_exponent: u8,
+        ciphertext: &[u8],
+    ) -> Result<Self, Error> {
+        if identifier >= 1 << 15 || iteration_exponent > MAX_ITERATION_EXPONENT {
+            return Err(Error::InvalidParameters);
+        }
+        Ok(Self {
+            identifier,
+            extendable,
+            iteration_exponent,
+            ciphertext: Secret::new(SecretBytes::new(ciphertext)?),
+        })
+    }
+
+    /// The same set under a new identifier, which recovers the same master
+    /// secret. Refused: a set whose extendable flag is clear
+    /// ([`Error::NotExtendable`]), since its identifier is in the
+    /// encryption's salt, and an identifier above fifteen bits
+    /// ([`Error::InvalidParameters`]).
+    pub fn with_identifier(&self, identifier: u16) -> Result<Ems, Error> {
+        if !self.extendable {
+            return Err(Error::NotExtendable);
+        }
+        Ems::new(
+            identifier,
+            true,
+            self.iteration_exponent,
+            self.ciphertext.expose().as_bytes(),
+        )
+    }
+
+    /// The fifteen-bit identifier every share of the set carries.
+    pub fn identifier(&self) -> u16 {
+        self.identifier
+    }
+
+    /// Whether the set is extendable: the identifier is not in the
+    /// encryption's salt.
+    pub fn is_extendable(&self) -> bool {
+        self.extendable
+    }
+
+    /// The iteration exponent: decrypting does `10000 << e` PBKDF2
+    /// rounds in all.
+    pub fn iteration_exponent(&self) -> u8 {
+        self.iteration_exponent
+    }
+
+    /// The encrypted master secret itself.
+    pub fn ciphertext(&self) -> &Secret<SecretBytes> {
+        &self.ciphertext
+    }
+
+    /// Costs a PBKDF2 (through `feistel`). The master secret under
+    /// `passphrase`, the BIP-32 seed. A wrong passphrase gives another
+    /// master secret, not a refusal.
+    pub fn decrypt(&self, c: &Compute, passphrase: &[u8]) -> Result<Secret<SecretBytes>, Error> {
+        check_passphrase(passphrase)?;
+        check_iteration_exponent(self.iteration_exponent)?;
+        Ok(Secret::new(feistel(
+            c,
+            self.ciphertext.expose(),
+            passphrase,
+            self.iteration_exponent,
+            self.identifier,
+            self.extendable,
+            false,
+        )))
+    }
+}
+
+/// The checks every share of one set passes against the first: the same
+/// identifier, flag, exponent, group threshold and count and value
+/// length, a group index inside the count, a group threshold no greater
+/// than the count, and an exponent this implementation computes.
+fn check_one_set(shares: &[Share]) -> Result<&Share, Error> {
     let first = shares.first().ok_or(Error::NoShares)?;
     for s in shares {
         if s.identifier != first.identifier {
@@ -967,6 +1068,50 @@ pub fn recover(
         return Err(Error::GroupThresholdExceedsCount);
     }
     check_iteration_exponent(first.iteration_exponent)?;
+    Ok(first)
+}
+
+/// The points of one group's shares among `shares`, and the group's
+/// member threshold. Refused: shares that disagree about the threshold,
+/// a member index given twice, and a count other than the threshold.
+fn group_points(shares: &[Share], group_index: u8, len: usize) -> Result<(Points, u8), Error> {
+    let mut members = Points::new(len);
+    let mut threshold: Option<u8> = None;
+    let mut seen = [false; MAX_COUNT];
+    for s in shares.iter().filter(|s| s.group_index == group_index) {
+        match threshold {
+            None => threshold = Some(s.member_threshold),
+            Some(t) if t != s.member_threshold => {
+                return Err(Error::MismatchedMemberThresholds);
+            }
+            Some(_) => {}
+        }
+        if s.member_index as usize >= MAX_COUNT || seen[s.member_index as usize] {
+            return Err(Error::DuplicateMemberIndex);
+        }
+        seen[s.member_index as usize] = true;
+        members.push(s.member_index, s.value.as_bytes());
+    }
+    let threshold = threshold.expect("the group has at least one share");
+    if members.n != threshold as usize {
+        return Err(Error::WrongMemberCount {
+            group_index,
+            needed: threshold,
+            given: members.n as u8,
+        });
+    }
+    Ok((members, threshold))
+}
+
+/// The encrypted master secret behind `shares`, with its identifier,
+/// flag and exponent. No PBKDF2 runs: the passphrase is not needed.
+///
+/// Refused as [`recover`] refuses a set: shares of another backup, a
+/// group short of shares or with too many, a member given twice, a
+/// digest that does not match, and an iteration exponent above
+/// [`MAX_READ_ITERATION_EXPONENT`].
+pub fn recover_ems(shares: &[Share]) -> Result<Ems, Error> {
+    let first = check_one_set(shares)?;
 
     // One entry per group index present, in the order first met.
     let mut order = [0u8; MAX_COUNT];
@@ -985,47 +1130,82 @@ pub fn recover(
     }
 
     let len = first.secret_len();
-    let mut group_points = Points::new(len);
+    let mut group_secrets = Points::new(len);
     for &gi in &order[..groups] {
-        let mut members = Points::new(len);
-        let mut threshold: Option<u8> = None;
-        let mut seen = [false; MAX_COUNT];
-        for s in shares.iter().filter(|s| s.group_index == gi) {
-            match threshold {
-                None => threshold = Some(s.member_threshold),
-                Some(t) if t != s.member_threshold => {
-                    return Err(Error::MismatchedMemberThresholds);
-                }
-                Some(_) => {}
-            }
-            if s.member_index as usize >= MAX_COUNT || seen[s.member_index as usize] {
-                return Err(Error::DuplicateMemberIndex);
-            }
-            seen[s.member_index as usize] = true;
-            members.push(s.member_index, s.value.as_bytes());
-        }
-        let threshold = threshold.expect("the group has at least one share");
-        if members.n != threshold as usize {
-            return Err(Error::WrongMemberCount {
-                group_index: gi,
-                needed: threshold,
-                given: members.n as u8,
-            });
-        }
+        let (members, threshold) = group_points(shares, gi, len)?;
         let group_secret = recover_secret(threshold, &members)?;
-        group_points.push(gi, group_secret.as_bytes());
+        group_secrets.push(gi, group_secret.as_bytes());
     }
 
-    let encrypted = recover_secret(first.group_threshold, &group_points)?;
-    Ok(Secret::new(feistel(
-        c,
-        &encrypted,
-        passphrase,
-        first.iteration_exponent,
+    let ciphertext = recover_secret(first.group_threshold, &group_secrets)?;
+    Ok(Ems {
+        identifier: first.identifier,
+        extendable: first.extendable,
+        iteration_exponent: first.iteration_exponent,
+        ciphertext: Secret::new(ciphertext),
+    })
+}
+
+/// Costs a PBKDF2 (through `Ems::decrypt`). The master secret behind
+/// `shares`, under `passphrase`: [`recover_ems`], then decryption.
+///
+/// The result is the BIP-32 seed: hand it to
+/// `bitcoin::bip32::Xpriv::new_master`. It is not BIP-39 entropy.
+///
+/// Every refusal names what is wrong with the set: a share from another
+/// backup, a group short of shares, a digest that does not match. A wrong
+/// passphrase is not one of them — it gives a different master secret,
+/// and so a different wallet. A set whose iteration exponent is above
+/// [`MAX_READ_ITERATION_EXPONENT`] is refused before any PBKDF2 round.
+pub fn recover(
+    c: &Compute,
+    shares: &[Share],
+    passphrase: &[u8],
+) -> Result<Secret<SecretBytes>, Error> {
+    check_passphrase(passphrase)?;
+    recover_ems(shares)?.decrypt(c, passphrase)
+}
+
+/// A new share of one group: the group's quorum `shares` interpolated
+/// at `member_index` (0 to 15). The share carries the same identifier,
+/// flag, exponent, group fields and member threshold, so it joins the
+/// set as one more member; at the index of a lost share it is that
+/// share again, word for word. No PBKDF2 runs.
+///
+/// Refused, besides what [`recover_ems`] refuses of one set and of one
+/// group: shares of more than one group ([`Error::MixedGroups`]), an
+/// index above 15 ([`Error::MemberIndexOutOfRange`]), a group whose
+/// threshold is 1 ([`Error::SingleMemberGroup`]: SLIP-39 allows it one
+/// share), an index among the shares given ([`Error::MemberIndexTaken`]),
+/// and a quorum whose digest does not match ([`Error::BadDigest`]): such
+/// a group is never extended.
+pub fn derive_member(shares: &[Share], member_index: u8) -> Result<Share, Error> {
+    let first = check_one_set(shares)?;
+    if shares.iter().any(|s| s.group_index != first.group_index) {
+        return Err(Error::MixedGroups);
+    }
+    if member_index as usize >= MAX_COUNT {
+        return Err(Error::MemberIndexOutOfRange);
+    }
+    let (members, threshold) = group_points(shares, first.group_index, first.secret_len())?;
+    if threshold == 1 {
+        return Err(Error::SingleMemberGroup);
+    }
+    if shares.iter().any(|s| s.member_index == member_index) {
+        return Err(Error::MemberIndexTaken);
+    }
+    recover_secret(threshold, &members)?;
+    Ok(Share::build(
         first.identifier,
         first.extendable,
-        false,
-    )))
+        first.iteration_exponent,
+        first.group_index,
+        first.group_threshold,
+        first.group_count,
+        member_index,
+        threshold,
+        &members.at(member_index),
+    ))
 }
 
 // --- splitting -------------------------------------------------------------
@@ -1053,8 +1233,44 @@ pub fn random_len(secret_len: usize, group_threshold: u8, groups: &[GroupSpec]) 
     one(group_threshold) + groups.iter().map(|g| one(g.threshold)).sum::<usize>()
 }
 
+/// The refusals of a split's shape: the groups, the thresholds and the
+/// room for the shares, with an exponent above what is computed refused
+/// among them.
+fn check_split(
+    iteration_exponent: u8,
+    group_threshold: u8,
+    groups: &[GroupSpec],
+    room: usize,
+) -> Result<(), Error> {
+    if groups.is_empty()
+        || groups.len() > MAX_COUNT
+        || group_threshold == 0
+        || group_threshold as usize > groups.len()
+        || (group_threshold == 1 && groups.len() != 1)
+    {
+        return Err(Error::InvalidParameters);
+    }
+    check_iteration_exponent(iteration_exponent)?;
+    for g in groups {
+        if g.threshold == 0
+            || g.count == 0
+            || g.count as usize > MAX_COUNT
+            || g.threshold > g.count
+            || (g.threshold == 1 && g.count != 1)
+        {
+            return Err(Error::InvalidParameters);
+        }
+    }
+    let total: usize = groups.iter().map(|g| g.count as usize).sum();
+    if room < total {
+        return Err(Error::OutputTooSmall);
+    }
+    Ok(())
+}
+
 /// Costs a PBKDF2 (through `feistel`). Splits `secret` into the shares
-/// `groups` describes.
+/// `groups` describes: its encryption under `passphrase`, then
+/// [`split_ems`].
 ///
 /// `secret` is the master secret: 16 to 32 bytes of even length, and the
 /// BIP-32 seed the wallet comes from. `random` fills the slice it is
@@ -1083,46 +1299,50 @@ pub fn split(
 ) -> Result<usize, Error> {
     check_passphrase(passphrase)?;
     let master = SecretBytes::new(secret)?;
-    if identifier >= 1 << 15
-        || iteration_exponent > MAX_ITERATION_EXPONENT
-        || groups.is_empty()
-        || groups.len() > MAX_COUNT
-        || group_threshold == 0
-        || group_threshold as usize > groups.len()
-        || (group_threshold == 1 && groups.len() != 1)
-    {
+    if identifier >= 1 << 15 || iteration_exponent > MAX_ITERATION_EXPONENT {
         return Err(Error::InvalidParameters);
     }
-    check_iteration_exponent(iteration_exponent)?;
-    for g in groups {
-        if g.threshold == 0
-            || g.count == 0
-            || g.count as usize > MAX_COUNT
-            || g.threshold > g.count
-            || (g.threshold == 1 && g.count != 1)
-        {
-            return Err(Error::InvalidParameters);
-        }
-    }
-    let total: usize = groups.iter().map(|g| g.count as usize).sum();
-    if out.len() < total {
-        return Err(Error::OutputTooSmall);
-    }
-
-    let encrypted = feistel(
-        c,
-        &master,
-        passphrase,
-        iteration_exponent,
+    check_split(iteration_exponent, group_threshold, groups, out.len())?;
+    let ems = Ems {
         identifier,
         extendable,
-        true,
-    );
+        iteration_exponent,
+        ciphertext: Secret::new(feistel(
+            c,
+            &master,
+            passphrase,
+            iteration_exponent,
+            identifier,
+            extendable,
+            true,
+        )),
+    };
+    split_ems(&ems, group_threshold, groups, random, out)
+}
+
+/// A new set of shares for `ems` under these groups. No PBKDF2 runs:
+/// the set opens under the passphrase the EMS was encrypted with, which
+/// is not needed here. `random` and `out` are as [`split`]'s, and the
+/// same random bytes give the same shares as [`split`] of the master
+/// secret behind `ems`.
+///
+/// Refused as [`split`] refuses a shape: no groups or more than 16, a
+/// threshold of 0 or above its count, a threshold of 1 over several
+/// groups or members, an exponent above [`MAX_READ_ITERATION_EXPONENT`],
+/// and too little room in `out`.
+pub fn split_ems(
+    ems: &Ems,
+    group_threshold: u8,
+    groups: &[GroupSpec],
+    random: &mut dyn FnMut(&mut [u8]),
+    out: &mut [Share],
+) -> Result<usize, Error> {
+    check_split(ems.iteration_exponent, group_threshold, groups, out.len())?;
     let mut group_secrets = [const { None }; MAX_COUNT];
     split_secret(
         group_threshold,
         groups.len() as u8,
-        &encrypted,
+        ems.ciphertext.expose(),
         random,
         &mut group_secrets,
     );
@@ -1141,9 +1361,9 @@ pub fn split(
         for (mi, member) in members.iter_mut().take(spec.count as usize).enumerate() {
             let value = member.take().expect("one secret per member");
             out[n] = Share::build(
-                identifier,
-                extendable,
-                iteration_exponent,
+                ems.identifier,
+                ems.extendable,
+                ems.iteration_exponent,
                 gi as u8,
                 group_threshold,
                 groups.len() as u8,

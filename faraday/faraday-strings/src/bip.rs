@@ -270,6 +270,11 @@ pub fn slip39_error(e: &slip39::Error) -> String {
             ],
         ),
         E::OutputTooSmall => EN.bip_slip39_output_too_small.into(),
+        E::MixedGroups => EN.bip_slip39_mixed_groups.into(),
+        E::MemberIndexOutOfRange => EN.bip_slip39_member_index.into(),
+        E::MemberIndexTaken => EN.bip_slip39_member_taken.into(),
+        E::SingleMemberGroup => EN.bip_slip39_single_member.into(),
+        E::NotExtendable => EN.bip_slip39_not_extendable.into(),
     }
 }
 
