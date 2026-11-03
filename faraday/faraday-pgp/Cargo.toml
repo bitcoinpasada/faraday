@@ -16,6 +16,13 @@ ed25519-dalek = { version = "3", default-features = false, features = ["zeroize"
 sha1 = { version = "0.11", default-features = false }
 # The signature hashes: SHA-256 and SHA-512.
 sha2 = { workspace = true }
+# The QR vault's OpenPGP message (docs/VAULT.md §1.2): Argon2id over the
+# passphrase as faraday-vault runs it, HKDF-SHA-256 and the Compute token
+# from faraday-crypto, AES-256-OCB over the trusted `aes`.
+faraday-crypto = { path = "../../core/faraday-crypto" }
+argon2 = { workspace = true }
+aes = { workspace = true }
+ocb3 = { workspace = true }
 
 [dev-dependencies]
 # Signatures of shapes Faraday never writes, made in the tests to be

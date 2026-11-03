@@ -88,6 +88,10 @@ chacha20 = { version = "0.10", default-features = false, features = ["cipher", "
 # builds on `cipher` 0.5, `cpufeatures` and `cpubits`, already in the
 # lock file.
 aes = { version = "0.9", default-features = false, features = ["hazmat"] }
+# AES-256-OCB (RFC 7253) for the QR vault's OpenPGP message
+# (docs/deps/ocb3.md): the mode over the `aes` above, with the 15-byte
+# nonce RFC 9580 uses.
+ocb3 = { version = "0.2", default-features = false }
 # rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (§16.1).
 # `secp-recovery` is a feature of the same crate, not another dependency:
 # it turns on libsecp256k1's public-key recovery and rust-bitcoin's

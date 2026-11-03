@@ -187,6 +187,13 @@ user-id = 6979
 user-login = "rozbb"
 user-name = "Michael Rosenberg"
 
+[[publisher.dbl]]
+version = "0.5.0"
+when = "2025-09-03"
+user-id = 267
+user-login = "tarcieri"
+user-name = "Tony Arcieri"
+
 [[publisher.der]]
 version = "0.8.2"
 when = "2026-09-05"
@@ -310,6 +317,11 @@ when = "2026-05-27"
 user-id = 1588
 user-login = "apoelstra"
 user-name = "Andrew Poelstra"
+
+[[publisher.ocb3]]
+version = "0.2.0"
+when = "2026-08-24"
+trusted-publisher = "github:RustCrypto/AEADs"
 
 [[publisher.pbkdf2]]
 version = "0.13.0"

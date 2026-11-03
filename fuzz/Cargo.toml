@@ -145,6 +145,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "pgp_qr_vault"
+path = "fuzz_targets/pgp_qr_vault.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "pgp_verify"
 path = "fuzz_targets/pgp_verify.rs"
 test = false

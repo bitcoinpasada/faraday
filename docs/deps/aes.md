@@ -7,6 +7,9 @@ MixColumns, AddRoundKey) for AEZ v5 (`core/faraday-bip/src/aez.rs`),
 which LND's aezeed enciphers a cipher seed with. AEZ runs that round four
 or ten times over keys derived from the seed's passphrase; it never runs
 AES as a block cipher, so only `aes::hazmat::cipher_round` is called.
+`faraday-pgp` runs the block cipher, AES-256, under OCB for the QR vault's
+OpenPGP message (`docs/deps/ocb3.md`): the same crate, the same constant-time
+backends, with no new feature.
 
 **Why this crate.** The round was written here over a 256-byte S-box
 indexed by the state's bytes, which are the seed's: which cache line a

@@ -128,8 +128,9 @@ The highest-leverage single fact for an auditor: everything above marked
 - The four-equal-slot vault container and its HKDF-SHA256 over HMAC (`faraday-vault`)
 - The vault contents TOML reader (`faraday-vault::contents`)
 - TOTP code derivation (`faraday-vault::totp`)
-- The KDBX 4 file format (`faraday-backup`)
+- The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)
 - OpenPGP v4 packet construction (`faraday-pgp`)
+- The KDBX 4 file format (`faraday-backup`)
 - X.509/CMS structure, Authenticode signing, and the RSA RNG adapter (`faraday-sb`)
 <!-- crypto-manifest: end §3 -->
 

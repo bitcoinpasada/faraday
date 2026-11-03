@@ -174,6 +174,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses; `parse_signed` on the whole input, its result verified |
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public` |
+| `pgp_qr_vault` | `faraday_pgp::message::parse` on the whole input (the QR vault's OpenPGP message: packets in any length form, the cost limits, each refusal), then `open` where the stated cost is the least one (8 MiB), which must not return plaintext for anything but the seeded vault's own bytes |
 | `pgp_verify` | `faraday_pgp::verify_detached` with the input as the signature, the signed data and the certificate, against the GnuPG-made release-sums fixture (F134): what it takes is the fixture's own signature over the fixture's sums |
 | `pgp_paperkey` | `faraday_pgp::paperkey::read_text`, `read_raw`, `line` and `check` on what reads, then `entries` |
 | `pgp_restore` | `faraday_pgp::Certificate::read` on the whole input, then `restore` with the input as a paperkey's data against what read and against a Faraday key's certificate, and that key's own data with the input laid over it |

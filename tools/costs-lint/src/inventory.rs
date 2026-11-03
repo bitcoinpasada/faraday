@@ -61,6 +61,7 @@ const PRIMITIVE_CRATES: &[&str] = &[
     "argon2",
     "chacha20",
     "chacha20poly1305",
+    "ocb3",
     "aes",
     "ed25519-dalek",
     "rsa",
