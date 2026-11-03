@@ -41,6 +41,7 @@ pub use format::{Format32, FormatError, MIN_CLUSTERS, Region, format32};
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
+use zeroize::Zeroize;
 
 /// The most a directory holds: FAT numbers a directory's entries with 16
 /// bits, 65536 of 32 bytes each. A FAT32 root directory whose chain is
@@ -876,8 +877,7 @@ impl<D: Disk> Volume<D> {
                 break;
             }
         }
-        block.fill(0);
-        core::hint::black_box(&block);
+        block.zeroize();
         wrote?;
         for (k, &c) in taken.iter().enumerate() {
             let next = taken.get(k + 1).copied().unwrap_or(self.eoc());

@@ -18,6 +18,9 @@ it and counted as a known difference. A database of no items or
 more than eight, a field over 16 KiB, and a cost Argon2id refuses are
 not written.
 
+- The export's Argon2id (`faraday_backup::argon2id`) at random small
+  costs, salts and passwords, against PyCA cryptography's (OpenSSL's);
+  PyCA must be 44 or later over OpenSSL 3.2 or later.
 - The repository's own export (`tools/vectors/backup/`), opened with its
   passphrase.
 - Random databases of one to eight items whose fields hold XML's markup
@@ -27,6 +30,7 @@ not written.
   passphrase, a wrong one, and with a byte changed.
 """
 
+import json
 import os
 import re
 import tempfile
@@ -40,10 +44,50 @@ except ImportError as e:  # pragma: no cover - the machine's packages
         "the kdbx area needs the distribution's pykeepass (Debian and Ubuntu: python3-pykeepass;"
         f" Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
 
+try:
+    import cryptography
+    from cryptography.hazmat.backends.openssl import backend as openssl_backend
+    from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+except ImportError as e:  # pragma: no cover - the machine's packages
+    raise HarnessError(
+        "the kdbx area needs the distribution's PyCA cryptography, 44 or later, over OpenSSL 3.2"
+        " or later, for its Argon2id (Debian and Ubuntu: python3-cryptography; Fedora:"
+        f" python3-cryptography; Arch: python-cryptography): {e}") from e
+
 SEED_LEN = 32 + 12 + 32 + 64 + 16 * (1 + 8)
 MAX_ITEMS = 8
 MAX_FIELD = 16 * 1024
+VECTORS = json.loads((ROOT / "tools/vectors/vault-primitives/vectors.json").read_text())
 VECTOR = ROOT / "tools/vectors/backup/backup-kdbx-words-12-english.kdbx"
+
+
+def pyca_argon2id(password, salt, memory_kib, passes, lanes):
+    """PyCA cryptography's Argon2id (OpenSSL's), version 1.3, 32 bytes."""
+    return Argon2id(salt=bytes(salt), length=32, iterations=passes, lanes=lanes,
+                    memory_cost=memory_kib).derive(bytes(password))
+
+
+PYCA_CHECKED = False
+
+
+def check_pyca():
+    """PyCA's Argon2id is OpenSSL 3.2's: stop where the package or OpenSSL is older, and
+    where it fails the known answer. Once in each process, so each batch of the corpus
+    runs it, not only the prelude."""
+    global PYCA_CHECKED
+    if PYCA_CHECKED:
+        return
+    major = int(cryptography.__version__.split(".")[0])
+    ssl = openssl_backend.openssl_version_number()
+    if major < 44 or ssl < 0x30200000:
+        raise HarnessError(
+            "the kdbx area needs PyCA cryptography 44 or later over OpenSSL 3.2 or later, "
+            f"found {cryptography.__version__} over {openssl_backend.openssl_version_text()}")
+    a = VECTORS["argon2id"]
+    if pyca_argon2id(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
+                     a["passes"], a["lanes"]).hex() != a["key"]:
+        raise HarnessError("PyCA's Argon2id fails the known Argon2id answer")
+    PYCA_CHECKED = True
 
 
 def kept(text):
@@ -103,21 +147,26 @@ def contents(kp):
 class Kdbx(Area):
     name = "kdbx"
     faraday = (
-        '`faraday_backup::kdbx` (the KDBX 4 export and its own check)'
+        '`faraday_backup::kdbx` (the KDBX 4 export and its own check) and '
+        "`faraday_backup::argon2id`, the export's derivation"
     )
     reference = (
-        "pykeepass, the distribution's package (`python3-pykeepass`)"
+        "pykeepass, the distribution's package (`python3-pykeepass`), and PyCA "
+        "cryptography's Argon2id (OpenSSL's) beside it"
     )
     reference_checked = (
         "pykeepass is the distribution's package and the area stops and names it when "
         'it is missing, so a run without it fails; the versions are written into the '
-        'stamp'
+        'stamp; PyCA cryptography must be 44 or later over OpenSSL 3.2 or later or the area '
+        "stops, and its Argon2id is checked against `tools/vectors/vault-primitives/`'s known "
+        'answer first'
     )
     vectors = (
         "the repository's export (`tools/vectors/backup/`), written again byte for byte "
-        'and opened'
+        'and opened; the Argon2id known answer (`tools/vectors/vault-primitives/`)'
     )
     corpus = (
+        "Argon2id at small random costs, salts and passwords against PyCA's; "
         'databases of one to eight items with markup characters, control characters, '
         'line ends and several scripts, at small Argon2id costs, every entry read back; '
         "the writer's check against pykeepass under the right passphrase, a wrong one "
@@ -175,6 +224,24 @@ class Kdbx(Area):
                            "pykeepass does not read what Faraday wrote")
         return data
 
+    def argon(self, password, salt, memory, passes, lanes, expected=None):
+        """The export's Argon2id against PyCA's, a cost both accept."""
+        return self.need(self.compare(
+            "kdbx.argon2id",
+            {"password": password.hex(), "salt": salt.hex(), "memory_kib": memory,
+             "passes": passes, "lanes": lanes},
+            lambda: {"key": pyca_argon2id(password, salt, memory, passes, lanes).hex()},
+            expected), "kdbx.argon2id")
+
+    def argon_case(self):
+        check_pyca()
+        rng = self.rng
+        lanes = rng.choice([1, 1, 2, 4])
+        self.argon(self.randbytes(rng.randint(0, 64)),
+                   self.randbytes(rng.choice([16, 32, rng.randint(8, 40)])),
+                   rng.choice([8 * lanes, rng.randint(8 * lanes, 300)]),
+                   rng.randint(1, 4), lanes)
+
     def verify(self, data, passphrase):
         return self.compare("kdbx.verify", {"file": data.hex(),
                                             "passphrase": passphrase.encode().hex()},
@@ -183,6 +250,10 @@ class Kdbx(Area):
     def published(self):
         """The vector as its README states it: written again from the
         same inputs, byte for byte, and read by pykeepass."""
+        check_pyca()
+        a = VECTORS["argon2id"]
+        self.argon(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
+                   a["passes"], a["lanes"], ("ok", {"key": a["key"]}))
         words = " ".join(["abandon"] * 11 + ["about"])
         passphrase = "correct horse battery staple"
         item = [("73c5da0a", "12 words, English", words)]
@@ -240,10 +311,13 @@ class Kdbx(Area):
         self.verify(data[:i] + bytes([data[i] ^ (1 << rng.randrange(8))]) + data[i + 1:],
                     passphrase)
 
-    LOOPS = (("corpus", 120),)
+    LOOPS = (("corpus", 120), ("argon", 60))
 
     def prelude(self):
         self.published()
+
+    def case_argon(self):
+        self.argon_case()
 
     def case_corpus(self):
         self.corpus_case()

@@ -118,7 +118,7 @@ fn the_rfc_argon2_s2k_gives_its_session_key() {
     let salt: [u8; 16] = body[3..19].try_into().unwrap();
     assert_eq!(&body[19..22], &[1, 4, 21]);
     let key = s2k(&compute(), b"password", &salt, 1 << 21, 1, 4).expect("s2k");
-    let cipher = Aes256::new_from_slice(&*key).unwrap();
+    let cipher = Aes256::new_from_slice(key.expose()).unwrap();
     let mut previous = [0u8; 16];
     let mut plain = Vec::new();
     for block in body[22..55].chunks(16) {

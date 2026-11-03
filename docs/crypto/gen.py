@@ -377,6 +377,7 @@ def gen_written_here(data):
 PLANNED_LEAD = "Planned, not built: "
 TABLE_KINDS = ("vault-header", "vault-sizes", "diceware-bits")
 VAULT = "faraday/faraday-vault/src/lib.rs"
+ARGON2 = "core/faraday-crypto/src/argon2.rs"
 OPEN_PY = "tools/vault/open.py"
 DICEWARE = "core/faraday-bip/src/diceware"
 NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -384,8 +385,8 @@ NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "
 # `{v:<name>}`: a value the code states as a literal inside a function, read from
 # that function's body; the reader fails when the code no longer has that shape.
 CODE_VALUES = {
-    "argon2-version": (VAULT, "stretch", r"Version::V0x(\d)(\d)", lambda m: f"{m[1]}.{m[2]}"),
-    "argon2-out": (VAULT, "stretch", r"Some\((\d+)\)", lambda m: int(m[1])),
+    "argon2-version": (ARGON2, "argon2", r"Version::V0x(\d)(\d)", lambda m: f"{m[1]}.{m[2]}"),
+    "argon2-out": (ARGON2, "argon2", r"Some\((\d+)\)", lambda m: int(m[1])),
     "lanes": (VAULT, "check_cost", r"cost\.lanes != (\d+)", lambda m: int(m[1])),
     "min-passes": (VAULT, "check_cost", r"\((\d+)\.\.=MAX_PASSES\)", lambda m: int(m[1])),
 }

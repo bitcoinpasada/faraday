@@ -98,7 +98,7 @@ AREAS = {
              ("bbqr.join", "bbqr.encode", "specter.encode"), 300),
     "ur": ("area_ur", "Ur", "ur.encode", 410),
     "vanity": ("area_vanity", "Vanity", "vanity.grind", 460),
-    "kdbx": ("area_kdbx", "Kdbx", "kdbx.verify", 30),
+    "kdbx": ("area_kdbx", "Kdbx", ("kdbx.verify", "kdbx.argon2id"), 30),
     "lightning": ("area_lightning", "Lightning",
                   ("lightning.ldk", "lightning.aezeed", "lightning.lnd", "lightning.aezeed-soft"), 280),
 }

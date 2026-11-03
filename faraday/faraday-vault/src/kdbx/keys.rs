@@ -1,10 +1,8 @@
 //! The keys of a KDBX file (`docs/VAULT.md` §1.1) and the HMAC the
 //! header and the block stream are authenticated with.
 
-use alloc::vec::Vec;
-
-use argon2::{Algorithm, Argon2, Block, Params, Version};
-use faraday_crypto::work::{Compute, Work};
+use argon2::Algorithm;
+use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256, Sha512};
@@ -73,32 +71,23 @@ fn argon_run(
     composite: &[u8],
     salt: &[u8],
 ) -> Result<Secret<[u8; 32]>, Error> {
-    c.count(Work::Kdf);
     let algorithm = match kdf {
         Kdf::Argon2id => Algorithm::Argon2id,
         Kdf::Argon2d => Algorithm::Argon2d,
     };
-    let params =
-        Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32)).map_err(|_| Error::Cost)?;
-    let argon = Argon2::new(algorithm, Version::V0x13, params.clone());
-    let blocks = params.block_count();
-    let mut memory: Vec<Block> = Vec::new();
-    memory
-        .try_reserve_exact(blocks)
-        .map_err(|_| Error::Memory(cost.memory_kib / 1024))?;
-    memory.resize(blocks, Block::default());
+    let cost_in = faraday_crypto::Argon2Cost {
+        memory_kib: cost.memory_kib,
+        passes: cost.passes,
+        lanes: cost.lanes,
+    };
     let mut derived = Secret::new([0u8; 32]);
-    let hashed = argon
-        .hash_password_into_with_memory(composite, salt, derived.expose_mut(), &mut memory)
-        .is_ok();
-    // What the memory holds is derived from the passphrase.
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    if hashed {
-        Ok(derived)
-    } else {
-        Err(Error::Cost)
-    }
+    faraday_crypto::argon2(c, algorithm, composite, salt, cost_in, &mut derived).map_err(|e| {
+        match e {
+            faraday_crypto::Argon2Error::Memory => Error::Memory(cost.memory_kib / 1024),
+            faraday_crypto::Argon2Error::Params => Error::Cost,
+        }
+    })?;
+    Ok(derived)
 }
 
 /// `SHA-512(i || base)`: block `i`'s HMAC key, and the header's when `i`

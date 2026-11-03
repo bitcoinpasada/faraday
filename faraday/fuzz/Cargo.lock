@@ -821,6 +821,7 @@ dependencies = [
 name = "faraday-crypto"
 version = "0.1.0"
 dependencies = [
+ "argon2",
  "blake2",
  "hmac",
  "libc",
@@ -865,6 +866,9 @@ dependencies = [
 [[package]]
 name = "faraday-fat"
 version = "0.1.9"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "faraday-files"

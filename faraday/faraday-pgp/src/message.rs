@@ -33,9 +33,9 @@ use alloc::vec::Vec;
 #[cfg(test)]
 use aes::Aes128;
 use aes::Aes256;
-use argon2::{Algorithm, Argon2, Block, Params, Version};
-use faraday_crypto::work::{Compute, Work};
-use faraday_crypto::{hkdf_sha256_expand, hmac_sha256};
+use argon2::Algorithm;
+use faraday_crypto::work::Compute;
+use faraday_crypto::{Secret, hkdf_sha256_expand, hmac_sha256};
 use ocb3::AeadInOut;
 use ocb3::aead::inout::InOutBuf;
 use ocb3::consts::{U15, U16};
@@ -229,7 +229,7 @@ impl Message<'_> {
         )?;
         let session = unwrap_session_key(
             Cipher::Aes256,
-            &*key,
+            key.expose(),
             &self.iv,
             &self.session,
             &self.session_tag,
@@ -407,7 +407,7 @@ fn seal_packets(
         cost.passes,
         cost.lanes,
     )?;
-    let (wrapped, tag) = wrap_session_key(Cipher::Aes256, &*key, iv, &*session);
+    let (wrapped, tag) = wrap_session_key(Cipher::Aes256, key.expose(), iv, &*session);
 
     let mut skesk = Vec::with_capacity(88);
     skesk.extend_from_slice(&[6, (3 + S2K_LEN + IV_LEN) as u8, AES256, OCB, S2K_LEN as u8]);
@@ -455,29 +455,25 @@ fn s2k(
     memory_kib: u32,
     passes: u8,
     lanes: u8,
-) -> Result<Zeroizing<[u8; 32]>, Error> {
-    c.count(Work::Kdf);
-    let params = Params::new(memory_kib, u32::from(passes), u32::from(lanes), Some(32))
-        .map_err(|_| Error::Cost)?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
-    let blocks = params.block_count();
-    let mut memory: Vec<Block> = Vec::new();
-    memory
-        .try_reserve_exact(blocks)
-        .map_err(|_| Error::Memory(memory_kib / 1024))?;
-    memory.resize(blocks, Block::default());
-    let mut derived = Zeroizing::new([0u8; 32]);
-    let hashed = argon
-        .hash_password_into_with_memory(passphrase, salt, &mut *derived, &mut memory)
-        .is_ok();
-    // What the memory holds is derived from the passphrase.
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    if hashed {
-        Ok(derived)
-    } else {
-        Err(Error::Cost)
-    }
+) -> Result<Secret<[u8; 32]>, Error> {
+    let mut derived = Secret::new([0u8; 32]);
+    faraday_crypto::argon2(
+        c,
+        Algorithm::Argon2id,
+        passphrase,
+        salt,
+        faraday_crypto::Argon2Cost {
+            memory_kib,
+            passes: u32::from(passes),
+            lanes: u32::from(lanes),
+        },
+        &mut derived,
+    )
+    .map_err(|e| match e {
+        faraday_crypto::Argon2Error::Memory => Error::Memory(memory_kib / 1024),
+        faraday_crypto::Argon2Error::Params => Error::Cost,
+    })?;
+    Ok(derived)
 }
 
 /// HKDF-SHA-256 (RFC 5869) into `out`.

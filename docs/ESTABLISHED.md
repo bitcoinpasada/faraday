@@ -1763,7 +1763,7 @@ Reference's list of conditions.
 | C10 | The descriptor checksum from miniscript | §5.12 | Built |
 | C11 | JSON from `serde_json` behind Faraday's visitor; `holds_secret` keeps no value; with X5 | §5.13, §9.7 | Built, with X5 |
 | C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
-| C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, which F190's vault replaces) | §5.15, §9.7 | About 2 hours, and X7's |
+| C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, which F190's vault replaces) | §5.15, §9.7 | Built, with X7 in area `kdbx` (the vault area's KDBX vault and QR vault wait for `docs/VAULT.md` §10) |
 | C14 | The quiz's seed from the session's generator | §5.16 | Built |
 | C15 | One copy of each kept piece; with X12 | §5.17, §9.7 | About 1 day, and X12's |
 | D1 | Schema 5: `written_here` as entries with `why`, `note`, `decision`; `[[not_established]]` for lzma-rust2 and rqrr; getrandom's trust entry; `check.py` (§1.2's three ways, the version checked) and `gen.py`; AUDIT §3 grouped; STANDARDS §10 generated and §0's bullet; the counts; `crypto.established` made active; the manifest's entries filled as §3 | §1.2, §1.4, §2, §3 | 1 to 1.5 days |
@@ -2058,7 +2058,7 @@ they were not, the batch checks them first.
 | X1 | mtools, dosfstools, util-linux's `sfdisk`, QEMU and OVMF's Secure Boot firmware (for the OVMF run) | none |
 | X2 | `gnutls-bin` (`certtool`), `pesign` (`pesigcheck`), `python3-pefile` | two real signed EFI binaries, each under 2 MiB (`tools/reference/signed-efi/`: Ubuntu's shim-signed 1.59+15.8-0ubuntu2, with its source, licence and SHA-256) |
 | X6 | `python3-pil` (Pillow) | none |
-| X7 | `python3-cryptography` 44 or later, over OpenSSL 3.2 or later (not checked on the build machine) | none |
+| X7 | `python3-cryptography` 44 or later, over OpenSSL 3.2 or later (checked on the build machine, 2026-11-03: 46.0.5 over OpenSSL 3.5.5) | none |
 | X10 | none | rust-codex32 at commit `3943cb52b2343333386fac0cd38b8ae5a4d6de02` (CC0 1.0; its `Cargo.toml` has no dependency), built offline outside the workspace; volvelle's worksheet program is in `tools/vectors/codex32-volvelle/` already (CC0 1.0) |
 | X11 | none | the bip39_slip39 wheel, 2026.10.24, beside btclib's |
 | X12 | `python3-cbor2` | none |

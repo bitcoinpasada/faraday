@@ -39,6 +39,7 @@
 
 extern crate alloc;
 
+mod argon2;
 mod blake2b;
 mod crc32;
 mod hash;
@@ -48,6 +49,7 @@ mod secret;
 mod wipe;
 pub mod work;
 
+pub use argon2::{Cost as Argon2Cost, Error as Argon2Error, argon2};
 pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
 pub use crc32::crc32;
 pub use hash::{

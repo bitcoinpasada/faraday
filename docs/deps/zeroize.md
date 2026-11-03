@@ -6,6 +6,10 @@ the single dependency of `faraday-shell-api`, where `EntropyBytes` wipes the
 32 bytes a shell answered a session's entropy request with (security
 review 2026-09-11, L4).
 
+It also wipes the Argon2 working memory in `faraday_crypto::argon2`
+(the one Argon2 call `faraday-backup`, the KDBX container and the QR
+vault's OpenPGP message make) and the cluster buffer in `faraday-fat`.
+
 **Why this crate.** Its `zeroize()` is a volatile write followed by a
 compiler fence, which is what stops the optimiser from removing a store
 to memory that is never read again; a plain `fill(0)` is not enough. It

@@ -16,11 +16,9 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
-
-use argon2::{Algorithm, Argon2, Block, Params, Version};
+use argon2::{Algorithm, Params};
 use faraday_crypto::Secret;
-use faraday_crypto::work::{Compute, Work};
+use faraday_crypto::work::Compute;
 
 pub mod kdbx;
 
@@ -79,25 +77,22 @@ pub fn argon2id(
     password: &[u8],
     salt: &[u8],
 ) -> Result<Secret<[u8; 32]>, StretchError> {
-    c.count(Work::Kdf);
-    let params = Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32))
-        .map_err(|_| StretchError::Params)?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
-    let blocks = params.block_count();
-    let mut memory: Vec<Block> = Vec::new();
-    memory
-        .try_reserve_exact(blocks)
-        .map_err(|_| StretchError::Memory)?;
-    memory.resize(blocks, Block::default());
     let mut derived = Secret::new([0u8; 32]);
-    let hashed = argon
-        .hash_password_into_with_memory(password, salt, derived.expose_mut(), &mut memory)
-        .is_ok();
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    if hashed {
-        Ok(derived)
-    } else {
-        Err(StretchError::Params)
-    }
+    faraday_crypto::argon2(
+        c,
+        Algorithm::Argon2id,
+        password,
+        salt,
+        faraday_crypto::Argon2Cost {
+            memory_kib: cost.memory_kib,
+            passes: cost.passes,
+            lanes: cost.lanes,
+        },
+        &mut derived,
+    )
+    .map_err(|e| match e {
+        faraday_crypto::Argon2Error::Memory => StretchError::Memory,
+        faraday_crypto::Argon2Error::Params => StretchError::Params,
+    })?;
+    Ok(derived)
 }

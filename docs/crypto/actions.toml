@@ -6926,9 +6926,9 @@ code = [
 crate = "faraday/faraday-pgp"
 libraries = [
   "aes",
-  "argon2",
   "ocb3",
 ]
+through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "Only the part used is written: the version 6 symmetric-key packet with the Argon2 S2K and the version 2 data packet, both AES-256 and OCB, and the one literal data packet, in any length form RFC 9580 allows. The Argon2 cost is checked against the limits right after the key packet, before the data packet is read or any Argon2 memory is taken, padding packets are ignored, every tag is checked before plaintext is returned, and every other packet, version, algorithm or trailing byte is named and not opened. HKDF-SHA-256 is Faraday's own (`faraday-crypto`); Argon2id, AES and OCB are the RustCrypto crates."
 written_here = "The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)"
 
@@ -7025,7 +7025,6 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-vault"
 libraries = [
-  "argon2",
   "chacha20",
   "aes",
   "cbc",
@@ -7035,6 +7034,7 @@ libraries = [
   "miniz_oxide",
   "sha2",
 ]
+through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not recorded in a KDBX 4 header, so such a file cannot be told from a wrong passphrase (owner, 2026-11-02) and the wrong-passphrase message for a KeePass file says that a file which also needs one cannot be opened here. An Argon2 version missing from the parameters is a damaged file, as KeePass and KeePassXC take it. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes. The XML document (`kdbx::xml`) is read over quick-xml's tokenizer and refused, naming what was found, for a document not well formed, a DOCTYPE, an entity other than XML's five and character references, an XML declaration anywhere but the start, anything after the root other than XML whitespace, comments and processing instructions, nesting past 64, markup inside a text element the model reads, a Meta or Root missing or repeated, and a protected value that is not canonical Base64 (base64ct) of text; a comment or processing instruction is carried, and skipped in text the model reads; an entry or group with two UUIDs or a UUID of other than 16 bytes, a field with two values and the like is marked ambiguous and left as read, not refused; every protected value, those in carried bytes, history and the recycle bin included, is decrypted in document order and, on writing, the ones written are encrypted in document order under the new key from their plaintexts; what the model does not read is carried as the bytes read, and history and the recycle bin (the bin dropped while RecycleBinEnabled is True or absent) are dropped and counted."
 written_here = "The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)"
 
@@ -7411,6 +7411,7 @@ functions = [
   "core/faraday-backup/src/kdbx.rs::hmac",
   "core/faraday-backup/src/kdbx.rs::chacha20",
   "core/faraday-backup/src/lib.rs::argon2id",
+  "core/faraday-crypto/src/argon2.rs::argon2",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_job",
   "faraday/faraday-keys/src/job.rs::KdbxJob::run",
 ]
@@ -7434,12 +7435,12 @@ reason = "the vault module serves every vault screen; a press on this screen doe
 [action.implementation]
 crate = "core/faraday-backup"
 libraries = [
-  "argon2",
   "chacha20",
   "hmac",
   "sha2",
   "base64ct",
 ]
+through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "Write only: version 4.0, ChaCha20, no compression, the composite key is the passphrase alone; the check after writing reads the header hash, header HMAC and every block HMAC of a file this module wrote and parses no XML; the salt, seed, IV, inner key and UUIDs come from one caller-given seed. In the app that seed is the session's randomness, each 32 bytes from an answer of the system's of its own, and nothing is made until the system has answered."
 written_here = "The KDBX 4 file format (`faraday-backup`)"
 
@@ -7457,7 +7458,7 @@ tests = [
   "faraday/faraday-core/tests/all/kdbx.rs::an_entry_exported_for_keepass_is_sealed_under_its_passphrase",
 ]
 crosscheck = "kdbx"
-independence = { class = "outside", author = "pykeepass, by the libkeepass project (the distribution's package)" }
+independence = { class = "outside", author = "pykeepass, by the libkeepass project (the distribution's package), and PyCA's cryptography over OpenSSL for the Argon2id" }
 fuzz_none = "Nothing here reads a KDBX file but `verify`, which reads only a file this device wrote, and the tests' `open_for_tests`, which no shipped binary has."
 other = [
   "every file read back by `tools/backup/read-kdbx.py`",
@@ -7487,7 +7488,7 @@ kind = "Neutral"
 decision = "F154"
 
 [action.review]
-fingerprint = "c7a19f4eb04dfbd7506316420d1e72d3b92968570ee10d1b4377d7cb1c630b61"
+fingerprint = "287f44b549a3c81a8de0c142e6c831e88a9e05f47a7d420a43a9ff0e932c21eb"
 reviewed = "2026-11-03"
 places = [
   "docs/KDBX.md",
@@ -8282,7 +8283,7 @@ code = ["core/faraday-selftest/src/lib.rs::run"]
 crate = "core/faraday-selftest"
 libraries = []
 through = [
-  { library = "argon2", crate = "core/faraday-backup" },
+  { library = "argon2", crate = "core/faraday-crypto" },
   { library = "bitcoin", crate = "core/faraday-bip" },
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },

@@ -39,6 +39,18 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 kdbx::write(&c, &items, &bytes(req, "passphrase"), cost, &seed).ok_or("refused")?;
             Ok(json!({"file": hex(&file)}))
         }
+        // The export's derivation: Argon2id, version 1.3, 32 bytes.
+        "argon2id" => {
+            let cost = Cost {
+                memory_kib: u32::try_from(num(req, "memory_kib")).map_err(|e| e.to_string())?,
+                passes: u32::try_from(num(req, "passes")).map_err(|e| e.to_string())?,
+                lanes: u32::try_from(num(req, "lanes")).map_err(|e| e.to_string())?,
+            };
+            let key =
+                faraday_backup::argon2id(&c, &cost, &bytes(req, "password"), &bytes(req, "salt"))
+                    .map_err(|e| format!("{e:?}"))?;
+            Ok(json!({"key": hex(key.expose())}))
+        }
         "verify" => Ok(json!({
             "valid": kdbx::verify(&c, &bytes(req, "file"), &bytes(req, "passphrase"))
         })),

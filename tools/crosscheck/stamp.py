@@ -176,6 +176,11 @@ def distribution_versions():
             out += f"{name} {metadata.version(name)}\n"
         except metadata.PackageNotFoundError:
             out += f"{name} missing\n"
+    try:
+        from cryptography.hazmat.backends.openssl import backend
+        out += f"OpenSSL {backend.openssl_version_text()}\n"
+    except ImportError:
+        out += "OpenSSL missing\n"
     import judges
     return out + f"{go_version()}\n" + judges.versions()
 

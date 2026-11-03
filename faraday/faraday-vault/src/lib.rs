@@ -49,7 +49,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::ops::Range;
 
-use argon2::{Algorithm, Argon2, Block, Params, Version};
+use argon2::Algorithm;
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20poly1305::aead::inout::InOutBuf;
@@ -259,28 +259,25 @@ fn stretch(
     passphrase: &[u8],
     salt: &[u8],
 ) -> Result<Secret<[u8; 32]>, Error> {
-    c.count(Work::Kdf);
-    let params =
-        Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32)).map_err(|_| Error::Cost)?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
-    let blocks = params.block_count();
-    let mut memory: Vec<Block> = Vec::new();
-    memory
-        .try_reserve_exact(blocks)
-        .map_err(|_| Error::Memory(cost.memory_kib / 1024))?;
-    memory.resize(blocks, Block::default());
     let mut derived = Secret::new([0u8; 32]);
-    let hashed = argon
-        .hash_password_into_with_memory(passphrase, salt, derived.expose_mut(), &mut memory)
-        .is_ok();
-    // What the memory holds is derived from the passphrase.
-    memory.fill(Block::default());
-    core::hint::black_box(&memory);
-    if hashed {
-        Ok(derived)
-    } else {
-        Err(Error::Cost)
-    }
+    let cost_in = faraday_crypto::Argon2Cost {
+        memory_kib: cost.memory_kib,
+        passes: cost.passes,
+        lanes: cost.lanes,
+    };
+    faraday_crypto::argon2(
+        c,
+        Algorithm::Argon2id,
+        passphrase,
+        salt,
+        cost_in,
+        &mut derived,
+    )
+    .map_err(|e| match e {
+        faraday_crypto::Argon2Error::Memory => Error::Memory(cost.memory_kib / 1024),
+        faraday_crypto::Argon2Error::Params => Error::Cost,
+    })?;
+    Ok(derived)
 }
 
 /// HKDF-SHA256 (RFC 5869) with an empty salt, 32 bytes of output: one
