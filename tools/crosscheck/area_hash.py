@@ -40,10 +40,12 @@ use_reference("core")
 from test_framework.address import base58_to_byte, byte_to_base58  # noqa: E402
 from test_framework.crypto.ripemd160 import ripemd160  # noqa: E402
 from test_framework.segwit_addr import (  # noqa: E402
-    CHARSET, Encoding, bech32_decode, bech32_encode, bech32_verify_checksum, convertbits)
+    CHARSET, Encoding, bech32_decode, bech32_encode, bech32_verify_checksum, convertbits,
+    decode_segwit_address, encode_segwit_address)
 
 B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BECH32_CHARS = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+ADDRESS_HRPS = ("bc", "tb", "bcrt")
 HRPS = ["bc", "tb", "bcrt", "lnbc", "lntb", "npub", "nsec", "age", "a", "abcdef"]
 # Lengths around the 64-byte block of SHA-256 and RIPEMD-160 and their
 # 9-byte padding, then a spread to 300.
@@ -117,16 +119,19 @@ def ref_bech32(text):
     if enc is None or len(hrp) > 83:
         # BIP-173: a human-readable part of 1 to 83 characters.
         raise ValueError("not bech32")
+    name = "bech32" if enc == Encoding.BECH32 else "bech32m"
+    if hrp in ADDRESS_HRPS:
+        version, program = decode_segwit_address(hrp, text)
+        if version is not None:
+            return {"encoding": name, "bytes": bytes(program).hex(), "version": version,
+                    "hrp": hrp, "checksum": True}
     raw = convertbits(data, 5, 8, False)
     if raw is None:
-        # Known difference: `encodings::read` turns all the data groups into
-        # bytes and drops the bits that do not fill one. BIP-173's rule of at
-        # most 4 padding bits, all zero, is a segwit address's, over the
-        # program after the witness version; `convertbits` here applies it
-        # to all the groups, and so refuses every P2WPKH address. The
-        # reference reads it the same way as Faraday.
+        # Any other text: BIP-173's padding rule is a segwit address's, and
+        # `encodings::read` turns all the groups into bytes and drops the
+        # bits that do not fill one. The reference reads it the same way.
         raw = convertbits(data, 5, 8, True)[:len(data) * 5 // 8]
-    return {"encoding": "bech32" if enc == Encoding.BECH32 else "bech32m",
+    return {"encoding": name,
             "bytes": bytes(raw).hex(), "version": None, "hrp": hrp, "checksum": True}
 
 
@@ -203,13 +208,11 @@ class Hash(Area):
     )
     differences = [
         (
-            'bech32 groups: Faraday reads any string with a valid checksum as bytes, all its '
-            'data groups together, and drops the bits that do not fill a byte. BIP-173 has a '
-            'padding rule only for a segwit address, over the program after the witness version, '
-            'and Faraday does not take the version off. So Core\'s `convertbits` over all the '
-            'groups refuses every P2WPKH address, and the area reads those strings as Faraday '
-            'does. The bytes shown for a segwit address are therefore its version and program '
-            'run together, not its program: this area does not judge them as a program.'
+            'bech32 groups: a string that is not a segwit address of bc, tb or bcrt is read as '
+            'bytes, all its data groups together, and the bits that do not fill a byte are '
+            'dropped. BIP-173 has a padding rule only for a segwit address, so Core\'s '
+            '`convertbits`, which applies it to any data, refuses some of these strings, and '
+            'the area reads them as Faraday does.'
         ),
         (
             'bech32 length: Core\'s decoder refuses more than 90 characters (BIP-173); '
@@ -261,6 +264,18 @@ class Hash(Area):
                                 "hrp": None, "checksum": True}))
         if self.need(self.write("base58check", h, 0), "write") != text:
             raise AssertionError("Base58Check differs from Bitcoin Core's address")
+        # BIP-173's and BIP-350's addresses: witness version and program.
+        for s, enc, hrp, version, program in [
+            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", "bech32", "bc", 0,
+             "751e76e8199196d454941c45d1b3a323f1433bd6"),
+            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", "bech32", "tb", 0,
+             "1863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"),
+            ("bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", "bech32m", "bc", 1,
+             "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"),
+            ("BC1SW50QGDZ25J", "bech32m", "bc", 16, "751e"),
+        ]:
+            self.read(s, ("ok", {"encoding": enc, "bytes": program, "version": version, "hrp": hrp,
+                                 "checksum": True}))
         # BIP-173 and BIP-350: strings of no data (read with their bytes),
         # other valid strings (both must read them alike), and invalid ones.
         for s, enc in [("a12uel5l", "bech32"), ("A12UEL5L", "bech32"), ("a1lqfn3a", "bech32m")]:
@@ -288,6 +303,13 @@ class Hash(Area):
         rng = self.rng
         b = self.randbytes(self.sizes())
         self.hashes(b)
+        # A segwit address Core's framework writes, of any version and of
+        # lengths both sides of what each allows.
+        version = rng.choice([0, 0, 1, 1, rng.randint(2, 16)])
+        size = rng.choice([20, 32, rng.randint(2, 40)])
+        address = encode_segwit_address(rng.choice(ADDRESS_HRPS), version, self.randbytes(size))
+        if address is not None:
+            self.read(address)
         # Writing and reading, in every spelling.
         small = b[:rng.randint(0, 40)]
         version = rng.randrange(256)

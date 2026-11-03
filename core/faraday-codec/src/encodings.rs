@@ -11,7 +11,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use bitcoin::base58;
-use bitcoin::bech32::primitives::decode::UncheckedHrpstring;
+use bitcoin::bech32::primitives::decode::{SegwitHrpstring, UncheckedHrpstring};
 use bitcoin::bech32::{Bech32, Bech32m, Hrp};
 
 /// How a string spells its bytes.
@@ -34,9 +34,11 @@ pub enum Encoding {
 pub struct Reading {
     /// Which encoding the string is.
     pub encoding: Encoding,
-    /// The bytes it carries, without the version byte or the checksum.
+    /// The bytes it carries, without the version or the checksum: a
+    /// segwit address's are its witness program.
     pub bytes: Vec<u8>,
-    /// The first byte of a Base58Check payload, which is its version.
+    /// The first byte of a Base58Check payload, which is its version, or
+    /// a segwit address's witness version.
     pub version: Option<u8>,
     /// The human-readable part of a bech32 or bech32m string.
     pub hrp: Option<String>,
@@ -92,7 +94,33 @@ pub fn read(text: &str) -> Option<Reading> {
 }
 
 /// A bech32 or bech32m string, by which checksum holds over it.
+/// `text` as a segwit address of Bitcoin's prefixes: its witness version and
+/// its program. BIP-173's and BIP-350's rules are the crate's, so any other
+/// bech32 text is read as plain data.
+fn read_segwit_address(text: &str) -> Option<Reading> {
+    let address = SegwitHrpstring::new(text).ok()?;
+    let hrp = address.hrp().to_lowercase();
+    if !matches!(hrp.as_str(), "bc" | "tb" | "bcrt") {
+        return None;
+    }
+    let version = address.witness_version().to_u8();
+    Some(Reading {
+        encoding: if version == 0 {
+            Encoding::Bech32
+        } else {
+            Encoding::Bech32m
+        },
+        bytes: address.byte_iter().collect(),
+        version: Some(version),
+        hrp: Some(hrp),
+        checksum: Some(true),
+    })
+}
+
 fn read_bech32(text: &str) -> Option<Reading> {
+    if let Some(address) = read_segwit_address(text) {
+        return Some(address);
+    }
     let unchecked = UncheckedHrpstring::new(text).ok()?;
     let encoding = if unchecked.has_valid_checksum::<Bech32>() {
         Encoding::Bech32

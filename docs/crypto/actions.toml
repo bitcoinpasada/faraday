@@ -2763,7 +2763,7 @@ libraries = [
   "bitcoin",
 ]
 through = [{ library = "sha2", crate = "core/faraday-crypto" }]
-adds = "The calculator shows the three hashes of any bytes, says which of Base58, Base58Check, bech32, bech32m or hex a text is, and writes the same bytes in the other spellings."
+adds = "The calculator shows the three hashes of any bytes, says which of Base58, Base58Check, bech32, bech32m or hex a text is, reads a segwit address as its witness version and program, and writes the same bytes in the other spellings."
 
 [action.checked]
 vectors = [
@@ -2772,6 +2772,7 @@ vectors = [
 tests = [
   "core/faraday-bip/tests/all/calculators.rs::the_hashes_match_the_published_vectors",
   "core/faraday-codec/tests/encodings.rs::the_bech32_vectors_are_read_the_way_the_standards_say",
+  "core/faraday-codec/tests/encodings.rs::a_segwit_address_reads_as_its_witness_version_and_program",
   "core/faraday-codec/src/encodings.rs::bech32_and_bech32m_are_told_apart",
   "core/faraday-codec/src/encodings.rs::a_published_base58check_address_is_written_and_read_as_bitcoin_core_has_it",
 ]
