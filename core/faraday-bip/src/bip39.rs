@@ -199,27 +199,18 @@ impl Language {
         self.words_display()[usize::from(idx)]
     }
 
-    /// Index of `word`, matching either the published or the NFKD form
-    /// exactly. No normalization is applied to `word`; callers that accept
-    /// free-form input must supply the stored form (the on-screen keyboard
-    /// does, since it only offers words from the list).
+    /// Index of `word`, which must be the list's stored form exactly. No
+    /// normalization is applied to `word`; callers that accept free-form
+    /// input must supply the stored form (the on-screen keyboard does,
+    /// since it only offers words from the list).
     ///
     /// Costs the whole list for every word: each of the 2048 entries is
     /// compared with the word at a fixed length by `subtle`, so the time
-    /// does not follow the word's place in the list.
+    /// does not follow the word's place in the list. Every published list
+    /// is already in NFKD form (`wordlists`), so the published form and
+    /// the NFKD form are the same text and each entry is compared once.
     pub fn index_of(self, word: &str) -> Option<u16> {
-        let words = self.words();
-        let nfkd = self.words_nfkd();
-        let w = Padded::new(word.as_bytes())?;
-        let mut found = 0u16;
-        let mut hit = Choice::from(0);
-        for i in 0..wordlists::WORDLIST_LEN {
-            let eq = Padded::new(words[i].as_bytes()).map_or(Choice::from(0), |p| p.ct_eq(&w))
-                | Padded::new(nfkd[i].as_bytes()).map_or(Choice::from(0), |p| p.ct_eq(&w));
-            found.conditional_assign(&(i as u16), eq & !hit);
-            hit |= eq;
-        }
-        bool::from(hit).then_some(found)
+        self.index_of_nfkd(word.as_bytes())
     }
 
     /// Index of the word whose NFKD form is exactly `word`'s bytes.
@@ -231,7 +222,7 @@ impl Language {
         let mut found = 0u16;
         let mut hit = Choice::from(0);
         for (i, entry) in nfkd.iter().enumerate() {
-            let eq = Padded::new(entry.as_bytes()).map_or(Choice::from(0), |p| p.ct_eq(&w));
+            let eq = w.ct_eq_entry(entry.as_bytes());
             found.conditional_assign(&(i as u16), eq & !hit);
             hit |= eq;
         }
@@ -991,8 +982,16 @@ impl Padded {
         })
     }
 
-    fn ct_eq(&self, other: &Padded) -> Choice {
-        self.bytes.ct_eq(&other.bytes) & (self.len as u32).ct_eq(&(other.len as u32))
+    /// Whether `entry` is this word: its bytes, a zero tail and its length
+    /// are compared at the fixed width, with no array made for it. An
+    /// entry longer than the width is no match.
+    fn ct_eq_entry(&self, entry: &[u8]) -> Choice {
+        let mut same = Choice::from(u8::from(entry.len() <= self.bytes.len()));
+        for (j, mine) in self.bytes.iter().enumerate() {
+            let theirs = entry.get(j).copied().unwrap_or(0);
+            same &= mine.ct_eq(&theirs);
+        }
+        same & (self.len as u32).ct_eq(&(entry.len() as u32))
     }
 }
 
