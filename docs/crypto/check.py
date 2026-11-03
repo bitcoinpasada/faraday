@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """The manifest's checker (docs/CRYPTO-LEARN.md §2 to §7, §10.2).
 
-    check.py check [--inventory FILE] [--all]
-        coverage, schema, truth of what an entry names, fingerprints
+    check.py check [--release] [--inventory FILE] [--all]
+        coverage, schema, truth of what an entry names; with --release,
+        which `just lint-release` passes, the fingerprints too (F197)
     check.py review ID [--inventory FILE]
         the only writer of a fingerprint (§5.3): `just crypto-review ID`
     check.py changes TAG [--inventory FILE]
@@ -1638,14 +1639,15 @@ def check_learn_actions(c):
               f"{len(c.by_id)} actions: write `{count_word(len(c.by_id))}`")
 
 
-def run_checks(c):
+def run_checks(c, release=True):
     check_screens(c)
     check_deps(c)
     check_schema(c)
     check_constructions(c)
     check_truth(c)
     check_coverage(c)
-    check_fingerprints(c)
+    if release:
+        check_fingerprints(c)
     check_audit_crates(c)
     check_reveals(c)
     check_learn_actions(c)
@@ -1681,10 +1683,10 @@ def cmd_inventory(root):
     return 0
 
 
-def cmd_check(root, inv_path, show_all):
+def cmd_check(root, inv_path, show_all, release=False):
     inv = read_inventory(root, inv_path)
     c = Ctx(root, inv)
-    run_checks(c)
+    run_checks(c, release)
     report(c.errors, show_all)
     for n in c.notes:
         print(f"note: {n}")
@@ -2207,6 +2209,9 @@ def self_test():
         c = check(fixture_inventory(f_hash="f2"))
         fails = {a for k, a, _ in c.errors.items if k == "fingerprint"}
         expect(fails == {"one"}, f"a changed f fails one only: {fails}")
+        c = Ctx(root, fixture_inventory(f_hash="f2"))
+        run_checks(c, release=False)
+        expect(not msgs(c, "fingerprint"), "outside a release a changed f fails no fingerprint")
 
         print("a moved function:")
         moved = fixture_inventory(moved=True)
@@ -2520,17 +2525,19 @@ def self_test():
 def main(argv):
     if argv[:1] == ["--self-test"]:
         return self_test()
-    inv_path, show_all, rest = None, False, []
+    inv_path, show_all, release, rest = None, False, False, []
     it = iter(argv)
     for x in it:
         if x == "--inventory":
             inv_path = next(it, None)
         elif x == "--all":
             show_all = True
+        elif x == "--release":
+            release = True
         else:
             rest.append(x)
     if rest[:1] == ["check"] and len(rest) == 1:
-        return cmd_check(ROOT, inv_path, show_all)
+        return cmd_check(ROOT, inv_path, show_all, release)
     if rest[:1] == ["inventory"] and len(rest) == 1:
         return cmd_inventory(ROOT)
     if rest[:1] == ["review"] and len(rest) == 2:

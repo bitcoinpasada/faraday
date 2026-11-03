@@ -404,8 +404,8 @@ branch or a lookup on a secret, with the reason in §3.
 
 Every batch here is proved by the vectors and cross-check areas it
 names giving the same bytes, the tests of the crates touched, `just
-crosscheck` where an area's code changed, and `just crypto-review` for
-each action `python3 -I -B docs/crypto/check.py check` names as changed.
+crosscheck --area NAME` where an area's code changed; the stamp and the
+actions' reviews wait for the release (F197).
 Each changes the manifest's `secrets.constant_time` (or `secrets.wiped`)
 text of the actions named to the text given.
 
@@ -955,10 +955,8 @@ these, which the subsections do not repeat:
 5. **deps page.** A new direct dependency gets its `docs/deps/` page
    (rule `deps.page`); a crate already a direct dependency elsewhere has
    its page's purpose extended.
-6. **Fingerprints.** After the change `python3 -I -B docs/crypto/check.py
-   check` names every action whose fingerprint changed; each is a
-   `just crypto-review <id>`. `just crosscheck` runs where an area's
-   code changed, and re-stamps.
+6. **Fingerprints.** They and the stamp wait for the release (F197);
+   `just crosscheck --area NAME` runs where an area's code changed.
 7. **AUDIT.** The `written_here` string of the action changes as given
    (before D1 makes it an entry), and AUDIT §3's line, and §1's row where
    named, with it (`check_audit_crates`).
@@ -1734,9 +1732,8 @@ ends (the next lock on the device), and anything outside the process
 ## 8. Order of work
 
 Each batch is one commit and one check: the module touched while
-working, `just crosscheck` where a cross-check area's code changed,
-`just crypto-review` for each action whose fingerprint changed, then
-`just` at the end. Each batch edits this document's `**Status:**` and
+working, `just crosscheck --area NAME` where a cross-check area's code
+changed, then `just` at the end. Each batch edits this document's `**Status:**` and
 `**Open:**` lines to name what is left, and `docs/README.md`'s line with
 them. The batch that builds the last open item moves §4, §5, §8 and §9.7 to
 docs/history/ESTABLISHED-LOG.md and makes the document a Reference

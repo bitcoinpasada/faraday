@@ -470,8 +470,9 @@ each is re-stamped after its own review, the used action first.
 A function's line carries its path (`fn <hash> <path>`) so the recipe
 can re-point a move; the action's `fingerprint` in the manifest is
 SHA-256 over those lines without the paths, sorted, so a move or a
-rename keeps it (§5.1). The lint recomputes it from the inventory and the tree; a
-difference fails, naming the parts that changed:
+rename keeps it (§5.1). `just lint-release`, before a release and not between
+them (F197), recomputes it from the inventory and the tree; a difference fails,
+naming the parts that changed:
 
 ```
 sign-ecdsa: the code changed since it was reviewed on 2026-11-02
@@ -862,8 +863,10 @@ block's last line reads it.
 ### 10.2 The stamp and the fingerprints
 
 `tools/crosscheck/stamp.py` records that the cross-check passed on this
-code, for all of it at once: any change to a crypto crate forces
-`just crosscheck` again. A fingerprint records that one action's text
+code, for all of it at once: any change to a crypto crate since the stamp
+fails `just lint-release` until `just crosscheck` runs again, before a
+release (F197); the tip between releases is not kept cross-checked. A
+fingerprint records that one action's text
 was reviewed against its code. They fit together:
 
 - The re-stamp of an action with an area requires the stamp current
@@ -1244,8 +1247,8 @@ exception and the structure rules:
   docs/crypto/actions.toml (F148): what the inventory finds by its rules
   (the compute token in the crates that hold keys, a reveal, a primitive
   crate named, a public function that reaches one) and no action covers
-  fails `just lint`, as does an action whose code, libraries or vectors
-  changed since its fingerprint. `just crypto-review <id>` is the only
+  fails `just lint`; an action whose code, libraries or vectors changed
+  since its fingerprint fails `just lint-release` (F197). `just crypto-review <id>` is the only
   way to re-stamp: it lists every place the action touches, regenerates
   what is generated, and refuses while a named test, area or vector is
   missing. A function the rules find that computes nothing on a secret

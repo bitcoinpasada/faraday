@@ -5,12 +5,13 @@ A passing `just crosscheck` writes `tools/crosscheck/stamp`: one hash
 over the crypto sources, the cross-check itself and its references, and
 the `Cargo.lock` entries of the crypto crates, with the seed, the
 Python it ran under, Bitcoin Core's version and tarball SHA-256, how
-long it took and each area's corpus case count. `just lint` runs
+long it took and each area's corpus case count. `just lint-release` runs
 `stamp.py check`, which hashes the same inputs and fails when they no
 longer match, or when the stamp's Bitcoin Core is not the release
-`tools/reference/core/release.pin` pins: a change to the crypto, a
-version bump of a crypto crate or a new Core is not committed without a
-passing cross-check. It is a record,
+`tools/reference/core/release.pin` pins: a release does not carry a
+change to the crypto, a version bump of a crypto crate or a new Core
+without a passing cross-check. Between releases the tip is not held to
+it (F197). It is a record,
 not a security control. Standard library only; about a tenth of a
 second.
 

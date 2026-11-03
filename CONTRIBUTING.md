@@ -33,8 +33,8 @@ change is held to the same rules, whoever makes it.
    action of Faraday's own specification carries the label "own
    specification, not yet reviewed outside Faraday" until an outside
    review, F160, F177), and the
-   cross-check (`just crosscheck`) passes and its stamp is committed
-   with it.
+   cross-check areas of its code pass (`just crosscheck --area NAME`).
+   The full cross-check and its stamp are a release's (F197).
 4. Write the commit message as what changed for a person using Faraday
    and why, then the test that holds it.
 

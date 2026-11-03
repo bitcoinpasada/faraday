@@ -90,6 +90,10 @@ plan <paths>` lists the ones a change touches.
   input); accepting more than a standard requires is the owner's
   decision, recorded in DECISIONS. A type re-implemented from a `core/`
   one keeps the values the original works out once.
+- The full cross-check runs before a release, never on a schedule, and the
+  tip is not kept cross-checked (F197): a change to an area's code runs that
+  area and commits no stamp or fingerprint; a release passes `just
+  lint-release`.
 - A check that keeps keys or money safe has no way past it unless a
   decision names a legitimate case (a hold naming it, STANDARDS §0, F136).
   Key material lives in `faraday-keys` and leaves only through its named

@@ -2,9 +2,9 @@
 # tools/crosscheck/README.md): Faraday's Rust against the vendored Python
 # references, offline, over every published vector and a seeded random
 # corpus, on one worker a core. A passing run writes tools/crosscheck/stamp,
-# which `just lint` holds the crypto to. `--fresh` before a release (a new
-# seed, ten times the cases); `--area NAME` for one area; `--jobs N` for N
-# workers.
+# which `just lint-release` holds the crypto to. `--fresh` before a release (a
+# new seed, ten times the cases); `--area NAME` for one area, as a change to
+# that area's code runs it; `--jobs N` for N workers.
 [group('test')]
 crosscheck *args:
     tools/crosscheck/run.sh {{args}}

@@ -63,7 +63,9 @@ decision F109):
   an implementation Faraday did not write: an F79 cross-check area
   against a pinned outside reference (`tools/crosscheck/README.md`), or
   the other tool itself end to end (Bitcoin Core, `gpg`, `openssl`); and
-  against the standard's published vectors where they exist. A second
+  against the standard's published vectors where they exist. The full
+  cross-check runs before a release: a release is checked, a commit
+  between releases may not be (F197). A second
   implementation written by Faraday's own authors, from the
   specification or from the code, is Faraday's own: wherever the check
   is described it is said to be compared with an implementation

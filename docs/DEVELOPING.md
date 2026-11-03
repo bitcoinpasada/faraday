@@ -327,9 +327,13 @@ just crosscheck --area musig    one area
 just crosscheck --jobs 4        four workers (default: one a core)
 ```
 
-A passing full run writes `tools/crosscheck/stamp`; `just lint` fails
-when the crypto changed since the stamp, until the cross-check passes
-again. Commit the stamp with the change.
+The full cross-check runs before a release, and the tip between releases
+is not kept cross-checked (F197): `just` does not check the stamp, and a
+change to the crypto commits none. A change to an area's code runs that
+area (`--area`, which writes no stamp). A passing full run writes
+`tools/crosscheck/stamp`, committed with the release; `just lint-release`
+fails when the crypto changed since it or an action's code changed since
+its fingerprint.
 
 `just crosscheck --fresh` also writes `out/crosscheck-record.txt`: the
 commit, seed, scale and UTC date; each area's cases, answers, known
@@ -362,9 +366,11 @@ later:
 just crypto-review ID           print the action's entry, what changed in its code and the
                                 places to read with it; then write its fingerprint
 just crypto-changes TAG         the actions whose fingerprint changed since a tag
-python3 -I -B docs/crypto/check.py check        coverage, truth, fingerprints and the places
-                                                it checks (AUDIT §1, the Reveal count, COMPUTE
-                                                §2.3, the Tools tags, the not_crypto count)
+python3 -I -B docs/crypto/check.py check        coverage, truth and the places it checks
+                                                (AUDIT §1, the Reveal count, COMPUTE §2.3,
+                                                the Tools tags, the not_crypto count)
+just lint-release               before a release: the stamp, and the same check with the
+                                fingerprints (`check.py check --release`)
 python3 -I -B docs/crypto/check.py --self-test  the checker over a small fixture
 python3 -I -B docs/crypto/gen.py write          rewrite the generated places of STANDARDS and AUDIT
 python3 -I -B docs/crypto/gen.py check          fail if one differs from the manifest
@@ -375,8 +381,8 @@ python3 -I -B docs/crypto/gen.py --self-test    the generator over a small fixtu
 between `<!-- crypto-manifest: begin … -->` and `end` lines: change the manifest and
 run `gen.py write`, never the text between the lines. `just crypto-review ID` runs
 `gen.py write` itself. `just lint` runs `check.py check` and `gen.py check`, so an
-action whose code changed since its review, or a generated place out of date, fails
-the build.
+uncovered function or a generated place out of date fails the build; an action whose
+code changed since its review fails `just lint-release`, before a release (F197).
 
 ## 8. Fuzzing
 

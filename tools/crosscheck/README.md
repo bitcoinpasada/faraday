@@ -70,14 +70,16 @@ naming it. The stamp's `bitcoin-core` line records the node's version
 and the tarball's name and SHA-256. `stamp.py check` fails when they
 are not the pinned release's.
 
-A passing full run writes `stamp`, with each area's corpus case count
-beside the seed. `tools/lint-crosscheck.sh` (in `just
-lint`, about a tenth of a second) hashes the crypto sources, this
-folder, the references, the vectors and the crypto crates' `Cargo.lock`
-entries, and fails with "crypto changed since the last cross-check: run
-`just crosscheck`" when they no longer match the stamp. Commit the stamp
-with the change that made it pass. `python3 stamp.py show` lists what is
-hashed.
+The full run is for a release; the tip between releases is not kept
+cross-checked (F197). A change to an area's code runs that area
+(`--area`, which writes no stamp). A passing full run writes `stamp`,
+with each area's corpus case count beside the seed; it is committed with
+the release. `tools/lint-crosscheck.sh` (in `just lint-release`, about a
+tenth of a second) hashes the crypto sources, this folder, the
+references, the vectors and the crypto crates' `Cargo.lock` entries, and
+fails with "crypto changed since the last cross-check: run `just
+crosscheck`" when they no longer match the stamp. `python3 stamp.py show`
+lists what is hashed.
 
 Under `--fresh`, a disagreement is kept in `found/` with its seed,
 case and inputs, to become a vector.

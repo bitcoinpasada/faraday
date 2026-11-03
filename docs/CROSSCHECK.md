@@ -256,14 +256,20 @@ interpreter and mempool policy.
 
 ### 10.2 When it runs
 
+- **The tip is not kept cross-checked (F197).** The full cross-check runs
+  before a release and on no schedule. A commit between releases may
+  change the crypto without one: its stamp and the actions' fingerprints
+  are the last release's, and `just` checks neither. A change to an
+  area's code runs that area (`just crosscheck --area NAME`) and its
+  tests and reviewers as before. What is cross-checked is a release, and
+  `crosscheck-<version>.txt` beside its `SHA256SUMS` is the record.
 - **The stamp.** A passing run writes a stamp file beside the
   cross-check: one hash over the crypto sources and the crypto crates'
   entries in `Cargo.lock`, and the versions of the references and the
-  Python interpreter it ran with. `just lint` hashes the same inputs and
-  fails when they do not match the stamp, with "crypto changed since the
-  last cross-check: run `just crosscheck`". The check costs about a
-  second; the cross-check itself runs only when it fails. The stamp is
-  committed with the change that made it pass. It is a record, not a
+  Python interpreter it ran with. `just lint-release` hashes the same
+  inputs and fails when they do not match the stamp, with "crypto changed
+  since the last cross-check: run `just crosscheck`". The stamp is
+  committed with the release. It is a record, not a
   security control. It also holds each area's corpus case count for
   that run, one `cases <area> <count>` line each.
 - **What the stamp covers.** `core/faraday-crypto`, `core/faraday-bip`,
@@ -275,7 +281,9 @@ interpreter and mempool policy.
   a crypto change.
 - **Before a release:** `just crosscheck --fresh`, with a new random
   seed and about ten times the random cases. A disagreement it finds
-  keeps its seed and inputs as a new vector.
+  keeps its seed and inputs as a new vector. Then `just crypto-review
+  ID` for each action whose code changed, and `just lint-release` must
+  pass.
 
 ### 10.3 How long
 

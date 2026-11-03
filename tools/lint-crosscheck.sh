@@ -8,7 +8,8 @@
 # (its version and tarball SHA-256) is not the release
 # `tools/reference/core/release.pin` pins.
 #
-# Run from the repository root; `just lint` does.
+# Run before a release, from the repository root; `just lint-release` does.
+# Between releases the tip is not kept cross-checked (F197).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 exec python3 -I -B tools/crosscheck/stamp.py check

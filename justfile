@@ -78,7 +78,6 @@ lint-repo:
     python3 -I -B tools/lint-builds.py
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
-    tools/lint-crosscheck.sh
     # STANDARDS §0 held: crypto the cross-check's stamp misses is listed with
     # its reason, the work kept out of the app is reached by no app code,
     # every hold names its decision (F136), and §8's disagreements are
@@ -86,10 +85,9 @@ lint-repo:
     python3 -I -B tools/lint-standards.py
     # Every STANDARDS row names a check, and every check is a row's.
     python3 -I -B docs/crypto/verified.py check
-    # Every cryptographic function the inventory finds is an action's, each
-    # entry names what exists, and no action's code changed since its
-    # fingerprint was written (docs/CRYPTO-LEARN.md §4 to §7; `just
-    # crypto-review ID` re-stamps one).
+    # Every cryptographic function the inventory finds is an action's and each
+    # entry names what exists (docs/CRYPTO-LEARN.md §4 to §7). The fingerprints
+    # are `lint-release`'s (F197).
     python3 -I -B docs/crypto/check.py check
     python3 -I -B docs/crypto/check.py --self-test
     # STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's
@@ -283,6 +281,15 @@ crypto-review id:
 [group('dev')]
 crypto-changes tag:
     python3 -I -B docs/crypto/check.py changes {{tag}}
+
+# Before a release, after `just crosscheck --fresh` (F197): the crypto has not
+# changed since the last passing cross-check, and no action's code changed since
+# its fingerprint was written (`just crypto-review ID` re-stamps one). Between
+# releases the tip is not held to either.
+[group('test')]
+lint-release:
+    tools/lint-crosscheck.sh
+    python3 -I -B docs/crypto/check.py check --release
 
 # Faraday's own recipes: faraday/faraday.just.
 import 'faraday/faraday.just'
