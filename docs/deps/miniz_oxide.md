@@ -17,6 +17,10 @@ limit on a transfer is kept against a compression bomb.
 `default-features = false, features = ["with-alloc"]`, the version `png`
 resolves to.
 
+**A test edge.** `faraday-vault` takes it as a dev-dependency, to inflate
+the zlib-compressed vectors of the age testkit (`tools/vectors/age/`);
+nothing of it is in the app.
+
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.
 

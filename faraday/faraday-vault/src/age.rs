@@ -67,10 +67,13 @@ pub enum Kind {
         /// The base-two logarithm of scrypt's `N`.
         log_n: u8,
     },
-    /// An age v1 header whose stanzas are not one well-formed scrypt
-    /// stanza: another recipient type, several stanzas, or a scrypt stanza
-    /// that breaks the specification.
+    /// An age v1 header that is not a passphrase file: another recipient
+    /// type, or several stanzas.
     OtherRecipient,
+    /// An age v1 header whose one stanza is `scrypt` and breaks the
+    /// specification: a damaged passphrase file, as [`open`] says
+    /// ([`Error::ScryptStanza`]).
+    Damaged,
     /// ASCII armor, which is not read.
     Armored,
     /// Not an age v1 file, or a header that does not parse.
@@ -127,10 +130,12 @@ pub fn recognise(file: &[u8]) -> Kind {
     };
     if header.stanzas == 1
         && let Some(stanza) = &header.scrypt
-        && let Ok(params) = stanza.params()
     {
-        return Kind::Scrypt {
-            log_n: params.log_n.min(255) as u8,
+        return match stanza.params() {
+            Ok(params) => Kind::Scrypt {
+                log_n: params.log_n.min(255) as u8,
+            },
+            Err(_) => Kind::Damaged,
         };
     }
     Kind::OtherRecipient
@@ -207,7 +212,8 @@ pub fn seal(
 }
 
 /// Costs `1024 · 2^log_n` bytes of memory and one scrypt run, `log_n`
-/// being the file's own and refused above `max_log_n` before it starts,
+/// being the file's own and refused above `max_log_n` (never above
+/// [`MAX_LOG_N`], whatever the caller passes) before it starts,
 /// then the payload's ChaCha20-Poly1305: the plaintext of an age file
 /// sealed under `passphrase`.
 ///
@@ -232,7 +238,7 @@ pub fn open(
         return Err(Error::ScryptNotAlone);
     }
     let params = stanza.params()?;
-    if params.log_n > u64::from(max_log_n) {
+    if params.log_n > u64::from(max_log_n.min(MAX_LOG_N)) {
         return Err(Error::TooCostly {
             log_n: params.log_n.min(255) as u8,
         });
@@ -504,6 +510,19 @@ fn parse_header(file: &[u8]) -> Result<Header<'_>, Error> {
     }
 }
 
+/// Whether the last line of a stanza body, in unpadded base64, is the one
+/// way to write its bytes: not one character over a multiple of four, and
+/// no set bits after the last byte. (A full line is a multiple of four.)
+fn is_canonical_tail(l: &[u8]) -> bool {
+    let value = |c: u8| ALPHABET.iter().position(|&a| a == c).unwrap_or(0);
+    match (l.len() % 4, l.last()) {
+        (1, _) => false,
+        (2, Some(&c)) => value(c) & 0b1111 == 0,
+        (3, Some(&c)) => value(c) & 0b11 == 0,
+        _ => true,
+    }
+}
+
 /// A stanza's body from `at`: full lines of 64 characters and one shorter
 /// line, which may be empty. Gives the first line and the count of lines.
 fn body<'a>(file: &'a [u8], at: &mut usize) -> Result<(&'a [u8], usize), Error> {
@@ -518,6 +537,9 @@ fn body<'a>(file: &'a [u8], at: &mut usize) -> Result<(&'a [u8], usize), Error> 
         lines += 1;
         first.get_or_insert(l);
         if l.len() < LINE {
+            if !is_canonical_tail(l) {
+                return Err(Error::Header);
+            }
             return Ok((first.unwrap_or(l), lines));
         }
     }
@@ -563,4 +585,114 @@ fn b64_decode<const N: usize, const CHARS: usize>(text: &[u8]) -> Option<[u8; N]
         }
     }
     (at == N && acc == 0).then_some(out)
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use super::*;
+    use faraday_crypto::sha256;
+    use std::path::PathBuf;
+
+    fn unhex(text: &[u8]) -> Vec<u8> {
+        let nibble = |c: u8| match c {
+            b'0'..=b'9' => c - b'0',
+            _ => c - b'a' + 10,
+        };
+        text.chunks(2)
+            .map(|p| (nibble(p[0]) << 4) | nibble(p[1]))
+            .collect()
+    }
+
+    /// Inflates the testkit's zlib-compressed large vectors.
+    fn inflate(bytes: &[u8]) -> Vec<u8> {
+        miniz_oxide::inflate::decompress_to_vec_zlib_with_limit(bytes, 64 << 20)
+            .expect("a zlib stream")
+    }
+
+    /// How the grammar, the MAC and the payload took a vector's file.
+    #[derive(Debug, PartialEq)]
+    enum Outcome {
+        Header,
+        Hmac,
+        Payload,
+        /// The payload's SHA-256.
+        Success([u8; 32]),
+    }
+
+    /// Parse the header, check its MAC under the file key the vector
+    /// gives, then open the payload.
+    fn judge(file: &[u8], file_key: &[u8; 16]) -> Outcome {
+        let Ok(header) = parse_header(file) else {
+            return Outcome::Header;
+        };
+        if !equal(
+            &header_mac(file_key, &file[..header.mac_input_end]),
+            &header.mac,
+        ) {
+            return Outcome::Hmac;
+        }
+        let payload = &file[header.payload_at..];
+        match open_payload(file_key, payload) {
+            Ok(plain) => Outcome::Success(sha256(&plain)),
+            // The testkit counts a payload with no room for its nonce as a
+            // header failure.
+            Err(Error::Truncated) if payload.len() < PAYLOAD_NONCE => Outcome::Header,
+            Err(_) => Outcome::Payload,
+        }
+    }
+
+    #[test]
+    fn the_testkit_header_mac_and_payload_vectors_give_their_results() {
+        let dir =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tools/vectors/age/testdata");
+        let mut judged = 0;
+        for entry in std::fs::read_dir(&dir).expect("the vendored vectors") {
+            let entry = entry.expect("entry");
+            let name = entry.file_name();
+            let name = name.to_str().expect("name");
+            let taken = ["stream_", "hmac_", "stanza_", "x25519"]
+                .iter()
+                .any(|p| name.starts_with(p))
+                || ["header_crlf", "empty", "version_unsupported"].contains(&name);
+            if !taken {
+                continue;
+            }
+            let bytes = std::fs::read(entry.path()).expect("a vector");
+            let split = bytes
+                .windows(2)
+                .position(|w| w == b"\n\n")
+                .expect("a vector has a header");
+            let value = |key: &[u8]| {
+                bytes[..split].split(|&b| b == b'\n').find_map(|l| {
+                    let rest = l.strip_prefix(key)?;
+                    rest.strip_prefix(b": ")
+                })
+            };
+            let file = &bytes[split + 2..];
+            let file = if value(b"compressed") == Some(&b"zlib"[..]) {
+                inflate(file)
+            } else {
+                file.to_vec()
+            };
+            let file_key: [u8; 16] = unhex(value(b"file key").expect("file key"))
+                .try_into()
+                .expect("16 bytes");
+            let want = match value(b"expect").expect("expect") {
+                b"header failure" => Outcome::Header,
+                b"HMAC failure" => Outcome::Hmac,
+                b"payload failure" => Outcome::Payload,
+                b"success" => Outcome::Success(
+                    unhex(value(b"payload").expect("payload"))
+                        .try_into()
+                        .expect("a SHA-256"),
+                ),
+                other => panic!("{name}: unknown expectation {other:?}"),
+            };
+            assert_eq!(judge(&file, &file_key), want, "{name}");
+            judged += 1;
+        }
+        assert_eq!(judged, 56);
+    }
 }

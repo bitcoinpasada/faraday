@@ -12,5 +12,5 @@ use libfuzzer_sys::fuzz_target;
 fuzz_target!(|data: &[u8]| {
     let _ = age::recognise(data);
     let c = Compute::unchecked();
-    let _ = age::open(&c, b"passphrase", data, 10);
+    let _ = age::open(&c, b"password", data, 10);
 });

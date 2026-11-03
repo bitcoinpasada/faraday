@@ -3,9 +3,9 @@
 //! The tree already has PBKDF2-HMAC-SHA-256, which is the whole of
 //! scrypt's outer structure; what is left is Salsa20/8, `BlockMix` and
 //! `ROMix`, some sixty lines between them.
-//! One caller: LND's aezeed, which
-//! stretches the passphrase with `N = 32768`, `r = 8`, `p = 1` into the
-//! 32-byte AEZ key.
+//! Two callers: LND's aezeed, which stretches the passphrase with
+//! `N = 32768`, `r = 8`, `p = 1` into the 32-byte AEZ key, and the age
+//! passphrase file (`faraday-vault`), at the work factor the file states.
 //!
 //! The one allocation is `ROMix`'s `V`, which is `128 · r · N` bytes —
 //! 32 MiB at aezeed's parameters. It is zeroized before it is freed.

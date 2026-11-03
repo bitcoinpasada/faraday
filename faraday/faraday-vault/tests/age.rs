@@ -48,17 +48,66 @@ fn hex(bytes: &[u8]) -> String {
 
 // --- The testkit's vectors ------------------------------------------------
 
+/// What each of the testkit's scrypt vectors is expected to give: the
+/// payload's SHA-256 is checked for a success.
+const SCRYPT_VECTORS: [(&str, Result<(), Error>); 26] = [
+    ("scrypt", Ok(())),
+    ("armor_scrypt", Err(Error::Armored)),
+    // The tag on the file key's body is wrong; another passphrase; a work
+    // factor that is not the one the file key was wrapped under.
+    ("scrypt_bad_tag", Err(Error::WrongPassphrase)),
+    ("scrypt_no_match", Err(Error::WrongPassphrase)),
+    ("scrypt_work_factor_wrong", Err(Error::WrongPassphrase)),
+    // The type is case-sensitive: `SCRYPT` is another recipient.
+    ("scrypt_uppercase", Err(Error::OtherRecipient)),
+    // The scrypt stanza must be the only one.
+    ("scrypt_double", Err(Error::ScryptNotAlone)),
+    ("scrypt_and_x25519", Err(Error::ScryptNotAlone)),
+    // A malformed stanza: arguments, salt, body.
+    ("scrypt_extra_argument", Err(Error::ScryptStanza)),
+    ("scrypt_salt_long", Err(Error::ScryptStanza)),
+    ("scrypt_salt_short", Err(Error::ScryptStanza)),
+    ("scrypt_salt_missing", Err(Error::ScryptStanza)),
+    ("scrypt_not_canonical_salt", Err(Error::ScryptStanza)),
+    // The body's last line is non-canonical base64: the grammar refuses it.
+    ("scrypt_not_canonical_body", Err(Error::Header)),
+    ("scrypt_long_file_key", Err(Error::ScryptStanza)),
+    // A work factor that is not plain decimal digits without a leading zero.
+    ("scrypt_work_factor_hex", Err(Error::ScryptStanza)),
+    (
+        "scrypt_work_factor_leading_garbage",
+        Err(Error::ScryptStanza),
+    ),
+    ("scrypt_work_factor_leading_plus", Err(Error::ScryptStanza)),
+    (
+        "scrypt_work_factor_leading_zero_decimal",
+        Err(Error::ScryptStanza),
+    ),
+    (
+        "scrypt_work_factor_leading_zero_octal",
+        Err(Error::ScryptStanza),
+    ),
+    ("scrypt_work_factor_missing", Err(Error::ScryptStanza)),
+    ("scrypt_work_factor_negative", Err(Error::ScryptStanza)),
+    (
+        "scrypt_work_factor_trailing_garbage",
+        Err(Error::ScryptStanza),
+    ),
+    ("scrypt_work_factor_zero", Err(Error::ScryptStanza)),
+    // Digits only, and far above any limit (saturated at 255 in the error).
+    (
+        "scrypt_work_factor_overflow",
+        Err(Error::TooCostly { log_n: 255 }),
+    ),
+    ("scrypt_work_factor_23", Err(Error::TooCostly { log_n: 23 })),
+];
+
 #[test]
 fn the_testkit_scrypt_vectors_give_their_results() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tools/vectors/age/testdata");
-    let mut names: Vec<_> = std::fs::read_dir(&dir)
-        .expect("the vendored vectors")
-        .map(|e| e.expect("entry").file_name().into_string().expect("name"))
-        .collect();
-    names.sort();
-    assert!(names.len() >= 20, "the vectors are there");
-    for name in names {
-        let bytes = std::fs::read(dir.join(&name)).expect("a vector");
+    let mut seen = 0;
+    for (name, want) in SCRYPT_VECTORS {
+        let bytes = std::fs::read(dir.join(name)).expect("a vector");
         let split = bytes
             .windows(2)
             .position(|w| w == b"\n\n")
@@ -70,29 +119,29 @@ fn the_testkit_scrypt_vectors_give_their_results() {
                 .find_map(|l| l.strip_prefix(&format!("{key}: ")))
                 .map(str::to_owned)
         };
-        let expect = value("expect").expect("expect");
         let passphrase = value("passphrase").expect("passphrase");
         let result = open(&compute(), passphrase.as_bytes(), file, 20);
-        let ok = match expect.as_str() {
-            "success" if value("armored").is_some() => {
-                result.as_ref().err() == Some(&Error::Armored)
-            }
-            "success" => result
-                .as_ref()
-                .is_ok_and(|p| hex(&sha256(p)) == value("payload").expect("payload")),
-            "no match" => matches!(result, Err(Error::WrongPassphrase | Error::OtherRecipient)),
-            "header failure" => matches!(
-                result,
-                Err(Error::Header
-                    | Error::NotAge
-                    | Error::ScryptNotAlone
-                    | Error::ScryptStanza
-                    | Error::TooCostly { .. })
+        match want {
+            Ok(()) => assert_eq!(
+                result.as_ref().map(|p| hex(&sha256(p))),
+                Ok(value("payload").expect("payload")),
+                "{name}"
             ),
-            other => panic!("{name}: unknown expectation {other}"),
-        };
-        assert!(ok, "{name}: expected {expect}, got {:?}", result.err());
+            Err(e) => assert_eq!(result.err(), Some(e), "{name}"),
+        }
+        seen += 1;
     }
+    assert_eq!(seen, 26);
+    // Every scrypt vector in the folder is in the table.
+    let in_folder = std::fs::read_dir(&dir)
+        .expect("the vectors")
+        .filter(|e| {
+            let name = e.as_ref().expect("entry").file_name();
+            let name = name.to_str().expect("name");
+            name.starts_with("scrypt") || name == "armor_scrypt"
+        })
+        .count();
+    assert_eq!(in_folder, 26);
 }
 
 #[test]
@@ -109,7 +158,11 @@ fn the_testkit_files_are_told_apart() {
     assert_eq!(kind("scrypt_uppercase"), Kind::OtherRecipient);
     assert_eq!(kind("armor_scrypt"), Kind::Armored);
     assert_eq!(kind("scrypt_work_factor_23"), Kind::Scrypt { log_n: 23 });
-    assert_eq!(kind("scrypt_salt_short"), Kind::OtherRecipient);
+    assert_eq!(kind("scrypt_salt_short"), Kind::Damaged);
+    assert_eq!(
+        kind("scrypt_work_factor_leading_zero_decimal"),
+        Kind::Damaged
+    );
 }
 
 #[test]
@@ -250,6 +303,16 @@ fn a_work_factor_above_the_limit_is_refused_before_any_work() {
     );
     assert_eq!(STRETCHES.get(), before);
     assert_eq!(recognise(&f), Kind::Scrypt { log_n: 21 });
+    // A caller's limit above 20 is held to 20, so a file stating 21 to 31
+    // is refused, not allocated.
+    for limit in [21u8, 31, 255] {
+        assert_eq!(
+            open(&compute(), PASSPHRASE, &f, limit).err(),
+            Some(Error::TooCostly { log_n: 21 }),
+            "{limit}"
+        );
+    }
+    assert_eq!(STRETCHES.get(), before);
     // The file's own work factor is within a limit of 16.
     assert!(open(&compute(), PASSPHRASE, &file, 16).is_ok());
     assert_eq!(

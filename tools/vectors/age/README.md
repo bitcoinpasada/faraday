@@ -27,19 +27,32 @@ named `scrypt*`, and `armor_scrypt`.
 Each file is a few lines of `key: value`, an empty line, then the age
 file; `tools/vectors/age/testdata/` keeps the testkit's format.
 
+## Also taken: header, MAC and payload
+
+The vectors that test the header grammar, the header MAC and the 64 KiB
+STREAM payload are taken too, 56 files: `stream_*`, `hmac_*`, `stanza_*`,
+`header_crlf`, `empty`, `version_unsupported`, and `x25519`,
+`x25519_grease` and `x25519_multiple_recipients` (whose stanzas this
+reader does not read, but whose header, MAC and payload it does). Their
+files that state `compressed: zlib` are kept compressed, as the testkit
+has them. A test in `faraday/faraday-vault/src/age.rs` runs each through
+the header parse, the header MAC under the vector's `file key` and the
+payload, and judges it against `expect`: header failure, HMAC failure,
+payload failure, or success with the payload's SHA-256. A stanza of
+another type is not opened there: the file key comes from the vector.
+
 ## Not taken
 
-The testkit's other vectors (`armor_*` except `armor_scrypt`, `hmac_*`,
-`stanza_*`, `stream_*`, `x25519*`, `hybrid*`, `header_crlf`, `empty`,
-`version_unsupported`) use an X25519 or hybrid recipient, which this
-reader does not read, so none of them can be opened with a passphrase. What
-they test of the header MAC, the stanza grammar and the 64 KiB STREAM
-payload is tested in `tests/age.rs` on files this build writes, with
-payloads laid out chunk by chunk.
+The vectors whose result depends on the recipient or on armor beyond the
+passphrase stanza: `armor_*` except `armor_scrypt`, and `x25519_*` (other
+than the three above) and `hybrid*`, which test an X25519 or ML-KEM
+recipient or the armor's grammar. Faraday refuses armor and reads no other
+recipient. Armor itself is recognised and refused
+(`armor_scrypt`, and a test in `tests/age.rs`).
 
 ## Update
 
     curl -sL https://codeload.github.com/C2SP/CCTV/tar.gz/refs/heads/main
 
-in an empty directory outside the repository; copy `age/testdata/scrypt*`
-and `age/testdata/armor_scrypt`, and change the commit above.
+in an empty directory outside the repository; copy the files named above
+from `age/testdata/`, and change the commit above.
