@@ -36,6 +36,7 @@ pub mod child;
 pub mod codex32;
 pub mod contents;
 pub mod entries;
+pub mod kdbx;
 pub mod layouts;
 pub mod records;
 pub mod totp;

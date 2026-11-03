@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "aead"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -146,6 +152,15 @@ checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
 dependencies = [
  "hybrid-array",
  "zeroize",
+]
+
+[[package]]
+name = "cbc"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896"
+dependencies = [
+ "cipher",
 ]
 
 [[package]]
@@ -312,6 +327,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-backup"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "chacha20",
+ "faraday-crypto",
+ "hmac",
+ "sha2",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-bip"
 version = "0.1.0"
 dependencies = [
@@ -364,7 +391,20 @@ dependencies = [
  "faraday-entropy",
  "faraday-pgp",
  "faraday-psbt",
+ "faraday-vault",
  "libfuzzer-sys",
+]
+
+[[package]]
+name = "faraday-intake"
+version = "0.1.9"
+dependencies = [
+ "faraday-bip",
+ "faraday-codec",
+ "faraday-crypto",
+ "faraday-qr",
+ "faraday-strings",
+ "zeroize",
 ]
 
 [[package]]
@@ -389,6 +429,47 @@ dependencies = [
  "faraday-bip",
  "faraday-crypto",
  "miniscript",
+]
+
+[[package]]
+name = "faraday-qr"
+version = "0.1.9"
+dependencies = [
+ "faraday-bip",
+ "faraday-codec",
+ "faraday-crypto",
+ "miniz_oxide",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-strings"
+version = "0.1.9"
+dependencies = [
+ "faraday-bip",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-vault"
+version = "0.1.9"
+dependencies = [
+ "aes",
+ "argon2",
+ "cbc",
+ "chacha20",
+ "chacha20poly1305",
+ "faraday-backup",
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-intake",
+ "hmac",
+ "miniz_oxide",
+ "sha1",
+ "sha2",
+ "toml_parser",
+ "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]
@@ -499,6 +580,15 @@ checksum = "b8343cc1ef1408bd9bdbf69f7aef47017dfab7e6349ec26fddf62e0e9fb5a4cf"
 dependencies = [
  "bech32",
  "bitcoin",
+]
+
+[[package]]
+name = "miniz_oxide"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
+dependencies = [
+ "adler2",
 ]
 
 [[package]]
@@ -703,6 +793,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
+name = "toml_parser"
+version = "1.1.5+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
+dependencies = [
+ "winnow",
+]
+
+[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -732,6 +831,12 @@ dependencies = [
  "crypto-common",
  "ctutils",
 ]
+
+[[package]]
+name = "winnow"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
 
 [[package]]
 name = "zeroize"

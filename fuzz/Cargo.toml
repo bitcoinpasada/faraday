@@ -21,6 +21,7 @@ faraday-psbt = { path = "../core/faraday-psbt" }
 faraday-entropy = { path = "../core/faraday-entropy" }
 faraday-crypto = { path = "../core/faraday-crypto", features = ["unchecked"] }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
+faraday-vault = { path = "../faraday/faraday-vault" }
 
 [profile.release]
 debug = true
@@ -112,6 +113,13 @@ bench = false
 [[bin]]
 name = "seed_parts"
 path = "fuzz_targets/seed_parts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kdbx_file"
+path = "fuzz_targets/kdbx_file.rs"
 test = false
 doc = false
 bench = false

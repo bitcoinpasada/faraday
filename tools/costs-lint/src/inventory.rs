@@ -63,6 +63,7 @@ const PRIMITIVE_CRATES: &[&str] = &[
     "chacha20poly1305",
     "ocb3",
     "aes",
+    "cbc",
     "ed25519-dalek",
     "rsa",
     "getrandom",

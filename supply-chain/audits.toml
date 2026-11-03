@@ -311,6 +311,13 @@ start = "2026-02-24"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.cbc]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/block-modes"
+start = "2026-05-20"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
 [[trusted.cc]]
 criteria = "safe-to-deploy"
 trusted-publisher = "github:rust-lang/cc-rs"

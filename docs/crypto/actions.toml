@@ -386,7 +386,7 @@ completeness = "Words, passphrase, SeedQR and codex32 files for a stick; words a
 id = "vault"
 section = 3
 what = "The vault (`faraday/faraday-vault`, `docs/VAULT.md`)"
-completeness = "Built: create, open, seal, records, in Faraday's own FVLT format. Planned (F190, `docs/VAULT.md`): the KDBX file vault and the QR vault as an RFC 9580 message, checked against pykeepass, `keepassxc-cli` and Sequoia's `sq` both ways"
+completeness = "Built: create, open, seal, records, in Faraday's own FVLT format, and the KDBX 4 container (`faraday-vault::kdbx`: read within limits, write), not yet the vault. Planned (F190, `docs/VAULT.md`): the KDBX file vault and the QR vault as an RFC 9580 message, checked against pykeepass, `keepassxc-cli` and Sequoia's `sq` both ways"
 standard_note = "Faraday's own container over Argon2id 1.3, HKDF-SHA256 assembled by hand, and XChaCha20-Poly1305, built today. Planned (F190): KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for a file vault, and an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault, holding TOML v1.0.0"
 
 [[row]]
@@ -784,6 +784,18 @@ source = "not looked up"
 name = "The scrypt Password-Based Key Derivation Function"
 status = "Status not checked"
 checked = "2026-10-28"
+source = "not looked up"
+
+[standard."FIPS 197"]
+name = "Advanced Encryption Standard (AES)"
+status = "Status not checked"
+checked = "2026-11-02"
+source = "not looked up"
+
+[standard."RFC 1952"]
+name = "GZIP file format specification version 4.3"
+status = "Status not checked"
+checked = "2026-11-02"
 source = "not looked up"
 
 [standard."RFC 8439"]
@@ -6876,6 +6888,94 @@ kind = "Conservative"
 decision = "F190"
 
 [[action]]
+id = "vault-kdbx"
+name = "Seal and open KDBX"
+action = "Writes and reads the KDBX 4 container a file vault is: Argon2id (or, read only, Argon2d) over the SHA-256 of the passphrase's SHA-256, SHA-256 and SHA-512 key steps, ChaCha20 (or, read only, AES-256-CBC) over the body, HMAC-SHA-256 over the header and over every block of the stream, gzip read, and the inner stream's ChaCha20 over protected values."
+row = "vault"
+label = "own specification, not yet reviewed outside Faraday"
+standards = [
+  "KeePass KDBX 4",
+  "RFC 9106",
+  "RFC 8439",
+  "RFC 2104",
+  "FIPS 197",
+  "RFC 1952",
+]
+learn = "faraday:vaults"
+screens = []
+functions = [
+  "faraday/faraday-vault/src/kdbx/mod.rs::inspect",
+  "faraday/faraday-vault/src/kdbx/mod.rs::checked_header",
+  "faraday/faraday-vault/src/kdbx/mod.rs::open",
+  "faraday/faraday-vault/src/kdbx/mod.rs::seal",
+  "faraday/faraday-vault/src/kdbx/keys.rs::file_keys",
+  "faraday/faraday-vault/src/kdbx/keys.rs::argon_run",
+  "faraday/faraday-vault/src/kdbx/keys.rs::block_key",
+  "faraday/faraday-vault/src/kdbx/keys.rs::mac",
+  "faraday/faraday-vault/src/kdbx/inner.rs::InnerStream::new",
+]
+code = [
+  "faraday/faraday-vault/src/kdbx/mod.rs::open",
+  "faraday/faraday-vault/src/kdbx/mod.rs::seal",
+]
+
+[action.implementation]
+crate = "faraday/faraday-vault"
+libraries = [
+  "argon2",
+  "chacha20",
+  "aes",
+  "cbc",
+  "hmac",
+  "miniz_oxide",
+  "sha2",
+]
+adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not named in a KDBX 4 header and shows as a wrong passphrase. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes."
+written_here = "The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)"
+
+[action.checked]
+vectors = [
+  "backup",
+  "kdbx",
+]
+tests = [
+  "faraday/faraday-vault/tests/kdbx.rs::files_pykeepass_wrote_open_with_what_their_headers_state",
+  "faraday/faraday-vault/tests/kdbx.rs::the_export_vector_opens_and_is_written_again_byte_for_byte",
+  "faraday/faraday-vault/tests/kdbx.rs::a_sealed_file_opens_with_everything_it_was_given",
+  "faraday/faraday-vault/tests/kdbx.rs::a_passphrase_opens_in_either_form_of_its_text",
+  "faraday/faraday-vault/tests/kdbx.rs::what_is_refused_is_named",
+  "faraday/faraday-vault/tests/kdbx.rs::a_file_that_needs_another_passphrase_is_the_wrong_passphrase",
+  "faraday/faraday-vault/tests/kdbx.rs::a_cost_outside_the_limits_is_refused_before_any_work",
+  "faraday/faraday-vault/tests/kdbx.rs::a_cipher_kdf_or_compression_this_reader_does_not_take_is_named",
+  "faraday/faraday-vault/tests/kdbx.rs::a_version_or_field_this_reader_does_not_know_is_refused",
+  "faraday/faraday-vault/tests/kdbx.rs::a_file_with_one_byte_changed_or_cut_is_not_opened",
+  "faraday/faraday-vault/tests/kdbx.rs::a_file_too_long_for_the_largest_vault_is_refused_before_any_work",
+  "faraday/faraday-vault/src/kdbx/tests.rs::a_gzip_member_is_inflated_and_checked",
+  "faraday/faraday-vault/src/kdbx/tests.rs::an_inner_header_that_is_not_chacha20_is_refused_by_name",
+]
+not_crosschecked = "Opened by pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it)."
+fuzz = ["kdbx_file"]
+
+[action.secrets]
+reveal = "none"
+constant_time = "The header's and every block's HMAC are compared in constant time (`verify_slice`); Argon2, SHA-2, ChaCha20 and AES-CBC state nothing more."
+wiped = "The composite key, the Argon2 output, the encryption key, the HMAC base and every block key are Secret values wiped on drop; the decrypted body, the inflated body, the document and the attachments are Zeroizing buffers, decrypted and unpadded in place; the Argon2 memory is overwritten before release. The inflater's own state and the NFC normaliser's buffer of combining marks are not wiped."
+
+[action.limits]
+lines = [
+  "Version 4.0 and 4.1 only; KDBX 3.1 and older are named and not opened.",
+  "Argon2 version 1.3 with 8 MiB to 1 GiB of memory, 1 to 100 passes and 1 to 64 lanes, no secret key and no associated data; a cost outside is refused before any memory is asked for.",
+  "A plaintext of at most 4 MiB; a file too long to hold one is refused before any work, and a gzip body that states more is refused as soon as it is read.",
+  "The composite key is the passphrase alone; a key file or a challenge-response key shows as a wrong passphrase.",
+  "The passphrase arrives in Unicode NFC; the container puts it there.",
+]
+
+[[action.own]]
+text = "Only the part of KDBX used is written (F178, F190): the file is written in one shape, and a KeePass app's other choices are read."
+kind = "Conservative"
+decision = "F190"
+
+[[action]]
 id = "vault-seal"
 name = "Write a vault back"
 action = "Writes an open vault back: encrypts the open slot's records with XChaCha20-Poly1305 under a new 24-byte nonce and copies the other three slots unchanged."
@@ -8323,6 +8423,9 @@ author = "the rust-bitcoin developers"
 [library.bitcoin_hashes]
 author = "the rust-bitcoin developers"
 
+[library.cbc]
+author = "the RustCrypto developers"
+
 [library.chacha20]
 author = "the RustCrypto developers"
 
@@ -8343,6 +8446,9 @@ author = "hasenbanck (lzma-rust2), a port of the Tukaani project's XZ for Java"
 
 [library.miniscript]
 author = "the rust-bitcoin developers (rust-miniscript)"
+
+[library.miniz_oxide]
+author = "the miniz_oxide developers, a port of Rich Geldreich's miniz"
 
 [library.ocb3]
 author = "the RustCrypto developers"
@@ -8389,6 +8495,10 @@ by = "the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitco
 [vector.openpgp]
 source = "published"
 by = "RFC 9580 Appendix A (A.10, the version 6 symmetric-key session key and the version 2 data packet with AES-128 and OCB; A.12.3, the Argon2 S2K with AES-256), made by the RFC's authors"
+
+[vector.kdbx]
+source = "outside"
+by = "pykeepass 4.1.1, run by `tools/vectors/kdbx/make.py` (both ciphers, both Argon2 types, with and without gzip, and a header marked 4.1); KeePassXC 2.7.12's own KDBX 3.1 file"
 
 [vector.toml]
 source = "published"
@@ -8567,6 +8677,22 @@ own = "the two-part and three-part files, made from the definition of Seed XOR"
 [open_item.kdbx]
 spec = "docs/VAULT.md"
 names = "the KDBX file vault"
+
+[[name_with_digits]]
+name = "Argon2"
+reason = "The function's name (RFC 9106; the Argon2 S2K of RFC 9580)."
+
+[[name_with_digits]]
+name = "S2K"
+reason = "The string-to-key specifier of RFC 9580 (the name of the construction)."
+
+[[name_with_digits]]
+name = "AES-256-OCB"
+reason = "AES-256 in OCB mode: the cipher's name (RFC 9580)."
+
+[[name_with_digits]]
+name = "KDBX 4"
+reason = "KeePass's file format and its version (the format's name)."
 
 [[name_with_digits]]
 name = "Argon2id"

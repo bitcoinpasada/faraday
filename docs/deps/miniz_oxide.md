@@ -17,9 +17,12 @@ limit on a transfer is kept against a compression bomb.
 `default-features = false, features = ["with-alloc"]`, the version `png`
 resolves to.
 
-**Planned edge.** `faraday-vault` will take it as a normal dependency, to
-inflate the gzip a KeePass app may have written into a KDBX file it opens
-(`docs/VAULT.md` §7.1); not yet built, so no vault code uses it today.
+**A second edge, built.** `faraday-vault` takes it as a runtime dependency to read the gzip body of a
+KDBX database a KeePass app saved with compression (`docs/VAULT.md`
+§7.1): the raw DEFLATE stream is inflated into a buffer sized from the
+length the gzip trailer states, which is bounded by the largest vault
+(4 MiB) before it is allocated, and the CRC-32 and the length are
+checked. Nothing compresses.
 
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.

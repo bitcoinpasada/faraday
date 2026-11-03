@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189); what is built is the four-slot FVLT format this replaces, whose account is `docs/history/VAULT-LOG.md`
-**Open:** all of it: the KDBX file vault (§1.1, §4 to §7), files saved by other programs (§7.1), the QR vault as an OpenPGP message (§1.2, §2.1), the memory steps and sizes (§2, §3), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
+**Open:** the KDBX container is built (`faraday-vault::kdbx`: §1.1 and the limits of §3 and §7.1, read and written); not built: the KDBX file vault (§4 to §7: the entries, opening and sealing a vault), files saved by other programs (§7.1), the QR vault as an OpenPGP message (§1.2, §2.1), the memory steps and sizes (§2, §3), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):

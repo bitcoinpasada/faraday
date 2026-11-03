@@ -318,6 +318,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cbc"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896"
+dependencies = [
+ "cipher",
+]
+
+[[package]]
 name = "cc"
 version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -560,6 +569,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "dbl"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0d7a944e61df464668c5f51f56cc667396a8821434273112948ea0b66e405d7"
+dependencies = [
+ "hybrid-array",
 ]
 
 [[package]]
@@ -926,7 +944,11 @@ dependencies = [
 name = "faraday-pgp"
 version = "0.1.9"
 dependencies = [
+ "aes",
+ "argon2",
  "ed25519-dalek",
+ "faraday-crypto",
+ "ocb3",
  "sha1",
  "sha2",
  "zeroize",
@@ -1082,7 +1104,9 @@ dependencies = [
 name = "faraday-vault"
 version = "0.1.9"
 dependencies = [
+ "aes",
  "argon2",
+ "cbc",
  "chacha20",
  "chacha20poly1305",
  "faraday-backup",
@@ -1090,6 +1114,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-intake",
  "hmac",
+ "miniz_oxide 0.8.9",
  "sha1",
  "sha2",
  "toml_parser",
@@ -1857,6 +1882,18 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
+]
+
+[[package]]
+name = "ocb3"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "912ff80ac25d578d4c9e260650b9e6d65cea9f5b4a49ce9e88a2c5536e2326b2"
+dependencies = [
+ "aead",
+ "cipher",
+ "ctutils",
+ "dbl",
 ]
 
 [[package]]

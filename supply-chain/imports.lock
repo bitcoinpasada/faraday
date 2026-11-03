@@ -110,6 +110,11 @@ user-id = 696
 user-login = "fitzgen"
 user-name = "Nick Fitzgerald"
 
+[[publisher.cbc]]
+version = "0.2.1"
+when = "2026-05-20"
+trusted-publisher = "github:RustCrypto/block-modes"
+
 [[publisher.cc]]
 version = "1.4.5"
 when = "2026-09-04"

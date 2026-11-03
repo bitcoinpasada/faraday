@@ -75,7 +75,7 @@ finds them.
 | Kind | Roots |
 |---|---|
 | `WordsParse` | `faraday_bip::bip39::Mnemonic::parse` |
-| `Kdf` | `faraday_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`; `faraday_backup::argon2id`; `faraday-vault`'s Argon2id; `faraday_pgp::message::seal` and `faraday_pgp::message::Message::open`. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
+| `Kdf` | `faraday_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`; `faraday_backup::argon2id`; `faraday-vault`'s Argon2id, with `faraday_vault::kdbx::open` and `seal` (Argon2id or Argon2d over the stated cost); `faraday_pgp::message::seal` and `faraday_pgp::message::Message::open`. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
 | `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key` (each works out the fingerprint, §5.1) |
 | `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; through these BIP-85 and silent payments derivations |
 | `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |
@@ -110,6 +110,7 @@ already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 | `faraday-core/src/worker.rs`: `worker_loop` | `new(work::core_count)` | The core's worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own and the counts it makes come home with each answer (`docs/WORKERS.md` §5) |
 | `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests and the snapshot tool's sessions |
 | `compute()` in `faraday-pgp`'s `src/message/tests.rs`, `faraday-vault`'s `src/tests.rs`, `tests/contents.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs`, `head.rs` and `vault_by_contents.rs`, `faraday-storage/tests/all/main.rs`, `faraday-intake/tests/all/common.rs`, `faraday-keys/tests/operations.rs`, `vault.rs` and `codex32.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/all/{bitlocker,notes,template,template_codex32}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
+| `compute()` in `faraday-vault`'s `tests/kdbx.rs` | `new(count)`, a function that counts the key-stretching runs | The KDBX tests, which check that a work factor or cost over the limit is refused before any run |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
 The costs lint's `MINTS` (`tools/costs-lint/src/main.rs`) is this table,

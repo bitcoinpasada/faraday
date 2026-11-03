@@ -182,6 +182,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `decode_luma` | `faraday_codec::decode_luma`, the frame's width and height taken from the first two bytes |
 | `seed_parts` | SLIP-39 `Share::parse` and codex32 `Codex32::parse` on every line, then `recover` over what parsed (SLIP-39 only at iteration exponent 0, so a run stays fast) |
 | `key_file` | a cosigner's key file: BSMS `SignerRecord::parse` and `verify`, `coldcard::cosigner_keys`, `slip132::key_line`, `PolicyKey::parse` |
+| `kdbx_file` | `faraday_vault::kdbx`: `recognise`, `inspect`, then `open` of the whole input with its header hash made right, at a cost of up to 8 MiB, 2 passes and 2 lanes; the seeds are the KDBX vectors, so a run reads a whole file |
 | `transaction` | `faraday_psbt::transaction::read_raw` and `Spending::read` |
 | `encodings` | `faraday_codec::encodings::read`, `from_hex` and `read_input` under each way of reading |
 | `aezeed` | `faraday_bip::aezeed::decode_at_cost` at a cost of 16 over 24 word indices and a passphrase taken from the input |

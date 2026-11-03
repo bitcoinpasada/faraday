@@ -37,6 +37,14 @@ sha1 = { version = "0.11", default-features = false }
 # publisher F71 trusts, without std; the tree is `contents/tree.rs`.
 toml_parser = { version = "1.1", default-features = false, features = ["alloc"] }
 
+# A KDBX database saved by KeePass in AES-256 (docs/VAULT.md §7.1):
+# CBC over the `aes` the tree already holds (docs/deps/cbc.md), read only.
+aes = { workspace = true }
+cbc = { version = "0.2", default-features = false }
+# A KDBX database saved with gzip is inflated, never deflated, with the
+# output bounded by the vault's largest size (docs/deps/miniz_oxide.md).
+miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
+
 [dev-dependencies]
 # The slot vectors' file (tools/vectors/vault/slots.json).
 serde_json.workspace = true
