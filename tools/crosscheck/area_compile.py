@@ -306,7 +306,7 @@ class Compile(Area):
         (
             "A single key as a `tr()` policy: rust-miniscript's `compile_tr` takes the key "
             "as the internal key, is left with no leaf and refuses it (`Empty Miniscript "
-            "compilation`); Faraday refuses it too, and the area counts the refusal. "
+            "compilation`); Faraday refuses it too, in its own words, and the area counts the refusal. "
             "python-bip380 writes `v:multi_a` as `OP_NUMEQUAL OP_VERIFY` where BIP 379 and "
             "Core write `OP_NUMEQUALVERIFY`, so a leaf with one is not compared to python-bip380's "
             "script (counted); the output key, which commits to the leaf, is Core's and btclib's."
@@ -410,7 +410,8 @@ class Compile(Area):
     def lone_key(self):
         """A single key under `tr()`: rust-miniscript's `compile_tr` takes
         the key as the internal key and is left with no leaf, and
-        refuses (`Empty Miniscript compilation`). Known and counted."""
+        refuses (`Empty Miniscript compilation`). Faraday refuses it too,
+        in its own words. Known and counted."""
         test = self.rng.random() < 0.5
         expression, _ = self.account(test)
         self.known += 1

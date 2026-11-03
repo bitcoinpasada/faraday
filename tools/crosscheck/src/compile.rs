@@ -48,6 +48,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 Refusal::Empty => "empty".to_string(),
                 Refusal::Policy(m) => format!("policy: {m}"),
                 Refusal::Script(m) => format!("script: {m}"),
+                Refusal::LoneKeyTaproot => "lone key under taproot".to_string(),
             })?;
             let at = match &facts.wallet {
                 Some(wallet) => {

@@ -7885,6 +7885,9 @@ strings! {
     /// The Miniscript compiler refuses what is typed. `{}`: the
     /// compiler's own message.
     tools_miniscript_no_script: "No script compiles from this policy: {}",
+    /// The Miniscript compiler is given one key alone under Taproot: the
+    /// key is the internal key and no script is left.
+    tools_miniscript_lone_key: "One key alone has no script under Taproot",
     // ----- transfer (faraday-core/src/transfer/mod.rs) -----
     /// Text in `transfer_send`. `{}`: the most Transfer sends, as
     /// `size_text` writes it, then `self.medium.a()`.

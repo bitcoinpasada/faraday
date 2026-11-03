@@ -421,12 +421,13 @@ impl Faraday {
 }
 
 /// What the Miniscript compiler's line says when it refuses: the app's
-/// words for which kind, then the compiler's own message.
+/// words for which kind, then the compiler's own message where it has one.
 fn refusal_text(r: &faraday_bip::compile::Refusal) -> String {
     use faraday_bip::compile::Refusal;
     match r {
         Refusal::Empty => String::new(),
         Refusal::Policy(m) => fill(EN.tools_miniscript_not_policy, &[m]),
         Refusal::Script(m) => fill(EN.tools_miniscript_no_script, &[m]),
+        Refusal::LoneKeyTaproot => EN.tools_miniscript_lone_key.to_string(),
     }
 }

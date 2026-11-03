@@ -43,7 +43,7 @@ pub struct PolicyFacts {
 }
 
 /// Why a policy was not compiled: a kind, which the app words, with the
-/// compiler's own message on one line.
+/// compiler's own message on one line where it has one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
     /// Nothing typed.
@@ -52,6 +52,9 @@ pub enum Refusal {
     Policy(String),
     /// A policy no script compiles from.
     Script(String),
+    /// A policy that is one key alone, under Taproot: the key becomes the
+    /// internal key and no leaf is left to compile.
+    LoneKeyTaproot,
 }
 
 /// Costs a miniscript compilation and a parse of the descriptor:
@@ -63,7 +66,8 @@ pub enum Refusal {
 /// neither a listed one nor something `miniscript` reads as a key is the
 /// compiler's to refuse.
 ///
-/// The refusal carries the compiler's own message on one line.
+/// A refusal carries the compiler's own message on one line, except
+/// [`Refusal::Empty`] and [`Refusal::LoneKeyTaproot`].
 pub fn compile(
     c: &Compute,
     text: &str,
@@ -84,7 +88,11 @@ pub fn compile(
         // `compile_tr` with no unspendable key takes the internal key
         // out of the policy itself, which is what a person typing
         // `or(pk(A),...)` means by the first branch.
-        PolicyScript::Taproot => policy.compile_tr(None).map_err(one_line),
+        PolicyScript::Taproot => match policy.compile_tr(None) {
+            Ok(d) => Ok(d),
+            Err(_) if is_one_key(&policy) => return Err(Refusal::LoneKeyTaproot),
+            Err(e) => Err(one_line(e)),
+        },
     }
     .map_err(Refusal::Script)?;
     let text = alloc::format!("{descriptor}");
@@ -146,6 +154,16 @@ fn policy_keys(descriptor: &Descriptor<String>, text: &str) -> Vec<String> {
     keys
 }
 
+/// Whether the policy is one key and nothing else: `pk(A)`, or a
+/// threshold of one over just that.
+fn is_one_key(policy: &Concrete<String>) -> bool {
+    match policy {
+        Concrete::Key(_) => true,
+        Concrete::Thresh(t) => t.n() == 1 && is_one_key(&t.data()[0]),
+        _ => false,
+    }
+}
+
 /// A compiler message as one line.
 fn one_line<E: core::fmt::Display>(error: E) -> String {
     let text = alloc::format!("{error}");
@@ -191,5 +209,41 @@ mod tests {
             keys_of("or(pk(aa),pk(bb))", &[("aa", "bbkey"), ("bb", "other")]).unwrap(),
             ["bbkey", "other"]
         );
+    }
+
+    const KEY_A: &str = "[73c5da0a/86h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*";
+    const KEY_B: &str = "[3442193e/86h/0h/0h]xpub6CxGcwxsdvTtvWTqz6qqRN4nfkWZwEn2R2KtBqrHCMkYjDiFNcvPe2UQhSSYGfRsSWGnqmaRmTJBSCvxGAGPrJdGYGDmmDLnUgdobnRh8Cz/<0;1>/*";
+
+    fn run(policy: &str, script: PolicyScript) -> Result<PolicyFacts, Refusal> {
+        let tokens = [
+            (String::from("A"), String::from(KEY_A)),
+            (String::from("B"), String::from(KEY_B)),
+        ];
+        compile(&Compute::unchecked(), policy, script, &tokens)
+    }
+
+    #[test]
+    fn one_key_alone_has_no_script_under_taproot() {
+        for policy in ["pk(A)", "thresh(1,pk(A))"] {
+            assert_eq!(
+                run(policy, PolicyScript::Taproot).unwrap_err(),
+                Refusal::LoneKeyTaproot,
+                "{policy}"
+            );
+        }
+    }
+
+    #[test]
+    fn one_key_alone_compiles_under_segwit_and_two_keys_under_taproot() {
+        assert!(run("pk(A)", PolicyScript::Segwit).is_ok());
+        assert!(run("or(pk(A),pk(B))", PolicyScript::Taproot).is_ok());
+    }
+
+    #[test]
+    fn a_policy_of_two_keys_is_not_called_one_key() {
+        assert!(matches!(
+            run("thresh(2,pk(A),pk(B),pk(A))", PolicyScript::Taproot),
+            Err(Refusal::Script(_))
+        ));
     }
 }
