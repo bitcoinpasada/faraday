@@ -34,6 +34,7 @@ TOOLS = [
     ("pesign", "pesign", None),
     ("pesigcheck", "pesign", None),
     ("zbarimg", "zbar-tools", ["--version"]),
+    ("sq", "sq", ["version"]),
 ]
 # OVMF's Secure Boot firmware, as faraday/tools/sb-ovmf-check.py looks.
 OVMF_DIRS = ["/usr/share/edk2/x64", "/usr/share/edk2-ovmf/x64", "/usr/share/OVMF"]
@@ -94,6 +95,22 @@ def first_line(path, args, package=None):
     return text[0].strip() if text else "unknown"
 
 
+def sq_backend():
+    """The line of `sq version` that names Sequoia's cryptographic backend
+    ("with cryptographic backend Nettle 3.10 ..."), or None when `sq` is
+    absent or says no such line. The GPG tests judge Faraday with `sq`
+    built over Nettle (ESTABLISHED §9.7, batch X24), not over Sequoia's
+    own pure-Rust backend."""
+    path = find("sq")
+    if not path:
+        return None
+    run = subprocess.run([path, "version"], capture_output=True, text=True)
+    for line in (run.stdout + run.stderr).splitlines():
+        if "cryptographic backend" in line:
+            return line.strip()
+    return None
+
+
 def pefile_version():
     """python3-pefile's version, or None when Python cannot import it."""
     run = subprocess.run(
@@ -115,6 +132,9 @@ def zxingcpp_version():
 
 def missing():
     out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
+    if find("sq") and "cryptographic backend Nettle" not in (sq_backend() or ""):
+        out.append("sq built over Nettle (`sq version` must say \"cryptographic backend "
+                   "Nettle\"; package sq on Debian or Ubuntu)")
     if not sevenzip():
         out.append("7-Zip (`7zz` or `7z`; package 7zip, not p7zip)")
     if not pefile_version():
@@ -135,6 +155,8 @@ def versions():
     for tool, pkg, args in TOOLS:
         path = find(tool)
         lines.append(f"{tool} {first_line(path, args, pkg) if path else 'missing'}")
+    if find("sq"):
+        lines.append(f"sq backend {sq_backend() or 'unknown'}")
     seven = sevenzip()
     lines.append(f"7-Zip (7zz or 7z) {first_line(seven, []) if seven else 'missing'}")
     lines.append(f"python3-pefile {pefile_version() or 'missing'}")

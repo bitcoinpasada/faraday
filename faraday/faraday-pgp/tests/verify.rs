@@ -53,6 +53,24 @@ fn faraday_0_1_7s_sums_verify_with_the_release_key_in_the_repository() {
     );
 }
 
+/// `sequoia/` holds a certificate and a signature of the sums made by
+/// Sequoia's `sq` 1.3.1 (`sequoia/make.sh`), with the clock at `MADE`.
+#[test]
+fn a_sequoia_signature_verifies_and_one_over_other_sums_is_refused() {
+    let cert = cert("sequoia/sequoia-key.asc");
+    let sums = read("SHA256SUMS");
+    let asc = read("sequoia/SHA256SUMS.asc");
+    assert_eq!(verify_detached(&cert, &sums, &asc), Ok(MADE));
+    let mut other = sums.clone();
+    other[10] ^= 1;
+    assert_eq!(verify_detached(&cert, &other, &asc), Err(Unverified::Bad));
+    // And the release key's certificate is not the signer's.
+    assert_eq!(
+        verify_detached(&self::cert("release-key.asc"), &sums, &asc),
+        Err(Unverified::OtherKey)
+    );
+}
+
 #[test]
 fn a_signature_by_another_key_is_refused_as_another_keys() {
     let release = cert("release-key.asc");

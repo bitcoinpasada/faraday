@@ -7604,6 +7604,9 @@ vectors = ["paperkey"]
 tests = [
   "faraday/faraday-pgp/tests/gnupg.rs::gnupg_takes_the_certificate_signatures_and_revocation",
   "faraday/faraday-pgp/tests/gnupg.rs::gnupg_sees_a_key_expire_and_be_renewed",
+  "faraday/faraday-pgp/tests/sequoia.rs::sequoia_reads_the_certificate",
+  "faraday/faraday-pgp/tests/sequoia.rs::sequoia_takes_the_revocation_certificate",
+  "faraday/faraday-pgp/tests/sequoia.rs::sequoia_sees_a_key_expire_and_be_renewed",
   "faraday/faraday-keys/tests/vault.rs::a_restored_key_signs_renews_and_revokes_as_makes_does",
   "faraday/faraday-pgp/tests/gnupg.rs::gnupg_imports_the_armoured_secret_key_and_it_reads_back",
   "faraday/faraday-pgp/tests/secret.rs::a_key_reads_back_as_written",
@@ -7616,6 +7619,7 @@ not_crosschecked = "Judged by real gnupg and paperkey in faraday/faraday-pgp/tes
 other = [
   "Real `gpg` 2.4 end to end: it imports the certificate, checks its signatures and revocation and takes its renewal, with its clock set (`faraday/faraday-pgp/tests/gnupg.rs`, `faraday/faraday-keys/tests/vault.rs`); GnuPG's authors, outside Faraday; required, nothing skips it (docs/DEVELOPING.md)",
   "Real `paperkey` 1.6 reads the key's secret to the same lines (`faraday/faraday-pgp/tests/gnupg.rs`); paperkey's author, outside Faraday",
+  "Sequoia's `sq` 1.3.1, built over Nettle (the test fails unless `sq version` says so), inspects the certificate for both keys, the user ID and the expiry, takes the revocation certificate and the renewal, with its clock set (`faraday/faraday-pgp/tests/sequoia.rs`); Sequoia's authors, another OpenPGP implementation from GnuPG, outside Faraday; required, nothing skips it (docs/DEVELOPING.md)",
 ]
 
 
@@ -7685,11 +7689,13 @@ adds = "A version-4 binary signature (type 0x00) by the signing subkey; the dige
 tests = [
   "faraday/faraday-pgp/tests/gnupg.rs::gnupg_takes_the_certificate_signatures_and_revocation",
   "faraday/faraday-pgp/tests/gnupg.rs::a_signature_whose_r_or_s_starts_with_a_zero_byte_verifies",
+  "faraday/faraday-pgp/tests/sequoia.rs::sequoia_verifies_the_signatures_and_refuses_other_data",
   "faraday/faraday-pgp/tests/verify_refusals.rs::a_signature_made_here_of_faradays_shape_verifies",
 ]
 not_crosschecked = "Judged by real gnupg in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; the test fails where gnupg is missing."
 other = [
   "Real `gpg` 2.4 verifies Faraday's signatures, including those whose r or s starts with a zero byte (`faraday/faraday-pgp/tests/gnupg.rs`); GnuPG's authors, outside Faraday; required, nothing skips it",
+  "Sequoia's `sq` 1.3.1, built over Nettle, verifies the detached signatures over SHA-256 and SHA-512 and refuses one over other data (`faraday/faraday-pgp/tests/sequoia.rs`); Sequoia's authors, outside Faraday; required, nothing skips it",
 ]
 
 fuzz_none = "Signing takes the signed bytes and the key; pgp_verify fuzzes the reading of a signature."
@@ -7963,13 +7969,15 @@ tests = [
   "faraday/faraday-pgp/tests/verify.rs::a_gnupg_signature_over_sha512_and_over_sha256_verifies",
   "faraday/faraday-pgp/tests/verify.rs::a_signature_by_another_key_is_refused_as_another_keys",
   "faraday/faraday-pgp/tests/verify.rs::a_revoked_key_verifies_nothing",
+  "faraday/faraday-pgp/tests/verify.rs::a_sequoia_signature_verifies_and_one_over_other_sums_is_refused",
   "faraday/faraday-pgp/tests/verify_refusals.rs::a_text_mode_signature_is_refused",
   "faraday/faraday-pgp/tests/verify_refusals.rs::a_signing_subkey_without_its_back_signature_or_with_a_wrong_one_verifies_nothing",
 ]
 fuzz = ["pgp_verify"]
-not_crosschecked = "Judged by signatures made with real gnupg (tools/vectors/release-sums), not by an F79 area."
+not_crosschecked = "Judged by signatures made with real gnupg and with Sequoia's sq (tools/vectors/release-sums), not by an F79 area."
 other = [
   "Signatures made by real `gpg` 2.4 over SHA-512 and SHA-256 verify (`faraday/faraday-pgp/tests/verify.rs`, `tools/vectors/release-sums`); GnuPG's authors, outside Faraday; fixtures committed, so this check needs no tool at run time",
+  "A signature made by Sequoia's `sq` 1.3.1 verifies, and the same signature over other sums is refused (`faraday/faraday-pgp/tests/verify.rs`, `tools/vectors/release-sums/sequoia`); Sequoia's authors, outside Faraday; fixtures committed, so this check needs no tool at run time",
 ]
 
 
@@ -8145,7 +8153,7 @@ kind = "Conservative"
 decision = "F134"
 
 [action.review]
-fingerprint = "3759028d3159c9e9327a08edf600ae2d7f07b7860d71023395532d71a779a6dd"
+fingerprint = "648781067b720e7895280da44f346f226d2370d8d95d228b2d9c564844bac277"
 reviewed = "2026-11-03"
 places = [
   "docs/decisions/F134.md",

@@ -59,13 +59,14 @@ nothing else.
   repository.
 - **Podman or Docker**, rootless, for the stick and Pi images and the
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
-- **GnuPG 2.4, paperkey 1.6, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
+- **GnuPG 2.4, paperkey 1.6, Sequoia's `sq` 1.3 built over Nettle, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
   `certtool`, pesign** (`pesign`, `pesigcheck`) and **python3-pefile**: the
   GPG and Secure Boot tests run these tools against Faraday's files. A
-  missing GnuPG, paperkey, OpenSSL or sbverify fails them; a missing
+  missing GnuPG, paperkey, `sq`, OpenSSL or sbverify fails them, and so does
+  an `sq` whose `sq version` does not say "cryptographic backend Nettle"; a missing
   `certtool`, pesign or pefile skips its test with a note in `just` and
   fails it in `just crosscheck`. On Debian or Ubuntu:
-  `sudo apt install gnupg paperkey openssl sbsigntool gnutls-bin pesign
+  `sudo apt install gnupg paperkey sq openssl sbsigntool gnutls-bin pesign
   python3-pefile`.
 - **mtools, dosfstools, gdisk, fdisk** (`mkfs.fat`, `fsck.fat`, `fatlabel`,
   `mcopy`, `sgdisk`, `sfdisk`; on some systems `sfdisk` comes with
