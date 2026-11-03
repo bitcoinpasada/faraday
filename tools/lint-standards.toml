@@ -139,6 +139,10 @@ file = "faraday/faraday-core/src/vault/mod.rs"
 reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for a vault file's hash."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/vault/seals.rs"
+reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for the hash of each copy of a vault it seals or sees."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/wallet.rs"
 reason = "Glue over rust-bitcoin's types: parses addresses, paths and sighash types and calls faraday-bip, faraday-psbt and faraday-keys, which the stamp covers."
 
