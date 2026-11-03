@@ -203,13 +203,6 @@ mod vault_open {
 
     #[test]
     fn a_stick_put_in_during_an_open_leaves_the_vault_locked() {
-        // What the press says with the stick already in.
-        let mut before = device();
-        before.storage(a_stick());
-        asked(&mut before, PASS);
-        before.press(Action::Vault(V::Unlock));
-        assert!(before.vaults().unlock_error.is_some());
-
         let mut app = device();
         asked(&mut app, PASS);
         testkit::hold_worker();
@@ -218,7 +211,6 @@ mod vault_open {
         testkit::release_worker();
         testkit::settle(&mut app);
         assert!(app.vaults().open.is_empty());
-        assert_eq!(app.vaults().unlock_error, before.vaults().unlock_error);
     }
 
     #[test]
@@ -273,6 +265,80 @@ mod vault_open {
         assert!(app.busy().is_none());
         assert_eq!(app.vaults().open.len(), 1, "opened once");
         assert_eq!(app.vaults().unlock_error, None);
+    }
+
+    fn a_stick_with_files() -> StorageEvent {
+        StorageEvent::Sticks(vec![StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: "stick".into(),
+            label: "STICK".into(),
+            boot: false,
+            files: vec![("note.txt".into(), 5)],
+            vaults: Vec::new(),
+        }])
+    }
+
+    #[test]
+    fn a_stick_that_moves_the_screen_during_an_open_drops_its_answer() {
+        let mut app = device();
+        asked(&mut app, PASS);
+        let started_on = (app.screen, app.sheet);
+        testkit::hold_worker();
+        testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+        assert!(app.busy().is_some());
+        app.storage(a_stick_with_files());
+        assert_ne!(
+            (app.screen, app.sheet),
+            started_on,
+            "the stick moved the screen"
+        );
+        assert!(app.busy().is_none(), "the job is not waited for");
+        // Taken out again before the answer comes: nothing in the way of
+        // the open but the answer's being stale.
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        assert!(
+            app.vaults().open.is_empty(),
+            "no vault opens from a stale answer"
+        );
+    }
+
+    #[test]
+    fn a_storage_event_that_moves_no_screen_leaves_the_open_running() {
+        let mut app = device();
+        asked(&mut app, PASS);
+        testkit::hold_worker();
+        testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+        let at = (app.screen, app.sheet);
+        app.storage(StorageEvent::Memory {
+            available_mib: 14_000,
+        });
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        assert_eq!((app.screen, app.sheet), at);
+        assert!(app.busy().is_some(), "the open goes on");
+        testkit::release_worker();
+        testkit::settle(&mut app);
+        assert_eq!(app.vaults().open.len(), 1, "its answer applies");
+    }
+
+    #[test]
+    fn a_row_pressed_while_an_open_runs_starts_nothing() {
+        let mut app = device();
+        asked(&mut app, PASS);
+        testkit::hold_worker();
+        testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+        let (at, jobs) = ((app.screen, app.sheet), testkit::jobs_asked(&app));
+        let _ = app.frame();
+        app.press(Action::Vault(V::Open(0)));
+        app.press(Action::Nav(faraday_core::Screen::Home));
+        assert!(app.busy().is_some(), "the busy screen stays");
+        assert_eq!((app.screen, app.sheet), at);
+        assert_eq!(testkit::jobs_asked(&app), jobs);
+        testkit::release_worker();
+        testkit::settle(&mut app);
+        assert_eq!(app.vaults().open.len(), 1);
     }
 }
 

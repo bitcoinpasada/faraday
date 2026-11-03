@@ -262,6 +262,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn clear_hits(&mut self) {
         self.hits.clear();
         self.reach.clear();
+        self.faded.clear();
         self.tips.anchors.clear();
     }
 

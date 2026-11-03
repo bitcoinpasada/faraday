@@ -504,6 +504,9 @@ pub struct Ui<'a, A> {
     /// The hit being taken draws its own focus ring too
     /// ([`Ui::hit_drawn`]).
     own_ring: bool,
+    /// The regions of presses refused while a job runs, drawn faded at
+    /// the end of the page or sheet ([`Ui::fade_disabled`]).
+    faded: Vec<(Rect, (i32, i32))>,
     /// The hit being taken is the press beside a sheet: no target and
     /// no place in the keyboard's order.
     around: bool,
@@ -640,6 +643,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             quiet_hover: false,
             held: false,
             own_ring: false,
+            faded: Vec::new(),
             around: false,
             outside: None,
             caret_on: true,
@@ -1729,6 +1733,38 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.fill_contours(&[&body, &plug, &h1, &h2], color);
     }
 
+    /// Notes the region of a press refused while a job runs (not one
+    /// dimmed for the demo, nor a button, which draws itself off), to be
+    /// drawn as Material's disabled content by [`Ui::fade_disabled`].
+    pub(crate) fn fade_later(&mut self, (x, y, w, h): (f32, f32, f32, f32), action: A) {
+        if !self.keep_live.is_some_and(|live| !live(&action)) {
+            return;
+        }
+        let whole = self.rect(x, y, w, h);
+        let rect = whole.intersect(&self.c.clip());
+        if rect.is_empty() {
+            return;
+        }
+        // The background is read just inside the left edge, clear of an
+        // outline, level with the middle of what is drawn.
+        let inset = (2.0 * self.f).ceil() as i32 + 2;
+        let at = (whole.x + inset, whole.y + whole.h / 2);
+        self.faded.push((rect, at));
+    }
+
+    /// Costs a pass over the pixels of the regions noted by
+    /// [`Ui::fade_later`]. Draws the rows, links, chips and cards whose
+    /// presses are refused while a job runs at Material's disabled
+    /// content opacity over what they stand on (`docs/WORKERS.md` §4);
+    /// their container stays. Called once the page, then the sheet, is
+    /// drawn.
+    pub fn fade_disabled(&mut self) {
+        for (rect, at) in std::mem::take(&mut self.faded) {
+            self.c
+                .fade_to_background(rect, at, faraday_draw::tokens::DISABLED_CONTENT);
+        }
+    }
+
     /// Whether `action` is drawn dimmed and takes no press this frame.
     pub fn is_dimmed(&self, action: &A) -> bool {
         self.dimmed.contains(action) || self.keep_live.is_some_and(|live| !live(action))
@@ -1746,6 +1782,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub(crate) fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         // A dimmed action takes no press, wherever it is drawn.
         if self.is_dimmed(&action) {
+            if !self.around {
+                self.fade_later((x, y, w, h), action);
+            }
             return;
         }
         let clip = self.hit_clip.unwrap_or_else(|| self.c.clip());

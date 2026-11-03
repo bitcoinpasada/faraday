@@ -440,6 +440,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         }
         ui.oy = 0.0;
         ui.ox = 0.0;
+        ui.fade_disabled();
     }
     // A sheet with a field of its own: the wide layout's keyboard button
     // stays within reach, over it, where the page has it.
@@ -466,6 +467,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // sheet; Faraday Demo's, in its top bar, again over a sheet, and
     // its Sticks menu as it closes.
     crate::stick::pills::draw(app, ui, full_w);
+    ui.fade_disabled();
     // Faraday Demo's host takes what the page and its sheet offered
     // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
     if app.hosted() {
@@ -695,6 +697,8 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
 /// each Material's snackbar, the toast standing above the notice while
 /// both show.
 fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
+    // The page's refused presses, drawn disabled, before the foot is.
+    ui.fade_disabled();
     let mut foot = h;
     // Under a sheet the sheet that started the job shows it itself.
     if let Some(b) = app.busy().filter(|_| app.sheet.is_none()) {

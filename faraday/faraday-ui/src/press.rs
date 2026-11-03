@@ -198,6 +198,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         draw: impl FnOnce(&mut Self),
     ) {
         if self.is_dimmed(&action) {
+            self.fade_later(target, action);
             return;
         }
         draw(self);

@@ -953,6 +953,34 @@ impl Canvas {
         self.damaged(r);
     }
 
+    /// Costs a pass over the rectangle's pixels. Draws what is inside
+    /// `rect` as Material's disabled content: each pixel only the share
+    /// `keep` of the way from the colour of the canvas at `(x, y)`, the
+    /// background the control stands on, toward what was drawn. The
+    /// background itself, and a container the same colour, do not move.
+    pub fn fade_to_background(&mut self, rect: Rect, (x, y): (i32, i32), keep: f32) {
+        let r = rect.intersect(&self.bounds());
+        if r.is_empty() || !self.bounds().contains(x, y) {
+            return;
+        }
+        let stride = self.pixmap.width() as usize * 4;
+        let keep = (keep.clamp(0.0, 1.0) * 256.0) as i32;
+        let data = self.pixmap.data_mut();
+        let at = y as usize * stride + x as usize * 4;
+        let bg = [data[at], data[at + 1], data[at + 2], data[at + 3]];
+        let n = r.w as usize * 4;
+        for row in r.y..r.bottom() {
+            let from = row as usize * stride + r.x as usize * 4;
+            for px in data[from..from + n].chunks_exact_mut(4) {
+                for (c, &b) in px.iter_mut().zip(&bg) {
+                    let (b, v) = (i32::from(b), i32::from(*c));
+                    *c = (b + (((v - b) * keep) >> 8)).clamp(0, 255) as u8;
+                }
+            }
+        }
+        self.damaged(r);
+    }
+
     /// Moves the pixels inside `rect` by `dy` rows, down for a positive
     /// `dy` and up for a negative one, ignoring the clip. Rows outside
     /// `rect` are untouched, and so are the rows that `dy` brought into

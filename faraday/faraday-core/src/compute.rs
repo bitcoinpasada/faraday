@@ -232,6 +232,35 @@ impl Faraday {
         }
     }
 
+    /// What follows a storage event, `screen` the one it came to. A stick
+    /// that takes the person to another screen leaves this one as a press
+    /// would; otherwise a device still waiting comes back up once no other
+    /// sheet is. Then, if the event moved the screen or the sheet away
+    /// from where the running job was started, its answer is made stale and
+    /// dropped where it arrives, as Back does, once for every job
+    /// (`docs/WORKERS.md` §4).
+    pub(crate) fn storage_left(&mut self, screen: crate::Screen) {
+        if self.screen != screen {
+            self.after_input();
+        } else {
+            self.trail.forget_entered();
+            self.input_sheet();
+            self.device_sheet();
+        }
+        let moved = self.worker.busy().is_some()
+            && self
+                .worker
+                .origin()
+                .is_some_and(|o| o != (self.screen, self.sheet));
+        if moved {
+            self.worker.stale();
+            self.worker.set_busy(None);
+            crate::vault::stretch::ended(self);
+            self.out.dirty = true;
+            self.out.commands.push_back(crate::Command::Draw);
+        }
+    }
+
     /// Whether a key is refused while a job runs: every key but Escape,
     /// which is Back or Cancel and is taken as the press is. A key that
     /// would act (Enter in a field) is no more live than its press.

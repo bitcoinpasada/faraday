@@ -1308,16 +1308,7 @@ impl Faraday {
         self.storage_event(event.in_own_words());
         self.backup_settle();
         self.stick.note_visit(self.screen == Screen::Visit);
-        if self.screen != screen {
-            // A stick that takes the person to another screen leaves
-            // this one as a press would.
-            self.after_input();
-        } else {
-            self.trail.forget_entered();
-            // A device still waiting comes back up once no other sheet is.
-            self.input_sheet();
-            self.device_sheet();
-        }
+        self.storage_left(screen);
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]

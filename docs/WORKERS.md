@@ -200,11 +200,11 @@ working line and Material's linear progress indicator along its foot
 (`working_bar`, DESIGN §4.14): **indeterminate** and moving, as Material
 draws it, where the work has no count; **determinate**, its track filled
 by the share done, where it has one; still under reduce motion, as
-today. Its other actions are drawn in Material's disabled state. The
+today. Its other actions are drawn in Material's disabled state: a button off, and a row, link, chip or card (whatever else is pressable) with its content at the disabled opacity over its own container (`Ui::fade_disabled`), taking no press. The
 page checked against is Material 3's Progress indicators
 (m3.material.io/components/progress-indicators), "Linear" and
 "Indeterminate"; the disabled buttons against Material 3's Buttons,
-"States". A sheet that waits today with a still bar (a vault's unlock,
+"States", and the rows against Material 3's Lists, the disabled item. A sheet that waits today with a still bar (a vault's unlock,
 creation and sealing, an unlock from the boot import and the Spend
 tab) keeps its text and gets the moving bar. The shell is asked for
 frames while `busy` is set, at the motion pace (`motion.rs`), and for
@@ -222,7 +222,7 @@ none once it clears.
 | The panic chord, Power off | Taken by the shell on its main thread at once, the job or not; the machine goes off with the worker mid-run (a key in its memory goes with the power, inside the Security scope) |
 | Theme, text size, rotation, Faraday Demo's preview size or window size | Accepted: they change what is drawn, not what the job reads |
 | Typing into a field | Accepted as today; no typed probe is a job (§2.1), and one that became one would take latest wins (§3.2) |
-| A stick put in or pulled | Taken as today (`storage` events); a job that reads or writes a stick is one of §7.3's, answered by the storage, not by the worker |
+| A stick put in or pulled | Taken as today (`storage` events); a job that reads or writes a stick is one of §7.3's, answered by the storage, not by the worker. When the event moves the screen or the sheet away from where the job was started (to Visit, Import closed, the Lock sheet over Import), the job's answer is made stale and dropped where it arrives, as Back does, for every job; an event that moves neither leaves the job live |
 | A scanned code | Taken by the scanner as today; a code that would start a job while one runs is held until the job ends, as a stick plugged in under the camera is held back |
 
 Strings: the working lines exist (`working_files` and the vault's);
