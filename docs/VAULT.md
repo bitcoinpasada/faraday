@@ -661,9 +661,16 @@ limits, beyond what it writes itself:
 | key | the passphrase | the passphrase |
 
 Refused, naming what was found: KDBX 3.1 and older, AES-KDF, Twofish or
-another cipher, Salsa20 as the inner stream, a key file, a
-challenge-response key (a YubiKey's), and a database whose passphrase
-is empty.
+another cipher, Salsa20 as the inner stream, and a database whose
+passphrase is empty.
+
+**A key file or a security key** (owner, 2026-11-02). KDBX 4 records
+nothing that shows a key file or a challenge-response key (a YubiKey's),
+so Faraday cannot tell such a file from a wrong passphrase: both fail
+the header's HMAC. The wrong-passphrase message for a KeePass file says
+so: "Wrong passphrase. A file that also needs a key file or a security
+key cannot be opened here." (the string is added to
+`faraday-strings/src/en.rs` when the unlock screen uses the KDBX vault).
 
 **Carried through unchanged** (owner, 2026-11-02): everything a KeePass
 app wrote that Faraday does not read is kept as it was and written back
@@ -842,7 +849,8 @@ Sequoia (pysequoia 0.1.36) opened it to the same plaintext.
 
 Each reader has a fuzz target, seeded from the vectors: the KDBX header
 and block stream, the inflate and the XML reader with §7's rules
-(`kdbx_file`), the QR vault's packets (`pgp_qr_vault`) and its TOML
+(`kdbx_file`, and `kdbx_body` for the padding, the inflate and the inner
+header past the HMACs), the QR vault's packets (`pgp_qr_vault`) and its TOML
 (`contents`).
 
 ## 11. What the app remembers of a locked vault

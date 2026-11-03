@@ -6946,7 +6946,7 @@ libraries = [
   "miniz_oxide",
   "sha2",
 ]
-adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not named in a KDBX 4 header and shows as a wrong passphrase. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes."
+adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not recorded in a KDBX 4 header, so such a file cannot be told from a wrong passphrase (owner, 2026-11-02) and the wrong-passphrase message for a KeePass file says that a file which also needs one cannot be opened here. An Argon2 version missing from the parameters is a damaged file, as KeePass and KeePassXC take it. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes."
 written_here = "The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)"
 
 [action.checked]
@@ -6968,21 +6968,24 @@ tests = [
   "faraday/faraday-vault/tests/kdbx.rs::a_file_too_long_for_the_largest_vault_is_refused_before_any_work",
   "faraday/faraday-vault/src/kdbx/tests.rs::a_gzip_member_is_inflated_and_checked",
   "faraday/faraday-vault/src/kdbx/tests.rs::an_inner_header_that_is_not_chacha20_is_refused_by_name",
+  "faraday/faraday-vault/src/kdbx/tests.rs::aes_padding_is_taken_off_only_when_it_is_whole",
+  "faraday/faraday-vault/tests/kdbx.rs::a_vault_of_the_largest_size_is_sealed_and_opened",
+  "faraday/faraday-vault/tests/kdbx.rs::a_file_pykeepass_wrote_with_a_megabyte_attachment_opens",
 ]
 not_crosschecked = "Opened by pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it)."
-fuzz = ["kdbx_file"]
+fuzz = ["kdbx_file", "kdbx_body"]
 
 [action.secrets]
 reveal = "none"
 constant_time = "The header's and every block's HMAC are compared in constant time (`verify_slice`); Argon2, SHA-2, ChaCha20 and AES-CBC state nothing more."
-wiped = "The composite key, the Argon2 output, the encryption key, the HMAC base and every block key are Secret values wiped on drop; the decrypted body, the inflated body, the document and the attachments are Zeroizing buffers, decrypted and unpadded in place; the Argon2 memory is overwritten before release. The inflater's own state and the NFC normaliser's buffer of combining marks are not wiped."
+wiped = "The composite key, the Argon2 output, the encryption key, the HMAC base and every block key are Secret values wiped on drop; the decrypted body, the inflated body, the document and the attachments are Zeroizing buffers, decrypted and unpadded in place; the Argon2 memory is overwritten before release. Not wiped: the SHA-256 and SHA-512 hashers' state, the ChaCha20 and AES-CBC cipher states and the AES key schedule, the inflater's own state, and the NFC normaliser's buffer of combining marks. The passphrase's first SHA-256 is a Zeroizing value; a seal works out the plaintext length before the buffer is grown, so a refusal as too small leaves no copy."
 
 [action.limits]
 lines = [
   "Version 4.0 and 4.1 only; KDBX 3.1 and older are named and not opened.",
   "Argon2 version 1.3 with 8 MiB to 1 GiB of memory, 1 to 100 passes and 1 to 64 lanes, no secret key and no associated data; a cost outside is refused before any memory is asked for.",
   "A plaintext of at most 4 MiB; a file too long to hold one is refused before any work, and a gzip body that states more is refused as soon as it is read.",
-  "The composite key is the passphrase alone; a key file or a challenge-response key shows as a wrong passphrase.",
+  "The composite key is the passphrase alone; a key file or a challenge-response key cannot be told from a wrong passphrase (KDBX 4 records neither).",
   "The passphrase arrives in Unicode NFC; the container puts it there.",
 ]
 
@@ -8514,7 +8517,7 @@ by = "RFC 9580 Appendix A (A.10, the version 6 symmetric-key session key and the
 
 [vector.kdbx]
 source = "outside"
-by = "pykeepass 4.1.1, run by `tools/vectors/kdbx/make.py` (both ciphers, both Argon2 types, with and without gzip, and a header marked 4.1); KeePassXC 2.7.12's own KDBX 3.1 file"
+by = "pykeepass 4.1.1 (the distribution's 4.1.1.post1), run by `tools/vectors/kdbx/make.py` (both ciphers, both Argon2 types, with and without gzip, a header marked 4.1, and a file with a 1.2 MiB attachment, more than one block of the stream); KeePassXC 2.7.12's own KDBX 3.1 file"
 
 [vector.toml]
 source = "published"

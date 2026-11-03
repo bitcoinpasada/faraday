@@ -13,6 +13,10 @@ cargo-fuzz = true
 
 [workspace]
 
+# `fuzzing` is set by cargo-fuzz (kdbx_body's entry exists only under it).
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
+
 [dependencies]
 libfuzzer-sys = "0.4"
 faraday-bip = { path = "../core/faraday-bip" }
@@ -120,6 +124,13 @@ bench = false
 [[bin]]
 name = "kdbx_file"
 path = "fuzz_targets/kdbx_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kdbx_body"
+path = "fuzz_targets/kdbx_body.rs"
 test = false
 doc = false
 bench = false

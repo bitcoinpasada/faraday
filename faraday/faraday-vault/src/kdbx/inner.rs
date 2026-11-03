@@ -113,6 +113,15 @@ pub(super) fn write(key: &[u8], binaries: &[Binary], out: &mut Vec<u8>) {
     put_field(INNER_END, &[], out);
 }
 
+/// The length [`write`] gives, worked out without writing.
+pub(super) fn written_len(key: &[u8], binaries: &[Binary]) -> usize {
+    // Each field: an id, a length and the value.
+    let fixed = (5 + 4) + (5 + key.len()) + 5;
+    binaries
+        .iter()
+        .fold(fixed, |sum, b| sum.saturating_add(5 + 1 + b.data.len()))
+}
+
 /// The inner random stream: ChaCha20 under the first 32 bytes of the
 /// SHA-512 of the inner key and a nonce of the next 12, as KeePass keys
 /// it. A protected value is XORed with the next bytes of the stream, in

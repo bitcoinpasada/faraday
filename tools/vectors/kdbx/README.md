@@ -16,10 +16,11 @@ passphrase`, at a low cost, Argon2 with 8 MiB of memory, 2 passes and 2 lanes.
 | `pykeepass-chacha20-argon2id-plain.kdbx` | ChaCha20 | Argon2id | none | 4.0 |
 | `pykeepass-aes-argon2id-gzip-v41.kdbx` | AES-256 | Argon2id | gzip | header marked 4.1 |
 | `pykeepass-twofish-argon2d-gzip.kdbx` | Twofish | Argon2d | gzip | 4.0 (refused) |
+| `pykeepass-chacha20-argon2id-plain-large.kdbx` | ChaCha20 | Argon2id | none | 4.0, one 1.2 MiB attachment (`attachment.bin`, SHAKE-256 of `kdbx vector attachment`): the stream has more than one block |
 | `keepassxc-3.1-aeskdf.kdbx` | AES-256 | AES-KDF | gzip | 3.1 (refused) |
 
 How they are made: `python3 -I -B tools/vectors/kdbx/make.py OUT_DIR`
-(pykeepass 4.1.1 and its construct library), which changes pykeepass's
+(the distribution's pykeepass, 4.1.1.post1, and its construct library), which changes pykeepass's
 blank database to each shape and reads it back under pykeepass. pykeepass
 writes KDBX 4.0 only; the 4.1 file is the same database with the minor
 version in its header set to 1, the only difference 4.1 makes outside the

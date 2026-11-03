@@ -8,6 +8,7 @@ use faraday_crypto::work::{Compute, Work};
 use faraday_crypto::{Secret, Zeroize};
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256, Sha512};
+use zeroize::Zeroizing;
 
 use crate::Cost;
 
@@ -41,7 +42,8 @@ pub(super) fn file_keys(
     cost_in_limits(cost)?;
     // The composite key: the SHA-256 of the components' SHA-256s, and the
     // one component is the passphrase's.
-    let mut composite = Secret::new(<[u8; 32]>::from(Sha256::digest(Sha256::digest(passphrase))));
+    let first = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(passphrase)));
+    let mut composite = Secret::new(<[u8; 32]>::from(Sha256::digest(*first)));
     let stretched = argon_run(c, kdf, cost, composite.expose(), salt);
     composite.zeroize();
     let mut t = stretched?;

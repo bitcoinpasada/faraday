@@ -106,3 +106,76 @@ fn an_inner_header_that_is_not_chacha20_is_refused_by_name() {
     let twice = inner_header(&[(1, &CHACHA20), (1, &CHACHA20), (2, &[5; 32]), (0, &[])]);
     assert_eq!(inner::read_inner(&twice).err(), Some(Error::Damaged));
 }
+
+/// `plain` encrypted under AES-256-CBC with a fixed key and IV, as a body
+/// whose HMAC verified would hold it, and run through `unpad`.
+fn unpadded(plain: &[u8]) -> Result<Vec<u8>, Error> {
+    use aes::cipher::inout::InOutBuf;
+    use aes::cipher::{BlockModeEncrypt, KeyIvInit};
+
+    let (key, iv) = ([7u8; 32], [9u8; 16]);
+    let mut body = plain.to_vec();
+    let (blocks, tail) = InOutBuf::from(&mut body[..]).into_chunks();
+    assert!(tail.is_empty(), "the test body is whole blocks");
+    cbc::Encryptor::<aes::Aes256>::new_from_slices(&key, &iv)
+        .unwrap()
+        .encrypt_blocks_inout(blocks);
+    let cipher = cbc::Decryptor::<aes::Aes256>::new_from_slices(&key, &iv).unwrap();
+    let len = super::unpad(&mut body, cipher)?;
+    body.truncate(len);
+    Ok(body)
+}
+
+/// Two blocks ending in `tail`.
+fn blocks_ending(tail: &[u8]) -> Vec<u8> {
+    let mut body = vec![b'x'; 32 - tail.len()];
+    body.extend_from_slice(tail);
+    body
+}
+
+#[test]
+fn aes_padding_is_taken_off_only_when_it_is_whole() {
+    // One to sixteen bytes, each stating its own count.
+    assert_eq!(unpadded(&blocks_ending(&[1])).unwrap().len(), 31);
+    assert_eq!(unpadded(&blocks_ending(&[3, 3, 3])).unwrap().len(), 29);
+    assert_eq!(unpadded(&blocks_ending(&[16; 16])).unwrap().len(), 16);
+    // A whole block of padding and nothing before it.
+    assert_eq!(unpadded(&[16; 16]).unwrap().len(), 0);
+    // Padding of 0, over 16, bytes that do not match.
+    for tail in [&[0u8][..], &[17], &[255], &[2, 2, 3], &[1, 2], &[3, 3]] {
+        assert_eq!(
+            unpadded(&blocks_ending(tail)).err(),
+            Some(Error::Damaged),
+            "{tail:?}"
+        );
+    }
+    // Empty is no body: padding always adds a block.
+    assert_eq!(unpadded(&[]).err(), Some(Error::Damaged));
+    // Not a whole number of blocks.
+    let mut body = [7u8; 31];
+    let cipher = <cbc::Decryptor<aes::Aes256> as aes::cipher::KeyIvInit>::new_from_slices(
+        &[7; 32], &[9; 16],
+    )
+    .unwrap();
+    assert_eq!(super::unpad(&mut body, cipher).err(), Some(Error::Damaged));
+    assert_eq!(super::strip_padding(&[1u8; 17]).err(), Some(Error::Damaged));
+}
+
+#[test]
+fn the_inner_header_length_is_worked_out_as_it_is_written() {
+    let binaries = [
+        inner::Binary {
+            protected: true,
+            data: zeroize::Zeroizing::new(vec![1, 2, 3]),
+        },
+        inner::Binary {
+            protected: false,
+            data: zeroize::Zeroizing::new(vec![]),
+        },
+    ];
+    for set in [&binaries[..0], &binaries[..1], &binaries[..]] {
+        let mut out = Vec::new();
+        inner::write(&[5; 64], set, &mut out);
+        assert_eq!(inner::written_len(&[5; 64], set), out.len());
+    }
+}

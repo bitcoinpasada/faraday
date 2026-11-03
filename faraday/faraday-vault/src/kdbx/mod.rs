@@ -27,7 +27,10 @@
 //! Twofish, Salsa20 as the inner stream, a cost outside the limits or any
 //! damage is refused, each as its own [`Error`]. A key file or a
 //! challenge-response key is not named anywhere in a KDBX 4 header, so a
-//! file under one is a wrong passphrase ([`Error::Passphrase`]).
+//! file under one cannot be told from a wrong passphrase
+//! ([`Error::Passphrase`]); the message for a KeePass file says that a file
+//! which also needs a key file or a security key cannot be opened here
+//! (owner, 2026-11-02; `docs/VAULT.md` §7.1).
 
 mod blocks;
 mod gzip;
@@ -108,13 +111,14 @@ pub enum Error {
     /// does not take.
     Unsupported(Unsupported),
     /// The stated Argon2 cost is outside §3's limits, or carries a secret
-    /// key or associated data, or is not Argon2 version 1.3.
+    /// key or associated data, or is not Argon2 version 1.3 (a missing version is [`Error::Damaged`]).
     Cost,
     /// The Argon2 memory could not be allocated: the MiB it needs.
     Memory(u32),
     /// The header's authentication fails: the passphrase is wrong, or the
     /// file also needs a key file or a challenge-response key, which this
-    /// reader does not take.
+    /// reader does not take and a KDBX 4 header does not record, so the
+    /// two cannot be told apart.
     Passphrase,
     /// The passphrase is empty.
     EmptyPassphrase,
@@ -248,7 +252,22 @@ pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error
             body.truncate(plain);
         }
     }
-    let mut plain = match parsed.header.compression {
+    let (document, inner) = read_body(body, parsed.header.compression)?;
+    Ok(Opened {
+        header: parsed.header,
+        document,
+        inner_key: inner.key,
+        binaries: inner.binaries,
+    })
+}
+
+/// A decrypted, unpadded body read: inflated when it is gzip, its inner
+/// header read, and the XML document (with whatever follows it) left.
+fn read_body(
+    body: Zeroizing<Vec<u8>>,
+    compression: Compression,
+) -> Result<(Zeroizing<Vec<u8>>, inner::Inner), Error> {
+    let mut plain = match compression {
         Compression::None => body,
         Compression::Gzip => gzip::inflate(&body, MAX_PLAIN)?,
     };
@@ -257,12 +276,27 @@ pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error
     }
     let inner = inner::read_inner(&plain)?;
     plain.drain(..inner.document_at);
-    Ok(Opened {
-        header: parsed.header,
-        document: plain,
-        inner_key: inner.key,
-        binaries: inner.binaries,
-    })
+    Ok((plain, inner))
+}
+
+/// Reads a body as a file whose HMACs verified would hold it, for the
+/// fuzzer: `decrypted` is what the cipher gave (with AES-256's padding
+/// still on it), so the padding, the inflation and the inner header are
+/// reached without a passphrase. The length of the XML document read.
+#[cfg(fuzzing)]
+#[doc(hidden)]
+pub fn fuzz_body(decrypted: &[u8], aes256: bool, gzip: bool) -> Result<usize, Error> {
+    let mut body = Zeroizing::new(decrypted.to_vec());
+    if aes256 {
+        let plain = strip_padding(&body)?;
+        body.truncate(plain);
+    }
+    let compression = if gzip {
+        Compression::Gzip
+    } else {
+        Compression::None
+    };
+    read_body(body, compression).map(|(document, _)| document.len())
 }
 
 /// Decrypts `body` in place under AES-CBC and returns the length of the
@@ -274,6 +308,15 @@ fn unpad(body: &mut [u8], mut cipher: cbc::Decryptor<aes::Aes256>) -> Result<usi
         return Err(Error::Damaged);
     }
     cipher.decrypt_blocks_inout(blocks);
+    strip_padding(body)
+}
+
+/// The length of `body` without its PKCS #7 padding: a whole number of
+/// blocks, ending in 1 to 16 bytes that each state their own count.
+fn strip_padding(body: &[u8]) -> Result<usize, Error> {
+    if !body.len().is_multiple_of(16) {
+        return Err(Error::Damaged);
+    }
     let pad = usize::from(*body.last().ok_or(Error::Damaged)?);
     let start = body.len().checked_sub(pad).ok_or(Error::Damaged)?;
     if !(1..=16).contains(&pad) || body[start..].iter().any(|&b| usize::from(b) != pad) {
@@ -300,15 +343,19 @@ pub fn seal(
     if plain_len > MAX_PLAIN {
         return Err(Error::TooLarge);
     }
+    // The length first, so a refusal leaves no copy of the inner key in a
+    // buffer that grew.
+    let needs = inner::written_len(inner_key_of(random), contents.binaries)
+        .saturating_add(contents.document.len());
+    if needs > plain_len {
+        return Err(Error::Full(needs));
+    }
     let mut plain = Zeroizing::new(Vec::new());
     plain
         .try_reserve_exact(plain_len)
         .map_err(|_| Error::TooLarge)?;
     inner::write(inner_key_of(random), contents.binaries, &mut plain);
     plain.extend_from_slice(contents.document);
-    if plain.len() > plain_len {
-        return Err(Error::Full(plain.len()));
-    }
     plain.resize(plain_len, b'\n');
 
     let (master_seed, rest) = random.split_at(32);

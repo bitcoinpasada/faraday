@@ -22,9 +22,20 @@ PASSPHRASE = "kdbx vector passphrase"
 ARGON2ID = b"\x9e\x29\x8b\x19\x56\xdb\x47\x73\xb2\x3d\xfc\x3e\xc6\xf0\xa1\xe6"
 
 
-def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0):
+# The large file's attachment: more than one block of the HMAC stream
+# (1 MiB), bytes anyone can make again.
+ATTACHMENT_LEN = 1200 * 1024
+
+
+def attachment():
+    return hashlib.shake_256(b"kdbx vector attachment").digest(ATTACHMENT_LEN)
+
+
+def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False):
     kp = create_database(path, password=PASSPHRASE)
-    kp.add_entry(kp.root_group, "Example", "alice", "hunter2", url="https://example.org/")
+    entry = kp.add_entry(kp.root_group, "Example", "alice", "hunter2", url="https://example.org/")
+    if attach:
+        entry.add_attachment(kp.add_binary(attachment()), "attachment.bin")
     header = kp.kdbx.header.value
     dyn = header.dynamic_header
     dyn.cipher_id.data = cipher
@@ -71,6 +82,10 @@ def main():
         ("chacha20-argon2id-plain", {"cipher": "chacha20", "argon2id": True, "gzip": False}),
         ("aes-argon2id-gzip-v41", {"argon2id": True, "minor": 1}),
         ("twofish-argon2d-gzip", {"cipher": "twofish"}),
+        (
+            "chacha20-argon2id-plain-large",
+            {"cipher": "chacha20", "argon2id": True, "gzip": False, "attach": True},
+        ),
     ]:
         try:
             make(out + "/pykeepass-" + name + ".kdbx", **kw)

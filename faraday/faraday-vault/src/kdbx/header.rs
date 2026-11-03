@@ -243,7 +243,7 @@ fn kdf_of(bytes: &[u8]) -> Result<(Kdf, Cost, Vec<u8>), Error> {
     let mut at = 2usize;
     let mut uuid: Option<[u8; 16]> = None;
     let mut salt: Option<Vec<u8>> = None;
-    let (mut passes, mut memory, mut lanes, mut version) = (None, None, None, 0x13u32);
+    let (mut passes, mut memory, mut lanes, mut version) = (None, None, None, None);
     let mut extra = false;
     loop {
         let kind = *bytes.get(at).ok_or(Error::Damaged)?;
@@ -279,7 +279,7 @@ fn kdf_of(bytes: &[u8]) -> Result<(Kdf, Cost, Vec<u8>), Error> {
             (VD_U64, b"I") => passes = Some(le_u64(value)),
             (VD_U64, b"M") => memory = Some(le_u64(value)),
             (VD_U32, b"P") => lanes = Some(le_u32_at(value, 0).ok_or(Error::Damaged)?),
-            (VD_U32, b"V") => version = le_u32_at(value, 0).ok_or(Error::Damaged)?,
+            (VD_U32, b"V") => version = Some(le_u32_at(value, 0).ok_or(Error::Damaged)?),
             // A secret key or associated data is not read (§3), unless
             // empty, which is what none is.
             (VD_BYTES, b"K" | b"A") => extra |= !value.is_empty(),
@@ -303,6 +303,8 @@ fn kdf_of(bytes: &[u8]) -> Result<(Kdf, Cost, Vec<u8>), Error> {
     if !SALT_RANGE.contains(&salt.len()) {
         return Err(Error::Damaged);
     }
+    // KeePass and KeePassXC refuse a dictionary without its version.
+    let version = version.ok_or(Error::Damaged)?;
     if extra || version != 0x13 {
         return Err(Error::Cost);
     }

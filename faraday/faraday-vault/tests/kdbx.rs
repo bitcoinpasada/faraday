@@ -459,7 +459,7 @@ struct Head {
     memory: u64,
     passes: u64,
     lanes: u32,
-    argon_version: u32,
+    argon_version: Option<u32>,
     secret_key: Option<Vec<u8>>,
     extra: Option<u8>,
 }
@@ -474,7 +474,7 @@ fn head() -> Head {
         memory: 8 * 1024 * 1024,
         passes: 1,
         lanes: 1,
-        argon_version: 0x13,
+        argon_version: Some(0x13),
         secret_key: None,
         extra: None,
     }
@@ -510,7 +510,9 @@ fn file(h: &Head) -> Vec<u8> {
     item(0x05, b"I", &h.passes.to_le_bytes(), &mut kdf);
     item(0x05, b"M", &h.memory.to_le_bytes(), &mut kdf);
     item(0x04, b"P", &h.lanes.to_le_bytes(), &mut kdf);
-    item(0x04, b"V", &h.argon_version.to_le_bytes(), &mut kdf);
+    if let Some(v) = h.argon_version {
+        item(0x04, b"V", &v.to_le_bytes(), &mut kdf);
+    }
     if let Some(k) = &h.secret_key {
         item(0x42, b"K", k, &mut kdf);
     }
@@ -589,7 +591,7 @@ fn a_cost_outside_the_limits_is_refused_before_any_work() {
             ..head()
         },
         Head {
-            argon_version: 0x10,
+            argon_version: Some(0x10),
             ..head()
         },
         Head {
@@ -678,6 +680,8 @@ fn a_version_or_field_this_reader_does_not_know_is_refused() {
         // KDBX 3 fields in a version 4 file.
         (with(|h| h.extra = Some(5)), Error::UnknownField(5)),
         (with(|h| h.extra = Some(10)), Error::UnknownField(10)),
+        // KeePass and KeePassXC refuse a dictionary without its version.
+        (with(|h| h.argon_version = None), Error::Damaged),
         (with(|h| h.salt_len = 7), Error::Damaged),
         (with(|h| h.salt_len = 65), Error::Damaged),
     ]);
@@ -710,20 +714,28 @@ fn a_file_with_one_byte_changed_or_cut_is_not_opened() {
     let header_len = 249;
     let ok = open(&compute(), &file, PASSPHRASE);
     assert!(ok.is_ok());
-    // A byte of the header's hash, the HMAC and each part of the block.
-    for at in [
-        header_len,
-        header_len + 32,
-        header_len + 64,
-        header_len + 70,
-        file.len() - 1,
+    // One byte of each part, and the error that part gives: a header byte
+    // fails the header's hash, and the HMAC after it is the first check
+    // that depends on the passphrase.
+    let seed_at = file
+        .windows(32)
+        .position(|w| w == &random()[..32])
+        .expect("the master seed stands in the header");
+    for (what, at, expected) in [
+        ("master seed", seed_at + 5, Error::Damaged),
+        ("header hash", header_len, Error::Damaged),
+        ("header HMAC", header_len + 32, Error::Passphrase),
+        ("block HMAC", header_len + 64, Error::Damaged),
+        ("block length", header_len + 64 + 32, Error::Damaged),
+        ("block data", header_len + 64 + 36, Error::Damaged),
+        ("last block's HMAC", file.len() - 36, Error::Damaged),
     ] {
         let mut bad = file.clone();
         bad[at] ^= 0x01;
-        let error = open(&compute(), &bad, PASSPHRASE).err();
-        assert!(
-            matches!(error, Some(Error::Damaged | Error::Passphrase)),
-            "byte {at}: {error:?}"
+        assert_eq!(
+            open(&compute(), &bad, PASSPHRASE).err(),
+            Some(expected),
+            "{what} (byte {at})"
         );
     }
     // Cut after the last block, in the empty block, and in the middle of one.
@@ -767,4 +779,38 @@ fn the_derivation_runs_once_for_a_file_and_not_for_a_refusal() {
     let before = stretches();
     open(&compute(), &file, PASSPHRASE).expect("opens");
     assert_eq!(stretches(), before + 1);
+}
+
+#[test]
+fn a_vault_of_the_largest_size_is_sealed_and_opened() {
+    // Four data blocks of a megabyte and the empty one after them.
+    let document = b"<KeePassFile>secrets</KeePassFile>";
+    let file = sealed(document, MAX_PLAIN);
+    let opened = open(&compute(), &file, PASSPHRASE).expect("opened");
+    // The inner header (stream id, key, end) comes off the front.
+    let inner = (5 + 4) + (5 + 64) + 5;
+    assert_eq!(opened.document.len(), MAX_PLAIN - inner);
+    assert!(opened.document.starts_with(document));
+    assert!(
+        opened.document[document.len()..]
+            .iter()
+            .all(|&b| b == b'\n')
+    );
+}
+
+#[test]
+fn a_file_pykeepass_wrote_with_a_megabyte_attachment_opens() {
+    // The stream is more than one block: the attachment is 1.2 MiB.
+    let file = vector("kdbx", "pykeepass-chacha20-argon2id-plain-large.kdbx");
+    assert!(file.len() > 1024 * 1024);
+    let opened = open(&compute(), &file, PASSPHRASE).expect("opened");
+    assert!(has(&opened.document, b"<Value>Example</Value>"));
+    assert_eq!(opened.binaries.len(), 1);
+    let data = &opened.binaries[0].data;
+    assert_eq!(data.len(), 1200 * 1024);
+    let digest: String = sha256(data).iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(
+        digest,
+        "7e36854b87ab32660282cf3a40f7c4f2f555c5102facb9120d880dcc82d2bef5"
+    );
 }
