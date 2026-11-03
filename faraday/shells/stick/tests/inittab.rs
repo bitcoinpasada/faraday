@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use faraday_core::{RESTART_CODE, RESTART_COMPUTER_CODE};
 
 const APP: &str = "/bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday \
-                   $(cat /etc/faraday/args)";
+                   $(cat /etc/faraday/args /run/faraday-screen/args 2>/dev/null)";
 
 fn image(file: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../image");

@@ -18,5 +18,5 @@
 # ends with anything but a lock, the code is said there too, and the
 # machine waits a minute before it powers off, so it can be read. Status
 # 76 is Restart on the power sheet: the computer restarts at once.
-::once:/bin/sh -c 'while :; do /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; if [ $code -eq 76 ]; then /sbin/reboot -f; else echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; sleep 60; /sbin/poweroff -f; fi'
+::once:/bin/sh -c 'while :; do /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args /run/faraday-screen/args 2>/dev/null) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; if [ $code -eq 76 ]; then /sbin/reboot -f; else echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; sleep 60; /sbin/poweroff -f; fi'
 @TTY@::respawn:/sbin/getty -L @TTY@ 115200 vt100
