@@ -198,21 +198,6 @@ def reused(sigs):
     return out
 
 
-# ----- a known failure of Faraday ---------------------------------------------------------
-
-def known_bug_taproot_sighash_zero(state, rec, verdict):
-    """KNOWN_BUG_TAPROOT_SIGHASH_ZERO, the one place the area holds a bug of
-    Faraday pending its fix: a finalized taproot signature (key path or script
-    path) of 65 bytes whose last byte is 0x00 is malformed (BIP 341 spells
-    the default type by leaving the byte out; Core and the judges refuse it),
-    and `verify_signatures` calls it valid. Remove this function and its two
-    callers when Faraday refuses such a signature; until then a verdict of
-    valid for exactly these signatures is counted, and every other
-    disagreement fails. When Faraday refuses them the rule matches none."""
-    return (state == "final" and rec["kind"] == "schnorr" and rec["status"] == "malformed"
-            and len(rec["bytes"]) == 65 and rec["bytes"][-1] == 0 and verdict == "valid")
-
-
 # ----- inputs -------------------------------------------------------------------------
 
 def witness_bytes(stack):
@@ -355,14 +340,6 @@ class SignCheck(Area):
             "defined and not 0x00): Bitcoin Core reads the PSBT and leaves the input "
             "unfinalized, Faraday refuses the PSBT or does not call the signature valid. "
             "Counted."
-        ),
-        (
-            "A bug in Faraday, held until it is fixed (KNOWN_BUG_TAPROOT_SIGHASH_ZERO): a "
-            "finalized taproot signature, key path or script path, of 65 bytes ending in the "
-            "sighash byte 0x00. BIP 341 leaves the byte out for the default type, and Bitcoin "
-            "Core, python-ecdsa and btclib call the signature malformed; `verify_signatures` "
-            "calls it valid. Counted for exactly these signatures; every other disagreement "
-            "fails, and the run passes when Faraday refuses them."
         ),
     ]
     not_compared = (
@@ -663,10 +640,6 @@ class SignCheck(Area):
                 found = by_bytes.get(r["bytes"].hex(), [])
                 self.compared += 1
                 if r["status"] == "malformed":
-                    if any(v == "valid" and known_bug_taproot_sighash_zero(state, r, v)
-                           for v, _ in found):
-                        self.known += 1
-                        continue
                     if any(v == "valid" for v, _ in found):
                         self.bad("sign-check.verify", given, {"verdict": "valid"},
                                  {"verdict": "malformed"}, f"input {index}: a malformed signature")

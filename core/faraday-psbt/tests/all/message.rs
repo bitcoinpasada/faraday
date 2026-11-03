@@ -286,6 +286,35 @@ fn bip322_error_vectors() {
     }
 }
 
+/// BIP-341 makes a 65-byte taproot signature with sighash byte 0 invalid,
+/// so a BIP-322 signature for a p2tr address that carries one is refused;
+/// the published 64-byte signature stays valid.
+#[test]
+fn bip322_taproot_signature_with_sighash_byte_zero_is_refused() {
+    let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
+    let case = vectors["simple"]
+        .as_array()
+        .expect("simple")
+        .iter()
+        .find(|c| c["type"] == "p2tr")
+        .expect("a p2tr case");
+    let message = case["message"].as_str().expect("message");
+    let address = address_of(case["address"].as_str().expect("address"), Network::Mainnet);
+    let published = case["bip322_signatures"][0].as_str().expect("signature");
+    assert!(message::verify(&address, message, published).is_ok());
+    let mut bytes =
+        faraday_psbt::base64::decode(published.trim_start_matches("smp")).expect("base64");
+    // One element of 64 bytes: the count, the length, the signature.
+    assert_eq!(bytes[..2], [1, 64]);
+    bytes[1] = 65;
+    bytes.push(0);
+    let zero = faraday_psbt::base64::encode(&bytes);
+    assert_eq!(
+        message::verify(&address, message, &zero),
+        Err(Error::Malformed)
+    );
+}
+
 /// A message signed on this device verifies here for every script type,
 /// every format that type has, and an address that is not the first.
 #[test]

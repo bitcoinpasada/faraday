@@ -24,8 +24,8 @@ use faraday_bip::keys::{Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::{
-    Field, NonceMode, Unchecked, Verdict, compare, deterministic, inscriptions, repeated_nonces,
-    verify_signatures,
+    Field, NonceMode, SigKey, Unchecked, Verdict, compare, deterministic, inscriptions,
+    repeated_nonces, verify_signatures,
 };
 use faraday_psbt::{
     Aux, Context, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, sign,
@@ -234,6 +234,63 @@ fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
     let _ = inspect(&c, &tapmulti, &ctx(&[], std::slice::from_ref(&policy)));
     let found = verdicts(&tapmulti);
     assert_eq!(found, vec![Verdict::Valid, Verdict::Valid], "{found:?}");
+}
+
+/// BIP-341 makes a 65-byte taproot signature with sighash byte 0
+/// invalid, as Bitcoin Core refuses it: in a finalized witness too, for a
+/// key path and for a script-path leaf.
+#[test]
+fn a_finalized_taproot_signature_with_sighash_byte_zero_is_invalid() {
+    let with_zero = |psbt: &mut Psbt, at: &[usize], zero: bool| {
+        let mut elements: Vec<Vec<u8>> = psbt.inner().inputs[0]
+            .final_script_witness
+            .as_ref()
+            .expect("a finalized witness")
+            .iter()
+            .map(<[u8]>::to_vec)
+            .collect();
+        for i in at {
+            elements[*i].truncate(64);
+            if zero {
+                elements[*i].push(0);
+            }
+        }
+        psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&elements));
+    };
+
+    let mut key_path = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut key_path).expect("a single-signature input finalizes");
+    with_zero(&mut key_path, &[0], false);
+    valid(&key_path, "the 64-byte key-path signature");
+    with_zero(&mut key_path, &[0], true);
+    assert_eq!(verdicts(&key_path), vec![Verdict::Invalid]);
+    let spk = &key_path.inner().inputs[0]
+        .witness_utxo
+        .as_ref()
+        .expect("the spent output")
+        .script_pubkey;
+    let output_key =
+        bitcoin::XOnlyPublicKey::from_slice(&spk.as_bytes()[2..34]).expect("a p2tr output key");
+    let named: Vec<_> = verify_signatures(&key_path, &ctx(&[], &[]))
+        .into_iter()
+        .flat_map(|i| i.signatures)
+        .map(|s| s.key)
+        .collect();
+    assert!(
+        named == [SigKey::Schnorr(output_key)],
+        "the key-path signature is named by the output key: {named:?}"
+    );
+
+    let mut leaf = read(TAPMULTI);
+    finalize(&mut leaf).expect("two of three finalizes");
+    with_zero(&mut leaf, &[0], false);
+    valid(&leaf, "the 64-byte leaf signatures");
+    with_zero(&mut leaf, &[0], true);
+    let found = verdicts(&leaf);
+    assert!(
+        found.contains(&Verdict::Invalid) && found.len() == 2,
+        "{found:?}"
+    );
 }
 
 /// One byte of a signature changed: the key did not make it, and the

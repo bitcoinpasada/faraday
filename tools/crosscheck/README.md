@@ -649,14 +649,6 @@ difference"), and says why.
     a sighash byte that is defined and not 0x00): Bitcoin Core reads the
     PSBT and leaves the input unfinalized, Faraday refuses the PSBT or
     does not call the signature valid. Counted.
-  - A bug in Faraday, held until it is fixed
-    (KNOWN_BUG_TAPROOT_SIGHASH_ZERO): a finalized taproot signature, key
-    path or script path, of 65 bytes ending in the sighash byte 0x00.
-    BIP 341 leaves the byte out for the default type, and Bitcoin Core,
-    python-ecdsa and btclib call the signature malformed;
-    `verify_signatures` calls it valid. Counted for exactly these
-    signatures; every other disagreement fails, and the run passes when
-    Faraday refuses them.
 - `psbt-review`
   - Change of a script of several keys, a miniscript or a taproot tree:
     Faraday verifies it only for a registered wallet that holds a loaded

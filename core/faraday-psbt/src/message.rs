@@ -571,6 +571,11 @@ fn verify_bip322(address: &Address, message: &str, bytes: &[u8]) -> Result<Check
         }
         Some(AddressType::P2tr) => {
             let [signature] = stack::<1>(&witness)?;
+            // from_slice reads a trailing 0x00 as the default type; BIP-341
+            // refuses a 65-byte signature with it.
+            if crate::v2::is_zero_sighash_schnorr(signature) {
+                return Err(Error::Malformed);
+            }
             let signature =
                 bitcoin::taproot::Signature::from_slice(signature).map_err(|_| Error::Malformed)?;
             if signature.sighash_type != TapSighashType::Default {

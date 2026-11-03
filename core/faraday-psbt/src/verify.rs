@@ -42,6 +42,7 @@ use crate::context::Context;
 use crate::inspect::SighashKind;
 use crate::psbt::Psbt;
 use crate::sign::{SigKind, tap_prevouts};
+use crate::v2;
 
 /// The key a signature is under, as the transaction names it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -425,6 +426,15 @@ fn input_signatures<C: secp256k1::Verification>(
     out
 }
 
+/// A taproot signature as BIP-341 reads it: 64 bytes, or 65 with a
+/// sighash byte other than 0.
+fn schnorr_signature(bytes: &[u8]) -> Option<taproot::Signature> {
+    if v2::is_zero_sighash_schnorr(bytes) {
+        return None;
+    }
+    taproot::Signature::from_slice(bytes).ok()
+}
+
 /// The sighash a signature itself states.
 fn sighash_of(p: &Present) -> SighashKind {
     match p.kind {
@@ -432,9 +442,9 @@ fn sighash_of(p: &Present) -> SighashKind {
             Ok(sig) => SighashKind::Ecdsa(sig.sighash_type),
             Err(_) => SighashKind::NonStandard(u32::from(*p.bytes.last().unwrap_or(&0))),
         },
-        SigKind::Schnorr => match taproot::Signature::from_slice(&p.bytes) {
-            Ok(sig) => SighashKind::Taproot(sig.sighash_type),
-            Err(_) => SighashKind::NonStandard(u32::from(*p.bytes.last().unwrap_or(&0))),
+        SigKind::Schnorr => match schnorr_signature(&p.bytes) {
+            Some(sig) => SighashKind::Taproot(sig.sighash_type),
+            None => SighashKind::NonStandard(u32::from(*p.bytes.last().unwrap_or(&0))),
         },
     }
 }
@@ -668,7 +678,8 @@ fn taproot_witness(witness: &Witness) -> Vec<Present> {
     let keys = leaf_keys(Script::from_bytes(&script));
     elements
         .into_iter()
-        .filter(|e| taproot::Signature::from_slice(e).is_ok())
+        // A zero sighash byte stays in, to be reported invalid.
+        .filter(|e| schnorr_signature(e).is_some() || v2::is_zero_sighash_schnorr(e))
         .map(|bytes| Present {
             key: SigKey::Unknown,
             kind: SigKind::Schnorr,
@@ -771,7 +782,18 @@ fn check<C: secp256k1::Verification>(
             settle(p, verify)
         }
         SigKind::Schnorr => {
-            let Ok(sig) = taproot::Signature::from_slice(&p.bytes) else {
+            // BIP-341 refuses a 65-byte signature ending 0x00: it is
+            // invalid under whichever key it is filed, named as any
+            // other invalid signature is.
+            if v2::is_zero_sighash_schnorr(&p.bytes) {
+                let key = if p.leaf.is_none() && p.key == SigKey::Unknown {
+                    output_key(&utxo.script_pubkey).map_or(SigKey::Unknown, SigKey::Schnorr)
+                } else {
+                    settle(p, |_| false).0
+                };
+                return (key, Verdict::Invalid);
+            }
+            let Some(sig) = schnorr_signature(&p.bytes) else {
                 return (
                     p.key.clone(),
                     Verdict::Unchecked(Unchecked::UnsupportedScript),

@@ -4975,6 +4975,7 @@ tests = [
   "core/faraday-psbt/tests/all/verify.rs::two_signatures_under_one_nonce_are_found",
   "core/faraday-psbt/tests/all/verify.rs::the_devices_own_signatures_are_recognised_by_their_nonce_rule",
   "core/faraday-psbt/tests/all/verify.rs::two_transactions_are_compared_on_what_they_decode_to",
+  "core/faraday-psbt/tests/all/verify.rs::a_finalized_taproot_signature_with_sighash_byte_zero_is_invalid",
 ]
 crosscheck = "sign_check"
 independence = { class = "outside-and-own", author = "python-ecdsa, by Brian Warner and Hubert Kario, and btclib, by the btclib developers, on btclib's own curve, verify every signature (ECDSA, and BIP-340 over python-ecdsa's points and btclib's `ssa`); the signature hashes are btclib's (`sig_hash.py`); btclib's script engine runs every complete input; Bitcoin Core v31.1 itself (`finalizepsbt`, `testmempoolaccept`), by Bitcoin Core's contributors, judges the complete inputs and the transaction, and shares libsecp256k1 with Faraday", ours = "the report of a reused nonce, written in `area_sign_check.py` from the definition (two signatures that verify, under one key, over different messages, with one `r` or `R`), which no outside library reports" }
@@ -4990,6 +4991,7 @@ lines = [
   "A signature with no previous output to check against is not checked.",
   "A signature under a sighash type that was not asked for is flagged.",
   "A signature of another device is not recomputed.",
+  "A finalized taproot signature of 65 bytes with hash type 0x00 is reported invalid, key path and script path alike (BIP 341): it is a danger card, and the PSBT is not refused.",
 ]
 
 [[action.own]]
@@ -5158,6 +5160,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::bip322_error_vectors",
   "core/faraday-psbt/tests/all/message.rs::a_signature_belongs_to_one_address",
   "core/faraday-psbt/tests/all/message.rs::a_witness_signature_that_is_not_der_is_malformed",
+  "core/faraday-psbt/tests/all/message.rs::bip322_taproot_signature_with_sighash_byte_zero_is_refused",
 ]
 crosscheck = "msg"
 independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers; python-ecdsa, by Brian Warner and Hubert Kario, for the first-nonce ECDSA signature of BIP-137; Core shares libsecp256k1's curve maths with Faraday's" }
@@ -5169,7 +5172,7 @@ constant_time = "No secret is handled."
 wiped = "Nothing secret is held."
 
 [action.limits]
-lines = ["A signature belongs to the one address it was made for.", "BIP 322 simple only."]
+lines = ["A signature belongs to the one address it was made for.", "BIP 322 simple only.", "A taproot signature of 65 bytes with hash type 0x00 is refused as malformed (BIP 341)."]
 
 [[action.own]]
 text = "The address form is read from the address, not from the BIP 137 header's range, and a P2PKH address is tried in both key encodings; more lenient than BIP 137."

@@ -104,7 +104,13 @@ const LOCKTIME_THRESHOLD: u32 = 500_000_000;
 /// is written as 64 bytes.
 pub(crate) fn is_zero_sighash_tap_sig(key: &[u8], value: &[u8]) -> bool {
     let tap_sig = key == [IN_TAP_KEY_SIG] || key.first() == Some(&IN_TAP_SCRIPT_SIG);
-    tap_sig && value.len() == 65 && value[64] == 0
+    tap_sig && is_zero_sighash_schnorr(value)
+}
+
+/// Whether a Schnorr signature is 65 bytes with sighash byte 0, which
+/// BIP-341 makes invalid; in a PSBT field and in a finalized witness alike.
+pub(crate) fn is_zero_sighash_schnorr(sig: &[u8]) -> bool {
+    sig.len() == 65 && sig[64] == 0
 }
 
 /// The global fields version 0 does not have, which [`PsbtV2::to_v0`]
