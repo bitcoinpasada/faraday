@@ -659,21 +659,6 @@ impl Faraday {
         }
         drop(self.secrets.take());
     }
-
-    /// Costs a PSBT parse. The PSBT Inbox item `index` holds, to sign;
-    /// `None`, after a toast saying why, when it holds none.
-    pub(crate) fn spend_source(
-        &mut self,
-        c: &faraday_crypto::work::Compute,
-        index: usize,
-    ) -> Option<(faraday_psbt::Psbt, Option<faraday_psbt::v2::PsbtV2>)> {
-        let item = self.inbox.get(index)?;
-        let Some(read) = crate::wallet::read_psbt_kept(c, &item.bytes) else {
-            self.toast(EN.start_spend_not_a_psbt);
-            return None;
-        };
-        Some(read)
-    }
 }
 
 impl Faraday {

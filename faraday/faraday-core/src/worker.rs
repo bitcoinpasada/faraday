@@ -26,6 +26,8 @@ pub enum Kind {
     KdbxWrite,
     /// A PSBT signed.
     Signing,
+    /// A PSBT read and inspected.
+    PsbtRead,
 }
 
 impl Kind {
@@ -37,7 +39,8 @@ impl Kind {
             | Kind::VaultStretch
             | Kind::AezeedRead
             | Kind::KdbxWrite
-            | Kind::Signing => false,
+            | Kind::Signing
+            | Kind::PsbtRead => false,
         }
     }
 }
@@ -66,6 +69,7 @@ pub(crate) enum Job {
     Aezeed(Box<crate::lightning::ReadWork>),
     Kdbx(Box<crate::vault::KdbxWork>),
     Sign(Box<crate::signing::SignWork>),
+    SpendRead(Box<crate::signing::read::ReadWork>),
 }
 
 /// What a job gives back.
@@ -75,6 +79,7 @@ pub(crate) enum Done {
     Aezeed(Box<crate::lightning::ReadDone>),
     Kdbx(Box<crate::vault::KdbxDone>),
     Sign(Box<crate::signing::SignDone>),
+    SpendRead(Box<crate::signing::read::ReadDone>),
 }
 
 impl Job {
@@ -85,6 +90,7 @@ impl Job {
             Job::Aezeed(_) => Kind::AezeedRead,
             Job::Kdbx(_) => Kind::KdbxWrite,
             Job::Sign(_) => Kind::Signing,
+            Job::SpendRead(_) => Kind::PsbtRead,
         }
     }
 
@@ -96,6 +102,7 @@ impl Job {
             Job::Aezeed(j) => Done::Aezeed(Box::new(j.run(c))),
             Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
             Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
+            Job::SpendRead(j) => Done::SpendRead(Box::new(j.run(c))),
         }
     }
 }

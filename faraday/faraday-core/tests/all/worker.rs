@@ -594,6 +594,255 @@ mod signing {
         assert!(!app.session.keys.owes_reblind());
     }
 
+    mod reading {
+        use super::*;
+        use faraday_core::{Screen, StickInfo};
+        use faraday_shell_api::Event as Ev;
+
+        fn loaded() -> Faraday {
+            let mut app = inbox_of();
+            app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+            add_key(&mut app, "bacon");
+            app
+        }
+
+        fn go(app: &mut Faraday) {
+            let i = at(app, "spend.psbt");
+            testkit::press_on_worker(app, Action::StartSpend(i));
+        }
+
+        /// The same spend open in both: what a person reads on the review.
+        fn same_review(a: &Faraday, b: &Faraday) {
+            assert_eq!(a.screen, b.screen);
+            let (a, b) = (a.spend().expect("opened"), b.spend().expect("opened"));
+            assert_eq!(a.spend.psbt.to_bytes(), b.spend.psbt.to_bytes());
+            assert_eq!(a.wallet, b.wallet);
+            assert_eq!(a.signers, b.signers);
+            assert_eq!(a.needed, b.needed);
+            assert_eq!(a.open, b.open);
+            assert_eq!(a.done, b.done);
+            assert_eq!(format!("{:?}", a.inspection), format!("{:?}", b.inspection));
+        }
+
+        #[test]
+        fn a_psbt_opened_from_a_file_on_the_worker_opens_the_same_review() {
+            let mut inline = loaded();
+            inline.press(Action::StartSpend(at(&inline, "spend.psbt")));
+
+            let mut app = loaded();
+            go(&mut app);
+            assert!(app.busy().is_some(), "the screen is busy while it reads");
+            assert!(app.spend().is_none(), "nothing opens before the answer");
+            testkit::settle(&mut app);
+            assert!(app.busy().is_none());
+            assert_eq!(app.screen, Screen::Spend);
+            same_review(&app, &inline);
+        }
+
+        #[test]
+        fn a_psbt_completed_by_its_last_scanned_part_opens_the_same_review() {
+            let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+            let mut enc = faraday_codec::ur::Encoder::psbt(&psbt, 60).unwrap();
+            let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+            let scanned = || {
+                let mut app = Faraday::new();
+                app.press(Action::Scan);
+                for p in &parts {
+                    app.event(Ev::Scanned {
+                        bytes: p.as_bytes().to_vec(),
+                    });
+                }
+                app
+            };
+            let mut inline = scanned();
+            inline.press(Action::ReadGo(0));
+
+            let mut app = scanned();
+            assert_eq!(app.inbox().last().map(|i| i.bytes.clone()), Some(psbt));
+            testkit::press_on_worker(&mut app, Action::ReadGo(0));
+            assert!(app.busy().is_some());
+            assert!(app.spend().is_none());
+            testkit::settle(&mut app);
+            same_review(&app, &inline);
+        }
+
+        #[test]
+        fn a_file_that_is_no_psbt_says_what_it_says_inline() {
+            let named = |app: &mut Faraday| {
+                app.storage(StorageEvent::Restored {
+                    inbox: vec![("notes.psbt".to_string(), b"not a psbt".to_vec())],
+                    outbox: Vec::new(),
+                    kept: Vec::new(),
+                });
+            };
+            let mut inline = testkit::started();
+            named(&mut inline);
+            inline.press(Action::StartSpend(0));
+            let said = inline.toast_text().map(str::to_string);
+            assert!(said.is_some());
+
+            let mut app = testkit::started();
+            named(&mut app);
+            testkit::press_on_worker(&mut app, Action::StartSpend(0));
+            testkit::settle(&mut app);
+            assert_eq!(app.toast_text().map(str::to_string), said);
+            assert!(app.spend().is_none());
+        }
+
+        #[test]
+        fn a_psbt_of_another_network_than_the_wallets_says_what_it_says_inline() {
+            let mut inner = testkit::unsigned(&kit("spending")).unwrap().into_inner();
+            for (_, path) in inner.inputs[0].bip32_derivation.values_mut() {
+                let mut steps: Vec<_> = path.into_iter().copied().collect();
+                steps[1] = faraday_bip::bitcoin::bip32::ChildNumber::from_hardened_idx(0).unwrap();
+                *path = steps.into();
+            }
+            let mainnet = faraday_psbt::Psbt::from(inner).to_bytes();
+            let make = || {
+                let mut app = testkit::started();
+                app.storage(StorageEvent::Restored {
+                    inbox: vec![
+                        ("main.psbt".to_string(), mainnet.clone()),
+                        (
+                            "spending-wallet.txt".to_string(),
+                            kit("spending").descriptor.into_bytes(),
+                        ),
+                    ],
+                    outbox: Vec::new(),
+                    kept: Vec::new(),
+                });
+                app.press(Action::LoadWallet(1));
+                app
+            };
+            let mut inline = make();
+            inline.press(Action::StartSpend(0));
+            let said = inline.toast_text().map(str::to_string);
+            assert!(said.is_some());
+
+            let mut app = make();
+            testkit::press_on_worker(&mut app, Action::StartSpend(0));
+            testkit::settle(&mut app);
+            assert_eq!(app.toast_text().map(str::to_string), said);
+            assert!(app.spend().is_none());
+        }
+
+        #[test]
+        fn back_during_the_read_opens_nothing() {
+            let mut app = loaded();
+            testkit::hold_worker();
+            go(&mut app);
+            assert!(app.busy().is_some());
+            app.press(Action::Back);
+            assert!(app.busy().is_none());
+            testkit::release_worker();
+            testkit::settle_stale(&mut app);
+            assert!(app.spend().is_none(), "the stale answer opened a spend");
+            assert_ne!(app.screen, Screen::Spend);
+        }
+
+        #[test]
+        fn a_lock_during_the_read_then_the_same_file_opened_again_keeps_the_new_spend() {
+            let mut app = loaded();
+            testkit::hold_worker();
+            go(&mut app);
+            app.press(Action::LockUnsealed);
+            assert!(app.busy().is_none());
+            // Unlocked, the wallet and key back, the file opened and
+            // signed before the first answer arrives.
+            app.storage(StorageEvent::Restored {
+                inbox: files(),
+                outbox: Vec::new(),
+                kept: Vec::new(),
+            });
+            open(&mut app, true);
+            app.press(Action::SignHere);
+            assert!(!app.spend().unwrap().spend.signed_here.is_empty());
+            testkit::release_worker();
+            testkit::settle_stale(&mut app);
+            let s = app.spend().expect("the spend stays open");
+            assert!(
+                !s.spend.signed_here.is_empty(),
+                "the stale answer replaced the spend"
+            );
+        }
+
+        fn a_stick() -> StorageEvent {
+            StorageEvent::Sticks(vec![StickInfo {
+                make: Default::default(),
+                serial: None,
+                id: "stick".into(),
+                label: "STICK".into(),
+                boot: false,
+                files: Vec::new(),
+                vaults: Vec::new(),
+            }])
+        }
+
+        #[test]
+        fn a_stick_put_in_during_the_read_keeps_the_visit_and_opens_nothing() {
+            let mut app = inbox_of();
+            app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+            testkit::hold_worker();
+            go(&mut app);
+            app.storage(a_stick());
+            assert_eq!(app.screen, Screen::Visit);
+            testkit::release_worker();
+            testkit::settle(&mut app);
+            assert_eq!(app.screen, Screen::Visit, "the answer left the visit");
+            assert!(app.spend().is_none(), "a spend opened behind the person");
+        }
+
+        #[test]
+        fn a_stick_put_in_with_a_key_held_during_the_read_keeps_the_lock_and_opens_nothing() {
+            let mut app = loaded();
+            testkit::hold_worker();
+            go(&mut app);
+            app.storage(a_stick());
+            assert_eq!(app.sheet, Some(faraday_core::Sheet::Lock));
+            let screen = app.screen;
+            testkit::release_worker();
+            testkit::settle(&mut app);
+            assert_eq!(app.sheet, Some(faraday_core::Sheet::Lock));
+            assert_eq!(app.screen, screen);
+            assert!(app.spend().is_none(), "a spend opened behind the lock");
+        }
+
+        #[test]
+        fn a_psbt_of_the_other_network_kind_moves_an_empty_session_and_opens_the_same_review() {
+            let make = || {
+                let mut app = testkit::started();
+                app.storage(StorageEvent::Restored {
+                    inbox: files(),
+                    outbox: Vec::new(),
+                    kept: Vec::new(),
+                });
+                app
+            };
+            let mut inline = make();
+            inline.press(Action::StartSpend(at(&inline, "spend.psbt")));
+            let mut app = make();
+            go(&mut app);
+            testkit::settle(&mut app);
+            assert_eq!(app.session.network(), inline.session.network());
+            assert_ne!(app.session.network(), faraday_bip::keys::Network::Mainnet);
+            same_review(&app, &inline);
+        }
+
+        #[test]
+        fn a_second_press_while_it_reads_starts_no_second_read() {
+            let mut app = loaded();
+            testkit::hold_worker();
+            go(&mut app);
+            let asked = testkit::jobs_asked(&app);
+            go(&mut app);
+            assert_eq!(testkit::jobs_asked(&app), asked, "a second read was asked");
+            testkit::release_worker();
+            testkit::settle(&mut app);
+            assert!(app.spend().is_some());
+            assert_eq!(testkit::jobs_asked(&app), asked);
+        }
+    }
+
     mod musig {
         use super::*;
         use crate::rounds::{at, device, our_nonce};

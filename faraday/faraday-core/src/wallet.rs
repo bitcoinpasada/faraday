@@ -1037,6 +1037,14 @@ pub struct InspectInputs {
     wallets: Vec<String>,
 }
 
+impl InspectInputs {
+    /// These inputs with the network `network`: the one a job inspected on.
+    pub(crate) fn on(mut self, network: Network) -> Self {
+        self.network = network;
+        self
+    }
+}
+
 /// What a PSBT says that the screens read, taken once when it is read
 /// (`docs/SPEED.md` §3.3): its transaction's id, its signatures, and the
 /// script and places its first input spends from, which find its wallet
@@ -2178,31 +2186,6 @@ impl Faraday {
         }
     }
 
-    /// Costs what `spend_source`, `inspect` and `refresh_spend` cost.
-    /// Opens the spend of Files' PSBT `index` on the Spend tab.
-    pub(crate) fn start_spend(&mut self, index: usize) {
-        let c = self.compute();
-        let Some(name) = self.inbox.get(index).map(|i| i.name.clone()) else {
-            return;
-        };
-        let Some((psbt, v2)) = self.spend_source(&c, index) else {
-            return;
-        };
-        if let Err(e) = self.session.follow_psbt(&psbt) {
-            self.toast(&e.text());
-            return;
-        }
-        let spend = Spend::new_kept(psbt, v2, &name);
-        // Inspected once here; `refresh_spend` below finds it current.
-        let inspection = self.session.inspect(&c, &spend.psbt);
-        let inputs = self.session.inspect_inputs();
-        let mut state = SpendState::new(spend, inspection, inputs);
-        state.done[0] = true;
-        self.wallets.set_spend(state);
-        self.refresh_spend();
-        self.screen = Screen::Spend;
-    }
-
     /// Costs an inspection when the PSBT or the session changed, and
     /// what `signers_by` and `wallet_for` cost. Keeps the open spend in
     /// step with the session: its inspection, signers, wallet and steps.
@@ -2347,7 +2330,9 @@ impl Faraday {
                 self.session.keys.clear();
                 self.wallets.clear_spend();
             }
-            Action::StartSpend(i) => self.start_spend(i),
+            Action::StartSpend(i) => {
+                crate::signing::read::start_spend(self, i, crate::signing::read::Then::Spend);
+            }
             Action::Step(n) => {
                 if let Some(s) = self.wallets.spend_mut() {
                     // On the Spend tab a step opened from another card

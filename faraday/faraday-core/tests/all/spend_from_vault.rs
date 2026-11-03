@@ -116,6 +116,8 @@ fn scan_psbt(app: &mut Faraday, psbt: &[u8]) {
             bytes: part.into_bytes(),
         });
     }
+    // The PSBT is read on the worker.
+    testkit::settle(app);
 }
 
 #[test]

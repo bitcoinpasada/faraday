@@ -10,6 +10,8 @@
 //! it was, nothing goes to the Outbox, and the MuSig2 round that moved into
 //! the job is dropped with its nonces (`docs/KEYS.md` §2).
 
+pub(crate) mod read;
+
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::wallet::{self, Signed, fp_text};

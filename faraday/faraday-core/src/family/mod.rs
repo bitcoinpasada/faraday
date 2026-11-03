@@ -1636,9 +1636,18 @@ impl Faraday {
     /// route a transaction that names another kind of single-key wallet
     /// opens that kind: the transaction's own key paths say which.
     fn family_use_psbt(&mut self, index: usize) {
-        self.start_spend(index);
+        if self.inbox.get(index).is_none() {
+            self.screen = Screen::Family;
+            return;
+        }
+        crate::signing::read::start_spend(self, index, crate::signing::read::Then::Family);
+    }
+
+    /// The rest of [`Self::family_use_psbt`], once the read has answered:
+    /// `opened` is whether the spend opened.
+    pub(crate) fn family_used_psbt(&mut self, opened: bool) {
         self.screen = Screen::Family;
-        let Some(s) = self.wallets.spend() else {
+        let Some(s) = self.wallets.spend().filter(|_| opened) else {
             return;
         };
         if s.wallet.is_none()

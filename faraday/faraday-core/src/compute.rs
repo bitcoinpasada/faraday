@@ -189,6 +189,7 @@ impl Faraday {
             Done::Aezeed(r) => self.aezeed_read(*r),
             Done::Kdbx(k) => crate::vault::stretch::kdbx_written(self, *k),
             Done::Sign(d) => crate::signing::signed_spend(self, *d),
+            Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
         }
     }
 
