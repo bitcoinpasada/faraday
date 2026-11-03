@@ -68,3 +68,16 @@ fn every_valid_case_of_toml_test_is_accepted_but_what_faradays_rules_refuse() {
     }
     assert!(wrongly.is_empty(), "wrong: {wrongly:?}");
 }
+
+#[test]
+fn a_key_part_over_128_bytes_is_refused() {
+    let key = |n: usize| std::format!("{} = 1\n", "k".repeat(n));
+    assert!(parse(&key(128)).is_ok());
+    assert!(parse(&key(129)).is_err());
+    let header = |n: usize| std::format!("[{}]\na = 1\n", "h".repeat(n));
+    assert!(parse(&header(128)).is_ok());
+    assert!(parse(&header(129)).is_err());
+    // The quoted and dotted forms are held to it as well.
+    assert!(parse(&std::format!("\"{}\" = 1\n", "k".repeat(129))).is_err());
+    assert!(parse(&std::format!("a.{} = 1\n", "k".repeat(129))).is_err());
+}

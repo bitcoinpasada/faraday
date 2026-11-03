@@ -1,19 +1,20 @@
-//! The text inside a vault (`docs/VAULT.md` §7, §7.1, §2.1): a vault
-//! of every kind of item written and read back, a hand-edited document
-//! read as the written one, what a document must not hold, and the QR
-//! vault's top-level keys.
+//! The TOML inside a vault (`docs/VAULT.md` §2.1, §7): the QR vault's
+//! keys written and read back, what a QR vault must not hold, and the
+//! three TOML values a file vault keeps in KDBX custom data (a backup
+//! plan, a seed's codex32 facts and its BIP-85 facts) written, read back
+//! and refused as §7 says.
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
-use faraday_vault::child::{ChildOf, payload as child_payload};
-use faraday_vault::codex32::{SetFacts, State, set_payload};
+use faraday_vault::Record;
+use faraday_vault::child::ChildOf;
+use faraday_vault::codex32::{SetFacts, State};
 use faraday_vault::contents::{
-    Document, Form, QR_LEN, QR_NOTE_MAX, QR_PASSPHRASE_MAX, Refusal, Size, Why, form, read,
-    read_qr, write, write_qr,
+    QR_LEN, QR_NOTE_MAX, QR_PASSPHRASE_MAX, Why, read_child_facts, read_codex32_facts, read_plan,
+    read_qr, write_child_facts, write_codex32_facts, write_plan, write_qr,
 };
-use faraday_vault::layouts::{seed_payload, sheet_payload, words_payload};
+use faraday_vault::layouts::words_payload;
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Record, Seals};
 
 #[expect(
     clippy::disallowed_methods,
@@ -35,404 +36,264 @@ fn words(phrase: &str) -> Vec<u8> {
     words_payload(&m).to_vec()
 }
 
-fn one_of_each() -> Document {
-    let facts = SetFacts {
+fn fields(r: &Record) -> Vec<(u8, Vec<u8>)> {
+    r.fields
+        .iter()
+        .map(|f| (f.number, f.bytes.to_vec()))
+        .collect()
+}
+
+fn padded(text: String) -> Vec<u8> {
+    let mut b = text.into_bytes();
+    b.resize(QR_LEN, b'\n');
+    b
+}
+
+fn plan() -> Record {
+    Record::new(kind::PLAN)
+        .with(
+            field::PLAN_WALLET,
+            format!("wpkh({XPUB}/<0;1>/*)").as_bytes(),
+        )
+        .with(field::PLAN_ANSWERS, b"seeds 1\nplaces 2")
+        .with(field::PLAN_PLACE, b"Home")
+        .with(field::PLAN_PLACE, b"")
+        .with(field::PLAN_HOLDS, b"vault holds seed 73c5da0a")
+        .with(field::PLAN_NOTE, b"lost \"place0\" w0\\n")
+}
+
+fn facts() -> SetFacts {
+    SetFacts {
         threshold: 2,
         identifier: *b"name",
         length: 48,
         unknown: 1,
         strings: vec![(b'a', State::Made), (b'c', State::Placed)],
-    };
-    let child = ChildOf {
+    }
+}
+
+fn child() -> ChildOf {
+    ChildOf {
         parent: [0x73, 0xc5, 0xda, 0x0a],
         language: 0,
         words: 12,
         index: 7,
+    }
+}
+
+#[test]
+fn a_plan_is_written_and_read_back_with_every_field() {
+    let text = write_plan(&plan()).unwrap();
+    let back = read_plan(&text).unwrap();
+    assert_eq!(back.kind, kind::PLAN);
+    assert_eq!(fields(&back), fields(&plan()));
+    // A plan with only its wallet.
+    let bare = Record::new(kind::PLAN).with(field::PLAN_WALLET, b"wpkh(x)");
+    let text = write_plan(&bare).unwrap();
+    assert_eq!(&text[..], b"wallet = \"wpkh(x)\"\n");
+    assert_eq!(fields(&read_plan(&text).unwrap()), fields(&bare));
+}
+
+#[test]
+fn a_hand_edited_plan_reads_as_the_written_one() {
+    let text = "# a plan\nmarks = ['lost \"place0\" w0\\n']\n\n\
+        holds = [ \"vault holds seed 73c5da0a\" ]\nplaces=[\"Home\",'']\n\
+        answers = [\"seeds 1\", \"places 2\"]\nwallet = '''\nwpkh(XPUB/<0;1>/*)'''\n"
+        .replace("XPUB", XPUB);
+    let back = read_plan(text.as_bytes()).unwrap();
+    let mut got = fields(&back);
+    let mut want = fields(&plan());
+    got.sort();
+    want.sort();
+    assert_eq!(got, want);
+}
+
+#[test]
+fn a_plan_refuses_what_section_7_does_not_name() {
+    let refused = |t: &str| {
+        let r = read_plan(t.as_bytes()).unwrap_err();
+        (r.why, r.key)
     };
-    let policy = format!("wpkh(@0/**)\n{XPUB}");
-    let records = vec![
-        Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Savings"),
-        Record::new(kind::KEY)
-            .with(field::KEY, &words(TWELVE))
-            .with(field::KEY_LABEL, "Cold \"key\"\n\u{e9}".as_bytes())
-            .with(field::KEY_FLAGS, &[3])
-            .with(field::KEY_PASSPHRASE, b"tr\\ust")
-            .with(field::KEY_CODEX32, &set_payload(&facts).unwrap())
-            .with(field::KEY_CHILD, &child_payload(&child).unwrap()),
-        Record::new(kind::KEY).with(field::KEY, &seed_payload(&[7u8; 16]).unwrap()),
-        Record::new(kind::WALLET)
-            .with(field::WALLET, policy.as_bytes())
-            .with(field::WALLET_NAME, b"Spending")
-            .with(field::WALLET_FLAGS, &[1]),
-        Record::new(kind::WALLET).with(field::WALLET, format!("wpkh({XPUB}/<0;1>/*)").as_bytes()),
-        Record::new(kind::NOTE).with(field::NOTE, b"line one\nline two"),
-        Record::new(kind::SHEET).with(
-            field::SHEET,
-            &sheet_payload(b"wpkh(x)", b"Main", b"keep it").unwrap(),
-        ),
-        Record::new(kind::ENTRY)
-            .with(field::TITLE, b"Mail")
-            .with(field::USERNAME, b"me")
-            .with(field::PASSWORD, b"correct horse")
-            .with(field::URL, b"https://example.org")
-            .with(field::NOTES, b"n")
-            .with(
-                field::TOTP,
-                b"otpauth://totp/Mail:me?secret=JBSWY3DPEHPK3PXP&issuer=Mail",
-            ),
-        Record::new(kind::SECURE_BOOT)
-            .with(1, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-            .with(2, &[0x30, 0x82, 1, 2, 3])
-            .with(3, &[0x30, 0x82, 9, 9, 9, 9])
-            .with(6, &[0x30; 100]),
-        Record::new(kind::AMOUNTS)
-            .with(field::AMOUNTS_TX, &[0xab; 32])
-            .with(field::AMOUNTS_INPUT, &5_000u64.to_le_bytes())
-            .with(field::AMOUNTS_INPUT, &21_000_000u64.to_le_bytes()),
-        Record::new(kind::PLAN)
-            .with(
-                field::PLAN_WALLET,
-                format!("wpkh({XPUB}/<0;1>/*)").as_bytes(),
-            )
-            .with(field::PLAN_ANSWERS, b"seeds 1\nplaces 2")
-            .with(field::PLAN_PLACE, b"Home")
-            .with(field::PLAN_PLACE, b"")
-            .with(field::PLAN_HOLDS, b"vault holds seed 73c5da0a")
-            .with(field::PLAN_NOTE, b"lost place0 w0"),
-        Record::new(kind::WALLET_SHARE)
-            .with(field::SHARE, b"wsh(sortedmulti(2,A,B))")
-            .with(field::SHARE_WALLET_NAME, b"Family")
-            .with(field::SHARE_NUMBER, &[1])
-            .with(field::SHARE_OF, &[3])
-            .with(field::SHARE_WALLET, b"wsh(sortedmulti(2,A,B,C))"),
-        Record::new(kind::PASSPHRASE)
-            .with(field::PASSPHRASE_KEY, &[0x73, 0xc5, 0xda, 0x0a])
-            .with(field::PASSPHRASE, "p\u{e4}ss".as_bytes()),
-        Record::new(kind::CODEX32_SHARE)
-            .with(field::CODEX32_STRING, SHARE.as_bytes())
-            .with(field::CODEX32_KEY, &[0x73, 0xc5, 0xda, 0x0a]),
-    ];
-    Document {
-        id: [
-            0x3f, 0x0c, 0x9a, 0x6e, 0x2b, 0x7d, 0x41, 0xc5, 0x8e, 0x19, 0xa0, 0xb2, 0xc4, 0xd6,
-            0xe8, 0xf0,
-        ],
-        seals: Seals {
-            count: 12,
-            last: Some(1_793_196_120),
-        },
-        contents: Contents { records },
-    }
-}
-
-fn same(a: &Contents, b: &Contents) {
-    assert_eq!(a.records.len(), b.records.len());
-    for (x, y) in a.records.iter().zip(&b.records) {
-        assert_eq!(x.kind, y.kind);
-        let fx: Vec<(u8, &[u8])> = x.fields.iter().map(|f| (f.number, &f.bytes[..])).collect();
-        let fy: Vec<(u8, &[u8])> = y.fields.iter().map(|f| (f.number, &f.bytes[..])).collect();
-        assert_eq!(fx, fy, "record of type {}", x.kind);
-    }
-}
-
-fn file(body: &str) -> Vec<u8> {
-    format!("[vault]\nformat = 1\nid = \"3f0c9a6e2b7d41c58e19a0b2c4d6e8f0\"\nseals = 3\n\n{body}\n")
-        .into_bytes()
-}
-
-fn refused(body: &str) -> Refusal {
-    read(&compute(), &file(body)).expect_err(body)
-}
-
-#[test]
-fn a_vault_of_every_kind_is_read_back_unchanged() {
-    let doc = one_of_each();
-    let text = write(&doc, Size::Kib64).unwrap();
-    assert_eq!(text.len(), 64 * 1024);
-    let back = read(&compute(), &text).unwrap();
-    assert_eq!(back.id, doc.id);
-    assert_eq!(back.seals, doc.seals);
-    same(&back.contents, &doc.contents);
-    // One canonical form.
-    assert_eq!(write(&back, Size::Kib64).unwrap(), text);
-    assert!(text.ends_with(b"\n\n\n"));
-    assert_eq!(write(&doc, Size::Mib1).unwrap().len(), 1024 * 1024);
-}
-
-#[test]
-fn the_text_shows_each_item_in_its_published_form() {
-    let text = write(&one_of_each(), Size::Kib64).unwrap();
-    let text = String::from_utf8(text.to_vec()).unwrap();
-    assert!(text.starts_with("[vault]\nformat = 1\nid = \"3f0c9a6e2b7d41c58e19a0b2c4d6e8f0\"\nname = \"Savings\"\nseals = 12\nsealed = 2026-10-28T"));
-    assert!(text.contains(&format!("words = \"{TWELVE}\"\n")));
-    assert!(text.contains("hex = \"07070707070707070707070707070707\"\n"));
-    assert!(text.contains(concat!("-----BEGIN ", "PRIVATE KEY-----\n")));
-    assert!(text.contains("owner = \"04030201-0605-0807-090a-0b0c0d0e0f10\"\n"));
-    let order: Vec<usize> = [
-        "[[seed]]",
-        "[[wallet]]",
-        "[[note]]",
-        "[[sheet]]",
-        "[[entry]]",
-        "[[secure_boot]]",
-        "[[signed]]",
-        "[[plan]]",
-        "[[wallet_share]]",
-        "[[passphrase]]",
-        "[[share]]",
-    ]
-    .iter()
-    .map(|h| text.find(h).unwrap())
-    .collect();
-    assert!(order.windows(2).all(|w| w[0] < w[1]));
-}
-
-#[test]
-fn a_hand_edited_document_reads_as_the_written_one() {
-    let doc = Document {
-        id: one_of_each().id,
-        seals: Seals {
-            count: 3,
-            last: None,
-        },
-        contents: Contents {
-            records: vec![
-                Record::new(kind::KEY)
-                    .with(field::KEY, &words(TWELVE))
-                    .with(field::KEY_LABEL, b"Cold key"),
-                Record::new(kind::ENTRY)
-                    .with(field::TITLE, b"Mail")
-                    .with(field::PASSWORD, b"c:\\temp"),
-                Record::new(kind::NOTE).with(field::NOTE, b"a\nb"),
-            ],
-        },
-    };
-    let written = read(&compute(), &write(&doc, Size::Kib64).unwrap()).unwrap();
-    let edited = format!(
-        "# edited by hand\nvault = {{ seals = 3, id = '3f0c9a6e2b7d41c58e19a0b2c4d6e8f0', format = 1 }} # count\n\n\
-         seed = [ {{ label = 'Cold key', words = '{TWELVE}' }} ]\n\n\
-         [[note]]\ntext = \"\"\"\na\nb\"\"\"\n\n\
-         [[entry]]\npassword = 'c:\\temp'\ntitle = \"Mail\"\n\n\n\n"
-    );
-    let back = read(&compute(), edited.as_bytes()).unwrap();
-    assert_eq!(back.id, written.id);
-    assert_eq!(back.seals, written.seals);
-    same(&back.contents, &written.contents);
-}
-
-#[test]
-fn a_codex32_set_and_a_child_may_be_written_as_tables() {
-    let body = format!(
-        "[[seed]]\nwords = \"{TWELVE}\"\n[seed.codex32]\nk = 2\nid = \"name\"\nlengths = [48]\nunknown = 1\n\
-         [[seed.codex32.shares]]\nindex = \"a\"\nstate = \"made\"\n\
-         [seed.child]\nparent = \"73c5da0a\"\napplication = 39\nlanguage = 0\nwords = 12\nindex = 7\n"
-    );
-    let doc = read(&compute(), &file(&body)).unwrap();
-    assert_eq!(doc.contents.records.len(), 1);
-    assert!(doc.contents.records[0].field(field::KEY_CODEX32).is_some());
-    assert!(doc.contents.records[0].field(field::KEY_CHILD).is_some());
-}
-
-#[test]
-fn a_document_may_be_any_length_up_to_four_mib_and_no_more() {
-    let doc = one_of_each();
-    let mut text = write(&doc, Size::Kib64).unwrap().to_vec();
-    text.resize(3_000_001, b'\n');
-    assert!(read(&compute(), &text).is_ok());
-    text.resize(4 * 1024 * 1024 + 1, b'\n');
-    assert_eq!(read(&compute(), &text).unwrap_err().why, Why::TooLong);
-    // Padding is blank lines, and white space and comments may follow; a
-    // NUL after the document is refused.
-    let mut text = write(&doc, Size::Kib64).unwrap().to_vec();
-    *text.last_mut().unwrap() = 0;
-    assert!(matches!(
-        read(&compute(), &text).unwrap_err().why,
-        Why::Syntax(_)
-    ));
-}
-
-#[test]
-fn what_section_7_1_refuses_is_refused_naming_what_and_where() {
-    let words_bad = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
-    let cases: Vec<(String, Why, &str, usize, &str)> = vec![
-        ("[[nope]]\nx = 1".into(), Why::Unknown, "", 0, "nope"),
-        ("[[note]]\ntext = \"a\"\n[[note]]\ntext = \"b\"\ncolour = \"x\"".into(), Why::Unknown, "note", 1, "colour"),
-        ("[[note]]\ntext = 5".into(), Why::WrongType, "note", 0, "text"),
-        ("[[note]]\ntext = \"a\"\n[[entry]]\ntitle = \"t\"\n[[entry]]\nusername = \"u\"".into(), Why::Missing, "entry", 1, "title"),
-        (format!("[[seed]]\nwords = \"{words_bad}\""), Why::BadWords, "seed", 0, "words"),
-        (format!("[[seed]]\nwords = \"{TWELVE}\"\nhex = \"00112233445566778899aabbccddeeff\""), Why::Exclusive, "seed", 0, "hex"),
-        ("[[seed]]\nhex = \"00112233445566778899AABBCCDDEEFF\"".into(), Why::BadHex, "seed", 0, "hex"),
-        ("[[wallet]]\npolicy = \"wpkh(@0/**)\"".into(), Why::BadWallet, "wallet", 0, "policy"),
-        ("[[wallet]]\ndescriptor = \"nonsense\"".into(), Why::BadWallet, "wallet", 0, "descriptor"),
-        ("[[secure_boot]]\nowner = \"04030201-0605-0807-090a-0b0c0d0e0f10\"\npk_key = \"-----BEGIN CERTIFICATE-----\\nAAAA\\n-----END CERTIFICATE-----\\n\"".into(), Why::BadPem, "secure_boot", 0, "pk_key"),
-        ("[[entry]]\ntitle = \"t\"\notp = \"JBSWY3DPEHPK3PXP\"".into(), Why::BadOtp, "entry", 0, "otp"),
-        ("[[entry]]\ntitle = \"t\"\notp = \"otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP&counter=1\"".into(), Why::BadOtp, "entry", 0, "otp"),
-        ("[[gpg]]\nkey = \"x\"".into(), Why::GpgNotRead, "gpg", 0, ""),
-        ("[[passphrase]]\nfor = \"73c5da0a\"\ntext = \"a\"\n[[passphrase]]\nfor = \"73c5da0a\"\ntext = \"b\"".into(), Why::Twice, "passphrase", 1, ""),
-        (format!("[[signed]]\ntx = \"{0}\"\namounts = [1]\n[[signed]]\ntx = \"{0}\"\namounts = [2]", "ab".repeat(32)), Why::Twice, "signed", 1, ""),
-        (format!("[[share]]\ncodex32 = \"{SHARE}\"\nfor = \"73c5da0a\"\n[[share]]\ncodex32 = \"{SHARE}\"\nfor = \"73c5da0a\""), Why::Twice, "share", 1, ""),
-        ("[[share]]\ncodex32 = \"ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw\"\nfor = \"73c5da0a\"".into(), Why::BadCodex32, "share", 0, "codex32"),
-        ("[[note]]\ntext = \"a\"\ntext = \"b\"".into(), Why::Syntax(0), "", 0, ""),
-        ("[[note]]\ntext = \"\\x41\"".into(), Why::Syntax(0), "", 0, ""),
-        ("[[note]]\n\"\\x74ext\" = \"a\"".into(), Why::Syntax(0), "", 0, ""),
-        ("[[note]]\n\"te\\xt\" = \"a\"".into(), Why::Syntax(0), "", 0, ""),
-        (format!("[[note]]\n{}", (0..65).map(|i| format!("k{i} = 1\n")).collect::<String>()), Why::Syntax(0), "", 0, ""),
-        ("[[note]]\nx = {a = 1,\n b = 2}".into(), Why::Syntax(0), "", 0, ""),
-        ("[[note]]\nx = {a = 1,}".into(), Why::Syntax(0), "", 0, ""),
-        (format!("[[note]]\n{} = 1", ["a"; 9].join(".")), Why::Syntax(0), "", 0, ""),
-        (format!("[[note]]\nx = {{{} = 1}}", ["a"; 9].join(".")), Why::Syntax(0), "", 0, ""),
-        (format!("[{}]\nx = 1", ["a"; 9].join(".")), Why::Syntax(0), "", 0, ""),
-        (format!("[[note]]\n{} = 1", ["a"; 100_000].join(".")), Why::Syntax(0), "", 0, ""),
-        ("[[note]]\ntext = \"a\"\n[note]\ntext = \"b\"".into(), Why::Syntax(0), "", 0, ""),
-    ];
-    for (body, why, item, index, key) in cases {
-        let mut r = refused(&body);
-        if let Why::Syntax(_) = r.why {
-            r.why = Why::Syntax(0);
-        }
-        assert_eq!(
-            (r.why, r.item, r.index, r.key.as_str()),
-            (why, item, index, key),
-            "{body}"
-        );
-    }
-}
-
-#[test]
-fn the_vault_table_is_first_and_complete() {
-    let c = compute();
-    let id = "id = \"3f0c9a6e2b7d41c58e19a0b2c4d6e8f0\"";
-    let get = |t: &str| read(&c, t.as_bytes()).unwrap_err();
-    assert_eq!(get("[[note]]\ntext = \"a\"\n").why, Why::NoVault);
     assert_eq!(
-        get(&format!(
-            "[[note]]\ntext = \"a\"\n[vault]\nformat = 1\n{id}\nseals = 1"
-        ))
-        .why,
-        Why::VaultNotFirst
-    );
-    assert_eq!(get(&format!("[vault]\n{id}\nseals = 1")).why, Why::Missing);
-    assert_eq!(
-        get(&format!("[vault]\nformat = 2\n{id}\nseals = 1")).why,
-        Why::Format
-    );
-    assert_eq!(get("[vault]\nformat = 1\nseals = 1").why, Why::Missing);
-    assert_eq!(get(&format!("[vault]\nformat = 1\n{id}")).why, Why::Missing);
-    assert_eq!(
-        get(&format!("[vault]\nformat = 1\n{id}\nseals = 0")).why,
-        Why::Seals
+        refused("wallet = \"x\"\nextra = 1\n"),
+        (Why::Unknown, "extra".into())
     );
     assert_eq!(
-        get(&format!(
-            "[vault]\nformat = 1\n{id}\nseals = 1\nsealed = 2026-10-28T14:02Z"
-        ))
-        .why,
-        Why::BadValue
+        refused("places = [\"a\"]\n"),
+        (Why::Missing, "wallet".into())
+    );
+    assert_eq!(refused("wallet = 3\n"), (Why::WrongType, "wallet".into()));
+    assert_eq!(
+        refused("wallet = \"x\"\nplaces = [1]\n"),
+        (Why::WrongType, "places".into())
     );
     assert_eq!(
-        get(&format!("[vault]\nformat = 1\n{id}\nseals = 1\nextra = 1")).key,
-        "extra"
+        refused("wallet = \"x\"\nanswers = [\"a\\nb\"]\n"),
+        (Why::BadValue, "answers".into())
     );
+    // A syntax refusal names the line.
     assert_eq!(
-        get("[vault]\nformat = 1\nid = \"3F0C9A6E2B7D41C58E19A0B2C4D6E8F0\"\nseals = 1").why,
-        Why::BadHex
-    );
-    // A time that is not ASCII, an offset out of range, a time past the
-    // year 9999 (the offset moving it there), and a seal count past i64.
-    for sealed in [
-        "2026-10-28T14:02:00+0\u{e9}00",
-        "2026-10-28T14:02:00+99:99",
-        "2026-10-28T14:02:00+24:00",
-        "2026-10-28T14:02:00+01:60",
-        "9999-12-31T23:59:59-01:00",
-    ] {
-        assert_eq!(
-            get(&format!(
-                "[vault]\nformat = 1\n{id}\nseals = 1\nsealed = {sealed}"
-            ))
+        read_plan(b"wallet = \"x\"\n\nplaces = [\n")
+            .unwrap_err()
             .why,
-            Why::BadValue,
-            "{sealed}"
-        );
-    }
-    assert!(
-        read(
-            &c,
-            format!("[vault]\nformat = 1\n{id}\nseals = 1\nsealed = 9999-12-31T23:59:59Z")
-                .as_bytes()
-        )
-        .is_ok()
+        Why::Syntax(3)
     );
-    assert!(matches!(
-        get(&format!(
-            "[vault]\nformat = 1\n{id}\nseals = 9223372036854775808"
-        ))
-        .why,
-        Why::Syntax(_)
-    ));
-}
-
-#[test]
-fn what_cannot_be_read_back_is_not_written() {
-    let write_with = |seals: Seals| {
-        let mut doc = one_of_each();
-        doc.seals = seals;
-        write(&doc, Size::Kib64)
-    };
-    let ok = Seals {
-        count: 1,
-        last: Some(253_402_300_799),
-    };
-    assert!(write_with(ok).is_ok());
-    for bad in [
-        Seals {
-            count: 0,
-            last: None,
-        },
-        Seals {
-            count: i64::MAX as u64 + 1,
-            last: None,
-        },
-        Seals {
-            count: 1,
-            last: Some(253_402_300_800),
-        },
-        Seals {
-            count: 1,
-            last: Some(u64::MAX),
-        },
-    ] {
-        assert!(write_with(bad).is_err(), "{bad:?}");
-    }
-    let mut doc = one_of_each();
-    doc.contents.records.push(
-        Record::new(kind::SECURE_BOOT)
-            .with(1, &[1; 16])
-            .with(2, &[]),
+    assert_eq!(
+        read_plan(b"wallet = \"\xff\"").unwrap_err().why,
+        Why::NotUtf8
     );
-    assert_eq!(write(&doc, Size::Kib64).unwrap_err().why, Why::BadPem);
+    // A plan is a plan record and no other.
+    assert_eq!(
+        write_plan(&Record::new(kind::NOTE).with(field::NOTE, b"x"))
+            .unwrap_err()
+            .why,
+        Why::Unknown
+    );
 }
 
 #[test]
-fn gpg_keys_are_refused_both_ways() {
-    let mut doc = one_of_each();
-    doc.contents
-        .records
-        .push(Record::new(kind::GPG).with(1, &[1; 32]).with(2, &[1; 4]));
-    assert_eq!(write(&doc, Size::Kib64).unwrap_err().why, Why::GpgNotRead);
+fn a_codex32_set_is_written_and_read_back() {
+    let text = write_codex32_facts(&facts()).unwrap();
+    assert_eq!(
+        std::str::from_utf8(&text).unwrap(),
+        "{k = 2, id = \"name\", lengths = [48], unknown = 1, shares = \
+         [{index = \"a\", state = \"made\"}, {index = \"c\", state = \"placed\"}]}"
+    );
+    let back = read_codex32_facts(&text).unwrap();
+    assert_eq!(back.threshold, 2);
+    assert_eq!(back.identifier, *b"name");
+    assert_eq!(back.length, 48);
+    assert_eq!(back.unknown, 1);
+    assert_eq!(back.strings, facts().strings);
+    // Every state, and a set with no strings known.
+    let states = [
+        State::Made,
+        State::Placed,
+        State::Lost,
+        State::Exposed,
+        State::Destroyed,
+    ];
+    let all = SetFacts {
+        strings: states.iter().zip(b"acdef").map(|(s, c)| (*c, *s)).collect(),
+        unknown: 0,
+        ..facts()
+    };
+    let back = read_codex32_facts(&write_codex32_facts(&all).unwrap()).unwrap();
+    assert_eq!(back.strings, all.strings);
+    let secret = SetFacts {
+        threshold: 0,
+        unknown: 0,
+        strings: vec![(b's', State::Made)],
+        ..facts()
+    };
+    let back = read_codex32_facts(&write_codex32_facts(&secret).unwrap()).unwrap();
+    assert_eq!((back.threshold, back.strings), (0, secret.strings));
 }
 
 #[test]
-fn a_vault_too_full_for_its_size_is_refused() {
-    let mut doc = one_of_each();
-    doc.contents
-        .records
-        .push(Record::new(kind::NOTE).with(field::NOTE, &vec![b'x'; 60_000]));
-    doc.contents
-        .records
-        .push(Record::new(kind::NOTE).with(field::NOTE, &vec![b'y'; 60_000]));
-    assert_eq!(write(&doc, Size::Kib64).unwrap_err().why, Why::TooLong);
-    assert!(write(&doc, Size::Kib256).is_ok());
+fn a_codex32_set_may_be_written_another_way_and_refuses_what_it_does_not_name() {
+    let read = |t: &str| read_codex32_facts(t.as_bytes());
+    // Equal lengths in the array are read; spaces and string forms vary.
+    let ok = read("{ k=2, id='name', lengths=[48, 48], unknown=1, shares=[] }").unwrap();
+    assert_eq!((ok.threshold, ok.length, ok.strings.len()), (2, 48, 0));
+    let refused = |t: &str| {
+        let r = read(t).unwrap_err();
+        (r.why, r.key)
+    };
+    assert_eq!(
+        refused("{k = 2, id = \"name\", lengths = [48, 74], unknown = 1}"),
+        (Why::BadCodex32, "lengths".into())
+    );
+    assert_eq!(
+        refused("{k = 2, id = \"name\", lengths = [48], unknown = 1, x = 1}"),
+        (Why::Unknown, "x".into())
+    );
+    assert_eq!(
+        refused("{id = \"name\", lengths = [48], unknown = 1}"),
+        (Why::Missing, "k".into())
+    );
+    assert_eq!(
+        refused("{k = 1, id = \"name\", lengths = [48], unknown = 1}"),
+        (Why::BadCodex32, String::new())
+    );
+    assert_eq!(
+        refused(
+            "{k = 2, id = \"name\", lengths = [48], unknown = 1, shares = [{index = \"a\", state = \"gone\"}]}"
+        ),
+        (Why::BadValue, "shares.state".into())
+    );
+    // The same index twice is not a set.
+    assert_eq!(
+        refused(
+            "{k = 2, id = \"name\", lengths = [48], unknown = 0, shares = [{index = \"a\", state = \"made\"}, {index = \"a\", state = \"lost\"}]}"
+        ),
+        (Why::BadCodex32, String::new())
+    );
+    // A second key after the table, a table that is not one, and text that
+    // is not TOML.
+    assert_eq!(
+        refused("{k = 2, id = \"name\", lengths = [48], unknown = 1}\nother = 1").0,
+        Why::Unknown
+    );
+    assert_eq!(refused("[1]").0, Why::WrongType);
+    assert!(matches!(refused("{k = ").0, Why::Syntax(1)));
+}
+
+#[test]
+fn a_bip85_origin_is_written_and_read_back() {
+    let text = write_child_facts(&child()).unwrap();
+    assert_eq!(
+        std::str::from_utf8(&text).unwrap(),
+        "{parent = \"73c5da0a\", application = 39, language = 0, words = 12, index = 7}"
+    );
+    let back = read_child_facts(&text).unwrap();
+    assert_eq!(
+        (back.parent, back.language, back.words, back.index),
+        ([0x73, 0xc5, 0xda, 0x0a], 0, 12, 7)
+    );
+    let top = ChildOf {
+        index: 0x7fff_ffff,
+        words: 24,
+        language: 8,
+        ..child()
+    };
+    let back = read_child_facts(&write_child_facts(&top).unwrap()).unwrap();
+    assert_eq!(
+        (back.index, back.words, back.language),
+        (0x7fff_ffff, 24, 8)
+    );
+}
+
+#[test]
+fn a_bip85_origin_refuses_what_it_does_not_name() {
+    let refused = |t: &str| {
+        let r = read_child_facts(t.as_bytes()).unwrap_err();
+        (r.why, r.key)
+    };
+    let good = "parent = \"73c5da0a\", application = 39, language = 0, words = 12, index = 7";
+    assert!(read_child_facts(format!("{{{good}}}").as_bytes()).is_ok());
+    assert_eq!(
+        refused(&format!("{{{good}, extra = 1}}")),
+        (Why::Unknown, "extra".into())
+    );
+    assert_eq!(
+        refused(&format!("{{{}}}", good.replace("39", "40"))),
+        (Why::BadChild, "application".into())
+    );
+    assert_eq!(
+        refused(&format!("{{{}}}", good.replace("73c5da0a", "73C5DA0A"))),
+        (Why::BadHex, "parent".into())
+    );
+    assert_eq!(
+        refused(&format!("{{{}}}", good.replace("words = 12", "words = 13"))).0,
+        Why::BadChild
+    );
+    assert_eq!(
+        refused("{parent = \"73c5da0a\", application = 39, language = 0, words = 12}"),
+        (Why::Missing, "index".into())
+    );
+    assert_eq!(refused(&format!("{{{good}}}\nx = 1")).0, Why::Unknown);
+    assert_eq!(refused("\"73c5da0a\"").0, Why::WrongType);
 }
 
 fn qr_items() -> Vec<Record> {
@@ -454,23 +315,10 @@ fn a_qr_vault_holds_one_item_in_one_length() {
     for item in qr_items() {
         let text = write_qr(&item).unwrap();
         assert_eq!(text.len(), QR_LEN);
-        assert_eq!(form(&text).unwrap(), Form::Qr);
         let back = read_qr(&c, &text).unwrap();
         assert_eq!(back.kind, item.kind);
-        let f = |r: &Record| {
-            r.fields
-                .iter()
-                .map(|f| (f.number, f.bytes.to_vec()))
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(f(&back), f(&item));
-        // A file vault is not one.
-        assert_eq!(read(&c, &text).unwrap_err().why, Why::NoVault);
+        assert_eq!(fields(&back), fields(&item));
     }
-    assert_eq!(
-        form(&write(&one_of_each(), Size::Kib64).unwrap()).unwrap(),
-        Form::File
-    );
 }
 
 #[test]
@@ -524,10 +372,8 @@ fn a_qr_vault_refuses_what_it_cannot_hold() {
             .with(field::PASSPHRASE, &vec![b'p'; n])
     };
     assert_eq!(write_qr(&edge(QR_PASSPHRASE_MAX)).unwrap().len(), QR_LEN);
-    assert_eq!(
-        write_qr(&edge(QR_PASSPHRASE_MAX + 1)).unwrap_err().why,
-        Why::TooLong
-    );
+    let r = write_qr(&edge(QR_PASSPHRASE_MAX + 1)).unwrap_err();
+    assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "passphrase"));
 }
 
 #[test]
@@ -537,7 +383,6 @@ fn a_qr_vault_may_hold_a_note_or_nothing() {
     let back = |r: &Record| {
         let text = write_qr(r).unwrap();
         assert_eq!(text.len(), QR_LEN);
-        assert_eq!(form(&text).unwrap(), Form::Qr);
         read_qr(&c, &text).unwrap()
     };
     // The most a note holds, in bytes of TOML text.
@@ -566,11 +411,6 @@ fn a_qr_vault_may_hold_a_note_or_nothing() {
     );
     // A shorter way of writing the same line holds no more than the limit
     // once written: it is refused on read, naming the key.
-    let padded = |t: String| {
-        let mut b = t.into_bytes();
-        b.resize(QR_LEN, b'\n');
-        b
-    };
     let long = "a".repeat(QR_NOTE_MAX + 1);
     for line in [format!("note=\"{long}\"\n"), format!("note='{long}'\n")] {
         let r = read_qr(&c, &padded(line)).unwrap_err();
@@ -583,6 +423,23 @@ fn a_qr_vault_may_hold_a_note_or_nothing() {
     ] {
         let r = read_qr(&c, &padded(line)).unwrap_err();
         assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "passphrase"));
+    }
+    // A literal string takes a line break or a backslash as it is, and the
+    // code writes each as two bytes: what no longer fits once written is
+    // refused on read, and what does fit is read back and written again.
+    for (open, close, ch) in [("'''\n", "'''", "\n"), ("'", "'", "\\")] {
+        for (n, fits) in [(QR_NOTE_MAX / 2, true), (QR_NOTE_MAX / 2 + 1, false)] {
+            let line = format!("note = {open}{}{close}\n", ch.repeat(n));
+            let r = read_qr(&c, &padded(line));
+            if fits {
+                let back = r.unwrap();
+                assert_eq!(back.field(field::NOTE).unwrap(), ch.repeat(n).as_bytes());
+                assert_eq!(write_qr(&back).unwrap().len(), QR_LEN);
+            } else {
+                let r = r.unwrap_err();
+                assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "note"));
+            }
+        }
     }
     // Nothing: the padding alone.
     let empty = write_qr(&note(b"")).unwrap();

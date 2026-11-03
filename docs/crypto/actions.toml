@@ -6752,22 +6752,27 @@ places = [
 
 [[action]]
 id = "vault-contents"
-name = "Read a vault's contents"
-action = "Reads the TOML document inside an open vault, or the TOML of a QR vault, into its items: a seed, a passphrase, a note, a wallet, a codex32 set. Every form outside the document's rules is refused with the key and line named, and a document read is written again to the same items."
+name = "Read the TOML inside a vault"
+action = "Reads the TOML a vault holds into its items: the keys of a QR vault (a seed's words, a codex32 share, a passphrase, a note, or nothing), and the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields."
 row = "vault"
 standards = ["TOML v1.0.0"]
 learn = "faraday:vaults"
 screens = []
 functions = [
-  "faraday/faraday-vault/src/contents.rs::read",
-  "faraday/faraday-vault/src/contents.rs::read_item",
-  "faraday/faraday-vault/src/contents.rs::read_seed",
   "faraday/faraday-vault/src/contents.rs::read_qr",
-  "faraday/faraday-vault/src/contents.rs::r_wallet",
+  "faraday/faraday-vault/src/contents.rs::write_qr",
+  "faraday/faraday-vault/src/contents.rs::read_plan",
+  "faraday/faraday-vault/src/contents.rs::write_plan",
+  "faraday/faraday-vault/src/contents.rs::read_codex32_facts",
+  "faraday/faraday-vault/src/contents.rs::write_codex32_facts",
+  "faraday/faraday-vault/src/contents.rs::read_child_facts",
+  "faraday/faraday-vault/src/contents.rs::write_child_facts",
 ]
 code = [
-  "faraday/faraday-vault/src/contents.rs::read",
   "faraday/faraday-vault/src/contents.rs::read_qr",
+  "faraday/faraday-vault/src/contents.rs::read_plan",
+  "faraday/faraday-vault/src/contents.rs::read_codex32_facts",
+  "faraday/faraday-vault/src/contents.rs::read_child_facts",
 ]
 
 [action.implementation]
@@ -6775,38 +6780,49 @@ crate = "faraday/faraday-vault"
 libraries = [
   "toml_parser",
 ]
-adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the length limits of docs/VAULT.md section 2.1 and 7 and the items' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name."
-written_here = "The vault contents TOML reader (`faraday-vault::contents`)"
+adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name."
+written_here = "The vault's TOML reader and writer (`faraday-vault::contents`)"
 
 [action.checked]
 vectors = ["toml"]
 tests = [
-  "faraday/faraday-vault/tests/contents.rs::a_vault_of_every_kind_is_read_back_unchanged",
-  "faraday/faraday-vault/tests/contents.rs::a_hand_edited_document_reads_as_the_written_one",
-  "faraday/faraday-vault/tests/contents.rs::what_section_7_1_refuses_is_refused_naming_what_and_where",
+  "faraday/faraday-vault/tests/contents.rs::a_qr_vault_holds_one_item_in_one_length",
   "faraday/faraday-vault/tests/contents.rs::a_qr_vault_refuses_what_it_cannot_hold",
   "faraday/faraday-vault/tests/contents.rs::a_qr_vault_may_hold_a_note_or_nothing",
+  "faraday/faraday-vault/tests/contents.rs::a_plan_is_written_and_read_back_with_every_field",
+  "faraday/faraday-vault/tests/contents.rs::a_hand_edited_plan_reads_as_the_written_one",
+  "faraday/faraday-vault/tests/contents.rs::a_plan_refuses_what_section_7_does_not_name",
+  "faraday/faraday-vault/tests/contents.rs::a_codex32_set_is_written_and_read_back",
+  "faraday/faraday-vault/tests/contents.rs::a_codex32_set_may_be_written_another_way_and_refuses_what_it_does_not_name",
+  "faraday/faraday-vault/tests/contents.rs::a_bip85_origin_is_written_and_read_back",
+  "faraday/faraday-vault/tests/contents.rs::a_bip85_origin_refuses_what_it_does_not_name",
   "faraday/faraday-vault/src/contents/tree/toml_test.rs::every_invalid_case_of_toml_test_is_refused",
   "faraday/faraday-vault/src/contents/tree/toml_test.rs::every_valid_case_of_toml_test_is_accepted_but_what_faradays_rules_refuse",
+  "faraday/faraday-vault/src/contents/tree/toml_test.rs::a_key_part_over_128_bytes_is_refused",
 ]
-not_crosschecked = "Checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and items) are Faraday's and are not checked against an outside source."
+not_crosschecked = "The TOML syntax is checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and values) are Faraday's and are not checked against an outside source."
 fuzz = ["contents"]
 
 [action.secrets]
 reveal = "none"
-constant_time = "Not applicable: it parses text and compares nothing secret."
-wiped = "The document and the values read from it are held by the caller's wiping types (docs/KEYS.md)."
+constant_time = "The reader branches on secret text (a seed's words, a passphrase, a note) while it parses; constant-time parsing is later work (docs/SECURITY-MODEL.md, the security scope)."
+wiped = "The text read and the values made from it are held in wiping types (docs/KEYS.md); what toml_parser and the word-list parser keep is not wiped (docs/deps/toml_parser.md)."
 
 [action.limits]
 lines = [
-  "A document over 4 MiB, a key path of more than 8 parts and a key or form outside docs/VAULT.md section 7 are refused.",
+  "A QR vault is exactly 226 bytes; a plan over 1 MiB, an inline table over its size, a key part of more than 128 bytes, a key path of more than 8 parts and a key outside docs/VAULT.md sections 2.1 and 7 are refused.",
   "A QR vault holds one item, a note of at most QR_NOTE_MAX bytes and a passphrase of at most QR_PASSPHRASE_MAX; more is refused as too long, naming the key.",
 ]
 
 [[action.own]]
-text = "Whatever the vault's TOML rules do not name is refused, so a hand-edited document that adds a key is not read (docs/VAULT.md section 7)."
+text = "Whatever the Spec's TOML does not name is refused, so a value that adds a key is not read (F190 point 3, docs/VAULT.md section 7)."
 kind = "Conservative"
-decision = "F189"
+decision = "F190"
+
+[[action.own]]
+text = "A QR vault's contents are the item's keys at the top of a TOML document, padded to 226 bytes with line feeds (F190 point 5, docs/VAULT.md section 2.1)."
+kind = "Neutral"
+decision = "F190"
 
 [[action]]
 id = "vault-qr-pgp"

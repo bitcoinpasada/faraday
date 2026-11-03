@@ -1,4 +1,4 @@
-//! A TOML v1.0.0 document read into a tree of values (`docs/VAULT.md` §7).
+//! A TOML v1.0.0 document read into a tree of values (`docs/VAULT.md` §2.1, §7).
 //!
 //! `toml_parser` lexes and parses the text into events and decodes each
 //! scalar; this module is what it leaves out: the tree, and the rules
@@ -6,8 +6,7 @@
 //! inline table or a static array reopened, dotted keys against headers).
 //! The parser reads TOML 1.1; three things 1.1 adds are refused so that
 //! what is read is 1.0.0: a line break or a trailing comma in an inline
-//! table, and the `\x` and `\e` escapes of a basic string. (A time with no
-//! seconds is refused where a date-time is read, in `contents`.)
+//! table, and the `\x` and `\e` escapes of a basic string.
 //!
 //! Every string value is kept in a buffer that is wiped when it drops.
 
@@ -27,6 +26,11 @@ const MAX_DEPTH: u32 = 16;
 /// builds a table per part, which is nesting no vault needs.
 const MAX_KEY_PARTS: usize = 8;
 
+/// The longest one part of a key or table header, in bytes. No key of
+/// the vault or of the toml-test suite is near it; a bound keeps a long
+/// header from being compared again at every line below it.
+const MAX_KEY_LEN: usize = 128;
+
 /// The most keys one table holds. No table of §7 has more than 13, and a
 /// table is searched by key as it is built, so a bound keeps a document
 /// of very many keys in one table from taking quadratic time: it is
@@ -39,10 +43,10 @@ pub(super) enum Val {
     Str(Zeroizing<String>),
     /// An integer.
     Int(i64),
-    /// A boolean.
-    Bool(bool),
-    /// A date-time, as written.
-    Date(String),
+    /// A boolean, which no key of the vault takes.
+    Bool,
+    /// A date-time, which no key of the vault takes.
+    Date,
     /// A float, which no key of the vault takes.
     Float,
     /// An array.
@@ -193,6 +197,10 @@ impl Builder<'_> {
             self.refuse(span.start());
             return None;
         }
+        if out.len() > MAX_KEY_LEN {
+            self.refuse(span.start());
+            return None;
+        }
         Some(out.into_owned())
     }
 
@@ -216,8 +224,8 @@ impl Builder<'_> {
                 // a borrowed one is copied into a wiped buffer.
                 Val::Str(Zeroizing::new(out.into_owned()))
             }
-            ScalarKind::Boolean(b) => Val::Bool(b),
-            ScalarKind::DateTime => Val::Date(out.into_owned()),
+            ScalarKind::Boolean(_) => Val::Bool,
+            ScalarKind::DateTime => Val::Date,
             ScalarKind::Float => Val::Float,
             ScalarKind::Integer(radix) => match int_of(&out, radix) {
                 Some(n) => Val::Int(n),

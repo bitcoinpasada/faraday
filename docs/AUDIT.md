@@ -126,7 +126,7 @@ The highest-leverage single fact for an auditor: everything above marked
 - The PSBT version 2 reader (`faraday-psbt::v2`)
 - BIP-374 DLEQ proofs (`faraday-bip::dleq`) and BIP-375's sending fields (`faraday-psbt::silent`)
 - The four-equal-slot vault container and its HKDF-SHA256 over HMAC (`faraday-vault`)
-- The vault contents TOML reader (`faraday-vault::contents`)
+- The vault's TOML reader and writer (`faraday-vault::contents`)
 - The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)
 - TOTP code derivation (`faraday-vault::totp`)
 - The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)
