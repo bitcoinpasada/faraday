@@ -850,8 +850,8 @@ held_by = ["budget-tests"]
 
 [[rule]]
 id = "structure.ratchet-raised"
-title = "a ratchet count raised is the owner's decision, recorded in DECISIONS"
-source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md"]
+title = "a ratchet count raised (a file over 5,000 lines, Faraday's fields, impl Faraday) is the owner's decision, recorded in DECISIONS"
+source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md"]
 when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-upstream.counts", "tools/lint-crypto.counts"]
 rises = true
 kind = "pair"
@@ -867,8 +867,8 @@ held_by = ["lint-layout"]
 
 [[rule]]
 id = "structure.size"
-title = "no new file over 2,500 lines or function over 100 lines"
-source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md"]
+title = "no file over 5,000 lines or function over 100 lines"
+source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md"]
 when = ["**/*.rs"]
 kind = "held"
 held_by = ["lint-layout"]

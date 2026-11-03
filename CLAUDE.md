@@ -125,7 +125,7 @@ plan <paths>` lists the ones a change touches.
   first line; work added while drawing is timed once in a late-flow
   session for the batch, before it is pushed: `docs/SPEED.md` §3.3 and §7,
   `docs/COMPUTE.md` (held by `costs-lint` and the budget tests).
-- **Code structure** (F74): an area's code, state and screen in its
-  folder, no new monolith (counts only fall), private area state reached
-  through accessors, `impl Faraday` only as glue: `docs/STRUCTURE-PASS.md`
-  §7 (held by `lint-layout`).
+- **Code structure** (F74, F196): an area's code, state and screen in its
+  folder, no `.rs` file over 5,000 lines (those over it only fall),
+  private area state reached through accessors, `impl Faraday` only as
+  glue: `docs/STRUCTURE-PASS.md` §7 (held by `lint-layout`).

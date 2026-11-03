@@ -161,9 +161,9 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>`tools/lint-upstream.counts`<br>`tools/lint-crypto.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
+| `structure.ratchet-raised`: a ratchet count raised (a file over 5,000 lines, Faraday's fields, impl Faraday) is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>`tools/lint-upstream.counts`<br>`tools/lint-crypto.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md`<br>`docs/decisions/F196.md` |
 | `structure.code-map`: lib.rs's code map names every module and every screen's file | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
-| `structure.size`: no new file over 2,500 lines or function over 100 lines | `**/*.rs` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
+| `structure.size`: no file over 5,000 lines or function over 100 lines | `**/*.rs` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md`<br>`docs/decisions/F196.md` |
 | `structure.impl-faraday`: Faraday's field count and the files with impl Faraday only fall | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/STRUCTURE-PASS.md`<br>`docs/decisions/F74.md` |
 | `structure.no-new-mut`: a new *_mut accessor or DerefMut on an area is avoided; the few that exist are listed in STRUCTURE-PASS.md | `faraday/faraday-core/src/**`<br>lines matching `^\+.*(\bfn \w+_mut\(\|\bDerefMut\b)` | pair | `docs/STRUCTURE-PASS.md` | - | - | `docs/STRUCTURE-PASS.md` §7 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `faraday/faraday-core/src/**` | review | - | - | - | `docs/STRUCTURE-PASS.md` §7 |

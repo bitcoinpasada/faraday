@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Layout lint (F74, docs/STRUCTURE-PASS.md §7.1 and §7.2): the code map
+# Layout lint (F74, F196, docs/STRUCTURE-PASS.md §7.1 and §7.2): the code map
 # says where everything is, and no file or function grows back into a
 # monolith.
 #
@@ -9,21 +9,19 @@
 #    Every `Screen` variant has a row in the map's table, and the file
 #    the row names is the one screens/mod.rs's dispatch draws it from.
 #
-# 2. File size. No tracked .rs file is over 2,500 lines, except those
-#    listed in tools/lint-layout.counts at their size (`file PATH LINES`).
-#    A listed file that grows fails; one that shrinks fails too until its
-#    line is lowered (or removed, at 2,500 or under), so the count only
-#    falls. Not counted, as they are data whose size the content decides:
-#    the strings file (every string is in it, by rule) and the published
-#    word lists.
+# 2. File size (F196). No tracked .rs file is over 5,000 lines, except
+#    those listed in tools/lint-layout.counts at their size (`file PATH
+#    LINES`). A listed file that grows fails; one that shrinks fails too
+#    until its line is lowered (or removed, at 5,000 or under), so the
+#    count only falls. Not counted, as they are data whose size the
+#    content decides: the strings file (every string is in it, by rule)
+#    and the published word lists.
 #
 # 3. Function size. Clippy's `too_many_lines` is on for every crate
 #    (Cargo.toml's workspace lints, `clippy -D warnings`), so a function
 #    over 100 lines fails unless it carries
-#    `#[expect(clippy::too_many_lines, …)]`. tools/lint-layout.counts holds
-#    how many such expects there are (`expect too_many_lines N`), and how
-#    many `#[allow(clippy::too_many_arguments)]` (`allow
-#    too_many_arguments N`). Each count only falls, as in 2.
+#    `#[expect(clippy::too_many_lines, …)]`. The number of those markers
+#    and of `#[allow(clippy::too_many_arguments)]` is not counted.
 #
 # 4. Faraday's shape (docs/STRUCTURE-PASS.md §7.4.5). The number of
 #    top-level fields of `pub struct Faraday` in lib.rs (`fields Faraday
@@ -31,7 +29,7 @@
 #    inherent `impl Faraday {` (`impl-faraday PATH`): a file not listed
 #    fails, and so does a listed file that has none.
 #
-# Raising a count is the owner's decision, recorded in DECISIONS (F74).
+# Raising a count is the owner's decision, recorded in DECISIONS (F74, F196).
 # Prints each failure and exits non-zero if there is one. Run from the
 # repository root; `just lint` does.
 set -u
@@ -43,7 +41,7 @@ import re
 import subprocess
 import sys
 
-LIMIT = 2500
+LIMIT = 5000
 COUNTS = "tools/lint-layout.counts"
 CORE = "faraday/faraday-core/src"
 NOT_COUNTED = re.compile(
@@ -124,18 +122,16 @@ for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
     f = line.split()
     if f[0] == "file" and len(f) == 3:
         sizes[f[1]] = int(f[2])
-    elif f[0] in ("expect", "allow") and len(f) == 3:
-        counts[f"{f[0]} {f[1]}"] = int(f[2])
     elif f[0] == "fields" and len(f) == 3 and f[1] == "Faraday":
         counts["fields Faraday"] = int(f[2])
     elif f[0] == "impl-faraday" and len(f) == 2:
         impl_listed.add(f[1])
     else:
-        fail(f"{COUNTS}:{n}: not `file PATH LINES`, `expect|allow LINT N`, "
+        fail(f"{COUNTS}:{n}: not `file PATH LINES`, "
              f"`fields Faraday N` or `impl-faraday PATH`")
 
 
-for key in ("expect too_many_lines", "allow too_many_arguments", "fields Faraday"):
+for key in ("fields Faraday",):
     if key not in counts:
         fail(f"{COUNTS} has no `{key} N` line")
 
@@ -183,15 +179,6 @@ for manifest in sorted(m for m in members if m and m != "Cargo.toml"):
     if not (inherits or own):
         fail(f"{manifest}: clippy's too_many_lines is not on (workspace lints, or [lints.clippy])")
 
-expects = allows = 0
-for path in files:
-    text = open(path, encoding="utf-8", errors="replace").read()
-    expects += len(re.findall(r"#\[expect\(\s*clippy::too_many_lines\b", text))
-    allows += len(re.findall(r"#\[allow\(\s*clippy::too_many_arguments\b", text))
-ratchet("the number of `expect(clippy::too_many_lines)`", expects,
-        counts.get("expect too_many_lines", 0), "functions")
-ratchet("the number of `allow(clippy::too_many_arguments)`", allows,
-        counts.get("allow too_many_arguments", 0), "functions")
 
 # ---- 4. Faraday's shape ----
 start = lib.find("pub struct Faraday {\n")

@@ -175,19 +175,19 @@ cannot quietly undo it:
   - the code map: every module `lib.rs` declares appears in its `//!`
     code map, every `Screen` variant appears in the map's table, and the
     file named there exists and draws it;
-  - file size: no Rust source file over 2,500 lines, except those in
-    the counts file at their size, which only falls;
-    the vault area's two files over it stay together on purpose
-    (F170);
-  - function size: clippy's `too_many_lines` is on, each long function
-    carries an `#[expect]`, and their number is in the counts file; the
-    same holds for `#[allow(clippy::too_many_arguments)]`;
+  - file size (F196): no Rust source file over 5,000 lines, except
+    those in the counts file at their size, which only falls; no review
+    between 2,500 and 5,000 lines;
+  - function size: clippy's `too_many_lines` is on and each long
+    function carries an `#[expect]`; the number of those and of
+    `#[allow(clippy::too_many_arguments)]` is not counted, and each
+    marker is to carry a `reason` (the check is open work, F196);
   - `Faraday`'s top-level field count, which only falls;
   - the files allowed an inherent `impl Faraday`: the list only shrinks.
 - **`cargo vet --locked`** in `just lint` (F71), **`cargo-deny`**, fmt,
   and clippy with warnings as errors.
 
-**Every ratchet works the same way.** A count that rises fails the
+**Every ratchet that remains works the same way.** A count that rises fails the
 lint, and a count that falls fails it too, until the file is lowered.
 Raising a count is the owner's decision, recorded in DECISIONS, as
 accepting more than a standard requires already is.

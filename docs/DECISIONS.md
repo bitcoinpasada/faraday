@@ -88,7 +88,7 @@ Read this table, then only the decision you need.
 | [F71](decisions/F71.md) | Dependencies: what cargo-vet says is true | 2026-10-21 | Amended by F178, F180 | dependencies |
 | [F72](decisions/F72.md) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73, F97 | repository |
 | [F73](decisions/F73.md) | The upstream project is named only in LICENSE | 2026-10-21 | Amended by F97 | repository |
-| [F74](decisions/F74.md) | The structure is held by `just` | 2026-10-21 | Active | repository |
+| [F74](decisions/F74.md) | The structure is held by `just` | 2026-10-21 | Amended by F196 | repository |
 | [F75](decisions/F75.md) | A seed can be pasted on the desktop | 2026-10-22 | Active | keys |
 | [F76](decisions/F76.md) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
 | [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104, F128 | design |
@@ -210,3 +210,4 @@ Read this table, then only the decision you need.
 | [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Active | crypto |
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Active | security |
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
+| [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Active | repository |
