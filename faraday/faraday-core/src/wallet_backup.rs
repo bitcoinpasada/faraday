@@ -632,8 +632,9 @@ pub struct BackupState {
 #[derive(Default)]
 pub(crate) struct WalletBackupArea {
     state: Option<BackupState>,
-    /// What the shown seed is drawn from, worked out when it was shown.
-    shown: Option<shown::SeedShown>,
+    /// What the shown seed is drawn from, worked out when it was shown;
+    /// boxed, as its SeedQR grid is a few kilobytes.
+    shown: Option<Box<shown::SeedShown>>,
 }
 
 impl WalletBackupArea {

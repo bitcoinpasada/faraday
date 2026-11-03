@@ -722,8 +722,8 @@ pub struct Starter {
     /// Every disk id seen, so a row keeps its number as the list changes.
     seen: Vec<String>,
 
-    /// The desktop app's Transfer and Learn.
-    held: Faraday,
+    /// The desktop app's Transfer and Learn, boxed: the app is large.
+    held: Box<Faraday>,
     /// Faraday Demo, while it is on screen (F126, [`Starter::show_demo`]).
     demo: Option<Box<demo::Held>>,
     /// The held app is on screen.
@@ -830,7 +830,7 @@ impl Starter {
             scroller: scroll::Scroller::default(),
             max: 0.0,
             seen: Vec::new(),
-            held,
+            held: Box::new(held),
             demo: None,
             learn_dest: false,
             held_touch: false,

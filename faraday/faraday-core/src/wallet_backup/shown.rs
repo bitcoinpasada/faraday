@@ -89,10 +89,10 @@ impl WalletBackupArea {
                 m.ok().map(|m| (compact, m))
             })
             .flatten();
-        self.shown = Some(SeedShown {
+        self.shown = Some(Box::new(SeedShown {
             key: k,
             numbers,
             qr,
-        });
+        }));
     }
 }
