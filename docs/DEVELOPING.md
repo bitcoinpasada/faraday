@@ -25,7 +25,8 @@ nothing else.
   cross-check. The cross-check's
   `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl,
   PyCA cryptography (`python3-cryptography`) and pykeepass, and its
-  `sign`, `msg` and `musig` areas python-ecdsa (`python3-ecdsa`); PyPy is
+  `sign`, `msg` and `musig` areas python-ecdsa (`python3-ecdsa`), its
+  `seedqr` area Pillow (`python3-pil`); PyPy is
   optional (`tools/crosscheck/README.md`).
 - **Go** 1.27 or later, for the cross-check only: its `lightning` area
   builds LND's own aezeed code from `tools/reference/lnd/` and its `msg`

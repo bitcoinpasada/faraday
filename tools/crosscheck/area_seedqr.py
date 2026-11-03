@@ -39,6 +39,12 @@ is asked.
   module for module, with payloads too long and characters outside the
   mode refused.
 
+Every PNG Faraday writes in the area (the Codex32QR pictures, a greyscale
+picture of random size, a code's picture at a scale) is read by two outside
+readers, Pillow and CPython's zlib: each chunk's CRC-32 is zlib's, the zlib
+stream's Adler-32 is `zlib.adler32` of the rows, and Pillow reads the same
+pixels as this area's own reader and as the reference's.
+
 Codex32QR/v1-48 (`docs/CODEX32.md` §10.2, the profile pinned in
 `tools/vectors/codex32qr/README.md`): a 48-character codex32 string in
 upper case, alphanumeric mode, version 3, level L, the mask Nayuki's
@@ -60,9 +66,12 @@ Codex32QR.
   known difference, the mask choice, which a reader ignores.
 """
 
+import io
 import json
 import struct
 import zlib
+
+from PIL import Image
 
 from common import ROOT, Area, Mismatch, use_reference
 
@@ -208,12 +217,44 @@ def png_luma(data):
     return rows
 
 
+def png_read_outside(data):
+    """A picture Faraday wrote, read by two readers that are not its
+    own and checked against this area's own: Pillow (the decoder checks
+    every chunk's CRC-32 and the zlib stream's) and CPython's zlib
+    (`decompress` refuses a wrong Adler-32; the trailer is also compared
+    with `zlib.adler32` of the rows, and every chunk's CRC-32 with
+    `zlib.crc32`). Returns the rows of luma, which must be the ones
+    `png_luma` reads."""
+    pos, idat = 8, b""
+    while pos < len(data):
+        n, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        body = data[pos + 8:pos + 8 + n]
+        crc = struct.unpack(">I", data[pos + 8 + n:pos + 12 + n])[0]
+        if zlib.crc32(kind + body) != crc:
+            raise AssertionError(f"a {kind!r} chunk's CRC-32 is not zlib's")
+        if kind == b"IDAT":
+            idat += body
+        pos += 12 + n
+    raw = zlib.decompress(idat)
+    if idat[-4:] != struct.pack(">I", zlib.adler32(raw)):
+        raise AssertionError("the zlib stream's Adler-32 is not zlib's")
+    image = Image.open(io.BytesIO(data))
+    image.load()
+    image = image.convert("L")
+    w, h = image.size
+    pixels = image.tobytes()
+    rows = [pixels[y * w:(y + 1) * w] for y in range(h)]
+    if rows != png_luma(data):
+        raise AssertionError("Pillow reads other pixels than this area's reader")
+    return rows
+
+
 def png_code(data):
     """The QR code drawn in a picture, as rows of `1` and `0`: the first
     dark pixel is the top-left corner of the top-left finder, whose width
     is seven modules; the last dark pixel of that row ends the top-right
     finder; every module is read at its centre."""
-    rows = png_luma(data)
+    rows = png_read_outside(data)
     y0 = next(y for y, r in enumerate(rows) if min(r) < 128)
     row = rows[y0]
     x0 = next(x for x, v in enumerate(row) if v < 128)
@@ -268,6 +309,15 @@ def picture_read(answer):
     return answer
 
 
+def png_rows(answer):
+    """Faraday's answer with the picture it wrote read to its rows of
+    luma, as hex."""
+    if answer[0] == "ok" and isinstance(answer[1].get("png"), str):
+        rows = png_read_outside(bytes.fromhex(answer[1]["png"]))
+        return ("ok", {"png": [r.hex() for r in rows]})
+    return answer
+
+
 def profile_pictures():
     """The profile's pictures, each with the string it holds, from its
     vectors and from the BIP 93 list beside its pictures."""
@@ -293,7 +343,8 @@ class SeedQR(Area):
     reference = (
         "SeedSigner's own encoders and `DecodeQR` (`seedsigner/`, unchanged, with "
         "embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` "
-        '(`qrcodegen/`), module for module'
+        "(`qrcodegen/`), module for module; Pillow and CPython's zlib, which read every "
+        'PNG Faraday writes'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -313,7 +364,8 @@ class SeedQR(Area):
         'keys of every length and language, both codes and the words read back; digits '
         'and bytes malformed; payloads in each mode at each level and version limit; '
         '48-character codex32 strings in either case as Codex32QR codes and the '
-        'pictures written of them read back, other lengths refused'
+        'pictures written of them read back, other lengths refused; greyscale pictures '
+        "and QR pictures of random size and scale read by Pillow and zlib"
     )
     differences = [
         (
@@ -346,6 +398,39 @@ class SeedQR(Area):
         return self.compare("seedqr.codex32qr", {"string": string, "title": "Share A of L0VE",
                                                  "line": "codex32 share"},
                             ref, normalize=picture_read)
+
+    def png_grey(self):
+        rng = self.rng
+        w, h = rng.randint(1, 300), rng.randint(1, 120)
+        n = rng.choice([w * h, w * h, rng.randint(0, w * h), w * h + rng.randint(1, 50)])
+        pixels = self.randbytes(n)
+        # A picture long enough to run past one stored deflate block.
+        if rng.random() < 0.05:
+            w, h = 301, 257
+            pixels = self.randbytes(w * h)
+        full = (pixels[:w * h] + b"\xff" * (w * h))[:w * h]
+        self.compare("seedqr.png", {"kind": "grey", "width": w, "height": h,
+                                    "pixels": pixels.hex()},
+                     lambda: {"png": [full[y * w:(y + 1) * w].hex() for y in range(h)]},
+                     normalize=png_rows)
+
+    def png_qr(self):
+        rng = self.rng
+        data = "".join(rng.choice("0123456789") for _ in range(rng.randint(1, 200))).encode()
+        ecc, scale = rng.randrange(4), rng.randint(1, 8)
+
+        def ref():
+            rows = code(QrSegment.make_numeric(data.decode()), ecc)["rows"]
+            size = len(rows)
+            row = lambda r: b"".join((b"\x00" if c == "1" else b"\xff") * scale for c in r)
+            blank = b"\xff" * ((size + 8) * scale)
+            lines = [blank] * (4 * scale)
+            for r in rows:
+                lines += [b"\xff" * (4 * scale) + row(r) + b"\xff" * (4 * scale)] * scale
+            lines += [blank] * (4 * scale)
+            return {"png": [x.hex() for x in lines]}
+        self.compare("seedqr.png", {"kind": "qr", "data": data.hex(), "ecc": ecc,
+                                    "scale": scale}, ref, normalize=png_rows)
 
     def codex32qr_profile(self):
         pictures = profile_pictures()
@@ -486,3 +571,6 @@ class SeedQR(Area):
         self.corpus_case()
         if self.rng.random() < 0.25:
             self.codex32qr_case()
+        if self.rng.random() < 0.25:
+            self.png_grey()
+            self.png_qr()

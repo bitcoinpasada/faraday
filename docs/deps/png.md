@@ -15,7 +15,7 @@ dev-dependencies are tools and tests only.
 
 **Why this crate.** Writing a PNG needs no crate: `faraday_codec::png`
 writes QR pictures and greyscale pictures with stored deflate blocks, its
-own CRC-32 and Adler-32 (`core/faraday-codec/src/png.rs`). Reading is
+own CRC-32 (`core/faraday-codec/src/png.rs`) and the Adler-32 of `adler2` (`docs/deps/adler2.md`). Reading is
 different: a picture arrives from a stick or a phone in any colour type,
 bit depth, interlacing and compression, and an in-house inflate and
 unfilter would be a parser of untrusted input written for one use. `png` is

@@ -91,6 +91,26 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let png = faraday_core::picture::labelled_png(&c, &m, text(req, "title"), &lines);
             Ok(json!({"code": matrix(&m), "png": hex(&png)}))
         }
+        // The pictures `faraday_codec::png` writes without a label: a
+        // greyscale picture from its pixels, and a payload's code with
+        // the quiet zone round it, each module `scale` pixels.
+        "png" => match text(req, "kind") {
+            "grey" => {
+                let png = faraday_codec::png::grey_png(
+                    num(req, "width") as usize,
+                    num(req, "height") as usize,
+                    &bytes(req, "pixels"),
+                );
+                Ok(json!({"png": hex(&png)}))
+            }
+            _ => {
+                let data = bytes(req, "data");
+                let ecc = ECC[num(req, "ecc") as usize];
+                let m = qr::encode(&c, Payload::Numeric(&data), ecc).map_err(err)?;
+                let png = faraday_codec::png::qr_png(&m, num(req, "scale") as usize);
+                Ok(json!({"png": hex(&png)}))
+            }
+        },
         _ => Err(format!("unknown seedqr op {name}")),
     }
 }

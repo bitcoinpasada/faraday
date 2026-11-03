@@ -20,6 +20,7 @@ faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
 bitcoin.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
+adler2.workspace = true
 rqrr = { workspace = true, optional = true }
 
 [dev-dependencies]

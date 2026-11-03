@@ -150,6 +150,8 @@ tiny-skia = { version = "0.12", default-features = false, features = ["no-std-fl
 # lock (fontdue brought it before), so the tool adds no crate.
 ttf-parser = "0.25.1"
 png = "0.18"
+# Adler-32 of the zlib stream faraday-codec writes (docs/deps/adler2.md).
+adler2 = { version = "2.0.1", default-features = false }
 # Desktop shell (§4.1): window and software blit only, plus the OS RNG
 # that answers `Command::RequestEntropy` (docs/deps/getrandom.md).
 winit = "0.30"

@@ -764,6 +764,7 @@ version = "0.1.9"
 name = "faraday-codec"
 version = "0.1.0"
 dependencies = [
+ "adler2",
  "bitcoin",
  "faraday-bip",
  "faraday-crypto",

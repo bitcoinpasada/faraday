@@ -8,8 +8,8 @@
 //! in stored blocks, which is what deflate allows for data it does not
 //! compress: a one-bit image of a code is a few kilobytes, a labelled
 //! picture a few hundred, and a file written this way needs no
-//! compressor and no new crate. The chunks carry the CRC-32 the fountain
-//! code already has, and the zlib stream its Adler-32.
+//! compressor. The chunks carry the CRC-32 the fountain code already
+//! has, and the zlib stream its Adler-32, from `adler2`.
 
 use alloc::vec::Vec;
 
@@ -117,7 +117,9 @@ fn zlib_stored(data: &[u8]) -> Vec<u8> {
         out.extend_from_slice(&(!len).to_le_bytes());
         out.extend_from_slice(block);
     }
-    out.extend_from_slice(&adler32(data).to_be_bytes());
+    let mut adler = adler2::Adler32::new();
+    adler.write_slice(data);
+    out.extend_from_slice(&adler.checksum().to_be_bytes());
     out
 }
 
@@ -130,21 +132,4 @@ fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
     out.extend_from_slice(data);
     let crc = crc32(&out[from..]);
     out.extend_from_slice(&crc.to_be_bytes());
-}
-
-/// Adler-32 (RFC 1950 §8.2).
-fn adler32(data: &[u8]) -> u32 {
-    const MOD: u32 = 65_521;
-    let (mut a, mut b) = (1u32, 0u32);
-    // 5552 bytes is the most that can be summed before `b` can pass
-    // `u32::MAX`.
-    for block in data.chunks(5552) {
-        for &byte in block {
-            a += u32::from(byte);
-            b += a;
-        }
-        a %= MOD;
-        b %= MOD;
-    }
-    (b << 16) | a
 }

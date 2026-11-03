@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
@@ -1730,7 +1730,7 @@ Reference's list of conditions.
 | C9 | Hex from `base16ct`, one module; with X4 | §5.11, §9.7 | About half a day, and X4's |
 | C10 | The descriptor checksum from miniscript | §5.12 | About 2 hours |
 | C11 | JSON from `serde_json` behind Faraday's visitor; `holds_secret` keeps no value; with X5 | §5.13, §9.7 | About 1 day, and X5's |
-| C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Under an hour, and X6's |
+| C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
 | C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, which F190's vault replaces) | §5.15, §9.7 | About 2 hours, and X7's |
 | C14 | The quiz's seed from the session's generator | §5.16 | Built |
 | C15 | One copy of each kept piece; with X12 | §5.17, §9.7 | About 1 day, and X12's |

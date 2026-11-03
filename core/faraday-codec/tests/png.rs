@@ -32,3 +32,27 @@ fn pixels_a_short_buffer_lacks_are_white() {
     assert_eq!((dw, dh), (3, 2));
     assert_eq!(got, [0, 10, 20, 30, 255, 255]);
 }
+
+/// The last four bytes of the picture's zlib stream: its Adler-32.
+fn adler_of(file: &[u8]) -> [u8; 4] {
+    let mut at = 8;
+    let mut idat = Vec::new();
+    while at < file.len() {
+        let len = u32::from_be_bytes(file[at..at + 4].try_into().unwrap()) as usize;
+        if &file[at + 4..at + 8] == b"IDAT" {
+            idat.extend_from_slice(&file[at + 8..at + 8 + len]);
+        }
+        at += 12 + len;
+    }
+    idat[idat.len() - 4..].try_into().unwrap()
+}
+
+#[test]
+fn the_zlib_stream_ends_in_the_adler_32_of_the_rows() {
+    // The rows are a filter byte of 0 and the nine letters of
+    // "Wikipedia", whose Adler-32 with that byte before it is
+    // 0x11E70398 (zlib's `adler32`).
+    assert_eq!(adler_of(&grey_png(9, 1, b"Wikipedia")), 0x11E7_0398u32.to_be_bytes());
+    // No rows' bytes at all: the Adler-32 of nothing is 1 (RFC 1950 §8.2).
+    assert_eq!(adler_of(&grey_png(0, 0, &[])), 1u32.to_be_bytes());
+}
