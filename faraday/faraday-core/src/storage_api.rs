@@ -527,7 +527,8 @@ pub enum StorageCommand {
     /// Open nakamotoinstitute.org in this computer's browser.
     OpenInstitute,
     /// Keep the Inbox and Outbox where the next process finds them. They
-    /// hold nothing secret (`docs/history/PLAN.md` §5.2).
+    /// may hold a secret file let out past the secret sheet, or a words
+    /// file until a lock (`docs/history/PLAN.md` §5.2).
     SaveBoxes {
         /// Inbox files.
         inbox: Vec<(String, Vec<u8>)>,

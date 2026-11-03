@@ -118,6 +118,17 @@ Moved to `docs/history/KEYS-LOG.md`.
   nonce is dropped too), and a round that had begun is lost, so the next
   press opens a new one from a new seed. A round is never put back from a
   stale answer.
+- **What wiping does not reach.** Faraday's types wipe what they hold;
+  five things are outside them (`docs/ESTABLISHED.md` §4.9): a secret
+  held in a plain type while it is live; a copy in freed heap until its
+  block is reused or the process ends (on the device the next lock, or
+  power-off for faraday-disk; in Faraday Demo and the Starter, until the
+  program exits); the stack and registers, including copies of `Copy`
+  types and the slots a value was moved from; memory other code
+  allocates itself (C libraries, the graphics stack, the window system's
+  text input and clipboard, the kernel's pipe buffers, files written);
+  and swap, sleep images and crash dumps, none on the stick and the Pi,
+  the desktop operating system's for Faraday Demo and the Starter.
 - **The crates that compute and keep nothing** stay as they are:
   faraday-bip, -psbt, -crypto, -backup, -vault, -pgp and -sb. Only
   faraday-keys calls their secret-taking functions.

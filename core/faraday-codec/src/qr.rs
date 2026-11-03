@@ -3,8 +3,9 @@
 //!
 //! The algorithm is a port of Project Nayuki's QR Code generator
 //! (`qrcodegen`, MIT licensed, © Project Nayuki), restructured for
-//! `no_std` and for secret payloads: no published QR encoder is `no_std`.
-//! What this port changes:
+//! `no_std` and for secret payloads. No QR encoder comes from a publisher
+//! Faraday's dependency review trusts; this port of Nayuki's `qrcodegen`
+//! wipes a SeedQR's buffers. What this port changes:
 //!
 //! - the module grid is a fixed bitset ([`QrMatrix`]) that zeroizes on
 //!   drop, since a SeedQR *is* the seed;

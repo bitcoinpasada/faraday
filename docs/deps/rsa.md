@@ -13,9 +13,13 @@ carries one RSA signature. Faraday-only.
 `alloc`, constant time over `crypto-bigint`, and its keys zeroize. Version
 0.10 is the one on the graph's RustCrypto generation (`digest 0.11`,
 `sha2 0.11`, `signature 3`, `rand_core 0.10`); the stable 0.9 line would
-bring a second hashing stack and carries RUSTSEC-2023-0071, the Marvin
-timing side channel, which 0.10's `crypto-bigint` arithmetic closes. 0.10
-is still a release candidate, so the version is pinned exactly
+bring a second hashing stack. Both 0.9 and 0.10 carry RUSTSEC-2023-0071,
+the Marvin timing side channel (the advisory lists 0.10.0-rc.18 as still
+affected, with no patched version); `deny.toml` ignores it because the
+advisory is not reachable in Faraday, which never decrypts with RSA and
+signs with blinding. Key generation's prime search is not constant time
+(`docs/ESTABLISHED.md` §4.10). 0.10 is still a release candidate, so the
+version is pinned exactly
 (`=0.10.0-rc.18`). Writing RSA key generation by hand (prime search over a
 big-integer library) was the alternative and is not one.
 

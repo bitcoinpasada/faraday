@@ -1444,7 +1444,7 @@ fuzz_none = "Takes values the program holds; no outside input is parsed."
 [action.secrets]
 reveal = "none"
 constant_time = "Secret and Pinned comparison is constant time (subtle's ConstantTimeEq, documented in secret.rs and pinned.rs); sealing is the chacha20poly1305 crate's, not stated by the library."
-wiped = "A Secret and a Pinned page are zeroized on drop; nothing is sealed in memory, since no shipped code seals a value."
+wiped = "A Secret and a Pinned page are zeroized on drop; nothing is sealed in memory, since no shipped code seals a value. Not reached: a secret while it is live in a plain type, the stack and registers, memory other code allocates, a copy in freed heap until the process ends (the next lock on the device), and anything outside the process (none on the device; the computer's own on the desktop)."
 
 [action.limits]
 lines = [
@@ -2319,8 +2319,8 @@ fuzz = [
 
 [action.secrets]
 reveal = "none"
-constant_time = "Only public keys and public text are read; nothing here holds a secret."
-wiped = "Nothing secret is held."
+constant_time = "Only public keys and public text are read, except that an Electrum file is parsed to find whether it holds a secret."
+wiped = "Faraday's own types hold nothing, but an Electrum file that holds an xprv or a seed is parsed into plain strings (holds_secret), freed unwiped, until the next lock (ESTABLISHED §4.8)."
 
 [action.limits]
 lines = [
@@ -3668,7 +3668,7 @@ reveal = [
   "Reveal::Bip85Child",
 ]
 constant_time = "not stated by the library"
-wiped = "The derived private key and the 64 bytes are zeroized before the function returns, and every value returned is a buffer that zeroizes on drop."
+wiped = "The derived private key and the 64 bytes are zeroized before the function returns, and every value returned is a buffer that zeroizes on drop. The copies bitcoin makes inside derivation are freed unwiped, until the next lock (ESTABLISHED §4.8)."
 
 [action.limits]
 lines = [
@@ -4581,7 +4581,7 @@ fuzz = ["xkey"]
 [action.secrets]
 reveal = "none"
 constant_time = "libsecp256k1 documents its key multiplication as constant time; the base58 decode is not stated to be."
-wiped = "The decoded buffer is zeroized before the reader returns; the key is held on a pinned page and erased when it is dropped, at Done, a lock or leaving the Sweep sheet."
+wiped = "The decoded buffer is zeroized before the reader returns, but base58ck's own scratch and result vectors are freed unwiped, until the next lock (ESTABLISHED §4.8); the key is held on a pinned page and erased when it is dropped, at Done, a lock or leaving the Sweep sheet."
 
 [action.limits]
 lines = [
@@ -5768,8 +5768,8 @@ fuzz = ["seed_parts"]
 
 [action.secrets]
 reveal = ["Reveal::BackupStick"]
-constant_time = "Not stated by the code: the arithmetic is table lookups over GF(32)."
-wiped = "The string, its payload and the seed are fixed arrays wiped on drop; a codex32 share record's string is a secret."
+constant_time = "Not constant time: GF(32) multiplication and the checksum branch on the bits of secret symbols, and a character is found by a lookup on its value (ESTABLISHED §4.4)."
+wiped = "The string, its payload and the seed are fixed arrays wiped on drop; a codex32 share record's string is a secret. A fresh set's initial shares are freed unwiped when the share list grows, until the next lock (ESTABLISHED §4.8)."
 
 [action.limits]
 lines = [
@@ -7448,7 +7448,7 @@ not_crosschecked = "RFC 6238 and RFC 4226 publish vectors that cover the algorit
 [action.secrets]
 reveal = ["Reveal::VaultEntry"]
 constant_time = "Not stated by the hmac or sha1 crates."
-wiped = "The decoded secret is held in a zeroizing buffer; the HMAC output is a plain buffer dropped at the end of the call."
+wiped = "The decoded secret is held in a zeroizing buffer; the HMAC output is a plain buffer dropped at the end of the call, and hmac's key block is freed unwiped, until the next lock (ESTABLISHED §4.8, §6.7)."
 
 [action.limits]
 lines = [
@@ -7734,7 +7734,7 @@ other = [
 [action.secrets]
 reveal = ["Reveal::GpgPaperkey"]
 constant_time = "Not applicable: no secret-dependent comparison is made."
-wiped = "The paperkey text, the secret key packets and the seeds are Zeroizing values wiped on drop; the paperkey is computed only while it is held to show."
+wiped = "The paperkey text, the secret key packets and the seeds are Zeroizing values wiped on drop; the paperkey is computed only while it is held to show. Copies other crates make while encoding are freed unwiped, until the next lock (ESTABLISHED §4.8)."
 
 [action.limits]
 lines = [
