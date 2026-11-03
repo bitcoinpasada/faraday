@@ -37,7 +37,11 @@ nothing else.
 - The judges `docs/ESTABLISHED.md` §9.6 lists for the cross-check are
   distribution packages and vendored code to come; each is added here
   by the change that first needs it, and `just crosscheck` fails
-  without it.
+  without it. It checks first that every tool it needs is there and
+  names a missing one (`tools/crosscheck/judges.py`), runs the tests
+  below that skip without a tool under plain `just` with
+  `FARADAY_JUDGES_REQUIRED=1`, so a missing tool fails them, and runs
+  the OVMF Secure Boot check (§6.3's tools and `systemd-boot-efi`).
 - **Bitcoin Core v31.1**, which the cross-check requires: the official
   release tarball for x86_64 or aarch64 Linux, fetched and checked once
   by a script that needs **gpg** and git (§7). It is not in the
@@ -48,10 +52,16 @@ nothing else.
   GPG and Secure Boot tests run these tools against Faraday's files and
   fail where one is missing; nothing skips them. On Debian or Ubuntu:
   `sudo apt install gnupg paperkey openssl sbsigntool`.
-- **mtools, dosfstools, gdisk, fdisk** (`mkfs.fat`, `fsck.fat`, `sgdisk`,
-  `sfdisk`; on some systems `sfdisk` comes with util-linux): the FAT and
-  stick-image tests skip with a note without them.
-- **QEMU and OVMF**, to boot the stick image without a stick (§6.3).
+- **mtools, dosfstools, gdisk, fdisk** (`mkfs.fat`, `fsck.fat`, `fatlabel`,
+  `mcopy`, `sgdisk`, `sfdisk`; on some systems `sfdisk` comes with
+  util-linux): the FAT and stick-image tests skip with a note without
+  them under `just`, and fail without them under `just crosscheck`.
+- **QEMU and OVMF** (`qemu-system-x86_64`, OVMF's Secure Boot firmware
+  (`OVMF_CODE.secboot.4m.fd`, or `OVMF_CODE_4M.secboot.fd` on Debian and
+  Ubuntu), and `systemd-boot-efi`), to boot the stick
+  image without a stick (§6.3); `just crosscheck` boots OVMF over
+  Faraday's Secure Boot keys and fails without them. On Debian or
+  Ubuntu: `sudo apt install qemu-system-x86 ovmf systemd-boot-efi`.
 - On Linux, the X11 or Wayland client libraries at runtime, including
   `libxkbcommon-x11`, for the desktop app.
 

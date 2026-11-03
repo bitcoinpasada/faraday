@@ -325,6 +325,9 @@ fn a_stick_made_for_its_size_reads_clean_in_other_tools_at_1_32_and_256_gb() {
         && runs("fsck.fat", &["--help"]))
     {
         eprintln!("sfdisk or dosfstools is not installed: the check against them is skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and sfdisk or dosfstools is not installed");
+        }
         return;
     }
     let sgdisk = runs("sgdisk", &["--version"]);
@@ -410,6 +413,9 @@ fn a_name_the_starter_wrote_reads_the_same_in_fatlabel_and_the_volume_passes_fsc
         && runs("fatlabel", &["--help"]))
     {
         eprintln!("sfdisk or dosfstools is not installed: the check against them is skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and sfdisk or dosfstools is not installed");
+        }
         return;
     }
     let dir = tmp("name-tools");

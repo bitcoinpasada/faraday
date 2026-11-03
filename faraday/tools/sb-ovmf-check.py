@@ -20,8 +20,9 @@ For each enrolment policy, Faraday's own keys alone and Windows-compatible:
    and the unsigned one must still be refused after it.
 
 Each boot's serial output is kept in OUT_DIR. Exit status 0 only if every
-step held. QEMU, OVMF's Secure Boot build (`OVMF_CODE.secboot.4m.fd`) and
-mtools are needed; nothing is downloaded.
+step held. QEMU, OVMF's Secure Boot build (`OVMF_CODE.secboot.4m.fd`, or
+`OVMF_CODE_4M.secboot.fd` on Debian and Ubuntu) and mtools are needed;
+nothing is downloaded.
 """
 
 import os
@@ -32,6 +33,12 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 OVMF_DIRS = ["/usr/share/edk2/x64", "/usr/share/edk2-ovmf/x64", "/usr/share/OVMF"]
+# The Secure Boot build and its empty variable store, as Arch and Fedora
+# name them, then as Debian and Ubuntu do.
+OVMF_PAIRS = [
+    ("OVMF_CODE.secboot.4m.fd", "OVMF_VARS.4m.fd"),
+    ("OVMF_CODE_4M.secboot.fd", "OVMF_VARS_4M.fd"),
+]
 SYSTEMD_BOOT = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 ENROLLED = b"successfully enrolled"
 DENIED = b"Access Denied"
@@ -47,11 +54,11 @@ def need(path_or_tool):
 
 def ovmf():
     for d in OVMF_DIRS:
-        code = os.path.join(d, "OVMF_CODE.secboot.4m.fd")
-        vars_ = os.path.join(d, "OVMF_VARS.4m.fd")
-        if os.path.exists(code) and os.path.exists(vars_):
-            return code, vars_
-    sys.exit("sb-ovmf-check: no OVMF Secure Boot build (OVMF_CODE.secboot.4m.fd)")
+        for code, vars_ in OVMF_PAIRS:
+            code, vars_ = os.path.join(d, code), os.path.join(d, vars_)
+            if os.path.exists(code) and os.path.exists(vars_):
+                return code, vars_
+    sys.exit("sb-ovmf-check: no OVMF Secure Boot build (OVMF_CODE.secboot.4m.fd or OVMF_CODE_4M.secboot.fd)")
 
 
 def esp(path, kit):

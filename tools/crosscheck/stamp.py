@@ -174,7 +174,8 @@ def distribution_versions():
             out += f"{name} {metadata.version(name)}\n"
         except metadata.PackageNotFoundError:
             out += f"{name} missing\n"
-    return out + f"{go_version()}\n"
+    import judges
+    return out + f"{go_version()}\n" + judges.versions()
 
 
 def go_version():

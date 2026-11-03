@@ -38,6 +38,9 @@ fn have_tools() -> bool {
         && Command::new(tool("mcopy")).arg("-V").output().is_ok();
     if !ok {
         eprintln!("mkfs.fat or mtools is not installed: the FAT checks are skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and mkfs.fat or mtools is not installed");
+        }
     }
     ok
 }

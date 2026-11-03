@@ -199,6 +199,9 @@ fn script() -> PathBuf {
 /// takes it for a Faraday stick, or `None` where `sfdisk` is not here.
 fn script_knows(name: &str, disk: &Sparse) -> Option<bool> {
     if Command::new("sfdisk").arg("--version").output().is_err() {
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and sfdisk is not installed");
+        }
         return None;
     }
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("stick-layout");

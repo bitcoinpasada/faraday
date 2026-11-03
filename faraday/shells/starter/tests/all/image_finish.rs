@@ -26,6 +26,11 @@ fn installed() -> bool {
         && runs("mcopy", &["--version"]);
     if !ok {
         eprintln!("sfdisk, sgdisk, dosfstools or mtools is not installed: the check is skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!(
+                "FARADAY_JUDGES_REQUIRED is set and sfdisk, sgdisk, dosfstools or mtools is not installed"
+            );
+        }
     }
     ok
 }

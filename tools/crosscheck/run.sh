@@ -22,6 +22,12 @@ mkdir -p "$progress"
 rm -f "$progress/progress.json" "$progress/report.txt" out/crosscheck-record.txt
 say() { echo "$(date +%H:%M:%S) $*" | tee -a "$progress/progress.log" >&2; }
 : > "$progress/progress.log"
+# Every outside tool the run needs, before anything is built; a missing one
+# stops the run and is named (tools/crosscheck/judges.py).
+if ! gone=$(python3 -I -B tools/crosscheck/judges.py check 2>&1); then
+    echo "$gone" | while read -r line; do say "$line"; done
+    exit 2
+fi
 say "build: the Rust command (cargo build --frozen -p faraday-crosscheck)"
 
 exe=$(cargo build --frozen -q -p faraday-crosscheck --message-format=json-render-diagnostics \
@@ -65,6 +71,35 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
     exit 2
 fi
 say "build: btcd's BIP-322 program done"
+
+# The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
+# rule 4): the tests that skip without an outside tool under plain `just`
+# fail without it here, and QEMU boots OVMF's Secure Boot firmware over
+# faraday-sb's keys. Not for one area or the identity run.
+case " $* " in
+    *" --area "*|*" --area="*|*" --identity "*) ;;
+    *)
+        say "judges: the judged tests (FARADAY_JUDGES_REQUIRED=1: faraday-fat, faraday-files, the Starter's stick tests)"
+        if ! FARADAY_JUDGES_REQUIRED=1 cargo nextest run --frozen --no-fail-fast \
+                -p faraday-fat -p faraday-files -p faraday-starter-shell \
+                -E 'binary(judged) | binary(formatted) | binary(foreign) | (package(faraday-starter-shell) & test(/^(ids|image_finish|stick_layout)::/))' \
+                >"$progress/judged-tests.log" 2>&1; then
+            tail -n 40 "$progress/judged-tests.log" >&2
+            say "judges: FAILED: a judged test failed or its tool is missing (out/crosscheck/judged-tests.log)"
+            exit 2
+        fi
+        say "judges: the judged tests done"
+        say "judges: Secure Boot in OVMF (faraday/tools/sb-ovmf-check.py)"
+        mkdir -p "$progress/sb-ovmf"
+        if ! python3 -I -B faraday/tools/sb-ovmf-check.py "$PWD/$progress/sb-ovmf" \
+                >"$progress/sb-ovmf.log" 2>&1; then
+            tail -n 40 "$progress/sb-ovmf.log" >&2
+            say "judges: FAILED: the OVMF Secure Boot run (out/crosscheck/sb-ovmf.log)"
+            exit 2
+        fi
+        say "judges: the OVMF run done"
+        ;;
+esac
 
 # A network namespace of its own, with loopback only: whatever tries to
 # fetch fails instead of downloading. crosscheck.py brings `lo` up for

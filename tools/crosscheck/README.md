@@ -23,6 +23,14 @@ Faraday's second version" below says which, per action.
     just crosscheck-test         the harness's own tests (no Rust)
     just crosscheck-identity     the same report under 1 and 4 workers (and PyPy)
 
+`run.sh` first checks that every outside tool is there (`judges.py`:
+dosfstools, mtools, `sfdisk`, `sgdisk`, QEMU, OVMF's Secure Boot firmware,
+systemd-boot) and stops naming a missing one; their versions go into the
+stamp. A full run then runs the judged test files (faraday-fat's `judged`,
+`formatted`, faraday-files' `foreign`, the Starter's `ids`, `image_finish`
+and `stick_layout`) with `FARADAY_JUDGES_REQUIRED=1`, under which a missing
+tool fails the test instead of skipping it, and the OVMF Secure Boot run
+(`faraday/tools/sb-ovmf-check.py`). Not with `--area` or `--identity`.
 `run.sh` builds the Rust command with `cargo build --frozen` and runs
 `crosscheck.py` in a network namespace of its own (`unshare --user
 --net`), so nothing can be fetched. `crosscheck.py` refuses to run with

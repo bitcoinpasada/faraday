@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""The outside programs `just crosscheck` needs (docs/ESTABLISHED.md §9.2, rule 4).
+
+    judges.py check      exit 1 and name every missing tool; print nothing else
+    judges.py versions   the stamp's lines, `<tool> <version>` each
+
+The judged test files (tests that skip without these tools under plain
+`just`) run with FARADAY_JUDGES_REQUIRED=1 under `just crosscheck`, and the
+OVMF Secure Boot run (faraday/tools/sb-ovmf-check.py) needs QEMU and the
+firmware. The tools are looked for as the tests look: FARADAY_FATTOOLS,
+/usr/sbin, /sbin, then the PATH.
+"""
+
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+
+# (tool, the package that has it on Debian or Ubuntu, the version command)
+TOOLS = [
+    ("mkfs.fat", "dosfstools", ["--version"]),
+    ("fsck.fat", "dosfstools", ["-V"]),
+    ("fatlabel", "dosfstools", ["--version"]),
+    ("mcopy", "mtools", ["-V"]),
+    ("mmd", "mtools", ["-V"]),
+    ("mdir", "mtools", ["-V"]),
+    ("sfdisk", "util-linux", ["--version"]),
+    ("sgdisk", "gdisk", ["--version"]),
+    ("qemu-system-x86_64", "qemu-system-x86", ["--version"]),
+]
+# OVMF's Secure Boot firmware, as faraday/tools/sb-ovmf-check.py looks.
+OVMF_DIRS = ["/usr/share/edk2/x64", "/usr/share/edk2-ovmf/x64", "/usr/share/OVMF"]
+OVMF_PAIRS = [
+    ("OVMF_CODE.secboot.4m.fd", "OVMF_VARS.4m.fd"),
+    ("OVMF_CODE_4M.secboot.fd", "OVMF_VARS_4M.fd"),
+]
+# The image the OVMF run signs and boots.
+SYSTEMD_BOOT = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+
+
+def find(name):
+    d = os.environ.get("FARADAY_FATTOOLS")
+    if d:
+        p = pathlib.Path(d) / name
+        if p.is_file():
+            return str(p)
+    for d in ("/usr/sbin", "/sbin"):
+        p = pathlib.Path(d) / name
+        if p.is_file():
+            return str(p)
+    return shutil.which(name)
+
+
+def ovmf():
+    for d in OVMF_DIRS:
+        for code, vars_ in OVMF_PAIRS:
+            if os.path.exists(os.path.join(d, code)) and os.path.exists(os.path.join(d, vars_)):
+                return os.path.join(d, code)
+    return None
+
+
+def first_line(path, args):
+    run = subprocess.run([path, *args], capture_output=True, text=True)
+    text = (run.stdout + run.stderr).strip().splitlines()
+    return text[0].strip() if text else "unknown"
+
+
+def missing():
+    out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
+    if not ovmf():
+        out.append("OVMF's Secure Boot firmware, OVMF_CODE.secboot.4m.fd or "
+                   "OVMF_CODE_4M.secboot.fd and its empty variable store "
+                   "(package ovmf, or edk2-ovmf)")
+    if not os.path.exists(SYSTEMD_BOOT):
+        out.append(f"systemd-boot's {SYSTEMD_BOOT} (package systemd-boot-efi)")
+    return out
+
+
+def versions():
+    lines = []
+    for tool, _, args in TOOLS:
+        path = find(tool)
+        lines.append(f"{tool} {first_line(path, args) if path else 'missing'}")
+    code = ovmf()
+    if code:
+        digest = subprocess.run(["sha256sum", code],
+                                capture_output=True, text=True).stdout.split()[0]
+        lines.append(f"ovmf {os.path.basename(code)} {digest}")
+    else:
+        lines.append("ovmf missing")
+    return "".join(line + "\n" for line in lines)
+
+
+def main():
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
+    if cmd == "versions":
+        sys.stdout.write(versions())
+        return 0
+    gone = missing()
+    for g in gone:
+        print(f"crosscheck: missing judge: {g}", file=sys.stderr)
+    if gone:
+        print("(docs/DEVELOPING.md §1, prerequisites; docs/ESTABLISHED.md §9.2 rule 4)",
+              file=sys.stderr)
+    return 1 if gone else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

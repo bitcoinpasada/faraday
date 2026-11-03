@@ -7952,6 +7952,7 @@ tests = [
 ]
 not_crosschecked = "Judged by openssl in faraday/faraday-sb/tests/judged.rs, which fails where openssl is missing; not by an F79 area."
 other = [
+  "Secure Boot in real UEFI firmware (`faraday/tools/sb-ovmf-check.py`): QEMU boots OVMF's Secure Boot build (edk2, outside Faraday) in Setup Mode, systemd-boot enrols faraday-sb's keys as authenticated variables, and the firmware takes only a PK signed by PK, a KEK by PK and a db by KEK, then runs the db-signed image and refuses the unsigned one and the signed one altered by a byte; run by `just crosscheck`, required",
   "Real `openssl` reads the certificates and verifies the `.auth` PKCS #7 signatures and every private key made (`faraday/faraday-sb/tests/judged.rs`); OpenSSL's authors, outside Faraday; required, nothing skips it (docs/DEVELOPING.md)",
 ]
 
@@ -8025,6 +8026,7 @@ fuzz = [
 ]
 not_crosschecked = "Judged by sbverify and openssl in faraday/faraday-sb/tests/judged.rs, which fails where one is missing; not by an F79 area."
 other = [
+  "Secure Boot in real UEFI firmware (`faraday/tools/sb-ovmf-check.py`): QEMU boots OVMF's Secure Boot build (edk2, outside Faraday) in Setup Mode, systemd-boot enrols faraday-sb's keys as authenticated variables, and the firmware takes only a PK signed by PK, a KEK by PK and a db by KEK, then runs the db-signed image and refuses the unsigned one and the signed one altered by a byte; run by `just crosscheck`, required",
   "Real `sbverify` (sbsigntools, by its authors, outside Faraday) verifies a signed image against the db certificate and refuses an altered one, and `openssl` (OpenSSL's authors) checks the PKCS #7 signature (`faraday/faraday-sb/tests/judged.rs`); required, nothing skips it",
 ]
 
@@ -8087,6 +8089,7 @@ tests = [
 fuzz = ["pe_image"]
 not_crosschecked = "Judged by images signed by sbsign and osslsigncode and by sbverify (faraday/faraday-sb/tests/judged.rs), not by an F79 area; sbverify fails the test where it is missing."
 other = [
+  "Secure Boot in real UEFI firmware (`faraday/tools/sb-ovmf-check.py`): QEMU boots OVMF's Secure Boot build (edk2, outside Faraday) in Setup Mode, systemd-boot enrols faraday-sb's keys as authenticated variables, and the firmware takes only a PK signed by PK, a KEK by PK and a db by KEK, then runs the db-signed image and refuses the unsigned one and the signed one altered by a byte; run by `just crosscheck`, required",
   "Images signed by `sbsign` (sbsigntools) and `osslsigncode` (its author) are read and their signer named, and `sbverify` agrees with Faraday on a signed and an altered image (`faraday/faraday-sb/tests/judged.rs`); outside Faraday; the signed fixtures are committed, `sbverify` is required",
 ]
 
