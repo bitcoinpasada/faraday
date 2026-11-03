@@ -783,10 +783,7 @@ fn parse_participant(text: &str) -> Result<Participant, Error> {
         None => (rest, Path::default()),
     };
     let key = if key.len() == 66 && key.bytes().all(|b| b.is_ascii_hexdigit()) {
-        let mut raw = [0u8; 33];
-        for (i, b) in raw.iter_mut().enumerate() {
-            *b = u8::from_str_radix(&key[2 * i..2 * i + 2], 16).map_err(|_| Error::Key)?;
-        }
+        let raw: [u8; 33] = faraday_crypto::hex::decode_exact(key).ok_or(Error::Key)?;
         ParticipantKey::Plain(PublicKey::from_slice(&raw).map_err(|_| Error::Key)?)
     } else {
         ParticipantKey::Extended(crate::xkey::decode_xpub(key).map_err(|_| Error::Key)?)

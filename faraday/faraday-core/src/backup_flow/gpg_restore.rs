@@ -78,10 +78,12 @@ impl RestoreFrom {
         let cert = Certificate::read(file).map_err(|r| refusal_text(&r))?;
         let fp = cert.fingerprint();
         let mut line_one = String::from("00 04");
-        for b in fp {
-            line_one.push_str(&format!(" {b:02X}"));
+        let hex = faraday_crypto::hex::encode_string(&fp).to_ascii_uppercase();
+        for pair in hex.as_bytes().chunks(2) {
+            line_one.push(' ');
+            line_one.push(char::from(pair[0]));
+            line_one.push(char::from(pair[1]));
         }
-        let hex: String = fp.iter().map(|b| format!("{b:02X}")).collect();
         Ok(RestoreFrom {
             fingerprint_text: fingerprint_text(&fp),
             subkey_text: fingerprint_text(&cert.subkey_fingerprint()),
@@ -430,18 +432,12 @@ fn code_text(e: &CodeRefused) -> String {
 
 /// The certificate file kept across a lock, as hex.
 pub(crate) fn file_hex(file: &[u8]) -> String {
-    file.iter().map(|b| format!("{b:02x}")).collect()
+    faraday_crypto::hex::encode_string(file)
 }
 
 /// The certificate file read back from [`file_hex`].
 pub(crate) fn file_of_hex(s: &str) -> Option<Vec<u8>> {
-    if !s.len().is_multiple_of(2) {
-        return None;
-    }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
-        .collect()
+    faraday_crypto::hex::decode_vec(s)
 }
 
 impl BackupFlowArea {

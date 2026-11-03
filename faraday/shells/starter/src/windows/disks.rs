@@ -608,22 +608,12 @@ impl Snapshot {
 }
 
 fn hex(b: &[u8]) -> String {
-    b.iter()
-        .fold(String::with_capacity(b.len() * 2), |mut s, x| {
-            let _ = write!(s, "{x:02x}");
-            s
-        })
+    faraday_crypto::hex::encode_string(b)
 }
 
 fn unhex(s: &str) -> Option<Vec<u8>> {
     let s = s.trim();
-    if !s.len().is_multiple_of(2) {
-        return None;
-    }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
-        .collect()
+    faraday_crypto::hex::decode_vec(s)
 }
 
 /// A Faraday stick as Windows reads it without elevation: the release

@@ -84,17 +84,14 @@ fn unbase32(text: &str) -> Option<Vec<u8>> {
 }
 
 fn unhex(text: &str) -> Option<Vec<u8>> {
-    if !text.len().is_multiple_of(2)
-        || text
-            .bytes()
-            .any(|c| !matches!(c, b'0'..=b'9' | b'A'..=b'F'))
+    // BBQr writes hex in upper case, and only that is read.
+    if text
+        .bytes()
+        .any(|c| !matches!(c, b'0'..=b'9' | b'A'..=b'F'))
     {
         return None;
     }
-    (0..text.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&text[i..i + 2], 16).ok())
-        .collect()
+    faraday_crypto::hex::decode_vec(text)
 }
 
 /// Why a part or a transfer was refused: a kind, which the app words.

@@ -344,17 +344,7 @@ fn argon2id_vector(c: &Compute) -> bool {
 }
 
 fn unhex(s: &str) -> Option<Vec<u8>> {
-    if !s.len().is_multiple_of(2) {
-        return None;
-    }
-    s.as_bytes()
-        .chunks(2)
-        .map(|pair| {
-            let hi = (pair[0] as char).to_digit(16)?;
-            let lo = (pair[1] as char).to_digit(16)?;
-            Some((hi * 16 + lo) as u8)
-        })
-        .collect()
+    faraday_crypto::hex::decode_vec(s)
 }
 
 #[cfg(test)]

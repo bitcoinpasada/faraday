@@ -9,6 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+base16ct = { workspace = true }
 sha2 = { workspace = true }
 lzma-rust2 = { workspace = true }
 

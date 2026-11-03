@@ -56,15 +56,6 @@ pub struct Line {
     pub crc: u32,
 }
 
-fn hex_value(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
-
 /// Line `n` of a paperkey's base16 form, as printed or typed: an optional
 /// number and colon (checked against `n`), then bytes in hex and the
 /// line's CRC-24 in six hex digits, spaces anywhere. The CRC is checked
@@ -83,32 +74,27 @@ pub fn line(n: u32, text: &str) -> Result<Line, LineError> {
         }
         rest = &text[colon + 1..];
     }
-    let mut digits = 0usize;
+    // The digits with the spaces taken out, sized once so that no copy is
+    // left behind by growing.
+    let mut digits = Zeroizing::new(Vec::with_capacity(rest.len()));
     for b in rest.bytes() {
         match b {
             b' ' | b'\t' => {}
-            _ if hex_value(b).is_some() => digits += 1,
+            _ if b.is_ascii_hexdigit() => digits.push(b),
             _ => return Err(LineError::Chars),
         }
     }
-    if digits < 6 || !digits.is_multiple_of(2) {
+    if digits.len() < 6 || !digits.len().is_multiple_of(2) {
         return Err(LineError::Crc);
     }
-    let count = (digits - 6) / 2;
-    // Sized once, so that no copy is left behind by growing.
-    let mut bytes = Zeroizing::new(Vec::with_capacity(count));
-    let mut crc = 0u32;
-    let mut high: Option<u8> = None;
-    for (seen, v) in rest.bytes().filter_map(hex_value).enumerate() {
-        if seen < 2 * count {
-            match high.take() {
-                Some(h) => bytes.push(h << 4 | v),
-                None => high = Some(v),
-            }
-        } else {
-            crc = crc << 4 | u32::from(v);
-        }
-    }
+    let mut decoded = Zeroizing::new(alloc::vec![0u8; digits.len() / 2]);
+    base16ct::mixed::decode(&digits[..], &mut decoded).map_err(|_| LineError::Chars)?;
+    let count = decoded.len() - 3;
+    let crc = decoded[count..]
+        .iter()
+        .fold(0u32, |crc, &b| crc << 8 | u32::from(b));
+    let mut bytes = decoded;
+    bytes.truncate(count);
     if count > 0 && crc24(&bytes) != crc {
         return Err(LineError::Crc);
     }

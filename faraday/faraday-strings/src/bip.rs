@@ -162,10 +162,13 @@ pub fn xkey_error(e: &xkey::Error) -> String {
         E::Length(n) => fill(EN.bip_xkey_length, &[&n.to_string()]),
         E::UnknownVersion(v) => fill(
             EN.bip_xkey_version,
-            &[&format!("{:02x}{:02x}{:02x}{:02x}", v[0], v[1], v[2], v[3])],
+            &[&faraday_crypto::hex::encode_string(v)],
         ),
         E::ZeroDepth => EN.bip_xkey_zero_depth.into(),
-        E::Pad(b) => fill(EN.bip_xkey_pad, &[&format!("{b:02x}")]),
+        E::Pad(b) => fill(
+            EN.bip_xkey_pad,
+            &[&faraday_crypto::hex::encode_string(&[*b])],
+        ),
         E::Key(_) => EN.bip_xkey_invalid.into(),
     }
 }

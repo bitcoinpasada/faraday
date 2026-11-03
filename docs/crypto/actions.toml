@@ -1473,6 +1473,7 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "Answers only its own reason, and only for a key with no words; the codex32 secret is recovered from the strings held once their count reaches the set's threshold."
 
 [action.checked]
@@ -2010,6 +2011,7 @@ libraries = [
   "bitcoin",
   "miniscript",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "A wallet policy (BIP 388) and a descriptor are one wallet, written with h for hardened and the multipath /<0;1>/* form; a descriptor with a checksum that does not match is refused; the checksum is BIP 380's, worked out by miniscript; a tr() wallet states who can spend by the key path."
 
 [action.checked]
@@ -2274,6 +2276,7 @@ libraries = [
   "bitcoin",
   "serde_json",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "JSON is read by serde_json, behind Faraday's refusal of a key named twice and of a nesting deeper than 32 (and of a text over 1 MiB); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth. An account key alone becomes a wallet of the kind its path's purpose names (44 legacy, 49 nested SegWit, 84 native SegWit, 86 taproot), and a purpose of 45, 48 or 87 is a cosigner's key and no wallet on its own; a key of a test network is taken as testnet unless the session is already on a test network; the file for Wasabi is written only for a native SegWit single-key wallet whose key has an origin at exactly 84h/0h/0h or 84h/1h/0h. Specter DIY's addwallet command is read with its name before the last `&`, its descriptor's checksum checked where it has one (Specter DIY drops it unread), and keys none of which carries a derivation as the two chains; a single-key or multisig wallet is written without its keys' derivations and with no checksum, as Sparrow writes it, any other with them."
 
 [action.checked]
@@ -2374,6 +2377,7 @@ libraries = [
   "secp256k1",
   "base64ct",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "The signature is the legacy compact recoverable signature every signer writes: the public key is recovered from it and compared with the record's; a descriptor record's first address is derived and compared; a record signed with a secret that is not the account's is refused rather than written."
 
 [action.checked]
@@ -2530,7 +2534,10 @@ libraries = [
   "secp256k1",
   "bitcoin",
 ]
-through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
+]
 adds = "Written here over libsecp256k1's point and scalar operations; keys inside a musig() are sorted after derivation and before aggregation as BIP 390 requires, while key_agg itself sorts nothing."
 written_here = "BIP-327 MuSig2 (`faraday-bip::musig`)"
 
@@ -2762,7 +2769,10 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
-through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
+]
 adds = "The calculator shows the three hashes of any bytes, says which of Base58, Base58Check, bech32, bech32m or hex a text is, reads a segwit address as its witness version and program, and writes the same bytes in the other spellings."
 
 [action.checked]
@@ -2904,7 +2914,10 @@ code = [
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
-through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
+]
 adds = "Each flip is one bit, packed most significant bit first without hashing; hex is two digits a byte, 32 to 64 digits, taken as they are; the commitment is a separate SHA-256 of what went in."
 
 [action.checked]
@@ -3636,6 +3649,7 @@ libraries = [
 through = [
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
 ]
 adds = "The path is m/83696968'/app'/params'/index', fully hardened; the derived private key is run through HMAC-SHA512 with the BIP's key; the passwords' base64 (RFC 4648) is the base64ct crate's and their base85 (RFC 1924's alphabet) is written here; every value is a fixed-size buffer that zeroizes on drop and nothing here allocates."
 
@@ -3875,6 +3889,7 @@ libraries = [
   "bitcoin",
   "secp256k1",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "LND's key is m/1017'/coin'/6'/0/0 of the aezeed's entropy taken as the BIP-32 seed; ldk-node's is m/0' of a second master key made from the first master's private key."
 
 [action.checked]
@@ -3985,7 +4000,10 @@ libraries = [
   "bitcoin",
   "secp256k1",
 ]
-through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
+]
 adds = "The scan and spend keys are taken at BIP 352's paths; a transaction's eligible inputs give the input hash and shared secret, and every output it pays to the wallet is found with the label it was paid to, up to K_max; the scan private key leaves only as BIP 392's spscan1q text, or the sp() descriptor over it with its key origin, for a named reason. An sp() descriptor, or its key alone after its origin, is read as a silent payments record: the scan key is read for its public key, in constant time, and wiped; an origin that is missing or not BIP 352's path on the key's network is refused, as are sp(KEY,KEY), spspend and a key with a derivation; a text that holds a scan key is a wallet file in Files, and one that holds a spend key a secret no scanner files. The app's check of a transaction takes its previous transactions one at a time and gives the previous outputs, in input order, once every one is known."
 written_here = "BIP-352 silent payments (`faraday-bip::silent`)"
 
@@ -4396,7 +4414,10 @@ code = ["core/faraday-psbt/src/inspect.rs::inspect"]
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin", "miniscript"]
-through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+through = [
+  { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
+]
 adds = "Change is verified only when the output's script is the address a loaded key's account, or a registered wallet, derives at the stated path; a claim on a loaded key that derives another script is a block. Warnings are ranked Info, Caution, Danger and Blocked. A wallet is offered for registering only when the PSBT's global xpubs give every script of its inputs and outputs. A PSBT's network is read from its global xpubs, else from the coin type of a BIP 44, 49, 84, 86 or 48 key path, else it is the session's. The signed-amount memory keeps the SHA-256 of the unsigned transaction and the amount each input states, and only when every input states one. Another device's signatures are merged only into a PSBT of the same transaction that asks the same sighashes, and are refused when one is invalid. The register sheet's hold registers a wallet only once its descriptor gives the spend's scripts and one of its keys is a loaded key's own at its path. An output over 21,000,000 BTC, outputs whose total is over it, or an amount an input states or their total over it, is a block, as Bitcoin Core's CheckTransaction and CheckTxInputs refuse them (`transaction::money_total`)."
 
 [action.checked]
@@ -4858,6 +4879,7 @@ libraries = ["secp256k1", "bitcoin"]
 through = [
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
 ]
 adds = "BIP 327's signing side is written here over libsecp256k1's point and secret-key operations (faraday-bip); the signing orchestration over BIP 373's PSBT fields is faraday-psbt's; a secret nonce is consumed by the signature it makes and held in memory for one transaction only; the wallet must be registered."
 
@@ -4941,6 +4963,7 @@ code = ["core/faraday-psbt/src/verify.rs::verify_signatures", "core/faraday-psbt
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "Each signature is checked against the key it is under and the sighash the input's fields give, including the ones inside a finalized witness; one r or one R under one key twice is reported; a signature under a key this device holds is recomputed to say which nonce rule produced it."
 
 [action.checked]
@@ -5198,6 +5221,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "A raw transaction is read from hex or bytes by rust-bitcoin, and one it reads to no inputs is refused, as Bitcoin Core refuses those bytes (the segwit flag with no witness); a previous transaction is accepted for an input only when its txid is the one spent. The Decode screen takes the amounts its inputs spend from the spend's PSBT and the Inbox's PSBTs whose unsigned transaction is exactly the one decoded, and uses an input's amount only when no two of them state different ones. An output is named by its script kind (P2WPKH, P2WSH, P2TR, P2SH, P2PKH or OP_RETURN) and marked when it pays to a loaded wallet's first 100 addresses on either chain. A text is taken as a transaction in hex only when it has an even number of at least 120 hex digits that read as a transaction. Decode refuses a transaction with an output over 21,000,000 BTC or outputs whose total is over it, as Bitcoin Core's CheckTransaction does (bad-txns-vout-toolarge, bad-txns-txouttotal-toolarge), and one whose inputs' stated amounts, or their total, are over it, as its CheckTxInputs does (bad-txns-inputvalues-outofrange), so no total or fee it shows overflows."
 
 [action.checked]
@@ -5569,7 +5593,7 @@ code = ["faraday/faraday-core/src/receipt.rs::sha256_of"]
 
 [action.implementation]
 crate = "core/faraday-crypto"
-libraries = ["sha2"]
+libraries = ["sha2", "base16ct"]
 adds = "sha2's SHA-256 over every byte, counted as file-hash work through the compute token. A file in the Inbox is hashed when it comes in and the sum is kept on it, a lookup after; the Files menu and the GPG signing page hash through the same function."
 
 [action.checked]
@@ -6818,6 +6842,7 @@ libraries = [
   "toml_parser",
   "pem-rfc7468",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name. The KDBX mapping (`kdbx/items/`) is Faraday's own over the document model, faraday-bip's BIP-39, wallet policy, descriptor and codex32 readers, the TOTP reader and pem-rfc7468: the field names, the kinds, the labels of related secrets (several passphrases for one key, several shares of one index and key) and the Unreadable items of docs/VAULT.md section 7."
 written_here = "The vault's TOML reader and writer (`faraday-vault::contents`)"
 
@@ -7559,7 +7584,7 @@ kind = "Neutral"
 decision = "F7"
 
 [action.review]
-fingerprint = "33359357f54d2c2c5eb95ff6bb2343c62cebdcc96daf9985c8c04bbe37c3ce74"
+fingerprint = "a30ab01d596e17b3992b7d3134a4b956126e19f78e8153529787021e4a63a4e5"
 reviewed = "2026-11-03"
 places = ["docs/TOTP.md#4. Reading a TOTP secret"]
 
@@ -7831,7 +7856,7 @@ code = ["faraday/faraday-pgp/src/lib.rs::Key::paperkey"]
 
 [action.implementation]
 crate = "faraday/faraday-pgp"
-libraries = ["ed25519-dalek", "sha1", "sha2"]
+libraries = ["ed25519-dalek", "sha1", "sha2", "base16ct"]
 adds = "The secret MPIs of the primary and the subkey, each behind its 20-byte fingerprint, in lines with a CRC-24, computed only to be shown and wiped after; the unprotected transferable secret key the tests give to paperkey and Faraday does not put in the Outbox."
 
 [action.checked]
@@ -7906,6 +7931,7 @@ libraries = [
   "sha1",
   "sha2",
   "base64ct",
+  "base16ct",
 ]
 adds = "The key is rebuilt only if the seeds make the public key and every self-signature of the certificate comes out again byte for byte; a certificate merged or renewed by GnuPG restores from its newest self-signature, and a revoked one restores marked revoked."
 
@@ -8288,6 +8314,7 @@ through = [
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },
   { library = "unicode-normalization", crate = "core/faraday-bip" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
 ]
 adds = "Each check calls the function the product itself calls and compares with an expected value copied from a vector file; a failure names the check and blocks the app but Exit."
 
@@ -8591,6 +8618,9 @@ reason = "The age passphrase codec is not yet read by an action; the change that
 author = "the RustCrypto developers"
 
 [library.argon2]
+author = "the RustCrypto developers"
+
+[library.base16ct]
 author = "the RustCrypto developers"
 
 [library.base64ct]

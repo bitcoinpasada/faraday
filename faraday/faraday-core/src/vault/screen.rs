@@ -2612,7 +2612,7 @@ fn detail(
             // What is signed: the file's SHA-256, and a small text file's
             // text, so that the bytes can be checked before the hold.
             let mut ey = dy + if ui.compact { 84.0 } else { 46.0 };
-            let hex: String = f.hash.iter().map(|b| format!("{b:02x}")).collect();
+            let hex: String = faraday_crypto::hex::encode_string(&f.hash);
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {
                 ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), ink, t) + 6.0;
@@ -3043,9 +3043,7 @@ fn backup_row(
     let Some(subject) = crate::backup_flow::subject_of(kind_, r) else {
         return 0.0;
     };
-    let bytes: Vec<u8> = (0..subject.len() / 2)
-        .filter_map(|i| u8::from_str_radix(subject.get(i * 2..i * 2 + 2)?, 16).ok())
-        .collect();
+    let bytes: Vec<u8> = faraday_crypto::hex::decode_vec(&subject).unwrap_or_default();
     let Some(row) = app.backup_row(kind_, &bytes) else {
         return 0.0;
     };

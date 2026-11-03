@@ -17,8 +17,6 @@ use zeroize::Zeroizing;
 
 use crate::layouts::{self, Opened};
 
-const HEX: &[u8; 16] = b"0123456789abcdef";
-
 /// The `list` names of §7, every list but English, by its place in
 /// [`Language::ALL`].
 const LISTS: [(Language, &str); 9] = [
@@ -88,31 +86,19 @@ pub(super) fn seed_hex(payload: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
 
 /// Bytes as lower-case hex.
 pub(super) fn hex(bytes: &[u8]) -> Zeroizing<Vec<u8>> {
-    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::with_capacity(bytes.len() * 2));
-    for b in bytes {
-        out.push(HEX[usize::from(b >> 4)]);
-        out.push(HEX[usize::from(b & 15)]);
-    }
+    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(alloc::vec![0u8; bytes.len() * 2]);
+    faraday_crypto::hex::encode_lower(bytes, &mut out);
     out
 }
 
 /// Lower-case hex as bytes; `None` for an odd length or another
 /// character.
 pub(super) fn unhex(text: &str) -> Option<Zeroizing<Vec<u8>>> {
-    let b = text.as_bytes();
-    if !b.len().is_multiple_of(2) {
+    if text.bytes().any(|c| c.is_ascii_uppercase()) {
         return None;
     }
-    let nib = |c: u8| match c {
-        b'0'..=b'9' => Some(c - b'0'),
-        b'a'..=b'f' => Some(c - b'a' + 10),
-        _ => None,
-    };
-    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::with_capacity(b.len() / 2));
-    for p in b.chunks(2) {
-        out.push(nib(p[0])? << 4 | nib(p[1])?);
-    }
-    Some(out)
+    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(alloc::vec![0u8; text.len() / 2]);
+    (faraday_crypto::hex::decode_into(text, &mut out)? == out.len()).then_some(out)
 }
 
 /// A key's fingerprint: 8 lower-case hex digits.

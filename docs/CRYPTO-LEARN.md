@@ -315,7 +315,7 @@ Outside tests, a function is **cryptographic** when:
    or a script builder as much as a signature check; closures and
    `[[not_crypto]]` absorb what is not cryptographic. A path into
    `faraday-crypto` counts unless its first name is one of the inventory's
-   `NOT_COMPUTING`: `work` (the compute token), `Secret`, `Zeroize`,
+   `NOT_COMPUTING`: `work` (the compute token), `hex` (base16 text), `Secret`, `Zeroize`,
    `ZeroizeOnDrop`, `Zeroizing`, `WipeOnFree`, `Pinned` and
    `pin_failure_to_report`, which compute nothing. Without that, every
    function that names `Compute` would meet rule 3.

@@ -439,11 +439,9 @@ impl SampleKey {
     }
 }
 
-/// The bytes of a hex text; a pair that is not hex ends it.
+/// The bytes of a hex text; text that is not hex gives none.
 fn unhex(s: &str) -> Vec<u8> {
-    (0..s.len() / 2)
-        .map_while(|i| u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok())
-        .collect()
+    faraday_crypto::hex::decode_vec(s).unwrap_or_default()
 }
 
 /// What Load ticked says it loaded: "1 wallet", "3 keys" or "1 wallet and

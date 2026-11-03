@@ -182,13 +182,10 @@ fn bbqr_arrived(file_type: char, data: Vec<u8>) -> Result<Arrived, Refusal> {
 /// A finished transaction's bytes, when `text` is one in hex.
 pub fn transaction_hex(text: &str) -> Option<Vec<u8>> {
     let t = text.trim();
-    if t.len() < 120 || !t.len().is_multiple_of(2) || !t.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if t.len() < 120 {
         return None;
     }
-    let bytes: Vec<u8> = (0..t.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&t[i..i + 2], 16).ok())
-        .collect::<Option<_>>()?;
+    let bytes = faraday_crypto::hex::decode_vec(t)?;
     faraday_bip::bitcoin::consensus::deserialize::<faraday_bip::bitcoin::Transaction>(&bytes)
         .ok()
         .map(|_| bytes)

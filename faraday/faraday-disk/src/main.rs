@@ -53,7 +53,7 @@ const DATA_SERIAL: &str = "/etc/faraday/data-serial";
 /// The image's data serial, as eight hex digits. Costs a file read.
 fn image_serial() -> Option<u32> {
     let text = std::fs::read_to_string(DATA_SERIAL).ok()?;
-    u32::from_str_radix(text.trim(), 16).ok()
+    faraday_crypto::hex::decode_exact::<4>(text.trim()).map(u32::from_be_bytes)
 }
 
 /// The shell being served now, by the number of its conversation, and

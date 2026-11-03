@@ -21,18 +21,6 @@ use crate::ROOM;
 
 pub use crate::room;
 
-/// `bytes` as lowercase hex, written into a buffer of the right size
-/// with no piece of it made anywhere else: for a private key.
-pub fn hex(bytes: &[u8]) -> zeroize::Zeroizing<String> {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut out = zeroize::Zeroizing::new(String::with_capacity(bytes.len() * 2));
-    for b in bytes {
-        out.push(char::from(DIGITS[usize::from(b >> 4)]));
-        out.push(char::from(DIGITS[usize::from(b & 15)]));
-    }
-    out
-}
-
 /// A string for typed secrets, wiped whenever it moves, is cleared or is
 /// dropped.
 pub struct SecretText {

@@ -82,7 +82,7 @@ impl Receipt {
             u8::from(self.by_flow)
         );
         for f in &self.files {
-            let hash: String = f.hash.iter().map(|b| format!("{b:02x}")).collect();
+            let hash: String = faraday_crypto::hex::encode_string(&f.hash);
             out.push_str(&format!(
                 "file\t{}\t{hash}\t{}\t{}\n",
                 field(&f.name),
@@ -112,13 +112,7 @@ impl Receipt {
                     });
                 }
                 ["file", name, hash, verified, failure] => {
-                    let bytes: Option<Vec<u8>> = (0..32)
-                        .map(|i| {
-                            hash.get(i * 2..i * 2 + 2)
-                                .and_then(|h| u8::from_str_radix(h, 16).ok())
-                        })
-                        .collect();
-                    let Some(hash) = bytes.and_then(|b| <[u8; 32]>::try_from(b).ok()) else {
+                    let Some(hash) = faraday_crypto::hex::decode_exact::<32>(hash) else {
                         continue;
                     };
                     if let Some(r) = out.as_mut() {

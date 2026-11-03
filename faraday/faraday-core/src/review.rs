@@ -345,12 +345,7 @@ pub(crate) fn reason_text(r: faraday_psbt::Reason) -> &'static str {
 pub(crate) fn name_scripts(mut i: Inspection) -> Inspection {
     for o in &mut i.outputs {
         if o.address.is_empty() {
-            let hex: String = o
-                .script_pubkey
-                .as_bytes()
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect();
+            let hex: String = faraday_crypto::hex::encode_string(o.script_pubkey.as_bytes());
             o.address = fill(EN.psbt_nonstandard_script, &[&hex]);
         }
     }

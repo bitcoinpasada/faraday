@@ -245,7 +245,7 @@ fn body(
     let Some(n) = &l.node else {
         return y;
     };
-    let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
+    let id: String = faraday_crypto::hex::encode_string(n.public());
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.lightning_node_id);
     y += below;
     y += ui

@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 faraday-bip = { path = "../../core/faraday-bip" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]

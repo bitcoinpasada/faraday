@@ -155,9 +155,7 @@ impl LoadView {
 
 /// A fingerprint written as eight hex digits.
 pub(crate) fn fp_of(text: &str) -> Option<Fingerprint> {
-    u32::from_str_radix(text, 16)
-        .ok()
-        .map(|n| Fingerprint(n.to_be_bytes()))
+    faraday_crypto::hex::decode_exact::<4>(text).map(Fingerprint)
 }
 
 impl super::Vaults {

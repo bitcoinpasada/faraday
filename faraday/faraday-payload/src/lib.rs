@@ -42,32 +42,21 @@ pub struct Sha256Sum(pub [u8; 32]);
 impl Sha256Sum {
     /// Reads 64 lowercase hexadecimal digits, as `sha256sum` prints them.
     pub fn from_hex(text: &str) -> Option<Self> {
-        let bytes = text.as_bytes();
-        if bytes.len() != 64 {
+        // Upper case is refused: `sha256sum` writes lower case.
+        if text.len() != 64 {
             return None;
         }
         let mut sum = [0u8; 32];
-        for (out, pair) in sum.iter_mut().zip(bytes.chunks_exact(2)) {
-            *out = (hex_digit(pair[0])? << 4) | hex_digit(pair[1])?;
-        }
+        base16ct::lower::decode(text, &mut sum).ok()?;
         Some(Self(sum))
-    }
-}
-
-fn hex_digit(c: u8) -> Option<u8> {
-    match c {
-        b'0'..=b'9' => Some(c - b'0'),
-        b'a'..=b'f' => Some(c - b'a' + 10),
-        _ => None,
     }
 }
 
 impl fmt::Display for Sha256Sum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for b in self.0 {
-            write!(f, "{b:02x}")?;
-        }
-        Ok(())
+        let mut buf = [0u8; 64];
+        let text = base16ct::lower::encode_str(&self.0, &mut buf).map_err(|_| fmt::Error)?;
+        f.write_str(text)
     }
 }
 

@@ -1422,11 +1422,7 @@ impl Faraday {
             let alone = wf.answers.vault_passphrases(&c, &wf.shape, v);
             let fp_of = |s: usize| -> Option<[u8; 4]> {
                 let name = &wf.shape.seeds.get(s)?.name;
-                let mut out = [0u8; 4];
-                for (k, b) in out.iter_mut().enumerate() {
-                    *b = u8::from_str_radix(name.get(2 * k..2 * k + 2)?, 16).ok()?;
-                }
-                Some(out)
+                faraday_crypto::hex::decode_exact(name.get(..8)?)
             };
             for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
                 if r.kind() == rkind::PASSPHRASE

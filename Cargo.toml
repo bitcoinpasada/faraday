@@ -74,6 +74,10 @@ pbkdf2 = { version = "0.13", default-features = false }
 # `password-hash` string format and the RNG; the memory is a `Vec<Block>`
 # the caller owns, so no `alloc` feature is needed.
 argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
+# Hex, one module (docs/deps/base16ct.md): `faraday_crypto::hex`, and
+# the crates that call base16ct directly: `faraday-pgp` (paperkey's
+# `upper` and `mixed`) and `faraday-payload`.
+base16ct = { version = "1.0", default-features = false, features = ["alloc"] }
 # Base64 in four places (docs/deps/base64ct.md): PSBT, BIP-322, BSMS,
 # BIP-85, the OpenPGP armour, KDBX and the Starter's plist.
 base64ct = { version = "1.8", default-features = false, features = ["alloc"] }

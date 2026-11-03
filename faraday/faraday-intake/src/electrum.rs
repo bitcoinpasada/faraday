@@ -302,9 +302,7 @@ fn fingerprint(k: &Value) -> Result<Option<String>, String> {
                 .as_u64()
                 .and_then(|n| u32::try_from(n).ok())
                 .ok_or_else(bad)?;
-            Ok(Some(
-                n.to_le_bytes().iter().map(|b| format!("{b:02x}")).collect(),
-            ))
+            Ok(Some(faraday_crypto::hex::encode_string(&n.to_le_bytes())))
         }
     }
 }
@@ -486,12 +484,7 @@ pub fn file(policy: &WalletPolicy) -> Option<String> {
     let (wallet_type, script) = shape(policy)?;
     let mut stores = Vec::new();
     for k in policy.keys() {
-        let fp: String = k
-            .fingerprint()?
-            .0
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let fp: String = faraday_crypto::hex::encode_string(&k.fingerprint()?.0);
         let path = k.path()?.to_string();
         let path = path.trim_start_matches('m').trim_start_matches('/');
         let derivation = if path.is_empty() {

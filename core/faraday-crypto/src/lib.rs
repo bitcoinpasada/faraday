@@ -43,6 +43,7 @@ mod argon2;
 mod blake2b;
 mod crc32;
 mod hash;
+pub mod hex;
 mod pinned;
 mod scrypt;
 mod secret;

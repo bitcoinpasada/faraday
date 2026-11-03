@@ -54,10 +54,7 @@ pub fn sha256(c: &Compute, bytes: &[u8]) -> [u8; 32] {
 
 /// Costs what `sha256` costs. [`sha256`] in lower-case hex.
 pub fn sha256_hex(c: &Compute, bytes: &[u8]) -> String {
-    sha256(c, bytes)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    faraday_crypto::hex::encode_string(&sha256(c, bytes))
 }
 
 /// A Unix time as a date, `YYYY-MM-DD`.

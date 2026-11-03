@@ -164,33 +164,19 @@ fn tag_read(s: &str) -> Option<Tag> {
 }
 
 fn hex4(b: [u8; 4]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    faraday_crypto::hex::encode_string(&b)
 }
 
 fn read_hex4(s: &str) -> Option<[u8; 4]> {
-    if s.len() != 8 {
-        return None;
-    }
-    let mut out = [0u8; 4];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok()?;
-    }
-    Some(out)
+    faraday_crypto::hex::decode_exact(s)
 }
 
 pub(crate) fn hex32(b: &[u8; 32]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    faraday_crypto::hex::encode_string(b)
 }
 
 pub(crate) fn read_hex32(s: &str) -> Option<[u8; 32]> {
-    if s.len() != 64 {
-        return None;
-    }
-    let mut out = [0u8; 32];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok()?;
-    }
-    Some(out)
+    faraday_crypto::hex::decode_exact(s)
 }
 
 /// Whether locked vault summary `s` holds seed `fp` whose master id is

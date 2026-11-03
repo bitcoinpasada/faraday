@@ -270,12 +270,8 @@ impl Fingerprint {
 
     /// Lower-case hex, eight ASCII bytes.
     pub fn to_hex(self) -> [u8; 8] {
-        const DIGITS: &[u8; 16] = b"0123456789abcdef";
         let mut out = [0u8; 8];
-        for (i, b) in self.0.iter().enumerate() {
-            out[2 * i] = DIGITS[usize::from(b >> 4)];
-            out[2 * i + 1] = DIGITS[usize::from(b & 0x0f)];
-        }
+        faraday_crypto::hex::encode_lower(&self.0, &mut out);
         out
     }
 }

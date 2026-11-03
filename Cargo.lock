@@ -876,6 +876,7 @@ name = "faraday-crypto"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base16ct",
  "blake2",
  "hmac",
  "libc",
@@ -1028,6 +1029,7 @@ dependencies = [
 name = "faraday-payload"
 version = "0.1.9"
 dependencies = [
+ "base16ct",
  "lzma-rust2",
  "sha2",
 ]
@@ -1038,6 +1040,7 @@ version = "0.1.9"
 dependencies = [
  "aes",
  "argon2",
+ "base16ct",
  "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
@@ -1093,6 +1096,7 @@ version = "0.1.9"
 dependencies = [
  "chacha20",
  "der",
+ "faraday-crypto",
  "faraday-pgp",
  "faraday-sb",
  "rand_core",
@@ -1231,6 +1235,7 @@ name = "faraday-strings"
 version = "0.1.9"
 dependencies = [
  "faraday-bip",
+ "faraday-crypto",
  "zeroize",
 ]
 

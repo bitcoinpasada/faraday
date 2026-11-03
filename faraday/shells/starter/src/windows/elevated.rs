@@ -368,7 +368,8 @@ pub fn drive_path(p: &str) -> bool {
 
 /// A SHA-256 as `sha256sum` prints it: 64 lower-case hex digits.
 fn hex_sum(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+    !s.bytes().any(|b| b.is_ascii_uppercase())
+        && faraday_crypto::hex::decode_exact::<32>(s).is_some()
 }
 
 /// A size: digits, more than 0.

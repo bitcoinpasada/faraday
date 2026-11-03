@@ -206,17 +206,11 @@ fn secret_field<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
 /// Hex decodes `s` (either case); an odd length, any other character or
 /// nothing at all refuses.
 fn hex_decode(s: &str) -> Option<Vec<u8>> {
-    let s = s.trim().as_bytes();
-    if s.is_empty() || !s.len().is_multiple_of(2) {
+    let s = s.trim();
+    if s.is_empty() {
         return None;
     }
-    s.chunks(2)
-        .map(|p| {
-            let hi = (p[0] as char).to_digit(16)?;
-            let lo = (p[1] as char).to_digit(16)?;
-            Some((hi * 16 + lo) as u8)
-        })
-        .collect()
+    faraday_crypto::hex::decode_vec(s)
 }
 
 /// Reads KeePass 2's own `TimeOtp-*` fields (`docs/TOTP.md` §4.1). The

@@ -103,10 +103,7 @@ fn seedqr_digits(words: &str) -> Option<Vec<u8>> {
 fn origin_of(text: &str) -> Option<[u8; 4]> {
     let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
     let fp = t.strip_prefix('[')?.split(['/', ']']).next()?.to_string();
-    let b = (0..4)
-        .map(|i| u8::from_str_radix(fp.get(2 * i..2 * i + 2)?, 16).ok())
-        .collect::<Option<Vec<u8>>>()?;
-    b.try_into().ok()
+    faraday_crypto::hex::decode_exact(fp.get(..8)?)
 }
 
 impl Faraday {

@@ -35,10 +35,7 @@ pub fn guid_text(g: &[u8]) -> String {
         u16::from_le_bytes([g[6], g[7]]),
         g[8],
         g[9],
-        g[10..]
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>()
+        faraday_crypto::hex::encode_string(&g[10..])
     )
 }
 
@@ -71,7 +68,7 @@ pub fn is_image(name: &str) -> bool {
 /// An image's SHA-256 `h`, in groups of four for comparing by eye.
 pub fn image_sha256(h: &[u8; 32]) -> String {
     h.chunks(2)
-        .map(|c| format!("{:02x}{:02x}", c[0], c[1]))
+        .map(faraday_crypto::hex::encode_string)
         .collect::<Vec<_>>()
         .join(" ")
 }

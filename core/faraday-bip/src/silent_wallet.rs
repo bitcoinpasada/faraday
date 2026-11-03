@@ -160,10 +160,7 @@ fn read_origin(text: &str, network: Network) -> Option<(Fingerprint, u32)> {
     if hex.len() != 8 {
         return None;
     }
-    let mut bytes = [0u8; 4];
-    for (i, b) in bytes.iter_mut().enumerate() {
-        *b = u8::from_str_radix(hex.get(i * 2..i * 2 + 2)?, 16).ok()?;
-    }
+    let bytes: [u8; 4] = faraday_crypto::hex::decode_exact(hex)?;
     let hardened = |step: &str| -> Option<u32> {
         step.strip_suffix('h')
             .or_else(|| step.strip_suffix('\''))?

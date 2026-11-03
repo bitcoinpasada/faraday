@@ -1269,12 +1269,8 @@ impl Document {
     /// The vault identifier: the root group's UUID as 32 lower-case hex
     /// digits.
     pub fn vault_id(&self) -> [u8; 32] {
-        const HEX: &[u8; 16] = b"0123456789abcdef";
         let mut out = [0u8; 32];
-        for (i, b) in self.root().uuid.iter().enumerate() {
-            out[2 * i] = HEX[usize::from(b >> 4)];
-            out[2 * i + 1] = HEX[usize::from(b & 15)];
-        }
+        faraday_crypto::hex::encode_lower(&self.root().uuid, &mut out);
         out
     }
 }

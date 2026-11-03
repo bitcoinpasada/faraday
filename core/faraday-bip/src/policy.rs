@@ -1200,9 +1200,7 @@ fn wallet_key(key: &DescriptorPublicKey) -> Result<PolicyKey, Error> {
     }
     let origin = multi.origin.as_ref().map(|(fingerprint, path)| {
         let mut text = String::new();
-        for byte in fingerprint.as_bytes() {
-            text.push_str(&alloc::format!("{byte:02x}"));
-        }
+        text.push_str(&faraday_crypto::hex::encode_string(fingerprint.as_bytes()));
         for step in path {
             text.push_str(&alloc::format!("/{step:#}"));
         }
@@ -1369,10 +1367,7 @@ fn parse_key(text: &str) -> Result<PolicyKey, Error> {
     if fingerprint.len() != 8 || !fingerprint.bytes().all(|c| c.is_ascii_hexdigit()) {
         return Err(Error::Key);
     }
-    let mut bytes = [0u8; 4];
-    for (i, b) in bytes.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&fingerprint[2 * i..2 * i + 2], 16).map_err(|_| Error::Key)?;
-    }
+    let bytes: [u8; 4] = faraday_crypto::hex::decode_exact(fingerprint).ok_or(Error::Key)?;
     let path = if path.is_empty() {
         DerivationPath::master()
     } else {

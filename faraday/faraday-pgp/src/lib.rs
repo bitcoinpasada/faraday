@@ -624,8 +624,13 @@ fn paperkey_lines(data: &[u8]) -> Zeroizing<String> {
     for chunk in data.chunks(22) {
         n += 1;
         let _ = write!(out, "{n:3}: ");
-        for b in chunk {
-            let _ = write!(out, "{b:02X} ");
+        let mut hex = Zeroizing::new([0u8; 44]);
+        let digits = base16ct::upper::encode_str(chunk, &mut hex[..chunk.len() * 2])
+            .expect("the hex buffer is twice the bytes");
+        for pair in digits.as_bytes().chunks(2) {
+            out.push(char::from(pair[0]));
+            out.push(char::from(pair[1]));
+            out.push(' ');
         }
         let _ = writeln!(out, "{:06X}", crc24(chunk));
     }

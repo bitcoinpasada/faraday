@@ -1,7 +1,8 @@
 //! Text typed that may be a secret.
 
 use crate::common::bip39_english;
-use faraday_intake::secret_buf::{SecretText, hex};
+use faraday_crypto::hex::encode_secret as hex;
+use faraday_intake::secret_buf::SecretText;
 
 #[test]
 fn a_phrase_typed_a_character_at_a_time_is_kept_whole_however_long() {

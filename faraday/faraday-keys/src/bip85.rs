@@ -50,7 +50,9 @@ pub fn child(c: &Compute, master: &MasterKey, app: App, index: u32) -> Option<Ze
                 .as_str()
                 .to_string(),
         ),
-        App::Hex(length) => hex(bip85::child_hex(c, master, length, index).ok()?.as_bytes()),
+        App::Hex(length) => faraday_crypto::hex::encode_secret(
+            bip85::child_hex(c, master, length, index).ok()?.as_bytes(),
+        ),
         App::Base64(length) => Zeroizing::new(
             bip85::child_password_base64(c, master, length, index)
                 .ok()?
@@ -64,16 +66,4 @@ pub fn child(c: &Compute, master: &MasterKey, app: App, index: u32) -> Option<Ze
                 .to_string(),
         ),
     })
-}
-
-/// `bytes` as lowercase hex, written into a buffer of the right size with
-/// no piece of it made anywhere else.
-fn hex(bytes: &[u8]) -> Zeroizing<String> {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut out = Zeroizing::new(String::with_capacity(bytes.len() * 2));
-    for b in bytes {
-        out.push(char::from(DIGITS[usize::from(b >> 4)]));
-        out.push(char::from(DIGITS[usize::from(b & 15)]));
-    }
-    out
 }

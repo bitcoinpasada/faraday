@@ -82,12 +82,13 @@ const NOT_SHIPPED_CRATES: &[&str] = &[
     "faraday-argon2-bench",
 ];
 
-/// What `faraday-crypto` exports that computes nothing: the compute token
-/// and the secret wrappers. A path into them is not a path into a
+/// What `faraday-crypto` exports that computes nothing: the compute token,
+/// the secret wrappers and `hex`, which writes and reads base16 text. A path into them is not a path into a
 /// primitive (§4.2 rule 3 would otherwise take the 600 functions of
 /// `faraday-core` that pass the token through).
 const NOT_COMPUTING: &[&str] = &[
     "work",
+    "hex",
     "Secret",
     "Zeroize",
     "ZeroizeOnDrop",

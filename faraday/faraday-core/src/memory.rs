@@ -391,7 +391,7 @@ impl Faraday {
                 .vault_from()
                 .iter()
                 .map(|(name, hash, label)| {
-                    let hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
+                    let hex: String = faraday_crypto::hex::encode_string(hash);
                     format!("{hex}\t{label}\t{name}")
                 })
                 .collect();
@@ -481,14 +481,8 @@ impl Faraday {
                         else {
                             continue;
                         };
-                        let mut hash = [0u8; 32];
-                        let ok = hex.len() == 64
-                            && (0..32).all(|i| {
-                                u8::from_str_radix(&hex[2 * i..2 * i + 2], 16)
-                                    .map(|b| hash[i] = b)
-                                    .is_ok()
-                            });
-                        if ok {
+                        let hash = faraday_crypto::hex::decode_exact::<32>(hex);
+                        if let Some(hash) = hash {
                             self.visit.vault_from_mut().push((
                                 name.to_string(),
                                 hash,

@@ -144,26 +144,10 @@ fn read_bech32(text: &str) -> Option<Reading> {
 
 /// The bytes of an even-length string of hex digits.
 pub fn from_hex(text: &str) -> Option<Vec<u8>> {
-    if text.is_empty()
-        || !text.len().is_multiple_of(2)
-        || !text.bytes().all(|b| b.is_ascii_hexdigit())
-    {
+    if text.is_empty() {
         return None;
     }
-    let digit = |b: u8| -> u8 {
-        match b {
-            b'0'..=b'9' => b - b'0',
-            b'a'..=b'f' => b - b'a' + 10,
-            _ => b - b'A' + 10,
-        }
-    };
-    let bytes = text.as_bytes();
-    Some(
-        bytes
-            .chunks(2)
-            .map(|pair| digit(pair[0]) << 4 | digit(pair[1]))
-            .collect(),
-    )
+    faraday_crypto::hex::decode_vec(text)
 }
 
 /// `payload` under `version`, in Base58Check.

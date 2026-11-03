@@ -54,6 +54,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
+name = "base16ct"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd307490d624467aa6f74b0eabb77633d1f758a7b25f12bceb0b22e08d9726f6"
+
+[[package]]
 name = "base58ck"
 version = "0.1.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -372,6 +378,7 @@ name = "faraday-crypto"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base16ct",
  "blake2",
  "hmac",
  "pbkdf2",
@@ -423,6 +430,7 @@ version = "0.1.9"
 dependencies = [
  "aes",
  "argon2",
+ "base16ct",
  "base64ct",
  "ed25519-dalek",
  "faraday-crypto",
@@ -458,6 +466,7 @@ name = "faraday-strings"
 version = "0.1.9"
 dependencies = [
  "faraday-bip",
+ "faraday-crypto",
  "zeroize",
 ]
 

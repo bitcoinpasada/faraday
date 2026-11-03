@@ -15,7 +15,7 @@ fn kept_field(s: &str) -> String {
 pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
     let mut out = String::new();
     for s in all {
-        let salt: String = s.salt.iter().map(|b| format!("{b:02x}")).collect();
+        let salt: String = faraday_crypto::hex::encode_string(&s.salt);
         let seen = s.seen.map(|t| t.to_string()).unwrap_or_default();
         out.push_str(&format!(
             "vault\t{salt}\t{}\t{}\t{}\t{seen}\n",
@@ -75,15 +75,9 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
         match f[..] {
             ["vault", salt, file, name, entries, seen] => {
                 let mut s = VaultSummary::default();
-                let bytes: Option<Vec<u8>> = (0..32)
-                    .map(|i| {
-                        salt.get(i * 2..i * 2 + 2)
-                            .and_then(|h| u8::from_str_radix(h, 16).ok())
-                    })
-                    .collect();
-                match bytes.and_then(|b| <[u8; 32]>::try_from(b).ok()) {
-                    Some(b) if salt.len() == 64 => s.salt = b,
-                    _ => continue,
+                match faraday_crypto::hex::decode_exact::<32>(salt) {
+                    Some(b) => s.salt = b,
+                    None => continue,
                 }
                 s.file = file.to_string();
                 s.name = name.to_string();

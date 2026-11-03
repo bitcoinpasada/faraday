@@ -180,9 +180,7 @@ impl Out {
     }
 
     fn hex(&mut self, bytes: &[u8]) {
-        for b in bytes {
-            self.raw(&[HEX[usize::from(b >> 4)], HEX[usize::from(b & 15)]]);
-        }
+        self.raw(faraday_crypto::hex::encode_secret(bytes).as_bytes());
     }
 
     /// A basic string: `"` and `\` escaped, control characters as escapes
@@ -239,8 +237,6 @@ impl Out {
         self.raw(b"]");
     }
 }
-
-const HEX: &[u8; 16] = b"0123456789abcdef";
 
 /// Says why a record's fault refuses it.
 fn fault_why(f: Fault) -> Why {
@@ -351,20 +347,12 @@ impl Item {
 }
 
 fn unhex(s: &str, len: Option<usize>) -> Option<Zeroizing<Vec<u8>>> {
-    let b = s.as_bytes();
-    if !b.len().is_multiple_of(2) || len.is_some_and(|n| n * 2 != b.len()) {
+    // Lower case only: the vault writes no other.
+    if s.bytes().any(|c| c.is_ascii_uppercase()) || len.is_some_and(|n| n * 2 != s.len()) {
         return None;
     }
-    let nib = |c: u8| match c {
-        b'0'..=b'9' => Some(c - b'0'),
-        b'a'..=b'f' => Some(c - b'a' + 10),
-        _ => None,
-    };
-    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::with_capacity(b.len() / 2));
-    for p in b.chunks(2) {
-        out.push(nib(p[0])? << 4 | nib(p[1])?);
-    }
-    Some(out)
+    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(alloc::vec![0u8; s.len() / 2]);
+    (faraday_crypto::hex::decode_into(s, &mut out)? == out.len()).then_some(out)
 }
 
 fn parse_tree(bytes: &[u8], max: usize) -> Result<Table, Refusal> {

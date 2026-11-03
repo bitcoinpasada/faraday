@@ -55,7 +55,7 @@ pub(crate) struct CreateVaults {
 
 /// A fingerprint written as eight hex digits, as bytes.
 fn fp_bytes(text: &str) -> Option<[u8; 4]> {
-    u32::from_str_radix(text, 16).ok().map(u32::to_be_bytes)
+    faraday_crypto::hex::decode_exact::<4>(text)
 }
 
 impl Faraday {

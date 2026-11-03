@@ -582,19 +582,12 @@ impl What {
 
 /// A fingerprint as a plan's note writes it: eight lower-case hex digits.
 pub(super) fn fp_code(fp: [u8; 4]) -> String {
-    fp.iter().map(|b| format!("{b:02x}")).collect()
+    faraday_crypto::hex::encode_string(&fp)
 }
 
 /// A fingerprint a plan's note wrote, read back.
 pub(super) fn fp_read(s: &str) -> Option<[u8; 4]> {
-    if s.len() != 8 {
-        return None;
-    }
-    let mut out = [0u8; 4];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok()?;
-    }
-    Some(out)
+    faraday_crypto::hex::decode_exact(s)
 }
 
 /// The line said in place of the checklist when a seed here is past the

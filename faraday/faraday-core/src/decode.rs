@@ -267,7 +267,7 @@ pub fn btc(sats: u64) -> String {
 }
 
 fn hex(bytes: impl AsRef<[u8]>) -> String {
-    bytes.as_ref().iter().map(|b| format!("{b:02x}")).collect()
+    faraday_crypto::hex::encode_string(bytes.as_ref())
 }
 
 /// A transaction being decoded, and where the person came from.

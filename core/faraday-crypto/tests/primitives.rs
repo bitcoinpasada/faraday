@@ -338,3 +338,38 @@ fn blake2b_refuses_a_digest_of_65_bytes() {
 fn blake2b_refuses_an_empty_digest() {
     blake2b_vec(b"abc", 0);
 }
+
+#[test]
+fn hex_matches_rfc_4648_base16_vectors() {
+    // RFC 4648 section 10, upper case there; Faraday writes lower case.
+    let vectors: [(&[u8], &str); 7] = [
+        (b"", ""),
+        (b"f", "66"),
+        (b"fo", "666f"),
+        (b"foo", "666f6f"),
+        (b"foob", "666f6f62"),
+        (b"fooba", "666f6f6261"),
+        (b"foobar", "666f6f626172"),
+    ];
+    for (bytes, text) in vectors {
+        let mut buf = [0u8; 12];
+        assert_eq!(faraday_crypto::hex::encode_lower(bytes, &mut buf), text);
+        assert_eq!(faraday_crypto::hex::encode_secret(bytes).as_str(), text);
+        let mut out = [0u8; 8];
+        let n = faraday_crypto::hex::decode_into(text, &mut out).unwrap();
+        assert_eq!(&out[..n], bytes);
+        let upper = text.to_ascii_uppercase();
+        let n = faraday_crypto::hex::decode_into(&upper, &mut out).unwrap();
+        assert_eq!(&out[..n], bytes);
+    }
+}
+
+#[test]
+fn hex_refuses_odd_long_and_non_hex_text() {
+    let mut out = [0u8; 2];
+    assert_eq!(faraday_crypto::hex::decode_into("abc", &mut out), None);
+    assert_eq!(faraday_crypto::hex::decode_into("aabbcc", &mut out), None);
+    assert_eq!(faraday_crypto::hex::decode_into("zz", &mut out), None);
+    assert_eq!(faraday_crypto::hex::decode_into("+f", &mut out), None);
+    assert_eq!(faraday_crypto::hex::decode_into("aA", &mut out), Some(1));
+}

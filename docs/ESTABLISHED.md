@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the second curve lineage beside Core for the vanity search's child keys and for sweep-sign and wif-read (§9.3; batch X13), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4, batch X14), btclib for PSBTs, transactions, signature hashes and control blocks (§9.4, batch X15), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1), the cross-check's descriptors and miniscript judges for address, descriptor and recovery (§9.4, batch X18) and the quiz's seed from the session's generator (§5.16), btclib's change rule judging psbt-review (§9.4, batch X16) and Core's watch-only descriptor wallet beside it (batch X17), aezeed's software-round pass (§9.4, batch X29), area `compile` for the policy compiler (§9.4, batch X20), area `sign-check` for the signatures a PSBT carries (§9.4, batch X19), area `import` reading the real wallet files the wallets' own test suites publish (§9.4, batch X30), krux's numbered parts and Coinkite's BBQr test files judging area `bbqr` (§9.4, batch X23), the Starter's decoder, tables, property lists and GUIDs judged by `xz`, 7-Zip, `sgdisk`, `plistlib` and `uuid` (§9.4, batch X28), and zbar and zxing-cpp decoding every QR picture Faraday writes with segno as a second encoder, in area `seedqr` (§9.4, batch X21), and Sequoia's `sq` over Nettle reading every GPG certificate Faraday writes and verifying every signature, with its signatures among gpg-verify's fixtures (§9.4, batch X24), and area `hash` judging the hashes, Base58Check, bech32 and hex text and the file hash with Core's framework and `hashlib` (§9.4, first half of batch X27)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the second curve lineage beside Core for the vanity search's child keys and for sweep-sign and wif-read (§9.3; batch X13), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4, batch X14), btclib for PSBTs, transactions, signature hashes and control blocks (§9.4, batch X15), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), hex from base16ct in `faraday_crypto::hex` (§5.11, batch C9, but for the cross-check change X4), the documentation fixes of §7 (batch B1), the cross-check's descriptors and miniscript judges for address, descriptor and recovery (§9.4, batch X18) and the quiz's seed from the session's generator (§5.16), btclib's change rule judging psbt-review (§9.4, batch X16) and Core's watch-only descriptor wallet beside it (batch X17), aezeed's software-round pass (§9.4, batch X29), area `compile` for the policy compiler (§9.4, batch X20), area `sign-check` for the signatures a PSBT carries (§9.4, batch X19), area `import` reading the real wallet files the wallets' own test suites publish (§9.4, batch X30), krux's numbered parts and Coinkite's BBQr test files judging area `bbqr` (§9.4, batch X23), the Starter's decoder, tables, property lists and GUIDs judged by `xz`, 7-Zip, `sgdisk`, `plistlib` and `uuid` (§9.4, batch X28), and zbar and zxing-cpp decoding every QR picture Faraday writes with segno as a second encoder, in area `seedqr` (§9.4, batch X21), and Sequoia's `sq` over Nettle reading every GPG certificate Faraday writes and verifying every signature, with its signatures among gpg-verify's fixtures (§9.4, batch X24), and area `hash` judging the hashes, Base58Check, bech32 and hex text and the file hash with Core's framework and `hashlib` (§9.4, first half of batch X27)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5) but for the finalizer (§5.8); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30, X3, X13 to X21, X23, X24, X28, X29 and X30 excepted)
 
 Faraday uses an established implementation wherever one exists for what
@@ -1268,7 +1268,7 @@ was built from.
   RFC 4648 §10's vectors in `faraday-bip`'s tests.
 - **Size.** About half a day.
 
-### 5.11 Hex, one copy (batch C9)
+### 5.11 Hex, one copy (batch C9, built but for X4)
 
 - **Files.** The copies carrying secrets:
   `faraday/faraday-intake/src/secret_buf.rs` (`hex`, private keys, which
@@ -1301,8 +1301,9 @@ was built from.
   `encode_secret(bytes) -> Zeroizing<String>` and
   `decode_into(text, out: &mut [u8]) -> Option<usize>` (either case, the
   length checked first), over base16ct. Every crate above that depends
-  on `faraday-crypto` calls it; `faraday-pgp` and `faraday-payload`,
-  which do not, call base16ct directly. Upper-case output, where a
+  on `faraday-crypto` calls it; `faraday-payload`, which does not,
+  calls base16ct directly, and `faraday-pgp` depends on it directly too,
+  for paperkey's `upper` and `mixed`. Upper-case output, where a
   format asks for it (paperkey), is `upper::encode`.
 - **New in the graph.** None: base16ct 1.0.0 is in the lock (through
   serdect). The edges from `faraday-crypto`, `faraday-pgp` and
@@ -1310,7 +1311,7 @@ was built from.
 - **cargo vet.** `[[trusted.base16ct]]` exists (tarcieri, 267).
 - **deps page.** New: docs/deps/base16ct.md.
 - **Manifest.** `[library.base16ct]`; the actions §5 item 1 finds
-  (at least `wif-read`, `gpg-paperkey`, `bip85`, `coins-hex`,
+  (at least `gpg-paperkey`, `bip85`, `coins-hex`,
   `lightning-node`).
 - **Proof.** RFC 4648 §10's base16 vectors in `faraday-crypto`'s tests;
   `tools/vectors/paperkey` (paperkey 1.6 reads what is written);
@@ -1759,7 +1760,7 @@ Reference's list of conditions.
 | C6 | The single-key and multisig finalizer from miniscript; with X3 | §5.8, §9.7 | Built, with X3 |
 | C7 | (The BIP-39 core: not a switch; kept, §5.5, §6.9) | §5.5 | None |
 | C8 | Base64 from `base64ct`, four copies | §5.10 | Built |
-| C9 | Hex from `base16ct`, one module; with X4 | §5.11, §9.7 | About half a day, and X4's |
+| C9 | Hex from `base16ct`, one module; with X4 | §5.11, §9.7 | Built; X4 (coins-hex's hex judged as outside) is Open |
 | C10 | The descriptor checksum from miniscript | §5.12 | Built |
 | C11 | JSON from `serde_json` behind Faraday's visitor; `holds_secret` keeps no value; with X5 | §5.13, §9.7 | Built, with X5 |
 | C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
@@ -1970,7 +1971,7 @@ not at all).
 | sign-ecdsa, sign-schnorr | libsecp256k1, bitcoin; Faraday's refusals | Core, python-ecdsa, btclib, BIP-340's reference | Core named as sharing the curve maths (X13, built) | kept: F136's and F141's refusals, the inputs a wallet's rule leaves unsigned | outside-and-own |
 | message-sign, message-verify | libsecp256k1; BIP-322 own (§3.2); base64ct (C8) | Core, btclib, btcd's `bip322`, python-ecdsa | Core named as sharing the curve maths (X13, built) | none | outside |
 | sweep-sign | libsecp256k1, bitcoin, miniscript's finalizer (C6) | Core, BIP-143's example | python-ecdsa's first-nonce signature byte for byte; btclib's signing and finalizing (X13, built) | none | outside |
-| wif-read | libsecp256k1, bitcoin; base16ct (C9) | Core | btclib's WIF decoding and public key (X13, built) | none | outside |
+| wif-read | libsecp256k1, bitcoin | Core | btclib's WIF decoding and public key (X13, built) | none | outside |
 | sign-check | libsecp256k1 (verification), bitcoin (sighash) | none | a new area (X19, built): python-ecdsa and btclib verify every signature on a PSBT, partial or in a finalized witness, over btclib's sighashes; btclib's script engine runs the complete inputs; Core's `finalizepsbt` and `testmempoolaccept` judge them and the transaction. Core's rules, as the area found them: a partial input names one sighash type, so its PSBT sighash-type field is written when its signatures share a non-ALL type, and an input with mixed types is not asked of Core; an input that arrives final is taken as it is, so its signatures are judged by `testmempoolaccept` on the extracted transaction, not by `finalizepsbt`'s `complete`. Known: a partial signature that is not well formed is refused by Faraday's reader where Core reads it and leaves the input unfinalized; and a bug in Faraday held until it is fixed: a finalized taproot signature of 65 bytes ending in 0x00 is called valid where BIP 341 and Core call it malformed | the report of a reused r or R, written from the definition (two signatures that verify, under one key, over different messages, with one nonce) | outside-and-own |
 | compile | miniscript's policy compiler | none | a new area (X20, built): Core's `getdescriptorinfo` and `deriveaddresses` take the output; python-bip380 and btclib parse it; the policy and the parsed miniscript compared as boolean formulas over the keys and lock times. Known: a single key under `tr()` is refused by the compiler, and python-bip380's `v:multi_a` script differs from BIP 379's | the lift of a miniscript to a formula, written from the fragments' meanings, and the rules by which a policy is refused | outside-and-own |
 | sb-keys | rsa, sha2, chacha20 (C4), x509-cert and der (C5); CMS, signature lists and `.auth` Faraday's | OpenSSL (tests) | GnuTLS's `certtool` reads every certificate and verifies its self-signature (X2); the OVMF run (`faraday/tools/sb-ovmf-check.py`) named in `other` and run by `just crosscheck` (X1) | none | none (tests) |

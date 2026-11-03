@@ -17,7 +17,7 @@ use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
 
 fn hex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    faraday_crypto::hex::encode_string(b)
 }
 
 const GUIDE: &str = EN.tools_calculators_each;

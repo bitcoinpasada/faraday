@@ -119,20 +119,13 @@ impl RawHex {
     pub fn entropy(&self) -> Result<RawEntropy, Error> {
         let strength = self.strength().ok_or(Error::BadLength)?;
         let mut bytes = [0u8; 32];
-        for (i, pair) in self.digits().as_bytes().chunks_exact(2).enumerate() {
-            bytes[i] = (nibble(pair[0]) << 4) | nibble(pair[1]);
+        if faraday_crypto::hex::decode_into(self.digits(), &mut bytes) != Some(strength.bytes()) {
+            bytes.zeroize();
+            return Err(Error::BadLength);
         }
         let e = RawEntropy::new(&bytes[..strength.bytes()]);
         bytes.zeroize();
         Ok(e)
-    }
-}
-
-fn nibble(c: u8) -> u8 {
-    match c {
-        b'0'..=b'9' => c - b'0',
-        b'a'..=b'f' => c - b'a' + 10,
-        _ => 0,
     }
 }
 

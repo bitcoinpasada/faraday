@@ -1354,7 +1354,7 @@ impl Keys {
             return None;
         }
         let e = self.entries.get(i).filter(|e| e.key.words.is_none())?;
-        let mut out = vec![faraday_intake::secret_buf::hex(e.key.seed.as_ref()?)];
+        let mut out = vec![faraday_crypto::hex::encode_secret(e.key.seed.as_ref()?)];
         let Some(facts) = e.info.codex32.as_ref() else {
             return Some(Held(out));
         };

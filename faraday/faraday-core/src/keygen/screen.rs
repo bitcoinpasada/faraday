@@ -2049,7 +2049,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
         }
         Some(Source::Mix) => {
             for (i, (s, c)) in k.mix_list().iter().zip(k.mixed.commitments()).enumerate() {
-                let hex: String = c[..8].iter().map(|b| format!("{b:02x}")).collect();
+                let hex: String = faraday_crypto::hex::encode_string(&c[..8]);
                 cy = stat(
                     ui,
                     x,

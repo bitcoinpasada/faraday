@@ -197,11 +197,7 @@ fn line(l: &str) -> Option<([u8; 32], &str)> {
     let name = name
         .strip_prefix("  ")
         .or_else(|| name.strip_prefix(" *"))?;
-    let mut out = [0u8; 32];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(hex.get(2 * i..2 * i + 2)?, 16).ok()?;
-    }
-    Some((out, name))
+    Some((faraday_crypto::hex::decode_exact(hex)?, name))
 }
 
 /// Costs a SHA-256 of `pe` and an RSA signature. The boot program `pe`

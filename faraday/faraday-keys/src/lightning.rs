@@ -47,7 +47,7 @@ impl Node {
                 | Reveal::VaultEntry(Part::NodeKey)
                 | Reveal::OutboxFile(Part::NodeKey)
         )
-        .then(|| faraday_intake::secret_buf::hex(&self.private[..]))
+        .then(|| faraday_crypto::hex::encode_secret(&self.private[..]))
     }
 }
 
@@ -154,7 +154,7 @@ impl crate::Keys {
     pub fn aezeed_node(&self, read: AezeedRead) -> Result<Node, String> {
         let node = read.found?;
         if !self.is_public_node(node.public()) {
-            let id: String = node.public().iter().map(|b| format!("{b:02x}")).collect();
+            let id: String = faraday_crypto::hex::encode_string(node.public());
             return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
         }
         Ok(node)

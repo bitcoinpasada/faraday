@@ -1516,14 +1516,7 @@ fn hex(h: &[u8; 32]) -> String {
 
 /// A 32-byte value from 64 hex digits.
 pub(crate) fn hex_array(s: &str) -> Option<[u8; 32]> {
-    if s.len() != 64 {
-        return None;
-    }
-    let mut out = [0u8; 32];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(s.get(i * 2..i * 2 + 2)?, 16).ok()?;
-    }
-    Some(out)
+    faraday_crypto::hex::decode_exact(s)
 }
 
 /// The kept state's version: a flow written by another version is not
@@ -2366,7 +2359,7 @@ pub(crate) fn record_in(
 
 /// Bytes as lower-case hex.
 pub(crate) fn hex_text(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    faraday_crypto::hex::encode_string(b)
 }
 
 /// The public value a record of `kind` is known by, as hex.

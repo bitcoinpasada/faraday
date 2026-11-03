@@ -1167,11 +1167,5 @@ fn musig_session<C: secp256k1::Verification>(
 }
 
 fn hex33(key: &secp256k1::PublicKey) -> alloc::string::String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut out = alloc::string::String::with_capacity(66);
-    for b in key.serialize() {
-        out.push(char::from(DIGITS[usize::from(b >> 4)]));
-        out.push(char::from(DIGITS[usize::from(b & 15)]));
-    }
-    out
+    faraday_crypto::hex::encode_string(&key.serialize())
 }

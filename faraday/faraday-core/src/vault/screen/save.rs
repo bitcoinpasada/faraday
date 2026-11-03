@@ -45,7 +45,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 let line = ui.fit_as(BODY_M.mono(), &line, iw);
                 ui.text_as(x, cy, BODY_M.mono(), ink, &line);
                 cy += ui.advance_as(BODY_M.mono(), 22.0);
-                let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
+                let hex: String = faraday_crypto::hex::encode_string(&f.hash[..8]);
                 ui.text_as(x, cy, BODY_S.mono(), muted, &format!("{hex}…"));
                 cy += ui.advance_as(BODY_S.mono(), 22.0);
                 ui.rule(x, cy, iw, Role::OutlineVariant);

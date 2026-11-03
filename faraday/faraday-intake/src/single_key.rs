@@ -95,7 +95,7 @@ fn read_fields(v: &Value, xpub: &str, fp: &str) -> Result<SingleKey, String> {
             (Source::Wasabi, format!("84h/{coin}h/0h"))
         }
     };
-    let fp: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    let fp: String = faraday_crypto::hex::encode_string(&bytes);
     let line = slip132::key_line(&format!("[{fp}/{path}]{xpub}"))
         .ok_or_else(|| bad(EN.wallet_single_key_xpub))?
         .map_err(|m| crate::wallet::mismatch_text(&m))?;
@@ -115,11 +115,7 @@ fn hex4(s: &str) -> Option<[u8; 4]> {
     if s.len() != 8 || !s.is_ascii() {
         return None;
     }
-    let mut out = [0u8; 4];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&s[2 * i..2 * i + 2], 16).ok()?;
-    }
-    Some(out)
+    faraday_crypto::hex::decode_exact(s)
 }
 
 /// A derivation path as an origin writes it, `84h/0h/0h`, from `m/84'/0'/0'`,
@@ -181,12 +177,7 @@ pub fn wasabi_writes(policy: &WalletPolicy) -> bool {
 /// ([`wasabi_writes`]).
 pub fn wasabi_file(policy: &WalletPolicy) -> Option<String> {
     let k = wasabi_key(policy)?;
-    let fp: String = k
-        .fingerprint()?
-        .0
-        .iter()
-        .map(|b| format!("{b:02X}"))
-        .collect();
+    let fp = faraday_crypto::hex::encode_string(&k.fingerprint()?.0).to_ascii_uppercase();
     Some(format!(
         "{{\"ColdCardFirmwareVersion\": {}, \"MasterFingerprint\": {}, \"ExtPubKey\": {}}}\n",
         json::quote(WASABI_FIRMWARE),
