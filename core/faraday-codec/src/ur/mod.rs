@@ -186,8 +186,16 @@ pub enum Message {
 impl Message {
     fn new(ur_type: &str, cbor: Vec<u8>) -> Result<Self, Error> {
         Ok(match ur_type {
-            PSBT_TYPE => Message::Psbt(cbor_byte_string(&cbor)?),
-            BYTES_TYPE => Message::Bytes(cbor_byte_string(&cbor)?),
+            PSBT_TYPE => Message::Psbt(
+                crate::cbor::byte_string(&cbor)
+                    .map(<[u8]>::to_vec)
+                    .map_err(|_| Error::NotByteString)?,
+            ),
+            BYTES_TYPE => Message::Bytes(
+                crate::cbor::byte_string(&cbor)
+                    .map(<[u8]>::to_vec)
+                    .map_err(|_| Error::NotByteString)?,
+            ),
             other => Message::Other {
                 ur_type: String::from(other),
                 cbor,
@@ -199,56 +207,6 @@ impl Message {
 /// Whether `text` starts with `ur:` (any case).
 pub fn is_ur(text: &str) -> bool {
     text.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ur:"))
-}
-
-/// CBOR byte string (major type 2) around `bytes`.
-pub fn cbor_bytes(bytes: &[u8]) -> Vec<u8> {
-    let n = bytes.len();
-    let mut out = Vec::with_capacity(n + 5);
-    if n < 24 {
-        out.push(0x40 | n as u8);
-    } else if n <= 0xff {
-        out.extend_from_slice(&[0x58, n as u8]);
-    } else if n <= 0xffff {
-        out.push(0x59);
-        out.extend_from_slice(&(n as u16).to_be_bytes());
-    } else {
-        out.push(0x5a);
-        out.extend_from_slice(&(n as u32).to_be_bytes());
-    }
-    out.extend_from_slice(bytes);
-    out
-}
-
-/// The content of a CBOR byte string; trailing bytes are an error.
-pub fn cbor_byte_string(cbor: &[u8]) -> Result<Vec<u8>, Error> {
-    let (&head, rest) = cbor.split_first().ok_or(Error::NotByteString)?;
-    if head >> 5 != 2 {
-        return Err(Error::NotByteString);
-    }
-    let (len, rest) = match head & 0x1f {
-        n @ 0..=23 => (usize::from(n), rest),
-        24 => (
-            usize::from(*rest.first().ok_or(Error::NotByteString)?),
-            &rest[1..],
-        ),
-        25 => {
-            let b = rest.get(..2).ok_or(Error::NotByteString)?;
-            (usize::from(u16::from_be_bytes([b[0], b[1]])), &rest[2..])
-        }
-        26 => {
-            let b = rest.get(..4).ok_or(Error::NotByteString)?;
-            (
-                u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize,
-                &rest[4..],
-            )
-        }
-        _ => return Err(Error::NotByteString),
-    };
-    if rest.len() != len {
-        return Err(Error::NotByteString);
-    }
-    Ok(rest.to_vec())
 }
 
 /// Whether a UR carries a whole message or one part of one.
@@ -318,12 +276,18 @@ fn decode_indices(indices: &str) -> Result<(usize, usize), Fault> {
 
 /// A single-part `ur:crypto-psbt`.
 pub fn encode_psbt(psbt: &[u8]) -> String {
-    encode_single(PSBT_TYPE, &zeroize::Zeroizing::new(cbor_bytes(psbt)))
+    encode_single(
+        PSBT_TYPE,
+        &zeroize::Zeroizing::new(crate::cbor::bytes(psbt)),
+    )
 }
 
 /// A single-part `ur:bytes`.
 pub fn encode_bytes(bytes: &[u8]) -> String {
-    encode_single(BYTES_TYPE, &zeroize::Zeroizing::new(cbor_bytes(bytes)))
+    encode_single(
+        BYTES_TYPE,
+        &zeroize::Zeroizing::new(crate::cbor::bytes(bytes)),
+    )
 }
 
 /// Decodes a single-part UR.
@@ -385,7 +349,7 @@ impl Encoder {
         if payload.is_empty() {
             return Err(Error::Empty);
         }
-        let framed = zeroize::Zeroizing::new(cbor_bytes(payload));
+        let framed = zeroize::Zeroizing::new(crate::cbor::bytes(payload));
         let inner = fountain::Encoder::new(&framed, fragment_len.max(1))?;
         Ok(Encoder { inner, ur_type })
     }
@@ -567,7 +531,7 @@ mod tests {
 
         // A 50-byte message as one part.
         assert_eq!(
-            encode_single(BYTES_TYPE, &cbor_bytes(&make_message("Wolf", 50))),
+            encode_single(BYTES_TYPE, &crate::cbor::bytes(&make_message("Wolf", 50))),
             "ur:bytes/hdeymejtswhhylkepmykhhtsytsnoyoyaxaedsuttydmmhhpktpmsrjtgwdpfnsboxgwlbaawzuefywkdplrsrjynbvygabwjldapfcsdwkbrkch"
         );
 
@@ -679,21 +643,21 @@ mod tests {
 
     #[test]
     fn cbor_byte_strings() {
-        assert_eq!(cbor_bytes(b""), alloc::vec![0x40]);
-        assert_eq!(cbor_bytes(b"ab"), alloc::vec![0x42, b'a', b'b']);
+        assert_eq!(crate::cbor::bytes(b""), alloc::vec![0x40]);
+        assert_eq!(crate::cbor::bytes(b"ab"), alloc::vec![0x42, b'a', b'b']);
         let long = alloc::vec![7u8; 300];
-        let c = cbor_bytes(&long);
+        let c = crate::cbor::bytes(&long);
         assert_eq!(&c[..3], &[0x59, 0x01, 0x2c]);
-        assert_eq!(cbor_byte_string(&c).unwrap(), long);
+        assert_eq!(crate::cbor::byte_string(&c).unwrap(), long);
         let mid = alloc::vec![1u8; 100];
-        assert_eq!(cbor_bytes(&mid)[..2], [0x58, 100]);
+        assert_eq!(crate::cbor::bytes(&mid)[..2], [0x58, 100]);
         assert_eq!(
-            cbor_byte_string(&[0x42, 1]).unwrap_err(),
-            Error::NotByteString
+            crate::cbor::byte_string(&[0x42, 1]).unwrap_err(),
+            crate::cbor::Malformed
         );
         assert_eq!(
-            cbor_byte_string(&[0xa1, 1, 2]).unwrap_err(),
-            Error::NotByteString
+            crate::cbor::byte_string(&[0xa1, 1, 2]).unwrap_err(),
+            crate::cbor::Malformed
         );
     }
 

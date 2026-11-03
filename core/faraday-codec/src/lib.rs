@@ -32,6 +32,7 @@
 
 extern crate alloc;
 
+pub mod cbor;
 pub mod classify;
 #[cfg(feature = "decode")]
 pub mod decode;

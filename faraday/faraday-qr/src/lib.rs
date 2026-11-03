@@ -12,7 +12,7 @@
 //! reads as before.
 
 pub mod bbqr;
-pub mod cbor;
+pub use faraday_codec::cbor;
 pub mod envelope;
 pub mod registry;
 pub mod send;

@@ -277,7 +277,7 @@ fn = "parse_line"
 target = "faraday/fuzz/fuzz_targets/payload_line.rs"
 
 [[parser]]
-file = "faraday/faraday-qr/src/cbor.rs"
+file = "core/faraday-codec/src/cbor.rs"
 fn = "decode"
 target = "faraday/fuzz/fuzz_targets/ur_registry.rs"
 

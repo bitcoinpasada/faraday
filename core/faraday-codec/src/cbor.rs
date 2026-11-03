@@ -1,6 +1,12 @@
-//! Just enough CBOR (RFC 8949) for the UR registry's types: definite
-//! lengths only, a bounded depth, every length checked against what is
-//! left before anything is allocated.
+//! Just enough CBOR (RFC 8949) for the UR types: definite lengths only, a
+//! bounded depth, every length checked against what is left before
+//! anything is allocated. One module for the UR registry's decoder, the
+//! heads and byte strings the encoders write, the byte-string payload of
+//! a single-part UR and the fountain part's five items.
+
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 /// A decoded item.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,33 +154,111 @@ fn item(b: &[u8], at: &mut usize, depth: usize) -> Result<Value, Malformed> {
     }
 }
 
-/// A CBOR head: major type and argument.
+/// A CBOR head: major type and argument, in the shortest form.
 pub fn head(major: u8, n: u64) -> Vec<u8> {
+    let mut v = Vec::with_capacity(9);
+    push_head(&mut v, major, n);
+    v
+}
+
+fn push_head(out: &mut Vec<u8>, major: u8, n: u64) {
     let m = major << 5;
     match n {
-        0..=23 => vec![m | n as u8],
-        24..=0xff => vec![m | 24, n as u8],
+        0..=23 => out.push(m | n as u8),
+        24..=0xff => out.extend_from_slice(&[m | 24, n as u8]),
         0x100..=0xffff => {
-            let mut v = vec![m | 25];
-            v.extend_from_slice(&(n as u16).to_be_bytes());
-            v
+            out.push(m | 25);
+            out.extend_from_slice(&(n as u16).to_be_bytes());
         }
         0x1_0000..=0xffff_ffff => {
-            let mut v = vec![m | 26];
-            v.extend_from_slice(&(n as u32).to_be_bytes());
-            v
+            out.push(m | 26);
+            out.extend_from_slice(&(n as u32).to_be_bytes());
         }
         _ => {
-            let mut v = vec![m | 27];
-            v.extend_from_slice(&n.to_be_bytes());
-            v
+            out.push(m | 27);
+            out.extend_from_slice(&n.to_be_bytes());
         }
     }
 }
 
-/// A byte string.
+/// A byte string (major type 2) around `b`, with room for it made once.
 pub fn bytes(b: &[u8]) -> Vec<u8> {
-    let mut v = head(2, b.len() as u64);
+    let mut v = Vec::with_capacity(b.len() + 9);
+    push_head(&mut v, 2, b.len() as u64);
     v.extend_from_slice(b);
     v
+}
+
+/// The content of a byte string that is all of `cbor`: a head of at most
+/// a four-byte length (not an eight-byte one), and nothing after it.
+pub fn byte_string(cbor: &[u8]) -> Result<&[u8], Malformed> {
+    let mut r = Reader::new(cbor);
+    let head = r.read()?;
+    if head >> 5 != 2 || head & 0x1f > 26 {
+        return Err(Malformed);
+    }
+    let len = usize::try_from(r.argument_of(head)?).map_err(|_| Malformed)?;
+    let s = r.take(len)?;
+    if !r.is_done() {
+        return Err(Malformed);
+    }
+    Ok(s)
+}
+
+/// An unsigned integer (major type 0) of at most 32 bits, in the
+/// shortest form.
+pub fn push_uint32(out: &mut Vec<u8>, value: u32) {
+    push_head(out, 0, u64::from(value));
+}
+
+/// Reads heads and byte strings one at a time, for a fixed layout.
+pub struct Reader<'a> {
+    bytes: &'a [u8],
+    at: usize,
+}
+
+impl<'a> Reader<'a> {
+    /// A reader at the start of `bytes`.
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, at: 0 }
+    }
+
+    /// Whether every byte has been read.
+    pub fn is_done(&self) -> bool {
+        self.at == self.bytes.len()
+    }
+
+    /// The next byte.
+    pub fn read(&mut self) -> Result<u8, Malformed> {
+        Ok(take(self.bytes, &mut self.at, 1)?[0])
+    }
+
+    /// The next `n` bytes.
+    pub fn take(&mut self, n: usize) -> Result<&'a [u8], Malformed> {
+        take(self.bytes, &mut self.at, n)
+    }
+
+    fn argument_of(&mut self, head: u8) -> Result<u64, Malformed> {
+        arg(self.bytes, &mut self.at, head & 0x1f)
+    }
+
+    /// The argument of a head whose major type is `major`.
+    pub fn argument(&mut self, major: u8) -> Result<u64, Malformed> {
+        let head = self.read()?;
+        if head >> 5 != major {
+            return Err(Malformed);
+        }
+        self.argument_of(head)
+    }
+
+    /// An unsigned integer that fits 32 bits.
+    pub fn uint32(&mut self) -> Result<u32, Malformed> {
+        u32::try_from(self.argument(0)?).map_err(|_| Malformed)
+    }
+
+    /// A byte string, its length up to eight bytes wide.
+    pub fn byte_string(&mut self) -> Result<Vec<u8>, Malformed> {
+        let len = usize::try_from(self.argument(2)?).map_err(|_| Malformed)?;
+        Ok(self.take(len)?.to_vec())
+    }
 }

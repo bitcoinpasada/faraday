@@ -36,28 +36,28 @@ impl Part {
     pub fn cbor(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.data.len() + 16);
         out.push(0x85);
-        push_uint(&mut out, self.sequence as u32);
-        push_uint(&mut out, self.sequence_count as u32);
-        push_uint(&mut out, self.message_length as u32);
-        push_uint(&mut out, self.checksum);
-        out.extend_from_slice(&zeroize::Zeroizing::new(super::cbor_bytes(&self.data)));
+        crate::cbor::push_uint32(&mut out, self.sequence as u32);
+        crate::cbor::push_uint32(&mut out, self.sequence_count as u32);
+        crate::cbor::push_uint32(&mut out, self.message_length as u32);
+        crate::cbor::push_uint32(&mut out, self.checksum);
+        out.extend_from_slice(&zeroize::Zeroizing::new(crate::cbor::bytes(&self.data)));
         out
     }
 
     /// The part behind `cbor`. Trailing bytes are an error.
     pub fn from_cbor(cbor: &[u8]) -> Result<Self, Fault> {
-        let mut cursor = Cursor { bytes: cbor, at: 0 };
-        if cursor.read()? != 0x85 {
+        let mut cursor = crate::cbor::Reader::new(cbor);
+        if cursor.read().map_err(|_| Fault::Cbor)? != 0x85 {
             return Err(Fault::Cbor);
         }
         let part = Self {
-            sequence: cursor.uint()? as usize,
-            sequence_count: cursor.uint()? as usize,
-            message_length: cursor.uint()? as usize,
-            checksum: cursor.uint()?,
-            data: cursor.byte_string()?,
+            sequence: cursor.uint32().map_err(|_| Fault::Cbor)? as usize,
+            sequence_count: cursor.uint32().map_err(|_| Fault::Cbor)? as usize,
+            message_length: cursor.uint32().map_err(|_| Fault::Cbor)? as usize,
+            checksum: cursor.uint32().map_err(|_| Fault::Cbor)?,
+            data: cursor.byte_string().map_err(|_| Fault::Cbor)?,
         };
-        if cursor.at != cursor.bytes.len() {
+        if !cursor.is_done() {
             return Err(Fault::Cbor);
         }
         Ok(part)
@@ -71,76 +71,6 @@ impl Part {
     /// The `<seq>-<count>` segment of the part's URI.
     pub fn sequence_id(&self) -> alloc::string::String {
         alloc::format!("{}-{}", self.sequence, self.sequence_count)
-    }
-}
-
-/// A CBOR head for an unsigned integer, in the shortest form.
-fn push_uint(out: &mut Vec<u8>, value: u32) {
-    if value < 24 {
-        out.push(value as u8);
-    } else if value <= 0xff {
-        out.extend_from_slice(&[0x18, value as u8]);
-    } else if value <= 0xffff {
-        out.push(0x19);
-        out.extend_from_slice(&(value as u16).to_be_bytes());
-    } else {
-        out.push(0x1a);
-        out.extend_from_slice(&value.to_be_bytes());
-    }
-}
-
-/// Reads the five CBOR items of a part, and nothing else.
-struct Cursor<'a> {
-    bytes: &'a [u8],
-    at: usize,
-}
-
-impl Cursor<'_> {
-    fn read(&mut self) -> Result<u8, Fault> {
-        let byte = *self.bytes.get(self.at).ok_or(Fault::Cbor)?;
-        self.at += 1;
-        Ok(byte)
-    }
-
-    fn take(&mut self, n: usize) -> Result<&[u8], Fault> {
-        let end = self.at.checked_add(n).ok_or(Fault::Cbor)?;
-        let slice = self.bytes.get(self.at..end).ok_or(Fault::Cbor)?;
-        self.at = end;
-        Ok(slice)
-    }
-
-    /// The argument of a CBOR head whose major type is `major`.
-    fn argument(&mut self, major: u8) -> Result<u64, Fault> {
-        let head = self.read()?;
-        if head >> 5 != major {
-            return Err(Fault::Cbor);
-        }
-        Ok(match head & 0x1f {
-            n @ 0..=23 => u64::from(n),
-            24 => u64::from(self.read()?),
-            25 => {
-                let b = self.take(2)?;
-                u64::from(u16::from_be_bytes([b[0], b[1]]))
-            }
-            26 => {
-                let b = self.take(4)?;
-                u64::from(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
-            }
-            27 => {
-                let b = self.take(8)?;
-                u64::from_be_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
-            }
-            _ => return Err(Fault::Cbor),
-        })
-    }
-
-    fn uint(&mut self) -> Result<u32, Fault> {
-        u32::try_from(self.argument(0)?).map_err(|_| Fault::Cbor)
-    }
-
-    fn byte_string(&mut self) -> Result<Vec<u8>, Fault> {
-        let len = usize::try_from(self.argument(2)?).map_err(|_| Fault::Cbor)?;
-        Ok(self.take(len)?.to_vec())
     }
 }
 

@@ -318,7 +318,7 @@ below, D1 takes the action whose functions reach it, from the inventory.
 | BIP-322 "simple" message signatures | `core/faraday-psbt/src/message.rs` | `message-sign` | F178 | The bip322 crate is pre-release (§6.4). |
 | SLIP-39 Shamir backup | `core/faraday-bip/src/slip39.rs` | `slip39` | F178 | No maintained Rust implementation of SLIP-39 exists. |
 | CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files | `faraday/faraday-sb` | `sb-keys` | F178 | No library writes Authenticode signatures or EFI signature lists; the CMS crate for the DER version Faraday uses is a release candidate (§6.3). |
-| BC-UR, with its CBOR (carries) | `core/faraday-codec/src/ur/`, `faraday/faraday-qr/src/cbor.rs` | `ur` | F178 | No library for this format comes from a publisher Faraday's dependency review trusts. |
+| BC-UR, with its CBOR (carries) | `core/faraday-codec/src/ur/`, `core/faraday-codec/src/cbor.rs` | `ur` | F178 | No library for this format comes from a publisher Faraday's dependency review trusts. |
 | BBQr (carries) | `faraday/faraday-qr/src/bbqr.rs` | `bbqr` | F178 | No library for this format comes from a publisher Faraday's dependency review trusts. |
 | SeedQR (carries) | `core/faraday-codec/src/seedqr.rs` | `seedqr-make` | F178 | No Rust library implements SeedQR. |
 | The QR encoder, a port of Nayuki's `qrcodegen`, with its GF(256) and Reed-Solomon (carries) | `core/faraday-codec/src/qr.rs` | `qr` | F178 | No QR encoder comes from a publisher Faraday's dependency review trusts; Faraday's port of Nayuki's code wipes a SeedQR's buffers. |
@@ -1472,8 +1472,8 @@ The pieces §3 keeps are each in one place:
   `DATA_START` and `DATA_SECTORS`.
 - **CBOR.** `core/faraday-codec/src/ur/`'s `cbor_bytes`,
   `cbor_byte_string` and the fountain part's CBOR, and
-  `faraday/faraday-qr/src/cbor.rs`, become one module in
-  `faraday-codec`, which `faraday-qr` uses.
+  `faraday-qr`'s own `cbor.rs`, become one module in
+  `faraday-codec` (`src/cbor.rs`, built), which `faraday-qr` uses.
 - **PDF text.** `faraday/faraday-core/src/pdf.rs`'s `pdf_text` and the
   Starter's narrower copy in `sheets.rs` become one, `faraday-core`'s.
 - **HKDF.** `faraday/faraday-pgp/src/message.rs`'s `hkdf`, an extract
