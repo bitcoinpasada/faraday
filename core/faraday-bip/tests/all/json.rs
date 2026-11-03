@@ -93,6 +93,14 @@ fn a_number_reads_as_the_decimal_text_of_its_value() {
 }
 
 #[test]
+fn a_number_out_of_the_f64_range_is_refused() {
+    for bad in ["1e400", "-1e400", "[1e309]", r#"{"a":1e999}"#] {
+        assert!(json::parse(bad).is_err(), "{bad:?} was read");
+    }
+    assert!(json::parse("[1e308]").is_ok());
+}
+
+#[test]
 fn a_key_written_two_ways_is_still_named_twice() {
     assert_eq!(
         json::parse(r#"{"a":1,"\u0061":2}"#),

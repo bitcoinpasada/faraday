@@ -52,7 +52,10 @@ fn the_zlib_stream_ends_in_the_adler_32_of_the_rows() {
     // The rows are a filter byte of 0 and the nine letters of
     // "Wikipedia", whose Adler-32 with that byte before it is
     // 0x11E70398 (zlib's `adler32`).
-    assert_eq!(adler_of(&grey_png(9, 1, b"Wikipedia")), 0x11E7_0398u32.to_be_bytes());
+    assert_eq!(
+        adler_of(&grey_png(9, 1, b"Wikipedia")),
+        0x11E7_0398u32.to_be_bytes()
+    );
     // No rows' bytes at all: the Adler-32 of nothing is 1 (RFC 1950 §8.2).
     assert_eq!(adler_of(&grey_png(0, 0, &[])), 1u32.to_be_bytes());
 }

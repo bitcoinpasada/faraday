@@ -79,8 +79,13 @@ fn a_release_boot_file_with_genuine_signed_sums_is_signed() {
     .expect("the release's own boot program");
     assert_eq!(release.version(), "0.9.0");
     let k = keys();
-    let signed =
-        release::sign(&mut faraday_sb::rng::stream(&[0x43; 32], 0), &boot, &k.db, &release).expect("signed");
+    let signed = release::sign(
+        &mut faraday_sb::rng::stream(&[0x43; 32], 0),
+        &boot,
+        &k.db,
+        &release,
+    )
+    .expect("signed");
     assert_eq!(pe::check(&signed, &k.db.cert), Ok(Check::Valid));
 }
 
@@ -168,7 +173,12 @@ fn a_release_signs_only_the_file_it_names() {
     other[0x200] = 0x90;
     let k = keys();
     assert_eq!(
-        release::sign(&mut faraday_sb::rng::stream(&[0x43; 32], 0), &other, &k.db, &release),
+        release::sign(
+            &mut faraday_sb::rng::stream(&[0x43; 32], 0),
+            &other,
+            &k.db,
+            &release
+        ),
         Err(Error::NotRelease)
     );
 }

@@ -288,6 +288,9 @@ pub struct KeyGen {
     pub share_at: usize,
     /// The share the quiz is on.
     pub quiz_share: usize,
+    /// A right tap passed a SLIP-39 share's quiz before the generator
+    /// answered: the next share's quiz starts when it does.
+    pub quiz_next: bool,
     /// Coin flips are entered as die faces: 1, 2 or 3 is a 0 (tails),
     /// 4, 5 or 6 a 1 (heads). The flips, and so the key, are the same as
     /// flipping a coin.
@@ -411,6 +414,7 @@ impl KeyGen {
             shares: Vec::new(),
             share_at: 0,
             quiz_share: 0,
+            quiz_next: false,
             by_die: false,
             typing: true,
             entered: crate::secret_text::SecretText::new(),
@@ -1429,12 +1433,9 @@ impl crate::Faraday {
             .map(|k| k.deal_random_len(faraday_bip::slip39::MAX_STRENGTH_BYTES));
         let draw = dealing.and_then(|n| self.fresh_bytes(b"slip39 split", n));
         // The quiz's order comes from the session's generator, asked for
-        // before the flow is borrowed; with no answer yet the quiz waits.
+        // before the flow is borrowed; with no answer yet a share's quiz waits for it.
         let wants = self.keygen.wants_quiz_seed(action);
         let quiz_seed = if wants { self.quiz_seed() } else { None };
-        if wants && quiz_seed.is_none() && matches!(action, A::KQuiz(_)) {
-            return;
-        }
         if action == A::KAdd {
             self.keygen_add();
             return;

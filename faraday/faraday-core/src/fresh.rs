@@ -470,6 +470,11 @@ impl Faraday {
             self.inputs_coded();
             self.keys_reblind();
         }
+        if self.keygen.quiz_waits()
+            && let Some(seed) = self.quiz_seed()
+        {
+            self.keygen.start_waiting_quiz(seed);
+        }
     }
 
     /// Costs an elliptic-curve multiplication per key held. The session's

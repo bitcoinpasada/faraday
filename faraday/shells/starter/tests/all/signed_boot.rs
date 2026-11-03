@@ -214,8 +214,7 @@ fn release_listing(efi: &[u8], off: bool) -> (Job, Confirmed) {
 /// make them, and `pe` signed with it.
 fn signed_by_test_key(pe: &[u8]) -> (Vec<u8>, Vec<u8>) {
     let keys = faraday_sb::make(&[0x57; 32], "Test", NOW).expect("keys");
-    let signed =
-        faraday_sb::pe::sign(&mut stream(&[0x58; 32], 0), pe, &keys.db).expect("signed");
+    let signed = faraday_sb::pe::sign(&mut stream(&[0x58; 32], 0), pe, &keys.db).expect("signed");
     (signed, keys.db.cert.clone())
 }
 
@@ -400,8 +399,8 @@ fn a_signed_boot_file_with_more_than_one_signature_at_its_end_is_refused() {
     appended.extend_from_slice(b"anything at all\0");
     // Two signatures: the test db key's and another key's.
     let other = faraday_sb::make(&[0x59; 32], "Other", NOW).expect("keys");
-    let second = faraday_sb::pe::sign(&mut stream(&[0x5A; 32], 0), &release_efi, &other.db)
-        .expect("signed");
+    let second =
+        faraday_sb::pe::sign(&mut stream(&[0x5A; 32], 0), &release_efi, &other.db).expect("signed");
     let (at2, size2) = dir(&second);
     let mut two = signed.clone();
     two.extend_from_slice(&second[at2..at2 + size2]);

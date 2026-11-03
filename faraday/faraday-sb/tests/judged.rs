@@ -300,8 +300,18 @@ fn blinding_leaves_the_signature_as_it_was() {
 
     let k = keys();
     let message = b"Faraday signs this with its db key";
-    let a = faraday_sb::x509::sign(&mut faraday_sb::rng::stream(&[1; 32], 0), &k.db.key, message).unwrap();
-    let b = faraday_sb::x509::sign(&mut faraday_sb::rng::stream(&[2; 32], 7), &k.db.key, message).unwrap();
+    let a = faraday_sb::x509::sign(
+        &mut faraday_sb::rng::stream(&[1; 32], 0),
+        &k.db.key,
+        message,
+    )
+    .unwrap();
+    let b = faraday_sb::x509::sign(
+        &mut faraday_sb::rng::stream(&[2; 32], 7),
+        &k.db.key,
+        message,
+    )
+    .unwrap();
     let plain = SigningKey::<Sha256>::new(rsa::RsaPrivateKey::from_pkcs8_der(&k.db.key).unwrap())
         .sign(message)
         .to_vec();
@@ -505,27 +515,33 @@ fn images_signed_by_sbsign_and_osslsigncode_are_read_and_their_signer_named() {
     }
 }
 
-/// One seed gives `ChaCha20Rng`'s stream for each purpose: the stream
-/// of a name is the crate's own stream of that number, and two names
-/// give different streams.
+/// The generator's first bytes are the ChaCha20 keystream of RFC 8439
+/// Appendix A.1, test vector 1 (all-zero key, counter 0, zero nonce),
+/// and one seed gives different streams for different names.
 #[test]
-fn the_generator_is_chacha20rng_on_the_stream_of_the_name() {
-    use chacha20::ChaCha20Rng;
-    use rand_core::{SeedableRng, TryRng};
+fn the_generator_gives_the_keystream_of_rfc_8439() {
+    use rand_core::TryRng;
+    let mut ours = [0u8; 64];
+    faraday_sb::rng::stream(&[0; 32], 0)
+        .try_fill_bytes(&mut ours)
+        .unwrap();
+    let expected = [
+        0x76u8, 0xb8, 0xe0, 0xad, 0xa0, 0xf1, 0x3d, 0x90, 0x40, 0x5d, 0x6a, 0xe5, 0x53, 0x86, 0xbd,
+        0x28, 0xbd, 0xd2, 0x19, 0xb8, 0xa0, 0x8d, 0xed, 0x1a, 0xa8, 0x36, 0xef, 0xcc, 0x8b, 0x77,
+        0x0d, 0xc7, 0xda, 0x41, 0x59, 0x7c, 0x51, 0x57, 0x48, 0x8d, 0x77, 0x24, 0xe0, 0x3f, 0xb8,
+        0xd8, 0x4a, 0x37, 0x6a, 0x43, 0xb8, 0xf4, 0x15, 0x18, 0xa1, 0x1c, 0xc3, 0x87, 0xb6, 0x69,
+        0xb2, 0xee, 0x65, 0x86,
+    ];
+    assert_eq!(ours, expected);
     let seed: [u8; 32] = core::array::from_fn(|i| i as u8);
-    for what in [0u8, 1, 2, 255] {
-        let mut ours = [0u8; 200];
-        faraday_sb::rng::stream(&seed, what).try_fill_bytes(&mut ours).unwrap();
-        let mut theirs = ChaCha20Rng::from_seed(seed);
-        theirs.set_stream(u64::from(what));
-        let mut expected = [0u8; 200];
-        theirs.try_fill_bytes(&mut expected).unwrap();
-        assert_eq!(ours, expected);
-    }
     let mut one = [0u8; 32];
     let mut two = [0u8; 32];
-    faraday_sb::rng::stream(&seed, 1).try_fill_bytes(&mut one).unwrap();
-    faraday_sb::rng::stream(&seed, 2).try_fill_bytes(&mut two).unwrap();
+    faraday_sb::rng::stream(&seed, 1)
+        .try_fill_bytes(&mut one)
+        .unwrap();
+    faraday_sb::rng::stream(&seed, 2)
+        .try_fill_bytes(&mut two)
+        .unwrap();
     assert_ne!(one, two);
 }
 

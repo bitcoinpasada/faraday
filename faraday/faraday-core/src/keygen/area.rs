@@ -34,6 +34,7 @@ impl KeyGenArea {
             A::KNext => k.open == Some(kstep::WORDS),
             A::KQuiz(slot) => {
                 k.slip39
+                    && !k.quiz_next
                     && k.quiz.as_ref().is_some_and(|q| {
                         let (done, len) = q.progress();
                         done + 1 >= len && usize::from(slot) == q.correct_slot()
@@ -41,6 +42,29 @@ impl KeyGenArea {
             }
             _ => false,
         })
+    }
+
+    /// Once the session's generator has answered, starts the quiz of the
+    /// next share when a right tap on a share's last word came before
+    /// it did. A lookup.
+    pub(crate) fn start_waiting_quiz(&mut self, seed: u64) {
+        let Some(k) = self.state.as_mut().filter(|k| k.quiz_next) else {
+            return;
+        };
+        if let Some(next) = k.share_indices(k.quiz_share + 1).map(<[u16]>::to_vec) {
+            k.quiz = Some(crate::quiz::Quiz::new(
+                &next,
+                crate::word_entry::EntryList::Slip39,
+                seed,
+            ));
+            k.quiz_share += 1;
+        }
+        k.quiz_next = false;
+    }
+
+    /// Whether a share's quiz waits for the generator's answer.
+    pub(crate) fn quiz_waits(&self) -> bool {
+        self.state.as_ref().is_some_and(|k| k.quiz_next)
     }
 
     /// How open the codex32 dice sheet shows, 0 to 1 (1 where there is
@@ -538,6 +562,7 @@ impl KeyGenArea {
                     k.shown = !k.shown;
                 }
             }
+            A::KQuiz(_) if k.slip39 && k.quiz_next => {}
             A::KQuiz(slot) if k.slip39 => {
                 let list = crate::word_entry::EntryList::Slip39;
                 let at = k.quiz_share;
@@ -551,13 +576,16 @@ impl KeyGenArea {
                     None => false,
                 };
                 if passed {
-                    // The next share, or done.
+                    // The next share, or done; with no seed yet the next
+                    // share's quiz waits for one (`start_waiting_quiz`).
                     match k.share_indices(at + 1).map(<[u16]>::to_vec) {
-                        Some(next) => {
-                            k.quiz =
-                                Some(crate::quiz::Quiz::new(&next, list, quiz_seed.unwrap_or(0)));
-                            k.quiz_share = at + 1;
-                        }
+                        Some(next) => match quiz_seed {
+                            Some(seed) => {
+                                k.quiz = Some(crate::quiz::Quiz::new(&next, list, seed));
+                                k.quiz_share = at + 1;
+                            }
+                            None => k.quiz_next = true,
+                        },
                         None => k.done[usize::from(kstep::QUIZ)] = true,
                     }
                 }

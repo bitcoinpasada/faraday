@@ -38,6 +38,7 @@ BIP 129's) is expected here from that rule, named in the facts.
 
 import base64
 import json
+import math
 import re
 
 import core_node
@@ -119,7 +120,7 @@ def json_reference(text):
     """CPython's `json` reading a wallet file the way Faraday's reader is
     to: a byte order mark and white space around it, a key named twice
     refused, nesting deeper than 32 refused, a text over 1 MiB refused,
-    and no NaN, Infinity or lone surrogate. Numbers are compared as the
+    and no NaN, Infinity, number out of f64's range or lone surrogate. Numbers are compared as the
     floats they stand for, since Faraday keeps the decimal text of the
     value (`1e3` is `1000`)."""
     if len(text.encode()) > JSON_MAX_SIZE:
@@ -136,14 +137,23 @@ def json_reference(text):
     def refuse(name):
         raise ValueError(name)
 
+    def finite(t):
+        f = float(t)
+        if not math.isfinite(f):
+            raise ValueError(f"{t} is out of the f64 range")
+        return f
+
     value = json.loads(text.removeprefix("\ufeff"), object_pairs_hook=members,
-                       parse_constant=refuse)
+                       parse_constant=refuse, parse_float=finite)
 
     def walk(v, depth):
         if isinstance(v, bool) or v is None:
             return v
         if isinstance(v, (int, float)):
-            return float(v)
+            try:
+                return finite(v)
+            except OverflowError:
+                raise ValueError("out of the f64 range") from None
         if isinstance(v, str):
             v.encode()  # a lone surrogate does not encode
             return v
@@ -600,7 +610,7 @@ class Import(Area):
                 '"\\ud83d\\ude00"', '"\\ud800"', '"\\ud800\\u0041"', '[NaN]', '[Infinity]',
                 '[1,]', '{"a":1,}', "{'a':1}", "01", "1.", ".5", "-", "1e", "+1", "tru", "nul",
                 '"a', '"\\x"', '"\\u12"', '"tab\there"', '{"a" 1}', "{1:2}", "[1 2]", "1 2",
-                "{} x", "", "{", "[[]", "[]]",
+                "{} x", "", "{", "[[]", "[]]", "1e400", "-1e400", "[1e308]", "[1e309]",
         ]:
             self.json(text)
         for _ in range(60):

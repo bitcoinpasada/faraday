@@ -109,6 +109,41 @@ fn the_key_loads_once_every_share_is_quizzed() {
     );
 }
 
+/// A right tap on a share's last word counts when the system has no
+/// random bytes to give just then: the next share's quiz opens once
+/// they come.
+#[test]
+fn a_right_tap_on_a_shares_last_word_is_kept_until_the_bytes_come() {
+    let mut app = dealt();
+    app.press(Action::KNext); // check -> shares
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    app.press(Action::KNext); // shares -> quiz
+    // Answer all but the last word of the first share.
+    loop {
+        let q = app.keygen().unwrap().quiz.as_ref().unwrap();
+        let (done, len) = q.progress();
+        if done + 1 >= len {
+            break;
+        }
+        let slot = q.correct_slot() as u8;
+        app.press(Action::KQuiz(slot));
+    }
+    while faraday_core::testkit::fresh(&mut app, b"drain").is_some() {}
+    let slot = app.keygen().unwrap().quiz.as_ref().unwrap().correct_slot() as u8;
+    app.press(Action::KQuiz(slot));
+    assert_eq!(
+        app.keygen().unwrap().quiz_share,
+        0,
+        "no seed for the next quiz yet"
+    );
+    app.event(Event::Entropy(EntropyBytes::new([0x70; 32])));
+    let k = app.keygen().unwrap();
+    assert_eq!(k.quiz_share, 1, "the tap was kept");
+    assert_eq!(k.quiz.as_ref().unwrap().progress().0, 0);
+}
+
 /// The split's randomness is the system's fresh bytes as they came
 /// (`many_fresh_bytes_are_an_answer_for_every_32` holds what those are):
 /// the same session takes the same bytes for "slip39 split" in place of
