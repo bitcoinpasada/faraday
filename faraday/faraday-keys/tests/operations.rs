@@ -306,6 +306,21 @@ fn keys_added_from_words_come_back_with_their_fingerprint_and_word_count() {
     // The two share their words.
     assert_eq!(keys.with_same_words(&c, 0), vec![0, 1]);
     assert!(keys.same_words(&c, 0, 1));
+    // The same entropy in Spanish's list is another wallet: its words are
+    // not the English key's.
+    let spanish = Mnemonic::parse(
+        &c,
+        Language::Spanish,
+        "ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto",
+    )
+    .expect("the Spanish words");
+    let es = keys
+        .add_mnemonic(&c, &spanish, "", "Spanish", None)
+        .expect("the Spanish key loads");
+    assert_ne!(es, fp);
+    assert_eq!(keys.with_same_words(&c, 0), vec![0, 1]);
+    assert_eq!(keys.with_same_words(&c, 2), vec![2]);
+    keys.remove(2);
     // The key a passphrase would make is told before it is added.
     assert_eq!(keys.fingerprint_with(&c, 0, "TREZOR"), Some(other));
     assert_eq!(keys.position(other), Some(1));

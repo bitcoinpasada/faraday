@@ -995,14 +995,18 @@ impl Keys {
     }
 
     /// Costs a parse of the words the first time for each key. The places
-    /// of the keys that have the words key `i` has, `i` included: the same
-    /// words with and without a passphrase.
+    /// of the keys that have the words key `i` has in the same list, `i`
+    /// included: the same words with and without a passphrase. The same
+    /// entropy in another list is another wallet, and is not one of them.
     pub fn with_same_words(&self, c: &Compute, i: usize) -> Vec<usize> {
+        let Some(language) = self.entries.get(i).map(|e| e.info.language) else {
+            return Vec::new();
+        };
         if self.words_id(c, i).is_none() {
             return Vec::new();
         }
         (0..self.entries.len())
-            .filter(|&k| self.same_words(c, i, k))
+            .filter(|&k| self.entries[k].info.language == language && self.same_words(c, i, k))
             .collect()
     }
 

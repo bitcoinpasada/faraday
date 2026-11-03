@@ -4053,6 +4053,7 @@ screens = [
 functions = [
   "faraday/faraday-keys/src/session.rs::Keys::words_id",
   "faraday/faraday-keys/src/session.rs::Keys::same_words",
+  "faraday/faraday-keys/src/session.rs::Keys::with_same_words",
   "faraday/faraday-keys/src/session.rs::words_id",
   "faraday/faraday-keys/src/session.rs::Keys::words_match",
   "faraday/faraday-keys/src/session.rs::Keys::words_alone",
