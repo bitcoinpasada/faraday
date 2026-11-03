@@ -156,7 +156,10 @@ fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
     let first = usize::from(*packets.get(1)?);
     let (len, head) = match first {
         0..=191 => (first, 2),
-        192..=223 => (((first - 192) << 8) + usize::from(*packets.get(2)?) + 192, 3),
+        192..=223 => (
+            ((first - 192) << 8) + usize::from(*packets.get(2)?) + 192,
+            3,
+        ),
         _ => return None,
     };
     if packets.first()? & 0x3f != 2 || packets.len() != head + len {

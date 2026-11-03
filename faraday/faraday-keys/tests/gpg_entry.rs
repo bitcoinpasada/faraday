@@ -155,7 +155,8 @@ fn a_certificate_is_the_keys_own_at_its_expiry_and_nothing_else() {
     };
     assert!(with(k.certificate(MADE + 60)).is_some());
     let mut more = key(0x11);
-    more.user_ids.push("Second <second@example.com>".to_string());
+    more.user_ids
+        .push("Second <second@example.com>".to_string());
     assert!(with(more.certificate(MADE)).is_none());
     let mut other = key(0x11);
     other.expiry = 63_072_000;

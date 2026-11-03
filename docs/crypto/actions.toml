@@ -6975,6 +6975,7 @@ functions = [
   "faraday/faraday-vault/src/file.rs::measure",
   "faraday/faraday-vault/src/file.rs::open",
   "faraday/faraday-vault/src/file.rs::seal",
+  "faraday/faraday-vault/src/file.rs::Opened::next_size",
   "faraday/faraday-vault/src/file.rs::create",
   "faraday/faraday-vault/src/kdbx/keys.rs::file_keys",
   "faraday/faraday-vault/src/kdbx/keys.rs::argon_run",
