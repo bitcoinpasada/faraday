@@ -27,7 +27,7 @@ need. Each document's header says what kind it is:
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
-| How is a vault stored? | `docs/VAULT.md`, the age vault (F189); the FVLT format built today, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count, `docs/VAULT-HARDENING.md` |
+| How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the FVLT format built today, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count, `docs/VAULT-HARDENING.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | What does each scanner do with each kind of code, and with one read in the wrong scanner? | `docs/SCANNING.md` |
@@ -81,7 +81,7 @@ need. Each document's header says what kind it is:
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Built (F169).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
-- `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
+- `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built; folded into the vault when `docs/VAULT.md` is built (F190).
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
 - `docs/ORIENTATION.md`: Panel orientation. Built (F100): a 7-inch or 10-inch panel starts in landscape, Rotation in Settings › Display turns it and its touch.
@@ -118,8 +118,8 @@ need. Each document's header says what kind it is:
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built as F174 has it; a stick Windows leaves whole (F182) and macOS keys checked against a Mac are not.
-- `docs/VAULT.md`: The Faraday vault: an age file under one passphrase, TOML inside, five sizes, the smallest a QR code. Specified (F189), not built; the FVLT format it replaces is what is built.
-- `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), amended by F189: the passphrase in NFC and the seal count built in the FVLT format and carried into the age vault; the rest replaced and moved to history.
+- `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Specified (F190, amending F189), not built; the FVLT format it replaces is what is built.
+- `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), amended by F189: the passphrase in NFC and the seal count built in the FVLT format and carried into the KDBX vault; the rest replaced and moved to history.
 - `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. Planned, not built.
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Planned, not built.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.

@@ -9,6 +9,11 @@ Faraday writes a KDBX 4 database for a person whose reader is a KeePass
 app. It is the one encrypted file Faraday writes for others, and it is
 written and never read: nothing on the device opens a KDBX file.
 
+Planned (F190): the vault becomes a KDBX 4 database itself
+(`docs/VAULT.md`), and this export is folded into it: giving a KeePass
+app one item is making a vault that holds it. When that is built, this
+document moves to `docs/history/`.
+
 The format is KeePass's own and is not restated here. It is specified at
 <https://keepass.info/help/kb/kdbx.html>, with the KDBX 4 changes at
 <https://keepass.info/help/kb/kdbx_4.html>; both pages are copied into

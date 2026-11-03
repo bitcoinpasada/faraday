@@ -111,7 +111,7 @@ Read this table, then only the decision you need.
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
 | [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
 | [F96](decisions/F96.md) | Faraday Demo's dice rollers | 2026-10-22 | Active | keys |
-| [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Active | backup |
+| [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Amended by F190 | backup |
 | [F98](decisions/F98.md) | A new wallet's account is asked after its quorum, not on Kind | 2026-10-23 | Active | wallets |
 | [F99](decisions/F99.md) | APK signing is removed | 2026-10-23 | Active | keys |
 | [F100](decisions/F100.md) | The 7-inch and 10-inch panels run in landscape, with portrait a setting | 2026-10-23 | Active | design |
@@ -174,7 +174,7 @@ Read this table, then only the decision you need.
 | [F157](decisions/F157.md) | Wherever the system's randomness is used, the person can add their own: Add randomness at every press that draws it | 2026-10-28 | Active | security |
 | [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix, the vault's container and the Secure Boot generator | 2026-10-28 | Amended by F160, F189 | security |
 | [F159](decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Amended by F189 | security |
-| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189 | crypto |
+| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190 | crypto |
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
 | [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Amended by F176 | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
@@ -203,4 +203,5 @@ Read this table, then only the decision you need.
 | [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187 | release |
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
-| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Active | security |
+| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
+| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Active | security |

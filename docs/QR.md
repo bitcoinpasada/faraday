@@ -92,7 +92,7 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 | PSBT, raw transaction | Files, then the transaction step of the wallet it belongs to (`docs/WALLETS.md` §2); one of the spend under way is collected into it. From Home's Scan, the read card with **Sign it** (or **Add to the signatures**) or **Decode it**, and **Done**; one to check rather than sign goes to its check |
 | Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | Files, and the piece a wallet in progress is missing; from Home's Scan, a wallet description's read card with **Load the wallet** and split sheets' with **Restore the wallet**, and **Done**; an account key is filed with its toast |
 | SeedQR, CompactSeedQR, words | Add a key, added as its own **Scan a SeedQR** adds them; read at Restore's **Scan it** while Restore has slots for seeds, or at Create's **Scan its xpub**, the seed sheet, then the flow's slot, the flow on screen after; read at a wallet's **Scan a key**, matched to its missing keys; never Files or the Inbox |
-| QR vault: an age file with one scrypt stanza, about 408 bytes, holding one seed, codex32 share, passphrase or note, or nothing (`docs/VAULT.md` §2.1, F189; planned) | Wherever a SeedQR is taken: its passphrase asked, the vault opened and listed on Vaults, marked as a QR vault; a seed's words to the seed sheet, then the flow as a scanned SeedQR's; a share to Add a key's form for it; a passphrase to the seed it belongs to, by its fingerprint; a note, or an empty one, opens on the vault's page. Not a secret (§7.1), so not held to Files' rule for secrets; the Starter reads and prints one and never asks for its passphrase |
+| QR vault: an RFC 9580 OpenPGP message under a passphrase (Argon2 S2K, AES-256-OCB), 396 bytes, holding one seed, codex32 share, passphrase or note, or nothing (`docs/VAULT.md` §1.2, §2.1, F189, F190; planned) | Wherever a SeedQR is taken: its passphrase asked, the vault opened and listed on Vaults, marked as a QR vault; a seed's words to the seed sheet, then the flow as a scanned SeedQR's; a share to Add a key's form for it; a passphrase to the seed it belongs to, by its fingerprint; a note, or an empty one, opens on the vault's page. Not a secret (§7.1), so not held to Files' rule for secrets; the Starter reads and prints one and never asks for its passphrase |
 | codex32 string, Codex32QR, SLIP-39 share | Add a key's form for it, the part in, waiting for the rest of its set (F167); a codex32 secret read at Restore's **Scan it** while Restore has slots for seeds, or at Create's **Scan its xpub**, loads on that form and goes into the flow's slot, the flow on screen after; from a wallet's **Scan a key**, that form for the wallet, which takes the key once whole as one of its keys; never Files |
 | WIF private key | On Home's Scan and the Sweep sheet's own scanner, the Sweep sheet (`docs/INTEROP.md` §5 I11, F171); on any other scanner, named: Sweep a private key, in Tools, takes it; never filed |
 | Private key: xprv, Nostr `nsec` | Named: Add a key takes seeds as words or a SeedQR; never filed (F167) |
@@ -208,7 +208,7 @@ intact, not who sent it.
    | PSBT part, signed PSBT, transaction hex | yes | no |
    | Wallet .json, Bitcoin Core import | from Files | no |
    | Backup, share and blank PDFs | no | no |
-   | QR vault (`docs/VAULT.md` §2.1; planned) | yes | yes, labelled `QR vault · {name} · {sealed date}`, never what it holds; its `.age` file to the Outbox beside it |
+   | QR vault (`docs/VAULT.md` §2.1; planned) | yes | yes, labelled `QR vault · {name} · {sealed date}`, never what it holds; its `.pgp` file to the Outbox beside it |
    | Vaults, Secure Boot keys and signed images | from Files where they fit | no |
 
    Why not the rest: a PSBT is handed over in animated parts, and a set
@@ -273,9 +273,9 @@ Starter's BitLocker recovery key (`docs/STARTER.md` D18) was a third
 until `docs/DECISIONS.md` F33 (2026-10-14) removed it: no app of
 Faraday's shows that key, as a code or otherwise.
 
-**A QR vault is not a secret** (F189; planned, `docs/VAULT.md` §2.1):
-it is an age file, its item encrypted under a passphrase, padded to the
-one length every QR vault has. It is drawn and printed as any code is.
+**A QR vault is not a secret** (F189, F190; planned, `docs/VAULT.md`
+§2.1): it is an OpenPGP message, its item encrypted under a passphrase,
+padded to the one length every QR vault has. It is drawn and printed as any code is.
 
 **Added** (rows 1 to 6 are new codes; the rest is recorded so the
 rule's reach is written down):

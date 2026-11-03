@@ -2007,7 +2007,7 @@ pub static CONSTRUCTIONS: &[Construction] = &[
             Part {
                 heading: "The file",
                 items: &[
-                    Item::Para("Planned, not built: the vault becomes an age v1 file under one passphrase: one scrypt stanza (RFC 7914), the header MAC and the payload as age writes them, a TOML v1.0.0 document inside, in five sizes, the smallest a QR code. It replaces the four-slot account below, which is the vault built today."),
+                    Item::Para("Planned, not built: the vault becomes a KDBX 4 database under one passphrase, with Argon2id and ChaCha20 as KeePass writes them, its items as KeePass entries, in four sizes; and the smallest, a QR code, an RFC 9580 OpenPGP message under its Argon2 S2K with AES-256-OCB, holding one item. Both open in programs Faraday's authors did not write. It replaces the four-slot account below, which is the vault built today."),
                     Item::Para("A vault is one file: a header of 53 bytes, then four slots of L + 40 bytes each, 53 + 4 × (L + 40) bytes in all. L is a slot's plaintext length, chosen when the vault is made and fixed for its life:"),
                     Item::Table(Table {
                         head: &["L", "File"],

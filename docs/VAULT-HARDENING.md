@@ -1,8 +1,8 @@
 # Vault hardening: the file's name, the passphrase, key commitment and the seal count
 
 **Kind:** Spec
-**Status:** Specified (F159), amended by F189; the passphrase in NFC (§3) and the seal count (§5.1 to §5.7) built in the FVLT format; the file's name (§2), the commitment block (§4), the edit list (§6) and the outside review (§10) replaced by F189 and moved to `docs/history/VAULT-HARDENING-LOG.md`
-**Open:** the passphrase in NFC and the seal count in the age vault, built with `docs/VAULT.md` (F189)
+**Status:** Specified (F159), amended by F189 and F190; the passphrase in NFC (§3) and the seal count (§5.1 to §5.7) built in the FVLT format; the file's name (§2), the commitment block (§4), the edit list (§6) and the outside review (§10) replaced by F189 and moved to `docs/history/VAULT-HARDENING-LOG.md`
+**Open:** the passphrase in NFC and the seal count in the KDBX vault, built with `docs/VAULT.md` (F190)
 
 The vault's format is `docs/VAULT.md`. This spec changes it in four
 places and renames its file. Every change was settled by the owner on
@@ -27,6 +27,12 @@ seal count (§5) carry over, as `docs/VAULT.md` §3, §5, §7 and §11 say:
 the count is `vault.seals` in the TOML, and a backup plan names another
 vault by the vault identifier inside it, not by its salt (§5.6). What
 follows in §3 and §5 is their account for the FVLT format, built.
+
+**F190 (2026-11-02).** The age file is replaced in turn: a file vault is
+a KDBX 4 database and a QR vault an RFC 9580 OpenPGP message, both under
+Argon2id. The passphrase in NFC and the seal count carry over as before;
+a KDBX file's HMACs, keyed from the passphrase's key, do what the age
+header MAC did.
 
 ## 1. What this assumes
 
@@ -144,8 +150,8 @@ Moved to `docs/history/VAULT-HARDENING-LOG.md`.
 
 ## 5. The seal count
 
-In the age vault the count and its time are `vault.seals` and
-`vault.sealed` (`docs/VAULT.md` §7), and a copy is compared when it is
+In the KDBX vault (F190) the count and its time are the database's custom
+data `faraday.seals` and `faraday.sealed` (`docs/VAULT.md` §7), and a copy is compared when it is
 opened, not while it sits in Files (`docs/VAULT.md` §9, §11).
 
 ### 5.1 The record
@@ -311,7 +317,7 @@ covers it.
 
 ### 5.6 The count in the backup plan
 
-In the age vault the line is `seals {id} {count} {digest}`: the vault
+In the KDBX vault (F190) the line is `seals {id} {count} {digest}`: the vault
 identifier, the count, and the SHA-256 of the file at that count
 (`docs/VAULT.md` §7). The salt changes at every seal there.
 

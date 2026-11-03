@@ -1,101 +1,161 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F189); what is built is the four-slot FVLT format this replaces, whose account is `docs/history/VAULT-LOG.md`
-**Open:** all of it: the age vault (§1 to §6), its memory steps and sizes (§2, §3), its TOML contents (§7), the QR vault (§2.1), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the reader and the vectors (§10)
+**Status:** Specified (F190, amending F189); what is built is the four-slot FVLT format this replaces, whose account is `docs/history/VAULT-LOG.md`
+**Open:** all of it: the KDBX file vault (§1.1, §4 to §7), files saved by other programs (§7.1), the QR vault as an OpenPGP message (§1.2, §2.1), the memory steps and sizes (§2, §3), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
 
-A vault is one file, an age v1 file encrypted under one passphrase,
-holding a TOML document of the person's keys, wallets, entries and
-notes. age v1 is the C2SP specification (`age-encryption.org/v1`,
-c2sp.org/age), with a reference implementation outside Faraday (Go
-`age`), a second (`rage`), and published vectors (the age testkit,
-age-encryption.org/testkit). A vault therefore opens without Faraday:
-`age -d` gives its document, which a text editor shows.
+A vault is one file encrypted under one passphrase with Argon2id, in
+one of two published formats (F190):
 
-Faraday writes the passphrase part of age only (F178, F189 point 9):
-the header, the scrypt stanza, the header MAC and the payload, over
-Faraday's own scrypt (`core/faraday-crypto/src/scrypt.rs`, which wipes
-its working memory), HMAC-SHA-256 and HKDF-SHA-256, and the
-`chacha20poly1305` crate, in `faraday/faraday-vault`. The age
-specification is what a second implementation is written against; this
-file is Faraday's use of it and the TOML names inside, and the vectors
-under `tools/vectors/vault/` settle a disagreement.
+- **A file vault is a KDBX 4 database**, the format of KeePass, holding
+  the person's keys, wallets, entries and notes as KeePass entries.
+  KeePassXC, KeePass, KeePassDX, Strongbox and pykeepass open it.
+- **A QR vault is an RFC 9580 OpenPGP message** under a passphrase,
+  holding one item, small enough to print as a code. Sequoia's `sq`,
+  GopenPGP, OpenPGP.js and rPGP open it; GnuPG does not, since it
+  follows LibrePGP rather than RFC 9580.
+
+A vault therefore opens without Faraday. Faraday writes only the part
+of each format it uses (F178, F190 point 11), in `faraday/faraday-vault`
+for KDBX and `faraday/faraday-pgp` for OpenPGP, over Faraday's Argon2id,
+HKDF and HMAC and vetted ciphers. KeePass's pages (pinned in
+`tools/reference/kdbx4/`) and RFC 9580 are what a second implementation
+is written against; this file is Faraday's use of them and the names
+inside, and the vectors under `tools/vectors/vault/` settle a
+disagreement.
 
 The FVLT format this replaces (four equal slots under Argon2id and
-XChaCha20-Poly1305, `.fvlt`) is read by nothing once this is built
-(F189 point 10). No vault exists anywhere, so nothing is migrated.
+XChaCha20-Poly1305, `.fvlt`) and the age format F189 chose before it are
+read by nothing once this is built (F189 point 10). No vault exists
+anywhere, so nothing is migrated.
 
 ## 1. The file
 
-A vault is an age v1 file with exactly one recipient stanza, of type
-scrypt, read and written as the age specification says:
+### 1.1 A file vault: KDBX 4
+
+A file vault is a KDBX 4 database, read and written as KeePass's
+specification says. Faraday writes version 4.0, every integer
+little-endian:
 
 ```text
-age-encryption.org/v1
--> scrypt <salt, 16 bytes in base64> <log2 of the work factor>
-<the wrapped file key, 32 bytes in base64>
---- <the header MAC in base64>
-<payload: a 16-byte nonce, then the contents in 64 KiB chunks>
+signature 1 0x9AA2D903, signature 2 0xB54BFB67, version 0x00040000
+header fields:  cipher ChaCha20 (RFC 8439), compression none,
+                master seed (32 bytes), encryption IV (12),
+                KDF parameters: Argon2id ($UUID 9E298B19-56DB-4773-B23D-FC3EC6F0A1E6),
+                  S salt (32), M memory in bytes, I passes 3, P lanes 4, V 0x13
+                end of header
+SHA-256 of the header, HMAC-SHA-256 of the header
+HMAC block stream: blocks of 1 MiB, each HMAC-SHA-256, length, ciphertext;
+                   then an empty block
+plaintext:      inner header (inner random stream ChaCha20, its 64-byte key, end),
+                then the XML document (§7), then line feeds to the vault's size (§2)
 ```
 
 ```text
-wrap key    = scrypt(N = 2^logN, r = 8, p = 1, dkLen = 32,
-                     S = "age-encryption.org/v1/scrypt" || salt, P = passphrase)
-stanza body = ChaCha20-Poly1305(key = wrap key, nonce = 12 zero bytes, file key)
-HMAC key    = HKDF-SHA-256(ikm = file key, salt = empty, info = "header")
-MAC         = HMAC-SHA-256(HMAC key, the header up to and including "---")
-payload key = HKDF-SHA-256(ikm = file key, salt = payload nonce, info = "payload")
-chunk i     = ChaCha20-Poly1305(payload key, nonce = i as 11 bytes big-endian
-                                 || 1 for the last chunk else 0, 64 KiB of contents)
+composite key   = SHA-256(SHA-256(passphrase))      -- no key file
+T               = Argon2id(composite key, S, M, I, P), 32 bytes
+encryption key  = SHA-256(master seed || T)
+HMAC base       = SHA-512(master seed || T || 0x01)
+header HMAC key = SHA-512(0xFFFFFFFFFFFFFFFF || HMAC base)
+block i's key   = SHA-512(i as 8 bytes || HMAC base)
 ```
 
-The file key is 16 bytes, the salt 16 and the payload nonce 16, all new
-for every seal (§5). With a work factor of two digits, as every step
-Faraday writes has (§3), the header is 150 bytes: the version line 22,
-the stanza's argument line 36, its body 44 and the MAC line 48. Each
-chunk adds a 16-byte tag; a vault's contents are a whole number of
-chunks, the last of them full, which age allows.
-
-**Binary only.** Faraday writes the binary form, never age's ASCII
-armor, and reads the binary form only; an armored file (`age -a`) is
-named and not opened. `.age` is the name Faraday writes and the one its
-lists group its own files by.
+The header is 249 bytes; with its SHA-256 and HMAC, 313. Each block adds
+36 bytes (its HMAC and length), and the empty block that ends the stream
+36 more. Every field marked secret in §7 is `Protected="True"`,
+encrypted with the inner random stream as KeePass does: process-memory
+protection in a KeePass app, not part of the file's security, which is
+the passphrase, Argon2id, ChaCha20 and the HMACs.
 
 **Recognised by its contents.** A file the person selects is a vault
-when its first line is `age-encryption.org/v1` and its header holds one
-scrypt stanza, whatever its name or extension: a copy renamed, or
-with no extension, opens. An age file whose one stanza is not scrypt, or with
-more than one stanza, is named "An age file for a key, not a
-passphrase" and not opened; age itself refuses a scrypt stanza beside
-any other. The wipe asks for its hold on any file named `.age`, whatever
-it holds.
+when it begins with KDBX's two signatures and a major version of 4,
+whatever its name or extension. A KDBX 3.1 file (major version 3) is
+named "A KeePass file of an older version" and not opened. `.kdbx` is the
+name Faraday writes and the one its lists group its own files by. The
+wipe asks for its hold on any file named `.kdbx` or `.pgp`, whatever it
+holds.
+
+What Faraday reads beyond what it writes, from a file a KeePass app
+saved, is §7.1.
+
+### 1.2 A QR vault: an OpenPGP message
+
+A QR vault is an RFC 9580 message encrypted under a passphrase, binary,
+three packets in this order and nothing else:
+
+```text
+SKESK v6 (tag 3):  version 6, AES-256 (9), OCB (2),
+                   S2K Argon2 (type 4): salt (16), passes 3, lanes 4, memory exponent,
+                   OCB IV (15), the encrypted session key (32) and its tag (16)
+SEIPD v2 (tag 18): version 2, AES-256, OCB, chunk size octet 10 (64 KiB), salt (32),
+                   then the encrypted chunk and its tag (16), then the final tag (16)
+  plaintext:       one literal data packet (tag 11): format 'b', no file name,
+                   date 0, then the QR TOML of §2.1, 226 bytes
+```
+
+```text
+S2K output  = Argon2id(passphrase, salt, memory = 2^exponent KiB, passes, lanes), 32 bytes
+KEK         = HKDF-SHA-256(ikm = S2K output, salt = empty, info = 0xC3 || 6 || 9 || 2)
+session key = OCB-decrypt(KEK, IV, the encrypted session key, ad = 0xC3 || 6 || 9 || 2)
+message key, IV prefix = HKDF-SHA-256(ikm = session key, salt = the SEIPD salt,
+                                      info = 0xD2 || 2 || 9 || 2 || 10), 32 + 7 bytes
+chunk i     = OCB(message key, IV prefix || i as 8 bytes, ad = the info bytes)
+final tag   = OCB over nothing, nonce for the next index,
+              ad = the info bytes || the plaintext's length as 8 bytes
+```
+
+RFC 9580 §5.3, §5.13.2 and §3.7.1.4 are the definitions; the lines above
+are a summary. The SKESK packet is 90 bytes, the SEIPD packet 306 with a
+226-byte plaintext: 396 bytes in all, QR version 15 at medium error
+correction (§2.1). GCM would save 3 bytes; OCB is the one AEAD RFC 9580
+requires every implementation to have.
+
+**Recognised by its contents.** A scanned code or a file is a QR vault
+when it parses as exactly those packets, with lengths in any form RFC
+9580 allows. A SKESK v4 or a SEIPD v1 (the older OpenPGP that GnuPG
+writes), a public-key encrypted session key, a second SKESK, a
+compressed data packet, a signature, or anything after the SEIPD
+packet, is named "An OpenPGP message Faraday does not open" and not
+opened. Faraday writes the binary form, never ASCII armor, and reads the
+binary form only; `.pgp` is the name it writes.
 
 ## 2. Sizes
 
-A vault is one of five sizes, the size of its contents before
-encryption; the contents are padded to it (§7), so a file's length says
-only which size it is (F189 point 4):
+A vault is one of five sizes, the size of its plaintext before
+encryption; Faraday pads to it (§7), so a file Faraday sealed says by
+its length only which size it is (F189 point 4, F190 point 4):
 
-| Size | Contents | File | Suits |
+| Size | Plaintext | File | Suits |
 |---|---|---|---|
-| QR (§2.1) | one item or a note, top-level keys | about 408 B | one seed, one codex32 share, one passphrase or a short note, printed as a code |
-| 64 KiB | 65,536 B | 65,718 B | keys, wallets, a few entries |
-| 256 KiB | 262,144 B | 262,374 B | the default: keys, wallets, notes, GPG and Secure Boot keys, about a hundred entries |
-| 1 MiB | 1,048,576 B | 1,048,998 B | many entries and notes |
-| 4 MiB | 4,194,304 B | 4,195,494 B | the largest |
+| QR (§2.1) | 226 B, one item or a note | 396 B, an OpenPGP message | one seed, one codex32 share, one passphrase or a short note, printed as a code |
+| 64 KiB | 65,536 B | 65,921 B | keys, wallets, a few entries |
+| 256 KiB | 262,144 B | 262,529 B | the default: keys, wallets, notes, GPG and Secure Boot keys, about a hundred entries |
+| 1 MiB | 1,048,576 B | 1,048,961 B | many entries and notes |
+| 4 MiB | 4,194,304 B | 4,194,797 B | the largest |
 
-A file's length is the header's 150 bytes, the payload nonce's 16, the
-contents, and 16 bytes for each 64 KiB chunk. The size is chosen when a
-vault is made and can be changed on an open vault (§8); the next seal
-writes the new size. A reader opens a file whose contents are up to 4
-MiB of any length, as a file edited by hand and encrypted again with
-`age` is (§7.1), and refuses a longer one from the file's length,
-before any work; the next seal pads it to the smallest size that holds
-it.
+A file vault's length is the 313 bytes of §1.1's header, its hash and
+its HMAC, the plaintext, and 36 bytes for each 1 MiB block and the empty
+block after them. The plaintext is the inner header, the XML document
+and the line feeds after it. The size is chosen when a vault is made and
+can be changed on an open vault (§8); the next seal writes the new size.
+A reader opens a file whose plaintext is up to 4 MiB of any length, as a
+KeePass app's save is (§7.1), and refuses a longer one from the file's
+length, before any work, and a compressed one whose plaintext inflates
+past 4 MiB as soon as it does; the next seal pads it to the smallest
+size that holds it.
+
+The padding is line feeds after the document's closing tag, which XML
+allows ("Misc" after the root element) and every KeePass app reads:
+KeePassXC 2.7.12 and pykeepass 4.2.0 open a padded file, and KeePassXC
+keeps Faraday's custom data when it saves one. A KeePass app's save
+drops the padding (KeePassXC writes a random-length value of its own,
+`KPXC_RANDOM_SLUG`, in its place), so the length of a file saved there
+says more until Faraday seals it again.
 
 ### 2.1 The QR size
 
-A QR vault holds one item, a note, or nothing yet (F189 point 6): a
+A QR vault is an OpenPGP message (§1.2) and holds one item, a note, or
+nothing yet (F189 point 6, F190 point 5): a
 seed's words (12 or 24 words of the English list, as a SeedQR's are; a
 Seed XOR part is 24), a codex32 share, a BIP-39 passphrase with the
 fingerprint of the key it belongs to, or any text typed into it. No
@@ -103,14 +163,14 @@ item is longer than a 24-word seed: a passphrase longer than that, a
 seed of another list or word count, and a longer text go in a file
 vault.
 
-Its contents are the item's keys at the top of a TOML document, named
-as in §7 and written one to a line: a seed is `words = "…"`; a codex32
+Its contents, the literal data of §1.2, are the item's keys at the top
+of a TOML v1.0.0 document, a rule of Faraday's own (F189 point 6, kept
+by F190 point 5), written one to a line: a seed is `words = "…"`; a codex32
 share is `codex32 = "…"` and `for = "…"` (the fingerprint of its key);
 a passphrase is `passphrase = "…"` and `for = "…"`; a note is
 `note = "…"`. At most one of `words`, `codex32`, `passphrase` and
-`note` is present: a QR vault with none of them is empty. There is no
-`vault` table: a QR vault has no seal count and no identifier, and
-every seal is a new code (§8). The text is padded with line feeds to the
+`note` is present: a QR vault with none of them is empty. A QR vault has
+no seal count and no identifier, and every seal is a new code (§8). The text is padded with line feeds to the
 one length every QR vault has, 226 bytes, so a code does not show what
 it holds, or whether it holds anything. That length is the line of a
 24-word seed of the list's longest words: the start `words = "` is 9
@@ -121,9 +181,10 @@ quotes and line feed 3, the `for` line 17. The longest note is 216
 bytes of TOML text (`QR_NOTE_MAX`): the start `note = "` is 8 bytes and
 the closing quote and line feed 2; a quote, a backslash or a line
 break in the text takes two bytes as its escape, and a character
-outside ASCII its UTF-8 length. The age file is 182 bytes more than its
-plaintext, 408 bytes; the code is version 15 (77 × 77 modules) at
-medium error correction, which holds 412 bytes in byte mode.
+outside ASCII its UTF-8 length. The OpenPGP message is 170 bytes more
+than its plaintext, 396 bytes (§1.2); the code is version 15 (77 × 77
+modules) at medium error correction, which holds 412 bytes in byte
+mode.
 
 A QR vault is a vault like the others: it unlocks with its passphrase,
 is listed on Vaults while open, marked as a QR vault, and shows what it
@@ -147,32 +208,39 @@ prints a QR vault and never asks for its passphrase.
 ## 3. Keys
 
 The passphrase is put in Unicode NFC (Unicode Standard Annex #15), and
-scrypt takes the NFC form's UTF-8 bytes; two passphrases with one NFC
-form are one passphrase (F159 point 2). Nothing else is done to it: no
-character is mapped or refused, and compatibility characters ("ﬁ",
-"Ａ"), case and spaces are kept as typed. `age` itself does not put a
-passphrase in NFC: a vault whose passphrase has a character with two
-forms opens under `age -d` only when typed in NFC, which the vectors
-show (§10).
+both formats take the NFC form's UTF-8 bytes: the KDBX composite key is
+made from them (§1.1) and the OpenPGP S2K takes them as its passphrase
+(§1.2). Two passphrases with one NFC form are one passphrase (F159
+point 2). Nothing else is done to it: no character is mapped or refused,
+and compatibility characters ("ﬁ", "Ａ"), case and spaces are kept as
+typed. KeePass apps and `sq` do not put a passphrase in NFC: a vault
+whose passphrase has a character with two forms opens there only when
+typed in NFC, which the vectors show (§10).
 
-scrypt's work factor is N = 2^logN, with r = 8 and p = 1 as age fixes
-them. Its memory is 1 KiB × N. Faraday writes five steps, logN 16 to 20
-(F189 point 3):
+Argon2id is version 1.3 (0x13) with 3 passes and 4 lanes in both
+formats (F190 point 6), no secret key and no associated data. Faraday
+writes five memory steps:
 
-| logN | Memory | Bits added |
-|---|---|---|
-| 16 | 64 MiB | ≈17 |
-| 17 | 128 MiB | ≈18 |
-| 18 | 256 MiB, the default | ≈19 |
-| 19 | 512 MiB | ≈20 |
-| 20 | 1 GiB | ≈21 |
+| Memory | KDBX `M` (bytes) | OpenPGP exponent | Bits added |
+|---|---|---|---|
+| 64 MiB | 67,108,864 | 16 | ≈17.6 |
+| 128 MiB | 134,217,728 | 17 | ≈18.6 |
+| 256 MiB, the default | 268,435,456 | 18 | ≈19.6 |
+| 512 MiB | 536,870,912 | 19 | ≈20.6 |
+| 1 GiB | 1,073,741,824 | 20 | ≈21.6 |
 
-**Cost limits.** A reader refuses a work factor above 2^20 before it
-allocates anything. A work factor below 2^16, which another age
-implementation can write, is opened, with its bits shown. The work factor is in the clear header, so
-the memory a vault needs is shown beside it before its passphrase is
-asked for. scrypt runs on the worker (F184), so the screen is drawn
-while it works.
+**Cost limits.** A reader checks the stated cost before it allocates
+anything, and refuses outside: memory 8 MiB to 1 GiB, passes 1 to 100,
+lanes 1 to 64, Argon2 version 0x13, and for KDBX no secret key (`K`) or
+associated data (`A`) in the KDF parameters. Faraday writes 3 passes;
+the wider reader limits exist so that a database KeePassXC made, whose
+passes it times to a second on the computer that made it, and its lanes
+to that computer's threads, still opens. A KDBX file under Argon2d opens
+as well (§7.1). The cost is in the clear header of both formats, so the
+memory a vault needs, and its passes, are shown before its passphrase
+is asked for, with the unlock time here worked out from them where
+passes above 3 make it longer than the step's. Argon2id runs on the
+worker (F184), so the screen is drawn while it works.
 
 ### 3.1 Choosing a cost
 
@@ -203,8 +271,8 @@ not protected by any step here. The Create form says this beside the
 step.
 
 **The bits shown.** The Create form states what each step adds as
-log2(2N), the number of scrypt's 1 KiB block steps in one guess (N
-written and N read): ≈ logN + 1, from ≈17 to ≈21. That is an estimate:
+log2(memory in KiB × passes), the number of Argon2id's 1 KiB block
+steps in one guess: ≈17.6 at 64 MiB to ≈21.6 at 1 GiB. That is an estimate:
 it counts work only, not how much harder memory is than time for an
 attacker's hardware. A passphrase the dice made has its own bits exactly
 (words × log2 of the list's length, shown rounded to a tenth). The form
@@ -234,23 +302,26 @@ The figures are for the default size's 256 KiB file, and in parentheses
 for the largest, 4 MiB (§2). A vault meant for a Pi Zero 2 W takes 64 or
 128 MiB.
 
-**Where the numbers come from.** scrypt's paper (Percival, 2009)
-suggests N = 2^20, r = 8, p = 1 for file encryption; age's own tools
-write N = 2^18 by default; OWASP's lowest for scrypt is N = 2^17, r = 8,
-p = 1. 64 MiB is the step a Pi Zero 2 W opens with room to spare, 128
-MiB OWASP's lowest, 256 MiB age's default, and 1 GiB the paper's. r and
-p are age's: p = 1 because parallelism is the defender's, and without
-threads it would add time without adding work for an attacker, who runs
-guesses in parallel anyway.
+**Where the numbers come from.** RFC 9580 recommends Argon2id with 3
+passes, 4 lanes and 64 MiB where 2 GiB cannot be spared, and 1 pass, 4
+lanes and 2 GiB where it can; RFC 9106 gives the same two choices;
+KeePassXC makes Argon2 databases at 64 MiB. 64 MiB is the step a Pi Zero
+2 W opens with room to spare and RFC 9580's second choice as it stands;
+the steps above it keep its passes and lanes and raise its memory. 2
+GiB is past what a Pi 3 or a 2 GB Pi 4 can give. Lanes do not change
+the work of a guess: four lanes of a quarter of the memory each are the
+same blocks. Faraday computes them one after another, so a multi-core
+machine opens a vault no faster under Faraday; a KeePass app or `sq`
+that runs them on four threads opens it faster.
 
-"Memory free to open" is scrypt's memory, plus twice the vault file
+"Memory free to open" is Argon2id's memory, plus twice the vault file
 (the file and a sealed copy beside it while it is written), plus 100 MiB
 (`APP_MIB`) for the contents and the app. One function in
 `faraday-core` gives it from the memory and the size, as
 `vault_need_mib` does today; Unlock's check, Create's choice for **This
 computer** and the import rule of `docs/LARGE-FILES.md` §4.1 all use
 it. On Faraday the whole system is a few tens of megabytes in RAM; on
-another operating system, or under `age` on a desktop, the margin is
+another operating system, or in a KeePass app or `sq` on a desktop, the margin is
 whatever that system leaves free.
 
 Two cautions are not settled by the table and are measured before
@@ -274,14 +345,13 @@ The Raspberry Pi rows come from the dev card's timings: a Pi booted from
 a `dev=1` image writes each vault made and unlocked into
 `faraday-timings.txt` as a `work` row naming its memory and how long it
 took (`docs/DEVELOPING.md` §6.2), and a step the board could not
-allocate as "failed: no memory". p is 1, so a multi-core machine opens
-no faster than a single core; the Pi's cores are much slower than a
-laptop's.
+allocate as "failed: no memory". Faraday runs the lanes on one core
+(above); the Pi's cores are much slower than a laptop's.
 
 **What the form enforces.**
 
 - Memory above what this machine can allocate is refused: making a vault
-  runs its scrypt, so a vault this machine could not open is never
+  runs its Argon2id, so a vault this machine could not open is never
   written.
 - Memory above what the weakest machine chosen gives a vault (above) is
   a warning naming that machine.
@@ -293,33 +363,44 @@ laptop's.
 **When a vault does not fit.** Opening a vault whose memory this machine
 cannot allocate (its memory free to open, above) says so before the
 passphrase is typed: "Needs 1.1 GiB. This computer has 900 MiB free."
-It does not start scrypt.
+It does not start Argon2id.
 
 ## 4. Opening
 
-1. Read the header as age says: the version line, one stanza, the MAC
-   line. The stanza is scrypt with three arguments, a salt that is the
-   canonical base64 of 16 bytes and a work factor in decimal with no
-   leading zero; the work factor is at most 2^20 (§3); the body is
-   exactly 32 bytes, checked before it is decrypted, as age requires
-   against partitioning oracles. The file's length gives contents of at
+**A file vault.**
+
+1. Read the header as KDBX 4 says: the signatures, the version, the
+   header fields. Check what §7.1 allows: the cipher, the compression,
+   the KDF and its cost (§3). The file's length gives a plaintext of at
    most 4 MiB (§2). Any fault refuses the file, naming it, before any
    memory is taken.
 2. Show the memory the vault needs, and stop if this machine has not
    got it (§3.1).
-3. Put the passphrase in NFC and run scrypt on the worker. The stanza
-   body is decrypted with the wrap key: a tag that fails means the
-   passphrase is wrong.
-4. Check the header MAC under the file key. A MAC that fails refuses the
-   file. The MAC is keyed by the file key, so whichever passphrase opens
-   a file, one file key and so one content verifies: what the FVLT
-   format's commitment block was for (F189).
-5. Decrypt the payload chunk by chunk into memory held by
-   `faraday-keys`, wiped as it drops, checking every tag and that the
-   last chunk is marked last and no data follows it. Any failure refuses
-   the file, and nothing of the contents is read.
-6. Read the contents (§7). Any fault refuses the file, naming it.
+3. Put the passphrase in NFC and run Argon2id on the worker.
+4. Check the header's HMAC. A HMAC that fails means the passphrase is
+   wrong (the header's SHA-256, checked first, tells a damaged header
+   from a wrong passphrase). The HMAC keys come from the passphrase's
+   key, so whichever passphrase opens a file, one content verifies.
+5. Check every block's HMAC, then decrypt the stream into memory held by
+   `faraday-keys`, wiped as it drops; inflate it if it is compressed,
+   stopping at 4 MiB. Any failure refuses the file, and nothing of the
+   contents is read.
+6. Read the inner header and the XML (§7, §7.1). Any fault refuses the
+   file, naming it. A file a KeePass app saved stops at §7.1's dialog
+   before it opens.
 7. Compare the seal count with what the session has seen (§11).
+
+**A QR vault.**
+
+1. Parse the three packets (§1.2) and check the S2K's cost (§3). Any
+   fault refuses the code, naming it, before any memory is taken.
+2. Show the memory, as for a file vault.
+3. Put the passphrase in NFC and run Argon2id on the worker. Decrypt the
+   session key: a tag that fails means the passphrase is wrong.
+4. Decrypt the chunk and check its tag and the final tag, into memory
+   held by `faraday-keys`. Any failure refuses the code.
+5. Read the literal data packet and the QR TOML (§2.1). Any fault
+   refuses the code, naming it.
 
 Several vaults may be open at once.
 
@@ -331,23 +412,28 @@ reaches more than one key unless the person ticks more seeds into one.
 ## 5. Sealing
 
 Sealing writes the open vault back to memory as a file, and every seal
-is a new age file (F189 point 7), as age requires ("A new salt MUST be
-generated for each stanza and each file"):
+is a new file (F190 point 8), as both formats expect: KeePass draws a
+new master seed and IV at every save, and RFC 9580 a new salt for every
+S2K and every data packet.
 
-- **New random bytes.** The salt (16 bytes), the file key (16) and the
-  payload nonce (16) are one `fresh_bytes("vault seal", 48)`, two
-  answers of the system's randomness (F154), so whatever the person
+- **New random bytes.** For a file vault, the master seed (32 bytes),
+  the encryption IV (12), the Argon2 salt (32) and the inner stream key
+  (64) are one `fresh_bytes("vault seal", 140)`, five answers of the
+  system's randomness (F154); new entries' UUIDs (16 each) are drawn
+  as they are made. For a QR vault, the S2K salt (16), the OCB IV (15),
+  the session key (32) and the data packet's salt (32) are one
+  `fresh_bytes("qr vault seal", 95)`, three answers; so whatever the person
   added through Add randomness is mixed in (`docs/OWN-RANDOMNESS.md`
   §2.3). A seal waits for the answers it needs and never stretches
   fewer. Nothing is sealed before they arrive: a lock with a changed
   vault open then seals nothing and says so, and the vault stays open
   with its changes.
-- **scrypt runs again**, at the vault's step, on the worker (F184): a
-  new salt is a new wrap key. The passphrase is kept while the vault is
+- **Argon2id runs again**, at the vault's step, on the worker (F184): a
+  new salt is a new key. The passphrase is kept while the vault is
   open, in `faraday-keys`, wiped as it drops: it is what a seal needs
   that the contents do not hold. A lock that seals a vault waits for its
-  scrypt.
-- **The seal count is one higher** (§7, `vault.seals`), with the time
+  Argon2id.
+- **The seal count is one higher** (§7, `faraday.seals`), with the time
   by this computer's clock when it is known, written by the vault crate
   alone. The app keeps the highest count it has seen of each vault
   (§11); a backup plan can carry the counts of other vaults across a
@@ -379,13 +465,14 @@ write, so each vault goes to its own stick.
 
 A vault is named when it is made (owner, 2026-10-07): its file is that
 name, letters, digits, hyphens and underscores, spaces made hyphens,
-with `.age`; left empty it is `vault.age`. A name taken already becomes
-`name-2.age`, as backup files are named. A name can say what a vault
+with `.kdbx`, or `.pgp` for a QR vault; left empty it is `vault.kdbx`
+(`qr-vault.pgp`). A name taken already becomes
+`name-2.kdbx`, as backup files are named. A name can say what a vault
 holds to anyone who sees the stick; leaving it empty keeps the old rule.
 
 The name is not the vault's identity, and neither are its bytes' header:
 every seal has a new salt, so a copy cannot be told from another vault
-without opening it (F189 point 7). The session keeps, for each vault it
+without opening it (F190 point 8). The session keeps, for each vault it
 opened or sealed since power-on, the SHA-256 of every copy of it it
 read or wrote: the copy opened, and each seal. A file on a stick is a
 copy of that vault when its SHA-256 is among them. Writing back
@@ -396,7 +483,7 @@ replaces that copy; no older copy is kept. On a stick visit:
    refuse and name both. A file under the name asked for that is not a
    copy is never written over, whatever the visit's Already on the stick
    sheet chose (`docs/FLOWS.md` decision 58): the new one goes beside it
-   as `name-2.age`. The visit holds no passphrase and opens nothing: a
+   as `name-2.kdbx`. The visit holds no passphrase and opens nothing: a
    process that has unlocked a vault is never handed a stick
    (`docs/history/PLAN.md` §5.1). Counts are compared at unlock instead
    (§11).
@@ -405,7 +492,7 @@ replaces that copy; no older copy is kept. On a stick visit:
 3. Delete the original and rename the new file to the name it is
    written under: the original's, unless the person renamed the file
    For the stick since a visit last wrote it (`docs/FLOWS.md` decision
-   61), when it takes the new name, or `name-2.age` where another file on
+   61), when it takes the new name, or `name-2.kdbx` where another file on
    the stick has that.
 4. FAT has no atomic replace. If a visit finds a new file that reads back
    whole and no original, it completes step 3; if it finds both, it
@@ -431,110 +518,179 @@ power-off), or **Unchanged** when that stick is not known.
 
 ## 7. Contents
 
-A vault's contents are a TOML v1.0.0 document in UTF-8, then line feeds
-to the vault's size (§2): `age -d` gives a file a text editor shows,
-and TOML reads the padding as blank lines. Each item is in its published
-text form (F189 point 5). Which TOML names mean what is Faraday's own
-rule, written here, and fails closed: an unknown table or key refuses
-the file, naming it, as an unknown record type does in the FVLT format.
+A file vault's contents are a KDBX 4 XML document (F190 point 3): one
+root group named as the vault, the person's entries in it and in any
+groups under it, and Faraday's items as entries in one group per kind.
+Each item is in its published text form. Which names mean what is
+Faraday's own rule, written here, and fails closed for Faraday's items:
+an unknown kind, a field its kind does not name, a missing required
+field or a malformed value refuses the file, naming the entry by its
+title and UUID, as an unknown record type does in the FVLT format.
 
-Every vault but a QR vault has one `vault` table, first:
+**Custom data.** KDBX 4 gives the database and each entry a list of
+custom data, key and value pairs, inside the encryption. Any KDBX
+reader with the passphrase reads it; KeePassXC keeps it when it saves
+and does not show it in its views. Faraday's keys begin `faraday.`;
+other keys (KeePassXC's `KPXC_RANDOM_SLUG` and `_LAST_MODIFIED`, a
+plugin's) are not read and not kept (§7.1).
 
-| Key | What |
+The vault's own values are the database's:
+
+| Where | What |
 |---|---|
-| `format` | 1. Required. |
-| `id` | the vault identifier: 16 bytes in 32 lower-case hex digits, drawn once when the vault is made (`fresh_bytes("vault id", 16)`) and kept for its life. Required. By it a backup plan names another vault (`plan`, below); it is not a secret, and only whoever opens the vault reads it. |
-| `name` | the vault's label (≤ 64 bytes), shown on Vaults while open. Starts as the vault's name, or "Vault" when none is typed (F57). |
-| `seals` | how many times the vault has been sealed, an integer, 1 or more. Required. Written by `faraday-vault` alone: each seal writes one more than the vault was opened with (or than the last seal of the same opening). |
-| `sealed` | the time of the last seal, a TOML offset date-time in UTC by the clock of the computer that sealed it; absent when that clock was not set. |
+| `Meta/DatabaseName` | the vault's label (≤ 64 bytes), shown on Vaults while open. Starts as the vault's name, or "Vault" when none is typed (F57). |
+| `faraday.format` | `1`. Required. |
+| the root group's `UUID` | the vault identifier (owner, 2026-11-02): KDBX's own 16 bytes, drawn once when the vault is made (`fresh_bytes("vault id", 16)`) and kept for its life; KeePass apps keep a group's UUID when they save. Written as 32 lower-case hex digits wherever Faraday names it. By it a backup plan names another vault (`plan`, below); it is not a secret, and only whoever opens the vault reads it. |
+| `faraday.seals` | how many times the vault has been sealed, a decimal integer, 1 or more. Required. Written by `faraday-vault` alone: each seal writes one more than the vault was opened with (or than the last seal of the same opening). |
+| `faraday.sealed` | the time of the last seal, an RFC 3339 date-time in UTC (`2026-10-28T14:02:00Z`) by the clock of the computer that sealed it; absent when that clock was not set. |
+| `faraday.signed.{tx}` | one per transaction: `{tx}` the SHA-256 of an unsigned transaction in lower-case hex, the value the amount each input stated, in satoshis, comma-separated, in order. Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest are dropped first when the vault is full. |
+| `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of F189's `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
 
-Each kind of item is an array of tables, one table per item, in any
-order. The FVLT record each takes the place of is named in the first
-column:
+**An entry** is a KeePass entry with no `faraday.kind`: the person's
+password entries, whether Faraday made them or a KeePass app did.
 
-| FVLT record | TOML | Keys, and the published form of each |
+| Field | What |
+|---|---|
+| `Title`, `UserName`, `Password` (protected), `URL`, `Notes` | as KeePass has them; an empty title reads "No title" on screen |
+| `otp` (protected) | an `otpauth://` URI (the Key URI Format), as KeePassXC writes it (`docs/TOTP.md` §4.3); one Faraday cannot read refuses the file, naming the entry |
+| any other field | kept as written, with its protection, and shown on the entry's page; KeePass's own `TimeOtp-*` fields are such fields |
+
+An entry keeps its UUID, and the group it was in, by the path of group
+names under the root; Faraday makes an entry in the root group.
+
+**Faraday's items** are entries whose custom data names their kind,
+`faraday.kind`. Faraday writes each in its kind's group under the root
+and reads it in any group. Fields a kind does not name, and KeePass's
+standard fields it leaves empty, must be absent or empty:
+
+| Kind (`faraday.kind`), group | FVLT record | Fields, and the published form of each | Custom data |
+|---|---|---|---|
+| `seed`, Bitcoin keys | 2 | `Title`: its label, or "Key {fingerprint}". `Password` (protected): the BIP-39 words of its list, one space between; or `hex` (protected): a BIP-32 seed of 16 to 64 bytes in lower-case hex; exactly one of the two. `list`: a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`). `passphrase` (protected): its BIP-39 passphrase, present only when the person chose to keep it with the seed. | `faraday.load` `false` when it is not loaded at unlock (F62); `faraday.held` `true` while it was made in Faraday with its backup not done (`docs/history/NEW-WALLET.md` §14.3); `faraday.codex32` and `faraday.child`, below |
+| `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, or `descriptor`: its descriptor (BIP 380) for a wallet whose key has no origin; exactly one. | `faraday.load` as a seed's |
+| `note`, Notes | 4 | `Title`: "Note". `Notes`: the text. | |
+| `sheet`, Recovery sheets | 5 | `Title`: its name. `descriptor`. `Notes`: the sheet's note. The three together at most 16 KiB. | |
+| `gpg`, GPG keys | 7 | `Title`: the key's primary user ID. `key` (protected): the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected; required. `public`: the public certificate as last exported, armored. `revocation` (protected): the revocation certificate made with the key (F32), armored. `revoked`: when the key was marked revoked, an RFC 3339 date-time. | |
+| `secure_boot`, Secure Boot | 8 | `Title`: "Secure Boot keys". `owner`: the owner GUID in its text form. `pk_key`, `kek_key`, `db_key` (protected): each a PEM `PRIVATE KEY` (PKCS#8, RFC 7468). `pk_cert`, `kek_cert`, `db_cert`: each a PEM `CERTIFICATE`. | |
+| `wallet_share`, Wallet shares | 13 | `Title`: its name. `Password` (protected): the share as its `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6). `index`, from 1; `of`, how many; `wallet`, as a plan's. | |
+| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required; two for one key refuse the file, naming the key. | |
+| `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required; at most one per share index and key. | |
+| none: the database's custom data | 10, 11, 16, 1 | signed amounts, backup plans, the seal count, the label: above | |
+| not carried | 9, 12 | the pending signing round is compiled out of the app (F109), and 12 is no build's | |
+
+The group names are Faraday's strings, written in the language the app
+is in; a kind is known by its custom data, never by its group's name, so
+a group renamed or an entry moved in a KeePass app changes nothing.
+
+A seed's `faraday.codex32` is its set's plain facts (`docs/CODEX32.md`
+§9.4), never a string of the set, as one TOML inline table: `k`, the
+threshold (0, the secret alone, or 2 to 9); `id`, the identifier, four
+bech32 characters in lower case; `lengths`, the length in characters of
+the set's strings (an array of one entry; read when every entry is
+equal); `unknown`, how many strings exist whose share index is not
+known; `shares`, an array of inline tables, `index` (a bech32
+character) and `state` (`made`, `placed`, `lost`, `exposed`,
+`destroyed`). At most 31 strings, each index once.
+
+A seed's `faraday.child` is its BIP-85 facts, present only when the
+person chose **Record** at **Record it as a child seed?** (F166), as one
+TOML inline table: `parent`, the parent key's fingerprint;
+`application`, 39; `language`, BIP-85's language number; `words`, the
+seed's own word count; `index`, at most 2³¹ − 1. Public: a fingerprint
+and numbers. A seed held as `hex` takes none.
+
+**Each is the person's to keep or drop** (owner, 2026-11-02). Wherever a
+seed is saved into a vault (Save into {vault}, the backup flow, Create
+a vault with a key), a seed that has codex32 facts or a BIP-85 origin
+shows **Keep its codex32 set** and **Keep its BIP-85 origin**, each
+ticked; unticked, the vault's entry is written without it, and the seed's
+words are saved alone. A seed already in an open vault offers **Remove
+codex32 set** and **Remove BIP-85 origin** on its ⋮ while it has them:
+each drops that custom data from the entry, and nothing else, at the
+next seal, after a dialog saying that copies of the vault sealed before
+still hold it. What the app knows of the set or the origin elsewhere (a
+backup plan, the session's own state) is not changed by either.
+
+What Faraday writes of an entry it makes is its UUID, its fields and its
+custom data, and its times when this computer's clock is set; icons,
+tags and AutoType are optional in KeePass's format and left out. A new
+entry's UUID is 16 bytes of the session's randomness. What a KeePass app
+wrote into a vault and Faraday does not read is carried through (§7.1).
+
+**What refuses the file.** An XML document that is not well formed, or
+has a DOCTYPE, or an entity other than XML's five and character
+references; a `faraday.format` missing or not 1; a `faraday.seals`
+missing or malformed; a `faraday.kind` not named here; a
+field a kind does not name, or a required one missing; words that are
+not a valid BIP-39 phrase of their list; a policy or descriptor that
+does not parse; a PEM block other than the one its field names; an
+`otp` Faraday cannot read; a `faraday.codex32`, `faraday.child` or
+`faraday.plan.{n}` that is not the TOML its key names; a GPG key not of
+Faraday's own shape: an Ed25519 primary key with one Ed25519 signing
+subkey, unprotected. Each names what it found and where (the entry's
+title and UUID, and the field or key). Nothing of a refused file is
+loaded.
+
+An open vault's view shows each wallet with the plan this vault keeps
+for it, as a chart read from the backup up: the places, vaults, files
+and software of the plan, the wallet's keys under them (a key whose
+seed is in this vault reads "In this vault"), the wallet at the foot
+(`docs/history/NEW-WALLET.md` §7.2). A wallet with no plan here reads
+"No backup plan in this vault". Each node opens its sheet; its actions
+load the wallet, and its seeds this vault keeps, first. Opening one
+writes nothing into the vault.
+
+### 7.1 Saved by another program
+
+A vault is a file a person may open and change in a KeePass app:
+KeePassXC, KeePass, KeePassDX or Strongbox, or pykeepass. Faraday opens
+what such a program saves (owner, 2026-11-02; F190 point 2) within these
+limits, beyond what it writes itself:
+
+| | Faraday writes | Faraday reads |
 |---|---|---|
-| 2 Bitcoin key | `[[seed]]` | `words`, the BIP-39 words of its list, one space between, or `hex`, a BIP-32 seed of 16 to 64 bytes in lower-case hex: exactly one of the two; `list` for words of a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`); `label`; `load = false` when it is not loaded at unlock (F62; absent, it loads); `held = true` while it was made in Faraday with its backup not done, so it signs nothing until it is (`docs/history/NEW-WALLET.md` §14.3); `passphrase`, its BIP-39 passphrase, present only when the person chose to keep it with the seed; `codex32`, a table of its codex32 set's facts (below); `child`, a table of its BIP-85 facts (below) |
-| 3 Wallet | `[[wallet]]` | `policy`, its BIP-388 wallet policy, or `descriptor`, its descriptor (BIP 380) for a wallet whose key has no origin: exactly one; `name`; `load = false` as a seed's |
-| 4 Note | `[[note]]` | `text` |
-| 5 Recovery sheet | `[[sheet]]` | `descriptor`, `name`, `note`; the three together at most 16 KiB |
-| 6 Entry | `[[entry]]` | `title` (required), `username`, `password`, `url`, `notes`, `otp`: an `otpauth://` URI (the Key URI Format; a bare key is kept as one, `docs/TOTP.md` §4.3) |
-| 7 GPG key | `[[gpg]]` | `key`, the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected (required); `public`, the public certificate as last exported, armored; `revocation`, the revocation certificate made with the key (F32), armored; `revoked`, when the key was marked revoked, an offset date-time |
-| 8 Secure Boot keys | `[[secure_boot]]` | `owner`, the owner GUID in its text form; `pk_key`, `kek_key`, `db_key`, each a PEM `PRIVATE KEY` (PKCS#8, RFC 7468); `pk_cert`, `kek_cert`, `db_cert`, each a PEM `CERTIFICATE` |
-| 10 Signed amounts | `[[signed]]` | `tx`, the SHA-256 of an unsigned transaction in hex; `amounts`, the amount each input stated, in satoshis, in order. One table per transaction; two for one transaction refuse the file, naming it. Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest are dropped first when the vault is full |
-| 11 Backup plan | `[[plan]]` | `wallet`, as a `wallet` table's `policy` or `descriptor` holds it; `answers`, the plan's lines, an array of strings, as the FVLT record's field 2 (`docs/history/VAULT-LOG.md`, §7 of the FVLT format), with `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault; `places`, the places' names in order (empty for "Place n"); `holds`, what each place, vault, stick of files or device holds, a line each; `marks`, the notes on the map's things, a line each (`checked`, `keychecked`, `lost`, `exposed`, `holder`, `vaultname`); never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it |
-| 13 Wallet share | `[[wallet_share]]` | `text`, the share as its `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6); `name`; `index`, from 1; `of`, how many; `wallet`, as a plan's |
-| 14 Passphrase | `[[passphrase]]` | `for`, the fingerprint (8 lower-case hex digits) of the key it is the BIP-39 passphrase of, the key's words with this passphrase; `text`, the passphrase. Both required; two for one key refuse the file, naming the key |
-| 15 Codex32 share | `[[share]]` | `codex32`, a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret; `for`, the fingerprint of the key its set makes. Both required; at most one per share index and key |
-| 16 Seal count | `vault.seals`, `vault.sealed` | above |
-| 1 Slot label | `vault.name` | above |
-| 9 Pending signing round, 12 (retired) | none | not carried: the round is compiled out of the app (F109), and 12 is no build's |
+| version | 4.0 | 4.0 and 4.1 |
+| cipher | ChaCha20 | ChaCha20, AES-256 (CBC) |
+| key derivation | Argon2id | Argon2id, Argon2d, within §3's limits |
+| compression | none | none, gzip |
+| inner random stream | ChaCha20 | ChaCha20 |
+| key | the passphrase | the passphrase |
 
-A seed's `codex32` table is its set's plain facts (`docs/CODEX32.md`
-§9.4), never a string: `k`, the threshold (0, the secret alone, or 2 to
-9); `id`, the identifier, four bech32 characters in lower case;
-`lengths`, the length in characters of the set's strings (one length is built: written as an array of one entry, read when every entry is equal); `unknown`, how many
-strings exist whose share index is not known; `shares`, an array of
-tables, `index` (a bech32 character) and `state` (`made`, `placed`,
-`lost`, `exposed`, `destroyed`). At most 31 strings, each index once.
+Refused, naming what was found: KDBX 3.1 and older, AES-KDF, Twofish or
+another cipher, Salsa20 as the inner stream, a key file, a
+challenge-response key (a YubiKey's), and a database whose passphrase
+is empty.
 
-A seed's `child` table is its BIP-85 facts, present only when the person
-chose **Record** at **Record it as a child seed?** (F166): `parent`, the
-parent key's fingerprint; `application`, 39; `language`, BIP-85's
-language number; `words`, the seed's own word count; `index`, at most
-2³¹ − 1. Public: a fingerprint and numbers. A seed held as `hex` takes
-none.
+**Carried through unchanged** (owner, 2026-11-02): everything a KeePass
+app wrote that Faraday does not read is kept as it was and written back
+where it was: attachments (the inner header's binaries, with their
+protection flag, and the entries' references to them), custom icons and
+icon numbers, times, tags, AutoType, colours, the groups and their
+settings, deleted-object records, `PublicCustomData`, the database's
+settings in `Meta`, and custom data whose key does not begin
+`faraday.`, at the database, a group or an entry. Faraday keeps each
+such element as the bytes it read, in its place, and an attachment's
+bytes in memory held by `faraday-keys`, since an attachment can be a
+secret; they count toward the vault's size (§2). An entry Faraday does
+not change is written back as it was read; one it changes keeps
+everything but its fields, its custom data and its last-modified time,
+which it sets when the clock is set.
 
-```toml
-[vault]
-format = 1
-id = "3f0c9a6e2b7d41c58e19a0b2c4d6e8f0"
-name = "Savings"
-seals = 12
-sealed = 2026-10-28T14:02:00Z
+**Dropped**, being old or deleted copies of secrets (owner,
+2026-11-02): entry history, and the recycle bin with the entries in it.
+A file holding either stops before it opens at a dialog, **Saved by
+another program**, naming the vault and what the next seal leaves out
+("the history of 12 entries, 2 entries in the recycle bin"): **Keep
+locked** closes it unread, **Open** opens it.
 
-[[seed]]
-words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
-label = "Cold key"
+**The file's settings.** The next seal writes the file as Faraday writes
+a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the
+file's memory, up to 1 GiB, no compression, its size padded. A file
+saved in another cipher, KDF or compression says so on the vault's head
+while it is open.
 
-[[entry]]
-title = "Mail"
-username = "me"
-password = "correct horse battery staple"
-otp = "otpauth://totp/Mail:me?secret=JBSWY3DPEHPK3PXP&issuer=Mail"
-```
-
-**What refuses the file.** A document that is not TOML v1.0.0; a
-`vault` table missing, out of place or without `format`, `id` or
-`seals`; a table or key not named here; a value of the wrong type; a
-required key missing; a key given twice where one is allowed (TOML
-refuses it already); words that are not a valid BIP-39 phrase of their
-list; a policy or descriptor that does not parse; a PEM block other than
-the one its key names; an `otp` that is not an `otpauth://` URI Faraday
-reads; a GPG key not of Faraday's own shape: an Ed25519 primary key with
-one Ed25519 signing subkey, unprotected. Each names what it found and
-where (the table and the key, or TOML's line). Nothing of a refused file
-is loaded.
-
-An open vault's view shows each `wallet` with the `plan` this vault
-keeps for it, as a chart read from the backup up: the places, vaults,
-files and software of the plan, the wallet's keys under them (a key
-whose `seed` is in this vault reads "In this vault"), the wallet at the
-foot (`docs/history/NEW-WALLET.md` §7.2). A wallet with no `plan` here
-reads "No backup plan in this vault". Each node opens its sheet; its
-actions load the wallet, and its seeds this vault keeps, first. Opening
-one writes nothing into the vault.
-
-### 7.1 Edited by hand
-
-A vault is a file a person may open and change without Faraday: `age -d
-vault.age > vault.toml`, an edit in a text editor, and `age -p -o
-vault.age vault.toml` (binary, not `-a`). Faraday opens the result when
-every item reads by §7, at any length up to 4 MiB (§2) and any work
-factor up to 2^20 (§3); the `vault` table must still be there, as the
-editor found it. What was edited is taken as the person's: the seal
-count is read as written, and the next seal writes one more than it, at
-the vault's size and step.
+What was edited is taken as the person's: an entry added or changed,
+an item's fields changed (and checked as §7 says), the seal count read
+as written, and the next seal writes one more than it.
 
 ## 8. Creating
 
@@ -542,13 +698,13 @@ the vault's size and step.
 size (§2), and a passphrase typed twice; it refuses an empty
 passphrase. **Add randomness** is offered before the vault is made
 (F189 point 8, `docs/OWN-RANDOMNESS.md` §2.2). Making it draws the
-identifier and seals the empty document (`vault` alone) as the first
-seal, count 1.
+identifier and seals the empty database (its custom data alone) as the
+first seal, count 1.
 
 Every seal is a new file, so an open vault's passphrase, memory step and
 size can each be changed (**Change passphrase**, **Memory**, **Size**,
 on the vault's ⋮): the change takes effect at the next seal, which runs
-scrypt under the new passphrase and step and pads to the new size. A
+Argon2id under the new passphrase and step and pads to the new size. A
 size the contents do not fit is not offered. Copies of the vault sealed
 before keep their old passphrase.
 
@@ -559,7 +715,7 @@ share, or a BIP-39 passphrase with its key's fingerprint, chosen from
 the keys on the device) and a text field for a note, which shows the
 room left as it is typed and takes no more than §2.1's maximum; both
 can be used again at any time to replace what it holds. **Save** seals
-it as a new code with a new salt and file key; the memory step and
+it as a new code with a new salt and session key; the memory step and
 passphrase can be changed as a file vault's can. The backup flow,
 wherever a seed, a share or a passphrase is placed, makes a QR vault
 holding it in the same way, **Add randomness** offered first. Several
@@ -568,21 +724,34 @@ each**, and the flow says to keep each in a separate place.
 
 A QR vault's page and the backup flow, wherever one is placed, offer
 **Show as QR**, **PNG to the Outbox** (the labelled picture, §2.1) and
-**To the Outbox** (the `.age` file, which `age -d` opens); a stick visit
+**To the Outbox** (the `.pgp` file, which `sq decrypt` opens); a stick visit
 writes the Outbox as it writes any file. After each save the new code
 is shown, with the note that an earlier printed code still opens to
 what it held before.
 
+**The KeePass export is a vault** (F190 point 10). Where Faraday
+exported a key's words, a master seed, a note, a recovery sheet or an
+entry for a KeePass app (`docs/KDBX.md`), it makes a vault holding that
+one item, at the size it fits, under a passphrase typed for it: one
+KDBX writer and one shape. Its file is named as the export's was
+(`password.kdbx` for a BIP-85 password). `docs/KDBX.md`'s export, its
+strings and its vectors go when this is built.
+
 ## 9. What the vault promises
 
-**Holds.** Without its passphrase a vault shows that it is an age file
-for a passphrase, its memory step and which of the five sizes it is;
-nothing of its contents. A changed byte anywhere refuses the whole file:
-the stanza's tag, the header MAC and every chunk's tag are checked
-before anything is read (§4). Whichever passphrase opens a file, it
-opens to one content, since the header MAC is keyed by the file key.
+**Holds.** Without its passphrase a vault shows that it is a KDBX 4
+database or an OpenPGP message for a passphrase, its Argon2id cost and
+which of the five sizes it is; nothing of its contents. A changed byte
+anywhere refuses the whole file: a KDBX file's header HMAC and every
+block's HMAC, and an OpenPGP message's session key tag, every chunk's
+tag and the final tag, are checked before anything is read (§4). A
+KDBX file opens to one content whichever passphrase opens it, since its
+HMACs are keyed from the passphrase's key. OCB does not commit to its
+key, so a QR vault made by someone else could be built to open to two
+contents under two passphrases; Faraday makes every QR vault under one.
 Every QR vault has one length, so a code does not say which item it
-holds.
+holds. A KDBX file a KeePass app saved has lost Faraday's padding (§7.1),
+so its length says more until Faraday seals it.
 
 **No slots, and decoys.** A vault has one passphrase. A decoy is made
 inside a wallet's own standards: a BIP-39 passphrase gives another
@@ -592,19 +761,19 @@ exists, that the feature exists (Faraday is public), and whether what a
 person shows under pressure is believable are outside the promise.
 
 **Two copies from different times.** Every seal is a new file under a
-new salt and file key, so two copies show only that the vault was sealed
+new salt and new keys, so two copies show only that the vault was sealed
 between them, not what changed.
 
 **Rollback.** An older copy of a vault still opens: whoever can write
 the stick and holds an older copy can put it back. Its contents cannot
 be altered, but they can be replaced by an earlier state of themselves
 (a seed removed since put back, a backup marked done shown as not done,
-a `signed` table taken back). The seal count is inside the encryption
+a signed amount taken back). The seal count is inside the encryption
 (§5), and the app names a copy older when it is opened and the session
 has seen a newer one: one opened or sealed since power-on, or one an
 open vault's backup plan records by the vault identifier (§7, `plan`).
 A copy sitting unopened in Files is not compared: reading its count
-would cost a scrypt of its own. It cannot tell when no newer copy was
+would cost an Argon2id of its own. It cannot tell when no newer copy was
 seen since power-on and no open vault's plan records one, when a vault
 and its plan are put back together, or while the vault is locked. Such
 an unlock stops at a warning (§11). VeraCrypt's and LUKS's containers
@@ -615,34 +784,61 @@ byte in a vault nobody opened goes unnoticed until it is next opened,
 and then the whole vault is refused: nothing in it can be changed, and
 a damaged file loses it all. A copy at another place is the remedy.
 
-**Offline guessing.** Anyone with the file has its salt and work factor
+**Offline guessing.** Anyone with the file has its salt and cost
 and can try passphrases on their own computers, each guess costing one
-scrypt at the vault's step: a vault is as strong as its passphrase
+Argon2id at the vault's step: a vault is as strong as its passphrase
 (§3.1).
 
-**Not done.** scrypt's second half reads memory at places the
+**Not done.** The first half of Argon2id's first pass reads memory
+independently of the passphrase; the rest reads it at places the
 passphrase decides, a cache-timing side channel on the computer that
 unlocks. It is later work under the Security scope, as wiping freed
 copies is.
 
 ## 10. Reading one by hand
 
-A vault opens without Faraday: `age -d vault.age` (Go `age` or `rage`)
-asks for the passphrase and prints the TOML of §7, padding included.
-`tools/vault/open.py` becomes a reader of that TOML: given the output of
-`age -d`, it prints each item, and with `--field TABLE.KEY --out FILE`
-(`--index N` choosing among several) it prints nothing of the vault and
-writes that one value to a new file created with mode 0600, refusing a
-file that exists; that is how a secret value (a GPG key's armored
-secret key, `gpg.key`) reaches another tool without Faraday.
+A file vault opens in any KeePass app: KeePassXC shows the person's
+entries and Faraday's items in their groups, and `keepassxc-cli ls
+vault.kdbx` and `keepassxc-cli show -s vault.kdbx "Bitcoin keys/Cold
+key"` print them. A QR vault opens with Sequoia: `sq decrypt vault.pgp`
+asks for the passphrase and prints its QR TOML, padding included; a
+code is first saved as its bytes (`zbarimg --raw -Sbinary code.png >
+vault.pgp`). GnuPG does not open a QR vault (§1.2).
 
-The vectors in `tools/vectors/vault/` are made again as age files: a
-256 KiB vault holding one item of every kind, a 64 KiB vault, a QR vault
-of each item kind, one made with "café" in NFD (e and U+0301) that opens
-under its NFC form, a file whose payload ends early, and files refused
-for each rule of §1, §4 and §7. Faraday's age is checked against the age
-testkit's scrypt and header vectors, and in the F79 area `vault` against
-Go `age` both ways: each opens the files the other made (F189 point 9).
+`tools/vault/open.py` reads a file vault with pykeepass and prints each
+item as §7 names it, and a QR vault from `sq decrypt`'s output; with
+`--field KIND.FIELD --out FILE` (`--index N` choosing among several) it
+prints nothing of the vault and writes that one value to a new file
+created with mode 0600, refusing a file that exists; that is how a
+secret value (a GPG key's armored secret key, `gpg.key`) reaches
+another tool without Faraday.
+
+The vectors in `tools/vectors/vault/` are made again in the two
+formats: a 256 KiB vault holding one item of every kind, a 64 KiB vault,
+a QR vault of each item kind and an empty one, one of each made with
+"café" in NFD (e and U+0301) that opens under its NFC form, a file
+KeePassXC saved after an edit (AES-256, Argon2d, gzip, history and an
+attachment, opening at §7.1's dialog), a file whose stream ends early,
+and files refused for each rule of §1, §3, §4, §7 and §7.1. Faraday's
+KDBX is checked in the F79 area `vault` against pykeepass,
+`keepassxc-cli` and keepass-rs, and its OpenPGP against Sequoia (`sq`,
+or its Python binding pysequoia), OpenPGP.js and rPGP, both ways (the two
+Rust crates as test-only dependencies, never in what ships): each opens the files the
+other made (F190 point 11). A file KeePassXC saved after an edit opens
+with every attachment, icon, tag and custom data item it held, and
+Faraday's next seal writes them back byte for byte. Sequoia's default
+passphrase encryption writes the older packets (a SKESK v4 and a SEIPD
+v1, without Argon2), which a QR vault refuses (§1.2): the area makes
+Sequoia's files under its RFC 9580 profile, and §10's commands for `sq`
+say to. Measured (2026-11-02): OpenPGP.js 6.1.0 made a QR vault of the
+226-byte plaintext of §2.1 at 64 MiB, 3 passes and 4 lanes in 396 bytes,
+a SKESK v6 and a SEIPD v2, QR version 15 at medium error correction, and
+Sequoia (pysequoia 0.1.36) opened it to the same plaintext.
+
+Each reader has a fuzz target, seeded from the vectors: the KDBX header
+and block stream, the inflate and the XML reader with §7's rules
+(`kdbx_file`), and the QR vault's packets and its TOML (`qr_vault`);
+the age codec's `age_file` goes with it.
 
 ## 11. What the app remembers of a locked vault
 
