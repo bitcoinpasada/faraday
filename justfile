@@ -180,6 +180,7 @@ psbt-fixtures:
     cargo run -p faraday-psbt --release --example wallet -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example musig -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example tapmulti -- tools/vectors/psbt
+    cargo run -p faraday-psbt --release --locked --example signer -- tools/vectors/psbt
 
 # --- Fuzzing (fuzz/, faraday/fuzz/) -----------------
 #
