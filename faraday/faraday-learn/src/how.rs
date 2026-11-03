@@ -192,6 +192,19 @@ static AREA_MUSIG: Area = Area {
 };
 
 #[rustfmt::skip]
+static AREA_HASH: Area = Area {
+    area: "hash",
+    code: &[p("faraday_bip::hashes and faraday_codec::encodings (read, the writers and from_hex), and faraday_core::file_menu::sha256")],
+    second: &[p("Bitcoin Core v31.1's functional-test framework (core/): ripemd160.py, address.py and segwit_addr.py, with hashlib for SHA-256 and bytes.fromhex for hex."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday; the order read tries the spellings in, the trimming of the text, hex as an even number of hex digits and plain Base58 (which Core's framework does not read; the area's own few lines) are Faraday's rules, written in the area in front of the reference."), w("The file hash is file_menu::sha256 over a whole byte slice (it reads in no buffer, so no read size is probed); the Files screen's reading of a file from a stick is the files areas'.")],
+    vectors: &[p("FIPS 180-4's SHA-256 examples, RIPEMD-160 of abc, BIP-173's key and its HASH160, Bitcoin Core's first key_io_valid.json address and BIP-173's and BIP-350's bech32 strings.")],
+    random: &[p("Random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes written and read as Base58Check, Base58, bech32 and bech32m, Core's writing read by Faraday, and texts changed, cut or made of random characters read by both.")],
+    differences: &[p("bech32 padding: Core's convertbits refuses a string whose data leaves 5 or more padding bits or non-zero ones (BIP-173 rules this for a segwit address); Faraday reads any string with a valid checksum and drops the bits that do not fill a byte. The area reads those strings the same way (the whole bytes) and the corpus makes them, so the leniency is stated; refusing them is the owner's call."), p("bech32 length: Core's decoder refuses more than 90 characters (BIP-173); Faraday accepts any length the checksum covers. The area reads longer strings the same way.")],
+    when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
+    seed: "faraday-crosscheck-1",
+    cases: 3000,
+};
+
+#[rustfmt::skip]
 static AREA_ENTROPY: Area = Area {
     area: "entropy",
     code: &[p("faraday_entropy: dice under the three procedures, coins, hex, cards, camera frames, the device's answer, a mix")],
@@ -841,9 +854,9 @@ pub static BLOCKS: &[Block] = &[
         action: "Hashes bytes with SHA-256, SHA-256d and HASH160, and reads and writes Base58Check, bech32 and bech32m text.",
         standards: &[p("FIPS 180-4, Secure Hash Standard, Status not checked"), p("BIP 173, Base32 address format for native v0-16 witness outputs, Deployed"), p("BIP 350, Bech32m Format for v1+ Witness Addresses, Deployed"), p("BIP 380, Output Script Descriptors General Operation, Deployed"), p("Base58Check, Base58Check encoding, as Bitcoin Core writes it, Convention")],
         implementation: &[p("Library: bitcoin 0.32.102, by the rust-bitcoin developers."), p("Library: sha2 0.11.0, by the RustCrypto developers, through core/faraday-crypto."), p("Faraday's code: core/faraday-bip: The calculator shows the three hashes of any bytes, says which of Base58, Base58Check, bech32, bech32m or hex a text is, and writes the same bytes in the other spellings.")],
-        checked: &[m("tools/vectors/addresses"), p("Published, by the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitcoin/bips)."), m("core/faraday-bip/tests/all/calculators.rs::the_hashes_match_the_published_vectors"), m("core/faraday-codec/tests/encodings.rs::the_bech32_vectors_are_read_the_way_the_standards_say"), m("core/faraday-codec/src/encodings.rs::bech32_and_bech32m_are_told_apart"), m("core/faraday-codec/src/encodings.rs::base58check_round_trips_through_bitcoins_own_encoder"), m("fuzz encodings")],
-        cross_check: CrossCheck::Not("not cross-checked: The calculator's hashes and spellings (faraday_bip::hashes, faraday_codec::encodings) are reached by no cross-check area; the addr area reads addresses and descriptor checksums, not these"),
-        independence: &[],
+        checked: &[m("tools/vectors/addresses"), p("Published, by the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitcoin/bips)."), m("core/faraday-bip/tests/all/calculators.rs::the_hashes_match_the_published_vectors"), m("core/faraday-codec/tests/encodings.rs::the_bech32_vectors_are_read_the_way_the_standards_say"), m("core/faraday-codec/src/encodings.rs::bech32_and_bech32m_are_told_apart"), m("core/faraday-codec/src/encodings.rs::a_published_base58check_address_is_written_and_read_as_bitcoin_core_has_it"), m("fuzz encodings")],
+        cross_check: CrossCheck::Area(&AREA_HASH),
+        independence: &[p("Compared with others' code: Bitcoin Core v31.1's functional-test framework, by Bitcoin Core's contributors (ripemd160.py for HASH160, address.py for Base58Check, segwit_addr.py for bech32 and bech32m), and Python's hashlib (SHA-256 and SHA-256d) and bytes.fromhex (hex)."), w("Compared, for one part, with Faraday's second version, written by Faraday's authors in Python; that part is not checked against an outside source: plain Base58 with no checksum, which the framework does not read, the order the spellings are tried in, the trimming of the text, and hex as an even number of hex digits only, in area_hash.py; bech32 text with padding bits BIP 173 refuses or longer than 90 characters is read by Faraday and by the area alike, a stated difference.")],
         code: &[c("core/faraday-bip/src/hashes.rs", "hashes"), c("core/faraday-codec/src/encodings.rs", "read")],
         secret: &[p("none: no secret leaves faraday-keys"), p("Public bytes only; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("A text that is none of the five spellings gives no reading.")],
@@ -1434,8 +1447,8 @@ pub static BLOCKS: &[Block] = &[
         standards: &[p("FIPS 180-4, Secure Hash Standard, Status not checked")],
         implementation: &[p("Library: sha2 0.11.0, by the RustCrypto developers."), p("Faraday's code: core/faraday-crypto: sha2's SHA-256 over every byte, counted as file-hash work through the compute token. A file in the Inbox is hashed when it comes in and the sum is kept on it, a lookup after; the Files menu and the GPG signing page hash through the same function.")],
         checked: &[w("not checked against vectors"), m("core/faraday-crypto/tests/primitives.rs::sha256_known_answers"), w("no fuzz target: Takes any bytes and parses nothing")],
-        cross_check: CrossCheck::Not("not cross-checked: SHA-256 is sha2's; the known answers are the check"),
-        independence: &[],
+        cross_check: CrossCheck::Area(&AREA_HASH),
+        independence: &[p("Compared with others' code: Python's hashlib (SHA-256), over random files of every length around the 64-byte blocks and of 4 KiB, 64 KiB and 1 MiB with a byte more and less.")],
         code: &[c("faraday/faraday-core/src/receipt.rs", "sha256_of")],
         secret: &[p("none: no secret leaves faraday-keys"), p("No secret is handled."), p("Nothing secret is held.")],
         limits: &[p("The digest shows integrity, not origin.")],

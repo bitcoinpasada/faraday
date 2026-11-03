@@ -196,17 +196,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn base58check_round_trips_through_bitcoins_own_encoder() {
-        let payload = [0x11u8; 20];
-        let text = base58check(0x00, &payload);
-        assert_eq!(
-            base58::encode_check(&[&[0u8][..], &payload[..]].concat()),
-            text
-        );
-        let read = read(&text).expect("an encoding");
+    fn a_published_base58check_address_is_written_and_read_as_bitcoin_core_has_it() {
+        // The first valid address of Bitcoin Core's `src/test/data/key_io_valid.json`
+        // (v31.1): a mainnet P2PKH address, and the HASH160 in its script
+        // `76a914 <hash> 88ac`.
+        let text = "1FsSia9rv4NeEwvJ2GvXrX7LyxYspbN2mo";
+        let hash = from_hex("a31c06bd463e3923bc1aadbde48b16976c080717").expect("hex");
+        assert_eq!(base58check(0x00, &hash), text);
+        let read = read(text).expect("an encoding");
         assert_eq!(read.encoding, Encoding::Base58Check);
         assert_eq!(read.version, Some(0));
-        assert_eq!(read.bytes, payload);
+        assert_eq!(read.bytes, hash);
     }
 
     #[test]

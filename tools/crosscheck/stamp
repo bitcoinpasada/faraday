@@ -40,6 +40,7 @@ cases slip39 1500
 cases codex32 1000
 cases codex32-correct 10000
 cases xor 4000
+cases hash 3000
 cases vault 3605
 cases bip39 3000
 cases bip32 400

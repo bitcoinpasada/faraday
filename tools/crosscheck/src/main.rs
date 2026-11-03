@@ -21,6 +21,7 @@ mod bip85;
 mod codex32;
 mod compile;
 mod entropy;
+mod hash;
 mod import;
 mod json;
 mod kdbx;
@@ -75,6 +76,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "slip39" => slip39::handle(name, req),
         "codex32" => codex32::handle(name, req),
         "xor" => xor::handle(name, req),
+        "hash" => hash::handle(name, req),
         "sp" => silent::handle(name, req),
         "sps" => silent_send::handle(name, req),
         "vault" => vault::handle(name, req),
