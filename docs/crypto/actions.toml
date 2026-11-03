@@ -4001,7 +4001,7 @@ tests = [
   "faraday/faraday-core/tests/all/silent.rs::an_sp_descriptor_from_files_loads_as_its_wallet_and_one_whose_keys_are_not_the_keys_is_refused",
 ]
 crosscheck = "silent"
-independence = { class = "outside", author = "BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab`; for BIP 392's spscan key, which has no published code or vectors, that reference's bech32m and curve" }
+independence = { class = "outside", author = "BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab`, and btclib-wallet's `silent_payments.py`, by the btclib developers, on btclib's own curve: addresses, labels, input keys and hash, the sender's outputs and the receiver's scan; for BIP 392's spscan key, which has no published code or vectors, that reference's bech32m and curve and btclib's" }
 fuzz = [
   "silent",
 ]
@@ -6361,7 +6361,7 @@ tests = [
   "core/faraday-psbt/tests/all/silent.rs::a_master_key_adds_the_share_its_derived_key_gives",
 ]
 crosscheck = "silent_send"
-independence = { class = "outside", author = "BIP-374/375 authors (bitcoin/bips)" }
+independence = { class = "outside", author = "BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone" }
 fuzz_none = "Not reachable from the app: no outside input reaches it."
 
 [action.secrets]

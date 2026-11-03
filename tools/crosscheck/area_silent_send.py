@@ -36,7 +36,8 @@ import hashlib
 import importlib.util
 import json
 
-from common import ROOT, Area, Mismatch, as_verify, use_reference
+import lineage  # noqa: F401 - btclib's wheels, its own curve with libsecp256k1 off
+from common import ROOT, Area, Mismatch, as_verify, reference, use_reference
 
 use_reference("bip375")
 use_reference("bip375", "deps", "secp256k1lab", "src")
@@ -61,6 +62,56 @@ def _bip374():
 
 
 R374 = _bip374()
+
+# btclib's BIP-374 (`ecc.ecc.dleq`) and btclib-wallet's BIP-375 roles, on
+# btclib's own curve: a second implementation, by other authors, beside
+# each reference.
+from btclib_wallet.psbt import silent_payments as BSP  # noqa: E402
+from btclib_wallet.psbt.psbt import Psbt as BPsbt  # noqa: E402
+from ecc.alias import INF as B_INF  # noqa: E402
+from ecc.ecc import dleq as B_DLEQ  # noqa: E402
+from btclib.script.script_pub_key import is_p2tr as b_is_p2tr  # noqa: E402
+from btclib.script.taproot import output_pubkey_from_merkle_root_var  # noqa: E402
+
+
+def btc_unproven_nums(b64):
+    """Whether a PSBT has a taproot input that claims BIP341's NUMS point
+    as its internal key with nothing that proves it. BIP-352 and the
+    validator skip such an input on the claim; btclib-wallet counts it,
+    and takes the claim only against a proof (a merkle root or a control
+    block that tweaks the NUMS point to the output key)."""
+    try:
+        for pin in BPsbt.b64decode(b64, check_validity=False).inputs:
+            spk = BSP._script_pub_key(pin)
+            if (b_is_p2tr(spk) and pin.taproot_internal_key == BSP.sp.NUMS_H
+                    and not BSP._is_proven_nums(pin, spk[2:])):
+                return True
+    except Exception:  # noqa: BLE001 - a PSBT btclib cannot read is judged by its verdict
+        return False
+    return False
+
+
+def btc_point(h):
+    return B_INF if h == "INFINITY" else bytes.fromhex(h)
+
+
+def btc_verdict(b64, checks=None):
+    """btclib-wallet's verdict on a PSBT: True when the checks it shares
+    with the BIP's validator pass (`checks` names them as the vectors do).
+    One it cannot read, or that makes it raise, is one it does not accept."""
+    try:
+        if not checks:
+            BSP.assert_as_valid(BPsbt.b64decode(b64))
+            return True
+        psbt = BPsbt.b64decode(b64, check_validity=False)
+        for name in checks:
+            {"psbt_structure": lambda: (psbt.assert_valid(), BSP._assert_modifiable_cleared(psbt)),
+             "ecdh_coverage": lambda: BSP.assert_shares_as_valid(psbt),
+             "input_eligibility": lambda: BSP.assert_eligibility_as_valid(psbt),
+             "output_scripts": lambda: BSP.assert_output_scripts_as_valid(psbt)}[name]()
+        return True
+    except Exception:  # noqa: BLE001 - every failure to validate is a refusal
+        return False
 N = GE.ORDER
 NUMS = bytes.fromhex("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0")
 INFINITY = GE()
@@ -69,7 +120,7 @@ GEN = G.to_bytes_compressed().hex()
 # PSBT field types (BIP-174, 370, 371, 375).
 IN_NON_WITNESS, IN_WITNESS, IN_SIGHASH, IN_REDEEM, IN_BIP32 = 0x00, 0x01, 0x03, 0x04, 0x06
 IN_PREV_TXID, IN_PREV_INDEX, IN_SEQUENCE = 0x0E, 0x0F, 0x10
-IN_TAP_BIP32, IN_TAP_INTERNAL = 0x16, 0x17
+IN_TAP_BIP32, IN_TAP_INTERNAL, IN_TAP_MERKLE = 0x16, 0x17, 0x18
 IN_SHARE, IN_DLEQ = 0x1D, 0x1E
 G_MODIFIABLE, G_SHARE, G_DLEQ = 0x06, 0x07, 0x08
 OUT_AMOUNT, OUT_SCRIPT, OUT_SP_INFO, OUT_SP_LABEL = 0x03, 0x04, 0x09, 0x0A
@@ -109,7 +160,8 @@ class SilentSend(Area):
     )
     reference = (
         "BIP-374's `reference.py` (`bip374/`) and BIP-375's validator and `test_runner.py` "
-        '(`bip375/`), over `secp256k1lab`'
+        "(`bip375/`), over `secp256k1lab`; btclib's `dleq.py` and btclib-wallet's BIP-375 roles "
+        "(`btclib/`, its own curve) answering beside them"
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, the '
@@ -117,7 +169,8 @@ class SilentSend(Area):
         "and the reference to give each of BIP-374's rows its published answer"
     )
     vectors = (
-        'both CSV files of `tools/vectors/bip374/` and `tools/vectors/bip375/bip375_test_vectors.json`'
+        'both CSV files of `tools/vectors/bip374/` and `tools/vectors/bip375/bip375_test_vectors.json`, '
+        'each judged by btclib too'
     )
     corpus = (
         'proofs made and verified, damaged or not, under two generators; version 2 PSBTs of '
@@ -141,12 +194,31 @@ class SilentSend(Area):
             "script hashes, and one whose previous transaction is not the one spent; the "
             "validator reads both fields without checking them."
         ),
+        (
+            "BIP-375: btclib-wallet takes a taproot input's NUMS internal key as a reason to skip "
+            "the input only against a proof (a merkle root or a control block that tweaks the NUMS "
+            "point to the output key), and counts the input otherwise; Faraday and the validator "
+            "skip on the claim. A PSBT with an unproved claim is not asked of btclib-wallet. The "
+            "corpus also makes inputs whose claim is proved, which all three skip."
+        ),
     ]
     not_compared = (
         'none'
     )
 
     # -- what each side says ------------------------------------------
+
+    def compare(self, op, inputs, ref_fn, expected=None, normalize=None, btc_fn=None):
+        """The two-way comparison of `Area.compare`, and btclib's answer
+        to the same inputs, which must be Faraday's too."""
+        raw = super().compare(op, inputs, ref_fn, expected, normalize)
+        if btc_fn is not None:
+            btc = reference(btc_fn)
+            rust = normalize(raw) if normalize else raw
+            btc = normalize(btc) if normalize else btc
+            if rust[0] != btc[0] or (rust[0] == "ok" and rust[1] != btc[1]):
+                raise Mismatch(self.name, op, inputs, rust, btc, "btclib's BIP-374 differs")
+        return raw
 
     def judge(self, b64, expected=None, checks=None):
         """Faraday's and the validator's verdict on a PSBT, which must be
@@ -156,6 +228,10 @@ class SilentSend(Area):
         only = bool(checks)
         rust = self.rust.call("sps.check", psbt=b64, inputs_only=only)
         valid = verdict(b64, checks)
+        # btclib-wallet is asked everything but a PSBT whose NUMS claim it
+        # cannot prove (see `btc_unproven_nums`): the one difference of its rule.
+        btc_asked = not btc_unproven_nums(b64)
+        btc = btc_verdict(b64, checks) if btc_asked else None
         self.compared += 1
         if expected is not None and valid != expected:
             raise Mismatch(self.name, "sps.check", inputs, rust, {"valid": valid},
@@ -164,9 +240,26 @@ class SilentSend(Area):
             if not self.known_difference(rust, valid, b64):
                 raise Mismatch(self.name, "sps.check", inputs, rust, {"valid": valid})
             self.known += 1
+        elif btc_asked and btc != valid:
+            raise Mismatch(self.name, "sps.check", inputs, rust, {"valid": valid, "btclib": btc},
+                           "btclib-wallet's BIP-375 verdict differs from the validator's and Faraday's")
         elif valid and not only:
             self.check_report(b64, rust)
+            if btc_asked:
+                self.check_btc_scripts(b64, rust)
         return rust, valid
+
+    def check_btc_scripts(self, b64, rust):
+        """The scripts btclib-wallet derives for a PSBT all accept are the
+        ones Faraday reports."""
+        got = {o["index"]: o["script"] for o in rust[1]["outputs"] if o["script"]}
+        want = {i: s.hex() for i, s in BSP.output_scripts(BPsbt.b64decode(b64)).items()}
+        # Where shares are still missing Faraday reports no script, and
+        # btclib-wallet's `output_scripts` is also asked of a PSBT under
+        # construction: only the scripts Faraday reports are compared.
+        if {i: want.get(i) for i in got} != got:
+            raise Mismatch(self.name, "sps.check", {"psbt": b64}, got, want,
+                           "btclib-wallet derives other output scripts than Faraday reports")
 
     def check_report(self, b64, rust):
         """What Faraday says of a PSBT both accept: which outputs are silent
@@ -242,19 +335,25 @@ class SilentSend(Area):
             if proof is None:
                 raise ValueError("BIP-374 gives no proof")
             return {"proof": proof.hex()}
+
+        def btc():
+            return {"proof": B_DLEQ.generate_proof(a, btc_point(b), r, G=btc_point(g), msg=m).hex()}
         req = {"a": a.to_bytes(32, "big").hex(), "b": b, "r": r.hex(), "g": g}
         if m is not None:
             req["m"] = m.hex()
-        return self.compare("sps.dleq_generate", req, ref, expected)
+        return self.compare("sps.dleq_generate", req, ref, expected, btc_fn=btc)
 
     def dleq_verify(self, g, a, b, c, proof, m, expected=None):
         def ref():
             return {"valid": R374.dleq_verify_proof(point(a), point(b), point(c), proof,
                                                     G=point(g), m=m)}
+        def btc():
+            return {"valid": B_DLEQ.verify_proof(btc_point(a), btc_point(b), btc_point(c), proof,
+                                                 G=btc_point(g), msg=m)}
         req = {"g": g, "a": a, "b": b, "c": c, "proof": proof.hex()}
         if m is not None:
             req["m"] = m.hex()
-        return self.compare("sps.dleq_verify", req, ref, expected, normalize=as_verify)
+        return self.compare("sps.dleq_verify", req, ref, expected, normalize=as_verify, btc_fn=btc)
 
     def published_dleq(self):
         base = ROOT / "tools/vectors/bip374"
@@ -371,6 +470,15 @@ class SilentSend(Area):
             out["eligible"] = False
             m[IN_WITNESS] = amount + b"\x22\x51\x20" + pub.to_bytes_xonly()
             m[IN_TAP_INTERNAL] = NUMS
+        elif kind == "nums-proven":
+            # The NUMS point as internal key, tweaked by a merkle root the
+            # PSBT states: the output key is no one's key, and the claim is proved.
+            out["eligible"] = False
+            root = self.randbytes(32)
+            tweaked, _ = output_pubkey_from_merkle_root_var(NUMS, root)
+            m[IN_WITNESS] = amount + b"\x22\x51\x20" + tweaked
+            m[IN_TAP_INTERNAL] = NUMS
+            m[IN_TAP_MERKLE] = root
         elif kind == "p2wsh":
             out["eligible"] = False
             m[IN_WITNESS] = amount + b"\x22\x00\x20" + self.randbytes(32)
@@ -389,7 +497,7 @@ class SilentSend(Area):
         kinds = ["p2wpkh", "p2sh-p2wpkh", "p2pkh", "p2tr", "p2tr", "p2wpkh"]
         while True:
             inputs = [self.input_of(rng.choice(kinds if rng.random() < 0.85 else
-                                               ["nums", "p2wsh", "p2sh-other"]))
+                                               ["nums", "nums-proven", "nums-proven", "p2wsh", "p2sh-other"]))
                       for _ in range(rng.randint(1, 4))]
             if any(i["eligible"] for i in inputs):
                 break
@@ -417,7 +525,7 @@ class SilentSend(Area):
         keys = [[i, inputs[i]["secret"].to_bytes(32, "big").hex()] for i in which]
         return self.rust.call("sps.shares", psbt=b64, keys=keys, aux=aux.hex())
 
-    def expect_signed(self, b64, answer, inputs, aux):
+    def expect_signed(self, b64, answer, inputs, aux, unsigned):
         """What the references make of the signed PSBT: each share, each proof
         and each script, which must be the ones in the PSBT and the ones
         Faraday reports."""
@@ -438,6 +546,8 @@ class SilentSend(Area):
                                    {"input": i, "scan": scan.hex(), "aux": aux.hex()},
                                    {"share": share and share.hex(), "proof": proof and proof.hex()},
                                    {"share": want_share.hex(), "proof": want_proof.hex()})
+        if not btc_unproven_nums(unsigned):
+            self.btc_signer(unsigned, signed_psbt=psbt, inputs=inputs, eligible=eligible, aux=aux)
         summed = {}
         for scan in by_scan:
             S = GE.from_bytes(scan)
@@ -458,6 +568,55 @@ class SilentSend(Area):
                                {"script": got and got.hex(), "reported": reported[j]["script"]},
                                {"script": want.hex()})
         return psbt
+
+    def btc_signer(self, unsigned, signed_psbt, inputs, eligible, aux):
+        """btclib-wallet's Signer roles on the unsigned PSBT: its shares and
+        proofs (byte for byte, the auxiliary bytes being the same) and the
+        scripts it sets are the ones Faraday's signers wrote."""
+        try:
+            mine = BPsbt.b64decode(unsigned, check_validity=False)
+            for i, x in eligible:
+                BSP.set_input_share(mine, i, x["key"], aux)
+            BSP.set_output_scripts(mine)
+        except Exception as e:  # noqa: BLE001
+            raise Mismatch(self.name, "sps.shares", {"psbt": unsigned, "aux": aux.hex()},
+                           {"signed": True}, {"btclib": f"{type(e).__name__}: {e}"},
+                           "btclib-wallet's Signer refuses what Faraday signed") from e
+        for i, x in eligible:
+            for scan, share in mine.inputs[i].sp_ecdh_shares.items():
+                scan = bytes(scan)
+                got = (signed_psbt.i[i].get_by_key(IN_SHARE, scan), signed_psbt.i[i].get_by_key(IN_DLEQ, scan))
+                want = (bytes(share), bytes(mine.inputs[i].sp_dleq_proofs[scan]))
+                if got != want:
+                    raise Mismatch(self.name, "sps.shares", {"input": i, "scan": scan.hex()},
+                                   {"share": got[0] and got[0].hex(), "proof": got[1] and got[1].hex()},
+                                   {"share": want[0].hex(), "proof": want[1].hex()},
+                                   "btclib-wallet's Signer writes another share or proof")
+        for j, o in enumerate(mine.outputs):
+            if o.sp_v0_info and signed_psbt.o[j].get(OUT_SCRIPT) != bytes(o.script_pub_key):
+                raise Mismatch(self.name, "sps.shares", {"output": j},
+                               {"script": signed_psbt.o[j].get(OUT_SCRIPT, b"").hex()},
+                               {"script": bytes(o.script_pub_key).hex()},
+                               "btclib-wallet's Signer sets another output script")
+
+    def btc_global(self, unsigned, glob, inputs, aux):
+        """btclib-wallet's global share and proof for the same keys."""
+        try:
+            mine = BPsbt.b64decode(unsigned, check_validity=False)
+            BSP.set_global_share(mine, [x["key"] for x in inputs if x["eligible"]], aux)
+        except Exception as e:  # noqa: BLE001
+            raise Mismatch(self.name, "sps.global_share", {"psbt": unsigned},
+                           {"made": True}, {"btclib": f"{type(e).__name__}: {e}"},
+                           "btclib-wallet's Signer refuses a global share Faraday's keys make") from e
+        for scan, share in mine.sp_ecdh_shares.items():
+            scan = bytes(scan)
+            got = (glob.g.map.get(key_of(G_SHARE, scan)), glob.g.map.get(key_of(G_DLEQ, scan)))
+            want = (bytes(share), bytes(mine.sp_dleq_proofs[scan]))
+            if got != want:
+                raise Mismatch(self.name, "sps.global_share", {"scan": scan.hex()},
+                               {"share": got[0] and got[0].hex(), "proof": got[1] and got[1].hex()},
+                               {"share": want[0].hex(), "proof": want[1].hex()},
+                               "btclib-wallet writes another global share or proof")
 
     def global_share(self, psbt, inputs, aux):
         """The same PSBT with one global share and proof per scan key, as one
@@ -644,13 +803,15 @@ class SilentSend(Area):
                            {"complete": False}, {"complete": True},
                            "every eligible input is signed, so every script is set")
         signed = step["psbt"]
-        parsed = self.expect_signed(signed, step, inputs, aux)
+        parsed = self.expect_signed(signed, step, inputs, aux, b64)
         rust, valid = self.judge(signed)
         if rust[0] != "ok" or not valid:
             raise AssertionError(f"a PSBT signed by Faraday is refused: {rust} {valid}")
         # The same PSBT with a global share, as one holder of every key makes it.
         glob = self.global_share(BIP375PSBT.from_base64(signed), inputs, aux)
         if glob is not None and rng.random() < 0.5:
+            if not btc_unproven_nums(b64):
+                self.btc_global(b64, glob, inputs, aux)
             rust, valid = self.judge(glob.to_base64())
             if rust[0] != "ok" or not valid:
                 raise AssertionError(f"a global share is refused: {rust} {valid}")

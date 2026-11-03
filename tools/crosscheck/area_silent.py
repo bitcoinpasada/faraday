@@ -27,7 +27,8 @@ curve. The descriptor around it, with a key origin of BIP-352's path,
 is read in the area from BIP-392's text.
 """
 
-from common import Area, use_reference, vectors
+import lineage  # noqa: F401 - btclib's wheels, its own curve with libsecp256k1 off
+from common import Area, Mismatch, reference, use_reference, vectors
 
 use_reference("bip352")
 use_reference("bip352", "secp256k1lab", "src")
@@ -37,6 +38,38 @@ import reference as R  # noqa: E402
 from secp256k1lab.secp256k1 import G, GE, Scalar  # noqa: E402
 
 NUMS = R.NUMS_H.to_bytes(32, "big")
+
+# btclib-wallet's BIP-352 (`silent_payments.py`) on btclib's own curve: a
+# second implementation, by other authors, of every operation the BIP's
+# reference answers.
+from btclib.b32 import power_of_2_base_conversion  # noqa: E402
+from btclib.bech32 import BECH32_M_CONST  # noqa: E402
+from btclib.bech32 import decode as b_bech32_decode  # noqa: E402
+from btclib.script.witness import Witness as BWitness  # noqa: E402
+from btclib.tx.out_point import OutPoint as BOutPoint  # noqa: E402
+from btclib_wallet import silent_payments as BS  # noqa: E402
+from ecc.curves import bytes_from_point, mult, point_from_octets_var, scalar_from_prv_key  # noqa: E402
+from ecc.curves import secp256k1 as B_CURVE  # noqa: E402
+from ecc.hashes import tagged_hash as b_tagged_hash  # noqa: E402
+
+
+def bpt(point):
+    """A btclib point as compressed hex."""
+    return bytes_from_point(point, B_CURVE).hex()
+
+
+def b_outpoint(op):
+    return BOutPoint.parse(op.serialize())
+
+
+def b_inputs(inputs):
+    """What btclib-wallet reads of each input: its outpoint, the key it
+    counts (None for one it skips) and the script it spends."""
+    out = []
+    for op, script_sig, witness, prevout, *_ in inputs:
+        key = BS.pub_key_from_input(prevout, script_sig, BWitness(witness))
+        out.append((b_outpoint(op), key, prevout))
+    return out
 
 
 def vin(outpoint, script_sig, witness, prevout, key=None):
@@ -92,6 +125,60 @@ def ref_scan(inputs, b_scan, b_spend_pk, outputs, labels):
     return {"found": out}
 
 
+def btc_network(mainnet):
+    return "mainnet" if mainnet else "testnet"
+
+
+def btc_future(inputs):
+    # BIP-352's skip of SegWit version 2 and above is the caller's in btclib too.
+    if any(future_segwit(i[3]) for i in inputs):
+        raise ValueError("BIP-352: a transaction spending a SegWit version above 1 is skipped")
+
+
+def btc_sum(inputs):
+    """btclib-wallet's sum of the counted keys and the input hash."""
+    btc_future(inputs)
+    read = b_inputs(inputs)
+    total = BS.pub_key_sum([k for _, k, _ in read if k is not None])
+    return read, total, BS.input_hash([o for o, _, _ in read], total)
+
+
+def btc_scan(inputs, b_scan, b_spend_pk, outputs, labels):
+    read, total, _ = btc_sum(inputs)
+    found = BS.scan_transaction_outputs(
+        int(b_scan), b_spend_pk.to_bytes_compressed(), [o for o, _, _ in read],
+        [(k, spk) for _, k, spk in read if k is not None], outputs,
+        BS.label_lookup(int(b_scan), labels))
+    # The label each output was paid to, read back from its spending tweak
+    # as the reference's side does it.
+    shared = BS.shared_secret(int(b_scan), BS.tweak_data([o for o, _, _ in read], total))
+    by_tweak = {BS.label_tweak(int(b_scan), m): m for m in labels}
+    out = []
+    for k, f in enumerate(found):
+        t_k = int.from_bytes(b_tagged_hash(b"BIP0352/SharedSecret",
+                                           bytes_from_point(shared, B_CURVE) + k.to_bytes(4, "big")),
+                             "big") % B_CURVE.n
+        d = (f.prv_key_tweak - t_k) % B_CURVE.n
+        out.append({"index": outputs.index(f.pub_key), "key": f.pub_key.hex(),
+                    "label": None if d == 0 else by_tweak[d]})
+    return {"found": out}
+
+
+def btc_scan_key(text):
+    """BIP-392's `spscan` string, read by btclib's bech32m and curve."""
+    hrp, data = b_bech32_decode(text, BECH32_M_CONST)
+    if hrp not in ("spscan", "tspscan"):
+        raise ValueError("BIP-392: not an spscan string")
+    if not data or data[0] != 0:
+        raise ValueError("BIP-392: not a version 0 spscan string")
+    payload = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
+    if len(payload) != 65:
+        raise ValueError("BIP-392: the payload is not 65 bytes")
+    scan = scalar_from_prv_key(payload[:32])
+    spend = point_from_octets_var(payload[32:], B_CURVE)
+    return {"mainnet": hrp == "spscan", "scan": bpt(mult(scan)), "spend": bpt(spend)}
+
+
 def scan_key_text(b_scan, B_spend, mainnet, version=0, scan_bytes=None):
     """BIP-392's `spscan` expression, by the reference's bech32m."""
     payload = (scan_bytes or b_scan.to_bytes()) + B_spend.to_bytes_compressed()
@@ -120,7 +207,7 @@ def ref_scan_key(text):
             "spend": spend.to_bytes_compressed().hex()}
 
 
-def ref_descriptor(text):
+def ref_descriptor(text, read_key=ref_scan_key):
     """BIP-392's `sp(KEY)` with the key origin BIP-352's path names, read
     from the BIP's text; an origin is Faraday's rule (BIP-392 makes it
     optional), and a path other than 352h/coinh/accounth too."""
@@ -132,7 +219,7 @@ def ref_descriptor(text):
         raise ValueError("Faraday's rule: an sp() descriptor with no key origin is refused")
     origin, key = inner[1:].split("]", 1)
     fp, *path = origin.split("/")
-    key_read = ref_scan_key(key)
+    key_read = read_key(key)
     coin = "0h" if key_read["mainnet"] else "1h"
     if len(path) != 3 or path[0] != "352h" or path[1] != coin or not path[2].endswith("h"):
         raise ValueError("Faraday's rule: an origin other than BIP-352's path is refused")
@@ -151,14 +238,15 @@ class Silent(Area):
         '`faraday_bip::silent`'
     )
     reference = (
-        "BIP-352's `reference.py` (`bip352/`)"
+        "BIP-352's `reference.py` (`bip352/`); btclib-wallet's `silent_payments.py` "
+        "(`btclib/`, its own curve) answering every operation beside it"
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of Faraday"
     )
     vectors = (
-        'every case of `tools/vectors/bip352/`, both sides'
+        'every case of `tools/vectors/bip352/`, both sides, each answered by btclib-wallet too'
     )
     corpus = (
         "inputs of every kind BIP-352 reads, receivers with labels, a sender's outputs "
@@ -171,8 +259,8 @@ class Silent(Area):
         ),
         (
             "BIP-352's skip of a transaction spending SegWit version 2 or above, which the "
-            "reference leaves to its caller, is written in the area from the BIP's own "
-            'sentence.'
+            "reference and btclib-wallet leave to their caller, is written in the area from the "
+            "BIP's own sentence."
         ),
         (
             "BIP-392 publishes no reference code or vectors: its `spscan` expression is "
@@ -186,15 +274,34 @@ class Silent(Area):
         'none'
     )
 
+    def compare(self, op, inputs, ref_fn, expected=None, normalize=None, btc_fn=None):
+        """The two-way comparison of `Area.compare`, and btclib-wallet's
+        answer to the same inputs, which must be Faraday's too."""
+        raw = super().compare(op, inputs, ref_fn, expected, normalize)
+        if btc_fn is not None:
+            btc = reference(btc_fn)
+            rust = normalize(raw) if normalize else raw
+            btc = normalize(btc) if normalize else btc
+            if rust[0] != btc[0] or (rust[0] == "ok" and rust[1] != btc[1]):
+                raise Mismatch(self.name, op, inputs, rust, btc, "btclib-wallet's BIP-352 differs")
+        return raw
+
     def address(self, b_scan, b_spend, mainnet, label, expected=None):
         hrp = "sp" if mainnet else "tsp"
         def ref():
             if label is None:
                 return {"address": R.encode_silent_payment_address(b_scan * G, b_spend * G, hrp)}
             return {"address": R.create_labeled_silent_payment_address(b_scan, b_spend * G, label, hrp)}
+        def btc():
+            net = btc_network(mainnet)
+            if label is None:
+                return {"address": BS.address_from_keys(mult(int(b_scan)), mult(int(b_spend)), net)}
+            return {"address": BS.labeled_address_from_keys(
+                int(b_scan), mult(int(b_spend)), label, net)}
         return self.compare("sp.address", {"scan_sk": b_scan.to_bytes().hex(),
                                            "spend_pk": (b_spend * G).to_bytes_compressed().hex(),
-                                           "mainnet": mainnet, "label": label}, ref, expected)
+                                           "mainnet": mainnet, "label": label}, ref, expected,
+                            btc_fn=btc)
 
     def decode(self, address):
         def ref():
@@ -202,7 +309,10 @@ class Silent(Area):
             scan, spend = R.decode_silent_payment_address(address.lower(), hrp)
             return {"mainnet": hrp == "sp", "scan": scan.to_bytes_compressed().hex(),
                     "spend": spend.to_bytes_compressed().hex()}
-        return self.compare("sp.decode", {"address": address}, ref)
+        def btc():
+            scan, spend, kind = BS.keys_from_address(address)
+            return {"mainnet": kind == "main", "scan": bpt(scan), "spend": bpt(spend)}
+        return self.compare("sp.decode", {"address": address}, ref, btc_fn=btc)
 
     def scan_key(self, b_scan, b_spend, mainnet):
         """A receiver's scan key expression, as written, then damaged."""
@@ -218,20 +328,27 @@ class Silent(Area):
             text = text.upper()
         elif how == "zero":
             text = scan_key_text(b_scan, b_spend * G, mainnet, scan_bytes=bytes(32))
-        self.compare("sp.scan_key", {"text": text}, lambda: ref_scan_key(text))
+        self.compare("sp.scan_key", {"text": text}, lambda: ref_scan_key(text),
+                     btc_fn=lambda: btc_scan_key(text))
         if how == "whole":
             fp = self.randbytes(4).hex()
             account = rng.choice([0, 0, 1, rng.randrange(2**31)])
             coin = "0h" if mainnet else "1h"
             path = rng.choice([f"352h/{coin}/{account}h"] * 5 + ["84h/0h/0h", f"352h/{coin}"])
             d = rng.choice([f"sp([{fp}/{path}]{text})", f"sp({text})"])
-            self.compare("sp.descriptor", {"text": d}, lambda: ref_descriptor(d))
+            self.compare("sp.descriptor", {"text": d}, lambda: ref_descriptor(d),
+                         btc_fn=lambda: ref_descriptor(d, btc_scan_key))
 
     def input_hash(self, inputs):
         def ref():
             total, h = ref_input_hash(inputs)
             return {"sum": total.to_bytes_compressed().hex(), "hash": h.hex()}
-        return self.compare("sp.input_hash", {"inputs": [wire(*i) for i in inputs]}, ref)
+
+        def btc():
+            _, total, h = btc_sum(inputs)
+            return {"sum": bpt(total), "hash": h.to_bytes(32, "big").hex()}
+        return self.compare("sp.input_hash", {"inputs": [wire(*i) for i in inputs]}, ref,
+                            btc_fn=btc)
 
     def sender(self, keys, outpoints, scan, spends):
         def ref():
@@ -243,16 +360,27 @@ class Silent(Area):
             if not out:
                 raise ValueError("the reference makes no outputs")
             return {"outputs": out}
+        def btc():
+            # btclib-wallet is given each input's script (a taproot one or
+            # not is all it reads of it) and the addresses to pay.
+            addresses = [BS.address_from_keys(point_from_octets_var(scan.to_bytes_compressed(), B_CURVE),
+                                              point_from_octets_var(s.to_bytes_compressed(), B_CURVE))
+                         for s in spends]
+            prv = [(k, b"\x51\x20" + bytes(32) if t else b"\x00\x14" + bytes(20)) for k, t in keys]
+            out = BS.output_keys(prv, [b_outpoint(o) for o in outpoints], addresses)
+            return {"outputs": [o.hex() for o in out]}
         return self.compare("sp.sender", {
             "keys": [[k.hex(), t] for k, t in keys], "outpoints": [o.serialize().hex() for o in outpoints],
             "scan": scan.to_bytes_compressed().hex(),
-            "spends": [s.to_bytes_compressed().hex() for s in spends]}, ref, normalize=sorted_outputs)
+            "spends": [s.to_bytes_compressed().hex() for s in spends]}, ref, normalize=sorted_outputs,
+            btc_fn=btc)
 
     def scan(self, inputs, b_scan, b_spend_pk, outputs, labels, expected=None):
         return self.compare("sp.scan", {
             "inputs": [wire(*i) for i in inputs], "scan_sk": b_scan.to_bytes().hex(),
             "spend_pk": b_spend_pk.to_bytes_compressed().hex(), "outputs": [o.hex() for o in outputs],
-            "labels": labels}, lambda: ref_scan(inputs, b_scan, b_spend_pk, outputs, labels), expected)
+            "labels": labels}, lambda: ref_scan(inputs, b_scan, b_spend_pk, outputs, labels), expected,
+            btc_fn=lambda: btc_scan(inputs, b_scan, b_spend_pk, outputs, labels))
 
     # -- the published vectors ----------------------------------------
 
