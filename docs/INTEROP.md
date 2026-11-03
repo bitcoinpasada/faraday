@@ -107,9 +107,9 @@ list said of them: moved to `docs/history/INTEROP-LOG.md`.
 
 5. **Electrum's own seeds** (not BIP-39): an Electrum wallet's words do not
    load (§5 I7).
-8. Not read or written: BIP-329 label files and Coldcard's encrypted
-   backup file. PSBT version 2 is read and written (§5 I10). A single WIF
-   private key is swept, never loaded (§5 I11).
+8. PSBT version 2 is read and written (§5 I10). A single WIF private key
+   is swept, never loaded (§5 I11). BIP-329 label files and Coldcard's
+   encrypted backup file are left out (§5, "Left out").
 
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
@@ -527,10 +527,18 @@ moved to `docs/history/INTEROP-LOG.md`.
 
 - **BIP-329 label files.** A label from the coordinator beside an output
   in the signing review is text an attacker controls ("Savings" beside
-  their address). Labels belong in the online wallet.
-- **Coldcard's encrypted backup** (7z, AES-256-CBC): a new AES crate and a
-  7z parser, to save typing a 12-word password no easier than the seed
-  words that already load.
+  their address). Labels belong in the online wallet. Checked against
+  practice (owner, 2026-11-03): BIP 329 is a draft for moving labels
+  between wallets that keep them; it names no signing device and lets a
+  reader ignore records it does not store. Sparrow, BlueWallet and
+  BitBox's app read it; a search of the source of Coldcard, Jade, Passport,
+  SeedSigner, Krux, Specter DIY, Keystone, Trezor and BitBox02 on
+  2026-11-03 found no mention of it. A scanner names a code of labels and
+  does nothing more with it.
+- **Coldcard's encrypted backup** (7z, AES-256-CBC): AES-CBC and a 7z
+  parser on the way to the seed, to save typing a 12-word password no
+  easier than the seed words that already load (confirmed by the owner,
+  2026-11-03).
 - **Electrum pre-2.0 and 2FA seeds**, Sparrow's fixed-path BSMS records,
   the Cobo/Keystone single-key writer, and a longer Back up software
   question (its `software` field is five bits).
