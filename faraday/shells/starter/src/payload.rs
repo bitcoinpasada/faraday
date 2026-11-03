@@ -78,6 +78,24 @@ impl Payload {
         })
     }
 
+    /// What the writer takes for the release image at `path`, when the
+    /// list built in names an image with these two sums: the size, build
+    /// and boot partition's sum are the list's, never the order's. A
+    /// lookup.
+    pub fn found_job(path: &str, xz_sha256: &str, img_sha256: &str) -> Option<crate::writer::Job> {
+        let image = Self::image_list()?
+            .images()
+            .iter()
+            .find(|i| {
+                i.xz_sha256.to_string() == xz_sha256 && i.img_sha256.to_string() == img_sha256
+            })?
+            .clone();
+        Some(crate::writer::Job::Found {
+            file: image.payload_file(),
+            path: PathBuf::from(path),
+        })
+    }
+
     /// The manifest as the Starter shows it (Confirm, About).
     pub fn event(&self) -> api::Payload {
         api::Payload {

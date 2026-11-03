@@ -51,10 +51,11 @@ fn sum(bytes: &[u8]) -> String {
 fn list(pi: &[u8], stick: &[u8]) -> ImageList {
     let text = format!(
         "# Faraday 0.3.0 images, commit {COMMIT}\n\
-         {STICK}\t{}\t{}\tx86_64-uefi\tefi-framebuffer\tPC\n\
-         {PI}\t{}\t{}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\n",
+         {STICK}\t{}\t{}\tx86_64-uefi\tefi-framebuffer\tPC\t11\t0.3.0\t{}\n\
+         {PI}\t{}\t{}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\t8\t0.3.0\t-\n",
         sum(stick),
         sum(b"inner stick"),
+        sum(b"boot"),
         sum(pi),
         sum(b"inner pi"),
     );

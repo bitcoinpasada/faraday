@@ -278,6 +278,51 @@ fn downloads_without_an_efi_file_says_so() {
     );
 }
 
+/// A card or stick is written from the release image the finder found
+/// when the Starter carries no payload for it, and from the payload when
+/// it does.
+#[test]
+fn a_found_image_is_what_a_pi_card_is_written_from_when_no_payload_is_carried() {
+    use faraday_starter::api::{FoundImage, ImageFinding};
+    use faraday_starter::decide::Target;
+    let found = FoundImage {
+        path: file("faraday-pi-0.3.0.img.xz"),
+        name: "faraday-pi-0.3.0.img.xz".into(),
+        xz_sha256: "aa".repeat(32),
+        img_sha256: "bb".repeat(32),
+        inner_size: 4096,
+        build_id: "0.3.0".into(),
+        board: "pi3".into(),
+        panel: "any".into(),
+        starts: vec!["Pi 3B".into()],
+    };
+    let mut s = starter();
+    s.starter_event(StarterEvent::ImagesFound(vec![ImageFinding::Found(
+        found.clone(),
+    )]));
+    let carried = s.image(Target::Pi).expect("the payload's");
+    assert!(matches!(carried.source, Source::Payload { .. }));
+    assert!(matches!(
+        s.image(Target::Stick).expect("the payload's").source,
+        Source::Payload { .. }
+    ));
+
+    s.starter_event(StarterEvent::Payload(None));
+    let image = s.image(Target::Pi).expect("the found file's");
+    assert_eq!(
+        image.source,
+        Source::Found {
+            path: found.path.clone(),
+            xz_sha256: found.xz_sha256.clone(),
+            img_sha256: found.img_sha256.clone(),
+        }
+    );
+    assert_eq!((image.size, image.sha256), (4096, found.img_sha256));
+    assert!(!image.dev);
+    // It is a Pi image: no stick is offered from it.
+    assert!(s.image(Target::Stick).is_none());
+}
+
 #[test]
 fn what_the_finder_answers_is_kept_and_the_matching_images_listed() {
     use faraday_starter::api::{FoundImage, ImageFinding};
@@ -287,6 +332,8 @@ fn what_the_finder_answers_is_kept_and_the_matching_images_listed() {
         name: "faraday-pi-0.3.0.img.xz".into(),
         xz_sha256: "aa".repeat(32),
         img_sha256: "bb".repeat(32),
+        inner_size: 4096,
+        build_id: "0.3.0".into(),
         board: "pi3".into(),
         panel: "any".into(),
         starts: vec!["Pi 3B".into()],

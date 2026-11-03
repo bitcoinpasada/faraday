@@ -122,6 +122,8 @@ fn one(c: &Compute, list: &ImageList, path: &Path, memo: &mut Memo) -> Option<Im
                     name,
                     xz_sha256: image.xz_sha256.to_string(),
                     img_sha256: image.img_sha256.to_string(),
+                    inner_size: image.inner_size,
+                    build_id: image.build_id.clone(),
                     board: image.board.clone(),
                     panel: image.panel.clone(),
                     starts: image.starts.clone(),

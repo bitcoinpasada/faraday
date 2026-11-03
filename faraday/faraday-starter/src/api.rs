@@ -858,6 +858,10 @@ pub struct FoundImage {
     pub xz_sha256: String,
     /// The SHA-256 of the `.img` inside it, as the list says.
     pub img_sha256: String,
+    /// The size of the `.img` inside it, as the list says.
+    pub inner_size: u64,
+    /// The build ID it carries, as the list says.
+    pub build_id: String,
     /// The platform (`x86_64-uefi`, `pi3`).
     pub board: String,
     /// The screen (`efi-framebuffer`, `any`).
@@ -886,6 +890,19 @@ pub enum Source {
         name: String,
         /// The SHA-256 of what is inside it, hex.
         inner_sha256: String,
+    },
+    /// A release image the finder found (`docs/IMAGES.md` §5), by its
+    /// path and the list's sums for it; the writer takes its size, build
+    /// and boot partition's sum from the list built in, and checks the
+    /// `.xz` against `xz_sha256` before a byte is written and what is
+    /// written against `img_sha256`.
+    Found {
+        /// The file, as a full path.
+        path: String,
+        /// The SHA-256 of the `.xz`, hex.
+        xz_sha256: String,
+        /// The SHA-256 of the `.img` inside it, hex.
+        img_sha256: String,
     },
     /// A developer's image (`--image`), checked against `sha256`.
     Image {

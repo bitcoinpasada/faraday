@@ -345,21 +345,30 @@ unmounts it before the app starts.
   release; the Starter carries it from §9 step 6) is staged with the
   manifest (`docs/STARTER.md` §1.3) and covered by `SHA256SUMS`. Its
   first line is `# Faraday X.Y.Z images, commit <full hash>`; then one
-  line per image, in `faraday/builds.toml`'s order, its fields separated
-  by one tab:
+  line per image, in `faraday/builds.toml`'s order, its nine fields
+  separated by one tab:
   1. the release file, `….img.xz`;
   2. the `.xz`'s SHA-256;
   3. the SHA-256 of the `.img` inside it;
   4. the platform, the entry's `board` (`x86_64-uefi`, `pi3`);
   5. the screen, its `panel` (`efi-framebuffer`, `any`);
   6. the boards it starts, its `starts`, joined by `, ` (`Pi 3B, Pi 3B+,
-     Pi Zero 2 W`).
+     Pi Zero 2 W`);
+  7. the `.img`'s size in bytes;
+  8. the build ID the image carries;
+  9. for a stick image, the SHA-256 of its boot partition (the
+     `-boot.vfat` value of `SHA256SUMS`); `-` for the Pi image.
+
+  Fields 2, 3, 7, 8 and 9 are what writing a file needs beyond its
+  name (the manifest's line carries the same, `docs/STARTER.md` §1.3),
+  so one list serves the Starter's payload and a file it finds; a list
+  with fewer fields is refused with its line.
 
   The Pi image's line, its tabs shown as two spaces and its sums
   shortened:
 
   ```
-  faraday-pi-X.Y.Z.img.xz  9f2c…  41ab…  pi3  any  Pi 3B, Pi 3B+, Pi Zero 2 W
+  faraday-pi-X.Y.Z.img.xz  9f2c…  41ab…  pi3  any  Pi 3B, Pi 3B+, Pi Zero 2 W  209715200  X.Y.Z  -
   ```
 - **Each image has its entry in `faraday/builds.toml`**, the
   repository's list of builds: its recipe, the files it leaves, its
@@ -489,8 +498,14 @@ marked so (`docs/HARDWARE.md` §6).
    and dropped files are looked at, and each file whose name is on the
    list is hashed off the window's thread and found, named as not
    matching, or named as another release's with the version needed; the
-   Starter keeps the answer (`Starter::image_findings`). Left: the
-   offers, the payload's removal.
+   Starter keeps the answer (`Starter::image_findings`). The writer
+   writes from a found file (`Source::Found`, from `Starter::image`
+   when the Starter carries no payload for the target): the `.xz`'s sum
+   is checked before a byte is written, and the size and SHA-256 of
+   what is written against the list's line, as the payload's are; a
+   file changed since it was found is refused with its path and sum. A
+   Pi card and a whole stick image only. Left: the offers, the
+   payload's removal.
 7. Each screen's values, from its documentation, and tried on the
    panel to be marked tested: the 10-inch HDMI (with the USB
    touchscreen rule, §2) on the HDMI image today, and the 2.8-inch and

@@ -1058,7 +1058,8 @@ impl Starter {
     }
 
     /// What a stick or card is written from: for a stick, a developer's
-    /// image when one was given, else the payload's.
+    /// image when one was given, else the payload's, else a release image
+    /// the finder found for the target.
     pub fn image(&self, target: Target) -> Option<Image> {
         if target == Target::Stick
             && let Some(d) = &self.dev
@@ -1084,7 +1085,9 @@ impl Starter {
             Target::Stick => PayloadKind::Stick,
             Target::Pi => PayloadKind::Pi,
         };
-        let f = self.payload_file(kind)?;
+        let Some(f) = self.payload_file(kind) else {
+            return self.found_image(target);
+        };
         Some(Image {
             source: Source::Payload {
                 name: f.name.clone(),

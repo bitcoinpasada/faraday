@@ -516,6 +516,11 @@ impl Shell {
                 .payload
                 .as_ref()
                 .and_then(|p| p.job(name, inner_sha256)),
+            Source::Found {
+                path,
+                xz_sha256,
+                img_sha256,
+            } => Payload::found_job(path, xz_sha256, img_sha256),
             Source::Image { path, sha256 } => self
                 .image
                 .as_ref()

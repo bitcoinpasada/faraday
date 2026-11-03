@@ -14,7 +14,7 @@ use crate::Sha256Sum;
 const HEADER_PREFIX: &str = "# Faraday Starter payload ";
 const HEADER_COMMIT: &str = ", commit ";
 /// What a stick image's payload name starts with.
-const STICK_PREFIX: &str = "faraday-stick-";
+pub(crate) const STICK_PREFIX: &str = "faraday-stick-";
 
 /// A parsed `MANIFEST`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -235,7 +235,7 @@ fn name_ok(name: &str) -> bool {
 }
 
 /// Decimal digits, no sign, no leading zero, above zero.
-fn parse_size(text: &str) -> Option<u64> {
+pub(crate) fn parse_size(text: &str) -> Option<u64> {
     if text.is_empty() || text.starts_with('0') || !text.bytes().all(|c| c.is_ascii_digit()) {
         return None;
     }

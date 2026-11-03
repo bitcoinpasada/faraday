@@ -40,6 +40,7 @@ use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::fs::File;
 use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
@@ -114,6 +115,14 @@ pub enum Job {
         /// Its bytes, the `.xz`.
         bytes: Cow<'static, [u8]>,
     },
+    /// A release image the finder found: its list line as a payload
+    /// file, and where the `.xz` is.
+    Found {
+        /// The image's line in the release's list.
+        file: PayloadFile,
+        /// The `.xz`.
+        path: PathBuf,
+    },
     /// A developer's image.
     Image(Image),
 }
@@ -123,6 +132,7 @@ impl Job {
     pub fn source(&self) -> Source<'_> {
         match self {
             Job::Payload { file, bytes } => Source::Payload { file, bytes },
+            Job::Found { file, path } => Source::Found { file, path },
             Job::Image(i) => Source::Image(i),
         }
     }
@@ -169,6 +179,14 @@ pub enum Source<'a> {
         /// Its bytes, the `.xz`.
         bytes: &'a [u8],
     },
+    /// A release image found in a folder, read from the file as it is
+    /// written.
+    Found {
+        /// Its line in the release's list.
+        file: &'a PayloadFile,
+        /// The `.xz`.
+        path: &'a Path,
+    },
     /// A developer's image, as hashed when the Starter started.
     Image(&'a Image),
 }
@@ -177,7 +195,7 @@ impl Source<'_> {
     /// The bytes written, decompressed.
     fn size(&self) -> u64 {
         match self {
-            Source::Payload { file, .. } => file.inner_size,
+            Source::Payload { file, .. } | Source::Found { file, .. } => file.inner_size,
             Source::Image(i) => i.sum.size,
         }
     }
@@ -186,7 +204,7 @@ impl Source<'_> {
     /// or Confirm's.
     fn sha256(&self) -> Sha256Sum {
         match self {
-            Source::Payload { file, .. } => file.inner_sha256,
+            Source::Payload { file, .. } | Source::Found { file, .. } => file.inner_sha256,
             Source::Image(i) => i.sum.sha256,
         }
     }
@@ -230,6 +248,15 @@ impl Source<'_> {
             Source::Payload { file, bytes } => {
                 faraday_payload::write_payload(Cursor::new(*bytes), file, out, progress)
             }
+            Source::Found { file, path } => {
+                let f = File::open(path).map_err(PayloadError::Read)?;
+                faraday_payload::write_payload(
+                    BufReader::with_capacity(1 << 20, f),
+                    file,
+                    out,
+                    progress,
+                )
+            }
             Source::Image(i) => {
                 let f = File::open(&i.path).map_err(PayloadError::Read)?;
                 faraday_payload::write_image(
@@ -251,7 +278,7 @@ impl Source<'_> {
     /// stick's is the release's. With a boot file signed the check is
     /// byte for byte only.
     fn check_boot_sum(&self, order: &WriteOrder) -> Result<(), Reason> {
-        let Source::Payload { file, .. } = self else {
+        let (Source::Payload { file, .. } | Source::Found { file, .. }) = self else {
             return Ok(());
         };
         let Some(want) = file.boot_sha256 else {
@@ -278,6 +305,20 @@ impl Source<'_> {
                 let actual = sum(Cursor::new(*bytes), ImageKind::Plain)?.0;
                 if actual != file.sha256 {
                     return Err(Reason::PayloadSum);
+                }
+            }
+            Source::Found { file, path } => {
+                let shown = path.display().to_string();
+                let f = File::open(path).map_err(|e| Reason::File {
+                    path: shown.clone(),
+                    detail: e.to_string(),
+                })?;
+                let (actual, _) = sum(BufReader::with_capacity(1 << 20, f), ImageKind::Plain)?;
+                if actual != file.sha256 {
+                    return Err(Reason::ImageChanged {
+                        path: shown,
+                        sha256: actual.to_string(),
+                    });
                 }
             }
             Source::Image(i) => {

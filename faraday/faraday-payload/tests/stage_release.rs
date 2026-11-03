@@ -388,7 +388,15 @@ fn the_image_list_and_the_sums_check_each_image_and_a_written_card() {
             line[0]
         );
         assert_eq!(line[2], sha256(&inner), "{}", line[0]);
-        assert_eq!(line[3..], image.listed, "{}", line[0]);
+        assert_eq!(line[3..6], image.listed, "{}", line[0]);
+        assert_eq!(line[6], inner.len().to_string(), "{}", line[0]);
+        assert_eq!(line[7], format!("{VERSION}-test"), "{}", line[0]);
+        let want_boot = if image.released.starts_with("faraday-stick-") {
+            sha256(boot_partition(&inner))
+        } else {
+            "-".to_string()
+        };
+        assert_eq!(line[8], want_boot, "{}", line[0]);
 
         let mut card = inner.clone();
         let data = card.len() - 4096;

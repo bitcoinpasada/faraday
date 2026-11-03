@@ -1,9 +1,12 @@
 //! `IMAGES`, the release's image list (`docs/IMAGES.md` §4), and what the
 //! Starter does with it to find images a person downloaded (§5): a first
 //! line `# Faraday X.Y.Z images, commit HASH`, then one line per image,
-//! six fields separated by one tab: the release file (`….img.xz`), its
+//! nine fields separated by one tab: the release file (`….img.xz`), its
 //! SHA-256, the SHA-256 of the `.img` inside it, the platform, the
-//! screen, and the boards it starts joined by `, `.
+//! screen, the boards it starts joined by `, `, the `.img`'s size, the
+//! build ID it carries and, for a stick image, the SHA-256 of its boot
+//! partition (`-` for any other). What [`crate::write_payload`] needs
+//! of a file is all on its line ([`ListedImage::payload_file`]).
 //!
 //! Nothing here touches a disk: [`ImageList::classify`] reads a file's
 //! name alone, and [`sha256_of`] reads a `Read`, so every refusal is
@@ -18,7 +21,8 @@ use std::io::{self, Read};
 
 use sha2::{Digest, Sha256};
 
-use crate::Sha256Sum;
+use crate::manifest::{STICK_PREFIX, parse_size};
+use crate::{PayloadFile, Sha256Sum};
 
 const HEADER_PREFIX: &str = "# Faraday ";
 const HEADER_MIDDLE: &str = " images, commit ";
@@ -47,6 +51,29 @@ pub struct ListedImage {
     pub panel: String,
     /// The boards it starts.
     pub starts: Vec<String>,
+    /// The size of the `.img` inside it, in bytes.
+    pub inner_size: u64,
+    /// The build ID the image carries.
+    pub build_id: String,
+    /// The SHA-256 of a stick image's boot partition; `None` for a Pi
+    /// image.
+    pub boot_sha256: Option<Sha256Sum>,
+}
+
+impl ListedImage {
+    /// The line as [`crate::write_payload`] takes a file: its name
+    /// without `.xz` inside, and every sum and size from the list.
+    pub fn payload_file(&self) -> PayloadFile {
+        PayloadFile {
+            name: self.file.clone(),
+            sha256: self.xz_sha256,
+            inner_name: self.file.trim_end_matches(".xz").to_owned(),
+            inner_sha256: self.img_sha256,
+            inner_size: self.inner_size,
+            build_id: self.build_id.clone(),
+            boot_sha256: self.boot_sha256,
+        }
+    }
 }
 
 /// Why an `IMAGES` was refused, and on which line (1 is the first).
@@ -67,7 +94,7 @@ pub enum ImageListFault {
     Header,
     /// An empty line where an image's line belongs.
     EmptyLine,
-    /// An image's line does not have exactly six tab-separated fields.
+    /// An image's line does not have exactly nine tab-separated fields.
     FieldCount(usize),
     /// A file name is empty, holds a path separator or a control
     /// character, starts with a dot, does not end in `.img.xz`, or does
@@ -78,6 +105,10 @@ pub enum ImageListFault {
     /// The platform, the screen or a board is empty or holds a control
     /// character.
     Field,
+    /// The size is not decimal digits above zero.
+    Size,
+    /// The build ID is empty or holds a control character.
+    BuildId,
     /// An image is named twice.
     Duplicate,
     /// The list names no images.
@@ -90,10 +121,12 @@ impl fmt::Display for ImageListError {
             ImageListFault::NotText => "not UTF-8 text",
             ImageListFault::Header => "not an image list header",
             ImageListFault::EmptyLine => "empty line",
-            ImageListFault::FieldCount(_) => "not six tab-separated fields",
+            ImageListFault::FieldCount(_) => "not nine tab-separated fields",
             ImageListFault::Name => "bad file name",
             ImageListFault::Sum => "bad SHA-256",
             ImageListFault::Field => "bad platform, screen or board",
+            ImageListFault::Size => "bad size",
+            ImageListFault::BuildId => "bad build ID",
             ImageListFault::Duplicate => "file named twice",
             ImageListFault::NoImages => "no images",
         };
@@ -223,7 +256,7 @@ impl ListedImage {
             return Err(ImageListFault::EmptyLine);
         }
         let fields: Vec<&str> = line.split('\t').collect();
-        let [file, xz, img, board, panel, starts] = fields[..] else {
+        let [file, xz, img, board, panel, starts, size, build_id, boot] = fields[..] else {
             return Err(ImageListFault::FieldCount(fields.len()));
         };
         let name_ok = !file.starts_with('.')
@@ -243,6 +276,19 @@ impl ListedImage {
         if !text_ok(board) || !text_ok(panel) || !starts.iter().all(|s| text_ok(s)) {
             return Err(ImageListFault::Field);
         }
+        let inner_size = parse_size(size).ok_or(ImageListFault::Size)?;
+        if !text_ok(build_id) {
+            return Err(ImageListFault::BuildId);
+        }
+        // A stick image's line carries its boot partition's sum; no
+        // other line does.
+        let boot_sha256 = if file.starts_with(STICK_PREFIX) {
+            Some(Sha256Sum::from_hex(boot).ok_or(ImageListFault::Sum)?)
+        } else if boot == "-" {
+            None
+        } else {
+            return Err(ImageListFault::Sum);
+        };
         Ok(Self {
             file: file.to_owned(),
             xz_sha256,
@@ -250,6 +296,9 @@ impl ListedImage {
             board: board.to_owned(),
             panel: panel.to_owned(),
             starts,
+            inner_size,
+            build_id: build_id.to_owned(),
+            boot_sha256,
         })
     }
 }

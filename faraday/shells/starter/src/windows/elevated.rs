@@ -85,6 +85,15 @@ impl Elevated {
                 a.extend(["--payload".into(), name.clone()]);
                 a.extend(["--sha256".into(), inner_sha256.clone()]);
             }
+            Source::Found {
+                path,
+                xz_sha256,
+                img_sha256,
+            } => {
+                a.extend(["--found".into(), path.clone()]);
+                a.extend(["--sha256".into(), xz_sha256.clone()]);
+                a.extend(["--img-sha256".into(), img_sha256.clone()]);
+            }
             Source::Image { path, sha256 } => {
                 a.extend(["--image".into(), path.clone()]);
                 a.extend([
@@ -118,7 +127,7 @@ impl Elevated {
         if !rest.len().is_multiple_of(2) {
             return Err(String::from("a key without its value"));
         }
-        const KEYS: [&str; 14] = [
+        const KEYS: [&str; 16] = [
             "--pipe",
             "--disk",
             "--device",
@@ -133,8 +142,10 @@ impl Elevated {
             "--boot-file-sha256",
             "--name",
             "--clear-first",
+            "--found",
+            "--img-sha256",
         ];
-        let mut got: [Option<&str>; 14] = [None; 14];
+        let mut got: [Option<&str>; 16] = [None; 16];
         for pair in rest.chunks(2) {
             let i = KEYS
                 .iter()
@@ -192,6 +203,26 @@ impl Elevated {
             Some(c) => return Err(format!("--clear-first {c}: not asked for here")),
         };
         let (source, image_size) = match (got[6], got[7], got[8]) {
+            (None, None, None) if got[14].is_some() => {
+                let (path, img) = (got[14].unwrap_or_default(), got[15].unwrap_or_default());
+                if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
+                    return Err(String::from("--found: not a full path"));
+                }
+                if !hex_sum(img) {
+                    return Err(String::from("--img-sha256: not a SHA-256"));
+                }
+                (
+                    Source::Found {
+                        path: path.to_string(),
+                        xz_sha256: sha256.to_string(),
+                        img_sha256: img.to_string(),
+                    },
+                    None,
+                )
+            }
+            _ if got[14].is_some() || got[15].is_some() => {
+                return Err(String::from("--found stands alone, with --img-sha256"));
+            }
             (Some(name), None, None) => {
                 let fine = !name.is_empty()
                     && name.len() <= MAX_NAME

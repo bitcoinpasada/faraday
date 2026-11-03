@@ -6,6 +6,7 @@ use faraday_payload::{ImageList, ImageListError, ImageListFault, NameClass, sha2
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 const SUM_A: &str = "d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f";
+const BOOT: &str = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
 const SUM_B: &str = "c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c";
 
 fn header() -> String {
@@ -13,12 +14,14 @@ fn header() -> String {
 }
 
 fn pi_line() -> String {
-    format!("faraday-pi-0.3.0.img.xz\t{SUM_A}\t{SUM_B}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\n")
+    format!(
+        "faraday-pi-0.3.0.img.xz\t{SUM_A}\t{SUM_B}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\t4096\t0.3.0\t-\n"
+    )
 }
 
 fn stick_line() -> String {
     format!(
-        "faraday-stick-0.3.0-x86_64-uefi.img.xz\t{SUM_B}\t{SUM_A}\tx86_64-uefi\tefi-framebuffer\tPC\n"
+        "faraday-stick-0.3.0-x86_64-uefi.img.xz\t{SUM_B}\t{SUM_A}\tx86_64-uefi\tefi-framebuffer\tPC\t8192\t0.3.0\t{BOOT}\n"
     )
 }
 
@@ -43,6 +46,54 @@ fn a_release_list_is_read() {
     assert_eq!((pi.board.as_str(), pi.panel.as_str()), ("pi3", "any"));
     assert_eq!(pi.starts, ["Pi 3B", "Pi 3B+", "Pi Zero 2 W"]);
     assert_eq!(pi.xz_sha256.to_string(), SUM_A);
+    assert_eq!(
+        (pi.inner_size, pi.build_id.as_str(), pi.boot_sha256),
+        (4096, "0.3.0", None)
+    );
+    let stick = &list.images()[0];
+    assert_eq!(stick.inner_size, 8192);
+    assert_eq!(
+        stick.boot_sha256.map(|s| s.to_string()).as_deref(),
+        Some(BOOT)
+    );
+}
+
+/// A list from before the size, build and boot sum were added is refused
+/// at its first image's line.
+#[test]
+fn a_list_without_the_write_fields_is_refused_with_its_line() {
+    let old = format!(
+        "{}faraday-pi-0.3.0.img.xz\t{SUM_A}\t{SUM_B}\tpi3\tany\tPi 3B\n",
+        header()
+    );
+    let e = refused(&old);
+    assert_eq!((e.line, e.fault), (2, ImageListFault::FieldCount(6)));
+    assert_eq!(
+        e.to_string(),
+        "IMAGES line 2: not nine tab-separated fields"
+    );
+}
+
+#[test]
+fn a_bad_size_build_or_boot_sum_is_refused_on_its_line() {
+    let at = |text: String| {
+        let e = refused(&format!("{}{}{text}", header(), stick_line()));
+        (e.line, e.fault)
+    };
+    let pi = pi_line();
+    assert_eq!(at(pi.replace("4096", "0")), (3, ImageListFault::Size));
+    assert_eq!(at(pi.replace("4096", "4k")), (3, ImageListFault::Size));
+    assert_eq!(
+        at(pi.replace("\t0.3.0\t", "\t\t")),
+        (3, ImageListFault::BuildId)
+    );
+    // A Pi image has no boot sum; a stick image must have one.
+    assert_eq!(
+        at(pi.replace("\t-\n", &format!("\t{BOOT}\n"))),
+        (3, ImageListFault::Sum)
+    );
+    let e = refused(&format!("{}{}", header(), stick_line().replace(BOOT, "-")));
+    assert_eq!((e.line, e.fault), (2, ImageListFault::Sum));
 }
 
 #[test]

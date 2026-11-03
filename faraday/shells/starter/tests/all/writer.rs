@@ -305,6 +305,112 @@ fn a_payload_file_that_does_not_match_its_manifest_writes_nothing() {
     assert_eq!(disk.calls, ["identity"]);
 }
 
+/// `image` as a release image found in a folder: its `.xz` on disk, its
+/// line in the release's list (the sums and size as the list says them),
+/// and the order's source for it. `xz_name` is the file's name, and the
+/// job's `PayloadFile` is what `Payload::found_job` makes of a list line.
+fn found_job(name: &str, image: &Sparse) -> (Job, Confirmed, PathBuf) {
+    let img = image.to_vec();
+    let xz = sticks::stored_xz(&img);
+    let path = tmp(name);
+    std::fs::write(&path, &xz).expect("the found file");
+    let (from, to) = boot_range();
+    let file = faraday_payload::PayloadFile {
+        name: NAME.to_string(),
+        sha256: faraday_payload::Sha256Sum::from_hex(&sticks::sha(&xz)).expect("a sum"),
+        inner_name: NAME.trim_end_matches(".xz").to_string(),
+        inner_sha256: faraday_payload::Sha256Sum::from_hex(&sticks::sha(&img)).expect("a sum"),
+        inner_size: image.len,
+        build_id: "0.2.0+0123456789ab".to_string(),
+        boot_sha256: faraday_payload::Sha256Sum::from_hex(&sticks::sha(
+            &img[from as usize..to as usize],
+        )),
+    };
+    let source = Confirmed::Found {
+        path: path.display().to_string(),
+        xz_sha256: file.sha256.to_string(),
+        img_sha256: file.inner_sha256.to_string(),
+    };
+    (
+        Job::Found {
+            file,
+            path: path.clone(),
+        },
+        source,
+        path,
+    )
+}
+
+#[test]
+fn a_found_release_file_writes_a_stick_and_reads_back() {
+    let image = stick_image();
+    let (job, source, _) = found_job("found-whole", &image);
+    let (path, _) = blank("found-whole-disk");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, stages) = run(&order, &job, &mut disk);
+    assert_eq!(r, Ok(()));
+    assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
+    made_from(&path, &image, STICK);
+}
+
+#[test]
+fn a_found_file_replaced_after_it_was_found_is_refused_and_nothing_is_written() {
+    let image = stick_image();
+    let (job, source, found) = found_job("found-replaced", &image);
+    let mut other = std::fs::read(&found).expect("read");
+    let at = other.len() / 2;
+    other[at] ^= 1;
+    std::fs::write(&found, other).expect("replaced");
+    let (path, before) = blank("found-replaced-disk");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::ImageChanged { .. })), "{r:?}");
+    assert!(read(&path, 0, 1 << 20) == before.bytes(0, 1 << 20));
+    assert_eq!(disk.calls, ["identity"]);
+}
+
+#[test]
+fn a_truncated_found_file_is_refused_and_nothing_is_written() {
+    let image = stick_image();
+    let (job, source, found) = found_job("found-short", &image);
+    let whole = std::fs::read(&found).expect("read");
+    std::fs::write(&found, &whole[..whole.len() / 2]).expect("truncated");
+    let (path, before) = blank("found-short-disk");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::ImageChanged { .. })), "{r:?}");
+    assert!(read(&path, 0, 1 << 20) == before.bytes(0, 1 << 20));
+}
+
+#[test]
+fn a_found_file_whose_inside_is_not_the_listed_size_fails_the_write() {
+    for (delta, longer) in [(1i64, false), (-1, true)] {
+        let image = stick_image();
+        let (job, source, _) = found_job("found-size", &image);
+        let Job::Found {
+            mut file,
+            path: found,
+        } = job
+        else {
+            unreachable!()
+        };
+        file.inner_size = file.inner_size.checked_add_signed(delta).expect("a size");
+        let job = Job::Found { file, path: found };
+        let (path, _) = blank("found-size-disk");
+        let mut disk = FileDisk::new(&path);
+        let order = disk.order(source, Mode::Whole);
+        let (r, _) = run(&order, &job, &mut disk);
+        if longer {
+            assert!(matches!(r, Err(Reason::Longer(_))), "{r:?}");
+        } else {
+            assert!(matches!(r, Err(Reason::Shorter { .. })), "{r:?}");
+        }
+    }
+}
+
 #[test]
 fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte() {
     let path = tmp("changed");

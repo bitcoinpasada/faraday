@@ -4,8 +4,9 @@
 //! on the release's image list, off the window's thread; the Starter
 //! keeps what it answers, and no screen shows it yet.
 
-use crate::Starter;
-use crate::api::{FoundImage, ImageFinding, StarterCommand, StarterEvent};
+use crate::api::{FoundImage, ImageFinding, Source, StarterCommand, StarterEvent};
+use crate::decide::Target;
+use crate::{Image, Starter};
 
 /// What the finder has found, and the files dropped to be looked at.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -44,6 +45,29 @@ impl Starter {
         self.found.findings.iter().filter_map(|f| match f {
             ImageFinding::Found(image) => Some(image),
             _ => None,
+        })
+    }
+
+    /// What a stick or card is written from when a found image answers
+    /// for `target`: the first found image whose name is the stick's
+    /// (`faraday-stick-`) or the Pi's (`faraday-pi-`). A lookup.
+    pub(crate) fn found_image(&self, target: Target) -> Option<Image> {
+        let prefix = match target {
+            Target::Stick => "faraday-stick-",
+            Target::Pi => "faraday-pi-",
+        };
+        let f = self.found_images().find(|f| f.name.starts_with(prefix))?;
+        Some(Image {
+            source: Source::Found {
+                path: f.path.clone(),
+                xz_sha256: f.xz_sha256.clone(),
+                img_sha256: f.img_sha256.clone(),
+            },
+            build: Some(f.build_id.clone()),
+            sha256: f.img_sha256.clone(),
+            size: f.inner_size,
+            dev: false,
+            boot_only: false,
         })
     }
 
