@@ -5488,7 +5488,7 @@ impl Faraday {
         if !bip85 {
             self.bip85.clear();
         }
-        self.explore_left();
+        self.shown_tidy();
         if self.screen != Screen::Tools {
             self.tools.close();
         }

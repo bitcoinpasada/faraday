@@ -907,8 +907,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 for (i, wd) in list.iter().enumerate() {
                     let cx = x + (i / rows) as f32 * colw;
                     let ry = cy + (i % rows) as f32 * 26.0;
-                    let idx = lang
-                        .index_of(wd)
+                    let idx = app
+                        .backup_word_number(i)
                         .map(|v| format!("{v:04}"))
                         .unwrap_or_default();
                     ui.text_as(
@@ -954,13 +954,11 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     })
                     .collect();
                     cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
-                    // A secret shown: drawn from the words each frame.
-                    let matrix =
-                        app.seedqr_shown(lang, &app.reveal(b.key, Reveal::SeedQr), b.compact);
-                    if let Some(mx) = matrix {
+                    // Worked out when the seed was shown, held until hidden (F195).
+                    if let Some(mx) = app.backup_seedqr(b.compact) {
                         // Grey where the blank sheet prints the square.
                         let g = crate::screens::CopyGrid {
-                            m: &mx,
+                            m: mx,
                             printed: crate::wallet_backup::structural_fixed,
                             lettered: false,
                             rows: b.rows,

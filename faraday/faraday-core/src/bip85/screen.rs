@@ -275,9 +275,8 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 + 6.0;
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, app_name(b.app));
             cy += below;
-            // Derived for this frame only, and wiped with it: a secret
-            // shown, which nothing keeps.
-            let value = if b.shown { app.bip85_shown() } else { None };
+            // Worked out when the eye opened it, held until hidden (F195).
+            let value = if b.shown { app.bip85_held() } else { None };
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
             cy += ui

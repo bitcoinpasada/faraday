@@ -8,7 +8,7 @@
 //! nothing. A new exception is a new method here, which the
 //! owner decides. Each is handed the view's token (`View::allowed`).
 
-use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bip39::Mnemonic;
 use faraday_codec::qr::QrMatrix;
 use faraday_keys::Held;
 use faraday_keys::vault::RecordView;
@@ -39,11 +39,10 @@ impl View<'_> {
         self.app.session.keys.reveal(i, why)
     }
 
-    /// The BIP-85 child shown, derived for this frame and wiped with it
-    /// ([`crate::Faraday::bip85_value`]; [`Allowed::SecretShown`]). Costs a
-    /// key derivation.
-    pub fn bip85_shown(&self) -> Option<faraday_keys::Held<Zeroizing<String>>> {
-        self.allowed(Allowed::SecretShown, |c| self.app.bip85_value(c))
+    /// The BIP-85 child shown, held since the eye opened it (F195): a
+    /// borrow, nothing costs.
+    pub fn bip85_held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+        self.app.bip85.held()
     }
 
     /// A vault key record's words, read for this frame to be shown
@@ -115,18 +114,17 @@ impl View<'_> {
         })
     }
 
-    /// A seed's SeedQR grid on the backup's copy page, Compact or
-    /// Standard, from its words for this frame
-    /// ([`Allowed::SecretShown`]). Costs a parse of the words and a QR
-    /// encoding.
-    pub fn seedqr_shown(&self, lang: Language, words: &str, compact: bool) -> Option<QrMatrix> {
-        self.allowed(Allowed::SecretShown, |c| {
-            let mn = crate::wallet::parse_words(c, lang, words).ok()?;
-            if compact {
-                faraday_codec::seedqr::encode_compact(c, &mn).ok()
-            } else {
-                faraday_codec::seedqr::encode_seedqr(c, &mn).ok()
-            }
-        })
+    /// The SeedQR number of the seed shown on the backup's copy page,
+    /// word `i`, held since the eye opened it (F195): a read, nothing
+    /// costs.
+    pub fn backup_word_number(&self, i: usize) -> Option<u16> {
+        self.app.backup.shown_number(i)
+    }
+
+    /// The seed shown's SeedQR grid on the backup's copy page, Compact or
+    /// Standard, held since the eye opened it (F195): a borrow, nothing
+    /// costs.
+    pub fn backup_seedqr(&self, compact: bool) -> Option<&QrMatrix> {
+        self.app.backup.shown_qr(compact)
     }
 }

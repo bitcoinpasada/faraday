@@ -223,6 +223,10 @@ impl Bip85State {
 #[derive(Default)]
 pub(crate) struct Bip85Area {
     state: Option<Bip85State>,
+    /// The child shown, worked out when the eye opened it and wiped on
+    /// drop: dropped the moment it is hidden, the card is left or the
+    /// session locks (F195). Drawing only reads it.
+    held: Option<faraday_keys::Held<Zeroizing<String>>>,
 }
 
 impl Bip85Area {
@@ -234,6 +238,21 @@ impl Bip85Area {
     /// Forgets the flow's state.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+        self.held = None;
+    }
+
+    /// The child shown, while its eye is open: a borrow, no work.
+    pub(crate) fn held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+        self.held
+            .as_ref()
+            .filter(|_| self.state.as_ref().is_some_and(|b| b.shown))
+    }
+
+    /// Drops the held child unless the value is on screen.
+    fn tidy(&mut self) {
+        if !self.state.as_ref().is_some_and(|b| b.shown) {
+            self.held = None;
+        }
     }
 
     /// The column's scroll, while the flow is open.
@@ -251,6 +270,7 @@ impl Bip85Area {
     /// Opens the flow on `key` (the only key loaded, if there is one), to
     /// return to `back`.
     pub(crate) fn open(&mut self, key: Option<[u8; 4]>, back: Screen) {
+        self.held = None;
         let (_, _, length) = lengths(Bip85App::Words);
         self.state = Some(Bip85State {
             open: Some(if key.is_some() {
@@ -341,6 +361,11 @@ impl Bip85Area {
 
     /// A press that changes only this flow.
     pub(crate) fn act(&mut self, action: crate::Action) {
+        self.act_on(action);
+        self.tidy();
+    }
+
+    fn act_on(&mut self, action: crate::Action) {
         use crate::Action as A;
         let Some(b) = self.state.as_mut() else {
             return;
@@ -406,6 +431,12 @@ impl Bip85Area {
     /// Digits typed into the index, on `screen`. Returns whether the key
     /// was taken.
     pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
+        let taken = self.key_on(key, screen);
+        self.tidy();
+        taken
+    }
+
+    fn key_on(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
         use faraday_shell_api::Key as K;
         if *screen != Screen::Bip85 {
             return false;
@@ -648,6 +679,14 @@ impl Faraday {
             A::PLoad => self.bip85_load(),
             A::PRecord(record) => self.bip85_record(record),
             A::POut => self.bip85_out(),
+            A::PShow => {
+                self.bip85.act(action);
+                // Worked out once, when the eye opens it (F195).
+                if self.bip85.state().is_some_and(|b| b.shown) {
+                    let c = self.compute();
+                    self.bip85.held = self.bip85_value(&c);
+                }
+            }
             _ => self.bip85.act(action),
         }
     }

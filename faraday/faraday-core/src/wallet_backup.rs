@@ -37,6 +37,8 @@ use faraday_shell_api::Key as KeyIn;
 use faraday_ui::keyboard::OskPress;
 use zeroize::Zeroize;
 
+mod shown;
+
 /// The public files of wallet `w` that are under Public files' More
 /// options (F64, `docs/INTEROP.md` §5 I4), as [`Faraday::public_out`]
 /// numbers them, each with its file's name: Bitcoin Core before 29, the
@@ -630,6 +632,8 @@ pub struct BackupState {
 #[derive(Default)]
 pub(crate) struct WalletBackupArea {
     state: Option<BackupState>,
+    /// What the shown seed is drawn from, worked out when it was shown.
+    shown: Option<shown::SeedShown>,
 }
 
 impl WalletBackupArea {
@@ -651,16 +655,19 @@ impl WalletBackupArea {
 
     /// Opens the checklist on `state`.
     pub(crate) fn open(&mut self, state: BackupState) {
+        self.shown = None;
         self.state = Some(state);
     }
 
     /// Drops the backup under way.
     pub(crate) fn close(&mut self) {
+        self.shown = None;
         self.state = None;
     }
 
     /// Drops the backup under way, returning it.
     pub(crate) fn take(&mut self) -> Option<BackupState> {
+        self.shown = None;
         self.state.take()
     }
 
@@ -1295,6 +1302,32 @@ impl WalletBackupArea {
 }
 
 impl Faraday {
+    /// Costs what `hold` costs, when a seed has just been shown. After
+    /// every press, a screen left drops what it held: Explore's, and the
+    /// seed shown on the copy page, which is worked out once when shown
+    /// and held (F195), dropped, wiped, the moment it is hidden, its
+    /// check opens or the page is left.
+    pub(crate) fn shown_tidy(&mut self) {
+        self.explore_left();
+        let want = self.backup.state().and_then(|b| {
+            let open = b.open.filter(|&n| bstep::is_copy(n))?;
+            let lang = self.session.keys.info(b.key)?.language;
+            (self.screen == Screen::Backup && b.reveal && b.check.is_none())
+                .then_some((b.key, open, b.compact, lang))
+        });
+        let Some((k, open, compact, lang)) = want else {
+            return self.backup.drop_shown();
+        };
+        let c = self.compute();
+        let seedqr = lang == Language::English
+            && self.backup.state().is_some_and(|b| {
+                self.copy_forms(&c, b, usize::from(open - bstep::COPY))
+                    .seedqr
+            });
+        self.backup
+            .hold(&c, &self.session.keys, k, lang, compact, seedqr);
+    }
+
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the wallet backup flow's actions (`Backup*`, `BQ*`, `B*`).
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
