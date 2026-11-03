@@ -19,7 +19,7 @@ use faraday_bip::codex32::{
     INDEX_ORDER, SYMBOL_GLYPHS, checksum_table, pair_symbol, translation_symbols,
 };
 
-use faraday_core::pdf::{RawPage, raw_document};
+use faraday_core::pdf::{RawPage, pdf_text, raw_document};
 
 mod dice;
 use faraday_crypto::work::Compute;
@@ -29,24 +29,6 @@ use faraday_strings::{EN, fill};
 const PAGE_W: f32 = 595.0;
 const PAGE_H: f32 = 842.0;
 const MARGIN: f32 = 48.0;
-
-/// Text in PDF's WinAnsi encoding, escaped for a string literal.
-fn pdf_text(s: &str) -> Vec<u8> {
-    let mut out = Vec::new();
-    for c in s.chars() {
-        match c {
-            '(' | ')' | '\\' => {
-                out.push(b'\\');
-                out.push(c as u8);
-            }
-            '·' => out.push(0xB7),
-            '©' => out.push(0xA9),
-            c if (c as u32) < 0x80 => out.push(c as u8),
-            _ => out.push(b'?'),
-        }
-    }
-    out
-}
 
 /// The fields of a sheet file, in order.
 fn fields(text: &str) -> Vec<(String, String)> {

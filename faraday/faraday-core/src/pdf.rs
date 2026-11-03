@@ -50,7 +50,7 @@ impl Font {
 }
 
 /// Text in PDF's WinAnsi encoding, escaped for a string literal.
-fn pdf_text(s: &str) -> Vec<u8> {
+pub fn pdf_text(s: &str) -> Vec<u8> {
     let mut out = Vec::new();
     for c in s.chars() {
         let b = match c {
@@ -59,6 +59,7 @@ fn pdf_text(s: &str) -> Vec<u8> {
                 c as u8
             }
             '·' => 0xB7,
+            '©' => 0xA9,
             '…' => 0x85,
             '–' => 0x96,
             '—' => 0x97,
