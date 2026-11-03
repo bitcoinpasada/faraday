@@ -210,7 +210,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `entropy` | `faraday_entropy`: dice under the three procedures, coins, hex, cards, camera frames, the device's answer, a mix | the procedures written out in `area_entropy.py` over `hashlib`, from `tools/reference/entropy/README.md` and the dice sources quoted in `tools/reference/dice/README.md`, except that the hashed dice procedure and every rolls commitment are Coldcard's own `rolls.py` and `rolls12.py` (`tools/reference/coldcard-rolls/`, run, public domain) | Coldcard's `rolls.py` digest, EntropyLab's six-as-zero and direct word selection (`tools/vectors/entropy/`) | runs of every source at every strength, short of the count, at it and past it, with faces, cards, frames and characters the pads refuse and every source past its limit; mixes of one to six sources given by their inputs |
 | `roller` | Faraday Demo's dice rollers (`faraday_core`'s `fresh/roller/`, through the testkit) | `docs/CODEX32.md` §5.6's "The values" and §5.5's worksheet written out in `area_roller.py` | every byte value as an answer: each face from 42 bytes, the four above 251 skipped; every byte as a face of every die of 2 to 20 faces (`faraday_entropy::uniform_face`); the booklet's 32 paths on six- and twenty-faced dice and its order with an equal pair (`roller.sheet`) | random answers (some mostly skipped bytes) under clicks of every size into entries of random room, with resets; the five dice of random faces (2 to 20) under clicks of every reach into codex32 shares of random count and length, answers running out part way; rolls of random dice entered by hand, equal pairs among them |
 | `seedqr` | `faraday_codec::seedqr` (SeedQR, CompactSeedQR), `faraday_codec::qr`, the encoder that draws them, and `faraday_codec::qr::codex32qr` with the picture `faraday_core::picture` writes of it | SeedSigner's own encoders and `DecodeQR` (`seedsigner/`, unchanged, with embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` (`qrcodegen/`), module for module; segno 1.6 (`python3-segno`), an encoder of another lineage, at Faraday's mask and at its own; Pillow and CPython's zlib, which read every PNG Faraday writes; zbar (`zbarimg`) and zxing-cpp, which decode the QR code in every picture and return its payload as bytes (`qr_decode.py`) | SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and picture of the Codex32QR profile (`tools/vectors/codex32qr/`), each decoded by zbar and zxing-cpp | keys of every length and language, both codes and the words read back; digits and bytes malformed; payloads in each mode at each level and version limit; 48-character codex32 strings in either case as Codex32QR codes and the pictures written of them read back and decoded by zbar and zxing-cpp, other lengths refused; the pictures of a key's SeedQR and CompactSeedQR decoded by both and read by Faraday to the key's words; greyscale pictures and QR pictures of random size and scale read by Pillow and zlib |
-| `bbqr` | `faraday_qr::bbqr`, `faraday_qr::specter` (numbered text parts) | Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked against `qrcodegen.py`); SeedSigner's own `SpecterWalletQrDecoder` (`seedsigner/`, unchanged) | none published beyond the specification's examples | files of every type and size split by Coinkite in each encoding and read in any order, with repeats, a part missing, another transfer's part, a conflicting repeat and a part past the count; what Faraday writes read back by `join_qrs`; numbered parts written, read in any order and refused when malformed |
+| `bbqr` | `faraday_qr::bbqr`, `faraday_qr::specter` (numbered text parts) | Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked against `qrcodegen.py`); krux's `qr.py` and `bbqr.py` (`krux/`, unchanged, with three small shims for the firmware's QR, base32 and deflate modules); SeedSigner's own `SpecterWalletQrDecoder` (`seedsigner/`, unchanged) | Coinkite's BBQr test files (`tools/vectors/bbqr/`): the 26 parts of a phone's scan, which read as a `U` file with the text Coinkite's test expects, and its ten PSBTs and transactions, each split in every encoding and read back to the file's bytes | files of every type and size written by krux (at the sizes of QR versions 1 to 20) and split by Coinkite in each encoding, read in any order, with repeats, a part missing, another transfer's part, a conflicting repeat and a part past the count, against Coinkite and krux; what Faraday writes, part for part krux's own writing at the same size, read back by `join_qrs` and by krux; numbered parts written by krux, written again by Faraday, read in any order against SeedSigner's decoder and krux and refused when malformed |
 | `ur` | `faraday_codec::ur` (single-part URs, the animation's parts, the decoder) | Foundation Devices' foundation-ur-py (`ur/`), URKit ported | URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`) | messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `kdbx` | `faraday_backup::kdbx` (the KDBX 4 export and its own check) | pykeepass, the distribution's package (`python3-pykeepass`) | the repository's export (`tools/vectors/backup/`), written again byte for byte and opened | databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte |
@@ -394,14 +394,20 @@ leaves uncompared.
   self-test makes each decoder's answer wrong (a payload's last byte
   changed) and must catch it. Not compared: an empty payload, which
   segno refuses.
-- `bbqr`: `check_capacities` runs first, the pyqrcode shim's table of
-  version capacities against `qrcodegen.py`'s; its vendored files are
-  hashed against `references.sha256` before any run, and a published
-  vector's answer is required of the reference as well as of Faraday;
-  where Faraday refuses what SeedSigner's decoder files or misfiles (a
-  part number of 0 or past the count, a repeat with other text, a header
-  in upper case or missing, a count over 1,000) the refusal is written
-  in the area, in front of the decoder.
+- `bbqr`: `check_capacities` and `check_krux_capacities` run first, the
+  pyqrcode shim's table of version capacities and krux's two tables
+  against `qrcodegen.py`'s; the vendored files are hashed against
+  `references.sha256` before any run, and a published vector's answer is
+  required of the reference as well as of Faraday; where Faraday refuses
+  what SeedSigner's decoder files or misfiles (a part number of 0 or
+  past the count, a repeat with other text, a header in upper case or
+  missing, a count over 1,000) the refusal is written in the area, in
+  front of the decoder. Not compared: krux's writing of file types
+  Faraday does not write (`C`, `X`, `B`, `R`, `S`, `E` are refused by
+  both and compared as refusals); a set over 1,295 parts, which krux
+  cannot number; the old cases of Faraday's writing at 1, 5, 7 and 40
+  bytes a part, gone because writing is now sized by QR version, the
+  size krux chooses.
 - `ur`: its vendored files are hashed against `references.sha256` before
   any run, and a published vector's answer is required of the reference
   as well as of Faraday; foundation-ur-py is itself a port of URKit
@@ -748,6 +754,14 @@ difference"), and says why.
     other text and a part with no header, which SeedSigner's decoder
     files, fails on or takes whole; those refusals are written in the
     area, in front of the decoder.
+  - krux (checked and counted): reads the file types `P`, `T`, `J` and
+    `U` only, decodes `J` and `U` as UTF-8 in `2` and `Z` only, stops at
+    160 KiB of characters (Coinkite's `signed.txn` is over it, in `H`),
+    and can write a last part longer than the others, which Faraday
+    refuses; its deflate reads a 256-byte window on a device, where the
+    shim reads the largest. A set with an empty last part is read by
+    Coinkite and krux and refused by Faraday, which refuses any part
+    with no data.
 - `ur`
   - UR: Faraday has no minimum fragment length, writes a one-fragment
     message as a part like any other, and refuses to animate an empty

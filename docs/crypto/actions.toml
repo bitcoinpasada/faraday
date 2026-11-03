@@ -5458,7 +5458,7 @@ tests = [
   "faraday/faraday-qr/tests/interop.rs::ten_bbqr_parts_are_the_psbt_in_any_order",
 ]
 crosscheck = "bbqr"
-independence = { class = "outside-and-own", author = "Coinkite's BBQr library, by Coinkite, for BBQr; SeedSigner's `SpecterWalletQrDecoder`, by the SeedSigner developers, for the numbered parts", ours = "Faraday's refusals written in `area_bbqr.py` in front of SeedSigner's decoder (a part number of 0 or past the count, a repeat with other text, a header in upper case or missing, a count over 1,000), the writing of numbered parts, and a one-table pyqrcode shim" }
+independence = { class = "outside-and-own", author = "Coinkite's BBQr library, by Coinkite, for BBQr; krux's `qr.py` and `bbqr.py`, by the krux developers, for writing and reading numbered parts; SeedSigner's `SpecterWalletQrDecoder`, by the SeedSigner developers, for the numbered parts", ours = "Faraday's refusals written in `area_bbqr.py` in front of SeedSigner's decoder (a part number of 0 or past the count, a repeat with other text, a header in upper case or missing, a count over 1,000), the one-table pyqrcode shim checked against `qrcodegen.py`, and krux's three shims (QR, base32, deflate)" }
 fuzz = ["qr_assembler"]
 other = [
   "the numbered parts against SeedSigner's own decoder (`tools/reference/seedsigner/README.md`, `tools/reference/specter/README.md`)",
