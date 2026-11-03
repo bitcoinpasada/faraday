@@ -27,8 +27,7 @@
 #             built image that names its release files (docs/IMAGES.md §4)
 #   starts    for an image a release publishes: the boards it starts, as a
 #             person reads them, for the release's image list (IMAGES §4)
-#   hardware  for an image: the [[hardware]] entry it is offered under, or
-#             a list of them when one image serves several
+#   hardware  for an image: the [[hardware]] entry it is offered under
 #   option    for an image: what tells it from another image of the same
 #             hardware, as a person reads it ("Ribbon cable (DSI)")
 #
@@ -53,15 +52,8 @@ fits = "From a USB stick"
 tested = true
 
 [[hardware]]
-id = "pi-2-8-inch"
-label = "Pi + 2.8-inch screen"
-fits = "Pi 3 or Zero 2 W"
-soon = "Pi 4"
-tested = false
-
-[[hardware]]
-id = "pi-monitor"
-label = "Pi + HDMI screen"
+id = "pi"
+label = "A Raspberry Pi"
 fits = "Pi 3 or Zero 2 W"
 soon = "Pi 4"
 tested = false
@@ -102,7 +94,7 @@ release = ["faraday-stick-{version}-x86_64-uefi.img.xz", "faraday-{version}-BOOT
 starts = ["a 64-bit PC with UEFI firmware"]
 
 # One image for every Pi screen (docs/IMAGES.md §3, F186): the boot script
-# finds the screen, so it is offered under each Pi screen's tile.
+# finds the screen, so the Pi has one tile.
 [[build]]
 id = "pi3-any"
 label = "Raspberry Pi, every screen listed (the 2.8-inch panel, an HDMI screen)"
@@ -112,7 +104,7 @@ board = "pi3"
 panel = "any"
 recipe = "faraday-pi-image"
 vars = { board = "pi3" }
-hardware = ["pi-2-8-inch", "pi-monitor"]
+hardware = "pi"
 dev = true
 outputs = ["out/pi/faraday-pi3-any{dev}.img"]
 release = ["faraday-pi-{version}.img.xz"]

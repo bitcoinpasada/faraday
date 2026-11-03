@@ -160,7 +160,7 @@ HDMI.
   Raspberry Pi Touch Display (800 × 480) is not offered (owner, F145).
 - **A screen whose check fails on its panel** (§9 step 11) and cannot
   be put right in its directory's values is not supported on the Pi: `docs/HARDWARE.md` §6 lists it with what failed,
-  its tile is taken down, and it gets no image of its own. One case is
+  and it gets no image of its own. One case is
   kept apart: if the 2.8-inch's touch probe answers but its display
   overlay does not come up at run time, it takes the fallback in §3.3,
   which sets its pins at every boot; that is the owner's call.
@@ -363,18 +363,16 @@ unmounts it before the app starts.
   ```
 - **Each image has its entry in `faraday/builds.toml`**, the
   repository's list of builds: its recipe, the files it leaves, its
-  release file names and the boards it starts. The Pi image's entry
-  names every Pi `[[hardware]]` entry it is offered under, so each
-  screen's tile leads to it (§7). `faraday/tools/stage-release.sh`
+  release file names and the boards it starts, and the `[[hardware]]`
+  entry it is offered under (§7). `faraday/tools/stage-release.sh`
   publishes every built image that names its release files, and
   `tools/lint-builds.py` holds that each names its `.img.xz` first and,
   for the PC, its boot program.
 - **The Starter offers one Pi image.** Make a Pi card offers the one Pi
   image it found, for a Pi 3B, 3B+ or Zero 2 W with an HDMI screen or
   the 2.8-inch.
-- **The website's Pi tiles** stay one per screen, each with its own
-  state (tested, looking for testers), and every Pi tile's Download
-  leads to the same image's page (§7).
+- **The website has one Pi tile** (§7); the hardware page sets out the
+  screens it runs on.
 - **Each image is reproducible** from the release's commit, as
   `docs/DEVELOPING.md` §5 says. A recipe builds one image by its
   platform, and the release recipe builds them all.
@@ -416,13 +414,13 @@ balenaEtcher or `dd`. The README says so in a few lines per system.
 ## 7. The website
 
 The download page asks one thing, the hardware, and leads to one image
-per visit (F147):
+per visit (F147): a person is getting the stick, the Pi image or the
+Starter, and it asks nothing about screens (owner, 2026-11-03).
 
 1. **Tiles**, one per `[[hardware]]` entry of `faraday/builds.toml`, in
-   their order: the PC, then the Pi with the 2.8-inch, and a Pi with an
-   HDMI screen; three columns from 840 px wide, fewer below. Each shows
-   the hardware with Faraday's screen at that size, its name, the Pis
-   it fits, and one button, Download or Coming soon; whether an image is
+   their order: the PC, then the Pi; side by side from 840 px wide, one
+   above the other below. Each shows the hardware with Faraday's screen,
+   its name, the Pis it fits, and one button, Download or Coming soon; whether an image is
    tested is said on its page, not here (owner, 2026-10-30). The Pi
    model is not asked (§3).
 2. **An image's page** offers the Starter for the visitor's system and
@@ -435,7 +433,8 @@ per visit (F147):
    those who try it to say so, and so does a Pi the hardware fits that
    no one has started the image on yet.
 
-The hardware page says what each image carries and links
+The hardware page sets out the setups each image runs on, the Pi's
+screens among them, says what each image carries and links
 Faraday's posts on hardware risk. Boards and screens under study are
 marked so (`docs/HARDWARE.md` §6).
 
@@ -489,7 +488,7 @@ marked so (`docs/HARDWARE.md` §6).
    touchscreen rule, §2) on the HDMI image today, and the 2.8-inch and
    an HDMI monitor on the one image (steps 9 to 11).
 8. The website's download page (§7), built around the images released
-   today, with a tile for each image as it is built.
+   today, with a tile for each platform as it is built.
 9. **The one Pi image, with both screens** (§3, F186, F187; built):
    - the panel directory `any` with a directory per screen (the 2.8-inch
      and HDMI),
@@ -501,8 +500,8 @@ marked so (`docs/HARDWARE.md` §6).
      and the inittab reading it (§3.4);
    - the kernel options and their `kernel.required` and
      `kernel.forbidden` lines (§3.5), the ribbon camera's kept;
-   - `faraday/builds.toml` (one Pi image, offered under every Pi
-     screen's tile), `faraday/tools/stage-release.sh`, the Starter's one
+   - `faraday/builds.toml` (one Pi image, under the Pi's one
+     tile), `faraday/tools/stage-release.sh`, the Starter's one
      Pi offer, `docs/HARDWARE.md` (both screens built, not tried on the
      one image; §4's camera), `docs/STARTER.md`, `docs/ORIENTATION.md`,
      `docs/DEVELOPING.md`, `docs/SECURITY-MODEL.md`;

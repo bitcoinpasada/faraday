@@ -161,7 +161,7 @@ Read this table, then only the decision you need.
 | [F144](decisions/F144.md) | With no one holding an earlier build's files, the formats drop the names before Faraday's, and another program's PSBT records are signed past | 2026-10-28 | Active | wallets |
 | [F145](decisions/F145.md) | One signed image for each piece of hardware, Strict and Open, and a Starter that carries none | 2026-10-28 | Amended by F147, F150, F153, F185, F186 | release |
 | [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |
-| [F147](decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Amended by F150, F185, F186 | release |
+| [F147](decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Amended by F150, F185, F186, F198 | release |
 | [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Amended by F159, F197 | security |
 | [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Amended by F151 | repository |
 | [F150](decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Amended by F153, F185, F186 | release |
@@ -200,7 +200,7 @@ Read this table, then only the decision you need.
 | [F183](decisions/F183.md) | The check runs on GitHub Actions: `just` on every push to main and every pull request, read-only, building nothing for release | 2026-10-31 | Active | repository |
 | [F184](decisions/F184.md) | Work over a tenth of a second on a Pi 3B+ runs on one worker in the core; shorter work is drawn first and done on the next tick | 2026-11-02 | Active | speed |
 | [F185](decisions/F185.md) | One build on every platform: the PC stick with `efi=disable_early_pci_dma`, the Pi with what Compatible carried | 2026-10-31 | Amended by F186 | release |
-| [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187 | release |
+| [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187, F198 | release |
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
 | [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
@@ -212,3 +212,4 @@ Read this table, then only the decision you need.
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
 | [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Active | repository |
 | [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Active | repository |
+| [F198](decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Active | release |

@@ -7,7 +7,7 @@ faraday/image/boards and faraday/image/panels named by a built or untried
 entry; and the [[hardware]] entries the download page's tiles come from:
 every id unique, every field known, a built or planned image offered under
 one of them, no two images of one hardware alike, every
-hardware with an image (one image may name several, as a list), and tested only where an image is built; and what
+hardware with an image, and tested only where an image is built; and what
 a release publishes of each image (faraday/tools/stage-release.sh): a
 built image's release files are its .img.xz and at most a boot program,
 each named once in the file with {version} in it, and it names the boards
@@ -100,19 +100,15 @@ def check_hardware(builds, hardware):
                 if k in b:
                     errors.append(f"{bid}: {k} is for an image that is built or planned")
             continue
-        # One image may be offered under several tiles: the Pi's one image
-        # is every Pi screen's (docs/IMAGES.md §3).
-        tiles = b.get("hardware")
-        tiles = tiles if isinstance(tiles, list) else [tiles]
-        for tile in tiles:
-            if tile not in ids:
-                errors.append(f"{bid}: hardware {tile!r} is not a [[hardware]] id")
-            key = (tile, b.get("option"))
-            if key in offered:
-                errors.append(f"{bid}: offered as {offered[key]} is, under the same hardware and option")
-            offered[key] = bid
-            if b.get("status") == "built":
-                built.add(tile)
+        tile = b.get("hardware")
+        if tile not in ids:
+            errors.append(f"{bid}: hardware {tile!r} is not a [[hardware]] id")
+        key = (tile, b.get("option"))
+        if key in offered:
+            errors.append(f"{bid}: offered as {offered[key]} is, under the same hardware and option")
+        offered[key] = bid
+        if b.get("status") == "built":
+            built.add(tile)
     for h in hardware:
         hid = h.get("id", "?")
         if not any(k[0] == hid for k in offered):
