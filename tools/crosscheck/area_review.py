@@ -15,10 +15,14 @@ Faraday's review of each PSBT is compared with:
   the previous transaction's output), the money in and out, the fee (Core
   states none when an input has no UTXO data, Faraday states zero and
   warns), which inputs lack their UTXO data.
-- `deriveaddresses`: which outputs are change. An output is change when
-  it claims the origins of a key Faraday holds and the script Core derives
-  from the wallet's keys at the path the output states is the output's
-  own; it is a spoof when it claims them and Core derives another script.
+- btclib's descriptor wallet (`btclib_wallet`, `bip32_ref.py`, on btclib's
+  own curve): which outputs are change. An output is change when it claims
+  the origins of a key Faraday holds and btclib's `update_psbt_output`
+  accepts it at the chain and index the output states, which `index_of`
+  agrees with (the wallet's script found whole at that index); it is a
+  spoof when it claims them and btclib derives another script there. Core's
+  `deriveaddresses` makes the addresses the PSBTs pay and checks that the
+  public descriptors derive what the private ones do.
   A script of several keys, a miniscript or a taproot tree is change only
   where its wallet is registered with Faraday.
 
@@ -39,6 +43,7 @@ import re
 import struct
 from decimal import Decimal
 
+import bip32_ref  # noqa: F401  (sets btclib up: its wheels, its own curve)
 import core_node
 from common import Area, use_reference
 
@@ -48,6 +53,10 @@ from test_framework.authproxy import JSONRPCException  # noqa: E402
 from test_framework.descriptors import descsum_create  # noqa: E402
 from test_framework.key import ECKey  # noqa: E402
 from test_framework.script import hash160  # noqa: E402
+from btclib.exceptions import BTClibValueError  # noqa: E402
+from btclib_wallet.descriptors import parse as btclib_parse  # noqa: E402
+from btclib_wallet.psbt.psbt import Psbt as BtclibPsbt  # noqa: E402
+from btclib_wallet.wallet.descriptor_wallet import DescriptorWallet  # noqa: E402
 
 NUMS = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 MAGIC = b"psbt\xff"
@@ -231,6 +240,24 @@ class Wallet:
         return checked(self.tmpl.format(*keys))
 
 
+def btclib_change(wallet, psbt, n, chain, index):
+    """btclib's answer for output `n` that claims the wallet's key at
+    (`chain`, `index`): "ours" when the descriptor wallet's `update_psbt_output`
+    accepts it there and its `index_of` finds the output's script at that
+    index, "spoof" when both say the script is not that position's."""
+    script = psbt.tx.vout[n].script_pub_key.script
+    found = wallet.descriptor(chain).index_of(script, index)
+    try:
+        wallet.update_psbt_output(psbt, n, chain, index)
+        updated = True
+    except BTClibValueError as e:
+        if "which is not the script this descriptor describes" not in str(e):
+            raise
+        updated = False
+    assert updated == (found == index), "btclib's update_psbt_output and index_of disagree"
+    return "ours" if updated else "spoof"
+
+
 class Review(Area):
     name = "psbt-review"
     CORE = True
@@ -242,21 +269,22 @@ class Review(Area):
     )
     reference = (
         "Bitcoin Core v31.1's `bitcoind` on regtest, offline: `decodepsbt` and `analyzepsbt` "
-        "for amounts and fee, `deriveaddresses` from `tprv` descriptors for which outputs are "
-        "change, `createpsbt`, `createrawtransaction` and `descriptorprocesspsbt` to make "
-        "the PSBTs; the area adds each input's UTXO fields, splices a spoofed output, derives "
-        "the account keys a registered wallet names (checked by Core deriving the same "
-        "addresses from them), and applies the rule that an output is change when it claims "
-        "a held key's origins and Core's script at the path it states is the output's own"
+        "for amounts and fee, `deriveaddresses` from `tprv` descriptors for the addresses the "
+        "PSBTs pay, `createpsbt`, `createrawtransaction` and `descriptorprocesspsbt` to make "
+        "the PSBTs; btclib's descriptor wallet (`update_psbt_output` and `index_of`, "
+        "`btclib/`, its own curve) for which outputs are change; the area adds each input's "
+        "UTXO fields, splices a spoofed output, derives the account keys a registered wallet "
+        "names (checked by Core deriving the same addresses from them), and keeps the rule "
+        "that a script of several keys is change only for a registered wallet"
     )
     reference_checked = (
         "Core's release tarball is checked against its pinned SHA-256 "
         "(`tools/reference/core/release.pin`) before every run, and the node's version is "
-        "asked; every PSBT is one Core made and read, and every change decision is one of "
-        "Core's derived scripts"
+        "asked; every PSBT is one Core made and read, and every change decision is btclib's "
+        "whole-script comparison at the chain and index the output states"
     )
     vectors = (
-        "none: Core's own decoding and derivation are the reference, over each wallet shape "
+        "none: Core's decoding and btclib's change decision are the references, over each wallet shape "
         "with change, spoofed change, a foreign claim and missing UTXO data in the prelude"
     )
     corpus = (
@@ -272,7 +300,8 @@ class Review(Area):
         (
             "Change of a script of several keys, a miniscript or a taproot tree: Faraday "
             "verifies it only for a registered wallet that holds a loaded key, and counts it "
-            "as paid to others otherwise, which Core has no notion of. The area expects the "
+            "as paid to others otherwise, which btclib's descriptor wallet has no notion of. "
+            "The area expects the "
             "same refusal, and does not compare the spoof warning for an unregistered wallet "
             "(Faraday's reading of such a claim depends on the account path it states)."
         ),
@@ -455,20 +484,21 @@ class Review(Area):
         missing = any(not i.get("has_utxo") for i in analyzed["inputs"])
         assert missing == any(a is None for a in amounts)
         fee = sats(analyzed["fee"]) if "fee" in analyzed else 0
-        # Which outputs claim a held key, and the script Core derives at the
-        # path each claims.
-        todo = []
+        # Which outputs claim a held key, and whether btclib's wallet of the
+        # public descriptors has the output's script at the chain and index
+        # the claim states.
+        wallet = DescriptorWallet([btclib_parse(d, "regtest") for d in w1.pub])
+        bpsbt = BtclibPsbt.parse(raw)
+        verdict = {}
         for n, out in enumerate(decoded["outputs"]):
             claims = {d["master_fingerprint"]: d["path"] for d in out.get("bip32_derivs", [])}
             claims.update({d["master_fingerprint"]: d["path"]
                            for d in out.get("taproot_bip32_derivs", [])})
             if held_fps & set(claims) and all(fp in claims for fp in w1.fps):
-                todo.append((n, w1.at(claims)))
-        derived = batch([("deriveaddresses", [d]) for _, d in todo])
-        verdict = {}
-        for (n, _), got in zip(todo, derived):
-            same = got[0] == tx["vout"][n]["scriptPubKey"]["address"]
-            verdict[n] = "ours" if same else "spoof"
+                depth = len(w1.acct.split("/"))
+                tail = claims[w1.fps[0]][2:].split("/")[depth:]
+                chain, index = (int(step) for step in tail)
+                verdict[n] = btclib_change(wallet, bpsbt, n, chain, index)
         outputs, spoof = [], False
         for n, vout in enumerate(tx["vout"]):
             v = verdict.get(n)
