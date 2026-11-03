@@ -3123,94 +3123,76 @@ fn d0e6b35ba14a202a2f815f29f876fed12d1676dc55f39ef5237d9e9a83ce78e1 faraday/fara
 vec roller 9bdd26ea5155864598b9cf35a064404389bcc73aa8c777b32a29f7a82533c046
 
 [sb-check]
-fn 090d78f96faf927a69f1cff17d0fc0e5eeed30d7828fc93b24dc9f4849953fc6 faraday/faraday-sb/src/der.rs::tlv
+fn 0498d6ee62bf75c3ce57d20bf018e4dcec4897397b4f39e3321dbfa7aa4665ef faraday/faraday-sb/src/cms.rs::SignedData::decode_value
+fn 093a4bbab22a99d66dfb4571076ba2c65d446c70cf924d947b050c67137275dc faraday/faraday-sb/src/x509.rs::verify
 fn 1c40b450e87464e6760a78049d7e4d17f5d95cd717ce9fe1e95a42a3a802591a faraday/faraday-sb/src/pe.rs::check
+fn 2669e17037ca921180c34a2add9f53d6f2375bf990e5ac7ab7b044fcd3e2cc16 faraday/faraday-sb/src/cms.rs::signed_attrs_bytes
+fn 2a765db478e5e2a2e93455534def7e0bc5256bf9d020bd30a7455985d3014dc1 faraday/faraday-sb/src/cms.rs::SignerInfo::decode_value
+fn 3d1c3540ad88bae97f5dd8161eebad2033b060bb6877e911cec5fd1e850b8d6d faraday/faraday-sb/src/x509.rs::read
 fn 51fb485a21f9b510574acd5fd0ee8a0809f3e1e31f40fac6e3b60a535ac5595a faraday/faraday-sb/src/pe.rs::image_hash
-fn 681da17713519d248d9a7603c055fe8c042173610cee1b2f8a3da3032c01965d faraday/faraday-sb/src/der.rs::read
-fn 8193865f0cf5e25b9893b5ee420fd5f60161ef820d6716cb06ca1a73bf9b8ee5 faraday/faraday-sb/src/x509.rs::verify
+fn 6ab31915786b845ffbf66fad987b9201dc7d907d471c1c6118e89ace67eb73c8 faraday/faraday-sb/src/x509.rs::common_name
 fn 877b7c41f568e654f2b20adc378edaea832a4cf3077ea4bb4e513d9ff4155b41 faraday/faraday-sb/src/pe.rs::layout
 fn 9a52cc1dee697b3572c0b41bee75d00dd2955ecebbe392c288c869ce7546cb16 faraday/faraday-sb/src/pe.rs::u32_at
-fn a1d413b740a8f32445ed183be0a1f43d3d0b57b0bd9ba47ad127e3bc9f2ac666 faraday/faraday-sb/src/der.rs::children
-fn ba671eaff7aaabf404e43f31863fb56c28e8e1b4c375d8721170312db1b083ff faraday/faraday-sb/src/x509.rs::unix_of
-fn c60c31d1bf5c96fa2d5d91d49ed906c83a2be535ac94dcae02e084f7dc327e4b faraday/faraday-sb/src/pe.rs::read_signature
-fn c9c721faae628a7ec8e62c754bcbc994e0b4ac54d6d1fdce021954cca590621f faraday/faraday-sb/src/x509.rs::common_name
-fn d27eabb64332834c69765c816e716d12b23b7588095edb36170c847ca980c6c8 faraday/faraday-sb/src/x509.rs::digits
-fn d948cec8246cc29656eab2afd55cf4a4d2f688991b4b87f2d2ed07ba2f056440 faraday/faraday-sb/src/x509.rs::Cert::read
-fn dedc3db0db3d4ba67f7724dd79cbd6c700f42548e7bf82767adb7751857c8e27 faraday/faraday-sb/src/der.rs::oid
+fn 9e83dc1ee9f19f8da84b80bf20eeb53828fa3c3406edef58f8e168ac82db2d53 faraday/faraday-sb/src/lib.rs::common_name
+fn b8403f9bdafa48ca22471ee0d7accd9d72da4c7780f5473abf1958dc10677203 faraday/faraday-sb/src/pe.rs::read_signature
+fn c52c3a8116a5d830d6aa8e921791b571c2a872ff51891f1ba5508a2a9ce96268 faraday/faraday-sb/src/pe.rs::signed_data
 fn fa5b84468c1d3ef4c04462c83c7f5766bd2e99c0764727c1d55ae1b28db8b6eb faraday/faraday-sb/src/pe.rs::u16_at
+lib der 0.8.2 a878c850e9e421b20262e9b41f9c860e4785fa07541c266b62ff9d1ef998a80a
 lib rsa 0.10.0-rc.18 30b2aa4ba0d89f73d1e332df05be0eeab8840351c36ca5654341dfdb57bb3caf
 lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4
+lib x509-cert 0.3.0 105ef4642d9cb137ef83d623d0e4bf08b8adf69e9918ca904a174adb6d3d038b
 
 [sb-keys]
-fn 090d78f96faf927a69f1cff17d0fc0e5eeed30d7828fc93b24dc9f4849953fc6 faraday/faraday-sb/src/der.rs::tlv
-fn 0f581a2a2450e198b3d4a5b4fa27c40025235be3dd97905a8db2971b9d238493 faraday/faraday-sb/src/der.rs::null
+fn 093a4bbab22a99d66dfb4571076ba2c65d446c70cf924d947b050c67137275dc faraday/faraday-sb/src/x509.rs::verify
+fn 0c5c6d655a528c74e5e15b9b3f176a52d3589b205b8959d301db8db8033c914d faraday/faraday-sb/src/x509.rs::signer_info
+fn 0c6b1e8048590aa4ad993be01b3ebef1efb678fccb00b0e860661ef6a98bc613 faraday/faraday-sb/src/x509.rs::generate
+fn 11fcf59929312ea06238b35341548194845d91fb3252cfa9e1baa8bc22bb0ae9 faraday/faraday-sb/src/cms.rs::SignedData::new
 fn 17c54abe462a1d367493fbb86b5b519c16492fff15abd0bd2bcb82e5f5e4e37d faraday/faraday-sb/src/x509.rs::private
 fn 1cd5caff039d5ce3042ce8fd0f17d70c79da2b262d327391f5820c5d76c13a34 faraday/faraday-sb/src/efi.rs::efi_time
-fn 3f32ecd741b21061a7a3bd9db792d15c23e1c26c78a047c60fc8a820e12d7c1a faraday/faraday-sb/src/x509.rs::name
-fn 4c6adb35b1e9a115debf06492ca66dd36b8a924595d4ced1fcb077bf6fe7f8f7 faraday/faraday-sb/src/der.rs::int
-fn 599f65284ff89c4b69794cffcdff0992de9ed5e3ad60be68efc162b824dc9839 faraday/faraday-sb/src/x509.rs::time
-fn 681da17713519d248d9a7603c055fe8c042173610cee1b2f8a3da3032c01965d faraday/faraday-sb/src/der.rs::read
-fn 6a7146853437d0d049e9eee10a8d2f964f145d7436a8752a390e93f39f75b827 faraday/faraday-sb/src/der.rs::seq
+fn 21c135cf50f2343ecd4f2f40e8f9ba552622277817c53763ee994a4a912c5fd7 faraday/faraday-sb/src/x509.rs::name
+fn 39687e2ea93f343dfd49a4439fddcb4f90ae6a7ac59c9a902c41690844f665d9 faraday/faraday-sb/src/x509.rs::CaProfile::get_subject
+fn 3d1c3540ad88bae97f5dd8161eebad2033b060bb6877e911cec5fd1e850b8d6d faraday/faraday-sb/src/x509.rs::read
+fn 57e2b4ce71f7847d67e1755a11027ae42db27f8ad4dbc74e0d00debf815b5814 faraday/faraday-sb/src/x509.rs::CaProfile::build_extensions
 fn 6e6caf094d2c6d784a75d068af67d39b67a5fe4d85cc15c857a6643255b5f704 faraday/faraday-sb/src/x509.rs::civil
-fn 8193865f0cf5e25b9893b5ee420fd5f60161ef820d6716cb06ca1a73bf9b8ee5 faraday/faraday-sb/src/x509.rs::verify
 fn 8520559f7022e7184969feba20c0b0be476daa707374c2599adaf11d2c1eb4fe faraday/faraday-sb/src/lib.rs::make
-fn 95010230c77162e134738500e5c9adde62658bf7aff4682583fb5d8b475e6eef faraday/faraday-sb/src/der.rs::set
-fn 981b2f9ed4a53e6ccb1161adace287d25bea7b31df637a4169b28362ab7b0402 faraday/faraday-sb/src/der.rs::explicit
-fn a1d413b740a8f32445ed183be0a1f43d3d0b57b0bd9ba47ad127e3bc9f2ac666 faraday/faraday-sb/src/der.rs::children
-fn a264ce47757fb1c0e9d5229c5c2be96032140d58265feeb3300f38dbe632e0f8 faraday/faraday-sb/src/x509.rs::generate
-fn a3c6545cc088ee4c288fccd0ff037af54ea31db6efa12fa4b5b609a193446315 faraday/faraday-sb/src/efi.rs::auth
 fn a9f093129aa36649098745732d96d8a97f82c7a3698f814e6668f35e9ac10cee faraday/faraday-sb/src/rng.rs::stream
-fn b173cde2e1fb4b37dd8f8d165352d43c99003cf5d45de96a1b95fbf8b2e14180 faraday/faraday-sb/src/der.rs::uint
-fn ba671eaff7aaabf404e43f31863fb56c28e8e1b4c375d8721170312db1b083ff faraday/faraday-sb/src/x509.rs::unix_of
-fn c9c721faae628a7ec8e62c754bcbc994e0b4ac54d6d1fdce021954cca590621f faraday/faraday-sb/src/x509.rs::common_name
-fn d27eabb64332834c69765c816e716d12b23b7588095edb36170c847ca980c6c8 faraday/faraday-sb/src/x509.rs::digits
-fn d7178a46ef1d130de6f957710ba3f4264677f2a382da616add42d5735cb4e3af faraday/faraday-sb/src/der.rs::octets
 fn d891e5b636a177f10eec98e11332af805a75c898f5738e3792fa0b692761bcc1 faraday/faraday-sb/src/lib.rs::enrolment
-fn d948cec8246cc29656eab2afd55cf4a4d2f688991b4b87f2d2ed07ba2f056440 faraday/faraday-sb/src/x509.rs::Cert::read
 fn da642bd1ab8cb78cc196b97413f825e9b5fe8f46b8a4ba0fe41bae407b4ea029 faraday/faraday-sb/src/efi.rs::signature_lists
-fn dedc3db0db3d4ba67f7724dd79cbd6c700f42548e7bf82767adb7751857c8e27 faraday/faraday-sb/src/der.rs::oid
-fn ee6a222060aaa49a7b05eadbb38b7d70d162bfb34d13adcd48e4ac8b5edde751 faraday/faraday-sb/src/der.rs::bits
+fn e41283ef60606347aab13c8f06ccd344309d5bdde32e363373d51ed5b38d5c26 faraday/faraday-sb/src/efi.rs::auth
+fn ec1962e77a1554110ec6d40c74eaa514da9d0bc9d783d1379b8e612ba6f9cb53 faraday/faraday-sb/src/x509.rs::CaProfile::get_issuer
+fn ec9b42380667400e3ac9c78591fceddde59674562d7c0fb400b8bd40b05de537 faraday/faraday-sb/src/x509.rs::time
 fn f66774a1ec216c0c384d2cc8aeedc61a980cd807fd53acfae8d730c0a95fe72f faraday/faraday-sb/src/x509.rs::sign
-fn f8794c5f1159bc28737c0025aa40b20d43b2474f76c375649ccaef1c493496e3 faraday/faraday-sb/src/x509.rs::alg
-fn fbc60bb64b0ba7eed47eafb429e013175b5b656f4bc294f9dc02bbc4482b4fa6 faraday/faraday-sb/src/x509.rs::signer_info
 lib chacha20 0.10.2 65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06
+lib der 0.8.2 a878c850e9e421b20262e9b41f9c860e4785fa07541c266b62ff9d1ef998a80a
 lib rand_core 0.10.1 63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69
 lib rsa 0.10.0-rc.18 30b2aa4ba0d89f73d1e332df05be0eeab8840351c36ca5654341dfdb57bb3caf
 lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4
+lib x509-cert 0.3.0 105ef4642d9cb137ef83d623d0e4bf08b8adf69e9918ca904a174adb6d3d038b
 
 [sb-sign]
-fn 090d78f96faf927a69f1cff17d0fc0e5eeed30d7828fc93b24dc9f4849953fc6 faraday/faraday-sb/src/der.rs::tlv
-fn 0f581a2a2450e198b3d4a5b4fa27c40025235be3dd97905a8db2971b9d238493 faraday/faraday-sb/src/der.rs::null
+fn 0c5c6d655a528c74e5e15b9b3f176a52d3589b205b8959d301db8db8033c914d faraday/faraday-sb/src/x509.rs::signer_info
+fn 11fcf59929312ea06238b35341548194845d91fb3252cfa9e1baa8bc22bb0ae9 faraday/faraday-sb/src/cms.rs::SignedData::new
 fn 17c54abe462a1d367493fbb86b5b519c16492fff15abd0bd2bcb82e5f5e4e37d faraday/faraday-sb/src/x509.rs::private
-fn 35d9ebd960b00c14c426ad75347a758293017455d5916823b58da6db6f9dfd83 faraday/faraday-sb/src/pe.rs::spc_content
-fn 4c6adb35b1e9a115debf06492ca66dd36b8a924595d4ced1fcb077bf6fe7f8f7 faraday/faraday-sb/src/der.rs::int
+fn 3020c552475d30992c34263ae583d5b1001762220f4e4061b7c0e1f02f1a33fd faraday/faraday-sb/src/pe.rs::sign_image
+fn 3d1c3540ad88bae97f5dd8161eebad2033b060bb6877e911cec5fd1e850b8d6d faraday/faraday-sb/src/x509.rs::read
 fn 51fb485a21f9b510574acd5fd0ee8a0809f3e1e31f40fac6e3b60a535ac5595a faraday/faraday-sb/src/pe.rs::image_hash
 fn 53debc25586d004c6e4bab6508878385c43a1ee5e6f142512fba577af8dd0c19 faraday/faraday-sb/src/pe.rs::unsigned
-fn 681da17713519d248d9a7603c055fe8c042173610cee1b2f8a3da3032c01965d faraday/faraday-sb/src/der.rs::read
-fn 6a7146853437d0d049e9eee10a8d2f964f145d7436a8752a390e93f39f75b827 faraday/faraday-sb/src/der.rs::seq
+fn 6c0c886a770f22e0db8e4fa427216676cce06fdb8870c3ce091aa88abbba6d99 faraday/faraday-sb/src/cms.rs::spc_content
+fn 70c44248ee32da1d89e7e9e6046db12f03b72b60df82b9e0c05e9965701e806a faraday/faraday-sb/src/cms.rs::SignerInfo::attrs
+fn 7df12d74ca462e05086b756f368b71d51ef93a76a13d258f83d7e680f4e249b9 faraday/faraday-sb/src/cms.rs::alg
 fn 877b7c41f568e654f2b20adc378edaea832a4cf3077ea4bb4e513d9ff4155b41 faraday/faraday-sb/src/pe.rs::layout
-fn 95010230c77162e134738500e5c9adde62658bf7aff4682583fb5d8b475e6eef faraday/faraday-sb/src/der.rs::set
 fn 96c756ed2d48ff00bf463531e5fc6334da97f1c12b38446a5c0dd5652c1123a0 faraday/faraday-sb/src/pe.rs::sign
-fn 981b2f9ed4a53e6ccb1161adace287d25bea7b31df637a4169b28362ab7b0402 faraday/faraday-sb/src/der.rs::explicit
 fn 9a52cc1dee697b3572c0b41bee75d00dd2955ecebbe392c288c869ce7546cb16 faraday/faraday-sb/src/pe.rs::u32_at
 fn a12fd42023d964602c8774c8d212d5f2119201263ce38588bf1897a19d8b64bc faraday/faraday-sb/src/pe.rs::hash_as_signed
-fn a1d413b740a8f32445ed183be0a1f43d3d0b57b0bd9ba47ad127e3bc9f2ac666 faraday/faraday-sb/src/der.rs::children
-fn b173cde2e1fb4b37dd8f8d165352d43c99003cf5d45de96a1b95fbf8b2e14180 faraday/faraday-sb/src/der.rs::uint
-fn ba671eaff7aaabf404e43f31863fb56c28e8e1b4c375d8721170312db1b083ff faraday/faraday-sb/src/x509.rs::unix_of
 fn bba507d35e8417943cf1e09e45823ce243da12d861f90612f7e6d0a56b92c818 faraday/faraday-sb/src/release.rs::Release::sha256
-fn c9c721faae628a7ec8e62c754bcbc994e0b4ac54d6d1fdce021954cca590621f faraday/faraday-sb/src/x509.rs::common_name
-fn d27eabb64332834c69765c816e716d12b23b7588095edb36170c847ca980c6c8 faraday/faraday-sb/src/x509.rs::digits
-fn d7178a46ef1d130de6f957710ba3f4264677f2a382da616add42d5735cb4e3af faraday/faraday-sb/src/der.rs::octets
-fn d948cec8246cc29656eab2afd55cf4a4d2f688991b4b87f2d2ed07ba2f056440 faraday/faraday-sb/src/x509.rs::Cert::read
-fn dedc3db0db3d4ba67f7724dd79cbd6c700f42548e7bf82767adb7751857c8e27 faraday/faraday-sb/src/der.rs::oid
-fn df4e86f1eff5cd4708625cd2e16662bd156c254ed106780b82ae05151e3c55e4 faraday/faraday-sb/src/pe.rs::sign_image
 fn e4e547753dcbf2a044d2fa76cffee8b878c2b4fbbe196316b2b817bd1ae503ca faraday/faraday-sb/src/release.rs::sign
+fn f082e0c2d195746a70664b9cadf6a1950ffd9edea3ca7636bf7b85346664df77 faraday/faraday-sb/src/cms.rs::image_attributes
 fn f66774a1ec216c0c384d2cc8aeedc61a980cd807fd53acfae8d730c0a95fe72f faraday/faraday-sb/src/x509.rs::sign
-fn f8794c5f1159bc28737c0025aa40b20d43b2474f76c375649ccaef1c493496e3 faraday/faraday-sb/src/x509.rs::alg
 fn fa5b84468c1d3ef4c04462c83c7f5766bd2e99c0764727c1d55ae1b28db8b6eb faraday/faraday-sb/src/pe.rs::u16_at
-fn fbc60bb64b0ba7eed47eafb429e013175b5b656f4bc294f9dc02bbc4482b4fa6 faraday/faraday-sb/src/x509.rs::signer_info
+lib der 0.8.2 a878c850e9e421b20262e9b41f9c860e4785fa07541c266b62ff9d1ef998a80a
 lib rsa 0.10.0-rc.18 30b2aa4ba0d89f73d1e332df05be0eeab8840351c36ca5654341dfdb57bb3caf
 lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4
+lib x509-cert 0.3.0 105ef4642d9cb137ef83d623d0e4bf08b8adf69e9918ca904a174adb6d3d038b
 vec release-sums 795d1ae3248ed2cbb9c5618b39399103755a2ec73a2b1ee3cc83503c745316d7
 
 [scrypt]
@@ -4349,23 +4331,18 @@ fn fc72421a4cbd58d10b0c4d0bee0930984368fdc40474c346fce4ef77d5d421ee faraday/fara
 fn ff5eb751bae06eb0b447c682756d579c8d2da1b62df0badf7f7bcfae3826140f faraday/faraday-starter/src/notes.rs::Notes::pdf_with_key
 
 [starter-signed]
-fn 090d78f96faf927a69f1cff17d0fc0e5eeed30d7828fc93b24dc9f4849953fc6 faraday/faraday-sb/src/der.rs::tlv
+fn 093a4bbab22a99d66dfb4571076ba2c65d446c70cf924d947b050c67137275dc faraday/faraday-sb/src/x509.rs::verify
+fn 2669e17037ca921180c34a2add9f53d6f2375bf990e5ac7ab7b044fcd3e2cc16 faraday/faraday-sb/src/cms.rs::signed_attrs_bytes
+fn 3d1c3540ad88bae97f5dd8161eebad2033b060bb6877e911cec5fd1e850b8d6d faraday/faraday-sb/src/x509.rs::read
 fn 51fb485a21f9b510574acd5fd0ee8a0809f3e1e31f40fac6e3b60a535ac5595a faraday/faraday-sb/src/pe.rs::image_hash
 fn 53debc25586d004c6e4bab6508878385c43a1ee5e6f142512fba577af8dd0c19 faraday/faraday-sb/src/pe.rs::unsigned
-fn 5f6024eae5253cbf4cbe5e829d5997e8b520c85401265ed8af9a5995bf68663e faraday/faraday-sb/src/pe.rs::carried_certs
-fn 681da17713519d248d9a7603c055fe8c042173610cee1b2f8a3da3032c01965d faraday/faraday-sb/src/der.rs::read
 fn 72489d784b8ef2ba4e755e1d395895227bd38039ddd82d1f33b4a99748814725 faraday/faraday-sb/src/pe.rs::signer
-fn 8193865f0cf5e25b9893b5ee420fd5f60161ef820d6716cb06ca1a73bf9b8ee5 faraday/faraday-sb/src/x509.rs::verify
 fn 877b7c41f568e654f2b20adc378edaea832a4cf3077ea4bb4e513d9ff4155b41 faraday/faraday-sb/src/pe.rs::layout
+fn 95ade7af604fface7d42a837fb3f0509b49afdee042a9dca11ee08cfe5d3f6d8 faraday/faraday-sb/src/pe.rs::carried_certs
 fn 9a52cc1dee697b3572c0b41bee75d00dd2955ecebbe392c288c869ce7546cb16 faraday/faraday-sb/src/pe.rs::u32_at
-fn a1d413b740a8f32445ed183be0a1f43d3d0b57b0bd9ba47ad127e3bc9f2ac666 faraday/faraday-sb/src/der.rs::children
-fn ba671eaff7aaabf404e43f31863fb56c28e8e1b4c375d8721170312db1b083ff faraday/faraday-sb/src/x509.rs::unix_of
-fn c60c31d1bf5c96fa2d5d91d49ed906c83a2be535ac94dcae02e084f7dc327e4b faraday/faraday-sb/src/pe.rs::read_signature
-fn c9c721faae628a7ec8e62c754bcbc994e0b4ac54d6d1fdce021954cca590621f faraday/faraday-sb/src/x509.rs::common_name
+fn b8403f9bdafa48ca22471ee0d7accd9d72da4c7780f5473abf1958dc10677203 faraday/faraday-sb/src/pe.rs::read_signature
+fn c52c3a8116a5d830d6aa8e921791b571c2a872ff51891f1ba5508a2a9ce96268 faraday/faraday-sb/src/pe.rs::signed_data
 fn cc56872afd242d91463a382e1af8433c553f3f0beca087d0e4f774d83be12edd faraday/faraday-sb/src/pe.rs::transplant
-fn d27eabb64332834c69765c816e716d12b23b7588095edb36170c847ca980c6c8 faraday/faraday-sb/src/x509.rs::digits
-fn d948cec8246cc29656eab2afd55cf4a4d2f688991b4b87f2d2ed07ba2f056440 faraday/faraday-sb/src/x509.rs::Cert::read
-fn dedc3db0db3d4ba67f7724dd79cbd6c700f42548e7bf82767adb7751857c8e27 faraday/faraday-sb/src/der.rs::oid
 fn fa5b84468c1d3ef4c04462c83c7f5766bd2e99c0764727c1d55ae1b28db8b6eb faraday/faraday-sb/src/pe.rs::u16_at
 lib rsa 0.10.0-rc.18 30b2aa4ba0d89f73d1e332df05be0eeab8840351c36ca5654341dfdb57bb3caf
 lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4

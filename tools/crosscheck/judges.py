@@ -17,7 +17,8 @@ import shutil
 import subprocess
 import sys
 
-# (tool, the package that has it on Debian or Ubuntu, the version command)
+# (tool, the package that has it on Debian or Ubuntu, the version command;
+# None where the tool has none and the package's version stands for it)
 TOOLS = [
     ("mkfs.fat", "dosfstools", ["--version"]),
     ("fsck.fat", "dosfstools", ["-V"]),
@@ -28,6 +29,9 @@ TOOLS = [
     ("sfdisk", "util-linux", ["--version"]),
     ("sgdisk", "gdisk", ["--version"]),
     ("qemu-system-x86_64", "qemu-system-x86", ["--version"]),
+    ("certtool", "gnutls-bin", ["--version"]),
+    ("pesign", "pesign", None),
+    ("pesigcheck", "pesign", None),
 ]
 # OVMF's Secure Boot firmware, as faraday/tools/sb-ovmf-check.py looks.
 OVMF_DIRS = ["/usr/share/edk2/x64", "/usr/share/edk2-ovmf/x64", "/usr/share/OVMF"]
@@ -60,14 +64,28 @@ def ovmf():
     return None
 
 
-def first_line(path, args):
+def first_line(path, args, package=None):
+    if args is None:
+        run = subprocess.run(["dpkg-query", "-W", "-f", "${Version}", package],
+                             capture_output=True, text=True)
+        return f"{package} {run.stdout.strip()}" if run.returncode == 0 else "unknown"
     run = subprocess.run([path, *args], capture_output=True, text=True)
     text = (run.stdout + run.stderr).strip().splitlines()
     return text[0].strip() if text else "unknown"
 
 
+def pefile_version():
+    """python3-pefile's version, or None when Python cannot import it."""
+    run = subprocess.run(
+        [sys.executable, "-I", "-c", "import pefile; print(pefile.__version__)"],
+        capture_output=True, text=True)
+    return run.stdout.strip() if run.returncode == 0 else None
+
+
 def missing():
     out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
+    if not pefile_version():
+        out.append("pefile for Python (package python3-pefile)")
     if not ovmf():
         out.append("OVMF's Secure Boot firmware, OVMF_CODE.secboot.4m.fd or "
                    "OVMF_CODE_4M.secboot.fd and its empty variable store "
@@ -79,9 +97,10 @@ def missing():
 
 def versions():
     lines = []
-    for tool, _, args in TOOLS:
+    for tool, pkg, args in TOOLS:
         path = find(tool)
-        lines.append(f"{tool} {first_line(path, args) if path else 'missing'}")
+        lines.append(f"{tool} {first_line(path, args, pkg) if path else 'missing'}")
+    lines.append(f"python3-pefile {pefile_version() or 'missing'}")
     code = ovmf()
     if code:
         digest = subprocess.run(["sha256sum", code],

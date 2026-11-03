@@ -7,9 +7,10 @@
 use alloc::vec::Vec;
 
 use crate::Error;
-use crate::der::{self, seq, set};
+use der::Encode;
+
+use crate::cms::{self, SignedData};
 use crate::x509;
-use crate::x509::alg;
 
 /// A GUID in the mixed-endian layout UEFI stores.
 pub const fn guid(a: u32, b: u16, c: u16, d: [u8; 8]) -> [u8; 16] {
@@ -116,13 +117,7 @@ pub fn auth(
     // A detached SignedData with no signed attributes, as
     // `sign-efi-sig-list` writes it: the firmware hashes the data itself.
     let info = x509::signer_info(&signer.cert, None, &sig)?;
-    let signed_data = seq(&[
-        &der::int(1),
-        &set(&[&alg(x509::SHA256)]),
-        &seq(&[&der::oid(&[1, 2, 840, 113_549, 1, 7, 1])]),
-        &der::tlv(0xa0, &signer.cert),
-        &set(&[&info]),
-    ]);
+    let signed_data = SignedData::new(cms::DATA, None, &signer.cert, &info)?.to_der()?;
     let mut out = Vec::new();
     out.extend_from_slice(&time);
     out.extend_from_slice(&((24 + signed_data.len()) as u32).to_le_bytes());

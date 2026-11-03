@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5) but for the finalizer (§5.8); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
@@ -1069,12 +1069,34 @@ before D1 it stays "BIP-39 mnemonics (`faraday-bip::bip39`)".
   Authenticode signing (`faraday-sb`)".
 - **Size.** About half a day with the re-pinning.
 
-### 5.7 X.509 and DER (batch C5)
+### 5.7 X.509 and DER (batch C5, built)
 
-- **Files.** `faraday/faraday-sb/src/der.rs` (164 lines) and
+**Built.** The hand-written DER writer is gone. `x509.rs` builds the
+certificates with `x509-cert`'s `CertificateBuilder` (a profile of
+Faraday's three extensions in today's order) and signs through `rsa`'s
+`pkcs1v15::SigningKey<Sha256>`, which meets the builder's bounds
+(`build_with_rng` with C4's blinding stream) with `faraday-sb`'s rsa
+features; reads a certificate with `Certificate::from_der`. `cms.rs`
+writes and reads the SignedData, SignerInfo, ContentInfo and
+Authenticode structures as `der` types. The golden file is unchanged:
+every certificate, `.auth` and signed image is the same bytes for the
+same draw, and `openssl` and `sbverify` judge them as before. The
+cross-check's change (batch X2, §9.7) is built: GnuTLS's `certtool` reads
+every certificate made, `pesign` and `pesigcheck` read the real signed
+binaries of `tools/reference/signed-efi/` and name their signer and image
+hash as Faraday does, and python3-pefile reads the checksum and
+certificate-table entry of every image. `pesigcheck` does not verify an
+image Faraday signs: NSS takes only a signer certificate that is not a CA
+and carries the code-signing extended key usage, and the db certificate
+(§5.7's profile, kept so that every certificate is the same bytes) is a CA
+with key usage alone; `pesigcheck` also aborts on an image with a byte
+changed. Whether the db certificate's profile changes is the owner's call.
+
+- **Files.** The DER writer (164 lines) and
   `faraday/faraday-sb/src/x509.rs` (336 lines); the CMS, Authenticode
-  and EFI code that builds DER with `der.rs`
-  (`faraday/faraday-sb/src/pe.rs`, `faraday/faraday-sb/src/efi.rs`).
+  and EFI code that builds DER with that writer
+  (`faraday/faraday-sb/src/pe.rs`, `faraday/faraday-sb/src/efi.rs`),
+  now through `faraday/faraday-sb/src/cms.rs`.
 - **Crates.** `x509-cert` 0.3.0, `default-features = false, features =
   ["builder"]` (`pem` and `std` off: Faraday writes DER), for the
   self-signed certificates and their reading; `der` 0.8, a direct
@@ -1736,7 +1758,7 @@ Reference's list of conditions.
 | C2 | (HKDF: not a switch; kept, §5.2, §6.7) | §5.2 | None |
 | C3 | The sealing's counter nonce removed | §5.9 | Built |
 | C4 | The RSA RNG adapter from `ChaCha20Rng`; tests re-pinned | §5.6 | Built |
-| C5 | X.509 from `x509-cert`, DER from `der`; trust entries for x509-cert and der_derive, flagset's exemption; with X2 | §5.7, §9.7 | 1.5 to 2 days, and X2's |
+| C5 | X.509 from `x509-cert`, DER from `der`; trust entries for x509-cert and der_derive, flagset's exemption; with X2 | §5.7, §9.7 | Built |
 | C6 | The single-key and multisig finalizer from miniscript; with X3 | §5.8, §9.7 | Built, with X3 |
 | C7 | (The BIP-39 core: not a switch; kept, §5.5, §6.9) | §5.5 | None |
 | C8 | Base64 from `base64ct`, four copies | §5.10 | Built |
@@ -1954,10 +1976,10 @@ not at all).
 | wif-read | libsecp256k1, bitcoin; base16ct (C9) | Core | btclib's WIF decoding and public key (X13) | none | outside |
 | sign-check | libsecp256k1 (verification), bitcoin (sighash) | none | a new area: python-ecdsa and btclib verify every signature on a PSBT, partial or in a finalized witness, over btclib's sighashes; btclib's script engine runs finalized witnesses; Core's `finalizepsbt` and `testmempoolaccept` judge complete inputs (X19) | new: the report of a reused r or R | outside-and-own |
 | compile | miniscript's policy compiler | none | a new area: Core's `getdescriptorinfo` and `deriveaddresses` take the output; python-bip380 and btclib parse it; the policy and the parsed miniscript compared as boolean formulas over the keys and lock times (X20) | new: the lift of a miniscript to a formula | outside-and-own |
-| sb-keys | rsa, sha2, chacha20 (C4), x509-cert and der (C5); CMS, signature lists and `.auth` Faraday's | OpenSSL (tests) | GnuTLS's `certtool` reads every certificate (X2); the OVMF run (`faraday/tools/sb-ovmf-check.py`) named in `other` and run by `just crosscheck` (X1) | none | none (tests) |
-| sb-sign | rsa, sha2, x509-cert and der (C5); Authenticode and CMS Faraday's | sbverify, OpenSSL (tests) | pesign's `pesigcheck` (NSS) on every signed image (X2); the OVMF run (X1) | none | none (tests) |
-| sb-check | x509-cert (C5), der | sbverify; images signed by `sbsign` and `osslsigncode` | `pesigcheck` (X2); real signed binaries, each under 2 MiB, their signer named and compared with `osslsigncode extract-signature` and `openssl pkcs7` (X2); the OVMF run (X1) | none | none (tests) |
-| starter-signed | rsa, sha2; the PE checksum and certificate table Faraday's | sbverify (tests) | `pesigcheck`; python3-pefile's PE checksum and certificate-table entry (X2) | none | none (tests) |
+| sb-keys | rsa, sha2, chacha20 (C4), x509-cert and der (C5); CMS, signature lists and `.auth` Faraday's | OpenSSL (tests) | GnuTLS's `certtool` reads every certificate and verifies its self-signature (X2); the OVMF run (`faraday/tools/sb-ovmf-check.py`) named in `other` and run by `just crosscheck` (X1) | none | none (tests) |
+| sb-sign | rsa, sha2, x509-cert and der (C5); Authenticode and CMS Faraday's | sbverify, OpenSSL (tests) | the OVMF run (X1); pesign's `pesigcheck` (NSS) does not take the db certificate as a signer (§5.7), so it judges the real signed binaries (sb-check) and not the images made here | none | none (tests) |
+| sb-check | x509-cert (C5), der | sbverify; images signed by `sbsign` and `osslsigncode` | `pesigcheck` on two real signed binaries, each under 2 MiB, their signer and image hash named and compared with `pesign`'s (X2); the OVMF run (X1) | none | none (tests) |
+| starter-signed | rsa, sha2; the PE checksum and certificate table Faraday's | sbverify (tests) | python3-pefile's PE checksum field and certificate-table entry, compared with the image's header for every image signed, moved or real (X2) | none | none (tests) |
 | gpg-create, gpg-sign, gpg-verify | Own packets over ed25519-dalek; base64ct (C8) | GnuPG 2.4 (tests) | Sequoia's `sq`, built over Nettle, reads every certificate and verifies every signature; signatures `sq` makes join gpg-verify's fixtures (X24) | none | none (tests) |
 | kdbx | Own format until the export is folded into the vault (F190 point 10); argon2 in one call (C13), chacha20, hmac, sha2 | pykeepass | none: X25 is withdrawn, `keepassxc-cli` reading the vault the export becomes (`vault-kdbx`) | none | outside |
 | totp | Own (§3.4) | none (the RFCs' vectors in tests) | a new area `totp`: pyotp over random keys, times, digits, periods and hashes, and its `parse_uri` over otpauth URIs (X26) | none | outside |
@@ -2038,7 +2060,7 @@ they were not, the batch checks them first.
 | Batch | Distribution packages | Vendored in `tools/reference/` (commit and SHA-256) |
 |---|---|---|
 | X1 | mtools, dosfstools, util-linux's `sfdisk`, QEMU and OVMF's Secure Boot firmware (for the OVMF run) | none |
-| X2 | `gnutls-bin` (`certtool`), `pesign` (`pesigcheck`), `python3-pefile` | real signed EFI binaries, each under 2 MiB |
+| X2 | `gnutls-bin` (`certtool`), `pesign` (`pesigcheck`), `python3-pefile` | two real signed EFI binaries, each under 2 MiB (`tools/reference/signed-efi/`: Ubuntu's shim-signed 1.59+15.8-0ubuntu2, with its source, licence and SHA-256) |
 | X6 | `python3-pil` (Pillow) | none |
 | X7 | `python3-cryptography` 44 or later, over OpenSSL 3.2 or later (not checked on the build machine) | none |
 | X10 | none | rust-codex32 at a commit (licence and `Cargo.toml` not checked), built offline outside the workspace |
@@ -2073,7 +2095,7 @@ a switch lands in that switch's commit (rule 6).
 | Batch | With | What | Size |
 |---|---|---|---|
 | X1 | alone, after B1, before C1 | rule 4: `just crosscheck` checks every tool it needs first and names a missing one; the versions in the stamp; the judged test files run with `FARADAY_JUDGES_REQUIRED=1`; the OVMF run named in sb-keys', sb-sign's and sb-check's `other` and run | 1 to 1.5 days |
-| X2 | C5 | `certtool` reads every certificate; `pesigcheck` verifies every signed image; real signed binaries read and their signer named; pefile's PE checksum | 1.5 to 2 days |
+| X2 | C5 | `certtool` reads every certificate; `pesigcheck` verifies the real signed binaries (not the images Faraday signs, §5.7); real signed binaries read and their signer named; pefile's PE checksum and certificate-table entry | 1.5 to 2 days |
 | X3 | C6 | btclib's finalizer beside Core in area `sign` | about 1 day |
 | X4 | C9 | coins-hex's hex judged as outside (rule 5) | about an hour |
 | X5 | C11 | CPython's `json` reads every wallet file the area writes and refuses a duplicate key and a depth over 32, beside the visitor | about 2 hours |

@@ -204,6 +204,13 @@ version = "0.8.2"
 when = "2026-09-05"
 trusted-publisher = "github:RustCrypto/formats"
 
+[[publisher.der_derive]]
+version = "0.8.0"
+when = "2026-02-11"
+user-id = 267
+user-login = "tarcieri"
+user-name = "Tony Arcieri"
+
 [[publisher.digest]]
 version = "0.11.3"
 when = "2026-05-03"
@@ -668,6 +675,11 @@ user-name = "Ed Page"
 version = "0.57.1"
 when = "2026-04-17"
 trusted-publisher = "github:bytecodealliance/wit-bindgen"
+
+[[publisher.x509-cert]]
+version = "0.3.0"
+when = "2026-07-09"
+trusted-publisher = "github:RustCrypto/formats"
 
 [[publisher.zeroize]]
 version = "1.9.0"

@@ -21,6 +21,11 @@ rsa = { version = "=0.10.0-rc.18", default-features = false, features = ["sha2",
 # `ChaCha20Rng` seeded by the caller (`rng.rs`).
 rand_core = { version = "0.10", default-features = false }
 chacha20 = { workspace = true, features = ["rng"] }
+# Self-signed certificates and their reading (docs/ESTABLISHED.md 5.7): DER
+# only, so `pem` and `std` stay off.
+x509-cert = { version = "0.3.0", default-features = false, features = ["builder"] }
+# The CMS SignedData and Authenticode structures, written as `der` types.
+der = { version = "0.8", default-features = false, features = ["alloc", "oid"] }
 
 [features]
 # `pe::sign`: signs any PE image, with no release behind it. For this

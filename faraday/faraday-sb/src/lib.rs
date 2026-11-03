@@ -15,7 +15,7 @@
 
 extern crate alloc;
 
-pub mod der;
+pub mod cms;
 pub mod efi;
 pub mod pe;
 pub mod release;
@@ -38,6 +38,12 @@ pub enum Error {
     Image,
     /// Not the boot program a release's checked sums name (F134).
     NotRelease,
+}
+
+impl From<der::Error> for Error {
+    fn from(_: der::Error) -> Self {
+        Error::Key
+    }
 }
 
 /// An owner's three keys and the GUID they are listed under.
@@ -225,5 +231,5 @@ pub fn enrolment(
 
 /// A certificate's common name.
 pub fn common_name(cert: &[u8]) -> Option<String> {
-    x509::Cert::read(cert)?.cn
+    x509::common_name(&x509::read(cert)?)
 }

@@ -49,10 +49,12 @@ nothing else.
   repository.
 - **Podman or Docker**, rootless, for the stick and Pi images and the
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
-- **GnuPG 2.4, paperkey 1.6, OpenSSL, sbsigntool** (`sbverify`): the
+- **GnuPG 2.4, paperkey 1.6, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
+  `certtool`, pesign** (`pesign`, `pesigcheck`) and **python3-pefile**: the
   GPG and Secure Boot tests run these tools against Faraday's files and
   fail where one is missing; nothing skips them. On Debian or Ubuntu:
-  `sudo apt install gnupg paperkey openssl sbsigntool`.
+  `sudo apt install gnupg paperkey openssl sbsigntool gnutls-bin pesign
+  python3-pefile`.
 - **mtools, dosfstools, gdisk, fdisk** (`mkfs.fat`, `fsck.fat`, `fatlabel`,
   `mcopy`, `sgdisk`, `sfdisk`; on some systems `sfdisk` comes with
   util-linux): the FAT and stick-image tests skip with a note without

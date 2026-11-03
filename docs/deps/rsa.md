@@ -29,8 +29,9 @@ big-integer library) was the alternative and is not one.
 `pkcs8`, `spki`, `der` and `const-oid` crates that read and write the
 private keys a vault keeps (PKCS #8) and the public key a certificate
 names. `encoding` saves writing PKCS #1 and PKCS #8 by hand; the
-certificates, CMS and Authenticode structures around them are
-`faraday-sb`'s own DER (`der.rs`), checked by `openssl` and `sbverify`.
+certificates around them are `x509-cert`'s (`docs/deps/x509-cert.md`),
+the CMS and Authenticode structures `der` types (`docs/deps/der.md`),
+checked by `openssl` and `sbverify`.
 
 **Reopen when** 0.10.0 is released (drop the pin), or when Secure Boot
 moves to keys firmware verifies some other way.

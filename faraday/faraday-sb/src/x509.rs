@@ -4,27 +4,31 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use der::asn1::{Any, ObjectIdentifier, OctetString, SetOfVec};
+use der::{DateTime, Decode, Encode, Tag};
 use rsa::RsaPrivateKey;
 use rsa::pkcs1v15::{SigningKey, VerifyingKey};
 use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
 use rsa::signature::{RandomizedSigner, SignatureEncoding, Verifier};
 use sha2::{Digest, Sha256};
+use x509_cert::Certificate;
+use x509_cert::attr::{Attribute, AttributeTypeAndValue};
+use x509_cert::builder::profile::BuilderProfile;
+use x509_cert::builder::{Builder, CertificateBuilder};
+use x509_cert::certificate::TbsCertificate;
+use x509_cert::ext::Extension;
+use x509_cert::ext::pkix::{BasicConstraints, KeyUsage, KeyUsages, SubjectKeyIdentifier};
+use x509_cert::name::{Name, RdnSequence, RelativeDistinguishedName};
+use x509_cert::serial_number::SerialNumber;
+use x509_cert::spki::{SubjectPublicKeyInfoOwned, SubjectPublicKeyInfoRef};
+use x509_cert::time::{Time, Validity};
 use zeroize::Zeroizing;
 
 use crate::Error;
-use crate::der::{self, bits, explicit, null, octets, oid, seq, set, tag, tlv, uint};
+use crate::cms::{IssuerAndSerial, SignerInfo};
 
-/// sha256WithRSAEncryption.
-pub const SHA256_RSA: &[u64] = &[1, 2, 840, 113_549, 1, 1, 11];
-/// rsaEncryption.
-pub const RSA: &[u64] = &[1, 2, 840, 113_549, 1, 1, 1];
-/// SHA-256.
-pub const SHA256: &[u64] = &[2, 16, 840, 1, 101, 3, 4, 2, 1];
-
-/// An algorithm identifier with NULL parameters.
-pub fn alg(arcs: &[u64]) -> Vec<u8> {
-    seq(&[&oid(arcs), &null()])
-}
+/// commonName.
+const COMMON_NAME: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.5.4.3");
 
 /// A key and its certificate. The key is PKCS #8 DER and secret.
 pub struct Pair {
@@ -58,21 +62,25 @@ pub fn civil(unix: u64) -> (i64, u32, u32, u32, u32, u32) {
 }
 
 /// UTCTime before 2050, GeneralizedTime after, as X.509 wants.
-fn time(unix: u64) -> Vec<u8> {
-    let (y, mo, d, h, mi, s) = civil(unix);
-    if y < 2050 {
-        let t = alloc::format!("{:02}{mo:02}{d:02}{h:02}{mi:02}{s:02}Z", y % 100);
-        tlv(tag::UTC_TIME, t.as_bytes())
-    } else {
-        let t = alloc::format!("{y:04}{mo:02}{d:02}{h:02}{mi:02}{s:02}Z");
-        tlv(tag::GENERALIZED_TIME, t.as_bytes())
-    }
+fn time(unix: u64) -> Result<Time, Error> {
+    DateTime::from_unix_duration(core::time::Duration::from_secs(unix))
+        .map(Time::from)
+        .map_err(|_| Error::Key)
 }
 
 /// A name of one common name.
-fn name(cn: &str) -> Vec<u8> {
-    let atv = seq(&[&oid(&[2, 5, 4, 3]), &tlv(tag::UTF8_STRING, cn.as_bytes())]);
-    seq(&[&set(&[&atv])])
+fn name(cn: &str) -> Result<Name, Error> {
+    let atv = AttributeTypeAndValue {
+        oid: COMMON_NAME,
+        value: Any::new(Tag::Utf8String, cn.as_bytes().to_vec()).map_err(|_| Error::Key)?,
+    };
+    let rdn = RelativeDistinguishedName::try_from(alloc::vec![atv]).map_err(|_| Error::Key)?;
+    // `Name` is read from the DER of its sequence: it has no constructor
+    // from one without the crate's `hazmat` feature.
+    let sequence = RdnSequence::from(alloc::vec![rdn])
+        .to_der()
+        .map_err(|_| Error::Key)?;
+    Name::from_der(&sequence).map_err(|_| Error::Key)
 }
 
 fn private(key: &[u8]) -> Result<RsaPrivateKey, Error> {
@@ -89,9 +97,18 @@ pub fn sign(rng: &mut crate::rng::Stream, key: &[u8], data: &[u8]) -> Result<Vec
         .to_vec())
 }
 
+/// A certificate read as DER: whole, with nothing after it. `None` for
+/// bytes that are not one (BER, a length that runs past the end, a
+/// missing field, trailing bytes).
+pub fn read(cert: &[u8]) -> Option<Certificate> {
+    Certificate::from_der(cert).ok()
+}
+
 /// Whether `sig` is the certificate's key's signature over `data`.
 pub fn verify(cert: &[u8], data: &[u8], sig: &[u8]) -> bool {
-    let Some(spki) = Cert::read(cert).map(|c| cert[c.spki].to_vec()) else {
+    let Some(spki) =
+        read(cert).and_then(|c| c.tbs_certificate().subject_public_key_info().to_der().ok())
+    else {
         return false;
     };
     let Ok(public) = rsa::RsaPublicKey::from_public_key_der(&spki) else {
@@ -116,6 +133,54 @@ pub enum Profile {
     },
 }
 
+/// The extensions of [`Profile::Ca`], in the order Faraday has always
+/// written them.
+struct CaProfile {
+    subject: Name,
+}
+
+impl BuilderProfile for CaProfile {
+    fn get_issuer(&self, subject: &Name) -> Name {
+        subject.clone()
+    }
+
+    fn get_subject(&self) -> Name {
+        self.subject.clone()
+    }
+
+    fn build_extensions(
+        &self,
+        spk: SubjectPublicKeyInfoRef<'_>,
+        _issuer_spk: SubjectPublicKeyInfoRef<'_>,
+        _tbs: &TbsCertificate,
+    ) -> x509_cert::builder::Result<Vec<Extension>> {
+        let extension = |id: ObjectIdentifier, value: Vec<u8>| -> der::Result<Extension> {
+            Ok(Extension {
+                extn_id: id,
+                critical: true,
+                extn_value: OctetString::new(value)?,
+            })
+        };
+        let basic = BasicConstraints {
+            ca: true,
+            path_len_constraint: None,
+        };
+        let usage =
+            KeyUsage(KeyUsages::DigitalSignature | KeyUsages::KeyCertSign | KeyUsages::CRLSign);
+        let ski = SubjectKeyIdentifier(OctetString::new(
+            Sha256::digest(spk.to_der()?)[..20].to_vec(),
+        )?);
+        Ok(alloc::vec![
+            extension(ObjectIdentifier::new_unwrap("2.5.29.19"), basic.to_der()?)?,
+            extension(ObjectIdentifier::new_unwrap("2.5.29.15"), usage.to_der()?)?,
+            Extension {
+                critical: false,
+                ..extension(ObjectIdentifier::new_unwrap("2.5.29.14"), ski.to_der()?)?
+            },
+        ])
+    }
+}
+
 /// A new key of `key_bits` bits, drawn from `rng`, with a self-signed
 /// certificate: common name `cn`, serial `serial`, valid from `now` as the
 /// `profile` says; `blind` blinds the signing.
@@ -129,12 +194,13 @@ pub fn generate(
     profile: Profile,
 ) -> Result<Pair, Error> {
     let key = RsaPrivateKey::new(rng, key_bits).map_err(|_| Error::Key)?;
-    let spki = key
-        .to_public_key()
-        .to_public_key_der()
-        .map_err(|_| Error::Key)?
-        .as_bytes()
-        .to_vec();
+    let spki = SubjectPublicKeyInfoOwned::from_der(
+        key.to_public_key()
+            .to_public_key_der()
+            .map_err(|_| Error::Key)?
+            .as_bytes(),
+    )
+    .map_err(|_| Error::Key)?;
     let der = Zeroizing::new(
         key.to_pkcs8_der()
             .map_err(|_| Error::Key)?
@@ -143,150 +209,42 @@ pub fn generate(
     );
     let mut serial = *serial;
     serial[0] &= 0x7f;
-    let n = name(cn);
-    let ski: Vec<u8> = Sha256::digest(&spki)[..20].to_vec();
-    let ski_ext = seq(&[&oid(&[2, 5, 29, 14]), &octets(&octets(&ski))]);
-    let extensions = match profile {
-        Profile::Ca { .. } => seq(&[
-            &seq(&[
-                &oid(&[2, 5, 29, 19]),
-                &tlv(tag::BOOLEAN, &[0xff]),
-                &octets(&seq(&[&tlv(tag::BOOLEAN, &[0xff])])),
-            ]),
-            &seq(&[
-                &oid(&[2, 5, 29, 15]),
-                &tlv(tag::BOOLEAN, &[0xff]),
-                &octets(&tlv(tag::BIT_STRING, &[0x01, 0x86])),
-            ]),
-            &ski_ext,
-        ]),
-    };
     let until = match profile {
-        Profile::Ca { years } => time(now + u64::from(years) * 31_557_600),
+        Profile::Ca { years } => time(now + u64::from(years) * 31_557_600)?,
     };
-    let tbs = seq(&[
-        &explicit(0, &der::int(2)),
-        &uint(&serial),
-        &alg(SHA256_RSA),
-        &n,
-        &seq(&[&time(now), &until]),
-        &n,
-        &spki,
-        &explicit(3, &extensions),
-    ]);
-    let sig = sign(blind, &der, &tbs)?;
-    let cert = seq(&[&tbs, &alg(SHA256_RSA), &bits(&sig)]);
+    let validity = Validity::new(time(now)?, until);
+    let builder = CertificateBuilder::new(
+        CaProfile { subject: name(cn)? },
+        SerialNumber::new(&serial).map_err(|_| Error::Key)?,
+        validity,
+        spki,
+    )
+    .map_err(|_| Error::Key)?;
+    let signer = SigningKey::<Sha256>::new(key);
+    let certificate = builder
+        .build_with_rng::<_, rsa::pkcs1v15::Signature, _>(&signer, blind)
+        .map_err(|_| Error::Key)?;
+    let cert = certificate.to_der().map_err(|_| Error::Key)?;
+    let tbs = certificate
+        .tbs_certificate()
+        .to_der()
+        .map_err(|_| Error::Key)?;
     // The self-signature is checked against the certificate's own key: a
     // fault in the private-key operation never leaves in a certificate.
-    if !verify(&cert, &tbs, &sig) {
+    if !verify(&cert, &tbs, certificate.signature().raw_bytes()) {
         return Err(Error::Key);
     }
     Ok(Pair { key: der, cert })
 }
 
-/// Where the parts of a certificate are.
-pub struct Cert {
-    /// The serial number, as its whole INTEGER TLV.
-    pub serial: core::ops::Range<usize>,
-    /// The issuer name, as its whole TLV.
-    pub issuer: core::ops::Range<usize>,
-    /// The subject's public key info, as its whole TLV.
-    pub spki: core::ops::Range<usize>,
-    /// The subject's common name, when it has one.
-    pub cn: Option<String>,
-    /// The start of its validity, as a Unix time.
-    pub not_before: Option<u64>,
-}
-
-impl Cert {
-    /// Reads a certificate's parts.
-    pub fn read(cert: &[u8]) -> Option<Cert> {
-        let (_, outer, _) = der::read(cert, 0)?;
-        let (_, tbs, _) = der::read(cert, outer.start)?;
-        let mut at = tbs.start;
-        let mut whole = Vec::new();
-        while at < tbs.end {
-            let (t, value, next) = der::read(cert, at)?;
-            whole.push((t, at..next, value));
-            at = next;
-        }
-        // Skip the explicit version.
-        let base = usize::from(whole.first()?.0 == 0xa0);
-        let serial = whole.get(base)?.1.clone();
-        let issuer = whole.get(base + 2)?.1.clone();
-        let subject = whole.get(base + 4)?.2.clone();
-        let spki = whole.get(base + 5)?.1.clone();
-        let not_before = whole.get(base + 3).and_then(|(_, _, v)| {
-            let (t, value, _) = der::read(cert, v.start)?;
-            unix_of(t, &cert[value])
-        });
-        Some(Cert {
-            serial,
-            issuer,
-            spki,
-            cn: common_name(&cert[subject]),
-            not_before,
-        })
-    }
-}
-
-/// A UTCTime or GeneralizedTime as a Unix time.
-fn unix_of(t: u8, v: &[u8]) -> Option<u64> {
-    let (year, rest) = match t {
-        tag::UTC_TIME => {
-            let yy = digits(v.get(0..2)?)?;
-            (if yy < 50 { 2000 + yy } else { 1900 + yy }, v.get(2..)?)
-        }
-        tag::GENERALIZED_TIME => (digits(v.get(0..4)?)?, v.get(4..)?),
-        _ => return None,
-    };
-    let m = digits(rest.get(0..2)?)?;
-    let d = digits(rest.get(2..4)?)?;
-    let (h, mi, s) = (
-        digits(rest.get(4..6)?)?,
-        digits(rest.get(6..8)?)?,
-        digits(rest.get(8..10)?)?,
-    );
-    if !(1..=12).contains(&m)
-        || !(1..=31).contains(&d)
-        || h > 23
-        || mi > 59
-        || s > 59
-        || rest.get(10) != Some(&b'Z')
-    {
-        return None;
-    }
-    // Howard Hinnant's days-from-civil.
-    let y = i64::from(year) - i64::from(m <= 2);
-    let era = y.div_euclid(400);
-    let yoe = y.rem_euclid(400);
-    let mp = i64::from(if m > 2 { m - 3 } else { m + 9 });
-    let doy = (153 * mp + 2) / 5 + i64::from(d) - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146_097 + doe - 719_468;
-    u64::try_from(days * 86_400 + i64::from(h * 3600 + mi * 60 + s)).ok()
-}
-
-fn digits(b: &[u8]) -> Option<u32> {
-    b.iter().try_fold(0u32, |n, &c| {
-        c.is_ascii_digit().then(|| n * 10 + u32::from(c - b'0'))
-    })
-}
-
-/// The first common name in a name's value.
-fn common_name(name: &[u8]) -> Option<String> {
-    for (_, rdn) in der::children(name)? {
-        for (_, atv) in der::children(&name[rdn.clone()])? {
-            let atv = &name[rdn.clone()][atv];
-            let parts = der::children(atv)?;
-            let (_, o) = parts.first()?;
-            if atv[o.clone()] == [0x55, 0x04, 0x03] {
-                let (_, v) = parts.get(1)?;
-                return Some(String::from_utf8_lossy(&atv[v.clone()]).into_owned());
-            }
-        }
-    }
-    None
+/// A certificate's first common name.
+pub fn common_name(cert: &Certificate) -> Option<String> {
+    let found = cert
+        .tbs_certificate()
+        .subject()
+        .iter()
+        .find(|atv| atv.oid == COMMON_NAME)?;
+    Some(String::from_utf8_lossy(found.value.value()).into_owned())
 }
 
 /// A CMS SignerInfo for `cert`'s key: version 1, issuer and serial,
@@ -294,43 +252,16 @@ fn common_name(name: &[u8]) -> Option<String> {
 /// signature.
 pub fn signer_info(
     cert: &[u8],
-    signed_attrs: Option<&[u8]>,
+    signed_attrs: Option<SetOfVec<Attribute>>,
     signature: &[u8],
-) -> Result<Vec<u8>, Error> {
-    let c = Cert::read(cert).ok_or(Error::Key)?;
-    let ias = seq(&[&cert[c.issuer], &cert[c.serial]]);
-    let mut parts: Vec<Vec<u8>> = alloc::vec![der::int(1), ias, alg(SHA256)];
-    if let Some(a) = signed_attrs {
-        parts.push(a.to_vec());
-    }
-    parts.push(alg(RSA));
-    parts.push(octets(signature));
-    let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
-    Ok(seq(&refs))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_time_with_an_hour_minute_or_second_out_of_range_is_no_time() {
-        assert_eq!(
-            unix_of(tag::UTC_TIME, b"250101000000Z"),
-            Some(1_735_689_600)
-        );
-        assert_eq!(
-            unix_of(tag::UTC_TIME, b"250101235959Z"),
-            Some(1_735_775_999)
-        );
-        for bad in [
-            &b"250101240000Z"[..],
-            b"250101006000Z",
-            b"250101000060Z",
-            b"250101990000Z",
-        ] {
-            assert_eq!(unix_of(tag::UTC_TIME, bad), None, "{bad:?}");
-        }
-        assert_eq!(unix_of(tag::GENERALIZED_TIME, b"20250101250000Z"), None);
-    }
+) -> Result<SignerInfo, Error> {
+    let c = read(cert).ok_or(Error::Key)?;
+    Ok(SignerInfo {
+        sid: IssuerAndSerial {
+            issuer: c.tbs_certificate().issuer().clone(),
+            serial: c.tbs_certificate().serial_number().clone(),
+        },
+        signed_attrs,
+        signature: OctetString::new(signature.to_vec()).map_err(|_| Error::Key)?,
+    })
 }

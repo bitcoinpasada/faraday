@@ -3,9 +3,13 @@
 //! PKCS #7 signature in each `.auth` update; `sbverify` (sbsigntool)
 //! verifies a signed image against the db certificate; and Faraday's own
 //! check tells a signed image from an altered one and from one signed by
-//! another key. A tool not on PATH (`sbverify` also as `FARADAY_SBVERIFY`)
-//! fails the test: nothing here is skipped (docs/DEVELOPING.md names the
-//! packages).
+//! another key. `certtool` (GnuTLS) reads every certificate made;
+//! `pesigcheck` (pesign, over NSS) verifies the
+//! real signed binaries of `tools/reference/signed-efi/`, whose signer and
+//! image hash `pesign` names too; python3-pefile reads the checksum and
+//! certificate-table entry of an image. A tool not on PATH (`sbverify`
+//! also as `FARADAY_SBVERIFY`) fails the test: nothing here is skipped
+//! (docs/DEVELOPING.md names the packages).
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -19,6 +23,23 @@ const NOW: u64 = 1_791_000_000;
 
 fn keys() -> Keys {
     make(&[0x42; 32], "Test", NOW).unwrap()
+}
+
+/// The DER encoding of signedData, id-signedData (1.2.840.113549.1.7.2).
+const SIGNED_DATA_OID: [u8; 11] = [
+    0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x02,
+];
+
+/// One DER element: `tag`, the length and `content`.
+fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
+    let mut out = vec![tag];
+    match content.len() {
+        n if n < 0x80 => out.push(n as u8),
+        n if n < 0x100 => out.extend([0x81, n as u8]),
+        n => out.extend([0x82, (n >> 8) as u8, n as u8]),
+    }
+    out.extend_from_slice(content);
+    out
 }
 
 /// The stream that blinds a test's signing.
@@ -125,14 +146,15 @@ fn openssl_verifies_the_certificates_and_the_auth_signatures() {
         content.extend_from_slice(&0x27u32.to_le_bytes());
         content.extend_from_slice(&auth[..16]);
         content.extend_from_slice(esl);
-        // openssl reads a ContentInfo around the SignedData.
-        let wrapped = faraday_sb::der::seq(&[
-            &faraday_sb::der::oid(&[1, 2, 840, 113_549, 1, 7, 2]),
-            &faraday_sb::der::explicit(0, signed_data),
-        ]);
+        // openssl reads a ContentInfo around the SignedData: wrapped here
+        // around the .auth's own bytes, not re-encoded by Faraday's code.
+        let wrapped = tlv(
+            0x30,
+            &[SIGNED_DATA_OID.to_vec(), tlv(0xa0, signed_data)].concat(),
+        );
         let sig = dir.join(format!("{name}.p7"));
         let data = dir.join(format!("{name}.bin"));
-        std::fs::write(&sig, wrapped).unwrap();
+        std::fs::write(&sig, &wrapped).unwrap();
         std::fs::write(&data, &content).unwrap();
         let out = dir.join("out");
         let (ok, said) = run(
@@ -569,5 +591,158 @@ fn openssl_checks_every_private_key_made() {
         .unwrap();
         assert!(ok, "{name}: {said}");
         assert!(said.contains("valid"), "{name}: {said}");
+    }
+}
+
+#[test]
+fn certtool_reads_every_certificate_made() {
+    let dir = scratch("certtool");
+    let k = keys();
+    for (name, pair) in [("pk", &k.pk), ("kek", &k.kek), ("db", &k.db)] {
+        let path = dir.join(format!("{name}.der"));
+        std::fs::write(&path, &pair.cert).unwrap();
+        let (ok, said) = run(
+            "certtool",
+            &["-i", "--inder", "--infile", path.to_str().unwrap()],
+        )
+        .unwrap();
+        assert!(ok, "certtool {name}:\n{said}");
+        let cn = faraday_sb::common_name(&pair.cert).unwrap();
+        assert!(said.contains(&format!("CN={cn}")), "{name}:\n{said}");
+        assert!(said.contains("RSA-SHA256"), "{name}:\n{said}");
+        // Self-signed: its own signature holds under its own key.
+        let pem = pem(&dir, name, &pair.cert).unwrap();
+        let (ok, said) = run(
+            "certtool",
+            &["--verify", "--load-ca-certificate", &pem, "--infile", &pem],
+        )
+        .unwrap();
+        assert!(ok && said.contains("Verified"), "certtool {name}:\n{said}");
+    }
+}
+
+/// Two binaries as a distribution ships them (Ubuntu's shim-signed
+/// 1.59+15.8-0ubuntu2, `tools/reference/signed-efi/README.md`): signed by
+/// Microsoft and by Canonical.
+const REAL: [(&str, &str); 2] = [
+    ("shimx64.efi", "Microsoft Windows UEFI Driver Publisher"),
+    ("fbx64.efi", "Canonical Ltd. Secure Boot Signing (2022 v1)"),
+];
+
+fn real_path(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/reference/signed-efi")
+        .join(name)
+}
+
+#[test]
+fn real_signed_binaries_are_read_and_their_signer_named_as_pesign_names_it() {
+    let dir = scratch("real");
+    for (name, signer) in REAL {
+        let path = real_path(name);
+        let image = std::fs::read(&path).unwrap();
+        assert!(image.len() < 2 << 20, "{name}");
+        let pe::Signer::By(cert) = pe::signer(&image).unwrap() else {
+            panic!("{name}: Faraday does not read its signature");
+        };
+        assert_eq!(
+            faraday_sb::common_name(&cert).as_deref(),
+            Some(signer),
+            "{name}"
+        );
+        assert_eq!(pe::check(&image, &cert).unwrap(), Check::Valid, "{name}");
+        let (ok, said) = run("pesign", &["-S", "-i", path.to_str().unwrap()]).unwrap();
+        assert!(ok, "{said}");
+        let line = format!("The signer's common name is {signer}");
+        assert!(said.lines().any(|l| l == line), "{name}:\n{said}");
+        // The image hash pesign works out is Faraday's.
+        let (ok, said) = run("pesign", &["-h", "-i", path.to_str().unwrap()]).unwrap();
+        assert!(ok, "{said}");
+        let hash: String = pe::image_hash(&image)
+            .unwrap()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(
+            said.split_whitespace().next(),
+            Some(hash.as_str()),
+            "{name}"
+        );
+        // pesigcheck accepts it under the certificate Faraday named.
+        let der = dir.join(format!("{name}.cert.der"));
+        std::fs::write(&der, &cert).unwrap();
+        let (ok, said) = run(
+            "pesigcheck",
+            &[
+                "-n",
+                "1",
+                "-c",
+                der.to_str().unwrap(),
+                "-i",
+                path.to_str().unwrap(),
+            ],
+        )
+        .unwrap();
+        assert!(ok, "pesigcheck {name}:\n{said}");
+        let mut altered = image.clone();
+        altered[0x400] ^= 1;
+        assert_eq!(pe::signer(&altered).unwrap(), pe::Signer::Broken, "{name}");
+    }
+}
+
+/// An image's checksum field, certificate-table entry and the checksum
+/// pefile works out for it, as pefile reads them.
+fn pefile_fields(path: &Path) -> (u32, u32, u32, u32) {
+    let (ok, said) = run(
+        "python3",
+        &[
+            "-I",
+            "-c",
+            "import sys, pefile\n\
+             pe = pefile.PE(sys.argv[1])\n\
+             d = pe.OPTIONAL_HEADER.DATA_DIRECTORY[4]\n\
+             print(pe.OPTIONAL_HEADER.CheckSum, d.VirtualAddress, d.Size, pe.generate_checksum())",
+            path.to_str().unwrap(),
+        ],
+    )
+    .unwrap();
+    assert!(ok, "python3-pefile:\n{said}");
+    let n: Vec<u32> = said
+        .split_whitespace()
+        .map(|w| w.parse().unwrap())
+        .collect();
+    (n[0], n[1], n[2], n[3])
+}
+
+#[test]
+fn pefile_finds_the_certificate_table_where_faraday_put_it_and_the_moved_checksum_is_right() {
+    let dir = scratch("pefile");
+    let k = keys();
+    let tiny = include_bytes!("vectors/tiny.efi");
+    // Faraday's own signing appends the table after the image, padded to
+    // eight bytes, and the table runs to the end of the file.
+    let signed = pe::sign(&mut blind(), tiny, &k.db).unwrap();
+    let path = dir.join("signed.efi");
+    std::fs::write(&path, &signed).unwrap();
+    let (_, at, size, _) = pefile_fields(&path);
+    assert_eq!(at as usize, tiny.len().div_ceil(8) * 8);
+    assert_eq!(at as usize + size as usize, signed.len());
+    // A signed copy's checksum and entry go onto the release's bytes: they
+    // are the signed copy's, and the checksum is the one pefile works out.
+    for (tool, copy) in [
+        ("sbsign", &include_bytes!("vectors/tiny.sbsign.efi")[..]),
+        (
+            "osslsigncode",
+            &include_bytes!("vectors/tiny.osslsigncode.efi")[..],
+        ),
+    ] {
+        let from = dir.join(format!("{tool}.efi"));
+        let moved = dir.join(format!("moved-{tool}.efi"));
+        std::fs::write(&from, copy).unwrap();
+        std::fs::write(&moved, pe::transplant(tiny, copy).unwrap()).unwrap();
+        let (sum, at, size, _) = pefile_fields(&from);
+        let (moved_sum, moved_at, moved_size, worked_out) = pefile_fields(&moved);
+        assert_eq!((moved_sum, moved_at, moved_size), (sum, at, size), "{tool}");
+        assert_eq!(moved_sum, worked_out, "{tool}");
     }
 }
