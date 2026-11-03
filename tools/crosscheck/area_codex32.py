@@ -1,11 +1,17 @@
-"""Codex32 (BIP 93) against python-codex32.
+"""Codex32 (BIP 93) against python-codex32, rust-codex32 and volvelle's worksheet.
 
-The reference decodes, checksums and interpolates. Three rules BIP 93
-states that the reference does not enforce are written here from the
-BIP's text, and nothing else is:
+Three outside judges. python-codex32 decodes, checksums and interpolates.
+rust-codex32 (`tools/reference/rust-codex32/`, a program built from the
+vendored crate) parses, makes checksums, and makes a fresh set's derived
+shares with `interpolate_at`; it decides the threshold ("0" or "2" to "9",
+BIP 93: "a single digit between 2 and 9, or the digit 0") and that a
+threshold of 0 has the share index `s`, and python-codex32 must give the
+same answer wherever the crate accepts. volvelle-website's checksum
+worksheet (`tools/vectors/codex32-volvelle/`, run as a program) fills the
+checksum worksheets of 48 and 74 characters. Two rules BIP 93 states that
+none of them enforces are written here from the BIP's text, and nothing
+else is:
 
-- the threshold of a new secret is "0" or "2" to "9" (BIP 93, "a single
-  digit between 2 and 9, or the digit 0");
 - the master seed is 128, 160, 192, 224, 256 or 512 bits, so a string
   whose payload is another length is refused;
 - shares are handed out in the order Faraday's split documents, the
@@ -21,24 +27,29 @@ Every vector BIP 93 publishes (secrets, sets, alternates, and the 55
 invalid strings), then random seeds, sets, splits and corrupted strings.
 
 The booklet's worksheets (`docs/CODEX32.md` §7, §13.5) are checked the
-same way. The reference has no worksheet, so its rows are written here
-from BIP 93's polymod alone: a sum row is the residue over every
-character up to the row's last box, a lookup row the residue of the sum
-row's leading characters carried a checksum's length on from nothing,
-and the ladder steps two boxes at a time (one for the first step where
-the characters after the first row are odd in number). A fresh set's
-initial shares are checksummed and the rest interpolated by the
-reference (`interpolate_at`); translation and recovery symbols are its
-`bech32_lagrange`. Their published vectors: volvelle-website's cells
-(`codex32-volvelle/`), the booklet's checksum, derivation, recovery,
-addition, translation and fusion tables (`codex32-booklet/`), and the
-Codex32QR profile's sets (`codex32qr/`). Then random fresh sets of
-every threshold up to 31 strings at 48, 74 and 127 characters, their
-sheets, the sheets of corrupted strings, checksums made on a sheet, and
-translations.
+same way. Volvelle's sheet takes a string's data and works the checksum
+itself, so a string whose own checksum is not the one the sheet works is
+judged by that alone; the sheets of 127 characters, which volvelle does
+not lay out, are written here from BIP 93's polymod alone: a sum row is
+the residue over every character up to the row's last box, a lookup row
+the residue of the sum row's leading characters carried a checksum's
+length on from nothing, and the ladder steps two boxes at a time (one for
+the first step where the characters after the first row are odd in
+number). A fresh set's initial shares are checksummed and the rest
+interpolated by both references (`interpolate_at`); translation and
+recovery symbols are python-codex32's `bech32_lagrange`. Their published
+vectors: volvelle-website's cells (`codex32-volvelle/`), the booklet's
+checksum, derivation, recovery, addition, translation and fusion tables
+(`codex32-booklet/`), and the Codex32QR profile's sets (`codex32qr/`).
+Then random fresh sets of every threshold up to 31 strings at 48, 74 and
+127 characters, their sheets, the sheets of corrupted strings, checksums
+made on a sheet, and translations.
 """
 
-from common import Area, use_reference, vectors
+import os
+import subprocess
+
+from common import ROOT, Area, HarnessError, reference, use_reference, vectors
 
 use_reference("codex32", "shims")
 use_reference("codex32")
@@ -52,6 +63,67 @@ ORDER = sorted(c for c in CHARSET if c.isalpha() and c != "s") + sorted(c for c 
 LENGTHS = [48, 54, 61, 67, 74, 127]
 FRESH = {48: 26, 74: 52, 127: 103}
 GLYPHS = "×ℵαβΓΔεηΘΛμΞΠρΣΦΨΩ@#%¢¥€¤⊕†‡§¶♦♥"
+SHEET_CHARS = (48, 74)
+
+
+class Program:
+    """One of the outside programs `tools/crosscheck/run.sh` builds: a
+    request a line in, `ok <answer>` or `err <why>` a line out."""
+
+    def __init__(self, env, name, source):
+        path = os.environ.get(env) or str(ROOT / "out/crosscheck" / name)
+        if not os.access(path, os.X_OK):
+            raise HarnessError(
+                f"the codex32 area needs {source}'s answer program, {path}, which "
+                "tools/crosscheck/run.sh builds with cargo, offline (docs/DEVELOPING.md)")
+        self.proc = subprocess.Popen([path] + (["--serve"] if name == "volvelle-ref" else []),
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+                                     bufsize=1)
+
+    def call(self, *words):
+        """The answer after `ok`; a refusal raises ValueError."""
+        self.proc.stdin.write(" ".join(words) + "\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        if not line:
+            raise HarnessError(f"{words[0]}: the answer program exited")
+        kind, _, rest = line.rstrip("\n").partition(" ")
+        if kind == "ok":
+            return rest
+        raise ValueError(rest)
+
+    def close(self):
+        self.proc.stdin.close()
+        self.proc.wait()
+
+
+def both(rust_fn, py_fn, what):
+    """The answer rust-codex32 and python-codex32 both give; they must
+    agree, a refusal included."""
+    r, p = reference(rust_fn), reference(py_fn)
+    if r[0] != p[0] or (r[0] == "ok" and r[1] != p[1]):
+        raise AssertionError(f"{what}: the judges differ: rust-codex32 {r}, python-codex32 {p}")
+    if r[0] == "err":
+        raise ValueError(r[1])
+    return r[1]
+
+
+def rust_led(rust_fn, py_fn, what):
+    """rust-codex32 decides what python-codex32 leaves to its caller: its
+    refusal stands, and where it answers python-codex32 must answer the same."""
+    r = rust_fn()
+    p = py_fn()
+    if r != p:
+        raise AssertionError(f"{what}: the judges differ: rust-codex32 {r}, python-codex32 {p}")
+    return r
+
+
+def holds_only(answer):
+    """A sheet whose checksum is not the one volvelle's sheet works is told
+    by that alone: the sheet cannot be typed with it."""
+    if answer[0] == "ok" and not answer[1]["holds"]:
+        return ("ok", {"holds": False})
+    return answer
 
 
 def u5(text):
@@ -72,7 +144,7 @@ def spec_for(chars):
 
 
 def ref_worksheet(s):
-    if len(s) not in LENGTHS or not s.lower().startswith("ms1"):
+    if len(s) not in LENGTHS or len(s) in SHEET_CHARS or not s.lower().startswith("ms1"):
         raise ValueError("not a codex32 length")
     data = u5(s[3:])
     spec = spec_for(len(s))
@@ -89,20 +161,25 @@ def ref_worksheet(s):
             "widths": widths, "holds": spec.polymod(hrp + data) == spec.const}
 
 
-def ref_make(prefix, chars):
+def ref_make(rs, prefix, chars):
     if chars not in LENGTHS or not prefix.lower().startswith("ms1"):
         raise ValueError("not a codex32 length")
     spec = spec_for(chars)
     data = u5(prefix[3:])
     if len(data) + 3 + spec.cs_len != chars:
         raise ValueError("the boxes before the checksum")
-    checksum = spec.create(bech32_hrp_expand("ms") + data)
-    return {"string": "ms1" + u5_to_chars(data + checksum), "holds": True}
+
+    def py():
+        checksum = spec.create(bech32_hrp_expand("ms") + data)
+        return {"string": "ms1" + u5_to_chars(data + checksum), "holds": True}
+
+    def rust():
+        return {"string": rs.call("make", prefix.lower()).lower(), "holds": True}
+
+    return both(rust, py, "make")
 
 
-def ref_fresh(k, n, ident, chars, data):
-    if k not in (0, 2, 3, 4, 5, 6, 7, 8, 9):
-        raise ValueError("BIP 93: the threshold is 0 or 2 to 9")
+def ref_fresh(rs, k, n, ident, chars, data):
     if (k == 0 and n != 1) or (k and not k <= n <= 31):
         raise ValueError("one string alone, or k to 31")
     if len(ident) != 4 or any(c not in CHARSET for c in ident.lower()):
@@ -112,13 +189,23 @@ def ref_fresh(k, n, ident, chars, data):
     initial = ["s"] if k == 0 else ORDER[:k]
     if len(data) != len(initial) or any(len(d) != FRESH[chars] for d in data):
         raise ValueError("one payload per initial share")
-    made = [Codex32String.from_unchecksummed_string(f"ms1{k}{ident.lower()}{i}{d.lower()}")
-            for i, d in zip(initial, data)]
-    if k == 0:
-        return {"strings": [made[0].s.lower()], "secret": made[0].s.lower()}
-    derived = [Codex32String.interpolate_at(made, i) for i in ORDER[k:n]]
-    return {"strings": [m.s.lower() for m in made + derived],
-            "secret": Codex32String.interpolate_at(made, "s").s.lower()}
+    unmade = [f"ms1{k}{ident.lower()}{i}{d.lower()}" for i, d in zip(initial, data)]
+    targets = "".join(ORDER[k:n]) if k else ""
+
+    def rust():
+        """rust-codex32 decides the threshold and threshold 0's index."""
+        made, derived, secret = rs.call("fresh", targets or "-", *unmade).split(" | ")
+        return {"strings": (made + " " + derived).split(), "secret": secret.lower()}
+
+    def python():
+        made = [Codex32String.from_unchecksummed_string(u) for u in unmade]
+        if k == 0:
+            return {"strings": [made[0].s.lower()], "secret": made[0].s.lower()}
+        derived = [Codex32String.interpolate_at(made, i) for i in ORDER[k:n]]
+        return {"strings": [m.s.lower() for m in made + derived],
+                "secret": Codex32String.interpolate_at(made, "s").s.lower()}
+
+    return rust_led(rust, python, "fresh")
 
 
 def ref_symbols(indices, target):
@@ -156,12 +243,29 @@ def describe(c):
             "index": c.share_idx.lower(), "seed": c.data.hex() if c.share_idx.lower() == "s" else None}
 
 
-def ref_from_seed(k, ident, seed):
-    if k not in (0, 2, 3, 4, 5, 6, 7, 8, 9):
-        raise ValueError("BIP 93: the threshold is 0 or 2 to 9")
+def describe_rust(rs, s):
+    """rust-codex32's reading of a string, with the master seed's sizes."""
+    if s[:3].lower() != "ms1":
+        raise ValueError("BIP 93: the human-readable part is ms")
+    threshold, ident, index, data = rs.call("parse", s).split(" ")
+    if len(data) // 2 not in SEED_BYTES:
+        raise ValueError("BIP 93: the master seed is 128 to 256 bits in steps of 32, or 512")
+    return {"string": s.lower(), "threshold": int(threshold), "identifier": ident, "index": index,
+            "seed": data if index == "s" else None}
+
+
+def ref_from_seed(rs, k, ident, seed):
     if len(seed) not in SEED_BYTES:
         raise ValueError("BIP 93: seed size")
-    return describe(Codex32String(encode("ms", f"{k}{ident}s", seed, pad_val=0)))
+
+    def rust():
+        """rust-codex32 decides the threshold."""
+        return describe_rust(rs, rs.call("from_seed", str(k), ident, seed.hex()))
+
+    def python():
+        return describe(Codex32String(encode("ms", f"{k}{ident}s", seed, pad_val=0)))
+
+    return rust_led(rust, python, "from_seed")
 
 
 def ref_split(secret, k, n, fresh):
@@ -189,16 +293,21 @@ class Codex32(Area):
         '`faraday_bip::codex32`'
     )
     reference = (
-        "python-codex32 (`codex32/`); the worksheet's rows written in the area from its "
-        'polymod'
+        "python-codex32 (`codex32/`); rust-codex32 at a pinned commit (`rust-codex32/`), "
+        "a program outside the workspace: parsing, checksums, the threshold and a "
+        "threshold of 0's share index, `interpolate_at` for a fresh set's shares; "
+        "volvelle-website's checksum worksheet run as a program over every worksheet of "
+        "48 and 74 characters; the worksheet of 127 characters written in the area from "
+        'python-codex32\'s polymod'
     )
     reference_checked = (
-        'its vendored files are hashed against `references.sha256` before any run, and '
-        "a published vector's answer is required of the reference as well as of "
-        'Faraday; three rules BIP 93 states that the reference does not enforce (a new '
-        "secret's threshold, the master seed's sizes, the order shares are handed out) "
-        "are written in the area from the BIP's text, and the worksheet's rows from BIP "
-        "93's polymod alone"
+        'its vendored files are hashed against `references.sha256` before any run (the '
+        "Rust programs' sources included, built offline by `run.sh` with the toolchain "
+        "on the PATH), and a published vector's answer is required of the reference as "
+        'well as of Faraday; rust-codex32 and python-codex32 must give the same answer '
+        "where both are asked; two rules BIP 93 states that neither enforces (the master "
+        "seed's sizes, the order shares are handed out) are written in the area from the "
+        "BIP's text, and the worksheet of 127 characters from BIP 93's polymod alone"
     )
     vectors = (
         'every vector of `tools/vectors/bip93/`, the 55 invalid strings included; '
@@ -221,20 +330,47 @@ class Codex32(Area):
             'reference also takes more strings or a used index.'
         ),
         (
-            'The codex32 threshold and seed sizes, which the reference leaves to its '
-            "caller, are written in the area from the BIP's own sentences."
+            "The codex32 seed sizes, which the references leave to their caller, are "
+            "written in the area from the BIP's own sentence. Volvelle's sheet works the "
+            "checksum itself, so a string of 48 or 74 characters whose checksum is not "
+            "the one the sheet works is judged by that alone (`holds` false), not by its "
+            "rows."
         ),
     ]
     not_compared = (
         'none'
     )
 
+    rust_proc = None
+    sheet_proc = None
+
+    def rust_ref(self):
+        """rust-codex32's answers, built by `tools/crosscheck/run.sh`."""
+        if self.rust_proc is None:
+            self.rust_proc = Program("FARADAY_RUST_CODEX32_REF", "rust-codex32-ref", "rust-codex32")
+        return self.rust_proc
+
+    def sheet_ref(self):
+        """volvelle's worksheet as a program, built by `tools/crosscheck/run.sh`."""
+        if self.sheet_proc is None:
+            self.sheet_proc = Program("FARADAY_VOLVELLE_REF", "volvelle-ref", "volvelle-website's worksheet")
+        return self.sheet_proc
+
+    def close(self):
+        for proc in (self.rust_proc, self.sheet_proc):
+            if proc is not None:
+                proc.close()
+        super().close()
+
     def parse(self, s, expected=None):
-        return self.compare("codex32.parse", {"string": s}, lambda: describe(Codex32String.from_string("ms", s)), expected)
+        return self.compare("codex32.parse", {"string": s},
+                            lambda: both(lambda: describe_rust(self.rust_ref(), s),
+                                         lambda: describe(Codex32String.from_string("ms", s)), "parse"),
+                            expected)
 
     def from_seed(self, k, ident, seed):
         return self.compare("codex32.from_seed", {"threshold": k, "identifier": ident, "seed": seed.hex()},
-                            lambda: ref_from_seed(k, ident, seed))
+                            lambda: ref_from_seed(self.rust_ref(), k, ident, seed))
 
     def recover(self, shares, expected=None):
         def ref():
@@ -257,17 +393,32 @@ class Codex32(Area):
                                               "fresh": fresh.hex()},
                             lambda: ref_split(secret, k, n, fresh))
 
+    def volvelle_worksheet(self, s):
+        """The rows of volvelle's sheet typed with the string, as the
+        worksheet answer says them."""
+        if not s.lower().startswith("ms1"):
+            raise ValueError("not a codex32 length")
+        holds, rows = self.sheet_ref().call(s).split(" ")
+        rows = rows.lower().split(",")
+        steps = (len(rows) - 3) // 2
+        return {"hrp": rows[1], "sums": [rows[2 + 2 * j][:13] for j in range(steps)] + [rows[-1]],
+                "lookups": [rows[3 + 2 * j] for j in range(steps)], "widths": [2] * steps,
+                "holds": holds == "1"}
+
     def worksheet(self, s, expected=None):
+        if len(s) in SHEET_CHARS:
+            return self.compare("codex32.worksheet", {"string": s}, lambda: self.volvelle_worksheet(s),
+                                expected, normalize=holds_only)
         return self.compare("codex32.worksheet", {"string": s}, lambda: ref_worksheet(s), expected)
 
     def make(self, prefix, chars):
         return self.compare("codex32.make_checksum", {"prefix": prefix, "chars": chars},
-                            lambda: ref_make(prefix, chars))
+                            lambda: ref_make(self.rust_ref(), prefix, chars))
 
     def fresh(self, k, n, ident, chars, data, expected=None):
         return self.compare("codex32.fresh", {"threshold": k, "shares": n, "identifier": ident,
                                               "chars": chars, "data": data},
-                            lambda: ref_fresh(k, n, ident, chars, data), expected)
+                            lambda: ref_fresh(self.rust_ref(), k, n, ident, chars, data), expected)
 
     def symbols(self, indices, target):
         return self.compare("codex32.symbols", {"indices": indices, "target": target},

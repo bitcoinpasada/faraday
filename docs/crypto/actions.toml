@@ -1485,7 +1485,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::explore::each_reason_gives_only_its_own_secret",
 ]
 crosscheck = "codex32"
-independence = { class = "outside-and-own", author = "python-codex32, by Ben Westgate", ours = "three rules BIP 93 states that python-codex32 does not enforce (a threshold of 0 or 2 to 9, the seed's lengths, the order shares are handed out), written in `area_codex32.py` from the BIP's text" }
+independence = { class = "outside-and-own", author = "python-codex32, by Ben Westgate, and rust-codex32, by Andrew Poelstra (which decides the threshold of 0 or 2 to 9 and a threshold of 0's share index)", ours = "two rules BIP 93 states that neither enforces (the seed's lengths, the order shares are handed out), written in `area_codex32.py` from the BIP's text" }
 fuzz_none = "Takes a held key and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -5756,7 +5756,7 @@ tests = [
   "faraday/faraday-keys/tests/codex32.rs::set::strings_typed_back_rebuild_their_key_and_no_other",
 ]
 crosscheck = "codex32"
-independence = { class = "outside-and-own", author = "python-codex32, by Ben Westgate", ours = "three rules BIP 93 states that python-codex32 does not enforce (a threshold of 0 or 2 to 9, the seed's lengths, the order shares are handed out), written in `area_codex32.py` from the BIP's text" }
+independence = { class = "outside-and-own", author = "python-codex32, by Ben Westgate, and rust-codex32, by Andrew Poelstra (which decides the threshold of 0 or 2 to 9 and a threshold of 0's share index)", ours = "two rules BIP 93 states that neither enforces (the seed's lengths, the order shares are handed out), written in `area_codex32.py` from the BIP's text" }
 fuzz = ["seed_parts"]
 
 [action.secrets]
@@ -5844,7 +5844,7 @@ tests = [
   "faraday/faraday-keys/tests/codex32.rs::the_derived_share_is_made_by_its_translation_worksheet",
 ]
 crosscheck = "codex32"
-independence = { class = "outside-and-own", author = "python-codex32, by Ben Westgate", ours = "the worksheets' rows, written in `area_codex32.py` from python-codex32's polymod" }
+independence = { class = "outside-and-own", author = "volvelle-website's checksum worksheet, by Andrew Poelstra (the worksheets of 48 and 74 characters), and rust-codex32, by Andrew Poelstra (a fresh set's derived shares), beside python-codex32, by Ben Westgate", ours = "the worksheet of 127 characters, which volvelle does not lay out, written in `area_codex32.py` from python-codex32's polymod" }
 fuzz_none = "The characters are typed one at a time into worksheets that refuse a symbol outside the alphabet and a length that is not codex32's."
 
 [action.secrets]

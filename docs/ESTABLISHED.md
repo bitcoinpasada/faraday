@@ -2062,7 +2062,7 @@ they were not, the batch checks them first.
 | X2 | `gnutls-bin` (`certtool`), `pesign` (`pesigcheck`), `python3-pefile` | two real signed EFI binaries, each under 2 MiB (`tools/reference/signed-efi/`: Ubuntu's shim-signed 1.59+15.8-0ubuntu2, with its source, licence and SHA-256) |
 | X6 | `python3-pil` (Pillow) | none |
 | X7 | `python3-cryptography` 44 or later, over OpenSSL 3.2 or later (not checked on the build machine) | none |
-| X10 | none | rust-codex32 at a commit (licence and `Cargo.toml` not checked), built offline outside the workspace |
+| X10 | none | rust-codex32 at commit `3943cb52b2343333386fac0cd38b8ae5a4d6de02` (CC0 1.0; its `Cargo.toml` has no dependency), built offline outside the workspace; volvelle's worksheet program is in `tools/vectors/codex32-volvelle/` already (CC0 1.0) |
 | X11 | none | the bip39_slip39 wheel, 2026.10.24, beside btclib's |
 | X12 | `python3-cbor2` | none |
 | X14 | none | a released btcd's modules (`btcutil`, `txscript`, `btcec` and what they name; the root daemon module is not used), `go mod vendor`, in a folder of their own; built |

@@ -23,7 +23,7 @@ Fetched with `git clone` on 2026-10-23.
 | `volvelle/LICENSE` | `7179683e8000e6bdc9bbc60d85edf0a4ac8e76f951857f54fcb775d5886f1309` |
 | `strings.py` (written here) | `9dba7948cc7b95a856e1d6d10c87503f436b26950cdcb61a980cfa6a29d3c80c` |
 | `strings.txt` | `5f875096d358d9e05e37c3adb0e25e97eeec339c8ea6cb0c30b63628cd329edd` |
-| `harness/src/main.rs` (written here) | `fbda109ee57239a7cc02032b1a4369c38924400a2212f410eee76d32c938eb4c` |
+| `harness/src/main.rs` (written here) | `0fa033ef0bdba70b304fe8a5ae5b605ce1e78c4af5d4f08b407e439673365179` |
 | `cells.json` | `a506d194102a35f70cd489a148699475dddf5f2970337c4c83b2f45c02a264e1` |
 
 How `cells.json` was made, once, offline:
@@ -44,6 +44,15 @@ as a person generating a checksum would, through the worksheet's own
 `handle_input_change`, lets the sheet work the checksum boxes from its
 fixed bottom row, reads every cell back with `cells_into_str`, and stops
 unless the sheet's checksum is the string's own (it was, for all 42).
+
+With `--serve` the same program is the cross-check's judge: the
+`codex32` area (`tools/crosscheck/area_codex32.py`) starts it, built by
+`tools/crosscheck/run.sh` into `out/crosscheck/volvelle-ref`, and sends it
+every worksheet of 48 and 74 characters it checks, a string a line. It
+types the string's data into a blank sheet as above and answers `ok`, 1
+if the checksum the sheet worked is the string's own and 0 if not, and
+the rows; or `err` for a string the sheet cannot be typed with. Its
+files are in `tools/crosscheck/references.sha256`.
 
 `cells.json` holds one entry a string: `string`, and `rows`, volvelle's
 rows in order, each a string of its cells in upper case: the first row

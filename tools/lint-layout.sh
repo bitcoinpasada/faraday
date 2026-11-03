@@ -172,7 +172,8 @@ for path in sizes:
 members = subprocess.run(["git", "ls-files", "-z", "*Cargo.toml"], check=True,
                          capture_output=True, text=True).stdout.split("\0")
 for manifest in sorted(m for m in members if m and m != "Cargo.toml"):
-    if manifest.startswith(("fuzz/", "faraday/fuzz/", "third_party/")):
+    # Others' code, copied unchanged (tools/reference/*/README.md), is not ours to edit.
+    if manifest.startswith(("fuzz/", "faraday/fuzz/", "third_party/", "tools/reference/")):
         continue
     text = open(manifest, encoding="utf-8").read()
     if "[package]" not in text:

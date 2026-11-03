@@ -1,0 +1,18 @@
+# rust-codex32's answers as a program for the cross-check
+# (tools/crosscheck/area_codex32.py). Not a member of the repository's
+# workspace and never shipped; its one dependency is the vendored copy
+# of rust-codex32 beside it (README.md), which has none of its own.
+[package]
+name = "rust-codex32-answers"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+codex32 = { path = "codex32" }
+
+# As every crate in the repository (tools/lint-layout.sh).
+[lints.clippy]
+too_many_lines = "warn"

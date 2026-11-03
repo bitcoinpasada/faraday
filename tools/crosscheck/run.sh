@@ -125,6 +125,24 @@ for line in sys.stdin:
     export FARADAY_SOFT_RUST="$soft_exe" FARADAY_LND_SOFT_REF="$PWD/$progress/lnd-ref-soft"
 fi
 
+# The Rust answer programs of the codex32 area, built offline from the
+# vendored crates of their own (outside the workspace, never shipped):
+# rust-codex32's over tools/reference/rust-codex32/ and volvelle-website's
+# checksum worksheet over tools/vectors/codex32-volvelle/harness/.
+for prog in "rust-codex32-ref tools/reference/rust-codex32 rust-codex32-answers" \
+        "volvelle-ref tools/vectors/codex32-volvelle/harness volvelle-cells"; do
+    read -r name dir bin <<<"$prog"
+    say "build: $name (cargo build --frozen --manifest-path $dir/Cargo.toml)"
+    if ! CARGO_TARGET_DIR="$PWD/$progress/rust-target-$name" cargo build --frozen -q \
+            --manifest-path "$dir/Cargo.toml" 2>"$progress/cargo-$name.log"; then
+        cat "$progress/cargo-$name.log" >&2
+        say "build: FAILED: $name did not build"
+        exit 2
+    fi
+    cp "$progress/rust-target-$name/debug/$bin" "$progress/$name"
+    say "build: $name done"
+done
+
 # The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
 # rule 4): the tests that skip without an outside tool under plain `just`
 # fail without it here, and QEMU boots OVMF's Secure Boot firmware over

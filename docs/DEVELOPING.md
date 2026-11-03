@@ -13,7 +13,11 @@ nothing else.
 
 - **Rust**, the version in `rust-toolchain.toml` (rustup installs it on
   the first `cargo` command), and a C compiler: `secp256k1-sys` builds
-  libsecp256k1 from source.
+  libsecp256k1 from source. The cross-check's `codex32` area also builds
+  two small Rust programs of their own, outside the workspace, from the
+  vendored `tools/reference/rust-codex32/` (rust-codex32) and
+  `tools/vectors/codex32-volvelle/harness/` (volvelle's worksheet), offline
+  with `cargo build --frozen`: the toolchain above is all they need.
 - **just** (the task runner) and, for the check, `cargo install --locked
   cargo-nextest cargo-deny cargo-vet`, and the two Mac targets, `rustup
   target add aarch64-apple-darwin x86_64-apple-darwin`
