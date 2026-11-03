@@ -19,6 +19,10 @@ crate = "core/faraday-selftest"
 reason = "The start-up self-test checks the app's own functions against fixed published answers (BIP 39, BIP 32, ECDSA, Schnorr, scrypt, Argon2id); the functions it calls are cross-checked in the bip39, bip32, sign and vault areas."
 
 [[uncovered]]
+crate = "faraday/faraday-strings"
+reason = "Writes the bytes of a refused key's version or pad as hex in an error message with faraday-crypto's hex; computes nothing cryptographic."
+
+[[uncovered]]
 crate = "faraday/faraday-disk"
 reason = "Takes the compute token for its file reads; computes nothing cryptographic."
 

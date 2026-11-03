@@ -345,3 +345,18 @@ excuse = "a binary crate's module tied to its Wake channel, keyboard, pointer an
 file = "core/faraday-psbt/src/transaction.rs"
 fn = "decode"
 target = "fuzz/fuzz_targets/transaction.rs"
+
+[[parser]]
+file = "core/faraday-crypto/src/hex.rs"
+fn = "decode_exact"
+target = "fuzz/fuzz_targets/hex_decode.rs"
+
+[[parser]]
+file = "core/faraday-crypto/src/hex.rs"
+fn = "decode_into"
+target = "fuzz/fuzz_targets/hex_decode.rs"
+
+[[parser]]
+file = "core/faraday-crypto/src/hex.rs"
+fn = "decode_vec"
+target = "fuzz/fuzz_targets/hex_decode.rs"
