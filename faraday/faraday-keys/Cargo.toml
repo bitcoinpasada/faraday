@@ -14,6 +14,7 @@ faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-pgp = { path = "../faraday-pgp" }
+subtle.workspace = true
 faraday-sb = { path = "../faraday-sb" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-backup = { path = "../../core/faraday-backup" }

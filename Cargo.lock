@@ -797,6 +797,7 @@ dependencies = [
  "miniscript",
  "serde",
  "serde_json",
+ "subtle",
  "unicode-normalization",
  "zeroize",
 ]
@@ -999,6 +1000,7 @@ dependencies = [
  "faraday-strings",
  "faraday-vault",
  "serde_json",
+ "subtle",
  "zeroize",
 ]
 

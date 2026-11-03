@@ -304,7 +304,7 @@ fn keys_added_from_words_come_back_with_their_fingerprint_and_word_count() {
     assert!(!keys.passphrase_matches(0, ""));
     assert!(keys.add_words(&c, ABANDON, "", None).is_err());
     // The two share their words.
-    assert_eq!(keys.with_same_words(0), vec![0, 1]);
+    assert_eq!(keys.with_same_words(&c, 0), vec![0, 1]);
     assert!(keys.same_words(&c, 0, 1));
     // The key a passphrase would make is told before it is added.
     assert_eq!(keys.fingerprint_with(&c, 0, "TREZOR"), Some(other));

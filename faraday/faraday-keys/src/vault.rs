@@ -967,14 +967,14 @@ impl OpenVaults {
     pub fn stores_passphrase_of(&self, r: RecordView<'_>, keys: &Keys, k: usize) -> bool {
         r.raw()
             .text(field::KEY_PASSPHRASE)
-            .is_some_and(|p| keys.passphrase_is(k, p))
+            .is_some_and(|p| keys.passphrase_matches(k, p))
     }
 
     /// Whether passphrase record `r` (type 14) holds the passphrase of
     /// session key `k`; a record with none holds that of a key with none.
     pub fn passphrase_record_is(&self, r: RecordView<'_>, keys: &Keys, k: usize) -> bool {
         match r.raw().text(field::PASSPHRASE) {
-            Some(t) => keys.passphrase_is(k, t),
+            Some(t) => keys.passphrase_matches(k, t),
             None => keys.info(k).is_some_and(|key| !key.has_passphrase),
         }
     }

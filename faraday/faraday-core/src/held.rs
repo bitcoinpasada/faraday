@@ -322,7 +322,7 @@ impl Faraday {
             let same: Vec<Fingerprint> = self
                 .session
                 .keys
-                .with_same_words(k)
+                .with_same_words(&c, k)
                 .into_iter()
                 .map(|o| self.session.keys[o].fingerprint)
                 .collect();

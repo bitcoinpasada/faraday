@@ -36,6 +36,7 @@
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
 
+use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 use crate::wordlists::slip39 as wordlist;
@@ -407,7 +408,7 @@ fn recover_secret(threshold: u8, points: &Points) -> Result<SecretBytes, Error> 
     let shared = points.at(SECRET_INDEX);
     let digest_share = points.at(DIGEST_INDEX);
     let (digest, random_part) = digest_share.as_bytes().split_at(DIGEST_LENGTH);
-    if digest_of(random_part, shared.as_bytes()) != digest {
+    if !bool::from(digest_of(random_part, shared.as_bytes()).ct_eq(digest)) {
         return Err(Error::BadDigest);
     }
     Ok(shared)

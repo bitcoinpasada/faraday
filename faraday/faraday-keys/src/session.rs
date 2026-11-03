@@ -24,6 +24,7 @@ use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::keys::{Fingerprint, MasterKey, Network, WifAscii, XprivAscii};
 use faraday_crypto::work::Compute;
 use faraday_intake::wallet::Refusal;
+use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 use crate::identity::{fp_text, master_id};
@@ -993,30 +994,22 @@ impl Keys {
         }
     }
 
-    /// The places of the keys that have the words key `i` has, `i`
-    /// included: the same words with and without a passphrase.
-    pub fn with_same_words(&self, i: usize) -> Vec<usize> {
-        let Some(words) = self.entries.get(i).and_then(|e| e.key.words.as_ref()) else {
+    /// Costs a parse of the words the first time for each key. The places
+    /// of the keys that have the words key `i` has, `i` included: the same
+    /// words with and without a passphrase.
+    pub fn with_same_words(&self, c: &Compute, i: usize) -> Vec<usize> {
+        if self.words_id(c, i).is_none() {
             return Vec::new();
-        };
-        self.entries
-            .iter()
-            .enumerate()
-            .filter(|(_, o)| o.key.words.as_ref() == Some(words))
-            .map(|(k, _)| k)
+        }
+        (0..self.entries.len())
+            .filter(|&k| self.same_words(c, i, k))
             .collect()
     }
 
-    /// Whether key `i`'s passphrase is exactly `text`.
-    pub fn passphrase_is(&self, i: usize, text: &str) -> bool {
-        self.entries
-            .get(i)
-            .and_then(|e| e.key.passphrase.as_ref())
-            .is_some_and(|p| p.as_str() == text)
-    }
-
     /// Whether key `i`'s passphrase is exactly `typed`, compared whole and
-    /// in constant time. A key that keeps no passphrase matches nothing.
+    /// in constant time, as subtle's slice comparison is: a passphrase of
+    /// another length is refused at once, so the length is not kept secret.
+    /// A key that keeps no passphrase matches nothing.
     pub fn passphrase_matches(&self, i: usize, typed: &str) -> bool {
         self.entries
             .get(i)
@@ -1053,7 +1046,7 @@ impl Keys {
         }
         let m = Mnemonic::parse(c, e.info.language, e.key.words.as_deref()?).ok()?;
         let digits = faraday_codec::seedqr::to_digits(&m);
-        Some(digits.expose().as_bytes() == payload)
+        Some(bool::from(digits.expose().as_bytes().ct_eq(payload)))
     }
 
     /// Costs a parse of the words and a QR encoding. Key `i`'s SeedQR as a

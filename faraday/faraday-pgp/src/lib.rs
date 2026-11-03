@@ -605,9 +605,8 @@ pub fn crc24(data: &[u8]) -> u32 {
         crc ^= u32::from(b) << 16;
         for _ in 0..8 {
             crc <<= 1;
-            if crc & 0x100_0000 != 0 {
-                crc ^= 0x186_4CFB;
-            }
+            // Masked, not branched on: the data is secret key material.
+            crc ^= 0x186_4CFB & 0u32.wrapping_sub((crc >> 24) & 1);
         }
     }
     crc & 0xFF_FFFF

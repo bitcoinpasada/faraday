@@ -6021,7 +6021,7 @@ fuzz = ["seed_parts"]
 
 [action.secrets]
 reveal = ["Reveal::PaperForm"]
-constant_time = "The GF(256) arithmetic of the shares and the RS1024 checksum are written without a table indexed by a share's bytes or a branch on them, as the code documents; the code states no other timing."
+constant_time = "The GF(256) arithmetic of the shares and the RS1024 checksum are written without a table indexed by a share's bytes or a branch on them, as the code documents; the digest is compared in constant time (subtle's ConstantTimeEq); the code states no other timing."
 wiped = "The master secret is a Secret; the share values and points wipe on drop."
 
 [action.limits]
@@ -7785,7 +7785,7 @@ other = [
 
 [action.secrets]
 reveal = ["Reveal::GpgPaperkey"]
-constant_time = "Not applicable: no secret-dependent comparison is made."
+constant_time = "The armour's and paperkey's CRC-24 runs without a branch on the data; the code states no other timing."
 wiped = "The paperkey text, the secret key packets and the seeds are Zeroizing values wiped on drop; the paperkey is computed only while it is held to show. Copies other crates make while encoding are freed unwiped, until the next lock (ESTABLISHED §4.8)."
 
 [action.limits]
