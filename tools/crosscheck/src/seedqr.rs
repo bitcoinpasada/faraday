@@ -63,9 +63,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "pictures" => {
             let m = Mnemonic::from_entropy(language(req)?, &bytes(req, "entropy")).map_err(err)?;
             let lines = [format!("{} words secret", m.word_count())];
-            let draw = |mx: &QrMatrix| {
-                hex(&faraday_core::picture::labelled_png(&c, mx, "Seed", &lines))
-            };
+            let draw =
+                |mx: &QrMatrix| hex(&faraday_core::picture::labelled_png(&c, mx, "Seed", &lines));
             Ok(json!({
                 "seedqr": draw(&seedqr::encode_seedqr(&c, &m).map_err(err)?),
                 "compact_qr": draw(&seedqr::encode_compact(&c, &m).map_err(err)?),
