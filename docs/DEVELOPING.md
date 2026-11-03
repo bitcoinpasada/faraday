@@ -261,7 +261,9 @@ Never use it for keys that matter.
   tried: too little memory free" where it did not fit), a key made, a
   transaction signed, a camera frame read for a QR code, a file written
   to a stick or the card, and the rest of what the core counts
-  (`faraday/image/README.md`, "The dev variant").
+  (`faraday/image/README.md`, "The dev variant"). The file holds every
+  run since boot, in order, each under a `run N` line: a lock ends the
+  app and the next one carries on in the same file.
 
 The release image writes neither file: its app is started without
 those flags, its kernel log stays closed to the app, and

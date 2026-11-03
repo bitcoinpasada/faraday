@@ -227,7 +227,11 @@ what its loop and its costly work cost and what the board reports.
 `--timings` writes `faraday-timings.txt` onto the data partition,
 through the disk process since the image mounts nothing: the whole file
 every 30 seconds and once at exit, which a pulled stick may miss, so wait
-half a minute after the last thing to measure. It holds one block for
+half a minute after the last thing to measure. It holds every run
+since boot, in order, each under a `run N` line (a lock ends the app and
+init starts the next, which carries the earlier runs in
+`/run/faraday/timings-carry` and so numbers its own; past 1 MiB the
+oldest runs go, under a line saying so), and in each run one block for
 every five seconds of the shell's clock, and one more at exit,
 each holding the passes and touches of the interval and, per bucket, a
 count, a mean and a worst in milliseconds. The buckets are `touch` (one

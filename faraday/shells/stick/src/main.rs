@@ -1152,6 +1152,10 @@ impl Shell {
             },
             None => self.files.append_timings(&block).map(drop),
         };
+        if last && let Some(t) = self.timings.as_ref() {
+            // The next process after a lock carries on from here.
+            t.save(Path::new(BOXES));
+        }
         if let Err(reason) = wrote
             && self.timings.take().is_some()
         {
@@ -1809,9 +1813,11 @@ fn run(args: Args) -> Result<Exit, String> {
         boot_report: args.boot_report.then(|| {
             bootreport::Report::new(bootreport::inventory(geometry, dpi, setup, &devices))
         }),
-        timings: args
-            .timings
-            .then(|| Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height)),
+        timings: args.timings.then(|| {
+            let mut t = Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height);
+            t.resume(Path::new(BOXES));
+            t
+        }),
         watch,
         tx,
         touch_panel,

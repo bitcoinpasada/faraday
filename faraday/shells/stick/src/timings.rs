@@ -15,6 +15,7 @@
 //! a long session is a short file: the card is slow to write and nothing
 //! here is worth a row per pass.
 
+use std::path::Path;
 use std::time::Duration;
 
 use faraday_core::FadeCounts;
@@ -49,6 +50,18 @@ pub enum Bucket {
 }
 
 /// Where the kernel says how the first CPU's clock is driven.
+/// The file in the shell's run directory that carries the runs of this
+/// boot across a lock: the number of the last run on its first line, then
+/// every block so far. It exists only with `--timings`.
+pub const CARRY: &str = "timings-carry";
+
+/// The most the file keeps; past it the oldest runs go, or, when only one
+/// run is left, its oldest blocks.
+pub const MAX_KEPT: usize = 1 << 20;
+
+/// The line that says the oldest runs were dropped.
+const DROPPED: &str = "dropped: the oldest runs, to keep the file under 1 MiB";
+
 const CPUFREQ: &str = "/sys/devices/system/cpu/cpu0/cpufreq";
 
 /// One of the first CPU's clock files, trimmed; `-` when there is none
@@ -119,6 +132,8 @@ pub struct Timings {
     kept: String,
     /// The shell's clock when the whole file was last written.
     wrote: Option<Duration>,
+    /// This process's run number since boot, from 1.
+    run: u32,
 }
 
 impl Timings {
@@ -148,7 +163,38 @@ impl Timings {
             headed: false,
             kept: String::new(),
             wrote: None,
+            run: 1,
         }
+    }
+
+    /// Takes up the runs before this one from the carry file in `dir` and
+    /// numbers this run after them. A file that is missing, cannot be
+    /// read or does not parse leaves this run the first. Costs a file
+    /// read.
+    pub fn resume(&mut self, dir: &Path) {
+        let Ok(text) = std::fs::read_to_string(dir.join(CARRY)) else {
+            return;
+        };
+        let (first, rest) = text.split_once('\n').unwrap_or((&text, ""));
+        let Some(run) = first
+            .trim()
+            .parse::<u32>()
+            .ok()
+            .and_then(|n| n.checked_add(1))
+        else {
+            return;
+        };
+        self.run = run;
+        self.kept = rest.to_string();
+        trim(&mut self.kept);
+    }
+
+    /// Writes what the next process carries on: this run's number and the
+    /// blocks so far. Costs a file write; a file that cannot be written
+    /// leaves the next process on run 1.
+    pub fn save(&self, dir: &Path) {
+        let _ = std::fs::create_dir_all(dir);
+        let _ = std::fs::write(dir.join(CARRY), format!("{}\n{}", self.run, self.kept));
     }
 
     /// Keeps `block` with the ones before it, and gives every block so
@@ -156,6 +202,7 @@ impl Timings {
     /// exit, whenever it is).
     pub fn keep(&mut self, block: &str, elapsed: Duration, last: bool) -> Option<&str> {
         self.kept.push_str(block);
+        trim(&mut self.kept);
         let due = last || self.wrote.is_none_or(|w| elapsed >= w + WRITE_EVERY);
         if !due {
             return None;
@@ -263,6 +310,7 @@ impl Timings {
         let mut out = String::new();
         if !self.headed {
             self.headed = true;
+            out.push_str(&format!("run {}\n", self.run));
             out.push_str(&self.header);
             out.push('\n');
         }
@@ -335,6 +383,51 @@ impl Timings {
 }
 
 /// A duration in milliseconds, for one column of the block.
+/// Whether a line opens a run (`run 2`) or a block (`    5s passes ...`).
+fn opens(line: &str, runs: bool) -> bool {
+    if runs {
+        return line.starts_with("run ");
+    }
+    let t = line.trim_start();
+    let digits = t.bytes().take_while(u8::is_ascii_digit).count();
+    digits > 0 && t[digits..].starts_with("s passes ")
+}
+
+/// Drops the oldest runs from `kept` until it fits [`MAX_KEPT`], leaving
+/// the newest, and a line saying so. When one run is left, its oldest
+/// blocks go instead.
+fn trim(kept: &mut String) {
+    if kept.len() <= MAX_KEPT {
+        return;
+    }
+    if kept.starts_with(DROPPED) {
+        kept.drain(..(DROPPED.len() + 1).min(kept.len()));
+    }
+    while kept.len() + DROPPED.len() + 1 > MAX_KEPT {
+        let starts = |runs: bool| {
+            let mut at = 0;
+            let mut found = Vec::new();
+            for line in kept.split_inclusive('\n') {
+                if at > 0 && opens(line, runs) {
+                    found.push(at);
+                }
+                at += line.len();
+            }
+            found
+        };
+        let mut cuts = starts(true);
+        if cuts.is_empty() {
+            cuts = starts(false);
+        }
+        let Some(cut) = cuts.first().copied() else {
+            kept.clear();
+            break;
+        };
+        kept.drain(..cut);
+    }
+    kept.insert_str(0, &format!("{DROPPED}\n"));
+}
+
 fn ms(d: Duration) -> f64 {
     d.as_secs_f64() * 1000.0
 }
@@ -391,5 +484,86 @@ mod tests {
             rows[WORK_ROWS - 1],
             "work           4      1.00      1.00  other work"
         );
+    }
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("faraday-timings-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// One process: resumes, writes a block and keeps it, saves at exit.
+    fn a_run(dir: &Path, secs: u64) -> String {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        t.resume(dir);
+        let block = t.last(Duration::from_secs(secs), None);
+        let whole = t
+            .keep(&block, Duration::from_secs(secs), true)
+            .unwrap()
+            .to_string();
+        t.save(dir);
+        whole
+    }
+
+    fn run_lines(text: &str) -> Vec<&str> {
+        text.lines().filter(|l| l.starts_with("run ")).collect()
+    }
+
+    fn pass_lines(text: &str) -> Vec<&str> {
+        text.lines()
+            .filter(|l| l.contains("s passes "))
+            .map(str::trim_start)
+            .map(|l| l.split(' ').next().unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn each_run_since_boot_is_in_the_file_in_order_under_its_number() {
+        let dir = scratch("runs");
+        let first = a_run(&dir, 5);
+        assert_eq!(run_lines(&first), ["run 1"]);
+        let second = a_run(&dir, 6);
+        assert_eq!(run_lines(&second), ["run 1", "run 2"]);
+        let third = a_run(&dir, 7);
+        assert_eq!(run_lines(&third), ["run 1", "run 2", "run 3"]);
+        assert_eq!(pass_lines(&third), ["5s", "6s", "7s"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_carry_file_that_is_missing_or_garbage_starts_at_run_one() {
+        let dir = scratch("garbage");
+        assert_eq!(run_lines(&a_run(&dir.join("none"), 5)), ["run 1"]);
+        for bad in [&b"not a number\nx"[..], b"\xff\xfe", b"", b"99999999999\nx"] {
+            std::fs::write(dir.join(CARRY), bad).unwrap();
+            assert_eq!(run_lines(&a_run(&dir, 5)), ["run 1"]);
+        }
+        std::fs::remove_file(dir.join(CARRY)).unwrap();
+        std::fs::create_dir(dir.join(CARRY)).unwrap();
+        assert_eq!(run_lines(&a_run(&dir, 5)), ["run 1"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn past_the_limit_the_oldest_runs_go_with_a_line_saying_so() {
+        let dir = scratch("limit");
+        let mut text = String::new();
+        let mut runs = 0;
+        while runs < 4000 {
+            text = a_run(&dir, 5);
+            runs += 1;
+            if text.starts_with(DROPPED) {
+                break;
+            }
+        }
+        assert!(text.starts_with(DROPPED), "no limit after {runs} runs");
+        assert!(text.len() <= MAX_KEPT);
+        let lines = run_lines(&text);
+        assert_eq!(lines.last().copied(), Some(format!("run {runs}").as_str()));
+        assert_ne!(lines.first().copied(), Some("run 1"));
+        assert_eq!(text.matches(DROPPED).count(), 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
