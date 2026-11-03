@@ -2,8 +2,10 @@
 //! the memo and the state, each a named method with why it is not kept
 //! (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4). One entry today,
 //! [`Allowed::SecretShown`]: a secret the person opened to see or copy,
-//! drawn from its source each frame because nothing secret is kept, not
-//! even for a frame. A new exception is a new method here, which the
+//! which is worked out once when shown and held while shown, then
+//! dropped and wiped when hidden, on leaving the page and at a lock
+//! (F195, `docs/SPEED.md` §2 rule 1), so drawing it again works out
+//! nothing. A new exception is a new method here, which the
 //! owner decides. Each is handed the view's token (`View::allowed`).
 
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -19,12 +21,13 @@ use super::View;
 /// [`View`] below. The owner decides each entry (`docs/SPEED.md` §3.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Allowed {
-    /// A secret the person opened to see or to copy by hand, drawn from
-    /// its source on each frame: a seed's words parsed for its SeedQR
-    /// grid on the backup's copy page, a vault key record's words and
-    /// a BIP-85 child shown. Nothing secret is kept, on the state or in
-    /// the memo for a frame (§2 rule 1), so there is nothing to keep it
-    /// in; it is drawn only while that page or row is open.
+    /// A secret the person opened to see or to copy by hand: a seed's
+    /// words and SeedQR grid on the backup's copy page, a vault key
+    /// record's words, a BIP-85 child, a paperkey, a TOTP code. It is
+    /// worked out once when shown and held with the screen's state in a
+    /// holder that wipes on drop; it is dropped the moment it is hidden,
+    /// on leaving the page and at a lock, and drawing it again works out
+    /// nothing (F195, `docs/SPEED.md` §2 rule 1).
     SecretShown,
 }
 

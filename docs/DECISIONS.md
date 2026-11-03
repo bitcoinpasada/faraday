@@ -209,3 +209,4 @@ Read this table, then only the decision you need.
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 | crypto |
 | [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Active | crypto |
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Active | security |
+| [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |

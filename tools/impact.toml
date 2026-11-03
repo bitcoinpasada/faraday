@@ -831,6 +831,14 @@ kind = "review"
 misses = "a press whose work grows on a Pi past what the stand-in measured, until the dev card's rows are read"
 
 [[rule]]
+id = "speed.shown-secret-held"
+title = "a page that shows a secret the person chose to show holds it while shown, wipes it when hidden, on leaving the page and at a lock, and its budget state draws it twice with the second frame working out nothing"
+source = ["docs/decisions/F195.md", "docs/SPEED.md §2"]
+when = ["faraday/faraday-core/src/drawing/**", "faraday/faraday-core/src/screens/**", "**/screen.rs"]
+kind = "review"
+misses = "a shown secret drawn again from its source, until a budget state draws it twice"
+
+[[rule]]
 id = "speed.budgets"
 title = "a frame, a pointer move, a press or a key does only the costly work its budget names"
 source = ["CLAUDE.md", "docs/SPEED.md"]

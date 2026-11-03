@@ -17,10 +17,17 @@ Moved to `docs/history/SPEED-LOG.md`.
 
 ## 2. Rules for every part
 
-1. **What is kept is public.** A value kept to save work is a
-   fingerprint, a checksum, an account key, a file name, a count or a
-   yes/no about public data. Nothing secret is kept, and no new copy of
-   a secret is made, wiped or not.
+1. **What is kept is public, except a secret the person chose to show**
+   (F195). A value kept to save work is a fingerprint, a checksum, an
+   account key, a file name, a count or a yes/no about public data.
+   Nothing else secret is kept, and no new copy of a secret is made,
+   wiped or not. What a person opens to see or copy by hand (a seed's
+   words, its SeedQR numbers and grid, a BIP-85 child, a vault key
+   record's words, a GPG paperkey, a vault entry's TOTP code) is worked
+   out once when it is shown and held with the screen's state in a
+   holder that wipes on drop. It is dropped the moment it is hidden, when
+   the person leaves the page and at a lock, and drawing it stops;
+   drawing it again works out nothing (a TOTP code once per period).
 2. **What is kept goes with what it describes.** A value lives in the
    struct it belongs to (a `Key`, a `Wallet`) or in the drawing memo
    (rule 3), so a lock, which drops the session, drops it. No static, no
@@ -171,10 +178,13 @@ each frame, press and key does.
 **The owner's list.** `Allowed` (`drawing/allowed.rs`) names each
 exception and why, one method on `View` per entry; a new exception is a
 new method, which the owner decides. One entry now, `SecretShown`: a
-secret the person opened to see or copy (a seed's SeedQR grid on the
-copy page, a vault key record's words, a BIP-85 child), drawn from its
-source each frame because nothing secret is kept, not even for a frame
-(§2 rule 1).
+secret the person opened to see or copy. Since F195 it is worked out
+once when shown and held while shown (§2 rule 1), so drawing it again
+works out nothing; the entry stays for the vault's three (a key
+record's words, a GPG paperkey, a TOTP code), which are still worked
+out each frame until they are held as the backup's and BIP-85's are. A function reached
+by drawing that does more work (a constant-time fix, say) is costly work
+that takes `c: &Compute` and is counted (F195 point 6).
 
 ### 3.4 Public file names without making the files (issue 123)
 
@@ -282,7 +292,8 @@ pixels, its scale), so a move, a new size or display scale fills them
 anew and a new theme fills nothing; the shapes are bounded by a byte
 budget and dropped whole past it. A QR code's modules are written into
 the canvas a row at a time, and nothing of a QR code is kept, so no
-secret's SeedQR outlives its frame. The budget tests hold that a frame
+secret's SeedQR outlives its page (a SeedQR the person opened is held
+while shown, F195). The budget tests hold that a frame
 drawn again fills no shape (`faraday-core/src/work/budget/name.rs`, and
 every screen of §8.3's frames).
 
@@ -392,7 +403,9 @@ frame that works out more than its screen's named budget, or a pointer
 move that works out anything, fails the build. Since what a frame reads
 is kept on the state (§3.3), every budget is none: a frame drawn again
 works out nothing, and a line in the table names any screen that cannot
-keep what it draws, with why. The token of §3.3 holds the same rule at
+keep what it draws, with why. A secret the person chose to show is held while shown
+(F195), so the tests draw each twice and the second frame works out
+nothing. The token of §3.3 holds the same rule at
 compile time: drawing cannot call costly work but through `View`'s
 accessors. The timing above stays for milliseconds. Since batch S1 (§8)
 the same budget tests also press what each main screen offers, compare
@@ -463,7 +476,8 @@ drawn again does nothing else.
 
 ### 8.3 The tests in `just`
 
-All counts, no wall time, in `faraday-core/src/work/budget/`:
+All counts, no wall time, in `faraday-core/src/work/budget/`. Each shown
+secret is drawn twice and the second frame works out nothing (F195):
 
 - **Frames** (`budget.rs`): the heavy session's screens of §7, now with
   the power, Learn and scan sheets; every budget none but a sheet's one
@@ -482,7 +496,7 @@ All counts, no wall time, in `faraday-core/src/work/budget/`:
   | `PickWallet` | `Address` | 1 | the card's first receive address, derived once, kept |
   | `PickWallet` | `WalletMatch` | 11 | the card's button asks which wallet each PSBT spends from; each wallet derives its script at a place once, kept |
   | `Step` | `Address` | 2 | a spend's step shows the wallet's own addresses its outputs pay, each derived once, kept |
-  | `Vault(Category)` | `WordsParse` | 1 | the seeds category shows a key record's words (`Allowed::SecretShown`) |
+  | `Vault(Category)` | `WordsParse` | 1 | the seeds category shows a key record's words (`Allowed::SecretShown`; since F195 the second frame works out nothing) |
   | `Backup` | `PlanMap` | 2 | the wallet's plan mapped and checked once for its shape and answers, kept (eight kept) |
   | `Resume(Flow)` | `FileHash` | 2 | the GPG flow resumed at its end finishes: its vault sealed and hashed, then hashed as it comes into the Outbox |
 
