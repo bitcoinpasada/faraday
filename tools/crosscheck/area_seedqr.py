@@ -62,6 +62,15 @@ readers, Pillow and CPython's zlib: each chunk's CRC-32 is zlib's, the zlib
 stream's Adler-32 is `zlib.adler32` of the rows, and Pillow reads the same
 pixels as this area's own reader and as the reference's.
 
+Two outside decoders, zbar and zxing-cpp (`qr_decode.py`), read the QR
+code in each picture Faraday writes on a stick, and the payload each
+returns, as bytes, must be the one the picture holds: the Codex32QR pictures
+(the string in upper case), the profile's own 22 pictures, and the labelled
+pictures of a key's SeedQR (its digits) and CompactSeedQR (its entropy
+bytes). Faraday's reader is then given the decoded digits and bytes and must
+give the key's words. A picture either cannot read, or reads as other bytes,
+fails the run naming the picture.
+
 Codex32QR/v1-48 (`docs/CODEX32.md` §10.2, the profile pinned in
 `tools/vectors/codex32qr/README.md`): a 48-character codex32 string in
 upper case, alphanumeric mode, version 3, level L, the mask Nayuki's
@@ -91,6 +100,7 @@ import zlib
 from PIL import Image
 
 from common import ROOT, Area, Mismatch, use_reference
+import qr_decode
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
@@ -446,7 +456,9 @@ class SeedQR(Area):
         "embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` "
         "(`qrcodegen/`), module for module; segno 1.6 (`python3-segno`), an encoder of "
         "another lineage, at Faraday's mask and at its own; Pillow and CPython's zlib, "
-        'which read every PNG Faraday writes'
+        "which read every PNG Faraday writes; zbar (`zbarimg`) and zxing-cpp, which "
+        'decode the QR code in every picture and return its payload as bytes '
+        '(`qr_decode.py`)'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -459,17 +471,21 @@ class SeedQR(Area):
         "are read from their pixels and must be Faraday's code module for module; "
         "segno is asked for Faraday's version, level and mode and its mask forced, "
         "and its mask is read back from it, its padding quirk being modelled in Nayuki's "
-        "code; rqrr reads Faraday's and segno's codes"
+        "code; rqrr reads Faraday's and segno's codes; the self-test makes each "
+        "decoder's answer wrong (a payload's last byte changed) and must catch it"
     )
     vectors = (
         "SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and "
-        'picture of the Codex32QR profile (`tools/vectors/codex32qr/`)'
+        'picture of the Codex32QR profile (`tools/vectors/codex32qr/`), each decoded by zbar '
+        'and zxing-cpp'
     )
     corpus = (
         'keys of every length and language, both codes and the words read back; digits '
         'and bytes malformed; payloads in each mode at each level and version limit; '
         '48-character codex32 strings in either case as Codex32QR codes and the '
-        'pictures written of them read back, other lengths refused; greyscale pictures '
+        'pictures written of them read back and decoded by zbar and zxing-cpp, other lengths '
+        'refused; the pictures of a key\'s SeedQR and CompactSeedQR decoded by both and '
+        'read by Faraday to the key\'s words; greyscale pictures '
         "and QR pictures of random size and scale read by Pillow and zlib"
     )
     differences = [
@@ -514,6 +530,7 @@ class SeedQR(Area):
             self.segno_fault = sabotage.split("-")[1]
             sabotage = None
         super().__init__(exe, seed, scale, sabotage)
+        self.sabotage = sabotage
         self.known = 0
 
     def segno_check(self, mode, data, ecc, max_version, faraday_rows):
@@ -593,7 +610,31 @@ class SeedQR(Area):
                            ref, normalize=picture_read)
         if raw[0] == "ok":
             self.segno_check("alphanumeric", string.upper().encode(), 0, 3, raw[1]["code"]["rows"])
+            self.decoded(f"codex32qr {string}", bytes.fromhex(raw[1]["png"]), string.upper().encode())
         return raw
+
+    def decoded(self, picture, png, payload):
+        """zbar and zxing-cpp read the picture Faraday wrote as its payload."""
+        qr_decode.check(self.name, picture, png, payload, self.sabotage)
+        self.compared += 2
+
+    def key_pictures(self, lang, entropy, digits):
+        """The pictures Faraday writes of a key's SeedQR and CompactSeedQR
+        on a stick, decoded by both readers: the digits and the entropy
+        bytes, which Faraday reads back (as far as it reads them) to the
+        key's words."""
+        got = self.rust.call("seedqr.pictures", language=lang, entropy=entropy.hex())
+        self.compared += 1
+        if got[0] != "ok":
+            return
+        self.decoded(f"SeedQR of {entropy.hex()}", bytes.fromhex(got[1]["seedqr"]), digits.encode())
+        self.decoded(f"CompactSeedQR of {entropy.hex()}", bytes.fromhex(got[1]["compact_qr"]), entropy)
+        want = ("ok", {"indices": [int(digits[i:i + 4]) for i in range(0, len(digits), 4)],
+                       "entropy": entropy.hex()})
+        if len(digits) in (48, 96):
+            self.digits(lang, digits, want)
+        if len(entropy) in (16, 32):
+            self.compact(lang, entropy, want)
 
     def png_grey(self):
         rng = self.rng
@@ -631,7 +672,9 @@ class SeedQR(Area):
     def codex32qr_profile(self):
         pictures = profile_pictures()
         for path, string in pictures:
-            drawn = png_code((C32_DIR / path).read_bytes())
+            picture = (C32_DIR / path).read_bytes()
+            self.decoded(f"{path}", picture, string.upper().encode())
+            drawn = png_code(picture)
             faraday = self.need(self.codex32qr(string), "codex32qr")["code"]
             if faraday["version"] != 3:
                 raise AssertionError(f"{path}: Faraday's code is not version 3")
@@ -712,6 +755,7 @@ class SeedQR(Area):
                            "entropy": case["compact"]})
             self.digits(0, case["digits"], want)
             self.compact(0, entropy, want)
+            self.key_pictures(0, entropy, case["digits"])
 
     def corpus_case(self):
         rng = self.rng
@@ -721,6 +765,8 @@ class SeedQR(Area):
         digits = "".join(f"{i:04d}" for i in indices(lang, entropy))
         self.digits(lang, digits)
         self.compact(lang, entropy)
+        if self.rng.random() < 0.25:
+            self.key_pictures(lang, entropy, digits)
         # Malformed: a digit changed (often a checksum failure), an
         # index past 2047, a letter, a digit too many or too few, bytes
         # of another length.

@@ -33,6 +33,7 @@ TOOLS = [
     ("certtool", "gnutls-bin", ["--version"]),
     ("pesign", "pesign", None),
     ("pesigcheck", "pesign", None),
+    ("zbarimg", "zbar-tools", ["--version"]),
 ]
 # OVMF's Secure Boot firmware, as faraday/tools/sb-ovmf-check.py looks.
 OVMF_DIRS = ["/usr/share/edk2/x64", "/usr/share/edk2-ovmf/x64", "/usr/share/OVMF"]
@@ -101,12 +102,25 @@ def pefile_version():
     return run.stdout.strip() if run.returncode == 0 else None
 
 
+def zxingcpp_version():
+    """python3-zxing-cpp's package version, or None when Python cannot
+    import it (the module has no version of its own)."""
+    run = subprocess.run([sys.executable, "-I", "-c", "import zxingcpp"], capture_output=True)
+    if run.returncode != 0:
+        return None
+    got = subprocess.run(["dpkg-query", "-W", "-f", "${Version}", "python3-zxing-cpp"],
+                         capture_output=True, text=True)
+    return got.stdout.strip() if got.returncode == 0 and got.stdout.strip() else "unknown"
+
+
 def missing():
     out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
     if not sevenzip():
         out.append("7-Zip (`7zz` or `7z`; package 7zip, not p7zip)")
     if not pefile_version():
         out.append("pefile for Python (package python3-pefile)")
+    if not zxingcpp_version():
+        out.append("zxingcpp for Python (package python3-zxing-cpp)")
     if not ovmf():
         out.append("OVMF's Secure Boot firmware, OVMF_CODE.secboot.4m.fd or "
                    "OVMF_CODE_4M.secboot.fd and its empty variable store "
@@ -124,6 +138,7 @@ def versions():
     seven = sevenzip()
     lines.append(f"7-Zip (7zz or 7z) {first_line(seven, []) if seven else 'missing'}")
     lines.append(f"python3-pefile {pefile_version() or 'missing'}")
+    lines.append(f"python3-zxing-cpp {zxingcpp_version() or 'missing'}")
     code = ovmf()
     if code:
         digest = subprocess.run(["sha256sum", code],

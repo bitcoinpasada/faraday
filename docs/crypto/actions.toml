@@ -5277,7 +5277,7 @@ tests = [
   "core/faraday-codec/tests/png.rs::a_grey_picture_reads_back_as_its_pixels",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer" }
+independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers" }
 fuzz = [
   "decode_luma",
   "classify",
@@ -5642,7 +5642,7 @@ tests = [
   "core/faraday-codec/src/qr.rs::a_seedqr_matrix_is_wiped",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside-and-own", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer", ours = "the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself)" }
+independence = { class = "outside-and-own", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers", ours = "the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself)" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5689,7 +5689,7 @@ tests = [
   "core/faraday-codec/src/seedqr.rs::rejects_bad_payloads",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside-and-own", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "Faraday's rule written in `area_seedqr.py` in front of SeedSigner's reader (exactly 48 or 96 digits, 16 or 32 bytes), and the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define" }
+independence = { class = "outside-and-own", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers", ours = "Faraday's rule written in `area_seedqr.py` in front of SeedSigner's reader (exactly 48 or 96 digits, 16 or 32 bytes), and the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5952,7 +5952,7 @@ tests = [
   "core/faraday-bip/tests/all/codex32_sheets.rs::codex32qr_vectors_recover_to_their_secret_and_key",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer" }
+independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers" }
 fuzz_none = "The encoder takes a string that Codex32::parse has already accepted; seed_parts fuzzes that reading."
 
 [action.secrets]
@@ -6151,7 +6151,8 @@ tests = [
   "faraday/faraday-core/tests/all/backup_flow_wallet.rs::a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written",
   "faraday/faraday-core/tests/all/save_without_encryption.rs::a_seed_file_placed_on_a_stick_asks_the_hold_once_and_cancel_leaves_it_off",
 ]
-not_crosschecked = "The files are text lines and pictures made by seedqr-make and the codex32 actions, which have their own checks; no second implementation reads the files this writes."
+crosscheck = "seedqr"
+independence = { class = "outside", author = "zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode each picture this writes and whose payload is compared with the key's words" }
 fuzz_none = "Takes a held key and a form; no outside input is parsed."
 
 [action.secrets]
@@ -6211,7 +6212,8 @@ tests = [
   "faraday/faraday-core/tests/all/save_without_encryption.rs::unprotected_writes_nothing_until_the_hold_is_held_to_its_end",
   "faraday/faraday-core/tests/all/save_without_encryption.rs::cancel_on_the_hold_sends_nothing_out",
 ]
-not_crosschecked = "The files are one line of words and a picture made by seedqr-make; no second implementation reads what this writes."
+crosscheck = "seedqr"
+independence = { class = "outside", author = "zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode the picture this writes and whose payload is compared with the key's words" }
 fuzz_none = "Takes a held key and a form; no outside input is parsed."
 
 [action.secrets]
