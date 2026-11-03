@@ -441,7 +441,8 @@ impl Receiver {
     /// The spend key with label `m` on it, which is what the labelled
     /// address publishes.
     pub fn labelled_spend_key(&self, secp: &Secp256k1<All>, m: u32) -> Result<PublicKey, Error> {
-        add_secret_tweak(secp, &self.spend, self.label_key(m)?)
+        let label = self.label_point(secp, m)?;
+        self.spend.combine(&label).map_err(|_| Error::Scalar)
     }
 
     /// The address for label `m`. Label 0 is the change label and is
@@ -533,8 +534,9 @@ pub fn decode_scan_key(c: &Compute, text: &str) -> Result<ScanKeyRead, Error> {
     let read = decode_v0(text, hrp, &mut payload).and_then(|()| {
         let mut secret = [0u8; 32];
         secret.copy_from_slice(&payload[..32]);
-        let scan = crate::musig::secret_base_mul(&Secp256k1::signing_only(), &secret)
-            .map_err(|_| Error::Scalar);
+        // A context blinded from the key itself, as the master key's is.
+        let secp = crate::keys::blinded_context(&secret);
+        let scan = crate::musig::secret_base_mul(&secp, &secret).map_err(|_| Error::Scalar);
         secret.zeroize();
         let spend = PublicKey::from_slice(&payload[32..]).map_err(|_| Error::Key)?;
         Ok(ScanKeyRead {
@@ -565,12 +567,13 @@ fn checked_secret(mut value: [u8; 32]) -> Result<SecretKey, Error> {
     key
 }
 
-/// Costs an elliptic-curve multiplication: `point + t·G` for a secret
-/// tweak `t`, which is erased; the tweak reaches libsecp256k1 as a
+/// Costs an elliptic-curve multiplication: `point + t·G` for an output
+/// tweak `t_k`, which is erased; the tweak reaches libsecp256k1 as a
 /// `Scalar` only through `Scalar::from`. The multiplication is
-/// `ec_pubkey_tweak_add`'s, libsecp256k1's variable-time ecmult, so
-/// it does not take the same time for every `t` until the fix of
-/// ESTABLISHED §4.7.
+/// `ec_pubkey_tweak_add`'s, libsecp256k1's variable-time ecmult: the
+/// output tweak is treated as public, as libsecp256k1's own silent
+/// payments module does (ESTABLISHED §4.7). A label's tweak does not
+/// come here.
 fn add_secret_tweak(
     secp: &Secp256k1<All>,
     point: &PublicKey,

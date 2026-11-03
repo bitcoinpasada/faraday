@@ -416,7 +416,8 @@ impl Drop for WifAscii {
 /// Domain separation for the blind a key derives for itself.
 const SECP_BLIND_LABEL: &[u8] = b"faraday-secp-blind";
 
-/// A signing context blinded for `xpriv`.
+/// A signing context blinded for a key, from `key`: the chain code of an
+/// extended key, or the bytes of a bare secret key.
 ///
 /// A libsecp256k1 context multiplies its intermediate values by a secret
 /// blinding factor, so that a power or timing trace of one signature
@@ -427,9 +428,9 @@ const SECP_BLIND_LABEL: &[u8] = b"faraday-secp-blind";
 /// could predict it would already hold the key. A session hands down
 /// something better with [`MasterKey::reblind`], which mixes in the
 /// entropy the shell supplied.
-fn blinded_context(xpriv: &Xpriv) -> Secp256k1<All> {
+pub(crate) fn blinded_context(key: &[u8]) -> Secp256k1<All> {
     let mut secp = Secp256k1::new();
-    let mut derived = hmac_sha512(xpriv.chain_code.as_bytes(), SECP_BLIND_LABEL);
+    let mut derived = hmac_sha512(key, SECP_BLIND_LABEL);
     let mut blind = [0u8; 32];
     blind.copy_from_slice(&derived[..32]);
     secp.seeded_randomize(&blind);
@@ -493,7 +494,7 @@ impl MasterKey {
     /// that the only copy is the pinned one. Works out the fingerprint
     /// once (an elliptic-curve multiplication), in the blinded context.
     fn hold(xpriv: &mut Xpriv, network: Network) -> Self {
-        let secp = blinded_context(xpriv);
+        let secp = blinded_context(xpriv.chain_code.as_bytes());
         let fingerprint = xpriv.fingerprint(&secp).into();
         let held = MasterKey {
             xpriv: Pinned::new(XprivCell(*xpriv)),

@@ -4011,7 +4011,7 @@ reveal = [
   "Reveal::VaultEntry",
   "Reveal::OutboxFile",
 ]
-constant_time = "The scan key's multiplication goes through secp256k1's ECDH and ec_pubkey_create, documented in the code as taking the same time for every scalar; each derived tweak t_k and each label's tweak is checked against zero and the order by libsecp256k1's SecretKey (seckey_verify) and reaches the curve as a tweak only from it, through ec_pubkey_tweak_add, whose multiplication is libsecp256k1's variable-time ecmult: t_k and each label tweak are not multiplied in constant time, which is open in ESTABLISHED §4.7 (batch A7). libsecp256k1's header says its code is written and tested to be constant time whatever the secret values; it states nothing of these functions by name."
+constant_time = "A label tweak times G is libsecp256k1's ecmult_gen through a secret key, in a randomized context; the output tweak is treated as public and multiplied by ecmult, as libsecp256k1's own silent payments module does."
 wiped = "The scan key and the texts that carry it are written in fixed buffers that zeroize on drop. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (ESTABLISHED §4.1)."
 
 [action.limits]
@@ -6366,7 +6366,7 @@ fuzz_none = "Not reachable from the app: no outside input reaches it."
 
 [action.secrets]
 reveal = "none"
-constant_time = "Every secret multiplication of a point goes through secp256k1's ECDH, documented in the code as taking the same time for every scalar; the response k + e·a goes through libsecp256k1's SecretKey add, multiply and negate. libsecp256k1's header says its code is written and tested to be constant time whatever the secret values; it states nothing of these functions by name. The share path the app reaches (add_shares) makes a·B_scan, a·G and the proof's nonce multiplications through ECDH only. In sender_outputs, which the app does not reach, a·G is ec_pubkey_create and t_k·G is ec_pubkey_tweak_add's ecmult, which is variable time (open in ESTABLISHED §4.7); the sum of the input keys there is SecretKey add_tweak."
+constant_time = "The output tweak is treated as public and multiplied by ecmult, as libsecp256k1's own silent payments module does."
 wiped = "The secret's bytes and the hashes they pass through are zeroized before return; each private key used is erased before its input is done. The nonce is a SecretScalar, erased when it is dropped, but musig.rs's `match (self.0, other.0)`, `self.0.map` and `self.0.and_then` leave copies of it. SecretKey is Copy, so every add_tweak, mul_tweak and negate copies the key and only the last copy is erased; the earlier copies are left in memory, later work under the security scope (ESTABLISHED §4.1)."
 
 [action.limits]

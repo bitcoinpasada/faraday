@@ -1,7 +1,7 @@
 //! Silent payments (BIP-352): a key's scan and spend halves.
 
 use faraday_bip::bitcoin::Transaction;
-use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1};
+use faraday_bip::bitcoin::secp256k1::{All, PublicKey, Secp256k1};
 use faraday_bip::keys::{MasterKey, Network};
 use faraday_bip::silent as bip352;
 use faraday_crypto::work::Compute;
@@ -15,12 +15,15 @@ pub use faraday_bip::silent::Payment;
 /// key, so it is neither `Clone` nor `Debug` and gives out public values;
 /// the scan key leaves only through [`Receiver::scan_key`], for a reason
 /// that names it.
-pub struct Receiver(bip352::Receiver);
+pub struct Receiver(bip352::Receiver, Secp256k1<All>);
 
 /// Costs two key derivations. The scan and spend keys of `master`, at
 /// `account`.
 pub(crate) fn receiver(c: &Compute, master: &MasterKey, account: u32) -> Receiver {
-    Receiver(bip352::Receiver::derive(c, master, account))
+    Receiver(
+        bip352::Receiver::derive(c, master, account),
+        master.secp().clone(),
+    )
 }
 
 impl Receiver {
@@ -31,7 +34,7 @@ impl Receiver {
 
     /// Costs an elliptic-curve multiplication. The scan public key.
     pub fn scan_public_key(&self) -> PublicKey {
-        self.0.scan_public_key(&Secp256k1::new())
+        self.0.scan_public_key(&self.1)
     }
 
     /// The spend public key.
@@ -43,11 +46,10 @@ impl Receiver {
     /// for `label` 0 and labelled otherwise; `None` when the address cannot
     /// be made.
     pub fn address(&self, label: u32) -> Option<String> {
-        let secp = Secp256k1::new();
         let a = if label == 0 {
-            self.0.address(&secp)
+            self.0.address(&self.1)
         } else {
-            self.0.labelled_address(&secp, label)
+            self.0.labelled_address(&self.1, label)
         };
         a.ok().map(|t| t.as_str().to_string())
     }
@@ -95,7 +97,6 @@ impl Receiver {
         scripts: &[&[u8]],
         labels: &[u32],
     ) -> Result<Vec<Payment>, bip352::Error> {
-        let secp = Secp256k1::new();
-        bip352::find_payments(&secp, &self.0, tx, scripts, labels)
+        bip352::find_payments(&self.1, &self.0, tx, scripts, labels)
     }
 }

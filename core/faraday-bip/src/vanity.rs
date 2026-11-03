@@ -377,7 +377,6 @@ fn grind_passphrase(
     from: u64,
     budget: u64,
 ) -> Outcome {
-    let secp = Secp256k1::new();
     let path = account_path(script, network, 0);
     let mut tested = 0;
     while tested < budget {
@@ -401,6 +400,7 @@ fn grind_passphrase(
         let Ok(mut master) = Xpriv::new_master(network.kind(), seed.expose()) else {
             continue;
         };
+        let secp = crate::keys::blinded_context(master.chain_code.as_bytes());
         let address = address_at(&secp, &master, &path, script, network);
         erase_xpriv(&mut master);
         let Some(address) = address else { continue };
@@ -431,7 +431,7 @@ fn grind_account(
     from: u64,
     budget: u64,
 ) -> Outcome {
-    let secp = Secp256k1::new();
+    let secp = master.secp();
     let hardened = |i: u32| ChildNumber::from_hardened_idx(i).expect("below 2^31");
     let head = DerivationPath::from(
         [hardened(script.purpose()), hardened(network.coin_type())].as_slice(),
@@ -462,7 +462,7 @@ fn grind_account(
             ]
             .as_slice(),
         );
-        let Some(address) = address_at(&secp, &parent, &path, script, network) else {
+        let Some(address) = address_at(secp, &parent, &path, script, network) else {
             continue;
         };
         if matches(address.as_str(), prefix, script) {

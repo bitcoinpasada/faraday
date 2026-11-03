@@ -808,7 +808,10 @@ fn sign_musig(
     session: &mut Option<MusigSession>,
     seed: &[u8; 32],
 ) -> Result<MusigPass, Error> {
-    let secp = secp256k1::Secp256k1::new();
+    // The first selected key's own blinded context, not a plain one.
+    let secp = selected
+        .first()
+        .map_or_else(secp256k1::Secp256k1::new, |(_, m)| m.secp().clone());
     let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {
