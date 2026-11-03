@@ -12,7 +12,7 @@ use faraday_crypto::work::{Compute, Work};
 use faraday_vault::child::ChildOf;
 use faraday_vault::codex32::{SetFacts, State, set_payload};
 use faraday_vault::kdbx::items::{
-    self, Body, Damage, Extra, Fault, Format, GpgKey, Place, Read, Unwritable,
+    self, Body, Damage, Extra, Fault, Format, GpgKey, Place, Read, Related, RelatedKind, Unwritable,
 };
 use faraday_vault::kdbx::open;
 use faraday_vault::kdbx::xml::{Document, Entry, Group};
@@ -497,46 +497,6 @@ fn damaged() -> Vec<(Entry, &'static str, Fault)> {
             bad(72, Some("gpg"), &[("key", GPG_PUBLIC, true)], &[]),
             "key",
             Fault::Value,
-        ),
-        (
-            bad(
-                73,
-                Some("passphrase"),
-                &[("Password", "one", true), ("for", "0badf00d", false)],
-                &[],
-            ),
-            "for",
-            Fault::Twice,
-        ),
-        (
-            bad(
-                74,
-                Some("passphrase"),
-                &[("Password", "two", true), ("for", "0badf00d", false)],
-                &[],
-            ),
-            "for",
-            Fault::Twice,
-        ),
-        (
-            bad(
-                75,
-                Some("share"),
-                &[("Password", SHARE_C, true), ("for", "0badf00d", false)],
-                &[],
-            ),
-            "for",
-            Fault::Twice,
-        ),
-        (
-            bad(
-                76,
-                Some("share"),
-                &[("Password", SHARE_C, true), ("for", "0badf00d", false)],
-                &[],
-            ),
-            "for",
-            Fault::Twice,
         ),
         (
             bad(
@@ -1152,38 +1112,96 @@ fn share_of(string: &str) -> Body {
     )
 }
 
-#[test]
-fn a_second_passphrase_or_share_for_one_key_is_not_written() {
-    let c = compute();
-    let mut doc = full();
-    let at = |n: u8| place(n, "Passphrases", "");
-    assert_eq!(
-        items::put(&c, &mut doc, &at(80), &passphrase_for(FP)),
-        Err(Unwritable::Twice("for"))
-    );
-    assert_eq!(
-        items::put(&c, &mut doc, &at(81), &share_of(SHARE_A)),
-        Err(Unwritable::Twice("for"))
-    );
-    // Another key, another index, and the item itself again.
-    assert_eq!(
-        items::put(&c, &mut doc, &at(80), &passphrase_for([1, 2, 3, 4])),
-        Ok(())
-    );
-    assert_eq!(
-        items::put(&c, &mut doc, &at(81), &share_of(SHARE_C)),
-        Ok(())
-    );
-    let own = Place {
-        uuid: uuid_of_kind(&doc, kind::PASSPHRASE),
-        ..at(0)
-    };
-    assert_eq!(items::put(&c, &mut doc, &own, &passphrase_for(FP)), Ok(()));
-    assert!(read(&doc).unreadable.is_empty());
+fn related_of(read: &Read, n: u8) -> Option<Related> {
+    read.items
+        .iter()
+        .find(|i| i.uuid == uuid(n))
+        .unwrap()
+        .related
 }
 
 #[test]
-fn one_of_two_items_for_one_key_can_be_removed_to_undo_it() {
+fn a_second_passphrase_or_share_for_one_key_is_written_and_labelled() {
+    let c = compute();
+    let mut doc = full();
+    let at = |n: u8| place(n, "Passphrases", "");
+    let before = read(&doc);
+    let own = uuid_of_kind(&doc, kind::PASSPHRASE);
+    assert!(before.items.iter().all(|i| i.related.is_none()));
+    assert_eq!(
+        items::put(&c, &mut doc, &at(80), &passphrase_for(FP)),
+        Ok(())
+    );
+    assert_eq!(
+        items::put(&c, &mut doc, &at(81), &share_of(SHARE_A)),
+        Ok(())
+    );
+    // Another key and another index are alone.
+    assert_eq!(
+        items::put(&c, &mut doc, &at(82), &passphrase_for([1, 2, 3, 4])),
+        Ok(())
+    );
+    assert_eq!(
+        items::put(&c, &mut doc, &at(83), &share_of(SHARE_C)),
+        Ok(())
+    );
+    let r = read(&doc);
+    assert!(r.unreadable.is_empty());
+    let label = |u: [u8; 16]| r.items.iter().find(|i| i.uuid == u).unwrap().related;
+    let pass = |place| {
+        Some(Related {
+            kind: RelatedKind::Passphrases,
+            place,
+            of: 2,
+        })
+    };
+    let places = |a: Option<Related>, b: Option<Related>| {
+        let mut v = [a.unwrap().place, b.unwrap().place];
+        v.sort();
+        v
+    };
+    assert_eq!(places(label(own), related_of(&r, 80)), [1, 2]);
+    assert_eq!(
+        label(own).map(|l| (l.kind, l.of)),
+        pass(2).map(|l| (l.kind, l.of))
+    );
+    assert_eq!(related_of(&r, 82), None);
+    let share = |place| {
+        Some(Related {
+            kind: RelatedKind::Shares,
+            place,
+            of: 2,
+        })
+    };
+    let held = r
+        .items
+        .iter()
+        .find(|i| i.uuid != uuid(81) && matches!(&i.body, Body::Record(x) if x.kind == kind::CODEX32_SHARE && i.related.is_some()))
+        .unwrap()
+        .related;
+    assert_eq!(places(held, related_of(&r, 81)), [1, 2]);
+    assert_eq!(related_of(&r, 81).map(|l| l.kind), share(2).map(|l| l.kind));
+    assert_eq!(related_of(&r, 83), None);
+    // The item itself again is taken, and stays what it was.
+    let again_own = Place { uuid: own, ..at(0) };
+    assert_eq!(
+        items::put(&c, &mut doc, &again_own, &passphrase_for(FP)),
+        Ok(())
+    );
+    assert_eq!(label_in(&doc, own).map(|l| l.of), Some(2));
+}
+
+fn label_in(doc: &Document, u: [u8; 16]) -> Option<Related> {
+    read(doc)
+        .items
+        .iter()
+        .find(|i| i.uuid == u)
+        .unwrap()
+        .related
+}
+
+#[test]
+fn entries_of_one_key_or_one_share_index_read_and_are_labelled() {
     let c = compute();
     let mut doc = Document::new([0xee; 16], "Vault");
     items::stamp(&mut doc, 1, None).unwrap();
@@ -1195,14 +1213,32 @@ fn one_of_two_items_for_one_key_can_be_removed_to_undo_it() {
             &[],
         )
     };
-    for n in [91, 92] {
-        doc.root_mut().push_entry(pass(n, "73c5da0a")).unwrap();
+    let share = |n: u8, s: &str| {
+        bad(
+            n,
+            Some("share"),
+            &[("Password", s, true), ("for", "0badf00d", false)],
+            &[],
+        )
+    };
+    for e in [
+        pass(91, "73c5da0a"),
+        pass(92, "73c5da0a"),
+        share(93, SHARE_C),
+        share(94, SHARE_C),
+    ] {
+        doc.root_mut().push_entry(e).unwrap();
     }
     doc.root_mut().push_entry(pass(95, "zz")).unwrap();
     let r = read(&doc);
-    assert!(r.items.is_empty());
-    assert_eq!(r.unreadable.len(), 3);
-    // Neither is changed, and a third is not written.
+    assert_eq!(r.items.len(), 4);
+    assert_eq!(r.unreadable.len(), 1);
+    let want = |kind, place| Some(Related { kind, place, of: 2 });
+    assert_eq!(related_of(&r, 91), want(RelatedKind::Passphrases, 1));
+    assert_eq!(related_of(&r, 92), want(RelatedKind::Passphrases, 2));
+    assert_eq!(related_of(&r, 93), want(RelatedKind::Shares, 1));
+    assert_eq!(related_of(&r, 94), want(RelatedKind::Shares, 2));
+    // Each is changed and removed on its own, and a third is taken.
     assert_eq!(
         items::put(
             &c,
@@ -1210,25 +1246,35 @@ fn one_of_two_items_for_one_key_can_be_removed_to_undo_it() {
             &place(91, "Passphrases", ""),
             &passphrase_for(FP)
         ),
-        Err(Unwritable::Unreadable)
+        Ok(())
     );
     assert_eq!(
         items::put(
             &c,
             &mut doc,
-            &place(93, "Passphrases", ""),
+            &place(96, "Passphrases", ""),
             &passphrase_for(FP)
         ),
-        Err(Unwritable::Twice("for"))
+        Ok(())
     );
-    // Any other damage is still refused.
+    // Any damage is still refused.
     assert_eq!(
         items::remove(&c, &mut doc, &uuid(95)),
         Err(Unwritable::Unreadable)
     );
-    assert_eq!(items::remove(&c, &mut doc, &uuid(91)), Ok(true));
-    assert_eq!(read(&doc).items.len(), 1);
-    assert_eq!(items::remove(&c, &mut doc, &uuid(92)), Ok(true));
+    assert_eq!(items::remove(&c, &mut doc, &uuid(93)), Ok(true));
+    let r = read(&doc);
+    assert_eq!(related_of(&r, 94), None);
+    // The third passphrase for the key makes each one of three.
+    assert_eq!(
+        related_of(&r, 91),
+        Some(Related {
+            kind: RelatedKind::Passphrases,
+            place: 1,
+            of: 3
+        })
+    );
+    assert_eq!(related_of(&r, 96).map(|l| (l.place, l.of)), Some((3, 3)));
 }
 
 #[test]

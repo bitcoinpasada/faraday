@@ -18,8 +18,7 @@
 //! **Nothing about Faraday's items refuses the file** (owner, 2026-11-03).
 //! An item that does not read (an unknown `faraday.kind`, a field its kind
 //! does not name, a required field missing, a value not in its published
-//! form, two passphrases for one key, two codex32 shares of one index and
-//! key, a `faraday.codex32` or `faraday.child` that is not its TOML) is an
+//! form, a `faraday.codex32` or `faraday.child` that is not its TOML) is an
 //! [`Unreadable`], naming the entry by title and UUID and the field or key
 //! and fault; it is never made a record, and its entry is written back as
 //! read. So is an entry whose UUID another entry shares, or one with two
@@ -71,7 +70,8 @@ use crate::totp::{self, NotTotp, Totp};
 use crate::{child, codex32, contents};
 
 pub use text::{
-    Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, ReadOnly, Unreadable, utc_time,
+    Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, ReadOnly, Related, RelatedKind,
+    Unreadable, utc_time,
 };
 use text::{Name, Path, Sealed, damage, title_of};
 pub use write::{Place, Unwritable, put, put_plan, put_signed, remove, remove_custom, stamp};
@@ -592,11 +592,12 @@ pub fn read(c: &Compute, doc: &Document) -> Read {
                 body,
                 extra,
                 totp,
+                related: None,
             }),
             Err(d) => unreadable.push(bad(d)),
         }
     }
-    across(&mut items, &mut unreadable, doc);
+    relate(&mut items);
     Read {
         format,
         seals,
@@ -611,77 +612,55 @@ pub fn read(c: &Compute, doc: &Document) -> Read {
     }
 }
 
-/// The field a pair rule (one passphrase per key, one codex32 share per
-/// index and key) is named at in an [`Unreadable`].
-const PAIR: &str = "for";
-
-/// What a passphrase or a codex32 share is one of: the same for two items
-/// that may not both be.
-fn pair_of_record(r: &Record) -> Option<Vec<u8>> {
+/// What a passphrase or a codex32 share is one of: the same for items that
+/// are related.
+fn pair_of_record(r: &Record) -> Option<(RelatedKind, Vec<u8>)> {
     match r.kind {
         kind::PASSPHRASE => r
             .field(field::PASSPHRASE_KEY)
-            .map(|k| [&[0u8][..], k].concat()),
+            .map(|k| (RelatedKind::Passphrases, k.to_vec())),
         kind::CODEX32_SHARE => {
             let s = r.field(field::CODEX32_STRING)?;
             let index = *s.get(8)?;
             r.field(field::CODEX32_KEY)
-                .map(|k| [&[1u8, index][..], k].concat())
+                .map(|k| (RelatedKind::Shares, [&[index][..], k].concat()))
         }
         _ => None,
     }
 }
 
-/// [`pair_of_record`] from an entry's fields, for an entry that is not
-/// read as a record.
-fn pair_of_entry(e: &Entry) -> Option<Vec<u8>> {
-    let value = |name: &str| e.field(name).map(|f| f.value());
-    let of = forms::fingerprint(value("for")?)?;
-    match e.custom().get("faraday.kind")? {
-        "passphrase" => Some([&[0u8][..], &of].concat()),
-        "share" => {
-            let index = *value("Password")?.as_bytes().get(8)?;
-            Some([&[1u8, index][..], &of].concat())
-        }
-        _ => None,
-    }
-}
-
-/// The one-per-key rules across items: one passphrase per key, one codex32
-/// share per index and key. Every item that breaks one is Unreadable.
-fn across(items: &mut Vec<Item>, unreadable: &mut Vec<Unreadable>, doc: &Document) {
-    let key_of = |it: &Item| -> Option<Vec<u8>> {
+/// Related secrets across items: several passphrases for one key, several
+/// codex32 shares of one index and key. Each reads; each is given its place
+/// among them, in the order read (a group's entries, then its groups).
+fn relate(items: &mut [Item]) {
+    let key_of = |it: &Item| -> Option<(u8, RelatedKind, Vec<u8>)> {
         match &it.body {
-            Body::Record(r) => pair_of_record(r),
+            Body::Record(r) => pair_of_record(r).map(|(k, v)| (k as u8, k, v)),
             Body::Gpg(_) => None,
         }
     };
-    let mut count: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
+    let mut count: BTreeMap<(u8, Vec<u8>), usize> = BTreeMap::new();
+    let mut seen: BTreeMap<(u8, Vec<u8>), usize> = BTreeMap::new();
     for it in items.iter() {
-        if let Some(k) = key_of(it) {
-            *count.entry(k).or_default() += 1;
+        if let Some((n, _, v)) = key_of(it) {
+            *count.entry((n, v)).or_default() += 1;
         }
     }
-    let mut kept = Vec::with_capacity(items.len());
-    for it in items.drain(..) {
-        if key_of(&it).is_some_and(|k| count[&k] > 1) {
-            let title = find(doc.root(), &it.uuid).map(title_of).unwrap_or_default();
-            unreadable.push(Unreadable {
-                title,
-                uuid: Some(it.uuid),
-                what: damage(PAIR, Fault::Twice),
-            });
-        } else {
-            kept.push(it);
+    for it in items.iter_mut() {
+        if let Some((n, kind, v)) = key_of(it) {
+            let key = (n, v);
+            let of = count[&key];
+            let place = seen.entry(key).or_default();
+            *place += 1;
+            if of > 1 {
+                it.related = Some(Related {
+                    kind,
+                    place: *place,
+                    of,
+                });
+            }
         }
     }
-    *items = kept;
-}
-
-fn find<'a>(g: &'a Group, uuid: &[u8; 16]) -> Option<&'a Entry> {
-    g.entries()
-        .find(|e| e.uuid() == *uuid)
-        .or_else(|| g.groups().find_map(|s| find(s, uuid)))
 }
 
 fn find_mut<'a>(g: &'a mut Group, uuid: &[u8; 16]) -> Option<&'a mut Entry> {

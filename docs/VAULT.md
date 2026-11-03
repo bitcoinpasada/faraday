@@ -578,8 +578,8 @@ standard fields it leaves empty, must be absent or empty:
 | `gpg`, GPG keys | 7 | `Title`: the key's primary user ID. `key` (protected): the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected; required. `public`: the public certificate as last exported, armored. `revocation` (protected): the revocation certificate made with the key (F32), armored. `revoked`: when the key was marked revoked, an RFC 3339 date-time. | |
 | `secure_boot`, Secure Boot | 8 | `Title`: "Secure Boot keys". `owner`: the owner GUID in its text form. `pk_key`, `kek_key`, `db_key` (protected): each a PEM `PRIVATE KEY` (PKCS#8, RFC 7468). `pk_cert`, `kek_cert`, `db_cert`: each a PEM `CERTIFICATE`. | |
 | `wallet_share`, Wallet shares | 13 | `Title`: its name. `Password` (protected): the share as its `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6). `index`, from 1; `of`, how many; `wallet`, as a plan's. | |
-| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required; two for one key are both Unreadable, naming the key. | |
-| `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required; at most one per share index and key. | |
+| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required. Several for one key are each kept and read: the app labels each ("1 of 2 passphrases for key {fingerprint}") and warns when saving one that the vault already holds one for the key, with Continue and Cancel; the warning is not built. | |
+| `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required. Several of one share index and key are each kept and read: the app labels each ("Share 3 · also saved: another share 3 of this set") and warns when saving one that the vault already holds, with Continue and Cancel; the warning is not built. | |
 | none: the database's custom data | 10, 11, 16, 1 | signed amounts, backup plans, the seal count, the label: above | |
 | not carried | 9, 12 | the pending signing round is compiled out of the app (F109), and 12 is no build's | |
 
@@ -646,8 +646,7 @@ BIP-39 phrase of their list; a policy or descriptor that does not
 parse; a PEM block other than the one its field names; a
 `faraday.codex32`, `faraday.child` or `faraday.plan.{n}` that is not the
 TOML its key names; a GPG key not of Faraday's own shape (an Ed25519
-primary key with one Ed25519 signing subkey, unprotected); two
-passphrases for one key; two shares of one index and key; an entry with
+primary key with one Ed25519 signing subkey, unprotected); an entry with
 two fields of one name; two entries or two groups with one UUID; an entry,
 or a group it is in, that cannot be told apart from what was read (two
 UUIDs, a UUID that is not 16 bytes, a field with two values, text between

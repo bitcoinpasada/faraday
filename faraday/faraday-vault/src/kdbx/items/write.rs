@@ -9,9 +9,8 @@ use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use super::{
-    Body, ENTRY_FIELDS, FORMAT, Fault, KEEPASS, KINDS, PAIR, PEM_FIELDS, PLAN, Read, SIGNED,
-    STANDARD, count_uuid, custom_record, find, find_mut, forms, has_same_field, named,
-    named_custom, pair_of_entry, pair_of_record, text,
+    Body, ENTRY_FIELDS, FORMAT, KEEPASS, KINDS, PEM_FIELDS, PLAN, SIGNED, STANDARD, count_uuid,
+    custom_record, find_mut, forms, has_same_field, named, named_custom, text,
 };
 use crate::kdbx::xml::{Document, Entry, Group};
 use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
@@ -36,11 +35,6 @@ pub enum Unwritable {
     Unreadable,
     /// A plan's number of 0, or a value that is not its TOML.
     Plan,
-    /// The body's passphrase key, or codex32 share index and key, is one
-    /// that another item (readable, or unreadable only for holding the
-    /// same pair) already holds: the field is named. Writing it would make
-    /// both unreadable.
-    Twice(&'static str),
 }
 
 /// Where an item goes and what it is called (§7): the entry's UUID (an
@@ -259,61 +253,23 @@ fn locked(doc: &Document) -> Result<(), Unwritable> {
 }
 
 /// Costs [`super::read`]: the entry with this UUID may be changed: it is
-/// not two, and `read` does not list it as unreadable. With `undoing`, an
-/// entry that is unreadable only because another holds the same passphrase
-/// key or codex32 share index and key (`Fault::Twice` at the pair's field)
-/// may also be taken, so that a person can remove one of the two. Gives how
-/// many entries have the UUID, and the document as `read` gives it.
-fn changeable(
-    c: &Compute,
-    doc: &Document,
-    uuid: &[u8; 16],
-    undoing: bool,
-) -> Result<(usize, Read), Unwritable> {
+/// not two, and `read` does not list it as unreadable. Gives how many
+/// entries have the UUID, and the document as `read` gives it.
+fn changeable(c: &Compute, doc: &Document, uuid: &[u8; 16]) -> Result<usize, Unwritable> {
     let n = count_uuid(doc.root(), uuid);
     let read = super::read(c, doc);
     if n > 1 {
         return Err(Unwritable::Unreadable);
     }
-    if n == 1 {
-        let mut mine = read
+    if n == 1
+        && read
             .unreadable
             .iter()
-            .filter(|u| u.uuid.as_ref() == Some(uuid))
-            .peekable();
-        let only_pair = mine.peek().is_some()
-            && mine.all(|u| u.what.fault == Fault::Twice && u.what.at == PAIR);
-        let listed = read
-            .unreadable
-            .iter()
-            .any(|u| u.uuid.as_ref() == Some(uuid));
-        if listed && !(undoing && only_pair) {
-            return Err(Unwritable::Unreadable);
-        }
+            .any(|u| u.uuid.as_ref() == Some(uuid))
+    {
+        return Err(Unwritable::Unreadable);
     }
-    Ok((n, read))
-}
-
-/// Whether another entry than `uuid` holds the pair `body` would, among
-/// the items that read and the entries unreadable only for a pair.
-fn pair_taken(doc: &Document, read: &Read, uuid: &[u8; 16], body: &Body) -> bool {
-    let Body::Record(r) = body else {
-        return false;
-    };
-    let Some(mine) = pair_of_record(r) else {
-        return false;
-    };
-    let readable = read.items.iter().map(|i| i.uuid);
-    let twice = read
-        .unreadable
-        .iter()
-        .filter(|u| u.what.fault == Fault::Twice && u.what.at == PAIR)
-        .filter_map(|u| u.uuid);
-    readable
-        .chain(twice)
-        .filter(|u| u != uuid)
-        .filter_map(|u| find(doc.root(), &u))
-        .any(|e| pair_of_entry(e).as_ref() == Some(&mine))
+    Ok(n)
 }
 
 /// Why a plan's or signed amounts' key may not be changed: it holds a
@@ -337,8 +293,9 @@ fn custom_readable(doc: &Document, key: &str) -> Result<(), Unwritable> {
 /// body leaves out is removed, except that a person's entry keeps a
 /// standard field longer than a record holds (which `read` gives as an
 /// [`Extra`](super::Extra)) unless the body gives that field a value.
-/// Refused when the entry is unreadable, and when the body's passphrase key
-/// or codex32 share index and key is one another item holds.
+/// Refused when the entry is unreadable. A passphrase for a key another
+/// passphrase is kept for, or a codex32 share of an index and key another is
+/// kept of, is taken: `read` gives each its place among them.
 pub fn put(
     c: &Compute,
     doc: &mut Document,
@@ -349,10 +306,7 @@ pub fn put(
     if doc.root().ambiguous().is_some() {
         return Err(Unwritable::Unreadable);
     }
-    let (_, read) = changeable(c, doc, &place.uuid, false)?;
-    if pair_taken(doc, &read, &place.uuid, body) {
-        return Err(Unwritable::Twice(PAIR));
-    }
+    changeable(c, doc, &place.uuid)?;
     let (fl, cd) = fields_for(c, body, place.title)?;
     let k = body.kind();
     let name = KINDS.iter().find(|(_, n)| *n == k).map(|(n, _)| *n);
@@ -441,15 +395,13 @@ pub fn put(
 /// Costs a parse of every seed's words and wallet's policy: removes the
 /// entry with this UUID, wherever it is; whether it was there. Refused on
 /// a read-only vault, when the UUID is in the document more than once and
-/// when `read` lists the entry as unreadable, whatever the reason, except
-/// one unreadable only because another item holds its passphrase key or
-/// codex32 share index and key: that one may be removed, to undo it.
+/// when `read` lists the entry as unreadable.
 pub fn remove(c: &Compute, doc: &mut Document, uuid: &[u8; 16]) -> Result<bool, Unwritable> {
     fn go(g: &mut Group, uuid: &[u8; 16]) -> bool {
         g.remove_entry(uuid).unwrap_or(false) || g.groups_mut().any(|s| go(s, uuid))
     }
     locked(doc)?;
-    if changeable(c, doc, uuid, true)?.0 == 0 {
+    if changeable(c, doc, uuid)? == 0 {
         return Ok(false);
     }
     Ok(go(doc.root_mut(), uuid))

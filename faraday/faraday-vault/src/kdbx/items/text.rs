@@ -82,8 +82,7 @@ pub enum Fault {
     Missing,
     /// A value not in its published form.
     Value,
-    /// Two of what may be one: two passphrases for one key, two codex32
-    /// shares of one index and key, both of two exclusive fields, a key
+    /// Two of what may be one: both of two exclusive fields, a key
     /// written twice.
     Twice,
     /// `faraday.format` is not one this build reads.
@@ -168,6 +167,33 @@ pub struct Item {
     /// unreadable), not a damage of the entry. Always `None` for Faraday's
     /// items.
     pub totp: Option<Result<Totp, NotTotp>>,
+    /// Set when other items hold a passphrase for the same key, or a codex32
+    /// share of the same index and key: its place among them. `None` for
+    /// every other item, and for one that is alone.
+    pub related: Option<Related>,
+}
+
+/// What a group of related secrets is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelatedKind {
+    /// Passphrases for one key.
+    Passphrases,
+    /// Codex32 shares of one index and key.
+    Shares,
+}
+
+/// An item's place among the items that hold a related secret (several
+/// passphrases for one key, several shares of one index and key), in
+/// the order read (a group's entries, then its groups): the app labels each, such as "1 of 2 passphrases for key
+/// {fingerprint}".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Related {
+    /// What the group is.
+    pub kind: RelatedKind,
+    /// This item's place in the group, from 1.
+    pub place: usize,
+    /// How many items the group holds, at least 2.
+    pub of: usize,
 }
 
 /// One value of the database's custom data that reads: a backup plan
