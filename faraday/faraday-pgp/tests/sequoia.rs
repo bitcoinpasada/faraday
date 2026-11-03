@@ -188,6 +188,7 @@ fn sequoia_reads_the_certificate() {
         2,
         "{said}"
     );
+    assert!(!said.contains("Revoked"), "{said}");
 }
 
 #[test]

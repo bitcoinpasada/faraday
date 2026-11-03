@@ -34,7 +34,7 @@ runs:
       run: |
         sudo apt-get update
         sudo apt-get install --yes --no-install-recommends \
-          gnupg paperkey openssl sbsigntool mtools dosfstools
+          gnupg sq paperkey openssl sbsigntool mtools dosfstools
 
     - name: Rust toolchain
       shell: bash

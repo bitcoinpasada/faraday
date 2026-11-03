@@ -506,12 +506,15 @@ difference"), and says why.
     both (`docs/CODEX32.md` §8.4). The corpus damages strings with
     bech32 characters and `?` only.
 - `hash`
-  - bech32 padding: Core's `convertbits` refuses a string whose data
-    leaves 5 or more padding bits or non-zero ones (BIP-173 rules this
-    for a segwit address); Faraday reads any string with a valid
-    checksum and drops the bits that do not fill a byte. The area reads
-    those strings the same way (the whole bytes) and the corpus makes
-    them, so the leniency is stated; refusing them is the owner's call.
+  - bech32 groups: Faraday reads any string with a valid checksum as
+    bytes, all its data groups together, and drops the bits that do not
+    fill a byte. BIP-173 has a padding rule only for a segwit address,
+    over the program after the witness version, and Faraday does not
+    take the version off. So Core's `convertbits` over all the groups
+    refuses every P2WPKH address, and the area reads those strings as
+    Faraday does. The bytes shown for a segwit address are therefore its
+    version and program run together, not its program: this area does
+    not judge them as a program.
   - bech32 length: Core's decoder refuses more than 90 characters
     (BIP-173); Faraday accepts any length the checksum covers. The area
     reads longer strings the same way.

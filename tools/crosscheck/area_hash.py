@@ -48,7 +48,9 @@ HRPS = ["bc", "tb", "bcrt", "lnbc", "lntb", "npub", "nsec", "age", "a", "abcdef"
 # Lengths around the 64-byte block of SHA-256 and RIPEMD-160 and their
 # 9-byte padding, then a spread to 300.
 EDGE_SIZES = list(range(0, 131))
-WHITESPACE = " \t\n\r"
+# What Rust's `str::trim` takes off: Unicode's White_Space.
+WHITESPACE = ("\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007"
+              "\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000")
 
 
 def sha256(b):
@@ -117,10 +119,12 @@ def ref_bech32(text):
         raise ValueError("not bech32")
     raw = convertbits(data, 5, 8, False)
     if raw is None:
-        # Known difference: BIP-173 allows no more than 4 padding bits, all
-        # zero (Core's `convertbits` refuses otherwise); Faraday reads the
-        # whole bytes and drops the rest, as the `bech32` crate does for
-        # any data. The reference reads it the same way here.
+        # Known difference: `encodings::read` turns all the data groups into
+        # bytes and drops the bits that do not fill one. BIP-173's rule of at
+        # most 4 padding bits, all zero, is a segwit address's, over the
+        # program after the witness version; `convertbits` here applies it
+        # to all the groups, and so refuses every P2WPKH address. The
+        # reference reads it the same way as Faraday.
         raw = convertbits(data, 5, 8, True)[:len(data) * 5 // 8]
     return {"encoding": "bech32" if enc == Encoding.BECH32 else "bech32m",
             "bytes": bytes(raw).hex(), "version": None, "hrp": hrp, "checksum": True}
@@ -199,11 +203,13 @@ class Hash(Area):
     )
     differences = [
         (
-            'bech32 padding: Core\'s `convertbits` refuses a string whose data leaves 5 or more '
-            'padding bits or non-zero ones (BIP-173 rules this for a segwit address); Faraday '
-            "reads any string with a valid checksum and drops the bits that do not fill a byte. "
-            'The area reads those strings the same way (the whole bytes) and the corpus makes '
-            'them, so the leniency is stated; refusing them is the owner\'s call.'
+            'bech32 groups: Faraday reads any string with a valid checksum as bytes, all its '
+            'data groups together, and drops the bits that do not fill a byte. BIP-173 has a '
+            'padding rule only for a segwit address, over the program after the witness version, '
+            'and Faraday does not take the version off. So Core\'s `convertbits` over all the '
+            'groups refuses every P2WPKH address, and the area reads those strings as Faraday '
+            'does. The bytes shown for a segwit address are therefore its version and program '
+            'run together, not its program: this area does not judge them as a program.'
         ),
         (
             'bech32 length: Core\'s decoder refuses more than 90 characters (BIP-173); '
