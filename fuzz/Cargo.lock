@@ -474,6 +474,7 @@ dependencies = [
  "faraday-intake",
  "hmac",
  "miniz_oxide",
+ "pem-rfc7468",
  "quick-xml",
  "sha1",
  "sha2",
@@ -633,6 +634,15 @@ checksum = "112d82ceb8c5bf524d9af484d4e4970c9fd5a0cc15ba14ad93dccd28873b0629"
 dependencies = [
  "digest",
  "hmac",
+]
+
+[[package]]
+name = "pem-rfc7468"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6305423e0e7738146434843d1694d621cce767262b2a86910beab705e4493d9"
+dependencies = [
+ "base64ct",
 ]
 
 [[package]]

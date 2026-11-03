@@ -51,6 +51,9 @@ quick-xml = { version = "0.41", default-features = false }
 # The Base64 of UUIDs, times and protected values, strict about padding and
 # trailing bits (docs/deps/base64ct.md).
 base64ct.workspace = true
+# The PEM blocks of a Secure Boot item (docs/VAULT.md §7), read and
+# written into wiping buffers (docs/deps/pem-rfc7468.md).
+pem-rfc7468 = { version = "1.0", default-features = false }
 
 [dev-dependencies]
 # The slot vectors' file (tools/vectors/vault/slots.json).

@@ -1272,6 +1272,7 @@ dependencies = [
  "faraday-intake",
  "hmac",
  "miniz_oxide 0.8.9",
+ "pem-rfc7468",
  "quick-xml",
  "serde_json",
  "sha1",

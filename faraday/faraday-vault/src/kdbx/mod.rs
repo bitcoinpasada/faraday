@@ -36,6 +36,7 @@ mod blocks;
 mod gzip;
 mod header;
 mod inner;
+pub mod items;
 mod keys;
 pub mod xml;
 
@@ -53,6 +54,9 @@ use crate::Cost;
 
 pub use header::{Cipher, Compression, Header, Kdf, LANES, MEMORY_KIB, PASSES};
 pub use inner::{Binary, InnerStream};
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub use items::fuzz_items;
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub use xml::fuzz_document as fuzz_xml;
