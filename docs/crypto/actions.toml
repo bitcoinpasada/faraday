@@ -3800,7 +3800,7 @@ tests = [
   "core/faraday-bip/tests/all/aez.rs::encrypt_vectors",
 ]
 crosscheck = "lightning"
-independence = { class = "outside", author = "Lightning Labs (LND), Yawning Angel (AEZ)" }
+independence = { class = "outside", author = "Lightning Labs (LND), Yawning Angel (AEZ): compared with the processor's AES round on both sides and again with the aes crate's software round against Yawning Angel's AEZ built without assembly" }
 fuzz = [
   "aezeed",
 ]
@@ -3821,7 +3821,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "aezeed and AEZ are written here; the cross-check asks LND's own Go aezeed package, over Yawning Angel's AEZ, the same words and passphrases and requires the same answers or refusals."
+text = "aezeed and AEZ are written here; the cross-check asks LND's own Go aezeed package, over Yawning Angel's AEZ, the same words and passphrases and requires the same answers or refusals, once with the processor's AES round on both sides and once with the aes crate's software round against AEZ built without assembly."
 kind = "Neutral"
 decision = "no decision"
 

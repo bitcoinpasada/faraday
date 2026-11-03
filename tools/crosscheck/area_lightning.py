@@ -25,6 +25,14 @@ sources `tools/reference/aezeed/README.md` quotes, over btclib's BIP-32
   right and a version other than 0, and the published seeds under a
   changed passphrase, with an enciphered byte or the salt changed and the
   checksum put right, and with a word changed: each of them LND refuses.
+- Every aezeed case above is asked twice. The second time Faraday's command
+  is the one built with the aes crate's software round (`--cfg
+  aes_backend="soft"`, the fixsliced round the Pi runs) and LND's program
+  the one built without assembly (tags `noasm`, `purego`: Yawning Angel's AEZ
+  then runs its own bitsliced round), both made by `tools/crosscheck/run.sh`
+  and checked by `soft.py` before the run; on a processor with AES-NI the
+  first pass compares the processor's round on both sides, so the software
+  round is compared only here.
 """
 
 import json
@@ -32,7 +40,7 @@ import os
 import subprocess
 
 import bip32_ref
-from common import ROOT, Area, HarnessError, use_reference
+from common import ROOT, Area, HarnessError, Mismatch, Rust, reference, use_reference
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
@@ -87,11 +95,25 @@ def lnd_exe():
     return path
 
 
+def soft_exes():
+    """The software-round pass's two programs, which `run.sh` builds and
+    names: Faraday's command with the aes crate's software backend and LND's
+    program without assembly."""
+    rust, lnd = os.environ.get("FARADAY_SOFT_RUST"), os.environ.get("FARADAY_LND_SOFT_REF")
+    for path in (rust, lnd):
+        if not path or not os.access(path, os.X_OK):
+            raise HarnessError(
+                "the lightning area's software-round pass needs the two programs "
+                "tools/crosscheck/run.sh builds (FARADAY_SOFT_RUST, FARADAY_LND_SOFT_REF); "
+                f"{path or 'one'} is missing")
+    return rust, lnd
+
+
 class Lnd:
     """The Go program answering with LND's code, a request a line."""
 
-    def __init__(self):
-        self.proc = subprocess.Popen([lnd_exe()], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    def __init__(self, exe=None):
+        self.proc = subprocess.Popen([exe or lnd_exe()], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      text=True, bufsize=1)
         self.next_id = 0
 
@@ -124,7 +146,9 @@ class Lightning(Area):
     reference = (
         "LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package "
         "over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one "
-        "process answering the run's requests; ldk-node's derivation as "
+        "process answering the run's requests (the aezeed also asked of a second build "
+        "of each side, Faraday's with the aes crate's software round and LND's without "
+        "assembly); ldk-node's derivation as "
         "`tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` "
         "over btclib's BIP-32 (`btclib/`, on btclib's own curve)"
     )
@@ -134,6 +158,9 @@ class Lightning(Area):
         "required of it as well as of Faraday; the Go program is built offline from the "
         "vendored tree (`GOFLAGS=-mod=vendor`, `GOTOOLCHAIN=local`) and its version is "
         "written into the stamp; the area stops when the program is missing; "
+        "the software-round pass runs only on programs `soft.py` has checked to be soft "
+        "(the tags `noasm` and `purego`; no AES-NI instruction in Faraday's command) and "
+        "the command says it was built soft; "
         "ldk-node's derivation is written in the area from the sources the README "
         "quotes, and ldk's published answers are required of it as well as of Faraday"
     )
@@ -142,7 +169,8 @@ class Lightning(Area):
         '(`tools/vectors/aezeed/`)'
     )
     corpus = (
-        'random BIP-39 seeds and entropies on every network; random words, a wrong '
+        'random BIP-39 seeds and entropies on every network; every aezeed case again with '
+        'the aes crate\'s software round against LND\'s AEZ without assembly; random words, a wrong '
         'version with a right checksum, published seeds under a changed passphrase, a '
         'changed enciphered byte or salt with the checksum put right, a changed word, '
         "each refused by LND's code"
@@ -160,6 +188,24 @@ class Lightning(Area):
     )
 
     lnd_proc = None
+    soft_rust = None
+    soft_lnd = None
+
+    def __init__(self, exe, seed, scale, sabotage=None):
+        # The self-test makes the software pass's Faraday wrong on its own
+        # (`lightning.aezeed-soft`), the first pass's with `lightning.aezeed`.
+        soft_sabotage = None
+        if sabotage == "lightning.aezeed-soft":
+            sabotage, soft_sabotage = None, "lightning.aezeed"
+        super().__init__(exe, seed, scale, sabotage)
+        rust_exe, lnd_exe_soft = soft_exes()
+        self.soft_rust = Rust(rust_exe, self.name, soft_sabotage)
+        self.soft_lnd = Lnd(lnd_exe_soft)
+        backend = self.soft_rust.call("lightning.backend")
+        if backend != ("ok", {"aes": "soft"}):
+            raise HarnessError(
+                f"the software-round pass's Faraday command is not built with the software "
+                f"AES round: {backend}")
 
     def lnd_ref(self):
         if self.lnd_proc is None:
@@ -169,6 +215,10 @@ class Lightning(Area):
     def close(self):
         if self.lnd_proc is not None:
             self.lnd_proc.close()
+        if self.soft_lnd is not None:
+            self.soft_lnd.close()
+        if self.soft_rust is not None:
+            self.soft_rust.close()
         super().close()
 
     def ldk(self, seed, network, expected=None):
@@ -186,8 +236,26 @@ class Lightning(Area):
         def ref():
             return self.lnd_ref().call("aezeed", words=[ENGLISH.wordlist[w] for w in words],
                                        passphrase=passphrase.hex(), cost=cost)
-        return self.compare("lightning.aezeed", {"words": words, "passphrase": passphrase.hex(),
-                                                 "cost": cost}, ref, expected)
+        inputs = {"words": words, "passphrase": passphrase.hex(), "cost": cost}
+        got = self.compare("lightning.aezeed", inputs, ref, expected)
+        self.aezeed_soft(inputs, expected)
+        return got
+
+    def aezeed_soft(self, inputs, expected):
+        """The same case with the aes crate's software round against LND's
+        AEZ without assembly."""
+        rust = self.soft_rust.call("lightning.aezeed", **inputs)
+        lnd = reference(lambda: self.soft_lnd.call(
+            "aezeed", words=[ENGLISH.wordlist[w] for w in inputs["words"]],
+            passphrase=inputs["passphrase"], cost=inputs["cost"]))
+        self.compared += 1
+        op = "lightning.aezeed-soft"
+        if rust[0] != lnd[0] or (rust[0] == "ok" and rust[1] != lnd[1]):
+            raise Mismatch(self.name, op, inputs, rust, lnd)
+        if expected is not None and (expected[0] != lnd[0]
+                                     or (expected[0] == "ok" and expected[1] != lnd[1])):
+            raise Mismatch(self.name, op, inputs, rust, lnd,
+                           f"both differ from the published vector {expected}")
 
     def published(self):
         v = self.aezeed_vectors

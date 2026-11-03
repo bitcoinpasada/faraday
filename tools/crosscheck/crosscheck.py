@@ -93,7 +93,7 @@ AREAS = {
     "vanity": ("area_vanity", "Vanity", "vanity.grind", 460),
     "kdbx": ("area_kdbx", "Kdbx", "kdbx.verify", 30),
     "lightning": ("area_lightning", "Lightning",
-                  ("lightning.ldk", "lightning.aezeed", "lightning.lnd"), 240),
+                  ("lightning.ldk", "lightning.aezeed", "lightning.lnd", "lightning.aezeed-soft"), 280),
 }
 
 

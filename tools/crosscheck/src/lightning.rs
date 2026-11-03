@@ -65,6 +65,13 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "entropy": hex(seed.entropy().expose()),
             }))
         }
+        // Which AES round this command runs: `soft` when the cross-check
+        // built it with the aes crate's software backend (`run.sh`).
+        "backend" => {
+            #[allow(unexpected_cfgs)]
+            let soft = cfg!(aes_backend = "soft");
+            Ok(json!({"aes": if soft { "soft" } else { "default" }}))
+        }
         _ => Err(format!("unknown lightning op {name}")),
     }
 }

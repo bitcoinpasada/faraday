@@ -37,6 +37,9 @@ nothing else.
   <https://go.dev/dl/> (the tarball's SHA-256 is on that page) or the
   distribution's `golang` package; `go version` must say 1.27 or later,
   or `just crosscheck` stops.
+  The `lightning` area's software-round pass reads the commands it builds
+  with binutils' `objdump` (x86-64 only), which comes with the C toolchain
+  Rust links with.
 - The judges `docs/ESTABLISHED.md` §9.6 lists for the cross-check are
   distribution packages and vendored code to come; each is added here
   by the change that first needs it, and `just crosscheck` fails

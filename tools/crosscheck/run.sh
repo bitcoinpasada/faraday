@@ -82,6 +82,49 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
 fi
 say "build: btcd's answer program done"
 
+# The second pass of the aezeed (area lightning): Faraday's command built
+# with the aes crate's software round (--cfg aes_backend="soft", for this
+# build only, in a target folder of its own) and LND's program built without
+# assembly (tags noasm, purego: Yawning Angel's AEZ then runs its bitsliced
+# round). soft.py stops the run when either is not what it says.
+case " $* " in
+    *" --area "*|*" --area="*)
+        case " $* " in *" lightning "*|*"=lightning "*) soft=1 ;; *) soft= ;; esac ;;
+    *) soft=1 ;;
+esac
+if [ -n "$soft" ]; then
+    say "build: the Rust command with the software AES round (cargo build, --cfg aes_backend=\"soft\")"
+    soft_exe=$(RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--cfg aes_backend=\"soft\"" \
+        CARGO_TARGET_DIR="$PWD/$progress/soft-target" \
+        cargo build --frozen -q -p faraday-crosscheck --message-format=json-render-diagnostics \
+        | python3 -I -c '
+import json, sys
+for line in sys.stdin:
+    m = json.loads(line)
+    if m.get("reason") == "compiler-artifact" and m.get("executable") \
+            and m["target"]["name"] == "faraday-crosscheck":
+        print(m["executable"])
+' | tail -n 1)
+    if [ -z "$soft_exe" ]; then
+        say "build: FAILED: the Rust command with the software AES round did not build"
+        exit 2
+    fi
+    if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+            go build -C tools/reference/lnd -trimpath -tags noasm,purego \
+            -o "$PWD/$progress/lnd-ref-soft" . 2>"$progress/go-build-soft.log"; then
+        cat "$progress/go-build-soft.log" >&2
+        say "build: FAILED: LND's answer program without assembly did not build"
+        exit 2
+    fi
+    if ! why=$(python3 -I -B tools/crosscheck/soft.py check "$exe" "$soft_exe" \
+            "$PWD/$progress/lnd-ref" "$PWD/$progress/lnd-ref-soft" 2>&1); then
+        echo "$why" | while read -r line; do say "$line"; done
+        exit 2
+    fi
+    say "build: the software-round pass: $why"
+    export FARADAY_SOFT_RUST="$soft_exe" FARADAY_LND_SOFT_REF="$PWD/$progress/lnd-ref-soft"
+fi
+
 # The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
 # rule 4): the tests that skip without an outside tool under plain `just`
 # fail without it here, and QEMU boots OVMF's Secure Boot firmware over
