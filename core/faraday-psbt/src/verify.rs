@@ -29,6 +29,7 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use bitcoin::key::TapTweak;
+use bitcoin::opcodes::all::{OP_DUP, OP_EQUALVERIFY, OP_HASH160};
 use bitcoin::script::Instruction;
 use bitcoin::secp256k1::{self, Keypair, Message, Secp256k1, XOnlyPublicKey};
 use bitcoin::sighash::{EcdsaSighashType, SighashCache, TapSighashType};
@@ -80,7 +81,8 @@ impl fmt::Display for SigKey {
 pub enum Unchecked {
     /// The input carries no previous output, so there is no sighash.
     NoPrevout,
-    /// The input spends a script this crate does not take apart.
+    /// The input spends a script this crate does not take apart, or a
+    /// script-path element that is a proven preimage, not a signature.
     UnsupportedScript,
     /// The script names no key the signature could be under.
     UnknownKey,
@@ -136,6 +138,10 @@ pub struct SignaturePresent {
     pub finalized: bool,
     /// What checking it came to.
     pub verdict: Verdict,
+    /// A hash of this element is pushed in the taproot leaf, so it is
+    /// data and not a signature: its sighash byte is not compared with
+    /// what the input asks.
+    pub preimage: bool,
 }
 
 impl SignaturePresent {
@@ -375,6 +381,12 @@ struct Present {
     bytes: Vec<u8>,
     leaf: Option<TapLeafHash>,
     finalized: bool,
+    /// A hash of the element is pushed in the finalized script-path
+    /// witness's leaf: a signature valid in this leaf commits to it, so
+    /// the leaf cannot hold its hash (one made for another leaf can meet
+    /// this, and fails in this leaf anyway); an element that meets it and
+    /// verifies under no key is data, not an invalid signature.
+    preimage: bool,
     /// The keys the script names, when the signature is not filed under
     /// one: a finalized multisig witness gives signatures in script
     /// order and no keys with them.
@@ -408,7 +420,8 @@ fn input_signatures<C: secp256k1::Verification>(
     let restored = restore(psbt, index, &c);
     let mut out = Vec::with_capacity(present.len());
     for p in present {
-        let (key, verdict) = check(secp, &restored, &c, index, &p);
+        let mut preimage = false;
+        let (key, verdict) = check(secp, &restored, &c, index, &p, &mut preimage);
         let (fingerprint, ours) = origin(ctx, input, &key);
         out.push(SignaturePresent {
             input: index,
@@ -421,6 +434,7 @@ fn input_signatures<C: secp256k1::Verification>(
             fingerprint,
             ours,
             verdict,
+            preimage,
         });
     }
     out
@@ -487,6 +501,7 @@ fn collect(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present> {
             bytes: sig.to_vec(),
             leaf: None,
             finalized: false,
+            preimage: false,
             candidates: Vec::new(),
         });
     }
@@ -497,6 +512,7 @@ fn collect(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present> {
             bytes: sig.to_vec(),
             leaf: None,
             finalized: false,
+            preimage: false,
             candidates: Vec::new(),
         });
     }
@@ -507,6 +523,7 @@ fn collect(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present> {
             bytes: sig.to_vec(),
             leaf: Some(*leaf),
             finalized: false,
+            preimage: false,
             candidates: Vec::new(),
         });
     }
@@ -568,6 +585,87 @@ fn leaf_keys(script: &Script) -> Vec<SigKey> {
         .collect()
 }
 
+/// What a taproot leaf holds that the witness rules look up, from one
+/// parse of the leaf: its 20- and 32-byte pushes, and the 20-byte pushes
+/// of its `DUP HASH160 <h20> EQUALVERIFY` windows, each sorted for binary
+/// search. A leaf that does not parse holds nothing, so it proves nothing.
+#[derive(Default)]
+struct LeafFacts<'a> {
+    hash_pushes: Vec<&'a [u8]>,
+    pkh_hashes: Vec<&'a [u8]>,
+}
+
+impl<'a> LeafFacts<'a> {
+    fn parse(script: &'a Script) -> Self {
+        let Ok(ins) = script.instructions().collect::<Result<Vec<_>, _>>() else {
+            return Self::default();
+        };
+        let mut hash_pushes: Vec<&[u8]> = ins
+            .iter()
+            .filter_map(|i| match i {
+                Instruction::PushBytes(b) if matches!(b.len(), 20 | 32) => Some(b.as_bytes()),
+                _ => None,
+            })
+            .collect();
+        let mut pkh_hashes: Vec<&[u8]> = ins
+            .windows(4)
+            .filter_map(|w| match w {
+                [
+                    Instruction::Op(OP_DUP),
+                    Instruction::Op(OP_HASH160),
+                    Instruction::PushBytes(h),
+                    Instruction::Op(OP_EQUALVERIFY),
+                ] if h.len() == 20 => Some(h.as_bytes()),
+                _ => None,
+            })
+            .collect();
+        hash_pushes.sort_unstable();
+        pkh_hashes.sort_unstable();
+        Self {
+            hash_pushes,
+            pkh_hashes,
+        }
+    }
+
+    /// The 32-byte witness elements that are x-only keys whose HASH160 is
+    /// the push of a pkh window of the leaf: a `pkh` leaf holds the hash,
+    /// the key is in the witness.
+    fn pkh_candidates(&self, elements: &[Vec<u8>]) -> Vec<SigKey> {
+        elements
+            .iter()
+            .filter(|e| e.len() == 32)
+            .filter_map(|e| {
+                let key = XOnlyPublicKey::from_slice(e).ok()?;
+                let h = <bitcoin::hashes::hash160::Hash as bitcoin::hashes::Hash>::hash(e);
+                let h: &[u8] = h.as_ref();
+                self.pkh_hashes
+                    .binary_search(&h)
+                    .is_ok()
+                    .then_some(SigKey::Schnorr(key))
+            })
+            .collect()
+    }
+
+    /// Whether a hash of `element` (SHA256 or HASH256, RIPEMD160 or
+    /// HASH160) is a data push of the leaf: then the element is data,
+    /// since a signature valid in this leaf commits to the leaf, so the
+    /// leaf cannot hold its hash. (A signature made for another leaf can
+    /// meet this; it fails in this leaf anyway.)
+    fn holds_hash_of(&self, element: &[u8]) -> bool {
+        use bitcoin::hashes::{Hash, hash160, ripemd160, sha256, sha256d};
+        let h32 = [
+            sha256::Hash::hash(element).to_byte_array(),
+            sha256d::Hash::hash(element).to_byte_array(),
+        ];
+        let h20 = [
+            ripemd160::Hash::hash(element).to_byte_array(),
+            hash160::Hash::hash(element).to_byte_array(),
+        ];
+        let has = |h: &[u8]| self.hash_pushes.binary_search(&h).is_ok();
+        h32.iter().any(|h| has(h)) || h20.iter().any(|h| has(h))
+    }
+}
+
 /// The signatures inside a final `scriptSig` and witness, read the way
 /// [`crate::finalize`] writes them.
 fn final_signatures(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present> {
@@ -608,6 +706,7 @@ fn final_signatures(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present
             bytes: sig,
             leaf: None,
             finalized: true,
+            preimage: false,
             candidates: Vec::new(),
         }];
     }
@@ -633,6 +732,7 @@ fn segwit_witness(effective: &Script, witness: &Witness) -> Vec<Present> {
             bytes: sig,
             leaf: None,
             finalized: true,
+            preimage: false,
             candidates: Vec::new(),
         }];
     }
@@ -662,6 +762,7 @@ fn taproot_witness(witness: &Witness) -> Vec<Present> {
             bytes: elements[0].clone(),
             leaf: None,
             finalized: true,
+            preimage: false,
             candidates: Vec::new(),
         }];
     }
@@ -676,6 +777,9 @@ fn taproot_witness(witness: &Witness) -> Vec<Present> {
     };
     let leaf = TapLeafHash::from_script(Script::from_bytes(&script), version);
     let keys = leaf_keys(Script::from_bytes(&script));
+    let facts = LeafFacts::parse(Script::from_bytes(&script));
+    let pkh_keys = facts.pkh_candidates(&elements);
+    let keys: Vec<SigKey> = keys.into_iter().chain(pkh_keys).collect();
     elements
         .into_iter()
         // A zero sighash byte stays in, to be reported invalid.
@@ -683,9 +787,10 @@ fn taproot_witness(witness: &Witness) -> Vec<Present> {
         .map(|bytes| Present {
             key: SigKey::Unknown,
             kind: SigKind::Schnorr,
-            bytes,
             leaf: Some(leaf),
             finalized: true,
+            preimage: facts.holds_hash_of(&bytes),
+            bytes,
             candidates: keys.clone(),
         })
         .collect()
@@ -703,6 +808,7 @@ fn ecdsa_candidates(elements: &[Vec<u8>], keys: &[SigKey]) -> Vec<Present> {
             bytes: bytes.clone(),
             leaf: None,
             finalized: true,
+            preimage: false,
             candidates: keys.to_vec(),
         })
         .collect()
@@ -757,6 +863,7 @@ fn check<C: secp256k1::Verification>(
     c: &Classified,
     index: usize,
     p: &Present,
+    preimage: &mut bool,
 ) -> (SigKey, Verdict) {
     let Some(utxo) = c.utxo.as_ref() else {
         return (p.key.clone(), Verdict::Unchecked(Unchecked::NoPrevout));
@@ -779,7 +886,7 @@ fn check<C: secp256k1::Verification>(
                 SigKey::Ecdsa(pk) => secp.verify_ecdsa(&msg, &sig.signature, &pk.inner).is_ok(),
                 _ => false,
             };
-            settle(p, verify)
+            settle(p, verify, preimage)
         }
         SigKind::Schnorr => {
             // BIP-341 refuses a 65-byte signature ending 0x00: it is
@@ -789,7 +896,11 @@ fn check<C: secp256k1::Verification>(
                 let key = if p.leaf.is_none() && p.key == SigKey::Unknown {
                     output_key(&utxo.script_pubkey).map_or(SigKey::Unknown, SigKey::Schnorr)
                 } else {
-                    settle(p, |_| false).0
+                    let (key, verdict) = settle(p, |_| false, preimage);
+                    if *preimage {
+                        return (key, verdict);
+                    }
+                    key
                 };
                 return (key, Verdict::Invalid);
             }
@@ -800,6 +911,7 @@ fn check<C: secp256k1::Verification>(
                 );
             };
             let Some(msg) = taproot_message(restored, c, index, p.leaf, sig.sighash_type) else {
+                *preimage = p.preimage;
                 return (
                     p.key.clone(),
                     Verdict::Unchecked(Unchecked::UnsupportedScript),
@@ -823,14 +935,14 @@ fn check<C: secp256k1::Verification>(
                 };
                 return (key, verdict);
             }
-            settle(p, verify)
+            settle(p, verify, preimage)
         }
     }
 }
 
 /// The verdict on a signature: the key it is filed under where it has
 /// one, and otherwise whichever of the script's keys it verifies under.
-fn settle(p: &Present, verify: impl Fn(&SigKey) -> bool) -> (SigKey, Verdict) {
+fn settle(p: &Present, verify: impl Fn(&SigKey) -> bool, preimage: &mut bool) -> (SigKey, Verdict) {
     if p.key != SigKey::Unknown {
         let verdict = if verify(&p.key) {
             Verdict::Valid
@@ -842,11 +954,19 @@ fn settle(p: &Present, verify: impl Fn(&SigKey) -> bool) -> (SigKey, Verdict) {
     if let Some(key) = p.candidates.iter().find(|k| verify(k)) {
         return (key.clone(), Verdict::Valid);
     }
+    if p.preimage {
+        // A hash of the element is in the leaf: it is data.
+        *preimage = true;
+        return (
+            SigKey::Unknown,
+            Verdict::Unchecked(Unchecked::UnsupportedScript),
+        );
+    }
     match p.candidates.first() {
         // The script names keys and none of them made this signature.
         Some(_) => (SigKey::Unknown, Verdict::Invalid),
-        // The script names no key at all — a `pkh` fragment leaves a
-        // hash — so there is nothing to check against.
+        // The script names no key at all, and no `pkh` window's key is in
+        // the witness, so there is nothing to check against.
         None => (SigKey::Unknown, Verdict::Unchecked(Unchecked::UnknownKey)),
     }
 }

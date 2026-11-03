@@ -95,6 +95,11 @@ pub(super) fn signature_cards(
                 },
             ),
         }
+        // An element whose hash the leaf holds is data: it has no sighash
+        // to compare.
+        if sig.preimage {
+            continue;
+        }
         let Some(asked) = inputs
             .iter()
             .find(|i| i.index == sig.input)

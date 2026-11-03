@@ -28,7 +28,7 @@ use faraday_psbt::verify::{
     repeated_nonces, verify_signatures,
 };
 use faraday_psbt::{
-    Aux, Context, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, sign,
+    Aux, Context, Detail, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, sign,
 };
 
 const NET: Network = Network::Regtest;
@@ -290,6 +290,657 @@ fn a_finalized_taproot_signature_with_sighash_byte_zero_is_invalid() {
     assert!(
         found.contains(&Verdict::Invalid) && found.len() == 2,
         "{found:?}"
+    );
+}
+
+/// A finalized script-path spend of `script`, whose witness is
+/// `elements(good_signature)` then the leaf script and a control block.
+fn leaf_spend(
+    script: impl Fn(&bitcoin::XOnlyPublicKey) -> ScriptBuf,
+    elements: impl Fn(Vec<u8>) -> Vec<Vec<u8>>,
+) -> Psbt {
+    leaf_spend_two(|a, _| script(a), |sig_a, _, _| elements(sig_a))
+}
+
+/// As [`leaf_spend`] with a second key B: the script takes both x-only
+/// keys and the elements take A's signature, B's signature and B's key.
+fn leaf_spend_two(
+    script: impl Fn(&bitcoin::XOnlyPublicKey, &bitcoin::XOnlyPublicKey) -> ScriptBuf,
+    elements: impl Fn(Vec<u8>, Vec<u8>, Vec<u8>) -> Vec<Vec<u8>>,
+) -> Psbt {
+    leaf_spend_with(script, |l| {
+        let mut witness = elements(
+            l.sign(0, TapSighashType::Default, None, None),
+            l.sign(1, TapSighashType::Default, None, None),
+            l.xonly[1].serialize().to_vec(),
+        );
+        witness.push(l.script.to_bytes());
+        witness.push(l.control.clone());
+        witness
+    })
+}
+
+/// What a finalized leaf spend's witness is made from: the leaf, its
+/// control block, the keys A (0) and B (1) and the spend to sign.
+struct LeafSpend {
+    script: ScriptBuf,
+    control: Vec<u8>,
+    xonly: [bitcoin::XOnlyPublicKey; 2],
+    keypairs: [Keypair; 2],
+    tx: bitcoin::Transaction,
+    prev: TxOut,
+}
+
+impl LeafSpend {
+    /// A real signature of key `who` over the leaf spend, with the sighash
+    /// type it claims (its byte appended unless DEFAULT), an annex and the
+    /// last executed CODESEPARATOR position.
+    fn sign(
+        &self,
+        who: usize,
+        ty: TapSighashType,
+        annex: Option<&[u8]>,
+        codesep: Option<u32>,
+    ) -> Vec<u8> {
+        let leaf = taproot::TapLeafHash::from_script(&self.script, taproot::LeafVersion::TapScript);
+        let annex = annex.map(|a| bitcoin::sighash::Annex::new(a).expect("an annex"));
+        let hash = SighashCache::new(&self.tx)
+            .taproot_signature_hash(
+                0,
+                &Prevouts::All(std::slice::from_ref(&self.prev)),
+                annex,
+                Some((leaf, codesep.unwrap_or(0xffff_ffff))),
+                ty,
+            )
+            .expect("the sighash");
+        let message = Message::from_digest(hash.to_byte_array());
+        let mut sig = Secp256k1::new()
+            .sign_schnorr_no_aux_rand(&message, &self.keypairs[who])
+            .serialize()
+            .to_vec();
+        if ty != TapSighashType::Default {
+            sig.push(ty as u8);
+        }
+        sig
+    }
+}
+
+/// A finalized script-path spend of `script(A, B)` whose whole witness
+/// `witness` makes.
+fn leaf_spend_with(
+    script: impl Fn(&bitcoin::XOnlyPublicKey, &bitcoin::XOnlyPublicKey) -> ScriptBuf,
+    witness: impl Fn(&LeafSpend) -> Vec<Vec<u8>>,
+) -> Psbt {
+    let mut psbt = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut psbt).expect("a single-signature input finalizes");
+    leaf_spend_on(psbt, script, witness)
+}
+
+/// As [`leaf_spend_with`] on a PSBT already finalized, whose transaction
+/// the signatures commit to.
+fn leaf_spend_on(
+    mut psbt: Psbt,
+    script: impl Fn(&bitcoin::XOnlyPublicKey, &bitcoin::XOnlyPublicKey) -> ScriptBuf,
+    witness: impl Fn(&LeafSpend) -> Vec<Vec<u8>>,
+) -> Psbt {
+    let secp = Secp256k1::new();
+    let keypair = Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[7; 32]).expect("key"));
+    let keypair_b = Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[9; 32]).expect("key"));
+    let (xonly, _) = keypair.x_only_public_key();
+    let (xonly_b, _) = keypair_b.x_only_public_key();
+    let script = script(&xonly, &xonly_b);
+    let mut control = vec![0xc0];
+    control.extend_from_slice(&xonly.serialize());
+    let spend = LeafSpend {
+        script,
+        control,
+        xonly: [xonly, xonly_b],
+        keypairs: [keypair, keypair_b],
+        tx: psbt.unsigned_tx().clone(),
+        prev: psbt.inner().inputs[0]
+            .witness_utxo
+            .clone()
+            .expect("the output it spends"),
+    };
+    let witness = witness(&spend);
+    psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&witness));
+    psbt
+}
+
+/// `OP_SHA256 <hash of the preimage> OP_EQUALVERIFY <key> OP_CHECKSIG`:
+/// no `SIZE` check, so not miniscript.
+fn hashlock_leaf(preimage: &[u8]) -> impl Fn(&bitcoin::XOnlyPublicKey) -> ScriptBuf {
+    let hash = bitcoin::hashes::sha256::Hash::hash(preimage).to_byte_array();
+    move |key| {
+        bitcoin::script::Builder::new()
+            .push_opcode(bitcoin::opcodes::all::OP_SHA256)
+            .push_slice(hash)
+            .push_opcode(bitcoin::opcodes::all::OP_EQUALVERIFY)
+            .push_x_only_key(key)
+            .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+            .into_script()
+    }
+}
+
+/// A hashlock leaf pushing the hash `kind` makes of the preimage: 0 SHA256,
+/// 1 HASH256, 2 RIPEMD160, 3 HASH160.
+fn hashlock_leaf_of(kind: u8, preimage: &[u8]) -> impl Fn(&bitcoin::XOnlyPublicKey) -> ScriptBuf {
+    use bitcoin::hashes::{hash160, ripemd160, sha256, sha256d};
+    use bitcoin::opcodes::all::{OP_EQUALVERIFY, OP_HASH160, OP_HASH256, OP_RIPEMD160, OP_SHA256};
+    let (op, hash) = match kind {
+        0 => (
+            OP_SHA256,
+            sha256::Hash::hash(preimage).to_byte_array().to_vec(),
+        ),
+        1 => (
+            OP_HASH256,
+            sha256d::Hash::hash(preimage).to_byte_array().to_vec(),
+        ),
+        2 => (
+            OP_RIPEMD160,
+            ripemd160::Hash::hash(preimage).to_byte_array().to_vec(),
+        ),
+        _ => (
+            OP_HASH160,
+            hash160::Hash::hash(preimage).to_byte_array().to_vec(),
+        ),
+    };
+    move |key| {
+        bitcoin::script::Builder::new()
+            .push_opcode(op)
+            .push_slice(<&bitcoin::script::PushBytes>::try_from(hash.as_slice()).expect("a push"))
+            .push_opcode(OP_EQUALVERIFY)
+            .push_x_only_key(key)
+            .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+            .into_script()
+    }
+}
+
+fn spoiled(mut sig: Vec<u8>) -> Vec<u8> {
+    sig[5] ^= 1;
+    sig
+}
+
+/// A witness element whose hash the leaf pushes is data: a preimage of 64
+/// bytes is not called an invalid signature. An element whose hash is not
+/// pushed is judged as a signature, so a bad one is invalid.
+#[test]
+fn a_64_byte_preimage_in_a_finalized_script_path_witness_is_not_an_invalid_signature() {
+    let preimage = vec![0xab; 64];
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, preimage.clone()]);
+    let found = verdicts(&psbt);
+    assert!(found.contains(&Verdict::Valid), "{found:?}");
+    assert!(!found.contains(&Verdict::Invalid), "{found:?}");
+
+    // A bad signature beside the preimage is invalid, the preimage is not.
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| {
+        vec![spoiled(sig), preimage.clone()]
+    });
+    let mut found = verdicts(&psbt);
+    found.sort_by_key(|v| format!("{v:?}"));
+    assert_eq!(
+        found,
+        vec![
+            Verdict::Invalid,
+            Verdict::Unchecked(Unchecked::UnsupportedScript)
+        ],
+        "{found:?}"
+    );
+
+    // The 65-byte form ending 0x00 is no signature either way: invalid.
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |mut sig| {
+        sig.push(0);
+        vec![sig, preimage.clone()]
+    });
+    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+}
+
+/// The same for the other hash the leaf may push, and a 64-byte element
+/// whose hash is not the push is a bad signature as before.
+#[test]
+fn a_preimage_is_data_for_each_hash_and_an_element_hashing_to_nothing_is_not() {
+    let preimage = vec![0xab; 64];
+    for kind in 0..4 {
+        let psbt = leaf_spend(hashlock_leaf_of(kind, &preimage), |sig| {
+            vec![sig, preimage.clone()]
+        });
+        let found = verdicts(&psbt);
+        assert!(!found.contains(&Verdict::Invalid), "{kind}: {found:?}");
+        let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
+        assert!(
+            !insp.warnings.iter().any(|w| w.level == Level::Blocked
+                || (w.level == Level::Danger && w.kind != WarningKind::NoParticipatingKey)),
+            "{kind}: {:?}",
+            insp.warnings
+        );
+    }
+    // The leaf pushes the hash of one preimage, the witness gives another.
+    let other = vec![0xac; 64];
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, other.clone()]);
+    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(0));
+    assert!(insp.refuses(), "{:?}", insp.warnings);
+}
+
+/// A bad signature beside a 32-byte preimage is invalid.
+#[test]
+fn a_bad_signature_in_a_finalized_miniscript_leaf_is_invalid() {
+    let preimage = vec![0xcd; 32];
+    let hash = bitcoin::hashes::sha256::Hash::hash(&preimage).to_byte_array();
+    // and_v(v:sha256(h),pk(K))
+    let leaf = move |key: &bitcoin::XOnlyPublicKey| {
+        use bitcoin::opcodes::all::{OP_CHECKSIG, OP_EQUALVERIFY, OP_SHA256, OP_SIZE};
+        bitcoin::script::Builder::new()
+            .push_opcode(OP_SIZE)
+            .push_int(32)
+            .push_opcode(OP_EQUALVERIFY)
+            .push_opcode(OP_SHA256)
+            .push_slice(hash)
+            .push_opcode(OP_EQUALVERIFY)
+            .push_x_only_key(key)
+            .push_opcode(OP_CHECKSIG)
+            .into_script()
+    };
+    let psbt = leaf_spend(leaf, |sig| vec![sig, preimage.clone()]);
+    valid(&psbt, "the miniscript leaf's signature");
+    let psbt = leaf_spend(leaf, |sig| vec![spoiled(sig), preimage.clone()]);
+    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+    let psbt = leaf_spend(leaf, |mut sig| {
+        sig.push(0);
+        vec![sig, preimage.clone()]
+    });
+    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+}
+
+/// The cards `inspect` gives for a finalized leaf spend whose input asks
+/// `asked`.
+fn leaf_cards(mut psbt: Psbt, asked: PsbtSighashType) -> faraday_psbt::Inspection {
+    psbt.inner_mut().inputs[0].sighash_type = Some(asked);
+    inspect(&Compute::unchecked(), &psbt, &ctx(&[], &[]))
+}
+
+fn sighash_cards(insp: &faraday_psbt::Inspection) -> usize {
+    insp.warnings
+        .iter()
+        .filter(|w| matches!(w.kind, WarningKind::SighashMismatch { .. }))
+        .count()
+}
+
+/// A data element whose hash the leaf pushes is not a signature,
+/// so the sighash its last byte would read as is not compared with what
+/// the input asks, and signing is not refused for it.
+#[test]
+fn a_65_byte_preimage_is_not_read_as_a_signature_with_a_sighash() {
+    for last in [0x00, 0x02, 0x03, 0x81, 0x82, 0x83] {
+        let mut preimage = vec![0xab; 64];
+        preimage.push(last);
+        let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, preimage.clone()]);
+        let insp = leaf_cards(psbt, PsbtSighashType::from_u32(0));
+        assert_eq!(sighash_cards(&insp), 0, "{last:#x}: {:?}", insp.warnings);
+        // Nothing is refused for the sighash (the test holds no key, so
+        // the missing signer is the one refusal left).
+        assert!(
+            !insp.warnings.iter().any(|w| w.level == Level::Blocked
+                || (w.level == Level::Danger && w.kind != WarningKind::NoParticipatingKey)),
+            "{last:#x}: {:?}",
+            insp.warnings
+        );
+    }
+}
+
+/// The real signature is DEFAULT and differs from ALL|ANYONECANPAY, so it
+/// gets one card; the 64-byte preimage adds none.
+#[test]
+fn a_64_byte_preimage_has_no_sighash_card_when_the_input_asks_another() {
+    let preimage = vec![0xab; 64];
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, preimage.clone()]);
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(0x81));
+    assert_eq!(sighash_cards(&insp), 1, "{:?}", insp.warnings);
+}
+
+/// A `pk(K)` leaf holding a bad 65-byte element (sighash 0x02) is a bad
+/// signature, which the sighash cards still compare, under a key no
+/// element verified under.
+#[test]
+fn a_bad_65_byte_element_in_a_pk_leaf_is_invalid_and_has_its_sighash_card() {
+    let leaf = |key: &bitcoin::XOnlyPublicKey| {
+        bitcoin::script::Builder::new()
+            .push_x_only_key(key)
+            .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+            .into_script()
+    };
+    let bad = |_sig: Vec<u8>| {
+        let mut e = vec![0x55; 64];
+        e.push(0x02);
+        vec![e]
+    };
+    let psbt = leaf_spend(leaf, bad);
+    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.level == Level::Blocked && matches!(w.detail, Detail::SignedNone { .. })),
+        "{:?}",
+        insp.warnings
+    );
+}
+
+/// `DUP HASH160 <hash of B> EQUALVERIFY CHECKSIG`: `pkh(B)`.
+fn pkh_leaf(key: &bitcoin::XOnlyPublicKey) -> ScriptBuf {
+    use bitcoin::opcodes::all::{OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_HASH160};
+    let h = bitcoin::hashes::hash160::Hash::hash(&key.serialize()).to_byte_array();
+    bitcoin::script::Builder::new()
+        .push_opcode(OP_DUP)
+        .push_opcode(OP_HASH160)
+        .push_slice(h)
+        .push_opcode(OP_EQUALVERIFY)
+        .push_opcode(OP_CHECKSIG)
+        .into_script()
+}
+
+/// The leaf's only key is a hash: the signature is checked under the key
+/// the witness gives (B), and a real NONE signature under B, which the
+/// input asking ALL does not, is refused.
+#[test]
+fn a_signature_in_a_pkh_leaf_is_valid_under_the_witness_key() {
+    let psbt = leaf_spend_two(|_, b| pkh_leaf(b), |_, sig_b, b| vec![sig_b, b]);
+    let c = ctx(&[], &[]);
+    let key = verify_signatures(&psbt, &c)
+        .into_iter()
+        .flat_map(|i| i.signatures)
+        .map(|s| s.key)
+        .collect::<Vec<_>>();
+    let b = Keypair::from_secret_key(
+        &Secp256k1::new(),
+        &SecretKey::from_slice(&[9; 32]).expect("key"),
+    )
+    .x_only_public_key()
+    .0;
+    assert_eq!(key, vec![SigKey::Schnorr(b)]);
+    valid(&psbt, "the pkh leaf's signature");
+
+    let psbt = leaf_spend_with(
+        |_, b| pkh_leaf(b),
+        |l| {
+            vec![
+                l.sign(1, TapSighashType::None, None, None),
+                l.xonly[1].serialize().to_vec(),
+                l.script.to_bytes(),
+                l.control.clone(),
+            ]
+        },
+    );
+    valid(&psbt, "the NONE signature in the pkh leaf");
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.level == Level::Blocked && matches!(w.detail, Detail::SignedNone { .. })),
+        "{:?}",
+        insp.warnings
+    );
+    assert!(insp.refuses());
+}
+
+/// The ALL-asking input carries the blocking SignedNone card and refuses.
+fn assert_none_refused(psbt: Psbt) {
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.level == Level::Blocked && matches!(w.detail, Detail::SignedNone { .. })),
+        "{:?}",
+        insp.warnings
+    );
+    assert!(insp.refuses());
+}
+
+/// Real NONE signatures that the code cannot verify stay refused when the
+/// input asks ALL: a leaf that hashes the key, a CODESEPARATOR, an annex.
+#[test]
+fn a_real_none_signature_it_cannot_verify_stays_refused() {
+    use bitcoin::opcodes::all::{
+        OP_CHECKSIG, OP_CODESEPARATOR, OP_DUP, OP_EQUALVERIFY, OP_NOP, OP_RIPEMD160, OP_SHA256,
+    };
+    let none = TapSighashType::None;
+    // DUP SHA256 <sha256(B)> EQUALVERIFY CHECKSIG with [sig_B, B]: the
+    // key is unknown to the code, as at base.
+    let psbt = leaf_spend_with(
+        |_, b| {
+            let h = bitcoin::hashes::sha256::Hash::hash(&b.serialize()).to_byte_array();
+            bitcoin::script::Builder::new()
+                .push_opcode(OP_DUP)
+                .push_opcode(OP_SHA256)
+                .push_slice(h)
+                .push_opcode(OP_EQUALVERIFY)
+                .push_opcode(OP_CHECKSIG)
+                .into_script()
+        },
+        |l| {
+            vec![
+                l.sign(1, none, None, None),
+                l.xonly[1].serialize().to_vec(),
+                l.script.to_bytes(),
+                l.control.clone(),
+            ]
+        },
+    );
+    // sha256(B) lies on the curve, so it reads as a candidate key.
+    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    assert_none_refused(psbt);
+
+    // CODESEPARATOR <A> CHECKSIG with [sig_A] signed at position 0.
+    let psbt = leaf_spend_with(
+        |a, _| {
+            bitcoin::script::Builder::new()
+                .push_opcode(OP_CODESEPARATOR)
+                .push_x_only_key(a)
+                .push_opcode(OP_CHECKSIG)
+                .into_script()
+        },
+        |l| {
+            vec![
+                l.sign(0, none, None, Some(0)),
+                l.script.to_bytes(),
+                l.control.clone(),
+            ]
+        },
+    );
+    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    assert_none_refused(psbt);
+
+    // <A> CHECKSIG NOP with an annex, which the signature commits to.
+    let annex = [0x50, 0x01, 0x02];
+    let psbt = leaf_spend_with(
+        |a, _| {
+            bitcoin::script::Builder::new()
+                .push_x_only_key(a)
+                .push_opcode(OP_CHECKSIG)
+                .push_opcode(OP_NOP)
+                .into_script()
+        },
+        |l| {
+            vec![
+                l.sign(0, none, Some(&annex), None),
+                l.script.to_bytes(),
+                l.control.clone(),
+                annex.to_vec(),
+            ]
+        },
+    );
+    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    assert_none_refused(psbt);
+
+    // DUP RIPEMD160 <ripemd160(B)> EQUALVERIFY CHECKSIG with [sig_B, B]:
+    // no key is taken from it, so the signature cannot be checked.
+    let psbt = leaf_spend_with(
+        |_, b| {
+            let h = bitcoin::hashes::ripemd160::Hash::hash(&b.serialize()).to_byte_array();
+            bitcoin::script::Builder::new()
+                .push_opcode(OP_DUP)
+                .push_opcode(OP_RIPEMD160)
+                .push_slice(h)
+                .push_opcode(OP_EQUALVERIFY)
+                .push_opcode(OP_CHECKSIG)
+                .into_script()
+        },
+        |l| {
+            vec![
+                l.sign(1, none, None, None),
+                l.xonly[1].serialize().to_vec(),
+                l.script.to_bytes(),
+                l.control.clone(),
+            ]
+        },
+    );
+    assert_eq!(
+        verdicts(&psbt),
+        vec![Verdict::Unchecked(Unchecked::UnknownKey)]
+    );
+    assert_none_refused(psbt);
+}
+
+/// A hash of a key in the leaf is no `pkh` of it unless the leaf checks the
+/// signature against that key: B's signature is Invalid in a leaf whose
+/// only CHECKSIG is against A, and the NONE card refuses it.
+#[test]
+fn a_hash_of_the_witness_key_outside_the_pkh_shape_makes_no_key() {
+    use bitcoin::opcodes::all::{OP_CHECKSIG, OP_DROP, OP_EQUALVERIFY, OP_HASH160, OP_SIZE};
+    let hb = |b: &bitcoin::XOnlyPublicKey| {
+        bitcoin::hashes::hash160::Hash::hash(&b.serialize()).to_byte_array()
+    };
+    let size_leaf = |a: &bitcoin::XOnlyPublicKey, b: &bitcoin::XOnlyPublicKey| {
+        bitcoin::script::Builder::new()
+            .push_opcode(OP_SIZE)
+            .push_int(32)
+            .push_opcode(OP_EQUALVERIFY)
+            .push_opcode(OP_HASH160)
+            .push_slice(hb(b))
+            .push_opcode(OP_EQUALVERIFY)
+            .push_x_only_key(a)
+            .push_opcode(OP_CHECKSIG)
+            .into_script()
+    };
+    let drop_leaf = |a: &bitcoin::XOnlyPublicKey, b: &bitcoin::XOnlyPublicKey| {
+        bitcoin::script::Builder::new()
+            .push_slice(hb(b))
+            .push_opcode(OP_DROP)
+            .push_x_only_key(a)
+            .push_opcode(OP_CHECKSIG)
+            .into_script()
+    };
+    for which in 0..2 {
+        let psbt = leaf_spend_with(
+            |a, b| {
+                if which == 0 {
+                    size_leaf(a, b)
+                } else {
+                    drop_leaf(a, b)
+                }
+            },
+            |l| {
+                vec![
+                    l.sign(1, TapSighashType::None, None, None),
+                    l.xonly[1].serialize().to_vec(),
+                    l.script.to_bytes(),
+                    l.control.clone(),
+                ]
+            },
+        );
+        assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+        let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
+        assert!(
+            insp.warnings.iter().any(
+                |w| w.level == Level::Blocked && matches!(w.detail, Detail::SignedNone { .. })
+            ),
+            "{:?}",
+            insp.warnings
+        );
+        assert!(insp.refuses());
+    }
+}
+
+/// A 65-byte preimage ending 0x03, at an input with no output of the same
+/// index, is data: no sighash card, no refusal.
+#[test]
+fn a_65_byte_preimage_ending_0x03_is_data_where_no_output_matches() {
+    let mut preimage = vec![0xab; 64];
+    preimage.push(0x03);
+    let mut psbt = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut psbt).expect("a single-signature input finalizes");
+    // SINGLE's sighash cannot be computed with no output at the index.
+    psbt.inner_mut().unsigned_tx.output.clear();
+    psbt.inner_mut().outputs.clear();
+    let psbt = leaf_spend_on(
+        psbt,
+        |a, _| hashlock_leaf(&preimage)(a),
+        |l| {
+            vec![
+                l.sign(0, TapSighashType::Default, None, None),
+                preimage.clone(),
+                l.script.to_bytes(),
+                l.control.clone(),
+            ]
+        },
+    );
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(0));
+    assert_eq!(sighash_cards(&insp), 0, "{:?}", insp.warnings);
+    assert!(
+        !insp.warnings.iter().any(|w| w.level == Level::Blocked),
+        "{:?}",
+        insp.warnings
+    );
+}
+
+/// `and_v(v:pk(A),pkh(B))`: A's signature is Valid under A, B's under B,
+/// and a spoiled one is the only Invalid.
+#[test]
+fn a_pkh_signature_beside_a_pk_signature_is_checked_on_its_own() {
+    use bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_DUP, OP_EQUALVERIFY, OP_HASH160};
+    let leaf = |a: &bitcoin::XOnlyPublicKey, b: &bitcoin::XOnlyPublicKey| {
+        let h = bitcoin::hashes::hash160::Hash::hash(&b.serialize()).to_byte_array();
+        bitcoin::script::Builder::new()
+            .push_x_only_key(a)
+            .push_opcode(OP_CHECKSIGVERIFY)
+            .push_opcode(OP_DUP)
+            .push_opcode(OP_HASH160)
+            .push_slice(h)
+            .push_opcode(OP_EQUALVERIFY)
+            .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+            .into_script()
+    };
+    let psbt = leaf_spend_two(leaf, |sig_a, sig_b, b| vec![sig_b, b, sig_a]);
+    let found = verdicts(&psbt);
+    assert_eq!(found, vec![Verdict::Valid, Verdict::Valid], "{found:?}");
+
+    let psbt = leaf_spend_two(leaf, |sig_a, sig_b, b| vec![sig_b, b, spoiled(sig_a)]);
+    let mut found = verdicts(&psbt);
+    found.sort_by_key(|v| matches!(v, Verdict::Invalid));
+    assert_eq!(found, vec![Verdict::Valid, Verdict::Invalid], "{found:?}");
+}
+
+/// A finalized key-path signature of 65 bytes ending 0x04 is no data
+/// element: its sighash card stays.
+#[test]
+fn a_finalized_key_path_signature_with_another_sighash_keeps_its_card() {
+    let mut psbt = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut psbt).expect("a single-signature input finalizes");
+    let mut sig = psbt.inner().inputs[0]
+        .final_script_witness
+        .as_ref()
+        .and_then(|w| w.iter().next().map(|e| e.to_vec()))
+        .expect("the key-path signature");
+    sig.truncate(64);
+    sig.push(0x04);
+    psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&[sig]));
+    let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.level == Level::Danger && matches!(w.detail, Detail::SignedOther { .. })),
+        "{:?}",
+        insp.warnings
     );
 }
 
