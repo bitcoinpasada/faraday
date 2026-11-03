@@ -17,9 +17,10 @@ passphrase`, at a low cost, Argon2 with 8 MiB of memory, 2 passes and 2 lanes.
 | `pykeepass-aes-argon2id-gzip-v41.kdbx` | AES-256 | Argon2id | gzip | header marked 4.1 |
 | `pykeepass-twofish-argon2d-gzip.kdbx` | Twofish | Argon2d | gzip | 4.0 (refused) |
 | `pykeepass-chacha20-argon2id-plain-large.kdbx` | ChaCha20 | Argon2id | none | 4.0, one 1.2 MiB attachment (`attachment.bin`, SHAKE-256 of `kdbx vector attachment`): the stream has more than one block |
+| `pykeepass-chacha20-argon2id-plain-history.kdbx` | ChaCha20 | Argon2id | none | 4.0, the entry's earlier password in its history and a second entry in the recycle bin |
 | `keepassxc-3.1-aeskdf.kdbx` | AES-256 | AES-KDF | gzip | 3.1 (refused) |
 
-How they are made: `python3 -I -B tools/vectors/kdbx/make.py OUT_DIR`
+How they are made: `python3 -I -B tools/vectors/kdbx/make.py OUT_DIR [NAME...]`
 (the distribution's pykeepass, 4.1.1.post1, and its construct library), which changes pykeepass's
 blank database to each shape and reads it back under pykeepass. pykeepass
 writes KDBX 4.0 only; the 4.1 file is the same database with the minor
@@ -30,3 +31,5 @@ the vector for the older version Faraday names and does not open.
 
 The KeePass export's vector (`tools/vectors/backup/`) is read and written
 again byte for byte by the same tests.
+
+`reread.py FILE PASSPHRASE` opens a file with pykeepass and prints its entries, for the test that reads back what `faraday-vault` wrote.

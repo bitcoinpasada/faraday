@@ -184,6 +184,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `key_file` | a cosigner's key file: BSMS `SignerRecord::parse` and `verify`, `coldcard::cosigner_keys`, `slip132::key_line`, `PolicyKey::parse` |
 | `kdbx_file` | `faraday_vault::kdbx`: `recognise`, `inspect`, then `open` of the whole input with its header hash made right, at a cost of up to 8 MiB, 2 passes and 2 lanes; the seeds are the KDBX vectors, so a run reads a whole file; it stops at the header's and the blocks' HMACs, since no input but a seed passes them |
 | `kdbx_body` | `faraday_vault::kdbx::fuzz_body` (behind faraday-vault's `fuzzing` feature, which only the fuzz crate turns on): a body as the cipher gave it, past the HMACs a file under a known passphrase passes. The first byte chooses the shape (bit 0: AES-256's padding on the body, bit 1: gzip), the rest is the body: the padding, the inflation and the inner header. The seeds are bodies of each shape |
+| `kdbx_xml` | `faraday_vault::kdbx::fuzz_xml` (behind the same feature): the XML document of a KDBX file as a KeePass app holding the passphrase can write it. A document that reads is written and read again, and the two writes must agree. The seeds are documents of pykeepass and of Faraday |
 | `transaction` | `faraday_psbt::transaction::read_raw` and `Spending::read` |
 | `encodings` | `faraday_codec::encodings::read`, `from_hex` and `read_input` under each way of reading |
 | `aezeed` | `faraday_bip::aezeed::decode_at_cost` at a cost of 16 over 24 word indices and a passphrase taken from the input |

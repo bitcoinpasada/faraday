@@ -6933,6 +6933,12 @@ functions = [
   "faraday/faraday-vault/src/kdbx/keys.rs::block_key",
   "faraday/faraday-vault/src/kdbx/keys.rs::mac",
   "faraday/faraday-vault/src/kdbx/inner.rs::InnerStream::new",
+  "faraday/faraday-vault/src/kdbx/xml/read.rs::Document::read",
+  "faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::new",
+  "faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::write",
+  "faraday/faraday-vault/src/kdbx/xml/mod.rs::fuzz_document",
+  "faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::open_secret",
+  "faraday/faraday-vault/src/kdbx/xml/mod.rs::W::secret",
 ]
 code = [
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
@@ -6946,11 +6952,13 @@ libraries = [
   "chacha20",
   "aes",
   "cbc",
+  "base64ct",
   "hmac",
+  "quick-xml",
   "miniz_oxide",
   "sha2",
 ]
-adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not recorded in a KDBX 4 header, so such a file cannot be told from a wrong passphrase (owner, 2026-11-02) and the wrong-passphrase message for a KeePass file says that a file which also needs one cannot be opened here. An Argon2 version missing from the parameters is a damaged file, as KeePass and KeePassXC take it. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes."
+adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not recorded in a KDBX 4 header, so such a file cannot be told from a wrong passphrase (owner, 2026-11-02) and the wrong-passphrase message for a KeePass file says that a file which also needs one cannot be opened here. An Argon2 version missing from the parameters is a damaged file, as KeePass and KeePassXC take it. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes. The XML document (`kdbx::xml`) is read over quick-xml's tokenizer and refused, naming what was found, for a document not well formed, a DOCTYPE, an entity other than XML's five and character references, an XML declaration anywhere but the start, anything after the root other than XML whitespace, comments and processing instructions, nesting past 64, markup inside a text element the model reads, a Meta or Root missing or repeated, and a protected value that is not canonical Base64 (base64ct) of text; a comment or processing instruction is carried, and skipped in text the model reads; an entry or group with two UUIDs or a UUID of other than 16 bytes, a field with two values and the like is marked ambiguous and left as read, not refused; every protected value, those in carried bytes, history and the recycle bin included, is decrypted in document order and, on writing, the ones written are encrypted in document order under the new key from their plaintexts; what the model does not read is carried as the bytes read, and history and the recycle bin (the bin dropped while RecycleBinEnabled is True or absent) are dropped and counted."
 written_here = "The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)"
 
 [action.checked]
@@ -6975,6 +6983,14 @@ tests = [
   "faraday/faraday-vault/src/kdbx/tests.rs::aes_padding_is_taken_off_only_when_it_is_whole",
   "faraday/faraday-vault/tests/kdbx.rs::a_vault_of_the_largest_size_is_sealed_and_opened",
   "faraday/faraday-vault/tests/kdbx.rs::a_file_pykeepass_wrote_with_a_megabyte_attachment_opens",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::every_file_pykeepass_wrote_opens_to_its_entry",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::a_document_not_changed_is_written_as_it_was",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::a_document_written_again_is_read_by_pykeepass",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::history_and_the_recycle_bin_are_dropped_and_counted",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::what_a_program_wrote_and_is_not_read_is_kept_in_its_place",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::a_new_vault_is_written_and_reads_back",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::what_is_refused_is_named",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::a_value_a_uuid_or_a_key_that_is_wrong_is_refused",
 ]
 not_crosschecked = "Opened by pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it)."
 fuzz = ["kdbx_file", "kdbx_body"]
@@ -6999,8 +7015,8 @@ kind = "Conservative"
 decision = "F190"
 
 [action.review]
-fingerprint = "6a83ce6f40854afd5ece2a7dfd3d3404ed416fd883e056c0e043b6712583020f"
-reviewed = "2026-11-02"
+fingerprint = "63327f1a29a431bb7571d45dbdea9521a4f60b9310d17f3045c8f4935ffffe83"
+reviewed = "2026-11-03"
 
 [[action]]
 id = "vault-seal"
@@ -8512,6 +8528,9 @@ author = "the RustCrypto developers"
 
 [library.pbkdf2]
 author = "the RustCrypto developers"
+
+[library.quick-xml]
+author = "the quick-xml developers"
 
 [library.rand_core]
 author = "the Rand Project developers"

@@ -5209,53 +5209,127 @@ use words-shown b7b6846fa599fd5883d6865589d54f9081990452f65f4270ec0e69d09c0a6500
 vec vault a746481c61b9620d207eabe60e1a15e59ffb2ae4bd184d185ccc602213c59306
 
 [vault-kdbx]
+fn 02cc4773b5535dcd353afd4df6f307f46e639c2cc5ccab08dbf411fa52e1e493 faraday/faraday-vault/src/kdbx/xml/mod.rs::Frame::bytes
+fn 0a765bcfe0f8ac3511107ae287bf174c64153272066df4c00895d1e022528643 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::times
+fn 1196405b55bcf1b4e077e03e00397c986a243360e47e397623ca3c411b9f948c faraday/faraday-vault/src/kdbx/xml/mod.rs::Frame::absent
+fn 11c3edee33f82e8a37045bd396851590ccba7ad048a0e81a37cffa18819b2bf8 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::skip_element
 fn 13ff8bfe3296d629c975cc14501416c9ca25d869f9bc1011339235089ec95e9c faraday/faraday-vault/src/kdbx/header.rs::read_fields
 fn 15746b06595982dc78d1d23b24ddc6b7ff79b281055030936710fa58ad2cd2dd faraday/faraday-vault/src/kdbx/blocks.rs::join
+fn 1a937653071b93a2b3c759452a5def062542189ea1ad89c0ba0b0a4adb8422d0 faraday/faraday-vault/src/kdbx/xml/read.rs::uuid_of
 fn 1f462a83a165c4b0649fa4d0f670a75ce87fdc10a79eeedb5bf577a2e1835c28 faraday/faraday-vault/src/kdbx/mod.rs::strip_padding
+fn 2017921613a92c9100ddb40e632f469b0c4e35c6f47149602f1945f89f06ccee faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::meta
+fn 2049c9c3c416b6af41ac8c0d98cb020c43afd3707c5e113c1cf3f25ff9903b8e faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::pair
+fn 20efdc107eda2e268254d56f76530e2ce6bec75ccf56ae4aee7f3fd59eb53deb faraday/faraday-vault/src/kdbx/xml/mod.rs::W::escaped
+fn 2171bd76dccede1fb6762e9bc75df90c0cb746dc406d928e18e80f74c8976bb8 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::next
+fn 244a15ae53916f2bc420e796b2a324f2a34e8f7b91b9eda9d5ab7de983f50df4 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::opened
+fn 2670a9d149ff3d215dd70122b4e107992037fdd166f41453ba3aebb3338fd24e faraday/faraday-vault/src/kdbx/xml/read.rs::Document::read
+fn 2ce8dcf0bbdd6eb750b45199e742de9650bd3138e258912f5f261f232920b58e faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::finish
 fn 323dc7bb5e854f7897120f16bceabf324e87fa2598012458d7428e12c7bbe742 faraday/faraday-vault/src/kdbx/blocks.rs::block_len
+fn 3a86f219d062dd84e06c9d3fe469d7addbd52b39e5bc1fefd0897a3f8a445fac faraday/faraday-vault/src/kdbx/xml/mod.rs::Entry::finish
+fn 3b1ac14a08da6164dbb7a698c9bfa2192fde15bf4219c9f42c63cb915b7d35bf faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::entries_mut
 fn 421a92e1f3ad162d34fb08123c0e6e3114916522991dd86863b1f81e1571d114 faraday/faraday-vault/src/kdbx/mod.rs::seal
 fn 4299e366b18581aaaa8581c19dabfec3ee7693c4dd0f2ea76a99b7b27392079e faraday/faraday-vault/src/kdbx/header.rs::write
+fn 44a5dc52a872ba93e1bf9ae88f29f1f96b0ab3a2a9c51ab0ddc50df34cde52b1 faraday/faraday-vault/src/kdbx/xml/mod.rs::CustomData::none
 fn 44a6612d9a6102a2f13ec773e66467645d2edf476d0fce321528d14df1e490e8 faraday/faraday-vault/src/kdbx/keys.rs::argon_run
+fn 4870c5f7352feb55c7560c131b9e6e4e130b1758eb24a5c7dbddd9a78e1b793f faraday/faraday-vault/src/kdbx/xml/mod.rs::is
 fn 49d64fd417e193a3671cc305b7205c5a89e879645dbec00a4466a914422470dc faraday/faraday-vault/src/kdbx/keys.rs::hmac
+fn 4ada766e351ea8b581715ef638939ba633c07946aadd2c4c88dbc3185dad8a10 faraday/faraday-vault/src/kdbx/inner.rs::InnerStream::apply
 fn 4eb7c8393cb9f0a75aec9615798fbf32eec01115393bf92f549153f6ed7575ac faraday/faraday-vault/src/kdbx/inner.rs::read_inner
+fn 4fc0ba076ee51be1d6fd7cd0de1955177f4f72804db8579e88df8e6f75416567 faraday/faraday-vault/src/kdbx/xml/mod.rs::fuzz_document
+fn 53461a07fdf3aa4ff962a8094c238c35d71af60f261136f764f1c76a9505affd faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::meta
+fn 5408d9d81845ec2d1d5c27f23a423b810c498b55b43f0a770ed3666cf7d2b9ff faraday/faraday-vault/src/kdbx/xml/mod.rs::Entry::custom
+fn 5408d9d81845ec2d1d5c27f23a423b810c498b55b43f0a770ed3666cf7d2b9ff faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::custom
 fn 5449bd1c6e9a130930ccbc8aaa960d66cf854c4c98ae54e8180148fb93949222 faraday/faraday-vault/src/kdbx/keys.rs::block_key
+fn 550bb34b2a4e37690a2e8df8a160a212a3d3ae178f1674de29d36f65edc88baa faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::custom
+fn 5bd1abf1bfe119dc269ddbd08e1262df7c0b643c3664a63024242d66ffc15b97 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::group
 fn 5e249bb854728b25eed7e11005f626e6f50e4abd1f19acd1f91582dd026eeb34 faraday/faraday-vault/src/kdbx/keys.rs::mac
 fn 5f78cc4e2b90bcade68dd4e3c9186df5548f777532dbb07072380a6aecc8103e faraday/faraday-vault/src/kdbx/keys.rs::hmac_ok
+fn 6385247f85e5d8f51bb185af25a37bbc971faf5e73b9269b64d2f58c5f332818 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::protected_value
+fn 66e30eaacc60cae9a077c14ef38bae860db8bf3976650d665e2d590fe4658284 faraday/faraday-vault/src/kdbx/xml/mod.rs::Carried::bytes
+fn 671c917cc29ab5e10afb3a51d6dba8d6549c4fedb101d653f2f7f0a2632fcd32 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::leaf
 fn 689b4e01e14b1cd4a4b452899db03b21f95371de9a9cca461726172a1455b1e0 faraday/faraday-vault/src/kdbx/header.rs::cost_in_limits
+fn 68fe2303807f3711640666993d744a59aea9a749d47de8ea8c12b0f6e35ee64f faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::read_text
+fn 6bb4a1179e3ce4c30fecb4ab6b118ed95b45bfc6ecf57a884c81da3116059ff3 faraday/faraday-vault/src/kdbx/xml/mod.rs::Frame::carry
+fn 6d7dd0acdca129befecf03717627fe73933104935a0395a4dd8d3860ad1769ef faraday/faraday-vault/src/kdbx/xml/mod.rs::Carried::secret
+fn 72a22568cf37154c2f40b07f48baf2ec259ddf21ec9aa47fadede1bb7c58c4d3 faraday/faraday-vault/src/kdbx/xml/mod.rs::encode_time
+fn 7bb43ef4049682cde7ee71e0bc392f5b7aed0cfd5475674b6a8fbce017b7092b faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::root
 fn 7c8437724ac75605aef4bb4992dca1e0b85e612187c5940add2dd5250f4bb682 faraday/faraday-vault/src/kdbx/inner.rs::written_len
+fn 7dd6a609e394044b0d0419e354c8ad6b3d3647e051d2f262386745a84c12bc22 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::children
 fn 7f1f4b59e52fb77171f55ca477ee833958fee65669eb54a106760e8eca1b2006 faraday/faraday-vault/src/kdbx/blocks.rs::write
+fn 801606cea64e04d0a0ecba01a1c49447cb1d8d0520bbda68252e5282ed513a4c faraday/faraday-vault/src/kdbx/xml/read.rs::check_refs
+fn 815525595161e8c23d994f5331077b930bcd8559c7ae3ffe75ebc6d842046fc9 faraday/faraday-vault/src/contents.rs::Item::finish
 fn 823610cd73e796d3084eb3c7e91dd802ac6454a446075d99e3409e37404cce62 faraday/faraday-vault/src/kdbx/blocks.rs::put
+fn 8286e6efca7006cbf2971c2bfa53e5c43525e59dff89aa3e6a0bc3d8a0440a09 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::groups_mut
+fn 82a2a2e365f8b29d8c23e7ea83c1044eb08fee8c649f997a3ff2011196579ae6 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::write
+fn 836a35b35d1cb1929db8227f2d0434ca9027a93b5e8b56890d8af71df92e8933 faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::root
 fn 83d69543e2877b477d48c9c84e8f9031aeb5ba20764674f80821d5cf5f78e599 faraday/faraday-vault/src/kdbx/inner.rs::InnerStream::new
+fn 8485cd8cc77ae8f4db0c1aa78d5cbdf5fd58d65bf45fab652d6ab17d75c7fd4f faraday/faraday-vault/src/kdbx/xml/mod.rs::decode_time
 fn 84aa769603b786e988e28f0e017f97006596b89b7854597cfdc6621af5d89c78 faraday/faraday-vault/src/kdbx/gzip.rs::inflate
+fn 88d290dd95f984041d1d5e8b46336a82ecbe4556ef7ff95c46ea999bc4258115 faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::write
 fn 895441bf79bfdaab4451ff4487d0ed72219c7f0c076f579f767a1f63de409e78 faraday/faraday-vault/src/kdbx/mod.rs::open
+fn 8a849837a4cbc982446536871e1c643cf878eed5cf3f59b40a893713217f40b8 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::text_or_markup
 fn 8b0f1d5ce78af6e9da7107988957d6224ab028803c56bf6cc888e6f52946d861 faraday/faraday-vault/src/kdbx/mod.rs::checked_header
+fn 8ca795b2906609c0890c30709bd286b003dc4d113e3902aad069529f24bf5bc2 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::groups
+fn 93c4fb652f75839a93dbfdd34915fc58698ea34d22107cefacd3912be89418ba faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::meta_mut
+fn 94953b247fc6e4495e67672a7ad2194ad6e95ac42b01aa8cc745697bb3a8ef8e faraday/faraday-vault/src/kdbx/xml/mod.rs::W::leaf
+fn 96ecfc7ec01a9631cf497a9c05ca2f4818ff11b274de16d9c27a15de64b5044a faraday/faraday-vault/src/contents.rs::Item::err
+fn 97790507bedd12f183f6c79c1cc5d080cebe99830612e7ddb8139b52deb68faf faraday/faraday-vault/src/kdbx/xml/read.rs::decode_ref
 fn 9787a226a5b26e6d57d658e0b6b9ca1a2889ef17257107fc95a4d598b439a7b3 faraday/faraday-vault/src/kdbx/mod.rs::passphrase_bytes
+fn 98e33f8cf6c87f0eddde0fd20508ad4e9e3bfe519a784f1da69beb60a495e250 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::name
+fn 990b26a6085a16f36ba48713dd388946786b09fd615f838dd15d3ffb4c9593a9 faraday/faraday-vault/src/kdbx/xml/mod.rs::is_ws
 fn 9f4a7edc0fb7f1046d4fcd266efb8118f6d7ba96645d2e8c92a3b0c880e0d09c faraday/faraday-vault/src/kdbx/mod.rs::unpad
+fn a5d5bd2b927df3848da810a0da0def21f257c33d5356d24d21c1b2e4aeb74839 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::entry_count
+fn a6f483585a461fa1945747515c08fd3dd17217e0f98f84eacddbd70f20ede037 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::custom
+fn a7cbb5927c4316531580a61c42d68b8444e9936e1905aaed65af8f5da1b1ff03 faraday/faraday-vault/src/kdbx/xml/mod.rs::W::close
 fn b002ab9d6a0491e363fbef9c8db824d8779f3a5bf4aaccf2adefe75239ae1239 faraday/faraday-vault/src/kdbx/header.rs::le_u64
 fn b23d0c2ca6aaf69eb7df6a2d05151b3f3bf3d666eb7e23f9e44733eed272b0da faraday/faraday-vault/src/kdbx/inner.rs::write
 fn b25d727c014d54827e7b767b37163d7b06a011597e439ada36f1e2f62d9d0b42 faraday/faraday-vault/src/kdbx/mod.rs::inner_key_of
+fn b6b52e78d4e1d1a9666080fd2bc6e43eea27883d4a1b1f965811772631f6eda6 faraday/faraday-vault/src/kdbx/xml/mod.rs::CustomData::editable
+fn b6b52e78d4e1d1a9666080fd2bc6e43eea27883d4a1b1f965811772631f6eda6 faraday/faraday-vault/src/kdbx/xml/mod.rs::Entry::editable
+fn b6b52e78d4e1d1a9666080fd2bc6e43eea27883d4a1b1f965811772631f6eda6 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::editable
+fn b9e6486886c0e1b1c6da67559b1d0695e50769a86ae5e06c37236e591232bcdb faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::new
 fn bb1032fb10a0f17ed757cdb64ecc1702f7a453375670fbe0d2f141a50fecd598 faraday/faraday-vault/src/kdbx/mod.rs::read_body
+fn bb78f7cd47538ffb76e957e6d22f51f02d04690d4fad3ec960cc21f5c3a970e3 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::set_name
+fn bba4b7730af22fcb5d8ae31b6145e7fe1f1e443ec7a39ecd2cb20e7cef01815f faraday/faraday-vault/src/kdbx/xml/mod.rs::Meta::write
+fn bca460237d5bd16067345565cdeb1f0c6d067689ea73830bf11dfd75acbaf821 faraday/faraday-vault/src/kdbx/xml/mod.rs::Frame::read
 fn be5a90fc40845815276c47c3ff0a3acd416208461392b2db5305a58ccd228001 faraday/faraday-vault/src/kdbx/keys.rs::file_keys
 fn be6528035b679224caf52dff36f929f5867cd35283b3c6222eb879435bfc6eba faraday/faraday-vault/src/kdbx/header.rs::put_field
+fn beae92c37d4af1e193c4b3c593ae62a77aabd437eddf002f04326a4ad572addb faraday/faraday-vault/src/kdbx/xml/mod.rs::W::raw
+fn bfaba39de5f7bae2560874a5c6dfeaaf759d1cb37285ab8545d487bb0ed214a7 faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::root_mut
+fn c07c7ddac043d64ffbaea11204064e073ca431b2bd9e0bed19c84ee638747ab9 faraday/faraday-vault/src/kdbx/xml/mod.rs::W::secret
+fn c3960d3d6216d1cd446eec077d1d082d6179541f8b94c8f057a7d8ba56e6d7d3 faraday/faraday-vault/src/kdbx/xml/mod.rs::Group::entries
+fn c8cc79dd3373f1d57222b71a58c40f4899ab5b3a083e98e04ac51f33045a1719 faraday/faraday-vault/src/kdbx/xml/mod.rs::Carried::write
 fn c9bb4f2f5d29572904c9d91da3f872cc17cb2cbfcd8c4da4a3fe4e0fea554d14 faraday/faraday-vault/src/kdbx/mod.rs::inspect
+fn ccba35fa79cbe318857ee6b83426164edb933a7e4b2b103c8f0bd88d90c247a6 faraday/faraday-vault/src/kdbx/xml/read.rs::is_protected
+fn cd8a0a3dc09e2033f7516274b1e85724e90ba0197560c539cd44390e951b7d3e faraday/faraday-vault/src/kdbx/xml/mod.rs::Carried::append
 fn d3a631fb0fea9b974777a0be4b9e1770965461b822aa8f0cd76d7ff6826e236f faraday/faraday-vault/src/kdbx/header.rs::le_u32_at
+fn da4a82d137d15531dca6f0a14ef4e33b9a0433284749161ba6ec38dccb220330 faraday/faraday-vault/src/kdbx/xml/mod.rs::Entry::write
+fn e2b8d5b524154a1c8c584373ebcba68da8839bd530a5b450890845e275866bef faraday/faraday-vault/src/kdbx/xml/mod.rs::Entry::fields
+fn e3cafaf88142e4974d2b922ac00ebbe5f15a37d87065d1812066a831d43a4cea faraday/faraday-vault/src/kdbx/xml/mod.rs::forbidden
+fn e5cc2d473bb3df875b732b40f2ce56f5e52f373bb9683f2a74f1694369a07e82 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::open_secret
 fn e8a654aa7a6b5f05506ffb1b8b3bdff711a5211a844cf9771197943881494a9f faraday/faraday-vault/src/kdbx/header.rs::compression_of
 fn ecf639e3d8ead2e320e22a7ae0033d39764ebcce3f4d21c31263dd5bea2a0589 faraday/faraday-vault/src/kdbx/header.rs::put_vd
+fn ed55751fd9a9695db766cd5f1db43a00c9a4201777df5a9f336d32893462956a faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::mark_duplicates
 fn ee8a53f7b1491511ec8d10a07a00bdb24d7378cadb98acc334b0c1bfae8ca8f9 faraday/faraday-vault/src/kdbx/header.rs::cipher_of
+fn f06d2fb26f104be670b990a5ddfd56f4610992cfca5735afd1f0a185fd9a388f faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::carried_secret
+fn f49e35d4dce53a5338675b69e3e4d5b49e8d63fe75ba4846cf675e3592470582 faraday/faraday-vault/src/kdbx/xml/mod.rs::Document::set_label
 fn f505af0fc9a63ac9536bf321de888ffde3db781c6412f74efd8a9d449b376980 faraday/faraday-vault/src/kdbx/header.rs::kdf_of
 fn f8f9302e108c6e84405ed5bcf703438c6b6ec12b49e31f787771e6270036048d faraday/faraday-vault/src/lib.rs::nfc
 fn fc928d21323816495a7aba44f798a5293e5bad70118a43f3e3f2ec8cd79b7122 faraday/faraday-vault/src/kdbx/gzip.rs::crc32
 fn fd89f388746e20a8b1d07f6b0261feee312a6bca8f2345cbe47a3a2797a9641b faraday/faraday-vault/src/kdbx/header.rs::minor_of
+fn fea099ebf0c9cccc176f07f215654ce07318b0860181c430a23fbe3a926d38c5 faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::entry
 lib aes 0.9.3 35f0f96ce78e38c3dc6d8948aa8163d06385be74000f3c7a95bf1eef35d3ea32
 lib argon2 0.6.0 134c52ddac6d63c576bef8168db10c83c49c26444ecbc68060fef078925a901c
+lib base64ct 1.8.3 2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06
 lib cbc 0.2.1 ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896
 lib chacha20 0.10.2 65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06
 lib hmac 0.13.0 6303bc9732ae41b04cb554b844a762b4115a61bfaa81e3e83050991eeb56863f
 lib miniz_oxide 0.8.9 1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316
 lib miniz_oxide 0.9.1 b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c
+lib quick-xml 0.41.0 e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1
 lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4
 vec backup d1ab363eb21e4d21caa395299bf0c61b3003022b9bdf1596f1578f3f9ad52ed7
-vec kdbx 9302dcb95bcecf5fbde88939bc7860020cf6e5c82dc0b21dab4b0c380700d3e7
+vec kdbx 73388701650f98c85572ae1ce19865f6ad17238b29458da2e7df7764a377cdb8
 
 [vault-load]
 area bip39 e3e0b7411a3b46f8877f72429d66681981e879d3285039cd0cb0b608210186e0

@@ -6,7 +6,9 @@ authors did not write, at the lowest cost Faraday's reader accepts
 (Argon2 with 8 MiB of memory) under the passphrase below, holding one
 entry whose password is `hunter2`. Usage:
 
-    python3 -I -B tools/vectors/kdbx/make.py OUT_DIR
+    python3 -I -B tools/vectors/kdbx/make.py OUT_DIR [NAME...]
+
+with names, only those files are made.
 
 It needs pykeepass (4.1 or later) and its construct library.
 """
@@ -31,9 +33,18 @@ def attachment():
     return hashlib.shake_256(b"kdbx vector attachment").digest(ATTACHMENT_LEN)
 
 
-def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False):
+def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False, trash=False):
     kp = create_database(path, password=PASSPHRASE)
-    entry = kp.add_entry(kp.root_group, "Example", "alice", "hunter2", url="https://example.org/")
+    if trash:
+        # An entry with a history (its earlier password is protected too)
+        # and one in the recycle bin.
+        entry = kp.add_entry(kp.root_group, "Example", "alice", "hunter1", url="https://example.org/")
+        entry.save_history()
+        entry.password = "hunter2"
+        gone = kp.add_entry(kp.root_group, "Deleted", "bob", "secret3")
+        kp.trash_entry(gone)
+    else:
+        entry = kp.add_entry(kp.root_group, "Example", "alice", "hunter2", url="https://example.org/")
     if attach:
         entry.add_attachment(kp.add_binary(attachment()), "attachment.bin")
     header = kp.kdbx.header.value
@@ -73,6 +84,7 @@ def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False
 
 def main():
     out = sys.argv[1]
+    only = sys.argv[2:]
     os.makedirs(out, exist_ok=True)
     for name, kw in [
         ("aes-argon2d-gzip", {}),
@@ -86,7 +98,13 @@ def main():
             "chacha20-argon2id-plain-large",
             {"cipher": "chacha20", "argon2id": True, "gzip": False, "attach": True},
         ),
+        (
+            "chacha20-argon2id-plain-history",
+            {"cipher": "chacha20", "argon2id": True, "gzip": False, "trash": True},
+        ),
     ]:
+        if only and name not in only:
+            continue
         try:
             make(out + "/pykeepass-" + name + ".kdbx", **kw)
             print("made", name)

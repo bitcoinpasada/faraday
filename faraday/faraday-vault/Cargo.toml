@@ -45,6 +45,13 @@ cbc = { version = "0.2", default-features = false }
 # output bounded by the vault's largest size (docs/deps/miniz_oxide.md).
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 
+# The XML document inside a KDBX file (docs/VAULT.md §7.1): the tokenizer
+# alone (docs/deps/quick-xml.md).
+quick-xml = { version = "0.41", default-features = false }
+# The Base64 of UUIDs, times and protected values, strict about padding and
+# trailing bits (docs/deps/base64ct.md).
+base64ct.workspace = true
+
 [dev-dependencies]
 # The slot vectors' file (tools/vectors/vault/slots.json).
 serde_json = { workspace = true, features = ["std"] }

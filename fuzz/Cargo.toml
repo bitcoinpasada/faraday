@@ -133,6 +133,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "kdbx_xml"
+path = "fuzz_targets/kdbx_xml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "key_file"
 path = "fuzz_targets/key_file.rs"
 test = false

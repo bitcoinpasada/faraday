@@ -37,6 +37,7 @@ mod gzip;
 mod header;
 mod inner;
 mod keys;
+pub mod xml;
 
 use alloc::vec::Vec;
 
@@ -52,6 +53,9 @@ use crate::Cost;
 
 pub use header::{Cipher, Compression, Header, Kdf, LANES, MEMORY_KIB, PASSES};
 pub use inner::{Binary, InnerStream};
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub use xml::fuzz_document as fuzz_xml;
 
 /// The random bytes a sealed file needs: the master seed (32), the
 /// encryption IV (12), the Argon2 salt (32) and the inner stream's key
