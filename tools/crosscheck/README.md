@@ -823,7 +823,10 @@ Each folder of `tools/reference/` an area names in its reference, the
 repository it was copied from, the path there, and the tag and commit it
 was copied at. The folder's own README says how it was fetched and
 checked, and states the same address and commit; a folder copied from
-more than one repository has a row for each.
+more than one repository has a row for each. A row whose Upstream reads
+`none (Faraday's own)` is a folder that is not a copy: Faraday wrote it, or
+it holds a page quoting other sources, and its other cells read `none`, the
+Path naming the outside tool that generated it where one did.
 
 | Folder | Upstream | Path | Tag | Commit |
 |---|---|---|---|---|
@@ -853,6 +856,21 @@ more than one repository has a row for each.
 | `bbqr/` | <https://github.com/coinkite/BBQr> | `python/bbqr/` | none | `8dc7ef07d0d520763cc0001a885ca8d29ac8719a` |
 | `ur/` | <https://github.com/Foundation-Devices/foundation-ur-py> | `ur/` | none | `2c104058d2f6421aaf41f5e919392d3e5a5d2268` |
 | `lnd/` | <https://github.com/lightningnetwork/lnd> | `aezeed/` | none | `88959aec3d7a9d11a509714d9bee97c29ee02269` |
+| `aezeed/` | <https://github.com/Yawning/aez> | `testdata/` | none | `e49e68abd344eba4a888cee91bc7370df2d14e27` |
+| `bip39-slip39/` | <https://github.com/btclib-org/bip39-slip39> | `bip39_slip39-2026.10.24-py3-none-any.whl` | `v2026.10.24` | `f75580077b2046d491abec1ef2a372080031d920` |
+| `booklet-dice/` | none (Faraday's own) | none | none | none |
+| `btcd/` | <https://github.com/btcsuite/btcd> | none | `v0.27.0` | `dd169fe0c32a56087d28b92fff3b8cf4fb43477a` |
+| `dice/` | none (Faraday's own) | none | none | none |
+| `entropy/` | none (Faraday's own) | none | none | none |
+| `kdbx4/` | <https://keepass.info/help/kb/kdbx.html> | `kdbx.html` | none | none |
+| `kdbx4/` | <https://keepass.info/help/kb/kdbx_4.html> | `kdbx_4.html` | none | none |
+| `krux/` | <https://github.com/selfcustody/krux> | `src/krux/` | `v26.09.0` | `2b20e3370169731a0d89839a4113ad9a1b732078` |
+| `material-color-utilities/` | <https://github.com/material-foundation/material-color-utilities> | `typescript/` | none | `eeaf82b8e11bf20f6d8da7c76336575b69e79e01` |
+| `rust-codex32/` | <https://github.com/apoelstra/rust-codex32> | none | none | `3943cb52b2343333386fac0cd38b8ae5a4d6de02` |
+| `signed-efi/` | <http://archive.ubuntu.com/ubuntu/pool/main/s/shim-signed/shim-signed_1.59+15.8-0ubuntu2_amd64.deb> | `usr/lib/shim/shimx64.efi.signed.latest` | `1.59+15.8-0ubuntu2` | none |
+| `signed-efi/` | <http://archive.ubuntu.com/ubuntu/pool/main/s/shim-signed/shim-signed_1.59+15.8-0ubuntu2_amd64.deb> | `usr/lib/shim/fbx64.efi` | `1.59+15.8-0ubuntu2` | none |
+| `specter/` | none (Faraday's own) | none | none | none |
+| `vanity/` | none (Faraday's own) | none | none | none |
 
 ## Others' code and Faraday's second version
 
