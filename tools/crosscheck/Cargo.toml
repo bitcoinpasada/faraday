@@ -16,8 +16,9 @@ path = "src/main.rs"
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-backup = { path = "../../core/faraday-backup" }
-# SeedQR and the QR encoder; no camera decoding.
-faraday-codec = { path = "../../core/faraday-codec", default-features = false }
+# SeedQR and the QR encoder, and the reader (rqrr) that reads the codes
+# the area draws.
+faraday-codec = { path = "../../core/faraday-codec", features = ["decode"] }
 # BBQr and the numbered text parts.
 faraday-qr = { path = "../../faraday/faraday-qr" }
 faraday-psbt = { path = "../../core/faraday-psbt" }

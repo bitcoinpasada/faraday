@@ -39,6 +39,23 @@ is asked.
   module for module, with payloads too long and characters outside the
   mode refused.
 
+segno, an encoder of another lineage (not a port of Nayuki's), judges every
+code the area compares with Nayuki's: SeedQR and CompactSeedQR, the payloads
+in each mode, and the Codex32QR strings, all with the version, level and mode
+Faraday's code has. With its mask forced to the one Faraday's code is under,
+segno's code is Faraday's module for module and reports that mask; with another
+mask forced, it is Nayuki's code under that mask; at its own mask choice it is
+Faraday's code, or the same data and error correction under the other mask it
+reports (Nayuki's masking swapped to it), counted as a known difference, the
+mask choice. One more difference is named: segno 1.6 adds eight zero bits
+where ISO/IEC 18004 7.4.10 adds none when the terminated data ends on a codeword
+boundary with room left, so a zero codeword stands where the pad codewords begin
+(`write_padding_bits`); for those payloads (about one in eight) the area compares
+segno with Nayuki's code made from the same codewords, and counts it. A reader
+stops at the terminator and does not see it. rqrr, the app's reader, reads Faraday's code and segno's own back to
+the payload (`seedqr.read`, `decode_luma` over the code drawn at four pixels a
+module with a quiet zone). segno takes no empty payload, which is not compared.
+
 Every PNG Faraday writes in the area (the Codex32QR pictures, a greyscale
 picture of random size, a code's picture at a scale) is read by two outside
 readers, Pillow and CPython's zlib: each chunk's CRC-32 is zlib's, the zlib
@@ -91,6 +108,8 @@ from seedsigner.models.qr_type import QRType  # noqa: E402
 
 use_reference("qrcodegen")
 from qrcodegen import QrCode, QrSegment  # noqa: E402
+
+import segno  # noqa: E402
 
 LANGUAGES = ["english", "japanese", "korean", "spanish", "chinese_simplified",
              "chinese_traditional", "french", "italian", "czech", "portuguese"]
@@ -278,15 +297,86 @@ def rows_of(q):
     return ["".join("1" if q._modules[y][x] else "0" for x in range(size)) for y in range(size)]
 
 
-def codex32qr_code(string, mask=-1):
-    q = codex32qr_qr(string, mask)
-    return {"version": q.get_version(), "rows": rows_of(q)}
+SEGNO_MODES = {"numeric": "numeric", "alphanumeric": "alphanumeric", "bytes": "byte"}
 
 
-def remask(string, rows, to_mask):
-    """`rows`, a Codex32QR code of `string` under Nayuki's own mask
-    choice, with that mask swapped for `to_mask` by qrcodegen's masking."""
-    q = codex32qr_qr(string)
+def segment(mode, data):
+    if mode == "numeric":
+        return QrSegment.make_numeric(data.decode("latin-1"))
+    if mode == "alphanumeric":
+        return QrSegment.make_alphanumeric(data.decode("latin-1"))
+    return QrSegment.make_bytes(data)
+
+
+def segno_pads_a_zero(mode, data, ecc, version):
+    """Whether segno 1.6 writes this payload's data codewords other than
+    ISO/IEC 18004 7.4.10 does, and where: the terminated bit stream ends on
+    a codeword boundary with room left, and segno's `write_padding_bits`
+    adds 8 zero bits where none are due, so a zero codeword stands where the
+    pad codewords begin and they follow it, one fewer. Returns the number of
+    codewords before the zero one, or None."""
+    bits = QrSegment.get_total_bits([segment(mode, data)], version)
+    cap = QrCode._get_num_data_codewords(version, ECC[ecc]) * 8
+    stream = bits + min(4, cap - bits)
+    return stream // 8 if stream % 8 == 0 and stream < cap else None
+
+
+def nayuki_code(mode, data, ecc, max_version, mask=-1, zero_at=None):
+    """Nayuki's code of a payload, the object (its mask is known); with
+    `zero_at`, the data codewords as segno writes them (see
+    `segno_pads_a_zero`)."""
+    seg = segment(mode, data)
+    if zero_at is None:
+        return QrCode.encode_segments([seg], ECC[ecc], 1, max_version, mask, False)
+    original = QrCode._add_ecc_and_interleave
+
+    def quirk(self, codewords):
+        words = list(codewords)
+        return original(self, bytearray(words[:zero_at] + [0] + words[zero_at:-1]))
+    QrCode._add_ecc_and_interleave = quirk
+    try:
+        return QrCode.encode_segments([seg], ECC[ecc], 1, max_version, mask, False)
+    finally:
+        QrCode._add_ecc_and_interleave = original
+
+
+def segno_make(mode, data, ecc, version, mask, fault=None):
+    """segno's code of a payload at this version, level and mode, with
+    its mask forced (or its own choice when `mask` is None): its rows and
+    the mask it reports. `fault` makes it wrong, for the self-test: one
+    module flipped, or the mask reported another."""
+    content = data if mode == "bytes" else data.decode("latin-1")
+    q = segno.make(content, error="LMQH"[ecc], version=version, mode=SEGNO_MODES[mode],
+                   mask=mask, boost_error=False, micro=False)
+    rows = ["".join("1" if v else "0" for v in r) for r in q.matrix]
+    reported = q.mask
+    if fault == "module":
+        last = rows[-1]
+        rows[-1] = last[:-1] + ("0" if last[-1] == "1" else "1")
+    elif fault == "mask":
+        reported = (reported + 1) % 8
+    return rows, reported
+
+
+def luma_of(rows, scale=4, quiet=4):
+    """The picture of a code as 8-bit luma, dark modules 0, with a quiet
+    zone: (width, height, bytes)."""
+    size = len(rows)
+    side = (size + 2 * quiet) * scale
+    blank = b"\xff" * side
+    pad = b"\xff" * (quiet * scale)
+    lines = [blank] * (quiet * scale)
+    for r in rows:
+        line = pad + b"".join((b"\x00" if c == "1" else b"\xff") * scale for c in r) + pad
+        lines += [line] * scale
+    lines += [blank] * (quiet * scale)
+    return side, side, b"".join(lines)
+
+
+def nayuki_remask(q, to_mask):
+    """`q`, a code under Nayuki's own mask choice, with that mask swapped
+    for `to_mask` by qrcodegen's masking: its rows."""
+    rows = rows_of(q)
     size = q.get_size()
     # The function modules, which no mask touches: qrcodegen drops its
     # map once a code is made, so it is drawn again on a blank grid.
@@ -298,6 +388,17 @@ def remask(string, rows, to_mask):
     q._apply_mask(to_mask)
     q._draw_format_bits(to_mask)
     return rows_of(q)
+
+
+def codex32qr_code(string, mask=-1):
+    q = codex32qr_qr(string, mask)
+    return {"version": q.get_version(), "rows": rows_of(q)}
+
+
+def remask(string, rows, to_mask):
+    """`rows`, a Codex32QR code of `string` under Nayuki's own mask
+    choice, with that mask swapped for `to_mask` by qrcodegen's masking."""
+    return nayuki_remask(codex32qr_qr(string), to_mask)
 
 
 def picture_read(answer):
@@ -343,8 +444,9 @@ class SeedQR(Area):
     reference = (
         "SeedSigner's own encoders and `DecodeQR` (`seedsigner/`, unchanged, with "
         "embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` "
-        "(`qrcodegen/`), module for module; Pillow and CPython's zlib, which read every "
-        'PNG Faraday writes'
+        "(`qrcodegen/`), module for module; segno 1.6 (`python3-segno`), an encoder of "
+        "another lineage, at Faraday's mask and at its own; Pillow and CPython's zlib, "
+        'which read every PNG Faraday writes'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -354,7 +456,10 @@ class SeedQR(Area):
         "digits), so Faraday's own rule, the lengths and the digits, stands in front of "
         "it in `area_seedqr.py` and the checksum is embit's; SeedSigner runs in English "
         'for every language, the indices being the same; the profile\'s own pictures '
-        "are read from their pixels and must be Faraday's code module for module"
+        "are read from their pixels and must be Faraday's code module for module; "
+        "segno is asked for Faraday's version, level and mode and its mask forced, "
+        "and its mask is read back from it, its padding quirk being modelled in Nayuki's "
+        "code; rqrr reads Faraday's and segno's codes"
     )
     vectors = (
         "SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and "
@@ -382,22 +487,113 @@ class SeedQR(Area):
             "mask of Faraday's code for the picture's with `qrcodegen.py`'s masking, "
             'requires the picture, and counts it.'
         ),
+        (
+            "segno 1.6 writes a zero codeword where the pad codewords begin when the data, "
+            "terminator included, ends on a codeword boundary with room left (its "
+            "`write_padding_bits` adds 8 zero bits where none are due; ISO/IEC 18004 7.4.10 "
+            "adds none): its code is Nayuki's with that codeword changed, which rqrr reads, "
+            "counted as a known difference, the padding; Faraday's is the standard's."
+        ),
+        (
+            "segno picks a mask by its own penalty rule, and for some payloads another than "
+            "Nayuki's and Faraday's; the area requires that code to be Faraday's under the "
+            "mask segno reports (Nayuki's masking swapped to it) and rqrr to read it, and "
+            "counts each as a known difference, the mask choice, which a reader ignores."
+        ),
     ]
     not_compared = (
-        'none'
+        "an empty payload, which segno refuses"
     )
 
-    def __init__(self, *a):
-        super().__init__(*a)
+    def __init__(self, exe, seed, scale, sabotage=None):
+        # The self-test makes segno wrong on its own: `seedqr.segno-module`
+        # flips a module of its code, `seedqr.segno-mask` has it report
+        # another mask than it used.
+        self.segno_fault = None
+        if sabotage in ("seedqr.segno-module", "seedqr.segno-mask"):
+            self.segno_fault = sabotage.split("-")[1]
+            sabotage = None
+        super().__init__(exe, seed, scale, sabotage)
         self.known = 0
+
+    def segno_check(self, mode, data, ecc, max_version, faraday_rows):
+        """segno's code of the payload beside Faraday's (`faraday_rows`,
+        which equals Nayuki's): at the mask Faraday's code is under, module
+        for module and with segno reporting that mask; at another mask,
+        against Nayuki's code under it; and at segno's own choice, the same
+        code, or the same data and error correction under the mask segno
+        reports (Nayuki's masking swapped to it: a known difference, the
+        mask choice). Then rqrr, through Faraday's reader, reads Faraday's
+        code and segno's own back to the payload. segno takes no empty
+        payload."""
+        if not data:
+            return
+        q = nayuki_code(mode, data, ecc, max_version)
+        version, mask = q.get_version(), q.get_mask()
+        zero_at = segno_pads_a_zero(mode, data, ecc, version)
+        inputs = {"mode": mode, "data": data.hex(), "ecc": ecc, "version": version}
+        fault = self.segno_fault
+
+        def fail(op, got, want, note):
+            raise Mismatch(self.name, op, dict(inputs, mask=mask), ("ok", got), ("ok", want), note)
+
+        if rows_of(q) != faraday_rows:
+            fail("seedqr.segno-module", rows_of(q), faraday_rows,
+                 "Nayuki's code is not Faraday's")
+        # Where segno writes a zero codeword in front of the pad codewords
+        # its code is Nayuki's with the same codewords (a known difference,
+        # counted); everywhere else it is Faraday's.
+        base = faraday_rows
+        if zero_at is not None:
+            self.known += 1
+            base = rows_of(nayuki_code(mode, data, ecc, max_version, mask, zero_at))
+        rows, reported = segno_make(mode, data, ecc, version, mask, fault)
+        self.compared += 1
+        if rows != base:
+            fail("seedqr.segno-module", rows, base,
+                 "segno's code at Faraday's mask is not Faraday's"
+                 + (" with segno's padding" if zero_at is not None else ""))
+        if reported != mask:
+            fail("seedqr.segno-mask", reported, mask, "segno reports another mask than it was given")
+        other = (mask + 1 + len(data) % 7) % 8
+        rows, reported = segno_make(mode, data, ecc, version, other, fault)
+        self.compared += 1
+        want = rows_of(nayuki_code(mode, data, ecc, max_version, other, zero_at))
+        if rows != want:
+            fail("seedqr.segno-module", rows, want, f"segno's code at mask {other} is not Nayuki's")
+        if reported != other:
+            fail("seedqr.segno-mask", reported, other, "segno reports another mask than it was given")
+        own, reported = segno_make(mode, data, ecc, version, None, fault)
+        self.compared += 1
+        if own != base:
+            if reported == mask:
+                fail("seedqr.segno-module", own, base,
+                     "segno's own code has Faraday's mask and is not Faraday's code")
+            want = nayuki_remask(nayuki_code(mode, data, ecc, max_version, -1, zero_at), reported)
+            if own != want:
+                fail("seedqr.segno-module", own, want,
+                     f"segno's own code is not Faraday's under its mask {reported}")
+            self.known += 1
+        elif reported != mask:
+            fail("seedqr.segno-mask", reported, mask, "segno's code is Faraday's under another mask")
+        for who, picture in (("Faraday's code", faraday_rows), ("segno's own code", own)):
+            w, h, luma = luma_of(picture)
+            got = self.rust.call("seedqr.read", width=w, height=h, luma=luma.hex())
+            self.compared += 1
+            if got != ("ok", {"payloads": [data.hex()]}):
+                fail("seedqr.qr-read", got, {"payloads": [data.hex()]},
+                     f"rqrr does not read {who} back to the payload")
 
     def codex32qr(self, string):
         def ref():
             code = codex32qr_code(string)
             return {"code": code, "png": code["rows"]}
-        return self.compare("seedqr.codex32qr", {"string": string, "title": "Share A of L0VE",
-                                                 "line": "codex32 share"},
-                            ref, normalize=picture_read)
+        raw = self.compare("seedqr.codex32qr", {"string": string, "title": "Share A of L0VE",
+                                                "line": "codex32 share"},
+                           ref, normalize=picture_read)
+        if raw[0] == "ok":
+            self.segno_check("alphanumeric", string.upper().encode(), 0, 3, raw[1]["code"]["rows"])
+        return raw
 
     def png_grey(self):
         rng = self.rng
@@ -467,8 +663,13 @@ class SeedQR(Area):
         self.codex32qr(string)
 
     def encode(self, lang, entropy, expected=None):
-        return self.compare("seedqr.encode", {"language": lang, "entropy": entropy.hex()},
-                            lambda: encode(lang, entropy), expected)
+        raw = self.compare("seedqr.encode", {"language": lang, "entropy": entropy.hex()},
+                           lambda: encode(lang, entropy), expected)
+        if raw[0] == "ok":
+            self.segno_check("numeric", raw[1]["digits"].encode(), 0, 40, raw[1]["seedqr"]["rows"])
+            self.segno_check("bytes", bytes.fromhex(raw[1]["compact"]), 0, 40,
+                             raw[1]["compact_qr"]["rows"])
+        return raw
 
     def digits(self, lang, digits, expected=None):
         return self.compare("seedqr.digits", {"language": lang, "digits": digits},
@@ -487,8 +688,11 @@ class SeedQR(Area):
             else:
                 seg = QrSegment.make_bytes(data)
             return code(seg, ecc, max_version)
-        return self.compare("seedqr.qr", {"mode": mode, "data": data.hex(), "ecc": ecc,
-                                          "max_version": max_version}, ref)
+        raw = self.compare("seedqr.qr", {"mode": mode, "data": data.hex(), "ecc": ecc,
+                                         "max_version": max_version}, ref)
+        if raw[0] == "ok":
+            self.segno_check(mode, data, ecc, max_version, raw[1]["rows"])
+        return raw
 
     def published(self):
         v = json.loads((ROOT / "tools/vectors/seedqr/vectors.json").read_text())

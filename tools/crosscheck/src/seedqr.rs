@@ -91,6 +91,19 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let png = faraday_core::picture::labelled_png(&c, &m, text(req, "title"), &lines);
             Ok(json!({"code": matrix(&m), "png": hex(&png)}))
         }
+        // The payloads rqrr, the app's reader, finds in a picture of
+        // codes (8-bit luma), as hex.
+        "read" => {
+            let luma = bytes(req, "luma");
+            let found = faraday_codec::decode_luma(
+                &c,
+                num(req, "width") as usize,
+                num(req, "height") as usize,
+                &luma,
+            );
+            let payloads: Vec<String> = found.iter().map(|d| hex(&d.bytes)).collect();
+            Ok(json!({"payloads": payloads}))
+        }
         // The pictures `faraday_codec::png` writes without a label: a
         // greyscale picture from its pixels, and a payload's code with
         // the quiet zone round it, each module `scale` pixels.

@@ -5277,7 +5277,7 @@ tests = [
   "core/faraday-codec/tests/png.rs::a_grey_picture_reads_back_as_its_pixels",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki" }
+independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer" }
 fuzz = [
   "decode_luma",
   "classify",
@@ -5642,7 +5642,7 @@ tests = [
   "core/faraday-codec/src/qr.rs::a_seedqr_matrix_is_wiped",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside-and-own", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself)" }
+independence = { class = "outside-and-own", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer", ours = "the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself)" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5952,7 +5952,7 @@ tests = [
   "core/faraday-bip/tests/all/codex32_sheets.rs::codex32qr_vectors_recover_to_their_secret_and_key",
 ]
 crosscheck = "seedqr"
-independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki" }
+independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer" }
 fuzz_none = "The encoder takes a string that Codex32::parse has already accepted; seed_parts fuzzes that reading."
 
 [action.secrets]
