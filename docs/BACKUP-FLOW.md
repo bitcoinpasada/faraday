@@ -204,6 +204,10 @@ no vault the key goes into.
   next. "Insert the stick for Vault 1 (Place 1)" names the one wanted.
   **Continue** on the card is live once every stick is Checked or
   Checked when written; nothing goes on by itself.
+- **A checked figure's sheet.** A press on a Checked figure opens the
+  stick's sheet (`docs/STICK-SETUP.md` §5): its name, maker and model,
+  size, volume serial, free room, files with their sizes and vaults,
+  where known; **Close** is its only press.
 - **Check it later.** A waiting figure whose vaults are all new offers
   **Check it later**, on the figure and in its ⋮ (`docs/STICK-SETUP.md`
   §4); a dialog states what it means first. A stick put off reads

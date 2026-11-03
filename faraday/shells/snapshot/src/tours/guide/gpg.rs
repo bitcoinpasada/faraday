@@ -104,13 +104,28 @@ pub(super) fn start(t: &mut Tour, kind: Kind) -> Result<(), String> {
 
 /// The stick a place keeps, the same each time it is plugged in.
 fn stick_of(slot: usize) -> StickInfo {
+    // The first stick reports itself and holds a note, so its sheet has
+    // something to show.
+    let first = slot == 0;
     StickInfo {
-        make: Default::default(),
+        make: if first {
+            faraday_core::StickMake {
+                maker: Some("SanDisk".into()),
+                model: Some("Ultra".into()),
+                size: Some(15_700_000_000),
+            }
+        } else {
+            Default::default()
+        },
         serial: Some(0x3100 + slot as u32),
         id: format!("place{slot}"),
         label: "KEYSTICK".into(),
         boot: false,
-        files: Vec::new(),
+        files: if first {
+            vec![("notes.txt".into(), 1500)]
+        } else {
+            Vec::new()
+        },
         vaults: Vec::new(),
     }
 }
@@ -159,6 +174,9 @@ pub(super) fn bring_in(t: &mut Tour, pictures: bool) -> Result<(), String> {
         t.pump();
         if pictures && n == 0 {
             t.shot("gpg-sticks")?;
+            t.press(Action::Flow(F::Want(0)));
+            t.shot("gpg-stick-sheet")?;
+            t.press(Action::Cancel);
             t.press(Action::Flow(F::FigMenu(1)));
             t.shot("gpg-sticks-menu")?;
             t.press(Action::Cancel);

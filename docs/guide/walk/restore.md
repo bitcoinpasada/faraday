@@ -49,6 +49,8 @@ on its card changes it). Without a description, pressing a kind closes
 sticks are brought in here, not later.**) Press **No**: the card
 closes on **No** and **Keys** opens.
 
+When **Use vaults** is **Yes**, the sticks are laid out and read before the keys, on **Sticks and vaults** and then **Bring in the sticks**. A stick is not read while a key or a vault is open, so with one open the card offers only **Lock and bring in the sticks**. Reading the sticks now makes sure every vault has a stick that works before there is anything to lose. Nothing is written to them until the lock, after the keys are saved into the vaults. **Check it later** on a waiting stick puts its check off to the write step: its vaults are made now and kept sealed in this device's memory only until that stick is written, and a stick that fails then can be replaced. A stick that holds a vault already on a stick cannot be put off, because that vault is read only before the keys. ([Bring in the sticks](gpg.md#3-bring-in-the-sticks) shows the card.)
+
 ### 7.2 The keys
 
 ![Keys with three empty rows by fingerprint, Type the words outlined](../pictures/7-2-keys.png)

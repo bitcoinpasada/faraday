@@ -102,6 +102,10 @@ asks for "the stick for Vault 1 (Place 1)".
 
 ![Bring in the sticks with both sticks Checked, Continue outlined](../pictures/gpg-sticks-checked.png)
 
+A press on a Checked figure opens the stick's sheet, with what the stick reports of itself and what it holds. **Close** shuts it and changes nothing:
+
+![The sheet of Stick 2: its name, maker and model, size, serial and files, Close](../pictures/gpg-stick-sheet.png)
+
 A waiting figure's ⋮ opens a menu with **Check it later** and, where
 the plan can use the Faraday stick already in the machine, **Use the
 boot stick**, which takes it without inserting it:

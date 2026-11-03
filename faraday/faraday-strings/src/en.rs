@@ -9627,7 +9627,7 @@ strings! {
     /// Guided: Bring in the sticks in the setup of a wallet's vaults
     /// (`docs/BACKUP-FLOW.md` §10). `{}`: the medium, its plural, the
     /// medium.
-    backup_flow_guide_sticks: "Each vault's {} is read here, before any key exists: whether it can be written, how much room it has, and which vaults it holds already, so this vault is one of them or a new one beside them. Nothing is written to it now: the vaults go onto their {} after the keys are saved into them and memory is locked. With a key in memory, a {} is read only after that lock, which wipes the key.",
+    backup_flow_guide_sticks: "Each vault's {} is read here, before any key exists, so that every vault has a stick that works before there is anything to lose: whether it can be written, how much room it has, and which vaults it holds already, so this vault is one of them or a new one beside them. Nothing is written to it now: the vaults go onto their {} after the keys are saved into them and memory is locked. With a key or a vault open, a {} is not read; it is read only after that lock, which wipes the key. Check it later puts a stick off to the write step: its vaults are made now and kept sealed in this device's memory until it is written.",
     /// Step 3's card.
     backup_flow_card_vaults: "Vaults",
     /// Step 4's card.
@@ -9862,6 +9862,22 @@ strings! {
     backup_flow_figure_about: "{} · {}",
     /// A stick of Bring in the sticks put off to be checked at the write.
     backup_flow_figure_later: "Checked when written",
+    /// A checked stick's sheet: the label over the maker and model.
+    backup_flow_sheet_make: "Maker and model",
+    /// A checked stick's sheet: the label over the size.
+    backup_flow_sheet_size: "Size",
+    /// A checked stick's sheet: the label over the stick's name.
+    backup_flow_sheet_name: "Name",
+    /// A checked stick's sheet: the label over the FAT volume serial.
+    backup_flow_sheet_serial: "Volume serial",
+    /// A checked stick's sheet: the label over the free room.
+    backup_flow_sheet_free: "Free room",
+    /// A checked stick's sheet: the label over its files.
+    backup_flow_sheet_files: "Files",
+    /// A checked stick's sheet: the label over its vaults.
+    backup_flow_sheet_vaults: "Vaults",
+    /// A checked stick's sheet: its one button.
+    backup_flow_sheet_close: "Close",
     /// A stick's button, and its ⋮ row, to check it at the write.
     backup_flow_later_button: "Check it later",
     /// The dialog's title. `{}`: the stick's name.

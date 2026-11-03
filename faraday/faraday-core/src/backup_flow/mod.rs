@@ -22,7 +22,10 @@ pub(crate) mod layout;
 pub(crate) mod layout_screen;
 mod place;
 pub(crate) mod screen;
+mod seed_names;
 pub mod steps;
+pub(crate) mod stick_sheet;
+pub(crate) use seed_names::{seed_stick_file_of, seed_stick_name};
 pub(crate) mod wallet;
 pub(crate) mod wallet_files;
 pub(crate) use wallet_files::wallet_share_record;
@@ -217,9 +220,9 @@ pub struct VaultRead {
 pub struct Bound {
     /// Its volume label.
     pub label: String,
-    /// The line that tells it apart on its figure, as it was when read;
-    /// not kept with the flow (`docs/STICK-SETUP.md` §5).
-    pub about: String,
+    /// What the device reports of itself (`docs/STICK-SETUP.md` §5); not
+    /// kept with the flow.
+    pub make: crate::StickMake,
     /// Its FAT volume serial.
     pub serial: Option<u32>,
     /// Its files, names and sizes.
@@ -734,9 +737,8 @@ pub struct Reading {
     pub purpose: Purpose,
     /// Its label, serial and listing.
     pub label: String,
-    /// The line that tells it apart on its figure
-    /// (`docs/STICK-SETUP.md` §5), worked out when it was listed.
-    pub about: String,
+    /// What the device reports of itself (`docs/STICK-SETUP.md` §5).
+    pub make: crate::StickMake,
     /// Its serial.
     pub serial: Option<u32>,
     /// Its files.
@@ -841,6 +843,8 @@ pub struct Live {
     pub fig_anchor: Option<(i32, i32, i32, i32)>,
     /// The stick asked whether to check later, while its dialog shows.
     pub later_ask: Option<usize>,
+    /// The checked stick whose sheet is open at Bring in the sticks.
+    pub stick_sheet: Option<usize>,
     /// A wallet's plan card open, by [`crate::qstep`]
     /// (`docs/BACKUP-FLOW.md` §15).
     pub plan_q: Option<u8>,
@@ -2063,7 +2067,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 Some(s) => {
                     s.bound = Some(Bound {
                         label: label.to_string(),
-                        about: String::new(),
+                        make: crate::StickMake::default(),
                         serial: serial.parse().ok(),
                         listing: Vec::new(),
                         vaults: Vec::new(),
@@ -2389,33 +2393,6 @@ pub(crate) fn seedqr_picture(
         &[&words.to_string()],
     )];
     zeroize::Zeroizing::new(crate::picture::labelled_png(c, mx, &title, &lines))
-}
-
-/// The name seed form `what` of the seed with fingerprint `fp` is written
-/// as on a stick (`docs/BACKUP-FLOW.md` §17.12 item 6): `seed-{fp}.txt`,
-/// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
-pub(crate) fn seed_stick_name(what: crate::plan::What, fp: &str) -> Option<String> {
-    let fp = fp.to_lowercase();
-    match what {
-        crate::plan::What::SeedFile(_) => Some(format!("seed-{fp}.txt")),
-        crate::plan::What::SeedQrFile(_) => Some(format!("seedqr-{fp}.png")),
-        crate::plan::What::PassphraseFile(_) => Some(format!("passphrase-{fp}.txt")),
-        _ => None,
-    }
-}
-
-/// Whether `name` is a file on a stick of one of the seeds `fps`, in any
-/// form ([`seed_stick_name`]).
-pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
-    fps.iter().any(|fp| {
-        [
-            crate::plan::What::SeedFile(0),
-            crate::plan::What::SeedQrFile(0),
-            crate::plan::What::PassphraseFile(0),
-        ]
-        .into_iter()
-        .any(|w| seed_stick_name(w, fp).as_deref() == Some(name))
-    })
 }
 
 // ---- what a stick is called ----

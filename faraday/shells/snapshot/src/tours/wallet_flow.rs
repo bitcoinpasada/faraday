@@ -88,6 +88,10 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::Flow(F::Tap));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    // A checked figure's sheet; Close leaves it.
+    t.press(Action::Flow(F::Want(0)));
+    t.shot("wallet-flow-4a-stick-sheet")?;
+    t.press(Action::Cancel);
     t.press(Action::Flow(F::SticksOn));
     t.shot("wallet-flow-5-vaults")?;
     for v in 0..2 {

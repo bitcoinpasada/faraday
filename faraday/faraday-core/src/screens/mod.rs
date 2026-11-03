@@ -436,6 +436,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::GpgRestore => crate::backup_flow::gpg_restore_screen::sheet(app, ui, w, h),
             Sheet::FigMenu => crate::backup_flow::figures::menu_sheet(app, ui, w, h),
             Sheet::LaterAsk => crate::backup_flow::figures::later_sheet(app, ui, w, h),
+            Sheet::StickSheet => crate::backup_flow::stick_sheet::draw(app, ui, w, h),
         }
         ui.oy = 0.0;
         ui.ox = 0.0;

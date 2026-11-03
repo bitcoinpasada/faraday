@@ -38,24 +38,24 @@ pub struct StickMake {
     pub size: Option<u64>,
 }
 
-impl StickInfo {
-    /// The line that tells the stick apart on its figure: its maker and
-    /// model as the device reports them, its size in decimal GB (MB under
-    /// 1 GB), then its name; each part only where known. Worked out once,
-    /// where the listing is taken.
+impl StickMake {
+    /// The maker and model as the device reports them, one after the
+    /// other, where known.
     #[must_use]
-    pub fn about(&self) -> String {
-        let mut parts: Vec<String> = Vec::new();
-        let who: Vec<&str> = [&self.make.maker, &self.make.model]
+    pub fn who(&self) -> Option<String> {
+        let who: Vec<&str> = [&self.maker, &self.model]
             .into_iter()
             .flatten()
             .map(String::as_str)
             .collect();
-        if !who.is_empty() {
-            parts.push(who.join(" "));
-        }
-        if let Some(n) = self.make.size.filter(|n| *n > 0) {
-            parts.push(if n < 1_000_000_000 {
+        (!who.is_empty()).then(|| who.join(" "))
+    }
+
+    /// The size in decimal GB (MB under 1 GB), where known.
+    #[must_use]
+    pub fn size_text(&self) -> Option<String> {
+        self.size.filter(|n| *n > 0).map(|n| {
+            if n < 1_000_000_000 {
                 faraday_strings::fill(
                     faraday_strings::EN.kind_line_mb,
                     &[&((n + 500_000) / 1_000_000).max(1).to_string()],
@@ -65,10 +65,22 @@ impl StickInfo {
                     faraday_strings::EN.kind_line_gb,
                     &[&((n + 500_000_000) / 1_000_000_000).to_string()],
                 )
-            });
-        }
-        if !self.label.is_empty() {
-            parts.push(self.label.clone());
+            }
+        })
+    }
+}
+
+impl StickMake {
+    /// The line that tells a stick named `label` apart on its figure: its
+    /// maker and model, its size, then its name; each part only where
+    /// known.
+    #[must_use]
+    pub fn about(&self, label: &str) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        parts.extend(self.who());
+        parts.extend(self.size_text());
+        if !label.is_empty() {
+            parts.push(label.to_string());
         }
         let mut parts = parts.into_iter();
         let first = parts.next().unwrap_or_default();
@@ -79,7 +91,9 @@ impl StickInfo {
             )
         })
     }
+}
 
+impl StickInfo {
     /// Whether the file listed as `name` is a vault, found by its
     /// contents when the listing was made; a file named `.fvlt` holding
     /// other bytes is not. A lookup.

@@ -1,8 +1,8 @@
 # The backup flow
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/figures.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs`, `faraday/faraday-core/src/stick/pills.rs`)
-**Screen:** `BackupFlow`, `GpgRestore`, `FigMenu`, `LaterAsk`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/figures.rs`, `faraday/faraday-core/src/backup_flow/stick_sheet.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs`, `faraday/faraday-core/src/stick/pills.rs`)
+**Screen:** `BackupFlow`, `GpgRestore`, `FigMenu`, `LaterAsk`, `StickSheet`
 **Group:** Wallets
 
 The flow that makes a key where its backup is planned first: where it
@@ -93,6 +93,7 @@ For a wallet, this card is **The plan**: Back up's own board and cards
 | "Insert the stick for Vault 1 (Place 1)" | the stick it asks for next; on the Faraday stick "Insert Stick 2: Vault 1 (Place 1)", by the stick's pill |
 | the figure's ⋮ | opens its menu: "Use the boot stick", where the plan can use the Faraday stick, and "Check it later", where it applies |
 | "Check it later" | on a waiting figure whose vaults are all new, and in its ⋮: a dialog "Check Stick 3 later?" says what it means, and the figure then reads "Checked when written" |
+| a checked figure | opens the stick's sheet: its name, maker and model, size, volume serial, free room, files with their sizes and vaults, where known; "Close" shuts it |
 | **Continue** | goes on to the vaults once every stick is Checked or Checked when written; nothing goes on by itself |
 | "Reading Stick 2" | while the stick is read |
 | "This is the stick for Vault 1 (Place 1)" | takes this stick for that slot |
@@ -103,6 +104,8 @@ For a wallet, this card is **The plan**: Back up's own board and cards
 | "Stick 2's copy of Vault 1 differs from Stick 1's" | two copies that differ: "Use Stick 2's copy" or "Use Stick 1's copy" |
 | "Pull the stick" | once a stick is read: pull it before the next |
 | "One stick at a time" | in the warning tone, with two in |
+
+![The stick's sheet: KEYSTICK, SanDisk Ultra, 16 GB, its serial, its files, Close](../pictures/gpg-stick-sheet.png)
 
 Why a stick is refused, in the error tone:
 

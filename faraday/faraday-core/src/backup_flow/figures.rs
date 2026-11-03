@@ -34,10 +34,20 @@ impl BackupFlow {
     }
 
     /// A press on the figure of slot `s`: the next stick is for it. A
-    /// stick put off is waiting again.
-    pub(crate) fn want(&mut self, s: usize) {
+    /// stick put off is waiting again. On a checked figure it opens the
+    /// stick's sheet (`docs/STICK-SETUP.md` §5): returns the sheet to show.
+    pub(crate) fn want(&mut self, s: usize) -> Option<Sheet> {
         if self.step != Step::Sticks {
-            return;
+            return None;
+        }
+        let failed = self
+            .live
+            .reading
+            .as_ref()
+            .is_some_and(|r| r.slot == s && r.problem.is_some());
+        if !failed && self.slots.get(s).is_some_and(|k| k.bound.is_some()) {
+            self.live.stick_sheet = Some(s);
+            return Some(Sheet::StickSheet);
         }
         if self.is_later(s) {
             self.slots[s].later = false;
@@ -45,6 +55,7 @@ impl BackupFlow {
         if self.needs_bind(s) {
             self.live.want = Some(s);
         }
+        None
     }
 
     /// Slot `s`'s ⋮ opened, under the ⋮ where the last frame drew it.
@@ -197,7 +208,7 @@ fn boot_slot(f: &BackupFlow) -> Option<usize> {
 }
 
 /// Slot `k`'s name: Boot stick, or Stick 2, 3 … with no gap.
-fn name_of(app: &View, f: &BackupFlow, k: usize) -> String {
+pub(super) fn name_of(app: &View, f: &BackupFlow, k: usize) -> String {
     let m = app.medium;
     let boot = boot_slot(f);
     if boot == Some(k) {
@@ -242,8 +253,11 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
             if matches!(state, State::Checked) {
                 // What tells the stick apart (STICK-SETUP.md §5), worked
                 // out when it was listed.
-                if let Some(b) = f.slots[k].bound.as_ref().filter(|b| !b.about.is_empty()) {
-                    items.push(Item::One(b.about.clone(), Role::OnSurfaceVariant));
+                if let Some(b) = f.slots[k].bound.as_ref() {
+                    let about = b.make.about(&b.label);
+                    if !about.is_empty() {
+                        items.push(Item::One(about, Role::OnSurfaceVariant));
+                    }
                 }
                 for &v in &vaults {
                     let vp = &f.plan.vaults[v];

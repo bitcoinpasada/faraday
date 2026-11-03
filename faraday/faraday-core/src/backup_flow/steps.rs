@@ -322,7 +322,7 @@ impl Faraday {
                     self.flow_use_present(i, k, Some(s));
                 }
             }
-            F::Want(s) => self.flows.all[i].want(s),
+            F::Want(s) => self.sheet = self.flows.all[i].want(s),
             F::FigMenu(s) => {
                 let at = self.pointer.rect_of(Action::Flow(a));
                 self.sheet = self.flows.all[i].open_fig_menu(s, at.map(|r| (r.x, r.y, r.w, r.h)));
@@ -784,7 +784,7 @@ impl Faraday {
             slot,
             purpose,
             label: st.label.clone(),
-            about: st.about(),
+            make: st.make.clone(),
             serial: st.serial,
             listing: st.files.clone(),
             pending: fvlt.clone(),
@@ -1349,7 +1349,7 @@ impl Faraday {
         }
         let bound = Bound {
             label: r.label.clone(),
-            about: r.about.clone(),
+            make: r.make.clone(),
             serial: r.serial,
             listing: r.listing.clone(),
             vaults: r.files.iter().map(|(f, _)| f.clone()).collect(),

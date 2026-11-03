@@ -1,34 +1,17 @@
 # Sticks and vaults, laid out together
 
-**Kind:** Spec
-**Status:** Specified (F175), not built
-**Open:** §5 (the stick's sheet), the guide (§7)
+**Kind:** Reference
+**Status:** Built (F175; `faraday/faraday-core/src/backup_flow/`, `faraday/faraday-disk/src/lib.rs`)
 
-Make a new wallet and Restore ask how many vaults the backup uses, then
-want one stick per vault, one at a time, in vault order. This spec puts
-the vaults and the sticks on one card instead: the person says how many
-of each, lays the vaults onto the sticks as on the backup board, and
-then sees each stick drawn on screen as it is brought in and checked.
-Every choice here is the owner's of 2026-10-30 (F175). It changes
-`docs/BACKUP-FLOW.md` §4.2 and §10.2; §8 is the edit list for them.
+Make a new wallet and Restore put the vaults and the sticks on one card:
+the person says how many of each, lays the vaults onto the sticks as on
+the backup board, and then sees each stick drawn on screen as it is
+brought in and checked. Every choice here is the owner's of 2026-10-30
+(F175). It changed `docs/BACKUP-FLOW.md` §4.2 and §10.2.
 
 ## 1. What changes
 
-| Now (`docs/BACKUP-FLOW.md`) | With this spec |
-|---|---|
-| "How many vaults?" (§10.2 item 2), then one stick per vault | One card: how many vaults and how many sticks, and which vaults go on which stick (§2) |
-| One vault per stick in the setup | Several vaults on one stick allowed, with a warning; a vault on several sticks is copies (§2.4) |
-| The sticks asked for in vault order, "Insert the stick for Vault 1" | In any order; each stick drawn with its state (§3) |
-| Every stick read before the keys | Read before the keys where it must be; a stick for new vaults only may be checked when it is written (§4) |
-| The boot stick offered only as "Use {label}", left out of the sticks the flow waits for | The boot stick can be any of the sticks (§3.3) |
-| A stick known by its label | By its maker, model, size and name; the rest on a press (§5) |
-
-The numbering is unchanged (§16, F146): the boot stick is always
-**Boot stick**, and the other sticks are Stick 2, Stick 3, and so on.
-
-A second Faraday stick, plugged in after start, is a stick like any
-other: `docs/STICK-IDENTITY.md` §5.2 makes only the disk the device
-started from the boot medium. This spec assumes that is built.
+Moved to `docs/history/STICK-SETUP-LOG.md`.
 
 ## 2. The Sticks and vaults card
 
@@ -182,6 +165,10 @@ A press on a checked figure opens a sheet (Material 3, Bottom sheets;
 a dialog on a wide screen) with the rest where known: the name, the
 FAT volume serial, the free room, the files at its top with their sizes,
 and the vaults on it. Nothing there is a press but **Close**.
+Its rows are worked out when the stick is read and kept in the flow's
+`Bound` (`make`, `serial`, `free`, `listing`, `vaults`; `backup_flow/
+stick_sheet.rs`); a saved flow holds the name, serial and free room
+only, so a flow resumed shows those.
 
 `faraday-disk` reads maker, model and size from `/sys` with the
 partitions it lists (a USB disk's `device/vendor` and `device/model`, a
@@ -189,9 +176,8 @@ card's `device/name` as its model, and `size` in 512-byte sectors), and
 the stick's listing carries them (`faraday/faraday-files/src/proto.rs`,
 `Stick::make`; the app's `StickInfo::make`). Nothing is read from the
 stick for them. The size reads in decimal GB, in MB under 1 GB. The line
-is worked out when the stick is read and kept in the flow's
-`Bound::about`, which a saved flow does not hold: a flow resumed shows
-the figure without the line. Faraday Demo's sticks are folders
+is worked out from `Bound::make` and the stick's name, which a saved
+flow does not hold: a flow resumed shows the name alone. Faraday Demo's sticks are folders
 and report none, so their figure shows the folder's name.
 
 ## 6. After the keys
@@ -248,63 +234,20 @@ writes a vault and its files now.
 
 ## 7. The guide
 
-The card's Guided text and the guide's walks (`docs/guide/walk/make-a-wallet.md`,
+Bring in the sticks' Guided text and the guide's walks (`docs/guide/walk/make-a-wallet.md`,
 `docs/guide/walk/restore.md`, `docs/guide/walk/back-up.md`) say why the
 sticks are laid out and read here, before the keys: a stick is not read
 while a key or a vault is open; reading them now makes sure every vault
 has a stick that works before there is anything to lose; nothing is
-written to them until the lock; and what Check it later means (§4).
+written to them until the lock; and what Check it later means (§4). The guide shows the stick's sheet on `docs/guide/walk/gpg.md` §3.
 
 ## 8. What changes with it
 
-- `docs/BACKUP-FLOW.md`: §17.6 (the first placement, §6.1), §10.2 items 2 and 3 (the Sticks and vaults
-  card in place of Number of vaults; the sticks in any order), §4.2
-  (the figures, Use the boot stick in place of Use {label} for the
-  setup, Check it later), §17.4 (several vaults on a stick), §16 (the
-  boot stick's pill follows the stick it serves), its worked examples B
-  to D (§6 of that file).
-- `docs/FLOWS.md`, Make a new wallet and Restore: the card's name and
-  order.
-- Code: `faraday/faraday-core/src/backup_flow/wallet_screen.rs`
-  (`count_card`, `create_count`, `restore_count`), `steps.rs` (the
-  sticks' order, `flow_candidates` and the boot stick, Check it later),
-  `mod.rs` (the setup's sticks and their vaults), `screen.rs` (the
-  figures), the board's model (§17.4);
-  `faraday/faraday-disk/src/lib.rs` and
-  `faraday/faraday-files/src/proto.rs` (maker, model, size);
-  Faraday Demo's sticks (the folder's name).
-- Strings, in `faraday/faraday-strings/src/en.rs`: Sticks and vaults,
-  Sticks, the checks of §2.5, New, Already on a stick, Put on…, the
-  states of §3.1, Use the boot stick, Check it later and its dialog,
-  the stick's sheet; retired: Number of vaults and its question once
-  nothing uses them.
+Moved to `docs/history/STICK-SETUP-LOG.md`.
 
 ## 9. Tests
 
-What a person notices:
-
-- Three vaults and two sticks: the card places Vault 1 on Stick 2 and
-  Vaults 2 and 3 on Stick 3, and says they share it; Continue is live.
-- A vault taken off every stick: Continue is not live, and the line
-  names it.
-- Sticks put in in the order Stick 3, then Stick 2: each is bound to
-  the stick it was put in for, and the figures say Checked.
-- The boot stick chosen for the first stick: it is read with no stick
-  put in, reads Boot stick, and the next stick is Stick 2.
-- A second Faraday stick plugged in after start is taken as a stick.
-- Check it later on a stick of new vaults: the dialog first; once
-  chosen, Continue is live with that stick unread; at the write step the
-  stick is checked, and one that fails offers another.
-- No Check it later on a stick holding a vault already on a stick.
-- A stick's figure shows its maker, model and size from the disk's
-  fixture; its sheet shows its files.
-- Two vaults on one stick are both written to it, each its own file,
-  and both unlock.
-- A 2-of-3 set up with three vaults on three sticks opens on the board
-  with three places, each keeping one key's paper and the stick of that
-  key's vault, and Continue live with nothing moved; after Customize
-  backup, a stick moved to another place and a seed added to a vault
-  are kept in the plan.
+Moved to `docs/history/STICK-SETUP-LOG.md`.
 
 ## 10. Choices made here
 

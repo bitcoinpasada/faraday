@@ -590,11 +590,9 @@ pub enum Sheet {
     /// The backup board's list, opened by **Add** in the narrow column
     /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
     BoardList,
-    /// A drop let a place see the balance it could not before
-    /// (`docs/BACKUP-FLOW.md` §17.5): **Keep it** or **Take it off**.
+    /// A drop let a place see the balance it could not before (`docs/BACKUP-FLOW.md` §17.5): **Keep it** or **Take it off**.
     BoardSees,
-    /// Partial descriptions added (`docs/BACKUP-FLOW.md` §17.19 item 4):
-    /// **Take it off every place** or **Keep it**.
+    /// Partial descriptions added (`docs/BACKUP-FLOW.md` §17.19 item 4): **Take it off every place** or **Keep it**.
     BoardPartials,
     /// A chip's ⋮ menu on the backup board (`docs/BACKUP-FLOW.md`
     /// §17.20): a popup under the ⋮ on `wide`, a sheet on the small panel.
@@ -603,6 +601,8 @@ pub enum Sheet {
     FigMenu,
     /// **Check it later**, asked first (`backup_flow/figures.rs`).
     LaterAsk,
+    /// A checked stick's sheet (`backup_flow/stick_sheet.rs`).
+    StickSheet,
     /// A seed the camera read, asking how it loads: with no passphrase or with one (`seed_read`).
     SeedRead,
     /// **Sweep a private key**: a WIF's addresses, its PSBT reviewed and signed (`seeds::sweep`).

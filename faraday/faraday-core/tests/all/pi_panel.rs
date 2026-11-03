@@ -180,7 +180,7 @@ fn sheets() -> Vec<Sheet> {
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, OlderCopy,
         ChildRecord, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
-        GpgRestore, FigMenu, LaterAsk,
+        GpgRestore, FigMenu, LaterAsk, StickSheet,
         Sweep);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
