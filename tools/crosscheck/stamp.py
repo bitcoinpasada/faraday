@@ -43,6 +43,7 @@ CRATES = [
     "faraday/faraday-keys",
     "faraday/faraday-qr",
     "faraday/faraday-vault",
+    "third_party/rqrr",
     "tools/crosscheck",
 ]
 # Single files of crates too large to hash whole, whose results an area
