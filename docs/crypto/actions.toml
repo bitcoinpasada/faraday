@@ -2773,11 +2773,12 @@ tests = [
   "core/faraday-bip/tests/all/calculators.rs::the_hashes_match_the_published_vectors",
   "core/faraday-codec/tests/encodings.rs::the_bech32_vectors_are_read_the_way_the_standards_say",
   "core/faraday-codec/tests/encodings.rs::a_segwit_address_reads_as_its_witness_version_and_program",
+  "core/faraday-codec/tests/encodings.rs::bech32_text_that_is_not_a_segwit_address_has_no_version",
   "core/faraday-codec/src/encodings.rs::bech32_and_bech32m_are_told_apart",
   "core/faraday-codec/src/encodings.rs::a_published_base58check_address_is_written_and_read_as_bitcoin_core_has_it",
 ]
 crosscheck = "hash"
-independence = { class = "outside-and-own", author = "Bitcoin Core v31.1's functional-test framework, by Bitcoin Core's contributors (`ripemd160.py` for HASH160, `address.py` for Base58Check, `segwit_addr.py` for bech32 and bech32m), and Python's `hashlib` (SHA-256 and SHA-256d) and `bytes.fromhex` (hex)", ours = "plain Base58 with no checksum, which the framework does not read, the order the spellings are tried in, the trimming of the text, and hex as an even number of hex digits only, in `area_hash.py`; bech32 text with padding bits BIP 173 refuses or longer than 90 characters is read by Faraday and by the area alike, a stated difference" }
+independence = { class = "outside-and-own", author = "Bitcoin Core v31.1's functional-test framework, by Bitcoin Core's contributors (`ripemd160.py` for HASH160, `address.py` for Base58Check, `segwit_addr.py` for bech32 and bech32m), and Python's `hashlib` (SHA-256 and SHA-256d) and `bytes.fromhex` (hex)", ours = "plain Base58 with no checksum, which the framework does not read, the order the spellings are tried in, the trimming of the text, hex as an even number of hex digits only, and which prefixes make a segwit address, in `area_hash.py`; bech32 text that is not a segwit address is read as all its data groups at any length by Faraday and by the area alike, a stated difference" }
 fuzz = [
   "encodings",
 ]

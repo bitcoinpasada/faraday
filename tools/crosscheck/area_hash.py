@@ -2,7 +2,8 @@
 Bitcoin Core's functional-test framework (`core/test_framework/`):
 `crypto/ripemd160.py` (RIPEMD-160, for HASH160), `address.py`'s
 Base58Check (`byte_to_base58`, `base58_to_byte`) and `segwit_addr.py`'s
-bech32 and bech32m (`bech32_encode`, `bech32_decode`, `convertbits`),
+bech32 and bech32m (`bech32_encode`, `bech32_decode`, `convertbits`,
+`encode_segwit_address`, `decode_segwit_address`),
 with `hashlib` for SHA-256 and SHA-256d and `bytes.fromhex` for hex.
 
 - Published answers first: FIPS 180-4's SHA-256 examples, RIPEMD-160 of
@@ -27,11 +28,14 @@ What stays Faraday's own rule, written in the area in front of the
 reference: the order `encodings::read` tries the spellings in (bech32,
 Base58Check, hex, Base58), the trimming of the text around it, plain
 Base58 (no checksum; Core's framework has only Base58Check, so those few
-lines are the area's own, over Python integers), and hex being only an
-even number of hex digits.
+lines are the area's own, over Python integers), hex being only an even
+number of hex digits, and which prefixes make a segwit address (bc, tb and
+bcrt; Core's decoder is told the prefix).
 """
 
 import hashlib
+import json
+import pathlib
 import string
 
 from common import Area, use_reference
@@ -46,6 +50,8 @@ from test_framework.segwit_addr import (  # noqa: E402
 B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BECH32_CHARS = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 ADDRESS_HRPS = ("bc", "tb", "bcrt")
+ADDRESSES = json.loads((pathlib.Path(__file__).resolve().parents[1] / "vectors" / "addresses"
+                        / "vectors.json").read_text())
 HRPS = ["bc", "tb", "bcrt", "lnbc", "lntb", "npub", "nsec", "age", "a", "abcdef"]
 # Lengths around the 64-byte block of SHA-256 and RIPEMD-160 and their
 # 9-byte padding, then a spread to 300.
@@ -108,7 +114,8 @@ def bech32_decode_long(bech):
 
 
 def ref_bech32(text):
-    """Core's `bech32_decode`, the data read as bytes (no padding left)."""
+    """Core's `decode_segwit_address` for an address of bc, tb or bcrt;
+    any other text is `bech32_decode`'s data read as bytes."""
     if len(text) > 90:
         # Known difference (length): `bech32_decode` refuses more than 90
         # characters, BIP-173's limit for a segwit address; Faraday reads
@@ -193,18 +200,19 @@ class Hash(Area):
         "its vendored files are hashed against `references.sha256` before any run, and a "
         "published vector's answer is required of the reference as well as of Faraday; the "
         "order `read` tries the spellings in, the trimming of the text, hex as an even number of "
-        "hex digits and plain Base58 (which Core's framework does not read; the area's own few "
-        "lines) are Faraday's rules, written in the area in front of the reference"
+        "hex digits, plain Base58 (which Core's framework does not read; the area's own few "
+        "lines) and which prefixes make a segwit address are Faraday's rules, written in the area in front of the reference"
     )
     vectors = (
         "FIPS 180-4's SHA-256 examples, RIPEMD-160 of `abc`, BIP-173's key and its HASH160, "
-        "Bitcoin Core's first `key_io_valid.json` address and BIP-173's and BIP-350's bech32 strings"
+        "Bitcoin Core's first `key_io_valid.json` address, BIP-173's and BIP-350's bech32 strings "
+        "and their valid and invalid segwit addresses (`tools/vectors/addresses`)"
     )
     corpus = (
         'random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) '
         'and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes '
         'written and read as Base58Check, Base58, bech32 and bech32m, Core\'s writing read by '
-        'Faraday, and texts changed, cut or made of random characters read by both'
+        'Faraday, segwit addresses of every version Core\'s framework writes, and texts changed, cut or made of random characters read by both'
     )
     differences = [
         (
@@ -265,17 +273,21 @@ class Hash(Area):
         if self.need(self.write("base58check", h, 0), "write") != text:
             raise AssertionError("Base58Check differs from Bitcoin Core's address")
         # BIP-173's and BIP-350's addresses: witness version and program.
-        for s, enc, hrp, version, program in [
-            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", "bech32", "bc", 0,
-             "751e76e8199196d454941c45d1b3a323f1433bd6"),
-            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", "bech32", "tb", 0,
-             "1863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"),
-            ("bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", "bech32m", "bc", 1,
-             "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"),
-            ("BC1SW50QGDZ25J", "bech32m", "bc", 16, "751e"),
-        ]:
-            self.read(s, ("ok", {"encoding": enc, "bytes": program, "version": version, "hrp": hrp,
-                                 "checksum": True}))
+        for case in ADDRESSES["segwit_valid"]:
+            script = bytes.fromhex(case["script"])
+            version = script[0] - 0x50 if script[0] else 0
+            self.read(case["address"], ("ok", {
+                "encoding": "bech32m" if version else "bech32", "bytes": script[2:].hex(),
+                "version": version, "hrp": case["address"].lower().rsplit("1", 1)[0],
+                "checksum": True}))
+        # The invalid ones: read alike, and never as an address by the reference.
+        for case in ADDRESSES["segwit_invalid"]:
+            self.read(case["address"])
+            try:
+                if ref_read(case["address"])["version"] is not None:
+                    raise AssertionError(f"the reference takes {case['address']} as an address")
+            except ValueError:
+                pass
         # BIP-173 and BIP-350: strings of no data (read with their bytes),
         # other valid strings (both must read them alike), and invalid ones.
         for s, enc in [("a12uel5l", "bech32"), ("A12UEL5L", "bech32"), ("a1lqfn3a", "bech32m")]:
@@ -304,12 +316,10 @@ class Hash(Area):
         b = self.randbytes(self.sizes())
         self.hashes(b)
         # A segwit address Core's framework writes, of any version and of
-        # lengths both sides of what each allows.
+        # every length that version allows.
         version = rng.choice([0, 0, 1, 1, rng.randint(2, 16)])
-        size = rng.choice([20, 32, rng.randint(2, 40)])
-        address = encode_segwit_address(rng.choice(ADDRESS_HRPS), version, self.randbytes(size))
-        if address is not None:
-            self.read(address)
+        size = rng.choice([20, 32]) if version == 0 else rng.choice([2, 32, 40, rng.randint(2, 40)])
+        self.read(encode_segwit_address(rng.choice(ADDRESS_HRPS), version, self.randbytes(size)))
         # Writing and reading, in every spelling.
         small = b[:rng.randint(0, 40)]
         version = rng.randrange(256)

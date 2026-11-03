@@ -64,7 +64,7 @@ fn the_mode_row_decides_whether_the_field_is_text_or_hex() {
 
 #[test]
 fn a_segwit_address_reads_as_its_witness_version_and_program() {
-    // BIP-173's and BIP-350's valid addresses, with the script each gives.
+    // BIP-173's and BIP-350's valid addresses, with the program each holds.
     for (address, encoding, hrp, version, program) in [
         (
             "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
@@ -99,11 +99,21 @@ fn a_segwit_address_reads_as_its_witness_version_and_program() {
 
 #[test]
 fn bech32_text_that_is_not_a_segwit_address_has_no_version() {
-    // Another prefix, and a version 1 address under the bech32 checksum,
-    // which BIP-350 lists as invalid.
+    // Another prefix, then BIP-350's invalid addresses whose checksum holds:
+    // the wrong checksum for the version, a version above 16, a program of
+    // a wrong length, bad padding, no data.
     for text in [
         "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
         "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
+        "tb1z0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqglt7rf",
+        "BC1S0XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ54WELL",
+        "BC130XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ7ZWS8R",
+        "bc1pw5dgrnzv",
+        "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v8n0nx0muaewav253zgeav",
+        "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
+        "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v07qwwzcrf",
+        "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vpggkg4j",
+        "bc1gmk9yu",
     ] {
         assert_eq!(read(text).map(|r| r.version), Some(None), "{text}");
     }

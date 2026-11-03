@@ -93,7 +93,6 @@ pub fn read(text: &str) -> Option<Reading> {
     None
 }
 
-/// A bech32 or bech32m string, by which checksum holds over it.
 /// `text` as a segwit address of Bitcoin's prefixes: its witness version and
 /// its program. BIP-173's and BIP-350's rules are the crate's, so any other
 /// bech32 text is read as plain data.
@@ -117,6 +116,7 @@ fn read_segwit_address(text: &str) -> Option<Reading> {
     })
 }
 
+/// A bech32 or bech32m string, by which checksum holds over it.
 fn read_bech32(text: &str) -> Option<Reading> {
     if let Some(address) = read_segwit_address(text) {
         return Some(address);
