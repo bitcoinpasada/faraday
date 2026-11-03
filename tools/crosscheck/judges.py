@@ -28,6 +28,7 @@ TOOLS = [
     ("mdir", "mtools", ["-V"]),
     ("sfdisk", "util-linux", ["--version"]),
     ("sgdisk", "gdisk", ["--version"]),
+    ("xz", "xz-utils", ["--version"]),
     ("qemu-system-x86_64", "qemu-system-x86", ["--version"]),
     ("certtool", "gnutls-bin", ["--version"]),
     ("pesign", "pesign", None),
@@ -54,6 +55,24 @@ def find(name):
         if p.is_file():
             return str(p)
     return shutil.which(name)
+
+
+def sevenzip():
+    """7-Zip's own program, `7zz` or `7z` (some systems name it so), or None.
+
+    Accepted only when its banner reads `7-Zip <version> ... Igor Pavlov`;
+    p7zip, the old fork (`7-Zip [64]`, `p7zip Version`), is not 7-Zip here.
+    """
+    for name in ("7zz", "7z"):
+        path = find(name)
+        if not path:
+            continue
+        run = subprocess.run([path], capture_output=True, text=True)
+        text = (run.stdout + run.stderr).strip()
+        if (text.startswith("7-Zip ") and not text.startswith("7-Zip [")
+                and "Igor Pavlov" in text and "p7zip" not in text):
+            return path
+    return None
 
 
 def ovmf():
@@ -84,6 +103,8 @@ def pefile_version():
 
 def missing():
     out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
+    if not sevenzip():
+        out.append("7-Zip (`7zz` or `7z`; package 7zip, not p7zip)")
     if not pefile_version():
         out.append("pefile for Python (package python3-pefile)")
     if not ovmf():
@@ -100,6 +121,8 @@ def versions():
     for tool, pkg, args in TOOLS:
         path = find(tool)
         lines.append(f"{tool} {first_line(path, args, pkg) if path else 'missing'}")
+    seven = sevenzip()
+    lines.append(f"7-Zip (7zz or 7z) {first_line(seven, []) if seven else 'missing'}")
     lines.append(f"python3-pefile {pefile_version() or 'missing'}")
     code = ovmf()
     if code:

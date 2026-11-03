@@ -8352,13 +8352,17 @@ tests = [
   "faraday/faraday-payload/tests/payload.rs::a_developers_image_that_changed_after_it_was_confirmed_is_a_failure",
   "faraday/shells/starter/tests/all/ids.rs::two_sticks_written_from_one_image_have_their_own_ids_and_the_same_boot_partition",
   "faraday/shells/starter/tests/all/ids.rs::a_stick_made_for_its_size_reads_clean_in_other_tools_at_1_32_and_256_gb",
+  "faraday/shells/starter/tests/all/outside.rs::xz_streams_good_and_damaged_are_decoded_or_refused_as_xz_and_7_zip_do",
+  "faraday/shells/starter/tests/all/outside.rs::the_tables_written_on_sticks_and_cards_pass_sgdisk_and_sfdisk",
+  "faraday/shells/starter/tests/all/outside.rs::the_answers_diskutil_gives_are_read_as_python_reads_them_or_refused_by_both",
+  "faraday/shells/starter/tests/all/outside.rs::the_ids_drawn_for_a_stick_are_version_4_uuids_as_python_reads_them",
   "faraday/shells/starter/tests/all/writer.rs::a_source_one_byte_off_is_refused_and_nothing_is_written",
   "faraday/shells/starter/tests/all/writer.rs::a_boot_partition_read_back_one_byte_off_fails_the_write",
   "faraday/shells/starter/tests/all/writer.rs::keep_data_on_a_stick_made_for_its_size_keeps_its_table_and_data_partition",
   "faraday/shells/starter/tests/all/writer.rs::clearing_first_leaves_every_sector_outside_what_is_then_written_zero",
   "faraday/shells/starter/tests/all/signed_boot.rs::keep_data_refuses_a_boot_partition_that_is_not_the_one_the_release_lists_unless_a_boot_file_is_signed",
 ]
-not_crosschecked = "The sums are compared with `sha256sum`'s in the tests; no F79 area runs the decoder."
+not_crosschecked = "The sums are compared with `sha256sum`'s in the tests, and the tests judge the decoder with `xz` and 7-Zip (`7zz` or `7z`) over good and damaged streams, the tables written with `sfdisk --verify` and `sgdisk -v`, the `diskutil` answers with Python's `plistlib` and the GUIDs with Python's `uuid`; each is skipped without its tool in `just` and fails in `just crosscheck`. No F79 area runs the decoder."
 fuzz_none = "The manifest target fuzzes the manifest's reading; no target runs the xz decoder or the hash."
 
 [action.secrets]

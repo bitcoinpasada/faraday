@@ -24,11 +24,11 @@ Faraday's second version" below says which, per action.
     just crosscheck-identity     the same report under 1 and 4 workers (and PyPy)
 
 `run.sh` first checks that every outside tool is there (`judges.py`:
-dosfstools, mtools, `sfdisk`, `sgdisk`, QEMU, OVMF's Secure Boot firmware,
+dosfstools, mtools, `sfdisk`, `sgdisk`, `xz`, 7-Zip (`7zz` or `7z`), QEMU, OVMF's Secure Boot firmware,
 systemd-boot) and stops naming a missing one; their versions go into the
 stamp. A full run then runs the judged test files (faraday-fat's `judged`,
-`formatted`, faraday-files' `foreign`, the Starter's `ids`, `image_finish`
-and `stick_layout`) with `FARADAY_JUDGES_REQUIRED=1`, under which a missing
+`formatted`, faraday-files' `foreign`, the Starter's `ids`, `image_finish`,
+`outside` and `stick_layout`) with `FARADAY_JUDGES_REQUIRED=1`, under which a missing
 tool fails the test instead of skipping it, and the OVMF Secure Boot run
 (`faraday/tools/sb-ovmf-check.py`). Not with `--area` or `--identity`.
 `run.sh` builds the Rust command with `cargo build --frozen` and runs

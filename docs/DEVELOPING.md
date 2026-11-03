@@ -70,6 +70,11 @@ nothing else.
   `mcopy`, `sgdisk`, `sfdisk`; on some systems `sfdisk` comes with
   util-linux): the FAT and stick-image tests skip with a note without
   them under `just`, and fail without them under `just crosscheck`.
+- **xz-utils and 7-Zip** (`xz`, and `7zz` or `7z` from the `7zip` package,
+  upstream 7-Zip; p7zip does not count): the Starter's tests decode good
+  and damaged `.xz` streams with both beside Faraday's decoder. They skip
+  with a note without them under `just`, and fail without them under `just
+  crosscheck`. On Debian or Ubuntu: `sudo apt install xz-utils 7zip`.
 - **QEMU and OVMF** (`qemu-system-x86_64`, OVMF's Secure Boot firmware
   (`OVMF_CODE.secboot.4m.fd`, or `OVMF_CODE_4M.secboot.fd` on Debian and
   Ubuntu), and `systemd-boot-efi`), to boot the stick
