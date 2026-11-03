@@ -775,6 +775,12 @@ when = ["faraday/faraday-core/src/qr_view.rs", "faraday/faraday-core/src/scan_ke
 kind = "review"
 
 [[rule]]
+id = "keys.vault-contents-never-refuse"
+title = "a KDBX file's contents never refuse it: a damaged or ambiguous item is Unreadable and kept as read, and only the format limits, a wrong passphrase, damage and XML not well formed refuse a file"
+source = ["docs/decisions/F194.md", "docs/VAULT.md §7"]
+when = ["faraday/faraday-vault/src/kdbx/**", "faraday/faraday-vault/src/totp.rs"]
+kind = "review"
+[[rule]]
 id = "compute.token"
 title = "costly work takes the compute token and says so"
 source = ["CLAUDE.md", "docs/COMPUTE.md", "docs/decisions/F69.md"]

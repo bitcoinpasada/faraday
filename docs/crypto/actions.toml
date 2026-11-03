@@ -7427,6 +7427,7 @@ learn = "faraday:time"
 screens = ["Codes"]
 functions = [
   "faraday/faraday-vault/src/totp.rs::Totp::code",
+  "faraday/faraday-vault/src/totp.rs::from_fields",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::totp",
 ]
 code = ["faraday/faraday-vault/src/totp.rs::Totp::code"]
@@ -7438,7 +7439,7 @@ libraries = [
   "sha1",
   "sha2",
 ]
-adds = "Reads an otpauth://totp URI or a bare Base32 key; SHA1 by default as RFC 6238 does, SHA256 and SHA512 on request; the clock is the person's, checked or set by hand (docs/TOTP.md §1)."
+adds = "Reads an otpauth://totp URI or a bare Base32 key, and from an entry's fields KeePass 2's TimeOtp-* fields and older KeePassXC's TOTP Seed and TOTP Settings (docs/TOTP.md section 4.1); SHA1 by default as RFC 6238 does, SHA256 and SHA512 on request; the clock is the person's, checked or set by hand (docs/TOTP.md §1)."
 written_here = "TOTP code derivation (`faraday-vault::totp`)"
 
 [action.checked]
@@ -7448,6 +7449,10 @@ tests = [
   "faraday/faraday-vault/tests/totp.rs::rfc_4226_appendix_d_vectors",
   "faraday/faraday-vault/tests/totp.rs::the_key_uri_example_and_its_typed_form_agree",
   "faraday/faraday-vault/tests/totp.rs::unreadable_and_hotp_values_are_told_apart",
+  "faraday/faraday-vault/tests/totp.rs::every_form_an_entry_holds_gives_rfc_6238_codes",
+  "faraday/faraday-vault/tests/totp.rs::keepass_two_algorithm_and_period_fields",
+  "faraday/faraday-vault/tests/totp.rs::the_first_form_present_decides",
+  "faraday/faraday-vault/tests/totp.rs::hotp_steam_and_malformed_forms_are_not_read",
   "faraday/faraday-core/tests/all/totp.rs::the_code_shown_changes_when_the_tick_crosses_the_period",
 ]
 fuzz = ["vault_entries"]

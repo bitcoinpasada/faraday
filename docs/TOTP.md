@@ -210,6 +210,47 @@ value:
   one): read as SHA1, 6 digits, 30 seconds.
 - Anything else: `NotTotp::Unreadable`.
 
+**An entry's fields** (owner, 2026-11-03; F194). A vault is a KDBX file
+other programs write too, so a secret is read, for display only, from
+the forms those programs use, by `from_fields(fields: &[(&str, &str)])
+-> Option<Result<Totp, NotTotp>>` over an entry's name and value pairs.
+In this order, the first form the entry holds (a non-empty value)
+decides, whether it reads or not:
+
+1. `otp`: the Key URI Format, read as above (KeePassXC, KeePassDX,
+   Strongbox).
+2. KeePass 2's own fields: the secret from the first non-empty of
+   `TimeOtp-Secret` (its UTF-8 bytes, as written, spaces included),
+   `TimeOtp-Secret-Hex`, `TimeOtp-Secret-Base32` and
+   `TimeOtp-Secret-Base64`, the order KeePass's help lists them in (it
+   says one is present and names no other order; its source was not
+   reachable), with
+   `TimeOtp-Length` (6 to 8, default 6), `TimeOtp-Period` (1 to 3600
+   seconds, default 30) and `TimeOtp-Algorithm` (`HMAC-SHA-1` default,
+   `HMAC-SHA-256`, `HMAC-SHA-512`). A value outside these is
+   `Unreadable`.
+3. Older KeePassXC's `TOTP Seed` (Base32) with `TOTP Settings`
+   (`period;digits`, default `30;6`; read only when it has two parts, as
+   KeePassXC's `parseSettings` does, so a period alone leaves both at
+   their defaults; a Steam `S` in place of the digits is `Unreadable`),
+   SHA-1.
+
+An `otpauth://hotp` URI, or KeePass 2's `HmacOtp-Secret` fields without
+a form above, is `NotTotp::Hotp`. `None` when the entry holds none of
+these. Faraday writes only `otp` (§4.3) and never rewrites a TOTP field
+it did not make. These forms are checked against RFC 6238's vectors read
+through each field; no file written by KeePass or by KeePassXC was
+available to check the field names against, which stand on KeePass's
+documentation of its `TimeOtp-*` placeholders and KeePassXC's
+documentation of `otp`.
+
+The vault's items read a person's entry the same way: each has its TOTP
+as `from_fields` reads it over all its fields (`Item::totp`), so an
+`otp` that does not read, HOTP and the other forms show as a badge on
+an entry that otherwise reads. This is built in `faraday-vault`; the
+codes page takes it with the vault swap (the screen still reads field
+6 of the FVLT record until then).
+
 `Totp` holds the decoded secret in a `Zeroizing<Vec<u8>>`, the
 algorithm, digits and period, and its `Debug` prints no secret bytes.
 
@@ -266,9 +307,9 @@ again after a lock in the same power-on.
 
 - At the top, the row **Now**, local time with seconds and the
   zone (`14:02:37 UTC+02:00`), with **Set the time** on its right.
-- Then one row per type 6 record whose field 6 `parse`s, in every open
-  vault, vault by vault in the order they were opened, then in record
-  order. A row holds:
+- Then one row per entry with a TOTP secret (§4.1, `from_fields`), in
+  any group of every open vault, vault by vault in the order they were
+  opened, then in record order. A row holds:
   - the entry's title (field 1), and under it the account: the URI
     label's account part, else field 2 (username), else nothing; with
     more than one vault open, the vault's name after it (`you@example ·
@@ -277,9 +318,9 @@ again after a lock in the same power-on.
     size the tokens give a code on this class;
   - under the row, a progress bar (DESIGN §4.14) for the time left in
     its period, with the seconds (`12 s`) in muted text.
-- A record whose field 6 reads as HOTP is listed with an **HOTP** badge
+- An entry whose secret reads as HOTP is listed with an **HOTP** badge
   (DESIGN §4.8) in place of the code; one that does not read, with an
-  **Unreadable** badge. Neither has a bar.
+  **Unreadable** badge. Neither has a bar, and neither refuses the file.
 - Pressing a row opens that entry in its vault (Vault contents, Entries,
   the record selected), where §6 shows the same code.
 - Under the list, two buttons: **Scan a setup code** (`VaultAction::ScanEntry`, into
@@ -312,7 +353,9 @@ and the on-screen keyboard under them; Done leaves it. Check at `480x640` and `2
 ## 6. The entry
 
 - **Detail** (`vault/screen.rs`, `kind::ENTRY`): a row **Code** before
-  the **TOTP secret** row, with the grouped code and `12 s`, live. When
+  the **TOTP secret** row (for an entry whose secret is in KeePass 2's or
+  older KeePassXC's fields, §4.1, the row shows the code and those
+  fields stay as any other field), with the grouped code and `12 s`, live. When
   the clock is not checked, its value is the button **Set the time**,
   which opens §3 and comes back. HOTP and Unreadable show the badge
   instead. The secret's hold row is unchanged.

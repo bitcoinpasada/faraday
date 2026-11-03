@@ -529,24 +529,25 @@ groups under it, and Faraday's items as entries in one group per kind.
 Each item is in its published text form. Which names mean what is
 Faraday's own rule, written here, and fails closed for Faraday's items:
 an unknown kind, a field its kind does not name, a missing required
-field or a malformed value refuses the file, naming the entry by its
-title and UUID, as an unknown record type does in the FVLT format.
+field or a malformed value makes that item Unreadable (F194): the file
+still opens, and the item is named, never loaded or used and written
+back unchanged.
 
 **Custom data.** KDBX 4 gives the database and each entry a list of
 custom data, key and value pairs, inside the encryption. Any KDBX
 reader with the passphrase reads it; KeePassXC keeps it when it saves
 and does not show it in its views. Faraday's keys begin `faraday.`;
 other keys (KeePassXC's `KPXC_RANDOM_SLUG` and `_LAST_MODIFIED`, a
-plugin's) are not read and not kept (§7.1).
+plugin's) are not read and are kept as written (§7.1).
 
 The vault's own values are the database's:
 
 | Where | What |
 |---|---|
 | `Meta/DatabaseName` | the vault's label (≤ 64 bytes), shown on Vaults while open. Starts as the vault's name, or "Vault" when none is typed (F57). |
-| `faraday.format` | `1`. Required. |
+| `faraday.format` | `1`. Written by Faraday; missing or not 1, see **A file that is not Faraday's** below. |
 | the root group's `UUID` | the vault identifier (owner, 2026-11-02): KDBX's own 16 bytes, drawn once when the vault is made (`fresh_bytes("vault id", 16)`) and kept for its life; KeePass apps keep a group's UUID when they save. Written as 32 lower-case hex digits wherever Faraday names it. By it a backup plan names another vault (`plan`, below); it is not a secret, and only whoever opens the vault reads it. |
-| `faraday.seals` | how many times the vault has been sealed, a decimal integer, 1 or more. Required. Written by `faraday-vault` alone: each seal writes one more than the vault was opened with (or than the last seal of the same opening). |
+| `faraday.seals` | how many times the vault has been sealed, a decimal integer, 1 or more. Written by `faraday-vault` alone: each seal writes one more than the vault was opened with (or than the last seal of the same opening). |
 | `faraday.sealed` | the time of the last seal, an RFC 3339 date-time in UTC (`2026-10-28T14:02:00Z`) by the clock of the computer that sealed it; absent when that clock was not set. |
 | `faraday.signed.{tx}` | one per transaction: `{tx}` the SHA-256 of an unsigned transaction in lower-case hex, the value the amount each input stated, in satoshis, comma-separated, in order. Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest are dropped first when the vault is full. |
 | `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of F189's `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
@@ -557,8 +558,8 @@ password entries, whether Faraday made them or a KeePass app did.
 | Field | What |
 |---|---|
 | `Title`, `UserName`, `Password` (protected), `URL`, `Notes` | as KeePass has them; an empty title reads "No title" on screen |
-| `otp` (protected) | an `otpauth://` URI (the Key URI Format), as KeePassXC writes it (`docs/TOTP.md` §4.3); one Faraday cannot read refuses the file, naming the entry |
-| any other field | kept as written, with its protection, and shown on the entry's page; KeePass's own `TimeOtp-*` fields are such fields |
+| `otp` (protected) | an `otpauth://` URI (the Key URI Format), as KeePassXC writes it (`docs/TOTP.md` §4.3); the only TOTP field Faraday writes. One it cannot read shows the Unreadable badge on the codes page and the entry; it never refuses the file |
+| any other field | kept as written, with its protection, and shown on the entry's page; KeePass 2's `TimeOtp-*` fields and older KeePassXC's `TOTP Seed` and `TOTP Settings` are such fields, and are also read for the codes page (`docs/TOTP.md` §4.1), never rewritten |
 
 An entry keeps its UUID, and the group it was in, by the path of group
 names under the root; Faraday makes an entry in the root group.
@@ -577,7 +578,7 @@ standard fields it leaves empty, must be absent or empty:
 | `gpg`, GPG keys | 7 | `Title`: the key's primary user ID. `key` (protected): the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected; required. `public`: the public certificate as last exported, armored. `revocation` (protected): the revocation certificate made with the key (F32), armored. `revoked`: when the key was marked revoked, an RFC 3339 date-time. | |
 | `secure_boot`, Secure Boot | 8 | `Title`: "Secure Boot keys". `owner`: the owner GUID in its text form. `pk_key`, `kek_key`, `db_key` (protected): each a PEM `PRIVATE KEY` (PKCS#8, RFC 7468). `pk_cert`, `kek_cert`, `db_cert`: each a PEM `CERTIFICATE`. | |
 | `wallet_share`, Wallet shares | 13 | `Title`: its name. `Password` (protected): the share as its `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6). `index`, from 1; `of`, how many; `wallet`, as a plan's. | |
-| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required; two for one key refuse the file, naming the key. | |
+| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required; two for one key are both Unreadable, naming the key. | |
 | `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required; at most one per share index and key. | |
 | none: the database's custom data | 10, 11, 16, 1 | signed amounts, backup plans, the seal count, the label: above | |
 | not carried | 9, 12 | the pending signing round is compiled out of the app (F109), and 12 is no build's | |
@@ -621,19 +622,51 @@ tags and AutoType are optional in KeePass's format and left out. A new
 entry's UUID is 16 bytes of the session's randomness. What a KeePass app
 wrote into a vault and Faraday does not read is carried through (§7.1).
 
-**What refuses the file.** An XML document that is not well formed, or
-has a DOCTYPE, or an entity other than XML's five and character
-references; a `faraday.format` missing or not 1; a `faraday.seals`
-missing or malformed; a `faraday.kind` not named here; a
-field a kind does not name, or a required one missing; words that are
-not a valid BIP-39 phrase of their list; a policy or descriptor that
-does not parse; a PEM block other than the one its field names; an
-`otp` Faraday cannot read; a `faraday.codex32`, `faraday.child` or
-`faraday.plan.{n}` that is not the TOML its key names; a GPG key not of
-Faraday's own shape: an Ed25519 primary key with one Ed25519 signing
-subkey, unprotected. Each names what it found and where (the entry's
-title and UUID, and the field or key). Nothing of a refused file is
-loaded.
+**What refuses the file** (owner, 2026-11-03; F194). A KDBX file is a
+standard format Faraday supports, and nothing in its contents refuses
+it. Only these do: the format limits of §7.1 (KDBX 3.1 and older,
+AES-KDF, Twofish or another cipher, Salsa20 as the inner stream, an
+empty passphrase); a wrong passphrase, a failed HMAC or a damaged file;
+and an XML document that is not well formed, or has a DOCTYPE, or an
+entity other than XML's five and character references. The XML reader's
+other limits are format limits too (named in §7.1): nesting past 64
+elements, markup inside a text element the model reads, a protected value
+that is not canonical Base64 (damage), and a `Meta` or `Root` that is
+missing or repeated. A comment or a processing instruction, before the
+root, after it or inside, is not refused: it is kept where it is and
+skipped where Faraday reads text.
+
+**Unreadable items.** A Faraday item that is damaged does not refuse
+the file: it is listed on the vault's page as **Unreadable** with its
+title, its UUID and what is wrong (the field or key), is never loaded
+or used, and is written back as it was read at the next seal. An item
+is damaged when it has a `faraday.kind` not named here; a field its kind
+does not name, or a required one missing; words that are not a valid
+BIP-39 phrase of their list; a policy or descriptor that does not
+parse; a PEM block other than the one its field names; a
+`faraday.codex32`, `faraday.child` or `faraday.plan.{n}` that is not the
+TOML its key names; a GPG key not of Faraday's own shape (an Ed25519
+primary key with one Ed25519 signing subkey, unprotected); two
+passphrases for one key; two shares of one index and key; an entry with
+two fields of one name; two entries or two groups with one UUID; an entry,
+or a group it is in, that cannot be told apart from what was read (two
+UUIDs, a UUID that is not 16 bytes, a field with two values, text between
+a field's key and value, and the like). The same holds
+for the database's custom data: a `faraday.plan.{n}` or
+`faraday.signed.{tx}` that does not read is kept as it was and named,
+and not used.
+
+**A file that is not Faraday's.** With `faraday.format` missing it is a
+KeePass file Faraday did not make: it opens with its entries, its seal
+count reads 0, and an entry with a `faraday.kind` is read as Faraday's
+item. With `faraday.format` other than 1 (not a number, 0, or above 1) it
+is a newer format and opens read-only: its other entries are shown, every
+Faraday item is Unreadable, and the next seal writes nothing. A `Meta` or
+database custom data that cannot be told apart from what was read (two
+`faraday.format` items, two `DatabaseName`) counts as a newer format. With `faraday.seals` missing or
+malformed the seal count starts again at 1: the next seal writes
+`faraday.seals` as 1 and the file then reads as Faraday's. Nothing is
+written into the file until a seal.
 
 An open vault's view shows each wallet with the plan this vault keeps
 for it, as a chart read from the backup up: the places, vaults, files
@@ -662,7 +695,14 @@ limits, beyond what it writes itself:
 
 Refused, naming what was found: KDBX 3.1 and older, AES-KDF, Twofish or
 another cipher, Salsa20 as the inner stream, and a database whose
-passphrase is empty.
+passphrase is empty. The XML document is refused for what the reader
+cannot carry or place: a document not well formed, a DOCTYPE, an entity
+other than XML's five and character references, an XML declaration that
+is not at the start, anything after the root but XML whitespace, comments
+and processing instructions, nesting past 64 elements, markup inside a
+text element the model reads, a protected value that is not canonical
+Base64 (damage), and a `Meta` or `Root` missing or repeated. These and
+§7's list are all that refuses a file.
 
 **A key file or a security key** (owner, 2026-11-02). KDBX 4 records
 nothing that shows a key file or a challenge-response key (a YubiKey's),
@@ -688,7 +728,10 @@ everything but its fields, its custom data and its last-modified time,
 which it sets when the clock is set.
 
 **Dropped**, being old or deleted copies of secrets (owner,
-2026-11-02): entry history, and the recycle bin with the entries in it.
+2026-11-02): entry history, and the recycle bin with the entries in it
+when `Meta`'s `RecycleBinEnabled` is True or absent (KeePassXC counts an
+absent one as enabled); with it False, the group the database names as
+its recycle bin is an ordinary group.
 A file holding either stops before it opens at a dialog, **Saved by
 another program**, naming the vault and what the next seal leaves out
 ("the history of 12 entries, 2 entries in the recycle bin"): **Keep
@@ -701,8 +744,9 @@ saved in another cipher, KDF or compression says so on the vault's head
 while it is open.
 
 What was edited is taken as the person's: an entry added or changed,
-an item's fields changed (and checked as §7 says), the seal count read
-as written, and the next seal writes one more than it.
+an item's fields changed (and checked as §7 says; one that fails is
+Unreadable, not refused), the seal count read as written, and the next
+seal writes one more than it.
 
 ## 8. Creating
 

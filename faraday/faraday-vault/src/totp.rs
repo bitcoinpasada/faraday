@@ -2,7 +2,8 @@
 //! entry's field 6: an `otpauth://totp/…` URI, or a bare Base32 key as
 //! services show when a setup QR cannot be scanned.
 //!
-//! [`parse`] reads field 6; [`Totp::code`] and [`Totp::left`] are RFC
+//! [`from_fields`] reads an entry's TOTP secret from whichever field
+//! forms it holds; [`parse`] reads field 6; [`Totp::code`] and [`Totp::left`] are RFC
 //! 6238 over a Unix time; [`normalise`] is what the entry form and the
 //! Inbox import (`faraday-vault::entries`) store back into field 6.
 
@@ -65,6 +66,9 @@ fn base32_decode(s: &str, allow_hyphen: bool) -> Option<Vec<u8>> {
     for c in s.chars() {
         if c == ' ' || c == '=' || (allow_hyphen && c == '-') {
             continue;
+        }
+        if !c.is_ascii() {
+            return None;
         }
         let up = c.to_ascii_uppercase();
         let v = ALPHABET.iter().position(|&b| b == up as u8)? as u32;
@@ -178,6 +182,151 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
     }
 }
 
+/// The field value named `name` in `fields`: the first with that name
+/// (names are case-sensitive, as KeePass's are), absent when its value
+/// is empty.
+fn field<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, v)| *v)
+        .filter(|v| !v.trim().is_empty())
+}
+
+/// A secret field's value: the first with that name, absent only when it
+/// is empty (KeePass takes the value as it is, spaces included).
+fn secret_field<'a>(fields: &[(&str, &'a str)], name: &str) -> Option<&'a str> {
+    fields
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, v)| *v)
+        .filter(|v| !v.is_empty())
+}
+
+/// Hex decodes `s` (either case); an odd length, any other character or
+/// nothing at all refuses.
+fn hex_decode(s: &str) -> Option<Vec<u8>> {
+    let s = s.trim().as_bytes();
+    if s.is_empty() || !s.len().is_multiple_of(2) {
+        return None;
+    }
+    s.chunks(2)
+        .map(|p| {
+            let hi = (p[0] as char).to_digit(16)?;
+            let lo = (p[1] as char).to_digit(16)?;
+            Some((hi * 16 + lo) as u8)
+        })
+        .collect()
+}
+
+/// Reads KeePass 2's own `TimeOtp-*` fields (`docs/TOTP.md` §4.1). The
+/// secret is the first of `TimeOtp-Secret` (UTF-8, as it is), `-Secret-Hex`,
+/// `-Secret-Base32` and `-Secret-Base64` that is not empty, the order
+/// KeePass's help lists them in (it says exactly one is present and names
+/// no other order); `None` when none is. A value of spaces alone is a
+/// secret in the plain form and reads as nothing in the others.
+fn keepass_time_otp(fields: &[(&str, &str)]) -> Option<Result<Totp, NotTotp>> {
+    let secret: Option<Vec<u8>> = if let Some(v) = secret_field(fields, "TimeOtp-Secret") {
+        Some(v.as_bytes().to_vec())
+    } else if let Some(v) = secret_field(fields, "TimeOtp-Secret-Hex") {
+        hex_decode(v)
+    } else if let Some(v) = secret_field(fields, "TimeOtp-Secret-Base32") {
+        base32_decode(v, false)
+    } else {
+        let v = secret_field(fields, "TimeOtp-Secret-Base64")?;
+        use base64ct::{Base64, Encoding};
+        Base64::decode_vec(v.trim()).ok().filter(|b| !b.is_empty())
+    };
+    Some(keepass_time_otp_params(fields, secret))
+}
+
+fn keepass_time_otp_params(
+    fields: &[(&str, &str)],
+    secret: Option<Vec<u8>>,
+) -> Result<Totp, NotTotp> {
+    let secret = secret.ok_or(NotTotp::Unreadable)?;
+    let digits: u32 = match field(fields, "TimeOtp-Length") {
+        None => 6,
+        Some(v) => v.trim().parse().map_err(|_| NotTotp::Unreadable)?,
+    };
+    let period: u64 = match field(fields, "TimeOtp-Period") {
+        None => 30,
+        Some(v) => v.trim().parse().map_err(|_| NotTotp::Unreadable)?,
+    };
+    let algorithm = match field(fields, "TimeOtp-Algorithm").map(str::trim) {
+        None | Some("HMAC-SHA-1") => Algorithm::Sha1,
+        Some("HMAC-SHA-256") => Algorithm::Sha256,
+        Some("HMAC-SHA-512") => Algorithm::Sha512,
+        Some(_) => return Err(NotTotp::Unreadable),
+    };
+    if !(6..=8).contains(&digits) || !(1..=3600).contains(&period) {
+        return Err(NotTotp::Unreadable);
+    }
+    Ok(Totp {
+        secret: Zeroizing::new(secret),
+        algorithm,
+        digits,
+        period,
+    })
+}
+
+/// Reads older KeePassXC's `TOTP Seed` (Base32) with `TOTP Settings`
+/// (`period;digits`, `30;6` when absent or when it is one part; a third part
+/// and after are ignored; a Steam `S` for digits is unreadable) (`docs/TOTP.md` §4.1).
+fn keepassxc_seed(fields: &[(&str, &str)]) -> Option<Result<Totp, NotTotp>> {
+    let seed = secret_field(fields, "TOTP Seed")?;
+    Some(keepassxc_seed_params(fields, seed))
+}
+
+fn keepassxc_seed_params(fields: &[(&str, &str)], seed: &str) -> Result<Totp, NotTotp> {
+    let secret = base32_decode(seed, false).ok_or(NotTotp::Unreadable)?;
+    let (mut period, mut digits) = (30u64, 6u32);
+    if let Some(settings) = field(fields, "TOTP Settings") {
+        // KeePassXC (src/core/Totp.cpp, parseSettings) splits the value at
+        // `;` and, when it has two parts or more (`vars.size() >= 2`),
+        // reads the first as the period and the second as the digits; a
+        // period alone leaves both at their defaults.
+        let mut parts = settings.trim().split(';');
+        if let (Some(p), Some(d)) = (parts.next(), parts.next()) {
+            period = p.trim().parse().map_err(|_| NotTotp::Unreadable)?;
+            digits = d.trim().parse().map_err(|_| NotTotp::Unreadable)?;
+        }
+    }
+    if !(6..=8).contains(&digits) || !(1..=3600).contains(&period) {
+        return Err(NotTotp::Unreadable);
+    }
+    Ok(Totp {
+        secret: Zeroizing::new(secret),
+        algorithm: Algorithm::Sha1,
+        digits,
+        period,
+    })
+}
+
+/// The TOTP secret of an entry, read for display from its `fields` (name
+/// and value pairs, `docs/TOTP.md` §4.1): `otp` (the Key URI Format),
+/// else KeePass 2's `TimeOtp-*` fields, else older KeePassXC's `TOTP
+/// Seed` and `TOTP Settings`; the first form the entry holds decides,
+/// whether it reads or not. `None` when the entry holds none of them;
+/// `Err` for HOTP (`otpauth://hotp`, KeePass 2's `HmacOtp-*` fields) or a
+/// form that does not read. Reading changes nothing in the entry.
+pub fn from_fields(fields: &[(&str, &str)]) -> Option<Result<Totp, NotTotp>> {
+    if let Some(v) = field(fields, "otp") {
+        return Some(parse(v));
+    }
+    if let Some(r) = keepass_time_otp(fields) {
+        return Some(r);
+    }
+    if let Some(r) = keepassxc_seed(fields) {
+        return Some(r);
+    }
+    field(fields, "HmacOtp-Secret")
+        .or_else(|| field(fields, "HmacOtp-Secret-Base32"))
+        .or_else(|| field(fields, "HmacOtp-Secret-Hex"))
+        .or_else(|| field(fields, "HmacOtp-Secret-Base64"))
+        .map(|_| Err(NotTotp::Hotp))
+}
+
 /// RFC 4226 dynamic truncation of an HMAC over `counter`, modulo
 /// `10^digits`.
 fn hotp(secret: &[u8], counter: u64, algorithm: Algorithm, digits: u32) -> u32 {
@@ -274,5 +423,12 @@ mod tests {
     fn unknown_query_parameters_are_ignored() {
         let uri = "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&issuer=X&image=https://x";
         assert!(parse(uri).is_ok());
+    }
+
+    #[test]
+    fn a_non_ascii_character_is_not_base32() {
+        // U+0141 truncates to 'A' as a byte.
+        assert!(base32_decode("JBSWY3DPEHPK3PX\u{141}", false).is_none());
+        assert!(parse("otpauth://totp/x?secret=JBSWY3DPEHPK3PX\u{141}").is_err());
     }
 }

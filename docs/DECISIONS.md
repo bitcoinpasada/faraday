@@ -204,7 +204,8 @@ Read this table, then only the decision you need.
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
 | [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
-| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193 | security |
+| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193 and F194 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 | crypto |
 | [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Active | crypto |
+| [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Active | security |
