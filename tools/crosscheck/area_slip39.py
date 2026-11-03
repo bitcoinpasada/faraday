@@ -1,4 +1,6 @@
-"""SLIP-39 against python-shamir-mnemonic, Trezor's reference.
+"""SLIP-39 against python-shamir-mnemonic, Trezor's reference, and
+bip39_slip39 (the btclib developers', `bip39-slip39/`), which answers every
+split, recovery and cipher call beside it.
 
 All 45 of the reference's own vectors, then random backups: the same
 random bytes are handed to both splits, so the shares must match word
@@ -15,11 +17,14 @@ accepts (`KNOWN_DIFFERENCES` below checks that it still holds).
 
 import string
 
-from common import Area, Mismatch, use_reference, vectors
+from common import Area, Mismatch, use_reference, use_wheels, vectors
 
 use_reference("slip39")
 import shamir_mnemonic as S  # noqa: E402
 from shamir_mnemonic import cipher, shamir  # noqa: E402
+
+use_wheels("bip39-slip39", ["bip39_slip39-2026.10.24-py3-none-any.whl"])
+from bip39_slip39 import slip39 as B  # noqa: E402
 
 PRINTABLE = string.ascii_letters + string.digits + string.punctuation + " "
 
@@ -49,6 +54,16 @@ def tape_length(secret_len, gt, groups):
     return drawn(gt) + sum(drawn(t) for t, _ in groups) + 64
 
 
+def btl_split(secret, passphrase, identifier, extendable, e, gt, groups, random):
+    """bip39_slip39's split. It draws the identifier's two bytes first, from
+    the entropy source, where the reference takes the identifier as given:
+    the tape is the identifier and then the same random bytes."""
+    tape = Tape(identifier.to_bytes(2, "big") + random)
+    shares = B.mnemonics_from_master_secret(
+        secret, [tuple(g) for g in groups], gt, passphrase, e, extendable, tape)
+    return {"mnemonics": [m for g in shares for m in g], "random_used": tape.at - 2}
+
+
 def ref_split(secret, passphrase, identifier, extendable, e, gt, groups, random):
     tape = Tape(random)
     saved = shamir.RANDOM_BYTES
@@ -63,16 +78,18 @@ def ref_split(secret, passphrase, identifier, extendable, e, gt, groups, random)
 
 class Slip39(Area):
     name = "slip39"
+    JUDGE = "bip39_slip39"
     faraday = (
         '`faraday_bip::slip39`'
     )
     reference = (
-        'python-shamir-mnemonic (`slip39/`)'
+        'python-shamir-mnemonic (`slip39/`); bip39_slip39 (`bip39-slip39/`) answering '
+        'every operation beside it'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
-        'Faraday; all 45 of its own vectors are run'
+        'Faraday, and of bip39_slip39 too; all 45 of its own vectors are run'
     )
     vectors = (
         'all 45 of `tools/vectors/slip39/`'
@@ -98,19 +115,31 @@ class Slip39(Area):
             "extendable": extendable, "exponent": e, "group_threshold": gt,
             "groups": [list(g) for g in groups], "random": random.hex()},
             lambda: ref_split(secret, passphrase.encode(), identifier, extendable, e, gt,
-                              groups, random))
+                              groups, random),
+            also=lambda: btl_split(secret, passphrase, identifier, extendable, e, gt,
+                                   groups, random))
 
     def recover(self, mnemonics, passphrase, expected=None):
         return self.compare("slip39.recover", {"mnemonics": mnemonics, "passphrase": passphrase},
                             lambda: {"secret": S.combine_mnemonics(mnemonics, passphrase.encode()).hex()},
-                            expected)
+                            expected,
+                            also=lambda: {"secret": B.master_secret_from_mnemonics(
+                                mnemonics, passphrase).hex()})
 
     def cipher(self, op, value, passphrase, identifier, extendable, e):
         fn = cipher.encrypt if op == "encrypt" else cipher.decrypt
+
+        def also():
+            if op == "encrypt":
+                return {"value": B._feistel(value, passphrase, e, identifier, extendable,
+                                            decrypt=False).hex()}
+            return {"value": B.EncryptedMasterSecret(identifier, extendable, e, value)
+                    .master_secret(passphrase).hex()}
         return self.compare(f"slip39.{op}", {
             "value": value.hex(), "passphrase": passphrase, "identifier": identifier,
             "extendable": extendable, "exponent": e},
-            lambda: {"value": fn(value, passphrase.encode(), e, identifier, extendable).hex()})
+            lambda: {"value": fn(value, passphrase.encode(), e, identifier, extendable).hex()},
+            also=also)
 
     def published(self):
         for desc, mnemonics, secret, _xprv in vectors("slip39", "vectors.json"):
@@ -132,6 +161,12 @@ class Slip39(Area):
         if rust[0] != "err" or not ref["mnemonics"]:
             raise Mismatch(self.name, "slip39.split", args, rust, ("ok", ref),
                            "the known difference (1-of-n groups) no longer holds; update the area")
+        # bip39_slip39 makes the same shares as the reference.
+        alt = btl_split(bytes(16), "", 1, True, 0, 1, [(1, 1), (2, 3)], bytes(64))
+        if alt != ref:
+            raise Mismatch(self.name, "slip39.split", args, ("ok", alt), ("ok", ref),
+                           "bip39_slip39 differs from the reference where Faraday refuses")
+        self.second["judged"] += 1
 
     def limits(self):
         """SLIP-39's limits, every run: 16 groups, all 16 needed, each 16

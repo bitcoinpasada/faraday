@@ -156,6 +156,12 @@ def run_batch(req, alternative):
         result.update(status="pass", compared=area.compared, known=area.known)
         if hasattr(area, "btclib"):
             result["judged"] = area.btclib.get("judged", 0)
+        if hasattr(area, "second"):
+            # A second judge beside the area's reference: the answers it
+            # judged, and those it does not cover (counted, not skipped).
+            result["judged"] = area.second["judged"]
+            result["judge"] = area.second["judge"]
+            result["uncovered"] = area.second["uncovered"]
         if req["part"] not in ("prelude", "coda"):
             result["cases"] = req["hi"] - req["lo"]
         if req["part"].startswith("fund:"):
@@ -297,6 +303,17 @@ def cases_total(batches, area):
                if b["area"] == area and b["part"] not in ("prelude", "coda"))
 
 
+def judge_words(r):
+    """What a second judge did, for the run's report: btclib judges
+    inputs (area `sign`), another judge answers (`judge` names it)."""
+    if "judge" in r:
+        words = f", {r['judge']} judged {r['judged']} answers"
+        if r["uncovered"]:
+            words += f", {r['uncovered']} not covered by it"
+        return words
+    return f", btclib judged {r['judged']} inputs" if "judged" in r else ""
+
+
 def merge(batches, results, area):
     """An area's result from its batches, in case order: the first batch
     that did not pass decides it, as the first disagreement stops one
@@ -312,6 +329,9 @@ def merge(batches, results, area):
             out["known"] += r["known"]
             if "judged" in r:
                 out["judged"] = out.get("judged", 0) + r["judged"]
+            if "judge" in r:
+                out["judge"] = r["judge"]
+                out["uncovered"] = out.get("uncovered", 0) + r["uncovered"]
             out["cases"] += r.get("cases", 0)
             continue
         for key in ("status", "report", "op", "inputs", "rust", "reference", "case"):
@@ -615,7 +635,7 @@ class Progress:
             self.log(f"{area}: done, {a['cases_done']} of {a['cases_total']} cases, "
                      f"{r['compared']} answers agree"
                      + (f", {r['known']} of them a known difference" if r["known"] else "")
-                     + (f", btclib judged {r['judged']} inputs" if "judged" in r else "")
+                     + judge_words(r)
                      + f" ({work} of work)")
         else:
             self.log(f"{area}: {r['status'].upper()}{case_words(r.get('case'))}, stopped there "
@@ -943,13 +963,14 @@ def run(args, areas, jobs, only, seed, scale, core):
         cases[area] = r["cases"]
         if r["status"] == "pass":
             known = f", {r['known']} of them a known difference" if r.get("known") else ""
-            judged = f", btclib judged {r['judged']} inputs" if "judged" in r else ""
+            judged = judge_words(r)
             report.append(f"  {area}: {r['compared']} answers agree{known}{judged}"
                           f" ({r['seconds']} s)")
             if r.get("judged") == 0 and not args.case:
                 # The second finalizer judged nothing: the comparison did not run.
                 failed = True
-                report.append(f"  {area}: FAILED, btclib judged no input of the whole area")
+                report.append(f"  {area}: FAILED, {r.get('judge', 'btclib')} judged nothing "
+                              "of the whole area")
         else:
             failed = True
             report.append(f"  {area}: {r['status'].upper()} after {r['seconds']} s")

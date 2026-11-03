@@ -195,6 +195,10 @@ class Area:
     # then says which coins case i of a loop spends (`fund_coin`).
     FUND = {}
     FUND_DEPTH = 0
+    # The name of a second judge the area asks beside its reference (a
+    # `compare` given `also`); empty for an area with none. The run counts
+    # the answers it judged and those it does not cover.
+    JUDGE = ""
 
     def __init__(self, exe, seed, scale, sabotage=None):
         self.rust = Rust(exe, self.name, sabotage)
@@ -206,6 +210,8 @@ class Area:
         self.case_at = None
         self.fund_coins = None
         self.funding_txs = []
+        if self.JUDGE:
+            self.second = {"judge": self.JUDGE, "judged": 0, "uncovered": 0}
 
     def cases(self, n):
         return max(1, int(n * self.scale))
@@ -271,10 +277,13 @@ class Area:
             self.run_part(loop, 0, n)
         self.run_part("coda")
 
-    def compare(self, op, inputs, ref_fn, expected=None, normalize=None):
+    def compare(self, op, inputs, ref_fn, expected=None, normalize=None, also=None, view=None):
         """Asks Faraday, recomputes with the reference, and stops at the
         first disagreement. `expected` is a published vector's answer:
-        ("ok", value) or ("err", None) for any refusal."""
+        ("ok", value) or ("err", None) for any refusal. In an area with a
+        second judge (`JUDGE`), `also` recomputes the answer with it, and
+        the same rule holds; `view` cuts both answers to the part it
+        judges. An answer with no `also` is counted as not covered."""
         raw = rust = self.rust.call(op, **inputs)
         ref = reference(ref_fn)
         if normalize:
@@ -286,6 +295,23 @@ class Area:
             if expected[0] != ref[0] or (expected[0] == "ok" and expected[1] != ref[1]):
                 raise Mismatch(self.name, op, inputs, rust, ref,
                                f"both differ from the published vector {expected}")
+        if self.JUDGE:
+            if also is None:
+                self.second["uncovered"] += 1
+            else:
+                self.second["judged"] += 1
+                alt = reference(also)
+                mine = rust
+                if view:
+                    mine = (rust[0], view(rust[1])) if rust[0] == "ok" else rust
+                    alt = (alt[0], view(alt[1])) if alt[0] == "ok" else alt
+                if mine[0] != alt[0] or (mine[0] == "ok" and mine[1] != alt[1]):
+                    raise Mismatch(self.name, op, inputs, mine, alt,
+                                   f"{self.JUDGE} differs from the reference and Faraday")
+                if expected is not None and (expected[0] != alt[0] or (
+                        expected[0] == "ok" and view is None and expected[1] != alt[1])):
+                    raise Mismatch(self.name, op, inputs, mine, alt,
+                                   f"{self.JUDGE} differs from the published vector {expected}")
         return raw
 
     def need(self, answer, what):

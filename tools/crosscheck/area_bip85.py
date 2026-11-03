@@ -9,9 +9,10 @@ btclib answers every application Faraday has: the BIP-39 mnemonic, the
 WIF, the xprv, the hex bytes and the two passwords, with the BIP's
 ranges (16 to 64 bytes, 20 to 86 base64 characters, 10 to 80 base85, the
 word counts and languages of its tables). Its mnemonic writes the
-sentence with `bip39_slip39`, which is not vendored: the area hands that
-one call to python-mnemonic (`bip39/`), the same BIP-39 code the BIP's
-reference uses. The reference has no password applications and no
+sentence with `bip39_slip39` (`tools/reference/bip39-slip39/`), run as
+btclib-wallet imports it, so the sentence's words are bip39_slip39's own.
+The BIP's reference writes its sentences with python-mnemonic (`bip39/`).
+The reference has no password applications and no
 ranges of its own, so it is asked the mnemonic, the WIF, the xprv and
 the hex bytes, the hex bytes only where btclib finds the length in the
 BIP's range.
@@ -20,11 +21,8 @@ Every application vector the BIP publishes, then random master keys,
 indices, languages, word counts and lengths, with refusals.
 """
 
-import sys
-import types
-
 import bip32_ref  # noqa: F401 - unpacks btclib, on its own curve, before the shim
-from common import Area, use_reference, vectors
+from common import Area, use_reference, use_wheels, vectors
 
 use_reference("bip39")
 use_reference("bip85")
@@ -40,17 +38,8 @@ CODES = ["en", "ja", "ko", "es", "zh", "zh_tw", "fr", "it", "cs", "pt"]
 N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
 
-def _sentence(entropy, lang):
-    """`bip39_slip39.bip39.mnemonic_from_entropy`, the one call btclib's
-    mnemonic makes of a package not vendored, answered by python-mnemonic."""
-    return Mnemonic(LANGUAGES[CODES.index(lang)]).to_mnemonic(entropy)
-
-
-_stub = types.ModuleType("bip39_slip39")
-_stub.bip39 = types.ModuleType("bip39_slip39.bip39")
-_stub.bip39.mnemonic_from_entropy = _sentence
-sys.modules.setdefault("bip39_slip39", _stub)
-sys.modules.setdefault("bip39_slip39.bip39", _stub.bip39)
+use_wheels("bip39-slip39", ["bip39_slip39-2026.10.24-py3-none-any.whl"])
+from bip39_slip39 import mnemonic as B39M  # noqa: E402
 from btclib_wallet import bip85 as btclib85  # noqa: E402
 
 
@@ -74,8 +63,10 @@ def ref_mnemonic(xprv, language, words, index):
 
 
 def btclib_mnemonic(xprv, language, words, index):
-    return indices(btclib85.mnemonic_from_root_key(xprv, words, CODES[language], index),
-                   language)
+    """btclib's sentence over bip39_slip39, with bip39_slip39's own indices
+    for its words (it keeps them in NFKD)."""
+    sentence = btclib85.mnemonic_from_root_key(xprv, words, CODES[language], index)
+    return {"indices": B39M.indexes_from_mnemonic(sentence, CODES[language])}
 
 
 class Bip85(Area):
@@ -84,8 +75,8 @@ class Bip85(Area):
         '`faraday_bip::bip85`'
     )
     reference = (
-        "btclib-wallet's `bip85` (`btclib/`, on btclib's own curve), its one call to "
-        "`bip39_slip39` answered by python-mnemonic; and `ethankosakovsky/bip85` over "
+        "btclib-wallet's `bip85` (`btclib/`, on btclib's own curve) run as written over "
+        "bip39_slip39 (`bip39-slip39/`); and `ethankosakovsky/bip85` over "
         'python-mnemonic and a pycoin shim whose every call is btclib\'s (`bip85/`, '
         '`bip39/`)'
     )

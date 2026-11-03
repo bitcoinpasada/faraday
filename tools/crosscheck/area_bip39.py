@@ -1,4 +1,6 @@
-"""BIP-39 against python-mnemonic (Trezor's reference, `bip39/`).
+"""BIP-39 against python-mnemonic (Trezor's reference, `bip39/`) and
+bip39_slip39 (the btclib developers', `bip39-slip39/`), a second reader
+of every answer in the languages both have.
 
 - The ten wordlists, word for word, as published and in NFKD.
 - Every vector of `tools/vectors/bip39/vectors.json` in Faraday's ten
@@ -14,6 +16,12 @@
   the list, or a word too many or too few; and every valid last word for
   11 to 23 words.
 
+bip39_slip39 is given the language and the sentence in single-space NFKD
+form and answers the same operations: the wordlists (in NFKD, the form it
+keeps), entropy to words, words to entropy and indices, the seed, and
+every valid last word. It also ships Russian and Turkish, which Faraday
+does not have: they are not asked.
+
 python-mnemonic's own `to_hd_master_key` is checked against the seed's
 master key here too, as a second BIP-32 master.
 
@@ -28,13 +36,19 @@ checked as a known difference.
 import json
 import unicodedata
 
-from common import ROOT, Area, Mismatch, use_reference
+from common import ROOT, Area, Mismatch, use_reference, use_wheels
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
 
+use_wheels("bip39-slip39", ["bip39_slip39-2026.10.24-py3-none-any.whl"])
+from bip39_slip39 import bip39 as B39  # noqa: E402
+from bip39_slip39 import mnemonic as B39M  # noqa: E402
+
 LANGUAGES = ["english", "japanese", "korean", "spanish", "chinese_simplified",
              "chinese_traditional", "french", "italian", "czech", "portuguese"]
+# bip39_slip39's codes for those languages, in the same order.
+CODES = ["en", "ja", "ko", "es", "zh", "zh_tw", "fr", "it", "cs", "pt"]
 LENGTHS = [16, 20, 24, 28, 32]
 _M = {}
 
@@ -81,17 +95,20 @@ def nfkd(s):
 
 class Bip39(Area):
     name = "bip39"
+    JUDGE = "bip39_slip39"
     faraday = (
         '`faraday_bip::bip39`'
     )
     reference = (
-        'python-mnemonic (`bip39/`)'
+        'python-mnemonic (`bip39/`); bip39_slip39 (`bip39-slip39/`) answering every '
+        'operation beside it'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
         "Faraday; python-mnemonic's own `to_hd_master_key` is checked against the "
-        "seed's master key, as a second BIP-32 master"
+        "seed's master key, as a second BIP-32 master; its wheel is hashed too, and "
+        "a published vector's answer is required of bip39_slip39 as well"
     )
     vectors = (
         'the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in '
@@ -121,8 +138,11 @@ class Bip39(Area):
     def wordlists(self):
         for lang in range(len(LANGUAGES)):
             words = mnemonic(lang).wordlist
+            # bip39_slip39 keeps each word in NFKD: it judges that half.
             self.compare("bip39.wordlist", {"language": lang},
-                         lambda: {"words": words, "nfkd": [nfkd(w) for w in words]})
+                         lambda: {"words": words, "nfkd": [nfkd(w) for w in words]},
+                         also=lambda: {"nfkd": list(B39M.WORDLISTS.wordlist(CODES[lang]))},
+                         view=lambda v: {"nfkd": v["nfkd"]})
 
     def from_entropy(self, lang, entropy, expected=None):
         m = mnemonic(lang)
@@ -132,8 +152,11 @@ class Bip39(Area):
                 raise ValueError("entropy length")
             return {"indices": [m.wordlist.index(w) for w in
                                 m.to_mnemonic(entropy).split(m.delimiter)]}
+        def also():
+            sentence = B39.mnemonic_from_entropy(entropy, CODES[lang])
+            return {"indices": B39M.indexes_from_mnemonic(sentence, CODES[lang])}
         return self.compare("bip39.from_entropy", {"language": lang, "entropy": entropy.hex()},
-                            ref, expected)
+                            ref, expected, also=also)
 
     def parse(self, lang, sentence, expected=None):
         """Words to entropy. Both read the sentence in NFKD, as BIP-39
@@ -146,20 +169,29 @@ class Bip39(Area):
                 raise ValueError("not a valid mnemonic")
             return {"entropy": bytes(m.to_entropy(words)).hex(),
                     "indices": [m.wordlist.index(w) for w in words]}
+        def also():
+            code = CODES[lang]
+            bits = B39.entropy_from_mnemonic(nfkd(sentence), code)
+            return {"entropy": int(bits, 2).to_bytes(len(bits) // 8, "big").hex(),
+                    "indices": B39M.indexes_from_mnemonic(nfkd(sentence), code)}
         return self.compare("bip39.parse", {"language": lang, "sentence": sentence}, ref,
-                            expected)
+                            expected, also=also)
 
     def seed(self, lang, sentence, passphrase, expected=None):
         return self.compare("bip39.seed", {"language": lang, "sentence": sentence,
                                            "passphrase": passphrase},
                             lambda: {"seed": Mnemonic.to_seed(sentence, passphrase).hex()},
-                            expected)
+                            expected,
+                            also=lambda: {"seed": B39.seed_from_mnemonic(
+                                sentence, passphrase, verify_checksum=False).hex()})
 
     def seed_nfkd(self, lang, sentence, passphrase, expected=None):
         return self.compare("bip39.seed_nfkd", {"language": lang, "sentence": sentence,
                                                 "passphrase": nfkd(passphrase).encode().hex()},
                             lambda: {"seed": Mnemonic.to_seed(sentence, passphrase).hex()},
-                            expected)
+                            expected,
+                            also=lambda: {"seed": B39.seed_from_mnemonic(
+                                sentence, passphrase, verify_checksum=False).hex()})
 
     def last_words(self, first):
         m = mnemonic(0)
@@ -169,7 +201,14 @@ class Bip39(Area):
                 raise ValueError("count")
             head = " ".join(m.wordlist[i] for i in first)
             return {"indices": [i for i in range(2048) if m.check(f"{head} {m.wordlist[i]}")]}
-        return self.compare("bip39.last_words", {"indices": first}, ref)
+        def also():
+            head = B39M.mnemonic_from_indexes(first, "en")
+            words = B39M.WORDLISTS.wordlist("en")
+            found = [i for i in range(2048) if B39.is_valid_mnemonic(f"{head} {words[i]}", "en")]
+            if not found:
+                raise ValueError("no word count of a valid sentence")
+            return {"indices": found}
+        return self.compare("bip39.last_words", {"indices": first}, ref, also=also)
 
     def published(self):
         self.wordlists()
