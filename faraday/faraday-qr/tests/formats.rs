@@ -214,6 +214,43 @@ fn a_seed_or_a_private_key_by_ur_is_refused_saying_what_it_is() {
 }
 
 #[test]
+fn an_hdkey_that_gives_its_key_twice_is_refused_as_two_readers_could_show_different_keys() {
+    use faraday_qr::cbor::{bytes, head};
+    // The curve's generator and its double, compressed.
+    let hex = |h: &str| -> Vec<u8> {
+        (0..h.len() / 2)
+            .map(|i| u8::from_str_radix(&h[i * 2..i * 2 + 2], 16).unwrap())
+            .collect()
+    };
+    let one = hex("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+    let two = hex("02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5");
+    let map = |entries: &[(&[u8], &[u8])]| {
+        let mut cbor = head(5, entries.len() as u64);
+        for (k, v) in entries {
+            cbor.extend_from_slice(k);
+            cbor.extend(bytes(v));
+        }
+        cbor
+    };
+    let chain = [7u8; 32];
+    let (key, long_key, chain_key) = (head(0, 3), [0x18, 3], head(0, 4));
+    // Tag 2, a bignum: the number 3 to a reader that knows the tag.
+    let bignum_key = [0xc2, 0x41, 3];
+    let once = map(&[(&key, &one), (&chain_key, &chain)]);
+    assert!(registry::read("crypto-hdkey", &once).is_ok());
+    let shape = registry::Error::Shape("crypto-hdkey".to_string());
+    for twice in [
+        map(&[(&key, &one), (&key, &two), (&chain_key, &chain)]),
+        // The same key number written the long way is the same key.
+        map(&[(&key, &one), (&long_key, &two), (&chain_key, &chain)]),
+        // The same key number, to a second reader.
+        map(&[(&key, &one), (&bignum_key, &two), (&chain_key, &chain)]),
+    ] {
+        assert_eq!(registry::read("crypto-hdkey", &twice), Err(shape.clone()));
+    }
+}
+
+#[test]
 fn a_finished_transaction_in_hex_is_known_as_one() {
     let tx = "0200000001000000000000000000000000000000000000000000000000000000000000000000000000\
               00ffffffff01a086010000000000160014f6672856b1b206a8f45aa636ab12d6b25be6b02600000000";

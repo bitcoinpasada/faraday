@@ -71,10 +71,29 @@ pub enum Error {
     NoKeyRead,
 }
 
+/// Whether every map in `v` has unsigned integer keys, as the registry's
+/// types do. Another key can read as a number in a second reader (a tag 2
+/// bignum, `true` beside 1), and that reader would then see another value.
+fn number_keys(v: &Value) -> bool {
+    match v {
+        Value::Map(m) => m
+            .iter()
+            .all(|(k, v)| matches!(k, Value::Uint(_)) && number_keys(v)),
+        Value::Array(a) => a.iter().all(number_keys),
+        Value::Tag(_, inner) => number_keys(inner),
+        _ => true,
+    }
+}
+
 /// Reads a UR of `ur_type` whose CBOR is `cbor`. `Ok(None)` for a type
 /// this does not know; `Err` with why for one it refuses.
 pub fn read(ur_type: &str, cbor: &[u8]) -> Result<Option<Read>, Error> {
-    let v = || Value::decode(cbor).map_err(|_| Error::Shape(ur_type.to_string()));
+    let v = || {
+        Value::decode(cbor)
+            .ok()
+            .filter(number_keys)
+            .ok_or_else(|| Error::Shape(ur_type.to_string()))
+    };
     match ur_type {
         "psbt" => match v()? {
             Value::Bytes(b) => Ok(Some(Read::Psbt(b))),

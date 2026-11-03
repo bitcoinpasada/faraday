@@ -9,7 +9,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 /// A decoded item.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Value {
     /// Major type 0.
     Uint(u64),
@@ -146,6 +146,13 @@ fn item(b: &[u8], at: &mut usize, depth: usize) -> Result<Value, Malformed> {
                 let k = item(b, at, depth + 1)?;
                 let v = item(b, at, depth + 1)?;
                 m.push((k, v));
+            }
+            // RFC 8949 §5.6: a map with a key twice is not valid, and two
+            // readers could take different values from it.
+            let mut keys: Vec<&Value> = m.iter().map(|(k, _)| k).collect();
+            keys.sort_unstable();
+            if keys.windows(2).any(|w| w[0] == w[1]) {
+                return Err(Malformed);
             }
             Ok(Value::Map(m))
         }
