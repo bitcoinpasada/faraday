@@ -32,6 +32,6 @@ fuzz_target!(|data: &[u8]| {
     let _ = pe::image_hash(image);
     let _ = pe::check(image, cert);
     let _ = pe::check(image, &db().cert);
-    let mut stream = rng::Stream::new(&[1u8; 32], 0);
+    let mut stream = rng::stream(&[1u8; 32], 0);
     let _ = pe::sign(&mut stream, image, db());
 });

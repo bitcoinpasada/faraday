@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use faraday_fat::Volume;
 use faraday_payload::ImageKind;
-use faraday_sb::rng::Stream;
+use faraday_sb::rng::stream;
 use faraday_starter::api::{BootFile, Mode, Reason, Source as Confirmed, WriteOrder};
 use faraday_starter_shell::payload::Payload;
 use faraday_starter_shell::signed::{self, BOOT_PATH};
@@ -215,7 +215,7 @@ fn release_listing(efi: &[u8], off: bool) -> (Job, Confirmed) {
 fn signed_by_test_key(pe: &[u8]) -> (Vec<u8>, Vec<u8>) {
     let keys = faraday_sb::make(&[0x57; 32], "Test", NOW).expect("keys");
     let signed =
-        faraday_sb::pe::sign(&mut Stream::new(&[0x58; 32], 0), pe, &keys.db).expect("signed");
+        faraday_sb::pe::sign(&mut stream(&[0x58; 32], 0), pe, &keys.db).expect("signed");
     (signed, keys.db.cert.clone())
 }
 
@@ -400,7 +400,7 @@ fn a_signed_boot_file_with_more_than_one_signature_at_its_end_is_refused() {
     appended.extend_from_slice(b"anything at all\0");
     // Two signatures: the test db key's and another key's.
     let other = faraday_sb::make(&[0x59; 32], "Other", NOW).expect("keys");
-    let second = faraday_sb::pe::sign(&mut Stream::new(&[0x5A; 32], 0), &release_efi, &other.db)
+    let second = faraday_sb::pe::sign(&mut stream(&[0x5A; 32], 0), &release_efi, &other.db)
         .expect("signed");
     let (at2, size2) = dir(&second);
     let mut two = signed.clone();

@@ -2,7 +2,7 @@
 
 use faraday_sb::Policy;
 use faraday_sb::release::Release;
-use faraday_sb::rng::Stream;
+use faraday_sb::rng::stream;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
 
@@ -71,7 +71,7 @@ pub(crate) fn enrolment(
     policy: Policy,
     now: u64,
 ) -> Result<Vec<(String, Vec<u8>)>, Error> {
-    let mut blind = Stream::new(blind_seed, 0);
+    let mut blind = stream(blind_seed, 0);
     faraday_sb::enrolment(&mut blind, keys, policy, now)
 }
 
@@ -84,6 +84,6 @@ pub(crate) fn sign_image(
     keys: &Keys,
     release: &Release,
 ) -> Result<Vec<u8>, Error> {
-    let mut blind = Stream::new(blind_seed, 0);
+    let mut blind = stream(blind_seed, 0);
     faraday_sb::release::sign(&mut blind, pe, &keys.db, release)
 }
