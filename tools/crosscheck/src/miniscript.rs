@@ -9,9 +9,11 @@
 //! `pkh`), written out again.
 
 use bitcoin::{PublicKey, ScriptBuf};
-use faraday_bip::miniscript::{Descriptor, ExtParams, Miniscript, Segwitv0, Tap};
 use faraday_bip::keys::ScriptType;
-use faraday_bip::policy::{MiniscriptKind, Template, Wrapper, WalletPolicy, parse_script_descriptor};
+use faraday_bip::miniscript::{Descriptor, ExtParams, Miniscript, Segwitv0, Tap};
+use faraday_bip::policy::{
+    MiniscriptKind, Template, WalletPolicy, Wrapper, parse_script_descriptor,
+};
 use faraday_bip::recovery::{Form, Path, Recovery, RecoveryPolicy};
 use faraday_bip::spend::Lock;
 use faraday_crypto::work::Compute;

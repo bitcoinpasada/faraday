@@ -62,9 +62,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         // its keys and its spend paths, and the script at one place.
         "descriptor" => {
             let c = Compute::unchecked();
-            let policy =
-                faraday_bip::policy::WalletPolicy::from_descriptor(&c, text(req, "text"))
-                    .map_err(err)?;
+            let policy = faraday_bip::policy::WalletPolicy::from_descriptor(&c, text(req, "text"))
+                .map_err(err)?;
             let kind = crate::miniscript::inspect(&policy);
             let index = u32::try_from(num(req, "index")).map_err(err)?;
             let script = policy
