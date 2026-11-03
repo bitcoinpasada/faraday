@@ -415,7 +415,9 @@ Planned (owner, 2026-10-29, F160), in order of what makes or checks keys,
 addresses and signatures first. Each step replaces a second
 implementation Faraday's authors wrote with code other people wrote,
 moves the action's `independence` to `outside`, and retires Faraday's
-implementation once nothing needs it.
+implementation once nothing needs it. What each action is compared with
+once `docs/ESTABLISHED.md`'s switches are made, and the batches that
+build it, are ESTABLISHED §9 (F192).
 
 1. **Bitcoin Core as a program**, required (§10.4). Built for `sign`
    (2026-10-29): `descriptorprocesspsbt` signs every PSBT of its vectors

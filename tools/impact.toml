@@ -666,6 +666,13 @@ when = ["docs/CROSSCHECK.md", "docs/STANDARDS.md", "docs/AUDIT.md", "docs/crypto
 kind = "review"
 
 [[rule]]
+id = "crypto.crosscheck-sources"
+title = "a cross-check judge is others' code of another lineage than what it judges (a port, or another version of the same library for the maths they share, is not); Faraday's second version of a part is retired where such a judge covers the same inputs; every judge just crosscheck names is required there and is a DEVELOPING prerequisite; a switch lands with its cross-check change"
+source = ["docs/decisions/F191.md", "docs/decisions/F192.md", "docs/ESTABLISHED.md §9"]
+when = ["tools/crosscheck/**", "tools/reference/**", "docs/crypto/actions.toml"]
+kind = "review"
+
+[[rule]]
 id = "crypto.tested"
 title = "a cryptographic change is tested against published vectors or another implementation"
 source = ["CLAUDE.md", "docs/decisions/F148.md"]

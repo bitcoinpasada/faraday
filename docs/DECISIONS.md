@@ -93,7 +93,7 @@ Read this table, then only the decision you need.
 | [F76](decisions/F76.md) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
 | [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104, F128 | design |
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
-| [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Amended by F160 | crypto |
+| [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Amended by F160, F192 | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128, F174, F182 | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
@@ -174,7 +174,7 @@ Read this table, then only the decision you need.
 | [F157](decisions/F157.md) | Wherever the system's randomness is used, the person can add their own: Add randomness at every press that draws it | 2026-10-28 | Active | security |
 | [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix, the vault's container and the Secure Boot generator | 2026-10-28 | Amended by F160, F189 | security |
 | [F159](decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Amended by F189 | security |
-| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190 | crypto |
+| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Amended by F177, F189, F190, F192 | crypto |
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
 | [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Amended by F176 | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
@@ -192,7 +192,7 @@ Read this table, then only the decision you need.
 | [F175](decisions/F175.md) | The vaults and the sticks are laid out together, and each stick is drawn as it comes in | 2026-10-30 | Active | backup |
 | [F176](decisions/F176.md) | Anti-exfil names two levels, checked signature and protected key; Faraday as host keeps the second, with rho in memory only and aborts counted in the vault; the reveal never in a PSBT | 2026-10-30 | Active | crypto |
 | [F177](decisions/F177.md) | Each Cryptography block says whose specification, whose implementation and whose check an action rests on, each own or outside | 2026-10-30 | Amended by F179 | crypto |
-| [F178](decisions/F178.md) | Established implementations first: Faraday writes its own only where none exists or none fits its key rules, and says why | 2026-10-30 | Amended by F180 | crypto |
+| [F178](decisions/F178.md) | Established implementations first: Faraday writes its own only where none exists or none fits its key rules, and says why | 2026-10-30 | Amended by F180, F191 | crypto |
 | [F179](decisions/F179.md) | A Cryptography block's fields are Specification and Code; "implementation" names only a cross-check's second program | 2026-10-30 | Active | crypto |
 | [F180](decisions/F180.md) | The review of 2026-10-31: getrandom trusted, two libraries used as not established, HKDF and the BIP-39 core kept, A1 through libsecp256k1, a FAT32 formatter of Faraday's own | 2026-10-31 | Active | crypto |
 | [F181](decisions/F181.md) | Memory work follows the security model: no wiping allocator, no batch for copies the lock already bounds, none for Faraday Demo and the Starter | 2026-10-31 | Active | crypto |
@@ -205,3 +205,5 @@ Read this table, then only the decision you need.
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
 | [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
 | [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Active | security |
+| [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
+| [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Active | crypto |
