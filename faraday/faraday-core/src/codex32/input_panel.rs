@@ -24,6 +24,7 @@
 //! [`PanelAt::start_room`]) take the same one. Drawing reads the flow's
 //! state.
 
+use crate::ui::Region;
 use faraday_draw::geom::{Window, WindowClass};
 use faraday_draw::tokens as t;
 use faraday_draw::tokens::{BODY_M, TITLE_S};
@@ -563,13 +564,12 @@ fn beside(m: &Codex32Make, ui: &mut Ui, (x0, h): (f32, f32)) {
     ui.fill(x, y, w, view, t::SHAPE_M, Role::SurfaceContainerLow);
     let clip = ui.rect(x, y, w, view);
     let off = m.panel_offset().clamp(0.0, (all - view).max(0.0));
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::beside(Slot::InputPanel, clip, off).from_zero(off));
     let mark = ui.presses_mark();
-    beside_parts(m, ui, x, y - off);
+    beside_parts(m, ui, x, y);
     // What is scrolled out of the panel takes no press.
     ui.clip_presses_since(mark, clip);
-    ui.c.pop_clip();
-    ui.report_scroll_beside(Slot::InputPanel, clip, (all - view).max(0.0), off);
+    ui.region_close(open, (all - view).max(0.0));
 }
 
 /// The panel's parts beside the sheets from its top-left (x, y): the

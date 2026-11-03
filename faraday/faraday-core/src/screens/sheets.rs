@@ -2,6 +2,7 @@
 
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
@@ -2031,7 +2032,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         } else {
             Role::SurfaceContainerHigh
         };
-        ui.report_scroll_on(clip, max, ground);
+        ui.region_reported(Region::page(clip).on(ground), max);
     }
 }
 

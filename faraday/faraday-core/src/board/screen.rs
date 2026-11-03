@@ -6,6 +6,7 @@
 //! the board as the frame's memo has it ([`Faraday::board_view_now`]) and the
 //! chip held; it works nothing out but where things go.
 
+use crate::ui::Region;
 use faraday_draw::tokens;
 use faraday_draw::tokens::TypeRole;
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_S};
@@ -77,7 +78,7 @@ fn edge(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, color: crate::ui::Pai
 /// The × mark, a cross centred on (cx, cy).
 fn cross(ui: &mut Ui, cx: f32, cy: f32, color: crate::ui::Paint) {
     let h = tokens::BOARD_MARK / 2.0;
-    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy + ui.oy_px as f32 / ui.f);
     let c = ui.col(color);
     let s = tokens::BOARD_MARK_STROKE * f;
     let px = |v: f32, o: f32| (v + o) * f;
@@ -643,7 +644,7 @@ type Box4 = (f32, f32, f32, f32);
 /// `BOARD_BOX_EDGE`: **+ stick** and **+ place**. The corners, `radius`
 /// round, are left open.
 fn dashed(ui: &mut Ui, r: Box4, radius: f32, color: crate::ui::Paint) {
-    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy + ui.oy_px as f32 / ui.f);
     let c = ui.col(color);
     let s = tokens::BOARD_BOX_EDGE * f;
     let d = tokens::BOARD_DASH;
@@ -2102,12 +2103,16 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
         zone,
     );
     let taken = fr.held.is_some_and(|c| matches!(c, Chip::Placed(..)));
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::beside(
+        crate::ui::Slot::BoardList,
+        clip,
+        app.flows.board_list_offset(),
+    ));
     let mark = ui.presses_mark();
     draw(ui, &mut fr, top - shift);
     // What is scrolled out of the column takes no press.
     ui.clip_presses_since(mark, clip);
-    ui.c.pop_clip();
+    ui.region_close(open, content - view);
     if card {
         ui.stroke(px, top, pw, view, tokens::SHAPE_M, Role::OutlineVariant);
     }
@@ -2119,12 +2124,6 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
             Role::Primary.paint(),
         );
     }
-    ui.report_scroll_beside(
-        crate::ui::Slot::BoardList,
-        clip,
-        content - view,
-        app.flows.board_list_offset(),
-    );
     // The chip being dragged, under the finger.
     if let (Some((dx, dy)), Some(c)) = (fr.drag, fr.held)
         && let Some(cv) = view_of(&v, c)

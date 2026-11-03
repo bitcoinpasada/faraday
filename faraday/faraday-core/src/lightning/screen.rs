@@ -29,7 +29,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x + 120.0, width - 120.0)
     };
     let below = if compact { 20.0 } else { 0.0 };
-    let top = 12.0 - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 12.0;
     let guide = EN.lightning_a_lightning_node;
     let y = if compact {
         top
@@ -47,7 +48,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 guide,
                 Some(crate::learn::Topic::Tools),
             );
-        crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
+        crate::compact::screen::finish(app, ui, h, y - top + 16.0);
     }
 }
 

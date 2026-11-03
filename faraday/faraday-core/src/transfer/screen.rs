@@ -6,6 +6,7 @@ use crate::drawing::View;
 use crate::screens::{section_label, size_text};
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
@@ -24,7 +25,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x0 + PAGE_INSET, (cw - 2.0 * PAGE_INSET).min(TRANSFER_W))
     };
     let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     // Beside the expanded rail the top app bar names the page; held, the
     // holder's top app bar above the page names it.
     let top = if compact {
@@ -33,7 +34,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         36.0
     } else {
         crate::screens::bar_head(ui, None, EN.transfer_transfer)
-    } - app.list_offset;
+    };
     let mut y = top;
     let side = !compact && w >= 600.0;
     let end = if side {
@@ -46,9 +47,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += r + 20.0;
         y + send(app, ui, x, y, w)
     };
-    ui.c.pop_clip();
     app.scroll.content_h().set(end - top + 24.0);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+    ui.region_close(open, app.scroll.content_h().get() - h);
 }
 
 /// Send: the folder, why the last file was not sent, and its files.

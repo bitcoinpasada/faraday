@@ -10,6 +10,7 @@ use super::parts::{made_place, spaced};
 use super::spend::nonce_card;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, compact};
@@ -30,13 +31,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x0 + SPACER + SPACER, cw - 2.0 * (SPACER + SPACER))
     };
     let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     let top = if ui.compact {
         PAD
     } else {
         let back = app.named_back((decode_back(o.back), Action::Nav(o.back)));
         super::bar_head(ui, Some(back), EN.nonce_screen_title)
-    } - app.list_offset;
+    };
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &o.source) + PAD;
     y += nonce_card(ui, &o.check, x, y, w);
@@ -105,7 +106,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.stroke(x, y, w, th + 2.0 * PAD, SHAPE_S, Role::OutlineVariant);
         y += th + 2.0 * PAD + PAD;
     }
-    ui.c.pop_clip();
     app.scroll.content_h().set(y - top + SPACER);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+    ui.region_close(open, app.scroll.content_h().get() - h);
 }

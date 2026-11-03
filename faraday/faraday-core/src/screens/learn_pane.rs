@@ -9,6 +9,7 @@
 //! are the sheet's (`sheets::learn_body`). Which pages it shows is kept
 //! on Learn's state (`Faraday::learn_place`); drawing reads them.
 
+use crate::ui::Region;
 use faraday_draw::tokens as T;
 use faraday_draw::widgets::Icon;
 
@@ -61,8 +62,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     close_button(ui, close_x, y + T::LEARN_PANE_CLOSE_TOP);
     if let Some((clip, max)) = shown {
         // Its edges fade into the pane's own container.
-        let on = (clip, Role::SurfaceContainer);
-        ui.report_scroll_beside_on(Slot::LearnPane, on, max, app.learn().scroll);
+        let region =
+            Region::beside(Slot::LearnPane, clip, app.learn().scroll).on(Role::SurfaceContainer);
+        ui.region_reported(region, max);
     }
 }
 

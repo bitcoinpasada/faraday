@@ -220,11 +220,15 @@ extent; a motion left from another screen or sheet is stopped.
   (a coast's remaining velocity is carried into the stretch first).
   The wheel and keys clamp and never stretch.
   - Ends come from the last frame: each scrolled screen and sheet calls
-    `Ui::report_scroll(view, max)` once its content is drawn, and
+    `Ui::region(Region, |ui| …)` (or `region_open` and `region_close`
+    where one closure does not fit), which clips the view, draws the
+    content and reports the view and `max`, and
     `Faraday::extent` keeps that, with the screen and sheet it was drawn
     for. A move is clamped to it, and what a pan pushes past it becomes
     stretch.
-  - The stretch is drawn inside `report_scroll`: the viewport's pixels
+  - The stretch is drawn when the region is closed (`Ui::region_close`),
+    after the active region's content layer is kept
+    (`Canvas::keep_layer`, when a frame asks for it, `docs/FRAMES.md` §3.1): the viewport's pixels
     shift (`Canvas::shift`), the gap is filled with the page colour, and
     hits inside the viewport shift with them. Toasts, the ? button and
     sheets are drawn after, so they stay put.
@@ -491,7 +495,7 @@ Appearance screen in the default scheme and in three others.
   find it.
 - Every scrolled region uses it (2026-10-08): the word-list sheet and
   the Learn sheet, which drew a thin bar of their own that could not be
-  held, now report their region with `Ui::report_scroll` like a page.
+  held, now report their region with `Ui::region` like a page.
   The stick visit's file list keeps its own bar, which is held and
   dragged by itself (`Action::VisitBar`).
 
@@ -622,8 +626,9 @@ User-facing behaviour only (`CLAUDE.md`):
 
 ## 5. Notes for whoever changes this next
 
-- Every scrolled screen calls `Ui::report_scroll` (or
-  `report_scroll_own_bar`) once its content is drawn; a new scrolled
+- Every scrolled screen draws its content through `Ui::region` (or
+  `region_open` and `region_close`, `region_reported` where it clips
+  itself) and gives the extent; a new scrolled
   screen must too, or it has no ends, no stretch, no fades and no bar,
   and must be added to `Faraday::scroll_slot`.
 - A driver that takes pictures of the screens calls `Faraday::settle`

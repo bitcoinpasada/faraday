@@ -3,6 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::Ui;
 use crate::ui::pal::*;
@@ -24,12 +25,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x0 + PAGE_INSET, cw - 2.0 * PAGE_INSET)
     };
     let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     let top = if compact {
         14.0
     } else {
         super::bar_head(ui, None, EN.catalog_tools)
-    } - app.list_offset;
+    };
     let mut y = top;
     // Find a tool: typing on this page goes here.
     let fw = if compact {
@@ -174,7 +175,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += ui.advance_as(BODY_M, 30.0);
     }
-    ui.c.pop_clip();
     app.scroll.content_h().set(y - top + 40.0);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+    ui.region_close(open, app.scroll.content_h().get() - h);
 }

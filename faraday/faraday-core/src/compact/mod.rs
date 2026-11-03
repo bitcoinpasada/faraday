@@ -7,6 +7,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use crate::ui::{Shape, Unpressed};
 use faraday_draw::tokens::{
     GRID_TILE_INSET, GRID_TILE_TEXT_X, LEAD_MAX, TILE_H_COMPACT, TILE_H_GRID,
@@ -561,8 +562,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // it, at any scroll position, not only at the bottom.
     let view_h = (h - FAB_ROOM).max(0.0);
     let clip = ui.rect(0.0, 0.0, w, view_h);
-    ui.c.push_clip(clip);
-    let top = -app.list_offset;
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = 0.0;
     let mut y = top + 12.0;
     let inner = w - 2.0 * M;
 
@@ -837,8 +838,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
     let content = y - top;
     app.scroll.content_h().set(content);
-    ui.report_scroll(clip, content - view_h);
-    ui.c.pop_clip();
+    ui.region_close(open, content - view_h);
 
     ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
 }

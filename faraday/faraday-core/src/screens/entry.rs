@@ -6,6 +6,7 @@ use super::parts::{
 };
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::fp_text;
@@ -25,7 +26,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The word grid can run to 24 cells, taller than the window; the
     // page scrolls, as Tools' and Files' do (`app.list_offset`).
     let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     let back = Action::Nav(app.entry_leave());
     let back_name = if app.entry_leave() == Screen::Family {
         EN.entry_spend
@@ -55,7 +56,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     // The top app bar names the page and has its way back.
     let back = Some(app.named_back((back_name, back)));
-    let top = super::bar_head(ui, back, &heading) - app.list_offset;
+    let top = super::bar_head(ui, back, &heading);
     let mut y = top;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
@@ -76,7 +77,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if app.entry.state().form != crate::forms::Form::Words {
         let bottom = entry_form(app, ui, x, y, width, h, None);
-        entry_scrolled(app, ui, clip, h, bottom);
+        entry_scrolled(app, ui, open, h, bottom);
         return;
     }
     // Scan leads, above the words: primary until a word is typed, when
@@ -97,7 +98,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 52.0;
     y = entry_words(app, ui, x, y, width, h, true);
     let bottom = entry_finish(app, ui, x, y, width, h);
-    entry_scrolled(app, ui, clip, h, bottom);
+    entry_scrolled(app, ui, open, h, bottom);
 }
 
 /// Add a key's words form, from the list the words are from to the
@@ -212,10 +213,9 @@ pub(crate) fn entry_words(
 /// it scrolls: `bottom`, where the content (including the footer) ends,
 /// measured from the top of the screen as if unscrolled, so the last
 /// scroll leaves the footer and its margin inside the window.
-fn entry_scrolled(app: &View, ui: &mut Ui, clip: faraday_draw::Rect, h: f32, bottom: f32) {
-    ui.c.pop_clip();
-    app.scroll.content_h().set(bottom + app.list_offset + 24.0);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+fn entry_scrolled(app: &View, ui: &mut Ui, open: faraday_ui::Open, h: f32, bottom: f32) {
+    app.scroll.content_h().set(bottom + 24.0);
+    ui.region_close(open, app.scroll.content_h().get() - h);
 }
 
 /// Add a key's word count: 12 · 15 · 18 · 21 · 24 as a row of equal

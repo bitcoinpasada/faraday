@@ -352,7 +352,7 @@ fn group_press<A: Copy + PartialEq>(
             ui.px(mid + ui.ox)
         })
         .collect();
-    let band = (ui.px(y + ui.oy), ui.px(y + h + ui.oy));
+    let band = (ui.py(y), ui.px(y + h + ui.oy) + ui.oy_px);
     ui.fields.push(faraday_ui::FieldAt {
         action: a,
         first: i,

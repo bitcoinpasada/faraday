@@ -10,6 +10,7 @@
 //! out but where a shape goes.
 
 use crate::ui::Paint;
+use crate::ui::Region;
 use faraday_draw::Color;
 use faraday_draw::tokens as t;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, LABEL_M, TITLE_S};
@@ -533,7 +534,7 @@ fn known_bits(m: &Codex32Make, shown: bool) -> [Option<u8>; BOOKLET_DICE] {
 /// A closed shape through `pts` (design units), filled with `fill` if
 /// given and outlined in `edge`.
 fn shape(ui: &mut Ui, pts: &[(f32, f32)], fill_c: Option<Paint>, edge: Paint) {
-    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy + ui.oy_px as f32 / ui.f);
     let px: Vec<(f32, f32)> = pts
         .iter()
         .map(|&(x, y)| ((x + ox) * f, (y + oy) * f))
@@ -552,7 +553,7 @@ fn shape(ui: &mut Ui, pts: &[(f32, f32)], fill_c: Option<Paint>, edge: Paint) {
 /// The outline of the closed shape through `pts` (design units), `width`
 /// thick.
 fn outline(ui: &mut Ui, pts: &[(f32, f32)], width: f32, c: impl Into<faraday_ui::Paint>) {
-    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy + ui.oy_px as f32 / ui.f);
     let e = ui.col(c);
     for (i, &(x0, y0)) in pts.iter().enumerate() {
         let (x1, y1) = pts[(i + 1) % pts.len()];
@@ -682,7 +683,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // The step-through's die: where the page follows its roll.
         if m.walk_die_mark().is_some_and(|(d, _)| d == die) {
             let row = ui.rect(x, cy, lw + span * u, th);
-            ui.report_scroll_in(Slot::DiceWork, row, 0.0, 0.0);
+            ui.region_reported(Region::beside(Slot::DiceWork, row, 0.0).own_bar(), 0.0);
         }
         if let Some(b) = m.shown_dice().die_bit(die).flatten() {
             let text = if m.masked() {
@@ -809,7 +810,7 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, keep: bool) -> f32
             top + level as f32 * lv,
         )
     };
-    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy + ui.oy_px as f32 / ui.f);
     let line = ui.col(Role::OutlineVariant);
     let ink = ui.col(Role::Tertiary);
     let mut at = 0usize;
@@ -882,7 +883,7 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, keep: bool) -> f32
         .is_some_and(|(_, _, s)| s == super::Step::Char)
     {
         let whole = ui.rect(x, y, w, h);
-        ui.report_scroll_in(Slot::DiceWork, whole, 0.0, 0.0);
+        ui.region_reported(Region::beside(Slot::DiceWork, whole, 0.0).own_bar(), 0.0);
     }
     h
 }

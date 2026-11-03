@@ -297,7 +297,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let line = self.line_as(role);
         let x0 = self.px(x + self.ox);
         for (i, &(start, end)) in laid.lines.iter().enumerate() {
-            let ly = self.px(y + self.oy + i as f32 * line);
+            let ly = self.px(y + self.oy + i as f32 * line) + self.oy_px;
             self.c
                 .text_with_face(&face, x0, ly, &laid.s[start..end], color);
         }
@@ -374,7 +374,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     self.selection_band(x + l, ly, r - l, line);
                 }
             }
-            let py = self.px(y + self.oy + i as f32 * line);
+            let py = self.px(y + self.oy + i as f32 * line) + self.oy_px;
             self.c.text_with_face(&face, x0, py, &text[start..end], ink);
             if let Some((lo, hi)) = selected {
                 let (a, b) = (
@@ -406,7 +406,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 let past = (text::px_from_64(pen + gap) as f32 / self.f).min(width);
                 caret_at = Some((x + past, ly));
             }
-            let band = (py, self.px(y + self.oy + (i + 1) as f32 * line));
+            let band = (
+                py,
+                self.px(y + self.oy + (i + 1) as f32 * line) + self.oy_px,
+            );
             let edges = cols.iter().map(|c| self.px(x + c + self.ox)).collect();
             self.fields.push(crate::FieldAt {
                 action,

@@ -421,7 +421,8 @@ fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::panes::screen::{Item, list_item};
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = M - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = M;
     let mut y = top;
     y += guided_row(app, ui, x, y);
     let parts = parts();
@@ -444,7 +445,7 @@ fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     // The margin above the first row and under the last.
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 2.0 * M);
+    crate::compact::screen::finish(app, ui, h, y - top + 2.0 * M);
 }
 
 /// The section open as its own page on a compact window, if one is.
@@ -480,7 +481,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !ui.compact {
         super::bar_head(ui, None, EN.settings_settings);
     }
-    let mut top = PANE_TOP_BAR - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let mut top = PANE_TOP_BAR;
     top += guided_row(app, ui, x, top);
     let (mut left, mut right) = (top, top);
     for p in parts() {
@@ -491,7 +493,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     let foot = left.max(right) + MARGIN_WIDE;
-    crate::compact::screen::finish(app, ui, x0, cw, h, foot + app.list_offset);
+    crate::compact::screen::finish(app, ui, h, foot);
 }
 
 /// About's foot: the Nakamoto Institute, `w` wide. In the online app its

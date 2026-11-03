@@ -10,6 +10,7 @@
 //! worksheet the strip chose; compact, one context panel at a time,
 //! chosen by a tile row over the pad.
 
+use crate::ui::Region;
 use faraday_bip::codex32::SYMBOL_GLYPHS;
 use faraday_draw::geom::{SizeClass, WindowClass};
 use faraday_draw::tokens as t;
@@ -1217,7 +1218,7 @@ fn grid(
     }
     if let Some((sx, sy, sw, sh)) = spot {
         let r = ui.rect(sx, sy, sw, sh);
-        ui.report_scroll_in(Slot::DiceWork, r, 0.0, 0.0);
+        ui.region_reported(Region::beside(Slot::DiceWork, r, 0.0).own_bar(), 0.0);
     }
     cy - y
 }
@@ -1384,7 +1385,7 @@ fn symbols_line(
             let (bx, by, bw, bh) = (cx - o, cy - o / 2.0, tw + 2.0 * o, line + o);
             ui.stroke(bx, by, bw, bh, t::CODEX32_RADIUS, Role::Primary);
             let r = ui.rect(bx, by, bw, bh);
-            ui.report_scroll_in(Slot::DiceWork, r, 0.0, 0.0);
+            ui.region_reported(Region::beside(Slot::DiceWork, r, 0.0).own_bar(), 0.0);
         }
         cx += tw + t::SPACER;
     }

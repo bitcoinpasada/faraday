@@ -526,6 +526,13 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
 
 /// The screen itself, in the column at `x`, `cw` wide.
 fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
+    dispatch_screen(app, ui, x, cw, h);
+    // A page that returned without closing its region gives it back.
+    ui.region_abandon();
+}
+
+/// [`dispatch`]'s screens.
+fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     match app.screen {
         Screen::Home => home::draw(app, ui, x, cw),
         Screen::WalletsStart => wallets_start::draw(app, ui, x, cw, h),

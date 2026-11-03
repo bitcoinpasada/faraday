@@ -2,6 +2,8 @@
 //! ([`Slot`]) and where each was drawn and how far it goes
 //! ([`Scrolled`]), for the app to move the one under the pointer.
 
+use crate::Ui;
+use crate::pal::Role;
 use faraday_draw::Rect;
 
 /// Which offset a scrolled region moves. A screen can scroll more than
@@ -72,4 +74,248 @@ pub struct Scrolled {
     /// How far its content pans sideways, in design units: 0 for a
     /// region that only scrolls up and down.
     pub max_x: f32,
+}
+
+/// A region about to be drawn: where it is seen, what it sits on and
+/// which offset it moves ([`Ui::region`]).
+#[derive(Debug, Clone, Copy)]
+pub struct Region {
+    slot: Slot,
+    view: Rect,
+    ground: Role,
+    own_bar: bool,
+    offset: Option<f32>,
+    pan: f32,
+    whole: Option<f32>,
+}
+
+impl Region {
+    /// The screen's or the open sheet's region seen through `view`, moved
+    /// by [`Ui::offset`], on the page, with the page's overlay scrollbar.
+    pub fn page(view: Rect) -> Self {
+        Region {
+            slot: Slot::Page,
+            view,
+            ground: Role::Surface,
+            own_bar: false,
+            offset: None,
+            pan: 0.0,
+            whole: None,
+        }
+    }
+
+    /// The region `slot` seen through `view`, moved by its own `offset`
+    /// (units); the page's scrollbar is shown at its edge while it is the
+    /// one scrolled.
+    pub fn beside(slot: Slot, view: Rect, offset: f32) -> Self {
+        Region {
+            slot,
+            offset: Some(offset),
+            ..Self::page(view)
+        }
+    }
+
+    /// `slot`'s region seen through `view`, laid out from offset 0 and
+    /// moved by its own `offset` ([`Region::beside`] and
+    /// [`Region::from_zero`]).
+    pub fn scrolled(slot: Slot, view: Rect, offset: f32) -> Self {
+        Self::beside(slot, view, offset).from_zero(offset)
+    }
+
+    /// On the container `ground` rather than on the page (a dialog, a
+    /// sheet, a menu): its edges fade into that container, and that
+    /// container shows in the gap a stretch opens (`docs/THEMES.md` §6, §7).
+    pub fn on(self, ground: Role) -> Self {
+        Region { ground, ..self }
+    }
+
+    /// The region draws its own scrollbar.
+    pub fn own_bar(self) -> Self {
+        Region {
+            own_bar: true,
+            ..self
+        }
+    }
+
+    /// The region's content also pans sideways, `x` units now (its extent
+    /// across is the content's [`Extent::across`]).
+    pub fn panned(self, x: f32) -> Self {
+        Region { pan: x, ..self }
+    }
+
+    /// The content is laid out at offset 0 and moved by the whole pixels
+    /// of the region's offset after each place is rounded
+    /// ([`Ui::oy_px`]), so a row's place is `round(y * f) - offset_px`,
+    /// never `round((y - offset) * f)` (`docs/FRAMES.md` §3.2). The
+    /// screen must then not take `by`, the offset the content is moved
+    /// by (the region's offset, as far as the content allows), off its
+    /// own `y`.
+    pub fn from_zero(self, by: f32) -> Self {
+        Region {
+            whole: Some(by),
+            ..self
+        }
+    }
+}
+
+/// How far a region's content goes past its view, units: down, and
+/// across where it pans.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Extent {
+    /// How far it scrolls down.
+    pub down: f32,
+    /// How far it pans across.
+    pub across: f32,
+}
+
+impl From<f32> for Extent {
+    fn from(down: f32) -> Self {
+        Extent { down, across: 0.0 }
+    }
+}
+
+/// A region opened with [`Ui::region_open`], closed with
+/// [`Ui::region_close`].
+#[derive(Debug)]
+#[must_use = "a region opened is closed with Ui::region_close"]
+pub struct Open {
+    region: Region,
+    oy_px: i32,
+}
+
+/// Which region the canvas's content layer ([`Canvas::layer`]) is of: the
+/// active region's content as its content left it, before the stretch, the
+/// edge fades and the scrollbar (`docs/FRAMES.md` §3.1).
+#[derive(Debug, Default)]
+pub struct Layer {
+    /// The region the pixels are of, with its view.
+    pub of: Option<(Slot, Rect)>,
+}
+
+impl<A: Copy + PartialEq> Ui<'_, A> {
+    /// Draws a scrolled region: the content `content` draws is clipped to
+    /// the region's view, and the region is reported once it is drawn
+    /// (what [`Ui::region_close`] says). The content returns how far it
+    /// goes past the view, units.
+    pub fn region<R: Into<Extent>>(
+        &mut self,
+        region: Region,
+        content: impl FnOnce(&mut Self) -> R,
+    ) {
+        let open = self.region_open(region);
+        let reach = content(self).into();
+        self.region_close(open, reach);
+    }
+
+    /// The first half of [`Ui::region`], for a screen whose content does
+    /// not fit one closure: pushes the view's clip and, for a region
+    /// laid out from zero, the pixels its offset moves it by.
+    pub fn region_open(&mut self, region: Region) -> Open {
+        self.c.push_clip(region.view);
+        let oy_px = self.oy_px;
+        if let Some(by) = region.whole {
+            self.oy_px = oy_px - self.px(by);
+        }
+        Open { region, oy_px }
+    }
+
+    /// [`Ui::region_open`] for a page whose drawing and closing are in
+    /// different functions: the region is kept until [`Ui::region_end`]
+    /// (or [`Ui::region_abandon`], for a page that returns without
+    /// closing it).
+    pub fn region_begin(&mut self, region: Region) {
+        self.region_abandon();
+        self.begun = Some(self.region_open(region));
+    }
+
+    /// [`Ui::region_begin`] for a page `(x0, cw, h)` laid out from zero
+    /// and moved by `by` ([`Region::from_zero`]).
+    pub fn page_begin(&mut self, (x0, cw, h): (f32, f32, f32), by: f32) {
+        let view = self.rect(x0, 0.0, cw, h);
+        self.region_begin(Region::page(view).from_zero(by));
+    }
+
+    /// [`Ui::page_begin`] that returns `top`, where the page's content
+    /// starts, for a page that begins at once with its first line.
+    pub fn page_top(&mut self, page: (f32, f32, f32), by: f32, top: f32) -> f32 {
+        self.page_begin(page, by);
+        top
+    }
+
+    /// Closes the region [`Ui::region_begin`] opened ([`Ui::region_close`]).
+    pub fn region_end(&mut self, reach: impl Into<Extent>) {
+        if let Some(open) = self.begun.take() {
+            self.region_close(open, reach);
+        }
+    }
+
+    /// Closes the region [`Ui::region_begin`] opened without reporting
+    /// it, if it is still open: its clip and its pixels are given back.
+    pub fn region_abandon(&mut self) {
+        if let Some(Open { oy_px, .. }) = self.begun.take() {
+            self.oy_px = oy_px;
+            self.c.pop_clip();
+        }
+    }
+
+    /// The second half of [`Ui::region`]: pops the clip, takes the
+    /// region's content layer, stretches the region past an end, fades
+    /// its edges and draws its scrollbar.
+    pub fn region_close(&mut self, open: Open, reach: impl Into<Extent>) {
+        let Open { region, oy_px } = open;
+        self.oy_px = oy_px;
+        self.c.pop_clip();
+        self.region_reported(region, reach);
+    }
+
+    /// [`Ui::region_close`] for a region whose clip the screen pops
+    /// itself (or never pushed): the region is reported as drawn, and
+    /// stretched, faded and given its scrollbar.
+    pub fn region_reported(&mut self, region: Region, reach: impl Into<Extent>) {
+        let reach = reach.into();
+        let offset = region.offset.unwrap_or(self.offset);
+        let (slot, view, ground) = (region.slot, region.view, region.ground);
+        let max = reach.down.max(0.0);
+        let scrolled = Scrolled {
+            slot,
+            view,
+            max,
+            own_bar: region.own_bar,
+            max_x: reach.across.max(0.0),
+        };
+        match self.scrolled.iter_mut().find(|s| s.slot == slot) {
+            Some(s) => *s = scrolled,
+            None => self.scrolled.push(scrolled),
+        }
+        if self.in_sheet != self.stretch_in_sheet {
+            return;
+        }
+        if slot == self.active {
+            if self.keep_content {
+                self.c.keep_layer(view);
+                self.content.of = Some((slot, view));
+            }
+            self.stretch_view(view, ground);
+        }
+        self.edge_fades(view, max, offset, ground);
+        // A small panel draws no scrollbar: the edge fades say the page
+        // goes on.
+        if let Some((alpha, bar_offset)) = self.bar
+            && slot == self.active
+            && !self.compact
+            && !region.own_bar
+            && max > 0.0
+            && alpha > 0
+        {
+            self.scroll_bar(view, max, bar_offset, alpha);
+        }
+        if let Some((alpha, _)) = self.bar
+            && slot == self.active
+            && !self.compact
+            && scrolled.max_x > 0.0
+            && alpha > 0
+        {
+            self.scroll_bar_across(view, scrolled.max_x, region.pan, alpha);
+        }
+    }
 }

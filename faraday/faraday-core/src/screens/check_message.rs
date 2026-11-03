@@ -3,6 +3,7 @@
 use super::parts::guide_text_learn;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Ui, grouped};
 use crate::{Action, Screen};
@@ -20,7 +21,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x0 + 48.0, (cw - 96.0).min(900.0))
     };
     let top = if compact {
-        14.0 - app.list_offset
+        ui.page_begin((x0, cw, h), app.list_offset);
+        14.0
     } else {
         let back = app.named_back((EN.check_wallets, Action::Nav(Screen::WalletsStart)));
         super::bar_head(ui, Some(back), EN.check_check_a_signed)
@@ -161,6 +163,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 guide,
                 Some(crate::learn::Topic::Message),
             );
-        crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 24.0);
+        crate::compact::screen::finish(app, ui, h, y - top + 24.0);
     }
 }

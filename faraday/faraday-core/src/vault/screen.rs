@@ -4,6 +4,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, TITLE_M,
@@ -550,7 +551,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = 12.0 - app.list_offset;
+    let top = ui.page_top((x0, cw, h), app.list_offset, 12.0);
     let mut y = top;
     if app.vaults.back_to.is_none() {
         ui.button(
@@ -634,7 +635,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &[app.medium.a(), app.medium.for_the()],
         ),
     );
-    finish(app, ui, x0, cw, h, y - top + 16.0);
+    finish(app, ui, h, y - top + 16.0);
 }
 
 /// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each the panel's width.
@@ -646,7 +647,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = 12.0 - app.list_offset;
+    let top = ui.page_top((x0, cw, h), app.list_offset, 12.0);
     let mut y = top;
     if just_made_picked(app) {
         y += ui.wrap_as((x, y, w), BODY_M, muted, ONCE_MORE) + 12.0;
@@ -673,7 +674,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Style::Secondary,
             va(V::Create),
         );
-        finish(app, ui, x0, cw, h, y - top + 56.0);
+        finish(app, ui, h, y - top + 56.0);
         return;
     }
     for (i, f) in locked.iter().filter(|_| !beside) {
@@ -762,7 +763,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += ui.wrap_as((x, y, w), BODY_M, bad, e) + 12.0;
     }
     y += about(ui, x, y, w, EN.vault_choose_the_vault);
-    finish(app, ui, x0, cw, h, y - top + 16.0);
+    finish(app, ui, h, y - top + 16.0);
 }
 
 /// Vaults' way back, named, where it was opened from another flow to make
@@ -1995,13 +1996,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let gap = faraday_draw::tokens::GAP;
     let view_top = top - gap;
     let clip = ui.rect(detail_x - gap, view_top, detail_w + 2.0 * gap, h - view_top);
-    ui.c.push_clip(clip);
     let off = app.vaults.item_offset();
-    let foot = detail(app, ui, v, &items, sel, detail_x, top - off, detail_w);
-    ui.c.pop_clip();
-    let content = foot + off - top;
+    let open = ui.region_open(Region::scrolled(crate::ui::Slot::VaultItem, clip, off).own_bar());
+    let foot = detail(app, ui, v, &items, sel, detail_x, top, detail_w);
+    let content = foot - top;
     let max = content - (h - top);
-    ui.report_scroll_in(crate::ui::Slot::VaultItem, clip, max, off);
+    ui.region_close(open, max);
 }
 
 /// What an open vault with nothing in it says.
@@ -2136,7 +2136,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::screen::{about, finish};
     use crate::screens::wrap_buttons;
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = 12.0 - app.list_offset;
+    let top = ui.page_top((x0, cw, h), app.list_offset, 12.0);
     let mut y = top;
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
         ui.text_as(x, y, BODY_M, muted, EN.vault_no_vault_is_open);
@@ -2150,11 +2150,11 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let items = search::shown(app, v);
     let sel = app.vaults.item[app.vaults.category].min(items.len().saturating_sub(1));
     if app.vaults.focus == Some(Focus::Search(vault::SearchIn::Items)) && !contents_detail(app) {
-        return search::compact_view(app, ui, &items, (x0, cw, h), (x, top, w));
+        return search::compact_view(app, ui, &items, h, (x, top, w));
     }
     if contents_detail(app) {
         y = detail(app, ui, v, &items, sel, x, y, w);
-        finish(app, ui, x0, cw, h, y - top + 16.0);
+        finish(app, ui, h, y - top + 16.0);
         return;
     }
     let label = ui.fit_as(TITLE_M, &v.label(app.vaults.store()), w);
@@ -2258,7 +2258,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.button(x, y, Some(w), BUTTON_H, &label, style, action);
             y += 54.0;
         }
-        finish(app, ui, x0, cw, h, y - top + 16.0);
+        finish(app, ui, h, y - top + 16.0);
         return;
     }
     section_label(ui, x, y, cat_label);
@@ -2315,7 +2315,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w,
         &fill(EN.vault_secret_values, &[app.medium.noun()]),
     );
-    finish(app, ui, x0, cw, h, y - top + 16.0);
+    finish(app, ui, h, y - top + 16.0);
 }
 
 /// The detail of the contents at (dx, dy), dw wide: a form, a prompt,

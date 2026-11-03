@@ -5,7 +5,7 @@
 use faraday_draw::widgets::Icon;
 
 use crate::pal::*;
-use crate::{Plain, Style, Ui};
+use crate::{Plain, Region, Style, Ui};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP, GAP_SMALL, LABEL_L, PAD};
 
 /// What a sheet holds: drawn at (x, y) in a width, it returns the height
@@ -122,14 +122,14 @@ fn framed<A: Copy + PartialEq>(
         view + pad
     };
     let clip = ui.rect(sx, sy, sw, room);
-    ui.c.push_clip(clip);
-    ui.sheet_pinning = true;
-    body(ui, ix, sy + pad - off, iw);
-    ui.sheet_pinning = false;
-    ui.sheet_pin = None;
-    ui.c.pop_clip();
     // Its edges fade into its own container (`docs/THEMES.md` §7).
-    ui.report_scroll_on(clip, max, fill);
+    ui.region(Region::page(clip).on(fill).from_zero(off), |ui| {
+        ui.sheet_pinning = true;
+        body(ui, ix, sy + pad, iw);
+        ui.sheet_pinning = false;
+        ui.sheet_pin = None;
+        max
+    });
     if !items.is_empty() {
         if max > 0.0 {
             ui.fill(
@@ -227,13 +227,13 @@ fn side_body<A: Copy + PartialEq>(
     let max = (ch + PAD - view).max(0.0);
     let off = ui.offset.clamp(0.0, max);
     let clip = ui.rect(sx + 1.0, sy, sw - 1.0, view);
-    ui.c.push_clip(clip);
-    ui.sheet_pinning = true;
-    body(ui, ix, sy - off, iw);
-    ui.sheet_pinning = false;
-    ui.sheet_pin = None;
-    ui.c.pop_clip();
-    ui.report_scroll(clip, max);
+    ui.region(Region::page(clip).from_zero(off), |ui| {
+        ui.sheet_pinning = true;
+        body(ui, ix, sy, iw);
+        ui.sheet_pinning = false;
+        ui.sheet_pin = None;
+        max
+    });
     if !items.is_empty() {
         if max > 0.0 {
             ui.fill(

@@ -42,7 +42,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // each value under its name.
     if ui.compact {
         let (x, width) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
-        let top = 12.0 - app.list_offset;
+        ui.page_begin((x0, cw, h), app.list_offset);
+        let top = 12.0;
         let y = body(app, ui, x, top, width);
         let y = y + crate::compact::screen::about_learn(
             ui,
@@ -52,7 +53,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             GUIDE,
             Some(crate::learn::Topic::Tools),
         );
-        crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
+        crate::compact::screen::finish(app, ui, h, y - top + 16.0);
         return;
     }
     use faraday_draw::tokens::{TOOLS_COLUMN_W, TOOLS_INSET};

@@ -20,11 +20,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         (x0 + 48.0, cw - 96.0)
     };
+    ui.page_begin((x0, cw, h), app.list_offset);
     let mut y = if compact {
         14.0
     } else {
         super::bar_head(ui, None, EN.start_wallets)
-    } - app.list_offset;
+    };
     // No wallet and no vault yet: two ways in.
     let empty = app.session.wallets.is_empty()
         && app.vaults.open.is_empty()
@@ -117,11 +118,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ) + 10.0;
         }
         if compact {
-            crate::compact::screen::finish(app, ui, x0, cw, h, y + 16.0 + app.list_offset);
+            crate::compact::screen::finish(app, ui, h, y + 16.0);
         } else {
-            app.scroll.content_h().set(y + app.list_offset + 24.0);
-            let view = ui.rect(x0, 0.0, cw, h);
-            ui.report_scroll(view, app.scroll.content_h().get() - h);
+            app.scroll.content_h().set(y + 24.0);
+            ui.region_end(app.scroll.content_h().get() - h);
         }
         return;
     }
@@ -186,7 +186,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(Action::Vault(crate::vault::VaultAction::Open(i))),
             );
         }
-        crate::compact::screen::finish(app, ui, x0, cw, h, y + app.list_offset);
+        crate::compact::screen::finish(app, ui, h, y);
         return;
     }
     if empty {

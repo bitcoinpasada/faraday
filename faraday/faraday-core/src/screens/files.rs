@@ -3,6 +3,7 @@
 use super::parts::{guide_text_learn, kind_line, pull_line};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -470,8 +471,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let split = x + colw + SPACER / 2.0;
     let clip = ui.rect(x0, top, split - x0, view);
     let clip_out = ui.rect(split, top, colw + SPACER, view);
-    ui.c.push_clip(clip);
-    let mut iy = y + 32.0 - shift;
+    let open = ui.region_open(Region::page(clip).from_zero(shift));
+    let mut iy = y + 32.0;
     for (k, item) in app.inbox.iter().enumerate() {
         // A row scrolled out of the list's sight is passed over.
         if !ui.shows(iy, 112.0) {
@@ -653,7 +654,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // Outbox, its title above the scrolled lists.
     let ox = x + colw + SPACER;
-    ui.c.pop_clip();
+    ui.region_close(open, content_in - view);
     let lw = ui.text_as(ox, y, TITLE_M, Role::OnSurfaceVariant, app.medium.for_box());
     ui.text_as(
         ox + lw + 10.0,
@@ -662,8 +663,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         &app.outbox.len().to_string(),
     );
-    ui.c.push_clip(clip_out);
-    let mut oy = y + 32.0 - shift_out;
+    let open = ui.region_open(
+        Region::beside(
+            crate::ui::Slot::FilesOut,
+            clip_out,
+            *app.visit.files_out_offset(),
+        )
+        .from_zero(shift_out),
+    );
+    let mut oy = y + 32.0;
     // Grouped by who may read them: public files, vaults sealed under a
     // passphrase, and any secret the person let out unprotected.
     use crate::secrets::Exposure;
@@ -764,14 +772,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(r) = app.visit.receipt().as_ref() {
         receipt_rows(ui, r, app.tz_min(), ox, oy, colw);
     }
-    ui.c.pop_clip();
-    ui.report_scroll(clip, content_in - view);
-    ui.report_scroll_beside(
-        crate::ui::Slot::FilesOut,
-        clip_out,
-        content_out - view,
-        *app.visit.files_out_offset(),
-    );
+    ui.region_close(open, content_out - view);
     // Foot.
     let fy = h - 32.0 - 48.0;
     if !app.outbox.is_empty() {
@@ -1923,14 +1924,15 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return files_beside(app, ui, x0, cw, h);
     }
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = 12.0 - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 12.0;
     let mut y = top;
     y += compact_head(app, ui, (x, y, w));
     y += compact_inbox(app, ui, (x, y, w));
     y += 8.0;
     y += compact_outbox(app, ui, (x, y, w));
     y += compact_tail(app, ui, (x, y, w));
-    finish(app, ui, x0, cw, h, y - top + 16.0);
+    finish(app, ui, h, y - top + 16.0);
 }
 
 /// Files beside the rail, where the area holds both list panes: the head
@@ -1947,9 +1949,11 @@ fn files_beside(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let head = compact_head(app, ui, (x, top, 2.0 * LIST_PANE + SPACER));
     let split = x + LIST_PANE + SPACER / 2.0;
     let page = ui.rect(x0, 0.0, split - x0, h);
-    ui.c.push_clip(page);
+    let open = ui.region_open(Region::page(page));
     let inn = compact_inbox(app, ui, (x, top + head, LIST_PANE));
-    ui.c.pop_clip();
+    let content = (t::FILES_BESIDE_TOP + head + inn + t::FILES_BESIDE_FOOT).max(head + h);
+    app.scroll.content_h().set(content);
+    ui.region_close(open, content - h);
     // For the stick's pane: from under the head, or the page's top once
     // the head is scrolled away, to the page's foot.
     let pane_top = (top + head).max(t::FILES_BESIDE_TOP);
@@ -1961,20 +1965,15 @@ fn files_beside(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .files_out_offset()
         .min((content_out - view).max(0.0));
     let clip = ui.rect(split, pane_top, x0 + cw - split, view);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::beside(
+        crate::ui::Slot::FilesOut,
+        clip,
+        *app.visit.files_out_offset(),
+    ));
     let oy = pane_top - shift;
     let out = compact_outbox(app, ui, (ox, oy, ow));
     compact_tail(app, ui, (ox, oy + out, ow));
-    ui.c.pop_clip();
-    let content = (t::FILES_BESIDE_TOP + head + inn + t::FILES_BESIDE_FOOT).max(head + h);
-    app.scroll.content_h().set(content);
-    ui.report_scroll(page, content - h);
-    ui.report_scroll_beside(
-        crate::ui::Slot::FilesOut,
-        clip,
-        content_out - view,
-        *app.visit.files_out_offset(),
-    );
+    ui.region_close(open, content_out - view);
 }
 
 /// For the stick's pane beside the rail, its list and the foot's lines,

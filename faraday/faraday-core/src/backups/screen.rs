@@ -6,6 +6,7 @@ use crate::backups::{Entry, Line};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet_backup::Tone;
@@ -83,12 +84,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The map's rows, its Back up and its name read together: the card
     // keeps the detail's reading width.
     let clip = ui.rect(dx, p.top, dw, h - p.top);
-    ui.c.push_clip(clip);
-    let top = p.top - app.list_offset;
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = p.top;
     let ch = wide_card(app, ui, (dx, top, p.reading()), e);
-    ui.c.pop_clip();
     app.scroll.content_h().set(ch);
-    ui.report_scroll(clip, ch - (h - p.top));
+    ui.region_close(open, ch - (h - p.top));
 }
 
 /// One wallet's backup on the wide layout: its name and shape, Back up,
@@ -183,7 +183,8 @@ fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
 fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Entry], pages: bool) {
     use crate::compact::M;
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = 12.0 - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 12.0;
     let mut y = top;
     let n = entries.len();
     let Some(e) = entries.get(app.backups_area.at().min(n.saturating_sub(1))) else {
@@ -254,7 +255,7 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
         );
         y += 56.0;
     }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 12.0);
+    crate::compact::screen::finish(app, ui, h, y - top + 12.0);
 }
 
 /// One place on the small panel: where and what was seen of it on one

@@ -51,6 +51,9 @@ pub struct Canvas {
     /// the box alone: a sheet's frame puts back its kept page where the
     /// sheet was drawn over it, not the whole canvas.
     kept: Option<(usize, usize)>,
+    /// The pixels of a region's content as its content left it, kept
+    /// between frames so a frame reuses the room ([`Canvas::keep_layer`]).
+    layer: Vec<u8>,
     damage: Option<Rect>,
     /// Notes the canvas's own costly work, a blur or a whole copy, for
     /// the application that budgets it ([`Canvas::set_counter`]); notes
@@ -128,6 +131,7 @@ impl Canvas {
             ink: None,
             lines: 0,
             kept: None,
+            layer: Vec::new(),
             damage: None,
             counter: |_| {},
         }
@@ -926,6 +930,20 @@ impl Canvas {
             let at = row as usize * stride + r.x as usize * 4;
             into.extend_from_slice(&data[at..at + r.w as usize * 4]);
         }
+    }
+
+    /// Costs a copy of the rectangle's pixels. Keeps the pixels inside
+    /// `rect` as the region's content layer, in room kept between frames
+    /// ([`Canvas::layer`]).
+    pub fn keep_layer(&mut self, rect: Rect) {
+        let mut layer = core::mem::take(&mut self.layer);
+        self.copy_region(rect, &mut layer);
+        self.layer = layer;
+    }
+
+    /// The pixels [`Canvas::keep_layer`] kept, a row at a time.
+    pub fn layer(&self) -> &[u8] {
+        &self.layer
     }
 
     /// Costs a pass over the rectangle's pixels. Shows what was drawn
@@ -2201,6 +2219,51 @@ mod tests {
                         [0, 0, 0, 255]
                     };
                     assert_eq!(pixel(&cut, x, y), want, "shape {i} at ({x}, {y})");
+                }
+            }
+        }
+    }
+
+    /// A frame drawn in bands, each through a clip one band deep, is the
+    /// frame drawn whole, whatever band cuts a shape, a glyph or a shadow
+    /// (`docs/FRAMES.md` §3.2).
+    #[test]
+    fn bands_cut_through_a_shape_a_glyph_and_a_shadow_make_the_whole_frame() {
+        let scene = |c: &mut Canvas| {
+            c.shadow(
+                Rect::new(6, 5, 30, 18),
+                5.0,
+                8.0,
+                0.0,
+                2,
+                Color::rgba(0, 0, 0, 90),
+            );
+            c.fill_rounded_rect(Rect::new(6, 5, 30, 18), 5.0, Color::rgb(90, 160, 220));
+            c.stroke_rounded_rect(Rect::new(8, 7, 26, 14), 3.0, 1.5, Color::WHITE);
+            c.fill_circle(48.3, 14.7, 7.2, Color::rgb(140, 210, 180));
+            c.text(10, 8, "Wg", Font::regular(14.0), Color::BLACK);
+        };
+        let mut whole = canvas();
+        whole.clear(Color::rgb(236, 238, 242));
+        scene(&mut whole);
+        for band in [1, 3, 7, 11, 16] {
+            let mut banded = canvas();
+            banded.clear(Color::rgb(236, 238, 242));
+            let mut top = 0;
+            while top < 32 {
+                let rows = band.min(32 - top);
+                banded.push_clip(Rect::new(0, top, 64, rows));
+                scene(&mut banded);
+                banded.pop_clip();
+                top += rows;
+            }
+            for y in 0..32 {
+                for x in 0..64 {
+                    assert_eq!(
+                        pixel(&banded, x, y),
+                        pixel(&whole, x, y),
+                        "bands {band} rows deep at ({x}, {y})"
+                    );
                 }
             }
         }

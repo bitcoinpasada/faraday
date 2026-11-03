@@ -1156,7 +1156,7 @@ fn typed_cell(
 /// on the cell places the caret between the two nearest.
 fn cell_edges(ui: &mut Ui, (x, y): (f32, f32), first: usize, cols: &[f32], action: Action) {
     let edges = cols.iter().map(|c| ui.px(x + c + ui.ox)).collect();
-    let band = (ui.px(y + ui.oy), ui.px(y + 38.0 + ui.oy));
+    let band = (ui.py(y), ui.px(y + 38.0 + ui.oy) + ui.oy_px);
     ui.fields.push(crate::ui::FieldAt {
         action,
         first,
@@ -1390,7 +1390,7 @@ pub(crate) fn keyed_cells(
 /// (x, y), kept for `action`: one per key of the word being typed, its
 /// end for any other.
 fn keyed_edges(ui: &mut Ui, (x, y): (f32, f32), at: &[(usize, f32)], action: Action) {
-    let band = (ui.px(y + ui.oy), ui.px(y + 36.0 + ui.oy));
+    let band = (ui.py(y), ui.px(y + 36.0 + ui.oy) + ui.oy_px);
     for &(i, c) in at {
         let edge = ui.px(x + c + ui.ox);
         ui.fields.push(crate::ui::FieldAt {

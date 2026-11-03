@@ -3,6 +3,7 @@
 //! Material's two-line list items.
 
 use crate::drawing::View;
+use crate::ui::Region;
 use crate::ui::{Paint, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{COLUMN_MAX, LIST_PANE, MARGIN_WIDE, PANE_TOP_BAR, SPACER};
@@ -91,8 +92,7 @@ pub(crate) struct ListPane {
     top: f32,
     h: f32,
     y: f32,
-    offset: f32,
-    clip: faraday_draw::Rect,
+    open: faraday_ui::Open,
 }
 
 impl ListPane {
@@ -100,16 +100,16 @@ impl ListPane {
     /// to it.
     pub(crate) fn begin(app: &View, ui: &mut Ui, (x, top, w, h): (f32, f32, f32, f32)) -> Self {
         let clip = ui.rect(x, top, w, h);
-        ui.c.push_clip(clip);
         let offset = app.scroll.panes().list_offset();
+        let open = ui
+            .region_open(Region::beside(crate::ui::Slot::ListPane, clip, offset).from_zero(offset));
         ListPane {
             x,
             w,
             top,
             h,
-            y: top - offset,
-            offset,
-            clip,
+            y: top,
+            open,
         }
     }
 
@@ -133,14 +133,8 @@ impl ListPane {
     /// Ends the pane: its clip goes, and its scroll is said, as far as
     /// what was drawn in it goes.
     pub(crate) fn end(self, ui: &mut Ui) {
-        ui.c.pop_clip();
-        let content = self.y + self.offset - self.top;
-        ui.report_scroll_beside(
-            crate::ui::Slot::ListPane,
-            self.clip,
-            content - self.h,
-            self.offset,
-        );
+        let content = self.y - self.top;
+        ui.region_close(self.open, content - self.h);
     }
 }
 

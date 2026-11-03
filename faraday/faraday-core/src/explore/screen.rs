@@ -28,7 +28,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Page::Path => {}
     }
     let compact = ui.compact;
-    let (x, width, top, mut y) = frame(app, ui, x0, cw);
+    let (x, width, top, mut y) = frame(app, ui, x0, cw, h);
     let guide = EN.explore_the_public;
     if !compact {
         y = header(app, ui, x, y, width, guide);
@@ -118,7 +118,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     y += button_rows(ui, px, y, pw, &presets) + 8.0;
     let Some(r) = app.explore_reading() else {
-        crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
+        crate::compact::screen::finish(app, ui, h, y - top + 16.0);
         return;
     };
     let scripts: Vec<(String, Style, Action)> = ScriptType::ALL
@@ -212,7 +212,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(crate::learn::Topic::Xpubs),
         );
     }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
+    crate::compact::screen::finish(app, ui, h, y - top + 16.0);
 }
 
 /// Where the path page's rows go: the column's left edge, the values'
@@ -416,7 +416,7 @@ pub(super) fn script_name(s: ScriptType) -> &'static str {
 /// its content as scrolled and where it starts. A small panel has its
 /// bar for the way back and the name, and puts each value under its
 /// name.
-pub(super) fn frame(app: &View, ui: &Ui, x0: f32, cw: f32) -> (f32, f32, f32, f32) {
+pub(super) fn frame(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) -> (f32, f32, f32, f32) {
     let (x, width) = if ui.compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
@@ -425,11 +425,12 @@ pub(super) fn frame(app: &View, ui: &Ui, x0: f32, cw: f32) -> (f32, f32, f32, f3
             (cw - 2.0 * EXPLORE_INSET).min(COLUMN_MAX),
         )
     };
-    let top = 12.0 - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 12.0;
     let start = if ui.compact {
         top
     } else {
-        faraday_draw::tokens::PAGE_TOP_BAR - app.list_offset
+        faraday_draw::tokens::PAGE_TOP_BAR
     };
     (x, width, top, start)
 }

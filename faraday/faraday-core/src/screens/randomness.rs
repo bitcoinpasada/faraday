@@ -13,6 +13,7 @@ use crate::drawing::View;
 use crate::fresh::OwnSource;
 use crate::fresh::page::{Act, OwnPage};
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -201,13 +202,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x0 + 2.0 * MARGIN_WIDE, w)
     };
     // The top app bar has the way back and the name.
+    ui.page_begin((x0, cw, h), app.list_offset);
     let top = if ui.compact {
         PAD
     } else {
         let name = app.trail_name().unwrap_or(EN.compact_settings);
         let back = app.named_back((name, Action::Back));
         super::bar_head(ui, Some(back), EN.own_add_randomness)
-    } - app.list_offset;
+    };
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &app.own_status()) + PAD;
     y += ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, EN.own_add_to_pool) + PAD;
@@ -216,7 +218,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += PAD + added(ui, (x, y + PAD, w), line, shown);
     }
     let content = y + PAD - top;
-    crate::compact::screen::finish(app, ui, x0, cw, h, content);
+    crate::compact::screen::finish(app, ui, h, content);
 }
 
 /// What was added, once anything was: a check mark and the line

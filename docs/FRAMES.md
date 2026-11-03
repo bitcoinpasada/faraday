@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified, not built
-**Open:** all of it: a scroll step that moves the rows already drawn (§3), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write (§6), what a frame does beside its pixels (§7)
+**Status:** Specified; the first step of §3 is built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer, batch FR1), the rest is not
+**Open:** the rest of it: the moved frame itself, with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the content layer taken only when a frame asks for it (`Ui::keep_content`), the stretch moving the layer, a scroll step that moves the rows already drawn (§3), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write (§6), what a frame does beside its pixels (§7)
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -90,9 +90,11 @@ as today.
 
 The region's **content layer** is the region's pixels as its content
 left them, before any overlay: `Ui` copies the region's view into it at
-the start of `report_scroll`, before the stretch, the edge fades and
+the start of `Ui::region`'s close, before the stretch, the edge fades and
 the scrollbar. Its cost is a copy of the view (about 20 µs of a 1.2 ms
-frame on the build machine at the Pi's size).
+frame on the build machine at the Pi's size). The copy is taken only
+while `Ui::keep_content` is on, which the moved frame (FR2) turns on;
+until then nothing reads the layer and a frame copies nothing.
 
 A moved frame, for the active region of the last frame, moving it `d`
 pixels:
@@ -103,7 +105,7 @@ pixels:
    now, so its presses, hits, fields, tip anchors and the step column's
    answers are the whole view's (`Ui::hit` takes `hit_clip`, the view,
    not the strip); only the pixels are held to the strip.
-2. At `report_scroll`, before any overlay, the content layer moved by
+2. At `Ui::region`'s close, before any overlay, the content layer moved by
    `d` is copied into the view but for the strip, then the view is
    copied into the layer again.
 3. The overlays are drawn as today: the stretch (`stretch_view`, which

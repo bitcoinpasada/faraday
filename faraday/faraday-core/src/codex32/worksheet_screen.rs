@@ -21,7 +21,9 @@
 //! drawn. Every value is read from the worksheet the work set keeps;
 //! nothing here computes but the cells' places.
 
+use crate::ui::Extent;
 use crate::ui::Paint;
+use crate::ui::Region;
 use crate::ui::Shape;
 use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
@@ -566,7 +568,13 @@ pub(crate) fn draw(
     let (px, py) = (pan.x.clamp(0.0, max.0), pan.y.clamp(0.0, max.1));
     let (ox, oy) = (x - sx - px, y - py);
     let clip = ui.rect(x, y, vw, vh);
-    ui.c.push_clip(clip);
+    let region = if fit.is_some() {
+        // No view of its own: where it stands, for the page to follow.
+        Region::beside(Slot::WorksheetWhole, clip, 0.0).own_bar()
+    } else {
+        Region::beside(Slot::Worksheet, clip, py).panned(px)
+    };
+    let open = ui.region_open(region);
     let mark = ui.presses_mark();
     let cut_from = (ui.c.cut_mark(), ui.cut.len());
     let (cells, marks) = cells(s, &g);
@@ -633,13 +641,15 @@ pub(crate) fn draw(
         ui.c.scrolled_across(cut_from.0);
         ui.cut.truncate(cut_from.1);
     }
-    ui.c.pop_clip();
-    if fit.is_some() {
-        // No view of its own: where it stands, for the page to follow.
-        ui.report_scroll_in(Slot::WorksheetWhole, clip, 0.0, 0.0);
+    let reach = if fit.is_some() {
+        Extent::default()
     } else {
-        ui.report_scroll_both(Slot::Worksheet, clip, max, (px, py));
-    }
+        Extent {
+            down: max.1,
+            across: max.0,
+        }
+    };
+    ui.region_close(open, reach);
     vh
 }
 

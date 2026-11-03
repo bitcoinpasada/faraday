@@ -31,7 +31,7 @@ pub mod tooltip;
 pub use controls::{Reach, Style, focus_step, reach_at};
 pub use pal::{Paint, Role, ThemeName};
 pub use press::{Plain, PressMark, Ring, Shape, Unpressed};
-pub use region::{Scrolled, Slot};
+pub use region::{Extent, Layer, Open, Region, Scrolled, Slot};
 pub use theme::{Contrast, Mode, TextSize, Theme};
 
 use faraday_draw::canvas::ShapeKey;
@@ -400,6 +400,20 @@ pub struct Ui<'a, A> {
     pub ox: f32,
     /// See [`Ui::ox`].
     pub oy: f32,
+    /// Whole device pixels every place is moved down by after it is
+    /// rounded: a region laid out from zero is moved by its offset here
+    /// ([`Region::from_zero`]).
+    pub oy_px: i32,
+    /// The active region's content as its content left it
+    /// ([`Layer`]).
+    pub content: Layer,
+    /// The active region's content layer is taken at its close: off, a
+    /// frame copies nothing, since nothing reads the layer yet
+    /// (`docs/FRAMES.md` §3.1).
+    pub keep_content: bool,
+    /// The region a page opened with [`Ui::region_begin`] and has not
+    /// closed.
+    begun: Option<Open>,
     /// Where the caret and the selection are in the focused field.
     pub edit: Edit<A>,
     /// Where each line of typing drew its characters this frame.
@@ -607,6 +621,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             layer: 0,
             ox: 0.0,
             oy: 0.0,
+            oy_px: 0,
+            content: Layer::default(),
+            keep_content: false,
+            begun: None,
             edit: Edit::default(),
             fields: Vec::new(),
             back_link: None,
@@ -675,82 +693,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.clear(c);
     }
 
-    /// Says that this frame scrolls the region seen through `view`
-    /// (pixels), whose content scrolls as far as `max` units. Called once
-    /// the region's content is drawn: a stretch past an end
-    /// (`docs/MOTION.md` §3.3) moves what was drawn in it, and what is
-    /// pressable there, and the page shows in the gap.
-    pub fn report_scroll(&mut self, view: Rect, max: f32) {
-        self.report_scroll_on(view, max, Role::Surface);
-    }
-
-    /// [`Ui::report_scroll`] for a region that sits on the container
-    /// `ground` rather than on the page (a dialog, a sheet, a menu): its
-    /// edges fade into that container, and that container shows in the
-    /// gap a stretch past an end opens (`docs/THEMES.md` §6, §7).
-    pub fn report_scroll_on(&mut self, view: Rect, max: f32, ground: Role) {
-        let offset = self.offset;
-        self.report(Slot::Page, (view, ground), max, offset, false);
-    }
-
-    /// [`Ui::report_scroll`], for a region that draws its own scrollbar.
-    pub fn report_scroll_own_bar(&mut self, view: Rect, max: f32) {
-        let offset = self.offset;
-        self.report(Slot::Page, (view, Role::Surface), max, offset, true);
-    }
-
-    /// [`Ui::report_scroll_own_bar`], for a region beside the page's that
-    /// moves by its own offset, `offset` units now.
-    pub fn report_scroll_in(&mut self, slot: Slot, view: Rect, max: f32, offset: f32) {
-        self.report(slot, (view, Role::Surface), max, offset, true);
-    }
-
-    /// [`Ui::report_scroll_in`] for a region that shows the page's own
-    /// overlay scrollbar at its right edge while it is the one scrolled.
-    pub fn report_scroll_beside(&mut self, slot: Slot, view: Rect, max: f32, offset: f32) {
-        self.report_scroll_beside_on(slot, (view, Role::Surface), max, offset);
-    }
-
-    /// [`Ui::report_scroll_beside`] for a region that sits on the
-    /// container `ground` (Learn's supporting pane): its edges fade into
-    /// that container, as [`Ui::report_scroll_on`]'s do.
-    pub fn report_scroll_beside_on(
-        &mut self,
-        slot: Slot,
-        (view, ground): (Rect, Role),
-        max: f32,
-        offset: f32,
-    ) {
-        self.report(slot, (view, ground), max, offset, false);
-    }
-
-    /// [`Ui::report_scroll_beside`] for a region whose content also pans
-    /// sideways: `max` is how far it goes across and down, in units, and
-    /// `offset` how far it is panned each way. While it is the one
-    /// scrolled, its overlay scrollbar runs along its foot too, as
-    /// Material's horizontal scrollbar does.
-    pub fn report_scroll_both(
-        &mut self,
-        slot: Slot,
-        view: Rect,
-        max: (f32, f32),
-        offset: (f32, f32),
-    ) {
-        self.report(slot, (view, Role::Surface), max.1, offset.1, false);
-        if let Some(s) = self.scrolled.iter_mut().find(|s| s.slot == slot) {
-            s.max_x = max.0.max(0.0);
-        }
-        if let Some((alpha, _)) = self.bar
-            && slot == self.active
-            && self.in_sheet == self.stretch_in_sheet
-            && !self.compact
-            && max.0 > 0.0
-            && alpha > 0
-        {
-            self.scroll_bar_across(view, max.0, offset.0, alpha);
-        }
-    }
-
     /// The overlay scrollbar along a region's foot: a thumb as long as the
     /// share of the content's width in view, clear of the bar at its right
     /// edge, drawn as [`Ui::scroll_bar`] draws its own.
@@ -780,50 +722,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             150
         };
         self.col(Role::OnSurfaceVariant.with_alpha((u16::from(alpha) * most / 255) as u8))
-    }
-
-    /// Keeps the region `slot` seen through `view` (pixels) on the
-    /// container `ground`, its content scrolling `max` units and `offset`
-    /// of them now; stretches it, fades its edges into `ground` and draws
-    /// its scrollbar.
-    fn report(
-        &mut self,
-        slot: Slot,
-        (view, ground): (Rect, Role),
-        max: f32,
-        offset: f32,
-        own_bar: bool,
-    ) {
-        let max = max.max(0.0);
-        let region = Scrolled {
-            slot,
-            view,
-            max,
-            own_bar,
-            max_x: 0.0,
-        };
-        match self.scrolled.iter_mut().find(|s| s.slot == slot) {
-            Some(s) => *s = region,
-            None => self.scrolled.push(region),
-        }
-        if self.in_sheet != self.stretch_in_sheet {
-            return;
-        }
-        if slot == self.active {
-            self.stretch_view(view, ground);
-        }
-        self.edge_fades(view, max, offset, ground);
-        // A small panel draws no scrollbar: the edge fades say the page
-        // goes on.
-        if let Some((alpha, offset)) = self.bar
-            && slot == self.active
-            && !self.compact
-            && !own_bar
-            && max > 0.0
-            && alpha > 0
-        {
-            self.scroll_bar(view, max, offset, alpha);
-        }
     }
 
     /// The overlay scrollbar: a thumb at the region's right edge, as long
@@ -1124,12 +1022,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         (v * self.f).round() as i32
     }
 
+    /// The pixel row of design `y` (the frame's offset and the region's
+    /// whole pixels applied).
+    pub fn py(&self, y: f32) -> i32 {
+        self.px(y + self.oy) + self.oy_px
+    }
+
     /// A rectangle in design units, in pixels.
     pub fn rect(&self, x: f32, y: f32, w: f32, h: f32) -> Rect {
         let (x, y) = (x + self.ox, y + self.oy);
         let x0 = self.px(x);
         let y0 = self.px(y);
-        Rect::new(x0, y0, self.px(x + w) - x0, self.px(y + h) - y0)
+        Rect::new(
+            x0,
+            y0 + self.oy_px,
+            self.px(x + w) - x0,
+            self.px(y + h) - y0,
+        )
     }
 
     /// Whether anything drawn in the band from `y` to `y + h`, design
@@ -1156,7 +1065,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let color = self.col(self.solid(color));
         self.c.fill_circle(
             (cx + self.ox) * self.f,
-            (cy + self.oy) * self.f,
+            (cy + self.oy) * self.f + self.oy_px as f32,
             r * self.f,
             color,
         );
@@ -1394,7 +1303,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// in the off half of its blink not drawn.
     pub fn caret(&mut self, x: f32, y: f32, h: f32) {
         self.caret_drawn = true;
-        self.caret_foot = Some(y + h + self.oy);
+        self.caret_foot = Some(y + h + self.oy + self.oy_px as f32 / self.f);
         self.note_focus(x, y, 2.0, h);
         if self.caret_on {
             self.fill(x, y, 2.0, h, 1.0, Role::Primary);
@@ -1517,7 +1426,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let font = self.font(size, w);
         let px = self
             .c
-            .text(self.px(x + self.ox), self.px(y + self.oy), s, font, color);
+            .text(self.px(x + self.ox), self.py(y), s, font, color);
         px as f32 / self.f
     }
 
@@ -1620,7 +1529,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let font = self.font(size, w);
         let rect = Rect::new(
             self.px(x + self.ox),
-            self.px(y + self.oy),
+            self.py(y),
             self.px(width),
             self.px(2000.0),
         );
@@ -1648,7 +1557,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let lines = text::wrap(&face, s, self.px(width));
         let lh = face.line_height();
         let bold = self.px(faraday_draw::tokens::MARK_BOLD).max(1);
-        let (x0, mut y0) = (self.px(x + self.ox), self.px(y + self.oy));
+        let (x0, mut y0) = (self.px(x + self.ox), self.py(y));
         for &(start, end) in &lines {
             let mut pen = x0;
             let cuts = [
@@ -1704,9 +1613,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     fn stick_glyph(&mut self, cx: f32, cy: f32, size: f32, color: impl Into<Paint>) {
         let color = self.col(color);
         let f = self.f;
-        let (ox, oy) = (self.ox, self.oy);
+        let (ox, oy, oy_px) = (self.ox, self.oy, self.oy_px);
         // In units of the glyph's size, from its centre.
-        let px = |u: f32, v: f32| ((cx + u * size + ox) * f, (cy + v * size + oy) * f);
+        let px = |u: f32, v: f32| {
+            (
+                (cx + u * size + ox) * f,
+                (cy + v * size + oy) * f + oy_px as f32,
+            )
+        };
         // The body, with its corners cut round in three steps each.
         let (l, r, t, b, k) = (-0.5, 0.18, -0.27, 0.27, 0.1);
         let mut body = Vec::with_capacity(16);

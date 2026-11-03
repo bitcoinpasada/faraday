@@ -235,7 +235,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + crate::compact::M;
     let w = cw - 2.0 * crate::compact::M;
-    let mut y = 8.0 - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let mut y = 8.0;
     let view = app.vaults.focus == Some(Focus::Search(SearchIn::Codes));
     if !view {
         y += now_row(app, ui, x, y, w) + 8.0;
@@ -276,5 +277,5 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += 52.0;
     }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y + app.list_offset);
+    crate::compact::screen::finish(app, ui, h, y);
 }

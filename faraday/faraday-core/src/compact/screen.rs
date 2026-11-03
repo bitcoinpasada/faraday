@@ -5,6 +5,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use crate::ui::Shape;
 use faraday_draw::widgets::Icon;
 
@@ -130,7 +131,8 @@ pub(crate) fn heading(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, iw) = (x0 + M, cw - 2.0 * M);
-    let top = -app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 0.0;
     let mut cy = top + 12.0;
     let Some(wlt) = app.session.wallets.get(app.wallets.wallet()) else {
         if app.session.loose_keys().is_empty() {
@@ -143,7 +145,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         } else {
             cy += crate::screens::loose_card(app, ui, x, cy, iw);
-            finish(app, ui, x0, cw, h, cy - top + 8.0);
+            finish(app, ui, h, cy - top + 8.0);
         }
         return;
     };
@@ -152,7 +154,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && let Some(g) = app.glance_of(app.wallets.wallet())
     {
         cy += crate::glance::draw_column(ui, &g, crate::glance::Direction::WalletFirst, x, cy, iw);
-        finish(app, ui, x0, cw, h, cy - top + 8.0);
+        finish(app, ui, h, cy - top + 8.0);
         return;
     }
 
@@ -405,7 +407,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::RemoveWallet(app.wallets.wallet()),
     ));
     cy += stack(ui, x, cy, iw, &buttons);
-    finish(app, ui, x0, cw, h, cy - top + 8.0);
+    finish(app, ui, h, cy - top + 8.0);
 }
 
 /// A silent payments wallet's card on a small panel.
@@ -507,7 +509,7 @@ fn silent_card(
             ),
         ],
     );
-    finish(app, ui, 0.0, x + iw + M, h, cy - top + 8.0);
+    finish(app, ui, h, cy - top + 8.0);
 }
 
 /// What explains a page, after its controls and behind a tap, as a
@@ -537,10 +539,9 @@ pub(crate) fn about_learn(
 }
 
 /// Reports how tall the page is, so it scrolls.
-pub(crate) fn finish(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, content: f32) {
+pub(crate) fn finish(app: &View, ui: &mut Ui, h: f32, content: f32) {
     app.scroll.content_h().set(content);
-    let view = ui.rect(x0, 0.0, cw, h);
-    ui.report_scroll(view, content - h);
+    ui.region_end(content - h);
 }
 
 /// A passphrase field: its label over it, dots for what is typed, a
@@ -614,7 +615,8 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let es = app.entry.state();
     use crate::forms::Form;
     let (x, iw) = (x0 + M, cw - 2.0 * M);
-    let top = -app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 0.0;
     let mut y = top + 10.0;
     if let Some(line) = entry_for(app) {
         let line = ui.fit_as(LABEL_L, &line, iw);
@@ -642,7 +644,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if es.form != Form::Words {
         let y = entry_form(app, ui, x, y, iw, None);
-        finish(app, ui, x0, cw, h, y - top + 8.0);
+        finish(app, ui, h, y - top + 8.0);
         return;
     }
     // Scan leads, above the word field: primary until a word is typed
@@ -703,7 +705,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     crate::screens::entry_stick(app, ui, x, y + 4.0);
     y += 44.0;
-    finish(app, ui, x0, cw, h, y - top + 8.0);
+    finish(app, ui, h, y - top + 8.0);
 }
 
 /// Add a key's words form on a small panel: the word being typed, the

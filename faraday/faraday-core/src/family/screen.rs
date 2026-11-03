@@ -4,6 +4,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
 use faraday_draw::tokens::{FIELD_H, GAP, GAP_SMALL, PROGRESS_H, ROW_CHEVRON_ROOM, TOUCH};
 use faraday_draw::widgets::Icon;
@@ -364,8 +365,8 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     use crate::screens::{section_label, wrap_buttons};
     let (x, w) = (M, cw - 2.0 * M);
     let clip = ui.rect(0.0, BAR_H, cw, h - BAR_H);
-    ui.c.push_clip(clip);
-    let top = BAR_H + 12.0 - app.family.state.scroll.y;
+    let open = ui.region_open(Region::page(clip).from_zero(app.family.state.scroll.y));
+    let top = BAR_H + 12.0;
     let mut y = top;
     y += wrap_buttons(
         ui,
@@ -479,10 +480,9 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         ));
         y += 4.0 + wrap_buttons(ui, x, y + 4.0, w, 38.0, &items);
     }
-    ui.c.pop_clip();
     let content = y - top + 24.0;
     let max = (content - (h - BAR_H)).max(0.0);
-    ui.report_scroll(clip, max);
+    ui.region_close(open, max);
     if crate::flow::past_end(app.family.state.scroll.y, max) {
         let to = flow::Scroll {
             y: max,

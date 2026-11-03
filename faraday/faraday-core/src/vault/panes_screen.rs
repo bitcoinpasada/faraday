@@ -8,6 +8,7 @@ use crate::drawing::View;
 use crate::panes::screen::{Item, ListPane, split};
 use crate::screens::guide_text;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::{self, VaultAction as V};
@@ -168,8 +169,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return crate::vault::screen::unlock(app, ui, dx - inset, w + 2.0 * inset, h);
     }
     let clip = ui.rect(dx, p.top, p.detail.1, h - p.top);
-    ui.c.push_clip(clip);
-    let top = p.top - app.list_offset;
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = p.top;
     let mut y = top;
     match files.get(at) {
         Some(f) => y += card(app, ui, (dx, y, w), at, f) + MARGIN_WIDE,
@@ -188,9 +189,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &[app.medium.a(), app.medium.for_the()],
     );
     y += guide_text(app, ui, dx, y, w, &about);
-    ui.c.pop_clip();
     app.scroll.content_h().set(y - top);
-    ui.report_scroll(clip, y - top - (h - p.top));
+    ui.region_close(open, y - top - (h - p.top));
 }
 
 /// Vault `i`'s card in the detail: its lock, title and file, what it

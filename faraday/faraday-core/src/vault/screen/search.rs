@@ -206,16 +206,16 @@ pub(crate) fn compact_rows(
 
 /// On a compact window while typing goes to the items' search bar,
 /// Material's search view: the bar at the page's top and the items it
-/// finds under it, in the page `(x0, cw, h)`, its column at `(x, top)`,
+/// finds under it, in a page `h` tall, its column at `(x, top)`,
 /// `w` wide.
 pub(crate) fn compact_view(
     app: &View,
     ui: &mut Ui,
     items: &[RecordView<'_>],
-    (x0, cw, h): (f32, f32, f32),
+    h: f32,
     (x, top, w): (f32, f32, f32),
 ) {
     let mut y = top + bar(app, ui, x, top, w, SearchIn::Items);
     y += compact_rows(app, ui, items, x, y, w);
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + PAD);
+    crate::compact::screen::finish(app, ui, h, y - top + PAD);
 }

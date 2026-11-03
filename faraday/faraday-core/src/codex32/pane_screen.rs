@@ -8,6 +8,7 @@
 //! Desktop's host strip, outside the app (`docs/DESKTOP-HOST.md` §3.1).
 //! Drawing reads the flow's state and works nothing out.
 
+use crate::ui::Region;
 use faraday_draw::tokens as t;
 
 use super::{Card, Codex32Make};
@@ -79,11 +80,10 @@ pub(crate) fn draw(
     let view = (h - y - t::MARGIN_WIDE).max(t::TOUCH);
     let clip = ui.rect(x, y, w, view);
     let off = m.pane_offset();
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::beside(Slot::DemoPane, clip, off));
     let mark = ui.presses_mark();
     let all = super::dice_screen::dice_sheet(m, ui, (x, y - off, w), false, false);
     // What is scrolled out of the pane takes no press.
     ui.clip_presses_since(mark, clip);
-    ui.c.pop_clip();
-    ui.report_scroll_beside(Slot::DemoPane, clip, (all - view).max(0.0), off);
+    ui.region_close(open, (all - view).max(0.0));
 }

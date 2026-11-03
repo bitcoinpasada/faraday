@@ -9,7 +9,7 @@
 
 use crate::pal::*;
 use crate::sheet;
-use crate::{Glyph, Plain, Style, Ui};
+use crate::{Glyph, Plain, Region, Style, Ui};
 use faraday_draw::tokens::{
     ELEVATION_MENU, FOCUS_RING, GAP, GRID, ICON_GAP, ICON_GLYPH_BUTTON, LABEL_L, LABEL_M,
     LIST_PAD_V, MENU_HEAD_H, MENU_INDENT, MENU_ITEM_H, MENU_ITEM_PAD, MENU_MAX_W, MENU_MIN_W,
@@ -225,9 +225,9 @@ pub fn menu<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, h: f32, m: &Menu<A>) {
     }
     let off = ui.offset.clamp(0.0, max);
     let clip = ui.rect(x, y, pw, ph);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).on(Role::SurfaceContainer).from_zero(off));
     let mark = ui.hits.len();
-    let mut cy = y + MENU_PAD_V - off;
+    let mut cy = y + MENU_PAD_V;
     if let Some(t) = m.title {
         let hh = head_h(ui);
         let at = (x + MENU_ITEM_PAD, cy, hh, pw - 2.0 * MENU_ITEM_PAD);
@@ -246,6 +246,5 @@ pub fn menu<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, h: f32, m: &Menu<A>) {
             k += 1;
         }
     }
-    ui.c.pop_clip();
-    ui.report_scroll_on(clip, max, Role::SurfaceContainer);
+    ui.region_close(open, max);
 }

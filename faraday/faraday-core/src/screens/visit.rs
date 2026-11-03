@@ -3,6 +3,7 @@
 use super::parts::{guide_text_learn, kind_line, pull_line, size_text};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -20,7 +21,8 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::{about_learn, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = 12.0 - app.list_offset;
+    ui.page_begin((x0, cw, h), app.list_offset);
+    let top = 12.0;
     let mut y = top;
     app.visit.bar(crate::Column::Outbox).set(None);
     app.visit.bar(crate::Column::Stick).set(None);
@@ -387,7 +389,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         Some(crate::learn::Topic::AirGap),
     );
-    finish(app, ui, x0, cw, h, y - top + 16.0);
+    finish(app, ui, h, y - top + 16.0);
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -505,8 +507,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let max_shift = (all_h - track_h).max(0.0);
     let shift = app.visit.out_offset.min(max_shift);
     let clip = ui.rect(x, list_top, colw, track_h);
-    ui.c.push_clip(clip);
-    let mut ry = list_top - shift;
+    let open = ui.region_open(
+        Region::beside(crate::ui::Slot::VisitOut, clip, app.visit.out_offset)
+            .own_bar()
+            .from_zero(shift),
+    );
+    let mut ry = list_top;
     ui.checkbox(x + 22.0, ry + 15.0, settings_on, true);
     ui.text_as(
         x + 54.0,
@@ -635,13 +641,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ry += ROW;
         }
     }
-    ui.c.pop_clip();
-    ui.report_scroll_in(
-        crate::ui::Slot::VisitOut,
-        clip,
-        max_shift,
-        app.visit.out_offset,
-    );
+    ui.region_close(open, max_shift);
     visit_list_bar(
         app,
         ui,
@@ -700,9 +700,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         visit_unselect_all(ui, ix + colw, y);
     }
     let clip = ui.rect(ix, list_top, colw, track_h);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).own_bar().from_zero(shift));
     for (k, (name, size)) in stick.files.iter().enumerate() {
-        let ry = list_top - shift + k as f32 * ROW;
+        let ry = list_top + k as f32 * ROW;
         // A row scrolled out of the list's sight is passed over.
         if !ui.shows(ry, ROW) {
             continue;
@@ -771,8 +771,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     }
-    ui.c.pop_clip();
-    ui.report_scroll_own_bar(clip, max_shift);
+    ui.region_close(open, max_shift);
     visit_list_bar(
         app,
         ui,

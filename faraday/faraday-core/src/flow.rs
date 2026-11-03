@@ -11,6 +11,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -139,8 +140,8 @@ pub fn column_wide(
         return paged(ui, col, cards, scroll, body, foot);
     }
     let clip = ui.rect(col.area_x, 0.0, col.area_w, col.h);
-    ui.c.push_clip(clip);
-    let top = tokens::PAGE_TOP_BAR - scroll.y;
+    let view_open = ui.region_open(Region::page(clip).from_zero(scroll.y));
+    let top = tokens::PAGE_TOP_BAR;
     let mut y = top;
     let (x, w) = (col.x, col.w);
     // The top app bar over the page names the flow and carries its way
@@ -336,13 +337,12 @@ pub fn column_wide(
         y += 6.0 + foot(ui, x, y + 6.0, w);
     }
     let content_h = y + settled - top + 24.0;
-    ui.c.pop_clip();
+    let max = (content_h - col.h).max(0.0);
+    ui.region_close(view_open, max);
     ui.column = Some((cards.iter().position(|c| c.open), open_body.unwrap_or(0.0)));
 
     let mut next = scroll;
     let mut again = false;
-    let max = (content_h - col.h).max(0.0);
-    ui.report_scroll(clip, max);
     if next.follow {
         next.follow = false;
         // With every card closed, the foot is what comes into view.
@@ -401,8 +401,8 @@ fn paged(
         next.y = 0.0;
     }
     let clip = ui.rect(0.0, BAR_H, w, col.h - BAR_H);
-    ui.c.push_clip(clip);
-    let top = BAR_H - next.y;
+    let view_open = ui.region_open(Region::page(clip).from_zero(next.y));
+    let top = BAR_H;
     let mut y = top + 10.0;
     let inner = w - 2.0 * M;
     if let Some(chip) = col.chip {
@@ -529,7 +529,8 @@ fn paged(
         }
     }
     let content_h = y - top + 24.0;
-    ui.c.pop_clip();
+    let max = (content_h - (col.h - BAR_H)).max(0.0);
+    ui.region_close(view_open, max);
     ui.column = None;
 
     // The bar goes over whatever has scrolled under it.
@@ -547,8 +548,6 @@ fn paged(
     let right = ui.bar_tools_x.unwrap_or(w - MARGIN_COMPACT);
     faraday_ui::nav::app_bar(ui, w, &head, right);
 
-    let max = (content_h - (col.h - BAR_H)).max(0.0);
-    ui.report_scroll(clip, max);
     let mut again = false;
     if past_end(next.y, max) {
         next.y = max;

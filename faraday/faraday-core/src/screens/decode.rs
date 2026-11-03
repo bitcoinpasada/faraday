@@ -3,6 +3,7 @@
 use super::parts::spaced;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, grouped};
 use crate::{Action, Screen};
@@ -52,14 +53,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x0 + 48.0, (cw - 96.0).min(960.0))
     };
     let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     // Scrolled as far as the end it last drew to (`content_h`).
     let top = if compact {
         14.0
     } else {
         let back = app.named_back((decode_back(d.back), decode_back_to(d.back)));
         super::bar_head(ui, Some(back), EN.decode_decode_a_transaction)
-    } - app.list_offset;
+    };
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &t.source) + 14.0;
 
@@ -247,9 +248,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.stroke(x, y, w, th + 20.0, 8.0, Role::OutlineVariant);
         y += th + 32.0;
     }
-    ui.c.pop_clip();
     app.scroll.content_h().set(y - top + 40.0);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+    ui.region_close(open, app.scroll.content_h().get() - h);
 }
 
 /// An input's line under its outpoint: its sequence, its witness and its

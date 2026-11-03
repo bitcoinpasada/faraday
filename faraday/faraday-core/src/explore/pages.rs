@@ -152,7 +152,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(e) = app.explore.state() else {
         return;
     };
-    let (x, width, start, y) = frame(app, ui, x0, cw);
+    let (x, width, start, y) = frame(app, ui, x0, cw, h);
     let mut y = top(app, ui, x, y, width, EN.explore_addresses);
     let pick = Style::chosen;
     let chains = [
@@ -194,7 +194,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .and_then(|acc| shown.and_then(|s| s.wif(&address_path(acc, e.change, i))));
         y += row(ui, (x, y, width), (e.change, i), (&a, None), Some(wif));
     }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - start + T::PAD);
+    crate::compact::screen::finish(app, ui, h, y - start + T::PAD);
 }
 
 /// Find an address: the field and its Paste, how deep to look, Search
@@ -203,7 +203,7 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(e) = app.explore.state() else {
         return;
     };
-    let (x, width, start, y) = frame(app, ui, x0, cw);
+    let (x, width, start, y) = frame(app, ui, x0, cw, h);
     let mut y = top(app, ui, x, y, width, EN.explore_find);
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.explore_address);
     y += T::PAD + T::GAP_SMALL;
@@ -259,7 +259,7 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(s) = e.search.as_ref().filter(|s| Some(&s.of) == of.as_ref()) {
         y += result(ui, x, y, width, s);
     }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - start + T::PAD);
+    crate::compact::screen::finish(app, ui, h, y - start + T::PAD);
 }
 
 /// What a search found: how far it has looked while it looks; each

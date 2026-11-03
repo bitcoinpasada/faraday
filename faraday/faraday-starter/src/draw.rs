@@ -9,6 +9,7 @@ use faraday_core::build::{Fit, describe, version};
 use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
+use faraday_ui::Region;
 use faraday_ui::hold::HoldTone;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Paint, Style};
@@ -92,8 +93,8 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
     let top = faraday_draw::tokens::APP_BAR_H;
     let view_h = h - top - bar_h;
     let clip = ui.rect(rail_w, top, area_w, view_h);
-    ui.c.push_clip(clip);
-    let y0 = top + margin - starter.offset;
+    let open = ui.region_open(Region::page(clip).from_zero(starter.offset));
+    let y0 = top + margin;
     let end = match starter.page {
         Page::Home => home::home(starter, ui, x, y0, cw),
         Page::Make => home::make(starter, ui, x, y0, cw),
@@ -117,10 +118,9 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::TemplateLength => template_length(starter, ui, x, y0, cw),
         Page::TemplateWorksheets => template_worksheets(starter, ui, x, y0, cw),
     };
-    ui.c.pop_clip();
     let content = end - y0 + 2.0 * margin;
     let max = (content - view_h).max(0.0);
-    ui.report_scroll(clip, max);
+    ui.region_close(open, max);
     nav::top_bar(starter, ui, rail_w, area_w);
     if dest.is_some() {
         if compact {

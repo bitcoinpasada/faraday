@@ -4,6 +4,7 @@ use super::parts::{section, tz_row};
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP, PAD, TITLE_M};
@@ -108,8 +109,8 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Scrolled as far as the end it last drew to, so its fields come up
     // above the keyboard.
     let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
-    let top = 12.0 - app.list_offset;
+    let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
+    let top = 12.0;
     let mut y = top;
     y += section(ui, x, y, w, EN.set_time_now, &|ui, x, y0, w| {
         let mut y = y0;
@@ -161,7 +162,6 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     items.push((EN.set_time_back, Style::Ghost, Action::SetTimeBack));
     y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
-    ui.c.pop_clip();
     app.scroll.content_h().set(y - top + PAD);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+    ui.region_close(open, app.scroll.content_h().get() - h);
 }

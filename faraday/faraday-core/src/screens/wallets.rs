@@ -3,6 +3,7 @@
 use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -601,9 +602,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let view_top = cy - 6.0;
     let view_h = (foot - tokens::GAP - view_top).max(0.0);
     let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
-    ui.c.push_clip(clip);
+    let held_open = ui.region_open(
+        Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
+            .from_zero(app.wallets.card_offset()),
+    );
     let top = cy;
-    cy -= app.wallets.card_offset();
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
     ui.fill(
@@ -709,7 +712,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let role = if held { Role::Warning } else { Role::OnSurface };
     cy += crate::screens::address_press(ui, (ix, cy, iw), (size, role), &addr, open) + 8.0;
-    ui.c.pop_clip();
+    let content = cy - top;
+    let max = (content - (view_h - (top - view_top))).max(0.0);
+    ui.region_close(held_open, max);
     card_actions(
         ui,
         (ix, (cy + tokens::GAP).min(foot), iw),
@@ -717,9 +722,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         end,
         &placed,
     );
-    let content = cy + app.wallets.card_offset() - top;
-    let max = (content - (view_h - (top - view_top))).max(0.0);
-    ui.report_scroll_in(crate::ui::Slot::Card, clip, max, app.wallets.card_offset());
 }
 
 /// Where a wallet card's actions go in a row `w` wide: each item's row,

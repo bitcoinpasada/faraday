@@ -3,6 +3,7 @@
 use super::SIDEBAR_W;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Style, Ui};
@@ -187,14 +188,18 @@ fn lists(app: &View, ui: &mut Ui, from: f32, to: f32) {
     // Which of a group's `total` rows, the first drawn at `y0`, are in
     // view: the first and how many.
     let seen = |y0: f32, total: usize| -> (usize, usize) {
-        let first = (((top - y0) / ROW).floor().max(0.0) as usize).min(total);
-        let end = (((top + view - y0) / ROW).ceil().max(0.0) as usize).min(total);
+        let first = (((top + offset - y0) / ROW).floor().max(0.0) as usize).min(total);
+        let end = (((top + offset + view - y0) / ROW).ceil().max(0.0) as usize).min(total);
         (first, end.saturating_sub(first))
     };
     let clip = ui.rect(0.0, top, SIDEBAR_W, view);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(
+        Region::beside(crate::ui::Slot::Sidebar, clip, offset)
+            .on(Role::SurfaceContainerLow)
+            .from_zero(offset),
+    );
     let mark = ui.presses_mark();
-    let keys_at = top - offset;
+    let keys_at = top;
     let wallets_at = keys_at
         + if seeds > 0 {
             HEAD + seeds as f32 * ROW
@@ -237,9 +242,7 @@ fn lists(app: &View, ui: &mut Ui, from: f32, to: f32) {
     group(ui, wallets_at, group_w, &mut wallet_rows);
     // What is scrolled out of the lists takes no press.
     ui.clip_presses_since(mark, clip);
-    ui.c.pop_clip();
-    let on = (clip, Role::SurfaceContainerLow);
-    ui.report_scroll_beside_on(crate::ui::Slot::Sidebar, on, max, offset);
+    ui.region_close(open, max);
 }
 
 /// Wallet `i`'s row, `ready` as `View::readiness` has it.

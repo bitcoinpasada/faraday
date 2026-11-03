@@ -9,6 +9,7 @@ use crate::drawing::View;
 use crate::screens::sheet_box;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wordlist::{LISTS, WordListAction as WL};
@@ -132,7 +133,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let scroll = scroll.clamp(0.0, max);
     app.wordlist_scroll(max, scroll);
     let clip = ui.rect(x, top, sw, view);
-    ui.c.push_clip(clip);
+    let open = ui.region_open(Region::page(clip).from_zero(scroll));
     let first = (scroll / ROW).floor() as usize;
     let last = (((scroll + view) / ROW).ceil() as usize).min(found.len());
     for (r, &i) in found.iter().enumerate().take(last).skip(first) {
@@ -140,7 +141,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
             usize::from(i),
             words.get(usize::from(i)).copied().unwrap_or(""),
         );
-        let ry = top + 4.0 + r as f32 * ROW - scroll;
+        let ry = top + 4.0 + r as f32 * ROW;
         let marked = st.mark == Some(i);
         if marked {
             ui.fill(
@@ -172,14 +173,16 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         // A press marks the word; only the part of the row in view takes
         // it.
-        let (hy, hb) = (ry.max(top), (ry + ROW - 2.0).min(top + view));
+        let (hy, hb) = (
+            ry.max(top + scroll),
+            (ry + ROW - 2.0).min(top + scroll + view),
+        );
         if hb > hy {
             ui.press_box(bx, hy, bw, hb - hy, Action::WordList(WL::Mark(i as u16)));
         }
     }
-    ui.c.pop_clip();
     // The overlay scrollbar, held and dragged as on any page.
-    ui.report_scroll(clip, max);
+    ui.region_close(open, max);
 }
 
 /// The search field at (x, y), at most half the row `w` wide: Material's
