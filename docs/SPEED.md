@@ -667,11 +667,16 @@ What was found: moved to `docs/history/SPEED-LOG.md`.
 
 **Fixed.** `present.rs`'s `Presenter` keeps the core's last frame beside
 its converted copy and compares first (`fb::changed_rows`, a `memcmp` a
-row): only the rows from the first to the last that differ are
-converted, and only those are walked to the panel. A frame that is the
-same converts and writes nothing; a stale panel (the first frame, after
-a blanking or a failed write) still takes the whole frame. The cost is
-a copy of the core's frame (1.2 MB at 480×640, 8.3 MB at 1920×1080).
+row): only the bands of rows that differ are converted, and only those
+are written, so a caret and the clock are two writes, not the rows
+between them. The panel is handed those bands (`Panel::write_known`) and
+does not compare again; its own comparison stays for the arrow's
+caller. A band the arrow does not cross goes to the framebuffer from the
+frame as it is; only the arrow's rows are copied to draw it in. A frame
+that is the same converts and writes nothing; a stale panel (the first
+frame, after a blanking or a failed write) still takes the whole frame,
+and a frame turned a quarter still writes one span of columns. The cost
+is a copy of the core's frame (1.2 MB at 480×640, 8.3 MB at 1920×1080).
 
 The measurements: moved to `docs/history/SPEED-LOG.md`.
 

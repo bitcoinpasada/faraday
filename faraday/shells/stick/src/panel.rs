@@ -125,9 +125,10 @@ impl<S: Sink> Panel<S> {
     /// Costs a comparison of the rows with what the panel shows and a
     /// write of those that differ: rows `first..=last` of `frame`, a
     /// whole converted frame, written where they differ from the panel,
-    /// with the arrow drawn where it falls in them. The caller walks a
-    /// frame in chunks of [`CHUNK_ROWS`], one call per hold of the lock,
-    /// and calls [`Panel::complete`] after the last.
+    /// a band at a time, with the arrow drawn where it falls in them. The
+    /// caller walks a frame in chunks of [`CHUNK_ROWS`], one call per hold
+    /// of the lock, and calls [`Panel::complete`] after the last. A caller
+    /// that already knows which rows changed uses [`Panel::write_known`].
     pub fn write_rows(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
         let row = self.geometry.row_bytes();
         if self.shown.len() != frame.len() {
@@ -135,23 +136,40 @@ impl<S: Sink> Panel<S> {
             self.shown.resize(frame.len(), 0);
             self.stale = true;
         }
-        let span = if self.stale {
-            Some((first, last))
+        let bands = if self.stale {
+            vec![(first, last)]
         } else {
             let rows = first * row..(last + 1) * row;
             fb::changed_rows(&self.shown[rows.clone()], &frame[rows], row)
+                .into_iter()
                 .map(|(a, b)| (first + a, first + b))
+                .collect()
         };
-        let Some((a, b)) = span else {
-            return Ok(());
-        };
-        let shown = std::mem::take(&mut self.shown);
-        let result = self.write_band(frame, a, b);
-        self.shown = shown;
+        bands
+            .into_iter()
+            .try_for_each(|(a, b)| self.put_rows(frame, a, b))
+    }
+
+    /// Costs a write of rows `first..=last` of `frame`, which the caller has found
+    /// differ from what the panel shows, with no second comparison, and
+    /// keeps the panel's copy in step. The arrow is drawn where it falls.
+    /// A panel that shows nothing known takes the rows through
+    /// [`Panel::write_rows`], which writes them whatever they hold.
+    pub fn write_known(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
+        if self.stale || self.shown.len() != frame.len() {
+            return self.write_rows(frame, first, last);
+        }
+        self.put_rows(frame, first, last)
+    }
+
+    /// Costs a write of rows `first..=last` of `frame` and, if that worked, copies
+    /// them into the kept copy; a failure leaves the panel stale.
+    fn put_rows(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
+        let row = self.geometry.row_bytes();
+        let result = self.write_band(frame, first, last);
         match result {
-            Ok(()) => {
-                self.shown[a * row..(b + 1) * row].copy_from_slice(&frame[a * row..(b + 1) * row]);
-            }
+            Ok(()) => self.shown[first * row..(last + 1) * row]
+                .copy_from_slice(&frame[first * row..(last + 1) * row]),
             Err(_) => self.stale = true,
         }
         result
@@ -258,26 +276,63 @@ impl<S: Sink> Panel<S> {
     }
 
     /// Rows `first..=last` of `frame` to the panel, the arrow drawn in
-    /// where it falls: one `pwrite` when the rows are packed, one per row
-    /// when the kernel pads them. `write_all_at` needs no seek and no
-    /// `mmap`, so the whole path stays inside safe `std`.
+    /// where it falls: the rows the arrow does not cross go out from
+    /// `frame` as they are, and only the arrow's rows are copied to draw
+    /// it in. `write_all_at` needs no seek and no `mmap`, so the whole
+    /// path stays inside safe `std`.
     fn write_band(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
         let g = self.geometry;
         let row = g.row_bytes();
+        let crossed = self.arrow.and_then(|at| {
+            let (a, b) = cursor::rows(g, self.turn, at);
+            let (lo, hi) = (a.max(first), b.min(last));
+            (lo <= hi).then_some((at, lo, hi))
+        });
+        let Some((at, lo, hi)) = crossed else {
+            return self.put(frame, first, last);
+        };
+        if first < lo {
+            self.put(frame, first, lo - 1)?;
+        }
         self.band.clear();
         self.band
-            .extend_from_slice(&frame[first * row..(last + 1) * row]);
-        if let Some(at) = self.arrow {
-            cursor::draw_rows(&mut self.band, g, self.turn, at, first);
+            .extend_from_slice(&frame[lo * row..(hi + 1) * row]);
+        cursor::draw_rows(&mut self.band, g, self.turn, at, lo);
+        let band = std::mem::take(&mut self.band);
+        let result = self.put_from(&band, lo, lo, hi);
+        self.band = band;
+        result?;
+        if hi < last {
+            self.put(frame, hi + 1, last)?;
         }
+        Ok(())
+    }
+
+    /// Rows `first..=last` of `frame` to the panel as they are.
+    fn put(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
+        self.put_from(frame, 0, first, last)
+    }
+
+    /// Rows `first..=last` of the panel from `buf`, which starts at row
+    /// `origin`: one `pwrite` when the rows are packed, one per row when
+    /// the kernel pads them.
+    fn put_from(
+        &mut self,
+        buf: &[u8],
+        origin: usize,
+        first: usize,
+        last: usize,
+    ) -> std::io::Result<()> {
+        let g = self.geometry;
+        let row = g.row_bytes();
         self.written += (last + 1 - first) as u64;
+        let rows = (first - origin) * row..(last + 1 - origin) * row;
         if g.stride == row {
-            self.fb.write_at(&self.band, (first * row) as u64)
+            self.fb.write_at(&buf[rows], (first * row) as u64)
         } else {
             (first..=last).try_for_each(|y| {
-                let r = (y - first) * row;
-                self.fb
-                    .write_at(&self.band[r..r + row], (y * g.stride) as u64)
+                let r = (y - origin) * row;
+                self.fb.write_at(&buf[r..r + row], (y * g.stride) as u64)
             })
         }
     }

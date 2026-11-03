@@ -318,25 +318,32 @@ impl Walk<'_> {
     }
 }
 
-/// Costs a comparison of the two frames, up to the first and from the
-/// last row that differ: the rows of `next` that differ from `prev`, both
-/// frames of `row` bytes a row, the first and the last (inclusive), or
-/// `None` when the two are the same. A `prev` of another size (none yet) makes every
-/// row a changed one. Only these rows need writing to the panel: fewer
-/// bytes cross to the framebuffer, and the beam has less of a window to
-/// catch the write half done in.
-pub fn changed_rows(prev: &[u8], next: &[u8], row: usize) -> Option<(usize, usize)> {
+/// Costs a comparison of the two frames: the bands of rows of `next`
+/// that differ from `prev`, both frames of `row` bytes a row, each band
+/// a first and a last row (inclusive), sorted, with no unchanged row
+/// inside one; empty when the two are the same. A `prev` of another size
+/// (none yet) makes every row a changed one. Only these rows need
+/// writing to the panel: fewer bytes cross to the framebuffer, and a
+/// caret and the clock are two bands, not the rows between them.
+pub fn changed_rows(prev: &[u8], next: &[u8], row: usize) -> Vec<(usize, usize)> {
     let rows = next.len() / row.max(1);
     if rows == 0 {
-        return None;
+        return Vec::new();
     }
     if prev.len() != next.len() {
-        return Some((0, rows - 1));
+        return vec![(0, rows - 1)];
     }
-    let differs = |y: usize| prev[y * row..(y + 1) * row] != next[y * row..(y + 1) * row];
-    let first = (0..rows).find(|&y| differs(y))?;
-    let last = (first..rows).rev().find(|&y| differs(y)).unwrap_or(first);
-    Some((first, last))
+    let mut bands: Vec<(usize, usize)> = Vec::new();
+    for y in 0..rows {
+        if prev[y * row..(y + 1) * row] == next[y * row..(y + 1) * row] {
+            continue;
+        }
+        match bands.last_mut() {
+            Some((_, end)) if *end + 1 == y => *end = y,
+            _ => bands.push((y, y)),
+        }
+    }
+    bands
 }
 
 /// Bands of rows, each a first and last row inclusive, sorted and with
@@ -399,16 +406,18 @@ mod tests {
         // Four rows of two 16-bit pixels.
         let prev = [0u8; 16];
         let mut next = prev;
-        assert_eq!(changed_rows(&prev, &next, 4), None);
+        assert_eq!(changed_rows(&prev, &next, 4), vec![]);
         next[5] = 1;
-        assert_eq!(changed_rows(&prev, &next, 4), Some((1, 1)));
+        assert_eq!(changed_rows(&prev, &next, 4), vec![(1, 1)]);
         next[13] = 1;
-        assert_eq!(changed_rows(&prev, &next, 4), Some((1, 3)));
+        assert_eq!(changed_rows(&prev, &next, 4), vec![(1, 1), (3, 3)]);
+        next[9] = 1;
+        assert_eq!(changed_rows(&prev, &next, 4), vec![(1, 3)]);
         next[0] = 1;
-        assert_eq!(changed_rows(&prev, &next, 4), Some((0, 3)));
+        assert_eq!(changed_rows(&prev, &next, 4), vec![(0, 3)]);
         // Nothing drawn before: every row is new.
-        assert_eq!(changed_rows(&[], &next, 4), Some((0, 3)));
-        assert_eq!(changed_rows(&prev, &[], 4), None);
+        assert_eq!(changed_rows(&[], &next, 4), vec![(0, 3)]);
+        assert_eq!(changed_rows(&prev, &[], 4), vec![]);
     }
 
     /// A sysfs framebuffer directory of this test's own. The last path

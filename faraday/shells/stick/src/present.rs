@@ -84,11 +84,11 @@ impl Presenter {
             self.converted.clear();
             self.converted.resize(rows * out_row, 0);
             self.turn = Some(turn);
-            Some((0, frame_rows - 1))
+            vec![(0, frame_rows - 1)]
         } else {
             fb::changed_rows(&self.last, rgba, src_row)
         };
-        if let Some((a, b)) = changed {
+        for &(a, b) in &changed {
             fb::convert_turned(rgba, (a, b), g.depth, turn, panel_size, &mut self.converted);
             let src = a * src_row..(b + 1) * src_row;
             self.last[src.clone()].copy_from_slice(&rgba[src]);
@@ -98,35 +98,48 @@ impl Presenter {
             t.add(Bucket::Convert, start.elapsed());
         }
 
-        // Where the frame's changed rows are on the panel: its rows, or
-        // a band of its columns down every row. A stale panel shows
+        // Where the frame's changed bands are on the panel: its rows, or
+        // (turned a quarter) one band of its columns down every row,
+        // from the first changed column to the last. A stale panel shows
         // nothing known: the whole frame goes out, changed or not.
         let (w, h) = (usize::from(g.width), rows);
-        let span = if lock(panel).stale() {
-            Some(((0, h - 1), None))
+        let (bands, columns): (Vec<(usize, usize)>, _) = if lock(panel).stale() {
+            (vec![(0, h - 1)], None)
+        } else if let (Some(&(first, _)), Some(&(_, last))) = (changed.first(), changed.last()) {
+            match turn {
+                Turn::R0 => (changed.clone(), None),
+                Turn::R180 => (
+                    fb::merge_bands(
+                        changed
+                            .iter()
+                            .map(|&(a, b)| (h - 1 - b, h - 1 - a))
+                            .collect(),
+                    ),
+                    None,
+                ),
+                Turn::R90 => (vec![(0, h - 1)], Some((w - 1 - last, w - 1 - first))),
+                Turn::R270 => (vec![(0, h - 1)], Some((first, last))),
+            }
         } else {
-            changed.map(|(a, b)| match turn {
-                Turn::R0 => ((a, b), None),
-                Turn::R180 => ((h - 1 - b, h - 1 - a), None),
-                Turn::R90 => ((0, h - 1), Some((w - 1 - b, w - 1 - a))),
-                Turn::R270 => ((0, h - 1), Some((a, b))),
-            })
-        };
-        let Some(((a, b), columns)) = span else {
             return Ok(());
         };
         let start = timings.is_some().then(Instant::now);
         let mut result = Ok(());
-        let mut first = a;
-        while first <= b && result.is_ok() {
-            let last = (first + CHUNK_ROWS - 1).min(b);
-            let mut p = lock(panel);
-            result = match columns {
-                None => p.write_rows(&self.converted, first, last),
-                Some(cols) => p.write_columns(&self.converted, cols, first, last),
-            };
-            drop(p);
-            first = last + 1;
+        'bands: for (a, b) in bands {
+            let mut first = a;
+            while first <= b {
+                let last = (first + CHUNK_ROWS - 1).min(b);
+                let mut p = lock(panel);
+                result = match columns {
+                    None => p.write_known(&self.converted, first, last),
+                    Some(cols) => p.write_columns(&self.converted, cols, first, last),
+                };
+                drop(p);
+                if result.is_err() {
+                    break 'bands;
+                }
+                first = last + 1;
+            }
         }
         if result.is_ok() {
             lock(panel).complete();
@@ -302,5 +315,123 @@ mod tests {
             }
         );
         assert_eq!(*lock(&panel).sink(), want);
+    }
+
+    /// A frame of one grey, `turn`'s size.
+    fn grey(turn: Turn, v: u8) -> Vec<u8> {
+        let (fw, fh) = turn.frame_size((G.width, G.height));
+        vec![v; usize::from(fw) * usize::from(fh) * 4]
+    }
+
+    /// Sets the pixel at column `x` of row `y` of `frame` (a frame `turn`
+    /// wide) to `v`.
+    fn dot(frame: &mut [u8], turn: Turn, x: usize, y: usize, v: u8) {
+        let (fw, _) = turn.frame_size((G.width, G.height));
+        let at = (y * usize::from(fw) + x) * 4;
+        frame[at..at + 3].fill(v);
+    }
+
+    /// What the panel should hold for `frame`, with the arrow at `arrow`.
+    fn want(frame: &[u8], turn: Turn, arrow: Option<(u16, u16)>) -> Vec<u8> {
+        let panel = (G.width, G.height);
+        let mut out = vec![0u8; G.row_bytes() * usize::from(G.height)];
+        let (_, fh) = turn.frame_size(panel);
+        fb::convert_turned(
+            frame,
+            (0, usize::from(fh) - 1),
+            G.depth,
+            turn,
+            panel,
+            &mut out,
+        );
+        if let Some(at) = arrow {
+            crate::cursor::draw_rows(&mut out, G, turn, at, 0);
+        }
+        out
+    }
+
+    fn put(p: &mut Presenter, frame: &[u8], turn: Turn, panel: &Mutex<Panel<Vec<u8>>>) -> Counts {
+        let before = p.counts(panel);
+        p.present(frame, G, turn, panel, None).expect("written");
+        since(p.counts(panel), before)
+    }
+
+    #[test]
+    fn a_caret_and_a_clock_are_two_writes() {
+        let panel = Mutex::new(Panel::new(Vec::new(), G));
+        let mut p = Presenter::default();
+        let mut frame = grey(Turn::R0, 40);
+        put(&mut p, &frame, Turn::R0, &panel);
+        dot(&mut frame, Turn::R0, 100, 20, 255);
+        dot(&mut frame, Turn::R0, 300, 600, 255);
+        let spent = put(&mut p, &frame, Turn::R0, &panel);
+        assert_eq!(
+            spent,
+            Counts {
+                converted: 2,
+                written: 2
+            }
+        );
+        assert_eq!(*lock(&panel).sink(), want(&frame, Turn::R0, None));
+    }
+
+    #[test]
+    fn the_panel_shows_the_frame_with_the_arrow_after_every_change() {
+        let panel = Mutex::new(Panel::new(Vec::new(), G));
+        let mut p = Presenter::default();
+        let mut frame = grey(Turn::R0, 40);
+        let shows = |frame: &[u8], arrow| {
+            assert_eq!(*lock(&panel).sink(), want(frame, Turn::R0, arrow));
+        };
+        // The whole frame, then the arrow lands in it.
+        put(&mut p, &frame, Turn::R0, &panel);
+        shows(&frame, None);
+        lock(&panel).move_arrow(Some((200, 300))).expect("moved");
+        shows(&frame, Some((200, 300)));
+        // A small change away from the arrow, and one under it.
+        dot(&mut frame, Turn::R0, 10, 50, 255);
+        let spent = put(&mut p, &frame, Turn::R0, &panel);
+        assert_eq!(spent.written, 1);
+        shows(&frame, Some((200, 300)));
+        dot(&mut frame, Turn::R0, 205, 305, 200);
+        put(&mut p, &frame, Turn::R0, &panel);
+        shows(&frame, Some((200, 300)));
+        // A change that spans the arrow's band and the rows around it.
+        for y in 280..330 {
+            dot(&mut frame, Turn::R0, 0, y, 90);
+        }
+        put(&mut p, &frame, Turn::R0, &panel);
+        shows(&frame, Some((200, 300)));
+        // The arrow moves away: no stale arrow stays.
+        lock(&panel).move_arrow(Some((20, 500))).expect("moved");
+        shows(&frame, Some((20, 500)));
+        lock(&panel).move_arrow(None).expect("moved");
+        shows(&frame, None);
+        // The same frame again writes nothing.
+        assert_eq!(put(&mut p, &frame, Turn::R0, &panel), Counts::default());
+    }
+
+    #[test]
+    fn a_turned_frame_shows_as_it_did() {
+        for turn in [Turn::R90, Turn::R180, Turn::R270] {
+            let panel = Mutex::new(Panel::new(Vec::new(), G));
+            lock(&panel).set_turn(turn);
+            let mut p = Presenter::default();
+            let mut frame = grey(turn, 40);
+            put(&mut p, &frame, turn, &panel);
+            assert_eq!(*lock(&panel).sink(), want(&frame, turn, None), "{turn:?}");
+            dot(&mut frame, turn, 5, 7, 255);
+            dot(&mut frame, turn, 100, 200, 255);
+            put(&mut p, &frame, turn, &panel);
+            assert_eq!(*lock(&panel).sink(), want(&frame, turn, None), "{turn:?}");
+            lock(&panel).move_arrow(Some((60, 90))).expect("moved");
+            dot(&mut frame, turn, 70, 95, 120);
+            put(&mut p, &frame, turn, &panel);
+            assert_eq!(
+                *lock(&panel).sink(),
+                want(&frame, turn, Some((60, 90))),
+                "{turn:?}"
+            );
+        }
     }
 }
