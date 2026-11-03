@@ -220,10 +220,8 @@ fn pack(words: &[u16; NUM_WORDS]) -> [u8; CIPHER_SEED_SIZE] {
     let mut out = [0u8; CIPHER_SEED_SIZE];
     for (n, word) in words.iter().enumerate() {
         for bit in 0..11 {
-            if word >> (10 - bit) & 1 == 1 {
-                let at = n * 11 + bit;
-                out[at / 8] |= 0x80 >> (at % 8);
-            }
+            let at = n * 11 + bit;
+            out[at / 8] |= (((word >> (10 - bit)) & 1) as u8) << (7 - at % 8);
         }
     }
     out

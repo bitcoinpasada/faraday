@@ -928,7 +928,7 @@ other = [
 
 [action.secrets]
 reveal = "none"
-constant_time = "not stated by the library"
+constant_time = "A word is found by comparing it with every entry of its list in constant time (subtle), and the entropy's bits are written without a branch; the sentence is gathered by a masked scan, and its length follows the words, as BIP-39 requires; the code states no other timing."
 wiped = "The word buffer and the indices are Secret values, zeroized when dropped; the Mnemonic wipes its indices when dropped."
 
 [action.limits]
@@ -1065,7 +1065,7 @@ fuzz_none = "Takes parsed words and a passphrase typed in a field; words-read fu
 
 [action.secrets]
 reveal = "none"
-constant_time = "not stated by the library"
+constant_time = "A word is found by comparing it with every entry of its list in constant time (subtle), and the entropy's bits are written without a branch; the sentence is gathered by a masked scan, and its length follows the words, as BIP-39 requires; the code states no other timing."
 wiped = "The sentence, the salt and the seed are Secret values, zeroized when dropped; the key holds its words and passphrase in zeroizing buffers until it is removed."
 
 [action.limits]
@@ -3811,7 +3811,7 @@ other = [
 
 [action.secrets]
 reveal = "none"
-constant_time = "AEZ's AES round is the aes crate's, which documents every backend as designed to run in constant time; the rest of AEZ is XOR, shifts and loops of fixed length, and the code states no other timing."
+constant_time = "AEZ's AES round is the aes crate's, which documents every backend as designed to run in constant time; the rest of AEZ is XOR, shifts and loops of fixed length, and the words are packed without a branch on their bits; the code states no other timing."
 wiped = "The deciphered entropy is held in a Secret that zeroizes on drop; the word bytes and the inner seed buffer are zeroized after use."
 
 [action.limits]
@@ -6023,7 +6023,7 @@ fuzz = ["seed_parts"]
 
 [action.secrets]
 reveal = ["Reveal::PaperForm"]
-constant_time = "The GF(256) arithmetic of the shares and the RS1024 checksum are written without a table indexed by a share's bytes or a branch on them, as the code documents; the digest is compared in constant time (subtle's ConstantTimeEq); the code states no other timing."
+constant_time = "The GF(256) arithmetic of the shares and the RS1024 checksum are written without a table indexed by a share's bytes or a branch on them, as the code documents; a word is found by comparing its first four letters with every entry of the list in constant time (subtle), the rest of the word with the entry found, masked; the digest is compared in constant time (subtle's ConstantTimeEq); the code states no other timing."
 wiped = "The master secret is a Secret; the share values and points wipe on drop."
 
 [action.limits]

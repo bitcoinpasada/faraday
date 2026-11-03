@@ -14,6 +14,8 @@
 use faraday_crypto::work::{Compute, Work};
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, pbkdf2_hmac_sha512, sha256};
 
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
+
 use crate::wordlists;
 
 /// Fewest words in a mnemonic (128-bit entropy).
@@ -201,20 +203,39 @@ impl Language {
     /// exactly. No normalization is applied to `word`; callers that accept
     /// free-form input must supply the stored form (the on-screen keyboard
     /// does, since it only offers words from the list).
+    ///
+    /// Costs the whole list for every word: each of the 2048 entries is
+    /// compared with the word at a fixed length by `subtle`, so the time
+    /// does not follow the word's place in the list.
     pub fn index_of(self, word: &str) -> Option<u16> {
         let words = self.words();
         let nfkd = self.words_nfkd();
-        (0..wordlists::WORDLIST_LEN)
-            .find(|&i| words[i] == word || nfkd[i] == word)
-            .map(|i| i as u16)
+        let w = Padded::new(word.as_bytes())?;
+        let mut found = 0u16;
+        let mut hit = Choice::from(0);
+        for i in 0..wordlists::WORDLIST_LEN {
+            let eq = Padded::new(words[i].as_bytes()).map_or(Choice::from(0), |p| p.ct_eq(&w))
+                | Padded::new(nfkd[i].as_bytes()).map_or(Choice::from(0), |p| p.ct_eq(&w));
+            found.conditional_assign(&(i as u16), eq & !hit);
+            hit |= eq;
+        }
+        bool::from(hit).then_some(found)
     }
 
     /// Index of the word whose NFKD form is exactly `word`'s bytes.
+    ///
+    /// Costs the whole list, like [`index_of`](Self::index_of).
     fn index_of_nfkd(self, word: &[u8]) -> Option<u16> {
         let nfkd = self.words_nfkd();
-        (0..wordlists::WORDLIST_LEN)
-            .find(|&i| nfkd[i].as_bytes() == word)
-            .map(|i| i as u16)
+        let w = Padded::new(word)?;
+        let mut found = 0u16;
+        let mut hit = Choice::from(0);
+        for (i, entry) in nfkd.iter().enumerate() {
+            let eq = Padded::new(entry.as_bytes()).map_or(Choice::from(0), |p| p.ct_eq(&w));
+            found.conditional_assign(&(i as u16), eq & !hit);
+            hit |= eq;
+        }
+        bool::from(hit).then_some(found)
     }
 
     /// Indices of every word whose published form starts with `prefix`,
@@ -783,9 +804,21 @@ impl Mnemonic {
                 buf[n] = b' ';
                 n += 1;
             }
-            let word = self.lang.word_nfkd(w).as_bytes();
-            buf[n..n + word.len()].copy_from_slice(word);
-            n += word.len();
+            // The word is gathered by a scan of the whole list into a
+            // fixed slot; only its length follows the word.
+            let mut slot = Secret::new([0u8; wordlists::MAX_NFKD_BYTES]);
+            let mut len = 0u32;
+            for (j, entry) in self.lang.words_nfkd().iter().enumerate() {
+                let pick = (j as u16).ct_eq(&w);
+                let p = Padded::new(entry.as_bytes()).expect("a listed word fits its slot");
+                for (d, s) in slot.expose_mut().iter_mut().zip(p.bytes.iter()) {
+                    d.conditional_assign(s, pick);
+                }
+                len.conditional_assign(&(p.len as u32), pick);
+            }
+            let len = len as usize;
+            buf[n..n + len].copy_from_slice(&slot.expose()[..len]);
+            n += len;
         }
 
         let mut salt = Secret::new([0u8; SALT_PREFIX.len() + MAX_PASSPHRASE_BYTES]);
@@ -929,15 +962,37 @@ fn get11(buf: &[u8], i: usize) -> u16 {
     v
 }
 
-/// Writes the 11-bit group `i` (MSB-first) into a packed bit buffer.
+/// Writes the 11-bit group `i` (MSB-first) into a packed bit buffer,
+/// without a branch on the bits.
 fn set11(buf: &mut [u8], i: usize, v: u16) {
     for b in 0..11 {
         let bit = 11 * i + b;
-        if (v >> (10 - b)) & 1 == 1 {
-            buf[bit / 8] |= 1 << (7 - bit % 8);
-        } else {
-            buf[bit / 8] &= !(1 << (7 - bit % 8));
-        }
+        let m = 1u8 << (7 - bit % 8);
+        let set = 0u8.wrapping_sub(((v >> (10 - b)) & 1) as u8);
+        buf[bit / 8] = (buf[bit / 8] & !m) | (m & set);
+    }
+}
+
+/// A word's bytes in a fixed-size slot, zero padded, with its length, so
+/// that two words compare in constant time.
+struct Padded {
+    bytes: [u8; wordlists::MAX_NFKD_BYTES],
+    len: usize,
+}
+
+impl Padded {
+    /// `None` when the word is longer than any listed word.
+    fn new(word: &[u8]) -> Option<Self> {
+        let mut bytes = [0u8; wordlists::MAX_NFKD_BYTES];
+        bytes.get_mut(..word.len())?.copy_from_slice(word);
+        Some(Padded {
+            bytes,
+            len: word.len(),
+        })
+    }
+
+    fn ct_eq(&self, other: &Padded) -> Choice {
+        self.bytes.ct_eq(&other.bytes) & (self.len as u32).ct_eq(&(other.len as u32))
     }
 }
 

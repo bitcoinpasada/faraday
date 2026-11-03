@@ -187,21 +187,43 @@ pub fn word(idx: u16) -> &'static str {
 /// The index of `w` in the wordlist, if it is there. A word is identified
 /// by its first four letters, so a prefix of four or more letters finds
 /// the word it begins.
+///
+/// Costs all 1024 entries for every word: the first four letters are
+/// compared with every entry's in constant time, and the rest of the
+/// typed word with the entry found, masked.
 pub fn index_of(w: &str) -> Option<u16> {
-    if w.len() >= 4 {
-        let key = &w.as_bytes()[..4];
-        wordlist::WORDS
-            .iter()
-            .position(|&candidate| {
-                candidate.as_bytes().starts_with(key) && candidate.starts_with(w)
-            })
-            .map(|i| i as u16)
-    } else {
-        wordlist::WORDS
-            .iter()
-            .position(|&c| c == w)
-            .map(|i| i as u16)
+    use subtle::{Choice, ConditionallySelectable};
+    let wb = w.as_bytes();
+    let n = wb.len().min(4);
+    let mut key = [0u8; 4];
+    key[..n].copy_from_slice(&wb[..n]);
+    let mut found = 0u16;
+    let mut hit = Choice::from(0);
+    for (i, cand) in wordlist::WORDS.iter().enumerate() {
+        let cb = cand.as_bytes();
+        let m = cb.len().min(4);
+        let mut first = [0u8; 4];
+        first[..m].copy_from_slice(&cb[..m]);
+        // A word under four letters must be a whole entry.
+        let eq = if wb.len() >= 4 {
+            first.ct_eq(&key)
+        } else {
+            first.ct_eq(&key) & (m as u32).ct_eq(&(wb.len() as u32))
+        };
+        found.conditional_assign(&(i as u16), eq & !hit);
+        hit |= eq;
     }
+    if !bool::from(hit) {
+        return None;
+    }
+    // The rest of the typed word is a prefix of the entry found.
+    let entry = wordlist::WORDS[usize::from(found)].as_bytes();
+    let mut ok = Choice::from(u8::from(wb.len() <= entry.len()));
+    for (k, &b) in wb.iter().enumerate().skip(4) {
+        let e = entry.get(k).copied().unwrap_or(0);
+        ok &= e.ct_eq(&b);
+    }
+    bool::from(ok).then_some(found)
 }
 
 /// Every word that begins with `prefix`, in list order.
