@@ -6866,7 +6866,7 @@ libraries = [
   "argon2",
   "ocb3",
 ]
-adds = "Only the part used is written: the version 6 symmetric-key packet with the Argon2 S2K and the version 2 data packet, both AES-256 and OCB, and the one literal data packet, in any length form RFC 9580 allows. The Argon2 cost is checked against the limits before any memory is taken, every tag is checked before plaintext is returned, and every other packet, version, algorithm or trailing byte is named and not opened. HKDF-SHA-256 is Faraday's own (`faraday-crypto`); Argon2id, AES and OCB are the RustCrypto crates."
+adds = "Only the part used is written: the version 6 symmetric-key packet with the Argon2 S2K and the version 2 data packet, both AES-256 and OCB, and the one literal data packet, in any length form RFC 9580 allows. The Argon2 cost is checked against the limits right after the key packet, before the data packet is read or any Argon2 memory is taken, padding packets are ignored, every tag is checked before plaintext is returned, and every other packet, version, algorithm or trailing byte is named and not opened. HKDF-SHA-256 is Faraday's own (`faraday-crypto`); Argon2id, AES and OCB are the RustCrypto crates."
 written_here = "The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)"
 
 [action.checked]
@@ -6892,8 +6892,8 @@ wiped = "The Argon2 output, the wrapping key, the session key, the message key a
 
 [action.limits]
 lines = [
-  "A SKESK v4, a SEIPD v1, a public-key encrypted session key, a second SKESK, compressed data, a signature and trailing data are named \"An OpenPGP message Faraday does not open\".",
-  "Argon2 memory 8 MiB to 1 GiB, passes 1 to 100 and lanes 1 to 64; outside them the message is refused before any memory is taken.",
+  "A SKESK v4, a SEIPD v1, a public-key encrypted session key, a second SKESK, compressed data, a signature and trailing data but padding are named \"An OpenPGP message Faraday does not open\".",
+  "Argon2 memory 8 MiB to 1 GiB, passes 1 to 100 and lanes 1 to 64; outside them the message is refused right after the key packet, before the data packet is read or any memory is taken; a QR vault is written at 64 MiB to 1 GiB.",
   "A wrong passphrase is told from a changed message: the session key's tag fails for the first, a data tag for the second.",
   "The passphrase arrives in Unicode NFC; the caller puts it there.",
 ]

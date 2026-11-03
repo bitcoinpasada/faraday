@@ -13,7 +13,8 @@ the tag 16, which this crate supports (nonces of 6 to 15 bytes).
 here come from, over the `aes` and `cipher` 0.5 and `aead` 0.6 the build
 already holds, and the tag is compared in constant time (`ctutils`). OCB is
 checked here against RFC 9580's own vectors (A.10, AES-128 with OCB, byte
-for byte) and against Sequoia, OpenPGP.js and rPGP in the F79 area `vault`.
+for byte); a check against Sequoia, OpenPGP.js and rPGP in the F79 area
+`vault` is planned and not done.
 Writing OCB here would be a second implementation to review for a mode used
 in this one message.
 

@@ -115,8 +115,13 @@ when it parses as exactly those packets, with lengths in any form RFC
 9580 allows. A SKESK v4 or a SEIPD v1 (the older OpenPGP that GnuPG
 writes), a public-key encrypted session key, a second SKESK, a
 compressed data packet, a signature, or anything after the SEIPD
-packet, is named "An OpenPGP message Faraday does not open" and not
-opened. Faraday writes the binary form, never ASCII armor, and reads the
+packet (padding packets, tag 21, are ignored, as RFC 9580 §5.14
+requires, after the SEIPD packet and after the literal data), is named
+"An OpenPGP message Faraday does not open" and not opened. The reader
+accepts any literal date and any chunk size octet from 0 to 16 (several
+chunks), as RFC 9580 requires; Faraday writes date 0, one chunk, octet
+10 and no padding. The S2K's cost is checked right after the SKESK, before
+the SEIPD packet is read. Faraday writes the binary form, never ASCII armor, and reads the
 binary form only; `.pgp` is the name it writes.
 
 ## 2. Sizes
@@ -837,7 +842,8 @@ Sequoia (pysequoia 0.1.36) opened it to the same plaintext.
 
 Each reader has a fuzz target, seeded from the vectors: the KDBX header
 and block stream, the inflate and the XML reader with §7's rules
-(`kdbx_file`), and the QR vault's packets and its TOML (`qr_vault`).
+(`kdbx_file`), the QR vault's packets (`pgp_qr_vault`) and its TOML
+(`contents`).
 
 ## 11. What the app remembers of a locked vault
 

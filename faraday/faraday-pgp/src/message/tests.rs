@@ -46,7 +46,7 @@ const PASSPHRASE: &[u8] = b"correct horse";
 const FAST: u8 = 13;
 
 fn sealed() -> Vec<u8> {
-    seal(&compute(), PASSPHRASE, FAST, &random(), &toml()).expect("sealed")
+    seal_at(&compute(), PASSPHRASE, FAST, &random(), &toml()).expect("sealed")
 }
 
 fn opened(bytes: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
@@ -212,12 +212,12 @@ fn a_changed_header_of_the_data_packet_is_refused() {
 fn other_plaintext_lengths_are_sealed_and_opened() {
     for len in [0, 1, 191, 192, 600, MAX_PLAINTEXT] {
         let text = vec![b'x'; len];
-        let b = seal(&compute(), PASSPHRASE, FAST, &random(), &text).expect("sealed");
+        let b = seal_at(&compute(), PASSPHRASE, FAST, &random(), &text).expect("sealed");
         assert_eq!(&**opened(&b).expect("opened"), &text[..], "length {len}");
     }
     let text = vec![b'x'; MAX_PLAINTEXT + 1];
     assert_eq!(
-        seal(&compute(), PASSPHRASE, FAST, &random(), &text),
+        seal_at(&compute(), PASSPHRASE, FAST, &random(), &text),
         Err(Error::TooLong)
     );
 }
@@ -266,7 +266,8 @@ fn a_cost_outside_the_limits_is_refused_before_anything_runs() {
         b[at] = value;
         assert!(parse(&b).is_ok(), "byte {at} = {value}");
     }
-    for exponent in [12, 21] {
+    // A writer takes the memory steps only (16 to 20), a reader 13 to 20.
+    for exponent in [12, 13, 15, 21] {
         assert_eq!(
             seal(&compute(), PASSPHRASE, exponent, &random(), &toml()),
             Err(Error::Cost)
@@ -329,6 +330,11 @@ fn another_openpgp_message_is_named() {
     );
 
     assert_eq!(refused(&join(&[&b, &[0]])), other(Unsupported::Trailing));
+    let pad = crate::packet(TAG_PADDING, &[7; 20]);
+    assert_eq!(
+        refused(&join(&[&b, &pad, &crate::packet(TAG_LITERAL, b"b")])),
+        other(Unsupported::Trailing)
+    );
     assert_eq!(refused(&join(&[&b, skesk])), other(Unsupported::Trailing));
 }
 
@@ -392,7 +398,12 @@ fn the_literal_data_packet_must_be_binary_without_a_name() {
 #[test]
 fn what_else_is_in_the_plaintext_is_named() {
     let ok = literal(b'b', b"", b"hello");
-    let trailing = join(&[&ok, &crate::packet(21, &[0; 16])]);
+    let trailing = join(&[&ok, &crate::packet(TAG_LITERAL, b"b\0\0\0\0\0")]);
+    assert_eq!(
+        opened(&with_inner(&trailing)).unwrap_err(),
+        other(Unsupported::Trailing)
+    );
+    let trailing = join(&[&ok, &crate::packet(TAG_PADDING, &[0; 16]), &[0]]);
     assert_eq!(
         opened(&with_inner(&trailing)).unwrap_err(),
         other(Unsupported::Trailing)
@@ -466,7 +477,7 @@ fn bodies(bytes: &[u8]) -> (Vec<u8>, Vec<u8>) {
 #[test]
 fn every_length_form_is_read() {
     let text = vec![b'q'; 900];
-    let plain = seal(&compute(), PASSPHRASE, FAST, &random(), &text).unwrap();
+    let plain = seal_at(&compute(), PASSPHRASE, FAST, &random(), &text).unwrap();
     let (skesk, seipd) = bodies(&plain);
     let forms = [
         (old_format(TAG_SKESK, &skesk), five_octet(TAG_SEIPD, &seipd)),
@@ -501,7 +512,7 @@ fn every_length_form_is_read() {
 #[test]
 fn a_length_that_is_not_allowed_is_malformed() {
     let text = vec![b'q'; 900];
-    let plain = seal(&compute(), PASSPHRASE, FAST, &random(), &text).unwrap();
+    let plain = seal_at(&compute(), PASSPHRASE, FAST, &random(), &text).unwrap();
     let (skesk, seipd) = bodies(&plain);
     // A partial first piece under 512 octets.
     let mut small = vec![0xC0 | TAG_SEIPD, 0xE0 | 8];
@@ -514,4 +525,50 @@ fn a_length_that_is_not_allowed_is_malformed() {
     let long_skesk = join(&[&skesk, &[0; 600]]);
     let m = join(&[&partial(TAG_SKESK, &long_skesk, 9), &plain[90..]]);
     assert_eq!(refused(&m), Error::Malformed);
+}
+
+// Padding (RFC 9580 §5.14), and a vault from outside.
+
+#[test]
+fn padding_packets_are_ignored() {
+    let ok = literal(b'b', b"", b"hello");
+    let pad = crate::packet(TAG_PADDING, &[0xAA; 40]);
+    // Inside the data, after the literal data.
+    let inner = join(&[&ok, &pad, &pad]);
+    assert_eq!(&**opened(&with_inner(&inner)).unwrap(), b"hello");
+    // After the data packet.
+    let b = join(&[&with_inner(&ok), &pad, &pad]);
+    assert_eq!(&**opened(&b).unwrap(), b"hello");
+    // Both, and an empty padding packet.
+    let b = join(&[&with_inner(&inner), &crate::packet(TAG_PADDING, &[])]);
+    assert_eq!(&**opened(&b).unwrap(), b"hello");
+}
+
+#[test]
+fn the_rfc_plaintext_with_its_padding_is_read() {
+    // A.10 is AES-128 with an iterated S2K, which a message is not opened
+    // with; its data packet's whole plaintext, the literal data and then
+    // the padding packet, is read as a message's is.
+    let seipd = vector("a10_seipd");
+    let salt: [u8; SALT_LEN] = seipd[6..38].try_into().unwrap();
+    let plain = decrypt_chunks(
+        Cipher::Aes128,
+        &vector("a10_session_key"),
+        6,
+        &salt,
+        &seipd[38..],
+    )
+    .expect("decrypted");
+    assert_eq!(&**read_literal(&plain).expect("read"), b"Hello, world!");
+}
+
+#[test]
+fn a_vault_from_outside_opens_to_its_toml() {
+    // Made and opened by an independent reader over argon2-cffi and
+    // OpenSSL (tools/vectors/openpgp/README.md).
+    let bytes = vector("vault_13");
+    assert_eq!(parse(&bytes).unwrap().cost().exponent, 13);
+    let got = opened(&bytes).expect("opened");
+    assert_eq!(got.len(), 226);
+    assert!(got.starts_with(b"words = "));
 }

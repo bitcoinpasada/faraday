@@ -18,6 +18,13 @@
   of Argon2id and is ignored by default: `cargo nextest run -p
   faraday-pgp --run-ignored all -E 'test(/argon2_s2k/)'`.
 
+- `vault_13`: a QR vault (AES-256, OCB, Argon2 memory exponent 13) under
+  the passphrase `correct horse`, the file
+  `fuzz/corpus/pgp_qr_vault/vault-13.pgp`. An independent reader over
+  argon2-cffi and OpenSSL opened it to its 226-byte TOML; the test opens it
+  with Faraday's code and expects that length.
+
 RFC 9580 gives no vector for the Argon2 S2K with AES-256 and OCB in a
-version 6 packet together; that pairing is checked against outside
-implementations in the F79 area `vault`.
+version 6 packet together; checking that pairing against Sequoia,
+OpenPGP.js and rPGP in both directions is planned in the F79 area
+`vault` and not done.

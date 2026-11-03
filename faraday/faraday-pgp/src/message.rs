@@ -11,11 +11,14 @@
 //!   name, date 0, then the QR TOML (§5.9).
 //!
 //! [`seal`] writes the message from one caller-supplied buffer of
-//! random bytes. [`parse`] reads the packets and checks the stated
-//! Argon2 cost against the limits of `docs/VAULT.md` §3 before anything
-//! is allocated or run; [`Message::open`] then runs Argon2id and checks
-//! every tag before the plaintext is returned. The passphrase is given
-//! as the bytes of its NFC form.
+//! random bytes. [`parse`] reads the key packet first and checks the
+//! stated Argon2 cost against the limits of `docs/VAULT.md` §3 before it
+//! reads the data packet (the key packet has a fixed length, so nothing
+//! is joined or copied until the cost is accepted); [`Message::open`]
+//! then runs Argon2id and checks every tag before the plaintext is
+//! returned. Padding packets (tag 21) after the data packet and after the
+//! literal data are ignored, as RFC 9580 §5.14 requires. The passphrase
+//! is given as the bytes of its NFC form.
 //!
 //! Only the part used is written (F178): AES-256 with OCB, the Argon2
 //! S2K, the length forms RFC 9580 §4.2 allows. Everything else is
@@ -52,6 +55,9 @@ pub const LANES: u8 = 4;
 /// The memory exponents a reader accepts: 2^13 KiB (8 MiB) to 2^20 KiB
 /// (1 GiB).
 pub const EXPONENTS: core::ops::RangeInclusive<u8> = 13..=20;
+/// The memory exponents [`seal`] writes, the steps of `docs/VAULT.md` §3:
+/// 2^16 KiB (64 MiB) to 2^20 KiB (1 GiB).
+pub const SEAL_EXPONENTS: core::ops::RangeInclusive<u8> = 16..=20;
 /// The most passes a reader accepts.
 pub const MAX_PASSES: u8 = 100;
 /// The most lanes a reader accepts.
@@ -71,6 +77,7 @@ const TAG_COMPRESSED: u8 = 8;
 const TAG_ENCRYPTED: u8 = 9;
 const TAG_LITERAL: u8 = 11;
 const TAG_SEIPD: u8 = 18;
+const TAG_PADDING: u8 = 21;
 
 #[cfg(test)]
 const AES128: u8 = 7;
@@ -105,7 +112,8 @@ pub enum Unsupported {
     Compressed,
     /// A signature or a one-pass signature.
     Signature,
-    /// Anything after the data packet, or after the literal data.
+    /// Anything but padding after the data packet, or after the literal
+    /// data.
     Trailing,
     /// Any other packet, version, algorithm, S2K or AEAD mode.
     Other,
@@ -253,23 +261,10 @@ pub fn parse(bytes: &[u8]) -> Result<Message<'_>, Error> {
         Some(_) => return Err(Error::Unsupported(Unsupported::Other)),
         None => return Err(Error::Malformed),
     }
-    let (second, rest) = read_packet(rest)?;
-    if second.tag != TAG_SEIPD {
-        return Err(Error::Unsupported(classify(second.tag)));
-    }
-    let seipd = second.body.as_slice();
-    match seipd.first() {
-        Some(1) => return Err(Error::Unsupported(Unsupported::Seipd1)),
-        Some(2) => {}
-        Some(_) => return Err(Error::Unsupported(Unsupported::Other)),
-        None => return Err(Error::Malformed),
-    }
-    if !rest.is_empty() {
-        return Err(Error::Unsupported(Unsupported::Trailing));
-    }
 
     // SKESK v6: version, count, cipher, AEAD, S2K length, S2K, IV, the
-    // encrypted session key and its tag.
+    // encrypted session key and its tag. Its cost is checked before the
+    // data packet is read.
     let [_, count, cipher, aead, s2k_len, tail @ ..] = skesk else {
         return Err(Error::Malformed);
     };
@@ -294,6 +289,19 @@ pub fn parse(bytes: &[u8]) -> Result<Message<'_>, Error> {
     }
     let (iv, tail) = tail.split_at(IV_LEN);
     let (session, session_tag) = tail.split_at(32);
+
+    let (second, rest) = read_packet(rest)?;
+    if second.tag != TAG_SEIPD {
+        return Err(Error::Unsupported(classify(second.tag)));
+    }
+    let seipd = second.body.as_slice();
+    match seipd.first() {
+        Some(1) => return Err(Error::Unsupported(Unsupported::Seipd1)),
+        Some(2) => {}
+        Some(_) => return Err(Error::Unsupported(Unsupported::Other)),
+        None => return Err(Error::Malformed),
+    }
+    skip_padding(rest)?;
 
     // SEIPD v2: version, cipher, AEAD, chunk size octet, salt, then the
     // chunks and the final tag.
@@ -322,9 +330,24 @@ pub fn parse(bytes: &[u8]) -> Result<Message<'_>, Error> {
 /// Costs an Argon2id run at `exponent`, 3 passes and 4 lanes
 /// (`docs/VAULT.md` §3): seals `plaintext`, the QR TOML, as a QR vault
 /// under `passphrase`, the bytes of its NFC form. Every random value
-/// comes from `random`. A `exponent` outside the reader's limits is
-/// refused.
+/// comes from `random`. An `exponent` outside the memory steps
+/// ([`SEAL_EXPONENTS`]) is refused.
 pub fn seal(
+    c: &Compute,
+    passphrase: &[u8],
+    exponent: u8,
+    random: &[u8; RANDOM_LEN],
+    plaintext: &[u8],
+) -> Result<Vec<u8>, Error> {
+    if !SEAL_EXPONENTS.contains(&exponent) {
+        return Err(Error::Cost);
+    }
+    seal_at(c, passphrase, exponent, random, plaintext)
+}
+
+/// Costs an Argon2id run: [`seal`] without the check of the memory steps,
+/// so that the tests can seal at the reader's least cost.
+fn seal_at(
     c: &Compute,
     passphrase: &[u8],
     exponent: u8,
@@ -686,16 +709,28 @@ fn decrypt_chunks(
     Ok(plain)
 }
 
+/// Whether `rest` is nothing, or padding packets (§5.14, which a reader
+/// ignores) and nothing else. Their total is bounded by the input, as every
+/// length is.
+fn skip_padding(mut rest: &[u8]) -> Result<(), Error> {
+    while !rest.is_empty() {
+        match read_packet(rest) {
+            Ok((packet, after)) if packet.tag == TAG_PADDING => rest = after,
+            _ => return Err(Error::Unsupported(Unsupported::Trailing)),
+        }
+    }
+    Ok(())
+}
+
 /// The data of the one literal data packet a plaintext must be (§5.9):
-/// format `b` and no file name. The date is not read.
+/// format `b` and no file name, then padding packets and nothing else.
+/// The date is not read.
 fn read_literal(plain: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
     let (packet, rest) = read_packet(plain)?;
     if packet.tag != TAG_LITERAL {
         return Err(Error::Unsupported(classify(packet.tag)));
     }
-    if !rest.is_empty() {
-        return Err(Error::Unsupported(Unsupported::Trailing));
-    }
+    skip_padding(rest)?;
     let body = packet.body.as_slice();
     let [format, name_len, tail @ ..] = body else {
         return Err(Error::Malformed);
@@ -799,7 +834,26 @@ fn read_packet(input: &[u8]) -> Result<(Packet<'_>, &[u8]), Error> {
                 if !is_data_packet(tag) || first < 512 {
                     return Err(Error::Malformed);
                 }
-                let mut joined = Zeroizing::new(Vec::new());
+                // The total first, so that the join is one allocation and
+                // no growth leaves a copy in freed memory.
+                let total = {
+                    let (mut at, mut n, mut total) = (pos, first, 0usize);
+                    loop {
+                        take(at, n)?;
+                        total += n;
+                        at += n;
+                        let (len, next) = new_len(input, at)?;
+                        at = next;
+                        match len {
+                            Len::Partial(m) => n = m,
+                            Len::Fixed(m) => {
+                                take(at, m)?;
+                                break total + m;
+                            }
+                        }
+                    }
+                };
+                let mut joined = Zeroizing::new(Vec::with_capacity(total));
                 let mut n = first;
                 loop {
                     joined.extend_from_slice(take(pos, n)?);
