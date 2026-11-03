@@ -266,8 +266,8 @@ fn the_vaults_page_goes_on_to_how_the_vault_is_built_and_passphrase_strength() {
         assert!(has("16 777 429"), "{w}x{h}: the largest vault's size");
         assert!(has("77.5"), "{w}x{h}: six words of the large list");
         assert!(
-            !lines.iter().any(|l| l.starts_with("Planned, not built:")),
-            "{w}x{h}: the vault's account has no work left to build"
+            lines.iter().any(|l| l.starts_with("Planned, not built:")),
+            "{w}x{h}: the vault's account says the KDBX and OpenPGP vault is still to be built"
         );
         assert!(past.is_empty(), "{w}x{h}: nothing past a side: {past:?}");
     }
