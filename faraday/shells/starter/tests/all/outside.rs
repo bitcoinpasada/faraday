@@ -5,7 +5,9 @@
 //! every table the Starter writes, GPT and MBR; CPython's `plistlib`
 //! reads the `diskutil` answers as the plist reader does; CPython's
 //! `uuid` finds the GUIDs written on a stick to be version 4 and RFC 9562
-//! variant. Without a tool a test is skipped with a note, and fails when
+//! variant; CPython's `zlib.crc32` finds the header and partition-array CRCs of
+//! a GPT the Starter writes (both copies) to be CRC-32 of the bytes they
+//! cover. Without a tool a test is skipped with a note, and fails when
 //! `FARADAY_JUDGES_REQUIRED` is set.
 
 use std::fs;
@@ -265,6 +267,59 @@ fn the_tables_written_on_sticks_and_cards_pass_sgdisk_and_sfdisk() {
             "{what}: sgdisk: {sg_said}"
         );
     }
+}
+
+/// CPython's `zlib.crc32` over a GPT header (its CRC field as zero) and
+/// the partition array it names, against the two CRC fields. Each
+/// argument is `<header hex>:<array hex>`.
+const GPT_CRCS: &str = r#"
+import sys, zlib, struct
+for arg in sys.argv[1:]:
+    header, array = (bytes.fromhex(x) for x in arg.split(":"))
+    assert header[:8] == b"EFI PART", "signature"
+    size = struct.unpack_from("<I", header, 12)[0]
+    crc = struct.unpack_from("<I", header, 16)[0]
+    zeroed = header[:16] + bytes(4) + header[20:size]
+    assert zlib.crc32(zeroed) == crc, "header CRC"
+    count, entry, array_crc = struct.unpack_from("<III", header, 80)
+    assert len(array) == count * entry, "array length"
+    assert zlib.crc32(array) == array_crc, "array CRC"
+    print("ok")
+"#;
+
+#[test]
+fn the_crcs_in_the_gpt_written_on_a_stick_are_crc_32_as_python_works_it_out() {
+    if !have(&["python3"]) {
+        return;
+    }
+    let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+    let mut args = Vec::new();
+    for (name, size) in [("outside-crc-1", 1u64 << 30), ("outside-crc", STICK)] {
+        let path = write_stick(name, size);
+        let u32_at = |b: &[u8], i: usize| u32::from_le_bytes(b[i..i + 4].try_into().unwrap());
+        let u64_at = |b: &[u8], i: usize| u64::from_le_bytes(b[i..i + 8].try_into().unwrap());
+        // The primary header at LBA 1 and the backup where it says.
+        let primary = read(&path, SECTOR, 92);
+        let backup = read(&path, u64_at(&primary, 32) * SECTOR, 92);
+        for header in [primary, backup] {
+            let array_at = u64_at(&header, 72) * SECTOR;
+            let len = u64::from(u32_at(&header, 80)) * u64::from(u32_at(&header, 84));
+            let array = read(&path, array_at, len as usize);
+            args.push(format!("{}:{}", hex(&header), hex(&array)));
+        }
+    }
+    let out = Command::new("python3")
+        .args(["-I", "-c", GPT_CRCS])
+        .args(&args)
+        .output()
+        .expect("python3");
+    let said = text_of(&out);
+    assert!(out.status.success(), "{said}");
+    assert_eq!(
+        said.lines().filter(|l| *l == "ok").count(),
+        args.len(),
+        "{said}"
+    );
 }
 
 // ---- the property lists ----------------------------------------------------

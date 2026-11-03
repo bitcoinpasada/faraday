@@ -30,6 +30,7 @@ nothing else.
   `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl,
   PyCA cryptography (`python3-cryptography`) and pykeepass, and its
   `sign`, `msg` and `musig` areas python-ecdsa (`python3-ecdsa`), its
+  `ur` area cbor2 (`python3-cbor2`), its
   `seedqr` area Pillow (`python3-pil`), zbar (`zbar-tools`), zxing-cpp
   (`python3-zxing-cpp`) and segno (`python3-segno`); PyPy is
   optional (`tools/crosscheck/README.md`).

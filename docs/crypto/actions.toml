@@ -5411,7 +5411,7 @@ tests = [
   "core/faraday-codec/tests/ur_single.rs::a_single_part_ur_of_any_type_is_the_published_one_and_reads_back",
 ]
 crosscheck = "ur"
-independence = { class = "outside", author = "foundation-ur-py, by Foundation Devices" }
+independence = { class = "outside", author = "foundation-ur-py, by Foundation Devices, and CPython's `zlib.crc32` and cbor2, by the cbor2 developers, which judge the one CRC-32 and the one CBOR (the parts' and payloads' CBOR and the registry's types)" }
 fuzz = ["ur_receive", "ur_registry"]
 other = [
   "SeedSigner's and Keystone's codes (INTEROP §2)",
@@ -8426,7 +8426,7 @@ tests = [
   "faraday/shells/starter/tests/all/writer.rs::clearing_first_leaves_every_sector_outside_what_is_then_written_zero",
   "faraday/shells/starter/tests/all/signed_boot.rs::keep_data_refuses_a_boot_partition_that_is_not_the_one_the_release_lists_unless_a_boot_file_is_signed",
 ]
-not_crosschecked = "The sums are compared with `sha256sum`'s in the tests, and the tests judge the decoder with `xz` and 7-Zip (`7zz` or `7z`) over good and damaged streams, the tables written with `sfdisk --verify` and `sgdisk -v`, the `diskutil` answers with Python's `plistlib` and the GUIDs with Python's `uuid`; each is skipped without its tool in `just` and fails in `just crosscheck`. No F79 area runs the decoder."
+not_crosschecked = "The sums are compared with `sha256sum`'s in the tests, and the tests judge the decoder with `xz` and 7-Zip (`7zz` or `7z`) over good and damaged streams, the tables written with `sfdisk --verify` and `sgdisk -v`, the `diskutil` answers with Python's `plistlib` and the GUIDs with Python's `uuid` and the CRC-32 fields of the GPT headers and partition arrays with `zlib.crc32`; each is skipped without its tool in `just` and fails in `just crosscheck`. No F79 area runs the decoder."
 fuzz_none = "The manifest target fuzzes the manifest's reading; no target runs the xz decoder or the hash."
 
 [action.secrets]
