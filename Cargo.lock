@@ -363,6 +363,7 @@ dependencies = [
  "cfg-if",
  "cipher",
  "cpufeatures",
+ "rand_core",
  "zeroize",
 ]
 

@@ -9,7 +9,6 @@
 use std::path::{Path, PathBuf};
 
 use faraday_sb::release::{self, KEYS, Refusal, ReleaseKey};
-use faraday_sb::rng::Stream;
 use faraday_sb::{Check, Error, Keys, make, pe};
 use sha2::{Digest, Sha256};
 
@@ -81,7 +80,7 @@ fn a_release_boot_file_with_genuine_signed_sums_is_signed() {
     assert_eq!(release.version(), "0.9.0");
     let k = keys();
     let signed =
-        release::sign(&mut Stream::new(&[0x43; 32], 0), &boot, &k.db, &release).expect("signed");
+        release::sign(&mut faraday_sb::rng::stream(&[0x43; 32], 0), &boot, &k.db, &release).expect("signed");
     assert_eq!(pe::check(&signed, &k.db.cert), Ok(Check::Valid));
 }
 
@@ -169,7 +168,7 @@ fn a_release_signs_only_the_file_it_names() {
     other[0x200] = 0x90;
     let k = keys();
     assert_eq!(
-        release::sign(&mut Stream::new(&[0x43; 32], 0), &other, &k.db, &release),
+        release::sign(&mut faraday_sb::rng::stream(&[0x43; 32], 0), &other, &k.db, &release),
         Err(Error::NotRelease)
     );
 }

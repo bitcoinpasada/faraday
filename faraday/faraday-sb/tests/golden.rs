@@ -1,6 +1,6 @@
 //! Secure Boot's keys are the same bytes whatever else `x509::generate`
 //! learns to make: an owner's PK, KEK and db from a fixed seed hash to
-//! the values recorded here.
+//! the values recorded here (those of `ChaCha20Rng`'s streams).
 
 use faraday_sb::make;
 use sha2::{Digest, Sha256};
@@ -20,16 +20,16 @@ fn an_owners_secure_boot_keys_are_the_bytes_they_always_were() {
         .flat_map(|p| [hex(&p.key), hex(&p.cert)])
         .collect();
     // Each key's and certificate's SHA-256, PK first, taken from the
-    // build before `generate` took a size and a profile.
+    // build with `ChaCha20Rng` as the generator.
     assert_eq!(
         got,
         [
-            "5fea8de1d74f536b49e9d0514236f017befc4367f32c5319c3014be6b2f40a36",
-            "063b93838b24f2e1424c23b6f91d3c31832a48414ee08cf83d1af34f15da7d22",
-            "debf4e7253b044a1559b95bd60e2b6c7ec4009e61fdccfc2f3db5cf3fcfb5c73",
-            "e588086b8fe4c0d07673b3538f4732c472e51e409f2843661e04c08bff50fdc4",
-            "aec17a2d81d0cad2b2063ce1d7ce15be7d86f510ff61e4ea058e5e86702407c2",
-            "3b73fcf09c559db92886d69a4a72521f6dfd6a2616393dac7590738018bc75d1",
+            "f6b2293b639f9d64c593ae6a08cdda9d6d411b464ce7bb3f1dc9e4f3a2dc96d8",
+            "bc897af56df79fed9b6062eda24cbab738acce1e50256802e32556138d8f8861",
+            "1c2dfe7f7e9cebee7c7bfbc2de83c53f4f17e9177482547924a53517772651e6",
+            "8fb666b5bfb2ea59690835a82423c324e433e805c53422240b40c216b26b33e5",
+            "e105b0fa3ac2d58ef348a5d3951b7d051842da7c12a3964b82206915f2acd31e",
+            "cb051f5d487219797f4aaaebd15192b1c0c154e709334bfab3cc932b913efc26",
         ]
     );
 }

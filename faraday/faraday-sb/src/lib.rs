@@ -59,7 +59,7 @@ const YEARS: u32 = 30;
 /// `owner` (the common names read "OWNER PK", "OWNER KEK", "OWNER db"),
 /// valid from `now`.
 pub fn make(seed: &[u8; 32], owner: &str, now: u64) -> Result<Keys, Error> {
-    let mut ids = rng::Stream::new(seed, 0);
+    let mut ids = rng::stream(seed, 0);
     let mut draw16 = || {
         let mut v = [0u8; 16];
         let _ = rand_core::TryRng::try_fill_bytes(&mut ids, &mut v);
@@ -77,8 +77,8 @@ pub fn make(seed: &[u8; 32], owner: &str, now: u64) -> Result<Keys, Error> {
         owner.trim()
     };
     let name = |what: &str| -> String { alloc::format!("{owner} {what}") };
-    let mut keys_rng = rng::Stream::new(seed, 1);
-    let mut blind = rng::Stream::new(seed, 2);
+    let mut keys_rng = rng::stream(seed, 1);
+    let mut blind = rng::stream(seed, 2);
     let mut generate = |what: &str, serial: &[u8; 16]| {
         x509::generate(
             &mut keys_rng,

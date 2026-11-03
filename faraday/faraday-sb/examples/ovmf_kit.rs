@@ -35,7 +35,7 @@ fn main() {
     let keys = faraday_sb::make(&[0x5b; 32], "Faraday test", now)
         .unwrap_or_else(|e| fail(&format!("{e:?}")));
     // The keys are a fixed test seed's, so the blinding stream is too.
-    let mut blind = faraday_sb::rng::Stream::new(&[0x5c; 32], 0);
+    let mut blind = faraday_sb::rng::stream(&[0x5c; 32], 0);
     let files = faraday_sb::enrolment(&mut blind, &keys, policy, now)
         .unwrap_or_else(|e| fail(&format!("{e:?}")));
     // Where systemd-boot enrols from by itself (`secure-boot-enroll`).

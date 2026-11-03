@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
@@ -1038,9 +1038,9 @@ recorded in its deps page should it be taken later (§6.9). The
 `words-read` written-here string becomes two entries at D1 (§3.1, §3.3);
 before D1 it stays "BIP-39 mnemonics (`faraday-bip::bip39`)".
 
-### 5.6 The RSA RNG adapter (batch C4)
+### 5.6 The RSA RNG adapter (batch C4, built)
 
-- **Files.** `faraday/faraday-sb/src/rng.rs` (53 lines), its callers in
+- **Files.** `faraday/faraday-sb/src/rng.rs` (now a constructor of about 10 lines), its callers in
   `faraday/faraday-sb/src/lib.rs`.
 - **Crate.** `chacha20` 0.10.2's `ChaCha20Rng`: `faraday-sb`'s chacha20
   gains feature `rng` (over `rand_core` 0.10), with `zeroize`, under
@@ -1716,7 +1716,7 @@ Reference's list of conditions.
 | C1 | BLAKE2b from `blake2`'s `Blake2bVarCore` | §5.1 | Built |
 | C2 | (HKDF: not a switch; kept, §5.2, §6.7) | §5.2 | None |
 | C3 | The sealing's counter nonce removed | §5.9 | About 2 hours |
-| C4 | The RSA RNG adapter from `ChaCha20Rng`; tests re-pinned | §5.6 | About half a day |
+| C4 | The RSA RNG adapter from `ChaCha20Rng`; tests re-pinned | §5.6 | Built |
 | C5 | X.509 from `x509-cert`, DER from `der`; trust entries for x509-cert and der_derive, flagset's exemption; with X2 | §5.7, §9.7 | 1.5 to 2 days, and X2's |
 | C6 | The single-key and multisig finalizer from miniscript; with X3 | §5.8, §9.7 | 1 to 2 days, and X3's |
 | C7 | (The BIP-39 core: not a switch; kept, §5.5, §6.9) | §5.5 | None |

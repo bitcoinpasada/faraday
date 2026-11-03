@@ -7,7 +7,9 @@
 ChaCha20 (RFC 8439), not with an AEAD: the authentication is KeePass's
 own HMAC-SHA-256 over the header and over each block of ciphertext.
 `chacha20poly1305`, which the tree already uses, cannot be asked for the
-bare cipher.
+bare cipher. It is also the generator of the Secure Boot keys
+(`faraday/faraday-sb/src/rng.rs`): `ChaCha20Rng`, seeded from one fresh
+32-byte draw, feeds the RSA key generation and the signing's blinding.
 
 **Why this crate.** It is the crate `chacha20poly1305` is built on — the
 same code, the same maintainers, the same `cipher` 0.5 generation — and
@@ -19,8 +21,9 @@ every build.
 
 **Cost.** Version 0.10 with `default-features = false` and the `cipher`
 and `zeroize` features: no new crate in the lock file, one new edge from
-`faraday-backup`. No `alloc`, no RNG feature: the nonce and the key
-come from the file's header and the session key. No `unsafe` outside the
+`faraday-backup`. No `alloc`. `faraday-backup` takes no RNG feature: its nonce and key come
+from the file's header and the session key; `faraday-sb` takes `rng`
+(over `rand_core` 0.10.1, already in the tree). No `unsafe` outside the
 optional SIMD paths, which are gated on target features.
 
 **Reopen when** KDBX is dropped, or if `chacha20poly1305` ever exposes

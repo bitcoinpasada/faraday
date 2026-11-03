@@ -23,7 +23,7 @@ fn keys() -> Keys {
 
 /// The stream that blinds a test's signing.
 fn blind() -> Stream {
-    Stream::new(&[0x43; 32], 0)
+    faraday_sb::rng::stream(&[0x43; 32], 0)
 }
 
 /// A test's own scratch tree; removed when it drops.
@@ -300,8 +300,8 @@ fn blinding_leaves_the_signature_as_it_was() {
 
     let k = keys();
     let message = b"Faraday signs this with its db key";
-    let a = faraday_sb::x509::sign(&mut Stream::new(&[1; 32], 0), &k.db.key, message).unwrap();
-    let b = faraday_sb::x509::sign(&mut Stream::new(&[2; 32], 7), &k.db.key, message).unwrap();
+    let a = faraday_sb::x509::sign(&mut faraday_sb::rng::stream(&[1; 32], 0), &k.db.key, message).unwrap();
+    let b = faraday_sb::x509::sign(&mut faraday_sb::rng::stream(&[2; 32], 7), &k.db.key, message).unwrap();
     let plain = SigningKey::<Sha256>::new(rsa::RsaPrivateKey::from_pkcs8_der(&k.db.key).unwrap())
         .sign(message)
         .to_vec();
@@ -332,8 +332,8 @@ fn blinding_leaves_the_signature_as_it_was() {
     }
 
     let image = tiny_pe();
-    let one = pe::sign(&mut Stream::new(&[3; 32], 0), &image, &k.db).unwrap();
-    let two = pe::sign(&mut Stream::new(&[4; 32], 0), &image, &k.db).unwrap();
+    let one = pe::sign(&mut faraday_sb::rng::stream(&[3; 32], 0), &image, &k.db).unwrap();
+    let two = pe::sign(&mut faraday_sb::rng::stream(&[4; 32], 0), &image, &k.db).unwrap();
     assert_eq!(one, two);
 }
 
@@ -505,52 +505,28 @@ fn images_signed_by_sbsign_and_osslsigncode_are_read_and_their_signer_named() {
     }
 }
 
-fn unhex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
-/// The generator key generation draws from is ChaCha20 as RFC 8439
-/// defines it, block counter from 0 and the purpose byte first in the
-/// nonce (F158). The all-zero stream is RFC 8439 Appendix A.1's test
-/// vectors #1 and #2 (blocks 0 and 1 of a zero key and nonce); the
-/// others were computed with Python `cryptography`'s ChaCha20 (OpenSSL)
-/// over the nonce `what ‖ 0^11` and a counter of 0.
+/// One seed gives `ChaCha20Rng`'s stream for each purpose: the stream
+/// of a name is the crate's own stream of that number, and two names
+/// give different streams.
 #[test]
-fn the_generator_is_rfc_8439_chacha20_keyed_by_the_seed() {
-    use rand_core::TryRng;
-    let rfc = unhex(concat!(
-        "76b8e0ada0f13d90405d6ae55386bd28bdd219b8a08ded1aa836efcc8b770dc7",
-        "da41597c5157488d7724e03fb8d84a376a43b8f41518a11cc387b669b2ee6586",
-        "9f07e7be5551387a98ba977c732d080dcb0f29a048e3656912c6533e32ee7aed",
-        "29b721769ce64e43d57133b074d839d531ed1f28510afb45ace10a1f4b794d6f",
-    ));
-    let mut zero = vec![0xffu8; 128];
-    Stream::new(&[0; 32], 0).fill(&mut zero);
-    assert_eq!(zero, rfc);
-    // The same stream read as numbers: little-endian, in order.
-    let mut s = Stream::new(&[0; 32], 0);
-    assert_eq!(s.try_next_u32().unwrap(), 0xade0_b876);
-    assert_eq!(s.try_next_u64().unwrap(), 0xe56a_5d40_903d_f1a0);
-    let mut rest = [0u8; 4];
-    s.try_fill_bytes(&mut rest).unwrap();
-    assert_eq!(rest[..], rfc[12..16]);
-
-    let mut key_gen = [0u8; 64];
-    Stream::new(&[0x42; 32], 1).fill(&mut key_gen);
-    assert_eq!(
-        key_gen[..],
-        unhex(concat!(
-            "8d764e82caa66707597fcb8c3ec64a05d5fd7d8b2d3058cbaab036827b63f3c6",
-            "826eb9c84485464440cd34e36a55e72beb7853e5df7b2238db815ae7c1c9e424",
-        ))[..]
-    );
+fn the_generator_is_chacha20rng_on_the_stream_of_the_name() {
+    use chacha20::ChaCha20Rng;
+    use rand_core::{SeedableRng, TryRng};
     let seed: [u8; 32] = core::array::from_fn(|i| i as u8);
-    let mut blinding = [0u8; 16];
-    Stream::new(&seed, 2).fill(&mut blinding);
-    assert_eq!(blinding[..], unhex("2810192032f347083ad97a7ab7d70d64")[..]);
+    for what in [0u8, 1, 2, 255] {
+        let mut ours = [0u8; 200];
+        faraday_sb::rng::stream(&seed, what).try_fill_bytes(&mut ours).unwrap();
+        let mut theirs = ChaCha20Rng::from_seed(seed);
+        theirs.set_stream(u64::from(what));
+        let mut expected = [0u8; 200];
+        theirs.try_fill_bytes(&mut expected).unwrap();
+        assert_eq!(ours, expected);
+    }
+    let mut one = [0u8; 32];
+    let mut two = [0u8; 32];
+    faraday_sb::rng::stream(&seed, 1).try_fill_bytes(&mut one).unwrap();
+    faraday_sb::rng::stream(&seed, 2).try_fill_bytes(&mut two).unwrap();
+    assert_ne!(one, two);
 }
 
 /// Every private key made is one `openssl pkey -check` accepts: p and q

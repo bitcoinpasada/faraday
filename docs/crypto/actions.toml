@@ -7938,8 +7938,8 @@ libraries = [
   "chacha20",
   "rand_core",
 ]
-adds = "The RSA key generator draws from an adapter written here, a ChaCha20 keystream of a fresh 32-byte draw (a system answer, with the person's own randomness hashed in when they added some), with a stream for the key, one for the GUID and serials and one that blinds the signing; the certificates are written by hand in DER; the `rsa` crate is a release candidate and pinned."
-written_here = "X.509/CMS structure, Authenticode signing, and the RSA RNG adapter (`faraday-sb`)"
+adds = "The RSA key generator draws from the chacha20 crate's `ChaCha20Rng`, seeded with a fresh 32-byte draw (a system answer, with the person's own randomness hashed in when they added some), with a stream for the key, one for the GUID and serials and one that blinds the signing; the certificates are written by hand in DER; the `rsa` crate is a release candidate and pinned."
+written_here = "X.509/CMS structure and Authenticode signing (`faraday-sb`)"
 
 [action.checked]
 vectors = []
@@ -7947,7 +7947,7 @@ tests = [
   "faraday/faraday-sb/tests/golden.rs::an_owners_secure_boot_keys_are_the_bytes_they_always_were",
   "faraday/faraday-sb/tests/judged.rs::openssl_verifies_the_certificates_and_the_auth_signatures",
   "faraday/faraday-sb/tests/judged.rs::microsoft_certificates_are_what_was_recorded",
-  "faraday/faraday-sb/tests/judged.rs::the_generator_is_rfc_8439_chacha20_keyed_by_the_seed",
+  "faraday/faraday-sb/tests/judged.rs::the_generator_is_chacha20rng_on_the_stream_of_the_name",
   "faraday/faraday-sb/tests/judged.rs::openssl_checks_every_private_key_made",
 ]
 not_crosschecked = "Judged by openssl in faraday/faraday-sb/tests/judged.rs, which fails where openssl is missing; not by an F79 area."
@@ -7970,14 +7970,9 @@ lines = [
   "The Windows policy adds Microsoft's KEK and Windows signing CAs, not the third-party CA.",
 ]
 
-[[action.own]]
-text = "An RNG adapter written here, ChaCha20 (RFC 8439) as a stream keyed by a fresh 32-byte draw with the purpose in the nonce's first byte, feeds a pre-1.0 release of the rsa crate; its keystream is checked against RFC 8439 and every key it makes by openssl pkey -check."
-kind = "Novel"
-decision = "F158"
-
 [action.review]
-fingerprint = "58730c5f4ad4a0cd413e360b3c44e01febfba58a993748ed824272aa53176e0c"
-reviewed = "2026-10-29"
+fingerprint = "ab7dc6f1849ae062eaf2653a58a609e51084d953e66a657aa82676db3c048ff2"
+reviewed = "2026-11-03"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
@@ -8049,8 +8044,8 @@ kind = "Conservative"
 decision = "F134"
 
 [action.review]
-fingerprint = "3a9db9dc0f5b843a3e6b5b3261366b35a624d61227788251fc08886d84f0f6fe"
-reviewed = "2026-10-29"
+fingerprint = "80583a561c6839cd879258373c56cf29b7df61d56cc8c3284c719a15ef57d35a"
+reviewed = "2026-11-03"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
@@ -8351,8 +8346,8 @@ kind = "Conservative"
 decision = "F133"
 
 [action.review]
-fingerprint = "cb37b81d76b67ce4f50273dbf5c809e6d1e025df269561308d1d630b30470f78"
-reviewed = "2026-10-29"
+fingerprint = "666b8f0ccf9a1d4152b7267a4499216985b10c4812e11d9fcd63551978a4f95c"
+reviewed = "2026-11-03"
 places = [
   "docs/decisions/F133.md",
   "docs/learn/faraday/checking-written.md",

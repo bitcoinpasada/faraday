@@ -18,9 +18,9 @@ sha2 = { workspace = true }
 # RustCrypto generation and is still a release candidate.
 rsa = { version = "=0.10.0-rc.18", default-features = false, features = ["sha2", "encoding"] }
 # RSA key generation draws from a generator of this trait; Faraday's is a
-# ChaCha20 keystream from the caller's seed (`rng.rs`).
+# `ChaCha20Rng` seeded by the caller (`rng.rs`).
 rand_core = { version = "0.10", default-features = false }
-chacha20 = { workspace = true }
+chacha20 = { workspace = true, features = ["rng"] }
 
 [features]
 # `pe::sign`: signs any PE image, with no release behind it. For this
