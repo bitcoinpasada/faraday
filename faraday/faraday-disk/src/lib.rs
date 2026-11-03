@@ -536,12 +536,13 @@ impl Disks {
             Request::Write {
                 stick,
                 name,
+                copies,
                 replace,
                 renamed,
                 mut bytes,
             } => {
                 let written = self.place(&stick).and_then(|mut p| {
-                    faraday_files::write_file(&mut p, &name, &bytes, replace, renamed)
+                    faraday_files::write_file(c, &mut p, &name, &bytes, &copies, replace, renamed)
                 });
                 zeroize::Zeroize::zeroize(&mut bytes);
                 // What this process wrote changes the listing.
@@ -580,11 +581,16 @@ impl Disks {
                 self.seen.remove(&stick);
                 wiped.map(|()| Response::Wiped)
             }
-            Request::Rename { stick, from, to } => {
+            Request::Rename {
+                stick,
+                from,
+                to,
+                vaults,
+            } => {
                 let renamed = self
                     .place(&stick)
                     .map_err(faraday_files::Unrenamed::Failed)
-                    .and_then(|mut p| faraday_files::rename(&mut p, &from, &to));
+                    .and_then(|mut p| faraday_files::rename(c, &mut p, &from, &to, &vaults));
                 // What this process changed changes the listing.
                 self.seen.remove(&stick);
                 return match renamed {

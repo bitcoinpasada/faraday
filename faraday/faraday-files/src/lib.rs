@@ -9,7 +9,7 @@
 //! back and compared, then renamed into place; it goes over a file
 //! already there only when the person chose Replace for it
 //! ([`write_replacing`]), a sealed vault going back over its own file,
-//! found by salt and length, and the settings file over the settings
+//! found by its SHA-256 among the copies the app has seen, and the settings file over the settings
 //! file. A vault write-back a pulled stick interrupted is finished on the
 //! next visit. Pictures are decoded for QR codes here, and only here: the
 //! app gets the codes' contents and the picture's bytes as they are, to
@@ -523,7 +523,7 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
         return write(place, name, bytes);
     };
     // A vault on the stick is never removed by a replacing write: only
-    // `write_vault` goes over a vault, and only over the same one.
+    // `write_vault` goes over a vault, and only over a copy of it.
     if is_vault_on(place, &old) {
         return write(place, name, bytes);
     }
@@ -557,51 +557,66 @@ fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
             .is_ok_and(|b| vault_file::has_magic(&b))
 }
 
-/// A vault's identity: its salt and its length (`docs/VAULT.md` §6).
-/// `None` for anything that is not a vault.
-fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
-    if !whole_vault(bytes) || bytes.len() as u64 != len {
-        return None;
+/// Costs a read and a SHA-256 pass over each file of a vault's length on
+/// the stick. The names of the files on the stick whose SHA-256 is among
+/// `copies`, the SHA-256 of whole files (`docs/VAULT.md` §6).
+fn copies_on(
+    c: &Compute,
+    place: &mut dyn Place,
+    copies: &[[u8; 32]],
+) -> Result<Vec<String>, String> {
+    let mut found: Vec<String> = Vec::new();
+    if copies.is_empty() {
+        return Ok(found);
     }
-    let mut salt = [0u8; 32];
-    salt.copy_from_slice(&bytes[21..53]);
-    Some((salt, len))
+    for (n, len) in place.files()? {
+        if n.starts_with('.') || !vault_file::is_vault_len(len) || len > MAX_READ {
+            continue;
+        }
+        if let Ok(b) = place.read(&n, len)
+            && copies.contains(&faraday_crypto::sha256_whole(c, &b))
+        {
+            found.push(n);
+        }
+    }
+    Ok(found)
 }
 
-/// Writes a sealed vault back (`docs/VAULT.md` §6): over the vault on the
-/// stick with the same salt and length, or as a new file when there is
-/// none. The new bytes are written beside the original, read back and
-/// compared before the original is replaced. Two vaults with the same
-/// identity on one stick are refused, naming both.
-pub fn write_vault(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
-    write_vault_over(place, name, bytes, true, false)
-}
-
-/// [`write_vault`], refusing to go over the same vault when `over` is
-/// false. Over the same vault the file keeps the name it has on the
-/// stick, unless `renamed`: the person renamed the vault's file For the
-/// stick, and the file takes that name (`docs/FLOWS.md` decision 61
-/// item 2), or `name-2.fvlt` where another file has it.
-pub fn write_vault_over(
+/// Costs what [`write_vault_over`] costs. Writes a sealed vault back
+/// (`docs/VAULT.md` §6): over the file on the stick whose SHA-256 is
+/// one of `copies`, or as a new file when there is none. The new bytes
+/// are written beside the original, read back and compared before the
+/// original is replaced. Two copies on one stick are refused, naming both.
+pub fn write_vault(
+    c: &Compute,
     place: &mut dyn Place,
     name: &str,
     bytes: &[u8],
+    copies: &[[u8; 32]],
+) -> Result<String, String> {
+    write_vault_over(c, place, name, bytes, copies, true, false)
+}
+
+/// Costs a read and a SHA-256 pass over each file of a vault's length on
+/// the stick. [`write_vault`], refusing to go over a copy when `over` is
+/// false. Over a copy the file keeps the name it has on the stick,
+/// unless `renamed`: the person renamed the vault's file For the stick,
+/// and the file takes that name (`docs/FLOWS.md` decision 61 item 2), or
+/// `name-2` where another file has it.
+pub fn write_vault_over(
+    c: &Compute,
+    place: &mut dyn Place,
+    name: &str,
+    bytes: &[u8],
+    copies: &[[u8; 32]],
     over: bool,
     renamed: bool,
 ) -> Result<String, String> {
     finish_vault_writes(place);
-    let want = vault_identity(bytes, bytes.len() as u64).ok_or(EN.files_not_a_vault)?;
-    let mut same: Vec<String> = Vec::new();
-    for (n, len) in place.files()? {
-        if n.starts_with('.') || len != want.1 {
-            continue;
-        }
-        if let Ok(b) = place.read(&n, len)
-            && vault_identity(&b, len) == Some(want)
-        {
-            same.push(n);
-        }
+    if !whole_vault(bytes) {
+        return Err(EN.files_not_a_vault.to_string());
     }
+    let mut same = copies_on(c, place, copies)?;
     let original = match same.len() {
         0 => return write(place, name, bytes),
         1 if !over => {
@@ -632,19 +647,26 @@ pub fn write_vault_over(
 pub enum Unrenamed {
     /// Another file on the stick has the new name, ignoring case.
     Taken,
-    /// That other file is the same vault, by identity (`docs/VAULT.md`
-    /// §6).
+    /// That other file is the same vault: both files' SHA-256 are among
+    /// the copies of one vault the session knows (`docs/VAULT.md` §6).
     SameVault,
     /// The stick refused, or a name is not one the app may use.
     Failed(String),
 }
 
-/// Renames a file on a stick in place, its directory entry alone, as the
-/// person asked on a visit (`docs/FLOWS.md` decision 61 item 4). Refused,
-/// nothing written, where another file has the new name, ignoring case:
-/// [`Unrenamed::SameVault`] where both are the same vault. Reads both
-/// files where both are vaults of one length.
-pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenamed> {
+/// Costs a read and a SHA-256 pass over both files where both are vaults
+/// of one length. Renames a file on a stick in place, its directory entry
+/// alone, as the person asked on a visit (`docs/FLOWS.md` decision 61
+/// item 4). Refused, nothing written, where another file has the new
+/// name, ignoring case: [`Unrenamed::SameVault`] where both are copies of
+/// one of `vaults`.
+pub fn rename(
+    c: &Compute,
+    place: &mut dyn Place,
+    from: &str,
+    to: &str,
+    vaults: &[Vec<[u8; 32]>],
+) -> Result<(), Unrenamed> {
     let from = checked(from).map_err(Unrenamed::Failed)?;
     let to = checked_for_write(to).map_err(Unrenamed::Failed)?;
     let files = place.files().map_err(Unrenamed::Failed)?;
@@ -655,14 +677,17 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
         .iter()
         .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
     {
-        let vaults = len == *olen && vault_file::is_vault_len(len) && len <= MAX_READ;
-        let same = vaults && {
+        let both = len == *olen && vault_file::is_vault_len(len) && len <= MAX_READ;
+        let same = both && {
             let a = place.read(from, MAX_READ).ok();
             let b = place.read(other, MAX_READ).ok();
             match (a, b) {
                 (Some(a), Some(b)) => {
-                    vault_identity(&a, len).is_some()
-                        && vault_identity(&a, len) == vault_identity(&b, len)
+                    let (a, b) = (
+                        faraday_crypto::sha256_whole(c, &a),
+                        faraday_crypto::sha256_whole(c, &b),
+                    );
+                    vaults.iter().any(|v| v.contains(&a) && v.contains(&b))
                 }
                 _ => false,
             }
@@ -759,33 +784,36 @@ pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<String, Str
     Ok(SETTINGS_FILE.to_string())
 }
 
-/// Writes what the app put in the Outbox: a sealed vault back over its
-/// own file, the settings over the settings, anything else over a file of
-/// its name when `replace` ([`write_replacing`]) or else as a new file.
-/// A vault is never written over another vault of another identity; over
-/// the same one (salt and length) only when `replace`, which the app says
-/// of a vault its session unlocked or wrote.
+/// Costs what [`write_file`] costs. Writes what the app put in the
+/// Outbox, a vault as one that no copy is known of: the settings over
+/// the settings, anything else over a file of its name when `replace`
+/// ([`write_replacing`]) or else as a new file.
 pub fn write_any(
+    c: &Compute,
     place: &mut dyn Place,
     name: &str,
     bytes: &[u8],
     replace: bool,
 ) -> Result<String, String> {
-    write_file(place, name, bytes, replace, false)
+    write_file(c, place, name, bytes, &[], replace, false)
 }
 
-/// [`write_any`], for a file whose name the person changed For the stick
-/// when `renamed`: a vault going over its same vault takes that name
-/// ([`write_vault_over`]).
+/// Costs what [`write_vault_over`] costs for a vault. [`write_any`] for
+/// a file whose name the person changed For the stick when `renamed`: a
+/// vault goes over the file on the stick whose SHA-256 is among `copies`,
+/// only when `replace`, which the app says of a vault its session
+/// unlocked or wrote, and then takes that name ([`write_vault_over`]).
 pub fn write_file(
+    c: &Compute,
     place: &mut dyn Place,
     name: &str,
     bytes: &[u8],
+    copies: &[[u8; 32]],
     replace: bool,
     renamed: bool,
 ) -> Result<String, String> {
     if vault_file::is_vault_file(bytes) {
-        write_vault_over(place, name, bytes, replace, renamed)
+        write_vault_over(c, place, name, bytes, copies, replace, renamed)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
         write_settings(place, bytes)
     } else if replace {

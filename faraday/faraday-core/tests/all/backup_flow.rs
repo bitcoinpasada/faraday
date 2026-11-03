@@ -1460,7 +1460,7 @@ fn a_wipe_or_delete_on_an_unrelated_stick_reopens_nothing_before_or_after_a_lock
 }
 
 #[test]
-fn the_copy_not_picked_is_written_over_only_after_a_hold() {
+fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_hold() {
     let mut shell = Shell::new();
     // Two copies of one vault, the same vault, the later one edited.
     let first = vault("Main", &[PHRASE], 0x49);
@@ -1502,7 +1502,9 @@ fn the_copy_not_picked_is_written_over_only_after_a_hold() {
     assert!(offered(&mut app, Action::Flow(F::Hold)));
     shell.flow(&mut app, F::Hold);
     assert_eq!(shell.vault_writes(), 1);
-    assert_ne!(shell.disk("S1").file("main.fvlt"), Some(&first));
+    // Never opened, it is not a copy the session has seen: it stays.
+    assert_eq!(shell.disk("S1").file("main.fvlt"), Some(&first));
+    assert!(shell.disk("S1").file("main-2.fvlt").is_some());
 }
 
 #[test]
@@ -2006,7 +2008,8 @@ fn existing_locked(shell: &mut Shell) -> Faraday {
 }
 
 #[test]
-fn a_stick_named_at_step_six_with_another_copy_of_the_vault_is_written_over_only_after_a_hold() {
+fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_beside_it_after_a_hold()
+ {
     let mut shell = Shell::new();
     let mut app = existing_locked(&mut shell);
     let edited = vault("Main edited", &[PHRASE], 0x55);
@@ -2029,7 +2032,9 @@ fn a_stick_named_at_step_six_with_another_copy_of_the_vault_is_written_over_only
     assert!(!offered(&mut app, Action::Flow(F::UseCopy(true))));
     shell.flow(&mut app, F::Hold);
     assert_eq!(shell.vault_writes(), 1);
-    assert_ne!(shell.disk("U").file("main.fvlt"), Some(&edited));
+    // Only a copy the session has seen is written over: this one stays.
+    assert_eq!(shell.disk("U").file("main.fvlt"), Some(&edited));
+    assert!(shell.disk("U").file("main-2.fvlt").is_some());
 }
 
 #[test]

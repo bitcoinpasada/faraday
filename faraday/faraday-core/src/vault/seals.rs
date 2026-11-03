@@ -433,9 +433,21 @@ impl Vaults {
         order
     }
 
-    /// Costs a SHA-256 over one slot (counted as a file hash). Open vault
-    /// `i` has just been sealed into `bytes`: its new count and digest
-    /// raise the highest seen.
+    /// The file of the vault with `salt` is a copy of it the session has
+    /// seen, whose SHA-256 is `digest`; a vault with no summary kept keeps
+    /// nothing, as for [`Vaults::seals_raise`].
+    pub(crate) fn copy_seen(&mut self, salt: &[u8; 32], digest: [u8; 32]) {
+        if let Some(s) = self.summaries.iter_mut().find(|s| &s.salt == salt)
+            && !s.copies.contains(&digest)
+        {
+            s.copies.push(digest);
+        }
+    }
+
+    /// Costs a SHA-256 over one slot and one over the whole file (counted
+    /// as file hashes). Open vault `i` has just been sealed into `bytes`:
+    /// its new count and digest raise the highest seen, and the file is a
+    /// copy of the vault seen.
     pub(crate) fn seals_sealed(&mut self, c: &Compute, i: usize, bytes: &[u8]) {
         let Some(o) = self.open.get(i) else {
             return;
@@ -447,6 +459,7 @@ impl Vaults {
         let Some(digest) = faraday_keys::vault::slot_digest(c, header.slot_len, bytes, pos) else {
             return;
         };
+        self.copy_seen(&header.salt, faraday_crypto::sha256_whole(c, bytes));
         self.seals_raise(
             header.salt,
             SealSeen {

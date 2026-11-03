@@ -47,7 +47,15 @@ fn the_settings_file_replaces_the_one_on_the_stick() {
     let id = dir.to_str().unwrap();
     let new = b"faraday-settings 1\ntheme=light\n";
     let wrote = Dirs::default()
-        .write(id, "faraday-settings.txt", new, false, false)
+        .write(
+            &crate::compute(),
+            id,
+            "faraday-settings.txt",
+            new,
+            &[],
+            false,
+            false,
+        )
         .unwrap();
     assert_eq!(wrote, "faraday-settings.txt");
     assert_eq!(fs::read(dir.join("faraday-settings.txt")).unwrap(), new);
@@ -65,9 +73,11 @@ fn a_file_that_is_not_settings_is_not_written_over_it() {
     let id = dir.to_str().unwrap();
     let wrote = Dirs::default()
         .write(
+            &crate::compute(),
             id,
             "faraday-settings.txt",
             b"a note, not settings",
+            &[],
             false,
             false,
         )

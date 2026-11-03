@@ -259,6 +259,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     let w = |name: &str, bytes: &[u8]| Request::Write {
         stick: id.clone(),
         name: name.into(),
+        copies: Vec::new(),
         replace: false,
         renamed: false,
         bytes: bytes.to_vec(),
@@ -279,6 +280,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
             Request::Write {
                 stick: id.clone(),
                 name: "savings-signed-2.psbt".into(),
+                copies: Vec::new(),
                 replace: true,
                 renamed: false,
                 bytes: b"replaced".to_vec(),
@@ -304,23 +306,20 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         d.handle(&c, w("vault.fvlt", &vault)),
         Response::Written("vault.fvlt".into())
     );
+    let first = faraday_crypto::sha256(&vault);
     vault[100] = 9;
-    // Over the same vault only where the app says its session wrote it.
-    assert!(matches!(
-        d.handle(&c, w("vault.fvlt", &vault)),
-        Response::Failed(_)
-    ));
+    // Over a copy only where the app says its session wrote it.
+    let back = |replace: bool| Request::Write {
+        stick: id.clone(),
+        name: "vault.fvlt".into(),
+        copies: vec![first],
+        replace,
+        renamed: false,
+        bytes: vault.clone(),
+    };
+    assert!(matches!(d.handle(&c, back(false)), Response::Failed(_)));
     assert_eq!(
-        d.handle(
-            &c,
-            Request::Write {
-                stick: id.clone(),
-                name: "vault.fvlt".into(),
-                replace: true,
-                renamed: false,
-                bytes: vault.clone(),
-            }
-        ),
+        d.handle(&c, back(true)),
         Response::Written("vault.fvlt".into())
     );
     assert_eq!(
@@ -632,6 +631,7 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
         Request::Write {
             stick: "sdb2@sdb#11".into(),
             name: "backup.fvlt".into(),
+            copies: Vec::new(),
             replace: false,
             renamed: false,
             bytes: b"a vault".to_vec(),

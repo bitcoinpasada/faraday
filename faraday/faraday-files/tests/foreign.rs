@@ -18,6 +18,14 @@ use faraday_files::{Fat, listing, read, write_any};
 
 const PSBT: &str = "savings-unsigned.psbt";
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-files' tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
+}
+
 /// Folders Windows and macOS make at a volume's top level, and the
 /// attributes Windows gives its own.
 const DIRS: [(&str, &str); 5] = [
@@ -144,7 +152,14 @@ fn a_partition_windows_and_a_mac_wrote_to_lists_and_keeps_the_psbt_alone() {
     }
 
     let signed = b"psbt\xffsigned".to_vec();
-    let wrote = write_any(&mut place, "savings-signed.psbt", &signed, false).unwrap();
+    let wrote = write_any(
+        &compute(),
+        &mut place,
+        "savings-signed.psbt",
+        &signed,
+        false,
+    )
+    .unwrap();
     assert_eq!(wrote, "savings-signed.psbt");
     assert_eq!(read(&mut place, PSBT).unwrap(), psbt());
     assert_eq!(

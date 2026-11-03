@@ -2369,6 +2369,51 @@ impl Faraday {
 
 /// Glue of the vault files this session wrote.
 impl Faraday {
+    /// Costs a hash of a whole file (a SHA-256 pass). The SHA-256 of
+    /// every copy the session has seen of the vault `bytes` is: the
+    /// copies its summary keeps, the vault files in Files with its salt,
+    /// and `bytes` themselves. None for what is not a vault
+    /// (`docs/VAULT.md` §6).
+    pub(crate) fn vault_copies(&self, c: &Compute, bytes: &[u8]) -> Vec<[u8; 32]> {
+        let Ok(h) = faraday_vault::read_header(bytes) else {
+            return Vec::new();
+        };
+        let mut out: Vec<[u8; 32]> = self
+            .vaults
+            .summaries
+            .iter()
+            .filter(|s| s.salt == h.salt)
+            .flat_map(|s| s.copies.iter().copied())
+            .collect();
+        for it in self
+            .inbox
+            .iter()
+            .chain(self.outbox.iter())
+            .filter(|i| i.kind == FileKind::Vault)
+        {
+            if let Some(sha) = it.sha
+                && faraday_vault::read_header(&it.bytes).is_ok_and(|o| o.salt == h.salt)
+            {
+                out.push(sha);
+            }
+        }
+        out.push(faraday_crypto::sha256_whole(c, bytes));
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// The copies of each vault the session has seen, for a rename on a
+    /// stick to tell the same vault from a name taken.
+    pub(crate) fn vault_copy_lists(&self) -> Vec<Vec<[u8; 32]>> {
+        self.vaults
+            .summaries
+            .iter()
+            .filter(|s| !s.copies.is_empty())
+            .map(|s| s.copies.clone())
+            .collect()
+    }
+
     /// Costs a hash of a whole file (a SHA-256 pass). A vault in Files
     /// that this session unlocked or wrote: its salt is an open vault's, or
     /// its bytes are what the last write of this session put on a stick. A

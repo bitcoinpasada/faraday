@@ -4,7 +4,16 @@
 
 use std::collections::BTreeMap;
 
+use faraday_crypto::work::Compute;
 use faraday_files::{Place, Zeroed, write_any, write_replacing};
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-files' tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> Compute {
+    Compute::new(|_| {})
+}
 
 /// A stick's top level in memory. `garble` makes every read of a hidden
 /// temp file come back different from what was written, as a failing
@@ -100,7 +109,7 @@ fn a_failed_read_back_leaves_the_old_file() {
 #[test]
 fn keep_both_writes_beside_the_old_file() {
     let mut s = stick(&[("wallet.json", b"old")]);
-    let wrote = write_any(&mut s, "wallet.json", b"new", false).unwrap();
+    let wrote = write_any(&compute(), &mut s, "wallet.json", b"new", false).unwrap();
     assert_eq!(wrote, "wallet-2.json");
     assert_eq!(s.files["wallet.json"], b"old");
     assert_eq!(s.files["wallet-2.json"], b"new");

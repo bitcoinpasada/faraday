@@ -1,5 +1,5 @@
-//! A sealed vault goes back over its own file on a stick, found by salt
-//! and length, and a write-back a pulled stick interrupted is finished on
+//! A sealed vault goes back over its own file on a stick, found by the
+//! SHA-256 of the copies the app has seen, and a write-back a pulled stick interrupted is finished on
 //! the next visit (`docs/VAULT.md` §6).
 
 use std::fs;
@@ -49,12 +49,14 @@ fn a_vault_goes_back_over_its_own_file() {
     let id = dir.to_str().unwrap();
     // The second vault, sealed and offered as vault.fvlt, still replaces
     // vault-2.fvlt: the name is not the vault's identity.
-    let wrote = faraday_storage::write_vault(id, "vault.fvlt", &vault(2, 9)).unwrap();
+    let c = crate::compute();
+    let seen = [faraday_crypto::sha256(&vault(2, 0))];
+    let wrote = faraday_storage::write_vault(&c, id, "vault.fvlt", &vault(2, 9), &seen).unwrap();
     assert_eq!(wrote, "vault-2.fvlt");
     assert_eq!(fs::read(dir.join("vault-2.fvlt")).unwrap(), vault(2, 9));
     assert_eq!(fs::read(dir.join("vault.fvlt")).unwrap(), vault(1, 0));
     // A vault no file on the stick has is written as a new one.
-    let wrote = faraday_storage::write_vault(id, "vault.fvlt", &vault(3, 0)).unwrap();
+    let wrote = faraday_storage::write_vault(&c, id, "vault.fvlt", &vault(3, 0), &[]).unwrap();
     assert_eq!(wrote, "vault-3.fvlt");
 }
 
@@ -84,14 +86,17 @@ fn a_vault_keeps_its_name_on_the_stick_unless_renamed_for_the_stick() {
     fs::write(dir.join("savings.fvlt"), vault(1, 0)).unwrap();
     let id = dir.to_str().unwrap();
     let mut sticks = faraday_storage::Dirs::default();
+    let c = crate::compute();
+    let seen = [faraday_crypto::sha256(&vault(1, 0))];
     let wrote = sticks
-        .write(id, "vault.fvlt", &vault(1, 9), true, false)
+        .write(&c, id, "vault.fvlt", &vault(1, 9), &seen, true, false)
         .unwrap();
     assert_eq!(wrote, "savings.fvlt", "a rename made on the stick stays");
     assert_eq!(fs::read(dir.join("savings.fvlt")).unwrap(), vault(1, 9));
     assert!(!dir.join("vault.fvlt").exists());
+    let seen = [faraday_crypto::sha256(&vault(1, 9))];
     let wrote = sticks
-        .write(id, "mine.fvlt", &vault(1, 5), true, true)
+        .write(&c, id, "mine.fvlt", &vault(1, 5), &seen, true, true)
         .unwrap();
     assert_eq!(wrote, "mine.fvlt");
     assert_eq!(fs::read(dir.join("mine.fvlt")).unwrap(), vault(1, 5));
@@ -112,17 +117,22 @@ fn a_rename_on_a_stick_keeps_the_bytes_and_refuses_a_name_taken() {
     fs::write(dir.join("vault-copy.fvlt"), vault(1, 0)).unwrap();
     let id = dir.to_str().unwrap();
     let mut sticks = faraday_storage::Dirs::default();
+    let c = crate::compute();
+    let known = vec![vec![faraday_crypto::sha256(&vault(1, 0))]];
     assert_eq!(
-        sticks.rename(id, "notes.txt", "other.txt"),
+        sticks.rename(&c, id, "notes.txt", "other.txt", &known),
         Err(Unrenamed::Taken)
     );
     assert_eq!(
-        sticks.rename(id, "vault-copy.fvlt", "VAULT.fvlt"),
+        sticks.rename(&c, id, "vault-copy.fvlt", "VAULT.fvlt", &known),
         Err(Unrenamed::SameVault)
     );
     assert_eq!(fs::read(dir.join("notes.txt")).unwrap(), b"the notes");
     assert!(dir.join("vault-copy.fvlt").exists());
-    assert_eq!(sticks.rename(id, "notes.txt", "march.txt"), Ok(()));
+    assert_eq!(
+        sticks.rename(&c, id, "notes.txt", "march.txt", &known),
+        Ok(())
+    );
     assert_eq!(fs::read(dir.join("march.txt")).unwrap(), b"the notes");
     assert!(!dir.join("notes.txt").exists());
 }

@@ -122,14 +122,18 @@ impl Sticks for Timed<'_> {
 
     fn write(
         &mut self,
+        c: &faraday_crypto::work::Compute,
         stick: &str,
         name: &str,
         bytes: &[u8],
+        copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
     ) -> Result<String, String> {
         let start = self.timings.is_some().then(Instant::now);
-        let wrote = self.sticks.write(stick, name, bytes, replace, renamed);
+        let wrote = self
+            .sticks
+            .write(c, stick, name, bytes, copies, replace, renamed);
         if let (Some(start), Some(t)) = (start, self.timings.as_deref_mut()) {
             t.work(FILE_WRITTEN, start.elapsed());
         }
@@ -162,11 +166,13 @@ impl Sticks for Timed<'_> {
 
     fn rename(
         &mut self,
+        c: &faraday_crypto::work::Compute,
         stick: &str,
         from: &str,
         to: &str,
+        vaults: &[Vec<[u8; 32]>],
     ) -> Result<(), faraday_storage::Unrenamed> {
-        self.sticks.rename(stick, from, to)
+        self.sticks.rename(c, stick, from, to, vaults)
     }
 
     fn name(&mut self, stick: &str, label: &str) -> Result<(), String> {

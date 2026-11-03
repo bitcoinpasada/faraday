@@ -305,6 +305,7 @@ impl Shell {
                     stick,
                     name,
                     bytes,
+                    copies,
                     replace,
                     renamed,
                 } if self.hold_writes => {
@@ -312,6 +313,7 @@ impl Shell {
                         stick,
                         name,
                         bytes,
+                        copies,
                         replace,
                         renamed,
                     });
@@ -320,6 +322,7 @@ impl Shell {
                     stick,
                     name,
                     bytes,
+                    copies,
                     replace,
                     renamed,
                 } => {
@@ -362,7 +365,8 @@ impl Shell {
                         });
                         continue;
                     }
-                    let wrote_as = write_any(&mut d.files, &name, &bytes, replace, renamed);
+                    let wrote_as =
+                        write_any(&mut d.files, &name, &bytes, &copies, replace, renamed);
                     d.free -= bytes.len() as u64;
                     if bad {
                         app.storage(StorageEvent::WriteFailed {
@@ -380,8 +384,13 @@ impl Shell {
                     });
                     app.storage(StorageEvent::Sticks(self.infos()));
                 }
-                StorageCommand::Rename { stick, from, to } => {
-                    let refused = rename(&mut self.disk_mut(&stick).files, &from, &to);
+                StorageCommand::Rename {
+                    stick,
+                    from,
+                    to,
+                    vaults,
+                } => {
+                    let refused = rename(&mut self.disk_mut(&stick).files, &from, &to, &vaults);
                     app.storage(StorageEvent::Renamed {
                         stick,
                         from,
@@ -464,12 +473,13 @@ impl Shell {
                 stick,
                 name,
                 bytes,
+                copies,
                 replace,
                 renamed,
             } = c
             {
                 let d = self.disk_mut(&stick);
-                let wrote_as = write_any(&mut d.files, &name, &bytes, replace, renamed);
+                let wrote_as = write_any(&mut d.files, &name, &bytes, &copies, replace, renamed);
                 d.free -= bytes.len() as u64;
                 self.writes.push((stick.clone(), wrote_as.clone()));
                 app.storage(StorageEvent::Written {
@@ -492,6 +502,7 @@ impl Shell {
                 stick,
                 name,
                 bytes,
+                copies,
                 replace,
                 renamed,
             } = c
@@ -499,7 +510,7 @@ impl Shell {
             {
                 let d = self.disk_mut(&stick);
                 d.free = d.free.saturating_sub(bytes.len() as u64);
-                write_any(&mut d.files, &name, &bytes, replace, renamed);
+                write_any(&mut d.files, &name, &bytes, &copies, replace, renamed);
             }
         }
     }
@@ -564,25 +575,24 @@ impl Shell {
     }
 }
 
-/// What `faraday-files` does with a write: a vault over the vault of its
-/// salt when `replace`, else beside under a free name; other files beside
-/// or over.
+/// What `faraday-files` does with a write: a vault over the vault file
+/// whose SHA-256 is among `copies` when `replace`, else beside under a
+/// free name; other files beside or over.
 pub fn write_any(
     files: &mut Files,
     name: &str,
     bytes: &[u8],
+    copies: &[[u8; 32]],
     replace: bool,
     renamed: bool,
 ) -> String {
     if name.ends_with(".fvlt")
         && bytes.starts_with(b"FVLT")
-        && let Ok(h) = faraday_vault::read_header(bytes)
+        && faraday_vault::read_header(bytes).is_ok()
     {
         if replace
             && let Some(at) = files.iter().position(|(n, b)| {
-                n.ends_with(".fvlt")
-                    && b.len() == bytes.len()
-                    && faraday_vault::read_header(b).is_ok_and(|o| o.salt == h.salt)
+                n.ends_with(".fvlt") && copies.contains(&faraday_crypto::sha256(b))
             })
         {
             // The file keeps its name on the stick, unless the person
@@ -624,9 +634,14 @@ fn free_name(files: &Files, name: &str) -> String {
 }
 
 /// What `faraday-files` does with a rename on a stick: refused where
-/// another file has the name, ignoring case, said so when it is the same
-/// vault; else the file takes the name.
-pub fn rename(files: &mut Files, from: &str, to: &str) -> Option<faraday_core::Unrenamed> {
+/// another file has the name, ignoring case, said so when both are copies
+/// of one vault the session knows; else the file takes the name.
+pub fn rename(
+    files: &mut Files,
+    from: &str,
+    to: &str,
+    vaults: &[Vec<[u8; 32]>],
+) -> Option<faraday_core::Unrenamed> {
     let Some(at) = files.iter().position(|(n, _)| n == from) else {
         return Some(faraday_core::Unrenamed::Failed("gone".into()));
     };
@@ -635,13 +650,10 @@ pub fn rename(files: &mut Files, from: &str, to: &str) -> Option<faraday_core::U
         .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
     {
         let mine = &files[at].1;
+        let (a, b) = (faraday_crypto::sha256(mine), faraday_crypto::sha256(other));
         let same = from.ends_with(".fvlt")
             && to.ends_with(".fvlt")
-            && mine.len() == other.len()
-            && faraday_vault::read_header(mine)
-                .ok()
-                .zip(faraday_vault::read_header(other).ok())
-                .is_some_and(|(a, b)| a.salt == b.salt);
+            && vaults.iter().any(|v| v.contains(&a) && v.contains(&b));
         return Some(if same {
             faraday_core::Unrenamed::SameVault
         } else {

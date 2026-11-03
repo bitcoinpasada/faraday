@@ -146,12 +146,19 @@ impl VaultArea {
             match self.state.summaries.iter_mut().find(|o| o.salt == s.salt) {
                 Some(o) => {
                     s.seals = std::mem::take(&mut o.seals);
+                    s.copies = std::mem::take(&mut o.copies);
                     *o = s;
                 }
                 None => self.state.summaries.push(s),
             }
         }
         self.state.seals_planned_sync();
+    }
+
+    /// The file of the vault with `salt` is a copy of it the session has
+    /// seen, whose SHA-256 is `digest`.
+    pub(crate) fn copy_seen(&mut self, salt: &[u8; 32], digest: [u8; 32]) {
+        self.state.copy_seen(salt, digest);
     }
 
     /// Changes open vault `id`'s records through `change` ([`Vaults::edit`]).
@@ -1738,6 +1745,10 @@ pub struct VaultSummary {
     pub file: String,
     /// The file's salt, which is the vault's identity.
     pub salt: [u8; 32],
+    /// The SHA-256 of every copy of the vault the session has seen: the
+    /// file opened and each seal (`docs/VAULT.md` §6). A file on a stick
+    /// is a copy of the vault when its SHA-256 is among them.
+    pub copies: Vec<[u8; 32]>,
     /// The open slot's name.
     pub name: String,
     /// Its wallets: name and shape.

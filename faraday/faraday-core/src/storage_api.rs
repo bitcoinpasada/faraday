@@ -428,6 +428,10 @@ pub enum StorageCommand {
         name: String,
         /// The contents.
         bytes: Vec<u8>,
+        /// The SHA-256 of every copy of this vault the session has seen,
+        /// when it is one: the file on the stick with one of them is
+        /// the vault written back over (`docs/VAULT.md` §6).
+        copies: Vec<[u8; 32]>,
         /// Over the file of that name, rather than beside it.
         replace: bool,
         /// The person renamed the file For the stick and no visit has
@@ -481,6 +485,9 @@ pub enum StorageCommand {
         from: String,
         /// Its new name.
         to: String,
+        /// For each vault the session has seen, the SHA-256 of its copies:
+        /// two vault files are the same vault where one list has both.
+        vaults: Vec<Vec<[u8; 32]>>,
     },
     /// Name a stick's volume `label`, or take its name away where it is
     /// empty ([`StorageEvent::StickNamed`]; `docs/STICK-IDENTITY.md` §6).

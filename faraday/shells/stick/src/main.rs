@@ -1145,7 +1145,7 @@ impl Shell {
                 None => Ok(()),
                 Some(text) => match self.sticks.iter().find(|s| s.boot) {
                     Some(boot) => disk
-                        .write(&boot.id, files::TIMINGS, text.as_bytes(), true, false)
+                        .write_copies(&boot.id, files::TIMINGS, text.as_bytes(), &[], true, false)
                         .map(drop),
                     None => Err(String::from("no boot stick is listed")),
                 },
@@ -1197,7 +1197,7 @@ impl Shell {
         let wrote = costly::timed(&mut self.timings, costly::DEV_FILE_WRITTEN, || {
             match (self.disk.as_mut(), boot) {
                 (Some(disk), Some(id)) => disk
-                    .write(&id, &name, text.as_bytes(), true, false)
+                    .write_copies(&id, &name, text.as_bytes(), &[], true, false)
                     .map(drop),
                 _ => self.files.write_named(&name, text.as_bytes()).map(drop),
             }

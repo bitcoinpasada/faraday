@@ -298,8 +298,8 @@ hostile-peer checks in both directions and its wiping.
 - **ReadBack** (offset, length up to 4 MiB) reads the open write's
   temporary file.
 - **Rename** puts the open write in place by `write_any`'s rules: a
-  sealed vault over its own file, found by salt and length from the
-  temporary file's header; the settings file over the settings file;
+  sealed vault over its own file, found by its SHA-256 among the copies the session has seen;
+  the settings file over the settings file;
   any other file over one of its name only when `replace`; never over a
   vault.
 - **Abandon** removes the open write's temporary file.

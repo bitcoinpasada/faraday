@@ -2259,13 +2259,15 @@ impl Faraday {
             .map(|(n, _, _)| n.clone())
             .collect();
         for (name, bytes, vault) in sends {
-            // A vault goes over the copy of its salt and nothing else, or
-            // beside what the stick holds; any other file beside under a
-            // free name (`faraday-files`).
+            // A vault goes over a copy of it the session has seen and
+            // nothing else, or beside what the stick holds; any other
+            // file beside under a free name (`faraday-files`).
+            let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {
                 stick: r.id.clone(),
                 name,
                 bytes,
+                copies,
                 replace: vault,
                 renamed: false,
             });
@@ -2426,10 +2428,12 @@ impl Faraday {
                 w.aliases.push((sent.to_string(), meant.to_string()));
             }
         }
+        let copies = self.vault_copies(&c, &bytes);
         self.out.storage_out.push_back(StorageCommand::Write {
             stick,
             name: sent.to_string(),
             bytes,
+            copies,
             replace: over,
             renamed: false,
         });

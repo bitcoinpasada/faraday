@@ -10,7 +10,8 @@ fn kept_field(s: &str) -> String {
 }
 
 /// The summaries as the kept state holds them: a `vault` line per
-/// vault, then its `wallet`, `key` and `map` lines, fields split by tabs.
+/// vault, then its `copy`, `wallet`, `key` and `map` lines, fields split
+/// by tabs.
 pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
     let mut out = String::new();
     for s in all {
@@ -22,6 +23,9 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
             kept_field(&s.name),
             s.entries
         ));
+        for d in &s.copies {
+            out.push_str(&format!("copy\t{}\n", crate::backups::hex32(d)));
+        }
         for (name, shape) in &s.wallets {
             out.push_str(&format!(
                 "wallet\t{}\t{}\n",
@@ -86,6 +90,11 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
                 s.entries = entries.parse().unwrap_or(0);
                 s.seen = seen.parse().ok();
                 out.push(s);
+            }
+            ["copy", digest] => {
+                if let (Some(s), Some(d)) = (out.last_mut(), crate::backups::read_hex32(digest)) {
+                    s.copies.push(d);
+                }
             }
             ["wallet", name, shape] => {
                 if let Some(s) = out.last_mut() {

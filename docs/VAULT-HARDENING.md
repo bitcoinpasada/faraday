@@ -617,7 +617,7 @@ the vault work done overnight; the owner reviews them.
    toast.
 6. **A stick visit keeps today's rule** (the owner's, 2026-10-29,
    confirming item 2): a visit writes a vault sealed this session over
-   the stick's copy of the same vault (same salt and length, VAULT §6)
+   the stick's copy of the same vault (the file whose SHA-256 is one the session has seen, VAULT §6)
    and does not refuse to write over a copy it does not recognise.
    Alternatives not taken: refusing to write over a stick copy whose
    bytes no receipt or read recorded, and a list of each copy's digest

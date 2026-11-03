@@ -2282,6 +2282,7 @@ impl Faraday {
             fresh.push(VaultSummary {
                 file: v.name.clone(),
                 salt: v.header().salt,
+                copies: Vec::new(),
                 name: v.label(self.vaults.store()),
                 wallets,
                 sums,
@@ -2317,6 +2318,19 @@ impl Faraday {
             .map(|i| (i.name.as_str(), i.bytes.as_slice()))
             .collect();
         self.vaults.seals_unlocked(&c, v, &files);
+        // The file opened is a copy of the vault seen.
+        if let Some(o) = self.vaults.open.get(v) {
+            let (name, salt) = (o.name.clone(), o.header().salt);
+            let sha = self
+                .outbox
+                .iter()
+                .chain(self.inbox.iter())
+                .find(|i| i.kind == crate::FileKind::Vault && i.name == name)
+                .and_then(|i| i.sha);
+            if let Some(sha) = sha {
+                self.vaults.copy_seen(&salt, sha);
+            }
+        }
         if !self.vaults.older_hold(v, (for_import, self.sheet), before) {
             return false;
         }

@@ -549,10 +549,12 @@ impl Faraday {
             }
             Named::File(Row::Stick(_)) => {
                 if let Some(s) = self.stick.get(self.visit.stick) {
+                    let vaults = self.vault_copy_lists();
                     self.out.storage_out.push_back(StorageCommand::Rename {
                         stick: s.id.clone(),
                         from: r.from,
                         to,
+                        vaults,
                     });
                 }
             }

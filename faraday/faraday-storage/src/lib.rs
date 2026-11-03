@@ -72,9 +72,17 @@ pub fn write(stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
     faraday_files::write(&mut dir(stick), name, bytes)
 }
 
-/// Writes a sealed vault back over its own file (`docs/VAULT.md` §6).
-pub fn write_vault(stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
-    faraday_files::write_vault(&mut dir(stick), name, bytes)
+/// Costs what `faraday_files::write_vault` costs. Writes a sealed vault
+/// back over its own file, the one whose SHA-256 is among `copies`
+/// (`docs/VAULT.md` §6).
+pub fn write_vault(
+    c: &faraday_crypto::work::Compute,
+    stick: &str,
+    name: &str,
+    bytes: &[u8],
+    copies: &[[u8; 32]],
+) -> Result<String, String> {
+    faraday_files::write_vault(c, &mut dir(stick), name, bytes, copies)
 }
 
 /// Finishes a vault write-back a pulled stick interrupted.
@@ -97,15 +105,23 @@ pub fn read_qr_png(
 pub trait Sticks {
     /// One file's bytes.
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String>;
-    /// A file written, over a file of its name when `replace`; the name
-    /// it went under. `renamed`: the person renamed it For the stick, and
-    /// a vault going over its same vault takes the name
+    /// Costs what `faraday_files::write_file` costs where the sticks are
+    /// folders. A file written, over a file of its name when `replace`;
+    /// the name it went under. `copies`: the SHA-256 of the copies of a
+    /// vault the session has seen. `renamed`: the person renamed it For
+    /// the stick, and a vault going over a copy takes the name
     /// (`faraday_files::write_file`).
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one write, as the protocol carries it"
+    )]
     fn write(
         &mut self,
+        c: &faraday_crypto::work::Compute,
         stick: &str,
         name: &str,
         bytes: &[u8],
+        copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
     ) -> Result<String, String>;
@@ -125,10 +141,18 @@ pub trait Sticks {
     /// The pictures read since the last call, each with its stick and
     /// name; and the next picture asked is started.
     fn pictures_read(&mut self) -> Vec<PictureRead>;
-    /// A file renamed in place; refused, nothing written, where another
-    /// file has the name (`faraday_files::rename`).
-    fn rename(&mut self, stick: &str, from: &str, to: &str)
-    -> Result<(), faraday_files::Unrenamed>;
+    /// Costs what `faraday_files::rename` costs where the sticks are
+    /// folders. A file renamed in place; refused, nothing written, where
+    /// another file has the name (`faraday_files::rename`). `vaults`: the
+    /// SHA-256 of the copies of each vault the session has seen.
+    fn rename(
+        &mut self,
+        c: &faraday_crypto::work::Compute,
+        stick: &str,
+        from: &str,
+        to: &str,
+        vaults: &[Vec<[u8; 32]>],
+    ) -> Result<(), faraday_files::Unrenamed>;
     /// The volume named `label`, or its name taken away where it is
     /// empty (`docs/STICK-IDENTITY.md` §6).
     fn name(&mut self, stick: &str, label: &str) -> Result<(), String>;
@@ -206,13 +230,15 @@ impl Sticks for Dirs {
     }
     fn write(
         &mut self,
+        c: &faraday_crypto::work::Compute,
         stick: &str,
         name: &str,
         bytes: &[u8],
+        copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
     ) -> Result<String, String> {
-        faraday_files::write_file(&mut dir(stick), name, bytes, replace, renamed)
+        faraday_files::write_file(c, &mut dir(stick), name, bytes, copies, replace, renamed)
     }
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
         faraday_files::wipe(&mut dir(stick), name)
@@ -234,11 +260,13 @@ impl Sticks for Dirs {
     }
     fn rename(
         &mut self,
+        c: &faraday_crypto::work::Compute,
         stick: &str,
         from: &str,
         to: &str,
+        vaults: &[Vec<[u8; 32]>],
     ) -> Result<(), faraday_files::Unrenamed> {
-        faraday_files::rename(&mut dir(stick), from, to)
+        faraday_files::rename(c, &mut dir(stick), from, to, vaults)
     }
     fn name(&mut self, _stick: &str, _label: &str) -> Result<(), String> {
         Err(EN.storage_name_folder.to_string())
@@ -684,10 +712,12 @@ fn serve_queued(
                 stick,
                 name,
                 bytes,
+                copies,
                 replace,
                 renamed,
             } => {
-                let written = sticks.write(&stick, &name, &bytes, replace, renamed);
+                let c = app.compute();
+                let written = sticks.write(&c, &stick, &name, &bytes, &copies, replace, renamed);
                 let ev = match written {
                     Ok(wrote_as) => {
                         said.push(format!("wrote {stick}/{wrote_as}"));
@@ -765,12 +795,26 @@ fn serve_queued(
                 };
                 app.storage(ev);
             }
-            StorageCommand::Rename { stick, from, to } => {
-                let refused = sticks.rename(&stick, &from, &to).err().map(|r| match r {
-                    faraday_files::Unrenamed::Taken => faraday_core::Unrenamed::Taken,
-                    faraday_files::Unrenamed::SameVault => faraday_core::Unrenamed::SameVault,
-                    faraday_files::Unrenamed::Failed(why) => faraday_core::Unrenamed::Failed(why),
-                });
+            StorageCommand::Rename {
+                stick,
+                from,
+                to,
+                vaults,
+            } => {
+                let c = app.compute();
+                let refused =
+                    sticks
+                        .rename(&c, &stick, &from, &to, &vaults)
+                        .err()
+                        .map(|r| match r {
+                            faraday_files::Unrenamed::Taken => faraday_core::Unrenamed::Taken,
+                            faraday_files::Unrenamed::SameVault => {
+                                faraday_core::Unrenamed::SameVault
+                            }
+                            faraday_files::Unrenamed::Failed(why) => {
+                                faraday_core::Unrenamed::Failed(why)
+                            }
+                        });
                 said.push(match &refused {
                     None => format!("renamed {stick}/{from} {to}"),
                     Some(r) => format!("cannot rename {stick}/{from}: {r:?}"), // not shown: a line for a verbose shell's console
@@ -1063,6 +1107,39 @@ impl DiskProcess {
     }
 }
 
+impl DiskProcess {
+    /// A file written through the disk process as [`Sticks::write`]
+    /// writes it, a vault over the file with one of `copies` (the SHA-256
+    /// of the copies the app has seen). The shell's own files, the
+    /// timings and the boot report, are no vault: no copies.
+    pub fn write_copies(
+        &mut self,
+        stick: &str,
+        name: &str,
+        bytes: &[u8],
+        copies: &[[u8; 32]],
+        replace: bool,
+        renamed: bool,
+    ) -> Result<String, String> {
+        use faraday_files::proto::{Request, Response};
+        let mut req = Request::Write {
+            stick: stick.into(),
+            name: name.into(),
+            copies: copies.to_vec(),
+            replace,
+            renamed,
+            bytes: bytes.to_vec(),
+        };
+        let answer = self.ask(&req);
+        req.wipe();
+        match answer? {
+            Response::Written(n) => Ok(n),
+            Response::Failed(why) => Err(why),
+            _ => Err(EN.storage_answer_write.to_string()),
+        }
+    }
+}
+
 impl Sticks for DiskProcess {
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
         use faraday_files::proto::{Request, Response};
@@ -1078,27 +1155,15 @@ impl Sticks for DiskProcess {
 
     fn write(
         &mut self,
+        _c: &faraday_crypto::work::Compute,
         stick: &str,
         name: &str,
         bytes: &[u8],
+        copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
     ) -> Result<String, String> {
-        use faraday_files::proto::{Request, Response};
-        let mut req = Request::Write {
-            stick: stick.into(),
-            name: name.into(),
-            replace,
-            renamed,
-            bytes: bytes.to_vec(),
-        };
-        let answer = self.ask(&req);
-        req.wipe();
-        match answer? {
-            Response::Written(n) => Ok(n),
-            Response::Failed(why) => Err(why),
-            _ => Err(EN.storage_answer_write.to_string()),
-        }
+        self.write_copies(stick, name, bytes, copies, replace, renamed)
     }
 
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
@@ -1186,9 +1251,11 @@ impl Sticks for DiskProcess {
 
     fn rename(
         &mut self,
+        _c: &faraday_crypto::work::Compute,
         stick: &str,
         from: &str,
         to: &str,
+        vaults: &[Vec<[u8; 32]>],
     ) -> Result<(), faraday_files::Unrenamed> {
         use faraday_files::Unrenamed as U;
         use faraday_files::proto::{Request, Response};
@@ -1197,6 +1264,7 @@ impl Sticks for DiskProcess {
                 stick: stick.into(),
                 from: from.into(),
                 to: to.into(),
+                vaults: vaults.to_vec(),
             })
             .map_err(U::Failed)?
         {

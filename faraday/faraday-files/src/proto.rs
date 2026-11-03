@@ -51,6 +51,10 @@ pub enum Request {
         stick: String,
         /// The name asked for.
         name: String,
+        /// The SHA-256 of every copy of this vault the session has seen,
+        /// when it is one: the file on the stick with one of them is
+        /// the vault written back over (`docs/VAULT.md` §6).
+        copies: Vec<[u8; 32]>,
         /// Over a file of that name, the person having chosen Replace.
         replace: bool,
         /// The person renamed this file For the stick: a vault going over
@@ -98,6 +102,9 @@ pub enum Request {
         from: String,
         /// Its new name.
         to: String,
+        /// For each vault the session has seen, the SHA-256 of its copies:
+        /// two vault files are the same vault where one list has both.
+        vaults: Vec<Vec<[u8; 32]>>,
     },
     /// The volume named `label`, or its name taken away where `label` is
     /// empty (`docs/STICK-IDENTITY.md` §6); answered `Renamed`.
@@ -260,6 +267,13 @@ impl Out {
         self.0
             .extend_from_slice(&(n.min(u16::MAX as usize) as u16).to_le_bytes());
     }
+    /// A list of SHA-256 digests: a 2-byte count, then 32 bytes each.
+    fn digests(&mut self, d: &[[u8; 32]]) {
+        self.count(d.len());
+        for h in d.iter().take(u16::MAX as usize) {
+            self.0.extend_from_slice(h);
+        }
+    }
 }
 
 struct In<'a>(&'a [u8]);
@@ -298,6 +312,16 @@ impl In<'_> {
         let n = self.u32()?;
         Ok(self.take(n)?.to_vec())
     }
+    fn digests(&mut self) -> Result<Vec<[u8; 32]>, Malformed> {
+        let n = self.u16()?;
+        let mut out = Vec::new();
+        for _ in 0..n {
+            let mut h = [0u8; 32];
+            h.copy_from_slice(self.take(32)?);
+            out.push(h);
+        }
+        Ok(out)
+    }
     fn end(&self) -> Result<(), Malformed> {
         if self.0.is_empty() {
             Ok(())
@@ -328,13 +352,17 @@ impl Request {
             Request::Write {
                 stick,
                 name,
+                copies,
                 replace,
                 renamed,
                 bytes,
             } => {
-                let mut o = Out::sized(3, 4 + stick.len() + name.len() + 2 + 4 + bytes.len());
+                let more =
+                    4 + stick.len() + name.len() + 2 + 32 * copies.len() + 2 + 4 + bytes.len();
+                let mut o = Out::sized(3, more);
                 o.str(stick);
                 o.str(name);
+                o.digests(copies);
                 o.0.push(u8::from(*replace));
                 o.0.push(u8::from(*renamed));
                 o.bytes(bytes);
@@ -368,11 +396,20 @@ impl Request {
                 o.str(stick);
                 o
             }
-            Request::Rename { stick, from, to } => {
+            Request::Rename {
+                stick,
+                from,
+                to,
+                vaults,
+            } => {
                 let mut o = Out::tag(9);
                 o.str(stick);
                 o.str(from);
                 o.str(to);
+                o.count(vaults.len());
+                for v in vaults.iter().take(u16::MAX as usize) {
+                    o.digests(v);
+                }
                 o
             }
             Request::Name { stick, label } => {
@@ -397,6 +434,7 @@ impl Request {
             3 => Request::Write {
                 stick: i.str()?,
                 name: i.str()?,
+                copies: i.digests()?,
                 replace: match i.u8()? {
                     0 => false,
                     1 => true,
@@ -427,6 +465,14 @@ impl Request {
                 stick: i.str()?,
                 from: i.str()?,
                 to: i.str()?,
+                vaults: {
+                    let n = i.u16()?;
+                    let mut v = Vec::new();
+                    for _ in 0..n {
+                        v.push(i.digests()?);
+                    }
+                    v
+                },
             },
             10 => Request::Name {
                 stick: i.str()?,
@@ -723,6 +769,7 @@ mod tests {
             Request::Write {
                 stick: "sdb1@7".into(),
                 name: "vault.fvlt".into(),
+                copies: vec![[7; 32], [8; 32]],
                 replace: false,
                 renamed: true,
                 bytes: vec![1, 2, 3],
@@ -730,6 +777,7 @@ mod tests {
             Request::Write {
                 stick: "sdb1@7".into(),
                 name: "wallet.json".into(),
+                copies: Vec::new(),
                 replace: true,
                 renamed: false,
                 bytes: vec![4, 5],
@@ -756,6 +804,7 @@ mod tests {
                 stick: "sdb1@7".into(),
                 from: "vault.fvlt".into(),
                 to: "savings.fvlt".into(),
+                vaults: vec![vec![[1; 32], [2; 32]], Vec::new(), vec![[3; 32]]],
             },
             Request::Name {
                 stick: "sdb2@sdb#7".into(),

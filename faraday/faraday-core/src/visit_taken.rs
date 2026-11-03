@@ -381,10 +381,12 @@ impl Faraday {
             .collect();
         for (name, bytes, replace) in sends {
             let renamed = self.visit.files_menu_mut().renamed.contains(&name);
+            let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
                 name,
                 bytes,
+                copies,
                 replace,
                 renamed,
             });

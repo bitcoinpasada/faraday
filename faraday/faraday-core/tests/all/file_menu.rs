@@ -222,7 +222,8 @@ fn a_file_on_the_stick_renamed_is_listed_under_its_new_name_with_its_bytes() {
 }
 
 #[test]
-fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
+fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named_only_for_copies_the_session_knows()
+ {
     let v = vault("Savings", &["pass one"], 7);
     let (mut shell, mut app) = visiting(
         Vec::new(),
@@ -256,8 +257,9 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
     assert_eq!(shell.disk("S1").files, before, "nothing written");
     let log: Vec<&str> = app.visit().log.iter().map(|(l, _)| l.as_str()).collect();
     assert!(log.contains(&"b.txt is already on this stick"), "{log:?}");
+    // Never opened or sealed here: two equal files are not known to be one vault.
     assert!(
-        log.contains(&"vault.fvlt on this stick is this same vault"),
+        log.contains(&"vault.fvlt is already on this stick"),
         "{log:?}"
     );
 }
