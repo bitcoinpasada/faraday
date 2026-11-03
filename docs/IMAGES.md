@@ -175,12 +175,16 @@ probe that finds nothing removes what it loaded before the next starts.
    overlay is loaded, so no panel's touch controller is bound or
    trusted. The Zero 2 W's mini-HDMI is the same connector.
 2. **The 2.8-inch's GT911**, on the bit-banged I²C its touch overlay
-   declares on the GPIO header: the overlay that declares only the
-   controller is loaded, and the probe passes when its input device
-   appears, with the name expected and on that bus, within a set time
-   (two seconds until §9 step 11 measures it). The DPI pin setup (GPIO 0-9, 12-17 and 20-25 to alternate
-   function 2) is applied only once the GT911 has answered, never
-   tried blind.
+   declares on the GPIO header: the touch overlay is loaded whenever
+   HDMI does not read connected. It declares the GT911 at either of its
+   two addresses, a gpio-backlight on GPIO 18, and the I²C pins and the
+   GT911's reset and interrupt lines, so those are set up before the
+   controller has answered. The probe passes when the controller's input
+   device appears, with the name expected, on that bus and at one of the
+   two addresses, within a set time (two seconds until §9 step 11
+   measures it). The DPI pin setup (GPIO 0-9, 12-17 and 20-25 to
+   alternate function 2) is applied only once the GT911 has answered,
+   by the display overlay.
 3. **Nothing found:** HDMI, as the HDMI image starts today; a monitor
    plugged in later is set up by its hotplug.
 
@@ -258,7 +262,9 @@ The screen is chosen once per boot; a screen changed is a power cycle.
 - **Where.** `/etc/init.d/screen` in the Pi panel directory's root
   filesystem overlay, run by
   `faraday/image/common/rootfs-overlay/etc/init.d/rcS` as root, after
-  `/sys` is mounted and before the app's loop in
+  `/sys` is mounted and before `mdev -s`, so the framebuffer and the
+  touch controller's event node it brings up get their owners from
+  `mdev.conf`, and before the app's loop in
   `faraday/image/common/rootfs-overlay/etc/inittab` starts; the PC's
   image has none. It is BusyBox `sh`.
 - **What it mounts.** configfs at `/sys/kernel/config`, for the probes
@@ -266,7 +272,7 @@ The screen is chosen once per boot; a screen changed is a power cycle.
   overlay can be loaded once the app runs.
 - **What it writes.** One line, `/run/faraday-screen/args`, root's and
   readable by all: the shell's arguments for the screen found (§3.1),
-  empty for HDMI. The inittab passes the shell `/etc/faraday/args`
+  HDMI's from its `panel.conf` (its touch grid). The inittab passes the shell `/etc/faraday/args`
   (what the build fixes, the dev flags among them) and then this file.
   It writes nothing to the card.
 - **What the shell reads.** The same arguments as today, from that file

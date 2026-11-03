@@ -15,6 +15,14 @@ CONFIG_FEATURE_MDEV_CONF=y
 CONFIG_HALT=y
 CONFIG_POWEROFF=y
 
+# What /etc/init.d/screen needs of its applets: a fractional `sleep 0.1`
+# and `readlink -f`. Buildroot's default has them on; they are named here
+# so a trimmed config cannot lose them unseen.
+CONFIG_SLEEP=y
+CONFIG_FEATURE_FANCY_SLEEP=y
+CONFIG_READLINK=y
+CONFIG_FEATURE_READLINK_FOLLOW=y
+
 # The app runs as the unprivileged `faraday` user (security review
 # 2026-09-11, M8), and init is the only thing on the device that is root.
 # `setuidgid USER PROG` is what drops to it: it sets the group, drops the

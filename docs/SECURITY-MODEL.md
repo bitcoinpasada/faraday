@@ -37,7 +37,7 @@ to the others in `/proc`.
   USB authorisation policy, creates the RAM directories and pipes the
   programs use, and starts the other two programs. It mounts no
   storage.
-- **On the Pi, the screen script** (`/etc/init.d/screen`, planned,
+- **On the Pi, the screen script** (`/etc/init.d/screen`,
   `docs/IMAGES.md` §3.4) runs as root from the boot script before
   anything else is started: it mounts configfs, loads the overlay of the
   screen it finds from the initramfs's own files (never from the card or a

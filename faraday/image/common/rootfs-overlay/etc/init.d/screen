@@ -7,12 +7,12 @@
 #   1. HDMI connected: no panel's overlay is loaded.
 #   2. each panel in /etc/faraday/screens/order (the 2.8-inch's GT911
 #      for now): load its touch overlay through configfs, wait for its
-#      controller (name, bus, address), then load its display overlay, rebind vc4 and check /dev/fb0 is at the panel's
-#      mode. A probe that finds nothing removes what it loaded.
+#      controller (name, bus, address), then load its display overlay,
+#      rebind vc4 and check /dev/fb0 is at the panel's mode. A probe that finds nothing removes what it loaded.
 #   3. nothing found: HDMI.
 #
 # It writes one line, /run/faraday-screen/args, the shell's arguments for
-# the screen (empty for HDMI), and nothing to the card. configfs is
+# the screen (HDMI's from its panel.conf), and nothing to the card. configfs is
 # mounted for this script alone and unmounted before it ends, so no
 # overlay can be loaded once the app runs. Each result goes to
 # /dev/kmsg. The overlays are read from /etc/faraday/screens/<screen>/
@@ -21,7 +21,7 @@
 # (faraday/image/panels/any/README.md).
 #
 # The paths below can be set by the environment so the choices can be
-# tested on a host (faraday/faraday-grant/tests/screen.rs); the image sets
+# tested on a host (faraday/faraday-grant/tests/screen_probe.rs); the image sets
 # none of them.
 
 SYS=${FARADAY_SCREEN_SYS:-/sys}
@@ -81,14 +81,19 @@ rebind() {
 }
 
 # The input device whose name holds $TOUCH_NAME, on bus $I2C_BUS (or
-# any) at address $I2C_ADDR: prints its sysfs directory.
+# any) at one of the addresses in $I2C_ADDR (hex, space separated): prints
+# its sysfs directory.
 find_input() {
-    addr=$(printf '%04x' "0x$I2C_ADDR" 2>/dev/null) || return 1
     for d in "$SYS"/class/input/input*; do
         [ -e "$d/name" ] || continue
         case "$(cat "$d/name")" in *"$TOUCH_NAME"*) ;; *) continue ;; esac
         p=$(readlink -f "$d")
-        case "$p" in *"-$addr/"*) ;; *) continue ;; esac
+        ok=
+        for a in $I2C_ADDR; do
+            addr=$(printf '%04x' "0x$a" 2>/dev/null) || continue
+            case "$p" in *"-$addr/"*) ok=1 ;; esac
+        done
+        [ -n "$ok" ] || continue
         if [ "$I2C_BUS" != any ]; then
             case "$p" in */"$I2C_BUS"/*) ;; *) continue ;; esac
         fi
@@ -110,6 +115,7 @@ wait_input() {
 
 # The panel's size from its panel.conf, as W,H (the framebuffer's).
 panel_mode() (
+    unset SIZE WIDTH HEIGHT
     . "$1/panel.conf"
     if [ -n "${SIZE:-}" ]; then
         echo "${SIZE%x*},${SIZE#*x}"
@@ -121,6 +127,10 @@ panel_mode() (
 # The shell's arguments for a screen, from its panel.conf, as build.sh
 # builds /etc/faraday/args from a panel today.
 panel_args() (
+    # What a probe.conf set, and any earlier panel.conf, is not this
+    # screen's.
+    unset SIZE WIDTH HEIGHT DPI TOUCH_NAME TOUCH_GRID TOUCH_SWAP \
+        TOUCH_INVERT_X TOUCH_INVERT_Y NATIVE MOUNT
     . "$1/panel.conf"
     a=""
     if [ -n "${SIZE:-}" ]; then
@@ -196,6 +206,7 @@ chmod 0644 "$RUN/args"
 hdmi=$(cat "$SYS/class/drm/card0-HDMI-A-1/status" 2>/dev/null)
 if [ "$hdmi" = connected ]; then
     log "HDMI connected: no panel tried"
+    found=hdmi
 elif [ -f "$SCREENS/order" ]; then
     $MOUNT_CFG "$CFG" 2>/dev/null
     if [ -d "$OVERLAYS" ]; then
@@ -213,12 +224,14 @@ elif [ -f "$SCREENS/order" ]; then
     else
         log "no overlay interface: HDMI"
     fi
-    $UMOUNT_CFG "$CFG" 2>/dev/null
+    $UMOUNT_CFG "$CFG" 2>/dev/null ||
+        log "configfs was not unmounted: overlays can still be loaded"
 fi
 
 if [ -n "$found" ]; then
     panel_args "$SCREENS/$found" > "$RUN/args"
     log "screen found: $found"
 else
+    panel_args "$SCREENS/hdmi" > "$RUN/args"
     log "no panel found: HDMI"
 fi

@@ -41,7 +41,9 @@ fallback, so nothing is probed and no overlay is loaded.
   - `I2C_BUS`: a component of the input device's sysfs path naming the
     bus the touch overlay declares (`i2c@0` for Waveshare's bit-banged
     bus), or `any`;
-  - `I2C_ADDR`: the controller's address in hex without `0x`;
+  - `I2C_ADDR`: the controller's address in hex without `0x`, or
+    several separated by spaces (quoted) when the overlay declares it at
+    either;
   - `RANGE=WxH`: the range a DSI panel's controller reports, empty and
     unused for a GPIO screen.
   A value marked "to confirm" is the vendor's, built in and checked on the

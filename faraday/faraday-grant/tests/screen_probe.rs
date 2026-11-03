@@ -24,9 +24,11 @@ const SCREENS: &[(&str, &str, &str, &str, &str)] = &[(
     "dpi28",
     "Goodix",
     "i2c-gpio",
-    "5d",
+    "14 5d",
     "SIZE=480x640\nDPI=286\nTOUCH_NAME=Goodix\nTOUCH_GRID=640x480\nNATIVE=portrait\n",
 )];
+
+const HDMI: &str = "--touch-grid 1280x800";
 
 const DPI28: &str =
     "--size 480x640 --dpi 286 --touch-name Goodix --touch-grid 640x480 --native portrait";
@@ -58,14 +60,14 @@ impl Rig {
             fs::write(d.join("panel.conf"), conf).unwrap();
             fs::write(
                 d.join("probe.conf"),
-                format!("KIND=gpio\nTOUCH_NAME={name}\nI2C_BUS={bus}\nI2C_ADDR={addr}\n"),
+                format!("KIND=gpio\nTOUCH_NAME={name}\nI2C_BUS={bus}\nI2C_ADDR=\"{addr}\"\n"),
             )
             .unwrap();
             fs::write(d.join("touch.dtbo"), "touch").unwrap();
             fs::write(d.join("display.dtbo"), "display").unwrap();
         }
         fs::create_dir_all(screens.join("hdmi")).unwrap();
-        fs::write(screens.join("hdmi/panel.conf"), "").unwrap();
+        fs::write(screens.join("hdmi/panel.conf"), "TOUCH_GRID=1280x800\n").unwrap();
         fs::write(screens.join("order"), "dpi28\n").unwrap();
         let rig = Rig { root };
         rig.hdmi("disconnected");
@@ -146,7 +148,7 @@ fn an_hdmi_screen_wins_over_the_panel_also_attached() {
     rig.controller("i2c-gpio", "5d", "Goodix");
     rig.framebuffer("480,640");
     let (args, _) = rig.run();
-    assert_eq!(args, "");
+    assert_eq!(args, HDMI);
     assert!(rig.loaded().is_empty(), "no panel's overlay is loaded");
 }
 
@@ -164,14 +166,14 @@ fn the_2_8_inch_gt911_answering_gives_its_screen() {
 fn a_controller_of_another_name_address_or_bus_is_not_the_screen() {
     for (bus, addr, name) in [
         ("i2c-gpio", "5d", "Other"),
-        ("i2c-gpio", "14", "Goodix"),
+        ("i2c-gpio", "27", "Goodix"),
         ("i2c-1", "5d", "Goodix"),
     ] {
         let rig = Rig::new("other");
         rig.controller(bus, addr, name);
         rig.framebuffer("480,640");
         let (args, _) = rig.run();
-        assert_eq!(args, "", "{name} at {addr} on {bus}");
+        assert_eq!(args, HDMI, "{name} at {addr} on {bus}");
         assert!(rig.loaded().is_empty());
     }
 }
@@ -195,7 +197,7 @@ fn a_rebind_leaving_no_framebuffer_starts_on_hdmi() {
     let rig = Rig::new("nofb");
     rig.controller("i2c-gpio", "5d", "Goodix");
     let (args, log) = rig.run();
-    assert_eq!(args, "");
+    assert_eq!(args, HDMI);
     assert!(log.contains("no framebuffer"));
     assert!(rig.loaded().is_empty(), "the overlays are removed");
 }
@@ -206,14 +208,46 @@ fn a_framebuffer_at_another_mode_starts_on_hdmi() {
     rig.controller("i2c-gpio", "5d", "Goodix");
     rig.framebuffer("1920,1080");
     let (args, _) = rig.run();
-    assert_eq!(args, "");
+    assert_eq!(args, HDMI);
 }
 
 #[test]
 fn nothing_found_is_hdmi_and_the_overlays_are_gone() {
     let rig = Rig::new("none");
     let (args, log) = rig.run();
-    assert_eq!(args, "");
+    assert_eq!(args, HDMI);
     assert!(log.contains("no panel found"));
     assert!(rig.loaded().is_empty());
+}
+
+#[test]
+fn the_gt911_at_the_overlays_other_address_is_found_too() {
+    let rig = Rig::new("addr14");
+    rig.controller("i2c-gpio", "14", "Goodix");
+    rig.framebuffer("480,640");
+    let (args, _) = rig.run();
+    assert_eq!(args, DPI28);
+}
+
+#[test]
+fn a_configfs_that_stays_mounted_is_logged() {
+    let rig = Rig::new("umount");
+    let r = &rig.root;
+    let ok = Command::new("sh")
+        .arg(script())
+        .env("FARADAY_SCREEN_SYS", r.join("sys"))
+        .env("FARADAY_SCREEN_CONFIGFS", r.join("cfg"))
+        .env("FARADAY_SCREEN_DIR", r.join("etc/screens"))
+        .env("FARADAY_SCREEN_RUN", r.join("run/faraday-screen"))
+        .env("FARADAY_SCREEN_DEV", r.join("dev"))
+        .env("FARADAY_SCREEN_KMSG", r.join("kmsg"))
+        .env("FARADAY_SCREEN_MOUNT", "true")
+        .env("FARADAY_SCREEN_UMOUNT", "false")
+        .env("FARADAY_SCREEN_WAIT", "2")
+        .status()
+        .unwrap()
+        .success();
+    assert!(ok);
+    let log = fs::read_to_string(r.join("kmsg")).unwrap();
+    assert!(log.contains("configfs was not unmounted"));
 }

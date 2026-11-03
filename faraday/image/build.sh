@@ -575,6 +575,21 @@ if [ -d "$screens_src" ]; then
                 TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y
             # shellcheck source=/dev/null
             . "$screens_src/$sc/panel.conf"
+            if [ -n "${WIDTH:-}" ] || [ -n "${HEIGHT:-}" ]; then
+                for v in WIDTH HEIGHT; do
+                    [ -n "${!v:-}" ] || {
+                        echo "$screens_src/$sc/panel.conf has WIDTH or HEIGHT but not both" >&2
+                        exit 1; }
+                done
+            fi
+            if [ -n "${MOUNT:-}" ] && [ -z "${NATIVE:-}" ]; then
+                echo "$screens_src/$sc/panel.conf has MOUNT but no NATIVE" >&2; exit 1
+            fi
+            for v in NAME WIDTH HEIGHT SIZE DPI TOUCH_NAME TOUCH_GRID NATIVE MOUNT; do
+                case "${!v:-}" in
+                    *[[:space:]]*) echo "$screens_src/$sc/panel.conf: $v has a space" >&2; exit 1 ;;
+                esac
+            done
             case "${NATIVE:-}" in ""|portrait|landscape) ;;
                 *) echo "$screens_src/$sc/panel.conf: NATIVE is portrait or landscape" >&2; exit 1 ;; esac
             case "${MOUNT:-}" in ""|90|270) ;;
