@@ -6635,7 +6635,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "08f1fa3adc9615f0be683b95ca1673f36d3cb2577557dc122e1ea4247a04165d"
+fingerprint = "f56bf9d5bb34d40ffd07c24c9ff9990cca769c5e7ca4219587103f76bf1fcdc1"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
@@ -6742,7 +6742,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "d97d1a0c880906a04ce8c6413d6088a01c10ea7f5a5e72520afbf420391440de"
+fingerprint = "4c82c8ced34d0e7fbe99248bdd4b53ff244ed08f5495288873b1a974ebbd4859"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
@@ -6825,7 +6825,7 @@ kind = "Neutral"
 decision = "F190"
 
 [action.review]
-fingerprint = "08a29f58a109b4bf015af68c1c0b8ca66397b0882a2f2c5134b226fe3fcf9167"
+fingerprint = "f2beff04955cb639a9e981ffd674396cb94ff1b9cd1a9a989572e67055914832"
 reviewed = "2026-11-02"
 
 [[action]]
@@ -7072,7 +7072,7 @@ kind = "Neutral"
 decision = "F159"
 
 [action.review]
-fingerprint = "91cb2fe2f9cc85eb6872458376fcae42f7de54d961837ad29c77a2b776328dc7"
+fingerprint = "eed47deded0556978569ac999ef2a2c299a516b2d46946a2902fcf8b49b99b9f"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
