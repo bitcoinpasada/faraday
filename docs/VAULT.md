@@ -78,7 +78,7 @@ only which size it is (F189 point 4):
 
 | Size | Contents | File | Suits |
 |---|---|---|---|
-| QR (§2.1) | one item, top-level keys | about 408 B | one seed, one codex32 share, or one passphrase, printed as a code |
+| QR (§2.1) | one item or a note, top-level keys | about 408 B | one seed, one codex32 share, one passphrase or a short note, printed as a code |
 | 64 KiB | 65,536 B | 65,718 B | keys, wallets, a few entries |
 | 256 KiB | 262,144 B | 262,374 B | the default: keys, wallets, notes, GPG and Secure Boot keys, about a hundred entries |
 | 1 MiB | 1,048,576 B | 1,048,998 B | many entries and notes |
@@ -95,36 +95,47 @@ it.
 
 ### 2.1 The QR size
 
-A QR vault holds one item (F189 point 6): a seed's words (12 or 24
-words of the English list, as a SeedQR's are; a Seed XOR part is 24), a
-codex32 share, or a BIP-39 passphrase with the fingerprint of the key it
-belongs to. No item is longer than a 24-word seed: a passphrase longer
-than that goes in a file vault. A seed of another list, or of another
-word count, goes in a file vault.
+A QR vault holds one item, a note, or nothing yet (F189 point 6): a
+seed's words (12 or 24 words of the English list, as a SeedQR's are; a
+Seed XOR part is 24), a codex32 share, a BIP-39 passphrase with the
+fingerprint of the key it belongs to, or any text typed into it. No
+item is longer than a 24-word seed: a passphrase longer than that, a
+seed of another list or word count, and a longer text go in a file
+vault.
 
 Its contents are the item's keys at the top of a TOML document, named
 as in §7 and written one to a line: a seed is `words = "…"`; a codex32
 share is `codex32 = "…"` and `for = "…"` (the fingerprint of its key);
-a passphrase is `passphrase = "…"` and `for = "…"`. Exactly one of
-`words`, `codex32` and `passphrase` is present, and there is no `vault`
-table: a QR vault is never sealed again, so it has no count and no
-identifier. The text is padded with line feeds to the one length every
-QR vault has, 226 bytes, so a code does not show what it holds. That
-length is the line of a 24-word seed of the list's longest words: the
-start `words = "` is 9 bytes, the words 215, the closing quote and the
-line feed 2. A
-12-word seed is padded to it. The longest passphrase is 193 bytes of
-TOML text (`QR_PASSPHRASE_MAX`): the `passphrase` line is 13 bytes and the
-text's quotes and line feed 3, the `for` line 17. The age file is 182
-bytes more than its plaintext, 408 bytes; the code is version 15
-(77 × 77 modules) at medium error correction, which holds 412 bytes in
-byte mode.
+a passphrase is `passphrase = "…"` and `for = "…"`; a note is
+`note = "…"`. At most one of `words`, `codex32`, `passphrase` and
+`note` is present: a QR vault with none of them is empty. There is no
+`vault` table: a QR vault has no seal count and no identifier, and
+every seal is a new code (§8). The text is padded with line feeds to the
+one length every QR vault has, 226 bytes, so a code does not show what
+it holds, or whether it holds anything. That length is the line of a
+24-word seed of the list's longest words: the start `words = "` is 9
+bytes, the words 215, the closing quote and the line feed 2. A 12-word
+seed is padded to it. The longest passphrase is 193 bytes of TOML text
+(`QR_PASSPHRASE_MAX`): the `passphrase` line is 13 bytes and the text's
+quotes and line feed 3, the `for` line 17. The longest note is 216
+bytes of TOML text (`QR_NOTE_MAX`): the start `note = "` is 8 bytes and
+the closing quote and line feed 2; a quote, a backslash or a line
+break in the text takes two bytes as its escape, and a character
+outside ASCII its UTF-8 length. The age file is 182 bytes more than its
+plaintext, 408 bytes; the code is version 15 (77 × 77 modules) at
+medium error correction, which holds 412 bytes in byte mode.
 
 A QR vault is a vault like the others: it unlocks with its passphrase,
-is listed on Vaults while open, marked as a QR vault, and shows its
-item. It is read-only, since the printed code cannot change; a new one
-is made instead (§8). It is not a secret under `docs/QR.md` §7.1: it is
-drawn and printed as any code is.
+is listed on Vaults while open, marked as a QR vault, and shows what it
+holds. What it holds can be changed at any time, however it was made
+(§8): a key put in, the text typed or edited, one replaced by the
+other, or emptied. Each change is sealed as a new code; a code printed
+before still opens, to what it held when it was sealed, so the screen
+says to print the new code and destroy the old. It is not a secret
+under `docs/QR.md` §7.1: it is drawn and printed as any code is, and
+offered as a labelled PNG (`docs/QR.md` §4 items 3 and 4) whose label lines
+are "QR vault", the vault's name and the date it was sealed, never what
+it holds.
 
 Scanned wherever a SeedQR is taken, it asks for its passphrase, opens,
 and its words go to the seed sheet (**Use without a passphrase** /
@@ -357,7 +368,9 @@ generated for each stanza and each file"):
 Sealing happens on every lock (`docs/history/PLAN.md` §5.3), and for one
 vault alone when a backup's vault item locks it to make the next vault
 ("Lock it and make a new vault"); that vault closes and the rest stay
-open. A QR vault is never sealed. The sealed file goes For the stick
+open. A QR vault is sealed only by **Save** on its page or in the
+backup flow (§8), when what it holds changes, never at a lock, so its
+printed code stays current until it is changed. The sealed file goes For the stick
 (Files' half that a stick visit writes). With more than one vault file
 For the stick, a visit ticks one, the first the last write did not
 write, so each vault goes to its own stick.
@@ -539,14 +552,26 @@ scrypt under the new passphrase and step and pads to the new size. A
 size the contents do not fit is not offered. Copies of the vault sealed
 before keep their old passphrase.
 
-**Create a QR vault** on Vaults, and the backup flow wherever a seed, a
-share or a passphrase is placed, make a QR vault (§2.1): the item, the
-memory step and a passphrase typed twice, with **Add randomness**
-offered first. Several shares or parts take **one shared passphrase** or
-**a passphrase for each**, and the flow says to keep each in a separate
-place. The code is shown to print or draw, and the file goes For the
-stick and to the Outbox as a `.age` file. A QR vault is not changed: a
-new one is made in its place.
+A **QR** size in Create a vault makes a QR vault (§2.1), empty, with
+the same name, memory step and passphrase; there is no separate flow
+for it. Its page then offers **Add a key** (a seed's words, a codex32
+share, or a BIP-39 passphrase with its key's fingerprint, chosen from
+the keys on the device) and a text field for a note, which shows the
+room left as it is typed and takes no more than §2.1's maximum; both
+can be used again at any time to replace what it holds. **Save** seals
+it as a new code with a new salt and file key; the memory step and
+passphrase can be changed as a file vault's can. The backup flow,
+wherever a seed, a share or a passphrase is placed, makes a QR vault
+holding it in the same way, **Add randomness** offered first. Several
+shares or parts take **one shared passphrase** or **a passphrase for
+each**, and the flow says to keep each in a separate place.
+
+A QR vault's page and the backup flow, wherever one is placed, offer
+**Show as QR**, **PNG to the Outbox** (the labelled picture, §2.1) and
+**To the Outbox** (the `.age` file, which `age -d` opens); a stick visit
+writes the Outbox as it writes any file. After each save the new code
+is shown, with the note that an earlier printed code still opens to
+what it held before.
 
 ## 9. What the vault promises
 
