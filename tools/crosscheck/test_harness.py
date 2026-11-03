@@ -278,6 +278,21 @@ class TaprootKept(unittest.TestCase):
                     self.assertEqual(answer(kept), answer(plain))
 
 
+class ReviewJudges(unittest.TestCase):
+    """`area_review` stops when Core's wallet and btclib say different
+    things of an output's change claim."""
+
+    def test_a_wrong_core_answer_stops_the_area(self):
+        import area_review as R
+        claim = (1, 3)
+        R.agree_change("ours", claim, claim)
+        R.agree_change("spoof", claim, None)
+        R.agree_change("spoof", claim, (1, 4))
+        for btclib, core in [("ours", None), ("ours", (0, 3)), ("spoof", claim)]:
+            with self.assertRaises(AssertionError):
+                R.agree_change(btclib, claim, core)
+
+
 STAND_IN = r'''#!/usr/bin/env python3
 """The stand-in for the Rust command: sha256 and length, one request a
 line; told to sabotage an operation, it answers that one wrongly."""

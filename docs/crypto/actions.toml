@@ -4407,7 +4407,7 @@ tests = [
   "faraday/faraday-core/tests/all/register_wallet.rs::register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs",
 ]
 crosscheck = "review"
-independence = { class = "outside-and-own", author = "btclib-wallet's descriptor wallet (`update_psbt_output`, `index_of`), by the btclib developers, on btclib's own curve; Bitcoin Core v31.1 (`decodepsbt`, `analyzepsbt`, `deriveaddresses`), by the Bitcoin Core developers", ours = "the rule that a script of several keys, a miniscript or a taproot tree is change only for a registered wallet, which outputs claim a held key, and the account keys a registered wallet names, derived in the area" }
+independence = { class = "outside-and-own", author = "btclib-wallet's descriptor wallet (`update_psbt_output`, `index_of`), by the btclib developers, on btclib's own curve; Bitcoin Core v31.1 (`decodepsbt`, `analyzepsbt`, `deriveaddresses`, and a watch-only descriptor wallet's `getaddressinfo` and `walletprocesspsbt`), by the Bitcoin Core developers", ours = "the rule that a script of several keys, a miniscript or a taproot tree is change only for a registered wallet, which outputs claim a held key, and the account keys a registered wallet names, derived in the area" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",

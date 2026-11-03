@@ -23,6 +23,19 @@ Faraday's review of each PSBT is compared with:
   spoof when it claims them and btclib derives another script there. Core's
   `deriveaddresses` makes the addresses the PSBTs pay and checks that the
   public descriptors derive what the private ones do.
+- Core's own watch-only descriptor wallet (`core_node.watch_wallet`, made for
+  each PSBT with the wallet's public descriptors, external and internal, and
+  deleted after): for every output btclib calls change or spoof, Core must
+  find the script at the chain and index the output states (or find it
+  elsewhere, or not at all, where btclib says spoof). `getaddressinfo` says
+  `ismine` and the parent descriptor, whose chain is the one to agree with;
+  `ischange` is Core's "the wallet's and not in its address book", true of
+  both chains, so it is checked to be true of every address of the wallet and
+  is not taken for the internal chain. `walletprocesspsbt` over the PSBT with
+  its maps emptied writes the key origin where the wallet finds each
+  script. Core has no registration: it finds a registered wallet's script and
+  an unregistered one's alike, and the rule that such a script is change only
+  for a registered wallet stays Faraday's own, applied to both judges.
   A script of several keys, a miniscript or a taproot tree is change only
   where its wallet is registered with Faraday.
 
@@ -39,6 +52,7 @@ UTXO data as a witness UTXO or a previous transaction, or none.
 import base64
 import hashlib
 import hmac
+import os
 import re
 import struct
 from decimal import Decimal
@@ -258,9 +272,83 @@ def btclib_change(wallet, psbt, n, chain, index):
     return "ours" if updated else "spoof"
 
 
+def agree_change(btclib, claim, core):
+    """btclib's verdict on an output ("ours" at the claimed (chain, index),
+    or "spoof") and Core's wallet's answer for it (None when the script is
+    not the wallet's, else the (chain, index) it finds): they must say the
+    same, or the area stops."""
+    want = claim if btclib == "ours" else None
+    assert (core == claim) == (want == claim), (
+        f"btclib says {btclib} for a claim at {claim}, Core's wallet finds the script at {core}")
+
+
+def core_change(wallet_name, raw, n_in, n_out, held_fps, w1, addresses):
+    """Bitcoin Core's answer for each output, from a watch-only descriptor
+    wallet of the wallet's public descriptors (external and internal, indices
+    0 to INDICES - 1): `getaddressinfo` says whether the address is the
+    wallet's (`ismine`; `ischange` is Core's "mine and not in the address
+    book", true of every address of the wallet, so it is checked, not
+    used for the chain; the chain is the parent descriptor's) and
+    `walletprocesspsbt` over the PSBT with its output and input maps emptied
+    says where the wallet finds the output's script (the key origin it
+    writes). Each output: None (not the wallet's), or (chain, index), where
+    the parent descriptor's chain agrees with the path Core wrote."""
+    client = core_node.watch_wallet(
+        wallet_name, [(w1.pub[0], False, INDICES - 1), (w1.pub[1], True, INDICES - 1)])
+    try:
+        info = [client.getaddressinfo(a) for a in addresses]
+        glob, _, _ = read_psbt(raw, n_in, n_out)
+        stripped = write_psbt(glob, [[] for _ in range(n_in)], [[] for _ in range(n_out)])
+        filled = client.walletprocesspsbt(base64.b64encode(stripped).decode(), False,
+                                          "DEFAULT", True)["psbt"]
+    finally:
+        core_node.drop_wallet(wallet_name)
+    _, _, found = read_psbt(base64.b64decode(filled), n_in, n_out)
+    depth = len(w1.acct.split("/"))
+    out = []
+    for i, m in zip(info, found):
+        if not i["ismine"]:
+            assert not i["ischange"], "Core: ischange for an address that is not the wallet's"
+            out.append(None)
+            continue
+        paths = origins_of(m, held_fps | set(w1.fps), depth)
+        assert paths, f"Core's wallet owns an address and writes no key origin for it: {i}"
+        chain, index = paths[0]
+        # Core's `ischange` is "the wallet's and not in its address book",
+        # true of both chains here (no label is ever set): it is not the
+        # internal chain, and the area does not take it for it. The chain is
+        # the one the address's parent descriptor ends in.
+        assert i["ischange"], f"Core: the wallet's own address is not ischange: {i}"
+        assert set(re.findall(r"/([01])/\*", i["parent_desc"])) == {str(chain)}, (
+            f"Core's parent descriptor and the key origin it wrote disagree: {i} {(chain, index)}")
+        out.append((chain, index))
+    return out
+
+
+def origins_of(pairs, fps, depth):
+    """The (chain, index) of each key origin in an output map's BIP32 (0x02)
+    or taproot (0x07) fields whose master fingerprint is in `fps` and whose
+    path is the account's depth plus two steps."""
+    out = []
+    for key, value in pairs:
+        if key[:1] == b"\x02":
+            body = value
+        elif key[:1] == b"\x07":
+            hashes, at = read_compact(value, 0)
+            body = value[at + 32 * hashes:]
+        else:
+            continue
+        fp, steps = body[:4].hex(), body[4:]
+        path = [int.from_bytes(steps[k:k + 4], "little") for k in range(0, len(steps), 4)]
+        if fp in fps and len(path) == depth + 2 and path[-2] in (0, 1) and path[-1] < INDICES:
+            out.append((path[-2], path[-1]))
+    return out
+
+
 class Review(Area):
     name = "psbt-review"
     CORE = True
+    WALLET = True
     LOOPS = (("corpus", 200),)
     faraday = (
         "`faraday_psbt::inspect` (amounts in and out, the fee, verified change and the "
@@ -272,7 +360,9 @@ class Review(Area):
         "for amounts and fee, `deriveaddresses` from `tprv` descriptors for the addresses the "
         "PSBTs pay, `createpsbt`, `createrawtransaction` and `descriptorprocesspsbt` to make "
         "the PSBTs; btclib's descriptor wallet (`update_psbt_output` and `index_of`, "
-        "`btclib/`, its own curve) for which outputs are change; the area adds each input's "
+        "`btclib/`, its own curve) for which outputs are change; a watch-only descriptor "
+        "wallet on the same node (`getaddressinfo`, `walletprocesspsbt`) for where each "
+        "change claim's script is; the area adds each input's "
         "UTXO fields, splices a spoofed output, derives the account keys a registered wallet "
         "names (checked by Core deriving the same addresses from them), and keeps the rule "
         "that a script of several keys is change only for a registered wallet"
@@ -281,7 +371,8 @@ class Review(Area):
         "Core's release tarball is checked against its pinned SHA-256 "
         "(`tools/reference/core/release.pin`) before every run, and the node's version is "
         "asked; every PSBT is one Core made and read, and every change decision is btclib's "
-        "whole-script comparison at the chain and index the output states"
+        "whole-script comparison at the chain and index the output states, which Core's own "
+        "wallet must find at the same place"
     )
     vectors = (
         "none: Core's decoding and btclib's change decision are the references, over each wallet shape "
@@ -489,7 +580,7 @@ class Review(Area):
         # the claim states.
         wallet = DescriptorWallet([btclib_parse(d, "regtest") for d in w1.pub])
         bpsbt = BtclibPsbt.parse(raw)
-        verdict = {}
+        verdict, claimed = {}, {}
         for n, out in enumerate(decoded["outputs"]):
             claims = {d["master_fingerprint"]: d["path"] for d in out.get("bip32_derivs", [])}
             claims.update({d["master_fingerprint"]: d["path"]
@@ -499,6 +590,17 @@ class Review(Area):
                 tail = claims[w1.fps[0]][2:].split("/")[depth:]
                 chain, index = (int(step) for step in tail)
                 verdict[n] = btclib_change(wallet, bpsbt, n, chain, index)
+                claimed[n] = (chain, index)
+        if verdict:
+            # Core's watch-only wallet of the same public descriptors: where
+            # it finds each output's script must agree with btclib's verdict.
+            # (The registered-wallet rule is no part of either: it is applied
+            # below, to both.)
+            core = core_change(
+                "w" + os.urandom(6).hex(), raw, len(tx["vin"]), len(tx["vout"]), held_fps, w1,
+                [v["scriptPubKey"]["address"] for v in tx["vout"]])
+            for n, v in verdict.items():
+                agree_change(v, claimed[n], core[n])
         outputs, spoof = [], False
         for n, vout in enumerate(tx["vout"]):
             v = verdict.get(n)

@@ -12,7 +12,9 @@ the cross-check fails naming it.
 
 The main process starts one node for the run (`Node`), with a scratch
 datadir, `-regtest -networkactive=0 -listen=0 -connect=0`, no seeds, no
-wallet, RPC on loopback only with a cookie, and stops it and deletes the
+wallet (the node has wallet support only when an area asks for it, and
+then no wallet exists until that area makes one: `watch_wallet`), RPC on
+loopback only with a cookie, and stops it and deletes the
 folders on every way out; the node is also killed if the main process
 dies (`PR_SET_PDEATHSIG`). The workers reach it through
 `FARADAY_CROSSCHECK_CORE` (`rpc()`), with the vendored
@@ -168,8 +170,9 @@ class Node:
     """One bitcoind for the run, on regtest, offline. Use as a context
     manager: it is stopped and its folders deleted on every way out."""
 
-    def __init__(self, rpc_threads=4):
+    def __init__(self, rpc_threads=4, wallet=False):
         self.rpc_threads = max(4, rpc_threads)
+        self.wallet = wallet
         self.proc = None
         self.scratch = None
         self.info = None
@@ -199,7 +202,8 @@ class Node:
         common_args = [f"-datadir={datadir}", "-regtest", f"-rpcport={port}"]
         self.proc = subprocess.Popen(
             [str(bins["bitcoind"]), *common_args, "-networkactive=0", "-listen=0",
-             "-connect=0", "-dnsseed=0", "-fixedseeds=0", "-discover=0", "-disablewallet",
+             "-connect=0", "-dnsseed=0", "-fixedseeds=0", "-discover=0",
+             *([] if self.wallet else ["-disablewallet"]),
              # No -rpcbind or -rpcallowip: Core then binds RPC to loopback only.
              "-server", f"-rpcthreads={self.rpc_threads}", "-rpcworkqueue=256",
              "-printtoconsole=0"],
@@ -243,7 +247,10 @@ class Node:
 
     def environ(self):
         """What a worker needs to reach the node."""
-        return {ENV_RPC: json.dumps(self.info)}
+        info = dict(self.info)
+        if self.wallet:
+            info["walletdir"] = str(self.scratch / "data" / "regtest" / "wallets")
+        return {ENV_RPC: json.dumps(info)}
 
 
 _proxy = None
@@ -371,6 +378,49 @@ def bury(depth):
     if depth:
         node.generatetodescriptor(depth, desc)
     return node.getblockcount()
+
+
+def watch_wallet(name, descriptors):
+    """Costs creating a wallet on the node and importing `descriptors`
+    into it: a watch-only descriptor wallet (no private keys, blank) of
+    the public `descriptors`, each `(descriptor, internal, last_index)`
+    imported active for indices 0 to `last_index`, with no rescan. Its
+    RPC client, for `drop_wallet`. The run's node must have been started
+    with `wallet=True`."""
+    node = rpc()
+    node.createwallet(name, True, True, "", False, True, False)
+    client = _wallet_client(name)
+    done = client.importdescriptors([
+        {"desc": d, "timestamp": "now", "active": True, "internal": internal,
+         "range": [0, last]} for d, internal, last in descriptors])
+    bad = [r for r in done if not r.get("success")]
+    if bad:
+        drop_wallet(name)
+        raise CoreError(f"Bitcoin Core: importdescriptors refused {bad}")
+    return client
+
+
+def drop_wallet(name):
+    """Costs unloading the wallet and deleting its folder: the wallet
+    `watch_wallet` made, gone from the node."""
+    import shutil as _shutil
+    try:
+        rpc().unloadwallet(name)
+    finally:
+        _shutil.rmtree(pathlib.Path(json.loads(os.environ[ENV_RPC])["walletdir"]) / name,
+                       ignore_errors=True)
+
+
+def _wallet_client(name):
+    import sys
+    folder = str(ROOT / "tools" / "reference" / "core")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    from test_framework.authproxy import AuthServiceProxy
+    client = AuthServiceProxy(f"{json.loads(os.environ[ENV_RPC])['url']}/wallet/{name}",
+                              timeout=120)
+    client.reuse_http_connections = False
+    return client
 
 
 def rpc():

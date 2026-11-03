@@ -358,8 +358,10 @@ The cross-check fetches nothing, ever.
   tarball against the pin and unpacks the two programs from it into a
   scratch folder, so what runs is what was checked. A missing or
   mismatched tarball fails the run, naming it. The node runs on regtest
-  with `-networkactive=0 -listen=0 -connect=0`, no seeds, no wallet and
-  a scratch datadir, RPC on loopback only, with a cookie. It is stopped and
+  with `-networkactive=0 -listen=0 -connect=0`, no seeds, no wallet unless
+  an area asks for one (psbt-review makes a watch-only descriptor wallet
+  for each case and deletes it after; the other areas run with wallet
+  support off) and a scratch datadir, RPC on loopback only, with a cookie. It is stopped and
   its folders deleted on every way out of the run, and killed if the
   run dies. The stamp records Core's version and the tarball's SHA-256,
   and `just lint` fails when they are not the pinned release's.

@@ -221,7 +221,8 @@ def shape(area):
     all be imported into one."""
     cls = area_class(area)
     return {"loops": [list(x) for x in cls.LOOPS], "coda": cls.coda is not common.Area.coda,
-            "core": bool(getattr(cls, "CORE", False)), "fund": dict(getattr(cls, "FUND", {})),
+            "core": bool(getattr(cls, "CORE", False)),
+            "wallet": bool(getattr(cls, "WALLET", False)), "fund": dict(getattr(cls, "FUND", {})),
             "fund_depth": int(getattr(cls, "FUND_DEPTH", 0))}
 
 
@@ -875,7 +876,8 @@ def main():
     # Bitcoin Core is required by these areas: no node, no run.
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, _exit_on)
-    node = core_node.Node(rpc_threads=jobs)
+    node = core_node.Node(rpc_threads=jobs,
+                          wallet=any(args.shaped.get(a, {}).get("wallet") for a in needs))
     try:
         core_node.loopback_up()
         node.start()
