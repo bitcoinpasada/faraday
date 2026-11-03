@@ -23,7 +23,13 @@ read, verified and written as the Create screen and `faraday-keys` do
   writes for a seed's BIP-48 account must be btclib's record for the same
   account byte for byte (btclib derives the account and signs).
 
-The files themselves are written here, from each format's documentation
+Every real file the wallets' test suites publish is read too
+(`faraday/faraday-core/tests/vectors/interop/` and `tools/vectors/wallet-files/`,
+each with its repository, commit, licence and SHA-256 in its README), by
+Faraday and by `read_real`, the area's reading of the file's format, with
+the wallet judged by Core (batch X30).
+
+The files the area makes are written here, from each format's documentation
 (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's and
 Keystone's, Coldcard's file for Wasabi, Specter Desktop's, Specter DIY's
 `addwallet` command, read as its `Wallet.parse` reads it, Core's
@@ -71,6 +77,7 @@ from ecc.curves.sec_point import bytes_from_point, point_from_octets_var  # noqa
 N = 3  # receive and change scripts compared, from index 0
 NUMS = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 INTEROP = ROOT / "faraday" / "faraday-core" / "tests" / "vectors" / "interop"
+WALLET_FILES = ROOT / "tools" / "vectors" / "wallet-files"
 BIP129 = ROOT / "tools" / "vectors" / "bip129" / "bip-0129.mediawiki"
 KEY = re.compile(r"(?:\[([0-9a-fA-F]{8})((?:/[0-9]+['hH]?)*)\])?"
                  r"([xtyzuvYZUV]pub[1-9A-HJ-NP-Za-km-z]{100,})")
@@ -406,6 +413,213 @@ def read_listdescriptors(text):
     return {"keys": keys_stated(d), "receive": receive, "change": change}
 
 
+# ----- the files other wallets wrote (the area's reading of each format) -------------------
+
+POLICY_WRAP = {"P2WSH": "wsh({})", "P2SH-P2WSH": "sh(wsh({}))", "P2WSH-P2SH": "sh(wsh({}))",
+               "P2SH": "sh({})"}
+# A key's SLIP-132 prefix, the script it names (SLIP-132's table).
+VERSION_SHAPE = {"x": "pkh", "t": "pkh", "y": "sh-wpkh", "u": "sh-wpkh", "z": "wpkh", "v": "wpkh"}
+VERSION_WRAP = {"x": "sh({})", "t": "sh({})", "Y": "sh(wsh({}))", "U": "sh(wsh({}))",
+                "Z": "wsh({})", "V": "wsh({})"}
+PURPOSE_SHAPE = {"44": "pkh", "49": "sh-wpkh", "84": "wpkh", "86": "tr"}
+
+
+def origin_of(fp, path):
+    path = re.sub(r"['H]", "h", path).removeprefix("m")
+    return f"[{fp.lower()}{path}]"
+
+
+def from_template(template, keys, tail="/<0;1>/*"):
+    """The wallet a template over keys (each `[fp/path]key`, any SLIP-132
+    version) is, by Core."""
+    desc = fill(template, [k + tail for k in keys])
+    receive, change = core_scripts(to_core(desc.replace("/<0;1>/*", "/0/*")),
+                                   to_core(desc.replace("/<0;1>/*", "/1/*")))
+    return {"keys": keys_stated(desc), "receive": receive, "change": change}
+
+
+def read_descriptor_text(text):
+    """Sparrow's, Jade's, Keystone's and Casa's descriptors: one with
+    `<0;1>`, a receive and a change line (either way round, labelled or
+    not), or one chain alone, which stands for both. A checksum, where
+    there is one, is Core's code's to call."""
+    descs = []
+    for line in text.strip().splitlines():
+        line = re.sub(r"^[A-Za-z ]+:\s*", "", line.strip())
+        if not line:
+            continue
+        if "#" in line:
+            if not descsum_check(line, require=True):
+                raise ValueError("Core: a descriptor's checksum is wrong")
+            line = line.split("#")[0]
+        descs.append(line)
+    if not descs:
+        raise ValueError("no descriptor")
+    if len(descs) == 2:
+        a, b = descs
+        if a.replace("/0/*", "/1/*") != b:
+            raise ValueError("two descriptors that are not a receive and a change line")
+        descs = [a]
+    if len(descs) != 1:
+        raise ValueError("more than two descriptors")
+    d = descs[0]
+    if "/<0;1>/*" in d:
+        r, c = d.replace("/<0;1>/*", "/0/*"), d.replace("/<0;1>/*", "/1/*")
+    elif "/0/*" in d:
+        r, c = d, d.replace("/0/*", "/1/*")
+    elif "/1/*" in d:
+        r, c = d.replace("/1/*", "/0/*"), d
+    elif not any(m.end() < len(d) and d[m.end()] == "/" for m in KEY.finditer(d)):
+        # Keys without a derivation are the two chains (as Specter's are).
+        r, c = (KEY.sub(lambda m: m.group(0) + tail, d) for tail in ("/0/*", "/1/*"))
+    else:
+        raise ValueError("no chain in the descriptor")
+    receive, change = core_scripts(to_core(r), to_core(c))
+    return {"keys": keys_stated(d), "receive": receive, "change": change}
+
+
+def read_key_line(text):
+    """`[fp/path]key` alone: a single-key wallet of the script the key's
+    SLIP-132 version names."""
+    m = KEY.fullmatch(text.strip())
+    if not m or not m.group(1):
+        raise ValueError("not a key with its origin")
+    key = m.group(3)
+    shape = VERSION_SHAPE.get(key[0])
+    if shape is None or (key[0] in "xt" and not m.group(2)):
+        raise ValueError("a key whose version names no script")
+    if key[0] in "xt":
+        shape = PURPOSE_SHAPE[m.group(2).split("/")[1].rstrip("'hH")]
+    return from_template(SINGLE[shape][1], [origin_of(m.group(1), m.group(2)) + key])
+
+
+def read_multisig_file(text):
+    """Coldcard's multisig setup file, as Coldcard, Sparrow, Electrum and
+    Nunchuk write it: a policy, a format, a derivation before the keys or
+    before each, then `fingerprint: key`."""
+    policy = fmt = None
+    deriv = None
+    keys = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, _, value = line.partition(":")
+        value = value.strip()
+        if name == "Policy":
+            m = re.fullmatch(r"(\d+) of (\d+)", value)
+            if not m:
+                raise ValueError("a policy that is not M of N")
+            policy = (int(m.group(1)), int(m.group(2)))
+        elif name == "Format":
+            fmt = value.upper()
+        elif name == "Derivation":
+            deriv = value
+        elif re.fullmatch(r"[0-9A-Fa-f]{8}", name):
+            if deriv is None:
+                raise ValueError("a key with no derivation")
+            keys.append(origin_of(name, deriv.removeprefix("m")) + value)
+    if policy is None or fmt not in POLICY_WRAP:
+        raise ValueError("no policy or no format")
+    m, n = policy
+    if n != len(keys) or not 1 <= m <= n:
+        raise ValueError("the policy does not match the keys listed")
+    template = POLICY_WRAP[fmt].format(
+        f"sortedmulti({m}," + ",".join(f"@{i}" for i in range(n)) + ")")
+    return from_template(template, keys)
+
+
+def read_caravan(text):
+    v = json.loads(text)
+    keys = v["extendedPublicKeys"]
+    q = v["quorum"]
+    if q["totalSigners"] != len(keys) or not 1 <= q["requiredSigners"] <= len(keys):
+        raise ValueError("the quorum does not match the keys listed")
+    out = []
+    for k in keys:
+        if not k.get("bip32Path") or not k.get("xfp"):
+            raise ValueError("a key with no path or fingerprint")
+        out.append(origin_of(k["xfp"], k["bip32Path"]) + k["xpub"])
+    template = POLICY_WRAP[v["addressType"]].format(
+        f"sortedmulti({q['requiredSigners']}," + ",".join(f"@{i}" for i in range(len(out))) + ")")
+    return from_template(template, out)
+
+
+def read_cobo(v):
+    """Cobo's and Keystone's single-key file: the script comes from the
+    path's purpose."""
+    if "AccountKeyPath" in v:
+        path = v["AccountKeyPath"].removeprefix("m/")
+    elif "ColdCardFirmwareVersion" in v:  # Coldcard's file for Wasabi: BIP-84 account 0
+        path = "84'/" + ("0'" if v["ExtPubKey"][0] in "xyz" else "1'") + "/0'"
+    else:
+        raise ValueError("a key file with no account path")
+    shape = PURPOSE_SHAPE[path.split("/")[0].rstrip("'hH")]
+    return from_template(SINGLE[shape][1], [origin_of(v["MasterFingerprint"], "/" + path)
+                                            + v["ExtPubKey"]])
+
+
+def electrum_fp(store):
+    if "root_fingerprint" in store:
+        return store["root_fingerprint"]
+    if "ckcc_xfp" in store:
+        return int(store["ckcc_xfp"]).to_bytes(4, "little").hex()
+    raise ValueError("a key with no fingerprint")
+
+
+def read_electrum(text):
+    v = json.loads(text)
+    if v.get("use_encryption") or "keystore" not in v and "x1/" not in v:
+        raise ValueError("an encrypted or empty Electrum file")
+    if v["wallet_type"] == "standard":
+        k = v["keystore"]
+        if k["type"] not in ("bip32", "hardware"):
+            raise ValueError("a keystore that is not an extended public key")
+        shape = VERSION_SHAPE[k["xpub"][0]]
+        if k["xpub"][0] in "xt":
+            shape = PURPOSE_SHAPE[k["derivation"].removeprefix("m/").split("/")[0].rstrip("'")]
+        return from_template(SINGLE[shape][1],
+                             [origin_of(electrum_fp(k), k["derivation"]) + k["xpub"]])
+    m, n = (int(x) for x in v["wallet_type"].split("of"))
+    keys = [v[f"x{i}/"] for i in range(1, n + 1)]
+    out = [origin_of(electrum_fp(k), k["derivation"]) + k["xpub"] for k in keys]
+    template = VERSION_WRAP[keys[0]["xpub"][0]].format(
+        f"sortedmulti({m}," + ",".join(f"@{i}" for i in range(n)) + ")")
+    return from_template(template, out)
+
+
+def read_real(text):
+    """A file another wallet wrote, by what it is: the area's reading of
+    each format (a file in none of them is not a wallet)."""
+    t = text.strip()
+    if t.startswith("BSMS"):
+        return read_bsms(text)
+    if t.startswith("addwallet "):
+        return read_specter_diy(t)
+    if t.startswith("{"):
+        v = json.loads(t)
+        if "descriptors" in v:
+            return read_listdescriptors(text)
+        if "descriptor" in v:
+            return read_descriptor_text(v["descriptor"])
+        if "quorum" in v:
+            return read_caravan(text)
+        if "ExtPubKey" in v:
+            return read_cobo(v)
+        if "xfp" in v and "chain" in v:
+            return read_coldcard(text)
+        if "wallet_type" in v or "x1/" in v or "keystore" in v:
+            return read_electrum(text)
+        raise ValueError("a JSON file with no wallet in it")
+    if re.search(r"^(Policy|Format|Derivation):", t, re.M):
+        return read_multisig_file(text)
+    if KEY.fullmatch(t):
+        return read_key_line(t)
+    if t.startswith("ur:") or t.startswith("sp(") or "spscan" in t:
+        raise ValueError("not a descriptor")
+    return read_descriptor_text(text)
+
+
 # ----- BIP 129's key records -------------------------------------------------------------
 
 def header_address(sec, net, header):
@@ -465,6 +679,17 @@ def pre_blocks():
 DESCRIPTION_CHARS = "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.:é"
 
 
+def lower_fingerprints(answer):
+    """A fingerprint is four bytes, however a file spells them: Faraday
+    states one in the case the file used."""
+    if answer[0] != "ok":
+        return answer
+    value = dict(answer[1])
+    value["keys"] = [re.sub(r"^\[([0-9A-Fa-f]{8})", lambda m: "[" + m.group(1).lower(), k)
+                     for k in value["keys"]]
+    return ("ok", value)
+
+
 class Import(Area):
     name = "import"
     CORE = True
@@ -491,14 +716,17 @@ class Import(Area):
     reference_checked = (
         "Core's release tarball against its pinned SHA-256 before every run; btclib's wheels "
         "against the hashes btclib-wallet's lock file names (`references.sha256`), with "
-        "libsecp256k1 off; BIP 129's own records and the files Sparrow, Nunchuk, Coldcard and "
-        "Core wrote, judged in the prelude"
+        "libsecp256k1 off; BIP 129's own records and the real files of Sparrow, BlueWallet "
+        "(Nunchuk's, Coldcard's and Unchained's among them), Coldcard, Caravan and Liana, judged "
+        "in the prelude"
     )
     vectors = (
-        "BIP 129's key and descriptor records (`tools/vectors/bip129/`), and other wallets' "
-        "files from their test suites (`faraday/faraday-core/tests/vectors/interop/`): "
-        "Sparrow's and Nunchuk's BSMS records, Coldcard Mk4's and Q's exports, a Core "
-        "`listdescriptors`, Sparrow's Specter DIY `addwallet`"
+        "BIP 129's key and descriptor records (`tools/vectors/bip129/`), and 93 real files from "
+        "the wallets' own test suites, 62 of them a wallet and 31 refused by both sides "
+        "(`faraday/faraday-core/tests/vectors/interop/`: Sparrow's and BlueWallet's; "
+        "`tools/vectors/wallet-files/`: Coldcard's firmware tests, Caravan's and Liana's): "
+        "BSMS records, Coldcard setup files and exports, Caravan, Electrum, Cobo, Keystone, "
+        "Jade, Specter Desktop and Specter DIY files, descriptors and a Core `listdescriptors`"
     )
     corpus = (
         "single-key wallets (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR), `sortedmulti` in P2WSH, "
@@ -527,6 +755,25 @@ class Import(Area):
             "reading of each format's documentation."
         ),
         (
+            "Real files both sides refuse, each by a named rule: a Caravan file or an Electrum "
+            "multisig file whose keys lack a path or a fingerprint, a Caravan quorum that is not "
+            "the keys listed, a multisig setup file with no policy, a key missing or no format "
+            "line (Coldcard's own P2SH setup files omit Format, which Faraday refuses), a BSMS "
+            "record with a paths line other than /0/*,/1/*, a derivation other than /** or "
+            "<0;1>, a missing line, a first address that is not Core's or not an address, a "
+            "Coldcard cosigner key file, an Unchained key file and a Coldcard stored setting "
+            "(a key, not a wallet), and a UR text (area `ur`). Left out and named: a silent "
+            "payments record (area `sp`) and a PSBT or transaction file (areas `psbt`, `tx`)."
+        ),
+        (
+            "Formats with no published file in a test suite: Nunchuk's own files (only "
+            "BlueWallet's copies of them), Specter DIY's beyond the one Sparrow keeps, "
+            "Keystone's beyond Sparrow's, and Core's `listdescriptors` beyond the one in the "
+            "interop vectors, whose source is not recorded; Electrum's published test wallets "
+            "carry a seed and are not taken. Those formats stay the area's own reading "
+            "(Faraday's second version), as above."
+        ),
+        (
             "A key record's signature in any of BIP-137's header forms is accepted when it "
             "recovers the record's key: btclib is asked with the address that form names "
             "(Faraday reads no address from the record)."
@@ -541,9 +788,10 @@ class Import(Area):
     # ----- one comparison ----------------------------------------------------------------
 
     def read(self, text, ref):
-        self.compare("import.read", {"text": text, "n": N}, ref)
+        raw = self.compare("import.read", {"text": text, "n": N}, ref, normalize=lower_fingerprints)
         if text.lstrip("\ufeff \t\r\n")[:1] in ("{", "["):
             self.json(text)
+        return raw
 
     def json(self, text):
         """Faraday's JSON reader and CPython's `json` on the same text:
@@ -577,16 +825,7 @@ class Import(Area):
         assert good == 7, f"{good} of BIP 129's key records verify"
         for text in descs:
             self.read(text, lambda t=text: read_bsms(t))
-        for f in sorted((INTEROP / "sparrow" / "bsms").glob("*.bsms")) + [
-                INTEROP / "bluewallet" / "nunchuck-bsms.txt"]:
-            self.read(f.read_text(), lambda t=f.read_text(): read_bsms(t))
-        for f in ("coldcardmk4-generic.json", "coldcardQ.json"):
-            t = (INTEROP / "bluewallet" / f).read_text()
-            self.read(t, lambda t=t: read_coldcard(t))
-        t = (INTEROP / "core" / "listdescriptors.json").read_text()
-        self.read(t, lambda t=t: read_listdescriptors(t))
-        t = (INTEROP / "sparrow" / "specter-diy-export.txt").read_text().strip()
-        self.read(t, lambda t=t: read_specter_diy(t))
+        self.real_files()
         self.json_cases()
         # Faraday's own record, of both networks and BIP-48 scripts.
         for net in ("mainnet", "testnet"):
@@ -598,6 +837,23 @@ class Import(Area):
                 for fmt in formats:
                     if self.fits(shape, fmt):
                         self.wallet_case(shape, fmt, damage=False)
+
+    def real_files(self):
+        """Every file under the interop vectors, read by Faraday and by
+        the area's reading of its format, judged by Core: the wallet, or
+        a refusal on both sides. Left out, named: a silent payments
+        record (area `sp`) and a PSBT or transaction (areas `psbt`,
+        `tx`)."""
+        read = 0
+        found = [p for d in (INTEROP, WALLET_FILES) for p in d.rglob("*") if p.is_file()]
+        for f in sorted(p for p in found if p.name not in (
+                "outcomes.txt", "README.md", "LICENSE", "LICENCE", "COPYING-CC")):
+            if f.suffix in (".psbt", ".txn") or "-sp-" in f.name:
+                continue
+            t = f.read_text()
+            self.read(t, lambda t=t: read_real(t))
+            read += 1
+        assert read >= 90, f"{read} of the other wallets' files read"
 
     # ----- JSON --------------------------------------------------------------------------
 

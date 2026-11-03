@@ -54,7 +54,7 @@ FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/ro
 VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip374", "bip375", "bip39", "bip85", "bip93",
            "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",
            "kdf", "message", "miniscript", "psbt", "psbt-bips", "seedqr", "sighash", "slip39", "ur", "vault",
-           "vault-primitives", "xor"]
+           "vault-primitives", "wallet-files", "xor"]
 # Other wallets' files from their test suites, which the `import` area reads.
 FOLDERS = ["faraday/faraday-core/tests/vectors/interop"]
 # Everything under tools/crosscheck/ that is the harness, not its output.

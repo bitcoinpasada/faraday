@@ -2277,6 +2277,9 @@ libraries = [
 adds = "JSON is read by serde_json, behind Faraday's refusal of a key named twice and of a nesting deeper than 32 (and of a text over 1 MiB); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth. An account key alone becomes a wallet of the kind its path's purpose names (44 legacy, 49 nested SegWit, 84 native SegWit, 86 taproot), and a purpose of 45, 48 or 87 is a cosigner's key and no wallet on its own; a key of a test network is taken as testnet unless the session is already on a test network; the file for Wasabi is written only for a native SegWit single-key wallet whose key has an origin at exactly 84h/0h/0h or 84h/1h/0h. Specter DIY's addwallet command is read with its name before the last `&`, its descriptor's checksum checked where it has one (Specter DIY drops it unread), and keys none of which carries a derivation as the two chains; a single-key or multisig wallet is written without its keys' derivations and with no checksum, as Sparrow writes it, any other with them."
 
 [action.checked]
+vectors = [
+  "wallet-files",
+]
 tests = [
   "core/faraday-bip/tests/all/coldcard.rs::an_export_is_rooted_at_the_masters_xfp_and_has_its_stated_first_address",
   "core/faraday-bip/tests/all/coldcard.rs::an_export_whose_stated_first_address_is_not_its_wallets_is_refused",
@@ -2296,7 +2299,7 @@ tests = [
   "faraday/faraday-core/tests/all/interop.rs::faradays_specter_diy_file_reads_back_with_the_same_first_address_and_its_name",
 ]
 crosscheck = "import"
-independence = { class = "outside-and-own", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys", ours = "the files themselves and what each format's fields mean (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Specter DIY's `addwallet`, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }
+independence = { class = "outside-and-own", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys; and 93 real files from the wallets' own test suites (Sparrow, BlueWallet, Coldcard, Caravan, Liana), read in the same area", ours = "the files the area writes and what each format's fields mean, and the formats no test suite publishes a file for (Nunchuk's, Specter DIY's and Keystone's beyond Sparrow's copies) (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Specter DIY's `addwallet`, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }
 fuzz = [
   "json",
   "read_wallet",
@@ -8747,6 +8750,10 @@ by = "paperkey 1.6 and GnuPG 2.4.8, run by the folder's `make.sh`"
 source = "published"
 by = "BIP 174's and RFC 6979's authors; the spends and finalized answers Bitcoin Core v31.1 made on regtest"
 own = "the wallet policies, the warning PSBTs and the PSBTs this tree signed"
+
+[vector.wallet-files]
+source = "published"
+by = "the wallets' own test suites: Coldcard's firmware, Caravan, Liana, Sparrow and BlueWallet (the commit, licence and SHA-256 of each file are in the folder's README and the interop vectors' README)"
 
 [vector.psbt-bips]
 source = "published"
