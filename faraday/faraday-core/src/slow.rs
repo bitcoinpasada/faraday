@@ -9,13 +9,16 @@ use crate::{boot_import, seeds, vanity};
 /// Whether a press starts a job on the worker (`docs/WORKERS.md` §2.1):
 /// its work is over the line, so it is not drawn first; the screen stays
 /// and shows the busy line while the worker runs it. Practice's samples
-/// loaded, the backup's checklist and a wallet's multisig config, split
+/// loaded, the backup's checklist and its Make the files, and a wallet's multisig config, split
 /// shares and Specter DIY pictures (W7); the batches that follow move the
 /// others here from [`drawn_first`].
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
         a,
-        Action::SamplesLoad | Action::BChecklist | Action::PublicOut(_, 2 | 4 | 14)
+        Action::SamplesLoad
+            | Action::BChecklist
+            | Action::BFilesMake
+            | Action::PublicOut(_, 2 | 4 | 14)
     )
 }
 

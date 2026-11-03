@@ -454,6 +454,9 @@ pub(crate) enum Then {
     Out,
     /// The backup's checklist opens.
     Checklist,
+    /// The checklist's Make the files: the backup's screen is brought up
+    /// to date with them.
+    Files,
 }
 
 /// A set of files to make on the worker: the steps and what they are made
@@ -517,17 +520,6 @@ pub(crate) fn start(app: &mut Faraday, wallet: usize, parts: Vec<Part>, then: Th
     app.start(Job::Files(Box::new(work)), EN.working_files);
 }
 
-/// Costs what the steps cost. Wallet `wallet`'s files `parts` made on
-/// this thread and put For the stick.
-pub(crate) fn make_now(app: &mut Faraday, wallet: usize, parts: Vec<Part>) {
-    let c = app.compute();
-    let Some(inputs) = app.public_inputs(&c, wallet) else {
-        return;
-    };
-    let made = parts_made(&c, &inputs, parts);
-    app.put_public(wallet, made);
-}
-
 /// Costs what `put_outbox` costs. A set of files' answer: the files go
 /// For the stick and the toast is said. Dropped where the person is no
 /// longer on the screen and sheet they pressed on, or the backup is no
@@ -543,12 +535,14 @@ pub(crate) fn files_made(app: &mut Faraday, done: FilesDone) {
     if (app.screen, app.sheet) != (screen, sheet) {
         return;
     }
-    if then == Then::Checklist && app.backup.state().is_none_or(|b| b.wallet != wallet) {
+    if then != Then::Out && app.backup.state().is_none_or(|b| b.wallet != wallet) {
         return;
     }
     app.put_public(wallet, made);
-    if then == Then::Checklist {
-        checklist_opened(app);
+    match then {
+        Then::Out => {}
+        Then::Checklist => checklist_opened(app),
+        Then::Files => app.backups_sync(),
     }
 }
 
@@ -611,14 +605,12 @@ fn checklist_parts(app: &mut Faraday) -> Option<(usize, Vec<Part>)> {
     Some((w, parts))
 }
 
-/// Making the checklist makes every public file it calls for, For the
-/// stick: the blank template, the sheet or the shares, and the files for
-/// the software chosen. Made again, each replaces its namesake. Made on
-/// this thread, as the Make the files press does; the checklist's own
-/// press makes them on the worker ([`checklist_start`]).
-pub(crate) fn checklist_make(app: &mut Faraday) {
+/// Starts making the checklist's files on the worker, as the Make the
+/// files press does: the blank template, the sheet or the shares, and the
+/// files for the software chosen. Made again, each replaces its namesake.
+pub(crate) fn files_start(app: &mut Faraday) {
     if let Some((w, parts)) = checklist_parts(app) {
-        make_now(app, w, parts);
+        start(app, w, parts, Then::Files);
     }
 }
 

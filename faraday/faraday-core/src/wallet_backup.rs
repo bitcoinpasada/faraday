@@ -1506,8 +1506,9 @@ impl Faraday {
             Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
             Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
             Action::BFilesMake => {
-                public_files::checklist_make(self);
-                self.backups_sync();
+                // The files are made on the worker; the screen is brought up
+                // to date with the answer.
+                public_files::files_start(self);
             }
             Action::BackupFirst(w) => self.backup_first(w),
             Action::BNewVault(v) => {

@@ -195,3 +195,70 @@ fn a_lock_while_the_checklist_is_made_keeps_nothing_of_the_answer() {
     testkit::settle_stale(&mut app);
     assert!(app.outbox.is_empty(), "no file is kept after the lock");
 }
+
+/// The plan card's checklist open, with nothing yet For the stick: Make the
+/// files has its files still to make.
+fn checklist_open() -> (Faraday, usize) {
+    let (mut app, w) = plan_card();
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
+    app.outbox.clear();
+    (app, w)
+}
+
+#[test]
+fn make_the_files_on_the_worker_makes_the_files_made_on_the_thread_that_asked() {
+    let (mut inline, _) = checklist_open();
+    inline.press(Action::BFilesMake);
+    let want = outbox(&inline);
+    assert!(!want.is_empty(), "Make the files made no file");
+
+    let (mut app, _) = checklist_open();
+    testkit::press_on_worker(&mut app, Action::BFilesMake);
+    assert!(app.busy().is_some(), "the screen is busy");
+    assert!(app.outbox.is_empty(), "nothing yet");
+    testkit::settle(&mut app);
+    assert!(app.busy().is_none());
+    assert_eq!(outbox(&app), want);
+    assert_eq!(app.toast_text(), inline.toast_text());
+}
+
+#[test]
+fn a_second_press_while_the_files_are_made_starts_no_second_job() {
+    let (mut app, _) = checklist_open();
+    testkit::hold_worker();
+    let before = testkit::jobs_asked(&app);
+    testkit::press_on_worker(&mut app, Action::BFilesMake);
+    app.press(Action::BFilesMake);
+    assert_eq!(testkit::jobs_asked(&app), before + 1);
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(!app.outbox.is_empty());
+}
+
+#[test]
+fn back_while_the_files_are_made_keeps_nothing_of_the_answer() {
+    let (mut app, _) = checklist_open();
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::BFilesMake);
+    app.press(Action::Back);
+    assert!(app.busy().is_none());
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    assert!(app.outbox.is_empty(), "the answer was dropped");
+}
+
+#[test]
+fn a_lock_while_the_files_are_made_keeps_nothing_of_the_answer() {
+    let (mut app, _) = checklist_open();
+    let (screen, sheet) = (app.screen, app.sheet);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::BFilesMake);
+    app.press(Action::LockUnsealed);
+    assert!(app.busy().is_none());
+    app.screen = screen;
+    app.sheet = sheet;
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    assert!(app.outbox.is_empty(), "no file is kept after the lock");
+}
