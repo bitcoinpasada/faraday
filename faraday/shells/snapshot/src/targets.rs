@@ -1,5 +1,6 @@
 //! The touch-target check over the snapshot tours (`docs/M3-CHECKS.md`
-//! §2): every press target a frame offers is at least `TOUCH` square,
+//! §2): every press target a frame offers is at least the touch floor square (44 dp on the
+//! compact and short layout, 48 dp elsewhere, F188),
 //! unless its control is cut by a clip or it is an exception of §3, and
 //! what is under the floor today is held in `tools/touch-targets.counts`,
 //! which only falls. The ratchet runs in `just lint-touch-targets`. The tool writes the
@@ -190,7 +191,7 @@ fn at(name: &str, size: (u16, u16), dpi: u16) {
     }
     assert!(
         fail.is_empty(),
-        "touch targets under 48 dp at {name} (docs/M3-CHECKS.md §2):\n{}",
+        "touch targets under the floor at {name} (docs/M3-CHECKS.md §2):\n{}",
         fail.join("\n")
     );
 }

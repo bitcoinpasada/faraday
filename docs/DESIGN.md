@@ -78,7 +78,8 @@ the theme (§3), the content kinds (§4) and the screens (§5).
     never filled with decoration or with a second rendering of the same
     value.
 12. **Every control is easy to hit and to reach.** A press is taken on
-    at least 48 × 48 dp on every layout, larger than the control where
+    at least 48 × 48 dp, 44 × 44 dp on the compact and short layout
+    (the 2.8-inch, F188), larger than the control where
     it is drawn smaller, and never over a neighbour; every control shows
     when the pointer is over it, when it is pressed and when the
     keyboard is on it, and the keyboard reaches every one (§4.13,
@@ -183,7 +184,7 @@ Material 3's tokens are named there too (F108):
   menus, fields (`FIELD_RADIUS`) and the toast extra-small, the floating
   action large, dialogs and sheets extra-large; a checkbox's corners are
   `SHAPE_CHECKBOX`.
-- **Touch targets**: `TOUCH`, 48, on every layout (principle 12), held by the touch-target test over the snapshot tours (`docs/M3-CHECKS.md` §2; its exceptions §3, F152).
+- **Touch targets**: `TOUCH`, 48, and `TOUCH_COMPACT_SHORT`, 44, on the compact and short layout (principle 12, F188), held by the touch-target test over the snapshot tours (`docs/M3-CHECKS.md` §2; its exceptions §3, F152).
 - **States**: `STATE_HOVER` 8 %, `STATE_FOCUS` 10 %, `STATE_PRESS` 10 %
   and `STATE_DRAG` 16 %, the opacity of a control's content colour laid
   over it (F113); the focus ring, `FOCUS_RING` 3 thick and

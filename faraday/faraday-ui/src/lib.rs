@@ -481,6 +481,10 @@ pub struct Ui<'a, A> {
     pub follow_to: Option<f32>,
     /// The display is a small panel: one column, a page per step.
     pub compact: bool,
+    /// The side of a press's touch target, units: `TOUCH`, and the
+    /// smaller target of the compact and short layout where the screen
+    /// sets it (`tokens::touch`, F188).
+    pub touch: f32,
     /// Where the step column drew a chip that a press opens, this
     /// frame: its left edge, its foot and its width, units.
     pub chip_at: Option<(f32, f32, f32)>,
@@ -629,6 +633,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             column: None,
             follow_to: None,
             compact: false,
+            touch: faraday_draw::tokens::TOUCH,
             chip_at: None,
             cut: Vec::new(),
             hit_clip: None,
@@ -1984,7 +1989,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn field_action(&mut self, x: f32, y: f32, w: f32, h: f32, label: &str, action: A) -> f32 {
         use faraday_draw::tokens::SHAPE_S;
         use faraday_draw::tokens::{
-            FIELD_ACTION_HEIGHT as CH, FIELD_ACTION_INSET as IN, FIELD_ACTION_TEXT as TX, TOUCH,
+            FIELD_ACTION_HEIGHT as CH, FIELD_ACTION_INSET as IN, FIELD_ACTION_TEXT as TX,
         };
         // A one-line slot: the field's inset either side of the chip and
         // the chip's own inside it; larger text fits down to Standard
@@ -1994,7 +1999,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let width = (tw + 2.0 * IN).min(w - 2.0 * IN);
         let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
         let hit_h = if self.compact {
-            TOUCH.max(CH)
+            self.touch.max(CH)
         } else {
             h.max(CH)
         };

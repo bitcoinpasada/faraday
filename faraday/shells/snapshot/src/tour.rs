@@ -515,12 +515,13 @@ impl Tour {
 
     /// Collects the targets of the frame on screen, picture `name`, that
     /// are under the touch floor and not cut by a clip (`docs/M3-CHECKS.md`
-    /// §2.2): wider or taller than a pixel short of `TOUCH` at the
+    /// §2.2): wider or taller than a pixel short of the touch floor (`tokens::touch`: 44 dp on the
+    /// compact and short layout, 48 dp elsewhere) at the
     /// frame's scale, which the tool takes as its density alone (Standard
     /// text, no Display scale). With `targets.txt` for the pictures.
     fn note_small(&mut self, name: &str) {
         let f = (f32::from(self.dpi.max(1)) / 160.0).max(0.5);
-        let floor = (faraday_draw::tokens::TOUCH * f).round() as i32;
+        let floor = (faraday_draw::tokens::touch(self.app.window()) * f).round() as i32;
         let small = self.app.window().width < 600.0;
         let found: Vec<Small> = self
             .app

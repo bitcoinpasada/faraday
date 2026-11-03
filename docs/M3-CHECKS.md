@@ -4,7 +4,8 @@
 **Status:** Built (F152)
 
 Two of Material 3's rules that Faraday follows (F91, F92, F108) are
-today held by review alone: a press is taken on at least 48 × 48 dp, and
+today held by review alone: a press is taken on at least 48 × 48 dp (44 × 44 dp on the compact and
+short layout, F188), and
 every control shows its hover, focus and pressed states as a state
 layer. This spec makes the first a test over the snapshot tours, with a
 count that only falls for what is under the floor today, and the second
@@ -12,7 +13,7 @@ a property of the API: a pressable region cannot be made without the
 layer that shows its state.
 
 Checked against Material 3's Foundations pages on accessibility (target
-size: 48 × 48 dp; as Android's accessibility documentation states it)
+size: 48 × 48 dp; Faraday takes 44 × 44 dp on the 2.8-inch, F188; as Android's accessibility documentation states it)
 and on interaction states (state layers for hover, focus, pressed and
 dragged; F113's opacities). m3.material.io's pages are script-drawn; the
 values used are the ones F108 and F113 already record.

@@ -15,7 +15,7 @@
 //! `gallery.rs` or a file under `components/` writes a layout number of
 //! its own instead of naming one here.
 
-use crate::geom::{SizeClass, WindowClass};
+use crate::geom::{SizeClass, Window, WindowClass};
 
 // ---------------------------------------------------------------------
 // Type ramp
@@ -193,6 +193,19 @@ pub const RADIUS_SMALL: f32 = SHAPE_S;
 
 /// Minimum touch target.
 pub const TOUCH: f32 = 48.0;
+/// Minimum touch target on the 2.8-inch's size class, the compact and
+/// short layout (268 × 358 dp): Apple's 44 pt minimum (F188).
+pub const TOUCH_COMPACT_SHORT: f32 = 44.0;
+
+/// The touch target's side for `window`: [`TOUCH_COMPACT_SHORT`] on the
+/// compact and short layout, [`TOUCH`] on every other. A lookup.
+pub fn touch(window: Window) -> f32 {
+    if window.class() == WindowClass::Compact && window.short() {
+        TOUCH_COMPACT_SHORT
+    } else {
+        TOUCH
+    }
+}
 /// Icon size inside a menu row or a tile.
 pub const ICON: f32 = 28.0;
 /// Icon size inside a list row or an app bar.

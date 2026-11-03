@@ -5,7 +5,7 @@
 use crate::pal::*;
 use crate::{Glyph, Shape, Ui, W};
 use faraday_draw::tokens::{
-    GAP_SMALL, GRID, ICON_SMALL, LABEL_L, NAV_ICON, STATUS_CHIP_H, STATUS_CHIP_PAD, TOUCH,
+    GAP_SMALL, GRID, ICON_SMALL, LABEL_L, NAV_ICON, STATUS_CHIP_H, STATUS_CHIP_PAD,
 };
 
 /// What a status chip shows and does.
@@ -78,9 +78,10 @@ fn chip_drawn<A: Copy + PartialEq>(
     if let Some(a) = action {
         // Ringed round the chip as drawn, its press taken a touch target
         // tall.
-        let ty = y - (TOUCH - STATUS_CHIP_H) / 2.0;
+        let touch = ui.touch;
+        let ty = y - (touch - STATUS_CHIP_H) / 2.0;
         let shape = Shape::new(x, y, w, STATUS_CHIP_H, r);
-        ui.press_to(shape, (x, ty, w, TOUCH), Role::OnSurface.paint(), a);
+        ui.press_to(shape, (x, ty, w, touch), Role::OnSurface.paint(), a);
     }
     ui.stroke(x, y, w, STATUS_CHIP_H, r, Role::Outline);
     let mut tx = x + STATUS_CHIP_PAD;

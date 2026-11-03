@@ -380,6 +380,16 @@ impl Faraday {
                 .is_some_and(|f| f.live.writing.is_some() || f.live.making)
     }
 
+    /// The side of a press's touch target in units: 44 on the compact
+    /// and short layout (the 2.8-inch), 48 on every other (F188); 48
+    /// held inside the Starter. A lookup.
+    pub(crate) fn touch_side(&self) -> f32 {
+        if self.held {
+            return faraday_draw::tokens::TOUCH;
+        }
+        faraday_draw::tokens::touch(self.window())
+    }
+
     /// The window as `docs/LAYOUT.md` §2 classes it: its size in dp at
     /// the screen's own density times the person's Display scale, its
     /// class by width, and whether it is short or low. Read from the last

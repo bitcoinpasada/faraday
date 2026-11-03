@@ -14,7 +14,7 @@ use crate::pal::{Paint, Role};
 use crate::{Shape, Ui};
 use faraday_draw::tokens::{
     CODEX32_TAB_GLYPH, CODEX32_TAB_ICON, GAP_SMALL, ICON_BUTTON, ICON_GLYPH, TAB_INDICATOR_MIN,
-    TAB_INDICATOR_PRIMARY, TAB_INDICATOR_SECONDARY, TAB_PAD, TITLE_S, TOUCH, shape_full,
+    TAB_INDICATOR_PRIMARY, TAB_INDICATOR_SECONDARY, TAB_PAD, TITLE_S, shape_full,
 };
 use faraday_draw::widgets::Icon;
 
@@ -69,13 +69,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         } else if total <= w {
             (0..items.len(), natural.clone(), false, false)
         } else {
-            whole_tabs(&natural, on, w)
+            whole_tabs(&natural, on, w, self.touch)
         };
         self.rule(x, y + h - 1.0, w, Role::OutlineVariant);
         let row = self.rect(x, y, w, h);
         self.c.push_clip(row);
         let cut_from = (self.c.cut_mark(), self.cut.len());
-        let mut tx = x + if before { TOUCH } else { 0.0 };
+        let mut tx = x + if before { self.touch } else { 0.0 };
         let mut narrow = false;
         for (i, tw) in shown.clone().zip(&widths) {
             if let Some(item) = items.get(i) {
@@ -105,21 +105,22 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.tab_chevron((x, y, h), Icon::ChevronLeft, prev.action);
         }
         if let Some(next) = items.get(shown.end).filter(|_| after) {
-            self.tab_chevron((x + w - TOUCH, y, h), Icon::ChevronRight, next.action);
+            self.tab_chevron((x + w - self.touch, y, h), Icon::ChevronRight, next.action);
         }
         self.c.pop_clip();
         h
     }
 
     /// A scrolled row's chevron at (x, y), `h` tall: Material's standard
-    /// icon button in a `TOUCH` target, whose press does `action`, the
+    /// icon button in a touch target ([`Ui::touch`]), whose press does `action`, the
     /// next tab past that end.
     fn tab_chevron(&mut self, (x, y, h): (f32, f32, f32), icon: Icon, action: A) {
-        let edge = (TOUCH - ICON_BUTTON) / 2.0;
+        let touch = self.touch;
+        let edge = (touch - ICON_BUTTON) / 2.0;
         let (bx, by) = (x + edge, y + (h - ICON_BUTTON) / 2.0);
         let shape = Shape::new(bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON));
         let ink = Role::OnSurfaceVariant.paint();
-        self.press_to(shape, (x, y, TOUCH, h), ink, action);
+        self.press_to(shape, (x, y, touch, h), ink, action);
         let glyph = (ICON_BUTTON - ICON_GLYPH) / 2.0;
         self.icon(bx + glyph, by + glyph, ICON_GLYPH, icon, ICON_GLYPH, ink);
     }
@@ -177,7 +178,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
 
 /// The tabs a scrolled row shows whole, `w` wide, tabs `natural` wide:
 /// the one shown (`on`) and as many before it as fit, then after it,
-/// each end with tabs past it keeping a chevron's `TOUCH` of the row;
+/// each end with tabs past it keeping a chevron's `touch` of the row;
 /// the room left is shared out among the tabs shown, and a tab shown
 /// that is wider than the row by itself is narrowed to it. Returns their
 /// range, their widths, and whether a chevron stands before and after.
@@ -186,12 +187,13 @@ fn whole_tabs(
     natural: &[f32],
     on: usize,
     w: f32,
+    touch: f32,
 ) -> (std::ops::Range<usize>, Vec<f32>, bool, bool) {
     let n = natural.len();
     let room = |a: usize, b: usize| {
         let sum: f32 = natural[a..b].iter().sum();
         let ends = f32::from(u8::from(a > 0)) + f32::from(u8::from(b < n));
-        w - sum - ends * TOUCH
+        w - sum - ends * touch
     };
     let on = on.min(n.saturating_sub(1));
     let a = (0..=on).find(|&a| room(a, on + 1) >= 0.0).unwrap_or(on);

@@ -9,7 +9,7 @@ use faraday_draw::tokens::{
     BUTTON_PAD, DISABLED_CONTAINER, DISABLED_CONTENT, FOCUS_OFFSET, FOCUS_RING, GAP, ICON_BUTTON,
     ICON_GAP, ICON_GLYPH, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN, SEGMENT_PAD, STATE_FOCUS,
     STATE_HOVER, STATE_PRESS, STEPPER_COUNT_W, STEPPER_LABEL_COL, STEPPER_LABEL_TEXT,
-    STEPPER_VALUE_TEXT, TOUCH, alpha_of, shape_full,
+    STEPPER_VALUE_TEXT, alpha_of, shape_full,
 };
 use faraday_draw::widgets::Icon;
 use faraday_draw::{Color, Rect};
@@ -17,7 +17,7 @@ use faraday_strings::EN;
 
 /// Where a press drawn this frame is taken, in pixels: `drawn`, the
 /// control as drawn (after the clip), and `target`, the same centred
-/// and grown to the touch floor, [`TOUCH`] square, where it is drawn
+/// and grown to the touch floor, [`Ui::touch`] square, where it is drawn
 /// smaller. Two targets that would overlap share the gap between their
 /// controls, each up to the middle, so a target never covers another's
 /// control nor reaches past the middle of the gap. A press on a drawn
@@ -229,7 +229,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// taken: grown to the touch floor inside `clip`, sharing any overlap
     /// with the targets before it ([`Reach`]).
     pub(crate) fn reach_for(&mut self, drawn: Rect, clip: Rect, cut: bool, action: A) {
-        let floor = self.px(TOUCH);
+        let floor = self.px(self.touch);
         let gw = (floor - drawn.w).max(0);
         let gh = (floor - drawn.h).max(0);
         let mut target = Rect::new(
@@ -495,7 +495,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Material's outlined icon button: an [`ICON_BUTTON`] circle at
     /// (x, y) edged in outline, `icon` at [`ICON_GLYPH`] in
     /// on-surface-variant, its state layer and focus ring in its shape,
-    /// a press taken on at least [`TOUCH`] square, and `tip`, its plain
+    /// a press taken on at least the touch floor ([`Ui::touch`]) square, and `tip`, its plain
     /// tooltip. Not available (`on` false), edge and icon are on-surface
     /// at the disabled opacities and it takes no press.
     pub fn outlined_icon_button(

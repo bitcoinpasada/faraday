@@ -20,7 +20,7 @@ use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{
     APP_BAR_H, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT,
-    MODE_PILL_HEIGHT, SHAPE_M, SHAPE_XS, TOUCH,
+    MODE_PILL_HEIGHT, SHAPE_M, SHAPE_XS,
 };
 use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{
@@ -136,10 +136,12 @@ pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
 
 /// Where the Back button's target ends: nothing else on the bar reaches
 /// left of it.
-const BACK_END: f32 = GAP_SMALL + TOUCH;
+fn back_end(ui: &Ui) -> f32 {
+    GAP_SMALL + ui.touch
+}
 
 /// The tools at the bar's right end, each Material's icon button in a
-/// 48 dp target or, for Cancel, its text button: the ? when the page has
+/// touch target or, for Cancel, its text button: the ? when the page has
 /// something in Learn, the mode pill off mainnet, the keyboard where the
 /// page types, the codex32 eye and Cancel. Returns where they begin.
 /// Where they would reach the Back button, the ?, then the keyboard, then
@@ -169,7 +171,7 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     let mut out = steps[skip.min(steps.len() - 1)];
     for o in steps.into_iter().skip(skip) {
         out = o;
-        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= BACK_END {
+        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) {
             break;
         }
     }
@@ -239,21 +241,21 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
 
 /// The eye on a top app bar, its target's right edge at `right`, while
 /// Make codex32 shares has sheets to mask (`docs/CODEX32.md` §6.4.6):
-/// Material's icon button, 40 dp round in a 48 dp target. Returns where
+/// Material's icon button, 40 dp round in a touch target. Returns where
 /// the next action ends.
 pub(crate) fn bar_eye(app: &View, ui: &mut Ui, right: f32) -> f32 {
     let Some(masked) = eye_state(app) else {
         return right;
     };
-    let edge = (TOUCH - ICON_BUTTON) / 2.0;
+    let (touch, edge) = (ui.touch, (ui.touch - ICON_BUTTON) / 2.0);
     let (kx, ky) = (right - edge - ICON_BUTTON, (BAR_H - ICON_BUTTON) / 2.0);
-    eye_icon(ui, kx, ky, masked, (kx - edge, ky - edge, TOUCH, TOUCH));
+    eye_icon(ui, kx, ky, masked, (kx - edge, ky - edge, touch, touch));
     kx - edge
 }
 
 /// **Cancel** on a top app bar, its right edge at `right`, on a flow that
 /// can be in progress: it leaves the flow (`docs/FLOWS.md`, Cancel; F51).
-/// Material's text button, in a 48 dp target. Returns where the next
+/// Material's text button, in a touch target. Returns where the next
 /// action ends.
 pub(crate) fn bar_cancel(app: &View, ui: &mut Ui, right: f32) -> f32 {
     if !app.cancel_shown() {

@@ -34,6 +34,10 @@ Height matters where it is short. Under 480 dp tall is a **short**
 window (the Pi panel), and under 600 dp tall a **low** one (the 7-inch
 panel): §3 says what each changes.
 
+A press is taken on at least 48 × 48 dp (`TOUCH`); on the compact and
+short layout, the Pi panel, the floor is 44 × 44 dp
+(`TOUCH_COMPACT_SHORT`, `tokens::touch`, F188).
+
 Every class lays the screen out again at its own width. Nothing is
 scaled to fill a window.
 

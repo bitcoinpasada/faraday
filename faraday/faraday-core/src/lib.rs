@@ -5236,7 +5236,7 @@ impl Faraday {
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
                 ui.offset = self.screen_slot().map_or(page_offset, |o| *o);
                 ui.active = slot;
-                ui.compact = self.compact;
+                (ui.compact, ui.touch) = (self.compact, self.touch_side());
                 ui.caret_on = self.caret_on();
                 let view = drawing::View::new(self);
                 screens::draw(&view, &mut ui);
