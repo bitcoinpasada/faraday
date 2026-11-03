@@ -604,6 +604,13 @@ pub fn read_plan(bytes: &[u8]) -> Result<Record, Refusal> {
     }
     it.finish()?;
     rec.check().map_err(|f| refuse(fault_why(f)))?;
+    // A plan that `write_plan` would refuse as too long (backslashes in
+    // literal strings, line breaks, tabs or many short items take more
+    // written than read) is refused here, so no vault opens that cannot be
+    // sealed again.
+    if write_plan(&rec).is_err_and(|r| r.why == Why::TooLong) {
+        return Err(at("plan", Why::TooLong));
+    }
     Ok(rec)
 }
 

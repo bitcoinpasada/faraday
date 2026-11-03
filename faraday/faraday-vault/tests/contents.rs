@@ -10,8 +10,8 @@ use faraday_vault::Record;
 use faraday_vault::child::ChildOf;
 use faraday_vault::codex32::{SetFacts, State};
 use faraday_vault::contents::{
-    QR_LEN, QR_NOTE_MAX, QR_PASSPHRASE_MAX, Why, read_child_facts, read_codex32_facts, read_plan,
-    read_qr, write_child_facts, write_codex32_facts, write_plan, write_qr,
+    MAX_VALUE, QR_LEN, QR_NOTE_MAX, QR_PASSPHRASE_MAX, Why, read_child_facts, read_codex32_facts,
+    read_plan, read_qr, write_child_facts, write_codex32_facts, write_plan, write_qr,
 };
 use faraday_vault::layouts::words_payload;
 use faraday_vault::records::{field, kind};
@@ -106,6 +106,47 @@ fn a_hand_edited_plan_reads_as_the_written_one() {
     got.sort();
     want.sort();
     assert_eq!(got, want);
+}
+
+/// A plan of `n` marks, each a single backslash in a literal string.
+fn backslash_marks(n: usize) -> Vec<u8> {
+    let mut t = b"wallet = \"x\"\nmarks = [".to_vec();
+    for i in 0..n {
+        if i > 0 {
+            t.extend_from_slice(b", ");
+        }
+        t.extend_from_slice(b"'\\'");
+    }
+    t.extend_from_slice(b"]\n");
+    t
+}
+
+#[test]
+fn a_plan_that_could_not_be_written_again_is_refused_as_too_long() {
+    // Read, the marks are short; written, each backslash is escaped.
+    let long = backslash_marks(190_000);
+    assert!(long.len() < MAX_VALUE);
+    let r = read_plan(&long).unwrap_err();
+    assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "plan"));
+    // A plan that fits both ways is read and written again.
+    let fits = read_plan(&backslash_marks(100_000)).unwrap();
+    assert!(write_plan(&fits).is_ok());
+    // The edge: the most marks that are read are the most that are written.
+    let (mut ok, mut bad) = (100_000, 190_000);
+    while bad - ok > 1 {
+        let mid = (ok + bad) / 2;
+        if read_plan(&backslash_marks(mid)).is_ok() {
+            ok = mid;
+        } else {
+            bad = mid;
+        }
+    }
+    let last = read_plan(&backslash_marks(ok)).unwrap();
+    assert!(write_plan(&last).is_ok());
+    assert_eq!(
+        read_plan(&backslash_marks(bad)).unwrap_err().why,
+        Why::TooLong
+    );
 }
 
 #[test]

@@ -396,6 +396,15 @@ fn the_literal_data_packet_must_be_binary_without_a_name() {
 }
 
 #[test]
+fn a_compressed_first_packet_in_partial_lengths_is_named() {
+    // A new-format header, tag 8, a partial length of 512, then the end.
+    let mut m = vec![0xC0 | TAG_COMPRESSED, 224 + 9];
+    m.extend([0u8; 512]);
+    m.extend([0]);
+    assert_eq!(refused(&m), other(Unsupported::Compressed));
+}
+
+#[test]
 fn what_else_is_in_the_plaintext_is_named() {
     let ok = literal(b'b', b"", b"hello");
     let trailing = join(&[&ok, &crate::packet(TAG_LITERAL, b"b\0\0\0\0\0")]);
@@ -563,12 +572,11 @@ fn the_rfc_plaintext_with_its_padding_is_read() {
 }
 
 #[test]
-fn a_vault_from_outside_opens_to_its_toml() {
-    // Made and opened by an independent reader over argon2-cffi and
-    // OpenSSL (tools/vectors/openpgp/README.md).
+fn faradays_own_vault_at_exponent_13_is_a_known_answer() {
+    // Faraday's own seal output, kept as a known answer
+    // (tools/vectors/openpgp/README.md); it is not an outside check.
     let bytes = vector("vault_13");
     assert_eq!(parse(&bytes).unwrap().cost().exponent, 13);
     let got = opened(&bytes).expect("opened");
-    assert_eq!(got.len(), 226);
-    assert!(got.starts_with(b"words = "));
+    assert_eq!(&**got, toml().as_slice());
 }

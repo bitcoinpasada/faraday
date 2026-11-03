@@ -51,5 +51,10 @@ serde_json.workspace = true
 # The vault sizes it must agree with (tests/sizes.rs).
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 
+[features]
+# The entry the fuzz target kdbx_body feeds (`kdbx::fuzz_body`). Off by
+# default; only the fuzz crate (fuzz/Cargo.toml) turns it on, no app does.
+fuzzing = []
+
 [lints]
 workspace = true

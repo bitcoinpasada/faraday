@@ -283,7 +283,7 @@ fn read_body(
 /// fuzzer: `decrypted` is what the cipher gave (with AES-256's padding
 /// still on it), so the padding, the inflation and the inner header are
 /// reached without a passphrase. The length of the XML document read.
-#[cfg(fuzzing)]
+#[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub fn fuzz_body(decrypted: &[u8], aes256: bool, gzip: bool) -> Result<usize, Error> {
     let mut body = Zeroizing::new(decrypted.to_vec());

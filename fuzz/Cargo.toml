@@ -13,10 +13,6 @@ cargo-fuzz = true
 
 [workspace]
 
-# `fuzzing` is set by cargo-fuzz (kdbx_body's entry exists only under it).
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }
-
 [dependencies]
 libfuzzer-sys = "0.4"
 faraday-bip = { path = "../core/faraday-bip" }
@@ -25,7 +21,8 @@ faraday-psbt = { path = "../core/faraday-psbt" }
 faraday-entropy = { path = "../core/faraday-entropy" }
 faraday-crypto = { path = "../core/faraday-crypto", features = ["unchecked"] }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
-faraday-vault = { path = "../faraday/faraday-vault" }
+# `fuzzing` adds the entry kdbx_body feeds; only this crate turns it on.
+faraday-vault = { path = "../faraday/faraday-vault", features = ["fuzzing"] }
 
 [profile.release]
 debug = true

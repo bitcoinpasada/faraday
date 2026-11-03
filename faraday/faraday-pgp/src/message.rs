@@ -250,6 +250,18 @@ impl Message<'_> {
 /// against the limits of `docs/VAULT.md` §3, before anything is
 /// allocated. Any other message is refused, named.
 pub fn parse(bytes: &[u8]) -> Result<Message<'_>, Error> {
+    // A first packet that is a data packet (which may be in partial
+    // lengths) is named by its header's tag before any of it is joined.
+    if let Some(&b0) = bytes.first() {
+        let tag = if b0 & 0x40 != 0 {
+            b0 & 0x3f
+        } else {
+            (b0 >> 2) & 0x0f
+        };
+        if b0 & 0x80 != 0 && tag != TAG_SKESK && is_data_packet(tag) {
+            return Err(Error::Unsupported(classify(tag)));
+        }
+    }
     let (first, rest) = read_packet(bytes)?;
     if first.tag != TAG_SKESK {
         return Err(Error::Unsupported(classify(first.tag)));

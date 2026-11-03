@@ -6841,6 +6841,7 @@ functions = [
   "faraday/faraday-pgp/src/message.rs::parse",
   "faraday/faraday-pgp/src/message.rs::Message::open",
   "faraday/faraday-pgp/src/message.rs::seal",
+  "faraday/faraday-pgp/src/message.rs::seal_at",
   "faraday/faraday-pgp/src/message.rs::seal_packets",
   "faraday/faraday-pgp/src/message.rs::s2k",
   "faraday/faraday-pgp/src/message.rs::hkdf",
@@ -6881,6 +6882,10 @@ tests = [
   "faraday/faraday-pgp/src/message/tests.rs::a_cost_outside_the_limits_is_refused_before_anything_runs",
   "faraday/faraday-pgp/src/message/tests.rs::another_openpgp_message_is_named",
   "faraday/faraday-pgp/src/message/tests.rs::every_length_form_is_read",
+  "faraday/faraday-pgp/src/message/tests.rs::padding_packets_are_ignored",
+  "faraday/faraday-pgp/src/message/tests.rs::the_rfc_plaintext_with_its_padding_is_read",
+  "faraday/faraday-pgp/src/message/tests.rs::what_else_is_in_the_plaintext_is_named",
+  "faraday/faraday-pgp/src/message/tests.rs::a_compressed_first_packet_in_partial_lengths_is_named",
 ]
 not_crosschecked = "Checked against RFC 9580's own vectors for the session key and the data packet (AES-128 and OCB, byte for byte) and for the Argon2 S2K; not yet cross-checked against Sequoia, OpenPGP.js and rPGP in both directions (F190 plans it in the F79 area `vault`). The Argon2 S2K is held to A.12.3 by an ignored test that takes 2 GiB (`tools/vectors/openpgp/README.md`)."
 fuzz = ["pgp_qr_vault"]

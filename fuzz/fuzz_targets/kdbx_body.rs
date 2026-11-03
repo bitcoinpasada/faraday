@@ -6,11 +6,8 @@
 //! on the body; bit 1: gzip), the rest is the decrypted body. The seeds are
 //! bodies of each shape.
 
-// The entry exists only under cargo-fuzz's `--cfg fuzzing`; the plain
-// `cargo check` of the fuzz crate (`just deps`) builds this file empty.
 #![no_main]
 
-#[cfg(fuzzing)]
 libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     if let Some((&shape, body)) = data.split_first() {
         let _ = faraday_vault::kdbx::fuzz_body(body, shape & 1 != 0, shape & 2 != 0);

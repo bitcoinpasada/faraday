@@ -43,7 +43,7 @@ pub(super) fn file_keys(
     // The composite key: the SHA-256 of the components' SHA-256s, and the
     // one component is the passphrase's.
     let first = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(passphrase)));
-    let mut composite = Secret::new(<[u8; 32]>::from(Sha256::digest(*first)));
+    let mut composite = Secret::new(<[u8; 32]>::from(Sha256::digest(first.as_slice())));
     let stretched = argon_run(c, kdf, cost, composite.expose(), salt);
     composite.zeroize();
     let mut t = stretched?;

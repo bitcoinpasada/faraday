@@ -20,9 +20,11 @@
 
 - `vault_13`: a QR vault (AES-256, OCB, Argon2 memory exponent 13) under
   the passphrase `correct horse`, the file
-  `fuzz/corpus/pgp_qr_vault/vault-13.pgp`. An independent reader over
-  argon2-cffi and OpenSSL opened it to its 226-byte TOML; the test opens it
-  with Faraday's code and expects that length.
+  `fuzz/corpus/pgp_qr_vault/vault-13.pgp`. Faraday made it
+  (its S2K salt is the tests' random pattern, its plaintext the tests' 226-byte
+  TOML), so the test is a known answer of Faraday's own seal, not an outside
+  check. A reader outside the repository (argon2-cffi and OpenSSL) opened it
+  once during review; that is not reproducible here.
 
 RFC 9580 gives no vector for the Argon2 S2K with AES-256 and OCB in a
 version 6 packet together; checking that pairing against Sequoia,
