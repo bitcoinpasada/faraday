@@ -74,8 +74,8 @@ pbkdf2 = { version = "0.13", default-features = false }
 # `password-hash` string format and the RNG; the memory is a `Vec<Block>`
 # the caller owns, so no `alloc` feature is needed.
 argon2 = { version = "0.6", default-features = false, features = ["zeroize"] }
-# In-memory sealing (§5.1, §16.21; docs/deps/chacha20poly1305.md). No
-# `alloc`, no RNG: the nonce comes from the session key's counter.
+# The vault container's AEAD (docs/deps/chacha20poly1305.md). No `alloc`,
+# no RNG.
 chacha20poly1305 = { version = "0.11", default-features = false, features = ["zeroize"] }
 # The KDBX 4 writer's stream cipher (§16.112 pass E2). This is the crate
 # `chacha20poly1305` already builds on, at the version already in the

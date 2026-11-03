@@ -2,8 +2,8 @@
 
 **Cryptography:** computes
 
-**Purpose.** The AEAD behind `faraday_crypto::Sealed`: a loaded key's seed and words are encrypted in memory
-under the session key and decrypted only inside a closure.
+**Purpose.** The AEAD of `faraday-vault`'s container (the FVLT format, XChaCha20-Poly1305), until
+the vault of `docs/VAULT.md` replaces it.
 
 **Why this crate.** RustCrypto's ChaCha20-Poly1305 (RFC 8439): pure Rust,
 `no_std`, constant-time by construction (no table lookups indexed by
@@ -17,8 +17,7 @@ does not.
 **Cost.** Version 0.11 with `default-features = false` and the `zeroize`
 feature (the cipher state wipes on drop): `aead`, `chacha20`, `poly1305`,
 `cipher`, `universal-hash`, `inout`, `crypto-common` and `hybrid-array`
-(the last three already in the graph). No `alloc`, no RNG feature: the
-nonce comes from the session key's counter, which is the point of §16.21.
+(the last three already in the graph). No `alloc`, no RNG feature.
 No `unsafe` outside the optional SIMD paths, which are gated on target
 features and absent from the Pi and generic builds.
 

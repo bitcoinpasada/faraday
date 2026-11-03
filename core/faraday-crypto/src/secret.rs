@@ -66,3 +66,87 @@ impl<T: Zeroize + AsRef<[u8]>> PartialEq for Secret<T> {
 }
 
 impl<T: Zeroize + AsRef<[u8]>> Eq for Secret<T> {}
+
+/// Most words a [`MnemonicBytes`] holds (BIP-39's maximum).
+pub const MAX_MNEMONIC_WORDS: usize = 24;
+
+/// The longest BIP-32 seed, which is BIP-39's.
+pub const MAX_SEED_LEN: usize = 64;
+
+/// A BIP-32 seed and its length: 64 bytes from BIP-39 words, or the 16
+/// or 32 bytes of a SLIP-39 master secret, which is the seed itself.
+/// One type carries both, so a
+/// loaded key has one seed door whatever it was made from. Zeroized on
+/// drop.
+pub struct SeedBytes {
+    buf: [u8; MAX_SEED_LEN],
+    len: u8,
+}
+
+impl SeedBytes {
+    /// A seed of `bytes`. Longer than [`MAX_SEED_LEN`] is refused.
+    pub fn new(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() > MAX_SEED_LEN {
+            return None;
+        }
+        let mut buf = [0u8; MAX_SEED_LEN];
+        buf[..bytes.len()].copy_from_slice(bytes);
+        Some(SeedBytes {
+            buf,
+            len: bytes.len() as u8,
+        })
+    }
+
+    /// The seed.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.buf[..usize::from(self.len)]
+    }
+}
+
+impl AsRef<[u8]> for SeedBytes {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl Zeroize for SeedBytes {
+    fn zeroize(&mut self) {
+        self.buf.zeroize();
+        self.len = 0;
+    }
+}
+
+impl Drop for SeedBytes {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for SeedBytes {}
+
+/// A mnemonic in a fixed form: up to 24 word indices, the word count and
+/// a language tag the application assigns. Zeroized on drop.
+pub struct MnemonicBytes {
+    /// Word indices, `0..2048`; only the first `len` are meaningful.
+    pub words: [u16; MAX_MNEMONIC_WORDS],
+    /// Word count, 12–24.
+    pub len: u8,
+    /// Wordlist tag, as the application numbers its languages.
+    pub language: u8,
+}
+
+impl Zeroize for MnemonicBytes {
+    fn zeroize(&mut self) {
+        self.words.zeroize();
+        self.len = 0;
+        self.language = 0;
+    }
+}
+
+impl Drop for MnemonicBytes {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for MnemonicBytes {}

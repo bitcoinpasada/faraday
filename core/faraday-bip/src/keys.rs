@@ -27,8 +27,7 @@
 //! code, and the key handed to a pinned page is erased where it stood, but
 //! copies made on the stack inside `bitcoin` during derivation, and the
 //! HMAC state inside `Xpriv::new_master`, are outside our reach. This is
-//! the interim discipline until a `Sealed<T>` for
-//! these exists.
+//! the discipline for these copies.
 //!
 //! # One context per key
 //!

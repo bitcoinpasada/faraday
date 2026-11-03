@@ -302,7 +302,7 @@ the same files.
 | Entropy from playing cards, camera frames and a mix of sources | `cards`, `camera`, `mix` | `tools/reference/entropy/README.md` (the procedures as stated); `docs/STANDARDS.md` §3; F158 | `tools/vectors/cards/`, `tools/vectors/camera/` and `tools/vectors/mix/`, which the tests in `core/faraday-entropy/src/cards.rs`, `camera.rs` and `mix.rs` read; `tools/vectors/entropy/` for a mix's dice | `core/faraday-entropy/src/`, `tools/crosscheck/area_entropy.py` | `entropy` |
 | Faraday Demo's dice rollers | `roller` | `docs/CODEX32.md` §5.5, §5.6; `tools/reference/booklet-dice/README.md`; F96 | `tools/vectors/roller/` for the five dice, which `faraday/faraday-core/src/fresh/roller/five_tests.rs` reads; the one die has none beyond the cross-check's cases | `faraday/faraday-core/src/fresh/roller/`, `tools/crosscheck/area_roller.py` | `roller` |
 | Secure Boot keys: the generator and the enrolment files | `sb-keys` | F134, F158; `docs/learn/faraday/secure-boot-keys.md`; the UEFI Specification, RFC 5280, RFC 5652, RFC 8017 | `faraday/faraday-sb/tests/golden.rs` (the keys made from a fixed seed), `judged.rs` (OpenSSL's checks), `faraday/faraday-sb/tests/vectors/` | `faraday/faraday-sb/` | none: OpenSSL judges the keys and signatures |
-| A key held in memory: blinding, pinned pages and the in-memory seal, which no shipped code reaches | `hold` | `core/faraday-crypto/README.md`; `docs/SECURITY-MODEL.md`; `docs/KEYS.md` | the tests in `core/faraday-crypto/src/sealed.rs` | `core/faraday-crypto/`, `faraday/faraday-keys/src/session.rs` | none |
+| A key held in memory: blinding and pinned pages | `hold` | `core/faraday-crypto/README.md`; `docs/SECURITY-MODEL.md`; `docs/KEYS.md` | the tests in `faraday/faraday-core/tests/all/blinding.rs` and `core/faraday-crypto/tests/primitives.rs` | `core/faraday-crypto/`, `faraday/faraday-keys/src/session.rs` | none |
 
 ### 10.2 What is asked
 
@@ -327,8 +327,7 @@ One or more of these, for one specification or several:
 
 For the Secure Boot keys and a key held in memory, the review (3) is
 what is asked: an outside implementation would have to reproduce the
-`rsa` crate's own search for primes to match the known answers, and the
-in-memory seal is reached by no shipped code.
+`rsa` crate's own search for primes to match the known answers.
 
 ### 10.3 What an outside implementation offers, to be used in the cross-check
 

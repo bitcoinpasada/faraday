@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
@@ -1149,9 +1149,15 @@ before D1 it stays "BIP-39 mnemonics (`faraday-bip::bip39`)".
   are byte for byte the same.
 - **Size.** One to two days.
 
-### 5.9 The sealing's counter nonce, removed (batch C3)
+### 5.9 The sealing's counter nonce, removed (batch C3, built)
 
-- **Files.** `core/faraday-crypto/src/sealed.rs` (653 lines):
+**Built.** `core/faraday-crypto` has no `Sealed`, `SessionKey`, `SealError` or
+`SealedBytes`, and no `chacha20poly1305` dependency; `MnemonicBytes`,
+`SeedBytes`, `MAX_SEED_LEN` and `MAX_MNEMONIC_WORDS` are in
+`core/faraday-crypto/src/secret.rs`. `KEY_LEN`, `NONCE_LEN` and `TAG_LEN` had
+no user and went. What follows is the plan it was built from.
+
+- **Files.** The sealing's file (653 lines, `sealed.rs`):
   `Sealed`, `SessionKey`, `SealError`, `SealedBytes`, the counter nonce,
   and `KEY_LEN`, `NONCE_LEN` and `TAG_LEN` (unless a user is found, then
   they move with it) go; `MnemonicBytes`, `SeedBytes`, `MAX_SEED_LEN` and
@@ -1715,7 +1721,7 @@ Reference's list of conditions.
 | B1 | AUDIT §1's rows, the QR encoder's module doc, the storage command's comment, `docs/deps/rsa.md`'s Marvin sentence, the Secret handling lines that claim more than the code does (§7.8), KEYS §2 and the `hold` action saying what wiping does not reach | §7 | Built |
 | C1 | BLAKE2b from `blake2`'s `Blake2bVarCore` | §5.1 | Built |
 | C2 | (HKDF: not a switch; kept, §5.2, §6.7) | §5.2 | None |
-| C3 | The sealing's counter nonce removed | §5.9 | About 2 hours |
+| C3 | The sealing's counter nonce removed | §5.9 | Built |
 | C4 | The RSA RNG adapter from `ChaCha20Rng`; tests re-pinned | §5.6 | Built |
 | C5 | X.509 from `x509-cert`, DER from `der`; trust entries for x509-cert and der_derive, flagset's exemption; with X2 | §5.7, §9.7 | 1.5 to 2 days, and X2's |
 | C6 | The single-key and multisig finalizer from miniscript; with X3 | §5.8, §9.7 | 1 to 2 days, and X3's |

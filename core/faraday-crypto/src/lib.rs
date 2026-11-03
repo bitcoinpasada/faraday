@@ -1,5 +1,4 @@
-//! Secret wrapper types, in-memory sealing, and thin wrappers over vetted
-//! hash primitives.
+//! Secret wrapper types and thin wrappers over vetted hash primitives.
 //!
 //! This is the bottom crate of Faraday's core. It has three jobs:
 //!
@@ -17,9 +16,6 @@
 //! - [`WipeOnFree`]: a global allocator wrapper a binary may install,
 //!   which zeroes every heap block as it is freed, for the copies of a
 //!   secret that other code makes and frees out of `zeroize`'s reach.
-//! - [`Sealed`] and [`SessionKey`]: keep a secret encrypted while it is
-//!   not in use, so that plaintext exists only inside a closure and only
-//!   for as long as the closure runs (§5.1, §5.2, §16.21).
 //! - Hashes and KDFs: [`sha256`], [`hmac_sha256`], [`hmac_sha512`],
 //!   [`pbkdf2_hmac_sha256`], [`pbkdf2_hmac_sha512`], [`blake2b`] and
 //!   [`scrypt`] are the only entry points the rest of the core uses, so
@@ -35,7 +31,7 @@
 //! The crate is `no_std` and allocates for one reason
 //! only: to give a long-lived secret whole pages of its own, so that
 //! they can be pinned. Nothing else here takes an allocation. It has no random number
-//! generator: entropy is handed in by the shell through the session key.
+//! generator: entropy is handed in by the shell.
 //! Signing and curve operations are deliberately absent for now; they
 //! arrive with the `secp256k1` decision.
 
@@ -48,7 +44,6 @@ mod crc32;
 mod hash;
 mod pinned;
 mod scrypt;
-mod sealed;
 mod secret;
 mod wipe;
 pub mod work;
@@ -61,10 +56,6 @@ pub use hash::{
 };
 pub use pinned::{Pinned, pin_failure_to_report};
 pub use scrypt::{Error as ScryptError, scrypt};
-pub use sealed::{
-    KEY_LEN, MAX_MNEMONIC_WORDS, MAX_SEED_LEN, MnemonicBytes, NONCE_LEN, SealError, Sealed,
-    SealedBytes, SeedBytes, SessionKey, TAG_LEN,
-};
-pub use secret::Secret;
+pub use secret::{MAX_MNEMONIC_WORDS, MAX_SEED_LEN, MnemonicBytes, Secret, SeedBytes};
 pub use wipe::WipeOnFree;
 pub use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};

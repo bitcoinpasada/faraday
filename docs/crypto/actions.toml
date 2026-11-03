@@ -1384,7 +1384,7 @@ places = [
 [[action]]
 id = "hold"
 name = "Hold a key in memory"
-action = "Holds a key in memory blinded and on pinned pages; the sealing under a session key built in faraday-crypto is reached by no shipped code."
+action = "Holds a key in memory blinded and on pinned pages."
 row = "keys-held"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
@@ -1398,13 +1398,6 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::blind_key",
   "faraday/faraday-keys/src/session.rs::Keys::reblind_owed",
   "faraday/faraday-keys/src/session.rs::Keys::reblind",
-  "core/faraday-crypto/src/sealed.rs::SessionKey::from_entropy",
-  "core/faraday-crypto/src/sealed.rs::SessionKey::weak",
-  "core/faraday-crypto/src/sealed.rs::SessionKey::rotate",
-  "core/faraday-crypto/src/sealed.rs::SessionKey::derive",
-  "core/faraday-crypto/src/sealed.rs::Sealed::seal",
-  "core/faraday-crypto/src/sealed.rs::Sealed::with",
-  "core/faraday-crypto/src/sealed.rs::Sealed::reseal",
   "core/faraday-crypto/src/pinned.rs::Pinned::new",
   "core/faraday-crypto/src/pinned.rs::Pinned::new_with",
   "core/faraday-crypto/src/pinned.rs::Pinned::drop",
@@ -1412,7 +1405,6 @@ functions = [
 ]
 code = [
   "core/faraday-bip/src/keys.rs::MasterKey::reblind",
-  "core/faraday-crypto/src/sealed.rs::Sealed::seal",
   "core/faraday-crypto/src/pinned.rs::Pinned::new",
 ]
 novel_rank = 6
@@ -1420,42 +1412,30 @@ novel_rank = 6
 [action.implementation]
 crate = "core/faraday-crypto"
 libraries = [
-  "chacha20poly1305",
   "subtle",
   "secp256k1",
 ]
-adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes (a key a signing job holds is randomized as soon as the job's answer is applied or dropped), each key's blind drawn by HKDF-Expand under a count so no two are the same; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop. The in-memory sealing (`Sealed`, `SessionKey`: a counter nonce with a prefix derived from the key, refusing a key built without shell entropy and a key past 2^32 - 1 seals) is built and tested, but no shipped code builds a session key or seals a value."
-written_here = "The counter nonce of the in-memory sealing (`faraday-crypto`), reached by no shipped code"
+adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes (a key a signing job holds is randomized as soon as the job's answer is applied or dropped), each key's blind drawn by HKDF-Expand under a count so no two are the same; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop."
 
 [action.checked]
 tests = [
   "faraday/faraday-core/tests/all/blinding.rs::a_key_joining_the_session_is_blinded_from_the_sessions_seed",
   "faraday/faraday-core/tests/all/blinding.rs::every_key_is_blinded_again_when_the_person_adds_randomness",
-  "core/faraday-crypto/src/sealed.rs::wrong_key_and_tampering_are_rejected",
-  "core/faraday-crypto/src/sealed.rs::nonces_are_unique_per_seal_and_per_key",
-  "core/faraday-crypto/src/sealed.rs::weak_keys_refuse_to_seal_until_rotated",
-  "core/faraday-crypto/src/sealed.rs::exhaustion_is_refused",
   "core/faraday-crypto/tests/primitives.rs::pinning_a_value_wipes_where_it_came_from",
   "core/faraday-crypto/tests/primitives.rs::secret_zeroizes_on_drop",
 ]
-not_crosschecked = "Nothing outside the program reads these values; the sealing is checked by the program's own tests."
+not_crosschecked = "Nothing outside the program reads these values."
 fuzz_none = "Takes values the program holds; no outside input is parsed."
 
 [action.secrets]
 reveal = "none"
-constant_time = "Secret and Pinned comparison is constant time (subtle's ConstantTimeEq, documented in secret.rs and pinned.rs); sealing is the chacha20poly1305 crate's, not stated by the library."
-wiped = "A Secret and a Pinned page are zeroized on drop; nothing is sealed in memory, since no shipped code seals a value. Not reached: a secret while it is live in a plain type, the stack and registers, memory other code allocates, a copy in freed heap until the process ends (the next lock on the device), and anything outside the process (none on the device; the computer's own on the desktop)."
+constant_time = "Secret and Pinned comparison is constant time (subtle's ConstantTimeEq, documented in secret.rs and pinned.rs)."
+wiped = "A Secret and a Pinned page are zeroized on drop. Not reached: a secret while it is live in a plain type, the stack and registers, memory other code allocates, a copy in freed heap until the process ends (the next lock on the device), and anything outside the process (none on the device; the computer's own on the desktop)."
 
 [action.limits]
 lines = [
-  "Nothing held in memory is sealed: Sealed and SessionKey are reached by no shipped code.",
   "Pinning is a feature of the desktop app and of the stick and Pi images (faraday-crypto's pin-pages); a build without it holds the same value unpinned.",
 ]
-
-[[action.own]]
-text = "The in-memory seal's nonce is a counter with a prefix derived from the key, because the crate has no random number generator; no shipped code reaches it, so no secret is sealed in memory today."
-kind = "Novel"
-decision = "no decision"
 
 [[action.own]]
 text = "A key's signing context is blinded from the session's randomness."

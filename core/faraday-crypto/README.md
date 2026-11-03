@@ -8,9 +8,6 @@ operations and no random number generator: entropy is handed in by the shell.
 
 - `sha256`, `hmac_sha256`, `hmac_sha512`, `pbkdf2_hmac_sha256`,
   `pbkdf2_hmac_sha512` (`hash.rs`), `blake2b` and `scrypt`.
-- `Sealed` and `SessionKey` (`sealed.rs`): a secret encrypted in memory with
-  ChaCha20-Poly1305 under a per-session key; plaintext exists only inside
-  `Sealed::with`.
 - `work.rs`: the `Compute` token and the kinds of costly work
   (`docs/COMPUTE.md`).
 
@@ -54,9 +51,7 @@ The crate's doc comment in `lib.rs` counts five blocks; the file has seven
   drop, compared in constant time.
 - `Pinned<T>`: a secret on pages of its own, `mlock`ed, zeroized then
   unlocked on drop.
-- `SessionKey`, `Sealed<T>`, `SeedBytes`, `MnemonicBytes`: `Zeroize` and
-  `ZeroizeOnDrop`; the stack buffer in `Sealed::with` is zeroized when the
-  closure returns.
+- `SeedBytes`, `MnemonicBytes`: `Zeroize` and `ZeroizeOnDrop`.
 - `blake2b` wipes the digest copy; `blake2`'s core and the block buffer wipe
   themselves on drop; `scrypt` zeroizes `ROMix`'s
   `V` (32 MiB at aezeed's parameters), its scratch and its block before

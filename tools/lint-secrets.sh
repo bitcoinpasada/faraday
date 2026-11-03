@@ -8,13 +8,13 @@
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
 #      dbg!, log::, tracing::. Tests that need to print live under tests/
 #      (integration tests), or use assert! only.
-#   2. No `#[derive(... Debug ...)]` on a type named Secret, Sealed,
-#      SessionKey, Mnemonic, MnemonicBytes, Seed, Entropy, MasterKey,
+#   2. No `#[derive(... Debug ...)]` on a type named Secret,
+#      Mnemonic, MnemonicBytes, Seed, Entropy, MasterKey,
 #      DerivedKey, PinEntry, Session, Key or Item (checked on the item
 #      that follows the derive). Types of those names that hold no secret
 #      are excepted one by one in ALLOWED below.
 # Applied to the files that handle secret material, currently
-# core/faraday-crypto/src/sealed.rs (the session key and sealed values),
+# core/faraday-crypto/src/secret.rs (secrets, seeds and mnemonics),
 # core/faraday-bip/src/bip39.rs (mnemonics, entropy, seeds),
 #   core/faraday-bip/src/slip39.rs (SLIP-39 shares and master secrets),
 #   core/faraday-bip/src/codex32/ (mod.rs: codex32 secrets, shares and master
@@ -100,7 +100,7 @@ rule2() {
             /#\[derive\(/ { derive = $0; derive_line = NR; next }
             derive != "" && /^[[:space:]]*(#\[|\/\/)/ { next }
             derive != "" {
-                if (derive ~ /Debug/ && $0 ~ /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+(Secret|Sealed|SessionKey|Mnemonic|MnemonicBytes|Seed|Entropy|MasterKey|DerivedKey|PinEntry|Session|Key|Item)([^A-Za-z0-9_]|$)/) {
+                if (derive ~ /Debug/ && $0 ~ /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+(Secret|Mnemonic|MnemonicBytes|Seed|Entropy|MasterKey|DerivedKey|PinEntry|Session|Key|Item)([^A-Za-z0-9_]|$)/) {
                     line = $0
                     sub(/^.*(struct|enum)[[:space:]]+/, "", line)
                     sub(/[^A-Za-z0-9_].*$/, "", line)
@@ -116,7 +116,7 @@ rule2() {
 report "Debug derived on a secret type (rule 2)" "$(rule2)"
 
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/header.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/gzip.rs core/faraday-crypto/src/sealed.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs"
+SECRET_FILES="faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/header.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/gzip.rs core/faraday-crypto/src/secret.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs"
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
