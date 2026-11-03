@@ -6635,7 +6635,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "aeee47d3dbd0e2678fbff724f582bee8ad8f903bc56d2938d0f56e734b44f746"
+fingerprint = "08f1fa3adc9615f0be683b95ca1673f36d3cb2577557dc122e1ea4247a04165d"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
@@ -6742,7 +6742,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "dd5731686e14f8f3f509cafc55e4eb2f20d30f3743f40759cc0fe2242ab071ff"
+fingerprint = "d97d1a0c880906a04ce8c6413d6088a01c10ea7f5a5e72520afbf420391440de"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
@@ -6823,6 +6823,10 @@ decision = "F190"
 text = "A QR vault's contents are the item's keys at the top of a TOML document, padded to 226 bytes with line feeds (F190 point 5, docs/VAULT.md section 2.1)."
 kind = "Neutral"
 decision = "F190"
+
+[action.review]
+fingerprint = "08a29f58a109b4bf015af68c1c0b8ca66397b0882a2f2c5134b226fe3fcf9167"
+reviewed = "2026-11-02"
 
 [[action]]
 id = "vault-qr-pgp"
@@ -6907,6 +6911,10 @@ lines = [
 text = "Only AES-256 with OCB and the Argon2 S2K are read: another cipher, AEAD mode or S2K is refused, as are armor and every packet but the three (F178, F190)."
 kind = "Conservative"
 decision = "F190"
+
+[action.review]
+fingerprint = "361a175176d314173f8b3336c6efd3fa3b030d79605873d7df564bce9ae5b78a"
+reviewed = "2026-11-02"
 
 [[action]]
 id = "vault-kdbx"
@@ -6999,6 +7007,10 @@ text = "Only the part of KDBX used is written (F178, F190): the file is written 
 kind = "Conservative"
 decision = "F190"
 
+[action.review]
+fingerprint = "6a83ce6f40854afd5ece2a7dfd3d3404ed416fd883e056c0e043b6712583020f"
+reviewed = "2026-11-02"
+
 [[action]]
 id = "vault-seal"
 name = "Write a vault back"
@@ -7060,7 +7072,7 @@ kind = "Neutral"
 decision = "F159"
 
 [action.review]
-fingerprint = "68bda3caa7948f57052a88c4b52b9248130366ae3ae01c0d0fc4f000f6a4197e"
+fingerprint = "91cb2fe2f9cc85eb6872458376fcae42f7de54d961837ad29c77a2b776328dc7"
 reviewed = "2026-11-02"
 places = [
   "docs/VAULT.md",
