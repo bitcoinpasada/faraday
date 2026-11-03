@@ -1,7 +1,7 @@
 # The last passing crypto cross-check (`just crosscheck`, F79).
 # `just lint` fails when `inputs` no longer matches the crypto sources,
 # the cross-check and the crypto crates' Cargo.lock entries.
-inputs 776d43e980101e1485928113b856c8d6057ec699a394b154102017a0291f99c2
+inputs 2a9faa7e86295667386a9d36bc54840565295d1b159798e05cb19fd6df89f8ea
 references 6b18e20c4b2c95a5a66d473b75cda3c0b910fb55a3f397fcb8030581061c992f
 python 3.14.4
 argon2-cffi 25.1.0
@@ -18,7 +18,7 @@ mmd mmd (GNU mtools) 4.0.49
 mdir mdir (GNU mtools) 4.0.49
 sfdisk sfdisk from util-linux 2.41.3
 sgdisk GPT fdisk (sgdisk) version 1.0.10
-qemu-system-x86_64 QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.3)
+qemu-system-x86_64 QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.2)
 certtool certtool 3.8.12
 pesign pesign 116-8.1build1
 pesigcheck pesign 116-8.1build1
@@ -27,7 +27,8 @@ ovmf OVMF_CODE_4M.secboot.fd 33c413a04e9edf512c504e9b0accbcec4d009d406bca761cc0b
 bitcoin-core 31.1.0 bitcoin-31.1-x86_64-linux-gnu.tar.gz b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
 seed faraday-crosscheck-1
 scale 1.0
-seconds 101.6
+PyPy 3.11.13 for the areas it speeds
+seconds 99.7
 cases musig 32
 cases sp 100
 cases sps 80

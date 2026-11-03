@@ -79,9 +79,9 @@ say "build: btcd's BIP-322 program done"
 case " $* " in
     *" --area "*|*" --area="*|*" --identity "*) ;;
     *)
-        say "judges: the judged tests (FARADAY_JUDGES_REQUIRED=1: faraday-fat, faraday-files, the Starter's stick tests)"
+        say "judges: the judged tests (FARADAY_JUDGES_REQUIRED=1: faraday-fat, faraday-files, faraday-sb, the Starter's stick tests)"
         if ! FARADAY_JUDGES_REQUIRED=1 cargo nextest run --frozen --no-fail-fast \
-                -p faraday-fat -p faraday-files -p faraday-starter-shell \
+                -p faraday-fat -p faraday-files -p faraday-sb -p faraday-starter-shell \
                 -E 'binary(judged) | binary(formatted) | binary(foreign) | (package(faraday-starter-shell) & test(/^(ids|image_finish|stick_layout)::/))' \
                 >"$progress/judged-tests.log" 2>&1; then
             tail -n 40 "$progress/judged-tests.log" >&2

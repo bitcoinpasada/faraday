@@ -70,6 +70,23 @@ fn scratch(name: &str) -> Scratch {
     Scratch(dir)
 }
 
+/// Whether an outside judge this file added after openssl and sbverify is
+/// installed (ESTABLISHED §9.2, rule 4): its tests skip with a note under
+/// plain `just` and fail without it under `just crosscheck`.
+fn judge_present(name: &str, cmd: &str, args: &[&str]) -> bool {
+    let ok = Command::new(cmd)
+        .args(args)
+        .output()
+        .is_ok_and(|o| o.status.success());
+    if !ok {
+        eprintln!("{name} is not installed: its checks are skipped");
+        if std::env::var_os("FARADAY_JUDGES_REQUIRED").is_some() {
+            panic!("FARADAY_JUDGES_REQUIRED is set and {name} is not installed");
+        }
+    }
+    ok
+}
+
 fn run(cmd: &str, args: &[&str]) -> Option<(bool, String)> {
     let out = Command::new(cmd).args(args).output().unwrap_or_else(|e| {
         panic!("{cmd} is not installed ({e}); these tests need openssl and sbverify, see docs/DEVELOPING.md")
@@ -596,6 +613,9 @@ fn openssl_checks_every_private_key_made() {
 
 #[test]
 fn certtool_reads_every_certificate_made() {
+    if !judge_present("certtool (gnutls-bin)", "certtool", &["--version"]) {
+        return;
+    }
     let dir = scratch("certtool");
     let k = keys();
     for (name, pair) in [("pk", &k.pk), ("kek", &k.kek), ("db", &k.db)] {
@@ -637,6 +657,9 @@ fn real_path(name: &str) -> PathBuf {
 
 #[test]
 fn real_signed_binaries_are_read_and_their_signer_named_as_pesign_names_it() {
+    if !judge_present("pesign", "pesign", &["--help"]) {
+        return;
+    }
     let dir = scratch("real");
     for (name, signer) in REAL {
         let path = real_path(name);
@@ -716,6 +739,9 @@ fn pefile_fields(path: &Path) -> (u32, u32, u32, u32) {
 
 #[test]
 fn pefile_finds_the_certificate_table_where_faraday_put_it_and_the_moved_checksum_is_right() {
+    if !judge_present("python3-pefile", "python3", &["-c", "import pefile"]) {
+        return;
+    }
     let dir = scratch("pefile");
     let k = keys();
     let tiny = include_bytes!("vectors/tiny.efi");

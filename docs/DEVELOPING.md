@@ -51,8 +51,10 @@ nothing else.
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
 - **GnuPG 2.4, paperkey 1.6, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
   `certtool`, pesign** (`pesign`, `pesigcheck`) and **python3-pefile**: the
-  GPG and Secure Boot tests run these tools against Faraday's files and
-  fail where one is missing; nothing skips them. On Debian or Ubuntu:
+  GPG and Secure Boot tests run these tools against Faraday's files. A
+  missing GnuPG, paperkey, OpenSSL or sbverify fails them; a missing
+  `certtool`, pesign or pefile skips its test with a note in `just` and
+  fails it in `just crosscheck`. On Debian or Ubuntu:
   `sudo apt install gnupg paperkey openssl sbsigntool gnutls-bin pesign
   python3-pefile`.
 - **mtools, dosfstools, gdisk, fdisk** (`mkfs.fat`, `fsck.fat`, `fatlabel`,
