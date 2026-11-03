@@ -4,8 +4,8 @@ Coins, hex, playing cards, camera noise, the device's answer and a mix
 of sources have no published standard: they are Faraday's own
 procedures (`docs/STANDARDS.md` §3). The cross-check's `entropy` area
 (`tools/crosscheck/area_entropy.py`) recomputes them over Python's
-`hashlib`, written from the statements on this page and never from the
-Rust. The dice procedures are other signers' and are quoted, with their
+`hashlib` and `bytes.fromhex`, written from the statements on this page and
+never from the Rust. The dice procedures are other signers' and are quoted, with their
 sources, in `tools/reference/dice/README.md`; the area writes them from
 that page.
 

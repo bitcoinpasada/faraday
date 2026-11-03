@@ -2980,7 +2980,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::one_hundred_twenty_eight_flips_are_a_twelve_word_key_bit_for_bit",
 ]
 crosscheck = "entropy"
-independence = { class = "own", ours = "the packing of flips and digits, written out in `area_entropy.py`" }
+independence = { class = "outside-and-own", author = "CPython's `bytes.fromhex`, by the CPython developers, for hex digits read as bytes, against `base16ct` in Faraday", ours = "the packing of flips, the commitments, and which characters and how many digits hex takes, written out in `area_entropy.py`" }
 fuzz_none = "Takes single flips and digits from a pad; no outside text is parsed beyond hex digits."
 
 [action.secrets]

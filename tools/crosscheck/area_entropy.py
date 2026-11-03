@@ -3,11 +3,12 @@ and a reference written here, never from the Rust.
 
 - Outside code: the hashed dice procedure, and every source's rolls
   commitment, are Coldcard's `rolls.py` and `rolls12.py` run
-  (`tools/reference/coldcard-rolls/`). Ours, labelled: EntropyLab's
+  (`tools/reference/coldcard-rolls/`); hex digits become bytes through
+  CPython's `bytes.fromhex`. Ours, labelled: EntropyLab's
   six-as-zero and direct word selection (its JavaScript needs Node,
   which the build machines lack, transcribed in `tools/reference/dice/README.md`),
   the cut of Coldcard's digest to 20, 24 and 28 bytes, the counts and
-  refusals, coins, hex, cards, camera noise, the device and the mix
+  refusals, coins, which characters and how many digits hex takes, cards, camera noise, the device and the mix
   (`tools/reference/entropy/README.md`; no outside implementation).
 - The dice answers other tools print (`tools/vectors/entropy/dice.json`):
   Coldcard's `rolls.py`, EntropyLab's six-as-zero and direct word
@@ -164,10 +165,10 @@ def hexes(text):
         out.append(ok)
     entropy = None
     if len(kept) % 2 == 0 and len(kept) // 2 in STRENGTHS:
-        entropy = kept
+        entropy = bytes.fromhex(kept).hex()
     parsed = None
     if all(c in HEXDIGITS for c in text) and len(text) % 2 == 0 and len(text) // 2 in STRENGTHS:
-        parsed = text.lower()
+        parsed = bytes.fromhex(text).hex()
     return out, sha(kept.encode()), entropy, parsed
 
 
@@ -223,7 +224,8 @@ class Entropy(Area):
         '`tools/reference/entropy/README.md` and the dice sources quoted in '
         '`tools/reference/dice/README.md`, except that the hashed dice procedure and every '
         "rolls commitment are Coldcard's own `rolls.py` and `rolls12.py` "
-        '(`tools/reference/coldcard-rolls/`, run, public domain)'
+        "(`tools/reference/coldcard-rolls/`, run, public domain) and hex digits become bytes "
+        "through CPython's `bytes.fromhex`"
     )
     reference_checked = (
         "the hashed dice procedure is Coldcard's own scripts run, their files hashed against "
