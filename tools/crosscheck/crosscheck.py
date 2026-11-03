@@ -75,7 +75,7 @@ AREAS = {
     "bip32": ("area_bip32", "Bip32", "bip32.derive", 340),
     "addr": ("area_addr", "Addr", ("addr.parse", "addr.descriptor"), 230),
     "tx": ("area_tx", "Tx", ("tx.read", "tx.sighash"), 55),
-    "psbt": ("area_psbt", "Psbt", "psbt.v0", 460),
+    "psbt": ("area_psbt", "Psbt", ("psbt.v0", "psbt.v2"), 460),
     "sign": ("area_sign", "Sign", "sign.sign", 700),
     "psbt-review": ("area_review", "Review", "review.inspect", 120),
     "import": ("area_import", "Import", ("import.read", "import.verify", "import.write", "import.json"), 120),

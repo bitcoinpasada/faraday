@@ -1,6 +1,7 @@
-"""PSBTs against Bitcoin Core v31.1 itself for version 0, and against
-HWI's `psbt.py` (`tools/reference/hwi/`) for version 2, which Core
-refuses.
+"""PSBTs against Bitcoin Core v31.1 itself for version 0, against HWI's
+`psbt.py` (`tools/reference/hwi/`) for version 2, which Core refuses, and
+against btclib-wallet's `Psbt` (btclib's own code, `tools/reference/btclib/`)
+for both.
 
 - Version 0, through `bitcoind` on regtest (`core_node.py`), one
   JSON-RPC batch a case. `decodepsbt` must accept what Faraday's
@@ -29,37 +30,55 @@ refuses.
   HWI's `get_unsigned_tx`, and the version 0 PSBT it makes for the
   signer (`to_v0`) must read in Core as HWI's `convert_to_v0` written
   out by HWI reads in Core.
+- Both versions, through btclib-wallet's `Psbt.parse` (`btclib_read`,
+  with its `assert_valid`): it must read what Faraday reads and
+  the other judge reads, and refuse what they refuse, of the version it
+  is asked for. A version 2 PSBT's locktime and transaction must be its
+  `lock_time` and `tx`, and the version 0 PSBT Faraday makes (`to_v0`)
+  its `to_v0`; a version 0 PSBT made version 2 (`from_v0`) must be its
+  `to_v2`, each map as a set of pairs with a field's leaf hashes sorted
+  (btclib sorts them).
 - Version 0 to version 2: every version 0 PSBT Faraday reads, made
-  version 2 by Faraday (`PsbtV2::from_v0`) and by HWI (`convert_to_v2`),
-  compared map by map as sets of pairs, leaving out the pairs HWI
-  rewrites even without converting (its own writing of a field); and
-  Faraday's made version 0 again (`to_v0`), which must be the bytes read
-  where the unsigned transaction leads the global map, no
+  version 2 by Faraday (`PsbtV2::from_v0`), by HWI (`convert_to_v2`) and
+  by btclib (`to_v2`), compared map by map as sets of pairs, leaving out
+  the pairs HWI rewrites even without converting (its own writing of a
+  field); and Faraday's made version 0 again (`to_v0`), which must be the
+  bytes read where the unsigned transaction leads the global map, no
   `PSBT_GLOBAL_VERSION` is written and the transaction has an input.
 
 Every PSBT of BIP-174's, BIP-370's and BIP-371's Test Vectors sections
-(`tools/vectors/psbt-bips/`) is read both ways, and the side that decides
-must give the BIP's answer; then random version 0 and 2 PSBTs with every
-field Faraday reads or carries, in random order, and the same PSBTs
+(`tools/vectors/psbt-bips/`) is read all three ways, and the side that
+decides must give the BIP's answer; then random version 0 and 2 PSBTs with
+every field Faraday reads or carries, in random order, and the same PSBTs
 broken one rule at a time.
 
 Still Faraday's own, and counted as known differences:
 
 - Core reads a version 0 PSBT with version 2 fields as valid, the fields
-  as unknown; HWI refuses it, as BIP-370 does, and decides it.
+  as unknown; HWI refuses it, as BIP-370 does, and decides it (btclib
+  refuses it too).
 - A taproot signature of 65 bytes whose sighash byte is 0, which neither
   Core nor HWI refuses, and bytes after a version 2 PSBT's last map or a
   stream that ends inside one, which HWI reads: the BIPs refuse them, as
-  Faraday does, by rules written in this area (`ours_v0`, `ours_v2`)
-  over a splitter of the key-value maps written here.
+  Faraday does, and btclib refuses each, which decides them. The area
+  holds no rule of its own for them.
 - Faraday's version 2 reader leaves BIP-174's and BIP-371's fields to the
   bridge to version 0 and reads a BIP-370 key with key data as an
   unknown key. Where HWI refuses such a PSBT, HWI must read it once those
   pairs are taken out (`faraday_leaves`), to the same locktime and
-  transaction. Where HWI takes a field's value shorter than its length
-  says and writes it out repaired, and Faraday makes no version 0 PSBT,
-  Core must refuse the version 0 PSBT of the PSBT's own pairs
-  (`v0_of_pairs`).
+  transaction, and so must btclib. Where HWI takes a field's value
+  shorter than its length says and writes it out repaired, and Faraday
+  makes no version 0 PSBT, Core must refuse the version 0 PSBT of the
+  PSBT's own pairs (`v0_of_pairs`).
+- btclib asks more of a field than the BIPs: an ECDSA signature in
+  strict DER with a low S and an r that is a point's x, a sighash type
+  of the seven it defines, no BIP-375 field in a version 0 global map,
+  a previous transaction and a witness UTXO that agree. A small share
+  of the corpus's PSBTs (`exotic`) carries fields of those kinds, and
+  btclib is not asked of them or of what is made from them. It also
+  reads some PSBTs Core refuses (a key with key data on a field that
+  takes none), so it is asked to refuse only what Core and HWI read and
+  Faraday refuses.
 """
 
 import base64
@@ -77,6 +96,10 @@ from test_framework.messages import (  # noqa: E402
 from test_framework.script import taproot_tree_helper  # noqa: E402
 
 use_reference("hwi")
+# btclib's wheels, with libsecp256k1 turned off (`lineage.py`).
+import lineage  # noqa: E402,F401
+from btclib.exceptions import BTClibValueError  # noqa: E402
+from btclib_wallet.psbt.psbt import Psbt as BtclibPsbt  # noqa: E402
 # Last on the path: HWI imports only `typing_extensions.Protocol`, for
 # type hints, and a worker's other areas keep the real package where the
 # machine has it.
@@ -92,8 +115,8 @@ class Refused(Exception):
     pass
 
 
-# ----- the container: written here, to build PSBTs and for the rules
-# below that neither Core nor HWI applies ----------------------------------
+# ----- the container: written here, to build PSBTs and to take them apart
+# for the comparisons below ---------------------------------------------------
 
 
 def compact(b, at):
@@ -167,7 +190,8 @@ def get(pairs, ty):
 def split(raw, n_in=None, n_out=None):
     """The maps, global first; a version 2 PSBT's counts are read from
     its global map. Refused when the stream ends inside a map or bytes
-    follow the last."""
+    follow the last (the area builds and takes apart PSBTs with it; it
+    is not a judge)."""
     glob, at = read_map(raw, len(MAGIC))
     if n_in is None:
         n_in = compact(get(glob, 0x04) or b"\0", 0)[0]
@@ -193,36 +217,6 @@ OUTPUT_V2 = {0x03, 0x04}
 GLOBAL_SHARED = {0x00, 0x01}
 INPUT_SHARED = set(range(0x00, 0x09)) | set(range(0x13, 0x19))
 OUTPUT_SHARED = {0x00, 0x01, 0x02, 0x05, 0x06, 0x07}
-
-
-def zero_sighash_tap_sig(key, value):
-    """BIP-341: a 65-byte taproot signature's sighash byte is never 0
-    (the default type is written as 64 bytes)."""
-    return (key == b"\x13" or key[:1] == b"\x14") and len(value) == 65 and value[64] == 0
-
-
-def ours_v0(raw, n_in, n_out):
-    """Why BIP-341 refuses a version 0 PSBT that Bitcoin Core and HWI
-    read, or None: a zero sighash byte on a taproot signature."""
-    maps, _ = split(raw, n_in, n_out)
-    for m in maps[1:1 + n_in]:
-        if any(zero_sighash_tap_sig(k, v) for k, v in m):
-            return "a taproot signature with a sighash byte of 0 (BIP-341)"
-    return None
-
-
-def ours_v2(raw):
-    """Why the BIPs refuse a version 2 PSBT that HWI reads, or None: the
-    stream ends inside a map or goes on after the last (BIP-174), a zero
-    sighash byte on a taproot signature (BIP-341)."""
-    try:
-        maps, n_in = split(raw)
-    except Refused as e:
-        return str(e)
-    for m in maps[1:1 + n_in]:
-        if any(zero_sighash_tap_sig(k, v) for k, v in m):
-            return "a taproot signature with a sighash byte of 0 (BIP-341)"
-    return None
 
 
 def faraday_leaves(raw):
@@ -334,6 +328,71 @@ def hwi_v2(raw):
 HWI_V2_IN_V0 = "is not allowed in PSBTv0"
 
 
+def btclib_read(raw, version):
+    """btclib-wallet's `Psbt.parse` of the bytes, with its `assert_valid`,
+    of the version asked for: a PSBT of the other version is refused, as
+    the readers of the other versions refuse it. A version 2 PSBT whose
+    inputs' required locktimes cannot be met together is a PSBT (BIP-370
+    has no transaction for it): btclib's validity check refuses it, so it
+    is read again without the check."""
+    try:
+        p = BtclibPsbt.parse(raw)
+    except BTClibValueError as e:
+        if "no lock time satisfies every input" not in str(e):
+            raise
+        p = BtclibPsbt.parse(raw, check_validity=False)
+    if p.version != version:
+        raise Refused(f"btclib reads version {p.version}")
+    return p
+
+
+def btclib_lock(p):
+    """The locktime btclib computes, None where the inputs' required
+    locktimes cannot be met together."""
+    try:
+        return p.lock_time
+    except Exception as e:  # noqa: BLE001
+        if "no lock time satisfies every input" in str(e):
+            return None
+        raise
+
+
+def sorted_leaves(pairs):
+    """A map as a set of pairs, a `PSBT_IN_TAP_BIP32_DERIVATION`'s leaf
+    hashes in order (btclib writes them sorted, BIP-371 lets a writer
+    list them as it likes)."""
+    out = set()
+    for k, v in pairs:
+        if k[:1] == b"\x16":
+            n, at = compact(v, 0)
+            hashes = sorted(v[at + 32 * i:at + 32 * i + 32] for i in range(n))
+            v = ser_compact(n) + b"".join(hashes) + v[at + 32 * n:]
+        out.add((k, v))
+    return out
+
+
+def btclib_maps(p, n_in, n_out, version):
+    """btclib's PSBT, serialised and taken apart: its maps as sets of
+    pairs."""
+    raw = p.serialize()
+    maps = split(raw, n_in, n_out)[0] if version == 0 else split(raw)[0]
+    return [sorted_leaves(m) for m in maps]
+
+
+def unrewritten(read, back, ours, theirs):
+    """The pairs of `ours` and `theirs`, map by map, that differ between
+    them once the pairs btclib does not write back as read (its own
+    writing of a field, an empty final witness among them) and what it
+    writes in their place are left out of both sides: `read` the maps as
+    read, `back` btclib's writing of them, each a list of sets."""
+    return [(o - (a - b)) ^ (t - (b - a)) for a, b, o, t in zip(read, back, ours, theirs)]
+
+
+def seen(answer):
+    """An `outcome` of btclib's, as a report shows it."""
+    return ("ok", "read") if answer[0] == "ok" else answer
+
+
 def outcome(fn):
     try:
         return ("ok", fn())
@@ -343,6 +402,9 @@ def outcome(fn):
 
 class Psbt(Area):
     name = "psbt"
+    # A corpus PSBT with fields btclib refuses and the BIPs do not (see the
+    # module's last known difference): btclib is not asked of it.
+    exotic = False
     CORE = True
     faraday = (
         '`faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` '
@@ -352,53 +414,75 @@ class Psbt(Area):
         "Bitcoin Core v31.1's `bitcoind` on regtest for version 0 (`decodepsbt`, "
         "`combinepsbt` of one PSBT as its writer, the test framework's "
         "`taproot_tree_helper`); HWI's `psbt.py` (`hwi/`) for version 2 and the version 2 "
-        "fields refused in version 0, its version 0 form read by Core; the refusals "
-        "neither makes written in `area_psbt.py`"
+        "fields refused in version 0, its version 0 form read by Core; btclib-wallet's "
+        "`Psbt` (`btclib/`, on btclib's own curve) for both versions: `parse`, `lock_time`, "
+        "`tx`, `to_v0` and `to_v2`, which also decides the refusals of a taproot signature "
+        "whose sighash byte is 0, of bytes after the last map and of a stream that ends "
+        "inside a map"
     )
     reference_checked = (
         "Core's release tarball is checked against its pinned SHA-256 "
         "(`tools/reference/core/release.pin`) before every run, and the node's version "
-        "is asked; HWI's vendored files are hashed against `references.sha256` before "
-        "any run; a published vector's answer is required of the side that decides"
+        "is asked; HWI's vendored files and btclib's wheels are hashed against "
+        "`references.sha256` before any run; a published vector's answer is required of "
+        "the side that decides"
     )
     vectors = (
         "every PSBT of BIP-174's, 370's and 371's test vectors "
-        "(`tools/vectors/psbt-bips/`), with BIP-370's locktimes"
+        "(`tools/vectors/psbt-bips/`), with BIP-370's locktimes, read by btclib too"
     )
     corpus = (
         'random version 0 and 2 PSBTs with every field Faraday reads, taproot trees '
         'among them, in random order, read field for field as Core reads them and '
         'written back byte for byte as read and as Core writes them, then broken one '
         "rule at a time; each version 0 PSBT made version 2 as HWI's `convert_to_v2` "
-        "makes it and back to its own bytes; BIP-370's locktime, transaction and "
-        'version 0 form under every mix of required locktimes'
+        "and btclib's `to_v2` make it, and back to its own bytes; BIP-370's locktime, "
+        'transaction and version 0 form under every mix of required locktimes, also '
+        "btclib's `lock_time`, `tx` and `to_v0`; one version 0 PSBT in eight carries "
+        'fields btclib refuses and btclib is not asked of it'
     )
     differences = [
         (
             "Version 0 made version 2: HWI's `convert_to_v2` leaves out the "
             '`PSBT_OUT_SCRIPT` of an output whose script is empty, which BIP-370 '
-            'requires; Faraday writes it, and the rest of the PSBT must be the same.'
+            'requires; Faraday and btclib write it, and the rest of the PSBT must be the same.'
         ),
         (
             'Bitcoin Core reads a version 0 PSBT with a version 2 field as valid, the field '
-            'as unknown; Faraday refuses it, as BIP-370 does, and so does HWI, which '
-            'decides it.'
+            'as unknown; Faraday refuses it, as BIP-370 does, and so do HWI, which '
+            'decides it, and btclib.'
         ),
         (
             'A taproot signature of 65 bytes whose sighash byte is 0, which neither Core '
             "nor HWI refuses, and bytes after a version 2 PSBT's last map or a stream "
             'that ends inside one, which HWI reads: Faraday refuses each, as BIP-341 and '
-            "BIP-174 do, and the refusal is checked by a rule written in the area."
+            "BIP-174 do, and so does btclib, which decides them (the stream ending inside "
+            'a map checked, as the specification marked it not checked).'
         ),
         (
             'PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is an unknown'
             " key; BIP-174's and BIP-371's fields inside are checked only when the PSBT is "
             'bridged to version 0, except a taproot signature whose sighash byte is 0, '
-            'refused on reading. HWI checks them on reading; the area requires HWI to '
-            "read the PSBT without those pairs, to Faraday's locktime and transaction. "
-            'Where HWI reads a value shorter than its length says and makes a version 0 '
-            'PSBT of it, which Faraday does not, Core must refuse the version 0 PSBT of '
-            "the PSBT's own pairs."
+            'refused on reading. HWI checks them on reading; the area requires HWI and '
+            "btclib to read the PSBT without those pairs, to Faraday's locktime and "
+            'transaction. Where HWI reads a value shorter than its length says and makes a '
+            'version 0 PSBT of it, which Faraday does not, Core must refuse the version 0 '
+            "PSBT of the PSBT's own pairs, and btclib refuses the PSBT."
+        ),
+        (
+            "btclib reads some PSBTs that Core and Faraday refuse (a key with key data on a "
+            'field that takes none, for one): btclib is not asked to refuse what Core refuses, '
+            'only what Core and HWI read and Faraday refuses.'
+        ),
+        (
+            'btclib refuses what the BIPs allow: an ECDSA signature that is not strict DER '
+            "with a low S and an r that is a point's x, a sighash type of the seven it "
+            'defines, a BIP-375 field in a version 0 global map, a previous transaction and a '
+            'witness UTXO that disagree. About one version 0 PSBT in eight carries such a '
+            'field, and btclib is not asked of it or of what is made from it. Pairs btclib '
+            'does not write back as read (an empty final witness) and what it writes in their '
+            'place are left out of the conversions it is compared on, and leaf hashes are '
+            'compared sorted, as it writes them.'
         ),
     ]
     not_compared = (
@@ -445,19 +529,20 @@ class Psbt(Area):
         decided = shown
         self.compared += 1
         if rust[0] == "err" and decoded[0] == "ok":
-            # Core reads it; HWI must refuse it as BIP-370 does, or the
-            # area's own rule as BIP-341 does.
+            # Core reads it; HWI must refuse it as BIP-370 does, or
+            # btclib as BIP-341 does (a taproot signature with a sighash
+            # byte of 0).
             hwi = outcome(lambda: hwi_read(raw))
-            why = outcome(lambda: ours_v0(raw, len(tx["vin"]), len(tx["vout"])))
+            bt = outcome(lambda: btclib_read(raw, 0))
             if hwi[0] == "err" and HWI_V2_IN_V0 in hwi[1]:
                 decided = hwi
-            elif why[0] == "ok" and why[1] is not None:
-                decided = ("err", why[1])
+            elif bt[0] == "err" and not self.exotic:
+                decided = bt
             else:
                 raise Mismatch(self.name, "psbt.v0", inputs, rust,
-                               {"core": shown, "hwi": hwi},
-                               "Faraday refuses what Core reads, and neither HWI nor a BIP "
-                               "rule the area holds refuses it")
+                               {"core": shown, "hwi": hwi, "btclib": seen(bt)},
+                               "Faraday refuses what Core reads, and neither HWI nor "
+                               "btclib refuses it")
             self.known += 1
         elif rust[0] != decoded[0]:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, shown)
@@ -489,9 +574,34 @@ class Psbt(Area):
                 raise Mismatch(self.name, "psbt.v0", {"psbt": core_bytes.hex()}, again,
                                ("ok", {"bytes": core_bytes.hex()}),
                                "Faraday does not write back Core's writing of the PSBT")
+        self.judge_btclib_v0(raw, rust, decided)
         if expected is not None and decided[0] != expected:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, decided,
                            f"differs from the published vector ({expected})")
+
+    def judge_btclib_v0(self, raw, rust, decided):
+        """btclib reads the version 0 PSBT when the others do and refuses
+        it when they do, except for what it asks more of (`exotic`)."""
+        if self.exotic:
+            return
+        bt = outcome(lambda: btclib_read(raw, 0))
+        self.compared += 1
+        if bt[0] == "ok" and decided[0] == "err" and rust[0] == "err":
+            # Core and Faraday refuse it and btclib reads it (a key with
+            # key data on a field that takes none, for one): not a
+            # refusal btclib is asked to make.
+            self.known += 1
+            return
+        if bt[0] != decided[0]:
+            raise Mismatch(self.name, "psbt.v0", {"psbt": raw.hex()}, rust,
+                           {"btclib": seen(bt), "others": decided},
+                           "btclib's reading of the PSBT differs from Core's and Faraday's")
+        if bt[0] == "ok" and rust[0] == "ok":
+            tx = bt[1].tx
+            if tx.id.hex() != rust[1]["txid"]:
+                raise Mismatch(self.name, "psbt.v0", {"psbt": raw.hex()}, rust,
+                               {"btclib_txid": tx.id.hex()},
+                               "the unsigned transaction's txid differs from btclib's")
 
     def judge_to_v2(self, raw, got, n_in, n_out):
         """Faraday's version 2 PSBT of a version 0 one (`PsbtV2::from_v0`)
@@ -508,6 +618,7 @@ class Psbt(Area):
         is not turned back: version 2 reads it as that field and `to_v0`
         leaves it out."""
         inputs = {"psbt": raw.hex()}
+        self.judge_btclib_to_v2(raw, got, n_in, n_out)
         try:
             p = hwi_read(raw)
             h0 = split(base64.b64decode(p.serialize()), n_in, n_out)[0]
@@ -543,21 +654,55 @@ class Psbt(Area):
                                "its version 2 PSBT turned back to version 0 is not "
                                "the bytes read")
 
+    def judge_btclib_to_v2(self, raw, got, n_in, n_out):
+        """Faraday's version 2 PSBT of a version 0 one against btclib's
+        `to_v2`, map by map as sets of pairs, with no pair left out: btclib
+        writes the empty `PSBT_OUT_SCRIPT` as Faraday does. A PSBT with a
+        pair of a type BIP-375 defines for version 2 alone is not turned
+        (`BIP375_V2`), nor one of `exotic`'s."""
+        if self.exotic:
+            return
+        r0 = split(raw, n_in, n_out)[0]
+        if any(k[:1] and k[0] in BIP375_V2[min(i, 1) if i <= n_in else 2]
+               for i, m in enumerate(r0) for k, _ in m):
+            return
+        inputs = {"psbt": raw.hex()}
+        read = outcome(lambda: btclib_read(raw, 0))
+        if read[0] != "ok":
+            return  # judge_btclib_v0 says so
+        p = read[1]
+        made = outcome(lambda: btclib_maps(p.to_v2(), n_in, n_out, 2))
+        self.compared += 1
+        if made[0] != "ok":
+            raise Mismatch(self.name, "psbt.v0", inputs, ("ok", got["v2"]), made,
+                           "btclib does not make a version 2 PSBT of it")
+        ours = [sorted_leaves(m) for m in split(bytes.fromhex(got["v2"]))[0]]
+        differ = unrewritten([sorted_leaves(m) for m in r0], btclib_maps(p, n_in, n_out, 0),
+                             ours, made[1])
+        for i, left in enumerate(differ):
+            if left:
+                raise Mismatch(self.name, "psbt.v0", inputs, ("ok", got["v2"]),
+                               ("ok", sorted(map(repr, left))[:4]),
+                               f"the version 2 PSBT of it differs from btclib's in map {i}")
+
     def judge_v2(self, raw, rust, hwi, core, expected):
         """`core`: Core's readings of Faraday's and HWI's version 0
         forms, where both made one."""
         inputs = {"psbt": raw.hex()}
         decided = hwi
         leaves = False
+        read = raw
         self.compared += 1
         if rust[0] == "err" and hwi[0] == "ok":
-            why = ours_v2(raw)
-            if why is None:
-                raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi,
-                               "Faraday refuses what HWI reads, and no BIP rule the area "
-                               "holds refuses it")
+            # HWI reads it; the BIPs refuse a stream ending inside a map,
+            # bytes after the last map and a taproot signature whose
+            # sighash byte is 0, as btclib does.
+            bt = outcome(lambda: btclib_read(raw, 2))
+            if bt[0] != "err" or self.exotic:
+                raise Mismatch(self.name, "psbt.v2", inputs, rust, {"hwi": hwi, "btclib": seen(bt)},
+                               "Faraday refuses what HWI reads, and btclib does not refuse it")
             self.known += 1
-            decided = ("err", why)
+            decided = ("err", bt[1])
         elif rust[0] == "ok" and hwi[0] == "err":
             left = faraday_leaves(raw)
             hwi = outcome(lambda: hwi_v2(left)) if left is not None else hwi
@@ -568,6 +713,7 @@ class Psbt(Area):
             self.known += 1
             decided = hwi
             leaves = True
+            read = left
         elif rust[0] != hwi[0]:
             raise Mismatch(self.name, "psbt.v2", inputs, rust, hwi)
         if rust[0] == "ok":
@@ -600,9 +746,59 @@ class Psbt(Area):
                     raise Mismatch(self.name, "psbt.v2", inputs, rust,
                                    {"core_reads_faradays": mine, "core_reads_hwis": theirs},
                                    "Core reads Faraday's version 0 form otherwise than HWI's")
+        self.judge_btclib_v2(raw, read, rust, leaves, decided)
         if expected is not None and decided[0] != expected:
             raise Mismatch(self.name, "psbt.v2", inputs, rust, decided,
                            f"differs from the published vector ({expected})")
+
+    def judge_btclib_v2(self, raw, read, rust, leaves, decided):
+        """btclib reads the version 2 PSBT (`read`: the PSBT, or without
+        the pairs Faraday leaves to the bridge where HWI refused it) when
+        the others do and refuses it when they do; its locktime and
+        transaction are Faraday's, and its version 0 PSBT is Faraday's
+        map by map as sets of pairs, where Faraday makes one from the
+        PSBT as it is."""
+        if self.exotic:
+            return
+        inputs = {"psbt": raw.hex()}
+        bt = outcome(lambda: btclib_read(read, 2))
+        self.compared += 1
+        if bt[0] == "ok" and decided[0] == "err" and rust[0] == "err":
+            self.known += 1  # as in version 0: btclib reads what both refuse
+            return
+        if bt[0] == "err" and rust[0] == "ok" and rust[1]["v0"] is None and not leaves:
+            # A BIP-174 field Faraday's reader leaves to the bridge is
+            # malformed (a value shorter than its length says, which HWI
+            # reads): btclib refuses the PSBT where the bridge makes no
+            # version 0 PSBT, and Core refuses the one of its own pairs.
+            self.known += 1
+            return
+        if bt[0] != decided[0]:
+            raise Mismatch(self.name, "psbt.v2", inputs, rust, {"btclib": seen(bt), "others": decided},
+                           "btclib's reading of the PSBT differs from HWI's and Faraday's")
+        if bt[0] != "ok" or rust[0] != "ok":
+            return
+        p, got = bt[1], rust[1]
+        lock = btclib_lock(p)
+        tx = None if lock is None else p.tx.serialize(include_witness=False,
+                                                     check_validity=False).hex()
+        if (lock, tx) != (got["locktime"], got["tx"]):
+            raise Mismatch(self.name, "psbt.v2", inputs, rust, {"locktime": lock, "tx": tx},
+                           "the locktime or the transaction differs from btclib's")
+        if leaves or got["v0"] is None or lock is None:
+            return
+        n_in, n_out = len(p.inputs), len(p.outputs)
+        made = outcome(lambda: btclib_maps(p.to_v0(), n_in, n_out, 0))
+        if made[0] != "ok":
+            raise Mismatch(self.name, "psbt.v2", inputs, rust, made,
+                           "btclib does not make a version 0 PSBT of it")
+        ours = [sorted_leaves(m) for m in split(bytes.fromhex(got["v0"]), n_in, n_out)[0]]
+        differ = unrewritten([sorted_leaves(m) for m in split(read)[0]],
+                             btclib_maps(p, n_in, n_out, 2), ours, made[1])
+        for i, left in enumerate(differ):
+            if left:
+                raise Mismatch(self.name, "psbt.v2", inputs, rust, {"differing": sorted(map(repr, left))[:4]},
+                               f"the version 0 PSBT of it differs from btclib's in map {i}")
 
     def published(self):
         reads, locks = [], []
@@ -633,7 +829,13 @@ class Psbt(Area):
         def num(x):
             b = x.to_bytes((x.bit_length() + 7) // 8, "big")
             return b"\0" + b if b[0] & 0x80 else b
-        r, s = (num(rng.randrange(1, N)) for _ in range(2))
+        r, s = rng.randrange(1, N), rng.randrange(1, N)
+        if not self.exotic:
+            # What btclib asks of a signature: an r that is a point's x
+            # and a low S.
+            r = int.from_bytes(self.key()[1:], "big") % N
+            s = min(s, N - s)
+        r, s = num(r), num(s)
         body = b"\x02" + bytes([len(r)]) + r + b"\x02" + bytes([len(s)]) + s
         return b"\x30" + bytes([len(body)]) + body + bytes([rng.choice([1, 2, 3, 0x81, 0x82, 0x83])])
 
@@ -663,7 +865,8 @@ class Psbt(Area):
         """An unknown or proprietary pair, which a reader keeps."""
         rng = self.rng
         if rng.random() < 0.5:
-            ty = {"global": rng.choice([0x07, 0x08, 0x40, 0xfa]), "in": rng.choice([0x40, 0x7f, 0xf0]),
+            ty = {"global": rng.choice([0x07, 0x08, 0x40, 0xfa] if self.exotic else [0x40, 0xfa]),
+                  "in": rng.choice([0x40, 0x7f, 0xf0]),
                   "out": rng.choice([0x40, 0x7f, 0xf0])}[kind]
             return bytes([ty]) + self.randbytes(rng.randint(0, 40)), self.randbytes(rng.randint(0, 40))
         ident = self.randbytes(rng.randint(0, 8))
@@ -695,6 +898,7 @@ class Psbt(Area):
         inputs = []
         for _ in range(rng.randint(1, 4)):
             m = []
+            prev = None
             if rng.random() < 0.4:
                 vout = rng.randint(0, 2)
                 prev = self.prev_tx(vout)
@@ -704,11 +908,14 @@ class Psbt(Area):
                 tx.vin.append(CTxIn(COutPoint(rng.randrange(2**256), rng.randrange(4)), b"",
                                     rng.choice([0xFFFFFFFF, 0xFFFFFFFD])))
             if rng.random() < 0.7:
-                m.append((b"\x01", CTxOut(rng.randrange(10**10), self.script()).serialize()))
+                out = CTxOut(rng.randrange(10**10), self.script())
+                if prev is not None and not self.exotic:
+                    out = prev.vout[vout]
+                m.append((b"\x01", out.serialize()))
             for _ in range(rng.choice([0, 0, 1, 2])):
                 m.append((b"\x02" + self.key(), self.der()))
             if rng.random() < 0.3:
-                m.append((b"\x03", rng.choice([1, 2, 3, 0x81, 0x83, 0x41]).to_bytes(4, "little")))
+                m.append((b"\x03", rng.choice([1, 2, 3, 0x81, 0x83] + [0x41] * self.exotic).to_bytes(4, "little")))
             for ty in (0x04, 0x05, 0x07):
                 if rng.random() < 0.2:
                     m.append((bytes([ty]), self.script()))
@@ -849,9 +1056,12 @@ class Psbt(Area):
     def corpus_case(self):
         rng = self.rng
         version = 0 if rng.random() < 0.7 else 2
+        self.exotic = version == 0 and rng.random() < 0.12
         glob, inputs, outputs = self.random_v0() if version == 0 else self.random_v2()
         raw = MAGIC + write_map(glob) + b"".join(write_map(m) for m in inputs + outputs)
-        reads = [(raw, version, "ok"), (self.broken(glob, inputs, outputs, version), version, None)]
+        reads = [(raw, version, "ok")]
+        if not self.exotic:
+            reads.append((self.broken(glob, inputs, outputs, version), version, None))
         if rng.random() < 0.1:
             reads.append((raw, 2 - version, "err"))
         self.read_all(reads)
