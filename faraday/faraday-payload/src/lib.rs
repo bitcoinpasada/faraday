@@ -9,6 +9,10 @@
 //!
 //! - [`Manifest::parse`] reads `MANIFEST` and refuses a malformed one,
 //!   saying which line and why.
+//! - [`ImageList::parse`] reads `IMAGES`, the release's image list
+//!   (`docs/IMAGES.md` §4), the same way, and [`ImageList::classify`]
+//!   says from a file's name alone whether it is on the list, of
+//!   another release, or neither.
 //! - [`write_payload`] checks a payload file's `.xz` sum against its
 //!   manifest line before a byte is written, then decompresses it into
 //!   the writer as a stream, and succeeds only if what was written has
@@ -26,11 +30,13 @@
 //! [`MEMORY_LIMIT_KIB`]. No image is ever held in memory whole.
 
 mod decode;
+mod images;
 mod manifest;
 
 pub use decode::{
     ImageKind, ImageSum, MEMORY_LIMIT_KIB, PayloadError, hash_image, write_image, write_payload,
 };
+pub use images::{ImageList, ImageListError, ImageListFault, ListedImage, NameClass, sha256_of};
 pub use manifest::{Manifest, ManifestError, ManifestFault, PayloadFile};
 
 use core::fmt;

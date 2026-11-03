@@ -97,9 +97,11 @@ impl Starter {
         }
     }
 
-    /// A file dropped on the window: on What to write with "One I
-    /// signed" ticked, it is checked as one tapped.
+    /// A file dropped on the window: the finder looks at it with the
+    /// images in Downloads, and on What to write with "One I signed"
+    /// ticked it is checked as one tapped.
     pub fn file_dropped(&mut self, path: String) {
+        self.image_dropped(&path);
         self.check_boot_file(path);
         self.dirty = true;
     }

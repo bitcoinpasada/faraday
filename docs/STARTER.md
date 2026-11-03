@@ -156,8 +156,9 @@ A release is staged in two passes. The first, `just
 faraday-release-stage`, stages the plain files and also writes the
 payload to `out/payload/VERSION/`, outside the folder that is
 uploaded, one folder per system, `linux/` and `windows/`. Each holds
-the two image `.xz` files (hard links to the staged ones) and its own
-`MANIFEST`, nothing else; the two manifests have the same first line.
+the two image `.xz` files (hard links to the staged ones), its own
+`MANIFEST` and the release's image list `IMAGES` (`docs/IMAGES.md` §4,
+embedded too, for the finder of §5), nothing else; the two manifests have the same first line.
 The two folders stay apart, since each Starter embeds its own and they
 may differ later. `MANIFEST` is plain text: a
 first line `# Faraday Starter payload VERSION, commit <full hash>`, then

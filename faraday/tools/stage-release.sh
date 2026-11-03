@@ -333,6 +333,8 @@ PY
                     "${img_sum[k]}" "$(stat -c %s "${src[k]}")" "$build" "$boot"
             done
         } > "$dir/MANIFEST"
+        # The release's image list beside it, which the Starter finds images by.
+        ln "$out/IMAGES" "$dir/IMAGES"
     done
 fi
 

@@ -187,6 +187,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "image_list"
+path = "fuzz_targets/image_list.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "plist"
 path = "fuzz_targets/plist.rs"
 test = false

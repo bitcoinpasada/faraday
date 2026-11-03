@@ -482,7 +482,13 @@ marked so (`docs/HARDWARE.md` §6).
    size and staging time of a full set, measured on the next release's
    builds.
 6. The Starter: no payload of images, finding and checking them, the
-   offers.
+   offers. Built: the finder (`faraday/shells/starter/src/finder.rs`):
+   the image list (`IMAGES`) is embedded beside the payload, Downloads
+   and dropped files are looked at, and each file whose name is on the
+   list is hashed off the window's thread and found, named as not
+   matching, or named as another release's with the version needed; the
+   Starter keeps the answer (`Starter::image_findings`). Left: the
+   offers, the payload's removal.
 7. Each screen's values, from its documentation, and tried on the
    panel to be marked tested: the 10-inch HDMI (with the USB
    touchscreen rule, §2) on the HDMI image today, and the 2.8-inch and

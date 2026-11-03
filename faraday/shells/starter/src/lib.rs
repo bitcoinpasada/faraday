@@ -25,6 +25,7 @@
 //! The window loop is `main.rs`, built on `faraday-window` as the
 //! desktop app is.
 
+pub mod finder;
 pub mod gpt;
 pub mod ids;
 #[cfg(target_os = "linux")]

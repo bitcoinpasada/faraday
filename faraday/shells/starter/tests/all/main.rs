@@ -5,6 +5,7 @@ mod boot;
 mod demo;
 mod devices;
 mod disks;
+mod finder;
 mod ids;
 mod image_finish;
 mod install;

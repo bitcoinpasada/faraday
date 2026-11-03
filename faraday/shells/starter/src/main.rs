@@ -55,6 +55,7 @@ use faraday_desktop::{Asked, Demo, Paths};
 use faraday_shell_api::{App, Command, Event};
 use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOrder};
 use faraday_starter::{Starter, StarterAction};
+use faraday_starter_shell::finder::Finder;
 use faraday_starter_shell::payload::{Image, Payload};
 use faraday_starter_shell::platform::{self, Platform};
 use faraday_starter_shell::signed;
@@ -91,6 +92,8 @@ struct Shell {
     /// The operating system's side (`Platform`).
     system: Arc<dyn Platform>,
     payload: Option<Payload>,
+    /// The release's image list and the sums worked out against it.
+    finder: Arc<Finder>,
     image: Option<Image>,
     /// What the system's threads report: the disks, a write.
     events: Receiver<StarterEvent>,
@@ -470,6 +473,17 @@ impl Shell {
                     let files = signed::list(&folder);
                     let folder = folder.display().to_string();
                     let _ = tx.send(StarterEvent::BootFiles { folder, files });
+                });
+            }
+            StarterCommand::FindImages { dropped } => {
+                let (tx, finder, folder) = (
+                    self.tx.clone(),
+                    Arc::clone(&self.finder),
+                    self.host.downloads.clone(),
+                );
+                std::thread::spawn(move || {
+                    let dropped: Vec<PathBuf> = dropped.into_iter().map(PathBuf::from).collect();
+                    let _ = tx.send(StarterEvent::ImagesFound(finder.answer(&folder, &dropped)));
                 });
             }
             StarterCommand::CheckBootFile { path, source } => {
@@ -910,7 +924,9 @@ fn main() -> ExitCode {
     faraday_starter_shell::pdf::sweep_key_sheets(&faraday_starter_shell::pdf::key_base());
     let computer = system.computer();
     let payload = Payload::built_in();
+    let finder = Arc::new(Finder::new(Payload::image_list()));
     let mut starter = Starter::new();
+    starter.find_images();
     // Cobalt, Light or Dark as this computer's own setting says (F126).
     starter.set_theme(faraday_starter_shell::scheme::at_start(system.dark()));
     // The text size an installed Starter keeps (docs/TEXT-SIZE.md §6).
@@ -965,6 +981,7 @@ fn main() -> ExitCode {
         starter,
         system,
         payload,
+        finder,
         image,
         events,
         tx,

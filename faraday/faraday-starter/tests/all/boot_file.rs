@@ -265,11 +265,46 @@ fn downloads_without_an_efi_file_says_so() {
     s.file_dropped(file("from-the-stick.efi"));
     assert_eq!(
         commands(&mut s),
-        [StarterCommand::CheckBootFile {
-            path: file("from-the-stick.efi"),
-            source: release_source(),
-        }]
+        [
+            // The finder looks at it with the images in Downloads.
+            StarterCommand::FindImages {
+                dropped: vec![file("from-the-stick.efi")]
+            },
+            StarterCommand::CheckBootFile {
+                path: file("from-the-stick.efi"),
+                source: release_source(),
+            }
+        ]
     );
+}
+
+#[test]
+fn what_the_finder_answers_is_kept_and_the_matching_images_listed() {
+    use faraday_starter::api::{FoundImage, ImageFinding};
+    let mut s = starter();
+    let found = FoundImage {
+        path: file("faraday-pi-0.3.0.img.xz"),
+        name: "faraday-pi-0.3.0.img.xz".into(),
+        xz_sha256: "aa".repeat(32),
+        img_sha256: "bb".repeat(32),
+        board: "pi3".into(),
+        panel: "any".into(),
+        starts: vec!["Pi 3B".into()],
+    };
+    let older = ImageFinding::OtherRelease {
+        path: file("faraday-pi-0.2.1.img.xz"),
+        name: "faraday-pi-0.2.1.img.xz".into(),
+        needs: "0.3.0".into(),
+    };
+    s.starter_event(StarterEvent::ImagesFound(vec![
+        older.clone(),
+        ImageFinding::Found(found.clone()),
+    ]));
+    assert_eq!(s.image_findings().len(), 2);
+    assert_eq!(s.found_images().collect::<Vec<_>>(), [&found]);
+    // A later answer replaces it.
+    s.starter_event(StarterEvent::ImagesFound(vec![older]));
+    assert_eq!(s.found_images().count(), 0);
 }
 
 #[test]

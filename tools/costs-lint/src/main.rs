@@ -115,6 +115,16 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-vault's file vault tests, which cannot reach faraday-core's test kit",
     ),
     (
+        "faraday/shells/starter/src/finder.rs",
+        "Finder::answer",
+        "the Starter's finder thread, which draws nothing (a token cannot cross threads)",
+    ),
+    (
+        "faraday/shells/starter/tests/all/finder.rs",
+        "compute",
+        "the Starter's finder tests, which count the files hashed",
+    ),
+    (
         "faraday/faraday-vault/tests/kdbx.rs",
         "compute",
         "faraday-vault's KDBX tests, which count the key-stretching runs",

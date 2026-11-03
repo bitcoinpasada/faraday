@@ -45,6 +45,9 @@ fn main() {
             code.push_str(
                 "/// The payload's files, by name.\npub const FILES: &[(&str, &[u8])] = &[];\n",
             );
+            code.push_str(
+                "/// No image list was built in.\npub const IMAGES: Option<&[u8]> = None;\n",
+            );
         }
         Some(dir) => {
             let dir = PathBuf::from(dir);
@@ -90,6 +93,25 @@ fn main() {
                 );
             }
             code.push_str("];\n");
+            // The release's image list, beside the manifest when the
+            // release stages one (IMAGES §4).
+            let images = dir.join("IMAGES");
+            if images.is_file() {
+                println!("cargo:rerun-if-changed={}", images.display());
+                let bytes =
+                    std::fs::read(&images).unwrap_or_else(|e| panic!("{}: {e}", images.display()));
+                faraday_payload::ImageList::parse(&bytes)
+                    .unwrap_or_else(|e| panic!("{}: {e}", images.display()));
+                let _ = writeln!(
+                    code,
+                    "/// The release's image list.\npub const IMAGES: Option<&[u8]> = Some(include_bytes!({:?}));",
+                    images.display().to_string()
+                );
+            } else {
+                code.push_str(
+                    "/// No image list was built in.\npub const IMAGES: Option<&[u8]> = None;\n",
+                );
+            }
         }
     }
     std::fs::write(out.join("payload.rs"), code).expect("OUT_DIR is writable");

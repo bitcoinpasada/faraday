@@ -41,6 +41,13 @@ impl Payload {
         Some(Payload { manifest, files })
     }
 
+    /// Costs a parse of the release's image list: the one built in beside
+    /// the payload, or `None` for a Starter built without one (or, which
+    /// the build prevents, with a list that does not parse).
+    pub fn image_list() -> Option<faraday_payload::ImageList> {
+        faraday_payload::ImageList::parse(built::IMAGES?).ok()
+    }
+
     /// A payload from a manifest's bytes and the files' bytes, as the
     /// tests make one.
     pub fn from_parts(manifest: &[u8], files: Vec<(String, Vec<u8>)>) -> Result<Payload, String> {

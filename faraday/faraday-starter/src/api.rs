@@ -813,6 +813,57 @@ pub enum StarterEvent {
         /// Taken, or why not.
         result: Result<(BootFile, BootSigner), Reason>,
     },
+    /// [`StarterCommand::FindImages`] answered: every file in Downloads
+    /// or dropped on the window whose name is on the release's image
+    /// list (`docs/IMAGES.md` §5), each found, not matching, or of
+    /// another release. Replaces what was found before.
+    ImagesFound(Vec<ImageFinding>),
+}
+
+/// What the finder made of one file whose name is on the release's image
+/// list (`docs/IMAGES.md` §5).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImageFinding {
+    /// The file's SHA-256 is its line's: an image to offer.
+    Found(FoundImage),
+    /// The name is the list's and the SHA-256 is not: named, not offered.
+    Mismatch {
+        /// The file, as a full path.
+        path: String,
+        /// Its name.
+        name: String,
+    },
+    /// The name is a listed one with another version in it.
+    OtherRelease {
+        /// The file, as a full path.
+        path: String,
+        /// Its name.
+        name: String,
+        /// The version this Starter needs.
+        needs: String,
+    },
+}
+
+/// An image found and hashed. Its sums are the list's, which the file
+/// matched when it was hashed: an offer only. What is written is checked
+/// against them again as it is written, so a file changed since is
+/// refused there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FoundImage {
+    /// The file, as a full path.
+    pub path: String,
+    /// Its name, the list's.
+    pub name: String,
+    /// The SHA-256 the `.xz` must have, as the list says.
+    pub xz_sha256: String,
+    /// The SHA-256 of the `.img` inside it, as the list says.
+    pub img_sha256: String,
+    /// The platform (`x86_64-uefi`, `pi3`).
+    pub board: String,
+    /// The screen (`efi-framebuffer`, `any`).
+    pub panel: String,
+    /// The boards it starts, as the list names them.
+    pub starts: Vec<String>,
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -1005,5 +1056,13 @@ pub enum StarterCommand {
         path: String,
         /// What the stick is written from.
         source: Source,
+    },
+    /// Find the release's images in the Downloads folder and among the
+    /// `dropped` files (§1.3, `docs/IMAGES.md` §5), hashing each whose
+    /// name is on the image list and no other; answered by
+    /// [`StarterEvent::ImagesFound`].
+    FindImages {
+        /// Files dropped on the window, as full paths.
+        dropped: Vec<String>,
     },
 }

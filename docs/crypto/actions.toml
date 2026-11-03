@@ -8391,6 +8391,7 @@ functions = [
   "faraday/shells/starter/src/writer.rs::put_regions",
   "faraday/shells/starter/src/writer.rs::compare_regions",
   "faraday/faraday-payload/src/decode.rs::hash_image",
+  "faraday/faraday-payload/src/images.rs::sha256_of",
   "faraday/shells/starter/src/writer.rs::Source::check_boot_sum",
 ]
 code = [

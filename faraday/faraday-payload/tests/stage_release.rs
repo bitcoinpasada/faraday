@@ -280,7 +280,7 @@ fn boot_partition(image: &[u8]) -> &[u8] {
 
 /// With no Faraday Demo built at all, the release holds every image, the
 /// boot program, `IMAGES` and `SHA256SUMS`, and each payload the
-/// stick image, the 2.8-inch Pi image and its MANIFEST.
+/// stick image, the 2.8-inch Pi image, its MANIFEST and the image list.
 #[test]
 fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
     let root = fresh("staged");
@@ -320,7 +320,12 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
         let dir = payload.join(system);
         assert_eq!(
             names(&dir),
-            ["MANIFEST", &format!("{PI}.xz"), &format!("{STICK}.xz")],
+            [
+                "IMAGES",
+                "MANIFEST",
+                &format!("{PI}.xz"),
+                &format!("{STICK}.xz")
+            ],
             "{system}"
         );
         let m = Manifest::parse(&fs::read(dir.join("MANIFEST")).expect("MANIFEST"))

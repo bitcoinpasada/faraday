@@ -22,6 +22,7 @@ pub mod concern;
 pub mod decide;
 mod demo;
 mod draw;
+mod found;
 mod how;
 mod learn_id;
 mod name;
@@ -628,6 +629,8 @@ pub struct Starter {
     commands: VecDeque<Command>,
     out: VecDeque<StarterCommand>,
     dirty: bool,
+    /// The images the finder found (`docs/IMAGES.md` §5).
+    found: found::Found,
 
     /// This computer.
     pub computer: Computer,
@@ -789,6 +792,7 @@ impl Starter {
             commands: VecDeque::new(),
             out: VecDeque::new(),
             dirty: true,
+            found: found::Found::default(),
             computer: Computer::default(),
             phone_codes: Vec::new(),
             disks: Vec::new(),
@@ -1486,6 +1490,7 @@ impl Starter {
                 }
             }
             StarterEvent::BootEntry(e) => self.boot_entry = e,
+            e @ StarterEvent::ImagesFound(_) => self.images_event(e),
             e @ (StarterEvent::BootFiles { .. } | StarterEvent::BootFileChecked { .. }) => {
                 self.boot_event(e);
             }
