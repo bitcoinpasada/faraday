@@ -16,23 +16,22 @@ operations and no random number generator: entropy is handed in by the shell.
 
 ## Written in this crate
 
-- `blake2b.rs`: BLAKE2b (RFC 7693). One caller: AEZ's `Extract` in
-  `faraday-bip`.
 - `scrypt.rs`: scrypt (RFC 7914) over the PBKDF2 below it. One caller:
   aezeed's passphrase stretch.
 
-SHA-256, HMAC, PBKDF2 and ChaCha20-Poly1305 come from RustCrypto crates.
+SHA-256, HMAC, PBKDF2, ChaCha20-Poly1305 and BLAKE2b (`blake2b.rs`, a
+wrapper over `blake2`'s block core; one caller: AEZ's `Extract` in
+`faraday-bip`) come from RustCrypto crates.
 
 ## Checked against
 
-- `blake2b.rs`, inline tests: RFC 7693 appendix A (`abc`) and the empty
-  message.
 - `scrypt.rs`, inline tests: the first two RFC 7914 §12 vectors. The aezeed
   tests in `core/faraday-bip/tests/all/aez.rs` run scrypt at aezeed's own
   `N = 32768`.
 - `tests/primitives.rs`: SHA-256 known answers, RFC 4231 cases 1 and 2 for
   HMAC-SHA-256 and HMAC-SHA-512, PBKDF2-HMAC-SHA-256 against RFC 7914 §11,
-  PBKDF2-HMAC-SHA-512, and `Secret` and `Pinned` behaviour.
+  PBKDF2-HMAC-SHA-512, BLAKE2b (RFC 7693 appendix A, the empty message,
+  a multi-block input and every length 1 to 64), and `Secret` and `Pinned` behaviour.
 
 ## `unsafe`
 
@@ -58,6 +57,7 @@ The crate's doc comment in `lib.rs` counts five blocks; the file has seven
 - `SessionKey`, `Sealed<T>`, `SeedBytes`, `MnemonicBytes`: `Zeroize` and
   `ZeroizeOnDrop`; the stack buffer in `Sealed::with` is zeroized when the
   closure returns.
-- `blake2b` wipes its state and message block; `scrypt` zeroizes `ROMix`'s
+- `blake2b` wipes the digest copy; `blake2`'s core and the block buffer wipe
+  themselves on drop; `scrypt` zeroizes `ROMix`'s
   `V` (32 MiB at aezeed's parameters), its scratch and its block before
   they are freed.

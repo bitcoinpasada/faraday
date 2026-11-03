@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2) and the documentation fixes of §7 (batch B1)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5), the FAT32 formatter (§3.2) and the documentation fixes of §7 (batch B1)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
@@ -963,7 +963,12 @@ these, which the subsections do not repeat:
    (before D1 makes it an entry), and AUDIT §3's line, and §1's row where
    named, with it (`check_audit_crates`).
 
-### 5.1 BLAKE2b (batch C1)
+### 5.1 BLAKE2b (batch C1, built)
+
+**Built.** `core/faraday-crypto/src/blake2b.rs` is a wrapper of about 25
+lines over `blake2` 0.11.0's `Blake2bVarCore`; RFC 7693's vectors and every
+length 1 to 64 are in `core/faraday-crypto/tests/primitives.rs`. What
+follows is the plan it was built from.
 
 - **Files.** `core/faraday-crypto/src/blake2b.rs` (179 lines) becomes a
   wrapper of about 25 lines; `core/faraday-crypto/Cargo.toml`.
@@ -1708,7 +1713,7 @@ Reference's list of conditions.
 | A6 | Secret comparisons through subtle; paperkey's CRC-24 masked | §4.6 | About 2 hours |
 | A7 | BIP-352's label tweak times G through a secret key, `t_k` as libsecp256k1's own module computes it; the key's own randomized contexts; with X9 | §4.7, §9.7 | About half a day, and X9's |
 | B1 | AUDIT §1's rows, the QR encoder's module doc, the storage command's comment, `docs/deps/rsa.md`'s Marvin sentence, the Secret handling lines that claim more than the code does (§7.8), KEYS §2 and the `hold` action saying what wiping does not reach | §7 | Built |
-| C1 | BLAKE2b from `blake2`'s `Blake2bVarCore` | §5.1 | About 3 hours |
+| C1 | BLAKE2b from `blake2`'s `Blake2bVarCore` | §5.1 | Built |
 | C2 | (HKDF: not a switch; kept, §5.2, §6.7) | §5.2 | None |
 | C3 | The sealing's counter nonce removed | §5.9 | About 2 hours |
 | C4 | The RSA RNG adapter from `ChaCha20Rng`; tests re-pinned | §5.6 | About half a day |

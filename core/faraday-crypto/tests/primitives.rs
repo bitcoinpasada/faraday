@@ -249,3 +249,92 @@ fn hkdf_sha256_expand_refuses_more_than_255_blocks() {
     assert_eq!(hkdf_sha256_expand(&prk, b"x", &mut over), None);
     assert!(over.iter().all(|&b| b == 0));
 }
+
+fn blake2b_vec(data: &[u8], len: usize) -> Vec<u8> {
+    let mut out = vec![0u8; len];
+    faraday_crypto::blake2b(data, &mut out);
+    out
+}
+
+#[test]
+fn blake2b_rfc_7693_vectors() {
+    // RFC 7693 appendix A: BLAKE2b-512 of "abc".
+    assert_eq!(
+        blake2b_vec(b"abc", 64),
+        unhex(
+            "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d1\
+             7d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"
+        )
+    );
+    // BLAKE2b-512 of the empty message.
+    assert_eq!(
+        blake2b_vec(b"", 64),
+        unhex(
+            "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419\
+             d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"
+        )
+    );
+}
+
+#[test]
+fn blake2b_multi_block_input() {
+    let data: Vec<u8> = (0..300).map(|i| (i % 251) as u8).collect();
+    assert_eq!(
+        blake2b_vec(&data, 48),
+        unhex(
+            "8babfe78d19949e35b6d53afca26e4e3020a44dcf304670af4c47579d01af707b922cbb9cd85078470e31e264f9f9726"
+        )
+    );
+    assert_eq!(
+        blake2b_vec(&data, 64),
+        unhex(
+            "3a482b7748b0bdc43c3d00c080890c10e57a9aa5618f78b86067eb7eaae4942a\
+             cd96d827accbc16958364ae5b0df6105bbd3b15445092eba1137b5f69c1070f1"
+        )
+    );
+}
+
+#[test]
+fn blake2b_input_of_whole_blocks() {
+    // A last block that is full is compressed once, as the final block:
+    // values from CPython's `hashlib.blake2b(digest_size=48)`.
+    let data: Vec<u8> = (0..256).map(|i| (i % 251) as u8).collect();
+    assert_eq!(
+        blake2b_vec(&data[..128], 48),
+        unhex(
+            "a2c2acf7ce4079c02b7f38e2ef33bff531a31a7c7effe712c5348b4d616c0cba9b152679317984ec632d0c70eb11eece"
+        )
+    );
+    assert_eq!(
+        blake2b_vec(&data, 48),
+        unhex(
+            "21adb9e49580c4a246a658c1fc866177ea298b2962898c9a1639d57a275eee4f779994f101508b5b9f41646a06654777"
+        )
+    );
+}
+
+#[test]
+fn blake2b_every_length_from_1_to_64() {
+    // The digests of "abc" at lengths 1 to 64, end to end, hash to the
+    // value CPython's `hashlib.blake2b(digest_size=n)` gives.
+    let mut all = Vec::new();
+    for len in 1..=64 {
+        all.extend(blake2b_vec(b"abc", len));
+    }
+    assert_eq!(
+        sha256(&all).to_vec(),
+        unhex("9d1cdef0b728145136303c3d27212397502c10036c04beee860a12d3bdc6c8d0")
+    );
+}
+
+#[test]
+#[should_panic(expected = "1 to 64")]
+fn blake2b_refuses_a_digest_of_65_bytes() {
+    blake2b_vec(b"abc", 65);
+}
+
+#[test]
+#[should_panic(expected = "1 to 64")]
+fn blake2b_refuses_an_empty_digest() {
+    blake2b_vec(b"abc", 0);
+}

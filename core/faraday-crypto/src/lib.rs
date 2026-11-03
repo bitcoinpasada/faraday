@@ -24,10 +24,9 @@
 //!   [`pbkdf2_hmac_sha256`], [`pbkdf2_hmac_sha512`], [`blake2b`] and
 //!   [`scrypt`] are the only entry points the rest of the core uses, so
 //!   the choice of implementation (RustCrypto today, for the first
-//!   five) is confined to this crate. The last two are written here:
-//!   BLAKE2b has one caller, LND's aezeed, and scrypt two, that and the age
-//!   passphrase file; each is small enough that a crate would cost more
-//!   than it saves.
+//!   six) is confined to this crate. scrypt is written here: it has one
+//!   caller, LND's aezeed, and is small enough that a crate would cost
+//!   more than it saves.
 //!
 //! - [`work`]: [`work::Compute`], the token a costly function takes,
 //!   which carries the counter the application notes that work with
