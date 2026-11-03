@@ -46,8 +46,9 @@ fi
 say "build: done"
 
 # The Go answer programs, LND's over the vendored tree of tools/reference/lnd/
-# and btcd's BIP-322 over tools/reference/btcd-bip322/ (offline: the vendor
-# folders only, the installed toolchain only). A missing or older Go stops
+# btcd's BIP-322 over tools/reference/btcd-bip322/ and a released btcd's
+# hdkeychain and control-block check over tools/reference/btcd/ (offline: the
+# vendor folders only, the installed toolchain only). A missing or older Go stops
 # the run.
 say "build: LND's answer program (go build -mod=vendor, tools/reference/lnd)"
 if ! command -v go >/dev/null; then
@@ -71,6 +72,15 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
     exit 2
 fi
 say "build: btcd's BIP-322 program done"
+say "build: btcd's answer program (go build -mod=vendor, tools/reference/btcd)"
+if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+        go build -C tools/reference/btcd -trimpath -o "$PWD/$progress/btcd-ref" . \
+        2>"$progress/go-build-btcd.log"; then
+    cat "$progress/go-build-btcd.log" >&2
+    say "build: FAILED: btcd's answer program did not build (the Go version go.mod names)"
+    exit 2
+fi
+say "build: btcd's answer program done"
 
 # The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
 # rule 4): the tests that skip without an outside tool under plain `just`

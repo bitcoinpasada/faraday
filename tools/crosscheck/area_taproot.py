@@ -15,7 +15,10 @@ BIP-350 addresses).
 - Every control block checked against its output key and leaf script
   (`ControlBlock::decode` and `verify_taproot_commitment`, which
   `miniscript`'s finalizer and interpreter rest on), against BIP-341's
-  script-path rule written out here; then the same block changed: its
+  script-path rule written out here and against btcd's
+  `txscript.ParseControlBlock` and `VerifyTaprootLeafCommitment` from a
+  released btcd (`tools/reference/btcd/`, Go, decred's secp256k1); then
+  the same block changed: its
   parity bit, its leaf version, a byte of the internal key or of a
   branch hash, a branch hash dropped or added, the wrong leaf script,
   another output key, and lengths BIP-341 does not allow.
@@ -24,12 +27,18 @@ BIP-341 leaves two rules to the text, written here as it states them: a
 leaf version is even, and is not 0x50 ("the annex... cannot be confused
 with a leaf version"); `taproot_construct` asserts the first and does not
 check the second. A control block is 33 + 32m bytes with m at most 128.
+btcd checks the lengths, the internal key as a point and the commitment and
+its parity, and hashes a leaf of version 0x50 like any other: that one rule
+stays the area's own, and btcd is not asked about a control block of that
+version. Where the two judges answer a control block differently, the area
+reports it.
 """
 
 import functools
 import json
 
-from common import ROOT, Area, as_verify, use_reference
+from btcd_ref import Btcd
+from common import ROOT, Area, as_verify, reference, use_reference
 
 use_reference("bip352", "secp256k1lab", "src")
 from secp256k1lab.secp256k1 import GE  # noqa: E402
@@ -156,11 +165,14 @@ class Taproot(Area):
         '`verify_taproot_commitment`'
     )
     reference = (
-        "Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; BIP-341's "
-        'script-path check written out in `area_taproot.py`'
+        "Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; btcd v0.27.0's "
+        '`txscript.ParseControlBlock` and `VerifyTaprootLeafCommitment` (`btcd/`, Go) for '
+        "the control blocks; BIP-341's script-path check written out in "
+        '`area_taproot.py`, and the rule that a leaf version is not 0x50, are ours'
     )
     reference_checked = (
-        'its vendored files are hashed against `references.sha256` before any run, and '
+        'its vendored files and the vendored Go tree are hashed against '
+        '`references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
         "Faraday; each of BIP-341's wallet vectors is checked against the reference "
         'first'
@@ -172,12 +184,14 @@ class Taproot(Area):
         'trees of 0 to 12 leaves in random shapes with random scripts and leaf versions '
         'over random internal keys: leaf hashes, Merkle root, tweak, output key and '
         'parity, script, address, control blocks; each control block checked, then '
-        'changed eleven ways; internal keys that are no point, odd leaf versions and '
-        '0x50 refused'
+        'changed eleven ways, each judged by Core\'s framework and by btcd; internal keys '
+        'that are no point, odd leaf versions and 0x50 refused'
     )
     differences = [
         (
-            'none'
+            "btcd hashes a leaf of version 0x50 like any other, where BIP-341's text and "
+            'Faraday refuse it (the annex tag): a control block of that version is judged '
+            'by the area alone, and btcd is not asked'
         ),
     ]
     not_compared = (
@@ -190,9 +204,32 @@ class Taproot(Area):
                            lambda: reference_tree(internal, items, len(leaves)), expected)
         return raw
 
+    btcd_proc = None
+
+    def close(self):
+        if self.btcd_proc is not None:
+            self.btcd_proc.close()
+        super().close()
+
+    def judged(self, output_key, control, script):
+        """Core's framework's answer and btcd's. btcd hashes a leaf of version
+        0x50 like any other, so for that version only the area's own rule answers."""
+        core = as_verify(reference(lambda: verify_control(output_key, control, script)))
+        if core[0] != "ok" or control[:1] and control[0] & 0xFE == 0x50:
+            return core[1]
+        if self.btcd_proc is None:
+            self.btcd_proc = Btcd()
+        said = self.btcd_proc.ask({"op": "control", "output_key": output_key.hex(),
+                                   "control": control.hex(), "script": script.hex()})
+        if "valid" not in said:
+            raise AssertionError(f"btcd's program: {said}")
+        if said["valid"] != core[1]["valid"]:
+            return {"valid": core[1]["valid"], "judges_differ": {"core": core[1], "btcd": said}}
+        return core[1]
+
     def verify(self, output_key, control, script):
         inputs = {"output_key": output_key.hex(), "control": control.hex(), "script": script.hex()}
-        self.compare("taproot.verify", inputs, lambda: verify_control(output_key, control, script),
+        self.compare("taproot.verify", inputs, lambda: self.judged(output_key, control, script),
                      normalize=as_verify)
 
     def published(self):

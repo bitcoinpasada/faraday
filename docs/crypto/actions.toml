@@ -1154,7 +1154,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::a_master_key_is_told_from_another_by_all_of_its_identity",
 ]
 crosscheck = "bip32"
-independence = { class = "outside-and-own", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve", ours = "which versions a strict reader takes: BIP-32's xprv and tprv, xpub and tpub, from btclib's network table (btclib reads SLIP-132's too), in `bip32_ref.py`" }
+independence = { class = "outside-and-own", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve; and `hdkeychain` from btcd v0.27.0, by the btcd developers, on decred's secp256k1", ours = "the three rules of a strict reader that `hdkeychain` does not make: which versions it takes (BIP-32's xprv and tprv, xpub and tpub, from btclib's network table; btclib reads SLIP-132's too and `hdkeychain` any version), a version of the other kind than the key's data, and a depth-0 key with a parent fingerprint or an index, in `area_bip32.py` and `bip32_ref.py`" }
 selftest = [
   "bip32_vector",
 ]
@@ -1267,7 +1267,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named",
 ]
 crosscheck = "bip32"
-independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve" }
+independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve; and `hdkeychain` from btcd v0.27.0, by the btcd developers, on decred's secp256k1" }
 selftest = [
   "bip32_vector",
 ]
@@ -1548,7 +1548,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::everything_is_hidden_after_leaving_and_coming_back",
 ]
 crosscheck = "bip32"
-independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve" }
+independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve; and `hdkeychain` from btcd v0.27.0, by the btcd developers, on decred's secp256k1" }
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -2189,7 +2189,7 @@ tests = [
   "core/faraday-bip/tests/all/bip387.rs::sorting_is_of_the_derived_keys",
 ]
 crosscheck = "taproot"
-independence = { class = "outside-and-own", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors", ours = "BIP-341's script-path check of a control block, written in `area_taproot.py`" }
+independence = { class = "outside-and-own", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors; and `ParseControlBlock` and `VerifyTaprootLeafCommitment` of btcd v0.27.0, by the btcd developers", ours = "BIP-341's script-path check of a control block, written in `area_taproot.py`, and the rule that a leaf version is not 0x50, which btcd does not make" }
 fuzz = [
   "policy",
 ]

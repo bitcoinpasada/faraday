@@ -30,8 +30,10 @@ nothing else.
   optional (`tools/crosscheck/README.md`).
 - **Go** 1.27 or later, for the cross-check only: its `lightning` area
   builds LND's own aezeed code from `tools/reference/lnd/` and its `msg`
-  area btcd's BIP-322 code from `tools/reference/btcd-bip322/` (vendored,
-  so offline, with `GOTOOLCHAIN=local`). Install it from
+  area btcd's BIP-322 code from `tools/reference/btcd-bip322/`, and its
+  `bip32` and `taproot` areas a released btcd's `hdkeychain` and
+  control-block check from `tools/reference/btcd/` (all vendored, so
+  offline, with `GOTOOLCHAIN=local`). Install it from
   <https://go.dev/dl/> (the tarball's SHA-256 is on that page) or the
   distribution's `golang` package; `go version` must say 1.27 or later,
   or `just crosscheck` stops.

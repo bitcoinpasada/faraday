@@ -1,7 +1,7 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4, batch X14), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), the documentation fixes of §7 (batch B1) and the quiz's seed from the session's generator (§5.16)
 **Open:** the timing fixes of §4.4 to §4.7; the switches (§5) but for the finalizer (§5.8); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
@@ -1939,8 +1939,8 @@ not at all).
 | words-read, words-make, seed | Own BIP-39 core, constant time (A5); pbkdf2, sha2, unicode-normalization | python-mnemonic | bip39_slip39 as a second reader (X11) | none | outside |
 | slip39 | Own; GF(256) and RS1024 without a branch (built) | python-shamir-mnemonic | bip39_slip39 (X11) | none | outside |
 | bip85 | bitcoin and Faraday's glue; base64ct (C8), base16ct (C9) | btclib-wallet's `bip85`, ethankosakovsky/bip85 | btclib's `bip85` run as written over bip39_slip39, python-mnemonic's stand-in removed (X11) | none | outside |
-| master | bitcoin and libsecp256k1; the strict decoder Faraday's | btclib-wallet's `bip32` | btcd's `hdkeychain` from a released btcd (X14) | the versions a strict reader takes: retired if `hdkeychain` refuses what Faraday refuses (not checked), kept otherwise | outside, or outside-and-own if kept |
-| derive, xprv-shown | bitcoin and libsecp256k1 | btclib-wallet's `bip32` | `hdkeychain` (X14) | none | outside |
+| master | bitcoin and libsecp256k1; the strict decoder Faraday's | btclib-wallet's `bip32` | btcd's `hdkeychain` from btcd v0.27.0 (X14, built) | kept: `hdkeychain` does not refuse what Faraday refuses. It reads a key of any version, a version of the other kind than the key's data, and a depth-0 key with a parent fingerprint or an index; those three rules stay Faraday's second version, and `hdkeychain` is asked of every other refusal (the checksum, the length, a scalar of 0 or past n, a public key's prefix or a point off the curve) and of every valid key | outside-and-own |
+| derive, xprv-shown | bitcoin and libsecp256k1 | btclib-wallet's `bip32` | `hdkeychain` from btcd v0.27.0 (X14, built) | none | outside |
 | dice | Own specification; sha2 | Coldcard's `rolls.py`, `rolls12.py` | SeedSigner's `mnemonic_generation.py` over embit's BIP-39: direct selection's last word at every length, the hashed procedure at 50 and 99 rolls (X22) | kept: six-as-zero, the cuts to 20, 24 and 28 bytes, the counts and refused faces, which no outside code has without Node | outside-and-own |
 | coins-hex | Own specification; hex through base16ct (C9) | Faraday's second version | CPython's `bytes.fromhex` named as the hex judge (X4, rule 5) | kept for the flips and the commitments | outside-and-own |
 | vanity | bitcoin and libsecp256k1 | python-mnemonic, btclib, Core | each candidate's child keys by btclib; Core for the script and address text only (X13) | kept: the counter, the prefix rules, the expected work, the search loop | outside-and-own |
@@ -1962,7 +1962,7 @@ not at all).
 | tools-hash, file-hash | bitcoin (Base58, bech32, RIPEMD-160), sha2; hex through base16ct (C9) | none (published vectors in tests) | a new area `hash`: Core's framework's `ripemd160.py`, `address.py` and `segwit_addr.py`, `hashlib`, `bytes.fromhex`, SHA-256 of random files across block boundaries; the self-comparing Base58Check assertion replaced (X27) | none | outside |
 | address, descriptor | miniscript (its checksum, C10), bitcoin | Core, BIP-380's checksum code, python-bip380, btclib's keys | btclib-wallet's descriptors and miniscript: the script at an index, the parse, the type, the round trip (X18) | none | outside |
 | recovery | As descriptor | As descriptor | As descriptor, and btclib's satisfaction of each path under its lock times (X18) | none | outside |
-| tapmulti | bitcoin, miniscript | Core's framework | btclib's `check_output_pubkey` (X15); btcd's `ParseControlBlock` and `VerifyTaprootLeafCommitment` (X14) | retired but the rule that a leaf version is not 0x50 | outside-and-own |
+| tapmulti | bitcoin, miniscript | Core's framework | btclib's `check_output_pubkey` (X15); btcd v0.27.0's `ParseControlBlock` and `VerifyTaprootLeafCommitment` (X14, built); btcd hashes a leaf of version 0x50 like any other, so that rule stays the area's own | retired but the rule that a leaf version is not 0x50 | outside-and-own |
 | psbt-read | bitcoin, base64ct (C8); the inspection Faraday's | Core, HWI | btclib's `Psbt.parse` (X15) | retired: the 65-byte signature with sighash byte 0 is refused by btclib | outside |
 | psbt-v2 | Own (§6.4) | HWI, Core for both version 0 forms | btclib's version 2 reader and its conversions (X15) | the refusals btclib makes retired (a stream ending inside a map: not checked); the bridge's pair choice and the version 0 PSBT where HWI repairs a short value kept | outside-and-own |
 | sighash-review | bitcoin | Core's framework | btclib's `sig_hash.taproot` (X15) | retired | outside |
@@ -2007,10 +2007,9 @@ Unchanged:
   words-identity, selftest, envelope, inbox-secret, vault-reveal,
   starter-recovery-key.
 
-After X1 to X30, 73 of the 94 actions of 2026-10-31 name an area: 39
-`outside`, 26 `outside-and-own` (38 and 27 if master's version rule is
-kept), 8 `own`; 21 name none, of which 11 are judged by outside programs
-in tests. The vault's actions are counted there as they were, four in
+After X1 to X30, 73 of the 94 actions of 2026-10-31 name an area: 38
+`outside`, 27 `outside-and-own` (master's version rule is kept, X14), 8 `own`; 21 name none, of
+which 11 are judged by outside programs in tests. The vault's actions are counted there as they were, four in
 area `vault` as `outside-and-own`; once F190's vault is built and judged
 (VAULT §10), vault-kdbx and vault-qr-pgp join area `vault` as `outside`,
 vault-contents has no area, and the class of the four is not checked
@@ -2066,7 +2065,7 @@ they were not, the batch checks them first.
 | X10 | none | rust-codex32 at a commit (licence and `Cargo.toml` not checked), built offline outside the workspace |
 | X11 | none | the bip39_slip39 wheel, 2026.10.24, beside btclib's |
 | X12 | `python3-cbor2` | none |
-| X14 | none | a released btcd's modules (`btcd`, `btcutil`, `btcec`), `go mod vendor`, in a folder of their own |
+| X14 | none | a released btcd's modules (`btcutil`, `txscript`, `btcec` and what they name; the root daemon module is not used), `go mod vendor`, in a folder of their own; built |
 | X21 | `python3-segno`, `zbar-tools`, `python3-zxing-cpp` | none |
 | X22 | none | SeedSigner's `helpers/mnemonic_generation.py`, at the commit `tools/reference/seedsigner/` has |
 | X23 | none | krux's `src/krux/qr.py` and what it imports, with shims; Coinkite's BBQr test files |
@@ -2107,7 +2106,7 @@ a switch lands in that switch's commit (rule 6).
 | X11 | A5 | bip39_slip39 vendored, in areas `bip39`, `slip39` and `bip85` | 1 to 1.5 days |
 | X12 | C15 | `zlib.crc32`, cbor2 and PyCA's `HKDFExpand` against the one CRC-32, CBOR and HKDF-Expand | about 1 day |
 | X13 | alone | rule 2: vanity's child keys by btclib; sweep-sign and wif-read judged on btclib's curve and by python-ecdsa; Core named as sharing the curve | 1 to 1.5 days |
-| X14 | alone | a released btcd vendored; `hdkeychain` for master, derive and xprv-shown; btcd's control-block check for tapmulti | 1.5 to 2 days |
+| X14 | alone | a released btcd vendored; `hdkeychain` for master, derive and xprv-shown; btcd's control-block check for tapmulti. Built: btcd v0.27.0 in `tools/reference/btcd/`; master's strict reader is kept (§9.4) | 1.5 to 2 days |
 | X15 | alone | btclib in place of Faraday's second version for psbt-read, psbt-v2, sighash-review, tx-decode and tapmulti; Core's `decoderawtransaction` | 2.5 to 3 days |
 | X16 | alone | btclib's change rule for psbt-review | about 1 day |
 | X17 | after X16 | a watch-only descriptor wallet on Core's regtest node (`core_node.py`, CROSSCHECK §10.4's "no wallet" changed), `ismine` and `ischange` | 1.5 to 2 days |
