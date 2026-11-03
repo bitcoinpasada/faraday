@@ -54,7 +54,7 @@ fn light(c: &Counts) -> bool {
 }
 
 #[test]
-fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
+fn the_checklists_pictures_are_made_on_the_worker() {
     let c = faraday_core::testkit::compute();
     // A 2-of-15 whose descriptor needs a picture per part.
     let keys: Vec<String> = (0..5)
@@ -104,17 +104,19 @@ fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
     let outbox = app.outbox.len();
     let pressed = tap(&mut app, Action::BChecklist);
     assert!(light(&pressed), "the tap made the files: {pressed:?}");
-    assert_eq!(app.outbox.len(), outbox, "nothing made before the frame");
+    assert_eq!(app.outbox.len(), outbox, "nothing made at the tap");
     let _ = app.frame();
     assert_eq!(
-        app.toast_text(),
+        app.busy().map(|b| b.line),
         Some(EN.working_files),
-        "the frame drawn first says the files are being made"
+        "the screen says the files are being made"
     );
-    let done = frame_then_tick(&mut app);
+    let before = snapshot();
+    testkit::settle(&mut app);
+    let done = since(&before);
     assert!(
         done.of(Work::Picture) > 1,
-        "the tick after made the pictures: {done:?}"
+        "the worker made the pictures: {done:?}"
     );
     assert!(
         app.outbox.len() > outbox,

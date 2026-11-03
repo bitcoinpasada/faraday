@@ -57,7 +57,7 @@
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
 //! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`, `review`, `signing`.
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
-//!   `held` (the backup before spending, and signing), `restore`, `wallet_backup`,
+//!   `held` (the backup before spending, and signing), `restore`, `wallet_backup`, `public_files`,
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
 //!   codex32 item and the set's actions, with its `screen.rs`).
 //! - Vaults: `codes` (TOTP codes); `vault` is listed with the flows above.
@@ -146,6 +146,7 @@ pub mod nav;
 mod out;
 mod panes;
 mod pointer;
+mod public_files;
 pub mod set_time;
 pub mod stick;
 mod trail;
@@ -672,7 +673,7 @@ pub enum Sheet {
     GpgRestore,
 }
 
-pub(crate) use picture::{picture_codes, picture_names, picture_payloads};
+pub(crate) use picture::{picture_names, picture_payloads};
 
 /// Whether an Outbox file can go as a QR transfer: what a wallet reads
 /// goes as itself, anything else in the file envelope, which carries up
@@ -3660,127 +3661,10 @@ impl Faraday {
     /// numbers them): for 8, the descriptor's code, in parts past one code;
     /// for 4, each split share's code, one beside each share's sheet and
     /// text. None for any other file.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
-        let Some(w) = self.public_wallet(c, wallet) else {
-            return Vec::new();
-        };
-        let stem = file_stem(&w.name);
-        let net = self.session.network();
-        let shape = if net.is_mainnet() {
-            Session::shape(w)
-        } else {
-            format!("{} · {}", Session::shape(w), net.name())
-        };
-        let keys = w.policy().keys();
-        let fps = |pick: &dyn Fn(usize) -> bool| -> Vec<String> {
-            keys.iter()
-                .enumerate()
-                .filter(|(i, _)| pick(*i))
-                .filter_map(|(_, k)| k.fingerprint().map(fp_text))
-                .collect()
-        };
-        // Each code of `text` as a picture: `name` when there is one,
-        // `name{part}j-of-k` for each part when there are more.
-        let pictures = |name: &str, part: &str, text: &str, lines: Vec<String>| {
-            let codes = picture_codes(c, text).unwrap_or_default();
-            let k = codes.len();
-            let names = picture_names(name, part, text);
-            codes
-                .into_iter()
-                .zip(names)
-                .enumerate()
-                .map(|(j, (code, name))| {
-                    let mut label = if k == 1 {
-                        Vec::new()
-                    } else {
-                        vec![fill(
-                            EN.public_pictures_part,
-                            &[&(j + 1).to_string(), &k.to_string()],
-                        )]
-                    };
-                    label.extend(lines.iter().cloned());
-                    picture::Labelled {
-                        name,
-                        code,
-                        title: w.name.clone(),
-                        lines: label,
-                    }
-                })
-                .collect::<Vec<_>>()
-        };
-        match what {
-            8 => {
-                let text = w.policy().to_descriptor_checksummed();
-                let all = fps(&|_| true);
-                let mut lines = vec![shape];
-                if !all.is_empty() {
-                    let word = if all.len() == 1 {
-                        EN.public_pictures_key
-                    } else {
-                        EN.public_pictures_keys
-                    };
-                    lines.push(format!("{word} {}", all.join(" · ")));
-                }
-                if let Some((_, sum)) = text.rsplit_once('#') {
-                    lines.push(fill(EN.public_pictures_descriptor, &[sum]));
-                }
-                lines.push(EN.public_pictures_public_watch.to_string());
-                pictures(&format!("{stem}-descriptor"), "-", &text, lines)
-            }
-            4 => {
-                let (m, n) = Session::quorum(w);
-                // As the shares' sheets and text are split.
-                let omit = self
-                    .backup
-                    .state()
-                    .map_or(m.saturating_sub(1), |b| b.answers.omit);
-                let plan = wallet_backup::split_plan(n, m, omit);
-                let mut out = Vec::new();
-                for (i, row) in plan.iter().enumerate() {
-                    let Some(text) = wallet_backup::split_share(w, row) else {
-                        continue;
-                    };
-                    let mut lines = vec![
-                        fill(
-                            EN.public_pictures_share,
-                            &[
-                                &(i + 1).to_string(),
-                                &plan.len().to_string(),
-                                &m.to_string(),
-                            ],
-                        ),
-                        shape.clone(),
-                    ];
-                    let held = fps(&|k| row.contains(&k));
-                    if !held.is_empty() {
-                        lines.push(fill(
-                            EN.public_pictures_holds,
-                            &[&held.join(" · ").to_string()],
-                        ));
-                    }
-                    let off = fps(&|k| !row.contains(&k));
-                    if !off.is_empty() {
-                        lines.push(fill(
-                            EN.public_pictures_leaves,
-                            &[&off.join(" · ").to_string()],
-                        ));
-                    }
-                    lines.push(EN.public_pictures_not_wallet.to_string());
-                    lines.push(EN.public_pictures_public.to_string());
-                    out.extend(pictures(
-                        &format!("{stem}-share-{}-of-{n}", i + 1),
-                        "-part-",
-                        &text,
-                        lines,
-                    ));
-                }
-                out
-            }
-            // Specter DIY's `addwallet` command, in Specter's numbered
-            // parts, which Specter DIY scans, past one code.
-            14 => qr_view::specter_diy_pictures(c, w, shape, fps(&|_| true), &stem),
-            _ => Vec::new(),
+        match self.public_inputs(c, wallet) {
+            Some(inputs) => public_files::pictures(c, &inputs, what),
+            None => Vec::new(),
         }
     }
 
@@ -3793,7 +3677,9 @@ impl Faraday {
     /// 29, 10 the Electrum wallet file, 11 the Caravan config, 12 Specter
     /// DIY's `addwallet` command, 13 the Wasabi file (`docs/INTEROP.md` §5
     /// I4, I8); and 14 that command's codes as labelled pictures, in
-    /// Specter's numbered parts past one code.
+    /// Specter's numbered parts past one code. The multisig config, the
+    /// split shares and Specter's pictures are a job on the worker when a
+    /// person asks ([`Faraday::public_out_job`]).
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
         let files = self.public_made(wallet, what);
         let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
@@ -3802,6 +3688,23 @@ impl Faraday {
         }
         self.backup_sent(wallet, &names);
         self.toast_out_files(&names);
+    }
+
+    /// A person's press on a wallet's public files `what`: a job on the
+    /// worker for the kinds that rebuild a wallet to check it or make more
+    /// than one picture or PDF (2, 4, 14), else [`Faraday::public_out`]
+    /// as it always was.
+    pub(crate) fn public_out_job(&mut self, wallet: usize, what: u8) {
+        if matches!(what, 2 | 4 | 14) {
+            public_files::start(
+                self,
+                wallet,
+                vec![public_files::Part::Kind(what)],
+                public_files::Then::Out,
+            );
+        } else {
+            self.public_out(wallet, what);
+        }
     }
 
     /// Removes from For the stick what [`Faraday::public_out`] makes for
@@ -3824,134 +3727,43 @@ impl Faraday {
             .collect()
     }
 
-    /// [`Faraday::public_made`], its pictures and PDFs made only when
-    /// `bytes`, else named with no bytes.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+    /// Costs what `public_files::files` costs. [`Faraday::public_made`], its
+    /// pictures and PDFs made only when `bytes`, else named with no bytes.
     fn public_files(&mut self, wallet: usize, what: u8, bytes: bool) -> Vec<(String, Vec<u8>)> {
         let c = self.compute();
-        let Some(w) = self.public_wallet(&c, wallet) else {
+        let Some(inputs) = self.public_inputs(&c, wallet) else {
             return Vec::new();
         };
-        let omit = self
-            .backup
-            .state()
-            .map_or(Session::quorum(w).0.saturating_sub(1), |b| b.answers.omit);
-
-        let stem = file_stem(&w.name);
-        let mut files: Vec<(String, Vec<u8>)> = Vec::new();
-        match what {
-            // The blank templates are printed from Faraday Starter: none is
-            // made here. The sheets go out as PDFs, ready to print anywhere:
-            // they hold nothing secret.
-            1 => {
-                files.push((
-                    format!("{stem}-descriptor.txt"),
-                    format!("{}\n", w.policy().to_descriptor_checksummed()).into_bytes(),
-                ));
-            }
-            5 => files.push((
-                format!("{stem}-wallet.json"),
-                wallet_backup::wallet_json(&w.name, w.policy()).into_bytes(),
-            )),
-            6 => {
-                if let Some(record) = self.wallet_file_text(&c, wallet, 6) {
-                    files.push((format!("{stem}-bsms.txt"), record.into_bytes()));
-                }
-            }
-            7 => files.push((
-                format!("{stem}-bitcoin-core.json"),
-                faraday_bip::core_import::import_descriptors(
-                    &w.policy().to_descriptor_checksummed(),
-                    faraday_bip::core_import::Rescan::Start,
-                )
-                .into_bytes(),
-            )),
-            2 => {
-                if let Some(c) = self.wallet_file_text(&c, wallet, 2) {
-                    files.push((format!("{stem}-multisig-config.txt"), c.into_bytes()));
-                }
-            }
-            3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
-            3 => match pdf::sheet(&c, &wallet_backup::sheet_wallet(&c, &self.session, w)) {
-                Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
-                Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
-            },
-            4 => {
-                let (m, n) = Session::quorum(w);
-                let plan = wallet_backup::split_plan(n, m, omit);
-                let pictures = self.public_pictures(&c, wallet, 4);
-                for (i, row) in plan.iter().enumerate() {
-                    if let Some(share) = wallet_backup::split_share(w, row) {
-                        // The sheet to print beside each file.
-                        let pdf_name = format!("{stem}-share-{}-of-{n}.pdf", i + 1);
-                        if !bytes {
-                            files.push((pdf_name, Vec::new()));
-                        } else if let Ok(pdf) = pdf::sheet(
-                            &c,
-                            &wallet_backup::sheet_share(w, i + 1, plan.len(), &share),
-                        ) {
-                            files.push((pdf_name, pdf));
-                        }
-                        files.push((
-                            format!("{stem}-share-{}-of-{n}.txt", i + 1),
-                            share.into_bytes(),
-                        ));
-                        // And its code, to scan back.
-                        let share = format!("{stem}-share-{}-of-{n}", i + 1);
-                        for p in pictures.iter().filter(|p| {
-                            p.name
-                                .strip_prefix(share.as_str())
-                                .is_some_and(|rest| rest == ".png" || rest.starts_with("-part-"))
-                        }) {
-                            files
-                                .push((p.name.clone(), if bytes { p.png(&c) } else { Vec::new() }));
-                        }
-                    }
-                }
-            }
-            8 => {
-                for p in self.public_pictures(&c, wallet, 8) {
-                    files.push((p.name.clone(), if bytes { p.png(&c) } else { Vec::new() }));
-                }
-            }
-            9 => {
-                if let Some(c) = faraday_bip::core_import::import_descriptors_pair(w.policy()) {
-                    files.push((
-                        format!("{stem}-bitcoin-core-before-29.json"),
-                        c.into_bytes(),
-                    ));
-                }
-            }
-            10 => {
-                if let Some(c) = faraday_intake::electrum::file(w.policy()) {
-                    files.push((format!("{stem}-electrum.json"), c.into_bytes()));
-                }
-            }
-            11 => {
-                let net = wallet::policy_network(w.policy(), self.session.network())
-                    .unwrap_or(self.session.network());
-                if let Some(c) = faraday_intake::caravan::file(&w.name, w.policy(), net) {
-                    files.push((format!("{stem}-caravan.json"), c.into_bytes()));
-                }
-            }
-            12 => {
-                if let Some(c) = faraday_intake::specter_diy::command(&w.name, w.policy()) {
-                    files.push((format!("{stem}-specter-diy.txt"), c.into_bytes()));
-                }
-            }
-            14 => {
-                for p in self.public_pictures(&c, wallet, 14) {
-                    files.push((p.name.clone(), if bytes { p.png(&c) } else { Vec::new() }));
-                }
-            }
-            13 => {
-                if let Some(c) = faraday_intake::single_key::wasabi_file(w.policy()) {
-                    files.push((format!("{stem}-wasabi.json"), c.into_bytes()));
-                }
-            }
-            _ => {}
+        let made = public_files::files(&c, &inputs, what, bytes);
+        if let Some(t) = &made.toast {
+            self.toast(t);
         }
-        files
+        made.files
+    }
+
+    /// Costs two key derivations for a silent payments wallet, nothing for
+    /// another. What wallet `wallet`'s public files are made from, owned:
+    /// `None` where the session has no such wallet.
+    pub(crate) fn public_inputs(&self, c: &Compute, wallet: usize) -> Option<public_files::Inputs> {
+        let w = self.session.wallets.get(wallet)?;
+        let blank = self.public_wallet(c, wallet).is_none();
+        let omit = self.backup.state().map(|b| b.answers.omit);
+        Some(public_files::Inputs::of(&self.session, w, omit, blank))
+    }
+
+    /// Costs what `put_outbox` costs. Files made, For the stick: the toast
+    /// the making said, the files, the backup under way told, and what
+    /// they are called.
+    pub(crate) fn put_public(&mut self, wallet: usize, made: public_files::Made) {
+        if let Some(t) = &made.toast {
+            self.toast(t);
+        }
+        let names: Vec<String> = made.files.iter().map(|(n, _)| n.clone()).collect();
+        for (name, bytes) in made.files {
+            self.put_outbox(&name, bytes);
+        }
+        self.backup_sent(wallet, &names);
+        self.toast_out_files(&names);
     }
 
     /// Costs what `account_text` costs. The account key in slot `slot` of
@@ -4200,23 +4012,7 @@ impl Faraday {
     /// them): 2 the multisig config where it rebuilds the wallet, 6 BIP 129's.
     fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<String> {
         let w = self.session.wallets.get(wallet)?;
-        match what {
-            2 => restore::checked_config(c, self.session.network(), w),
-            6 => {
-                let net = self.session.network();
-                let first = w.policy().address_at(c, net, false, 0).ok()?;
-                Some(
-                    faraday_bip::bsms::DescriptorRecord {
-                        policy: w.policy().clone(),
-                        paths: vec!["/0/*".to_string(), "/1/*".to_string()],
-                        first_address: first.to_string(),
-                        network: net,
-                    }
-                    .to_text(),
-                )
-            }
-            _ => None,
-        }
+        public_files::file_text(c, self.session.network(), w, what)
     }
 
     /// Where leaving Add a key goes: the Spend tab when it came from
@@ -5629,7 +5425,7 @@ impl Faraday {
     fn press_in(&mut self, action: Action) {
         // A slider moved again replaces the files it asked to be made.
         if !(matches!(action, Action::Slide(..))
-            && matches!(self.later, Some(Later::PublicOut(..))))
+            && matches!(self.later, Some(Later::Press(Action::PublicOut(..)))))
         {
             self.later_now();
         }
@@ -5794,13 +5590,11 @@ pub fn result_stem(source: &str) -> String {
 /// What a press leaves for the tick after the frame that shows it (`docs/SPEED.md` §9).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Later {
-    /// A press whose work is [`drawn_first`].
+    /// A press whose work is [`drawn_first`], or the backup's shares made
+    /// again once a slider that changes them is let go.
     Press(Action),
     /// A key whose work is slow (`Faraday::key_slow`, in `lightning`).
     Key(KeyIn),
-    /// The backup's public files of kind `what` for wallet `w`, made again
-    /// once a slider that changes them is let go.
-    PublicOut(usize, u8),
     Vault(vault::Work, bool),
 }
 

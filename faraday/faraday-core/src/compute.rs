@@ -41,7 +41,7 @@ impl Faraday {
         let held = matches!(self.pointer.pressed(), Some((Action::Slide(..), _)));
         if !self.worker.drawn()
             || self.later.is_none()
-            || (held && matches!(self.later, Some(Later::PublicOut(..))))
+            || (held && matches!(self.later, Some(Later::Press(Action::PublicOut(..)))))
         {
             return false;
         }
@@ -75,7 +75,6 @@ impl Faraday {
             }
             Later::Press(a) => self.act(a),
             Later::Key(k) => self.key(k),
-            Later::PublicOut(w, what) => self.public_out(w, what),
         }
         if let Later::Press(_) | Later::Key(_) = later {
             self.backup_settle();
@@ -190,6 +189,7 @@ impl Faraday {
             Done::Kdbx(k) => crate::vault::stretch::kdbx_written(self, *k),
             Done::Sign(d) => crate::signing::signed_spend(self, *d),
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
+            Done::Files(d) => crate::public_files::files_made(self, *d),
         }
     }
 

@@ -949,6 +949,31 @@ pub(crate) fn part_note(what: &str, have: usize, total: usize, missing: &[usize]
 /// The QR views of the public files and values a flow shows
 /// (`docs/QR.md` §4 item 4, §7).
 impl Faraday {
+    /// The title, the picture's file name and the lines under the code of
+    /// wallet `w`'s text file `what` as a picture: 2 the multisig config,
+    /// 6 BIP 129's.
+    pub(crate) fn wallet_code_head(
+        &self,
+        w: &wallet::Wallet,
+        what: u8,
+    ) -> (String, String, Vec<String>) {
+        let stem = file_stem(&w.name);
+        let (title, name) = if what == 2 {
+            (
+                fill(EN.code_view_multisig, &[&w.name.to_string()]),
+                format!("{stem}-multisig-config.png"),
+            )
+        } else {
+            (
+                fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
+                format!("{stem}-bsms.png"),
+            )
+        };
+        let mut lines = self.wallet_label(w);
+        lines.push(EN.code_view_public_watch.to_string());
+        (title, name, lines)
+    }
+
     /// Costs what `text`, `wallet_file_text`, `create_key_text` and the
     /// rest it calls cost. The QR view of a public file a flow makes: its
     /// code, and the name and label of its picture.
@@ -978,7 +1003,6 @@ impl Faraday {
             }
             Code::MultisigConfig(i) | Code::Bsms(i) => {
                 let w = wallet(i)?;
-                let stem = file_stem(&w.name);
                 let what = if code == Code::MultisigConfig(i) {
                     2
                 } else {
@@ -987,19 +1011,7 @@ impl Faraday {
                 let text = self
                     .wallet_file_text(c, i, what)
                     .ok_or(EN.code_view_this_wallet_has)?;
-                let (title, name) = if what == 2 {
-                    (
-                        fill(EN.code_view_multisig, &[&w.name.to_string()]),
-                        format!("{stem}-multisig-config.png"),
-                    )
-                } else {
-                    (
-                        fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
-                        format!("{stem}-bsms.png"),
-                    )
-                };
-                let mut lines = self.wallet_label(w);
-                lines.push(EN.code_view_public_watch.to_string());
+                let (title, name, lines) = self.wallet_code_head(w, what);
                 Ok(QrView::text(c, &title, &text)?.public(&name, lines))
             }
             Code::SpecterDiy(i) => self.specter_diy_view(c, wallet(i)?),

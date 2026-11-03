@@ -4,7 +4,7 @@
 # Files over 2,500 lines, at their size: split them, and lower the line.
 file faraday/faraday-core/src/backup_flow/steps.rs 2899
 file faraday/faraday-core/src/board/mod.rs 2529
-file faraday/faraday-core/src/lib.rs 6197
+file faraday/faraday-core/src/lib.rs 5991
 file faraday/faraday-core/src/plan/mod.rs 3985
 file faraday/faraday-core/src/vault/mod.rs 3509
 file faraday/faraday-core/src/vault/screen.rs 3106

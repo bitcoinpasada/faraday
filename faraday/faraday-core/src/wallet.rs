@@ -2413,7 +2413,7 @@ impl Faraday {
                     self.inbox_load_named();
                 }
             }
-            Action::PublicOut(i, what) => self.public_out(i, what),
+            Action::PublicOut(i, what) => self.public_out_job(i, what),
             Action::PublicMore(i) => {
                 self.backup.public_more(i);
             }

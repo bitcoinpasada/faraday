@@ -26,11 +26,11 @@ use faraday_crypto::work::Compute;
 use crate::copy_check::{PIN_MAX, Typed, WordCheck, WordsUse, copy_key};
 use crate::forms;
 use crate::plan::{CopyChecks, CopyForm, CopyForms};
+use crate::public_files;
 use crate::wallet::{Kind, Session, Wallet, fp_text, wallet_name};
 use crate::{
-    Action, BStage, Code, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen,
-    Sheet, board, bstep, copy_check, file_stem, flow, paper, plan, plan_cards_on, qrow, qstep, ui,
-    vault,
+    Action, BStage, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen, Sheet,
+    board, bstep, copy_check, file_stem, flow, paper, plan, plan_cards_on, qrow, qstep, ui, vault,
 };
 use faraday_bip::bip39::Language;
 use faraday_shell_api::Key as KeyIn;
@@ -304,20 +304,37 @@ pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Stri
 /// turns it into a PDF; the format is lines of `field: value` after a
 /// first line naming it.
 pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> String {
+    let slots: Vec<Option<Fingerprint>> = session
+        .slots(wallet)
+        .iter()
+        .map(|s| s.fingerprint)
+        .collect();
+    sheet_wallet_on(c, session.network(), &slots, wallet)
+}
+
+/// Costs an address derivation (through `address_on`). [`sheet_wallet`]
+/// from what it reads of the session, owned: the network and each key
+/// slot's fingerprint.
+pub(crate) fn sheet_wallet_on(
+    c: &Compute,
+    network: Network,
+    slots: &[Option<Fingerprint>],
+    wallet: &Wallet,
+) -> String {
     let mut out = String::from("faraday-sheet 1\nkind: wallet\n");
-    out.push_str(&format!("network: {}\n", session.network().name()));
+    out.push_str(&format!("network: {}\n", network.name()));
     out.push_str(&format!("name: {}\n", wallet_name(&wallet.name)));
     out.push_str(&format!("shape: {}\n", Session::shape(wallet)));
     out.push_str(&format!(
         "descriptor: {}\n",
         wallet.policy().to_descriptor_checksummed()
     ));
-    for (i, slot) in session.slots(wallet).iter().enumerate() {
+    for (i, fingerprint) in slots.iter().enumerate() {
         let key = &wallet.policy().keys()[i];
         out.push_str(&format!(
             "key: {} {} {}\n",
             i + 1,
-            slot.fingerprint
+            fingerprint
                 .map(fp_text)
                 .unwrap_or_else(|| "--------".into()),
             key.key_text()
@@ -331,7 +348,7 @@ pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> String {
     ] {
         out.push_str(&format!(
             "address: {label} {}\n",
-            session.address(c, wallet, change, index)
+            wallet.address_on(c, network, change, index)
         ));
     }
     out
@@ -1420,15 +1437,9 @@ impl Faraday {
                 }
                 self.backup_extras();
                 self.plan_save();
-                self.backup_files_make();
-                let items = self.backup_items_now(c);
-                let first = items
-                    .iter()
-                    .copied()
-                    .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(c, it)));
-                self.backup.checklist();
-                self.backup_item_open(first);
-                self.backups_sync();
+                // The files are made on the worker; the checklist opens with
+                // the answer.
+                public_files::checklist_start(self);
             }
             Action::BPlan => {
                 // The cards show the map as it is, a chart's edits
@@ -1495,7 +1506,7 @@ impl Faraday {
             Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
             Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
             Action::BFilesMake => {
-                self.backup_files_make();
+                public_files::checklist_make(self);
                 self.backups_sync();
             }
             Action::BackupFirst(w) => self.backup_first(w),
@@ -1536,7 +1547,7 @@ impl Faraday {
                 // The shares' files and pictures are made again once the
                 // slider is let go and a frame drawn (`docs/SPEED.md` §9).
                 if let Some(w) = remake {
-                    self.later = Some(Later::PublicOut(w, 4));
+                    self.later = Some(Later::Press(Action::PublicOut(w, 4)));
                     self.worker.set_drawn(false);
                 }
             }
@@ -2352,95 +2363,14 @@ impl Faraday {
     /// otherwise none, which a toast says.
     pub(crate) fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(String, Vec<u8>)> {
         let c = self.compute();
-        let net = self.session.network();
-        let omit = self.backup.state().map(|b| b.answers.omit);
-        let refused = self.session.wallets.get(wallet).and_then(|w| match what {
-            2 if multisig_config(w, None).is_some()
-                && crate::restore::checked_config(&c, net, w).is_none() =>
-            {
-                Some(EN.backup_config_rebuilds_another)
-            }
-            4 if splits(w) => {
-                let (m, n) = Session::quorum(w);
-                let plan = split_plan(n, m, omit.unwrap_or(m.saturating_sub(1)));
-                (!crate::restore::sheets_rebuild(&c, net, w, &plan))
-                    .then_some(EN.backup_sheets_rebuild_another)
-            }
-            _ => None,
-        });
-        if let Some(why) = refused {
-            self.toast(why);
+        let Some(inputs) = self.public_inputs(&c, wallet) else {
             return Vec::new();
-        }
-        self.public_files(wallet, what, true)
-    }
-
-    /// Making the checklist makes every public file it calls for, For
-    /// the stick: the blank template, the sheet or the shares, and the
-    /// files for the software chosen. Made again, each replaces its
-    /// namesake.
-    pub(crate) fn backup_files_make(&mut self) {
-        let c = self.compute();
-        let Some(b) = self.backup.state() else {
-            return;
         };
-        let w = b.wallet;
-        let (qr, text) = (
-            b.answers.form[plan::form::QR],
-            b.answers.form[plan::form::TEXT],
-        );
-        let split = self
-            .session
-            .wallets
-            .get(w)
-            .is_some_and(|wl| b.answers.split && splits(wl));
-        let items: Vec<plan::Item> = self
-            .backup_items_now(&c)
-            .into_iter()
-            .filter_map(bstep::item)
-            .collect();
-        let mut files: Vec<(String, Vec<u8>)> = Vec::new();
-        for item in items {
-            match item {
-                plan::Item::Sheets => files.extend(self.public_made(w, if split { 4 } else { 3 })),
-                plan::Item::PublicFiles => {
-                    // In the form chosen, as `backup_public_names` lists
-                    // them: the picture, the text, or both.
-                    for what in self.backup_public() {
-                        let picture: Vec<(String, Vec<u8>)> = match what {
-                            _ if !qr => Vec::new(),
-                            1 => self.public_made(w, 8),
-                            2 | 6 => {
-                                let code = if what == 2 {
-                                    Code::MultisigConfig(w)
-                                } else {
-                                    Code::Bsms(w)
-                                };
-                                self.code_view(&c, code)
-                                    .ok()
-                                    .and_then(|v| v.png(&c))
-                                    .into_iter()
-                                    .collect()
-                            }
-                            _ => Vec::new(),
-                        };
-                        if picture.is_empty() || text {
-                            files.extend(self.public_made(w, what));
-                        }
-                        files.extend(picture);
-                    }
-                    // Each key's account key files go with them.
-                    files.extend(self.account_key_files(&c, w));
-                }
-                _ => {}
-            }
+        let made = public_files::made(&c, &inputs, what);
+        if let Some(t) = &made.toast {
+            self.toast(t);
         }
-        let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
-        for (name, bytes) in files {
-            self.put_outbox(&name, bytes);
-        }
-        self.backup_sent(w, &names);
-        self.toast_out_files(&names);
+        made.files
     }
 
     /// Files of wallet `wallet` just put in the Outbox, for the summary

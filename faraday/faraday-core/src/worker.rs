@@ -28,6 +28,8 @@ pub enum Kind {
     Signing,
     /// A PSBT read and inspected.
     PsbtRead,
+    /// A set of a wallet's public files made.
+    PublicFiles,
 }
 
 impl Kind {
@@ -40,7 +42,8 @@ impl Kind {
             | Kind::AezeedRead
             | Kind::KdbxWrite
             | Kind::Signing
-            | Kind::PsbtRead => false,
+            | Kind::PsbtRead
+            | Kind::PublicFiles => false,
         }
     }
 }
@@ -70,6 +73,7 @@ pub(crate) enum Job {
     Kdbx(Box<crate::vault::KdbxWork>),
     Sign(Box<crate::signing::SignWork>),
     SpendRead(Box<crate::signing::read::ReadWork>),
+    Files(Box<crate::public_files::FilesWork>),
 }
 
 /// What a job gives back.
@@ -80,6 +84,7 @@ pub(crate) enum Done {
     Kdbx(Box<crate::vault::KdbxDone>),
     Sign(Box<crate::signing::SignDone>),
     SpendRead(Box<crate::signing::read::ReadDone>),
+    Files(Box<crate::public_files::FilesDone>),
 }
 
 impl Job {
@@ -91,6 +96,7 @@ impl Job {
             Job::Kdbx(_) => Kind::KdbxWrite,
             Job::Sign(_) => Kind::Signing,
             Job::SpendRead(_) => Kind::PsbtRead,
+            Job::Files(_) => Kind::PublicFiles,
         }
     }
 
@@ -103,6 +109,7 @@ impl Job {
             Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
             Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
             Job::SpendRead(j) => Done::SpendRead(Box::new(j.run(c))),
+            Job::Files(j) => Done::Files(Box::new(j.run(c))),
         }
     }
 }

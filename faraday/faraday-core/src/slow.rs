@@ -8,11 +8,15 @@ use crate::{boot_import, seeds, vanity};
 
 /// Whether a press starts a job on the worker (`docs/WORKERS.md` §2.1):
 /// its work is over the line, so it is not drawn first; the screen stays
-/// and shows the busy line while the worker runs it. Not yet any press
-/// but Practice's samples loaded; the batches that follow move the
+/// and shows the busy line while the worker runs it. Practice's samples
+/// loaded, the backup's checklist and a wallet's multisig config, split
+/// shares and Specter DIY pictures (W7); the batches that follow move the
 /// others here from [`drawn_first`].
 pub(crate) fn starts_job(a: Action) -> bool {
-    matches!(a, Action::SamplesLoad)
+    matches!(
+        a,
+        Action::SamplesLoad | Action::BChecklist | Action::PublicOut(_, 2 | 4 | 14)
+    )
 }
 
 /// The rule `drawn_first` keeps, held in debug builds and every test: a
@@ -41,11 +45,9 @@ pub(crate) fn drawn_first(a: Action) -> bool {
     use crate::vault::VaultAction as V;
     matches!(
         a,
-        Action::BChecklist
-            | Action::BC32(crate::codex32_backup::Press::Set(
-                crate::codex32_backup::SetPress::MakeNew,
-            ))
-            | Action::BNewVault(_)
+        Action::BC32(crate::codex32_backup::Press::Set(
+            crate::codex32_backup::SetPress::MakeNew,
+        )) | Action::BNewVault(_)
             | Action::CNext(_)
             | Action::CPassLock
             | Action::CSlotVault(..)
@@ -66,8 +68,6 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::SamplePsbt
             | Action::PRecord(_)
             | Action::POut
-            // Specter DIY's addwallet as pictures: one per numbered part.
-            | Action::PublicOut(_, 14)
             | Action::PotentialMake
             | Action::SecretHold
             | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
@@ -101,9 +101,5 @@ pub(crate) fn drawn_first(a: Action) -> bool {
 /// is long enough to be seen: pictures and PDFs made.
 pub(crate) fn working_text(a: Action) -> Option<&'static str> {
     use crate::backup_flow::steps::FlowAction as F;
-    matches!(
-        a,
-        Action::BChecklist | Action::SecretHold | Action::Flow(F::WalletLock)
-    )
-    .then_some(EN.working_files)
+    matches!(a, Action::SecretHold | Action::Flow(F::WalletLock)).then_some(EN.working_files)
 }
