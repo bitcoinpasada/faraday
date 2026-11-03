@@ -274,15 +274,15 @@ interpreter and mempool policy.
 Each run has a time budget, and each area's corpus is sized to fit it,
 so adding an area does not lengthen the run much.
 
-- The stamp run, on twelve workers on the build machine (2026-10-27):
-  89 s, about 1,000 s of work; signed messages 116 s of it, BIP-39 77 s,
+- The stamp run (2026-10-27): about 1,000 s of work, shared among the
+  workers; signed messages 116 s of it, BIP-39 77 s,
   taproot trees 82 s, codex32 45 s, MuSig2 35 s (it keeps the
   reference's point multiplications, four times faster with the same
   answers). Pure-Python curve arithmetic takes about 5 to 30 ms an
   operation, so an area gets a few thousand random cases.
 - The run before a release: ten times the cases, 465,000 corpus cases,
-  under 10 minutes on twelve workers, the slowest area no longer setting
-  the length of the run (2026-10-29: about 9 minutes, 6,300 s of work, of
+  the slowest area no longer setting the length of the run (2026-10-29:
+  about 6,300 s of work, of
   which the funding of `sign`'s cases on Core's node is 20 s; signed
   messages 1,150 s, taproot trees 620 s, BIP-39 90 s, since
   python-mnemonic is given its wordlists with a table to find a word's

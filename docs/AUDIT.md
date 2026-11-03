@@ -126,7 +126,7 @@ The highest-leverage single fact for an auditor: everything above marked
 - The PSBT version 2 reader (`faraday-psbt::v2`)
 - BIP-374 DLEQ proofs (`faraday-bip::dleq`) and BIP-375's sending fields (`faraday-psbt::silent`)
 - The four-equal-slot vault container and its HKDF-SHA256 over HMAC (`faraday-vault`)
-- The age v1 passphrase file: header, scrypt stanza, header MAC and STREAM payload (`faraday-vault::age`)
+- The vault contents TOML reader (`faraday-vault::contents`)
 - TOTP code derivation (`faraday-vault::totp`)
 - The KDBX 4 file format (`faraday-backup`)
 - OpenPGP v4 packet construction (`faraday-pgp`)

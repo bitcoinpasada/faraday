@@ -1,6 +1,6 @@
 # toml_parser
 
-**Purpose.** Lexes and parses the TOML inside an age vault (`docs/VAULT.md` §7)
+**Purpose.** Lexes and parses the TOML inside a vault (`docs/VAULT.md` §7)
 into events, and decodes keys and scalars (strings with their escapes,
 integers, booleans, date-times). `faraday-vault`'s `contents` module builds
 the tree from the events and holds the rules TOML puts across keys.

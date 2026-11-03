@@ -17,9 +17,9 @@ limit on a transfer is kept against a compression bomb.
 `default-features = false, features = ["with-alloc"]`, the version `png`
 resolves to.
 
-**A test edge.** `faraday-vault` takes it as a dev-dependency, to inflate
-the zlib-compressed vectors of the age testkit (`tools/vectors/age/`);
-nothing of it is in the app.
+**Planned edge.** `faraday-vault` will take it as a normal dependency, to
+inflate the gzip a KeePass app may have written into a KDBX file it opens
+(`docs/VAULT.md` §7.1); not yet built, so no vault code uses it today.
 
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.

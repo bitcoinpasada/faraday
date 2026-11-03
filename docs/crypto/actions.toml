@@ -6401,12 +6401,6 @@ status = "Informational"
 checked = "2026-10-28"
 source = "rfc-editor.org"
 
-[standard."age v1"]
-name = "age, a file encryption format (age-encryption.org/v1), C2SP"
-status = "Convention"
-checked = "2026-11-02"
-source = "c2sp.org/age, the editor's copy"
-
 [standard."TOML v1.0.0"]
 name = "TOML, Tom's Obvious Minimal Language, version 1.0.0"
 status = "Status not checked"
@@ -6457,12 +6451,6 @@ name = "The KeePass database format, version 4"
 status = "Convention"
 checked = "2026-10-28"
 source = "keepass.info/help/kb/kdbx_4.html, pinned in tools/reference/kdbx4"
-
-[standard."age v1 (C2SP)"]
-name = "The age file encryption format, version 1"
-status = "Convention"
-checked = "2026-11-02"
-source = "c2sp.org/age, age-encryption.org/v1; vectors in tools/vectors/age"
 
 [standard."RFC 4880"]
 name = "OpenPGP Message Format, obsoleted by RFC 9580"
@@ -6745,32 +6733,14 @@ places = [
 ]
 
 [[action]]
-id = "vault-age"
-name = "Seal and open an age file"
-action = "Writes and reads an age v1 file with one scrypt stanza: scrypt over the passphrase wraps a file key with ChaCha20-Poly1305, an HMAC-SHA-256 over the header under an HKDF-SHA-256 key authenticates it, and the payload is ChaCha20-Poly1305 in 64 KiB STREAM chunks."
+id = "vault-contents"
+name = "Read a vault's contents"
+action = "Reads the TOML document inside an open vault, or the TOML of a QR vault, into its items: a seed, a passphrase, a note, a wallet, a codex32 set. Every form outside the document's rules is refused with the key and line named, and a document read is written again to the same items."
 row = "vault"
-standards = [
-  "age v1 (C2SP)",
-  "RFC 7914",
-  "RFC 5869",
-  "RFC 2104",
-  "RFC 8439",
-]
+standards = ["TOML v1.0.0"]
 learn = "faraday:vaults"
 screens = []
 functions = [
-  "faraday/faraday-vault/src/age.rs::recognise",
-  "faraday/faraday-vault/src/age.rs::seal",
-  "faraday/faraday-vault/src/age.rs::open",
-  "faraday/faraday-vault/src/age.rs::open_payload",
-  "faraday/faraday-vault/src/age.rs::seal_chunk",
-  "faraday/faraday-vault/src/age.rs::chunk_nonce",
-  "faraday/faraday-vault/src/age.rs::wrap_key",
-  "faraday/faraday-vault/src/age.rs::wrap_cipher",
-  "faraday/faraday-vault/src/age.rs::hkdf",
-  "faraday/faraday-vault/src/age.rs::payload_cipher",
-  "faraday/faraday-vault/src/age.rs::header_mac",
-  "faraday/faraday-vault/src/age.rs::parse_header",
   "faraday/faraday-vault/src/contents.rs::read",
   "faraday/faraday-vault/src/contents.rs::read_item",
   "faraday/faraday-vault/src/contents.rs::read_seed",
@@ -6778,54 +6748,47 @@ functions = [
   "faraday/faraday-vault/src/contents.rs::r_wallet",
 ]
 code = [
-  "faraday/faraday-vault/src/age.rs::seal",
-  "faraday/faraday-vault/src/age.rs::open",
+  "faraday/faraday-vault/src/contents.rs::read",
+  "faraday/faraday-vault/src/contents.rs::read_qr",
 ]
 
 [action.implementation]
 crate = "faraday/faraday-vault"
 libraries = [
-  "chacha20poly1305",
+  "toml_parser",
 ]
-adds = "Only the passphrase shape of age is written: one scrypt stanza in the binary form, the header MAC, and the 64 KiB STREAM payload; scrypt, HKDF-SHA-256 and HMAC-SHA-256 are Faraday's own (`faraday-crypto`), ChaCha20-Poly1305 is the RustCrypto crate. Every refusal the specification names for that shape is its own error, a work factor above the caller's limit is refused before any work, and armor and every other recipient type are named and never read. Nothing here draws randomness: the salt, the file key and the payload nonce are the 48 bytes the caller passes. The functions that read the TOML document the file holds (`contents.rs`: `read`, `read_item`, `read_seed`, `read_qr`, `r_wallet`) are listed here because they take the compute token to check a seed's words, a codex32 string or a descriptor with the checks other actions hold; they hash, derive and sign nothing themselves."
-written_here = "The age v1 passphrase file: header, scrypt stanza, header MAC and STREAM payload (`faraday-vault::age`)"
+adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the length limits of docs/VAULT.md section 2.1 and 7 and the items' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name."
+written_here = "The vault contents TOML reader (`faraday-vault::contents`)"
 
 [action.checked]
-vectors = ["age", "toml"]
+vectors = ["toml"]
 tests = [
-  "faraday/faraday-vault/tests/age.rs::the_testkit_scrypt_vectors_give_their_results",
-  "faraday/faraday-vault/tests/age.rs::the_testkit_files_are_told_apart",
-  "faraday/faraday-vault/tests/age.rs::a_sealed_file_opens_to_what_was_sealed",
-  "faraday/faraday-vault/tests/age.rs::a_wrong_passphrase_is_its_own_refusal",
-  "faraday/faraday-vault/tests/age.rs::a_changed_header_byte_is_refused",
-  "faraday/faraday-vault/tests/age.rs::a_changed_payload_byte_is_refused",
-  "faraday/faraday-vault/tests/age.rs::a_work_factor_above_the_limit_is_refused_before_any_work",
-  "faraday/faraday-vault/src/age.rs::the_testkit_header_mac_and_payload_vectors_give_their_results",
+  "faraday/faraday-vault/tests/contents.rs::a_vault_of_every_kind_is_read_back_unchanged",
+  "faraday/faraday-vault/tests/contents.rs::a_hand_edited_document_reads_as_the_written_one",
+  "faraday/faraday-vault/tests/contents.rs::what_section_7_1_refuses_is_refused_naming_what_and_where",
+  "faraday/faraday-vault/tests/contents.rs::a_qr_vault_refuses_what_it_cannot_hold",
+  "faraday/faraday-vault/tests/contents.rs::a_qr_vault_may_hold_a_note_or_nothing",
+  "faraday/faraday-vault/src/contents/tree/toml_test.rs::every_invalid_case_of_toml_test_is_refused",
+  "faraday/faraday-vault/src/contents/tree/toml_test.rs::every_valid_case_of_toml_test_is_accepted_but_what_faradays_rules_refuse",
 ]
-not_crosschecked = "Checked against the age testkit's published vectors, made by the age authors' generator; not yet cross-checked against Go `age` or `rage` in both directions (F189 plans it)."
-fuzz = ["age_file"]
+not_crosschecked = "Checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and items) are Faraday's and are not checked against an outside source."
+fuzz = ["contents"]
 
 [action.secrets]
 reveal = "none"
-constant_time = "The header MAC is compared in constant time (`equal`); scrypt, HKDF, HMAC and the chacha20poly1305 crate state nothing more."
-wiped = "The file key, the wrapping key, the HKDF output and the opened plaintext are Zeroizing values wiped on drop; scrypt wipes its working memory."
+constant_time = "Not applicable: it parses text and compares nothing secret."
+wiped = "The document and the values read from it are held by the caller's wiping types (docs/KEYS.md)."
 
 [action.limits]
 lines = [
-  "One scrypt stanza only; a file with another recipient type, a second stanza or ASCII armor is named and not opened.",
-  "Work factor 16 to 20 written; a work factor above the caller's limit is refused before any work.",
-  "A wrong passphrase, a changed header, a changed or cut payload and an empty final chunk that is not alone are each their own refusal.",
-  "The passphrase arrives in Unicode NFC; the caller puts it there.",
+  "A document over 4 MiB, a key path of more than 8 parts and a key or form outside docs/VAULT.md section 7 are refused.",
+  "A QR vault holds one item, a note of at most QR_NOTE_MAX bytes and a passphrase of at most QR_PASSPHRASE_MAX; more is refused as too long, naming the key.",
 ]
 
 [[action.own]]
-text = "Only the passphrase shape of age is written (F178, F189): armor and every other recipient type are recognised and refused."
+text = "Whatever the vault's TOML rules do not name is refused, so a hand-edited document that adds a key is not read (docs/VAULT.md section 7)."
 kind = "Conservative"
 decision = "F189"
-
-[action.review]
-fingerprint = "e93999a843e1cfaa9c53876c92ec31c6b400bac75cf161879e412ecb7d01a1bb"
-reviewed = "2026-11-02"
 
 [[action]]
 id = "vault-seal"
@@ -8311,6 +8274,9 @@ author = "the RustCrypto developers"
 [library.secp256k1]
 author = "the rust-bitcoin developers (rust-secp256k1), over libsecp256k1, by Bitcoin Core's libsecp256k1 project (bitcoin-core/secp256k1)"
 
+[library.toml_parser]
+author = "the toml-rs developers"
+
 [library.sha1]
 author = "the RustCrypto developers"
 
@@ -8331,10 +8297,6 @@ author = "the unicode-rs developers"
 [vector.addresses]
 source = "published"
 by = "the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitcoin/bips)"
-
-[vector.age]
-source = "published"
-by = "the C2SP testkit (C2SP/CCTV, `age/testdata`), made by the age authors' generator; the scrypt, header MAC and payload cases"
 
 [vector.toml]
 source = "published"
@@ -8545,6 +8507,34 @@ reason = "The encoding's name."
 [[name_with_digits]]
 pattern = "U\\+[0-9A-F]{4,6}"
 reason = "A Unicode code point is named by its number."
+
+[[name_with_digits]]
+name = "KDBX 4"
+reason = "The KeePass database format's name and major version (the KeePass KDBX 4 specification)."
+
+[[name_with_digits]]
+name = "Argon2"
+reason = "A format or function name that holds digits (RFC 9106)."
+
+[[name_with_digits]]
+name = "AES-256"
+reason = "A format or function name that holds digits (FIPS 197)."
+
+[[name_with_digits]]
+name = "HMAC-SHA-256"
+reason = "A format or function name that holds digits (RFC 2104)."
+
+[[name_with_digits]]
+name = "HKDF-SHA-256"
+reason = "A format or function name that holds digits (RFC 5869)."
+
+[[name_with_digits]]
+name = "SHA-512"
+reason = "A format or function name that holds digits (FIPS 180-4)."
+
+[[name_with_digits]]
+name = "S2K"
+reason = "A format or function name that holds digits (RFC 9580's string-to-key)."
 
 [[name_with_digits]]
 name = "log2"

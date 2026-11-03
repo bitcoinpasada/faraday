@@ -122,13 +122,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "age_file"
-path = "fuzz_targets/age_file.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "contents"
 path = "fuzz_targets/contents.rs"
 test = false

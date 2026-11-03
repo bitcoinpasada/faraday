@@ -1222,7 +1222,6 @@ dependencies = [
  "faraday-crypto",
  "faraday-intake",
  "hmac",
- "miniz_oxide 0.8.9",
  "serde_json",
  "sha1",
  "sha2",

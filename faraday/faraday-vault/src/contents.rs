@@ -1,4 +1,4 @@
-//! The text inside an age vault (`docs/VAULT.md` §7, §7.1, §2, §2.1): the
+//! The text inside a vault (`docs/VAULT.md` §7, §7.1, §2, §2.1): the
 //! TOML document of a file vault and the top-level keys of a QR vault,
 //! written from and read into the vault's records ([`Record`], whose
 //! fields are the bytes the other modules of this crate lay out).
@@ -25,6 +25,7 @@
 
 mod tree;
 
+use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -1107,7 +1108,7 @@ fn across(records: &[Record]) -> Result<(), Refusal> {
         (kind::AMOUNTS, "signed", field::AMOUNTS_TX),
         (kind::CODEX32_SHARE, "share", field::CODEX32_KEY),
     ] {
-        let mut seen: Vec<(&[u8], u8)> = Vec::new();
+        let mut seen: BTreeSet<(&[u8], u8)> = BTreeSet::new();
         for (i, r) in records.iter().filter(|r| r.kind == k).enumerate() {
             let id = r.field(by).unwrap_or(&[]);
             let extra = if k == kind::CODEX32_SHARE {
@@ -1115,10 +1116,9 @@ fn across(records: &[Record]) -> Result<(), Refusal> {
             } else {
                 0
             };
-            if seen.contains(&(id, extra)) {
+            if !seen.insert((id, extra)) {
                 return Err(at(name, i, "", Why::Twice));
             }
-            seen.push((id, extra));
         }
     }
     Ok(())
@@ -1182,7 +1182,13 @@ pub fn write_qr(record: &Record) -> Result<Zeroizing<Vec<u8>>, Refusal> {
         _ => return Err(refuse(Why::NotQr)),
     }
     if o.full {
-        return Err(at("", 0, "note", Why::TooLong));
+        let key = match record.kind {
+            kind::KEY => "words",
+            kind::CODEX32_SHARE => "codex32",
+            kind::PASSPHRASE => "passphrase",
+            _ => "note",
+        };
+        return Err(at("", 0, key, Why::TooLong));
     }
     let mut bytes = o.bytes;
     bytes.resize(QR_LEN, b'\n');
@@ -1261,6 +1267,19 @@ pub fn read_qr(c: &Compute, bytes: &[u8]) -> Result<Record, Refusal> {
         {
             return Err(at("", 0, "words", Why::NotQr));
         }
+    }
+    // A form that is shorter written than `write_qr` writes it (`note="…"`
+    // without spaces, a literal string with no escapes) can hold more than
+    // the limits: what `write_qr` would refuse as too long is refused here.
+    if matches!(record.kind, kind::NOTE | kind::PASSPHRASE)
+        && write_qr(&record).is_err_and(|r| r.why == Why::TooLong)
+    {
+        let key = if record.kind == kind::NOTE {
+            "note"
+        } else {
+            "passphrase"
+        };
+        return Err(at("", 0, key, Why::TooLong));
     }
     Ok(record)
 }

@@ -143,8 +143,10 @@ def interpreter(path):
 
 def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None, core=None):
     refs = hashlib.sha256((ROOT / "tools/crosscheck/references.sha256").read_bytes()).hexdigest()
-    workers = ", ".join(interpreter(p) for p in interpreters[1:])
-    workers = f"workers {jobs}" + (f"; {workers} for the areas it speeds" if workers else "") + "\n"
+    # The number of workers is the machine's, not the cross-check's: it is
+    # left out of the stamp.
+    faster = ", ".join(interpreter(p) for p in interpreters[1:])
+    workers = f"{faster} for the areas it speeds\n" if faster else ""
     STAMP.write_text(
         "# The last passing crypto cross-check (`just crosscheck`, F79).\n"
         "# `just lint` fails when `inputs` no longer matches the crypto sources,\n"

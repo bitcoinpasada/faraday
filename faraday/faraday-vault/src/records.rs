@@ -19,6 +19,7 @@
 //!
 //! Every field's bytes are wiped when the record is dropped.
 
+use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::Mnemonic;
@@ -247,15 +248,14 @@ fn check_across(records: &[Record]) -> Result<(), Fault> {
         (kind::PASSPHRASE, field::PASSPHRASE_KEY),
         (kind::AMOUNTS, field::AMOUNTS_TX),
     ] {
-        let mut seen: Vec<&[u8]> = Vec::new();
+        let mut seen: BTreeSet<&[u8]> = BTreeSet::new();
         for r in records.iter().filter(|r| r.kind == ty) {
             let Some(id) = r.field(by) else { continue };
-            if seen.contains(&id) {
+            if !seen.insert(id) {
                 let mut of = [0u8; 4];
                 of.copy_from_slice(&id[..4]);
                 return Err(Fault::Duplicate { kind: ty, of });
             }
-            seen.push(id);
         }
     }
     Ok(())

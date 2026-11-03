@@ -1,4 +1,4 @@
-//! The text inside an age vault (`docs/VAULT.md` §7, §7.1, §2.1): a vault
+//! The text inside a vault (`docs/VAULT.md` §7, §7.1, §2.1): a vault
 //! of every kind of item written and read back, a hand-edited document
 //! read as the written one, what a document must not hold, and the QR
 //! vault's top-level keys.
@@ -279,6 +279,10 @@ fn what_section_7_1_refuses_is_refused_naming_what_and_where() {
         (format!("[[note]]\n{}", (0..65).map(|i| format!("k{i} = 1\n")).collect::<String>()), Why::Syntax(0), "", 0, ""),
         ("[[note]]\nx = {a = 1,\n b = 2}".into(), Why::Syntax(0), "", 0, ""),
         ("[[note]]\nx = {a = 1,}".into(), Why::Syntax(0), "", 0, ""),
+        (format!("[[note]]\n{} = 1", ["a"; 9].join(".")), Why::Syntax(0), "", 0, ""),
+        (format!("[[note]]\nx = {{{} = 1}}", ["a"; 9].join(".")), Why::Syntax(0), "", 0, ""),
+        (format!("[{}]\nx = 1", ["a"; 9].join(".")), Why::Syntax(0), "", 0, ""),
+        (format!("[[note]]\n{} = 1", ["a"; 100_000].join(".")), Why::Syntax(0), "", 0, ""),
         ("[[note]]\ntext = \"a\"\n[note]\ntext = \"b\"".into(), Why::Syntax(0), "", 0, ""),
     ];
     for (body, why, item, index, key) in cases {
@@ -477,14 +481,6 @@ fn a_twelve_word_seed_and_a_twenty_four_word_one_make_codes_of_one_size() {
 }
 
 #[test]
-fn a_twenty_four_word_qr_vault_sealed_fits_a_version_15_code() {
-    let item = Record::new(kind::KEY).with(field::KEY, &words(TWENTY_FOUR));
-    let plain = write_qr(&item).unwrap();
-    let sealed = faraday_vault::age::seal(&compute(), b"a passphrase", 16, &[7; 48], &plain);
-    assert!(sealed.len() <= 412, "{} bytes", sealed.len());
-}
-
-#[test]
 fn a_qr_vault_refuses_what_it_cannot_hold() {
     let c = compute();
     // A 15-word seed, a seed with a label, a long passphrase.
@@ -568,6 +564,26 @@ fn a_qr_vault_may_hold_a_note_or_nothing() {
         back(&note(text.as_bytes())).field(field::NOTE).unwrap(),
         text.as_bytes()
     );
+    // A shorter way of writing the same line holds no more than the limit
+    // once written: it is refused on read, naming the key.
+    let padded = |t: String| {
+        let mut b = t.into_bytes();
+        b.resize(QR_LEN, b'\n');
+        b
+    };
+    let long = "a".repeat(QR_NOTE_MAX + 1);
+    for line in [format!("note=\"{long}\"\n"), format!("note='{long}'\n")] {
+        let r = read_qr(&c, &padded(line)).unwrap_err();
+        assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "note"));
+    }
+    let long = "a".repeat(QR_PASSPHRASE_MAX + 1);
+    for line in [
+        format!("passphrase=\"{long}\"\nfor=\"73c5da0a\"\n"),
+        format!("passphrase='{long}'\nfor=\"73c5da0a\"\n"),
+    ] {
+        let r = read_qr(&c, &padded(line)).unwrap_err();
+        assert_eq!((r.why, r.key.as_str()), (Why::TooLong, "passphrase"));
+    }
     // Nothing: the padding alone.
     let empty = write_qr(&note(b"")).unwrap();
     assert!(empty.iter().all(|&b| b == b'\n'));

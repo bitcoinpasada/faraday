@@ -33,7 +33,7 @@ hmac = { workspace = true }
 # `faraday-pgp` already uses, so no new crate enters the tree.
 sha1 = { version = "0.11", default-features = false }
 
-# The TOML inside an age vault (docs/VAULT.md §7): the parser alone, by the
+# The TOML inside a vault (docs/VAULT.md §7): the parser alone, by the
 # publisher F71 trusts, without std; the tree is `contents/tree.rs`.
 toml_parser = { version = "1.1", default-features = false, features = ["alloc"] }
 
@@ -42,10 +42,6 @@ toml_parser = { version = "1.1", default-features = false, features = ["alloc"] 
 serde_json.workspace = true
 # The vault sizes it must agree with (tests/sizes.rs).
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
-# The C2SP age testkit's large vectors are zlib-compressed
-# (tools/vectors/age/); the version already in the build
-# (docs/deps/miniz_oxide.md).
-miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 
 [lints]
 workspace = true

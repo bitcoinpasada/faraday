@@ -110,7 +110,6 @@ already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 | `faraday-core/src/worker.rs`: `worker_loop` | `new(work::core_count)` | The core's worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own and the counts it makes come home with each answer (`docs/WORKERS.md` §5) |
 | `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests and the snapshot tool's sessions |
 | `compute()` in `faraday-vault`'s `src/tests.rs`, `tests/contents.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs`, `head.rs` and `vault_by_contents.rs`, `faraday-storage/tests/all/main.rs`, `faraday-intake/tests/all/common.rs`, `faraday-keys/tests/operations.rs`, `vault.rs` and `codex32.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/all/{bitlocker,notes,template,template_codex32}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
-| `compute()` in `faraday-vault`'s `tests/age.rs` | `new(count)`, a function that counts the key-stretching runs | The age tests, which check that a work factor over the limit is refused before any run |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
 The costs lint's `MINTS` (`tools/costs-lint/src/main.rs`) is this table,

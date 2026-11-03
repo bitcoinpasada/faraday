@@ -23,6 +23,10 @@ use zeroize::Zeroizing;
 /// The deepest nesting of arrays and inline tables read.
 const MAX_DEPTH: u32 = 16;
 
+/// The most parts one dotted key or table header holds: a longer one
+/// builds a table per part, which is nesting no vault needs.
+const MAX_KEY_PARTS: usize = 8;
+
 /// The most keys one table holds. No table of §7 has more than 13, and a
 /// table is searched by key as it is built, so a bound keeps a document
 /// of very many keys in one table from taking quadratic time: it is
@@ -440,6 +444,9 @@ impl EventReceiver for Builder<'_> {
             keys.clear();
         }
         keys.push(key);
+        if keys.len() > MAX_KEY_PARTS {
+            self.refuse(span.start());
+        }
     }
     fn scalar(&mut self, span: Span, enc: Option<Encoding>, _: &mut dyn ErrorSink) {
         if self.fail.is_some() {

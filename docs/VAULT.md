@@ -837,8 +837,7 @@ Sequoia (pysequoia 0.1.36) opened it to the same plaintext.
 
 Each reader has a fuzz target, seeded from the vectors: the KDBX header
 and block stream, the inflate and the XML reader with §7's rules
-(`kdbx_file`), and the QR vault's packets and its TOML (`qr_vault`);
-the age codec's `age_file` goes with it.
+(`kdbx_file`), and the QR vault's packets and its TOML (`qr_vault`).
 
 ## 11. What the app remembers of a locked vault
 
