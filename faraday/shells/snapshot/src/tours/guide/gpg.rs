@@ -105,6 +105,7 @@ pub(super) fn start(t: &mut Tour, kind: Kind) -> Result<(), String> {
 /// The stick a place keeps, the same each time it is plugged in.
 fn stick_of(slot: usize) -> StickInfo {
     StickInfo {
+        make: Default::default(),
         serial: Some(0x3100 + slot as u32),
         id: format!("place{slot}"),
         label: "KEYSTICK".into(),

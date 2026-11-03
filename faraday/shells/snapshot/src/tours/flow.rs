@@ -54,6 +54,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     // Two empty sticks that read exactly alike: only the person can tell
     // them apart.
     let empty = |id: &str| StickInfo {
+        make: Default::default(),
         serial: Some(0x1357_9bdf),
         id: id.into(),
         label: "SPARE".into(),

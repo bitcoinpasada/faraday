@@ -217,6 +217,9 @@ pub struct VaultRead {
 pub struct Bound {
     /// Its volume label.
     pub label: String,
+    /// The line that tells it apart on its figure, as it was when read;
+    /// not kept with the flow (`docs/STICK-SETUP.md` §5).
+    pub about: String,
     /// Its FAT volume serial.
     pub serial: Option<u32>,
     /// Its files, names and sizes.
@@ -731,6 +734,9 @@ pub struct Reading {
     pub purpose: Purpose,
     /// Its label, serial and listing.
     pub label: String,
+    /// The line that tells it apart on its figure
+    /// (`docs/STICK-SETUP.md` §5), worked out when it was listed.
+    pub about: String,
     /// Its serial.
     pub serial: Option<u32>,
     /// Its files.
@@ -2057,6 +2063,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 Some(s) => {
                     s.bound = Some(Bound {
                         label: label.to_string(),
+                        about: String::new(),
                         serial: serial.parse().ok(),
                         listing: Vec::new(),
                         vaults: Vec::new(),

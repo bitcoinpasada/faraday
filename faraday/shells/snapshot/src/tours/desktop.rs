@@ -88,6 +88,7 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     // put off.
     t.app.storage(faraday_core::StorageEvent::Sticks(vec![
         faraday_core::StickInfo {
+            make: Default::default(),
             serial: None,
             id: "boot".into(),
             label: "BOOT".into(),

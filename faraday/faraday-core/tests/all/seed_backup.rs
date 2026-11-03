@@ -302,6 +302,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
 
     faraday_core::testkit::move_to(&mut next.session, faraday_core::testkit::NET).unwrap();
     next.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),
@@ -393,6 +394,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             psbt: None,
         });
         app.storage(StorageEvent::Sticks(vec![StickInfo {
+            make: Default::default(),
             serial: None,
             id: STICK.to_string(),
             label: "TESTSTICK".to_string(),

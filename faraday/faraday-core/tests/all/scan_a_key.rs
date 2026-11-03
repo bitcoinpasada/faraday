@@ -39,6 +39,7 @@ fn unlocked() -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "boot".into(),
         label: "FARADAY".into(),
@@ -281,6 +282,7 @@ fn the_words_typed_instead_load_any_missing_key_and_refuse_another_seed() {
 fn with_a_stick_attached_scan_a_key_asks_for_it_to_be_pulled() {
     let (mut app, w) = on_savings();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "s".into(),
         label: "STICK".into(),

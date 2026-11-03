@@ -43,6 +43,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::OpenSetTime);
     t.press(Action::SetTimeKeep);
     let empty = |id: &str, serial: u32| StickInfo {
+        make: Default::default(),
         serial: Some(serial),
         id: id.into(),
         label: "KEYSTICK".into(),
@@ -184,6 +185,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     // every stick read, the step offers Open Vault 1 and Create Vault 2,
     // and Create's Pull sheet asks for the boot stick out first.
     let boot = StickInfo {
+        make: Default::default(),
         serial: Some(9),
         id: "boot".into(),
         label: "FARADAY".into(),

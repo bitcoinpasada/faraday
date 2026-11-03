@@ -158,6 +158,7 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
 
 fn empty_stick(id: &str, serial: u32) -> faraday_core::StickInfo {
     faraday_core::StickInfo {
+        make: Default::default(),
         serial: Some(serial),
         id: id.into(),
         label: "KEYSTICK".into(),

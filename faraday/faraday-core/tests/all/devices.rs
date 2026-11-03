@@ -464,6 +464,7 @@ fn the_reminders_ride_on_the_sheet_that_asks_for_a_stick_to_be_pulled() {
     let sticks = |on: bool| {
         StorageEvent::Sticks(if on {
             vec![StickInfo {
+                make: Default::default(),
                 serial: None,
                 id: "a".into(),
                 label: "STICK".into(),

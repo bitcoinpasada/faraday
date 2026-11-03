@@ -63,6 +63,7 @@ fn display(app: &mut Faraday) {
 /// A stick with `files`, pressed through Copy: every file read in.
 fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "FARADAY".into(),

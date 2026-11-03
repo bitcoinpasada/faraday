@@ -23,6 +23,7 @@ fn stick(app: &mut Faraday, attached: bool) {
 fn sticks_in(app: &mut Faraday, attached: bool, boot: bool) {
     let sticks = if attached {
         vec![StickInfo {
+            make: Default::default(),
             serial: None,
             id: "stick".into(),
             label: "STICK".into(),

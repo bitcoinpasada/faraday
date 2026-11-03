@@ -221,6 +221,7 @@ fn unlock_s_passphrase_stands_above_the_keyboard() {
         });
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Sticks(vec![StickInfo {
+            make: Default::default(),
             serial: None,
             id: "boot".into(),
             label: "FARADAY".into(),

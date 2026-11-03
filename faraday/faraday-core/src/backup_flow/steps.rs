@@ -786,6 +786,7 @@ impl Faraday {
             slot,
             purpose,
             label: st.label.clone(),
+            about: st.about(),
             serial: st.serial,
             listing: st.files.clone(),
             pending: fvlt.clone(),
@@ -1350,6 +1351,7 @@ impl Faraday {
         }
         let bound = Bound {
             label: r.label.clone(),
+            about: r.about.clone(),
             serial: r.serial,
             listing: r.listing.clone(),
             vaults: r.files.iter().map(|(f, _)| f.clone()).collect(),

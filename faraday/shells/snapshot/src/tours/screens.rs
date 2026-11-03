@@ -74,6 +74,7 @@ pub(crate) fn stick_session(t: &mut Tour) {
 /// A stick with nothing on it.
 fn stick() -> StickInfo {
     StickInfo {
+        make: Default::default(),
         serial: Some(0x4000),
         id: "screens".into(),
         label: "KEYSTICK".into(),

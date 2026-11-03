@@ -169,6 +169,7 @@ fn entry(t: &mut Tour, fields: &[&str]) {
 /// The stick the vault is written to.
 fn stick() -> StickInfo {
     StickInfo {
+        make: Default::default(),
         serial: Some(0x3200),
         id: "passwords".into(),
         label: "KEYSTICK".into(),

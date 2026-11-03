@@ -17,6 +17,7 @@ fn visiting() -> Faraday {
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: STICK.to_string(),
         label: "TESTSTICK".to_string(),

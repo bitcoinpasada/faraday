@@ -123,6 +123,7 @@ fn the_session_strip_names_the_current_stage() {
     assert_eq!(app.session_stage(&c), "Write out");
     app.storage(faraday_core::StorageEvent::Sticks(vec![
         faraday_core::StickInfo {
+            make: Default::default(),
             serial: None,
             id: "a".into(),
             label: "STICK".into(),

@@ -365,6 +365,7 @@ fn the_camera_opens_for_receive_with_a_stick_attached() {
     let mut app = desktop();
     display(&mut app, 1280, 800, 160);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "/sticks/BLANK".into(),
         label: "BLANK".into(),

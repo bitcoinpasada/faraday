@@ -16,6 +16,7 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
     t.app.event(display(size, t.dpi));
     t.app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         id: "boot".into(),
         label: "FARADAY".into(),
         boot: true,

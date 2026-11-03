@@ -141,6 +141,18 @@ impl Machine {
         fs::write(at.join("ro"), "1\n").unwrap();
     }
 
+    /// What a disk reports under `device/` and `size`; `None` writes no file.
+    fn reports(&self, disk: &str, files: &[(&str, &str)]) {
+        let d = self.root.join("sys/devices/usb").join(disk);
+        fs::create_dir_all(d.join("device")).unwrap();
+        for (name, text) in files {
+            match *name {
+                "size" => fs::write(d.join("size"), text).unwrap(),
+                _ => fs::write(d.join("device").join(name), text).unwrap(),
+            }
+        }
+    }
+
     /// A USB disk with no partition table: the whole disk is the volume.
     fn bare(&self, disk: &str, seq: u32, image: Vec<u8>, sectors: u64) {
         let d = self.root.join("sys/devices/usb").join(disk);
@@ -634,4 +646,73 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
         },
     );
     assert!(matches!(refused, Response::Failed(_)));
+}
+
+#[test]
+fn a_sticks_maker_model_and_size_are_read_from_its_disk() {
+    let c = compute();
+    let m = Machine::new("make-usb");
+    m.disk("sdb", 1, &[("", fat16("BACKUP"), true)]);
+    m.reports(
+        "sdb",
+        &[
+            ("vendor", "SanDisk \n"),
+            ("model", "Ultra           \n"),
+            ("size", "31260672\n"),
+        ],
+    );
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(&c, Request::List));
+    assert_eq!(list[0].make.maker.as_deref(), Some("SanDisk"));
+    assert_eq!(list[0].make.model.as_deref(), Some("Ultra"));
+    assert_eq!(list[0].make.size, Some(31_260_672 * 512));
+}
+
+#[test]
+fn a_cards_name_and_size_are_read_and_it_has_no_maker() {
+    let c = compute();
+    let m = Machine::new("make-sd");
+    m.disk(
+        "mmcblk1",
+        2,
+        &[("", fat16("FARADAYBOOT"), true), ("", fat16("DATA"), true)],
+    );
+    m.reports("mmcblk1", &[("name", "SD32G\n"), ("size", "62333952\n")]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(&c, Request::List));
+    let s = list.iter().find(|s| s.label == "DATA").unwrap();
+    assert_eq!(s.make.maker, None);
+    assert_eq!(s.make.model.as_deref(), Some("SD32G"));
+    assert_eq!(s.make.size, Some(62_333_952 * 512));
+}
+
+#[test]
+fn a_disk_that_reports_nothing_is_listed_with_nothing_told() {
+    let c = compute();
+    let m = Machine::new("make-none");
+    m.disk("sdc", 3, &[("", fat16("PLAIN"), true)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(&c, Request::List));
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].make, faraday_files::proto::Make::default());
+}
+
+#[test]
+fn a_maker_or_model_that_is_not_plain_text_is_not_shown() {
+    let c = compute();
+    let m = Machine::new("make-odd");
+    m.disk("sdd", 4, &[("", fat16("ODD"), true)]);
+    m.reports(
+        "sdd",
+        &[
+            ("vendor", "Real\u{202e}kniS\n"),
+            ("model", "Line\u{7}bell\n"),
+            ("size", "31260672\n"),
+        ],
+    );
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(&c, Request::List));
+    assert_eq!(list[0].make.maker, None);
+    assert_eq!(list[0].make.model, None);
+    assert_eq!(list[0].make.size, Some(31_260_672 * 512));
 }

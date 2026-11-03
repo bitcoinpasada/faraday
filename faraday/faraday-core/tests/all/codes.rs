@@ -146,6 +146,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
     let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S1".to_string(),
         label: "TESTSTICK".to_string(),

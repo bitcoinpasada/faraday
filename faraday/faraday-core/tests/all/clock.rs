@@ -98,6 +98,7 @@ fn gpg_count(app: &Faraday) -> usize {
 
 fn stick(id: &str, boot: bool, file: Option<&[u8]>) -> StickInfo {
     StickInfo {
+        make: Default::default(),
         serial: None,
         id: id.into(),
         label: id.to_uppercase(),

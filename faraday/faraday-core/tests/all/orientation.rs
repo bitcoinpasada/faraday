@@ -63,6 +63,7 @@ fn on_panel(native: (u16, u16), dpi: u16) -> Faraday {
 
 fn boot_stick(file: Option<&[u8]>) -> StickInfo {
     StickInfo {
+        make: Default::default(),
         serial: None,
         id: "boot".into(),
         label: "BOOT".into(),

@@ -188,6 +188,7 @@ fn the_desktop_opens_with_no_warning_and_takes_a_seed_at_once() {
 fn the_boot_import_offers_its_files_at_once() {
     let mut app = desktop();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "boot".into(),
         label: "FARADAY".into(),

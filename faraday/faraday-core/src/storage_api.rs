@@ -21,9 +21,65 @@ pub struct StickInfo {
     /// the name (`docs/VAULT-HARDENING.md` §2.1): found once when the
     /// shell made the listing.
     pub vaults: Vec<String>,
+    /// What the device reports of itself, where the shell can tell
+    /// (`docs/STICK-SETUP.md` §5).
+    pub make: StickMake,
+}
+
+/// A stick's maker, model and size as its device reports them; each is
+/// `None` where the shell does not know it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StickMake {
+    /// A USB stick's vendor.
+    pub maker: Option<String>,
+    /// A USB stick's model, or a card's name.
+    pub model: Option<String>,
+    /// The size in bytes.
+    pub size: Option<u64>,
 }
 
 impl StickInfo {
+    /// The line that tells the stick apart on its figure: its maker and
+    /// model as the device reports them, its size in decimal GB (MB under
+    /// 1 GB), then its name; each part only where known. Worked out once,
+    /// where the listing is taken.
+    #[must_use]
+    pub fn about(&self) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        let who: Vec<&str> = [&self.make.maker, &self.make.model]
+            .into_iter()
+            .flatten()
+            .map(String::as_str)
+            .collect();
+        if !who.is_empty() {
+            parts.push(who.join(" "));
+        }
+        if let Some(n) = self.make.size.filter(|n| *n > 0) {
+            parts.push(if n < 1_000_000_000 {
+                faraday_strings::fill(
+                    faraday_strings::EN.kind_line_mb,
+                    &[&((n + 500_000) / 1_000_000).max(1).to_string()],
+                )
+            } else {
+                faraday_strings::fill(
+                    faraday_strings::EN.kind_line_gb,
+                    &[&((n + 500_000_000) / 1_000_000_000).to_string()],
+                )
+            });
+        }
+        if !self.label.is_empty() {
+            parts.push(self.label.clone());
+        }
+        let mut parts = parts.into_iter();
+        let first = parts.next().unwrap_or_default();
+        parts.fold(first, |line, next| {
+            faraday_strings::fill(
+                faraday_strings::EN.backup_flow_figure_about,
+                &[&line, &next],
+            )
+        })
+    }
+
     /// Whether the file listed as `name` is a vault, found by its
     /// contents when the listing was made; a file named `.fvlt` holding
     /// other bytes is not. A lookup.

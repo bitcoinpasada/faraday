@@ -130,6 +130,21 @@ pub struct Stick {
     /// Why it cannot be used for a backup, when it cannot: found by the disk
     /// process, which alone opens the partition.
     pub problem: Option<Problem>,
+    /// What the device reports of itself, read from the system and never
+    /// from the stick (`docs/STICK-SETUP.md` §5).
+    pub make: Make,
+}
+
+/// A stick's maker, model and size, as its device reports them; each is
+/// `None` where the system does not say.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Make {
+    /// A USB stick's vendor, or none for a card.
+    pub maker: Option<String>,
+    /// A USB stick's model, or a card's name.
+    pub model: Option<String>,
+    /// The disk's size in bytes.
+    pub size: Option<u64>,
 }
 
 /// Why a stick or card cannot be used (`docs/BACKUP-FLOW.md` §4.2).
@@ -468,6 +483,22 @@ impl Response {
                         o.str(n);
                     }
                     o.0.push(Problem::code(s.problem));
+                    for t in [&s.make.maker, &s.make.model] {
+                        match t {
+                            Some(t) => {
+                                o.0.push(1);
+                                o.str(t);
+                            }
+                            None => o.0.push(0),
+                        }
+                    }
+                    match s.make.size {
+                        Some(n) => {
+                            o.0.push(1);
+                            o.0.extend_from_slice(&n.to_le_bytes());
+                        }
+                        None => o.0.push(0),
+                    }
                 }
                 o
             }
@@ -547,6 +578,9 @@ impl Response {
                         vaults.push(i.str()?);
                     }
                     let problem = Problem::of(i.u8()?)?;
+                    let maker = if i.u8()? != 0 { Some(i.str()?) } else { None };
+                    let model = if i.u8()? != 0 { Some(i.str()?) } else { None };
+                    let size = if i.u8()? != 0 { Some(i.u64()?) } else { None };
                     sticks.push(Stick {
                         id,
                         label,
@@ -555,6 +589,7 @@ impl Response {
                         files,
                         vaults,
                         problem,
+                        make: Make { maker, model, size },
                     });
                 }
                 Response::Sticks(sticks)
@@ -657,6 +692,11 @@ mod tests {
                 files: Vec::new(),
                 vaults: Vec::new(),
                 problem: Some(Problem::NotFat),
+                make: Make {
+                    maker: Some("SanDisk".into()),
+                    model: Some("Ultra".into()),
+                    size: Some(16_000_000_000),
+                },
             },
             Stick {
                 id: "sdd1@9".into(),
@@ -666,6 +706,7 @@ mod tests {
                 files: vec![("a.txt".into(), 1)],
                 vaults: Vec::new(),
                 problem: Some(Problem::ReadOnly),
+                make: Make::default(),
             },
         ]);
         assert_eq!(Response::decode(&r.encode()), Ok(r));
@@ -733,6 +774,7 @@ mod tests {
                 files: vec![("a.psbt".into(), 1234), ("café.txt".into(), 0)],
                 vaults: vec!["VAULT~1.FVL".into()],
                 problem: None,
+                make: Make::default(),
             }]),
             Response::Bytes(vec![9; 100]),
             Response::Written("signed-2.psbt".into()),

@@ -67,6 +67,7 @@ fn opened() -> Faraday {
 
 fn stick() -> Vec<StickInfo> {
     vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "a".into(),
         label: "STICK".into(),

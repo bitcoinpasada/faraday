@@ -9853,6 +9853,9 @@ strings! {
     /// The file chosen for a vault already on a stick. `{}`: the vault,
     /// then the file.
     backup_flow_figure_file: "{}: {}",
+    /// Two parts of the line under a checked figure's name (the stick's
+    /// maker and model, its size, its name), the first then the next.
+    backup_flow_figure_about: "{} · {}",
     /// A stick of Bring in the sticks put off to be checked at the write.
     backup_flow_figure_later: "Checked when written",
     /// A stick's button, and its ⋮ row, to check it at the write.

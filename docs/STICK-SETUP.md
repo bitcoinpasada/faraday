@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F175), not built
-**Open:** what the device tells of a stick (§5), the guide (§7)
+**Open:** §5 (the stick's sheet), the guide (§7)
 
 Make a new wallet and Restore ask how many vaults the backup uses, then
 want one stick per vault, one at a time, in vault order. This spec puts
@@ -183,12 +183,16 @@ a dialog on a wide screen) with the rest where known: the name, the
 FAT volume serial, the free room, the files at its top with their sizes,
 and the vaults on it. Nothing there is a press but **Close**.
 
-The device does not tell maker, model or size today: `faraday-disk`
-reads them from `/sys` with the partitions it lists (a USB disk's
-`device/vendor` and `device/model`, a card's `device/name`, and
-`size`), and the stick's listing carries them
-(`faraday/faraday-files/src/proto.rs`, `Stick`). Nothing is read from
-the stick for them.
+`faraday-disk` reads maker, model and size from `/sys` with the
+partitions it lists (a USB disk's `device/vendor` and `device/model`, a
+card's `device/name` as its model, and `size` in 512-byte sectors), and
+the stick's listing carries them (`faraday/faraday-files/src/proto.rs`,
+`Stick::make`; the app's `StickInfo::make`). Nothing is read from the
+stick for them. The size reads in decimal GB, in MB under 1 GB. The line
+is worked out when the stick is read and kept in the flow's
+`Bound::about`, which a saved flow does not hold: a flow resumed shows
+the figure without the line. Faraday Demo's sticks are folders
+and report none, so their figure shows the folder's name.
 
 ## 6. After the keys
 

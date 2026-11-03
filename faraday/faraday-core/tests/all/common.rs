@@ -31,6 +31,8 @@ pub struct Disk {
     pub boot: bool,
     /// Its room cannot be asked for: the stick cannot be opened.
     pub unreadable: bool,
+    /// What the device reports of itself.
+    pub make: faraday_core::StickMake,
 }
 
 impl Disk {
@@ -45,11 +47,13 @@ impl Disk {
             not_fat: false,
             boot: false,
             unreadable: false,
+            make: Default::default(),
         }
     }
 
     pub fn info(&self) -> StickInfo {
         StickInfo {
+            make: self.make.clone(),
             id: self.id.clone(),
             label: self.label.clone(),
             boot: self.boot,

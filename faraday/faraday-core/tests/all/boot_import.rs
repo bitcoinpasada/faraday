@@ -75,6 +75,7 @@ fn stick_files() -> Vec<(String, Vec<u8>)> {
 
 fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
     StickInfo {
+        make: Default::default(),
         serial: None,
         id: BOOT.into(),
         label: "FARADAY".into(),
@@ -895,6 +896,7 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),

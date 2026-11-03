@@ -274,6 +274,7 @@ fn the_stick_visit_carries_a_dot_until_the_stick_is_visited() {
     let mut app = on(760, 1000, 160);
     // The boot stick, at its first look, leaves Home on screen: it waits.
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "sda1@sda#1".into(),
         label: "FARADAY".into(),

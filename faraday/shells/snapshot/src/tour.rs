@@ -125,6 +125,7 @@ impl Tour {
         files.push(("IMG_0412.jpg".into(), 2_300_000));
         files.sort();
         StickInfo {
+            make: Default::default(),
             serial: None,
             id: self.kit.display().to_string(),
             label: "TESTSTICK".into(),

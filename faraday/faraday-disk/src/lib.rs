@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use faraday_boot::layout;
 use faraday_boot::medium::Record;
 use faraday_fat::{Disk, Volume};
-use faraday_files::proto::{Problem, Request, Response, Stick};
+use faraday_files::proto::{Make, Problem, Request, Response, Stick};
 use faraday_files::{Fat, Place};
 use faraday_strings::EN;
 
@@ -133,6 +133,36 @@ struct Found {
     open: bool,
     /// The kernel says the device is read-only (`ro` under `/sys`).
     read_only: bool,
+    /// What the disk reports of itself under `/sys`.
+    make: Make,
+}
+
+/// What a disk reports of itself under `/sys`: a USB disk's
+/// `device/vendor` and `device/model`, a card's `device/name` (kept as the
+/// model), and `size` in 512-byte sectors. Whitespace is trimmed; a file
+/// missing, unreadable or empty is `None`. Nothing is read from the stick.
+/// The device's own words are printable ASCII, as SCSI's inquiry and a
+/// card's CID state them, and at most 64 of them; anything else is `None`,
+/// so a device cannot put a control or direction mark on the screen.
+fn make_of(disk: &Path) -> Make {
+    let text = |p: PathBuf| {
+        fs::read_to_string(p)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+    let words = |p: PathBuf| {
+        text(p).filter(|s| s.len() <= 64 && s.bytes().all(|b| (0x20..=0x7e).contains(&b)))
+    };
+    let dev = disk.join("device");
+    Make {
+        maker: words(dev.join("vendor")),
+        model: words(dev.join("model")).or_else(|| words(dev.join("name"))),
+        size: text(disk.join("size"))
+            .and_then(|s| s.parse::<u64>().ok())
+            .and_then(|n| n.checked_mul(512))
+            .filter(|n| *n > 0),
+    }
 }
 
 /// A partition's number on its disk, as `/sys` states it.
@@ -272,6 +302,7 @@ impl Disks {
                 boot,
                 open,
                 read_only,
+                make: make_of(disk),
             });
         }
         // A disk with no partition at all is a stick or card too: a FAT
@@ -320,6 +351,7 @@ impl Disks {
                 partname: None,
                 boot: false,
                 read_only: flag(&dir.join("ro")),
+                make: make_of(&dir),
             });
         }
         out
@@ -379,6 +411,7 @@ impl Disks {
                 } else {
                     Problem::NotYet
                 }),
+                make: f.make.clone(),
             });
         }
         if let Some(s) = self.seen.get(&f.id) {
@@ -400,6 +433,7 @@ impl Disks {
                     files: Vec::new(),
                     vaults: Vec::new(),
                     problem: Some(Problem::NotFat),
+                    make: f.make.clone(),
                 };
                 self.seen.insert(f.id.clone(), s.clone());
                 return Some(s);
@@ -435,6 +469,7 @@ impl Disks {
             files,
             vaults,
             problem: f.read_only.then_some(Problem::ReadOnly),
+            make: f.make.clone(),
         };
         self.seen.insert(f.id.clone(), s.clone());
         Some(s)

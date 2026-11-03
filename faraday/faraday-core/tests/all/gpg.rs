@@ -73,6 +73,7 @@ fn display(app: &mut Faraday) {
 /// A stick with `files`, pressed through Copy: every file read in.
 fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "FARADAY".into(),
@@ -1328,6 +1329,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
             .collect()
     };
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "B".into(),
         label: "FARADAY".into(),
@@ -1369,6 +1371,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         ),
     ];
     let second = StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "FILES".into(),
@@ -1456,6 +1459,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     let mut boot = files.clone();
     boot.push(("vault.fvlt".to_string(), testkit::test_vault().unwrap()));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "B".into(),
         label: "FARADAY".into(),

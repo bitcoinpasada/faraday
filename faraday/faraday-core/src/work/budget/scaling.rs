@@ -184,6 +184,7 @@ fn boot_import(copies: usize) -> Faraday {
     });
     let _ = app.frame();
     app.storage(StorageEvent::Sticks(vec![crate::StickInfo {
+        make: Default::default(),
         serial: None,
         id: "boot".into(),
         label: "boot".into(),

@@ -191,6 +191,7 @@ mod vault_open {
 
     fn a_stick() -> StorageEvent {
         StorageEvent::Sticks(vec![StickInfo {
+            make: Default::default(),
             serial: None,
             id: "stick".into(),
             label: "STICK".into(),

@@ -125,6 +125,7 @@ fn folder_stick(name: &str, label: &str, files: &[(&str, Vec<u8>)]) -> Result<St
         std::fs::write(dir.join(file), bytes).map_err(|e| format!("{file}: {e}"))?;
     }
     Ok(StickInfo {
+        make: Default::default(),
         serial: Some(0x5000 + files.len() as u32),
         id: dir.display().to_string(),
         label: label.into(),
@@ -265,6 +266,7 @@ fn write_sticks(t: &mut Tour, name: &str, pictures: &[(&str, &str)]) -> Result<(
         let Some(slot) = slot else { break };
         t.shot(&shot(format!("{name}-insert-{n}")))?;
         let stick = StickInfo {
+            make: Default::default(),
             serial: Some(0x2000 + slot as u32),
             id: format!("s{slot}"),
             label: "KEYSTICK".into(),

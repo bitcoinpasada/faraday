@@ -255,7 +255,7 @@ pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
-pub use storage_api::{BootMedium, StickInfo, StorageCommand, StorageEvent};
+pub use storage_api::{BootMedium, StickInfo, StickMake, StorageCommand, StorageEvent};
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
 };

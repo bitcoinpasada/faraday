@@ -155,6 +155,8 @@ enum State {
 enum Item {
     /// A line of text.
     Text(String, Role),
+    /// One line, cut with an ellipsis where it does not fit.
+    One(String, Role),
     /// The state: a tick, if any, and its words.
     State(Option<Icon>, String, Role),
     /// The boot stick offered, as a button.
@@ -238,6 +240,11 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
                 ));
             }
             if matches!(state, State::Checked) {
+                // What tells the stick apart (STICK-SETUP.md §5), worked
+                // out when it was listed.
+                if let Some(b) = f.slots[k].bound.as_ref().filter(|b| !b.about.is_empty()) {
+                    items.push(Item::One(b.about.clone(), Role::OnSurfaceVariant));
+                }
                 for &v in &vaults {
                     let vp = &f.plan.vaults[v];
                     if let (true, Some((_, file))) = (vp.existing, vp.from.as_ref()) {
@@ -302,6 +309,7 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
 fn item_h(ui: &Ui, it: &Item, w: f32) -> f32 {
     match it {
         Item::Text(t, _) => ui.wrap_height_as(BODY_S, t, w),
+        Item::One(..) => ui.line_as(BODY_S),
         Item::State(..) => BOARD_STICK_HEAD,
         Item::Boot(_) | Item::Later(_) => TOUCH,
     }
@@ -362,6 +370,10 @@ fn draw_one(ui: &mut Ui, fr: &board_screen::CardFrame, fg: &Figure, r: (f32, f32
         match it {
             Item::Text(t, role) => {
                 ui.wrap_as((x + sp, cy, inner), BODY_S, *role, t);
+            }
+            Item::One(t, role) => {
+                let t = ui.fit_as(BODY_S, t, inner);
+                ui.wrap_as((x + sp, cy, inner), BODY_S, *role, &t);
             }
             Item::State(icon, t, role) => {
                 let tx = match icon {

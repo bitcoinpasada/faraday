@@ -37,6 +37,7 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
     files.push(("photo.png".into(), 9000));
     files.push(("notes.docx".into(), 9000));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
@@ -88,6 +89,7 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
@@ -362,6 +364,7 @@ fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
     });
     if let Some(label) = stick {
         app.storage(StorageEvent::Sticks(vec![StickInfo {
+            make: Default::default(),
             serial: None,
             id: "S".into(),
             label: label.into(),
@@ -822,6 +825,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
         });
     }
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),
@@ -1022,6 +1026,7 @@ fn made_unclean(app: &mut Faraday) {
         },
     );
     let stick = StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "TESTSTICK".into(),

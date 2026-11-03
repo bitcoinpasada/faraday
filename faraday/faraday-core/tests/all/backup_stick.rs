@@ -104,6 +104,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "T".into(),
         label: "TESTSTICK".into(),
@@ -245,6 +246,7 @@ fn with_seed(app: &mut Faraday) -> String {
 /// A stick plugged in while a secret is held: the lock sheet's lines.
 fn lock_sheet_lines(app: &mut Faraday) -> Vec<String> {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "S".into(),
         label: "OTHER".into(),
@@ -358,6 +360,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
         kept: Vec::new(),
     });
     let stick = |label: &str| StickInfo {
+        make: Default::default(),
         serial: None,
         id: label.into(),
         label: label.into(),

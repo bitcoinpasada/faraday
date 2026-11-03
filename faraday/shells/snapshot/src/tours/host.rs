@@ -49,6 +49,7 @@ fn desktop(t: &mut Tour, win: (u16, u16), demo: bool) {
         t.app.press(Action::TextSize(size));
     }
     let stick = |name: &str| StickInfo {
+        make: Default::default(),
         id: name.into(),
         label: name.into(),
         boot: name == "BOOTSTICK",

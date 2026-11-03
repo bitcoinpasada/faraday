@@ -116,6 +116,7 @@ fn copy_in(t: &mut Tour, (name, bytes): &(String, Vec<u8>)) -> Result<(), String
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join(name), bytes).map_err(|e| e.to_string())?;
     let stick = StickInfo {
+        make: Default::default(),
         id: dir.display().to_string(),
         label: "PLACE1".into(),
         boot: false,

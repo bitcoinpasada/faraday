@@ -382,6 +382,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
         serial: None,
         id: "boot".into(),
         label: "FARADAY".into(),

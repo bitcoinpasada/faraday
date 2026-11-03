@@ -46,6 +46,7 @@ pub fn stick_info_after(
         None => faraday_files::vault_names(c, &mut place, &files),
     };
     StickInfo {
+        make: Default::default(),
         id,
         label: label.to_string(),
         boot,
@@ -1048,6 +1049,11 @@ impl DiskProcess {
                         serial: s.serial,
                         files: s.files,
                         vaults: s.vaults,
+                        make: faraday_core::StickMake {
+                            maker: s.make.maker,
+                            model: s.make.model,
+                            size: s.make.size,
+                        },
                     })
                     .collect())
             }

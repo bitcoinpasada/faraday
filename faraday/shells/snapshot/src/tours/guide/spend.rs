@@ -147,6 +147,7 @@ fn guide_stick(files: &[(String, Vec<u8>)]) -> Result<StickInfo, String> {
         std::fs::write(dir.join(name), bytes).map_err(|e| e.to_string())?;
     }
     Ok(StickInfo {
+        make: Default::default(),
         id: dir.display().to_string(),
         label: "TRANSFER".into(),
         boot: false,
