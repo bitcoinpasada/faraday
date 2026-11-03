@@ -465,6 +465,8 @@ marked so (`docs/HARDWARE.md` §6).
    to a PC, its boot code on the board, and its owner is told to restore
    Raspberry Pi's boot loader with Raspberry Pi Imager before first use
    (a wire to test point TP5 locks it in hardware).
+   Paused by the owner, as macOS is: nothing is built for it until
+   the owner takes it up again.
 3. The Pi's kernel: its fragment, its forbidden and required lists,
    and the image that boots with it, starting with the monitor (HDMI
    with a USB keyboard), which needs no new panel (built:
