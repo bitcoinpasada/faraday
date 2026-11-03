@@ -74,6 +74,7 @@ with that group, are the second lineage for the curve (§10.7).
 | Addresses of a wallet | BIP-380 to 386, 388, 389 | no | Core itself (`deriveaddresses`), and btclib-wallet's descriptors (`descriptor_ref.py`) for the script at an index, the kind and the text |
 | Descriptor checksum | BIP-380 | no | Core's `descriptors.py`, BIP 380's own code and btclib's |
 | Which keys and lock times spend a wallet | BIP-379, 68, 65 | no | btclib-wallet's miniscript satisfaction (`Descriptor.satisfy` with a `SpendContext`) |
+| What a compiled policy means | BIP-379 | no | the policy and the miniscript python-bip380 reads, compared as boolean formulas over the keys and waits (area `compile`; the lift is Faraday's second version) |
 | Sighash of each input | BIP-143, 341, 342 | no | Core's `script.py` |
 | Signature verification | ECDSA, BIP-340 | no | Core's `key.py` |
 | Signature recomputation (the nonce check, done twice) | RFC 6979, BIP-340 | yes | Core's `key.py`: Faraday signs deterministically, so the signatures must match byte for byte |
@@ -196,7 +197,9 @@ As of 2026-10-29:
   `lightning`, `psbt` (the whole reader and writer), `sign` (the
   signer, the finalizer, the leaf chosen, the refusals), `msg` (BIP-137
   and BIP-322 written out), `taproot`'s control-block check, the codex32
-  worksheets, and `vault` (the container,
+  worksheets, `compile` (the lift of a miniscript to a formula, written
+  from the fragments' meanings; Core, python-bip380 and btclib take the
+  descriptor), and `vault` (the container,
   HKDF and the ChaCha20 block, over argon2-cffi and libsodium).
 - **Own only:** `own-randomness`, `entropy` and `roller`.
 
@@ -385,8 +388,11 @@ The cross-check fetches nothing, ever.
    `finalize`), taproot outputs with script trees (BIP-341's
    `scriptPubKey` vectors), and the scripts miniscript descriptors pay
    to and their satisfactions, against Antoine Poinsot's python-bip380
-   and Bitcoin Core's miniscript vectors. Built (areas `addr`, `tx`,
-   `psbt`, `msg`, `sign`, `taproot`, `miniscript`).
+   and Bitcoin Core's miniscript vectors; and the policy compiler's
+   output, which Core, python-bip380 and btclib read and whose
+   miniscript is compared with the policy as a boolean formula over the
+   keys and waits. Built (areas `addr`, `tx`, `psbt`, `msg`, `sign`,
+   `taproot`, `miniscript`, `compile`).
 5. Randomness a person adds of their own, mixed into the session's
    (`docs/OWN-RANDOMNESS.md` §2.3): the accumulator, the reseeding, the
    pool's and the seed's draws and the lock, over fixed system answers.

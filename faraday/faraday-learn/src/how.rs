@@ -166,6 +166,19 @@ static AREA_IMPORT: Area = Area {
 };
 
 #[rustfmt::skip]
+static AREA_COMPILE: Area = Area {
+    area: "compile",
+    code: &[p("faraday_bip::compile::compile (a concrete policy to a wsh() or tr() descriptor, the keys it names, the ways it can be spent and the script it pays at an index), over rust-miniscript's policy compiler")],
+    second: &[p("Bitcoin Core v31.1's bitcoind on regtest (getdescriptorinfo and deriveaddresses), with its descriptors.py (BIP-380's checksum); btclib-wallet's descriptors and miniscript (btclib/, on btclib's own curve) for the kind, checksum, script at an index and keys; Antoine Poinsot's python-bip380 (miniscript/) for the miniscript's validity, sanity and script, and its fragments for the lift to a formula, which is ours (lift, in area_compile.py)."), p("Checked first: Its vendored files are hashed against references.sha256 before any run; Core's release tarball is checked against its pinned SHA-256 (tools/reference/core/release.pin) before every run, and the node's version is asked; the self-test makes Faraday's descriptor wrong and the lift wrong, and each is caught."), w("The script itself: no other compiler makes rust-miniscript's choice, so only that it is valid, sane and means the policy is judged; hash locks, locks in seconds and the time flag of older, which the corpus does not generate; a policy that names a key by a fingerprint token of a loaded key; policies of more than six keys.")],
+    vectors: &[p("none: no compiler states a script for a policy (rust-miniscript, sipa's and the Go and Python ones choose differently), so the answers are judged by what the descriptor is and means.")],
+    random: &[p("Policies of and, or (with weights), thresh, pk, after and older of one to six keys, each key written as an account key with its origin, compiled for wsh() and for tr() (a key beside the rest, which the compiler takes as the internal key), on mainnet and testnet keys, read at random indices of both chains; refusals: a threshold of 0 or above its parts, a lock of 0, a key twice, nothing typed.")],
+    differences: &[p("A single key as a tr() policy: rust-miniscript's compile_tr takes the key as the internal key, is left with no leaf and refuses it (Empty Miniscript compilation); Faraday refuses it too, and the area counts the refusal. python-bip380 writes v:multi_a as OP_NUMEQUAL OP_VERIFY where BIP 379 and Core write OP_NUMEQUALVERIFY, so a leaf with one is not compared to python-bip380's script (counted); the output key, which commits to the leaf, is Core's and btclib's.")],
+    when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
+    seed: "faraday-crosscheck-1",
+    cases: 300,
+};
+
+#[rustfmt::skip]
 static AREA_MUSIG: Area = Area {
     area: "musig",
     code: &[p("faraday_bip::musig")],
@@ -752,8 +765,8 @@ pub static BLOCKS: &[Block] = &[
         standards: &[p("BIP 379, Miniscript, Draft")],
         implementation: &[p("Library: miniscript 12.3.7, by the rust-bitcoin developers (rust-miniscript)."), p("Faraday's code: core/faraday-bip: The policy is compiled by rust-miniscript for SegWit or Taproot; Faraday reads the result back as a wallet and lists its spend paths.")],
         checked: &[w("not checked against vectors"), m("core/faraday-bip/src/compile.rs::a_token_stands_for_its_key_where_a_whole_key_is_written"), m("core/faraday-bip/src/compile.rs::a_token_inside_a_longer_word_is_left_alone"), m("core/faraday-bip/tests/all/miniscript.rs::a_threshold_lists_every_combination_that_satisfies_it"), w("no fuzz target: Takes a policy typed in a field; the descriptor it makes is the policy parser's")],
-        cross_check: CrossCheck::Not("not cross-checked: The compiler is rust-miniscript's; the area miniscript checks the scripts Faraday reads, not this compiler's choices"),
-        independence: &[],
+        cross_check: CrossCheck::Area(&AREA_COMPILE),
+        independence: &[p("Compared with others' code: Bitcoin Core v31.1 itself (getdescriptorinfo, deriveaddresses) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for the miniscript's validity, sanity and script; btclib-wallet's descriptors and miniscript, by the btclib developers, on btclib's own curve, for the descriptor's kind, checksum, script at an index and the miniscript's script."), w("Compared, for one part, with Faraday's second version, written by Faraday's authors in Python; that part is not checked against an outside source: the lift of a miniscript to a boolean formula over its keys and waits, written in area_compile.py from the fragments' meanings (rust-miniscript's own lift is not used), and the rules by which a policy is refused (a threshold of 0 or above its parts, a lock of 0, a key twice, nothing typed), which no outside compiler states.")],
         code: &[c("core/faraday-bip/src/compile.rs", "compile")],
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public text and keys are read; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("Only SegWit v0 and Taproot are offered.")],

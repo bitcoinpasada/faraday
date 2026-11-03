@@ -2452,7 +2452,8 @@ tests = [
   "core/faraday-bip/src/compile.rs::a_token_inside_a_longer_word_is_left_alone",
   "core/faraday-bip/tests/all/miniscript.rs::a_threshold_lists_every_combination_that_satisfies_it",
 ]
-not_crosschecked = "The compiler is rust-miniscript's; the area miniscript checks the scripts Faraday reads, not this compiler's choices."
+crosscheck = "compile"
+independence = { class = "outside-and-own", author = "Bitcoin Core v31.1 itself (`getdescriptorinfo`, `deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for the miniscript's validity, sanity and script; btclib-wallet's descriptors and miniscript, by the btclib developers, on btclib's own curve, for the descriptor's kind, checksum, script at an index and the miniscript's script", ours = "the lift of a miniscript to a boolean formula over its keys and waits, written in `area_compile.py` from the fragments' meanings (rust-miniscript's own lift is not used), and the rules by which a policy is refused (a threshold of 0 or above its parts, a lock of 0, a key twice, nothing typed), which no outside compiler states" }
 fuzz_none = "Takes a policy typed in a field; the descriptor it makes is the policy parser's."
 
 [action.secrets]

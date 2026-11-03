@@ -48,6 +48,7 @@ cases psbt-review 200
 cases import 450
 cases taproot 440
 cases miniscript 250
+cases compile 300
 cases msg 600
 cases own-randomness 400
 cases entropy 3000

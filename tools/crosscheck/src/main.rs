@@ -19,6 +19,7 @@ mod addr;
 mod bip32;
 mod bip85;
 mod codex32;
+mod compile;
 mod entropy;
 mod import;
 mod json;
@@ -67,6 +68,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "sign" => sign::handle(name, req),
         "taproot" => taproot::handle(name, req),
         "miniscript" => miniscript::handle(name, req),
+        "compile" => compile::handle(name, req),
         "msg" => msg::handle(name, req),
         "slip39" => slip39::handle(name, req),
         "codex32" => codex32::handle(name, req),

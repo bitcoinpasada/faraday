@@ -80,6 +80,7 @@ AREAS = {
     "psbt-review": ("area_review", "Review", "review.inspect", 120),
     "import": ("area_import", "Import", ("import.read", "import.verify", "import.write", "import.json"), 120),
     "taproot": ("area_taproot", "Taproot", ("taproot.tree", "taproot.verify"), 900),
+    "compile": ("area_compile", "Compile", ("compile.compile", "compile.lift"), 150),
     "miniscript": ("area_miniscript", "Miniscript",
                    ("miniscript.script", "miniscript.inspect", "miniscript.recovery"), 460),
     "msg": ("area_msg", "Msg", ("msg.sign", "msg.verify", "msg.bip322"), 150),
