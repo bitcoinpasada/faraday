@@ -24,7 +24,10 @@ pub(crate) use faraday_ui::parts::measured;
 
 /// A row that goes somewhere: an icon, a name, a line under it, and a
 /// chevron when it can be pressed. Returns the height it took.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a row's position, width, icon, label, sub-label, tone and action, as every compact row takes them"
+)]
 pub(crate) fn row(
     ui: &mut Ui,
     x: f32,
@@ -410,7 +413,10 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// A silent payments wallet's card on a small panel.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a silent-payment wallet card's view, wallet, position, widths and heights"
+)]
 fn silent_card(
     app: &View,
     ui: &mut Ui,
@@ -545,7 +551,10 @@ pub(crate) fn finish(app: &View, ui: &mut Ui, h: f32, content: f32) {
 
 /// A passphrase field: its label over it, dots for what is typed, a
 /// press to type into it. Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a passphrase field's position, width, label, text, reveal chip and action"
+)]
 fn pass_field(
     ui: &mut Ui,
     x: f32,

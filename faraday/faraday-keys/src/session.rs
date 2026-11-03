@@ -1590,7 +1590,10 @@ impl Keys {
 }
 
 impl Entry {
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a session's master key, label, words, language, word count, passphrase and the rest of what it holds"
+    )]
     /// Costs an elliptic-curve multiplication with the master private
     /// key, for its id. Makes a key and its [`KeyInfo`].
     fn new(

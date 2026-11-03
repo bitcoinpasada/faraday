@@ -152,7 +152,10 @@ const P2WPKH_BASE: u8 = 39;
 /// key's, blinded by the session (`faraday_bip::keys`, security review M1) —
 /// and not one made here, so that no curve operation on a private key
 /// runs in an unblinded context.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the signing inputs of a message: key, script, network, message, format and the nonce and aux randomness"
+)]
 pub fn sign(
     c: &Compute,
     secp: &Secp256k1<All>,
@@ -474,7 +477,10 @@ fn to_sign(spend: &Transaction) -> Transaction {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the BIP-322 signing inputs: key, address, message and the nonce and aux randomness"
+)]
 fn sign_bip322(
     secp: &Secp256k1<bitcoin::secp256k1::All>,
     secret: &SecretKey,

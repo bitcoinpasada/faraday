@@ -87,7 +87,10 @@ pub trait CoreUi {
 
     /// A slider over the whole numbers `lo..=hi`, at `value`. Returns the
     /// height used.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a slider's position, width, id, range and value, in the trait as in its implementation"
+    )]
     fn slider(&mut self, x: f32, y: f32, w: f32, id: u8, lo: u8, hi: u8, value: u8) -> f32;
 
     /// An empty BIP-39 passphrase field's content: the **No passphrase**
@@ -121,7 +124,10 @@ impl CoreUi for Ui<'_> {
     /// dragged along presses each stop it crosses (`Faraday::touch`), and
     /// the arrow keys step the slider last pressed. Returns the height
     /// used.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a slider's position, width, id, range and value, as the trait declares them"
+    )]
     fn slider(&mut self, x: f32, y: f32, w: f32, id: u8, lo: u8, hi: u8, value: u8) -> f32 {
         let (lo, hi) = (lo.min(hi), hi.max(lo));
         let value = value.clamp(lo, hi);

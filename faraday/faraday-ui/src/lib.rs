@@ -877,7 +877,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// height `h`, when the field is focused and all of it is selected:
     /// for a field drawn as one string, whose caret stays at its end. The
     /// text drawn on it is written in [`SELECTION_INK`].
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a selection's position, height, size, weight, text and state, as the text helpers take them"
+    )]
     pub fn selection(&mut self, x: f32, y: f32, h: f32, size: f32, w: W, shown: &str, on: bool) {
         if on && self.edit.all(shown.chars().count()) {
             let tw = self.measure(size, w, shown);
@@ -912,7 +915,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// view is the end or, with the caret before that, from the caret.
     /// Where each character starts is kept for `action`, so a press or
     /// a drag there places the caret. Returns the width drawn.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a typed field's position, height, size, weight, colour, text, room, focus and action"
+    )]
     pub fn typed(
         &mut self,
         x: f32,
@@ -1431,7 +1437,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// `s` centred vertically in a band of height `h` starting at y.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "centred text's position, height, size, weight, colour and string, as the text helpers take them"
+    )]
     pub fn text_mid(
         &mut self,
         x: f32,
@@ -1448,7 +1457,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// `s` ending at `right`, centred in a band of height `h`.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "right-aligned text's edge, height, size, weight, colour and string, as the text helpers take them"
+    )]
     pub fn text_right(
         &mut self,
         right: f32,
@@ -1513,7 +1525,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// `s` wrapped to `width`. Returns the height used.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "wrapped text's position, width, size, weight, colour and string, as the text helpers take them"
+    )]
     pub fn wrap(
         &mut self,
         x: f32,
@@ -1798,7 +1813,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// layer in its label's colour and the focus ring round it; a kind
     /// not available now keeps its shape, faint, and takes no press. A
     /// chosen option carries a tick before its label. Returns its width.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a button's position, size, label, style and action, as every button helper takes them"
+    )]
     pub fn button(
         &mut self,
         x: f32,

@@ -979,7 +979,10 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
 /// drags, and under the list how many rows are below it: the card's left
 /// edge and width in `card`, the list's rows from `top`, `track_h` of
 /// them shown of `all_h`, scrolled by `shift`.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the visit list bar's view, column, card size, top, track and shift"
+)]
 fn visit_list_bar(
     app: &View,
     ui: &mut Ui,

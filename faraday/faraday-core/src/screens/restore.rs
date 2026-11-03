@@ -593,7 +593,10 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The passphrase is asked after the seed: on Add a key for typed words,
 /// on the scan's sheet for a SeedQR (`seed_read`). Returns the height
 /// used.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the restore slot's view, state, keys held here, extra action, position and width"
+)]
 fn restore_open_slot(
     app: &View,
     ui: &mut Ui,

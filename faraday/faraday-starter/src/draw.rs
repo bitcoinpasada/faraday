@@ -383,7 +383,10 @@ fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 
 /// A row that opens something: an icon, its label, a second line, and a
 /// value at the right. Dimmed, it takes no press and its second line is
 /// the reason. Returns its height with the gap under it.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a navigation row's position, width, icon, head, sub-line, tail and action"
+)]
 fn nav_row(
     ui: &mut Ui,
     x: f32,
@@ -1803,7 +1806,10 @@ fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: R
 /// The guide's address as a QR code, with the address under it: the
 /// code made when the computer was reported ([`Starter::phone_code`]).
 /// Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the phone code's starter, position, width, side and address"
+)]
 fn phone_code(
     starter: &Starter,
     ui: &mut Ui,

@@ -181,7 +181,7 @@ cannot quietly undo it:
   - function size: clippy's `too_many_lines` is on and each long
     function carries an `#[expect]`; the number of those and of
     `#[allow(clippy::too_many_arguments)]` is not counted, and each
-    marker is to carry a `reason` (the check is open work, F196);
+    marker carries a `reason`, which the lint checks (F196);
   - `Faraday`'s top-level field count, which only falls;
   - the files allowed an inherent `impl Faraday`: the list only shrinks.
 - **`cargo vet --locked`** in `just lint` (F71), **`cargo-deny`**, fmt,

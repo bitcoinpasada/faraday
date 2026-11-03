@@ -27,7 +27,10 @@ pub enum Dial<'a> {
 /// Costs `budget` candidates, each a key derivation or a PBKDF2 and an
 /// address. Tests a budget of candidates from `cursor` for `prefix`;
 /// `None` for the passphrase dial when the key has no words that read.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a vanity search's dial, script, prefix, network and the cursor and budget of one slice"
+)]
 pub fn grind(
     c: &Compute,
     dial: Dial<'_>,

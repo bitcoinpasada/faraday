@@ -118,7 +118,10 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
 /// Cosigner `k`'s box, numbered `slot`: its key once one reads, with
 /// Change; else the field, and for the first box without a key, Scan and
 /// the key files in Files. Returns the height used.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a cosigner card's view, seeds state, indices, position and width"
+)]
 pub(crate) fn cosigner(
     app: &View,
     ui: &mut Ui,
@@ -217,7 +220,10 @@ pub(crate) fn cosigner(
 /// The wallet's shape: M of N, the cosigners' account keys, the kind,
 /// the path, the first address, and Make the wallet. `back` adds Back
 /// to the seeds. Returns the height used.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the shape card's view, seeds state, back flag, position and width"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn shape(
     app: &View,
@@ -396,7 +402,10 @@ fn kind_label(kind: NewKind) -> &'static str {
 
 /// A line of typing, `h` 40: what is typed, its end in view, or `hint`
 /// dimmed when empty, with a caret while typing goes to it.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a field's position, width, text, hint, focus and action"
+)]
 fn field(
     ui: &mut Ui,
     x: f32,

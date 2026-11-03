@@ -343,7 +343,10 @@ pub fn counter_text(counter: u64) -> Option<Counter> {
 ///
 /// A dial the key cannot turn — the passphrase dial without words, the
 /// account dial without a master — tests nothing.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a vanity search's key, method, script, prefix, network and the cursor and budget of one slice"
+)]
 pub fn grind(
     c: &Compute,
     key: &Key<'_>,
@@ -370,7 +373,10 @@ pub fn grind(
 
 /// Costs a PBKDF2, a master key and a key derivation per candidate. The
 /// passphrase dial: one PBKDF2 per candidate.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a passphrase search's mnemonic, base, script, prefix, network and the cursor and budget of one slice"
+)]
 fn grind_passphrase(
     c: &Compute,
     words: &Mnemonic,

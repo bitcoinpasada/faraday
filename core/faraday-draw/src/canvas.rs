@@ -1596,7 +1596,10 @@ fn union(a: Rect, b: Rect) -> Rect {
 /// A free function rather than a method: it takes the framebuffer alone,
 /// so a glyph can stay borrowed from the canvas's cache while it is
 /// blended.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a glyph's target pixmap, clip, position, size, coverage and colour, passed flat to avoid a per-glyph struct"
+)]
 fn blit_glyph(
     pixmap: &mut Pixmap,
     clip: Rect,

@@ -71,7 +71,10 @@ fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
 /// The stick's files: "1 vault · 2 other files, by their names", or
 /// while Import reads, "3 of 7 files read"; every file with its checkbox,
 /// Later and Import. Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the picker's view, position, width, label and the import's count and view"
+)]
 fn picker(
     app: &View,
     ui: &mut Ui,
@@ -139,7 +142,10 @@ fn picker(
 
 /// A vault the import brought: its row, its passphrase field once the
 /// stick is out, Cancel and Unlock. Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the unlock card's view, position, width, label and the vault being imported"
+)]
 fn unlock(
     app: &View,
     ui: &mut Ui,

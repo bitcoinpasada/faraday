@@ -622,7 +622,10 @@ fn wallet_card_compact(
 }
 
 /// One line of what to do next, with its button. Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a next-step row's position, width, icon, line and optional button"
+)]
 fn next_row(
     ui: &mut Ui,
     x: f32,

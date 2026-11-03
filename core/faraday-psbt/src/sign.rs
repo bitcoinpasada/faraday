@@ -233,7 +233,10 @@ pub struct SignResult {
 /// a new session for the same transaction needs a new seed. Faraday
 /// derives one per signing press from its session key and a count of
 /// the draws.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the signing request: PSBT, keys, selection, context, accepted warnings, nonce, aux and MuSig session"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn sign(
     c: &Compute,
@@ -516,7 +519,10 @@ pub fn sign(
 ///
 /// The curve context is the master key's own, blinded by the session
 /// (`faraday_bip::keys`, security review M1), not one made here.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one ECDSA input's sighash cache, index, classification, key, path and master key"
+)]
 fn sign_ecdsa(
     c: &Compute,
     psbt: &Psbt,
@@ -588,7 +594,10 @@ fn key_in_leaf(input: &bitcoin::psbt::Input, leaf: &ScriptBuf, xonly: XOnlyPubli
 /// signature is checked against — no tweak.
 ///
 /// The curve context is the master key's own, as in [`sign_ecdsa`].
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one taproot script-path input's sighash cache, index, classification, key, leaf hash, path and master key"
+)]
 fn sign_tap_leaf(
     c: &Compute,
     psbt: &Psbt,
@@ -702,7 +711,10 @@ impl PrevoutSet {
 /// key. The auxiliary randomness is `aux`'s value for this input.
 ///
 /// The curve context is the master key's own, as in [`sign_ecdsa`].
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one taproot key-path input's sighash cache, index, classification, key, path and master key"
+)]
 fn sign_taproot(
     c: &Compute,
     psbt: &Psbt,
@@ -792,7 +804,10 @@ struct MusigPass {
 /// when the last one is there they are aggregated, checked as a BIP-340
 /// signature of the output key, and written as `tap_key_sig`, which
 /// finalizes the input as any key-path spend.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one MuSig2 input's PSBT, sighash cache, index, classification, participants and session state"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn sign_musig(
     c: &Compute,

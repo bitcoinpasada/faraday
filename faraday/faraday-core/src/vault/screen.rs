@@ -54,7 +54,10 @@ fn back_up_first(kind_: crate::backup_flow::Kind) -> Action {
 
 /// A line of typing: masked for a passphrase or a secret field, with a
 /// caret while typing goes to it.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a text box's position, width, box, masking, focus and action"
+)]
 pub(crate) fn text_box(
     ui: &mut Ui,
     x: f32,
@@ -144,7 +147,10 @@ pub(crate) fn stick_field(medium: crate::Medium, ui: &mut Ui, x: f32, y: f32, w:
 
 /// A passphrase field with an eye at its right end: pressing the eye
 /// shows what is typed in the clear, pressing it again masks it.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a secret box's position, width, box, show state, focus and its two actions"
+)]
 pub(crate) fn secret_box(
     ui: &mut Ui,
     x: f32,
@@ -236,7 +242,10 @@ pub(crate) fn hold_button(
 }
 
 /// [`hold_button`] no wider than `room`: a long label is cut to fit.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a hold button's view, position, room, label, action and tone"
+)]
 pub(crate) fn hold_button_in(
     app: &View,
     ui: &mut Ui,
@@ -2321,7 +2330,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The detail of the contents at (dx, dy), dw wide: a form, a prompt,
 /// the session's keys or wallets to save, a GPG key's files to sign,
 /// Secure Boot's images, or the item. Returns where it ends.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the vault detail pane's view, vault, records, selection and position"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn detail(
     app: &View,

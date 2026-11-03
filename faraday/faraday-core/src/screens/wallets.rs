@@ -84,7 +84,10 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
 /// vault to unlock (coming back to `back`), the open vaults that do not
 /// hold them, and the other places a seed is kept. Nothing when an open
 /// vault holds one, since its row loads it. Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the missing-keys line's view, slots, back screen, position and width"
+)]
 pub(crate) fn missing_keys_line(
     app: &View,
     ui: &mut Ui,

@@ -22,7 +22,10 @@ use faraday_ui::parts::{
 /// found, a passphrase or none, the fingerprint it gives, the wallet here
 /// it opens if any, else the kind of single-key wallet. Returns their
 /// height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the potential sheet's view, kind, position, width and the seed, xpub and match facts"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn potential_body(
     app: &View,

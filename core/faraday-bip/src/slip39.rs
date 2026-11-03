@@ -629,7 +629,10 @@ impl Share {
     }
 
     /// Builds a share from its fields and value.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "one share's header fields in SLIP-39's order, then its value"
+    )]
     fn build(
         identifier: u16,
         extendable: bool,
@@ -1062,7 +1065,10 @@ pub fn random_len(secret_len: usize, group_threshold: u8, groups: &[GroupSpec]) 
 ///
 /// A share of a group whose threshold is 1 is the whole group secret, so
 /// SLIP-39 allows such a group only one share.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "SLIP-39's split inputs: secret, passphrase, identifier, iteration exponent, thresholds and groups"
+)]
 pub fn split(
     c: &Compute,
     secret: &[u8],

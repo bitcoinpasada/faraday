@@ -193,7 +193,10 @@ fn menu_w(t: Thing) -> f32 {
 /// menu, and never drags or selects it. Edged in the accent while the
 /// keyboard is on it (on a vault's band, in `on-primary`). `hits`: it
 /// takes presses.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a chip's dots: frame, chip, position, height, colour and whether they take hits"
+)]
 fn dots(
     ui: &mut Ui,
     fr: &Frame,
@@ -718,7 +721,10 @@ const FILES: Tones = (
 /// (`docs/DESIGN.md` §4.17): a box `r` in its colours, its glyph and
 /// label in its header row, then its chips; it takes presses (and drops)
 /// as zone `z`.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a paper's frame, zone, label, chips, box, tones and hot area, drawn in one pass"
+)]
 fn paper(
     ui: &mut Ui,
     fr: &mut Frame,
@@ -862,7 +868,10 @@ struct Row {
 /// `paper_h` give a box's own height at a width. On `wide` the row is at
 /// least `min_h` tall, its boxes with it: a place as tall as the others
 /// in its line of columns (`docs/LAYOUT.md` §17).
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a row's position, width, content and actions, as the board's other rows take them"
+)]
 fn row(
     stick_h: &dyn Fn(usize, f32) -> f32,
     paper_h: &dyn Fn(f32) -> f32,
@@ -950,7 +959,10 @@ fn row(
 /// the place glyph, its name (a field while names are typed), its lines
 /// of fact as outlined tags in their tones, one after another as far as
 /// they fit, and its × when it can go.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a place header's name, facts, chips, position, width and the press and off actions"
+)]
 fn place_head(
     ui: &mut Ui,
     name: &str,

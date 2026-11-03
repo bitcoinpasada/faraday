@@ -120,7 +120,10 @@ fn row(kind: KeyboardKind) -> f32 {
 /// `y` down; on a wide layout (`compact` false) its keys no wider than
 /// [`KEYS_MAX_W`], centred. Each key presses as `act` of its
 /// [`OskPress`].
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the keyboard's position, width, kind, keys, compactness and press"
+)]
 pub fn keyboard<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,

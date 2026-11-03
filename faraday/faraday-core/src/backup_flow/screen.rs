@@ -17,7 +17,10 @@ use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 /// A button, and the room it takes with the gap under it.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a button's position, size, label, style, action and room, as every button helper takes them"
+)]
 fn btn(
     ui: &mut Ui,
     x: f32,

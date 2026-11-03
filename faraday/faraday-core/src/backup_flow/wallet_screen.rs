@@ -84,7 +84,10 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
 
 /// A plan card's head in the flow: its title, and its answers while it is
 /// closed; a press opens or closes it. Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a card header's position, width, title, summary and open state with its toggle action"
+)]
 fn card_head(
     ui: &mut Ui,
     x: f32,

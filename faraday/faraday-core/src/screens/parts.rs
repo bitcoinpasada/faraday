@@ -178,7 +178,10 @@ pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> String {
 /// The page's forward action, `h` high, `w` wide or as wide as its
 /// label: on a small panel pinned at its foot instead. Returns whether it
 /// was drawn here, so the caller makes room for it only then.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a PIN button's position, size, label, style and action, as every button helper takes them"
+)]
 #[must_use]
 pub(crate) fn pin_button(
     ui: &mut Ui,
@@ -295,7 +298,10 @@ pub(crate) fn buttons_and_next(
 /// A labelled count with − and + beside it ([`faraday_ui`]'s
 /// `Ui::stepper`). On a small panel the buttons sit at the row's right
 /// end.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a stepper's position, width, label, value, both actions and enabled state"
+)]
 pub(crate) fn stepper(
     ui: &mut Ui,
     x: f32,
@@ -324,7 +330,10 @@ pub(super) fn vaults_answer_line(ask: crate::VaultAsk) -> String {
 /// SegWit, the two everyday kinds, and the other eight behind **More
 /// kinds** until `more`. Single key, backup in shares is Make a new
 /// wallet's only (`docs/CODEX32.md` §6.9). Returns the height used.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the kind rows' position, width, chosen kind, more state, enabled state and pick"
+)]
 pub(crate) fn kind_rows(
     ui: &mut Ui,
     x: f32,
@@ -684,7 +693,10 @@ pub(super) fn made_state<'a>(
 /// lines, and the buttons go on a row under the name. Rows on a wide
 /// panel are 48 apart, so each button's target is Material's 48 dp.
 /// Returns the row's height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a file row's position, width, name, detail, done line, button and extras"
+)]
 pub(super) fn file_row(
     ui: &mut Ui,
     x: f32,
@@ -742,7 +754,10 @@ pub(super) fn file_row(
     rh + 8.0
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a file row's extra lines: the same name, detail, done line, button and extras as the row"
+)]
 fn file_row_extra(
     ui: &mut Ui,
     x: f32,
@@ -843,7 +858,10 @@ fn file_row_extra(
 /// while it is empty, the caret while it is focused. In Practice `chip` is the press of the
 /// `faraday` chip the empty field offers, and `faraday` is drawn in its
 /// code box. Returns the height used.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a passphrase field's position, width, label, text, reveal chip and action"
+)]
 pub(crate) fn pass_field(
     ui: &mut Ui,
     x: f32,

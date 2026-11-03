@@ -516,7 +516,10 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
 }
 
 /// Draws a step's body with its top-left at (x, y). Returns its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "each spend step takes the view, step number, position, width, wallet and keys needed"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn step_body(
     app: &View,
@@ -1690,7 +1693,10 @@ type ReviewRow = (
     Option<(&'static str, crate::ui::Paint)>,
 );
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the spend panel's view, position, width, height, wallet and keys needed"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn spend_panel(
     app: &View,

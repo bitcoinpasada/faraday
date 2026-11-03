@@ -203,7 +203,10 @@ fn create_flow_summary(app: &View, k: u8) -> String {
 /// under the vault's name, and an Unlock button for each locked vault
 /// (`docs/history/NEW-WALLET.md` §16.1). A key in another slot is not
 /// offered (§2.2). Returns the height used.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the create-vault rows' view, vaults, slot, position and width"
+)]
 fn create_vault_rows(
     app: &View,
     ui: &mut Ui,

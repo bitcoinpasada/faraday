@@ -1851,7 +1851,10 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
 /// One file's card on a small panel: its icon, name and line, its ⋮ at
 /// the right (decision 61), and its buttons wrapped under them. Returns
 /// its height.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a file card's view, position, width, colours, name, line, row and note"
+)]
 fn file_card(
     app: &View,
     ui: &mut Ui,

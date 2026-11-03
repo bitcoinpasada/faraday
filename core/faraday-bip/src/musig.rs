@@ -1330,7 +1330,10 @@ pub fn partial_sig_verify_internal<C: Verification>(
 
 /// BIP-327's `PartialSigVerify`: the whole check, from the nonces and
 /// keys of the session.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "BIP-327 PartialSigVerify takes the signature, nonces, keys, tweaks, message and index as separate inputs"
+)]
 pub fn partial_sig_verify<C: Verification>(
     secp: &Secp256k1<C>,
     psig: &PartialSig,

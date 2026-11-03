@@ -76,7 +76,10 @@ impl Keys {
     /// Costs what `vanity::grind` costs. A budget of a vanity search on key
     /// `i`: its first address made to begin with `prefix`, on `dial`.
     /// `None` where the passphrase dial has no words to turn.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "a vanity search's key index, dial, script, prefix and the cursor and budget of one slice"
+    )]
     pub fn vanity_grind(
         &self,
         c: &Compute,

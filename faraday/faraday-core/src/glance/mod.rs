@@ -563,7 +563,10 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
 /// and place names `plan` (else `none` as its backup row) and the notes
 /// the vault keeps on it; `in_vault` names the seeds the open vault
 /// drawing it keeps, which count as here.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the backup glance's reads, wallet, shape, vault names, answers, notes and press state"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn build(
     r: &impl Reads,
@@ -742,7 +745,10 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
 }
 
 /// The plan's map as the chart's nodes, with its check.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the backup glance's nodes from its reads, summary, shape, answers, names, notes, slots and keys"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn backup_nodes(
     r: &impl Reads,
@@ -1449,7 +1455,10 @@ fn arrange(n: usize, x: f32, w: f32) -> Vec<(f32, f32, usize)> {
 /// the band under that line of nodes, across, down through the gap
 /// between two nodes of each line it passes, and into the lower node's
 /// top edge: across or down, never through a node.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the glance's layout from its direction, position, widths, counts and height"
+)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn layout(
     direction: Direction,
