@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189); what is built is the four-slot FVLT format this replaces, whose account is `docs/history/VAULT-LOG.md`
-**Open:** the KDBX container and its XML document are built (`faraday-vault::kdbx`: §1.1 and the limits of §3 and §7.1, read and written; `kdbx::xml`: the document read, carried through unchanged and written, history and the recycle bin dropped and counted; `kdbx::items`: §7's entries and the database's custom data mapped to the records the app reads and back, a damaged item named and written back as read); not built: the KDBX file vault (§4 to §6: opening and sealing a vault, and the app reading the mapping), a GPG key's own shape and its record (§7: the armored key is kept as text), the dialog for files saved by other programs (§7.1), the QR vault as an OpenPGP message (§1.2, §2.1), the memory steps and sizes (§2, §3), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
+**Open:** the KDBX container and its XML document are built (`faraday-vault::kdbx`: §1.1 and the limits of §3 and §7.1, read and written; `kdbx::xml`: the document read, carried through unchanged and written, history and the recycle bin dropped and counted; `kdbx::items`: §7's entries and the database's custom data mapped to the records the app reads and back, a damaged item named and written back as read; `file`: a vault opened, changed, sealed and created, §2 to §5 and §8); not built: the app reading the file vault (§4 to §6), a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size, later swap work), a GPG key's own shape and its record (§7: the armored key is kept as text), the dialog for files saved by other programs (§7.1), the QR vault as an OpenPGP message (§1.2, §2.1), the memory steps and sizes (§2, §3), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -739,7 +739,9 @@ locked** closes it unread, **Open** opens it.
 
 **The file's settings.** The next seal writes the file as Faraday writes
 a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the
-file's memory, up to 1 GiB, no compression, its size padded. A file
+file's memory, up to 1 GiB, with 3 passes or, when the file has more
+(within the reader's 100), the file's own, so a seal never makes a
+guess faster than the file allowed; no compression, its size padded. A file
 saved in another cipher, KDF or compression says so on the vault's head
 while it is open.
 

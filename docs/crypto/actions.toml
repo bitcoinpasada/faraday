@@ -6970,6 +6970,12 @@ functions = [
   "faraday/faraday-vault/src/kdbx/mod.rs::checked_header",
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
   "faraday/faraday-vault/src/kdbx/mod.rs::seal",
+  "faraday/faraday-vault/src/kdbx/mod.rs::measure",
+  "faraday/faraday-vault/src/file.rs::inspect",
+  "faraday/faraday-vault/src/file.rs::measure",
+  "faraday/faraday-vault/src/file.rs::open",
+  "faraday/faraday-vault/src/file.rs::seal",
+  "faraday/faraday-vault/src/file.rs::create",
   "faraday/faraday-vault/src/kdbx/keys.rs::file_keys",
   "faraday/faraday-vault/src/kdbx/keys.rs::argon_run",
   "faraday/faraday-vault/src/kdbx/keys.rs::block_key",
@@ -6985,6 +6991,9 @@ functions = [
 code = [
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
   "faraday/faraday-vault/src/kdbx/mod.rs::seal",
+  "faraday/faraday-vault/src/file.rs::open",
+  "faraday/faraday-vault/src/file.rs::seal",
+  "faraday/faraday-vault/src/file.rs::create",
 ]
 
 [action.implementation]
@@ -7033,6 +7042,10 @@ tests = [
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_new_vault_is_written_and_reads_back",
   "faraday/faraday-vault/tests/kdbx_xml.rs::what_is_refused_is_named",
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_value_a_uuid_or_a_key_that_is_wrong_is_refused",
+  "faraday/faraday-vault/tests/file.rs::a_vault_is_made_opened_and_sealed_again_with_its_count_going_up",
+  "faraday/faraday-vault/tests/file.rs::each_size_has_the_file_length_the_spec_gives",
+  "faraday/faraday-vault/tests/file.rs::a_file_a_keepass_app_saved_opens_and_is_sealed_as_faraday_writes_one",
+  "faraday/faraday-vault/tests/file.rs::what_does_not_fit_is_named_by_the_bytes_over_and_the_next_size_and_the_vault_stays_open",
 ]
 not_crosschecked = "Opened by pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it)."
 fuzz = ["kdbx_file", "kdbx_body"]

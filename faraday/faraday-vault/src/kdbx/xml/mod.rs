@@ -215,6 +215,7 @@ impl Carried {
     }
 }
 
+#[derive(Clone)]
 /// An element with text the model reads: its bytes as read, and the text.
 struct Leaf {
     orig: Carried,
@@ -279,6 +280,7 @@ impl W<'_> {
     }
 }
 
+#[derive(Clone)]
 /// An element with parts: its opening and closing tags as read.
 struct Frame<P> {
     tag: &'static [u8],
@@ -384,6 +386,7 @@ impl<P: Part> Frame<P> {
 
 // ----------------------------------------------------------- the model
 
+#[derive(Clone)]
 /// A key and a value: an entry's field, or an item of custom data.
 pub struct Pair {
     key: Vec<u8>,
@@ -394,6 +397,7 @@ pub struct Pair {
     orig: Option<Orig>,
 }
 
+#[derive(Clone)]
 /// What a pair was when read.
 struct Orig {
     carried: Carried,
@@ -460,6 +464,7 @@ impl Pair {
     }
 }
 
+#[derive(Clone)]
 enum CdPart {
     Carried(Carried),
     Item(Pair),
@@ -477,6 +482,7 @@ impl Part for CdPart {
     }
 }
 
+#[derive(Clone)]
 /// A list of custom data: Faraday's items, with the others kept, not read.
 pub struct CustomData {
     frame: Frame<CdPart>,
@@ -563,6 +569,7 @@ impl CustomData {
     }
 }
 
+#[derive(Clone)]
 enum TimesPart {
     Carried(Carried),
     Modified,
@@ -580,6 +587,7 @@ impl Part for TimesPart {
     }
 }
 
+#[derive(Clone)]
 enum EntryPart {
     Carried(Carried),
     Uuid,
@@ -600,6 +608,7 @@ impl Part for EntryPart {
     }
 }
 
+#[derive(Clone)]
 /// An entry.
 pub struct Entry {
     frame: Frame<EntryPart>,
@@ -794,6 +803,7 @@ fn decode_time(text: &[u8]) -> Option<i64> {
     ticks.checked_sub(EPOCH_GAP)
 }
 
+#[derive(Clone)]
 enum GroupPart {
     Carried(Carried),
     Uuid,
@@ -815,6 +825,7 @@ impl Part for GroupPart {
     }
 }
 
+#[derive(Clone)]
 /// A group.
 pub struct Group {
     frame: Frame<GroupPart>,
@@ -989,6 +1000,7 @@ impl Group {
     }
 }
 
+#[derive(Clone)]
 enum MetaPart {
     Carried(Carried),
     Name,
@@ -1008,6 +1020,7 @@ impl Part for MetaPart {
     }
 }
 
+#[derive(Clone)]
 struct Meta {
     frame: Frame<MetaPart>,
     label: Vec<u8>,
@@ -1028,6 +1041,7 @@ impl Meta {
     }
 }
 
+#[derive(Clone)]
 enum RootPart {
     Carried(Carried),
     Group(Box<Group>),
@@ -1045,6 +1059,7 @@ impl Part for RootPart {
     }
 }
 
+#[derive(Clone)]
 enum FilePart {
     Carried(Carried),
     Meta(Box<Meta>),
@@ -1063,6 +1078,7 @@ impl Part for FilePart {
     }
 }
 
+#[derive(Clone)]
 /// A KDBX 4 XML document.
 pub struct Document {
     prolog: Vec<u8>,

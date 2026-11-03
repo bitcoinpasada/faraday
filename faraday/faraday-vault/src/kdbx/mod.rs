@@ -185,6 +185,36 @@ pub fn inspect(bytes: &[u8]) -> Result<Header, Error> {
     checked_header(bytes).map(|parsed| parsed.header)
 }
 
+/// Costs a SHA-256 of the header (the check [`inspect`] makes): the length
+/// of a file's header with its hash and its HMAC, which the plaintext's
+/// length and the blocks' framing follow.
+pub fn head_len(bytes: &[u8]) -> Result<usize, Error> {
+    checked_header(bytes).map(|parsed| parsed.len + 64)
+}
+
+/// The plaintext a file takes to hold an XML document of `document_len`
+/// bytes and these attachments: the inner header (with an inner key as
+/// long as Faraday writes) and the document, before any padding.
+pub fn plain_needs(binaries: &[Binary], document_len: usize) -> usize {
+    inner::written_len(&[0u8; RANDOM_LEN - INNER_KEY_AT], binaries).saturating_add(document_len)
+}
+
+/// Costs an Argon2 run at the cost and function `header` states, for a
+/// passphrase and salt of no meaning, the keys discarded: the time an
+/// unlock of this file takes, measured on this computer. The cost is
+/// checked against §3's limits first.
+pub fn measure(c: &Compute, header: &Header) -> Result<(), Error> {
+    keys::file_keys(
+        c,
+        b"measure",
+        &[0u8; 32],
+        header.kdf,
+        &header.cost,
+        &[0u8; 32],
+    )
+    .map(|_| ())
+}
+
 /// The header read, its hash and the file's length checked.
 fn checked_header(bytes: &[u8]) -> Result<header::Parsed, Error> {
     let parsed = header::read_fields(bytes)?;

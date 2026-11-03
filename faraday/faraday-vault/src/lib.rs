@@ -12,6 +12,9 @@
 //! - [`Opened::seal`] re-encrypts the open slot under a fresh nonce with
 //!   its seal count one higher, and copies the other three byte for byte
 //!   (§5).
+//! - [`file`] is the file vault of F190 (`docs/VAULT.md`): a KDBX 4 file
+//!   opened, changed and sealed as the app does, added beside the slots
+//!   above, which it replaces.
 //! - [`records`] is the slot's plaintext: typed records of fields (§7),
 //!   and the seal count ([`Seals`]) this crate alone writes.
 //!
@@ -36,6 +39,7 @@ pub mod child;
 pub mod codex32;
 pub mod contents;
 pub mod entries;
+pub mod file;
 pub mod kdbx;
 pub mod layouts;
 pub mod records;

@@ -110,6 +110,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-vault's KDBX item tests, which cannot reach faraday-core's test kit",
     ),
     (
+        "faraday/faraday-vault/tests/file.rs",
+        "compute",
+        "faraday-vault's file vault tests, which cannot reach faraday-core's test kit",
+    ),
+    (
         "faraday/faraday-vault/tests/kdbx.rs",
         "compute",
         "faraday-vault's KDBX tests, which count the key-stretching runs",

@@ -952,15 +952,32 @@ fn an_ambiguous_database_keeps_its_values_and_is_read_only() {
             .iter()
             .any(|u| u.uuid.is_none() && u.what.fault == Fault::Ambiguous)
     );
-    assert_eq!(items::stamp(&mut doc, 2, None), Err(Unwritable::Unreadable));
+    assert_eq!(items::stamp(&mut doc, 2, None), Err(Unwritable::ReadOnly));
     assert_eq!(
         items::put_plan(&mut doc, 1, &plan()),
-        Err(Unwritable::Unreadable)
+        Err(Unwritable::ReadOnly)
     );
     assert_eq!(
         items::put_signed(&mut doc, &signed()),
-        Err(Unwritable::Unreadable)
+        Err(Unwritable::ReadOnly)
     );
+}
+
+#[test]
+fn a_new_plan_takes_a_number_past_every_plan_readable_or_not() {
+    let mut doc = Document::new([0xee; 16], "Vault");
+    assert_eq!(items::next_plan(&doc), Ok(1));
+    items::put_plan(&mut doc, 2, &plan()).unwrap();
+    assert_eq!(items::next_plan(&doc), Ok(3));
+    doc.custom_mut()
+        .set("faraday.plan.3", "not a plan")
+        .unwrap();
+    assert_eq!(items::next_plan(&doc), Ok(4));
+    // No number is left past the largest one.
+    doc.custom_mut()
+        .set("faraday.plan.4294967295", "not a plan")
+        .unwrap();
+    assert_eq!(items::next_plan(&doc), Err(Unwritable::Plan));
 }
 
 /// An entry written into a document's text, before the last group's end.
@@ -1042,15 +1059,15 @@ fn two_format_items_make_every_item_unreadable_and_nothing_changes() {
     let r = Record::new(kind::ENTRY).with(field::TITLE, b"x");
     assert_eq!(
         items::put(&compute(), &mut doc, &place(99, "", ""), &Body::Record(r)),
-        Err(Unwritable::Unreadable)
+        Err(Unwritable::ReadOnly)
     );
     assert_eq!(
         items::remove_custom(&mut doc, "faraday.plan.1"),
-        Err(Unwritable::Unreadable)
+        Err(Unwritable::ReadOnly)
     );
     assert_eq!(
         items::remove(&compute(), &mut doc, &uuid(1)),
-        Err(Unwritable::Unreadable)
+        Err(Unwritable::ReadOnly)
     );
 }
 

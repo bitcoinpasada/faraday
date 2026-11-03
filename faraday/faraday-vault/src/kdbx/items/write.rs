@@ -20,7 +20,9 @@ use crate::{child, codex32, contents};
 /// Why a change was not applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unwritable {
-    /// The vault's format is not one this build writes: it is read-only.
+    /// The vault is read-only: its format is not one this build writes, or
+    /// its `Meta` or database custom data cannot be told apart from what it
+    /// was read as.
     ReadOnly,
     /// A record of a type that is not an entry, or that does not pass its
     /// own check.
@@ -30,8 +32,7 @@ pub enum Unwritable {
     Value(&'static str),
     /// The entry with this UUID is one of two, has two fields of one key,
     /// does not read (`read` lists it as unreadable) or is otherwise
-    /// ambiguous, or so is its group or the database's `Meta`: it is not
-    /// changed.
+    /// ambiguous, or so is its group: it is not changed.
     Unreadable,
     /// A plan's number of 0, or a value that is not its TOML.
     Plan,
@@ -245,13 +246,14 @@ fn is_newer(doc: &Document) -> bool {
 }
 
 /// Why nothing may be changed: a newer format, or a `Meta` or custom data
-/// that cannot be told apart (it counts as a newer format).
+/// that cannot be told apart (it counts as a newer format): both are
+/// [`Unwritable::ReadOnly`].
 fn locked(doc: &Document) -> Result<(), Unwritable> {
     if is_newer(doc) {
         return Err(Unwritable::ReadOnly);
     }
     if meta_ambiguous(doc) {
-        return Err(Unwritable::Unreadable);
+        return Err(Unwritable::ReadOnly);
     }
     Ok(())
 }

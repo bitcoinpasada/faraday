@@ -204,7 +204,69 @@ pub struct Read {
     pub meta_ambiguous: Option<&'static str>,
 }
 
+/// Why an open vault is not changed or sealed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReadOnly {
+    /// `faraday.format` states a format newer than this build writes (the
+    /// value as read).
+    Newer(String),
+    /// The database's `Meta` or custom data cannot be told apart from
+    /// what it was read as: the reason, as the document model words it.
+    Ambiguous(&'static str),
+}
+
+/// `faraday.sealed`'s form from Unix seconds: RFC 3339 in UTC
+/// (`2026-10-28T14:02:00Z`); `None` for a year past 9999.
+pub fn utc_time(unix: u64) -> Option<String> {
+    let days = i64::try_from(unix / 86_400).ok()?;
+    let rest = unix % 86_400;
+    // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    if !(0..=9999).contains(&year) {
+        return None;
+    }
+    let mut out = String::with_capacity(20);
+    let two = |out: &mut String, n: i64| {
+        out.push(char::from(b'0' + (n / 10) as u8));
+        out.push(char::from(b'0' + (n % 10) as u8));
+    };
+    two(&mut out, year / 100);
+    two(&mut out, year % 100);
+    out.push('-');
+    two(&mut out, month);
+    out.push('-');
+    two(&mut out, day);
+    out.push('T');
+    two(&mut out, (rest / 3_600) as i64);
+    out.push(':');
+    two(&mut out, (rest % 3_600 / 60) as i64);
+    out.push(':');
+    two(&mut out, (rest % 60) as i64);
+    out.push('Z');
+    Some(out)
+}
+
 impl Read {
+    /// Why the vault may not be changed, if it may not
+    /// ([`Read::read_only`]): an ambiguous `Meta` before a newer format.
+    pub fn why_read_only(&self) -> Option<ReadOnly> {
+        if let Some(why) = self.meta_ambiguous {
+            return Some(ReadOnly::Ambiguous(why));
+        }
+        match &self.format {
+            Format::Newer(f) => Some(ReadOnly::Newer(f.clone())),
+            _ => None,
+        }
+    }
+
     /// Whether the vault may be changed: not when its format is newer or
     /// its `Meta` is ambiguous.
     pub fn read_only(&self) -> bool {

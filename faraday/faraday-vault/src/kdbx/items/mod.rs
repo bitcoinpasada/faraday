@@ -70,7 +70,9 @@ use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kin
 use crate::totp::{self, NotTotp, Totp};
 use crate::{child, codex32, contents};
 
-pub use text::{Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, Unreadable};
+pub use text::{
+    Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, ReadOnly, Unreadable, utc_time,
+};
 use text::{Name, Path, Sealed, damage, title_of};
 pub use write::{Place, Unwritable, put, put_plan, put_signed, remove, remove_custom, stamp};
 
@@ -525,6 +527,19 @@ fn walk<'a>(g: &'a Group, path: &mut Path, marked: Marks, out: &mut Walked<'a>) 
         walk(sub, path, marked, out);
         path.pop();
     }
+}
+
+/// The number a new backup plan takes: one past every `faraday.plan.{n}`
+/// in the database's custom data, readable or not (1 when there is none).
+/// A database holding `faraday.plan.4294967295` has no number past it:
+/// [`Unwritable::Plan`].
+pub fn next_plan(doc: &Document) -> Result<u32, Unwritable> {
+    doc.custom()
+        .items()
+        .filter_map(|(k, _)| k.strip_prefix(PLAN))
+        .filter_map(|n| n.parse::<u32>().ok())
+        .max()
+        .map_or(Ok(1), |n| n.checked_add(1).ok_or(Unwritable::Plan))
 }
 
 /// Costs a parse of each seed's words and of each wallet's policy or
