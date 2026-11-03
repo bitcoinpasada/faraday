@@ -38,13 +38,17 @@ use bitcoin::{Address, CompressedPublicKey, XOnlyPublicKey};
 use faraday_crypto::work::Compute;
 
 use crate::bip39::Mnemonic;
+use crate::codex32::CHARSET;
 use crate::keys::{MasterKey, Network, ScriptType};
 
 /// The counter's digits, in EntropyLab's order: `a` is zero, `9` is 61.
 pub const ALPHABET: &[u8; 62] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 /// Bech32's character set, which has no `1`, `b`, `i` or `o`.
-pub const BECH32: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+pub const BECH32: &str = match core::str::from_utf8(CHARSET) {
+    Ok(s) => s,
+    Err(_) => panic!("the alphabet is ASCII"),
+};
 
 /// Base58's character set, which has no `0`, `O`, `I` or `l`.
 pub const BASE58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";

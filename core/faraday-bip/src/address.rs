@@ -11,6 +11,7 @@ use core::str::FromStr;
 
 use bitcoin::address::{Address, NetworkUnchecked};
 
+use crate::codex32::CHARSET;
 use crate::keys::Network;
 
 /// Why a text is not an address on the network asked about.
@@ -24,10 +25,6 @@ pub enum Error {
     /// addresses holds one, because nothing is ever paid to it directly.
     Silent,
 }
-
-/// The bech32 alphabet, which is every lower-case letter but `b`, `i`
-/// and `o` and every digit but `1`.
-const BECH32: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 /// The base58 alphabet: the digits and both cases of the letters,
 /// without the four characters that are read for one another.
@@ -67,7 +64,7 @@ pub fn is_bech32_prefix(text: &str, network: Network) -> bool {
         return true;
     }
     match text.strip_prefix(start.as_str()) {
-        Some(rest) => text.len() <= MAX_BECH32 && rest.chars().all(|c| BECH32.contains(c)),
+        Some(rest) => text.len() <= MAX_BECH32 && rest.bytes().all(|c| CHARSET.contains(&c)),
         None => false,
     }
 }

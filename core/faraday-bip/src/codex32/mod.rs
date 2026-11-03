@@ -63,8 +63,10 @@ pub use worksheet::{
     pair_symbol, translation_symbols,
 };
 
-/// The bech32 alphabet, symbol value by position (BIP-0173).
-const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+/// The bech32 alphabet, symbol value by position (BIP-0173): the one
+/// copy every other crate reads. Look a secret symbol up with [`charval`]
+/// and [`symbol_char`], never by searching this.
+pub const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 /// What `bech32_hrp_expand("ms")` contributes to the codeword length.
 const HRP_EXPANDED_LEN: usize = 5;
 /// Characters of regular checksum.
@@ -287,7 +289,7 @@ fn append_checksum(data: &mut [u8], len: usize) -> usize {
 /// Multiplication in GF(32) as BIP 93 defines it over the bech32 alphabet
 /// (the field of x^5 + x^3 + 1), without a branch or a table index on
 /// either factor: five rounds of masked adds and a masked reduction.
-pub(crate) const fn gf_mul(a: u8, b: u8) -> u8 {
+pub const fn gf_mul(a: u8, b: u8) -> u8 {
     let mut a = a;
     let mut res = 0u8;
     let mut i = 0;

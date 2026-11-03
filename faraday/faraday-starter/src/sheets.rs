@@ -63,7 +63,8 @@ fn get<'a>(f: &'a [(String, String)], key: &str) -> Option<&'a str> {
 }
 
 /// The bech32 alphabet in value order, lower case.
-const ALPHA: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+use faraday_bip::codex32::CHARSET as ALPHA;
+use faraday_bip::codex32::gf_mul;
 /// The booklet's order of the characters in its tables.
 const BOOK: &[u8; 32] = b"ACDEFGHJKLMNPQRSTUVWXYZ023456789";
 /// The characters the booklet asks handwriting to slash.
@@ -102,30 +103,12 @@ pub fn sum_box(j: usize) -> usize {
 
 /// The value of a bech32 character, either case.
 fn val(c: u8) -> u8 {
-    ALPHA
-        .iter()
-        .position(|&a| a == c.to_ascii_lowercase())
-        .unwrap_or(0) as u8
+    faraday_bip::codex32::charval(c).unwrap_or(0)
 }
 
 /// The upper-case character of a value.
 fn up(v: u8) -> u8 {
     ALPHA[usize::from(v & 31)].to_ascii_uppercase()
-}
-
-/// Multiplication in GF(32), BIP 93's field: x^5 + x^3 + 1.
-fn gf_mul(a: u8, b: u8) -> u8 {
-    let (mut a, mut res) = (a, 0u8);
-    for i in 0..5 {
-        if (b >> i) & 1 == 1 {
-            res ^= a;
-        }
-        a <<= 1;
-        if a >= 32 {
-            a ^= 41;
-        }
-    }
-    res
 }
 
 // ---------------------------------------------------------------------

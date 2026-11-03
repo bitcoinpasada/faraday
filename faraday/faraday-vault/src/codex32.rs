@@ -23,10 +23,7 @@
 
 use alloc::vec::Vec;
 
-use faraday_bip::codex32::Codex32;
-
-/// The bech32 characters, the codex32 alphabet.
-const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+use faraday_bip::codex32::{CHARSET, Codex32};
 
 /// The lengths a codex32 string can have (BIP 93).
 pub const LENGTHS: [u8; 6] = [48, 54, 61, 67, 74, 127];

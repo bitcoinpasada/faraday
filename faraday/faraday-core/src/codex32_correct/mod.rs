@@ -37,8 +37,8 @@
 //! out; the one costly call, the decode, is made by a press.
 
 use faraday_bip::codex32::{
-    CORRECTION_BOUND, Codex32, Codex32Ascii, Edit, MAX_EDITS, MAX_STRING_LEN, Proposal, Refusal,
-    UNREADABLE, correct,
+    CHARSET, CORRECTION_BOUND, Codex32, Codex32Ascii, Edit, MAX_EDITS, MAX_STRING_LEN, Proposal,
+    Refusal, UNREADABLE, correct,
 };
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
@@ -54,9 +54,6 @@ pub const PAIRS_PER_PAGE: usize = 4;
 const RUN: usize = 13;
 /// The longest the long checksum of a 127-character string fills.
 const RUN_LONG: usize = 15;
-
-/// The bech32 alphabet: what a box can hold.
-const BECH32: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 /// What a string, or the key it made, carries once it went in by a
 /// correction (§8.4). It never goes: a fingerprint matched later beside
@@ -594,7 +591,7 @@ impl Correction {
             (Step::Retype, Key::Char(ch)) => {
                 let ch = ch.to_ascii_lowercase();
                 let total = s.proposal.edits().len();
-                if !ch.is_ascii() || !BECH32.contains(&(ch as u8)) || s.retyped.at >= total {
+                if !ch.is_ascii() || !CHARSET.contains(&(ch as u8)) || s.retyped.at >= total {
                     return Outcome::Stay;
                 }
                 // The box at the caret takes it, and the caret moves on.

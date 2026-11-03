@@ -76,15 +76,14 @@ use crate::secret_text::SecretText;
 use crate::strings::{EN, fill};
 
 /// The bech32 alphabet in value order: a symbol's character.
-pub const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+pub use faraday_bip::codex32::CHARSET;
 
 /// A character's symbol value, either case; `None` outside the alphabet.
 pub fn symbol_of(c: char) -> Option<u8> {
-    let c = c.to_ascii_lowercase();
-    CHARSET
-        .iter()
-        .position(|&x| char::from(x) == c)
-        .map(|p| p as u8)
+    if !c.is_ascii() {
+        return None;
+    }
+    faraday_bip::codex32::charval(c as u8)
 }
 
 /// A symbol's character, lowercase.

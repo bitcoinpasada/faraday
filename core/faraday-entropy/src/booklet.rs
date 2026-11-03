@@ -41,7 +41,7 @@ pub const BOOKLET_FACES: u8 = 6;
 /// The booklet's tree, its leaves left to right: the bech32 alphabet in
 /// value order (the `code` array of SSS32.ps). The leaf reached by the
 /// five bits `b1..b5` is `TREE[16·b1 + 8·b2 + 4·b3 + 2·b4 + b5]`.
-pub const TREE: [u8; 32] = *b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+pub const TREE: [u8; 32] = *faraday_bip::codex32::CHARSET;
 
 /// Why a roll or a character was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

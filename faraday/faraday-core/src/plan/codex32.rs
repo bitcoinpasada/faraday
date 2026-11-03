@@ -19,7 +19,7 @@ use super::*;
 use faraday_vault::codex32::{SetFacts, State};
 
 /// The bech32 characters, in value order.
-pub const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+pub use faraday_bip::codex32::CHARSET;
 
 /// The secret's share index, as its value.
 pub const SECRET: usize = 16;
@@ -31,7 +31,7 @@ pub fn index_char(j: usize) -> char {
 
 /// A share index's value, from its character (either case).
 pub fn index_of(c: u8) -> Option<usize> {
-    CHARSET.iter().position(|&x| x == c.to_ascii_lowercase())
+    faraday_bip::codex32::charval(c).map(usize::from)
 }
 
 /// A seed's codex32 form on the plan.
