@@ -233,12 +233,14 @@ class Bip39(Area):
 
     def known_differences(self):
         """The product path refuses a passphrase that is not printable
-        ASCII, or past 256 bytes; python-mnemonic derives a seed."""
+        ASCII, or past 256 bytes; python-mnemonic derives a seed. These
+        refusals are Faraday's own, so no second judge covers them."""
         m = mnemonic(0)
         sentence = m.to_mnemonic(bytes(16))
         for passphrase in ["㍍ガバヴァぱばぐゞちぢ十人十色", "tab\there", "x" * 257]:
             rust = self.rust.call("bip39.seed", language=0, sentence=sentence,
                                   passphrase=passphrase)
+            self.second["uncovered"] += 1
             if rust[0] != "err":
                 raise Mismatch(self.name, "bip39.seed", {"passphrase": passphrase}, rust,
                                ("ok", Mnemonic.to_seed(sentence, passphrase).hex()),
