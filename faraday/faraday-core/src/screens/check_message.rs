@@ -3,7 +3,6 @@
 use super::parts::guide_text_learn;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
-use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Ui, grouped};
 use crate::{Action, Screen};

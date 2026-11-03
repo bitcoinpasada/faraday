@@ -13,7 +13,6 @@ use crate::drawing::View;
 use crate::fresh::OwnSource;
 use crate::fresh::page::{Act, OwnPage};
 use crate::strings::{EN, fill};
-use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};

@@ -5,7 +5,6 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::ui::Region;
 use crate::ui::Shape;
 use faraday_draw::widgets::Icon;
 
