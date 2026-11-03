@@ -70,6 +70,31 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 .map_err(|e| format!("{e:?}"))?;
             Ok(json!({"text": record.to_text()}))
         }
+        // Faraday's JSON reader on a text: the value it reads, numbers as
+        // the floats they stand for, or its refusal.
+        "json" => {
+            let v = faraday_bip::json::parse(text(req, "text")).map_err(|e| format!("{e:?}"))?;
+            Ok(json!({"value": value_of(&v)}))
+        }
         _ => Err(format!("unknown import op {name}")),
+    }
+}
+
+/// A `faraday_bip::json::Value` as a serde_json one, a number as the
+/// float of its text.
+fn value_of(v: &faraday_bip::json::Value) -> Value {
+    use faraday_bip::json::Value as J;
+    match v {
+        J::Null => Value::Null,
+        J::Bool(b) => Value::Bool(*b),
+        J::Number(t) => json!(t.parse::<f64>().expect("a number of the reader is a float")),
+        J::String(s) => Value::String(s.clone()),
+        J::Array(items) => Value::Array(items.iter().map(value_of).collect()),
+        J::Object(members) => Value::Object(
+            members
+                .iter()
+                .map(|(k, x)| (k.clone(), value_of(x)))
+                .collect(),
+        ),
     }
 }

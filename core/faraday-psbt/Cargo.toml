@@ -17,7 +17,7 @@ miniscript.workspace = true
 [dev-dependencies]
 # A token that counts nothing, for the tests (docs/COMPUTE.md §3).
 faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true

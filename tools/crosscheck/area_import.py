@@ -111,6 +111,50 @@ class Ours(Exception):
 
 # ----- keys, by btclib-wallet ------------------------------------------------------------
 
+JSON_MAX_DEPTH = 32
+JSON_MAX_SIZE = 1 << 20
+
+
+def json_reference(text):
+    """CPython's `json` reading a wallet file the way Faraday's reader is
+    to: a byte order mark and white space around it, a key named twice
+    refused, nesting deeper than 32 refused, a text over 1 MiB refused,
+    and no NaN, Infinity or lone surrogate. Numbers are compared as the
+    floats they stand for, since Faraday keeps the decimal text of the
+    value (`1e3` is `1000`)."""
+    if len(text.encode()) > JSON_MAX_SIZE:
+        raise ValueError("over 1 MiB")
+
+    def members(pairs):
+        d = {}
+        for k, v in pairs:
+            if k in d:
+                raise ValueError(f"key {k!r} named twice")
+            d[k] = v
+        return d
+
+    def refuse(name):
+        raise ValueError(name)
+
+    value = json.loads(text.removeprefix("\ufeff"), object_pairs_hook=members,
+                       parse_constant=refuse)
+
+    def walk(v, depth):
+        if isinstance(v, bool) or v is None:
+            return v
+        if isinstance(v, (int, float)):
+            return float(v)
+        if isinstance(v, str):
+            v.encode()  # a lone surrogate does not encode
+            return v
+        if depth + 1 > JSON_MAX_DEPTH:
+            raise ValueError("deeper than 32")
+        if isinstance(v, list):
+            return [walk(x, depth + 1) for x in v]
+        return {walk(k, depth + 1): walk(x, depth + 1) for k, x in v.items()}
+    return walk(value, 0)
+
+
 def spelled(key, net, version):
     """The same extended key in another version (btclib's SLIP-132 table)."""
     return bip32.derive(key, "m", getattr(NETWORKS[net], version))
@@ -486,6 +530,13 @@ class Import(Area):
 
     def read(self, text, ref):
         self.compare("import.read", {"text": text, "n": N}, ref)
+        if text.lstrip("\ufeff \t\r\n")[:1] in ("{", "["):
+            self.json(text)
+
+    def json(self, text):
+        """Faraday's JSON reader and CPython's `json` on the same text:
+        the same value, or both refuse (X5)."""
+        return self.compare("import.json", {"text": text}, lambda: {"value": json_reference(text)})
 
     def verify(self, text, expect=None):
         def ref():
@@ -524,6 +575,7 @@ class Import(Area):
         self.read(t, lambda t=t: read_listdescriptors(t))
         t = (INTEROP / "sparrow" / "specter-diy-export.txt").read_text().strip()
         self.read(t, lambda t=t: read_specter_diy(t))
+        self.json_cases()
         # Faraday's own record, of both networks and BIP-48 scripts.
         for net in ("mainnet", "testnet"):
             for script in (1, 2):
@@ -534,6 +586,34 @@ class Import(Area):
                 for fmt in formats:
                     if self.fits(shape, fmt):
                         self.wallet_case(shape, fmt, damage=False)
+
+    # ----- JSON --------------------------------------------------------------------------
+
+    def json_cases(self):
+        """The reader's own rules, beside CPython's: a key named twice
+        (written two ways too), the depth of 32, the grammar's refusals, and
+        random nestings of both kinds around the limit."""
+        rng = self.rng
+        for text in [
+                '{"a":1,"a":2}', '{"a":1,"\\u0061":2}', '{"a":{"b":1},"b":{"b":2}}',
+                '{"x":[{"a":1,"a":1}]}', '\ufeff {"a":[1e3,-0.5,12,-7,1.0]} \n',
+                '"\\ud83d\\ude00"', '"\\ud800"', '"\\ud800\\u0041"', '[NaN]', '[Infinity]',
+                '[1,]', '{"a":1,}', "{'a':1}", "01", "1.", ".5", "-", "1e", "+1", "tru", "nul",
+                '"a', '"\\x"', '"\\u12"', '"tab\there"', '{"a" 1}', "{1:2}", "[1 2]", "1 2",
+                "{} x", "", "{", "[[]", "[]]",
+        ]:
+            self.json(text)
+        for _ in range(60):
+            n = rng.randrange(JSON_MAX_DEPTH - 4, JSON_MAX_DEPTH + 5)
+            inner = rng.choice(["1", '"s"', "null", "{}", "[]"])
+            parts = [rng.choice(["[", '{"k":']) for _ in range(n)]
+            close = ["]" if p == "[" else "}" for p in parts]
+            self.json("".join(parts) + inner + "".join(reversed(close)))
+        for _ in range(30):
+            keys = [rng.choice(["a", "b", "c", "\\u0061", "\\u0062"]) for _ in range(rng.randrange(1, 6))]
+            body = ",".join(f'"{k}":{rng.randrange(10)}' for k in keys)
+            around = rng.choice([("", ""), ('{"z":[', "]}"), ('{"z":[1,', "]}")])
+            self.json(around[0] + "{" + body + "}" + around[1])
 
     # ----- wallets -----------------------------------------------------------------------
 

@@ -47,7 +47,7 @@ miniz_oxide = { version = "0.8", default-features = false, features = ["with-all
 
 [dev-dependencies]
 # The slot vectors' file (tools/vectors/vault/slots.json).
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["std"] }
 # The vault sizes it must agree with (tests/sizes.rs).
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 

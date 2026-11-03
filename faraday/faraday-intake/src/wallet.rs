@@ -377,9 +377,7 @@ pub fn holds_secret(text: &str) -> bool {
     if crate::holds_spend_key(t) {
         return true;
     }
-    t.starts_with('{')
-        && t.contains("\"wallet_type\"")
-        && json::parse(t).is_ok_and(|v| electrum::looks_like(&v) && electrum::holds_secret(&v))
+    t.starts_with('{') && t.contains("\"wallet_type\"") && electrum::text_holds_secret(t)
 }
 
 /// Costs a parse of each descriptor and of each wallet tried: descriptors

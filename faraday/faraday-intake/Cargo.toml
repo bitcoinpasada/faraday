@@ -18,6 +18,10 @@ faraday-crypto = { path = "../../core/faraday-crypto" }
 # The Faraday file envelope, what a whole transfer arrived as, and CBOR.
 faraday-qr = { path = "../faraday-qr" }
 zeroize = { workspace = true, features = ["alloc"] }
+# An Electrum file is checked for a secret without its values being kept
+# (`electrum::text_holds_secret`).
+serde.workspace = true
+serde_json.workspace = true
 # The description reader's refusal lines (`wallet`).
 faraday-strings = { path = "../faraday-strings" }
 

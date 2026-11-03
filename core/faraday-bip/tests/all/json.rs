@@ -76,6 +76,41 @@ fn the_rfcs_examples_read_as_the_values_they_write() {
 }
 
 #[test]
+fn a_number_reads_as_the_decimal_text_of_its_value() {
+    let v = json::parse(r#"[1e3,-0.5,12,-7,1.0]"#).unwrap();
+    let texts: Vec<_> = v
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| match n {
+            Value::Number(t) => t.as_str(),
+            _ => "",
+        })
+        .collect();
+    assert_eq!(texts, ["1000", "-0.5", "12", "-7", "1"]);
+    assert_eq!(v.as_array().unwrap()[0].as_u64(), Some(1000));
+    assert_eq!(v.as_array().unwrap()[1].as_u64(), None);
+}
+
+#[test]
+fn a_key_written_two_ways_is_still_named_twice() {
+    assert_eq!(
+        json::parse(r#"{"a":1,"\u0061":2}"#),
+        Err(Error::DuplicateKey)
+    );
+    assert_eq!(
+        json::parse(r#"{"x":[{"a":1,"a":1}]}"#),
+        Err(Error::DuplicateKey)
+    );
+    let deep_object = format!(
+        "{}1{}",
+        r#"{"a":"#.repeat(MAX_DEPTH + 1),
+        "}".repeat(MAX_DEPTH + 1)
+    );
+    assert_eq!(json::parse(&deep_object), Err(Error::TooDeep));
+}
+
+#[test]
 fn every_escape_is_undone_and_quote_writes_it_back() {
     let v = json::parse(r#""a\"b\\c\/d\b\f\n\r\t\u00e9\ud83d\ude00""#).unwrap();
     let s = "a\"b\\c/d\u{8}\u{c}\n\r\té😀";
@@ -121,7 +156,7 @@ fn text_the_grammar_does_not_allow_is_refused() {
 
 #[test]
 fn a_key_named_twice_too_deep_or_too_long_is_refused() {
-    assert_eq!(json::parse(r#"{"a":1,"a":2}"#), Err(Error::Duplicate));
+    assert_eq!(json::parse(r#"{"a":1,"a":2}"#), Err(Error::DuplicateKey));
     assert!(json::parse(r#"{"a":{"b":1},"b":{"b":2}}"#).is_ok());
     let deep = |n: usize| format!("{}{}", "[".repeat(n), "]".repeat(n));
     assert!(json::parse(&deep(MAX_DEPTH)).is_ok());

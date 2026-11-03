@@ -782,6 +782,7 @@ dependencies = [
  "bitcoin",
  "faraday-crypto",
  "miniscript",
+ "serde",
  "serde_json",
  "unicode-normalization",
  "zeroize",
@@ -964,6 +965,8 @@ dependencies = [
  "faraday-crypto",
  "faraday-qr",
  "faraday-strings",
+ "serde",
+ "serde_json",
  "zeroize",
 ]
 

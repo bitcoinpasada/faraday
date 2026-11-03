@@ -57,7 +57,7 @@ faraday-scanner = { path = "../faraday-scanner" }
 # frame budgets (`src/work/budget.rs`).
 faraday-alloc-count = { path = "../tools/alloc-count" }
 # The known answers of Faraday's own specifications (`tools/vectors/`).
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true

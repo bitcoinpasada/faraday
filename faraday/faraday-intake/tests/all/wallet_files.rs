@@ -288,6 +288,33 @@ fn an_electrum_file_holding_a_private_key_is_called_a_secret_and_not_read_as_a_w
 }
 
 #[test]
+fn an_electrum_secret_is_found_wherever_the_file_puts_it() {
+    let file = |keystore: &str| format!("{{\"wallet_type\":\"standard\",\"keystore\":{keystore}}}");
+    for secret in [
+        r#"{"xprv":"xprv9s21ZrQH143K"}"#,
+        r#"{"seed":"abandon abandon"}"#,
+        r#"{"keypairs":{"02ab":"L1"}}"#,
+        r#"{"x\u0070rv":"xprv9s21ZrQH143K"}"#,
+    ] {
+        assert!(holds_secret(&file(secret)), "{secret}");
+    }
+    for none in [
+        r#"{"xpub":"xpub6C"}"#,
+        r#"{"xprv":null,"seed":"","keypairs":{}}"#,
+        r#"{"xprv":"  "}"#,
+    ] {
+        assert!(!holds_secret(&file(none)), "{none}");
+    }
+    let multi = |second: &str| {
+        format!("{{\"wallet_type\":\"2of2\",\"x1/\":{{\"xpub\":\"a\"}},\"x2/\":{second}}}")
+    };
+    assert!(holds_secret(&multi(r#"{"seed":"abandon"}"#)));
+    assert!(!holds_secret(&multi(r#"{"xpub":"b"}"#)));
+    // A file with no wallet_type is no Electrum file.
+    assert!(!holds_secret(r#"{"keystore":{"xprv":"xprv9s21ZrQH143K"}}"#));
+}
+
+#[test]
 fn a_text_that_is_not_an_electrum_file_is_not_called_a_secret_one() {
     assert!(!holds_secret(&interop(
         "bluewallet/coldcardmk4-generic.json"

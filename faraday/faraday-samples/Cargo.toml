@@ -25,7 +25,7 @@ faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
 # Another implementation of BIP-39 and BIP-32, for the fingerprints.
 bip39.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["std"] }
 unicode-normalization.workspace = true
 
 [lints]

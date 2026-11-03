@@ -1,11 +1,13 @@
 //! A JSON value reader for the wallet files other wallets write
-//! (`docs/INTEROP.md` §5 I2): RFC 8259's grammar, every string escape
-//! including `\uXXXX` and its surrogate pairs, at most [`MAX_DEPTH`]
-//! arrays and objects deep and [`MAX_SIZE`] bytes long.
+//! (`docs/INTEROP.md` §5 I2): RFC 8259's grammar and every string escape
+//! (serde_json reads them), at most [`MAX_DEPTH`] arrays and objects deep
+//! and [`MAX_SIZE`] bytes long.
 //!
 //! An object that names one key twice is refused: two readers could take
-//! different values from it. Numbers are kept as written; a reader asks
-//! for the whole number it needs ([`Value::as_u64`]).
+//! different values from it. A number is kept as the decimal text Rust
+//! writes for the `u64`, `i64` or `f64` serde_json reads (`1e3` is
+//! `1000`); a reader asks for the whole number it needs
+//! ([`Value::as_u64`]).
 //!
 //! The quotation mark is written `'\u{22}'` and `b'\x22'` here, so that
 //! `tools/lint-strings.sh` does not read it as the start of a string.
@@ -15,8 +17,11 @@
 //! the first `"key"` anywhere in the text and undid no escapes.
 
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use core::cell::Cell;
+use core::fmt;
+use serde::de::{self, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
 
 /// The deepest nesting of arrays and objects read.
 pub const MAX_DEPTH: usize = 32;
@@ -31,7 +36,7 @@ pub enum Value {
     Null,
     /// `true` or `false`.
     Bool(bool),
-    /// A number, as written.
+    /// A number, as the decimal text of the `u64`, `i64` or `f64` read.
     Number(String),
     /// A string, its escapes undone.
     String(String),
@@ -49,7 +54,7 @@ pub enum Error {
     /// Nested deeper than [`MAX_DEPTH`].
     TooDeep,
     /// An object names a key twice.
-    Duplicate,
+    DuplicateKey,
     /// Not JSON, at this byte.
     Syntax(usize),
 }
@@ -72,8 +77,8 @@ impl Value {
         }
     }
 
-    /// The whole number this value is, written without a sign, fraction
-    /// or exponent.
+    /// The whole number this value is, as decimal digits without a sign
+    /// or fraction.
     pub fn as_u64(&self) -> Option<u64> {
         match self {
             Value::Number(n) if n.bytes().all(|b| b.is_ascii_digit()) => n.parse().ok(),
@@ -134,22 +139,120 @@ impl Value {
 
 /// Reads a text that is one JSON value, with white space (and a UTF-8
 /// byte order mark) around it. Costs a pass over the text.
+///
+/// serde_json reads the grammar; a seed builds the [`Value`], counts
+/// the depth and refuses a key named twice.
 pub fn parse(text: &str) -> Result<Value, Error> {
     if text.len() > MAX_SIZE {
         return Err(Error::TooLarge);
     }
     let body = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let mut p = Parser {
-        bytes: body.as_bytes(),
-        at: 0,
-    };
-    p.space();
-    let v = p.value(0)?;
-    p.space();
-    if p.at != p.bytes.len() {
-        return Err(Error::Syntax(p.at));
+    let refused = Cell::new(None);
+    let mut de = serde_json::Deserializer::from_str(body);
+    let read = Seed {
+        depth: 0,
+        refused: &refused,
     }
-    Ok(v)
+    .deserialize(&mut de)
+    .and_then(|v| de.end().map(|()| v));
+    match read {
+        Ok(v) => Ok(v),
+        Err(e) => Err(refused.get().unwrap_or_else(|| {
+            // serde_json says the line and column (1-based, in bytes).
+            let before: usize = body
+                .split_inclusive('\n')
+                .take(e.line().saturating_sub(1))
+                .map(str::len)
+                .sum();
+            Error::Syntax((before + e.column().saturating_sub(1)).min(body.len()))
+        })),
+    }
+}
+
+/// Builds a [`Value`] while serde_json reads, one level of nesting deep.
+struct Seed<'a> {
+    depth: usize,
+    refused: &'a Cell<Option<Error>>,
+}
+
+impl Seed<'_> {
+    fn refuse<E: de::Error>(&self, why: Error) -> E {
+        self.refused.set(Some(why));
+        E::custom("refused")
+    }
+
+    fn inside(&self) -> Seed<'_> {
+        Seed {
+            depth: self.depth + 1,
+            refused: self.refused,
+        }
+    }
+}
+
+impl<'de> DeserializeSeed<'de> for Seed<'_> {
+    type Value = Value;
+
+    fn deserialize<D: Deserializer<'de>>(self, d: D) -> Result<Value, D::Error> {
+        d.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for Seed<'_> {
+    type Value = Value;
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("json")
+    }
+
+    fn visit_unit<E: de::Error>(self) -> Result<Value, E> {
+        Ok(Value::Null)
+    }
+
+    fn visit_bool<E: de::Error>(self, v: bool) -> Result<Value, E> {
+        Ok(Value::Bool(v))
+    }
+
+    fn visit_u64<E: de::Error>(self, v: u64) -> Result<Value, E> {
+        Ok(Value::Number(v.to_string()))
+    }
+
+    fn visit_i64<E: de::Error>(self, v: i64) -> Result<Value, E> {
+        Ok(Value::Number(v.to_string()))
+    }
+
+    fn visit_f64<E: de::Error>(self, v: f64) -> Result<Value, E> {
+        Ok(Value::Number(v.to_string()))
+    }
+
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<Value, E> {
+        Ok(Value::String(v.into()))
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Value, A::Error> {
+        if self.depth + 1 > MAX_DEPTH {
+            return Err(self.refuse(Error::TooDeep));
+        }
+        let mut items = Vec::new();
+        while let Some(v) = seq.next_element_seed(self.inside())? {
+            items.push(v);
+        }
+        Ok(Value::Array(items))
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Value, A::Error> {
+        if self.depth + 1 > MAX_DEPTH {
+            return Err(self.refuse(Error::TooDeep));
+        }
+        let mut members: Vec<(String, Value)> = Vec::new();
+        while let Some(key) = map.next_key::<String>()? {
+            let v = map.next_value_seed(self.inside())?;
+            if members.iter().any(|(k, _)| *k == key) {
+                return Err(self.refuse(Error::DuplicateKey));
+            }
+            members.push((key, v));
+        }
+        Ok(Value::Object(members))
+    }
 }
 
 /// A string written as a JSON string, quotes and escapes included.
@@ -169,234 +272,4 @@ pub fn quote(s: &str) -> String {
     }
     out.push('\u{22}');
     out
-}
-
-struct Parser<'a> {
-    bytes: &'a [u8],
-    at: usize,
-}
-
-impl Parser<'_> {
-    fn peek(&self) -> Option<u8> {
-        self.bytes.get(self.at).copied()
-    }
-
-    fn fail<T>(&self) -> Result<T, Error> {
-        Err(Error::Syntax(self.at))
-    }
-
-    fn space(&mut self) {
-        while matches!(self.peek(), Some(b' ' | b'\t' | b'\n' | b'\r')) {
-            self.at += 1;
-        }
-    }
-
-    fn word(&mut self, w: &[u8], v: Value) -> Result<Value, Error> {
-        if self.bytes[self.at..].starts_with(w) {
-            self.at += w.len();
-            Ok(v)
-        } else {
-            self.fail()
-        }
-    }
-
-    fn value(&mut self, depth: usize) -> Result<Value, Error> {
-        match self.peek() {
-            Some(b'{') => self.object(depth + 1),
-            Some(b'[') => self.array(depth + 1),
-            Some(b'\x22') => self.string().map(Value::String),
-            Some(b't') => self.word(b"true", Value::Bool(true)),
-            Some(b'f') => self.word(b"false", Value::Bool(false)),
-            Some(b'n') => self.word(b"null", Value::Null),
-            Some(b'-' | b'0'..=b'9') => self.number(),
-            _ => self.fail(),
-        }
-    }
-
-    fn object(&mut self, depth: usize) -> Result<Value, Error> {
-        if depth > MAX_DEPTH {
-            return Err(Error::TooDeep);
-        }
-        self.at += 1;
-        let mut members: Vec<(String, Value)> = Vec::new();
-        self.space();
-        if self.peek() == Some(b'}') {
-            self.at += 1;
-            return Ok(Value::Object(members));
-        }
-        loop {
-            self.space();
-            if self.peek() != Some(b'\x22') {
-                return self.fail();
-            }
-            let key = self.string()?;
-            self.space();
-            if self.peek() != Some(b':') {
-                return self.fail();
-            }
-            self.at += 1;
-            self.space();
-            let v = self.value(depth)?;
-            if members.iter().any(|(k, _)| *k == key) {
-                return Err(Error::Duplicate);
-            }
-            members.push((key, v));
-            self.space();
-            match self.peek() {
-                Some(b',') => self.at += 1,
-                Some(b'}') => {
-                    self.at += 1;
-                    return Ok(Value::Object(members));
-                }
-                _ => return self.fail(),
-            }
-        }
-    }
-
-    fn array(&mut self, depth: usize) -> Result<Value, Error> {
-        if depth > MAX_DEPTH {
-            return Err(Error::TooDeep);
-        }
-        self.at += 1;
-        let mut items = Vec::new();
-        self.space();
-        if self.peek() == Some(b']') {
-            self.at += 1;
-            return Ok(Value::Array(items));
-        }
-        loop {
-            self.space();
-            items.push(self.value(depth)?);
-            self.space();
-            match self.peek() {
-                Some(b',') => self.at += 1,
-                Some(b']') => {
-                    self.at += 1;
-                    return Ok(Value::Array(items));
-                }
-                _ => return self.fail(),
-            }
-        }
-    }
-
-    fn digits(&mut self) -> usize {
-        let from = self.at;
-        while matches!(self.peek(), Some(b'0'..=b'9')) {
-            self.at += 1;
-        }
-        self.at - from
-    }
-
-    fn number(&mut self) -> Result<Value, Error> {
-        let from = self.at;
-        if self.peek() == Some(b'-') {
-            self.at += 1;
-        }
-        match self.peek() {
-            Some(b'0') => self.at += 1,
-            Some(b'1'..=b'9') => {
-                self.digits();
-            }
-            _ => return self.fail(),
-        }
-        if self.peek() == Some(b'.') {
-            self.at += 1;
-            if self.digits() == 0 {
-                return self.fail();
-            }
-        }
-        if matches!(self.peek(), Some(b'e' | b'E')) {
-            self.at += 1;
-            if matches!(self.peek(), Some(b'+' | b'-')) {
-                self.at += 1;
-            }
-            if self.digits() == 0 {
-                return self.fail();
-            }
-        }
-        // The bytes read are ASCII.
-        let text = String::from_utf8_lossy(&self.bytes[from..self.at]).into_owned();
-        Ok(Value::Number(text))
-    }
-
-    fn hex4(&mut self) -> Result<u32, Error> {
-        let Some(h) = self.bytes.get(self.at..self.at + 4) else {
-            return self.fail();
-        };
-        let mut v = 0u32;
-        for &b in h {
-            let d = match b {
-                b'0'..=b'9' => b - b'0',
-                b'a'..=b'f' => b - b'a' + 10,
-                b'A'..=b'F' => b - b'A' + 10,
-                _ => return self.fail(),
-            };
-            v = v * 16 + u32::from(d);
-        }
-        self.at += 4;
-        Ok(v)
-    }
-
-    fn string(&mut self) -> Result<String, Error> {
-        self.at += 1;
-        let mut out = String::new();
-        loop {
-            // Copy the run up to the next quote, escape or control byte
-            // whole: the text is UTF-8 already.
-            let from = self.at;
-            while matches!(self.peek(), Some(b) if b != b'\x22' && b != b'\\' && b >= 0x20) {
-                self.at += 1;
-            }
-            match core::str::from_utf8(&self.bytes[from..self.at]) {
-                Ok(s) => out.push_str(s),
-                Err(_) => return self.fail(),
-            }
-            match self.peek() {
-                Some(b'\x22') => {
-                    self.at += 1;
-                    return Ok(out);
-                }
-                Some(b'\\') => {
-                    self.at += 1;
-                    let Some(e) = self.peek() else {
-                        return self.fail();
-                    };
-                    self.at += 1;
-                    match e {
-                        b'\x22' => out.push('\u{22}'),
-                        b'\\' => out.push('\\'),
-                        b'/' => out.push('/'),
-                        b'b' => out.push('\u{8}'),
-                        b'f' => out.push('\u{c}'),
-                        b'n' => out.push('\n'),
-                        b'r' => out.push('\r'),
-                        b't' => out.push('\t'),
-                        b'u' => {
-                            let hi = self.hex4()?;
-                            let c = if (0xd800..0xdc00).contains(&hi) {
-                                if !self.bytes[self.at..].starts_with(b"\\u") {
-                                    return self.fail();
-                                }
-                                self.at += 2;
-                                let lo = self.hex4()?;
-                                if !(0xdc00..0xe000).contains(&lo) {
-                                    return self.fail();
-                                }
-                                0x10000 + ((hi - 0xd800) << 10) + (lo - 0xdc00)
-                            } else {
-                                hi
-                            };
-                            match char::from_u32(c) {
-                                Some(c) => out.push(c),
-                                None => return self.fail(),
-                            }
-                        }
-                        _ => return self.fail(),
-                    }
-                }
-                // A control byte, or the end of the text.
-                _ => return self.fail(),
-            }
-        }
-    }
 }
