@@ -63,7 +63,8 @@ fn a_panel_is_as_dense_as_its_pixels_over_its_inches() {
     assert_eq!(s.dpi(), Some(169));
     // A 10-inch 800 × 1280 panel, portrait natively.
     let s = size(&block((800, 1280), (135, 216), (14, 22))).expect("an EDID");
-    assert_eq!(s.dpi(), Some(150));
+    // 1509.97 pixels over 10.03 inches: 150.6.
+    assert_eq!(s.dpi(), Some(151));
 }
 
 #[test]

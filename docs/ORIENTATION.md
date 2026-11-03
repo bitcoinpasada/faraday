@@ -118,7 +118,8 @@ The edges (`orient::edid_dpi`, `faraday_core::edid::size`): the
 detailed timing's image size is read only where it is the shape of its
 pixels, within a tenth (some panels report a placeholder, 60 × 60 mm
 for an 800 × 1280 panel), and the screen's size in cm takes its place
-where it is; a density outside 96 to 480 dpi is not believed; a
+where it is; a density outside 96 to 480 dpi is not believed; the density is
+rounded from the exact diagonals, neither cut to a whole number first; a
 diagonal of exactly 11 inches (279.4 mm) is still small.
 
 ## 3. Where the frame is turned

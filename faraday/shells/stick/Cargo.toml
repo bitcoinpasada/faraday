@@ -28,4 +28,5 @@ zeroize = { workspace = true, features = ["alloc"] }
 workspace = true
 
 [dev-dependencies]
+faraday-draw = { path = "../../../core/faraday-draw" }
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }

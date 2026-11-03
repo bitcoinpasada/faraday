@@ -1209,6 +1209,7 @@ dependencies = [
  "faraday-boot",
  "faraday-core",
  "faraday-crypto",
+ "faraday-draw",
  "faraday-scanner",
  "faraday-shell-api",
  "faraday-storage",

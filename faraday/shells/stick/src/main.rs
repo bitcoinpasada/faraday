@@ -111,6 +111,8 @@ mod camera;
 mod clock;
 mod costly;
 mod cursor;
+#[cfg(test)]
+mod edid_screens;
 mod evdev;
 mod fb;
 mod files;

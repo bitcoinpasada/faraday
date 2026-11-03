@@ -214,10 +214,18 @@ impl Size {
     /// inches. `None` without both a size and pixels.
     pub fn dpi(&self) -> Option<u16> {
         let (pw, ph) = self.pixels?;
-        let diag_px = (u64::from(pw).pow(2) + u64::from(ph).pow(2)).isqrt();
-        let tenth_mm = u64::from(self.diagonal_tenth_mm()?).max(1);
-        // 254 tenths of a millimetre to the inch.
-        u16::try_from((diag_px * 254 + tenth_mm / 2) / tenth_mm).ok()
+        let (w, h) = self.mm?;
+        // The square of the ratio of the two diagonals, so that neither is
+        // cut to a whole number before the division; 254 tenths of a
+        // millimetre to the inch, and the size's two sides in tenths.
+        let px2 = u64::from(pw).pow(2) + u64::from(ph).pow(2);
+        let tenth2 = (u64::from(w).pow(2) + u64::from(h).pow(2)) * 100;
+        if tenth2 == 0 {
+            return None;
+        }
+        // floor(2 x) for x the density, then half of it rounded up.
+        let twice = (px2 * 254 * 254 * 4 / tenth2).isqrt();
+        u16::try_from(twice.div_ceil(2)).ok()
     }
 }
 
