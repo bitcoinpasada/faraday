@@ -350,6 +350,7 @@ dependencies = [
  "miniscript",
  "serde",
  "serde_json",
+ "subtle",
  "unicode-normalization",
  "zeroize",
 ]
