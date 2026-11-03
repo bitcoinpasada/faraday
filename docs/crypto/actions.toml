@@ -3720,7 +3720,7 @@ tests = [
   "faraday/faraday-core/tests/all/vanity.rs::the_passphrase_dial_loads_the_words_with_the_passphrase_found",
 ]
 crosscheck = "vanity"
-independence = { class = "outside-and-own", author = "python-mnemonic, by Trezor (SatoshiLabs), Bitcoin Core v31.1 (`deriveaddresses`), by the Bitcoin Core developers, and btclib, by the btclib developers, for each candidate's address", ours = "EntropyLab's counter, the prefix rules, the expected work and the search loop, written out in `area_vanity.py` from a quotation" }
+independence = { class = "outside-and-own", author = "python-mnemonic, by Trezor (SatoshiLabs), Bitcoin Core v31.1 (`deriveaddresses`), by the Bitcoin Core developers, and btclib, by the btclib developers, which derives each candidate's child keys on its own curve (Core judges the script and the address text only, and shares libsecp256k1's curve maths with Faraday's)", ours = "EntropyLab's counter, the prefix rules, the expected work and the search loop, written out in `area_vanity.py` from a quotation" }
 fuzz_none = "Takes a prefix typed on a pad and a held key; no outside text is parsed."
 
 [action.secrets]
@@ -4567,7 +4567,7 @@ tests = [
   "faraday/faraday-core/tests/all/sweep.rs::a_key_of_the_other_network_and_text_that_is_no_key_are_refused",
 ]
 crosscheck = "sign"
-independence = { class = "outside", author = "Bitcoin Core v31.1, by the Bitcoin Core developers, which signs from descriptors of the same WIF what Faraday reads from it" }
+independence = { class = "outside", author = "Bitcoin Core v31.1, by the Bitcoin Core developers, which signs from descriptors of the same WIF what Faraday reads from it and shares libsecp256k1's curve maths with Faraday's; btclib, by the btclib developers, which decodes the WIF and works out its public key on its own curve" }
 fuzz = ["xkey"]
 
 [action.secrets]
@@ -4635,7 +4635,7 @@ tests = [
   "faraday/faraday-core/tests/all/sweep.rs::a_psbt_of_another_key_signs_nothing",
 ]
 crosscheck = "sign"
-independence = { class = "outside", author = "Bitcoin Core v31.1, by the Bitcoin Core developers, which signs the same sweep from `pkh()`, `wpkh()` and `sh(wpkh())` descriptors of the WIF (`descriptorprocesspsbt`), finalizes it and judges it (`testmempoolaccept`); BIP-143's published P2SH-P2WPKH example signs to its transaction" }
+independence = { class = "outside", author = "Bitcoin Core v31.1, by the Bitcoin Core developers, which signs the same sweep from `pkh()`, `wpkh()` and `sh(wpkh())` descriptors of the WIF (`descriptorprocesspsbt`), finalizes it and judges it (`testmempoolaccept`); BIP-143's published P2SH-P2WPKH example signs to its transaction; Core shares libsecp256k1's curve maths with Faraday's, so python-ecdsa, by Brian Warner and Hubert Kario, signs each sweep again under the first RFC 6979 nonce byte for byte, and btclib, by the btclib developers, signs and finalizes each on its own curve" }
 fuzz_none = "No target runs sign: it needs a key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT and xkey the WIF it reads."
 
 [action.secrets]
@@ -4702,7 +4702,7 @@ tests = [
   "core/faraday-psbt/tests/all/multisig.rs::a_cosigner_key_under_a_loaded_fingerprint_is_not_ours",
 ]
 crosscheck = "sign"
-independence = { class = "outside-and-own", author = "Bitcoin Core v31.1, by the Bitcoin Core developers (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with Core's `key.py` and `script.py` for the first RFC 6979 nonce; python-ecdsa, by Brian Warner and Hubert Kario (no Bitcoin code), which makes that nonce's signature again byte for byte and verifies the low-R ones", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, in `area_sign.py`; the keys of those checks are btclib's" }
+independence = { class = "outside-and-own", author = "Bitcoin Core v31.1, by the Bitcoin Core developers (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with Core's `key.py` and `script.py` for the first RFC 6979 nonce; python-ecdsa, by Brian Warner and Hubert Kario (no Bitcoin code), which makes that nonce's signature again byte for byte and verifies the low-R ones; Core shares libsecp256k1's curve maths with Faraday's", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, in `area_sign.py`; the keys of those checks are btclib's" }
 selftest = ["ecdsa_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -4784,7 +4784,7 @@ tests = [
   "core/faraday-psbt/tests/all/sign.rs::a_taproot_tree_with_no_way_into_it_is_refused",
 ]
 crosscheck = "sign"
-independence = { class = "outside-and-own", author = "Bitcoin Core v31.1, by the Bitcoin Core developers (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with BIP-340's reference (`secp256k1lab`) and Core's `script.py` for the zero-randomness nonce; btclib, by the btclib developers, on its own curve, which verifies each signature and makes it again byte for byte", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, in `area_sign.py`; the keys of the zero-randomness check are btclib's" }
+independence = { class = "outside-and-own", author = "Bitcoin Core v31.1, by the Bitcoin Core developers (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with BIP-340's reference (`secp256k1lab`) and Core's `script.py` for the zero-randomness nonce; btclib, by the btclib developers, on its own curve, which verifies each signature and makes it again byte for byte; Core shares libsecp256k1's curve maths with Faraday's", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, in `area_sign.py`; the keys of the zero-randomness check are btclib's" }
 selftest = ["schnorr_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -5076,7 +5076,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::a_signature_belongs_to_one_address",
 ]
 crosscheck = "msg"
-independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers; python-ecdsa, by Brian Warner and Hubert Kario, for the first-nonce ECDSA signature of BIP-137" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers; python-ecdsa, by Brian Warner and Hubert Kario, for the first-nonce ECDSA signature of BIP-137; Core shares libsecp256k1's curve maths with Faraday's" }
 fuzz_none = "No fuzz target signs: the signer takes the person's own text and key; message_verify fuzzes the reading of a signed message."
 
 [action.secrets]
@@ -5130,7 +5130,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::a_witness_signature_that_is_not_der_is_malformed",
 ]
 crosscheck = "msg"
-independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers; python-ecdsa, by Brian Warner and Hubert Kario, for the first-nonce ECDSA signature of BIP-137" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers; python-ecdsa, by Brian Warner and Hubert Kario, for the first-nonce ECDSA signature of BIP-137; Core shares libsecp256k1's curve maths with Faraday's" }
 fuzz = ["message_verify"]
 
 [action.secrets]

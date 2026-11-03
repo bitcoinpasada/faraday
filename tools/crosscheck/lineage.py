@@ -13,6 +13,16 @@ check every signature an area makes:
   the auxiliary randomness is known.
 
 Both are asked in addition to the older references, never instead.
+
+Core's signatures and verification are libsecp256k1's, as the app's are
+(ESTABLISHED §9.2, rule 2), so the actions that sign or verify
+(`sign-ecdsa`, `sign-schnorr`, `message-sign`, `message-verify`,
+`sweep-sign`, `wif-read`) name Core as sharing the curve maths and these
+two as the judges of it. `area_sign.py` asks them of every sweep as well
+(the WIF read and the sweep signed and finalized by btclib, the
+first-nonce signature by python-ecdsa); `area_vanity.py` derives the
+candidates' child keys on btclib's curve and leaves Core the script and
+the address text.
 """
 
 import hashlib

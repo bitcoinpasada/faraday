@@ -205,6 +205,55 @@ class BtclibFinalizer(unittest.TestCase):
             self.assertIsNotNone(found, name)
 
 
+class SweepSecondLineage(unittest.TestCase):
+    """`area_sign` asks python-ecdsa and btclib about every sweep, and
+    fails on a wrong answer from either."""
+
+    WIF = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn"
+    G = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+
+    def test_btclib_reads_a_wif_and_refuses_a_broken_one(self):
+        import area_sign as A
+        self.assertEqual(A.btclib_wif(self.WIF, "mainnet"), (1, True, bytes.fromhex(self.G)))
+        broken = self.WIF[:-1] + ("a" if self.WIF[-1] != "a" else "b")
+        with self.assertRaises(Exception):
+            A.btclib_wif(broken, "mainnet")
+
+    def test_python_ecdsa_finds_a_wrong_first_nonce_signature(self):
+        import lineage
+        d, digest = 12345, bytes(range(32))
+        der = lineage.ecdsa_first(d, digest)
+        pub = lineage.ecdsa.SigningKey.from_secret_exponent(
+            d, curve=lineage.ecdsa.SECP256k1).get_verifying_key().to_string("compressed")
+        lineage.check_ecdsa(d, pub, digest, der, "first")
+        wrong = der[:-1] + bytes([der[-1] ^ 1])
+        with self.assertRaises(AssertionError):
+            lineage.check_ecdsa(d, pub, digest, wrong, "first")
+
+    def test_btclib_signs_a_sweep_python_ecdsa_verifies(self):
+        import area_sign as A
+        import lineage
+        d = 0xC0FFEE
+        pub = A.bip32_ref.point(d)
+        spk = A.p2wpkh(A.bip32_ref.hash160(pub))
+        prev = A.CTransaction()
+        prev.version = 2
+        prev.vin = [A.CTxIn(A.COutPoint(7, 0), b"", 0xFFFFFFFF)]
+        prev.vout = [A.CTxOut(50_000, spk)]
+        tx = A.CTransaction()
+        tx.vin = [A.CTxIn(A.COutPoint(prev.txid_int, 0), b"", 0xFFFFFFFD)]
+        tx.vout = [A.CTxOut(40_000, A.p2wpkh(bytes(20)))]
+        raw = A.write([(b"\x00", tx.serialize_without_witness())],
+                      [[(b"\x00", prev.serialize_without_witness()),
+                        (b"\x01", A.CTxOut(50_000, spk).serialize())]], [[]])
+        signed = A.btclib_sweep(raw, d, pub)
+        _, ins, _, _ = A.parse(signed)
+        (sig,) = [v for k, v in ins[0] if k == b"\x02" + pub]
+        digest = A.Input(ins[0], tx, 0).ecdsa_sighash(tx, 1)
+        self.assertTrue(lineage.ecdsa_verifies(pub, digest, sig[:-1]))
+        self.assertFalse(lineage.ecdsa_verifies(pub, bytes(32), sig[:-1]))
+
+
 class Bip39Words(unittest.TestCase):
     """`area_bip39` hands python-mnemonic its wordlists as `Words`: the
     same words, and `index` and `in` answer as the plain list's do."""

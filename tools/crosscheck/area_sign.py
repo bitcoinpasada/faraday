@@ -75,7 +75,14 @@ transaction as a watch-only wallet gives it. Core's
 on regtest reads one): Faraday's added signatures must be Core's byte
 for byte (both grind for a low R), the other key's input unsigned by
 both; then the finalizing and Core's mempool as above. The key and its
-WIF are Core's `key.py` and `address.py`.
+WIF are Core's `key.py` and `address.py`. Core shares libsecp256k1's
+curve maths with Faraday, so a second lineage is asked as well: btclib
+(its own curve) reads the WIF and must give the scalar, the compression
+and the public key the signatures name; Faraday's sweep under the first
+RFC 6979 nonce is python-ecdsa's signature of each input's hash, byte
+for byte; btclib signs the sweep (the low-R rule, as Faraday does) with
+the same signatures, and its finalizer, beside Faraday's, writes the
+same scriptSig and witness.
 
 Known differences, counted: the refusals above. Faraday signs a taproot
 leaf with a `pkh` but leaves it unfinalized (`miniscript` 12 cannot
@@ -113,6 +120,9 @@ import lineage  # noqa: E402
 # btclib-wallet's finalizer (`psbt.finalize`, with its miniscript solver for a
 # witness script), on btclib's own curve: lineage has put the wheels first.
 from btclib.script.taproot import leaf_hash  # noqa: E402
+from btclib.b58 import prv_key_data_from_wif  # noqa: E402
+from ecc.ecc import dsa as btclib_dsa  # noqa: E402
+from btclib_wallet.bip32.key_origin import BIP32KeyOrigin  # noqa: E402
 from btclib.script.witness import Witness  # noqa: E402
 from btclib_wallet.descriptors import miniscript_solver  # noqa: E402
 from btclib_wallet.psbt import psbt as BP  # noqa: E402
@@ -1048,6 +1058,44 @@ def btclib_differs(raw, answer, final=btclib_final, tally=None):
     return None
 
 
+class SweepKey:
+    """btclib's key manager for a sweep: one WIF key, signing as btclib's
+    ECDSA does on its own curve (RFC 6979, a low R ground for)."""
+
+    def __init__(self, q, pub):
+        self.q, self.pub = q, pub
+
+    def sign_ecdsa(self, pub_key, origin, msg_hash):
+        if pub_key != self.pub:
+            return None
+        return btclib_dsa.sign_(msg_hash, self.q, grind=True, lower_s=True).serialize()
+
+    def sign_schnorr(self, pub_key, origin, msg_hash, merkle_root):
+        return None
+
+
+def btclib_wif(wif, network):
+    """Costs one elliptic-curve multiplication in pure Python: btclib's
+    reading of the WIF: its scalar, whether it is compressed and its public
+    key, on btclib's own curve."""
+    kd = prv_key_data_from_wif(wif, network)
+    return kd.q, kd.compressed, kd.pub.sec
+
+
+def btclib_sweep(raw, q, pub):
+    """Costs btclib's signing of every input of `raw` that pays the key
+    `pub` (about a multiplication each, pure Python): `raw` signed by
+    btclib, as the bytes of a PSBT."""
+    psbt = BP.Psbt.parse(raw, check_validity=False)
+    _, ins, _, tx = parse(raw)
+    for j, m in enumerate(ins):
+        if Input(m, tx, j).key_in_script(pub):
+            psbt.inputs[j].hd_key_paths[pub] = BIP32KeyOrigin(
+                bytes(4), [], check_validity=False)
+    signed, _ = BP.sign(psbt, SweepKey(q, pub))
+    return signed.serialize(check_validity=False)
+
+
 def core_accepts(tx_hex):
     """Costs a request to Bitcoin Core (testmempoolaccept): None when Core
     would take the transaction into its mempool, else its reason."""
@@ -1074,6 +1122,9 @@ class Sign(Area):
         "signature again under plain RFC 6979 or verified, every BIP-340 signature verified "
         "and made again; btclib-wallet's finalizer (`psbt.finalize` with its miniscript solver) "
         "finalizes every input Faraday finalizes again and gives the same scriptSig and witness; "
+        "for each sweep, btclib reads the WIF (scalar, compression, public key) and signs "
+        "and finalizes the sweep on its own curve, and python-ecdsa makes the first-nonce "
+        "signature of each input again, byte for byte; "
         "python-bip380 (`miniscript/`) reads the leaves. "
         "Faraday's refusals and the inputs a wallet's rule leaves unsigned are ours, in "
         "`area_sign.py`"
@@ -1764,7 +1815,7 @@ class Sign(Area):
 
     # ----- sweeping a WIF key (INTEROP §5 I11) ------------------------------------
 
-    def sweep_sign(self, raw, wif, core_wif, network, compressed):
+    def sweep_sign(self, raw, wif, core_wif, network, compressed, d):
         inputs = {"psbt": raw.hex(), "wif": wif, "network": network, "nonce": "low_r"}
         answer = self.rust.call("sign.sweep", **inputs)
         self.compared += 1
@@ -1783,7 +1834,48 @@ class Sign(Area):
             got = ("ok", dict(answer[1], psbt=canonical(bytes.fromhex(answer[1]["psbt"]))))
         if got != ref:
             raise Mismatch(self.name, "sign.sweep", inputs, answer, ref)
+        if answer[0] == "ok":
+            self.sweep_second(raw, wif, network, d, bytes.fromhex(answer[1]["psbt"]))
         return answer
+
+    def sweep_second(self, raw, wif, network, d, mine):
+        """The second curve lineage beside Core, which shares libsecp256k1's
+        maths with Faraday: python-ecdsa's first-nonce signature for each
+        input Faraday signs, byte for byte; btclib's reading of the WIF
+        (scalar, compression, public key), and btclib's signing and
+        finalizing of the sweep on its own curve."""
+        _, ins, _, tx = parse(raw)
+        q, compressed, pub = btclib_wif(wif, network)
+        if q != d:
+            raise Mismatch(self.name, "wif.read", {"wif": wif}, ("ok", {"key": d}),
+                           ("ok", {"key": q}), "btclib reads another scalar")
+        first = self.rust.call("sign.sweep", psbt=raw.hex(), wif=wif, network=network,
+                               nonce="first")
+        self.compared += 1
+        if first[0] != "ok":
+            raise Mismatch(self.name, "sign.sweep", {"nonce": "first"}, first, ("ok", None))
+        for j, pairs in enumerate(added_signatures(raw, bytes.fromhex(first[1]["psbt"]))):
+            for k, v in pairs:
+                inp = Input(ins[j], tx, j)
+                if k[0] != 0x02 or k[1:] != pub or not inp.key_in_script(k[1:]):
+                    raise Mismatch(self.name, "sign.sweep", {"nonce": "first"}, first,
+                                   ("ok", pub.hex()), "a signature under another key")
+                lineage.check_ecdsa(d, pub, inp.ecdsa_sighash(tx, v[-1]), v[:-1], "first")
+        signed = btclib_sweep(raw, q, pub)
+        _, b_ins, _, _ = parse(signed)
+        _, f_ins, _, _ = parse(mine)
+        sigs = lambda maps: [sorted((k, v) for k, v in m if k[0] == 0x02) for m in maps]  # noqa: E731
+        if sigs(b_ins) != sigs(f_ins):
+            raise Mismatch(self.name, "sign.sweep", {"psbt": raw.hex()}, ("ok", sigs(f_ins)),
+                           ("ok", sigs(b_ins)), "btclib signs the sweep otherwise")
+        self.compared += 1
+        done = self.rust.call("sign.finalize", psbt=mine.hex())
+        if done[0] == "ok":
+            diff = btclib_differs(signed, bytes.fromhex(done[1]["psbt"]), tally=self.btclib)
+            if diff:
+                raise Mismatch(self.name, "sign.finalize", {"psbt": signed.hex()}, diff[1],
+                               diff[2], f"input {diff[0]}: btclib finalizes the sweep otherwise")
+        self.compared += 1
 
     def fund_sweep(self):
         self.collecting = True
@@ -1833,7 +1925,8 @@ class Sign(Area):
         fee = self.rng.randrange(500, 5_000)
         tx.vout.append(CTxOut(total - fee, p2wpkh(self.randbytes(20))))
         raw = write([(b"\x00", tx.serialize_without_witness())], ins, [[]])
-        signed = self.sweep_sign(raw, wif, core_wif, network, compressed)
+        signed = self.sweep_sign(raw, wif, core_wif, network, compressed,
+                                 int.from_bytes(secret[:32], "big"))
         if signed[0] == "ok":
             self.finalize(bytes.fromhex(signed[1]["psbt"]))
 

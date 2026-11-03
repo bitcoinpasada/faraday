@@ -2,10 +2,11 @@
 written here from EntropyLab's counter as `tools/reference/vanity/README.md`
 quotes it, over python-mnemonic (`bip39/`) for the seed, and Bitcoin Core
 v31.1 itself for every candidate's address: Core derives it from the
-candidate seed's master key (btclib's, `bip32_ref.py`) written as a
-`tprv` descriptor with the whole path (`deriveaddresses` on regtest, one
-RPC batch a search), and Core's framework writes the script it pays for
-the search's network, as the `addr` area does. The counter, the prefix
+candidate seed's child key at the whole path, derived by btclib on its
+own curve (`bip32_ref.py`, libsecp256k1 off) and written to Core as a bare
+key (`deriveaddresses` on regtest, one RPC batch a search): Core judges
+the script and the address text only, and Core's framework writes the
+script it pays for the search's network, as the `addr` area does. The counter, the prefix
 rules, the expected work and the search loop are ours, written from the
 quotation.
 
@@ -113,19 +114,38 @@ def expected(prefix, script, network):
     return min(total, U64)
 
 
-def addresses(candidates, network, script):
-    """Costs one RPC request, a five-step derivation in Core for each
-    candidate: the first receive address of each candidate (seed,
-    account) on `network`, by Bitcoin Core from the seed's master key, or
-    None where Core derives none (an invalid child)."""
+def child_key(seed, network, script, account):
+    """Costs btclib's derivation of five steps on its own curve: the first
+    receive key of (seed, account) on `network`, as the compressed public
+    key Core takes in a descriptor (the x-only key for taproot), or None
+    where btclib finds an invalid child."""
     coin = 1 if network != "mainnet" else 0
-    calls = []
-    for seed, account in candidates:
-        tprv = bip32_ref.master(seed, True).serialize()
-        key = f"{tprv}/{PURPOSE[script]}h/{coin}h/{account}h/0/0"
-        calls.append(("deriveaddresses", descriptors.descsum_create(BODY[script].format(key))))
+    path = [PURPOSE[script] + H, coin + H, account + H, 0, 0]
+    try:
+        pub = bip32_ref.master(seed, network != "mainnet").derive(path).pub
+    except bip32_ref.Invalid:
+        return None
+    return pub[1:] if script == 3 else pub
+
+
+def addresses(candidates, network, script):
+    """Costs one RPC request, and btclib's derivation of five steps for each
+    candidate: the first receive address of each candidate (seed, account)
+    on `network`. btclib derives the child key on its own curve; Bitcoin
+    Core judges the script and the address text only (`deriveaddresses` of
+    the key written bare, on regtest), then Core's framework writes the
+    address for `network`. None where btclib finds an invalid child."""
+    keys = [child_key(seed, network, script, account) for seed, account in candidates]
+    calls = [("deriveaddresses",
+              descriptors.descsum_create(BODY[script].format(key.hex())))
+             for key in keys if key is not None]
+    answers = iter(core_node.answers(calls))
     out = []
-    for got in core_node.answers(calls):
+    for key in keys:
+        if key is None:
+            out.append(None)
+            continue
+        got = next(answers)
         out.append(ref_from_script(read_on(got[1][0], "regtest"), network)
                    if got[0] == "ok" else None)
     return out
@@ -179,9 +199,10 @@ class Vanity(Area):
     )
     reference = (
         "EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written "
-        "out in `area_vanity.py` over python-mnemonic, each candidate's address by "
-        "Bitcoin Core v31.1 (`deriveaddresses` on regtest, from btclib's master key) "
-        "and Core's framework, as the `addr` area writes it"
+        "out in `area_vanity.py` over python-mnemonic, each candidate's child key "
+        "derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for "
+        "the script and address text only (`deriveaddresses` on regtest, from the bare "
+        "key) and Core's framework, as the `addr` area writes it"
     )
     reference_checked = (
         "the search is written in the area from the README's quotation of EntropyLab's "
@@ -197,7 +218,9 @@ class Vanity(Area):
     )
     differences = [
         (
-            'none'
+            "Each candidate's child key is derived by btclib on its own curve, not by "
+            "Bitcoin Core, which shares libsecp256k1's curve maths with Faraday; Core is "
+            "given the bare key and judges the script and the address text only."
         ),
     ]
     not_compared = (
