@@ -179,6 +179,12 @@ pub enum WarningKind {
         /// The key it is under.
         key: String,
     },
+    /// The PSBT carries pairs this crate does not read: unknown or
+    /// proprietary fields, less the MuSig2 pairs it does read.
+    UnknownFields {
+        /// How many pairs, over the whole PSBT.
+        count: usize,
+    },
     /// A script carries an `ord` inscription envelope.
     Inscription {
         /// The input whose script carries it.
@@ -1330,6 +1336,16 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         );
     }
 
+    let unread = unread_fields(inner);
+    if unread > 0 {
+        warn(
+            &mut warnings,
+            Level::Info,
+            WarningKind::UnknownFields { count: unread },
+            Detail::UnknownFields { count: unread },
+        );
+    }
+
     // The wallet the PSBT defines, offered where nothing else blocks. A
     // key under a loaded fingerprint that is not its key blocks (F136)
     // and is still offered: registering refuses that key by name.
@@ -2157,6 +2173,39 @@ pub(crate) fn musig_round(
         (false, _, true) => MusigRound::SignLast,
         (ours, _, _) => MusigRound::Share { stale: ours },
     }
+}
+
+/// Pairs in any `unknown` or `proprietary` map of the PSBT, less the
+/// BIP-373 pairs `musig.rs` reads.
+fn unread_fields(psbt: &bitcoin::Psbt) -> usize {
+    use crate::musig::{
+        IN_PARTIAL_SIG, IN_PARTICIPANT_PUBKEYS, IN_PUB_NONCE, OUT_PARTICIPANT_PUBKEYS,
+    };
+    let read_in = [IN_PARTICIPANT_PUBKEYS, IN_PUB_NONCE, IN_PARTIAL_SIG];
+    let global = psbt.unknown.len() + psbt.proprietary.len();
+    let inputs: usize = psbt
+        .inputs
+        .iter()
+        .map(|i| {
+            i.proprietary.len()
+                + i.unknown
+                    .keys()
+                    .filter(|k| !read_in.contains(&k.type_value))
+                    .count()
+        })
+        .sum();
+    let outputs: usize = psbt
+        .outputs
+        .iter()
+        .map(|o| {
+            o.proprietary.len()
+                + o.unknown
+                    .keys()
+                    .filter(|k| k.type_value != OUT_PARTICIPANT_PUBKEYS)
+                    .count()
+        })
+        .sum();
+    global + inputs + outputs
 }
 
 /// Whether an input carries `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` at all,

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Planned, not built; to be built after the structure pass (`docs/STRUCTURE-PASS.md` §7)
-**Open:** all of it, batches S1 to S5 (§10.2); the owner's choices in §10.4 are decided (2026-10-23)
+**Open:** batches S1, S2, S4 and S5 (§10.2; S3 is built); the owner's choices in §10.4 are decided (2026-10-23)
 
 A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
@@ -355,8 +355,8 @@ whole PSBT.
   unknown or proprietary fields: not read" ("1 unknown or proprietary
   field: not read").
 - Counted: every pair in a global, input or output `unknown` or
-  `proprietary` map, less BIP-373's MuSig2 pairs (`musig.rs`) and
-  Faraday's `osk` records (`threshold.rs`), which this crate reads.
+  `proprietary` map, less BIP-373's MuSig2 pairs (`musig.rs`), which
+  this crate reads. An `osk` record is counted: it is not read (F127).
 - Info does not gate signing, and the Nonce check's headline is
   unchanged.
 
@@ -455,8 +455,7 @@ change each, and committed:
   its maps in another order is clean; the two Core fixtures are clean.
 - `core/faraday-psbt/tests/all/inspect.rs`: proprietary-added and
   unknown-added give one Info `UnknownFields` with count 1;
-  `demo-regtest.psbt` gives none; the MuSig2 and threshold fixtures give
-  none.
+  `demo-regtest.psbt` gives none; the MuSig2 fixtures give none.
 - faraday-core, tests/all: the tile opens the flow; with two PSBTs of
   one transaction in Files the cards open closed on the default and the
   result reads "Only signatures were added"; Swap; Change; a scanned

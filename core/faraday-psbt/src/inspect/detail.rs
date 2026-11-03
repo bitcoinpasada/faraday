@@ -172,6 +172,11 @@ pub enum Detail {
         /// The key, named as the review names one.
         key: String,
     },
+    /// Pairs this crate does not read.
+    UnknownFields {
+        /// How many, over the whole PSBT.
+        count: usize,
+    },
     /// An input's script carries an inscription envelope.
     Inscription {
         /// The input.

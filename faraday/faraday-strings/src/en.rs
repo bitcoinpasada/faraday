@@ -5528,6 +5528,10 @@ strings! {
     psbt_warn_no_key: "none of your keys can sign this transaction",
     /// A warning on Review. `{}`: the key.
     psbt_warn_nonce_reuse: "two signatures under {} share one nonce; the private key follows from them",
+    /// A warning on Review. `{}`: how many fields; two or more.
+    psbt_warn_unknown_fields: "{} unknown or proprietary fields: not read",
+    /// A warning on Review. One field.
+    psbt_warn_unknown_field: "1 unknown or proprietary field: not read",
     /// A warning on Review. `{}`: the input.
     psbt_warn_inscription: "input {} carries an inscription envelope",
     /// A warning on Review. `{}`: the output.

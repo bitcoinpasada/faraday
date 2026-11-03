@@ -1216,3 +1216,64 @@ fn amounts_over_21_million_bitcoin_block_signing_as_core_refuses_them() {
         Err(Error::Blocked(k)) if k.contains(&WarningKind::AmountOutOfRange)
     ));
 }
+
+fn unknown_fields(insp: &Inspection) -> Vec<&Warning> {
+    insp.warnings
+        .iter()
+        .filter(|w| matches!(w.kind, WarningKind::UnknownFields { .. }))
+        .collect()
+}
+
+fn fixture(text: &str) -> Psbt {
+    let c = Compute::unchecked();
+    Psbt::parse_base64(&c, text.trim()).expect("a committed fixture")
+}
+
+const DEMO: &str = include_str!("../../../../tools/vectors/psbt/demo-regtest.psbt");
+
+#[test]
+fn a_proprietary_pair_on_an_input_is_stated_as_not_read() {
+    let mut psbt = fixture(DEMO);
+    psbt.inner_mut().inputs[0].proprietary.insert(
+        bitcoin::psbt::raw::ProprietaryKey {
+            prefix: b"vendor".to_vec(),
+            subtype: 1,
+            key: vec![],
+        },
+        vec![1, 2, 3],
+    );
+    let insp = inspect_with_abandon(&psbt);
+    let found = unknown_fields(&insp);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].level, Level::Info);
+    assert_eq!(found[0].kind, WarningKind::UnknownFields { count: 1 });
+}
+
+#[test]
+fn an_unknown_global_pair_is_stated_as_not_read() {
+    let mut psbt = fixture(DEMO);
+    psbt.inner_mut().unknown.insert(
+        bitcoin::psbt::raw::Key {
+            type_value: 0xf0,
+            key: vec![],
+        },
+        vec![9],
+    );
+    let insp = inspect_with_abandon(&psbt);
+    let found = unknown_fields(&insp);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].level, Level::Info);
+    assert_eq!(found[0].kind, WarningKind::UnknownFields { count: 1 });
+}
+
+#[test]
+fn psbts_without_unread_pairs_state_none() {
+    for text in [
+        DEMO,
+        include_str!("../../../../tools/vectors/psbt/wallet-musig-core-first-signed.psbt"),
+        include_str!("../../../../tools/vectors/psbt/wallet-musig-device-first-signed.psbt"),
+        include_str!("../../../../tools/vectors/psbt/wallet-tapmulti-signed.psbt"),
+    ] {
+        assert!(unknown_fields(&inspect_with_abandon(&fixture(text))).is_empty());
+    }
+}

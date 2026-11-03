@@ -136,6 +136,8 @@ fn output_words(d: &Detail) -> Option<Cow<'static, str>> {
         D::Locktime(lt) => t(EN.psbt_warn_locktime, &[&locktime_text(*lt)]),
         D::NoParticipatingKey => Cow::Borrowed(EN.psbt_warn_no_key),
         D::NonceReuse { key } => t(EN.psbt_warn_nonce_reuse, &[key]),
+        D::UnknownFields { count: 1 } => Cow::Borrowed(EN.psbt_warn_unknown_field),
+        D::UnknownFields { count } => t(EN.psbt_warn_unknown_fields, &[&count.to_string()]),
         D::Inscription { input } => t(EN.psbt_warn_inscription, &[&n(*input)]),
         D::MusigChangeSpoof { output } => t(EN.psbt_warn_musig_change_spoof, &[&n(*output)]),
         D::WalletChangeSpoof { output } => t(EN.psbt_warn_wallet_change_spoof, &[&n(*output)]),
