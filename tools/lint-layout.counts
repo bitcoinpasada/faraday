@@ -4,7 +4,7 @@
 # Files over 2,500 lines, at their size: split them, and lower the line.
 file faraday/faraday-core/src/backup_flow/steps.rs 2899
 file faraday/faraday-core/src/board/mod.rs 2529
-file faraday/faraday-core/src/lib.rs 6338
+file faraday/faraday-core/src/lib.rs 6197
 file faraday/faraday-core/src/plan/mod.rs 3985
 file faraday/faraday-core/src/vault/mod.rs 3509
 file faraday/faraday-core/src/vault/screen.rs 3106
@@ -14,7 +14,7 @@ file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5810
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an
 # `allow`).
-expect too_many_lines 171
+expect too_many_lines 170
 allow too_many_arguments 64
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.

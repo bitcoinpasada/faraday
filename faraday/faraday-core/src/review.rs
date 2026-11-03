@@ -8,7 +8,8 @@ use faraday_crypto::work::Compute;
 use faraday_psbt::{Detail, Inspection, Level, Psbt, WarningKind as K};
 
 use crate::strings::{EN, fill};
-use crate::wallet::{InspectInputs, Session, Signed, SpendState};
+use crate::wallet::{InspectInputs, Session, Signed, SpendState, context};
+use faraday_bip::keys::Fingerprint;
 
 /// Why Review does not go on, from the inspection as it is: a
 /// transaction nothing signs, said with what to do instead, or a
@@ -441,19 +442,83 @@ pub(crate) fn hold(s: Option<&mut SpendState>, inputs: &InspectInputs) -> bool {
 }
 
 impl Session {
-    /// Costs what `sign_with` costs. Signs `psbt`, the open spend `s`'s,
-    /// past the holds held on its Review (F136), in the MuSig2 round it
-    /// keeps. Its inspection chooses the keys when it is of this PSBT and
-    /// session as they are; else signing inspects.
-    pub(crate) fn sign_spend(
+    /// Costs what `key_refs` and `inspect` cost. The job that signs `psbt`
+    /// with every session key it names, past the holdable dangers in
+    /// `accepted` alone (F136); it owns a copy of the PSBT and of the
+    /// public context and shares the keys. `known` is `psbt`'s inspection
+    /// with this session when the caller keeps one current (the open
+    /// spend's): it chooses the keys. The round in `musig` moves into the
+    /// job, and only once no refusal is left; it comes back with the answer
+    /// ([`signed`]).
+    pub fn sign_job(
         &self,
         c: &Compute,
-        psbt: &mut Psbt,
+        psbt: &Psbt,
+        seed: &zeroize::Zeroizing<[u8; 32]>,
+        musig: &mut Option<faraday_psbt::MusigSession>,
+        known: Option<&Inspection>,
+        accepted: &[faraday_psbt::WarningKind],
+    ) -> Result<faraday_keys::job::SignJob, String> {
+        let refs = self.key_refs(c);
+        let policies = self.policies();
+        let own;
+        let inspection = match known {
+            Some(i) => i,
+            None => {
+                own = faraday_psbt::inspect(c, psbt, &context(self.network(), &refs, &policies));
+                &own
+            }
+        };
+        let selection: Vec<Fingerprint> = inspection
+            .participating_keys
+            .iter()
+            .copied()
+            .filter(|fp| self.keys.position(*fp).is_some())
+            .collect();
+        if selection.is_empty() {
+            return Err(EN.wallet_no_signing_key.to_string());
+        }
+        Ok(self.keys.sign_job(
+            psbt.clone(),
+            selection,
+            (self.network(), refs, policies),
+            (accepted.to_vec(), musig.take(), seed.clone()),
+        ))
+    }
+
+    /// Costs what `sign_job` costs. The job that signs `psbt`, the open
+    /// spend `s`'s, past the holds held on its Review (F136), in the MuSig2
+    /// round it keeps (moved into the job). Its inspection chooses the keys
+    /// when it is of this PSBT and session as they are; else signing
+    /// inspects.
+    pub(crate) fn sign_spend_job(
+        &self,
+        c: &Compute,
+        psbt: &Psbt,
         seed: &zeroize::Zeroizing<[u8; 32]>,
         s: &mut SpendState,
-    ) -> Result<Signed, String> {
+    ) -> Result<faraday_keys::job::SignJob, String> {
         let inputs = self.inspect_inputs();
         let known = (s.inspected_for(&inputs) && s.spend.psbt == *psbt).then_some(&s.inspection);
-        self.sign_with(c, psbt, seed, &mut s.musig, known, &s.held)
+        self.sign_job(c, psbt, seed, &mut s.musig, known, &s.held)
     }
+}
+
+/// What a signing job's answer says: the PSBT as the job left it, with the
+/// round put back in `musig`, and the fingerprints that signed or the
+/// error text.
+pub(crate) fn signed(
+    musig: &mut Option<faraday_psbt::MusigSession>,
+    done: faraday_keys::job::Signing,
+) -> (Psbt, Result<Signed, String>) {
+    let (psbt, round, result) = done.into_parts();
+    *musig = round;
+    let result = result
+        .map(|r| {
+            let mut by: Vec<Fingerprint> = r.signed_inputs.iter().map(|s| s.fingerprint).collect();
+            by.dedup();
+            Signed { by }
+        })
+        .map_err(|e| crate::review::sign_error_text(&e));
+    (psbt, result)
 }

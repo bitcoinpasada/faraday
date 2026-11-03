@@ -1,8 +1,8 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** W1 to W5 built (the worker, the shells' wake, the busy screen, the vault stretches, the aezeed read and the KeePass export); W6 to W9 specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
-**Open:** the rest of the jobs (§9): W6, signing and checking; W7, sets of files of public values; W8, held until a Pi shows it is needed; W9, the list of §2.1 confirmed on a Pi 3B+
+**Status:** W1 to W5 built (the worker, the shells' wake, the busy screen, the vault stretches, the aezeed read and the KeePass export); W6 half built (signing a PSBT); W7 to W9 specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
+**Open:** the rest of the jobs (§9): W6, a PSBT's parse and inspection from a file or the last scanned part, and the Spend tab's signatures counted; W7, sets of files of public values; W8, held until a Pi shows it is needed; W9, the list of §2.1 confirmed on a Pi 3B+
 
 Touch and drawing run on each shell's own thread, the main thread. Work
 that takes longer than a tenth of a second on a Raspberry Pi 3B+ runs on
@@ -286,8 +286,9 @@ press drawn first keeps its secrets on the main thread, as today.
   `Arc`, not a copy of the key, and the PSBT by value. A key forgotten
   or a lock while it signs drops the store's `Arc`; the job's keeps the
   key until it ends, and the key is wiped as the last one drops. A
-  reblind (`Keys::reblind`) makes the key's new context for the store
-  and leaves the job's to it.
+  reblind (`Keys::reblind`) skips a key a job holds and marks it owing;
+  `Keys::reblind_owed` randomizes it as the main thread finishes the
+  job's answer, applied or dropped, once the store's `Arc` is alone again.
 - **A picture or PDF of secret words** (a backup stick's words, a
   SeedQR picture; `Reveal::BackupStick`, `Reveal::PaperForm`): the
   reveal is a guard that borrows the store and cannot cross a thread.
@@ -404,7 +405,7 @@ gets the reviewer before it lands.
 | W3 (built) | The busy screen: the moving bar, determinate where counted, disabled actions, Back and Cancel stale-making; strings; DESIGN §4.14; one tour of a busy screen (`just faraday-snap 480x640 vault`) | `faraday-core/src/screens/parts.rs`, the sheets that use `working_bar`, `faraday-strings/src/en.rs`, `docs/DESIGN.md`, `faraday/shells/snapshot/src/tours` | No; a screen review against Material's Progress indicators |
 | W4 (built) | Vault stretches as jobs: Open (an older vault's, the boot import's and Spend's unlock included) and Make; `StretchJob` and `Stretched` in faraday-keys, the passphrase by move. Seal again runs no stretch; the samples' keys stay drawn first (PBKDF2) | faraday-keys (a new `job.rs` in its `src/`), `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`, `boot_import/`, `docs/KEYS.md` | **Yes**: keys, crypto |
 | W5 (built) | The other stretches on the list: an aezeed read, the KDBX export written and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay drawn first (§2.1) | faraday-keys' `job.rs` (W4), `faraday-core/src/lightning/`, the KDBX writer's call site (`faraday/faraday-keys/src/vault.rs`) | **Yes**: keys, crypto |
-| W6 | Signing and checking: `SignJob` with the store's keys behind `Arc` (§10 question 1), a PSBT's parse and inspection from a file or the last scanned part as a job, the Spend tab's signatures counted | `faraday/faraday-keys/src/session.rs`, faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and sign areas | **Yes**: signing, keys, QR intake |
+| W6 | Signing and checking (signing built: `SignJob`, `Keys::sign_job`, `faraday-core/src/signing.rs`; the parse, inspection and count not built): `SignJob` with the store's keys behind `Arc` (§10 question 1), a PSBT's parse and inspection from a file or the last scanned part as a job, the Spend tab's signatures counted | `faraday/faraday-keys/src/session.rs`, faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and sign areas | **Yes**: signing, keys, QR intake |
 | W7 | Sets of files of public values as jobs: a wallet's files (`PublicOut`), the checklist's, the backup stick's and the flow's public files. A single picture or PDF, and those of secret words, stay drawn first (§2.1, §6) | `faraday-core/src/picture.rs`, `pdf.rs`, `wallet_backup.rs`, `backup_flow/` | No (public values) |
 | W8 | Held: built only if a Pi's `file written` row crosses the line (§7.3). Files written as storage requests: `Sticks::write_later`, `StorageEvent::Written`, the stick's disk process answer, Faraday Demo's `Dirs` thread, the boot report's write | `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`, `files.rs`, `faraday-core/src/lib.rs` (the storage events), `faraday/shells/desktop/src/lib.rs` | No (no parser, no key); a backup's files are written as before |
 | W9 | The list confirmed on a Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or moved as §2.1 says; one late-flow session timed as SPEED §7 says, the numbers in the report; once W8 is built or dropped on the Pi's answer, this spec's plan moves to docs/history/WORKERS-LOG.md and it becomes a Reference. `Later` stays | `slow.rs`, `docs/WORKERS.md`, `docs/SPEED.md`, `docs/README.md` | No |

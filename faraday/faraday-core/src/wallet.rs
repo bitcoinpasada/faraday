@@ -875,8 +875,8 @@ impl Session {
 
     /// Costs what `key_refs`, `inspect` and the rest cost. Signs `psbt` with
     /// every session key it names, past the holdable dangers in `accepted`
-    /// alone (F136). `known` is `psbt`'s inspection with this session when
-    /// the caller keeps one current (the open spend's): it chooses the keys.
+    /// alone (F136), on this thread: the job of [`Session::sign_job`], run.
+    /// `known` is as there.
     pub fn sign_with(
         &self,
         c: &Compute,
@@ -886,37 +886,18 @@ impl Session {
         known: Option<&Inspection>,
         accepted: &[faraday_psbt::WarningKind],
     ) -> Result<Signed, String> {
-        let refs = self.key_refs(c);
-        let policies = self.policies();
-        let ctx = context(self.network(), &refs, &policies);
-        let own;
-        let inspection = match known {
-            Some(i) => i,
-            None => {
-                own = faraday_psbt::inspect(c, psbt, &ctx);
-                &own
-            }
-        };
-        let selection: Vec<Fingerprint> = inspection
-            .participating_keys
-            .iter()
-            .copied()
-            .filter(|fp| self.keys.position(*fp).is_some())
-            .collect();
-        if selection.is_empty() {
-            return Err(EN.wallet_no_signing_key.to_string());
-        }
-        let result = self
-            .keys
-            .sign(c, psbt, &selection, (ctx, accepted), musig, seed)
-            .map_err(|e| crate::review::sign_error_text(&e))?;
-        let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
-        by.dedup();
-        Ok(Signed { by })
+        let job = self.sign_job(c, psbt, seed, musig, known, accepted)?;
+        let (made, result) = crate::review::signed(musig, job.run(c));
+        *psbt = made;
+        result
     }
 }
 
-fn context<'a>(network: Network, refs: &'a [KeyRef], policies: &'a [WalletPolicy]) -> Context<'a> {
+pub(crate) fn context<'a>(
+    network: Network,
+    refs: &'a [KeyRef],
+    policies: &'a [WalletPolicy],
+) -> Context<'a> {
     Context {
         network,
         keys: refs,
@@ -2419,7 +2400,7 @@ impl Faraday {
                     s.table = !s.table;
                 }
             }
-            Action::SignHere => self.sign_here(),
+            Action::SignHere => crate::signing::sign_here(self),
             Action::Collect(i) => self.collect(i),
             Action::SignedToOutbox => {
                 if let Some(s) = self.wallets.spend_mut() {

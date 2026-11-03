@@ -259,7 +259,11 @@ pub const KEY_TEXTS_KEPT: usize = 64;
 
 /// A key that can sign, held for this session only.
 struct Key {
-    master: MasterKey,
+    /// Behind an `Arc` that is never opened for change: a signing job
+    /// holds a clone ([`Keys::sign_job`]), and the key is wiped as the last
+    /// one drops (`docs/KEYS.md` §2). A change of network makes a new key
+    /// (`MasterKey::for_network`); a reblind of a key a job holds is owed until it lets go.
+    master: std::sync::Arc<MasterKey>,
     words: Option<Zeroizing<String>>,
     passphrase: Option<Zeroizing<String>>,
     /// The master seed bytes a key loaded by [`Keys::add_seed`] came
@@ -299,6 +303,9 @@ pub(crate) struct Secrets<'a> {
 struct Entry {
     key: Key,
     info: KeyInfo,
+    /// A reblind came while a signing job held the key: it is randomized
+    /// again as soon as no job holds it ([`Keys::reblind_owed`]).
+    owes_blind: bool,
 }
 
 /// One sample New key hands out (`docs/MODES.md` §7): public data.
@@ -424,12 +431,42 @@ impl Keys {
     /// the seed, with `info` "faraday key blind" and the count (eight
     /// bytes, little-endian), 32 bytes.
     fn blind_key(&mut self, c: &Compute, k: usize) {
+        if self.blind.is_none() || k >= self.entries.len() {
+            return;
+        }
+        // A key a signing job holds keeps the context the job started
+        // with: blinding changes no result, and no second copy of the key
+        // is made. It owes the reblind, paid by `reblind_owed` once the
+        // job's answer is applied or dropped.
+        if std::sync::Arc::get_mut(&mut self.entries[k].key.master).is_none() {
+            self.entries[k].owes_blind = true;
+            return;
+        }
         let Some(blind) = self.next_blind() else {
             return;
         };
-        if let Some(entry) = self.entries.get_mut(k) {
-            entry.key.master.reblind(c, &blind);
+        if let Some(master) = std::sync::Arc::get_mut(&mut self.entries[k].key.master) {
+            master.reblind(c, &blind);
         }
+        self.entries[k].owes_blind = false;
+    }
+
+    /// Costs an elliptic-curve multiplication per key owing a reblind. Each
+    /// key a reblind skipped because a signing job held it is randomized
+    /// from the next blind drawn, once the job has let go of it; one still
+    /// held stays owing. Called where a signing's answer is applied or
+    /// dropped (`docs/WORKERS.md` §6).
+    pub fn reblind_owed(&mut self, c: &Compute) {
+        for k in 0..self.entries.len() {
+            if self.entries[k].owes_blind {
+                self.blind_key(c, k);
+            }
+        }
+    }
+
+    /// Whether any key still owes a reblind.
+    pub fn owes_reblind(&self) -> bool {
+        self.entries.iter().any(|e| e.owes_blind)
     }
 
     /// Costs what `blind_key` costs. A key joins the store, blinded from
@@ -893,7 +930,7 @@ impl Keys {
             });
         }
         for e in &mut self.entries {
-            e.key.master = e.key.master.for_network(network);
+            e.key.master = std::sync::Arc::new(e.key.master.for_network(network));
             e.key.public.borrow_mut().clear();
         }
         self.network = network;
@@ -1511,7 +1548,7 @@ impl Keys {
     /// Costs a key derivation per key. The keys as the PSBT crate refers to
     /// them.
     pub fn key_refs(&self, c: &Compute) -> Vec<faraday_psbt::KeyRef> {
-        let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &e.key.master).collect();
+        let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &*e.key.master).collect();
         crate::psbt::key_refs(c, &masters)
     }
 
@@ -1522,24 +1559,36 @@ impl Keys {
         c: &Compute,
         psbt: &faraday_psbt::Psbt,
     ) -> Vec<faraday_psbt::verify::Determinism> {
-        let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &e.key.master).collect();
+        let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &*e.key.master).collect();
         crate::psbt::recompute_signatures(c, psbt, &masters)
     }
 
-    /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the keys in
-    /// `selection`, against the context and past the holdable dangers in
-    /// `accepted` (F136).
-    pub fn sign(
+    /// A job that signs `psbt` with the keys in `selection`, against the
+    /// `context` (network, key references, policies), past the holdable dangers in `accepted` (F136). It holds a clone of
+    /// each selected key's `Arc`, not a copy of the key; a key forgotten or
+    /// a lock while it runs leaves the key alive until the job ends.
+    pub fn sign_job(
         &self,
-        c: &Compute,
-        psbt: &mut faraday_psbt::Psbt,
-        selection: &[Fingerprint],
-        (ctx, accepted): (faraday_psbt::Context<'_>, &[faraday_psbt::WarningKind]),
-        musig: &mut Option<faraday_psbt::MusigSession>,
-        seed: &Zeroizing<[u8; 32]>,
-    ) -> Result<faraday_psbt::SignResult, faraday_psbt::Error> {
-        let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &e.key.master).collect();
-        crate::psbt::sign(c, psbt, &masters, selection, (&ctx, accepted), musig, seed)
+        psbt: faraday_psbt::Psbt,
+        selection: Vec<Fingerprint>,
+        context: (
+            Network,
+            Vec<faraday_psbt::KeyRef>,
+            Vec<faraday_bip::policy::WalletPolicy>,
+        ),
+        (accepted, musig, seed): (
+            Vec<faraday_psbt::WarningKind>,
+            Option<faraday_psbt::MusigSession>,
+            Zeroizing<[u8; 32]>,
+        ),
+    ) -> crate::job::SignJob {
+        let masters = self
+            .entries
+            .iter()
+            .filter(|e| selection.contains(&e.info.fingerprint))
+            .map(|e| std::sync::Arc::clone(&e.key.master))
+            .collect();
+        crate::job::SignJob::new(psbt, masters, selection, context, (accepted, musig, seed))
     }
 }
 
@@ -1569,7 +1618,7 @@ impl Entry {
         };
         Entry {
             key: Key {
-                master,
+                master: std::sync::Arc::new(master),
                 words,
                 passphrase,
                 seed,
@@ -1578,6 +1627,7 @@ impl Entry {
                 codex32: Vec::new(),
             },
             info,
+            owes_blind: false,
         }
     }
 }

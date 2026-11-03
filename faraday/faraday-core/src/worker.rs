@@ -24,6 +24,8 @@ pub enum Kind {
     AezeedRead,
     /// A KeePass database written: its Argon2id runs.
     KdbxWrite,
+    /// A PSBT signed.
+    Signing,
 }
 
 impl Kind {
@@ -31,7 +33,11 @@ impl Kind {
     /// (the jobs that follow typing, `docs/WORKERS.md` §3.2).
     fn latest_wins(self) -> bool {
         match self {
-            Kind::SamplesLoad | Kind::VaultStretch | Kind::AezeedRead | Kind::KdbxWrite => false,
+            Kind::SamplesLoad
+            | Kind::VaultStretch
+            | Kind::AezeedRead
+            | Kind::KdbxWrite
+            | Kind::Signing => false,
         }
     }
 }
@@ -59,6 +65,7 @@ pub(crate) enum Job {
     Stretch(Box<crate::vault::StretchWork>),
     Aezeed(Box<crate::lightning::ReadWork>),
     Kdbx(Box<crate::vault::KdbxWork>),
+    Sign(Box<crate::signing::SignWork>),
 }
 
 /// What a job gives back.
@@ -67,6 +74,7 @@ pub(crate) enum Done {
     Stretch(Box<crate::vault::StretchDone>),
     Aezeed(Box<crate::lightning::ReadDone>),
     Kdbx(Box<crate::vault::KdbxDone>),
+    Sign(Box<crate::signing::SignDone>),
 }
 
 impl Job {
@@ -76,6 +84,7 @@ impl Job {
             Job::Stretch(_) => Kind::VaultStretch,
             Job::Aezeed(_) => Kind::AezeedRead,
             Job::Kdbx(_) => Kind::KdbxWrite,
+            Job::Sign(_) => Kind::Signing,
         }
     }
 
@@ -86,6 +95,7 @@ impl Job {
             Job::Stretch(j) => Done::Stretch(Box::new(j.run(c))),
             Job::Aezeed(j) => Done::Aezeed(Box::new(j.run(c))),
             Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
+            Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
         }
     }
 }

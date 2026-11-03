@@ -193,6 +193,16 @@ impl<T: Zeroize> Zeroize for Pinned<T> {
 
 impl<T: Zeroize> ZeroizeOnDrop for Pinned<T> {}
 
+// SAFETY: a `Pinned<T>` uniquely owns its allocation, as a `Box<T>` does
+// (see `ptr`), and the pages it holds are not tied to a thread. It is
+// `Send` and `Sync` exactly when `T` is, so a signing job on the worker
+// can share a key the store holds through an `Arc` (`docs/WORKERS.md` §6).
+#[allow(unsafe_code)]
+unsafe impl<T: Zeroize + Send> Send for Pinned<T> {}
+// SAFETY: as for `Send`; shared access only reads through `expose`.
+#[allow(unsafe_code)]
+unsafe impl<T: Zeroize + Sync> Sync for Pinned<T> {}
+
 impl<T: Zeroize + AsRef<[u8]>> PartialEq for Pinned<T> {
     /// Constant-time comparison of the byte representations, as
     /// [`Secret`](crate::Secret) compares.

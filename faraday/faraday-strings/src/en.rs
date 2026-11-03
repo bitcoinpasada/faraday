@@ -6655,6 +6655,8 @@ strings! {
     /// A toast on the frame drawn before an aezeed is stretched for its
     /// node key.
     working_node_key: "Working out the node key",
+    /// The line of the job that signs a transaction.
+    working_signing: "Signing the transaction",
     /// The line of the job that loads the ticked samples.
     working_samples: "Loading the samples",
     /// The line of the job that opens a vault.

@@ -95,6 +95,29 @@ Moved to `docs/history/KEYS-LOG.md`.
   `Node`, through `Keys::aezeed_node`, which applies the demo's refusal
   on the main thread; the KeePass file is encrypted, so public. The
   scrypt and Argon2id calls are unchanged.
+- **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does
+  not copy them. The store holds each master key behind an `Arc` that is
+  never opened for change: a change of network makes a new key
+  (`MasterKey::for_network`), and `Keys::reblind` reblinds a key only when
+  the store's is the only `Arc`, and marks any other as owing. `Keys::sign_job` gives the job a clone of
+  the `Arc` of each selected key, with the PSBT, the context's key
+  references and policies (public), the dangers held past, the seed
+  (`Zeroizing`) and the MuSig2 round, all owned. A key forgotten or a lock
+  while it signs drops the store's `Arc`; the job's keeps the key until the
+  job ends, and `Pinned` wipes it as the last one drops. A key a job holds
+  keeps the context the job started with and is reblinded
+  (`Keys::reblind_owed`) as soon as the job's answer is applied or dropped
+  (blinding changes no result). No master key
+  crosses the thread other than by `Arc`; `Pinned` is `Send` and `Sync`
+  where its value is, as a `Box` is. The signing call is
+  `faraday_psbt::sign`, unchanged.
+  The MuSig2 round moves into the job and comes back with the answer
+  (`Signing::into_parts`), to be put back on the spend on the main thread.
+  A stale answer (Back, or a lock) drops the round with its secret nonces:
+  none is used again, none was shared (the PSBT that carried the public
+  nonce is dropped too), and a round that had begun is lost, so the next
+  press opens a new one from a new seed. A round is never put back from a
+  stale answer.
 - **The crates that compute and keep nothing** stay as they are:
   faraday-bip, -psbt, -crypto, -backup, -vault, -pgp and -sb. Only
   faraday-keys calls their secret-taking functions.

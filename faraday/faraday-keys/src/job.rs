@@ -9,6 +9,10 @@
 //! ([`crate::vault::OpenVaults::adopt`]). Everything wipes as it drops, at
 //! the job's end on the worker or where a stale answer is dropped.
 
+use std::sync::Arc;
+
+use faraday_bip::keys::{Fingerprint, MasterKey, Network};
+use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
 use faraday_vault::{self as fv, Contents};
@@ -194,4 +198,99 @@ pub enum KdbxError {
     TooLarge,
     /// The file written did not verify under its passphrase.
     NotVerified,
+}
+
+/// A PSBT to sign on another thread (`docs/WORKERS.md` §6).
+///
+/// It holds a clone of the `Arc` of each selected key, not a copy of the
+/// key: a key forgotten or a lock while it runs drops the store's `Arc`,
+/// the job's keeps the key until the job ends, and the key is wiped as the
+/// last one drops. The PSBT, the context's key references and policies (all
+/// public), the dangers held past, the seed (wiped as it drops) and the
+/// MuSig2 round, if any, are owned. The round comes back with the answer
+/// ([`Signing::into_parts`]); a stale answer drops it with its nonces.
+pub struct SignJob {
+    psbt: faraday_psbt::Psbt,
+    masters: Vec<Arc<MasterKey>>,
+    selection: Vec<Fingerprint>,
+    network: Network,
+    refs: Vec<faraday_psbt::KeyRef>,
+    policies: Vec<WalletPolicy>,
+    accepted: Vec<faraday_psbt::WarningKind>,
+    musig: Option<faraday_psbt::MusigSession>,
+    seed: Zeroizing<[u8; 32]>,
+}
+
+/// What a [`SignJob`] gives back: the PSBT, as far as it was signed, the
+/// MuSig2 round as it stands, and the result.
+pub struct Signing {
+    psbt: faraday_psbt::Psbt,
+    musig: Option<faraday_psbt::MusigSession>,
+    result: Result<faraday_psbt::SignResult, faraday_psbt::Error>,
+}
+
+impl SignJob {
+    pub(crate) fn new(
+        psbt: faraday_psbt::Psbt,
+        masters: Vec<Arc<MasterKey>>,
+        selection: Vec<Fingerprint>,
+        (network, refs, policies): (Network, Vec<faraday_psbt::KeyRef>, Vec<WalletPolicy>),
+        (accepted, musig, seed): (
+            Vec<faraday_psbt::WarningKind>,
+            Option<faraday_psbt::MusigSession>,
+            Zeroizing<[u8; 32]>,
+        ),
+    ) -> SignJob {
+        SignJob {
+            psbt,
+            masters,
+            selection,
+            network,
+            refs,
+            policies,
+            accepted,
+            musig,
+            seed,
+        }
+    }
+
+    /// Costs what `faraday_psbt::sign` costs (the same call as before the
+    /// job existed, over the same keys).
+    pub fn run(mut self, c: &Compute) -> Signing {
+        let masters: Vec<&MasterKey> = self.masters.iter().map(|m| &**m).collect();
+        let ctx = faraday_psbt::Context {
+            network: self.network,
+            keys: &self.refs,
+            wallets: &self.policies,
+            musig_session: None,
+        };
+        let result = crate::psbt::sign(
+            c,
+            &mut self.psbt,
+            &masters,
+            &self.selection,
+            (&ctx, &self.accepted),
+            &mut self.musig,
+            &self.seed,
+        );
+        Signing {
+            psbt: self.psbt,
+            musig: self.musig,
+            result,
+        }
+    }
+}
+
+impl Signing {
+    /// The PSBT, the MuSig2 round as it stands and the result.
+    #[allow(clippy::type_complexity)]
+    pub fn into_parts(
+        self,
+    ) -> (
+        faraday_psbt::Psbt,
+        Option<faraday_psbt::MusigSession>,
+        Result<faraday_psbt::SignResult, faraday_psbt::Error>,
+    ) {
+        (self.psbt, self.musig, self.result)
+    }
 }

@@ -115,6 +115,7 @@ impl Faraday {
             let c = self.compute();
             let done = job.run(&c);
             self.apply_done(done);
+            self.reblind_owed();
             return;
         }
         let kind = job.kind();
@@ -176,6 +177,7 @@ impl Faraday {
             // Made stale by Back: dropped, and wiped as it drops.
             drop(done);
         }
+        self.reblind_owed();
         self.out.dirty = true;
         self.out.commands.push_back(crate::Command::Draw);
     }
@@ -186,6 +188,17 @@ impl Faraday {
             Done::Stretch(s) => crate::vault::stretch::stretched(self, *s),
             Done::Aezeed(r) => self.aezeed_read(*r),
             Done::Kdbx(k) => crate::vault::stretch::kdbx_written(self, *k),
+            Done::Sign(d) => crate::signing::signed_spend(self, *d),
+        }
+    }
+
+    /// Costs an elliptic-curve multiplication per key owing one. A signing
+    /// job's answer was applied or dropped, so its keys are alone again and
+    /// the reblind they were skipped for is done (`docs/WORKERS.md` §6).
+    fn reblind_owed(&mut self) {
+        if self.session.keys.owes_reblind() {
+            let c = self.compute();
+            self.session.keys.reblind_owed(&c);
         }
     }
 

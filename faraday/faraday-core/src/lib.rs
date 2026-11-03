@@ -55,9 +55,9 @@
 //!   `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
-//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`, `review`.
+//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`, `review`, `signing`.
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
-//!   `held` (the backup before spending), `restore`, `wallet_backup`,
+//!   `held` (the backup before spending, and signing), `restore`, `wallet_backup`,
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
 //!   codex32 item and the set's actions, with its `screen.rs`).
 //! - Vaults: `codes` (TOTP codes); `vault` is listed with the flows above.
@@ -188,6 +188,7 @@ mod review;
 pub mod secrets;
 pub mod secure_boot;
 pub mod seeds;
+mod signing;
 pub mod silent;
 pub mod vanity;
 pub mod vault;
@@ -4666,129 +4667,6 @@ impl Faraday {
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    fn sign_here(&mut self) {
-        let c = self.compute();
-        // A key made here signs nothing until its backup is done
-        // (`docs/history/NEW-WALLET.md` §14.3).
-        let held = self.held_keys_now(&c);
-        let waiting: Vec<String> = self
-            .wallets
-            .spend()
-            .map(|s| {
-                s.inspection
-                    .participating_keys
-                    .iter()
-                    .filter(|fp| held.contains(fp))
-                    .map(|fp| fp_text(*fp))
-                    .collect()
-            })
-            .unwrap_or_default();
-        if !waiting.is_empty() {
-            if let Some(s) = self.wallets.spend_mut() {
-                s.error = Some(fill(
-                    EN.sign_here_backup_first,
-                    &[&waiting.join(", ").to_string()],
-                ));
-                s.open = Some(wallet::step::SIGNERS);
-                s.follow = true;
-            }
-            return;
-        }
-        // A MuSig2 round opened here draws its secret nonces
-        // from a seed of this pass's own; a pass with no such input
-        // draws nothing and needs none.
-        let opens_round = self
-            .wallets
-            .spend()
-            .is_some_and(|s| spend_opens_round(&s.inspection));
-        let seed = match self.sign_seed() {
-            Some(seed) => seed,
-            None if opens_round => {
-                if let Some(s) = self.wallets.spend_mut() {
-                    s.error = Some(EN.sign_here_no_randomness.to_string());
-                }
-                return;
-            }
-            None => zeroize::Zeroizing::new([0u8; 32]),
-        };
-        // The same transaction stating other amounts than when it was
-        // signed here is refused, with no override (`docs/WALLETS.md` §3.3).
-        if self
-            .wallets
-            .spend()
-            .is_some_and(|s| self.amounts_refused(&s.spend.psbt))
-        {
-            if let Some(s) = self.wallets.spend_mut() {
-                s.error = Some(EN.sign_here_this_transaction.to_string());
-            }
-            return;
-        }
-        let mut remember: Option<faraday_psbt::Psbt> = None;
-        let Some(s) = self.wallets.spend_mut() else {
-            return;
-        };
-        let before = s.spend.psbt.to_bytes();
-        let mut psbt = s.spend.psbt.clone();
-        let mut nonce_only = false;
-        let signed = self.session.sign_spend(&c, &mut psbt, &seed, s);
-        // A session whose every nonce has signed is over: the next pass
-        // over this transaction opens a new one, never the same nonce.
-        if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
-            s.musig = None;
-        }
-        let signed = signed.map(|out| out.by);
-        match signed {
-            Ok(fps) if fps.is_empty() && s.musig.is_some() => {
-                // MuSig2 round one: this device's nonce, and no signature.
-                s.spend.psbt = psbt;
-                s.error = None;
-                nonce_only = true;
-            }
-            Ok(fps) => {
-                remember = Some(psbt.clone());
-                s.spend.psbt = psbt;
-                s.spend.signed_here.extend(fps);
-                s.done[5] = true;
-                s.error = None;
-            }
-            Err(e) => s.error = Some(e),
-        }
-        if let Some(p) = remember {
-            self.remember_amounts(&p);
-            self.save_boxes();
-        }
-        if nonce_only {
-            self.refresh_spend();
-            self.part_out();
-            if let Some(s) = self.wallets.spend_mut() {
-                s.open = Some(wallet::step::NONCES);
-                s.follow = true;
-            }
-            self.toast(EN.sign_here_this_device);
-            return;
-        }
-        self.refresh_spend();
-        if self
-            .wallets
-            .spend()
-            .is_some_and(|s| s.spend.psbt.to_bytes() != before)
-        {
-            self.part_out();
-        }
-        if let Some(s) = self.wallets.spend_mut() {
-            s.follow = true;
-            if s.complete {
-                s.done[wallet::step::COLLECT as usize] = true;
-                s.open = Some(wallet::step::FINISH);
-            } else if s.steps.contains(&wallet::step::COLLECT) {
-                s.open = Some(wallet::step::COLLECT);
-            } else {
-                s.open = Some(wallet::step::FINISH);
-            }
-        }
-    }
-
     fn collect(&mut self, index: usize) {
         let c = self.compute();
         let Some(item) = self.inbox.get(index) else {
@@ -4803,10 +4681,9 @@ impl Faraday {
             return;
         };
         let before = s.spend.psbt.to_bytes();
+        let mut nothing = false;
         match s.spend.collect(&c, &self.session, &bytes, &name) {
-            Ok(added) if added.is_empty() && s.spend.psbt.to_bytes() == before => {
-                s.error = Some(fill(EN.collect_has_nothing, &[&name.to_string()]));
-            }
+            Ok(added) if added.is_empty() && s.spend.psbt.to_bytes() == before => nothing = true,
             Ok(_) => s.error = None,
             Err(e) => s.error = Some(e),
         }
@@ -4817,36 +4694,18 @@ impl Faraday {
             .wallet_for(&c, &s.spend.psbt)
             .and_then(|i| self.session.wallets.get(i))
             .is_some_and(|w| wallet::Kind::of(w.policy()) == wallet::Kind::MuSig);
+        let mut job = None;
         if musig && !s.spend.signed_here.is_empty() && s.spend.finish().is_err() {
-            let mut psbt = s.spend.psbt.clone();
+            let psbt = s.spend.psbt.clone();
             match &seed {
-                Some(seed) => {
-                    if self.session.sign_spend(&c, &mut psbt, seed, s).is_ok() {
-                        s.spend.psbt = psbt;
-                    }
-                    if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
-                        s.musig = None;
-                    }
-                }
-                None => {
-                    s.error = Some(EN.collect_no_randomness.to_string());
-                }
+                Some(seed) => job = self.session.sign_spend_job(&c, &psbt, seed, s).ok(),
+                None => s.error = Some(EN.collect_no_randomness.to_string()),
             }
         }
-        self.refresh_spend();
-        if self
-            .wallets
-            .spend()
-            .is_some_and(|s| s.spend.psbt.to_bytes() != before)
-        {
-            self.part_out();
-        }
-        if let Some(s) = self.wallets.spend_mut() {
-            s.follow = true;
-            if s.complete {
-                s.done[wallet::step::COLLECT as usize] = true;
-                s.open = Some(wallet::step::FINISH);
-            }
+        match job {
+            Some(job) => crate::signing::collect_aggregate(self, job, &before),
+            // With an aggregation to follow, the file is not "nothing".
+            None => crate::signing::collect_end(self, &before, nothing.then_some(&name)),
         }
     }
 
@@ -4879,7 +4738,7 @@ impl Faraday {
                 s.follow = true;
                 s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
             } else {
-                self.sign_here();
+                crate::signing::sign_here(self);
             }
         } else {
             s.open = Some(wallet::step::COLLECT);
