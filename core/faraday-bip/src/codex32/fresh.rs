@@ -156,6 +156,12 @@ impl Scheme {
         }
     }
 
+    /// How many strings the set holds: the initial shares and the derived
+    /// ones.
+    pub fn strings_len(&self) -> usize {
+        self.initial_indices().len() + self.derived_indices().len()
+    }
+
     /// The header of the string at share index `index`, as symbols:
     /// threshold, identifier, index. Cheap.
     pub fn header(&self, index: u8) -> Result<[u8; HEADER_LEN], Error> {
@@ -202,7 +208,7 @@ pub fn fresh_set(c: &Compute, scheme: &Scheme, data: &[&[u8]]) -> Result<FreshSe
         return Err(Error::WrongShareCount);
     }
     let data_len = scheme.length.data_len();
-    let mut made = Vec::with_capacity(initial.len());
+    let mut made = Vec::with_capacity(scheme.strings_len());
     for (&index, payload) in initial.iter().zip(data) {
         if payload.len() != data_len {
             return Err(Error::BadLength);

@@ -155,26 +155,41 @@ fn note(c: &Compute) {
 // The bech32 alphabet
 // ---------------------------------------------------------------------
 
-/// Symbol value of each ASCII byte, or 32 where the byte is not a bech32
-/// character. Uppercase maps as its lowercase does.
-const CHARVAL: [u8; 128] = {
-    let mut table = [32u8; 128];
+/// All ones where `a == b`, else zero, without a branch.
+const fn eq_mask(a: u8, b: u8) -> u8 {
+    (((a ^ b) as u16).wrapping_sub(1) >> 8) as u8
+}
+
+/// The symbol value of a bech32 character (either case), or `None` for a
+/// byte outside the alphabet. The alphabet is scanned whole with a
+/// masked select, so the time does not depend on which entry matched;
+/// that the byte is outside the alphabet is not secret.
+pub fn charval(c: u8) -> Option<u8> {
+    // Fold A-Z to lowercase without a branch on the byte.
+    let upper = 0u8.wrapping_sub(u8::from(c.wrapping_sub(b'A') < 26));
+    let c = c | (upper & 32);
+    let mut v = 0u8;
+    let mut found = 0u8;
     let mut i = 0;
     while i < 32 {
-        let c = CHARSET[i] as usize;
-        table[c] = i as u8;
-        table[c - 32] = i as u8; // the uppercase form
+        let m = eq_mask(CHARSET[i], c);
+        v |= (i as u8) & m;
+        found |= m;
         i += 1;
     }
-    table
-};
+    (found != 0).then_some(v)
+}
 
-fn charval(c: u8) -> Option<u8> {
-    if c >= 128 {
-        return None;
+/// The lowercase bech32 character of a symbol value below 32, by a masked
+/// scan of the whole alphabet.
+pub fn symbol_char(v: u8) -> u8 {
+    let mut out = 0u8;
+    let mut i = 0;
+    while i < 32 {
+        out |= CHARSET[i] & eq_mask(i as u8, v);
+        i += 1;
     }
-    let v = CHARVAL[c as usize];
-    if v == 32 { None } else { Some(v) }
+    out
 }
 
 // ---------------------------------------------------------------------
@@ -214,9 +229,7 @@ const fn residue_step(residue: u128, v: u8, long: bool) -> u128 {
     let mut residue = ((residue & ((1u128 << shift) - 1)) << 5) ^ v as u128;
     let mut i = 0;
     while i < 5 {
-        if (b >> i) & 1 == 1 {
-            residue ^= generator[i];
-        }
+        residue ^= generator[i] & 0u128.wrapping_sub((b >> i) & 1);
         i += 1;
     }
     residue
@@ -271,18 +284,18 @@ fn append_checksum(data: &mut [u8], len: usize) -> usize {
 // GF(32)
 // ---------------------------------------------------------------------
 
-/// Multiplication in GF(32) as BIP 93 defines it over the bech32 alphabet.
-fn gf_mul(a: u8, b: u8) -> u8 {
+/// Multiplication in GF(32) as BIP 93 defines it over the bech32 alphabet
+/// (the field of x^5 + x^3 + 1), without a branch or a table index on
+/// either factor: five rounds of masked adds and a masked reduction.
+pub(crate) const fn gf_mul(a: u8, b: u8) -> u8 {
     let mut a = a;
     let mut res = 0u8;
-    for i in 0..5 {
-        if (b >> i) & 1 == 1 {
-            res ^= a;
-        }
-        a <<= 1;
-        if a >= 32 {
-            a ^= 41;
-        }
+    let mut i = 0;
+    while i < 5 {
+        res ^= a & ((b >> i) & 1).wrapping_neg();
+        let hi = (a >> 4) & 1;
+        a = ((a << 1) & 31) ^ (9 & hi.wrapping_neg());
+        i += 1;
     }
     res
 }
@@ -413,21 +426,21 @@ impl Codex32 {
 
     /// The threshold: 0 for a secret that was never split, else 2 to 9.
     pub fn threshold(&self) -> u8 {
-        CHARSET[self.data[0] as usize] - b'0'
+        symbol_char(self.data[0]) - b'0'
     }
 
     /// The four-character identifier, lowercase.
     pub fn identifier(&self) -> [u8; 4] {
         let mut out = [0u8; 4];
         for (slot, &v) in out.iter_mut().zip(&self.data[1..5]) {
-            *slot = CHARSET[v as usize];
+            *slot = symbol_char(v);
         }
         out
     }
 
     /// The share index, lowercase; `s` for the secret.
     pub fn share_index(&self) -> u8 {
-        CHARSET[self.data[5] as usize]
+        symbol_char(self.data[5])
     }
 
     /// Whether this string is the secret rather than a share of it.
@@ -513,7 +526,7 @@ impl Codex32 {
             .iter_mut()
             .zip(&self.data[..usize::from(self.len)])
         {
-            *slot = CHARSET[v as usize];
+            *slot = symbol_char(v);
         }
         out
     }
@@ -651,7 +664,7 @@ pub fn identifier_for(fingerprint: [u8; 4]) -> [u8; 4] {
     let bits = u32::from_be_bytes(fingerprint);
     let mut out = [0u8; 4];
     for (i, slot) in out.iter_mut().enumerate() {
-        *slot = CHARSET[((bits >> (27 - 5 * i)) & 31) as usize];
+        *slot = symbol_char(((bits >> (27 - 5 * i)) & 31) as u8);
     }
     out
 }
@@ -710,6 +723,90 @@ fn interpolate(set: &[Codex32], x: u8) -> Codex32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Faraday's previous multiplication, with its branches.
+    fn old_gf_mul(a: u8, b: u8) -> u8 {
+        let mut a = a;
+        let mut res = 0u8;
+        for i in 0..5 {
+            if (b >> i) & 1 == 1 {
+                res ^= a;
+            }
+            a <<= 1;
+            if a >= 32 {
+                a ^= 41;
+            }
+        }
+        res
+    }
+
+    /// Faraday's previous residue step, with its branches.
+    fn old_residue_step(residue: u128, v: u8, long: bool) -> u128 {
+        const GEN: [u128; 5] = [
+            0x1_9dc5_00ce_73fd_e210,
+            0x1_bfae_00de_f77f_e529,
+            0x1_fbd9_20ff_fe7b_ee52,
+            0x1_7396_40bd_eee3_fdad,
+            0x0_7729_a039_cfc7_5f5a,
+        ];
+        const LONG_GEN: [u128; 5] = [
+            0x3d5_9d27_3535_ea62_d897,
+            0x7a9_becb_6361_c6c5_1507,
+            0x543_f9b7_e6c3_8d8a_2a0e,
+            0x0c5_77ea_eccf_1990_d13c,
+            0x188_7f74_f8dc_71b1_0651,
+        ];
+        let (generator, shift) = if long {
+            (&LONG_GEN, 5 * (LONG_CHECKSUM_LEN - 1))
+        } else {
+            (&GEN, 5 * (CHECKSUM_LEN - 1))
+        };
+        let b = residue >> shift;
+        let mut residue = ((residue & ((1u128 << shift) - 1)) << 5) ^ v as u128;
+        for (i, g) in generator.iter().enumerate() {
+            if (b >> i) & 1 == 1 {
+                residue ^= g;
+            }
+        }
+        residue
+    }
+
+    #[test]
+    fn the_field_product_is_the_one_the_code_always_computed() {
+        for a in 0..32 {
+            for b in 0..32 {
+                assert_eq!(gf_mul(a, b), old_gf_mul(a, b), "{a} * {b}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_checksum_step_is_the_one_the_code_always_computed() {
+        let mut r = 0x9e37_79b9_7f4a_7c15_f39c_c060_5ced_c834u128;
+        for _ in 0..200 {
+            r = r.wrapping_mul(0x2545_f491_4f6c_dd1d_1405_7b7e_f767_814f) ^ (r >> 41);
+            for long in [false, true] {
+                let r = r & ((1u128 << if long { 5 * 15 + 5 } else { 5 * 13 + 5 }) - 1);
+                for v in 0..32 {
+                    assert_eq!(residue_step(r, v, long), old_residue_step(r, v, long));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_character_and_symbol_round_trips_in_either_case() {
+        for v in 0..32u8 {
+            let c = symbol_char(v);
+            assert_eq!(charval(c), Some(v));
+            assert_eq!(charval(c.to_ascii_uppercase()), Some(v));
+        }
+        for c in 0..=255u8 {
+            if !CHARSET.contains(&c.to_ascii_lowercase()) {
+                assert_eq!(charval(c), None, "{c}");
+            }
+        }
+    }
 
     /// The identifier of the fingerprint `73c5da0a`, worked out by hand:
     /// its first twenty bits are 01110 01111 00010 11101, which are 14,

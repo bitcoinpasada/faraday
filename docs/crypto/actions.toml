@@ -5761,8 +5761,8 @@ fuzz = ["seed_parts"]
 
 [action.secrets]
 reveal = ["Reveal::BackupStick"]
-constant_time = "Not constant time: GF(32) multiplication and the checksum branch on the bits of secret symbols, and a character is found by a lookup on its value (ESTABLISHED §4.4)."
-wiped = "The string, its payload and the seed are fixed arrays wiped on drop; a codex32 share record's string is a secret. A fresh set's initial shares are freed unwiped when the share list grows, until the next lock (ESTABLISHED §4.8)."
+constant_time = "GF(32) multiplication, the checksum's residue and the alphabet's lookup are written without a branch or a table index on a symbol's value, as the code documents; the code states no other timing."
+wiped = "The string, its payload and the seed are fixed arrays wiped on drop; a codex32 share record's string is a secret. A fresh set's share list is reserved at its full count before the first share is pushed, so no share is left in a block freed by a reallocation."
 
 [action.limits]
 lines = [
@@ -5849,7 +5849,7 @@ fuzz_none = "The characters are typed one at a time into worksheets that refuse 
 
 [action.secrets]
 reveal = ["Reveal::PaperForm"]
-constant_time = "Not stated by the code."
+constant_time = "GF(32) multiplication, the checksum's residue and the alphabet's lookup are written without a branch or a table index on a symbol's value, as the code documents; the code states no other timing."
 wiped = "The work set's rows and strings are lent only for a paper form; the strings and the seed are wiped on drop."
 
 [action.limits]
@@ -5899,7 +5899,7 @@ fuzz = ["seed_parts"]
 
 [action.secrets]
 reveal = "none"
-constant_time = "Not stated by the code."
+constant_time = "GF(32) multiplication, the checksum's residue and the alphabet's lookup are written without a branch or a table index on a symbol's value, as the code documents; the code states no other timing."
 wiped = "The strings are fixed arrays wiped on drop."
 
 [action.limits]

@@ -46,9 +46,9 @@ use faraday_crypto::work::Compute;
 use faraday_crypto::{Zeroize, ZeroizeOnDrop};
 
 use super::{
-    CHARSET, CHECKSUM_LEN, Codex32, Error, HEADER_LEN, INV, LONG_CHECKSUM_LEN, MAX_DATA_LEN,
-    MS32_CONST, MS32_LONG_CONST, VALID_LENGTHS, charval, gf_mul, long_polymod, note, polymod,
-    residue_step, verify_checksum,
+    CHECKSUM_LEN, Codex32, Error, HEADER_LEN, INV, LONG_CHECKSUM_LEN, MAX_DATA_LEN, MS32_CONST,
+    MS32_LONG_CONST, VALID_LENGTHS, charval, gf_mul, long_polymod, note, polymod, residue_step,
+    symbol_char, verify_checksum,
 };
 
 /// What BIP 93's bound allows: twice the substitutions plus the
@@ -66,29 +66,12 @@ pub const UNREADABLE: u8 = b'?';
 
 /// GF(1024) as GF(32)[ζ] with ζ² = ζ + 1, an element `a + bζ` packed as
 /// `a | b << 5`; GF(32) is BIP 93's, the elements with `b` = 0.
-const fn mul32(a: u8, b: u8) -> u8 {
-    let mut a = a;
-    let mut res = 0u8;
-    let mut i = 0;
-    while i < 5 {
-        if (b >> i) & 1 == 1 {
-            res ^= a;
-        }
-        a <<= 1;
-        if a >= 32 {
-            a ^= 41;
-        }
-        i += 1;
-    }
-    res
-}
-
 const fn mul1024_raw(x: u16, y: u16) -> u16 {
     let (a0, b0) = ((x & 31) as u8, (x >> 5) as u8);
     let (a1, b1) = ((y & 31) as u8, (y >> 5) as u8);
-    let bb = mul32(b0, b1);
-    let lo = mul32(a0, a1) ^ bb;
-    let hi = mul32(a0, b1) ^ mul32(a1, b0) ^ bb;
+    let bb = gf_mul(b0, b1);
+    let lo = gf_mul(a0, a1) ^ bb;
+    let hi = gf_mul(a0, b1) ^ gf_mul(a1, b0) ^ bb;
     lo as u16 | (hi as u16) << 5
 }
 
@@ -661,9 +644,9 @@ fn proposal(d: &Damaged, changes: &Changes, fixed: usize, run: bool) -> Result<P
             was: if d.unreadable[i] {
                 UNREADABLE
             } else {
-                CHARSET[usize::from(d.data[i])]
+                symbol_char(d.data[i])
             },
-            now: CHARSET[usize::from(data[i])],
+            now: symbol_char(data[i]),
         };
         count += 1;
     }
@@ -681,7 +664,7 @@ fn proposal(d: &Damaged, changes: &Changes, fixed: usize, run: bool) -> Result<P
     let mut text = [0u8; super::MAX_STRING_LEN];
     text[..3].copy_from_slice(b"ms1");
     for (slot, &v) in text[3..3 + n].iter_mut().zip(&data[..n]) {
-        *slot = CHARSET[usize::from(v)];
+        *slot = symbol_char(v);
     }
     data.zeroize();
     let parsed = core::str::from_utf8(&text[..3 + n])

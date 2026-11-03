@@ -450,9 +450,6 @@ impl WorkSet {
     }
 }
 
-/// The bech32 alphabet in symbol order (BIP 173).
-const BECH32: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-
 /// One string's checksum worksheet in the verification form, for Check a
 /// string (`docs/CODEX32.md` §8.3): every box as typed, its checksum
 /// holding or not, the final row worked out from them. Lent to drawing
@@ -477,8 +474,8 @@ impl StringCheck {
         }
         let mut sheet = ChecksumWorksheet::new(rest.len() + 3).ok()?;
         for b in rest.bytes() {
-            let v = BECH32.iter().position(|&x| x == b.to_ascii_lowercase())?;
-            sheet.push(c, v as u8).ok()?;
+            let v = faraday_bip::codex32::charval(b)?;
+            sheet.push(c, v).ok()?;
         }
         Some(StringCheck { sheet })
     }

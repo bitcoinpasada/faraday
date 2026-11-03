@@ -572,12 +572,12 @@ impl TranslationWorksheet {
 
     /// The share index of input `i`, lowercase.
     pub fn input_index(&self, i: usize) -> u8 {
-        super::CHARSET[usize::from(self.inputs[i])]
+        super::symbol_char(self.inputs[i])
     }
 
     /// The share index the sheet makes, lowercase.
     pub fn target_index(&self) -> u8 {
-        super::CHARSET[usize::from(self.target)]
+        super::symbol_char(self.target)
     }
 
     /// Whether the sheet makes the secret, from shares: the booklet's
