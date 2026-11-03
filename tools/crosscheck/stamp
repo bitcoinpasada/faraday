@@ -1,7 +1,7 @@
 # The last passing crypto cross-check (`just crosscheck`, F79).
 # `just lint` fails when `inputs` no longer matches the crypto sources,
 # the cross-check and the crypto crates' Cargo.lock entries.
-inputs d11881a27443ecc1380313d601c4628a9ab41715321ef1afd94f442014eb605d
+inputs 00fe3093fc56b597a0762501c17e37f170f12fb0d3f288cbd02f5908a5c5569e
 references 7e6b9583f6012c62eeabed91e1404404ee5b2ae9a61bc49ab68fb86fbe28fe32
 python 3.14.4
 argon2-cffi 25.1.0
@@ -19,11 +19,13 @@ mdir mdir (GNU mtools) 4.0.49
 sfdisk sfdisk from util-linux 2.41.3
 sgdisk GPT fdisk (sgdisk) version 1.0.10
 xz xz (XZ Utils) 5.8.3
-qemu-system-x86_64 QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.3)
+qemu-system-x86_64 QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.2)
 certtool certtool 3.8.12
 pesign pesign 116-8.1build1
 pesigcheck pesign 116-8.1build1
 zbarimg 0.23.93
+sq sq 1.3.1
+sq backend with cryptographic backend Nettle 3.10 (Cv448: true, OCB: true)
 7-Zip (7zz or 7z) 7-Zip 26.00 (x64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-02-12
 python3-pefile 2024.8.26
 python3-zxing-cpp 2.3.0-5
@@ -31,12 +33,13 @@ ovmf OVMF_CODE_4M.secboot.fd 33c413a04e9edf512c504e9b0accbcec4d009d406bca761cc0b
 bitcoin-core 31.1.0 bitcoin-31.1-x86_64-linux-gnu.tar.gz b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
 seed faraday-crosscheck-1
 scale 1.0
-seconds 191.0
+PyPy 3.11.13 for the areas it speeds
+seconds 216.8
 cases musig 32
 cases sp 100
 cases sps 80
 cases bip85 3000
-cases slip39 1500
+cases slip39 2000
 cases codex32 1000
 cases codex32-correct 10000
 cases xor 4000
