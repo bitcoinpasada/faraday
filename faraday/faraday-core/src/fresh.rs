@@ -490,6 +490,15 @@ impl Faraday {
         self.fresh.take(what, &mut self.out)
     }
 
+    /// A seed for a quiz's order from the session's generator, or `None`
+    /// while the system has not answered; the answer is used up.
+    pub(crate) fn quiz_seed(&mut self) -> Option<u64> {
+        let mut bytes = self.fresh(b"faraday quiz order");
+        let seed = bytes.as_ref().map(crate::quiz::Quiz::seed);
+        zeroize::Zeroize::zeroize(&mut bytes);
+        seed
+    }
+
     /// `n` bytes of their own for `what`, an answer for every 32
     /// ([`Fresh::take_bytes`]), or `None` while fewer answers wait than
     /// that; either way as many are asked for.

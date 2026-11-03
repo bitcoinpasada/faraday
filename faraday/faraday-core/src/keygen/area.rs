@@ -26,6 +26,23 @@ impl KeyGenArea {
         self.state.as_ref()
     }
 
+    /// Whether `action` starts a quiz: Next on the Words card, or the
+    /// answer that finishes a SLIP-39 share's quiz and opens the next.
+    pub(crate) fn wants_quiz_seed(&self, action: crate::Action) -> bool {
+        use crate::Action as A;
+        self.state.as_ref().is_some_and(|k| match action {
+            A::KNext => k.open == Some(kstep::WORDS),
+            A::KQuiz(slot) => {
+                k.slip39
+                    && k.quiz.as_ref().is_some_and(|q| {
+                        let (done, len) = q.progress();
+                        done + 1 >= len && usize::from(slot) == q.correct_slot()
+                    })
+            }
+            _ => false,
+        })
+    }
+
     /// How open the codex32 dice sheet shows, 0 to 1 (1 where there is
     /// none). A lookup.
     pub(crate) fn dice_shown(&self, now_ms: u64, still: bool) -> f32 {
@@ -338,7 +355,7 @@ impl KeyGenArea {
         action: crate::Action,
         c: &Compute,
         draw: Option<zeroize::Zeroizing<Vec<u8>>>,
-        now_ms: u64,
+        quiz_seed: Option<u64>,
     ) {
         use crate::Action as A;
         let Some(k) = self.state.as_mut() else {
@@ -473,8 +490,7 @@ impl KeyGenArea {
                 }
                 Some(kstep::WORDS) if k.slip39 => {
                     // Each share is quizzed in turn, from the first.
-                    if let Some(ind) = k.share_indices(0) {
-                        let seed = crate::quiz::Quiz::seed(now_ms, ind);
+                    if let (Some(ind), Some(seed)) = (k.share_indices(0), quiz_seed) {
                         k.quiz = Some(crate::quiz::Quiz::new(
                             ind,
                             crate::word_entry::EntryList::Slip39,
@@ -489,8 +505,7 @@ impl KeyGenArea {
                 Some(kstep::WORDS) => {
                     // The quiz asks every word in a random order; the
                     // words are hidden while it runs.
-                    if let Some(m) = k.mnemonic.as_ref() {
-                        let seed = crate::quiz::Quiz::seed(now_ms, m.indices());
+                    if let (Some(m), Some(seed)) = (k.mnemonic.as_ref(), quiz_seed) {
                         k.quiz = Some(crate::quiz::Quiz::new(
                             m.indices(),
                             crate::word_entry::EntryList::Bip39(Language::English),
@@ -539,8 +554,8 @@ impl KeyGenArea {
                     // The next share, or done.
                     match k.share_indices(at + 1).map(<[u16]>::to_vec) {
                         Some(next) => {
-                            let seed = crate::quiz::Quiz::seed(now_ms, &next);
-                            k.quiz = Some(crate::quiz::Quiz::new(&next, list, seed));
+                            k.quiz =
+                                Some(crate::quiz::Quiz::new(&next, list, quiz_seed.unwrap_or(0)));
                             k.quiz_share = at + 1;
                         }
                         None => k.done[usize::from(kstep::QUIZ)] = true,

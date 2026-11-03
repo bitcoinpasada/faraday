@@ -1428,6 +1428,13 @@ impl crate::Faraday {
             .filter(|k| action == A::KNext && k.slip39 && k.open == Some(kstep::ENTER))
             .map(|k| k.deal_random_len(faraday_bip::slip39::MAX_STRENGTH_BYTES));
         let draw = dealing.and_then(|n| self.fresh_bytes(b"slip39 split", n));
+        // The quiz's order comes from the session's generator, asked for
+        // before the flow is borrowed; with no answer yet the quiz waits.
+        let wants = self.keygen.wants_quiz_seed(action);
+        let quiz_seed = if wants { self.quiz_seed() } else { None };
+        if wants && quiz_seed.is_none() && matches!(action, A::KQuiz(_)) {
+            return;
+        }
         if action == A::KAdd {
             self.keygen_add();
             return;
@@ -1492,7 +1499,7 @@ impl crate::Faraday {
             }
             return;
         }
-        self.keygen.act(action, &c, draw, self.now_ms);
+        self.keygen.act(action, &c, draw, quiz_seed);
     }
 
     /// The Quiz's last button. SLIP-39 shares: loads the key and leaves

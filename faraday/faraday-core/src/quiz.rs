@@ -7,17 +7,15 @@
 //! different list.
 //!
 //! The order and the decoys come from a small deterministic generator
-//! (xorshift64*) seeded from the tick clock and a hash of the word
-//! indices ([`Quiz::seed`]): there is no `rand` crate in the core, and
-//! the quiz needs unpredictability only against a user guessing the next
-//! question, not against an attacker. A fixed clock in a review script
-//! therefore reproduces the same quiz.
+//! (xorshift64*) seeded from 8 bytes of the session's generator
+//! ([`Quiz::seed`]): it orders a quiz and guards nothing. The tests give
+//! a seed of their own and so reproduce the same quiz.
 //!
 //! Word indices live in fixed arrays zeroized on drop. This file is listed
 //! in `tools/lint-secrets.sh` and may hold no heap text.
 
 use faraday_bip::slip39::MAX_WORDS;
-use faraday_crypto::{Zeroize, ZeroizeOnDrop, sha256};
+use faraday_crypto::{Zeroize, ZeroizeOnDrop};
 
 use crate::word_entry::EntryList;
 
@@ -77,20 +75,15 @@ impl Drop for Quiz {
 impl ZeroizeOnDrop for Quiz {}
 
 impl Quiz {
-    /// A seed for [`new`](Self::new): the clock mixed with SHA-256 of the
-    /// word indices, so that two runs on the same key at different times
-    /// ask in different orders.
-    pub fn seed(now_ms: u64, indices: &[u16]) -> u64 {
-        let mut bytes = [0u8; MAX_WORDS * 2];
-        for (i, &w) in indices.iter().take(MAX_WORDS).enumerate() {
-            bytes[2 * i..2 * i + 2].copy_from_slice(&w.to_le_bytes());
-        }
-        let mut hash = sha256(&bytes[..indices.len().min(MAX_WORDS) * 2]);
-        bytes.zeroize();
+    /// A seed for [`new`](Self::new): the first 8 bytes of an answer
+    /// from the session's generator (`faraday-core::fresh`). The words do
+    /// not enter it, so a quiz's order does not follow from them.
+    pub fn seed(fresh: &[u8; 32]) -> u64 {
         let mut seed = [0u8; 8];
-        seed.copy_from_slice(&hash[..8]);
-        hash.zeroize();
-        now_ms ^ u64::from_le_bytes(seed)
+        seed.copy_from_slice(&fresh[..8]);
+        let out = u64::from_le_bytes(seed);
+        seed.zeroize();
+        out
     }
 
     /// Shuffles the positions of `indices` and poses the first question.
@@ -283,7 +276,7 @@ mod tests {
     fn every_word_is_asked_once_in_a_seeded_order() {
         let m = abandon();
         let lang = EntryList::Bip39(Language::English);
-        let seed = Quiz::seed(1000, m.indices());
+        let seed = Quiz::seed(&[7u8; 32]);
         let mut q = Quiz::new(m.indices(), lang, seed);
         let mut seen = [false; 12];
         for step in 0..12 {
@@ -313,13 +306,14 @@ mod tests {
         }
         assert_eq!(q.state(), QuizState::Passed);
         assert!(seen.iter().all(|&s| s));
-        // The same seed asks in the same order; another seed differs.
+        // The same seed asks in the same order; another seed differs, and
+        // the words alone do not decide it.
         let a = Quiz::new(m.indices(), lang, seed);
         let b = Quiz::new(m.indices(), lang, seed);
         assert_eq!(a.position(), b.position());
         assert_eq!(a.choices(), b.choices());
         let orders: Vec<usize> = (0..50u64)
-            .map(|t| Quiz::new(m.indices(), lang, Quiz::seed(t * 7919, m.indices())).position())
+            .map(|t| Quiz::new(m.indices(), lang, Quiz::seed(&[t as u8; 32])).position())
             .collect();
         assert!(
             orders.iter().any(|&p| p != orders[0]),

@@ -29,6 +29,7 @@ fn finish(app: &mut Faraday) {
 /// From the Words card: the quiz, every word answered rightly.
 fn pass_quiz(app: &mut Faraday) {
     use faraday_core::quiz::QuizState;
+    answered(app);
     app.press(Action::KNext);
     for _ in 0..30 {
         let Some(q) = app.keygen().and_then(|k| k.quiz.as_ref()) else {
@@ -45,6 +46,13 @@ fn pass_quiz(app: &mut Faraday) {
 /// The app on Add a key, with New key opened from there and carried past
 /// Length and Randomness to the entries, each on its default
 /// (`docs/history/NEW-WALLET.md` §2.1: New key opens on Length, not the entries).
+/// The system answers the quiz's request for bytes of its own.
+fn answered(app: &mut Faraday) {
+    for i in 0..4u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
+    }
+}
+
 pub(crate) fn opened() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
@@ -590,6 +598,7 @@ fn a_key_on_its_own_is_added_at_lock_in_and_done_waits_for_the_quiz_or_skipping_
     app.press(Action::KLock);
     assert_eq!(app.session.keys.len(), 1, "Lock in adds the key");
     app.press(Action::KNext);
+    answered(&mut app);
     app.press(Action::KNext);
     // On the quiz: a wrong pick does not pass it, and Done does nothing.
     let q = app.keygen().unwrap().quiz.as_ref().unwrap();

@@ -81,6 +81,9 @@ fn any_two_of_the_three_shares_restore_the_key() {
 fn the_key_loads_once_every_share_is_quizzed() {
     let mut app = dealt();
     app.press(Action::KNext); // check -> shares
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
     app.press(Action::KNext); // shares -> quiz
     let fp = app.keygen().unwrap().fingerprint.unwrap();
     for _ in 0..200 {
