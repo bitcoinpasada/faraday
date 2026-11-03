@@ -98,6 +98,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "pgp_secret"
+path = "fuzz_targets/pgp_secret.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "pgp_restore"
 path = "fuzz_targets/pgp_restore.rs"
 test = false

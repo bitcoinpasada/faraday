@@ -406,6 +406,8 @@ fn what_gnupg_writes_reads_as_public_and_its_secret_key_does_not() {
     let secret = export(&["--armor", "--export-secret-keys"]);
     assert!(!secret.is_empty());
     assert_eq!(read_public_armor(&secret), None);
+    // A key GnuPG made is not in Faraday's own shape.
+    assert!(faraday_pgp::read_secret(&secret).is_none());
 
     // GnuPG's own revocation file is not public.
     let revs: Vec<_> = std::fs::read_dir(home.join("openpgp-revocs.d"))
@@ -415,4 +417,27 @@ fn what_gnupg_writes_reads_as_public_and_its_secret_key_does_not() {
     assert_eq!(revs.len(), 1);
     let rev = std::fs::read(&revs[0]).unwrap();
     assert_eq!(read_public_armor(&rev), None);
+}
+
+#[test]
+fn gnupg_imports_the_armoured_secret_key_and_it_reads_back() {
+    let home = scratch("gpg-secret");
+    let k = key();
+    let armored = faraday_pgp::armor_secret(&k, MADE);
+    let file = home.join("secret.asc");
+    std::fs::write(&file, &*armored).unwrap();
+    let Some((ok, said)) = gpg(&home, &["--import", file.to_str().unwrap()]) else {
+        return;
+    };
+    assert!(ok, "{said}");
+    let (_, listing) = gpg(&home, &["--with-colons", "--list-secret-keys"]).unwrap();
+    let fpr = listing
+        .lines()
+        .find(|l| l.starts_with("fpr:"))
+        .unwrap_or_else(|| panic!("no secret key listed:\n{listing}"));
+    assert!(fpr.contains(&hex(&k.fingerprint())), "{fpr}");
+    assert_eq!(
+        faraday_pgp::read_secret(&armored).unwrap().fingerprint(),
+        k.fingerprint()
+    );
 }

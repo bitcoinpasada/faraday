@@ -8,6 +8,7 @@ pub use faraday_pgp::paperkey::LineError;
 use faraday_pgp::paperkey::{self, LINE_BYTES, Progress};
 use faraday_pgp::{Armor, Certificate, Hash, Reason, Refusal, armor};
 use faraday_vault::Record;
+use faraday_vault::kdbx::items::GpgKey;
 use faraday_vault::records::kind;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -44,7 +45,7 @@ pub fn create(
     let certificate = certificate(&key, now);
     let rev = Zeroizing::new(revocation(&key, now, Reason::Unspecified, ""));
     Made {
-        key: MadeKey::of(record_of(&key, &certificate, &rev, None)),
+        key: MadeKey::of(key_record(&key, &certificate, Some(&rev), None)),
         facts: facts_of(&key),
         certificate,
     }
@@ -53,7 +54,7 @@ pub fn create(
 /// The type 7 record of `key` (`docs/VAULT.md` §7), its fields in the
 /// order Make writes them: the seeds and dates, the user IDs, the expiry,
 /// the certificate, the kept revocation and, for a key revoked, when.
-fn record_of(key: &Key, certificate: &[u8], rev: &[u8], revoked: Option<u32>) -> Record {
+fn key_record(key: &Key, certificate: &[u8], rev: Option<&[u8]>, revoked: Option<u32>) -> Record {
     let mut r = Record::new(kind::GPG)
         .with(f::PRIMARY, &key.primary_seed)
         .with(f::CREATED, &key.created.to_le_bytes())
@@ -64,11 +65,189 @@ fn record_of(key: &Key, certificate: &[u8], rev: &[u8], revoked: Option<u32>) ->
     }
     r.push(f::EXPIRY, &key.expiry.to_le_bytes());
     r.push(f::CERTIFICATE, certificate);
-    r.push(f::REVOCATION, rev);
+    if let Some(rev) = rev {
+        r.push(f::REVOCATION, rev);
+    }
     if let Some(at) = revoked {
         r.push(f::REVOKED, &at.to_le_bytes());
     }
     r
+}
+
+/// Costs Ed25519 signatures. The type 7 record of a GPG key as a KDBX
+/// vault holds it (`docs/VAULT.md` §7, `gpg`), or `None` when the key is
+/// not in Faraday's own shape. The secret key must be what [`gpg_key_of`]
+/// writes (`faraday_pgp::read_secret_at`), a public certificate kept with
+/// it must be exactly the certificate the key makes at its signing time,
+/// a revocation certificate must be exactly the one signature the key
+/// makes for the time, reason and text it states, and the date a key was
+/// revoked must be an RFC 3339 time in UTC to the second. A certificate missing is
+/// made again at the time the key's self-signatures say.
+pub fn record_of(g: &GpgKey) -> Option<Record> {
+    let (key, at) = faraday_pgp::read_secret_at(g.key.as_bytes())?;
+    let certificate = match &g.public {
+        Some(text) => {
+            let packets = public_packets(text)?;
+            let read = Certificate::read(text.as_bytes()).ok()?;
+            if read.fingerprint() != key.fingerprint()
+                || read.subkey_fingerprint() != key.subkey_fingerprint()
+                || packets != key.certificate(faraday_pgp::signature_time(&packets)?)
+            {
+                return None;
+            }
+            packets
+        }
+        None => key.certificate(at),
+    };
+    let revocation = match &g.revocation {
+        Some(text) => {
+            let packets = public_packets(text)?;
+            let (t, reason, why) = revocation_parts(&packets)?;
+            if packets != key.revocation(t, reason, &why) {
+                return None;
+            }
+            Some(packets)
+        }
+        None => None,
+    };
+    let revoked = match &g.revoked {
+        Some(t) => Some(unix_of(t)?),
+        None => None,
+    };
+    Some(key_record(
+        &key,
+        &certificate,
+        revocation.as_deref(),
+        revoked,
+    ))
+}
+
+/// Costs Ed25519 signatures. The key a type 7 record holds as a KDBX
+/// vault's entry fields: the armoured secret key (self-signatures made at
+/// `at`, which a certificate states: `faraday_pgp::signature_time`), the
+/// certificate and the revocation certificate armoured as public blocks,
+/// and the date revoked in RFC 3339. `None` for a record without both
+/// seeds.
+pub fn gpg_key_of(r: &Record, at: u32) -> Option<GpgKey> {
+    let key = crate::vault::gpg_key(r)?;
+    // The armoured block is bytes in a wiping buffer; its ASCII moves into
+    // the wiping text without a copy.
+    let mut armored = faraday_pgp::armor_secret(&key, at);
+    let text = String::from_utf8(core::mem::take(&mut *armored)).ok()?;
+    let public = r.field(f::CERTIFICATE).map(|c| armor(Armor::PublicKey, c));
+    let revocation = r
+        .field(f::REVOCATION)
+        .map(|c| Zeroizing::new(armor(Armor::PublicKey, c)));
+    let revoked = r
+        .field(f::REVOKED)
+        .and_then(|b| Some(utc_of(u32::from_le_bytes(b.try_into().ok()?))));
+    Some(GpgKey {
+        title: key.user_ids.first().cloned().unwrap_or_default(),
+        key: Zeroizing::new(text),
+        public,
+        revocation,
+        revoked,
+    })
+}
+
+/// The time, reason and text a revocation certificate states: one
+/// signature packet, its creation time first, then the reason subpacket.
+fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
+    let first = usize::from(*packets.get(1)?);
+    let (len, head) = match first {
+        0..=191 => (first, 2),
+        192..=223 => (((first - 192) << 8) + usize::from(*packets.get(2)?) + 192, 3),
+        _ => return None,
+    };
+    if packets.first()? & 0x3f != 2 || packets.len() != head + len {
+        return None;
+    }
+    let body = &packets[head..];
+    // Version, type, algorithm, hash, hashed length, then the creation
+    // time subpacket (length 5, type 2, four bytes).
+    let at = u32::from_be_bytes(body.get(8..12)?.try_into().ok()?);
+    let rest = body.get(12..)?;
+    let n = usize::from(*rest.first()?);
+    if n > 191 || *rest.get(1)? != 29 {
+        return None;
+    }
+    let why = rest.get(2..1 + n)?;
+    let (&code, text) = why.split_first()?;
+    Some((
+        at,
+        Reason::from_code(code)?,
+        String::from_utf8(text.to_vec()).ok()?,
+    ))
+}
+
+/// The packets of an armoured public block, any packets (the revocation
+/// certificate is one signature).
+fn public_packets(text: &str) -> Option<Vec<u8>> {
+    let packets = faraday_pgp::dearmor(
+        b"-----BEGIN PGP PUBLIC KEY BLOCK-----",
+        b"-----END PGP PUBLIC KEY BLOCK-----",
+        text.as_bytes(),
+    )?;
+    Some(packets.to_vec())
+}
+
+/// Days since 1970-01-01 of a civil date (proleptic Gregorian).
+fn days_of(y: i64, m: i64, d: i64) -> i64 {
+    let y = y - i64::from(m <= 2);
+    let era = y.div_euclid(400);
+    let yoe = y.rem_euclid(400);
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// A Unix time as an RFC 3339 time in UTC to the second:
+/// `2026-10-28T14:02:00Z`.
+fn utc_of(unix: u32) -> String {
+    let (day, sec) = (unix / 86_400, unix % 86_400);
+    format!(
+        "{}T{:02}:{:02}:{:02}Z",
+        faraday_pgp::utc_date(u64::from(day) * 86_400),
+        sec / 3600,
+        sec % 3600 / 60,
+        sec % 60
+    )
+}
+
+/// The Unix time of an RFC 3339 time in UTC to the second, as [`utc_of`]
+/// writes it, if it is one and is a valid date within a `u32`.
+fn unix_of(text: &str) -> Option<u32> {
+    let b = text.as_bytes();
+    let num = |r: core::ops::Range<usize>| -> Option<i64> {
+        let s = b.get(r)?;
+        s.iter()
+            .all(u8::is_ascii_digit)
+            .then(|| s.iter().fold(0i64, |v, d| v * 10 + i64::from(d - b'0')))
+    };
+    if b.len() != 20
+        || [
+            (4, b'-'),
+            (7, b'-'),
+            (10, b'T'),
+            (13, b':'),
+            (16, b':'),
+            (19, b'Z'),
+        ]
+        .iter()
+        .any(|&(i, c)| b[i] != c)
+    {
+        return None;
+    }
+    let (y, mo, d) = (num(0..4)?, num(5..7)?, num(8..10)?);
+    let (h, mi, s) = (num(11..13)?, num(14..16)?, num(17..19)?);
+    if !(1..=12).contains(&mo) || d < 1 || h > 23 || mi > 59 || s > 59 {
+        return None;
+    }
+    let unix = days_of(y, mo, d) * 86_400 + h * 3600 + mi * 60 + s;
+    let unix = u32::try_from(unix).ok()?;
+    // A day past the month's end rolls over: the text must be the one
+    // written for the time.
+    (utc_of(unix) == text).then_some(unix)
 }
 
 /// What is public of `key`.
@@ -433,7 +612,12 @@ impl Restore {
         let r = faraday_pgp::restore(&self.certificate, &self.data)?;
         Ok(Restored {
             made: Made {
-                key: MadeKey::of(record_of(&r.key, &r.certificate, &r.revocation, r.revoked)),
+                key: MadeKey::of(key_record(
+                    &r.key,
+                    &r.certificate,
+                    Some(&r.revocation),
+                    r.revoked,
+                )),
                 facts: facts_of(&r.key),
                 certificate: r.certificate.clone(),
             },

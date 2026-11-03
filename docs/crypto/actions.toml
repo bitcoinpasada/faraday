@@ -7554,10 +7554,18 @@ functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::fingerprint",
   "faraday/faraday-pgp/src/lib.rs::Key::subkey_fingerprint",
   "faraday/faraday-keys/src/vault.rs::gpg_facts",
+  "faraday/faraday-keys/src/gpg.rs::record_of",
+  "faraday/faraday-keys/src/gpg.rs::gpg_key_of",
+  "faraday/faraday-pgp/src/secret.rs::armor_secret",
+  "faraday/faraday-pgp/src/secret.rs::read_secret",
+  "faraday/faraday-pgp/src/secret.rs::read_secret_at",
+  "faraday/faraday-pgp/src/secret.rs::dearmor",
 ]
 code = [
   "faraday/faraday-keys/src/gpg.rs::create",
   "faraday/faraday-pgp/src/lib.rs::Key::certificate",
+  "faraday/faraday-pgp/src/secret.rs::armor_secret",
+  "faraday/faraday-pgp/src/secret.rs::read_secret_at",
 ]
 
 [[action.screens_not]]
@@ -7580,7 +7588,7 @@ libraries = [
   "sha2",
   "base64ct",
 ]
-adds = "Version-4 packets for one key shape: EdDSALegacy Ed25519 for the primary (certify) and the subkey (sign), SHA-1 fingerprints, self-signatures over SHA-512, the subkey's back signature, and a revocation certificate kept in the vault record as GnuPG 2.1 and later keep one; every signature is deterministic."
+adds = "The armoured secret key a KDBX vault's GPG entry holds is the key's own packets (`Key::secret_key`) in ASCII armour, and it is read back only when writing the key it names gives the same bytes. Version-4 packets for one key shape: EdDSALegacy Ed25519 for the primary (certify) and the subkey (sign), SHA-1 fingerprints, self-signatures over SHA-512, the subkey's back signature, and a revocation certificate kept in the vault record as GnuPG 2.1 and later keep one; every signature is deterministic."
 written_here = "OpenPGP v4 packet construction (`faraday-pgp`)"
 
 [action.checked]
@@ -7589,8 +7597,13 @@ tests = [
   "faraday/faraday-pgp/tests/gnupg.rs::gnupg_takes_the_certificate_signatures_and_revocation",
   "faraday/faraday-pgp/tests/gnupg.rs::gnupg_sees_a_key_expire_and_be_renewed",
   "faraday/faraday-keys/tests/vault.rs::a_restored_key_signs_renews_and_revokes_as_makes_does",
+  "faraday/faraday-pgp/tests/gnupg.rs::gnupg_imports_the_armoured_secret_key_and_it_reads_back",
+  "faraday/faraday-pgp/tests/secret.rs::a_key_reads_back_as_written",
+  "faraday/faraday-pgp/tests/secret.rs::what_is_not_exactly_the_key_faraday_writes_is_not_read",
+  "faraday/faraday-keys/tests/gpg_entry.rs::a_record_becomes_an_entry_and_the_entry_the_same_record",
+  "faraday/faraday-keys/tests/gpg_entry.rs::an_entry_that_is_not_faradays_own_key_makes_no_record",
 ]
-fuzz = ["pgp_armor"]
+fuzz = ["pgp_armor", "pgp_secret"]
 not_crosschecked = "Judged by real gnupg and paperkey in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; those tests fail where the tools are missing."
 other = [
   "Real `gpg` 2.4 end to end: it imports the certificate, checks its signatures and revocation and takes its renewal, with its clock set (`faraday/faraday-pgp/tests/gnupg.rs`, `faraday/faraday-keys/tests/vault.rs`); GnuPG's authors, outside Faraday; required, nothing skips it (docs/DEVELOPING.md)",

@@ -30,9 +30,11 @@ extern crate alloc;
 pub mod certificate;
 pub mod message;
 pub mod paperkey;
+pub mod secret;
 pub mod verify;
 
 pub use certificate::{Certificate, Refusal, Restored, restore};
+pub use secret::{armor_secret, dearmor, read_secret, read_secret_at};
 pub use verify::{Unverified, verify_detached};
 
 use alloc::string::String;

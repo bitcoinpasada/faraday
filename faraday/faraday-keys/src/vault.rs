@@ -1828,7 +1828,7 @@ fn u32_of(r: &Record, n: u8) -> Option<u32> {
 
 /// The key a GPG record (type 7) holds, its seeds wiped when it drops.
 /// `None` for a record without a signing subkey.
-fn gpg_key(r: &Record) -> Option<faraday_pgp::Key> {
+pub(crate) fn gpg_key(r: &Record) -> Option<faraday_pgp::Key> {
     if r.kind != kind::GPG {
         return None;
     }
