@@ -76,7 +76,7 @@ with that group, are the second lineage for the curve (§10.7).
 | Which keys and lock times spend a wallet | BIP-379, 68, 65 | no | btclib-wallet's miniscript satisfaction (`Descriptor.satisfy` with a `SpendContext`) |
 | What a compiled policy means | BIP-379 | no | the policy and the miniscript python-bip380 reads, compared as boolean formulas over the keys and waits (area `compile`; the lift is Faraday's second version) |
 | Sighash of each input | BIP-143, 341, 342 | no | Core's `script.py` |
-| Signature verification | ECDSA, BIP-340 | no | Core's `key.py` |
+| Signature verification | ECDSA, BIP-340 | no | Core's `key.py`; for the signatures on a PSBT, python-ecdsa and btclib over btclib's sighashes, btclib's script engine for complete inputs and Core's `finalizepsbt` and `testmempoolaccept` beside them (area `sign-check`; the report of a reused nonce is Faraday's second version). Core's rules there: a partial input's PSBT sighash-type field is written when its signatures share a non-ALL type, an input with mixed types is not asked of Core, and an input that arrives final is judged by `testmempoolaccept` on the extracted transaction, not by `finalizepsbt`'s `complete`. One known failure of Faraday is held: a finalized taproot signature of 65 bytes ending in 0x00 is called valid, until it is refused |
 | Signature recomputation (the nonce check, done twice) | RFC 6979, BIP-340 | yes | Core's `key.py`: Faraday signs deterministically, so the signatures must match byte for byte |
 | Transaction id, finished transaction | BIP-141, 144 | no | Core's `messages.py` |
 | MuSig2 aggregate key, tweaks, nonces, partial signatures and their aggregate, BIP-373's PSBT roles, `musig()` descriptors | BIP-327, 328, 373, 390 | no | the BIP's reference code, btclib's MuSig2 and btclib-wallet's BIP-373 roles on btclib's own curve, and Core's `deriveaddresses` for the descriptors (Core's musig module is libsecp256k1's, as Faraday's point operations are, so it judges the descriptors and addresses, not the curve maths) |
@@ -199,7 +199,8 @@ As of 2026-10-29:
   and BIP-322 written out), `taproot`'s control-block check, the codex32
   worksheets, `compile` (the lift of a miniscript to a formula, written
   from the fragments' meanings; Core, python-bip380 and btclib take the
-  descriptor), and `vault` (the container,
+  descriptor), `sign-check` (the report of a reused nonce; python-ecdsa,
+  btclib and Core judge the signatures), and `vault` (the container,
   HKDF and the ChaCha20 block, over argon2-cffi and libsodium).
 - **Own only:** `own-randomness`, `entropy` and `roller`.
 
@@ -391,8 +392,10 @@ The cross-check fetches nothing, ever.
    and Bitcoin Core's miniscript vectors; and the policy compiler's
    output, which Core, python-bip380 and btclib read and whose
    miniscript is compared with the policy as a boolean formula over the
-   keys and waits. Built (areas `addr`, `tx`, `psbt`, `msg`, `sign`,
-   `taproot`, `miniscript`, `compile`).
+   keys and waits; and the signatures a PSBT already carries, verified by
+   python-ecdsa and btclib over btclib's signature hashes and run by
+   btclib's script engine and Core. Built (areas `addr`, `tx`, `psbt`,
+   `msg`, `sign`, `sign-check`, `taproot`, `miniscript`, `compile`).
 5. Randomness a person adds of their own, mixed into the session's
    (`docs/OWN-RANDOMNESS.md` §2.3): the accumulator, the reseeding, the
    pool's and the seed's draws and the lock, over fixed system answers.

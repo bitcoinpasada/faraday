@@ -35,6 +35,7 @@ mod review;
 mod roller;
 mod seedqr;
 mod sign;
+mod sign_check;
 mod silent;
 mod silent_send;
 mod slip39;
@@ -66,6 +67,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "review" => review::handle(name, req),
         "import" => import::handle(name, req),
         "sign" => sign::handle(name, req),
+        "sign-check" => sign_check::handle(name, req),
         "taproot" => taproot::handle(name, req),
         "miniscript" => miniscript::handle(name, req),
         "compile" => compile::handle(name, req),

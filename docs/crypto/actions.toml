@@ -4950,7 +4950,8 @@ tests = [
   "core/faraday-psbt/tests/all/verify.rs::the_devices_own_signatures_are_recognised_by_their_nonce_rule",
   "core/faraday-psbt/tests/all/verify.rs::two_transactions_are_compared_on_what_they_decode_to",
 ]
-not_crosschecked = "Area sign compares the signatures Faraday makes; the checks of signatures already on a PSBT have no second implementation."
+crosscheck = "sign_check"
+independence = { class = "outside-and-own", author = "python-ecdsa, by Brian Warner and Hubert Kario, and btclib, by the btclib developers, on btclib's own curve, verify every signature (ECDSA, and BIP-340 over python-ecdsa's points and btclib's `ssa`); the signature hashes are btclib's (`sig_hash.py`); btclib's script engine runs every complete input; Bitcoin Core v31.1 itself (`finalizepsbt`, `testmempoolaccept`), by Bitcoin Core's contributors, judges the complete inputs and the transaction, and shares libsecp256k1 with Faraday", ours = "the report of a reused nonce, written in `area_sign_check.py` from the definition (two signatures that verify, under one key, over different messages, with one `r` or `R`), which no outside library reports" }
 fuzz = ["psbt_parse"]
 
 [action.secrets]

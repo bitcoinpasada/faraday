@@ -79,6 +79,7 @@ AREAS = {
     "tx": ("area_tx", "Tx", ("tx.read", "tx.sighash"), 55),
     "psbt": ("area_psbt", "Psbt", ("psbt.v0", "psbt.v2"), 460),
     "sign": ("area_sign", "Sign", ("sign.sign", "sign.sweep"), 700),
+    "sign-check": ("area_sign_check", "SignCheck", ("sign-check.verify", "sign-check.reuse"), 300),
     "psbt-review": ("area_review", "Review", "review.inspect", 120),
     "import": ("area_import", "Import", ("import.read", "import.verify", "import.write", "import.json"), 120),
     "taproot": ("area_taproot", "Taproot", ("taproot.tree", "taproot.verify"), 900),
