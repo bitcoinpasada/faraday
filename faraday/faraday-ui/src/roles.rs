@@ -240,14 +240,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// How many lines [`Ui::wrap_as`] breaks `s` onto at `max` width:
     /// one at least.
     pub fn wrap_lines_as(&self, role: TypeRole, s: &str, max: f32) -> usize {
-        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(max)).len().max(1)
     }
 
     /// The height [`Ui::wrap_as`] takes for `s` at `width`, drawn
     /// nowhere.
     pub fn wrap_height_as(&self, role: TypeRole, s: &str, width: f32) -> f32 {
-        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(width)).len() as f32 * self.line_as(role)
     }
 
@@ -271,7 +271,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// it is drawn (a row's press), then drawn with [`Ui::draw_wrapped`]
     /// in the same frame, so it is broken once.
     pub fn wrapped_as<'s>(&self, role: TypeRole, s: &'s str, width: f32) -> Wrapped<'s> {
-        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let face = self.face(role.size, role.face.into());
         let lines = text::wrap(&face, s, self.px(width));
         let h = lines.len() as f32 * self.line_as(role);
         Wrapped {
@@ -293,7 +293,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     ) {
         let color = self.ink(color.into());
         let role = laid.role;
-        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let face = self.face(role.size, role.face.into());
         let line = self.line_as(role);
         let x0 = self.px(x + self.ox);
         for (i, &(start, end)) in laid.lines.iter().enumerate() {
@@ -338,7 +338,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let lines = &laid.lines;
         let ink = self.ink(color.into());
         let selected_ink = self.ink(crate::SELECTION_INK.paint());
-        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let face = self.face(role.size, role.face.into());
         let line = self.line_as(role);
         let edit = if focused {
             self.edit
@@ -613,7 +613,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Where `s` in `role` wrapped `max` wide breaks: the byte its first
     /// line ends at.
     fn first_line_end(&self, role: TypeRole, s: &str, max: f32) -> usize {
-        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(max))
             .first()
             .map_or(s.len(), |&(_, end)| end)

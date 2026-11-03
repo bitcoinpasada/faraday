@@ -414,6 +414,11 @@ pub struct Ui<'a, A> {
     /// The region a page opened with [`Ui::region_begin`] and has not
     /// closed.
     begun: Option<Open>,
+    /// The faces looked up this frame, by font and scale, so a size costs
+    /// its lookup once (`docs/FRAMES.md` §7). The key holds everything the
+    /// face is worked out from, so a change of scale or text size reaches
+    /// a different entry.
+    faces: std::cell::RefCell<Vec<(Font, faraday_draw::Scale, faraday_draw::fonts::SizedFace)>>,
     /// Where the caret and the selection are in the focused field.
     pub edit: Edit<A>,
     /// Where each line of typing drew its characters this frame.
@@ -625,6 +630,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             content: Layer::default(),
             keep_content: false,
             begun: None,
+            faces: std::cell::RefCell::new(Vec::new()),
             edit: Edit::default(),
             fields: Vec::new(),
             back_link: None,
@@ -943,7 +949,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let n = at.len() - 1;
         // Each edge by the advances so far, one pass: what
         // [`Ui::measure`] gives each start of the text.
-        let face = self.font(size, w).sized(self.c.scale());
+        let face = self.face(size, w);
         let mut pen = 0u32;
         let edge: Vec<f32> = std::iter::once(0.0)
             .chain(text.chars().map(|c| {
@@ -1398,15 +1404,32 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         r
     }
 
+    /// The face of `font` at the canvas's scale, looked up once a frame.
+    fn face_of(&self, font: Font) -> faraday_draw::fonts::SizedFace {
+        let scale = self.c.scale();
+        let mut faces = self.faces.borrow_mut();
+        if let Some(e) = faces.iter().find(|e| e.0 == font && e.1 == scale) {
+            return e.2;
+        }
+        let face = font.sized(scale);
+        faces.push((font, scale, face));
+        face
+    }
+
+    /// The face for a size and weight.
+    fn face(&self, size: f32, w: W) -> faraday_draw::fonts::SizedFace {
+        self.face_of(self.font(size, w))
+    }
+
     /// The width of `s` in design units.
     pub fn measure(&self, size: f32, w: W, s: &str) -> f32 {
-        let face = self.font(size, w).sized(self.c.scale());
+        let face = self.face(size, w);
         text::width(&face, s) as f32 / self.f
     }
 
     /// The height of one line in design units.
     pub fn line(&self, size: f32, w: W) -> f32 {
-        let face = self.font(size, w).sized(self.c.scale());
+        let face = self.face(size, w);
         face.line_height() as f32 / self.f
     }
 
@@ -1480,19 +1503,22 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// break-at-a-space rule [`Ui::wrap`] draws, counted rather than
     /// drawn, so a caller can grow a row before drawing its background.
     pub fn wrap_lines(&self, size: f32, w: W, s: &str, max: f32) -> usize {
+        let face = self.face(size, w);
+        let space = face.advance_64(' ');
+        let fits = |pen: u32| text::px_from_64(pen) as f32 / self.f <= max;
         let mut lines = 1usize;
-        let mut cur = String::new();
+        // The pen of the line so far, in 1/64 px: advances only add up, so
+        // it is what measuring the whole line would sum.
+        let mut cur: Option<u32> = None;
         for word in s.split_whitespace() {
-            let candidate = if cur.is_empty() {
-                word.to_string()
-            } else {
-                format!("{cur} {word}")
-            };
-            if cur.is_empty() || self.measure(size, w, &candidate) <= max {
-                cur = candidate;
-            } else {
-                lines += 1;
-                cur = word.to_string();
+            let adv: u32 = word.chars().map(|c| face.advance_64(c)).sum();
+            match cur {
+                Some(pen) if fits(pen + space + adv) => cur = Some(pen + space + adv),
+                Some(_) => {
+                    lines += 1;
+                    cur = Some(adv);
+                }
+                None => cur = Some(adv),
             }
         }
         lines
@@ -1503,7 +1529,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// not. One pass over its characters' advances, which only add up,
     /// so the first start that does not fit ends the search.
     pub fn fit(&self, size: f32, w: W, s: &str, max: f32) -> String {
-        let face = self.font(size, w).sized(self.c.scale());
+        let face = self.face(size, w);
         let fits = |pen: u32| text::px_from_64(pen) as f32 / self.f <= max;
         let whole: u32 = s.chars().map(|c| face.advance_64(c)).sum();
         if fits(whole) {
@@ -1568,7 +1594,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     ) -> f32 {
         let (color, mark_color) = (self.ink(colors.0), self.ink(colors.1));
         let font = self.font(size, w);
-        let face = font.sized(self.c.scale());
+        let face = self.face_of(font);
         let lines = text::wrap(&face, s, self.px(width));
         let lh = face.line_height();
         let bold = self.px(faraday_draw::tokens::MARK_BOLD).max(1);
@@ -2330,6 +2356,60 @@ mod tests {
             boot: BootState::Unknown,
             memory_mib: None,
         })
+    }
+
+    /// The line count by building each candidate line and measuring it
+    /// whole: what `wrap_lines` did before it summed advances.
+    fn wrap_lines_whole(ui: &Ui<u8>, size: f32, w: W, s: &str, max: f32) -> usize {
+        let mut lines = 1usize;
+        let mut cur = String::new();
+        for word in s.split_whitespace() {
+            let candidate = if cur.is_empty() {
+                word.to_string()
+            } else {
+                format!("{cur} {word}")
+            };
+            if cur.is_empty() || ui.measure(size, w, &candidate) <= max {
+                cur = candidate;
+            } else {
+                lines += 1;
+                cur = word.to_string();
+            }
+        }
+        lines
+    }
+
+    #[test]
+    fn wrap_lines_counts_what_measuring_each_whole_line_counts() {
+        let texts = [
+            "",
+            "   ",
+            "one",
+            "The quick brown fox jumps over the lazy dog and keeps running",
+            "  leading   and\ttrailing \n spaces  ",
+            "a supercalifragilisticexpialidocious_word_wider_than_any_line fits not",
+            "Zażółć gęślą jaźń — naïve café façade, 日本語のテキスト と 한국어",
+            "e\u{301} combining a\u{308}\u{323} marks n\u{303} on letters",
+            "iiiiii WWWWWW iiiiii WWWWWW mmm lll . , ; : ! ? 0123456789",
+        ];
+        for dpi in [120, 160, 240] {
+            let mut c = canvas(dpi);
+            let mut hits = Vec::new();
+            let ui: Ui<u8> = Ui::new(&mut c, 1.0, &mut hits, None);
+            for t in texts {
+                for w in [W::R, W::S, W::M] {
+                    for size in [11.0, 14.0, 20.0] {
+                        for max in [1.0, 20.0, 57.5, 90.0, 140.0, 231.0, 480.0, 5000.0] {
+                            assert_eq!(
+                                ui.wrap_lines(size, w, t, max),
+                                wrap_lines_whole(&ui, size, w, t, max),
+                                "{t:?} at {size} {max} {dpi}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]

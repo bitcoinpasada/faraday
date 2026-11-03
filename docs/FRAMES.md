@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first step of §3 is built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer, batch FR1), the rest is not
-**Open:** the rest of it: the moved frame itself, with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the content layer taken only when a frame asks for it (`Ui::keep_content`), the stretch moving the layer, a scroll step that moves the rows already drawn (§3), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write (§6), what a frame does beside its pixels (§7)
+**Status:** Specified; the first step of §3 is built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer, batch FR1; the face kept per size and `Ui::wrap_lines` linear in its words of §7, batch FR6a), the rest is not
+**Open:** the rest of it: the moved frame itself, with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the content layer taken only when a frame asks for it (`Ui::keep_content`), the stretch moving the layer, a scroll step that moves the rows already drawn (§3), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write (§6), what a frame does beside its pixels that §7 has not yet found or fixed (batch FR6b)
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -460,6 +460,21 @@ sampling profiler).
   printable ASCII advances up once for a text of 160 bytes or more.
   Characters measured fell to 43 000 a frame and the frame to about
   half; the advance of a character fell from 28 to 16 ns.
+- **A face kept per size.** Each `Font::sized` looked the face up by a
+  search of the font list and parsed its header, 100 to 1 100 times a
+  frame. The `Ui` now keeps the face of each font at the canvas's scale
+  the first time a frame asks for it (`Ui::face`); the key holds the
+  font and the scale, so a change of either reaches another entry.
+  A probe outside the repository (release, 480 × 640 class,
+  160 dpi): a face went from 32 to 8 ns a call, the lookup now a short
+  search of the faces kept.
+- **`Ui::wrap_lines` linear in the words.** It rebuilt and measured the
+  whole candidate line for each word, so a long label cost the square of
+  its words. It now adds the advances of the words and the spaces,
+  which is all the measure does (no kerning), and rounds the sum once
+  as the measure does; the count is the same, held by a test against a
+  measure of each whole line. The same probe, a label of 130 words
+  at 300 units: 115 µs a call before, 15 µs after.
 
 Pixels are as before (the snapshot and budget tests pass).
 
@@ -475,11 +490,6 @@ Pixels are as before (the snapshot and budget tests pass).
   second time inside the accessor; the Inbox's card about a fifth.
 - The signing page still wraps every text at every frame; the lines
   kept on the state, by file, would remove it.
-- Each `Font::sized` looks the face up by a search of the font list and
-  parses its header (about 10 ns, 100 to 1 100 a frame): a face kept
-  per size on the `Ui` would remove it.
-- `Ui::wrap_lines` rebuilds and measures the whole candidate line for
-  each word, so a long label costs the square of its words.
 
 ## 8. Batches
 
@@ -495,7 +505,8 @@ Each about fifty agent turns. FR0, FR1 to FR3 and FR5 leave
 | FR3 | The Pi's panel in its own order (§5): `Depth::Rgba8888` from the driver's `fbswap`, the Presenter with no converted copy for it, the panel's `config.txt` and the README's colour line; the present tests at 32 bits in both orders; checked on the dev card | `faraday/shells/stick/src/fb.rs`, `present.rs`, `panel.rs`, `faraday/image/panels/any/screens/waveshare-28dpi/display.line`, `faraday/image/README.md`, `docs/HARDWARE.md` if it names the format | No | Open |
 | FR4 | The shell after a moved frame (§3.7) and the write (§6): the Presenter moving its copies by `Parts::moved`, `changed_rows` as bands, `Panel::write_known`, no band copy outside the arrow, one buffer for `shown` and `last`; the stick takes `Parts`; `present::tests` for a moved frame (only the strip and the overlays converted, the panel showing the frame) and for a caret and a clock as two bands; measured on the dev card with `--timings` | `faraday/shells/stick/src/present.rs`, `panel.rs`, `fb.rs`, `main.rs` (one call), `docs/SPEED.md` §11.1 | No | Open |
 | FR5 | The bands (§4): the recording mode, the barriers, the pool, the test of §4.6; WORKERS §2 rule 1 worded for the bands; the heat on the dev card (§4.5); timed as SPEED §7 says, a frame of each main screen drawn whole | `core/faraday-draw/src/canvas.rs`, `canvas/list.rs` (new), `faraday-core/src/bands.rs` (new), `lib.rs` (`render_frame`), `docs/WORKERS.md`, `docs/SPEED.md` | No | Open |
-| FR6 | The rest: what FR0 named, as its own spec section; this spec's plan moves to docs/history/FRAMES-LOG.md and it becomes a Reference | as FR0 says, `docs/FRAMES.md`, `docs/README.md` | No | Open |
+| FR6a | Two costs in the drawing path (§7): the face kept per size on the `Ui`, `Ui::wrap_lines` linear in its words | `faraday/faraday-ui/src/lib.rs`, `roles.rs`, `docs/FRAMES.md` | No | Built |
+| FR6b | The rest of §7 (what is not yet found or fixed); this spec's plan moves to docs/history/FRAMES-LOG.md and it becomes a Reference | as FR0 says, `docs/FRAMES.md`, `docs/README.md` | No | Open |
 
 FR1 comes before FR2; FR3 and FR0 can run at any time and in parallel
 with FR1; FR4 needs FR2 and FR3; FR5 needs FR1 (the regions it bands
