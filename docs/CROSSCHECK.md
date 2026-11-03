@@ -45,10 +45,12 @@ among them) also wrote
 Core's test framework's `key.py`, `secp256k1lab` and the BIP-340, 327 and
 352 reference code, so every curve check today sets code from one small
 group of authors against more of its own. Every miniscript
-implementation, rust-miniscript, Core's and python-bip380, comes from one
-group too. Both are accepted (owner, 2026-10-29, F160); btclib and
-python-ecdsa, which share nothing with that group, are to be the second
-lineage for the curve (§10.7).
+implementation but one, rust-miniscript, Core's and python-bip380, comes from one
+group too; btclib-wallet's descriptors and miniscript (built, ESTABLISHED
+§9.7, X18) are the other, and judge the scripts, the types and the
+satisfaction of descriptors beside them. The curve's lineage is accepted
+(owner, 2026-10-29, F160); btclib and python-ecdsa, which share nothing
+with that group, are the second lineage for the curve (§10.7).
 
 ## 3. Candidate second implementations
 
@@ -69,8 +71,9 @@ lineage for the curve (§10.7).
 |---|---|---|---|
 | Seed from words | BIP-39 | yes | python-mnemonic |
 | Master fingerprint, account xpub, child keys | BIP-32, 44, 48, 49, 84, 86 | from a seed: yes; from an xpub: no | btclib-wallet's `bip32` on btclib's own curve (`bip32_ref.py`), and Core itself for addresses |
-| Addresses of a wallet | BIP-380 to 386, 388, 389 | no | Core itself (`deriveaddresses`) |
-| Descriptor checksum | BIP-380 | no | Core's `descriptors.py` |
+| Addresses of a wallet | BIP-380 to 386, 388, 389 | no | Core itself (`deriveaddresses`), and btclib-wallet's descriptors (`descriptor_ref.py`) for the script at an index, the kind and the text |
+| Descriptor checksum | BIP-380 | no | Core's `descriptors.py`, BIP 380's own code and btclib's |
+| Which keys and lock times spend a wallet | BIP-379, 68, 65 | no | btclib-wallet's miniscript satisfaction (`Descriptor.satisfy` with a `SpendContext`) |
 | Sighash of each input | BIP-143, 341, 342 | no | Core's `script.py` |
 | Signature verification | ECDSA, BIP-340 | no | Core's `key.py` |
 | Signature recomputation (the nonce check, done twice) | RFC 6979, BIP-340 | yes | Core's `key.py`: Faraday signs deterministically, so the signatures must match byte for byte |

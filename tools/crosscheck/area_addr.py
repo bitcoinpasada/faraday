@@ -5,7 +5,9 @@ it), `address.py`'s Base58Check and `descriptors.py`'s BIP-380 checksum;
 accounts' addresses from Bitcoin Core v31.1 itself, their keys from
 btclib (`bip32_ref.py`, btclib's own curve) and BIP-39 from
 python-mnemonic. Every descriptor checksum is also asked of BIP 380's
-own code, as the BIP prints it (`tools/reference/bip380/descsum.py`).
+own code, as the BIP prints it (`tools/reference/bip380/descsum.py`), and
+of btclib-wallet's descriptors (`descriptor_ref.py`, btclib's own
+checksum).
 
 - Every address of `tools/vectors/addresses/`: BIP-350's and BIP-173's
   valid addresses read to the script each pays and written back from
@@ -33,16 +35,31 @@ own code, as the BIP prints it (`tools/reference/bip380/descsum.py`).
 - For every regtest account above and a fixed set in the prelude,
   Core also reads Faraday's own account descriptor, checksum included
   (`getdescriptorinfo`), and derives the same address from its key.
+- Every account's descriptor, with its checksum and without, is read
+  again by Faraday (`faraday_bip::policy::WalletPolicy::from_descriptor`)
+  and by btclib-wallet's descriptors (`parse`, `multipath_descriptors`,
+  `script_pub_key`): the same kind of descriptor, the text written back
+  for each chain, the script at the index, which is the script of Core's
+  address; the checksum on the account is btclib's. The corpus also
+  reads descriptors changed (a character of the checksum or a key, the
+  checksum dropped or made again over another hardened mark, a function
+  name changed, cut, lengthened, other chains): both read the same text
+  to the same script, or both refuse it.
 
 An address is read as Faraday reads one: spaces at its ends ignored, a
 refusal named `Invalid` when no network reads it and `WrongNetwork`
-when another network does.
+when another network does. A descriptor is read as Faraday reads one too:
+spaces at its ends ignored, and the two chains written `<0;1>`; btclib
+reads more (`pk`, `combo`, `multi`, `addr`, `raw`, other chains), which
+Faraday takes for no account, and the area asks btclib for the four
+account descriptors only.
 """
 
 import json
 
 import bip32_ref
 import core_node
+import descriptor_ref as btclib
 from bip32_ref import HARDENED
 from common import ROOT, Area, Mismatch, as_verify, use_reference
 
@@ -116,6 +133,10 @@ def ref_from_script(script, network):
     raise Refused("not an address")
 
 
+# The descriptors of a single-key account, as btclib names their kind;
+# btclib reads many more (`pk`, `combo`, `multi`, `addr`, `raw`), which the
+# area's mutated texts reach and Faraday takes for no account.
+ACCOUNT_KINDS = {"pkh", "sh(wpkh)", "wpkh", "tr"}
 BODY = ["pkh({})", "sh(wpkh({}))", "wpkh({})", "tr({})"]
 
 
@@ -195,13 +216,17 @@ class Addr(Area):
     faraday = (
         "`faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, "
         '`faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), '
-        "`faraday_bip::descriptor`'s checksum"
+        "`faraday_bip::descriptor`'s checksum, "
+        "`faraday_bip::policy::WalletPolicy::from_descriptor` (an account descriptor's "
+        'kind, text and script at an index)'
     )
     reference = (
         "Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, "
         "Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints "
         "it (`bip380/`); btclib-wallet's `bip32` and `slip132` (`btclib/`, on btclib's "
-        "own curve) for accounts' keys; Bitcoin Core v31.1's `bitcoind` on regtest for "
+        "own curve) for accounts' keys, and its descriptors (`descriptors`) for each "
+        "account descriptor's kind, text, script at an index and checksum, and as a "
+        "third checksum judge; Bitcoin Core v31.1's `bitcoind` on regtest for "
         "every account's address (`deriveaddresses`) and for reading Faraday's regtest "
         "descriptors (`getdescriptorinfo`)"
     )
@@ -209,7 +234,7 @@ class Addr(Area):
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
         "Faraday; every descriptor checksum is also asked of BIP 380's own code, as the "
-        "BIP prints it; Core's release tarball is checked against its pinned SHA-256 "
+        "BIP prints it, and of btclib's; Core's release tarball is checked against its pinned SHA-256 "
         "(`tools/reference/core/release.pin`) before every run, and the node's version is "
         "asked"
     )
@@ -219,12 +244,17 @@ class Addr(Area):
     )
     corpus = (
         'scripts of every address kind on every network, written and read back, then '
-        "changed; accounts of every type at random indices; random descriptors' "
-        'checksums'
+        "changed; accounts of every type at random indices, their descriptors read and "
+        "changed; random descriptors' checksums"
     )
     differences = [
         (
-            'none'
+            "A descriptor with a second `#` in its body: btclib refuses it, as Bitcoin "
+            "Core's parser does, where BIP 380's code and Core's framework check the last "
+            "nine characters; its checksum is asked of those two only. btclib reads "
+            "descriptors Faraday takes for no account (`pk`, `combo`, `multi`, `addr`, "
+            "`raw`) and other chains than `<0;1>`; the area asks it for the four account "
+            "descriptors with both chains only."
         ),
     ]
     not_compared = (
@@ -240,10 +270,58 @@ class Addr(Area):
                             lambda: {"address": ref_from_script(script, network)})
 
     def account(self, seed, network, script, account, change, index, expected=None):
-        return self.compare(
+        got = self.compare(
             "addr.account", {"seed": seed.hex(), "network": network, "script": script,
                              "account": account, "change": change, "index": index},
             lambda: ref_account(seed, network, script, account, change, index), expected)
+        if got[0] == "ok":
+            self.read_descriptor(got[1], network, change, index)
+        return got
+
+    def read_descriptor(self, account, network, change, index):
+        """The account's descriptor, which Faraday wrote, read again by
+        Faraday and by btclib-wallet's descriptors: the same kind, the
+        same text, the script at the index Core's address pays, and the
+        checksum btclib works out."""
+        text = account["descriptor"]
+        body, _, given = text.partition("#")
+        if given != btclib.checksum(body):
+            raise Mismatch(self.name, "addr.account", {"network": network},
+                           ("ok", {"checksum": given}),
+                           ("ok", {"checksum": btclib.checksum(body)}), "btclib's checksum")
+        script = read_on(account["address"], network).hex()
+        for what in (text, body):
+            got = self.descriptor(what, network, change, index)
+            if got[0] != "ok" or got[1]["script_pubkey"] != script:
+                raise Mismatch(self.name, "addr.descriptor", {"text": what},
+                               got, ("ok", {"script_pubkey": script}),
+                               "the account descriptor does not pay Core's address")
+
+    def descriptor(self, text, network, change, index):
+        """A descriptor read, with or without its checksum: Faraday's
+        kind of wallet, the text it writes back and the script it pays
+        at `index` of one chain, against btclib-wallet's `parse`,
+        `str` and `script_pub_key`; a text one refuses, both refuse."""
+        def by_btclib():
+            # As an address is, a descriptor is read with its ends' spaces
+            # ignored, and only with both chains, <0;1>: Faraday's rules.
+            typed = text.strip()
+            if "/<0;1>/*" not in typed:
+                raise Refused("Faraday reads a wallet descriptor with the chains <0;1>")
+            one = btclib.chains(typed, network)
+            if btclib.shape(one[0]) not in ACCOUNT_KINDS:
+                raise Refused("btclib reads what Faraday takes for no account: pk, combo, "
+                              "multi, addr, raw")
+            return {"type": btclib.shape(one[0]), "descriptor": [btclib.text_of(d) for d in one],
+                    "script_pubkey": btclib.script_at(typed, network, change, index)}
+
+        def both_chains(answer):
+            if answer[0] == "ok" and isinstance(answer[1]["descriptor"], str):
+                answer = ("ok", dict(answer[1], descriptor=btclib.split(answer[1]["descriptor"])))
+            return refusal(answer)
+        return self.compare("addr.descriptor",
+                            {"text": text, "network": network, "change": change, "index": index},
+                            by_btclib, normalize=both_chains)
 
     def core(self, seed, script, account, change, index):
         """A regtest account, asked of Faraday as every account is, whose
@@ -277,6 +355,7 @@ class Addr(Area):
         def ref(create):
             return lambda: {"checksum": create(text)[-8:]}
         self.compare("addr.descsum", {"text": text}, ref(bip380.descsum_create))
+        self.compare("addr.descsum", {"text": text}, ref(btclib.checksum_of))
         return self.compare("addr.descsum", {"text": text}, ref(descriptors.descsum_create))
 
     def descsum_verify(self, text, expected=None):
@@ -284,6 +363,11 @@ class Addr(Area):
         text too short to hold one, which counts as a refusal."""
         self.compare("addr.descsum_verify", {"text": text},
                      lambda: {"valid": bip380.descsum_check(text)}, expected, normalize=as_verify)
+        if text.count("#") <= 1:
+            # btclib refuses a second `#` as Core's parser does; BIP 380's
+            # code and Core's framework check the last nine characters.
+            self.compare("addr.descsum_verify", {"text": text},
+                         lambda: {"valid": btclib.verify(text)}, expected, normalize=as_verify)
         return self.compare("addr.descsum_verify", {"text": text},
                             lambda: {"valid": descriptors.descsum_check(text, True)}, expected,
                             normalize=as_verify)
@@ -366,6 +450,34 @@ class Addr(Area):
             return rng.choice([" ", "\t", "\n "]) + address + rng.choice(["", " ", "\n"])
         return "x" * rng.randint(0, 100)
 
+    def mutate_descriptor(self, text):
+        """A descriptor Faraday wrote, changed: a character of it (the
+        checksum or a key, so one that does not check), its checksum
+        dropped or made again over another hardened mark, a function
+        name changed, the text cut or lengthened."""
+        rng = self.rng
+        body = text.split("#")[0]
+        how = rng.randrange(8)
+        if how == 0:
+            i = rng.randrange(len(text))
+            return text[:i] + rng.choice(descriptors.INPUT_CHARSET) + text[i + 1:]
+        if how == 1:
+            return body
+        if how == 2:
+            marked = body.replace("h", "'")
+            return rng.choice([marked, descriptors.descsum_create(marked)])
+        if how == 3:
+            name, rest = body.split("(", 1)
+            return rng.choice([name.upper(), name + "x", name[:-1], "foo"]) + "(" + rest
+        if how == 4:
+            return text[:-rng.randint(1, 9)]
+        if how == 5:
+            return text + rng.choice(["x", ")", "#", "#qqqqqqqq", " "])
+        if how == 6:
+            return descriptors.descsum_create(body.replace("/<0;1>/*", rng.choice(
+                ["/<0;1>/*", "/0/*", "/*", "", "/<0;1;2>/*", "/<1;0>/*", "/<0;0>/*"])))
+        return " " + text
+
     def corpus_case(self):
         rng = self.rng
         network = rng.choice(NETWORKS)
@@ -385,6 +497,13 @@ class Addr(Area):
                 self.core(seed, script, account, change, index)
             else:
                 self.account(seed, network, script, account, change, index)
+        if rng.random() < 0.06:
+            seed = self.randbytes(32)
+            made = self.account(seed, network, rng.randrange(4), rng.choice([0, 1, 7]),
+                                rng.random() < 0.5, rng.choice([0, 1, rng.randrange(1000)]))
+            if made[0] == "ok":
+                text = self.mutate_descriptor(made[1]["descriptor"])
+                self.descriptor(text, network, rng.random() < 0.5, rng.randrange(1000))
         if rng.random() < 0.3:
             charset = descriptors.INPUT_CHARSET
             text = "".join(rng.choice(charset) for _ in range(rng.randint(0, 120)))

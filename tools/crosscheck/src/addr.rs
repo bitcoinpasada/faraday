@@ -58,6 +58,24 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "address": a.to_string(),
             }))
         }
+        // A wallet descriptor read: its kind, the text it writes back,
+        // its keys and its spend paths, and the script at one place.
+        "descriptor" => {
+            let c = Compute::unchecked();
+            let policy =
+                faraday_bip::policy::WalletPolicy::from_descriptor(&c, text(req, "text"))
+                    .map_err(err)?;
+            let kind = crate::miniscript::inspect(&policy);
+            let index = u32::try_from(num(req, "index")).map_err(err)?;
+            let script = policy
+                .script_at(&c, flag(req, "change"), index)
+                .map_err(err)?;
+            Ok(json!({
+                "type": kind["type"],
+                "descriptor": kind["descriptor"],
+                "script_pubkey": hex(script.as_bytes()),
+            }))
+        }
         // BIP-380's checksum of a descriptor without one.
         "descsum" => {
             let sum = descriptor::descriptor_checksum(text(req, "text"))

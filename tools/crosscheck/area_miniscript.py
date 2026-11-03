@@ -30,21 +30,48 @@ Poinsot's python-bip380 (`tools/reference/miniscript/`, through
   spend with no signature, a block and a time delay in one branch, a key
   twice) are refused by both.
 
+- btclib-wallet's descriptors and miniscript (`descriptor_ref.py`, on btclib's
+  own curve) judge beside Core and python-bip380: Core's vectors (each
+  miniscript read exactly when Core calls it valid, its type properties,
+  whether it is sane, its script); every random wallet's descriptor (read
+  or refused, its kind, the text it writes for each chain, the script at the
+  index Core and Faraday pay); and the ways the coins move.
+  `faraday_bip::policy::WalletPolicy::spend_paths` says, for each wallet,
+  the keys that sign and the waits that must have passed for each way;
+  btclib's satisfaction (`Descriptor.satisfy` with a `SpendContext` of an
+  nSequence and an nLockTime) must spend at each way's keys and waits,
+  refuse a block or a height one short of them, and, with every wait passed,
+  spend with a set of keys exactly when it holds a way's keys.
+- Recovery wallets in both forms (`faraday_bip::recovery::RecoveryPolicy`:
+  one to three recovery paths of one to three keys each, a primary path, delays
+  of 1 to 65,535 blocks): the script at a random index of either chain is
+  Core's and btclib's, the kind and text are btclib's, the parts read back out
+  (`RecoveryPolicy::from_wallet_policy`) are the parts given, and btclib's
+  satisfaction spends with the primary keys at no wait and with each recovery
+  path's keys at its delay and not a block before, and not one signature short.
+
 python-bip380 writes `v:` over a `multi_a` as `OP_NUMEQUAL OP_VERIFY`
 where BIP 379 and Core write `OP_NUMEQUALVERIFY`, so the corpus has no
 `v:multi_a`; Core's vector of one is checked against Core's script.
+
+btclib's `script/solver.py` and `script/spendability.py` are ports of Core
+and are not used (ESTABLISHED §9.2, rule 3).
 
 Known differences, checked and counted: Faraday reads `sortedmulti_a`
 only as a `tr()`'s one leaf (`faraday_bip::tapmulti`); BIP 387 also
 allows it deeper in a tree, which Faraday refuses and Core reads. Two of Core's sane
 miniscripts `miniscript` refuses, and so Faraday (`KNOWN_REFUSED`): one
 with no satisfaction at all, and a `d:` used as a unit under Tapscript.
+btclib says nothing of "needs a signature" for a malleable miniscript (BIP 379
+does not), so that property is compared where Core calls the miniscript
+non-malleable.
 """
 
 import re
 
 import bip32_ref
 import core_node
+import descriptor_ref as btclib
 import miniscript_ref as ms
 from area_addr import read_on
 from bip32_ref import HARDENED
@@ -118,19 +145,27 @@ class Miniscript(Area):
     CORE = True
     faraday = (
         "`faraday_bip::policy::WalletPolicy` (a wallet's descriptor and the script it "
-        'pays at an index), `faraday_bip::policy::parse_script_descriptor`, a witness '
-        'script read back as `faraday_psbt` reads one'
+        'pays at an index, its kind, text and spend paths), '
+        '`faraday_bip::policy::parse_script_descriptor`, a witness '
+        'script read back as `faraday_psbt` reads one, '
+        "`faraday_bip::recovery::RecoveryPolicy` (a recovery wallet built from its parts and "
+        'read back)'
     )
     reference = (
         "Bitcoin Core v31.1's `bitcoind` on regtest (`deriveaddresses`) for random "
         "wallets, their cosigners' keys from btclib (`btclib/`, on btclib's own curve); "
+        "btclib-wallet's descriptors and miniscript (`btclib/`) for each descriptor's "
+        "kind, text and script, Core's vectors' types and scripts, and the satisfaction "
+        "of each way a wallet's coins move under its lock times; "
         "Antoine Poinsot's python-bip380 (`miniscript/`) for Core's vectors that state "
         'no script'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
-        "Faraday; Core's release tarball is checked against its pinned SHA-256 "
+        "Faraday; btclib reads Core's 97 miniscripts, in both contexts, before any "
+        "random wallet (valid exactly when Core says, its properties, sane, script); "
+        "Core's release tarball is checked against its pinned SHA-256 "
         "(`tools/reference/core/release.pin`) before every run, and the node's version is "
         'asked'
     )
@@ -143,7 +178,8 @@ class Miniscript(Area):
         '`sh(wsh())`, `multi`/`sortedmulti` in `sh()`, `wsh()`, `sh(wsh())`, `tr()` '
         'with trees of one to six leaves or a lone `sortedmulti_a`, over random '
         'accounts on every network, at random indices of both chains; the same made not '
-        'sane, refused'
+        'sane, refused; recovery wallets of both forms with one to three recovery paths, '
+        'and the ways each wallet\'s coins move spent at their lock times'
     )
     differences = [
         (
@@ -152,11 +188,16 @@ class Miniscript(Area):
             'sane miniscripts are '
             'refused, as `miniscript` refuses them: `or_b(0,a:0)`, which has no '
             'satisfaction, and a `d:` used as a unit under Tapscript. Each is checked and '
-            'counted.'
+            'counted; btclib is not asked the deeper `sortedmulti_a`. btclib says nothing '
+            'of "needs a signature" for a malleable miniscript (BIP 379 does not), so '
+            "that property is compared where Core calls the miniscript non-malleable."
         ),
     ]
     not_compared = (
-        'none'
+        "The witness bytes of a satisfaction (btclib assembles one and area `sign` "
+        "compares Faraday's finalizer); a wallet with more than 64 ways to spend, for "
+        "which Faraday states none; hash locks and locks in seconds, which the corpus "
+        "does not generate; and a wallet btclib cannot read (none yet)."
     )
 
     def __init__(self, *a):
@@ -188,6 +229,7 @@ class Miniscript(Area):
             if rust[0] != "err":
                 raise Mismatch(self.name, "miniscript.script", inputs, rust, ("err", "not sane"),
                                f"Core's mode {mode}: not valid and sane under {ctx}")
+            self.btclib_case(mode, text, ctx, sane, None, rust)
             return
         if published != "?":
             want = published
@@ -198,6 +240,7 @@ class Miniscript(Area):
                 want = None
         if rust[0] != "ok" and (ctx, text) in KNOWN_REFUSED:
             self.known += 1
+            self.btclib_case(mode, text, ctx, sane, want, rust)
             return
         if rust[0] != "ok" or (want is not None and rust[1]["script"] != want):
             raise Mismatch(self.name, "miniscript.script", inputs, rust, ("ok", {"script": want}),
@@ -205,6 +248,50 @@ class Miniscript(Area):
         script = rust[1]["script"]
         self.compare("miniscript.from_script", {"script": script, "ctx": ctx},
                      lambda: {"script": script})
+        self.btclib_case(mode, text, ctx, sane, want, rust)
+
+    def btclib_case(self, mode, text, ctx, sane, want, rust):
+        """btclib's reading of a vector's miniscript: read exactly when
+        Core calls it valid, its type properties Core's (a signature
+        required is compared where the miniscript is non-malleable: btclib
+        says nothing of it for a malleable one, as BIP 379 does not), sane
+        exactly when Core says so, and its script Core's or
+        python-bip380's. Faraday's script, where Faraday reads the
+        miniscript, is btclib's."""
+        tap = ctx == "tap"
+        raw = re.sub(r"\b0[23]([0-9a-f]{64})\b", r"\1", text) if tap else text
+        inputs = {"ms": text, "ctx": ctx}
+        valid = bool(mode & VALID) and not (ctx == "wsh" and mode & P2WSH_INVALID) \
+            and not (ctx == "tap" and mode & TAP_INVALID)
+        try:
+            got = btclib.miniscript(raw, tap)
+        except Exception as e:  # noqa: BLE001 - any refusal of btclib
+            got = None
+            why = str(e)[:80]
+        self.compared += 1
+        if not valid:
+            if got is not None:
+                raise Mismatch(self.name, "miniscript.script", inputs, ("err", "not valid"),
+                               ("ok", got), f"Core's mode {mode}: not valid under {ctx}, btclib reads it")
+            return
+        if got is None:
+            raise Mismatch(self.name, "miniscript.script", inputs, ("ok", rust[1]),
+                           ("err", why), f"Core's mode {mode}: valid under {ctx}, btclib refuses it")
+        flags = (bool(mode & NONMAL), bool(mode & MIX))
+        if (got["non_malleable"], got["mixes"]) != flags \
+                or (flags[0] and got["signature"] != bool(mode & NEEDSIG)) \
+                or got["sane"] != sane:
+            raise Mismatch(self.name, "miniscript.script", inputs,
+                           ("ok", {"non_malleable": flags[0], "mixes": flags[1],
+                                   "signature": bool(mode & NEEDSIG), "sane": sane}),
+                           ("ok", {k: got[k] for k in ("non_malleable", "mixes", "signature", "sane")}),
+                           f"Core's mode {mode} under {ctx}: the type properties")
+        if want is not None and got["script"] != want:
+            raise Mismatch(self.name, "miniscript.script", inputs, ("ok", {"script": want}),
+                           ("ok", {"script": got["script"]}), f"btclib's script under {ctx}")
+        if rust[0] == "ok" and rust[1]["script"] != got["script"]:
+            raise Mismatch(self.name, "miniscript.script", inputs, rust,
+                           ("ok", {"script": got["script"]}), f"btclib's script under {ctx}")
 
     def core_insane_scripts(self):
         """Scripts of Core's valid miniscripts that are not sane, read
@@ -245,7 +332,7 @@ class Miniscript(Area):
     def timelocks(self):
         return {"N": self.rng.randrange(1, 65536), "T": self.rng.randrange(1, 500_000_000)}
 
-    def wallet(self, descriptor, core, known=False):
+    def wallet(self, descriptor, core, test, known=False):
         """Faraday's script at random indices of both chains, against the
         script Core's `deriveaddresses` pays at the same place of `core`,
         the same wallet with each key written as the account's tpub: one
@@ -274,6 +361,85 @@ class Miniscript(Area):
                     raise ValueError(f"Core: {said[1]}")
                 return {"script_pubkey": read_on(said[1][0], "regtest").hex()}
             self.compare("miniscript.wallet", inputs, by_core)
+            self.compare("miniscript.wallet", inputs, lambda: {
+                "script_pubkey": btclib.script_at(descriptor, network_of(test), change, index)})
+        if not known:
+            self.inspect(descriptor, test, *places[0])
+
+    def inspect(self, descriptor, test, change, index):
+        """Faraday's reading of the wallet against btclib's: the kind of
+        descriptor, the text it writes back (btclib's, with a hardened
+        step written `h`), and the ways its coins move, each judged by
+        btclib's satisfaction (`spend_check`)."""
+        network = network_of(test)
+        inputs = {"descriptor": descriptor}
+
+        def same(answer):
+            if answer[0] != "ok":
+                return answer
+            said = {k: answer[1][k] for k in ("type", "descriptor")}
+            if isinstance(said["descriptor"], str):
+                said["descriptor"] = btclib.split(said["descriptor"])
+            return ("ok", said)
+
+        def by_btclib():
+            one = btclib.chains(descriptor, network)
+            return {"type": btclib.shape(one[0]), "descriptor": [btclib.text_of(d) for d in one]}
+        got = self.compare("miniscript.inspect", inputs, by_btclib, normalize=same)
+        if got[0] == "ok":
+            self.spend_check("miniscript.inspect", inputs, got[1], descriptor, network,
+                             change, index)
+
+    def spend_check(self, op, inputs, wallet, descriptor, network, change, index):
+        """btclib's satisfaction of the wallet at `index` of one chain
+        against the ways Faraday says its coins move (`wallet["paths"]`:
+        the keys that sign, the waits that have passed). A way's keys at
+        the way's own waits spend; a wait one short of it does not,
+        unless another way is open to the same keys; with every wait
+        passed, a set of keys spends exactly when it holds a way's keys;
+        with none passed, the keys of all spend exactly when a way has no
+        wait."""
+        paths = [(set(p["keys"]), p["locks"]) for p in wallet["paths"]]
+        if not paths:
+            return
+        d = btclib.chains(descriptor, network)[int(change)]
+        tap = wallet["type"].startswith("tr")
+        keys = btclib.keys_of(d, index, network, wallet["keys"])
+        if len(keys) != len(wallet["keys"]):
+            raise Mismatch(self.name, op, inputs, ("ok", {"keys": len(wallet["keys"])}),
+                           ("ok", {"keys": len(keys)}), "btclib does not name every key Faraday does")
+
+        def waits(locks):
+            return (max([n for kind, n in locks if kind == "blocks"], default=0),
+                    max([n for kind, n in locks if kind == "height"], default=0))
+
+        def ask(signing, wait, expect, what):
+            self.compared += 1
+            got = btclib.spends(d, index, network, keys, sorted(signing), wait[0], wait[1], tap)
+            if got != expect:
+                raise Mismatch(
+                    self.name, op, inputs,
+                    ("ok", {"spends": expect, "keys": sorted(signing), "sequence": wait[0],
+                            "locktime": wait[1]}),
+                    ("ok", {"spends": got}), f"btclib's satisfaction, {what}")
+
+        every = set(range(len(wallet["keys"])))
+        top = waits([lock for _, locks in paths for lock in locks])
+        for have, locks in paths:
+            ask(have, waits(locks), True, "a way at its own waits")
+            if any(other <= have for other, _ in paths if other is not have):
+                continue
+            sequence, height = waits(locks)
+            if sequence:
+                ask(have, (sequence - 1, height), False, "a block wait one short")
+            if height:
+                ask(have, (sequence, height - 1), False, "a height one short")
+        ask(every, top, True, "every key, every wait passed")
+        ask(every, (0, 0), any(not locks for _, locks in paths), "every key, no wait passed")
+        for _ in range(4):
+            signing = {i for i in every if self.rng.random() < 0.5}
+            ask(signing, top, any(have <= signing for have, _ in paths),
+                "some keys, every wait passed")
 
     def segwit_case(self, test):
         template, n = self.rng.choice(WSH + [("multi({k},{keys})", 0), ("sortedmulti({k},{keys})", 0)])
@@ -300,7 +466,7 @@ class Miniscript(Area):
         desc = wrapped(texts)
         if self.rng.random() < 0.5:
             desc = descsum_create(desc)
-        self.wallet(desc, wrapped(cores))
+        self.wallet(desc, wrapped(cores), test)
 
     def leaf(self, test, insane=False):
         template, n = self.rng.choice(LEAVES_INSANE if insane else LEAVES)
@@ -340,9 +506,9 @@ class Miniscript(Area):
             (a, ca), (b, cb), (c, cc) = (self.account(test) for _ in range(3))
             desc = f"tr({internal[0]},{{sortedmulti_a(1,{a},{b}),pk({c})}})"
             core = f"tr({internal[1]},{{sortedmulti_a(1,{ca},{cb}),pk({cc})}})"
-            self.wallet(descriptor_sum(desc, self.rng), core, known=True)
+            self.wallet(descriptor_sum(desc, self.rng), core, test, known=True)
             return
-        self.wallet(descriptor_sum(desc, self.rng), core)
+        self.wallet(descriptor_sum(desc, self.rng), core, test)
 
     def shape(self, count):
         """A random binary tree over leaves 0..count-1, in order."""
@@ -353,6 +519,97 @@ class Miniscript(Area):
             return [build(lo, mid), build(mid, hi)]
         return build(0, count)
 
+    # ----- recovery wallets ----------------------------------------------------
+
+    def recovery_case(self, test):
+        """A recovery wallet built from its parts by `RecoveryPolicy`, in
+        both forms: its script at a random index against Core's and
+        btclib's, its kind and text against btclib's, the parts read back
+        out of it, the ways its coins move by btclib's satisfaction, and
+        what the parts say (the primary keys spend with no wait, each
+        recovery path's keys spend once its delay has passed and not a
+        block before) by btclib's satisfaction too."""
+        rng = self.rng
+        network = network_of(test)
+        count = rng.randint(1, 3)
+        delays = rng.sample(range(1, 65536), count)
+        if rng.random() < 0.2:
+            delays[0] = rng.choice([1, 65535])
+        sizes = [rng.randint(1, 3) for _ in range(count + 1)]
+        accounts = [self.account(test) for _ in range(sum(sizes))]
+        bare = [text[:-len(CHAINS)] for text, _ in accounts]
+        parts, at = [], 0
+        for size in sizes:
+            parts.append({"threshold": rng.randint(1, size), "keys": bare[at:at + size]})
+            at += size
+        recovery = [dict(part, delay=delay) for part, delay in zip(parts[1:], delays)]
+        change = rng.random() < 0.5
+        index = rng.choice([0, 1, rng.randrange(0, 1 << 31)])
+        form = rng.choice(["segwit", "taproot"])
+        inputs = {"form": form, "primary": parts[0], "recovery": recovery,
+                  "change": change, "index": index}
+        got = self.rust.call("miniscript.recovery", **inputs)
+        self.compared += 1
+        if got[0] != "ok":
+            raise AssertionError(f"recovery: refused a valid wallet: {got[1]}")
+        wallet = got[1]
+
+        def agree(what, faraday, reference):
+            if faraday != reference:
+                raise Mismatch(self.name, "miniscript.recovery", inputs, ("ok", {what: faraday}),
+                               ("ok", {what: reference}), what)
+        both = btclib.chains(wallet["descriptor"], network)
+        agree("type", wallet["type"], btclib.shape(both[0]))
+        agree("descriptor", btclib.split(wallet["descriptor"]), [btclib.text_of(d) for d in both])
+        agree("script_pubkey", wallet["script_pubkey"],
+              btclib.script_at(wallet["descriptor"], network, change, index))
+        chain = int(change)
+        core = core_text(wallet["descriptor"], accounts, chain)
+        (said,) = core_node.answers([("deriveaddresses", descsum_create(core), [index, index])])
+        if said[0] == "err":
+            raise Mismatch(self.name, "miniscript.recovery", inputs, ("ok", wallet),
+                           ("err", f"Core: {said[1]}"), "Core refuses the wallet")
+        agree("script_pubkey", wallet["script_pubkey"], read_on(said[1][0], "regtest").hex())
+        want = {"primary": {"threshold": parts[0]["threshold"], "keys": sorted(parts[0]["keys"])},
+                "recovery": sorted(({"delay": r["delay"], "threshold": r["threshold"],
+                                     "keys": sorted(r["keys"])} for r in recovery),
+                                   key=lambda r: r["delay"])}
+        back = wallet["back"] and {
+            "primary": dict(wallet["back"]["primary"], keys=sorted(wallet["back"]["primary"]["keys"])),
+            "recovery": [dict(r, keys=sorted(r["keys"])) for r in wallet["back"]["recovery"]]}
+        agree("back", back, want)
+        self.spend_check("miniscript.recovery", inputs, wallet, wallet["descriptor"], network,
+                         change, index)
+        self.parts_check(inputs, wallet, network, index, bare, parts, recovery, form == "taproot")
+
+    def parts_check(self, inputs, wallet, network, index, bare, parts, recovery, tap):
+        """btclib's satisfaction of the wallet against the parts it was
+        built from."""
+        one = btclib.chains(wallet["descriptor"], network)[int(inputs["change"])]
+        keys = btclib.keys_of(one, index, network, bare)
+        self.compared += 1
+        if len(keys) != len(bare):
+            raise Mismatch(self.name, "miniscript.recovery", inputs, ("ok", {"keys": len(bare)}),
+                           ("ok", {"keys": len(keys)}), "btclib does not name every key")
+        top = max(r["delay"] for r in recovery)
+        position = {key: i for i, key in enumerate(bare)}
+
+        def ask(signing, sequence, expect, what):
+            self.compared += 1
+            got = btclib.spends(one, index, network, keys, signing, sequence, 0, tap)
+            if got != expect:
+                raise Mismatch(self.name, "miniscript.recovery", inputs,
+                               ("ok", {"spends": expect, "keys": signing, "sequence": sequence}),
+                               ("ok", {"spends": got}), f"btclib's satisfaction, {what}")
+        for path, delay, name in [(parts[0], 0, "the primary keys")] + \
+                [(r, r["delay"], "a recovery path") for r in recovery]:
+            have = [position[k] for k in path["keys"]][:path["threshold"]]
+            ask(have, delay, True, f"{name} once their wait has passed")
+            if delay:
+                ask(have, delay - 1, False, f"{name} a block short of their wait")
+            if path["threshold"] > 1:
+                ask(have[:-1], top, False, f"{name} one signature short")
+
     LOOPS = (("corpus", 250),)
 
     def prelude(self):
@@ -361,10 +618,35 @@ class Miniscript(Area):
 
     def case_corpus(self):
         test = self.rng.random() < 0.6
-        if self.rng.random() < 0.55:
+        pick = self.rng.random()
+        if pick < 0.5:
             self.segwit_case(test)
-        else:
+        elif pick < 0.85:
             self.taproot_case(test)
+        else:
+            self.recovery_case(test)
+
+
+CHAINS = "/<0;1>/*"
+
+
+def core_text(descriptor, accounts, chain):
+    """Faraday's descriptor as Core is given it: each account's key
+    written as its tpub with the one chain, and any other extended key
+    (the unspendable internal key of a taproot recovery wallet) a tpub
+    with that chain."""
+    for text, core in accounts:
+        xpub = text[:-len(CHAINS)].rsplit("]", 1)[-1]
+        descriptor = re.sub(r"\[[^\]]*\]" + re.escape(xpub) + re.escape(CHAINS),
+                            lambda _, core=core: core.replace("{chain}", str(chain)), descriptor)
+    descriptor = re.sub(r"xpub[1-9A-HJ-NP-Za-km-z]+",
+                        lambda m: bip32_ref.decode(m.group(0), False).with_test(True).serialize(),
+                        descriptor)
+    return descriptor.replace(CHAINS, f"/{chain}/*")
+
+
+def network_of(test):
+    return "testnet" if test else "mainnet"
 
 
 def descriptor_sum(desc, rng):

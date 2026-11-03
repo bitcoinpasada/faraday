@@ -1897,7 +1897,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
 ]
 crosscheck = "addr"
-independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys; BIP 380's own checksum code, as the BIP prints it; python-mnemonic, by Trezor (SatoshiLabs), for the seeds" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys, and its descriptors (`parse`, `script_pub_key`, `checksum`) for each account descriptor's kind, text, script at an index and checksum; BIP 380's own checksum code, as the BIP prints it; python-mnemonic, by Trezor (SatoshiLabs), for the seeds" }
 selftest = [
   "bip84_address",
 ]
@@ -2030,7 +2030,7 @@ tests = [
   "core/faraday-bip/tests/all/core_import.rs::the_pair_for_core_before_29_is_cores_own_receive_and_change_descriptors",
 ]
 crosscheck = "miniscript"
-independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys, and its descriptors and miniscript, by the btclib developers, on btclib's own curve, for each descriptor's kind, text and script at an index, Core's vectors' types, sanity and scripts, and the satisfaction of each way a wallet's coins move under its lock times" }
 fuzz = [
   "policy",
 ]
@@ -2095,7 +2095,7 @@ libraries = [
   "miniscript",
   "bitcoin",
 ]
-adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot form puts one primary key on the key path; a wallet no one could recover is refused. The miniscript area compares the scripts of wallets of these shapes through WalletPolicy; it does not call RecoveryPolicy's builder or reader."
+adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot form puts one primary key on the key path; a wallet no one could recover is refused. The miniscript area builds wallets of these shapes with RecoveryPolicy in both forms and reads them back, and compares their scripts, kinds and ways to spend with Bitcoin Core and btclib."
 
 [action.checked]
 vectors = [
@@ -2109,7 +2109,7 @@ tests = [
   "core/faraday-bip/tests/all/recovery.rs::the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives",
 ]
 crosscheck = "miniscript"
-independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys, and its descriptors and miniscript, by the btclib developers, on btclib's own curve, for each descriptor's kind, text and script at an index, Core's vectors' types, sanity and scripts, and the satisfaction of each way a wallet's coins move under its lock times (and, for recovery wallets, each built from its parts)" }
 fuzz = [
   "policy",
 ]

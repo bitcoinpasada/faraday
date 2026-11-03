@@ -6,7 +6,13 @@ the answers with Faraday's (`tools/crosscheck/area_msg.py`); the `import`
 area asks btclib's `bms` to sign and verify BIP 129's key records, and
 btclib-wallet's BIP-32 (`btclib_wallet.bip32`) with btclib's SLIP-132
 versions for every key of the wallets it writes into other wallets'
-files (`tools/crosscheck/area_import.py`). This folder
+files (`tools/crosscheck/area_import.py`); the `addr` and `miniscript`
+areas ask btclib-wallet's descriptors and miniscript
+(`btclib_wallet.descriptors`, through `tools/crosscheck/descriptor_ref.py`)
+to read an account's or a wallet's descriptor, to give the script it pays at
+an index, its kind and its text, to read Core's miniscripts and give their
+types and scripts, and to satisfy a wallet under a given nSequence and
+nLockTime (`tools/crosscheck/area_addr.py`, `area_miniscript.py`). This folder
 holds the four wheels those modules need, each byte for byte the file
 PyPI publishes, whose SHA-256 is the one in btclib-wallet's own `uv.lock`
 at the release below.
