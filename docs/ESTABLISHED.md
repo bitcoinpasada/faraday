@@ -1,8 +1,8 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F191, F192); built: AEZ's AES round from the aes crate (§4.2, §5.3), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form (§4.1's starting point), the inventory's name matching (§2.5) and the FAT32 formatter (§3.2)
-**Open:** the scalar arithmetic on secrets through libsecp256k1 (§4.1); the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the documentation fixes (§7); the cross-check's outside sources (§9, batches X1 to X30)
+**Status:** Specified (F178, F180, F181, F191, F192); built: AEZ's AES round from the aes crate (§4.2, §5.3), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the inventory's name matching (§2.5) and the FAT32 formatter (§3.2)
+**Open:** the timing fixes of §4.4 to §4.7; the switches (§5); the reasons in the manifest and their check (§2); the generated lists (§3); the documentation fixes (§7); the cross-check's outside sources (§9, batches X1 to X30)
 
 Faraday uses an established implementation wherever one exists for what
 it needs, and writes its own only where none exists or none fits its
@@ -441,8 +441,10 @@ says.
 - A hash reduced to a scalar (`reduce`) keeps main's branch-free form:
   `a - n` is always computed, and the borrow selects `a` or `a - n` by
   mask. It is the one piece of scalar arithmetic left written here
-  (§3.4). `is_zero` and the masked `at_least_order` stay for the nonce's
-  check after `reduce`.
+  (§3.4). `is_zero`, `zero_bit` and the secret form of `at_least_order`
+  are gone: a nonce reduced from its hash is checked by
+  `SecretKey::from_slice` (`seckey_verify`), which refuses zero and a
+  value at or above the order.
 
 A `SecretKey` cannot be zero. Where an intermediate value can be zero
 it is handled where it arises: in the silent-payment sum the running
@@ -481,13 +483,12 @@ sum's zero cases; `just crypto-review` for `sign-musig`, `musig-key`,
 `check.py check` names, since the renamed functions sit in a lock block
 those actions share.
 
-**Built so far.** The batch is written and not yet merged: it meets
-every point above but the re-stamping. `docs/crypto/actions.lock` still
-names `musig.rs`'s `add_mod_order`, `at_least_order`, `negate_mod_order`
-and `zero_bit`, which it renames or removes, so `check_fingerprints`
-fails until the reviews are made. Landing it is: rebase on main, run
-`check.py check`, `just crypto-review` for each action it names,
-`just crosscheck` again if the stamp's inputs changed.
+**Built.** Every point above is built: the secret arithmetic of
+`musig.rs`, `dleq.rs` and `silent.rs` goes through libsecp256k1, the
+public arithmetic carries the `_public` suffix, `reduce` is unchanged,
+the `secrets.wiped` and `secrets.constant_time` texts say what is and is
+not reached, the actions' lock and fingerprints are written again, and
+the cross-check stamp is current.
 
 **Secret handling that changes** (`secrets.constant_time`):
 
@@ -1671,7 +1672,7 @@ Reference's list of conditions.
 | Batch | What | Sections | Size |
 |---|---|---|---|
 | A0 | The inventory's name matching; the actions it moves re-stamped | §2.5 | Built |
-| A1 | Scalar arithmetic on secrets through libsecp256k1, from the written batch; the re-stamps it lacks; with X8 | §4.1, §5.4, §9.7 | About half a day, and X8's |
+| A1 | Scalar arithmetic on secrets through libsecp256k1, from the written batch; the re-stamps it lacks; with X8 | §4.1, §5.4, §9.7 | Built, with X8 |
 | A2 | AEZ's AES round from `aes` | §4.2, §5.3 | Built |
 | A3 | SLIP-39's GF(256) and checksum without a branch | §4.3 | Built |
 | A4 | codex32's GF(32), checksum and alphabet without a branch; one `gf_mul`; `fresh_set` sized; with X10 | §4.4, §9.7 | About half a day, and X10's |

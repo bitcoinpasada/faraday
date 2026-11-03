@@ -39,7 +39,7 @@ use faraday_crypto::Zeroize;
 use faraday_crypto::work::Compute;
 
 use crate::keys::{Fingerprint, MasterKey, Network};
-use crate::musig::{add_mod_order, negate_mod_order, tagged_hash};
+use crate::musig::{SecretScalar, at_least_order_public, tagged_hash};
 
 /// BIP-43's purpose for silent payments.
 pub const PURPOSE: u32 = 352;
@@ -415,31 +415,33 @@ impl Receiver {
 
     /// The tweak label `m` adds to the spend key.
     pub fn label_tweak(&self, m: u32) -> Result<[u8; 32], Error> {
-        let tweak = tagged_hash(
-            b"BIP0352/Label",
-            &[&self.scan.secret_bytes(), &m.to_be_bytes()],
-        );
-        checked(tweak)
+        let mut key = self.label_key(m)?;
+        let bytes = key.secret_bytes();
+        key.non_secure_erase();
+        Ok(bytes)
+    }
+
+    /// The tweak label `m` adds to the spend key, as a key.
+    fn label_key(&self, m: u32) -> Result<SecretKey, Error> {
+        let mut scan = self.scan.secret_bytes();
+        let tweak = tagged_hash(b"BIP0352/Label", &[&scan, &m.to_be_bytes()]);
+        scan.zeroize();
+        checked_secret(tweak)
     }
 
     /// The point that tweak stands for, which is what a received output
     /// is matched against.
     pub fn label_point(&self, secp: &Secp256k1<All>, m: u32) -> Result<PublicKey, Error> {
-        let mut tweak = self.label_tweak(m)?;
-        let key = SecretKey::from_slice(&tweak).map_err(|_| Error::Scalar)?;
-        tweak.zeroize();
-        Ok(key.public_key(secp))
+        let mut key = self.label_key(m)?;
+        let point = key.public_key(secp);
+        key.non_secure_erase();
+        Ok(point)
     }
 
     /// The spend key with label `m` on it, which is what the labelled
     /// address publishes.
     pub fn labelled_spend_key(&self, secp: &Secp256k1<All>, m: u32) -> Result<PublicKey, Error> {
-        let mut tweak = self.label_tweak(m)?;
-        let scalar = Scalar::from_be_bytes(tweak).map_err(|_| Error::Scalar)?;
-        tweak.zeroize();
-        self.spend
-            .add_exp_tweak(secp, &scalar)
-            .map_err(|_| Error::Scalar)
+        add_secret_tweak(secp, &self.spend, self.label_key(m)?)
     }
 
     /// The address for label `m`. Label 0 is the change label and is
@@ -545,13 +547,40 @@ pub fn decode_scan_key(c: &Compute, text: &str) -> Result<ScanKeyRead, Error> {
     read
 }
 
-/// A scalar BIP-352 derived, refused where it is zero or at or above
-/// the curve order.
-fn checked(value: [u8; 32]) -> Result<[u8; 32], Error> {
-    if crate::musig::is_zero(&value) | crate::musig::at_least_order(&value) {
+/// For public values only: a scalar BIP-352 derived, `input_hash`,
+/// refused where it is zero or at or above the curve order.
+fn checked_public(value: [u8; 32]) -> Result<[u8; 32], Error> {
+    if value == [0u8; 32] || at_least_order_public(&value) {
         return Err(Error::Scalar);
     }
     Ok(value)
+}
+
+/// A secret scalar BIP-352 derived (a shared secret's `t_k`, a label's
+/// tweak) as a key, refused where it is zero or at or above the curve
+/// order: libsecp256k1's `seckey_verify`. The bytes are zeroized.
+fn checked_secret(mut value: [u8; 32]) -> Result<SecretKey, Error> {
+    let key = SecretKey::from_slice(&value).map_err(|_| Error::Scalar);
+    value.zeroize();
+    key
+}
+
+/// Costs an elliptic-curve multiplication: `point + t·G` for a secret
+/// tweak `t`, which is erased; the tweak reaches libsecp256k1 as a
+/// `Scalar` only through `Scalar::from`. The multiplication is
+/// `ec_pubkey_tweak_add`'s, libsecp256k1's variable-time ecmult, so
+/// it does not take the same time for every `t` until the fix of
+/// ESTABLISHED §4.7.
+fn add_secret_tweak(
+    secp: &Secp256k1<All>,
+    point: &PublicKey,
+    mut tweak: SecretKey,
+) -> Result<PublicKey, Error> {
+    let scalar = Scalar::from(tweak);
+    tweak.non_secure_erase();
+    point
+        .add_exp_tweak(secp, &scalar)
+        .map_err(|_| Error::Scalar)
 }
 
 // ---------------------------------------------------------------------
@@ -710,7 +739,7 @@ pub fn input_sum_and_hash(inputs: &[ScanInput<'_>]) -> Result<(PublicKey, [u8; 3
         .min()
         .ok_or(Error::NoInputs)?;
     let hash = tagged_hash(b"BIP0352/Inputs", &[&smallest, &sum.serialize()]);
-    Ok((sum, checked(hash)?))
+    Ok((sum, checked_public(hash)?))
 }
 
 // ---------------------------------------------------------------------
@@ -773,16 +802,11 @@ pub fn scan(
     let mut found = Vec::new();
     let mut k: u32 = 0;
     while k < K_MAX && !left.is_empty() {
-        let mut t_k = checked(tagged_hash(
+        let t_k = checked_secret(tagged_hash(
             b"BIP0352/SharedSecret",
             &[&shared.serialize(), &k.to_be_bytes()],
         ))?;
-        let scalar = Scalar::from_be_bytes(t_k).map_err(|_| Error::Scalar)?;
-        t_k.zeroize();
-        let p_k = receiver
-            .spend
-            .add_exp_tweak(secp, &scalar)
-            .map_err(|_| Error::Scalar)?;
+        let p_k = add_secret_tweak(secp, &receiver.spend, t_k)?;
         let p_k_x = p_k.x_only_public_key().0.serialize();
         let mut hit = None;
         for (slot, index) in left.iter().enumerate() {
@@ -941,24 +965,27 @@ pub fn sender_outputs(
     if keys.is_empty() {
         return Err(Error::NoInputs);
     }
-    // The sum runs over raw scalars, not over private keys: an
-    // intermediate sum of zero is no key and is still a step on the way
-    // to a sum that is one.
-    let mut acc = [0u8; 32];
+    // The sum is libsecp256k1's `SecretKey` add and negate. A running
+    // sum of zero is held as "no key yet" (`SecretScalar`'s zero) and is
+    // still a step on the way to a sum that is a key; that is taken only
+    // on a value of probability about 2⁻²⁵⁶ for keys not chosen to
+    // cancel.
+    let mut sum = SecretScalar::zero();
     for input in keys {
-        let mut bytes = input.key.secret_bytes();
-        if input.taproot && input.key.public_key(secp).x_only_public_key().1 == Parity::Odd {
-            bytes = negate_mod_order(&bytes);
-        }
-        let next = add_mod_order(&acc, &bytes);
-        bytes.zeroize();
-        acc = next;
+        let key = SecretScalar::from_key(&input.key);
+        let key =
+            if input.taproot && input.key.public_key(secp).x_only_public_key().1 == Parity::Odd {
+                key.negate_secret()
+            } else {
+                key
+            };
+        sum = sum.add(&key);
     }
-    let a = SecretKey::from_slice(&acc).map_err(|_| Error::Scalar)?;
-    acc.zeroize();
+    // A sum of zero is no key: BIP-352 says to fail.
+    let a = sum.nonzero_key().ok_or(Error::Scalar)?;
     let point = a.public_key(secp);
     let smallest = outpoints.iter().copied().min().ok_or(Error::NoInputs)?;
-    let input_hash = checked(tagged_hash(
+    let input_hash = checked_public(tagged_hash(
         b"BIP0352/Inputs",
         &[&smallest, &point.serialize()],
     ))?;
@@ -966,18 +993,14 @@ pub fn sender_outputs(
     let tweaked = scan_key
         .mul_tweak(secp, &scalar)
         .map_err(|_| Error::Scalar)?;
-    let shared = ecdh(&tweaked, &a)?;
+    let shared = ecdh(&tweaked, a)?;
     let mut out = Vec::new();
     for (k, spend) in spend_keys.iter().enumerate() {
-        let mut t_k = checked(tagged_hash(
+        let t_k = checked_secret(tagged_hash(
             b"BIP0352/SharedSecret",
             &[&shared.serialize(), &(k as u32).to_be_bytes()],
         ))?;
-        let tweak = Scalar::from_be_bytes(t_k).map_err(|_| Error::Scalar)?;
-        t_k.zeroize();
-        let p = spend
-            .add_exp_tweak(secp, &tweak)
-            .map_err(|_| Error::Scalar)?;
+        let p = add_secret_tweak(secp, spend, t_k)?;
         out.push(p.x_only_public_key().0.serialize());
     }
     Ok(out)

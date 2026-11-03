@@ -5,7 +5,9 @@ use faraday_bip::musig::{self, AggNonce, PartialSig, PubNonce, SecNonce};
 use serde_json::{Value, json};
 
 use crate::Answer;
-use crate::json::{b32, bytes, bytes_list, hex, num, opt_bytes, pubkey, pubkeys, seckey, tweaks};
+use crate::json::{
+    b32, bytes, bytes_list, flag, hex, num, opt_bytes, pubkey, pubkeys, seckey, text, tweaks,
+};
 
 fn err<E: core::fmt::Debug>(e: E) -> String {
     format!("{e:?}")
@@ -104,6 +106,13 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             )
             .map_err(err)?;
             Ok(json!({"pubnonce": hex(&public.serialize()), "psig": hex(&psig.serialize())}))
+        }
+        "descriptor" => {
+            // BIP-390's `tr(musig(…)…)` at one place: the script it pays.
+            let expr = musig::parse_tr_musig(text(req, "text")).map_err(err)?;
+            let index = u32::try_from(num(req, "index")).map_err(err)?;
+            let script = musig::script_pubkey_at(&expr, flag(req, "change"), index).map_err(err)?;
+            Ok(json!({"script": hex(script.as_bytes())}))
         }
         _ => Err(format!("unknown musig op {name}")),
     }

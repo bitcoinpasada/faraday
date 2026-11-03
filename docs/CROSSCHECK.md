@@ -75,7 +75,7 @@ lineage for the curve (§10.7).
 | Signature verification | ECDSA, BIP-340 | no | Core's `key.py` |
 | Signature recomputation (the nonce check, done twice) | RFC 6979, BIP-340 | yes | Core's `key.py`: Faraday signs deterministically, so the signatures must match byte for byte |
 | Transaction id, finished transaction | BIP-141, 144 | no | Core's `messages.py` |
-| MuSig2 aggregate key, partial signature verification | BIP-327, 328, 390 | no | the BIP's reference code |
+| MuSig2 aggregate key, tweaks, nonces, partial signatures and their aggregate, BIP-373's PSBT roles, `musig()` descriptors | BIP-327, 328, 373, 390 | no | the BIP's reference code, btclib's MuSig2 and btclib-wallet's BIP-373 roles on btclib's own curve, and Core's `deriveaddresses` for the descriptors (Core's musig module is libsecp256k1's, as Faraday's point operations are, so it judges the descriptors and addresses, not the curve maths) |
 | Silent payment address, output detection | BIP-352 | scan key: yes | the BIP's reference code |
 | Child seeds and passwords | BIP-85 | yes | its reference implementation |
 | SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
@@ -315,7 +315,8 @@ The cross-check fetches nothing, ever.
   ECDSA signature the `sign` and `msg` areas expect again under plain
   RFC 6979 and verifies the low-R ones; btclib verifies every BIP-340
   signature and makes it again where the auxiliary randomness is known,
-  and verifies MuSig2's aggregate. Core's `key.py` and `secp256k1lab`
+  and runs MuSig2 whole (`ecc.ecc.musig2`, with btclib-wallet's BIP-373
+  roles) beside BIP-327's reference. Core's `key.py` and `secp256k1lab`
   are still asked.
 - **python-bip380**, Antoine Poinsot's miniscript, is copied from its
   signed commit (`tools/reference/miniscript/README.md`), the signature

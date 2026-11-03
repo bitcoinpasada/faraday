@@ -393,6 +393,48 @@ fn a_labelled_payment_is_found_under_its_label() {
     assert_eq!(found[0].label, None);
 }
 
+/// A sender whose input keys sum to zero partway still pays: the sum
+/// carries on past zero, and the outputs are those the other keys make
+/// alone. Input keys that sum to zero in all make no payment.
+#[test]
+fn a_sender_whose_keys_cancel_partway_pays_as_the_rest_do() {
+    let secp = Secp256k1::new();
+    let cases: Vec<Value> = serde_json::from_str(VECTORS).expect("the vectors parse");
+    let given = &cases[0]["sending"][0]["given"];
+    let vins = read_vins(given);
+    let outpoints: Vec<[u8; 36]> = vins.iter().map(|v| v.outpoint).collect();
+    let send = |key: SecretKey| SendKey {
+        key,
+        taproot: false,
+    };
+    let rest: Vec<SendKey> = vins
+        .iter()
+        .map(|v| send(v.private_key.expect("a private key")))
+        .collect();
+    let first = rest[0].key;
+    let mut cancelling = vec![send(first), send(first.negate())];
+    cancelling.extend(rest.iter().copied());
+
+    let receiving = &cases[0]["receiving"][0]["given"]["key_material"];
+    let scan = SecretKey::from_slice(&unhex(receiving["scan_priv_key"].as_str().expect("scan")))
+        .expect("a scan key");
+    let spend = SecretKey::from_slice(&unhex(receiving["spend_priv_key"].as_str().expect("spend")))
+        .expect("a spend key");
+    let receiver = Receiver::new(scan, spend.public_key(&secp), Network::Mainnet);
+    let scan_key = receiver.scan_public_key(&secp);
+    let spends = [receiver.spend_public_key()];
+
+    let expected =
+        silent::sender_outputs(&secp, &rest, &outpoints, &scan_key, &spends).expect("paid");
+    let paid =
+        silent::sender_outputs(&secp, &cancelling, &outpoints, &scan_key, &spends).expect("paid");
+    assert_eq!(paid, expected);
+    assert_eq!(
+        silent::sender_outputs(&secp, &cancelling[..2], &outpoints, &scan_key, &spends),
+        Err(silent::Error::Scalar)
+    );
+}
+
 /// A transaction with no output for this wallet is not paid here, and
 /// one whose inputs BIP-352 takes nothing from is refused rather than
 /// reported as unpaid.

@@ -114,11 +114,12 @@ fn bytes(l: &[u64; 4]) -> [u8; 32] {
     out
 }
 
-// Every function here runs the same instructions whatever its inputs:
-// a carry or a borrow is carried as a number, and where a result is
-// picked from two, a mask picks it. The secret scalars of MuSig2
-// signing, of a DLEQ proof and of BIP-352's sum of input keys pass
-// through them.
+// `reduce` is the one piece of scalar arithmetic here that a secret
+// passes through: a hash made a nonce. It runs the same instructions
+// whatever its input: the borrow is carried as a number and a mask
+// picks the result. Every other operation on a secret scalar is
+// libsecp256k1's, through [`SecretScalar`]; the `_public` functions
+// are for public values only.
 
 /// All ones when `bit` is 1, zero when it is 0. `black_box` keeps the
 /// compiler from turning the mask back into a branch.
@@ -146,33 +147,24 @@ fn sub_order(a: &[u64; 4]) -> ([u64; 4], u64) {
     (out, borrow)
 }
 
-/// 1 when every limb is zero, 0 otherwise.
-fn zero_bit(a: &[u64; 4]) -> u64 {
-    let z = a[0] | a[1] | a[2] | a[3];
-    1 ^ ((z | z.wrapping_neg()) >> 63)
-}
-
-/// Whether `a` is zero, read without stopping at the first byte that
-/// differs.
-pub(crate) fn is_zero(a: &[u8; 32]) -> bool {
-    zero_bit(&limbs(a)) == 1
-}
-
-/// Whether `a` is at or above the curve order.
-pub(crate) fn at_least_order(a: &[u8; 32]) -> bool {
-    sub_order(&limbs(a)).1 == 0
-}
-
-/// `a mod n` for a 256-bit `a`. One subtraction is enough: `n` is above
-/// `2²⁵⁵`, so `a - n < n` whenever `a < 2²⁵⁶`.
+/// `a mod n` for a 256-bit `a`, without a branch: `a - n` is always
+/// worked out, and the borrow selects `a` or `a - n` by mask. One
+/// subtraction is enough: `n` is above `2²⁵⁵`, so `a - n < n` whenever
+/// `a < 2²⁵⁶`.
 pub(crate) fn reduce(a: [u8; 32]) -> [u8; 32] {
     let a = limbs(&a);
     let (diff, borrow) = sub_order(&a);
     bytes(&select(mask(1 ^ borrow), &diff, &a))
 }
 
-/// `(a + b) mod n`, for `a` and `b` already reduced.
-pub(crate) fn add_mod_order(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
+/// For public values only: whether `a` is at or above the curve order.
+pub(crate) fn at_least_order_public(a: &[u8; 32]) -> bool {
+    sub_order(&limbs(a)).1 == 0
+}
+
+/// For public values only: `(a + b) mod n`, for `a` and `b` already
+/// reduced.
+pub(crate) fn add_mod_order_public(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
     let (a, b) = (limbs(a), limbs(b));
     let mut sum = [0u64; 4];
     let mut carry = 0u64;
@@ -184,11 +176,19 @@ pub(crate) fn add_mod_order(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
     // With a carry out the sum is `2²⁵⁶ + sum`, above `n`, and `sum - n`
     // modulo 2²⁵⁶ is still the reduced value.
     let (diff, borrow) = sub_order(&sum);
-    bytes(&select(mask(carry | (1 ^ borrow)), &diff, &sum))
+    if carry == 1 || borrow == 0 {
+        bytes(&diff)
+    } else {
+        bytes(&sum)
+    }
 }
 
-/// `-a mod n`, for `a` already reduced: `n - a`, and zero for zero.
-pub(crate) fn negate_mod_order(a: &[u8; 32]) -> [u8; 32] {
+/// For public values only: `-a mod n`, for `a` already reduced: `n - a`,
+/// and zero for zero.
+pub(crate) fn negate_mod_order_public(a: &[u8; 32]) -> [u8; 32] {
+    if *a == [0u8; 32] {
+        return *a;
+    }
     let (n, a) = (limbs(&CURVE_ORDER), limbs(a));
     let mut out = [0u64; 4];
     let mut borrow = 0u64;
@@ -199,7 +199,96 @@ pub(crate) fn negate_mod_order(a: &[u8; 32]) -> [u8; 32] {
         out[i] = t as u64;
         borrow = (t >> 127) as u64;
     }
-    bytes(&select(mask(zero_bit(&a)), &[0u64; 4], &out))
+    bytes(&out)
+}
+
+/// For public values only: `(a * b) mod n`, for `a` and `b` already
+/// reduced, by double-and-add over the bits of `b`.
+pub(crate) fn mul_mod_order_public(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
+    let mut acc = [0u8; 32];
+    for i in 0..256 {
+        acc = add_mod_order_public(&acc, &acc);
+        if (b[i / 8] >> (7 - (i % 8))) & 1 == 1 {
+            acc = add_mod_order_public(&acc, a);
+        }
+    }
+    acc
+}
+
+/// A secret scalar mod n, zero included: libsecp256k1's `SecretKey`,
+/// which cannot be zero, or `None` for zero.
+///
+/// Every operation on it is libsecp256k1's: `SecretKey::add_tweak`,
+/// `mul_tweak` and `negate`, a public factor being a `Scalar` tweak
+/// made from its bytes and a secret summand a `Scalar` only through
+/// `Scalar::from(SecretKey)`. The key is erased with `non_secure_erase`
+/// when this is dropped; a `Scalar` made on the way, which does not
+/// wipe, lives on the stack for the one call.
+pub(crate) struct SecretScalar(Option<SecretKey>);
+
+impl SecretScalar {
+    /// Zero: in a sum, "no key yet".
+    pub(crate) fn zero() -> SecretScalar {
+        SecretScalar(None)
+    }
+
+    /// A secret key as a scalar.
+    pub(crate) fn from_key(key: &SecretKey) -> SecretScalar {
+        SecretScalar(Some(*key))
+    }
+
+    /// A secret 32-byte value in 1..n, through libsecp256k1's
+    /// `seckey_verify` (`SecretKey::from_slice`); `None` for zero or a
+    /// value at or above n.
+    pub(crate) fn from_bytes(bytes: &[u8; 32]) -> Option<SecretScalar> {
+        SecretKey::from_slice(bytes)
+            .ok()
+            .map(|k| SecretScalar(Some(k)))
+    }
+
+    /// The key, or `None` where the scalar is zero.
+    pub(crate) fn nonzero_key(&self) -> Option<&SecretKey> {
+        self.0.as_ref()
+    }
+
+    /// The 32 bytes, big-endian, zero for zero.
+    pub(crate) fn to_bytes(&self) -> [u8; 32] {
+        self.0.map_or([0u8; 32], |k| k.secret_bytes())
+    }
+
+    /// `-a`, through `SecretKey::negate`.
+    pub(crate) fn negate_secret(&self) -> SecretScalar {
+        SecretScalar(self.0.map(SecretKey::negate))
+    }
+
+    /// `a · f` for a public factor `f` below the curve order, through
+    /// `SecretKey::mul_tweak` with `f` as the tweak.
+    pub(crate) fn mul_public_factor(&self, factor: &[u8; 32]) -> SecretScalar {
+        let tweak = Scalar::from_be_bytes(*factor).expect("a public factor here is reduced");
+        // `mul_tweak` refuses a zero factor, a public value, and the
+        // product is then zero; a product of two nonzero scalars modulo
+        // the prime `n` is never zero.
+        SecretScalar(self.0.and_then(|k| k.mul_tweak(&tweak).ok()))
+    }
+
+    /// `a + b`, through `SecretKey::add_tweak`.
+    pub(crate) fn add(&self, other: &SecretScalar) -> SecretScalar {
+        match (self.0, other.0) {
+            (None, x) | (x, None) => SecretScalar(x),
+            // `add_tweak` refuses only a sum of zero, which is then held
+            // as zero. This branch is taken only on a value of
+            // probability about 2⁻²⁵⁶ for keys not chosen to cancel.
+            (Some(a), Some(b)) => SecretScalar(a.add_tweak(&Scalar::from(b)).ok()),
+        }
+    }
+}
+
+impl Drop for SecretScalar {
+    fn drop(&mut self) {
+        if let Some(key) = self.0.as_mut() {
+            key.non_secure_erase();
+        }
+    }
 }
 
 pub(crate) fn one() -> [u8; 32] {
@@ -287,7 +376,7 @@ impl AggregateKey {
         tweak: &[u8; 32],
         x_only: bool,
     ) -> Result<AggregateKey, Error> {
-        if at_least_order(tweak) {
+        if at_least_order_public(tweak) {
             return Err(Error::TweakOutOfRange);
         }
         let negate = x_only && self.point.x_only_public_key().1 == Parity::Odd;
@@ -304,14 +393,17 @@ impl AggregateKey {
                 .map_err(|_| Error::Infinity)?
         };
         let (gacc, tacc) = if negate {
-            (negate_mod_order(&self.gacc), negate_mod_order(&self.tacc))
+            (
+                negate_mod_order_public(&self.gacc),
+                negate_mod_order_public(&self.tacc),
+            )
         } else {
             (self.gacc, self.tacc)
         };
         Ok(AggregateKey {
             point,
             gacc,
-            tacc: add_mod_order(tweak, &tacc),
+            tacc: add_mod_order_public(tweak, &tacc),
         })
     }
 }
@@ -773,23 +865,6 @@ fn index_of(text: &str) -> Result<u32, Error> {
 // BIP-327: the signing side
 // ---------------------------------------------------------------------
 
-/// `(a * b) mod n`, for `a` and `b` already reduced.
-///
-/// Double-and-add over all 256 bits of `b`, each step adding and then
-/// keeping or dropping the sum by a mask, over [`add_mod_order`], which
-/// has no branch either: a secret scalar's bits steer neither the
-/// control flow nor the memory read.
-pub(crate) fn mul_mod_order(a: &[u8; 32], b: &[u8; 32]) -> [u8; 32] {
-    let mut acc = [0u8; 32];
-    for i in 0..256 {
-        acc = add_mod_order(&acc, &acc);
-        let bit = u64::from((b[i / 8] >> (7 - (i % 8))) & 1);
-        let added = add_mod_order(&acc, a);
-        acc = bytes(&select(mask(bit), &limbs(&added), &limbs(&acc)));
-    }
-    acc
-}
-
 /// A point that may be the point at infinity, which `PublicKey` cannot
 /// hold: BIP-327's aggregate nonce halves and the sums this module takes
 /// of them.
@@ -934,7 +1009,7 @@ impl PartialSig {
     /// Reads the 32 bytes, which must be below the curve order.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         let bytes: [u8; 32] = bytes.try_into().map_err(|_| Error::PartialSig)?;
-        if at_least_order(&bytes) {
+        if at_least_order_public(&bytes) {
             return Err(Error::PartialSig);
         }
         Ok(PartialSig(bytes))
@@ -1088,13 +1163,12 @@ pub fn nonce_gen<C: Verification + bitcoin::secp256k1::Signing>(
                 &[i as u8],
             ],
         ));
-        if is_zero(k) {
-            return Err(Error::SecNonce);
-        }
     }
     let mut pubnonce = [0u8; 66];
     for (i, k) in k.iter().enumerate() {
-        let point = secret_base_mul(secp, k)?;
+        // `reduce` leaves a value below n, and libsecp256k1's
+        // `seckey_verify` refuses the one BIP-327 says to fail on, zero.
+        let point = secret_base_mul(secp, k).map_err(|_| Error::SecNonce)?;
         pubnonce[i * 33..i * 33 + 33].copy_from_slice(&point.serialize());
     }
     Ok((
@@ -1181,7 +1255,7 @@ pub(crate) fn parity_factor(point: &PublicKey) -> [u8; 32] {
     if point.x_only_public_key().1 == Parity::Even {
         one()
     } else {
-        negate_mod_order(&one())
+        negate_mod_order_public(&one())
     }
 }
 
@@ -1192,33 +1266,34 @@ pub fn sign<C: Verification + bitcoin::secp256k1::Signing>(
     sk: &bitcoin::secp256k1::SecretKey,
     session: &SessionValues,
 ) -> Result<PartialSig, Error> {
-    let mut k1 = Zeroizing::new(secnonce.k1);
-    let mut k2 = Zeroizing::new(secnonce.k2);
-    for k in [&*k1, &*k2] {
-        if is_zero(k) | at_least_order(k) {
-            return Err(Error::SecNonce);
-        }
-    }
-    if session.r.x_only_public_key().1 != Parity::Even {
-        *k1 = negate_mod_order(&k1);
-        *k2 = negate_mod_order(&k2);
-    }
-    let d0 = Zeroizing::new(sk.secret_bytes());
+    // A secret nonce of zero or at or above n is refused, as BIP-327
+    // says: libsecp256k1's `seckey_verify` is that check.
+    let nonce = |bytes: &[u8; 32]| SecretScalar::from_bytes(bytes).ok_or(Error::SecNonce);
+    let (k1, k2) = (nonce(&secnonce.k1)?, nonce(&secnonce.k2)?);
+    let (k1, k2) = if session.r.x_only_public_key().1 == Parity::Even {
+        (k1, k2)
+    } else {
+        (k1.negate_secret(), k2.negate_secret())
+    };
     let point = sk.public_key(secp);
     if point.serialize() != secnonce.pk {
         return Err(Error::SecNonce);
     }
     let a = session_coeff(session, &point)?;
     let g = parity_factor(&session.aggregate.point);
-    let d = Zeroizing::new(mul_mod_order(
-        &mul_mod_order(&g, &session.aggregate.gacc),
-        &d0,
-    ));
-    let bk2 = Zeroizing::new(mul_mod_order(&session.b, &k2));
-    let nonce_part = Zeroizing::new(add_mod_order(&k1, &bk2));
-    let key_part = Zeroizing::new(mul_mod_order(&mul_mod_order(&session.e, &a), &d));
-    let s = add_mod_order(&nonce_part, &key_part);
-    Ok(PartialSig(s))
+    // `d = g·gacc·d0` and `s = k1 + b·k2 + e·a·d`, every factor but the
+    // nonces and the key public.
+    let d = SecretScalar::from_key(sk)
+        .mul_public_factor(&g)
+        .mul_public_factor(&session.aggregate.gacc);
+    let nonce_part = k1.add(&k2.mul_public_factor(&session.b));
+    let key_part = d.mul_public_factor(&session.e).mul_public_factor(&a);
+    // BIP-327 allows `s` to be zero, which `SecretKey` cannot hold:
+    // where `add_tweak` refuses the sum, `s` is zero. That is taken only
+    // on a value of probability about 2⁻²⁵⁶ for keys not chosen to
+    // cancel.
+    let s = nonce_part.add(&key_part);
+    Ok(PartialSig(s.to_bytes()))
 }
 
 /// BIP-327's `PartialSigVerifyInternal`: the session values are already
@@ -1241,8 +1316,8 @@ pub fn partial_sig_verify_internal<C: Verification>(
     };
     let a = session_coeff(session, pk)?;
     let g = parity_factor(&session.aggregate.point);
-    let gg = mul_mod_order(&g, &session.aggregate.gacc);
-    let scalar = mul_mod_order(&mul_mod_order(&session.e, &a), &gg);
+    let gg = mul_mod_order_public(&g, &session.aggregate.gacc);
+    let scalar = mul_mod_order_public(&mul_mod_order_public(&session.e, &a), &gg);
     let term = point_mul(secp, Some(*pk), &scalar)?;
     let right = point_add(secp, effective, term)?;
     let left = base_mul(secp, &psig.0)?;
@@ -1275,9 +1350,12 @@ pub fn partial_sig_verify<C: Verification>(
 /// BIP-327's `PartialSigAgg`: the 64-byte BIP-340 signature.
 pub fn partial_sig_agg(psigs: &[PartialSig], session: &SessionValues) -> Result<[u8; 64], Error> {
     let g = parity_factor(&session.aggregate.point);
-    let mut s = mul_mod_order(&mul_mod_order(&session.e, &g), &session.aggregate.tacc);
+    let mut s = mul_mod_order_public(
+        &mul_mod_order_public(&session.e, &g),
+        &session.aggregate.tacc,
+    );
     for psig in psigs {
-        s = add_mod_order(&s, &psig.0);
+        s = add_mod_order_public(&s, &psig.0);
     }
     let mut out = [0u8; 64];
     out[..32].copy_from_slice(&session.r.x_only_public_key().0.serialize());
@@ -1322,14 +1400,13 @@ pub fn deterministic_sign<C: Verification + bitcoin::secp256k1::Signing>(
                 &[i as u8],
             ],
         ));
-        if is_zero(k) {
-            return Err(Error::SecNonce);
-        }
     }
     let pk = sk.public_key(secp);
     let mut pubnonce = [0u8; 66];
     for (i, k) in k.iter().enumerate() {
-        let point = secret_base_mul(secp, k)?;
+        // `reduce` leaves a value below n, and libsecp256k1's
+        // `seckey_verify` refuses the one BIP-327 says to fail on, zero.
+        let point = secret_base_mul(secp, k).map_err(|_| Error::SecNonce)?;
         pubnonce[i * 33..i * 33 + 33].copy_from_slice(&point.serialize());
     }
     let pubnonce = PubNonce(pubnonce);
@@ -1395,21 +1472,40 @@ mod tests {
         for a in &edges {
             let key = SecretKey::from_slice(a).ok();
             let negated = key.map_or([0u8; 32], |k| k.negate().secret_bytes());
-            assert_eq!(negate_mod_order(a), negated, "-{a:02x?}");
+            assert_eq!(negate_mod_order_public(a), negated, "-{a:02x?}");
             for b in &edges {
                 let tweak = Scalar::from_be_bytes(*b).expect("below the order");
                 let sum = match key {
                     Some(k) => k.add_tweak(&tweak).map_or([0u8; 32], |s| s.secret_bytes()),
                     None => *b,
                 };
-                assert_eq!(add_mod_order(a, b), sum, "{a:02x?} + {b:02x?}");
+                assert_eq!(add_mod_order_public(a, b), sum, "{a:02x?} + {b:02x?}");
                 let product = match key {
                     Some(k) if *b != [0u8; 32] => {
                         k.mul_tweak(&tweak).expect("nonzero").secret_bytes()
                     }
                     _ => [0u8; 32],
                 };
-                assert_eq!(mul_mod_order(a, b), product, "{a:02x?} * {b:02x?}");
+                assert_eq!(mul_mod_order_public(a, b), product, "{a:02x?} * {b:02x?}");
+            }
+        }
+    }
+
+    /// A secret scalar's sum, product by a public factor and negation
+    /// give the values mod `n` at every pair of edge values, a zero on
+    /// either side or a sum of zero (`n − 1` plus one) included.
+    #[test]
+    fn secret_scalars_carry_zero_through_the_arithmetic() {
+        let edges = edges();
+        let secret = |v: &[u8; 32]| SecretScalar::from_bytes(v).unwrap_or_else(SecretScalar::zero);
+        for a in &edges {
+            let sa = secret(a);
+            assert_eq!(sa.negate_secret().to_bytes(), negate_mod_order_public(a));
+            for b in &edges {
+                let sum = sa.add(&secret(b)).to_bytes();
+                assert_eq!(sum, add_mod_order_public(a, b), "{a:02x?} + {b:02x?}");
+                let product = sa.mul_public_factor(b).to_bytes();
+                assert_eq!(product, mul_mod_order_public(a, b), "{a:02x?} * {b:02x?}");
             }
         }
     }
@@ -1435,9 +1531,7 @@ mod tests {
         top = CURVE_ORDER;
         top[31] -= 1;
         assert_eq!(reduce(top), top);
-        assert!(at_least_order(&CURVE_ORDER));
-        assert!(!at_least_order(&top));
-        assert!(is_zero(&[0u8; 32]));
-        assert!(!is_zero(&one()));
+        assert!(at_least_order_public(&CURVE_ORDER));
+        assert!(!at_least_order_public(&top));
     }
 }

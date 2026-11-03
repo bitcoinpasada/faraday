@@ -14,17 +14,16 @@
 //! through `secp256k1_ecdh`, which takes the same time for every
 //! scalar. Multiplications by the public challenge and response go
 //! through `mul_tweak`, which is right for public values only. The
-//! response `k + e·a` is worked out mod n by `musig`'s scalar
-//! arithmetic, which has no branch on its values. The secret's bytes,
-//! the nonce and the hashes they pass through are zeroized before
-//! return.
+//! response `k + e·a` is libsecp256k1's `SecretKey` multiply and add,
+//! the challenge `e` the tweak. The secret's bytes, the nonce and the
+//! hashes they pass through are zeroized or erased before return.
 
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey, Verification};
 use faraday_crypto::Zeroize;
 
 use crate::musig::{
-    add_mod_order, at_least_order, generator, mul_mod_order, point_add, point_mul, point_negate,
-    reduce, tagged_hash,
+    SecretScalar, at_least_order_public, generator, point_add, point_mul, point_negate, reduce,
+    tagged_hash,
 };
 
 /// Why a proof could not be made.
@@ -113,31 +112,26 @@ pub fn generate_proof_with(
         &[&t, &big_a.serialize(), &big_c.serialize(), m_bytes],
     );
     t.zeroize();
+    a_bytes.zeroize();
     let mut k_bytes = reduce(rand);
     rand.zeroize();
     // `reduce` leaves zero only for zero, the one value `SecretKey`
-    // refuses that a reduced scalar can take.
-    let Ok(mut k) = SecretKey::from_slice(&k_bytes) else {
-        a_bytes.zeroize();
-        k_bytes.zeroize();
-        return Err(Error::Nonce);
-    };
-    let points = secret_mul(g, &k).and_then(|r1| Ok((r1, secret_mul(b, &k)?)));
-    k.non_secure_erase();
-    let (r1, r2) = match points {
-        Ok(points) => points,
-        Err(e) => {
-            a_bytes.zeroize();
-            k_bytes.zeroize();
-            return Err(e);
-        }
-    };
-    let e = challenge([&big_a, b, &big_c, g, &r1, &r2], m);
-    let mut ea = mul_mod_order(&e, &a_bytes);
-    a_bytes.zeroize();
-    let s = add_mod_order(&k_bytes, &ea);
-    ea.zeroize();
+    // refuses that a reduced scalar can take. The nonce is erased when
+    // it goes out of scope, on every return.
+    let k = SecretScalar::from_bytes(&k_bytes);
     k_bytes.zeroize();
+    let k = k.ok_or(Error::Nonce)?;
+    let nonce = k.nonzero_key().ok_or(Error::Nonce)?;
+    let r1 = secret_mul(g, nonce)?;
+    let r2 = secret_mul(b, nonce)?;
+    let e = challenge([&big_a, b, &big_c, g, &r1, &r2], m);
+    // `s = k + e·a`. Where `add_tweak` refuses a sum of zero, `s` is
+    // zero; that is taken only on a value of probability about 2⁻²⁵⁶.
+    let s = SecretScalar::from_key(a)
+        .mul_public_factor(&e)
+        .add(&k)
+        .to_bytes();
+    drop(k);
     let mut proof = [0u8; 64];
     proof[..32].copy_from_slice(&e);
     proof[32..].copy_from_slice(&s);
@@ -178,7 +172,7 @@ pub fn verify_proof_with<C: Verification>(
     let mut s = [0u8; 32];
     e.copy_from_slice(&proof[..32]);
     s.copy_from_slice(&proof[32..]);
-    if at_least_order(&e) || at_least_order(&s) {
+    if at_least_order_public(&e) || at_least_order_public(&s) {
         return false;
     }
     // `s·P − e·Q`, or `None` for the point at infinity.
