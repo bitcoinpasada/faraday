@@ -28,7 +28,8 @@ nothing else.
   reads TOML with `tomllib` and the history with git) and the
   cross-check. The cross-check's
   `vault` area needs the distribution's argon2-cffi (`python3-argon2`),
-  its `kdbx` area PyCA cryptography (`python3-cryptography`) and pykeepass, and its
+  pykeepass (`python3-pykeepass`) and KeePassXC's command line
+  (`keepassxc-cli`, package `keepassxc`), its `kdbx` area PyCA cryptography (`python3-cryptography`) and pykeepass, and its
   `sign`, `msg` and `musig` areas python-ecdsa (`python3-ecdsa`), its
   `ur` area cbor2 (`python3-cbor2`), its `totp` area pyotp
   (`python3-pyotp`), its

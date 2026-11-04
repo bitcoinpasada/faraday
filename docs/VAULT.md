@@ -938,12 +938,22 @@ compressed packet, data after the SEIPD), written byte for byte by
 opens the seven vaults.
 
 Planned and not built (**Open**): the cross-check area `vault`
-(F79) taken to the formats: Faraday's KDBX against pykeepass,
-`keepassxc-cli` and keepass-rs, its OpenPGP against Sequoia (`sq`, or
-its Python binding pysequoia), OpenPGP.js and rPGP, both ways (the two
-Rust crates as test-only dependencies, never in what ships): each opens
-the files the other made (F190 point 11). Today the area checks §7's
-payload layouts, a passphrase's NFC form and Argon2id. Sequoia's default
+(F79) taken to the rest of the formats: Faraday's KDBX against keepass-rs
+and its OpenPGP against Sequoia (`sq`, or its Python binding pysequoia),
+OpenPGP.js and rPGP, both ways (the Rust crates as test-only
+dependencies, never in what ships): each opens the files the other made
+(F190 point 11). Built: the area's KDBX cases against pykeepass and
+`keepassxc-cli`, both ways: Faraday's files (every kind of §7, a TOTP
+entry, a seal over each) are to open in both with every field, group and
+attachment; files they make are to open in Faraday with the same fields,
+and Faraday's next seal to keep all that the file held (an entry's history
+and the recycle bin are dropped by a seal until they are kept, and the area
+expects that: `KEEPS_HISTORY` in `area_vault.py`); each reader is to refuse a
+wrong passphrase, a changed byte and, where Faraday's NFC form differs
+from the typed one, the NFD form; every file of `tools/vectors/vault/`
+is read by both. The pykeepass cases have passed; the `keepassxc-cli` cases
+have not yet had a run of the area (**Open**). Today for the QR vault the area checks §7's payload
+layouts, a passphrase's NFC form and Argon2id. Sequoia's default
 passphrase encryption writes the older packets (a SKESK v4 and a SEIPD
 v1, without Argon2), which a QR vault refuses (§1.2): the area makes
 Sequoia's files under its RFC 9580 profile, and §10's commands for `sq`

@@ -1,11 +1,9 @@
-"""What is left of the vault area (`docs/VAULT.md`): Argon2id and the
-payload layouts of §7, against a reader written here from that document,
-over Argon2id from argon2-cffi, the distribution's package (F79,
-`docs/CROSSCHECK.md` §10.4).
-
-The vault file is KDBX; it is judged by its own later area run, not yet
-built for what the store writes. The checks of Faraday's earlier container
-(HKDF, XChaCha20-Poly1305, the slot record, whole files) are gone with it.
+"""The vault area (`docs/VAULT.md`): Argon2id and the payload layouts of §7
+against a reader written here from that document, over Argon2id from
+argon2-cffi, the distribution's package (F79, `docs/CROSSCHECK.md` §10.4);
+and the vault file, KDBX 4 (§1.1, §7, §7.1), against two outside programs
+that know nothing of this repository, pykeepass and `keepassxc-cli`, both
+ways.
 
 Before anything else the area checks argon2-cffi against `tools/vectors/kdf/`'s
 known answer (`tools/vectors/vault-primitives/`). Then:
@@ -19,14 +17,42 @@ known answer (`tools/vectors/vault-primitives/`). Then:
   either order, the compatibility characters NFC keeps, then random text.
   The area stops where Python's Unicode is newer than
   `unicode-normalization`'s.
+- Every file in `tools/vectors/vault/`: Faraday opens the ones it opens and
+  refuses the others; pykeepass and `keepassxc-cli` open the first and
+  show the same entries, and refuse the second except where a reader's own
+  rules are wider than Faraday's (`WIDER`, said in the report).
+- Faraday writes, each outside reader reads (`faraday` loop): a vault with
+  items of every kind of §7, at small costs, then Faraday's own next seal
+  of it: pykeepass reads every group, entry, field, protected mark and
+  custom data item as Faraday read it and as it was put in;
+  `keepassxc-cli` lists the groups and entries and shows every field. The
+  passphrase is NFC (§3); the NFD form opens in Faraday and in neither
+  outside reader. A wrong passphrase and a changed byte are refused by all.
+- They write, Faraday reads (`foreign` loop, `kpxc` loop): files made at
+  random by pykeepass (cipher, KDF, compression, groups, entries, tags,
+  icons, custom properties, attachments, history, custom data) and by
+  `keepassxc-cli` (from a KDBX 4 file of Faraday's, because its `db-create`
+  writes 3.1 under AES-KDF: groups, entries, notes, attachments) open in
+  Faraday with the same fields; Faraday's next seal over each keeps
+  everything pykeepass read (attachments, tags, icons, history and the
+  other program's custom data, §7.1).
 
-The reference is the document alone.
+`keepassxc-cli` runs per case, slowly, so a share of the files go to it.
+The area stops and names it when it is missing. The reference is the
+document alone for the payloads, and the outside programs for the file.
 """
 
+import base64
+import datetime
+import hashlib
 import json
+import os
 import unicodedata
 
-from common import ROOT, Area, HarnessError
+import readers
+import vault_files as vf
+from common import ROOT, Area, HarnessError, Mismatch
+from vault_files import word
 
 try:
     from argon2.low_level import Type, hash_secret_raw
@@ -57,6 +83,12 @@ def argon2id(password, salt, memory_kib, passes, lanes):
 
 
 # ----- the payload layouts (§7) ---------------------------------------------
+
+
+# Whether Faraday's seal writes back an entry's history and a recycle bin as read (VAULT.md
+# §7.1; the decision that keeps them, F206). Until it is built a seal drops them, and the
+# area expects that; when it lands set this True and check 4 asks for both to survive.
+KEEPS_HISTORY = False
 
 
 def words_payload_of(p):
@@ -113,31 +145,62 @@ def payload_of(kind, p):
 class Vault(Area):
     name = "vault"
     faraday = (
-        "`faraday_vault`'s payload layouts and a passphrase's NFC form with the Unicode version "
+        "`faraday_vault`'s file (`file::create`, `open` and `seal`, the document model and the "
+        "items of §7), its payload layouts and a passphrase's NFC form with the Unicode version "
         "it is made under, and `faraday_backup::argon2id`"
     )
     reference = (
-        '`docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi '
-        "(the distribution's package) and Python's `unicodedata`"
+        "pykeepass and `keepassxc-cli` (the distribution's packages) for the vault file, both "
+        "ways; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi (the "
+        "distribution's package) and Python's `unicodedata`, for the payloads"
     )
     reference_checked = (
         "`check_primitives` runs before anything else: argon2-cffi against "
-        "`tools/vectors/kdf/`'s known answer; the version of argon2-cffi is written into the "
-        "stamp; the area stops where Python's Unicode is newer than "
-        "`unicode-normalization`'s"
+        "`tools/vectors/kdf/`'s known answer; pykeepass and `keepassxc-cli` are the "
+        "distribution's packages and the area stops and names a missing one, so a run "
+        "without it fails; their versions are written into the stamp; the area stops where "
+        "Python's Unicode is newer than `unicode-normalization`'s"
     )
     vectors = (
-        "the Argon2id known answer (`tools/vectors/vault-primitives/`)"
+        "the Argon2id known answer (`tools/vectors/vault-primitives/`); every file of "
+        "`tools/vectors/vault/`, read by Faraday and by both outside readers"
     )
     corpus = (
         'Argon2id at small random costs and the costs it refuses; payloads made, read '
-        'and malformed; passphrases in NFC, by case and at random. The KDBX vault file is not '
-        'in this area yet'
+        'and malformed; passphrases in NFC, by case and at random; vaults Faraday writes '
+        'at small costs with items of every kind of §7 and seals once more, read by '
+        'pykeepass (every group, entry, field, protected mark and custom data item) and '
+        '`keepassxc-cli` (listing and every field), under the passphrase, its NFD form, a '
+        'wrong one and a changed byte; files pykeepass makes at random (ciphers, KDFs, '
+        'compression, tags, icons, custom properties, attachments, history, custom data) '
+        'and `keepassxc-cli` makes (groups, entries, notes, attachments), opened in '
+        "Faraday and sealed once more with nothing of the other program's lost"
     )
-    differences = ["none"]
+    differences = [
+        (
+            "The vault's passphrase is put in NFC (§3); KeePass apps do not. A vault under "
+            "an NFC passphrase opens in Faraday under its NFD form and in neither outside "
+            "reader. The area counts the NFD tries and expects exactly that."
+        ),
+        (
+            "Faraday's reader is stricter than the outside readers' in what it takes of a "
+            "file (§4, §7.1): a block stream that ends before its empty last block "
+            "(`keepassxc-cli` reads it), an XML document with an element after the root "
+            "(`keepassxc-cli`), a protected value not canonical Base64, nesting past 64, "
+            "another root element, a DOCTYPE and another encoding (pykeepass reads these). "
+            "`WIDER` names each and the reader that opens it; the area expects exactly that "
+            "set and counts those opens as known differences."
+        ),
+    ]
     not_compared = (
-        'the KDBX vault file, judged by its own later area run'
+        "keepass-rs, the Rust KeePass library, is not run (later work); the QR vault and "
+        "OpenPGP are other areas"
     )
+
+    def __init__(self, *a):
+        super().__init__(*a)
+        self.second = {"judge": "keepassxc-cli", "judged": 0, "uncovered": 0}
+        self.has_kpxc = None
 
     def check_primitives(self):
         """The area's own piece against its published answer."""
@@ -289,16 +352,21 @@ class Vault(Area):
                 f"unicode-normalization's {theirs}: a code point only one side composes could "
                 "differ")
 
-    LOOPS = (("argon", 40), ("payload", 1500), ("nfc", 1000))
+    LOOPS = (("argon", 40), ("payload", 1500), ("nfc", 1000), ("faraday", 16), ("foreign", 16),
+             ("kpxc", 6))
 
     def prelude(self):
         self.check_unicode()
         self.check_primitives()
+        self.kpxc_on()
         a = VECTORS["argon2id"]
         self.argon(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
                    a["passes"], a["lanes"], ("ok", {"key": a["key"]}))
         self.big_sheet()
         self.nfc_cases()
+        self.vectors()
+        # One vault with an item of every kind, whatever the corpus draws.
+        self.faraday_case(kinds=list(vf.KINDS), kpxc=self.kpxc_on())
 
     def case_nfc(self):
         self.nfc(self.unicode_text())
@@ -313,3 +381,467 @@ class Vault(Area):
 
     def case_payload(self):
         self.payload_case()
+
+    # ----- the vault file, against the outside readers ------------------------
+
+    def kpxc_on(self):
+        """Whether `keepassxc-cli` judges; the area stops and names it when it is missing."""
+        if self.has_kpxc is None:
+            readers.need_keepassxc_cli()
+            self.has_kpxc = True
+        return self.has_kpxc
+
+    def fail(self, op, inputs, got, want, note, data=None):
+        """A disagreement; the file is kept in `out/crosscheck/` for a look."""
+        if data is not None:
+            folder = ROOT / "out" / "crosscheck"
+            if folder.is_dir():
+                name = f"vault-{hashlib.sha256(data).hexdigest()[:12]}.kdbx"
+                (folder / name).write_bytes(data)
+                note += f" (the file: out/crosscheck/{name})"
+        raise Mismatch(self.name, op, inputs, got, want, note)
+
+    @staticmethod
+    def tag(data):
+        return f"{len(data)} bytes, sha256 {hashlib.sha256(data).hexdigest()[:16]}"
+
+    @staticmethod
+    def differ(got, want):
+        """Where two views first differ, in words."""
+        for k in ("label", "id", "custom"):
+            if got.get(k) != want.get(k):
+                return f"{k}: {got.get(k)!r} against {want.get(k)!r}"
+        a = {e["uuid"]: e for e in got["entries"]}
+        b = {e["uuid"]: e for e in want["entries"]}
+        if a.keys() != b.keys():
+            return f"entries: {sorted(a.keys() ^ b.keys())} in one only"
+        for u in a:
+            for k in ("path", "fields", "custom"):
+                if a[u][k] != b[u][k]:
+                    return f"entry {u} {k}: {a[u][k]!r} against {b[u][k]!r}"
+        return "no difference found"
+
+    def open_faraday(self, data, passphrase, want):
+        """Faraday opens `data`: with a view as `want` it must read just that, with None
+        it must refuse. Gives its answer."""
+        inputs = {"file": self.tag(data), "passphrase": passphrase}
+        got = self.rust.call("vault.open", file=data.hex(), passphrase=passphrase)
+        self.compared += 1
+        if want is None:
+            if got[0] == "ok":
+                self.fail("vault.open", inputs, "opened", "refused",
+                          "Faraday opens a file the outside readers refuse", data)
+            return None
+        if got[0] != "ok":
+            self.fail("vault.open", inputs, got, "opened", "Faraday refuses what pykeepass reads",
+                      data)
+        mine = vf.faraday_view(got[1])
+        if mine != vf.plain(want):
+            self.fail("vault.open", inputs, "a view", "a view", self.differ(mine, vf.plain(want)),
+                      data)
+        return got[1]
+
+    def kpxc_checks(self, data, passphrase, v, wrong=True, flip=None, nfd=None):
+        """`keepassxc-cli` over a file whose view pykeepass gave: the same listing and fields,
+        a refusal of a wrong passphrase, a changed byte and the NFD form."""
+        with readers.Kpxc(data) as k:
+            diff = vf.kpxc_differs(k, passphrase, v)
+            if diff:
+                self.fail("keepassxc-cli", {"file": self.tag(data)}, diff[1], diff[2],
+                          f"{diff[0]} does not show what pykeepass reads", data)
+            self.second["judged"] += 1
+            self.compared += 1
+            if wrong and k.entries(passphrase + "x") is not None:
+                self.fail("keepassxc-cli", {"file": self.tag(data)}, "opened", "refused",
+                          "keepassxc-cli opens under a wrong passphrase", data)
+            if nfd and k.entries(nfd) is not None:
+                self.fail("keepassxc-cli", {"file": self.tag(data)}, "opened", "refused",
+                          "keepassxc-cli opens under the NFD form of an NFC passphrase", data)
+        if flip is not None:
+            with readers.Kpxc(flip) as k:
+                if k.entries(passphrase) is not None:
+                    self.fail("keepassxc-cli", {"file": self.tag(flip)}, "opened", "refused",
+                              "keepassxc-cli opens a file with a byte changed", flip)
+        self.compared += 1
+
+    def read_all(self, data, passphrase, kpxc, flips=True):
+        """The file under every reader: pykeepass's view, Faraday's reading of it under the
+        passphrase and its NFD form, the refusals (a wrong passphrase, the NFD form where
+        it differs, a byte changed) by all, and `keepassxc-cli`'s listing when `kpxc`.
+        Gives pykeepass's deep view."""
+        rng = self.rng
+        kp = readers.open_kdbx(data, passphrase)
+        if kp is None:
+            self.fail("pykeepass", {"file": self.tag(data)}, "refused", "opened",
+                      "pykeepass does not open what Faraday wrote", data)
+        v = vf.view(kp, deep=True)
+        self.open_faraday(data, passphrase, v)
+        nfd = unicodedata.normalize("NFD", passphrase)
+        if nfd != passphrase:
+            # Faraday puts the passphrase in NFC (§3); no outside reader does.
+            self.open_faraday(data, nfd, v)
+            self.known += 1
+            if readers.open_kdbx(data, nfd) is not None:
+                self.fail("pykeepass", {"file": self.tag(data)}, "opened", "refused",
+                          "pykeepass opens under the NFD form", data)
+        else:
+            nfd = None
+        self.open_faraday(data, passphrase + "x", None)
+        if readers.open_kdbx(data, passphrase + "x") is not None:
+            self.fail("pykeepass", {"file": self.tag(data)}, "opened", "refused",
+                      "pykeepass opens under a wrong passphrase", data)
+        flip = None
+        if flips:
+            i = rng.randrange(len(data))
+            flip = data[:i] + bytes([data[i] ^ (1 << rng.randrange(8))]) + data[i + 1:]
+            self.open_faraday(flip, passphrase, None)
+            if readers.open_kdbx(flip, passphrase) is not None:
+                self.fail("pykeepass", {"file": self.tag(flip)}, "opened", "refused",
+                          "pykeepass opens a file with a byte changed", flip)
+        if kpxc:
+            self.kpxc_checks(data, passphrase, v, flip=flip, nfd=nfd)
+        else:
+            self.second["uncovered"] += 1
+        return v
+
+    # What Faraday is asked to put in.
+
+    def item(self, kind, n):
+        """An item of a request, the n-th of it (titles differ by n)."""
+        rng = self.rng
+
+        def label(k=14):
+            return f"{word(rng, 1, k)} {n}"
+        if kind == "entry":
+            it = {"kind": kind, "title": label(), "user": word(rng, 0, 12),
+                  "password": word(rng, 0, 20),
+                  "url": rng.choice(["", "https://" + word(rng, 1, 10)]),
+                  "notes": word(rng, 0, 60, lines=True)}
+            if rng.random() < 0.5:
+                key = base64.b32encode(rng.randbytes(rng.choice([10, 20]))).decode()
+                it["totp"] = f"otpauth://totp/Example:you?secret={key}&issuer=Example"
+            return it
+        if kind == "note":
+            return {"kind": kind, "text": word(rng, 1, 80, lines=True)}
+        if kind == "seed_words":
+            it = {"kind": kind, "language": rng.randrange(LANGUAGES),
+                  "entropy": rng.randbytes(rng.choice([16, 20, 24, 28, 32])).hex(),
+                  "label": label(), "no_load": rng.random() < 0.3, "held": rng.random() < 0.3,
+                  "codex32": rng.random() < 0.3, "child": rng.random() < 0.3}
+            if it["child"]:  # a child seed is twelve words (records.rs)
+                it["entropy"] = rng.randbytes(16).hex()
+            if rng.random() < 0.5:
+                it["passphrase"] = word(rng, 1, 16)
+            return it
+        if kind == "seed_hex":
+            return {"kind": kind, "seed": rng.randbytes(rng.randint(16, 64)).hex(),
+                    "title": label()}
+        if kind in ("wallet_policy", "wallet_descriptor"):
+            return {"kind": kind, "name": label()}
+        if kind == "sheet":
+            return {"kind": kind, "descriptor": word(rng, 1, 60), "name": label(),
+                    "note": word(rng, 0, 40, lines=True)}
+        if kind == "gpg":
+            def armor(what):
+                body = base64.b64encode(rng.randbytes(rng.randint(30, 300))).decode()
+                return (f"-----BEGIN PGP {what} KEY BLOCK-----\n\n{body}\n"
+                        f"-----END PGP {what} KEY BLOCK-----\n")
+            it = {"kind": kind, "title": f"{word(rng, 1, 10)} <{word(rng, 1, 8)}@example.com> {n}",
+                  "key": armor("PRIVATE")}
+            if rng.random() < 0.7:
+                it["public"] = armor("PUBLIC")
+            if rng.random() < 0.4:
+                it["revocation"] = armor("PUBLIC")
+                it["revoked"] = "2026-10-28T14:02:00Z"
+            return it
+        if kind == "secure_boot":
+            return {"kind": kind, "owner": rng.randbytes(16).hex()}
+        if kind == "wallet_share":
+            it = {"kind": kind, "text": word(rng, 1, 30), "name": label(),
+                  "index": rng.randint(1, 3), "of": 3}
+            if rng.random() < 0.5:
+                it["wallet"] = word(rng, 1, 40)
+            return it
+        if kind == "passphrase":
+            return {"kind": kind, "key": rng.randbytes(4).hex(), "text": word(rng, 1, 30)}
+        if kind == "plan":
+            return {"kind": kind, "place": "".join(rng.choice("abcdefXYZ019 ") for _ in range(8))
+                    .strip() or "Home"}
+        if kind == "signed":
+            return {"kind": kind, "tx": rng.randbytes(32).hex(), "first": rng.randrange(10**9),
+                    "second": rng.randrange(10**9)}
+        return {"kind": kind}
+
+    def items(self, kinds, start=0, entries=0):
+        """Items of the kinds (and `entries` more of a person's), numbered from `start`."""
+        out = [self.item(k, start + i) for i, k in enumerate(list(kinds) + ["entry"] * entries)]
+        return out
+
+    def pick(self, lo=1, hi=None):
+        """Kinds of items for a vault: one of each at most (several of a kind share a title)."""
+        rng = self.rng
+        kinds = list(vf.KINDS)
+        return rng.sample(kinds, rng.randint(lo, hi or len(kinds)))
+
+    def put_check(self, v, items, start, plans, data):
+        """pykeepass's view holds every item as put: its group, its fields, the vault's
+        custom data for a plan and the signed amounts."""
+        by = {e["uuid"]: e for e in v["entries"]}
+        for n, it in enumerate(items, start):
+            want = vf.expected(n, it)
+            if want is None:
+                continue
+            path, fields = want
+            e = by.get(vf.uuid_of(n))
+            if e is None:
+                self.fail("vault.create", {"item": it}, "missing", "an entry",
+                          f"pykeepass finds no entry for {it['kind']}", data)
+            have = vf.fields_of(e)
+            for k, val in fields.items():
+                if have.get(k, "") != val:
+                    self.fail("vault.create", {"item": it}, {k: have.get(k)}, {k: val},
+                              f"{it['kind']}'s field {k} is not what was put in", data)
+            if e["path"] != path:
+                self.fail("vault.create", {"item": it}, e["path"], path,
+                          f"{it['kind']} is in another group", data)
+        meta = dict(v["custom"])
+        for it in items:
+            if it["kind"] == "plan":
+                plans += 1
+            for k, val in vf.custom_expected(it, plans):
+                if val not in meta.get(k, ""):
+                    self.fail("vault.create", {"item": it}, meta.get(k), val,
+                              f"the vault's custom data {k} is not what was put in", data)
+        return plans
+
+    # Faraday writes.
+
+    def create(self, items, size, cost, passphrase, label, now):
+        rng = self.rng
+        ans = self.rust.call(
+            "vault.create", vault_id=rng.randbytes(16).hex(), label=label, passphrase=passphrase,
+            memory_kib=cost[0], passes=cost[1], lanes=cost[2], size=size,
+            random=rng.randbytes(140).hex(), now=now, items=items)
+        self.compared += 1
+        if ans[0] != "ok":
+            alone = []
+            for it in items:
+                one = self.rust.call(
+                    "vault.create", vault_id="00" * 16, label=label, passphrase=passphrase,
+                    memory_kib=cost[0], passes=cost[1], lanes=cost[2], size=size,
+                    random=rng.randbytes(140).hex(), now=now, items=[it])
+                if one[0] != "ok":
+                    alone.append((it, one[1]))
+            raise AssertionError(f"vault.create refused a valid vault: {ans[1]}; alone: {alone}")
+        return bytes.fromhex(ans[1]["file"])
+
+    def seal(self, data, passphrase, items, label=None, now=None):
+        rng = self.rng
+        req = {"file": data.hex(), "passphrase": passphrase, "items": items,
+               "random": rng.randbytes(140).hex(), "now": now}
+        if label is not None:
+            req["label"] = label
+        ans = self.rust.call("vault.seal", **req)
+        self.compared += 1
+        if ans[0] != "ok":
+            raise AssertionError(f"vault.seal refused a valid change: {ans[1]}")
+        return bytes.fromhex(ans[1]["file"])
+
+    def seal_kept(self, data, passphrase, before, items, kpxc, label=None):
+        """Faraday's next seal over `data` (its deep view `before`): every group, entry,
+        field, tag, icon, attachment, history and custom data of the file is still there as
+        pykeepass reads it, with the new items and the seal's own custom data added."""
+        rng = self.rng
+        now = rng.randrange(1_500_000_000, 2_200_000_000)
+        out = self.seal(data, passphrase, items, label, now)
+        after = self.read_all(out, unicodedata.normalize("NFC", passphrase), kpxc, flips=False)
+        if after["label"] != (before["label"] if label is None else label):
+            self.fail("vault.seal", {"label": label}, after["label"], label,
+                      "the vault's name is not what the seal was given", out)
+        if after["id"] != before["id"]:
+            self.fail("vault.seal", {}, after["id"], before["id"], "the vault's id changed", out)
+        kept = {e["uuid"]: e for e in after["entries"]}
+        for e in before["entries"]:
+            if not KEEPS_HISTORY:
+                e = e | {"history": []}
+            if kept.get(e["uuid"]) != e:
+                self.fail("vault.seal", {"uuid": e["uuid"]}, kept.get(e["uuid"]), e,
+                          "an entry of the file changed in Faraday's seal (§7.1)", out)
+        if not set(map(tuple, before["groups"])) <= set(map(tuple, after["groups"])):
+            self.fail("vault.seal", {}, after["groups"], before["groups"],
+                      "a group of the file is gone after Faraday's seal", out)
+        meta = dict(map(tuple, after["custom"]))
+        for k, val in before["custom"]:
+            if k.startswith("faraday."):
+                continue
+            if meta.get(k) != val:
+                self.fail("vault.seal", {"key": k}, meta.get(k), val,
+                          "another program's custom data is not kept by Faraday's seal", out)
+        want = str(int(dict(map(tuple, before["custom"])).get("faraday.seals", "0")) + 1)
+        if meta.get("faraday.seals") != want:
+            self.fail("vault.seal", {}, meta.get("faraday.seals"), want,
+                      "the seal count is not one higher", out)
+        if meta.get("faraday.sealed") != datetime.datetime.fromtimestamp(
+                now, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"):
+            self.fail("vault.seal", {}, meta.get("faraday.sealed"), now,
+                      "the seal's time is not in the file", out)
+        self.put_check(after, items, 100, int(self.plans_in(before)), out)
+        return out, after
+
+    @staticmethod
+    def plans_in(v):
+        return sum(1 for k, _ in v["custom"] if k.startswith("faraday.plan."))
+
+    def wants_kpxc(self, rare=0.35):
+        on = self.kpxc_on()
+        return on and self.rng.random() < rare
+
+    def faraday_case(self, kinds=None, kpxc=None):
+        """A vault Faraday writes at a small cost, read by all, then sealed once more."""
+        rng = self.rng
+        kinds = kinds if kinds is not None else self.pick()
+        entries = rng.choice([0, 0, 1, 2])
+        items = self.items(kinds, entries=entries)
+        p = vf.passphrase(self.rng)
+        size = rng.choice([262_144, 262_144, 1_048_576]) if len(items) > 3 else \
+            rng.choice([65_536, 262_144])
+        cost = (8192, rng.choice([1, 2]), rng.choice([1, 2]))
+        now = rng.choice([None, rng.randrange(1_500_000_000, 2_200_000_000)])
+        label = word(rng, 1, 20)
+        data = self.create(items, size, cost, p, label, now)
+        kpxc = self.wants_kpxc() if kpxc is None else kpxc
+        v = self.read_all(data, p, kpxc)
+        if v["label"] != label:
+            self.fail("vault.create", {}, v["label"], label, "the vault's name is not in the file",
+                      data)
+        plans = self.put_check(v, items, 0, 0, data)
+        more = self.items([k for k in self.pick(0, 3) if k not in ("share", "secure_boot", "note")]
+                          , start=100)
+        # A seal takes the 64 MiB step and a fresh Argon2id run: once for the file.
+        self.seal_kept(data, unicodedata.normalize("NFD", p) if rng.random() < 0.3 else p, v, more, kpxc,
+                       label=rng.choice([None, word(rng, 1, 20)]))
+        return plans
+
+    def case_faraday(self):
+        self.faraday_case()
+
+    # They write.
+
+    def foreign_case(self):
+        """A file pykeepass makes: opens in Faraday with the same fields, and Faraday's seal
+        keeps everything."""
+        rng = self.rng
+        p = vf.passphrase(rng)
+        data, model = vf.py_file(rng, p)
+        kpxc = self.wants_kpxc(0.25)
+        v = self.read_all(data, p, kpxc)
+        by = {(tuple(e["path"]), vf.fields_of(e)["Title"]): vf.fields_of(e) for e in v["entries"]}
+        if by.keys() != model.keys():
+            self.fail("pykeepass", {}, sorted(by), sorted(model), "pykeepass made other entries",
+                      data)
+        for key, f in model.items():
+            for k, val in f.items():
+                if by[key].get(k, "") != val:
+                    self.fail("pykeepass", {"entry": key}, by[key].get(k), val,
+                              f"field {k} is not what pykeepass was given", data)
+        more = self.items([k for k in self.pick(1, 3) if k not in ("share", "secure_boot", "note")],
+                          start=100, entries=rng.choice([0, 1]))
+        self.seal_kept(data, p, v, more, kpxc)
+
+    def case_foreign(self):
+        self.foreign_case()
+
+    def kpxc_case(self):
+        """A file `keepassxc-cli` edits (groups, entries, notes, attachments), from a KDBX 4
+        file of Faraday's: opens in Faraday, and Faraday's seal keeps it."""
+        rng = self.rng
+        self.kpxc_on()
+        if not self.has_kpxc:
+            self.second["uncovered"] += 1
+            return
+        p = vf.passphrase(rng)
+        empty = self.create([], rng.choice([65_536, 262_144]), (8192, 1, 1), p, word(rng, 1, 10),
+                            rng.choice([None, 1_700_000_000]))
+        with readers.Kpxc(empty) as k:
+            model = vf.kpxc_edit(rng, k, p)
+            data = k.data()
+        v = self.read_all(data, p, True, flips=rng.random() < 0.3)
+        by = {(tuple(e["path"]), vf.fields_of(e)["Title"]): vf.fields_of(e) for e in v["entries"]}
+        if by.keys() != model.keys():
+            self.fail("keepassxc-cli", {}, sorted(by), sorted(model),
+                      "keepassxc-cli made other entries", data)
+        for key, f in model.items():
+            for k, val in f.items():
+                if k != "attachments" and by[key].get(k, "") != val:
+                    self.fail("keepassxc-cli", {"entry": key}, by[key].get(k), val,
+                              f"field {k} is not what keepassxc-cli was given", data)
+        # Attachments: the names and bytes, as pykeepass and keepassxc-cli read them.
+        for e in v["entries"]:
+            key = (tuple(e["path"]), vf.fields_of(e)["Title"])
+            got = dict(map(tuple, e["attachments"]))
+            want = {n: b.hex() for n, b in model[key]["attachments"].items()}
+            if got != want:
+                self.fail("keepassxc-cli", {"entry": key}, got, want,
+                          "pykeepass reads other attachments than keepassxc-cli put in", data)
+        more = self.items(["wallet_policy", "passphrase"], start=100)
+        out, after = self.seal_kept(data, p, v, more, True)
+        with readers.Kpxc(out) as k:
+            for key, f in model.items():
+                path = "/".join(list(key[0]) + [key[1]])
+                for name, b in f["attachments"].items():
+                    if k.attachment(p, path, name) != b:
+                        self.fail("keepassxc-cli", {"entry": key}, "other bytes", name,
+                                  "an attachment is not kept by Faraday's seal", out)
+                if sorted(k.attachments(p, path)) != sorted(f["attachments"]):
+                    self.fail("keepassxc-cli", {"entry": key}, k.attachments(p, path),
+                              sorted(f["attachments"]), "attachments differ after the seal", out)
+
+    def case_kpxc(self):
+        self.kpxc_case()
+
+    # The files of tools/vectors/vault/.
+
+    # Files Faraday refuses that an outside reader opens: its reader is stricter (§4, §7.1).
+    # {file: (readers that open it, why Faraday refuses it)}
+    WIDER = {
+        "cut-stream.kdbx": ({"keepassxc-cli"}, "the block stream ends before its empty last block"),
+        "refused-xml-after-root.kdbx": ({"keepassxc-cli"}, "an element after the root"),
+        "refused-xml-base64.kdbx": ({"pykeepass", "keepassxc-cli"},
+                                    "a protected value not canonical Base64"),
+        "refused-xml-doctype.kdbx": ({"pykeepass"}, "a DOCTYPE"),
+        "refused-xml-encoding.kdbx": ({"pykeepass"}, "another encoding"),
+        "refused-xml-root.kdbx": ({"pykeepass"}, "a root that is not KeePassFile"),
+        "refused-xml-too-deep.kdbx": ({"pykeepass", "keepassxc-cli"}, "nesting past 64"),
+    }
+
+    def vectors(self):
+        folder = ROOT / "tools" / "vectors" / "vault"
+        kpxc = self.kpxc_on()
+        pass_ = "correct horse battery staple"
+        for path in sorted(folder.glob("*.kdbx")):
+            data = path.read_bytes()
+            name = path.name
+            p = "caf\u00e9" if name == "vault-nfd.kdbx" else pass_
+            opens = not name.startswith("refused-") and name != "cut-stream.kdbx"
+            if opens:
+                self.read_all(data, p, kpxc, flips=False)
+                continue
+            self.open_faraday(data, p, None)
+            wider = self.WIDER.get(name, (set(), ""))[0]
+            mine = set()
+            if readers.open_kdbx(data, p) is not None:
+                mine.add("pykeepass")
+            if kpxc:
+                with readers.Kpxc(data) as k:
+                    if k.entries(p) is not None:
+                        mine.add("keepassxc-cli")
+                self.second["judged"] += 1
+            else:
+                mine |= wider & {"keepassxc-cli"}
+                self.second["uncovered"] += 1
+            if mine != wider:
+                self.fail("vault.open", {"file": name}, sorted(mine), sorted(wider),
+                          "the outside readers open other files Faraday refuses than the area "
+                          "expects (WIDER)", data)
+            self.known += len(mine)
+            self.compared += 1

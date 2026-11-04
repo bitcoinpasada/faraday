@@ -3,8 +3,10 @@
 File vaults in the format of `docs/VAULT.md` (KDBX 4), and the files a
 reader refuses, published for any implementation to open. Faraday's Rust
 (`faraday/faraday-vault/tests/vectors.rs`) and `tools/vault/open.py` with
-pykeepass (`tests/open_py.rs`) read them; the cross-check does not, and a
-run of them by outside programs is later work. A reproduction by an
+pykeepass (`tests/open_py.rs`) read them; the cross-check's `vault` area
+has pykeepass and `keepassxc-cli` read each, where it opens and where it
+must be refused (a difference of theirs from Faraday's reading is named in
+the area's differences). A reproduction by an
 outside party is asked for in `docs/AUDIT-SUBMISSIONS.md` §10.
 
 Every file is made at the lowest cost a reader accepts: Argon2id with

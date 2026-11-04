@@ -35,6 +35,7 @@ TOOLS = [
     ("pesigcheck", "pesign", None),
     ("zbarimg", "zbar-tools", ["--version"]),
     ("sq", "sq", ["version"]),
+    ("keepassxc-cli", "keepassxc", ["--version"]),
 ]
 # OVMF's Secure Boot firmware, as faraday/tools/sb-ovmf-check.py looks.
 OVMF_DIRS = ["/usr/share/edk2/x64", "/usr/share/edk2-ovmf/x64", "/usr/share/OVMF"]

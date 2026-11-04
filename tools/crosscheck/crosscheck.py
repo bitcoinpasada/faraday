@@ -74,7 +74,7 @@ AREAS = {
     "xor": ("area_xor", "Xor", "xor.combine", 350),
     "hash": ("area_hash", "Hash", ("hash.hashes", "hash.file", "hash.read", "hash.write", "hash.from_hex",
                 "hash.hkdf_expand", "hash.hkdf", "hash.hmac", "hash.pbkdf2", "hash.scrypt"), 60),
-    "vault": ("area_vault", "Vault", "vault.argon2id", 100),
+    "vault": ("area_vault", "Vault", "vault.argon2id", 400),
     "bip39": ("area_bip39", "Bip39", "bip39.seed", 740),
     "bip32": ("area_bip32", "Bip32", "bip32.derive", 340),
     "addr": ("area_addr", "Addr", ("addr.parse", "addr.descriptor"), 230),

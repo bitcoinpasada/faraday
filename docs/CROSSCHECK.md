@@ -86,7 +86,7 @@ with that group, are the second lineage for the curve (§10.7).
 | SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
 | Codex32 sets made (secret and derived shares, checksum worksheets) and error correction | BIP-93 | yes | BIP 93's reference code and python-codex32 (`tools/crosscheck/area_codex32.py`, `tools/crosscheck/area_codex32_correct.py`) |
 | Signed message | BIP-322, 137 | signing: yes; checking: no | Core's `signmessagewithprivkey` and btclib for BIP-137; Core has no BIP-322, which needs an outside implementation of its own (§10.7) |
-| Vault cost, passphrase and payload layouts | Argon2id, NFC, §7's payloads | yes | argon2-cffi for Argon2id, Python's `unicodedata` and the area's own §7 layouts; the KDBX file is read by pykeepass in the vectors' test, and its cross-check against `keepassxc-cli` and keepass-rs is not built (`docs/VAULT.md` §10) |
+| Vault cost, passphrase and payload layouts | Argon2id, NFC, §7's payloads | yes | argon2-cffi for Argon2id, Python's `unicodedata` and the area's own §7 layouts; the KDBX file is written by Faraday and read by pykeepass and `keepassxc-cli`, and written by them and read by Faraday; keepass-rs is not built (`docs/VAULT.md` §10) |
 
 Not worth computing twice: drawing randomness (only its conversion from
 dice, coins or cards is deterministic, and that can be checked), reading QR

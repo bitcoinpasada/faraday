@@ -31,18 +31,10 @@ not written.
 """
 
 import json
-import os
 import re
-import tempfile
 
 from common import ROOT, Area, HarnessError, Mismatch
-
-try:
-    from pykeepass import PyKeePass
-except ImportError as e:  # pragma: no cover - the machine's packages
-    raise HarnessError(
-        "the kdbx area needs the distribution's pykeepass (Debian and Ubuntu: python3-pykeepass;"
-        f" Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
+from readers import open_kdbx
 
 try:
     import cryptography
@@ -93,42 +85,6 @@ def check_pyca():
 def kept(text):
     """What a reader finds of a Title or Notes field."""
     return "".join(c for c in text if c in "\t\n\r" or not (ord(c) < 0x20 or ord(c) == 0x7F))
-
-
-def open_kdbx(data, passphrase):
-    """pykeepass's reading of `data`, or None when it will not open.
-
-    pykeepass picks the header and body by the major version with a
-    construct `Switch` that has no default: a major version other than
-    3 or 4 parses as an empty header and no body, and `PyKeePass`
-    returns without having derived a key or checked a hash or an HMAC.
-    KeePass and KeePassXC refuse such a file (an unknown major version;
-    the version is also inside the header's SHA-256 and HMAC), so a file
-    is opened here only when pykeepass parsed a KDBX 4 body.
-
-    pykeepass also runs the key derivation the header states before it
-    checks the header's SHA-256, so a changed bit in the Argon2
-    iterations (2^44 passes) holds it for good; KeePass and KeePassXC
-    check the hash first and refuse at once. pykeepass is asked the same
-    way: first with a key given and nothing decrypted, which checks the
-    version and the header's hash and derives nothing, and only then
-    with the passphrase."""
-    fd, path = tempfile.mkstemp(suffix=".kdbx")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(data)
-        try:
-            head = PyKeePass(path, password=passphrase, transformed_key=bytes(32), decrypt=False)
-            if head.version[0] != 4 or head.kdbx.body is None:
-                return None
-            kp = PyKeePass(path, password=passphrase)
-        except Exception:  # noqa: BLE001 - every failure to open is a refusal
-            return None
-        if kp.version[0] != 4 or kp.kdbx.body is None:
-            return None
-        return kp
-    finally:
-        os.unlink(path)
 
 
 XML_INVALID = re.compile("[^\u0020-\ud7ff\u0009\u000a\u000d\ue000-\ufffd\U00010000-\U0010ffff]+")
