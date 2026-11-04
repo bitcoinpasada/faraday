@@ -14,11 +14,17 @@ pub struct NonceCheck {
     /// spends, with or without a signature row: no node confirms them,
     /// but for a p2sh with the right redeem script.
     pub mismatched: Vec<usize>,
-    /// Inputs that carry signature data but state no output they spend
-    /// (a raw transaction's, or a PSBT's, with no output stated or a
-    /// previous transaction of another txid or without that output), so
-    /// no signature on them could be read.
+    /// Inputs whose spent output is not known to be the one the
+    /// transaction spends: a final input that states no output (a raw
+    /// transaction's, or a PSBT's), and any input, final or not, whose
+    /// previous transaction is of another txid or lacks the output, or
+    /// whose `witness_utxo` differs from its previous transaction. Nothing
+    /// finished is made from them, and a signature on them is not read
+    /// over a wrong amount.
     pub unread: usize,
+    /// Of `unread`, the inputs, final or not, whose `witness_utxo` and
+    /// previous transaction (of the right txid) state different outputs.
+    pub disagree: usize,
 }
 
 impl NonceCheck {
@@ -49,10 +55,28 @@ impl NonceCheck {
     /// check wrong, and no signature that stands is wrong and no nonce
     /// repeats: an input of a failing witness reads as a row of its own
     /// (every signature of it Invalid), and does not count against the
-    /// rest. It also answers true beside an unread input or an unchecked
+    /// rest. It answers false beside an input whose `witness_utxo` and
+    /// previous transaction differ ([`NonceCheck::disagree_first`] speaks
+    /// first). It also answers true beside an unread input or an unchecked
     /// row on another input. A lookup per row.
     pub fn only_witness_wrong(&self) -> bool {
         !self.mismatched.is_empty()
+            && self.disagree == 0
+            && self.reused.is_empty()
+            && !self
+                .rows
+                .iter()
+                .any(|r| r.wrong() && !self.mismatched.contains(&r.input))
+    }
+
+    /// Whether no signature is wrong and no nonce repeats, but an input
+    /// states an output its previous transaction does not: that is what
+    /// the check says first, as it is what is false of the transaction.
+    /// An input of a failing witness reads as a row of its own, wrong
+    /// by its witness, and does not stop this; a wrong signature on
+    /// another input does. A lookup per row.
+    pub fn disagree_first(&self) -> bool {
+        self.disagree > 0
             && self.reused.is_empty()
             && !self
                 .rows
@@ -63,7 +87,7 @@ impl NonceCheck {
     /// Whether nothing is offered to carry on: the check is wrong, or a
     /// PSBT has a final input whose output does not read (`has_finished`
     /// is false for it; a raw transaction keeps its offers, and a PSBT
-    /// with no final input is offered as it is). A lookup per row.
+    /// whose inputs all state a true output is offered as it is). A lookup per row.
     pub fn refused(&self, has_finished: bool) -> bool {
         self.wrong() || (self.unread > 0 && !has_finished)
     }
@@ -86,6 +110,8 @@ impl NonceCheck {
         };
         if self.only_witness_wrong() {
             EN.nonce_check_witness_wrong.to_string()
+        } else if self.disagree_first() {
+            fill(EN.nonce_disagree_head, &[&self.disagree.to_string()])
         } else if self.wrong() {
             EN.nonce_check_nonce_check.to_string()
         } else if self.unread > 0 {

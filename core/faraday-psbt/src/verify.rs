@@ -651,8 +651,10 @@ pub fn witness_mismatch(psbt: &bitcoin::Psbt, index: usize) -> bool {
 /// Costs a classify. Whether input `index` is final but what it says it
 /// spends does not read or is false: no previous output stated, or a
 /// previous transaction of another txid or without that output, beside a
-/// `witness_utxo` or not. Nothing of such an input can be checked, so it
-/// is neither sound nor finished.
+/// `witness_utxo` or not, or a `witness_utxo` that states another output
+/// than the previous transaction. Nothing of such an input can be checked
+/// (a signature on it is read over the previous transaction's output, or
+/// not at all), so it is neither sound nor finished.
 pub fn final_unread(psbt: &bitcoin::Psbt, index: usize) -> bool {
     let Some(input) = psbt.inputs.get(index) else {
         return false;
@@ -661,10 +663,74 @@ pub fn final_unread(psbt: &bitcoin::Psbt, index: usize) -> bool {
         return false;
     }
     let c = classify(psbt, index);
-    c.utxo.is_none()
-        || c.problems
-            .iter()
-            .any(|r| matches!(r, Reason::PrevTxNotSpent | Reason::PrevTxNoOutput))
+    c.utxo.is_none() || is_false(&c)
+}
+
+/// Costs a txid per input with a previous transaction. The outputs a
+/// PSBT's inputs spend, in order, as [`final_unread`] and the signature
+/// checks read them: the output of a previous transaction of the right
+/// txid, else the `witness_utxo` where there is no previous transaction;
+/// none where the previous transaction is of another txid or lacks the
+/// output, or where nothing is stated.
+pub fn spent_outputs(psbt: &bitcoin::Psbt) -> Vec<Option<TxOut>> {
+    (0..psbt.inputs.len())
+        .map(|i| spent_output_of(psbt, i))
+        .collect()
+}
+
+/// Costs a txid. The output input `index` spends, as [`spent_outputs`]
+/// reads it: the one answer every reader of a spent output takes.
+pub fn spent_output_of(psbt: &bitcoin::Psbt, index: usize) -> Option<TxOut> {
+    spent_output(psbt, index).cloned()
+}
+
+/// Costs a classify. Whether input `index`, final or not, states
+/// something false of what it spends: a `witness_utxo` that states another
+/// output than its previous transaction of the right txid, a previous
+/// transaction of another txid, or one without the output spent. An input
+/// that merely states no output is not one.
+pub fn states_false(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    index < psbt.inputs.len() && is_false(&classify(psbt, index))
+}
+
+/// Costs a classify. Whether input `index`, final or not, has a
+/// `witness_utxo` that states another output than its previous
+/// transaction of the right txid.
+pub fn utxos_disagree(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    index < psbt.inputs.len()
+        && classify(psbt, index)
+            .problems
+            .contains(&Reason::UtxosDisagree)
+}
+
+fn is_false(c: &Classified) -> bool {
+    c.problems.iter().any(|r| {
+        matches!(
+            r,
+            Reason::PrevTxNotSpent | Reason::PrevTxNoOutput | Reason::UtxosDisagree
+        )
+    })
+}
+
+/// Costs a classify per input. The inputs of `psbt` whose spent output
+/// does not read, and of them the ones that disagree: `(unread, disagree)`.
+/// Unread is every input that states something false ([`states_false`]),
+/// final or not, and every final input that states no output
+/// ([`final_unread`]); disagree is every input whose `witness_utxo` and
+/// previous transaction state different outputs ([`utxos_disagree`]).
+pub fn unread_counts(psbt: &bitcoin::Psbt) -> (usize, usize) {
+    let mut counts = (0, 0);
+    for (i, input) in psbt.inputs.iter().enumerate() {
+        let c = classify(psbt, i);
+        let is_final = input.final_script_sig.is_some() || input.final_script_witness.is_some();
+        if is_false(&c) || (is_final && c.utxo.is_none()) {
+            counts.0 += 1;
+        }
+        if c.problems.contains(&Reason::UtxosDisagree) {
+            counts.1 += 1;
+        }
+    }
+    counts
 }
 
 fn witness_mismatch_of(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
@@ -983,6 +1049,11 @@ fn restore(psbt: &Psbt, index: usize, c: &Classified) -> bitcoin::Psbt {
     let Some(utxo) = c.utxo.as_ref() else {
         return inner;
     };
+    // `bitcoin`'s signature hash reads `witness_utxo` first; a node reads
+    // the previous transaction, which is what `classify` holds.
+    if input.witness_utxo.is_some() {
+        input.witness_utxo = Some(utxo.clone());
+    }
     let Some(script_sig) = input.final_script_sig.clone() else {
         if let Some(witness) = input.final_script_witness.clone() {
             restore_witness(input, &utxo.script_pubkey, &witness);

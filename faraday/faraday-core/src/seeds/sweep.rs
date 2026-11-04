@@ -147,24 +147,20 @@ fn kind_text(t: ScriptType) -> &'static str {
 }
 
 /// The address the output input `i` of `psbt` spends pays, on `network`;
-/// empty where it has none. A lookup and an address encoding.
+/// empty where it has none or the PSBT states it falsely. Costs a txid and
+/// an address encoding.
 fn spent_address(psbt: &Psbt, i: usize, network: faraday_bip::keys::Network) -> String {
     let inner = psbt.inner();
-    let out = inner.inputs.get(i).and_then(|input| {
-        input.witness_utxo.clone().or_else(|| {
-            let vout = inner.unsigned_tx.input.get(i)?.previous_output.vout as usize;
-            input.non_witness_utxo.as_ref()?.output.get(vout).cloned()
+    faraday_psbt::verify::spent_output_of(inner, i)
+        .and_then(|o| {
+            faraday_bip::bitcoin::Address::from_script(
+                &o.script_pubkey,
+                faraday_bip::bitcoin::Network::from(network),
+            )
+            .ok()
         })
-    });
-    out.and_then(|o| {
-        faraday_bip::bitcoin::Address::from_script(
-            &o.script_pubkey,
-            faraday_bip::bitcoin::Network::from(network),
-        )
-        .ok()
-    })
-    .map(|a| a.to_string())
-    .unwrap_or_default()
+        .map(|a| a.to_string())
+        .unwrap_or_default()
 }
 
 /// Costs an address derivation per address tried, up to two hundred per

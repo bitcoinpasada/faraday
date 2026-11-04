@@ -24,11 +24,13 @@ use faraday_bip::keys::{Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::{
-    Field, NonceMode, SigKey, Unchecked, Verdict, compare, deterministic, inscriptions,
-    repeated_nonces, verify_signatures, witness_mismatch,
+    Field, NonceMode, SigKey, Unchecked, Verdict, compare, deterministic, final_unread,
+    inscriptions, repeated_nonces, states_false, utxos_disagree, verify_signatures,
+    witness_mismatch,
 };
 use faraday_psbt::{
-    Aux, Context, Detail, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, sign,
+    Aux, Context, Detail, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, is_complete,
+    sign,
 };
 
 const NET: Network = Network::Regtest;
@@ -1918,5 +1920,218 @@ fn a_true_final_spend_of_a_non_taproot_output_is_never_a_witness_mismatch() {
         let psbt = final_input(spk, script_sig, &witness);
         assert!(!faraday_psbt::verify::witness_mismatch(&psbt, 0), "{what}");
         assert!(!faraday_psbt::verify::final_unread(&psbt, 0), "{what}");
+    }
+}
+
+/// A finalized single-signature input of `script_type` that states a
+/// previous transaction, with its `witness_utxo` stating `lie` sat where
+/// the previous transaction says 100,000.
+fn finalized_with_witness_utxo(script_type: ScriptType, lie: Option<u64>) -> Psbt {
+    let mut psbt = signed_single(script_type, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut psbt).expect("finalizes");
+    let input = &mut psbt.inner_mut().inputs[0];
+    let previous = input
+        .non_witness_utxo
+        .clone()
+        .expect("the builder states the previous transaction");
+    let vout = psbt.inner().unsigned_tx.input[0].previous_output.vout as usize;
+    let stated = previous.output[vout].clone();
+    let input = &mut psbt.inner_mut().inputs[0];
+    input.witness_utxo = Some(TxOut {
+        value: Amount::from_sat(lie.unwrap_or(stated.value.to_sat())),
+        script_pubkey: stated.script_pubkey,
+    });
+    psbt
+}
+
+/// A `witness_utxo` that differs from a previous transaction of the right
+/// txid is read as the previous transaction: the final input is neither
+/// sound nor finished, and a true signature is still Valid, since a node
+/// checks it over the previous transaction's amount. Where the two agree
+/// the input reads as it always did, with `non_witness_utxo` only, with
+/// `witness_utxo` only, and with both.
+#[test]
+fn a_witness_utxo_that_differs_from_its_previous_transaction_is_read_as_the_transaction() {
+    // Taproot states no previous transaction here: its signature commits
+    // to the outpoint, so one cannot be added after signing (the core
+    // tests build one).
+    for script_type in ScriptType::ALL {
+        if script_type == ScriptType::Taproot {
+            continue;
+        }
+        let what = format!("{script_type:?}");
+        let agreeing = finalized_with_witness_utxo(script_type, None);
+        let mut only_previous = agreeing.clone();
+        only_previous.inner_mut().inputs[0].witness_utxo = None;
+        let mut only_witness = agreeing.clone();
+        only_witness.inner_mut().inputs[0].non_witness_utxo = None;
+        for (psbt, how) in [
+            (&agreeing, "both agreeing"),
+            (&only_previous, "non_witness_utxo only"),
+            (&only_witness, "witness_utxo only"),
+        ] {
+            assert!(!final_unread(psbt.inner(), 0), "{what}, {how}");
+            assert!(!utxos_disagree(psbt.inner(), 0), "{what}, {how}");
+            valid(psbt, &format!("{what}, {how}"));
+        }
+        let lying = finalized_with_witness_utxo(script_type, Some(99_999));
+        assert!(final_unread(lying.inner(), 0), "{what}");
+        assert!(utxos_disagree(lying.inner(), 0), "{what}");
+        valid(&lying, &format!("{what} under a lying witness_utxo"));
+        let spent = faraday_psbt::verify::spent_outputs(lying.inner());
+        assert_eq!(
+            spent[0].as_ref().map(|o| o.value),
+            Some(Amount::from_sat(100_000)),
+            "{what}: the previous transaction's amount"
+        );
+    }
+}
+
+/// A previous transaction of another txid beside a `witness_utxo`, final or
+/// not, states no output: its signature has nothing to be checked against
+/// (not "unsupported script"), the fee is not worked out from the
+/// `witness_utxo`'s amount, and `finalize` refuses it with the reason
+/// found, as it does a disagreement; none of them is complete.
+#[test]
+fn a_false_previous_transaction_reads_as_no_output_and_is_never_finalized() {
+    let wrong_txid = |psbt: &mut Psbt| {
+        let mut other = psbt.inner().inputs[0].non_witness_utxo.clone().unwrap();
+        other.lock_time = bitcoin::absolute::LockTime::from_consensus(1);
+        psbt.inner_mut().inputs[0].non_witness_utxo = Some(other);
+    };
+    for script_type in [ScriptType::NativeSegwit, ScriptType::Legacy] {
+        let what = format!("{script_type:?}");
+        let agreeing = finalized_with_witness_utxo(script_type, None);
+        // Final, wrong txid beside the `witness_utxo`.
+        let mut beside = agreeing.clone();
+        wrong_txid(&mut beside);
+        // Final, wrong txid alone.
+        let mut alone = beside.clone();
+        alone.inner_mut().inputs[0].witness_utxo = None;
+        // Final, the right transaction against a lying `witness_utxo`.
+        let disagree = finalized_with_witness_utxo(script_type, Some(99_999));
+        assert!(is_complete(&agreeing), "{what}: honest stays complete");
+        for (psbt, how, reason) in [
+            (
+                &beside,
+                "wrong txid beside witness_utxo",
+                faraday_psbt::Reason::PrevTxNotSpent,
+            ),
+            (
+                &alone,
+                "wrong txid alone",
+                faraday_psbt::Reason::PrevTxNotSpent,
+            ),
+            (
+                &disagree,
+                "a disagreement",
+                faraday_psbt::Reason::UtxosDisagree,
+            ),
+        ] {
+            assert!(!is_complete(psbt), "{what}, {how}");
+            match finalize(&mut psbt.clone()) {
+                Err(faraday_psbt::Error::Finalize {
+                    input: 0,
+                    reason: r,
+                }) => {
+                    assert_eq!(r, reason, "{what}, {how}");
+                }
+                other => panic!("{what}, {how}: {other:?}"),
+            }
+        }
+        // A final input that reads no output carries no row. One not yet
+        // final reads "no previous output" for its signature, never
+        // "unsupported script", whatever the `witness_utxo` beside says.
+        assert!(verdicts(&beside).is_empty(), "{what}");
+        let mut partial = signed_single(script_type, Nonce::LowR, Aux::Deterministic, 29_000);
+        let stated = partial.inner().inputs[0].non_witness_utxo.clone().unwrap();
+        let vout = partial.inner().unsigned_tx.input[0].previous_output.vout as usize;
+        partial.inner_mut().inputs[0].witness_utxo = Some(stated.output[vout].clone());
+        wrong_txid(&mut partial);
+        assert_eq!(
+            verdicts(&partial),
+            vec![Verdict::Unchecked(Unchecked::NoPrevout)],
+            "{what}"
+        );
+        let c = Compute::unchecked();
+        let seen = inspect(&c, &partial, &ctx(&[], &[]));
+        assert_eq!(seen.total_in, Amount::ZERO, "{what}: no amount is added");
+        assert!(seen.fee_rate_sat_vb.is_none(), "{what}: no fee is shown");
+        assert!(
+            seen.warnings
+                .iter()
+                .any(|w| w.kind == WarningKind::MissingUtxo),
+            "{what}"
+        );
+    }
+}
+
+/// The committed fixtures (the PSBT vectors, the samples and the interop
+/// vectors) carry no false statement of what an input spends, as read and
+/// after `finalize`, but those named here: `warn-utxo-mismatch.psbt`
+/// states a previous transaction of another txid on purpose.
+#[test]
+fn no_committed_fixture_is_refused_for_agreeing_outputs() {
+    const LYING: [&str; 1] = ["warn-utxo-mismatch.psbt"];
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let (mut walked, mut lying) = (0, 0);
+    for dir in [
+        "tools/vectors/psbt",
+        "faraday/faraday-samples/data",
+        "faraday/faraday-core/tests/vectors/interop/bluewallet",
+    ] {
+        for entry in std::fs::read_dir(root.join(dir)).expect("the vector directory") {
+            let path = entry.expect("an entry").path();
+            if path.extension().is_none_or(|e| e != "psbt") {
+                continue;
+            }
+            let bytes = std::fs::read(&path).expect("a fixture");
+            let text = String::from_utf8_lossy(&bytes).trim().to_string();
+            let c = Compute::unchecked();
+            let Ok(psbt) = Psbt::parse_bytes(&c, &bytes).or_else(|_| Psbt::parse_base64(&c, &text))
+            else {
+                continue;
+            };
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            let mut finalized = psbt.clone();
+            let done = finalize(&mut finalized);
+            if LYING.contains(&name.as_str()) {
+                assert!(done.is_err() && !is_complete(&psbt), "{name}");
+            }
+            for (what, p) in [("as read", &psbt), ("finalized", &finalized)] {
+                for i in 0..p.inner().inputs.len() {
+                    let false_ = states_false(p.inner(), i);
+                    if LYING.contains(&name.as_str()) {
+                        lying += usize::from(what == "as read" && false_);
+                    } else {
+                        assert!(!false_, "{} {what}, input {i}", path.display());
+                    }
+                    assert!(
+                        LYING.contains(&name.as_str()) || !final_unread(p.inner(), i),
+                        "{} {what}, input {i}",
+                        path.display()
+                    );
+                }
+            }
+            walked += 1;
+        }
+    }
+    assert!(walked > 10, "{walked} fixtures walked");
+    assert!(lying > 0, "the fixture meant to state a false output does");
+}
+
+/// `finalize` says why: a previous transaction of another txid is not
+/// spent, whatever else it lacks.
+#[test]
+fn finalize_names_a_previous_transaction_of_another_txid_as_it_is() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/vectors/psbt/warn-utxo-mismatch.psbt");
+    let text = std::fs::read_to_string(path).expect("the fixture");
+    let mut psbt = Psbt::parse_base64(&Compute::unchecked(), text.trim()).expect("parses");
+    match finalize(&mut psbt) {
+        Err(faraday_psbt::Error::Finalize { reason, .. }) => {
+            assert_eq!(reason, faraday_psbt::Reason::PrevTxNotSpent);
+        }
+        other => panic!("{other:?}"),
     }
 }

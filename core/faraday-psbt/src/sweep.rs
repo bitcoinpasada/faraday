@@ -38,7 +38,8 @@ use crate::reason::Reason;
 use crate::sign::{InputSignature, Nonce, SigKind, SignResult};
 
 /// Which inputs of `psbt` spend an output paying one of `key`'s
-/// scripts, and are not finalized. A lookup over the inputs.
+/// scripts, and are not finalized. Costs a txid per input with a previous
+/// transaction.
 pub fn inputs_of(psbt: &Psbt, key: &SingleKey) -> Vec<usize> {
     let scripts = key.scripts();
     (0..psbt.inner().inputs.len())

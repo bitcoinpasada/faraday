@@ -704,7 +704,12 @@ fn a_previous_transaction_of_another_txid_takes_nothing_out_of_the_check() {
             "c.psbt",
         )
         .unwrap_err();
-    assert_eq!(why, EN.psbt_final_prev_unread.replace("{}", "1"));
+    assert_eq!(
+        why,
+        EN.wallet_file_states_false
+            .replacen("{}", "c.psbt", 1)
+            .replacen("{}", "1", 1)
+    );
     assert_eq!(spend.psbt.to_bytes(), before);
 }
 
@@ -1050,7 +1055,12 @@ fn a_previous_transaction_of_another_txid_beside_a_witness_utxo_is_refused() {
             "c.psbt",
         )
         .unwrap_err();
-    assert_eq!(why, EN.psbt_final_prev_unread.replace("{}", "1"));
+    assert_eq!(
+        why,
+        EN.wallet_file_states_false
+            .replacen("{}", "c.psbt", 1)
+            .replacen("{}", "1", 1)
+    );
 }
 
 /// The nonce check of `psbt` offers to carry on.
@@ -1192,4 +1202,939 @@ fn the_reason_shown_for_a_spend_follows_what_a_collect_changes() {
     let (kept, fresh) = state(&mut app);
     assert_eq!(fresh, None);
     assert_eq!(kept, fresh, "the kept reason is the fresh one");
+}
+
+/// A finalized taproot key-path spend of a previous transaction (of the
+/// right txid) that pays 50,000 sat: the PSBT states `stated` as its
+/// `witness_utxo`, and the signature is made over `signed`, the amount a
+/// node reads being the 50,000. With `previous` false the previous
+/// transaction is left out.
+fn key_spend_with_previous(signed: u64, stated: u64, previous: bool) -> faraday_psbt::Psbt {
+    use faraday_bip::bitcoin::key::TapTweak;
+    use faraday_bip::bitcoin::secp256k1::Keypair;
+    use faraday_bip::bitcoin::sighash::{Prevouts, TapSighashType};
+    use faraday_bip::bitcoin::{
+        Amount, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness, absolute::LockTime,
+        transaction::Version,
+    };
+    let secp = Secp256k1::new();
+    let pair = Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[7; 32]).unwrap());
+    let (internal, _) = pair.x_only_public_key();
+    let signer = pair.tap_tweak(&secp, None).to_keypair();
+    let spk = ScriptBuf::new_p2tr(&secp, internal, None);
+    let out = |sat| TxOut {
+        value: Amount::from_sat(sat),
+        script_pubkey: spk.clone(),
+    };
+    let funding = Transaction {
+        version: Version::TWO,
+        lock_time: LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: vec![out(50_000)],
+    };
+    let tx = Transaction {
+        version: Version::TWO,
+        lock_time: LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(funding.compute_txid(), 0),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: vec![out(10_000)],
+    };
+    let hash = SighashCache::new(&tx)
+        .taproot_key_spend_signature_hash(
+            0,
+            &Prevouts::All(&[out(signed)]),
+            TapSighashType::Default,
+        )
+        .unwrap();
+    let sig = secp.sign_schnorr_no_aux_rand(&Message::from_digest(hash.to_byte_array()), &signer);
+    let mut inner = faraday_bip::bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    inner.inputs[0].witness_utxo = Some(out(stated));
+    inner.inputs[0].non_witness_utxo = previous.then_some(funding);
+    inner.inputs[0].final_script_witness = Some(Witness::from_slice(&[sig.serialize().to_vec()]));
+    faraday_psbt::Psbt::from(inner)
+}
+
+fn disagree_text(input: usize) -> String {
+    EN.psbt_final_prev_disagree
+        .replace("{}", &input.to_string())
+}
+
+/// A final input whose `witness_utxo` states another amount than its
+/// previous transaction is refused whatever the signature was made over:
+/// the nonce check says the two disagree (and not that a signature is
+/// wrong or that the output cannot be read), offers nothing, and `finish`
+/// gives the same reason.
+#[test]
+fn a_witness_utxo_that_disagrees_with_the_previous_transaction_is_refused_with_its_own_words() {
+    use faraday_core::wallet::Spend;
+    for (signed, what) in [
+        (99_999, "signed over the stated amount"),
+        (50_000, "signed over the previous transaction's amount"),
+    ] {
+        let psbt = key_spend_with_previous(signed, 99_999, true);
+        let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+        let o = checked(&mut app);
+        assert_eq!((o.check.unread, o.check.disagree), (1, 1), "{what}");
+        assert!(!o.check.sound(), "{what}");
+        assert!(o.finished.is_none(), "{what}");
+        assert!(o.check.refused(false), "{what}");
+        // A signature made over the stated amount is wrong against the
+        // previous transaction a node reads, and is said to be; one made
+        // over the right amount is not, and the screen says only that the
+        // two outputs differ.
+        let (head, line) = if signed == 99_999 {
+            (
+                EN.nonce_check_nonce_check.to_string(),
+                EN.nonce_screen_refused,
+            )
+        } else {
+            (
+                EN.nonce_disagree_head.replace("{}", "1"),
+                EN.nonce_screen_refused_disagree,
+            )
+        };
+        assert_eq!(o.check.headline(), head, "{what}");
+        let shown = app.drawn_texts().join(" | ");
+        assert!(shown.contains(line), "{what}: {shown}");
+        for absent in [
+            EN.nonce_screen_refused_unread,
+            EN.nonce_screen_more_wanted,
+            EN.vault_save_to_a_stick,
+        ] {
+            assert!(!shown.contains(absent), "{what}: {absent}");
+        }
+        if signed == 50_000 {
+            assert!(!shown.contains(EN.nonce_screen_refused), "{what}: {shown}");
+        }
+        let mut spend = Spend::new(psbt.clone(), "t.psbt");
+        assert_eq!(spend.finish().unwrap_err(), disagree_text(0), "{what}");
+        assert!(spend.finished.is_none(), "{what}");
+        assert_eq!(spend.refused(), Some(disagree_text(0)), "{what}");
+    }
+    // Agreeing, with the previous transaction or without it, it stands.
+    for (stated, previous) in [(50_000, true), (50_000, false)] {
+        let psbt = key_spend_with_previous(50_000, stated, previous);
+        let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+        let o = checked(&mut app);
+        assert_eq!((o.check.unread, o.check.disagree), (0, 0));
+        assert!(o.check.sound() && o.finished.is_some());
+        assert!(Spend::new(psbt, "t.psbt").finish().is_ok());
+    }
+}
+
+/// Decode reads the output a PSBT spends as the PSBT's own checks do: the
+/// previous transaction of the right txid first, none where the previous
+/// transaction is another one's.
+#[test]
+fn decode_reads_the_previous_transaction_before_a_witness_utxo() {
+    use faraday_bip::bitcoin::Amount;
+    let amount = |p: &faraday_psbt::Psbt| {
+        faraday_core::decode::prevouts_of(p)[0]
+            .as_ref()
+            .map(|o| o.value)
+    };
+    let lying = key_spend_with_previous(50_000, 99_999, true);
+    assert_eq!(amount(&lying), Some(Amount::from_sat(50_000)));
+    let only_witness = key_spend_with_previous(50_000, 99_999, false);
+    assert_eq!(amount(&only_witness), Some(Amount::from_sat(99_999)));
+    let mut wrong = key_spend_with_previous(50_000, 50_000, true);
+    let funding = wrong.inner().inputs[0].non_witness_utxo.clone().unwrap();
+    wrong.inner_mut().inputs[0].non_witness_utxo =
+        Some(other_previous(funding.output[0].clone(), 1));
+    assert_eq!(
+        amount(&wrong),
+        None,
+        "a previous transaction of another txid"
+    );
+}
+
+/// A cosigner's file never replaces an own right-txid previous
+/// transaction by an amount, nor an own `witness_utxo` by a previous
+/// transaction that disagrees, and is named whatever the own copy holds;
+/// one that agrees is merged.
+#[test]
+fn collect_refuses_a_file_that_puts_a_witness_utxo_against_the_previous_transaction() {
+    use faraday_core::wallet::{Session, Spend};
+    let c = testkit::compute();
+    let session = Session::default();
+    let truth = key_spend_with_previous(50_000, 50_000, true);
+    let lie = key_spend_with_previous(50_000, 99_999, false);
+    let lie_with_previous = key_spend_with_previous(50_000, 99_999, true);
+    let only_witness = key_spend_with_previous(50_000, 50_000, false);
+    // Own copy with its previous transaction, the file only a lying
+    // witness_utxo.
+    let mut previous_only = truth.clone();
+    previous_only.inner_mut().inputs[0].witness_utxo = None;
+    let mut spend = Spend::new(previous_only, "own.psbt");
+    let before = spend.psbt.to_bytes();
+    let why = spend
+        .collect(&c, &session, &lie.to_bytes(), "c.psbt")
+        .unwrap_err();
+    assert_eq!(
+        why,
+        EN.wallet_file_states_false
+            .replacen("{}", "c.psbt", 1)
+            .replacen("{}", "0", 1)
+    );
+    assert_eq!(spend.psbt.to_bytes(), before);
+    assert!(spend.finish().is_ok(), "the own copy is unchanged");
+    // Own copy with both agreeing: a file's lying witness_utxo is refused
+    // and named too, as it is when the own copy holds only the previous
+    // transaction.
+    let mut spend = Spend::new(truth.clone(), "own.psbt");
+    let before = spend.psbt.to_bytes();
+    let why = spend
+        .collect(&c, &session, &lie.to_bytes(), "c.psbt")
+        .unwrap_err();
+    assert_eq!(
+        why,
+        EN.wallet_file_states_false
+            .replacen("{}", "c.psbt", 1)
+            .replacen("{}", "0", 1)
+    );
+    assert_eq!(spend.psbt.to_bytes(), before);
+    assert!(spend.finish().is_ok());
+    // Own copy with only a witness_utxo that is false, the file with the
+    // previous transaction.
+    let mut spend = Spend::new(lie.clone(), "own.psbt");
+    let before = spend.psbt.to_bytes();
+    let why = spend
+        .collect(&c, &session, &lie_with_previous.to_bytes(), "c.psbt")
+        .unwrap_err();
+    assert_eq!(
+        why,
+        EN.wallet_file_states_false
+            .replacen("{}", "c.psbt", 1)
+            .replacen("{}", "0", 1)
+    );
+    assert_eq!(spend.psbt.to_bytes(), before);
+    // A file adding a previous transaction that agrees is merged.
+    let mut spend = Spend::new(only_witness, "own.psbt");
+    spend
+        .collect(&c, &session, &truth.to_bytes(), "c.psbt")
+        .expect("an agreeing previous transaction is merged");
+    assert!(spend.psbt.inner().inputs[0].non_witness_utxo.is_some());
+    assert!(spend.finish().is_ok());
+}
+
+/// A real signature of each kind of spend, the previous transaction and
+/// `witness_utxo` stated as asked. Kinds: 0 p2wpkh, 1 p2sh-p2wpkh, 2
+/// p2sh-p2wsh, 3 p2sh, 4 p2wsh, 5 p2pkh, 6 taproot key path, 7 taproot
+/// script path. A taproot signature is made over `taproot_sees` for input
+/// `.0` where given. Every output is 50,000 sat.
+#[expect(
+    clippy::too_many_lines,
+    clippy::disallowed_methods,
+    reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
+)]
+fn build(
+    kinds: &[usize],
+    witness_utxo: bool,
+    non_witness: bool,
+    taproot_sees: Option<(usize, u64)>,
+) -> faraday_psbt::Psbt {
+    use btc::key::{Keypair, TapTweak};
+    use btc::script::{Builder, PushBytesBuf};
+    use btc::sighash::{Prevouts, TapSighashType};
+    use btc::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
+    use btc::{Amount, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness};
+    use faraday_bip::bitcoin as btc;
+    let secp = Secp256k1::new();
+    let sk = SecretKey::from_slice(&[5; 32]).unwrap();
+    let pk = PublicKey::new(Point::from_secret_key(&secp, &sk));
+    let pair = Keypair::from_secret_key(&secp, &sk);
+    let (xonly, _) = pair.x_only_public_key();
+    let signer = pair.tap_tweak(&secp, None).to_keypair();
+    let other = Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[6; 32]).unwrap())
+        .x_only_public_key()
+        .0;
+    let push = |b: Vec<u8>| PushBytesBuf::try_from(b).unwrap();
+    let wpkh = ScriptBuf::new_p2wpkh(&pk.wpubkey_hash().unwrap());
+    let ms = Builder::new()
+        .push_int(1)
+        .push_key(&pk)
+        .push_int(1)
+        .push_opcode(btc::opcodes::all::OP_CHECKMULTISIG)
+        .into_script();
+    let wsh = ScriptBuf::new_p2wsh(&ms.wscript_hash());
+    let leaf = Builder::new()
+        .push_x_only_key(&xonly)
+        .push_opcode(btc::opcodes::all::OP_CHECKSIG)
+        .into_script();
+    let info = TaprootBuilder::new()
+        .add_leaf(0, leaf.clone())
+        .unwrap()
+        .finalize(&secp, other)
+        .unwrap();
+    let control = info
+        .control_block(&(leaf.clone(), LeafVersion::TapScript))
+        .unwrap()
+        .serialize();
+    let spks = [
+        wpkh.clone(),
+        ScriptBuf::new_p2sh(&wpkh.script_hash()),
+        ScriptBuf::new_p2sh(&wsh.script_hash()),
+        ScriptBuf::new_p2sh(&ms.script_hash()),
+        wsh.clone(),
+        ScriptBuf::new_p2pkh(&pk.pubkey_hash()),
+        ScriptBuf::new_p2tr(&secp, xonly, None),
+        ScriptBuf::new_p2tr(&secp, other, info.merkle_root()),
+    ];
+    let amount = Amount::from_sat(50_000);
+    let prev = Transaction {
+        version: btc::transaction::Version::TWO,
+        lock_time: btc::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(btc::Txid::from_byte_array([8; 32]), 0),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: spks
+            .iter()
+            .map(|s| TxOut {
+                value: amount,
+                script_pubkey: s.clone(),
+            })
+            .collect(),
+    };
+    let txid = prev.compute_txid();
+    let tx = Transaction {
+        version: btc::transaction::Version::TWO,
+        lock_time: btc::absolute::LockTime::ZERO,
+        input: kinds
+            .iter()
+            .map(|k| TxIn {
+                previous_output: OutPoint::new(txid, *k as u32),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new(),
+            })
+            .collect(),
+        output: vec![TxOut {
+            value: Amount::from_sat(10_000),
+            script_pubkey: wpkh.clone(),
+        }],
+    };
+    let prevouts: Vec<TxOut> = kinds.iter().map(|k| prev.output[*k].clone()).collect();
+    let mut seen = prevouts.clone();
+    if let Some((i, sat)) = taproot_sees {
+        seen[i].value = Amount::from_sat(sat);
+    }
+    let mut inner = btc::Psbt::from_unsigned_tx(tx.clone()).unwrap();
+    let all = EcdsaSighashType::All;
+    let der = |z: [u8; 32]| {
+        let sig = secp.sign_ecdsa(&Message::from_digest(z), &sk);
+        let mut v = sig.serialize_der().to_vec();
+        v.push(1);
+        v
+    };
+    let script_sig = |b: &ScriptBuf| Builder::new().push_slice(push(b.to_bytes())).into_script();
+    let mut cache = SighashCache::new(&tx);
+    for (i, k) in kinds.iter().enumerate() {
+        let spk = &spks[*k];
+        let (sig, wit): (Option<ScriptBuf>, Option<Witness>) = match *k {
+            0 | 1 => {
+                let script = if *k == 0 { spk } else { &wpkh };
+                let z = cache.p2wpkh_signature_hash(i, script, amount, all).unwrap();
+                let w = Witness::from_slice(&[der(z.to_byte_array()), pk.to_bytes()]);
+                ((*k == 1).then(|| script_sig(&wpkh)), Some(w))
+            }
+            2 | 4 => {
+                let z = cache.p2wsh_signature_hash(i, &ms, amount, all).unwrap();
+                let w = Witness::from_slice(&[vec![], der(z.to_byte_array()), ms.to_bytes()]);
+                ((*k == 2).then(|| script_sig(&wsh)), Some(w))
+            }
+            3 => {
+                let z = cache.legacy_signature_hash(i, &ms, 1).unwrap();
+                let sig = Builder::new()
+                    .push_int(0)
+                    .push_slice(push(der(z.to_byte_array())))
+                    .push_slice(push(ms.to_bytes()))
+                    .into_script();
+                (Some(sig), None)
+            }
+            5 => {
+                let z = cache.legacy_signature_hash(i, spk, 1).unwrap();
+                let sig = Builder::new()
+                    .push_slice(push(der(z.to_byte_array())))
+                    .push_slice(push(pk.to_bytes()))
+                    .into_script();
+                (Some(sig), None)
+            }
+            6 => {
+                let z = cache
+                    .taproot_key_spend_signature_hash(
+                        i,
+                        &Prevouts::All(&seen),
+                        TapSighashType::Default,
+                    )
+                    .unwrap();
+                let m = Message::from_digest(z.to_byte_array());
+                let s = secp.sign_schnorr_no_aux_rand(&m, &signer);
+                (None, Some(Witness::from_slice(&[s.serialize().to_vec()])))
+            }
+            _ => {
+                let hash = TapLeafHash::from_script(&leaf, LeafVersion::TapScript);
+                let z = cache
+                    .taproot_script_spend_signature_hash(
+                        i,
+                        &Prevouts::All(&seen),
+                        hash,
+                        TapSighashType::Default,
+                    )
+                    .unwrap();
+                let m = Message::from_digest(z.to_byte_array());
+                let s = secp.sign_schnorr_no_aux_rand(&m, &pair);
+                let w = Witness::from_slice(&[
+                    s.serialize().to_vec(),
+                    leaf.to_bytes(),
+                    control.clone(),
+                ]);
+                (None, Some(w))
+            }
+        };
+        let input = &mut inner.inputs[i];
+        input.final_script_sig = sig;
+        input.final_script_witness = wit;
+        if witness_utxo {
+            input.witness_utxo = Some(prevouts[i].clone());
+        }
+        if non_witness {
+            input.non_witness_utxo = Some(prev.clone());
+        }
+    }
+    faraday_psbt::Psbt::from(inner)
+}
+
+/// True spends of every kind, stated by the previous transaction only, by
+/// a `witness_utxo` only and by both, alone and all in one PSBT: every
+/// row reads Valid, the check is sound and offers the finished
+/// transaction, `finish` works, and the amounts read give the fee.
+#[test]
+fn true_spends_of_every_kind_are_never_refused_in_any_form() {
+    use faraday_core::wallet::Spend;
+    let names = [
+        "p2wpkh",
+        "p2sh-p2wpkh",
+        "p2sh-p2wsh",
+        "p2sh",
+        "p2wsh",
+        "p2pkh",
+        "tr-key",
+        "tr-script",
+    ];
+    let all: Vec<usize> = (0..8).collect();
+    let mut cases: Vec<(String, Vec<usize>)> =
+        (0..8).map(|k| (names[k].to_string(), vec![k])).collect();
+    cases.push(("all eight kinds".to_string(), all));
+    for (what, kinds) in cases {
+        for (witness, previous) in [(false, true), (true, false), (true, true)] {
+            let how = format!("{what}, witness_utxo {witness}, previous {previous}");
+            let psbt = build(&kinds, witness, previous, None);
+            let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+            let o = checked(&mut app);
+            assert_eq!(o.check.rows.len(), kinds.len(), "{how}: a row per input");
+            for r in &o.check.rows {
+                assert!(!r.wrong() && !r.unchecked(), "{how}: {:?}", r.verdict);
+            }
+            assert!(o.check.mismatched.is_empty(), "{how}");
+            assert_eq!((o.check.unread, o.check.disagree), (0, 0), "{how}");
+            assert!(o.check.sound(), "{how}");
+            assert!(o.finished.is_some(), "{how}");
+            let mut spend = Spend::new(psbt.clone(), "t.psbt");
+            assert!(spend.finish().is_ok(), "{how}");
+            // The fee the check reports is the inputs' amounts less the
+            // one output.
+            app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Decode));
+            assert_eq!(app.screen, Screen::Decode, "{how}");
+            assert_eq!(
+                app.decode().unwrap().decoded.fee,
+                Some(50_000 * kinds.len() as u64 - 10_000),
+                "{how}"
+            );
+        }
+    }
+}
+
+/// Input 0 a true taproot spend beside input 1 whose `witness_utxo` lies:
+/// the taproot signature commits to the previous transaction's amounts
+/// and reads Valid, the check says the disagreement; one made over the
+/// false amount reads Invalid.
+#[test]
+fn a_true_taproot_signature_reads_valid_beside_another_inputs_false_amount() {
+    for (kinds, what) in [
+        (vec![6, 0], "key path beside p2wpkh"),
+        (vec![7, 5], "script path beside p2pkh"),
+    ] {
+        let mut psbt = build(&kinds, false, true, None);
+        let out = psbt.inner().inputs[1]
+            .non_witness_utxo
+            .clone()
+            .unwrap()
+            .output[kinds[1]]
+            .clone();
+        let mut lie = out;
+        lie.value = faraday_bip::bitcoin::Amount::from_sat(99_999);
+        psbt.inner_mut().inputs[1].witness_utxo = Some(lie);
+        let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+        let o = checked(&mut app);
+        let row0 = o
+            .check
+            .rows
+            .iter()
+            .find(|r| r.input == 0)
+            .expect("input 0's row");
+        assert!(
+            !row0.wrong() && !row0.unchecked(),
+            "{what}: {:?}",
+            row0.verdict
+        );
+        assert_eq!((o.check.unread, o.check.disagree), (1, 1), "{what}");
+        assert_eq!(
+            o.check.headline(),
+            EN.nonce_disagree_head.replace("{}", "1"),
+            "{what}"
+        );
+        assert!(!o.check.sound() && o.finished.is_none(), "{what}");
+        // The signature over the false amount is wrong.
+        let mut over_lie = build(&kinds, false, true, Some((1, 99_999)));
+        over_lie.inner_mut().inputs[1].witness_utxo = psbt.inner().inputs[1].witness_utxo.clone();
+        let mut app = with_inbox(vec![("t.psbt", over_lie.to_bytes())]);
+        let o = checked(&mut app);
+        let row0 = o
+            .check
+            .rows
+            .iter()
+            .find(|r| r.input == 0)
+            .expect("input 0's row");
+        assert!(row0.wrong(), "{what}: {:?}", row0.verdict);
+    }
+}
+
+/// A p2wpkh with its true partial signature (not final), its previous
+/// transaction of 50,000 sat the right one.
+fn partial_p2wpkh() -> faraday_psbt::Psbt {
+    let mut psbt = build(&[0], false, true, None);
+    let input = &mut psbt.inner_mut().inputs[0];
+    let witness = input.final_script_witness.take().unwrap();
+    let w: Vec<&[u8]> = witness.iter().collect();
+    let sig = ecdsa::Signature::from_slice(w[0]).unwrap();
+    let key = PublicKey::from_slice(w[1]).unwrap();
+    input.partial_sigs.insert(key, sig);
+    psbt
+}
+
+fn lying_witness(psbt: &mut faraday_psbt::Psbt, sat: u64) {
+    let mut out = psbt.inner().inputs[0]
+        .non_witness_utxo
+        .clone()
+        .unwrap()
+        .output[0]
+        .clone();
+    out.value = faraday_bip::bitcoin::Amount::from_sat(sat);
+    psbt.inner_mut().inputs[0].witness_utxo = Some(out);
+}
+
+fn wrong_txid(psbt: &mut faraday_psbt::Psbt) {
+    let out = psbt.inner().inputs[0]
+        .non_witness_utxo
+        .clone()
+        .unwrap()
+        .output[0]
+        .clone();
+    psbt.inner_mut().inputs[0].non_witness_utxo = Some(other_previous(out, 0));
+}
+
+/// A false statement on an input that is not final is refused as on a
+/// final one: nothing offered, though the signature on it is true. The
+/// same PSBT with honest inputs is still offered.
+#[test]
+fn a_false_statement_on_an_input_not_yet_final_offers_nothing() {
+    let honest = partial_p2wpkh();
+    let mut app = with_inbox(vec![("t.psbt", honest.to_bytes())]);
+    let o = checked(&mut app);
+    assert!(o.check.sound() && !o.check.refused(false));
+    let shown = app.drawn_texts().join(" | ");
+    assert!(shown.contains(EN.vault_save_to_a_stick), "{shown}");
+    let mut disagree = honest.clone();
+    lying_witness(&mut disagree, 99_999);
+    let mut wrong_prev = honest.clone();
+    wrong_txid(&mut wrong_prev);
+    for (what, psbt, line) in [
+        (
+            "witness_utxo against the previous transaction",
+            disagree,
+            EN.nonce_screen_refused_disagree,
+        ),
+        (
+            "a previous transaction of another txid",
+            wrong_prev,
+            EN.nonce_screen_refused_unread,
+        ),
+    ] {
+        let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+        let o = checked(&mut app);
+        assert!(!o.check.sound(), "{what}");
+        assert!(o.check.refused(false) && o.finished.is_none(), "{what}");
+        let shown = app.drawn_texts().join(" | ");
+        assert!(shown.contains(line), "{what}: {shown}");
+        for absent in [EN.nonce_screen_more_wanted, EN.vault_save_to_a_stick] {
+            assert!(!shown.contains(absent), "{what}: {shown}");
+        }
+    }
+}
+
+/// Beside another input that states no output, a disagreement's line is
+/// what is said, and a witness that does not match beside it is not "only
+/// the witness".
+#[test]
+fn a_disagreement_beside_an_unread_input_is_named_and_not_called_unread() {
+    let mut psbt = build(&[6, 0], false, true, None);
+    let out = psbt.inner().inputs[1]
+        .non_witness_utxo
+        .clone()
+        .unwrap()
+        .output[0]
+        .clone();
+    let mut lie = out;
+    lie.value = faraday_bip::bitcoin::Amount::from_sat(99_999);
+    psbt.inner_mut().inputs[1].witness_utxo = Some(lie);
+    psbt.inner_mut().inputs[0].non_witness_utxo = None;
+    psbt.inner_mut().inputs[0].witness_utxo = None;
+    let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+    let o = checked(&mut app);
+    assert_eq!((o.check.unread, o.check.disagree), (2, 1));
+    assert_eq!(
+        o.check.headline(),
+        EN.nonce_disagree_head.replace("{}", "1")
+    );
+    let shown = app.drawn_texts().join(" | ");
+    assert!(shown.contains(EN.nonce_screen_refused_disagree), "{shown}");
+    assert!(!shown.contains(EN.nonce_screen_refused_unread), "{shown}");
+    // A failing witness beside a disagreement does not read as the only
+    // thing wrong.
+    let mut o = faraday_core::wallet::NonceCheck {
+        rows: vec![],
+        reused: vec![],
+        mismatched: vec![1],
+        unread: 1,
+        disagree: 1,
+    };
+    assert!(!o.only_witness_wrong());
+    assert_eq!(o.headline(), EN.nonce_disagree_head.replace("{}", "1"));
+    o.disagree = 0;
+    assert!(o.only_witness_wrong());
+}
+
+/// A cosigner's file never brings a false statement into a spend under
+/// way, final or not: it is refused by name, the own copy is as it was,
+/// and a clean file still collects. A right-txid previous transaction
+/// repairs an own wrong-txid one, a bare witness_utxo does not, and an own
+/// copy that is still false after a file says so without blaming it.
+#[test]
+fn collect_keeps_a_files_false_statement_out_of_a_spend_not_yet_final() {
+    use faraday_core::wallet::{Session, Spend};
+    let c = testkit::compute();
+    let session = Session::default();
+    let honest = partial_p2wpkh();
+    let mut bare = honest.clone();
+    lying_witness(&mut bare, 99_999);
+    bare.inner_mut().inputs[0].non_witness_utxo = None;
+    let mut truthful_witness = honest.clone();
+    lying_witness(&mut truthful_witness, 50_000);
+    truthful_witness.inner_mut().inputs[0].non_witness_utxo = None;
+    let mut wrong_prev = honest.clone();
+    wrong_txid(&mut wrong_prev);
+    let mut wrong_only = wrong_prev.clone();
+    wrong_only.inner_mut().inputs[0].partial_sigs.clear();
+    let why_file = |spend: &mut Spend, file: &faraday_psbt::Psbt| {
+        let before = spend.psbt.to_bytes();
+        let why = spend
+            .collect(&c, &session, &file.to_bytes(), "c.psbt")
+            .unwrap_err();
+        assert_eq!(spend.psbt.to_bytes(), before, "the own copy is as it was");
+        why
+    };
+    // Own previous transaction, the file a lying witness_utxo.
+    let mut spend = Spend::new(honest.clone(), "own.psbt");
+    let why = why_file(&mut spend, &bare);
+    assert_eq!(
+        why,
+        EN.wallet_file_states_false
+            .replacen("{}", "c.psbt", 1)
+            .replacen("{}", "0", 1)
+    );
+    assert!(
+        spend
+            .collect(&c, &session, &honest.to_bytes(), "d.psbt")
+            .is_ok(),
+        "a clean file collects"
+    );
+    // Own true witness_utxo, the file a previous transaction of another txid.
+    let mut spend = Spend::new(truthful_witness.clone(), "own.psbt");
+    let why = why_file(&mut spend, &wrong_prev);
+    assert!(why.contains("c.psbt"), "{why}");
+    assert!(
+        spend
+            .collect(&c, &session, &truthful_witness.to_bytes(), "d.psbt")
+            .is_ok()
+    );
+    // Own wrong-txid previous transaction, the file the right one.
+    let mut spend = Spend::new(wrong_only.clone(), "own.psbt");
+    assert!(spend.refused().is_some());
+    spend
+        .collect(&c, &session, &honest.to_bytes(), "c.psbt")
+        .expect("proven repair");
+    assert_eq!(spend.refused(), None);
+    assert!(spend.psbt.inner().inputs[0].non_witness_utxo.is_some());
+    // The other way: own right, file wrong-txid is refused (above); a bare
+    // witness_utxo repairs nothing, and nobody is blamed.
+    let mut spend = Spend::new(wrong_only.clone(), "own.psbt");
+    let why = why_file(&mut spend, &truthful_witness);
+    assert!(!why.contains("c.psbt"), "{why}");
+    assert_eq!(Some(why), spend.refused());
+    // A file that is false on its own is named, whatever the own copy
+    // holds, and so is one whose `witness_utxo` differs from the output of
+    // the own right previous transaction.
+    let mut lying_with_previous = honest.clone();
+    lying_witness(&mut lying_with_previous, 99_999);
+    let mut own_both = honest.clone();
+    lying_witness(&mut own_both, 50_000);
+    let named = EN
+        .wallet_file_states_false
+        .replacen("{}", "c.psbt", 1)
+        .replacen("{}", "0", 1);
+    for (what, own, file) in [
+        ("own right, file wrong txid", &honest, &wrong_prev),
+        (
+            "own true witness_utxo, file right previous with a lie",
+            &truthful_witness,
+            &lying_with_previous,
+        ),
+        ("own both, file a bare lie", &own_both, &bare),
+        (
+            "own wrong txid, file right previous with a lie",
+            &wrong_only,
+            &lying_with_previous,
+        ),
+        ("own wrong txid, file wrong txid", &wrong_only, &wrong_only),
+    ] {
+        let mut spend = Spend::new(own.clone(), "own.psbt");
+        assert_eq!(why_file(&mut spend, file), named, "{what}");
+        spend
+            .collect(&c, &session, &honest.to_bytes(), "d.psbt")
+            .unwrap_or_else(|e| panic!("{what}: a clean file collects: {e}"));
+    }
+}
+
+/// A file repairing one input while another stays false is refused, and
+/// blames no file: a single file repairing both is the way out.
+#[test]
+fn collect_repairs_all_false_inputs_or_none() {
+    use faraday_core::wallet::{Session, Spend};
+    let c = testkit::compute();
+    let session = Session::default();
+    let honest = build(&[0, 1], false, true, None);
+    let mut own = honest.clone();
+    for i in 0..2 {
+        let out = honest.inner().inputs[i]
+            .non_witness_utxo
+            .clone()
+            .unwrap()
+            .output[i]
+            .clone();
+        own.inner_mut().inputs[i].non_witness_utxo = Some(other_previous(out, 0));
+    }
+    let mut one_fixed = own.clone();
+    one_fixed.inner_mut().inputs[0].non_witness_utxo =
+        honest.inner().inputs[0].non_witness_utxo.clone();
+    one_fixed.inner_mut().inputs[1].non_witness_utxo = None;
+    let mut spend = Spend::new(own, "own.psbt");
+    let before = spend.psbt.to_bytes();
+    let why = spend
+        .collect(&c, &session, &one_fixed.to_bytes(), "c.psbt")
+        .unwrap_err();
+    assert!(!why.contains("c.psbt"), "{why}");
+    assert_eq!(spend.psbt.to_bytes(), before);
+    spend
+        .collect(&c, &session, &honest.to_bytes(), "d.psbt")
+        .expect("a file repairing both");
+    assert_eq!(spend.refused(), None);
+}
+
+/// A disagreement beside an input whose witness fails is what the check
+/// says first, with real rows: the failing witness's own Invalid row does
+/// not make it "a signature is wrong". A wrong signature on another input
+/// does.
+#[test]
+fn a_disagreement_beside_a_failing_witness_is_named_not_called_a_wrong_signature() {
+    let mut psbt = build(&[0, 7], false, true, None);
+    lying_witness(&mut psbt, 99_999);
+    let witness = psbt.inner().inputs[1].final_script_witness.clone().unwrap();
+    let mut parts: Vec<Vec<u8>> = witness.iter().map(<[u8]>::to_vec).collect();
+    parts[2][5] ^= 1;
+    psbt.inner_mut().inputs[1].final_script_witness =
+        Some(faraday_bip::bitcoin::Witness::from_slice(&parts));
+    let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+    let o = checked(&mut app);
+    let verdict = |i: usize| {
+        o.check
+            .rows
+            .iter()
+            .find(|r| r.input == i)
+            .map(|r| r.wrong())
+    };
+    assert_eq!(verdict(0), Some(false), "input 0 is true");
+    assert_eq!(verdict(1), Some(true), "input 1's witness fails");
+    assert_eq!(o.check.mismatched, vec![1]);
+    assert_eq!(
+        o.check.headline(),
+        EN.nonce_disagree_head.replace("{}", "1")
+    );
+    let shown = app.drawn_texts().join(" | ");
+    assert!(shown.contains(EN.nonce_screen_refused_disagree), "{shown}");
+    assert!(!shown.contains(EN.nonce_screen_refused), "{shown}");
+}
+
+/// Honest partly signed PSBTs of more than p2wpkh, one signature of two
+/// under a p2wsh multisig and under a taproot script path, are sound and
+/// offered as they are: more signatures are wanted.
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    clippy::disallowed_methods,
+    reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
+)]
+fn an_honest_partly_signed_multisig_and_script_path_are_offered() {
+    use btc::key::Keypair;
+    use btc::script::Builder;
+    use btc::sighash::{Prevouts, TapSighashType};
+    use btc::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
+    use faraday_bip::bitcoin::{self as btc, Amount, ScriptBuf, TxOut};
+    let secp = Secp256k1::new();
+    let sk = |n: u8| SecretKey::from_slice(&[n; 32]).unwrap();
+    let pk = |n: u8| PublicKey::new(Point::from_secret_key(&secp, &sk(n)));
+    let pair = |n: u8| Keypair::from_secret_key(&secp, &sk(n));
+    // 1. p2wsh, two of two, one signature.
+    let ms = Builder::new()
+        .push_int(2)
+        .push_key(&pk(5))
+        .push_key(&pk(6))
+        .push_int(2)
+        .push_opcode(btc::opcodes::all::OP_CHECKMULTISIG)
+        .into_script();
+    let wsh = ScriptBuf::new_p2wsh(&ms.wscript_hash());
+    // 2. taproot script path, two of two in the leaf, one signature.
+    let (x5, _) = pair(5).x_only_public_key();
+    let (x6, _) = pair(6).x_only_public_key();
+    let (internal, _) = pair(9).x_only_public_key();
+    let leaf = Builder::new()
+        .push_x_only_key(&x5)
+        .push_opcode(btc::opcodes::all::OP_CHECKSIGVERIFY)
+        .push_x_only_key(&x6)
+        .push_opcode(btc::opcodes::all::OP_CHECKSIG)
+        .into_script();
+    let info = TaprootBuilder::new()
+        .add_leaf(0, leaf.clone())
+        .unwrap()
+        .finalize(&secp, internal)
+        .unwrap();
+    let tr = ScriptBuf::new_p2tr(&secp, internal, info.merkle_root());
+    let previous = btc::Transaction {
+        version: btc::transaction::Version::TWO,
+        lock_time: btc::absolute::LockTime::ZERO,
+        input: vec![btc::TxIn {
+            previous_output: OutPoint::new(btc::Txid::from_byte_array([8; 32]), 0),
+            script_sig: ScriptBuf::new(),
+            sequence: btc::Sequence::MAX,
+            witness: btc::Witness::new(),
+        }],
+        output: [&wsh, &tr]
+            .iter()
+            .map(|s| TxOut {
+                value: Amount::from_sat(50_000),
+                script_pubkey: (*s).clone(),
+            })
+            .collect(),
+    };
+    let txid = previous.compute_txid();
+    let tx = btc::Transaction {
+        version: btc::transaction::Version::TWO,
+        lock_time: btc::absolute::LockTime::ZERO,
+        input: (0..2)
+            .map(|v| btc::TxIn {
+                previous_output: OutPoint::new(txid, v),
+                script_sig: ScriptBuf::new(),
+                sequence: btc::Sequence::MAX,
+                witness: btc::Witness::new(),
+            })
+            .collect(),
+        output: vec![TxOut {
+            value: Amount::from_sat(10_000),
+            script_pubkey: wsh.clone(),
+        }],
+    };
+    let mut inner = btc::Psbt::from_unsigned_tx(tx.clone()).unwrap();
+    for input in &mut inner.inputs {
+        input.non_witness_utxo = Some(previous.clone());
+    }
+    let mut cache = SighashCache::new(&tx);
+    let z = cache
+        .p2wsh_signature_hash(0, &ms, Amount::from_sat(50_000), EcdsaSighashType::All)
+        .unwrap();
+    let sig = secp.sign_ecdsa(&Message::from_digest(z.to_byte_array()), &sk(5));
+    inner.inputs[0].witness_script = Some(ms.clone());
+    inner.inputs[0].partial_sigs.insert(
+        pk(5),
+        ecdsa::Signature {
+            signature: sig,
+            sighash_type: EcdsaSighashType::All,
+        },
+    );
+    let hash = TapLeafHash::from_script(&leaf, LeafVersion::TapScript);
+    let z = cache
+        .taproot_script_spend_signature_hash(
+            1,
+            &Prevouts::All(&previous.output),
+            hash,
+            TapSighashType::Default,
+        )
+        .unwrap();
+    let schnorr = secp.sign_schnorr_no_aux_rand(&Message::from_digest(z.to_byte_array()), &pair(5));
+    inner.inputs[1].tap_internal_key = Some(internal);
+    inner.inputs[1].tap_merkle_root = info.merkle_root();
+    inner.inputs[1].tap_scripts.insert(
+        info.control_block(&(leaf.clone(), LeafVersion::TapScript))
+            .unwrap(),
+        (leaf.clone(), LeafVersion::TapScript),
+    );
+    inner.inputs[1].tap_script_sigs.insert(
+        (x5, hash),
+        btc::taproot::Signature {
+            signature: schnorr,
+            sighash_type: TapSighashType::Default,
+        },
+    );
+    let psbt = faraday_psbt::Psbt::from(inner);
+    let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+    let o = checked(&mut app);
+    assert_eq!(o.check.rows.len(), 2);
+    for r in &o.check.rows {
+        assert!(!r.wrong() && !r.unchecked(), "{:?}", r.verdict);
+    }
+    assert_eq!((o.check.unread, o.check.disagree), (0, 0));
+    assert!(o.check.sound() && !o.check.refused(false));
+    let shown = app.drawn_texts().join(" | ");
+    assert!(shown.contains(EN.nonce_screen_more_wanted), "{shown}");
+    assert!(shown.contains(EN.vault_save_to_a_stick), "{shown}");
 }

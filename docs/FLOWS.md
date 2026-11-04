@@ -2078,14 +2078,40 @@ witness that does not match the output it spends, with or without a
 signature row ("Not finished: a witness does not match its output", one
 error line per input; the headline says so when no signature that stands
 is wrong and no nonce repeats, an unread input or an unchecked row on
-another input notwithstanding), nor a PSBT with a final input whose
-previous output does not read or is stated falsely (a previous
-transaction of another txid, beside a `witness_utxo` or not; "Not
-finished: an input's output cannot be read", no Save to a stick, no Show
-as QR). A raw transaction
+another input notwithstanding), nor a PSBT with an input, final or not,
+whose previous transaction is of another txid or lacks the output it
+spends, or a final input that states no output ("Not finished: an
+input's output cannot be read", no Save to a stick, no Show as QR), nor
+one with an input, final or not, whose `witness_utxo` states another
+output than its previous transaction of the right txid (the transaction
+is the one a node reads: the headline says how many inputs "state an
+output their previous transaction does not", the line below says "Not
+finished: an input states an output its previous transaction does not",
+and a signature made over the stated amount reads wrong against it).
+The disagreement is what is said when no signature is wrong and no
+nonce repeats, beside another unread input or a failing witness too (the
+failing witness's own rows read Invalid and do not count); a wrong
+signature on another input, or a repeated nonce, is what is said
+otherwise. An input not yet final that
+merely states no output, and a partly signed PSBT whose inputs are
+honest, are offered as they are. A raw transaction
 whose inputs state no output they spend is checked against the PSBT in
 Files of the same transaction, as Decode reads its amounts; with none,
 its headline says how many inputs could not be checked.
+
+A cosigner's file brought into a spend (Collect) is refused, by name,
+whatever the spend's own copy holds, when it states something false on
+its own (a `witness_utxo` against its previous transaction, a previous
+transaction of another txid or without the output) or when its
+`witness_utxo` differs from the output of a previous transaction of the
+right txid the spend holds; final or not, and the spend's PSBT stays as
+it was, a later clean file still collecting. Of two previous transactions
+the one of the right txid is kept, its hash proving it; a `witness_utxo`
+alone proves nothing and repairs nothing. Where the spend itself holds a
+false statement no file fixes, the reason is the spend's, naming no file.
+A repair is all or nothing across inputs: a file repairing one input
+while another stays false is refused, blaming no file, and a single file
+repairing every false input is the way out.
 
 The check is made once, when it opens, against the keys and wallets
 loaded then; Decode's way back makes it again when they have changed.

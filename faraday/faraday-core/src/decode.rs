@@ -240,26 +240,11 @@ pub fn decode(
     })
 }
 
-/// Costs a txid per input with a previous transaction. The outputs a
-/// PSBT's inputs spend, in order, as far as it says.
+/// Costs a classify per input. The outputs a PSBT's inputs spend, in
+/// order, as far as it says: read as its own checks read them
+/// ([`faraday_psbt::verify::spent_outputs`]).
 pub fn prevouts_of(psbt: &faraday_psbt::Psbt) -> Vec<Option<TxOut>> {
-    let inner = psbt.inner();
-    inner
-        .inputs
-        .iter()
-        .zip(&inner.unsigned_tx.input)
-        .map(|(input, txin)| {
-            // A previous transaction of another txid states nothing, as
-            // the PSBT's own checks read it.
-            input.witness_utxo.clone().or_else(|| {
-                input
-                    .non_witness_utxo
-                    .as_ref()
-                    .filter(|t| t.compute_txid() == txin.previous_output.txid)
-                    .and_then(|t| t.output.get(txin.previous_output.vout as usize).cloned())
-            })
-        })
-        .collect()
+    faraday_psbt::verify::spent_outputs(psbt.inner())
 }
 
 /// Satoshis as bitcoin, eight places.
@@ -390,16 +375,6 @@ impl DecodeArea {
     }
 }
 
-/// Costs a classify per input. The inputs that are final but whose
-/// previous output does not read: none stated, or a previous transaction
-/// of another txid or without the output
-/// ([`crate::wallet::NonceCheck::unread`]).
-fn unread(psbt: &faraday_psbt::Psbt) -> usize {
-    (0..psbt.inner().inputs.len())
-        .filter(|i| faraday_psbt::verify::final_unread(psbt.inner(), *i))
-        .count()
-}
-
 /// Costs a PSBT parse (through `parse_bytes`). A raw transaction as a
 /// PSBT whose inputs are final with the transaction's own `scriptSig`s
 /// and witnesses, each with the output it spends where `prevouts` states
@@ -432,7 +407,8 @@ fn raw_as_psbt(
 }
 
 impl Faraday {
-    /// Costs a txid, and a PSBT read for each Inbox PSBT of the same txid.
+    /// Costs a txid, a PSBT read for each Inbox PSBT of the same txid, and a
+    /// txid per input with a previous transaction in each.
     /// The amounts `tx`'s inputs spend, from every PSBT here whose
     /// unsigned transaction is exactly `tx` ([`same_unsigned`]): the
     /// spend's, then the Inbox's. An input's amount is used when no two of
@@ -580,8 +556,7 @@ impl Faraday {
             }
             _ => return,
         };
-        let mut check = self.session.nonce_check(c, &psbt);
-        check.unread = unread(&psbt);
+        let check = self.session.nonce_check(c, &psbt);
         // A wrong signature, a witness or a nonce used twice refuses the
         // transaction: nothing finished is offered.
         let finished = if check.wrong() {
@@ -589,8 +564,9 @@ impl Faraday {
         } else if let Some(tx) = &raw {
             Some(tx.clone())
         } else if check.unread > 0 {
-            // A final input whose output does not read is one nothing of
-            // can be checked: no transaction is finished from the PSBT.
+            // An input whose output does not read, or states one falsely,
+            // is one nothing of can be checked: no transaction is finished
+            // from the PSBT.
             None
         } else {
             let mut copy = psbt.clone();
@@ -631,7 +607,6 @@ impl Faraday {
             && o.made_with != now
         {
             o.check = self.session.nonce_check(c, &o.psbt);
-            o.check.unread = unread(&o.psbt);
             if o.check.wrong() {
                 o.finished = None;
                 o.hex = None;

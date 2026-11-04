@@ -322,6 +322,9 @@ fn decode_names_the_psbt_the_amounts_going_in_came_from() {
 
     // Another PSBT of the same transaction that states another amount.
     let mut other = psbt.clone();
+    // Its amount stands in a `witness_utxo` alone: beside a previous
+    // transaction of the right txid a `witness_utxo` is not what is read.
+    other.inner_mut().inputs[0].non_witness_utxo = None;
     let utxo = other.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
     utxo.value += faraday_bip::bitcoin::Amount::from_sat(1000);
     let mut both = with_inbox(vec![
@@ -480,6 +483,9 @@ fn a_psbt_without_the_amounts_does_not_disagree_with_one_that_has_them() {
     assert!(text.contains("From spend.psbt"), "{text}");
 
     let mut other = psbt.clone();
+    // Its amount stands in a `witness_utxo` alone: beside a previous
+    // transaction of the right txid a `witness_utxo` is not what is read.
+    other.inner_mut().inputs[0].non_witness_utxo = None;
     let utxo = other.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
     utxo.value += faraday_bip::bitcoin::Amount::from_sat(1000);
     let mut differ = with_inbox(vec![
@@ -657,8 +663,37 @@ fn decode_refuses_an_amount_going_in_over_21_million_bitcoin() {
     let hex = app.spend().unwrap().spend.finished_hex().unwrap();
     let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
     let max = faraday_bip::bitcoin::Amount::MAX_MONEY;
+    // The amount stands in a `witness_utxo` alone: beside a previous
+    // transaction of the right txid it is not what is read.
+    psbt.inner_mut().inputs[0].non_witness_utxo = None;
     let utxo = psbt.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
     utxo.value = max + faraday_bip::bitcoin::Amount::from_sat(1);
+    let mut beside = with_inbox(vec![
+        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+    ]);
+    beside.press(Action::DecodeInbox(0));
+    assert!(beside.decode().is_none());
+    assert_eq!(beside.toast_text(), Some(EN.decode_inputs_over_max_money));
+}
+
+// The same amount stated inside a previous transaction of the right txid,
+// the output a node reads, is refused as before.
+#[test]
+fn decode_refuses_an_amount_over_21_million_inside_the_previous_transaction() {
+    use faraday_core::strings::EN;
+    let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let over = faraday_bip::bitcoin::Amount::MAX_MONEY + faraday_bip::bitcoin::Amount::from_sat(1);
+    let vout = psbt.inner().unsigned_tx.input[0].previous_output.vout as usize;
+    let mut prev = psbt.inner().inputs[0]
+        .non_witness_utxo
+        .clone()
+        .expect("a previous transaction");
+    prev.output[vout].value = over;
+    psbt.inner_mut().unsigned_tx.input[0].previous_output.txid = prev.compute_txid();
+    psbt.inner_mut().inputs[0].non_witness_utxo = Some(prev);
+    psbt.inner_mut().inputs[0].witness_utxo = None;
+    let hex = faraday_bip::bitcoin::consensus::encode::serialize_hex(&psbt.inner().unsigned_tx);
     let mut beside = with_inbox(vec![
         ("broadcast-me.txt".to_string(), hex.into_bytes()),
         ("spend.psbt".to_string(), psbt.to_bytes()),

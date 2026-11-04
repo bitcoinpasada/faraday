@@ -796,8 +796,8 @@ impl Session {
         self.wallets.iter().map(|w| w.policy.clone()).collect()
     }
 
-    /// Costs what `key_refs` and `deterministic` cost, and a classify per
-    /// input and a tweak per final taproot witness. The nonce check at
+    /// Costs what `key_refs` and `deterministic` cost, a few classifies
+    /// per input and a tweak per final taproot witness. The nonce check at
     /// the end of a spend: every signature the PSBT carries checked against
     /// its key and this transaction, each one a key held here made
     /// recomputed from that key (RFC 6979 or BIP-340 with no extra
@@ -833,11 +833,13 @@ impl Session {
         let mismatched = (0..psbt.inner().inputs.len())
             .filter(|i| faraday_psbt::verify::witness_mismatch(psbt.inner(), *i))
             .collect();
+        let (unread, disagree) = faraday_psbt::verify::unread_counts(psbt.inner());
         NonceCheck {
             rows,
             mismatched,
             reused: faraday_psbt::verify::repeated_nonces(psbt, &ctx),
-            unread: 0,
+            unread,
+            disagree,
         }
     }
 
@@ -1079,16 +1081,7 @@ impl PsbtSeen {
         let sigs = inner.inputs.iter().map(|i| i.partial_sigs.len()).sum();
         let first = (|| {
             let input = inner.inputs.first()?;
-            let txin = inner.unsigned_tx.input.first()?;
-            let spk = match (&input.witness_utxo, &input.non_witness_utxo) {
-                (Some(out), _) => out.script_pubkey.clone(),
-                (None, Some(tx)) => tx
-                    .output
-                    .get(txin.previous_output.vout as usize)?
-                    .script_pubkey
-                    .clone(),
-                _ => return None,
-            };
+            let spk = faraday_psbt::verify::spent_output_of(inner, 0)?.script_pubkey;
             let mut places: Vec<(bool, u32)> = Vec::new();
             let paths = input
                 .bip32_derivation
@@ -1167,25 +1160,19 @@ fn signing_state(inner: &faraday_bip::bitcoin::Psbt) -> (bool, Vec<Fingerprint>)
     (signed, unsigned_by)
 }
 
-/// Whether the transaction's id is fixed before it is signed: every
+/// Costs a txid per input with a previous transaction. Whether the
+/// transaction's id is fixed before it is signed: every
 /// input spends a native SegWit or Taproot output, so no signature lands
 /// in the part of the transaction its id is taken over.
 pub fn txid_known(psbt: &Psbt) -> bool {
     let inner = psbt.inner();
-    inner
-        .inputs
+    faraday_psbt::verify::spent_outputs(inner)
         .iter()
-        .zip(&inner.unsigned_tx.input)
-        .all(|(input, txin)| {
-            let spk = match (&input.witness_utxo, &input.non_witness_utxo) {
-                (Some(out), _) => Some(out.script_pubkey.clone()),
-                (None, Some(tx)) => tx
-                    .output
-                    .get(txin.previous_output.vout as usize)
-                    .map(|o| o.script_pubkey.clone()),
-                _ => None,
-            };
-            spk.is_some_and(|s| s.is_p2wpkh() || s.is_p2wsh() || s.is_p2tr())
+        .all(|out| {
+            out.as_ref().is_some_and(|o| {
+                let s = &o.script_pubkey;
+                s.is_p2wpkh() || s.is_p2wsh() || s.is_p2tr()
+            })
         })
 }
 
@@ -1564,11 +1551,64 @@ impl Spend {
         {
             return Err(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
         }
+        // A file that lies is refused and named, whatever the spend's own
+        // copy holds: an input of it that states something false on its
+        // own, or a `witness_utxo` that differs from the output of a
+        // previous transaction of the right txid the spend holds. The
+        // spend's own PSBT stays as it was.
+        if let Some(i) = file_lies(self.psbt.inner(), other.inner()) {
+            return Err(fill(EN.wallet_file_states_false, &[source, &i.to_string()]));
+        }
         let before = self.signers(c, session);
         let mut merged = self.psbt.inner().clone();
+        let incoming = other.into_inner();
+        // `Input::combine` drops one of `non_witness_utxo` and
+        // `witness_utxo` where it takes the other, which would let a file
+        // replace the previous transaction by an amount of its own, or
+        // hide a disagreement. Both are kept, own first, except that a
+        // previous transaction of the right txid beats one of another txid
+        // from either side, its hash proving it; a bare `witness_utxo`
+        // proves nothing and repairs nothing. An input that then states
+        // something false is refused below.
+        let stated: Vec<_> = merged
+            .inputs
+            .iter()
+            .zip(&incoming.inputs)
+            .zip(&merged.unsigned_tx.input)
+            .map(|((own, file), txin)| {
+                let right = |t: &&Transaction| t.compute_txid() == txin.previous_output.txid;
+                let prev = match (&own.non_witness_utxo, &file.non_witness_utxo) {
+                    (Some(a), _) if right(&a) => Some(a.clone()),
+                    (_, Some(b)) if right(&b) => Some(b.clone()),
+                    (a, b) => a.clone().or_else(|| b.clone()),
+                };
+                (
+                    prev,
+                    own.witness_utxo
+                        .clone()
+                        .or_else(|| file.witness_utxo.clone()),
+                )
+            })
+            .collect();
+        let own_false: Vec<bool> = (0..merged.inputs.len())
+            .map(|i| faraday_psbt::verify::states_false(&merged, i))
+            .collect();
         merged
-            .combine(other.into_inner())
+            .combine(incoming)
             .map_err(|e| fill(EN.wallet_cannot_combine, &[&e.to_string()]))?;
+        for (input, (prev, witness)) in merged.inputs.iter_mut().zip(stated) {
+            input.non_witness_utxo = prev;
+            input.witness_utxo = witness;
+        }
+        // What is left of a false statement the file brings, final or not
+        // (an amount of the spend's own that its previous transaction
+        // contradicts), is the file's: the spend's own PSBT stays as it
+        // was.
+        if let Some(i) = (0..merged.inputs.len())
+            .find(|&i| !own_false[i] && faraday_psbt::verify::states_false(&merged, i))
+        {
+            return Err(fill(EN.wallet_file_states_false, &[source, &i.to_string()]));
+        }
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);
         // A final input that cannot stand, rows or none, is no signing: the
@@ -1604,9 +1644,11 @@ impl Spend {
 
     /// Costs a classify per input, final or not, and a tweak per final
     /// taproot witness. Why no transaction is finished from `psbt`: its
-    /// first input whose finalized witness does not match its output, or
-    /// that is final with an output that cannot be read. A PSBT read with
-    /// one reaches `finish` without `collect`. Drawing reads
+    /// first input whose finalized witness does not match its output, that
+    /// states an output its previous transaction does not, that is final
+    /// with an output that cannot be read, or whose previous transaction
+    /// is not the one it spends or lacks the output, final or not. A PSBT
+    /// read with one reaches `finish` without `collect`. Drawing reads
     /// `SpendState::refused`, kept from this, and not this.
     pub fn refused(&self) -> Option<String> {
         refusal_of(self.psbt.inner())
@@ -1650,16 +1692,43 @@ impl Spend {
     }
 }
 
-/// Costs a classify per input and a tweak per final taproot witness. Why
-/// nothing finished is made from `psbt`: the first input whose finalized
-/// witness does not match the output it spends, else the first final input
-/// whose previous output does not read.
+/// Costs a classify per input. The first input of `file` that lies to the
+/// spend `own`, whatever `own` holds there: it states something false on
+/// its own, or its `witness_utxo` differs from the output of a previous
+/// transaction of the right txid that `own` holds.
+fn file_lies(own: &faraday_bip::bitcoin::Psbt, file: &faraday_bip::bitcoin::Psbt) -> Option<usize> {
+    (0..file.inputs.len().min(own.inputs.len())).find(|&i| {
+        let txin = &own.unsigned_tx.input[i];
+        let own_output = own.inputs[i]
+            .non_witness_utxo
+            .as_ref()
+            .filter(|t| t.compute_txid() == txin.previous_output.txid)
+            .and_then(|t| t.output.get(txin.previous_output.vout as usize));
+        faraday_psbt::verify::states_false(file, i)
+            || matches!(
+                (own_output, &file.inputs[i].witness_utxo),
+                (Some(o), Some(w)) if o != w
+            )
+    })
+}
+
+/// Costs a few classifies per input and a tweak per final taproot witness. Why
+/// nothing finished is made from `psbt`: the first input, in order, with
+/// anything to say, and for that input the first of these: its finalized
+/// witness does not match the output it spends, its `witness_utxo` and
+/// previous transaction differ, it is final and its previous output does
+/// not read, or its previous transaction is not the one it spends or lacks
+/// the output. There is no priority across inputs.
 fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<String> {
     (0..psbt.inputs.len()).find_map(|i| {
         if faraday_psbt::verify::witness_mismatch(psbt, i) {
             Some(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]))
+        } else if faraday_psbt::verify::utxos_disagree(psbt, i) {
+            Some(fill(EN.psbt_final_prev_disagree, &[&i.to_string()]))
         } else if faraday_psbt::verify::final_unread(psbt, i) {
             Some(fill(EN.psbt_final_prev_unread, &[&i.to_string()]))
+        } else if faraday_psbt::verify::states_false(psbt, i) {
+            Some(fill(EN.psbt_prev_false, &[&i.to_string()]))
         } else {
             None
         }

@@ -47,22 +47,27 @@ use crate::classify::{Classified, ScriptKind, Wrapper, classify, spent_output};
 use crate::psbt::{Error, Psbt};
 use crate::reason::Reason;
 
-/// Whether every input is final or has enough signatures to be finalized.
+/// Whether every input is final or has enough signatures to be finalized,
+/// and none states a false output (a final one included).
 pub fn is_complete(psbt: &Psbt) -> bool {
     if prevout_missing(psbt.inner()).is_some() {
         return false;
     }
     (0..psbt.inner().inputs.len()).all(|i| {
         let input = &psbt.inner().inputs[i];
+        let c = classify(psbt.inner(), i);
+        if !c.problems.is_empty() {
+            return false;
+        }
         if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
             return true;
         }
-        let c = classify(psbt.inner(), i);
-        c.problems.is_empty() && build_final(psbt.inner(), i, &c, input).is_ok_and(|f| f.is_some())
+        build_final(psbt.inner(), i, &c, input).is_ok_and(|f| f.is_some())
     })
 }
 
-/// Finalizes every input that has enough signatures. Returns the
+/// Finalizes every input that has enough signatures, and refuses an input
+/// that states a false output, final or not. Returns the
 /// extracted transaction when all inputs are final, `None` when some are
 /// still waiting for signatures.
 pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
@@ -72,23 +77,28 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
     // on a missing output. So no input is touched until every one is
     // known to have its spent output.
     if let Some(input) = prevout_missing(psbt.inner()) {
-        return Err(Error::Finalize {
-            input,
-            reason: Reason::PrevTxNoOutput,
-        });
+        // The reason is what `classify` found (a previous transaction of
+        // another txid, or without the output).
+        let reason = classify(psbt.inner(), input)
+            .problems
+            .first()
+            .copied()
+            .unwrap_or(Reason::PrevTxNoOutput);
+        return Err(Error::Finalize { input, reason });
     }
     let mut all_final = true;
     for i in 0..psbt.inner().inputs.len() {
         let input = &psbt.inner().inputs[i];
-        if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
-            continue;
-        }
         let c = classify(psbt.inner(), i);
+        // An input that states a false output is refused final or not.
         if let Some(problem) = c.problems.first() {
             return Err(Error::Finalize {
                 input: i,
                 reason: *problem,
             });
+        }
+        if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
+            continue;
         }
         if c.utxo.is_none() {
             all_final = false;
@@ -137,11 +147,21 @@ pub(crate) fn clear_signing_fields(input: &mut Input) {
     input.hash256_preimages.clear();
 }
 
-/// The first input that states no `witness_utxo` and whose
-/// `non_witness_utxo` lacks the output spent, `None` when there is none.
+/// Costs a txid per input with a previous transaction. The first input
+/// that states no `witness_utxo` and whose `non_witness_utxo` lacks the
+/// output at the spent index, whatever its txid: `bitcoin`'s extractor
+/// and finalizer index it unchecked and would panic. `None` when there is
+/// none.
 fn prevout_missing(inner: &bitcoin::Psbt) -> Option<usize> {
-    (0..inner.inputs.len())
-        .find(|&i| inner.inputs[i].non_witness_utxo.is_some() && spent_output(inner, i).is_none())
+    (0..inner.inputs.len()).find(|&i| {
+        let input = &inner.inputs[i];
+        let vout = inner.unsigned_tx.input[i].previous_output.vout as usize;
+        input.witness_utxo.is_none()
+            && input
+                .non_witness_utxo
+                .as_ref()
+                .is_some_and(|tx| tx.output.get(vout).is_none())
+    })
 }
 
 /// Whether `pk` is the key the input's script pays to (single-sig) or one

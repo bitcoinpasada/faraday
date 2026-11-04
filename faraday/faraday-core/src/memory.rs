@@ -47,21 +47,14 @@ const MAX: usize = 1000;
 pub type Signed = ([u8; 32], Vec<u64>);
 
 /// The unsigned transaction's SHA-256, and the amount each input states,
-/// when every input states one.
+/// when every input states one the PSBT's own checks read. Costs a txid
+/// per input with a previous transaction.
 pub fn stated(psbt: &Psbt) -> Option<Signed> {
     let inner = psbt.inner();
     let hash = sha256::Hash::hash(&serialize(&inner.unsigned_tx)).to_byte_array();
     let mut amounts = Vec::new();
-    for (i, input) in inner.inputs.iter().enumerate() {
-        let value = match (&input.witness_utxo, &input.non_witness_utxo) {
-            (Some(out), _) => out.value,
-            (None, Some(tx)) => {
-                let vout = inner.unsigned_tx.input.get(i)?.previous_output.vout as usize;
-                tx.output.get(vout)?.value
-            }
-            _ => return None,
-        };
-        amounts.push(value.to_sat());
+    for out in faraday_psbt::verify::spent_outputs(inner) {
+        amounts.push(out?.value.to_sat());
     }
     Some((hash, amounts))
 }

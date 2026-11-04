@@ -5264,6 +5264,8 @@ strings! {
     nonce_check_finalized_here: "Valid · finalized: its nonce is not recomputed",
     /// Headline of `nonce_check` for a raw transaction whose inputs state no output they spend. `{}`: how many inputs.
     nonce_unread_head: "Nonce check · {} not checked: the outputs they spend are not here",
+    /// Headline of `nonce_check` when inputs, final or not, state an output their previous transaction does not. `{}`: how many inputs.
+    nonce_disagree_head: "Nonce check · {} input(s) state an output their previous transaction does not",
     /// Headline of `nonce_check` when the transaction carries no signature.
     nonce_check_no_signatures: "Nonce check · no signatures",
     // ----- nonce check of a transaction brought in (faraday-core/src/screens/nonce_check.rs) -----
@@ -5273,8 +5275,10 @@ strings! {
     nonce_screen_more_wanted: "Not finished: more signatures are wanted",
     /// Line in `Screen::NonceCheck` when a signature is wrong.
     nonce_screen_refused: "Not finished: a signature is wrong",
-    /// Line in `Screen::NonceCheck` when a PSBT has a final input whose output cannot be read.
+    /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose output cannot be read or is stated falsely.
     nonce_screen_refused_unread: "Not finished: an input's output cannot be read",
+    /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose `witness_utxo` and previous transaction state different outputs.
+    nonce_screen_refused_disagree: "Not finished: an input states an output its previous transaction does not",
     /// The nonce check's refusal line when only a witness does not match its output.
     nonce_screen_refused_witness: "Not finished: a witness does not match its output",
     /// Headline of `nonce_check` when some signatures could not be checked. `{}`: how many were not checked, how many there are, `nonce_check_signature(s)`.
@@ -5923,8 +5927,14 @@ strings! {
     /// A warning on Review, a line of the nonce check card and why a spend
     /// is not finished. `{}`: the input.
     psbt_warn_witness_mismatch: "input {}: its witness does not match the output it spends",
-    /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input.
+    /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input; its `witness_utxo` and previous transaction state different outputs, final or not.
+    psbt_final_prev_disagree: "input {}: its witness_utxo and its previous transaction state different outputs",
+    /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input; it is final and the output it spends cannot be read.
     psbt_final_prev_unread: "input {}: it is final but the output it spends cannot be read",
+    /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input; it is not final and its previous transaction is not the one it spends or lacks the output.
+    psbt_prev_false: "input {}: its previous transaction is not the one it spends, or has no such output",
+    /// Why a file is not collected (`Spend::collect`). `{}`: the file, the input; the file brings a previous transaction or a `witness_utxo` that states another output than what the spend holds.
+    wallet_file_states_false: "{}: input {}: it states an output its previous transaction does not",
     /// A warning on Review. `{}`: the input, why (a `nonce_unchecked_*`).
     psbt_warn_signature_unchecked: "input {}: a signature was not checked: {}",
     /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.

@@ -244,19 +244,25 @@ pub(crate) struct Classified {
     pub amount_unverified: bool,
 }
 
-/// The output input `index` spends, as `bitcoin`'s `Psbt::spend_utxo`
-/// reads it (`witness_utxo` first, then `non_witness_utxo` at the spent
-/// index), or `None` where the PSBT does not state it. `spend_utxo`
-/// indexes the transaction's outputs unchecked, and `Psbt::extract_tx`
-/// and `Psbt::sighash_ecdsa` reach it, so every path through them asks
+/// Costs a txid. The output input `index` spends, as [`classify`] reads
+/// it: the output of a `non_witness_utxo` whose txid is the one spent,
+/// else the `witness_utxo` where there is no previous transaction, or
+/// `None` where the PSBT does not state it. A previous transaction of
+/// another txid, or without the output, states nothing, beside a
+/// `witness_utxo` or not, and `classify` leaves the output unknown
+/// there too. Where the two disagree the previous transaction
+/// is the one a node reads, so a signature is checked over it and not
+/// over the stated amount. `Psbt::extract_tx` and `Psbt::sighash_ecdsa`
+/// index a `non_witness_utxo` unchecked, so every path through them asks
 /// this first.
 pub(crate) fn spent_output(psbt: &bitcoin::Psbt, index: usize) -> Option<&TxOut> {
     let input = psbt.inputs.get(index)?;
-    if let Some(out) = &input.witness_utxo {
-        return Some(out);
+    let prevout = psbt.unsigned_tx.input.get(index)?.previous_output;
+    match &input.non_witness_utxo {
+        Some(tx) if tx.compute_txid() == prevout.txid => tx.output.get(prevout.vout as usize),
+        Some(_) => None,
+        None => input.witness_utxo.as_ref(),
     }
-    let vout = psbt.unsigned_tx.input.get(index)?.previous_output.vout;
-    input.non_witness_utxo.as_ref()?.output.get(vout as usize)
 }
 
 /// Whether input `index` is spent by the legacy script system (its
@@ -266,7 +272,8 @@ pub(crate) fn spent_output(psbt: &bitcoin::Psbt, index: usize) -> Option<&TxOut>
 /// legacy signature hash takes the script code as given, and Bitcoin
 /// Core's removes every `OP_CODESEPARATOR` from it first
 /// (`FindAndDelete`), so a signature over such an input could not be
-/// checked against Core's. A lookup over the script's opcodes.
+/// checked against Core's. Costs a txid (the output spent), then a lookup
+/// over the script's opcodes.
 pub(crate) fn legacy_code_separator(psbt: &bitcoin::Psbt, index: usize) -> bool {
     let Some(out) = spent_output(psbt, index) else {
         return false;
@@ -320,6 +327,7 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
         }
         out
     });
+    let false_previous = !problems.is_empty();
     let utxo = match (input.witness_utxo.as_ref(), non_witness) {
         (Some(w), Some(nw)) => {
             if w != nw {
@@ -327,6 +335,10 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
             }
             Some(nw.clone())
         }
+        // A previous transaction that is not the one spent, or lacks the
+        // output, states nothing, and the `witness_utxo` beside it is no
+        // answer to it: the output stays unknown, as `spent_output` says.
+        (Some(_), None) if false_previous => None,
         (Some(w), None) => Some(w.clone()),
         (None, Some(nw)) => Some(nw.clone()),
         (None, None) => None,
