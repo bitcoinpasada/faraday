@@ -1340,7 +1340,7 @@ was built from.
   `Value`, `Error`, `parse`, `quote` and `Value`'s accessors stay;
   `faraday/faraday-intake/src/wallet.rs` (`holds_secret`).
 - **Crate.** `serde_json` 1.0.151 (dtolnay), `default-features = false,
-  features = ["alloc"]`, moved in `faraday-bip` from dev-dependencies to
+  features = ["alloc", "float_roundtrip"]`, moved in `faraday-bip` from dev-dependencies to
   dependencies, with `serde` (`default-features = false, features =
   ["alloc"]`). Whether `faraday-bip` builds with `alloc` alone is not
   checked: the batch checks it first and stops if not.
@@ -1352,7 +1352,8 @@ was built from.
   written. A number becomes `Value::Number` holding the decimal text Rust
   writes for the visitor's `u64`, `i64` or `f64` (so `1e3` reads as
   `1000`); `arbitrary_precision` is not turned on, since it changes
-  serde_json for every user in the workspace. Callers ask numbers only
+  serde_json for every user in the workspace; `float_roundtrip` is, so that
+  the decimal text reads back as the same value. Callers ask numbers only
   through `as_u64`; the test in `core/faraday-bip/tests/all/json.rs` that
   expects a number "as written" changes to this rule.
 - **`holds_secret`.** An Electrum file's keystore is checked for `xprv`,

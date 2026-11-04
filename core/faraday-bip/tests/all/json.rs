@@ -93,6 +93,13 @@ fn a_number_reads_as_the_decimal_text_of_its_value() {
 }
 
 #[test]
+fn a_large_number_reads_the_same_written_either_way() {
+    let digits = format!("5{}", "0".repeat(111));
+    assert_eq!(json::parse("5e111"), Ok(Value::Number(digits.clone())));
+    assert_eq!(json::parse(&digits), Ok(Value::Number(digits)));
+}
+
+#[test]
 fn a_number_out_of_the_f64_range_is_refused() {
     for bad in ["1e400", "-1e400", "[1e309]", r#"{"a":1e999}"#] {
         assert!(json::parse(bad).is_err(), "{bad:?} was read");

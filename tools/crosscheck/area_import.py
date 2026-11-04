@@ -859,8 +859,9 @@ class Import(Area):
 
     def json_cases(self):
         """The reader's own rules, beside CPython's: a key named twice
-        (written two ways too), the depth of 32, the grammar's refusals, and
-        random nestings of both kinds around the limit."""
+        (written two ways too), the depth of 32, the grammar's refusals, the
+        value of a float written each way, and random nestings of both kinds
+        around the limit."""
         rng = self.rng
         for text in [
                 '{"a":1,"a":2}', '{"a":1,"\\u0061":2}', '{"a":{"b":1},"b":{"b":2}}',
@@ -869,8 +870,12 @@ class Import(Area):
                 '[1,]', '{"a":1,}', "{'a':1}", "01", "1.", ".5", "-", "1e", "+1", "tru", "nul",
                 '"a', '"\\x"', '"\\u12"', '"tab\there"', '{"a" 1}', "{1:2}", "[1 2]", "1 2",
                 "{} x", "", "{", "[[]", "[]]", "1e400", "-1e400", "[1e308]", "[1e309]",
+                "5e111", "5" + "0" * 111,
         ]:
             self.json(text)
+        for _ in range(60):
+            f = rng.uniform(1, 10) * 10.0 ** rng.randrange(-300, 300)
+            self.json(rng.choice([repr(f), format(f, ".17e"), format(f, "f")]))
         for _ in range(60):
             n = rng.randrange(JSON_MAX_DEPTH - 4, JSON_MAX_DEPTH + 5)
             inner = rng.choice(["1", '"s"', "null", "{}", "[]"])

@@ -173,7 +173,7 @@ bip39 = { version = "2.2", default-features = false, features = ["all-languages"
 # JSON, behind faraday-bip's reader (docs/ESTABLISHED.md §5.13); a member that
 # needs `std` asks for it.
 serde = { version = "1.0", default-features = false, features = ["alloc"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc", "float_roundtrip"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

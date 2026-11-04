@@ -21,8 +21,12 @@ since it changes serde_json for every user in the workspace.
 flag per value and no string, so no copy of a key or seed is made beyond
 serde_json's own scratch buffer for a string with escapes.
 
-**Cost.** Version 1.0.151 with `default-features = false` and `alloc`
-(`faraday-bip` is `no_std`); a member that needs `std` (the tests' writers)
+**Cost.** Version 1.0.151 with `default-features = false`, `alloc`
+(`faraday-bip` is `no_std`) and `float_roundtrip`, without which a number's
+`f64` can be one step from the nearest, so that the same number written two
+ways reads as two values and another reader takes a third. It adds no
+dependency; a common float costs about a tenth more to read, a hostile one
+of hundreds of digits about four times. A member that needs `std` (the tests' writers)
 asks for it. serde_json and its dependencies (`itoa`, `memchr`,
 `serde_core`, `zmij`) were already in the lock file as dev-dependencies;
 the edges `faraday-bip -> serde_json` and `faraday-intake -> serde_json`

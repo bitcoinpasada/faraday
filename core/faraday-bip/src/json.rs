@@ -6,8 +6,8 @@
 //! An object that names one key twice is refused: two readers could take
 //! different values from it. A number is kept as the decimal text Rust
 //! writes for the `u64`, `i64` or `f64` serde_json reads (`1e3` is
-//! `1000`); a reader asks for the whole number it needs
-//! ([`Value::as_u64`]).
+//! `1000`), and the text kept reads back as the same value; a reader asks
+//! for the whole number it needs ([`Value::as_u64`]).
 //!
 //! The quotation mark is written `'\u{22}'` and `b'\x22'` here, so that
 //! `tools/lint-strings.sh` does not read it as the start of a string.
