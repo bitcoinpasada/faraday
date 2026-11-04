@@ -214,4 +214,5 @@ Read this table, then only the decision you need.
 | [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Active | repository |
 | [F198](decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Active | release |
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
-| [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Active | design |
+| [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
+| [F201](decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Active | design |

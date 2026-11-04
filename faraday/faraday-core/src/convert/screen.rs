@@ -180,7 +180,7 @@ fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
 /// shape. Returns the y under the last.
 fn slip_steppers(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    let steps = tokens::ICON_BUTTON + GAP_SMALL;
+    let steps = tokens::STEPPER_ROW;
     let one = s.slip.len() == 1;
     let len = crate::convert::seed_len_of(&app.session.keys, s);
     let mut step = |ui: &mut Ui, label: &str, value: u8, (less, more): (C, C), on: bool| {
@@ -233,8 +233,10 @@ fn slip_steppers(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32
 /// made, each on a Stepper (as New key's); where the set draws randomness,
 /// its Fact.
 fn settings_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let mut cy = y;
-    let steps = tokens::ICON_BUTTON + GAP_SMALL;
+    // Room under the card's title, which a press on a small panel shares
+    // with the first stepper.
+    let mut cy = y + GAP + GAP_SMALL;
+    let steps = tokens::STEPPER_ROW;
     let draws = match s.target {
         Some(Target::SeedXor) => {
             let (less, more) = (Action::Convert(C::Parts(-1)), Action::Convert(C::Parts(1)));
