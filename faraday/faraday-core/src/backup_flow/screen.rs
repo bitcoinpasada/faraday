@@ -913,11 +913,15 @@ fn bind_card(
                     format!(" · {seen}")
                 }
             );
+            // The whole line wraps: what was seen of it tells the two apart.
+            let role = BODY_S.mono();
+            let high = ui.wrap_lines_as(role, &line, w - 24.0) as f32 * ui.line_as(role);
+            let h = (high + 16.0).max(44.0);
             ui.fill(
                 x,
                 cy,
                 w,
-                44.0,
+                h,
                 faraday_draw::tokens::SHAPE_M,
                 Role::SurfaceContainerLow,
             );
@@ -925,14 +929,14 @@ fn bind_card(
                 x,
                 cy,
                 w,
-                44.0,
+                h,
                 faraday_draw::tokens::SHAPE_M,
                 Role::OutlineVariant,
             );
-            let t = ui.fit_as(BODY_S.mono(), &line, w - 24.0);
-            ui.text_mid_as((x + 12.0, cy, 44.0), BODY_S.mono(), Role::OnSurface, &t);
-            ui.press_box(x, cy, w, 44.0, fa(F::PickFile(v, k)));
-            cy += 52.0;
+            let top = cy + (h - high) / 2.0;
+            ui.wrap_as((x + 12.0, top, w - 24.0), role, Role::OnSurface, &line);
+            ui.press_box(x, cy, w, h, fa(F::PickFile(v, k)));
+            cy += h + 8.0;
         }
         return cy - y;
     }
