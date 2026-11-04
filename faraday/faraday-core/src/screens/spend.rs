@@ -296,7 +296,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
     let can_sign_here = i
         .participating_keys
         .iter()
-        .filter(|fp| app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
+        .filter(|fp| app.session.keys.key_label(**fp).is_some() && s.to_sign.contains(&fp.0))
         .map(|fp| fp_text(*fp))
         .collect::<Vec<_>>();
     let stopped = s.spend.finished.is_none()
@@ -1150,7 +1150,7 @@ pub(crate) fn step_body(
                 .participating_keys
                 .iter()
                 .filter(|fp| {
-                    app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0)
+                    app.session.keys.key_label(**fp).is_some() && s.to_sign.contains(&fp.0)
                 })
                 .map(|fp| fp_text(*fp))
                 .collect();

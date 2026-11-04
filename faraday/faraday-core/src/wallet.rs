@@ -134,10 +134,18 @@ pub struct Wallet {
     /// The scripts asked of it to find which wallet a PSBT spends from,
     /// each derived once, by chain and index ([`Wallet::script_at`]):
     /// public, and dropped with the policy they come from.
-    scripts: std::cell::RefCell<Vec<(bool, u32, Option<faraday_bip::bitcoin::ScriptBuf>)>>,
+    scripts: std::cell::RefCell<Vec<ScriptKept>>,
     /// [`Wallet::same`], kept; dropped with the policy.
     same: std::cell::OnceCell<String>,
 }
+
+/// A script a wallet derived at a place, with the keys derived for it.
+type ScriptKept = (
+    bool,
+    u32,
+    Option<faraday_bip::bitcoin::ScriptBuf>,
+    Vec<(Fingerprint, faraday_bip::bitcoin::PublicKey)>,
+);
 
 impl Wallet {
     /// Makes a wallet, its name made one line of text ([`wallet_name`]).
@@ -163,11 +171,11 @@ impl Wallet {
         change: bool,
         index: u32,
     ) -> Option<faraday_bip::bitcoin::ScriptBuf> {
-        if let Some((.., s)) = self
+        if let Some((_, _, s, _)) = self
             .scripts
             .borrow()
             .iter()
-            .find(|(c, i, _)| *c == change && *i == index)
+            .find(|(c, i, ..)| *c == change && *i == index)
         {
             return s.clone();
         }
@@ -180,8 +188,48 @@ impl Wallet {
         if kept.len() >= WALLET_SCRIPTS_KEPT {
             kept.clear();
         }
-        kept.push((change, index, s.clone()));
+        let keys = self.policy.keys_at(change, index);
+        kept.push((change, index, s.clone(), keys));
         s
+    }
+
+    /// Costs what `script_at` costs where the place is not kept yet. Whether
+    /// the key `stated` is what master `fp`'s key of this wallet derives to
+    /// at `path`: a place that is `key/change/index` for one of that
+    /// master's keys, and the keys the wallet derived there with its script
+    /// (public data kept beside it, so a read is a lookup). A path that is
+    /// no place of the wallet is not derived.
+    pub fn derives(
+        &self,
+        c: &Compute,
+        fp: Fingerprint,
+        path: &faraday_bip::bitcoin::bip32::DerivationPath,
+        stated: &faraday_psbt::verify::StatedKey,
+    ) -> bool {
+        let Some((change, index)) = self.policy.leaf_of(fp, path) else {
+            return false;
+        };
+        self.script_at(c, change, index);
+        self.scripts
+            .borrow()
+            .iter()
+            .find(|(ch, i, ..)| *ch == change && *i == index)
+            .is_some_and(|(.., keys)| keys.iter().any(|(f, k)| *f == fp && stated.is(&k.inner)))
+    }
+
+    /// Costs a key derivation where the wallet names the master. `None`
+    /// when no key of this wallet names `fp`; else whether one of its keys
+    /// for that master derives, over the rest of `path` past its origin,
+    /// to the key `stated`.
+    pub fn master_proof(
+        &self,
+        c: &Compute,
+        fp: Fingerprint,
+        path: &faraday_bip::bitcoin::bip32::DerivationPath,
+        stated: &faraday_psbt::verify::StatedKey,
+    ) -> Option<bool> {
+        let keys = self.policy.derive_named(c, fp, path)?;
+        Some(keys.iter().any(|k| stated.is(&k.inner)))
     }
 
     /// Costs an address derivation the first time: its address on
@@ -797,9 +845,9 @@ impl Session {
     }
 
     /// Costs what `key_refs` and `deterministic` cost, a few classifies
-    /// per input, a tweak per final taproot witness and, per final
-    /// non-taproot input, what [`Spend::refused`] costs twice over (the
-    /// refusal and the rows). The cost is per input, linear in the file
+    /// per input, and, per final input, what [`Spend::refused`] costs twice
+    /// over (the refusal and the rows), a taproot script-path one's
+    /// interpreter run and signature checks included. The cost is per input, linear in the file
     /// (the sum over its inputs), with no file-wide bound. The nonce check at
     /// the end of a spend: every signature the PSBT carries checked against
     /// its key and this transaction, each one a key held here made
@@ -1040,6 +1088,30 @@ impl Session {
     /// the input's places, so a frame may ask it of every file in Files.
     pub fn spends_from(&self, c: &Compute, seen: &PsbtSeen) -> Option<usize> {
         let (spk, places) = seen.first.as_ref()?;
+        self.wallet_at(c, spk, places)
+    }
+
+    /// Costs what `script_at` costs. The loaded wallet whose script input
+    /// `i` of `inner` spends, by the places that input's own key origins
+    /// state: each input has its own wallet.
+    pub fn wallet_of_input(
+        &self,
+        c: &Compute,
+        inner: &faraday_bip::bitcoin::Psbt,
+        i: usize,
+    ) -> Option<usize> {
+        let (spk, places) = input_place(inner, i)?;
+        self.wallet_at(c, &spk, &places)
+    }
+
+    /// Costs what `script_at` costs. The first loaded wallet whose script at
+    /// one of `places` is `spk`.
+    fn wallet_at(
+        &self,
+        c: &Compute,
+        spk: &faraday_bip::bitcoin::ScriptBuf,
+        places: &[(bool, u32)],
+    ) -> Option<usize> {
         self.wallets.iter().position(|w| {
             places
                 .iter()
@@ -1088,31 +1160,14 @@ pub struct PsbtSeen {
 }
 
 impl PsbtSeen {
-    /// What `psbt` says. Costs a txid, a classify per input and a tweak per
-    /// final taproot witness.
+    /// What `psbt` says. Costs a txid, a classify per input and, per final
+    /// input, what [`signing_state`] costs: its signature checks, through
+    /// `accepts_tap` for a taproot script-path spend. An event runs it
+    /// (`Session::wallet_for`), never a frame.
     pub fn of(psbt: &Psbt) -> PsbtSeen {
         let inner = psbt.inner();
         let sigs = inner.inputs.iter().map(|i| i.partial_sigs.len()).sum();
-        let first = (|| {
-            let input = inner.inputs.first()?;
-            let spk = faraday_psbt::verify::spent_output_of(inner, 0)?.script_pubkey;
-            let mut places: Vec<(bool, u32)> = Vec::new();
-            let paths = input
-                .bip32_derivation
-                .values()
-                .map(|(_, p)| p.clone())
-                .chain(input.tap_key_origins.values().map(|(_, (_, p))| p.clone()));
-            for path in paths {
-                let n: Vec<u32> = path.into_iter().map(|c| u32::from(*c)).collect();
-                if n.len() >= 2 {
-                    let (chain, index) = (n[n.len() - 2], n[n.len() - 1]);
-                    if chain <= 1 && !places.contains(&(chain == 1, index)) {
-                        places.push((chain == 1, index));
-                    }
-                }
-            }
-            Some((spk, places))
-        })();
+        let first = input_place(inner, 0);
         let (signed, unsigned_by) = signing_state(inner);
         PsbtSeen {
             txid: inner.unsigned_tx.compute_txid(),
@@ -1131,10 +1186,40 @@ impl PsbtSeen {
     }
 }
 
+/// Costs a classify. Input `i`'s spent script, and each `(change, index)`
+/// its key origins state.
+fn input_place(
+    inner: &faraday_bip::bitcoin::Psbt,
+    i: usize,
+) -> Option<(faraday_bip::bitcoin::ScriptBuf, Vec<(bool, u32)>)> {
+    let input = inner.inputs.get(i)?;
+    let spk = faraday_psbt::verify::spent_output_of(inner, i)?.script_pubkey;
+    let mut places: Vec<(bool, u32)> = Vec::new();
+    let paths = input
+        .bip32_derivation
+        .values()
+        .map(|(_, p)| p.clone())
+        .chain(input.tap_key_origins.values().map(|(_, (_, p))| p.clone()));
+    for path in paths {
+        let n: Vec<u32> = path.into_iter().map(|c| u32::from(*c)).collect();
+        if n.len() >= 2 {
+            let (chain, index) = (n[n.len() - 2], n[n.len() - 1]);
+            if chain <= 1 && !places.contains(&(chain == 1, index)) {
+                places.push((chain == 1, index));
+            }
+        }
+    }
+    Some((spk, places))
+}
+
 /// Whether a PSBT carries a signature, and the masters its key origins
 /// name on an input not yet final whose key has not signed that input
-/// ([`PsbtSeen::unsigned_by`]). A lookup per field, a classify per final input
-/// and a tweak per final taproot witness.
+/// ([`PsbtSeen::unsigned_by`]). A lookup per field and, per final input,
+/// what `faraday_psbt::verify::witness_mismatch` costs: a classify and the
+/// interpreter's signature checks (one per signature the script asks for),
+/// a taproot script-path spend of a miniscript leaf included
+/// (`faraday_psbt::finalize::accepts_tap`, a signature hash and a Schnorr
+/// check each), and a tweak for a taproot key-path one.
 fn signing_state(inner: &faraday_bip::bitcoin::Psbt) -> (bool, Vec<Fingerprint>) {
     let mut signed = false;
     let mut unsigned_by: Vec<Fingerprint> = Vec::new();
@@ -1465,44 +1550,196 @@ impl Spend {
         self.signers_by(c, session, None)
     }
 
-    /// Costs what `wallet_for` and `inspect` cost. [`Spend::signers`], read
-    /// from `inspection` of this PSBT when one is given (the spend's kept
-    /// one), else inspected now.
+    /// Costs what `wallet_for` and `inspect` cost, and a key derivation per
+    /// signature where the wallet is known. [`Spend::signers`], read from
+    /// `inspection` of this PSBT when one is given (the spend's kept one),
+    /// else inspected now. A master counts once, for a key of the script
+    /// that signed (the row's origin says nothing else, [`faraday_psbt::verify`]),
+    /// and, where a wallet holds the spent script, only if that wallet's key
+    /// for the master derives to it. It counts only if it signed every input
+    /// not yet final.
     pub fn signers_by(
         &self,
         c: &Compute,
         session: &Session,
         inspection: Option<&Inspection>,
     ) -> Vec<Fingerprint> {
-        if let Some(w) = session
-            .wallet_for(c, &self.psbt)
-            .and_then(|i| session.wallets.get(i))
-            && Kind::of(&w.policy) == Kind::MuSig
-        {
-            let Some(input) = self.psbt.inner().inputs.first() else {
-                return Vec::new();
-            };
-            if input.tap_key_sig.is_some() {
-                return w
-                    .policy
-                    .keys()
+        self.signing(c, session, inspection).0
+    }
+
+    /// Costs a scan of the inspection's signatures. Whether input `i` carries
+    /// the aggregate signature of the MuSig2 wallet's key, verified under
+    /// the input's own output key: every participant's.
+    fn musig_verified(
+        inner: &faraday_bip::bitcoin::Psbt,
+        inspection: &Inspection,
+        i: usize,
+    ) -> bool {
+        let output_key = faraday_psbt::verify::spent_output_of(inner, i)
+            .filter(|o| o.script_pubkey.is_p2tr())
+            .and_then(|o| {
+                faraday_bip::bitcoin::secp256k1::XOnlyPublicKey::from_slice(
+                    &o.script_pubkey.as_bytes()[2..],
+                )
+                .ok()
+            })
+            .map(faraday_psbt::verify::SigKey::Schnorr);
+        inner.inputs[i].tap_key_sig.is_some()
+            && output_key.is_some()
+            && inspection.present_signatures().any(|s| {
+                s.input == i
+                    && Some(&s.key) == output_key.as_ref()
+                    && s.leaf.is_none()
+                    && !s.finalized
+                    && s.kind == faraday_psbt::SigKind::Schnorr
+                    && s.verdict == Verdict::Valid
+            })
+    }
+
+    /// The MuSig2 wallet's participants whose partial signature input `i`
+    /// carries: counted on its presence, the library does not check one
+    /// (BIP-327 needs the round's aggregate nonce).
+    fn musig_partial_signers(
+        inner: &faraday_bip::bitcoin::Psbt,
+        w: &Wallet,
+        i: usize,
+    ) -> Vec<Fingerprint> {
+        let partials = inner
+            .inputs
+            .get(i)
+            .and_then(|i| faraday_psbt::musig::partial_sigs(i).ok())
+            .unwrap_or_default();
+        w.policy
+            .keys()
+            .iter()
+            .filter(|k| {
+                partials
                     .iter()
-                    .filter_map(|k| k.fingerprint())
-                    .collect();
-            }
-            let partials = faraday_psbt::musig::partial_sigs(input).unwrap_or_default();
-            return w
-                .policy
-                .keys()
+                    .any(|p| p.participant == k.xpub().public_key)
+            })
+            .filter_map(|k| k.fingerprint())
+            .collect()
+    }
+
+    /// Costs a scan of the inspection's signatures and of each open input's
+    /// partial signatures. What [`Spend::signing`] says of a spend whose
+    /// every open input is the MuSig2 wallet's `index`: the aggregate
+    /// signature is every participant's, once it verifies on every open
+    /// input; else a participant counts only with a partial signature (on
+    /// its presence) on every open input, and one on a final input counts
+    /// for nothing.
+    fn musig_signing(
+        &self,
+        session: &Session,
+        index: usize,
+        inspection: &Inspection,
+        open: &[usize],
+    ) -> (Vec<Fingerprint>, Vec<Fingerprint>) {
+        let inner = self.psbt.inner();
+        let w = &session.wallets[index];
+        let keys: Vec<Fingerprint> = w
+            .policy
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint())
+            .collect();
+        let signers = if !open.is_empty()
+            && open
                 .iter()
-                .filter(|k| {
-                    partials
-                        .iter()
-                        .any(|p| p.participant == k.xpub().public_key)
-                })
-                .filter_map(|k| k.fingerprint())
+                .all(|i| Self::musig_verified(inner, inspection, *i))
+        {
+            keys.clone()
+        } else {
+            let per_input: Vec<Vec<Fingerprint>> = open
+                .iter()
+                .map(|i| Self::musig_partial_signers(inner, w, *i))
                 .collect();
+            keys.iter()
+                .filter(|fp| per_input.iter().all(|p| p.contains(fp)))
+                .copied()
+                .collect()
+        };
+        let to_sign = keys
+            .into_iter()
+            .filter(|fp| !signers.contains(fp))
+            .collect();
+        (signers, to_sign)
+    }
+
+    /// Costs what `derives` costs per signature row. Adds to `per_input` the
+    /// master of each valid signature row on an open input that no MuSig2
+    /// wallet holds, once it is proven (see [`Spend::signing`]).
+    fn count_rows(
+        &self,
+        c: &Compute,
+        session: &Session,
+        inspection: &Inspection,
+        open: &[usize],
+        owners: &[Option<usize>],
+        per_input: &mut [Vec<Fingerprint>],
+    ) {
+        let inner = self.psbt.inner();
+        let is_musig = |w: usize| Kind::of(&session.wallets[w].policy) == Kind::MuSig;
+        for s in inspection
+            .present_signatures()
+            .filter(|s| s.verdict == Verdict::Valid)
+        {
+            let (Some(fp), Some(input)) = (s.fingerprint, inner.inputs.get(s.input)) else {
+                continue;
+            };
+            // Only an open input of a wallet other than MuSig2's counts a row.
+            if !open.contains(&s.input) || owners[s.input].is_some_and(is_musig) {
+                continue;
+            }
+            if per_input[s.input].contains(&fp) {
+                continue;
+            }
+            let Some((path, stated)) = faraday_psbt::verify::stated_place(input, s) else {
+                continue;
+            };
+            let owner = owners[s.input].and_then(|w| session.wallets.get(w));
+            let proven = match owner {
+                Some(w) => w.derives(c, fp, &path, &stated),
+                None => match session.keys.position(fp) {
+                    Some(pos) => session
+                        .keys
+                        .xpub_at(c, pos, &path)
+                        .is_some_and(|x| stated.is(&x.public_key)),
+                    // A master a loaded wallet names derives from the xpub
+                    // that wallet holds; one none names stays word-only.
+                    None => {
+                        let mut named = session
+                            .wallets
+                            .iter()
+                            .filter_map(|w| w.master_proof(c, fp, &path, &stated))
+                            .peekable();
+                        named.peek().is_none() || named.any(|ok| ok)
+                    }
+                },
+            };
+            if proven {
+                per_input[s.input].push(fp);
+            }
         }
+    }
+
+    /// Costs what [`Spend::signers_by`] costs. The signers, and the masters
+    /// still to sign: one the PSBT names on an input not yet final that
+    /// has no signature counted there, per input (so two inputs of two
+    /// owners leave neither owner "still to sign" once each has signed its
+    /// own). A key whose origin is stated falsely has none counted.
+    ///
+    /// An origin is the online side's word, so a master counts only on
+    /// proof: where a wallet holds the spent script, its key for the master
+    /// derives to the key that signed ([`Wallet::derives`]); else, for a
+    /// master this device holds, the held master derives it at the stated
+    /// place. A cosigner's master with no wallet found stays word-only.
+    pub fn signing(
+        &self,
+        c: &Compute,
+        session: &Session,
+        inspection: Option<&Inspection>,
+    ) -> (Vec<Fingerprint>, Vec<Fingerprint>) {
         let own;
         let inspection = match inspection {
             Some(i) => i,
@@ -1511,13 +1748,92 @@ impl Spend {
                 &own
             }
         };
-        let mut out: Vec<Fingerprint> = inspection
-            .present_signatures()
-            .filter(|s| s.input == 0 && s.verdict == Verdict::Valid)
-            .filter_map(|s| s.fingerprint)
+        let inner = self.psbt.inner();
+        let open: Vec<usize> = (0..inner.inputs.len())
+            .filter(|i| {
+                let input = &inner.inputs[*i];
+                input.final_script_sig.is_none() && input.final_script_witness.is_none()
+            })
             .collect();
-        out.dedup();
-        out
+        // Each open input's own wallet: the one that holds the script it
+        // spends, by the places its own origins state. An input of no
+        // known owner has none.
+        let owners: Vec<Option<usize>> = (0..inner.inputs.len())
+            .map(|i| {
+                open.contains(&i)
+                    .then(|| session.wallet_of_input(c, inner, i))
+                    .flatten()
+            })
+            .collect();
+        let is_musig = |w: usize| Kind::of(&session.wallets[w].policy) == Kind::MuSig;
+        // A spend is the MuSig2 wallet's alone only when every input open
+        // is: an open input of another owner, or of none found, is not
+        // signed by the aggregate signature of another input.
+        if let Some(Some(w)) = open.first().map(|i| owners[*i])
+            && is_musig(w)
+            && open.iter().all(|i| owners[*i] == Some(w))
+        {
+            return self.musig_signing(session, w, inspection, &open);
+        }
+        let mut per_input: Vec<Vec<Fingerprint>> = vec![Vec::new(); inner.inputs.len()];
+        for i in &open {
+            // An input of a MuSig2 wallet is signed by its participants,
+            // all or those with a partial signature, never by a row's
+            // stated key.
+            if let Some(w) = owners[*i].filter(|w| is_musig(*w)) {
+                per_input[*i] = if Self::musig_verified(inner, inspection, *i) {
+                    session.wallets[w]
+                        .policy
+                        .keys()
+                        .iter()
+                        .filter_map(|k| k.fingerprint())
+                        .collect()
+                } else {
+                    Self::musig_partial_signers(inner, &session.wallets[w], *i)
+                };
+            }
+        }
+        self.count_rows(c, session, inspection, &open, &owners, &mut per_input);
+        let signers = match open.first() {
+            Some(first) => per_input[*first]
+                .iter()
+                .filter(|fp| open.iter().all(|i| per_input[*i].contains(fp)))
+                .copied()
+                .collect(),
+            None => Vec::new(),
+        };
+        let mut to_sign: Vec<Fingerprint> = Vec::new();
+        for i in &open {
+            let input = &inner.inputs[*i];
+            if let Some(w) = owners[*i].filter(|w| is_musig(*w)) {
+                // The wallet's participants, not the aggregate key's origin.
+                for k in session.wallets[w].policy.keys() {
+                    if let Some(fp) = k.fingerprint()
+                        && !per_input[*i].contains(&fp)
+                        && !to_sign.contains(&fp)
+                    {
+                        to_sign.push(fp);
+                    }
+                }
+                continue;
+            }
+            let named = input
+                .bip32_derivation
+                .values()
+                .map(|(fp, _)| Fingerprint::from(*fp))
+                .chain(
+                    input
+                        .tap_key_origins
+                        .values()
+                        .map(|(_, (fp, _))| Fingerprint::from(*fp)),
+                );
+            for fp in named {
+                if !per_input[*i].contains(&fp) && !to_sign.contains(&fp) {
+                    to_sign.push(fp);
+                }
+            }
+        }
+        (signers, to_sign)
     }
 
     /// Costs what `read_psbt`, `signers` and `inspect` cost, and what
@@ -1660,10 +1976,11 @@ impl Spend {
     }
 
     /// Costs a classify per input, final or not, a tweak per final taproot
-    /// witness and, per final non-taproot input, the interpreter's
-    /// signature checks and up to 201 signature verifications, each
-    /// against the keys of its script (`faraday_psbt::verify::final_invalid`;
-    /// an input over consensus's limits verifies none). Why no transaction is finished from `psbt`: its
+    /// witness and, per final input, the interpreter's signature checks
+    /// (a taproot leaf's over the annex-aware message) and up to 201
+    /// signature verifications, each against the keys of its script
+    /// (`faraday_psbt::verify::final_invalid`; an input over consensus's
+    /// limits verifies none). Why no transaction is finished from `psbt`: its
     /// first input whose finalized `scriptSig` or witness does not match
     /// its output, that
     /// states an output its previous transaction does not, that is final
@@ -1755,7 +2072,8 @@ fn file_witness_refusal(file: &faraday_bip::bitcoin::Psbt, source: &str) -> Opti
 /// `scriptSig` or witness does not match the output it spends, its `witness_utxo` and
 /// previous transaction differ, it is final and its previous output does
 /// not read, or its previous transaction is not the one it spends or lacks
-/// the output, or one of its final ECDSA signatures reads Invalid
+/// the output, or one of its final signatures reads Invalid (an ECDSA or a
+/// taproot key-path one, or the interpreter refuses a Tap miniscript leaf's)
 /// ([`faraday_psbt::verify::final_invalid`]). There is no priority across inputs.
 fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<FinalRefusal> {
     (0..psbt.inputs.len()).find_map(|i| {
@@ -2024,6 +2342,9 @@ pub struct SpendState {
     pub(crate) inspected: Option<(faraday_psbt::Psbt, InspectInputs)>,
     /// Fingerprints with a valid signature.
     pub signers: Vec<[u8; 4]>,
+    /// The masters still to sign: named on an input not yet final with no
+    /// signature counted there ([`Spend::signing`]).
+    pub to_sign: Vec<[u8; 4]>,
     /// Which results went to the Outbox.
     pub out_signed: bool,
     /// The finished transaction went to the Outbox.
@@ -2084,6 +2405,7 @@ impl SpendState {
             inspection,
             inspected,
             signers: Vec::new(),
+            to_sign: Vec::new(),
             out_signed: false,
             out_tx: false,
             show_hex: false,
@@ -2407,17 +2729,19 @@ impl Faraday {
             // Inspected once each time the PSBT or the session changes,
             // not on every press that refreshes the spend.
             let inputs = self.session.inspect_inputs();
-            if !s.inspected_for(&inputs) {
+            // The signers are read from that inspection, so they are worked
+            // out when it is made, and once for a spend opened with its own.
+            let fresh = !s.inspected_for(&inputs);
+            if fresh {
                 s.inspection = self.session.inspect(&c, &s.spend.psbt);
                 s.inspected = Some((s.spend.psbt.clone(), inputs));
                 s.refused = s.spend.refused();
             }
-            s.signers = s
-                .spend
-                .signers_by(&c, &self.session, Some(&s.inspection))
-                .iter()
-                .map(|f| f.0)
-                .collect();
+            if fresh || !s.opened {
+                let (signers, to_sign) = s.spend.signing(&c, &self.session, Some(&s.inspection));
+                s.signers = signers.iter().map(|f| f.0).collect();
+                s.to_sign = to_sign.iter().map(|f| f.0).collect();
+            }
             s.wallet = self.session.wallet_for(&c, &s.spend.psbt);
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
             let kind = wallet.map(|w| wallet::Kind::of(w.policy()));

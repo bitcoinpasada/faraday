@@ -1332,7 +1332,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     // here, so a signature that is not this transaction's, a nonce used
     // twice and an inscription envelope all reach the review as cards.
     let signatures = crate::verify::verify_signatures(psbt, ctx);
-    sighash::signature_cards(&mut warnings, &signatures, &inputs);
+    let mismatched: Vec<usize> = (0..inner.inputs.len())
+        .filter(|i| crate::verify::witness_shape_mismatch(inner, *i))
+        .collect();
+    sighash::signature_cards(&mut warnings, &signatures, &inputs, &mismatched);
     for input in 0..inner.inputs.len() {
         if crate::verify::witness_shape_mismatch(inner, input) {
             warn(

@@ -4490,7 +4490,7 @@ impl Faraday {
             .inspection
             .participating_keys
             .iter()
-            .any(|fp| self.session.keys.key_label(*fp).is_some() && !s.signers.contains(&fp.0));
+            .any(|fp| self.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0));
         if s.spend.finished.is_some() {
             // Both files went For the stick at Finish: Files writes them.
             self.screen = Screen::Files;

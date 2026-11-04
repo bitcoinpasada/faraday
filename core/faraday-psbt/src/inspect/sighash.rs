@@ -66,8 +66,14 @@ pub(super) fn signature_cards(
     warnings: &mut Vec<Warning>,
     signatures: &[crate::verify::InputSignatures],
     inputs: &[InputInfo],
+    witness_mismatched: &[usize],
 ) {
     for sig in signatures.iter().flat_map(|i| i.signatures.iter()) {
+        // An input whose witness does not match its output has that card to
+        // say it, and no other: what is in it is not read as signatures.
+        if witness_mismatched.contains(&sig.input) {
+            continue;
+        }
         match sig.verdict {
             crate::verify::Verdict::Valid => {}
             crate::verify::Verdict::Invalid => warn(
@@ -77,9 +83,13 @@ pub(super) fn signature_cards(
                     input: sig.input,
                     key: sig.name(),
                 },
-                Detail::SignatureInvalid {
-                    input: sig.input,
-                    key: sig.name(),
+                if sig.key == crate::verify::SigKey::Unknown {
+                    Detail::SignatureInvalidUnkeyed { input: sig.input }
+                } else {
+                    Detail::SignatureInvalid {
+                        input: sig.input,
+                        key: sig.name(),
+                    }
                 },
             ),
             crate::verify::Verdict::Unchecked(reason) => warn(

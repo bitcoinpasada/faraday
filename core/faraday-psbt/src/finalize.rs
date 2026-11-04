@@ -29,10 +29,12 @@
 
 mod smallest;
 
+use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 
+use bitcoin::hashes::Hash;
 use bitcoin::opcodes::OP_0;
 use bitcoin::psbt::Input;
 use bitcoin::script::{Builder, PushBytesBuf};
@@ -491,6 +493,102 @@ pub(crate) fn parses(witness: bool, script: &bitcoin::Script) -> bool {
     }
 }
 
+/// The parts of a final taproot script-path witness (BIP-341): the stack
+/// below the leaf, the leaf script, the control block, and the annex (a
+/// last element of two or more that starts 0x50).
+pub(crate) struct TapSpend<'a> {
+    pub stack: Vec<&'a [u8]>,
+    pub leaf: ScriptBuf,
+    pub control: &'a [u8],
+    pub annex: Option<&'a [u8]>,
+}
+
+impl TapSpend<'_> {
+    /// Whether the leaf is one the interpreter runs: leaf version 0xc0
+    /// (another version is not defined, and consensus accepts it as it
+    /// stands), a Tap miniscript, and not a `pkh` leaf holding a key of an
+    /// unknown type.
+    pub(crate) fn is_run(&self) -> bool {
+        self.control.first().is_none_or(|b| b & 0xfe == 0xc0)
+            && tap_miniscript(&self.leaf)
+            && !self.pkh_of_unknown_key_type()
+    }
+
+    /// Whether the leaf is `DUP HASH160 <h> EQUALVERIFY CHECKSIG`, spent by
+    /// `[signature, key]` with `h` the hash of a key that is neither empty
+    /// nor 32 bytes and a signature that is not empty. BIP-342 gives such a
+    /// key an unknown type, and any non-empty signature passes it, whatever
+    /// the bytes of either: the interpreter reads only 32-byte keys, so the
+    /// leaf is left unrun rather than refused. With an empty signature or
+    /// key, a hash the key does not match, or an element over 520 bytes,
+    /// the leaf fails and is run.
+    fn pkh_of_unknown_key_type(&self) -> bool {
+        use bitcoin::opcodes::all::{OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_HASH160};
+        use bitcoin::script::Instruction;
+        let [sig, key] = self.stack[..] else {
+            return false;
+        };
+        if sig.is_empty() || key.is_empty() || key.len() == 32 {
+            return false;
+        }
+        // An element over 520 bytes is refused by the interpreter
+        // (consensus's push size limit), so the leaf is run and fails.
+        if sig.len() > 520 || key.len() > 520 {
+            return false;
+        }
+        let mut it = self.leaf.instructions();
+        let (Some(Ok(Instruction::Op(OP_DUP))), Some(Ok(Instruction::Op(OP_HASH160)))) =
+            (it.next(), it.next())
+        else {
+            return false;
+        };
+        let Some(Ok(Instruction::PushBytes(h))) = it.next() else {
+            return false;
+        };
+        matches!(
+            (it.next(), it.next(), it.next()),
+            (
+                Some(Ok(Instruction::Op(OP_EQUALVERIFY))),
+                Some(Ok(Instruction::Op(OP_CHECKSIG))),
+                None
+            )
+        ) && h.as_bytes() == bitcoin::hashes::hash160::Hash::hash(key).to_byte_array()
+    }
+}
+
+/// The parts of a final taproot script-path witness; `None` for a
+/// key-path spend or an empty witness.
+pub(crate) fn tap_spend(witness: &Witness) -> Option<TapSpend<'_>> {
+    let mut elements: Vec<&[u8]> = witness.iter().collect();
+    let annexed = elements.len() >= 2 && elements.last().is_some_and(|e| e.first() == Some(&0x50));
+    let annex = if annexed { elements.pop() } else { None };
+    if elements.len() < 2 {
+        return None;
+    }
+    let control = elements.pop()?;
+    let leaf = ScriptBuf::from(elements.pop()?.to_vec());
+    Some(TapSpend {
+        stack: elements,
+        leaf,
+        control,
+        annex,
+    })
+}
+
+/// Whether a taproot leaf parses as a Tap miniscript, which the
+/// interpreter runs.
+pub(crate) fn tap_miniscript(script: &bitcoin::Script) -> bool {
+    Miniscript::<XOnlyPublicKey, Tap>::parse_with_ext(script, &ExtParams::allow_all()).is_ok()
+}
+
+/// Whether a script holds `OP_CODESEPARATOR`, whose message is not worked
+/// out here.
+pub(crate) fn has_codeseparator(script: &bitcoin::Script) -> bool {
+    script.instructions().any(|i| {
+        matches!(i, Ok(bitcoin::script::Instruction::Op(op)) if op == bitcoin::opcodes::all::OP_CODESEPARATOR)
+    })
+}
+
 /// Whether the script the final fields spend is one `miniscript` reads.
 pub(crate) fn judged(spk: &bitcoin::Script, script_sig: &ScriptBuf, witness: &Witness) -> bool {
     spent_script(spk, script_sig, witness).is_some_and(|(w, s)| parses(w, &s))
@@ -498,18 +596,121 @@ pub(crate) fn judged(spk: &bitcoin::Script, script_sig: &ScriptBuf, witness: &Wi
 
 /// Costs one signature check per signature the script asks for: the
 /// interpreter's answer on input `index`'s final fields, for a final
-/// non-taproot input. The script must be within consensus's limits
+/// input: a taproot script-path spend of a Tap miniscript leaf is run with
+/// the annex-aware signature check ([`accepts_tap`]), a taproot key-path
+/// spend is not judged here. The script must be within consensus's limits
 /// (the caller checks them first).
 pub(crate) fn judge(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut) -> Judgement {
     let input = &psbt.inputs[index];
     let empty = ScriptBuf::new();
     let sig = input.final_script_sig.as_ref().unwrap_or(&empty);
     let witness = input.final_script_witness.clone().unwrap_or_default();
+    if utxo.script_pubkey.is_p2tr() {
+        let Some(tap) = tap_spend(&witness) else {
+            return Judgement::NotJudged;
+        };
+        if !tap.is_run() || has_codeseparator(&tap.leaf) {
+            return Judgement::NotJudged;
+        }
+        // A 65-byte stack element ending 0x00 is a signature BIP-341
+        // refuses, or no data a miniscript takes.
+        if tap
+            .stack
+            .iter()
+            .any(|e| crate::v2::is_zero_sighash_schnorr(e))
+        {
+            return Judgement::Rejects;
+        }
+        return accepts_tap(psbt, index, utxo, &tap);
+    }
     if !judged(&utxo.script_pubkey, sig, &witness) {
         return Judgement::NotJudged;
     }
     if accepts(psbt, index, utxo, sig, &witness) {
         Judgement::Accepts
+    } else {
+        Judgement::Rejects
+    }
+}
+
+/// Costs one signature check per signature the leaf asks for: the
+/// interpreter's answer on a taproot script-path spend, with each
+/// signature read over the message BIP-341 gives it, the annex included.
+/// Not judged where a signature commits to the other inputs' outputs and
+/// one of them is not known.
+fn accepts_tap(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut, tap: &TapSpend) -> Judgement {
+    use bitcoin::sighash::{Annex, SighashCache, TapSighashType};
+    use bitcoin::taproot::{LeafVersion, TapLeafHash};
+    use core::cell::Cell;
+    let tx = &psbt.unsigned_tx;
+    // The interpreter takes no annex: it runs the witness without it.
+    let mut elements: Vec<&[u8]> = tap.stack.clone();
+    elements.push(tap.leaf.as_bytes());
+    elements.push(tap.control);
+    let witness = Witness::from_slice(&elements);
+    let script_sig = ScriptBuf::new();
+    let Ok(interpreter) = Interpreter::from_txdata(
+        &utxo.script_pubkey,
+        &script_sig,
+        &witness,
+        tx.input[index].sequence,
+        tx.lock_time,
+    ) else {
+        return Judgement::Rejects;
+    };
+    let annex = match tap.annex.map(Annex::new) {
+        Some(Ok(annex)) => Some(annex),
+        Some(Err(_)) => return Judgement::Rejects,
+        None => None,
+    };
+    let all: Option<Vec<&TxOut>> = (0..tx.input.len()).map(|i| spent_output(psbt, i)).collect();
+    let prevouts = match &all {
+        Some(outs) => Prevouts::All(outs),
+        None => Prevouts::One(index, utxo),
+    };
+    let leaf_hash = TapLeafHash::from_script(&tap.leaf, LeafVersion::TapScript);
+    let unknown = Cell::new(false);
+    let secp = Secp256k1::verification_only();
+    let verify = |pair: &miniscript::interpreter::KeySigPair| {
+        let miniscript::interpreter::KeySigPair::Schnorr(key, sig) = pair else {
+            return false;
+        };
+        let anyone = matches!(
+            sig.sighash_type,
+            TapSighashType::AllPlusAnyoneCanPay
+                | TapSighashType::NonePlusAnyoneCanPay
+                | TapSighashType::SinglePlusAnyoneCanPay
+        );
+        if all.is_none() && !anyone {
+            unknown.set(true);
+            return false;
+        }
+        let Ok(hash) = SighashCache::new(tx).taproot_signature_hash(
+            index,
+            &prevouts,
+            annex.clone(),
+            Some((leaf_hash, 0xFFFF_FFFF)),
+            sig.sighash_type,
+        ) else {
+            return false;
+        };
+        let msg = bitcoin::secp256k1::Message::from_digest(hash.to_byte_array());
+        secp.verify_schnorr(&sig.signature, &msg, key).is_ok()
+    };
+    let sequence_final = tx.input[index].sequence == bitcoin::Sequence::MAX;
+    let version_two = tx.version.0 as u32 >= 2;
+    let accepted = interpreter
+        .iter_custom(Box::new(verify))
+        .all(|step| match step {
+            Ok(SatisfiedConstraint::AbsoluteTimelock { .. }) => !sequence_final,
+            Ok(SatisfiedConstraint::RelativeTimelock { .. }) => version_two,
+            Ok(_) => true,
+            Err(_) => false,
+        });
+    if accepted {
+        Judgement::Accepts
+    } else if unknown.get() {
+        Judgement::NotJudged
     } else {
         Judgement::Rejects
     }

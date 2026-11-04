@@ -564,7 +564,10 @@ fn a_failing_witness_with_no_signature_row_is_not_sound() {
     let mut app = with_inbox(vec![("t.psbt", good.to_bytes())]);
     let o = checked(&mut app);
     assert!(o.check.mismatched.is_empty());
-    assert!(o.check.sound());
+    // The hash lock's leaf is no miniscript, so it is not run: nothing
+    // refuses it, and it is not called sound.
+    assert!(!o.check.sound());
+    assert!(!o.check.wrong());
 }
 
 #[test]

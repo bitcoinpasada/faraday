@@ -5928,6 +5928,8 @@ strings! {
     psbt_warn_single: "input {} signs with SINGLE: only output {} is committed to; the others, change included, can be changed after you sign",
     /// A warning on Review. `{}`: the input, the sighash.
     psbt_warn_sighash_partial: "input {} signs with {}: not the whole transaction is committed to",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_signature_unkeyed: "input {}: a signature in it is not a signature of this transaction",
     /// A warning on Review. `{}`: the input, the key.
     psbt_warn_signature_invalid: "input {}: the signature under {} is not a signature of this transaction",
     /// A warning on Review, a line of the nonce check card and why a spend

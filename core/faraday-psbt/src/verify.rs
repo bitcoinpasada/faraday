@@ -542,7 +542,7 @@ fn input_rows<C: secp256k1::Verification>(
         if unrun && p.finalized && p.kind == SigKind::Ecdsa && verdict.is_invalid() {
             verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
         }
-        let (fingerprint, ours) = origin(ctx, input, &key);
+        let (fingerprint, ours) = origin(secp, ctx, &c, input, &key, p.leaf);
         out.push(SignaturePresent {
             input: index,
             sighash: sighash_of(&p),
@@ -612,7 +612,10 @@ fn out_of_order(
 /// one of the signatures, read as the nonce check reads them, is Invalid:
 /// another key's, a wrong message, a repeat or one out of the script's key
 /// order. A script holding `OP_CODESEPARATOR` is left out (its message is
-/// not worked out here), and so is a taproot input.
+/// not worked out here). A taproot key-path signature that fails is
+/// refused; a script-path witness is the interpreter's answer where its leaf
+/// is a Tap miniscript (version 0xc0), each signature read over the message
+/// that includes the annex, and else is not run and not refused here.
 pub fn final_invalid(psbt: &bitcoin::Psbt, index: usize) -> bool {
     let Some(input) = psbt.inputs.get(index) else {
         return false;
@@ -648,14 +651,13 @@ pub fn final_invalid(psbt: &bitcoin::Psbt, index: usize) -> bool {
     };
     let secp = Secp256k1::verification_only();
     let (rows, judgement) = input_rows(&secp, &own, &ctx, index);
-    let wrong = || {
-        rows.iter()
-            .any(|s| s.finalized && s.kind == SigKind::Ecdsa && s.verdict.is_invalid())
-    };
+    let wrong = || rows.iter().any(wrong_row);
     match judgement {
         Judgement::Accepts => false,
         Judgement::Rejects => true,
-        // A script not run is never refused: its rows read Unchecked.
+        // A script not run is never refused here. Its ECDSA rows read
+        // Unchecked; a Schnorr row of a leaf not run can still read Invalid,
+        // which `Spend::collect` refuses in a file (this does not).
         Judgement::NotJudged if not_evaluated_of(&c, input) => false,
         Judgement::NotJudged => wrong(),
     }
@@ -680,10 +682,16 @@ pub fn final_signature_wrong(psbt: &bitcoin::Psbt, index: usize) -> bool {
         musig_session: None,
     };
     let secp = Secp256k1::verification_only();
-    input_rows(&secp, &own, &ctx, index)
-        .0
-        .iter()
-        .any(|s| s.finalized && s.kind == SigKind::Ecdsa && s.verdict.is_invalid())
+    input_rows(&secp, &own, &ctx, index).0.iter().any(wrong_row)
+}
+
+/// A final row that is a signature read wrong: an ECDSA one, or a taproot
+/// key-path one (a script-path element shaped like a signature may be
+/// data).
+fn wrong_row(s: &SignaturePresent) -> bool {
+    s.finalized
+        && s.verdict.is_invalid()
+        && (s.kind == SigKind::Ecdsa || (s.kind == SigKind::Schnorr && s.leaf.is_none()))
 }
 
 /// A taproot signature as BIP-341 reads it: 64 bytes, or 65 with a
@@ -709,14 +717,91 @@ fn sighash_of(p: &Present) -> SighashKind {
     }
 }
 
-/// The master fingerprint a key origin on the input names for `key`, and
-/// whether that master is one of this device's.
-fn origin(
+/// Costs a parse of each script and two hashes per script. Whether `pk` is
+/// a key of the multisig script a finalized `p2wsh` or
+/// `p2sh` input spends: the script is the one its output commits to, taken
+/// from the final witness or script, or the witness or redeem script the
+/// finalizer left. `classify` clears the script of a final input, so
+/// [`crate::finalize::key_in_script`] knows no key of it.
+fn final_script_names(c: &Classified, input: &bitcoin::psbt::Input, pk: &PublicKey) -> bool {
+    let Some(utxo) = &c.utxo else {
+        return false;
+    };
+    if input.final_script_witness.is_none() && input.final_script_sig.is_none() {
+        return false;
+    }
+    let spk = utxo.script_pubkey.as_script();
+    let mut scripts: Vec<ScriptBuf> = Vec::new();
+    scripts.extend(input.witness_script.clone());
+    scripts.extend(input.redeem_script.clone());
+    if let Some(last) = input
+        .final_script_witness
+        .as_ref()
+        .and_then(|w| w.last())
+        .filter(|_| spk.is_p2wsh())
+    {
+        scripts.push(ScriptBuf::from(last.to_vec()));
+    }
+    if spk.is_p2sh()
+        && let Some(push) = input
+            .final_script_sig
+            .as_ref()
+            .and_then(|s| s.instructions().last())
+            .and_then(Result::ok)
+            .and_then(|i| match i {
+                Instruction::PushBytes(b) => Some(ScriptBuf::from(b.as_bytes().to_vec())),
+                Instruction::Op(_) => None,
+            })
+    {
+        scripts.push(push);
+    }
+    scripts.iter().any(|script| {
+        // The output commits to the witness script (`p2wsh`, or under
+        // `p2sh`), or to the redeem script itself (legacy `p2sh`).
+        let wsh = ScriptBuf::new_p2wsh(&script.wscript_hash());
+        let committed = if spk.is_p2wsh() {
+            wsh.as_script() == spk
+        } else {
+            spk.is_p2sh()
+                && (script.to_p2sh().as_script() == spk || wsh.to_p2sh().as_script() == spk)
+        };
+        committed && Multisig::parse(script).is_some_and(|ms| ms.keys.contains(pk))
+    })
+}
+
+/// Costs a tweak for a key-path row. The master fingerprint a key origin
+/// on the input names for `key`, and whether that master is one of this
+/// device's. An origin is the online side's word, so a row takes one
+/// only for a key the spend really names: an ECDSA key of the script
+/// being spent; a Schnorr key of the leaf the row signs (its push, or the
+/// hash a `pkh` window holds); and for a key-path row the internal key's
+/// origin, when the previous output's key is that internal key tweaked
+/// with the input's merkle root (BIP-341). A key filed with an origin
+/// that is none of these reports none.
+fn origin<C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
     ctx: &Context,
+    c: &Classified,
     input: &bitcoin::psbt::Input,
     key: &SigKey,
+    leaf: Option<TapLeafHash>,
 ) -> (Option<Fingerprint>, bool) {
-    let fp = origin_fingerprint(input, key);
+    let fp = match key {
+        SigKey::Ecdsa(pk) => (crate::finalize::key_in_script(c, input, pk)
+            || final_script_names(c, input, pk))
+        .then(|| input.bip32_derivation.get(&pk.inner).map(|(fp, _)| *fp))
+        .flatten(),
+        SigKey::Schnorr(xonly) => match leaf {
+            Some(leaf) => in_leaf(secp, c, input, leaf, xonly)
+                .then(|| input.tap_key_origins.get(xonly).map(|(_, (fp, _))| *fp))
+                .flatten(),
+            None => key_path_internal(secp, c, input, xonly)
+                .and_then(|internal| input.tap_key_origins.get(&internal))
+                .map(|(_, (fp, _))| *fp),
+        },
+        SigKey::Unknown => None,
+    };
+    let fp = fp.map(Fingerprint::from);
     let ours = fp.is_some_and(|fp| ctx.is_ours(fp));
     (fp, ours)
 }
@@ -742,6 +827,106 @@ pub(crate) fn origin_fingerprint(
         SigKey::Unknown => None,
     };
     fp.map(Fingerprint::from)
+}
+
+/// The place the input states for the key `row` is under, and the key
+/// itself: a key-path row is under the output key, so the internal key it
+/// is tweaked from is the one looked up. A lookup. `None` where the input
+/// states no place for it. The online side's word: a wallet or a held
+/// master derives the key at that place to prove it.
+pub fn stated_place(
+    input: &bitcoin::psbt::Input,
+    row: &SignaturePresent,
+) -> Option<(bitcoin::bip32::DerivationPath, StatedKey)> {
+    match &row.key {
+        SigKey::Ecdsa(pk) => input
+            .bip32_derivation
+            .get(&pk.inner)
+            .map(|(_, p)| (p.clone(), StatedKey::Ecdsa(pk.inner))),
+        SigKey::Schnorr(x) => {
+            let key = match (row.leaf, input.tap_internal_key) {
+                (Some(_), _) => *x,
+                (None, Some(internal)) => internal,
+                (None, None) => return None,
+            };
+            input
+                .tap_key_origins
+                .get(&key)
+                .map(|(_, (_, p))| (p.clone(), StatedKey::XOnly(key)))
+        }
+        SigKey::Unknown => None,
+    }
+}
+
+/// The key a row's stated place is claimed to derive.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatedKey {
+    /// A compressed key.
+    Ecdsa(secp256k1::PublicKey),
+    /// An x-only key.
+    XOnly(XOnlyPublicKey),
+}
+
+impl StatedKey {
+    /// Whether `derived` is this key.
+    pub fn is(&self, derived: &secp256k1::PublicKey) -> bool {
+        match self {
+            StatedKey::Ecdsa(pk) => pk == derived,
+            StatedKey::XOnly(x) => derived.x_only_public_key().0 == *x,
+        }
+    }
+}
+
+/// Costs a tweak. The internal key whose tweak with the input's merkle
+/// root is the output key `output` the previous output pays: the one key
+/// a key-path signature's origin may be filed under.
+fn key_path_internal<C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
+    c: &Classified,
+    input: &bitcoin::psbt::Input,
+    output: &XOnlyPublicKey,
+) -> Option<XOnlyPublicKey> {
+    let internal = input.tap_internal_key?;
+    let paid = c.utxo.as_ref().and_then(|u| output_key(&u.script_pubkey))?;
+    let (tweaked, _) = internal.tap_tweak(secp, input.tap_merkle_root);
+    (paid == *output && tweaked.to_x_only_public_key() == paid).then_some(internal)
+}
+
+/// Whether `key` is one of the keys the input's leaf `leaf` names: a
+/// push of it, or the hash a `pkh` window of the leaf holds.
+/// The leaf counts only when its control block commits to the output key
+/// the previous p2tr output pays: a leaf filed in `tap_scripts` that the
+/// output does not hold names no signer.
+fn in_leaf<C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
+    c: &Classified,
+    input: &bitcoin::psbt::Input,
+    leaf: TapLeafHash,
+    key: &XOnlyPublicKey,
+) -> bool {
+    let Some(paid) = c.utxo.as_ref().and_then(|u| output_key(&u.script_pubkey)) else {
+        return false;
+    };
+    input
+        .tap_scripts
+        .iter()
+        .any(|(control, (script, version))| {
+            if TapLeafHash::from_script(script, *version) != leaf
+                || !control.verify_taproot_commitment(secp, paid, script)
+            {
+                return false;
+            }
+            if leaf_keys(script).contains(&SigKey::Schnorr(*key)) {
+                return true;
+            }
+            let h =
+                <bitcoin::hashes::hash160::Hash as bitcoin::hashes::Hash>::hash(&key.serialize());
+            let h: &[u8] = h.as_ref();
+            LeafFacts::parse(script)
+                .pkh_hashes
+                .binary_search(&h)
+                .is_ok()
+        })
 }
 
 /// Every signature one input carries, from the partial-signature fields
@@ -927,11 +1112,14 @@ fn not_evaluated_of(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
     // A bare p2pk is settled where its key parses; one off the curve or
     // hybrid is settled by nothing here, nor is a multisig with such a key
     // or over 20 keys (`Multisig::parse_wide` refuses both).
-    if effective.is_p2tr()
-        || effective.is_p2wpkh()
-        || spk.is_p2pkh()
-        || spk.p2pk_public_key().is_some()
-    {
+    if effective.is_p2tr() {
+        // A script-path leaf is not run when it is no Tap miniscript, is of
+        // another leaf version, or is the exact `pkh` leaf spent with a key
+        // of an unknown type. An unknown-type key inside a larger Tap
+        // miniscript leaf stays refused, though consensus takes it.
+        return finalize::tap_spend(&witness).is_some_and(|t| !t.is_run());
+    }
+    if effective.is_p2wpkh() || spk.is_p2pkh() || spk.p2pk_public_key().is_some() {
         return false;
     }
     let script = if effective.is_p2wsh() {
@@ -1257,7 +1445,7 @@ fn taproot_mismatch(effective: &Script, input: &bitcoin::psbt::Input) -> bool {
     };
     if !script_path {
         // A key-path spend is one signature of 64 or 65 bytes.
-        return !(elements.len() == 1 && matches!(elements[0].len(), 64 | 65));
+        return !(elements.len() == 1 && schnorr_signature(elements[0]).is_some());
     }
     let control = elements.pop().unwrap_or_default();
     let script = elements.pop().unwrap_or_default();
@@ -1662,20 +1850,25 @@ fn check<C: secp256k1::Verification>(
             settle(p, verify, preimage)
         }
         SigKind::Schnorr => {
-            // BIP-341 refuses a 65-byte signature ending 0x00: it is
-            // invalid under whichever key it is filed, named as any
+            // BIP-341 refuses a 65-byte signature ending 0x00, and a final
+            // `SIGHASH_SINGLE` one on an input with no output of its index:
+            // it is invalid under whichever key it is filed, named as any
             // other invalid signature is.
-            if v2::is_zero_sighash_schnorr(&p.bytes) {
-                let key = if p.leaf.is_none() && p.key == SigKey::Unknown {
-                    output_key(&utxo.script_pubkey).map_or(SigKey::Unknown, SigKey::Schnorr)
+            let never = |preimage: &mut bool| {
+                if p.leaf.is_none() && p.key == SigKey::Unknown {
+                    let key =
+                        output_key(&utxo.script_pubkey).map_or(SigKey::Unknown, SigKey::Schnorr);
+                    return (key, Verdict::Invalid);
+                }
+                let (key, verdict) = settle(p, |_| false, preimage);
+                if *preimage {
+                    (key, verdict)
                 } else {
-                    let (key, verdict) = settle(p, |_| false, preimage);
-                    if *preimage {
-                        return (key, verdict);
-                    }
-                    key
-                };
-                return (key, Verdict::Invalid);
+                    (key, Verdict::Invalid)
+                }
+            };
+            if v2::is_zero_sighash_schnorr(&p.bytes) {
+                return never(preimage);
             }
             let Some(sig) = schnorr_signature(&p.bytes) else {
                 return (
@@ -1683,6 +1876,13 @@ fn check<C: secp256k1::Verification>(
                     Verdict::Unchecked(Unchecked::UnsupportedScript),
                 );
             };
+            let single = matches!(
+                sig.sighash_type,
+                TapSighashType::Single | TapSighashType::SinglePlusAnyoneCanPay
+            );
+            if p.finalized && single && index >= restored.unsigned_tx.output.len() {
+                return never(preimage);
+            }
             let Some(msg) = taproot_message(restored, c, index, p.leaf, sig.sighash_type) else {
                 *preimage = p.preimage;
                 return (
@@ -1771,14 +1971,18 @@ fn taproot_message(
     let prevouts = tap_prevouts(&psbt, c, index, ty).ok()?;
     let tx = psbt.unsigned_tx().clone();
     let mut cache = SighashCache::new(&tx);
-    let sighash = match leaf {
-        Some(leaf) => cache
-            .taproot_script_spend_signature_hash(index, &prevouts.as_ref(), leaf, ty)
-            .ok()?,
-        None => cache
-            .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), ty)
-            .ok()?,
-    };
+    // A final witness with an annex (BIP-341: a last element of two or more
+    // starting 0x50) signs over it.
+    let annex = restored.inputs[index]
+        .final_script_witness
+        .as_ref()
+        .filter(|w| w.len() >= 2)
+        .and_then(|w| w.last())
+        .and_then(|a| bitcoin::sighash::Annex::new(a).ok());
+    let separator = leaf.map(|leaf| (leaf, 0xFFFF_FFFF));
+    let sighash = cache
+        .taproot_signature_hash(index, &prevouts.as_ref(), annex, separator, ty)
+        .ok()?;
     Some(Message::from(sighash))
 }
 

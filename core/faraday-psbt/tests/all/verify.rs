@@ -728,7 +728,7 @@ fn assert_none_refused(psbt: Psbt) {
 }
 
 /// Real NONE signatures that the code cannot verify stay refused when the
-/// input asks ALL: a leaf that hashes the key, a CODESEPARATOR, an annex.
+/// input asks ALL: a leaf that hashes the key, a CODESEPARATOR; one over an annex verifies.
 #[test]
 fn a_real_none_signature_it_cannot_verify_stays_refused() {
     use bitcoin::opcodes::all::{
@@ -800,7 +800,8 @@ fn a_real_none_signature_it_cannot_verify_stays_refused() {
             ]
         },
     );
-    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    // The signature commits to the annex, so it verifies; the card stays.
+    assert_eq!(verdicts(&psbt), vec![Verdict::Valid]);
     assert_none_refused(psbt);
 
     // DUP RIPEMD160 <ripemd160(B)> EQUALVERIFY CHECKSIG with [sig_B, B]:
@@ -963,7 +964,7 @@ fn a_finalized_key_path_signature_with_another_sighash_keeps_its_card() {
         .and_then(|w| w.iter().next().map(|e| e.to_vec()))
         .expect("the key-path signature");
     sig.truncate(64);
-    sig.push(0x04);
+    sig.push(0x81);
     psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&[sig]));
     let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
     assert!(
@@ -1675,9 +1676,10 @@ fn with_annex(psbt: Psbt, annex: &[u8], spoil: bool) -> Psbt {
 #[test]
 fn an_annex_is_set_aside_before_the_witness_is_checked() {
     let annex = [0x50, 1, 2, 3];
-    let true_spend = with_annex(pk_spend(7, 1), &annex, false);
-    assert!(!witness_mismatch(true_spend.inner(), 0));
-    assert_eq!(mismatch_cards(true_spend), 0);
+    // The signature here is not over the annex (a true one over it is in
+    // `signature_origins`), so the shape alone is what this checks.
+    let shaped_spend = with_annex(pk_spend(7, 1), &annex, false);
+    assert!(!witness_shape_mismatch(shaped_spend.inner(), 0));
     let spoiled = with_annex(pk_spend(7, 1), &annex, true);
     assert!(witness_mismatch(spoiled.inner(), 0));
     assert_eq!(mismatch_cards(spoiled), 1);
@@ -1692,7 +1694,7 @@ fn an_annex_is_set_aside_before_the_witness_is_checked() {
             .map(Witness::len),
         Some(2)
     );
-    assert!(!witness_mismatch(key_path.inner(), 0));
+    assert!(!witness_shape_mismatch(key_path.inner(), 0));
 }
 
 #[test]
@@ -1806,9 +1808,9 @@ fn bip_341_script_path_vectors_commit() {
             bytes(script),
             bytes(control),
         ]));
-        assert!(!witness_mismatch(psbt.inner(), 0), "{spk}");
+        assert!(!witness_shape_mismatch(psbt.inner(), 0), "{spk}");
         let spoiled = with_control(psbt, |c| c[1] ^= 1);
-        assert!(witness_mismatch(spoiled.inner(), 0), "{spk}");
+        assert!(witness_shape_mismatch(spoiled.inner(), 0), "{spk}");
     }
 }
 
@@ -2076,6 +2078,8 @@ fn a_false_previous_transaction_reads_as_no_output_and_is_never_finalized() {
 #[test]
 fn no_committed_fixture_is_refused_for_agreeing_outputs() {
     const LYING: [&str; 1] = ["warn-utxo-mismatch.psbt"];
+    // A final input with one witness item too many: the signer check's own case.
+    const MISMATCHED: [&str; 1] = ["signer-final-extra.psbt"];
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let (mut walked, mut lying) = (0, 0);
     for dir in [
@@ -2114,8 +2118,9 @@ fn no_committed_fixture_is_refused_for_agreeing_outputs() {
                         "{} {what}, input {i}",
                         path.display()
                     );
-                    assert!(
-                        !witness_mismatch(p.inner(), i),
+                    assert_eq!(
+                        witness_mismatch(p.inner(), i),
+                        MISMATCHED.contains(&name.as_str()),
                         "{} {what}, input {i}",
                         path.display()
                     );

@@ -2077,7 +2077,17 @@ to carry on ("Not finished: a signature is wrong"), and nor does a final
 `scriptSig` or witness that does not match the output it spends, with or without a
 signature row ("Not finished: signing data does not match its output", or
 "Not finished: final fields do not satisfy the script they spend" where its
-shape matches and the script's interpreter refuses it, one
+shape matches and the script's interpreter refuses it (a final taproot
+key-path signature that fails, signed over the annex when the witness has
+one, and a script-path signature of a Tap miniscript leaf that fails are
+refused so; a leaf that is no miniscript, or of another leaf version, or
+is exactly `DUP HASH160 <h> EQUALVERIFY CHECKSIG` spent with a key of an
+unknown type (neither empty nor 32 bytes, no element over 520 bytes) and a
+non-empty signature, is not run, so Finish does not refuse it, and a
+64-byte element on it is data there; but a Schnorr signature row of such
+a leaf that reads Invalid makes Collect refuse a cosigner's file holding
+it; a key of an unknown type inside a larger Tap miniscript leaf is
+refused, though consensus takes it), one
 error line per input; the headline says so when no signature that stands
 is wrong and no nonce repeats, an unread input or an unchecked row on
 another input notwithstanding), nor a PSBT with an input, final or not,

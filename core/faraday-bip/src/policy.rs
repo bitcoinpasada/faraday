@@ -698,6 +698,17 @@ impl WalletPolicy {
         self.script_with(&secp, change, index)
     }
 
+    /// Costs a derivation of each key, uncounted (the script derivation
+    /// that goes with it is counted). Each of the policy's keys with a
+    /// master, derived at `change`/`index`.
+    pub fn keys_at(&self, change: bool, index: u32) -> Vec<(Fingerprint, PublicKey)> {
+        let secp = Secp256k1::verification_only();
+        self.keys
+            .iter()
+            .filter_map(|k| Some((k.fingerprint()?, derive(&secp, k, change, index).ok()?)))
+            .collect()
+    }
+
     /// Costs a derivation of each key: the same script, with a caller's
     /// secp context.
     pub fn script_at_with<V: Verification>(
@@ -833,18 +844,63 @@ impl WalletPolicy {
         if self.template == Template::MuSig {
             return None;
         }
-        let key = self.key(fingerprint)?;
         let steps: Vec<ChildNumber> = path.into_iter().copied().collect();
-        let prefix: Vec<ChildNumber> = key.path()?.into_iter().copied().collect();
-        if steps.len() != prefix.len() + 2 || steps[..prefix.len()] != prefix[..] {
-            return None;
-        }
-        match (steps[prefix.len()], steps[prefix.len() + 1]) {
-            (ChildNumber::Normal { index: c @ (0 | 1) }, ChildNumber::Normal { index }) => {
-                Some((c == 1, index))
+        // Every key of that master is tried: a wallet may hold two accounts
+        // of one master (a recovery branch under another account).
+        self.keys
+            .iter()
+            .filter(|k| k.fingerprint() == Some(fingerprint))
+            .find_map(|key| {
+                let prefix: Vec<ChildNumber> = key.path()?.into_iter().copied().collect();
+                if steps.len() != prefix.len() + 2 || steps[..prefix.len()] != prefix[..] {
+                    return None;
+                }
+                match (steps[prefix.len()], steps[prefix.len() + 1]) {
+                    (ChildNumber::Normal { index: c @ (0 | 1) }, ChildNumber::Normal { index }) => {
+                        Some((c == 1, index))
+                    }
+                    _ => None,
+                }
+            })
+    }
+
+    /// Costs a key derivation per key, each a public derivation per step
+    /// of `path` past the key's origin: a path read from a PSBT has at most
+    /// [`crate::keys::MAX_PATH_STEPS`] steps (the PSBT is refused when read,
+    /// `faraday_psbt`'s `refuse_long_paths`). `None` when no key of this
+    /// policy names master `fingerprint`; else, for each such key whose origin
+    /// path is a prefix of `path`, what its xpub derives to over the rest
+    /// of the path (nothing for a hardened step there).
+    pub fn derive_named(
+        &self,
+        c: &Compute,
+        fingerprint: Fingerprint,
+        path: &DerivationPath,
+    ) -> Option<Vec<PublicKey>> {
+        let mut named = false;
+        let mut out = Vec::new();
+        let steps: Vec<ChildNumber> = path.into_iter().copied().collect();
+        for key in self
+            .keys
+            .iter()
+            .filter(|k| k.fingerprint() == Some(fingerprint))
+        {
+            named = true;
+            let Some(origin) = key.path() else { continue };
+            let prefix: Vec<ChildNumber> = origin.into_iter().copied().collect();
+            if steps.len() < prefix.len() || steps[..prefix.len()] != prefix[..] {
+                continue;
             }
-            _ => None,
+            c.count(Work::KeyDerive);
+            let secp = Secp256k1::verification_only();
+            if let Ok(x) = key
+                .xpub
+                .derive_pub(&secp, &DerivationPath::from(steps[prefix.len()..].to_vec()))
+            {
+                out.push(PublicKey::new(x.public_key));
+            }
         }
+        named.then_some(out)
     }
 
     /// The parsed descriptor, for the miniscript and taproot-tree

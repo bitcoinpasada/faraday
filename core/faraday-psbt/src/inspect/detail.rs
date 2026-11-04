@@ -299,6 +299,12 @@ pub enum Detail {
         /// The key, named as the review names one.
         key: String,
     },
+    /// A signature on the transaction is not a signature of it, and no key
+    /// of the input is named for it.
+    SignatureInvalidUnkeyed {
+        /// The input.
+        input: usize,
+    },
     /// A finalized scriptSig or witness does not match the output it spends.
     WitnessMismatch {
         /// The input.
