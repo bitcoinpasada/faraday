@@ -41,6 +41,7 @@ mod silent;
 mod silent_send;
 mod slip39;
 mod taproot;
+mod totp;
 mod tx;
 mod ur;
 mod vanity;
@@ -86,6 +87,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "seedqr" => seedqr::handle(name, req),
         "bbqr" => parts::handle_bbqr(name, req),
         "specter" => parts::handle_specter(name, req),
+        "totp" => totp::handle(name, req),
         "ur" => ur::handle(name, req),
         "vanity" => vanity::handle(name, req),
         "kdbx" => kdbx::handle(name, req),

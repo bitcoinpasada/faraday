@@ -98,6 +98,7 @@ AREAS = {
     "bbqr": ("area_bbqr", "Bbqr",
              ("bbqr.join", "bbqr.encode", "specter.encode"), 300),
     "ur": ("area_ur", "Ur", ("ur.encode", "ur.crc32", "ur.cbor", "ur.registry", "ur.account"), 410),
+    "totp": ("area_totp", "Totp", ("totp.code", "totp.read"), 60),
     "vanity": ("area_vanity", "Vanity", "vanity.grind", 460),
     "kdbx": ("area_kdbx", "Kdbx", ("kdbx.verify", "kdbx.argon2id"), 30),
     "lightning": ("area_lightning", "Lightning",

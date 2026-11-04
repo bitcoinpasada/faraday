@@ -7614,8 +7614,12 @@ tests = [
   "faraday/faraday-vault/tests/totp.rs::hotp_steam_and_malformed_forms_are_not_read",
   "faraday/faraday-core/tests/all/totp.rs::the_code_shown_changes_when_the_tick_crosses_the_period",
 ]
+crosscheck = "totp"
+independence = { class = "outside", author = "pyotp, by the pyotp developers, which judges the code, the seconds left, the period and the reading of an otpauth URI's key, digits, period and hash; Faraday's stricter and wider readings of a URI are stated differences of the area" }
 fuzz = ["vault_entries"]
-not_crosschecked = "RFC 6238 and RFC 4226 publish vectors that cover the algorithm in full (STANDARDS section 0)."
+other = [
+  "KeePass 2's TimeOtp-* fields, KeePassXC's TOTP Seed and TOTP Settings (`from_fields`) and what the entry form stores into field 6 (`normalise`): no pyotp reader, the crate's tests only",
+]
 
 [action.secrets]
 reveal = ["Reveal::VaultEntry"]

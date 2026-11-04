@@ -140,6 +140,16 @@ def cbor2_version():
     return got.stdout.strip() if got.returncode == 0 and got.stdout.strip() else "unknown"
 
 
+def pyotp_version():
+    """python3-pyotp's package version, or None when Python cannot import it."""
+    run = subprocess.run([sys.executable, "-I", "-c", "import pyotp"], capture_output=True)
+    if run.returncode != 0:
+        return None
+    got = subprocess.run(["dpkg-query", "-W", "-f", "${Version}", "python3-pyotp"],
+                         capture_output=True, text=True)
+    return got.stdout.strip() if got.returncode == 0 and got.stdout.strip() else "unknown"
+
+
 def missing():
     out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
     if find("sq") and "cryptographic backend Nettle" not in (sq_backend() or ""):
@@ -153,6 +163,8 @@ def missing():
         out.append("zxingcpp for Python (package python3-zxing-cpp)")
     if not cbor2_version():
         out.append("cbor2 for Python (package python3-cbor2)")
+    if not pyotp_version():
+        out.append("pyotp for Python (package python3-pyotp)")
     if not ovmf():
         out.append("OVMF's Secure Boot firmware, OVMF_CODE.secboot.4m.fd or "
                    "OVMF_CODE_4M.secboot.fd and its empty variable store "
@@ -174,6 +186,7 @@ def versions():
     lines.append(f"python3-pefile {pefile_version() or 'missing'}")
     lines.append(f"python3-zxing-cpp {zxingcpp_version() or 'missing'}")
     lines.append(f"python3-cbor2 {cbor2_version() or 'missing'}")
+    lines.append(f"python3-pyotp {pyotp_version() or 'missing'}")
     code = ovmf()
     if code:
         digest = subprocess.run(["sha256sum", code],

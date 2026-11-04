@@ -215,6 +215,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `seedqr` | `faraday_codec::seedqr` (SeedQR, CompactSeedQR), `faraday_codec::qr`, the encoder that draws them, and `faraday_codec::qr::codex32qr` with the picture `faraday_core::picture` writes of it | SeedSigner's own encoders and `DecodeQR` (`seedsigner/`, unchanged, with embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` (`qrcodegen/`), module for module; segno 1.6 (`python3-segno`), an encoder of another lineage, at Faraday's mask and at its own; Pillow and CPython's zlib, which read every PNG Faraday writes; zbar (`zbarimg`) and zxing-cpp, which decode the QR code in every picture and return its payload as bytes (`qr_decode.py`) | SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and picture of the Codex32QR profile (`tools/vectors/codex32qr/`), each decoded by zbar and zxing-cpp | keys of every length and language, both codes and the words read back; digits and bytes malformed; payloads in each mode at each level and version limit; 48-character codex32 strings in either case as Codex32QR codes and the pictures written of them read back and decoded by zbar and zxing-cpp, other lengths refused; the pictures of a key's SeedQR and CompactSeedQR decoded by both and read by Faraday to the key's words; greyscale pictures and QR pictures of random size and scale read by Pillow and zlib |
 | `bbqr` | `faraday_qr::bbqr`, `faraday_qr::specter` (numbered text parts) | Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked against `qrcodegen.py`); krux's `qr.py` and `bbqr.py` (`krux/`, unchanged, with three small shims for the firmware's QR, base32 and deflate modules); SeedSigner's own `SpecterWalletQrDecoder` (`seedsigner/`, unchanged) | Coinkite's BBQr test files (`tools/vectors/bbqr/`): the 26 parts of a phone's scan, which read as a `U` file with the text Coinkite's test expects, and its ten PSBTs and transactions, each split in every encoding and read back to the file's bytes | files of every type and size written by krux (at the sizes of QR versions 1 to 20) and split by Coinkite in each encoding, read in any order, with repeats, a part missing, another transfer's part, a conflicting repeat and a part past the count, against Coinkite and krux; what Faraday writes, part for part krux's own writing at the same size, read back by `join_qrs` and by krux; numbered parts written by krux, written again by Faraday, read in any order against SeedSigner's decoder and krux and refused when malformed |
 | `ur` | `faraday_codec::ur` (single-part URs, the animation's parts, the decoder), `faraday_crypto::crc32`, `faraday_codec::cbor` and `faraday_qr::registry` | Foundation Devices' foundation-ur-py (`ur/`), URKit ported; CPython's `zlib.crc32`; cbor2 | URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`) | messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut; CRC-32 of random messages and of the parts; the parts and single-part payloads read by cbor2; registry types built with cbor2 and read; random and mutated CBOR through Faraday's reader beside cbor2 |
+| `totp` | `faraday_vault::totp` (`parse`, `Totp::code`, `left` and `period`) | pyotp 2.9 (python3-pyotp): `TOTP.at` and `generate_otp` for the code, `parse_uri` for a URI's key, digits, period and hash | RFC 6238 Appendix B: the codes of the SHA-1, SHA-256 and SHA-512 seeds at its six times, 8 digits | random keys of 1 to 300 bytes in `otpauth://totp/` URIs and, from 10 bytes, as bare keys, digits 6 to 8, periods 1 to 3600 (and past it), the three hashes, times from 0 to 2^64 - 1 with the edges of each period, the code, the seconds left and the period; the URIs written in other spellings and damaged (a character changed, added, removed, a cut, a pair dropped or doubled), read by both; the pinned URIs |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `kdbx` | `faraday_backup::kdbx` (the KDBX 4 export and its own check) and `faraday_backup::argon2id`, the export's derivation | pykeepass, the distribution's package (`python3-pykeepass`), and PyCA cryptography's Argon2id (OpenSSL's) beside it | the repository's export (`tools/vectors/backup/`), written again byte for byte and opened; the Argon2id known answer (`tools/vectors/vault-primitives/`) | Argon2id at small random costs, salts and passwords against PyCA's; databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte |
 | `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve) | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code |
@@ -425,6 +426,12 @@ leaves uncompared.
   any run, and a published vector's answer is required of the reference
   as well as of Faraday; foundation-ur-py is itself a port of URKit
   checked against URKit's own tests, whose vectors the area also runs.
+- `totp`: RFC 6238 Appendix B's codes are required of pyotp as well as
+  of Faraday, and each pinned URI's answer from each side is stated in
+  the area. Not compared: `from_fields` (KeePass 2's `TimeOtp-*` fields
+  and KeePassXC's `TOTP Seed` and `TOTP Settings`) and `normalise` (what
+  the entry form writes into field 6), which no pyotp reader covers: the
+  crate's tests hold them; `grouped`, the display grouping of a code.
 - `vanity`: the search is written in the area from the README's
   quotation of EntropyLab's counter, and EntropyLab's two finds are
   required of it as well as of Faraday.
@@ -798,6 +805,29 @@ difference"), and says why.
     tags below 300 or from 1000 on as types of its own. The area counts
     each such input as a known difference, and any other difference is a
     failure.
+- `totp`
+  - Where Faraday reads and pyotp refuses: a scheme, type or `algorithm`
+    in other than lower (upper for the algorithm) case; `encoder=steam`,
+    which pyotp reads as a Steam code of five characters and Faraday as
+    a 6-digit SHA-1 code, the way it ignores any parameter it does not
+    know; a parameter name pyotp does not know, a `counter` on a TOTP, a
+    label issuer that the `issuer` parameter does not repeat; Base32
+    with spaces or hyphens (a bare key) or `=` in the wrong place, or a
+    length that Base32 cannot have. The area asks both about the URI
+    with that difference taken out and requires the same answer, and
+    Faraday's answer to the original to be that answer.
+  - Where Faraday refuses and pyotp reads: a period over 3600 seconds
+    (Faraday's rule), a pair with no `=` or no value, a type with no `/`
+    before its `?`, a value written percent-encoded (Faraday reads it as
+    it is), a fragment after the last value, and a bare key of fewer
+    than 16 characters. The area asks both about the URI with that
+    difference taken out and requires the same answer; the percent
+    escapes, the fragment and the short key are pinned one URI at a
+    time.
+  - HOTP: pyotp reads `otpauth://hotp/` as a HOTP; Faraday refuses it,
+    naming it HOTP (`NotTotp::Hotp`) and reading no code.
+  - Times: pyotp works from a `datetime`, which ends in year 9999; past
+    it the area asks `generate_otp` for the counter, `time // period`.
 - `vanity`
   - Each candidate's child key is derived by btclib on its own curve,
     not by Bitcoin Core, which shares libsecp256k1's curve maths with
@@ -955,6 +985,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `sps` | others' code | BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone | none | silent-send |
 | `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20), for the primitives | the container, its slot layout, key schedule and records, written in `area_vault.py` from the FVLT format's account (`docs/history/VAULT-LOG.md`) | vault-create, vault-unlock, vault-seal, vault-edit |
 | `kdbx` | others' code | pykeepass, by the libkeepass project (the distribution's package), and PyCA's cryptography over OpenSSL for the Argon2id | none | kdbx |
+| `totp` | others' code | pyotp, by the pyotp developers, which judges the code, the seconds left, the period and the reading of an otpauth URI's key, digits, period and hash; Faraday's stricter and wider readings of a URI are stated differences of the area | none | totp |
 <!-- crypto-manifest: end independence -->
 
 ## What the machine needs
