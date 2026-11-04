@@ -1585,6 +1585,20 @@ impl OpenVaults {
         Some(s.opened.next_cost_at(s.new_step))
     }
 
+    /// A lookup. Whether open vault `id` has a memory step waiting for its
+    /// seal ([`OpenVaults::set_step`]).
+    pub fn has_step(&self, id: VaultId) -> bool {
+        self.slot(id).is_some_and(|s| s.new_step.is_some())
+    }
+
+    /// Drops the memory step open vault `id` waits to seal with, so its
+    /// next seal is written at the file's own: the changes stay.
+    pub fn clear_step(&mut self, id: VaultId) {
+        if let Some(s) = self.slots.iter_mut().find(|s| s.id == id) {
+            s.new_step = None;
+        }
+    }
+
     /// A lookup. Whether open vault `id` has a new passphrase or a new
     /// memory step waiting for its seal: a change, so a lock seals it.
     pub fn rekeyed(&self, id: VaultId) -> bool {

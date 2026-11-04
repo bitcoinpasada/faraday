@@ -200,6 +200,22 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
 
     unreadable_and_read_only(t)?;
 
+    // Change passphrase and Memory on an open vault.
+    let main = testkit::test_vault()?;
+    only(t, vec![("vault.kdbx".into(), main)], Vec::new());
+    unlock(t, testkit::VAULT_PASSPHRASE);
+    crate::tour::not_now_load(t);
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::ChangePassphrase));
+    type_text(t, "a new passphrase");
+    t.press(Action::Vault(V::FocusField(1)));
+    type_text(t, "a new passphrase 2");
+    t.shot("vault-change-passphrase")?;
+    t.press(Action::Vault(V::FormCancel));
+    t.press(Action::Vault(V::MemoryAsk));
+    t.shot("vault-memory")?;
+    t.press(Action::Vault(V::FormCancel));
+
     // A vault changed past its size: the Lock sheet says it cannot be sealed.
     only(t, vec![("vault.kdbx".into(), own)], Vec::new());
     unlock(t, testkit::VAULT_PASSPHRASE);

@@ -5,7 +5,9 @@
 use crate::common::type_text;
 use faraday_core::strings::EN;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
+use faraday_core::{
+    Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
+};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_vault::kdbx::xml::{Entry, Group};
 
@@ -17,10 +19,20 @@ const NO_BIN: &str = "<RecycleBinUUID>AAAAAAAAAAAAAAAAAAAAAA==</RecycleBinUUID>"
 
 /// A device with a 480x640 panel holding `inbox`.
 fn process(inbox: Files) -> Faraday {
+    process_at(480, 640, inbox)
+}
+
+/// A device with a `width` x `height` panel holding `inbox`.
+fn process_at(width: u16, height: u16, inbox: Files) -> Faraday {
+    process_with(width, height, Some(15_000), inbox)
+}
+
+/// [`process_at`] with `free` MiB of memory free, or not told.
+fn process_with(width: u16, height: u16, free: Option<u32>, inbox: Files) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
-        width: 480,
-        height: 640,
+        width,
+        height,
         dpi: 286,
         inset_bottom: 0,
         inset_top: 0,
@@ -30,9 +42,9 @@ fn process(inbox: Files) -> Faraday {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
+    if let Some(available_mib) = free {
+        app.storage(StorageEvent::Memory { available_mib });
+    }
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });
@@ -390,4 +402,423 @@ fn an_idle_lock_of_a_vault_that_seals_says_nothing_of_lost_changes() {
         "the sealed file did not reach the Outbox"
     );
     assert!(!texts.contains(EN.locked_changes_lost), "{texts}");
+}
+
+/// An open writable vault under `PHRASE`.
+fn open_vault() -> Faraday {
+    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut app = process(vec![("main.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app
+}
+
+/// Locks the open vault and returns the file it sealed.
+fn lock_and_seal(app: &mut Faraday) -> Files {
+    crate::common::top_up(app);
+    app.press(Action::Lock);
+    testkit::settle(app);
+    let out = saved_outbox(app);
+    assert_eq!(out.len(), 1, "a lock sealed no file");
+    out
+}
+
+/// Types `first`, then `again`, into Change passphrase and presses Save.
+fn change_passphrase(app: &mut Faraday, first: &str, again: &str) {
+    app.press(Action::Vault(V::ChangePassphrase));
+    assert_eq!(app.sheet, Some(Sheet::VaultPassphrase));
+    type_text(app, first);
+    app.press(Action::Vault(V::FocusField(1)));
+    type_text(app, again);
+    app.press(Action::Vault(V::FormSave));
+}
+
+#[test]
+fn a_changed_passphrase_is_the_one_the_next_seal_opens_under() {
+    let mut app = open_vault();
+    change_passphrase(&mut app, "a new phrase", "a new phrase");
+    assert_eq!(app.sheet, None);
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t == EN.vault_passphrase_next_seal)
+    );
+    // The lock sheet counts it as an unsaved change.
+    assert!(app.vaults().open[0].changes > 0);
+    let sealed = lock_and_seal(&mut app);
+
+    let mut app = process(sealed.clone());
+    try_unlock(&mut app, "a new phrase");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "the new passphrase did not open it"
+    );
+    let mut app = process(sealed);
+    try_unlock(&mut app, PHRASE);
+    assert!(app.vaults().open.is_empty(), "the old passphrase opened it");
+}
+
+#[test]
+fn a_passphrase_typed_twice_differently_or_empty_is_refused_and_changes_nothing() {
+    let mut app = open_vault();
+    change_passphrase(&mut app, "one phrase", "another phrase");
+    assert_eq!(app.sheet, Some(Sheet::VaultPassphrase));
+    assert_eq!(app.toast_text(), Some(EN.vaults_each_passphrase));
+    app.press(Action::Vault(V::FormCancel));
+    assert_eq!(app.sheet, None);
+    app.press(Action::Vault(V::ChangePassphrase));
+    app.press(Action::Vault(V::FormSave));
+    assert_eq!(app.toast_text(), Some(EN.vaults_every_passphrase));
+    app.press(Action::Vault(V::FormCancel));
+    assert_eq!(app.vaults().open[0].changes, 0);
+}
+
+#[test]
+fn a_changed_memory_step_is_the_cost_the_sealed_file_states() {
+    let mut app = open_vault();
+    let steps = faraday_vault::file::STEPS_KIB;
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let pick = if have == steps[1] { 2 } else { 1 };
+    app.press(Action::Vault(V::MemoryAsk));
+    assert_eq!(app.sheet, Some(Sheet::VaultMemory));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(pick)));
+    assert_eq!(app.sheet, None);
+    assert!(app.vaults().open[0].changes > 0);
+    let sealed = lock_and_seal(&mut app);
+
+    let mut app = process(sealed);
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(
+        app.vaults().open[0].facts().header.cost.memory_kib,
+        steps[pick]
+    );
+}
+
+#[test]
+fn a_read_only_vault_offers_neither_and_opens_neither() {
+    let (name, file, _) = read_only_files().into_iter().next().unwrap();
+    let mut app = process(vec![("ro.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    let texts = head(&mut app);
+    assert!(
+        !texts.contains(EN.vault_change_passphrase),
+        "{name}: {texts}"
+    );
+    app.press(Action::Vault(V::ChangePassphrase));
+    assert_eq!(app.sheet, None);
+    app.press(Action::Vault(V::MemoryAsk));
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn an_open_vault_offers_change_passphrase_and_memory() {
+    let mut app = open_vault();
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vault_change_passphrase), "{texts}");
+    assert!(texts.contains(EN.vault_memory), "{texts}");
+}
+
+const TYPED: &str = "typed-not-saved-9";
+
+/// The dialog `ask` opens, typed into where it takes text, then `lock`;
+/// what is left of it afterwards.
+fn lock_with_dialog_open(ask: V, lock: impl Fn(&mut Faraday)) {
+    let mut app = open_vault();
+    app.press(Action::Vault(ask));
+    assert!(matches!(
+        app.sheet,
+        Some(Sheet::VaultPassphrase | Sheet::VaultMemory)
+    ));
+    if ask == V::ChangePassphrase {
+        type_text(&mut app, TYPED);
+        app.press(Action::Vault(V::FocusField(1)));
+        type_text(&mut app, TYPED);
+    }
+    lock(&mut app);
+    testkit::settle(&mut app);
+    assert!(
+        !matches!(app.sheet, Some(Sheet::VaultPassphrase | Sheet::VaultMemory)),
+        "the dialog is still open: {:?}",
+        app.sheet
+    );
+    assert!(app.vaults().open.is_empty(), "the vault is still open");
+    assert!(!page(&mut app).contains(TYPED), "the typed text is shown");
+    let out = saved_outbox(&mut app);
+    for (_, bytes) in &out {
+        // Whatever was written opens under the old passphrase.
+        let mut next = process(vec![("main.kdbx".into(), bytes.clone())]);
+        try_unlock(&mut next, PHRASE);
+        assert_eq!(next.vaults().open.len(), 1, "the passphrase changed");
+        if ask == V::ChangePassphrase {
+            next.press(Action::Nav(Screen::VaultContents));
+            next.press(Action::Vault(V::ChangePassphrase));
+            assert!(!page(&mut next).contains(TYPED));
+        }
+    }
+}
+
+fn plain_lock(app: &mut Faraday) {
+    crate::common::top_up(app);
+    app.press(Action::Lock);
+}
+
+fn idle_lock(app: &mut Faraday) {
+    crate::common::top_up(app);
+    app.event(Event::Tick { now_ms: 100_000 });
+    app.event(Event::Tick {
+        now_ms: 100_000 + 30 * MIN,
+    });
+}
+
+#[test]
+fn a_lock_closes_change_passphrase_and_drops_what_was_typed() {
+    lock_with_dialog_open(V::ChangePassphrase, plain_lock);
+    lock_with_dialog_open(V::ChangePassphrase, idle_lock);
+}
+
+#[test]
+fn a_lock_closes_memory_and_changes_nothing() {
+    lock_with_dialog_open(V::MemoryAsk, plain_lock);
+    lock_with_dialog_open(V::MemoryAsk, idle_lock);
+}
+
+/// The last of the five memory steps, below the dialog's cut at first.
+const LAST_STEP: usize = 4;
+
+#[test]
+fn the_last_memory_step_is_reached_by_touch() {
+    let mut app = open_vault();
+    app.press(Action::Vault(V::MemoryAsk));
+    let step = Action::Vault(V::MemoryStep(LAST_STEP));
+    let mut got = crate::common::offered(&mut app, step);
+    for _ in 0..10 {
+        if got {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 240,
+            y: 320,
+            dy: 120,
+        });
+        got = crate::common::offered(&mut app, step);
+    }
+    assert!(got, "1024 MiB cannot be reached by touch");
+}
+
+#[test]
+fn the_last_memory_step_is_reached_by_the_mouse_wheel() {
+    let mut app = open_vault();
+    app.press(Action::Vault(V::MemoryAsk));
+    let step = Action::Vault(V::MemoryStep(LAST_STEP));
+    let mut got = crate::common::offered(&mut app, step);
+    for _ in 0..10 {
+        if got {
+            break;
+        }
+        app.event(Event::Wheel {
+            x: 240,
+            y: 320,
+            dy: 48,
+        });
+        got = crate::common::offered(&mut app, step);
+    }
+    assert!(got, "1024 MiB cannot be reached by the wheel");
+}
+
+/// An open vault with `free` MiB of memory free.
+fn open_vault_with_free(free: u32) -> Faraday {
+    let mut app = open_vault();
+    app.storage(StorageEvent::Memory {
+        available_mib: free,
+    });
+    app
+}
+
+#[test]
+fn a_memory_step_this_computer_could_not_unlock_is_neither_offered_nor_taken() {
+    let mut app = open_vault_with_free(1100);
+    app.press(Action::Vault(V::MemoryAsk));
+    let last = Action::Vault(V::MemoryStep(LAST_STEP));
+    let small = Action::Vault(V::MemoryStep(2));
+    assert!(crate::common::offered(&mut app, small));
+    assert!(!crate::common::offered(&mut app, last), "1 GiB is offered");
+    app.press(last);
+    assert_eq!(app.sheet, Some(Sheet::VaultMemory), "1 GiB was taken");
+    assert_eq!(app.vaults().open[0].changes, 0);
+    assert!(app.toast_text().is_some());
+}
+
+#[test]
+fn with_free_memory_unknown_a_step_above_64_mib_is_neither_offered_nor_taken() {
+    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut app = process_with(480, 640, None, vec![("main.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "a 64 MiB vault did not open");
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::MemoryAsk));
+    for k in 1..=LAST_STEP {
+        let step = Action::Vault(V::MemoryStep(k));
+        assert!(!crate::common::offered(&mut app, step), "step {k} offered");
+        app.press(step);
+        assert_eq!(app.sheet, Some(Sheet::VaultMemory), "step {k} was taken");
+        assert_eq!(
+            app.vaults().open[0].changes,
+            0,
+            "step {k} changed the vault"
+        );
+    }
+}
+
+/// An entry being written, with `TYPED` in its title.
+fn writing_an_entry(width: u16, height: u16) -> Faraday {
+    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut app = process_at(width, height, vec![("main.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Add));
+    app.press(Action::Vault(V::FocusField(0)));
+    type_text(&mut app, TYPED);
+    app
+}
+
+#[test]
+fn an_entry_being_written_survives_change_passphrase_and_memory() {
+    for (w, h) in [(1280, 800), (480, 640)] {
+        let mut app = writing_an_entry(w, h);
+        assert!(page(&mut app).contains(TYPED), "{w}x{h}");
+        for ask in [V::MemoryAsk, V::ChangePassphrase] {
+            app.press(Action::Vault(ask));
+            assert_eq!(app.sheet, None, "{w}x{h}: {ask:?} opened");
+            assert!(!crate::common::offered(&mut app, Action::Vault(ask)));
+            assert!(page(&mut app).contains(TYPED), "{w}x{h}: the draft is gone");
+        }
+        // Typing still goes to the entry.
+        type_text(&mut app, "!");
+        assert!(page(&mut app).contains(&format!("{TYPED}!")), "{w}x{h}");
+    }
+}
+
+/// The ways out of a dialog other than its Cancel.
+fn leave(app: &mut Faraday, how: &str) {
+    match how {
+        "escape" => app.event(Event::Key(faraday_shell_api::Key::Escape)),
+        _ => app.event(Event::Back),
+    }
+}
+
+#[test]
+fn escape_and_the_mouse_back_close_change_passphrase_and_memory_and_drop_what_was_typed() {
+    for how in ["escape", "back"] {
+        for ask in [V::ChangePassphrase, V::MemoryAsk] {
+            let mut app = open_vault();
+            app.press(Action::Vault(ask));
+            if ask == V::ChangePassphrase {
+                type_text(&mut app, TYPED);
+                app.press(Action::Vault(V::FocusField(1)));
+                type_text(&mut app, TYPED);
+            }
+            leave(&mut app, how);
+            let _ = app.frame();
+            assert_eq!(app.sheet, None, "{how} {ask:?}: the dialog is open");
+            assert!(!page(&mut app).contains(TYPED), "{how} {ask:?}: shown");
+            // Nothing typed is in the form that Add an entry opens.
+            app.press(Action::Vault(V::Category(2)));
+            app.press(Action::Vault(V::Add));
+            let texts = page(&mut app);
+            assert!(texts.contains(EN.vault_save), "{how} {ask:?}: no form");
+            assert!(!texts.contains(TYPED), "{how} {ask:?}: typed text kept");
+            assert_eq!(app.vaults().open[0].changes, 0);
+        }
+    }
+}
+
+/// The size of the Memory dialog's row marked as the next seal's, looked
+/// for at its end and then at its top.
+fn next_seal_size(app: &mut Faraday) -> String {
+    for key in [faraday_shell_api::Key::Down, faraday_shell_api::Key::Up] {
+        for _ in 0..30 {
+            app.event(Event::Key(key));
+            let _ = app.frame();
+        }
+        let texts = app.drawn_texts();
+        if let Some(at) = texts.iter().position(|t| t == EN.vault_next_seal) {
+            return texts[at - 1].to_string();
+        }
+    }
+    panic!("no row is marked as the next seal");
+}
+
+#[test]
+fn the_last_memory_step_is_reached_by_keys_alone_at_the_smallest_size() {
+    // Each try on a fresh device: Down scrolls the sheet to its end, Tab
+    // is pressed n times, Enter presses what Tab reached. The 1 GiB row is
+    // among them.
+    let last = EN.vaults_gib.replace("{}", "1");
+    let mut taken = Vec::new();
+    for n in 1..=8 {
+        let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+        let mut app = process_at(320, 480, vec![("main.kdbx".into(), file)]);
+        try_unlock(&mut app, PHRASE);
+        app.press(Action::Nav(Screen::VaultContents));
+        app.press(Action::Vault(V::MemoryAsk));
+        let _ = app.frame();
+        for _ in 0..30 {
+            app.event(Event::Key(faraday_shell_api::Key::Down));
+            let _ = app.frame();
+        }
+        for _ in 0..n {
+            app.event(Event::Key(faraday_shell_api::Key::Tab));
+            let _ = app.frame();
+        }
+        app.event(Event::Key(faraday_shell_api::Key::Enter));
+        let _ = app.frame();
+        if app.sheet.is_none() {
+            app.press(Action::Vault(V::MemoryAsk));
+            taken.push(next_seal_size(&mut app));
+        }
+    }
+    assert!(
+        taken.contains(&last),
+        "1 GiB was not taken by keys: {taken:?}"
+    );
+}
+
+/// A stick plugged in.
+fn attach_stick(app: &mut Faraday) {
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "a".into(),
+        label: "STICK".into(),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+}
+
+#[test]
+fn escape_closes_change_passphrase_when_a_stick_leaves_no_field_focused() {
+    let mut app = open_vault();
+    attach_stick(&mut app);
+    app.press(Action::Vault(V::ChangePassphrase));
+    type_text(&mut app, TYPED);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::VaultPassphrase),
+        "the dialog is not open"
+    );
+    leave(&mut app, "escape");
+    let _ = app.frame();
+    assert_eq!(app.sheet, None, "Escape left the dialog open");
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Add));
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vault_save), "no form");
+    assert!(!texts.contains(TYPED), "typed text kept");
 }

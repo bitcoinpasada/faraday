@@ -1892,6 +1892,19 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     y += 30.0;
+    // Not beside what is being written, as on a small panel.
+    if v.read_only().is_none() && !writing(app) {
+        // The seal's passphrase and memory step: changed here, written
+        // at the next seal.
+        let mut bx = x;
+        for (label, a) in [
+            (EN.vault_change_passphrase, V::ChangePassphrase),
+            (EN.vault_memory, V::MemoryAsk),
+        ] {
+            bx += ui.button(bx, y, None, BUTTON_H, label, Style::Ghost, va(a)) + tokens::GAP_SMALL;
+        }
+        y += BUTTON_H + tokens::GAP;
+    }
     y += seals_head(app, ui, v, (x, y, w), beside);
     y += guide_text(
         app,
@@ -2166,8 +2179,14 @@ fn add_rows(ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
 /// Whether the contents show an item, or something being added or made,
 /// rather than the vault's list: on a small panel, a page of its own.
 pub(crate) fn contents_detail(app: &Faraday) -> bool {
+    app.vaults.item_open || writing(app)
+}
+
+/// Whether something is being added or made, which an action beside it
+/// must not replace or drop.
+pub(crate) fn writing(app: &Faraday) -> bool {
     let v = &app.vaults;
-    v.item_open || v.form.is_some() || v.prompt.is_some() || v.saving || v.signing || v.sb_images
+    v.form.is_some() || v.prompt.is_some() || v.saving || v.signing || v.sb_images
 }
 
 /// [`contents`] on a small panel: the vault, its kinds and the items of
@@ -2272,6 +2291,19 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::LockAsk,
     );
     y += 52.0;
+    if editable {
+        for (i, (label, a)) in [
+            (EN.vault_change_passphrase, V::ChangePassphrase),
+            (EN.vault_memory, V::MemoryAsk),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let bx = x + i as f32 * (half + tokens::GRID);
+            ui.button(bx, y, Some(half), BUTTON_H, label, Style::Secondary, va(a));
+        }
+        y += BUTTON_H + tokens::GAP;
+    }
     if app.vaults.open.len() > 1 {
         let labels: Vec<String> = app
             .vaults

@@ -344,6 +344,16 @@ fn seal_close(app: &mut Faraday, id: VaultId) {
     app.vaults.state.current = 0;
     app.vaults.state.item_open = false;
     app.vaults.state.form = None;
+    drop_vault_dialog(app);
+}
+
+/// Change passphrase and Memory belong to the vault they were opened
+/// on: once it is closed they close with it, the typed text gone.
+fn drop_vault_dialog(app: &mut Faraday) {
+    use crate::Sheet::{VaultMemory, VaultPassphrase};
+    if matches!(app.sheet, Some(VaultPassphrase | VaultMemory)) {
+        app.sheet = None;
+    }
 }
 
 /// The queue is empty: a lock of every vault closes them and goes on
@@ -356,6 +366,8 @@ fn seal_end(app: &mut Faraday) {
         // Flows end while the vaults are still open, as the lock began.
         lock_flows(app);
         app.vaults.state.close_all();
+        app.vaults.state.form = None;
+        drop_vault_dialog(app);
         app.vaults.state.load = None;
         app.vaults.state.pass_seeds = None;
         lock_finish(app);
@@ -393,6 +405,19 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             // later vault's failure leaves this one closed, its file in
             // the Outbox, not open and empty.
             seal_close(app, id);
+        }
+        // An idle lock that could not allocate the new memory step seals
+        // again at the file's own cost: the changes are kept, the step is
+        // not.
+        Err(faraday_vault::file::Error::Memory(_))
+            if all && app.idle_locked_after().is_some() && app.vaults.store().has_step(id) =>
+        {
+            app.vaults.state.store.seal_ended(id, false);
+            app.vaults.state.store.clear_step(id);
+            if let Some(run) = app.vaults.state.sealing.as_mut() {
+                run.queue.push_front(id);
+            }
+            return seal_next(app);
         }
         // An idle lock has no one to ask: the changes are lost and the
         // lock goes on to the wipes.

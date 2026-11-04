@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), and the outside cross-check area for the QR vault (§10)
+**Open:** not built: a seal that takes a new size (§8's Size, which goes with the vault growing by itself), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), and the outside cross-check area for the QR vault (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -145,7 +145,7 @@ A file vault's length is the 313 bytes of §1.1's header, its hash and
 its HMAC, the plaintext, and 36 bytes for each 1 MiB block and the empty
 block after them. The plaintext is the inner header, the XML document
 and the line feeds after it. The size is chosen when a vault is made and
-can be changed on an open vault (§8); the next seal writes the new size.
+is meant to change on an open vault (§8, not built); the next seal would write the new size.
 A reader opens a file whose plaintext is up to 4 MiB of any length, as a
 KeePass app's save is (§7.1), and refuses a longer one from the file's
 length, before any work, and a compressed one whose plaintext inflates
@@ -782,12 +782,24 @@ passphrase. **Add randomness** is offered before the vault is made
 identifier and seals the empty database (its custom data alone) as the
 first seal, count 1.
 
-Every seal is a new file, so an open vault's passphrase, memory step and
-size can each be changed (**Change passphrase**, **Memory**, **Size**,
-on the vault's ⋮): the change takes effect at the next seal, which runs
-Argon2id under the new passphrase and step and pads to the new size. A
-size the contents do not fit is not offered. Copies of the vault sealed
-before keep their old passphrase.
+Every seal is a new file, so an open vault's passphrase and memory step
+can each be changed, and its size could be (Size is not built; it goes
+with the vault growing by itself). **Change passphrase** and **Memory**
+are buttons on a writable vault's page, each opening a dialog; a
+read-only vault offers neither. Change passphrase takes the new
+passphrase typed twice, refusing an empty one and two that differ, and
+does not ask for the old one: the vault is open. Memory lists the file's
+five steps (§3.1) with the next seal's marked and the most the weakest
+computer gives a vault, as Create does. Either counts as an unsaved
+change, so a lock seals it, and a toast says it takes effect at the
+next seal, which runs Argon2id under the new passphrase and step. Copies
+of the vault sealed before keep their old passphrase and step. Memory
+offers only the steps this computer could unlock (Unlock's test), and
+refuses another at the action; neither button is offered, or taken,
+while an entry or anything else is being written. Escape and the mouse
+back close either dialog as Cancel does, dropping what was typed. An idle
+lock whose seal cannot allocate the new step seals again at the file's own,
+so its changes are kept.
 
 A **QR** size in Create a vault makes a QR vault (§2.1), empty, with
 the same name, memory step and passphrase; there is no separate flow

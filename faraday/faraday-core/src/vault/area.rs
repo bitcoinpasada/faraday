@@ -1418,9 +1418,13 @@ impl Form {
     /// Whether what is typed into it is secret: an entry's or a note's
     /// form. A name, a label or a description is not.
     pub fn holds_secrets(&self) -> bool {
-        matches!(self.kind, kind::ENTRY | kind::NOTE)
+        matches!(self.kind, kind::ENTRY | kind::NOTE | PASSPHRASE_FORM)
     }
 }
+
+/// The `Form::kind` of Change passphrase: two masked fields, the new
+/// passphrase and the same again. Not a record type.
+pub const PASSPHRASE_FORM: u8 = 0xF0;
 
 /// Work that waits for a frame saying it is under way.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1834,9 +1838,21 @@ impl Vaults {
     /// does. Not knowing what it has free, it unlocks only Light's, which
     /// opens anywhere (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
     pub(crate) fn unlock_memory_refusal(&self, cost: Cost, size: usize) -> Option<String> {
+        let refusal = self.unlock_refusal(cost, size);
+        work::refused(
+            VaultAct::Unlocked,
+            cost.memory_kib / 1024,
+            cost.passes,
+            refusal,
+        )
+    }
+
+    /// [`Vaults::unlock_memory_refusal`] without the note: a lookup, for
+    /// drawing and for what a step is allowed.
+    fn unlock_refusal(&self, cost: Cost, size: usize) -> Option<String> {
         let memory_mib = cost.memory_kib / 1024;
         let need = vault_need_mib(memory_mib, size);
-        let refusal = match self.memory_free_mib {
+        match self.memory_free_mib {
             Some(free) if need > free => Some(fill(
                 EN.vaults_needs_this_computer,
                 &[&mib_text(need), &mib_text(free)],
@@ -1846,8 +1862,18 @@ impl Vaults {
                 &[&mib_text(LIGHT_MIB), &mib_text(memory_mib)],
             )),
             _ => None,
-        };
-        work::refused(VaultAct::Unlocked, memory_mib, cost.passes, refusal)
+        }
+    }
+
+    /// Why open vault `id`'s next seal may not use the memory step
+    /// `kib`: this computer could not unlock the file it makes, by the
+    /// test Unlock applies ([`Vaults::unlock_memory_refusal`]). A lookup.
+    pub(crate) fn step_refusal(&self, id: VaultId, kib: u32) -> Option<String> {
+        let store = self.store();
+        let facts = store.facts(id)?;
+        let mut cost = store.next_cost(id)?;
+        cost.memory_kib = kib;
+        self.unlock_refusal(cost, facts.size.unwrap_or(facts.len))
     }
 
     /// Why the Create form's cost is not made here, by what this computer
@@ -2504,6 +2530,12 @@ pub enum VaultAction {
     FormCancel,
     /// Rename the open vault's slot.
     Rename,
+    /// Open Change passphrase on the open vault.
+    ChangePassphrase,
+    /// Open Memory on the open vault.
+    MemoryAsk,
+    /// Take memory step n of `STEPS_KIB` for the next seal.
+    MemoryStep(usize),
     /// Show what is typed into a passphrase field in the clear, or mask
     /// it again: Unlock's, a prompt's, and an entry's secret fields.
     ShowTyped,

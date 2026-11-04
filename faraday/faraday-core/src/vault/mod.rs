@@ -18,6 +18,7 @@ pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod panes_screen;
+pub(crate) mod rekey_screen;
 mod related;
 pub(crate) mod screen;
 pub(crate) mod seal;
@@ -347,7 +348,15 @@ impl Faraday {
         // at its top. A kind's tab keeps its own place (`show_category`).
         if matches!(
             a,
-            V::Item(_) | V::ItemBack | V::Add | V::AddKind(_) | V::Edit | V::Rename | V::Search(_)
+            V::Item(_)
+                | V::ItemBack
+                | V::Add
+                | V::AddKind(_)
+                | V::Edit
+                | V::Rename
+                | V::ChangePassphrase
+                | V::MemoryAsk
+                | V::Search(_)
         ) {
             self.list_offset = 0.0;
         }
@@ -790,11 +799,23 @@ impl Faraday {
             V::SaveKey(k) => self.vault_save_key(k),
             V::SaveWallet(k) => self.vault_save_wallet(k),
             V::FocusField(k) => stick::focus(self, Focus::Field(k)),
-            V::FormSave => self.vault_form_save(),
+            V::FormSave => match self.vaults.form.as_ref().map(|f| f.kind) {
+                Some(PASSPHRASE_FORM) => self.vault_set_passphrase(),
+                _ => self.vault_form_save(),
+            },
             V::FormCancel => {
                 self.vaults.state.form = None;
                 self.vaults.state.focus = None;
+                self.vault_sheet_closed();
             }
+            V::ChangePassphrase => self.vault_change_passphrase_ask(),
+            V::MemoryAsk => {
+                if self.vault_may_reseal() && !screen::writing(self) {
+                    self.vaults.state.focus = None;
+                    self.sheet = Some(Sheet::VaultMemory);
+                }
+            }
+            V::MemoryStep(k) => self.vault_memory_step(k),
             V::Rename => {
                 let label = self
                     .vaults
@@ -2152,6 +2173,7 @@ impl Faraday {
             if self.vaults.form.is_some() && self.screen != Screen::BackupFlow {
                 self.vaults.state.form = None;
             }
+            self.vault_sheet_closed();
             return true;
         }
         if matches!(focus, Focus::Dice | Focus::Rolls) {
@@ -3813,5 +3835,111 @@ impl Faraday {
             return true;
         }
         false
+    }
+}
+
+impl Faraday {
+    /// Whether the open vault takes a new passphrase or memory step: it
+    /// is open, writable and not sealing.
+    fn vault_may_reseal(&self) -> bool {
+        self.vaults
+            .open
+            .get(self.vaults.current)
+            .is_some_and(|o| o.read_only().is_none())
+    }
+
+    /// Change passphrase: its dialog, two empty masked fields.
+    fn vault_change_passphrase_ask(&mut self) {
+        // What is being written is not replaced.
+        if !self.vault_may_reseal() || screen::writing(self) {
+            return;
+        }
+        let fields = vec![
+            (0, EN.vault_new_passphrase, TextBox::default(), true),
+            (1, EN.vault_passphrase_again, TextBox::default(), true),
+        ];
+        self.vaults.state.form = Some(Form {
+            kind: PASSPHRASE_FORM,
+            record: None,
+            fields,
+        });
+        self.vaults.state.saving = false;
+        self.vaults.state.typed_shown = false;
+        self.sheet = Some(Sheet::VaultPassphrase);
+        stick::focus(self, Focus::Field(0));
+    }
+
+    /// Save in Change passphrase: refused empty and when the two differ,
+    /// else the open vault's next seal takes it. `form` stays open on a
+    /// refusal.
+    fn vault_set_passphrase(&mut self) {
+        let Some(form) = self.vaults.state.form.take() else {
+            return;
+        };
+        let (first, again) = (&form.fields[0].2.text, &form.fields[1].2.text);
+        let refusal = if first.is_empty() {
+            Some(EN.vaults_every_passphrase)
+        } else if **first != **again {
+            Some(EN.vaults_each_passphrase)
+        } else {
+            None
+        };
+        if let Some(why) = refusal {
+            self.vaults.state.form = Some(form);
+            self.toast(why);
+            return;
+        }
+        let Some(id) = self.vaults.current_id().filter(|_| self.vault_may_reseal()) else {
+            return;
+        };
+        let phrase = crate::secret_text::SecretText::of(first);
+        let ok = self.vaults.edit(id, |s| s.set_passphrase(id, phrase));
+        self.vaults.state.focus = None;
+        self.vault_sheet_closed();
+        if ok {
+            self.vaults.changed(id);
+            self.toast(EN.vault_passphrase_next_seal);
+        }
+    }
+
+    /// Memory: step `k` of the file's five becomes the next seal's.
+    fn vault_memory_step(&mut self, k: usize) {
+        let Some(&kib) = faraday_vault::file::STEPS_KIB.get(k) else {
+            return;
+        };
+        let Some(id) = self.vaults.current_id().filter(|_| self.vault_may_reseal()) else {
+            return;
+        };
+        // A step this computer could not unlock is not taken.
+        if let Some(why) = self.vaults.step_refusal(id, kib) {
+            self.toast(&why);
+            return;
+        }
+        let ok = self.vaults.edit(id, |s| s.set_step(id, kib));
+        self.vault_sheet_closed();
+        if ok {
+            self.vaults.changed(id);
+            self.toast(EN.vault_memory_next_seal);
+        }
+    }
+
+    /// Escape and the mouse back in Change passphrase or Memory: Cancel,
+    /// which drops what was typed.
+    pub(crate) fn vault_rekey_cancel(&mut self) {
+        match self.sheet {
+            Some(Sheet::VaultPassphrase) => self.vault_act(VaultAction::FormCancel),
+            Some(Sheet::VaultMemory) => self.vault_sheet_closed(),
+            _ => {}
+        }
+    }
+
+    /// Change passphrase or Memory left: its dialog goes with its form.
+    pub(crate) fn vault_sheet_closed(&mut self) {
+        if matches!(
+            self.sheet,
+            Some(Sheet::VaultPassphrase | Sheet::VaultMemory)
+        ) {
+            self.sheet = None;
+        }
     }
 }

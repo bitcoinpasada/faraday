@@ -8555,7 +8555,7 @@ strings! {
     /// Text in `create_body`. `{}`: `weakest`.
     vault_too_large: "Too large for {}",
     /// Text in `create_body`. `{}`: `mib_text(m)`, `p`, `vault::cost_bits(m, p)`.
-    vault_passes_bits: "{} · {} passes · ≈{} bits",
+    vault_passes_bits: "{} passes · ≈{} bits",
     /// Line in `create_body`.
     vault_memory: "Memory",
     /// Line in `create_body`.
@@ -8777,6 +8777,18 @@ strings! {
     vault_load_with_a_bip: "Load with a BIP-39 passphrase",
     /// Line in `detail`.
     vault_passphrase: "Passphrase",
+    /// Button on the open vault's page and head of its dialog.
+    vault_change_passphrase: "Change passphrase",
+    /// Field in Change passphrase.
+    vault_new_passphrase: "New passphrase",
+    /// Field in Change passphrase.
+    vault_passphrase_again: "Passphrase again",
+    /// Row of the open vault's Memory dialog: the step the next seal writes.
+    vault_next_seal: "Next seal",
+    /// Toast after Change passphrase.
+    vault_passphrase_next_seal: "Takes effect at the next seal. Copies sealed before keep the old passphrase.",
+    /// Toast after Memory.
+    vault_memory_next_seal: "Takes effect at the next seal. Copies sealed before keep their step.",
     /// Line in `detail`.
     vault_sealing: "Sealing",
     /// Text in `detail`.

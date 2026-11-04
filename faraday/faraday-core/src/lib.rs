@@ -665,6 +665,10 @@ pub enum Sheet {
     OlderCopy,
     /// A passphrase or share the vault holds one of: **Continue** or **Cancel**.
     SaveAlso,
+    /// **Change passphrase** on the open vault.
+    VaultPassphrase,
+    /// **Memory** of the open vault.
+    VaultMemory,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
@@ -2493,13 +2497,13 @@ impl Faraday {
             Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
                 self.load_sheet_act(vault::VaultAction::LoadNotNow);
             }
-            // Sign with {key}'s Cancel: the sheet closes, the files stay
-            // ticked, nothing is signed (F63).
+            // Sign with {key}'s Cancel: nothing is signed (F63).
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
             Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
+                self.vault_rekey_cancel();
                 *self.visit.pull_mut() = None;
                 self.vaults.clear_stick_save();
                 self.devices.cancel();
@@ -2511,13 +2515,10 @@ impl Faraday {
                 self.secret_cancel();
                 self.wordlist.clear();
                 self.inbox.clear_potential();
-                // A transfer in parts survives closing the camera: the
-                // parts read so far wait for the next scan.
                 self.camera.keep_parts();
                 if let Some(scan) = self.camera.take() {
                     self.out.commands.push_back(Command::CameraOff);
-                    // A copy's scan closed by the person: one scan without
-                    // a match (a match closes the camera itself).
+                    // A copy's scan closed by the person: no match.
                     if let ScanPurpose::CheckCopy(fp) = scan.purpose {
                         self.backup.copy_missed(fp.0);
                     }
@@ -2528,7 +2529,6 @@ impl Faraday {
                 self.glance.work_mut().secret.clear();
                 self.glance.work_mut().ask = None;
                 self.backup.close_pick();
-                // A device still waiting comes back up.
                 self.input_sheet();
             }
             // `act_inner` passes only `Action::Cancel`.
