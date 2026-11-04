@@ -490,7 +490,7 @@ Moved to `docs/history/VAULT-HARDENING-LOG.md`.
 | `faraday/faraday-vault/Cargo.toml` | `unicode-normalization` (workspace, no default features), already vetted for `faraday-bip` | 1 |
 | `faraday/faraday-vault/src/tests.rs` | §3.3, §4.3, §5.5 | 1 |
 | `faraday/faraday-vault/examples/vectors.rs`, `faraday/faraday-vault/tests/open_py.rs`, `tools/vectors/vault/` (its README and `slots.json`) | the vectors made again; the two new vectors | 1 |
-| `tools/vault/open.py`, `tools/vault/primitives.py` | the magic, NFC, the block, type 16 | 1 |
+| `tools/vault/open.py` | the magic, NFC, the block, type 16 | 1 |
 | `tools/crosscheck/area_vault.py` | §3.3's and §4.3's cases; its docstring's account of the format | 1 |
 | `faraday/faraday-keys/src/vault.rs` | `&str` passphrases; `sealed` passes the time; the copy-read of §5.3 (`OpenVaults::copy_seals`, costs one decryption) |2b |
 | `faraday/faraday-core/src/vault/mod.rs`, `area.rs`, `screen.rs` | the count shown; the highest seen kept on the summary; Unlock's lines |2b |

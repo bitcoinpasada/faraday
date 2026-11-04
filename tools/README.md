@@ -66,7 +66,6 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/scripts/signer-core.py` | generator | `python3 -I -B tools/scripts/signer-core.py <directory>`, by hand; its two files are inputs of `core/faraday-psbt/examples/signer.rs` | Bitcoin Core 31.1 on regtest signing `wallet-2of3.psbt` and `demo-regtest.psbt`: the signer check's two Core fixtures |
 | `tools/backup/read-kdbx.py` | test, dev aid | `faraday-backup` `tests/vectors.rs` | opens a KDBX 4 file Faraday wrote and prints its entries |
 | `tools/vault/open.py` | test, dev aid | `faraday-vault` `tests/open_py.rs` | opens a Faraday vault with published libraries |
-| `tools/vault/primitives.py` | test, dev aid | `tools/vault/open.py` | Argon2id, XChaCha20-Poly1305 and the BIP-39 wordlists for the vault reader |
 | `tools/guide-pictures.py` | dev aid | `just guide-pictures` | collects the user guide's pictures from the guide, screens and Starter tours: every picture a page of `docs/guide/` shows or names as to come, with its mark; removes the ones none shows, lists the ones no tour drew, and fails on text, EXIF, ICC or time chunks; `--check` and `--strip IMAGE...` list and remove the metadata of any image (`lint-tree.sh` runs `--check` over every tracked one) |
 | `tools/winvm/` | dev aid | `docs/history/BITLOCKER-ACCEPTANCE.md`, `docs/STARTER.md` | Windows 11 test machine in QEMU for the Starter's BitLocker checks |
 | `faraday/tools/testkit/` | test | `just faraday-testkit`, `just faraday-snap`, `just faraday-snapshots` | writes the test stick's files after checking every spend signs |

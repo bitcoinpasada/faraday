@@ -56,8 +56,6 @@ base64ct.workspace = true
 pem-rfc7468 = { version = "1.0", default-features = false }
 
 [dev-dependencies]
-# The slot vectors' file (tools/vectors/vault/slots.json).
-serde_json = { workspace = true, features = ["std"] }
 # The vault sizes it must agree with (tests/sizes.rs).
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 

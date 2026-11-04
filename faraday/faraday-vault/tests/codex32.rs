@@ -44,18 +44,25 @@ fn round_trip(records: Vec<Record>) -> Result<Contents, Fault> {
 
 #[test]
 fn the_codex32_vector_opens_with_its_key_set_and_share() {
+    use faraday_vault::kdbx::items::Body;
     let c = vectors::compute();
-    let bytes = committed(vectors::CODEX32.0);
-    let (_, got) = faraday_vault::open(&c, &bytes, vectors::CODEX32.1[0]).expect("opens");
-    let key = got.of(kind::KEY).next().expect("a key record").1;
+    let bytes = committed(vectors::CODEX32);
+    let o = faraday_vault::file::open(&c, &bytes, vectors::PASSPHRASE).expect("opens");
+    let of = |k: u8| {
+        o.read()
+            .items
+            .iter()
+            .find_map(|i| match &i.body {
+                Body::Record(r) if r.kind == k => Some(r.clone()),
+                _ => None,
+            })
+            .expect("a record of the kind")
+    };
+    let key = of(kind::KEY);
     let set = set_of(key.field(field::KEY_CODEX32).expect("the set")).expect("reads");
     assert_eq!(set, two_of_three());
     assert_eq!(set.state(b'd'), Some(State::Made));
-    let share = got
-        .of(kind::CODEX32_SHARE)
-        .next()
-        .expect("a share record")
-        .1;
+    let share = of(kind::CODEX32_SHARE);
     assert_eq!(share.text(field::CODEX32_STRING), Some(vectors::VECTOR_2.1));
     assert_eq!(
         share.field(field::CODEX32_KEY),

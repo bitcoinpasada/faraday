@@ -1,281 +1,171 @@
 #!/usr/bin/env python3
-"""Open a Faraday vault and print the slot a passphrase opens.
+"""Open a Faraday file vault with pykeepass and print what it holds.
 
-The format is `docs/VAULT.md`. It is not Faraday's secret: this file and
-two published libraries read it, so a person with the file and a
-passphrase does not need Faraday to get their keys, wallets, notes and
-entries back.
+A file vault is a KDBX 4 database (`docs/VAULT.md` §1.1, §7). It is not
+Faraday's secret: this file and a published library read it, so a person
+with the file and a passphrase does not need Faraday to get their keys,
+wallets, notes and entries back. pykeepass is the distribution's package
+(Debian and Ubuntu: `python3-pykeepass`; Fedora: `python3-pykeepass`;
+Arch: `python-pykeepass`).
 
 Usage:
 
-    python3 tools/vault/open.py vault.fvlt
-    python3 tools/vault/open.py vault.fvlt --passphrase PASSPHRASE
-    python3 tools/vault/open.py vault.fvlt --field 7.1 --out primary-seed.bin
+    python3 tools/vault/open.py vault.kdbx
+    python3 tools/vault/open.py vault.kdbx --passphrase PASSPHRASE
+    python3 tools/vault/open.py vault.kdbx --field gpg.key --out gpg-key.asc
 
 With no `--passphrase` it is read from the terminal without echo, or from
 one line of standard input where that is not a terminal. Type it at the
 prompt: an argument stays in the shell's history, so `--field` refuses
-`--passphrase`. The records
-of the slot it opens are printed on standard output; nothing is written.
+`--passphrase`. Everything the vault holds is printed on standard output,
+secrets included; nothing is written. The passphrase is put in Unicode
+NFC first, as Faraday does (§3); KeePass apps do not.
 
-`--field TYPE.FIELD --out FILE` prints nothing of the slot and writes one
-field's bytes, as they are, to a new file created with mode 0600 (an
-existing file is refused). It is how a secret field (a GPG key's
-primary seed, type 7 field 1, for instance) reaches another tool without
-Faraday (`docs/VAULT.md` §10). Where the slot holds several records of
-that type, `--index N` takes the N-th in the order they are printed,
-counting from 1; without it the command refuses and says how many there are.
+Each item is printed under §7's names: a line with its kind (`seed`,
+`wallet`, `note`, `sheet`, `gpg`, `secure_boot`, `wallet_share`,
+`passphrase`, `share`, or `entry` for a person's own entry), its group and
+its UUID, then its fields and custom data as the file holds them, in the
+order the file has them. The vault's own values come first: its label, its
+identifier (the root group's UUID), `faraday.format`, `faraday.seals`,
+`faraday.sealed`, and each `faraday.signed.{tx}` and `faraday.plan.{n}`.
 
-Dependencies: the standard library plus either `argon2-cffi` and
-`pynacl`, or `cryptography` 44 or newer on OpenSSL 3.2 or newer. The two
-primitives and the BIP-39 wordlists are those of the vault primitives,
-`tools/vault/primitives.py`, imported from this repository.
+`--field KIND.FIELD --out FILE` prints nothing of the vault and writes one
+value's bytes, as they are, to a new file created with mode 0600 (an
+existing file is refused). It is how a secret value (a GPG key's armored
+secret key, `gpg.key`) reaches another tool without Faraday
+(`docs/VAULT.md` §10). Where the vault holds several items of that kind,
+`--index N` takes the N-th in the order they are printed, counting from 1;
+without it the command refuses and says how many there are.
 
-The layout, all little-endian:
-
-     0   magic "FVLT", 4 bytes
-     4   version, 1
-     5   Argon2id memory, KiB, u32
-     9   Argon2id passes, u32
-    13   Argon2id lanes, u32
-    17   slot plaintext length L, u32
-    21   salt, 32 bytes               -- 0..53 is the header
-    53   four slots, each a 24-byte nonce, L bytes of ciphertext, a tag
-
-K = Argon2id(passphrase in Unicode NFC, salt); the slot key is
-HKDF-SHA256 of K with an empty salt and the info "Faraday vault v1 slot";
-slot i's associated data is the header and the byte i. Every slot is
-tried; exactly one opens. A slot's plaintext begins with 32 zero bytes,
-the commitment block: a slot whose tag verifies and whose block is not
-zero refuses the file. Then the format byte, 1, the records (exactly one
-of them the seal count, type 16), the end record and zeros.
+A QR vault is an OpenPGP message and is not read here: the QR vault is not
+built.
 """
 
 from __future__ import annotations
 
 import argparse
 import getpass
-import hashlib
-import hmac
-import importlib.util
 import os
 import struct
 import sys
-import time
 import unicodedata
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+try:
+    from pykeepass import PyKeePass
+except ImportError as e:
+    raise SystemExit(
+        "open.py needs the distribution's pykeepass (Debian and Ubuntu: python3-pykeepass;"
+        f" Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
 
-_spec = importlib.util.spec_from_file_location("vault_primitives", ROOT / "tools" / "vault" / "primitives.py")
-prim = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(prim)
-
-MAGIC = b"FVLT"
-HEADER_LEN = 53
-NONCE_LEN = 24
-TAG_LEN = 16
-SLOT_SIZES = (65536, 262144, 1048576, 4194304)
-SLOT_INFO = b"Faraday vault v1 slot"
-COMMIT_LEN = 32
-
-RECORDS = {
-    1: ("Slot label", {1: "label"}),
-    2: ("Bitcoin key", {1: "key", 2: "label", 3: "flags", 4: "BIP-39 passphrase", 5: "codex32 set"}),
-    3: ("Wallet", {1: "policy", 2: "name", 3: "flags"}),
-    4: ("Note", {1: "text"}),
-    5: ("Recovery sheet", {1: "sheet"}),
-    6: ("Entry", {1: "title", 2: "username", 3: "password", 4: "URL", 5: "notes", 6: "TOTP"}),
-    7: ("GPG key", {1: "primary seed", 2: "created", 3: "subkey seed", 4: "subkey created", 5: "user ID", 6: "expiry", 7: "certificate", 8: "kept revocation", 9: "revoked at"}),
-    8: ("Secure Boot keys", {1: "owner GUID", 2: "PK key", 3: "PK certificate", 4: "KEK key", 5: "KEK certificate", 6: "db key", 7: "db certificate"}),
-    9: ("Pending signing round", {1: "scheme", 2: "transaction", 3: "fingerprint", 4: "state", 5: "used"}),
-    10: ("Signed amounts", {1: "transaction", 2: "amount"}),
-    11: ("Backup plan", {1: "wallet", 2: "answers", 3: "place", 4: "holds", 5: "note"}),
-    13: ("Wallet share", {1: "share", 2: "wallet name", 3: "share number", 4: "of", 5: "wallet"}),
-    14: ("Passphrase", {1: "key fingerprint", 2: "passphrase"}),
-    15: ("Codex32 share", {1: "string", 2: "key fingerprint"}),
-    16: ("Seal count", {1: "count", 2: "last sealed"}),
-}
-
-CODEX32_STATES = ("made", "placed", "lost", "exposed", "destroyed")
+SIGNATURES = (0x9AA2D903, 0xB54BFB67)
+KINDS = ("seed", "wallet", "note", "sheet", "gpg", "secure_boot", "wallet_share", "passphrase", "share")
 
 
-# The fields that are UTF-8 text; every other field is printed in hex.
-TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(13, 1), (13, 2), (13, 5)} | {(14, 2), (15, 1)}
+def read_file(path: str) -> bytes:
+    data = Path(path).read_bytes()
+    if len(data) < 12 or struct.unpack_from("<2I", data, 0) != SIGNATURES:
+        # An OpenPGP packet begins with a byte whose top bit is set.
+        if data[:1] and data[0] & 0x80:
+            raise SystemExit("A QR vault is not read here: the QR vault is not built.")
+        raise SystemExit("not a KeePass file")
+    minor, major = struct.unpack_from("<2H", data, 8)
+    if major < 4:
+        raise SystemExit("A KeePass file of an older version: KDBX 4 is the least this reads")
+    return data
 
 
-def hkdf_sha256(ikm: bytes, info: bytes) -> bytes:
-    """RFC 5869 with an empty salt, the first 32 bytes."""
-    prk = hmac.new(b"\x00" * 32, ikm, hashlib.sha256).digest()
-    return hmac.new(prk, info + b"\x01", hashlib.sha256).digest()
+def text(element) -> str:
+    return element.text or ""
 
 
-def open_vault(blob: bytes, passphrase: str) -> bytes:
-    """The plaintext of the one slot `passphrase` opens, after its
-    commitment block. The passphrase is put in NFC first."""
-    if blob[:4] != MAGIC or len(blob) < HEADER_LEN or blob[4] != 1:
-        raise SystemExit("not a Faraday vault of version 1")
-    memory, passes, lanes, slot_len = struct.unpack_from("<4I", blob, 5)
-    if slot_len not in SLOT_SIZES or len(blob) != HEADER_LEN + 4 * (slot_len + NONCE_LEN + TAG_LEN):
-        raise SystemExit("the slot size or the file length is not one this format writes")
-    if not (8192 <= memory <= 4 * 1024 * 1024 and 1 <= passes <= 10 and lanes == 1):
-        raise SystemExit("the stated Argon2id cost is outside the format's limits")
-    header = blob[:HEADER_LEN]
-    salt = blob[21:53]
-    nfc = unicodedata.normalize("NFC", passphrase).encode()
-    key = hkdf_sha256(prim.argon2id(nfc, salt, memory, passes, lanes), SLOT_INFO)
-    opened, uncommitted = [], False
-    for i in range(4):
-        at = HEADER_LEN + i * (slot_len + NONCE_LEN + TAG_LEN)
-        nonce = blob[at : at + NONCE_LEN]
-        sealed = blob[at + NONCE_LEN : at + NONCE_LEN + slot_len + TAG_LEN]
-        plain = prim.xchacha20poly1305_open(key, nonce, header + bytes([i]), sealed)
-        if plain is not None:
-            if any(plain[:COMMIT_LEN]):
-                uncommitted = True
-            else:
-                opened.append(plain[COMMIT_LEN:])
-    if uncommitted:
-        raise SystemExit("a slot opened that is not committed to this passphrase; the file is not sound")
-    if not opened:
-        raise SystemExit("that passphrase opens nothing in this vault")
-    if len(opened) > 1:
-        raise SystemExit("two slots opened under one passphrase; the file is not sound")
-    return opened[0]
-
-
-def check_seal_count(fields: list[tuple[int, bytes]]) -> None:
-    """What the vault library refuses of a seal count record (type 16):
-    its count missing, a field that is not 8 bytes or not known, a field
-    twice, and a count of zero."""
-    seen = set()
-    for number, value in fields:
-        if number not in (1, 2):
-            raise SystemExit(f"field {number} is not in a seal count record")
-        if number in seen:
-            raise SystemExit(f"field {number} of the seal count appears twice")
-        seen.add(number)
-        if len(value) != 8:
-            raise SystemExit(f"field {number} of the seal count is not 8 bytes")
-    if 1 not in seen:
-        raise SystemExit("the seal count record has no count")
-    if dict(fields)[1] == bytes(8):
-        raise SystemExit("the seal count is zero")
-
-
-def records(plain: bytes) -> list[tuple[int, list[tuple[int, bytes]]]]:
-    """The slot's records as (type, [(field, bytes)])."""
-    if plain[0] != 1:
-        raise SystemExit("a slot format this reader does not know")
-    at, out = 1, []
-    while True:
-        kind = plain[at]
-        at += 1
-        if kind == 0:
-            break
-        if kind not in RECORDS:
-            raise SystemExit(f"record type {kind} is not in docs/VAULT.md")
-        if at + 4 > len(plain):
-            raise SystemExit("a record is cut short")
-        (length,) = struct.unpack_from("<I", plain, at)
-        at += 4
-        if at + length > len(plain):
-            raise SystemExit("a record is cut short")
-        body, at = plain[at : at + length], at + length
-        fields, p = [], 0
-        while p < len(body):
-            if p + 3 > len(body):
-                raise SystemExit(f"a field of record type {kind} is cut short")
-            number = body[p]
-            (n,) = struct.unpack_from("<H", body, p + 1)
-            if p + 3 + n > len(body):
-                raise SystemExit(f"a field of record type {kind} is cut short")
-            fields.append((number, body[p + 3 : p + 3 + n]))
-            p += 3 + n
-        if kind == 16:
-            check_seal_count(fields)
-        out.append((kind, fields))
-    if any(plain[at:]):
-        raise SystemExit("bytes after the end record")
-    if sum(1 for kind, _ in out if kind == 16) != 1:
-        raise SystemExit("the slot does not hold exactly one seal count")
+def fields_of(entry) -> list[tuple[str, str]]:
+    """An entry's fields (pykeepass has decrypted the protected ones) and
+    custom data, in file order."""
+    out = []
+    for s in entry._element.xpath("String"):
+        out.append((text(s.find("Key")), text(s.find("Value"))))
+    for i in entry._element.xpath("CustomData/Item"):
+        out.append((text(i.find("Key")), text(i.find("Value"))))
     return out
 
 
-def show(kind: int, number: int, value: bytes) -> str:
-    """One field as text."""
-    if kind == 2 and number == 1:
-        if len(value) == 34:
-            language, words = prim.words_of_payload(value)
-            return f"{len(words)} words ({language}): " + " ".join(words)
-        return "master seed " + value[1 : 1 + value[0]].hex()
-    if kind == 5 and number == 1:
-        parts, p = [], 0
-        for _ in range(3):
-            (n,) = struct.unpack_from("<H", value, p)
-            parts.append(value[p + 2 : p + 2 + n].decode())
-            p += 2 + n
-        return f"descriptor {parts[0]} · name {parts[1]} · note {parts[2]}"
-    if kind == 2 and number == 5:
-        k, ident, length, unknown = value[0], value[1:5].decode(), value[5], value[6]
-        known = ", ".join(f"{chr(value[i])} {CODEX32_STATES[value[i + 1]]}" for i in range(7, len(value), 2))
-        more = f", {unknown} not known" if unknown else ""
-        return f"k {k} · identifier {ident} · {length} characters · {known or 'none known'}{more}"
-    if kind == 16:
-        (n,) = struct.unpack("<Q", value)
-        if number == 1:
-            return str(n)
-        try:
-            return time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(n))
-        except (OverflowError, OSError, ValueError):
-            return f"{n} seconds after 1970"
-    if (kind, number) in TEXT_FIELDS:
-        return value.decode()
-    return value.hex()
+def kind_of(fields: list[tuple[str, str]]) -> str:
+    for key, value in fields:
+        if key == "faraday.kind":
+            return value
+    return "entry"
 
 
-def write_field(recs: list, spec: str, index: int | None, out: str) -> None:
-    """One field of one record, as bytes, to a new file only its owner reads."""
-    try:
-        kind_s, number_s = spec.split(".")
-        kind, number = int(kind_s), int(number_s)
-    except ValueError:
-        raise SystemExit("--field wants TYPE.FIELD, as 7.1")
-    same = [fields for k, fields in recs if k == kind]
+def items(kp) -> list[tuple[str, str, str, list[tuple[str, str]]]]:
+    """Each entry as (kind, group path, UUID, fields)."""
+    out = []
+    for entry in kp.entries:
+        fields = fields_of(entry)
+        path = "/".join(g for g in (entry.path[:-1] if entry.path else []) if g)
+        out.append((kind_of(fields), path, entry.uuid.hex, fields))
+    return out
+
+
+def database_values(kp) -> list[tuple[str, str]]:
+    return [(text(i.find("Key")), text(i.find("Value")))
+            for i in kp.tree.xpath("/KeePassFile/Meta/CustomData/Item")]
+
+
+def print_vault(kp) -> None:
+    print(f"Vault: {kp.database_name or ''}")
+    print(f"  id: {kp.root_group.uuid.hex}")
+    for key, value in database_values(kp):
+        print(f"  {key}: {value}")
+    for kind, group, uuid, fields in items(kp):
+        print(f"{kind}" + (f" ({group})" if group else "") + f" {uuid}")
+        for key, value in fields:
+            if key == "faraday.kind":
+                continue
+            print(f"  {key}: {value}")
+
+
+def write_field(kp, spec: str, index: int | None, out: str) -> None:
+    """One value of one item, as bytes, to a new file only its owner reads."""
+    kind, dot, name = spec.partition(".")
+    if not dot or not name or (kind != "entry" and kind not in KINDS):
+        raise SystemExit("--field wants KIND.FIELD, as gpg.key (a kind: entry, " + ", ".join(KINDS) + ")")
+    same = [fields for k, _, _, fields in items(kp) if k == kind]
     if not same:
-        raise SystemExit(f"the slot holds no record of type {kind}")
+        raise SystemExit(f"the vault holds no {kind}")
     if index is None:
         if len(same) > 1:
-            raise SystemExit(f"the slot holds {len(same)} records of type {kind}; --index N (from 1) takes one")
+            raise SystemExit(f"the vault holds {len(same)} of kind {kind}; --index N (from 1) takes one")
         index = 1
     if not 1 <= index <= len(same):
-        raise SystemExit(f"the slot holds {len(same)} records of type {kind}, not {index}")
-    values = [v for n, v in same[index - 1] if n == number]
+        raise SystemExit(f"the vault holds {len(same)} of kind {kind}, not {index}")
+    values = [v for k, v in same[index - 1] if k == name]
     if len(values) != 1:
-        raise SystemExit(f"that record has no field {number}" if not values else f"that record repeats field {number}")
+        raise SystemExit(f"that {kind} has no field {name}" if not values else f"that {kind} repeats field {name}")
+    data = values[0].encode()
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
     try:
         fd = os.open(out, flags, 0o600)
     except FileExistsError:
         raise SystemExit(f"{out} exists; nothing was written")
     with os.fdopen(fd, "wb") as f:
-        f.write(values[0])
-    print(f"wrote {len(values[0])} bytes to {out}", file=sys.stderr)
+        f.write(data)
+    print(f"wrote {len(data)} bytes to {out}", file=sys.stderr)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("vault")
     parser.add_argument("--passphrase")
-    parser.add_argument("--field", help="TYPE.FIELD to write, as 7.1")
-    parser.add_argument("--index", type=int, help="which record of that type, from 1")
+    parser.add_argument("--field", help="KIND.FIELD to write, as gpg.key")
+    parser.add_argument("--index", type=int, help="which item of that kind, from 1")
     parser.add_argument("--out", help="the new file --field writes")
     args = parser.parse_args()
     if (args.field is None) != (args.out is None) or (args.index is not None and args.field is None):
         raise SystemExit("--field and --out go together, and --index goes with them")
     if args.field is not None and args.passphrase is not None:
         raise SystemExit("--passphrase is refused with --field: an argument stays in the shell's history; type it at the prompt")
-    blob = Path(args.vault).read_bytes()
+    read_file(args.vault)
     if args.passphrase is not None:
         passphrase = args.passphrase
     elif sys.stdin.isatty():
@@ -283,14 +173,19 @@ def main() -> None:
     else:
         # A passphrase piped in (a test's): one line, without its newline.
         passphrase = sys.stdin.readline().rstrip("\r\n")
-    recs = records(open_vault(blob, passphrase))
+    nfc = unicodedata.normalize("NFC", passphrase)
+    if not nfc:
+        raise SystemExit("an empty passphrase opens nothing")
+    try:
+        kp = PyKeePass(args.vault, password=nfc)
+    except Exception as e:
+        name = type(e).__name__
+        if name == "CredentialsError":
+            raise SystemExit("Wrong passphrase. A file that also needs a key file or a security key cannot be opened here.")
+        raise SystemExit(f"the file does not open ({name}): it is damaged or not one Faraday writes")
     if args.field is not None:
-        return write_field(recs, args.field, args.index, args.out)
-    for kind, fields in recs:
-        name, names = RECORDS[kind]
-        print(name)
-        for number, value in fields:
-            print(f"  {names.get(number, number)}: {show(kind, number, value)}")
+        return write_field(kp, args.field, args.index, args.out)
+    print_vault(kp)
 
 
 if __name__ == "__main__":

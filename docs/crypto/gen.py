@@ -378,7 +378,6 @@ PLANNED_LEAD = "Planned, not built: "
 TABLE_KINDS = ("vault-header", "vault-sizes", "diceware-bits")
 VAULT = "faraday/faraday-vault/src/lib.rs"
 ARGON2 = "core/faraday-crypto/src/argon2.rs"
-OPEN_PY = "tools/vault/open.py"
 DICEWARE = "core/faraday-bip/src/diceware"
 NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
                 "ten", "eleven", "twelve"]
@@ -686,29 +685,7 @@ def table_vault_header(code):
     if not rows or at != header_len:
         raise Unresolved(f"{VAULT}::Header::to_bytes writes {at} bytes, and HEADER_LEN is "
                          f"{header_len}")
-    check_open_py(code, rows)
     return ["At", "Bytes", "What"], rows
-
-
-def check_open_py(code, header_rows=None):
-    """tools/vault/open.py, which reads the vectors, has the Rust code's sizes and offsets."""
-    py = code.read(OPEN_PY)
-    for name in ("HEADER_LEN", "NONCE_LEN", "TAG_LEN"):
-        m = re.search(rf"^{name} = (\d+)$", py, re.M)
-        if not m or int(m[1]) != code.const(VAULT, name):
-            raise Unresolved(f"{OPEN_PY}: {name} is not {VAULT}'s")
-    m = re.search(r"^SLOT_SIZES = \(([\d, ]+)\)$", py, re.M)
-    if not m or [int(x) for x in m[1].split(",") if x.strip()] != code.int_list(VAULT, "SLOT_SIZES"):
-        raise Unresolved(f"{OPEN_PY}: SLOT_SIZES is not {VAULT}'s")
-    if header_rows:
-        at = {r[2]: int(r[0].replace(" ", "")) for r in header_rows}
-        salt = re.search(r"salt = blob\[(\d+):(\d+)\]", py)
-        ints = re.search(r'struct\.unpack_from\("<4I", blob, (\d+)\)', py)
-        if (not salt or int(salt[1]) != at.get("Argon2id salt")
-                or int(salt[2]) != code.const(VAULT, "HEADER_LEN")):
-            raise Unresolved(f"{OPEN_PY}: the salt's slice is not the header's")
-        if not ints or int(ints[1]) != at.get("Argon2id memory, in KiB"):
-            raise Unresolved(f"{OPEN_PY}: the four integers are not read where the header has them")
 
 
 def table_vault_sizes(code):
@@ -717,7 +694,6 @@ def table_vault_sizes(code):
         raise Unresolved(f"{VAULT}::file_len is no longer `{FILE_LEN}`")
     h, s = code.const(VAULT, "HEADER_LEN"), code.const(VAULT, "SLOTS")
     n, t = code.const(VAULT, "NONCE_LEN"), code.const(VAULT, "TAG_LEN")
-    check_open_py(code)
     return ["L", "File"], [[fmt_num(sl), fmt_num(h + s * (sl + n + t))]
                            for sl in code.int_list(VAULT, "SLOT_SIZES")]
 
