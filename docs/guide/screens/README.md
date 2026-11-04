@@ -48,6 +48,7 @@ say what to do; these pages say what each control on a screen does.
 | Tools | [Sign a message and Check a signed message](messages.md) | Address, Message, Format, Signature; the verdict, File, Address, Wallet, Message |
 | Tools | [Explore](explore.md) | A key at a path, its secrets behind their eyes; Addresses, Find an address |
 | Tools | [Derive with BIP-85](child-seeds.md) | Key, Application, Index, Value |
+| Tools | [Convert a seed](convert.md) | From, To, Result |
 | Tools | [Silent payments](silent-payments.md) | Key, Address and its labels, Scan key, Check a payment |
 | Tools | [Vanity address](vanity.md) | Key, What turns, Kind of address, Characters, Search |
 | Tools | [Sweep a private key](sweep.md) | The key typed or scanned, its addresses, the PSBT's review and the hold that signs |

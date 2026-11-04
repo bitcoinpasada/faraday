@@ -1002,6 +1002,7 @@ COMPUTE_KINDS = {"WordsParse", "Kdf", "MasterKey", "KeyDerive", "DescriptorParse
 TILE_SCREENS = {
     "NewKey": ("KeyGen",), "NewShares": ("KeyGen",), "AddKey": ("KeyGen",),
     "SeedQr": ("Entry",), "Explore": ("Explore",), "Bip85": ("Bip85",),
+    "Convert": ("Convert",),
     "Vanity": ("Vanity",), "Silent": ("Silent",), "Lightning": ("Lightning",),
     "Create": ("Create",), "Restore": ("Restore",), "Backup": ("BackupFlow", "Backup"),
     "Sign": ("Spend",), "NonceCheck": ("Spend",), "Decode": ("Decode",),
