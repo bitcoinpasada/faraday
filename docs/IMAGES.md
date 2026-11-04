@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F145, F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built
-**Open:** the one Pi image built and booted under QEMU (§9 step 10), each screen tried on it (§9 step 11), a full release's size and staging time measured, the Starter's finder tried on a computer with a real release's images (§9 step 6), the website's choice
+**Open:** each screen tried on it (§9 step 11), a full release's size and staging time measured, the Starter's finder tried on a computer with a real release's images (§9 step 6), the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it: one for the PC stick, and one for the Pi that finds its screen at
@@ -552,7 +552,8 @@ marked so (`docs/HARDWARE.md` §6).
       every probe finds nothing, the Pi falls back to HDMI, configfs is
       unmounted, and the app starts (and exits, with no framebuffer to
       draw on). The machine is `raspi2b` with the card's
-      `bcm2710-rpi-3-b.dtb`, kernel and command line given directly:
+      `bcm2710-rpi-3-b.dtb`, kernel and command line given directly, and
+      the card a copy of the image grown to a power of two in size:
       `raspi3b` shows nothing from this 32-bit kernel. QEMU does not run
       the Pi's firmware, so this does not test `bootcode.bin` reading
       the card.
