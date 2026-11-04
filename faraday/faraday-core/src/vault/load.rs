@@ -15,7 +15,7 @@ use faraday_vault::records::{field, kind};
 
 use crate::strings::{EN, fill};
 use crate::wallet::{Session, fp_text, key_line};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use faraday_bip::keys::Fingerprint;
 
@@ -31,6 +31,10 @@ pub struct LoadSheet {
     pub wallets_before: usize,
     /// The wallet records and Keys-card key records ticked.
     pub ticked: BTreeSet<usize>,
+    /// The passphrase chosen for a key record that has several kept for
+    /// it: the record's place, and which of them (from 0). Absent: the
+    /// first.
+    pub choice: BTreeMap<usize, usize>,
 }
 
 /// A seed of a wallet card, or a key of the Keys card.
@@ -49,6 +53,11 @@ pub struct LoadSeed {
     pub loaded: bool,
     /// On the Keys card: ticked to load.
     pub ticked: bool,
+    /// Where several passphrases are kept for this key: how each reads
+    /// ("1 of 2 passphrases for key {fp}"). Empty with none or one.
+    pub passphrases: Vec<String>,
+    /// Which of `passphrases` loads.
+    pub passphrase: usize,
 }
 
 /// A wallet's card.
@@ -234,6 +243,7 @@ impl super::Vaults {
         session: &Session,
         v: usize,
         ticked: &BTreeSet<usize>,
+        choice: &BTreeMap<usize, usize>,
     ) -> LoadView {
         let Some(open) = self.open.get(v) else {
             return LoadView::default();
@@ -302,6 +312,38 @@ impl super::Vaults {
                 [one, two] => Some(fill(EN.load_sheet_also_in_two, &[one, two])),
                 more => Some(fill(EN.load_sheet_also_in_n, &[&more.len().to_string()])),
             };
+            // Several passphrases kept for it: the card asks which.
+            let kept = if loaded {
+                Vec::new()
+            } else {
+                self.store()
+                    .passphrases_of_key(c, &session.keys, open.id, *i)
+            };
+            let passphrases = if kept.len() > 1 {
+                let many = self.open.len() > 1;
+                kept.iter()
+                    .map(|&(vid, at)| {
+                        let fp = fp.clone().unwrap_or_default();
+                        let rel = self.store().related(vid, at);
+                        let said = fill(
+                            EN.vault_related_passphrase,
+                            &[
+                                &rel.map_or(1, |r| r.place).to_string(),
+                                &rel.map_or(1, |r| r.of).to_string(),
+                                &passphrase_key_text(self, vid, at).unwrap_or(fp),
+                            ],
+                        );
+                        match self.open.iter().find(|o| o.id == vid) {
+                            Some(o) if many => {
+                                fill(EN.vault_related_in, &[&said, &o.label(self.store())])
+                            }
+                            _ => said,
+                        }
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
             LoadSeed {
                 record: *i,
                 line,
@@ -309,6 +351,12 @@ impl super::Vaults {
                 also_line,
                 loaded,
                 ticked: false,
+                passphrase: choice
+                    .get(i)
+                    .copied()
+                    .unwrap_or(0)
+                    .min(passphrases.len().saturating_sub(1)),
+                passphrases,
             }
         };
         let mut view = LoadView {
@@ -406,4 +454,18 @@ impl super::VaultFile {
             copies: Vec::new(),
         }
     }
+}
+
+/// The fingerprint the passphrase record at `at` of open vault `vid`
+/// names, as text.
+fn passphrase_key_text(
+    vaults: &super::Vaults,
+    vid: faraday_keys::vault::VaultId,
+    at: usize,
+) -> Option<String> {
+    let r = vaults.store().records(vid).get(at)?;
+    Some(crate::codex32_backup::screen::record_fp(
+        r,
+        field::PASSPHRASE_KEY,
+    ))
 }

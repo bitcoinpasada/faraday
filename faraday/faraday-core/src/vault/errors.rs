@@ -26,9 +26,7 @@ fn kdbx_text(k: &Kdbx) -> String {
     match k {
         Kdbx::NotKdbx => EN.vault_error_not_kdbx.to_string(),
         Kdbx::Older { .. } => EN.vault_error_older.to_string(),
-        Kdbx::Newer { major, minor } => {
-            fill(EN.vault_error_newer, &[&format!("{major}.{minor}")])
-        }
+        Kdbx::Newer { major, minor } => fill(EN.vault_error_newer, &[&format!("{major}.{minor}")]),
         Kdbx::UnknownField(n) => fill(EN.vault_error_unknown_field, &[&n.to_string()]),
         Kdbx::Unsupported(u) => unsupported_text(*u).to_string(),
         Kdbx::Cost => EN.vault_error_cost.to_string(),
@@ -55,7 +53,6 @@ fn unsupported_text(u: Unsupported) -> &'static str {
 }
 
 /// What is faulty in an item that does not read, in a few words.
-#[expect(dead_code, reason = "the Unreadable list names the fault with it")]
 pub fn fault_text(f: Fault) -> &'static str {
     match f {
         Fault::UnknownKind => EN.vault_fault_unknown_kind,

@@ -87,10 +87,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
             EN.vault_unlock_cost_adds,
             fill(EN.vault_bits, &[&format!("{cost:.1}")]),
         ),
-        (
-            EN.vault_strength,
-            strength,
-        ),
+        (EN.vault_strength, strength),
         (EN.vault_goes_to_label, app.medium.for_box().to_string()),
     ];
     for (k, v) in facts.iter().filter(|(_, v)| !v.is_empty()) {

@@ -1114,6 +1114,14 @@ pub struct OpenVault {
     pub(super) seal_digest: [u8; 32],
     /// What the seal count says of the copy opened, kept at unlock.
     pub(super) seal_warn: Option<SealWarn>,
+    /// Why it is open to read only, as the head says it; `None` when it
+    /// can be edited. Kept at unlock.
+    pub(super) read_only: Option<&'static str>,
+    /// What the file's size says, as the head shows it: kept at unlock.
+    pub(super) size: String,
+    /// The head's line for settings other than Faraday writes, kept at
+    /// unlock; empty when they are Faraday's.
+    pub(super) settings: String,
 }
 
 /// What an open vault keeps worked out from its records: what is read of
@@ -1150,6 +1158,24 @@ impl OpenVault {
     /// What the header and length of the file it was opened from stated.
     pub fn facts(&self) -> &fv::file::Facts {
         &self.facts
+    }
+
+    /// The head's line of why the vault is open to read only, or `None`
+    /// when it can be edited. A lock closes a read-only vault without
+    /// sealing it.
+    pub fn read_only(&self) -> Option<&'static str> {
+        self.read_only
+    }
+
+    /// The size the file shows, or that another program saved it.
+    pub fn size_text(&self) -> &str {
+        &self.size
+    }
+
+    /// "Saved in AES-256 / Argon2d / gzip", or empty when the settings are
+    /// Faraday's.
+    pub fn settings_text(&self) -> &str {
+        &self.settings
     }
 
     /// The vault's identifier: its root group's UUID in hex, kept for as
@@ -1389,9 +1415,12 @@ pub struct Vaults {
     pub(crate) clock_checked: bool,
     /// What is remembered of each vault seen open since power-on.
     pub summaries: Vec<VaultSummary>,
-    /// An unlock stopped at the older-copy dialog ([`OlderHold`]), boxed:
+    /// An unlock stopped at the older-copy dialog ([`OpenHold`]), boxed:
     /// a summary is large and the hold is rare.
-    pub older: Option<Box<super::OlderHold>>,
+    pub older: Option<Box<super::OpenHold>>,
+    /// Records waiting at the dialog that a vault already holds a related
+    /// passphrase or share ([`super::related::SaveHold`]).
+    pub save_hold: Option<Box<super::related::SaveHold>>,
     /// The expiry chosen for a GPG key being made or renewed, in years;
     /// 0 for never.
     pub gpg_years: u32,
@@ -1523,6 +1552,12 @@ impl Vaults {
     pub fn close(&mut self, i: usize) {
         let gone = self.open.remove(i);
         self.store.close(gone.id);
+    }
+
+    /// Drops the slot an unlock adopted and refused, its key and records
+    /// wiped with it.
+    pub(super) fn drop_adopted(&mut self, id: VaultId) {
+        self.store.close(id);
     }
 
     /// Closes every open vault.
@@ -2343,10 +2378,18 @@ pub enum VaultAction {
     LoadTick(usize),
     /// The Load sheet's Unselect all, or Select all once none is ticked.
     LoadTickAll,
+    /// The Load sheet: key record n loads with its passphrase number m
+    /// (from 0) of those kept for it.
+    LoadPassphrase(usize, usize),
     /// The Load sheet's Load ticked.
     LoadTicked,
     /// The Load sheet's Not now: nothing loads, the vault stays open.
     LoadNotNow,
+    /// The dialog "a passphrase for this key is already in {vault}": save
+    /// the record too.
+    SaveAlsoContinue,
+    /// The same dialog's Cancel: nothing is saved.
+    SaveAlsoCancel,
     /// The older-copy dialog's **Open**: the unlock goes on (§5.3).
     OlderOpen,
     /// Its **Keep locked**: the copy closes, nothing of it read.
@@ -2524,5 +2567,50 @@ impl Vaults {
             };
             wiped.push((format!("{} · {state}", w.name), nowhere, save));
         }
+    }
+}
+
+/// The head's size line of a file: the size its length shows, or that
+/// another program saved it (no padding) with its length in KiB.
+pub(super) fn size_line(facts: &fv::file::Facts) -> String {
+    match facts.size {
+        Some(n) => file_text(n),
+        None => fill(
+            EN.vault_saved_by_other,
+            &[&fill(EN.vault_kib, &[&(facts.len / 1024).to_string()])],
+        ),
+    }
+}
+
+/// The head's line for settings other than Faraday writes, else empty.
+pub(super) fn settings_line(facts: &fv::file::Facts) -> String {
+    use fv::kdbx::{Cipher, Compression, Kdf};
+    if !facts.other_settings() {
+        return String::new();
+    }
+    let h = &facts.header;
+    let cipher = match h.cipher {
+        Cipher::Aes256 => EN.vault_setting_aes256,
+        Cipher::ChaCha20 => EN.vault_setting_chacha20,
+    };
+    let kdf = match h.kdf {
+        Kdf::Argon2d => EN.vault_setting_argon2d,
+        Kdf::Argon2id => EN.vault_setting_argon2id,
+    };
+    let zip = match h.compression {
+        Compression::Gzip => EN.vault_setting_gzip,
+        Compression::None => EN.vault_setting_uncompressed,
+    };
+    fill(
+        EN.vault_other_settings,
+        &[&format!("{cipher} / {kdf} / {zip}")],
+    )
+}
+
+/// The head's line of why a vault is open to read only.
+pub(super) fn read_only_line(why: &fv::file::ReadOnly) -> &'static str {
+    match why {
+        fv::file::ReadOnly::Newer(_) => EN.vault_read_only_newer,
+        fv::file::ReadOnly::Ambiguous(_) => EN.vault_read_only_settings,
     }
 }

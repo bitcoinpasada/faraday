@@ -5,7 +5,7 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use faraday_draw::tokens::{BODY_M, BODY_S, FIELD_H, LABEL_L, TITLE_L, TITLE_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, TITLE_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -128,6 +128,25 @@ fn seed_line(ui: &mut Ui, tx: f32, y: f32, right: f32, s: &LoadSeed) -> f32 {
     cy += ui.line_as(BODY_S.mono()) + faraday_draw::tokens::GAP_SMALL;
     if let Some(also) = &s.also_line {
         cy += ui.wrap_as((tx, cy, right - tx), BODY_S, Role::OnSurfaceVariant, also) + 2.0;
+    }
+    // Several passphrases kept for it: which one loads.
+    for (n, said) in s.passphrases.iter().enumerate() {
+        let style = if n == s.passphrase {
+            Style::Selected
+        } else {
+            Style::Secondary
+        };
+        let said = ui.fit_as(LABEL_L, said, right - tx - 48.0);
+        ui.button(
+            tx,
+            cy,
+            Some(right - tx),
+            BUTTON_H,
+            &said,
+            style,
+            va(V::LoadPassphrase(s.record, n)),
+        );
+        cy += BUTTON_H + faraday_draw::tokens::GAP_SMALL;
     }
     cy - y
 }
@@ -350,16 +369,13 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// **Keep locked** and **Open**. Reads the state.
 pub(crate) fn older_copy(app: &View, ui: &mut Ui, w: f32, h: f32) {
     use faraday_draw::tokens::{DIALOG_MAX, GAP, GAP_SMALL};
-    let Some(o) = app
-        .vaults
-        .older
-        .as_ref()
-        .and_then(|h| app.vaults.open.iter().find(|o| o.id == h.id))
-    else {
+    let Some((o, hold)) = app.vaults.older.as_ref().and_then(|h| {
+        let o = app.vaults.open.iter().find(|o| o.id == h.id)?;
+        Some((o, h))
+    }) else {
         return;
     };
     let name = o.label(app.vaults.store());
-    let found = o.seal_warning().unwrap_or_default();
     let head = (
         Icon::Warning.into(),
         Role::Warning.paint(),
@@ -378,7 +394,50 @@ pub(crate) fn older_copy(app: &View, ui: &mut Ui, w: f32, h: f32) {
             // what its count found, in the warning tone.
             let mut cy = y;
             cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, &name) + GAP_SMALL;
-            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Warning, &found) + GAP;
+            for line in &hold.why {
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Warning, line) + GAP_SMALL;
+            }
+            cy += GAP - GAP_SMALL;
+            cy - y
+        },
+        &actions,
+    );
+}
+
+/// **A passphrase or share is already in the vault**: Continue saves the
+/// record too, Cancel saves none. The lines name the vault.
+pub(crate) fn save_also(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens::{DIALOG_MAX, GAP, GAP_SMALL};
+    let Some(hold) = app.vaults.save_hold.as_ref() else {
+        return;
+    };
+    let head = (
+        Icon::Warning.into(),
+        Role::Warning.paint(),
+        EN.vault_save_also_head,
+    );
+    let actions = [
+        (
+            EN.vault_save_also_cancel,
+            Style::Secondary,
+            va(V::SaveAlsoCancel),
+        ),
+        (
+            EN.vault_save_also_continue,
+            Style::Primary,
+            va(V::SaveAlsoContinue),
+        ),
+    ];
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            for line in &hold.why {
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, line) + GAP_SMALL;
+            }
+            cy += GAP - GAP_SMALL;
             cy - y
         },
         &actions,

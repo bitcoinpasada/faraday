@@ -9,8 +9,8 @@
 use faraday_crypto::work::Compute;
 use faraday_keys::job::{KdbxError, KdbxJob, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
-use faraday_vault::{Cost, records::field, records::kind};
 use faraday_vault::file::STEPS_KIB;
+use faraday_vault::{Cost, records::field, records::kind};
 use zeroize::Zeroizing;
 
 use super::{VaultAction, Work, errors, vault_stem};
@@ -227,6 +227,27 @@ fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: b
     match app.vaults.state.adopt(stretched) {
         Ok((id, facts)) => {
             let vault_id = app.vaults.state.store().vault_id(id).unwrap_or_default();
+            // The same vault from another copy: refused, naming the one open.
+            if let Some(open) = app.vaults.open.iter().find(|o| o.vault_id == vault_id) {
+                let said = fill(
+                    EN.vault_already_open,
+                    &[&open.label(app.vaults.state.store()), &open.name],
+                );
+                app.vaults.state.drop_adopted(id);
+                app.vaults.state.unlock_error = Some(said);
+                return;
+            }
+            let read_only = app
+                .vaults
+                .state
+                .store()
+                .read_only(id)
+                .as_ref()
+                .map(super::area::read_only_line);
+            let (size, settings) = (
+                super::area::size_line(&facts),
+                super::area::settings_line(&facts),
+            );
             app.vaults.state.typed_shown = false;
             app.vaults.state.focus = None;
             app.vaults.state.open.push(super::OpenVault {
@@ -240,6 +261,9 @@ fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: b
                 read: Default::default(),
                 seal_digest: [0; 32],
                 seal_warn: None,
+                read_only,
+                size,
+                settings,
             });
             app.vaults.state.current = app.vaults.open.len() - 1;
             if !app.vault_unlock_held(app.vaults.current, for_import) {

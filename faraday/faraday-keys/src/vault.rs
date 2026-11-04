@@ -33,12 +33,11 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::{Compute, Work};
 use faraday_intake::wallet::Refusal;
 use faraday_vault::file::Change;
-use faraday_vault::kdbx::items::{
-    self, Body, Damage, Fault, Place, Related, RelatedKind, Unreadable,
-};
+use faraday_vault::kdbx::items::{self, Body, Damage, Fault, Place, Unreadable};
 use faraday_vault::layouts;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Record};
+pub use items::{Related, RelatedKind};
 use zeroize::Zeroizing;
 
 use crate::identity::{Material, fingerprint};
@@ -2065,8 +2064,9 @@ impl OpenVaults {
     /// Costs a parse of each key record's words in `set`, and what
     /// `add_words_with` and `add_seed` cost for each. Loads the key
     /// records of open vault `id` whose places `set` names into `keys`:
-    /// the words (with the passphrase stored beside them, or one an open
-    /// vault keeps alone for them) or the master seed. Returns the
+    /// the words (with the passphrase stored beside them, or the one an
+    /// open vault keeps alone for them that `chosen` names for the
+    /// record's place, the first by default) or the master seed. Returns the
     /// fingerprints of the keys that loaded; a key the store refuses is
     /// left out.
     pub fn load_from_vault(
@@ -2075,6 +2075,7 @@ impl OpenVaults {
         keys: &mut Keys,
         id: VaultId,
         set: &BTreeSet<usize>,
+        chosen: &std::collections::BTreeMap<usize, usize>,
     ) -> Vec<Fingerprint> {
         let Some(slot) = self.slot(id) else {
             return Vec::new();
@@ -2099,7 +2100,9 @@ impl OpenVaults {
                 // Stored with the key, or kept alone in an open vault.
                 let pass = match r.text(field::KEY_PASSPHRASE) {
                     Some(p) => Zeroizing::new(p.to_string()),
-                    None => self.passphrase_kept_for(c, keys, &m).unwrap_or_default(),
+                    None => self
+                        .passphrase_kept_for(c, keys, &m, chosen.get(&i).copied().unwrap_or(0))
+                        .unwrap_or_default(),
                 };
                 words.push((phrase_of(&m), label, set, child_of_of(r)));
                 passphrases.push(pass);
@@ -2146,7 +2149,7 @@ impl OpenVaults {
                 // (`docs/BACKUP-FLOW.md` §17.12 item 4).
                 let p = match r.text(field::KEY_PASSPHRASE) {
                     Some(p) => Zeroizing::new(p.to_string()),
-                    None => self.passphrase_kept_for(c, keys, &m).unwrap_or_default(),
+                    None => self.passphrase_kept_for(c, keys, &m, 0).unwrap_or_default(),
                 };
                 Some(keys.add_mnemonic(c, &m, &p, &label, None))
             }
@@ -2462,18 +2465,24 @@ impl OpenVaults {
         })
     }
 
-    /// Costs a fingerprint for each passphrase record. The passphrase an
-    /// open vault keeps alone (a type 14 record,
-    /// `docs/BACKUP-FLOW.md` §17.12 item 4) for the key the words `m`
-    /// make with it, found by the fingerprint the record names.
-    pub fn passphrase_kept_for(
+    /// Costs a fingerprint for each passphrase record. The passphrase
+    /// records (type 14) the open vaults keep alone for the key the words
+    /// `m` make with them, found by the fingerprint each names: the vault
+    /// and the place, in the order the vaults are held.
+    pub fn passphrases_kept_for(
         &self,
         c: &Compute,
         keys: &Keys,
         m: &Mnemonic,
-    ) -> Option<Zeroizing<String>> {
+    ) -> Vec<(VaultId, usize)> {
+        let mut found = Vec::new();
         for slot in &self.slots {
-            for r in slot.records.iter().filter(|r| r.kind == kind::PASSPHRASE) {
+            for (i, r) in slot
+                .records
+                .iter()
+                .enumerate()
+                .filter(|(_, r)| r.kind == kind::PASSPHRASE)
+            {
                 let (Some(fp), Some(p)) =
                     (r.field(field::PASSPHRASE_KEY), r.text(field::PASSPHRASE))
                 else {
@@ -2483,11 +2492,72 @@ impl OpenVaults {
                     continue;
                 };
                 if got.0[..] == *fp {
-                    return Some(Zeroizing::new(p.to_string()));
+                    found.push((slot.id, i));
                 }
             }
         }
-        None
+        found
+    }
+
+    /// A lookup. What open vault `id` already holds that `r` would be
+    /// related to (a passphrase for the same key, a share of the same
+    /// index and key): `None` where `r` is no such record, nothing like it
+    /// is held, or the same record is.
+    pub fn relates(&self, id: VaultId, r: &Record) -> Option<RelatedKind> {
+        let s = self.slot(id)?;
+        let (kind, key) = pair_of(r)?;
+        let mut held = false;
+        for o in &s.records {
+            if pair_of(o).is_some_and(|(k, v)| k == kind && v == key) {
+                // The same secret again is no second one.
+                let secret = if kind == RelatedKind::Passphrases {
+                    field::PASSPHRASE
+                } else {
+                    field::CODEX32_STRING
+                };
+                if o.field(secret) == r.field(secret) {
+                    return None;
+                }
+                held = true;
+            }
+        }
+        held.then_some(kind)
+    }
+
+    /// Costs what [`Records::passphrases_kept_for`] costs, and a parse of
+    /// the record's words. The passphrase records the open vaults keep
+    /// alone for key record `i` of open vault `id`: none where the record
+    /// holds its own passphrase or is no words.
+    pub fn passphrases_of_key(
+        &self,
+        c: &Compute,
+        keys: &Keys,
+        id: VaultId,
+        i: usize,
+    ) -> Vec<(VaultId, usize)> {
+        let Some(r) = self.slot(id).and_then(|s| s.records.get(i)) else {
+            return Vec::new();
+        };
+        if r.kind != kind::KEY || r.text(field::KEY_PASSPHRASE).is_some() {
+            return Vec::new();
+        }
+        record_words(c, r).map_or_else(Vec::new, |m| self.passphrases_kept_for(c, keys, &m))
+    }
+
+    /// Costs what [`Records::passphrases_kept_for`] costs. The passphrase
+    /// an open vault keeps alone for the key the words `m` make: the
+    /// `chosen`th of those found (the first when it names none).
+    pub fn passphrase_kept_for(
+        &self,
+        c: &Compute,
+        keys: &Keys,
+        m: &Mnemonic,
+        chosen: usize,
+    ) -> Option<Zeroizing<String>> {
+        let found = self.passphrases_kept_for(c, keys, m);
+        let (id, i) = *found.get(chosen).or_else(|| found.first())?;
+        let r = self.slot(id)?.records.get(i)?;
+        Some(Zeroizing::new(r.text(field::PASSPHRASE)?.to_string()))
     }
 
     // ---- for tests ----

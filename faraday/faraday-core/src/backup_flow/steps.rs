@@ -114,10 +114,7 @@ impl Faraday {
 
     pub(crate) fn flow_open_index(&self, i: usize, v: usize) -> Option<usize> {
         let salt = self.flows[i].plan.vaults.get(v)?.salt?;
-        self.vaults
-            .open
-            .iter()
-            .position(|o| o.vault_id() == salt)
+        self.vaults.open.iter().position(|o| o.vault_id() == salt)
     }
 
     /// The vaults of flow `i` that must be open for the key to be made or
@@ -568,12 +565,7 @@ impl Faraday {
             let Some(salt) = vp.salt else {
                 continue;
             };
-            let Some(o) = self
-                .vaults
-                .open
-                .iter()
-                .position(|o| o.vault_id() == salt)
-            else {
+            let Some(o) = self.vaults.open.iter().position(|o| o.vault_id() == salt) else {
                 continue;
             };
             if !holders_left {
@@ -1092,7 +1084,8 @@ impl Faraday {
     /// else its file name.
     pub(crate) fn flow_files_copy_label(&self, c: &Compute, salt: &[u8; 32]) -> String {
         let Some(it) = self.inbox.iter().chain(self.outbox.iter()).find(|it| {
-            it.kind == FileKind::Vault && self.vaults.vault_id_of_file(it.sha).as_ref() == Some(salt)
+            it.kind == FileKind::Vault
+                && self.vaults.vault_id_of_file(it.sha).as_ref() == Some(salt)
         }) else {
             return String::new();
         };
@@ -1400,14 +1393,11 @@ impl Faraday {
         label: &str,
     ) -> String {
         let c = self.compute();
-        let salt = self
-            .vaults
-            .vault_id_of_file(Some(sha256_of(&c, &bytes)));
+        let salt = self.vaults.vault_id_of_file(Some(sha256_of(&c, &bytes)));
         // A different vault already under that name keeps its name.
         let clash = self.inbox.iter().any(|it| {
             it.name == name
-                && !(it.kind == FileKind::Vault
-                    && self.vaults.vault_id_of_file(it.sha) == salt)
+                && !(it.kind == FileKind::Vault && self.vaults.vault_id_of_file(it.sha) == salt)
         });
         let own = if clash {
             self.free_vault_name(&crate::stem(name))
@@ -1417,8 +1407,7 @@ impl Faraday {
         self.vault_read_from(&own, &bytes, label);
         self.inbox.retain(|it| {
             it.name != own
-                && !(it.kind == FileKind::Vault
-                    && self.vaults.vault_id_of_file(it.sha) == salt)
+                && !(it.kind == FileKind::Vault && self.vaults.vault_id_of_file(it.sha) == salt)
         });
         self.inbox.push(Item::new(&c, &own, bytes));
         self.save_boxes();
@@ -1502,9 +1491,7 @@ impl Faraday {
         let Some(at) = self
             .vault_files()
             .iter()
-            .position(|f| {
-                self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none()
-            })
+            .position(|f| self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none())
         else {
             return;
         };
@@ -2600,9 +2587,7 @@ impl Faraday {
         let Some(at) = self
             .vault_files()
             .iter()
-            .position(|f| {
-                self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none()
-            })
+            .position(|f| self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none())
         else {
             // Open already: its key's page, or the wallet's checklist.
             if kind_.is_wallet() {

@@ -572,14 +572,6 @@ impl Faraday {
                     )
                     .to_string(),
             );
-            if let Some(id) = self.vaults.open.get(cur).map(|o| o.id) {
-                self.vaults.edit(id, |s| {
-                    s.remove_where(id, |r| {
-                        r.kind() == kind::PASSPHRASE
-                            && r.public(field::PASSPHRASE_KEY) == Some(&fp.0[..])
-                    })
-                });
-            }
             let record = Record::new(kind::PASSPHRASE)
                 .with(field::PASSPHRASE_KEY, &fp.0)
                 .with(field::PASSPHRASE, pass.as_bytes());

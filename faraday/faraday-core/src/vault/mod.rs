@@ -18,6 +18,7 @@ pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod panes_screen;
+mod related;
 pub(crate) mod screen;
 pub(crate) mod seal;
 mod seals;
@@ -27,9 +28,9 @@ pub(crate) mod stretch;
 mod summaries;
 
 pub use area::*;
-pub use seals::{OlderHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
-pub use search::{SearchAct, SearchIn};
 pub(crate) use seal::{SealDone, SealRun, SealWork};
+pub use seals::{OpenHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
+pub use search::{SearchAct, SearchIn};
 pub(crate) use stretch::{KdbxDone, KdbxWork, StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
@@ -37,10 +38,11 @@ use crate::stick;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::{IntoRecord, RecordView, VaultId};
+use faraday_keys::vault::{IntoRecord, RecordView, RelatedKind, VaultId};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Cost, Record};
-use std::collections::BTreeSet;
+use related::SaveHold;
+use std::collections::{BTreeMap, BTreeSet};
 use zeroize::Zeroizing;
 
 use crate::Sheet;
@@ -231,9 +233,10 @@ impl Faraday {
                     v.copies.push(it.name.clone());
                     continue;
                 }
-                let open = self.vaults.summary_of_file(it.sha).and_then(|s| {
-                    self.vaults.open.iter().position(|o| o.vault_id == s.id)
-                });
+                let open = self
+                    .vaults
+                    .summary_of_file(it.sha)
+                    .and_then(|s| self.vaults.open.iter().position(|o| o.vault_id == s.id));
                 out.push(VaultFile::new(it, in_outbox, facts, open));
             }
         }
@@ -722,10 +725,14 @@ impl Faraday {
                 }
             }
             V::SaveToStickGo => self.vault_stick_save_ask(),
-            V::LoadTick(_) | V::LoadTickAll | V::LoadTicked | V::LoadNotNow => {
-                self.load_sheet_act(a)
-            }
+            V::LoadTick(_)
+            | V::LoadTickAll
+            | V::LoadPassphrase(..)
+            | V::LoadTicked
+            | V::LoadNotNow => self.load_sheet_act(a),
             V::OlderOpen | V::OlderBack => self.vault_older_act(a),
+            V::SaveAlsoContinue => self.vault_save_also_act(true),
+            V::SaveAlsoCancel => self.vault_save_also_act(false),
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -1134,7 +1141,10 @@ impl Faraday {
             }
             redraw = true;
         }
-        redraw | dice::tick(self, now_ms) | self.vault_older_settle()
+        redraw
+            | dice::tick(self, now_ms)
+            | self.vault_older_settle()
+            | self.vault_save_also_settle()
     }
 
     fn vault_unlock_check(&mut self) {
@@ -1213,6 +1223,18 @@ impl Faraday {
             EN.vaults_unlocked,
             &[&self.vaults.open[v].name.to_string()],
         ));
+        // One toast for the items this build could not read.
+        let id = self.vaults.open[v].id;
+        let unread = self.vaults.store().unreadable(id).len();
+        if unread > 0 {
+            let label = self.vaults.open[v].label(self.vaults.store());
+            let said = if unread == 1 {
+                fill(EN.vault_not_read_toast_one, &[&label])
+            } else {
+                fill(EN.vault_not_read_toast, &[&unread.to_string(), &label])
+            };
+            self.toast(&said);
+        }
         self.vault_gather_codex32();
         if for_import {
             // Its Load sheet (F62); after it, the next vault the import
@@ -1498,6 +1520,15 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return (0, 0);
         };
+        // The passphrase asked for on each key's card, where the Load
+        // sheet of this vault is up.
+        let chosen = self
+            .vaults
+            .load
+            .as_ref()
+            .filter(|s| s.name == open.name)
+            .map(|s| s.choice.clone())
+            .unwrap_or_default();
         let mut descs: Vec<(faraday_bip::policy::WalletPolicy, String)> = Vec::new();
         let records = self.vaults.records(open.id);
         for (i, r) in records.of(kind::WALLET) {
@@ -1516,7 +1547,7 @@ impl Faraday {
         let keys = self
             .vaults
             .store()
-            .load_from_vault(&c, &mut self.session.keys, open.id, set)
+            .load_from_vault(&c, &mut self.session.keys, open.id, set, &chosen)
             .len();
         let before = self.session.wallets.len();
         for (policy, name) in descs {
@@ -1915,6 +1946,21 @@ impl Faraday {
             return false;
         };
         let record = record.into_record();
+        // A second passphrase for a key, or a share of a set held: the
+        // person decides.
+        if let Some(kind) = self.vaults.store().relates(id, &record) {
+            self.vault_hold_save(id, record, said, kind);
+            return true;
+        }
+        self.vault_put_in(v, record, said)
+    }
+
+    /// Adds `record` to open vault `v` with no question, saying `said`.
+    /// False when it does not fit.
+    pub(crate) fn vault_put_in(&mut self, v: usize, record: Record, said: &str) -> bool {
+        let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
+            return false;
+        };
         let c = self.compute();
         if !self.vaults.store().fits(&c, id, &[], &[&record]) {
             self.toast(EN.vaults_slot_too_small);
@@ -3052,6 +3098,7 @@ impl Faraday {
             &self.session,
             v,
             &s.ticked,
+            &s.choice,
         )))
     }
 
@@ -3090,7 +3137,7 @@ impl Faraday {
         // Everything it holds is in the session already: nothing to ask.
         if !self
             .vaults
-            .load_view(&c, &self.session, v, &ticked)
+            .load_view(&c, &self.session, v, &ticked, &BTreeMap::new())
             .tickable()
         {
             return false;
@@ -3103,6 +3150,7 @@ impl Faraday {
             boot,
             wallets_before,
             ticked,
+            choice: Default::default(),
         });
         self.sheet = Some(Sheet::UnlockLoad);
         true
@@ -3122,7 +3170,15 @@ impl Faraday {
         let Some(ticked) = self.vaults.load.as_ref().map(|s| s.ticked.clone()) else {
             return;
         };
-        let view = self.vaults.load_view(&c, &self.session, v, &ticked);
+        let choice = self
+            .vaults
+            .load
+            .as_ref()
+            .map(|s| s.choice.clone())
+            .unwrap_or_default();
+        let view = self
+            .vaults
+            .load_view(&c, &self.session, v, &ticked, &choice);
         match a {
             VaultAction::LoadTick(r) => {
                 if !view.tickable_records().contains(&r) {
@@ -3132,6 +3188,17 @@ impl Faraday {
                     && !s.ticked.remove(&r)
                 {
                     s.ticked.insert(r);
+                }
+            }
+            VaultAction::LoadPassphrase(r, n) => {
+                let known = view
+                    .cards
+                    .iter()
+                    .flat_map(|c| c.seeds.iter())
+                    .chain(view.keys.iter())
+                    .any(|s| s.record == r && n < s.passphrases.len());
+                if known && let Some(s) = self.vaults.state.load.as_mut() {
+                    s.choice.insert(r, n);
                 }
             }
             VaultAction::LoadTickAll => {
@@ -3441,5 +3508,75 @@ impl Faraday {
             }
             (names, false) => self.toast_out_files(names),
         }
+    }
+}
+
+impl Faraday {
+    /// Holds `record` for **Continue**, the dialog up: open vault `id`
+    /// already holds a related secret (`kind`).
+    pub(crate) fn vault_hold_save(
+        &mut self,
+        id: VaultId,
+        record: Record,
+        said: &str,
+        kind: RelatedKind,
+    ) {
+        let Some(open) = self.vaults.open.iter().find(|o| o.id == id) else {
+            return;
+        };
+        let line = fill(
+            match kind {
+                RelatedKind::Passphrases => EN.vault_holds_passphrase,
+                RelatedKind::Shares => EN.vault_holds_share,
+            },
+            &[&open.label(self.vaults.store())],
+        );
+        let hold = self.vaults.state.save_hold.get_or_insert_with(|| {
+            Box::new(SaveHold {
+                id,
+                pending: Vec::new(),
+                why: Vec::new(),
+            })
+        });
+        if hold.id != id {
+            hold.pending.clear();
+            hold.why.clear();
+            hold.id = id;
+        }
+        hold.pending.push((record, said.to_string()));
+        if !hold.why.contains(&line) {
+            hold.why.push(line);
+        }
+        self.sheet = Some(Sheet::SaveAlso);
+    }
+
+    /// The dialog's **Continue** (`go`) or **Cancel**: what waits is
+    /// saved, or dropped.
+    pub(crate) fn vault_save_also_act(&mut self, go: bool) {
+        let Some(hold) = self.vaults.state.save_hold.take() else {
+            return;
+        };
+        if self.sheet == Some(Sheet::SaveAlso) {
+            self.sheet = None;
+        }
+        if !go {
+            return;
+        }
+        let Some(v) = self.vaults.open.iter().position(|o| o.id == hold.id) else {
+            return;
+        };
+        for (record, said) in hold.pending {
+            self.vault_put_in(v, record.into_record(), &said);
+        }
+    }
+
+    /// The hold's dialog gone another way (a sheet over it, the vault
+    /// locked) is **Cancel**. True when it dropped the hold.
+    pub(crate) fn vault_save_also_settle(&mut self) -> bool {
+        if self.vaults.save_hold.is_some() && self.sheet != Some(Sheet::SaveAlso) {
+            self.vaults.state.save_hold = None;
+            return true;
+        }
+        false
     }
 }

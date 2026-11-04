@@ -7,8 +7,8 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::App;
 
 use super::budget::{heavy, unlock_test_vault};
-use crate::wallet::{Origin, Wallet, read_wallet, same_wallet};
 use crate::vault::seal::After;
+use crate::wallet::{Origin, Wallet, read_wallet, same_wallet};
 use crate::{Action, Screen, testkit};
 
 /// A wallet's shape, as the session names it.
@@ -313,10 +313,7 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
         .find(|f| f.name == name)
         .expect("the vault's file")
         .sha;
-    let salt = app
-        .vaults
-        .vault_id_of_file(sha)
-        .expect("the vault's id");
+    let salt = app.vaults.vault_id_of_file(sha).expect("the vault's id");
     let at = app
         .vaults()
         .summaries

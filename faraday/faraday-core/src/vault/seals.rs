@@ -102,6 +102,9 @@ impl OpenVault {
         let Some((_, seals)) = store.seal_state(self.id) else {
             return String::new();
         };
+        if seals.count == 0 {
+            return EN.vault_not_sealed_yet.to_string();
+        }
         let count = fill(EN.vault_seals, &[&times(seals.count)]);
         let when = match seals.last {
             Some(t) => {
@@ -384,13 +387,18 @@ impl Vaults {
     }
 }
 
-/// An unlock stopped at the older-copy dialog (`docs/VAULT-HARDENING.md`
-/// §5.3, owner 2026-10-29): the slot opened is held, its key in the
-/// store, and nothing of it loads or shows until **Open** is pressed;
-/// **Keep locked** closes it. Faraday cannot tell an older copy from one
-/// put back by someone else, so the person decides; it is never refused.
+/// An unlock stopped at the **Open this copy?** dialog
+/// (`docs/VAULT-HARDENING.md` §5.3, owner 2026-10-29): the vault opened is
+/// held, its key in the store, and nothing of it loads or shows until
+/// **Open** is pressed; **Keep locked** closes it. Faraday cannot tell an
+/// older copy from one put back by someone else, and a file another
+/// program saved holds a history, so the person decides; it is never
+/// refused. One dialog holds every line that applies.
 #[derive(Debug, Clone)]
-pub struct OlderHold {
+pub struct OpenHold {
+    /// The lines the dialog says: a history or recycle bin the file
+    /// holds, and what the seal count found.
+    pub why: Vec<String>,
     /// The open vault held.
     pub id: VaultId,
     /// It was unlocked on the boot import's sheet.
@@ -406,26 +414,37 @@ impl VaultArea {
     /// before an unlock refreshes it: what **Keep locked** puts back.
     pub(crate) fn summary_before(&self, v: usize) -> Option<VaultSummary> {
         let id = self.state.open.get(v)?.vault_id;
-        self.state
-            .summaries
-            .iter()
-            .find(|s| s.id == id)
-            .cloned()
+        self.state.summaries.iter().find(|s| s.id == id).cloned()
     }
 
-    /// Holds open vault `v` at the older-copy dialog when its unlock
-    /// found a warning (§5.3 items 1 and 2, §5.6); true when it holds.
+    /// Holds open vault `v` at the **Open this copy?** dialog when its
+    /// unlock found a history or recycle bin, or a seal count warning
+    /// (§5.3 items 1 and 2, §5.6); true when it holds.
     pub(crate) fn older_hold(
         &mut self,
         v: usize,
         (for_import, sheet): (bool, Option<crate::Sheet>),
         summary: Option<VaultSummary>,
     ) -> bool {
-        let Some(o) = self.state.open.get(v).filter(|o| o.seal_warn.is_some()) else {
+        let Some(o) = self.state.open.get(v) else {
             return false;
         };
-        self.state.older = Some(Box::new(OlderHold {
-            id: o.id,
+        let store = self.state.store();
+        let mut why = Vec::new();
+        if let Some((history, bin)) = store.history(o.id).filter(|(h, b)| h + b > 0) {
+            why.push(fill(
+                EN.vault_history_line,
+                &[&o.label(store), &history.to_string(), &bin.to_string()],
+            ));
+        }
+        why.extend(o.seal_warning());
+        if why.is_empty() {
+            return false;
+        }
+        let id = o.id;
+        self.state.older = Some(Box::new(OpenHold {
+            why,
+            id,
             for_import,
             sheet,
             summary,
@@ -434,13 +453,13 @@ impl VaultArea {
     }
 
     /// Takes the hold, if any.
-    pub(crate) fn older_take(&mut self) -> Option<OlderHold> {
+    pub(crate) fn older_take(&mut self) -> Option<OpenHold> {
         self.state.older.take().map(|h| *h)
     }
 
     /// **Keep locked**: the held vault closes, its key wiped, and what
     /// was remembered of it before is put back, the counts seen kept.
-    pub(crate) fn older_close(&mut self, h: OlderHold) {
+    pub(crate) fn older_close(&mut self, h: OpenHold) {
         let Some(i) = self.state.open.iter().position(|o| o.id == h.id) else {
             return;
         };

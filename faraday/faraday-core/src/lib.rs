@@ -594,11 +594,9 @@ pub enum Sheet {
     Potential,
     /// What the boot stick brought: remove the stick, unlock its vaults, choose what to import.
     Import,
-    /// Something pressed that loads a key, with a stick attached: it
-    /// carries on once the stick is pulled ([`Faraday::pull`]).
+    /// A press that loads a key, a stick attached, carries on once it is pulled ([`Faraday::pull`]).
     Pull,
-    /// A node or a line of the wallet's chart: what it is, where, and its
-    /// actions (`docs/history/NEW-WALLET.md` §9).
+    /// A node or line of the wallet's chart: what it is, where, its actions (`docs/history/NEW-WALLET.md` §9).
     Chart,
     /// The backup board's list, opened by **Add** in the narrow column
     /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
@@ -658,8 +656,10 @@ pub enum Sheet {
     /// **Load from {vault}**, after an unlock from the boot sheet or the
     /// Vaults tab: what to load, ticked (`vault_load`, F62).
     UnlockLoad,
-    /// **Open this copy?**: an unlock held at an older copy (`vault::OlderHold`).
+    /// **Open this copy?**: an unlock held at an older copy (`vault::OpenHold`).
     OlderCopy,
+    /// A passphrase or share the vault holds one of: **Continue** or **Cancel**.
+    SaveAlso,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).

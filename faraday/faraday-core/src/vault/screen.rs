@@ -27,8 +27,8 @@ use faraday_keys::vault::RecordView;
 use faraday_keys::{Part, Reveal};
 use faraday_ui::Status;
 pub(crate) use faraday_ui::hold::HoldTone;
-use faraday_vault::records::{field, kind};
 use faraday_vault::file::{SIZES as SIZES_FILE, file_len};
+use faraday_vault::records::{field, kind};
 
 mod codes;
 mod create;
@@ -41,6 +41,7 @@ use create::{create_button, create_button_h, create_summary};
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
 pub(crate) use search::bar as search_bar;
+mod unread;
 use secret::{secret, secret_with, seedqr_box};
 
 fn va(a: V) -> Action {
@@ -434,7 +435,10 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let cost = cost_text(&f.facts.header.cost);
         let time = fill(
             EN.vault_unlock_time_here,
-            &[&app.vaults.time_text(mem, f.facts.header.cost.passes).to_string()],
+            &[&app
+                .vaults
+                .time_text(mem, f.facts.header.cost.passes)
+                .to_string()],
         );
         ui.text_right_as((x + w - 18.0, y + 10.0, 24.0), LABEL_L, ink, &cost);
         ui.text_right_as((x + w - 18.0, y + 36.0, 24.0), BODY_S, muted, &time);
@@ -464,8 +468,10 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let f = files.get(app.vaults.pick);
         let t = f
             .map(|f| {
-                app.vaults
-                    .time_text(f.facts.header.cost.memory_kib / 1024, f.facts.header.cost.passes)
+                app.vaults.time_text(
+                    f.facts.header.cost.memory_kib / 1024,
+                    f.facts.header.cost.passes,
+                )
             })
             .unwrap_or_default();
         let line = fill(EN.vault_unlocking, &[&t.to_string()]);
@@ -711,7 +717,9 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.vault_here,
             &[
                 &cost_text(&f.facts.header.cost).to_string(),
-                &app.vaults.time_text(mem, f.facts.header.cost.passes).to_string(),
+                &app.vaults
+                    .time_text(mem, f.facts.header.cost.passes)
+                    .to_string(),
             ],
         );
         let cost = ui.fit_as(LABEL_M, &cost, w - 24.0);
@@ -741,8 +749,10 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let f = files.get(app.vaults.pick);
         let t = f
             .map(|f| {
-                app.vaults
-                    .time_text(f.facts.header.cost.memory_kib / 1024, f.facts.header.cost.passes)
+                app.vaults.time_text(
+                    f.facts.header.cost.memory_kib / 1024,
+                    f.facts.header.cost.passes,
+                )
             })
             .unwrap_or_default();
         let line = fill(EN.vault_unlocking, &[&t.to_string()]);
@@ -1284,12 +1294,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             cy += 42.0;
             for (i, (a, b)) in c.phrases.iter().enumerate() {
                 let rolling = app.vaults.dice.as_ref().is_some_and(|d| d.0 == i);
-                ui.text_mid_as(
-                    (x, cy, 36.0),
-                    LABEL_L,
-                    ink,
-                    EN.vault_passphrase,
-                );
+                ui.text_mid_as((x, cy, 36.0), LABEL_L, ink, EN.vault_passphrase);
                 cy += 44.0;
                 // Two ways to make it, side by side: dice, or typed.
                 let dice_style = if !may {
@@ -1467,9 +1472,43 @@ fn create_panel(
 // Vault contents
 // ---------------------------------------------------------------------
 
-/// An item's title, its line, and whether the title is data.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+/// An item's title, its line, and whether the title is data. A passphrase
+/// or share kept with others for one key is labelled with its place
+/// among them.
 fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
+    let (title, mut line, mono) = item_heading_of(app, r);
+    let rel = r
+        .home()
+        .and_then(|(id, at)| app.vaults.store().related(id, at));
+    match rel.map(|rel| (rel.kind, rel)) {
+        Some((faraday_keys::vault::RelatedKind::Passphrases, rel)) => {
+            line = fill(
+                EN.vault_related_passphrase,
+                &[
+                    &rel.place.to_string(),
+                    &rel.of.to_string(),
+                    &crate::codex32_backup::screen::record_fp(r, field::PASSPHRASE_KEY),
+                ],
+            );
+        }
+        Some((faraday_keys::vault::RelatedKind::Shares, _)) => {
+            let index = faraday_keys::vault::codex32_share_header(r)
+                .map(|(_, _, i)| char::from(i).to_ascii_uppercase().to_string())
+                .unwrap_or_default();
+            let said = fill(EN.vault_related_share, &[&index]);
+            line = if line.is_empty() {
+                said
+            } else {
+                format!("{line} · {said}")
+            };
+        }
+        None => {}
+    }
+    (title, line, mono)
+}
+
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
     match r.kind() {
         kind::KEY => {
             let fp = app
@@ -1728,6 +1767,22 @@ fn seals_head(
     if let Some(warn) = v.seal_warning() {
         used += ui.wrap_as((x, y + used, w), BODY_S, Role::Warning, &warn);
     }
+    if let Some(why) = v.read_only() {
+        used += ui.wrap_as((x, y + used, w), BODY_S, Role::Warning, why);
+    }
+    let unread = app.vaults.store().unreadable(v.id).len();
+    if unread > 0 {
+        let line = fill(EN.vault_not_read, &[&unread.to_string()]);
+        used += ui.wrap_as((x, y + used, w), BODY_S, Role::Warning, &line);
+    }
+    if !v.settings_text().is_empty() {
+        used += ui.wrap_as(
+            (x, y + used, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            v.settings_text(),
+        );
+    }
     if used > 0.0 {
         used += faraday_draw::tokens::GAP_SMALL;
     }
@@ -1793,15 +1848,18 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::LockAsk,
     );
     let rw = ui.measure_as(LABEL_L, EN.vault_rename) + 28.0;
-    ui.button(
-        end - lockw - 8.0 - rw,
-        y,
-        Some(rw),
-        BUTTON_H,
-        EN.vault_rename,
-        Style::Ghost,
-        va(V::Rename),
-    );
+    let rw = if v.read_only().is_some() { 0.0 } else { rw };
+    if rw > 0.0 {
+        ui.button(
+            end - lockw - 8.0 - rw,
+            y,
+            Some(rw),
+            BUTTON_H,
+            EN.vault_rename,
+            Style::Ghost,
+            va(V::Rename),
+        );
+    }
     // The count goes beside the state when it fits there, else under.
     let count = v.seals_line(app.vaults.store(), app.tz_min());
     let from = x + ui.measure_as(LABEL_L, &state) + tokens::GAP;
@@ -1811,7 +1869,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid_as((from, y, BUTTON_H), BODY_S, muted, &count);
     }
     y += BUTTON_H + tokens::GAP;
-    let sub = format!("{} · {}", v.name, cost_text(&v.facts().header.cost));
+    let sub = format!(
+        "{} · {} · {}",
+        v.name,
+        cost_text(&v.facts().header.cost),
+        v.size_text()
+    );
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
     let mut vx = x + ui.measure_as(BODY_S.mono(), &sub) + 24.0;
     if app.vaults.open.len() > 1 {
@@ -1901,7 +1964,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let items = search::shown(app, v);
     let add = add_label(app.vaults.category);
     ui.text_mid_as((ix, top, 34.0), LABEL_L, ink, cat_label);
-    if let Some(a) = add {
+    if let Some(a) = add.filter(|_| v.read_only().is_none()) {
         let aw = ui.measure_as(LABEL_L, a) + 26.0;
         ui.button(
             ix + items_w - aw,
@@ -1921,7 +1984,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .filter(|i| i.kind == crate::FileKind::Entries)
         .count();
     let mut extra: Vec<(String, Action)> = Vec::new();
-    if app.vaults.category == 2 {
+    let editable = v.read_only().is_none();
+    if editable && app.vaults.category == 2 {
         extra.push((EN.vault_scan_a_code.to_string(), va(V::ScanEntry)));
         if entries_files > 0 {
             extra.push((
@@ -1930,7 +1994,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ));
         }
     }
-    let gpg = app.vaults.category == 4;
+    let gpg = editable && app.vaults.category == 4;
     extra.extend(gpg.then(crate::backup_flow::gpg_restore::contents_button));
     // A GPG key's Restore has room round it, for the touch floor.
     let room = tokens::GAP * f32::from(u8::from(gpg));
@@ -1978,7 +2042,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(detail_x - gap, view_top, detail_w + 2.0 * gap, h - view_top);
     let off = app.vaults.item_offset();
     let open = ui.region_open(Region::scrolled(crate::ui::Slot::VaultItem, clip, off).own_bar());
-    let foot = detail(app, ui, v, &items, sel, detail_x, top, detail_w);
+    let mut foot = detail(app, ui, v, &items, sel, detail_x, top, detail_w);
+    foot += unread::section(app, ui, v, (detail_x, foot, detail_w));
     let content = foot - top;
     let max = content - (h - top);
     ui.region_close(open, max);
@@ -2164,27 +2229,40 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &state,
     );
     y += ui.advance_as(LABEL_L, 22.0);
-    let sub = format!("{} · {}", v.name, cost_text(&v.facts().header.cost));
+    let sub = format!(
+        "{} · {} · {}",
+        v.name,
+        cost_text(&v.facts().header.cost),
+        v.size_text()
+    );
     let sub = ui.fit_as(BODY_S.mono(), &sub, w);
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
     y += ui.advance_as(BODY_S.mono(), 26.0);
     if v.changes > 0 {
         y += own_row(app, ui, (x, y, w));
     }
-    let half = (w - 8.0) / 2.0;
+    let editable = v.read_only().is_none();
+    let half = if editable { (w - 8.0) / 2.0 } else { 0.0 };
+    if editable {
+        ui.button(
+            x,
+            y,
+            Some(half),
+            BUTTON_H,
+            EN.vault_rename,
+            Style::Secondary,
+            va(V::Rename),
+        );
+    }
+    let (lx, lw) = if editable {
+        (x + half + 8.0, half)
+    } else {
+        (x, w)
+    };
     ui.button(
-        x,
+        lx,
         y,
-        Some(half),
-        BUTTON_H,
-        EN.vault_rename,
-        Style::Secondary,
-        va(V::Rename),
-    );
-    ui.button(
-        x + half + 8.0,
-        y,
-        Some(half),
+        Some(lw),
         BUTTON_H,
         EN.vault_lock,
         Style::Primary,
@@ -2251,10 +2329,11 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .filter(|i| i.kind == crate::FileKind::Entries)
         .count();
     let mut extra: Vec<(String, V)> = Vec::new();
-    if let Some(a) = add {
+    let editable = v.read_only().is_none();
+    if let Some(a) = add.filter(|_| editable) {
         extra.push((a.to_string(), V::Add));
     }
-    if app.vaults.category == 2 {
+    if editable && app.vaults.category == 2 {
         extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
         if entries_files > 0 {
             extra.push((
@@ -2295,6 +2374,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w,
         &fill(EN.vault_secret_values, &[app.medium.noun()]),
     );
+    y += unread::section(app, ui, v, (x, y, w));
     finish(app, ui, h, y - top + 16.0);
 }
 
@@ -2785,7 +2865,9 @@ fn detail(
                 let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
                 secret_row(ui, &mut dy, EN.vault_notes, &n, false);
             }
-            actions.push((EN.vault_edit, va(V::Edit)));
+            if v.read_only().is_none() {
+                actions.push((EN.vault_edit, va(V::Edit)));
+            }
             actions.push((EN.vault_export_for_keepass, va(V::ExportKdbx)));
         }
         kind::NOTE => {
@@ -2796,7 +2878,9 @@ fn detail(
                 &app.reveal_record(r, field::NOTE, Reveal::VaultEntry(Part::Note)),
                 false,
             );
-            actions.push((EN.vault_edit, va(V::Edit)));
+            if v.read_only().is_none() {
+                actions.push((EN.vault_edit, va(V::Edit)));
+            }
         }
         kind::SHEET => {
             let (d, _, note) = faraday_keys::vault::sheet_parts(r);
@@ -2919,7 +3003,9 @@ fn detail(
             actions.push(("PNG", Action::CodePng(Code::GpgKey)));
             breaks.push(actions.len());
             actions.push((EN.vault_export_revocation, va(V::GpgExportRevocation)));
-            actions.push((EN.vault_make_a_revocation, va(V::GpgRevocationPage)));
+            if v.read_only().is_none() {
+                actions.push((EN.vault_make_a_revocation, va(V::GpgRevocationPage)));
+            }
             breaks.push(actions.len());
             if app.selected_waits().is_some() {
                 actions.push((
