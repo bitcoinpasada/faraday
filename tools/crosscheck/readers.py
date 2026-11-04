@@ -12,6 +12,7 @@ writes nothing else.
 """
 
 import os
+import re
 import subprocess
 import tempfile
 
@@ -115,8 +116,10 @@ class Kpxc:
         rc, out = self.run(["ls", "-R", "-f", "-q", self.path], passphrase)
         if rc != 0:
             return None
-        # An empty group is listed with a line `[empty]` in it.
-        return sorted(line for line in out.splitlines() if not line.endswith("/[empty]"))
+        # An empty group is listed with a line `[empty]` in it, a bare one for an empty root.
+        # Lines end at a line feed only: a Title may hold a carriage return.
+        return sorted(line for line in out.split("\n")
+                      if line and line != "[empty]" and not line.endswith("/[empty]"))
 
     def show(self, passphrase, entry, attrs):
         """`show -s -a …`: each attribute's value in turn, each followed by a
@@ -147,10 +150,10 @@ class Kpxc:
         if rc != 0:
             return None
         names, seen = [], False
-        for line in out.splitlines():
+        for line in out.split("\n"):
             if line == "Attachments:":
                 seen = True
-            elif seen and line.startswith("  ") and line.endswith(" B)"):
+            elif seen and line.startswith("  ") and re.search(r" \([0-9.]+ [KMG]?i?B\)$", line):
                 names.append(line[2:line.rindex(" (")])
         return names
 

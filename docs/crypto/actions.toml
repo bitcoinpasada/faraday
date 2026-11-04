@@ -386,8 +386,8 @@ completeness = "Words, passphrase, SeedQR and codex32 files for a stick; words a
 id = "vault"
 section = 3
 what = "The vault (`faraday/faraday-vault`, `docs/VAULT.md`)"
-completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The file is checked against pykeepass and keepass-rs in the `vault` cross-check area, both ways (`keepassxc-cli` has not yet run there). The QR vault as an RFC 9580 message is built as `faraday-vault::qr` (over `faraday-pgp::message`) and read by Sequoia's `sq` in `tools/vault/open.py`. Planned (F190, `docs/VAULT.md`): the app's screens for the QR vault; the message checked against Sequoia's `sq`, both ways (each opening the files the other made)"
-standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass and keepass-rs in the `vault` cross-check area (and by `keepassxc-cli`, which has not yet run in the area). Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only; the both-ways cross-check is planned (F190)"
+completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The file is checked against pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area, both ways. The QR vault as an RFC 9580 message is built as `faraday-vault::qr` (over `faraday-pgp::message`) and read by Sequoia's `sq` in `tools/vault/open.py`. Planned (F190, `docs/VAULT.md`): the app's screens for the QR vault; the message checked against Sequoia's `sq`, both ways (each opening the files the other made)"
+standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area. Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only; the both-ways cross-check is planned (F190)"
 
 [[row]]
 id = "diceware"
@@ -6899,7 +6899,7 @@ tests = [
   "faraday/faraday-vault/tests/file.rs::two_seals_with_different_random_bytes_are_different_files",
   "faraday/faraday-vault/tests/file.rs::a_wrong_passphrase_is_named_and_the_two_forms_of_a_passphrase_are_one",
 ]
-not_crosschecked = "The `vault` cross-check area judges the Argon2id step (argon2-cffi and PyCA) and the NFC step (Python's `unicodedata`) a vault is made with. The KDBX file `file::create` makes, and the one an export makes (`file::create_holding`), is read by pykeepass and keepass-rs in that area, and its changes by them too; `keepassxc-cli`, which the area also uses, has not yet run in the area."
+not_crosschecked = "The `vault` cross-check area judges the Argon2id step (argon2-cffi and PyCA) and the NFC step (Python's `unicodedata`) a vault is made with. The KDBX file `file::create` makes, and the one an export makes (`file::create_holding`), is read by pykeepass, `keepassxc-cli` and keepass-rs in that area, and its changes by them too."
 fuzz_none = "Creation takes no outside bytes but the passphrase and the caller's answer; kdbx_file and kdbx_body fuzz what a vault is read from."
 other = [
   "tools/vault/open.py, a reader over pykeepass and, for a QR vault, Sequoia's sq, opens the vectors the same code wrote (`faraday/faraday-vault/tests/open_py.rs`); the primitives under it are argon2-cffi's and OpenSSL's answers in `tools/vectors/kdf`",
@@ -7001,7 +7001,7 @@ tests = [
   "faraday/faraday-vault/tests/open_py.rs::open_py_refuses_damage_and_an_older_version",
 ]
 crosscheck = "vault"
-independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each), and `keepassxc-cli` has not yet run in the area" }
+independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each)" }
 fuzz = [
   "vault_header",
   "kdbx_file",
@@ -7345,7 +7345,7 @@ tests = [
   "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
   "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_the_answers_the_system_gave",
 ]
-not_crosschecked = "Opened from pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; the file is read by pykeepass and keepass-rs, and written by them and read here, in the `vault` cross-check area, and `keepassxc-cli` has not yet run in the area."
+not_crosschecked = "Opened from pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; the file is read by pykeepass, `keepassxc-cli` and keepass-rs, and written by them and read here, in the `vault` cross-check area."
 fuzz = ["kdbx_file", "kdbx_body"]
 
 [action.secrets]
@@ -7416,7 +7416,7 @@ tests = [
   "faraday/faraday-keys/tests/vault.rs::a_seal_that_fails_leaves_the_vault_open_with_its_changes",
 ]
 crosscheck = "vault"
-independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each), and `keepassxc-cli` has not yet run in the area" }
+independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each)" }
 fuzz_none = "Sealing takes the open vault's own document and the caller's answer; kdbx_file and kdbx_body fuzz the reading."
 
 [action.secrets]
@@ -7565,7 +7565,7 @@ tests = [
 ]
 fuzz = ["kdbx_file"]
 crosscheck = "vault"
-independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each), and `keepassxc-cli` has not yet run in the area" }
+independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each)" }
 
 [action.secrets]
 reveal = "none"
@@ -7579,7 +7579,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "Faraday's own record layouts (`docs/VAULT.md` §7); the payload layouts are read by a second implementation Faraday's authors wrote from that document (`area_vault.py`) and the items by pykeepass and keepass-rs (and by `keepassxc-cli`, which has not yet run in the area)."
+text = "Faraday's own record layouts (`docs/VAULT.md` §7); the payload layouts are read by a second implementation Faraday's authors wrote from that document (`area_vault.py`) and the items by pykeepass, `keepassxc-cli` and keepass-rs."
 kind = "Novel"
 decision = "F97"
 
@@ -9308,7 +9308,7 @@ text = "Rollback. An older copy of a vault still opens. Someone who can write to
 text = "A vault's size and its seal count are in the clear or can be read by whoever opens it; the cost and salt are in the header."
 
 [[construction.section.para]]
-text = "Independent review. Faraday's reader and writer are its own and have been read by pykeepass and keepass-rs, in the vault cross-check area, over the files they write and the files those programs write; keepassxc-cli is part of the area too and has not yet run in it."
+text = "Independent review. Faraday's reader and writer are its own and have been read by pykeepass, keepassxc-cli and keepass-rs, in the vault cross-check area, over the files they write and the files those programs write."
 
 [[construction.section.para]]
 text = "Availability. A changed byte anywhere in the file fails its HMAC and the vault does not open; a backup is how a damaged vault is recovered."

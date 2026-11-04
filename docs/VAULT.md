@@ -9,8 +9,9 @@ one of two published formats (F190):
 
 - **A file vault is a KDBX 4 database**, the format of KeePass, holding
   the person's keys, wallets, entries and notes as KeePass entries.
-  pykeepass opens what Faraday writes; KeePassXC, KeePass, KeePassDX and
-  Strongbox read the format and have not yet been tried on it.
+  pykeepass, `keepassxc-cli` and keepass-rs open what Faraday writes;
+  KeePass, KeePassDX and Strongbox read the format and have not been tried
+  on it.
 - **A QR vault is an RFC 9580 OpenPGP message** under a passphrase,
   holding one item, small enough to print as a code. Sequoia's `sq`,
   GopenPGP, OpenPGP.js and rPGP open it; GnuPG does not, since it
@@ -973,8 +974,9 @@ and Faraday's next seal to keep all that the file held, an entry's history
 and the recycle bin among it; each reader is to refuse a
 wrong passphrase, a changed byte and, where Faraday's NFC form differs
 from the typed one, the NFD form; every file of `tools/vectors/vault/`
-is read by both. The pykeepass cases have passed; the `keepassxc-cli` cases
-have not yet had a run of the area (**Open**). Today for the QR vault the area checks §7's payload
+is read by both. KeePassXC ends a protected value at its first NUL, which
+Faraday keeps, so such a Password reads shorter there (a known difference,
+counted). Today for the QR vault the area checks §7's payload
 layouts, a passphrase's NFC form and Argon2id. Sequoia's default
 passphrase encryption writes the older packets (a SKESK v4 and a SEIPD
 v1, without Argon2), which a QR vault refuses (§1.2): the area makes

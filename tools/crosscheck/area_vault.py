@@ -560,11 +560,20 @@ class Vault(Area):
     @staticmethod
     def unstripped(v, raw):
         """pykeepass's view with each Password as the export put it: pykeepass strips what XML
-        1.0 cannot hold from a protected value after decrypting it, Faraday reads it as it is
+        1.0 cannot hold from a protected value after decrypting it, Faraday and `keepassxc-cli`
+        read it as it is
         (a known difference). `raw` maps an entry's UUID to the Password put in."""
         return v | {"entries": [
             e | {"fields": [[k, raw.get(e["uuid"], val) if k == "Password" else val, prot]
                             for k, val, prot in e["fields"]]} for e in v["entries"]]}
+
+    def cut_at_nul(self, v):
+        """The view with each protected value as `keepassxc-cli` shows it: KeePassXC ends a
+        protected value at its first NUL (a known difference, counted)."""
+        self.known += sum("\0" in val for e in v["entries"] for _, val, _ in e["fields"])
+        return v | {"entries": [
+            e | {"fields": [[k, val.split("\0")[0], prot] for k, val, prot in e["fields"]]}
+            for e in v["entries"]]}
 
     def read_all(self, data, passphrase, kpxc, flips=True, raw=None):
         """The file under every reader: pykeepass's view, Faraday's reading of it under the
@@ -602,7 +611,7 @@ class Vault(Area):
                 self.fail("pykeepass", {"file": self.tag(flip)}, "opened", "refused",
                           "pykeepass opens a file with a byte changed", flip)
         if kpxc:
-            self.kpxc_checks(data, passphrase, v, flip=flip, nfd=nfd)
+            self.kpxc_checks(data, passphrase, self.cut_at_nul(mine), flip=flip, nfd=nfd)
         elif not self.rs_case:
             self.second["uncovered"] += 1
         return v
@@ -844,8 +853,8 @@ class Vault(Area):
         """An export as the app makes one: entries whose Title, Notes and Password hold control
         characters, through `file::create_holding`, read by all. A Title and Notes are read
         without the characters XML 1.0 cannot hold, as the writer leaves them out; a Password
-        is read by pykeepass without them and by Faraday as it was put in (a known
-        difference, counted)."""
+        is read by pykeepass without them and by Faraday and `keepassxc-cli` as it was put in
+        (a known difference of pykeepass, counted)."""
         rng = self.rng
         items = self.items([], entries=rng.randint(1, 8))
         for n, it in enumerate(items):
