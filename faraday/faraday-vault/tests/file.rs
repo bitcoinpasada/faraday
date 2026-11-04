@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use faraday_crypto::work::{Compute, Work};
 use faraday_vault::file::{
-    self, Change, DEFAULT_SIZE, Error, Facts, Opened, ReadOnly, SIZES, STEPS_KIB, file_len,
+    self, Change, DEFAULT_SIZE, Error, Facts, Opened, ReadOnly, Rekey, SIZES, STEPS_KIB, file_len,
 };
 use faraday_vault::kdbx::items::{Body, Format, Place};
 use faraday_vault::kdbx::xml::Document;
@@ -364,4 +364,96 @@ fn measuring_runs_one_stretch_at_the_stated_cost() {
     let before = STRETCHES.get();
     file::measure(&compute(), &facts).unwrap();
     assert_eq!(STRETCHES.get(), before + 1);
+}
+
+/// What pykeepass reads of `file` under `passphrase`: its output, or none
+/// where pykeepass is not installed (said, not silent).
+fn pykeepass_reads(file: &[u8], passphrase: &str) -> Option<String> {
+    let dir = std::env::temp_dir().join(format!("faraday-file-rekey-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("vault.kdbx");
+    std::fs::write(&path, file).unwrap();
+    let out = std::process::Command::new("python3")
+        .args(["-I", "-B"])
+        .arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tools/vectors/kdbx/reread.py"))
+        .arg(&path)
+        .arg(passphrase)
+        .output();
+    let _ = std::fs::remove_dir_all(&dir);
+    let out = out.ok()?;
+    let err = String::from_utf8_lossy(&out.stderr);
+    if !out.status.success() && (err.contains("ModuleNotFoundError") || err.contains("ImportError"))
+    {
+        eprintln!("pykeepass is not installed: skipped");
+        return None;
+    }
+    assert!(out.status.success(), "pykeepass: {err}");
+    Some(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+#[test]
+fn a_seal_under_a_new_passphrase_and_step_opens_under_the_new_and_not_the_old() {
+    let old = made(SIZES[0]);
+    let o = open(&old, "correct horse");
+    let (record, uuid) = note(9, "kept");
+    let body = Body::Record(record);
+    let changes = [Change::Put {
+        place: place(uuid),
+        body: &body,
+    }];
+    let first = file::seal(&compute(), &o, &changes, &random(2), Some(NOW)).unwrap();
+    let o = open(&first, "correct horse");
+    let rekey = Rekey {
+        passphrase: Some("battery staple"),
+        memory_kib: Some(STEPS_KIB[1]),
+    };
+    let sealed = file::seal_with(&compute(), &o, &[], rekey, &random(3), Some(NOW + 5)).unwrap();
+    // The header states the new cost; the count is one higher.
+    let n = open(&sealed, "battery staple");
+    assert_eq!(n.facts().header.cost.memory_kib, STEPS_KIB[1]);
+    assert_eq!(n.facts().header.cost.passes, 3);
+    assert_eq!(n.read().seals, o.read().seals + 1);
+    assert_eq!(n.read().items.len(), o.read().items.len());
+    assert_eq!(o.read().items.len(), 1);
+    assert!(matches!(
+        file::open(&compute(), &sealed, "correct horse"),
+        Err(Error::Kdbx(kdbx::Error::Passphrase))
+    ));
+    // An older copy opens under the old passphrase.
+    assert_eq!(open(&first, "correct horse").read().seals, o.read().seals);
+    // Another implementation reads the new file under the new passphrase.
+    if let Some(text) = pykeepass_reads(&sealed, "battery staple") {
+        assert!(text.contains("Note"), "{text}");
+    }
+    // The opened file is as it was: a seal without a rekey keeps the old key.
+    let again = file::seal(&compute(), &o, &[], &random(4), None).unwrap();
+    assert_eq!(
+        open(&again, "correct horse").facts().header.cost.memory_kib,
+        STEPS_KIB[0]
+    );
+}
+
+#[test]
+fn a_seal_refuses_an_empty_passphrase_and_a_step_that_is_none_and_can_be_retried() {
+    let o = open(&made(SIZES[0]), "correct horse");
+    let empty = Rekey {
+        passphrase: Some(""),
+        memory_kib: None,
+    };
+    assert!(matches!(
+        file::seal_with(&compute(), &o, &[], empty, &random(2), None),
+        Err(Error::Kdbx(kdbx::Error::EmptyPassphrase))
+    ));
+    let odd = Rekey {
+        passphrase: None,
+        memory_kib: Some(100_000),
+    };
+    assert!(file::seal_with(&compute(), &o, &[], odd, &random(2), None).is_err());
+    let retry = Rekey {
+        passphrase: Some("new one"),
+        memory_kib: None,
+    };
+    let sealed = file::seal_with(&compute(), &o, &[], retry, &random(2), None).unwrap();
+    assert_eq!(open(&sealed, "new one").read().seals, 2);
 }

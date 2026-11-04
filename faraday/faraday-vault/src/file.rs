@@ -322,12 +322,21 @@ impl Opened {
     /// file's own, at most 1 GiB, and 3 passes, or the file's when it has
     /// more (VAULT §7.1), over 4 lanes.
     pub fn next_cost(&self) -> Cost {
+        self.next_cost_at(None)
+    }
+
+    /// The cost a seal writes with `step` (one of [`STEPS_KIB`], in KiB) as
+    /// its memory, or [`Opened::next_cost`]'s own when there is none: the
+    /// passes stay the file's or [`PASSES`], over 4 lanes (§3.1).
+    pub fn next_cost_at(&self, step: Option<u32>) -> Cost {
         let have = &self.facts.header.cost;
-        let memory_kib = STEPS_KIB
-            .iter()
-            .copied()
-            .find(|&step| step >= have.memory_kib)
-            .unwrap_or(STEPS_KIB[STEPS_KIB.len() - 1]);
+        let memory_kib = step.unwrap_or_else(|| {
+            STEPS_KIB
+                .iter()
+                .copied()
+                .find(|&step| step >= have.memory_kib)
+                .unwrap_or(STEPS_KIB[STEPS_KIB.len() - 1])
+        });
         Cost {
             memory_kib,
             passes: have.passes.max(PASSES),
@@ -365,16 +374,19 @@ fn full(needs: usize, size: usize) -> Error {
     }
 }
 
-/// Costs an Argon2id run at [`Opened::next_cost`], and a document write
-/// for each item changed. A new file from `opened` with `changes` applied
-/// to a copy of its document, `faraday.format` stamped 1, the seal count
-/// one higher and the time `now` (Unix seconds; none when the clock is not
-/// set). The document's protected values are encrypted under the inner key
-/// `random` carries, the file is ChaCha20 and Argon2id with no
-/// compression, and its plaintext is padded to [`Opened::next_size`]; a
-/// KeePass app's save that grew past it takes the smallest larger size.
-/// `opened` is not changed: a refusal leaves the vault open with its
-/// changes. A read-only vault is refused.
+/// What a seal changes about the key besides the contents (§3, §3.1): a
+/// new passphrase, a new memory step, both or neither.
+#[derive(Clone, Copy, Default)]
+pub struct Rekey<'a> {
+    /// The passphrase the file is sealed under, in place of the one it was
+    /// opened with; put in NFC, never empty.
+    pub passphrase: Option<&'a str>,
+    /// The memory the Argon2id run takes, in KiB: one of [`STEPS_KIB`].
+    pub memory_kib: Option<u32>,
+}
+
+/// Costs what [`seal_with`] costs. [`seal_with`] with no new passphrase and
+/// no new step.
 pub fn seal(
     c: &Compute,
     opened: &Opened,
@@ -382,8 +394,35 @@ pub fn seal(
     random: &[u8; kdbx::RANDOM_LEN],
     now: Option<u64>,
 ) -> Result<Vec<u8>, Error> {
+    seal_with(c, opened, changes, Rekey::default(), random, now)
+}
+
+/// Costs an Argon2id run at [`Opened::next_cost_at`] the step of `rekey`,
+/// and a document write for each item changed. A new file from `opened`
+/// with `changes` applied to a copy of its document, `faraday.format`
+/// stamped 1, the seal count one higher and the time `now` (Unix seconds;
+/// none when the clock is not set). The file is sealed under `rekey`'s
+/// passphrase when it has one, else under the one `opened` was opened with.
+/// The document's protected values are encrypted under the inner key
+/// `random` carries, the file is ChaCha20 and Argon2id with no
+/// compression, and its plaintext is padded to [`Opened::next_size`]; a
+/// KeePass app's save that grew past it takes the smallest larger size.
+/// `opened` is not changed: a refusal leaves the vault open with its
+/// changes. A read-only vault is refused, an empty passphrase and a step
+/// outside [`STEPS_KIB`] too.
+pub fn seal_with(
+    c: &Compute,
+    opened: &Opened,
+    changes: &[Change<'_>],
+    rekey: Rekey<'_>,
+    random: &[u8; kdbx::RANDOM_LEN],
+    now: Option<u64>,
+) -> Result<Vec<u8>, Error> {
     if opened.read_only().is_some() {
         return Err(Error::ReadOnly);
+    }
+    if rekey.memory_kib.is_some_and(|m| !STEPS_KIB.contains(&m)) {
+        return Err(kdbx::Error::Cost.into());
     }
     let doc = applied(c, &opened.doc, &opened.read, changes, now)?;
     let xml = doc.write(kdbx::inner_key_of(random));
@@ -394,10 +433,14 @@ pub fn seal(
         binaries: &opened.binaries,
         public_custom_data: opened.facts.header.public_custom_data.as_deref(),
     };
+    let passphrase = match rekey.passphrase {
+        Some(p) => p,
+        None => core::str::from_utf8(&opened.passphrase).map_err(|_| kdbx::Error::Damaged)?,
+    };
     kdbx::seal(
         c,
-        core::str::from_utf8(&opened.passphrase).map_err(|_| kdbx::Error::Damaged)?,
-        opened.next_cost(),
+        passphrase,
+        opened.next_cost_at(rekey.memory_kib),
         random,
         &contents,
         size,

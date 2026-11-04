@@ -6,10 +6,11 @@
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
+use faraday_intake::secret_buf::SecretText;
 use faraday_keys::Keys;
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN, gpg_field, is_secret};
 use faraday_keys::{Part, Reveal};
-use faraday_vault::file::SIZES;
+use faraday_vault::file::{SIZES, STEPS_KIB};
 use faraday_vault::kdbx::items::{self, Body, Place, Related, RelatedKind};
 use faraday_vault::kdbx::xml::Document;
 use faraday_vault::kdbx::{self};
@@ -1606,4 +1607,54 @@ fn a_typed_share_finds_its_seed_where_the_vault_holds_two_strings_of_an_index() 
         got.expect("enough are in").expect("the seed comes back"),
         owner.info(0).expect("info").fingerprint
     );
+}
+
+#[test]
+fn a_new_passphrase_and_step_are_sealed_and_a_failed_seal_keeps_them() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "old"), "old").expect("opens");
+    let v0 = store.version(id);
+    assert!(!store.rekeyed(id));
+    assert!(
+        !store.set_passphrase(id, SecretText::new()),
+        "an empty one is refused"
+    );
+    assert!(
+        !store.set_step(id, 100_000),
+        "a step not offered is refused"
+    );
+    assert_eq!(store.version(id), v0);
+    assert!(store.set_passphrase(id, SecretText::of("new")));
+    assert!(store.set_step(id, STEPS_KIB[1]));
+    assert!(store.rekeyed(id));
+    assert!(store.version(id) > v0, "it counts as a change");
+    assert_eq!(
+        store.next_cost(id).map(|k| k.memory_kib),
+        Some(STEPS_KIB[1])
+    );
+    // A seal that fails is retried with the same change.
+    let uuids = uuids_of(&store, id, 0x10);
+    drop(store.seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None));
+    store.seal_ended(id, false);
+    assert!(store.rekeyed(id));
+    let file = seal(&mut store, &c, id);
+    assert!(store.unlock(&c, file.clone(), "old").is_err());
+    let (id, facts) = store.unlock(&c, file, "new").expect("opens under the new");
+    assert_eq!(facts.header.cost.memory_kib, STEPS_KIB[1]);
+    assert_eq!(store.seal_state(id).map(|(_, s)| s.count), Some(2));
+}
+
+#[test]
+fn a_vault_being_sealed_refuses_a_new_passphrase_and_step() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "old"), "old").expect("opens");
+    let uuids = uuids_of(&store, id, 1);
+    let _job = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+        .expect("a job");
+    assert!(!store.set_passphrase(id, SecretText::of("new")));
+    assert!(!store.set_step(id, STEPS_KIB[1]));
+    assert!(!store.rekeyed(id));
 }

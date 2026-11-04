@@ -31,6 +31,7 @@ use faraday_bip::bip39::Mnemonic;
 use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::{Compute, Work};
+use faraday_intake::secret_buf::SecretText;
 use faraday_intake::wallet::Refusal;
 use faraday_vault::file::Change;
 use faraday_vault::kdbx::items::{self, Body, Damage, Fault, Place, Unreadable, Unwritable};
@@ -940,6 +941,12 @@ struct Slot {
     uuids: OnceCell<usize>,
     /// A seal job holds the file: every edit refuses until it ends.
     sealing: bool,
+    /// The passphrase the next seal writes, when it is not the one the file
+    /// opened with; wiped as it drops or is replaced (never exposed).
+    new_passphrase: Option<SecretText>,
+    /// The memory step, in KiB, the next seal writes when it is not the
+    /// file's own.
+    new_step: Option<u32>,
 }
 
 impl Slot {
@@ -1437,6 +1444,8 @@ impl OpenVaults {
             used: OnceCell::new(),
             uuids: OnceCell::new(),
             sealing: false,
+            new_passphrase: None,
+            new_step: None,
         });
         (id, facts)
     }
@@ -1509,6 +1518,12 @@ impl OpenVaults {
         if short && ops.is_ok() {
             return None;
         }
+        let rekey = (
+            s.new_passphrase
+                .as_ref()
+                .map(|p| SecretText::of(p.as_str())),
+            s.new_step,
+        );
         // A change the seal cannot write is its refusal, not a change left out.
         let ops = ops.map_err(fv::file::Error::from);
         let s = &mut self.slots[at];
@@ -1517,9 +1532,66 @@ impl OpenVaults {
             Arc::clone(&s.opened),
             ops,
             self.names.clone(),
+            rekey,
             random,
             now,
         ))
+    }
+
+    /// Takes `passphrase` (moved in, wiped as it is replaced or the vault
+    /// closes) as the one the next seal of open vault `id` writes, in place
+    /// of the one the file was opened with. It counts as a change: the
+    /// version moves. Refused, and the passphrase wiped, for an empty one,
+    /// a vault this store does not hold and a read-only or sealing one.
+    pub fn set_passphrase(&mut self, id: VaultId, passphrase: SecretText) -> bool {
+        if passphrase.as_str().is_empty() {
+            return false;
+        }
+        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
+            return false;
+        };
+        if s.locked() {
+            return false;
+        }
+        s.new_passphrase = Some(passphrase);
+        s.changed();
+        true
+    }
+
+    /// Takes `memory_kib` as the memory step the next seal of open vault
+    /// `id` writes, up or down (passes stay the file's or 3, over 4
+    /// lanes). It counts as a change. Refused for a step that is not one of
+    /// [`fv::file::STEPS_KIB`], an unknown vault and a read-only or sealing
+    /// one.
+    pub fn set_step(&mut self, id: VaultId, memory_kib: u32) -> bool {
+        if !fv::file::STEPS_KIB.contains(&memory_kib) {
+            return false;
+        }
+        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
+            return false;
+        };
+        if s.locked() {
+            return false;
+        }
+        s.new_step = Some(memory_kib);
+        s.changed();
+        true
+    }
+
+    /// A lookup. The cost the next seal of open vault `id` writes: its
+    /// memory step is the one taken ([`OpenVaults::set_step`]) or else the
+    /// file's own rounded up (§7.1, a file a KeePass app saved is written
+    /// in Faraday's form). `None` for an id this store does not hold.
+    pub fn next_cost(&self, id: VaultId) -> Option<fv::Cost> {
+        let s = self.slot(id)?;
+        Some(s.opened.next_cost_at(s.new_step))
+    }
+
+    /// A lookup. Whether open vault `id` has a new passphrase or a new
+    /// memory step waiting for its seal: a change, so a lock seals it.
+    pub fn rekeyed(&self, id: VaultId) -> bool {
+        self.slot(id)
+            .is_some_and(|s| s.new_passphrase.is_some() || s.new_step.is_some())
     }
 
     /// A seal job of open vault `id` ended: with `ok` the vault is closed

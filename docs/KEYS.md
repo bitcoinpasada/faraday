@@ -96,6 +96,11 @@ Moved to `docs/history/KEYS-LOG.md`.
   `Node`, through `Keys::aezeed_node`, which applies the demo's refusal
   on the main thread; the KeePass file is encrypted, so public. The
   scrypt and Argon2id calls are unchanged.
+  A new passphrase for an open vault's next seal
+  (`OpenVaults::set_passphrase`) is moved into the vault's slot as a
+  `SecretText`, never read back, and replaced or wiped with the slot; a
+  `SealJob` gets one copy that wipes with the job, so a seal that fails
+  keeps the pending passphrase for a retry.
 - **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does
   not copy them. The store holds each master key behind an `Arc` that is
   never opened for change: a change of network makes a new key

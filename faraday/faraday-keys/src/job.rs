@@ -171,6 +171,9 @@ pub struct SealJob {
     opened: Arc<fv::file::Opened>,
     ops: Result<Vec<Op>, fv::file::Error>,
     names: Names,
+    /// A new passphrase (a copy that wipes with the job) and a new memory
+    /// step, when the seal takes them.
+    rekey: (Option<SecretText>, Option<u32>),
     random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
     now: Option<u64>,
 }
@@ -186,6 +189,7 @@ impl SealJob {
         opened: Arc<fv::file::Opened>,
         ops: Result<Vec<Op>, fv::file::Error>,
         names: Names,
+        rekey: (Option<SecretText>, Option<u32>),
         random: &[u8; SEAL_RANDOM_LEN],
         now: Option<u64>,
     ) -> SealJob {
@@ -193,6 +197,7 @@ impl SealJob {
             opened,
             ops,
             names,
+            rekey,
             random: Zeroizing::new(*random),
             now,
         }
@@ -200,11 +205,15 @@ impl SealJob {
 
     /// Costs an Argon2id run at the vault's next cost, a document write for
     /// each entry changed and a PBKDF2 for each new key with no label (the
-    /// same calls as `faraday_vault::file::seal`).
+    /// same calls as `faraday_vault::file::seal_with`).
     pub fn run(self, c: &Compute) -> Sealed {
         let out = match &self.ops {
             Ok(ops) => with_changes(c, &self.names, ops, true, self.now, |changes| {
-                fv::file::seal(c, &self.opened, changes, &self.random, self.now)
+                let rekey = fv::file::Rekey {
+                    passphrase: self.rekey.0.as_ref().map(SecretText::as_str),
+                    memory_kib: self.rekey.1,
+                };
+                fv::file::seal_with(c, &self.opened, changes, rekey, &self.random, self.now)
             }),
             Err(e) => Err(e.clone()),
         };
