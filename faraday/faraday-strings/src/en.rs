@@ -9974,6 +9974,13 @@ strings! {
     backup_flow_no_passphrase: "I do not have its passphrase",
     /// After no passphrase: a new vault beside that file.
     backup_flow_new_vault_beside: "A new vault beside it",
+    /// Step 3, under a vault's row: the file tried is another vault.
+    backup_flow_not_this_vault: "{} is not {}",
+    /// Above the tap: the vault is written beside the files a stick holds
+    /// that no vault of the plan is known to be.
+    backup_flow_goes_beside: "{} goes beside these",
+    /// A button under it: this file is the stick's copy of the vault.
+    backup_flow_use_file: "Use {} for {}",
     /// Leaves the stick for another.
     backup_flow_use_another: "Use another {}",
     /// On a device, a row naming one of the flow's sticks: its pill's

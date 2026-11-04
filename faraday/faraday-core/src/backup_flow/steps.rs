@@ -89,6 +89,7 @@ impl Faraday {
             Step::Sticks | Step::Write => self.flow_examine(),
             _ => {}
         }
+        self.flow_bind_ids(i, false);
         self.flow_settle();
         self.out.dirty = true;
     }
@@ -99,6 +100,7 @@ impl Faraday {
         f.live.open = Some(step.n());
         f.live.problem = None;
         f.live.no_pass = None;
+        f.live.not_it = None;
         f.live.unlocking = None;
         f.live.reading = None;
         if step == Step::Done {
@@ -219,7 +221,7 @@ impl Faraday {
             .filter(|v| need.contains(v) && self.flow_open_index(i, *v).is_none())
             .collect();
         left.sort_unstable();
-        let only_new = left.iter().all(|&v| f.plan.vaults[v].salt.is_none());
+        let only_new = left.iter().all(|&v| !f.plan.vaults[v].found());
         if let Some(&v) = left.first().filter(|_| only_new) {
             self.act(Action::Flow(FlowAction::CreateVault(v)));
         }
@@ -305,7 +307,7 @@ impl Faraday {
             F::VaultExisting(v) => {
                 let f = &mut self.flows.all[i];
                 if let Some(vp) = f.plan.vaults.get_mut(v)
-                    && vp.salt.is_none()
+                    && !vp.found()
                 {
                     vp.existing = !vp.existing;
                 }
@@ -838,24 +840,22 @@ impl Faraday {
         let Some(i) = self.fi() else {
             return;
         };
-        // A file never opened or sealed here has no vault id: it is left
-        // out, as a file that is not a vault is.
+        // A file whose head is a vault's stays, whether or not it was
+        // opened or sealed here; one that is not a vault is left out.
         let sha = bytes.as_ref().map(|b| sha256_of(&c, b));
-        let vault_id = self.vaults.vault_id_of_file(sha);
         let Some(r) = self.flows.all[i].live.reading.as_mut() else {
             return;
         };
         r.pending.retain(|n| n != name);
         if let Some(bytes) = bytes
             && let Some(sha) = sha
-            && let Some(id) = vault_id
+            && fv::file::inspect(&bytes).is_ok()
         {
             r.files.push((
                 VaultRead {
                     name: name.to_string(),
                     len: bytes.len(),
                     sha,
-                    salt: id,
                 },
                 bytes,
             ));
@@ -1003,10 +1003,13 @@ impl Faraday {
                 .as_ref()
                 .map(|r| r.files.iter().map(|(vr, _)| vr.clone()).collect())
                 .unwrap_or_default();
-            if let Some(salt) = vp.salt {
-                // The vault is known: its copy on this stick, if it has
+            if vp.found() {
+                // The vault is chosen or known: its copy on this stick, if it has
                 // one, is the one to write over; the other vaults stay.
-                let same: Vec<&VaultRead> = files.iter().filter(|f| f.salt == salt).collect();
+                let same: Vec<&VaultRead> = files
+                    .iter()
+                    .filter(|f| self.flow_copy_of(i, v, f))
+                    .collect();
                 let pick = match same.as_slice() {
                     [] => Pick::New,
                     [one] => Pick::Over(one.name.clone()),
@@ -1018,8 +1021,9 @@ impl Faraday {
                     }
                 };
                 if let Pick::Over(name) = &pick
+                    && let Some(salt) = vp.salt
                     && let Some(theirs) = files.iter().find(|f| &f.name == name)
-                    && self.flow_files_differ(&c, &theirs.salt, &theirs.sha)
+                    && self.flow_files_differ(&c, &salt, &theirs.sha)
                 {
                     let f = &self.flows[i];
                     if f.step == Step::Write {
@@ -1038,8 +1042,9 @@ impl Faraday {
                     }
                     // Same vault, other bytes: the person picks the copy to
                     // unlock (§4.2).
+                    let label = self.flow_files_copy_label(&c, &salt);
                     if let Some(r) = self.flows.all[i].live.reading.as_mut() {
-                        r.differs = Some((v, name.clone()));
+                        r.differs = Some((v, name.clone(), label));
                     }
                     return;
                 }
@@ -1048,8 +1053,10 @@ impl Faraday {
                 }
                 continue;
             }
-            // Not known yet.
-            if files.is_empty() {
+            // Nothing chosen: the files this stick keeps that no other
+            // vault of the plan has, at this stick or in the plan.
+            let offer = self.flow_offer(i, v, &files);
+            if offer.is_empty() {
                 if vp.existing {
                     if let Some(r) = self.flows.all[i].live.reading.as_mut() {
                         r.problem = Some(Problem::NoVault(v));
@@ -1061,10 +1068,106 @@ impl Faraday {
                 }
                 continue;
             }
+            if let [k] = offer.as_slice()
+                && vp.existing
+            {
+                // One file at an existing place is that vault: the unlock
+                // proves it and the write replaces only what was proved.
+                self.flow_pick_file(i, v, *k);
+                return;
+            }
             // A question: the card shows the files.
             return;
         }
         self.flow_picks_done(i);
+    }
+
+    /// The files of the stick that vault `v`, with nothing chosen, may be:
+    /// those no other vault of the plan has, at this stick or in the plan
+    /// (indexes into the stick's files).
+    fn flow_offer(&self, i: usize, v: usize, files: &[VaultRead]) -> Vec<usize> {
+        let Some(r) = self.flows[i].live.reading.as_ref() else {
+            return Vec::new();
+        };
+        let others = self.flows[i].plan.vaults.len();
+        files
+            .iter()
+            .enumerate()
+            .filter(|(_, vr)| {
+                !r.picks
+                    .iter()
+                    .any(|(x, p)| *x != v && matches!(p, Pick::Over(n) if *n == vr.name))
+                    && !(0..others).any(|w| w != v && self.flow_copy_of(i, w, vr))
+            })
+            .map(|(k, _)| k)
+            .collect()
+    }
+
+    /// For the stick being read, each found vault written beside and the
+    /// files of the stick that no vault of the plan is known to own
+    /// (indexes into the stick's files), so that the card can say so and
+    /// offer a press for each. Sha comparisons only: it may be asked while
+    /// drawing.
+    pub(crate) fn flow_beside(&self) -> Vec<(usize, Vec<usize>)> {
+        let Some(i) = self.fi() else {
+            return Vec::new();
+        };
+        let Some(r) = self.flows.all[i].live.reading.as_ref() else {
+            return Vec::new();
+        };
+        let f = &self.flows.all[i];
+        let all = f.plan.vaults.len();
+        let unknown: Vec<usize> = r
+            .files
+            .iter()
+            .enumerate()
+            .filter(|(_, (vr, _))| {
+                !(0..all).any(|w| self.flow_copy_of(i, w, vr))
+                    && !r
+                        .picks
+                        .iter()
+                        .any(|(_, p)| matches!(p, Pick::Over(n) if *n == vr.name))
+            })
+            .map(|(k, _)| k)
+            .collect();
+        if unknown.is_empty() {
+            return Vec::new();
+        }
+        f.vaults_of(r.slot)
+            .into_iter()
+            .filter(|&v| {
+                f.plan.vaults.get(v).is_some_and(VaultPlan::found)
+                    && r.picks
+                        .iter()
+                        .any(|(x, p)| *x == v && matches!(p, Pick::New))
+            })
+            .map(|v| (v, unknown.clone()))
+            .collect()
+    }
+
+    /// Whether `vr`, a file on the stick being read, is a copy of plan
+    /// vault `v`: its SHA-256 is one the session has seen as that vault's
+    /// id, or is that of the vault's file in Files, or of the file it is
+    /// being tried from. By SHA alone, so it may be asked while drawing.
+    pub(crate) fn flow_copy_of(&self, i: usize, v: usize, vr: &VaultRead) -> bool {
+        let Some(vp) = self.flows.all[i].plan.vaults.get(v) else {
+            return false;
+        };
+        if vp.salt.is_some() && self.vaults.vault_id_of_file(Some(vr.sha)) == vp.salt {
+            return true;
+        }
+        [vp.file.as_ref(), vp.trying.as_ref()]
+            .into_iter()
+            .flatten()
+            .any(|n| {
+                // A file a flow takes in goes to the Inbox; one made here
+                // waits in the Outbox. A name is of the first.
+                self.inbox
+                    .iter()
+                    .chain(self.outbox.iter())
+                    .find(|it| &it.name == n)
+                    .is_some_and(|it| it.sha == Some(vr.sha))
+            })
     }
 
     /// Costs a hash of a whole file (through `hash`). Whether Files holds a
@@ -1108,6 +1211,7 @@ impl Faraday {
             .reading
             .as_mut()
             .and_then(|r| r.differs.take())
+            .map(|(v, name, _)| (v, name))
         else {
             return;
         };
@@ -1125,7 +1229,10 @@ impl Faraday {
                 if let Some(id) = self.vaults.vault_id_of_file(Some(sha)) {
                     for s in &mut self.flows.all[i].slots {
                         if let Some(b) = s.bound.as_mut()
-                            && b.vaults.iter().any(|r| r.salt == id && r.sha != sha)
+                            && b.vaults.iter().any(|r| {
+                                r.sha != sha
+                                    && self.vaults.vault_id_of_file(Some(r.sha)) == Some(id)
+                            })
                             && !b.declined.contains(&v)
                         {
                             b.declined.push(v);
@@ -1153,17 +1260,29 @@ impl Faraday {
         let Some((vr, _)) = r.files.get(k) else {
             return;
         };
-        let (name, salt, sha) = (vr.name.clone(), vr.salt, vr.sha);
-        // Two files of one vault: that stick cannot serve that vault.
-        if let Some((other, _)) = r
-            .files
-            .iter()
-            .find(|(o, _)| o.salt == salt && o.name != name)
-        {
+        let (name, sha) = (vr.name.clone(), vr.sha);
+        let salt = self.vaults.vault_id_of_file(Some(sha));
+        // Two files of one vault: that stick cannot serve that vault. The
+        // same bytes under two names are one vault; so are two files whose
+        // ids the session has proved the same.
+        if let Some((other, _)) = r.files.iter().find(|(o, _)| {
+            o.name != name
+                && (o.sha == sha
+                    || salt.is_some() && self.vaults.vault_id_of_file(Some(o.sha)) == salt)
+        }) {
             let b = other.name.clone();
             if let Some(r) = self.flows.all[i].live.reading.as_mut() {
                 r.problem = Some(Problem::TwoCopies(v, name, b));
             }
+            return;
+        }
+        let found = self.flows[i]
+            .plan
+            .vaults
+            .get(v)
+            .is_some_and(VaultPlan::found);
+        if found {
+            self.flow_press_file(i, v, k);
             return;
         }
         // The plan's vault is that existing one.
@@ -1171,16 +1290,96 @@ impl Faraday {
             vp.existing = true;
         }
         // The same vault in Files with other bytes: which copy is asked.
-        if self.flow_files_differ(&c, &salt, &sha) {
+        if let Some(s) = salt.filter(|s| self.flow_files_differ(&c, s, &sha)) {
+            let label = self.flow_files_copy_label(&c, &s);
             if let Some(r) = self.flows.all[i].live.reading.as_mut() {
                 r.picks.retain(|(x, _)| *x != v);
-                r.differs = Some((v, name));
+                r.differs = Some((v, name, label));
             }
             return;
         }
         if let Some(r) = self.flows.all[i].live.reading.as_mut() {
             r.picks.retain(|(x, _)| *x != v);
             r.picks.push((v, Pick::Over(name)));
+        }
+        self.flow_decide(i);
+    }
+
+    /// A press naming a file of the stick for a vault already chosen or
+    /// known, at step 2 and step 3 only. A chosen vault takes this copy as
+    /// its file, as picking the copy of a vault that differs does; a known
+    /// vault tries it beside its proved copy, which stays until the unlock
+    /// proves this one.
+    fn flow_press_file(&mut self, i: usize, v: usize, k: usize) {
+        if self.flows[i].step == Step::Write {
+            return;
+        }
+        let Some((vr, bytes, label, slot)) = self.flows[i].live.reading.as_ref().and_then(|r| {
+            r.files
+                .get(k)
+                .map(|(vr, b)| (vr.clone(), b.clone(), r.label.clone(), r.slot))
+        }) else {
+            return;
+        };
+        let place = self.flows[i]
+            .slots
+            .get(slot)
+            .and_then(|s| s.target.place())
+            .unwrap_or(0);
+        let known = self.flows[i].plan.vaults[v].salt.is_some();
+        if known {
+            if self.flow_copy_of(i, v, &vr) {
+                // Already proved or already in Files: only its pick.
+                if let Some(r) = self.flows.all[i].live.reading.as_mut() {
+                    r.picks.retain(|(x, _)| *x != v);
+                    r.picks.push((v, Pick::Over(vr.name.clone())));
+                }
+                self.flow_decide(i);
+                return;
+            }
+            // A try already made gives way to this one.
+            let prev = self.flows[i].plan.vaults[v].trying.clone();
+            if let Some(prev) = prev {
+                let shared = self.flows[i].plan.vaults.iter().enumerate().any(|(x, o)| {
+                    x != v
+                        && (o.file.as_deref() == Some(prev.as_str())
+                            || o.trying.as_deref() == Some(prev.as_str()))
+                }) || self.flows[i].plan.vaults[v].file.as_deref()
+                    == Some(prev.as_str());
+                if !shared {
+                    self.inbox
+                        .retain(|it| !(it.kind == FileKind::Vault && it.name == prev));
+                }
+            }
+            let own = self.flow_take_copy(i, v, &vr.name, bytes, &label);
+            self.flows.all[i].plan.vaults[v].trying = Some(own);
+        } else {
+            let own = self.flow_take_copy(i, v, &vr.name, bytes, &label);
+            // The other sticks' copies of this vault are not this one:
+            // each is written over only after a hold.
+            let sha = vr.sha;
+            for (n, s) in self.flows.all[i].slots.iter_mut().enumerate() {
+                if n != slot
+                    && let Some(b) = s.bound.as_mut()
+                    && b.picks
+                        .iter()
+                        .any(|(x, p)| *x == v && matches!(p, Pick::Over(_)))
+                    && b.vaults.iter().all(|r| r.sha != sha)
+                    && !b.declined.contains(&v)
+                {
+                    b.declined.push(v);
+                }
+            }
+            let id = self.vaults.vault_id_of_file(Some(vr.sha));
+            let vp = &mut self.flows.all[i].plan.vaults[v];
+            vp.file = Some(own);
+            vp.from = Some((place, vr.name.clone()));
+            vp.len = vr.len;
+            vp.salt = id;
+        }
+        if let Some(r) = self.flows.all[i].live.reading.as_mut() {
+            r.picks.retain(|(x, _)| *x != v);
+            r.picks.push((v, Pick::Over(vr.name)));
         }
         self.flow_decide(i);
     }
@@ -1334,14 +1533,16 @@ impl Faraday {
                     .plan
                     .vaults
                     .get(*v)
-                    .is_some_and(|vp| vp.salt.is_none())
+                    .is_some_and(|vp| !vp.found())
                 && let Some((vr, bytes)) = r.files.iter().find(|(f, _)| &f.name == name)
             {
                 let item_name = self.flow_take_copy(i, *v, name, bytes.clone(), &r.label);
                 let vp = &mut self.flows.all[i].plan.vaults[*v];
                 vp.existing = true;
                 vp.file = Some(item_name);
-                vp.salt = Some(vr.salt);
+                // Known now when the session has seen these bytes; else
+                // the unlock proves it.
+                vp.salt = self.vaults.vault_id_of_file(Some(vr.sha));
                 vp.len = vr.len;
                 vp.from = Some((place, name.clone()));
             }
@@ -1385,29 +1586,58 @@ impl Faraday {
     /// copied in today. Returns the name it has there.
     fn flow_take_copy(
         &mut self,
-        _i: usize,
-        _v: usize,
+        i: usize,
+        v: usize,
         name: &str,
         bytes: Vec<u8>,
         label: &str,
     ) -> String {
         let c = self.compute();
-        let salt = self.vaults.vault_id_of_file(Some(sha256_of(&c, &bytes)));
-        // A different vault already under that name keeps its name.
-        let clash = self.inbox.iter().any(|it| {
-            it.name == name
-                && !(it.kind == FileKind::Vault && self.vaults.vault_id_of_file(it.sha) == salt)
-        });
+        let sha = sha256_of(&c, &bytes);
+        let salt = self.vaults.vault_id_of_file(Some(sha));
+        // A vault chosen from a stick (its id not known) has that stick's
+        // copy in Files, this flow's own: a pick of another file takes its
+        // place. A known vault's copy stays.
+        if let Some(vp) = self.flows.all[i].plan.vaults.get(v)
+            && vp.salt.is_none()
+            && vp.from.is_some()
+            && let Some(prev) = vp.file.clone()
+        {
+            let shared = self.flows.all[i]
+                .plan
+                .vaults
+                .iter()
+                .enumerate()
+                .any(|(x, o)| x != v && o.file.as_deref() == Some(prev.as_str()));
+            if !shared {
+                self.inbox
+                    .retain(|it| !(it.kind == FileKind::Vault && it.name == prev));
+            }
+        }
+        // A different vault already under that name keeps its name: one
+        // whose bytes are not these and not proved the same vault.
+        let same_vault = |it: &Item| {
+            it.kind == FileKind::Vault
+                && (it.sha == Some(sha)
+                    || salt.is_some() && self.vaults.vault_id_of_file(it.sha) == salt)
+        };
+        let clash = self
+            .inbox
+            .iter()
+            .any(|it| it.name == name && !same_vault(it));
         let own = if clash {
             self.free_vault_name(&crate::stem(name))
         } else {
             name.to_string()
         };
+        let gone: Vec<bool> = self
+            .inbox
+            .iter()
+            .map(|it| it.name == own || same_vault(it))
+            .collect();
         self.vault_read_from(&own, &bytes, label);
-        self.inbox.retain(|it| {
-            it.name != own
-                && !(it.kind == FileKind::Vault && self.vaults.vault_id_of_file(it.sha) == salt)
-        });
+        let mut gone = gone.into_iter();
+        self.inbox.retain(|_| !gone.next().unwrap_or(false));
         self.inbox.push(Item::new(&c, &own, bytes));
         self.save_boxes();
         own
@@ -1484,13 +1714,36 @@ impl Faraday {
     // ---- step 3: the vaults ----
 
     fn flow_unlock_start(&mut self, i: usize, v: usize) {
-        let Some(salt) = self.flows[i].plan.vaults.get(v).and_then(|vp| vp.salt) else {
+        if self.flows[i].plan.vaults.get(v).is_none() {
             return;
-        };
-        let Some(at) = self
-            .vault_files()
+        }
+        self.flows.all[i].live.not_it = None;
+        let vp = &self.flows[i].plan.vaults[v];
+        let salt = vp.salt;
+        // The file the plan names (the one tried, else the chosen), by its
+        // bytes; a known vault otherwise by its id.
+        let named = vp
+            .trying
+            .as_ref()
+            .or(vp.file.as_ref())
+            .and_then(|n| {
+                self.inbox
+                    .iter()
+                    .chain(self.outbox.iter())
+                    .find(|it| &it.name == n)
+            })
+            .and_then(|it| it.sha);
+        let files = self.vault_files();
+        let Some(at) = files
             .iter()
-            .position(|f| self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none())
+            .position(|f| named.is_some() && f.sha == named && f.open.is_none())
+            .or_else(|| {
+                salt.and_then(|salt| {
+                    files.iter().position(|f| {
+                        self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none()
+                    })
+                })
+            })
         else {
             return;
         };
@@ -1565,9 +1818,8 @@ impl Faraday {
             return;
         };
         self.flows.all[i].live.unlocking = None;
-        if self.flows[i].live.no_pass.is_some() {
-            self.flows.all[i].live.no_pass = None;
-        }
+        self.flows.all[i].live.no_pass = None;
+        self.flow_bind_ids(i, true);
         // The page the person asked for once the sticks were written.
         if self.flows[i].step == Step::Done && self.flows[i].live.open == Some(u8::MAX) {
             if self.flows[i].kind.is_wallet() {
@@ -1584,6 +1836,73 @@ impl Faraday {
             self.screen = Screen::BackupFlow;
         }
         self.flow_settle();
+    }
+
+    /// A vault chosen by file takes its id from what the unlock recorded of
+    /// that file; a known vault's tried file becomes its file when it is
+    /// that vault. A file that is another vault is a mismatch: that vault
+    /// is closed when `opened` (the unlock just made it), the line says so,
+    /// and a known vault's pick goes back to new.
+    fn flow_bind_ids(&mut self, i: usize, opened: bool) {
+        for v in 0..self.flows[i].plan.vaults.len() {
+            let vp = &self.flows[i].plan.vaults[v];
+            let name = match (&vp.trying, &vp.file, vp.salt) {
+                (Some(t), _, _) => t,
+                (None, Some(f), None) => f,
+                _ => continue,
+            };
+            let Some(sha) = self
+                .inbox
+                .iter()
+                .chain(self.outbox.iter())
+                .find(|it| &it.name == name)
+                .and_then(|it| it.sha)
+            else {
+                continue;
+            };
+            let Some(id) = self.vaults.vault_id_of_file(Some(sha)) else {
+                continue;
+            };
+            let name = name.clone();
+            let plan = &self.flows[i].plan;
+            let taken = plan
+                .vaults
+                .iter()
+                .enumerate()
+                .any(|(o, other)| o != v && other.salt == Some(id));
+            let known = vp.salt;
+            match known {
+                None if !taken => self.flows.all[i].plan.vaults[v].salt = Some(id),
+                Some(salt) if salt == id => {
+                    let vp = &mut self.flows.all[i].plan.vaults[v];
+                    vp.file = vp.trying.take();
+                }
+                _ => {
+                    if opened
+                        && let Some(o) = self.vaults.open.iter().position(|o| o.vault_id() == id)
+                    {
+                        self.vaults.close_at(o);
+                    }
+                    let f = &mut self.flows.all[i];
+                    f.live.not_it = Some((v, name));
+                    if known.is_some() {
+                        f.plan.vaults[v].trying = None;
+                        for s in &mut f.slots {
+                            if let Some(b) = s.bound.as_mut() {
+                                for (pv, pick) in &mut b.picks {
+                                    if *pv == v {
+                                        *pick = Pick::New;
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        f.live.no_pass = Some(v);
+                        f.live.unlocking = Some(v);
+                    }
+                }
+            }
+        }
     }
 
     /// "Use another stick": back to step 2 for that vault's places, which
@@ -2040,7 +2359,9 @@ impl Faraday {
         let over_ok = over
             .iter()
             .all(|n| match r.files.iter().find(|(vr, _)| vr.name == *n) {
-                None => true,
+                // A name that is not a vault file now but is on the stick
+                // is not what was read: it is not passed over as unseen.
+                None => !r.listing.iter().any(|(l, _)| l == n),
                 Some((vr, _)) => {
                     own.contains(&vr.sha)
                         || b.vaults.iter().any(|w| w.name == *n && w.sha == vr.sha)

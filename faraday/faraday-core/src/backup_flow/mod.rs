@@ -211,8 +211,6 @@ pub struct VaultRead {
     pub len: usize,
     /// SHA-256 of its bytes.
     pub sha: [u8; 32],
-    /// The vault's salt: what tells one vault from another.
-    pub salt: [u8; 32],
 }
 
 /// What step 2 kept of a stick (§4.2).
@@ -394,12 +392,23 @@ pub struct VaultPlan {
     pub existing: bool,
     /// Its file in Files once chosen (existing) or made (new).
     pub file: Option<String>,
-    /// Its salt, once it has one.
+    /// Its salt, once it has one: set when the vault has opened.
     pub salt: Option<[u8; 32]>,
     /// Its length.
     pub len: usize,
     /// The place and the stick's file the existing vault was chosen from.
     pub from: Option<(usize, String)>,
+    /// A known vault's file in Files, named by the person and not proved
+    /// yet.
+    pub trying: Option<String>,
+}
+
+impl VaultPlan {
+    /// A file is chosen or the vault is known: "nothing chosen" is the
+    /// other state. A chosen vault has a file and no id yet.
+    pub fn found(&self) -> bool {
+        self.salt.is_some() || self.file.is_some()
+    }
 }
 
 /// Where the key will be kept: the places, each with the vaults whose
@@ -760,8 +769,10 @@ pub struct Reading {
     /// The second-stick hold is still needed (step 6).
     pub hold: bool,
     /// The vault whose copy on this stick differs from one already in
-    /// Files: which copy to unlock is asked before the place (§4.2).
-    pub differs: Option<(usize, String)>,
+    /// Files: which copy to unlock is asked before the place (§4.2). Holds
+    /// the vault, this stick's file and the label of the copy in Files,
+    /// worked out when the difference is found.
+    pub differs: Option<(usize, String, String)>,
     /// The vaults whose copy on this stick was declined.
     pub declined: Vec<usize>,
     /// The stick is the medium the machine started from: it stays in, so
@@ -826,6 +837,9 @@ pub struct Live {
     pub problem: Option<Problem>,
     /// The vault whose "I do not have its passphrase" is open.
     pub no_pass: Option<usize>,
+    /// The vault and the file of the last mismatch: that file is another
+    /// vault. Not kept.
+    pub not_it: Option<(usize, String)>,
     /// The vault being unlocked.
     pub unlocking: Option<usize>,
     /// The vault being made, while its form shows.
@@ -1668,12 +1682,13 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                     (p.to_string(), clean(n))
                 });
             out.push_str(&format!(
-                "vault\t{v}\t{}\t{}\t{}\t{}\t{fp}\t{fname}\t{}\n",
+                "vault\t{v}\t{}\t{}\t{}\t{}\t{fp}\t{fname}\t{}\t{}\n",
                 u8::from(vp.existing),
                 clean(vp.file.as_deref().unwrap_or("")),
                 vp.salt.as_ref().map_or(String::new(), hex),
                 vp.len,
                 u8::from(f.made_in.contains(&v)),
+                clean(vp.trying.as_deref().unwrap_or("")),
             ));
         }
         for (k, s) in f.slots.iter().enumerate() {
@@ -1701,11 +1716,10 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 }
                 for r in &b.vaults {
                     out.push_str(&format!(
-                        "vread\t{k}\t{}\t{}\t{}\t{}\n",
+                        "vread\t{k}\t{}\t{}\t{}\n",
                         clean(&r.name),
                         r.len,
                         hex(&r.sha),
-                        hex(&r.salt)
                     ));
                 }
                 for (v, p) in &b.picks {
@@ -2013,7 +2027,18 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 .push(vs.split(',').filter_map(|v| v.parse().ok()).collect());
             true
         }
-        ["vault", v, existing, file, salt, len, from_p, from_n, held] => {
+        [
+            "vault",
+            v,
+            existing,
+            file,
+            salt,
+            len,
+            from_p,
+            from_n,
+            held,
+            trying,
+        ] => {
             let Ok(v) = v.parse::<usize>() else {
                 return false;
             };
@@ -2026,6 +2051,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 salt: hex_array(salt),
                 len: len.parse().unwrap_or(0),
                 from: from_p.parse().ok().map(|p| (p, from_n.to_string())),
+                trying: (!trying.is_empty()).then(|| trying.to_string()),
             });
             if held == "1" {
                 fl.made_in.push(v);
@@ -2103,20 +2129,18 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 None => false,
             }
         }
-        ["vread", k, name, len, sha, salt] => {
+        ["vread", k, name, len, sha] => {
             match (
                 slot(fl, k)
                     .and_then(|k| fl.slots.get_mut(k))
                     .and_then(|s| s.bound.as_mut()),
                 hex_array(sha),
-                hex_array(salt),
             ) {
-                (Some(b), Some(sha), Some(salt)) => {
+                (Some(b), Some(sha)) => {
                     b.vaults.push(VaultRead {
                         name: name.to_string(),
                         len: len.parse().unwrap_or(0),
                         sha,
-                        salt,
                     });
                     true
                 }

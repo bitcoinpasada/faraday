@@ -2294,23 +2294,19 @@ impl Faraday {
     /// sealed as many times with other bytes, is held at the older-copy
     /// dialog, nothing of it loaded, and this says true: the unlock goes
     /// on only from the dialog's **Open** (§5.3, owner 2026-10-29).
-    pub(crate) fn vault_unlock_held(&mut self, v: usize, for_import: bool) -> bool {
+    pub(crate) fn vault_unlock_held(
+        &mut self,
+        v: usize,
+        sha: Option<[u8; 32]>,
+        for_import: bool,
+    ) -> bool {
         let before = self.vaults.summary_before(v);
         self.vault_summaries_refresh();
         let c = self.compute();
         self.vaults.seals_unlocked(&c, v);
-        // The file opened is a copy of the vault seen.
-        if let Some(o) = self.vaults.open.get(v) {
-            let (name, id) = (o.name.clone(), o.vault_id());
-            let sha = self
-                .outbox
-                .iter()
-                .chain(self.inbox.iter())
-                .find(|i| i.kind == crate::FileKind::Vault && i.name == name)
-                .and_then(|i| i.sha);
-            if let Some(sha) = sha {
-                self.vaults.copy_seen(&id, sha);
-            }
+        // The bytes opened are a copy of the vault seen.
+        if let (Some(o), Some(sha)) = (self.vaults.open.get(v), sha) {
+            self.vaults.copy_seen(&o.vault_id(), sha);
         }
         if !self.vaults.older_hold(v, (for_import, self.sheet), before) {
             return false;

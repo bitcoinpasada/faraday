@@ -67,12 +67,22 @@ fn rename_offered(app: &mut Faraday) -> bool {
 /// A process with these files For the stick and a stick holding
 /// `on_stick`, on its visit, every file For the stick chosen.
 fn visiting(outbox: Files, on_stick: Files) -> (Shell, Faraday) {
+    visiting_as(false, outbox, on_stick)
+}
+
+/// [`visiting`], the stick's vault files ones the session saw open when
+/// `known`.
+fn visiting_as(known: bool, outbox: Files, on_stick: Files) -> (Shell, Faraday) {
     let mut shell = Shell::new();
     let mut d = Disk::empty("S1", "TESTSTICK");
     d.files = on_stick;
     shell.add(d);
     let mut app = process(Vec::new(), outbox, Vec::new());
-    shell.plug(&mut app, "S1");
+    if known {
+        shell.plug_known(&mut app, "S1");
+    } else {
+        shell.plug(&mut app, "S1");
+    }
     shell.press(&mut app, Action::Nav(Screen::Visit));
     let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
     for (i, n) in names.iter().enumerate() {
@@ -228,7 +238,8 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named_only_for_co
     // `unseen` is one it has not.
     let v = vault("Savings", "pass one", 7);
     let unseen = faraday_core::testkit::kdbx_vault("Other", "pass two", 9, Vec::new()).unwrap();
-    let (mut shell, mut app) = visiting(
+    let (mut shell, mut app) = visiting_as(
+        true,
         Vec::new(),
         vec![
             file("a.txt", b"a"),

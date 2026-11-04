@@ -24,7 +24,13 @@ use crate::{Faraday, Later, Screen};
 pub(crate) enum Plan {
     /// Vault file `name` opened; `for_import` when the boot import's
     /// sheet asked for it.
-    Unlock { name: String, for_import: bool },
+    /// `sha` is the SHA-256 of the bytes the job opens, which is the copy
+    /// the open vault is a copy of.
+    Unlock {
+        name: String,
+        sha: Option<[u8; 32]>,
+        for_import: bool,
+    },
     /// The vault the Create form describes, named `typed`; `first` is the
     /// first passphrase, kept for a backup flow that unlocks the vault it
     /// made at once. Wiped as it drops.
@@ -109,7 +115,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
     let Some(f) = files.get(app.vaults.pick) else {
         return false;
     };
-    let Some(bytes) = app.vault_bytes(f) else {
+    let Some((bytes, sha)) = app.vault_bytes(f) else {
         return false;
     };
     let name = f.name.clone();
@@ -122,7 +128,11 @@ fn unlock_start(app: &mut Faraday) -> bool {
             job: StretchJob::open(bytes, passphrase),
             act: VaultAct::Unlocked,
             cost,
-            plan: Plan::Unlock { name, for_import },
+            plan: Plan::Unlock {
+                name,
+                sha,
+                for_import,
+            },
         })),
         EN.working_vault_open,
     );
@@ -223,14 +233,23 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
     ended(app);
     let StretchDone { stretched, plan } = done;
     match plan {
-        Plan::Unlock { name, for_import } => unlocked(app, stretched, name, for_import),
+        Plan::Unlock {
+            name,
+            sha,
+            for_import,
+        } => unlocked(app, stretched, (name, sha), for_import),
         Plan::Create { typed, first, id } => created(app, stretched, &typed, &first, id),
     }
 }
 
 /// Costs what `OpenVaults::adopt` costs: no Argon2id run, which ran on the
 /// worker. The back half of an unlock, applied on the main thread.
-fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: bool) {
+fn unlocked(
+    app: &mut Faraday,
+    stretched: Stretched,
+    (name, sha): (String, Option<[u8; 32]>),
+    for_import: bool,
+) {
     // A stick put in while the stretch ran: the press's own refusal.
     // The answer is dropped, and wiped as it drops.
     if !app.may_load_keys() {
@@ -282,7 +301,7 @@ fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: b
                 settings,
             });
             app.vaults.state.current = app.vaults.open.len() - 1;
-            if !app.vault_unlock_held(app.vaults.current, for_import) {
+            if !app.vault_unlock_held(app.vaults.current, sha, for_import) {
                 app.vault_unlock_go_on(for_import);
             }
         }

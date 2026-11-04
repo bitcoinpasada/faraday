@@ -414,7 +414,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             Role::OnSurfaceVariant,
             &places.join(", "),
         );
-        if vp.salt.is_none() {
+        if !vp.found() {
             let other = if vp.existing {
                 FEN.backup_flow_new_vault
             } else {
@@ -850,16 +850,8 @@ fn bind_card(
         .vaults_of(r.slot)
         .into_iter()
         .find(|v| !r.picks.iter().any(|(x, _)| x == v));
-    if let Some((v, name)) = &r.differs {
+    if let Some((v, _, first)) = &r.differs {
         // The same vault, other bytes: which copy to unlock.
-        let salt = r
-            .files
-            .iter()
-            .find(|(x, _)| &x.name == name)
-            .map(|(x, _)| x.salt);
-        let first = salt
-            .map(|s| app.flow_files_copy_label(&s))
-            .unwrap_or_default();
         cy += line(
             ui,
             x,
@@ -867,7 +859,7 @@ fn bind_card(
             w,
             &fill(
                 FEN.backup_flow_copies_differ,
-                &[&r.label, &BackupFlow::vault_name(*v), &first],
+                &[&r.label, &BackupFlow::vault_name(*v), first],
             ),
             Role::Warning.paint(),
         );
@@ -878,7 +870,7 @@ fn bind_card(
                 fa(F::UseCopy(true)),
             ),
             (
-                fill(FEN.backup_flow_use_copy, &[&first]),
+                fill(FEN.backup_flow_use_copy, &[first]),
                 Style::Secondary,
                 fa(F::UseCopy(false)),
             ),
@@ -906,7 +898,11 @@ fn bind_card(
             );
         }
         for (k, (vr, _)) in r.files.iter().enumerate() {
-            let seen = app.vault_summary_for_salt(&vr.salt).unwrap_or_default();
+            let seen = app
+                .vaults
+                .vault_id_of_file(Some(vr.sha))
+                .and_then(|id| app.vault_summary_for_salt(&id))
+                .unwrap_or_default();
             let line = format!(
                 "{} · {}{}",
                 vr.name,
@@ -948,6 +944,7 @@ fn bind_card(
         f.target_name(&f.slots[r.slot].target, m)
     };
     let both = f.vaults_of(r.slot).len() > 1;
+    cy += beside_block(app, f, ui, (x, cy, w));
     match app.flow_confirm_kind() {
         Confirm::Tap => {
             let label = if both {
@@ -996,6 +993,47 @@ fn bind_card(
     cy - y
 }
 
+/// A vault written beside the files a stick holds that no vault is known
+/// to own: a title, a row per file, and at steps 2 and 3 a press that makes
+/// that file the stick's copy of the vault.
+fn beside_block(app: &View, f: &BackupFlow, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let Some(r) = f.live.reading.as_ref() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    for (v, files) in app.flow_beside() {
+        let name = BackupFlow::vault_name(v);
+        cy += ui.wrap_as(
+            (x, cy, w),
+            LABEL_L,
+            Role::OnSurface,
+            &fill(FEN.backup_flow_goes_beside, &[&name]),
+        ) + 8.0;
+        for k in files {
+            let vr = &r.files[k].0;
+            let line = format!("{} · {}", vr.name, vault::file_text(vr.len));
+            let t = ui.fit_as(BODY_S.mono(), &line, w);
+            ui.text_as(x, cy, BODY_S.mono(), Role::OnSurface, &t);
+            cy += ui.advance_as(BODY_S.mono(), 24.0);
+            if f.step != Step::Write {
+                cy += btn(
+                    ui,
+                    x,
+                    cy,
+                    Some(w),
+                    BUTTON_H,
+                    &fill(FEN.backup_flow_use_file, &[&vr.name, &name]),
+                    Style::Secondary,
+                    fa(F::PickFile(v, k)),
+                    48.0,
+                );
+            }
+        }
+        cy += 8.0;
+    }
+    cy - y
+}
+
 // ---- 3: the vaults ----
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -1034,8 +1072,8 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             continue;
         }
         let vp = &f.plan.vaults[v];
-        if f.live.unlocking != Some(v) || vp.salt.is_none() {
-            let (label, action) = if vp.salt.is_some() {
+        if f.live.unlocking != Some(v) || !vp.found() {
+            let (label, action) = if vp.found() {
                 (FEN.backup_flow_open_vault, F::UnlockVault(v))
             } else {
                 (FEN.backup_flow_create_vault, F::CreateVault(v))
@@ -1048,9 +1086,11 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             };
             let label = fill(label, &[&name]);
             cy += btn(ui, x, cy, None, BUTTON_H, &label, style, fa(action), 52.0);
+            cy += not_it_line(f, ui, (x, cy, w), v);
             continue;
         }
-        if vp.salt.is_some() {
+        if vp.found() {
+            cy += not_it_line(f, ui, (x, cy, w), v);
             cy += ui.wrap_as(
                 (x, cy, w),
                 LABEL_L,
@@ -1143,6 +1183,24 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
         }
     }
     cy - y
+}
+
+/// Under a vault's row: the file tried is another vault.
+fn not_it_line(f: &BackupFlow, ui: &mut Ui, (x, y, w): (f32, f32, f32), v: usize) -> f32 {
+    match &f.live.not_it {
+        Some((nv, file)) if *nv == v => line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(
+                FEN.backup_flow_not_this_vault,
+                &[file, &BackupFlow::vault_name(v)],
+            ),
+            Role::Error.paint(),
+        ),
+        _ => 0.0,
+    }
 }
 
 // ---- 4: make the key ----

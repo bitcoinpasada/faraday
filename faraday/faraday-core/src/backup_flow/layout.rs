@@ -548,7 +548,7 @@ impl BackupFlow {
             && existing
                 .iter()
                 .zip(&self.plan.vaults)
-                .all(|(&e, vp)| vp.salt.is_some() || vp.existing == e);
+                .all(|(&e, vp)| vp.found() || vp.existing == e);
         if same {
             return;
         }
@@ -561,7 +561,7 @@ impl BackupFlow {
             }
         }
         for vp in &mut self.plan.vaults {
-            if vp.salt.is_none() && vp.from.as_ref().is_some_and(|f| moved(f.0)) {
+            if !vp.found() && vp.from.as_ref().is_some_and(|f| moved(f.0)) {
                 vp.from = None;
                 vp.file = None;
             }
@@ -571,7 +571,7 @@ impl BackupFlow {
         self.plan.vaults.truncate(count);
         self.plan.vaults.resize_with(count, VaultPlan::default);
         for (vp, &e) in self.plan.vaults.iter_mut().zip(&existing) {
-            if vp.salt.is_none() {
+            if !vp.found() {
                 vp.existing = e;
             }
         }

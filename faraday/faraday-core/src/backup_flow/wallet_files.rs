@@ -86,7 +86,7 @@ impl BackupFlow {
                     && vs.iter().any(|v| {
                         missing.contains(v)
                             && f.plan.vaults[*v].existing
-                            && f.plan.vaults[*v].salt.is_none()
+                            && !f.plan.vaults[*v].found()
                     })
             });
             f.step = if bind { Step::Sticks } else { Step::Vaults };

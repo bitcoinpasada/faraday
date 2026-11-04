@@ -488,7 +488,7 @@ impl BackupFlow {
                 // is to be copied into.
                 f.vaults_of(slot)
                     .iter()
-                    .any(|&v| f.plan.vaults[v].existing && f.plan.vaults[v].salt.is_none())
+                    .any(|&v| f.plan.vaults[v].existing && !f.plan.vaults[v].found())
             }
             _ => false,
         }

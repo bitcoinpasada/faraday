@@ -968,7 +968,7 @@ impl Faraday {
             // A vault the flow knows by its salt, or a flow past its lock:
             // never another open vault in its place.
             let f = &self.flows[i];
-            if f.made || f.plan.vaults.get(v).is_some_and(|vp| vp.salt.is_some()) {
+            if f.made || f.plan.vaults.get(v).is_some_and(|vp| vp.found()) {
                 return None;
             }
         }

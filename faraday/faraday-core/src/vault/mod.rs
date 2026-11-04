@@ -326,7 +326,7 @@ impl Faraday {
         }
     }
 
-    fn vault_bytes(&self, f: &VaultFile) -> Option<Vec<u8>> {
+    fn vault_bytes(&self, f: &VaultFile) -> Option<(Vec<u8>, Option<[u8; 32]>)> {
         let items = if f.in_outbox {
             &self.outbox
         } else {
@@ -335,7 +335,7 @@ impl Faraday {
         items
             .iter()
             .find(|i| i.name == f.name)
-            .map(|i| i.bytes.clone())
+            .map(|i| (i.bytes.clone(), i.sha))
     }
 
     /// Runs a vault action.

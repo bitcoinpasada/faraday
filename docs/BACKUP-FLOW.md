@@ -238,12 +238,19 @@ no vault the key goes into.
     The room is the vault's length, twice where a file of the same vault
     is there to be replaced (VAULT §6 writes beside, then removes), and
     the plan's other files at that place where already known.
-- **Which vault.** The stick's `.fvlt` files are listed by name (`vault.fvlt`,
-  `vault-2.fvlt`, …), each with its size and, when seen open this
-  session, its summary ("Main · seen 14:02"):
+- **Which vault.** The stick's `.kdbx` files that pass the header check
+  are listed by name (`vault.kdbx`, `vault-2.kdbx`, …), each with its size
+  and, when seen open this session, its summary ("Main · seen 14:02").
+  A file is named by its size and name, never by a vault id, which is
+  inside the encryption and is known only once a vault has opened; a plan
+  vault with no file chosen is **nothing chosen**, one with a file the
+  person pressed is **chosen**, and one that has opened is **known**:
   - a place the plan gives an **existing vault**: "Which vault is Vault
     1?", a row per file; the one chosen is copied in, as Files holds a
     vault from a stick today; the others stay on the stick untouched;
+    one file at an existing place is taken with no question (the unlock
+    proves it, and the write replaces only a file whose SHA-256 is a copy
+    the session has seen);
   - a place the plan gives a **new vault**, on a stick holding vaults:
     **A new vault beside them** first and chosen, then a row per file
     (choosing one makes the plan's vault that existing one); the new
@@ -254,14 +261,25 @@ no vault the key goes into.
   - a vault the plan keeps at several places: each further place's
     stick takes another copy, beside or over the copy it holds of that
     vault;
-  - two files of one vault (one salt) on one stick: "{label} has two
-    copies of {vault}: {name} and {name}", and that stick cannot serve
-    that vault; another vault, a new one, or another stick;
-  - a copy of the chosen vault that differs from one already read this
-    session (the same salt, other bytes): "{label}'s copy of {vault}
-    differs from {label}'s"; the person picks the copy to unlock, and
-    the other is written over at step 6 only after a hold (decided, §14
-    item 3).
+  - two files of one vault on one stick: "{label} has two copies of
+    {vault}: {name} and {name}", and that stick cannot serve that vault;
+    another vault, a new one, or another stick. This is found only by
+    identical bytes or by ids this session knows; different bytes never
+    opened cannot be told apart before an unlock, so the person picks one,
+    it is replaced, and the other stays;
+  - a copy of a vault whose id the session knows, differing from one
+    already read this session (other bytes): "{label}'s copy of {vault}
+    differs from {label}'s"; the person picks the copy to unlock, and the
+    other is written over at step 6 only after a hold, and only where its
+    SHA-256 is a copy the session has seen (decided, §14 item 3);
+  - a vault found, and files on the stick nobody has opened: no question
+    and no extra unlock. The card says "{vault} goes beside these", lists
+    the files, and the vault is written beside them under a free name,
+    every file byte for byte. A person who knows one of those files is the
+    copy to use presses **Use {file} for {vault}**: the file is unlocked,
+    and if it is another vault the unlock says "{file} is not {vault}",
+    closes that vault and leaves the file as it was; if it is an older copy
+    of the same vault, **Open this copy?** asks first.
 - **Which place.** Each stick is named by the plan. The person confirms
   it: a tap, **This is the stick for Vault 1 (Place 1)**, when the stick
   reads differently from every stick already bound; a hold, **Hold: this
@@ -274,7 +292,7 @@ no vault the key goes into.
   Vault 2 (Place 1), the stick bound to Vault 1 (Place 1) is accepted
   with a tap, **One stick for both**.
 - **What is kept of each stick**: its label, FAT volume serial, listing
-  (names and sizes), the SHA-256 and salt of each vault file, its free
+  (names and sizes), the SHA-256 of each vault file, its free
   space, and its binding (place, vault, existing file or new).
 - **Pull it**, then the next place.
 
@@ -297,6 +315,12 @@ own row, in the order the person chooses, and unlocks nothing by itself
   sheet comes first, "Pull the stick to create the vault, then your
   key", and Create a vault opens when the stick is out (owner,
   2026-10-25);
+- the vault's id is bound when it has opened, from what the unlock
+  recorded: a plan vault whose file was a person's pick or taken from the
+  stick is known by it. A vault opened from a file that is another plan
+  vault, or whose id differs from the one the plan knows, is closed with
+  "{file} is not {vault}", nothing is written, and the flow stays on the
+  step;
 - **I do not have its passphrase**, under an existing vault: **A new
   vault beside it** (the plan's vault becomes new, written beside that
   file at step 6) or **Use another stick** (back to step 2 for that
@@ -361,8 +385,8 @@ stick of public files:
 
 The bytes are For the stick's sealed copy. Each file is
 `StorageCommand::Write`, read back and compared, as a visit writes it;
-a vault replaces the file of its salt (VAULT §6) or goes beside under a
-free name; other files follow **Already on the stick**'s rules
+a vault replaces a file whose SHA-256 is a copy the session has seen
+(VAULT §6) or goes beside under a free name; other files follow **Already on the stick**'s rules
 (decision 58) with Keep both for a file of another content under the
 same name. Each answer adds to the receipt (decision 25), one block per
 stick.
@@ -505,8 +529,8 @@ read through `Faraday::backup_flows()`, at most one on screen.
 |---|---|
 | `kind`, `subjects` | the kind, and each subject by §3's public value once made |
 | `plan` | for a key, its places and vaults (§2); for a wallet, the wallet's checksum, the plan's answers being in Back up's state and, once written, the type 11 record |
-| `vaults` | each vault: existing (file name, salt, length) or new (its name), its places |
-| `sticks` | each stick: its name (vault and place, or the stick of files, the stick of public files), what step 2 read (label, serial, listing, each vault file's salt and SHA-256, free space), its binding, the files it will hold, and how it is confirmed |
+| `vaults` | each vault: existing (file name, id once unlocked, length) or new (its name), its places, and the file being tried (`trying`) |
+| `sticks` | each stick: its name (vault and place, or the stick of files, the stick of public files), what step 2 read (label, serial, listing, each vault file's SHA-256, free space), its binding, the files it will hold, and how it is confirmed |
 | `sealing` | per vault, the SHA-256 of the sealed bytes the flow writes |
 | `written` | per stick written: each file's name and SHA-256, the label, the time |
 | `step`, `left`, `back` | where the flow is, whether the person left it, and where the last unlock lands |
@@ -515,7 +539,7 @@ read through `Faraday::backup_flows()`, at most one on screen.
 field, split by tabs, written at every lock and read back by
 `restore_kept` (`memory.rs`), as the receipt and the vault summaries
 are. **Gone at power-off.** Nothing in it is secret: names, sizes,
-salts, hashes, labels, fingerprints, the npub. It says which keys were
+ids, hashes, labels, fingerprints, the npub. It says which keys were
 made this session and where they are kept, in RAM until power-off, as
 the summaries do (VAULT §11). Nothing of it is written to a stick or a
 file For the stick.
@@ -833,6 +857,9 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_pull` | Pull the {m} |
 | `backup_flow_no_passphrase` | I do not have its passphrase |
 | `backup_flow_new_vault_beside` | A new vault beside it |
+| `backup_flow_not_this_vault` | {} is not {} |
+| `backup_flow_goes_beside` | {} goes beside these |
+| `backup_flow_use_file` | Use {} for {} |
 | `backup_flow_use_another` | Use another {m} |
 | `backup_flow_in_vault` | In {} |
 | `backup_flow_lock_and_write` | Lock and write |
@@ -882,13 +909,18 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   will be kept**; Make the key is not offered before its sticks are
   read and its vaults open; with a vault open, step 2 locks first.
 - **Step 2.** An empty stick is bound to the plan's new vault with no
-  question and offered no copy; a stick holding `vault.fvlt` and
-  `vault-2.fvlt` at a place the plan gives an existing vault asks which,
-  copies in only that one, and step 6 leaves the other byte for byte; at
+  question and offered no copy; a stick holding `vault.kdbx` and
+  `vault-2.kdbx` at a place the plan gives an existing vault asks which,
+  copies in only that one, and step 6 leaves the other byte for byte; one
+  `vault.kdbx` alone at an existing place is taken with no question; at
   a place given a new vault, **A new vault beside them** is chosen; a
   stick bound to Place 1 inserted for Place 2 is refused; a second
   empty stick of the same label and serial needs the hold; a non-FAT,
   read-only, full or boot partition's stick says why and binds nothing.
+- **A second process.** Tests that model a session that never saw the
+  stick start from `Shell::power_off` (boxes and summaries empty, the
+  disks kept); `plug_known` is for a story where the session opened the
+  file. A stick read with no vault opened never offers a vault's id.
 - **Steps 3 and 4.** New vaults are made with their own passphrases; the
   key is in every vault the plan keeps it in after one **Make the key**;
   **I do not have its passphrase** offers a new vault beside it.
@@ -963,7 +995,12 @@ The owner's answers (2026-10-14).
    between writes leaves the copies already written: the person chose
    the places, and can write the rest or stop there.
 3. **A copy of the same vault not seen this session, and different**:
-   replaced only after a hold.
+   replaced after a hold only when its SHA-256 proves it is a copy the
+   session has seen; otherwise never replaced, and after the hold the
+   vault is written beside it. An encrypted id cannot prove two files are
+   one vault, and a hold must not let a mistaken press destroy a different
+   vault (the owner's call, 2026-11-04, narrowing the answer of 2026-10-14).
+   A stale copy can stay beside a new one; the person removes it.
 4. **Writes made on the stick visit page** do not count toward the flow.
 5. **Places and copies have no cap**: any number of places, a vault or
    any one key kept at as many as the person adds, one copy per place.

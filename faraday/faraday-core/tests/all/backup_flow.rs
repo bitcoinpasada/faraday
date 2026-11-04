@@ -1025,8 +1025,12 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
     assert_eq!(app.screen, Screen::BackupFlow);
     assert_eq!(step(&app), Step::Sticks);
     shell.plug(&mut app, "S3");
-    expect(&mut app, "Which vault is Vault 2?");
-    shell.flow(&mut app, F::PickFile(1, 0));
+    // One vault file at an existing place is taken without a question.
+    assert!(
+        !texts(&mut app)
+            .join(" ")
+            .contains("Which vault is Vault 2?")
+    );
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S3");
     assert_eq!(step(&app), Step::Vaults);
@@ -1141,11 +1145,11 @@ fn a_copy_that_differs_from_one_already_read_lets_the_person_pick_which_to_unloc
     let mut app = started(Kind::Gpg);
     shell.flow(&mut app, F::VaultExisting(0));
     through_where(&mut shell, &mut app);
-    shell.plug(&mut app, "S1");
+    shell.plug_known(&mut app, "S1");
     shell.flow(&mut app, F::PickFile(0, 0));
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
-    shell.plug(&mut app, "S2");
+    shell.plug_known(&mut app, "S2");
     expect(&mut app, "SECOND's copy of Vault 1 differs from FIRST's");
     assert!(!offered(&mut app, Action::Flow(F::Tap)));
     // The first copy read stays the one to unlock.
@@ -1484,9 +1488,21 @@ fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
     shell.plug(&mut app, "S2");
-    expect(&mut app, "SECOND's copy of Vault 1 differs from FIRST's");
-    // The later copy is the one to unlock; the first stick's is declined.
-    shell.flow(&mut app, F::UseCopy(true));
+    // Nobody has opened either file, so the second is not known to be a
+    // copy: it goes beside, and a press on its row makes it the one to open.
+    expect(&mut app, "Vault 1 goes beside these");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .unwrap()
+        .files
+        .iter()
+        .position(|(f, _)| f.name == "main.kdbx")
+        .unwrap();
+    shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S2");
     assert_eq!(step(&app), Step::Vaults);
@@ -1504,11 +1520,10 @@ fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_
     assert!(offered(&mut app, Action::Flow(F::Hold)));
     shell.flow(&mut app, F::Hold);
     assert_eq!(shell.vault_writes(), 1);
-    // A file names no vault: the declined copy is known as one of the vault
-    // only from the session's summaries, so it is a copy the session has
-    // seen, and the hold writes the vault over it.
-    assert_ne!(shell.disk("S1").file("main.kdbx"), Some(&first));
-    assert!(shell.disk("S1").file("main-2.kdbx").is_none());
+    // The declined file is not a copy this session has proved, so the vault
+    // goes beside it and the file is byte for byte.
+    assert_eq!(shell.disk("S1").file("main.kdbx"), Some(&first));
+    assert!(shell.disk("S1").file("main-2.kdbx").is_some());
 }
 
 #[test]
@@ -1530,7 +1545,7 @@ fn a_first_stick_with_a_differing_copy_of_a_vault_in_files_asks_which_to_unlock(
     start(&mut app, Kind::Gpg);
     shell.flow(&mut app, F::VaultExisting(0));
     through_where(&mut shell, &mut app);
-    shell.plug(&mut app, "S1");
+    shell.plug_known(&mut app, "S1");
     shell.flow(&mut app, F::PickFile(0, 0));
     expect(&mut app, "FIRST's copy of Vault 1 differs from main.kdbx's");
 }
@@ -2027,6 +2042,29 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_be
     shell.pull(&mut app, "U");
     shell.plug(&mut app, "U");
     expect(&mut app, "This is the stick for Vault 1 (Place 1)");
+    // Nobody opened that file: the vault goes beside it with no hold, and
+    // the file is byte for byte.
+    shell.flow(&mut app, F::Tap);
+    assert_eq!(shell.vault_writes(), 1);
+    assert_eq!(shell.disk("U").file("main.kdbx"), Some(&edited));
+    assert!(shell.disk("U").file("main-2.kdbx").is_some());
+}
+
+#[test]
+fn a_stick_named_at_step_six_with_a_copy_the_session_saw_is_written_over_after_a_hold() {
+    let mut shell = Shell::new();
+    let mut app = existing_locked(&mut shell);
+    let edited = vault("Main edited", PHRASE, 0x55);
+    let mut u = Disk::empty("U", "OTHER");
+    u.serial = Some(9);
+    u.files = vec![("main.kdbx".into(), edited.clone())];
+    shell.add(u);
+    shell.plug_known(&mut app, "U");
+    expect(&mut app, "Not Stick 2, read for Vault 1 (Place 1)");
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "U");
+    shell.plug_known(&mut app, "U");
+    expect(&mut app, "This is the stick for Vault 1 (Place 1)");
     // Tapped: nothing is written over the other copy yet.
     shell.flow(&mut app, F::Tap);
     assert_eq!(shell.vault_writes(), 0);
@@ -2036,9 +2074,7 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_be
     assert!(!offered(&mut app, Action::Flow(F::UseCopy(true))));
     shell.flow(&mut app, F::Hold);
     assert_eq!(shell.vault_writes(), 1);
-    // A file names no vault: the copy is known as one of the vault only
-    // from the session's summaries, so it is a copy the session has seen,
-    // and the hold writes the vault over it.
+    // A copy the session has seen: the hold writes the vault over it.
     assert_ne!(shell.disk("U").file("main.kdbx"), Some(&edited));
     assert!(shell.disk("U").file("main-2.kdbx").is_none());
 }
@@ -2484,3 +2520,5 @@ fn a_put_off_stick_that_holds_vaults_gets_the_new_vault_beside_them() {
 }
 
 mod figures;
+
+mod stick_read;

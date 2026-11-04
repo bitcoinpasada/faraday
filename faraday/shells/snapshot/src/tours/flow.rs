@@ -1,15 +1,14 @@
 //! The flow tour.
 
-use crate::tour::{Tour, type_text};
+use crate::tour::{Tour, scroll_to, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::backup_flow::Kind;
-    use faraday_core::backup_flow::steps::FlowAction as F;
+/// The test vault opened here once and locked: a vault file is known by
+/// what the app has opened or sealed.
+fn opened_once(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -17,8 +16,6 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
         unix_secs: 1_791_000_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
-    // The test vault opened here once: a vault file is known by what the
-    // app has opened or sealed, so its copy on the stick is read as it.
     let vault = faraday_core::testkit::files()?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
@@ -57,6 +54,58 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     });
     t.press(Action::OpenSetTime);
     t.press(Action::SetTimeKeep);
+    Ok(())
+}
+
+/// A known vault's second place, on a stick holding a vault nobody opened
+/// here: the new file goes beside it, and the screen says so.
+pub(crate) fn flow_beside_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow::Kind;
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    opened_once(t)?;
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|x| x.go == faraday_core::catalog::Go::VaultCategory(Kind::Gpg.category()))
+        .ok_or("no GPG tile")? as u8;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(tile));
+    t.press(Action::Flow(F::VaultExisting(0)));
+    t.press(Action::Flow(F::Continue));
+    let first = t.stick();
+    t.app.storage(StorageEvent::Sticks(vec![first]));
+    t.pump();
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    // The second stick holds only a vault nobody has opened here.
+    let other = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())?;
+    let dir = t.kit.join("second-stick");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("work.kdbx"), &other).map_err(|e| e.to_string())?;
+    let second = StickInfo {
+        make: Default::default(),
+        serial: Some(0x2468_ace0),
+        id: dir.display().to_string(),
+        label: "SECOND".into(),
+        boot: false,
+        files: vec![("work.kdbx".into(), other.len() as u64)],
+        vaults: vec!["work.kdbx".into()],
+    };
+    t.app.storage(StorageEvent::Sticks(vec![second]));
+    t.pump();
+    t.shot("flow-beside-1")?;
+    scroll_to(t, Action::Flow(F::PickFile(0, 0)));
+    t.shot("flow-beside-2-use")?;
+    std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+    println!("a known vault's second place, on a stick holding a vault nobody opened here");
+    Ok(())
+}
+
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow::Kind;
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    opened_once(t)?;
     let tile = faraday_core::catalog::TILES
         .iter()
         .position(|x| x.go == faraday_core::catalog::Go::VaultCategory(Kind::Gpg.category()))
@@ -72,10 +121,15 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("flow-1-where")?;
     t.press(Action::Flow(F::Continue));
     t.shot("flow-2-insert")?;
+    // The stick also carries another vault, one nobody has opened here.
+    let other = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())?;
+    std::fs::write(t.kit.join("work.kdbx"), other).map_err(|e| e.to_string())?;
     let first = t.stick();
     t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
     t.pump();
     t.shot("flow-3-which-vault")?;
+    scroll_to(t, Action::Flow(F::PickFile(0, 0)));
+    t.shot("flow-3b-which-scrolled")?;
     let k = t
         .app
         .flow()
@@ -84,6 +138,8 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("the stick shows no vault.kdbx")?;
     t.press(Action::Flow(F::PickFile(0, k)));
     t.shot("flow-4-confirm")?;
+    scroll_to(t, Action::Flow(F::Tap));
+    t.shot("flow-4c-confirm-scrolled")?;
     t.press(Action::Flow(F::Tap));
     // Bound: its pill is lit and the card says to mark it (§18).
     t.shot("flow-4b-mark")?;

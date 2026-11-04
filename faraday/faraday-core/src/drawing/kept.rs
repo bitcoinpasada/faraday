@@ -624,13 +624,6 @@ impl View<'_> {
         self.kept(|c| self.app.currency(c, f))
     }
 
-    /// The label of the flow's copy of vault `salt`'s files
-    /// ([`crate::Faraday::flow_files_copy_label`]), from the hashes kept
-    /// on the flow. Costs a hash of a file not hashed yet.
-    pub(crate) fn flow_files_copy_label(&self, salt: &[u8; 32]) -> String {
-        self.kept(|c| self.app.flow_files_copy_label(c, salt))
-    }
-
     /// The Seeds tool's address ([`crate::Faraday::seeds_address`]), kept
     /// by what it is derived from. Costs an address derivation the first
     /// time.

@@ -676,7 +676,7 @@ fn the_flow_follows_its_places_and_none_past_one_per_key() {
 /// vault on S1 (beside another vault), Vaults 2 and 3 new on S2 and S3;
 /// one key in each, by the plan; stopped on the checklist's Write to
 /// sticks. `software` chooses Sparrow's files too.
-fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
+pub(crate) fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     sticks(shell, 4);
     let main = vault("Main", PHRASE, 0x41);
     let other = vault("Other", PHRASE_2, 0x42);

@@ -203,13 +203,20 @@ pub fn top_up(app: &mut Faraday) {
 
 /// A process with these files, the clock known and its time kept.
 pub fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
+    let mut app = process_unseen(inbox.clone(), outbox.clone(), kept);
+    know_files(&mut app, &inbox);
+    know_files(&mut app, &outbox);
+    app
+}
+
+/// A process with these files that has seen none of them: it knows no
+/// vault, as a machine just powered on does.
+pub fn process_unseen(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     let mut app = Faraday::new();
     display(&mut app);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
     }
-    know_files(&mut app, &inbox);
-    know_files(&mut app, &outbox);
     app.storage(StorageEvent::Restored {
         inbox,
         outbox,
@@ -548,15 +555,36 @@ impl Shell {
             .count()
     }
 
+    /// The stick put in. The app has not seen its files before: a vault
+    /// file on it names no vault until one is opened.
     pub fn plug(&mut self, app: &mut Faraday, id: &str) {
         if !self.present.iter().any(|p| p == id) {
             self.present.push(id.into());
         }
+        app.storage(StorageEvent::Sticks(self.infos()));
+        self.pump(app);
+    }
+
+    /// The stick put in, its vault files ones this session saw before.
+    pub fn plug_known(&mut self, app: &mut Faraday, id: &str) {
         if let Some(d) = self.disks.iter().find(|d| d.id == id) {
             know_files(app, &d.files);
         }
-        app.storage(StorageEvent::Sticks(self.infos()));
-        self.pump(app);
+        self.plug(app, id);
+    }
+
+    /// Power off and on: the boxes and the kept state are empty, the disks
+    /// are as they were, nothing of any vault is known. This suite's model
+    /// of a second process.
+    pub fn power_off(&mut self) -> Faraday {
+        self.boxes = (Vec::new(), Vec::new(), Vec::new());
+        self.present.clear();
+        let mut app = process_unseen(Vec::new(), Vec::new(), Vec::new());
+        app.press(Action::OpenSetTime);
+        app.press(Action::SetTimeKeep);
+        self.shown(&app);
+        assert!(faraday_core::testkit::vault_summaries_mut(&mut app).is_empty());
+        app
     }
 
     /// The stick pulled; at Bring in the sticks with every stick Checked
