@@ -137,33 +137,17 @@ fn history_file(more: impl Fn(String) -> String) -> Vec<u8> {
 }
 
 #[test]
-fn a_file_with_history_stops_at_the_dialog_and_says_what_the_seal_leaves_out() {
+fn a_file_with_history_and_a_recycle_bin_opens_with_no_dialog() {
     let mut app = process(vec![("saved.kdbx".into(), with_history())]);
     try_unlock(&mut app, PHRASE);
-    assert_eq!(app.sheet, Some(Sheet::OlderCopy), "no dialog");
-    let texts = page(&mut app);
-    let line = EN
-        .vault_history_line
-        .replacen("{}", "1", 1)
-        .replacen("{}", "1", 1);
-    assert!(texts.contains(&line), "{texts}");
-    assert!(app.vaults().open.len() == 1);
-
-    // Keep locked leaves it locked, on Unlock.
-    app.press(Action::Vault(V::OlderBack));
-    assert!(app.vaults().open.is_empty());
-    assert_eq!(app.screen, Screen::Unlock);
-
-    // Open opens it.
-    try_unlock(&mut app, PHRASE);
-    assert_eq!(app.sheet, Some(Sheet::OlderCopy));
-    app.press(Action::Vault(V::OlderOpen));
-    assert_eq!(app.sheet, None);
+    assert_eq!(app.sheet, None, "a dialog");
     assert_eq!(app.vaults().open.len(), 1);
+    let texts = head(&mut app);
+    assert!(!texts.contains("Thrown away"), "{texts}");
 }
 
 #[test]
-fn a_file_with_neither_history_nor_a_recycle_bin_opens_with_no_dialog() {
+fn a_file_with_no_history_opens_with_no_dialog() {
     let file = testkit::kdbx_edited(
         "Plain",
         PHRASE,

@@ -5,7 +5,7 @@
 use alloc::vec::Vec;
 
 use chacha20::ChaCha20;
-use chacha20::cipher::{KeyIvInit, StreamCipher};
+use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use faraday_crypto::Secret;
 use sha2::{Digest, Sha512};
 use zeroize::Zeroizing;
@@ -141,5 +141,15 @@ impl InnerStream {
     /// XORs `data` with the stream's next bytes.
     pub fn apply(&mut self, data: &mut [u8]) {
         self.0.apply_keystream(data);
+    }
+
+    /// How many bytes of the stream have been used.
+    pub fn position(&self) -> u64 {
+        self.0.current_pos()
+    }
+
+    /// Goes back to `position`, to read again what was read since.
+    pub fn rewind(&mut self, position: u64) {
+        self.0.seek(position);
     }
 }

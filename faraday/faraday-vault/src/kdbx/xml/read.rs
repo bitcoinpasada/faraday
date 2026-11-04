@@ -2,6 +2,7 @@
 //! made into the model, every byte of what the model does not read kept.
 
 use alloc::boxed::Box;
+use alloc::vec;
 use alloc::vec::Vec;
 
 use base64ct::{Base64, Encoding};
@@ -28,7 +29,7 @@ impl Document {
             pos: 0,
             depth: 0,
             stream: InnerStream::new(inner_key),
-            bin: None,
+            bins: Vec::new(),
             bin_enabled: true,
             skipped_entries: 0,
             history: 0,
@@ -106,7 +107,9 @@ struct Rd<'a> {
     pos: usize,
     depth: usize,
     stream: InnerStream,
-    bin: Option<[u8; 16]>,
+    /// The groups `Meta` names as the recycle bin (two `RecycleBinUUID`
+    /// elements name two, and both are kept out of the model).
+    bins: Vec<[u8; 16]>,
     bin_enabled: bool,
     skipped_entries: usize,
     history: usize,
@@ -559,7 +562,7 @@ impl<'a> Rd<'a> {
         let mut fr = Frame::<MetaPart>::read(T_META, &self.src[a..b], empty);
         let mut label = Vec::new();
         let mut label_leaf = None;
-        let mut bin_leaf = None;
+        let mut bin_seen = false;
         let mut custom = None;
         let mut ambiguous = None;
         self.children(&mut fr, &mut |s, fr, e, a, b, empty| {
@@ -582,23 +585,25 @@ impl<'a> Rd<'a> {
                 custom = Some(s.custom(a, b, empty)?);
                 fr.parts.push(MetaPart::Custom);
             } else if is(name, T_BIN) {
-                if bin_leaf.is_some() {
+                // Every one is read, so that a Meta with two names both as
+                // the recycle bin; the Meta is marked ambiguous.
+                if bin_seen {
                     ambiguous = Some("RecycleBinUUID twice");
-                    return Ok(false);
                 }
+                bin_seen = true;
                 let l = s.leaf(e, a, b, empty)?;
                 match uuid_of(&l.text) {
                     Ok(uuid) => {
-                        s.bin = (uuid != [0; 16]).then_some(uuid);
-                        bin_leaf = Some(l);
-                        fr.parts.push(MetaPart::Bin);
+                        if uuid != [0; 16] {
+                            s.bins.push(uuid);
+                        }
                     }
                     Err(_) => {
-                        // Kept as read: no bin is named.
-                        ambiguous = Some("a RecycleBinUUID that is not 16 bytes");
-                        fr.carry(l.orig);
+                        ambiguous = ambiguous.or(Some("a RecycleBinUUID that is not 16 bytes"));
                     }
                 }
+                // Kept as read, whatever it names.
+                fr.carry(l.orig);
             } else if is(name, T_BINEN) {
                 // Read, and kept as it is.
                 let l = s.leaf(e, a, b, empty)?;
@@ -624,7 +629,6 @@ impl<'a> Rd<'a> {
             label,
             label_leaf,
             custom,
-            bin_leaf,
             ambiguous,
         })
     }
@@ -648,6 +652,65 @@ impl<'a> Rd<'a> {
             return Err(Refused::Structure("no root group"));
         }
         Ok(fr)
+    }
+
+    /// Costs one walk of the group's XML, without decrypting anything.
+    /// Whether the group whose start tag was just read is the recycle bin,
+    /// and how many entries are in it and under it. Nothing is decrypted
+    /// and the reader is left where it was: only the group's own `UUID`s
+    /// and the `Entry` elements under groups are looked at, so what one
+    /// reading accepts, a later one under another inner key accepts too.
+    /// Any of the group's `UUID`s naming the bin makes it the bin, as
+    /// `group` would take a later one after an invalid first; one marked
+    /// Protected cannot be read here without moving the stream and is
+    /// refused. The bin is then read once, by `skip_element`.
+    fn bin_probe(&mut self) -> R<Option<usize>> {
+        let saved = (self.r.clone(), self.pos, self.depth);
+        let found = self.probe_group();
+        (self.r, self.pos, self.depth) = saved;
+        let (bin, count) = found?;
+        Ok(bin.then_some(count))
+    }
+
+    fn probe_group(&mut self) -> R<(bool, usize)> {
+        let mut bin = false;
+        let mut count = 0;
+        // Whether each open element is a group under groups only.
+        let mut open = vec![true];
+        while !open.is_empty() {
+            let (ev, _, _) = self.next()?;
+            match &ev {
+                Event::Start(e) | Event::Empty(e) => {
+                    let empty = matches!(ev, Event::Empty(_));
+                    let n = e.name();
+                    let under_groups = open.last() == Some(&true);
+                    if open.len() == 1 && is(n.as_ref(), T_UUID) {
+                        if !empty {
+                            if is_protected(e)? {
+                                return Err(Refused::Structure(
+                                    "a group's UUID marked Protected beside a recycle bin",
+                                ));
+                            }
+                            if let Some(t) = self.text_or_markup()? {
+                                bin |= uuid_of(&t.text).is_ok_and(|u| self.bins.contains(&u));
+                            }
+                        }
+                        continue;
+                    }
+                    if under_groups && is(n.as_ref(), T_ENTRY) {
+                        count += 1;
+                    }
+                    if !empty {
+                        open.push(under_groups && is(n.as_ref(), T_GROUP));
+                    }
+                }
+                Event::End(_) => {
+                    open.pop();
+                }
+                _ => {}
+            }
+        }
+        Ok((bin, count))
     }
 
     fn group(&mut self, a: usize, b: usize, empty: bool) -> R<Group> {
@@ -687,13 +750,26 @@ impl<'a> Rd<'a> {
                 custom = Some(s.custom(a, b, empty)?);
                 fr.parts.push(GroupPart::Custom);
             } else if is(n, T_GROUP) {
-                let history = s.history;
-                let g = s.group(a, b, empty)?;
-                if s.bin_enabled && s.bin == Some(g.uuid) {
-                    s.dropped += g.entry_count();
-                    s.history = history;
+                let bin = if s.bin_enabled && !s.bins.is_empty() && !empty {
+                    s.bin_probe()?
                 } else {
-                    fr.parts.push(GroupPart::Group(g));
+                    None
+                };
+                match bin {
+                    Some(count) => {
+                        // The recycle bin is kept as the bytes it came in,
+                        // out of the model: nothing in it is listed,
+                        // searched or loaded, and it is written back. It is
+                        // read once, here; the probe decrypted nothing.
+                        s.dropped += count;
+                        let mut c = Carried::default();
+                        s.skip_element(e, a, b, empty, &mut c)?;
+                        fr.carry(c);
+                    }
+                    None => {
+                        let g = s.group(a, b, empty)?;
+                        fr.parts.push(GroupPart::Group(g));
+                    }
                 }
             } else if is(n, T_ENTRY) {
                 let en = s.entry(a, b, empty)?;
@@ -802,10 +878,12 @@ impl<'a> Rd<'a> {
                 custom = Some(s.custom(a, b, empty)?);
                 fr.parts.push(EntryPart::Custom);
             } else if is(n, T_HISTORY) {
-                // Dropped: read for its protected values and its count.
+                // Kept as the bytes it came in, out of the model (its
+                // protected values in wiping memory), and counted.
                 let before = s.skipped_entries;
-                let mut scratch = Carried::default();
-                s.skip_element(e, a, b, empty, &mut scratch)?;
+                let mut c = Carried::default();
+                s.skip_element(e, a, b, empty, &mut c)?;
+                fr.carry(c);
                 if s.skipped_entries > before {
                     s.history += 1;
                 }

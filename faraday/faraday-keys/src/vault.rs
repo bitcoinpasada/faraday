@@ -1678,13 +1678,6 @@ impl OpenVaults {
         Some(self.slot(id)?.opened.facts())
     }
 
-    /// A lookup. How many entries of open vault `id` have history and how
-    /// many were in the recycle bin, which the next seal leaves out.
-    pub fn history(&self, id: VaultId) -> Option<(usize, usize)> {
-        let read = self.slot(id)?.opened.read();
-        Some((read.history, read.recycle_bin))
-    }
-
     /// A lookup. Open vault `id`'s identifier: the root group's UUID in
     /// hex.
     pub fn vault_id(&self, id: VaultId) -> Option<[u8; 32]> {

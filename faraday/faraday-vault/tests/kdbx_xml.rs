@@ -189,31 +189,62 @@ fn a_document_written_again_is_read_by_pykeepass() {
 // --- History and the recycle bin -----------------------------------------
 
 #[test]
-fn history_and_the_recycle_bin_are_dropped_and_counted() {
+fn history_and_the_recycle_bin_are_kept_out_of_the_model_and_written_back() {
     let o = opened("chacha20-argon2id-plain-history");
     let doc = Document::read(&o.document, &o.inner_key).unwrap();
     assert_eq!(doc.history_entries(), 1);
     assert_eq!(doc.recycle_bin_entries(), 1);
     check_example(&doc);
+    // Nothing of either is a group or an entry of the model.
+    assert_eq!(doc.root().groups().count(), 0);
+    assert_eq!(doc.root().entry_count(), 1);
     let key = [9u8; 64];
     let written = doc.write(&key);
-    assert!(!has(&written, b"<History>"));
-    assert!(!has(&written, b"<Value>Deleted</Value>"));
-    assert!(!has(&written, b"Recycle Bin"));
+    assert!(has(&written, b"<History>"));
+    assert!(has(&written, b"<Value>Deleted</Value>"));
+    assert!(has(&written, b"Recycle Bin"));
     let again = Document::read(&written, &key).unwrap();
     assert_eq!(
         (again.history_entries(), again.recycle_bin_entries()),
-        (0, 0)
+        (1, 1)
     );
     check_example(&again);
     if let Some(text) = pykeepass_reads("history", &doc, &[]) {
         assert!(
-            text.contains("/Example\talice\thunter2\thttps://example.org/\t0\t\n"),
+            text.contains("/Example\talice\thunter2\thttps://example.org/\t1\t\n"),
             "{text}"
         );
-        assert!(!text.contains("Deleted"), "{text}");
-        assert!(text.ends_with("bin: no\n"), "{text}");
+        assert!(text.contains("Deleted"), "{text}");
+        assert!(text.ends_with("bin: yes\n"), "{text}");
     }
+}
+
+#[test]
+fn an_edit_adds_no_history_and_a_removed_entry_takes_its_own() {
+    let o = opened("chacha20-argon2id-plain-history");
+    let mut doc = Document::read(&o.document, &o.inner_key).unwrap();
+    let count = |d: &Document| {
+        String::from_utf8_lossy(&d.write(&o.inner_key))
+            .matches("<History>")
+            .count()
+    };
+    assert_eq!(count(&doc), 1);
+    let uuid = doc.root().entries().next().unwrap().uuid();
+    for e in doc.root_mut().entries_mut() {
+        e.set_field("Notes", "changed", false).unwrap();
+    }
+    let edited = String::from_utf8_lossy(&doc.write(&o.inner_key)).into_owned();
+    assert_eq!(edited.matches("<History>").count(), 1, "an edit added one");
+    assert_eq!(
+        edited.matches("<Entry>").count(),
+        3,
+        "an edit added a version"
+    );
+    assert!(doc.root_mut().remove_entry(&uuid).unwrap());
+    let removed = String::from_utf8_lossy(&doc.write(&o.inner_key)).into_owned();
+    assert!(!removed.contains("<History>"), "its history stayed");
+    assert!(removed.contains("Recycle Bin"), "the bin moved or went");
+    assert_eq!(doc.recycle_bin_entries(), 1);
 }
 
 // --- A file KeePassXC saved after an edit -------------------------------
@@ -233,7 +264,7 @@ fn a_file_keepassxc_saved_after_an_edit_opens_with_its_history_counted() {
     .unwrap();
     let o = open(&compute(), &bytes, PASSPHRASE).expect("opens");
     let doc = Document::read(&o.document, &o.inner_key).unwrap();
-    // One entry has history (three earlier versions of it); the dialog counts entries.
+    // One entry has history (three earlier versions of it).
     assert_eq!(doc.history_entries(), 1);
     assert_eq!(doc.recycle_bin_entries(), 0);
     let e = example(&doc);
@@ -289,13 +320,14 @@ fn what_keepassxc_kept_is_written_back_byte_for_byte_and_read_by_pykeepass() {
         assert!(text.contains("<Tags>sample</Tags>") && text.contains("<IconID>5</IconID>"));
         assert!(text.contains(own), "{text}");
     }
-    // The history is dropped as §7.1 says (the one place this is stated).
-    assert!(!has(&written, b"<History>"));
+    // The history is written back as §7.1 says.
+    assert!(has(&written, b"<History>"));
     let again = Document::read(&written, &o.inner_key).unwrap();
-    assert_eq!(again.history_entries(), 0);
+    assert_eq!(again.history_entries(), 1);
+    assert_eq!(again.recycle_bin_entries(), doc.recycle_bin_entries());
     if let Some(text) = pykeepass_reads_with("kxc", &doc, &o.binaries, &["more"]) {
         assert!(
-            text.contains("/Example\talice\thunter4\thttps://example.org/\t0\tnote.txt\n"),
+            text.contains("/Example\talice\thunter4\thttps://example.org/\t3\tnote.txt\n"),
             "{text}"
         );
         assert!(text.contains("Second/Other\tbob\tsecret5\t"), "{text}");
@@ -766,12 +798,8 @@ fn a_protected_field_after_the_recycle_bin_keeps_the_stream_in_step() {
     assert_eq!(doc.recycle_bin_entries(), 0);
     assert_eq!(doc.root().groups().count(), 2);
     example_password(&doc);
-    // The writer says there is no bin.
-    let expected = text.replace(
-        "<RecycleBinUUID>BAQEBAQEBAQEBAQEBAQEBA==</RecycleBinUUID>",
-        NONE,
-    );
-    assert_eq!(String::from_utf8_lossy(&doc.write(KEY)), expected);
+    // The writer leaves the bin as it was read.
+    assert_eq!(String::from_utf8_lossy(&doc.write(KEY)), text);
 }
 
 /// A protected Base64 text for a plaintext of one byte, at the start of the
@@ -935,7 +963,7 @@ fn what_the_model_cannot_place_is_marked_kept_and_not_edited() {
 }
 
 #[test]
-fn the_recycle_bin_is_dropped_unless_it_is_disabled() {
+fn the_recycle_bin_is_kept_out_of_the_model_unless_it_is_disabled() {
     let bin = "BAQEBAQEBAQEBAQEBAQEBA==";
     let group = format!(
         "<Group><UUID>{bin}</UUID><Name>Recycle Bin</Name><Entry><UUID>{OTHER}</UUID><String><Key>Title</Key><Value>Gone</Value></String></Entry></Group>"
@@ -954,6 +982,36 @@ fn the_recycle_bin_is_dropped_unless_it_is_disabled() {
 }
 
 #[test]
+fn a_group_naming_the_recycle_bin_in_any_uuid_stays_out_of_the_model() {
+    let bin = "BAQEBAQEBAQEBAQEBAQEBA==";
+    let meta = format!("<RecycleBinUUID>{bin}</RecycleBinUUID>");
+    let rest = format!(
+        "<Entry><UUID>{OTHER}</UUID><String><Key>Title</Key><Value>Gone</Value></String></Entry>"
+    );
+    for uuids in [
+        format!("<UUID/><UUID>{bin}</UUID>"),
+        format!("<UUID>AAAA</UUID><UUID>{bin}</UUID>"),
+        format!("<UUID>BQUFBQUFBQUFBQUFBQUFBQ==</UUID><UUID>{bin}</UUID>"),
+        format!("<UUID>{bin}</UUID><UUID>BQUFBQUFBQUFBQUFBQUFBQ==</UUID>"),
+    ] {
+        let group = format!("<Group>{uuids}{rest}</Group>");
+        let doc = Document::read(&skeleton(&meta, &group), KEY).unwrap();
+        assert_eq!(doc.root().groups().count(), 0, "{uuids}");
+        assert_eq!(doc.recycle_bin_entries(), 1, "{uuids}");
+    }
+}
+
+#[test]
+fn a_protected_group_uuid_beside_a_recycle_bin_is_refused() {
+    let bin = "BAQEBAQEBAQEBAQEBAQEBA==";
+    let meta = format!("<RecycleBinUUID>{bin}</RecycleBinUUID>");
+    let group = format!(
+        "<Group><UUID Protected=\"True\">{bin}</UUID><Entry><UUID>{OTHER}</UUID></Entry></Group>"
+    );
+    assert!(Document::read(&skeleton(&meta, &group), KEY).is_err());
+}
+
+#[test]
 fn a_comment_in_a_text_element_is_skipped_and_kept() {
     let text = skeleton("<DatabaseName>Va<!-- c -->ult</DatabaseName>", "");
     let doc = Document::read(&text, KEY).unwrap();
@@ -966,4 +1024,64 @@ fn a_comment_in_a_text_element_is_skipped_and_kept() {
     let out = doc.write(OTHER_KEY);
     assert!(has(&out, b"<!-- c -->"));
     assert!(Document::read(&out, OTHER_KEY).is_ok());
+}
+
+#[test]
+fn a_bin_with_a_protected_entry_element_is_read_once_and_opens_again_after_a_seal() {
+    use base64ct::{Base64, Encoding};
+    // The key stream under KEY, from a protected value of known text.
+    let mut known = Document::new([1; 16], "V");
+    known
+        .root_mut()
+        .push_entry(entry_of(2, &[("Password", &"A".repeat(80), true)]))
+        .unwrap();
+    let text = written(&known);
+    let at = text.find("Protected=\"True\">").unwrap() + "Protected=\"True\">".len();
+    let cipher = Base64::decode_vec(&text[at..at + text[at..].find('<').unwrap()]).unwrap();
+    let stream: Vec<u8> = cipher.iter().map(|c| c ^ b'A').collect();
+    // An element the bin carries as a protected value of `k` bytes, then a
+    // protected value of 4 bytes: read in step they are at offsets 0 and k,
+    // and a reader that passed over the element would have the second at 0.
+    // Both offsets give text, so each reading is valid.
+    let k = (1..40)
+        .find(|&k| (0..4).all(|i| (stream[i] ^ stream[k + i]) < 0x80))
+        .expect("a shift whose key stream gives text at both offsets");
+    let element: Vec<u8> = (0..k).map(|i| b'A' ^ stream[i]).collect();
+    let value: Vec<u8> = (0..4).map(|i| b'x' ^ stream[k + i]).collect();
+    let bin = "BAQEBAQEBAQEBAQEBAQEBA==";
+    let group = format!(
+        "<Group><UUID>{bin}</UUID><Name>Recycle Bin</Name><Entry Protected=\"True\">{}</Entry><Entry><UUID>{OTHER}</UUID><String><Key>Password</Key><Value Protected=\"True\">{}</Value></String></Entry></Group>",
+        Base64::encode_string(&element),
+        Base64::encode_string(&value),
+    );
+    let meta = format!(
+        "<RecycleBinUUID>{bin}</RecycleBinUUID><RecycleBinEnabled>True</RecycleBinEnabled>"
+    );
+    let doc = Document::read(&skeleton(&meta, &group), KEY).expect("opens");
+    assert_eq!(doc.recycle_bin_entries(), 2);
+    let mut doc = doc;
+    for round in 0..3u8 {
+        let next = [round + 20; 32];
+        let sealed = doc.write(&next);
+        doc = Document::read(&sealed, &next)
+            .unwrap_or_else(|e| panic!("round {round}: opens again: {e:?}"));
+        assert_eq!(doc.recycle_bin_entries(), 2);
+    }
+}
+
+#[test]
+fn a_bin_with_a_damaged_structure_is_still_refused() {
+    let bin = "BAQEBAQEBAQEBAQEBAQEBA==";
+    let meta = format!("<RecycleBinUUID>{bin}</RecycleBinUUID>");
+    for (why, inside) in [
+        ("an end tag that does not match", "<Entry><UUID></Entry>"),
+        ("a bin that is never closed", "<Entry><UUID>x</UUID>"),
+        ("an entity", "<Entry>&nope;</Entry>"),
+    ] {
+        let group = format!("<Group><UUID>{bin}</UUID><Name>Recycle Bin</Name>{inside}</Group>");
+        assert!(
+            Document::read(&skeleton(&meta, &group), KEY).is_err(),
+            "{why}"
+        );
+    }
 }

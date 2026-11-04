@@ -144,7 +144,7 @@ its length only which size it is (F189 point 4, F190 point 4):
 A file vault's length is the 313 bytes of §1.1's header, its hash and
 its HMAC, the plaintext, and 36 bytes for each 1 MiB block and the empty
 block after them. The plaintext is the inner header, the XML document
-and the line feeds after it. The size is chosen when a vault is made and
+and the line feeds after it (history and a recycle bin are in the document, so they count). The size is chosen when a vault is made and
 is meant to change on an open vault (§8, not built); the next seal would write the new size.
 A reader opens a file whose plaintext is up to 4 MiB of any length, as a
 KeePass app's save is (§7.1), and refuses a longer one from the file's
@@ -394,8 +394,7 @@ It does not start Argon2id.
    stopping at 4 MiB. Any failure refuses the file, and nothing of the
    contents is read.
 6. Read the inner header and the XML (§7, §7.1). Any fault refuses the
-   file, naming it. A file holding entry history or a recycle bin stops
-   at §7.1's dialog before it opens.
+   file, naming it.
 7. Compare the seal count with what the session has seen (§11).
 
 **A QR vault.**
@@ -750,15 +749,26 @@ not change is written back as it was read; one it changes keeps
 everything but its fields, its custom data and its last-modified time,
 which it sets when the clock is set.
 
-**Dropped**, being old or deleted copies of secrets (owner,
-2026-11-02): entry history, and the recycle bin with the entries in it
-when `Meta`'s `RecycleBinEnabled` is True or absent (KeePassXC counts an
-absent one as enabled); with it False, the group the database names as
-its recycle bin is an ordinary group.
-A file holding either stops before it opens at the dialog **Open this
-copy?**, naming the vault and what the next seal leaves out ("history
-entries: 12, recycle bin entries: 2"): **Keep locked** closes it,
-**Open** opens it.
+**Kept, and not read** (owner, 2026-11-03; F206): entry history, and the
+recycle bin with the entries in it when `Meta`'s `RecycleBinEnabled` is
+True or absent (KeePassXC counts an absent one as enabled); with it
+False, the group the database names as its recycle bin is an ordinary
+group. They are written back as they were, with `RecycleBinUUID` and
+`RecycleBinEnabled`, and Faraday has no action that removes them. They
+are old or deleted copies of secrets, so nothing in them is listed,
+searched, counted or loaded: a key in the bin or in a history is not a
+key of the vault, and no item from either is on a screen. Their
+protected values are held as secrets in memory held by `faraday-keys`,
+and their bytes count toward the vault's size (§2). A `Meta` with two
+`RecycleBinUUID` elements keeps both groups out. An entry Faraday
+changes gets no new history version, and an entry deleted in Faraday
+goes with its own history; deleting moves nothing to the recycle bin.
+A `RecycleBinUUID` that names the root group keeps the root listed: only
+a group under the root is kept out. A group with any `UUID` naming the bin
+is the bin, and a file with a bin that marks a group's `UUID` Protected is
+refused, since the bin must be known without decrypting anything. An entry deleted in Faraday leaves
+any attachment it had in the file's shared binaries, where it stays
+until a later change removes it.
 
 **The file's settings.** The next seal writes the file as Faraday writes
 a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the
@@ -937,9 +947,8 @@ pykeepass read them. Files of other programs are under
 `tools/vectors/kdbx/` (pykeepass's, with the ciphers and KDFs Faraday
 refuses or reads, one of KeePassXC's KDBX 3.1, and one KeePassXC 2.7.12
 saved after an edit: AES-256, Argon2d, gzip, history, an attachment, a tag, an
-icon number and custom data, which opens at §7.1's dialog and whose
-attachment, tag, icon number and custom data the next seal writes back
-byte for byte).
+icon number and custom data, whose history, attachment, tag, icon number
+and custom data the next seal writes back byte for byte).
 
 The QR vault's vectors, `tools/vectors/vault/qr/` (`README.md` there),
 are Faraday's own, not an outside check: one vault of each item kind (a
@@ -960,9 +969,8 @@ dependencies, never in what ships): each opens the files the other made
 `keepassxc-cli`, both ways: Faraday's files (every kind of §7, a TOTP
 entry, a seal over each) are to open in both with every field, group and
 attachment; files they make are to open in Faraday with the same fields,
-and Faraday's next seal to keep all that the file held (an entry's history
-and the recycle bin are dropped by a seal until they are kept, and the area
-expects that: `KEEPS_HISTORY` in `area_vault.py`); each reader is to refuse a
+and Faraday's next seal to keep all that the file held, an entry's history
+and the recycle bin among it; each reader is to refuse a
 wrong passphrase, a changed byte and, where Faraday's NFC form differs
 from the typed one, the NFD form; every file of `tools/vectors/vault/`
 is read by both. The pykeepass cases have passed; the `keepassxc-cli` cases

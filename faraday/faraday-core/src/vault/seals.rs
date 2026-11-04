@@ -393,13 +393,11 @@ impl Vaults {
 /// (`docs/VAULT-HARDENING.md` §5.3, owner 2026-10-29): the vault opened is
 /// held, its key in the store, and nothing of it loads or shows until
 /// **Open** is pressed; **Keep locked** closes it. Faraday cannot tell an
-/// older copy from one put back by someone else, and a file another
-/// program saved holds a history, so the person decides; it is never
-/// refused. One dialog holds every line that applies.
+/// older copy from one put back by someone else, so the person decides;
+/// it is never refused. One dialog holds every line that applies.
 #[derive(Debug, Clone)]
 pub struct OpenHold {
-    /// The lines the dialog says: a history or recycle bin the file
-    /// holds, and what the seal count found.
+    /// The lines the dialog says: what the seal count found.
     pub why: Vec<String>,
     /// The open vault held.
     pub id: VaultId,
@@ -420,8 +418,8 @@ impl VaultArea {
     }
 
     /// Holds open vault `v` at the **Open this copy?** dialog when its
-    /// unlock found a history or recycle bin, or a seal count warning
-    /// (§5.3 items 1 and 2, §5.6); true when it holds.
+    /// unlock found a seal count warning
+    /// (§5.3 item 2, §5.6); true when it holds.
     pub(crate) fn older_hold(
         &mut self,
         v: usize,
@@ -431,16 +429,7 @@ impl VaultArea {
         let Some(o) = self.state.open.get(v) else {
             return false;
         };
-        let store = self.state.store();
         let mut why = Vec::new();
-        // A file that opens read-only is never sealed: nothing is left out.
-        let sealed = store.read_only(o.id).is_none();
-        if let Some((history, bin)) = store.history(o.id).filter(|(h, b)| sealed && h + b > 0) {
-            why.push(fill(
-                EN.vault_history_line,
-                &[&history.to_string(), &bin.to_string()],
-            ));
-        }
         why.extend(o.seal_warning());
         if why.is_empty() {
             return false;

@@ -249,13 +249,129 @@ fn a_file_with_more_than_three_passes_keeps_them_and_a_small_memory_takes_the_fi
 }
 
 #[test]
-fn history_and_the_recycle_bin_are_counted_and_dropped_at_the_seal() {
+fn history_and_the_recycle_bin_are_kept_at_the_seal() {
     let bytes = vector("pykeepass-chacha20-argon2id-plain-history.kdbx");
     let o = open(&bytes, PASSPHRASE);
     assert_eq!((o.read().history, o.read().recycle_bin), (1, 1));
     let sealed = file::seal(&compute(), &o, &[], &random(6), None).unwrap();
     let o = open(&sealed, PASSPHRASE);
-    assert_eq!((o.read().history, o.read().recycle_bin), (0, 0));
+    assert_eq!((o.read().history, o.read().recycle_bin), (1, 1));
+}
+
+#[test]
+fn history_and_the_recycle_bin_count_toward_the_size() {
+    let bytes = vector("pykeepass-chacha20-argon2id-plain-history.kdbx");
+    let o = open(&bytes, PASSPHRASE);
+    let held = kdbx::open(&compute(), &bytes, PASSPHRASE)
+        .expect("opens")
+        .document
+        .len();
+    let used = o.used(&compute(), &[]).unwrap();
+    assert!(used >= held, "{used} bytes used of {held} in the document");
+    // Notes that fill what is left after the history and the bin fit, and
+    // more than fill it do not, at the largest size.
+    let largest = SIZES[SIZES.len() - 1];
+    let each = 4000;
+    let room = (largest - used) / each;
+    let try_notes = |n: usize| {
+        let bodies: Vec<Body> = (0..n)
+            .map(|_| Body::Record(note(0, &"n".repeat(each)).0))
+            .collect();
+        let changes: Vec<Change> = bodies
+            .iter()
+            .enumerate()
+            .map(|(i, body)| Change::Put {
+                place: place([
+                    (i % 250) as u8 + 1,
+                    (i / 250) as u8,
+                    9,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                ]),
+                body,
+            })
+            .collect();
+        file::seal(&compute(), &o, &changes, &random(7), None)
+    };
+    let half = try_notes(room / 2);
+    assert!(half.is_ok(), "{:?}", half.err());
+    assert!(matches!(
+        try_notes(room + 1),
+        Err(Error::Full { over, next: None }) if over > 0
+    ));
+}
+
+#[test]
+fn a_note_in_the_recycle_bin_or_in_a_history_is_not_an_item() {
+    let o = open(&made(SIZES[0]), "correct horse");
+    let (r, u) = note(1, "in the bin");
+    let body = Body::Record(r);
+    let change = [Change::Put {
+        place: place(u),
+        body: &body,
+    }];
+    let sealed = file::seal(&compute(), &o, &change, &random(7), Some(NOW)).unwrap();
+    assert_eq!(open(&sealed, "correct horse").read().items.len(), 1);
+
+    let k = kdbx::open(&compute(), &sealed, "correct horse").expect("opens");
+    let doc = Document::read(&k.document, &k.inner_key).unwrap();
+    let random = random(9);
+    let text = String::from_utf8(doc.write(kdbx::inner_key_of(&random)).to_vec()).unwrap();
+    let seal = |xml: &str| {
+        let contents = kdbx::Contents {
+            document: xml.as_bytes(),
+            binaries: &[],
+            public_custom_data: None,
+        };
+        kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SIZES[0]).unwrap()
+    };
+    // The group the note is in becomes the recycle bin.
+    let name = text.find("<Name>Notes</Name>").unwrap();
+    let from = text[..name].rfind("<UUID>").unwrap();
+    let group = &text[from..name];
+    let in_bin = text.replacen(
+        "<RecycleBinUUID>AAAAAAAAAAAAAAAAAAAAAA==</RecycleBinUUID>",
+        &format!(
+            "<RecycleBinUUID>{}</RecycleBinUUID>",
+            group
+                .trim_start_matches("<UUID>")
+                .trim_end_matches("</UUID>")
+        ),
+        1,
+    );
+    assert_ne!(in_bin, text);
+    let o = open(&seal(&in_bin), "p");
+    assert!(o.read().items.is_empty(), "a key in the bin loaded");
+    assert_eq!(o.read().recycle_bin, 1);
+
+    // The note's entry becomes a history version of a plain entry.
+    let at = text.find("<Entry>").unwrap();
+    let end = text.find("</Entry>").unwrap() + "</Entry>".len();
+    let entry = &text[at..end];
+    let in_history = format!(
+        "{}<Entry><UUID>AwMDAwMDAwMDAwMDAwMDAw==</UUID><History>{entry}</History></Entry>{}",
+        &text[..at],
+        &text[end..]
+    );
+    let o = open(&seal(&in_history), "p");
+    // The plain entry around it is the one item; the note in its history is not.
+    assert_eq!(o.read().items.len(), 1, "a key in a history loaded");
+    assert!(
+        o.read().items.iter().all(|i| i.uuid != u),
+        "the note in a history is an item"
+    );
+    assert_eq!(o.read().history, 1);
 }
 
 #[test]

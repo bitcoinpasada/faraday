@@ -121,11 +121,6 @@ def pyca_argon2id(password, salt, memory_kib, passes, lanes):
 # ----- the payload layouts (§7) ---------------------------------------------
 
 
-# Whether Faraday's seal writes back an entry's history and a recycle bin as read (VAULT.md
-# §7.1; the decision that keeps them, F206). Until it is built a seal drops them, and the
-# area expects that; when it lands set this True and check 4 asks for both to survive.
-KEEPS_HISTORY = False
-
 
 def words_payload_of(p):
     if len(p) != 34:
@@ -782,8 +777,6 @@ class Vault(Area):
             self.fail("vault.seal", {}, after["id"], before["id"], "the vault's id changed", out)
         kept = {e["uuid"]: e for e in after["entries"]}
         for e in before["entries"]:
-            if not KEEPS_HISTORY:
-                e = e | {"history": []}
             if kept.get(e["uuid"]) != e:
                 self.fail("vault.seal", {"uuid": e["uuid"]}, kept.get(e["uuid"]), e,
                           "an entry of the file changed in Faraday's seal (§7.1)", out)

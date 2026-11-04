@@ -221,9 +221,9 @@ pub struct Read {
     pub custom: Vec<Custom>,
     /// What did not read.
     pub unreadable: Vec<Unreadable>,
-    /// How many entries have history, which the next seal leaves out.
+    /// How many entries have history, kept in the document.
     pub history: usize,
-    /// How many entries were in the recycle bin, which it leaves out.
+    /// How many entries were in the recycle bin, kept in the document.
     pub recycle_bin: usize,
     /// Why the database's `Meta` or its custom data cannot be told apart
     /// from what it was read as, if it cannot.

@@ -18,25 +18,29 @@
 //! holds text only (a protected attribute on an element with child elements
 //! is not one). Every such element is decrypted in document order on
 //! reading, whatever its name (`Name`, `Key`, `UUID`, times and the rest,
-//! not only a field's `Value`), the ones in carried bytes and in dropped
-//! History and recycle bin included, so the stream stays in step. A
+//! not only a field's `Value`), the ones in carried bytes, History and
+//! recycle bin included, so the stream stays in step. A
 //! protected plaintext that is not UTF-8 is damage ([`Refused::NotText`]).
 //! On writing, the elements the model reads are written unprotected, except
 //! a field's `Value` flagged protected and a field whose `Key` was
 //! protected and which was not changed; a carried protected element is
 //! written protected again. Every one written is encrypted in document order
 //! from its plaintext under the key given, so the stream is right whatever
-//! was dropped or changed; nothing of the ciphertext read is reused.
+//! was removed or changed; nothing of the ciphertext read is reused.
 //! Plaintexts are in wiping buffers.
 //!
-//! **Dropped:** entry `History`, and the recycle bin unless
+//! **Kept, out of the model:** entry `History`, and the recycle bin unless
 //! `Meta/RecycleBinEnabled` is present and not `True`, as KeePassXC has it
 //! (the group `Meta`'s `RecycleBinUUID` names, with its entries; otherwise
-//! that group is an ordinary one),
-//! counted for the dialog of `docs/VAULT.md` §7.1. The writer sets
-//! `RecycleBinUUID` to KeePass's "no group" value and leaves
-//! `RecycleBinEnabled` as it was read: KeePassXC then makes a bin only when a
-//! person deletes an entry, not on opening.
+//! that group is an ordinary one; a `Meta` with two `RecycleBinUUID`
+//! elements keeps both groups out). They are read through, so the stream
+//! stays in step and the protected values in them are held as secrets, and
+//! carried as the bytes read, in their place: not a group or an entry of the
+//! model, so nothing lists, searches, counts or loads them, an entry
+//! removed takes its history with it, an edit adds none, and the writer
+//! leaves `RecycleBinUUID` and `RecycleBinEnabled` as they were read. They
+//! are counted ([`Document::history_entries`],
+//! [`Document::recycle_bin_entries`]).
 //!
 //! **Marked, not refused.** What the model cannot place is read, kept and
 //! written as it was, and marked: [`Entry::ambiguous`], [`Group::ambiguous`],
@@ -96,9 +100,6 @@ pub const MAX_DEPTH: usize = 64;
 /// Seconds from 0001-01-01 to the Unix epoch: KDBX 4 times count from the
 /// former.
 const EPOCH_GAP: i64 = 62_135_596_800;
-/// KeePass's "no group" UUID.
-const NO_UUID: &[u8] = b"AAAAAAAAAAAAAAAAAAAAAA==";
-
 // Element tags, as the opening tags are written. Names are compared by
 // `is`.
 const T_FILE: &[u8] = b"<KeePassFile>";
@@ -1005,7 +1006,6 @@ enum MetaPart {
     Carried(Carried),
     Name,
     Custom,
-    Bin,
 }
 
 impl Part for MetaPart {
@@ -1026,7 +1026,6 @@ struct Meta {
     label: Vec<u8>,
     label_leaf: Option<Leaf>,
     custom: CustomData,
-    bin_leaf: Option<Leaf>,
     ambiguous: Option<&'static str>,
 }
 
@@ -1036,7 +1035,6 @@ impl Meta {
             MetaPart::Carried(c) => c.write(w),
             MetaPart::Name => w.leaf(T_DBNAME, &self.label_leaf, &self.label),
             MetaPart::Custom => self.custom.write(w),
-            MetaPart::Bin => w.leaf(T_BIN, &self.bin_leaf, NO_UUID),
         });
     }
 }
@@ -1170,13 +1168,12 @@ impl Document {
         }
     }
 
-    /// How many entries have history, which the next write leaves out.
+    /// How many entries have history, kept in the document.
     pub fn history_entries(&self) -> usize {
         self.history
     }
 
-    /// How many entries were in the recycle bin, which the next write
-    /// leaves out.
+    /// How many entries were in the recycle bin, kept in the document.
     pub fn recycle_bin_entries(&self) -> usize {
         self.dropped
     }
@@ -1276,16 +1273,19 @@ impl Document {
 }
 
 /// Reads `document`, and when it reads, writes it and reads that again: the
-/// two writes must agree. For the fuzzer. Whether it was read.
+/// two writes must agree, the first under a new inner key. For the fuzzer. Whether it was read.
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub fn fuzz_document(document: &[u8]) -> bool {
     const KEY: &[u8] = &[7; 64];
+    // What is written is under another inner key, as a seal makes it: the
+    // protected values then sit at other stream offsets than they were read.
+    const NEW: &[u8] = &[9; 64];
     let Ok(doc) = Document::read(document, KEY) else {
         return false;
     };
-    let first = doc.write(KEY);
-    let again = Document::read(&first, KEY).expect("a written document reads");
-    assert_eq!(&first[..], &again.write(KEY)[..]);
+    let first = doc.write(NEW);
+    let again = Document::read(&first, NEW).expect("a written document reads");
+    assert_eq!(&first[..], &again.write(NEW)[..]);
     true
 }

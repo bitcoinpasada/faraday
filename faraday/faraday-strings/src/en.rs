@@ -9282,8 +9282,6 @@ strings! {
     vault_kib: "{} KiB",
     /// The head and Unlock: a file Faraday never sealed.
     vault_not_sealed_yet: "Not sealed by Faraday yet",
-    /// Line in the Open this copy? dialog. `{}`: its history, its recycle bin.
-    vault_history_line: "The next seal leaves out history entries: {}, recycle bin entries: {}",
     /// Unlock refused. `{}`: the vault, the file it is open from.
     vault_already_open: "{} is open already, from {}",
     /// Section title. `{}`: how many items.
