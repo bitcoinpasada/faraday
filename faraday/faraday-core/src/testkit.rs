@@ -190,6 +190,9 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 signed_message: "",
                 address: "",
                 totp: "",
+                signer_sent: &[],
+                signer_returned: &[],
+                signer_returned_proprietary: &[],
             },
         }
     })

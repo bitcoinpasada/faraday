@@ -268,6 +268,14 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   address, as a literal; **an address**: Spending's receive address 0.
 - **A TOTP setup code**: the testkit's `ENTRIES_FILE` first line (RFC
   6238's published example secret).
+- **Check a signer's pair**: three PSBTs made from sample Spending and
+  sample key 1: its unsigned spend as Sent, that spend signed by the key
+  as a clean Returned, and the clean one with one proprietary pair
+  (prefix `device`, subtype 1) as a second Returned. Both of Check a
+  signer's scanners offer them, as Load sample PSBT: the Sent scanner
+  hands over the Sent; the Returned scanner hands over the clean one, and
+  the proprietary one while the Returned card holds the clean one, so two
+  presses show both results.
 
 ### 5.4 Where they live
 
@@ -374,6 +382,7 @@ and what a press puts in, stands.
 | The scanner: a seed, a part, a wallet's missing key, the Spend tab's envelope | `faraday/faraday-core/src/screens/sheets.rs` `scan_sheet`; `qr_view.rs` `ScanPurpose::Seed`, `KeyPart`, `WalletKey`, `Intake`; handed to `Faraday::scanned` | Seed: a word sample's SeedQR digits; KeyPart: as Add a key; WalletKey(n): the sample whose fingerprint is a missing key of wallet n (no tile when none is); Intake: the unsigned spend of the first loaded sample wallet, else Savings' |
 | The scanner: a file (a wallet, a PSBT) | `ScanPurpose::Files` from any screen | Restore: the next sample wallet not loaded, as its descriptor; Spend and Decode: the unsigned spend of the wallet in hand, else of the first loaded sample wallet |
 | The scanner: a copy to check | `ScanPurpose::CheckCopy(fp)` | the SeedQR of key `fp` when it is a sample; no tile otherwise |
+| The scanner: Check a signer's Sent and Returned | `ScanPurpose::CheckSent`, `CheckReturned` | §5.3's pair: the Sent; the clean Returned, then the one with a proprietary pair while the card holds the clean one |
 | The scanner: a TOTP code | `ScanPurpose::VaultEntry` | §5.3's setup code |
 | Scan a key (a wallet's missing key) | `faraday/faraday-core/src/scan_key.rs` | as WalletKey above |
 | Restore, seeds first: a cosigner's account key | `faraday/faraday-core/src/seeds/mod.rs` `Focus::Cosigner` | the account key, at the path chosen, of the next sample seed not among the wallet's |

@@ -180,6 +180,12 @@ pub struct SampleInputs {
     pub address: &'static str,
     /// A TOTP setup code (`otpauth://` text).
     pub totp: &'static str,
+    /// Check a signer's Sent: sample Spending's unsigned spend.
+    pub signer_sent: &'static [u8],
+    /// Its Returned, signed by sample key 1: clean.
+    pub signer_returned: &'static [u8],
+    /// That Returned with one proprietary pair added.
+    pub signer_returned_proprietary: &'static [u8],
 }
 
 /// Every sample, as the samples crate holds them.

@@ -92,6 +92,7 @@ need. Each document's header says what kind it is:
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
+- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built, Practice's sample pair included.
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
 - `docs/STICK-SETUP.md`: Sticks and vaults, laid out together. Built (F175): the Sticks and vaults card, the sticks brought in and checked before the keys, Check it later, and a stick's sheet.
@@ -130,7 +131,6 @@ need. Each document's header says what kind it is:
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88); built: SLIP-39's set functions in `faraday-bip` and the held set and its actions in `faraday-keys`, the conversions, the tool's flow with every target and way in, an aezeed as a source, Practice, Learn's section and the guide's picture; not built: the SLIP-39 set actions on a screen (§8, in Convert a seed, F204).
-- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built but for Practice's sample pair.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.

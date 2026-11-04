@@ -683,6 +683,9 @@ pub(crate) static INPUTS: SampleInputs = SampleInputs {
     signed_message: "tb1qv0a20kkj63gek9mldffmgvqxjpjz6m72s2e3h5\nJ1q5LAmYXC2KqeFYaZaRrUzmjjHZkJjhGXEc7pZr9VMXBDTEyA9GtQgX188+uH9XrxONdDuJTOWNBXqAUlBfdDg=\nFaraday sample message",
     address: "tb1qv0a20kkj63gek9mldffmgvqxjpjz6m72s2e3h5",
     totp: "otpauth://totp/Example%20Git:octo?secret=JBSWY3DPEHPK3PXP&issuer=Example%20Git",
+    signer_sent: include_bytes!("../data/signer-sent.psbt"),
+    signer_returned: include_bytes!("../data/signer-returned.psbt"),
+    signer_returned_proprietary: include_bytes!("../data/signer-returned-proprietary.psbt"),
 };
 
 /// Every sample.

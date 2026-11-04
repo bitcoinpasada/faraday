@@ -55,6 +55,35 @@ fn the_sample_wallets_and_their_unsigned_spends_are_the_testkits() {
 }
 
 #[test]
+fn check_a_signers_sent_is_spendings_spend_and_both_returned_are_that_spend_signed() {
+    let c = compute();
+    let spending = SAMPLES
+        .wallets
+        .iter()
+        .find(|w| w.name == "sample_spending")
+        .expect("Spending");
+    let inputs = SAMPLES.inputs;
+    assert_eq!(inputs.signer_sent, spending.spend);
+    let sent = faraday_psbt::Psbt::parse_bytes(&c, inputs.signer_sent).expect("Sent");
+    for bytes in [inputs.signer_returned, inputs.signer_returned_proprietary] {
+        let returned = faraday_psbt::Psbt::parse_bytes(&c, bytes).expect("Returned");
+        assert_eq!(
+            returned.inner().unsigned_tx,
+            sent.inner().unsigned_tx,
+            "one transaction"
+        );
+        assert!(
+            returned
+                .inner()
+                .inputs
+                .iter()
+                .all(|i| !i.partial_sigs.is_empty()),
+            "every input signed"
+        );
+    }
+}
+
+#[test]
 fn a_session_loads_every_sample_wallet_and_the_spends_read_as_psbts() {
     let c = compute();
     let mut session = Session::on(faraday_bip::keys::Network::Testnet);

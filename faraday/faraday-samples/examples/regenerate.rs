@@ -494,6 +494,51 @@ fn signed_message(c: &Compute) -> (String, String) {
     )
 }
 
+/// Check a signer's sample pair, made from sample Spending and its key
+/// (sample key 1): the unsigned spend as Sent, that spend signed as the
+/// clean Returned, and the clean one with one proprietary pair as the
+/// other. Written to `data/`.
+fn signer_pair(c: &Compute) {
+    use faraday_core::wallet::{Origin, Session};
+    use faraday_psbt::bitcoin::psbt::raw::ProprietaryKey;
+    let mut s = Session::on(Network::Testnet);
+    let words = faraday_core::samples::repeated("bacon", 24);
+    s.keys.add_words(c, &words, "", None).expect("key");
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .expect("spending");
+    s.add_wallet(c, kit.name, &kit.descriptor, "Sample", Origin::Statement)
+        .expect("wallet");
+    let sent = testkit::unsigned(&kit).expect("a spend");
+    let mut returned = sent.clone();
+    let by = s
+        .sign(
+            c,
+            &mut returned,
+            &faraday_crypto::Zeroizing::new([0; 32]),
+            &mut None,
+        )
+        .expect("signed");
+    assert!(!by.is_empty(), "the sample key signs");
+    let mut added = returned.clone();
+    added.inner_mut().inputs[0].proprietary.insert(
+        ProprietaryKey {
+            prefix: b"device".to_vec(),
+            subtype: 1,
+            key: vec![0x01],
+        },
+        vec![0xde, 0xad, 0xbe, 0xef],
+    );
+    for (name, psbt) in [
+        ("signer-sent", &sent),
+        ("signer-returned", &returned),
+        ("signer-returned-proprietary", &added),
+    ] {
+        std::fs::write(root().join(format!("data/{name}.psbt")), psbt.to_bytes()).expect("write");
+    }
+}
+
 fn arr(b: &[u8]) -> String {
     let mut s = String::from("[");
     for x in b {
@@ -555,6 +600,7 @@ fn main() {
     let wallets = wallets(&c, &keys);
     std::fs::write(root().join("data/sample.kdbx"), vault_file(&c)).expect("write");
     let (address, message) = signed_message(&c);
+    signer_pair(&c);
     let totp = testkit::ENTRIES_FILE.lines().next().expect("a line");
 
     let mut out = String::from(
@@ -572,7 +618,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

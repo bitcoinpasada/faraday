@@ -318,9 +318,8 @@ impl Faraday {
             | ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
-            | ScanPurpose::CheckSent
-            | ScanPurpose::CheckReturned
             | ScanPurpose::Sweep => false,
+            ScanPurpose::CheckSent | ScanPurpose::CheckReturned => true,
         }
     }
 
@@ -464,9 +463,24 @@ impl Faraday {
             | ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
             | ScanPurpose::GpgPaperkey
-            | ScanPurpose::CheckSent
-            | ScanPurpose::CheckReturned
             | ScanPurpose::Sweep => None,
+            ScanPurpose::CheckSent => Some(set.inputs.signer_sent.to_vec()),
+            // The clean Returned, and the one with a pair added when the
+            // card already holds the clean one: two presses show both.
+            ScanPurpose::CheckReturned => {
+                let clean = set.inputs.signer_returned;
+                let held = self
+                    .decode
+                    .check()
+                    .and_then(|s| s.returned.as_ref())
+                    .is_some_and(|r| r.bytes == clean);
+                let pick = if held {
+                    set.inputs.signer_returned_proprietary
+                } else {
+                    clean
+                };
+                Some(pick.to_vec())
+            }
         }
     }
 
