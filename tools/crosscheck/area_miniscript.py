@@ -398,10 +398,15 @@ class Miniscript(Area):
         unless another way is open to the same keys; with every wait
         passed, a set of keys spends exactly when it holds a way's keys;
         with none passed, the keys of all spend exactly when a way has no
-        wait."""
+        wait. The unspendable internal key of a taproot wallet stands in
+        the list of keys and never signs: nobody holds it, and btclib, told
+        it had signed, would spend by the key path. So no way may name it."""
         paths = [(set(p["keys"]), p["locks"]) for p in wallet["paths"]]
         if not paths:
             return
+        if any(over_nums(wallet["keys"][i]) for have, _ in paths for i in have):
+            raise Mismatch(self.name, op, inputs, ("ok", {"paths": wallet["paths"]}),
+                           ("ok", {"keys": wallet["keys"]}), "a way names the unspendable key")
         d = btclib.chains(descriptor, network)[int(change)]
         tap = wallet["type"].startswith("tr")
         keys = btclib.keys_of(d, index, network, wallet["keys"])
@@ -423,7 +428,7 @@ class Miniscript(Area):
                             "locktime": wait[1]}),
                     ("ok", {"spends": got}), f"btclib's satisfaction, {what}")
 
-        every = set(range(len(wallet["keys"])))
+        every = {i for i, text in enumerate(wallet["keys"]) if not over_nums(text)}
         top = waits([lock for _, locks in paths for lock in locks])
         for have, locks in paths:
             ask(have, waits(locks), True, "a way at its own waits")
@@ -643,6 +648,12 @@ def core_text(descriptor, accounts, chain):
                         lambda m: bip32_ref.decode(m.group(0), False).with_test(True).serialize(),
                         descriptor)
     return descriptor.replace(CHAINS, f"/{chain}/*")
+
+
+def over_nums(text):
+    """Whether a key `[origin]xpub` of Faraday's is an extended key whose
+    public key is BIP 341's NUMS point, which nobody can sign for."""
+    return bip32_ref.decode(text.rsplit("]", 1)[-1], False).pub == b"\x02" + NUMS
 
 
 def network_of(test):
