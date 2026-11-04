@@ -6993,7 +6993,7 @@ tests = [
   "faraday/faraday-vault/tests/file.rs::a_file_a_keepass_app_saved_opens_and_is_sealed_as_faraday_writes_one",
   "faraday/faraday-vault/tests/open_py.rs::open_py_prints_every_item_under_its_name_with_the_values_pykeepass_reads",
   "faraday/faraday-vault/tests/open_py.rs::open_py_opens_the_nfd_vector_under_either_form",
-  "faraday/faraday-vault/tests/open_py.rs::open_py_refuses_damage_an_older_version_and_names_the_qr_vault",
+  "faraday/faraday-vault/tests/open_py.rs::open_py_refuses_damage_and_an_older_version",
 ]
 crosscheck = "vault"
 independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read back only by pykeepass in the tests (the full outside run is later work)" }
@@ -7175,6 +7175,8 @@ functions = [
   "faraday/faraday-pgp/src/message.rs::decrypt_chunks",
   "faraday/faraday-pgp/src/message.rs::read_literal",
   "faraday/faraday-pgp/src/message.rs::read_packet",
+  "faraday/faraday-vault/src/qr.rs::seal",
+  "faraday/faraday-vault/src/qr.rs::open",
 ]
 code = [
   "faraday/faraday-pgp/src/message.rs::seal",
