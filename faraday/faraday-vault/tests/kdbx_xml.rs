@@ -114,6 +114,16 @@ fn pykeepass_reads(
     doc: &Document,
     binaries: &[faraday_vault::kdbx::Binary],
 ) -> Option<String> {
+    pykeepass_reads_with(name, doc, binaries, &[])
+}
+
+/// As [`pykeepass_reads`], with more arguments for `reread.py`.
+fn pykeepass_reads_with(
+    name: &str,
+    doc: &Document,
+    binaries: &[faraday_vault::kdbx::Binary],
+    more: &[&str],
+) -> Option<String> {
     let random: [u8; RANDOM_LEN] = std::array::from_fn(|i| (i * 7 + 1) as u8);
     let document = doc.write(inner_key_of(&random));
     let total: usize = binaries.iter().map(|b| b.data.len()).sum();
@@ -141,6 +151,7 @@ fn pykeepass_reads(
         .arg(repo("tools/vectors/kdbx/reread.py"))
         .arg(&path)
         .arg(PASSPHRASE)
+        .args(more)
         .output()
         .ok()?;
     let err = String::from_utf8_lossy(&out.stderr);
@@ -203,6 +214,105 @@ fn history_and_the_recycle_bin_are_dropped_and_counted() {
         assert!(!text.contains("Deleted"), "{text}");
         assert!(text.ends_with("bin: no\n"), "{text}");
     }
+}
+
+// --- A file KeePassXC saved after an edit -------------------------------
+
+/// The text from `open` to `close`, both included, the last of each.
+fn region<'a>(text: &'a str, open: &str, close: &str) -> &'a str {
+    let from = text.rfind(open).unwrap_or_else(|| panic!("{open}"));
+    let to = text[from..].find(close).unwrap() + from + close.len();
+    &text[from..to]
+}
+
+#[test]
+fn a_file_keepassxc_saved_after_an_edit_opens_with_its_history_counted() {
+    let bytes =
+        std::fs::read(repo("tools/vectors/kdbx/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx"))
+            .unwrap();
+    let o = open(&compute(), &bytes, PASSPHRASE).expect("opens");
+    let doc = Document::read(&o.document, &o.inner_key).unwrap();
+    // One entry has history (three earlier versions of it); the dialog counts entries.
+    assert_eq!(doc.history_entries(), 1);
+    assert_eq!(doc.recycle_bin_entries(), 0);
+    let e = example(&doc);
+    assert_eq!(e.field("Password").unwrap().value(), "hunter4");
+    assert_eq!(o.binaries.len(), 1);
+    assert_eq!(&o.binaries[0].data[..], b"public attachment\n");
+    assert!(has(&o.document, b"<Key>note.txt</Key>"));
+    let second = doc
+        .root()
+        .groups()
+        .find(|g| g.name() == "Second")
+        .expect("the group Second");
+    let other = second.entries().next().expect("the second entry");
+    assert_eq!(other.field("UserName").unwrap().value(), "bob");
+    assert_eq!(other.field("Password").unwrap().value(), "secret5");
+}
+
+#[test]
+fn what_keepassxc_kept_is_written_back_byte_for_byte_and_read_by_pykeepass() {
+    let bytes =
+        std::fs::read(repo("tools/vectors/kdbx/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx"))
+            .unwrap();
+    let o = open(&compute(), &bytes, PASSPHRASE).expect("opens");
+    let doc = Document::read(&o.document, &o.inner_key).unwrap();
+    let written = doc.write(&o.inner_key);
+    // KeePassXC indents its XML: the text is compared without line breaks and tabs.
+    let flat = |b: &[u8]| String::from_utf8_lossy(b).replace(['\n', '\t'], "");
+    let (before, after) = (flat(&o.document), flat(&written));
+    let (before, after) = (before.as_str(), after.as_str());
+    // The attachment's reference, the database's custom data and the entry's
+    // tag, icon number and custom data are the same text.
+    let reference = region(before, "<Binary><Key>note.txt", "</Binary>");
+    assert_eq!(region(after, "<Binary><Key>note.txt", "</Binary>"), reference);
+    fn meta(t: &str) -> &str {
+        region(t.split("<Root>").next().unwrap(), "<CustomData>", "</CustomData>")
+    }
+    let custom = meta(before);
+    assert!(custom.contains("KPXC_RANDOM_SLUG") && custom.contains("_LAST_MODIFIED"));
+    assert_eq!(meta(after), custom);
+    // KeePassXC adds its own `_LAST_MODIFIED` item next to the person's.
+    let own = "<Item><Key>my.note</Key><Value>kept</Value></Item>";
+    let entry_data = |t: &str| region(t, "</AutoType><CustomData>", "</CustomData>").to_string();
+    assert_eq!(entry_data(after), entry_data(before));
+    for text in [before, after] {
+        assert!(text.contains("<Tags>sample</Tags>") && text.contains("<IconID>5</IconID>"));
+        assert!(text.contains(own), "{text}");
+    }
+    // The history is dropped as §7.1 says (the one place this is stated).
+    assert!(!has(&written, b"<History>"));
+    let again = Document::read(&written, &o.inner_key).unwrap();
+    assert_eq!(again.history_entries(), 0);
+    if let Some(text) = pykeepass_reads_with("kxc", &doc, &o.binaries, &["more"]) {
+        assert!(
+            text.contains("/Example\talice\thunter4\thttps://example.org/\t0\tnote.txt\n"),
+            "{text}"
+        );
+        assert!(text.contains("Second/Other\tbob\tsecret5\t"), "{text}");
+        let hex: String = b"public attachment\n"
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert!(text.contains(&format!("attachment: note.txt={hex}\n")), "{text}");
+        assert!(text.contains("entry: Example tags=sample icon=5\n"), "{text}");
+        assert!(text.contains("entry data: my.note=kept\n"), "{text}");
+        for item in custom_items(custom) {
+            assert!(text.contains(&format!("data: {item}\n")), "{item}: {text}");
+        }
+    }
+}
+
+/// `KEY=VALUE` for each item of a custom data region.
+fn custom_items(region: &str) -> Vec<String> {
+    region
+        .split("<Item><Key>")
+        .skip(1)
+        .map(|i| {
+            let (key, rest) = i.split_once("</Key><Value>").unwrap();
+            format!("{key}={}", rest.split_once("</Value>").unwrap().0)
+        })
+        .collect()
 }
 
 // --- What the model does not read ----------------------------------------

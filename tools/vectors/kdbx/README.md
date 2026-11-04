@@ -18,6 +18,7 @@ passphrase`, at a low cost, Argon2 with 8 MiB of memory, 2 passes and 2 lanes.
 | `pykeepass-twofish-argon2d-gzip.kdbx` | Twofish | Argon2d | gzip | 4.0 (refused) |
 | `pykeepass-chacha20-argon2id-plain-large.kdbx` | ChaCha20 | Argon2id | none | 4.0, one 1.2 MiB attachment (`attachment.bin`, SHAKE-256 of `kdbx vector attachment`): the stream has more than one block |
 | `pykeepass-chacha20-argon2id-plain-history.kdbx` | ChaCha20 | Argon2id | none | 4.0, the entry's earlier password in its history and a second entry in the recycle bin |
+| `keepassxc-2.7-aes-argon2d-gzip-edited.kdbx` | AES-256 | Argon2d | gzip | 4.0, as KeePassXC 2.7.12 saved it after an edit: the `Example` entry's password changed twice (`hunter4`, with three earlier versions in its history), its `note.txt` attachment (`public attachment`), a group `Second` holding an entry `Other` (user `bob`, password `secret5`), and the database's custom data (`KPXC_DECRYPTION_TIME_PREFERENCE`, `KPXC_RANDOM_SLUG`, `_LAST_MODIFIED`); on `Example`, a tag (`sample`), icon number 5 and an item of custom data (`my.note`), set with pykeepass before `keepassxc-cli` saved the file, which kept all three |
 | `keepassxc-3.1-aeskdf.kdbx` | AES-256 | AES-KDF | gzip | 3.1 (refused) |
 
 How they are made: `python3 -I -B tools/vectors/kdbx/make.py OUT_DIR [NAME...]`
@@ -28,6 +29,12 @@ version in its header set to 1, the only difference 4.1 makes outside the
 XML. `keepassxc-3.1-aeskdf.kdbx` is `keepassxc-cli import` 2.7.12's
 output (passphrase `pw`), which writes KDBX 3.1 under AES-KDF, so it is
 the vector for the older version Faraday names and does not open.
+
+`keepassxc-2.7-aes-argon2d-gzip-edited.kdbx` is `pykeepass-aes-argon2d-gzip.kdbx`
+given a tag, an icon and custom data by pykeepass and then edited by `keepassxc-cli` (`make.py`'s `keepassxc_edited`, name `keepassxc-edited`);
+KeePassXC kept the file's cipher, KDF (8 MiB, 2 passes, 2 lanes), compression and
+version, and pykeepass reads it back. It is not reproducible byte for byte
+(KeePassXC draws its own randomness): the file is the vector.
 
 The KeePass export's vector (`tools/vectors/backup/`) is read and written
 again byte for byte by the same tests.

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), the KeePass export folded into the vault (§8), the file KeePassXC saved after an edit, and the outside cross-check area for the QR vault (§10)
+**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), the KeePass export folded into the vault (§8), and the outside cross-check area for the QR vault (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -911,7 +911,11 @@ whose stream ends early, and one file refused for each rule of §1, §3,
 §4, §7 and §7.1. Faraday's Rust (`tests/vectors.rs`) and `open.py` with
 pykeepass read them. Files of other programs are under
 `tools/vectors/kdbx/` (pykeepass's, with the ciphers and KDFs Faraday
-refuses or reads, and one of KeePassXC's KDBX 3.1).
+refuses or reads, one of KeePassXC's KDBX 3.1, and one KeePassXC 2.7.12
+saved after an edit: AES-256, Argon2d, gzip, history, an attachment, a tag, an
+icon number and custom data, which opens at §7.1's dialog and whose
+attachment, tag, icon number and custom data the next seal writes back
+byte for byte).
 
 The QR vault's vectors, `tools/vectors/vault/qr/` (`README.md` there),
 are Faraday's own, not an outside check: one vault of each item kind (a
@@ -923,18 +927,13 @@ compressed packet, data after the SEIPD), written byte for byte by
 (`tests/qr.rs`) reads them and refuses the four, and `open.py` with Sequoia
 opens the seven vaults.
 
-Planned and not built (**Open**): a file
-KeePassXC saved after an edit (AES-256, Argon2d, gzip, history and an
-attachment, opening at §7.1's dialog), and the cross-check area `vault`
+Planned and not built (**Open**): the cross-check area `vault`
 (F79) taken to the formats: Faraday's KDBX against pykeepass,
 `keepassxc-cli` and keepass-rs, its OpenPGP against Sequoia (`sq`, or
 its Python binding pysequoia), OpenPGP.js and rPGP, both ways (the two
 Rust crates as test-only dependencies, never in what ships): each opens
 the files the other made (F190 point 11). Today the area checks §7's
-payload layouts, a passphrase's NFC form and Argon2id. A file KeePassXC
-saved after an edit is to open with every attachment, icon, tag and
-custom data item it held, and Faraday's next seal to write them back
-byte for byte. Sequoia's default
+payload layouts, a passphrase's NFC form and Argon2id. Sequoia's default
 passphrase encryption writes the older packets (a SKESK v4 and a SEIPD
 v1, without Argon2), which a QR vault refuses (§1.2): the area makes
 Sequoia's files under its RFC 9580 profile, and §10's commands for `sq`

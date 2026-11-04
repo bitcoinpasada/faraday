@@ -82,10 +82,63 @@ def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False
     PyKeePass(path, password=PASSPHRASE)  # reads back under pykeepass
 
 
+def keepassxc_edited(out):
+    """keepassxc-cli's edit of pykeepass-aes-argon2d-gzip.kdbx: KeePassXC keeps the
+    file's KDBX 4.0, AES-256, Argon2d and gzip when it saves. Not reproducible
+    byte for byte (KeePassXC draws its own randomness, and its custom data holds
+    the time): the file in the repository is the vector. keepassxc-cli 2.7.12
+    cannot set a tag, an icon or custom data, so pykeepass sets them on `Example`
+    first (a tag, icon number 5, an item of a person's own custom data) and
+    keepassxc-cli saves last. Passphrase: PASSPHRASE.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    path = out + "/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx"
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), "pykeepass-aes-argon2d-gzip.kdbx"), path)
+    from lxml import etree
+
+    kp = PyKeePass(path, password=PASSPHRASE)
+    entry = kp.find_entries(title="Example", first=True)
+    entry.tags = ["sample"]
+    entry.icon = "5"
+    custom = etree.fromstring("<CustomData><Item><Key>my.note</Key><Value>kept</Value></Item></CustomData>")
+    history = entry._element.find("History")
+    if history is None:
+        entry._element.append(custom)
+    else:
+        history.addprevious(custom)
+    kp.save()
+    with tempfile.TemporaryDirectory() as tmp:
+        note = tmp + "/note.txt"
+        with open(note, "w") as f:
+            f.write("public attachment\n")
+
+        def cli(args, *lines):
+            stdin = "".join(x + "\n" for x in (PASSPHRASE,) + lines)
+            subprocess.run(["keepassxc-cli", *args], input=stdin, text=True, check=True)
+
+        # Two edits of the entry, each keeping its earlier version in history.
+        cli(["edit", "-q", "-p", path, "Example"], "hunter3")
+        cli(["edit", "-q", "-p", path, "Example"], "hunter4")
+        cli(["attachment-import", "-q", path, "Example", "note.txt", note])
+        cli(["mkdir", "-q", path, "Second"])
+        cli(["add", "-q", "-p", "-u", "bob", "--url", "https://example.net/", path, "Second/Other"], "secret5")
+    kp = PyKeePass(path, password=PASSPHRASE)
+    entry = kp.find_entries(title="Example", first=True)
+    assert entry.tags == ["sample"] and entry.icon == "5", (entry.tags, entry.icon)
+    items = entry._element.find("CustomData")
+    assert items is not None and items.findtext("Item/Key") == "my.note", "KeePassXC dropped the entry's custom data"
+
+
 def main():
     out = sys.argv[1]
     only = sys.argv[2:]
     os.makedirs(out, exist_ok=True)
+    if not only or "keepassxc-edited" in only:
+        keepassxc_edited(out)
+        print("made keepassxc-edited")
     for name, kw in [
         ("aes-argon2d-gzip", {}),
         ("aes-argon2id-gzip", {"argon2id": True}),
