@@ -176,7 +176,7 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     assert_eq!(app.screen, Screen::CreateVault);
-    // It opens on Name and passphrases at its top, nothing focused and
+    // It opens on Name and passphrase at its top, nothing focused and
     // the keyboard down; a tap on a field brings it up.
     let key = Action::Osk(OskPress::Char('a'));
     assert!(
@@ -214,7 +214,7 @@ fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
     assert!(!app.guided(), "Steps only is the first start");
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
-    // Create a vault opens on its second card, Name and passphrases.
+    // Create a vault opens on its second card, Name and passphrase.
     let about = Action::About(1);
     tap(&mut app, about);
     assert_eq!(app.about_open(), Some((Screen::CreateVault, 1)));
@@ -414,7 +414,7 @@ fn a_flow_s_page_title_carries_no_count() {
     assert!(
         texts
             .iter()
-            .any(|t| t == "Name and passphrases" || t == "Name and" || t == "passphrases"),
+            .any(|t| t == "Name and passphrase" || t == "Name and" || t == "passphrase"),
         "the title's words are drawn on their own: {texts:?}"
     );
     assert!(

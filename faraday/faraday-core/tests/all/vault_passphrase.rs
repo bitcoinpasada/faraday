@@ -151,7 +151,7 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
 #[test]
 fn create_vault_passphrase_fields_have_the_eye() {
     let mut app = shown();
-    // Create opens on Name and passphrases.
+    // Create opens on Name and passphrase.
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::CShow)));

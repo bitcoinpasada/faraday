@@ -840,6 +840,9 @@ pub struct Live {
     /// The vault and the file of the last mismatch: that file is another
     /// vault. Not kept.
     pub not_it: Option<(usize, String)>,
+    /// For each known vault, the slot and the stick's file name of the
+    /// file tried for it. Not kept.
+    pub tried_from: Vec<(usize, usize, String)>,
     /// The vault being unlocked.
     pub unlocking: Option<usize>,
     /// The vault being made, while its form shows.

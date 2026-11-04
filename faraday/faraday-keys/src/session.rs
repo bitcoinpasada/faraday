@@ -1204,6 +1204,21 @@ impl Keys {
     /// kept replaces it. The secret is never kept: it is the seed.
     /// Returns how many of `strings` were kept.
     pub fn keep_codex32(&mut self, c: &Compute, i: usize, strings: &[&str]) -> usize {
+        self.keep_codex32_among(c, i, strings, &[])
+    }
+
+    /// Costs what [`Keys::keep_codex32`] costs. As `keep_codex32`, with
+    /// `more` (an open vault's strings of the key's seed) also among the
+    /// strings a given one is proved with: those of the set prove, and are
+    /// kept only where they are part of the combination that proves it. A
+    /// string not proved is still not kept.
+    pub(crate) fn keep_codex32_among(
+        &mut self,
+        c: &Compute,
+        i: usize,
+        strings: &[&str],
+        more: &[Zeroizing<String>],
+    ) -> usize {
         let Some(e) = self.entries.get(i) else {
             return 0;
         };
@@ -1212,6 +1227,14 @@ impl Keys {
         };
         let fp = e.info.fingerprint.0;
         let need = usize::from(facts.threshold);
+        let facts = facts.clone();
+        let facts = &facts;
+        // A string at a destroyed index, of another set or of another
+        // length is neither a proof nor kept, whichever vault it is from.
+        let more: Vec<&Zeroizing<String>> = more
+            .iter()
+            .filter(|t| of_set(facts, &Zeroizing::new(t.to_ascii_lowercase())))
+            .collect();
         let mut cands: Vec<Zeroizing<String>> = Vec::new();
         for s in strings {
             let lower = Zeroizing::new(s.to_ascii_lowercase());
@@ -1231,6 +1254,7 @@ impl Keys {
                         .codex32
                         .iter()
                         .chain(cands.iter().filter(|x| ***x != **s))
+                        .chain(more.iter().copied())
                         .map(|t| t.as_str())
                         .collect();
                     crate::vault::codex32_find(c, fp, need, &[s.as_str()], &pool)
@@ -1239,6 +1263,9 @@ impl Keys {
                     continue;
                 };
                 for t in texts {
+                    if !of_set(facts, &Zeroizing::new(t.to_ascii_lowercase())) {
+                        continue;
+                    }
                     e.key
                         .codex32
                         .retain(|x| x.as_bytes().get(8) != t.as_bytes().get(8));
@@ -1272,11 +1299,16 @@ impl Keys {
             return None;
         }
         let typed = Zeroizing::new(string.encode().as_str().to_string());
+        // As in `keep_codex32_among`: a string at a destroyed index, of
+        // another set or of another length decides nothing.
+        let facts = e.info.codex32.as_ref();
         let pool: Vec<&str> = e
             .key
             .codex32
             .iter()
-            .chain(more.iter())
+            .chain(more.iter().filter(|t| {
+                facts.is_none_or(|f| of_set(f, &Zeroizing::new(t.to_ascii_lowercase())))
+            }))
             .map(|t| t.as_str())
             .collect();
         let found =

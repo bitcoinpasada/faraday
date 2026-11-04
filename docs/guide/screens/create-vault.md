@@ -20,16 +20,15 @@ the head opens it again.
 
 ## The cards
 
-By default two cards: **Size**, then **Name and passphrases**.
+By default two cards: **Size**, then **Name and passphrase**.
 **Customise** on **Size** replaces it with three cards, walked in
-order: **Where will you open it?**, **Unlock cost** and **Space per
-passphrase**.
+order: **Where will you open it?**, **Unlock cost** and **Space**.
 
 ### Size
 
 ![Create a vault on Size: PCs only and PCs and a Raspberry Pi, the second chosen, Customise, and Your choices at the right](../pictures/create-vault-size.png)
 
-*Create a vault opened from **Vaults**, on **Size**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, each "Unlock time not measured yet", and **Customise**; **Name and passphrases** below reads "Not chosen yet". **Your choices** at the right, and **Create vault**.*
+*Create a vault opened from **Vaults**, on **Size**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, each "Unlock time not measured yet", and **Customise**; **Name and passphrase** below reads "Not chosen yet". **Your choices** at the right, and **Create vault**.*
 
 | Control | What it does |
 |---|---|
@@ -68,25 +67,25 @@ memory ticked.
 | **Passes** | 2 to 10, for **Custom** |
 | "Unlock memory 512 MiB" | the memory chosen, against what the weakest machine gives ("Raspberry Pi 3: up to 512 MiB"), with a bar |
 | "Unlocks in about 2.4 s here" | the time measured on this computer |
-| "Adds ≈… bits to every passphrase" | what the cost adds |
+| "Adds ≈… bits to the passphrase" | what the cost adds |
 | **Continue** | for **Custom**: closes the card and opens the next |
 
-### Space per passphrase
+### Space
 
 | Control | What it does |
 |---|---|
 | **64 KiB**, **256 KiB**, **1 MiB**, **4 MiB** | the space the vault's contents get, with the file's size under it ("file …"). 256 KiB is chosen at first. A press chooses it and moves on |
 
-### Name and passphrases
+### Name and passphrase
 
-![Name and passphrases with the name Passwords, the passphrase from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
+![Name and passphrase with the name Passwords, the passphrase from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
 
 *The vault named Passwords ("File Passwords.kdbx"), the passphrase from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
 
 | Control | What it does |
 |---|---|
 | **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.kdbx"). Left empty, the file is `vault.kdbx` and the vault's title is "Vault" |
-| **Show passphrases**, **Hide passphrases** | shows or hides the passphrase typed |
+| **Show passphrase**, **Hide passphrase** | shows or hides the passphrase typed |
 | **Passphrase** | the vault's one passphrase: two fields, typed, then typed again |
 | **Generate with dice** | opens the dice panel under the fields; "or type your own below" beside it |
 | the line under the fields | **Matches**, **Does not match yet** in the warning tone, or **Type it, then type it again** |
@@ -106,8 +105,8 @@ memory ticked.
 
 ## Your choices
 
-The panel at the right lists **Opens on**, **Unlock cost**, **Space per
-passphrase** and **Name and passphrases**, each with its answer or
+The panel at the right lists **Opens on**, **Unlock cost**, **Space**
+and **Name and passphrase**, each with its answer or
 **Not chosen yet**; a press on one opens its card. Under them:
 
 | Control | What it does |

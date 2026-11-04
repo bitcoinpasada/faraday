@@ -7181,7 +7181,7 @@ standards = [
   "RFC 1952",
 ]
 learn = "faraday:vaults"
-screens = ["CreateVault", "Unlock", "VaultContents", "Vaults"]
+screens = ["BackupFlow", "CreateVault", "Unlock", "VaultContents", "Vaults"]
 functions = [
   "faraday/faraday-keys/src/job.rs::SealJob::run",
   "faraday/faraday-keys/src/job.rs::StretchJob::run",

@@ -480,7 +480,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
 #[test]
 fn an_open_vaults_key_can_be_converted_and_matches_its_fingerprint() {
     use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     app.press(Action::Convert(C::Open));

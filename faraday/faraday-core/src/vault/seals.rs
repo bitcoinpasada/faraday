@@ -433,7 +433,9 @@ impl VaultArea {
         };
         let store = self.state.store();
         let mut why = Vec::new();
-        if let Some((history, bin)) = store.history(o.id).filter(|(h, b)| h + b > 0) {
+        // A file that opens read-only is never sealed: nothing is left out.
+        let sealed = store.read_only(o.id).is_none();
+        if let Some((history, bin)) = store.history(o.id).filter(|(h, b)| sealed && h + b > 0) {
             why.push(fill(
                 EN.vault_history_line,
                 &[&history.to_string(), &bin.to_string()],

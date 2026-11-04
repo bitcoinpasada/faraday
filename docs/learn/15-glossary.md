@@ -110,7 +110,7 @@ In codex32, the number from 0 to 31 an input string is multiplied by, character 
 
 ## Vault
 
-One file on a stick holding keys, wallets, entries and notes, encrypted under a passphrase. It has four slots, and each passphrase opens one of them.
+One file on a stick holding keys, wallets, entries and notes, encrypted under one passphrase, in a KDBX 4 file ending in .kdbx.
 
 ## Watch-only
 

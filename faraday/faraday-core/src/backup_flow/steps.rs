@@ -343,6 +343,7 @@ impl Faraday {
             F::NoPass(v) => {
                 let f = &mut self.flows.all[i];
                 f.live.no_pass = (f.live.no_pass != Some(v)).then_some(v);
+                self.flow_give_up_trying(i, v);
             }
             F::BesideIt(v) => self.flows.all[i].beside_it(v),
             F::AnotherStick(v) => self.flow_another_stick(i, v),
@@ -1123,6 +1124,7 @@ impl Faraday {
             .enumerate()
             .filter(|(_, (vr, _))| {
                 !(0..all).any(|w| self.flow_copy_of(i, w, vr))
+                    && self.vaults.vault_id_of_file(Some(vr.sha)).is_none()
                     && !r
                         .picks
                         .iter()
@@ -1281,6 +1283,16 @@ impl Faraday {
             .vaults
             .get(v)
             .is_some_and(VaultPlan::found);
+        // A file the session knows as another vault is not offered for
+        // this one (it goes beside), and a press for it is not taken.
+        if found
+            && let Some(id) = salt
+            && self.flows[i].plan.vaults[v]
+                .salt
+                .is_some_and(|own| own != id)
+        {
+            return;
+        }
         if found {
             self.flow_press_file(i, v, k);
             return;
@@ -1305,7 +1317,8 @@ impl Faraday {
         self.flow_decide(i);
     }
 
-    /// A press naming a file of the stick for a vault already chosen or
+    /// Costs a hash of a whole file (through `flow_take_copy`). A press
+    /// naming a file of the stick for a vault already chosen or
     /// known, at step 2 and step 3 only. A chosen vault takes this copy as
     /// its file, as picking the copy of a vault that differs does; a known
     /// vault tries it beside its proved copy, which stays until the unlock
@@ -1353,6 +1366,9 @@ impl Faraday {
             }
             let own = self.flow_take_copy(i, v, &vr.name, bytes, &label);
             self.flows.all[i].plan.vaults[v].trying = Some(own);
+            let live = &mut self.flows.all[i].live;
+            live.tried_from.retain(|(tv, _, _)| *tv != v);
+            live.tried_from.push((v, slot, vr.name.clone()));
         } else {
             let own = self.flow_take_copy(i, v, &vr.name, bytes, &label);
             // The other sticks' copies of this vault are not this one:
@@ -1411,7 +1427,7 @@ impl Faraday {
                 && r.problem.is_none()
                 && r.differs.is_none()
                 && !r.bound
-        });
+        }) && self.flow_beside().is_empty();
         if chosen && self.flows[i].step == Step::Sticks && self.flow_confirm_kind() == Confirm::Tap
         {
             self.flow_confirm(i, false);
@@ -1582,8 +1598,8 @@ impl Faraday {
         self.flow_settle();
     }
 
-    /// Takes a vault file from a stick into Files, as Files holds one
-    /// copied in today. Returns the name it has there.
+    /// Costs a hash of a whole file (through `sha256_of`). Takes a vault
+    /// file from a stick into Files, as Files holds one copied in today. Returns the name it has there.
     fn flow_take_copy(
         &mut self,
         i: usize,
@@ -1753,6 +1769,64 @@ impl Faraday {
         self.vaults.measure();
     }
 
+    /// A known vault's file tried is given up: its row goes back to the
+    /// copy proved (it offers Open again), and the stick the file was
+    /// pressed from goes back to a new vault beside it. A chosen vault
+    /// keeps its file.
+    fn flow_give_up_trying(&mut self, i: usize, v: usize) {
+        let Some(vp) = self.flows.all[i].plan.vaults.get_mut(v) else {
+            return;
+        };
+        if vp.salt.is_none() || vp.trying.take().is_none() {
+            return;
+        }
+        let live = &mut self.flows.all[i].live;
+        if live.unlocking == Some(v) {
+            live.unlocking = None;
+        }
+        if live.no_pass == Some(v) {
+            live.no_pass = None;
+        }
+        self.flow_unpick_tried(i, v, None);
+    }
+
+    /// The pick of the file tried for vault `v` is given up: the stick it
+    /// was pressed from (by its name on the stick) goes back to a new
+    /// vault beside its files. Without a record of the press, a pick
+    /// over `in_files`, the name in Files, is the one.
+    fn flow_unpick_tried(&mut self, i: usize, v: usize, in_files: Option<&str>) {
+        let f = &mut self.flows.all[i];
+        let at = f.live.tried_from.iter().position(|(tv, _, _)| *tv == v);
+        let from = at.map(|k| f.live.tried_from.remove(k));
+        for (n, s) in f.slots.iter_mut().enumerate() {
+            let Some(b) = s.bound.as_mut() else {
+                continue;
+            };
+            for (pv, pick) in &mut b.picks {
+                let named = match (&from, &*pick) {
+                    (Some((_, slot, on)), Pick::Over(p)) => *slot == n && p == on,
+                    (None, Pick::Over(p)) => in_files == Some(p.as_str()),
+                    _ => false,
+                };
+                if *pv == v && named {
+                    *pick = Pick::New;
+                }
+            }
+        }
+    }
+
+    /// The older-copy dialog's **Keep locked** while the flow unlocks a
+    /// vault: that unlock is given up, and a known vault's file tried
+    /// with it.
+    pub(crate) fn flow_unlock_given_up(&mut self) {
+        let Some(i) = self.fi() else {
+            return;
+        };
+        if let Some(v) = self.flows.all[i].live.unlocking.take() {
+            self.flow_give_up_trying(i, v);
+        }
+    }
+
     fn flow_create_start(&mut self, i: usize, v: usize) {
         let mut form = crate::vault::CreateForm::default();
         form.name.set(&BackupFlow::vault_name(v));
@@ -1841,8 +1915,10 @@ impl Faraday {
     /// A vault chosen by file takes its id from what the unlock recorded of
     /// that file; a known vault's tried file becomes its file when it is
     /// that vault. A file that is another vault is a mismatch: that vault
-    /// is closed when `opened` (the unlock just made it), the line says so,
-    /// and a known vault's pick goes back to new.
+    /// is closed when `opened` (an unlock just made it) and it was opened
+    /// from that very file, never another vault's and never one with
+    /// changes not saved, the line says so, and
+    /// the pick of the stick the file was pressed from goes back to new.
     fn flow_bind_ids(&mut self, i: usize, opened: bool) {
         for v in 0..self.flows[i].plan.vaults.len() {
             let vp = &self.flows[i].plan.vaults[v];
@@ -1864,6 +1940,7 @@ impl Faraday {
                 continue;
             };
             let name = name.clone();
+            let name_in_files = name.clone();
             let plan = &self.flows[i].plan;
             let taken = plan
                 .vaults
@@ -1879,7 +1956,10 @@ impl Faraday {
                 }
                 _ => {
                     if opened
-                        && let Some(o) = self.vaults.open.iter().position(|o| o.vault_id() == id)
+                        && let Some(o) =
+                            self.vaults.open.iter().rposition(|o| {
+                                o.vault_id() == id && o.name == name && o.changes == 0
+                            })
                     {
                         self.vaults.close_at(o);
                     }
@@ -1887,15 +1967,10 @@ impl Faraday {
                     f.live.not_it = Some((v, name));
                     if known.is_some() {
                         f.plan.vaults[v].trying = None;
-                        for s in &mut f.slots {
-                            if let Some(b) = s.bound.as_mut() {
-                                for (pv, pick) in &mut b.picks {
-                                    if *pv == v {
-                                        *pick = Pick::New;
-                                    }
-                                }
-                            }
-                        }
+                        // Only the stick the file was pressed from gives
+                        // up its pick; its name on the stick, not the
+                        // name in Files, which a clash can change.
+                        self.flow_unpick_tried(i, v, Some(name_in_files.as_str()));
                     } else {
                         f.live.no_pass = Some(v);
                         f.live.unlocking = Some(v);

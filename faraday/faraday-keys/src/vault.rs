@@ -2738,16 +2738,48 @@ impl OpenVaults {
         i: usize,
         string: &faraday_bip::codex32::Codex32,
     ) -> Option<bool> {
-        // Only the open vaults' strings of key `i`'s own seed: strings of
-        // the same set header kept for another seed never join it.
-        let fp = keys.info(i)?.fingerprint.0;
-        let more = self
-            .codex32_more_of(std::slice::from_ref(string))
-            .into_iter()
-            .find(|(f, _)| *f == fp)
-            .map(|(_, g)| g)
-            .unwrap_or_default();
+        let more = self.codex32_of_key(keys, i, string)?;
         keys.codex32_of_seed(c, i, string, &more)
+    }
+
+    /// Costs what `Keys::keep_codex32` costs, and a parse of each codex32
+    /// share record's string. Keeps `string`, a share whose header is
+    /// that of key `i`'s codex32 set, with key `i` where it is proved of
+    /// the key's seed from the strings this session holds for the key
+    /// and the open vaults keep (`docs/CODEX32.md` §9.5); a string not
+    /// proved is not kept. Whether it was kept.
+    pub fn keep_codex32(
+        &self,
+        c: &Compute,
+        keys: &mut Keys,
+        i: usize,
+        string: &faraday_bip::codex32::Codex32,
+    ) -> bool {
+        let Some(more) = self.codex32_of_key(keys, i, string) else {
+            return false;
+        };
+        let text = Zeroizing::new(string.encode().as_str().to_string());
+        keys.keep_codex32_among(c, i, &[text.as_str()], &more) > 0
+    }
+
+    /// Costs a parse of each codex32 share record's string. The open vaults'
+    /// strings of the set `string` is of that belong to key `i`'s own
+    /// seed: strings of the same set header kept for another seed never
+    /// join it. `None` for no such key.
+    fn codex32_of_key(
+        &self,
+        keys: &Keys,
+        i: usize,
+        string: &faraday_bip::codex32::Codex32,
+    ) -> Option<Vec<Zeroizing<String>>> {
+        let fp = keys.info(i)?.fingerprint.0;
+        Some(
+            self.codex32_more_of(std::slice::from_ref(string))
+                .into_iter()
+                .find(|(f, _)| *f == fp)
+                .map(|(_, g)| g)
+                .unwrap_or_default(),
+        )
     }
 
     /// Costs a parse of each codex32 share record's string. How many strings
@@ -3087,9 +3119,8 @@ fn u32_of(r: &Record, n: u8) -> Option<u32> {
     Some(u32::from_le_bytes(r.field(n)?.try_into().ok()?))
 }
 
-/// Costs the Ed25519 signatures that read the key. The key a GPG record
-/// (type 7) holds, its seeds wiped when it drops.
-/// `None` for a record without a signing subkey.
+/// A copy of the record's key bytes, no signature made: the key a GPG
+/// record (type 7) holds, its seeds wiped when it drops. `None` for a record without a signing subkey.
 pub(crate) fn gpg_key(r: &Record) -> Option<faraday_pgp::Key> {
     if r.kind != kind::GPG {
         return None;

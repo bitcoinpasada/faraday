@@ -160,3 +160,61 @@ fn a_string_of_another_set_or_seed_is_refused_by_name_and_nothing_is_written() {
     assert_eq!(step(&app), Step::Make);
     assert!(app.flow().unwrap().adding, "the round still waits on D");
 }
+
+/// A key that knows its set but holds none of its strings, with Vault 1
+/// keeping string A: the right string D typed is kept, as A in the open
+/// vault with D rebuild the seed; a share D of another seed is still
+/// refused, and nothing is kept.
+#[test]
+fn the_right_string_is_kept_when_the_other_strings_are_only_in_an_open_vault() {
+    let mut shell = Shell::new();
+    let mut app = locked_with(&mut shell, &['a']);
+    round_stops_on_d(&mut shell, &mut app);
+    let k = app.session.keys.position_of(FP).unwrap();
+    let facts = app.session.keys.info(k).unwrap().codex32.clone();
+    assert!(app.session.keys.set_codex32(k, None));
+    assert!(app.session.keys.set_codex32(k, facts));
+    assert!(!app.session.keys.holds_codex32(k, b'a'));
+    let other_seed = share_of(&[0x42; 16], b"name", b'd');
+    type_string(&mut app, &other_seed);
+    assert_eq!(app.screen, Screen::Entry, "another seed's share refused");
+    assert!(!app.session.keys.holds_codex32(k, b'd'));
+    type_string(&mut app, D);
+    assert_eq!(app.screen, Screen::BackupFlow, "{}", refusal(&app));
+    assert!(app.session.keys.holds_codex32(k, b'd'));
+}
+
+/// As above, but the key's facts say string A is destroyed while the open
+/// vault still keeps it: D typed is not proved by A and not kept, and A is
+/// not kept with it. Nor does A disprove anything: a share D that does not
+/// rebuild the seed with A is not called one of another seed.
+#[test]
+fn a_string_at_a_destroyed_index_in_an_open_vault_proves_nothing_and_is_not_kept() {
+    let mut shell = Shell::new();
+    let mut app = locked_with(&mut shell, &['a']);
+    round_stops_on_d(&mut shell, &mut app);
+    let k = app.session.keys.position_of(FP).unwrap();
+    let mut facts = app.session.keys.info(k).unwrap().codex32.clone().unwrap();
+    for (i, s) in &mut facts.strings {
+        if *i == b'a' {
+            *s = faraday_vault::codex32::State::Destroyed;
+        }
+    }
+    assert!(app.session.keys.set_codex32(k, None));
+    assert!(app.session.keys.set_codex32(k, Some(facts)));
+    let other_seed = share_of(&[0x42; 16], b"name", b'd');
+    type_string(&mut app, &other_seed);
+    assert_eq!(app.screen, Screen::Entry, "not proved");
+    let line = refusal(&app);
+    assert!(!line.contains("another seed"), "{line:?}");
+    assert!(!app.session.keys.holds_codex32(k, b'd'));
+    type_string(&mut app, D);
+    assert_eq!(
+        app.screen,
+        Screen::Entry,
+        "D is not proved: {}",
+        refusal(&app)
+    );
+    assert!(!app.session.keys.holds_codex32(k, b'd'));
+    assert!(!app.session.keys.holds_codex32(k, b'a'));
+}

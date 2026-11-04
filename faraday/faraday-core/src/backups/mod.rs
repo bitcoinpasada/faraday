@@ -1986,7 +1986,9 @@ impl Faraday {
         e.c32_round = Some(want);
     }
 
-    /// Costs a parse of the string and what `codex32_of_seed` costs. The
+    /// Costs a parse of the string and what `codex32_of_seed` costs, twice
+    /// where it is not refused by name: once to tell the refusal and once
+    /// in `keep_codex32`, which proves it again. The
     /// string typed on Add a key for the round (`EntryState::c32_round`):
     /// kept with its key where it is the share the plan keeps there, by
     /// its set (identifier, threshold, length), its index and, once `k`
@@ -2037,16 +2039,18 @@ impl Faraday {
                 }),
             }
         };
-        let what = crate::forms::codex32_what(s);
-        let text = zeroize::Zeroizing::new(s.encode().as_str().to_string());
         let kept = match (refusal.is_none(), k) {
-            (true, Some(k)) => self.session.keys.keep_codex32(&c, k, &[text.as_str()]) > 0,
+            (true, Some(k)) => self
+                .vaults
+                .store()
+                .keep_codex32(&c, &mut self.session.keys, k, s),
             _ => false,
         };
         if !kept {
-            // A string the key's own facts of its set refuse (an index
-            // destroyed) is not of the set either.
-            let line = refusal.unwrap_or_else(|| fill(EN.c32_round_other_set, &[&what, &id]));
+            // Not refused by name, so not proved: fewer than `k` strings
+            // are here to rebuild the seed, or the key's own facts of its
+            // set refuse the index.
+            let line = refusal.unwrap_or_else(|| fill(EN.c32_round_unproved, &[&share, &id]));
             let e = self.entry.state_mut();
             e.parts.codex32.clear();
             e.error = Some(line);
@@ -2327,6 +2331,7 @@ impl Faraday {
         self.sheet = h.sheet;
         if a != crate::vault::VaultAction::OlderOpen {
             self.vaults.older_close(h);
+            self.flow_unlock_given_up();
             return;
         }
         if self.vaults.open.iter().any(|o| o.id == h.id) {

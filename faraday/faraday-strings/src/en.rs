@@ -7341,7 +7341,7 @@ strings! {
     /// Line in `locked_sheet`.
     locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
     /// Line in `locked_sheet`, after a vault's changes were lost.
-    locked_changes_lost: "Changes to a vault were not saved. It was too big for its size, or it could not be written.",
+    locked_changes_lost: "Changes to a vault were not saved. They did not fit in the vault, or the vault could not be written.",
     /// Text in `locked_sheet`. `{}`: `clock_text(off.saturating_sub(app.idl…`.
     locked_power_off_countdown: "Powers off in {} without input",
     /// Text in `locked_sheet`. `{}`: `app.outbox.len()`, `app.medium.for_the()`.
@@ -8266,7 +8266,7 @@ strings! {
     /// Text in `list_compact`.
     vault_view_contents: "View contents",
     /// Text in `list_compact`. `{}`: `app.medium.a()`, `app.medium.for_the()`.
-    vault_a_vault_holds: "A vault holds keys, wallets, entries and notes under one to four passphrases. It is copied in on {} visit and sealed {} again when the session locks with changes.",
+    vault_a_vault_holds: "A vault holds keys, wallets, entries and notes under its passphrase. It is copied in on {} visit and sealed {} again when the session locks with changes.",
     /// Text in `unlock_compact`. `{}`: `app.medium.noun()`.
     vault_remove_the_then_type: "Remove the {}, then type the passphrase",
     /// Line in `unlock_compact`.
@@ -8280,7 +8280,7 @@ strings! {
     /// Text in `unlock_compact`.
     vault_this_computer_memory: "This computer: memory not reported",
     /// Text in `unlock_compact`.
-    vault_choose_the_vault: "Choose the vault and type a passphrase. Each passphrase opens its own contents, and a vault does not say how many it has. The time is the Argon2id cost the vault was made with, measured on this computer.",
+    vault_choose_the_vault: "Choose the vault and type its passphrase. The time is the Argon2id cost the vault was made with, measured on this computer.",
     /// Text in `VSTEPS`.
     vault_where_will_you: "Where will you open it?",
     /// Text in `create`. `{}`: `app.back_name(s)`.
@@ -8294,7 +8294,7 @@ strings! {
     /// Text in `create_guide`.
     vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time; a machine without the memory cannot open the vault at all. The passphrase counts for more than the cost. The cost cannot be changed later.",
     /// Text in `create_guide`.
-    vault_every_passphrase: "Every passphrase gets the same space, fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
+    vault_every_passphrase: "The space is fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
     /// Text in `create_guide`.
     vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines, the cost and the space one by one.",
     /// Text in `create_guide`.
@@ -8334,7 +8334,7 @@ strings! {
     /// Text in `create_body`. `{}`: `weakest`, `mib_text(limit)`.
     vault_memory_limit: "{}: up to {}",
     /// Text in `create_body`. `{}`: `vault::cost_bits(mem, passes)`.
-    vault_cost_bits: "Adds ≈{} bits to every passphrase",
+    vault_cost_bits: "Adds ≈{} bits to the passphrase",
     /// Text in `create_body`. `{}`: `mib_text(mem)`, `passes`.
     vault_passes: "{} · {} passes",
     /// Text in `create_body`. `{}`: `app.vaults.time_text(mem, passes)`.
@@ -8356,11 +8356,11 @@ strings! {
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
     vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.kdbx",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
-    vault_remove_the_then: "Remove the {}, then type the passphrases",
+    vault_remove_the_then: "Remove the {}, then type the passphrase",
     /// Text in `create_body`.
-    vault_hide_passphrases: "Hide passphrases",
+    vault_hide_passphrases: "Hide passphrase",
     /// Text in `create_body`.
-    vault_show_passphrases: "Show passphrases",
+    vault_show_passphrases: "Show passphrase",
     /// Button in `create_body`.
     vault_generate_dice: "Generate with dice",
     /// Line in `create_body`.
@@ -8399,9 +8399,9 @@ strings! {
     /// Text in `create_panel`.
     vault_unlock_cost: "Unlock cost",
     /// Text in `create_panel`.
-    vault_space_per_passphrase: "Space per passphrase",
+    vault_space_per_passphrase: "Space",
     /// Text in `create_panel`.
-    vault_name_and_passphrases: "Name and passphrases",
+    vault_name_and_passphrases: "Name and passphrase",
     /// Text in `create_panel`.
     vault_not_chosen_yet: "Not chosen yet",
     /// Text in `create_summary`.
@@ -11518,6 +11518,8 @@ strings! {
     c32_round_other_share: "{} is not share {} of {}",
     /// A string typed of the set's header whose seed is another. `{}`: the index, the identifier, the key's fingerprint.
     c32_round_other_seed: "Share {} of {} is of another seed than {}",
+    /// A string of the set at the index wanted that cannot be proved the key's. `{}`: the index, the identifier.
+    c32_round_unproved: "Share {} of {} cannot be checked against the key with the strings here",
     /// The key the string is of is not loaded. `{}`: its fingerprint.
     c32_round_no_key: "Key {} is not here: add it from its copy first",
     /// After `wallet_not_a_valid`: the strings typed and an open vault's

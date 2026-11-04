@@ -1958,7 +1958,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.button(ix, by, Some(bw), BUTTON_H, &label, style, action);
             by += 50.0;
         }
-        unread::section(app, ui, v, (ix, by, w - kinds_w - 16.0));
+        unread::section(app, ui, v, (ix, by, w - kinds_w - tokens::PAD));
         return;
     }
     let cat_label = CATEGORIES[app.vaults.category].0;
@@ -2241,7 +2241,11 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += own_row(app, ui, (x, y, w));
     }
     let editable = v.read_only().is_none();
-    let half = if editable { (w - 8.0) / 2.0 } else { 0.0 };
+    let half = if editable {
+        (w - tokens::GRID) / 2.0
+    } else {
+        0.0
+    };
     if editable {
         ui.button(
             x,
@@ -2254,7 +2258,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     let (lx, lw) = if editable {
-        (x + half + 8.0, half)
+        (x + half + tokens::GRID, half)
     } else {
         (x, w)
     };
@@ -2301,10 +2305,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     let empty = shows_empty(app, v);
     if !kind_items.is_empty() {
-        y += wrap_buttons(ui, x, y, w, 36.0, &kind_items) + 4.0;
+        y += wrap_buttons(ui, x, y, w, 36.0, &kind_items) + tokens::GAP_SMALL;
     }
     if !empty {
-        y += add_rows(ui, x, y, w, 40.0) + 4.0;
+        y += add_rows(ui, x, y, w, 40.0) + tokens::GAP_SMALL;
     }
     ui.rule(x, y, w, Role::OutlineVariant);
     y += 14.0;

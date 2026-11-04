@@ -115,7 +115,10 @@ fn round_and_write(shell: &mut Shell, app: &mut Faraday, typed: &[&str]) -> Vec<
     key_from_strings(app);
     app.press(Action::Nav(faraday_core::Screen::BackupFlow));
     let k = app.session.keys.position_of(FP).unwrap();
-    assert_eq!(app.session.keys.keep_codex32(&testkit::compute(), k, typed), typed.len());
+    assert_eq!(
+        app.session.keys.keep_codex32(&testkit::compute(), k, typed),
+        typed.len()
+    );
     shell.flow(app, F::CopyKey);
     shell.flow(app, F::MadeContinue);
     assert_eq!(step(app), Step::Lock, "{:?}", app.toast_text());

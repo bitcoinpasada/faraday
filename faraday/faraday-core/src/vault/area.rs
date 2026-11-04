@@ -869,8 +869,13 @@ impl Vaults {
     /// before the frame: lookups only, for drawing. None until read.
     pub(crate) fn cannot_seal_seen(&self, i: usize) -> Option<String> {
         let v = self.open.get(i)?;
-        let used = v.read.read.get()?.used;
-        self.cannot_seal_with(i, used)
+        let read = v.read.read.get()?;
+        debug_assert_eq!(
+            read.version,
+            self.store.version(v.id),
+            "an edit of the records that did not go through Vaults::edit"
+        );
+        self.cannot_seal_with(i, read.used)
     }
 
     /// Why open vault `i` cannot be sealed when its seal takes `used`

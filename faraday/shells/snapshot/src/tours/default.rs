@@ -1231,7 +1231,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Create));
-    // It opens on Name and passphrases, the size closed on its default.
+    // It opens on Name and passphrase, the size closed on its default.
     t.shot("create-vault")?;
     t.press(Action::Vault(V::CStep(faraday_core::vault::vstep::PRESET)));
     t.shot("create-vault-size")?;

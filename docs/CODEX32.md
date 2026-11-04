@@ -586,7 +586,9 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   needed is not share D of name"), or, where `k` strings of the set are
   here to rebuild it (the key's and the open vaults'), of another seed
   ("Share D of name is of another seed than fab6868a"), is refused and
-  nothing is kept or written (`OpenVaults::codex32_of_seed`). Once kept,
+  nothing is kept or written (`OpenVaults::codex32_of_seed`). A string an
+  open vault keeps at an index the key's facts mark destroyed (or of
+  another length) neither proves nor is kept. Once kept,
   the copy goes on (`Faraday::c32_round_take`,
   `faraday/faraday-core/src/backups/mod.rs`; tested in
   `faraday/faraday-core/tests/all/codex32_round.rs`). At every unlock the share records

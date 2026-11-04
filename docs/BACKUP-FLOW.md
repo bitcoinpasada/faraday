@@ -278,8 +278,16 @@ no vault the key goes into.
     every file byte for byte. A person who knows one of those files is the
     copy to use presses **Use {file} for {vault}**: the file is unlocked,
     and if it is another vault the unlock says "{file} is not {vault}",
-    closes that vault and leaves the file as it was; if it is an older copy
-    of the same vault, **Open this copy?** asks first.
+    closes that vault (only when it was opened from that file and holds no
+    change not saved) and leaves the file as it was, and only the stick the
+    file was pressed from gives up its pick of the vault; if it is an older copy of the same vault,
+    **Open this copy?** asks first, and **Keep locked** gives the file up:
+    the vault's row goes back to the copy proved (it offers **Open** again)
+    and the stick the file was pressed from goes back to a new vault beside
+    its files, as **I do not have its passphrase** does. A file the session knows as another vault is not
+    listed and has no press: it stays as it was and the vault goes beside
+    it. A stick named by its own press at step 2 is bound at once only
+    where no such line is to be shown.
 - **Which place.** Each stick is named by the plan. The person confirms
   it: a tap, **This is the stick for Vault 1 (Place 1)**, when the stick
   reads differently from every stick already bound; a hold, **Hold: this
@@ -308,7 +316,7 @@ own row, in the order the person chooses, and unlocks nothing by itself
   **Unlock {vault}**, with Unlock's memory check; a vault kept at several
   places is unlocked once;
 - each new vault: **Create {vault}**, Create a vault (decision 21's
-  Size, Name and passphrases), its own passphrase, once per vault of the
+  Size, Name and passphrase), its own passphrase, once per vault of the
   plan. Where only Create applies (no vault found on the sticks, none
   open in memory), Create a vault opens for the first new vault by
   itself once the last stick is bound; while a stick is in, the Pull
@@ -321,8 +329,10 @@ own row, in the order the person chooses, and unlocks nothing by itself
   vault, or whose id differs from the one the plan knows, is closed with
   "{file} is not {vault}", nothing is written, and the flow stays on the
   step;
-- **I do not have its passphrase**, under an existing vault: **A new
-  vault beside it** (the plan's vault becomes new, written beside that
+- **I do not have its passphrase**, under an existing vault, gives up a
+  file tried for a known vault (the row offers **Open** again, for the copy
+  proved, and the stick the file was pressed from goes back to a new vault
+  beside its files) and offers **A new vault beside it** (the plan's vault becomes new, written beside that
   file at step 6) or **Use another stick** (back to step 2 for that
   place, which locks first when a vault is already open).
 

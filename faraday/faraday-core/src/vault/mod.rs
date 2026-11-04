@@ -390,7 +390,7 @@ impl Faraday {
                 self.secret_sheet_waits();
                 self.vaults.state.create = Some(CreateForm::default());
                 self.vaults.state.just_made = None;
-                // It opens on Name and passphrases: the first passphrase
+                // It opens on Name and passphrase: the first passphrase
                 // takes the typing, as Continue into that card does.
                 self.vaults.state.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
                 self.screen = Screen::CreateVault;
@@ -2507,6 +2507,7 @@ impl Faraday {
         });
     }
 
+    /// Costs an Ed25519 signature (through `OpenVaults::gpg_keep_revocation`).
     /// Makes the revocation certificate a record lacks, with the clock as
     /// it is: a key made before revocations were kept gets its one when
     /// its page is first used. Nothing is made while the clock is not

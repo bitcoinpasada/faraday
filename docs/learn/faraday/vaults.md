@@ -2,15 +2,13 @@
 
 ## What a vault is
 
-A vault is one encrypted file, kept on a stick, that holds keys, wallets, backup plans, notes and entries. Its file ends in .fvlt. Faraday seals it at every lock and writes it to its stick when the stick is put in, replacing the copy there.
+A vault is one encrypted file, kept on a stick, that holds keys, wallets, backup plans, notes and entries. Its file ends in .kdbx: a KDBX 4 file, the format KeePass programs use. Faraday seals it at every lock and writes it to its stick when the stick is put in, replacing the copy there.
 
 A vault is made to keep seed words: a key sealed in a vault is its words, encrypted. It can also keep a seed's BIP-39 passphrase, with the seed or alone.
 
-## Slots and decoy passphrases
+## One passphrase
 
-Every vault has four slots of the same size, and each passphrase opens one of them. A vault is made with one to four passphrases. A slot no passphrase opens is random bytes and looks the same as a slot in use, so the file does not say how many passphrases it has. A second passphrase can open a decoy slot that holds less; unlocking takes the same work whichever slot opens.
-
-This does not hold against two copies of the same vault from different times: a slot whose bytes changed between them is in use. It does not hide that a vault exists. Passphrases are set only when the vault is made; changing one, the cost or the size means making a new vault and moving what it holds into it.
+A vault has one passphrase, and it opens the whole file. The file is KDBX 4, a published format, and its entries and Faraday's records are encrypted. A vault does not hide that it exists. The passphrase, the cost and the size are set only when the vault is made; changing one means making a new vault and moving what it holds into it.
 
 ## Older copies
 
@@ -22,11 +20,9 @@ Faraday remembers the counts it has seen until the computer is turned off. Unloc
 
 A backup plan kept in one vault records the counts of the other vaults it uses. Open the vault with the plan first, then the others: a vault older than the copy the plan records is named as older, even after the computer was turned off. With one vault, its plan is in the same file and goes back with it; then the count at unlock, against what you remember, is the check.
 
-Unlock also reads the other copies of the vault in Files, with the passphrase just typed. If one has been sealed more times, Unlock stops and says "An older copy: sealed 9 times. A copy sealed 12 times is in Files." Keep this one locked and open that copy to carry on from it.
+A copy sitting in Files that was never opened is not compared: reading its count would cost an Argon2id of its own.
 
-The count cannot show every copy put back at once, at every place; a vault no backup plan names; or another passphrase's slot, whose count only that passphrase reads.
-
-A decoy slot has its own count. Opened under pressure, a decoy sealed twice beside a vault used every day shows it is little used. Change something in the decoy now and then, so its count grows.
+The count cannot show every copy put back at once, at every place; or a vault no backup plan names.
 
 ## The cost of a guess
 
@@ -34,9 +30,9 @@ The passphrase is stretched with Argon2id before it opens anything, at a memory 
 
 The cost is chosen for the weakest computer the vault will ever be opened on. A computer without the memory cannot open the vault at all, and Unlock says how much it needs before the passphrase is typed. A slow computer opens it slowly.
 
-If the passphrase is lost, the slot it opens is lost. There is no reset. Passphrase strength, below, gives the bits of a passphrase from dice and what the cost adds.
+If the passphrase is lost, the vault is lost. There is no reset. Passphrase strength, below, gives the bits of a passphrase from dice and what the cost adds.
 
-A passphrase is read in Unicode's composed form (NFC), so an accented letter typed as one character or as a letter and a mark opens the same slot. Two passphrases that differ only in that way are one passphrase.
+A passphrase is read in Unicode's composed form (NFC), so an accented letter typed as one character or as a letter and a mark opens the same vault. Two passphrases that differ only in that way are one passphrase.
 
 ## Load at unlock
 
@@ -50,8 +46,4 @@ An entry in a vault (a title, a username, a password, a URL and notes) can leave
 
 ## Reading a vault without Faraday
 
-The format is published in Faraday's source, in docs/VAULT.md. tools/vault/open.py in the same repository opens a vault on any computer with Python 3 and either argon2-cffi with pynacl, or cryptography 44 or newer, and prints what the slot holds:
-
-python3 tools/vault/open.py vault.fvlt
-
-It asks for the passphrase without showing it and writes nothing.
+A vault is a KDBX 4 file, a published format that KeePass programs use, and its layout is in Faraday's source, in docs/VAULT.md. No KeePass program has been tried on what Faraday writes. The recovery tool in the same repository is not yet changed to read it.

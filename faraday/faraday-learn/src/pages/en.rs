@@ -680,7 +680,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "Vault",
                 paragraphs: &[
-                    "One file on a stick holding keys, wallets, entries and notes, encrypted under a passphrase. It has four slots, and each passphrase opens one of them.",
+                    "One file on a stick holding keys, wallets, entries and notes, encrypted under one passphrase, in a KDBX 4 file ending in .kdbx.",
                 ],
             },
             Section {

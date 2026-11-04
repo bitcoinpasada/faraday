@@ -797,7 +797,7 @@ nothing remembered, "Unlock to see what it holds".
 - opened from a flow that needs a vault (decision 10): **Unlock** →
   the flow, on the step it was on; the way back returns to it.
 
-**Create a vault** (step cards: Size, then Name and passphrases;
+**Create a vault** (step cards: Size, then Name and passphrase;
 **Customise** puts where it opens, unlock cost and space per passphrase
 in Size's place) → **Create vault** → Unlock with the new
 vault picked, "Type the passphrase once more to open it", sealed copy
@@ -806,7 +806,7 @@ button per add action and **Write it to a stick** (Files) (decision
 22). Opened from a flow that needs a vault (decision 10), it shows
 "Then: {flow}" by its title, and the unlock goes back to the flow.
 
-**Generate with dice** (a passphrase's card on Name and passphrases): the
+**Generate with dice** (a passphrase's card on Name and passphrase): the
 list (long, short, short 2), the rolls typed with the words they make,
 and the strength so far. On Faraday Demo the roller of New key (above;
 F96, CODEX32 §5.6) stands under the rolls with the same **Rolls per
@@ -819,7 +819,7 @@ the list starts the rolls over, the roller's marks with them.
 
 Size (decisions 21 and 51) is **PCs only** (512 MiB) or **PCs and a
 Raspberry Pi** (64 MiB, the default), both 3 passes, so the flow opens on
-Name and passphrases; a size pressed moves on to it, as a preset cost
+Name and passphrase; a size pressed moves on to it, as a preset cost
 and a space per passphrase do on Customise's cards (F103), Custom's
 memory and passes keeping their Continue. The Name field's caption says the name is what it
 holds, for anyone who sees the stick. The size rows, the cost card and

@@ -221,7 +221,7 @@ fn a_batch_of_nothing_is_not_taken() {
 }
 
 #[test]
-fn dice_added_change_the_seal_nonce_the_keyboard_code_and_a_new_keys_bytes() {
+fn dice_added_change_the_sealed_file_the_keyboard_code_and_a_new_keys_bytes() {
     let session = |dice: bool| {
         let mut app = vault_device(testkit::test_vault().unwrap());
         answer(&mut app, SEED);
@@ -244,7 +244,9 @@ fn dice_added_change_the_seal_nonce_the_keyboard_code_and_a_new_keys_bytes() {
     assert_ne!(plain.1, mixed.1, "a new key's fresh bytes");
     assert_ne!(plain.2, mixed.2, "the sealed file's randomness");
     // The same session again is the same: only the dice made the change.
-    assert_eq!(session(true).0, mixed.0);
+    let again = session(true);
+    assert_eq!(again.0, mixed.0);
+    assert_eq!(again.2, mixed.2);
 }
 
 #[test]

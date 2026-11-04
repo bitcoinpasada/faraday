@@ -254,9 +254,23 @@ impl Shell {
     /// A fresh process from what the last save kept, with the sticks still
     /// in the machine.
     pub fn restart(&mut self) -> Faraday {
+        self.restart_with(true)
+    }
+
+    /// As [`Shell::restart`], the process having seen none of the files
+    /// in Files: it learns a copy only from an open or a seal.
+    pub fn restart_unseen(&mut self) -> Faraday {
+        self.restart_with(false)
+    }
+
+    fn restart_with(&mut self, seen: bool) -> Faraday {
         self.pump_saved_only();
         let (inbox, outbox, kept) = self.boxes.clone();
-        let mut app = process(inbox, outbox, kept);
+        let mut app = if seen {
+            process(inbox, outbox, kept)
+        } else {
+            process_unseen(inbox, outbox, kept)
+        };
         app.press(Action::OpenSetTime);
         app.press(Action::SetTimeKeep);
         self.shown(&app);
@@ -624,6 +638,15 @@ impl Shell {
     /// A lock: the process the app was is gone, and a clean one reads what
     /// it kept.
     pub fn lock(&mut self, app: &mut Faraday) -> Faraday {
+        self.lock_with(app, true)
+    }
+
+    /// As [`Shell::lock`], restarting with [`Shell::restart_unseen`].
+    pub fn lock_unseen(&mut self, app: &mut Faraday) -> Faraday {
+        self.lock_with(app, false)
+    }
+
+    fn lock_with(&mut self, app: &mut Faraday, seen: bool) -> Faraday {
         top_up(app);
         app.press(Action::Lock);
         // The seals run on the worker; each answer is taken before the
@@ -631,7 +654,7 @@ impl Shell {
         faraday_core::testkit::settle(app);
         self.pump(app);
         assert!(app.restart_requested(), "locked");
-        self.restart()
+        self.restart_with(seen)
     }
 }
 

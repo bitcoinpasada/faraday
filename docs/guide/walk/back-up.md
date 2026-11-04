@@ -202,11 +202,11 @@ will stay readable: keep it dry, and check it again from time to time.
 **Load at unlock** (ticked) loads them whenever the vault is unlocked.
 Press **Make a vault**.
 
-![Create a vault on Name and passphrases, Your choices and Will create beside it](../pictures/4-8-create-vault.png)
+![Create a vault on Name and passphrase, Your choices and Will create beside it](../pictures/4-8-create-vault.png)
 
 [**Create a vault**](../screens/create-vault.md) opens with **Size** chosen (**PCs and a Raspberry Pi
 · 64 MiB · 3 passes**). **Your choices** and **Will create** on the
-right sum up the vault. Under **Name and passphrases**:
+right sum up the vault. Under **Name and passphrase**:
 
 1. **Name**: leave it empty for `vault.kdbx`, or type what the vault
    holds; the name is visible to anyone who sees the stick.

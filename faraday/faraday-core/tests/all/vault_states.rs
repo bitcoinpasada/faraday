@@ -100,6 +100,10 @@ fn plain(n: u8, title: &str) -> Entry {
 /// A KeePass app's file: one entry with a history entry, one in the
 /// recycle bin.
 fn with_history() -> Vec<u8> {
+    history_file(|xml| xml)
+}
+
+fn history_file(more: impl Fn(String) -> String) -> Vec<u8> {
     testkit::kdbx_edited(
         "Saved",
         PHRASE,
@@ -114,7 +118,7 @@ fn with_history() -> Vec<u8> {
             let xml = xml.replace(NO_BIN, BIN);
             let at = xml.find("</Entry>").unwrap();
             let old = "<History><Entry><UUID>AgICAgICAgICAgICAgICAg==</UUID></Entry></History>";
-            format!("{}{old}{}", &xml[..at], &xml[at..])
+            more(format!("{}{old}{}", &xml[..at], &xml[at..]))
         },
     )
     .unwrap()
@@ -230,6 +234,25 @@ fn a_read_only_vault_says_why_and_an_edit_and_a_seal_write_nothing() {
         let texts = head(&mut app);
         assert!(texts.contains(reason), "{name}: {texts}");
     }
+}
+
+#[test]
+fn a_read_only_file_with_history_is_not_told_a_seal_leaves_anything_out() {
+    let file = history_file(|xml| {
+        let at = xml.find("faraday.format").unwrap();
+        let v = at + xml[at..].find("<Value>1</Value>").unwrap();
+        format!(
+            "{}<Value>99</Value>{}",
+            &xml[..v],
+            &xml[v + "<Value>1</Value>".len()..]
+        )
+    });
+    let mut app = process(vec![("ro.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1);
+    assert_ne!(app.sheet, Some(Sheet::OlderCopy), "a dialog for nothing");
+    let texts = head(&mut app);
+    assert!(texts.contains(EN.vault_read_only_newer), "{texts}");
 }
 
 /// A vault with a note and a damaged item (an unknown kind).

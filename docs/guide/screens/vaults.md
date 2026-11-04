@@ -33,7 +33,7 @@ list on the left, the first vault's card on the right.
 | **Unlock** | on a locked vault's card: opens its Unlock |
 | **View contents** | on an open vault's card: opens its [contents](vault.md) |
 | **Lock** | on an open vault's card: locks, sealing every open vault; [Lock](lock-and-power.md#lock) asks first when the lock would end something |
-| "A vault holds keys, wallets, entries and notes under one to four passphrases. …" | under the card, in Guided mode |
+| "A vault holds keys, wallets, entries and notes under its passphrase. …" | under the card, in Guided mode |
 
 ### A vault's name and state
 

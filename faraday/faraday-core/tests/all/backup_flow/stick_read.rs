@@ -457,13 +457,16 @@ fn a_lock_between_two_copies_of_one_vault_makes_the_second_say_it_is_not_that_va
     let (mut shell, mut app) = two_vaults_one_file_each();
     shell.flow(&mut app, F::UnlockVault(0));
     unlock(&mut app, PHRASE);
-    let mut app = shell.lock(&mut app);
+    // The new process has seen only what it opened: b.kdbx is a copy
+    // nobody has opened.
+    let mut app = shell.lock_unseen(&mut app);
     assert_eq!(step(&app), Step::Vaults);
     shell.flow(&mut app, F::UnlockVault(1));
     unlock(&mut app, PHRASE);
     assert_eq!(step(&app), Step::Vaults, "stays on step 3");
     expect(&mut app, "b.kdbx is not Vault 2");
-    assert!(app.vaults().open.is_empty(), "the second is closed");
+    assert_eq!(app.flow().unwrap().plan.vaults[1].salt, None, "not bound");
+    assert!(app.vaults().open.is_empty(), "the file chosen is closed");
     // The panel offers both answers.
     expect(&mut app, "A new vault beside it");
     assert_eq!(shell.vault_writes(), 0);
@@ -686,4 +689,267 @@ fn a_stick_named_at_step_six_with_a_file_nobody_opened_asks_nothing_and_goes_bes
     shell.flow(&mut app, F::Tap);
     assert_eq!(shell.disk("U").file("other.kdbx"), Some(&other));
     assert_eq!(kdbx_count(&shell, "U"), 2, "beside");
+}
+
+// ---- a file tried for a known vault, and the files beside it ----
+
+use faraday_core::backup_flow::Pick;
+
+#[test]
+fn opening_vault_one_after_a_line_under_vault_two_leaves_vault_one_open() {
+    let (mut shell, mut app) = two_vaults_one_file_each();
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE);
+    let mut app = shell.lock(&mut app);
+    shell.flow(&mut app, F::UnlockVault(1));
+    unlock(&mut app, PHRASE);
+    expect(&mut app, "b.kdbx is not Vault 2");
+    // Vault 1 is opened again while the line stands.
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "Vault 1 stays open");
+}
+
+#[test]
+fn a_failed_press_gives_up_only_the_pressed_sticks_pick() {
+    let mut shell = Shell::new();
+    let other = vault("Other", PHRASE_2, 0x82);
+    let mut app = press_unseen_file(&mut shell, &other);
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE_2);
+    expect(&mut app, "b.kdbx is not Vault 1");
+    let f = app.flow().unwrap();
+    let picks = |s: usize| f.slots[s].bound.as_ref().unwrap().picks.clone();
+    assert!(
+        picks(0)
+            .iter()
+            .any(|(v, p)| *v == 0 && *p == Pick::Over("a.kdbx".into())),
+        "Stick 1 still replaces its copy: {:?}",
+        picks(0)
+    );
+    assert!(
+        picks(1)
+            .iter()
+            .all(|(v, p)| *v != 0 || matches!(p, Pick::New)),
+        "Stick 2 goes beside: {:?}",
+        picks(1)
+    );
+}
+
+/// Vault 1 opened and sealed in a first process (so that its seal count is
+/// known), S1 holding its first copy, S2 an older copy under `b.kdbx`;
+/// the person presses `b.kdbx` for Vault 1 and opens it: the older-copy
+/// dialog shows.
+fn older_copy_pressed() -> (Shell, Faraday) {
+    let mut shell = Shell::new();
+    let main = vault("Main", PHRASE, 0x91);
+    let older = main_with_note(PHRASE, 0x91);
+    for (id, label, n, name, bytes) in [
+        ("S1", "ONE", 1, "a.kdbx", &main),
+        ("S2", "TWO", 2, "b.kdbx", &older),
+    ] {
+        let mut d = Disk::empty(id, label);
+        d.serial = Some(n);
+        d.files = vec![(name.into(), bytes.clone())];
+        shell.add(d);
+    }
+    shell.boxes.0 = vec![("main.kdbx".into(), main)];
+    let mut app = shell.restart();
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    unlock(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1);
+    // A change saved, so that the lock seals it once more.
+    app.press(Action::Entry(None));
+    type_text(
+        &mut app,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[1].0),
+    );
+    app.press(Action::EntryAdd);
+    app.press(Action::Vault(V::SaveKey(0)));
+    top_up(&mut app);
+    let _ = shell.lock(&mut app);
+    // What the process kept is the seal count; no vault file is left in
+    // Files, so that S1's copy and S2's are the files the flow knows.
+    shell.boxes.0.retain(|f| !f.0.ends_with(".kdbx"));
+    shell.boxes.1.retain(|f| !f.0.ends_with(".kdbx"));
+    let mut app = shell.restart();
+    start(&mut app, Kind::Gpg);
+    shell.flow(&mut app, F::VaultExisting(0));
+    through_where(&mut shell, &mut app);
+    shell.plug_known(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    assert!(
+        app.flow().unwrap().plan.vaults[0].salt.is_some(),
+        "known: {:?} {:?}",
+        faraday_core::testkit::vault_summaries_mut(&mut app)
+            .iter()
+            .map(|s| (s.file.clone(), s.copies.len(), s.name.clone()))
+            .collect::<Vec<_>>(),
+        app.flow().unwrap().live.reading.as_ref().map(|r| (
+            r.picks.clone(),
+            r.differs.clone(),
+            r.problem.clone()
+        )),
+    );
+    shell.plug(&mut app, "S2");
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .unwrap()
+        .files
+        .iter()
+        .position(|(f, _)| f.name == "b.kdbx")
+        .expect("the file is listed");
+    shell.flow(&mut app, F::PickFile(0, k));
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S2");
+    assert_eq!(step(&app), Step::Vaults);
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE);
+    (shell, app)
+}
+
+#[test]
+fn an_older_copy_pressed_for_a_known_vault_asks_and_keep_locked_binds_nothing() {
+    let (_shell, mut app) = older_copy_pressed();
+    if app.sheet != Some(Sheet::OlderCopy) {
+        panic!("no dialog: {:?}", texts(&mut app));
+    }
+    expect(&mut app, "Open this copy?");
+    app.press(Action::Vault(V::OlderBack));
+    let vp = app.flow().unwrap().plan.vaults[0].clone();
+    assert_ne!(vp.file.as_deref(), Some("b.kdbx"), "not bound");
+    assert!(vp.salt.is_some(), "the vault stays known");
+    assert_eq!(vp.trying, None, "the file tried is given up");
+    assert!(app.vaults().open.is_empty());
+}
+
+#[test]
+fn an_older_copy_pressed_for_a_known_vault_is_bound_on_open() {
+    let (_shell, mut app) = older_copy_pressed();
+    assert_eq!(app.sheet, Some(Sheet::OlderCopy));
+    app.press(Action::Vault(V::OlderOpen));
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
+    let vp = app.flow().unwrap().plan.vaults[0].clone();
+    assert_eq!(vp.file.as_deref(), Some("b.kdbx"));
+    assert_eq!(vp.trying, None);
+}
+
+#[test]
+fn without_its_passphrase_a_tried_file_is_given_up_and_the_plan_vault_stays() {
+    let mut shell = Shell::new();
+    let older = main_with_note(PHRASE, 0x81);
+    let mut app = press_unseen_file(&mut shell, &older);
+    assert!(app.flow().unwrap().plan.vaults[0].trying.is_some());
+    assert!(offered(&mut app, Action::Flow(F::UnlockVault(0))));
+    shell.flow(&mut app, F::UnlockVault(0));
+    assert!(offered(&mut app, Action::Flow(F::NoPass(0))));
+    shell.flow(&mut app, F::NoPass(0));
+    let vp = app.flow().unwrap().plan.vaults[0].clone();
+    assert_eq!(vp.trying, None);
+    assert!(vp.salt.is_some() && vp.file.is_some(), "still the plan's");
+    // Only what is drawn is pressed: the row offers Open again.
+    assert!(offered(&mut app, Action::Flow(F::UnlockVault(0))));
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE);
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
+    assert_eq!(
+        app.flow().unwrap().plan.vaults[0].file.as_deref(),
+        Some("a.kdbx")
+    );
+}
+
+#[test]
+fn without_its_passphrase_the_pressed_stick_goes_back_to_a_new_vault_beside_its_file() {
+    let mut shell = Shell::new();
+    let older = main_with_note(PHRASE, 0x81);
+    let mut app = press_unseen_file(&mut shell, &older);
+    shell.flow(&mut app, F::UnlockVault(0));
+    shell.flow(&mut app, F::NoPass(0));
+    let f = app.flow().unwrap();
+    let picks = f.slots[1].bound.as_ref().unwrap().picks.clone();
+    assert!(
+        picks.iter().all(|(v, p)| *v != 0 || matches!(p, Pick::New)),
+        "Stick 2 goes beside: {picks:?}"
+    );
+}
+
+#[test]
+fn a_file_known_as_a_vault_outside_the_plan_gets_no_press_and_its_newer_copy_stays() {
+    let mut shell = Shell::new();
+    let main = vault("Main", PHRASE, 0x81);
+    let w_new = main_with_note(PHRASE_2, 0x95);
+    let w_old = vault("Other", PHRASE_2, 0x95);
+    let mut s1 = Disk::empty("S1", "ONE");
+    s1.serial = Some(1);
+    s1.files = vec![("a.kdbx".into(), main)];
+    let mut s2 = Disk::empty("S2", "TWO");
+    s2.serial = Some(2);
+    s2.files = vec![("w2.kdbx".into(), w_old)];
+    shell.add(s1);
+    shell.add(s2);
+    let mut app = process(
+        vec![("w.kdbx".into(), w_new.clone())],
+        Vec::new(),
+        Vec::new(),
+    );
+    keep_time(&mut app);
+    start(&mut app, Kind::Gpg);
+    shell.flow(&mut app, F::VaultExisting(0));
+    through_where(&mut shell, &mut app);
+    shell.plug_known(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    shell.plug_known(&mut app, "S2");
+    assert!(!has_part(&mut app, "Use w2.kdbx"), "no press");
+    // A press that is made anyway is not taken.
+    let k = app
+        .flow()
+        .unwrap()
+        .live
+        .reading
+        .as_ref()
+        .unwrap()
+        .files
+        .iter()
+        .position(|(f, _)| f.name == "w2.kdbx")
+        .unwrap();
+    shell.flow(&mut app, F::PickFile(0, k));
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S2");
+    let names: Vec<_> = app.inbox().iter().map(|i| i.name.clone()).collect();
+    assert!(
+        app.inbox()
+            .iter()
+            .any(|i| i.name == "w.kdbx" && i.bytes == w_new),
+        "{names:?}"
+    );
+}
+
+#[test]
+fn a_stick_named_by_its_own_press_with_an_unrelated_file_shows_the_line_beside() {
+    let mut shell = Shell::new();
+    let other = vault("Other", PHRASE_2, 0x82);
+    let main = vault("Main", PHRASE, 0x81);
+    let mut s1 = Disk::empty("S1", "ONE");
+    s1.serial = Some(1);
+    s1.files = vec![("a.kdbx".into(), main)];
+    shell.add(s1);
+    boot_disk(&mut shell);
+    shell.disk_mut("BOOT").files = vec![("other.kdbx".into(), other)];
+    let mut app = fresh(&mut shell, Kind::Gpg);
+    shell.flow(&mut app, F::VaultExisting(0));
+    through_where(&mut shell, &mut app);
+    shell.plug_known(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    shell.plug(&mut app, "BOOT");
+    let k = app.sticks().iter().position(|s| s.boot).unwrap();
+    shell.flow(&mut app, F::UseBoot(k));
+    expect(&mut app, "Vault 1 goes beside these");
 }

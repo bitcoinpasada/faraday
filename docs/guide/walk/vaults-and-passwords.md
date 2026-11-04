@@ -52,18 +52,18 @@ three cards in place of Size:
 |---|---|
 | **Where will you open it?** | **This computer** and each other kind of machine, Other PCs and a Raspberry Pi 3 among them, all ticked as Size had them; the cost suggested next fits the one with the least memory |
 | **Unlock cost** | **Light**, **Standard**, **Medium**, **Strong**, **Maximum** and **Custom**, each with its memory, passes and the bits it adds; one reads **Suggested**, the others **Fits** or "Too large for" the weakest machine |
-| **Space per passphrase** | the room each passphrase's contents get, and the file's size |
+| **Space** | the room each passphrase's contents get, and the file's size |
 
 The cost and the space are fixed for the life of the vault. Leave Size
 as it is.
 
-Under **Name and passphrases**:
+Under **Name and passphrase**:
 
 1. **Name**: type `Passwords`. Beside it, `Passwords.kdbx`. The name is what anyone who sees the stick reads;
    leave it empty for `vault.kdbx`.
 2. **Passphrase**: type it in the first field, then again in the
    second, until the line under them reads **Matches**. The eye at the
-   end of a field, or **Show passphrases**, shows what is typed. Or
+   end of a field, or **Show passphrase**, shows what is typed. Or
    press **Generate with dice** (step 2).
 
 **Steps only** and **Guided** at the top switch a short walk-through

@@ -26,7 +26,7 @@ pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("convert-from-empty")?;
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
     t.app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -38,7 +38,7 @@ pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     });
     testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Vault(V::OpenFrom(0, Screen::Catalog)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
         if !t.app.vaults().open.is_empty() {

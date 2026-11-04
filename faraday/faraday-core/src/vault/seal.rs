@@ -246,9 +246,9 @@ enum NoJob {
     Unwritable,
 }
 
-/// `n` bytes for the UUIDs of new entries and groups, from one fresh
-/// answer: SHA-256 over a domain string, the answer and a counter, block
-/// by block. The UUIDs need to differ, not to be secret, so one answer
+/// Costs one SHA-256 per 32 bytes of `n`, with no `Compute`. `n` bytes for
+/// the UUIDs of new entries and groups, from one fresh answer: SHA-256
+/// over a domain string, the answer and a counter, block by block. The UUIDs need to differ, not to be secret, so one answer
 /// serves any number of them.
 fn uuid_bytes_from(answer: &[u8], n: usize) -> Zeroizing<Vec<u8>> {
     let mut out = Zeroizing::new(Vec::with_capacity(n + 32));
@@ -436,6 +436,7 @@ fn lock_finish(app: &mut Faraday) {
     app.keygen.forget();
     app.wordlist.clear();
     app.bip85.clear();
+    app.tools.convert_mut().clear();
     app.explore.clear();
     app.secrets.clear();
     app.entry.reset();
