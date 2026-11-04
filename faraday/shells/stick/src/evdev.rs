@@ -635,6 +635,8 @@ struct Known {
     node: PathBuf,
     /// It moves the cursor.
     pointer: bool,
+    /// It is part of the machine (`Device::trusted`), not held back.
+    trusted: bool,
     /// Its reader thread has not ended.
     live: bool,
 }
@@ -694,6 +696,7 @@ impl Watch {
                 id,
                 node: device.node.clone(),
                 pointer: device.mouse || device.touchpad,
+                trusted: device.trusted,
                 live: true,
             });
             fresh.push((id, device));
@@ -713,6 +716,12 @@ impl Watch {
     /// left to move it.
     pub fn pointing(&self) -> bool {
         self.known.iter().any(|k| k.live && k.pointer)
+    }
+
+    /// Whether any device of the machine's own, trusted without a
+    /// person's say, is still being read.
+    pub fn trusted_live(&self) -> bool {
+        self.known.iter().any(|k| k.live && k.trusted)
     }
 }
 
@@ -990,6 +999,37 @@ mod tests {
         assert_eq!(third.len(), 1);
         assert!(third[0].1.mouse && watch.pointing());
 
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// Only a device that is part of the machine counts as trusted input
+    /// while it is read: a held-back one does not, and neither does one
+    /// whose reader has ended (F202).
+    #[test]
+    fn trusted_input_is_the_machines_own_and_still_read() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-trusted-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(
+            &sys,
+            &dev,
+            0,
+            "Goodix Capacitive TouchScreen",
+            &touchscreen_caps(),
+        );
+        fs::create_dir_all(sys.join("event0/device/id")).expect("sysfs");
+        // BUS_I2C.
+        fs::write(sys.join("event0/device/id/bustype"), "0018\n").expect("bustype");
+        plug(&sys, &dev, 1, "Logitech Mouse", &mouse_caps());
+
+        let mut watch = Watch::new(&sys, &dev, "Goodix");
+        assert!(!watch.trusted_live(), "nothing is known before a look");
+        let found = watch.rescan();
+        assert_eq!(found.len(), 2);
+        assert!(watch.trusted_live(), "the panel is the machine's own");
+        let panel = found.iter().find(|(_, d)| d.trusted).expect("panel").0;
+        watch.ended(panel);
+        assert!(!watch.trusted_live(), "the mouse is held back, not trusted");
         fs::remove_dir_all(&root).expect("clean up");
     }
 

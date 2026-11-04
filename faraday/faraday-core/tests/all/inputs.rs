@@ -8,7 +8,11 @@
 //! sheet says so; it gets its code once the randomness arrives. A new
 //! USB touchscreen is believed once it taps the target drawn at a place
 //! the randomness gives; three taps beside it keep it out until it is
-//! unplugged, as a keyboard's wrong letters do (F153).
+//! unplugged, as a keyboard's wrong letters do (F153). Several targets in
+//! a row, a pointer with no other input approving itself the same way,
+//! and every press beside a target counted for the session, whatever
+//! becomes of the device, are F202, which also has a held device ask only
+//! when it is used: a notice at plug-in, its sheet at its first act.
 
 use faraday_core::strings::EN;
 use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
@@ -34,6 +38,7 @@ fn new_device(app: &mut Faraday, id: u32, keyboard: bool, pointer: bool) {
         pointer,
         touch: false,
     });
+    app.storage(StorageEvent::InputUsed { id });
 }
 
 fn type_on(app: &mut Faraday, id: u32, text: &str) {
@@ -191,11 +196,16 @@ fn a_keyboard_before_the_systems_randomness_gets_no_code_until_it_arrives() {
 /// An app on a 1280 by 800 screen whose shell answered its first request
 /// for randomness with `seed`.
 fn on_screen(seed: u8) -> Faraday {
+    on_size(seed, (1280, 800), 160)
+}
+
+/// The same on a `width` by `height` screen at `dpi`.
+fn on_size(seed: u8, (width, height): (u16, u16), dpi: u16) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
-        width: 1280,
-        height: 800,
-        dpi: 160,
+        width,
+        height,
+        dpi,
         inset_bottom: 0,
         inset_top: 0,
         buttons: 0,
@@ -218,6 +228,7 @@ fn new_touchscreen(app: &mut Faraday, id: u32) {
         pointer: false,
         touch: true,
     });
+    app.storage(StorageEvent::InputUsed { id });
     let _ = app.frame();
 }
 
@@ -227,16 +238,67 @@ fn tap_held(app: &mut Faraday, id: u32, (x, y): (u16, u16)) {
     let _ = app.frame();
 }
 
-/// Where the target is drawn.
-fn target(app: &Faraday, id: u32) -> (u16, u16) {
-    app.where_offered(Action::InputTarget(id))
-        .expect("the target is on screen")
+/// The target number `step` of the run as it shows, with how many there
+/// are: the sheet offers it as `InputTarget(id, step, of)`.
+fn shown(app: &Faraday, id: u32, step: u8) -> Option<((u16, u16), u8)> {
+    (1..=16).find_map(|of| {
+        app.where_offered(Action::InputTarget(id, step, of))
+            .map(|at| (at, of))
+    })
 }
 
-/// A place level with the target, at the other side of the screen.
+/// Where the first target is drawn.
+fn target(app: &Faraday, id: u32) -> (u16, u16) {
+    shown(app, id, 0).expect("the target is on screen").0
+}
+
+/// A place level with the target showing, at the other side of the screen.
 fn beside(app: &Faraday, id: u32) -> (u16, u16) {
-    let (x, y) = target(app, id);
+    let step = app.new_inputs()[0].reached as u8;
+    let (x, y) = shown(app, id, step).expect("the target is on screen").0;
     (if x > 640 { 40 } else { 1240 }, y)
+}
+
+/// Presses each target as it shows, until the device is in; how many it
+/// took.
+fn get_in(app: &mut Faraday, id: u32) -> usize {
+    for n in 1..=16 {
+        let step = app
+            .new_inputs()
+            .iter()
+            .find(|d| d.id == id)
+            .expect("held")
+            .reached as u8;
+        let (at, _) = shown(app, id, step).expect("a target shows");
+        tap_held(app, id, at);
+        if app.new_inputs().iter().all(|d| d.id != id) {
+            return n;
+        }
+    }
+    panic!("never let in");
+}
+
+/// A USB pointer plugged in with nothing trusted, and the frame that
+/// shows its target.
+fn new_pointer(app: &mut Faraday, id: u32) {
+    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::NewInput {
+        id,
+        name: "USB Mouse".into(),
+        keyboard: false,
+        pointer: true,
+        touch: false,
+    });
+    app.storage(StorageEvent::InputUsed { id });
+    let _ = app.frame();
+}
+
+/// A press on the sheet's Ignore.
+fn press_ignore(app: &mut Faraday, id: u32) {
+    let at = app
+        .where_offered(Action::InputIgnore(id))
+        .expect("Ignore is on screen");
+    tap_held(app, id, at);
 }
 
 #[test]
@@ -254,8 +316,7 @@ fn a_new_touchscreen_is_believed_once_it_taps_the_target() {
     tap_held(&mut app, 4, at);
     assert_eq!(app.poll_input_decision(), None);
     assert_eq!(app.sheet, Some(Sheet::NewInput));
-    let at = target(&app, 4);
-    tap_held(&mut app, 4, at);
+    get_in(&mut app, 4);
     assert_eq!(app.poll_input_decision(), Some((4, true)));
     assert!(app.new_inputs().is_empty());
     assert_eq!(app.sheet, None);
@@ -265,11 +326,12 @@ fn a_new_touchscreen_is_believed_once_it_taps_the_target() {
 fn a_tap_beside_the_target_counts_and_the_target_stays_where_it_was() {
     let mut app = on_screen(7);
     new_touchscreen(&mut app, 4);
-    let before = app.hit_box(Action::InputTarget(4));
+    let (_, of) = shown(&app, 4, 0).expect("a target");
+    let before = app.hit_box(Action::InputTarget(4, 0, of));
     let at = beside(&app, 4);
     tap_held(&mut app, 4, at);
     assert!(app.drawn_texts().iter().any(|t| t == "Tries left: 2"));
-    assert_eq!(app.hit_box(Action::InputTarget(4)), before);
+    assert_eq!(app.hit_box(Action::InputTarget(4, 0, of)), before);
 }
 
 #[test]
@@ -294,8 +356,7 @@ fn a_touchscreen_that_keeps_tapping_beside_the_target_is_kept_out_until_unplugge
     // Plugged in again, it is asked again.
     app.storage(StorageEvent::InputGone { id: 5 });
     new_touchscreen(&mut app, 6);
-    let at = target(&app, 6);
-    tap_held(&mut app, 6, at);
+    get_in(&mut app, 6);
     assert_eq!(app.poll_input_decision(), Some((6, true)));
 }
 
@@ -323,10 +384,7 @@ fn after_three_devices_are_kept_out_new_touchscreens_are_ignored() {
 fn a_new_touchscreen_can_ignore_itself() {
     let mut app = on_screen(7);
     new_touchscreen(&mut app, 2);
-    let at = app
-        .where_offered(Action::InputIgnore(2))
-        .expect("Ignore is on screen");
-    tap_held(&mut app, 2, at);
+    press_ignore(&mut app, 2);
     assert_eq!(app.poll_input_decision(), Some((2, false)));
     assert_eq!(app.ignored_inputs().len(), 1);
 }
@@ -353,8 +411,7 @@ fn taps_while_another_sheet_is_up_count_for_nothing() {
     app.press(Action::Cancel);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::NewInput));
-    let at = target(&app, 3);
-    tap_held(&mut app, 3, at);
+    get_in(&mut app, 3);
     assert_eq!(app.poll_input_decision(), Some((3, true)));
 }
 
@@ -362,7 +419,7 @@ fn taps_while_another_sheet_is_up_count_for_nothing() {
 fn a_touchscreen_before_the_systems_randomness_has_no_target_until_it_arrives() {
     let mut app = testkit::started();
     new_touchscreen(&mut app, 8);
-    assert_eq!(app.where_offered(Action::InputTarget(8)), None);
+    assert_eq!(shown(&app, 8, 0), None);
     // Nothing it taps lets it in or counts against it.
     for _ in 0..5 {
         tap_held(&mut app, 8, (100, 300));
@@ -377,7 +434,575 @@ fn a_touchscreen_before_the_systems_randomness_has_no_target_until_it_arrives() 
     );
     app.event(Event::Entropy(EntropyBytes::new([9u8; 32])));
     let _ = app.frame();
-    let at = target(&app, 8);
-    tap_held(&mut app, 8, at);
+    get_in(&mut app, 8);
     assert_eq!(app.poll_input_decision(), Some((8, true)));
+}
+
+/// A device that is kept out after its press count is `presses` beside a
+/// target, over rounds of two presses beside then `leave`: how many
+/// presses it took for the door to close.
+fn presses_until_closed(
+    app: &mut Faraday,
+    plug: fn(&mut Faraday, u32),
+    leave: fn(&mut Faraday, u32),
+) -> usize {
+    let mut presses = 0;
+    for id in 1..=10 {
+        plug(app, id);
+        for _ in 0..2 {
+            let at = beside(app, id);
+            tap_held(app, id, at);
+            presses += 1;
+            if app.poll_input_decision() == Some((id, false)) {
+                return presses;
+            }
+        }
+        leave(app, id);
+        let _ = app.poll_input_decision();
+    }
+    panic!("the door never closed");
+}
+
+fn unplug(app: &mut Faraday, id: u32) {
+    app.storage(StorageEvent::InputGone { id });
+}
+
+#[test]
+fn one_press_does_not_let_a_device_in_and_each_target_in_turn_does() {
+    for pointer in [true, false] {
+        let mut app = on_screen(7);
+        if pointer {
+            new_pointer(&mut app, 1);
+        } else {
+            new_touchscreen(&mut app, 1);
+        }
+        let at = target(&app, 1);
+        tap_held(&mut app, 1, at);
+        assert_eq!(app.poll_input_decision(), None);
+        assert_eq!(app.new_inputs().len(), 1);
+        // Back to the first, the way a person starts again.
+        app.storage(StorageEvent::InputGone { id: 1 });
+        if pointer {
+            new_pointer(&mut app, 2);
+        } else {
+            new_touchscreen(&mut app, 2);
+        }
+        assert!(get_in(&mut app, 2) > 1);
+        assert_eq!(app.poll_input_decision(), Some((2, true)));
+    }
+}
+
+#[test]
+fn a_miss_on_a_later_target_goes_back_to_the_first_at_the_place_it_had() {
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    let first = target(&app, 1);
+    tap_held(&mut app, 1, first);
+    assert_eq!(app.new_inputs()[0].reached, 1);
+    let at = beside(&app, 1);
+    tap_held(&mut app, 1, at);
+    assert_eq!(app.new_inputs()[0].reached, 0);
+    assert_eq!(target(&app, 1), first);
+}
+
+#[test]
+fn pressing_one_place_twice_before_a_frame_is_no_hit_and_no_wrong_try() {
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    let (first, of) = shown(&app, 1, 0).expect("target");
+    assert!(of > 1);
+    app.storage(StorageEvent::InputTapped {
+        id: 1,
+        x: first.0,
+        y: first.1,
+    });
+    // The frame the second press would be on has not been drawn.
+    app.storage(StorageEvent::InputTapped {
+        id: 1,
+        x: first.0,
+        y: first.1,
+    });
+    let _ = app.frame();
+    assert_eq!(app.new_inputs()[0].reached, 1);
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    assert!(
+        !app.drawn_texts()
+            .iter()
+            .any(|t| t.starts_with("Tries left"))
+    );
+    let (at, _) = shown(&app, 1, 1).expect("the second target");
+    tap_held(&mut app, 1, at);
+    assert_eq!(app.new_inputs().first().map_or(2, |d| d.reached), 2);
+}
+
+#[test]
+fn the_sheet_says_which_target_of_how_many() {
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    let (at, of) = shown(&app, 1, 0).expect("target");
+    let says = |app: &mut Faraday, n: usize| {
+        let want = format!("Target {n} of {of}");
+        app.drawn_texts().contains(&want)
+    };
+    assert!(says(&mut app, 1));
+    tap_held(&mut app, 1, at);
+    assert!(says(&mut app, 2));
+}
+
+#[test]
+fn with_believed_input_one_press_on_a_touchscreens_target_lets_it_in() {
+    let mut app = on_screen(7);
+    new_device(&mut app, 1, false, true);
+    app.press(Action::InputUse(1));
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+    new_touchscreen(&mut app, 2);
+    let (_, of) = shown(&app, 2, 0).expect("target");
+    app.press(Action::InputTarget(2, 0, of));
+    assert_eq!(app.poll_input_decision(), Some((2, true)));
+}
+
+#[test]
+fn a_screen_too_small_to_hide_a_target_shows_none_and_ignore_works() {
+    let mut app = on_size(7, (160, 200), 160);
+    new_touchscreen(&mut app, 1);
+    assert_eq!(shown(&app, 1, 0), None);
+    for _ in 0..9 {
+        tap_held(&mut app, 1, (80, 100));
+    }
+    assert_eq!(app.poll_input_decision(), None);
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    // The door is still open for a real keyboard.
+    new_device(&mut app, 2, true, false);
+    assert!(app.new_inputs().iter().any(|d| d.id == 2));
+    press_ignore(&mut app, 1);
+    assert_eq!(app.poll_input_decision(), Some((1, false)));
+}
+
+#[test]
+fn a_smaller_screen_takes_more_presses() {
+    let mut big = on_size(7, (1920, 1080), 160);
+    let mut small = on_size(7, (480, 640), 286);
+    new_pointer(&mut big, 1);
+    new_pointer(&mut small, 1);
+    assert!(get_in(&mut small, 1) > get_in(&mut big, 1));
+}
+
+#[test]
+fn a_new_pointer_with_nothing_trusted_is_let_in_by_its_targets() {
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    assert!(app.input_aims(1));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == EN.new_input_press_target)
+    );
+    get_in(&mut app, 1);
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+    assert_eq!(app.toast_text(), Some("Pointer in use: USB Mouse"));
+}
+
+#[test]
+fn with_trusted_input_a_new_pointer_gets_the_dialog_and_presses_do_nothing() {
+    let mut app = on_screen(7);
+    new_device(&mut app, 1, false, true);
+    let _ = app.frame();
+    assert!(!app.input_aims(1));
+    assert_eq!(shown(&app, 1, 0), None);
+    for _ in 0..5 {
+        tap_held(&mut app, 1, (640, 400));
+    }
+    assert_eq!(app.poll_input_decision(), None);
+    assert_eq!(app.new_inputs().len(), 1);
+    app.press(Action::InputUse(1));
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+}
+
+#[test]
+fn a_pointer_that_presses_beside_three_times_is_kept_out_until_unplugged() {
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    for _ in 0..3 {
+        let at = beside(&app, 1);
+        tap_held(&mut app, 1, at);
+    }
+    assert_eq!(app.poll_input_decision(), Some((1, false)));
+    assert_eq!(
+        app.toast_text(),
+        Some("USB Mouse pressed beside the target. Unplug it to try again.")
+    );
+    unplug(&mut app, 1);
+    new_pointer(&mut app, 2);
+    assert!(shown(&app, 2, 0).is_some());
+}
+
+#[test]
+fn presses_beside_are_counted_for_the_session_not_the_device() {
+    for kind in 0..3 {
+        let mut app = on_screen(7);
+        let plug = if kind == 1 {
+            new_touchscreen
+        } else {
+            new_pointer
+        };
+        let leave = if kind == 2 { leave_by_ignore } else { unplug };
+        let presses = presses_until_closed(&mut app, plug, leave);
+        assert_eq!(presses, 9);
+        // A new one is turned away, with nothing to press.
+        plug(&mut app, 20);
+        assert!(app.new_inputs().is_empty());
+        assert_eq!(shown(&app, 20, 0), None);
+        assert_eq!(app.poll_input_decision(), Some((20, false)));
+    }
+}
+
+fn leave_by_ignore(app: &mut Faraday, id: u32) {
+    press_ignore(app, id);
+}
+
+#[test]
+fn six_pointers_held_at_once_get_nine_wrong_presses_and_the_rest_are_kept_out() {
+    let mut app = on_screen(7);
+    for id in 1..=6 {
+        new_pointer(&mut app, id);
+    }
+    let mut presses = 0;
+    while let Some(first) = app.new_inputs().first().map(|d| d.id) {
+        let at = beside(&app, first);
+        tap_held(&mut app, first, at);
+        presses += 1;
+        assert!(presses <= 9);
+    }
+    assert_eq!(presses, 9);
+    let mut out = Vec::new();
+    while let Some((id, believed)) = app.poll_input_decision() {
+        assert!(!believed);
+        out.push(id);
+    }
+    out.sort_unstable();
+    assert_eq!(out, [1, 2, 3, 4, 5, 6]);
+}
+
+#[test]
+fn ignoring_a_pointer_counts_nothing() {
+    let mut app = on_screen(7);
+    for id in 1..=8 {
+        new_pointer(&mut app, id);
+        press_ignore(&mut app, id);
+        assert_eq!(app.poll_input_decision(), Some((id, false)));
+        unplug(&mut app, id);
+    }
+    new_pointer(&mut app, 9);
+    assert!(shown(&app, 9, 0).is_some());
+}
+
+#[test]
+fn past_the_limit_a_new_pointer_is_ignored_when_alone_and_asked_when_not() {
+    let mut app = on_screen(7);
+    presses_until_closed(&mut app, new_pointer, unplug);
+    assert_eq!(app.toast_text(), Some(EN.inputs_new_devices_ignored));
+    new_pointer(&mut app, 30);
+    assert_eq!(app.poll_input_decision(), Some((30, false)));
+    assert!(app.new_inputs().is_empty());
+
+    // With trusted input, touchscreens close the door, and a pointer is
+    // still asked about.
+    let mut app = on_screen(7);
+    presses_until_closed(&mut app, new_touchscreen, unplug);
+    new_device(&mut app, 30, false, true);
+    assert_eq!(app.new_inputs().len(), 1);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    // The trusted device is unplugged while the pointer is held for its
+    // dialog: its hits believe nothing, and it is turned away.
+    app.storage(StorageEvent::InputAlone { alone: true });
+    assert!(app.new_inputs().is_empty());
+    assert_eq!(app.poll_input_decision(), Some((30, false)));
+    assert_eq!(app.sheet, None);
+    for _ in 0..16 {
+        app.storage(StorageEvent::InputTapped {
+            id: 30,
+            x: 640,
+            y: 400,
+        });
+    }
+    assert_eq!(app.poll_input_decision(), None);
+}
+
+#[test]
+fn a_keyboard_with_a_pointer_gets_no_target_and_its_code_lets_it_in() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputAlone { alone: true });
+    new_device(&mut app, 1, true, true);
+    let _ = app.frame();
+    assert!(!app.input_aims(1));
+    assert_eq!(shown(&app, 1, 0), None);
+    let code = code_of(&app);
+    type_on(&mut app, 1, &code);
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+    assert_eq!(
+        app.toast_text(),
+        Some("Keyboard and pointer in use: USB Keyboard")
+    );
+}
+
+#[test]
+fn the_toast_shows_over_the_next_devices_sheet() {
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    new_device(&mut app, 2, true, false);
+    get_in(&mut app, 1);
+    let _ = app.frame();
+    assert_eq!(app.new_inputs()[0].id, 2);
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Pointer in use: USB Mouse")
+    );
+}
+
+#[test]
+fn under_another_sheet_a_pointer_does_not_aim_and_presses_count_nothing() {
+    let mut app = on_screen(7);
+    app.press(Action::PowerAsk);
+    new_pointer(&mut app, 1);
+    assert_eq!(app.sheet, Some(Sheet::Power));
+    assert!(!app.input_aims(1));
+    for _ in 0..5 {
+        tap_held(&mut app, 1, (640, 400));
+    }
+    assert_eq!(app.poll_input_decision(), None);
+    app.press(Action::Cancel);
+    let _ = app.frame();
+    assert!(app.input_aims(1));
+    assert!(shown(&app, 1, 0).is_some());
+}
+
+#[test]
+fn a_touchscreen_never_aims() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputAlone { alone: true });
+    new_touchscreen(&mut app, 1);
+    assert!(!app.input_aims(1));
+}
+
+#[test]
+fn a_pointer_before_the_randomness_has_no_target_and_can_still_be_ignored() {
+    let mut app = testkit::started();
+    new_pointer(&mut app, 1);
+    assert!(app.input_aims(1));
+    assert_eq!(shown(&app, 1, 0), None);
+    for _ in 0..5 {
+        tap_held(&mut app, 1, (100, 300));
+    }
+    assert_eq!(app.poll_input_decision(), None);
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    press_ignore(&mut app, 1);
+    assert_eq!(app.poll_input_decision(), Some((1, false)));
+}
+
+/// A device plugged in and not used: the kinds are (keyboard, pointer,
+/// touch).
+fn announce(
+    app: &mut Faraday,
+    id: u32,
+    name: &str,
+    (keyboard, pointer, touch): (bool, bool, bool),
+) {
+    app.storage(StorageEvent::NewInput {
+        id,
+        name: name.into(),
+        keyboard,
+        pointer,
+        touch,
+    });
+    let _ = app.frame();
+}
+
+#[test]
+fn a_new_device_shows_a_notice_with_its_name_and_no_sheet() {
+    for (id, kinds) in [
+        (1, (true, false, false)),
+        (2, (false, true, false)),
+        (3, (false, false, true)),
+    ] {
+        let mut app = on_screen(7);
+        app.storage(StorageEvent::InputAlone { alone: true });
+        announce(&mut app, id, "USB Thing", kinds);
+        assert_eq!(app.sheet, None);
+        assert!(
+            app.drawn_texts()
+                .iter()
+                .any(|t| t == "New device: USB Thing")
+        );
+        // The screen under it still takes presses.
+        app.press(Action::PowerAsk);
+        assert_eq!(app.sheet, Some(Sheet::Power));
+    }
+}
+
+#[test]
+fn a_keyboards_first_letter_brings_up_the_code_and_counts() {
+    let mut app = seeded();
+    announce(&mut app, 4, "USB Keyboard", (true, false, false));
+    let code = code_of(&app);
+    let (first, rest) = code.split_at(1);
+    type_on(&mut app, 4, first);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    type_on(&mut app, 4, rest);
+    assert_eq!(app.poll_input_decision(), Some((4, true)));
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn a_pointers_first_motion_and_a_touchscreens_first_touch_bring_up_targets_and_count_for_nothing() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputAlone { alone: true });
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    assert_eq!(app.sheet, None);
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(shown(&app, 2, 0).is_some());
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    press_ignore(&mut app, 2);
+
+    let mut app = on_screen(7);
+    announce(&mut app, 3, "USB Touchscreen", (false, false, true));
+    // A touch where a target would be, before anything was drawn.
+    app.storage(StorageEvent::InputTapped {
+        id: 3,
+        x: 640,
+        y: 400,
+    });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(shown(&app, 3, 0).is_some());
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    assert_eq!(app.new_inputs()[0].reached, 0);
+}
+
+#[test]
+fn a_receivers_parts_ask_only_for_the_one_used() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputAlone { alone: true });
+    for id in 1..=5 {
+        announce(&mut app, id, "USB Receiver", (false, true, false));
+    }
+    announce(&mut app, 6, "USB Receiver", (true, false, false));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.poll_input_decision(), None);
+    // The mouse part is used, last of the six to be plugged in or not.
+    app.storage(StorageEvent::InputUsed { id: 3 });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(shown(&app, 3, 0).is_some());
+    get_in(&mut app, 3);
+    assert_eq!(app.poll_input_decision(), Some((3, true)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.new_inputs().len(), 5);
+    assert_eq!(app.poll_input_decision(), None);
+}
+
+#[test]
+fn with_trusted_input_a_pointer_gets_its_dialog_when_it_moves() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputAlone { alone: false });
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    assert_eq!(app.sheet, None);
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(app.where_offered(Action::InputUse(2)).is_some());
+}
+
+#[test]
+fn two_devices_used_in_turn_take_turns_and_the_second_keeps_counting() {
+    let mut app = seeded();
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    announce(&mut app, 2, "Other Keyboard", (true, false, false));
+    let second = app.new_inputs()[1].code.clone().unwrap();
+    type_on(&mut app, 2, &second[..1]);
+    type_on(&mut app, 1, "z");
+    assert_eq!(app.new_inputs()[0].id, 2);
+    // The one that acted first shows; the other is behind it.
+    type_on(&mut app, 1, "zzzz");
+    assert_eq!(app.new_inputs()[1].letters, 5);
+    app.press(Action::InputIgnore(2));
+    assert_eq!(app.shown_input().map(|d| d.id), Some(1));
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+}
+
+#[test]
+fn a_device_used_under_another_sheet_waits_for_it() {
+    let mut app = seeded();
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    app.press(Action::PowerAsk);
+    type_on(&mut app, 1, "z");
+    assert_eq!(app.sheet, Some(Sheet::Power));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+}
+
+/// A pointer plugged in and used, and no frame drawn yet.
+fn used_undrawn(app: &mut Faraday, id: u32) {
+    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::NewInput {
+        id,
+        name: "USB Mouse".into(),
+        keyboard: false,
+        pointer: true,
+        touch: false,
+    });
+    app.storage(StorageEvent::InputUsed { id });
+}
+
+#[test]
+fn a_double_click_on_a_sheet_not_yet_drawn_counts_nothing() {
+    let mut app = on_screen(7);
+    used_undrawn(&mut app, 1);
+    for _ in 0..4 {
+        app.storage(StorageEvent::InputTapped {
+            id: 1,
+            x: 640,
+            y: 400,
+        });
+    }
+    let _ = app.frame();
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    assert!(
+        !app.drawn_texts()
+            .iter()
+            .any(|t| t.starts_with("Tries left"))
+    );
+}
+
+#[test]
+fn a_press_just_after_the_seed_or_another_devices_sheet_counts_nothing() {
+    // Before the seed: nothing drawn; the seed arrives and the next press
+    // lands before the frame.
+    let mut app = testkit::started();
+    new_pointer(&mut app, 1);
+    app.event(Event::Entropy(EntropyBytes::new([9u8; 32])));
+    app.storage(StorageEvent::InputTapped {
+        id: 1,
+        x: 640,
+        y: 400,
+    });
+    assert_eq!(app.new_inputs()[0].missed, 0);
+    // Device A's sheet closes and B's press comes before B's is drawn.
+    let mut app = on_screen(7);
+    new_pointer(&mut app, 1);
+    used_undrawn(&mut app, 2);
+    let at = app.where_offered(Action::InputIgnore(1)).expect("Ignore");
+    app.storage(StorageEvent::InputTapped {
+        id: 1,
+        x: at.0,
+        y: at.1,
+    });
+    app.storage(StorageEvent::InputTapped {
+        id: 2,
+        x: 640,
+        y: 400,
+    });
+    assert_eq!(app.new_inputs()[0].missed, 0);
 }

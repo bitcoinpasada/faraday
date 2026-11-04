@@ -15,7 +15,7 @@ use faraday_core::devices::{
 };
 use faraday_core::edid::from_boot_params;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
-use faraday_shell_api::{App, DisplayInfo, Event};
+use faraday_shell_api::{App, DisplayInfo, EntropyBytes, Event};
 
 use crate::common::hold;
 
@@ -614,4 +614,73 @@ fn a_tv_makers_screen_or_no_edid_still_gets_the_reminder() {
     app.usb_devices(&[]);
     app.press(Action::Entry(None));
     assert!(says(&mut app, TV_LINE));
+}
+
+/// A mouse alone on a machine whose screen is held by a KVM: the sheet
+/// naming it waits while the mouse's targets show, and is back after.
+#[test]
+fn a_mouse_alone_behind_the_devices_sheet_gets_its_targets_then_the_sheet_back() {
+    let mut app = shown(laptop());
+    app.event(Event::Entropy(EntropyBytes::new([7u8; 32])));
+    app.storage(StorageEvent::InputAlone { alone: true });
+    app.usb_devices(&[kvm()]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(app.device_holds(Action::Entry(None)));
+    app.storage(StorageEvent::NewInput {
+        id: 3,
+        name: "USB Mouse".into(),
+        keyboard: false,
+        pointer: true,
+        touch: false,
+    });
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.storage(StorageEvent::InputUsed { id: 3 });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(app.input_aims(3));
+    assert!(app.device_holds(Action::Entry(None)));
+    for _ in 0..16 {
+        if app.sheet != Some(Sheet::NewInput) {
+            break;
+        }
+        let step = app.new_inputs()[0].reached as u8;
+        let at = (1..=16)
+            .find_map(|of| app.where_offered(Action::InputTarget(3, step, of)))
+            .expect("a target shows");
+        app.storage(StorageEvent::InputTapped {
+            id: 3,
+            x: at.0,
+            y: at.1,
+        });
+        let _ = app.frame();
+    }
+    assert_eq!(app.poll_input_decision(), Some((3, true)));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    // Its hold is as it was, and the mouse can press Continue.
+    assert!(app.device_holds(Action::Entry(None)));
+    let _ = app.frame();
+    assert!(app.where_offered(Action::DevicesContinue).is_some());
+    app.press(Action::DevicesContinue);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(says(&mut app, "Hold to continue"));
+}
+
+/// A device that came due while the new device's sheet was up gets its
+/// sheet when that closes.
+#[test]
+fn a_device_that_came_due_under_the_new_device_sheet_gets_its_sheet_after() {
+    let mut app = shown(laptop());
+    app.storage(StorageEvent::NewInput {
+        id: 3,
+        name: "USB Mouse".into(),
+        keyboard: false,
+        pointer: true,
+        touch: false,
+    });
+    app.storage(StorageEvent::InputUsed { id: 3 });
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.usb_devices(&[kvm()]);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputUse(3));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
 }

@@ -293,6 +293,9 @@ pub struct DeviceCheck {
     /// The boot import's sheet was open when the hold came up over it:
     /// it comes back when the hold ends.
     pub(crate) over_import: bool,
+    /// The sheet was up when a held device was used, and waits under the
+    /// new device's sheet: it comes back when that closes.
+    pub(crate) over_inputs: bool,
     /// The USB devices of concern attached now.
     present: Vec<Concern>,
     /// What the sheet names: each item found and not yet checked again
@@ -408,6 +411,12 @@ impl DeviceCheck {
         } else {
             None
         }
+    }
+
+    /// The new device's sheet closed: whether this sheet waited under it
+    /// and still has something to show.
+    pub(crate) fn take_over_inputs(&mut self) -> bool {
+        std::mem::take(&mut self.over_inputs) && (self.after.is_some() || !self.held.is_empty())
     }
 
     /// Cancel: what was pressed while held is not done, and Continue
@@ -578,7 +587,7 @@ impl Faraday {
     /// Handles the device checks', mode and input-device actions (`Devices*`, `Mode`, `Input*`).
     pub(crate) fn devices_act(&mut self, action: Action) {
         match action {
-            Action::InputUse(id) | Action::InputTarget(id) => self.input_believe(id),
+            Action::InputUse(id) | Action::InputTarget(id, ..) => self.input_believe(id),
             Action::InputIgnore(id) => self.input_ignore(id),
             Action::Mode(m) => self.mode_act(m),
             Action::ModeSheet => self.mode_sheet_open(),

@@ -1007,6 +1007,18 @@ fn mouse(app: &mut Faraday) {
         pointer: true,
         touch: false,
     });
+    app.storage(StorageEvent::InputUsed { id: 9 });
+}
+
+/// The same mouse, plugged in and never moved.
+fn silent_mouse(app: &mut Faraday) {
+    app.storage(StorageEvent::NewInput {
+        id: 9,
+        name: "USB Optical Mouse".into(),
+        keyboard: false,
+        pointer: true,
+        touch: false,
+    });
 }
 
 #[test]
@@ -1371,4 +1383,103 @@ fn a_file_named_kdbx_that_holds_other_bytes_is_not_counted_as_a_vault() {
     go(&mut app, &files);
     pull(&mut app);
     assert!(app.import_field().is_none());
+}
+
+#[test]
+fn a_held_device_that_never_acts_does_not_stop_the_import_and_one_used_takes_the_screen() {
+    let mut app = booted();
+    silent_mouse(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    app.storage(StorageEvent::InputUsed { id: 9 });
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputIgnore(9));
+    assert_eq!(app.sheet, Some(Sheet::Import));
+}
+
+/// The boot stick found while the mouse's sheet is up over the Devices
+/// sheet: the import still comes up, after both.
+#[test]
+fn an_import_that_arrives_under_a_mouse_over_the_devices_sheet_comes_up_after_both() {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
+    app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    let kvm = UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![hid(1), hid(2)],
+    };
+    app.usb_devices(&[kvm]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    mouse(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    let files = stick_files();
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    pump(&mut app, &files);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputUse(9));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    if app.sheet == Some(Sheet::Devices) {
+        app.press(Action::DevicesUnderstood);
+    }
+    assert_eq!(app.sheet, Some(Sheet::Import));
+}
+
+/// The boot import under the Devices sheet under the mouse's: each comes
+/// back in turn.
+#[test]
+fn a_mouse_over_the_devices_sheet_over_the_import_returns_each_in_turn() {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let mut app = booted();
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    app.devices = DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    let kvm = UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![
+            hid(1),
+            hid(2),
+            Interface {
+                class: 8,
+                subclass: 6,
+                protocol: 0x50,
+            },
+        ],
+    };
+    app.usb_devices(&[kvm]);
+    app.press(Action::Vault(V::FocusPassphrase));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    mouse(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app.press(Action::InputUse(9));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    // The reminders may come first, as in the test above.
+    if app.sheet == Some(Sheet::Devices) {
+        app.press(Action::DevicesUnderstood);
+    }
+    assert_eq!(app.sheet, Some(Sheet::Import));
 }

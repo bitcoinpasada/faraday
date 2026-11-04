@@ -780,6 +780,9 @@ struct Shell {
     held: std::collections::BTreeMap<u32, Hold>,
     /// Held-back devices found before the app was there to be told.
     announce: Vec<Announce>,
+    /// What the app was last told of whether no input is trusted
+    /// (`StorageEvent::InputAlone`); it starts as the app has it.
+    alone_told: bool,
     /// The app locked: exit with the restart code.
     restart: bool,
     /// The framebuffer and what is on it, shared with the input threads,
@@ -925,6 +928,13 @@ impl Shell {
     /// last thing that could move it has been unplugged.
     fn input_ended(&mut self, id: u32) {
         self.say("an input device ended");
+        self.input_ended_inner(id);
+        self.tell_alone();
+    }
+
+    /// The part of [`input_ended`](Self::input_ended) before the app is
+    /// told whether input is still trusted.
+    fn input_ended_inner(&mut self, id: u32) {
         if self.held.remove(&id).is_some()
             && let Some(app) = self.app.as_mut()
         {
@@ -1399,7 +1409,9 @@ impl Shell {
     /// Tells the app about held-back devices it has not heard of, and takes
     /// what it decided about others.
     fn take_input_decisions(&mut self) {
+        self.tell_alone();
         let Some(app) = self.app.as_mut() else { return };
+        let mut kept_out = false;
         for Announce {
             id,
             name,
@@ -1420,6 +1432,7 @@ impl Shell {
             });
         }
         while let Some((id, believed)) = app.poll_input_decision() {
+            kept_out |= !believed;
             if let Some(h) = self.held.get_mut(&id) {
                 *h = if believed {
                     Hold::Believed
@@ -1431,6 +1444,36 @@ impl Shell {
                 flag.store(true, Ordering::Relaxed);
             }
         }
+        self.tell_alone();
+        // A device kept out with nothing trusted leaves nothing that can
+        // move the arrow: it goes, as it does when the last mouse does.
+        if kept_out
+            && self.alone()
+            && let Some(c) = self.cursor.clone()
+        {
+            lock(&c).hide();
+            self.move_arrow();
+        }
+    }
+
+    /// Whether no input is trusted: the shell watches the machine's
+    /// devices, none of its own is still read, and none a person let in
+    /// is. With no watch (`--input`) it cannot say, and the answer is no.
+    fn alone(&self) -> bool {
+        self.watch.as_ref().is_some_and(|w| !w.trusted_live())
+            && !self.held.values().any(|h| *h == Hold::Believed)
+    }
+
+    /// Tells the app whether input is trusted when that has changed.
+    fn tell_alone(&mut self) {
+        let alone = self.alone();
+        if alone == self.alone_told {
+            return;
+        }
+        let Some(app) = self.app.as_mut() else { return };
+        app.storage(StorageEvent::InputAlone { alone });
+        self.alone_told = alone;
+        self.dirty = true;
     }
 
     /// What a held-back device sent: through, once believed; its typed
@@ -1440,10 +1483,17 @@ impl Shell {
         match self.held.get(&id) {
             Some(Hold::Believed) => batch.push(input.wake()),
             Some(Hold::Pending) => {
+                if let HeldInput::Pointer(m) = input {
+                    self.held_pointer(id, m);
+                    return;
+                }
                 let Some(app) = self.app.as_mut() else { return };
                 match input {
                     HeldInput::Key(Key::Char(ch)) => {
                         app.storage(StorageEvent::InputTyped { id, ch });
+                    }
+                    HeldInput::Key(_) if !app.input_is_used(id) => {
+                        app.storage(StorageEvent::InputUsed { id });
                     }
                     HeldInput::Touch(t) if t.phase == TouchPhase::Down => {
                         app.storage(StorageEvent::InputTapped { id, x: t.x, y: t.y });
@@ -1455,6 +1505,44 @@ impl Shell {
             }
             _ => {}
         }
+    }
+
+    /// What a held-back pointer did while its sheet is up (F202): only the
+    /// device whose target shows moves the cursor and arrow, and the app
+    /// is told of nothing but a press, as a touchscreen's tap. The cursor
+    /// keeps no press, so no release follows it and nothing else a pointer
+    /// does reaches the app.
+    fn held_pointer(&mut self, id: u32, m: pointer::Motion) {
+        let Some(app) = self.app.as_mut() else { return };
+        if !app.input_aims(id) {
+            // Nothing to aim at yet: the first motion or press brings up
+            // the sheet, and nothing else reaches the app or the cursor.
+            if !app.input_is_used(id) {
+                app.storage(StorageEvent::InputUsed { id });
+                self.dirty = true;
+            }
+            return;
+        }
+        let Some(c) = self.cursor.clone() else { return };
+        let p = {
+            let mut c = lock(&c);
+            let p = c.apply(m);
+            c.forget_press();
+            p
+        };
+        if matches!(m, pointer::Motion::Move { .. }) {
+            self.move_arrow();
+        }
+        let (x, y) = match p {
+            Some(Pointed::Touch(t)) if t.phase == TouchPhase::Down => (t.x, t.y),
+            Some(Pointed::Reclick { x, y }) => (x, y),
+            _ => return,
+        };
+        if let Some(app) = self.app.as_mut() {
+            app.storage(StorageEvent::InputTapped { id, x, y });
+        }
+        self.dirty = true;
+        self.take_input_decisions();
     }
 
     /// Writes or removes the clean marker when the app's state changes.
@@ -1793,6 +1881,7 @@ fn run(args: Args) -> Result<Exit, String> {
         usb: None,
         held: initial.iter().map(|a| (a.id, Hold::Pending)).collect(),
         announce: initial,
+        alone_told: false,
         restart: false,
         panel,
         geometry,
@@ -2154,9 +2243,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 // A move the input thread applied as it read it
                 // (`Arrow::moved`); this is what it meant.
                 Wake::Pointed(pointed) => deliver(shell, pointed, &mut contact),
-                // Everything else a pointing device does, and the moves
-                // of a device still held back, go through the cursor
-                // here.
+                // Everything else a pointing device does goes through the
+                // cursor here; a device still held back is dealt with in
+                // `held_wake`.
                 Wake::Pointer(motion) => {
                     let Some(c) = shell.cursor.clone() else {
                         continue;

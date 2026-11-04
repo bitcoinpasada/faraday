@@ -1579,6 +1579,8 @@ impl Faraday {
             e @ (StorageEvent::NewInput { .. }
             | StorageEvent::InputTyped { .. }
             | StorageEvent::InputTapped { .. }
+            | StorageEvent::InputUsed { .. }
+            | StorageEvent::InputAlone { .. }
             | StorageEvent::InputGone { .. }) => self.input_event(e),
             StorageEvent::Restored {
                 inbox,

@@ -149,13 +149,22 @@ internal error rather than carrying on.
   keyboard other than the computer's built-in one is ignored until it
   types a random code shown on the screen, and until it is unplugged if
   it types three codes' worth of letters without it; after three such
-  keyboards, new ones are ignored until Faraday starts again. A new
-  pointer is ignored until a person approves it with trusted input. A
-  new USB touchscreen is ignored until it taps a target the app draws at
-  a place drawn from the system's randomness, and until it is unplugged
-  if it taps beside it three times; it counts toward the three devices
-  kept out as a keyboard does (F153). It needs no other input, so an
-  HDMI panel whose only input is its USB touch approves itself. No USB
+  keyboards, new ones are ignored until Faraday starts again. A held device asks only once it is used, and one that never acts is
+  never believed. A new
+  pointer is ignored until a person approves it with trusted input, or,
+  while no input is trusted, until it presses targets as a touchscreen
+  does; only the pointer whose target shows moves the arrow, and nothing
+  else it does reaches the app (F202). A new USB touchscreen is ignored
+  until it taps targets the app draws in a row, each at a place drawn from
+  the system's randomness, and until it is unplugged if it taps beside
+  them three times;
+  it counts toward the three devices kept out as a keyboard does (F153).
+  It needs no other input, so an HDMI panel whose only input is its USB
+  touch approves itself. Nine presses beside any target in a session, or
+  three devices kept out, end the targets until Faraday starts again;
+  unplugging and Ignore do not clear the count. There are as many targets
+  as make a blind device's chance in a session no better than a
+  keyboard's code allows, about 1 in 620,000 (F202). No USB
   device is trusted for the name it gives. A touchscreen on a bus that
   is part of the machine (a Pi panel's touch controller on I²C, a
   laptop's built-in touchscreen) is trusted input.

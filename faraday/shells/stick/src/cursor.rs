@@ -265,6 +265,18 @@ impl Cursor {
         self.visible = false;
     }
 
+    /// Drops the press: the button is not held and no tap holds it, so a
+    /// release and [`due`](Self::due) give nothing. A held-back pointer's
+    /// press is told to the core once, when it goes down (F202), and
+    /// nothing after it reaches the page. A finger on a pad that has not
+    /// lifted stays, so its tap still completes.
+    pub fn forget_press(&mut self) {
+        self.button = false;
+        if !matches!(self.tap, Tap::Touching { .. }) {
+            self.tap = Tap::Idle;
+        }
+    }
+
     /// Whether a contact is down at the cursor: the button is held, or a
     /// tap holds it.
     fn pressed(&self) -> bool {
@@ -614,6 +626,37 @@ mod tests {
                 phase: TouchPhase::Up
             }))
         );
+    }
+
+    /// A press that was told once and forgotten sends no release, and a
+    /// pad's tap that was forgotten is not released later; a finger that
+    /// has not lifted still completes its tap (F202).
+    #[test]
+    fn a_forgotten_press_has_no_release() {
+        let mut cursor = Cursor::new(1920, 1080, 1.0);
+        cursor.apply(Motion::Move { dx: 0, dy: 0 });
+        assert!(matches!(
+            cursor.apply(Motion::Button(true)),
+            Some(Pointed::Touch(Touch {
+                phase: TouchPhase::Down,
+                ..
+            }))
+        ));
+        cursor.forget_press();
+        assert_eq!(cursor.apply(Motion::Button(false)), None);
+
+        let now = Instant::now();
+        cursor.apply_at(Motion::Finger(Finger::Down { ms: 0 }), now);
+        cursor.forget_press();
+        assert!(matches!(
+            cursor.apply_at(Motion::Finger(Finger::Up { ms: 50 }), now),
+            Some(Pointed::Touch(Touch {
+                phase: TouchPhase::Down,
+                ..
+            }))
+        ));
+        cursor.forget_press();
+        assert_eq!(cursor.due(now + Duration::from_secs(5)), None);
     }
 
     #[test]

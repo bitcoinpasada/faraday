@@ -318,6 +318,13 @@ pub enum StorageEvent {
         /// Pixels from the top edge.
         y: u16,
     },
+    /// A held-back device acted (moved, pressed, touched, or a key with
+    /// no letter): its sheet is to show, and the act counts for nothing
+    /// (F202).
+    InputUsed {
+        /// The device.
+        id: u32,
+    },
     /// The cameras the shell can open: an id it takes back from
     /// [`Faraday::take_camera`] and the name the camera gives.
     Cameras(Vec<(String, String)>),
@@ -334,6 +341,13 @@ pub enum StorageEvent {
         module_tenths: u16,
         /// It read.
         read: bool,
+    },
+    /// Whether no input is trusted: none of the machine's own, and none a
+    /// person let in, is still being read. A pointer may then press
+    /// targets to be let in (F202). Sent when it changes; false until then.
+    InputAlone {
+        /// No input is trusted.
+        alone: bool,
     },
     /// A held-back or ignored device was unplugged.
     InputGone {

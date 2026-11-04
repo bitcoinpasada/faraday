@@ -90,6 +90,7 @@ fn new_keyboard(t: &mut Tour) -> Result<(), String> {
         pointer: false,
         touch: false,
     });
+    t.app.storage(StorageEvent::InputUsed { id });
     t.pump();
     let code = t
         .app

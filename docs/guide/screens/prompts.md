@@ -45,7 +45,11 @@ while one is attached.
 ## A new keyboard
 
 **Opened from:** a keyboard or pointer plugged in after Faraday
-started. Its typing or pointing does nothing until it is let in. The
+started. It asks when it is used, not when it is plugged in: a small
+notice names it at plug-in, and its first key, motion or press brings
+up this sheet (a touch or press that brings it up counts for nothing).
+A device that is never used never asks. Its typing or pointing does
+nothing until it is let in. The
 title is **A new keyboard**, **A new pointer**, or **A new keyboard and
 pointer**.
 
@@ -57,27 +61,39 @@ pointer**.
 |---|---|
 | the device's name | what the device says about itself (**The name is what the device says about itself**) |
 | **Type this code on it** | six letters; each turns green as the new keyboard types it. Typed in full, the keyboard is let in ("… is in use"). A keyboard that types three codes' worth of letters without it is kept out until it is unplugged ("… typed the wrong code. Unplug it to try again.") |
-| **Use this pointer** | a pointer alone: lets it in. Pressed with input already trusted |
+| **Use this pointer** | lets the pointer in. Shown with input already trusted; with none trusted a pointer gets the targets below instead |
 | **Ignore this device** | keeps it out until it is unplugged. A press beside the sheet does the same |
 
 **This keyboard cannot be let in until Faraday restarts** shows in
 place of the code while the system has given no randomness. After three
 keyboards or touchscreens kept out, new ones are ignored until Faraday
 starts again ("New keyboards and touchscreens are ignored until Faraday
-starts again.").
+starts again."). Every press beside a target counts for the session, from
+any device, whether or not it is unplugged or ignored; nine close the door
+the same way ("New keyboards, pointers and touchscreens are ignored until
+Faraday starts again." when no input is trusted). A toast says what is in,
+over this sheet too: "Keyboard in use: …", "Pointer in use: …", "Keyboard
+and pointer in use: …" or "Touchscreen in use: …".
 
 A USB touchscreen plugged in (an HDMI screen's touch on the Pi, for
-one) fills the screen instead, titled **A new touchscreen**:
+one) fills the screen instead, titled **A new touchscreen**. So does a
+USB pointer with no keys while nothing else is trusted, titled **A new
+pointer**, with **Press the target**: its arrow moves by itself on the
+screen and a press of its button is the press. Both press several
+targets in a row:
 
 | Control | What it does |
 |---|---|
 | the device's name | what the device says about itself |
-| **Tap the target** | the round target below it, at a place drawn at random. Tapped on the new touchscreen, it lets it in ("… is in use") |
-| "Tries left: 2" | shows once a tap lands beside the target. The third keeps the touchscreen out until it is unplugged ("… tapped beside the target. Unplug it to try again.") |
+| **Tap the target** | the round target below it, at a place drawn at random. Tapped, it brings the next; the last lets the device in ("Touchscreen in use: …") |
+| "Target 1 of 3" | which target of how many. A press beside goes back to the first |
+| "Tries left: 2" | shows once a press lands beside a target. The third keeps the device out until it is unplugged ("… tapped beside the target. Unplug it to try again.", "… pressed beside …" for a pointer) |
 | **Ignore this device** | keeps it out until it is unplugged |
 
-**This touchscreen cannot be let in until Faraday restarts** shows in
-place of **Tap the target** while the system has given no randomness.
+**This touchscreen cannot be let in until Faraday restarts** ("This
+pointer …" for a pointer) shows in place of **Tap the target** while the
+system has given no randomness, or on a screen too small for any number
+of targets to be safe.
 
 ## Read from the boot stick
 

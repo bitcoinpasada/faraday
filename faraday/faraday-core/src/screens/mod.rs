@@ -372,9 +372,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             // A new touchscreen's sheet is the whole screen: only its
             // Ignore keeps the device out.
             Sheet::NewInput => app
-                .new_inputs()
-                .first()
-                .filter(|d| !d.by_target())
+                .shown_input()
+                .filter(|d| !app.input_by_target(d))
                 .map(|d| Action::InputIgnore(d.id)),
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
@@ -444,6 +443,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.oy = 0.0;
         ui.ox = 0.0;
         ui.fade_disabled();
+        // The page's toast is drawn under the sheet, which would cover
+        // the one that says a device is in while another waits.
+        if sheet == Sheet::NewInput {
+            toast(app, ui, 0.0, full_w, full_h);
+        }
     }
     // A sheet with a field of its own: the wide layout's keyboard button
     // stays within reach, over it, where the page has it.
@@ -719,8 +723,14 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
         foot -= ui.snackbar((x, cw, h), msg, 1.0, 0.0);
     }
+    toast(app, ui, x, cw, foot);
+}
+
+/// The toast, Material's snackbar, rising in and fading as its time runs
+/// out, along the foot of the window in `cw` from `x`, `foot` its bottom.
+/// Reads state only.
+fn toast(app: &View, ui: &mut Ui, x: f32, cw: f32, foot: f32) {
     if let Some(t) = app.toast_text().map(str::to_string) {
-        // Material's snackbar, rising in and fading as its time runs out.
         let (shown, rise) = app.toast_shown();
         ui.snackbar((x, cw, foot), &t, shown, rise);
     }

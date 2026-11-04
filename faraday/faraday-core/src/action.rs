@@ -222,10 +222,12 @@ pub enum Action {
     InputUse(u32),
     /// Keep a new device out until it is unplugged.
     InputIgnore(u32),
-    /// The target a new touchscreen taps to be believed; pressed with
-    /// input already believed, it believes the device as
-    /// [`Action::InputUse`] does.
-    InputTarget(u32),
+    /// The target a new touchscreen or pointer presses to be believed: the
+    /// device, which target of the run it is (from 0), and how many there
+    /// are. The press counts only if it is the one the device has reached;
+    /// pressed with input already believed, it believes the device at once
+    /// as [`Action::InputUse`] does.
+    InputTarget(u32, u8, u8),
     /// One of wallet n's public files to the Outbox, as `public_out`
     /// numbers them: what the backup's public files item offers.
     PublicOut(usize, u8),

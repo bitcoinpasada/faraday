@@ -3380,13 +3380,25 @@ strings! {
     /// Toast in `potential_make`. `{}`: `name`.
     inbox_is_a_wallet: "{} is a wallet",
     // ----- inputs (faraday-core/src/inputs.rs) -----
-    /// Toast in `input_believe`. `{}`: `d.name`.
-    inputs_is_in_use: "{} is in use",
+    /// Toast in `input_new`, a device held until it is used. `{}`: `d.name`.
+    inputs_new_device_held: "New device: {}",
+    /// Toast in `input_believe`, a keyboard. `{}`: `d.name`.
+    inputs_keyboard_in_use: "Keyboard in use: {}",
+    /// Toast in `input_believe`, a pointer. `{}`: `d.name`.
+    inputs_pointer_in_use: "Pointer in use: {}",
+    /// Toast in `input_believe`, a device that is both. `{}`: `d.name`.
+    inputs_keyboard_pointer_in_use: "Keyboard and pointer in use: {}",
+    /// Toast in `input_believe`, a touchscreen. `{}`: `d.name`.
+    inputs_touchscreen_in_use: "Touchscreen in use: {}",
     /// Toast in `input_typed`. `{}`: `name`.
     inputs_wrong_code: "{} typed the wrong code. Unplug it to try again.",
     /// Toast in `input_tapped`. `{}`: `name`.
     inputs_wrong_taps: "{} tapped beside the target. Unplug it to try again.",
-    /// Toast in `input_typed`, `input_tapped` and `input_new`.
+    /// Toast in `input_tapped`. `{}`: `name`.
+    inputs_wrong_presses: "{} pressed beside the target. Unplug it to try again.",
+    /// Toast in `toast_ignored`, with no input trusted.
+    inputs_new_devices_ignored: "New keyboards, pointers and touchscreens are ignored until Faraday starts again.",
+    /// Toast in `toast_ignored`.
     inputs_new_keyboards_ignored: "New keyboards and touchscreens are ignored until Faraday starts again.",
     // ----- keygen (faraday-core/src/keygen/mod.rs) -----
     /// Text in `source_name`.
@@ -7393,6 +7405,15 @@ strings! {
     new_input_a_new_touchscreen: "A new touchscreen",
     /// Label in `new_input_target`, over the target.
     new_input_tap_target: "Tap the target",
+    /// Label in `new_input_target`, over a pointer's target.
+    new_input_press_target: "Press the target",
+    /// Line in `new_input_target`, which target of how many. `{}`: the
+    /// one showing, from 1; how many.
+    new_input_target_step: "Target {} of {}",
+    /// Line in `new_input_target`, in place of the target while the
+    /// system has no randomness or no number of targets would do, for a
+    /// pointer.
+    new_input_no_target_pointer: "This pointer cannot be let in until Faraday restarts",
     /// Value in `new_input_target`, once a tap missed. `{}`: tries left.
     new_input_tries_left: "Tries left: {}",
     /// Line in `new_input_target`, in place of the target while the

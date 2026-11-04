@@ -113,6 +113,9 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
         touch: true,
     });
     t.pump();
+    // The first touch brings up the targets; the next lands beside one.
+    t.app.storage(faraday_core::StorageEvent::InputUsed { id });
+    t.pump();
     t.app
         .storage(faraday_core::StorageEvent::InputTapped { id, x: 4, y: 4 });
     t.pump();
@@ -140,6 +143,9 @@ pub(crate) fn toasts_tour(t: &mut Tour) -> Result<(), String> {
         touch: false,
     };
     t.app.storage(held(11, "USB Receiver", false));
+    t.pump();
+    t.app
+        .storage(faraday_core::StorageEvent::InputUsed { id: 11 });
     t.pump();
     t.press(Action::InputUse(11));
     t.shot_after("toast-in-use", 1000)?;

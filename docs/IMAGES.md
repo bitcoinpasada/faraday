@@ -75,19 +75,29 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
 - **USB HID.** The generic HID and multitouch drivers, the USB keyboard
   and mouse. No vendor-specific HID drivers, as on the PC. The stick's
   rules for new devices come across unchanged (SECURITY-MODEL, "USB
-  devices"):
+  devices"); a held device asks when it is used, with a notice naming it
+  at plug-in (F202):
   - interfaces are authorised one at a time;
   - a new keyboard counts once it types the code on the screen;
-  - a new pointer counts once trusted input approves it;
-  - a new touchscreen counts once it taps the target on the screen.
+  - a new pointer counts once trusted input approves it, or, with no
+    input trusted, once it presses the targets on the screen in a row
+    (F202);
+  - a new touchscreen counts once it taps the targets on the screen in
+    a row.
 - **A new USB touchscreen approves itself; nothing is trusted by name**
   (owner, F153, replacing F145's touchscreen named by the profile). An
   HDMI panel's touch reaches the Pi over USB, and on such a panel it is
   the only input there is. It is held back as every plugged-in device
-  is, and the app draws a target at a place drawn from the system's
-  randomness; a tap on it lets the touchscreen in, three taps beside it
-  keep it out until it is unplugged and count toward the limit of
-  devices kept out, as a keyboard's wrong codes do
+  is, and the app draws targets, one at a time, each at a place drawn
+  from the system's randomness (F202: as many in a row as keep a blind
+  device's chance no better than a keyboard's, which a smaller screen
+  needs more of; a press on the one showing brings the next, the last
+  lets the touchscreen in); three presses beside keep it out until it is
+  unplugged and count toward the limit of devices kept out, as a
+  keyboard's wrong codes do, and every press beside is counted for the
+  session, whether or not the device is unplugged or ignored: nine close
+  the door to new keyboards and touchscreens (and to new pointers while
+  no input is trusted)
   (`faraday/faraday-core/src/inputs.rs`). A touch controller on a bus
   that is part of the machine (the 2.8-inch's Goodix on I²C, a laptop's
   built-in touchscreen) stays trusted as before; `--touch-name` picks

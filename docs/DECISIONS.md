@@ -167,7 +167,7 @@ Read this table, then only the decision you need.
 | [F150](decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Amended by F153, F185, F186 | release |
 | [F151](decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Active | repository |
 | [F152](decisions/F152.md) | Touch targets are tested over the snapshot tours, and a press cannot be made without its state layer | 2026-10-28 | Amended by F188 | design |
-| [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Amended by F185 | security |
+| [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Amended by F185, F202 | security |
 | [F154](decisions/F154.md) | Random bytes are taken from the source, an answer for every 32, or expanded by HKDF-Expand | 2026-10-28 | Active | security |
 | [F155](decisions/F155.md) | The other refusals of input a standard allows: keys, wallet files, PSBTs, transfers, shares, the vault and the paperkey | 2026-10-28 | Active | crypto |
 | [F156](decisions/F156.md) | Schnorr signatures are made with zero aux_rand | 2026-10-28 | Active | security |
@@ -216,3 +216,4 @@ Read this table, then only the decision you need.
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
 | [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
 | [F201](decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Active | design |
+| [F202](decisions/F202.md) | A USB pointer with no other input approves itself by pressing targets in a row, and tries at a target are counted for the session | 2026-11-04 | Active | security |
