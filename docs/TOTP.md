@@ -277,6 +277,10 @@ Anything else is `None`. `entries::parse` (Inbox import) passes its
 URI; an unreadable `totp:` value goes to the notes, as other unknown
 lines already do.
 
+The entry form saves a TOTP field left as it was without this check, so
+an entry another program wrote, with a field Faraday does not read, can
+still be edited and keeps it.
+
 ## 5. The codes screen
 
 `Screen::Codes`, drawn as a page (DESIGN §5): title **TOTP codes**,

@@ -488,6 +488,29 @@ fn an_entrys_totp_secret_shows_as_a_secret_code_and_a_lock_closes_it() {
     assert!(app.qr().is_none(), "a code is on screen after a lock");
 }
 
+/// An entry saved by another program with a TOTP field this app does not
+/// read can still be edited: the field stays as it was, and a changed one
+/// is checked as anything typed is.
+#[test]
+fn an_entry_whose_totp_does_not_read_can_be_edited_and_keeps_it() {
+    let steam = "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&encoder=steam";
+    let mut app = on_an_entry(steam);
+    app.press(Action::Vault(V::Edit));
+    app.press(Action::Vault(V::FocusField(0)));
+    type_text(&mut app, " two");
+    app.press(Action::Vault(V::FormSave));
+    assert!(app.vaults().form.is_none(), "the edit was refused");
+
+    app.press(Action::Vault(V::Edit));
+    let form = app.vaults().form.as_ref().expect("the form opens again");
+    let kept = form.fields.iter().find(|f| f.0 == field::TOTP).unwrap();
+    assert_eq!(&*kept.2.text, steam);
+    app.press(Action::Vault(V::FocusField(5)));
+    type_text(&mut app, "&digits=99");
+    app.press(Action::Vault(V::FormSave));
+    assert_eq!(app.toast_text(), Some("Not a TOTP key"));
+}
+
 /// An HOTP secret has no code to show: no Show as QR, and its press shows
 /// none.
 #[test]

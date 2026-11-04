@@ -98,6 +98,8 @@ fn hotp_steam_and_malformed_forms_are_not_read() {
     let err = |f: &[(&str, &str)]| from_fields(f).expect("a form is held").unwrap_err();
     let steam = format!("otpauth://totp/x?secret={b32}&encoder=steam");
     assert_eq!(err(&[("otp", &steam)]), NotTotp::Unreadable);
+    let steam = format!("otpauth://totp/x?secret={b32}&encoder=STEAM");
+    assert_eq!(err(&[("otp", &steam)]), NotTotp::Unreadable);
     let other = format!("otpauth://totp/x?secret={b32}&encoder=other");
     assert!(
         from_fields(&[("otp", &other)])

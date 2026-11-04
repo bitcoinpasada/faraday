@@ -1770,28 +1770,12 @@ impl Faraday {
             self.toast(what);
             return;
         }
-        // The TOTP secret field, if any, goes through `normalise` with
-        // the form's own Title and Username (`docs/TOTP.md` §6); checked
-        // before anything moves `form` away.
-        let title = form.fields[0].2.text.to_string();
-        let account = form
-            .fields
-            .iter()
-            .find(|(n, ..)| *n == field::USERNAME)
-            .map(|(_, _, b, _)| b.text.to_string())
-            .unwrap_or_default();
         let totp_text = form
             .fields
             .iter()
             .find(|(n, ..)| *n == field::TOTP)
             .map(|(_, _, b, _)| b.text.to_string());
-        let totp_store: Result<Option<String>, ()> = match &totp_text {
-            None => Ok(None),
-            Some(t) if t.trim().is_empty() => Ok(None),
-            Some(t) => faraday_keys::totp::normalise(t, &title, &account)
-                .map(Some)
-                .ok_or(()),
-        };
+        let totp_store = self.form_totp_store(&form, id, totp_text.as_deref());
         let Ok(totp_store) = totp_store else {
             self.vaults.state.form = Some(form);
             self.toast(EN.vaults_not_a_totp_key);
@@ -1825,6 +1809,42 @@ impl Faraday {
             self.vaults.state.select_place(place);
         }
         self.vaults.changed(id);
+    }
+
+    /// Costs reading one record's TOTP field. What the form's TOTP field
+    /// `typed` is stored as: it goes through `normalise` with the form's own
+    /// Title and Username (`docs/TOTP.md` §6), except that a field left as it
+    /// was stays as it was, even one that does not read here (§4.1). `Err`
+    /// for one that reads as nothing.
+    fn form_totp_store(
+        &mut self,
+        form: &Form,
+        id: VaultId,
+        typed: Option<&str>,
+    ) -> Result<Option<String>, ()> {
+        let Some(t) = typed.filter(|t| !t.trim().is_empty()) else {
+            return Ok(None);
+        };
+        let c = self.compute();
+        let stored = form
+            .record
+            .zip(form_part(form.kind, field::TOTP))
+            .map(|(i, part)| {
+                let why = faraday_keys::Reveal::VaultEntry(part);
+                self.vaults.store().reveal(&c, id, i, field::TOTP, why)
+            });
+        if stored.as_deref().is_some_and(|s| *s == *t) {
+            return Ok(Some(t.to_string()));
+        }
+        let text = |n: u8| {
+            form.fields
+                .iter()
+                .find(|f| f.0 == n)
+                .map_or("", |f| &*f.2.text)
+        };
+        faraday_keys::totp::normalise(t, text(field::TITLE), text(field::USERNAME))
+            .map(Some)
+            .ok_or(())
     }
 
     /// Inbox file k into the open vault, as the record its kind is.

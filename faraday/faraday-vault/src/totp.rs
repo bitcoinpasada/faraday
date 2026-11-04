@@ -159,7 +159,7 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
                 }
                 // Steam's codes are five characters of its own alphabet: a
                 // plain code from its key is one Steam will not take.
-                "encoder" if v == "steam" => return Err(NotTotp::Unreadable),
+                "encoder" if v.eq_ignore_ascii_case("steam") => return Err(NotTotp::Unreadable),
                 _ => {}
             }
         }
