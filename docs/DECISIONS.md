@@ -204,7 +204,7 @@ Read this table, then only the decision you need.
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
 | [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
-| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194 and F206 | security |
+| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207 and F208 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 | crypto |
 | [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Active | crypto |
@@ -220,4 +220,6 @@ Read this table, then only the decision you need.
 | [F203](decisions/F203.md) | A vault's name taken by a file nothing proves is a question: overwrite or save beside | 2026-11-04 | Active | security |
 | [F204](decisions/F204.md) | SLIP-39's set actions are in Convert a seed; codex32's stay with the backup | 2026-11-04 | Active | keys |
 | [F205](decisions/F205.md) | One kernel patch of Faraday's own on the Pi: a failed read of a later EDID block keeps the blocks before it | 2026-11-04 | Active | security |
-| [F206](decisions/F206.md) | A KeePass file keeps its entry history and recycle bin, written back and never shown | 2026-11-04 | Active | security |
+| [F206](decisions/F206.md) | A file vault grows by itself: no size to choose, 32 KiB steps, up to 256 MiB as long as it fits in memory | 2026-11-04 | Active | security |
+| [F207](decisions/F207.md) | A KeePass file keeps its entry history and recycle bin, written back and never shown | 2026-11-04 | Active | security |
+| [F208](decisions/F208.md) | A file vault takes a key file, and a KeePassXC file protected by a YubiKey opens from that key's typed secret | 2026-11-04 | Active | security |

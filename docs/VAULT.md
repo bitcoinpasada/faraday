@@ -1,8 +1,8 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new size (§8's Size, which goes with the vault growing by itself), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), and the outside cross-check area for the QR vault (§10)
+**Status:** Specified (F190, amending F189; F208); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size (one of four, until F206 is built) and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
+**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), and the outside cross-check area for the QR vault (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -54,7 +54,8 @@ plaintext:      inner header (inner random stream ChaCha20, its 64-byte key, end
 ```
 
 ```text
-composite key   = SHA-256(SHA-256(passphrase))      -- no key file
+composite key   = SHA-256(SHA-256(passphrase))      -- the passphrase alone
+                  or with other components, §3.2
 T               = Argon2id(composite key, S, M, I, P), 32 bytes
 encryption key  = SHA-256(master seed || T)
 HMAC base       = SHA-512(master seed || T || 0x01)
@@ -76,8 +77,8 @@ named "A KeePass file of an older version" and not opened; any other
 file that begins with KDBX's signatures and is not a vault (KDBX 5, KDBX 4
 of a length no vault has, or cut short) is named "A KeePass file". `.kdbx` is the
 name Faraday writes and the one its lists group its own files by. The
-wipe asks for its hold on any file named `.kdbx` or `.pgp`, whatever it
-holds.
+wipe asks for its hold on any file named `.kdbx`, `.keyx` or `.pgp`,
+whatever it holds.
 
 What Faraday reads beyond what it writes, from a file a KeePass app
 saved, is §7.1.
@@ -130,28 +131,58 @@ binary form only; `.pgp` is the name it writes.
 
 ## 2. Sizes
 
-A vault is one of five sizes, the size of its plaintext before
-encryption; Faraday pads to it (§7), so a file Faraday sealed says by
-its length only which size it is (F189 point 4, F190 point 4):
+A QR vault has one length (§2.1). A file vault has no size to choose
+(F206): it starts at 32 KiB of plaintext and grows by itself, each seal
+padding it to the smallest multiple of 32 KiB that holds its contents, up
+to 256 MiB. The plaintext is the inner header, the XML document (history and a recycle bin are in it, so they count), the
+attachments' bytes and the line feeds after the document. It shrinks in
+the same way when what it holds does: a seal remembers nothing of the
+size before.
 
-| Size | Plaintext | File | Suits |
+| Vault | Plaintext | File | Holds |
 |---|---|---|---|
 | QR (§2.1) | 226 B, one item or a note | 396 B, an OpenPGP message | one seed, one codex32 share, one passphrase or a short note, printed as a code |
-| 64 KiB | 65,536 B | 65,921 B | keys, wallets, a few entries |
-| 256 KiB | 262,144 B | 262,529 B | the default: keys, wallets, notes, GPG and Secure Boot keys, about a hundred entries |
-| 1 MiB | 1,048,576 B | 1,048,961 B | many entries and notes |
-| 4 MiB | 4,194,304 B | 4,194,797 B | the largest |
+| New, or small | 32,768 B | 33,153 B | keys, wallets, a few entries |
+| Larger | a multiple of 32,768 B | the length below | whatever it holds |
+| The largest | 268,435,456 B (256 MiB) | 268,445,021 B | a KDBX file with its attachments |
 
 A file vault's length is the 313 bytes of §1.1's header, its hash and
 its HMAC, the plaintext, and 36 bytes for each 1 MiB block and the empty
 block after them. The plaintext is the inner header, the XML document
-and the line feeds after it (history and a recycle bin are in the document, so they count). The size is chosen when a vault is made and
-is meant to change on an open vault (§8, not built); the next seal would write the new size.
-A reader opens a file whose plaintext is up to 4 MiB of any length, as a
-KeePass app's save is (§7.1), and refuses a longer one from the file's
-length, before any work, and a compressed one whose plaintext inflates
-past 4 MiB as soon as it does; the next seal pads it to the smallest
-size that holds it.
+and the line feeds after it (history and a recycle bin are in the document,
+so they count). A reader opens a file whose plaintext is up to 256 MiB of
+any length, as a KeePass app's save is (§7.1), and refuses a longer one
+from the file's length, before any work, and a compressed one that states
+more than 256 MiB once it is decrypted. The next seal pads whatever it
+opened to the smallest step that holds it. A file made when a vault had
+one of four sizes (64 KiB to 4 MiB) is already on a step, and takes the
+same rule at its next seal, so one that holds little gets smaller.
+
+**Memory comes before size** (F206 point 4). A file within the ceiling
+may not fit the computer, and an allocation that fails ends the app and
+every open vault's unsealed changes. So what the system has free (§3.1) is
+checked, against one function, before the work and with no memory taken:
+
+- **Before a file comes in from a stick:** twice the file, the app's copy
+  and the one that carries it across a lock. The length is in the listing.
+  A vault over 64 MiB is listed unticked; one that does not fit cannot be
+  ticked and says "Too large for this computer's memory".
+- **Before an unlock:** Argon2id's memory, twice the file and 100 MiB
+  (`APP_MIB`). Unlock says "Needs 1.6 GiB. This computer has 1 GiB free."
+  before the passphrase is typed.
+- **Once it is decrypted, and before a seal:** Argon2id's memory, 16 times
+  the document, twice the attachments and 100 MiB. Measured on 256 MiB of
+  real entries, the peak is 15 times the document; on one 256 MiB
+  attachment, twice. A file that does not fit stays locked, with the same
+  message. A seal that does not fit stops a lock as §5 says.
+- **A compressed file** states its plaintext only inside the encryption:
+  once decrypted, that stated length, at most 256 MiB, takes the file's place
+  in the same function before its one buffer is allocated. It cannot
+  inflate past that buffer.
+
+A machine that does not say what it has free opens a file of at most
+4 MiB, and only at 64 MiB of Argon2id (§3.1). A 32-bit build counts at most
+2 GiB free, whatever the machine has.
 
 The padding is line feeds after the document's closing tag, which XML
 allows ("Misc" after the root element) and every KeePass app reads:
@@ -374,6 +405,53 @@ cannot allocate (its memory free to open, above) says so before the
 passphrase is typed: "Needs 1.1 GiB. This computer has 900 MiB free."
 It does not start Argon2id.
 
+### 3.2 A key file and a YubiKey's secret
+
+A file vault may need more than its passphrase (F208). KDBX 4 records
+nothing that says so, and Faraday writes nothing that does. The passphrase
+is always one of the components: a file with none is refused (§7.1).
+
+```text
+composite key = SHA-256( SHA-256(passphrase)
+                         || key file's key          -- 32 bytes, when there is one
+                         || SHA-256(response) )     -- 20 bytes hashed, when there is a secret
+
+challenge = S, the Argon2 salt of the file's own header
+padded    = S, then 64 - len(S) bytes of that value, to 64 bytes
+message   = padded, less its last byte and every equal byte before it
+response  = HMAC-SHA-1(secret, message)
+```
+
+The key file's key and the secret's response are both inside the composite
+key, so both are stretched by Argon2id with the passphrase. A key file's
+key does not change between seals. The response does, since the salt does.
+
+**A key file** is read in this order, as KeePass does:
+
+1. **XML:** a file the vault's XML reader reads whole, whose root is
+   `KeyFile`. `Meta/Version` of `1.0` or `1.00` gives `Key/Data` as Base64;
+   `2.0` or `2.00` gives it as hexadecimal, white space ignored, with the
+   `Hash` attribute required and equal to the first four bytes of the key's
+   SHA-256. A `KeyFile` document with another version, no key, a key that
+   is not 32 bytes, a value that does not decode or a hash that fails is
+   refused, naming the file: "This key file is damaged."
+2. **32 bytes:** a file of exactly 32 bytes is the key.
+3. **Hexadecimal:** a file of exactly 64 characters, each `0-9`, `a-f` or
+   `A-F`, is the key they spell.
+4. **Any other file:** its SHA-256 is the key. A document that is not well
+   formed, or has another root, or a DOCTYPE, is such a file.
+
+An empty file and a file beginning with KDBX's signatures are refused as
+key files. The file is read within the memory check of a file's read, and
+its bytes are wiped once the key is made.
+
+**A YubiKey's secret** opens a KeePassXC file whose key was programmed for
+HMAC-SHA-1 challenge-response with variable input (`hmac-lt64`, what
+`ykman` writes). It is 40 hexadecimal digits, spaces and colons ignored;
+anything else is refused before Argon2id runs ("A YubiKey secret is 40
+hexadecimal digits. This has 38."). A key programmed for fixed 64-byte
+input is not covered, and reads as wrong credentials.
+
 ## 4. Opening
 
 **A file vault.**
@@ -385,18 +463,32 @@ It does not start Argon2id.
    memory is taken.
 2. Show the memory the vault needs, and stop if this machine has not
    got it (§3.1).
-3. Put the passphrase in NFC and run Argon2id on the worker.
-4. Check the header's HMAC. A HMAC that fails means the passphrase is
+3. Take the passphrase, and whichever of **Add a key file** and **Add a
+   YubiKey secret** the person used (§3.2). Each is optional, since the
+   file does not say what it needs. A key file is chosen from those a
+   stick holds and read through the disk process. A faulty key file or
+   secret stops here, before any memory is taken for Argon2id.
+4. Put the passphrase in NFC, make the composite key (§3.2) and run
+   Argon2id on the worker.
+5. Check the header's HMAC. A HMAC that fails means the credentials are
    wrong (the header's SHA-256, checked first, tells a damaged header
-   from a wrong passphrase). The HMAC keys come from the passphrase's
-   key, so whichever passphrase opens a file, one content verifies.
-5. Check every block's HMAC, then decrypt the stream into memory held by
+   from wrong credentials), and the message says what was tried:
+   "Wrong passphrase, or this file also needs a key file or a YubiKey
+   secret." with neither; "Wrong passphrase or key file.", "Wrong
+   passphrase or YubiKey secret." or "Wrong passphrase, key file or
+   YubiKey secret." with them. It cannot say which was wrong. The HMAC
+   keys come from the stretched key, so whichever credentials open a
+   file, one content verifies.
+6. Check every block's HMAC, then decrypt the stream into memory held by
    `faraday-keys`, wiped as it drops; inflate it if it is compressed,
    stopping at 4 MiB. Any failure refuses the file, and nothing of the
    contents is read.
-6. Read the inner header and the XML (§7, §7.1). Any fault refuses the
+7. Read the inner header and the XML (§7, §7.1). Any fault refuses the
    file, naming it.
-7. Compare the seal count with what the session has seen (§11).
+8. Compare the seal count with what the session has seen (§11).
+
+Neither the key file, its name, nor the secret is remembered once the
+vault is locked (§11).
 
 **A QR vault.**
 
@@ -440,7 +532,13 @@ S2K and every data packet.
 - **Argon2id runs again**, at the vault's step, on the worker (F184): a
   new salt is a new key. The passphrase is kept while the vault is
   open, in `faraday-keys`, wiped as it drops: it is what a seal needs
-  that the contents do not hold. A lock that seals a vault waits for its
+  that the contents do not hold. So are a key file's key and a YubiKey's
+  secret (§3.2), never shown back, so a seal asks for nothing and the
+  file it writes needs what the copy opened needed. With a secret, the
+  response is computed for the new salt, so the file still opens in
+  KeePassXC with that YubiKey or another holding the same secret; a salt
+  drawn ending in `0x20` has that byte changed to `0x21`, so no seal rests
+  on the key's padding rule. A lock that seals a vault waits for its
   Argon2id.
 - **The seal count is one higher** (§7, `faraday.seals`), with the time
   by this computer's clock when it is known, written by the vault crate
@@ -449,15 +547,20 @@ S2K and every data packet.
   wrote, one higher than the copy opened, so the copy opened is older
   than it once the vault is sealed; a backup plan can carry the counts
   of other vaults across a power-off (§7, `plan`).
-- **The contents are padded to the vault's size.** A vault whose
-  changes do not fit its size is never closed at a lock. Entries read
-  from the camera or from files are added only if they fit the room
-  left; if not, none is added and the toast (and the camera's note) says
-  how many bytes they take and how many are left. Should a changed
-  vault's contents still exceed its size, it cannot be sealed: the lock
-  does not go ahead, nothing is wiped, the vault stays open with its
-  changes and the Lock sheet names the vault, by how many bytes it is
-  over, and the next size that holds it (§8). The check is made again as each
+- **The contents are padded to the smallest step that holds them** (§2).
+  A vault's changes stop a lock in two cases only: the contents are past
+  the 256 MiB a vault holds, or this computer has not the memory to seal it
+  (§2). Entries read from the camera or from files, a form's edit and a
+  copy from another vault are refused the same way past the ceiling, and
+  none is added. The time an edit takes does not depend on the file's size:
+  the document's bytes are measured once when it opens, and each change adds
+  an upper bound of its own; only past the ceiling is the document written
+  to count exactly (F206 point 8). The transaction's signed amounts (§7)
+  lose their oldest only at the ceiling. In either case the lock does not
+  go ahead, nothing is wiped, the vault stays open with its
+  changes and the Lock sheet names the vault and says what stops it: by how
+  many bytes it is over what a vault holds, or the memory the seal needs and
+  what this computer has free. The check is made again as each
   vault is sealed, since the `seals` lines a plan takes from the vaults
   sealed before it can grow it, and a seed or answers that run out do
   the same: the lock stops there, the vaults sealed before it are closed
@@ -468,7 +571,7 @@ S2K and every data packet.
   the person's own choice to lose those changes. That rule is for a lock
   the person asks for: an idle lock has no one to ask, so it goes ahead
   and wipes, those changes are lost, and the Locked sheet says that
-  changes were not saved, too big for the size or not writable. Locking one vault alone
+  changes were not saved, too big or not writable. Locking one vault alone
   (a backup's "Lock it and make a new vault") refuses the same way with
   a toast.
 
@@ -709,7 +812,7 @@ limits, beyond what it writes itself:
 | key derivation | Argon2id | Argon2id, Argon2d, within §3's limits |
 | compression | none | none, gzip |
 | inner random stream | ChaCha20 | ChaCha20 |
-| key | the passphrase | the passphrase |
+| key | the passphrase, and a key file if the person adds one | the passphrase, with a key file or a YubiKey's secret or both (§3.2) |
 
 The head's "Saved in" line names the settings of a file that differs
 from what Faraday writes, in the order version, cipher, key derivation,
@@ -727,13 +830,14 @@ text element the model reads, a protected value that is not canonical
 Base64 (damage), and a `Meta` or `Root` missing or repeated. These and
 §7's list are all that refuses a file.
 
-**A key file or a security key** (owner, 2026-11-02). KDBX 4 records
-nothing that shows a key file or a challenge-response key (a YubiKey's),
-so Faraday cannot tell such a file from a wrong passphrase: both fail
-the header's HMAC. The wrong-passphrase message for a KeePass file says
-so: "Wrong passphrase. A file that also needs a key file or a security
-key cannot be opened here." (the string is added to
-`faraday-strings/src/en.rs` when the unlock screen uses the KDBX vault).
+**A key file or a YubiKey** (F208). KDBX 4 records nothing that shows a
+key file or a challenge-response key, so Faraday cannot tell such a file
+from a wrong passphrase: both fail the header's HMAC. The person adds what
+the file needs at unlock (§4), the message for wrong credentials says so,
+and the vault's head names what the file needs while it is open
+("Needs a key file", "Opens with a YubiKey"). A file that needs a key file
+or a secret and no passphrase is refused, as a file with an empty
+passphrase is.
 
 **Carried through unchanged** (owner, 2026-11-02): everything a KeePass
 app wrote that Faraday does not read is kept as it was and written back
@@ -750,7 +854,7 @@ not change is written back as it was read; one it changes keeps
 everything but its fields, its custom data and its last-modified time,
 which it sets when the clock is set.
 
-**Kept, and not read** (owner, 2026-11-03; F206): entry history, and the
+**Kept, and not read** (owner, 2026-11-03; F207): entry history, and the
 recycle bin with the entries in it when `Meta`'s `RecycleBinEnabled` is
 True or absent (KeePassXC counts an absent one as enabled); with it
 False, the group the database names as its recycle bin is an ordinary
@@ -771,8 +875,8 @@ refused, since the bin must be known without decrypting anything. An entry delet
 any attachment it had in the file's shared binaries, where it stays
 until a later change removes it.
 
-**The file's settings.** The next seal writes the file as Faraday writes
-a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the
+**The file's settings.** The next seal needs what the file needed (§5),
+and writes the file as Faraday writes a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the
 file's memory, up to 1 GiB, with 3 passes or, when the file has more
 (within the reader's 100), the file's own, so a seal never makes a
 guess faster than the file allowed; no compression, its size padded. A file
@@ -786,16 +890,15 @@ seal writes one more than it.
 
 ## 8. Creating
 
-**Create a vault** on Vaults takes a name, the memory step (§3.1), the
-size (§2), and a passphrase typed twice; it refuses an empty
-passphrase. **Add randomness** is offered before the vault is made
+**Create a vault** on Vaults takes a name, the memory step (§3.1) and a
+passphrase typed twice; it refuses an empty passphrase. It asks for no
+size: a file vault starts at 32 KiB and grows by itself (§2). **Add randomness** is offered before the vault is made
 (F189 point 8, `docs/OWN-RANDOMNESS.md` §2.2). Making it draws the
 identifier and seals the empty database (its custom data alone) as the
 first seal, count 1.
 
 Every seal is a new file, so an open vault's passphrase and memory step
-can each be changed, and its size could be (Size is not built; it goes
-with the vault growing by itself). **Change passphrase** and **Memory**
+can each be changed. **Change passphrase** and **Memory**
 are buttons on a writable vault's page, each opening a dialog; a
 read-only vault offers neither. Change passphrase takes the new
 passphrase typed twice, refusing an empty one and two that differ, and
@@ -812,7 +915,23 @@ back close either dialog as Cancel does, dropping what was typed. An idle
 lock whose seal cannot allocate the new step seals again at the file's own,
 so its changes are kept.
 
-A **QR** size in Create a vault makes a QR vault (§2.1), empty, with
+A vault opened with a YubiKey's secret offers **Remove YubiKey secret** on its
+⋮, taking effect at the next seal (F208).
+
+**A key file is optional** (F208). Create a vault offers **Add a key file**,
+and the vault's ⋮ offers **Key file**: add, replace or remove, taking
+effect at the next seal, as a passphrase does. Either way it is **Make a
+key file** or **Choose a file**. Making one writes KeePass's XML version 2
+(`{vault}.keyx`) holding 32 bytes of `fresh_bytes("vault key file", 32)`,
+to the Outbox through a named reveal (`docs/KEYS.md`); any file from a stick
+can be chosen instead, and §3.2 says what is made of it. Both say: "If this
+file is lost or changed, the vault cannot be opened. Keep it apart from the
+vault's file." Copies sealed before keep the key file they had. Faraday
+never sets a YubiKey up: a secret is taken at unlock only, and a vault
+opened without one cannot be given one. A QR vault has neither.
+
+**File** or **QR code**, the first choice in Create a vault, says which it
+makes: **QR code** makes a QR vault (§2.1), empty, with
 the same name, memory step and passphrase; there is no separate flow
 for it. Its page then offers **Add a key** (a seed's words, a codex32
 share, or a BIP-39 passphrase with its key's fingerprint, chosen from
@@ -857,7 +976,7 @@ Faraday, `python3 tools/vault/open.py FILE` prints its entry.
 
 **Holds.** Without its passphrase a vault shows that it is a KDBX 4
 database or an OpenPGP message for a passphrase, its Argon2id cost and
-which of the five sizes it is; nothing of its contents. A changed byte
+its length; nothing else of its contents. A changed byte
 anywhere refuses the whole file: a KDBX file's header HMAC and every
 block's HMAC, and an OpenPGP message's session key tag, every chunk's
 tag and the final tag, are checked before anything is read (§4). A
@@ -866,7 +985,15 @@ HMACs are keyed from the passphrase's key. OCB does not commit to its
 key, so a QR vault made by someone else could be built to open to two
 contents under two passphrases; Faraday makes every QR vault under one.
 Every QR vault has one length, so a code does not say which item it
-holds. A KDBX file a KeePass app saved has lost Faraday's padding (§7.1),
+holds.
+
+**What a file vault's length says** (F206). A file vault's length says how
+much it holds, to within 32 KiB. Anyone who sees the file, without its
+passphrase, can tell a vault of a few keys from one of thousands of entries
+or one carrying large attachments. An entry takes about a kilobyte, so 32
+KiB is a few dozen entries either way; a large vault says it is large. All
+vaults holding less than about 32 KiB, an empty one included, have one
+length. A KDBX file a KeePass app saved has lost Faraday's padding (§7.1),
 so its length says more until Faraday seals it.
 
 **No slots, and decoys.** A vault has one passphrase. A decoy is made
@@ -877,8 +1004,10 @@ exists, that the feature exists (Faraday is public), and whether what a
 person shows under pressure is believable are outside the promise.
 
 **Two copies from different times.** Every seal is a new file under a
-new salt and new keys, so two copies show only that the vault was sealed
-between them, not what changed.
+new salt and new keys, so two copies show that the vault was sealed
+between them and, by their lengths, whether what it holds crossed a 32 KiB
+step: that it grew or shrank, and by about how much. Removing a secret can
+therefore show; which entry changed, and what it held, does not.
 
 **Rollback.** An older copy of a vault still opens: whoever can write
 the stick and holds an older copy can put it back. Its contents cannot
@@ -903,7 +1032,9 @@ a damaged file loses it all. A copy at another place is the remedy.
 **Offline guessing.** Anyone with the file has its salt and cost
 and can try passphrases on their own computers, each guess costing one
 Argon2id at the vault's step: a vault is as strong as its passphrase
-(§3.1).
+(§3.1). A key file or a YubiKey's secret adds its own 256 or 160 bits for
+whoever lacks it, and a person who loses it and has no copy loses the
+vault. Without its passphrase, nothing shows that a vault needs either.
 
 **Not done.** The first half of Argon2id's first pass reads memory
 independently of the passphrase; the rest reads it at places the
