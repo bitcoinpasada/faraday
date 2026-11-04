@@ -709,7 +709,7 @@ impl Faraday {
                 self.vaults.state.sb_sign = None;
                 self.vaults.state.focus = None;
             }
-            V::Reveal(n) => self.vaults.toggle_shown(self.vault_on_page(), n),
+            V::Reveal(n) => self.vaults.toggle_shown(&c, self.vault_on_page(), n),
             V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_on_page()),
             V::WalletQr | V::TotpQr => self.vault_qr_act(a),
             V::SaveToStick => self.vault_stick_save_open(),
@@ -3369,11 +3369,145 @@ impl Faraday {
     }
 
     /// After every input: the item page's secrets hidden once the place
-    /// they were shown is left ([`Vaults::shown`]'s invariant).
+    /// they were shown is left ([`Vaults::shown`]'s invariant). The codes
+    /// are not made here but before the next frame
+    /// ([`Self::vault_code_refresh`]).
     pub(crate) fn vault_shown_tidy(&mut self) {
         let on = self.vault_on_page();
         self.vaults.tidy_shown(on);
         self.vault_older_settle();
+    }
+
+    /// Costs one HMAC for each TOTP entry of the open vaults whose code
+    /// is not held for its period; nothing for the others, and nothing
+    /// off the screen. The Codes screen's codes, worked out outside
+    /// drawing and held for it to read (`docs/SPEED.md` §3.3,
+    /// [`crate::vault::CodesHeld`]): every TOTP entry whatever the search
+    /// query, which filters at drawing; made once for each period of each
+    /// entry, and again after an edit. Dropped once the screen is left.
+    /// Run before every frame, with [`Self::vault_code_refresh`].
+    pub(crate) fn vault_codes_refresh(&mut self) {
+        if self.screen != Screen::Codes || self.vaults.open.is_empty() {
+            self.vaults.state.codes = None;
+            return;
+        }
+        let now = self.clock_now();
+        let c = self.compute();
+        let mut old = self.vaults.state.codes.take().unwrap_or_default().0;
+        let mut made = Vec::with_capacity(old.len());
+        for ov in &self.vaults.open {
+            for &record in self.vaults.entry_places(ov.id) {
+                let kept = old
+                    .iter()
+                    .position(|l| l.vault == ov.id && l.record == record)
+                    .filter(|&p| old[p].current(now))
+                    .map(|p| old.swap_remove(p));
+                made.push(kept.unwrap_or_else(|| self.listed_code_made(&c, ov.id, record, now)));
+            }
+        }
+        self.vaults.state.codes = Some(crate::vault::CodesHeld(made));
+    }
+
+    /// Costs one HMAC. What entry `record` of vault `vault` gives at
+    /// `now`, to be held.
+    fn listed_code_made(
+        &self,
+        _c: &Compute,
+        vault: faraday_keys::vault::VaultId,
+        record: usize,
+        now: Option<u64>,
+    ) -> crate::vault::ListedCode {
+        let t = self.vaults.store().totp(
+            vault,
+            record,
+            now,
+            faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
+        );
+        let (account, result) = match t {
+            Some(t) => (t.account, Some(t.code)),
+            None => (None, None),
+        };
+        let period = match &result {
+            Some(Ok(Some(s))) => {
+                crate::work::count(crate::work::Work::TotpCode);
+                s.period
+            }
+            _ => 0,
+        };
+        crate::vault::ListedCode {
+            vault,
+            record,
+            counter: now.filter(|_| period > 0).map(|n| n / period),
+            period,
+            account,
+            result,
+        }
+    }
+
+    /// Costs one HMAC when the page's entry's code is not held for this
+    /// period. The code of the entry on the page, worked out outside
+    /// drawing and held for drawing to read (`docs/SPEED.md` §3.3,
+    /// [`crate::vault::CodeHeld`]): made once for each period, and
+    /// again when the clock, Set the time or an edit changes it. Dropped
+    /// once the page is left. Run before every frame.
+    pub(crate) fn vault_code_refresh(&mut self) {
+        let on = self.vault_on_page();
+        let here = self.vaults.state.shown_here(on).filter(|h| {
+            self.vaults
+                .records(h.vault)
+                .get(h.record)
+                .is_some_and(|r| r.kind() == kind::ENTRY && r.has(field::TOTP))
+        });
+        let Some(here) = here else {
+            self.vaults.state.code = None;
+            return;
+        };
+        let now = self.clock_now().filter(|_| self.clock_checked());
+        if self
+            .vaults
+            .state
+            .code
+            .as_ref()
+            .is_some_and(|h| h.current(here, now))
+        {
+            if let Some(h) = self.vaults.state.code.as_mut() {
+                h.at = here;
+            }
+            return;
+        }
+        let c = self.compute();
+        self.vaults.state.code = Some(self.entry_code_made(&c, here, now));
+    }
+
+    /// Costs one HMAC. What entry `at` gives at `now`, to be held.
+    fn entry_code_made(
+        &self,
+        _c: &Compute,
+        at: crate::vault::ShownAt,
+        now: Option<u64>,
+    ) -> crate::vault::CodeHeld {
+        let result = match self.vaults.store().totp(
+            at.vault,
+            at.record,
+            now,
+            faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
+        ) {
+            Some(t) => t.code,
+            None => Err(faraday_keys::totp::NotTotp::Unreadable),
+        };
+        let period = match &result {
+            Ok(Some(s)) => {
+                crate::work::count(crate::work::Work::TotpCode);
+                s.period
+            }
+            _ => 0,
+        };
+        crate::vault::CodeHeld {
+            at,
+            counter: now.filter(|_| period > 0).map(|n| n / period),
+            period,
+            result,
+        }
     }
 
     /// Runs `f` with the selected wallet record as a session wallet, by

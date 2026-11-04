@@ -63,7 +63,7 @@ fn(Work))`, set by Faraday on every canvas it receives. Faraday's own
 counting is unchanged (`faraday-core/src/work.rs`: `count`, `Counts`,
 `snapshot`, `since`, `KINDS`); its tokens carry `work::core_count`, which
 maps the core kind with `of_core`. Faraday's own kinds (`PlanMap`,
-`Picture`, `WalletMatch`, `PngDecode`, and `Kdf` in `faraday-vault`) still
+`Picture`, `WalletMatch`, `PngDecode`, `TotpCode`, and `Kdf` in `faraday-vault`) still
 call `crate::work::count`; the functions that count them take
 `&Compute` as the gate.
 
@@ -85,7 +85,7 @@ finds them.
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
 | `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
 | `FileRead` | `faraday_files::vault_names`: twelve bytes of each file on a stick that has a vault's length and no `.kdbx` name, read once when a listing is made (`docs/VAULT-HARDENING.md` §2.1) |
-| Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
+| Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Faraday::entry_code_made` and `Faraday::listed_code_made` (`TotpCode`, one HMAC each, made before the frame, outside drawing, once for each period an entry's page is open or the Codes screen is on, and held for drawing to read); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
 `blend_between` (pixel work, counted per frame by the budgets);
@@ -157,7 +157,9 @@ would silence clippy; only the costs lint rejects it, as it rejects
   memo fills), `kept.rs` (the ~15 kept values reached while drawing),
   `allowed.rs` (one named method per `Allowed` entry; today the three
   `SecretShown`, and `reveal`, a borrow of a key's words or passphrase
-  that costs nothing, `docs/KEYS.md` §3). No generic closure hands out a
+  that costs nothing, `docs/KEYS.md` §3). What an eye or a page held (a
+  key's words, a paperkey, an entry's TOTP code) is read by a borrowing
+  accessor there that costs nothing. No generic closure hands out a
   token; a new exception is a new method, which the owner decides.
 - Decisions use `*_now(&self, c: &Compute)` forms on `Faraday`; the memo
   exists only on `View`, so SPEED §2 rule 3 becomes a type rule.

@@ -11,7 +11,7 @@ use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use faraday_shell_api::{
-    App, BootState, Command, DisplayInfo, EntropyBytes, Event, SecureHardware,
+    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware,
 };
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
@@ -176,7 +176,7 @@ fn a_pi_like_clock_opens_set_the_time_first_then_shows_the_code() {
         .code(now);
     match &rows[0].kind {
         CodeKind::Code { grouped, .. } => {
-            assert_eq!(*grouped, faraday_vault::totp::grouped(&expected));
+            assert_eq!(**grouped, faraday_vault::totp::grouped(&expected));
         }
         other => panic!("expected a code, got {other:?}"),
     }
@@ -299,22 +299,45 @@ fn two_open_vaults_each_show_their_rows_and_a_hotp_entry_shows_no_code() {
 fn the_code_shown_changes_when_the_tick_crosses_the_period() {
     let mut app = fresh_app(Some(2_000_000_000), true);
     open_codes_from_tools(&mut app);
+    let key =
+        faraday_vault::totp::parse("otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP").unwrap();
     let now = app.clock_now().unwrap();
-    let before = codes_rows(&app, now);
-    let code_before = match &before[0].kind {
-        CodeKind::Code { grouped, .. } => grouped.clone(),
-        _ => panic!("expected a code"),
-    };
-    let later = now + 30;
-    let after = codes_rows(&app, later);
-    let code_after = match &after[0].kind {
-        CodeKind::Code { grouped, .. } => grouped.clone(),
-        _ => panic!("expected a code"),
-    };
-    assert_ne!(
-        code_before, code_after,
-        "a full period on, the code changed"
-    );
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    let before = faraday_vault::totp::grouped(&key.code(now));
+    assert!(text.contains(&before), "{text}");
+    let next = now + (30 - now % 30);
+    let at = app.now_ms() + (next - now) * 1000;
+    app.event(Event::Tick { now_ms: at });
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    let after = faraday_vault::totp::grouped(&key.code(next));
+    assert_ne!(before, after, "a full period on, the code changes");
+    assert!(text.contains(&after), "{text}");
+    assert!(!text.contains(&before), "{text}");
+}
+
+/// Set the time on the Codes' way in, finished with Enter in a field:
+/// the screen it returns to shows the codes at once.
+#[test]
+fn enter_in_set_the_time_returns_to_codes_with_every_row_showing_its_code() {
+    let mut app = fresh_app(Some(1000), false);
+    open_codes_from_tools(&mut app);
+    assert_eq!(app.screen, Screen::SetTime);
+    app.press(Action::SetTimeFocus(Focus::Date));
+    type_text(&mut app, "2026-10-11");
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "14:02");
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.screen, Screen::Codes);
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    let now = app.clock_now().expect("the clock is known");
+    let key =
+        faraday_vault::totp::parse("otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP").unwrap();
+    let code = faraday_vault::totp::grouped(&key.code(now));
+    assert!(text.contains(&code), "{text}");
+    assert!(!text.contains("Set the time first"), "{text}");
 }
 
 #[test]

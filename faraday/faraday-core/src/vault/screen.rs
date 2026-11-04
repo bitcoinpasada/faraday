@@ -2741,11 +2741,15 @@ fn detail(
         kind::KEY => {
             let fp = app.vault_key_fingerprint(r).unwrap_or_default();
             field_row(ui, &mut dy, EN.vault_fingerprint, &fp, true);
-            // Read from the record once for the frame: a secret shown.
-            let m = app.record_words_shown(r);
-            if let Some(m) = &m {
-                secret_row(ui, &mut dy, EN.vault_words, &words_text(m), true);
-                if m.language() == faraday_bip::bip39::Language::English {
+            // Whether the record holds words, and their list, as the vault
+            // kept them read with the records: nothing is parsed here. The
+            // words themselves are held while their eye shows them.
+            let reads = app.record_word_count(r).is_some();
+            if reads {
+                let held = app.record_words_held();
+                let text = held.map(words_text).unwrap_or_default();
+                secret_row(ui, &mut dy, EN.vault_words, &text, true);
+                if app.record_language(r) == Some(faraday_bip::bip39::Language::English) {
                     ui.text_as(dx, dy, BODY_S, muted, EN.board_seedqr);
                     dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
@@ -2797,7 +2801,7 @@ fn detail(
             );
             if !here {
                 actions.push((EN.vault_load_into_session, va(V::Load)));
-                if m.is_some() && !r.has(field::KEY_PASSPHRASE) {
+                if reads && !r.has(field::KEY_PASSPHRASE) {
                     actions.push((EN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
                 }
             }
@@ -2811,7 +2815,7 @@ fn detail(
                     va(V::ToggleLoad),
                 ));
             }
-            if m.is_some() {
+            if reads {
                 actions.push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
             }
         }
@@ -2863,7 +2867,7 @@ fn detail(
                 field_row(ui, &mut dy, EN.vault_url, u, true);
             }
             if r.has(field::TOTP) {
-                let (h, reads) = codes::entry_code_row(app, ui, r, dx, dy);
+                let (h, reads) = codes::entry_code_row(app, ui, dx, dy);
                 dy += h;
                 let t = app.reveal_record(r, field::TOTP, Reveal::VaultEntry(Part::Totp));
                 secret_row(ui, &mut dy, EN.vault_totp_secret, &t, true);
@@ -2940,11 +2944,7 @@ fn detail(
                 dy += secret_with(
                     ui,
                     (dx, dy, dw),
-                    || {
-                        app.paperkey_shown(r)
-                            .map(faraday_keys::Held::release)
-                            .unwrap_or_default()
-                    },
+                    || app.paperkey_held().unwrap_or_default(),
                     true,
                     (va(V::Reveal(0)), shown_fields & 1 != 0),
                 ) + 14.0;

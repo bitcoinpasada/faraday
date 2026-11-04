@@ -774,6 +774,8 @@ impl Overlay<'_> {
 /// many words, and what tells them from other words ([`WordsId`]).
 struct Fact {
     words: usize,
+    /// The words' list: public, as the count is.
+    language: faraday_bip::bip39::Language,
     id: WordsId,
 }
 
@@ -972,6 +974,7 @@ impl Slot {
                         .flatten()?;
                     Some(Fact {
                         words: m.word_count(),
+                        language: m.language(),
                         id: words_id(c, &m),
                     })
                 })
@@ -2054,6 +2057,18 @@ impl OpenVaults {
         self.slot(id)?.facts(c).get(i)?.as_ref().map(|f| f.words)
     }
 
+    /// Costs what `word_count` costs. The word list key record `i`'s
+    /// words are in; `None` as for `word_count`. Public, kept with the
+    /// count.
+    pub fn language(
+        &self,
+        c: &Compute,
+        id: VaultId,
+        i: usize,
+    ) -> Option<faraday_bip::bip39::Language> {
+        self.slot(id)?.facts(c).get(i)?.as_ref().map(|f| f.language)
+    }
+
     /// Costs what `word_count` costs. What tells key record `i`'s words
     /// from other words ([`WordsId`]); `None` as for `word_count`. A
     /// lookup once the vault's key records are read.
@@ -2068,6 +2083,20 @@ impl OpenVaults {
         match r.home() {
             Some((id, i)) if self.slot(id).is_some() => self.word_count(c, id, i),
             _ => record_words(c, r.raw()).map(|m| m.word_count()),
+        }
+    }
+
+    /// Costs what `word_count` costs for a record in an open vault, a
+    /// parse of the words for any other. The word list key record `r`'s
+    /// words are in.
+    pub fn record_language(
+        &self,
+        c: &Compute,
+        r: RecordView<'_>,
+    ) -> Option<faraday_bip::bip39::Language> {
+        match r.home() {
+            Some((id, i)) if self.slot(id).is_some() => self.language(c, id, i),
+            _ => record_words(c, r.raw()).map(|m| m.language()),
         }
     }
 

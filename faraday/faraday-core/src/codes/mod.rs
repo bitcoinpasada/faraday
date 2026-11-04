@@ -10,6 +10,7 @@ pub(crate) mod screen;
 use crate::strings::EN;
 use faraday_keys::totp::NotTotp;
 use faraday_vault::records::field;
+use zeroize::Zeroizing;
 
 use crate::vault::VaultAction;
 use crate::{Action, Faraday};
@@ -21,7 +22,7 @@ pub enum CodeKind {
     /// and the period itself (for the progress bar's fraction).
     Code {
         /// The code, grouped for display (§4.2).
-        grouped: String,
+        grouped: Zeroizing<String>,
         /// Seconds until the next code.
         left: u32,
         /// The period the code is valid for, seconds.
@@ -34,6 +35,8 @@ pub enum CodeKind {
     /// The clock is not known: no code is worked out until the time is
     /// set (`docs/TOTP.md` §1.3).
     NoClock,
+    /// No code is held for the row: nothing is drawn but the row itself.
+    NotHeld,
 }
 
 /// One row of the codes screen (§5.3).
@@ -54,47 +57,85 @@ pub struct CodeRow {
 
 /// Every row the search bar's query holds, in the order §5.3 draws them:
 /// vault by vault in the order they were opened, then in record order.
+/// Costs one HMAC for each row, and the query's pass over the titles
+/// ([`Vaults::shown_codes`]): for callers outside drawing, which reads
+/// [`codes_rows_held`].
 pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
-    codes_rows_at(app, Some(now))
+    rows(app, Some(now), false)
 }
 
-/// [`codes_rows`] at `now`, or with the clock not known: each TOTP entry
-/// then says to set the time first, and no code is worked out.
-pub fn codes_rows_at(app: &Faraday, now: Option<u64>) -> Vec<CodeRow> {
+/// The rows as drawing reads them: the codes the vault holds for the
+/// screen (`Faraday::vault_codes_refresh`), the seconds left worked out
+/// from the clock. Nothing costs.
+pub(crate) fn codes_rows_held(app: &Faraday) -> Vec<CodeRow> {
+    rows(app, app.clock_now(), true)
+}
+
+/// What an entry gives: its code with the seconds left and the period,
+/// Set the time, HOTP or Unreadable.
+type Given = Result<Option<(Zeroizing<String>, u32, u64)>, NotTotp>;
+
+fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
     let mut out = Vec::new();
     let many = app.vaults.open.len() > 1;
+    let hold = app.vaults.codes_held().filter(|_| held);
     for (v, ov) in app.vaults.open.iter().enumerate() {
         let records = app.vaults().records(ov.id);
         for &at in app.vaults().shown_codes(ov.id) {
             let Some(r) = records.get(at) else {
                 continue;
             };
-            let Some(t) = app.vaults.store().totp(
-                ov.id,
-                at,
-                now,
-                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
-            ) else {
-                continue;
+            let (account, given): (Option<String>, Option<Given>) = if held {
+                // A record the hold says has no row has none; one it
+                // does not hold yet keeps its row, with no code.
+                let l = hold.and_then(|h| h.of(ov.id, at));
+                if l.is_some_and(|l| l.result.is_none()) {
+                    continue;
+                }
+                let given = l
+                    .and_then(|l| l.result.as_ref())
+                    .map(|result| match (result, now) {
+                        (Ok(Some(s)), Some(n)) => Ok(Some((
+                            s.grouped.clone(),
+                            (s.period - n % s.period.max(1)) as u32,
+                            s.period,
+                        ))),
+                        (Ok(_), _) => Ok(None),
+                        (Err(e), _) => Err(*e),
+                    });
+                (l.and_then(|l| l.account.clone()), given)
+            } else {
+                let Some(t) = app.vaults.store().totp(
+                    ov.id,
+                    at,
+                    now,
+                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
+                ) else {
+                    continue;
+                };
+                (
+                    t.account,
+                    Some(t.code.map(|c| c.map(|s| (s.grouped, s.left, s.period)))),
+                )
             };
             let title = r
                 .public_text(field::TITLE)
                 .unwrap_or(EN.codes_entry)
                 .to_string();
-            let account = t
-                .account
+            let account = account
                 .or_else(|| r.public_text(field::USERNAME).map(str::to_string))
                 .unwrap_or_default();
-            let kind = match t.code {
-                Ok(_) if now.is_none() => CodeKind::NoClock,
-                Ok(Some(code)) => CodeKind::Code {
-                    grouped: code.grouped,
-                    left: code.left,
-                    period: code.period,
+            let kind = match given {
+                None => CodeKind::NotHeld,
+                Some(Ok(_)) if now.is_none() => CodeKind::NoClock,
+                Some(Ok(Some((grouped, left, period)))) => CodeKind::Code {
+                    grouped,
+                    left,
+                    period,
                 },
-                Ok(None) => CodeKind::Unreadable,
-                Err(NotTotp::Hotp) => CodeKind::Hotp,
-                Err(NotTotp::Unreadable) => CodeKind::Unreadable,
+                Some(Ok(None)) => CodeKind::Unreadable,
+                Some(Err(NotTotp::Hotp)) => CodeKind::Hotp,
+                Some(Err(NotTotp::Unreadable)) => CodeKind::Unreadable,
             };
             out.push(CodeRow {
                 vault: v,

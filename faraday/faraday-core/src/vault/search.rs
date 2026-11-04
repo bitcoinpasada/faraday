@@ -48,7 +48,8 @@ pub struct Searches {
 /// What one open vault's searches find, kept on the vault beside what is
 /// read of its records (`super::Kept`): for each kind of
 /// [`CATEGORIES`], the places of its records the items list shows, in
-/// record order; and the places of its entries the codes screen shows.
+/// record order; the places of all its entries; and those of them the
+/// codes screen shows under its query.
 ///
 /// Invariant: a vault's `Found` is what its records and the two queries
 /// give as they are now. Every change to the records goes through
@@ -61,6 +62,9 @@ pub struct Searches {
 #[derive(Default)]
 pub(crate) struct Found {
     items: [Vec<usize>; CATEGORIES.len()],
+    /// Every entry, whatever the query: the Codes screen holds a code for
+    /// each, and its search filters them at drawing.
+    entries: Vec<usize>,
     codes: Vec<usize>,
 }
 
@@ -102,12 +106,17 @@ impl Found {
                 .map(|(i, _)| i)
                 .collect()
         });
+        let entries: Vec<usize> = records.of(kind::ENTRY).map(|(i, _)| i).collect();
         let codes = records
             .of(kind::ENTRY)
             .filter(|(_, r)| holds(*r, &codes_q))
             .map(|(i, _)| i)
             .collect();
-        Found { items, codes }
+        Found {
+            items,
+            entries,
+            codes,
+        }
     }
 }
 
@@ -159,6 +168,13 @@ impl Vaults {
     /// `id`'s entries the codes screen shows.
     pub fn shown_codes(&self, id: VaultId) -> &[usize] {
         self.found(id).map_or(&[], |f| f.codes.as_slice())
+    }
+
+    /// Costs what [`Vaults::found`] costs. The places of every entry of
+    /// open vault `id`, whatever the Codes query: the ones whose codes the
+    /// Codes screen holds.
+    pub fn entry_places(&self, id: VaultId) -> &[usize] {
+        self.found(id).map_or(&[], |f| f.entries.as_slice())
     }
 
     /// Costs what [`Vaults::shown`] costs. The place in the slot of the

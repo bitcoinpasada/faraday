@@ -82,10 +82,15 @@ pub enum Work {
     /// The first bytes of a file on a stick read, for a listing to tell
     /// a vault by its contents.
     FileRead,
+    /// A TOTP code worked out of an entry's secret: one HMAC
+    /// (`faraday_keys::totp`), made once for each period the entry's
+    /// page is open (`entry_code_made`) and for each entry the Codes
+    /// screen holds (`listed_code_made`).
+    TotpCode,
 }
 
 /// Every kind, in the order the counts keep them.
-pub const KINDS: [Work; 21] = [
+pub const KINDS: [Work; 22] = [
     Work::MasterKey,
     Work::KeyDerive,
     Work::Address,
@@ -107,6 +112,7 @@ pub const KINDS: [Work; 21] = [
     Work::Codex32,
     Work::Blind,
     Work::FileRead,
+    Work::TotpCode,
 ];
 
 /// The kinds that are drawing's own pixel work: a frame does them (a

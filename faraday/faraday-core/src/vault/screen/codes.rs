@@ -13,29 +13,41 @@ pub(super) fn code_badge(ui: &mut Ui, x: f32, y: f32, label: &str) {
     ui.text_mid_as((x + (pw - tw) / 2.0, y, 26.0), LABEL_M, muted, label);
 }
 
+/// Seconds until a code of `period` seconds changes, at `now`.
+fn left_of(period: u64, now: Option<u64>) -> u64 {
+    period - now.unwrap_or(0) % period.max(1)
+}
+
 /// The row before an entry's TOTP secret (`docs/TOTP.md` §6): the
 /// code, live, or Set the time while the clock is not checked; HOTP's or
 /// Unreadable's badge where it gives none. Returns the height used and
 /// whether the secret reads as TOTP, which gives it Show as QR
 /// (`docs/QR.md` §7.1).
-pub(super) fn entry_code_row(
-    app: &View,
-    ui: &mut Ui,
-    r: RecordView<'_>,
-    dx: f32,
-    y: f32,
-) -> (f32, bool) {
+pub(super) fn entry_code_row(app: &View, ui: &mut Ui, dx: f32, y: f32) -> (f32, bool) {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let mut dy = y;
-    let code = app.entry_code(r, app.clock_now().filter(|_| app.clock_checked()));
+    // Held for the page and made once for each period: drawing reads it
+    // and works the seconds left out of the clock.
+    let now = app.clock_now().filter(|_| app.clock_checked());
+    // Nothing held (a sheet is over the page, drawn once for its frosted
+    // copy): no digits and no badge, the secret still reads as TOTP.
+    let Some(h) = app.entry_code_held() else {
+        ui.text_as(dx, dy, BODY_S, muted, EN.vault_code);
+        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL + 36.0;
+        return (dy + 10.0 - y, true);
+    };
+    let code = match &h.result {
+        Ok(Some(s)) => Ok(Some((&*s.grouped, left_of(s.period, now)))),
+        Ok(None) => Ok(None),
+        Err(e) => Err(*e),
+    };
     let reads = code.is_ok();
     ui.text_as(dx, dy, BODY_S, muted, EN.vault_code);
     dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     match code {
-        Ok(Some(code)) => {
-            let (grouped, left) = (code.grouped, code.left);
-            let gw = ui.measure_as(BODY_L.mono(), &grouped);
-            ui.text_as(dx, dy, BODY_L.mono(), ink, &grouped);
+        Ok(Some((grouped, left))) => {
+            let gw = ui.measure_as(BODY_L.mono(), grouped);
+            ui.text_as(dx, dy, BODY_L.mono(), ink, grouped);
             ui.text_as(
                 dx + gw + 12.0,
                 dy + 4.0,

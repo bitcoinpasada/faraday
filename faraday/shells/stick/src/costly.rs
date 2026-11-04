@@ -22,7 +22,7 @@ use crate::timings::Timings;
 /// The kinds an event is put under, costliest first, each with the name
 /// its row carries. The pixel work drawing does on every frame (a
 /// sheet's backdrop, a fade) is the frame's own bucket, not a row here.
-const ORDER: [(Work, &str); 19] = [
+const ORDER: [(Work, &str); 20] = [
     (Work::Kdf, "key stretched"),
     (Work::Sign, "transaction signed"),
     (Work::PsbtInspect, "transaction checked"),
@@ -42,6 +42,7 @@ const ORDER: [(Work, &str); 19] = [
     (Work::FileHash, "file hashed"),
     (Work::Blind, "key blinded"),
     (Work::FileRead, "file head read"),
+    (Work::TotpCode, "code made"),
 ];
 
 /// What a vault stretch's row is called: what it was for, the strength

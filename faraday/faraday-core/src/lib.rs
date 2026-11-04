@@ -5040,16 +5040,16 @@ impl Faraday {
         }
     }
 
-    /// Brings what drawing only looks up in step before a frame is drawn
-    /// (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4): each open vault's
-    /// records read again when they changed, the codex32 worksheet's fit,
-    /// and Learn's place and pages ([`Self::learn_place`]). Before every
-    /// [`Self::render`].
+    /// Costs one HMAC for each shown TOTP code not held for its period
+    /// ([`Self::vault_code_refresh`], [`Self::vault_codes_refresh`]), and
+    /// what warming costs: what drawing looks up, in step (`docs/SPEED.md` §3.3).
     fn before_frame(&mut self) {
         let c = self.compute();
         for o in &self.vaults.open {
             self.vaults.warm(&c, o.id);
         }
+        self.vault_code_refresh();
+        self.vault_codes_refresh();
         self.codex32_refit();
         self.learn_place();
     }

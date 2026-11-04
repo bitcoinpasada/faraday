@@ -3,7 +3,7 @@
 //! has none.
 
 use crate::Action;
-use crate::codes::{CodeKind, CodeRow, codes_rows_at, va};
+use crate::codes::{CodeKind, CodeRow, codes_rows_held, va};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
@@ -151,6 +151,7 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
             };
             pill_right(ui, x + w - 16.0, y + 14.0, badge);
         }
+        CodeKind::NotHeld => {}
     }
     h + 12.0
 }
@@ -188,7 +189,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let w = cw - 96.0;
     let mut y = crate::screens::bar_head(ui, None, EN.codes_totp_codes);
     y += now_row(app, ui, x, y, w) + 12.0;
-    let rows = codes_rows_at(app, app.clock_now());
+    let rows = codes_rows_held(app);
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
         ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, none_line(app));
@@ -241,7 +242,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !view {
         y += now_row(app, ui, x, y, w) + 8.0;
     }
-    let rows = codes_rows_at(app, app.clock_now());
+    let rows = codes_rows_held(app);
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, none_line(app));

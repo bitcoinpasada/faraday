@@ -180,9 +180,14 @@ exception and why, one method on `View` per entry; a new exception is a
 new method, which the owner decides. One entry now, `SecretShown`: a
 secret the person opened to see or copy. Since F195 it is worked out
 once when shown and held while shown (§2 rule 1), so drawing it again
-works out nothing; the entry stays for the vault's three (a key
-record's words, a GPG paperkey, a TOTP code), which are still worked
-out each frame until they are held as the backup's and BIP-85's are. A function reached
+works out nothing. The entry stays for `reveal_record`, which lends a
+vault record's secret field (a password, a TOTP secret, notes) from the
+store's own wiped text and works nothing out. A key record's words, a
+GPG paperkey, an entry page's TOTP code and the Codes screen's rows are
+held as the backup's and BIP-85's are: the words and the paperkey made at
+their eye's press, the codes just before the frame that draws them, once
+for each period of each entry, all dropped on leaving the page or the
+screen and at a lock. A function reached
 by drawing that does more work (a constant-time fix, say) is costly work
 that takes `c: &Compute` and is counted (F195 point 6).
 
@@ -496,7 +501,7 @@ secret is drawn twice and the second frame works out nothing (F195):
   | `PickWallet` | `Address` | 1 | the card's first receive address, derived once, kept |
   | `PickWallet` | `WalletMatch` | 11 | the card's button asks which wallet each PSBT spends from; each wallet derives its script at a place once, kept |
   | `Step` | `Address` | 2 | a spend's step shows the wallet's own addresses its outputs pay, each derived once, kept |
-  | `Vault(Category)` | `WordsParse` | 1 | the seeds category shows a key record's words (`Allowed::SecretShown`; since F195 the second frame works out nothing) |
+  | `Vault(Category)` | `TotpCode` | 1 | the entries category opens beside its first entry, whose code is worked out once and held (`Faraday::vault_code_refresh`); drawing works out nothing |
   | `Backup` | `PlanMap` | 2 | the wallet's plan mapped and checked once for its shape and answers, kept (eight kept) |
   | `Resume(Flow)` | `FileHash` | 2 | the GPG flow resumed at its end finishes: its vault sealed and hashed, then hashed as it comes into the Outbox |
 

@@ -46,7 +46,7 @@ fn secret_eye(ui: &mut Ui, x: f32, y: f32, w: f32, (action, shown): (Action, boo
     crate::compact::eye_hit(ui, (ex, y, tokens::TOUCH, tokens::TOUCH), action, shown);
 }
 
-/// [`secret`] with the value made only while it shows.
+/// [`secret`] with the value taken (made or borrowed) only while it shows.
 pub(crate) fn secret_with<V: AsRef<str>>(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),

@@ -595,6 +595,16 @@ impl View<'_> {
         self.kept(|c| self.app.vaults.record_word_count(c, r))
     }
 
+    /// Costs a parse of the words the first time. The word list key
+    /// record `r`'s words are in, as its open vault keeps it read:
+    /// public, kept with the count.
+    pub(crate) fn record_language(
+        &self,
+        r: RecordView<'_>,
+    ) -> Option<faraday_bip::bip39::Language> {
+        self.kept(|c| self.app.vaults.record_language(c, r))
+    }
+
     /// The files GPG's sheet signs ([`crate::Faraday::gpg_chosen`]), each
     /// file's hash kept by the file. Costs a hash of each file the first
     /// time.

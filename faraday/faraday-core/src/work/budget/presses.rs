@@ -66,9 +66,15 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
     ),
     (
         "Vault(Category(#))",
-        Work::WordsParse,
+        Work::TotpCode,
         1,
-        "the seeds category opens on a key record, whose words are read from the record to show them (work::Allowed::SecretShown): nothing secret is kept",
+        "the entries category opens beside its first entry, whose code is worked out once to show it and held (vault_code_refresh): drawing works out nothing",
+    ),
+    (
+        "Nav(Codes)",
+        Work::TotpCode,
+        8,
+        "the Codes screen lists every entry with a TOTP secret (eight in the heavy session): each entry's code is worked out once when the screen opens and held (vault_codes_refresh), where drawing worked them out on every frame; drawing works out nothing",
     ),
     (
         "Backup(#)",

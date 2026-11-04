@@ -337,7 +337,13 @@ again after a lock in the same power-on.
   search would not list it: that search is emptied first.
 
 The screen redraws on the shell's ticks whenever the second shown has
-changed, and the code changes on the tick that crosses its period. It is
+changed, and the code changes on the tick that crosses its period. Every
+TOTP entry of the open vaults has its code worked out once for its
+entry's period, before the frame and outside drawing, and held while
+the screen is on (`docs/SPEED.md` §3.3); the search bar filters the held
+rows at drawing, so typing or deleting in it works out no code. A frame
+reads the held codes and works out only the seconds left from the clock. The codes are dropped on
+leaving the screen and at a lock. It is
 a vault screen: a lock or the idle lock closes it as the other vault
 screens are closed. Watching codes is not input and does not hold off
 the idle lock.

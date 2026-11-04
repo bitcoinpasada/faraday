@@ -408,11 +408,11 @@ impl VaultArea {
         self.state.gpg_years = years;
     }
 
-    /// Every secret the item page shows hidden again, its SeedQR with
-    /// them.
+    /// Every secret the item page shows hidden again, with what was held
+    /// of them: the SeedQR, a key's words, a paperkey and the entry's
+    /// code (each wiped as it drops).
     pub(crate) fn hide_shown(&mut self) {
-        self.state.shown = None;
-        self.state.seedqr = None;
+        self.state.drop_shown();
     }
 
     /// The secrets shown hidden once the place they were shown is left,
@@ -425,13 +425,21 @@ impl VaultArea {
             None => true,
         };
         if left {
+            // The entry's code is the refresh's to keep or drop
+            // (`Faraday::vault_code_refresh`): dropped here, it would be
+            // made again after every input.
+            let code = self.state.code.take();
             self.hide_shown();
+            self.state.code = code;
         }
     }
 
-    /// The eye of secret field `n` on the item page: shows it, or hides
-    /// it again.
-    pub(crate) fn toggle_shown(&mut self, on_page: bool, n: usize) {
+    /// Costs a parse of a key's words, or a paperkey's making, when the
+    /// eye shows it. The eye of secret field `n` on the item page: shows
+    /// it, or hides it again. The first secret of a key record (its
+    /// words) or of a GPG key (its paperkey) is made here and held while
+    /// it shows (`docs/SPEED.md` §3.3); a hidden one is dropped.
+    pub(crate) fn toggle_shown(&mut self, c: &Compute, on_page: bool, n: usize) {
         self.tidy_shown(on_page);
         let (Some(here), Some(bit)) = (
             self.state.shown_here(on_page),
@@ -444,9 +452,33 @@ impl VaultArea {
             fields: 0,
         });
         s.fields ^= bit;
+        let on = s.fields & bit != 0;
         if s.fields == 0 && self.state.seedqr.is_none() {
             self.state.shown = None;
         }
+        if n != 0 {
+            return;
+        }
+        if !on {
+            self.state.words = None;
+            self.state.paperkey = None;
+            return;
+        }
+        let state = &mut self.state;
+        let Some(r) = state.records(here.vault).get(here.record) else {
+            return;
+        };
+        use faraday_keys::{Part, Reveal};
+        let (words, paperkey) = match r.kind() {
+            kind::KEY => (
+                state.store.words_of(c, r, Reveal::VaultEntry(Part::Words)),
+                None,
+            ),
+            kind::GPG => (None, state.store.gpg_paperkey(r, Reveal::GpgPaperkey)),
+            _ => (None, None),
+        };
+        state.words = words.map(|m| (here.record, m));
+        state.paperkey = paperkey.map(|p| (here.record, p));
     }
 
     /// Costs a parse of the words and a QR encoding when it shows. The
@@ -828,6 +860,41 @@ impl Vaults {
         }
     }
 
+    /// The selected key record's words, while its eye shows them here
+    /// (made at the press, [`VaultArea::toggle_shown`]). A walk of the
+    /// record list.
+    pub(crate) fn words_shown(&self, on_page: bool) -> Option<&faraday_bip::bip39::Mnemonic> {
+        let here = self.shown_here(on_page)?;
+        self.shown
+            .filter(|s| s.at == here)
+            .and(self.words.as_ref())
+            .filter(|(at, _)| *at == here.record)
+            .map(|(_, m)| &**m)
+    }
+
+    /// The selected GPG key's paperkey, while its eye shows it here. A
+    /// walk of the record list.
+    pub(crate) fn paperkey_shown(&self, on_page: bool) -> Option<&str> {
+        let here = self.shown_here(on_page)?;
+        self.shown
+            .filter(|s| s.at == here)
+            .and(self.paperkey.as_ref())
+            .filter(|(at, _)| *at == here.record)
+            .map(|(_, p)| p.as_str())
+    }
+
+    /// The codes screen's rows as held while it is on ([`CodesHeld`]).
+    pub(crate) fn codes_held(&self) -> Option<&CodesHeld> {
+        self.codes.as_ref()
+    }
+
+    /// The selected entry's TOTP code as held for the page, while the
+    /// page is on screen ([`CodeHeld`]). A walk of the record list.
+    pub(crate) fn code_held(&self, on_page: bool) -> Option<&CodeHeld> {
+        let here = self.shown_here(on_page)?;
+        self.code.as_ref().filter(|h| h.at == here)
+    }
+
     /// The selected key's SeedQR, while its eye shows it here. A walk of
     /// the record list.
     pub(crate) fn seedqr_shown(&self, on_page: bool) -> Option<&faraday_codec::qr::QrMatrix> {
@@ -951,6 +1018,9 @@ impl Vaults {
     /// way the records of an open vault change.
     pub fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
         let out = change(&mut self.store);
+        // A secret changed in place leaves no old code showing.
+        self.code = None;
+        self.codes = None;
         if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
             o.read = Kept::default();
         }
@@ -1050,6 +1120,21 @@ impl Vaults {
             self.warm(c, id);
         }
         self.store.record_word_count(c, r)
+    }
+
+    /// Costs what `warm` costs. The word list key record `r`'s words are
+    /// in, as its open vault keeps it read (public, kept with the
+    /// count); a record that is no open vault's own is read afresh,
+    /// which costs a parse.
+    pub fn record_language(
+        &self,
+        c: &Compute,
+        r: RecordView<'_>,
+    ) -> Option<faraday_bip::bip39::Language> {
+        if let Some((id, _)) = r.home() {
+            self.warm(c, id);
+        }
+        self.store.record_language(c, r)
     }
 
     /// Costs what `warm` costs. Key record `r`'s words'
@@ -1490,12 +1575,29 @@ pub struct Vaults {
     /// index: made at the press that shows it, dropped at the press that
     /// hides it and with [`Vaults::shown`].
     pub(crate) seedqr: Option<(usize, faraday_codec::qr::QrMatrix)>,
+    /// The selected key record's words while its eye shows them, by
+    /// record index: made at the press that shows them, dropped at the
+    /// press that hides them and with [`Vaults::shown`] (F195).
+    pub(crate) words: Option<(usize, faraday_keys::Held<faraday_bip::bip39::Mnemonic>)>,
+    /// The selected GPG key's paperkey while its eye shows it, held and
+    /// dropped as `words` is.
+    pub(crate) paperkey: Option<(usize, faraday_keys::Held<zeroize::Zeroizing<String>>)>,
+    /// The code of the entry on the page, held while the page is open
+    /// and made once for each period ([`CodeHeld`]). It shows with no eye,
+    /// so it outlives [`Vaults::shown`]: the frame after the page is left
+    /// drops it (`Faraday::vault_code_refresh`), as do an edit and a lock.
+    pub(crate) code: Option<CodeHeld>,
+    /// The codes screen's rows, held while the screen is on
+    /// ([`CodesHeld`]); dropped on leaving it, at a lock, and by every
+    /// edit and close.
+    pub(crate) codes: Option<CodesHeld>,
     /// The item page's secrets shown by their eyes, and where. Invariant:
     /// `None`, and `seedqr` with it, once the place it names is left
     /// (another screen, vault, kind, record or page of the item, a sheet
     /// over it, a lock); kept so by [`crate::Faraday::vault_shown_tidy`]
-    /// after every input, and drawing shows a secret only where it was
-    /// shown.
+    /// after every input, the codes, words and paperkey held for what is
+    /// shown dropped with it (the codes by `before_frame`), and drawing
+    /// shows a secret only where it was shown.
     pub(crate) shown: Option<Shown>,
     /// Save to a stick's popup, while it is open.
     pub stick_save: Option<crate::vault::out::StickSave>,
@@ -1516,6 +1618,95 @@ pub(crate) struct ShownAt {
     pub(crate) category: usize,
     pub(crate) record: usize,
     pub(crate) item_open: bool,
+}
+
+impl ShownAt {
+    /// The same record of the same vault and kind, the item's page open
+    /// or not (it shows beside the list on a wide panel).
+    pub(crate) fn same_record(self, other: ShownAt) -> bool {
+        Self {
+            item_open: other.item_open,
+            ..self
+        } == other
+    }
+}
+
+/// What the entry on the page gives for its TOTP secret, worked out
+/// outside drawing (`Faraday::vault_code_refresh`) and read by it: the
+/// result at `counter`'s period, and where. The seconds left are not
+/// held: drawing works them out from the clock.
+pub(crate) struct CodeHeld {
+    /// The page it was made for.
+    pub(crate) at: ShownAt,
+    /// The period it was made in, as seconds on the clock over the
+    /// period's length; `None` with no checked clock.
+    pub(crate) counter: Option<u64>,
+    /// The period's length in seconds; 0 where there is no code.
+    pub(crate) period: u64,
+    /// A code (wiped as it drops), Set the time, HOTP or Unreadable.
+    pub(crate) result: Result<Option<faraday_keys::totp::Shown>, faraday_keys::totp::NotTotp>,
+}
+
+impl CodeHeld {
+    /// Whether the code made is still the one for `now` on `at`: the
+    /// same entry, its page open or not.
+    pub(crate) fn current(&self, at: ShownAt, now: Option<u64>) -> bool {
+        self.at.same_record(at)
+            && match (&self.result, now) {
+                (Err(_), _) => true,
+                (Ok(None), None) => true,
+                (Ok(Some(_)), Some(n)) => self.period > 0 && self.counter == Some(n / self.period),
+                _ => false,
+            }
+    }
+}
+
+/// What one listed entry of the codes screen gives for its TOTP secret,
+/// worked out outside drawing (`Faraday::vault_codes_refresh`) and read
+/// by it, as [`CodeHeld`] holds the entry page's. The seconds left are
+/// not held: drawing works them out from the clock.
+pub(crate) struct ListedCode {
+    pub(crate) vault: VaultId,
+    pub(crate) record: usize,
+    /// The period it was made in, as seconds on the clock over the
+    /// period's length; `None` with no clock.
+    pub(crate) counter: Option<u64>,
+    /// The period's length in seconds; 0 where there is no code.
+    pub(crate) period: u64,
+    /// The account its URI's label names, public.
+    pub(crate) account: Option<String>,
+    /// `None` for a record with no row (not an entry); else a code
+    /// (wiped as it drops), Set the time, HOTP or Unreadable.
+    pub(crate) result:
+        Option<Result<Option<faraday_keys::totp::Shown>, faraday_keys::totp::NotTotp>>,
+}
+
+impl ListedCode {
+    /// Whether what was made is still what `now` gives.
+    pub(crate) fn current(&self, now: Option<u64>) -> bool {
+        match (&self.result, now) {
+            (None | Some(Err(_)), _) => true,
+            (Some(Ok(None)), None) => true,
+            (Some(Ok(Some(_))), Some(n)) => {
+                self.period > 0 && self.counter == Some(n / self.period)
+            }
+            _ => false,
+        }
+    }
+}
+
+/// The codes screen's rows as held: one [`ListedCode`] for each entry
+/// listed, wiped as it drops.
+#[derive(Default)]
+pub(crate) struct CodesHeld(pub(crate) Vec<ListedCode>);
+
+impl CodesHeld {
+    /// The held result of record `record` of vault `vault`.
+    pub(crate) fn of(&self, vault: VaultId, record: usize) -> Option<&ListedCode> {
+        self.0
+            .iter()
+            .find(|l| l.vault == vault && l.record == record)
+    }
 }
 
 /// The item page's secrets shown by their eyes ([`Vaults::shown`]).
@@ -1574,6 +1765,7 @@ impl Vaults {
     pub fn close(&mut self, i: usize) {
         let gone = self.open.remove(i);
         self.store.close(gone.id);
+        self.codes = None;
     }
 
     /// Drops the slot an unlock adopted and refused, its key and records
@@ -1582,8 +1774,20 @@ impl Vaults {
         self.store.close(id);
     }
 
-    /// Closes every open vault.
+    /// Every secret shown and what was held of it dropped, each wiped:
+    /// the SeedQR, a key's words, a paperkey and the entry's code.
+    pub(crate) fn drop_shown(&mut self) {
+        self.shown = None;
+        self.seedqr = None;
+        self.words = None;
+        self.paperkey = None;
+        self.code = None;
+    }
+
+    /// Closes every open vault, at a lock what is shown with them.
     pub fn close_all(&mut self) {
+        self.drop_shown();
+        self.codes = None;
         self.open.clear();
         self.store.clear();
         self.search = super::search::Searches::default();

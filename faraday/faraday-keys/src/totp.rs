@@ -4,8 +4,9 @@ pub use faraday_vault::totp::NotTotp;
 
 /// A code as it is shown.
 pub struct Shown {
-    /// The digits, grouped for reading.
-    pub grouped: String,
+    /// The digits, grouped for reading; wiped when dropped, as a code
+    /// held while it shows is.
+    pub grouped: zeroize::Zeroizing<String>,
     /// Seconds until it changes.
     pub left: u32,
     /// The period it lasts, in seconds.
@@ -27,7 +28,7 @@ pub fn shown(field: &str, now: Option<u64>) -> Result<Option<Shown>, NotTotp> {
 pub fn shown_of(t: &faraday_vault::totp::Totp, now: Option<u64>) -> Option<Shown> {
     let now = now?;
     Some(Shown {
-        grouped: faraday_vault::totp::grouped(&t.code(now)),
+        grouped: faraday_vault::totp::grouped(&t.code(now)).into(),
         left: t.left(now),
         period: t.period(),
     })
@@ -37,7 +38,7 @@ pub fn shown_of(t: &faraday_vault::totp::Totp, now: Option<u64>) -> Option<Shown
 pub fn code_at(field: &str, now: u64) -> Result<Shown, NotTotp> {
     let code = faraday_vault::totp::parse(field)?;
     Ok(Shown {
-        grouped: faraday_vault::totp::grouped(&code.code(now)),
+        grouped: faraday_vault::totp::grouped(&code.code(now)).into(),
         left: code.left(now),
         period: code.period(),
     })

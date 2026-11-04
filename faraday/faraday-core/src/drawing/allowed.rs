@@ -1,16 +1,18 @@
 //! The owner's exceptions, on [`View`]: costly work drawing does outside
 //! the memo and the state, each a named method with why it is not kept
 //! (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4). One entry today,
-//! [`Allowed::SecretShown`]: a secret the person opened to see or copy,
-//! which is worked out once when shown and held while shown, then
-//! dropped and wiped when hidden, on leaving the page and at a lock
-//! (F195, `docs/SPEED.md` §2 rule 1), so drawing it again works out
-//! nothing. A new exception is a new method here, which the
-//! owner decides. Each is handed the view's token (`View::allowed`).
+//! [`Allowed::SecretShown`], held only for [`View::reveal_record`], which
+//! lends a field and works nothing out. The secrets a person opens to
+//! see or copy are not exceptions: each is worked out once when shown
+//! and held while shown, then dropped and wiped when hidden, on leaving
+//! the page and at a lock (F195, `docs/SPEED.md` §2 rule 1), and the
+//! methods below that name them (`bip85_held`, `record_words_held`,
+//! `paperkey_held`, `entry_code_held`) borrow what is held. A new
+//! exception is a new method here, which the owner decides. Each is
+//! handed the view's token (`View::allowed`).
 
 use faraday_bip::bip39::Mnemonic;
 use faraday_codec::qr::QrMatrix;
-use faraday_keys::Held;
 use faraday_keys::vault::RecordView;
 use zeroize::Zeroizing;
 
@@ -21,13 +23,12 @@ use super::View;
 /// [`View`] below. The owner decides each entry (`docs/SPEED.md` §3.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Allowed {
-    /// A secret the person opened to see or to copy by hand: a seed's
-    /// words and SeedQR grid on the backup's copy page, a vault key
-    /// record's words, a BIP-85 child, a paperkey, a TOTP code. It is
-    /// worked out once when shown and held with the screen's state in a
-    /// holder that wipes on drop; it is dropped the moment it is hidden,
-    /// on leaving the page and at a lock, and drawing it again works out
-    /// nothing (F195, `docs/SPEED.md` §2 rule 1).
+    /// A secret field of a vault record lent to be drawn while its eye
+    /// shows it: a password, a TOTP secret, notes or a note's text. It
+    /// is the store's own wiped text, so nothing is worked out; the token
+    /// is there because the store's reveal asks for one for a key's
+    /// words, which are held while shown and never asked for here (F195,
+    /// `docs/SPEED.md` §2 rule 1).
     SecretShown,
 }
 
@@ -57,24 +58,30 @@ impl View<'_> {
         self.app.tools.convert().shown_text()
     }
 
-    /// A vault key record's words, read for this frame to be shown
-    /// ([`faraday_keys::vault::OpenVaults::words_of`];
-    /// [`Allowed::SecretShown`]). Costs a parse of the words.
-    pub fn record_words_shown(&self, r: RecordView<'_>) -> Option<Held<Mnemonic>> {
-        self.allowed(Allowed::SecretShown, |c| {
-            self.app.vaults.store().words_of(
-                c,
-                r,
-                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
-            )
-        })
+    /// The selected key record's words, held since its eye opened them
+    /// (F195): a borrow, nothing costs.
+    pub fn record_words_held(&self) -> Option<&Mnemonic> {
+        self.app.vaults.words_shown(self.app.vault_on_page())
+    }
+
+    /// The selected GPG key's paperkey, held since its eye opened it
+    /// (F195): a borrow, nothing costs.
+    pub fn paperkey_held(&self) -> Option<&str> {
+        self.app.vaults.paperkey_shown(self.app.vault_on_page())
+    }
+
+    /// What the entry on the page gives for its TOTP secret, held for the
+    /// page and made once for each period (F195,
+    /// `Faraday::vault_code_refresh`): a borrow, nothing costs.
+    pub(crate) fn entry_code_held(&self) -> Option<&crate::vault::CodeHeld> {
+        self.app.vaults.code_held(self.app.vault_on_page())
     }
 
     /// A secret field of a vault record, lent for this frame to be drawn
     /// ([`faraday_keys::vault::OpenVaults::reveal`];
     /// [`Allowed::SecretShown`]): an entry's password, TOTP secret or
-    /// notes, a note's text. Costs nothing but, for a key's words, a parse
-    /// of them.
+    /// notes, a note's text. Costs nothing: a key's words, which the store
+    /// would parse, are held while shown and not asked for here.
     pub fn reveal_record(
         &self,
         r: RecordView<'_>,
@@ -86,43 +93,6 @@ impl View<'_> {
         };
         self.allowed(Allowed::SecretShown, |c| {
             self.app.vaults.store().reveal(c, id, i, number, why)
-        })
-    }
-
-    /// The code vault entry `r` gives at `now`, and the account its
-    /// secret names ([`faraday_keys::vault::OpenVaults::totp`];
-    /// [`Allowed::SecretShown`]): drawn from the secret each frame, as it
-    /// changes with the clock. Cheap: one HMAC.
-    pub fn entry_code(
-        &self,
-        r: RecordView<'_>,
-        now: Option<u64>,
-    ) -> Result<Option<faraday_keys::totp::Shown>, faraday_keys::totp::NotTotp> {
-        let Some((id, i)) = r.home() else {
-            return Err(faraday_keys::totp::NotTotp::Unreadable);
-        };
-        self.allowed(Allowed::SecretShown, |_| {
-            match self.app.vaults.store().totp(
-                id,
-                i,
-                now,
-                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
-            ) {
-                Some(t) => t.code,
-                None => Err(faraday_keys::totp::NotTotp::Unreadable),
-            }
-        })
-    }
-
-    /// The paperkey text of GPG record `r`, made for this frame
-    /// ([`faraday_keys::vault::OpenVaults::gpg_paperkey`];
-    /// [`Allowed::SecretShown`]), and wiped with it.
-    pub fn paperkey_shown(&self, r: RecordView<'_>) -> Option<Held<Zeroizing<String>>> {
-        self.allowed(Allowed::SecretShown, |_| {
-            self.app
-                .vaults()
-                .store()
-                .gpg_paperkey(r, faraday_keys::Reveal::GpgPaperkey)
         })
     }
 
