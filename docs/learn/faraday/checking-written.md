@@ -119,7 +119,9 @@ To repeat it by hand on Linux: copy the image's length off the card
 names); put the image's own disk signature back with `sfdisk
 --disk-id`, attach the copy (`losetup --partscan`) and put each FAT
 serial back with `fatlabel -i` and the data partition's label with
-`fatlabel`; then `sha256sum copy.img`.
+`fatlabel`; then `sha256sum copy.img`. This holds until the card has
+been in a Windows computer, which adds a `System Volume Information`
+folder to its boot partition; the files on it stay as they were.
 
 An image given to the Starter by name (`--image`) has no manifest:
 Confirm shows its SHA-256, and the write must give that sum.

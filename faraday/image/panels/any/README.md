@@ -13,7 +13,7 @@ filesystem overlay, finds the screen at boot from what is in the image.
 screens/order              the panel probes, in the order they are tried
 screens/<screen>/panel.conf   the values the app is given for the screen
 screens/<screen>/probe.conf   what the screen's probe expects
-screens/<screen>/touch.line   the touch overlay: one line
+screens/<screen>/touch.line   the touch overlay: one line, or touch.dts
 screens/<screen>/display.line the display overlay: one line
 ```
 
@@ -52,9 +52,11 @@ fallback, so nothing is probed and no overlay is loaded.
   name and its parameters separated by commas, without spaces. The build
   merges each with Raspberry Pi's `ovmerge` from the pinned kernel's
   overlay sources into one overlay with no parameters (a name with no
-  parameters is read as followed by a comma) and compiles it. A name that
-  has no source in the kernel is a compiled overlay of a vendor's pack,
-  taken as it is (the 2.8-inch's `waveshare-touch-28dpi`).
+  parameters is read as followed by a comma) and compiles it.
+- **`touch.dts`**: in place of `touch.line`, for an overlay with no source
+  in the kernel (the 2.8-inch's). It is compiled as it is. Every fragment
+  aims at a node already in the device tree: configfs refuses one aimed
+  at a node the same overlay creates, which the firmware's merger allows.
 
 ## What the image holds
 

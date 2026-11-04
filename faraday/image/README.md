@@ -299,7 +299,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
 | Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |
 | The binary | Built on the host by `just faraday-pi-bin` with the board's toolchain, as a static executable, and installed by `package/faraday`. Buildroot never builds Rust |
-| Overlays | The Pi's screens' overlays are merged at build time by Raspberry Pi's `ovmerge` (`utils`, at a pinned commit and sha256) from the pinned kernel's overlay sources, and compiled by Buildroot's `dtc`; the 2.8-inch's touch overlay is Waveshare's own `28DPI-DTBO` pack, downloaded at a pinned sha256 |
+| Overlays | The Pi's screens' overlays are merged at build time by Raspberry Pi's `ovmerge` (`utils`, at a pinned commit and sha256) from the pinned kernel's overlay sources, and compiled by Buildroot's `dtc`; the 2.8-inch's touch overlay is a source file in its screen's directory, compiled by the same `dtc` |
 
 ### The kernel is the defconfig with its modules dropped
 
@@ -822,8 +822,8 @@ not:
 - **Panel right, touch dead.** Check `/run/faraday-screen/args`: `--touch-name`
   must be a substring of what the controller calls itself and
   `--touch-grid` its reported range. On the Waveshare panel the Goodix
-  controller answers on the bit-banged i2c bus the `waveshare-touch-28dpi`
-  overlay declares; watch the serial console for its probe.
+  controller answers on the bit-banged i2c bus its touch overlay
+  (`panels/any/screens/waveshare-28dpi/touch.dts`) declares; watch the serial console for its probe.
 - **Touch lands in the wrong place.** `--touch-grid` is wrong for this
   controller. It is the range the controller reports, not the panel size;
   the two differ whenever the panel is mounted rotated.

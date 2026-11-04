@@ -1,3 +1,2 @@
 source "$BR2_EXTERNAL_FARADAY_PATH/package/faraday/Config.in"
-source "$BR2_EXTERNAL_FARADAY_PATH/package/waveshare-28dpi-overlays/Config.in"
 source "$BR2_EXTERNAL_FARADAY_PATH/package/rpi-ovmerge/Config.in"

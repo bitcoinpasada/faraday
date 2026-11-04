@@ -1,6 +1,4 @@
 # What the image build needs to make the screens' overlays (build.sh):
-# Raspberry Pi's ovmerge, the device tree compiler, and Waveshare's pack,
-# whose touch overlay for the 2.8-inch has no source in the kernel.
+# Raspberry Pi's ovmerge and the device tree compiler.
 BR2_PACKAGE_HOST_RPI_OVMERGE=y
 BR2_PACKAGE_HOST_DTC=y
-BR2_PACKAGE_WAVESHARE_28DPI_OVERLAYS=y

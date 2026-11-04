@@ -1,0 +1,59 @@
+// The 2.8-inch's touch controller and backlight, with the values of
+// Waveshare's waveshare-touch-28dpi overlay (GPL-2.0+, from the pack their
+// wiki page links, 28DPI-DTBO.zip, 2024-08-08). Waveshare's file gives the
+// controllers their own fragment, aimed at the i2c@0 node another of its
+// fragments creates. The firmware's merger takes that and the kernel's
+// configfs does not (it refuses the overlay: target not found), so here
+// they sit inside that node.
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2708", "brcm,bcm2711", "brcm,bcm2712";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			rpi_backlight {
+				compatible = "gpio-backlight";
+				gpios = <&gpio 18 0>;
+				default-on;
+				pinctrl-names = "default";
+			};
+
+			i2c@0 {
+				compatible = "i2c-gpio";
+				gpios = <&gpio 10 0>, <&gpio 11 0>;
+				i2c-gpio,delay-us = <4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ft6236@14 {
+					compatible = "goodix,gt911";
+					reg = <0x14>;
+					interrupt-parent = <&gpio>;
+					irq-gpios = <&gpio 27 2>;
+					touchscreen-size-x = <480>;
+					touchscreen-size-y = <640>;
+					touchscreen-x-mm = <43>;
+					touchscreen-y-mm = <58>;
+					touchscreen-swapped-x-y;
+					touchscreen-inverted-y;
+				};
+
+				ft6236@5d {
+					compatible = "goodix,gt911";
+					reg = <0x5d>;
+					interrupt-parent = <&gpio>;
+					irq-gpios = <&gpio 27 2>;
+					touchscreen-size-x = <480>;
+					touchscreen-size-y = <640>;
+					touchscreen-x-mm = <43>;
+					touchscreen-y-mm = <58>;
+					touchscreen-swapped-x-y;
+					touchscreen-inverted-y;
+				};
+			};
+		};
+	};
+};

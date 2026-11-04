@@ -32,9 +32,11 @@ DEV=${FARADAY_SCREEN_DEV:-/dev}
 KMSG=${FARADAY_SCREEN_KMSG:-/dev/kmsg}
 MOUNT_CFG=${FARADAY_SCREEN_MOUNT:-mount -t configfs configfs}
 UMOUNT_CFG=${FARADAY_SCREEN_UMOUNT:-umount}
-# Tenths of a second to wait for a controller, and for /dev/fb0 after
-# the rebind (two seconds each until docs/IMAGES.md §9 step 11 measures).
-WAIT=${FARADAY_SCREEN_WAIT:-20}
+# Tenths of a second to wait for a controller (five seconds: the driver
+# tries the GT911's two addresses in turn, and a screen missed here is
+# a blank Pi), and for /dev/fb0 after the rebind (two seconds), until
+# docs/IMAGES.md §9 step 11 measures them.
+WAIT=${FARADAY_SCREEN_WAIT:-50}
 FB_WAIT=${FARADAY_SCREEN_FB_WAIT:-20}
 
 OVERLAYS="$CFG/device-tree/overlays"

@@ -181,8 +181,9 @@ probe that finds nothing removes what it loaded before the next starts.
    GT911's reset and interrupt lines, so those are set up before the
    controller has answered. The probe passes when the controller's input
    device appears, with the name expected, on that bus and at one of the
-   two addresses, within a set time (two seconds until §9 step 11
-   measures it). The DPI pin setup (GPIO 0-9, 12-17 and 20-25 to
+   two addresses, within a set time (five seconds until §9 step 11
+   measures it: the driver tries the two addresses in turn, and took
+   about two seconds over a pair that did not answer, under QEMU). The DPI pin setup (GPIO 0-9, 12-17 and 20-25 to
    alternate function 2) is applied only once the GT911 has answered,
    by the display overlay.
 3. **Nothing found:** HDMI, as the HDMI image starts today; a monitor
@@ -207,8 +208,10 @@ The screen is chosen once per boot; a screen changed is a power cycle.
   output format included, are that display overlay line and nothing
   else: a change to the 2.8-inch's colour order is a change to that one
   line. The 2.8-inch's touch overlay has no source in the board's
-  kernel, so its line names Waveshare's compiled overlay, taken as it
-  is from the pinned overlay pack; the display line is merged with
+  kernel, so it is a source file in the screen's directory with the
+  values of Waveshare's overlay, laid out so configfs takes it: the
+  kernel refuses Waveshare's compiled file, whose fragment aims at a
+  node the same overlay creates. The display line is merged with
   `ovmerge` (`faraday/image/panels/any/README.md`).
 - **Loading.** The display overlay is applied through configfs, then
   vc4's DRM driver is unbound and bound again
@@ -540,9 +543,14 @@ marked so (`docs/HARDWARE.md` §6).
       address; a rebind that leaves no `/dev/fb0`; nothing found. Each
       gives the screen expected, or HDMI, and the arguments the shell
       is given;
-    - the image under QEMU's raspi3b, which has no HDMI output and no
-      panel: every probe finds nothing, the Pi falls back to HDMI,
-      configfs is unmounted, and the app starts.
+    - the image under QEMU, which has no HDMI output and no panel:
+      every probe finds nothing, the Pi falls back to HDMI, configfs is
+      unmounted, and the app starts (and exits, with no framebuffer to
+      draw on). The machine is `raspi2b` with the card's
+      `bcm2710-rpi-3-b.dtb`, kernel and command line given directly:
+      `raspi3b` shows nothing from this 32-bit kernel. QEMU does not run
+      the Pi's firmware, so this does not test `bootcode.bin` reading
+      the card.
 11. **Each screen tried on the one image**, the 2.8-inch and an HDMI
     monitor (the owner, with the dev image, whose boot report carries each
     probe's lines, §3.4). A screen tried becomes tested in

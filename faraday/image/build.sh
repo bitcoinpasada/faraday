@@ -512,9 +512,8 @@ echo "    $kernel_tarball sha256 $got"
 # through the C preprocessor as the kernel does, and compiled by Buildroot's
 # dtc. A line is a firmware overlay's name and its parameters, comma
 # separated; an overlay with none ends in a comma, so ovmerge removes the
-# declarations of its parameters. A name with no source in the kernel is a
-# compiled overlay of a vendor's pack, taken as it is (Waveshare's touch
-# overlay for the 2.8-inch).
+# declarations of its parameters. An overlay with no source in the kernel is
+# a .dts in the screen's directory (the 2.8-inch's touch overlay).
 screens_src="$panel_dir/screens"
 screens_out="$gen/overlay/etc/faraday/screens"
 if [ -d "$screens_src" ]; then
@@ -522,7 +521,7 @@ if [ -d "$screens_src" ]; then
     if [ -d "$screens_out" ]; then
         find "$screens_out" -mindepth 1 -delete
     fi
-    make -C /output host-rpi-ovmerge host-dtc waveshare-28dpi-overlays-extract
+    make -C /output host-rpi-ovmerge host-dtc
     kdts="$gen/kernel-dts"
     if [ "$(cat "$kdts/.sha256" 2>/dev/null || true)" != "$kernel_sha256" ]; then
         mkdir -p "$kdts"
@@ -532,29 +531,27 @@ if [ -d "$screens_src" ]; then
         echo "$kernel_sha256" > "$kdts/.sha256"
     fi
     ovdir="$kdts/arch/arm/boot/dts/overlays"
-    vendor_dir="$(ls -d /output/build/waveshare-28dpi-overlays-*/ | head -1)"
     host_bin=/output/host/bin
 
-    # make_overlay <line file> <output .dtbo>
+    # make_overlay <screen's directory> <touch or display> <output .dtbo>
     make_overlay() {
         local line spec name
-        line="$(sed 's/#.*//' "$1" | tr -d '\n')"
+        if [ -f "$1/$2.dts" ]; then
+            "$host_bin/dtc" -q -@ -I dts -O dtb -o "$3" "$1/$2.dts"
+            return
+        fi
+        line="$(sed 's/#.*//' "$1/$2.line" | tr -d '\n')"
         spec="${line// /}"
         [ -n "$spec" ] && [ "$spec" = "$line" ] || {
-            echo "$1: one overlay name and its parameters, no spaces" >&2; exit 1; }
+            echo "$1/$2.line: one overlay name and its parameters, no spaces" >&2; exit 1; }
         name="${spec%%,*}"
-        if [ -f "$ovdir/$name-overlay.dts" ]; then
-            case "$spec" in *,*) ;; *) spec="$spec," ;; esac
-            # ovmerge reads the overlay's source file, named in the spec.
-            (cd "$ovdir" && "$host_bin/ovmerge" "$name-overlay.dts${spec#"$name"}") \
-                | cpp -nostdinc -undef -D__DTS__ -x assembler-with-cpp -I "$kdts/include" - \
-                | "$host_bin/dtc" -q -@ -I dts -O dtb -o "$2" -
-        elif [ "$spec" = "$name" ] && [ -f "$vendor_dir/$name.dtbo" ]; then
-            install -m 0644 "$vendor_dir/$name.dtbo" "$2"
-        else
-            echo "$1: no overlay named $name in the kernel's sources or the vendor's pack" >&2
-            exit 1
-        fi
+        [ -f "$ovdir/$name-overlay.dts" ] || {
+            echo "$1/$2.line: no overlay named $name in the kernel's sources" >&2; exit 1; }
+        case "$spec" in *,*) ;; *) spec="$spec," ;; esac
+        # ovmerge reads the overlay's source file, named in the spec.
+        (cd "$ovdir" && "$host_bin/ovmerge" "$name-overlay.dts${spec#"$name"}") \
+            | cpp -nostdinc -undef -D__DTS__ -x assembler-with-cpp -I "$kdts/include" - \
+            | "$host_bin/dtc" -q -@ -I dts -O dtb -o "$3" -
     }
 
     mkdir -p "$screens_out"
@@ -600,8 +597,8 @@ if [ -d "$screens_src" ]; then
         )
         if [ -f "$screens_src/$sc/probe.conf" ]; then
             install -m 0644 "$screens_src/$sc/probe.conf" "$screens_out/$sc/probe.conf"
-            make_overlay "$screens_src/$sc/touch.line" "$screens_out/$sc/touch.dtbo"
-            make_overlay "$screens_src/$sc/display.line" "$screens_out/$sc/display.dtbo"
+            make_overlay "$screens_src/$sc" touch "$screens_out/$sc/touch.dtbo"
+            make_overlay "$screens_src/$sc" display "$screens_out/$sc/display.dtbo"
         fi
     done
     if [ -f "$screens_src/order" ]; then

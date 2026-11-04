@@ -213,9 +213,13 @@ Faraday did not write, and fails if any of them reports one. The
 `-boot.vfat` line of `SHA256SUMS` is the boot partition as it is then.
 
 The Pi card's boot partition is FAT16, which has no FSInfo, and whose
-FAT[1] carries the clean-shutdown and no-error bits. Whether Windows
-writes to it is tried in §12's batch 5; until then the Pi image is as
-it was.
+FAT[1] carries the clean-shutdown and no-error bits. Windows gives it a
+drive letter on plugging in and adds `System Volume Information`: three
+root directory entries and three clusters that were free, with their
+FAT entries. Every file and its clusters stay as they were, and the
+card's kernel starts from it as from the release's (under QEMU, which
+does not run the Pi's firmware), but its SHA-256 is no longer the
+release's.
 
 ### 4.2 What the Starter changes
 
@@ -626,7 +630,7 @@ For F182:
   shutdown with the stick in, and pulling it out while mounted; after
   each, the table is whole, the boot partition's SHA-256 is the
   release's, and the kernel reads both partitions. The Pi card's FAT16
-  boot partition through the same steps.
+  boot partition through the same steps, with the difference §4.1 names.
 
 ## 11. Choices made here
 
