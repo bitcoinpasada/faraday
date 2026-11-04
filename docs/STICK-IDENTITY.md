@@ -322,6 +322,22 @@ partition of 128 MiB, its table with the first usable sector at 34
 Everything written is read back and compared, byte for byte, with what
 was meant to be written (`docs/STARTER.md` §4.1, step 6).
 
+**On Windows the table goes on last.** Windows may read a new table within
+seconds of finding it, while the disk is still open, mount the data
+partition and add its `System Volume Information` folder: the second FAT
+then differs from what was written and the write ends Not written, on a
+stick that is in fact fine; on a Pi card, with its table in the image's
+first sector, it may also refuse the rest of the write. So on Windows the FAT32 and the boot partition
+are written and read back with no table on the disk; the disk is closed,
+opened again and held to its identity; the table goes on from the disk's
+end to its first sector, and is read back in its turn. A Pi card's table
+is its first sector, so that sector is written as zeros until then, and
+the SHA-256 of §4.3's Pi card holds with the sector's own bytes put back,
+as the IDs are. Nothing is compared
+after that but the table, so what Windows then adds to the volume fails no
+check. A second open asks for nothing there. macOS's and Linux's opens may
+ask for a password each time, so they keep the one open, table first.
+
 **A Pi card.** It is compared with the image as decompressed again with
 the same patches in place. Then:
 

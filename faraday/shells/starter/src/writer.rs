@@ -28,11 +28,15 @@
 //! 5. The regions, then the source decompressed as it is written, its
 //!    SHA-256 the list's (or Confirm's); a signed boot file's
 //!    partition goes in place of the source's own; then everything is
-//!    flushed.
+//!    flushed. Where the system mounts a disk as soon as it finds a table
+//!    on it ([`Device::table_last`]), a whole write's table is held back:
+//!    a stick's regions of it, a Pi card's first sector, zeros until then.
 //! 6. Everything written is read back from the disk and compared: the
 //!    regions, then the source decompressed again; for a Pi card, the
 //!    SHA-256 of what was read, with the source's own bytes put back
-//!    where the changes went, must be the list's (§4.3).
+//!    where the changes went, must be the list's (§4.3). A table held
+//!    back then goes on, from the disk's end to its first sector, after
+//!    the disk's identity is read again, and is read back in its turn.
 //! 7. *Keep data*: the partition table is what it was.
 //! 8. The system is asked to read the partition table again.
 
@@ -102,6 +106,14 @@ pub trait Device {
     /// written as any other. A power of two from 512 to [`ALIGN`].
     fn block(&mut self) -> u64 {
         512
+    }
+    /// Whether a whole write's partition table goes on the disk after
+    /// everything else has been read back, closing and opening it again:
+    /// for a system that may mount a new table's volumes at once and write
+    /// to them, as Windows does (`docs/STICK-IDENTITY.md` §4.3), and that
+    /// asks for no password at the second open.
+    fn table_last(&mut self) -> bool {
+        false
     }
 }
 
@@ -422,7 +434,7 @@ pub fn write(
     }
     source.check()?;
     source.check_boot_sum(order)?;
-    let (patches, captured) = changes(order, &source)?;
+    let (mut patches, captured) = changes(order, &source)?;
     let block = device.block();
     if !block.is_power_of_two() || !(512..=ALIGN as u64).contains(&block) {
         return Err(Reason::Device {
@@ -446,6 +458,11 @@ pub fn write(
     // are regions to write besides the source's boot partition); keep
     // data's table is read, to compare after.
     let (plan, table, made) = place(order, &source, &mut disk, len, &captured)?;
+    let (held, made) = match plan {
+        _ if !device.table_last() => (Vec::new(), made),
+        Plan::At(0) => (hold_first_sector(&mut patches, &captured)?, made),
+        _ => hold_table(made, len),
+    };
     if order.clear_first {
         clear(order, &mut disk, len, block as usize, &mut |d, t| {
             progress(WriteStage::Clearing, d, t);
@@ -497,6 +514,12 @@ pub fn write(
         &range,
         &mut |d, t| report(WriteStage::ReadingBack, d, t),
     )?;
+    if !held.is_empty() {
+        drop(back);
+        put_table(order, device, &now, &held, block as usize)?;
+        back = device.open_read()?;
+        compare_regions(&mut back, &held, &order.device)?;
+    }
     // 7. Keep data: the partition table as it was.
     if let Some((table, before)) = table
         && regions(&mut back, &table)? != before
@@ -719,6 +742,65 @@ fn clear(
     }
     sink.disk.sync_all().map_err(|e| Reason::Flush {
         device: device.to_string(),
+        detail: e.to_string(),
+    })
+}
+
+/// A stick's regions (offsets from the disk's start, `len` bytes long)
+/// as its partition table and the rest: the table, what lies before the
+/// boot partition and in the disk's last 33 sectors, from the disk's end
+/// to its first sector, the order it is written in.
+fn hold_table(made: Vec<Region>, len: u64) -> (Vec<Region>, Vec<Region>) {
+    let at = |r: &Region| match r {
+        Region::Bytes { at, .. } | Region::Zeros { at, .. } => *at,
+    };
+    let backup = (len / SECTOR).saturating_sub(33) * SECTOR;
+    let (mut table, rest): (Vec<_>, Vec<_>) = made
+        .into_iter()
+        .partition(|r| at(r) < BOOT_START * SECTOR || at(r) >= backup);
+    table.sort_by_key(|r| std::cmp::Reverse(at(r)));
+    (table, rest)
+}
+
+/// A Pi card's partition table, its first sector with `patches` in place,
+/// as the region to write last; a patch more makes that sector zeros until
+/// then. Written last in the list, it is the first taken back out of what
+/// is read back, so the source's own SHA-256 still holds of the rest.
+fn hold_first_sector(patches: &mut Vec<Patch>, captured: &Capture) -> Result<Vec<Region>, Reason> {
+    let was = captured
+        .first_sector()
+        .map_err(Reason::NotStickImage)?
+        .to_vec();
+    let mut data = was;
+    overlay(&mut data, 0, patches.iter(), |p| &p.bytes);
+    patches.push(Patch {
+        at: 0,
+        bytes: vec![0; data.len()],
+        was: data.clone(),
+    });
+    Ok(vec![Region::Bytes { at: 0, data }])
+}
+
+/// Costs a few small writes and a flush: opens the disk again, holds it
+/// to the identity it had (`now`), and writes the partition table held
+/// back ([`hold_table`]).
+fn put_table(
+    order: &WriteOrder,
+    device: &mut dyn Device,
+    now: &Identity,
+    held: &[Region],
+    block: usize,
+) -> Result<(), Reason> {
+    let mut disk = device.open_write()?;
+    check_opened(order, now, &device.identity()?)?;
+    let mut sink = Writing {
+        disk: &mut disk,
+        buf: None,
+        block,
+    };
+    put_regions(&mut sink, held).map_err(|e| write_failed(e, &order.device))?;
+    disk.sync_all().map_err(|e| Reason::Flush {
+        device: order.device.clone(),
         detail: e.to_string(),
     })
 }

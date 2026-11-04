@@ -132,6 +132,11 @@ impl Capture {
             .ok_or(StickFault::BootPastEnd)
     }
 
+    /// The source's first sector, as it came.
+    pub fn first_sector(&self) -> Result<&[u8], StickFault> {
+        self.got(0, 512)
+    }
+
     /// Reads the table from the head, and asks for the rest.
     fn plan(&mut self) -> Result<(), StickFault> {
         let head = self.wanted[0].1.clone();

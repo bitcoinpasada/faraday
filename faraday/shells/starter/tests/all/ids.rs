@@ -149,6 +149,36 @@ fn a_stick_written_from_a_found_release_file_has_its_own_ids_and_the_releases_bo
 }
 
 #[test]
+fn a_system_that_mounts_a_new_table_at_once_cannot_fail_a_card_whose_table_goes_on_last() {
+    let image = card_image(0x5A5A_0001);
+    let (img, source) = image_job("ids-card-mounts.img", &image);
+    let job = Job::Image(img);
+    let path = tmp("ids-card-mounts");
+    Sparse::new(STICK).write(&path);
+    let mut disk = FileDisk::new(&path);
+    disk.mounts_at = Some((4 << 20) + 3);
+    disk.table_last = true;
+    let order = disk.order(source.clone(), Mode::Whole);
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    let signature = u32::from_le_bytes(read(&path, 440, 4).try_into().expect("four"));
+    assert!(signature != 0 && signature != 0x5A5A_0001);
+    assert_eq!(read(&path, 510, 2), [0x55, 0xAA]);
+    let mut back = read(&path, 0, image.len as usize);
+    // Only what the system changed once the table was on differs.
+    back[(4 << 20) + 3] ^= 1;
+    ids_put_back(&mut back, &image, &card_id_places());
+    assert!(back == image.to_vec());
+    // The same system, with the table first, fails the same write.
+    let path = tmp("ids-card-mounts-first");
+    Sparse::new(STICK).write(&path);
+    let mut disk = FileDisk::new(&path);
+    disk.mounts_at = Some((4 << 20) + 3);
+    let order = disk.order(source, Mode::Whole);
+    let r = run(&order, &job, &mut disk).0;
+    assert!(matches!(r, Err(Reason::BackDiffers { .. })), "{r:?}");
+}
+
+#[test]
 fn a_pi_card_is_given_its_own_disk_signature_and_serials() {
     let image = card_image(0x5A5A_0001);
     let (img, source) = image_job("ids-card.img", &image);

@@ -920,6 +920,10 @@ impl Device for PhysicalDrive {
             .map(u64::from_le_bytes)
             .ok_or_else(|| std::io::Error::other("no length"))
     }
+
+    fn table_last(&mut self) -> bool {
+        true
+    }
 }
 
 /// A volume as a person would know it: its letter, else its label.

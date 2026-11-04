@@ -1108,7 +1108,8 @@ checked before the disk is opened. *Clear the whole stick first* writes
 zeros over every sector before this, with its own progress. Read back:
 every region written (the table and the FAT32) and the boot partition
 are compared byte for byte; Done says "The boot partition matches the
-release" (with "except the boot file you signed, as expected"). A Pi
+release" (with "except the boot file you signed, as expected"). On
+Windows the table goes on last (`docs/STICK-IDENTITY.md` §4.3). A Pi
 card is the image with a new MBR disk signature and new serials,
 patches on the stream with the name's, written so and compared so, and
 with the image's own bytes put back the SHA-256 of what was read must be

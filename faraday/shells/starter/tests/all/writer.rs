@@ -53,6 +53,14 @@ pub(crate) struct FileDisk {
     /// A byte of the disk to change before it is read back: a disk that
     /// reads back what it was not given.
     flip_on_read: Option<u64>,
+    /// Whether the table goes on last, as on Windows.
+    pub(crate) table_last: bool,
+    /// What the disk is at the second open, when it is not what it was.
+    at_second_open: Option<Identity>,
+    /// A byte the system changes once a table is on the disk: a system
+    /// that mounts a new table's volumes as soon as it finds them and
+    /// writes to them, as Windows may.
+    pub(crate) mounts_at: Option<u64>,
 }
 
 impl FileDisk {
@@ -69,6 +77,9 @@ impl FileDisk {
             raw: None,
             after_open: None,
             flip_on_read: None,
+            table_last: false,
+            at_second_open: None,
+            mounts_at: None,
         }
     }
 
@@ -98,6 +109,11 @@ impl Device for FileDisk {
         Ok(())
     }
     fn open_write(&mut self) -> Result<File, Reason> {
+        if self.calls.contains(&"open_write")
+            && let Some(now) = self.at_second_open.take()
+        {
+            self.now = now;
+        }
         self.calls.push("open_write");
         if let Some(now) = self.after_open.take() {
             self.now = now;
@@ -114,9 +130,15 @@ impl Device for FileDisk {
     fn block(&mut self) -> u64 {
         self.raw.unwrap_or(512)
     }
+    fn table_last(&mut self) -> bool {
+        self.table_last
+    }
     fn open_read(&mut self) -> Result<File, Reason> {
         self.calls.push("open_read");
-        if let Some(at) = self.flip_on_read {
+        if self.mounts_at.is_some() && read(&self.path, 510, 2) == [0x55, 0xAA] {
+            self.flip_on_read = self.mounts_at.take();
+        }
+        if let Some(at) = self.flip_on_read.take() {
             use std::os::unix::fs::FileExt;
             let f = OpenOptions::new()
                 .read(true)
@@ -581,6 +603,76 @@ fn a_table_read_back_one_byte_off_fails_the_write() {
     let order = disk.order(source, Mode::Whole);
     let (r, _) = run(&order, &job, &mut disk);
     assert!(matches!(r, Err(Reason::BackDiffers { .. })), "{r:?}");
+}
+
+/// A byte of the data partition's first FAT, in the entry Windows takes
+/// for a folder it adds to a volume it has just mounted.
+const FAT_ENTRY: u64 = DATA_FIRST * SECTOR + 16384 + 12;
+
+#[test]
+fn a_system_that_mounts_a_new_table_at_once_cannot_fail_a_write_whose_table_goes_on_last() {
+    let image = stick_image();
+    let (job, source) = release_image(&image);
+    let (path, _) = blank("mounts");
+    let mut disk = FileDisk::new(&path);
+    disk.mounts_at = Some(FAT_ENTRY);
+    disk.table_last = true;
+    let order = disk.order(source.clone(), Mode::Whole);
+    let (r, stages) = run(&order, &job, &mut disk);
+    assert_eq!(r, Ok(()));
+    assert_eq!(stages, [WriteStage::Writing, WriteStage::ReadingBack]);
+    made_from(&path, &image, STICK);
+    assert_eq!(
+        disk.calls,
+        [
+            "identity",
+            "unmount",
+            "open_write",
+            "identity",
+            "open_read",
+            "open_write",
+            "identity",
+            "open_read",
+            "rescan"
+        ]
+    );
+    // The same system, with the table first, fails the same write.
+    let (path, _) = blank("mounts-first");
+    let mut disk = FileDisk::new(&path);
+    disk.mounts_at = Some(FAT_ENTRY);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BackDiffers { .. })), "{r:?}");
+}
+
+#[test]
+fn a_table_held_back_read_back_one_byte_off_fails_the_write() {
+    let image = stick_image();
+    let (job, source) = release_image(&image);
+    let (path, _) = blank("held-off");
+    let mut disk = FileDisk::new(&path);
+    disk.table_last = true;
+    disk.mounts_at = Some(SECTOR + 8);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BackDiffers { .. })), "{r:?}");
+}
+
+#[test]
+fn a_disk_that_is_another_at_the_second_open_gets_no_table() {
+    let image = stick_image();
+    let (job, source) = release_image(&image);
+    let (path, _) = blank("second-open");
+    let mut disk = FileDisk::new(&path);
+    disk.table_last = true;
+    let mut other = disk.now.clone();
+    other.serial = String::from("SERIAL2");
+    disk.at_second_open = Some(other);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::Changed { .. })), "{r:?}");
+    assert!(read(&path, 0, 1024).iter().all(|&b| b == 0));
+    assert!(!disk.calls.contains(&"rescan"));
 }
 
 /// Every nonzero byte of the disk at `path` lies in one of `allowed`.
