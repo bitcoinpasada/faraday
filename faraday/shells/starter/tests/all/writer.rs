@@ -174,7 +174,8 @@ fn fixture() -> (Job, Confirmed) {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
     let path = tmp(&format!(
-        "fixture-{}.img.xz",
+        "fixture-{}-{}.img.xz",
+        std::process::id(),
         N.fetch_add(1, Ordering::Relaxed)
     ));
     std::fs::write(&path, XZ).expect("the found file");
