@@ -1568,14 +1568,12 @@ impl Faraday {
                     return;
                 }
             }
-            StorageEvent::Hovered(over) => self.transfer_hovered(over),
-            StorageEvent::Dropped { path, size } => self.transfer_dropped(path, size),
-            StorageEvent::HostRead { path, bytes } => self.transfer_read(path, bytes),
-            StorageEvent::HostReadFailed { path, reason } => {
-                self.transfer_read_failed(path, reason);
-            }
-            StorageEvent::Saved { path } => self.transfer_saved(Ok(path)),
-            StorageEvent::SaveFailed { reason } => self.transfer_saved(Err(reason)),
+            e @ (StorageEvent::Hovered(_)
+            | StorageEvent::Dropped { .. }
+            | StorageEvent::HostRead { .. }
+            | StorageEvent::HostReadFailed { .. }
+            | StorageEvent::Saved { .. }
+            | StorageEvent::SaveFailed { .. }) => self.transfer_event(e),
             e @ (StorageEvent::NewInput { .. }
             | StorageEvent::InputTyped { .. }
             | StorageEvent::InputTapped { .. }

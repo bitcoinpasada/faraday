@@ -25,7 +25,7 @@ use crate::secrets::Exposure;
 use crate::wallet::{self, FileKind};
 use crate::{
     Action, Faraday, QR_PARTS, QrFormat, QrSource, QrView, ScanPurpose, ScanState, Screen, Sheet,
-    StorageCommand,
+    StorageCommand, StorageEvent,
 };
 
 /// The largest file sent: what the Faraday file envelope carries.
@@ -399,6 +399,22 @@ impl Faraday {
             return;
         }
         self.transfer.pick(i, self.medium, &mut self.out);
+    }
+
+    /// What the host says of a file dragged, dropped, read or saved.
+    pub(crate) fn transfer_event(&mut self, event: StorageEvent) {
+        match event {
+            StorageEvent::Hovered(over) => self.transfer_hovered(over),
+            StorageEvent::Dropped { path, size } => self.transfer_dropped(path, size),
+            StorageEvent::HostRead { path, bytes } => self.transfer_read(path, bytes),
+            StorageEvent::HostReadFailed { path, reason } => {
+                self.transfer_read_failed(path, reason);
+            }
+            StorageEvent::Saved { path } => self.transfer_saved(Ok(path)),
+            StorageEvent::SaveFailed { reason } => self.transfer_saved(Err(reason)),
+            // `storage` passes only the events matched above.
+            _ => {}
+        }
     }
 
     /// A file dropped on the window: Transfer opens and sends it.
