@@ -1459,16 +1459,17 @@ The pieces §3 keeps are each in one place:
   `core/faraday-entropy/src/booklet.rs`, `core/faraday-bip/src/address.rs`
   and `core/faraday-bip/src/vanity.rs` become `faraday_bip`'s, or
   `bech32::Fe32::from_char` and `to_char` where the text is public.
-- **GPT, MBR and the boot sector.** `faraday/shells/starter/src/ids.rs`
-  reads the GPT header's fields again after `gpt::read` and a FAT boot
-  sector's fields itself (`root_region`, `serial`): `gpt::Table` carries
-  the header fields `ids.rs` reads, and faraday-fat gains a public
-  `BootSector` (bytes per sector, sectors per cluster, reserved, FATs,
-  root entries, FAT size, root cluster, the serial's offset and the
-  backup boot sector) that `ids.rs` and `boot_sector_serial` both use.
-  `gpt.rs`'s `BOOT_AT`, `BOOT_LEN`, `DATA_AT` and `DATA_LEN` become
-  `faraday/faraday-boot/src/layout.rs`'s `BOOT_START`, `BOOT_SECTORS`,
-  `DATA_START` and `DATA_SECTORS`.
+- **GPT, MBR and the boot sector (built).** `gpt::Table` carries the
+  header fields `faraday/shells/starter/src/ids.rs` used to read again
+  after `gpt::read` (header size, entries' sector, count and size, the
+  backup header's sector), and faraday-fat has a public `BootSector`
+  (bytes per sector, sectors per cluster, reserved, FATs, root entries,
+  FAT size, root cluster, the serial's offset and the backup boot
+  sector) that `ids.rs` (`root_region`, `serial`) and `boot_sector_serial`
+  both use. `Volume::open` keeps its own reads: its checks come between
+  the fields. `gpt.rs`'s `BOOT_AT`, `BOOT_LEN`, `DATA_AT` and `DATA_LEN`
+  are gone: the Starter uses `faraday/faraday-boot/src/layout.rs`'s
+  `BOOT_START`, `BOOT_SECTORS`, `DATA_START` and `DATA_SECTORS`.
 - **CBOR.** `core/faraday-codec/src/ur/`'s `cbor_bytes`,
   `cbor_byte_string` and the fountain part's CBOR, and
   `faraday-qr`'s own `cbor.rs`, become one module in
@@ -1766,7 +1767,7 @@ Reference's list of conditions.
 | C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
 | C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, which F190's vault replaces) | §5.15, §9.7 | Built, with X7 in area `kdbx` (the vault area's KDBX vault and QR vault wait for `docs/VAULT.md` §10) |
 | C14 | The quiz's seed from the session's generator | §5.16 | Built |
-| C15 | One copy of each kept piece; with X12 | §5.17, §9.7 | About 1 day, and X12's |
+| C15 | One copy of each kept piece; with X12 (open only for HKDF) | §5.17, §9.7 | About 1 day, and X12's |
 | D1 | Schema 5: `written_here` as entries with `why`, `note`, `decision`; `[[not_established]]` for lzma-rust2 and rqrr; getrandom's trust entry; `check.py` (§1.2's three ways, the version checked) and `gen.py`; AUDIT §3 grouped; STANDARDS §10 generated and §0's bullet; the counts; `crypto.established` made active; the manifest's entries filled as §3 | §1.2, §1.4, §2, §3 | 1 to 1.5 days |
 | E1 | The FAT32 formatter in faraday-fat, its `written_here` entry and the count raised under F180 | §3.2 | Built, with the Windows stick work |
 | X1 | The cross-check's judges required in `just crosscheck` (§9.2, rule 4) | §9.7 | 1 to 1.5 days |

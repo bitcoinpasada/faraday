@@ -612,7 +612,7 @@ fn clearing_first_leaves_every_sector_outside_what_is_then_written_zero() {
         &path,
         &[
             (0, 34 * SECTOR),
-            (gpt::BOOT_AT, gpt::DATA_AT),
+            (BOOT_FIRST * SECTOR, data),
             (data, data + data_head(&path)),
             (STICK - 33 * SECTOR, STICK),
         ],

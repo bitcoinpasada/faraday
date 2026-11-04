@@ -22,6 +22,7 @@
 
 use std::io::{self, Write};
 
+use faraday_boot::layout::{BOOT_SECTORS, DATA_SECTORS, DATA_START, SECTOR};
 use faraday_crypto::crc32;
 use faraday_starter::api::StickFault;
 
@@ -37,7 +38,10 @@ const MBR_SIGNATURE: usize = 440;
 /// The MBR partition types a FAT volume has.
 const FAT_TYPES: [u8; 5] = [0x04, 0x06, 0x0B, 0x0C, 0x0E];
 /// A Pi card's partitions' lengths (F80), in order.
-const CARD: [u64; 2] = [gpt::BOOT_LEN, gpt::DATA_LEN];
+const CARD: [u64; 2] = [BOOT_SECTORS * SECTOR, DATA_BYTES];
+/// The data partition's start and length, in bytes.
+const DATA_BYTE_START: u64 = DATA_START * SECTOR;
+const DATA_BYTES: u64 = DATA_SECTORS * SECTOR;
 
 /// Bytes put in place of the source's at `at` in its decompressed
 /// stream, and the source's own bytes there.
@@ -235,10 +239,10 @@ impl Capture {
             return Err(StickFault::EntriesDamaged);
         }
         let sectors = disk_len / S;
-        let (data_first, boot_last) = (gpt::DATA_AT / S, gpt::DATA_AT / S - 1);
+        let (data_first, boot_last) = (DATA_START, DATA_START - 1);
         // First usable 34, entries at 2: the last usable sector is 33
         // before the backup header at the last sector.
-        if sectors < data_first + gpt::DATA_LEN / S + 33 + 1 {
+        if sectors < data_first + DATA_SECTORS + 33 + 1 {
             return Err(StickFault::DataPlace);
         }
         let (last, last_usable) = (sectors - 1, sectors - 34);
@@ -366,24 +370,20 @@ impl Capture {
     /// sector (Microsoft's FAT specification, `BS_VolID`, `BPB_BkBootSec`).
     fn serial(&self, part: u64, serial: [u8; 4]) -> Result<Vec<Patch>, StickFault> {
         let sector = self.got(part, 512)?;
-        let old = faraday_fat::boot_sector_serial(sector).ok_or(StickFault::NoSerial)?;
+        let bs = faraday_fat::BootSector::parse(sector).ok_or(StickFault::NoSerial)?;
+        let old = bs.serial.ok_or(StickFault::NoSerial)?;
         if sector[510..512] != [0x55, 0xAA] {
             return Err(StickFault::NoSerial);
         }
-        let fat32 = u16::from_le_bytes([sector[22], sector[23]]) == 0;
-        let at = if fat32 { 67 } else { 39 };
+        let at = bs.serial_at as u64;
         let mut places = vec![part + at];
-        if fat32 {
-            let backup = u64::from(u16::from_le_bytes([sector[50], sector[51]]));
-            let bytes = u64::from(u16::from_le_bytes([sector[11], sector[12]]));
-            if backup != 0 {
-                let b = part + backup * bytes;
-                let copy = self.got(b, 512).map_err(|_| StickFault::NoSerial)?;
-                if faraday_fat::boot_sector_serial(copy) != Some(old) {
-                    return Err(StickFault::NoSerial);
-                }
-                places.push(b + at);
+        if bs.fat32 && bs.backup_boot != 0 {
+            let b = part + u64::from(bs.backup_boot) * u64::from(bs.bytes_per_sector);
+            let copy = self.got(b, 512).map_err(|_| StickFault::NoSerial)?;
+            if faraday_fat::boot_sector_serial(copy) != Some(old) {
+                return Err(StickFault::NoSerial);
             }
+            places.push(b + at);
         }
         places
             .into_iter()
@@ -447,7 +447,7 @@ impl Capture {
             return;
         };
         let at = data + at;
-        if at >= self.pos && at + len <= data + gpt::DATA_LEN && at + len <= self.total {
+        if at >= self.pos && at + len <= data + DATA_BYTES && at + len <= self.total {
             self.wanted.push((at, vec![0; len as usize], 0));
             self.wanted.sort_by_key(|w| w.0);
         }
@@ -501,7 +501,7 @@ fn data_volume(
     random: &mut dyn FnMut(&mut [u8]),
 ) -> Result<Vec<faraday_fat::Region>, StickFault> {
     use faraday_fat::Region;
-    let hidden = u32::try_from(gpt::DATA_AT / 512).map_err(|_| StickFault::DataPlace)?;
+    let hidden = u32::try_from(DATA_START).map_err(|_| StickFault::DataPlace)?;
     let serial = u32::from_le_bytes(nonzero(random));
     let format =
         faraday_fat::format32(sectors, hidden, serial, label).map_err(|_| StickFault::DataPlace)?;
@@ -510,11 +510,11 @@ fn data_volume(
         .into_iter()
         .map(|r| match r {
             Region::Bytes { at, data } => Region::Bytes {
-                at: gpt::DATA_AT + at,
+                at: DATA_BYTE_START + at,
                 data,
             },
             Region::Zeros { at, len } => Region::Zeros {
-                at: gpt::DATA_AT + at,
+                at: DATA_BYTE_START + at,
                 len,
             },
         })
@@ -544,7 +544,7 @@ struct Sparse<'c> {
 
 impl faraday_fat::Disk for Sparse<'_> {
     fn size(&self) -> u64 {
-        gpt::DATA_LEN
+        DATA_BYTES
     }
 
     fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), faraday_fat::Error> {
@@ -565,7 +565,7 @@ impl faraday_fat::Disk for Sparse<'_> {
     }
 
     fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), faraday_fat::Error> {
-        if offset + buf.len() as u64 > gpt::DATA_LEN {
+        if offset + buf.len() as u64 > DATA_BYTES {
             return Err(faraday_fat::Error::Io);
         }
         self.writes.push((offset, buf.to_vec()));
@@ -601,28 +601,22 @@ fn changed(at: u64, was: &[u8], now: &[u8]) -> Vec<Patch> {
 /// or a FAT16 root's fixed entries (Microsoft's FAT specification, §3.5,
 /// §6). `None` for a boot sector that is not FAT's.
 fn root_region(bs: &[u8]) -> Option<(u64, u64)> {
-    let u16_at = |at: usize| u64::from(u16::from_le_bytes([bs[at], bs[at + 1]]));
-    if bs.len() < 512 || bs[510..512] != [0x55, 0xAA] {
+    let b = faraday_fat::BootSector::parse(bs)?;
+    if bs[510..512] != [0x55, 0xAA] {
         return None;
     }
-    let bps = u16_at(11);
-    let spc = u64::from(bs[13]);
-    let reserved = u16_at(14);
-    let fats = u64::from(bs[16]);
-    let root_entries = u16_at(17);
-    let fat_size = match u16_at(22) {
-        0 => u64::from(le32(bs, 36)),
-        n => n,
-    };
+    let bps = u64::from(b.bytes_per_sector);
+    let spc = u64::from(b.sectors_per_cluster);
+    let reserved = u64::from(b.reserved);
+    let fats = u64::from(b.fats);
     if !matches!(bps, 512 | 1024 | 2048 | 4096) || spc == 0 || reserved == 0 || fats == 0 {
         return None;
     }
-    let root_start = (reserved + fats * fat_size) * bps;
-    if root_entries != 0 {
-        return Some((root_start, root_entries * 32));
+    let root_start = (reserved + fats * u64::from(b.fat_size)) * bps;
+    if b.root_entries != 0 {
+        return Some((root_start, u64::from(b.root_entries) * 32));
     }
-    let cluster = u64::from(le32(bs, 44) & 0x0FFF_FFFF);
-    let first = cluster.checked_sub(2)?;
+    let first = u64::from(b.root_cluster).checked_sub(2)?;
     Some((root_start + first * spc * bps, spc * bps))
 }
 
@@ -646,11 +640,10 @@ fn gpt_table(head: &[u8], total: u64) -> Result<Table, StickFault> {
     };
     let t = gpt::read(&mut read_at, total)?;
     gpt::faraday_boot(&t, 0)?;
-    let header = &head[t.sector as usize..];
-    let header_len = le32(header, 12) as usize;
-    let entries = le64(header, 72) * t.sector;
-    let entries_len = le32(header, 80) as usize * le32(header, 84) as usize;
-    let alternate = le64(header, 32);
+    let header_len = t.header_len;
+    let entries = t.entries_lba * t.sector;
+    let entries_len = t.entry_count * t.entry_size;
+    let alternate = t.alternate;
     let backup_header = alternate
         .checked_mul(t.sector)
         .filter(|b| b + t.sector <= total)

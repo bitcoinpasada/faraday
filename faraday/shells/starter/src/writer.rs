@@ -44,6 +44,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
+use faraday_boot::layout::{BOOT_SECTORS, BOOT_START, SECTOR};
 use faraday_fat::Region;
 use faraday_payload::{ImageKind, PayloadError, PayloadFile, Sha256Sum};
 use faraday_starter::api::{InUse, Mode, Reason, StarterEvent, StickFault, WriteOrder, WriteStage};
@@ -681,8 +682,8 @@ fn place(
                 .stick(len, label, &mut |b| random.fill(b))
                 .map_err(Reason::NotStickImage)?;
             let boot = Boot {
-                offset: gpt::BOOT_AT,
-                len: gpt::BOOT_LEN,
+                offset: BOOT_START * SECTOR,
+                len: BOOT_SECTORS * SECTOR,
             };
             Ok((Plan::Within(boot, source.size()), None, regions))
         }

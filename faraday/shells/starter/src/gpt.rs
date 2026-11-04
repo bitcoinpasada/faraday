@@ -10,6 +10,7 @@
 
 use std::io;
 
+use faraday_boot::layout::{BOOT_SECTORS, BOOT_START, DATA_SECTORS, DATA_START, SECTOR};
 use faraday_crypto::crc32;
 use faraday_starter::api::StickFault;
 
@@ -17,15 +18,15 @@ use faraday_starter::api::StickFault;
 pub const ESP_TYPE: &str = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B";
 /// The basic data partition's type.
 pub const DATA_TYPE: &str = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7";
-/// Where a Faraday stick's boot partition starts, in bytes: sector 2048.
-pub const BOOT_AT: u64 = 1 << 20;
-/// Its length (F80).
-pub const BOOT_LEN: u64 = 64 << 20;
-/// Where its data partition starts: sector 133120.
-pub const DATA_AT: u64 = BOOT_AT + BOOT_LEN;
+/// Where a Faraday stick's boot partition starts, in bytes (F80).
+const BOOT_AT: u64 = BOOT_START * SECTOR;
+/// Its length.
+const BOOT_LEN: u64 = BOOT_SECTORS * SECTOR;
+/// Where its data partition starts.
+const DATA_AT: u64 = DATA_START * SECTOR;
 /// Its least length (F80, F182): a stick written with `dd` has this, one
 /// made for its size runs to the disk's last usable sector.
-pub const DATA_LEN: u64 = 128 << 20;
+const DATA_LEN: u64 = DATA_SECTORS * SECTOR;
 /// What a GPT takes at a disk's end after the last usable sector: the
 /// backup entries and header, 33 sectors of 512 bytes.
 pub const TAIL: u64 = 33 * 512;
@@ -113,6 +114,16 @@ pub struct Table {
     pub disk_guid: String,
     /// The header's last usable sector.
     pub last_usable: u64,
+    /// The header's size in bytes.
+    pub header_len: usize,
+    /// The first sector of the entries.
+    pub entries_lba: u64,
+    /// How many entries the table has, used or not.
+    pub entry_count: usize,
+    /// The size of one entry in bytes.
+    pub entry_size: usize,
+    /// The sector of the backup header.
+    pub alternate: u64,
     /// The partitions in use, in the table's order.
     pub parts: Vec<Part>,
     /// The byte ranges the table occupies: the protective MBR, the
@@ -264,6 +275,11 @@ fn read_with(
         sector,
         disk_guid: guid(&header[56..72]),
         last_usable: le64(&header, 48),
+        header_len: size,
+        entries_lba,
+        entry_count: count,
+        entry_size,
+        alternate,
         parts,
         regions,
     })

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use faraday_fat::{
-    BadName, Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label,
+    BadName, BootSector, Disk, Error, FAT_PIECE, Kind, MAX_ROOT_BYTES, Volume, boot_sector_label,
     boot_sector_serial, label_bytes,
 };
 
@@ -386,6 +386,59 @@ fn the_volume_serial_is_read_from_the_boot_sector() {
             "FAT{fat}"
         );
     }
+}
+
+/// The boot sector's fields are what `mkfs.fat` was told and what
+/// `format32` made, on FAT16 and FAT32, and a short sector has none.
+#[test]
+fn the_boot_sector_fields_match_the_volumes_made() {
+    let made = faraday_fat::format32(100 * 1024 * 2, 2048, 0x1234_5678, None).unwrap();
+    let mut disk = vec![0u8; made.volume_bytes() as usize];
+    made.write(&mut disk).unwrap();
+    let b = BootSector::parse(&disk[..512]).unwrap();
+    assert_eq!(b.bytes_per_sector, 512);
+    assert_eq!(b.sectors_per_cluster as u32, made.cluster_sectors());
+    assert_eq!((b.fats, b.root_entries, b.root_cluster), (2, 0, 2));
+    assert!(b.fat32 && b.reserved != 0 && b.fat_size != 0);
+    assert_eq!(b.serial, Some(0x1234_5678));
+    assert_eq!(b.serial_at, 67);
+    let backup = usize::from(b.backup_boot) * 512;
+    assert_eq!(
+        BootSector::parse(&disk[backup..backup + 512]).unwrap(),
+        b,
+        "the backup boot sector is a copy"
+    );
+    assert!(BootSector::parse(&disk[..511]).is_none());
+
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("bootsector");
+    let img = mkfs(
+        &dir,
+        &[
+            "-F", "32", "-s", "4", "-R", "20", "-f", "2", "-i", "1a2b3c4d",
+        ],
+        48 * 1024,
+    );
+    let bytes = std::fs::read(&img).unwrap();
+    let b = BootSector::parse(&bytes[..512]).unwrap();
+    assert_eq!((b.bytes_per_sector, b.sectors_per_cluster), (512, 4));
+    assert_eq!((b.reserved, b.fats, b.root_entries), (20, 2, 0));
+    assert_eq!(
+        (b.root_cluster, b.fat32, b.serial),
+        (2, true, Some(0x1a2b_3c4d))
+    );
+    let img = mkfs(
+        &dir,
+        &["-F", "16", "-r", "512", "-i", "5e6f7a8b"],
+        32 * 1024,
+    );
+    let bytes = std::fs::read(&img).unwrap();
+    let b = BootSector::parse(&bytes[..512]).unwrap();
+    assert_eq!((b.bytes_per_sector, b.root_entries, b.fats), (512, 512, 2));
+    assert!(!b.fat32 && b.fat_size != 0);
+    assert_eq!((b.serial, b.serial_at), (Some(0x5e6f_7a8b), 39));
 }
 
 /// A stick's bytes are its maker's to choose: a volume with bytes changed

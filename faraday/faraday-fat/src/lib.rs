@@ -243,24 +243,80 @@ pub fn boot_sector_label(sector: &[u8]) -> Option<[u8; 11]> {
     Some(label)
 }
 
+/// The fields of a boot sector that place a volume's parts, read from its
+/// first 512 bytes with nothing checked: a sector that is not FAT's gives
+/// numbers all the same, and the caller judges them (`Volume::open`
+/// judges its own). Microsoft's FAT specification, §3.1, §3.5.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BootSector {
+    /// Bytes per sector (`BPB_BytsPerSec`).
+    pub bytes_per_sector: u16,
+    /// Sectors per cluster (`BPB_SecPerClus`).
+    pub sectors_per_cluster: u8,
+    /// Reserved sectors, the boot sector among them (`BPB_RsvdSecCnt`).
+    pub reserved: u16,
+    /// How many FATs (`BPB_NumFATs`).
+    pub fats: u8,
+    /// Root directory entries, 0 on FAT32 (`BPB_RootEntCnt`).
+    pub root_entries: u16,
+    /// Sectors of one FAT: the 16-bit field, or where that is 0 the
+    /// 32-bit one (`BPB_FATSz16`, `BPB_FATSz32`).
+    pub fat_size: u32,
+    /// The root directory's first cluster, without its top four bits
+    /// (`BPB_RootClus`).
+    pub root_cluster: u32,
+    /// Whether the sector has FAT32's layout: no 16-bit FAT size.
+    pub fat32: bool,
+    /// Where the volume serial number is, in bytes: 67 on FAT32, 39
+    /// otherwise.
+    pub serial_at: usize,
+    /// The serial number (`BS_VolID`), when the extended boot signature
+    /// byte (0x29) says there is one.
+    pub serial: Option<u32>,
+    /// The backup boot sector's sector number (`BPB_BkBootSec`), as
+    /// stated: meaningful on FAT32.
+    pub backup_boot: u16,
+}
+
+impl BootSector {
+    /// The fields of `sector`, which is at least 512 bytes; `None` for a
+    /// shorter one. Reads whatever bytes are there and never panics.
+    pub fn parse(sector: &[u8]) -> Option<Self> {
+        if sector.len() < 512 {
+            return None;
+        }
+        let u16_at = |at: usize| u16::from_le_bytes([sector[at], sector[at + 1]]);
+        let u32_at = |at: usize| {
+            u32::from_le_bytes([sector[at], sector[at + 1], sector[at + 2], sector[at + 3]])
+        };
+        let fat16_size = u16_at(22);
+        let fat32 = fat16_size == 0;
+        let (sig, serial_at) = if fat32 { (66, 67) } else { (38, 39) };
+        Some(Self {
+            bytes_per_sector: u16_at(11),
+            sectors_per_cluster: sector[13],
+            reserved: u16_at(14),
+            fats: sector[16],
+            root_entries: u16_at(17),
+            fat_size: if fat32 {
+                u32_at(36)
+            } else {
+                u32::from(fat16_size)
+            },
+            root_cluster: u32_at(44) & 0x0FFF_FFFF,
+            fat32,
+            serial_at,
+            serial: (sector[sig] == 0x29).then(|| u32_at(serial_at)),
+            backup_boot: u16_at(50),
+        })
+    }
+}
+
 /// The volume serial number a boot sector states (BS_VolID), by the same
 /// signature byte as [`boot_sector_label`]. Two sticks formatted apart
 /// have different ones; a stick copied sector for sector has the same.
 pub fn boot_sector_serial(sector: &[u8]) -> Option<u32> {
-    if sector.len() < 512 {
-        return None;
-    }
-    let fat16_size = u16::from_le_bytes([sector[22], sector[23]]);
-    let (sig, at) = if fat16_size == 0 { (66, 67) } else { (38, 39) };
-    if sector[sig] != 0x29 {
-        return None;
-    }
-    Some(u32::from_le_bytes([
-        sector[at],
-        sector[at + 1],
-        sector[at + 2],
-        sector[at + 3],
-    ]))
+    BootSector::parse(sector)?.serial
 }
 
 /// An open FAT16 or FAT32 volume.
