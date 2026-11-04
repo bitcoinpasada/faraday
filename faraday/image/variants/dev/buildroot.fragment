@@ -8,3 +8,7 @@
 # lets you in.
 BR2_TARGET_ENABLE_ROOT_LOGIN=y
 BR2_TARGET_GENERIC_ROOT_PASSWD=""
+
+# mcopy, for inittab.in to save what the kernel found on the data partition
+# when the app ends: a Pi kernel has no FAT of its own.
+BR2_PACKAGE_MTOOLS=y
