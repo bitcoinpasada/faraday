@@ -126,12 +126,18 @@ impl Pointer {
 
     /// What a key left over by every screen does to the keyboard's place
     /// (`docs/DESIGN.md` §4.15): Tab and Shift+Tab move it through the
-    /// controls in the order the last frame drew them; Enter or Space
-    /// returns the control it is on, to be pressed.
+    /// controls in the order the last frame drew them, past every hold,
+    /// which no key sets off; Enter or Space returns the control it is
+    /// on, to be pressed.
     pub(crate) fn focus_key(&mut self, key: KeyIn) -> Option<Action> {
         match key {
             KeyIn::Tab | KeyIn::BackTab => {
-                let order: Vec<Action> = self.reach.iter().map(|t| t.action).collect();
+                let order: Vec<Action> = self
+                    .reach
+                    .iter()
+                    .map(|t| t.action)
+                    .filter(|a| !crate::vault::is_hold(*a))
+                    .collect();
                 let at = self.focused();
                 self.focus = faraday_ui::focus_step(&order, at, key == KeyIn::BackTab);
                 None

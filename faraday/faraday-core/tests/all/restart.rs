@@ -114,6 +114,26 @@ fn with_files_waiting_restart_and_power_off_take_a_hold() {
     assert!(app.computer_restart_requested());
 }
 
+/// No key sets off a hold, whichever control the keyboard stops on.
+#[test]
+fn keys_never_set_off_a_hold() {
+    use faraday_shell_api::Key;
+    for tabs in 0..=6 {
+        for key in [Key::Enter, Key::Char(' ')] {
+            let mut app = Faraday::new();
+            with_outbox(&mut app);
+            app.press(Action::PowerAsk);
+            let _ = shown(&mut app);
+            assert!(app.offers(Action::HoldPowerOff));
+            for _ in 0..tabs {
+                app.event(Event::Key(Key::Tab));
+            }
+            app.event(Event::Key(key));
+            assert!(!exited(&mut app), "{tabs} tabs, then {key:?}");
+        }
+    }
+}
+
 /// With nothing waiting, Power off is a press.
 #[test]
 fn with_nothing_waiting_power_off_is_a_press() {
