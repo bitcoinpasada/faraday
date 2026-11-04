@@ -1969,3 +1969,72 @@ fn practice_does_not_hold_a_private_aezeed() {
     assert!(app.lightning().unwrap().error.is_some());
     assert!(app.session.keys.aezeed_birthday().is_none());
 }
+
+/// In Practice a public seed's words are written another way, and its
+/// seed bytes as hex.
+#[test]
+fn practice_writes_a_public_seeds_words_another_way() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    let c = testkit::compute();
+    let (word, count) = testkit::SAMPLE_WORDS[0];
+    let words = vec![word; usize::from(count)].join(" ");
+    app.session
+        .keys
+        .add_words(&c, &words, "Sample", None)
+        .unwrap();
+    open(&mut app);
+    assert_eq!(make(&mut app, "The words"), Some(words));
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let hex = make(&mut app, "Hex entropy").unwrap();
+    assert_eq!(hex.len(), usize::from(count) / 3 * 8);
+}
+
+/// In Practice a public seed is written as codex32 and as a SLIP-39 share
+/// of 1 of 1, each reading back to it, and the codex32 card offers no set.
+#[test]
+fn practice_converts_a_public_seed_between_standards() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    let c = testkit::compute();
+    let seed = unhex(SEED_1);
+    let fp = faraday_keys::identity::fingerprint_of_seed(&c, &seed).unwrap();
+    app.session.keys.set_demo(&[], &[fp], &[]);
+    app.session.keys.add_seed(&c, &seed, "Sample").unwrap();
+    open(&mut app);
+    let made = make(&mut app, "SLIP-39, 1 of 1").unwrap();
+    let share = faraday_bip::slip39::Share::parse(&made).unwrap();
+    assert_eq!(*faraday_keys::slip39_seed(&c, &[share], b"").unwrap(), seed);
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let set = make_set(&mut app, "codex32").unwrap();
+    assert_eq!(set.len(), 1);
+    let part = faraday_bip::codex32::Codex32::parse(&set[0]).unwrap();
+    assert_eq!(*faraday_keys::codex32_seed(&[part]).unwrap(), seed);
+    // A press on the threshold changes nothing that is made.
+    app.press(Action::Convert(C::K(1)));
+    let set = make_set(&mut app, "codex32").unwrap();
+    assert_eq!(set.len(), 1);
+}
+
+/// In Practice LND's published cipher seed opens as a source and gives
+/// its entropy (any other is refused, as the test above has it).
+#[test]
+fn practice_opens_lnds_published_aezeed_only() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    // Practice is on the test network: the published seed's node there.
+    let node: [u8; 33] = faraday_crypto::hex::decode_vec(
+        "0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7",
+    )
+    .unwrap()
+    .try_into()
+    .unwrap();
+    app.session.keys.set_demo(&[], &[], &[node]);
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert_eq!(app.screen, Screen::Convert);
+    assert_eq!(
+        make(&mut app, "Master seed, hex").as_deref(),
+        Some(AEZEED_ENTROPY)
+    );
+}

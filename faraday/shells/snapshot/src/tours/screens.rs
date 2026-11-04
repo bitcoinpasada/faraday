@@ -107,7 +107,38 @@ fn tools(t: &mut Tour) -> Result<(), String> {
     for f in [3, 1, 4, 1, 5, 2, 6, 5, 3, 5] {
         t.press(Action::Own(Act::Roll(f)));
     }
-    t.shot("settings-add-randomness")
+    t.shot("settings-add-randomness")?;
+    convert(t)
+}
+
+/// Costs a master key derived. Convert a seed on BIP-39's public
+/// `abandon … about` key (the guide's own key is not shown here), written
+/// as its xprv, the value masked; the key is dropped after the shot.
+fn convert(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::convert::{ConvertAction as C, ROWS, Target};
+    let words = format!("{}about", "abandon ".repeat(11));
+    let c = faraday_core::testkit::compute();
+    t.app
+        .session
+        .keys
+        .add_words(&c, &words, "Sample", None)
+        .map_err(|e| format!("{e:?}"))?;
+    let keys = &t.app.session.keys;
+    let fp = keys[keys.len() - 1].fingerprint.0;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Convert(C::OpenOn(fp)));
+    let at = ROWS
+        .iter()
+        .position(|r| r.target == Some(Target::Xprv))
+        .ok_or("no xprv row")? as u8;
+    t.press(Action::Convert(C::To(at)));
+    t.tick();
+    t.shot("convert")?;
+    t.press(Action::Convert(C::Done));
+    if let Some(i) = t.app.session.keys.position_of(fp) {
+        t.app.session.keys.remove(i);
+    }
+    Ok(())
 }
 
 /// Make a new wallet's Keys with the guide's key in its slot, the Lock

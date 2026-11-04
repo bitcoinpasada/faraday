@@ -1,12 +1,14 @@
 # Convert a seed
 
 **Kind:** Reference
-**Status:** Checked against the app's code and strings (`faraday/faraday-core/src/convert/screen.rs`, `faraday/faraday-core/src/convert/mod.rs`); no picture yet
+**Status:** Checked against the app's code and strings (`faraday/faraday-core/src/convert/screen.rs`, `faraday/faraday-core/src/convert/mod.rs`) and against its picture in docs/guide/pictures/ (drawn by just guide-pictures)
 **Screen:** `Convert`
 **Group:** Tools
 
 **Opened from:** **Tools → Convert a seed**; **Write it in another form**
 on a key's sheet and in [Explore](explore.md), with that key chosen.
+
+![Convert a seed on BIP-39's public sample key, written as an xprv, the value hidden as dots, with its standard, where it restores, its fingerprint and paths](../pictures/convert.png)
 
 A loaded key written in another standard, the same wallet. A value is
 given only when it reads back as the key's wallet. A column of three

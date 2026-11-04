@@ -920,6 +920,17 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Converting between forms",
+                paragraphs: &[
+                    "Tools › Convert a seed writes a key that is loaded in Faraday in another form. It offers a form only where the result restores the same wallet, with the same fingerprint, and Faraday reads the result back before it shows it. A form that would open a different wallet is listed dimmed, with its reason.",
+                    "A key of BIP-39 words can be written as the same words in another spelling (word numbers, four-letter starts, hex entropy, SeedQR and CompactSeedQR), as its master seed in hex or its xprv, and as Seed XOR parts. It cannot become SLIP-39 shares or a codex32 string as the same wallet. Each standard makes its seed in its own way: BIP-39 runs the words through PBKDF2 into 64 bytes, while SLIP-39 and codex32 carry the master seed itself. Written into either, the same words would open a different wallet with no coins in it, and nothing would say so until the balance did not appear. The tool offers neither.",
+                    "A master seed cannot go back to words. BIP-39 makes the seed from the words by a one-way step, so a seed held as hex, as codex32 or as SLIP-39 has no words that give it. A key loaded from a master seed can be written as codex32, as a SLIP-39 set (k of n, or groups) or as hex and an xprv, and the result is the same wallet. An xprv cannot give the seed back either.",
+                    "A SLIP-39 passphrase is never put on a result: a SLIP-39 set Faraday writes has none. A key read from SLIP-39 under a passphrase is converted as the wallet that passphrase opens.",
+                    "An LND aezeed is read as a source and goes one way. Its entropy is a 16-byte seed, which the tool writes as hex, an xprv, codex32 or SLIP-39, and it says the aezeed's birthday. Only the on-chain coins are the same wallet: channels come back through LND's channel backup, not through the seed.",
+                    "Each result is held until you leave the tool, shown behind an eye, and checked against a typed copy or saved only when you ask. Practice converts a public sample key into its other spellings, a codex32 secret and a SLIP-39 share of 1 of 1, but makes no split into parts, since parts would look like a real backup.",
+                ],
+            },
+            Section {
                 heading: "Which one",
                 paragraphs: &[
                     "If the problem is that a copy may be destroyed, more copies solve it, and no scheme on this page is needed. Two places, two copies.",

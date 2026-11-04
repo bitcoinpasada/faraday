@@ -2156,8 +2156,8 @@ section, with its vectors.
 
 Writing a seed in another standard's form (a codex32 seed as SLIP-39
 words, and the like) is not part of this spec: it is a dedicated
-conversion tool, planned, not scheduled, with its own spec. What was
-worked out here for it: a codex32 seed of 16 or 32 bytes is a SLIP-39
+conversion tool, Tools › Convert a seed, with its own spec
+(`docs/SEED-CONVERSION.md`). What was worked out here for it: a codex32 seed of 16 or 32 bytes is a SLIP-39
 master secret too, so it can be written as SLIP-39 words and read back
 exactly; a 1 of 1 with every free choice fixed (identifier from the
 fingerprint, extendable flag clear, the default iteration exponent, an
