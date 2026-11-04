@@ -1191,34 +1191,67 @@ impl Keys {
         }
     }
 
-    /// Keeps each of `strings` that is a share of key `i`'s codex32 set
+    /// Costs a parse of each string and, for each one not yet proved, what
+    /// `codex32_find` costs: for each of at most 16 choices of strings, an
+    /// interpolation, an HMAC-SHA512 and an elliptic-curve multiplication.
+    /// Keeps each of `strings` that is proved a share of key `i`'s seed
     /// (`docs/CODEX32.md` §9.5): its threshold, identifier and length the
-    /// set's, at an index not destroyed, its checksum holding; one at an
-    /// index already kept replaces it. The secret is never kept: it is
-    /// the seed. Returns how many were kept. A parse of each string.
-    pub fn keep_codex32(&mut self, i: usize, strings: &[&str]) -> usize {
-        let Some(e) = self.entries.get_mut(i) else {
+    /// set's, at an index not destroyed, its checksum holding, and `k`
+    /// distinct indices among it and the strings already kept or given
+    /// rebuild a seed with the key's fingerprint; every string of that
+    /// combination is kept. A string that cannot be proved, as when fewer
+    /// than `k` indices are here, is not kept. One at an index already
+    /// kept replaces it. The secret is never kept: it is the seed.
+    /// Returns how many of `strings` were kept.
+    pub fn keep_codex32(&mut self, c: &Compute, i: usize, strings: &[&str]) -> usize {
+        let Some(e) = self.entries.get(i) else {
             return 0;
         };
         let Some(facts) = e.info.codex32.as_ref() else {
             return 0;
         };
-        let mut kept = 0;
+        let fp = e.info.fingerprint.0;
+        let need = usize::from(facts.threshold);
+        let mut cands: Vec<Zeroizing<String>> = Vec::new();
         for s in strings {
             let lower = Zeroizing::new(s.to_ascii_lowercase());
-            if !of_set(facts, &lower) {
-                continue;
+            if of_set(facts, &lower) && !cands.iter().any(|x| **x == *lower) {
+                cands.push(lower);
             }
-            e.key
-                .codex32
-                .retain(|x| x.as_bytes().get(8) != lower.as_bytes().get(8));
-            e.key.codex32.push(lower);
+        }
+        let mut kept = 0;
+        for s in &cands {
+            let Some(e) = self.entries.get_mut(i) else {
+                return kept;
+            };
+            if !e.key.codex32.iter().any(|x| **x == **s) {
+                let found = {
+                    let pool: Vec<&str> = e
+                        .key
+                        .codex32
+                        .iter()
+                        .chain(cands.iter().filter(|x| ***x != **s))
+                        .map(|t| t.as_str())
+                        .collect();
+                    crate::vault::codex32_find(c, fp, need, &[s.as_str()], &pool)
+                };
+                let Some(Some((_, texts))) = found else {
+                    continue;
+                };
+                for t in texts {
+                    e.key
+                        .codex32
+                        .retain(|x| x.as_bytes().get(8) != t.as_bytes().get(8));
+                    e.key.codex32.push(t);
+                }
+            }
             kept += 1;
         }
         kept
     }
 
-    /// Costs a parse of each string and, where `k` are here, an
+    /// Costs a parse of each string and, where `k` are here, for each of
+    /// at most 16 choices of the strings an index has two of, an
     /// interpolation, an HMAC-SHA512 and an elliptic-curve multiplication.
     /// Whether `string`, a share whose header is that of key `i`'s codex32
     /// set, is of key `i`'s seed (`docs/CODEX32.md` §9.5): with the strings
@@ -1233,42 +1266,22 @@ impl Keys {
         string: &faraday_bip::codex32::Codex32,
         more: &[Zeroizing<String>],
     ) -> Option<bool> {
-        use faraday_bip::codex32::Codex32;
         let e = self.entries.get(i)?;
         let need = usize::from(string.threshold());
         if need < 2 || string.is_secret() {
             return None;
         }
-        let mut parts = vec![Codex32::parse(string.encode().as_str()).ok()?];
-        let others = e.key.codex32.iter().chain(more.iter());
-        for t in others {
-            if parts.len() >= need {
-                break;
-            }
-            let Ok(p) = Codex32::parse(t) else {
-                continue;
-            };
-            let same = p.identifier() == string.identifier()
-                && p.threshold() == string.threshold()
-                && p.payload().len() == string.payload().len()
-                && !p.is_secret();
-            if same && !parts.iter().any(|q| q.share_index() == p.share_index()) {
-                parts.push(p);
-            }
-        }
-        if parts.len() < need {
-            return None;
-        }
-        let Ok(seed) = crate::operations::codex32_seed(&parts) else {
-            return Some(false);
-        };
-        let fp = crate::identity::fingerprint(
-            c,
-            crate::identity::Material::Seed(&seed),
-            "",
-            self.network,
-        );
-        Some(fp == Some(e.info.fingerprint))
+        let typed = Zeroizing::new(string.encode().as_str().to_string());
+        let pool: Vec<&str> = e
+            .key
+            .codex32
+            .iter()
+            .chain(more.iter())
+            .map(|t| t.as_str())
+            .collect();
+        let found =
+            crate::vault::codex32_find(c, e.info.fingerprint.0, need, &[typed.as_str()], &pool)?;
+        Some(found.is_some())
     }
 
     /// Whether this session holds the string at share index `index` (a

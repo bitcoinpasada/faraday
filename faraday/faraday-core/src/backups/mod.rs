@@ -1331,7 +1331,7 @@ impl Faraday {
         self.backup
             .change_answers(&shape, &|a, _| *a = answers.clone());
         let texts: Vec<&str> = list.iter().map(|(_, s)| s.as_str()).collect();
-        self.session.keys.keep_codex32(key, &texts);
+        self.session.keys.keep_codex32(c, key, &texts);
         if let Some(st) = self.backup.c32_mut() {
             st.keep(list);
             if let Some(&j) = paper.first() {
@@ -1716,7 +1716,8 @@ impl Faraday {
             facts.strings.push((ch, State::Made));
             self.session.keys.set_codex32(key, Some(facts));
         }
-        self.session.keys.keep_codex32(key, &[s.as_str()]);
+        let c = self.compute();
+        self.session.keys.keep_codex32(&c, key, &[s.as_str()]);
         if let Some(st) = self.backup.c32_mut() {
             st.keep(vec![(j, s)]);
             st.set = crate::codex32_backup::SetStep::None;
@@ -1780,7 +1781,8 @@ impl Faraday {
         };
         let texts: Vec<zeroize::Zeroizing<String>> = st.held.clone();
         let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-        self.session.keys.keep_codex32(key, &refs);
+        let c = self.compute();
+        self.session.keys.keep_codex32(&c, key, &refs);
     }
 
     /// Each seed of wallet `w`'s codex32 set, where its key is here and
@@ -2038,7 +2040,7 @@ impl Faraday {
         let what = crate::forms::codex32_what(s);
         let text = zeroize::Zeroizing::new(s.encode().as_str().to_string());
         let kept = match (refusal.is_none(), k) {
-            (true, Some(k)) => self.session.keys.keep_codex32(k, &[text.as_str()]) > 0,
+            (true, Some(k)) => self.session.keys.keep_codex32(&c, k, &[text.as_str()]) > 0,
             _ => false,
         };
         if !kept {

@@ -223,7 +223,8 @@ impl Faraday {
             {
                 true
             }
-            // A seal is not made stale: its vault has left the store.
+            // A seal is not made stale: its job keeps the vault's slot, marked
+            // sealing, and its file is made whatever the person presses.
             A::Back | A::Cancel if self.sealing() => false,
             A::Back | A::Cancel => {
                 self.worker.stale();

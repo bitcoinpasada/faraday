@@ -1736,7 +1736,8 @@ impl Faraday {
         for &o in &opens {
             let vid = self.vaults.open[o].id;
             if !self.vaults.store().fits(c, vid, &[], &[&built.record]) {
-                return self.toast(FEN.vaults_slot_too_small);
+                let why = self.vault_no_room_text(c, vid);
+                return self.toast(why);
             }
         }
         for &o in &opens {
@@ -1824,12 +1825,10 @@ impl Faraday {
             let Some(o) = self.flow_open_index(i, v) else {
                 return self.toast(FEN.backup_flow_unlock_first);
             };
-            if !self
-                .vaults
-                .store()
-                .fits(&c, self.vaults.open[o].id, &[], &[&*copy])
-            {
-                return self.toast(FEN.vaults_slot_too_small);
+            let vid = self.vaults.open[o].id;
+            if !self.vaults.store().fits(&c, vid, &[], &[&*copy]) {
+                let why = self.vault_no_room_text(&c, vid);
+                return self.toast(why);
             }
         }
         for &v in &added {

@@ -9,7 +9,8 @@ fn kept_field(s: &str) -> String {
     s.replace(['\t', '\n', '\r'], " ")
 }
 
-/// The summaries as the kept state holds them: a `vault` line per
+/// Costs a text line for each vault, copy, wallet, key and map entry, no
+/// hashing. The summaries as the kept state holds them: a `vault` line per
 /// vault, then its `copy`, `wallet`, `key` and `map` lines, fields split
 /// by tabs.
 pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
@@ -64,19 +65,30 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
     out.into_bytes()
 }
 
-/// The summaries read back; a line that does not read is skipped.
+/// Costs a parse of each line, no hashing. The summaries read back; a
+/// line that does not read is skipped.
 pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
     let text = String::from_utf8_lossy(bytes);
     let mut out: Vec<VaultSummary> = Vec::new();
+    // A vault line that does not read: the lines of that vault are left
+    // out too, not handed to the vault before it.
+    let mut skipping = false;
     for line in text.lines() {
         let f: Vec<&str> = line.split('\t').collect();
+        if skipping && f.first() != Some(&"vault") {
+            continue;
+        }
         match f[..] {
             ["vault", id, file, name, entries, seen] => {
                 let mut s = VaultSummary::default();
                 match <[u8; 32]>::try_from(id.as_bytes()) {
                     Ok(b) if b.iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f')) => s.id = b,
-                    _ => continue,
+                    _ => {
+                        skipping = true;
+                        continue;
+                    }
                 }
+                skipping = false;
                 s.file = file.to_string();
                 s.name = name.to_string();
                 s.entries = entries.parse().unwrap_or(0);
@@ -136,8 +148,34 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
                     s.seal = Some(seen);
                 }
             }
-            _ => {}
+            _ => skipping = f.first() == Some(&"vault"),
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn summary(id: u8, copy: u8) -> VaultSummary {
+        VaultSummary {
+            id: [b'a' + id; 32],
+            file: format!("{id}.kdbx"),
+            copies: vec![[copy; 32]],
+            ..VaultSummary::default()
+        }
+    }
+
+    #[test]
+    fn a_vault_line_that_does_not_read_takes_its_copies_with_it() {
+        let all = [summary(0, 1), summary(1, 2), summary(2, 3)];
+        let kept = String::from_utf8(summaries_encode(&all)).expect("text");
+        // The second vault's id is cut short.
+        let broken = kept.replace(&"b".repeat(32), "bb");
+        let read = summaries_decode(broken.as_bytes());
+        assert_eq!(read.len(), 2);
+        assert_eq!(read[0].copies, vec![[1; 32]], "the first keeps its own");
+        assert_eq!(read[1].copies, vec![[3; 32]]);
+    }
 }

@@ -123,6 +123,9 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday/shells/starter/tests/all/finder.rs",
         "compute",
         "the Starter's finder tests, which count the files hashed",
+        "faraday/faraday-vault/tests/sizes.rs",
+        "compute",
+        "faraday-vault's size tests, which cannot reach faraday-core's test kit",
     ),
     (
         "faraday/faraday-vault/tests/kdbx.rs",

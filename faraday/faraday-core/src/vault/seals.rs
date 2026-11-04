@@ -464,6 +464,12 @@ impl VaultArea {
         self.state.unsaved = true;
     }
 
+    /// A lock begins with nothing lost yet: what an earlier process
+    /// reported is not this lock's to repeat.
+    pub(crate) fn clear_changes_lost(&mut self) {
+        self.state.unsaved = false;
+    }
+
     /// Takes the hold, if any.
     pub(crate) fn older_take(&mut self) -> Option<OpenHold> {
         self.state.older.take().map(|h| *h)

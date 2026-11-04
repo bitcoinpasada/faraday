@@ -922,6 +922,9 @@ struct Slot {
     facts: OnceCell<Vec<Option<Fact>>>,
     /// The plaintext the next seal takes; dropped by every edit.
     used: OnceCell<usize>,
+    /// How many bytes of UUIDs the next seal takes ([`OpenVaults::uuid_bytes`]),
+    /// 0 when it refuses; dropped by every edit.
+    uuids: OnceCell<usize>,
     /// A seal job holds the file: every edit refuses until it ends.
     sealing: bool,
 }
@@ -933,6 +936,7 @@ impl Slot {
         self.version += 1;
         self.facts = OnceCell::new();
         self.used = OnceCell::new();
+        self.uuids = OnceCell::new();
     }
 
     /// Record `i` was changed.
@@ -1150,6 +1154,88 @@ fn codex32_pick<'a>(
     None
 }
 
+/// A seed and the strings that made it.
+type Picked = (Zeroizing<Vec<u8>>, Vec<Zeroizing<String>>);
+
+/// Costs what `codex32_pick` costs, for each of at most 16 choices of
+/// which strings join `fixed`. Whether the strings of `pool` of the set
+/// `fixed[0]` is of (its identifier, threshold and length; never a
+/// secret), at indices none of `fixed` has, make with `fixed` a seed of
+/// fingerprint `fp`: the first string of each index is tried, then, for an
+/// index with two or more, the others, and a wrong string early in `pool`
+/// does not hide a right one after it. `None` where fewer than `need`
+/// indices are here; else the seed and the strings that made it.
+pub(crate) fn codex32_find(
+    c: &Compute,
+    fp: [u8; 4],
+    need: usize,
+    fixed: &[&str],
+    pool: &[&str],
+) -> Option<Option<Picked>> {
+    let parse = |t: &str| {
+        Some((
+            Codex32::parse(t).ok()?,
+            Zeroizing::new(t.to_ascii_lowercase()),
+        ))
+    };
+    let fixed: Vec<(Codex32, Zeroizing<String>)> = fixed.iter().filter_map(|t| parse(t)).collect();
+    let first = &fixed.first()?.0;
+    let mut list: Vec<(Codex32, Zeroizing<String>)> = Vec::new();
+    let mut others: Vec<(Codex32, Zeroizing<String>)> = Vec::new();
+    for t in pool {
+        let Some((s, text)) = parse(t) else {
+            continue;
+        };
+        let i = s.share_index();
+        if s.identifier() != first.identifier()
+            || s.threshold() != first.threshold()
+            || s.payload().len() != first.payload().len()
+            || s.is_secret()
+            || fixed.iter().any(|(x, _)| x.share_index() == i)
+            || list
+                .iter()
+                .chain(&others)
+                .any(|(x, y)| x.share_index() == i && **y == *text)
+        {
+            continue;
+        }
+        if list.iter().any(|(x, _)| x.share_index() == i) {
+            others.push((s, text));
+        } else {
+            list.push((s, text));
+        }
+    }
+    let want = need.checked_sub(fixed.len())?;
+    if list.len() < want {
+        return None;
+    }
+    // The choices of `want` of the indices, the earlier first.
+    let mut at: Vec<usize> = (0..want).collect();
+    for _ in 0..16 {
+        let chosen: Vec<(Codex32, Zeroizing<String>)> = fixed
+            .iter()
+            .chain(at.iter().map(|&n| &list[n]))
+            .filter_map(|(_, t)| parse(t))
+            .collect();
+        if let Some((seed, texts)) = codex32_pick(c, fp, need, &chosen, &others) {
+            let texts = texts
+                .into_iter()
+                .map(|t| Zeroizing::new(t.to_string()))
+                .collect();
+            return Some(Some((seed, texts)));
+        }
+        // The next choice: the last place that can move, moved on.
+        let Some(p) = (0..want).rev().find(|&p| at[p] < list.len() - (want - p)) else {
+            break;
+        };
+        at[p] += 1;
+        for q in p + 1..want {
+            at[q] = at[q - 1] + 1;
+        }
+    }
+    Some(None)
+}
+
 /// Every way to pick one of each of `sizes` things, as the choice made at
 /// each place; `None` for more than 16 ways.
 fn combinations(sizes: &[usize]) -> Option<Vec<Vec<usize>>> {
@@ -1272,6 +1358,7 @@ impl OpenVaults {
         self.names = names;
         for s in &mut self.slots {
             s.used = OnceCell::new();
+            s.uuids = OnceCell::new();
         }
     }
 
@@ -1334,6 +1421,7 @@ impl OpenVaults {
             version: 0,
             facts: OnceCell::new(),
             used: OnceCell::new(),
+            uuids: OnceCell::new(),
             sealing: false,
         });
         (id, facts)
@@ -1349,20 +1437,26 @@ impl OpenVaults {
         self.slots.clear();
     }
 
-    /// A lookup. How many bytes of `uuids` [`OpenVaults::seal_job`] takes
-    /// for open vault `id`: 16 for each new entry and for each kind's
-    /// group among them. `None` for an id this store does not hold.
+    /// A lookup once read, which [`OpenVaults::warm`] does before a frame.
+    /// How many bytes of `uuids` [`OpenVaults::seal_job`] takes for open
+    /// vault `id`: 16 for each new entry and for each kind's group among
+    /// them. `None` for an id this store does not hold. The first read after
+    /// an edit works the seal's writes out, which clones each record
+    /// changed (its bytes in wiping types) and counts the UUIDs they take;
+    /// the answer is kept until the next edit.
     pub fn uuid_bytes(&self, id: VaultId) -> Option<usize> {
         let s = self.slot(id)?;
-        let mut n = 0;
-        // A seal that refuses draws nothing: its job carries the refusal.
-        let ok = s
-            .ops(&Overlay::NONE, &mut || {
-                n += 1;
-                [0; 16]
-            })
-            .is_ok();
-        Some(if ok { n * 16 } else { 0 })
+        Some(*s.uuids.get_or_init(|| {
+            let mut n = 0;
+            // A seal that refuses draws nothing: its job carries the refusal.
+            let ok = s
+                .ops(&Overlay::NONE, &mut || {
+                    n += 1;
+                    [0; 16]
+                })
+                .is_ok();
+            if ok { n * 16 } else { 0 }
+        }))
     }
 
     /// Makes the job that seals open vault `id`, which stays in the
@@ -1604,7 +1698,10 @@ impl OpenVaults {
     }
 
     /// Takes out of open vault `id` every record `gone` says goes; how
-    /// many went.
+    /// many went. `gone` is asked once per record, in order; the `home` of
+    /// the view it is given is the record's place now, shifted down by the
+    /// records that went before it, not its place before the call (count
+    /// the calls for that).
     pub fn remove_where(
         &mut self,
         id: VaultId,
@@ -1638,7 +1735,9 @@ impl OpenVaults {
     /// Sets public field `number` of record `i` of open vault `id`; an
     /// empty `bytes` takes the field out. `false` for a secret field
     /// ([`is_secret`]), which only [`OpenVaults::set_secret`] writes, or
-    /// no such record.
+    /// no such record. No check of the vault's size: for what a seal or
+    /// the plan's own bookkeeping writes; a person's edit is
+    /// [`OpenVaults::set_publics_in`].
     pub fn set_public(&mut self, id: VaultId, i: usize, number: u8, bytes: &[u8]) -> bool {
         let Some(s) = self.slot_mut(id) else {
             return false;
@@ -1656,7 +1755,8 @@ impl OpenVaults {
 
     /// Sets a repeatable public field of record `i` of open vault `id` to
     /// `values`, in order, the values it had gone. `false` for a secret
-    /// field or no such record.
+    /// field or no such record. No check of the vault's size: a person's
+    /// edit is [`OpenVaults::set_public_all_in`].
     pub fn set_public_all(&mut self, id: VaultId, i: usize, number: u8, values: &[&[u8]]) -> bool {
         let Some(s) = self.slot_mut(id) else {
             return false;
@@ -1673,6 +1773,60 @@ impl OpenVaults {
         }
         s.touch(i);
         true
+    }
+
+    /// Costs what [`OpenVaults::fits`] costs. Sets each of `fields` (a
+    /// public field's number and bytes; empty takes it out) of record `i`
+    /// of open vault `id` together, as [`OpenVaults::set_public`] does; or,
+    /// when the vault would then not fit its size, none of them ([`Full`]).
+    /// A secret field, no such record or a vault read-only is refused the
+    /// same way.
+    pub fn set_publics_in(
+        &mut self,
+        c: &Compute,
+        id: VaultId,
+        i: usize,
+        fields: &[(u8, &[u8])],
+    ) -> Result<(), Full> {
+        self.edit_record_in(c, id, i, |r| {
+            for &(number, bytes) in fields {
+                if is_secret(r.kind, number) {
+                    return Err(Full);
+                }
+                set_field(r, number, bytes);
+            }
+            Ok(())
+        })
+    }
+
+    /// Costs what [`OpenVaults::fits`] costs. Record `i` of open vault
+    /// `id` as `edit` changes it, kept only when the vault then fits its
+    /// size; otherwise nothing changes ([`Full`]).
+    fn edit_record_in(
+        &mut self,
+        c: &Compute,
+        id: VaultId,
+        i: usize,
+        edit: impl FnOnce(&mut Record) -> Result<(), Full>,
+    ) -> Result<(), Full> {
+        let s = self.slot(id).filter(|s| !s.locked()).ok_or(Full)?;
+        let mut r = s.records.get(i).ok_or(Full)?.clone();
+        edit(&mut r)?;
+        let edit = [(i, &r)];
+        let ov = Overlay {
+            remove: &[],
+            add: &[],
+            edit: &edit,
+        };
+        if s.used_with(c, &self.names, &ov)
+            .map_or(true, |n| n > s.limit())
+        {
+            return Err(Full);
+        }
+        let s = self.slot_mut(id).ok_or(Full)?;
+        s.records[i] = r;
+        s.touch(i);
+        Ok(())
     }
 
     /// Costs what [`OpenVaults::fits`] costs. Sets a repeatable public
@@ -1725,7 +1879,8 @@ impl OpenVaults {
     /// Sets secret field `number` of record `i` of open vault `id` to
     /// input the caller holds (a typed password), which the caller wipes
     /// when it drops; an empty `bytes` takes the field out. `false` for a
-    /// public field or no such record.
+    /// public field or no such record. No check of the vault's size: a
+    /// person's edit is [`OpenVaults::set_fields`].
     pub fn set_secret(
         &mut self,
         id: VaultId,
@@ -1882,11 +2037,13 @@ impl OpenVaults {
     // ---- facts worked out of the key records' words ----
 
     /// Costs a parse and a hash of every key record's words in open vault
-    /// `id`, the first time after a change, a lookup after. Works out what
-    /// `word_count` and `words_id` answer.
+    /// `id`, and a read of each record changed (for the seal's UUIDs), the
+    /// first time after a change, a lookup after. Works out what
+    /// `word_count`, `words_id` and `uuid_bytes` answer.
     pub fn warm(&self, c: &Compute, id: VaultId) {
         if let Some(s) = self.slot(id) {
             s.facts(c);
+            let _ = self.uuid_bytes(id);
         }
     }
 
@@ -2079,7 +2236,16 @@ impl OpenVaults {
         // may be in; one changed here is read from its `otp` field, and
         // from the same fields as when read where it has none (Faraday
         // writes only `otp` and never rewrites a field it did not make).
-        let own = s.dirty[i] && r.field(field::TOTP).is_some();
+        // An `otp` field taken out here leaves no code: the entry is no
+        // longer read from its other fields.
+        let had_otp = |item: usize| {
+            s.opened.read().items.get(item).is_some_and(
+                |it| matches!(&it.body, Body::Record(o) if o.field(field::TOTP).is_some()),
+            )
+        };
+        let own = s.dirty[i]
+            && (r.field(field::TOTP).is_some()
+                || matches!(s.origin.get(i), Some(Origin::Entry { item, .. }) if had_otp(*item)));
         if let (false, Some(Origin::Entry { item, .. })) = (own, s.origin.get(i)) {
             let read = s.opened.read().items.get(*item)?.totp.as_ref()?;
             return Some(Totp {
@@ -2156,19 +2322,27 @@ impl OpenVaults {
         Some(crate::gpg::certificate(&key, at))
     }
 
-    /// Costs an Ed25519 signature. Makes the revocation certificate GPG
-    /// record `i` of open vault `id` keeps, signed at `at` with no reason,
-    /// and keeps it in the record, as GnuPG keeps one at key generation.
-    /// `false` for a record that is no GPG key or keeps one already.
-    pub fn gpg_keep_revocation(&mut self, id: VaultId, i: usize, at: u32) -> bool {
+    /// Costs an Ed25519 signature and what [`OpenVaults::fits`] costs.
+    /// Makes the revocation certificate GPG record `i` of open vault `id`
+    /// keeps, signed at `at` with no reason, and keeps it in the record,
+    /// as GnuPG keeps one at key generation. `Ok(false)` for a record that
+    /// is no GPG key or keeps one already; `Err` where the vault would not
+    /// fit its size with it, and nothing is kept ([`Full`]).
+    pub fn gpg_keep_revocation(
+        &mut self,
+        c: &Compute,
+        id: VaultId,
+        i: usize,
+        at: u32,
+    ) -> Result<bool, Full> {
         let Some(r) = self.slot(id).and_then(|s| s.records.get(i)) else {
-            return false;
+            return Ok(false);
         };
         if r.field(gpg_field::REVOCATION).is_some() {
-            return false;
+            return Ok(false);
         }
         let Some(key) = gpg_key(r) else {
-            return false;
+            return Ok(false);
         };
         let rev = Zeroizing::new(crate::gpg::revocation(
             &key,
@@ -2176,19 +2350,15 @@ impl OpenVaults {
             faraday_pgp::Reason::Unspecified,
             "",
         ));
-        let Some(s) = self.slot_mut(id) else {
-            return false;
-        };
-        let Some(r) = s.records.get_mut(i) else {
-            return false;
-        };
-        r.set(gpg_field::REVOCATION, &rev);
-        s.touch(i);
-        true
+        self.edit_record_in(c, id, i, |r| {
+            r.set(gpg_field::REVOCATION, &rev);
+            Ok(())
+        })?;
+        Ok(true)
     }
 
-    /// The revocation certificate GPG record `i` of open vault `id` keeps,
-    /// as the file GnuPG keeps it in, for `why` (`Reveal::OutboxFile` of
+    /// Costs what `gpg_key` costs. The revocation certificate GPG record
+    /// `i` of open vault `id` keeps, as the file GnuPG keeps it in, for `why` (`Reveal::OutboxFile` of
     /// `Part::Revocation`). `None` for a record that keeps none, or a
     /// reason that names another part.
     pub fn gpg_revocation_file(
@@ -2240,7 +2410,8 @@ impl OpenVaults {
         Some(crate::gpg::sign_armored(&key, data, at))
     }
 
-    /// The paperkey text of GPG record `r`: secret, made only to be shown,
+    /// Costs what `gpg_key` costs and a paperkey encoding. The paperkey
+    /// text of GPG record `r`: secret, made only to be shown,
     /// wiped when dropped (`Reveal::GpgPaperkey`).
     pub fn gpg_paperkey(&self, r: RecordView<'_>, _why: Reveal) -> Option<Held<Zeroizing<String>>> {
         let key = gpg_key(r.raw())?;
@@ -2457,9 +2628,13 @@ impl OpenVaults {
         }
         let mut loaded = Vec::new();
         for (fp, list, others) in sets {
-            let texts: Vec<&str> = list.iter().map(|(_, t)| t.as_str()).collect();
             if let Some(k) = keys.position_of(fp) {
-                keys.keep_codex32(k, &texts);
+                let texts: Vec<&str> = list
+                    .iter()
+                    .chain(&others)
+                    .map(|(_, t)| t.as_str())
+                    .collect();
+                keys.keep_codex32(c, k, &texts);
                 continue;
             }
             let Some((first, _)) = list.first() else {
@@ -2487,21 +2662,22 @@ impl OpenVaults {
                     .collect(),
             };
             keys.set_codex32(at, Some(facts));
-            keys.keep_codex32(at, &texts);
+            keys.keep_codex32(c, at, &texts);
             loaded.push(got);
         }
         loaded
     }
 
-    /// A parse of each codex32 share record's string. The share strings
+    /// Costs a parse of each codex32 share record's string. The share strings
     /// every open vault keeps of the set `typed` is of (its identifier,
     /// threshold and length), at indices none of `typed` has, as their
     /// text (`docs/CODEX32.md` §9.5), grouped by the key each record
-    /// names: one group per fingerprint, one string per index in each.
-    /// Strings of two seeds may share an identifier, a threshold and a
-    /// length; only one group's strings are ever combined. A record that
-    /// names no key is in none. None where `typed` is empty or the secret
-    /// alone.
+    /// names: one group per fingerprint, every distinct string in it
+    /// (an index may have two, and the right one is found by the seed
+    /// they make). Strings of two seeds may share an identifier, a
+    /// threshold and a length; only one group's strings are ever
+    /// combined. A record that names no key is in none. None where
+    /// `typed` is empty or the secret alone.
     fn codex32_more_of(
         &self,
         typed: &[faraday_bip::codex32::Codex32],
@@ -2510,8 +2686,8 @@ impl OpenVaults {
         let Some(first) = typed.first().filter(|f| f.threshold() >= 2) else {
             return Vec::new();
         };
-        // Each key's strings, by fingerprint: one per index.
-        type Group = ([u8; 4], Vec<(u8, Zeroizing<String>)>);
+        // Each key's strings, by fingerprint.
+        type Group = ([u8; 4], Vec<Zeroizing<String>>);
         let mut out: Vec<Group> = Vec::new();
         for r in self.slots.iter().flat_map(|s| s.records.iter()) {
             if r.kind != kind::CODEX32_SHARE {
@@ -2542,13 +2718,11 @@ impl OpenVaults {
                 }
             };
             let group = &mut out[at].1;
-            if !group.iter().any(|(j, _)| *j == i) {
-                group.push((i, Zeroizing::new(text.to_ascii_lowercase())));
+            if !group.iter().any(|t| t.eq_ignore_ascii_case(text)) {
+                group.push(Zeroizing::new(text.to_ascii_lowercase()));
             }
         }
-        out.into_iter()
-            .map(|(fp, g)| (fp, g.into_iter().map(|(_, t)| t).collect()))
-            .collect()
+        out
     }
 
     /// Costs what `Keys::codex32_of_seed` costs, and a parse of each
@@ -2576,21 +2750,30 @@ impl OpenVaults {
         keys.codex32_of_seed(c, i, string, &more)
     }
 
-    /// A parse of each codex32 share record's string. How many strings
+    /// Costs a parse of each codex32 share record's string. How many strings
     /// of the set `typed` is of the open vaults add to it: at indices
     /// none of `typed` has, one per index, of the one key whose records
     /// hold the most (`docs/CODEX32.md` §9.5). Public: a count.
     pub fn codex32_count(&self, typed: &[faraday_bip::codex32::Codex32]) -> usize {
         self.codex32_more_of(typed)
             .iter()
-            .map(|(_, g)| g.len())
+            .map(|(_, g)| {
+                let mut at: Vec<u8> = g
+                    .iter()
+                    .filter_map(|t| t.as_bytes().get(8).copied())
+                    .collect();
+                at.sort_unstable();
+                at.dedup();
+                at.len()
+            })
             .max()
             .unwrap_or(0)
     }
 
     /// Costs a parse of each codex32 share record's string and, for each
-    /// key whose records make up `k` with those typed, an interpolation,
-    /// an HMAC-SHA512 and a fingerprint, and what `add_seed` costs.
+    /// key whose records make up `k` with those typed, and each of at
+    /// most 16 choices among its strings, an interpolation, an HMAC-SHA512
+    /// and a fingerprint, and what `add_seed` costs.
     /// Strings typed into the codex32 form gathered with the open vaults'
     /// strings of their set (`docs/CODEX32.md` §9.5), one key's records
     /// at a time: once `typed` and those make `k`, and the seed they make
@@ -2606,7 +2789,6 @@ impl OpenVaults {
         typed: &[faraday_bip::codex32::Codex32],
         label: &str,
     ) -> Option<Result<Fingerprint, Refusal>> {
-        use faraday_bip::codex32::Codex32;
         use fv::codex32::{SetFacts, State};
         let first = typed.first()?;
         let need = usize::from(first.threshold());
@@ -2615,27 +2797,30 @@ impl OpenVaults {
         }
         // Each key's records with those typed, until one makes the key
         // its records name; never strings of two keys together.
+        let typed_texts: Vec<Zeroizing<String>> = typed
+            .iter()
+            .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+            .collect();
+        let fixed: Vec<&str> = typed_texts.iter().map(|t| t.as_str()).collect();
         let mut tried = false;
         let mut found = None;
         for (fp, more) in self.codex32_more_of(typed) {
-            if typed.len() + more.len() < need {
-                continue;
-            }
-            tried = true;
-            let mut texts: Vec<Zeroizing<String>> = typed
-                .iter()
-                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
-                .collect();
-            texts.extend(more);
-            let parts: Vec<Codex32> = texts
-                .iter()
-                .take(need)
-                .filter_map(|t| Codex32::parse(t).ok())
-                .collect();
-            let Ok(seed) = crate::operations::codex32_seed(&parts) else {
+            let pool: Vec<&str> = more.iter().map(|t| t.as_str()).collect();
+            let Some(made) = codex32_find(c, fp, need, &fixed, &pool) else {
                 continue;
             };
-            if crate::identity::fingerprint_of_seed(c, &seed) == Some(Fingerprint(fp)) {
+            tried = true;
+            if let Some((seed, picked)) = made {
+                // What made the key, then the key's other strings at
+                // indices none of those has.
+                let mut texts = typed_texts.clone();
+                texts.extend(picked.into_iter().skip(typed.len()));
+                for t in more.iter() {
+                    let at = t.as_bytes().get(8);
+                    if !texts.iter().any(|x| x.as_bytes().get(8) == at) {
+                        texts.push(t.clone());
+                    }
+                }
                 found = Some((texts, seed));
                 break;
             }
@@ -2679,7 +2864,7 @@ impl OpenVaults {
             }),
         );
         let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
-        keys.keep_codex32(at, &refs);
+        keys.keep_codex32(c, at, &refs);
         Some(Ok(fp))
     }
 
@@ -2902,7 +3087,8 @@ fn u32_of(r: &Record, n: u8) -> Option<u32> {
     Some(u32::from_le_bytes(r.field(n)?.try_into().ok()?))
 }
 
-/// The key a GPG record (type 7) holds, its seeds wiped when it drops.
+/// Costs the Ed25519 signatures that read the key. The key a GPG record
+/// (type 7) holds, its seeds wiped when it drops.
 /// `None` for a record without a signing subkey.
 pub(crate) fn gpg_key(r: &Record) -> Option<faraday_pgp::Key> {
     if r.kind != kind::GPG {
@@ -2946,9 +3132,10 @@ fn sb_keys(r: &Record) -> Option<faraday_sb::Keys> {
 
 // ---- key records, by view ----
 
-/// A key record's id: the SHA-256 of its payload and the passphrase
-/// stored with it, by which what is worked out of it is kept. `None` for
-/// a record with no key. Costs a hash.
+/// Costs a SHA-256 over the record's payload and passphrase. A key
+/// record's id: the SHA-256 of its payload and the passphrase stored with
+/// it, by which what is worked out of it is kept. `None` for a record
+/// with no key.
 pub fn key_record_id(r: RecordView<'_>) -> Option<[u8; 32]> {
     use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
     let r = r.raw();

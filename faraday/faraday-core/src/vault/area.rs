@@ -2599,7 +2599,8 @@ pub(super) fn size_line(facts: &fv::file::Facts) -> String {
     }
 }
 
-/// The head's line for settings other than Faraday writes, else empty.
+/// The head's line for settings other than Faraday writes, else empty:
+/// the version too when it is not 4.0 (`docs/VAULT.md` §7.1).
 pub(super) fn settings_line(facts: &fv::file::Facts) -> String {
     use fv::kdbx::{Cipher, Compression, Kdf};
     if !facts.other_settings() {
@@ -2618,9 +2619,18 @@ pub(super) fn settings_line(facts: &fv::file::Facts) -> String {
         Compression::Gzip => EN.vault_setting_gzip,
         Compression::None => EN.vault_setting_uncompressed,
     };
+    // The version is named where it is what differs.
+    let version = if h.minor == 0 {
+        String::new()
+    } else {
+        format!(
+            "{} / ",
+            fill(EN.vault_setting_version, &[&h.minor.to_string()])
+        )
+    };
     fill(
         EN.vault_other_settings,
-        &[&format!("{cipher} / {kdf} / {zip}")],
+        &[&format!("{version}{cipher} / {kdf} / {zip}")],
     )
 }
 

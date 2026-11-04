@@ -872,8 +872,9 @@ impl Faraday {
             V::GpgExport => self.gpg_export(),
             V::GpgExportRevocation => self.gpg_export_revocation(),
             V::GpgRevocationPage => {
-                self.gpg_keep_revocation();
-                self.vault_form_for_revocation();
+                if self.gpg_keep_revocation() {
+                    self.vault_form_for_revocation();
+                }
             }
             V::GpgReason(n) => self.vaults.state.revoke_reason = n.min(3),
             V::GpgRenewTerm(y) => self.vaults.state.renew_years = Some(y),
@@ -1948,8 +1949,10 @@ impl Faraday {
         self.vault_push_in(self.vaults.current, record, said);
     }
 
-    /// Adds `record` to open vault `v`, saying `said`. False when it does
-    /// not fit in the vault's slot.
+    /// Costs what `vault_put_in` costs. Adds `record` to open vault `v`,
+    /// saying `said`. False when it does not fit in the vault's slot. True
+    /// when a question about the record was put to the person instead: the
+    /// record is added or not by the answer, and nothing is said until then.
     pub(crate) fn vault_push_in(&mut self, v: usize, record: impl IntoRecord, said: &str) -> bool {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
@@ -1963,18 +1966,34 @@ impl Faraday {
         self.vault_put_in(v, record, said)
     }
 
-    /// Adds `record` to open vault `v` with no question, saying `said`.
-    /// False when it does not fit.
+    /// Costs a document write. Why vault `id`, which does not take what was
+    /// asked, does not: it cannot be written (read-only, or a record the
+    /// seal refuses), or it is full.
+    pub(crate) fn vault_no_room_text(&self, c: &Compute, id: VaultId) -> &'static str {
+        let store = self.vaults.store();
+        if store.read_only(id).is_some() || store.records(id).unwritable(c) {
+            EN.vaults_cannot_write
+        } else {
+            EN.vaults_slot_too_small
+        }
+    }
+
+    /// Costs what `OpenVaults::fits` costs. Adds `record` to open vault
+    /// `v` with no question, saying `said`. False when it does not fit or
+    /// the vault refuses the edit.
     pub(crate) fn vault_put_in(&mut self, v: usize, record: impl IntoRecord, said: &str) -> bool {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
         let c = self.compute();
         if !self.vaults.store().fits(&c, id, &[], &[&record]) {
-            self.toast(EN.vaults_slot_too_small);
+            let why = self.vault_no_room_text(&c, id);
+            self.toast(why);
             return false;
         }
-        self.vaults.edit(id, |s| s.insert(id, record));
+        if self.vaults.edit(id, |s| s.insert(id, record)).is_none() {
+            return false;
+        }
         self.vaults.changed(id);
         self.toast(said);
         true
@@ -2031,8 +2050,8 @@ impl Faraday {
 
     /// Whether a lock would lose an open vault's changes: the session's
     /// seed has not arrived, or fewer answers wait than the seals of the
-    /// changed vaults draw (five each, and one more for every 32 bytes of
-    /// new entries' identifiers).
+    /// changed vaults draw (the seal's random bytes in 32-byte answers for each,
+    /// and one more for each vault with new entries' identifiers).
     pub fn seal_waits(&self) -> bool {
         let need: usize = self
             .vaults
@@ -2065,12 +2084,14 @@ impl Faraday {
         seal::sealing(self)
     }
 
-    /// Seals every open vault, then finishes the lock ([`seal`]).
-    pub(crate) fn vault_seal_all(&mut self) {
-        seal::vault_seal_all(self);
+    /// Seals every open vault, then finishes the lock ([`seal`]); `may_lose`
+    /// lets a vault that cannot be sealed go.
+    pub(crate) fn vault_seal_all(&mut self, may_lose: bool) {
+        seal::vault_seal_all(self, may_lose);
     }
 
-    /// Locks open vault `i` alone ([`seal`]): true when it is closed now.
+    /// Costs what [`seal::vault_lock_one`] costs. Locks open vault `i`
+    /// alone ([`seal`]): true when it is closed now.
     pub(crate) fn vault_lock_one(&mut self, i: usize, after: seal::After) -> bool {
         seal::vault_lock_one(self, i, after)
     }
@@ -2490,19 +2511,30 @@ impl Faraday {
     /// it is: a key made before revocations were kept gets its one when
     /// its page is first used. Nothing is made while the clock is not
     /// known or not checked.
-    pub(crate) fn gpg_keep_revocation(&mut self) {
+    /// A vault with no room for it says so and keeps nothing; false then.
+    pub(crate) fn gpg_keep_revocation(&mut self) -> bool {
         let Some((id, at, _)) = self.gpg_selected() else {
-            return;
+            return true;
         };
         if self.gpg_record(id, at).is_none_or(|r| r.has(f::REVOCATION)) || !self.clock_checked() {
-            return;
+            return true;
         }
         let Ok(now) = self.clock() else {
-            return;
+            return true;
         };
-        if self.vaults.edit(id, |s| s.gpg_keep_revocation(id, at, now)) {
-            self.vaults.changed(id);
+        let c = self.compute();
+        match self
+            .vaults
+            .edit(id, |s| s.gpg_keep_revocation(&c, id, at, now))
+        {
+            Ok(true) => self.vaults.changed(id),
+            Ok(false) => {}
+            Err(_) => {
+                self.toast(EN.vaults_slot_too_small);
+                return false;
+            }
         }
+        true
     }
 
     /// The selected key's public certificate, armoured, with the key.
@@ -2611,7 +2643,9 @@ impl Faraday {
     /// The revocation certificate kept with the selected key, through the
     /// secret sheet as `{name}-{FPR}.rev`.
     pub(crate) fn gpg_export_revocation(&mut self) {
-        self.gpg_keep_revocation();
+        if !self.gpg_keep_revocation() {
+            return;
+        }
         let Some((id, at, key)) = self.gpg_selected() else {
             return;
         };
@@ -2661,8 +2695,13 @@ impl Faraday {
             Err(e) => return self.toast(&e),
         };
         if self.gpg_record(id, at).is_some_and(|r| !r.has(f::REVOKED)) {
-            self.vaults
-                .edit(id, |s| s.set_public(id, at, f::REVOKED, &now.to_le_bytes()));
+            let c = self.compute();
+            let marked = self.vaults.edit(id, |s| {
+                s.set_publics_in(&c, id, at, &[(f::REVOKED, &now.to_le_bytes()[..])])
+            });
+            if marked.is_err() {
+                return self.toast(EN.vaults_slot_too_small);
+            }
             self.vaults.changed(id);
         }
         self.toast(EN.gpg_marked_revoked);
@@ -2715,10 +2754,21 @@ impl Faraday {
             return;
         };
         let name = format!("{}.asc", gpg::file_stem(&key));
-        self.vaults.edit(id, |s| {
-            s.set_public(id, at, f::EXPIRY, &expiry.to_le_bytes());
-            s.set_public(id, at, f::CERTIFICATE, &cert);
+        let c = self.compute();
+        let renewed = self.vaults.edit(id, |s| {
+            s.set_publics_in(
+                &c,
+                id,
+                at,
+                &[
+                    (f::EXPIRY, &expiry.to_le_bytes()[..]),
+                    (f::CERTIFICATE, &cert),
+                ],
+            )
         });
+        if renewed.is_err() {
+            return self.toast(EN.vaults_slot_too_small);
+        }
         self.vaults.changed(id);
         self.vaults.state.renew_years = None;
         if self.put_unless_taken(&name, armor(Armor::PublicKey, &cert).into_bytes(), |i| {

@@ -209,7 +209,8 @@ fn fields() -> Vec<Field> {
     out.push((
         "Unlock a vault, its passphrase",
         |app| {
-            // The seal asks the shell for an answer per entry's UUID.
+            // The seal asks the shell for one more answer for the entries'
+            // UUIDs together, not one for each.
             for i in 0..8u8 {
                 let bytes = faraday_shell_api::EntropyBytes::new([0x70 + i; 32]);
                 app.event(Event::Entropy(bytes));

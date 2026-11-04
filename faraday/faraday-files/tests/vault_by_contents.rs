@@ -325,3 +325,28 @@ fn bytes_that_begin_with_the_signature_but_are_no_vault_are_written_as_a_file() 
     write_any(&compute(), &mut place, "x.kdbx", &bytes, false).unwrap();
     assert_eq!(place.files["x.kdbx"], bytes);
 }
+
+/// A file of exactly `len` bytes that begins as a KDBX 4 file does.
+fn of_len(len: usize) -> Vec<u8> {
+    let mut v = SIGNATURE.to_vec();
+    v.extend_from_slice(&[0, 0, 4, 0]);
+    v.resize(len, 7);
+    v
+}
+
+#[test]
+fn the_shortest_and_longest_vault_are_told_and_one_byte_either_side_is_not() {
+    // The header with its hash and HMAC and the stream's empty block; and
+    // the largest plaintext (4 MiB) stored as a program may have left it.
+    let (least, most) = (349, 4_719_193);
+    let mut place = Memory::default();
+    place.files.insert("Passwords.kdbx".into(), of_len(least));
+    place.files.insert("short.kdbx".into(), of_len(least - 1));
+    place.files.insert("Archive.kdbx".into(), of_len(most));
+    place.files.insert("long.kdbx".into(), of_len(most + 1));
+    let files = place.files().unwrap();
+    assert_eq!(
+        vault_names(&compute(), &mut place, &files),
+        ["Archive.kdbx", "Passwords.kdbx"]
+    );
+}

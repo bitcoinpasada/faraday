@@ -1,4 +1,4 @@
-//! Telling a vault by its first four bytes reads four bytes of a FAT
+//! Telling a vault by its first twelve bytes reads twelve bytes of a FAT
 //! stick, not the file: a vault is up to 16.8 MB, and a listing asks of
 //! every file of a vault's length (`docs/VAULT-HARDENING.md` §2.1).
 //!
@@ -50,7 +50,7 @@ fn compute() -> Compute {
 }
 
 #[test]
-fn a_listing_reads_four_bytes_of_a_vault_on_a_fat_stick_and_not_the_file() {
+fn a_listing_reads_twelve_bytes_of_a_vault_on_a_fat_stick_and_not_the_file() {
     let dir = std::env::temp_dir().join(format!("faraday-files-head-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

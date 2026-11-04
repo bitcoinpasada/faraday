@@ -563,7 +563,7 @@ mod explore {
             .map(|s| s.as_str().unwrap().to_lowercase())
             .collect();
         let refs: Vec<&str> = shares.iter().map(String::as_str).rev().collect();
-        assert_eq!(keys.keep_codex32(0, &refs), 2);
+        assert_eq!(keys.keep_codex32(&c, 0, &refs), 2);
         let shown = keys.seed_shown(0, Reveal::SeedShown).unwrap();
         let shown: Vec<&str> = shown.iter().map(|s| s.as_str()).collect();
         let secret = set["secret"].as_str().unwrap().to_lowercase();
@@ -586,15 +586,87 @@ mod explore {
         };
         assert!(keys.set_codex32(0, None));
         assert!(keys.set_codex32(0, Some(facts)));
-        assert_eq!(keys.keep_codex32(0, &[shares[1].as_str()]), 1);
+        // A share alone cannot be shown to be of the seed: not kept.
+        assert_eq!(keys.keep_codex32(&c, 0, &[shares[1].as_str()]), 0);
         let shown = keys.seed_shown(0, Reveal::SeedShown).unwrap();
         let shown: Vec<&str> = shown.iter().map(|s| s.as_str()).collect();
-        assert_eq!(shown, [set["seed"].as_str().unwrap(), &shares[1]]);
+        assert_eq!(shown, [set["seed"].as_str().unwrap()]);
         // Its root extended private key is the vector's.
         let root = keys
             .xprv_at(&c, 0, &DerivationPath::master(), Reveal::ExtendedPrivateKey)
             .unwrap();
         assert_eq!(root.as_str(), set["xprv"].as_str().unwrap());
+    }
+
+    /// A key made from BIP 93's vector 2 seed, its set facts known, and a
+    /// share of another seed with that set's header, at index `a`.
+    fn vector_two_and_a_stranger(c: &Compute) -> (Keys, Vec<String>, String) {
+        let v: Value = serde_json::from_str(BIP93).unwrap();
+        let set = v["sets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["vector"] == "2")
+            .unwrap();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_seed(c, &unhex(set["seed"].as_str().unwrap()), "")
+            .unwrap();
+        assert!(keys.set_codex32(
+            0,
+            Some(faraday_vault::codex32::SetFacts {
+                threshold: 2,
+                identifier: *b"name",
+                length: 48,
+                unknown: 0,
+                strings: Vec::new(),
+            })
+        ));
+        let shares: Vec<String> = set["shares"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_str().unwrap().to_lowercase())
+            .collect();
+        let other = faraday_bip::codex32::Codex32::from_seed(2, *b"name", &[7u8; 16]).unwrap();
+        let stranger = other
+            .split(2, 3, &[9u8; 64])
+            .unwrap()
+            .into_iter()
+            .find(|s| s.share_index() == b'a')
+            .unwrap()
+            .encode()
+            .as_str()
+            .to_string();
+        assert_ne!(stranger, shares[0]);
+        (keys, shares, stranger)
+    }
+
+    #[test]
+    fn a_share_of_another_seed_is_not_kept_for_a_key() {
+        let c = compute();
+        let (mut keys, shares, stranger) = vector_two_and_a_stranger(&c);
+        assert_eq!(keys.keep_codex32(&c, 0, &[stranger.as_str()]), 0);
+        assert_eq!(
+            keys.keep_codex32(&c, 0, &[stranger.as_str(), shares[1].as_str()]),
+            0
+        );
+        let shown = keys.seed_shown(0, Reveal::SeedShown).unwrap();
+        assert!(shown.iter().all(|s| s.as_str() != stranger));
+    }
+
+    #[test]
+    fn the_right_shares_are_kept_beside_a_wrong_one_at_the_same_index() {
+        let c = compute();
+        let (mut keys, shares, stranger) = vector_two_and_a_stranger(&c);
+        let given = [stranger.as_str(), shares[0].as_str(), shares[1].as_str()];
+        assert_eq!(keys.keep_codex32(&c, 0, &given), 2);
+        assert!(keys.holds_codex32(0, b'a'));
+        assert!(keys.holds_codex32(0, b'c'));
+        let shown = keys.seed_shown(0, Reveal::SeedShown).unwrap();
+        let shown: Vec<&str> = shown.iter().map(|s| s.as_str()).collect();
+        assert!(shown.contains(&shares[0].as_str()));
+        assert!(shown.contains(&shares[1].as_str()));
+        assert!(!shown.contains(&stranger.as_str()));
     }
 
     #[test]

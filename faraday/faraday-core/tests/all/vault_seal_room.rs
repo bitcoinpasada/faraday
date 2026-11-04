@@ -5,6 +5,7 @@
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
+use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, StorageEvent, testkit};
@@ -115,4 +116,42 @@ fn a_vault_that_cannot_be_written_keeps_its_amounts_and_says_so() {
     );
     assert!(!app.offers(Action::Lock), "a lock that seals is offered");
     assert_eq!(count(&app, kind::AMOUNTS), 4, "the amounts were lost");
+}
+
+#[test]
+fn saving_a_wallet_into_a_vault_that_cannot_be_written_says_so() {
+    let file = crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7);
+    let mut app = open_file(file);
+    let id = app.vaults().open[0].id;
+    // A record the seal refuses to write.
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, Record::new(kind::ROUND)));
+    testkit::vault_changed(&mut app, id);
+
+    let c = testkit::compute();
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    app.press(Action::EntryAdd);
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(0))
+        .unwrap();
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Spending",
+            &format!("wpkh({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let before = app.vaults().records(id).len();
+    app.press(Action::Vault(V::SaveWallet(w)));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == EN.vaults_cannot_write),
+        "the vault was said to be full: {texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t == EN.vaults_slot_too_small));
+    assert_eq!(app.vaults().records(id).len(), before);
 }

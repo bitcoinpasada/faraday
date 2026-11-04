@@ -9034,6 +9034,9 @@ strings! {
     vault_setting_gzip: "gzip",
     /// As above.
     vault_setting_uncompressed: "uncompressed",
+    /// The version in the other-settings line, for a file of minor version
+    /// 4.1. `{}`: the minor version.
+    vault_setting_version: "KDBX 4.{}",
     /// A file's size in KiB, in the unpadded-size line. `{}`: the number.
     vault_kib: "{} KiB",
     /// The head and Unlock: a file Faraday never sealed.

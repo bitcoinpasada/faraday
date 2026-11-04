@@ -6765,8 +6765,6 @@ screens = ["CreateVault"]
 functions = [
   "faraday/faraday-vault/src/lib.rs::create",
   "faraday/faraday-vault/src/lib.rs::derive",
-  "faraday/faraday-keys/src/vault.rs::create",
-  "faraday/faraday-keys/src/vault.rs::measure",
 ]
 code = [
   "faraday/faraday-vault/src/lib.rs::create",
@@ -6882,15 +6880,11 @@ screens = ["Unlock", "VaultContents"]
 functions = [
   "faraday/faraday-vault/src/lib.rs::open",
   "faraday/faraday-vault/src/lib.rs::open_with",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::opened_digest",
   "faraday/faraday-vault/src/lib.rs::Opened::copy_seals",
-  "faraday/faraday-keys/src/job.rs::StretchJob::run",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::adopt",
 ]
 code = [
   "faraday/faraday-vault/src/lib.rs::open",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
 ]
 
 [[action.screens_not]]
@@ -7190,6 +7184,11 @@ learn = "faraday:vaults"
 screens = ["CreateVault", "Unlock", "VaultContents", "Vaults"]
 functions = [
   "faraday/faraday-keys/src/job.rs::SealJob::run",
+  "faraday/faraday-keys/src/job.rs::StretchJob::run",
+  "faraday/faraday-keys/src/vault.rs::create",
+  "faraday/faraday-keys/src/vault.rs::measure",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::adopt",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::fits",
   "faraday/faraday-keys/src/vault.rs::Records::unwritable",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::remove",
@@ -7278,6 +7277,9 @@ tests = [
   "faraday/faraday-vault/tests/file.rs::each_size_has_the_file_length_the_spec_gives",
   "faraday/faraday-vault/tests/file.rs::a_file_a_keepass_app_saved_opens_and_is_sealed_as_faraday_writes_one",
   "faraday/faraday-vault/tests/file.rs::what_does_not_fit_is_named_by_the_bytes_over_and_the_next_size_and_the_vault_stays_open",
+  "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
+  "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
+  "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_the_answers_the_system_gave",
 ]
 not_crosschecked = "Opened by pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it)."
 fuzz = ["kdbx_file", "kdbx_body"]
@@ -7333,9 +7335,6 @@ vectors = ["vault"]
 tests = [
   "faraday/faraday-vault/src/tests.rs::sealing_changes_only_the_open_slot",
   "faraday/faraday-vault/src/tests.rs::each_seal_of_one_opening_counts_one_more_and_keeps_its_time",
-  "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
-  "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
-  "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_the_answers_the_system_gave",
 ]
 crosscheck = "vault"
 independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20), for the primitives", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from the FVLT format's account (`docs/history/VAULT-LOG.md`)" }
@@ -7468,6 +7467,8 @@ functions = [
   "faraday/faraday-keys/src/vault.rs::OpenVaults::relates",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::passphrases_of_key",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public_all_in",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_publics_in",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::edit_record_in",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::set_fields",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_record",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_out",
@@ -7978,6 +7979,7 @@ functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::revocation_file",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_revocation_file",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_new_revocation_file",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_keep_revocation",
 ]
 code = [
   "faraday/faraday-pgp/src/lib.rs::Key::revocation",

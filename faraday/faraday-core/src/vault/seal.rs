@@ -3,10 +3,15 @@
 //! from the vaults sealed before it. The front half draws the seal's
 //! randomness and makes the job, which marks the vault sealing in the
 //! store; the back half puts the file in the Outbox, closes the vault and
-//! goes on to the next. A seal that fails keeps the vault open with its
-//! changes and ends the lock. When the last is done a lock of every vault
-//! finishes (the wipes), and a lock of one closes that vault and goes on
-//! with what was waiting for it.
+//! goes on to the next. A vault that cannot be sealed ends a person's lock
+//! (one that may not lose changes) with that vault open and its changes
+//! kept, the vaults sealed before it closed, nothing wiped and the Lock
+//! sheet showing; an idle lock or Lock without sealing lets it go and
+//! goes on. When the last is done a lock of every vault ends what the
+//! flows hold and finishes (the wipes), and a lock of one closes that
+//! vault and goes on with what was waiting for it. What a lock does that
+//! cannot be undone is only what the seals themselves need: the running
+//! job's answer is dropped and the code on show closes.
 
 use std::collections::VecDeque;
 
@@ -28,6 +33,10 @@ pub(crate) struct SealRun {
     running: Option<(VaultId, String)>,
     /// A lock of every vault (which then finishes the lock), else of one.
     all: bool,
+    /// Whether a vault that cannot be sealed may be let go with its
+    /// changes lost (an idle lock, Lock without sealing). A lock of every
+    /// vault that may not stops instead and asks.
+    may_lose: bool,
     /// What a lock of one goes on with when its vault is closed.
     after: After,
 }
@@ -75,8 +84,13 @@ pub(crate) fn sealing(app: &Faraday) -> bool {
 /// that is read-only is not rewritten: a file's bytes change only when
 /// there is something to keep, which is all a second copy can compare
 /// (`docs/VAULT.md` §9). A vault whose seal cannot be made (the seed or
-/// the answers have not arrived) is closed unsealed.
-pub(crate) fn vault_seal_all(app: &mut Faraday) {
+/// the answers have not arrived, or whose changes do not fit) is let go
+/// unsealed when `may_lose`, its changes lost and said so on the Locked
+/// sheet; else the lock stops with it open and the Lock sheet shows.
+pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
+    // This lock has lost nothing yet: an earlier process's warning is not
+    // repeated by a lock that loses none.
+    app.vaults.clear_changes_lost();
     // What each open vault holds, remembered across the lock.
     app.vault_summaries_refresh();
     // A held key's record says so before the vault goes
@@ -87,12 +101,14 @@ pub(crate) fn vault_seal_all(app: &mut Faraday) {
         queue,
         running: None,
         all: true,
+        may_lose,
         after: After::Nothing,
     });
     seal_next(app);
 }
 
-/// Locks open vault `i` alone: sealed into the Outbox when changed,
+/// Costs what `seal_next` costs for the one vault. Locks open vault `i`
+/// alone: sealed into the Outbox when changed,
 /// what it holds remembered, and closed. The rest stay open. A
 /// changed vault stays open, its changes kept, when the seed has not
 /// arrived or its changes do not fit: then this returns false. It
@@ -123,13 +139,15 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
         queue: VecDeque::from([id]),
         running: None,
         all: false,
+        may_lose: false,
         after,
     });
     seal_next(app);
     !sealing(app)
 }
 
-/// The next vault of the queue: its plans' counts written, the
+/// Costs what `seal_memory` costs and the seal job's start; its Argon2id
+/// run is on the worker. The next vault of the queue: its plans' counts written, the
 /// signed-amount memory added, and its job started. The lock ends
 /// when the queue is empty. Re-entered by the back half, which an
 /// inline worker runs before `start` returns.
@@ -138,7 +156,7 @@ fn seal_next(app: &mut Faraday) {
         let Some(run) = app.vaults.state.sealing.as_mut() else {
             return;
         };
-        let all = run.all;
+        let (all, may_lose) = (run.all, run.may_lose);
         let Some(id) = run.queue.pop_front() else {
             return seal_end(app);
         };
@@ -160,24 +178,31 @@ fn seal_next(app: &mut Faraday) {
             }
             continue;
         }
-        // A vault whose changes do not fit is let go unsealed: the person
-        // chose Lock without sealing, or an idle lock had no one to ask.
+        // A vault whose changes do not fit is let go unsealed only when
+        // the person chose Lock without sealing or an idle lock had no one
+        // to ask; else the lock stops and asks.
         if all {
             let c = app.compute();
             if app.vaults.cannot_seal(&c, i).is_some() {
-                app.vaults.set_changes_lost();
-                continue;
+                if may_lose {
+                    app.vaults.set_changes_lost();
+                    continue;
+                }
+                return seal_stopped(app);
             }
         }
         let work = match seal_work(app, id) {
             Ok(work) => work,
             // A lock of one stays open with its changes and the person is
-            // told; a lock of every vault lets it go and goes on to the wipes.
+            // told; a lock of every vault that may lose changes lets it go
+            // and goes on to the wipes, else it stops and asks.
             Err(why) => {
                 if !all {
                     seal_stop(app, why);
-                } else {
+                } else if may_lose {
                     app.vaults.set_changes_lost();
+                } else {
+                    return seal_stopped(app);
                 }
                 continue;
             }
@@ -191,7 +216,8 @@ fn seal_next(app: &mut Faraday) {
     }
 }
 
-/// The signed-amount memory goes into open vault `i`, the oldest
+/// Costs what `OpenVaults::fits` costs for each record put. The
+/// signed-amount memory goes into open vault `i`, the oldest
 /// records leaving first when the file is full (`docs/VAULT.md` §7,
 /// type 10).
 fn seal_memory(app: &mut Faraday, i: usize) {
@@ -286,7 +312,31 @@ fn seal_stop(app: &mut Faraday, why: NoJob) {
     });
 }
 
-/// Closes open vault `id` after a lock of it alone.
+/// A lock of every vault that may not lose changes met a vault it cannot
+/// seal: the run ends, that vault and the ones after it stay open with
+/// their changes, nothing is wiped, and the Lock sheet shows.
+fn seal_stopped(app: &mut Faraday) {
+    app.vaults.state.sealing = None;
+    if app.seal_waits() {
+        app.out.command(faraday_shell_api::Command::RequestEntropy);
+    }
+    app.sheet = Some(crate::Sheet::LockAsk);
+    app.out.command(Command::Draw);
+}
+
+/// What a lock does to flows before the wipes, once every seal is done
+/// (the vaults are still open): a lock before Make a new wallet's keys are
+/// kept anywhere ends it, as its Cancel does: nothing is left to come back
+/// to (`docs/history/NEW-WALLET.md` §18); the flows keep where they are.
+fn lock_flows(app: &mut Faraday) {
+    let c = app.compute();
+    if app.lock_ends_create(&c) {
+        app.create_drop();
+    }
+    app.flow_before_lock();
+}
+
+/// Closes open vault `id` after a seal.
 fn seal_close(app: &mut Faraday, id: VaultId) {
     if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
         app.vaults.state.close(i);
@@ -303,6 +353,8 @@ fn seal_end(app: &mut Faraday) {
         return;
     };
     if run.all {
+        // Flows end while the vaults are still open, as the lock began.
+        lock_flows(app);
         app.vaults.state.close_all();
         app.vaults.state.load = None;
         app.vaults.state.pass_seeds = None;
@@ -337,10 +389,11 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
                 app.flow_sealed(i, &name, &bytes);
             }
             app.vaults.state.store.seal_ended(id, true);
+            // Sealed, so no longer open, in a lock of every vault too: a
+            // later vault's failure leaves this one closed, its file in
+            // the Outbox, not open and empty.
+            seal_close(app, id);
         }
-        // The vault stays open with its changes, the lock goes no
-        // further (the rest of the queue is not sealed, nothing is
-        // wiped), and the person is told.
         // An idle lock has no one to ask: the changes are lost and the
         // lock goes on to the wipes.
         Err(_) if all && app.idle_locked_after().is_some() => {
@@ -348,6 +401,9 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             app.vaults.set_changes_lost();
             return seal_next(app);
         }
+        // Else the vault stays open with its changes, the lock goes no
+        // further (the rest of the queue is not sealed, nothing is
+        // wiped), and the person is told.
         Err(why) => {
             app.vaults.state.store.seal_ended(id, false);
             app.vaults.state.sealing = None;
@@ -355,9 +411,6 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             app.toast(&errors::error_text(&why));
             return;
         }
-    }
-    if !all {
-        seal_close(app, id);
     }
     seal_next(app);
 }

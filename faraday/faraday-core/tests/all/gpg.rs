@@ -459,6 +459,48 @@ fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
     assert!(record(&app).field(8).is_some());
 }
 
+/// A vault with no room for the revocation a key lacks says so when the
+/// page is opened, and keeps nothing.
+#[test]
+fn a_revocation_that_does_not_fit_the_vault_is_refused_where_it_is_asked_for() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    let id = app.vaults().open[app.vaults().current].id;
+    let at = app
+        .vaults()
+        .store()
+        .contents_for_tests(id)
+        .of(kind::GPG)
+        .last()
+        .unwrap()
+        .0;
+    testkit::vault_edit(&mut app, id, |s| {
+        s.set_secret(id, at, 8, &zeroize::Zeroizing::new(Vec::new()))
+    });
+    let used = app.vaults().records(id).used(&testkit::compute());
+    let slot = app.vaults().open[app.vaults().current]
+        .facts()
+        .size
+        .expect("a Faraday seal");
+    testkit::vault_edit(&mut app, id, |s| {
+        s.insert(
+            id,
+            faraday_vault::Record::new(kind::ENTRY)
+                .with(1, b"filler")
+                .with(5, "x".repeat(slot - used - 200).as_bytes()),
+        )
+    });
+    app.press(Action::Vault(V::GpgRevocationPage));
+    assert!(record(&app).field(8).is_none(), "nothing was kept");
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.vaults_slot_too_small),
+        "the usual line says why"
+    );
+}
+
 /// The key's page at 1280 × 800: its Renew for row wraps (Never on a
 /// second row), and Backup and the rows under it start below it, not
 /// over it.

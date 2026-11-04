@@ -51,8 +51,7 @@ pub(crate) struct StretchDone {
 }
 
 impl StretchWork {
-    /// Costs an Argon2id run at the job's cost for each passphrase, the
-    /// stretch noted ([`work::note_vault`]).
+    /// Costs an Argon2id run at the job's cost, the stretch noted ([`work::note_vault`]).
     pub(crate) fn run(self, c: &Compute) -> StretchDone {
         let stretched = self.job.run(c);
         let error = stretched.error();
@@ -130,6 +129,13 @@ fn unlock_start(app: &mut Faraday) -> bool {
     true
 }
 
+/// The create form says the system has not given enough randomness yet.
+fn say_no_randomness(app: &mut Faraday) {
+    if let Some(c) = app.vaults.state.create.as_mut() {
+        c.error = Some(EN.vaults_no_randomness.to_string());
+    }
+}
+
 /// The front half of Create: the form's passphrase is copied into the
 /// job (the form keeps it for a Back or an error) and wiped with it.
 /// False when nothing started.
@@ -138,18 +144,18 @@ fn create_start(app: &mut Faraday) -> bool {
     // its own; a vault is never made before it has arrived.
     if app.fresh.pool_is_empty() {
         app.out.command(faraday_shell_api::Command::RequestEntropy);
-        if let Some(c) = app.vaults.state.create.as_mut() {
-            c.error = Some(EN.vaults_no_randomness.to_string());
-        }
+        say_no_randomness(app);
         return false;
     }
     let Some((_, mem, passes)) = app.vaults.form_cost() else {
         return false;
     };
     let Some(id) = app.fresh_bytes(b"vault id", 16) else {
+        say_no_randomness(app);
         return false;
     };
     let Some(random) = app.fresh_bytes(b"vault seal", SEAL_RANDOM_LEN) else {
+        say_no_randomness(app);
         return false;
     };
     let mut id16 = [0u8; 16];
@@ -210,7 +216,9 @@ fn create_start(app: &mut Faraday) -> bool {
     true
 }
 
-/// The back half: a stretch's answer, applied on the main thread.
+/// Costs what `unlocked` or `created` costs: no Argon2id run, which ran on
+/// the worker. The back half: a stretch's answer, applied on the main
+/// thread.
 pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
     ended(app);
     let StretchDone { stretched, plan } = done;
@@ -220,6 +228,8 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
     }
 }
 
+/// Costs what `OpenVaults::adopt` costs: no Argon2id run, which ran on the
+/// worker. The back half of an unlock, applied on the main thread.
 fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: bool) {
     // A stick put in while the stretch ran: the press's own refusal.
     // The answer is dropped, and wiped as it drops.

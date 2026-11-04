@@ -995,7 +995,7 @@ impl Faraday {
                     let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
                     if let Some(i) = self.session.keys.position(fp) {
                         self.session.keys.set_codex32(i, forms::set_facts(typed));
-                        self.session.keys.keep_codex32(i, &refs);
+                        self.session.keys.keep_codex32(c, i, &refs);
                     }
                     fp
                 }

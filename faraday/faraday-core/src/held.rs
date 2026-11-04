@@ -546,12 +546,9 @@ impl Faraday {
             self.vault_act(V::SaveWallet(w));
         }
         self.backup_vault_load_set(v);
-        // Each share the plan keeps in the vault, as a type 13 record
-        // (`docs/BACKUP-FLOW.md` §15.6): once per wallet and share number,
-        // an older text of that share replaced.
         // Each passphrase the plan keeps alone in the vault, as a
         // passphrase record (`docs/BACKUP-FLOW.md` §17.12 item 4): one per
-        // key, an older one of that key replaced.
+        // key; a passphrase the vault holds already is left as it is.
         for k in self.backup_vault_passphrases(&c, v) {
             if self.vault_holds_passphrase(cur, k) {
                 continue;

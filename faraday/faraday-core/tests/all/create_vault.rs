@@ -441,3 +441,42 @@ fn a_new_vault_reads_made_in_the_checklist_until_the_checklist_makes_it() {
         "{after}"
     );
 }
+
+#[test]
+fn creating_a_vault_with_too_few_answers_says_the_randomness_has_not_come() {
+    // Three answers wait; a vault takes more.
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(faraday_core::StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    for i in 0..3u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
+    }
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::CGo));
+    settle(&mut app, 1);
+    assert_eq!(app.screen, Screen::CreateVault, "no vault was made");
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_strings::EN.vaults_no_randomness),
+        "the form says why"
+    );
+}

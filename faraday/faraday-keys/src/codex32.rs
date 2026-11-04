@@ -528,7 +528,7 @@ impl Keys {
                 .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
                 .collect();
             let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
-            self.keep_codex32(self.len() - 1, &refs);
+            self.keep_codex32(c, self.len() - 1, &refs);
         }
         Ok(fp)
     }

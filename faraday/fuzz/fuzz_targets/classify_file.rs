@@ -15,8 +15,8 @@ use faraday_core::wallet::classify_read;
 use faraday_crypto::work::Compute;
 use libfuzzer_sys::fuzz_target;
 
-const NAMES: [&str; 7] = [
-    "a.txt", "a.psbt", "a.efi", "a.fvlt", "a.json", "a.png", "a.apk",
+const NAMES: [&str; 8] = [
+    "a.txt", "a.psbt", "a.efi", "a.fvlt", "a.kdbx", "a.json", "a.png", "a.apk",
 ];
 
 fuzz_target!(|data: &[u8]| {

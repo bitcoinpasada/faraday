@@ -426,8 +426,9 @@ S2K and every data packet.
 - **New random bytes.** For a file vault, the master seed (32 bytes),
   the encryption IV (12), the Argon2 salt (32) and the inner stream key
   (64) are one `fresh_bytes("vault seal", 140)`, five answers of the
-  system's randomness (F154); new entries' UUIDs (16 each) are drawn
-  as they are made. For a QR vault, the S2K salt (16), the OCB IV (15),
+  system's randomness (F154); new entries' and groups' UUIDs (16 each) are
+  one more answer of the seal, expanded by SHA-256 over a domain string, the
+  answer and a counter. For a QR vault, the S2K salt (16), the OCB IV (15),
   the session key (32) and the data packet's salt (32) are one
   `fresh_bytes("qr vault seal", 95)`, three answers; so whatever the person
   added through Add randomness is mixed in (`docs/OWN-RANDOMNESS.md`
@@ -455,7 +456,14 @@ S2K and every data packet.
   vault's contents still exceed its size, it cannot be sealed: the lock
   does not go ahead, nothing is wiped, the vault stays open with its
   changes and the Lock sheet names the vault, by how many bytes it is
-  over, and the next size that holds it (§8). "Lock without sealing" is
+  over, and the next size that holds it (§8). The check is made again as each
+  vault is sealed, since the `seals` lines a plan takes from the vaults
+  sealed before it can grow it, and a seed or answers that run out do
+  the same: the lock stops there, the vaults sealed before it are closed
+  with their files in the Outbox, and that vault and the ones after it
+  stay open with their changes. A flow's state and Make a new wallet end
+  only once every seal is done, so a lock that stops leaves them as
+  they were. "Lock without sealing" is
   the person's own choice to lose those changes. That rule is for a lock
   the person asks for: an idle lock has no one to ask, so it goes ahead
   and wipes, those changes are lost, and the Locked sheet says that
@@ -698,6 +706,11 @@ limits, beyond what it writes itself:
 | compression | none | none, gzip |
 | inner random stream | ChaCha20 | ChaCha20 |
 | key | the passphrase | the passphrase |
+
+The head's "Saved in" line names the settings of a file that differs
+from what Faraday writes, in the order version, cipher, key derivation,
+compression; the version is named only when it is 4.1 ("Saved in KDBX 4.1
+/ ChaCha20 / Argon2id / uncompressed").
 
 Refused, naming what was found: KDBX 3.1 and older, AES-KDF, Twofish or
 another cipher, Salsa20 as the inner stream, and a database whose

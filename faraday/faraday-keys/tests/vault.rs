@@ -299,9 +299,13 @@ fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
         store.gpg_revocation_file(id, AT, rev).is_none(),
         "none kept yet"
     );
-    assert!(store.gpg_keep_revocation(id, AT, 1_780_000_100));
-    assert!(
-        !store.gpg_keep_revocation(id, AT, 1_780_000_200),
+    assert_eq!(
+        store.gpg_keep_revocation(&c, id, AT, 1_780_000_100),
+        Ok(true)
+    );
+    assert_eq!(
+        store.gpg_keep_revocation(&c, id, AT, 1_780_000_200),
+        Ok(false),
         "one is kept"
     );
     let r = store.records(id).get(AT).expect("the key");
@@ -1470,6 +1474,32 @@ fn an_edit_of_an_entry_keeps_its_totp_code() {
 }
 
 #[test]
+fn an_otp_field_cleared_shows_no_code() {
+    let c = compute();
+    let doc = with_entries(&entry_xml(
+        9,
+        &[
+            ("Title", "Mail"),
+            ("UserName", "me"),
+            (
+                "otp",
+                "otpauth://totp/Mail:me?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+            ),
+        ],
+    ));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let at = first(&store, id, kind::ENTRY);
+    let reason = Reveal::VaultEntry(Part::Totp);
+    assert!(store.totp(id, at, Some(59), reason).is_some(), "a code");
+    assert!(store.set_secret(id, at, field::TOTP, &zeroize::Zeroizing::new(Vec::new())));
+    assert!(
+        store.totp(id, at, Some(59), reason).is_none(),
+        "no code once the field is cleared"
+    );
+}
+
+#[test]
 fn a_vault_name_taken_out_is_gone_after_a_seal() {
     let c = compute();
     let mut store = store();
@@ -1527,5 +1557,45 @@ fn two_strings_of_one_index_do_not_stop_the_key_loading() {
         store.gather_codex32(&c, &mut keys).len(),
         1,
         "the key loads"
+    );
+}
+
+#[test]
+fn a_typed_share_finds_its_seed_where_the_vault_holds_two_strings_of_an_index() {
+    let c = compute();
+    let seed: Vec<u8> = (1..=16).collect();
+    let mut owner = Keys::on(Network::Mainnet);
+    owner.add_seed(&c, &seed, "").expect("a key");
+    let fp = owner.info(0).expect("info").fingerprint.0;
+    const R: usize = 8 * 103;
+    let split = |random: u8| -> Vec<String> {
+        owner
+            .codex32_shares(0, 2, 3, &[random; R], Reveal::PaperForm)
+            .expect("shares")
+            .iter()
+            .map(|s| s.as_str().to_string())
+            .collect()
+    };
+    let (right, other) = (split(1), split(2));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    // The wrong string of index 0 comes first.
+    for s in [&other[0], &right[0]] {
+        store
+            .insert(
+                id,
+                Record::new(kind::CODEX32_SHARE)
+                    .with(field::CODEX32_STRING, s.as_bytes())
+                    .with(field::CODEX32_KEY, &fp),
+            )
+            .expect("kept");
+    }
+    let typed = [faraday_bip::codex32::Codex32::parse(&right[1]).expect("parses")];
+    assert_eq!(store.codex32_count(&typed), 1, "one more index is here");
+    let mut keys = Keys::on(Network::Mainnet);
+    let got = store.codex32_with_typed(&c, &mut keys, &typed, "typed");
+    assert_eq!(
+        got.expect("enough are in").expect("the seed comes back"),
+        owner.info(0).expect("info").fingerprint
     );
 }

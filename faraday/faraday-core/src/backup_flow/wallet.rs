@@ -1506,12 +1506,10 @@ impl Faraday {
                 !(tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
             });
             let adds: Vec<&Staged> = w.add.iter().collect();
-            if !self
-                .vaults
-                .store()
-                .fits(&c, self.vaults.open[o].id, &w.out, &adds)
-            {
-                return self.toast(EN.vaults_slot_too_small);
+            let vid = self.vaults.open[o].id;
+            if !self.vaults.store().fits(&c, vid, &w.out, &adds) {
+                let why = self.vault_no_room_text(&c, vid);
+                return self.toast(why);
             }
             work.push(w);
         }

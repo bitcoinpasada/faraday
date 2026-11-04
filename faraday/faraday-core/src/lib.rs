@@ -1778,7 +1778,7 @@ impl Faraday {
             // No one is there to ask: the lock goes ahead, and an open
             // vault's changes with no seed to seal them are lost, as the
             // warning before it said.
-            self.lock_now();
+            self.lock_now(true);
             return true;
         }
         if self.idle_off_min() > 0
@@ -2312,7 +2312,7 @@ impl Faraday {
             self.sheet = Some(Sheet::LockAsk);
             return;
         }
-        self.lock_now();
+        self.lock_now(false);
     }
 
     /// The state could not be kept. A lock that would lose the keys that
@@ -2325,8 +2325,13 @@ impl Faraday {
         }
     }
 
-    /// Lock: what can be sealed is, and the session goes.
-    fn lock_now(&mut self) {
+    /// Lock: what can be sealed is, and the session goes. With `may_lose`
+    /// a vault that cannot be sealed is let go, its changes lost (an idle
+    /// lock, Lock without sealing); without it the lock stops there with
+    /// that vault open and the Lock sheet shows. Only what the seals need
+    /// is done here; what ends flows waits for the last seal
+    /// (`vault::seal`).
+    fn lock_now(&mut self, may_lose: bool) {
         if self.sealing() {
             return;
         }
@@ -2334,17 +2339,9 @@ impl Faraday {
         // The code on show goes first, its text wiped: it may be an
         // entry's TOTP secret (`docs/QR.md` §7.1).
         self.qr.close();
-        let c = self.compute();
-        // A lock before Make a new wallet's keys are kept anywhere ends
-        // it, as its Cancel does: nothing is left to come back to
-        // (`docs/history/NEW-WALLET.md` §18).
-        if self.lock_ends_create(&c) {
-            self.create_drop();
-        }
-        self.flow_before_lock();
         // The vaults seal on the worker; the lock goes on in
         // `lock_finish` when the last is done.
-        self.vault_seal_all();
+        self.vault_seal_all(may_lose);
     }
 
     /// Finish makes both results For the stick the moment the transaction is
@@ -2433,7 +2430,7 @@ impl Faraday {
     pub(crate) fn power_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::Lock => self.lock(),
-            Action::LockUnsealed => self.lock_now(),
+            Action::LockUnsealed => self.lock_now(true),
             Action::LockAsk => self.lock_ask(false),
             Action::NotNow => {
                 self.next_mode.clear();

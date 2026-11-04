@@ -255,3 +255,10 @@ path = "fuzz_targets/starter_windows.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "vault_parts"
+path = "fuzz_targets/vault_parts.rs"
+test = false
+doc = false
+bench = false
