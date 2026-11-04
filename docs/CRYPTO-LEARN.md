@@ -1045,7 +1045,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 99 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 100 actions, each from its entry in `docs/crypto/actions.toml`
 as batch 5 left it (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under
@@ -1071,6 +1071,7 @@ page lists.
 | xprv-shown | Shows an extended private key at a path below a held key. | `faraday_keys::session`: `Keys::xprv_at`; `faraday_core::explore::shown`: `Shown::xprvs`, `xprv_path`, `ExploreArea::eye`, `ExploreArea::prune` | Explore | xpubs |
 | wif-shown | Shows the private key of one address as a compressed WIF. | `faraday_keys::session`: `Keys::wif_at`; `faraday_core::explore::shown`: `Shown::wif`, `address_path` | Explore | xpubs |
 | seed-converted | Writes a key's master seed as hex, its master extended private key, a SLIP-39 1 of 1 or a codex32 set, each read back through its standard's decoder to the key's master fingerprint. | `faraday_keys::operations`: `Keys::master_seed_hex`, `Keys::master_xprv`, `Keys::slip39_one_of_one`, `Keys::codex32_converted`, `Keys::convert_source`, `checked`, `fingerprint_of_seed` | none | other_backups |
+| slip39-set-converted | Holds the SLIP-39 shares a person types, and from them writes a share at a member index (adding a share or replacing a lost one) or a new set of the same encrypted master secret, each read back before it is returned. | `faraday_keys::slip39_set`: `Keys::slip39_set_hold`, `Keys::slip39_set_share`, `Keys::slip39_set_rotated`, `rotate_count` | none | other_backups |
 | wif-read | Reads a single private key written as WIF, typed or scanned for a sweep, and works out the addresses it pays. | `faraday_bip::wif`: `SingleKey::decode`, `SingleKey::from_payload`, `SingleKey::scripts`, `blinded`; `faraday_keys::sweep`: `SweepKey::read`; `faraday_keys::session`: `Keys::sweep_read` | Tools | tools |
 | words-shown | Lends a key's words or passphrase as text for a named reason, and shows them on screen or for copying by hand. | `faraday_keys::session`: `Keys::reveal`, `Revealed::empty`, `Revealed::made`, `Held::of` | Explore, Backup, BackupFlow, VaultContents | backups |
 | words-identity | Tells whether two keys, or a key and a copy of its words, have the same words, by a SHA-256 of their entropy, and orders the copy check's questions. | `faraday_keys::session`: `Keys::words_id`, `Keys::same_words`, `words_id`, `Keys::words_match`, `Keys::words_alone`, `Keys::words_identity`, `Keys::words_record_id`; `faraday_psbt::silent`: `check`, `check_inputs`; `faraday_core::quiz`: `Quiz::seed`; `faraday_keys::identity`: `secret_id` | Files, BackupFlow, VaultContents, Create | words |

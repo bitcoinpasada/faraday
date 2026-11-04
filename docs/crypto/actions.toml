@@ -581,7 +581,7 @@ completeness = "PK, KEK and db RSA-2048, `.auth` files, signing a release's boot
 id = "convert-seed"
 section = 5
 what = "Convert a seed"
-completeness = "The screen writes a loaded key as its master seed, xprv, word forms, Seed XOR parts, a SLIP-39 1 of 1, a SLIP-39 set of k of n or of groups, and a codex32 set with their settings; a set to a new set and aezeed are not built (`docs/SEED-CONVERSION.md`)"
+completeness = "The screen writes a loaded key as its master seed, xprv, word forms, Seed XOR parts, a SLIP-39 1 of 1, a SLIP-39 set of k of n or of groups, and a codex32 set with their settings, and reads an aezeed as a source; a SLIP-39 set typed in gives a share at a member index and a new set in `faraday-keys`, with no screen yet; a codex32 set to a new codex32 set is not built (`docs/SEED-CONVERSION.md`)"
 
 [[row]]
 id = "seed-xor-tool"
@@ -1661,6 +1661,76 @@ decision = "F88"
 lines = [
   "Another reason gets nothing.",
   "A result that does not read back as the key's wallet is not returned.",
+]
+
+[action.review]
+places = [
+  "docs/SEED-CONVERSION.md",
+]
+
+[[action]]
+id = "slip39-set-converted"
+name = "Convert a typed SLIP-39 set"
+action = "Holds the SLIP-39 shares a person types, and from them writes a share at a member index (adding a share or replacing a lost one) or a new set of the same encrypted master secret, each read back before it is returned."
+row = "convert-seed"
+standards = [
+  "SLIP-0039",
+]
+learn = "other_backups"
+screens = ["Convert"]
+functions = [
+  "faraday/faraday-keys/src/slip39_set.rs::Keys::slip39_set_hold",
+  "faraday/faraday-keys/src/slip39_set.rs::Keys::slip39_set_share",
+  "faraday/faraday-keys/src/slip39_set.rs::Keys::slip39_set_rotated",
+  "faraday/faraday-keys/src/slip39_set.rs::rotate_count",
+]
+code = [
+  "faraday/faraday-keys/src/slip39_set.rs::Keys::slip39_set_share",
+  "faraday/faraday-keys/src/slip39_set.rs::Keys::slip39_set_rotated",
+]
+
+[action.implementation]
+crate = "faraday/faraday-keys"
+libraries = ["subtle"]
+through = []
+adds = "The typed shares are held as a transient value, never a key, and each is checked against the others as it is typed (one set; no member typed twice; no more members than the group's threshold). A share at a member index is derived from one group's quorum and read back by swapping it in for one of the quorum, which must give back, word for word, the share displaced; where the whole set is typed the swapped set must also recover the same EMS and parameters. A new set is split from the EMS recovered from the whole set's quorum: with the extendable flag set it takes a new identifier and the old one is refused, with it clear the identifier stays; every share is parsed and every member of every group takes part in a qualifying subset that must recover the same EMS and parameters. No passphrase is taken and nothing is decrypted."
+
+[action.checked]
+vectors = ["slip39"]
+tests = [
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_a_quorum_of_one_group_of_several_adds_a_share_to_that_group",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_replace_gives_the_very_share_that_was_lost",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_a_share_of_another_set_or_typed_twice_is_refused_and_what_was_held_stays",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_a_group_of_threshold_one_or_a_group_never_typed_makes_no_share",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_rotating_a_flag_clear_set_keeps_the_wallet_and_the_old_shares_do_not_mix_in",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_rotating_an_extendable_set_gives_a_new_identifier_and_the_same_wallet",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_a_set_of_groups_rotates_into_another_shape_and_opens_the_same_wallet",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_a_rotation_needs_the_whole_set_quorum_not_one_groups",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_a_forget_leaves_nothing_held_and_the_key_list_is_unchanged",
+  "faraday/faraday-keys/tests/slip39_set.rs::slip39_the_rotate_count_counts_a_group_out_of_reach_at_its_threshold",
+]
+crosscheck = "slip39"
+independence = { class = "outside-and-own", author = "python-shamir-mnemonic, by Trezor (SatoshiLabs), and bip39_slip39, by the btclib developers, for the core functions these wrappers call (shares read, `recover_ems`, `split_ems`, `derive_member`), judged in the slip39 area", ours = "`slip39::check_gathered`, Faraday's own rule on the shares typed (one set, no member twice, no more members than the threshold), which no judge in `tools/crosscheck` runs, and the held set and the read-back, which are tested here against the published vectors" }
+fuzz = ["seed_parts"]
+
+[action.secrets]
+reveal = [
+  "Reveal::PaperForm",
+]
+constant_time = "not stated by the library"
+wiped = "Each share held is wiped as it drops, and each result is a Held value in a zeroizing buffer."
+
+[[action.own]]
+text = "A SLIP-39 set's actions are in Convert a seed, not with the backup, since no plan or vault tracks a SLIP-39 set; nothing is remembered, and a share is refused where one more member than its group's threshold would be held."
+kind = "Conservative"
+decision = "F204"
+
+[action.limits]
+lines = [
+  "Another reason gets nothing.",
+  "Nothing is held in Practice or while a stick is attached, and no share or set is made while one is; the held set stays.",
+  "The fuzz target `seed_parts` reaches the core SLIP-39 functions these call, not the held set or these wrappers.",
+  "A result that does not read back as the same EMS and parameters is not returned.",
 ]
 
 [action.review]
@@ -6218,6 +6288,7 @@ functions = [
   "core/faraday-bip/src/slip39.rs::split_ems",
   "core/faraday-bip/src/slip39.rs::one_of_one",
   "core/faraday-bip/src/slip39.rs::derive_member",
+  "core/faraday-bip/src/slip39.rs::check_gathered",
   "core/faraday-bip/src/slip39.rs::Share::parse",
   "core/faraday-bip/src/slip39.rs::Share::from_indices",
   "faraday/faraday-keys/src/words.rs::slip39_split",

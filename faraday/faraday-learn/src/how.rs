@@ -101,6 +101,19 @@ static AREA_CODEX32: Area = Area {
 };
 
 #[rustfmt::skip]
+static AREA_SLIP39: Area = Area {
+    area: "slip39",
+    code: &[p("faraday_bip::slip39")],
+    second: &[p("python-shamir-mnemonic (slip39/), its recover_ems, split_ems and _interpolate for a set's EMS, a new split of it and a member at an index; bip39_slip39 (bip39-slip39/) answering each SLIP-39 operation beside it (not the two codex32 operations); python-codex32 (codex32/) for the codex32 side of the conversions and btclib (bip32_ref.py) for the fingerprint; the refusals of a member at an index before the arithmetic are ours (derive_refused), and so are the lengths the fixed 1 of 1 refuses, which no second judge covers."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday, and of bip39_slip39 too; all 45 of its own vectors are run.")],
+    vectors: &[p("All 45 of tools/vectors/slip39/, each again through its EMS and its decryption.")],
+    random: &[p("Splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher; a set's EMS from a quorum, refused from a short or changed set, split again on the same random bytes (some under a new identifier where extendable) and a member added or a lost one made again at an index, each recovering the first set's secret, and a member refused at an index given, past 15, from a short quorum and across two groups; random seeds of 16 and 32 bytes through the fixed 1 of 1 against both libraries under the fingerprint's first 15 bits, recovered through both, and the lengths it refuses, against Faraday's own rule; the seed written as codex32 by Faraday and read by python-codex32, and a SLIP-39 set with a passphrase recovered by Faraday and by python-shamir-mnemonic, written as codex32 by Faraday and by python-codex32, the second read by Faraday, the same bytes both ways, the identifier's 20 bits written and the fingerprint (btclib's) compared on both sides.")],
+    differences: &[p("SLIP-39: Faraday refuses a group threshold of 1 over several groups; python-shamir-mnemonic makes the shares. The area checks that this still holds, so a change either way is seen.")],
+    when: &[p("Before every release, with a new seed and about ten times the cases.")],
+    seed: "faraday-crosscheck-1",
+    cases: 2000,
+};
+
+#[rustfmt::skip]
 static AREA_HASH: Area = Area {
     area: "hash",
     code: &[p("faraday_bip::hashes and faraday_codec::encodings (read, the writers and from_hex), faraday_core::file_menu::sha256, and faraday_crypto::hkdf_sha256 and hkdf_sha256_expand, hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512 and scrypt")],
@@ -413,19 +426,6 @@ static AREA_CODEX32_CORRECT: Area = Area {
 };
 
 #[rustfmt::skip]
-static AREA_SLIP39: Area = Area {
-    area: "slip39",
-    code: &[p("faraday_bip::slip39")],
-    second: &[p("python-shamir-mnemonic (slip39/), its recover_ems, split_ems and _interpolate for a set's EMS, a new split of it and a member at an index; bip39_slip39 (bip39-slip39/) answering each SLIP-39 operation beside it (not the two codex32 operations); python-codex32 (codex32/) for the codex32 side of the conversions and btclib (bip32_ref.py) for the fingerprint; the refusals of a member at an index before the arithmetic are ours (derive_refused), and so are the lengths the fixed 1 of 1 refuses, which no second judge covers."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday, and of bip39_slip39 too; all 45 of its own vectors are run.")],
-    vectors: &[p("All 45 of tools/vectors/slip39/, each again through its EMS and its decryption.")],
-    random: &[p("Splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher; a set's EMS from a quorum, refused from a short or changed set, split again on the same random bytes (some under a new identifier where extendable) and a member added or a lost one made again at an index, each recovering the first set's secret, and a member refused at an index given, past 15, from a short quorum and across two groups; random seeds of 16 and 32 bytes through the fixed 1 of 1 against both libraries under the fingerprint's first 15 bits, recovered through both, and the lengths it refuses, against Faraday's own rule; the seed written as codex32 by Faraday and read by python-codex32, and a SLIP-39 set with a passphrase recovered by Faraday and by python-shamir-mnemonic, written as codex32 by Faraday and by python-codex32, the second read by Faraday, the same bytes both ways, the identifier's 20 bits written and the fingerprint (btclib's) compared on both sides.")],
-    differences: &[p("SLIP-39: Faraday refuses a group threshold of 1 over several groups; python-shamir-mnemonic makes the shares. The area checks that this still holds, so a change either way is seen.")],
-    when: &[p("Before every release, with a new seed and about ten times the cases.")],
-    seed: "faraday-crosscheck-1",
-    cases: 2000,
-};
-
-#[rustfmt::skip]
 static AREA_XOR: Area = Area {
     area: "xor",
     code: &[p("faraday_entropy::SeedXor with faraday_bip::bip39")],
@@ -650,6 +650,22 @@ pub static BLOCKS: &[Block] = &[
         secret: &[m("Reveal::PaperForm"), w("not stated by the library."), p("Each result is a Held value in a zeroizing buffer; the seed read back is a Zeroizing copy dropped at once.")],
         limits: &[p("Another reason gets nothing."), p("A result that does not read back as the key's wallet is not returned.")],
         own_calls: &[p("Only conversions that keep the same master fingerprint. Conservative, F88.")],
+        screens: &["Convert"],
+        learn: "other_backups",
+    },
+    Block {
+        id: "slip39-set-converted",
+        name: "Convert a typed SLIP-39 set",
+        action: "Holds the SLIP-39 shares a person types, and from them writes a share at a member index (adding a share or replacing a lost one) or a new set of the same encrypted master secret, each read back before it is returned.",
+        standards: &[p("SLIP-0039, Shamir's Secret-Sharing for Mnemonic Codes, Status not checked, vendored")],
+        implementation: &[p("Library: subtle 2.6.1, by the dalek-cryptography developers."), p("Faraday's code: faraday/faraday-keys: The typed shares are held as a transient value, never a key, and each is checked against the others as it is typed (one set; no member typed twice; no more members than the group's threshold). A share at a member index is derived from one group's quorum and read back by swapping it in for one of the quorum, which must give back, word for word, the share displaced; where the whole set is typed the swapped set must also recover the same EMS and parameters. A new set is split from the EMS recovered from the whole set's quorum: with the extendable flag set it takes a new identifier and the old one is refused, with it clear the identifier stays; every share is parsed and every member of every group takes part in a qualifying subset that must recover the same EMS and parameters. No passphrase is taken and nothing is decrypted.")],
+        checked: &[m("tools/vectors/slip39"), p("Published, by Trezor (SatoshiLabs), python-shamir-mnemonic."), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_a_quorum_of_one_group_of_several_adds_a_share_to_that_group"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_replace_gives_the_very_share_that_was_lost"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_a_share_of_another_set_or_typed_twice_is_refused_and_what_was_held_stays"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_a_group_of_threshold_one_or_a_group_never_typed_makes_no_share"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_rotating_a_flag_clear_set_keeps_the_wallet_and_the_old_shares_do_not_mix_in"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_rotating_an_extendable_set_gives_a_new_identifier_and_the_same_wallet"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_a_set_of_groups_rotates_into_another_shape_and_opens_the_same_wallet"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_a_rotation_needs_the_whole_set_quorum_not_one_groups"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_a_forget_leaves_nothing_held_and_the_key_list_is_unchanged"), m("faraday/faraday-keys/tests/slip39_set.rs::slip39_the_rotate_count_counts_a_group_out_of_reach_at_its_threshold"), m("fuzz seed_parts")],
+        cross_check: CrossCheck::Area(&AREA_SLIP39),
+        independence: &[p("Compared with others' code: python-shamir-mnemonic, by Trezor (SatoshiLabs), and bip39_slip39, by the btclib developers, for the core functions these wrappers call (shares read, recover_ems, split_ems, derive_member), judged in the slip39 area."), w("Compared, for one part, with Faraday's second version, written by Faraday's authors in Python; that part is not checked against an outside source: slip39::check_gathered, Faraday's own rule on the shares typed (one set, no member twice, no more members than the threshold), which no judge in tools/crosscheck runs, and the held set and the read-back, which are tested here against the published vectors.")],
+        code: &[c("faraday/faraday-keys/src/slip39_set.rs", "Keys::slip39_set_share"), c("faraday/faraday-keys/src/slip39_set.rs", "Keys::slip39_set_rotated")],
+        secret: &[m("Reveal::PaperForm"), w("not stated by the library."), p("Each share held is wiped as it drops, and each result is a Held value in a zeroizing buffer.")],
+        limits: &[p("Another reason gets nothing."), p("Nothing is held in Practice or while a stick is attached, and no share or set is made while one is; the held set stays."), p("The fuzz target `seed_parts` reaches the core SLIP-39 functions these call, not the held set or these wrappers."), p("A result that does not read back as the same EMS and parameters is not returned.")],
+        own_calls: &[p("A SLIP-39 set's actions are in Convert a seed, not with the backup, since no plan or vault tracks a SLIP-39 set; nothing is remembered, and a share is refused where one more member than its group's threshold would be held. Conservative, F204.")],
         screens: &["Convert"],
         learn: "other_backups",
     },

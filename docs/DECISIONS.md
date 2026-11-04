@@ -218,3 +218,4 @@ Read this table, then only the decision you need.
 | [F201](decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Active | design |
 | [F202](decisions/F202.md) | A USB pointer approves itself by pressing targets in a row while nothing trusted can point, and tries at a target are counted for the session, and a device present at start is trusted | 2026-11-04 | Active | security |
 | [F203](decisions/F203.md) | A vault's name taken by a file nothing proves is a question: overwrite or save beside | 2026-11-04 | Active | security |
+| [F204](decisions/F204.md) | SLIP-39's set actions are in Convert a seed; codex32's stay with the backup | 2026-11-04 | Active | keys |

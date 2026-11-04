@@ -35,6 +35,7 @@ pub mod psbt;
 pub mod secure_boot;
 pub mod session;
 pub mod silent;
+pub mod slip39_set;
 pub mod sweep;
 pub mod texts;
 pub mod totp;

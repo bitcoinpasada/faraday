@@ -1072,6 +1072,38 @@ fn check_one_set(shares: &[Share]) -> Result<&Share, Error> {
     Ok(first)
 }
 
+/// Whether `shares`, still being gathered, can be part of one set: what
+/// [`recover_ems`] refuses of one set and of each group, short of a group
+/// or a set not being complete yet. So: shares of another backup, members
+/// of one group that disagree about its threshold, a member given twice,
+/// and more members of a group than its threshold.
+pub fn check_gathered(shares: &[Share]) -> Result<(), Error> {
+    check_one_set(shares)?;
+    for (at, s) in shares.iter().enumerate() {
+        let mut given = 1u8;
+        for e in shares[..at]
+            .iter()
+            .filter(|e| e.group_index == s.group_index)
+        {
+            if e.member_threshold != s.member_threshold {
+                return Err(Error::MismatchedMemberThresholds);
+            }
+            if e.member_index == s.member_index {
+                return Err(Error::DuplicateMemberIndex);
+            }
+            given = given.saturating_add(1);
+        }
+        if given > s.member_threshold {
+            return Err(Error::WrongMemberCount {
+                group_index: s.group_index,
+                needed: s.member_threshold,
+                given,
+            });
+        }
+    }
+    Ok(())
+}
+
 /// The points of one group's shares among `shares`, and the group's
 /// member threshold. Refused: shares that disagree about the threshold,
 /// a member index given twice, and a count other than the threshold.

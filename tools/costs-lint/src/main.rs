@@ -205,6 +205,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-keys' tests, which cannot reach faraday-core's test kit",
     ),
     (
+        "faraday/faraday-keys/tests/slip39_set.rs",
+        "compute",
+        "faraday-keys' tests, which cannot reach faraday-core's test kit",
+    ),
+    (
         "faraday/faraday-intake/tests/all/common.rs",
         "compute",
         "faraday-intake's tests, which cannot reach faraday-core's test kit",

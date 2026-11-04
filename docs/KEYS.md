@@ -192,6 +192,15 @@ impl Keys {
   results for `Reveal::PaperForm` and for no other reason (no variant
   of its own), and as a key through `Keys::add_codex32`, which hands the
   seed to `add_seed`. It wipes on drop.
+- A SLIP-39 set typed into Convert a seed (`slip39_set.rs`, F204) is held
+  as an aezeed is: `Keys::slip39_set_hold` takes one share at a time,
+  refusing what SLIP-39 refuses; the set is never a key, and is wiped by
+  `slip39_set_forget`, by an aezeed held and on lock. What it shows a
+  screen (`slip39_set_facts`) holds no secret. It leaves only as the
+  shares `slip39_set_share` (a share at a member index) and
+  `slip39_set_rotated` (a new set of the same EMS) make, for
+  `Reveal::PaperForm` and no other reason; no passphrase is taken and
+  nothing is decrypted.
 - A key loaded by `add_seed` keeps its seed bytes (`holds_seed_bytes`
   tells whether), wiped when the key is dropped.
 - A GPG key restored from its paperkey (`docs/GPG-PAPERKEY.md` §6) is

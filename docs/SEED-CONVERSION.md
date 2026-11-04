@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S4b, SLIP-39 k of n and groups on the same card and result (§6); batch S5, an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's; batch S7, Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
-**Open:** the SLIP-39 set actions of §8 (batch S6), a set to a new set, a copy scanned back in Check my copy; the plan moves to a log of its own and the Kind to Reference when §8 is built
+**Open:** the screen of the SLIP-39 set actions of §8 (batch S6; the core and `faraday-keys` are built), a codex32 set to a new codex32 set, a copy scanned back in Check my copy; the plan moves to a log of its own and the Kind to Reference when §8 is built
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -38,7 +38,9 @@ standard it is and which software restores it.
 5. **The source is a key here.** The tool converts a key loaded in the
    session or kept in an open vault, never text typed into it, except an
    LND aezeed, which the tool reads as the Lightning screen does, since
-   Faraday never loads one as a key (`core/faraday-bip/src/aezeed.rs`).
+   Faraday never loads one as a key (`core/faraday-bip/src/aezeed.rs`),
+   and a SLIP-39 set (§8), whose shares are typed and held for the
+   tool alone.
    A key not loaded is brought in by Add a key, which returns to the
    tool. Typed words therefore follow Add a key's rules for transient
    input, and the tool holds no secret of its own (`docs/KEYS.md` §2).
@@ -47,11 +49,15 @@ standard it is and which software restores it.
    `holds_seed_bytes`, `faraday/faraday-keys/src/session.rs`), as a key of
    words keeps its words: every key has its seed bytes or its words, and
    no key offers only its xprv.
-7. **A set action is the backup's.** Add a share, Replace a lost share
-   and Rotate the set change what a plan's places keep, so they live
-   with the backup (`docs/CODEX32.md` §9.7; SLIP-39's in §8 here). The
-   tool's "a set → a new set" is offered only for a key with no backup
-   plan; with one, the tool's row opens the chart's set actions.
+7. **codex32's set actions are the backup's; SLIP-39's are this
+   tool's.** A codex32 set's Add a share, Replace a lost share and Rotate
+   the set change what a plan's places keep, so they live with the backup
+   (`docs/CODEX32.md` §9.7). A SLIP-39 set is in no plan and no vault
+   record, so its three actions are in this tool, on the source **A
+   SLIP-39 set** (§8, F204): the person types the shares and nothing is
+   remembered. The tool's "codex32 set → a new codex32 set" is offered
+   only for a key with no backup plan; with one, the tool's row opens the
+   chart's set actions.
 
 ## 2. What is built today
 
@@ -62,9 +68,12 @@ standard it is and which software restores it.
   `derive_share`, `recover`, `identifier_for`, 16 to 64 bytes), SLIP-39
   (`core/faraday-bip/src/slip39.rs`: `split`, `recover`, `encrypt`,
   `decrypt`, the fixed 1 of 1 `one_of_one` of §4.4, and the set functions
-  `recover_ems`, `split_ems`, `derive_member` of §8; 16 to 32 bytes; extendable flag and iteration
+  `recover_ems`, `split_ems`, `derive_member` and `check_gathered` of §8; 16 to 32 bytes; extendable flag and iteration
   exponent as parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`), which
   Convert reads as a source (below).
+- **The SLIP-39 set actions' core and keys are built; the screen is
+  not** (§8): `faraday/faraday-keys/src/slip39_set.rs` holds the typed
+  shares and makes the share or the new set.
 - **Where they surface**: Add a key reads BIP-39, SeedQR, CompactSeedQR,
   codex32, SLIP-39 and Seed XOR (`faraday/faraday-core/src/forms.rs`);
   New key deals SLIP-39 shares (`faraday/faraday-core/src/keygen/mod.rs`,
@@ -176,7 +185,7 @@ does not say them.
 | codex32 or SLIP-39 → master seed hex (16 to 64 bytes) | BIP-32 seed | as §4.3 |
 | codex32, SLIP-39 or a master seed → xprv | BIP-32 | as §4.3 |
 | codex32 set → a new codex32 set (other k, n or identifier) | BIP-93 | as above; rule 7 |
-| SLIP-39 set → a new SLIP-39 set | SLIP-39, made from the EMS so the passphrase still opens the same wallet (§8) | as above; rule 7 |
+| A SLIP-39 set (typed) → a share at a member index, or a new SLIP-39 set | SLIP-39, made from the EMS so the passphrase still opens the same wallet (§8) | as above; rule 7 |
 
 **SLIP-39 1 of 1 is always the same words** for one seed, so a person
 can make it twice and compare: identifier = the first 15 bits of the
@@ -316,39 +325,85 @@ new.
 | §4.3, a public seed (seed hex, xprv, codex32 k = 0) | Open | Derived from a public seed with no randomness |
 | §4.4 one-to-one (codex32 ↔ SLIP-39 1 of 1, hex, xprv) of a public seed (the BIP-93 and SLIP-39 samples, `docs/MODES.md` §5.1) | Open | No randomness: the same words every time |
 | Any split, k of n with k of 2 or more (Seed XOR, codex32, SLIP-39), and a new set | Disabled, as DEMO §6 disables splits | Fresh randomness: the parts would look like a real backup |
+| The source **A SLIP-39 set** (§8), all three actions | Dimmed, as any new set; `Keys::slip39_set_hold` refuses in Practice | A share or a set made here would look like a real backup |
 | §4.5, LND's published vector only (DEMO §6, F81) | Open | The vector is public |
 | A key that is not a public seed | Not reachable | Practice loads only public seeds |
 
 ## 8. SLIP-39 set actions
 
-The same three as codex32's (`docs/CODEX32.md` §9.7), with the backup,
-on the set's node of the chart; the screens are §9.7's once built. What
-SLIP-39 needs that codex32 does not:
+Add a share, Replace a lost share and Rotate the set for SLIP-39 are in
+this tool, on the source **A SLIP-39 set** (F204), not with the backup:
+a plan and a vault's key record do not track a SLIP-39 set, so the chart
+has no node for them. codex32's stay with the backup
+(`docs/CODEX32.md` §9.7), whose steps 1 to 5 (marks, counting,
+destroying before making) apply here as written. The person types enough
+shares and gets the new shares; nothing is remembered, and no plan,
+vault or backup changes. Core and keys are built; the screen is not.
 
+- **The source.** The shares are typed one at a time and held in
+  `faraday-keys` (`Keys::slip39_set_hold`, `slip39_set.rs`) as an aezeed
+  is: never a key of the session, the vault, Explore or Lock in; dropped
+  and wiped by a forget (`slip39_set_forget`), by another source (an
+  aezeed held drops a set and a set drops an aezeed) and on lock. A share
+  is refused as the core refuses it: not parsing, of another set
+  (identifier, flag, exponent, group threshold, group count, length), a
+  duplicate, or one member more than its group's threshold. Holding is
+  refused in Practice and while a stick is attached. `slip39_set_facts`
+  says, with no secret in it, the identifier, the flag, the group
+  threshold and count, per group its threshold, the member indices typed
+  and whether its quorum is met, and whether the whole set is
+  recoverable (by count: the digests are checked when a share or a set is
+  made).
+- **No passphrase.** None is asked and nothing is decrypted: the
+  arithmetic is on the EMS, so the set's own passphrase still opens the
+  same wallet, and there is no fingerprint to compare. The read-back
+  compares the EMS and its parameters.
 - **Add a share** to a group: the group's threshold of members
   interpolated at an unused member index (0 to 15). A share carries its
   member index and the group's threshold, not the member count, so
-  every existing share stays valid. No passphrase is needed: the
-  arithmetic is on the group's share of the EMS. A new **group** is not
-  offered: the group count is in every share.
-- **Replace a lost share**: the same, at the lost share's index.
-- **Rotate the set**: a new split of the EMS, recovered from a quorum of
-  the old shares, so the set's passphrase opens the same wallet without
-  being typed. With the extendable flag set, the new set takes a new
-  identifier (the identifier is not in the encryption's salt); with it
-  clear, the identifier stays (it is in the salt), and old and new
-  shares cannot be told apart by it; a mixed set then fails the
-  digest check rather than opening another wallet. Steps 1 to 5 of
-  §9.7 (marks, counting, destroying before making) apply as written.
+  nothing can know which index is free: the person chooses it, and only
+  the typed ones are excluded. The same index gives the same share
+  again, so a wrong pick makes a duplicate, not a new secret. A new
+  **group** is not offered: the group count is in every share.
+  (`slip39_set_share(group, member_index, why)`.)
+- **Replace a lost share**: the same, at the lost share's index; it gives
+  the very share that was lost.
+- **Read back of a share.** It parses, and swapped in for one of the
+  group's quorum it gives back, word for word, the share displaced. A
+  quorum of one group of several cannot reach the EMS, so that is the
+  check there; where the whole set is typed, the swapped set must also
+  recover the same EMS and parameters.
+- **Rotate the set**: a new split of the EMS, recovered from the whole
+  set's quorum (the first groups with a met quorum, up to the group
+  threshold; more groups typed than that are allowed), so the passphrase
+  opens the same wallet without being typed
+  (`slip39_set_rotated(group_threshold, groups, random, why)`; `random`
+  as `slip39_converted` takes it). With the extendable flag set, the new
+  set takes a new identifier through `Ems::with_identifier`, and the old
+  identifier drawn is refused (`SetRefused::SameIdentifier`: the screen
+  draws again), so old and new shares cannot be mixed by mistake; with it
+  clear, the identifier stays (it is in the encryption's salt), old and
+  new shares cannot be told apart by it, and a mixed set fails the digest
+  check rather than opening another wallet. The flag and the exponent
+  stay. Read back: every share parses, and a first and a last qualifying
+  subset recover the same EMS and parameters.
+- **The rotate count** (step 2 of §9.7), `rotate_count(group_threshold,
+  &[RotateGroup])`: a group whose lost or exposed shares reach its
+  threshold is out of reach, and when as many groups as the group
+  threshold are, the set may already be in other hands and rotating is
+  not enough. A group never typed has no known threshold
+  (`RotateGroup.threshold` is `None`): one lost share counts as reaching
+  it.
 - **Core functions** (`core/faraday-bip/src/slip39.rs`, built):
   `recover_ems` (shares to EMS and its parameters), `split_ems` (an EMS
   to a new set under given parameters), `derive_member` (a group's
   quorum to a share at an index, refused for a group of threshold 1, an
-  index among the shares given and a quorum whose digest fails).
-  `python-shamir-mnemonic` has the first two, which the cross-check's
-  `slip39` area compares against word for word; `derive_member` is
-  checked against its `_interpolate` at the index, and the share it
-  makes recovers through the reference.
+  index among the shares given and a quorum whose digest fails) and
+  `check_gathered` (the shares typed so far belong to one set). None
+  costs more than GF(256) and an HMAC. `python-shamir-mnemonic` has the
+  first two, which the cross-check's `slip39` area compares against word
+  for word; `derive_member` is checked against its `_interpolate` at the
+  index, and the share it makes recovers through the reference.
 
 ## 9. Tests
 
@@ -452,6 +507,8 @@ Decided (owner, 2026-10-23), each as recommended:
    (§4.4).
 6. **aezeed's second implementation.** Decided: checked against LND's
    published vectors only; no Go toolchain in the cross-check (§9).
-7. **A new set in the tool.** Decided: only for a key with no backup
-   plan; with one, the tool's row opens the chart's set actions (§1
-   rule 7).
+7. **A new set in the tool.** Decided: a codex32 set's only for a key
+   with no backup plan; with one, the tool's row opens the chart's set
+   actions. A SLIP-39 set's three actions are in the tool, on the source
+   A SLIP-39 set, since no plan or vault tracks one (§1 rule 7, F204;
+   owner, 2026-11-04).

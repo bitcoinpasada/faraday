@@ -366,6 +366,9 @@ pub struct Keys {
     /// An aezeed read for Convert, while the tool holds it
     /// ([`Keys::aezeed_hold`]): never one of the keys.
     pub(crate) aezeed: Option<crate::lightning::HeldAezeed>,
+    /// A SLIP-39 set typed for Convert, while the tool holds it
+    /// ([`Keys::slip39_set_hold`]): never one of the keys.
+    pub(crate) slip39_set: Option<crate::slip39_set::HeldSet>,
 }
 
 impl Default for Keys {
@@ -386,6 +389,7 @@ impl Keys {
             blind: None,
             sweep: None,
             aezeed: None,
+            slip39_set: None,
         }
     }
 
@@ -512,7 +516,10 @@ impl Keys {
     /// Whether any secret is held: the stick rule's test
     /// (`docs/history/PLAN.md` §5.1).
     pub fn holds_secret(&self) -> bool {
-        !self.entries.is_empty() || self.sweep.is_some() || self.aezeed.is_some()
+        !self.entries.is_empty()
+            || self.sweep.is_some()
+            || self.aezeed.is_some()
+            || self.slip39_set.is_some()
     }
 
     // ---- a private key swept (F171, `crate::sweep`) ----
@@ -916,6 +923,7 @@ impl Keys {
         self.entries.clear();
         self.sweep = None;
         self.aezeed = None;
+        self.slip39_set = None;
     }
 
     /// Sets key `i`'s label.

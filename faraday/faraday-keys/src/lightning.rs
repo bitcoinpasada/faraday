@@ -258,8 +258,8 @@ impl crate::Keys {
     /// An aezeed read for Convert, held as the source of its conversions,
     /// with the demo's refusal as [`Keys::aezeed_node`] has it, and refused
     /// while a stick is attached, as every way a key is added is; the
-    /// fingerprint of its BIP-32 seed. Any aezeed held before is dropped.
-    /// It is not a key: [`Keys::len`] and the lists do not change.
+    /// fingerprint of its BIP-32 seed. Any aezeed held before is dropped,
+    /// and any SLIP-39 set held as a source. It is not a key: [`Keys::len`] and the lists do not change.
     pub fn aezeed_hold(
         &mut self,
         read: AezeedRead,
@@ -281,6 +281,7 @@ impl crate::Keys {
         }
         let fp = held.info.fingerprint;
         self.aezeed = Some(held);
+        self.slip39_set = None;
         Ok(fp)
     }
 

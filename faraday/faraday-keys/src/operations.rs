@@ -571,41 +571,18 @@ impl Keys {
         if made != total {
             return Err(Convert::NotSameWallet);
         }
-        let mut lines = Vec::with_capacity(total);
-        for share in &shares {
-            let mut text = faraday_intake::secret_buf::room();
-            for n in 0..share.word_count() {
-                if n > 0 {
-                    text.push(' ');
-                }
-                text.push_str(share.word(n));
-            }
-            lines.push(text);
-        }
-        // Where each group's members start among the lines.
-        let mut starts = Vec::with_capacity(groups.len());
-        let mut at = 0;
-        for g in groups {
-            starts.push(at);
-            at += usize::from(g.count);
-        }
-        let g = usize::from(group_threshold);
+        let lines: Vec<SecretLine> = shares.iter().map(share_line).collect();
         // Every share parses before any recovery is paid for.
         let parsed: Option<Vec<Share>> = lines.iter().map(|l| Share::parse(l).ok()).collect();
         let parsed = parsed.ok_or(Convert::NotSameWallet)?;
-        let recovers = |chosen: &mut dyn Iterator<Item = usize>| {
-            let own: Vec<Share> = chosen.map(|n| parsed[n].clone()).collect();
+        let recovers = |chosen: &[usize]| {
+            let own: Vec<Share> = chosen.iter().map(|&n| parsed[n].clone()).collect();
             slip39_seed(c, &own, b"")
                 .ok()
                 .and_then(|secret| fingerprint_of_seed(c, &secret))
         };
-        let mut first =
-            (0..g).flat_map(|gi| starts[gi]..starts[gi] + usize::from(groups[gi].threshold));
-        let mut last = (groups.len() - g..groups.len()).flat_map(|gi| {
-            let end = starts[gi] + usize::from(groups[gi].count);
-            end - usize::from(groups[gi].threshold)..end
-        });
-        let (a, b) = (recovers(&mut first), recovers(&mut last));
+        let (first, last) = first_and_last_quorum(group_threshold, groups);
+        let (a, b) = (recovers(&first), recovers(&last));
         if a != b {
             return Err(Convert::NotSameWallet);
         }
@@ -732,6 +709,49 @@ impl Keys {
         }
         self.secrets(i)
     }
+}
+
+/// One line of secret text: a share, written by hand.
+pub type SecretLine = Zeroizing<String>;
+
+/// A SLIP-39 share's words, single spaces between.
+pub(crate) fn share_line(share: &Share) -> SecretLine {
+    let mut text = faraday_intake::secret_buf::room();
+    for n in 0..share.word_count() {
+        if n > 0 {
+            text.push(' ');
+        }
+        text.push_str(share.word(n));
+    }
+    text
+}
+
+/// Among a set's shares in group, then member order, a first and a last
+/// qualifying subset: the first threshold's worth of members of each of
+/// the first `group_threshold` groups, and the last threshold's worth of
+/// each of the last. For a shape the split took.
+pub(crate) fn first_and_last_quorum(
+    group_threshold: u8,
+    groups: &[slip39::GroupSpec],
+) -> (Vec<usize>, Vec<usize>) {
+    let g = usize::from(group_threshold);
+    // Where each group's members start among the shares.
+    let mut starts = Vec::with_capacity(groups.len());
+    let mut at = 0;
+    for spec in groups {
+        starts.push(at);
+        at += usize::from(spec.count);
+    }
+    let first = (0..g)
+        .flat_map(|gi| starts[gi]..starts[gi] + usize::from(groups[gi].threshold))
+        .collect();
+    let last = (groups.len() - g..groups.len())
+        .flat_map(|gi| {
+            let end = starts[gi] + usize::from(groups[gi].count);
+            end - usize::from(groups[gi].threshold)..end
+        })
+        .collect();
+    (first, last)
 }
 
 /// Costs an HMAC-SHA512 and an elliptic-curve multiplication. The master
