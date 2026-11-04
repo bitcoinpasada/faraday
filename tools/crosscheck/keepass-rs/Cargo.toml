@@ -1,0 +1,21 @@
+# keepass-rs as an outside reader and writer of the vault's KDBX file
+# (F193 point 1; docs/ESTABLISHED.md §9.5). Its own workspace, excluded from
+# the root one, so that it never reaches an app: it runs only in the
+# cross-check (docs/deps/keepass.md).
+[package]
+name = "faraday-crosscheck-keepass-rs"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Reads and writes KDBX 4 files with keepass-rs for the vault cross-check; test-only, never shipped"
+publish = false
+
+[workspace]
+
+[dependencies]
+keepass = { version = "=0.17.0", default-features = false, features = ["save_kdbx4"] }
+serde_json = "1"
+
+[[bin]]
+name = "keepass-rs"
+path = "src/main.rs"

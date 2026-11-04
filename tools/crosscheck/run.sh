@@ -82,6 +82,18 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
 fi
 say "build: btcd's answer program done"
 
+# keepass-rs as the vault file's outside reader and writer (area vault;
+# F193 point 1): its own workspace, tools/crosscheck/keepass-rs/, built
+# here and never reaching an app.
+say "build: keepass-rs's program (cargo build --frozen, tools/crosscheck/keepass-rs)"
+if ! cargo build --frozen -q --release --manifest-path tools/crosscheck/keepass-rs/Cargo.toml \
+        --target-dir "$PWD/$progress/keepass-rs-target" 2>"$progress/keepass-rs-build.log"; then
+    cat "$progress/keepass-rs-build.log" >&2
+    say "build: FAILED: keepass-rs's program did not build"
+    exit 2
+fi
+say "build: keepass-rs's program done"
+
 # The second pass of the aezeed (area lightning): Faraday's command built
 # with the aes crate's software round (--cfg aes_backend="soft", for this
 # build only, in a target folder of its own) and LND's program built without

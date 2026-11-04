@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """`just vet-refresh`: fetch the imported audit sets, prune what they now
-cover, and keep the exemptions the fuzz workspaces still need (F71).
+cover, and keep the exemptions the fuzz workspaces and the keepass-rs
+cross-check workspace still need (F71).
 
 cargo vet sees one workspace at a time. `fuzz/` and `faraday/fuzz/` are
 workspaces of their own, vetted against the same `supply-chain/` with
@@ -15,7 +16,7 @@ the main workspace's. So this:
 2. runs `cargo vet` (fetches the imports, writes `imports.lock`) and
    `cargo vet prune` in the main workspace;
 3. puts back each exemption that went, by name and version, whose crate
-   is in a fuzz workspace's Cargo.lock, and lets `cargo vet fmt` order
+   is in a fuzz workspace's (or the cross-check workspace's) Cargo.lock, and lets `cargo vet fmt` order
    the file;
 4. checks the main workspace and each fuzz workspace offline, as
    `just lint` does, and fails if any fails.
@@ -31,7 +32,11 @@ import sys
 import tomllib
 
 CONFIG = "supply-chain/config.toml"
-FUZZ = ["fuzz/Cargo.toml", "faraday/fuzz/Cargo.toml"]
+FUZZ = [
+    "fuzz/Cargo.toml",
+    "faraday/fuzz/Cargo.toml",
+    "tools/crosscheck/keepass-rs/Cargo.toml",
+]
 
 
 def vet(*args: str) -> None:

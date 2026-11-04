@@ -29,7 +29,9 @@ nothing else.
   cross-check. The cross-check's
   `vault` area needs the distribution's argon2-cffi (`python3-argon2`),
   pykeepass (`python3-pykeepass`) and KeePassXC's command line
-  (`keepassxc-cli`, package `keepassxc`), its `kdbx` area PyCA cryptography (`python3-cryptography`) and pykeepass, and its
+  (`keepassxc-cli`, package `keepassxc`) and the keepass-rs program
+  (`tools/crosscheck/keepass-rs/`, built by `tools/crosscheck/run.sh` with the
+  Rust toolchain from its committed `Cargo.lock`, offline), its `kdbx` area PyCA cryptography (`python3-cryptography`) and pykeepass, and its
   `sign`, `msg` and `musig` areas python-ecdsa (`python3-ecdsa`), its
   `ur` area cbor2 (`python3-cbor2`), its `totp` area pyotp
   (`python3-pyotp`), its

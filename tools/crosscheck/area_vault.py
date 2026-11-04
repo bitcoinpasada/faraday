@@ -37,6 +37,17 @@ known answer (`tools/vectors/vault-primitives/`). Then:
   everything pykeepass read (attachments, tags, icons, history and the
   other program's custom data, §7.1).
 
+- keepass-rs, the Rust KeePass library (`keepass_rs.py`, the program of
+  `tools/crosscheck/keepass-rs/`), judges the file format only, both ways
+  (F193 point 1; it runs RustCrypto, as the app does, so it is not counted
+  for the primitives): it reads vaults Faraday writes and seals (`rsread`
+  loop) and Faraday reads files it writes (`rswrite` loop: AES-256 or
+  ChaCha20, Argon2d or Argon2id, with or without compression, groups,
+  entries, tags, icons, custom properties, attachments, custom data), then
+  keepass-rs reads Faraday's seal over them. Files it writes with Twofish,
+  AES-KDF or a Salsa20 inner stream, which Faraday refuses (§4), are a
+  listed known difference.
+
 `keepassxc-cli` runs per case, slowly, so a share of the files go to it.
 The area stops and names it when it is missing. The reference is the
 document alone for the payloads, and the outside programs for the file.
@@ -49,6 +60,7 @@ import json
 import os
 import unicodedata
 
+import keepass_rs as rs
 import readers
 import vault_files as vf
 from common import ROOT, Area, HarnessError, Mismatch
@@ -151,7 +163,7 @@ class Vault(Area):
     )
     reference = (
         "pykeepass and `keepassxc-cli` (the distribution's packages) for the vault file, both "
-        "ways; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi (the "
+        "ways, and keepass-rs for the file format only; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi (the "
         "distribution's package) and Python's `unicodedata`, for the payloads"
     )
     reference_checked = (
@@ -174,7 +186,12 @@ class Vault(Area):
         'wrong one and a changed byte; files pykeepass makes at random (ciphers, KDFs, '
         'compression, tags, icons, custom properties, attachments, history, custom data) '
         'and `keepassxc-cli` makes (groups, entries, notes, attachments), opened in '
-        "Faraday and sealed once more with nothing of the other program's lost"
+        "Faraday and sealed once more with nothing of the other program's lost; keepass-rs "
+        "(format only, not counted for the primitives) reads the vaults Faraday writes and "
+        "seals, with a wrong passphrase, the NFD form and a changed byte refused, and writes "
+        "files (AES-256 or ChaCha20, Argon2d or Argon2id, compression or not, groups, "
+        "entries, tags, icons, properties, attachments, custom data) that Faraday opens and "
+        "seals once more"
     )
     differences = [
         (
@@ -191,16 +208,35 @@ class Vault(Area):
             "`WIDER` names each and the reader that opens it; the area expects exactly that "
             "set and counts those opens as known differences."
         ),
+        (
+            "keepass-rs writes files Faraday refuses (§4): Twofish, AES-KDF and a Salsa20 "
+            "inner stream (`keepass_rs.REFUSED`). The area makes one of each, expects "
+            "Faraday to refuse it and counts the refusals as known differences."
+        ),
+        (
+            "keepass-rs decodes a custom data item's value as Base64 when it can, and the "
+            "program encodes the bytes again (`keepass-rs/src/main.rs`). A value that is "
+            "valid Base64 but not canonical (padding or trailing bits the encoder would not "
+            "write) comes back as another text, so keepass-rs's reading of such a value "
+            "differs from the file's and from pykeepass's. The area compares custom data as they "
+            "are, so such a value is a known difference of keepass-rs, not a disagreement "
+            "about the format."
+        ),
     ]
     not_compared = (
-        "keepass-rs, the Rust KeePass library, is not run (later work); the QR vault and "
-        "OpenPGP are other areas"
+        "keepass-rs does not count for the primitives and takes no part in the NFD or "
+        "wrong-passphrase cases of files it did not read; the QR vault and OpenPGP are other "
+        "areas"
     )
 
     def __init__(self, *a):
         super().__init__(*a)
         self.second = {"judge": "keepassxc-cli", "judged": 0, "uncovered": 0}
         self.has_kpxc = None
+        # keepass-rs judges the file format only (F193 point 1); it is counted apart from
+        # `second`, which a primitive check needs.
+        self.format_judge = {"judge": "keepass-rs", "judged": 0}
+        self.rs_case = False
 
     def check_primitives(self):
         """The area's own piece against its published answer."""
@@ -353,7 +389,7 @@ class Vault(Area):
                 "differ")
 
     LOOPS = (("argon", 40), ("payload", 1500), ("nfc", 1000), ("faraday", 16), ("foreign", 16),
-             ("kpxc", 6))
+             ("kpxc", 6), ("rsfixed", 1), ("rsread", 6), ("rswrite", 8))
 
     def prelude(self):
         self.check_unicode()
@@ -500,7 +536,7 @@ class Vault(Area):
                           "pykeepass opens a file with a byte changed", flip)
         if kpxc:
             self.kpxc_checks(data, passphrase, v, flip=flip, nfd=nfd)
-        else:
+        elif not self.rs_case:
             self.second["uncovered"] += 1
         return v
 
@@ -845,3 +881,149 @@ class Vault(Area):
                           "expects (WIDER)", data)
             self.known += len(mine)
             self.compared += 1
+
+
+    # ----- keepass-rs, the file format only (F193 point 1) ----------------------
+
+    def case(self, loop, i):
+        """The cases of keepass-rs's loops are not the ones `keepassxc-cli` does not cover."""
+        self.rs_case = loop.startswith("rs")
+        super().case(loop, i)
+
+    def rs_checks(self, data, passphrase, v, flip=True):
+        """keepass-rs reads `data` as pykeepass's deep view `v` says, and refuses a wrong
+        passphrase, the NFD form where it differs and a byte changed."""
+        got = rs.read(data, passphrase)
+        if got is None:
+            self.fail("keepass-rs", {"file": self.tag(data)}, "refused", "opened",
+                      "keepass-rs does not open what Faraday wrote", data)
+        diff = rs.differs(got, v)
+        if diff:
+            self.fail("keepass-rs", {"file": self.tag(data)}, diff[1], diff[2],
+                      f"{diff[0]} is not what pykeepass reads", data)
+        self.format_judge["judged"] += 1
+        self.compared += 1
+        if rs.read(data, passphrase + "x") is not None:
+            self.fail("keepass-rs", {"file": self.tag(data)}, "opened", "refused",
+                      "keepass-rs opens under a wrong passphrase", data)
+        nfd = unicodedata.normalize("NFD", passphrase)
+        if nfd != passphrase and rs.read(data, nfd) is not None:
+            self.fail("keepass-rs", {"file": self.tag(data)}, "opened", "refused",
+                      "keepass-rs opens under the NFD form of an NFC passphrase", data)
+        if flip:
+            i = self.rng.randrange(len(data))
+            bad = data[:i] + bytes([data[i] ^ (1 << self.rng.randrange(8))]) + data[i + 1:]
+            if rs.read(bad, passphrase) is not None:
+                self.fail("keepass-rs", {"file": self.tag(bad)}, "opened", "refused",
+                          "keepass-rs opens a file with a byte changed", bad)
+        self.compared += 1
+
+    def rs_description(self):
+        """What keepass-rs is asked to write, and the model of its entries
+        ({(group path, title): fields}) as the foreign cases keep it."""
+        rng = self.rng
+        desc = {"label": word(rng, 1, 20), "cipher": rng.choice(["aes256", "chacha20"]),
+                "kdf": rng.choice(["argon2d", "argon2id"]), "memory_kib": 8192,
+                "iterations": rng.choice([1, 2, 3]), "parallelism": rng.choice([1, 2]),
+                "compression": rng.random() < 0.5, "custom": [], "groups": [], "entries": []}
+        if rng.random() < 0.5:
+            desc["custom"].append(["other.vault", word(rng, 1, 20)])
+        groups = [[]]
+        for i in range(rng.choice([0, 1, 2, 3])):
+            path = rng.choice(groups) + [f"{word(rng, 1, 12)} g{i}"]
+            groups.append(path)
+            desc["groups"].append(path)
+        model = {}
+        for i in range(rng.randint(1, 5)):
+            path = rng.choice(groups)
+            title = f"{word(rng, 1, 14)} e{i}"
+            f = {"UserName": word(rng, 0, 10), "Password": word(rng, 0, 20),
+                 "URL": rng.choice(["", "https://example.org/" + word(rng, 1, 5)]),
+                 "Notes": word(rng, 0, 80, lines=True)}
+            entry = {"path": path, "title": title, "user": f["UserName"],
+                     "password": f["Password"], "url": f["URL"], "notes": f["Notes"],
+                     "tags": rng.choice([[], ["one"], ["alpha", "beta"]]),
+                     "icon": rng.choice([None, 0, 12, 30]),
+                     "props": [[f"prop{j}", word(rng, 0, 30, lines=True), rng.random() < 0.5]
+                               for j in range(rng.choice([0, 0, 1, 2]))],
+                     "attachments": [[f"file{j}{rng.choice(['.bin', '.txt', ' \u00e9'])}",
+                                      rng.randbytes(rng.choice([0, 5, 300, 3000])).hex()]
+                                     for j in range(rng.choice([0, 0, 1, 2]))],
+                     "custom": [["other.program", word(rng, 1, 20)]] if rng.random() < 0.3 else []}
+            for k, val, _ in entry["props"]:
+                f[k] = val
+            desc["entries"].append(entry)
+            model[(tuple(path), title)] = f
+        return desc, model
+
+    def case_rsread(self):
+        """A vault Faraday writes and seals, read by keepass-rs."""
+        rng = self.rng
+        items = self.items(self.pick(), entries=rng.choice([0, 1, 2]))
+        p = vf.passphrase(rng)
+        size = rng.choice([262_144, 1_048_576]) if len(items) > 3 else rng.choice([65_536, 262_144])
+        data = self.create(items, size, (8192, rng.choice([1, 2]), rng.choice([1, 2])), p,
+                           word(rng, 1, 20), rng.choice([None, rng.randrange(1_500_000_000, 2_200_000_000)]))
+        v = self.read_all(data, p, False)
+        self.rs_checks(data, p, v)
+        more = self.items([k for k in self.pick(0, 3) if k not in ("share", "secure_boot", "note")],
+                          start=100)
+        out, after = self.seal_kept(data, p, v, more, False)
+        self.rs_checks(out, p, after, flip=False)
+
+    def case_rswrite(self):
+        """A file keepass-rs writes: Faraday opens it with the same fields, keepass-rs reads
+        it as pykeepass does, and Faraday's seal keeps everything."""
+        rng = self.rng
+        p = vf.passphrase(rng)
+        desc, model = self.rs_description()
+        data = rs.write(desc, p)
+        if data is None:
+            self.fail("keepass-rs", {"description": desc}, "refused", "a file",
+                      "keepass-rs does not write what it is asked")
+        v = self.read_all(data, p, False)
+        by = {(tuple(e["path"]), vf.fields_of(e)["Title"]): vf.fields_of(e) for e in v["entries"]}
+        if by.keys() != model.keys():
+            self.fail("keepass-rs", {}, sorted(by), sorted(model), "keepass-rs made other entries",
+                      data)
+        for key, f in model.items():
+            for k, val in f.items():
+                if by[key].get(k, "") != val:
+                    self.fail("keepass-rs", {"entry": key}, by[key].get(k), val,
+                              f"field {k} is not what keepass-rs was given", data)
+        self.rs_checks(data, p, v)
+        more = self.items([k for k in self.pick(1, 3) if k not in ("share", "secure_boot", "note")],
+                          start=100, entries=rng.choice([0, 1]))
+        out, after = self.seal_kept(data, p, v, more, False)
+        self.rs_checks(out, p, after, flip=False)
+
+    def case_rsfixed(self):
+        """A loop of one case, so that `--case rsfixed:0` reaches it without the prelude,
+        which stops where `keepassxc-cli` is missing."""
+        self.rs_prelude()
+
+    def rs_prelude(self):
+        """One vault with an item of every kind read by keepass-rs, and the files keepass-rs
+        writes that Faraday refuses (§4), each a known difference."""
+        self.rs_case = True
+        rng = self.rng
+        try:
+            p = vf.passphrase(rng)
+            data = self.create(self.items(list(vf.KINDS), entries=1), 262_144, (8192, 1, 1), p,
+                               word(rng, 1, 20), None)
+            self.rs_checks(data, p, self.read_all(data, p, False))
+            for name, (setting, why) in rs.REFUSED.items():
+                desc = {"label": "refused", "memory_kib": 8192, "iterations": 1,
+                        "parallelism": 1, "entries": [], "groups": []} | setting
+                bad = rs.write(desc, p)
+                if bad is None:
+                    self.fail("keepass-rs", {"setting": name}, "refused", "a file",
+                              f"keepass-rs does not write {why}")
+                if rs.read(bad, p) is None:
+                    self.fail("keepass-rs", {"setting": name}, "refused", "opened",
+                              f"keepass-rs does not open its own file with {why}", bad)
+                self.open_faraday(bad, p, None)
+                self.format_judge["judged"] += 1
+                self.known += 1
+        finally:
+            self.rs_case = False

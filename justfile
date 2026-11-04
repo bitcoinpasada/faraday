@@ -56,6 +56,9 @@ lint-deps:
     # same store (docs/deps/libfuzzer-sys.md).
     cargo vet --locked --manifest-path fuzz/Cargo.toml --store-path supply-chain
     cargo vet --locked --manifest-path faraday/fuzz/Cargo.toml --store-path supply-chain
+    # The keepass-rs cross-check crate is a workspace of its own too
+    # (docs/deps/keepass.md).
+    cargo vet --locked --manifest-path tools/crosscheck/keepass-rs/Cargo.toml --store-path supply-chain
     # Every fuzz target still builds against the code it feeds: the two fuzz
     # crates are workspaces of their own, which nothing else compiles. A
     # check on the workspace's stable toolchain, with no cargo-fuzz.
@@ -137,7 +140,7 @@ lint-touch-targets:
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
 # imports.lock, and drop exemptions they now cover (F71), keeping those
-# the fuzz workspaces still need; then vet all three offline
+# the fuzz workspaces still need; then vet all four offline
 # (tools/vet-refresh.py). Online; run it when chosen, and when a trust
 # entry is renewed before its end date.
 [group('lint')]

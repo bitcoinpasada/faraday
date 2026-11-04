@@ -171,6 +171,11 @@ def run_batch(req, alternative):
             result["judged"] = area.second["judged"]
             result["judge"] = area.second["judge"]
             result["uncovered"] = area.second["uncovered"]
+        if hasattr(area, "format_judge"):
+            # A judge of the file format only (F193): counted apart, never in place of the
+            # second judge the primitives need.
+            result["format_judged"] = area.format_judge["judged"]
+            result["format_judge"] = area.format_judge["judge"]
         if req["part"] not in ("prelude", "coda"):
             result["cases"] = req["hi"] - req["lo"]
         if req["part"].startswith("fund:"):
@@ -319,6 +324,9 @@ def judge_words(r):
         words = f", {r['judge']} judged {r['judged']} answers"
         if r["uncovered"]:
             words += f", {r['uncovered']} not covered by it"
+        if "format_judge" in r:
+            words += (f"; {r['format_judge']} judged {r['format_judged']} answers of the file "
+                      "format only")
         return words
     return f", btclib judged {r['judged']} inputs" if "judged" in r else ""
 
@@ -338,6 +346,9 @@ def merge(batches, results, area):
             out["known"] += r["known"]
             if "judged" in r:
                 out["judged"] = out.get("judged", 0) + r["judged"]
+            if "format_judge" in r:
+                out["format_judge"] = r["format_judge"]
+                out["format_judged"] = out.get("format_judged", 0) + r["format_judged"]
             if "judge" in r:
                 out["judge"] = r["judge"]
                 out["uncovered"] = out.get("uncovered", 0) + r["uncovered"]
@@ -975,6 +986,11 @@ def run(args, areas, jobs, only, seed, scale, core):
             judged = judge_words(r)
             report.append(f"  {area}: {r['compared']} answers agree{known}{judged}"
                           f" ({r['seconds']} s)")
+            if r.get("format_judged") == 0 and not args.case:
+                # The format judge judged nothing: its comparison did not run.
+                failed = True
+                report.append(f"  {area}: FAILED, {r['format_judge']} judged nothing "
+                              "of the whole area")
             if r.get("judged") == 0 and not args.case:
                 # The second finalizer judged nothing: the comparison did not run.
                 failed = True
