@@ -190,23 +190,21 @@ pub fn part_of(text: &str) -> Option<Part> {
     Codex32::parse(text.trim()).ok().map(Part::Codex32)
 }
 
-/// The first four bytes of every Faraday vault (`docs/VAULT.md`).
-pub const VAULT_MAGIC: [u8; 4] = *b"FVLT";
+/// The first four bytes of every FVLT vault, until its code is removed.
+pub const VAULT_MAGIC: [u8; 4] = faraday_codec::vault_file::MAGIC;
 
 /// Whether a whole file is a vault, whatever its name: it begins with
-/// the magic and its length is one of the four vault sizes
-/// (`docs/VAULT-HARDENING.md` §2.1). Says nothing of whether the rest is
-/// sound.
+/// KDBX's signatures and major version 4, and its length is one a vault
+/// can have (`docs/VAULT.md` §1.1, `docs/VAULT-HARDENING.md` §2.1). Says
+/// nothing of whether the rest is sound.
 pub fn is_vault(bytes: &[u8]) -> bool {
     faraday_codec::vault_file::is_vault_file(bytes)
 }
 
-/// KeePass's two signatures, little-endian, as KDBX 2 to 4 begin.
-const KDBX_SIGNATURE: [u8; 8] = [0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5];
-
-/// Whether the bytes begin as a KeePass database (KDBX) does.
+/// Whether the bytes begin as a KeePass database (KDBX) does but are not
+/// a vault: a file of an older version, or one of a length no vault has.
 pub fn is_kdbx(bytes: &[u8]) -> bool {
-    bytes.starts_with(&KDBX_SIGNATURE)
+    bytes.starts_with(&faraday_codec::vault_file::SIGNATURE) && !is_vault(bytes)
 }
 
 /// Whether text looks like entries for a vault: an `otpauth://` line, or

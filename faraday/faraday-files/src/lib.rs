@@ -43,7 +43,7 @@ fn io_text(e: std::io::Error) -> String {
 }
 
 /// The largest file read from a stick. A PSBT or a wallet is kilobytes; a
-/// vault with four 4 MiB slots is the largest thing Faraday writes.
+/// vault of 4 MiB is the largest thing Faraday writes.
 pub const MAX_READ: u64 = 18 * 1024 * 1024;
 
 /// The largest picture read for QR codes, in pixels: 4096 × 4096, about
@@ -403,21 +403,21 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
     Ok(name)
 }
 
-/// Costs a read of the first four bytes of each file that could be a
+/// Costs a read of the first twelve bytes of each file that could be a
 /// vault: the names in `files` that are a vault by its contents
-/// (`docs/VAULT-HARDENING.md` §2.1), whatever the name, a `.fvlt` too.
-/// A file is read only where its length is one of the four vault sizes. Made once when the listing is, and kept with it.
+/// (`docs/VAULT-HARDENING.md` §2.1), whatever the name, a `.kdbx` too.
+/// A file is read only where its length is a length a vault can have. Made once when the listing is, and kept with it.
 pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) -> Vec<String> {
     let mut out = Vec::new();
     for (n, len) in files {
-        let named = n.to_ascii_lowercase().ends_with(".fvlt");
+        let named = n.to_ascii_lowercase().ends_with(".kdbx");
         if (n.starts_with('.') && !named) || foreign(n) || !vault_file::is_vault_len(*len) {
             continue;
         }
         c.count(Work::FileRead);
         if place
-            .head(n, vault_file::MAGIC.len(), MAX_READ)
-            .is_ok_and(|b| vault_file::has_magic(&b))
+            .head(n, vault_file::HEAD_LEN, MAX_READ)
+            .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
         {
             out.push(n.clone());
         }
@@ -448,7 +448,7 @@ fn has(place: &mut dyn Place, name: &str) -> Result<bool, String> {
 
 /// Reads one file the app asked for.
 pub fn read(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
-    if name.to_ascii_lowercase().ends_with(".fvlt") {
+    if name.to_ascii_lowercase().ends_with(".kdbx") {
         finish_vault_writes(place);
     }
     place.read(checked(name)?, MAX_READ)
@@ -540,11 +540,11 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
 }
 
 /// Whether the file `name` on the place is held as a vault: named
-/// `.fvlt`, whatever it holds (erring safe), or one of the vault lengths
-/// and beginning with the magic (§2.1). Reads four bytes of a file that
+/// `.kdbx`, whatever it holds (erring safe), or one of the vault lengths
+/// and beginning with KDBX 4's signature (§2.1). Reads twelve bytes of a file that
 /// is not named so.
 fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
-    if name.to_ascii_lowercase().ends_with(".fvlt") {
+    if name.to_ascii_lowercase().ends_with(".kdbx") {
         return true;
     }
     let sized = place.files().is_ok_and(|f| {
@@ -553,8 +553,8 @@ fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
     });
     sized
         && place
-            .head(name, vault_file::MAGIC.len(), MAX_READ)
-            .is_ok_and(|b| vault_file::has_magic(&b))
+            .head(name, vault_file::HEAD_LEN, MAX_READ)
+            .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
 }
 
 /// Costs a read and a SHA-256 pass over each file of a vault's length on
@@ -701,12 +701,43 @@ pub fn rename(
     place.rename(from, to).map_err(Unrenamed::Failed)
 }
 
-/// Whether these bytes are a whole vault file: its length is the one its
-/// slot size gives.
+/// Whether these bytes are a whole vault file: the header's own fields
+/// end it, and the stream of blocks after its hash and HMAC runs to the
+/// empty block that ends it, at the end of the file.
 fn whole_vault(b: &[u8]) -> bool {
-    vault_file::is_vault_file(b) && {
-        let slot = u32::from_le_bytes([b[17], b[18], b[19], b[20]]) as usize;
-        b.len() == 53 + 4 * (slot + 40)
+    if !vault_file::is_vault_file(b) {
+        return false;
+    }
+    let u32_at = |at: usize| {
+        b.get(at..at + 4)
+            .map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize)
+    };
+    let mut at = vault_file::HEAD_LEN;
+    loop {
+        let (Some(&id), Some(size)) = (b.get(at), u32_at(at + 1)) else {
+            return false;
+        };
+        let Some(next) = (at + 5).checked_add(size) else {
+            return false;
+        };
+        at = next;
+        if id == 0 {
+            break;
+        }
+    }
+    // The header's SHA-256 and HMAC.
+    at += 64;
+    loop {
+        let Some(size) = u32_at(at + 32) else {
+            return false;
+        };
+        let Some(next) = (at + 36).checked_add(size) else {
+            return false;
+        };
+        at = next;
+        if size == 0 {
+            return at == b.len();
+        }
     }
 }
 
@@ -725,7 +756,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         };
         // A part file of a vault under another name is told by its
         // contents; a part file of any other file is not this function's.
-        let named = name.to_ascii_lowercase().ends_with(".fvlt");
+        let named = name.to_ascii_lowercase().ends_with(".kdbx");
         if !named && !(vault_file::is_vault_len(*len) && *len <= MAX_READ) {
             continue;
         }
@@ -741,13 +772,13 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         }
         // A whole vault takes the name it was written for only where a
         // write could have given that name. The name of a vault that
-        // was not `.fvlt` is gone with the original, so its copy takes
-        // `.fvlt` after it, and never a name that could be another
+        // was not `.kdbx` is gone with the original, so its copy takes
+        // `.kdbx` after it, and never a name that could be another
         // kind of file's.
         let target = if named {
             name.to_string()
         } else {
-            format!("{name}.fvlt")
+            format!("{name}.kdbx")
         };
         let taken = files.iter().any(|(o, _)| o.eq_ignore_ascii_case(&target));
         if checked_for_write(&target).is_ok() && !taken {

@@ -95,7 +95,7 @@ impl StickMake {
 
 impl StickInfo {
     /// Whether the file listed as `name` is a vault, found by its
-    /// contents when the listing was made; a file named `.fvlt` holding
+    /// contents when the listing was made; a file named `.kdbx` holding
     /// other bytes is not. A lookup.
     #[must_use]
     pub fn is_vault(&self, name: &str) -> bool {
@@ -109,7 +109,7 @@ impl StickInfo {
         if self.is_vault(name) {
             return Some(faraday_strings::EN.stick_kind_vault);
         }
-        if name.to_ascii_lowercase().ends_with(".fvlt") {
+        if name.to_ascii_lowercase().ends_with(".kdbx") {
             return Some(faraday_strings::EN.stick_kind_file);
         }
         crate::stick_kind(name)

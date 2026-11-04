@@ -6530,7 +6530,7 @@ strings! {
     /// Text in `kind_name`.
     kind_name_vault_entries: "Entries for a vault",
     /// Text in `kind_name`.
-    kind_name_keepass_database: "KeePass database, encrypted",
+    kind_name_keepass_database: "A KeePass file of an older version",
     /// Text in `kind_name`.
     kind_name_pdf_to_print: "PDF to print",
     /// Text in `kind_name`.

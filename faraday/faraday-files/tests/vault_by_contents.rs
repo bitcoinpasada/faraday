@@ -1,11 +1,11 @@
 //! A vault on a stick is told by its contents, whatever its name: the
-//! magic and one of the vault lengths (`docs/VAULT-HARDENING.md` §2.1).
+//! KDBX 4 signature and a vault's length (`docs/VAULT-HARDENING.md` §2.1).
 //! A copy made by a tool that writes short names only is still a vault,
 //! and no write goes over it as over any other file.
 
 use std::collections::BTreeMap;
 
-use faraday_codec::vault_file::{MAGIC, file_len};
+use faraday_codec::vault_file::SIGNATURE;
 use faraday_crypto::work::Compute;
 use faraday_files::{
     Place, Unrenamed, Zeroed, finish_vault_writes, rename, vault_names, write_any, write_replacing,
@@ -68,14 +68,26 @@ impl Place for Memory {
     }
 }
 
-/// A file of a vault's length that begins with the magic; `salt` tells
-/// two vaults apart.
-fn vault(salt: u8) -> Vec<u8> {
-    let mut v = vec![0u8; file_len(65_536)];
-    v[..4].copy_from_slice(&MAGIC);
-    v[17..21].copy_from_slice(&65_536u32.to_le_bytes());
-    v[21..53].fill(salt);
+/// A whole KDBX 4 file of a vault's shape: the signatures and version,
+/// a header that ends at once, 64 bytes where its hash and HMAC are
+/// (`salt` tells two vaults apart) and a stream of one block and the
+/// empty block.
+fn kdbx4(salt: u8, body: usize) -> Vec<u8> {
+    let mut v = SIGNATURE.to_vec();
+    v.extend_from_slice(&[0, 0, 4, 0]);
+    v.extend_from_slice(&[0, 0, 0, 0, 0]);
+    v.extend_from_slice(&[salt; 64]);
+    v.extend_from_slice(&[9; 32]);
+    v.extend_from_slice(&(body as u32).to_le_bytes());
+    v.resize(v.len() + body, 5);
+    v.extend_from_slice(&[9; 32]);
+    v.extend_from_slice(&0u32.to_le_bytes());
     v
+}
+
+/// A vault of the smallest size.
+fn vault(salt: u8) -> Vec<u8> {
+    kdbx4(salt, 65_536)
 }
 
 #[expect(
@@ -89,33 +101,30 @@ fn compute() -> Compute {
 #[test]
 fn a_vault_is_found_by_its_contents_under_any_name() {
     let mut place = Memory::default();
-    place.files.insert("VAULT~1.FVL".into(), vault(1));
+    place.files.insert("VAULT~1.KDB".into(), vault(1));
     place.files.insert("vault".into(), vault(2));
-    place.files.insert("named.fvlt".into(), vault(3));
-    // Named `.fvlt` and holding other bytes: not a vault.
-    place
-        .files
-        .insert("fake.fvlt".into(), vec![7; file_len(65_536)]);
-    // Other bytes at a vault's length, and the magic at another length.
-    place
-        .files
-        .insert("data.bin".into(), vec![7; file_len(65_536)]);
-    let mut short = MAGIC.to_vec();
+    place.files.insert("named.kdbx".into(), vault(3));
+    // Named `.kdbx` and holding other bytes: not a vault.
+    place.files.insert("fake.kdbx".into(), vec![7; 65_800]);
+    // Other bytes of a vault's length, and the signature at another length.
+    place.files.insert("data.bin".into(), vec![7; 65_800]);
+    let mut short = SIGNATURE.to_vec();
+    short.extend_from_slice(&[0, 0, 4, 0]);
     short.extend_from_slice(&[0; 100]);
     place.files.insert("short.bin".into(), short);
     let files = place.files().unwrap();
     assert_eq!(
         vault_names(&compute(), &mut place, &files),
-        ["VAULT~1.FVL", "named.fvlt", "vault"]
+        ["VAULT~1.KDB", "named.kdbx", "vault"]
     );
 }
 
 #[test]
-fn a_vault_whose_header_names_another_slot_length_is_not_written_back() {
+fn a_vault_whose_stream_does_not_end_with_the_file_is_not_written_back() {
     let mut place = Memory::default();
     let mut odd = vault(1);
-    odd[17..21].copy_from_slice(&262_144u32.to_le_bytes());
-    assert!(write_vault(&compute(), &mut place, "v.fvlt", &odd, &[]).is_err());
+    odd[113..117].copy_from_slice(&70_000u32.to_le_bytes());
+    assert!(write_vault(&compute(), &mut place, "v.kdbx", &odd, &[]).is_err());
     assert!(place.files.is_empty());
 }
 
@@ -128,26 +137,26 @@ fn part(name: &str) -> String {
 fn an_interrupted_write_back_finishes_only_under_a_name_a_vault_may_have() {
     let mut place = Memory::default();
     // Its original is gone: the copy takes the name.
-    place.files.insert(part("mine.fvlt"), vault(1));
+    place.files.insert(part("mine.kdbx"), vault(1));
     // A crafted part file for a name no vault is written under.
     place.files.insert(part("autorun.inf"), vault(2));
-    place.files.insert(part("a:b.fvlt"), vault(3));
-    // The short name of a vault that was replaced: kept as a `.fvlt`.
-    place.files.insert(part("VAULT~1.FVL"), vault(4));
+    place.files.insert(part("a:b.kdbx"), vault(3));
+    // The short name of a vault that was replaced: kept as a `.kdbx`.
+    place.files.insert(part("VAULT~1.KDB"), vault(4));
     finish_vault_writes(&mut place);
-    assert_eq!(place.files["mine.fvlt"], vault(1));
+    assert_eq!(place.files["mine.kdbx"], vault(1));
     assert!(!place.files.contains_key("autorun.inf"));
-    assert!(!place.files.contains_key("a:b.fvlt"));
-    assert_eq!(place.files["VAULT~1.FVL.fvlt"], vault(4));
+    assert!(!place.files.contains_key("a:b.kdbx"));
+    assert_eq!(place.files["VAULT~1.KDB.kdbx"], vault(4));
 }
 
 #[test]
 fn a_replacing_write_never_goes_over_a_vault_under_another_name() {
     let mut place = Memory::default();
-    place.files.insert("VAULT~1.FVL".into(), vault(1));
-    let wrote = write_replacing(&mut place, "VAULT~1.FVL", b"notes").unwrap();
-    assert_ne!(wrote, "VAULT~1.FVL");
-    assert_eq!(place.files["VAULT~1.FVL"], vault(1));
+    place.files.insert("VAULT~1.KDB".into(), vault(1));
+    let wrote = write_replacing(&mut place, "VAULT~1.KDB", b"notes").unwrap();
+    assert_ne!(wrote, "VAULT~1.KDB");
+    assert_eq!(place.files["VAULT~1.KDB"], vault(1));
 }
 
 #[test]
@@ -155,41 +164,41 @@ fn a_replacing_write_never_removes_or_overwrites_a_vault() {
     // Another vault of the same name: the old one stays, the new one goes
     // beside it.
     let mut place = Memory::default();
-    place.files.insert("vault.fvlt".into(), vault(1));
-    let wrote = write_any(&compute(), &mut place, "vault.fvlt", &vault(2), true).unwrap();
-    assert_eq!(wrote, "vault-2.fvlt");
-    assert_eq!(place.files["vault.fvlt"], vault(1));
+    place.files.insert("vault.kdbx".into(), vault(1));
+    let wrote = write_any(&compute(), &mut place, "vault.kdbx", &vault(2), true).unwrap();
+    assert_eq!(wrote, "vault-2.kdbx");
+    assert_eq!(place.files["vault.kdbx"], vault(1));
     // Whatever name's case or contents the write carries, a vault on the
     // stick stays, and the new file goes beside it.
-    let old = b"FVLT vault bytes".to_vec();
+    let old = b"KDBX vault bytes".to_vec();
     for (name, bytes) in [
-        ("VAULT.FVLT", b"FVLT other".as_slice()),
-        ("vault.fvlt", b"not a vault".as_slice()),
+        ("VAULT.KDBX", b"KDBX other".as_slice()),
+        ("vault.kdbx", b"not a vault".as_slice()),
     ] {
         let mut place = Memory::default();
-        place.files.insert("vault.fvlt".into(), old.clone());
+        place.files.insert("vault.kdbx".into(), old.clone());
         let wrote = write_any(&compute(), &mut place, name, bytes, true).unwrap();
-        assert_ne!(wrote.to_ascii_lowercase(), "vault.fvlt", "{name}");
-        assert_eq!(place.files["vault.fvlt"], old, "{name}");
+        assert_ne!(wrote.to_ascii_lowercase(), "vault.kdbx", "{name}");
+        assert_eq!(place.files["vault.kdbx"], old, "{name}");
     }
 }
 
 #[test]
 fn a_sealed_vault_goes_back_over_its_own_copy_under_a_short_name() {
     let mut place = Memory::default();
-    place.files.insert("VAULT~1.FVL".into(), vault(1));
+    place.files.insert("VAULT~1.KDB".into(), vault(1));
     let mut sealed = vault(1);
     sealed[60] = 9;
     let wrote = write_vault(
         &compute(),
         &mut place,
-        "vault.fvlt",
+        "vault.kdbx",
         &sealed,
         &[sha(&vault(1))],
     )
     .unwrap();
-    assert_eq!(wrote, "VAULT~1.FVL");
-    assert_eq!(place.files["VAULT~1.FVL"], sealed);
+    assert_eq!(wrote, "VAULT~1.KDB");
+    assert_eq!(place.files["VAULT~1.KDB"], sealed);
     assert_eq!(place.files.len(), 1);
 }
 
@@ -210,52 +219,52 @@ fn only_the_copy_the_session_has_seen_is_replaced_and_not_a_vault_of_the_same_le
     let mut place = Memory::default();
     // An old copy, a later seal of the same vault, and another vault of
     // the same length, which shares the vault's salt by chance.
-    place.files.insert("old.fvlt".into(), sealed_again(1, 1));
-    place.files.insert("other.fvlt".into(), sealed_again(1, 7));
+    place.files.insert("old.kdbx".into(), sealed_again(1, 1));
+    place.files.insert("other.kdbx".into(), sealed_again(1, 7));
     let new = sealed_again(1, 3);
     let seen = [sha(&sealed_again(1, 1)), sha(&sealed_again(1, 2))];
-    let wrote = write_vault(&compute(), &mut place, "vault.fvlt", &new, &seen).unwrap();
-    assert_eq!(wrote, "old.fvlt");
-    assert_eq!(place.files["old.fvlt"], new);
-    assert_eq!(place.files["other.fvlt"], sealed_again(1, 7));
+    let wrote = write_vault(&compute(), &mut place, "vault.kdbx", &new, &seen).unwrap();
+    assert_eq!(wrote, "old.kdbx");
+    assert_eq!(place.files["old.kdbx"], new);
+    assert_eq!(place.files["other.kdbx"], sealed_again(1, 7));
     assert_eq!(place.files.len(), 2);
 }
 
 #[test]
 fn a_vault_no_copy_of_which_is_on_the_stick_is_written_as_a_new_file() {
     let mut place = Memory::default();
-    place.files.insert("vault.fvlt".into(), sealed_again(1, 7));
+    place.files.insert("vault.kdbx".into(), sealed_again(1, 7));
     let new = sealed_again(1, 3);
     let wrote = write_vault(
         &compute(),
         &mut place,
-        "vault.fvlt",
+        "vault.kdbx",
         &new,
         &[sha(&sealed_again(1, 1))],
     )
     .unwrap();
-    assert_eq!(wrote, "vault-2.fvlt");
-    assert_eq!(place.files["vault.fvlt"], sealed_again(1, 7));
-    assert_eq!(place.files["vault-2.fvlt"], new);
+    assert_eq!(wrote, "vault-2.kdbx");
+    assert_eq!(place.files["vault.kdbx"], sealed_again(1, 7));
+    assert_eq!(place.files["vault-2.kdbx"], new);
 }
 
 #[test]
 fn two_copies_on_the_stick_are_refused_naming_both() {
     let mut place = Memory::default();
-    place.files.insert("a.fvlt".into(), sealed_again(1, 1));
-    place.files.insert("b.fvlt".into(), sealed_again(1, 2));
+    place.files.insert("a.kdbx".into(), sealed_again(1, 1));
+    place.files.insert("b.kdbx".into(), sealed_again(1, 2));
     let seen = [sha(&sealed_again(1, 1)), sha(&sealed_again(1, 2))];
     let why = write_vault(
         &compute(),
         &mut place,
-        "vault.fvlt",
+        "vault.kdbx",
         &sealed_again(1, 3),
         &seen,
     )
     .unwrap_err();
-    assert!(why.contains("a.fvlt") && why.contains("b.fvlt"), "{why}");
-    assert_eq!(place.files["a.fvlt"], sealed_again(1, 1));
-    assert_eq!(place.files["b.fvlt"], sealed_again(1, 2));
+    assert!(why.contains("a.kdbx") && why.contains("b.kdbx"), "{why}");
+    assert_eq!(place.files["a.kdbx"], sealed_again(1, 1));
+    assert_eq!(place.files["b.kdbx"], sealed_again(1, 2));
     assert_eq!(place.files.len(), 2);
 }
 
@@ -263,24 +272,24 @@ fn two_copies_on_the_stick_are_refused_naming_both() {
 fn a_write_back_a_pulled_stick_cut_short_leaves_the_copy_or_the_new_file_whole() {
     // Pulled after the new file was written and the original removed.
     let mut place = Memory::default();
-    place.files.insert(part("vault.fvlt"), sealed_again(1, 3));
+    place.files.insert(part("vault.kdbx"), sealed_again(1, 3));
     finish_vault_writes(&mut place);
-    assert_eq!(place.files["vault.fvlt"], sealed_again(1, 3));
+    assert_eq!(place.files["vault.kdbx"], sealed_again(1, 3));
     // Pulled before: the original stays and the part file goes.
     let mut place = Memory::default();
-    place.files.insert("vault.fvlt".into(), sealed_again(1, 1));
-    place.files.insert(part("vault.fvlt"), sealed_again(1, 3));
+    place.files.insert("vault.kdbx".into(), sealed_again(1, 1));
+    place.files.insert(part("vault.kdbx"), sealed_again(1, 3));
     finish_vault_writes(&mut place);
-    assert_eq!(place.files["vault.fvlt"], sealed_again(1, 1));
+    assert_eq!(place.files["vault.kdbx"], sealed_again(1, 1));
     assert_eq!(place.files.len(), 1);
 }
 
 #[test]
 fn a_rename_onto_a_name_is_the_same_vault_only_for_copies_the_session_knows() {
     let mut place = Memory::default();
-    place.files.insert("a.fvlt".into(), sealed_again(1, 1));
-    place.files.insert("b.fvlt".into(), sealed_again(1, 2));
-    place.files.insert("c.fvlt".into(), sealed_again(2, 2));
+    place.files.insert("a.kdbx".into(), sealed_again(1, 1));
+    place.files.insert("b.kdbx".into(), sealed_again(1, 2));
+    place.files.insert("c.kdbx".into(), sealed_again(2, 2));
     let one = vec![sha(&sealed_again(1, 1)), sha(&sealed_again(1, 2))];
     let c = compute();
     // Both are copies of one vault the session knows.
@@ -288,30 +297,31 @@ fn a_rename_onto_a_name_is_the_same_vault_only_for_copies_the_session_knows() {
         rename(
             &c,
             &mut place,
-            "a.fvlt",
-            "B.fvlt",
+            "a.kdbx",
+            "B.kdbx",
             std::slice::from_ref(&one)
         ),
         Err(Unrenamed::SameVault)
     );
     // The same header, but the session knows no copies: the name is taken.
     assert_eq!(
-        rename(&c, &mut place, "a.fvlt", "B.fvlt", &[]),
+        rename(&c, &mut place, "a.kdbx", "B.kdbx", &[]),
         Err(Unrenamed::Taken)
     );
     // One is a copy and the other is not: taken.
     assert_eq!(
-        rename(&c, &mut place, "a.fvlt", "c.fvlt", &[one]),
+        rename(&c, &mut place, "a.kdbx", "c.kdbx", &[one]),
         Err(Unrenamed::Taken)
     );
     assert_eq!(place.files.len(), 3);
 }
 
 #[test]
-fn bytes_that_begin_with_the_magic_but_are_no_vault_are_written_as_a_file() {
+fn bytes_that_begin_with_the_signature_but_are_no_vault_are_written_as_a_file() {
     let mut place = Memory::default();
-    let mut bytes = MAGIC.to_vec();
+    let mut bytes = SIGNATURE.to_vec();
+    bytes.extend_from_slice(&[0, 0, 4, 0]);
     bytes.extend_from_slice(b"just text");
-    write_any(&compute(), &mut place, "x.fvlt", &bytes, false).unwrap();
-    assert_eq!(place.files["x.fvlt"], bytes);
+    write_any(&compute(), &mut place, "x.kdbx", &bytes, false).unwrap();
+    assert_eq!(place.files["x.kdbx"], bytes);
 }

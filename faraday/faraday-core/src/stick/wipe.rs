@@ -178,7 +178,7 @@ impl Faraday {
             .as_ref()
             .is_some_and(|d| match d.what {
                 // Told a vault by its contents when the listing was made
-                // (§2.1), or named `.fvlt`, whatever it holds: erring safe.
+                // (§2.1), or named `.kdbx`, whatever it holds: erring safe.
                 What::Files => self
                     .stick
                     .iter()
@@ -186,7 +186,7 @@ impl Faraday {
                     .is_some_and(|s| {
                         d.chosen
                             .iter()
-                            .any(|f| s.is_vault(f) || f.to_ascii_lowercase().ends_with(".fvlt"))
+                            .any(|f| s.is_vault(f) || f.to_ascii_lowercase().ends_with(".kdbx"))
                     }),
                 What::Free | What::Whole => true,
             })

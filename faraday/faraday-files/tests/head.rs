@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{cell::Cell, rc::Rc};
 
-use faraday_codec::vault_file::{MAGIC, file_len};
+use faraday_codec::vault_file::SIGNATURE;
 use faraday_crypto::work::Compute;
 use faraday_fat::{Disk, Error, Volume};
 use faraday_files::{Fat, Place, vault_names};
@@ -68,8 +68,9 @@ fn a_listing_reads_four_bytes_of_a_vault_on_a_fat_stick_and_not_the_file() {
     let reads = Rc::new(Cell::new(0));
     let disk = Counting(std::fs::read(&img).unwrap(), reads.clone());
     let mut place = Fat(Volume::open(disk).unwrap());
-    let mut vault = vec![0u8; file_len(65_536)];
-    vault[..4].copy_from_slice(&MAGIC);
+    let mut vault = vec![0u8; 65_900];
+    vault[..8].copy_from_slice(&SIGNATURE);
+    vault[10] = 4;
     place.create("VAULT~1.FVL", &vault).unwrap();
     let files = place.files().unwrap();
 
@@ -82,6 +83,9 @@ fn a_listing_reads_four_bytes_of_a_vault_on_a_fat_stick_and_not_the_file() {
         reads.get(),
         vault.len()
     );
-    assert_eq!(place.head("VAULT~1.FVL", 4, u64::MAX).unwrap(), MAGIC);
+    assert_eq!(
+        place.head("VAULT~1.FVL", 12, u64::MAX).unwrap(),
+        vault[..12]
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

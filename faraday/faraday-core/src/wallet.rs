@@ -1327,7 +1327,7 @@ impl From<FileKind> for Classified {
 /// tell: a PSBT is parsed once and a wallet file read once when a file
 /// comes in.
 pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
-    if faraday_vault::read_header(bytes).is_ok() {
+    if faraday_intake::is_vault(bytes) {
         return FileKind::Vault.into();
     }
     if bytes.starts_with(b"%PDF-") {

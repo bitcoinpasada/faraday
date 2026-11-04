@@ -3,9 +3,7 @@
 
 use crate::common::{parse, tools_vector};
 use faraday_bip::json::Value;
-use faraday_intake::{
-    Part, VAULT_MAGIC, file_words, is_kdbx, is_vault, looks_like_entries, part_of,
-};
+use faraday_intake::{Part, file_words, is_kdbx, is_vault, looks_like_entries, part_of};
 
 fn strings(v: &Value, key: &str) -> Vec<String> {
     v.get(key)
@@ -100,22 +98,37 @@ fn a_file_of_a_persons_notes_and_numbered_words_gives_the_words_alone() {
 }
 
 #[test]
-fn a_file_is_a_vault_or_a_keepass_database_by_how_it_begins() {
-    // The magic and one of the four vault lengths, whatever the name.
-    assert_eq!(VAULT_MAGIC, faraday_codec::vault_file::MAGIC);
-    let mut vault = VAULT_MAGIC.to_vec();
-    vault.resize(faraday_codec::vault_file::file_len(65_536), 0);
-    assert!(is_vault(&vault));
-    // The magic at another length is not a vault.
-    let mut other = VAULT_MAGIC.to_vec();
-    other.extend_from_slice(&[1, 2, 3]);
-    assert!(!is_vault(&other));
-    assert!(!is_vault(&vault[..vault.len() - 1]));
-    assert!(!is_vault(b"FVL"));
+fn a_file_is_a_vault_or_an_older_keepass_database_by_how_it_begins() {
+    let head = |major: u8| {
+        let mut v = faraday_codec::vault_file::SIGNATURE.to_vec();
+        v.extend_from_slice(&[1, 0, major, 0]);
+        v
+    };
+    // KDBX 4 of any length within a vault's limits, whatever the name.
+    for len in [350, 65_921, 70_000, 4_194_797] {
+        let mut vault = head(4);
+        vault.resize(len, 0);
+        assert!(is_vault(&vault), "{len}");
+        assert!(!is_kdbx(&vault), "{len}");
+    }
+    // A vault's head alone, or past the largest, is no vault but is KeePass's.
+    for len in [12, 300, 5_000_000] {
+        let mut file = head(4);
+        file.resize(len, 0);
+        assert!(!is_vault(&file), "{len}");
+        assert!(is_kdbx(&file), "{len}");
+    }
+    // Version 3.1 is KeePass's, not a vault.
+    let mut old = head(3);
+    old.resize(70_000, 0);
+    assert!(!is_vault(&old));
+    assert!(is_kdbx(&old));
+    // The four bytes FVLT began with no longer make a vault.
+    let mut fvlt = b"FVLT".to_vec();
+    fvlt.resize(65_921, 0);
+    assert!(!is_vault(&fvlt));
+    assert!(!is_kdbx(&fvlt));
     assert!(!is_vault(b"{\"wallet_type\": \"standard\"}"));
-    let kdbx = [0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5, 0, 0];
-    assert!(is_kdbx(&kdbx));
-    assert!(!is_kdbx(&vault));
 }
 
 #[test]

@@ -84,7 +84,7 @@ finds them.
 | `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
 | `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
-| `FileRead` | `faraday_files::vault_names`: four bytes of each file on a stick that has a vault's length and no `.fvlt` name, read once when a listing is made (`docs/VAULT-HARDENING.md` §2.1) |
+| `FileRead` | `faraday_files::vault_names`: twelve bytes of each file on a stick that has a vault's length and no `.kdbx` name, read once when a listing is made (`docs/VAULT-HARDENING.md` §2.1) |
 | Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
@@ -104,7 +104,7 @@ already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 | `faraday-core/src/drawing.rs`: `View::new` | `new(work::core_count)`, into a private field | Memo fills, kept values, `Allowed` |
 | `faraday-storage/src/lib.rs`: `Pictures::ask` | `new(\|_\| {})` | The pictures' worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own |
 | `faraday-disk/src/main.rs`: `pictures` and `main` | `new(\|_\| {})` | The disk process's pictures thread and its serving loop, which draw nothing |
-| `faraday/shells/desktop/src/lib.rs`: `Demo::sticks`, `faraday/shells/stick/src/main.rs`: `Shell::mounted_sticks` | `new(\|_\| {})` | The shells' look at the stick folders, which draws nothing; the listing reads four bytes of a file of a vault's length (`FileRead`) |
+| `faraday/shells/desktop/src/lib.rs`: `Demo::sticks`, `faraday/shells/stick/src/main.rs`: `Shell::mounted_sticks` | `new(\|_\| {})` | The shells' look at the stick folders, which draws nothing; the listing reads twelve bytes of a file of a vault's length (`FileRead`) |
 | `faraday/shells/snapshot/src/main.rs`: `main` | `new(\|_\| {})` | A tool |
 | `faraday/tools/argon2-bench/src/main.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
 | `faraday-core/src/worker.rs`: `worker_loop` | `new(work::core_count)` | The core's worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own and the counts it makes come home with each answer (`docs/WORKERS.md` §5) |

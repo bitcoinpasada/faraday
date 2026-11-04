@@ -773,10 +773,10 @@ impl Faraday {
         st: &StickInfo,
         chosen: bool,
     ) {
-        let fvlt: Vec<String> = st
+        let kdbx: Vec<String> = st
             .files
             .iter()
-            .filter(|(n, _)| n.to_ascii_lowercase().ends_with(".fvlt"))
+            .filter(|(n, _)| n.to_ascii_lowercase().ends_with(".kdbx"))
             .map(|(n, _)| n.clone())
             .collect();
         let mut r = Reading {
@@ -787,7 +787,7 @@ impl Faraday {
             make: st.make.clone(),
             serial: st.serial,
             listing: st.files.clone(),
-            pending: fvlt.clone(),
+            pending: kdbx.clone(),
             space_pending: false,
             free: None,
             files: Vec::new(),
@@ -823,7 +823,7 @@ impl Faraday {
             self.out.storage_out.push_back(StorageCommand::StickSpace {
                 stick: st.id.clone(),
             });
-            for name in fvlt {
+            for name in kdbx {
                 self.out.storage_out.push_back(StorageCommand::Read {
                     stick: st.id.clone(),
                     name,
