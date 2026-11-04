@@ -708,7 +708,8 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     let chart_has = |app: &mut Faraday, step: Step| {
         app.press(Action::Chart(C::Open(Press::Loaded(0), Target::Key(0))));
         crate::common::a_moment(app);
-        let offers = app.offers(Action::Chart(C::Do(Press::Loaded(0), step)));
+        // The sheet scrolls: a check row can sit below the fold.
+        let offers = offered(app, Action::Chart(C::Do(Press::Loaded(0), step)));
         app.press(Action::Cancel);
         offers
     };

@@ -38,6 +38,7 @@ fn screen(name: &str) -> Screen {
         "CreateVault" => S::CreateVault,
         "KeyGen" => S::KeyGen,
         "Bip85" => S::Bip85,
+        "Convert" => S::Convert,
         "Silent" => S::Silent,
         "Explore" => S::Explore,
         "Lightning" => S::Lightning,
