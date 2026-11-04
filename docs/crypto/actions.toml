@@ -1697,13 +1697,12 @@ places = [
 [[action]]
 id = "hashes-macs"
 name = "Hash and authenticate bytes"
-action = "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, expands a key with HKDF-Expand over SHA-256, and stretches a password with PBKDF2."
+action = "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, and stretches a password with PBKDF2."
 row = "hash-primitives"
 standards = [
   "FIPS 180-4",
   "RFC 2104",
   "RFC 4231",
-  "RFC 5869",
   "RFC 8018",
   "RFC 7914",
 ]
@@ -1714,7 +1713,6 @@ functions = [
   "core/faraday-crypto/src/hash.rs::sha256_whole",
   "core/faraday-crypto/src/hash.rs::hmac_sha512",
   "core/faraday-crypto/src/hash.rs::hmac_sha256",
-  "core/faraday-crypto/src/hash.rs::hkdf_sha256_expand",
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha512",
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha256",
   "core/faraday-crypto/src/hash.rs::pbkdf2_sha256",
@@ -1732,7 +1730,7 @@ libraries = [
   "hmac",
   "pbkdf2",
 ]
-adds = "Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token. HKDF-Expand (RFC 5869 §2.3) is written here over `hmac`, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness; it is checked against RFC 5869's test cases 1 to 3. The bip39 area reaches SHA-256 and PBKDF2-HMAC-SHA512 only; HMAC-SHA256, PBKDF2-HMAC-SHA256 and HKDF-Expand are checked by their RFCs' cases here."
+adds = "Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token. The bip39 area reaches SHA-256 and PBKDF2-HMAC-SHA512 only; HMAC-SHA256 and PBKDF2-HMAC-SHA256 are checked by their RFCs' cases here."
 
 [action.checked]
 tests = [
@@ -1741,8 +1739,6 @@ tests = [
   "core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_2",
   "core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_1",
   "core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_2",
-  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_rfc5869_cases",
-  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_refuses_more_than_255_blocks",
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha512_known_answer",
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers",
 ]
@@ -1761,6 +1757,60 @@ wiped = "The wrappers keep no state after they return; wiping an input is the ca
 [action.limits]
 lines = [
   "PBKDF2 here is HMAC-SHA256 or HMAC-SHA512 only.",
+]
+
+[action.review]
+fingerprint = "5dd113a169b2e1df5b08bbc1806a270f107bf2fde421e11978cfea56d4cf4d03"
+reviewed = "2026-11-03"
+places = [
+  "core/faraday-crypto/README.md",
+]
+
+[[action]]
+id = "hkdf"
+name = "Derive keys with HKDF"
+action = "Derives keys with HKDF over SHA-256, extracting under a salt and expanding, or expanding alone."
+row = "hash-primitives"
+standards = [
+  "RFC 5869",
+  "RFC 2104",
+  "FIPS 180-4",
+]
+learn = "tools"
+screens = []
+functions = [
+  "core/faraday-crypto/src/hash.rs::hkdf_sha256",
+  "core/faraday-crypto/src/hash.rs::hkdf_sha256_expand",
+]
+code = [
+  "core/faraday-crypto/src/hash.rs::hkdf_sha256",
+]
+
+[action.implementation]
+crate = "core/faraday-crypto"
+libraries = [
+  "hmac",
+]
+adds = "HKDF (RFC 5869) is written here over `hmac`: `hkdf_sha256` extracts under the salt into a pseudorandom key held in a wiped `Secret` and expands, for the QR vault's message, and `hkdf_sha256_expand` (§2.3) expands alone, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness. Both are checked against RFC 5869's test cases 1 to 3 and, in area `hash`, against PyCA's `HKDF` and `HKDFExpand`."
+
+[action.checked]
+tests = [
+  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_rfc5869_cases",
+  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_rfc5869_cases",
+  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_refuses_more_than_255_blocks",
+]
+crosscheck = "hash"
+independence = { class = "outside", author = "PyCA `cryptography`'s `HKDF` and `HKDFExpand` (OpenSSL)" }
+selftest = []
+fuzz_none = "Takes bytes from callers that parse their own input."
+
+[action.secrets]
+reveal = "none"
+constant_time = "not stated by the library"
+wiped = "The pseudorandom key is held in a wiped `Secret`; the output slice is the caller's to wipe."
+
+[action.limits]
+lines = [
   "HKDF-Expand makes at most 255 blocks of 32 bytes (RFC 5869 §2.3); a longer output is refused and nothing is written.",
 ]
 

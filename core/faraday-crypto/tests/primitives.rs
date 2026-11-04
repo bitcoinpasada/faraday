@@ -3,8 +3,8 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use faraday_crypto::{
-    HKDF_SHA256_MAX, Pinned, Secret, Zeroize, ZeroizeOnDrop, hkdf_sha256_expand, hmac_sha256,
-    hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, work::Compute,
+    HKDF_SHA256_MAX, Pinned, Secret, Zeroize, ZeroizeOnDrop, hkdf_sha256, hkdf_sha256_expand,
+    hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, work::Compute,
 };
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -234,6 +234,47 @@ fn hkdf_sha256_expand_rfc5869_cases() {
         let want = unhex(okm);
         let mut got = vec![0u8; want.len()];
         assert_eq!(hkdf_sha256_expand(&unhex(prk), info, &mut got), Some(()));
+        assert_eq!(got, want);
+    }
+}
+
+/// RFC 5869 Appendix A, test cases 1 to 3 (SHA-256) through the whole
+/// HKDF: salt, IKM and info to OKM. Case 3 has an empty salt.
+#[test]
+fn hkdf_sha256_rfc5869_cases() {
+    let ikm2: Vec<u8> = (0x00..=0x4f).collect();
+    let salt2: Vec<u8> = (0x60..=0xaf).collect();
+    let info2: Vec<u8> = (0xb0..=0xff).collect();
+    // Each case: IKM, salt, info and the OKM in hex.
+    type Case<'a> = (&'a [u8], &'a [u8], &'a [u8], &'a str);
+    let cases: [Case; 3] = [
+        (
+            &[0x0b; 22],
+            &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            &[0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9],
+            "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf\
+             34007208d5b887185865",
+        ),
+        (
+            &ikm2,
+            &salt2,
+            &info2,
+            "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c\
+             59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71\
+             cc30c58179ec3e87c14c01d5c1f3434f1d87",
+        ),
+        (
+            &[0x0b; 22],
+            b"",
+            b"",
+            "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d\
+             9d201395faa4b61a96c8",
+        ),
+    ];
+    for (ikm, salt, info, okm) in cases {
+        let want = unhex(okm);
+        let mut got = vec![0u8; want.len()];
+        assert_eq!(hkdf_sha256(salt, ikm, info, &mut got), Some(()));
         assert_eq!(got, want);
     }
 }

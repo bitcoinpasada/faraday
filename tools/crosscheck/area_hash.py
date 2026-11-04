@@ -4,7 +4,8 @@ Bitcoin Core's functional-test framework (`core/test_framework/`):
 Base58Check (`byte_to_base58`, `base58_to_byte`) and `segwit_addr.py`'s
 bech32 and bech32m (`bech32_encode`, `bech32_decode`, `convertbits`,
 `encode_segwit_address`, `decode_segwit_address`),
-with `hashlib` for SHA-256 and SHA-256d and `bytes.fromhex` for hex.
+with `hashlib` for SHA-256 and SHA-256d and `bytes.fromhex` for hex; and
+PyCA cryptography's `HKDFExpand` and `HKDF` (OpenSSL) for the one HKDF.
 
 - Published answers first: FIPS 180-4's SHA-256 examples, RIPEMD-160 of
   "abc", BIP-173's public key and its HASH160, the first valid address of
@@ -21,6 +22,12 @@ with `hashlib` for SHA-256 and SHA-256d and `bytes.fromhex` for hex.
   around it), truncated or made of random characters, read by both, and
   both must give the same encoding, bytes, version, human-readable part
   and checksum, or both refuse.
+- HKDF (RFC 5869 over SHA-256): RFC 5869's first test case, then random
+  keys, salts (none, empty and up to 100 bytes), infos and output lengths
+  from 0 to 255 blocks of 32 bytes (the edges 0, 1, 31, 32, 33, 8159,
+  8160 among them), `hkdf_sha256_expand` against `HKDFExpand` and
+  `hkdf_sha256` against `HKDF`; one byte past 255 blocks is refused by
+  both.
 - Hex: Faraday's rule (an even number of hex digits, nothing else) in
   front of `bytes.fromhex`, which also accepts spaces.
 
@@ -39,6 +46,9 @@ import pathlib
 import string
 
 from common import Area, use_reference
+
+from cryptography.hazmat.primitives import hashes as pyca_hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF, HKDFExpand
 
 use_reference("core")
 from test_framework.address import base58_to_byte, byte_to_base58  # noqa: E402
@@ -69,6 +79,19 @@ def ref_hashes(b):
     once = sha256(b)
     return {"len": len(b), "sha256": once.hex(), "sha256d": sha256(once).hex(),
             "hash160": ripemd160(once).hex()}
+
+
+def ref_hkdf_expand(prk, info, length):
+    """PyCA's HKDFExpand: a refusal past 255 blocks, as RFC 5869 §2.3 says."""
+    return HKDFExpand(algorithm=pyca_hashes.SHA256(), length=length,
+                      info=bytes(info)).derive(bytes(prk)).hex()
+
+
+def ref_hkdf(salt, ikm, info, length):
+    """PyCA's HKDF; salt None is no salt and b"" an empty one, each 32 zero
+    bytes (§2.2): the two are passed as themselves."""
+    return HKDF(algorithm=pyca_hashes.SHA256(), length=length, salt=salt,
+                info=bytes(info)).derive(bytes(ikm)).hex()
 
 
 def b58_decode_plain(text):
@@ -190,11 +213,12 @@ class Hash(Area):
     name = "hash"
     faraday = (
         '`faraday_bip::hashes` and `faraday_codec::encodings` (`read`, the writers and `from_hex`), '
-        'and `faraday_core::file_menu::sha256`'
+        '`faraday_core::file_menu::sha256`, and `faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`'
     )
     reference = (
         "Bitcoin Core v31.1's functional-test framework (`core/`): `ripemd160.py`, `address.py` and "
-        '`segwit_addr.py`, with `hashlib` for SHA-256 and `bytes.fromhex` for hex'
+        '`segwit_addr.py`, with `hashlib` for SHA-256 and `bytes.fromhex` for hex; PyCA cryptography\'s `HKDF` and '
+        '`HKDFExpand` (OpenSSL) for the one HKDF'
     )
     reference_checked = (
         "its vendored files are hashed against `references.sha256` before any run, and a "
@@ -250,6 +274,28 @@ class Hash(Area):
     def from_hex(self, text):
         return self.compare("hash.from_hex", {"text": text}, lambda: from_hex(text).hex())
 
+    def hkdf_expand(self, prk, info, length, expected=None):
+        return self.compare("hash.hkdf_expand",
+                            {"prk": prk.hex(), "info": info.hex(), "len": length},
+                            lambda: ref_hkdf_expand(prk, info, length), expected)
+
+    def hkdf(self, salt, ikm, info, length, expected=None):
+        return self.compare("hash.hkdf",
+                            {"salt": (salt or b"").hex(), "ikm": ikm.hex(), "info": info.hex(), "len": length},
+                            lambda: ref_hkdf(salt, ikm, info, length), expected)
+
+    def hkdf_case(self):
+        rng = self.rng
+        length = rng.choice([0, 1, 31, 32, 33, 8159, 8160, 8161, rng.randint(0, 8160),
+                             rng.randint(1, 200)])
+        info = self.randbytes(rng.choice([0, 1, 4, rng.randint(0, 100)]))
+        self.hkdf_expand(self.randbytes(rng.choice([32, 32, 33, 64, rng.randint(32, 100)])),
+                         info, length)
+        n = rng.choice([None, 0, 0, 13, 32, 64, rng.randint(0, 100)])
+        salt = None if n is None else self.randbytes(n)
+        self.hkdf(salt, self.randbytes(rng.choice([0, 1, 22, 32, rng.randint(0, 100)])),
+                  info, length)
+
     def published(self):
         for data, sha in [
             (b"", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
@@ -259,6 +305,13 @@ class Hash(Area):
         ]:
             if self.hashes(data)["sha256"] != sha:
                 raise AssertionError("SHA-256 differs from FIPS 180-4's example")
+        # RFC 5869 Appendix A, test case 1.
+        okm = ("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf"
+               "34007208d5b887185865")
+        self.hkdf(bytes(range(13)), bytes([0x0b] * 22), bytes(range(0xf0, 0xfa)), 42,
+                  ("ok", okm))
+        self.hkdf_expand(bytes.fromhex("077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844a"
+                                       "d7c2b3e5"), bytes(range(0xf0, 0xfa)), 42, ("ok", okm))
         if ripemd160(b"abc").hex() != "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc":
             raise AssertionError("the reference's RIPEMD-160 differs from the published answer")
         # BIP-173's public key and its HASH160.
@@ -315,6 +368,7 @@ class Hash(Area):
         rng = self.rng
         b = self.randbytes(self.sizes())
         self.hashes(b)
+        self.hkdf_case()
         # A segwit address Core's framework writes, of any version and of
         # every length that version allows.
         version = rng.choice([0, 0, 1, 1, rng.randint(2, 16)])

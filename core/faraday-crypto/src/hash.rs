@@ -1,6 +1,7 @@
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256, Sha512};
 
+use crate::Secret;
 use crate::work::{Compute, Work};
 
 /// SHA-256 of `data`: for small, fixed inputs (a key, a checksum's
@@ -22,6 +23,16 @@ pub fn hmac_sha512(key: &[u8], msg: &[u8]) -> [u8; 64] {
     let mut mac = Hmac::<Sha512>::new_from_slice(key).expect("HMAC accepts any key length");
     mac.update(msg);
     mac.finalize().into_bytes().into()
+}
+
+/// HKDF with SHA-256 (RFC 5869): HKDF-Extract, PRK = HMAC-SHA-256(`salt`,
+/// `ikm`) with an empty `salt` the same as 32 zero bytes, then
+/// [`hkdf_sha256_expand`] into `out`. The pseudorandom key is held in a
+/// [`Secret`] and wiped. `None`, with `out` untouched, when `out` is
+/// longer than [`HKDF_SHA256_MAX`].
+pub fn hkdf_sha256(salt: &[u8], ikm: &[u8], info: &[u8], out: &mut [u8]) -> Option<()> {
+    let prk = Secret::new(hmac_sha256(salt, ikm));
+    hkdf_sha256_expand(prk.expose(), info, out)
 }
 
 /// Costs a PBKDF2: `rounds` HMACs per 64 bytes of `out`. PBKDF2 with

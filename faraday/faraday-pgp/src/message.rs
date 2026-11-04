@@ -35,7 +35,7 @@ use aes::Aes128;
 use aes::Aes256;
 use argon2::Algorithm;
 use faraday_crypto::work::Compute;
-use faraday_crypto::{Secret, hkdf_sha256_expand, hmac_sha256};
+use faraday_crypto::{Secret, hkdf_sha256};
 use ocb3::AeadInOut;
 use ocb3::aead::inout::InOutBuf;
 use ocb3::consts::{U15, U16};
@@ -476,12 +476,6 @@ fn s2k(
     Ok(derived)
 }
 
-/// HKDF-SHA-256 (RFC 5869) into `out`.
-fn hkdf(salt: &[u8], ikm: &[u8], info: &[u8], out: &mut [u8]) {
-    let prk = Zeroizing::new(hmac_sha256(salt, ikm));
-    hkdf_sha256_expand(&*prk, info, out).expect("output within HKDF's bound");
-}
-
 /// The info the session key's key is derived with, and its associated data.
 fn skesk_info(cipher: Cipher) -> [u8; 4] {
     [0xC0 | TAG_SKESK, 6, cipher.id(), OCB]
@@ -490,12 +484,13 @@ fn skesk_info(cipher: Cipher) -> [u8; 4] {
 /// The key that wraps the session key (§5.3): HKDF of the S2K output.
 fn wrapping_key(cipher: Cipher, s2k_output: &[u8]) -> Zeroizing<[u8; 32]> {
     let mut kek = Zeroizing::new([0u8; 32]);
-    hkdf(
+    hkdf_sha256(
         &[],
         s2k_output,
         &skesk_info(cipher),
         &mut kek[..cipher.key_len()],
-    );
+    )
+    .expect("output within HKDF's bound");
     kek
 }
 
@@ -600,7 +595,7 @@ impl DataKeys {
         let info = [0xC0 | TAG_SEIPD, 2, cipher.id(), OCB, chunk_octet];
         let mut out = Zeroizing::new([0u8; 32 + OCB_PREFIX]);
         let n = cipher.key_len() + OCB_PREFIX;
-        hkdf(salt, session, &info, &mut out[..n]);
+        hkdf_sha256(salt, session, &info, &mut out[..n]).expect("output within HKDF's bound");
         let mut key = Zeroizing::new([0u8; 32]);
         key[..cipher.key_len()].copy_from_slice(&out[..cipher.key_len()]);
         let mut prefix = [0u8; OCB_PREFIX];

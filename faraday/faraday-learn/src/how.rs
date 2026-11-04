@@ -101,6 +101,19 @@ static AREA_CODEX32: Area = Area {
 };
 
 #[rustfmt::skip]
+static AREA_HASH: Area = Area {
+    area: "hash",
+    code: &[p("faraday_bip::hashes and faraday_codec::encodings (read, the writers and from_hex), faraday_core::file_menu::sha256, and faraday_crypto::hkdf_sha256 and hkdf_sha256_expand")],
+    second: &[p("Bitcoin Core v31.1's functional-test framework (core/): ripemd160.py, address.py and segwit_addr.py, with hashlib for SHA-256 and bytes.fromhex for hex; PyCA cryptography's HKDF and HKDFExpand (OpenSSL) for the one HKDF."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday; the order read tries the spellings in, the trimming of the text, hex as an even number of hex digits, plain Base58 (which Core's framework does not read; the area's own few lines) and which prefixes make a segwit address are Faraday's rules, written in the area in front of the reference."), w("The file hash is file_menu::sha256 over a whole byte slice (it reads in no buffer, so no read size is probed); the Files screen's reading of a file from a stick is the files areas'.")],
+    vectors: &[p("FIPS 180-4's SHA-256 examples, RIPEMD-160 of abc, BIP-173's key and its HASH160, Bitcoin Core's first key_io_valid.json address, BIP-173's and BIP-350's bech32 strings and their valid and invalid segwit addresses (tools/vectors/addresses).")],
+    random: &[p("Random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes written and read as Base58Check, Base58, bech32 and bech32m, Core's writing read by Faraday, segwit addresses of every version Core's framework writes, and texts changed, cut or made of random characters read by both.")],
+    differences: &[p("bech32 groups: a string that is not a segwit address of bc, tb or bcrt is read as bytes, all its data groups together, and the bits that do not fill a byte are dropped. BIP-173 has a padding rule only for a segwit address, so Core's convertbits, which applies it to any data, refuses some of these strings, and the area reads them as Faraday does."), p("bech32 length: Core's decoder refuses more than 90 characters (BIP-173); Faraday accepts any length the checksum covers. The area reads longer strings the same way.")],
+    when: &[p("Before every release, with a new seed and about ten times the cases.")],
+    seed: "faraday-crosscheck-1",
+    cases: 3000,
+};
+
+#[rustfmt::skip]
 static AREA_LIGHTNING: Area = Area {
     area: "lightning",
     code: &[p("faraday_bip::aezeed (ldk-node's and LND's node keys, the aezeed read)")],
@@ -189,19 +202,6 @@ static AREA_MUSIG: Area = Area {
     when: &[p("Before every release, with a new seed and about ten times the cases.")],
     seed: "faraday-crosscheck-1",
     cases: 32,
-};
-
-#[rustfmt::skip]
-static AREA_HASH: Area = Area {
-    area: "hash",
-    code: &[p("faraday_bip::hashes and faraday_codec::encodings (read, the writers and from_hex), and faraday_core::file_menu::sha256")],
-    second: &[p("Bitcoin Core v31.1's functional-test framework (core/): ripemd160.py, address.py and segwit_addr.py, with hashlib for SHA-256 and bytes.fromhex for hex."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday; the order read tries the spellings in, the trimming of the text, hex as an even number of hex digits, plain Base58 (which Core's framework does not read; the area's own few lines) and which prefixes make a segwit address are Faraday's rules, written in the area in front of the reference."), w("The file hash is file_menu::sha256 over a whole byte slice (it reads in no buffer, so no read size is probed); the Files screen's reading of a file from a stick is the files areas'.")],
-    vectors: &[p("FIPS 180-4's SHA-256 examples, RIPEMD-160 of abc, BIP-173's key and its HASH160, Bitcoin Core's first key_io_valid.json address, BIP-173's and BIP-350's bech32 strings and their valid and invalid segwit addresses (tools/vectors/addresses).")],
-    random: &[p("Random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes written and read as Base58Check, Base58, bech32 and bech32m, Core's writing read by Faraday, segwit addresses of every version Core's framework writes, and texts changed, cut or made of random characters read by both.")],
-    differences: &[p("bech32 groups: a string that is not a segwit address of bc, tb or bcrt is read as bytes, all its data groups together, and the bits that do not fill a byte are dropped. BIP-173 has a padding rule only for a segwit address, so Core's convertbits, which applies it to any data, refuses some of these strings, and the area reads them as Faraday does."), p("bech32 length: Core's decoder refuses more than 90 characters (BIP-173); Faraday accepts any length the checksum covers. The area reads longer strings the same way.")],
-    when: &[p("Before every release, with a new seed and about ten times the cases.")],
-    seed: "faraday-crosscheck-1",
-    cases: 3000,
 };
 
 #[rustfmt::skip]
@@ -445,7 +445,7 @@ static AREA_SILENT_SEND: Area = Area {
     second: &[p("BIP-374's reference.py (bip374/) and BIP-375's validator and test_runner.py (bip375/), over secp256k1lab; btclib's dleq.py and btclib-wallet's BIP-375 roles (btclib/, its own curve) answering beside them."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, the validator is required to give each of BIP-375's 43 vectors its published verdict and the reference to give each of BIP-374's rows its published answer.")],
     vectors: &[p("Both CSV files of tools/vectors/bip374/ and tools/vectors/bip375/bip375_test_vectors.json, each judged by btclib too.")],
     random: &[p("Proofs made and verified, damaged or not, under two generators; version 2 PSBTs of one to four inputs of every kind BIP-375 reads and some it does not, one to three silent payment outputs, shares added by one signer or two, a global share, and each finished PSBT damaged in one of eighteen ways, judged by the BIP's validator.")],
-    differences: &[p("BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH or P2WPKH input only where the input's script commits to it (F89); the validator takes the first key stated, so a PSBT it accepts with an unbound key is refused by Faraday."), p("BIP-375: Faraday accepts the scripts of a scan key's outputs numbered in sorted order of their spend keys, as the BIP's text says, and in output order, as its vectors do; the validator accepts output order only."), p("BIP-375: Faraday refuses an input whose redeem script is not the one its P2SH script hashes, and one whose previous transaction is not the one spent; the validator reads both fields without checking them."), p("BIP-375: btclib-wallet takes a taproot input's NUMS internal key as a reason to skip the input only against a proof (a merkle root or a control block that tweaks the NUMS point to the output key), and counts the input otherwise; Faraday and the validator skip on the claim. A PSBT with an unproved claim is not asked of btclib-wallet. The corpus also makes inputs whose claim is proved, which all three skip.")],
+    differences: &[p("BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH or P2WPKH input only where the input's script commits to it (F89); the validator takes the first key stated, so a PSBT it accepts with an unbound key is refused by Faraday."), p("BIP-375: Faraday accepts the scripts of a scan key's outputs numbered in sorted order of their spend keys, as the BIP's text says, and in output order, as its vectors do; the validator accepts output order only."), p("BIP-375: Faraday refuses an input whose redeem script is not the one its P2SH script hashes, and one whose previous transaction is not the one spent; the validator reads both fields without checking them."), p("BIP-375: btclib-wallet takes a taproot input's NUMS internal key as a reason to skip the input only against a proof (a merkle root or a control block that tweaks the NUMS point to the output key), and counts the input otherwise; Faraday and the validator skip on the claim. A PSBT with an unproved claim is not asked of btclib-wallet; the run prints how many PSBTs it judged and how many it was not asked. A proved claim only in a control block, with no internal key set, is not detected: btclib-wallet would skip the input, Faraday would count it, and the run would stop on it. The corpus also makes inputs whose claim is proved, which all three skip.")],
     when: &[p("Before every release, with a new seed and about ten times the cases.")],
     seed: "faraday-crosscheck-1",
     cases: 80,
@@ -659,15 +659,31 @@ pub static BLOCKS: &[Block] = &[
     Block {
         id: "hashes-macs",
         name: "Hash and authenticate bytes",
-        action: "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, expands a key with HKDF-Expand over SHA-256, and stretches a password with PBKDF2.",
-        standards: &[p("FIPS 180-4, Secure Hash Standard, Status not checked"), p("RFC 2104, HMAC: Keyed-Hashing for Message Authentication, Status not checked"), p("RFC 4231, Identifiers and Test Vectors for HMAC-SHA-224, HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512, Status not checked"), p("RFC 5869, HMAC-based Extract-and-Expand Key Derivation Function (HKDF), Informational"), p("RFC 8018, PKCS #5: Password-Based Cryptography Specification Version 2.1, Status not checked"), p("RFC 7914, The scrypt Password-Based Key Derivation Function, Status not checked")],
-        implementation: &[p("Library: sha2 0.11.0, by the RustCrypto developers."), p("Library: hmac 0.13.0, by the RustCrypto developers."), p("Library: pbkdf2 0.13.0, by the RustCrypto developers."), p("Faraday's code: core/faraday-crypto: Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token. HKDF-Expand (RFC 5869 §2.3) is written here over `hmac`, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness; it is checked against RFC 5869's test cases 1 to 3. The bip39 area reaches SHA-256 and PBKDF2-HMAC-SHA512 only; HMAC-SHA256, PBKDF2-HMAC-SHA256 and HKDF-Expand are checked by their RFCs' cases here.")],
-        checked: &[w("not checked against vectors"), m("core/faraday-crypto/tests/primitives.rs::sha256_known_answers"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_1"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_2"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_1"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_2"), m("core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_rfc5869_cases"), m("core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_refuses_more_than_255_blocks"), m("core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha512_known_answer"), m("core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers"), m("self-test bip39_vector"), w("no fuzz target: Takes bytes from callers that parse their own input")],
+        action: "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, and stretches a password with PBKDF2.",
+        standards: &[p("FIPS 180-4, Secure Hash Standard, Status not checked"), p("RFC 2104, HMAC: Keyed-Hashing for Message Authentication, Status not checked"), p("RFC 4231, Identifiers and Test Vectors for HMAC-SHA-224, HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512, Status not checked"), p("RFC 8018, PKCS #5: Password-Based Cryptography Specification Version 2.1, Status not checked"), p("RFC 7914, The scrypt Password-Based Key Derivation Function, Status not checked")],
+        implementation: &[p("Library: sha2 0.11.0, by the RustCrypto developers."), p("Library: hmac 0.13.0, by the RustCrypto developers."), p("Library: pbkdf2 0.13.0, by the RustCrypto developers."), p("Faraday's code: core/faraday-crypto: Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token. The bip39 area reaches SHA-256 and PBKDF2-HMAC-SHA512 only; HMAC-SHA256 and PBKDF2-HMAC-SHA256 are checked by their RFCs' cases here.")],
+        checked: &[w("not checked against vectors"), m("core/faraday-crypto/tests/primitives.rs::sha256_known_answers"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_1"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_2"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_1"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_2"), m("core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha512_known_answer"), m("core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers"), m("self-test bip39_vector"), w("no fuzz target: Takes bytes from callers that parse their own input")],
         cross_check: CrossCheck::Area(&AREA_BIP39),
         independence: &[p("Compared with others' code: python-mnemonic, by Trezor (SatoshiLabs), and Python's hashlib and hmac (OpenSSL).")],
         code: &[c("core/faraday-crypto/src/hash.rs", "sha256"), c("core/faraday-crypto/src/hash.rs", "hmac_sha512"), c("core/faraday-crypto/src/hash.rs", "pbkdf2_hmac_sha512")],
         secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("The wrappers keep no state after they return; wiping an input is the caller's; the sha2 and hmac crates are built with their zeroize feature.")],
-        limits: &[p("PBKDF2 here is HMAC-SHA256 or HMAC-SHA512 only."), p("HKDF-Expand makes at most 255 blocks of 32 bytes (RFC 5869 §2.3); a longer output is refused and nothing is written.")],
+        limits: &[p("PBKDF2 here is HMAC-SHA256 or HMAC-SHA512 only.")],
+        own_calls: &[p("none")],
+        screens: &[],
+        learn: "tools",
+    },
+    Block {
+        id: "hkdf",
+        name: "Derive keys with HKDF",
+        action: "Derives keys with HKDF over SHA-256, extracting under a salt and expanding, or expanding alone.",
+        standards: &[p("RFC 5869, HMAC-based Extract-and-Expand Key Derivation Function (HKDF), Informational"), p("RFC 2104, HMAC: Keyed-Hashing for Message Authentication, Status not checked"), p("FIPS 180-4, Secure Hash Standard, Status not checked")],
+        implementation: &[p("Library: hmac 0.13.0, by the RustCrypto developers."), p("Faraday's code: core/faraday-crypto: HKDF (RFC 5869) is written here over `hmac`: `hkdf_sha256` extracts under the salt into a pseudorandom key held in a wiped `Secret` and expands, for the QR vault's message, and `hkdf_sha256_expand` (§2.3) expands alone, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness. Both are checked against RFC 5869's test cases 1 to 3 and, in area `hash`, against PyCA's `HKDF` and `HKDFExpand`.")],
+        checked: &[w("not checked against vectors"), m("core/faraday-crypto/tests/primitives.rs::hkdf_sha256_rfc5869_cases"), m("core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_rfc5869_cases"), m("core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_refuses_more_than_255_blocks"), w("no fuzz target: Takes bytes from callers that parse their own input")],
+        cross_check: CrossCheck::Area(&AREA_HASH),
+        independence: &[p("Compared with others' code: PyCA cryptography's HKDF and HKDFExpand (OpenSSL).")],
+        code: &[c("core/faraday-crypto/src/hash.rs", "hkdf_sha256")],
+        secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("The pseudorandom key is held in a wiped `Secret`; the output slice is the caller's to wipe.")],
+        limits: &[p("HKDF-Expand makes at most 255 blocks of 32 bytes (RFC 5869 §2.3); a longer output is refused and nothing is written.")],
         own_calls: &[p("none")],
         screens: &[],
         learn: "tools",

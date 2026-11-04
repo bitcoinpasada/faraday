@@ -1,8 +1,8 @@
 # Established implementations first
 
 **Kind:** Spec
-**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the second curve lineage beside Core for the vanity search's child keys and for sweep-sign and wif-read (§9.3; batch X13), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4, batch X14), btclib for PSBTs, transactions, signature hashes and control blocks (§9.4, batch X15), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), hex from base16ct in `faraday_crypto::hex` (§5.11, batch C9, but for the cross-check change X4), the documentation fixes of §7 (batch B1), the cross-check's descriptors and miniscript judges for address, descriptor and recovery (§9.4, batch X18) and the quiz's seed from the session's generator (§5.16), btclib's change rule judging psbt-review (§9.4, batch X16) and Core's watch-only descriptor wallet beside it (batch X17), aezeed's software-round pass (§9.4, batch X29), area `compile` for the policy compiler (§9.4, batch X20), area `sign-check` for the signatures a PSBT carries (§9.4, batch X19), area `import` reading the real wallet files the wallets' own test suites publish (§9.4, batch X30), krux's numbered parts and Coinkite's BBQr test files judging area `bbqr` (§9.4, batch X23), the Starter's decoder, tables, property lists and GUIDs judged by `xz`, 7-Zip, `sgdisk`, `plistlib` and `uuid` (§9.4, batch X28), and zbar and zxing-cpp decoding every QR picture Faraday writes with segno as a second encoder, in area `seedqr` (§9.4, batch X21), and Sequoia's `sq` over Nettle reading every GPG certificate Faraday writes and verifying every signature, with its signatures among gpg-verify's fixtures (§9.4, batch X24), and area `hash` judging the hashes, Base58Check, bech32 and hex text and the file hash with Core's framework and `hashlib` (§9.4, first half of batch X27), and `zlib.crc32` and cbor2 judging the one CRC-32 and the one CBOR in area `ur` and the GPT's CRC fields in the Starter's tests (§9.4, batch X12; its HKDF-Expand part is still open)
-**Open:** the timing fixes of §4.4 to §4.7; the switches (§5) but for the finalizer (§5.8); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30, X3, X13 to X21, X23, X24, X28, X29 and X30 excepted)
+**Status:** Specified (F178, F180, F181, F190, F191, F192, F193); built: AEZ's AES round from the aes crate (§4.2, §5.3), BLAKE2b from the blake2 crate (§5.1), the sealing's counter nonce removed (§5.9), the Secure Boot keys' generator from the chacha20 crate's ChaCha20Rng (§5.6), X.509 from x509-cert and DER from der, judged by certtool, pesigcheck and real signed binaries (§5.7; batches C5 and X2), SLIP-39's GF(256) and checksum without a branch (§4.3), the scalar arithmetic on secrets in Faraday's own branch-free form and then through libsecp256k1 (§4.1; batch A1), the single-key and multisig finalizer from miniscript with btclib's finalizer beside Core in area `sign` (§5.8; batches C6 and X3), the second curve lineage beside Core for the vanity search's child keys and for sweep-sign and wif-read (§9.3; batch X13), the descriptor checksum from miniscript (§5.12), the PNG writer's Adler-32 from `adler2` (§5.14; batch C12), the cross-check's outside judge btcd v0.27.0 for `hdkeychain` and control blocks (§9.4, batch X14), btclib for PSBTs, transactions, signature hashes and control blocks (§9.4, batch X15), the JSON reader from `serde_json` behind Faraday's visitor (§5.13; batch C11), the inventory's name matching (§2.5), the FAT32 formatter (§3.2), base64 from base64ct (§5.10, batch C8), hex from base16ct in `faraday_crypto::hex` (§5.11, batch C9, but for the cross-check change X4), the documentation fixes of §7 (batch B1), the cross-check's descriptors and miniscript judges for address, descriptor and recovery (§9.4, batch X18) and the quiz's seed from the session's generator (§5.16), btclib's change rule judging psbt-review (§9.4, batch X16) and Core's watch-only descriptor wallet beside it (batch X17), aezeed's software-round pass (§9.4, batch X29), area `compile` for the policy compiler (§9.4, batch X20), area `sign-check` for the signatures a PSBT carries (§9.4, batch X19), area `import` reading the real wallet files the wallets' own test suites publish (§9.4, batch X30), krux's numbered parts and Coinkite's BBQr test files judging area `bbqr` (§9.4, batch X23), the Starter's decoder, tables, property lists and GUIDs judged by `xz`, 7-Zip, `sgdisk`, `plistlib` and `uuid` (§9.4, batch X28), and zbar and zxing-cpp decoding every QR picture Faraday writes with segno as a second encoder, in area `seedqr` (§9.4, batch X21), and Sequoia's `sq` over Nettle reading every GPG certificate Faraday writes and verifying every signature, with its signatures among gpg-verify's fixtures (§9.4, batch X24), and area `hash` judging the hashes, Base58Check, bech32 and hex text and the file hash with Core's framework and `hashlib` (§9.4, first half of batch X27), and `zlib.crc32` and cbor2 judging the one CRC-32 and the one CBOR in area `ur` and the GPT's CRC fields in the Starter's tests (§9.4, batch X12), the one HKDF in `faraday-crypto` (`hkdf_sha256` beside `hkdf_sha256_expand`, §5.17) used by the QR vault's message, and PyCA's `HKDFExpand` and `HKDF` judging both in area `hash` (§9.4, batch X12's last part), which closes batch C15's one copy of each kept piece (§5.17)
+**Open:** the timing fixes of §4.4 to §4.7; the switches (§5) but for the finalizer (§5.8); the reasons in the manifest and their check (§2); the generated lists (§3); the wording of §7.5, which follows at D1; the cross-check's outside sources (§9, batches X1 to X30, X3, X12, X13 to X21, X23, X24, X28, X29 and X30 excepted)
 
 Faraday uses an established implementation wherever one exists for what
 it needs, and writes its own only where none exists or none fits its
@@ -1004,7 +1004,7 @@ on) but returns the pseudorandom key as a plain `Output<H>`
 `Option<Output<H>>` it does not wipe; for a 32-byte output T(1) is the
 key. Faraday's code holds the key in `Secret` and T in `Zeroizing`. A
 change that wipes them is proposed to RustCrypto/KDFs, as for scrypt;
-§6.7 says when the switch is made. The two copies become one in batch
+§6.7 says when the switch is made. The two copies became one in batch
 C15 (§5.17). F178's trust entry for `hkdf` is not written.
 
 ### 5.3 AEZ's AES round (built)
@@ -1446,6 +1446,8 @@ was built from.
 
 ### 5.17 One copy of each kept piece (batch C15)
 
+Built; nothing is open.
+
 The pieces §3 keeps are each in one place:
 
 - **GF(32) and the bech32 alphabet.** `faraday-bip` exports its
@@ -1476,15 +1478,18 @@ The pieces §3 keeps are each in one place:
   `faraday-codec` (`src/cbor.rs`, built), which `faraday-qr` uses.
 - **PDF text.** `faraday/faraday-core/src/pdf.rs`'s `pdf_text` and the
   Starter's narrower copy in `sheets.rs` become one, `faraday-core`'s.
-- **HKDF.** `faraday/faraday-pgp/src/message.rs`'s `hkdf`, an extract
-  through `faraday_crypto::hmac_sha256` before `hkdf_sha256_expand`,
-  becomes `faraday_crypto::hkdf_sha256(salt, ikm, info, out: &mut
-  Secret<..>)` beside `hkdf_sha256_expand`, the pseudorandom key in a
-  `Secret`; the message calls it with the salts it uses today. The FVLT
+- **HKDF (built).** `faraday/faraday-pgp/src/message.rs`'s `hkdf`, an
+  extract through `faraday_crypto::hmac_sha256` before
+  `hkdf_sha256_expand`, is `faraday_crypto::hkdf_sha256(salt, ikm, info,
+  out: &mut [u8])` beside `hkdf_sha256_expand`, the pseudorandom key in
+  a `Secret`; the message calls it with the salts it uses today. `out` is
+  a plain slice, as the expand's is: both callers fill a sub-slice of a
+  buffer they wipe, which a `Secret` would copy. The FVLT
   container's own `hkdf_sha256` (`faraday/faraday-vault/src/lib.rs`)
   goes with that container when F190's vault replaces it and is not
-  moved. RFC 5869's cases move to
-  `core/faraday-crypto/tests/primitives.rs`.
+  moved. RFC 5869's cases 1 to 3 run through the whole function in
+  `core/faraday-crypto/tests/primitives.rs`; the FVLT container's own test
+  keeps its copy's case 3.
 
 **Proof.** The tests of every crate touched; the Starter's stick and
 card tests (`tests/all/sticks.rs` in its shell); `tools/vectors/ur`,
@@ -1767,7 +1772,7 @@ Reference's list of conditions.
 | C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
 | C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, which F190's vault replaces) | §5.15, §9.7 | Built, with X7 in area `kdbx` (the vault area's KDBX vault and QR vault wait for `docs/VAULT.md` §10) |
 | C14 | The quiz's seed from the session's generator | §5.16 | Built |
-| C15 | One copy of each kept piece; with X12 (open only for HKDF) | §5.17, §9.7 | About 1 day, and X12's |
+| C15 | One copy of each kept piece; with X12 | §5.17, §9.7 | Built, with X12 |
 | D1 | Schema 5: `written_here` as entries with `why`, `note`, `decision`; `[[not_established]]` for lzma-rust2 and rqrr; getrandom's trust entry; `check.py` (§1.2's three ways, the version checked) and `gen.py`; AUDIT §3 grouped; STANDARDS §10 generated and §0's bullet; the counts; `crypto.established` made active; the manifest's entries filled as §3 | §1.2, §1.4, §2, §3 | 1 to 1.5 days |
 | E1 | The FAT32 formatter in faraday-fat, its `written_here` entry and the count raised under F180 | §3.2 | Built, with the Windows stick work |
 | X1 | The cross-check's judges required in `just crosscheck` (§9.2, rule 4) | §9.7 | 1 to 1.5 days |
@@ -1956,7 +1961,8 @@ not at all).
 | stick-write, outbox | Own text lines, FAT writer and PNG writer | FAT read by mtools and dosfstools in tests (required in `just crosscheck`, X1) | each PNG read by Pillow and zlib (X6); each picture decoded by zbar and zxing-cpp and its payload compared with the key's words (X21, built: the stick's labelled picture of the key's SeedQR and CompactSeedQR and of a codex32 share), in area `seedqr` | none | outside |
 | ur | Own; one CRC-32 and one CBOR (C15) | foundation-ur-py | `zlib.crc32` against the one CRC-32; cbor2 for the registry types' and the parts' CBOR (X12, built: `zlib.crc32` over random messages and the parts' checksum field; cbor2 reading the parts, the single-part payloads and the registry types built with it, `account_cbor`'s output, and random and mutated CBOR beside Faraday's reader, in `tools/crosscheck/ur_cbor.py`) | none | outside |
 | bbqr | Own; miniz_oxide; hex through base16ct (C9) | Coinkite's BBQr Python, SeedSigner's numbered-part reader | krux's `qr.py` and `bbqr.py` (v26.09.0) writing numbered parts and reading them; Coinkite's test files as vectors (X23, built: `tools/reference/krux/`, `tools/vectors/bbqr/`) | the writing of numbered parts retired to krux; the refusals and the capacity shim kept | outside-and-own |
-| hashes-macs | sha2, hmac, pbkdf2; HKDF-Expand Faraday's, one copy (C15) | python-mnemonic, `hashlib` | `hashlib` and `hmac` over random HMAC-SHA256 and PBKDF2-HMAC-SHA256 (X27); PyCA's `HKDFExpand` over random keys, info and lengths up to 255 blocks (X12) | none | outside |
+| hashes-macs | sha2, hmac, pbkdf2 | python-mnemonic, `hashlib` | `hashlib` and `hmac` over random HMAC-SHA256 and PBKDF2-HMAC-SHA256 (X27) | none | outside |
+| hkdf | HKDF over SHA-256 Faraday's, one copy (C15) | PyCA's `cryptography` | PyCA's `HKDFExpand` over random keys, info and lengths up to 255 blocks, and PyCA's `HKDF` over random salts (none, empty and up to 100 bytes), keys and infos (X12, built, in area `hash`: RFC 5869's first case, then lengths from 0 to 255 blocks and one past, both refused) | none | outside |
 | scrypt | Own (§3.3) | LND, over Go's x/crypto | `hashlib.scrypt` over random N, r, p and lengths (X27) | none | outside |
 | tools-hash, file-hash | bitcoin (Base58, bech32, RIPEMD-160), sha2; hex through base16ct (C9) | none (published vectors in tests) | Built (first half of X27): area `hash`: Core's framework's `ripemd160.py`, `address.py` and `segwit_addr.py`, `hashlib`, `bytes.fromhex`, SHA-256 of random files across block boundaries (the file hash reads no buffer: it hashes the whole slice); the self-comparing Base58Check assertion replaced. Two stated differences, for bech32 text that is not a segwit address: Faraday reads all its data groups and drops the bits left over, and reads it longer than 90 characters; plain Base58 is read by the area's own lines (X27) | none | outside |
 | address, descriptor | miniscript (its checksum, C10), bitcoin | Core, BIP-380's checksum code, python-bip380, btclib's keys | btclib-wallet's descriptors and miniscript: the script at an index, the parse, the type, the round trip (X18, built) | none | outside |
@@ -2063,7 +2069,7 @@ they were not, the batch checks them first.
 | X7 | `python3-cryptography` 44 or later, over OpenSSL 3.2 or later (checked on the build machine, 2026-11-03: 46.0.5 over OpenSSL 3.5.5) | none |
 | X10 | none | rust-codex32 at commit `3943cb52b2343333386fac0cd38b8ae5a4d6de02` (CC0 1.0; its `Cargo.toml` has no dependency), built offline outside the workspace; volvelle's worksheet program is in `tools/vectors/codex32-volvelle/` already (CC0 1.0) |
 | X11 | none | the bip39_slip39 wheel, 2026.10.24, beside btclib's |
-| X12 | `python3-cbor2` (PyCA's HKDF-Expand needs the package already named for X7) | none |
+| X12 | `python3-cbor2`; PyCA's `cryptography`, already named for X7, judges the HKDF | none |
 | X14 | none | a released btcd's modules (`btcutil`, `txscript`, `btcec` and what they name; the root daemon module is not used), `go mod vendor`, in a folder of their own; built |
 | X21 | `python3-segno`, `zbar-tools`, `python3-zxing-cpp` | none |
 | X22 | none | SeedSigner's `helpers/mnemonic_generation.py`, at the commit `tools/reference/seedsigner/` has |
@@ -2103,7 +2109,7 @@ a switch lands in that switch's commit (rule 6).
 | X9 | A7 | btclib's BIP-352, BIP-374 and BIP-375 in areas `sp` and `sps` | 1.5 to 2 days |
 | X10 | A4 | rust-codex32 and volvelle's worksheet program; the threshold rule and the 48- and 74-character rows retired | about 2 days |
 | X11 | A5 | bip39_slip39 vendored, in areas `bip39`, `slip39` and `bip85` | 1 to 1.5 days |
-| X12 | C15 | `zlib.crc32`, cbor2 and PyCA's `HKDFExpand` against the one CRC-32, CBOR and HKDF-Expand. Built: `zlib.crc32` and cbor2 (area `ur`, and the Starter's GPT CRCs); open: PyCA's `HKDFExpand`, which waits for the one HKDF | about 1 day |
+| X12 | C15 | `zlib.crc32`, cbor2 and PyCA's `HKDFExpand` against the one CRC-32, CBOR and HKDF-Expand. Built: `zlib.crc32` and cbor2 (area `ur`, and the Starter's GPT CRCs), and PyCA's `HKDFExpand` and `HKDF` (area `hash`) over the one HKDF | about 1 day |
 | X13 | alone | rule 2 (built): vanity's child keys by btclib; sweep-sign and wif-read judged on btclib's curve and by python-ecdsa; Core named as sharing the curve | 1 to 1.5 days |
 | X14 | alone | a released btcd vendored; `hdkeychain` for master, derive and xprv-shown; btcd's control-block check for tapmulti. Built: btcd v0.27.0 in `tools/reference/btcd/`; master's strict reader is kept (§9.4) | 1.5 to 2 days |
 | X15 | alone | btclib in place of Faraday's second version for psbt-read, psbt-v2, sighash-review, tx-decode and tapmulti; Core's `decoderawtransaction`. Built: psbt-read and psbt-v2 (area `psbt`, with `psbt.v0` and `psbt.v2` in the self-test), sighash-review, tx-decode (area `tx`, with `tx.read` and `tx.sighash`) and tapmulti (area `taproot`, with `taproot.verify`) | Built |

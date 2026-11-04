@@ -1,6 +1,7 @@
 //! The Hashes and Encodings calculators: SHA-256, SHA-256d and HASH160
 //! (`faraday_bip::hashes`), the text encodings (`faraday_codec::encodings`)
-//! and the SHA-256 of a whole file (`faraday_core::file_menu::sha256`).
+//! the SHA-256 of a whole file (`faraday_core::file_menu::sha256`), and
+//! the one HKDF (`faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`).
 
 use faraday_bip::hashes::hashes;
 use faraday_codec::encodings::{self, Encoding};
@@ -18,6 +19,10 @@ fn encoding_name(e: Encoding) -> &'static str {
         Encoding::Bech32m => "bech32m",
         Encoding::Hex => "hex",
     }
+}
+
+fn len(req: &Value) -> usize {
+    req["len"].as_u64().expect("len") as usize
 }
 
 /// Handles `hash.<name>`.
@@ -71,6 +76,25 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "from_hex" => {
             let b = encodings::from_hex(text(req, "text")).ok_or("not hex")?;
             Ok(json!(hex(&b)))
+        }
+        // HKDF-Expand from a pseudorandom key: `len` bytes, or a refusal.
+        "hkdf_expand" => {
+            let mut out = vec![0u8; len(req)];
+            faraday_crypto::hkdf_sha256_expand(&bytes(req, "prk"), &bytes(req, "info"), &mut out)
+                .ok_or("longer than 255 blocks")?;
+            Ok(json!(hex(&out)))
+        }
+        // The whole HKDF: extract under the salt, then expand.
+        "hkdf" => {
+            let mut out = vec![0u8; len(req)];
+            faraday_crypto::hkdf_sha256(
+                &bytes(req, "salt"),
+                &bytes(req, "ikm"),
+                &bytes(req, "info"),
+                &mut out,
+            )
+            .ok_or("longer than 255 blocks")?;
+            Ok(json!(hex(&out)))
         }
         _ => Err(format!("unknown hash op {name}")),
     }
