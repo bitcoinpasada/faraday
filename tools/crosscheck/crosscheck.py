@@ -73,7 +73,7 @@ AREAS = {
     "codex32-correct": ("area_codex32_correct", "Codex32Correct", "codex32.correct", 120),
     "xor": ("area_xor", "Xor", "xor.combine", 350),
     "hash": ("area_hash", "Hash", ("hash.hashes", "hash.file", "hash.read", "hash.write", "hash.from_hex",
-                "hash.hkdf_expand", "hash.hkdf"), 60),
+                "hash.hkdf_expand", "hash.hkdf", "hash.hmac", "hash.pbkdf2", "hash.scrypt"), 60),
     "vault": ("area_vault", "Vault", "vault.open", 320),
     "bip39": ("area_bip39", "Bip39", "bip39.seed", 740),
     "bip32": ("area_bip32", "Bip32", "bip32.derive", 340),

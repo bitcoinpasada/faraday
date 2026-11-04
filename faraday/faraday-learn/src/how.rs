@@ -103,27 +103,14 @@ static AREA_CODEX32: Area = Area {
 #[rustfmt::skip]
 static AREA_HASH: Area = Area {
     area: "hash",
-    code: &[p("faraday_bip::hashes and faraday_codec::encodings (read, the writers and from_hex), faraday_core::file_menu::sha256, and faraday_crypto::hkdf_sha256 and hkdf_sha256_expand")],
-    second: &[p("Bitcoin Core v31.1's functional-test framework (core/): ripemd160.py, address.py and segwit_addr.py, with hashlib for SHA-256 and bytes.fromhex for hex; PyCA cryptography's HKDF and HKDFExpand (OpenSSL) for the one HKDF."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday; the order read tries the spellings in, the trimming of the text, hex as an even number of hex digits, plain Base58 (which Core's framework does not read; the area's own few lines) and which prefixes make a segwit address are Faraday's rules, written in the area in front of the reference."), w("The file hash is file_menu::sha256 over a whole byte slice (it reads in no buffer, so no read size is probed); the Files screen's reading of a file from a stick is the files areas'.")],
+    code: &[p("faraday_bip::hashes and faraday_codec::encodings (read, the writers and from_hex), faraday_core::file_menu::sha256, and faraday_crypto::hkdf_sha256 and hkdf_sha256_expand, hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512 and scrypt")],
+    second: &[p("Bitcoin Core v31.1's functional-test framework (core/): ripemd160.py, address.py and segwit_addr.py, with hashlib for SHA-256 and bytes.fromhex for hex; PyCA cryptography's HKDF and HKDFExpand (OpenSSL) for the one HKDF; hmac, hashlib.pbkdf2_hmac and hashlib.scrypt (OpenSSL) for HMAC, PBKDF2 and scrypt."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, and a published vector's answer is required of the reference as well as of Faraday; the order read tries the spellings in, the trimming of the text, hex as an even number of hex digits, plain Base58 (which Core's framework does not read; the area's own few lines) and which prefixes make a segwit address are Faraday's rules, written in the area in front of the reference."), w("The file hash is file_menu::sha256 over a whole byte slice (it reads in no buffer, so no read size is probed); the Files screen's reading of a file from a stick is the files areas'.")],
     vectors: &[p("FIPS 180-4's SHA-256 examples, RIPEMD-160 of abc, BIP-173's key and its HASH160, Bitcoin Core's first key_io_valid.json address, BIP-173's and BIP-350's bech32 strings and their valid and invalid segwit addresses (tools/vectors/addresses).")],
     random: &[p("Random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes written and read as Base58Check, Base58, bech32 and bech32m, Core's writing read by Faraday, segwit addresses of every version Core's framework writes, and texts changed, cut or made of random characters read by both.")],
     differences: &[p("bech32 groups: a string that is not a segwit address of bc, tb or bcrt is read as bytes, all its data groups together, and the bits that do not fill a byte are dropped. BIP-173 has a padding rule only for a segwit address, so Core's convertbits, which applies it to any data, refuses some of these strings, and the area reads them as Faraday does."), p("bech32 length: Core's decoder refuses more than 90 characters (BIP-173); Faraday accepts any length the checksum covers. The area reads longer strings the same way.")],
     when: &[p("Before every release, with a new seed and about ten times the cases.")],
     seed: "faraday-crosscheck-1",
     cases: 3000,
-};
-
-#[rustfmt::skip]
-static AREA_LIGHTNING: Area = Area {
-    area: "lightning",
-    code: &[p("faraday_bip::aezeed (ldk-node's and LND's node keys, the aezeed read)")],
-    second: &[p("LND's own code, vendored in Go (tools/reference/lnd/: its aezeed package over Yawning Angel's aez, and the node key over btcd's hdkeychain), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as tools/reference/aezeed/README.md quotes it, written out in area_lightning.py over btclib's BIP-32 (btclib/, on btclib's own curve)."), p("Checked first: LND's code reads the aezeed (wordlist, version, CRC-32C, scrypt, AEZ) and derives the node key, and its published answers (tools/vectors/aezeed/) are required of it as well as of Faraday; the Go program is built offline from the vendored tree (GOFLAGS=-mod=vendor, GOTOOLCHAIN=local) and its version is written into the stamp; the area stops when the program is missing; the software-round pass runs only on programs soft.py has checked to be soft (the tags noasm and purego; no AES-NI instruction in Faraday's command) and the command says it was built soft; ldk-node's derivation is written in the area from the sources the README quotes, and ldk's published answers are required of it as well as of Faraday."), w("ldk-node's node key is compared with a derivation written here, not with ldk's code (Rust, not vendored): only ldk's five published answers are outside it; LND's key path numbers are written in the Go program from keychain/derivation.go, as LND derives through btcwallet, which is not vendored.")],
-    vectors: &[p("LND's five cipher seeds, LND's two node keys, ldk's five node ids (tools/vectors/aezeed/).")],
-    random: &[p("Random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code.")],
-    differences: &[p("None known.")],
-    when: &[p("Before every release, with a new seed and about ten times the cases.")],
-    seed: "faraday-crosscheck-1",
-    cases: 400,
 };
 
 #[rustfmt::skip]
@@ -267,6 +254,19 @@ static AREA_VANITY: Area = Area {
     when: &[p("Before every release, with a new seed and about ten times the cases.")],
     seed: "faraday-crosscheck-1",
     cases: 200,
+};
+
+#[rustfmt::skip]
+static AREA_LIGHTNING: Area = Area {
+    area: "lightning",
+    code: &[p("faraday_bip::aezeed (ldk-node's and LND's node keys, the aezeed read)")],
+    second: &[p("LND's own code, vendored in Go (tools/reference/lnd/: its aezeed package over Yawning Angel's aez, and the node key over btcd's hdkeychain), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as tools/reference/aezeed/README.md quotes it, written out in area_lightning.py over btclib's BIP-32 (btclib/, on btclib's own curve)."), p("Checked first: LND's code reads the aezeed (wordlist, version, CRC-32C, scrypt, AEZ) and derives the node key, and its published answers (tools/vectors/aezeed/) are required of it as well as of Faraday; the Go program is built offline from the vendored tree (GOFLAGS=-mod=vendor, GOTOOLCHAIN=local) and its version is written into the stamp; the area stops when the program is missing; the software-round pass runs only on programs soft.py has checked to be soft (the tags noasm and purego; no AES-NI instruction in Faraday's command) and the command says it was built soft; ldk-node's derivation is written in the area from the sources the README quotes, and ldk's published answers are required of it as well as of Faraday."), w("ldk-node's node key is compared with a derivation written here, not with ldk's code (Rust, not vendored): only ldk's five published answers are outside it; LND's key path numbers are written in the Go program from keychain/derivation.go, as LND derives through btcwallet, which is not vendored.")],
+    vectors: &[p("LND's five cipher seeds, LND's two node keys, ldk's five node ids (tools/vectors/aezeed/).")],
+    random: &[p("Random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code.")],
+    differences: &[p("None known.")],
+    when: &[p("Before every release, with a new seed and about ten times the cases.")],
+    seed: "faraday-crosscheck-1",
+    cases: 400,
 };
 
 #[rustfmt::skip]
@@ -676,8 +676,8 @@ pub static BLOCKS: &[Block] = &[
         standards: &[p("FIPS 180-4, Secure Hash Standard, Status not checked"), p("RFC 2104, HMAC: Keyed-Hashing for Message Authentication, Status not checked"), p("RFC 4231, Identifiers and Test Vectors for HMAC-SHA-224, HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512, Status not checked"), p("RFC 8018, PKCS #5: Password-Based Cryptography Specification Version 2.1, Status not checked"), p("RFC 7914, The scrypt Password-Based Key Derivation Function, Status not checked")],
         implementation: &[p("Library: sha2 0.11.0, by the RustCrypto developers."), p("Library: hmac 0.13.0, by the RustCrypto developers."), p("Library: pbkdf2 0.13.0, by the RustCrypto developers."), p("Faraday's code: core/faraday-crypto: Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token. The bip39 area reaches SHA-256 and PBKDF2-HMAC-SHA512 only; HMAC-SHA256 and PBKDF2-HMAC-SHA256 are checked by their RFCs' cases here.")],
         checked: &[w("not checked against vectors"), m("core/faraday-crypto/tests/primitives.rs::sha256_known_answers"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_1"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_2"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_1"), m("core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_2"), m("core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha512_known_answer"), m("core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers"), m("self-test bip39_vector"), w("no fuzz target: Takes bytes from callers that parse their own input")],
-        cross_check: CrossCheck::Area(&AREA_BIP39),
-        independence: &[p("Compared with others' code: python-mnemonic, by Trezor (SatoshiLabs), and Python's hashlib and hmac (OpenSSL).")],
+        cross_check: CrossCheck::Area(&AREA_HASH),
+        independence: &[p("Compared with others' code: Python's hmac and hashlib.pbkdf2_hmac (OpenSSL) for HMAC and PBKDF2, each over SHA-256 and SHA-512, in area hash.")],
         code: &[c("core/faraday-crypto/src/hash.rs", "sha256"), c("core/faraday-crypto/src/hash.rs", "hmac_sha512"), c("core/faraday-crypto/src/hash.rs", "pbkdf2_hmac_sha512")],
         secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("The wrappers keep no state after they return; wiping an input is the caller's; the sha2 and hmac crates are built with their zeroize feature.")],
         limits: &[p("PBKDF2 here is HMAC-SHA256 or HMAC-SHA512 only.")],
@@ -708,8 +708,8 @@ pub static BLOCKS: &[Block] = &[
         standards: &[p("RFC 7914, The scrypt Password-Based Key Derivation Function, Status not checked")],
         implementation: &[p("Faraday's code: core/faraday-crypto: Written here, with one caller (the aezeed reader), because it is small enough that a crate would cost more than it saves.")],
         checked: &[m("tools/vectors/kdf"), p("Published, by RFC 7914 §12, for scrypt; the Argon2id answer computed by argon2-cffi and PyCA cryptography, which agree."), m("core/faraday-crypto/src/scrypt.rs::rfc_7914_vectors"), m("self-test scrypt_vector"), w("no fuzz target: Takes cost parameters fixed by the one caller; aezeed fuzzes the words")],
-        cross_check: CrossCheck::Area(&AREA_LIGHTNING),
-        independence: &[p("Compared with others' code: LND's aezeed package, by Lightning Labs, over golang.org/x/crypto's scrypt, vendored in tools/reference/lnd/.")],
+        cross_check: CrossCheck::Area(&AREA_HASH),
+        independence: &[p("Compared with others' code: Python's hashlib.scrypt (OpenSSL) in area hash, and LND's aezeed package, by Lightning Labs, over golang.org/x/crypto's scrypt, vendored in tools/reference/lnd/, in area lightning.")],
         code: &[c("core/faraday-crypto/src/scrypt.rs", "scrypt")],
         secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("The working memory V, the scratch block and the intermediate block are zeroized before scrypt returns.")],
         limits: &[p("A cost n that is not a power of two above 1, an r or p of zero, an empty output or parameters needing more memory than usize can address are refused.")],

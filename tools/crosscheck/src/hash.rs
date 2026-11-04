@@ -1,7 +1,8 @@
 //! The Hashes and Encodings calculators: SHA-256, SHA-256d and HASH160
 //! (`faraday_bip::hashes`), the text encodings (`faraday_codec::encodings`)
 //! the SHA-256 of a whole file (`faraday_core::file_menu::sha256`), and
-//! the one HKDF (`faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`).
+//! the one HKDF (`faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`),
+//! HMAC, PBKDF2 over SHA-256 and SHA-512, and scrypt.
 
 use faraday_bip::hashes::hashes;
 use faraday_codec::encodings::{self, Encoding};
@@ -77,6 +78,13 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let b = encodings::from_hex(text(req, "text")).ok_or("not hex")?;
             Ok(json!(hex(&b)))
         }
+        _ => derive(name, req),
+    }
+}
+
+/// The keyed hashes and key derivations of `handle`.
+fn derive(name: &str, req: &Value) -> Answer {
+    match name {
         // HKDF-Expand from a pseudorandom key: `len` bytes, or a refusal.
         "hkdf_expand" => {
             let mut out = vec![0u8; len(req)];
@@ -94,6 +102,49 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 &mut out,
             )
             .ok_or("longer than 255 blocks")?;
+            Ok(json!(hex(&out)))
+        }
+        // HMAC under a key of any length; `hash` is "sha256" or "sha512".
+        "hmac" => {
+            let (key, msg) = (bytes(req, "key"), bytes(req, "msg"));
+            match text(req, "hash") {
+                "sha256" => Ok(json!(hex(&faraday_crypto::hmac_sha256(&key, &msg)))),
+                "sha512" => Ok(json!(hex(&faraday_crypto::hmac_sha512(&key, &msg)))),
+                other => Err(format!("unknown hash {other}")),
+            }
+        }
+        // PBKDF2 with `rounds` of at least 1 and `len` of at least 1.
+        "pbkdf2" => {
+            let c = Compute::unchecked();
+            let (password, salt) = (bytes(req, "password"), bytes(req, "salt"));
+            let rounds = req["rounds"].as_u64().expect("rounds") as u32;
+            let mut out = vec![0u8; len(req)];
+            match text(req, "hash") {
+                "sha256" => {
+                    faraday_crypto::pbkdf2_hmac_sha256(&c, &password, &salt, rounds, &mut out)
+                }
+                "sha512" => {
+                    faraday_crypto::pbkdf2_hmac_sha512(&c, &password, &salt, rounds, &mut out)
+                }
+                other => return Err(format!("unknown hash {other}")),
+            }
+            Ok(json!(hex(&out)))
+        }
+        // scrypt, or a refusal of its parameters.
+        "scrypt" => {
+            let c = Compute::unchecked();
+            let param = |k: &str| req[k].as_u64().expect("scrypt parameter") as u32;
+            let mut out = vec![0u8; len(req)];
+            faraday_crypto::scrypt(
+                &c,
+                &bytes(req, "password"),
+                &bytes(req, "salt"),
+                param("n"),
+                param("r"),
+                param("p"),
+                &mut out,
+            )
+            .map_err(|_| "parameters refused")?;
             Ok(json!(hex(&out)))
         }
         _ => Err(format!("unknown hash op {name}")),

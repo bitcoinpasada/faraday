@@ -5,7 +5,9 @@ Base58Check (`byte_to_base58`, `base58_to_byte`) and `segwit_addr.py`'s
 bech32 and bech32m (`bech32_encode`, `bech32_decode`, `convertbits`,
 `encode_segwit_address`, `decode_segwit_address`),
 with `hashlib` for SHA-256 and SHA-256d and `bytes.fromhex` for hex; and
-PyCA cryptography's `HKDFExpand` and `HKDF` (OpenSSL) for the one HKDF.
+PyCA cryptography's `HKDFExpand` and `HKDF` (OpenSSL) for the one HKDF;
+and Python's standard library for HMAC (`hmac`), PBKDF2 (`hashlib.pbkdf2_hmac`)
+and scrypt (`hashlib.scrypt`, OpenSSL).
 
 - Published answers first: FIPS 180-4's SHA-256 examples, RIPEMD-160 of
   "abc", BIP-173's public key and its HASH160, the first valid address of
@@ -28,6 +30,15 @@ PyCA cryptography's `HKDFExpand` and `HKDF` (OpenSSL) for the one HKDF.
   8160 among them), `hkdf_sha256_expand` against `HKDFExpand` and
   `hkdf_sha256` against `HKDF`; one byte past 255 blocks is refused by
   both.
+- HMAC and PBKDF2, each over SHA-256 and SHA-512, and scrypt: RFC 4231's
+  first case for each hash, RFC 7914 section 11's PBKDF2-SHA256 vector
+  (rounds 1) and its two cheap scrypt vectors, then random HMAC keys of 0 to
+  300 bytes (across the block sizes 64 and 128) over messages of 0 to 500
+  bytes, PBKDF2 over passwords and salts of 0 to 100 bytes, rounds 1 to 50
+  and lengths 1 to 200 (across 32 and 64), and scrypt at N from 2 to 4096,
+  r 1 to 8, p 1 to 3 and lengths 1 to 100. scrypt with N not a power of two,
+  N 0 or 1, r 0, p 0 or an empty output is refused by both. PBKDF2 is only
+  asked within its callers' domain (rounds and length at least 1).
 - Hex: Faraday's rule (an even number of hex digits, nothing else) in
   front of `bytes.fromhex`, which also accepts spaces.
 
@@ -41,6 +52,7 @@ bcrt; Core's decoder is told the prefix).
 """
 
 import hashlib
+import hmac
 import json
 import pathlib
 import string
@@ -92,6 +104,24 @@ def ref_hkdf(salt, ikm, info, length):
     bytes (§2.2): the two are passed as themselves."""
     return HKDF(algorithm=pyca_hashes.SHA256(), length=length, salt=salt,
                 info=bytes(info)).derive(bytes(ikm)).hex()
+
+
+def ref_hmac(hash_name, key, msg):
+    """The standard library's HMAC: any key length."""
+    return hmac.new(bytes(key), bytes(msg), hash_name).hexdigest()
+
+
+def ref_pbkdf2(hash_name, password, salt, rounds, length):
+    return hashlib.pbkdf2_hmac(hash_name, bytes(password), bytes(salt), rounds, length).hex()
+
+
+def ref_scrypt(password, salt, n, r, p, length):
+    """OpenSSL's scrypt; it refuses N below 2 or not a power of two, r or p
+    of 0 and an empty output (Python raises for each)."""
+    if length < 1:
+        raise ValueError("empty output")
+    return hashlib.scrypt(bytes(password), salt=bytes(salt), n=n, r=r, p=p, dklen=length,
+                          maxmem=1 << 30).hex()
 
 
 def b58_decode_plain(text):
@@ -213,12 +243,14 @@ class Hash(Area):
     name = "hash"
     faraday = (
         '`faraday_bip::hashes` and `faraday_codec::encodings` (`read`, the writers and `from_hex`), '
-        '`faraday_core::file_menu::sha256`, and `faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`'
+        '`faraday_core::file_menu::sha256`, and `faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`, '
+        '`hmac_sha256`, `hmac_sha512`, `pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512` and `scrypt`'
     )
     reference = (
         "Bitcoin Core v31.1's functional-test framework (`core/`): `ripemd160.py`, `address.py` and "
         '`segwit_addr.py`, with `hashlib` for SHA-256 and `bytes.fromhex` for hex; PyCA cryptography\'s `HKDF` and '
-        '`HKDFExpand` (OpenSSL) for the one HKDF'
+        '`HKDFExpand` (OpenSSL) for the one HKDF; `hmac`, `hashlib.pbkdf2_hmac` and `hashlib.scrypt` (OpenSSL) '
+        'for HMAC, PBKDF2 and scrypt'
     )
     reference_checked = (
         "its vendored files are hashed against `references.sha256` before any run, and a "
@@ -284,6 +316,57 @@ class Hash(Area):
                             {"salt": (salt or b"").hex(), "ikm": ikm.hex(), "info": info.hex(), "len": length},
                             lambda: ref_hkdf(salt, ikm, info, length), expected)
 
+    def hmac(self, hash_name, key, msg, expected=None):
+        return self.compare("hash.hmac", {"hash": hash_name, "key": key.hex(), "msg": msg.hex()},
+                            lambda: ref_hmac(hash_name, key, msg), expected)
+
+    def pbkdf2(self, hash_name, password, salt, rounds, length, expected=None):
+        return self.compare("hash.pbkdf2",
+                            {"hash": hash_name, "password": password.hex(), "salt": salt.hex(),
+                             "rounds": rounds, "len": length},
+                            lambda: ref_pbkdf2(hash_name, password, salt, rounds, length), expected)
+
+    def scrypt(self, password, salt, n, r, p, length, expected=None):
+        return self.compare("hash.scrypt",
+                            {"password": password.hex(), "salt": salt.hex(), "n": n, "r": r,
+                             "p": p, "len": length},
+                            lambda: ref_scrypt(password, salt, n, r, p, length), expected)
+
+    def mac_case(self):
+        rng = self.rng
+        for h in ("sha256", "sha512"):
+            key = self.randbytes(rng.choice([0, 1, 20, 63, 64, 65, 127, 128, 129, rng.randint(0, 300)]))
+            self.hmac(h, key, self.randbytes(rng.choice([0, 1, 111, 112, 128, rng.randint(0, 500)])))
+            self.pbkdf2(h, self.randbytes(rng.randint(0, 100)), self.randbytes(rng.randint(0, 100)),
+                        rng.choice([1, 2, rng.randint(1, 50)]),
+                        rng.choice([1, 31, 32, 33, 63, 64, 65, rng.randint(1, 200)]))
+
+    def scrypt_case(self):
+        rng = self.rng
+        # A fraction of the other cases' count: every case does real work.
+        if rng.randrange(8):
+            return
+        n = 1 << rng.randint(1, 12)
+        self.scrypt(self.randbytes(rng.randint(0, 40)), self.randbytes(rng.randint(0, 40)), n,
+                    rng.randint(1, 8) if n <= 1024 else rng.randint(1, 2), rng.randint(1, 3),
+                    rng.randint(1, 100))
+        pw, salt = self.randbytes(rng.randint(0, 10)), self.randbytes(rng.randint(0, 10))
+        n, r, p, length = 16, 1, 1, 16
+        bad = rng.choice(["n_odd", "n0", "n1", "r0", "p0", "empty"])
+        if bad == "n_odd":
+            n = rng.choice([3, 5, 6, 7, 12, 15, 17, 24, 1000, 4095, 4097])
+        elif bad == "n0":
+            n = 0
+        elif bad == "n1":
+            n = 1
+        elif bad == "r0":
+            r = 0
+        elif bad == "p0":
+            p = 0
+        else:
+            length = 0
+        self.scrypt(pw, salt, n, r, p, length)
+
     def hkdf_case(self):
         rng = self.rng
         length = rng.choice([0, 1, 31, 32, 33, 8159, 8160, 8161, rng.randint(0, 8160),
@@ -312,6 +395,22 @@ class Hash(Area):
                   ("ok", okm))
         self.hkdf_expand(bytes.fromhex("077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844a"
                                        "d7c2b3e5"), bytes(range(0xf0, 0xfa)), 42, ("ok", okm))
+        # RFC 4231 test case 1 (key 0x0b * 20, "Hi There"), per hash.
+        key, msg = bytes([0x0b] * 20), b"Hi There"
+        self.hmac("sha256", key, msg, ("ok", "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"))
+        self.hmac("sha512", key, msg, ("ok", "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cde"
+                                              "daa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854"))
+        # RFC 7914 section 11: PBKDF2-HMAC-SHA-256 ("passwd", "salt", c = 1; c = 80000 is too slow here).
+        self.pbkdf2("sha256", b"passwd", b"salt", 1, 64,
+                    ("ok", "55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc"
+                           "49ca9cccf179b645991664b39d77ef317c71b845b1e30bd509112041d3a19783"))
+        # RFC 7914 section 12: scrypt N = 16, r = 1, p = 1, and N = 1024, r = 8, p = 16.
+        self.scrypt(b"", b"", 16, 1, 1, 64,
+                    ("ok", "77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede21442"
+                           "fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906"))
+        self.scrypt(b"password", b"NaCl", 1024, 8, 16, 64,
+                    ("ok", "fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b373162"
+                           "2eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640"))
         if ripemd160(b"abc").hex() != "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc":
             raise AssertionError("the reference's RIPEMD-160 differs from the published answer")
         # BIP-173's public key and its HASH160.
@@ -369,6 +468,8 @@ class Hash(Area):
         b = self.randbytes(self.sizes())
         self.hashes(b)
         self.hkdf_case()
+        self.mac_case()
+        self.scrypt_case()
         # A segwit address Core's framework writes, of any version and of
         # every length that version allows.
         version = rng.choice([0, 0, 1, 1, rng.randint(2, 16)])

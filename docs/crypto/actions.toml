@@ -1744,8 +1744,8 @@ tests = [
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha512_known_answer",
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers",
 ]
-crosscheck = "bip39"
-independence = { class = "outside", author = "python-mnemonic, by Trezor (SatoshiLabs), and Python's `hashlib` and `hmac` (OpenSSL)" }
+crosscheck = "hash"
+independence = { class = "outside", author = "Python's `hmac` and `hashlib.pbkdf2_hmac` (OpenSSL) for HMAC and PBKDF2, each over SHA-256 and SHA-512, in area `hash`" }
 selftest = [
   "bip39_vector",
 ]
@@ -1853,8 +1853,8 @@ vectors = [
 tests = [
   "core/faraday-crypto/src/scrypt.rs::rfc_7914_vectors",
 ]
-crosscheck = "lightning"
-independence = { class = "outside", author = "LND's `aezeed` package, by Lightning Labs, over `golang.org/x/crypto`'s scrypt, vendored in `tools/reference/lnd/`" }
+crosscheck = "hash"
+independence = { class = "outside", author = "Python's `hashlib.scrypt` (OpenSSL) in area `hash`, and LND's `aezeed` package, by Lightning Labs, over `golang.org/x/crypto`'s scrypt, vendored in `tools/reference/lnd/`, in area `lightning`" }
 selftest = [
   "scrypt_vector",
 ]
