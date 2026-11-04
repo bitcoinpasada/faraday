@@ -1054,6 +1054,20 @@ strings! {
     convert_from_codex32: "codex32, {} characters",
     /// A key loaded from a master seed in another form.
     convert_from_seed: "Master seed",
+    /// From's way to read an LND aezeed, and the name of the source once read.
+    convert_lnd_aezeed: "An LND aezeed",
+    /// What the aezeed read for Convert was read from, under From.
+    convert_from_aezeed: "LND aezeed, 24 words",
+    /// A fact's label on Result for an aezeed.
+    convert_birthday: "Birthday",
+    /// A fact's label on Result for an aezeed.
+    convert_channels: "Channels",
+    /// What explains the aezeed's entry opened from Convert.
+    convert_aezeed_guide: "An LND aezeed's 24 words and its passphrase. They are read for this tool and held only until it is left.",
+    /// The channels fact for an aezeed.
+    convert_aezeed_onchain: "On-chain coins only: channels come back through LND's channel backup",
+    /// A line of the Paths fact for an aezeed. `{}` three times: the coin type, 0 or 1.
+    convert_aezeed_paths: "BIP-84 m/84'/{}'/0'; BIP-49 m/49'/{}'/0' with LND's own change addresses; BIP-86 m/86'/{}'/0'; key families under m/1017'",
     /// A target under To.
     convert_seed: "Master seed, hex",
     /// The standard of `convert_seed`, and its Standard fact.
@@ -6907,6 +6921,8 @@ strings! {
     /// A toast on the frame drawn before an aezeed is stretched for its
     /// node key.
     working_node_key: "Working out the node key",
+    /// Toast while an aezeed is read for Convert.
+    working_aezeed: "Reading the aezeed",
     /// The line of the job that signs a transaction.
     working_signing: "Signing the transaction",
     /// The line of the job that reads a PSBT and checks it.

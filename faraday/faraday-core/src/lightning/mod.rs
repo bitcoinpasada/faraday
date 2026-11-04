@@ -71,6 +71,9 @@ pub struct LightningState {
     pub back: Screen,
     /// Use a sample on the aezeed's words (`docs/MODES.md` §6).
     pub(crate) sample: crate::samples::put::Use,
+    /// Opened from Convert: only the entry shows, and what it reads is
+    /// held there as a seed, not shown as a node key.
+    pub for_convert: bool,
 }
 
 /// The Lightning screen's area: its state while it is open.
@@ -97,7 +100,22 @@ impl LightningArea {
             shown: false,
             back,
             sample: Default::default(),
+            for_convert: false,
         });
+    }
+
+    /// Opens the aezeed's entry for Convert, to return to it.
+    pub(crate) fn open_for_convert(&mut self) {
+        self.open(Screen::Convert);
+        if let Some(l) = self.state.as_mut() {
+            l.source = Some(NodeSource::Aezeed);
+            l.for_convert = true;
+        }
+    }
+
+    /// Whether the screen is open for Convert.
+    pub(crate) fn for_convert(&self) -> bool {
+        self.state.as_ref().is_some_and(|l| l.for_convert)
     }
 
     /// Forgets the screen's state: the words, the passphrase and the key.
@@ -158,7 +176,12 @@ impl LightningArea {
             l.error = refused;
             return None;
         }
-        let job = keys.aezeed_job(&idx, crate::secret_text::SecretText::of(&l.passphrase));
+        let pass = crate::secret_text::SecretText::of(&l.passphrase);
+        let job = if l.for_convert {
+            keys.aezeed_seed_job(&idx, pass)
+        } else {
+            keys.aezeed_job(&idx, pass)
+        };
         faraday_keys::lightning::wipe_words(&mut idx);
         Some(ReadWork { job })
     }
@@ -175,6 +198,28 @@ impl LightningArea {
                     l.error = None;
                 }
                 Err(e) => l.error = Some(e),
+            }
+        }
+    }
+
+    /// An aezeed read's answer for Convert: held in `keys` as the tool's
+    /// source, and the entry's words and passphrase dropped with the
+    /// screen's state. Says why not, on the entry, otherwise.
+    pub(crate) fn read_held(
+        &mut self,
+        keys: &mut Keys,
+        done: ReadDone,
+    ) -> Option<faraday_bip::keys::Fingerprint> {
+        match keys.aezeed_hold(done.read) {
+            Ok(fp) => {
+                self.state = None;
+                Some(fp)
+            }
+            Err(e) => {
+                if let Some(l) = self.state.as_mut() {
+                    l.error = Some(e);
+                }
+                None
             }
         }
     }
@@ -328,6 +373,19 @@ impl LightningArea {
 }
 
 impl Faraday {
+    /// The aezeed's entry opened from Convert, to return to it.
+    pub(crate) fn lightning_for_convert(&mut self) {
+        // As Add a key: no secret is read in while a stick is attached.
+        if !self.stick.is_empty() {
+            return self.toast(&crate::stick::keys_load(self.medium));
+        }
+        if !self.may_load_keys() {
+            return;
+        }
+        self.lightning.open_for_convert();
+        self.screen = Screen::Lightning;
+    }
+
     /// The Lightning screen's state, while it is open.
     pub fn lightning(&self) -> Option<&LightningState> {
         self.lightning.state()
@@ -414,21 +472,38 @@ impl Faraday {
         self.key_slow(key)
     }
 
+    /// What the screen says while an aezeed is read.
+    pub(crate) fn lightning_working(&self) -> &'static str {
+        if self.lightning.for_convert() {
+            EN.working_aezeed
+        } else {
+            EN.working_node_key
+        }
+    }
+
     /// Starts the aezeed read on the worker.
     fn lightning_read(&mut self) {
         let Some(job) = self.lightning.read_job(&self.session.keys) else {
             return;
         };
-        self.start(
-            crate::worker::Job::Aezeed(Box::new(job)),
-            EN.working_node_key,
-        );
+        let busy = self.lightning_working();
+        self.start(crate::worker::Job::Aezeed(Box::new(job)), busy);
     }
 
     /// The aezeed read's answer. Dropped, and wiped, where the screen was
     /// left meanwhile.
     pub(crate) fn aezeed_read(&mut self, done: ReadDone) {
-        if self.screen == Screen::Lightning {
+        if self.screen != Screen::Lightning {
+            return;
+        }
+        if self.lightning.for_convert() {
+            if let Some(fp) = self.lightning.read_held(&mut self.session.keys, done) {
+                // Back at the flow, not a step forward: its old spot goes.
+                self.trail.drop_screen(Screen::Convert);
+                self.screen = Screen::Convert;
+                self.tools.convert_mut().choose_aezeed(fp);
+            }
+        } else {
             self.lightning.read_done(&self.session.keys, done);
         }
     }

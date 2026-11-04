@@ -3,11 +3,12 @@
 
 use faraday_bip::aezeed;
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_bip::keys::{DerivedKey, Network};
-use faraday_crypto::Secret;
+use faraday_bip::keys::{DerivedKey, MasterKey, Network};
 use faraday_crypto::work::Compute;
+use faraday_crypto::{Secret, SeedBytes};
 use zeroize::{Zeroize, Zeroizing};
 
+use crate::session::{KeyId, KeyInfo, Secrets};
 use crate::{Part, Reveal};
 
 /// Words in an aezeed.
@@ -113,21 +114,98 @@ pub struct AezeedJob {
     words: Zeroizing<[u16; AEZEED_WORDS]>,
     passphrase: faraday_intake::secret_buf::SecretText,
     network: Network,
+    /// Whether the read is for Convert: its entropy held as a seed, not
+    /// its node key.
+    for_convert: bool,
 }
 
-/// What an [`AezeedJob`] gives back: the node key, or why the words are
-/// no aezeed. It joins the screen through [`crate::Keys::aezeed_node`], on
-/// the main thread, and wipes as it drops.
+/// What an [`AezeedJob`] gives back: the node key or the held seed, or why
+/// the words are no aezeed. It joins the screen through
+/// [`crate::Keys::aezeed_node`] or [`crate::Keys::aezeed_hold`], on the
+/// main thread, and wipes as it drops.
 pub struct AezeedRead {
-    found: Result<Node, String>,
+    found: Found,
+}
+
+enum Found {
+    Node(Result<Node, String>),
+    Seed(Result<(HeldAezeed, [u8; 33]), String>),
+}
+
+/// An aezeed read for Convert (`docs/SEED-CONVERSION.md` §4.5): its 16
+/// bytes of entropy, which LND uses as the BIP-32 seed itself, and its
+/// birthday. It is never a key of the session: it is not in the list, the
+/// vault, Explore or Lock in, and it leaves only through the conversions
+/// of [`crate::operations`], for `Reveal::PaperForm`. Wiped as it drops.
+pub struct HeldAezeed {
+    entropy: Zeroizing<[u8; aezeed::ENTROPY_SIZE]>,
+    birthday: (i32, u32, u32),
+    master: MasterKey,
+    info: KeyInfo,
+}
+
+impl HeldAezeed {
+    /// Lends the entropy and master key as a conversion's source.
+    pub(crate) fn secrets(&self) -> Secrets<'_> {
+        Secrets {
+            master: &self.master,
+            words: None,
+            passphrase: None,
+            seed: Some(&self.entropy[..]),
+            language: faraday_bip::bip39::Language::English,
+        }
+    }
+}
+
+/// Costs what [`node_from_aezeed`] costs and a master key. The aezeed read
+/// as a seed to hold, with its node's public key (for the demo's check).
+fn seed_from_aezeed(
+    c: &Compute,
+    words: &[u16; AEZEED_WORDS],
+    passphrase: &[u8],
+    network: Network,
+) -> Result<(HeldAezeed, [u8; 33]), String> {
+    let seed = aezeed::decode(c, words, passphrase).map_err(|e| format!("{e:?}"))?;
+    let mut entropy = Secret::new([0u8; aezeed::ENTROPY_SIZE]);
+    entropy
+        .expose_mut()
+        .copy_from_slice(seed.entropy().expose());
+    let public = node_of(c, &aezeed::node_key(c, &entropy, network), None).public;
+    let bytes = SeedBytes::new(&entropy.expose()[..]).ok_or_else(|| "length".to_string())?;
+    let master = MasterKey::from_seed_bytes(c, &Secret::new(bytes), network);
+    let info = KeyInfo {
+        id: KeyId(crate::identity::master_id(c, &master)),
+        fingerprint: master.fingerprint(),
+        label: String::new(),
+        language: faraday_bip::bip39::Language::English,
+        word_count: None,
+        seed_len: Some(aezeed::ENTROPY_SIZE),
+        has_passphrase: false,
+        codex32: None,
+        child_of: None,
+    };
+    Ok((
+        HeldAezeed {
+            entropy: Zeroizing::new(*entropy.expose()),
+            birthday: aezeed::birthday_date(seed.birthday),
+            master,
+            info,
+        },
+        public,
+    ))
 }
 
 impl AezeedJob {
     /// Costs what [`node_from_aezeed`] costs. The read, with its inputs
     /// wiped as it ends.
     pub fn run(self, c: &Compute) -> AezeedRead {
+        let pass = self.passphrase.as_bytes();
         AezeedRead {
-            found: node_from_aezeed(c, &self.words, self.passphrase.as_bytes(), self.network),
+            found: if self.for_convert {
+                Found::Seed(seed_from_aezeed(c, &self.words, pass, self.network))
+            } else {
+                Found::Node(node_from_aezeed(c, &self.words, pass, self.network))
+            },
         }
     }
 }
@@ -144,6 +222,20 @@ impl crate::Keys {
             words: Zeroizing::new(*words),
             passphrase,
             network: self.network(),
+            for_convert: false,
+        }
+    }
+
+    /// [`Keys::aezeed_job`] for Convert: the read is held as a seed
+    /// ([`Keys::aezeed_hold`]), not as a node key.
+    pub fn aezeed_seed_job(
+        &self,
+        words: &[u16; AEZEED_WORDS],
+        passphrase: faraday_intake::secret_buf::SecretText,
+    ) -> AezeedJob {
+        AezeedJob {
+            for_convert: true,
+            ..self.aezeed_job(words, passphrase)
         }
     }
 
@@ -152,12 +244,67 @@ impl crate::Keys {
     /// as a key that is not a sample is: whatever else is typed would be
     /// someone's real node. The refused key wipes as it drops.
     pub fn aezeed_node(&self, read: AezeedRead) -> Result<Node, String> {
-        let node = read.found?;
+        let Found::Node(found) = read.found else {
+            return Err(String::new());
+        };
+        let node = found?;
         if !self.is_public_node(node.public()) {
             let id: String = faraday_crypto::hex::encode_string(node.public());
             return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
         }
         Ok(node)
+    }
+
+    /// An aezeed read for Convert, held as the source of its conversions,
+    /// with the demo's refusal as [`Keys::aezeed_node`] has it, and refused
+    /// while a stick is attached, as every way a key is added is; the
+    /// fingerprint of its BIP-32 seed. Any aezeed held before is dropped.
+    /// It is not a key: [`Keys::len`] and the lists do not change.
+    pub fn aezeed_hold(
+        &mut self,
+        read: AezeedRead,
+    ) -> Result<faraday_bip::keys::Fingerprint, String> {
+        let Found::Seed(found) = read.found else {
+            return Err(String::new());
+        };
+        if let Some(noun) = self.stick_attached() {
+            return Err(faraday_strings::EN.stick_keys_keys_load.replace("{}", noun));
+        }
+        let (held, public) = found.map_err(|e| {
+            faraday_strings::EN
+                .lightning_not_an_aezeed
+                .replace("{}", &e)
+        })?;
+        if !self.is_public_node(&public) {
+            let id: String = faraday_crypto::hex::encode_string(&public);
+            return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
+        }
+        let fp = held.info.fingerprint;
+        self.aezeed = Some(held);
+        Ok(fp)
+    }
+
+    /// The held aezeed is wiped and dropped.
+    pub fn aezeed_forget(&mut self) {
+        self.aezeed = None;
+    }
+
+    /// The place that names the held aezeed as a conversion's source.
+    pub const AEZEED_SOURCE: usize = usize::MAX;
+
+    /// The public facts of conversion source `i`: key `i`, or the held
+    /// aezeed at [`Keys::AEZEED_SOURCE`].
+    pub fn source_info(&self, i: usize) -> Option<&KeyInfo> {
+        if i == Self::AEZEED_SOURCE {
+            self.aezeed.as_ref().map(|a| &a.info)
+        } else {
+            self.all().nth(i)
+        }
+    }
+
+    /// The held aezeed's birthday, as year, month and day.
+    pub fn aezeed_birthday(&self) -> Option<(i32, u32, u32)> {
+        self.aezeed.as_ref().map(|a| a.birthday)
     }
 
     /// Costs what [`node_from_aezeed`] costs. The node key an aezeed gives,
@@ -169,7 +316,7 @@ impl crate::Keys {
         passphrase: &[u8],
     ) -> Result<Node, String> {
         self.aezeed_node(AezeedRead {
-            found: node_from_aezeed(c, words, passphrase, self.network()),
+            found: Found::Node(node_from_aezeed(c, words, passphrase, self.network())),
         })
     }
 }

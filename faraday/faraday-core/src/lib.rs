@@ -2010,8 +2010,7 @@ impl Faraday {
     /// frame may picture a seed); `None` for anything a stick may stay in
     /// for.
     pub fn pull_what(&self, action: Action) -> Option<&'static str> {
-        use backup_flow::steps::FlowAction as F;
-        use catalog::Go;
+        use {backup_flow::steps::FlowAction as F, catalog::Go, convert::ConvertAction as C};
         Some(match action {
             Action::Scan
             | Action::ScanFor(_)
@@ -2028,7 +2027,7 @@ impl Faraday {
             | Action::LoadKey(_)
             | Action::KeyGen(None)
             | Action::CSlotVault(..)
-            | Action::Convert(convert::ConvertAction::VaultKey(..))
+            | Action::Convert(C::VaultKey(..) | C::Aezeed)
             | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_wallet,
@@ -5629,7 +5628,7 @@ impl App for Faraday {
                     self.later_now();
                     self.later = Some(Later::Key(k));
                     self.worker.set_drawn(false);
-                    self.working(EN.working_node_key);
+                    self.working(self.lightning_working());
                     self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;

@@ -23,6 +23,7 @@ Closed, the key chosen, or **Not chosen**.
 | a key's button | one per key loaded, with what it was made from: "BIP-39 words, 12", "codex32, 48 characters" or **Master seed** |
 | a vault's key | a key in an open vault, **In vault 1**; a press loads it |
 | **Add a key** | [Add a key](add-a-key.md) |
+| **An LND aezeed** | the 24 words and passphrase of an LND aezeed, read and held for this flow and not loaded as a key; once read, its button is **LND aezeed, 24 words** |
 
 ### To
 
@@ -71,9 +72,10 @@ The value is hidden until it is shown, and dropped when the card is left.
 | Line or control | What it does |
 |---|---|
 | the value, or **Show the code** | shows the text, or the code on a SeedQR form; a set has one eye over all its parts, numbered (the codex32 secret alone is not), several SLIP-39 groups as **Group 1, share 2:** |
-| **Standard**, **Restores in**, **Fingerprint** | what the value is, where it restores, and the key's fingerprint, the same as the source |
+| **Standard**, **Restores in**, **Fingerprint** | what the value is, where it restores, and the key's fingerprint, the same as the source (an aezeed's is that of its seed, with no source to match) |
 | **Word list** | on a form with no list of its own, for a key on another list than English |
-| **Paths** | the paths of the loaded wallets holding this key, or **No loaded wallet holds this key** |
+| **Paths** | the paths of the loaded wallets holding this key, or **No loaded wallet holds this key**; for an aezeed, the paths LND uses |
+| **Birthday**, **Channels** | for an aezeed: the date its wallet was made, and that it restores on-chain coins only |
 | **Passphrase** | on a key with a passphrase: whether the value holds the passphrase's wallet or needs the passphrase to restore it |
 | **Check my copy** | a copy typed back: **Compare** says **Your copy matches** or **Your copy differs**, **Clear** empties it; on a set it is compared with every part and says which part matched, or for groups **Your copy matches group 1, share 2** |
 | **Save as a file…** | the value to a stick (a set: every part, one per line, in group order), through [This is a secret](files.md#this-is-a-secret) |

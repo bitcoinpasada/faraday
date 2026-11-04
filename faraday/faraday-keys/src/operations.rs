@@ -292,7 +292,7 @@ impl Keys {
         random: &[u8],
         _why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
-        let s = self.secrets(i).ok_or(Paper::NoWords)?;
+        let s = self.source_secrets(i).ok_or(Paper::NoWords)?;
         let fp = s.master.fingerprint().0;
         let seed: &[u8] = match (s.words, s.seed) {
             (Some(_), _) => return Err(Paper::Words),
@@ -319,7 +319,10 @@ impl Keys {
         let drawn = random
             .get(need..need + IDENTIFIER_LEN)
             .ok_or_else(|| one(codex32::Error::NotEnoughRandomness))?;
-        let own = self[i].codex32.as_ref().map(|f| f.identifier);
+        let own = self
+            .source_info(i)
+            .and_then(|k| k.codex32.as_ref())
+            .map(|f| f.identifier);
         let avoid: Vec<[u8; 4]> = std::iter::once(id).chain(own).collect();
         let id = drawn_identifier(drawn, &avoid);
         Codex32::from_seed(k, id, seed)
@@ -718,7 +721,16 @@ impl Keys {
         if why != Reveal::PaperForm {
             return Err(Convert::NotGiven);
         }
-        self.secrets(i).ok_or(Convert::NotGiven)
+        self.source_secrets(i).ok_or(Convert::NotGiven)
+    }
+
+    /// A conversion's source: key `i`, or the aezeed held at
+    /// [`Keys::AEZEED_SOURCE`], which nothing but a conversion reaches.
+    fn source_secrets(&self, i: usize) -> Option<crate::session::Secrets<'_>> {
+        if i == Self::AEZEED_SOURCE {
+            return self.aezeed.as_ref().map(|a| a.secrets());
+        }
+        self.secrets(i)
     }
 }
 

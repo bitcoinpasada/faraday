@@ -1360,3 +1360,158 @@ fn a_key_knows_how_long_its_seed_is() {
         assert_eq!(k.info(0).unwrap().seed_len, Some(n));
     }
 }
+
+mod aezeed_source {
+    //! An aezeed read for Convert is held in the store, never as a key,
+    //! and converts as the seed LND takes its 16 bytes of entropy to be
+    //! (LND's `cipherseed_test.go`, `tools/reference/aezeed/README.md`).
+
+    use super::*;
+    use faraday_keys::lightning::AEZEED_WORDS;
+
+    const WORDS: &str = "above judge emerge veteran reform crunch system all snap please \
+        shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+    const WITH_PASSPHRASE: &str = "absorb century submit father path glove gloom super divert \
+        garden ice mirror wisdom grass dice kit ugly castle success suggest drink monster \
+        congress flight";
+    const ENTROPY: &str = "81b637d86359e6960de795e41e0b4cfd";
+
+    fn indices(words: &str) -> [u16; AEZEED_WORDS] {
+        let mut out = [0u16; AEZEED_WORDS];
+        for (slot, w) in out.iter_mut().zip(words.split_whitespace()) {
+            *slot = Language::English.index_of(w).unwrap();
+        }
+        out
+    }
+
+    fn hold(keys: &mut Keys, words: &str, pass: &str) -> Result<(), String> {
+        let c = compute();
+        let pass = faraday_intake::secret_buf::SecretText::of(pass);
+        let read = keys.aezeed_seed_job(&indices(words), pass).run(&c);
+        keys.aezeed_hold(read).map(|_| ())
+    }
+
+    #[test]
+    fn the_entropy_is_the_bip_32_seed_and_each_target_reads_back_to_it() {
+        let c = compute();
+        let mut keys = Keys::default();
+        hold(&mut keys, WORDS, "").unwrap();
+        assert_eq!(keys.len(), 0);
+        let i = Keys::AEZEED_SOURCE;
+        let why = Reveal::PaperForm;
+        let entropy = unhex(ENTROPY);
+        let master = MasterKey::from_seed_bytes(
+            &c,
+            &faraday_crypto::Secret::new(faraday_crypto::SeedBytes::new(&entropy).unwrap()),
+            Network::Mainnet,
+        );
+        assert_eq!(
+            keys.source_info(i).unwrap().fingerprint,
+            master.fingerprint()
+        );
+
+        assert_eq!(
+            &**keys.master_seed_hex(&c, i, why).unwrap().release(),
+            ENTROPY
+        );
+        assert_eq!(
+            keys.master_xprv(&c, i, why).unwrap().release().as_str(),
+            master.xpriv_ascii().as_str()
+        );
+        let words = keys.slip39_one_of_one(&c, i, why).unwrap().release();
+        let share = Share::parse(&words).unwrap();
+        assert_eq!(
+            &faraday_keys::slip39_seed(&c, &[share], b"").unwrap()[..],
+            &entropy[..]
+        );
+        let codex = keys
+            .codex32_converted(&c, i, 0, 1, &[], why)
+            .unwrap()
+            .release();
+        assert_eq!(codex[0].len(), 48);
+        let parsed = Codex32::parse(&codex[0]).unwrap();
+        assert_eq!(parsed.to_seed().unwrap().expose().bytes(), &entropy[..]);
+        let groups = [GroupSpec {
+            threshold: 2,
+            count: 3,
+        }];
+        let random = [7u8; 200];
+        let set = keys
+            .slip39_converted(&c, i, 1, &groups, &random, why)
+            .unwrap();
+        let shares: Vec<Share> = set
+            .release()
+            .iter()
+            .map(|s| Share::parse(s).unwrap())
+            .collect();
+        assert_eq!(shares.len(), 3);
+        assert_eq!(
+            &faraday_keys::slip39_seed(&c, &shares[1..], b"").unwrap()[..],
+            &entropy[..]
+        );
+        // Only for the paper form.
+        assert_eq!(
+            keys.master_xprv(&c, i, Reveal::LightningKey).err(),
+            Some(Convert::NotGiven)
+        );
+    }
+
+    #[test]
+    fn the_birthday_is_the_one_the_vector_carries() {
+        let mut keys = Keys::default();
+        hold(&mut keys, WITH_PASSPHRASE, "!very_safe_55345_password*").unwrap();
+        assert_eq!(keys.aezeed_birthday(), Some((2018, 3, 22)));
+    }
+
+    #[test]
+    fn a_wrong_passphrase_or_a_bad_checksum_holds_nothing() {
+        let mut keys = Keys::default();
+        assert!(hold(&mut keys, WORDS, "wrong").is_err());
+        let mut words: Vec<&str> = WORDS.split(' ').collect();
+        words[23] = "abandon";
+        assert!(hold(&mut keys, &words.join(" "), "").is_err());
+        assert!(keys.source_info(Keys::AEZEED_SOURCE).is_none());
+        assert!(!keys.holds_secret());
+    }
+
+    #[test]
+    fn a_stick_attached_holds_nothing() {
+        let mut keys = Keys::default();
+        keys.set_stick_attached(Some("stick"));
+        assert!(hold(&mut keys, WORDS, "").is_err());
+        assert!(keys.aezeed_birthday().is_none());
+    }
+
+    /// The held aezeed gives the conversions and nothing else: no public
+    /// key is derived from it.
+    #[test]
+    fn only_the_conversions_reach_it() {
+        let c = compute();
+        let mut keys = Keys::default();
+        hold(&mut keys, WORDS, "").unwrap();
+        let path = "m/84'/0'/0'".parse().unwrap();
+        assert!(keys.xpub_at(&c, Keys::AEZEED_SOURCE, &path).is_none());
+        assert!(
+            keys.master_seed_hex(&c, Keys::AEZEED_SOURCE, Reveal::PaperForm)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn forgetting_or_clearing_drops_it() {
+        let c = compute();
+        let mut keys = Keys::default();
+        hold(&mut keys, WORDS, "").unwrap();
+        assert!(keys.holds_secret());
+        keys.aezeed_forget();
+        assert!(!keys.holds_secret());
+        assert_eq!(
+            keys.master_seed_hex(&c, Keys::AEZEED_SOURCE, Reveal::PaperForm)
+                .err(),
+            Some(Convert::NotGiven)
+        );
+        hold(&mut keys, WORDS, "").unwrap();
+        keys.clear();
+        assert!(keys.aezeed_birthday().is_none());
+    }
+}

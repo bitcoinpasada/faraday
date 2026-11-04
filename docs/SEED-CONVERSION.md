@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S4b, SLIP-39 k of n and groups on the same card and result (§6); batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
-**Open:** a set to a new set, a copy scanned back in Check my copy, and the rest of §10
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S4b, SLIP-39 k of n and groups on the same card and result (§6); batch S5, an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
+**Open:** a set to a new set, a copy scanned back in Check my copy, and the rest of §10 (S6 and S7)
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -63,7 +63,8 @@ standard it is and which software restores it.
   (`core/faraday-bip/src/slip39.rs`: `split`, `recover`, `encrypt`,
   `decrypt`, the fixed 1 of 1 `one_of_one` of §4.4, and the set functions
   `recover_ems`, `split_ems`, `derive_member` of §8; 16 to 32 bytes; extendable flag and iteration
-  exponent as parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`).
+  exponent as parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`), which
+  Convert reads as a source (below).
 - **Where they surface**: Add a key reads BIP-39, SeedQR, CompactSeedQR,
   codex32, SLIP-39 and Seed XOR (`faraday/faraday-core/src/forms.rs`);
   New key deals SLIP-39 shares (`faraday/faraday-core/src/keygen/mod.rs`,
@@ -81,6 +82,14 @@ standard it is and which software restores it.
   compared with the key's entropy), each for `Reveal::PaperForm` only and each read
   back through its standard's decoder to the key's master fingerprint
   before it is returned (`Convert::NotSameWallet` otherwise).
+- **An aezeed as a source** (`faraday/faraday-keys/src/lightning.rs`, `HeldAezeed`): From's row
+  **An LND aezeed** opens the Lightning screen's entry (the same 24 words, passphrase and
+  refusals) with a read on the worker; the 16 bytes of entropy and the birthday are held in
+  `faraday-keys`, never among the keys, the vault, Explore or Lock in, and are dropped and
+  wiped when the flow is left, another source is chosen, or the session locks. To offers the
+  rows of a 16-byte seed (master seed hex, xprv, codex32, SLIP-39 1 of 1 and the set), the
+  rows that need BIP-39 words dimmed; Result adds Birthday, Paths and the channels line, and
+  its Fingerprint has no "same as the source". Tested against LND's published vectors.
 - **Not built**: the SLIP-39 set actions on a screen (§8); in the tool
   (`faraday/faraday-core/src/convert/`), a set to a new set, and a copy
   scanned back in Check my copy (it is typed back). Built there: Seed XOR

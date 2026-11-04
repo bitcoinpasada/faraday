@@ -111,8 +111,7 @@ fn summary(app: &View, s: &ConvertState, step: u8) -> String {
 
 /// The key chosen, if it is loaded.
 fn key_of<'a>(app: &'a View, s: &ConvertState) -> Option<&'a faraday_keys::KeyInfo> {
-    s.key
-        .and_then(|fp| app.session.keys.all().find(|k| k.fingerprint.0 == fp))
+    crate::convert::source_info(&app.session.keys, s)
 }
 
 fn card(app: &View, s: &ConvertState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32, f32)) -> f32 {
@@ -130,7 +129,7 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         let fp = k.fingerprint;
         let press = Action::Convert(C::Key(fp.0));
         let name = key_line(fp, &crate::bip85::key_name(k));
-        let chosen = s.key == Some(fp.0);
+        let chosen = !s.aezeed && s.key == Some(fp.0);
         cy += row(ui, (x, cy, w), (&name, &source(k)), chosen, Some(press));
     }
     // The open vaults' keys not loaded, after the loaded ones.
@@ -142,23 +141,30 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
             cy += row(ui, (x, cy, w), (&k.line, &held), false, Some(press));
         }
     }
-    ui.button(
-        x,
-        cy,
-        None,
-        BUTTON_H,
-        EN.convert_add_a_key,
-        Style::Secondary,
-        Action::KeyGen(None),
-    );
-    cy + BUTTON_H - y
+    // The aezeed read for this flow, held by faraday-keys: not a key.
+    if let Some(info) = key_of(app, s).filter(|_| s.aezeed) {
+        let name = key_line(info.fingerprint, EN.convert_lnd_aezeed);
+        let press = Some(Action::Convert(C::Step(cstep::TO)));
+        cy += row(ui, (x, cy, w), (&name, EN.convert_from_aezeed), true, press);
+    }
+    let ways = [
+        (
+            EN.convert_add_a_key.to_string(),
+            Style::Secondary,
+            Action::KeyGen(None),
+        ),
+        (
+            EN.convert_lnd_aezeed.to_string(),
+            Style::Secondary,
+            Action::Convert(C::Aezeed),
+        ),
+    ];
+    cy += button_rows(ui, x, cy, w, &ways);
+    cy - y
 }
 
 fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let Some(key) = s
-        .key
-        .and_then(|fp| app.session.keys.all().find(|k| k.fingerprint.0 == fp))
-    else {
+    let Some(key) = key_of(app, s) else {
         return 0.0;
     };
     let mut cy = y;
@@ -416,9 +422,7 @@ fn check_my_copy(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
 
 fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    let key = s
-        .key
-        .and_then(|fp| app.session.keys.all().find(|k| k.fingerprint.0 == fp));
+    let key = key_of(app, s);
     match (s.refused, s.target, key) {
         (Some(line), ..) => {
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
@@ -444,7 +448,12 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             };
             fact(ui, EN.convert_standard, &standard_text(s, k, target));
             fact(ui, EN.convert_restores_in, target.restores_in());
-            fact(ui, EN.convert_fingerprint, &same_as_source(k.fingerprint));
+            if s.aezeed {
+                // No key was loaded, so there is no source to be the same as.
+                fact(ui, EN.convert_fingerprint, &fp_text(k.fingerprint));
+            } else {
+                fact(ui, EN.convert_fingerprint, &same_as_source(k.fingerprint));
+            }
             if target.lacks_list() && k.language != Language::English {
                 fact(
                     ui,
@@ -458,6 +467,10 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
                 s.paths.join("; ")
             };
             fact(ui, EN.convert_paths, &paths);
+            if let Some((y, m, d)) = app.session.keys.aezeed_birthday().filter(|_| s.aezeed) {
+                fact(ui, EN.convert_birthday, &format!("{y}-{m:02}-{d:02}"));
+                fact(ui, EN.convert_channels, EN.convert_aezeed_onchain);
+            }
             if k.has_passphrase {
                 let line = if target.keeps_passphrase_apart() {
                     EN.convert_keeps_passphrase

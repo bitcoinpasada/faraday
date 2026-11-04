@@ -53,6 +53,8 @@ pub enum ConvertAction {
     /// Load a key from an open vault, by that vault's place among those
     /// open and the record's in it, and choose it.
     VaultKey(usize, usize),
+    /// Read an LND aezeed as the source: the entry opens, and returns here.
+    Aezeed,
     /// Press a row of [`ROWS`], by its place there.
     To(u8),
     /// More (1) or fewer (-1) Seed XOR parts.
@@ -383,8 +385,12 @@ pub struct ConvertState {
     pub done: [bool; cstep::COUNT],
     /// The column's scroll.
     pub scroll: flow::Scroll,
-    /// The key chosen.
+    /// The key chosen, by fingerprint; for an aezeed, the fingerprint of
+    /// its BIP-32 seed.
     pub key: Option<[u8; 4]>,
+    /// Whether the source is the aezeed `faraday-keys` holds for this
+    /// flow (`Keys::aezeed_hold`), not a loaded key.
+    pub aezeed: bool,
     /// The target pressed.
     pub target: Option<Target>,
     /// Whether the value shows.
@@ -674,6 +680,7 @@ impl ConvertArea {
             done: [key.is_some(), false, false, false],
             scroll: flow::Scroll::default(),
             key,
+            aezeed: false,
             target: None,
             shown: false,
             back,
@@ -798,9 +805,19 @@ impl ConvertArea {
                 s.slip = vec![(2, 3)];
             }
             s.key = Some(key);
+            s.aezeed = false;
             s.done[usize::from(cstep::FROM)] = true;
             s.open = Some(cstep::TO);
             s.scroll.follow = true;
+        }
+    }
+
+    /// Chooses the aezeed `faraday-keys` now holds, whose BIP-32 seed has
+    /// fingerprint `fp`, and To opens.
+    pub(crate) fn choose_aezeed(&mut self, fp: Fingerprint) {
+        self.choose(fp.0);
+        if let Some(s) = self.state.as_mut() {
+            s.aezeed = true;
         }
     }
 
@@ -887,11 +904,22 @@ pub(crate) fn slip_fits(len: usize, t: u8, slip: &[(u8, u8)], action: ConvertAct
 /// The seed bytes of the key chosen: 32 where it has none, the longest a
 /// SLIP-39 set takes. A lookup.
 pub(crate) fn seed_len_of(keys: &faraday_keys::Keys, state: &ConvertState) -> usize {
-    state
-        .key
-        .and_then(|fp| keys.all().find(|k| k.fingerprint.0 == fp))
+    source_info(keys, state)
         .and_then(|k| k.seed_len)
         .unwrap_or(32)
+}
+
+/// The source chosen, if it is still there: a loaded key, or the aezeed
+/// held for the flow. A lookup.
+pub(crate) fn source_info<'a>(
+    keys: &'a faraday_keys::Keys,
+    state: &ConvertState,
+) -> Option<&'a KeyInfo> {
+    if state.aezeed {
+        return keys.source_info(faraday_keys::Keys::AEZEED_SOURCE);
+    }
+    let fp = state.key?;
+    keys.all().find(|k| k.fingerprint.0 == fp)
 }
 
 /// The flow's state, while it is open.
@@ -970,10 +998,15 @@ fn has_settings(app: &Faraday, target: Target) -> bool {
 /// The place of the key chosen, if `target` is a row that applies to it. A
 /// lookup.
 fn key_for(app: &Faraday, target: Target) -> Option<usize> {
-    let fp = app.tools.convert().state()?.key?;
-    let i = app.session.keys.position_of(fp)?;
+    let s = app.tools.convert().state()?;
+    let i = if s.aezeed {
+        faraday_keys::Keys::AEZEED_SOURCE
+    } else {
+        app.session.keys.position_of(s.key?)?
+    };
+    let info = app.session.keys.source_info(i)?;
     ROWS.iter()
-        .any(|r| r.target == Some(target) && r.applies(&app.session.keys[i]))
+        .any(|r| r.target == Some(target) && r.applies(info))
         .then_some(i)
 }
 
@@ -1055,6 +1088,16 @@ fn paths_of(app: &Faraday, fp: Fingerprint) -> Vec<String> {
     out
 }
 
+/// The Paths fact of an aezeed: the paths LND uses on this network.
+fn aezeed_paths(app: &Faraday) -> Vec<String> {
+    let coin = if app.session.keys.network() == faraday_bip::keys::Network::Mainnet {
+        "0"
+    } else {
+        "1"
+    };
+    vec![fill(EN.convert_aezeed_paths, &[coin, coin, coin])]
+}
+
 /// The press on the row at `place`: a target with settings opens its
 /// card, any other is made; a row not offered, or dimmed, does nothing.
 fn press(app: &mut Faraday, place: u8) {
@@ -1104,7 +1147,11 @@ fn make(app: &mut Faraday, target: Target) {
         Target::SeedXor => faraday_keys::seed_xor_random_len(parts),
         Target::Codex32 => faraday_keys::codex32_random_len(k),
         Target::SlipSet => faraday_keys::slip39_random_len(
-            app.session.keys[i].seed_len.unwrap_or(32),
+            app.session
+                .keys
+                .source_info(i)
+                .and_then(|k| k.seed_len)
+                .unwrap_or(32),
             slip_t,
             &groups,
         ),
@@ -1148,8 +1195,15 @@ fn make(app: &mut Faraday, target: Target) {
             .codex32_converted(&c, i, k, n, &random, why)
             .map(Value::Set),
     };
-    let paths = paths_of(app, keys[i].fingerprint);
-    let checkable = target.checks(keys[i].language);
+    let Some(info) = keys.source_info(i) else {
+        return;
+    };
+    let paths = if i == faraday_keys::Keys::AEZEED_SOURCE {
+        aezeed_paths(app)
+    } else {
+        paths_of(app, info.fingerprint)
+    };
+    let checkable = target.checks(info.language);
     let area = app.tools.convert_mut();
     area.made(target, given, checkable, (paths, settings));
 }
@@ -1192,7 +1246,7 @@ fn save(app: &mut Faraday) {
     let (Some(target), Some(fp)) = (s.target, s.key) else {
         return;
     };
-    let Some(k) = app.session.keys.all().find(|k| k.fingerprint.0 == fp) else {
+    let Some(k) = source_info(&app.session.keys, s) else {
         return;
     };
     let (lang, apart) = (
@@ -1240,6 +1294,7 @@ fn save(app: &mut Faraday) {
 /// the flow goes on as for a loaded key.
 fn from_vault(app: &mut Faraday, v: usize, r: usize) {
     if let Some(fp) = app.vault_key_load(v, r) {
+        app.session.keys.aezeed_forget();
         app.tools.convert_mut().choose(fp);
     }
 }
@@ -1247,7 +1302,9 @@ fn from_vault(app: &mut Faraday, v: usize, r: usize) {
 /// A press in the flow.
 pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     match action {
+        ConvertAction::Aezeed => app.lightning_for_convert(),
         ConvertAction::Open => {
+            app.session.keys.aezeed_forget();
             let key = (app.session.keys.len() == 1).then(|| app.session.keys[0].fingerprint.0);
             let back = app.screen;
             app.tools.convert_mut().open(key, back);
@@ -1257,6 +1314,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             if app.session.keys.position_of(fp).is_none() {
                 return;
             }
+            app.session.keys.aezeed_forget();
             let back = app.screen;
             // Explore is kept for the way back; what its eyes show is not.
             app.explore_hide();
@@ -1266,6 +1324,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::Step(s) => app.tools.convert_mut().step(s),
         ConvertAction::Key(fp) => {
             if app.session.keys.position_of(fp).is_some() {
+                app.session.keys.aezeed_forget();
                 app.tools.convert_mut().choose(fp);
             }
         }
@@ -1347,8 +1406,10 @@ pub(crate) fn tidy(app: &mut Faraday) {
             && app
                 .keygen
                 .state()
-                .is_some_and(|k| k.back == Screen::Convert));
+                .is_some_and(|k| k.back == Screen::Convert))
+        || (app.screen == Screen::Lightning && app.lightning.for_convert());
     if !kept {
+        app.session.keys.aezeed_forget();
         app.tools.convert_mut().clear();
     }
 }

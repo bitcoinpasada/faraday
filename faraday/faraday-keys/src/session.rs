@@ -363,6 +363,9 @@ pub struct Keys {
     /// ([`Keys::sweep_read`], F171): one at most, never kept, erased when
     /// it is dropped.
     sweep: Option<crate::sweep::SweepKey>,
+    /// An aezeed read for Convert, while the tool holds it
+    /// ([`Keys::aezeed_hold`]): never one of the keys.
+    pub(crate) aezeed: Option<crate::lightning::HeldAezeed>,
 }
 
 impl Default for Keys {
@@ -382,6 +385,7 @@ impl Keys {
             stick: None,
             blind: None,
             sweep: None,
+            aezeed: None,
         }
     }
 
@@ -488,6 +492,11 @@ impl Keys {
         self.stick = noun;
     }
 
+    /// The noun of the stick attached, if one is.
+    pub(crate) fn stick_attached(&self) -> Option<&'static str> {
+        self.stick
+    }
+
     // ---- public reads ----
 
     /// How many keys are held.
@@ -503,7 +512,7 @@ impl Keys {
     /// Whether any secret is held: the stick rule's test
     /// (`docs/history/PLAN.md` §5.1).
     pub fn holds_secret(&self) -> bool {
-        !self.entries.is_empty() || self.sweep.is_some()
+        !self.entries.is_empty() || self.sweep.is_some() || self.aezeed.is_some()
     }
 
     // ---- a private key swept (F171, `crate::sweep`) ----
@@ -906,6 +915,7 @@ impl Keys {
     pub fn clear(&mut self) {
         self.entries.clear();
         self.sweep = None;
+        self.aezeed = None;
     }
 
     /// Sets key `i`'s label.

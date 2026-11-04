@@ -158,5 +158,37 @@ fn slip_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, &share);
     t.press(Action::Convert(C::Compare));
     t.shot("convert-slip-matches")?;
+    aezeed_tour(t)
+}
+
+/// LND's published cipher seed with no passphrase
+/// (`tools/reference/aezeed/README.md`).
+const AEZEED: &str = "above judge emerge veteran reform crunch system all snap please shoulder \
+    vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+
+/// An LND aezeed as the source (`docs/SEED-CONVERSION.md` §4.5): From with
+/// its row, the entry, and a result.
+fn aezeed_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Convert(C::Done));
+    open(t)?;
+    t.shot("convert-aezeed-from")?;
+    t.press(Action::Convert(C::Aezeed));
+    type_text(t, AEZEED);
+    t.shot("convert-aezeed-entry")?;
+    {
+        use faraday_shell_api::{App, Event, Key};
+        t.app.event(Event::Key(Key::Enter));
+    }
+    t.tick();
+    testkit::settle(&mut t.app);
+    t.tick();
+    let seed = ROWS
+        .iter()
+        .position(|r| r.name == "Master seed, hex")
+        .ok_or("no master seed row")?;
+    t.press(Action::Convert(C::To(seed as u8)));
+    t.tick();
+    t.press(Action::Convert(C::Show));
+    t.shot("convert-aezeed-result")?;
     Ok(())
 }

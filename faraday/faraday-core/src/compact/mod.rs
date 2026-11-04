@@ -462,6 +462,9 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         }
         Some(_) if app.screen == Screen::Wallets && app.glance.open() => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
+        _ if app.screen == Screen::Lightning && app.lightning.for_convert() => {
+            EN.convert_lnd_aezeed
+        }
         _ => screen_name(app.screen, app.medium),
     };
     let back = match app.screen {

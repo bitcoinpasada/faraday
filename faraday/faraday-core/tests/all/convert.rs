@@ -1680,3 +1680,292 @@ fn practice_does_not_make_a_slip39_set() {
     let s = convert::state(&app).unwrap();
     assert_eq!((s.target, s.open), (None, Some(cstep::TO)));
 }
+
+/// LND's published cipher seeds at the cost a released LND uses
+/// (`tools/reference/aezeed/README.md`): both hold the same entropy.
+const AEZEED: &str = "above judge emerge veteran reform crunch system all snap please shoulder \
+    vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+const AEZEED_PASS: &str = "absorb century submit father path glove gloom super divert garden ice \
+    mirror wisdom grass dice kit ugly castle success suggest drink monster congress flight";
+const AEZEED_ENTROPY: &str = "81b637d86359e6960de795e41e0b4cfd";
+
+/// Types `text` into the field the screen types in.
+fn type_in(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+}
+
+/// From's aezeed row: the entry opens, `words` and `passphrase` are typed
+/// and Enter reads them on the tick after the frame.
+fn read_aezeed(app: &mut Faraday, words: &str, passphrase: &str) {
+    app.press(Action::Convert(C::Aezeed));
+    assert_eq!(app.screen, Screen::Lightning);
+    type_in(app, words);
+    if !passphrase.is_empty() {
+        app.press(Action::LPassphrase);
+        type_in(app, passphrase);
+    }
+    app.event(Event::Key(Key::Enter));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    testkit::settle(app);
+}
+
+/// Presses a row that has a Settings card and makes its default.
+fn make_default(app: &mut Faraday, name: &str) -> String {
+    app.press(Action::Convert(C::To(place(name))));
+    if convert::state(app).is_some_and(|s| s.open == Some(cstep::SETTINGS)) {
+        app.press(Action::Convert(C::Make));
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        testkit::settle(app);
+    } else {
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        testkit::settle(app);
+    }
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let parts = convert::shown_parts(app).expect("a result");
+    assert_eq!(parts.len(), 1);
+    parts[0].to_string()
+}
+
+#[test]
+fn an_aezeeds_entropy_is_the_seed_and_every_row_reads_back_to_it() {
+    let mut app = mainnet();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert_eq!(app.screen, Screen::Convert);
+    assert_eq!(app.session.keys.len(), 0, "an aezeed is no key");
+    let c = testkit::compute();
+    let entropy = faraday_crypto::hex::decode_vec(AEZEED_ENTROPY).unwrap();
+
+    assert_eq!(
+        make(&mut app, "Master seed, hex").as_deref(),
+        Some(AEZEED_ENTROPY)
+    );
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let xprv = make(&mut app, "xprv").unwrap();
+    let expected = faraday_bip::keys::MasterKey::from_seed_bytes(
+        &c,
+        &faraday_crypto::Secret::new(faraday_crypto::SeedBytes::new(&entropy).unwrap()),
+        faraday_bip::keys::Network::Mainnet,
+    );
+    assert_eq!(xprv, expected.xpriv_ascii().as_str());
+
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let slip = make(&mut app, "SLIP-39, 1 of 1").unwrap();
+    assert_eq!(slip.split(' ').count(), 20);
+    let share = faraday_bip::slip39::Share::parse(&slip).unwrap();
+    let seed = faraday_keys::slip39_seed(&c, &[share], b"").unwrap();
+    assert_eq!(&seed[..], &entropy[..]);
+
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let codex = make_default(&mut app, "codex32");
+    assert_eq!(codex.trim().len(), 48);
+    let parsed = faraday_bip::codex32::Codex32::parse(codex.trim()).unwrap();
+    assert_eq!(parsed.to_seed().unwrap().expose().bytes(), &entropy[..]);
+
+    // Rows that need BIP-39 words are listed but take no press.
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    assert!(
+        ROWS.iter()
+            .any(|r| r.target.is_none() && r.name == "BIP-39 words")
+    );
+}
+
+#[test]
+fn the_aezeeds_result_says_its_birthday_and_what_it_covers() {
+    let mut app = mainnet();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED_PASS, "!very_safe_55345_password*");
+    assert_eq!(app.screen, Screen::Convert);
+    make(&mut app, "Master seed, hex").unwrap();
+    let _ = app.frame();
+    let texts = app.drawn_texts().join("\n");
+    assert!(texts.contains("2018-03-22"), "{texts}");
+    assert!(texts.contains("On-chain coins only"), "{texts}");
+    assert!(
+        texts.contains("m/84'/0'/0'") && texts.contains("m/1017'"),
+        "{texts}"
+    );
+    assert!(!texts.contains("same as the source"), "{texts}");
+}
+
+#[test]
+fn an_aezeed_that_does_not_read_gives_the_refusal_and_nothing_is_held() {
+    let words: Vec<&str> = AEZEED.split(' ').collect();
+    let mut bad_sum = words.clone();
+    bad_sum[23] = "abandon";
+    let short = words[..23].join(" ");
+    for (text, pass) in [
+        (short, ""),
+        (bad_sum.join(" "), ""),
+        (AEZEED.to_string(), "not the passphrase"),
+    ] {
+        let mut app = mainnet();
+        open(&mut app);
+        read_aezeed(&mut app, &text, pass);
+        assert_eq!(app.screen, Screen::Lightning, "{pass}");
+        assert!(app.lightning().unwrap().error.is_some());
+        assert!(app.session.keys.aezeed_birthday().is_none());
+        assert!(
+            app.session
+                .keys
+                .source_info(faraday_keys::Keys::AEZEED_SOURCE)
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn leaving_convert_or_choosing_another_source_leaves_no_aezeed_held() {
+    let held = |app: &Faraday| app.session.keys.aezeed_birthday().is_some();
+    let mut app = mainnet();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert!(held(&app));
+    app.press(Action::Convert(C::Done));
+    assert!(!held(&app));
+    assert!(convert::state(&app).is_none());
+
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(!held(&app));
+
+    // Backing out of the entry returns to the flow with nothing held.
+    open(&mut app);
+    app.press(Action::Convert(C::Aezeed));
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.screen, Screen::Convert);
+    assert!(!held(&app));
+
+    // Another key chosen replaces it.
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert!(held(&app));
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Convert(C::Key(fp)));
+    assert!(!held(&app));
+    assert_eq!(app.session.keys.len(), 1);
+
+    // Locking drops it.
+    read_aezeed(&mut app, AEZEED, "");
+    assert!(held(&app));
+    crate::common::lock(&mut app);
+    assert!(!held(&app));
+}
+
+#[test]
+fn an_aezeed_is_not_read_in_while_a_stick_is_attached() {
+    let mut app = mainnet();
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: "stick".into(),
+            label: "STICK".into(),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    open(&mut app);
+    app.press(Action::Convert(C::Aezeed));
+    assert_eq!(app.screen, Screen::Convert);
+    assert!(app.session.keys.aezeed_birthday().is_none());
+}
+
+/// A set from an aezeed, made through the screen, reads back to its
+/// entropy: SLIP-39's decoder from two of three shares, codex32's from two.
+#[test]
+fn an_aezeeds_sets_read_back_to_its_entropy() {
+    let entropy = unhex(AEZEED_ENTROPY);
+    let mut app = mainnet();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    feed_many(&mut app, 10);
+    let set = make_set(&mut app, SLIP_SET).unwrap();
+    assert_eq!(set.len(), 3);
+    assert_eq!(slip_back(&set, &[0, 2]), entropy);
+
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    feed_many(&mut app, 120);
+    app.press(Action::Convert(C::To(place("codex32"))));
+    settle(&mut app);
+    app.press(Action::Convert(C::K(1)));
+    app.press(Action::Convert(C::N(1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let set: Vec<_> = convert::shown_parts(&app)
+        .unwrap()
+        .iter()
+        .map(|s| faraday_bip::codex32::Codex32::parse(s).unwrap())
+        .collect();
+    assert_eq!(*faraday_keys::codex32_seed(&set[..2]).unwrap(), entropy);
+    assert_eq!(app.session.keys.len(), 0, "an aezeed is no key");
+}
+
+/// Back at From after a read, the first Back leaves the flow, and the
+/// aezeed goes with it.
+#[test]
+fn the_first_back_after_a_read_leaves_the_flow() {
+    let mut app = mainnet();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert_eq!(app.screen, Screen::Convert);
+    app.press(Action::Convert(C::Step(cstep::FROM)));
+    app.press(Action::Back);
+    assert_ne!(app.screen, Screen::Convert);
+    assert!(app.session.keys.aezeed_birthday().is_none());
+}
+
+/// An aezeed read in a flow opened from Explore comes back to an Explore
+/// that draws, as it was.
+#[test]
+fn an_aezeed_read_from_explores_flow_returns_to_an_explore_that_draws() {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    let fp = app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    app.press(Action::Explore);
+    app.press(Action::XKey(fp.0));
+    app.press(Action::Convert(C::OpenOn(fp.0)));
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    app.press(Action::Convert(C::Step(cstep::FROM)));
+    read_aezeed(&mut app, AEZEED, "");
+    assert_eq!(app.screen, Screen::Convert);
+    app.press(Action::Convert(C::Done));
+    assert_eq!(app.screen, Screen::Explore);
+    assert_eq!(app.explore().and_then(|e| e.key), Some(fp.0));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Write it in another form"),
+        "Explore draws again"
+    );
+    assert!(app.session.keys.aezeed_birthday().is_none());
+}
+
+/// In Practice an aezeed that is not a public sample gives the refusal,
+/// and nothing is held.
+#[test]
+fn practice_does_not_hold_a_private_aezeed() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert_eq!(app.screen, Screen::Lightning);
+    assert!(app.lightning().unwrap().error.is_some());
+    assert!(app.session.keys.aezeed_birthday().is_none());
+}

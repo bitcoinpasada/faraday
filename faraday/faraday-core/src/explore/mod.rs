@@ -346,7 +346,8 @@ impl Faraday {
 
     /// Forgets Explore's state, what its eyes show with it, once it is
     /// not on screen: leaving it, however it is left, but for Convert a
-    /// seed opened from it, and Add a key opened from that, which come back.
+    /// seed opened from it, and Add a key or the aezeed's entry opened from
+    /// that, which come back.
     pub(crate) fn explore_left(&mut self) {
         let comes_back = crate::convert::state(self).is_some_and(|s| s.back == Screen::Explore);
         let away = comes_back
@@ -355,7 +356,8 @@ impl Faraday {
                     && self
                         .keygen
                         .state()
-                        .is_some_and(|k| k.back == Screen::Convert)));
+                        .is_some_and(|k| k.back == Screen::Convert))
+                || (self.screen == Screen::Lightning && self.lightning.for_convert()));
         if self.screen != Screen::Explore && !away {
             self.explore.clear();
         }

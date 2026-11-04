@@ -31,7 +31,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let below = if compact { 20.0 } else { 0.0 };
     ui.page_begin((x0, cw, h), app.list_offset);
     let top = 12.0;
-    let guide = EN.lightning_a_lightning_node;
+    let guide = if app.lightning.for_convert() {
+        EN.convert_aezeed_guide
+    } else {
+        EN.lightning_a_lightning_node
+    };
     let y = if compact {
         top
     } else {
@@ -60,7 +64,12 @@ fn header(app: &View, ui: &mut Ui, x: f32, width: f32, guide: &str) -> f32 {
         return 0.0;
     };
     let back = app.named_back((EN.lightning_wallets, Action::Nav(l.back)));
-    let y = crate::screens::bar_head(ui, Some(back), EN.lightning_lightning_node);
+    let title = if l.for_convert {
+        EN.convert_lnd_aezeed
+    } else {
+        EN.lightning_lightning_node
+    };
+    let y = crate::screens::bar_head(ui, Some(back), title);
     y + guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Tools)
 }
 
@@ -79,10 +88,9 @@ fn body(
     let Some(l) = app.lightning.state() else {
         return y;
     };
-    let mut row: Vec<(String, Style, Action)> = app
-        .session
-        .keys
-        .all()
+    // Opened from Convert, the entry stands alone: the source is the aezeed.
+    let keys = app.session.keys.all().filter(|_| !l.for_convert);
+    let mut row: Vec<(String, Style, Action)> = keys
         .map(|k| {
             let fp = k.fingerprint;
             (
@@ -95,12 +103,14 @@ fn body(
             )
         })
         .collect();
-    row.push((
-        EN.lightning_lnd_type.to_string(),
-        Style::chosen(l.source == Some(NodeSource::Aezeed)),
-        Action::LAezeed,
-    ));
-    y += button_rows(ui, x, y, width, &row) + 6.0;
+    if !l.for_convert {
+        row.push((
+            EN.lightning_lnd_type.to_string(),
+            Style::chosen(l.source == Some(NodeSource::Aezeed)),
+            Action::LAezeed,
+        ));
+        y += button_rows(ui, x, y, width, &row) + 6.0;
+    }
     if l.source == Some(NodeSource::Aezeed) {
         ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(
