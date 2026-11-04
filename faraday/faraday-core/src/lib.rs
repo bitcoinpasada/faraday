@@ -260,7 +260,7 @@ pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
-pub use storage_api::{BootMedium, StickInfo, StickMake, StorageCommand, StorageEvent};
+pub use storage_api::{BootMedium, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent};
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
 };
@@ -627,6 +627,10 @@ pub enum Sheet {
     /// A stick visit's write would go over files already on the stick:
     /// Replace, Keep both or Cancel (`visit_taken`).
     Taken,
+    /// A vault's write the disk process refused for its name, a file on
+    /// the stick having it and nothing proving that file a copy: Hold to
+    /// overwrite, Save beside or Cancel (`visit_taken`).
+    NameTaken,
     /// What is attached that can capture the screen or the keys, each
     /// named with what it can do, and before a secret the reminders
     /// (`devices`).
@@ -1366,20 +1370,12 @@ impl Faraday {
             StorageEvent::StickProblem { stick, read_only } => {
                 self.flow_stick_problem(&stick, read_only);
             }
-            StorageEvent::Written {
-                stick,
-                name,
-                wrote_as,
-            } if self.flow_wants_written(&stick, &name) => {
-                self.flow_write_answer(&name, Ok(wrote_as));
+            ev @ (StorageEvent::Written { .. } | StorageEvent::WriteFailed { .. })
+                if self.flow_wants_write_event(&ev) =>
+            {
+                self.flow_write_event(ev);
             }
-            StorageEvent::WriteFailed {
-                stick,
-                name,
-                reason,
-            } if self.flow_wants_written(&stick, &name) => {
-                self.flow_write_answer(&name, Err(reason));
-            }
+            ev @ StorageEvent::NameTaken { .. } => self.name_taken_event(ev),
             StorageEvent::Read { stick, name, bytes } => {
                 // A file Faraday reads as nothing else still comes in, as
                 // a File: to sign, or to send as codes.
@@ -1414,7 +1410,7 @@ impl Faraday {
                 self.visit.log.push((format!("{name}: {reason}"), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
-                self.receipt_add(&name, None);
+                self.visit_written(&name, &wrote_as);
                 // A rename is carried by one write, to the stick written:
                 // another stick keeps its own name for the same vault.
                 self.visit.files_menu_mut().renamed.remove(&name);
@@ -1829,6 +1825,7 @@ impl Faraday {
             .unwrap_or_default();
         self.visit.inn.retain(|n| names.contains(n));
         self.flow_sticks_changed();
+        self.name_taken_pulled();
         if self.stick.is_empty() {
             self.stick.set_held(false);
             self.stick.set_not_now(false);
@@ -2499,6 +2496,7 @@ impl Faraday {
             // Sign with {key}'s Cancel: the sheet closes, the files stay
             // ticked, nothing is signed (F63).
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
+            Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
@@ -2825,6 +2823,8 @@ impl Faraday {
             | Action::VisitWrite
             | Action::VisitReplace
             | Action::VisitKeepBoth
+            | Action::NameTakenBeside
+            | Action::NameTakenOverwrite
             | Action::VisitCopy
             | Action::VisitCopyAndLoad
             | Action::VisitFrom(..)) => self.visit_act(a),

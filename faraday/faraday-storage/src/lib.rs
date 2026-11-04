@@ -14,7 +14,7 @@ use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
 use faraday_strings::{EN, fill};
 
-pub use faraday_files::{MAX_PIXELS, MAX_READ, Unrenamed, foreign};
+pub use faraday_files::{MAX_PIXELS, MAX_READ, OnTaken, Unrenamed, WriteRefused, foreign};
 
 /// Costs a look at the folder and a read of four bytes of each file
 /// that could be a vault: what a stick directory holds at its top level,
@@ -110,7 +110,8 @@ pub trait Sticks {
     /// the name it went under. `copies`: the SHA-256 of the copies of a
     /// vault the session has seen. `renamed`: the person renamed it For
     /// the stick, and a vault going over a copy takes the name
-    /// (`faraday_files::write_file`).
+    /// (`faraday_files::write_file`). `on_taken`: what a vault does where
+    /// a file has its name and no copy is proved.
     #[expect(
         clippy::too_many_arguments,
         reason = "one write, as the protocol carries it"
@@ -124,7 +125,8 @@ pub trait Sticks {
         copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
-    ) -> Result<String, String>;
+        on_taken: faraday_files::OnTaken,
+    ) -> Result<String, faraday_files::WriteRefused>;
     /// Deletes a file, zeros over it first.
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String>;
     /// The free space and the whole data space, in bytes.
@@ -237,8 +239,18 @@ impl Sticks for Dirs {
         copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
-    ) -> Result<String, String> {
-        faraday_files::write_file(c, &mut dir(stick), name, bytes, copies, replace, renamed)
+        on_taken: faraday_files::OnTaken,
+    ) -> Result<String, faraday_files::WriteRefused> {
+        faraday_files::write_file(
+            c,
+            &mut dir(stick),
+            name,
+            bytes,
+            copies,
+            replace,
+            renamed,
+            on_taken,
+        )
     }
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
         faraday_files::wipe(&mut dir(stick), name)
@@ -715,10 +727,27 @@ fn serve_queued(
                 copies,
                 replace,
                 renamed,
+                on_taken,
             } => {
                 let c = app.compute();
-                let written = sticks.write(&c, &stick, &name, &bytes, &copies, replace, renamed);
+                let on_taken = match on_taken {
+                    faraday_core::OnTaken::Ask => faraday_files::OnTaken::Ask,
+                    faraday_core::OnTaken::Beside => faraday_files::OnTaken::Beside,
+                    faraday_core::OnTaken::Over(sha) => faraday_files::OnTaken::Over(sha),
+                };
+                let written = sticks.write(
+                    &c, &stick, &name, &bytes, &copies, replace, renamed, on_taken,
+                );
                 let ev = match written {
+                    Err(faraday_files::WriteRefused::NameTaken { on_stick, sha }) => {
+                        said.push(format!("{stick}/{on_stick} has the name of {name}"));
+                        StorageEvent::NameTaken {
+                            stick,
+                            name,
+                            on_stick,
+                            sha,
+                        }
+                    }
                     Ok(wrote_as) => {
                         said.push(format!("wrote {stick}/{wrote_as}"));
                         StorageEvent::Written {
@@ -727,7 +756,7 @@ fn serve_queued(
                             wrote_as,
                         }
                     }
-                    Err(reason) => {
+                    Err(faraday_files::WriteRefused::Failed(reason)) => {
                         said.push(format!("cannot write {stick}/{name}: {reason}"));
                         StorageEvent::WriteFailed {
                             stick,
@@ -1121,6 +1150,35 @@ impl DiskProcess {
         replace: bool,
         renamed: bool,
     ) -> Result<String, String> {
+        self.write_asking(
+            stick,
+            name,
+            bytes,
+            copies,
+            replace,
+            renamed,
+            faraday_files::OnTaken::Beside,
+        )
+        .map_err(faraday_files::WriteRefused::text)
+    }
+
+    /// [`DiskProcess::write_copies`], a vault's same-name file dealt with as
+    /// `on_taken` says, the refusal as it came.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one write, as the protocol carries it"
+    )]
+    pub fn write_asking(
+        &mut self,
+        stick: &str,
+        name: &str,
+        bytes: &[u8],
+        copies: &[[u8; 32]],
+        replace: bool,
+        renamed: bool,
+        on_taken: faraday_files::OnTaken,
+    ) -> Result<String, faraday_files::WriteRefused> {
+        use faraday_files::WriteRefused as W;
         use faraday_files::proto::{Request, Response};
         let mut req = Request::Write {
             stick: stick.into(),
@@ -1128,14 +1186,16 @@ impl DiskProcess {
             copies: copies.to_vec(),
             replace,
             renamed,
+            on_taken,
             bytes: bytes.to_vec(),
         };
         let answer = self.ask(&req);
         req.wipe();
-        match answer? {
+        match answer.map_err(W::Failed)? {
             Response::Written(n) => Ok(n),
-            Response::Failed(why) => Err(why),
-            _ => Err(EN.storage_answer_write.to_string()),
+            Response::WriteNameTaken { on_stick, sha } => Err(W::NameTaken { on_stick, sha }),
+            Response::Failed(why) => Err(W::Failed(why)),
+            _ => Err(W::Failed(EN.storage_answer_write.to_string())),
         }
     }
 }
@@ -1162,8 +1222,9 @@ impl Sticks for DiskProcess {
         copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
-    ) -> Result<String, String> {
-        self.write_copies(stick, name, bytes, copies, replace, renamed)
+        on_taken: faraday_files::OnTaken,
+    ) -> Result<String, faraday_files::WriteRefused> {
+        self.write_asking(stick, name, bytes, copies, replace, renamed, on_taken)
     }
 
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {

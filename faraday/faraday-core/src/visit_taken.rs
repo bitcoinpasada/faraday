@@ -1,12 +1,15 @@
-//! Writing over a file on a stick asks first (HANDOFF item 68.5,
-//! `docs/FLOWS.md` the stick visit). Before a visit's Write, the files it
-//! would write whose names are already on the stick, ignoring case, bring
-//! up **Already on the stick**, a row each, and Replace, Keep both or
-//! Cancel. A vault going back over itself is always replaced, a vault
-//! under another vault's name never is, and the settings file is
-//! Faraday's own and not listed. With nothing taken there is no sheet.
+//! Writing over a file on a stick asks first (`docs/FLOWS.md` the stick
+//! visit). Before a visit's Write, the files it would write whose names
+//! are already on the stick, ignoring case, bring up **Already on the
+//! stick**, a row each, and Replace, Keep both or Cancel. A vault is not
+//! listed there: a vault whose name a file on the stick has, where nothing
+//! proves that file is a copy of it, is asked by the disk process and
+//! answered by the name-taken sheet (`docs/VAULT.md` §6 step 1). The
+//! settings file is Faraday's own and not listed. With nothing taken there
+//! is no sheet.
 
 use crate::drawing::View;
+use crate::storage_api::OnTaken;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_draw::widgets::Icon;
@@ -17,54 +20,53 @@ use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, READ_MAX, Screen, Sheet, StorageCommand, sha256_of, stick};
 use faraday_draw::tokens::BODY_M;
 
-/// What becomes of one file whose name is taken.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Fate {
-    /// A file: replaced, or kept beside the old one as `keep_as`.
-    File {
-        /// The name Keep both writes it under.
-        keep_as: String,
-    },
-    /// The same vault, sealed again here: always written over its own
-    /// file.
-    SameVault,
-    /// Another vault under the name: never replaced, written as
-    /// `keep_as` whatever is chosen.
-    OtherVault {
-        /// The name it is written under.
-        keep_as: String,
-    },
-}
-
-/// One row of the sheet: the name asked for, and what becomes of it.
+/// One row of the sheet: a file whose name is taken, and the name Keep
+/// both writes it under.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Taken {
     /// The name asked for.
     pub name: String,
-    /// What becomes of it.
-    pub fate: Fate,
+    /// The name Keep both writes it under.
+    pub keep_as: String,
 }
 
 impl Taken {
     /// The row as the sheet says it.
     pub fn line(&self) -> String {
-        match &self.fate {
-            Fate::File { keep_as } => fill(
-                EN.visit_taken_keep_both_n,
-                &[&self.name.to_string(), &keep_as.to_string()],
-            ),
-            Fate::SameVault => fill(EN.visit_taken_the_same, &[&self.name.to_string()]),
-            Fate::OtherVault { keep_as } => fill(
-                EN.visit_taken_another,
-                &[&self.name.to_string(), &keep_as.to_string()],
-            ),
-        }
+        fill(
+            EN.visit_taken_keep_both_n,
+            &[&self.name.to_string(), &self.keep_as.to_string()],
+        )
     }
+}
+
+/// A vault's write the disk process refused for its name, waiting for the
+/// person's answer (`docs/VAULT.md` §6 step 1). What the sheet says was
+/// decided when the refusal arrived.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NameTaken {
+    /// The stick's id.
+    pub(crate) stick: String,
+    /// The name the vault was to be written under.
+    pub(crate) name: String,
+    /// The file on the stick that has it.
+    pub(crate) on_stick: String,
+    /// That file's SHA-256, when it could be read.
+    pub(crate) sha: Option<[u8; 32]>,
+    /// The backup flow's write, not the stick visit's.
+    pub(crate) flow: bool,
+    /// The line under the title.
+    pub(crate) body: String,
+    /// The free name Save beside writes it under.
+    pub(crate) beside: String,
+    /// The SHA-256 of the bytes the write sent, which the answer sends
+    /// again; none where the write is no longer known.
+    pub(crate) sent: Option<[u8; 32]>,
 }
 
 /// Whether these bytes are a vault, whatever the file is named: the
 /// magic and a vault length (`docs/VAULT-HARDENING.md` §2.1).
-fn is_vault(bytes: &[u8]) -> bool {
+pub(crate) fn is_vault(bytes: &[u8]) -> bool {
     faraday_intake::is_vault(bytes)
 }
 
@@ -116,6 +118,11 @@ pub(crate) struct VisitArea {
     /// How far Files' For the stick list is scrolled on a desktop, apart
     /// from From the stick's.
     files_out_offset: f32,
+    /// The vault writes refused for their names, the first on the
+    /// name-taken sheet ([`Sheet::NameTaken`]).
+    name_taken: std::collections::VecDeque<NameTaken>,
+    /// The names this write wrote, for the free name the sheet offers.
+    wrote: Vec<String>,
 }
 
 impl std::ops::Deref for VisitArea {
@@ -178,6 +185,26 @@ impl VisitArea {
     /// The vault files written from, to change them.
     pub(crate) fn vault_from_mut(&mut self) -> &mut Vec<(String, [u8; 32], String)> {
         &mut self.vault_from
+    }
+
+    /// The vault writes waiting for an answer to the name-taken sheet.
+    pub(crate) fn name_taken(&self) -> &std::collections::VecDeque<NameTaken> {
+        &self.name_taken
+    }
+
+    /// The queue of name-taken answers, to change it.
+    pub(crate) fn name_taken_mut(&mut self) -> &mut std::collections::VecDeque<NameTaken> {
+        &mut self.name_taken
+    }
+
+    /// A name this write wrote.
+    pub(crate) fn wrote_add(&mut self, name: &str) {
+        self.wrote.push(name.to_string());
+    }
+
+    /// A new write starts with no names written.
+    pub(crate) fn wrote_clear(&mut self) {
+        self.wrote.clear();
     }
 
     /// Files' row menus.
@@ -255,6 +282,23 @@ impl Faraday {
     /// says what becomes of the file.
     pub(crate) fn visit_write_failed(&mut self, name: &str, reason: &str) {
         self.receipt_add(name, Some(reason.to_string()));
+        self.visit_write_logged(name, reason);
+    }
+
+    /// A write given up before anything was written: no receipt row, so
+    /// that the proof of an earlier write stays; the log says why.
+    fn visit_write_cancelled(&mut self, name: &str, reason: &str) {
+        if let Some((_, _, sent, _)) = self.visit.writing.as_mut() {
+            sent.retain(|(n, _)| n != name);
+            if sent.is_empty() {
+                self.visit.writing = None;
+            }
+        }
+        self.visit_write_logged(name, reason);
+    }
+
+    /// The visit's log line for a file not written.
+    fn visit_write_logged(&mut self, name: &str, reason: &str) {
         let stays = if self.visit.writing_inbox.remove(name) {
             EN.storage_event_it_stays.to_string()
         } else {
@@ -281,23 +325,16 @@ impl Faraday {
                 .files
                 .iter()
                 .find(|(n, _)| n.eq_ignore_ascii_case(&name));
-            let Some((_, size)) = on else {
+            let Some(_) = on else {
                 continue;
             };
-            // A vault of the same length is taken for the same one; the
-            // write itself checks its salt and never goes over another.
-            let fate = if is_vault(&bytes) && *size == bytes.len() as u64 {
-                Fate::SameVault
-            } else {
-                let keep_as = free_name(&names, &name);
-                names.push(keep_as.to_ascii_lowercase());
-                if is_vault(&bytes) {
-                    Fate::OtherVault { keep_as }
-                } else {
-                    Fate::File { keep_as }
-                }
-            };
-            rows.push(Taken { name, fate });
+            // A vault is asked by the disk process, which reads the file.
+            if is_vault(&bytes) {
+                continue;
+            }
+            let keep_as = free_name(&names, &name);
+            names.push(keep_as.to_ascii_lowercase());
+            rows.push(Taken { name, keep_as });
         }
         rows
     }
@@ -313,7 +350,7 @@ impl Faraday {
             return;
         }
         let taken = self.visit_taken();
-        if taken.iter().any(|t| matches!(t.fate, Fate::File { .. })) {
+        if !taken.is_empty() {
             self.visit.taken = taken;
             self.sheet = Some(Sheet::Taken);
         } else {
@@ -335,7 +372,6 @@ impl Faraday {
         }
         let taken: Vec<String> = std::mem::take(&mut self.visit.taken)
             .into_iter()
-            .filter(|t| matches!(t.fate, Fate::File { .. }))
             .map(|t| t.name)
             .collect();
         let Some(stick) = self.stick.get(self.visit.stick) else {
@@ -350,6 +386,7 @@ impl Faraday {
             None => format!("id:{}", stick.id),
         };
         self.visit.log.clear();
+        self.name_taken_wrote_clear();
         let mut sends: Vec<(String, Vec<u8>, bool)> = Vec::new();
 
         if self.visit_settings_on() {
@@ -380,6 +417,7 @@ impl Faraday {
             .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
             .collect();
         for (name, bytes, replace) in sends {
+            let vault = is_vault(&bytes);
             let renamed = self.visit.files_menu_mut().renamed.contains(&name);
             let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {
@@ -389,6 +427,8 @@ impl Faraday {
                 copies,
                 replace,
                 renamed,
+                // A vault's name taken by a file nothing proves is asked.
+                on_taken: if vault { OnTaken::Ask } else { OnTaken::Beside },
             });
         }
         if !sent.is_empty() {
@@ -446,6 +486,289 @@ pub(crate) fn taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         cy - y
     });
+}
+
+/// The name-taken sheet: the first vault write the disk process refused
+/// for its name (`docs/VAULT.md` §6 step 1): the title, one line, Hold to
+/// overwrite where the file could be read, Save beside under a free name,
+/// and Cancel.
+pub(crate) fn name_taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(t) = app.visit.name_taken().front() else {
+        return;
+    };
+    let title = fill(EN.vault_taken_title, &[&t.name, app.medium.on_the()]);
+    let overwrite = fill(EN.vault_taken_overwrite, &[&t.on_stick]);
+    let beside = fill(EN.vault_taken_beside, &[&t.beside]);
+    let head = (Icon::Warning.into(), Role::Warning.paint(), title.as_str());
+    crate::compact::dialog(
+        ui,
+        (w, h, faraday_draw::tokens::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, &t.body)
+                + faraday_draw::tokens::GAP;
+            // A hold stays in the dialog's body, away from its actions.
+            if t.sha.is_some() {
+                crate::vault::screen::hold_button_in(
+                    app,
+                    ui,
+                    x,
+                    cy,
+                    iw,
+                    &overwrite,
+                    Action::NameTakenOverwrite,
+                    faraday_ui::hold::HoldTone::Warning,
+                );
+                cy += ui.button_height(faraday_draw::tokens::BUTTON_H) + faraday_draw::tokens::GAP;
+            }
+            cy - y
+        },
+        &[
+            (EN.visit_taken_cancel, Style::Ghost, Action::Cancel),
+            (&beside, Style::Primary, Action::NameTakenBeside),
+        ],
+    );
+}
+
+impl Faraday {
+    /// A vault's write the disk process refused for its name: queued for
+    /// the name-taken sheet, which shows the first. What the sheet says is
+    /// decided here, from what the session knows of the file.
+    pub(crate) fn name_taken_event(&mut self, ev: crate::StorageEvent) {
+        let crate::StorageEvent::NameTaken {
+            stick,
+            name,
+            on_stick,
+            sha,
+        } = ev
+        else {
+            return;
+        };
+        let flow = self.flow_wants_written(&stick, &name);
+        let sent = if flow {
+            self.flow_pending_sha(&stick, &name)
+        } else {
+            self.visit
+                .writing
+                .as_ref()
+                .and_then(|(_, _, s, _)| s.iter().find(|(n, _)| *n == name).map(|(_, h)| *h))
+        };
+        // What the file is is said only where the session knows both the
+        // bytes sent and the file as copies, of two different vaults.
+        let ours = self.vaults.vault_id_of_file(sent);
+        let body = match self.vaults.summary_of_file(sha) {
+            _ if sha.is_none() => EN.vault_taken_unreadable.to_string(),
+            Some(v) if ours.is_some_and(|id| id != v.id) => {
+                let known = if v.name.is_empty() { &v.file } else { &v.name };
+                fill(EN.vault_taken_other, &[known])
+            }
+            _ => EN.vault_taken_unknown.to_string(),
+        };
+        let beside = self.name_taken_beside(&stick, &name);
+        self.visit.name_taken_mut().push_back(NameTaken {
+            stick,
+            name,
+            on_stick,
+            sha,
+            flow,
+            body,
+            beside,
+            sent,
+        });
+        self.name_taken_refresh();
+        self.sheet = Some(Sheet::NameTaken);
+    }
+
+    /// Costs a SHA-256 of each file of that name, or of each file the visit
+    /// sends. The bytes a write sent, found again by name and SHA-256 as the
+    /// first send found them, and whether they go over the same vault: none where
+    /// they are gone, changed or a secret.
+    fn name_taken_sent(
+        &self,
+        c: &faraday_crypto::work::Compute,
+        flow: bool,
+        name: &str,
+        sent: [u8; 32],
+    ) -> Option<(Vec<u8>, bool)> {
+        if flow {
+            self.outbox
+                .iter()
+                .chain(self.inbox.iter())
+                .find(|i| i.name == name && sha256_of(c, &i.bytes) == sent)
+                .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
+                .map(|i| (i.bytes.clone(), true))
+        } else {
+            self.visit_files()
+                .into_iter()
+                .find(|(n, b, _)| n == name && sha256_of(c, b) == sent)
+                .map(|(_, bytes, from_inbox)| {
+                    let replace = !from_inbox || self.vault_is_this_sessions(c, &bytes);
+                    (bytes, replace)
+                })
+        }
+    }
+
+    /// The free name beside what `stick` lists and what this write wrote.
+    fn name_taken_beside(&self, stick: &str, name: &str) -> String {
+        let mut names: Vec<String> = self
+            .stick
+            .iter()
+            .find(|s| s.id == stick)
+            .map(|s| {
+                s.files
+                    .iter()
+                    .map(|(n, _)| n.to_ascii_lowercase())
+                    .collect()
+            })
+            .unwrap_or_default();
+        names.extend(self.visit.wrote.iter().map(|n| n.to_ascii_lowercase()));
+        free_name(&names, name)
+    }
+
+    /// The free names of the queue worked out again.
+    fn name_taken_refresh(&mut self) {
+        let besides: Vec<String> = self
+            .visit
+            .name_taken()
+            .iter()
+            .map(|t| self.name_taken_beside(&t.stick, &t.name))
+            .collect();
+        for (t, b) in self.visit.name_taken_mut().iter_mut().zip(besides) {
+            t.beside = b;
+        }
+    }
+
+    /// A file of this write was written as `wrote_as`.
+    pub(crate) fn name_taken_wrote(&mut self, wrote_as: &str) {
+        self.visit.wrote_add(wrote_as);
+        self.name_taken_refresh();
+    }
+
+    /// A visit's file was written as `wrote_as`: its receipt row.
+    pub(crate) fn visit_written(&mut self, name: &str, wrote_as: &str) {
+        self.name_taken_wrote(wrote_as);
+        self.receipt_add(name, None);
+    }
+
+    /// A new write starts with no names written.
+    pub(crate) fn name_taken_wrote_clear(&mut self) {
+        self.visit.wrote_clear();
+    }
+
+    /// The flow's write ended: the questions of its files go with it.
+    pub(crate) fn name_taken_flow_ended(&mut self) {
+        self.visit.name_taken_mut().retain(|t| !t.flow);
+        self.name_taken_next();
+    }
+
+    /// The next entry of the queue is shown, or the sheet closes.
+    fn name_taken_next(&mut self) {
+        if self.visit.name_taken().is_empty() {
+            if self.sheet == Some(Sheet::NameTaken) {
+                self.sheet = None;
+            }
+        } else {
+            self.name_taken_refresh();
+            self.sheet = Some(Sheet::NameTaken);
+        }
+    }
+
+    /// The first entry answered with Save beside, or with Overwrite (held)
+    /// where `over`: the write sent again, the bytes as the first send had
+    /// them.
+    pub(crate) fn name_taken_answer(&mut self, over: bool) {
+        let Some(t) = self.visit.name_taken().front().cloned() else {
+            return;
+        };
+        if !self.clean() {
+            // Every entry is given up as Cancel gives it up.
+            let all: Vec<NameTaken> = self.visit.name_taken_mut().drain(..).collect();
+            for t in all {
+                self.name_taken_refused(t);
+            }
+            self.sheet = Some(Sheet::WriteOut);
+            return;
+        }
+        let on_taken = match (over, t.sha) {
+            (true, Some(sha)) => OnTaken::Over(sha),
+            _ => OnTaken::Beside,
+        };
+        self.visit.name_taken_mut().pop_front();
+        let c = self.compute();
+        // The same bytes and flags as the first send found, by name and
+        // SHA-256; none is a cancel.
+        let sent = t
+            .sent
+            .filter(|_| !t.flow || self.flow_wants_written(&t.stick, &t.name))
+            .and_then(|h| self.name_taken_sent(&c, t.flow, &t.name, h));
+        match sent {
+            Some((bytes, replace)) => {
+                let renamed = !t.flow && self.visit.files_menu_mut().renamed.contains(&t.name);
+                let copies = self.vault_copies(&c, &bytes);
+                self.out.storage_out.push_back(StorageCommand::Write {
+                    stick: t.stick,
+                    name: t.name,
+                    bytes,
+                    copies,
+                    replace,
+                    renamed,
+                    on_taken,
+                });
+            }
+            None => self.name_taken_refused(t),
+        }
+        self.name_taken_next();
+    }
+
+    /// Cancel, Back or the scrim on the sheet: nothing is written. A visit's
+    /// file stays For the stick, the log says why and the receipt is not
+    /// touched; a flow's write does not count and can be pressed again.
+    pub(crate) fn name_taken_cancel(&mut self) {
+        let Some(t) = self.visit.name_taken_mut().pop_front() else {
+            self.sheet = None;
+            return;
+        };
+        self.name_taken_refused(t);
+        self.name_taken_next();
+    }
+
+    /// One entry given up: as Cancel does it.
+    fn name_taken_refused(&mut self, t: NameTaken) {
+        if t.flow {
+            // Every file of that write still to ask goes with it.
+            self.visit.name_taken_mut().retain(|o| !o.flow);
+            self.flow_name_taken(&t.name);
+        } else {
+            self.visit_write_cancelled(&t.name, EN.visit_taken_name_taken);
+        }
+    }
+
+    /// Entries for a stick no longer attached are cancelled.
+    pub(crate) fn name_taken_pulled(&mut self) {
+        let gone: Vec<NameTaken> = self
+            .visit
+            .name_taken()
+            .iter()
+            .filter(|t| !self.stick.iter().any(|s| s.id == t.stick))
+            .cloned()
+            .collect();
+        if gone.is_empty() {
+            return;
+        }
+        let ids: Vec<String> = gone.iter().map(|t| t.stick.clone()).collect();
+        self.visit
+            .name_taken_mut()
+            .retain(|t| !ids.contains(&t.stick));
+        for t in gone {
+            // A flow's write ends with its own pulled problem.
+            if !t.flow {
+                let reason = fill(EN.visit_taken_pulled, &[self.medium.noun()]);
+                self.visit_write_cancelled(&t.name, &reason);
+            }
+        }
+        self.name_taken_next();
+    }
 }
 
 impl Faraday {
@@ -510,6 +833,8 @@ impl Faraday {
             Action::VisitWrite => self.visit_write_ask(),
             Action::VisitReplace => self.visit_write(true),
             Action::VisitKeepBoth => self.visit_write(false),
+            Action::NameTakenBeside => self.name_taken_answer(false),
+            Action::NameTakenOverwrite => self.name_taken_answer(true),
             Action::VisitCopy => self.visit_copy(),
             Action::VisitCopyAndLoad => {
                 let inn = self.visit.inn.clone();

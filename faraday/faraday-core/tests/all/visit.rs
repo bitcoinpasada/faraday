@@ -925,48 +925,386 @@ fn keep_both_writes_beside_and_cancel_writes_nothing() {
     assert_eq!(writes(&mut app), [("backup-00.pdf".to_string(), false)]);
 }
 
-#[test]
-fn the_same_vault_is_replaced_and_another_vault_never_is() {
+/// The vault writes a visit sends, settings left out: each name and what
+/// it does where a file has its name.
+fn vault_writes(app: &mut Faraday) -> Vec<(String, bool, faraday_core::OnTaken)> {
+    asked(app)
+        .into_iter()
+        .filter_map(|c| match c {
+            StorageCommand::Write {
+                name,
+                replace,
+                on_taken,
+                ..
+            } if name != faraday_core::stick::settings::FILE => Some((name, replace, on_taken)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// A hold on the action's button: down at `t0`, held past its time, up.
+fn hold_action(app: &mut Faraday, action: Action, t0: u64, hold_ms: u64) {
+    let _ = app.frame();
+    let (x, y) = app.where_offered(action).expect("the hold is on the sheet");
+    tick(app, t0);
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    tick(app, t0 + hold_ms);
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+}
+
+/// A visit writing `vault` as `vault.kdbx` on a stick that lists
+/// `Vault.kdbx`, the disk process having refused the name as taken for a
+/// file whose SHA-256 is `sha`.
+fn name_taken_visit(sha: Option<[u8; 32]>) -> Faraday {
     let vault = faraday_core::testkit::test_vault().unwrap();
-    let len = vault.len() as u64;
-    let mut app = writing_over(
-        &[
-            ("vault.kdbx", len),
-            ("old.kdbx", len + 1),
-            ("backup-00.pdf", 10),
-        ],
-        vec![
-            ("vault.kdbx", vault.clone()),
-            ("old.kdbx", vault.clone()),
-            ("backup-00.pdf", b"new".to_vec()),
-        ],
-    );
+    let mut app = writing_over(&[("Vault.kdbx", 99)], vec![("vault.kdbx", vault)]);
     asked(&mut app);
     app.press(Action::VisitWrite);
-    let texts = app.drawn_texts();
-    for row in [
-        "vault.kdbx · the same vault, updated here",
-        "old.kdbx · another vault · kept, this one as old-2.kdbx",
-    ] {
-        assert!(texts.iter().any(|t| t == row), "{row}: {texts:?}");
-    }
-    // A vault sealed here is allowed over the same vault; the vault
-    // write-back goes over that one and never another.
-    app.press(Action::VisitReplace);
     assert_eq!(
-        writes(&mut app),
-        [
-            ("vault.kdbx".to_string(), true),
-            ("old.kdbx".to_string(), true),
-            ("backup-00.pdf".to_string(), true)
-        ]
+        vault_writes(&mut app),
+        [("vault.kdbx".to_string(), true, faraday_core::OnTaken::Ask)],
+        "a vault is sent asking"
     );
-    // The same vault alone, sealed again here, is written back with no
-    // question.
-    let mut app = writing_over(&[("vault.kdbx", len)], vec![("vault.kdbx", vault)]);
+    app.storage(StorageEvent::NameTaken {
+        stick: "S".into(),
+        name: "vault.kdbx".into(),
+        on_stick: "Vault.kdbx".into(),
+        sha,
+    });
+    app
+}
+
+#[test]
+fn a_vault_whose_name_a_file_has_brings_a_sheet_and_writes_nothing_yet() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    assert!(asked(&mut app).is_empty());
+    let texts = app.drawn_texts();
+    for t in ["Hold: overwrite Vault.kdbx", "Save as vault-2.kdbx"] {
+        assert!(texts.iter().any(|x| x == t), "{t}: {texts:?}");
+    }
+    assert!(
+        texts.iter().any(|t| t.starts_with("Faraday cannot tell")),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn holding_overwrite_sends_the_sha_shown_and_a_tap_does_not() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    hold_action(&mut app, Action::NameTakenOverwrite, 100, 20);
+    assert!(vault_writes(&mut app).is_empty(), "a tap sends nothing");
+    hold_action(&mut app, Action::NameTakenOverwrite, 1_000, 200);
+    assert!(
+        vault_writes(&mut app).is_empty(),
+        "a short hold sends nothing"
+    );
+    hold_action(
+        &mut app,
+        Action::NameTakenOverwrite,
+        5_000,
+        faraday_core::vault::HOLD_MS + 100,
+    );
+    assert_eq!(
+        vault_writes(&mut app),
+        [(
+            "vault.kdbx".to_string(),
+            true,
+            faraday_core::OnTaken::Over([7; 32])
+        )]
+    );
+}
+
+#[test]
+fn save_beside_sends_the_write_again_going_beside() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    app.press(Action::NameTakenBeside);
+    assert_eq!(
+        vault_writes(&mut app),
+        [(
+            "vault.kdbx".to_string(),
+            true,
+            faraday_core::OnTaken::Beside
+        )]
+    );
+}
+
+#[test]
+fn a_file_that_could_not_be_read_has_no_overwrite() {
+    let mut app = name_taken_visit(None);
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Hold: overwrite")),
+        "{texts:?}"
+    );
+    assert!(texts.iter().any(|t| t.starts_with("Save as ")), "{texts:?}");
+}
+
+#[test]
+fn cancelling_the_sheet_writes_nothing_and_the_log_says_the_name_is_taken() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    app.press(Action::Cancel);
+    assert!(vault_writes(&mut app).is_empty());
+    assert!(app.sheet.is_none());
+    assert!(
+        app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| l.starts_with("vault.kdbx not written: its name is taken")),
+        "{:?}",
+        app.visit().log
+    );
+    assert!(app.receipt().is_none(), "a cancel is no row of a receipt");
+    assert!(app.outbox.iter().any(|i| i.name == "vault.kdbx"));
+}
+
+#[test]
+fn keys_never_press_the_hold_to_overwrite() {
+    // Whichever control the keyboard stops on, a key never writes over.
+    for tabs in 1..=6 {
+        for key in [
+            faraday_shell_api::Key::Enter,
+            faraday_shell_api::Key::Char(' '),
+        ] {
+            let mut app = name_taken_visit(Some([7; 32]));
+            let _ = app.frame();
+            for _ in 0..tabs {
+                app.event(Event::Key(faraday_shell_api::Key::Tab));
+            }
+            app.event(Event::Key(key));
+            assert!(
+                !vault_writes(&mut app)
+                    .iter()
+                    .any(|(_, _, on)| matches!(on, faraday_core::OnTaken::Over(_))),
+                "no key writes over"
+            );
+        }
+    }
+    let mut app = name_taken_visit(Some([7; 32]));
+    let _ = app.frame();
+    hold_action(
+        &mut app,
+        Action::NameTakenOverwrite,
+        5_000,
+        faraday_core::vault::HOLD_MS + 100,
+    );
+    assert_eq!(vault_writes(&mut app).len(), 1, "the hold still works");
+}
+
+#[test]
+fn the_sheet_names_a_file_known_as_another_vault_and_only_then() {
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let sent = faraday_crypto::sha256(&vault);
+    let body = |known: &[(u8, [u8; 32], &str)], file: [u8; 32]| {
+        let mut app = writing_over(&[("Vault.kdbx", 99)], vec![("vault.kdbx", vault.clone())]);
+        asked(&mut app);
+        app.press(Action::VisitWrite);
+        for (id, copy, name) in known {
+            faraday_core::testkit::vault_summaries_mut(&mut app).push(
+                faraday_core::vault::VaultSummary {
+                    file: "any.kdbx".into(),
+                    id: [*id; 32],
+                    copies: vec![*copy],
+                    name: (*name).into(),
+                    ..Default::default()
+                },
+            );
+        }
+        app.storage(StorageEvent::NameTaken {
+            stick: "S".into(),
+            name: "vault.kdbx".into(),
+            on_stick: "Vault.kdbx".into(),
+            sha: Some(file),
+        });
+        faraday_core::testkit::name_taken_body(&app).expect("the sheet asks")
+    };
+    let other = [7; 32];
+    assert!(body(&[(1, sent, "Ours"), (2, other, "Savings")], other).contains("Savings"));
+    // The bytes sent were never opened here: nobody knows they differ.
+    let unknown = body(&[(2, other, "Savings")], other);
+    assert!(!unknown.contains("Savings"));
+    // The file was never opened here.
+    assert!(!body(&[(1, sent, "Ours")], other).contains("Ours"));
+}
+
+#[test]
+fn a_cancel_on_another_stick_leaves_the_receipt_of_the_last_write() {
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let mut app = writing_over(&[], vec![("vault.kdbx", vault.clone())]);
     asked(&mut app);
     app.press(Action::VisitWrite);
-    assert_eq!(writes(&mut app), [("vault.kdbx".to_string(), true)]);
+    asked(&mut app);
+    app.storage(StorageEvent::Written {
+        stick: "S".into(),
+        name: "vault.kdbx".into(),
+        wrote_as: "vault.kdbx".into(),
+    });
+    let first = app.receipt().expect("a receipt").clone();
+    assert!(first.wrote("vault.kdbx"));
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "B".into(),
+        label: "OTHERSTICK".into(),
+        boot: false,
+        files: vec![("Vault.kdbx".into(), 99)],
+        vaults: Vec::new(),
+    }]));
+    app.outbox.push(Item {
+        name: "vault.kdbx".into(),
+        bytes: vault,
+        kind: FileKind::Pdf,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+    });
+    let at = app.outbox.len() - 1;
+    if !app.visit().out.contains("vault.kdbx") {
+        app.press(Action::VisitOut(at));
+    }
+    app.press(Action::VisitWrite);
+    asked(&mut app);
+    app.storage(StorageEvent::NameTaken {
+        stick: "B".into(),
+        name: "vault.kdbx".into(),
+        on_stick: "Vault.kdbx".into(),
+        sha: Some([7; 32]),
+    });
+    app.press(Action::Cancel);
+    assert_eq!(app.receipt(), Some(&first), "the receipt stays");
+}
+
+#[test]
+fn bytes_changed_after_the_question_are_not_written() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    let last = app.outbox[0].bytes.len() - 1;
+    app.outbox[0].bytes[last] ^= 1;
+    app.press(Action::NameTakenBeside);
+    assert!(vault_writes(&mut app).is_empty());
+    assert!(app.sheet.is_none());
+    assert!(
+        app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| l.starts_with("vault.kdbx not written")),
+        "{:?}",
+        app.visit().log
+    );
+}
+
+#[test]
+fn a_file_changed_since_it_was_shown_is_not_written_and_the_receipt_says_why() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    hold_action(
+        &mut app,
+        Action::NameTakenOverwrite,
+        5_000,
+        faraday_core::vault::HOLD_MS + 100,
+    );
+    assert_eq!(vault_writes(&mut app).len(), 1);
+    let why = "Vault.kdbx changed since it was shown: not overwritten";
+    app.storage(StorageEvent::WriteFailed {
+        stick: "S".into(),
+        name: "vault.kdbx".into(),
+        reason: why.into(),
+    });
+    let receipt = app.receipt().expect("a receipt");
+    let said = receipt
+        .files
+        .iter()
+        .find(|f| f.name == "vault.kdbx")
+        .unwrap();
+    assert_eq!(said.failure.as_deref(), Some(why));
+    assert!(app.outbox.iter().any(|i| i.name == "vault.kdbx"));
+}
+
+#[test]
+fn the_free_name_follows_what_this_write_wrote() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    app.storage(StorageEvent::Written {
+        stick: "S".into(),
+        name: "other.pdf".into(),
+        wrote_as: "vault-2.kdbx".into(),
+    });
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Save as vault-3.kdbx"),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn a_lock_clears_the_questions() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    app.press(Action::LockUnsealed);
+    faraday_core::testkit::settle(&mut app);
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Save as ")),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn two_clashes_in_one_write_ask_in_turn() {
+    let vault = faraday_core::testkit::test_vault().unwrap();
+    let mut app = writing_over(
+        &[("Vault.kdbx", 99), ("Other.kdbx", 99)],
+        vec![("vault.kdbx", vault.clone()), ("other.kdbx", vault)],
+    );
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    asked(&mut app);
+    for (name, on_stick) in [("vault.kdbx", "Vault.kdbx"), ("other.kdbx", "Other.kdbx")] {
+        app.storage(StorageEvent::NameTaken {
+            stick: "S".into(),
+            name: name.into(),
+            on_stick: on_stick.into(),
+            sha: Some([7; 32]),
+        });
+    }
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Save as vault-2.kdbx"),
+        "{texts:?}"
+    );
+    app.press(Action::NameTakenBeside);
+    let sent = vault_writes(&mut app);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].0, "vault.kdbx");
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Save as other-2.kdbx"),
+        "the next is asked: {texts:?}"
+    );
+    app.press(Action::Cancel);
+    assert!(app.sheet.is_none());
+}
+
+#[test]
+fn a_stick_pulled_cancels_the_questions() {
+    let mut app = name_taken_visit(Some([7; 32]));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(app.sheet.is_none());
+    assert!(
+        app.outbox.iter().any(|i| i.name == "vault.kdbx"),
+        "the file stays For the stick"
+    );
+    assert!(
+        app.visit().log.iter().any(|(l, _)| l.contains("pulled")),
+        "{:?}",
+        app.visit().log
+    );
 }
 
 #[test]

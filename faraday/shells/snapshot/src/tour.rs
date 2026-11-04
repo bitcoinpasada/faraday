@@ -177,6 +177,36 @@ impl Tour {
                     };
                     self.app.storage(ev);
                 }
+                StorageCommand::Write {
+                    stick,
+                    name,
+                    on_taken: faraday_core::OnTaken::Ask,
+                    ..
+                } if std::fs::read_dir(&stick).is_ok_and(|mut d| {
+                    d.any(|e| {
+                        e.is_ok_and(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(&name))
+                    })
+                }) =>
+                {
+                    // A vault whose name a file on the stick has: asked, as
+                    // the disk process asks.
+                    let on_stick = std::fs::read_dir(&stick)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .map(|e| e.file_name().to_string_lossy().into_owned())
+                        .find(|n| n.eq_ignore_ascii_case(&name))
+                        .unwrap_or_default();
+                    let sha = std::fs::read(Path::new(&stick).join(&on_stick))
+                        .ok()
+                        .map(|b| faraday_crypto::sha256(&b));
+                    self.app.storage(StorageEvent::NameTaken {
+                        stick,
+                        name,
+                        on_stick,
+                        sha,
+                    });
+                }
                 StorageCommand::Write { stick, name, .. } => {
                     let wrote_as = name.clone();
                     self.app.storage(StorageEvent::Written {

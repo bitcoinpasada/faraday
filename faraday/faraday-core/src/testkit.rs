@@ -1859,6 +1859,11 @@ pub fn vault_close_form(app: &mut crate::Faraday) {
     app.vaults.close_form();
 }
 
+/// What the Name taken sheet says of the file it asks about.
+pub fn name_taken_body(app: &crate::Faraday) -> Option<String> {
+    app.visit.name_taken().front().map(|t| t.body.clone())
+}
+
 /// The vaults' summaries, to change what they hold.
 pub fn vault_summaries_mut(app: &mut crate::Faraday) -> &mut Vec<crate::vault::VaultSummary> {
     app.vaults.summaries_mut()

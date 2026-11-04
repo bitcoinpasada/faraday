@@ -720,6 +720,9 @@ pub enum Problem {
     /// This file, written again once, still did not read back as it was
     /// meant (`docs/BACKUP-FLOW.md` §17.12 item 10).
     NoReadBack(String),
+    /// The person went back from the sheet that asks about this vault's
+    /// name, which a file on the stick has: nothing was written.
+    NameTaken(String),
     /// Pulled before the copy was checked.
     Pulled,
 }
@@ -814,6 +817,13 @@ pub struct Writing {
     /// Pictures written whose codes are being read back: the name written
     /// as, the name meant, and the file's SHA-256.
     pub qr: Vec<(String, String, [u8; 32])>,
+    /// The vault files sent and not yet written: the plain files wait for
+    /// them, so that a vault's name asked about leaves the stick with no
+    /// other file of this write.
+    pub vaults_open: Vec<String>,
+    /// The plain files held back until `vaults_open` is empty: name and
+    /// bytes.
+    pub held: Vec<(String, Vec<u8>)>,
     /// The stick's label.
     pub label: String,
     /// The stick's FAT volume serial.

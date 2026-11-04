@@ -539,15 +539,25 @@ impl Disks {
                 copies,
                 replace,
                 renamed,
+                on_taken,
                 mut bytes,
             } => {
-                let written = self.place(&stick).and_then(|mut p| {
-                    faraday_files::write_file(c, &mut p, &name, &bytes, &copies, replace, renamed)
-                });
+                let written =
+                    self.place(&stick).and_then(|mut p| {
+                        match faraday_files::write_file(
+                            c, &mut p, &name, &bytes, &copies, replace, renamed, on_taken,
+                        ) {
+                            Ok(n) => Ok(Response::Written(n)),
+                            Err(faraday_files::WriteRefused::Failed(why)) => Err(why),
+                            Err(faraday_files::WriteRefused::NameTaken { on_stick, sha }) => {
+                                Ok(Response::WriteNameTaken { on_stick, sha })
+                            }
+                        }
+                    });
                 zeroize::Zeroize::zeroize(&mut bytes);
                 // What this process wrote changes the listing.
                 self.seen.remove(&stick);
-                written.map(Response::Written)
+                written
             }
             Request::Space { stick } => self
                 .place(&stick)

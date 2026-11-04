@@ -88,6 +88,12 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.press(Action::VisitWrite);
     t.shot_marking("stick-visit-already", Action::VisitReplace)?;
     t.press(Action::VisitReplace);
+    // The stick's vault.kdbx is a file nothing proves a copy: its name is
+    // asked, and the vault goes beside it.
+    t.pump();
+    t.shot_marking("stick-visit-name-taken", Action::NameTakenBeside)?;
+    t.press(Action::NameTakenBeside);
+    t.pump();
     t.press(Action::Nav(Screen::Files));
     t.shot("files-and-sticks-receipt")?;
 

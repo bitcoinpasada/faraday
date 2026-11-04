@@ -228,7 +228,7 @@ this pass came from, is on the board.
 - Several areas still hand out a transitional mutable accessor:
   `Camera::scan_mut`, `EntryArea::state_mut`, the `state_mut` of
   Create, Restore and Seeds, Wallets' `spend_mut`, `renaming_mut` and
-  `card_offset_mut`, `VisitArea`'s `DerefMut` to `VisitState`, Glance's
+  `card_offset_mut`, `VisitArea`'s `DerefMut` to `VisitState` and `name_taken_mut`, Glance's
   `work_mut`, Inbox's `potential_mut` and `skip_mut`, `files_menu_mut`,
   `vault_from_mut`, the Spend tab's `seeds_mut` and `scroll_y_mut`, the wallet
   backup checklist's `board_mut`, `check_mut` and `scroll_y_mut`, the

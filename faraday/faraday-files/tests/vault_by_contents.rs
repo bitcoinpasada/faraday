@@ -8,13 +8,16 @@ use std::collections::BTreeMap;
 use faraday_codec::vault_file::SIGNATURE;
 use faraday_crypto::work::Compute;
 use faraday_files::{
-    Place, Unrenamed, Zeroed, finish_vault_writes, listing, rename, vault_names, write_any,
-    write_replacing, write_vault,
+    OnTaken, Place, Unrenamed, WriteRefused, Zeroed, finish_vault_writes, listing, rename,
+    vault_names, write_any, write_replacing, write_vault, write_vault_over,
 };
 
 #[derive(Default)]
 struct Memory {
     files: BTreeMap<String, Vec<u8>>,
+    /// A stick that keeps a hidden part file cut short, so its read-back
+    /// differs.
+    cuts_parts: bool,
 }
 
 impl Place for Memory {
@@ -32,7 +35,12 @@ impl Place for Memory {
         if self.files.contains_key(name) {
             return Err("taken".into());
         }
-        self.files.insert(name.into(), bytes.to_vec());
+        let kept = if self.cuts_parts && name.starts_with(".faraday-") {
+            &bytes[..bytes.len() - 1]
+        } else {
+            bytes
+        };
+        self.files.insert(name.into(), kept.to_vec());
         Ok(())
     }
     fn remove(&mut self, name: &str) -> Result<(), String> {
@@ -362,4 +370,111 @@ fn the_shortest_and_longest_vault_are_told_and_one_byte_either_side_is_not() {
         vault_names(&compute(), &mut place, &files),
         ["Archive.kdbx", "Passwords.kdbx"]
     );
+}
+
+/// A write of `new` as `vault.kdbx`, no copy of it proved, `on_taken` said.
+fn taken_write(place: &mut Memory, new: &[u8], on_taken: OnTaken) -> Result<String, WriteRefused> {
+    write_vault_over(
+        &compute(),
+        place,
+        "vault.kdbx",
+        new,
+        &[sha(&sealed_again(1, 1))],
+        true,
+        false,
+        on_taken,
+    )
+}
+
+fn stick_with_stale() -> Memory {
+    let mut place = Memory::default();
+    place.files.insert("Vault.kdbx".into(), sealed_again(1, 7));
+    place
+}
+
+#[test]
+fn asking_about_a_same_name_file_changes_nothing_and_gives_its_sha() {
+    let mut place = stick_with_stale();
+    let refused = taken_write(&mut place, &sealed_again(1, 3), OnTaken::Ask).unwrap_err();
+    assert_eq!(
+        refused,
+        WriteRefused::NameTaken {
+            on_stick: "Vault.kdbx".into(),
+            sha: Some(sha(&sealed_again(1, 7)))
+        },
+        "the name matches ignoring case"
+    );
+    assert_eq!(place.files.len(), 1);
+    assert_eq!(place.files["Vault.kdbx"], sealed_again(1, 7));
+}
+
+#[test]
+fn asking_with_no_file_of_the_name_writes_it() {
+    let mut place = Memory::default();
+    place.files.insert("other.kdbx".into(), sealed_again(1, 7));
+    let new = sealed_again(1, 3);
+    assert_eq!(
+        taken_write(&mut place, &new, OnTaken::Ask).unwrap(),
+        "vault.kdbx"
+    );
+    assert_eq!(place.files["vault.kdbx"], new);
+}
+
+#[test]
+fn a_proved_copy_is_replaced_under_asking_with_no_question() {
+    let mut place = Memory::default();
+    place.files.insert("vault.kdbx".into(), sealed_again(1, 1));
+    let new = sealed_again(1, 3);
+    assert_eq!(
+        taken_write(&mut place, &new, OnTaken::Ask).unwrap(),
+        "vault.kdbx"
+    );
+    assert_eq!(place.files["vault.kdbx"], new);
+    assert_eq!(place.files.len(), 1);
+}
+
+#[test]
+fn going_over_a_file_with_the_sha_shown_replaces_it() {
+    let mut place = stick_with_stale();
+    let new = sealed_again(1, 3);
+    let wrote = taken_write(&mut place, &new, OnTaken::Over(sha(&sealed_again(1, 7)))).unwrap();
+    assert_eq!(wrote, "Vault.kdbx");
+    assert_eq!(place.files.len(), 1);
+    assert_eq!(place.files["Vault.kdbx"], new);
+}
+
+#[test]
+fn going_over_a_file_that_changed_since_it_was_shown_is_refused() {
+    let mut place = stick_with_stale();
+    let refused = taken_write(
+        &mut place,
+        &sealed_again(1, 3),
+        OnTaken::Over(sha(b"other")),
+    );
+    assert!(
+        matches!(refused, Err(WriteRefused::Failed(_))),
+        "{refused:?}"
+    );
+    assert_eq!(place.files.len(), 1);
+    assert_eq!(place.files["Vault.kdbx"], sealed_again(1, 7));
+}
+
+#[test]
+fn going_beside_leaves_the_old_file_and_takes_a_free_name() {
+    let mut place = stick_with_stale();
+    let new = sealed_again(1, 3);
+    let wrote = taken_write(&mut place, &new, OnTaken::Beside).unwrap();
+    assert_eq!(wrote, "vault-2.kdbx");
+    assert_eq!(place.files["Vault.kdbx"], sealed_again(1, 7));
+    assert_eq!(place.files["vault-2.kdbx"], new);
+}
+
+#[test]
+fn a_failed_read_back_going_over_leaves_the_old_file() {
+    let mut place = stick_with_stale();
+    place.cuts_parts = true;
+    let over = OnTaken::Over(sha(&sealed_again(1, 7)));
+    assert!(taken_write(&mut place, &sealed_again(1, 3), over).is_err());
+    assert_eq!(place.files["Vault.kdbx"], sealed_again(1, 7));
+    assert_eq!(place.files.len(), 1, "no part file is left");
 }

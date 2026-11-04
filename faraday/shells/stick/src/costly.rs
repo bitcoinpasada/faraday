@@ -130,11 +130,12 @@ impl Sticks for Timed<'_> {
         copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
-    ) -> Result<String, String> {
+        on_taken: faraday_storage::OnTaken,
+    ) -> Result<String, faraday_storage::WriteRefused> {
         let start = self.timings.is_some().then(Instant::now);
         let wrote = self
             .sticks
-            .write(c, stick, name, bytes, copies, replace, renamed);
+            .write(c, stick, name, bytes, copies, replace, renamed, on_taken);
         if let (Some(start), Some(t)) = (start, self.timings.as_deref_mut()) {
             t.work(FILE_WRITTEN, start.elapsed());
         }

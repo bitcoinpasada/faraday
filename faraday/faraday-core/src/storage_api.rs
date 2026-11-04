@@ -167,6 +167,19 @@ pub enum StorageEvent {
         /// The name it was written under on the stick.
         wrote_as: String,
     },
+    /// A vault's write that asked first and was refused, nothing written: a
+    /// file on the stick has its name and nothing proves it is a copy
+    /// (`docs/VAULT.md` §6 step 1).
+    NameTaken {
+        /// The stick.
+        stick: String,
+        /// The name the vault was to be written under.
+        name: String,
+        /// The file's name on the stick.
+        on_stick: String,
+        /// Its SHA-256; none when it could not be read.
+        sha: Option<[u8; 32]>,
+    },
     /// A write that failed.
     WriteFailed {
         /// The stick.
@@ -434,6 +447,18 @@ pub enum StorageEvent {
     },
 }
 
+/// What a vault's write does where a file has its name and nothing proves
+/// that file a copy of the vault (`docs/VAULT.md` §6 step 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnTaken {
+    /// Nothing is written: the shell answers [`StorageEvent::NameTaken`].
+    Ask,
+    /// The vault goes under a free name beside that file.
+    Beside,
+    /// The vault goes over that file, which must still have this SHA-256.
+    Over([u8; 32]),
+}
+
 /// What the app asks the shell to do with storage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StorageCommand {
@@ -465,6 +490,10 @@ pub enum StorageCommand {
         /// name, where otherwise it keeps the name it has on the stick
         /// (`docs/FLOWS.md` decision 61 item 2).
         renamed: bool,
+        /// A vault no copy of which is proved on the stick, a file having
+        /// its name: ask, go beside it, or go over the file with this
+        /// SHA-256 (`docs/VAULT.md` §6 step 1).
+        on_taken: OnTaken,
     },
     /// Read the QR codes in a PNG on a stick. The shell decodes the image;
     /// the app sees only what the codes hold.

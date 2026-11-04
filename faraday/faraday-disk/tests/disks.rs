@@ -262,6 +262,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         copies: Vec::new(),
         replace: false,
         renamed: false,
+        on_taken: faraday_files::OnTaken::Beside,
         bytes: bytes.to_vec(),
     };
     assert_eq!(
@@ -283,6 +284,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
                 copies: Vec::new(),
                 replace: true,
                 renamed: false,
+                on_taken: faraday_files::OnTaken::Beside,
                 bytes: b"replaced".to_vec(),
             }
         ),
@@ -322,6 +324,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         copies: vec![first],
         replace,
         renamed: false,
+        on_taken: faraday_files::OnTaken::Beside,
         bytes: vault.clone(),
     };
     assert!(matches!(d.handle(&c, back(false)), Response::Failed(_)));
@@ -641,6 +644,7 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
             copies: Vec::new(),
             replace: false,
             renamed: false,
+            on_taken: faraday_files::OnTaken::Beside,
             bytes: b"a vault".to_vec(),
         },
     );

@@ -354,6 +354,7 @@ impl Shell {
                     copies,
                     replace,
                     renamed,
+                    on_taken,
                 } if self.hold_writes => {
                     self.stashed.push(StorageCommand::Write {
                         stick,
@@ -362,6 +363,7 @@ impl Shell {
                         copies,
                         replace,
                         renamed,
+                        on_taken,
                     });
                 }
                 StorageCommand::Write {
@@ -371,6 +373,7 @@ impl Shell {
                     copies,
                     replace,
                     renamed,
+                    on_taken,
                 } => {
                     if self.fail_writes {
                         app.storage(StorageEvent::WriteFailed {
@@ -411,8 +414,34 @@ impl Shell {
                         });
                         continue;
                     }
-                    let wrote_as =
-                        write_any(&mut d.files, &name, &bytes, &copies, replace, renamed);
+                    let wrote_as = match write_any(
+                        &mut d.files,
+                        &name,
+                        &bytes,
+                        &copies,
+                        replace,
+                        renamed,
+                        on_taken,
+                    ) {
+                        Ok(w) => w,
+                        Err(Stop::Taken(on_stick, sha)) => {
+                            app.storage(StorageEvent::NameTaken {
+                                stick,
+                                name,
+                                on_stick,
+                                sha,
+                            });
+                            continue;
+                        }
+                        Err(Stop::Failed(reason)) => {
+                            app.storage(StorageEvent::WriteFailed {
+                                stick,
+                                name,
+                                reason,
+                            });
+                            continue;
+                        }
+                    };
                     d.free -= bytes.len() as u64;
                     if bad {
                         app.storage(StorageEvent::WriteFailed {
@@ -522,10 +551,26 @@ impl Shell {
                 copies,
                 replace,
                 renamed,
+                on_taken,
             } = c
             {
                 let d = self.disk_mut(&stick);
-                let wrote_as = write_any(&mut d.files, &name, &bytes, &copies, replace, renamed);
+                let Ok(wrote_as) = write_any(
+                    &mut d.files,
+                    &name,
+                    &bytes,
+                    &copies,
+                    replace,
+                    renamed,
+                    on_taken,
+                ) else {
+                    app.storage(StorageEvent::WriteFailed {
+                        stick,
+                        name,
+                        reason: "name taken".into(),
+                    });
+                    continue;
+                };
                 d.free -= bytes.len() as u64;
                 self.writes.push((stick.clone(), wrote_as.clone()));
                 app.storage(StorageEvent::Written {
@@ -551,12 +596,21 @@ impl Shell {
                 copies,
                 replace,
                 renamed,
+                on_taken,
             } = c
                 && which(&name)
             {
                 let d = self.disk_mut(&stick);
                 d.free = d.free.saturating_sub(bytes.len() as u64);
-                write_any(&mut d.files, &name, &bytes, &copies, replace, renamed);
+                let _ = write_any(
+                    &mut d.files,
+                    &name,
+                    &bytes,
+                    &copies,
+                    replace,
+                    renamed,
+                    on_taken,
+                );
             }
         }
     }
@@ -658,6 +712,14 @@ impl Shell {
     }
 }
 
+/// Why a write stopped: its name is asked about, or it is refused.
+pub enum Stop {
+    /// A file with the name: its name on the stick and its SHA-256.
+    Taken(String, Option<[u8; 32]>),
+    /// Refused, with the reason.
+    Failed(String),
+}
+
 /// What `faraday-files` does with a write: a vault over the vault file
 /// whose SHA-256 is among `copies` when `replace`, else beside under a
 /// free name; other files beside or over.
@@ -668,7 +730,9 @@ pub fn write_any(
     copies: &[[u8; 32]],
     replace: bool,
     renamed: bool,
-) -> String {
+    on_taken: faraday_core::OnTaken,
+) -> Result<String, Stop> {
+    use faraday_core::OnTaken;
     if name.ends_with(".kdbx") && faraday_vault::file::inspect(bytes).is_ok() {
         if replace
             && let Some(at) = files.iter().position(|(n, b)| {
@@ -687,15 +751,34 @@ pub fn write_any(
                 name.to_string()
             };
             files.insert(at, (to.clone(), bytes.to_vec()));
-            return to;
+            return Ok(to);
+        }
+        // A file of the name nothing proves a copy: what `on_taken` says.
+        if let Some(at) = files.iter().position(|(n, _)| n.eq_ignore_ascii_case(name)) {
+            let sha = faraday_crypto::sha256(&files[at].1);
+            match on_taken {
+                OnTaken::Ask => return Err(Stop::Taken(files[at].0.clone(), Some(sha))),
+                OnTaken::Over(seen) if seen == sha => {
+                    files[at].1 = bytes.to_vec();
+                    return Ok(files[at].0.clone());
+                }
+                // As `faraday-files` refuses a file changed since it was shown.
+                OnTaken::Over(_) => {
+                    return Err(Stop::Failed(faraday_strings::fill(
+                        faraday_strings::EN.files_taken_changed,
+                        &[&files[at].0],
+                    )));
+                }
+                OnTaken::Beside => {}
+            }
         }
     } else if replace && let Some(at) = files.iter().position(|(n, _)| n == name) {
         files[at].1 = bytes.to_vec();
-        return name.to_string();
+        return Ok(name.to_string());
     }
     let free = free_name(files, name);
     files.push((free.clone(), bytes.to_vec()));
-    free
+    Ok(free)
 }
 
 /// The first of `name`, `stem-2.ext`… no file on the stick has.

@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/lib.rs`)
-**Screen:** `Visit`, `Taken`, `WriteOut`, `Delete`, `Zeroing`
+**Screen:** `Visit`, `Taken`, `NameTaken`, `WriteOut`, `Delete`, `Zeroing`
 **Group:** Files
 
 **Opened from:** a stick plugged in while Faraday holds no secret; the
@@ -79,18 +79,41 @@ scroll to see them" under it.
 **Opened from:** "Write 2 files" when a file's name is on the stick
 already, ignoring case. Its title is **Already on the stick**.
 
-![Already on the stick: a PSBT kept both as payment-signed-2.psbt, and vault.kdbx the same vault, updated here](../pictures/stick-visit-already.png)
+![Already on the stick: a PSBT kept both as payment-signed-2.psbt](../pictures/stick-visit-already.png)
 
 *The sheet **Already on the stick**: "payment-signed.psbt · Keep both:
-payment-signed-2.psbt" and "vault.kdbx · the same vault, updated here".
-**Replace** is outlined.*
+payment-signed-2.psbt". **Replace** is outlined. It lists files that are
+not vaults; a vault's name taken is asked on its own sheet, below.*
 
 | Control | What it does |
 |---|---|
-| each row | "wallet.txt · Keep both: wallet-2.txt"; "vault.kdbx · the same vault, updated here", which always goes over its own file; "vault.kdbx · another vault · kept, this one as vault-2.kdbx", which never does |
+| each row | "wallet.txt · Keep both: wallet-2.txt" |
 | **Replace** | writes over the files of the same name |
 | **Keep both** | writes each under the name its row gives |
 | **Cancel** | closes the sheet; nothing is written |
+
+## A vault's name is taken
+
+**Opened from:** "Write" on a visit, or the backup flow's write to an
+existing vault's stick, when a file on the stick has the vault's name,
+ignoring case, and nothing proves that file a copy of this vault. Its
+title is "vault.kdbx is already on the stick". Nothing is written until
+it is answered.
+
+The sheet says that Faraday cannot tell which vault the file is and that
+overwriting destroys it, even if it is another vault; a file that is a copy
+of another vault Faraday knows is named so, and one that cannot be read
+says so.
+
+| Control | What it does |
+|---|---|
+| "Hold: overwrite vault.kdbx" | the new vault is written under a hidden name and read back, then the old file is removed and the new one takes its name; refused if the file changed since the sheet showed it. Absent for a file that cannot be read |
+| "Save as vault-2.kdbx" | writes the vault beside the file under that free name |
+| **Cancel** | writes nothing; the vault stays For the stick, and the log says "its name is taken"; with nothing else written, the receipt of an earlier write stays as it was |
+
+A vault Faraday proves is a copy of this one (the same file it wrote or
+opened) is replaced with no sheet, and a name no file has is written with
+none. With several vaults in one write, the sheet asks them in turn.
 
 ## Write to a stick
 

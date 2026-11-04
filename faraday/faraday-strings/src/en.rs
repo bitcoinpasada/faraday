@@ -9301,6 +9301,9 @@ strings! {
     files_not_a_vault: "not a vault",
     /// Why a vault was not written over its file. `{}`: the file.
     files_vault_not_ours: "{} is this vault, and this session did not unlock or write it: not replaced",
+    /// Why a vault was not overwritten: the file is not the one the person
+    /// was shown. `{}`: the file.
+    files_taken_changed: "{} changed since it was shown: not overwritten",
     /// Why a vault was not written: two files hold it. `{}`: the files.
     files_vault_twice: "{} and {} are the same vault; remove one",
     /// Why a rename was refused. `{}`: the file.
@@ -9434,10 +9437,6 @@ strings! {
     // ----- visit_taken (faraday-core/src/visit_taken.rs) -----
     /// Text in `line`. `{}`: `self.name`, `keep_as`.
     visit_taken_keep_both_n: "{} · Keep both: {}",
-    /// Text in `line`. `{}`: `self.name`.
-    visit_taken_the_same: "{} · the same vault, updated here",
-    /// Text in `line`. `{}`: `self.name`, `keep_as`.
-    visit_taken_another: "{} · another vault · kept, this one as {}",
     /// Text in `taken_sheet`. `{}`: `app.medium.on_the()`.
     visit_taken_already: "Already {}",
     /// Text in `taken_sheet`.
@@ -9446,6 +9445,9 @@ strings! {
     visit_taken_keep_both: "Keep both",
     /// Text in `taken_sheet`.
     visit_taken_cancel: "Cancel",
+    /// Why a vault was not written, in the visit's receipt: the person
+    /// answered the name-taken sheet with Cancel.
+    visit_taken_name_taken: "its name is taken",
     // ----- modes (faraday-core/src/modes/mod.rs) -----
     /// Text in `Mode::name`.
     mode_demo: "Practice",
@@ -10171,6 +10173,26 @@ strings! {
     /// A file written to a stick did not read back, twice
     /// (`docs/BACKUP-FLOW.md` §17.12 item 10): the file, the stick.
     backup_flow_no_read_back: "{} did not read back from {}; try another stick",
+    /// Problem in the backup flow: the name-taken sheet was answered with
+    /// Cancel. `{}`: the vault's file name.
+    backup_flow_name_taken: "{} was not written. Its name is taken",
+    /// Title of the sheet for a vault whose name a file on the stick
+    /// has. `{}`: the vault's file name, `app.medium.on_the()` ("on the stick").
+    vault_taken_title: "{} is already {}",
+    /// Why a vault was not written when the stick was pulled with its name
+    /// still asked about. `{}`: `self.medium.noun()`.
+    visit_taken_pulled: "the {} was pulled",
+    /// Body of that sheet: the file's vault is not known.
+    vault_taken_unknown: "Faraday cannot tell which vault this file is. Overwriting destroys it, even if it is another vault.",
+    /// Body of that sheet: the file is a copy of a vault the session
+    /// knows. `{}`: that vault's name.
+    vault_taken_other: "This file is {}, another vault. Overwriting destroys it.",
+    /// Body of that sheet: the file could not be read.
+    vault_taken_unreadable: "This file could not be read. It stays as it is.",
+    /// Hold in that sheet. `{}`: the file's name.
+    vault_taken_overwrite: "Hold: overwrite {}",
+    /// Button in that sheet. `{}`: the free name.
+    vault_taken_beside: "Save as {}",
     /// A stick's written copy was deleted or the stick wiped.
     backup_flow_first_gone_toast: "A written copy was deleted",
     /// Done's result.

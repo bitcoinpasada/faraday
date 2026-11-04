@@ -596,7 +596,8 @@ fn copies_on(
 
 /// Costs what [`write_vault_over`] costs. Writes a sealed vault back
 /// (`docs/VAULT.md` §6): over the file on the stick whose SHA-256 is
-/// one of `copies`, or as a new file when there is none. The new bytes
+/// one of `copies`, or as a new file when there is none, beside a file
+/// of its name ([`OnTaken::Beside`]). The new bytes
 /// are written beside the original, read back and compared before the
 /// original is replaced. Two copies on one stick are refused, naming both.
 pub fn write_vault(
@@ -606,15 +607,65 @@ pub fn write_vault(
     bytes: &[u8],
     copies: &[[u8; 32]],
 ) -> Result<String, String> {
-    write_vault_over(c, place, name, bytes, copies, true, false)
+    write_vault_over(c, place, name, bytes, copies, true, false, OnTaken::Beside)
+        .map_err(WriteRefused::text)
+}
+
+/// What a vault's write does when a file has its name and nothing proves
+/// that file is a copy of the vault (`docs/VAULT.md` §6 step 1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OnTaken {
+    /// Nothing is written: the write is refused as [`WriteRefused::NameTaken`].
+    Ask,
+    /// The vault goes under a free name beside that file.
+    Beside,
+    /// The vault goes over that file, which must still have this SHA-256.
+    Over([u8; 32]),
+}
+
+/// Why a write was refused.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WriteRefused {
+    /// A file has the vault's name, ignoring case, and nothing proves it
+    /// is a copy of the vault; nothing on the stick changed.
+    NameTaken {
+        /// That file's name on the stick.
+        on_stick: String,
+        /// Its SHA-256; none when it is over [`MAX_READ`] or cannot be read.
+        sha: Option<[u8; 32]>,
+    },
+    /// Anything else, as the words that say why.
+    Failed(String),
+}
+
+impl WriteRefused {
+    /// The words for why, where nothing asks.
+    pub fn text(self) -> String {
+        match self {
+            WriteRefused::NameTaken { on_stick, .. } => fill(EN.files_appeared, &[&on_stick]),
+            WriteRefused::Failed(why) => why,
+        }
+    }
+}
+
+impl From<String> for WriteRefused {
+    fn from(why: String) -> Self {
+        WriteRefused::Failed(why)
+    }
 }
 
 /// Costs a read and a SHA-256 pass over each file that begins as a vault
-/// does on the stick. [`write_vault`], refusing to go over a copy when `over` is
+/// does on the stick, and over a file of the vault's name. [`write_vault`],
+/// refusing to go over a copy when `over` is
 /// false. Over a copy the file keeps the name it has on the stick,
 /// unless `renamed`: the person renamed the vault's file For the stick,
 /// and the file takes that name (`docs/FLOWS.md` decision 61 item 2), or
-/// `name-2` where another file has it.
+/// `name-2` where another file has it. With no copy on the stick, a file
+/// of the vault's name, ignoring case, is dealt with as `on_taken` says.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one write, as the protocol carries it"
+)]
 pub fn write_vault_over(
     c: &Compute,
     place: &mut dyn Place,
@@ -623,31 +674,85 @@ pub fn write_vault_over(
     copies: &[[u8; 32]],
     over: bool,
     renamed: bool,
-) -> Result<String, String> {
+    on_taken: OnTaken,
+) -> Result<String, WriteRefused> {
     finish_vault_writes(place);
     if !whole_vault(bytes) {
-        return Err(EN.files_not_a_vault.to_string());
+        return Err(EN.files_not_a_vault.to_string().into());
     }
     let mut same = copies_on(c, place, copies)?;
     let original = match same.len() {
-        0 => return write(place, name, bytes),
+        0 => return write_vault_new(c, place, name, bytes, renamed, on_taken),
         1 if !over => {
-            return Err(fill(EN.files_vault_not_ours, &[&same[0]]));
+            return Err(fill(EN.files_vault_not_ours, &[&same[0]]).into());
         }
         1 => same.remove(0),
         _ => {
-            return Err(fill(EN.files_vault_twice, &[&same[0], &same[1]]));
+            return Err(fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
         }
     };
+    Ok(replace_file(place, &original, name, bytes, renamed)?)
+}
+
+/// Costs a read and a SHA-256 pass over the file of the vault's name.
+/// A vault no copy of which is on the stick: a new file, or what
+/// `on_taken` says where a file has its name.
+fn write_vault_new(
+    c: &Compute,
+    place: &mut dyn Place,
+    name: &str,
+    bytes: &[u8],
+    renamed: bool,
+    on_taken: OnTaken,
+) -> Result<String, WriteRefused> {
+    let asked = checked_for_write(name)?;
+    let taken = place
+        .files()?
+        .into_iter()
+        .find(|(n, _)| !n.starts_with('.') && n.eq_ignore_ascii_case(asked));
+    let Some((old, len)) = taken else {
+        return Ok(write(place, name, bytes)?);
+    };
+    let sha_of = |place: &mut dyn Place| {
+        (len <= MAX_READ)
+            .then(|| place.read(&old, MAX_READ).ok())
+            .flatten()
+            .map(|b| faraday_crypto::sha256_whole(c, &b))
+    };
+    match on_taken {
+        OnTaken::Beside => Ok(write(place, name, bytes)?),
+        OnTaken::Ask => {
+            let sha = sha_of(place);
+            Err(WriteRefused::NameTaken { on_stick: old, sha })
+        }
+        OnTaken::Over(shown) => {
+            if sha_of(place) != Some(shown) {
+                return Err(fill(EN.files_taken_changed, &[&old]).into());
+            }
+            Ok(replace_file(place, &old, name, bytes, renamed)?)
+        }
+    }
+}
+
+/// The new bytes under a hidden temp name, read back and compared; then
+/// the file `original` removed and the temp renamed to its name, or to
+/// the person's new one where `renamed`.
+fn replace_file(
+    place: &mut dyn Place,
+    original: &str,
+    name: &str,
+    bytes: &[u8],
+    renamed: bool,
+) -> Result<String, String> {
     let temp = format!(".faraday-{original}.part");
     put_checked(place, &temp, bytes)?;
     // FAT has no atomic replace: the original goes, then the copy that
     // read back whole takes its name, or the person's new one.
-    place.remove(&original)?;
+    place.remove(original)?;
     let to = if renamed {
         free_name(place, checked_for_write(name)?)?
     } else {
-        original
+        original.to_string()
     };
     place.rename(&temp, &to)?;
     Ok(to)
@@ -842,7 +947,8 @@ pub fn write_any(
     bytes: &[u8],
     replace: bool,
 ) -> Result<String, String> {
-    write_file(c, place, name, bytes, &[], replace, false)
+    write_file(c, place, name, bytes, &[], replace, false, OnTaken::Beside)
+        .map_err(WriteRefused::text)
 }
 
 /// Costs what [`write_vault_over`] costs for a vault. [`write_any`] for
@@ -850,6 +956,12 @@ pub fn write_any(
 /// vault goes over the file on the stick whose SHA-256 is among `copies`,
 /// only when `replace`, which the app says of a vault its session
 /// unlocked or wrote, and then takes that name ([`write_vault_over`]).
+/// `on_taken` is for a vault only: what to do where a file the copies do
+/// not prove has its name.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one write, as the protocol carries it"
+)]
 pub fn write_file(
     c: &Compute,
     place: &mut dyn Place,
@@ -858,15 +970,16 @@ pub fn write_file(
     copies: &[[u8; 32]],
     replace: bool,
     renamed: bool,
-) -> Result<String, String> {
+    on_taken: OnTaken,
+) -> Result<String, WriteRefused> {
     if vault_file::is_vault_file(bytes) {
-        write_vault_over(c, place, name, bytes, copies, replace, renamed)
+        write_vault_over(c, place, name, bytes, copies, replace, renamed, on_taken)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
-        write_settings(place, bytes)
+        Ok(write_settings(place, bytes)?)
     } else if replace {
-        write_replacing(place, name, bytes)
+        Ok(write_replacing(place, name, bytes)?)
     } else {
-        write(place, name, bytes)
+        Ok(write(place, name, bytes)?)
     }
 }
 

@@ -1519,9 +1519,13 @@ fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_
     assert_eq!(shell.disk("S1").file("main.kdbx"), Some(&first));
     assert!(offered(&mut app, Action::Flow(F::Hold)));
     shell.flow(&mut app, F::Hold);
+    // The declined file is not a copy this session has proved: the stick
+    // asks, and nothing is written before the answer.
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    assert_eq!(shell.vault_writes(), 0);
+    shell.press(&mut app, Action::NameTakenBeside);
     assert_eq!(shell.vault_writes(), 1);
-    // The declined file is not a copy this session has proved, so the vault
-    // goes beside it and the file is byte for byte.
+    // Beside it, and the file is byte for byte.
     assert_eq!(shell.disk("S1").file("main.kdbx"), Some(&first));
     assert!(shell.disk("S1").file("main-2.kdbx").is_some());
 }
@@ -2042,9 +2046,12 @@ fn a_stick_named_at_step_six_with_a_copy_the_session_never_saw_gets_the_vault_be
     shell.pull(&mut app, "U");
     shell.plug(&mut app, "U");
     expect(&mut app, "This is the stick for Vault 1 (Place 1)");
-    // Nobody opened that file: the vault goes beside it with no hold, and
-    // the file is byte for byte.
+    // Nobody opened that file: the stick asks, and Save beside leaves the
+    // file byte for byte.
     shell.flow(&mut app, F::Tap);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    assert_eq!(shell.vault_writes(), 0);
+    shell.press(&mut app, Action::NameTakenBeside);
     assert_eq!(shell.vault_writes(), 1);
     assert_eq!(shell.disk("U").file("main.kdbx"), Some(&edited));
     assert!(shell.disk("U").file("main-2.kdbx").is_some());
@@ -2522,3 +2529,186 @@ fn a_put_off_stick_that_holds_vaults_gets_the_new_vault_beside_them() {
 mod figures;
 
 mod stick_read;
+
+#[test]
+fn cancelling_the_name_taken_sheet_in_the_flow_writes_nothing_and_use_another_asks_again() {
+    let mut shell = Shell::new();
+    let mut app = existing_locked(&mut shell);
+    let edited = vault("Main edited", PHRASE, 0x55);
+    let mut u = Disk::empty("U", "OTHER");
+    u.serial = Some(9);
+    u.files = vec![("main.kdbx".into(), edited.clone())];
+    shell.add(u);
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "U");
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::Tap);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    shell.press(&mut app, Action::Cancel);
+    assert_eq!(app.sheet, None);
+    expect(&mut app, "main.kdbx was not written. Its name is taken");
+    assert_eq!(shell.vault_writes(), 0);
+    assert_eq!(shell.disk("U").file("main.kdbx"), Some(&edited));
+    assert_eq!(step(&app), Step::Write, "the stick does not count");
+    shell.pull(&mut app, "U");
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "U");
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::Tap);
+    assert_eq!(
+        app.sheet,
+        Some(faraday_core::Sheet::NameTaken),
+        "pressed again"
+    );
+}
+
+#[test]
+fn a_new_vault_in_the_flow_goes_beside_what_the_stick_holds_with_no_sheet() {
+    let mut shell = Shell::new();
+    let mut app = sticks_with_the_first_put_off(&mut shell);
+    let held = vec![1; 10];
+    shell.disks[0].files = vec![("Vault.kdbx".into(), held.clone())];
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Tap);
+    shell.pull_only(&mut app, "S2");
+    shell.flow(&mut app, F::SticksOn);
+    let mut app = made_and_locked(&mut shell, &mut app);
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    assert_eq!(app.sheet, None, "no copy of a new vault can be on a stick");
+    assert_eq!(shell.vault_writes(), 1, "the vault was written");
+    let files = &shell.disk("S1").files;
+    assert_eq!(shell.disk("S1").file("Vault.kdbx"), Some(&held));
+    assert_eq!(files.iter().filter(|f| f.0.ends_with(".kdbx")).count(), 2);
+    assert!(
+        files
+            .iter()
+            .any(|f| f.0.ends_with(".kdbx") && f.0 != "Vault.kdbx" && f.1 != held),
+        "the new vault is under a free name: {:?}",
+        files.iter().map(|f| &f.0).collect::<Vec<_>>()
+    );
+}
+
+/// A plain file the write of every stick carries, as a let-out seed file
+/// is: in the Outbox and named on each slot.
+fn with_a_plain_file(app: &mut Faraday) {
+    let note = faraday_core::Item {
+        name: "note.pdf".into(),
+        bytes: b"a plain file".to_vec(),
+        kind: faraday_core::wallet::FileKind::Pdf,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+    };
+    app.outbox.push(note);
+    for f in faraday_core::testkit::flows_mut(app) {
+        for s in &mut f.slots {
+            s.files.push("note.pdf".into());
+        }
+    }
+}
+
+/// The write of the stick `U`, whose `main.kdbx` is a file nobody opened,
+/// carrying a plain file, up to the sheet.
+fn asked_with_a_plain_file(shell: &mut Shell) -> Faraday {
+    let mut app = existing_locked(shell);
+    with_a_plain_file(&mut app);
+    let edited = vault("Main edited", PHRASE, 0x55);
+    let mut u = Disk::empty("U", "OTHER");
+    u.serial = Some(9);
+    u.files = vec![("main.kdbx".into(), edited)];
+    shell.add(u);
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "U");
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::Tap);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    app
+}
+
+fn count(shell: &Shell, name: &str) -> usize {
+    shell.disk("U").files.iter().filter(|f| f.0 == name).count()
+}
+
+#[test]
+fn a_plain_file_waits_for_the_vaults_answer_and_is_written_once() {
+    let mut shell = Shell::new();
+    let mut app = asked_with_a_plain_file(&mut shell);
+    assert_eq!(count(&shell, "note.pdf"), 0, "not before the answer");
+    shell.press(&mut app, Action::NameTakenBeside);
+    assert_eq!(count(&shell, "note.pdf"), 1);
+    assert!(shell.disk("U").file("main-2.kdbx").is_some());
+}
+
+#[test]
+fn a_cancel_then_a_second_try_leaves_one_of_each_on_the_stick() {
+    let mut shell = Shell::new();
+    let mut app = asked_with_a_plain_file(&mut shell);
+    shell.press(&mut app, Action::Cancel);
+    assert_eq!(
+        count(&shell, "note.pdf"),
+        0,
+        "a cancel writes no plain file"
+    );
+    assert_eq!(step(&app), Step::Write);
+    shell.pull(&mut app, "U");
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::UseAnother);
+    shell.pull(&mut app, "U");
+    shell.plug(&mut app, "U");
+    shell.flow(&mut app, F::Tap);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    shell.press(&mut app, Action::NameTakenBeside);
+    assert_eq!(count(&shell, "note.pdf"), 1);
+    assert_eq!(count(&shell, "main.kdbx"), 1);
+    assert_eq!(count(&shell, "main-2.kdbx"), 1);
+}
+
+#[test]
+fn the_answer_writes_the_bytes_first_sent_not_a_file_of_the_same_name() {
+    let mut shell = Shell::new();
+    let mut app = asked_with_a_plain_file(&mut shell);
+    let first = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "main.kdbx")
+        .cloned()
+        .expect("the sealed vault");
+    let mut other = first.clone();
+    other.bytes = vault("Other", PHRASE_2, 0x42);
+    app.outbox.insert(0, other);
+    shell.press(&mut app, Action::NameTakenBeside);
+    assert_eq!(shell.disk("U").file("main-2.kdbx"), Some(&first.bytes));
+}
+
+#[test]
+fn bytes_that_are_gone_when_answered_end_the_write_as_a_cancel() {
+    let mut shell = Shell::new();
+    let mut app = asked_with_a_plain_file(&mut shell);
+    app.outbox.retain(|i| i.name != "main.kdbx");
+    shell.press(&mut app, Action::NameTakenBeside);
+    assert_eq!(app.sheet, None);
+    assert_eq!(shell.vault_writes(), 0);
+    assert_eq!(count(&shell, "note.pdf"), 0);
+    assert_eq!(step(&app), Step::Write, "the stick does not count");
+}
+
+#[test]
+fn a_file_changed_since_it_was_shown_is_not_overwritten_and_the_card_says_so() {
+    let mut shell = Shell::new();
+    let mut app = asked_with_a_plain_file(&mut shell);
+    let changed = vault("Changed", PHRASE_2, 0x42);
+    shell.disk_mut("U").files[0].1 = changed.clone();
+    shell.hold(&mut app, Action::NameTakenOverwrite);
+    assert_eq!(app.sheet, None, "no question is left");
+    assert_eq!(shell.disk("U").file("main.kdbx"), Some(&changed));
+    assert_eq!(count(&shell, "note.pdf"), 0);
+    assert_eq!(step(&app), Step::Write, "the stick does not count");
+    expect(&mut app, "The copy did not check on OTHER. Nothing counted");
+}

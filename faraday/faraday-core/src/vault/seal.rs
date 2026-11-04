@@ -420,6 +420,8 @@ fn lock_finish(app: &mut Faraday) {
     // What the boot stick brought and was not imported is not kept:
     // its bytes are wiped as it drops.
     app.import.clear_all();
+    // A vault write waiting for its name's answer is not kept.
+    app.visit.name_taken_mut().clear();
     // Nothing secret copied in outlives the process that read it
     // (`docs/history/PLAN.md` §5.3): the next process is clean, and these would be
     // in its memory and in `/run/faraday`. They are still on the stick

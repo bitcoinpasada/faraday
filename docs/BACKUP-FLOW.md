@@ -375,7 +375,8 @@ stick of public files:
   - a stick bound at step 2 must read as it did then (label, serial,
     listing, the vault files' SHA-256): else "Not the stick read for
     Vault 2 (Place 2)", and **Use another stick**, which checks a new
-    stick as step 2 does and writes the vault beside what it holds;
+    stick as step 2 does and writes the vault beside what it holds (a file
+    under its name is the question, F203);
   - a vault's second or later copy: refused on a stick that holds an
     earlier copy ("This stick has the first copy"), then **Hold: this is
     a second stick**, or for a third and later copy **Hold: this is
@@ -400,7 +401,10 @@ a vault replaces a file whose SHA-256 is a copy the session has seen
 (VAULT §6) or, where no file has its name, is written under it. A file
 nothing proves under its name stops the write for the question
 **Overwrite** (a hold) or **Save beside** (a tap), one file in turn (F203);
-going back writes nothing and the stick does not count. A vault the plan
+going back writes no more of this stick's files and the stick does not
+count. The vaults are sent first and the plain files only once no vault is
+unanswered, so a going back leaves none of them written, and a vault
+already written is a proved copy on the next try. A vault the plan
 makes new goes beside under a free name with no question. Other files follow **Already on the stick**'s rules
 (decision 58) with Keep both for a file of another content under the
 same name. Each answer adds to the receipt (decision 25), one block per
@@ -876,12 +880,16 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_goes_beside` | {} goes beside these |
 | `backup_flow_use_file` | Use {} for {} |
 | `backup_flow_use_another` | Use another {m} |
-| `vault_taken_title` | {} is already on {} |
+| `vault_taken_title` | {} is already {} |
 | `vault_taken_unknown` | Faraday cannot tell which vault this file is. Overwriting destroys it, even if it is another vault. |
 | `vault_taken_other` | This file is {}, another vault. Overwriting destroys it. |
 | `vault_taken_unreadable` | This file could not be read. It stays as it is. |
 | `vault_taken_overwrite` | Hold: overwrite {} |
 | `vault_taken_beside` | Save as {} |
+| `visit_taken_name_taken` | its name is taken |
+| `visit_taken_pulled` | the {} was pulled |
+| `backup_flow_name_taken` | {} was not written. Its name is taken |
+| `files_taken_changed` | {} changed since it was shown: not overwritten |
 | `backup_flow_in_vault` | In {} |
 | `backup_flow_lock_and_write` | Lock and write |
 | `backup_flow_add_vault` | Add {} |

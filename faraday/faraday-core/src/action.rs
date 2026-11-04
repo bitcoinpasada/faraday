@@ -141,6 +141,12 @@ pub enum Action {
     /// That sheet's Keep both: the taken files written beside the old
     /// ones, under the names the sheet shows.
     VisitKeepBoth,
+    /// The name-taken sheet's Save as: the vault written beside the file
+    /// that has its name.
+    NameTakenBeside,
+    /// The name-taken sheet's hold: the vault written over the file that
+    /// has its name.
+    NameTakenOverwrite,
     /// Copy the chosen stick files.
     VisitCopy,
     /// Copy the chosen stick files, and load as keys any that are once
@@ -911,5 +917,6 @@ pub fn is_hold(a: Action) -> bool {
             | Action::RegisterHold
             | Action::ReviewHold
             | Action::DevicesHold
+            | Action::NameTakenOverwrite
     )
 }

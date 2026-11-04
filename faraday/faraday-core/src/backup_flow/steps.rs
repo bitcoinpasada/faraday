@@ -2586,6 +2586,9 @@ impl Faraday {
         let f = &self.flows[i];
         let slot = r.slot;
         let mut sends: Vec<(String, Vec<u8>, bool)> = Vec::new();
+        // Each vault file's plan: an existing vault asks where its name is
+        // taken; a new vault goes beside what the stick holds.
+        let mut asks: Vec<String> = Vec::new();
         let mut refused = false;
         for v in f.vaults_of(slot) {
             // The Outbox, or Files once the flow was done: found by name and
@@ -2598,6 +2601,9 @@ impl Faraday {
             });
             match item {
                 Some(it) if it.exposure() != crate::secrets::Exposure::Secret => {
+                    if f.plan.vaults.get(v).is_some_and(|vp| vp.existing) {
+                        asks.push(it.name.clone());
+                    }
                     sends.push((it.name.clone(), it.bytes.clone(), true));
                 }
                 _ => refused = true,
@@ -2651,20 +2657,7 @@ impl Faraday {
             .filter(|(_, _, vault)| !vault)
             .map(|(n, _, _)| n.clone())
             .collect();
-        for (name, bytes, vault) in sends {
-            // A vault goes over a copy of it the session has seen and
-            // nothing else, or beside what the stick holds; any other
-            // file beside under a free name (`faraday-files`).
-            let copies = self.vault_copies(&c, &bytes);
-            self.out.storage_out.push_back(StorageCommand::Write {
-                stick: r.id.clone(),
-                name,
-                bytes,
-                copies,
-                replace: vault,
-                renamed: false,
-            });
-        }
+        let (vaults_open, held) = self.flow_send_first(&c, &r.id, sends, &asks);
         let f = &mut self.flows.all[i];
         if let Some(r) = f.live.reading.as_mut() {
             r.hold = false;
@@ -2680,15 +2673,129 @@ impl Faraday {
             retried: Vec::new(),
             aliases: Vec::new(),
             qr: Vec::new(),
+            vaults_open,
+            held,
             label: r.label,
             serial: r.serial,
         });
+    }
+
+    /// Costs a SHA-256 of each file queued now. Queues the vaults of a
+    /// write and, where it has none, its plain files; otherwise the plain files wait for no vault to be unanswered,
+    /// so that a cancel on a vault's name leaves the stick with none of
+    /// them. Returns the vault names open and the files held.
+    #[allow(clippy::type_complexity)]
+    fn flow_send_first(
+        &mut self,
+        c: &Compute,
+        stick: &str,
+        sends: Vec<(String, Vec<u8>, bool)>,
+        asks: &[String],
+    ) -> (Vec<String>, Vec<(String, Vec<u8>)>) {
+        let (vaults, files): (Vec<_>, Vec<_>) = sends.into_iter().partition(|(_, _, v)| *v);
+        let open: Vec<String> = vaults.iter().map(|(n, _, _)| n.clone()).collect();
+        let (now, held) = if vaults.is_empty() {
+            (files, Vec::new())
+        } else {
+            (vaults, files.into_iter().map(|(n, b, _)| (n, b)).collect())
+        };
+        self.name_taken_wrote_clear();
+        for (name, bytes, vault) in now {
+            let ask = asks.contains(&name);
+            self.flow_push_write(c, stick, name, bytes, vault, ask);
+        }
+        (open, held)
+    }
+
+    /// Costs a SHA-256 of the file. Queues one file of the flow's write: a
+    /// vault goes over a copy of it
+    /// the session has seen and nothing else (asking where its name is
+    /// taken when `ask`), or beside what the stick holds; any other file
+    /// beside under a free name (`faraday-files`).
+    fn flow_push_write(
+        &mut self,
+        c: &Compute,
+        stick: &str,
+        name: String,
+        bytes: Vec<u8>,
+        vault: bool,
+        ask: bool,
+    ) {
+        let copies = self.vault_copies(c, &bytes);
+        self.out.storage_out.push_back(StorageCommand::Write {
+            stick: stick.to_string(),
+            name,
+            bytes,
+            copies,
+            replace: vault,
+            renamed: false,
+            on_taken: if ask {
+                crate::storage_api::OnTaken::Ask
+            } else {
+                crate::storage_api::OnTaken::Beside
+            },
+        });
+    }
+
+    /// The plain files held back are sent once no vault is unanswered.
+    fn flow_release_held(&mut self, i: usize) {
+        let Some(w) = self.flows.all[i].live.writing.as_mut() else {
+            return;
+        };
+        if !w.vaults_open.is_empty() || w.held.is_empty() {
+            return;
+        }
+        let held = std::mem::take(&mut w.held);
+        let stick = w.id.clone();
+        let c = self.compute();
+        for (name, bytes) in held {
+            self.flow_push_write(&c, &stick, name, bytes, false, false);
+        }
+    }
+
+    /// The SHA-256 of the file `name` the flow's write sent to `stick` and
+    /// has no answer for.
+    pub(crate) fn flow_pending_sha(&self, stick: &str, name: &str) -> Option<[u8; 32]> {
+        self.flow()?
+            .live
+            .writing
+            .as_ref()
+            .filter(|w| w.id == stick)?
+            .pending
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, h)| *h)
     }
 
     pub(crate) fn flow_wants_written(&self, stick: &str, name: &str) -> bool {
         self.flow()
             .and_then(|f| f.live.writing.as_ref())
             .is_some_and(|w| w.id == stick && w.pending.iter().any(|(n, _)| n == name))
+    }
+
+    /// Whether a write's answer is one the flow waits for.
+    pub(crate) fn flow_wants_write_event(&self, ev: &crate::StorageEvent) -> bool {
+        match ev {
+            crate::StorageEvent::Written { stick, name, .. }
+            | crate::StorageEvent::WriteFailed { stick, name, .. } => {
+                self.flow_wants_written(stick, name)
+            }
+            _ => false,
+        }
+    }
+
+    /// A write's answer the flow waits for, given to [`Self::flow_write_answer`].
+    pub(crate) fn flow_write_event(&mut self, ev: crate::StorageEvent) {
+        match ev {
+            crate::StorageEvent::Written { name, wrote_as, .. } => {
+                self.name_taken_wrote(&wrote_as);
+                self.flow_write_answer(&name, Ok(wrote_as));
+            }
+            crate::StorageEvent::WriteFailed { name, reason, .. } => {
+                self.flow_write_answer(&name, Err(reason));
+            }
+            _ => {}
+        }
     }
 
     /// A write was answered; `Ok` with the name it was written as, or the
@@ -2706,6 +2813,7 @@ impl Faraday {
             return;
         };
         let (_, sha) = w.pending.remove(k);
+        w.vaults_open.retain(|n| n != name);
         let meant = w
             .aliases
             .iter()
@@ -2735,10 +2843,12 @@ impl Faraday {
             Err(_) if plain => return self.flow_write_again(i, &meant, name, false),
             Err(_) => {
                 self.flows.all[i].live.writing = None;
+                self.name_taken_flow_ended();
                 self.flows.all[i].refuse(Problem::NotChecked);
                 return;
             }
         }
+        self.flow_release_held(i);
         self.flow_write_settle(i);
     }
 
@@ -2810,6 +2920,7 @@ impl Faraday {
             .map(|it| it.bytes.clone());
         let (Some(bytes), false) = (item, w.retried.iter().any(|n| n == meant)) else {
             self.flows.all[i].live.writing = None;
+            self.name_taken_flow_ended();
             return self.flows.all[i].refuse(Problem::NoReadBack(meant.to_string()));
         };
         let stick = w.id.clone();
@@ -2822,6 +2933,7 @@ impl Faraday {
             }
         }
         let copies = self.vault_copies(&c, &bytes);
+        let bytes_sent = bytes.clone();
         self.out.storage_out.push_back(StorageCommand::Write {
             stick,
             name: sent.to_string(),
@@ -2829,7 +2941,26 @@ impl Faraday {
             copies,
             replace: over,
             renamed: false,
+            on_taken: if crate::visit_taken::is_vault(&bytes_sent) {
+                crate::storage_api::OnTaken::Ask
+            } else {
+                crate::storage_api::OnTaken::Beside
+            },
         });
+    }
+
+    /// The name-taken sheet was answered with Cancel for vault `name`: the
+    /// write does not count, the stick does not count, and the card
+    /// offers Use another.
+    pub(crate) fn flow_name_taken(&mut self, name: &str) {
+        let Some(i) = self.fi() else {
+            return;
+        };
+        if self.flows[i].live.writing.is_none() {
+            return;
+        }
+        self.flows.all[i].live.writing = None;
+        self.flows.all[i].refuse(Problem::NameTaken(name.to_string()));
     }
 
     /// Every file of the write under way is answered and read back: the
@@ -3205,6 +3336,7 @@ impl Faraday {
                 fill(FEN.backup_flow_not_checked, &[&label])
             }
             Problem::Pulled => FEN.backup_flow_pulled.to_string(),
+            Problem::NameTaken(file) => fill(FEN.backup_flow_name_taken, &[file]),
             Problem::NoReadBack(file) => {
                 let label = f
                     .and_then(|f| f.live.reading.as_ref())

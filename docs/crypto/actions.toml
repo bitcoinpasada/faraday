@@ -5772,6 +5772,7 @@ functions = [
   "faraday/faraday-core/src/vault/seals.rs::Vaults::seals_sealed",
   "faraday/faraday-files/src/lib.rs::copies_on",
   "faraday/faraday-files/src/lib.rs::rename",
+  "faraday/faraday-files/src/lib.rs::write_vault_new",
 ]
 code = ["faraday/faraday-core/src/receipt.rs::sha256_of"]
 

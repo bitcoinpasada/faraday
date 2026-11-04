@@ -131,9 +131,11 @@ asks first, a row per file:
 | **Keep both** | writes the new one beside it as `name-2` and its extension ("Keep both:" and the new name) |
 | **Cancel** | writes nothing; the visit stays |
 
-A vault's own older copy is always replaced ("the same vault, updated
-here"); another vault of that name is kept, and this one written
-beside it ("another vault · kept, this one as …").
+A vault whose own copy Faraday wrote or opened is replaced with no
+question. A vault whose name a file on the stick has, where Faraday
+cannot tell that file is a copy, is asked on its own sheet: hold to
+overwrite it, save the vault beside it as `name-2`, or cancel and leave
+the vault For the stick.
 
 ![Files after a write: For the stick empty, Written to KEYSTICK with payment-signed.psbt and vault.kdbx verified](../pictures/files-and-sticks-receipt.png)
 

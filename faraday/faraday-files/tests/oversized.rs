@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use faraday_crypto::work::Compute;
-use faraday_files::{Place, Zeroed, write_vault_over};
+use faraday_files::{OnTaken, Place, Zeroed, write_vault_over};
 
 #[expect(
     clippy::disallowed_methods,
@@ -80,10 +80,52 @@ fn a_part_file_of_a_hundred_megabytes_is_removed_unread_and_the_vault_is_written
     vault.resize(vault.len() + 65_536, 5);
     vault.extend_from_slice(&[9; 32]);
     vault.extend_from_slice(&0u32.to_le_bytes());
-    let wrote =
-        write_vault_over(&compute(), &mut stick, "x.kdbx", &vault, &[], true, false).unwrap();
+    let wrote = write_vault_over(
+        &compute(),
+        &mut stick,
+        "x.kdbx",
+        &vault,
+        &[],
+        true,
+        false,
+        OnTaken::Beside,
+    )
+    .unwrap();
     assert_eq!(wrote, "x.kdbx");
     assert!(!stick.files.contains_key(".faraday-x.kdbx.part"));
     assert_eq!(stick.files["x.kdbx"].1, vault);
     assert_eq!(stick.oversized_reads, 0, "the part file was never read");
+}
+
+#[test]
+fn a_same_name_file_over_the_read_limit_is_asked_about_with_no_sha() {
+    let mut stick = Claimed::default();
+    stick.files.insert("x.kdbx".into(), (100 << 20, Vec::new()));
+    let mut vault = faraday_codec::vault_file::SIGNATURE.to_vec();
+    vault.extend_from_slice(&[0, 0, 4, 0, 0, 0, 0, 0, 0]);
+    vault.extend_from_slice(&[1; 64]);
+    vault.extend_from_slice(&[9; 32]);
+    vault.extend_from_slice(&65_536u32.to_le_bytes());
+    vault.resize(vault.len() + 65_536, 5);
+    vault.extend_from_slice(&[9; 32]);
+    vault.extend_from_slice(&0u32.to_le_bytes());
+    let refused = write_vault_over(
+        &compute(),
+        &mut stick,
+        "x.kdbx",
+        &vault,
+        &[],
+        true,
+        false,
+        OnTaken::Ask,
+    )
+    .unwrap_err();
+    assert_eq!(
+        refused,
+        faraday_files::WriteRefused::NameTaken {
+            on_stick: "x.kdbx".into(),
+            sha: None
+        }
+    );
+    assert_eq!(stick.files.len(), 1, "nothing was written");
 }

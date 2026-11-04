@@ -55,6 +55,7 @@ fn the_settings_file_replaces_the_one_on_the_stick() {
             &[],
             false,
             false,
+            faraday_files::OnTaken::Beside,
         )
         .unwrap();
     assert_eq!(wrote, "faraday-settings.txt");
@@ -80,6 +81,7 @@ fn a_file_that_is_not_settings_is_not_written_over_it() {
             &[],
             false,
             false,
+            faraday_files::OnTaken::Beside,
         )
         .unwrap();
     assert_eq!(wrote, "faraday-settings-2.txt");

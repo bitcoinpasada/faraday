@@ -60,7 +60,14 @@ fn a_vault_opened_from_files_is_not_the_copy_of_another_vault_sharing_its_name()
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
     let mut app = shell.lock(&mut app);
-    write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
+    write_all(&mut shell, &mut app, &[("S1", false)]);
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Hold);
+    // Alpha's copy is not one of Beta's: the stick asks, and Save beside
+    // writes it.
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
+    shell.press(&mut app, Action::NameTakenBeside);
+    shell.pull(&mut app, "S2");
     assert_eq!(step(&app), Step::Done);
     // Beta was written to both sticks; Alpha's copy stays as it was.
     assert_eq!(shell.disk("S2").file("vault.kdbx"), Some(&a));

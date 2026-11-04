@@ -60,6 +60,9 @@ pub enum Request {
         /// The person renamed this file For the stick: a vault going over
         /// its same vault takes this name (`faraday_files::write_file`).
         renamed: bool,
+        /// A vault no copy of which is on the stick, a file having its
+        /// name: what to do (`faraday_files::OnTaken`).
+        on_taken: crate::OnTaken,
         /// The contents.
         bytes: Vec<u8>,
     },
@@ -221,6 +224,14 @@ pub enum Response {
         /// Every free cluster is zeros.
         done: bool,
     },
+    /// A vault's write refused, nothing written: a file has its name,
+    /// ignoring case, and nothing proves it is a copy of the vault.
+    WriteNameTaken {
+        /// That file's name on the stick.
+        on_stick: String,
+        /// Its SHA-256, when it could be read.
+        sha: Option<[u8; 32]>,
+    },
     /// The file has its new name.
     Renamed,
     /// A rename refused, nothing written: another file has the name,
@@ -312,6 +323,11 @@ impl In<'_> {
         let n = self.u32()?;
         Ok(self.take(n)?.to_vec())
     }
+    fn digest(&mut self) -> Result<[u8; 32], Malformed> {
+        let mut h = [0u8; 32];
+        h.copy_from_slice(self.take(32)?);
+        Ok(h)
+    }
     fn digests(&mut self) -> Result<Vec<[u8; 32]>, Malformed> {
         let n = self.u16()?;
         let mut out = Vec::new();
@@ -355,16 +371,25 @@ impl Request {
                 copies,
                 replace,
                 renamed,
+                on_taken,
                 bytes,
             } => {
                 let more =
-                    4 + stick.len() + name.len() + 2 + 32 * copies.len() + 2 + 4 + bytes.len();
+                    4 + stick.len() + name.len() + 2 + 32 * copies.len() + 2 + 33 + 4 + bytes.len();
                 let mut o = Out::sized(3, more);
                 o.str(stick);
                 o.str(name);
                 o.digests(copies);
                 o.0.push(u8::from(*replace));
                 o.0.push(u8::from(*renamed));
+                match on_taken {
+                    crate::OnTaken::Ask => o.0.push(0),
+                    crate::OnTaken::Beside => o.0.push(1),
+                    crate::OnTaken::Over(sha) => {
+                        o.0.push(2);
+                        o.0.extend_from_slice(sha);
+                    }
+                }
                 o.bytes(bytes);
                 o
             }
@@ -445,6 +470,12 @@ impl Request {
                     1 => true,
                     _ => return Err(Malformed),
                 },
+                on_taken: match i.u8()? {
+                    0 => crate::OnTaken::Ask,
+                    1 => crate::OnTaken::Beside,
+                    2 => crate::OnTaken::Over(i.digest()?),
+                    _ => return Err(Malformed),
+                },
                 bytes: i.bytes()?,
             },
             4 => Request::ReadQr {
@@ -487,6 +518,21 @@ impl Request {
         }
         Ok(r)
     }
+}
+
+/// The frame that says a write's name is taken: the file's name and its
+/// SHA-256 when it could be read.
+fn name_taken_frame(on_stick: &str, sha: &Option<[u8; 32]>) -> Out {
+    let mut o = Out::tag(0x8A);
+    o.str(on_stick);
+    match sha {
+        Some(d) => {
+            o.0.push(1);
+            o.0.extend_from_slice(d);
+        }
+        None => o.0.push(0),
+    }
+    o
 }
 
 impl Response {
@@ -583,6 +629,7 @@ impl Response {
                 o
             }
             Response::Renamed => Out::tag(0x88),
+            Response::WriteNameTaken { on_stick, sha } => name_taken_frame(on_stick, sha),
             Response::NameTaken { same_vault } => {
                 let mut o = Out::tag(0x89);
                 o.0.push(u8::from(*same_vault));
@@ -667,6 +714,14 @@ impl Response {
                 done: i.u8()? != 0,
             },
             0x88 => Response::Renamed,
+            0x8A => Response::WriteNameTaken {
+                on_stick: i.str()?,
+                sha: match i.u8()? {
+                    0 => None,
+                    1 => Some(i.digest()?),
+                    _ => return Err(Malformed),
+                },
+            },
             0x89 => Response::NameTaken {
                 same_vault: match i.u8()? {
                     0 => false,
@@ -759,7 +814,7 @@ mod tests {
     }
 
     #[test]
-    fn every_message_reads_back_as_written() {
+    fn every_request_reads_back_as_written() {
         let requests = [
             Request::List,
             Request::Read {
@@ -772,6 +827,7 @@ mod tests {
                 copies: vec![[7; 32], [8; 32]],
                 replace: false,
                 renamed: true,
+                on_taken: crate::OnTaken::Over([9; 32]),
                 bytes: vec![1, 2, 3],
             },
             Request::Write {
@@ -780,7 +836,17 @@ mod tests {
                 copies: Vec::new(),
                 replace: true,
                 renamed: false,
+                on_taken: crate::OnTaken::Ask,
                 bytes: vec![4, 5],
+            },
+            Request::Write {
+                stick: "sdb1@7".into(),
+                name: "vault.kdbx".into(),
+                copies: Vec::new(),
+                replace: true,
+                renamed: false,
+                on_taken: crate::OnTaken::Beside,
+                bytes: vec![6],
             },
             Request::ReadQr {
                 stick: "sdb1@7".into(),
@@ -814,6 +880,10 @@ mod tests {
         for r in requests {
             assert_eq!(Request::decode(&r.encode()), Ok(r));
         }
+    }
+
+    #[test]
+    fn every_response_reads_back_as_written() {
         let responses = [
             Response::Sticks(vec![Stick {
                 id: "sdb1@7".into(),
@@ -827,6 +897,14 @@ mod tests {
             }]),
             Response::Bytes(vec![9; 100]),
             Response::Written("signed-2.psbt".into()),
+            Response::WriteNameTaken {
+                on_stick: "Vault.KDBX".into(),
+                sha: Some([3; 32]),
+            },
+            Response::WriteNameTaken {
+                on_stick: "vault.kdbx".into(),
+                sha: None,
+            },
             Response::Qr {
                 bytes: b"\x89PNG...".to_vec(),
                 codes: vec![b"wpkh(...)".to_vec(), vec![]],

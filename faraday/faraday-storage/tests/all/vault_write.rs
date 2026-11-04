@@ -95,14 +95,32 @@ fn a_vault_keeps_its_name_on_the_stick_unless_renamed_for_the_stick() {
     let c = crate::compute();
     let seen = [faraday_crypto::sha256(&vault(1, 0))];
     let wrote = sticks
-        .write(&c, id, "vault.kdbx", &vault(1, 9), &seen, true, false)
+        .write(
+            &c,
+            id,
+            "vault.kdbx",
+            &vault(1, 9),
+            &seen,
+            true,
+            false,
+            faraday_files::OnTaken::Beside,
+        )
         .unwrap();
     assert_eq!(wrote, "savings.kdbx", "a rename made on the stick stays");
     assert_eq!(fs::read(dir.join("savings.kdbx")).unwrap(), vault(1, 9));
     assert!(!dir.join("vault.kdbx").exists());
     let seen = [faraday_crypto::sha256(&vault(1, 9))];
     let wrote = sticks
-        .write(&c, id, "mine.kdbx", &vault(1, 5), &seen, true, true)
+        .write(
+            &c,
+            id,
+            "mine.kdbx",
+            &vault(1, 5),
+            &seen,
+            true,
+            true,
+            faraday_files::OnTaken::Beside,
+        )
         .unwrap();
     assert_eq!(wrote, "mine.kdbx");
     assert_eq!(fs::read(dir.join("mine.kdbx")).unwrap(), vault(1, 5));
