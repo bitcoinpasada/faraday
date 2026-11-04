@@ -31,8 +31,9 @@ fn unhex(s: &str) -> Vec<u8> {
 
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
-/// Fresh bytes enough for any set: nine of a 64-byte seed.
-const R: usize = 8 * 103;
+/// Fresh bytes enough for any set: nine of a 64-byte seed, and its
+/// identifier.
+const R: usize = 8 * 103 + 4;
 
 /// The random shares are the fresh bytes as they were given, a symbol a
 /// byte (its low five bits), the first share first: nothing stretches

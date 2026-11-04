@@ -610,7 +610,8 @@ impl Keys {
     }
 
     /// Costs what [`Keys::seed_xor`] costs and a parse of each part.
-    /// [`Keys::seed_xor`] for key `i`, given only for `Reveal::PaperForm`
+    /// [`Keys::seed_xor`] for key `i`, given only for `Reveal::PaperForm`,
+    /// for a key on the English list (another is [`Convert::NotGiven`]),
     /// and only when the parts read back: each part parsed as BIP-39 words
     /// on the key's own list, and their entropies XORed give the key's
     /// entropy on that list, so the same words. Anything else is

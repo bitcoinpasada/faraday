@@ -1502,7 +1502,7 @@ fn raise_to_the_limit(app: &mut Faraday, groups: u8) {
     for _ in 0..40 {
         let before = shape(app);
         app.press(Action::Convert(C::SlipGroupK(16)));
-        for g in 0..groups {
+        for g in 0..=groups {
             app.press(Action::Convert(C::SlipN(g, 16)));
             app.press(Action::Convert(C::SlipK(g, 1)));
         }
@@ -1532,17 +1532,37 @@ fn the_slip39_card_walked_to_its_limits_makes_a_set_each_time() {
         let again = made_set(&mut app, 90);
         assert_ne!(lines, again);
     }
-    // Two groups of 16 of 16 take more randomness than the pool holds, for
-    // a key of either length: the card stops short of them, and what it
-    // stops at is made.
-    for hex in [SEED_1, long] {
+    // Two groups of 16 of 16 take 486 bytes of a key of 16, which the pool
+    // holds, and 982 of a key of 32, which it does not: that card stops
+    // short of them, and what it stops at is made.
+    for (hex, reached) in [(SEED_1, true), (long, false)] {
         let mut app = slip_opened(&unhex(hex));
         app.press(Action::Convert(C::To(place(SLIP_SET))));
         raise_to_the_limit(&mut app, 1);
         let all = shape(&app).1.iter().all(|g| *g == (16, 16));
-        assert!(!all);
+        assert_eq!(all, reached, "{hex}");
         made_set(&mut app, 5);
     }
+}
+
+/// A shape only a key of 16 bytes can pay for does not follow to a key of
+/// 32: the card starts again, and Make makes a set.
+#[test]
+fn another_key_starts_the_slip39_shape_again() {
+    let c = testkit::compute();
+    let long = unhex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+    let mut app = slip_opened(&unhex(SEED_1));
+    app.session.keys.add_seed(&c, &long, "Long").unwrap();
+    let fp = faraday_keys::identity::fingerprint_of_seed(&c, &long)
+        .unwrap()
+        .0;
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    raise_to_the_limit(&mut app, 2);
+    app.press(Action::Convert(C::Step(cstep::FROM)));
+    app.press(Action::Convert(C::Key(fp)));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    assert_eq!(shape(&app), (1, vec![(2, 3)]));
+    assert_eq!(made_set(&mut app, 5).len(), 3);
 }
 
 /// A group of one share, needed on its own, still makes a set that

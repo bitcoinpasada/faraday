@@ -787,10 +787,16 @@ impl ConvertArea {
         }
     }
 
-    /// Chooses `key`, and To opens.
+    /// Chooses `key`, and To opens. Another key starts a SLIP-39 shape
+    /// afresh: one the last key's length could pay for may be past this
+    /// key's, and the card only takes shapes the randomness can pay for.
     fn choose(&mut self, key: [u8; 4]) {
         self.drop_result(false);
         if let Some(s) = self.state.as_mut() {
+            if s.key != Some(key) {
+                s.slip_t = 1;
+                s.slip = vec![(2, 3)];
+            }
             s.key = Some(key);
             s.done[usize::from(cstep::FROM)] = true;
             s.open = Some(cstep::TO);
