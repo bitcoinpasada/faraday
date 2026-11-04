@@ -7,6 +7,9 @@ use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 fn script() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -99,6 +102,11 @@ impl Rig {
     }
 
     fn run(&self) -> (String, String) {
+        self.run_waiting_for_hdmi("0")
+    }
+
+    /// The script run with `tenths` of a second for HDMI to read connected.
+    fn run_waiting_for_hdmi(&self, tenths: &str) -> (String, String) {
         let r = &self.root;
         let ok = Command::new("sh")
             .arg(script())
@@ -112,6 +120,7 @@ impl Rig {
             .env("FARADAY_SCREEN_UMOUNT", "true")
             .env("FARADAY_SCREEN_WAIT", "5")
             .env("FARADAY_SCREEN_FB_WAIT", "3")
+            .env("FARADAY_SCREEN_HDMI_WAIT", tenths)
             .status()
             .unwrap()
             .success();
@@ -183,8 +192,34 @@ fn a_panel_with_hdmi_unplugged_does_not_force_the_connector() {
     let rig = Rig::new("hdmi-unplugged");
     rig.controller("i2c-gpio", "5d", "Goodix");
     rig.framebuffer("480,640");
-    rig.run();
-    assert_eq!(rig.hdmi_status(), "disconnected");
+    let (args, _) = rig.run_waiting_for_hdmi("5");
+    assert_eq!(args, DPI28);
+    assert_ne!(rig.hdmi_status().trim(), "on-digital");
+}
+
+#[test]
+fn an_hdmi_screen_slow_to_read_connected_wins_over_the_panel_also_attached() {
+    let rig = Rig::new("hdmi-slow");
+    rig.controller("i2c-gpio", "5d", "Goodix");
+    rig.framebuffer("1920,1080");
+    let status = rig.root.join("sys/class/drm/card0-HDMI-A-1/status");
+    let done = Arc::new(AtomicBool::new(false));
+    let screen = done.clone();
+    let t = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(200));
+        // The script's own write lands in this stand-in file, so the screen
+        // goes on saying so.
+        while !screen.load(Ordering::Relaxed) {
+            fs::write(&status, "connected").unwrap();
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    });
+    let (args, log) = rig.run_waiting_for_hdmi("20");
+    done.store(true, Ordering::Relaxed);
+    t.join().unwrap();
+    assert_eq!(args, HDMI);
+    assert!(log.contains("HDMI connected"), "{log}");
+    assert!(rig.loaded().is_empty(), "no panel's overlay is loaded");
 }
 
 #[test]
@@ -279,6 +314,7 @@ fn a_configfs_that_stays_mounted_is_logged() {
         .env("FARADAY_SCREEN_MOUNT", "true")
         .env("FARADAY_SCREEN_UMOUNT", "false")
         .env("FARADAY_SCREEN_WAIT", "2")
+        .env("FARADAY_SCREEN_HDMI_WAIT", "0")
         .status()
         .unwrap()
         .success();

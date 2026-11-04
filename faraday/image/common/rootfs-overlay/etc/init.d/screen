@@ -4,7 +4,8 @@
 # app's loop starts; BusyBox sh. The image does not name its screen.
 #
 # In order (§3.2), stopping at the first found:
-#   1. HDMI connected: no panel's overlay is loaded. With no /dev/fb0
+#   1. HDMI connected, asked again for up to two seconds where a panel
+#      could be tried: no panel's overlay is loaded. With no /dev/fb0
 #      within the wait, the connector is forced on, which reads the
 #      monitor again.
 #   2. each panel in /etc/faraday/screens/order (the 2.8-inch's GT911
@@ -40,6 +41,8 @@ UMOUNT_CFG=${FARADAY_SCREEN_UMOUNT:-umount}
 # docs/IMAGES.md §9 step 11 measures them.
 WAIT=${FARADAY_SCREEN_WAIT:-50}
 FB_WAIT=${FARADAY_SCREEN_FB_WAIT:-20}
+# Tenths of a second a screen has to read connected before a panel is tried.
+HDMI_WAIT=${FARADAY_SCREEN_HDMI_WAIT:-20}
 
 OVERLAYS="$CFG/device-tree/overlays"
 VC4="$SYS/bus/platform/drivers/vc4-drm"
@@ -179,6 +182,21 @@ fb_appears() {
     return 1
 }
 
+# Whether HDMI reads connected. A screen can be slow to say so, and the file
+# holds the kernel's last probe: writing detect probes again. With no panel
+# to try, the first answer stands, since HDMI is what comes next anyway.
+hdmi_connected() {
+    status="$SYS/class/drm/card0-HDMI-A-1/status"
+    i=0
+    while :; do
+        [ "$(cat "$status" 2>/dev/null)" = connected ] && return 0
+        [ -f "$status" ] && [ -f "$SCREENS/order" ] && [ "$i" -lt "$HDMI_WAIT" ] || return 1
+        echo detect > "$status" 2>/dev/null
+        sleep 0.5
+        i=$((i + 5))
+    done
+}
+
 # A monitor can read connected and give no modes, which leaves no
 # framebuffer: the forced connector's next probe reads its EDID.
 hdmi_up() {
@@ -227,8 +245,7 @@ chmod 0755 "$RUN"
 : > "$RUN/args"
 chmod 0644 "$RUN/args"
 
-hdmi=$(cat "$SYS/class/drm/card0-HDMI-A-1/status" 2>/dev/null)
-if [ "$hdmi" = connected ]; then
+if hdmi_connected; then
     log "HDMI connected: no panel tried"
     found=hdmi
     hdmi_up

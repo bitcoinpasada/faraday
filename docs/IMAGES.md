@@ -182,9 +182,11 @@ The boot script tries each in turn and stops at the first found. A
 probe that finds nothing removes what it loaded before the next starts.
 
 1. **HDMI connected.** `/sys/class/drm/card0-HDMI-A-1/status` reads
-   `connected`: HDMI wins over any panel also attached, and no panel's
-   overlay is loaded, so no panel's touch controller is bound or
-   trusted. The Zero 2 W's mini-HDMI is the same connector. A monitor
+   `connected`, asked again for up to two seconds, since a screen can be
+   slow to say so and the file holds the kernel's last probe (a boot with
+   only a panel attached takes those two seconds longer): HDMI wins over
+   any panel also attached, and no panel's overlay is loaded, so no
+   panel's touch controller is bound or trusted. The Zero 2 W's mini-HDMI is the same connector. A monitor
    can read connected and give no modes (its EDID read failed), which
    leaves no `/dev/fb0`: when none comes within the wait, the script
    writes `on-digital` to that file, and the forced connector's next
