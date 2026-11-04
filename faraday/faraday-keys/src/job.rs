@@ -3,9 +3,11 @@
 //!
 //! A [`StretchJob`] owns what one Argon2id run needs, the passphrase
 //! moved in rather than copied, and is `Send`. Its answer, [`Stretched`],
-//! holds the slot key and the decrypted records of a vault opened, or the
-//! bytes of a vault made. Both are faraday-keys' types: the key material
-//! never leaves them, and joins the store on the main thread
+//! holds the opened vault file and its records, or the bytes of a vault
+//! made. A [`SealJob`] is the same for a seal: the store hands it the
+//! changes and the opened file, and its answer, [`Sealed`], is the new
+//! file. All are faraday-keys' types: the key material never leaves them,
+//! and an opened file joins the store on the main thread
 //! ([`crate::vault::OpenVaults::adopt`]). Everything wipes as it drops, at
 //! the job's end on the worker or where a stale answer is dropped.
 
@@ -15,8 +17,10 @@ use faraday_bip::keys::{Fingerprint, MasterKey, Network};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
-use faraday_vault::{self as fv, Contents};
+use faraday_vault as fv;
 use zeroize::Zeroizing;
+
+use crate::vault::{Built, Names, Op, SEAL_RANDOM_LEN, with_changes};
 
 /// The costly part of opening or making a vault, with what it needs.
 pub struct StretchJob {
@@ -29,11 +33,13 @@ enum What {
         passphrase: SecretText,
     },
     Make {
-        slot_len: u32,
+        id: [u8; 16],
+        label: Box<str>,
         cost: fv::Cost,
-        passphrases: Vec<SecretText>,
-        contents: Vec<Contents>,
-        seed: Zeroizing<[u8; 32]>,
+        size: usize,
+        passphrase: SecretText,
+        random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
+        now: Option<u64>,
     },
 }
 
@@ -43,15 +49,16 @@ pub struct Stretched {
 }
 
 enum Out {
-    Opened(Result<Box<OpenedSlot>, fv::Error>),
-    Made(Result<Vec<u8>, fv::Error>),
+    Opened(Result<Box<OpenedSlot>, fv::file::Error>),
+    Made(Result<Vec<u8>, fv::file::Error>),
 }
 
-/// A slot opened: the file it came from, its key and its records.
+/// A vault opened: the file it came from, the opened file and the
+/// records built from it.
 pub(crate) struct OpenedSlot {
     pub(crate) file: Vec<u8>,
-    pub(crate) opened: fv::Opened,
-    pub(crate) records: Contents,
+    pub(crate) opened: Arc<fv::file::Opened>,
+    pub(crate) built: Built,
 }
 
 impl StretchJob {
@@ -62,51 +69,66 @@ impl StretchJob {
         }
     }
 
-    /// A vault to make (`faraday_vault::create`): one to four passphrases,
-    /// moved in, each with the contents of its own slot, with everything
-    /// random drawn from `seed`.
+    /// A vault to make (`faraday_vault::file::create`): the root group's
+    /// UUID `id`, named `label`, at `cost` and `size`, under one
+    /// `passphrase`, moved in, with `random` drawn for the seal and `now`
+    /// the time of the first seal.
     pub fn make(
-        slot_len: u32,
+        id: [u8; 16],
+        label: Box<str>,
         cost: fv::Cost,
-        passphrases: Vec<SecretText>,
-        contents: Vec<Contents>,
-        seed: Zeroizing<[u8; 32]>,
+        size: usize,
+        passphrase: SecretText,
+        random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
+        now: Option<u64>,
     ) -> StretchJob {
         StretchJob {
             what: What::Make {
-                slot_len,
+                id,
+                label,
                 cost,
-                passphrases,
-                contents,
-                seed,
+                size,
+                passphrase,
+                random,
+                now,
             },
         }
     }
 
-    /// Costs an Argon2id run over the vault's memory for each passphrase
-    /// (the same call as `faraday_vault::open` or `create`). Everything
-    /// the job held is wiped as it ends.
+    /// Costs an Argon2id run over the vault's memory (the same call as
+    /// `faraday_vault::file::open` or `create`), and the reading of each
+    /// GPG key of an opened file. Everything the job held is wiped as it
+    /// ends.
     pub fn run(self, c: &Compute) -> Stretched {
         let out = match self.what {
-            What::Open { file, passphrase } => Out::Opened(
-                fv::open(c, &file, passphrase.as_str()).map(|(opened, records)| {
+            What::Open { file, passphrase } => {
+                Out::Opened(fv::file::open(c, &file, passphrase.as_str()).map(|opened| {
+                    let built = crate::vault::build(&opened);
                     Box::new(OpenedSlot {
                         file,
-                        opened,
-                        records,
+                        opened: Arc::new(opened),
+                        built,
                     })
-                }),
-            ),
-            What::Make {
-                slot_len,
-                cost,
-                passphrases,
-                contents,
-                seed,
-            } => {
-                let phrases: Vec<&str> = passphrases.iter().map(SecretText::as_str).collect();
-                Out::Made(fv::create(c, slot_len, cost, &phrases, &contents, &seed))
+                }))
             }
+            What::Make {
+                id,
+                label,
+                cost,
+                size,
+                passphrase,
+                random,
+                now,
+            } => Out::Made(fv::file::create(
+                c,
+                id,
+                &label,
+                cost,
+                size,
+                passphrase.as_str(),
+                &random,
+                now,
+            )),
         };
         Stretched { out }
     }
@@ -114,30 +136,90 @@ impl StretchJob {
 
 impl Stretched {
     /// Why the run failed, if it did. A lookup.
-    pub fn error(&self) -> Option<fv::Error> {
+    pub fn error(&self) -> Option<fv::file::Error> {
         match &self.out {
-            Out::Opened(Err(e)) | Out::Made(Err(e)) => Some(*e),
+            Out::Opened(Err(e)) | Out::Made(Err(e)) => Some(e.clone()),
             _ => None,
         }
     }
 
     /// The vault file a make gave: encrypted, so public. An open's answer
     /// joins the store through [`crate::vault::OpenVaults::adopt`] and
-    /// gives `Err(Error::Passphrases)` here.
-    pub fn into_made(self) -> Result<Vec<u8>, fv::Error> {
+    /// gives `Err(Error::ReadOnly)` here.
+    pub fn into_made(self) -> Result<Vec<u8>, fv::file::Error> {
         match self.out {
             Out::Made(r) => r,
             Out::Opened(Err(e)) => Err(e),
-            Out::Opened(Ok(_)) => Err(fv::Error::Passphrases),
+            Out::Opened(Ok(_)) => Err(fv::file::Error::ReadOnly),
         }
     }
 
-    pub(crate) fn into_opened(self) -> Result<Box<OpenedSlot>, fv::Error> {
+    pub(crate) fn into_opened(self) -> Result<Box<OpenedSlot>, fv::file::Error> {
         match self.out {
             Out::Opened(r) => r,
             Out::Made(Err(e)) => Err(e),
-            Out::Made(Ok(_)) => Err(fv::Error::Passphrases),
+            Out::Made(Ok(_)) => Err(fv::file::Error::ReadOnly),
         }
+    }
+}
+
+/// A vault to seal on another thread: the opened file (shared with
+/// nothing that changes it), the writes, the randomness and the time. Made
+/// by [`crate::vault::OpenVaults::seal_job`]; everything wipes as the job
+/// ends or is dropped.
+pub struct SealJob {
+    opened: Arc<fv::file::Opened>,
+    ops: Vec<Op>,
+    names: Names,
+    random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
+    now: Option<u64>,
+}
+
+/// What a [`SealJob`] gives back: the new file, or why there is none.
+/// Wiped if dropped.
+pub struct Sealed {
+    out: Result<Zeroizing<Vec<u8>>, fv::file::Error>,
+}
+
+impl SealJob {
+    pub(crate) fn new(
+        opened: Arc<fv::file::Opened>,
+        ops: Vec<Op>,
+        names: Names,
+        random: &[u8; SEAL_RANDOM_LEN],
+        now: Option<u64>,
+    ) -> SealJob {
+        SealJob {
+            opened,
+            ops,
+            names,
+            random: Zeroizing::new(*random),
+            now,
+        }
+    }
+
+    /// Costs an Argon2id run at the vault's next cost, a document write for
+    /// each entry changed and a PBKDF2 for each new key with no label (the
+    /// same calls as `faraday_vault::file::seal`).
+    pub fn run(self, c: &Compute) -> Sealed {
+        let out = with_changes(c, &self.names, &self.ops, true, self.now, |changes| {
+            fv::file::seal(c, &self.opened, changes, &self.random, self.now)
+        });
+        Sealed {
+            out: out.map(Zeroizing::new),
+        }
+    }
+}
+
+impl Sealed {
+    /// Why the seal gave no file, if it did not. A lookup.
+    pub fn error(&self) -> Option<fv::file::Error> {
+        self.out.as_ref().err().cloned()
+    }
+
+    /// The vault file: encrypted, so public.
+    pub fn into_file(self) -> Result<Vec<u8>, fv::file::Error> {
+        self.out.map(|mut f| core::mem::take(&mut *f))
     }
 }
 
