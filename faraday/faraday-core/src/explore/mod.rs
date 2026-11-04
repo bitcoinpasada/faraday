@@ -345,9 +345,18 @@ impl Faraday {
     }
 
     /// Forgets Explore's state, what its eyes show with it, once it is
-    /// not on screen: leaving it, however it is left.
+    /// not on screen: leaving it, however it is left, but for Convert a
+    /// seed opened from it, and Add a key opened from that, which come back.
     pub(crate) fn explore_left(&mut self) {
-        if self.screen != Screen::Explore {
+        let comes_back = crate::convert::state(self).is_some_and(|s| s.back == Screen::Explore);
+        let away = comes_back
+            && (self.screen == Screen::Convert
+                || (matches!(self.screen, Screen::KeyGen | Screen::Randomness)
+                    && self
+                        .keygen
+                        .state()
+                        .is_some_and(|k| k.back == Screen::Convert)));
+        if self.screen != Screen::Explore && !away {
             self.explore.clear();
         }
     }

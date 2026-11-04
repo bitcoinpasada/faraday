@@ -7,11 +7,16 @@ pub mod screen;
 
 use crate::copy_check::{Typed, WordCheck};
 use crate::flow;
+use crate::secrets::{Keep, SecretOut};
 use crate::strings::{EN, fill};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, Screen};
+use faraday_bip::bip39::Language;
 use faraday_bip::keys::Fingerprint;
-use faraday_keys::{KeyInfo, Reveal, operations::Convert};
+use faraday_codec::qr::QrMatrix;
+use faraday_crypto::work::Compute;
+use faraday_keys::operations::WordsForm;
+use faraday_keys::{Held, KeyInfo, Reveal, operations::Convert};
 use zeroize::Zeroizing;
 
 /// The cards, in order. A target with settings would have its card
@@ -32,6 +37,9 @@ pub mod cstep {
 pub enum ConvertAction {
     /// Open the flow.
     Open,
+    /// Open the flow on a loaded key, by fingerprint, to return to the
+    /// screen pressed from. A key not loaded does nothing.
+    OpenOn([u8; 4]),
     /// Open or close a card.
     Step(u8),
     /// Choose a loaded key, by fingerprint.
@@ -62,6 +70,18 @@ pub enum Target {
     SeedHex,
     /// The BIP-32 master extended private key.
     Xprv,
+    /// The key's words.
+    Words,
+    /// The words as a SeedQR.
+    SeedQr,
+    /// The words as a CompactSeedQR.
+    CompactSeedQr,
+    /// The words' entropy, as hex.
+    HexEntropy,
+    /// Each word's number on the list.
+    WordNumbers,
+    /// Each word's first four letters.
+    Starts,
 }
 
 impl Target {
@@ -70,6 +90,12 @@ impl Target {
         match self {
             Target::SeedHex => EN.convert_seed_line,
             Target::Xprv => EN.convert_xprv_line,
+            Target::Words => EN.convert_words_line,
+            Target::SeedQr => EN.convert_seedqr_line,
+            Target::CompactSeedQr => EN.convert_compact_line,
+            Target::HexEntropy => EN.convert_entropy_line,
+            Target::WordNumbers => EN.convert_numbers_line,
+            Target::Starts => EN.convert_starts_line,
         }
     }
 
@@ -78,6 +104,12 @@ impl Target {
         match self {
             Target::SeedHex => EN.convert_seed_restores,
             Target::Xprv => EN.convert_xprv_restores,
+            Target::Words => EN.convert_words_restores,
+            Target::SeedQr => EN.convert_seedqr_restores,
+            Target::CompactSeedQr => EN.convert_compact_restores,
+            Target::HexEntropy => EN.convert_entropy_restores,
+            Target::WordNumbers => EN.convert_numbers_restores,
+            Target::Starts => EN.convert_starts_restores,
         }
     }
 
@@ -86,16 +118,74 @@ impl Target {
         match self {
             Target::SeedHex => EN.convert_secret_seed,
             Target::Xprv => EN.convert_secret_xprv,
+            Target::Words => EN.convert_secret_words,
+            Target::SeedQr | Target::CompactSeedQr => EN.convert_secret_code,
+            Target::HexEntropy => EN.convert_secret_entropy,
+            Target::WordNumbers => EN.convert_secret_numbers,
+            Target::Starts => EN.convert_secret_starts,
         }
     }
 
-    /// The end of the file's name.
+    /// Whether the value carries no list: numbers and entropy are the
+    /// words' own, written without it, so another list's must be named.
+    pub(crate) fn lacks_list(self) -> bool {
+        matches!(self, Target::HexEntropy | Target::WordNumbers)
+    }
+
+    /// What the file's name holds beside the fingerprint, the list's name
+    /// after it for a key not on the English list whose value carries none.
+    fn file_for(self, lang: Language) -> String {
+        if self.lacks_list() && lang != Language::English {
+            format!("{}-{}", self.file(), lang.name())
+        } else {
+            self.file().to_string()
+        }
+    }
+
+    /// What the file's name holds beside the fingerprint.
     fn file(self) -> &'static str {
         match self {
             Target::SeedHex => "seed-hex",
             Target::Xprv => "xprv",
+            Target::Words => "words",
+            Target::SeedQr => "seedqr",
+            Target::CompactSeedQr => "compactseedqr",
+            Target::HexEntropy => "entropy",
+            Target::WordNumbers => "word-numbers",
+            Target::Starts => "starts",
         }
     }
+
+    /// Whether the value is a code, drawn and saved as a picture.
+    pub(crate) fn is_code(self) -> bool {
+        matches!(self, Target::SeedQr | Target::CompactSeedQr)
+    }
+
+    /// Whether the value leaves the key's passphrase out: another writing
+    /// of the words, restored with the passphrase.
+    pub(crate) fn keeps_passphrase_apart(self) -> bool {
+        !matches!(self, Target::SeedHex | Target::Xprv)
+    }
+
+    /// Whether Check my copy is offered for a key on `lang`. A code's copy
+    /// would be scanned back, which is not built. Another list's words may
+    /// not be ASCII and are not compared: a copy typed by hand may be
+    /// composed otherwise, and the keyboard may not hold them.
+    fn checks(self, lang: Language) -> bool {
+        !self.is_code() && (self != Target::Words || lang == Language::English)
+    }
+}
+
+/// Whether `key` has words on the English list, which SeedQR and the
+/// 4-letter starts are defined on.
+fn english_words(key: &KeyInfo) -> bool {
+    key.has_words() && key.language == Language::English
+}
+
+/// Whether `key` has words SeedQR is defined on: the English list, 12 or 24
+/// of them.
+fn seedqr_words(key: &KeyInfo) -> bool {
+    english_words(key) && matches!(key.word_count, Some(12 | 24))
 }
 
 /// A row under To.
@@ -119,7 +209,43 @@ impl Row {
 
 /// Every row under To: the targets, then what is not offered, each with
 /// the sources it applies to.
-pub const ROWS: [Row; 6] = [
+pub const ROWS: [Row; 12] = [
+    Row {
+        name: EN.convert_words,
+        line: EN.convert_words_line,
+        target: Some(Target::Words),
+        applies: KeyInfo::has_words,
+    },
+    Row {
+        name: EN.convert_seedqr,
+        line: EN.convert_seedqr_line,
+        target: Some(Target::SeedQr),
+        applies: seedqr_words,
+    },
+    Row {
+        name: EN.convert_compact,
+        line: EN.convert_compact_line,
+        target: Some(Target::CompactSeedQr),
+        applies: seedqr_words,
+    },
+    Row {
+        name: EN.convert_entropy,
+        line: EN.convert_entropy_line,
+        target: Some(Target::HexEntropy),
+        applies: KeyInfo::has_words,
+    },
+    Row {
+        name: EN.convert_numbers,
+        line: EN.convert_numbers_line,
+        target: Some(Target::WordNumbers),
+        applies: KeyInfo::has_words,
+    },
+    Row {
+        name: EN.convert_starts,
+        line: EN.convert_starts_line,
+        target: Some(Target::Starts),
+        applies: english_words,
+    },
     Row {
         name: EN.convert_seed,
         line: EN.convert_seed_line,
@@ -174,6 +300,8 @@ pub struct ConvertState {
     pub shown: bool,
     /// Where Back and Done go.
     pub back: Screen,
+    /// Whether the value has a Check my copy.
+    pub checkable: bool,
     /// The line in place of the value, when it was not given.
     pub refused: Option<&'static str>,
     /// The Paths fact: the loaded wallets that hold the key, worked out on
@@ -182,13 +310,54 @@ pub struct ConvertState {
     pub paths: Vec<String>,
 }
 
+/// What a press gave: text, or a code with its word count. Wiped on drop.
+pub enum Value {
+    /// A written form.
+    Text(Held<Zeroizing<String>>),
+    /// A SeedQR or CompactSeedQR, for a seed of this many words.
+    Code(Box<Held<QrMatrix>>, usize),
+}
+
+impl Value {
+    /// The text: a borrow, no work.
+    pub(crate) fn text(&self) -> Option<&str> {
+        match self {
+            Value::Text(t) => Some(t.as_str()),
+            Value::Code(..) => None,
+        }
+    }
+
+    /// The code: a borrow, no work.
+    pub(crate) fn code(&self) -> Option<&QrMatrix> {
+        match self {
+            Value::Code(m, _) => Some(m),
+            Value::Text(_) => None,
+        }
+    }
+}
+
+/// Whether a typed copy is `value`. The value's own text exactly, single
+/// spaces being what separate words and starts. Word numbers read in lines
+/// with a second number beside each, so a copy is the 1 to 2048 numbers
+/// alone, or every pair as shown, whose two numbers agree; either with any
+/// white space between them. Anything else differs.
+fn copy_is(target: Option<Target>, typed: &str, value: &str) -> bool {
+    if target == Some(Target::WordNumbers) {
+        let mut numbers = value.split_whitespace().filter(|t| !t.starts_with('('));
+        let mut shown = value.split_whitespace();
+        typed.split_whitespace().eq(&mut shown) || typed.split_whitespace().eq(&mut numbers)
+    } else {
+        typed == value
+    }
+}
+
 /// The flow and its result.
 #[derive(Default)]
 pub struct ConvertArea {
     state: Option<ConvertState>,
     /// The value, wiped on drop: dropped when the Result card or the flow
     /// is left, or the session locks. Drawing only reads it.
-    held: Option<faraday_keys::Held<Zeroizing<String>>>,
+    held: Option<Value>,
     /// Check my copy, while it is open: what is typed, wiped on drop.
     check: Option<WordCheck>,
     /// What the last comparison found, until the next key or press.
@@ -222,8 +391,9 @@ impl ConvertArea {
     /// Opens Check my copy with nothing typed, or closes it.
     fn toggle_check(&mut self) {
         self.found = None;
+        let checkable = self.state.as_ref().is_some_and(|s| s.checkable);
         self.check = match (&self.check, &self.held) {
-            (None, Some(_)) => Some(WordCheck::passphrase()),
+            (None, Some(_)) if checkable => Some(WordCheck::passphrase()),
             _ => None,
         };
     }
@@ -232,15 +402,23 @@ impl ConvertArea {
     /// closes the check; a difference wipes what was typed, as the backup's
     /// passphrase check does. Nothing typed compares nothing.
     fn compare(&mut self) {
-        let (Some(check), Some(held)) = (self.check.as_mut(), self.held.as_ref()) else {
+        let target = self.state.as_ref().and_then(|s| s.target);
+        let (Some(check), Some(value)) = (
+            self.check.as_mut(),
+            self.held.as_ref().and_then(Value::text),
+        ) else {
             return;
         };
         if check.typed.is_empty() {
             return;
         }
-        let same = check.typed == *held.as_str();
+        let same = copy_is(target, &check.typed, value);
         check.typed.clear();
         self.found = Some(same);
+        if let Some(s) = self.state.as_mut() {
+            // The answer is at the top of the Result card.
+            s.scroll.follow = true;
+        }
         if same {
             self.check = None;
         }
@@ -261,8 +439,9 @@ impl ConvertArea {
             return false;
         };
         match key {
-            // Every value here is printable ASCII: anything else cannot
-            // be part of a right copy, and is not typed.
+            // Every value with a check is printable ASCII (another list's
+            // words have none, `Target::checks`): anything else cannot be
+            // part of a right copy, and is not typed.
             K::Char(ch) if !(' '..='~').contains(&ch) => return true,
             K::Char(_) | K::Backspace | K::Delete | K::Enter | K::Escape => {}
             _ => return false,
@@ -276,10 +455,16 @@ impl ConvertArea {
     }
 
     /// The value, while its eye is open: a borrow, no work.
-    pub(crate) fn held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+    pub(crate) fn held(&self) -> Option<&Value> {
         self.held
             .as_ref()
             .filter(|_| self.state.as_ref().is_some_and(|s| s.shown))
+    }
+
+    /// Whether a value is held, masked or not.
+    #[cfg(test)]
+    pub(crate) fn holds_value(&self) -> bool {
+        self.held.is_some()
     }
 
     /// The column's scroll, while the flow is open.
@@ -310,6 +495,7 @@ impl ConvertArea {
             target: None,
             shown: false,
             back,
+            checkable: false,
             refused: None,
             paths: Vec::new(),
         });
@@ -321,6 +507,7 @@ impl ConvertArea {
         if let Some(s) = self.state.as_mut() {
             s.target = None;
             s.shown = false;
+            s.checkable = false;
             s.refused = None;
             s.paths.clear();
             s.done[usize::from(cstep::TO)] = false;
@@ -360,7 +547,8 @@ impl ConvertArea {
     fn made(
         &mut self,
         target: Target,
-        given: Result<faraday_keys::Held<Zeroizing<String>>, Convert>,
+        given: Result<Value, Convert>,
+        checkable: bool,
         paths: Vec<String>,
     ) {
         self.drop_result();
@@ -372,6 +560,7 @@ impl ConvertArea {
         self.held = held;
         if let Some(s) = self.state.as_mut() {
             s.target = Some(target);
+            s.checkable = checkable && refused.is_none();
             s.refused = refused;
             s.paths = paths;
             s.done[usize::from(cstep::TO)] = true;
@@ -387,9 +576,14 @@ pub fn state(app: &Faraday) -> Option<&ConvertState> {
     app.tools.convert().state()
 }
 
-/// The value, while its eye is open: a borrow, no work.
+/// The value, while its eye is open and it is text: a borrow, no work.
 pub fn shown(app: &Faraday) -> Option<&str> {
-    app.tools.convert().held().map(|v| v.as_str())
+    app.tools.convert().held().and_then(Value::text)
+}
+
+/// The code, while its eye is open and it is one: a borrow, no work.
+pub fn shown_code(app: &Faraday) -> Option<&QrMatrix> {
+    app.tools.convert().held().and_then(Value::code)
 }
 
 /// What Check my copy has typed, while it is open.
@@ -444,26 +638,72 @@ fn paths_of(app: &Faraday, fp: Fingerprint) -> Vec<String> {
     out
 }
 
-/// Costs what `master_seed_hex` or `master_xprv` costs: a PBKDF2 on a key
-/// of words. The press on the row at `place`; a row not offered does
-/// nothing.
+/// Costs what the target's operation costs: a PBKDF2 on a key of words for
+/// `master_seed_hex` or `master_xprv`, a parse of the words or two for a
+/// written form, a parse and a QR encoding and a scan of it for a code. The press on the row
+/// at `place`; a row not offered does nothing.
 fn make(app: &mut Faraday, place: u8) {
     let Some((i, target)) = row_for(app, place) else {
         return;
     };
     let c = app.compute();
     let keys = &app.session.keys;
+    let why = Reveal::PaperForm;
+    let written = |form| keys.words_written(&c, i, form, why).map(Value::Text);
+    let code = |compact| {
+        let (grid, words) = keys.seedqr_written(&c, i, compact, why)?;
+        if !scan_reads(app, &c, i, &grid, compact) {
+            return Err(Convert::NotSameWallet);
+        }
+        Ok(Value::Code(Box::new(grid), words))
+    };
     let given = match target {
-        Target::SeedHex => keys.master_seed_hex(&c, i, Reveal::PaperForm),
-        Target::Xprv => keys.master_xprv(&c, i, Reveal::PaperForm),
+        Target::SeedHex => keys.master_seed_hex(&c, i, why).map(Value::Text),
+        Target::Xprv => keys.master_xprv(&c, i, why).map(Value::Text),
+        Target::Words => written(WordsForm::Words),
+        Target::SeedQr => code(false),
+        Target::CompactSeedQr => code(true),
+        Target::HexEntropy => written(WordsForm::HexEntropy),
+        Target::WordNumbers => written(WordsForm::Numbers),
+        Target::Starts => written(WordsForm::Starts),
     };
     let paths = paths_of(app, keys[i].fingerprint);
-    app.tools.convert_mut().made(target, given, paths);
+    let checkable = target.checks(keys[i].language);
+    let area = app.tools.convert_mut();
+    area.made(target, given, checkable, paths);
 }
 
-/// Offers the value on the secret sheet: nothing is written until the
-/// sheet is answered, and what it writes is the value alone.
+/// Costs a scan of the code and a parse of the words. Whether a scanner
+/// reading `grid`'s modules gets key `i`'s own SeedQR: the payload is read
+/// by [`faraday_codec::decode::decode_luma`] and checked against the key's
+/// words, in the digits' form, whichever the code is (a CompactSeedQR's
+/// entropy bytes are written as the words' digits first). The picture
+/// of the code and the payload are wiped when done.
+fn scan_reads(app: &Faraday, c: &Compute, i: usize, grid: &Held<QrMatrix>, compact: bool) -> bool {
+    let (w, h, luma) = grid.to_luma(6, 4);
+    let luma = Zeroizing::new(luma);
+    let read = faraday_codec::decode::decode_luma(c, w, h, &luma);
+    let [one] = read.as_slice() else {
+        return false;
+    };
+    let digits;
+    let payload: &[u8] = if compact {
+        let Ok(m) = faraday_keys::words::from_compact_seedqr(&one.bytes, Language::English) else {
+            return false;
+        };
+        digits = faraday_codec::seedqr::to_digits(&m);
+        digits.expose().as_bytes()
+    } else {
+        &one.bytes
+    };
+    app.seedqr_reads_as(c, i, payload) == Some(true)
+}
+
+/// Costs a picture for a code. Offers the value on the secret sheet: nothing
+/// is written until the sheet is answered, and what it writes is the value
+/// alone, or the code's labelled picture, which no vault is offered.
 fn save(app: &mut Faraday) {
+    let c = app.compute();
     let area = app.tools.convert();
     let (Some(held), Some(s)) = (area.held.as_ref(), area.state()) else {
         return;
@@ -471,13 +711,34 @@ fn save(app: &mut Faraday) {
     let (Some(target), Some(fp)) = (s.target, s.key) else {
         return;
     };
-    let name = format!(
-        "{}-{}.txt",
-        fp_text(Fingerprint(fp)).to_lowercase(),
-        target.file()
+    let Some(k) = app.session.keys.all().find(|k| k.fingerprint.0 == fp) else {
+        return;
+    };
+    let (lang, apart) = (
+        k.language,
+        k.has_passphrase && target.keeps_passphrase_apart(),
     );
-    let bytes = Zeroizing::new(held.as_str().as_bytes().to_vec());
-    let out = crate::secrets::SecretOut::new(name, bytes, target.secret(), EN.convert_secret_gives);
+    let fp = fp_text(Fingerprint(fp));
+    let lower = fp.to_lowercase();
+    let (name, bytes, keep) = match held {
+        Value::Text(text) => (
+            format!("{lower}-{}.txt", target.file_for(lang)),
+            Zeroizing::new(text.as_str().as_bytes().to_vec()),
+            Keep::Note,
+        ),
+        Value::Code(grid, words) => (
+            format!("{}-{lower}.png", target.file()),
+            crate::backup_flow::seedqr_picture(&c, grid, *words, &fp),
+            Keep::None,
+        ),
+    };
+    let gives = if apart {
+        EN.convert_secret_gives_apart
+    } else {
+        EN.convert_secret_gives
+    };
+    let mut out = SecretOut::new(name, bytes, target.secret(), gives);
+    out.keep = keep;
     app.offer_secret(out);
 }
 
@@ -497,6 +758,16 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             let key = (app.session.keys.len() == 1).then(|| app.session.keys[0].fingerprint.0);
             let back = app.screen;
             app.tools.convert_mut().open(key, back);
+            app.screen = Screen::Convert;
+        }
+        ConvertAction::OpenOn(fp) => {
+            if app.session.keys.position_of(fp).is_none() {
+                return;
+            }
+            let back = app.screen;
+            // Explore is kept for the way back; what its eyes show is not.
+            app.explore_hide();
+            app.tools.convert_mut().open(Some(fp), back);
             app.screen = Screen::Convert;
         }
         ConvertAction::Step(s) => app.tools.convert_mut().step(s),
@@ -541,6 +812,14 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
         return true;
     }
     false
+}
+
+/// Closes the eye: the idle warning, so that nothing secret stays on
+/// screen while no one is there.
+pub(crate) fn hide(app: &mut Faraday) {
+    if let Some(s) = app.tools.convert_mut().state.as_mut() {
+        s.shown = false;
+    }
 }
 
 /// After a press: the flow ends, its result with it, unless it is on

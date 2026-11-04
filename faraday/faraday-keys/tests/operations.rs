@@ -13,6 +13,7 @@ use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_bip::silent::Receiver;
 use faraday_bip::slip39::Share;
 use faraday_crypto::work::Compute;
+use faraday_keys::operations::WordsForm;
 use faraday_keys::{Convert, Keys, Material, Part, Reveal, bip85, identity};
 use serde_json::Value;
 
@@ -808,4 +809,168 @@ fn another_reason_gives_nothing() {
     for r in all(&c, &words, Reveal::Words) {
         assert_eq!(r, Err(Convert::NotGiven));
     }
+}
+
+fn written(keys: &Keys, c: &Compute, form: WordsForm) -> Result<String, Convert> {
+    keys.words_written(c, 0, form, Reveal::PaperForm)
+        .map(|h| h.release().as_str().to_string())
+}
+
+/// BIP-39's vectors for 12 and 24 English words: each way of writing the
+/// words, against the vector's entropy and words.
+#[test]
+fn a_key_of_words_is_written_as_the_words_the_entropy_the_numbers_and_the_starts() {
+    let c = compute();
+    let v: Value = serde_json::from_str(BIP39).unwrap();
+    for at in [0, 8, 3, 11] {
+        let row = &v["english"][at];
+        let words = row[1].as_str().unwrap();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_words_with(&c, words, "", "", None).unwrap();
+        assert_eq!(written(&keys, &c, WordsForm::Words).unwrap(), words);
+        assert_eq!(
+            written(&keys, &c, WordsForm::HexEntropy).unwrap(),
+            row[0].as_str().unwrap()
+        );
+        let m = Mnemonic::parse(&c, Language::English, words).unwrap();
+        let numbers: Vec<String> = m
+            .indices()
+            .iter()
+            .map(|&n| format!("{} ({n})", n + 1))
+            .collect();
+        assert_eq!(
+            written(&keys, &c, WordsForm::Numbers).unwrap(),
+            numbers.join("\n")
+        );
+        let starts: Vec<String> = words
+            .split(' ')
+            .map(|w| w.chars().take(4).collect())
+            .collect();
+        assert_eq!(
+            written(&keys, &c, WordsForm::Starts).unwrap(),
+            starts.join(" ")
+        );
+    }
+}
+
+/// SeedQR and CompactSeedQR of BIP-39's vectors: the matrix is the one this
+/// crate's encoder makes of the words, with the word count; the digits are
+/// each word's number, four to a word. That a scanner reads the matrix is
+/// the flow's check, in `faraday-core`'s `convert` tests.
+#[test]
+fn a_key_of_words_is_written_as_a_seedqr_and_a_compact_seedqr() {
+    let c = compute();
+    let v: Value = serde_json::from_str(BIP39).unwrap();
+    for at in [0, 8] {
+        let words = v["english"][at][1].as_str().unwrap();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_words_with(&c, words, "", "", None).unwrap();
+        let m = Mnemonic::parse(&c, Language::English, words).unwrap();
+        for compact in [false, true] {
+            let (code, count) = keys
+                .seedqr_written(&c, 0, compact, Reveal::PaperForm)
+                .unwrap();
+            assert_eq!(count, words.split(' ').count());
+            let own = if compact {
+                faraday_codec::seedqr::encode_compact(&c, &m)
+            } else {
+                faraday_codec::seedqr::encode_seedqr(&c, &m)
+            }
+            .unwrap();
+            assert_eq!(
+                code.release().to_luma(4, 2),
+                own.to_luma(4, 2),
+                "compact {compact}"
+            );
+        }
+    }
+    // The digits are each word's number on the list, four digits a word.
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    let digits: String = m.indices().iter().map(|n| format!("{n:04}")).collect();
+    assert_eq!(
+        faraday_codec::seedqr::to_digits(&m).expose().as_bytes(),
+        digits.as_bytes()
+    );
+}
+
+/// SeedQR is defined on 12 and 24 words: a key of 15, 18 or 21 words is not
+/// given one, and says so rather than "not the same wallet".
+#[test]
+fn a_key_of_another_length_than_12_or_24_words_has_no_seedqr() {
+    let c = compute();
+    for bytes in [20usize, 24, 28] {
+        let m = Mnemonic::from_entropy(Language::English, &vec![7u8; bytes]).unwrap();
+        let list = Language::English.words();
+        let words: Vec<&str> = m.indices().iter().map(|&n| list[usize::from(n)]).collect();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_words_with(&c, &words.join(" "), "", "", None)
+            .unwrap();
+        for compact in [false, true] {
+            assert_eq!(
+                keys.seedqr_written(&c, 0, compact, Reveal::PaperForm).err(),
+                Some(Convert::NotGiven),
+                "{} words, compact {compact}",
+                words.len()
+            );
+        }
+    }
+}
+
+/// A key on another list is written as its words, entropy and numbers,
+/// but has no SeedQR and no starts; a key with no words has none of them.
+#[test]
+fn another_list_gives_words_and_numbers_but_no_codes_or_starts_and_seed_bytes_give_none() {
+    let c = compute();
+    let jp: Value = serde_json::from_str(include_str!(
+        "../../../tools/vectors/bip39/test_JP_BIP39.json"
+    ))
+    .unwrap();
+    let row = &jp[0];
+    let words = row["mnemonic"].as_str().unwrap();
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_words_with(&c, words, "", "", None).unwrap();
+    let spaced: Vec<&str> = words.split('\u{3000}').collect();
+    let m = Mnemonic::parse(&c, Language::Japanese, &spaced.join(" ")).unwrap();
+    let listed: Vec<&str> = m
+        .indices()
+        .iter()
+        .map(|&n| Language::Japanese.word_display(n))
+        .collect();
+    assert_eq!(
+        written(&keys, &c, WordsForm::Words).unwrap(),
+        listed.join(" ")
+    );
+    assert_eq!(
+        written(&keys, &c, WordsForm::HexEntropy).unwrap(),
+        row["entropy"].as_str().unwrap()
+    );
+    assert!(
+        written(&keys, &c, WordsForm::Numbers)
+            .unwrap()
+            .starts_with("1 (0)\n1 (0)")
+    );
+    assert_eq!(
+        written(&keys, &c, WordsForm::Starts),
+        Err(Convert::NotGiven)
+    );
+    for compact in [false, true] {
+        assert!(matches!(
+            keys.seedqr_written(&c, 0, compact, Reveal::PaperForm),
+            Err(Convert::NotGiven)
+        ));
+    }
+    let mut bytes = Keys::on(Network::Mainnet);
+    bytes.add_seed(&c, &[7; 16], "").unwrap();
+    for form in [
+        WordsForm::Words,
+        WordsForm::HexEntropy,
+        WordsForm::Numbers,
+        WordsForm::Starts,
+    ] {
+        assert_eq!(written(&bytes, &c, form), Err(Convert::NotGiven));
+    }
+    assert!(matches!(
+        bytes.seedqr_written(&c, 0, false, Reveal::PaperForm),
+        Err(Convert::NotGiven)
+    ));
 }

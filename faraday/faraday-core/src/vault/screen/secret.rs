@@ -97,9 +97,28 @@ pub(crate) fn secret_with(
 /// ([`crate::vault::VaultArea::toggle_seedqr`]); drawing makes none.
 /// Returns the height.
 pub(super) fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let code = app.vaults.seedqr_shown(app.vault_on_page());
+    let shown = code.is_some();
+    code_with(
+        ui,
+        (x, y, w),
+        code,
+        EN.vault_show_seedqr,
+        (va(V::ShowSeedQr), shown),
+    )
+}
+
+/// A code behind an eye: `code` while it shows, else `label`. Drawing only
+/// reads it. Returns the height.
+pub(crate) fn code_with(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    code: Option<&faraday_codec::qr::QrMatrix>,
+    label: &str,
+    eye: (Action, bool),
+) -> f32 {
     let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
     let warn = Role::Warning;
-    let code = app.vaults.seedqr_shown(app.vault_on_page());
     let shown = code.is_some();
     // The code's side, as a code is shown anywhere in the app, or the
     // field's width less the eye where that is less.
@@ -120,14 +139,9 @@ pub(super) fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     match code {
         Some(m) => crate::screens::qr_code(ui, m, x + 14.0, y + 14.0, side),
         None => {
-            ui.text_mid_as(
-                (x + 14.0, y, tokens::TOUCH),
-                LABEL_L,
-                muted,
-                EN.vault_show_seedqr,
-            );
+            ui.text_mid_as((x + 14.0, y, tokens::TOUCH), LABEL_L, muted, label);
         }
     }
-    secret_eye(ui, x, y, w, (va(V::ShowSeedQr), shown));
+    secret_eye(ui, x, y, w, eye);
     bh
 }

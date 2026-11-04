@@ -80,5 +80,25 @@ pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Convert(C::Save));
     t.shot("convert-save")?;
     t.press(Action::Cancel);
+    // A text target and a code, each masked then shown; the key's own
+    // Explore page, where the flow opens on it.
+    for (row, name) in [("The words", "words"), ("SeedQR", "seedqr")] {
+        t.press(Action::Convert(C::Step(cstep::TO)));
+        let at = ROWS
+            .iter()
+            .position(|r| r.name == row)
+            .ok_or("no such row")?;
+        t.press(Action::Convert(C::To(at as u8)));
+        t.shot(&format!("convert-{name}"))?;
+        t.press(Action::Convert(C::Show));
+        t.shot(&format!("convert-{name}-shown"))?;
+    }
+    let fp = t.app.session.keys[0].fingerprint.0;
+    t.press(Action::Convert(C::Done));
+    t.press(Action::Explore);
+    t.press(Action::XKey(fp));
+    t.shot("convert-way-in-explore")?;
+    t.press(Action::Convert(C::OpenOn(fp)));
+    t.shot("convert-opened-on-key")?;
     Ok(())
 }

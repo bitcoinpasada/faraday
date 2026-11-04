@@ -3,11 +3,13 @@
 //! it needs, and gives back a public result, or a new secret that the
 //! caller holds under `Zeroizing` (`docs/KEYS.md` §3).
 
-use faraday_bip::bip39::Mnemonic;
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::codex32::{self, Codex32};
 use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
 use faraday_bip::slip39::{self, Share};
+use faraday_codec::qr::QrMatrix;
+use faraday_codec::seedqr;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
 use faraday_entropy::SeedXor;
@@ -62,6 +64,21 @@ pub enum Convert {
     /// The result did not read back, through its standard's decoder, as
     /// the same wallet (the same master fingerprint): nothing is returned.
     NotSameWallet,
+}
+
+/// A way to write a key's words as text ([`Keys::words_written`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WordsForm {
+    /// The words themselves, as the list writes them, single spaces between.
+    Words,
+    /// The entropy they carry, in lower-case hex.
+    HexEntropy,
+    /// Each word's number on the list, one a line: 1 to 2048, then 0 to
+    /// 2047 in brackets, `1 (0)`.
+    Numbers,
+    /// Each word's first four letters, single spaces between: the English
+    /// list only, which is unique in them.
+    Starts,
 }
 
 /// The fresh bytes Seed XOR into `parts` parts takes at most (a lookup):
@@ -317,6 +334,92 @@ impl Keys {
         checked(s.master.fingerprint(), read, text)
     }
 
+    /// Costs two parses of the words for [`WordsForm::Words`], one otherwise,
+    /// and a scan of the list per word for [`WordsForm::Starts`]. Key `i`'s
+    /// words written in `form`. A key with no words is
+    /// [`Convert::NotGiven`], as are the starts of a key on another list.
+    /// Read back: the text read as that form gives the same entropy as the
+    /// key's words, on the same list, so the same words. The seed is made
+    /// from those words and the key's passphrase, so the same words are the
+    /// same fingerprint: no PBKDF2 is run to compare it.
+    pub fn words_written(
+        &self,
+        c: &Compute,
+        i: usize,
+        form: WordsForm,
+        why: Reveal,
+    ) -> Result<Held<Zeroizing<String>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        let words = s.words.ok_or(Convert::NotGiven)?;
+        let lang = s.language;
+        if form == WordsForm::Starts && lang != Language::English {
+            return Err(Convert::NotGiven);
+        }
+        let m = Mnemonic::parse(c, lang, words).map_err(|_| Convert::NotGiven)?;
+        let text = match form {
+            WordsForm::HexEntropy => {
+                faraday_crypto::hex::encode_secret(m.entropy().expose().as_bytes())
+            }
+            _ => written_by_word(&m, form),
+        };
+        let read = match form {
+            WordsForm::Words => Mnemonic::parse(c, lang, &text).ok(),
+            WordsForm::HexEntropy => faraday_crypto::hex::decode_vec(&text)
+                .map(Zeroizing::new)
+                .and_then(|b| crate::words::from_entropy(lang, &b).ok()),
+            WordsForm::Numbers => {
+                numbers_read(&text).and_then(|n| crate::words::from_indices(lang, &n).ok())
+            }
+            WordsForm::Starts => {
+                starts_read(&text).and_then(|n| crate::words::from_indices(lang, &n).ok())
+            }
+        };
+        same_words(&m, read.as_ref(), text)
+    }
+
+    /// Costs a parse of the words and a QR encoding. Key `i`'s SeedQR, or
+    /// CompactSeedQR if `compact`, with its word count: for a key on the
+    /// English list of 12 or 24 words only, any other being
+    /// [`Convert::NotGiven`]. Read back: the digits or the entropy bytes the
+    /// code is made of, read by SeedQR's decoder, give the same entropy as
+    /// the key's words, so the same fingerprint, as [`Keys::words_written`].
+    /// The modules themselves are not scanned here, as this crate holds no
+    /// QR reader: the caller scans the matrix and checks the payload with
+    /// [`Keys::seedqr_reads_as`].
+    pub fn seedqr_written(
+        &self,
+        c: &Compute,
+        i: usize,
+        compact: bool,
+        why: Reveal,
+    ) -> Result<(Held<QrMatrix>, usize), Convert> {
+        let s = self.convert_source(i, why)?;
+        let words = s.words.ok_or(Convert::NotGiven)?;
+        if s.language != Language::English {
+            return Err(Convert::NotGiven);
+        }
+        let m = Mnemonic::parse(c, s.language, words).map_err(|_| Convert::NotGiven)?;
+        if !matches!(m.word_count(), 12 | 24) {
+            return Err(Convert::NotGiven);
+        }
+        let (matrix, read) = if compact {
+            let bytes = seedqr::to_entropy(&m);
+            (
+                seedqr::encode_compact(c, &m),
+                crate::words::from_compact_seedqr(bytes.expose().as_bytes(), s.language),
+            )
+        } else {
+            let digits = seedqr::to_digits(&m);
+            (
+                seedqr::encode_seedqr(c, &m),
+                crate::words::from_seedqr_digits(digits.expose().as_bytes(), s.language),
+            )
+        };
+        let matrix = matrix.map_err(|_| Convert::NotGiven)?;
+        let held = same_words(&m, read.ok().as_ref(), matrix)?;
+        Ok((held, m.word_count()))
+    }
+
     /// Costs a master key and what `slip39::one_of_one` and
     /// `slip39::recover` cost (a PBKDF2 each). Key `i`'s seed bytes as the
     /// SLIP-39 1 of 1, as words: a key loaded by `add_seed` of 16 or 32
@@ -431,6 +534,84 @@ fn checked<T>(key: Fingerprint, read: Option<Fingerprint>, result: T) -> Result<
     } else {
         Err(Convert::NotSameWallet)
     }
+}
+
+/// `result`, held, when what it read back as is `m`: the same list and the
+/// same entropy. Anything else gives [`Convert::NotSameWallet`], as
+/// [`checked`].
+fn same_words<T>(m: &Mnemonic, read: Option<&Mnemonic>, result: T) -> Result<Held<T>, Convert> {
+    let same = read.is_some_and(|r| {
+        r.language() == m.language()
+            && r.entropy().expose().as_bytes() == m.entropy().expose().as_bytes()
+    });
+    if same {
+        Ok(Held::of(result))
+    } else {
+        Err(Convert::NotSameWallet)
+    }
+}
+
+/// `m` written word by word in `form`: [`WordsForm::Numbers`] a line each,
+/// [`WordsForm::Words`] and [`WordsForm::Starts`] a space between.
+fn written_by_word(m: &Mnemonic, form: WordsForm) -> Zeroizing<String> {
+    use core::fmt::Write as _;
+    // The room is a phrase of the longest list's words (Japanese or Korean
+    // go over it): the buffer is sized to what is written, so it never moves.
+    let words: usize = m
+        .indices()
+        .iter()
+        .map(|&n| m.language().word_display(n).len() + 4)
+        .sum();
+    let mut text = Zeroizing::new(String::with_capacity(words.max(faraday_intake::ROOM)));
+    for (place, &n) in m.indices().iter().enumerate() {
+        if place > 0 {
+            text.push(if form == WordsForm::Numbers {
+                '\n'
+            } else {
+                ' '
+            });
+        }
+        let word = m.language().word_display(n);
+        match form {
+            WordsForm::Numbers => {
+                let _ = write!(text, "{} ({n})", n + 1);
+            }
+            WordsForm::Starts => text.extend(word.chars().take(4)),
+            _ => text.push_str(word),
+        }
+    }
+    text
+}
+
+/// [`WordsForm::Numbers`] read back: the list's indices, when each line's
+/// two numbers agree.
+fn numbers_read(text: &str) -> Option<Zeroizing<Vec<u16>>> {
+    let mut out = Zeroizing::new(Vec::with_capacity(24));
+    for line in text.lines() {
+        let (one, zero) = line.split_once(' ')?;
+        let one: u16 = one.parse().ok()?;
+        let zero: u16 = zero.strip_prefix('(')?.strip_suffix(')')?.parse().ok()?;
+        (one.checked_sub(1)? == zero).then_some(())?;
+        out.push(zero);
+    }
+    Some(out)
+}
+
+/// [`WordsForm::Starts`] read back: for each start, the index of the one
+/// word on the English list that it is, or that begins with it if it has
+/// its full four letters.
+fn starts_read(text: &str) -> Option<Zeroizing<Vec<u16>>> {
+    let mut out = Zeroizing::new(Vec::with_capacity(24));
+    for start in text.split(' ') {
+        let mut found = (0..2048u16).filter(|&n| {
+            let word = Language::English.word(n);
+            word == start || (start.len() == 4 && word.starts_with(start))
+        });
+        let n = found.next()?;
+        found.next().is_none().then_some(())?;
+        out.push(n);
+    }
+    Some(out)
 }
 
 /// The master seed `parts` make: the one that holds the secret itself, or

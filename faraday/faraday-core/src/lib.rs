@@ -1748,6 +1748,7 @@ impl Faraday {
                 self.sheet = Some(Sheet::IdleWarn);
                 self.idle.set_warn_min(idle / min);
                 self.explore_hide();
+                convert::hide(self);
             }
             let left = (lock - idle).div_ceil(1000);
             if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {

@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's master seed in hex and xprv with §5's lines, and Result
-**Open:** the rest of batch S3 (§4.1's targets, the chart sheet and Explore's ways in) and batches S4 to S7 (§10)
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
+**Open:** the rest of batch S3 (§4.3's Settings step and a copy scanned back in Check my copy) and batches S4 to S7 (§10)
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -18,7 +18,8 @@ standard it is and which software restores it.
    the result, read by its standard, gives the same BIP-32 master key as
    the source: the same master fingerprint. Faraday reads every result
    back through its own decoder for that standard and compares the
-   fingerprint before showing it; a mismatch shows nothing and says
+   fingerprint before showing it (a SeedQR or CompactSeedQR is scanned
+   from its modules, and what is read is compared); a mismatch shows nothing and says
    "Not shown: it did not read back as the same wallet". That is the
    device's own check; the vectors and the second implementation (§9)
    are the build's.
@@ -78,9 +79,11 @@ standard it is and which software restores it.
   back through its standard's decoder to the key's master fingerprint
   before it is returned (`Convert::NotSameWallet` otherwise).
 - **Not built**: the SLIP-39 set actions on a screen (§8); in the tool
-  (`faraday/faraday-core/src/convert/`), every target but a master seed in
-  hex and an xprv, the Settings step, the chart sheet's and Explore's ways
-  in, and a copy scanned back in Check my copy (it is typed back).
+  (`faraday/faraday-core/src/convert/`), the Settings step and a copy
+  scanned back in Check my copy (it is typed back). Built there: the six
+  writings of §4.1 (`words_written` and `seedqr_written` in
+  `operations.rs`, each read back before it is returned) and the two ways
+  in.
 - **Leaving the store**: a paper form leaves through
   `Reveal::PaperForm` (`faraday/faraday-keys/src/session.rs`), which
   names Seed XOR, codex32, SLIP-39, a master seed as hex and an xprv, each
@@ -119,7 +122,8 @@ before the row ships.
 Faraday makes most of these already (§2); the tool gathers them. The
 words' own language is kept: the English list for SeedQR, CompactSeedQR
 and the starts (SeedQR is defined on English; another list is not
-offered, §5).
+offered, §5), and SeedQR and CompactSeedQR for 12 or 24 words only (a key
+of 15, 18 or 21 words is not offered them).
 
 ### 4.2 Words split and rebuilt
 
@@ -221,7 +225,9 @@ on that key.
    for a SeedQR or CompactSeedQR the code held; Facts (§4.11):
    **Standard**, **Restores in**, **Fingerprint** "73c5da0a · same as
    the source", **Paths** where §4.3 says, **Birthday** for an aezeed;
-   the passphrase line of rule 3. Buttons: **Check my copy** (typed or
+   **Word list** for a key not on the English list, written as hex
+   entropy or word numbers, which carry no list (the saved file's name
+   carries it); the passphrase line of rule 3. Buttons: **Check my copy** (typed or
    scanned back, as the backup's), **Save as a file…** (the Secret out
    sheet, §4.10), **Done**. Nothing is written or kept unless pressed.
 5. Leaving drops every result (rule 5).

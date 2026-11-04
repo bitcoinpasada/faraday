@@ -396,6 +396,29 @@ fn a_line_inside_a_place_opens_its_own_sheet() {
 }
 
 #[test]
+fn a_key_held_here_opens_convert_a_seed_on_it_and_done_returns_to_the_wallets() {
+    let mut app = desktop();
+    let w = one_key(&mut app);
+    planned(&mut app, w, 2);
+    let press = Press::Loaded(w);
+    let fp = app.session.keys[0].fingerprint.0;
+    open(&mut app, press, Target::Key(0));
+    assert!(shown(&mut app, "Write it in another form"));
+    app.press(Action::Convert(
+        faraday_core::convert::ConvertAction::OpenOn(fp),
+    ));
+    assert_eq!(app.screen, Screen::Convert);
+    assert!(app.sheet.is_none(), "the sheet is closed");
+    let s = faraday_core::convert::state(&app).unwrap();
+    assert_eq!(
+        (s.key, s.open),
+        (Some(fp), Some(faraday_core::convert::cstep::TO))
+    );
+    app.press(Action::Convert(faraday_core::convert::ConvertAction::Done));
+    assert_eq!(app.screen, Screen::Wallets);
+}
+
+#[test]
 fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     let mut app = desktop();
     let w = one_key(&mut app);

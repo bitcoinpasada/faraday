@@ -47,7 +47,7 @@ impl View<'_> {
 
     /// Convert a seed's value, held since its press: a borrow, nothing
     /// costs.
-    pub fn convert_held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+    pub fn convert_held(&self) -> Option<&crate::convert::Value> {
         self.app.tools.convert().held()
     }
 

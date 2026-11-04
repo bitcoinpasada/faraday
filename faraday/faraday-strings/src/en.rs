@@ -1128,8 +1128,66 @@ strings! {
     convert_secret_xprv: "A master private key",
     /// What the secret sheet says of either.
     convert_secret_gives: "Whoever has it can spend from every wallet of this key",
+    /// What the secret sheet says of a form that leaves out the key's
+    /// passphrase.
+    convert_secret_gives_apart: "Whoever has it can spend from the wallet of these words with no passphrase",
     /// Result's button.
     convert_done: "Done",
+    /// A target under To: the key's words as they are.
+    convert_words: "The words",
+    /// The standard of `convert_words`, and its Standard fact.
+    convert_words_line: "BIP-39",
+    /// The Restores in fact of `convert_words`.
+    convert_words_restores: "every BIP-39 wallet",
+    /// A target under To.
+    convert_seedqr: "SeedQR",
+    /// The standard of `convert_seedqr`, and its Standard fact.
+    convert_seedqr_line: "SeedQR (SeedSigner's standard)",
+    /// The Restores in fact of `convert_seedqr`.
+    convert_seedqr_restores: "SeedSigner, Krux, Faraday",
+    /// A target under To.
+    convert_compact: "CompactSeedQR",
+    /// The standard of `convert_compact`, and its Standard fact.
+    convert_compact_line: "CompactSeedQR (SeedSigner's)",
+    /// The Restores in fact of `convert_compact`.
+    convert_compact_restores: "SeedSigner, Krux, Faraday",
+    /// A target under To.
+    convert_entropy: "Hex entropy",
+    /// The standard of `convert_entropy`, and its Standard fact.
+    convert_entropy_line: "BIP-39 entropy, hex",
+    /// The Restores in fact of `convert_entropy`.
+    convert_entropy_restores: "Ian Coleman's BIP-39 page (its entropy field), Faraday's New key (hex); no wallet takes entropy as a seed",
+    /// A target under To.
+    convert_numbers: "Word numbers",
+    /// The standard of `convert_numbers`, and its Standard fact.
+    convert_numbers_line: "BIP-39, each word's index (1 to 2048, and 0 to 2047 shown beside)",
+    /// The Restores in fact of `convert_numbers`.
+    convert_numbers_restores: "any BIP-39 wallet, once turned back into words by the list",
+    /// A target under To.
+    convert_starts: "4-letter starts",
+    /// The standard of `convert_starts`, and its Standard fact.
+    convert_starts_line: "BIP-39 (the English list is unique in its first four letters)",
+    /// The Restores in fact of `convert_starts`.
+    convert_starts_restores: "any BIP-39 wallet that completes a word from its start (Coldcard), and any, written out in full",
+    /// What the secret sheet calls the words.
+    convert_secret_words: "A seed's words",
+    /// What the secret sheet calls hex entropy.
+    convert_secret_entropy: "A seed's entropy",
+    /// What the secret sheet calls word numbers.
+    convert_secret_numbers: "A seed's word numbers",
+    /// What the secret sheet calls 4-letter starts.
+    convert_secret_starts: "A seed's 4-letter starts",
+    /// What the secret sheet calls a SeedQR or CompactSeedQR picture.
+    convert_secret_code: "A seed's code",
+    /// Result's masked code, in place of the code.
+    convert_show_code: "Show the code",
+    /// A fact's label on Result: the list a key's numbers or entropy are
+    /// on, for a key not on the English list.
+    convert_word_list: "Word list",
+    /// The Passphrase fact of a form that leaves the passphrase out.
+    convert_keeps_passphrase: "Not in this form: restore it with the passphrase",
+    /// The way in from a key's chart sheet and from Explore.
+    convert_way_in: "Write it in another form",
     /// Toast in `bip85_open`.
     bip85_load_a_key_first: "Load a key first",
     /// Text in `bip85_title`, and a key recorded as a child seed where its

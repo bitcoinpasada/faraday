@@ -47,6 +47,17 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         })
         .collect();
     y += button_rows(ui, x, y, width, &keys) + 4.0;
+    if let Some(fp) = e
+        .key
+        .filter(|fp| app.session.keys.position_of(*fp).is_some())
+    {
+        let way_in = [(
+            EN.convert_way_in.to_string(),
+            Style::Secondary,
+            Action::Convert(crate::convert::ConvertAction::OpenOn(fp)),
+        )];
+        y += button_rows(ui, x, y, width, &way_in) + T::GAP;
+    }
     let (px, pw) = if compact {
         (x, width)
     } else {

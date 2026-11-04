@@ -468,6 +468,13 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         "",
                         Some(Action::ExploreKey(fp)),
                     ));
+                    if app.session.keys.position_of(fp).is_some() {
+                        public.push(row(
+                            EN.convert_way_in,
+                            "",
+                            Some(Action::Convert(crate::convert::ConvertAction::OpenOn(fp))),
+                        ));
+                    }
                 }
                 if !app.is_compact() {
                     public.push(row(

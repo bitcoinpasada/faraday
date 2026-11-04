@@ -143,11 +143,20 @@ than the step after it. Escape is Back on BIP-85, Convert a seed and Vanity.
 **Convert a seed** (`docs/SEED-CONVERSION.md` §6). Tools' tile opens From, the
 loaded keys, the open vaults' keys not loaded and **Add a key**, which returns
 here; a vault's key, pressed, loads and stays loaded, as under Make a new
-wallet's Keys; with one key loaded, To opens on it. A press under To works out
-the value, on the tick after a frame, and Result opens with it masked, its
-Facts, **Check my copy**, **Save as a file…** and **Done**. Check my copy takes
+wallet's Keys; with one key loaded, To opens on it. A key shown on its chart
+sheet or on Explore has **Write it in another form**, which opens the flow on
+that key, To open; Done returns to the screen it came from. To lists the
+master seed in hex and the xprv, and for a key of words the words, SeedQR,
+CompactSeedQR, hex entropy, word numbers (`1 (0)` a line) and 4-letter starts;
+SeedQR and CompactSeedQR for 12 or 24 words only; a key on another list is
+offered the words, entropy and numbers, with a **Word list** fact on the last
+two, and a key with no words none of them. A press under To works out
+the value, on the tick after a frame (a code is scanned back before it shows), and Result opens with it masked, its
+Facts, **Check my copy**, **Save as a file…** and **Done**; a code's Result
+has the code in place of the text, no Check my copy, and Save writes its
+picture, labelled as the backup's SeedQR is. Check my copy takes
 the copy typed back, as dots, and on **Compare** or Enter says whether it
-matches; a difference wipes what was typed. **Save as a file…** opens the Secret
+matches (word numbers on the 1 to 2048 numbers alone, or every pair as shown, its two numbers agreeing); a difference wipes what was typed. **Save as a file…** opens the Secret
 out sheet (`docs/DESIGN.md` §4.10) with the value alone, and nothing is written
 until the sheet is answered. Both work in Practice, whose keys are public seeds.
 A dimmed row under To takes no press. Leaving Result, or the flow, drops the

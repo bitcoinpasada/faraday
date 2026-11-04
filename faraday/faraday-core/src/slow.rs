@@ -78,7 +78,9 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::SelfTestRun
             | Action::Vanity(vanity::VanityAction::Use)
             | Action::Convert(
-                crate::convert::ConvertAction::To(_) | crate::convert::ConvertAction::VaultKey(..)
+                crate::convert::ConvertAction::To(_)
+                    | crate::convert::ConvertAction::VaultKey(..)
+                    | crate::convert::ConvertAction::Save
             )
             | Action::Chart(
                 C::Checked(..) | C::Confirm(_) | C::Do(..) | C::Edit(..) | C::PassTry(_)
@@ -107,5 +109,11 @@ pub(crate) fn drawn_first(a: Action) -> bool {
 /// is long enough to be seen: pictures and PDFs made.
 pub(crate) fn working_text(a: Action) -> Option<&'static str> {
     use crate::backup_flow::steps::FlowAction as F;
-    matches!(a, Action::SecretHold | Action::Flow(F::WalletLock)).then_some(EN.working_files)
+    matches!(
+        a,
+        Action::SecretHold
+            | Action::Flow(F::WalletLock)
+            | Action::Convert(crate::convert::ConvertAction::Save)
+    )
+    .then_some(EN.working_files)
 }

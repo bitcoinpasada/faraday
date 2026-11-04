@@ -1,7 +1,7 @@
 //! The Convert a seed screen: the step-card column over [`crate::convert`].
 
 use crate::convert::{
-    ConvertAction as C, ConvertState, ROWS, Target, cstep, same_as_source, source,
+    ConvertAction as C, ConvertState, ROWS, Target, Value, cstep, same_as_source, source,
 };
 use crate::drawing::{Scrolled, View};
 use crate::strings::EN;
@@ -9,6 +9,7 @@ use crate::ui::pal::{Role, on_selected, selected_or};
 use crate::ui::{Style, Ui};
 use crate::wallet::{fp_text, key_line};
 use crate::{Action, flow};
+use faraday_bip::bip39::Language;
 use faraday_bip::keys::Fingerprint;
 use faraday_draw::tokens::{
     self, BODY_L, BODY_M, BODY_S, BUTTON_H, DISABLED_CONTENT, FIELD_GAP, FIELD_H, FIELD_PAD, GAP,
@@ -39,13 +40,19 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             learn: None,
         })
         .collect();
+    // Back names where the flow was opened from; Tools' tile by Tools.
+    let back_name = if s.back == crate::Screen::Catalog {
+        EN.convert_tools
+    } else {
+        app.back_name(s.back)
+    };
     let col = flow::Column {
         area_x: x0,
         area_w: cw,
         x: x0 + tokens::FLOW_INSET,
         w: (cw - tokens::FLOW_INSET - tokens::FLOW_INSET).min(tokens::FLOW_MAX),
         h,
-        back: Some(app.named_back((EN.convert_tools, Action::Nav(s.back)))),
+        back: Some(app.named_back((back_name, Action::Nav(s.back)))),
         heading: EN.convert_title,
         guided: app.guided(),
         switch: true,
@@ -197,21 +204,21 @@ fn row(
     h + GAP
 }
 
-/// Check my copy: how the last comparison went and, while it is open, the
-/// copy typed back as dots with its count. Returns its height.
+/// How the last comparison went, at the top of the card: a long value
+/// would put it out of sight under it. Returns its height.
+fn found_line(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    match crate::convert::found(app) {
+        Some(true) => ui.wrap_as((x, y, w), LABEL_L, Role::Ok, EN.convert_copy_matches) + GAP,
+        Some(false) => ui.wrap_as((x, y, w), LABEL_L, Role::Error, EN.convert_copy_differs) + GAP,
+        None => 0.0,
+    }
+}
+
+/// Check my copy: while it is open, the copy typed back as dots with its
+/// count. Returns its height.
 fn check_my_copy(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let check = app.tools.convert().check();
-    // Over the field, so a small panel's keyboard does not cover it.
-    match crate::convert::found(app) {
-        Some(true) => {
-            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, EN.convert_copy_matches) + GAP;
-        }
-        Some(false) => {
-            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, EN.convert_copy_differs) + GAP;
-        }
-        None => {}
-    }
     if let Some(check) = check {
         let n = check.typed.chars().count();
         let label = crate::strings::fill(EN.convert_your_copy, &[&n.to_string()]);
@@ -259,25 +266,38 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
         }
         (None, Some(target), Some(k)) => {
+            cy += found_line(app, ui, (x, cy, w));
             // Worked out on the press, held until the card is left; only
             // read here.
             let held = app.convert_held();
-            cy += crate::vault::screen::secret::secret_with(
-                ui,
-                (x, cy, w),
-                || {
-                    held.map(|v| v.as_str().to_string().into())
+            let eye = (Action::Convert(C::Show), s.shown);
+            cy += if target.is_code() {
+                let code = held.and_then(Value::code);
+                let label = EN.convert_show_code;
+                crate::vault::screen::secret::code_with(ui, (x, cy, w), code, label, eye)
+            } else {
+                // The closure runs only with the eye open; its copy lives
+                // for the frame, wiped, and is on no state.
+                let text = || {
+                    held.and_then(Value::text)
+                        .map(|v| v.to_string().into())
                         .unwrap_or_default()
-                },
-                true,
-                (Action::Convert(C::Show), s.shown),
-            ) + GAP;
+                };
+                crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye)
+            } + GAP;
             let mut fact = |ui: &mut Ui, label: &str, value: &str| {
                 cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
             };
             fact(ui, EN.convert_standard, target.standard());
             fact(ui, EN.convert_restores_in, target.restores_in());
             fact(ui, EN.convert_fingerprint, &same_as_source(k.fingerprint));
+            if target.lacks_list() && k.language != Language::English {
+                fact(
+                    ui,
+                    EN.convert_word_list,
+                    crate::forms::language_name(k.language),
+                );
+            }
             let paths = if s.paths.is_empty() {
                 EN.convert_no_wallet.to_string()
             } else {
@@ -285,22 +305,28 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             };
             fact(ui, EN.convert_paths, &paths);
             if k.has_passphrase {
-                fact(ui, EN.convert_passphrase, EN.convert_holds_passphrase);
+                let line = if target.keeps_passphrase_apart() {
+                    EN.convert_keeps_passphrase
+                } else {
+                    EN.convert_holds_passphrase
+                };
+                fact(ui, EN.convert_passphrase, line);
             }
             cy += GAP;
             cy += check_my_copy(app, ui, (x, cy, w));
-            let actions = [
-                (
+            let mut actions = Vec::new();
+            if s.checkable {
+                actions.push((
                     EN.convert_check.to_string(),
                     Style::Secondary,
                     Action::Convert(C::Check),
-                ),
-                (
-                    EN.convert_save.to_string(),
-                    Style::Secondary,
-                    Action::Convert(C::Save),
-                ),
-            ];
+                ));
+            }
+            actions.push((
+                EN.convert_save.to_string(),
+                Style::Secondary,
+                Action::Convert(C::Save),
+            ));
             cy += button_rows(ui, x, cy, w, &actions);
         }
         _ => {}

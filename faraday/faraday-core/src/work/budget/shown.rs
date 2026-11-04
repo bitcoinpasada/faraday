@@ -5,6 +5,7 @@
 //! after it work out nothing; hiding it drops what was held.
 
 use super::walk;
+use crate::convert::{ConvertAction, ROWS};
 use crate::plan::{self, At, Tag, What};
 use crate::work::{Counts, KINDS, PIXELS, Work, since, snapshot};
 use crate::{Action, Faraday, bstep, testkit};
@@ -113,4 +114,65 @@ fn a_bip85_child_is_derived_once_when_shown() {
     frames_work_out_nothing(&mut app);
     let _ = press_work(&mut app, Action::PShow);
     assert!(app.bip85.held().is_none());
+}
+
+/// Convert a seed's value, the eye closed and the flow open on its Result.
+fn converted(row: &str) -> (Faraday, Counts) {
+    let c = testkit::compute();
+    let (mut app, _) = walk(&c, &mut |_, _| {});
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Convert(ConvertAction::OpenOn(fp)));
+    let at = ROWS.iter().position(|r| r.name == row).unwrap() as u8;
+    let before = snapshot();
+    app.press(Action::Convert(ConvertAction::To(at)));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(faraday_shell_api::Event::Tick { now_ms: now });
+    app.settle();
+    let _ = app.frame();
+    let work = since(&before);
+    (app, work)
+}
+
+/// What a person sees of the value: shown, hidden, then left.
+fn convert_shown_once(row: &str, named: &[(Work, u64)]) {
+    let (mut app, work) = converted(row);
+    costs(&work, named);
+    assert!(
+        app.tools.convert().holds_value(),
+        "the value is held, masked"
+    );
+    assert!(crate::convert::shown(&app).is_none());
+    assert!(crate::convert::shown_code(&app).is_none());
+    // The eye is only a view of what is held: nothing is worked out.
+    let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
+    assert!(
+        crate::convert::shown(&app).is_some() || crate::convert::shown_code(&app).is_some(),
+        "the value shows"
+    );
+    frames_work_out_nothing(&mut app);
+    let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
+    assert!(crate::convert::shown(&app).is_none());
+    assert!(crate::convert::shown_code(&app).is_none());
+    assert!(app.tools.convert().holds_value(), "hidden, still held");
+    app.press(Action::Convert(ConvertAction::Show));
+    app.press(Action::Convert(ConvertAction::Done));
+    assert!(!app.tools.convert().holds_value(), "leaving drops it");
+}
+
+#[test]
+fn convert_a_seeds_text_is_held_once_and_the_frames_work_out_nothing() {
+    convert_shown_once("The words", &[(Work::WordsParse, 2)]);
+}
+
+#[test]
+fn convert_a_seeds_code_is_held_once_and_the_frames_work_out_nothing() {
+    convert_shown_once(
+        "SeedQR",
+        &[
+            (Work::WordsParse, 2),
+            (Work::QrEncode, 1),
+            (Work::QrDecode, 1),
+        ],
+    );
 }
