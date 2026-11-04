@@ -662,13 +662,12 @@ visit** directly.
   under a hidden name, read back, then the old file removed and the new
   one renamed to its name), **Keep both** (written beside it as
   `name-2.ext`; the row says "{name} · Keep both: {name-2}") and
-  **Cancel** (nothing written, the visit stays). A vault of the same
-  length under its own name is listed "{name} · the same vault, updated
-  here" and is always replaced; a vault under another vault's name
-  "{name} · another vault · kept, this one as {name-2}", whatever is
-  chosen. Those two alone bring no sheet, nor does the settings file. A sealed vault replaces the file with its identity, or is written
-  under its own name (`name.kdbx`, `name-2.kdbx` when the stick has one;
-  `docs/VAULT.md` §6) where there is none. A failed comparison
+  **Cancel** (nothing written, the visit stays). The sheet decides nothing for a vault, which brings none, nor does the
+  settings file. A sealed vault replaces a file proved a copy of it, or is
+  written under its own name where no file has it; a file nothing proves
+  under that name is the question **Overwrite** (a hold) or **Save beside**
+  as `name-2.kdbx`, one file in turn, and Cancel leaves it For the stick
+  (F203, `docs/VAULT.md` §6). A failed comparison
   leaves the file For the stick and says which. The first row is the
   settings, `faraday-settings.txt`, which is not a file For the stick: ticked
   on the boot stick when the settings differ from what the boot stick

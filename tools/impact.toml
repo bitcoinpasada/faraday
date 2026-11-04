@@ -789,6 +789,13 @@ when = ["faraday/faraday-vault/src/kdbx/**", "faraday/faraday-vault/src/totp.rs"
 kind = "review"
 
 [[rule]]
+id = "keys.vault-name-taken"
+title = "a vault write goes over a file nothing proves only after the person's hold on the dialog, naming the SHA-256 of the file shown; a proved copy is replaced with no dialog, and no hash of an earlier seal is kept inside a vault"
+source = ["docs/decisions/F203.md", "docs/VAULT.md §6"]
+when = ["faraday/faraday-files/src/lib.rs", "faraday/faraday-core/src/visit_taken.rs", "faraday/faraday-core/src/backup_flow/steps.rs"]
+kind = "review"
+
+[[rule]]
 id = "keys.signer-added-fields"
 title = "a field a signer adds to a returned PSBT is stated only when its content is checked in full against the unchanged transaction or Sent, never Returned's own copy, and is a finding otherwise; the words state it without \"change\" or \"mine\""
 source = ["docs/decisions/F199.md", "docs/SIGNER-CHECK.md §6.9"]

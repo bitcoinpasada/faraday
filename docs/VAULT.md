@@ -500,11 +500,14 @@ copy of that vault when its SHA-256 is among them. Writing back
 replaces that copy; no older copy is kept. On a stick visit:
 
 1. Find the file on the visited stick whose SHA-256 is one of the sealed
-   vault's copies. None: offer to write it as a new file. More than one:
-   refuse and name both. A file under the name asked for that is not a
-   copy is never written over, whatever the visit's Already on the stick
-   sheet chose (`docs/FLOWS.md` decision 58): the new one goes beside it
-   as `name-2.kdbx`. The visit holds no passphrase and opens nothing: a
+   vault's copies. None: write it as a new file. More than one: refuse
+   and name both. None, and a file has the name asked for, ignoring case:
+   nothing is written until the person answers (F203): **Overwrite**, by a
+   hold, naming the SHA-256 of the file shown, which the disk process
+   refuses if the file has changed since; or **Save beside**, as
+   `name-2.kdbx`. A file that cannot be read for its SHA-256 has no
+   overwrite. The visit's Already on the stick sheet decides nothing for a
+   vault. The visit holds no passphrase and opens nothing: a
    process that has unlocked a vault is never handed a stick
    (`docs/history/PLAN.md` §5.1). Counts are compared at unlock instead
    (§11).

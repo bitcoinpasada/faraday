@@ -274,8 +274,9 @@ no vault the key goes into.
     SHA-256 is a copy the session has seen (decided, §14 item 3);
   - a vault found, and files on the stick nobody has opened: no question
     and no extra unlock. The card says "{vault} goes beside these", lists
-    the files, and the vault is written beside them under a free name,
-    every file byte for byte. A person who knows one of those files is the
+    the files, and the vault is written beside them, every file byte for
+    byte, under its own name when no file has it; a file under its name is
+    the question at step 6 (§4.6, F203). A person who knows one of those files is the
     copy to use presses **Use {file} for {vault}**: the file is unlocked,
     and if it is another vault the unlock says "{file} is not {vault}",
     closes that vault (only when it was opened from that file and holds no
@@ -396,7 +397,11 @@ stick of public files:
 The bytes are For the stick's sealed copy. Each file is
 `StorageCommand::Write`, read back and compared, as a visit writes it;
 a vault replaces a file whose SHA-256 is a copy the session has seen
-(VAULT §6) or goes beside under a free name; other files follow **Already on the stick**'s rules
+(VAULT §6) or, where no file has its name, is written under it. A file
+nothing proves under its name stops the write for the question
+**Overwrite** (a hold) or **Save beside** (a tap), one file in turn (F203);
+going back writes nothing and the stick does not count. A vault the plan
+makes new goes beside under a free name with no question. Other files follow **Already on the stick**'s rules
 (decision 58) with Keep both for a file of another content under the
 same name. Each answer adds to the receipt (decision 25), one block per
 stick.
@@ -871,6 +876,12 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_goes_beside` | {} goes beside these |
 | `backup_flow_use_file` | Use {} for {} |
 | `backup_flow_use_another` | Use another {m} |
+| `vault_taken_title` | {} is already on {} |
+| `vault_taken_unknown` | Faraday cannot tell which vault this file is. Overwriting destroys it, even if it is another vault. |
+| `vault_taken_other` | This file is {}, another vault. Overwriting destroys it. |
+| `vault_taken_unreadable` | This file could not be read. It stays as it is. |
+| `vault_taken_overwrite` | Hold: overwrite {} |
+| `vault_taken_beside` | Save as {} |
 | `backup_flow_in_vault` | In {} |
 | `backup_flow_lock_and_write` | Lock and write |
 | `backup_flow_add_vault` | Add {} |
@@ -1005,12 +1016,12 @@ The owner's answers (2026-10-14).
    between writes leaves the copies already written: the person chose
    the places, and can write the rest or stop there.
 3. **A copy of the same vault not seen this session, and different**:
-   replaced after a hold only when its SHA-256 proves it is a copy the
-   session has seen; otherwise never replaced, and after the hold the
-   vault is written beside it. An encrypted id cannot prove two files are
-   one vault, and a hold must not let a mistaken press destroy a different
-   vault (the owner's call, 2026-11-04, narrowing the answer of 2026-10-14).
-   A stale copy can stay beside a new one; the person removes it.
+   replaced after a hold when its SHA-256 proves it is a copy the session
+   has seen. Otherwise, under the vault's name, it is the question
+   **Overwrite** or **Save beside** (F203, the owner's call, 2026-11-04):
+   an encrypted id cannot prove two files are one vault, so the question
+   says overwriting destroys the file even if it is another vault. Under
+   another name it stays; the person removes it.
 4. **Writes made on the stick visit page** do not count toward the flow.
 5. **Places and copies have no cap**: any number of places, a vault or
    any one key kept at as many as the person adds, one copy per place.
