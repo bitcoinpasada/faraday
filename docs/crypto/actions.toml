@@ -7332,7 +7332,7 @@ tests = [
   "faraday/faraday-vault/tests/kdbx_xml.rs::every_file_pykeepass_wrote_opens_to_its_entry",
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_document_not_changed_is_written_as_it_was",
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_document_written_again_is_read_by_pykeepass",
-  "faraday/faraday-vault/tests/kdbx_xml.rs::history_and_the_recycle_bin_are_dropped_and_counted",
+  "faraday/faraday-vault/tests/kdbx_xml.rs::history_and_the_recycle_bin_are_kept_out_of_the_model_and_written_back",
   "faraday/faraday-vault/tests/kdbx_xml.rs::what_a_program_wrote_and_is_not_read_is_kept_in_its_place",
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_new_vault_is_written_and_reads_back",
   "faraday/faraday-vault/tests/kdbx_xml.rs::what_is_refused_is_named",

@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/screen/save.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`)
-**Screen:** `VaultContents`, `VaultSave`, `GpgSign`
+**Screen:** `VaultContents`, `VaultSave`, `GpgSign`, `VaultPassphrase`, `VaultMemory`
 **Group:** Vaults
 
 **Opened from:** **View contents** on an open vault (Vaults, Files'
@@ -25,6 +25,8 @@ writes the vault back over its own file.
 | the title | the vault's name ("Vault 1"), or "Vault" for a vault with no name |
 | the state | under the title: **Open**, or "Open · 2 unsaved changes" in the warning tone |
 | **Rename** | opens **Rename the vault** in the detail: **Name**, **Save**, **Cancel** |
+| **Change passphrase** | opens [Change passphrase](#change-passphrase-and-memory); a read-only vault does not offer it |
+| **Memory** | opens [Memory](#change-passphrase-and-memory); a read-only vault does not offer it |
 | **Lock** | locks, sealing every open vault; [Lock](lock-and-power.md#lock) asks first when the lock would end something |
 | the seals line | under the file's line: "Sealed 12 times · last 28 Oct 2026, 14:02" ("Sealed once"; "last time not recorded" when the sealing computer's clock was not set), and, in the warning tone, "An older copy: sealed 9 times. A copy sealed 12 times was open since power-on." when the copy is not the newest seen |
 | the line under the state | the file and its unlock cost ("vault.kdbx · 64 MiB · 3 passes"); with more than one vault open, a button per vault, the one shown filled |
@@ -62,6 +64,20 @@ BIP-39 passphrase also has **Save with its passphrase**. **Save a
 wallet** lists each wallet loaded and not in the vault, with **Save**.
 With none left: **Every key in this session is in the vault**, **Every
 wallet in this session is in the vault**.
+
+## Change passphrase and Memory
+
+**Change passphrase** takes **New passphrase** and **Passphrase again**.
+It refuses an empty passphrase and two that differ, and does not ask for
+the old one, because the vault is open. **Memory** lists the file's five
+steps, with **Next seal** on the one the next seal writes. A step this
+computer cannot unlock with is refused when pressed. Pressing the step the
+vault already has changes nothing, and takes back another one pending.
+
+Either counts as an unsaved change, so the next lock seals it. Copies of
+the vault sealed before keep their old passphrase and step. Memory weighs
+only this computer: a step higher than another computer has free cannot be
+unlocked there. **Cancel** drops what was typed.
 
 ## A key
 
