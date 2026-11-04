@@ -334,6 +334,14 @@ impl InboxArea {
 }
 
 impl Faraday {
+    /// Whether the Inbox holds a file of this name and size: the stick
+    /// row says "In Faraday".
+    pub fn inbox_holds(&self, name: &str, size: u64) -> bool {
+        self.inbox
+            .iter()
+            .any(|i| i.name == name && i.bytes.len() as u64 == size)
+    }
+
     /// The Inbox PSBT to offer first: the one with the fewest signatures,
     /// so a cosigner's signed copy never stands in for the transaction.
     /// Reads what each file said when it came in ([`Item::psbt`]).

@@ -223,6 +223,10 @@ pub const STICK_FIGURE_W: f32 = 168.0;
 pub const ROW: f32 = 56.0;
 /// How far in a multi-choice row's label starts: past its checkbox.
 pub const LIST_INDENT: f32 = 40.0;
+/// A step-card column's inset from its area, each side.
+pub const FLOW_INSET: f32 = 40.0;
+/// A step-card column's widest.
+pub const FLOW_MAX: f32 = 900.0;
 /// What a multi-choice row's label leaves free at its right: the
 /// checkbox's place and the row's edge.
 pub const LIST_RESERVE: f32 = 50.0;

@@ -25,6 +25,8 @@ pub enum Go {
     Explore,
     /// BIP-85.
     Bip85,
+    /// Convert a seed.
+    Convert,
     /// A vanity address.
     Vanity,
     /// Silent payments.
@@ -159,6 +161,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_child_seeds_line,
         tags: &["BIP-85"],
         go: Go::Bip85,
+    },
+    Tile {
+        group: EN.catalog_keys_and_seeds,
+        name: EN.catalog_convert_a_seed,
+        line: EN.catalog_convert_a_seed_line,
+        tags: &["BIP-32", "BIP-39"],
+        go: Go::Convert,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -486,6 +495,7 @@ impl Faraday {
             }
             Go::Explore => self.act(Action::Explore),
             Go::Bip85 => self.act(Action::Bip85),
+            Go::Convert => self.act(Action::Convert(crate::convert::ConvertAction::Open)),
             Go::Vanity => self.act(Action::Vanity(crate::vanity::VanityAction::Open)),
             Go::Silent => self.act(Action::Silent),
             Go::Lightning => self.act(Action::Lightning),

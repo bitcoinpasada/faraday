@@ -264,6 +264,8 @@ pub(crate) enum Scrolled {
     Silent,
     /// BIP-85.
     Bip85,
+    /// Convert a seed.
+    Convert,
     /// New key.
     KeyGen,
     /// Vanity.
@@ -432,6 +434,9 @@ impl Faraday {
                 }
                 Scrolled::Bip85 => {
                     self.bip85.set_scroll(to);
+                }
+                Scrolled::Convert => {
+                    self.tools.convert_mut().set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     self.keygen.set_scroll(to);

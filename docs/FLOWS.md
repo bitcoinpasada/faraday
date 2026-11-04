@@ -132,13 +132,19 @@ under a card of several values (steppers, ticks, typing) and where the
 press is the act.
 
 **Back within a flow** (F104). In Restore, Sign a transaction, the Spend
-tab, Sign a message, Create a vault, BIP-85, Silent payments and Vanity,
+tab, Sign a message, Create a vault, BIP-85, Convert a seed, Silent payments and Vanity,
 Back opens the step before the open one with its choices as they were,
 and the way back is named after it; Back from the first step leaves the
 flow as F77 says. A running step (a vault being made, a search under
 way) takes no Back. Once a wallet is made from its seeds, or a key here
 has signed, or a MuSig2 round is open here, Back goes back no further
-than the step after it. Escape is Back on BIP-85 and Vanity.
+than the step after it. Escape is Back on BIP-85, Convert a seed and Vanity.
+
+**Convert a seed** (`docs/SEED-CONVERSION.md` §6). Tools' tile opens From, the
+loaded keys and **Add a key**, which returns here; with one key loaded, To
+opens on it. A press under To works out the value, on the tick after a
+frame, and Result opens with it masked, its Facts and **Done**. A dimmed row
+under To takes no press. Leaving Result, or the flow, drops the value.
 
 **Mouse and typing** (decision 47). On the desktop the mouse's back
 button does what Back does (F77, F104: within a flow the step before,
@@ -1831,7 +1837,7 @@ Every screen whose state is kept when it is left, read from the code:
 | GPG, Secure Boot keys | Tools | `backup_flows` | past Where it will be kept | Done | the kind's tile resumes one not made; nothing lets one go | kept |
 | A wallet's backup flow, on its own | Wallets | `backup_flows` | past The plan, or the keys made | Done | Back up's plan | kept |
 | New key, Add a key | — | `keygen` | | | dropped when its screen is left | |
-| BIP-85, Silent payments, Lightning, Explore, the calculators, Vanity, the word list | — | dropped when left | | | | |
+| BIP-85, Convert a seed, Silent payments, Lightning, Explore, the calculators, Vanity, the word list | — | dropped when left | | | | |
 | A transaction taken apart, Check a message, a stick visit, Set the time | — | one page, or set afresh each time | | | | |
 
 What the spec did not foresee:

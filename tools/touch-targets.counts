@@ -74,6 +74,7 @@ small_240x320 BackupFlow Flow 8
 small_240x320 BackupFlow Vault 1
 small_240x320 Bip85 PStep 1
 small_240x320 Catalog WordList 1
+small_240x320 Convert Convert 1
 small_240x320 Create CStep 4
 small_240x320 CreateVault Vault 2
 small_240x320 CreateVault WordList 3
@@ -102,6 +103,7 @@ small_480x640 BackupFlow Flow 10
 small_480x640 BackupFlow Vault 1
 small_480x640 Bip85 PStep 1
 small_480x640 Catalog WordList 1
+small_480x640 Convert Convert 1
 small_480x640 Create CStep 6
 small_480x640 CreateVault Vault 2
 small_480x640 CreateVault WordList 3
@@ -157,6 +159,7 @@ stick_1024x600 BackupFlow Vault 1
 stick_1024x600 Bip85 PStep 2
 stick_1024x600 Catalog Osk 38
 stick_1024x600 Catalog WordList 1
+stick_1024x600 Convert Convert 3
 stick_1024x600 Create CStep 6
 stick_1024x600 CreateVault Osk 38
 stick_1024x600 CreateVault Vault 10

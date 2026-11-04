@@ -729,6 +729,8 @@ pub enum Action {
     Family(family::FamilyAction),
     /// A vanity screen action.
     Vanity(vanity::VanityAction),
+    /// A Convert a seed action.
+    Convert(crate::convert::ConvertAction),
     /// Fill a slot with the account key in an Inbox file.
     CSlotFile(u8, usize),
     /// Empty a slot.

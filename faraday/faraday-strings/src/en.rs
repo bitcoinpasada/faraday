@@ -1034,6 +1034,80 @@ strings! {
     /// Button in `compact`.
     backups_next: "Next",
     // ----- bip85 (faraday-core/src/bip85/mod.rs) -----
+    /// Convert a seed's heading and its name on a small panel.
+    convert_title: "Convert a seed",
+    /// Convert a seed's way back.
+    convert_tools: "Tools",
+    /// A Convert a seed card.
+    convert_from_title: "From",
+    /// A Convert a seed card.
+    convert_to_title: "To",
+    /// A Convert a seed card.
+    convert_result_title: "Result",
+    /// A card's summary with nothing chosen.
+    convert_not_chosen: "Not chosen",
+    /// From's way to load another key.
+    convert_add_a_key: "Add a key",
+    /// A key loaded from words, by how many.
+    convert_from_words: "BIP-39 words, {}",
+    /// A key loaded from codex32, by the string's length.
+    convert_from_codex32: "codex32, {} characters",
+    /// A key loaded from a master seed in another form.
+    convert_from_seed: "Master seed",
+    /// A target under To.
+    convert_seed: "Master seed, hex",
+    /// The standard of `convert_seed`, and its Standard fact.
+    convert_seed_line: "BIP-32 seed",
+    /// A target under To.
+    convert_xprv: "xprv",
+    /// `convert_xprv` on a test network.
+    convert_tprv: "tprv",
+    /// The standard of `convert_xprv`, and its Standard fact.
+    convert_xprv_line: "BIP-32 master extended private key",
+    /// A dimmed row under To.
+    convert_no_words: "BIP-39 words",
+    /// Its line.
+    convert_no_words_line: "BIP-39 words cannot be made from a seed",
+    /// A dimmed row under To.
+    convert_no_shares: "SLIP-39 or codex32",
+    /// Its line.
+    convert_no_shares_line: "Another wallet: these bytes as SLIP-39 or codex32 open a different, empty wallet",
+    /// A dimmed row under To.
+    convert_no_list: "BIP-39 words in another language",
+    /// Its line.
+    convert_no_list_line: "Another wallet: the seed is made from the words' text",
+    /// A dimmed row under To.
+    convert_no_shamir39: "Shamir39",
+    /// Its line.
+    convert_no_shamir39_line: "Not offered",
+    /// In place of a value that read back as another wallet.
+    convert_not_same_wallet: "Not shown: it did not read back as the same wallet",
+    /// In place of a value not given for any other reason.
+    convert_not_given: "Not shown: this key cannot be written in this form",
+    /// A fact's label on Result.
+    convert_standard: "Standard",
+    /// A fact's label on Result.
+    convert_restores_in: "Restores in",
+    /// Where a master seed in hex restores.
+    convert_seed_restores: "any BIP-32 library; Faraday; no common wallet takes a raw seed",
+    /// Where an xprv restores.
+    convert_xprv_restores: "Sparrow (master private key), Bitcoin Core (in a descriptor with the wallet's path), Faraday; Electrum takes an xprv as the account, not the master, so its addresses differ",
+    /// A fact's label on Result.
+    convert_fingerprint: "Fingerprint",
+    /// The fingerprint fact.
+    convert_same_as_source: "{} · same as the source",
+    /// A fact's label on Result.
+    convert_paths: "Paths",
+    /// A line of the Paths fact: a wallet's name and a path.
+    convert_wallet_path: "Wallet '{}' · {}",
+    /// The Paths fact where no loaded wallet holds the key.
+    convert_no_wallet: "No loaded wallet holds this key",
+    /// A fact's label on Result.
+    convert_passphrase: "Passphrase",
+    /// The passphrase fact.
+    convert_holds_passphrase: "Holds the passphrase's wallet: restore it with no passphrase",
+    /// Result's button.
+    convert_done: "Done",
     /// Toast in `bip85_open`.
     bip85_load_a_key_first: "Load a key first",
     /// Text in `bip85_title`, and a key recorded as a child seed where its
@@ -1244,6 +1318,10 @@ strings! {
     catalog_child_seeds: "Child seeds and passwords",
     /// Text in `TILES`.
     catalog_child_seeds_line: "Derived from a key here",
+    /// Text in `TILES`.
+    catalog_convert_a_seed: "Convert a seed",
+    /// Text in `TILES`.
+    catalog_convert_a_seed_line: "The same wallet in another standard",
     /// Text in `TILES`.
     catalog_vanity_address: "Vanity address",
     /// Text in `TILES`.

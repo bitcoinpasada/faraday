@@ -54,6 +54,7 @@ mod codex32_vault_set;
 mod codex32qr_copy;
 mod collect;
 mod common;
+mod convert;
 mod create_musig;
 mod create_shares;
 mod create_vault;

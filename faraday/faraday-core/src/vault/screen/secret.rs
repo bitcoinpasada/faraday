@@ -47,7 +47,7 @@ fn secret_eye(ui: &mut Ui, x: f32, y: f32, w: f32, (action, shown): (Action, boo
 }
 
 /// [`secret`] with the value made only while it shows.
-pub(super) fn secret_with(
+pub(crate) fn secret_with(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     value: impl FnOnce() -> zeroize::Zeroizing<String>,

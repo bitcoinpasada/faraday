@@ -171,12 +171,24 @@ pub struct ToolsArea {
     tools: Option<ToolsState>,
     /// What is typed in Tools' Find a tool.
     catalog_find: String,
+    /// Convert a seed, a tool with a flow of its own.
+    convert: crate::convert::ConvertArea,
 }
 
 impl ToolsArea {
     /// The open calculator's state, with Tools open.
     pub fn state(&self) -> Option<&ToolsState> {
         self.tools.as_ref()
+    }
+
+    /// Convert a seed's flow.
+    pub(crate) fn convert(&self) -> &crate::convert::ConvertArea {
+        &self.convert
+    }
+
+    /// Convert a seed's flow, to change.
+    pub(crate) fn convert_mut(&mut self) -> &mut crate::convert::ConvertArea {
+        &mut self.convert
     }
 
     /// What is typed in Find a tool.

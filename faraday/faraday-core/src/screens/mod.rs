@@ -115,6 +115,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::CreateVault
         | Screen::Entry
         | Screen::Bip85
+        | Screen::Convert
         | Screen::Silent
         | Screen::Lightning
         | Screen::Vanity
@@ -548,6 +549,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Entry => entry::draw(app, ui, x, cw, h),
         Screen::KeyGen => crate::keygen::screen::draw(app, ui, x, cw, h),
         Screen::Bip85 => crate::bip85::screen::draw(app, ui, x, cw, h),
+        Screen::Convert => crate::convert::screen::draw(app, ui, x, cw, h),
         Screen::Silent => crate::silent::screen::draw(app, ui, x, cw, h),
         Screen::Explore => crate::explore::screen::draw(app, ui, x, cw, h),
         Screen::Lightning => crate::lightning::screen::draw(app, ui, x, cw, h),

@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`
-**Open:** batches S3 to S7 (§10): the screen, Practice
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's master seed in hex and xprv with §5's lines, and Result
+**Open:** the rest of batch S3 (Check my copy, Save as a file, open vaults' keys in From, §4.1's targets, the chart sheet and Explore's ways in) and batches S4 to S7 (§10)
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -77,8 +77,10 @@ standard it is and which software restores it.
   `codex32_converted`, each for `Reveal::PaperForm` only and each read
   back through its standard's decoder to the key's master fingerprint
   before it is returned (`Convert::NotSameWallet` otherwise).
-- **Not built**: the SLIP-39 set actions on a screen (§8), the tool
-  itself.
+- **Not built**: the SLIP-39 set actions on a screen (§8); in the tool
+  (`faraday/faraday-core/src/convert/`), Check my copy, Save as a file,
+  open vaults' keys in From, every target but a master seed in hex and an
+  xprv, the Settings step, and the chart sheet's and Explore's ways in.
 - **Leaving the store**: a paper form leaves through
   `Reveal::PaperForm` (`faraday/faraday-keys/src/session.rs`), which
   names Seed XOR, codex32, SLIP-39, a master seed as hex and an xprv, each

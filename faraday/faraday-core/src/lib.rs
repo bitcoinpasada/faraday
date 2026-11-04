@@ -103,6 +103,7 @@
 //! | `CreateVault` | `vault/screen.rs` |
 //! | `KeyGen` | `keygen/screen.rs` |
 //! | `Bip85` | `bip85/screen.rs` |
+//! | `Convert` | `convert/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
 //! | `Lightning` | `lightning/screen.rs` |
@@ -174,6 +175,7 @@ pub mod boot_import;
 pub mod chart_edit;
 pub mod codex32;
 pub mod codex32_correct;
+pub mod convert;
 pub mod create;
 mod create_from;
 pub mod forms;
@@ -333,6 +335,8 @@ pub enum Screen {
     KeyGen,
     /// BIP-85: child seeds, keys and passwords from a loaded key.
     Bip85,
+    /// A loaded key written in another standard, the same wallet.
+    Convert,
     /// Silent payments: a loaded key's address and scan key.
     Silent,
     /// A loaded key's public side at any path.
@@ -2351,6 +2355,7 @@ impl Faraday {
         self.keygen.forget();
         self.wordlist.clear();
         self.bip85.clear();
+        self.tools.convert_mut().clear();
         self.explore.clear();
         self.secrets.clear();
         self.entry.reset();
@@ -2622,6 +2627,7 @@ impl Faraday {
             Action::Host(_) => {}
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
+            Action::Convert(c) => convert::act(self, c),
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
@@ -4358,14 +4364,6 @@ impl Faraday {
             .collect()
     }
 
-    /// Whether the Inbox holds a file of this name and size: the stick
-    /// row says "In Faraday".
-    pub fn inbox_holds(&self, name: &str, size: u64) -> bool {
-        self.inbox
-            .iter()
-            .any(|i| i.name == name && i.bytes.len() as u64 == size)
-    }
-
     /// The Inbox files Select all chooses on a visit: the public and
     /// sealed ones it lists, never one that may be a secret.
     fn visit_inbox_plain(&self) -> BTreeSet<String> {
@@ -4616,7 +4614,7 @@ impl Faraday {
         if self.tools_key(key) {
             return;
         }
-        if self.lightning_key(key) {
+        if self.lightning_key(key) || convert::key(self, key) {
             return;
         }
         if self.explore_key(key) {
@@ -5489,6 +5487,7 @@ impl Faraday {
             self.bip85.clear();
         }
         self.shown_tidy();
+        convert::tidy(self);
         if self.screen != Screen::Tools {
             self.tools.close();
         }

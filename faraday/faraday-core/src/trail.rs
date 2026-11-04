@@ -667,6 +667,7 @@ impl Faraday {
             Screen::Message => &crate::screens::MESSAGE_STEPS,
             Screen::CreateVault => &crate::vault::CREATE_VAULT_STEPS,
             Screen::Bip85 => &crate::bip85::BIP85_STEPS,
+            Screen::Convert => &crate::convert::CONVERT_STEPS,
             Screen::Silent => &crate::silent::SILENT_STEPS,
             Screen::Vanity => &crate::vanity::VANITY_STEPS,
             Screen::KeyGen => &crate::keygen::steps::KEYGEN_STEPS,

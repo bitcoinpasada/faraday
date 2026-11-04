@@ -45,6 +45,12 @@ impl View<'_> {
         self.app.bip85.held()
     }
 
+    /// Convert a seed's value, held since its press: a borrow, nothing
+    /// costs.
+    pub fn convert_held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+        self.app.tools.convert().held()
+    }
+
     /// A vault key record's words, read for this frame to be shown
     /// ([`faraday_keys::vault::OpenVaults::words_of`];
     /// [`Allowed::SecretShown`]). Costs a parse of the words.

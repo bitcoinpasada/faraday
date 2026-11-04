@@ -293,7 +293,9 @@ impl Faraday {
             Screen::Vanity => vec![&EN.passphrases, &EN.wallet_kinds],
             Screen::Lightning => vec![&EN.tools, &EN.glossary],
             Screen::Tools => vec![&EN.tools, &EN.glossary],
-            Screen::Bip85 => vec![&EN.words, &EN.passphrases, &EN.tools, &EN.glossary],
+            Screen::Bip85 | Screen::Convert => {
+                vec![&EN.words, &EN.passphrases, &EN.tools, &EN.glossary]
+            }
             Screen::Backup => {
                 // A multisig's backup can keep shares of its description.
                 let splits = self

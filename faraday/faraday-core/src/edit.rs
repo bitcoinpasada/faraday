@@ -994,6 +994,7 @@ impl Faraday {
             Screen::Message => self.message.state().is_some(),
             Screen::Vanity => self.vanity.state().is_some(),
             Screen::Bip85 => self.bip85.state().is_some(),
+            Screen::Convert => self.tools.convert().state().is_some(),
             Screen::Silent => self.silent.state().is_some(),
             Screen::Explore => self.explore.state().is_some(),
             Screen::Lightning => self.lightning.state().is_some(),

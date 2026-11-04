@@ -140,6 +140,7 @@ fn offer_rotation(app: &mut Faraday, size: (u16, u16), dpi: u16) {
 /// The tours `faraday-snapshot` runs by name.
 pub(crate) const TOURS: &[&str] = &[
     "spend",
+    "convert",
     "devices",
     "toasts",
     "themes",
@@ -277,6 +278,7 @@ fn run(
 fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String>> {
     Some(match name {
         "spend" => tours::spend::spend_tour(t),
+        "convert" => tours::convert::convert_tour(t),
         "devices" => tours::devices::devices_tour(t),
         "toasts" => tours::devices::toasts_tour(t),
         "themes" => tours::themes::themes_tour(t),

@@ -125,6 +125,7 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::Entry
         | Screen::KeyGen
         | Screen::Bip85
+        | Screen::Convert
         | Screen::Silent
         | Screen::Explore
         | Screen::Lightning

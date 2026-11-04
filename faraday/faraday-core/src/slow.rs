@@ -77,6 +77,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
             | Action::SelfTestRun
             | Action::Vanity(vanity::VanityAction::Use)
+            | Action::Convert(crate::convert::ConvertAction::To(_))
             | Action::Chart(
                 C::Checked(..) | C::Confirm(_) | C::Do(..) | C::Edit(..) | C::PassTry(_)
             )
