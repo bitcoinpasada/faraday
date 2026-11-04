@@ -20,7 +20,8 @@ fn open(t: &mut Tour) -> Result<(), String> {
 /// Convert a seed (`docs/SEED-CONVERSION.md` §6): From with no key, From
 /// with an open vault's key, and that key loaded; To for a key of words; the
 /// xprv's Result masked and shown; Check my copy typing, wrong and right; and
-/// the Secret out sheet; Seed XOR's Settings card and its result of parts.
+/// the Secret out sheet; Seed XOR's Settings card and its result of parts; a key
+/// of seed bytes, SLIP-39 k of n's Settings card and its result of groups.
 pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     open(t)?;
     t.shot("convert-from-empty")?;
@@ -121,5 +122,41 @@ pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("convert-way-in-explore")?;
     t.press(Action::Convert(C::OpenOn(fp)));
     t.shot("convert-opened-on-key")?;
+    t.press(Action::Convert(C::Done));
+    slip_tour(t)
+}
+
+/// A key of seed bytes: the SLIP-39 k of n Settings card, a result of
+/// groups, and a share checked by its group.
+fn slip_tour(t: &mut Tour) -> Result<(), String> {
+    let seed = [0x5au8; 16];
+    t.app
+        .session
+        .keys
+        .add_seed(&testkit::compute(), &seed, "Seed")
+        .map_err(|_| "no seed key")?;
+    let fp = t.app.session.keys[t.app.session.keys.len() - 1]
+        .fingerprint
+        .0;
+    t.press(Action::Convert(C::OpenOn(fp)));
+    t.shot("convert-seed-to")?;
+    let slip = ROWS
+        .iter()
+        .position(|r| r.name == "SLIP-39, k of n")
+        .ok_or("no SLIP-39 k of n row")?;
+    t.press(Action::Convert(C::To(slip as u8)));
+    t.shot("convert-slip-settings")?;
+    t.press(Action::Convert(C::SlipGroups(1)));
+    t.shot("convert-slip-groups")?;
+    t.press(Action::Convert(C::Make));
+    t.tick();
+    t.press(Action::Convert(C::Make));
+    t.press(Action::Convert(C::Show));
+    t.shot("convert-slip-result")?;
+    let share = convert::shown_parts(&t.app).ok_or("no shares")?[4].to_string();
+    t.press(Action::Convert(C::Check));
+    type_text(t, &share);
+    t.press(Action::Convert(C::Compare));
+    t.shot("convert-slip-matches")?;
     Ok(())
 }

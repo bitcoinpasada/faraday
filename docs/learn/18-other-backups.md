@@ -10,7 +10,7 @@ SLIP-39 is Shamir's Secret Sharing over a word list, published by Trezor. It spl
 
 Its words are not BIP-39's. The list is a different one, a share is a different length from a seed phrase, and a share cannot be typed into a wallet that expects seed words. A SLIP-39 backup and a BIP-39 backup of the same wallet are not interchangeable: you choose one at the moment the key is made.
 
-Pick it when you want a real threshold and your devices and heirs will have SLIP-39 software. Faraday reads it, groups and all, and writes it. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz. A key made of BIP-39 words is not backed up as SLIP-39 shares: a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation takes.
+Pick it when you want a real threshold and your devices and heirs will have SLIP-39 software. Faraday reads it, groups and all, and writes it. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz. Tools › Convert a seed writes a key loaded from a master seed (codex32 or SLIP-39) as a SLIP-39 set of k of n shares, or of groups, with the same wallet. A key made of BIP-39 words is not backed up as SLIP-39 shares: a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation takes.
 
 ## Codex32
 

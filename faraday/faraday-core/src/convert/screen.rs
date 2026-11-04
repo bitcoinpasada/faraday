@@ -5,7 +5,7 @@ use crate::convert::{
     standard_text,
 };
 use crate::drawing::{Scrolled, View};
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::ui::pal::{Role, on_selected, selected_or};
 use crate::ui::{Style, Ui};
 use crate::wallet::{fp_text, key_line};
@@ -176,9 +176,10 @@ fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
     cy - y
 }
 
-/// Settings: Seed XOR's parts, or a codex32 set's threshold and count, each
-/// on a Stepper; where the set draws randomness, its Fact. SLIP-39's
-/// shares and groups would stand here too.
+/// Settings: Seed XOR's parts, a codex32 set's threshold and count, or a
+/// SLIP-39 set's groups, groups needed and each group's shares needed and
+/// made, each on a Stepper (as New key's); where the set draws randomness,
+/// its Fact.
 fn settings_card(_app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let steps = tokens::ICON_BUTTON + GAP_SMALL;
@@ -193,6 +194,47 @@ fn settings_card(_app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f3
                 true,
             );
             cy += steps;
+            true
+        }
+        Some(Target::SlipSet) => {
+            let one = s.slip.len() == 1;
+            let mut step = |ui: &mut Ui, label: &str, value: u8, (less, more): (C, C), on: bool| {
+                let (less, more) = (Action::Convert(less), Action::Convert(more));
+                ui.stepper((x, cy, w), label, usize::from(value), (less, more), on);
+                cy += steps;
+            };
+            step(
+                ui,
+                EN.convert_slip39_groups,
+                s.slip.len() as u8,
+                (C::SlipGroups(-1), C::SlipGroups(1)),
+                true,
+            );
+            if !one {
+                step(
+                    ui,
+                    EN.convert_slip39_groups_needed,
+                    s.slip_t,
+                    (C::SlipGroupK(-1), C::SlipGroupK(1)),
+                    true,
+                );
+            }
+            for (g, &(k, n)) in s.slip.iter().enumerate() {
+                let (g8, num) = (g as u8, (g + 1).to_string());
+                let (needed, made) = if one {
+                    (
+                        EN.convert_slip39_needed.to_string(),
+                        EN.convert_slip39_made.to_string(),
+                    )
+                } else {
+                    (
+                        fill(EN.convert_slip39_group_needed, &[&num]),
+                        fill(EN.convert_slip39_group_made, &[&num]),
+                    )
+                };
+                step(ui, &needed, k, (C::SlipK(g8, -1), C::SlipK(g8, 1)), n > 1);
+                step(ui, &made, n, (C::SlipN(g8, -1), C::SlipN(g8, 1)), true);
+            }
             true
         }
         Some(Target::Codex32) => {
@@ -292,8 +334,18 @@ fn row(
 fn found_line(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     match crate::convert::found(app) {
         Some(true) => {
+            let groups = crate::convert::state(app)
+                .map(crate::convert::groups_made)
+                .unwrap_or_default();
             let line = match crate::convert::found_part(app) {
-                Some(n) => crate::strings::fill(EN.convert_copy_matches_part, &[&n.to_string()]),
+                Some(n) if groups.len() > 1 => {
+                    let (g, m) = crate::convert::place_in(&groups, n - 1);
+                    fill(
+                        EN.convert_copy_matches_group_share,
+                        &[&g.to_string(), &m.to_string()],
+                    )
+                }
+                Some(n) => fill(EN.convert_copy_matches_part, &[&n.to_string()]),
                 None => EN.convert_copy_matches.to_string(),
             };
             ui.wrap_as((x, y, w), LABEL_L, Role::Ok, &line) + GAP
@@ -367,7 +419,8 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             } else {
                 // The closure runs only with the eye open; its copy lives
                 // for the frame, wiped, and is on no state.
-                let text = || held.and_then(Value::display).unwrap_or_default();
+                let groups = crate::convert::groups_made(s);
+                let text = || held.and_then(|v| v.display(&groups)).unwrap_or_default();
                 crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye)
             } + GAP;
             let mut fact = |ui: &mut Ui, label: &str, value: &str| {

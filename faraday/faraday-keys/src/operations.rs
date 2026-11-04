@@ -97,6 +97,13 @@ pub fn codex32_random_len(k: u8) -> usize {
     usize::from(k.saturating_sub(1)) * codex32::symbols_for(64)
 }
 
+/// The fresh bytes a SLIP-39 set of these groups takes at most (a lookup),
+/// for the longest secret, 32 bytes: two for the identifier, then what the
+/// split asks for ([`slip39::random_len`]).
+pub fn slip39_random_len(group_threshold: u8, groups: &[slip39::GroupSpec]) -> usize {
+    2 + slip39::random_len(32, group_threshold, groups)
+}
+
 impl Keys {
     /// Costs a parse of the words, a PBKDF2, key derivations and an
     /// elliptic-curve multiplication. The Lightning node key ldk-node
@@ -457,6 +464,105 @@ impl Keys {
             .and_then(|share| slip39_seed(c, &[share], b"").ok())
             .and_then(|secret| fingerprint_of_seed(c, &secret));
         checked(s.master.fingerprint(), read, text)
+    }
+
+    /// Costs a master key, a PBKDF2 for the split and two more for the
+    /// read back. Key `i`'s seed bytes as a SLIP-39 set (`group_threshold`
+    /// of the `groups`, each a threshold of its members), given only for
+    /// `Reveal::PaperForm`; a key with words is refused
+    /// ([`Convert::Words`]), as is a length other than 16 or 32 bytes
+    /// ([`Convert::Length`]), and a shape the split refuses, or too
+    /// little `random` ([`slip39_random_len`], the secret's own length
+    /// needing less), [`Convert::Refused`]. The passphrase is empty, the
+    /// set extendable, the iteration exponent 1; the first two bytes of
+    /// `random` are the identifier, the rest the split's. Read back: the
+    /// first threshold's worth of members of each of the first
+    /// `group_threshold` groups and the last threshold's worth of each of
+    /// the last, each parsed and recovered with an empty passphrase, give
+    /// the key's fingerprint; anything else is [`Convert::NotSameWallet`].
+    /// The shares are in group, then member order.
+    pub fn slip39_converted(
+        &self,
+        c: &Compute,
+        i: usize,
+        group_threshold: u8,
+        groups: &[slip39::GroupSpec],
+        random: &[u8],
+        why: Reveal,
+    ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        let seed = match (s.words, s.seed) {
+            (Some(_), _) => return Err(Convert::Words),
+            (None, Some(bytes)) => bytes,
+            (None, None) => return Err(Convert::NotGiven),
+        };
+        if seed.len() != 16 && seed.len() != 32 {
+            return Err(Convert::Length);
+        }
+        let need = 2 + slip39::random_len(seed.len(), group_threshold, groups);
+        let random = random.get(..need).ok_or(Convert::Refused)?;
+        let (id, mut rest) = random.split_at(2);
+        let identifier = u16::from_le_bytes([id[0], id[1]]) & 0x7fff;
+        let mut fill = |out: &mut [u8]| {
+            let (now, after) = rest.split_at(out.len());
+            out.copy_from_slice(now);
+            rest = after;
+        };
+        let total: usize = groups.iter().map(|g| usize::from(g.count)).sum();
+        let mut shares = Vec::new();
+        shares.resize_with(total, Share::default);
+        let made = slip39::split(
+            c,
+            seed,
+            b"",
+            identifier,
+            true,
+            1,
+            group_threshold,
+            groups,
+            &mut fill,
+            &mut shares,
+        )
+        .map_err(|_| Convert::Refused)?;
+        if made != total {
+            return Err(Convert::NotSameWallet);
+        }
+        let mut lines = Vec::with_capacity(total);
+        for share in &shares {
+            let mut text = faraday_intake::secret_buf::room();
+            for n in 0..share.word_count() {
+                if n > 0 {
+                    text.push(' ');
+                }
+                text.push_str(share.word(n));
+            }
+            lines.push(text);
+        }
+        // Where each group's members start among the lines.
+        let mut starts = Vec::with_capacity(groups.len());
+        let mut at = 0;
+        for g in groups {
+            starts.push(at);
+            at += usize::from(g.count);
+        }
+        let g = usize::from(group_threshold);
+        let recovers = |chosen: &mut dyn Iterator<Item = usize>| {
+            let parsed: Option<Vec<Share>> = chosen.map(|n| Share::parse(&lines[n]).ok()).collect();
+            parsed
+                .and_then(|p| slip39_seed(c, &p, b"").ok())
+                .and_then(|secret| fingerprint_of_seed(c, &secret))
+        };
+        let mut first =
+            (0..g).flat_map(|gi| starts[gi]..starts[gi] + usize::from(groups[gi].threshold));
+        let mut last = (groups.len() - g..groups.len()).flat_map(|gi| {
+            let end = starts[gi] + usize::from(groups[gi].count);
+            end - usize::from(groups[gi].threshold)..end
+        });
+        let (a, b) = (recovers(&mut first), recovers(&mut last));
+        if a != b {
+            return Err(Convert::NotSameWallet);
+        }
+        checked(s.master.fingerprint(), a, lines)
     }
 
     /// Costs what [`Keys::seed_xor`] costs and a parse of each part.

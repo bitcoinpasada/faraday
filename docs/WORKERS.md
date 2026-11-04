@@ -103,7 +103,7 @@ table together and says in its message what was measured on what.
 | Signing | A PSBT signed, on the Spend tab or from a review | Job |
 | A PSBT's inspection | A PSBT parsed and inspected, from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`); the key references it is given are worked out on the main thread, and a scanned card's one-line fact (`read_psbt_fact`) still parses there, both left for W9's measurement on a Pi | Job |
 | A set of files | A wallet's public files (`PublicOut` 2, 4 and 14: the multisig config checked, the split shares, Specter's numbered pictures), the backup's checklist (`BChecklist`) and its Make the files (`BFilesMake`): jobs (W7); the backup stick's files made at Lock and write and the flow's writes (`Flow`), which write to a stick beside secret words | Job (the files made inside Lock and write stay with the write, §7.3) |
-| PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered | Drawn first |
+| PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered, Convert a seed's SLIP-39 set among them (a split and two read-backs: at the stand-in's line for two groups) | Drawn first |
 | One picture or one PDF | A SeedQR picture, a seed's words or a paper form, one backup sheet | Drawn first |
 | The self-test | Run self-test (`SelfTestRun`) | Drawn first |
 | Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | Drawn first until W1 times them with the stand-in |

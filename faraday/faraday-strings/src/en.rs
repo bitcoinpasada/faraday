@@ -1222,6 +1222,34 @@ strings! {
     convert_slip39_restores: "Trezor (Model T, Safe 3, Safe 5), Faraday",
     /// Name of a SLIP-39 backup on the secret sheet.
     convert_secret_slip39: "A seed's SLIP-39 words",
+    /// The SLIP-39 k of n row under To.
+    convert_slip39_set: "SLIP-39, k of n",
+    /// The line of `convert_slip39_set`.
+    convert_slip39_set_line: "SLIP-39, shares in one group or in several, 20 or 33 words each",
+    /// The Standard fact of one SLIP-39 group. `{}`: shares needed, then shares made.
+    convert_slip39_set_standard: "SLIP-39, {} of {} shares",
+    /// The Standard fact of several SLIP-39 groups. `{}`: groups needed, how many groups, then each group's `convert_slip39_shape`.
+    convert_slip39_groups_standard: "SLIP-39, {} of {} groups: {}",
+    /// One group's shape in `convert_slip39_groups_standard`. `{}`: shares needed, then shares made.
+    convert_slip39_shape: "{} of {}",
+    /// Between the groups' shapes in `convert_slip39_groups_standard`, followed by a space.
+    convert_slip39_shape_sep: ",",
+    /// Settings: how many SLIP-39 groups, on a stepper.
+    convert_slip39_groups: "Groups",
+    /// Settings: how many groups are needed, on a stepper.
+    convert_slip39_groups_needed: "Groups needed",
+    /// Settings: shares needed in the only group, on a stepper.
+    convert_slip39_needed: "Shares needed",
+    /// Settings: shares made in the only group, on a stepper.
+    convert_slip39_made: "Shares made",
+    /// Settings: shares needed in a group, on a stepper. `{}`: the group's number.
+    convert_slip39_group_needed: "Group {} needs",
+    /// Settings: shares made in a group, on a stepper. `{}`: the group's number.
+    convert_slip39_group_made: "Group {} shares",
+    /// A share's number in a result of several groups, before a space and the share. `{}`: its group, then its place in the group.
+    convert_group_share: "Group {}, share {}:",
+    /// Check my copy found the copy is a share of a result of several groups. `{}`: its group, then its place in the group.
+    convert_copy_matches_group_share: "Your copy matches group {}, share {}",
     /// The dimmed SLIP-39 row for a seed of 64 bytes.
     convert_no_slip39_64: "SLIP-39",
     /// The line of `convert_no_slip39_64`.

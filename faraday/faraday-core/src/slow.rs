@@ -80,6 +80,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::Convert(
                 crate::convert::ConvertAction::To(_)
                     | crate::convert::ConvertAction::VaultKey(..)
+                    | crate::convert::ConvertAction::Make
                     | crate::convert::ConvertAction::Save
             )
             | Action::Chart(

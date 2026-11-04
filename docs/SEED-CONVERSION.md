@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
-**Open:** SLIP-39 k of n and groups, a set to a new set, a copy scanned back in Check my copy, and the rest of §10
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S4b, SLIP-39 k of n and groups on the same card and result (§6); batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
+**Open:** a set to a new set, a copy scanned back in Check my copy, and the rest of §10
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -211,14 +211,27 @@ a Settings card between To and Result for Seed XOR and codex32 only:
 Parts (2 to 4), codex32's k (0, then 2 to 9) and n (k to 31, none while k
 is 0), the Fact "Fresh randomness: Faraday's" where a set draws
 randomness, and Make; with no randomness ready a toast says so and the
-card stays. A set is one Held value with one eye, the parts numbered (a
+card stays. Every count is a Stepper, as New key's SLIP-39 split uses. A set is one Held value with one eye, the parts numbered (a
 set of one string, the codex32 secret, unnumbered); Check my copy compares
 one typed string with every part and says which part matched or that it
 differs; Save as a file writes every part, one per line; all are dropped
-when Result is left. In Practice Seed XOR alone is dimmed and codex32's
-secret goes straight to Result. The codex32 length setting of item 3
-below is left out: a loaded key's seed fixes it. The groups, a new set's
-identifier and a copy scanned back are not built.
+when Result is left. In Practice Seed XOR and SLIP-39, k of n are dimmed and
+codex32's secret goes straight to Result. The codex32 length setting of item 3
+below is left out: a loaded key's seed fixes it. 
+Batch S4b added the row **SLIP-39, k of n** (16 or 32 bytes, beside 1 of 1,
+which stays fixed words with no settings). Its card: Groups (1 to 16;
+default one group, 2 of 3), Groups needed (shown for several groups, 2 up to
+their count), and per group the shares needed and shares made (1 to 16): it
+offers only shapes SLIP-39's split takes, so a threshold of 1 stands only
+over one group or one share and never above its count. The result of one
+group is numbered "1:", "2:"; of several, "Group 1, share 2:", and Check my
+copy says "Your copy matches group 1, share 2". Standard: "SLIP-39, 2 of 3
+shares", or for groups "SLIP-39, 2 of 3 groups: 2 of 3, 3 of 5, 1 of 1". The
+file Save writes is every share, one a line, in group order; a line carries
+no group, since a reader of plain share lines would not take one. The
+identifier and shares come from the randomness drawn, the passphrase is
+empty, and the set is read back from a first and a last qualifying subset.
+A new set's identifier and a copy scanned back are not built.
 
 A new step flow, `Screen::Convert`, drawn as DESIGN §5's step flow, from
 DESIGN §4's components; a row in DESIGN §5's table (edit list). Ways in:
@@ -235,9 +248,9 @@ on that key.
 2. **To** (Option rows): the targets §4 offers for that source, by
    group, each with its line naming the standard; then the dimmed rows
    of §5 with their lines.
-3. **Settings** (where the target has any): k and n on Sliders (§4.2)
-   for a split; groups on a Stepper with a threshold Slider per group
-   (SLIP-39); the length (codex32 48 or 74 where the seed allows);
+3. **Settings** (where the target has any): k and n on Steppers
+   (§4.2) for a split; groups on a Stepper with a threshold Stepper per
+   group (SLIP-39); the length (codex32 48 or 74 where the seed allows);
    for a new set, the identifier (codex32, typed as `docs/CODEX32.md`
    §6.2 types it). A row that would draw randomness carries
    "Fresh randomness: Faraday's" as a Fact.

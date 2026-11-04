@@ -966,6 +966,7 @@ fn the_rows_for_seed_bytes_follow_the_seeds_length() {
             .unwrap();
         let rows = rows_listed(&app.session.keys[0]);
         assert_eq!(rows.contains(&"SLIP-39, 1 of 1"), slip, "{len} bytes");
+        assert_eq!(rows.contains(&"SLIP-39, k of n"), slip, "{len} bytes");
         assert_eq!(rows.contains(&"SLIP-39"), dimmed, "{len} bytes");
         assert!(rows.contains(&"codex32"), "{len} bytes");
         assert!(!rows.contains(&"Seed XOR parts"), "{len} bytes");
@@ -981,6 +982,7 @@ fn the_rows_for_seed_bytes_follow_the_seeds_length() {
     let rows = rows_listed(&app.session.keys[0]);
     assert!(rows.contains(&"Seed XOR parts"));
     assert!(!rows.contains(&"SLIP-39, 1 of 1") && !rows.contains(&"codex32"));
+    assert!(!rows.contains(&"SLIP-39, k of n"));
 }
 
 /// Every published SLIP-39 secret of one share, written as SLIP-39 1 of 1,
@@ -1235,6 +1237,268 @@ fn practice_does_not_make_seed_xor() {
     open(&mut app);
     feed(&mut app);
     app.press(Action::Convert(C::To(place("Seed XOR parts"))));
+    let s = convert::state(&app).unwrap();
+    assert_eq!((s.target, s.open), (None, Some(cstep::TO)));
+}
+
+const SLIP_SET: &str = "SLIP-39, k of n";
+
+/// A key of the published secret of one share, with randomness answered.
+fn slip_opened(seed: &[u8]) -> Faraday {
+    let mut app = seed_opened(seed);
+    feed(&mut app);
+    app
+}
+
+/// The seed SLIP-39's decoder gives from the shares of `set` at `at`.
+fn slip_back(set: &[String], at: &[usize]) -> Vec<u8> {
+    let shares: Vec<faraday_bip::slip39::Share> = at
+        .iter()
+        .map(|&i| faraday_bip::slip39::Share::parse(&set[i]).unwrap())
+        .collect();
+    faraday_keys::slip39_seed(&testkit::compute(), &shares, b"")
+        .unwrap()
+        .to_vec()
+}
+
+/// Every published SLIP-39 secret of one share (16 and 32 bytes), made as
+/// the default 2 of 3, is recovered by SLIP-39's decoder from every two of
+/// the three shares.
+#[test]
+fn a_slip39_two_of_three_recovers_the_published_secret_from_any_two() {
+    let v: serde_json::Value = serde_json::from_str(SLIP39).unwrap();
+    let mut seen = Vec::new();
+    for e in v.as_array().unwrap() {
+        let (words, secret) = (e[1].as_array().unwrap(), e[2].as_str().unwrap());
+        if words.len() != 1 || secret.is_empty() {
+            continue;
+        }
+        let seed = unhex(secret);
+        let mut app = slip_opened(&seed);
+        let set = make_set(&mut app, SLIP_SET).unwrap();
+        assert_eq!(set.len(), 3);
+        for at in [[0, 1], [0, 2], [1, 2]] {
+            assert_eq!(slip_back(&set, &at), seed, "{}", e[0]);
+        }
+        seen.push(seed.len());
+    }
+    assert!(seen.contains(&16) && seen.contains(&32));
+}
+
+/// Two groups of 2 of 3, both needed: any two of each group's three,
+/// together, recover the secret; the result names each share's group and
+/// the Standard fact its shape.
+#[test]
+fn a_slip39_set_of_groups_recovers_the_secret_and_names_each_shares_group() {
+    let seed = unhex("ffeeddccbbaa99887766554433221100");
+    let mut app = slip_opened(&seed);
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::SlipGroups(1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let set = convert::shown_parts(&app).unwrap();
+    let set: Vec<String> = set.into_iter().map(str::to_string).collect();
+    assert_eq!(set.len(), 6);
+    for at in [[0, 1, 3, 4], [1, 2, 4, 5], [0, 2, 3, 5], [2, 0, 5, 3]] {
+        assert_eq!(slip_back(&set, &at), seed, "{at:?}");
+    }
+    let shown = opened_up(&mut app);
+    for line in [
+        "Group 1, share 1:",
+        "Group 1, share 3:",
+        "Group 2, share 2:",
+    ] {
+        assert!(
+            shown.iter().any(|t| t.contains(line)),
+            "{line} in {shown:?}"
+        );
+    }
+    assert!(
+        shown
+            .iter()
+            .any(|t| t == "SLIP-39, 2 of 2 groups: 2 of 3, 2 of 3")
+    );
+}
+
+/// One group says "SLIP-39, 2 of 3 shares" and numbers its shares as the
+/// other sets do.
+#[test]
+fn one_slip39_group_is_numbered_plainly_and_names_its_shape() {
+    let mut app = slip_opened(&unhex(SEED_1));
+    let set = make_set(&mut app, SLIP_SET).unwrap();
+    assert_eq!(set.len(), 3);
+    let shown = opened_up(&mut app);
+    assert!(shown.iter().any(|t| t.contains("2: ")), "{shown:?}");
+    assert!(!shown.iter().any(|t| t.contains("Group 1, share")));
+    assert!(shown.iter().any(|t| t == "SLIP-39, 2 of 3 shares"));
+}
+
+/// Whatever is pressed, the card holds to shapes SLIP-39 takes: 1 to 16
+/// groups and shares, a threshold of 1 only over one group or one share,
+/// and never above its count.
+#[test]
+fn the_slip39_card_cannot_reach_a_shape_the_split_refuses() {
+    let mut app = slip_opened(&unhex(SEED_1));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    let s = convert::state(&app).unwrap();
+    assert_eq!((s.slip_t, s.slip.clone()), (1, vec![(2, 3)]));
+    let ok = |app: &Faraday| {
+        let s = convert::state(app).unwrap();
+        let groups = s.slip.len();
+        assert!((1..=16).contains(&groups));
+        assert!(if groups == 1 {
+            s.slip_t == 1
+        } else {
+            (2..=groups).contains(&usize::from(s.slip_t))
+        });
+        for &(k, n) in &s.slip {
+            assert!((1..=16).contains(&n));
+            assert!(if n == 1 { k == 1 } else { (2..=n).contains(&k) });
+        }
+    };
+    let mut seq = Vec::new();
+    for by in [-1, 1, 1, 1, -1, -1, -1, -1, 1] {
+        for g in 0..3 {
+            seq.push(C::SlipK(g, by));
+            seq.push(C::SlipN(g, by * 5));
+            seq.push(C::SlipN(g, by));
+        }
+        seq.push(C::SlipGroupK(by));
+        seq.push(C::SlipGroups(by * 7));
+        seq.push(C::SlipGroups(by));
+    }
+    seq.extend([C::SlipGroups(1); 20]);
+    seq.extend([C::SlipGroupK(-1); 20]);
+    seq.extend([C::SlipGroupK(1); 20]);
+    seq.extend([C::SlipK(15, 1); 20]);
+    seq.extend([C::SlipN(15, -1); 20]);
+    seq.extend([C::SlipN(15, 1); 20]);
+    seq.extend([C::SlipGroups(-1); 20]);
+    for action in seq {
+        app.press(Action::Convert(action));
+        ok(&app);
+    }
+    // A group with one share needs one; a second share makes it 2.
+    app.press(Action::Convert(C::SlipN(0, -16)));
+    assert_eq!(convert::state(&app).unwrap().slip[0], (1, 1));
+    app.press(Action::Convert(C::SlipN(0, 1)));
+    assert_eq!(convert::state(&app).unwrap().slip[0], (2, 2));
+}
+
+/// A group of one share, needed on its own, still makes a set that
+/// recovers; a set of 3 groups needing 2 does with any two groups.
+#[test]
+fn a_slip39_set_with_a_group_of_one_share_recovers() {
+    let seed = unhex(SEED_1);
+    let mut app = slip_opened(&seed);
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::SlipGroups(2)));
+    app.press(Action::Convert(C::SlipN(2, -1)));
+    app.press(Action::Convert(C::SlipN(2, -1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let set: Vec<String> = convert::shown_parts(&app)
+        .unwrap()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(set.len(), 7);
+    for at in [[0, 1, 3, 4], [0, 1, 6, 6], [3, 4, 6, 6]] {
+        let at: Vec<usize> = at
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        assert_eq!(slip_back(&set, &at), seed, "{at:?}");
+    }
+}
+
+/// Check my copy takes one share of a set of groups and says its group and
+/// place; Save writes every share, in group order, one a line.
+#[test]
+fn a_slip39_copy_is_checked_by_group_and_the_file_has_every_share() {
+    let mut app = slip_opened(&unhex(SEED_1));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::SlipGroups(1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let set: Vec<String> = convert::shown_parts(&app)
+        .unwrap()
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &set[4]);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found_part(&app), Some(5));
+    assert!(
+        opened_up(&mut app)
+            .iter()
+            .any(|t| t == "Your copy matches group 2, share 2")
+    );
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &set[0]);
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        opened_up(&mut app)
+            .iter()
+            .any(|t| t == "Your copy matches group 1, share 1")
+    );
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert!(out.name.ends_with("slip39-set.txt"), "{}", out.name);
+    assert_eq!(out.bytes.to_vec(), (set.join("\n") + "\n").into_bytes());
+}
+
+/// With no randomness answered, no SLIP-39 set is made and the card stays;
+/// a key of words and a key of 64 bytes are offered no such row.
+#[test]
+fn no_randomness_gives_no_slip39_set_and_other_keys_do_not_have_the_row() {
+    let mut app = seed_opened(&unhex(SEED_1));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::SETTINGS));
+    app.press(Action::Convert(C::Show));
+    assert_eq!(convert::shown_parts(&app), None);
+    feed(&mut app);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    assert!(convert::shown_parts(&app).is_some());
+
+    let mut words = opened(mainnet(), ABOUT);
+    feed(&mut words);
+    words.press(Action::Convert(C::To(place(SLIP_SET))));
+    assert_eq!(convert::state(&words).unwrap().target, None);
+
+    let mut long = seed_opened(&[3u8; 64]);
+    feed(&mut long);
+    long.press(Action::Convert(C::To(place(SLIP_SET))));
+    assert_eq!(convert::state(&long).unwrap().target, None);
+}
+
+/// In Practice a public key of seed bytes lists SLIP-39 dimmed, and the row
+/// makes nothing.
+#[test]
+fn practice_does_not_make_a_slip39_set() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    let c = testkit::compute();
+    let seed = unhex(SEED_1);
+    let fp = faraday_keys::identity::fingerprint_of_seed(&c, &seed).unwrap();
+    app.session.keys.set_demo(&[], &[fp], &[]);
+    app.session.keys.add_seed(&c, &seed, "Sample").unwrap();
+    open(&mut app);
+    feed(&mut app);
+    assert!(convert::dimmed(&app, convert::Target::SlipSet));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
     let s = convert::state(&app).unwrap();
     assert_eq!((s.target, s.open), (None, Some(cstep::TO)));
 }

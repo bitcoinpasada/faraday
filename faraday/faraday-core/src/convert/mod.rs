@@ -19,6 +19,9 @@ use faraday_keys::operations::WordsForm;
 use faraday_keys::{Held, KeyInfo, Reveal, operations::Convert};
 use zeroize::Zeroizing;
 
+/// The most SLIP-39 groups, and shares in a group: SLIP-39's own limit.
+pub const MAX_SLIP: usize = faraday_bip::slip39::MAX_COUNT;
+
 /// The cards, in order. A target with settings has its card between
 /// [`cstep::TO`] and [`cstep::RESULT`]; a target without goes from To to
 /// Result.
@@ -58,6 +61,14 @@ pub enum ConvertAction {
     K(i8),
     /// More (1) or fewer (-1) codex32 shares made.
     N(i8),
+    /// More (1) or fewer (-1) SLIP-39 groups, 1 to 16.
+    SlipGroups(i8),
+    /// A higher (1) or lower (-1) number of SLIP-39 groups needed.
+    SlipGroupK(i8),
+    /// A higher (1) or lower (-1) threshold of a SLIP-39 group, by its place.
+    SlipK(u8, i8),
+    /// More (1) or fewer (-1) shares in a SLIP-39 group, by its place.
+    SlipN(u8, i8),
     /// Make the result from the settings.
     Make,
     /// Show or hide the value.
@@ -97,6 +108,8 @@ pub enum Target {
     SeedXor,
     /// The seed as SLIP-39, 1 of 1.
     SlipOne,
+    /// The seed as a SLIP-39 set: one group of k of n shares, or groups.
+    SlipSet,
     /// The seed as codex32: the secret, or a set.
     Codex32,
 }
@@ -115,6 +128,7 @@ impl Target {
             Target::Starts => EN.convert_starts_line,
             Target::SeedXor => EN.convert_xor_line,
             Target::SlipOne => EN.convert_slip39_line,
+            Target::SlipSet => EN.convert_slip39_set_line,
             Target::Codex32 => EN.convert_codex32_line,
         }
     }
@@ -132,6 +146,7 @@ impl Target {
             Target::Starts => EN.convert_starts_restores,
             Target::SeedXor => EN.convert_xor_restores,
             Target::SlipOne => EN.convert_slip39_restores,
+            Target::SlipSet => EN.convert_slip39_restores,
             Target::Codex32 => EN.convert_codex32_restores,
         }
     }
@@ -148,6 +163,7 @@ impl Target {
             Target::Starts => EN.convert_secret_starts,
             Target::SeedXor => EN.convert_secret_xor,
             Target::SlipOne => EN.convert_secret_slip39,
+            Target::SlipSet => EN.convert_secret_slip39,
             Target::Codex32 => EN.convert_secret_codex32,
         }
     }
@@ -181,20 +197,23 @@ impl Target {
             Target::Starts => "starts",
             Target::SeedXor => "seed-xor",
             Target::SlipOne => "slip39",
+            Target::SlipSet => "slip39-set",
             Target::Codex32 => "codex32",
         }
     }
 
     /// Whether the target has a Settings card: the parts of Seed XOR, the
-    /// threshold and count of a codex32 set.
+    /// threshold and count of a codex32 set, the groups and shares of a
+    /// SLIP-39 set.
     pub(crate) fn has_settings(self) -> bool {
-        matches!(self, Target::SeedXor | Target::Codex32)
+        matches!(self, Target::SeedXor | Target::Codex32 | Target::SlipSet)
     }
 
-    /// Whether every press draws randomness: Seed XOR's random parts. A
-    /// codex32 set does only for a threshold above 0.
+    /// Whether every press draws randomness: Seed XOR's random parts and
+    /// a SLIP-39 set's identifier and shares. A codex32 set does only for
+    /// a threshold above 0.
     pub(crate) fn draws_randomness(self) -> bool {
-        self == Target::SeedXor
+        matches!(self, Target::SeedXor | Target::SlipSet)
     }
 
     /// Whether the value is a code, drawn and saved as a picture.
@@ -251,7 +270,7 @@ impl Row {
 
 /// Every row under To: the targets, then what is not offered, each with
 /// the sources it applies to.
-pub const ROWS: [Row; 16] = [
+pub const ROWS: [Row; 17] = [
     Row {
         name: EN.convert_words,
         line: EN.convert_words_line,
@@ -298,6 +317,12 @@ pub const ROWS: [Row; 16] = [
         name: EN.convert_slip39,
         line: EN.convert_slip39_line,
         target: Some(Target::SlipOne),
+        applies: |k| matches!(k.seed_len, Some(16 | 32)),
+    },
+    Row {
+        name: EN.convert_slip39_set,
+        line: EN.convert_slip39_set_line,
+        target: Some(Target::SlipSet),
         applies: |k| matches!(k.seed_len, Some(16 | 32)),
     },
     Row {
@@ -378,6 +403,11 @@ pub struct ConvertState {
     pub settings: bool,
     /// Seed XOR's parts, 2 to 4.
     pub parts: u8,
+    /// SLIP-39 groups needed to recover: 1 for one group, else 2 to the
+    /// groups' count.
+    pub slip_t: u8,
+    /// Each SLIP-39 group's shares needed and shares made, 1 to 16 groups.
+    pub slip: Vec<(u8, u8)>,
     /// A codex32 set's threshold: 0 for the secret alone, else 2 to 9.
     pub k: u8,
     /// How many codex32 shares are made: 1 with k 0, else k to 31.
@@ -404,9 +434,10 @@ impl Value {
     }
 
     /// What the field shows: the text, or a set's strings a line each,
-    /// numbered when there are several. A copy, wiped on drop; `None` for a
-    /// code.
-    pub(crate) fn display(&self) -> Option<Zeroizing<String>> {
+    /// numbered when there are several, by group and place in it where
+    /// `groups` (each group's share count) has several. A copy, wiped on
+    /// drop; `None` for a code.
+    pub(crate) fn display(&self, groups: &[u8]) -> Option<Zeroizing<String>> {
         match self {
             Value::Text(t) => Some(Zeroizing::new(t.to_string())),
             Value::Set(parts) => {
@@ -415,7 +446,14 @@ impl Value {
                     if i > 0 {
                         out.push('\n');
                     }
-                    if parts.len() > 1 {
+                    if groups.len() > 1 {
+                        let (g, m) = place_in(groups, i);
+                        out.push_str(&fill(
+                            EN.convert_group_share,
+                            &[&g.to_string(), &m.to_string()],
+                        ));
+                        out.push(' ');
+                    } else if parts.len() > 1 {
                         out.push_str(&(i + 1).to_string());
                         out.push_str(EN.convert_part_sep);
                         out.push(' ');
@@ -435,6 +473,19 @@ impl Value {
             Value::Text(_) | Value::Set(_) => None,
         }
     }
+}
+
+/// The group and the place in it, both from 1, of share `i` (from 0) of a
+/// set whose groups have these share counts, in order.
+pub(crate) fn place_in(groups: &[u8], i: usize) -> (usize, usize) {
+    let mut left = i;
+    for (g, &n) in groups.iter().enumerate() {
+        if left < usize::from(n) {
+            return (g + 1, left + 1);
+        }
+        left -= usize::from(n);
+    }
+    (groups.len(), left + 1)
 }
 
 /// Whether a typed copy is `value`. The value's own text exactly, single
@@ -619,6 +670,8 @@ impl ConvertArea {
             paths: Vec::new(),
             settings: false,
             parts: 2,
+            slip_t: 1,
+            slip: vec![(2, 3)],
             k: 0,
             n: 1,
         });
@@ -687,6 +740,62 @@ impl ConvertArea {
         {
             s.n = s.n.saturating_add_signed(by).clamp(s.k, 31);
         }
+    }
+
+    /// Keeps the SLIP-39 thresholds to what the split takes: groups needed
+    /// 1 for one group, else 2 to the count; shares needed 1 for one
+    /// share, else 2 to the count.
+    fn slip_fit(&mut self) {
+        let Some(s) = self.state.as_mut() else {
+            return;
+        };
+        let fit = |t: u8, of: u8| if of <= 1 { 1 } else { t.clamp(2, of) };
+        s.slip_t = fit(s.slip_t, s.slip.len() as u8);
+        for g in &mut s.slip {
+            g.0 = fit(g.0, g.1);
+        }
+    }
+
+    /// Changes the SLIP-39 groups by `by`, from 1 to 16; a group added is
+    /// 2 of 3.
+    fn slip_groups(&mut self, by: i8) {
+        if let Some(s) = self.state.as_mut() {
+            let n = s.slip.len().saturating_add_signed(isize::from(by));
+            s.slip.resize(n.clamp(1, MAX_SLIP), (2, 3));
+        }
+        self.slip_fit();
+    }
+
+    /// Changes the SLIP-39 groups needed by `by`.
+    fn slip_group_k(&mut self, by: i8) {
+        if let Some(s) = self.state.as_mut() {
+            s.slip_t = s.slip_t.saturating_add_signed(by);
+        }
+        self.slip_fit();
+    }
+
+    /// Changes group `g`'s shares needed by `by`.
+    fn slip_k(&mut self, g: u8, by: i8) {
+        if let Some(group) = self
+            .state
+            .as_mut()
+            .and_then(|s| s.slip.get_mut(usize::from(g)))
+        {
+            group.0 = group.0.saturating_add_signed(by);
+        }
+        self.slip_fit();
+    }
+
+    /// Changes group `g`'s shares made by `by`, from 1 to 16.
+    fn slip_n(&mut self, g: u8, by: i8) {
+        if let Some(group) = self
+            .state
+            .as_mut()
+            .and_then(|s| s.slip.get_mut(usize::from(g)))
+        {
+            group.1 = group.1.saturating_add_signed(by).clamp(1, MAX_SLIP as u8);
+        }
+        self.slip_fit();
     }
 
     /// Opens or closes card `step`. A card opens when those before it are
@@ -784,6 +893,17 @@ pub fn found(app: &Faraday) -> Option<bool> {
     app.tools.convert().found
 }
 
+/// Each group's share count of the SLIP-39 set made, in order; empty for
+/// any other result. A read of the settings, which stay as made until the
+/// card is opened.
+pub fn groups_made(s: &ConvertState) -> Vec<u8> {
+    if s.target == Some(Target::SlipSet) {
+        s.slip.iter().map(|g| g.1).collect()
+    } else {
+        Vec::new()
+    }
+}
+
 /// The cards shown, in order: Settings only where the target pressed has
 /// any.
 pub fn order(s: &ConvertState) -> Vec<u8> {
@@ -851,6 +971,28 @@ pub fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String 
             &[&s.k.to_string(), &s.n.to_string()],
         ),
         Target::Codex32 => EN.convert_codex32_secret.to_string(),
+        Target::SlipSet if s.slip.len() > 1 => {
+            let shapes: Vec<String> = s
+                .slip
+                .iter()
+                .map(|(k, n)| fill(EN.convert_slip39_shape, &[&k.to_string(), &n.to_string()]))
+                .collect();
+            fill(
+                EN.convert_slip39_groups_standard,
+                &[
+                    &s.slip_t.to_string(),
+                    &s.slip.len().to_string(),
+                    &shapes.join(&format!("{} ", EN.convert_slip39_shape_sep)),
+                ],
+            )
+        }
+        Target::SlipSet => {
+            let (k, n) = s.slip.first().copied().unwrap_or((2, 3));
+            fill(
+                EN.convert_slip39_set_standard,
+                &[&k.to_string(), &n.to_string()],
+            )
+        }
         // 16 bytes are 20 words, 32 bytes 33.
         Target::SlipOne => fill(
             EN.convert_slip39_standard,
@@ -898,7 +1040,8 @@ fn press(app: &mut Faraday, place: u8) {
 /// `master_seed_hex` or `master_xprv`, a parse of the words or two for a
 /// written form, a parse and a QR encoding and a scan of it for a code, a
 /// parse of each part for Seed XOR, a master key from the seed read back
-/// for SLIP-39 and codex32. The press on a row without settings, or Make;
+/// for SLIP-39 and codex32, and for a SLIP-39 set a PBKDF2 for the split
+/// and two for the read back. The press on a row without settings, or Make;
 /// a target that draws randomness waits for it, as New key's split does
 /// ([`Faraday::fresh_bytes`]), and says so.
 fn make(app: &mut Faraday, target: Target) {
@@ -909,13 +1052,23 @@ fn make(app: &mut Faraday, target: Target) {
         return;
     }
     let settings = has_settings(app, target);
-    let Some((parts, k, n)) = app.tools.convert().state().map(|s| (s.parts, s.k, s.n)) else {
+    let Some((parts, k, n, slip_t, slip)) = app
+        .tools
+        .convert()
+        .state()
+        .map(|s| (s.parts, s.k, s.n, s.slip_t, s.slip.clone()))
+    else {
         return;
     };
     let (parts, k, n) = if settings { (parts, k, n) } else { (2, 0, 1) };
+    let groups: Vec<faraday_bip::slip39::GroupSpec> = slip
+        .iter()
+        .map(|&(threshold, count)| faraday_bip::slip39::GroupSpec { threshold, count })
+        .collect();
     let need = match target {
         Target::SeedXor => faraday_keys::seed_xor_random_len(parts),
         Target::Codex32 => faraday_keys::codex32_random_len(k),
+        Target::SlipSet => faraday_keys::slip39_random_len(slip_t, &groups),
         _ => 0,
     };
     let random = if need == 0 {
@@ -949,6 +1102,9 @@ fn make(app: &mut Faraday, target: Target) {
             .seed_xor_converted(&c, i, parts, &random, why)
             .map(Value::Set),
         Target::SlipOne => keys.slip39_one_of_one(&c, i, why).map(Value::Text),
+        Target::SlipSet => keys
+            .slip39_converted(&c, i, slip_t, &groups, &random, why)
+            .map(Value::Set),
         Target::Codex32 => keys
             .codex32_converted(&c, i, k, n, &random, why)
             .map(Value::Set),
@@ -1077,6 +1233,10 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::VaultKey(v, r) => from_vault(app, v, r),
         ConvertAction::To(place) => press(app, place),
         ConvertAction::Parts(by) => app.tools.convert_mut().parts(by),
+        ConvertAction::SlipGroups(by) => app.tools.convert_mut().slip_groups(by),
+        ConvertAction::SlipGroupK(by) => app.tools.convert_mut().slip_group_k(by),
+        ConvertAction::SlipK(g, by) => app.tools.convert_mut().slip_k(g, by),
+        ConvertAction::SlipN(g, by) => app.tools.convert_mut().slip_n(g, by),
         ConvertAction::K(by) => app.tools.convert_mut().threshold(by),
         ConvertAction::N(by) => app.tools.convert_mut().count(by),
         ConvertAction::Make => {

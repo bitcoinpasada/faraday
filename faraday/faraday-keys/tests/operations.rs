@@ -11,7 +11,7 @@ use faraday_bip::bitcoin::{Address, Network as Chain};
 use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_bip::silent::Receiver;
-use faraday_bip::slip39::Share;
+use faraday_bip::slip39::{GroupSpec, Share};
 use faraday_crypto::work::Compute;
 use faraday_keys::operations::WordsForm;
 use faraday_keys::{Convert, Keys, Material, Part, Reveal, bip85, identity};
@@ -837,6 +837,156 @@ fn a_codex32_set_of_a_key_recovers_the_same_wallet() {
         let fresh = seed_key(&c, Network::Mainnet, &back);
         assert_eq!(fresh.info(0).unwrap().fingerprint, want);
     }
+}
+
+/// A SLIP-39 set of a key, as SLIP-39's decoder reads it: the key's seed
+/// from the shares at `at` of `shares`.
+fn slip39_back(c: &Compute, shares: &[zeroize::Zeroizing<String>], at: &[usize]) -> Vec<u8> {
+    let parts: Vec<Share> = at
+        .iter()
+        .map(|&i| Share::parse(&shares[i]).unwrap())
+        .collect();
+    faraday_keys::slip39_seed(c, &parts, b"").unwrap().to_vec()
+}
+
+fn slip39_set(
+    c: &Compute,
+    keys: &Keys,
+    gt: u8,
+    shape: &[(u8, u8)],
+) -> Result<Vec<zeroize::Zeroizing<String>>, Convert> {
+    let groups: Vec<GroupSpec> = shape
+        .iter()
+        .map(|&(threshold, count)| GroupSpec { threshold, count })
+        .collect();
+    let random: Vec<u8> = (0..faraday_keys::slip39_random_len(gt, &groups))
+        .map(|i| (i * 13 + 5) as u8)
+        .collect();
+    keys.slip39_converted(c, 0, gt, &groups, &random, Reveal::PaperForm)
+        .map(|h| h.release())
+}
+
+/// Every two of a 2 of 3 set of each published master secret (16 and 32
+/// bytes) recover that secret through SLIP-39's decoder.
+#[test]
+fn a_slip39_two_of_three_of_a_key_recovers_the_seed_from_any_two() {
+    let c = compute();
+    let mut lengths = Vec::new();
+    for (seed, _) in seed_vectors(SLIP39) {
+        let keys = seed_key(&c, Network::Mainnet, &seed);
+        let shares = slip39_set(&c, &keys, 1, &[(2, 3)]).unwrap();
+        assert_eq!(shares.len(), 3);
+        for at in [[0, 1], [0, 2], [1, 2], [2, 1]] {
+            assert_eq!(slip39_back(&c, &shares, &at), seed);
+        }
+        lengths.push(seed.len());
+    }
+    assert!(lengths.contains(&16) && lengths.contains(&32));
+}
+
+/// A groups shape: every pair of groups, with each group's threshold of
+/// members, recovers the seed; one share short of a group does not.
+#[test]
+fn a_slip39_set_of_groups_recovers_the_seed_from_every_qualifying_subset() {
+    let c = compute();
+    let seed = unhex("ffeeddccbbaa99887766554433221100");
+    let keys = seed_key(&c, Network::Mainnet, &seed);
+    let shares = slip39_set(&c, &keys, 2, &[(2, 3), (2, 3), (1, 1)]).unwrap();
+    assert_eq!(shares.len(), 7);
+    let groups = [[0, 1, 2], [3, 4, 5], [6, 6, 6]];
+    let pairs = |g: &[usize; 3]| -> Vec<Vec<usize>> {
+        if g[0] == g[1] {
+            vec![vec![g[0]]]
+        } else {
+            vec![vec![g[0], g[1]], vec![g[0], g[2]], vec![g[1], g[2]]]
+        }
+    };
+    for (a, b) in [(0, 1), (0, 2), (1, 2)] {
+        for x in pairs(&groups[a]) {
+            for y in pairs(&groups[b]) {
+                let at: Vec<usize> = x.iter().chain(&y).copied().collect();
+                assert_eq!(slip39_back(&c, &shares, &at), seed, "{at:?}");
+            }
+        }
+    }
+    // One group alone is not enough.
+    let parts: Vec<Share> = [0, 1]
+        .iter()
+        .map(|&i| Share::parse(&shares[i]).unwrap())
+        .collect();
+    assert!(faraday_keys::slip39_seed(&c, &parts, b"").is_err());
+    for share in &shares {
+        let share = Share::parse(share).unwrap();
+        assert_eq!(share.group_threshold(), 2);
+        assert_eq!(share.group_count(), 3);
+    }
+}
+
+/// What the set refuses: a key of words, another length, another reason, a
+/// shape SLIP-39 does not take and too little randomness; and the same
+/// randomness gives the same set.
+#[test]
+fn a_slip39_set_is_refused_for_the_wrong_key_reason_shape_or_randomness() {
+    let c = compute();
+    let keys = seed_key(
+        &c,
+        Network::Mainnet,
+        &unhex("000102030405060708090a0b0c0d0e0f"),
+    );
+    let again = slip39_set(&c, &keys, 1, &[(2, 3)]).unwrap();
+    assert_eq!(again, slip39_set(&c, &keys, 1, &[(2, 3)]).unwrap());
+    for (gt, shape) in [
+        (1, vec![(1, 3)]),
+        (1, vec![(4, 3)]),
+        (2, vec![(1, 1)]),
+        (1, vec![(2, 3), (2, 3)]),
+        (0, vec![(2, 3)]),
+        (1, vec![(2, 3); 17]),
+        (1, vec![(2, 17)]),
+    ] {
+        assert_eq!(
+            slip39_set(&c, &keys, gt, &shape),
+            Err(Convert::Refused),
+            "{gt} {shape:?}"
+        );
+    }
+    let groups = [GroupSpec {
+        threshold: 2,
+        count: 3,
+    }];
+    assert_eq!(
+        keys.slip39_converted(&c, 0, 1, &groups, &[1; 5], Reveal::PaperForm)
+            .err(),
+        Some(Convert::Refused)
+    );
+    for why in [
+        Reveal::Words,
+        Reveal::CopyByHand,
+        Reveal::SeedShown,
+        Reveal::ExtendedPrivateKey,
+    ] {
+        assert_eq!(
+            keys.slip39_converted(&c, 0, 1, &groups, &[1; 200], why)
+                .err(),
+            Some(Convert::NotGiven)
+        );
+    }
+    let mut words = Keys::on(Network::Mainnet);
+    words
+        .add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "", None)
+        .unwrap();
+    assert_eq!(
+        words
+            .slip39_converted(&c, 0, 1, &groups, &[1; 200], Reveal::PaperForm)
+            .err(),
+        Some(Convert::Words)
+    );
+    let long = seed_key(&c, Network::Mainnet, &[7; 24]);
+    assert_eq!(
+        long.slip39_converted(&c, 0, 1, &groups, &[1; 200], Reveal::PaperForm)
+            .err(),
+        Some(Convert::Length)
+    );
 }
 
 /// On a test network the master key is a tprv.
