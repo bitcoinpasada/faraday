@@ -1,103 +1,45 @@
-"""The vault (`docs/VAULT.md`) against a reader and writer written here
-from that document, over Argon2id from argon2-cffi and
-XChaCha20-Poly1305 from PyNaCl (libsodium), and HKDF-SHA256 (RFC 5869)
-and ChaCha20 (RFC 8439) from PyCA cryptography, the distribution's
-packages (F79, `docs/CROSSCHECK.md` §10.4).
+"""What is left of the vault area (`docs/VAULT.md`): Argon2id and the
+payload layouts of §7, against a reader written here from that document,
+over Argon2id from argon2-cffi, the distribution's package (F79,
+`docs/CROSSCHECK.md` §10.4).
 
-Before anything else the area checks its own pieces against published
-answers (`tools/vectors/vault-primitives/`): HKDF against RFC 5869's
-three SHA-256 cases, ChaCha20 against RFC 8439's five block vectors,
-PyNaCl against draft-irtf-cfrg-xchacha-03's AEAD vector, argon2-cffi
-against `tools/vectors/kdf/`'s known answer. Then:
+The vault file is KDBX; it is judged by its own later area run, not yet
+built for what the store writes. The checks of Faraday's earlier container
+(HKDF, XChaCha20-Poly1305, the slot record, whole files) are gone with it.
+
+Before anything else the area checks argon2-cffi against `tools/vectors/kdf/`'s
+known answer (`tools/vectors/vault-primitives/`). Then:
 
 - Argon2id (`faraday_backup::argon2id`) at random small costs, salts and
   passwords, with the costs and salts Argon2 refuses.
-- XChaCha20-Poly1305 as `faraday_vault` calls it: the published vector,
-  random keys, nonces, associated data and lengths, and a changed byte of
-  the ciphertext, the tag, the nonce or the associated data refused.
 - The payload layouts of §7: words, seed and sheet, made and read, with
-  every way a payload can be malformed.
-- A slot's plaintext after its commitment block (§7): random records of
-  every type, with the seal count (type 16) the vault writes, encoded by
-  both and read by both, then malformed a byte or a rule at a time (a
-  seal count dropped or doubled among them); the slot vectors of
-  `tools/vectors/vault/slots.json`, written by hand from §7.
-- The passphrase in NFC (§3), the reference's from Python's
-  `unicodedata`: a vault made from a passphrase in one form is the same
-  file on both sides and opens under its other forms; the cases are NFD
-  input (e and U+0301, A and U+030A, a Hangul syllable as conjoining
-  jamo), the singletons NFC replaces (U+212B, U+2126), two combining
-  marks in either order (both U+1EAD), and the compatibility characters
-  NFC keeps (U+FB01, U+FF21), which stay other passphrases; then random
-  text of code points assigned in Python's Unicode version. The area
-  stops where Python's Unicode is newer than `unicode-normalization`'s.
-- Whole vaults (§1 to §5, §8): `faraday_vault::create` reproduced byte
-  for byte from its seed; every passphrase opens its own slot and only
-  that one on both sides, with seal count 1; a seal under a given nonce
-  and time reproduced byte for byte, its count one higher; the published
-  vaults (`tools/vectors/vault/`) opened, the NFD one under either form;
-  `two-keys.fvlt` first shown to verify under both of its passphrases'
-  keys by PyNaCl, then refused under each by both sides and by
-  `tools/vault/open.py` for its commitment block (§4); and files refused
-  for each fault of §4 step 1, a wrong passphrase, a changed byte, two
-  slots under one key, a commitment block not zero and faulty contents.
+  every way a payload can be malformed, and a sheet past 16 KiB.
+- A passphrase's NFC form (§3) against Python's `unicodedata`: NFD
+  letters, Hangul jamo, the singletons NFC replaces, combining marks in
+  either order, the compatibility characters NFC keeps, then random text.
+  The area stops where Python's Unicode is newer than
+  `unicode-normalization`'s.
 
-VAULT §8 leaves how a new vault's randomness is drawn to the
-implementation. `faraday_vault::create` draws it from ChaCha20 (counter
-0, a zero nonce) keyed by HKDF-SHA256(seed, empty salt, "Faraday vault
-create"): the salt (32 bytes), then the permutation of the slots
-(Fisher-Yates from i = 3 down to 1, a byte each, a byte at or above
-256 - 256 mod (i + 1) drawn again), then every byte after the header,
-then each passphrase's nonce in order. `create` below draws the same
-way, so the whole file is compared. Every used slot's plaintext is the
-32-byte commitment block, then the format byte, the seal count (count 1,
-no time, written first), the records and the end record; a seal writes
-the seal count first in the same way, its count one higher.
-
-The reference is the document alone: where `docs/VAULT.md` and
-`faraday_vault` once read a vault differently (the required fields of
-types 7 and 9, a sheet past 16 KiB, an empty passphrase at create), the
-owner settled it in the document's words (2026-10-23), and both now
-agree.
+The reference is the document alone.
 """
 
-import hashlib
-import importlib.util
 import json
-import struct
 import unicodedata
 
-from common import ROOT, Area, HarnessError, Mismatch
+from common import ROOT, Area, HarnessError
 
 try:
-    import nacl.bindings as sodium
-    from nacl.exceptions import CryptoError
     from argon2.low_level import Type, hash_secret_raw
-    from cryptography.hazmat.primitives import hashes
-    from cryptography.hazmat.primitives.ciphers import Cipher
-    from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
-    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 except ImportError as e:  # pragma: no cover - the machine's packages
     raise HarnessError(
-        "the vault area needs the distribution's Argon2, libsodium and cryptography bindings, "
-        "argon2-cffi, PyNaCl and PyCA cryptography (Debian and Ubuntu: python3-argon2 "
-        "python3-nacl python3-cryptography; Fedora: python3-argon2-cffi python3-pynacl "
-        "python3-cryptography; Arch: python-argon2_cffi python-pynacl python-cryptography): "
-        f"{e}") from e
+        "the vault area needs the distribution's Argon2 binding, argon2-cffi "
+        "(Debian and Ubuntu: python3-argon2; Fedora: python3-argon2-cffi; Arch: "
+        f"python-argon2_cffi): {e}") from e
 
 VECTORS = json.loads((ROOT / "tools/vectors/vault-primitives/vectors.json").read_text())
 
-MAGIC = b"FVLT"
-HEADER_LEN = 53
-SLOT_SIZES = (65_536, 262_144, 1_048_576, 4_194_304)
-SLOT_INFO = b"Faraday vault v1 slot"
-CREATE_INFO = b"Faraday vault create"
 LANGUAGES = 10
 MAX_SHEET = 16 * 1024
-COMMIT_LEN = 32
-SEALS = 16
-# A seal count record at its largest: type, length, count and time.
-SEALS_MAX = 5 + 3 + 8 + 3 + 8
 
 
 class Refused(Exception):
@@ -108,101 +50,13 @@ class Refused(Exception):
         self.kind = kind
 
 
-# ----- primitives ------------------------------------------------------------
-
-
-def hkdf_sha256(ikm, salt, info, length):
-    """RFC 5869 over HMAC-SHA256 from PyCA cryptography; an empty salt is
-    32 zero bytes (RFC 5869 §2.2)."""
-    return HKDF(algorithm=hashes.SHA256(), length=length, salt=salt or None,
-                info=bytes(info)).derive(bytes(ikm))
-
-
-def chacha20_block(key, counter, nonce):
-    """RFC 8439 §2.3: one 64-byte block, from PyCA cryptography's
-    ChaCha20 (its 16-byte nonce is the little-endian counter, then the
-    12-byte nonce)."""
-    enc = Cipher(ChaCha20(bytes(key), struct.pack("<I", counter) + bytes(nonce)),
-                 mode=None).encryptor()
-    return enc.update(bytes(64))
-
-
-def chacha20_stream(key, length):
-    """ChaCha20 with a zero nonce from counter 0, from PyCA cryptography."""
-    enc = Cipher(ChaCha20(bytes(key), bytes(16)), mode=None).encryptor()
-    return enc.update(bytes(length))
-
-
 def argon2id(password, salt, memory_kib, passes, lanes):
     return hash_secret_raw(secret=bytes(password), salt=bytes(salt), time_cost=passes,
                            memory_cost=memory_kib,
                            parallelism=lanes, hash_len=32, type=Type.ID, version=19)
 
 
-def aead_seal(key, nonce, aad, plain):
-    out = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(bytes(plain), bytes(aad) or None,
-                                                            bytes(nonce), bytes(key))
-    return out[:-16], out[-16:]
-
-
-def aead_open(key, nonce, aad, ciphertext, tag):
-    """The plaintext, or None when the tag fails."""
-    try:
-        return sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-            bytes(ciphertext) + bytes(tag), bytes(aad) or None, bytes(nonce), bytes(key))
-    except CryptoError:
-        return None
-
-
-# ----- the slot's plaintext (§7) --------------------------------------------
-
-TEXT = ("text", 0xFFFF)
-BYTES = ("bytes",)
-
-
-def text(n):
-    return ("text", n)
-
-
-def exact(n):
-    return ("exact", n)
-
-
-# Type: {field: (required, repeatable, shape)}, as §7's table states.
-# "In each type the first field is required and every other field is
-# optional; type 7's field 2, type 9's fields 2, 3 and 4, type 10's
-# field 2 and type 14's field 2 are also required." A field a type does
-# not list refuses the slot, as an unknown type does (the tables are read
-# as complete).
-SPEC = {
-    1: {1: (True, False, text(64))},
-    2: {1: (True, False, ("key",)), 2: (False, False, TEXT), 3: (False, False, exact(1)),
-        4: (False, False, TEXT)},
-    3: {1: (True, False, TEXT), 2: (False, False, TEXT), 3: (False, False, exact(1))},
-    4: {1: (True, False, TEXT)},
-    5: {1: (True, False, ("sheet",))},
-    6: {n: (n == 1, False, TEXT) for n in range(1, 7)},
-    7: {1: (True, False, exact(32)), 2: (True, False, exact(4)), 3: (False, False, exact(32)),
-        4: (False, False, exact(4)), 5: (False, True, TEXT), 6: (False, False, exact(4)),
-        7: (False, False, BYTES), 8: (False, False, BYTES), 9: (False, False, exact(4))},
-    8: {1: (True, False, exact(16)), **{n: (False, False, BYTES) for n in range(2, 8)}},
-    9: {1: (True, False, exact(1)), 2: (True, False, exact(32)), 3: (True, False, exact(4)),
-        4: (True, False, BYTES), 5: (False, False, exact(1))},
-    10: {1: (True, False, exact(32)), 2: (True, True, exact(8))},
-    11: {1: (True, False, TEXT), 2: (False, False, TEXT), 3: (False, True, text(128)),
-         4: (False, True, TEXT), 5: (False, True, TEXT), 6: (False, True, text(128))},
-    # 12 is retired (F99, §7): it was an APK signing key; no build knows
-    # it, so a slot holding one is refused like any unknown type.
-    13: {1: (True, False, TEXT), 2: (False, False, TEXT), 3: (False, False, exact(1)),
-         4: (False, False, exact(1)), 5: (False, False, TEXT)},
-    14: {1: (True, False, exact(4)), 2: (True, False, TEXT)},
-    # The seal count (§7): only the vault writes it, one per slot.
-    16: {1: (True, False, exact(8)), 2: (False, False, exact(8))},
-}
-
-# The types a caller's records may hold: every type but the seal count.
-USER_TYPES = sorted(k for k in SPEC if k != SEALS)
-
+# ----- the payload layouts (§7) ---------------------------------------------
 
 
 def words_payload_of(p):
@@ -253,378 +107,40 @@ def payload_of(kind, p):
     return None
 
 
-def fits(shape, b):
-    kind = shape[0]
-    if kind == "text":
-        if len(b) > shape[1]:
-            return False
-        try:
-            b.decode("utf-8")
-            return True
-        except UnicodeDecodeError:
-            return False
-    if kind == "bytes":
-        return len(b) <= 0xFFFF
-    if kind == "exact":
-        return len(b) == shape[1]
-    if kind == "key":
-        return (words_payload_of(b) if len(b) == 34 else seed_payload_of(b)) is not None
-    if kind == "sheet":
-        return payload_of(4, b) is not None
-    raise AssertionError(shape)
-
-
-def check_record(kind, fields):
-    rules = SPEC.get(kind)
-    if rules is None:
-        raise Refused("Contents", f"unknown type {kind}")
-    for n, b in fields:
-        if n not in rules:
-            raise Refused("Contents", f"type {kind} has no field {n}")
-        if not fits(rules[n][2], b):
-            raise Refused("Contents", f"type {kind} field {n}")
-    for n, (required, repeat, _) in rules.items():
-        count = sum(1 for m, _ in fields if m == n)
-        if required and not count:
-            raise Refused("Contents", f"type {kind} lacks field {n}")
-        if count > 1 and not repeat:
-            raise Refused("Contents", f"type {kind} repeats field {n}")
-    if kind == SEALS and dict(fields)[1] == bytes(8):
-        raise Refused("Contents", "a seal count of 0")
-
-
-def check_across(records):
-    """§7's rules across records: at most one slot label, one passphrase
-    record (14) per key, one signed amounts record (10) per
-    transaction."""
-    if sum(1 for k, _ in records if k == 1) > 1:
-        raise Refused("Contents", "two slot labels")
-    for kind in (10, 14):
-        ids = [dict(fields)[1] for k, fields in records if k == kind]
-        if len(set(ids)) != len(ids):
-            raise Refused("Contents", f"two type {kind} records for one "
-                          + ("key" if kind == 14 else "transaction"))
-
-
-def seal_record(seals):
-    """The seal count (count, last) as a record; `last` None is absent."""
-    count, last = seals
-    fields = [(1, struct.pack("<Q", count))]
-    if last is not None:
-        fields.append((2, struct.pack("<Q", last)))
-    return SEALS, fields
-
-
-def record_bytes(k, fields):
-    body = b"".join(bytes([n]) + len(b).to_bytes(2, "little") + b for n, b in fields)
-    return bytes([k]) + len(body).to_bytes(4, "little") + body
-
-
-def encode(records, slot_len, seals=(1, None)):
-    """What follows a slot's commitment block, slot_len - 32 bytes: format
-    1, the seal count, the records, the end record, zeros. Full when the
-    block, the format byte, the seal count at its largest, the records and
-    the end record are more than slot_len."""
-    if any(k == SEALS for k, _ in records):
-        raise Refused("Contents", "a seal count given to be written")
-    for k, fields in records:
-        check_record(k, fields)
-    check_across(records)
-    check_record(*seal_record(seals))
-    if _used(records) > slot_len:
-        raise Refused("Full")
-    out = bytearray([1]) + record_bytes(*seal_record(seals))
-    for k, fields in records:
-        out += record_bytes(k, fields)
-    out.append(0)
-    return bytes(out) + bytes(slot_len - COMMIT_LEN - len(out))
-
-
-def decode(plain):
-    if not plain or plain[0] != 1:
-        raise Refused("Contents", "format")
-    at, records = 1, []
-    while True:
-        if at >= len(plain):
-            raise Refused("Contents", "no end record")
-        k = plain[at]
-        at += 1
-        if k == 0:
-            break
-        if k not in SPEC:
-            raise Refused("Contents", f"unknown type {k}")
-        if at + 4 > len(plain):
-            raise Refused("Contents", "truncated")
-        n = int.from_bytes(plain[at:at + 4], "little")
-        at += 4
-        if at + n > len(plain):
-            raise Refused("Contents", "truncated")
-        body, at = plain[at:at + n], at + n
-        fields, p = [], 0
-        while p < len(body):
-            if p + 3 > len(body):
-                raise Refused("Contents", "a field runs past its record")
-            m = int.from_bytes(body[p + 1:p + 3], "little")
-            if p + 3 + m > len(body):
-                raise Refused("Contents", "a field runs past its record")
-            fields.append((body[p], body[p + 3:p + 3 + m]))
-            p += 3 + m
-        check_record(k, fields)
-        records.append((k, fields))
-    if any(plain[at:]):
-        raise Refused("Contents", "bytes after the end record")
-    seals = [f for k, f in records if k == SEALS]
-    records = [(k, f) for k, f in records if k != SEALS]
-    check_across(records)
-    if len(seals) != 1:
-        raise Refused("Contents", "not exactly one seal count")
-    got = dict(seals[0])
-    count = struct.unpack("<Q", got[1])[0]
-    last = struct.unpack("<Q", got[2])[0] if 2 in got else None
-    return records, [count, last]
-
-
-def as_json(records):
-    return [[k, [[n, b.hex()] for n, b in fields]] for k, fields in records]
-
-
-def read_json(plain):
-    records, seals = decode(plain)
-    return {"records": as_json(records), "seals": seals}
-
-
-def from_json(records):
-    return [(k, [(n, bytes.fromhex(h)) for n, h in fields]) for k, fields in records]
-
-
-# ----- the file (§1 to §5, §8) ----------------------------------------------
-
-
-def file_len(slot_len):
-    return HEADER_LEN + 4 * (slot_len + 40)
-
-
-def header_bytes(memory, passes, lanes, slot_len, salt):
-    return MAGIC + bytes([1]) + struct.pack("<IIII", memory, passes, lanes, slot_len) + salt
-
-
-def check_cost(memory, passes, lanes):
-    if not 8 * 1024 <= memory <= 4 * 1024 * 1024 or not 1 <= passes <= 10 or lanes != 1:
-        raise Refused("Cost")
-
-
-def read_header(f):
-    """§4 step 1: the magic, the version, L, the length, the cost."""
-    if len(f) < 4 or f[:4] != MAGIC:
-        raise Refused("Magic")
-    if len(f) < HEADER_LEN:
-        raise Refused("Length")
-    if f[4] != 1:
-        raise Refused("Version")
-    memory, passes, lanes, slot_len = struct.unpack("<IIII", f[5:21])
-    if slot_len not in SLOT_SIZES:
-        raise Refused("SlotSize")
-    if len(f) != file_len(slot_len):
-        raise Refused("Length")
-    check_cost(memory, passes, lanes)
-    return memory, passes, lanes, slot_len
-
-
-def nfc(passphrase):
-    """§3: the passphrase's NFC form, its UTF-8 bytes."""
-    return unicodedata.normalize("NFC", passphrase).encode()
-
-
-def slot_key(header, passphrase):
-    memory, passes, lanes = struct.unpack("<III", header[5:17])
-    k = argon2id(nfc(passphrase), header[21:53], memory, passes, lanes)
-    return hkdf_sha256(k, b"", SLOT_INFO, 32)
-
-
-def slot_at(slot_len, i):
-    return HEADER_LEN + i * (slot_len + 40)
-
-
-def seal_slot(f, key, i, nonce, body, block=bytes(COMMIT_LEN)):
-    """Seals the commitment block (zero unless a malformed one is given)
-    and `body` into slot i."""
-    plain = block + body
-    slot_len = len(plain)
-    ct, tag = aead_seal(key, nonce, f[:HEADER_LEN] + bytes([i]), plain)
-    at = slot_at(slot_len, i)
-    f[at:at + 24 + slot_len + 16] = nonce + ct + tag
-
-
-def open_slots(f, passphrase):
-    """The slot key and the slot it opens, as (position, what follows the
-    commitment block). A slot whose tag verifies and whose block is not
-    zero refuses the file (§4), before two slots do."""
-    read_header(f)
-    slot_len = struct.unpack("<I", f[17:21])[0]
-    key = slot_key(f[:HEADER_LEN], passphrase)
-    found, uncommitted = [], False
-    for i in range(4):
-        at = slot_at(slot_len, i)
-        plain = aead_open(key, f[at:at + 24], f[:HEADER_LEN] + bytes([i]),
-                          f[at + 24:at + 24 + slot_len], f[at + 24 + slot_len:at + 40 + slot_len])
-        if plain is not None:
-            if any(plain[:COMMIT_LEN]):
-                uncommitted = True
-            else:
-                found.append((i, plain[COMMIT_LEN:]))
-    if uncommitted:
-        raise Refused("Commitment")
-    if len(found) > 1:
-        raise Refused("TwoSlots")
-    if not found:
-        raise Refused("Passphrase")
-    return key, found[0]
-
-
-def ref_open(f, passphrase):
-    _, (_, plain) = open_slots(f, passphrase)
-    return read_json(plain)
-
-
-def ref_seal(f, passphrase, records, nonce, now):
-    """§5: the open slot under `nonce`, its seal count one higher with the
-    time `now`."""
-    key, (i, plain) = open_slots(f, passphrase)
-    _, (count, _) = decode(plain)
-    body = encode(records, struct.unpack("<I", f[17:21])[0], (count + 1, now))
-    out = bytearray(f)
-    seal_slot(out, key, i, nonce, body)
-    return {"file": out.hex()}
-
-
-def ref_create(slot_len, cost, passphrases, contents, seed):
-    memory, passes, lanes = cost
-    if slot_len not in SLOT_SIZES:
-        raise Refused("SlotSize")
-    check_cost(memory, passes, lanes)
-    # §8: one to four passphrases, none empty, no two equal.
-    if not 1 <= len(passphrases) <= 4 or len(passphrases) != len(contents) \
-            or any(not p for p in passphrases):
-        raise Refused("Passphrases")
-    if len({nfc(p) for p in passphrases}) != len(passphrases):
-        raise Refused("SamePassphrase")
-    plains = [encode(c, slot_len) for c in contents]
-    key = hkdf_sha256(seed, b"", CREATE_INFO, 32)
-    stream = chacha20_stream(key, 32 + 64 + file_len(slot_len) + 24 * 4)
-    at = 0
-
-    def draw(n):
-        nonlocal at
-        at += n
-        return stream[at - n:at]
-
-    salt = draw(32)
-    order = [0, 1, 2, 3]
-    for i in (3, 2, 1):
-        while True:
-            b = draw(1)[0]
-            if b < 256 - 256 % (i + 1):
-                j = b % (i + 1)
-                break
-        order[i], order[j] = order[j], order[i]
-    header = header_bytes(memory, passes, lanes, slot_len, salt)
-    f = bytearray(header + draw(file_len(slot_len) - HEADER_LEN))
-    for k, p in enumerate(passphrases):
-        seal_slot(f, slot_key(header, p), order[k], draw(24), plains[k])
-    return {"file": f.hex()}
-
-
-def refusal(answer):
-    """A refusal as its kind: `Contents(Value(2, 1))` and the reference's
-    `Refused: Contents: ...` are both `Contents`."""
-    if answer[0] == "ok":
-        return answer
-    reason = answer[1].removeprefix("Refused: ")
-    return ("ok", {"refused": reason.split("(")[0].split(":")[0].strip()})
-
-
-def file_summary(answer):
-    """A file answer as its length, header and each slot's SHA-256, so a
-    disagreement prints a few lines rather than megabytes."""
-    if answer[0] != "ok":
-        return refusal(answer)
-    f = bytes.fromhex(answer[1]["file"])
-    if len(f) < HEADER_LEN + 4 or f[:4] != MAGIC:
-        return ("ok", {"len": len(f), "sha256": hashlib.sha256(f).hexdigest()})
-    slot_len = struct.unpack("<I", f[17:21])[0]
-    return ("ok", {"len": len(f), "header": f[:HEADER_LEN].hex(),
-                   "slots": [hashlib.sha256(f[slot_at(slot_len, i):slot_at(slot_len, i + 1)])
-                             .hexdigest() for i in range(4)]})
-
-
 # ----- the area --------------------------------------------------------------
 
 
 class Vault(Area):
     name = "vault"
     faraday = (
-        "`faraday_vault` (create, open, seal, the slot's records and payload layouts), "
-        "`faraday_backup::argon2id`, the `chacha20poly1305` crate's detached "
-        'XChaCha20-Poly1305 as the vault calls it'
+        "`faraday_vault`'s payload layouts and a passphrase's NFC form with the Unicode version "
+        "it is made under, and `faraday_backup::argon2id`"
     )
     reference = (
-        '`docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi, PyNaCl '
-        "and PyCA cryptography (the distribution's packages; the last for HKDF-SHA256 and ChaCha20)"
+        '`docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi '
+        "(the distribution's package) and Python's `unicodedata`"
     )
     reference_checked = (
-        "`check_primitives` runs before anything else: HKDF against RFC 5869's three "
-        "SHA-256 cases, ChaCha20 against RFC 8439's five block vectors, PyNaCl against "
-        "draft-irtf-cfrg-xchacha-03's AEAD vector, argon2-cffi against "
-        "`tools/vectors/kdf/`'s known answer; the versions of argon2-cffi, PyNaCl and cryptography "
-        'are written into the stamp; the passphrase in NFC is `unicodedata`\'s, and the area '
-        "stops where Python's Unicode is newer than `unicode-normalization`'s"
+        "`check_primitives` runs before anything else: argon2-cffi against "
+        "`tools/vectors/kdf/`'s known answer; the version of argon2-cffi is written into the "
+        "stamp; the area stops where Python's Unicode is newer than "
+        "`unicode-normalization`'s"
     )
     vectors = (
-        "RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, "
-        "draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer "
-        '(`tools/vectors/vault-primitives/`); the vaults and the slot vectors of '
-        '`tools/vectors/vault/`, among them `two-keys.fvlt`, whose one slot PyNaCl verifies '
-        'under two passphrases\' keys'
+        "the Argon2id known answer (`tools/vectors/vault-primitives/`)"
     )
     corpus = (
-        'Argon2id at small random costs and the costs it refuses; the AEAD at random '
-        'lengths with one byte changed; payloads made, read and malformed; random '
-        'records of all thirteen types a caller writes (type 12 is retired and refused) '
-        'with the seal count, encoded, decoded and broken a rule at a time; passphrases '
-        'in every Unicode form, made and opened; whole vaults of every slot size made '
-        'byte for byte from a seed, opened by each passphrase, resealed with a count one '
-        'higher, and refused for each header fault, a wrong passphrase, a changed byte, '
-        'two slots under one key, a commitment block not zero and faulty contents'
+        'Argon2id at small random costs and the costs it refuses; payloads made, read '
+        'and malformed; passphrases in NFC, by case and at random. The KDBX vault file is not '
+        'in this area yet'
     )
-    differences = [
-        (
-            'Both refuse a record of type 7 or 9 without its required fields, a sheet past '
-            '16 KiB, an empty passphrase at create, and a second type 14 or type 10 record,'
-            ' as `docs/VAULT.md` §7 and §8 say (owner, 2026-10-23).'
-        ),
-    ]
+    differences = []
     not_compared = (
-        'none'
+        'the KDBX vault file, judged by its own later area run'
     )
 
     def check_primitives(self):
-        """The area's own pieces against their published answers."""
-        for v in VECTORS["hkdf_sha256"]:
-            okm = hkdf_sha256(*(bytes.fromhex(v[k]) for k in ("ikm", "salt", "info")), v["L"])
-            if okm.hex() != v["okm"]:
-                raise HarnessError(f"the area's HKDF fails RFC 5869: {v}")
-        for v in VECTORS["chacha20_block"]:
-            got = chacha20_block(bytes.fromhex(v["key"]), v["counter"], bytes.fromhex(v["nonce"]))
-            if got.hex() != v["keystream"]:
-                raise HarnessError(f"the area's ChaCha20 fails RFC 8439 A.1: {v}")
-        key = self.randbytes(32)
-        stream = chacha20_stream(key, 64 * 5 + 17)
-        if stream != b"".join(chacha20_block(key, c, bytes(12)) for c in range(6))[:64 * 5 + 17]:
-            raise HarnessError("PyCA's ChaCha20 stream is not its blocks in turn")
-        v = VECTORS["xchacha20poly1305"]
-        ct, tag = aead_seal(*(bytes.fromhex(v[k]) for k in ("key", "nonce", "aad", "plaintext")))
-        if (ct.hex(), tag.hex()) != (v["ciphertext"], v["tag"]):
-            raise HarnessError("PyNaCl fails draft-irtf-cfrg-xchacha-03 A.3.1")
+        """The area's own piece against its published answer."""
         a = VECTORS["argon2id"]
         if argon2id(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
                     a["passes"], a["lanes"]).hex() != a["key"]:
@@ -639,34 +155,6 @@ class Vault(Area):
              "passes": passes, "lanes": lanes},
             lambda: {"key": argon2id(password, salt, memory, passes, lanes).hex()}, expected)
 
-    def seal(self, key, nonce, aad, plain, expected=None):
-        def ref():
-            ct, tag = aead_seal(key, nonce, aad, plain)
-            return {"ciphertext": ct.hex(), "tag": tag.hex()}
-        return self.compare("vault.aead_seal", {"key": key.hex(), "nonce": nonce.hex(),
-                                                "aad": aad.hex(), "plaintext": plain.hex()},
-                            ref, expected)
-
-    def unseal(self, key, nonce, aad, ct, tag, expected=None):
-        def ref():
-            plain = aead_open(key, nonce, aad, ct, tag)
-            if plain is None:
-                raise Refused("tag")
-            return {"plaintext": plain.hex()}
-        return self.compare("vault.aead_open", {"key": key.hex(), "nonce": nonce.hex(),
-                                                "aad": aad.hex(), "ciphertext": ct.hex(),
-                                                "tag": tag.hex()}, ref, expected)
-
-    def encode(self, records, slot_len, seals=(1, None)):
-        return self.compare("vault.encode", {"contents": as_json(records), "slot_len": slot_len,
-                                             "count": seals[0], "last": seals[1]},
-                            lambda: {"plain": encode(records, slot_len, seals).hex()},
-                            normalize=refusal)
-
-    def decode(self, plain, expected=None):
-        return self.compare("vault.decode", {"plain": plain.hex()},
-                            lambda: read_json(plain), expected, normalize=_okerr)
-
     def payload(self, kind, p):
         def ref():
             out = payload_of(kind, p)
@@ -674,26 +162,6 @@ class Vault(Area):
                 raise Refused("not that layout")
             return out
         return self.compare("vault.payload_of", {"kind": kind, "payload": p.hex()}, ref)
-
-    def create(self, slot_len, cost, passphrases, contents, seed):
-        return self.compare(
-            "vault.create",
-            {"slot_len": slot_len, "memory_kib": cost[0], "passes": cost[1], "lanes": cost[2],
-             "passphrases": list(passphrases),
-             "contents": [as_json(c) for c in contents], "seed": seed.hex()},
-            lambda: ref_create(slot_len, cost, passphrases, contents, seed),
-            normalize=file_summary)
-
-    def open(self, f, passphrase, expected=None):
-        return self.compare("vault.open", {"file": f.hex(), "passphrase": passphrase},
-                            lambda: ref_open(f, passphrase), expected, normalize=refusal)
-
-    def reseal(self, f, passphrase, records, nonce, now=None):
-        return self.compare("vault.seal", {"file": f.hex(), "passphrase": passphrase,
-                                           "contents": as_json(records), "nonce": nonce.hex(),
-                                           "now": now},
-                            lambda: ref_seal(f, passphrase, records, nonce, now),
-                            normalize=file_summary)
 
     # Random inputs.
 
@@ -708,117 +176,6 @@ class Vault(Area):
                 break
             out += c
         return out
-
-    def field_value(self, shape):
-        rng = self.rng
-        kind = shape[0]
-        if kind == "text":
-            return self.text(min(shape[1], rng.choice([8, 40, 200])))
-        if kind == "bytes":
-            return self.randbytes(rng.choice([0, 1, 16, 64, rng.randint(0, 600)]))
-        if kind == "exact":
-            return self.randbytes(shape[1])
-        if kind == "key":
-            if rng.random() < 0.5:
-                count = rng.choice([12, 15, 18, 21, 24])
-                n = count * 4 // 3
-                return bytes([count, rng.randrange(LANGUAGES)]) + self.randbytes(n) + bytes(32 - n)
-            n = rng.randint(16, 64)
-            return bytes([n]) + self.randbytes(n) + bytes(64 - n)
-        if kind == "sheet":
-            parts = [self.text(rng.choice([0, 30, 300])) for _ in range(3)]
-            return b"".join(len(p).to_bytes(2, "little") + p for p in parts)
-        raise AssertionError(shape)
-
-    def record(self, kind=None):
-        """A record §7 allows (and faraday_vault reads alike)."""
-        rng = self.rng
-        kind = kind or rng.choice(USER_TYPES)
-        fields = []
-        for n, (required, repeat, shape) in SPEC[kind].items():
-            if required or rng.random() < 0.5:
-                for _ in range(rng.randint(2, 3) if repeat and rng.random() < 0.3 else 1):
-                    fields.append((n, self.field_value(shape)))
-        rng.shuffle(fields)
-        return kind, fields
-
-    def records(self, most=6):
-        rng = self.rng
-        out = [self.record() for _ in range(rng.randint(0, most))]
-        labels = [r for r in out if r[0] == 1]
-        return [r for r in out if r[0] != 1] + labels[:1]
-
-    def malformed(self, records):
-        """The records with one thing wrong by §7's rules, and what was
-        done, as a plaintext."""
-        rng = self.rng
-        plain = bytearray(encode(records, _used(records)))
-        how = rng.randrange(11)
-        if how == 10:
-            # The seal count dropped, or a second one among the records.
-            if rng.random() < 0.5:
-                return bytes(raw_encode(records, seals=False)), "rule 10"
-            records = list(records)
-            records.insert(rng.randrange(len(records) + 1), seal_record((rng.randint(1, 9), None)))
-            return bytes(raw_encode(records)), "rule 10"
-        if how == 9:
-            # A second passphrase record for a key, or a second signed
-            # amounts record for a transaction, among the others.
-            kind = rng.choice([10, 14])
-            k, fields = self.record(kind)
-            twin = self.record(kind)
-            twin = (kind, [(n, dict(fields)[1] if n == 1 else b) for n, b in twin[1]])
-            records = list(records) + [(k, fields)]
-            records.insert(rng.randrange(len(records) + 1), twin)
-            return bytes(raw_encode(records)), "rule 9"
-        if how == 0 or not records:
-            plain[0] = rng.choice([0, 2, 255])
-        elif how == 1:
-            # A byte anywhere changed.
-            plain[rng.randrange(len(plain))] ^= 1 << rng.randrange(8)
-        elif how == 2:
-            # Cut short, or a byte not zero after the end.
-            if rng.random() < 0.5:
-                del plain[rng.randrange(1, len(plain)):]
-            else:
-                plain += bytes(rng.randint(0, 4)) + bytes([rng.randint(1, 255)])
-        else:
-            records = list(records)
-            i = rng.randrange(len(records))
-            k, fields = records[i]
-            fields = list(fields)
-            if how == 3 and fields:
-                # A field dropped (perhaps a required one).
-                fields.pop(rng.randrange(len(fields)))
-            elif how == 4 and fields:
-                # A field repeated.
-                fields.append(rng.choice(fields))
-            elif how == 5:
-                # A field the type does not list.
-                fields.append((rng.choice([0, 15, 99, 255] + [n for n in range(1, 10)
-                                                               if n not in SPEC[k]]), b"x"))
-            elif how == 6 and fields:
-                # A value one byte longer or shorter.
-                j = rng.randrange(len(fields))
-                n, b = fields[j]
-                fields[j] = (n, b + b"\0" if rng.random() < 0.5 or not b else b[:-1])
-            elif how == 7 and fields:
-                # Text that is not UTF-8.
-                j = rng.randrange(len(fields))
-                n, b = fields[j]
-                bad = rng.choice([b"\xff", b"\xc3", b"\xed\xa0\x80", b"\xf4\x90\x80\x80",
-                                  b"\xc0\xaf", b"\xe2\x82"])
-                at = rng.randint(0, len(b))
-                fields[j] = (n, b[:at] + bad + b[at:])
-            elif rng.random() < 0.5:
-                # An unknown type.
-                k = rng.choice([12, 15, 17, 100, 255])
-            else:
-                # A second slot label.
-                records.append((1, [(1, b"Two")]))
-            records[i] = (k, fields)
-            return bytes(raw_encode(records)), f"rule {how}"
-        return bytes(plain), f"bytes {how}"
 
     def payload_case(self):
         rng = self.rng
@@ -877,189 +234,45 @@ class Vault(Area):
         self.payload(kind, bytes(p))
 
     def big_sheet(self):
-        """A sheet payload past 16 KiB, which §7 caps: refused by both, as
-        a payload and inside a record."""
+        """A sheet payload past 16 KiB, which §7 caps: refused by both."""
         p = (20000).to_bytes(2, "little") + b"d" * 20000 + bytes(4)
         self.payload(4, p)
-        self.decode(bytes(raw_encode([(5, [(1, p)])])), ("err", None))
+
+    def nfc(self, passphrase):
+        def ref():
+            out = unicodedata.normalize("NFC", passphrase).encode()
+            if not out:
+                raise Refused("empty")
+            return {"nfc": out.hex()}
+        return self.compare("vault.passphrase_nfc", {"passphrase": passphrase}, ref)
+
+    def nfc_cases(self):
+        """§3's forms: those NFC makes one, and the compatibility characters
+        it keeps as other passphrases."""
+        for p in ("", "e\u0301", "\u00e9", "A\u030a", "\u00c5",
+                  "\u1112\u1161\u11ab\u1100\u1173\u11af", "\ud55c\uae00",
+                  "\u212b", "\u2126", "a\u0323\u0302", "a\u0302\u0323", "\u1ead",
+                  "\ufb01", "fi", "\uff21", "A", "a\u00a0b", "a b"):
+            self.nfc(p)
 
     def unicode_text(self, most=12):
-        """Random text whose NFC form is not empty: code points assigned
-        in Python's Unicode version, drawn often from the combining marks,
-        the Hangul jamo and syllables, and the letters that compose."""
+        """Random text: code points assigned in Python's Unicode version,
+        drawn often from the combining marks, the Hangul jamo and syllables,
+        and the letters that compose."""
         rng = self.rng
         pools = [(0x20, 0x7E), (0xC0, 0x24F), (0x300, 0x36F), (0x1100, 0x11FF),
                  (0xAC00, 0xD7A3), (0x1E00, 0x1EFF), (0x2100, 0x214F), (0xFB00, 0xFB4F),
                  (0xFF00, 0xFFEF), (0x0900, 0x097F), (0x3040, 0x30FF), (0x1F300, 0x1F64F),
                  (0x20, 0x10FFFF)]
-        while True:
-            out = ""
-            for _ in range(rng.randint(1, most)):
-                lo, hi = rng.choice(pools)
-                while True:
-                    ch = chr(rng.randint(lo, hi))
-                    if unicodedata.category(ch) not in ("Cn", "Cs"):
-                        break
-                out += ch
-            if nfc(out):
-                return out
-
-    def vault_case(self, slot_len=65536):
-        rng = self.rng
-        count = rng.randint(1, 4)
-        passphrases = []
-        while len(passphrases) < count:
-            p = self.text(rng.choice([4, 30])).decode() or "p"
-            if rng.random() < 0.3:
-                p = self.unicode_text()
-            if nfc(p) not in {nfc(q) for q in passphrases}:
-                passphrases.append(p)
-        contents = [self.records(4) for _ in range(count)]
-        cost = (8192, rng.choice([1, 1, 2]), 1)
-        seed = self.randbytes(32)
-        f = bytes.fromhex(self.need(self.create(slot_len, cost, passphrases, contents, seed),
-                                    "create")["file"])
-        for p, c in zip(passphrases, contents):
-            got = self.need(self.open(f, p), "open")
-            if got != {"records": as_json(c), "seals": [1, None]}:
-                raise AssertionError("a passphrase did not open its own contents")
-        # The first passphrase in its other forms opens the same slot.
-        p = passphrases[0]
-        self.open(f, unicodedata.normalize(rng.choice(["NFD", "NFKC", "NFKD"]), p))
-        self.open(f, rng.choice(["", "wrong", passphrases[0] + " "]))
-        # A seal of new contents into one slot, then both open it.
-        p = rng.choice(passphrases)
-        new = self.records(4)
-        now = rng.choice([None, rng.randrange(1 << 64), 1_790_000_000])
-        sealed = bytes.fromhex(self.need(self.reseal(f, p, new, self.randbytes(24), now),
-                                         "seal")["file"])
-        if self.need(self.open(sealed, p), "open")["seals"] != [2, now]:
-            raise AssertionError("a seal did not count one more")
-        self.open(sealed, rng.choice(passphrases))
-        # One fault in the file.
-        self.open(self.faulty(f), rng.choice(passphrases))
-        # Contents §7 refuses, sealed under the right key by the reference.
-        bad, _ = self.malformed(self.records(3) or [self.record()])
-        bad += bytes(max(0, slot_len - COMMIT_LEN - len(bad)))
-        if len(bad) == slot_len - COMMIT_LEN:
-            self.open(self.with_plain(f, p, bad), p)
-        # A sound slot behind a commitment block that is not zero.
-        block = bytearray(COMMIT_LEN)
-        for _ in range(rng.choice([1, 1, 2, 32])):
-            block[rng.randrange(COMMIT_LEN)] = rng.randint(1, 255)
-        body = encode(self.records(2), slot_len)
-        self.open(self.with_plain(f, p, body, bytes(block)), p,
-                  ("ok", {"refused": "Commitment"}))
-
-    def faulty(self, f):
-        rng = self.rng
-        f = bytearray(f)
-        how = rng.randrange(9)
-        if how == 0:
-            f[rng.randrange(4)] ^= 0x20
-        elif how == 1:
-            f[4] = rng.choice([0, 2, 255])
-        elif how == 2:
-            f[17:21] = struct.pack("<I", rng.choice([0, 65535, 65537, 131072, 8388608]))
-        elif how == 3:
-            del f[rng.choice([10, 52, 53, len(f) - 1]):]
-        elif how == 4:
-            f += bytes(rng.randint(1, 40))
-        elif how == 5:
-            f[5:17] = struct.pack("<III", *rng.choice([(8191, 1, 1), (4194305, 1, 1), (8192, 0, 1),
-                                                       (8192, 11, 1), (8192, 1, 2), (8192, 1, 0)]))
-        elif how == 6:
-            # A header byte that is not checked but is associated data.
-            f[rng.randrange(21, HEADER_LEN)] ^= 1
-        else:
-            f[rng.randrange(HEADER_LEN, len(f))] ^= 1 << rng.randrange(8)
-        return bytes(f)
-
-    def with_plain(self, f, passphrase, body, block=bytes(COMMIT_LEN)):
-        key, (i, _) = open_slots(f, passphrase)
-        out = bytearray(f)
-        seal_slot(out, key, i, self.randbytes(24), body, block)
-        return bytes(out)
-
-    def two_slots(self):
-        """A file with two slots under one key, which no writer of this
-        format makes: both refuse it."""
-        f = bytearray(bytes.fromhex(ref_create(65536, (8192, 1, 1), ["a"], [[]], bytes(32))["file"]))
-        key, (i, plain) = open_slots(f, "a")
-        seal_slot(f, key, (i + 1) % 4, bytes(24), plain)
-        self.open(bytes(f), "a")
-
-    def published(self):
-        self.check_primitives()
-        v = VECTORS["xchacha20poly1305"]
-        args = [bytes.fromhex(v[k]) for k in ("key", "nonce", "aad")]
-        self.seal(*args, bytes.fromhex(v["plaintext"]), ("ok", {"ciphertext": v["ciphertext"],
-                                                                "tag": v["tag"]}))
-        self.unseal(*args, bytes.fromhex(v["ciphertext"]), bytes.fromhex(v["tag"]),
-                    ("ok", {"plaintext": v["plaintext"]}))
-        a = VECTORS["argon2id"]
-        self.argon(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
-                   a["passes"], a["lanes"], ("ok", {"key": a["key"]}))
-        for name, passphrases in [("vault-one.fvlt", ["correct horse battery staple"]),
-                                  ("vault-three.fvlt", ["first passphrase", "second passphrase",
-                                                       "third passphrase"]),
-                                  ("vault-nfd.fvlt", ["cafe\u0301", "caf\u00e9"])]:
-            f = (ROOT / "tools/vectors/vault" / name).read_bytes()
-            for p in passphrases:
-                self.open(f, p)
-            self.open(f, "fourth passphrase")
-        self.two_keys()
-
-    def two_keys(self):
-        """`two-keys.fvlt` (§4): first shown to be what it says, a slot
-        PyNaCl verifies under the slot key of each passphrase; then
-        refused under each for its commitment block, by both sides and by
-        `tools/vault/open.py`."""
-        f = (ROOT / "tools/vectors/vault/two-keys.fvlt").read_bytes()
-        slot_len = struct.unpack("<I", f[17:21])[0]
-        spec = importlib.util.spec_from_file_location("vault_open", ROOT / "tools/vault/open.py")
-        reader = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(reader)
-        for p in ("first of two keys", "second of two keys"):
-            key = slot_key(f[:HEADER_LEN], p)
-            verified = [i for i in range(4) if aead_open(
-                key, f[slot_at(slot_len, i):slot_at(slot_len, i) + 24], f[:HEADER_LEN] + bytes([i]),
-                f[slot_at(slot_len, i) + 24:slot_at(slot_len, i) + 24 + slot_len],
-                f[slot_at(slot_len, i) + 24 + slot_len:slot_at(slot_len, i + 1)]) is not None]
-            if len(verified) != 1:
-                raise HarnessError(f"two-keys.fvlt: {len(verified)} slots verify under {p!r}, not one")
-            self.open(f, p, ("ok", {"refused": "Commitment"}))
-            try:
-                reader.open_vault(f, p)
-            except SystemExit as e:
-                if "not committed" not in str(e):
-                    raise HarnessError(f"open.py refuses two-keys.fvlt for another reason: {e}")
-            else:
-                raise HarnessError("open.py opens two-keys.fvlt")
-
-    def nfc_cases(self):
-        """§3: a vault made from a passphrase in one form is the same file
-        on both sides, and its other forms open it; a compatibility
-        character NFC keeps is another passphrase, which opens nothing, and
-        two forms of one passphrase are refused at create as the same."""
-        same = [
-            ("e\u0301", "\u00e9"),
-            ("A\u030a", "\u00c5"),
-            ("\u1112\u1161\u11ab\u1100\u1173\u11af", "\ud55c\uae00"),
-            ("\u212b", "\u00c5"),
-            ("\u2126", "\u03a9"),
-            ("a\u0323\u0302", "a\u0302\u0323"),
-            ("a\u0323\u0302", "\u1ead"),
-        ]
-        kept = [("\ufb01", "fi"), ("\uff21", "A"), ("a\u00a0b", "a b")]
-        cost = (8192, 1, 1)
-        for made, other in same + kept:
-            f = bytes.fromhex(self.need(self.create(65536, cost, [made], [[]], self.randbytes(32)),
-                                        "create")["file"])
-            want = ("ok", {"records": [], "seals": [1, None]}) if (made, other) in same \
-                else ("ok", {"refused": "Passphrase"})
-            self.open(f, other, want)
-            self.create(65536, cost, [made, other], [[], []], self.randbytes(32))
+        out = ""
+        for _ in range(rng.randint(1, most)):
+            lo, hi = rng.choice(pools)
+            while True:
+                ch = chr(rng.randint(lo, hi))
+                if unicodedata.category(ch) not in ("Cn", "Cs"):
+                    break
+            out += ch
+        return out
 
     def check_unicode(self):
         """The area stops where Python's Unicode is newer than the crate's:
@@ -1073,48 +286,22 @@ class Vault(Area):
         if version(unicodedata.unidata_version) > version(theirs):
             raise HarnessError(
                 f"Python's Unicode {unicodedata.unidata_version} is newer than "
-                f"unicode-normalization's {theirs}: the area's random passphrases could hold a "
-                "code point only one side composes")
+                f"unicode-normalization's {theirs}: a code point only one side composes could "
+                "differ")
 
-    def settled(self):
-        """The rules the owner settled in §7 and §8 (2026-10-23), which
-        both now hold: an empty passphrase refused at create, alone or
-        among others; the retired type 12 refused, read or written; a
-        GPG key without field 2 and a signing round without field 2, 3
-        or 4 refused; a sheet past 16 KiB refused; two passphrase records
-        for one key and two signed amounts records for one transaction
-        refused; and the slot vectors of `tools/vectors/vault/slots.json`
-        read as the file says."""
-        for passphrases in ([""], ["one", ""]):
-            self.create(65536, (8192, 1, 1), passphrases, [[] for _ in passphrases], bytes(32))
-        apk = [(12, [(1, b"\x30\x00"), (2, b"\x30\x00"), (3, b"app.example")])]
-        self.decode(bytes(raw_encode(apk)), ("err", None))
-        self.encode(apk, _used(apk))
-        for kind, fields in [(7, [(1, bytes(32))]), (9, [(1, b"\x01")]),
-                             (9, [(1, b"\x02"), (2, bytes(32)), (3, bytes(4))])]:
-            self.decode(bytes(raw_encode([(kind, fields)])), ("err", None))
-            self.encode([(kind, fields)], _used([(kind, fields)]))
-        self.big_sheet()
-        for twins in ([(14, [(1, b"fpfp"), (2, b"a")]), (14, [(1, b"fpfp"), (2, b"b")])],
-                      [(10, [(1, bytes(32)), (2, bytes(8))]),
-                       (10, [(1, bytes(32)), (2, bytes(8)), (2, bytes(8))])]):
-            self.decode(bytes(raw_encode(twins)), ("err", None))
-            self.encode(twins, _used(twins))
-        for case in json.loads((ROOT / "tools/vectors/vault/slots.json").read_text())["cases"]:
-            want = ("ok", None) if case["expect"] == "ok" else ("err", None)
-            got = self.decode(bytes.fromhex(case["plain"]), None)
-            if _okerr(got)[0] != want[0]:
-                raise Mismatch(self.name, "vault.decode", {"case": case["case"]}, got, want,
-                               "both differ from tools/vectors/vault/slots.json")
-
-    LOOPS = (("argon", 40), ("aead", 500), ("payload", 1500), ("records", 1500), ("vault", 25),
-             ("nfc", 40))
+    LOOPS = (("argon", 40), ("payload", 1500), ("nfc", 1000))
 
     def prelude(self):
         self.check_unicode()
-        self.published()
-        self.settled()
+        self.check_primitives()
+        a = VECTORS["argon2id"]
+        self.argon(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
+                   a["passes"], a["lanes"], ("ok", {"key": a["key"]}))
+        self.big_sheet()
         self.nfc_cases()
+
+    def case_nfc(self):
+        self.nfc(self.unicode_text())
 
     def case_argon(self):
         rng = self.rng
@@ -1124,80 +311,5 @@ class Vault(Area):
                    rng.choice([8 * lanes, rng.randint(8 * lanes - 2, 300)]),
                    rng.choice([1, 2, 3, rng.randint(0, 4)]), lanes if rng.random() < 0.9 else 0)
 
-    def case_aead(self):
-        rng = self.rng
-        key, nonce = self.randbytes(32), self.randbytes(24)
-        aad = self.randbytes(rng.choice([0, 13, 54, rng.randint(0, 200)]))
-        plain = self.randbytes(rng.choice([0, 1, 63, 64, 65, rng.randint(0, 1000),
-                                           rng.randint(0, 70000) if rng.random() < 0.02 else 7]))
-        sealed = self.need(self.seal(key, nonce, aad, plain), "seal")
-        ct, tag = bytes.fromhex(sealed["ciphertext"]), bytes.fromhex(sealed["tag"])
-        self.unseal(key, nonce, aad, ct, tag)
-        which = rng.randrange(4)
-        ct, tag, nonce, aad = [bytearray(x) for x in (ct, tag, nonce, aad)]
-        target = [ct, tag, nonce, aad][which]
-        if target:
-            target[rng.randrange(len(target))] ^= 1 << rng.randrange(8)
-        else:
-            aad.append(0)
-        self.unseal(key, bytes(nonce), bytes(aad), bytes(ct), bytes(tag))
-
     def case_payload(self):
         self.payload_case()
-
-    def case_records(self):
-        rng = self.rng
-        records = self.records()
-        used = _used(records)
-        slot_len = used + rng.choice([0, 0, 1, 50]) - (1 if rng.random() < 0.1 else 0)
-        seals = (rng.choice([1, 2, rng.randrange(1, 1 << 64)]),
-                 rng.choice([None, rng.randrange(1 << 64)]))
-        got = self.encode(records, slot_len, seals)
-        if got[0] == "ok" and "plain" in got[1]:
-            self.decode(bytes.fromhex(got[1]["plain"]))
-        plain, _ = self.malformed(records)
-        self.decode(plain)
-
-    def case_vault(self):
-        self.vault_case()
-
-    def case_nfc(self):
-        """Random text: the vault one form makes is the same file on both
-        sides, and its NFD and NFC forms open it on both."""
-        p = self.unicode_text()
-        f = bytes.fromhex(self.need(self.create(65536, (8192, 1, 1), [p], [[]], self.randbytes(32)),
-                                    "create")["file"])
-        for form in ("NFD", "NFC"):
-            self.need(self.open(f, unicodedata.normalize(form, p)), "open")
-
-    def coda(self):
-        self.two_slots()
-        for size in SLOT_SIZES[1:3]:
-            self.vault_case(size)
-
-
-def _used(records):
-    """The slot length these records fill (Contents::used): the commitment
-    block, the format byte, the seal count at its largest, the records and
-    the end record."""
-    return COMMIT_LEN + 2 + SEALS_MAX + sum(5 + sum(3 + len(b) for _, b in fields)
-                                            for _, fields in records)
-
-
-def raw_encode(records, seals=True):
-    """What follows the commitment block, with no rule checked, so a
-    malformed one is written as asked: the format byte, a seal count of 1
-    unless `seals` is false, the records and the end record."""
-    out = bytearray([1])
-    if seals:
-        out += record_bytes(*seal_record((1, None)))
-    for k, fields in records:
-        out += record_bytes(k, fields)
-    out.append(0)
-    return out
-
-
-def _okerr(answer):
-    """A slot's reading compared as its records, or as a refusal: which
-    of §7's faults is met first is the implementation's order."""
-    return answer if answer[0] == "ok" else ("err", None)

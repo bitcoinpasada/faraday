@@ -233,7 +233,7 @@ fn checked_header(bytes: &[u8]) -> Result<header::Parsed, Error> {
 }
 
 /// A passphrase's NFC form as bytes, in a buffer that wipes.
-fn passphrase_bytes(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
+pub fn passphrase_bytes(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     let nfc = crate::nfc(passphrase).map_err(|e| match e {
         crate::Error::Memory(mib) => Error::Memory(mib),
         _ => Error::Damaged,

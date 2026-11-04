@@ -37,9 +37,6 @@ faraday-shell-api = { path = "../../core/faraday-shell-api" }
 # shipped binary.
 faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
 bitcoin.workspace = true
-# XChaCha20-Poly1305 called as `faraday-vault` calls it, for the vault
-# area's checks of the cipher on its own.
-chacha20poly1305.workspace = true
 serde_json = { workspace = true, features = ["std"] }
 
 [lints]

@@ -1,28 +1,18 @@
-//! The vault (`docs/VAULT.md`) through `faraday_vault`, and its two
-//! primitives as Faraday calls them: Argon2id through
-//! `faraday_backup::argon2id`, and XChaCha20-Poly1305 through the
-//! `chacha20poly1305` crate's detached calls, which `faraday_vault`
-//! seals and opens every slot with.
+//! What of the vault the cross-check still asks of Faraday's code
+//! (`docs/VAULT.md`): Argon2id through `faraday_backup::argon2id`, a
+//! passphrase's NFC form and the Unicode version `faraday_vault` makes it
+//! under, and the payload layouts of §7 through `faraday_vault::layouts`.
 //!
-//! The slot key's HKDF and the keystream a new vault is drawn from are
-//! private to `faraday_vault`; they are checked through `vault.create`,
-//! whose every byte depends on both.
-//!
-//! Records travel as `[[type, [[field, hex], ...]], ...]`, a seal count
-//! as `[count, last]` (`last` null when absent), and passphrases as
-//! JSON text, which `faraday_vault` puts in NFC.
+//! Passphrases travel as JSON text.
 
-use chacha20poly1305::aead::inout::InOutBuf;
-use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use faraday_backup::Cost;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
 use faraday_vault::layouts::{self, Opened};
-use faraday_vault::{COMMIT_LEN, Contents, Record, Seals};
 use serde_json::{Value, json};
 
 use crate::Answer;
-use crate::json::{b32, bytes, hex, num, text, texts};
+use crate::json::{bytes, hex, num};
 
 fn err<E: core::fmt::Debug>(e: E) -> String {
     format!("{e:?}")
@@ -35,57 +25,6 @@ fn cost(req: &Value) -> Result<Cost, String> {
         passes: n("passes")?,
         lanes: n("lanes")?,
     })
-}
-
-/// A list of records as the request writes them.
-fn contents(v: &Value) -> Contents {
-    let records = v
-        .as_array()
-        .expect("contents is a list")
-        .iter()
-        .map(|r| {
-            let kind = u8::try_from(r[0].as_u64().expect("a type")).expect("a type byte");
-            let mut record = Record::new(kind);
-            for f in r[1].as_array().expect("fields") {
-                let number = u8::try_from(f[0].as_u64().expect("a field")).expect("a field byte");
-                record.push(number, &crate::json::unhex(f[1].as_str().expect("hex")));
-            }
-            record
-        })
-        .collect();
-    Contents { records }
-}
-
-fn records(c: &Contents) -> Value {
-    Value::Array(
-        c.records
-            .iter()
-            .map(|r| {
-                let fields: Vec<Value> = r
-                    .fields
-                    .iter()
-                    .map(|f| json!([f.number, hex(&f.bytes)]))
-                    .collect();
-                json!([r.kind, fields])
-            })
-            .collect(),
-    )
-}
-
-fn seals(s: Seals) -> Value {
-    json!([s.count, s.last])
-}
-
-/// The seal count a request gives as `count` and `last`.
-fn seals_of(req: &Value) -> Seals {
-    Seals {
-        count: num(req, "count"),
-        last: req["last"].as_u64(),
-    }
-}
-
-fn nonce(req: &Value) -> [u8; 24] {
-    bytes(req, "nonce").try_into().expect("a nonce is 24 bytes")
 }
 
 /// Handles `vault.<name>`.
@@ -103,90 +42,16 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             .map_err(err)?;
             Ok(json!({"key": hex(k.expose())}))
         }
-        // XChaCha20-Poly1305 with a detached tag, as a slot is sealed.
-        "aead_seal" => {
-            let cipher = XChaCha20Poly1305::new_from_slice(&b32(req, "key")).map_err(err)?;
-            let mut buf = bytes(req, "plaintext");
-            let tag = cipher
-                .encrypt_inout_detached(
-                    &XNonce::from(nonce(req)),
-                    &bytes(req, "aad"),
-                    InOutBuf::from(&mut buf[..]),
-                )
-                .map_err(err)?;
-            Ok(json!({"ciphertext": hex(&buf), "tag": hex(&tag)}))
-        }
-        "aead_open" => {
-            let cipher = XChaCha20Poly1305::new_from_slice(&b32(req, "key")).map_err(err)?;
-            let mut buf = bytes(req, "ciphertext");
-            let tag: [u8; 16] = bytes(req, "tag").try_into().expect("a 16-byte tag");
-            cipher
-                .decrypt_inout_detached(
-                    &XNonce::from(nonce(req)),
-                    &bytes(req, "aad"),
-                    InOutBuf::from(&mut buf[..]),
-                    &Tag::from(tag),
-                )
-                .map_err(err)?;
-            Ok(json!({"plaintext": hex(&buf)}))
-        }
-        // A new vault from the seed every random byte is drawn from.
-        "create" => {
-            let refs = texts(req, "passphrases");
-            let all: Vec<Contents> = req["contents"]
-                .as_array()
-                .expect("contents is a list")
-                .iter()
-                .map(contents)
-                .collect();
-            let slot_len = u32::try_from(num(req, "slot_len")).map_err(err)?;
-            let file =
-                faraday_vault::create(&c, slot_len, cost(req)?, &refs, &all, &b32(req, "seed"))
-                    .map_err(err)?;
-            Ok(json!({"file": hex(&file)}))
-        }
-        "open" => {
-            let (opened, contents) =
-                faraday_vault::open(&c, &bytes(req, "file"), text(req, "passphrase"))
-                    .map_err(err)?;
-            Ok(json!({"records": records(&contents), "seals": seals(opened.seals())}))
-        }
         // The Unicode version the passphrase is put in NFC under.
         "unicode_version" => {
             let (a, b, v) = faraday_vault::UNICODE_VERSION;
             Ok(json!({"version": format!("{a}.{b}.{v}")}))
         }
-        // Opens the slot a passphrase opens and seals new contents into
-        // it under the nonce given.
-        "seal" => {
-            let file = bytes(req, "file");
-            let (mut opened, _) =
-                faraday_vault::open(&c, &file, text(req, "passphrase")).map_err(err)?;
-            let sealed = opened
-                .seal(
-                    &file,
-                    &contents(&req["contents"]),
-                    &nonce(req),
-                    req["now"].as_u64(),
-                )
-                .map_err(err)?;
-            Ok(json!({"file": hex(&sealed)}))
-        }
-        // A slot's plaintext after its commitment block, and its
-        // reading, with no cipher around it.
-        "encode" => {
-            let slot_len = usize::try_from(num(req, "slot_len")).map_err(err)?;
-            let len = slot_len
-                .checked_sub(COMMIT_LEN)
-                .ok_or("shorter than the block")?;
-            let plain = contents(&req["contents"])
-                .encode(len, seals_of(req))
-                .map_err(err)?;
-            Ok(json!({"plain": hex(&plain)}))
-        }
-        "decode" => {
-            let (c, s) = Contents::decode(&bytes(req, "plain")).map_err(err)?;
-            Ok(json!({"records": records(&c), "seals": seals(s)}))
+        // A passphrase's NFC form, the bytes Argon2id stretches (§3).
+        "passphrase_nfc" => {
+            let p = req["passphrase"].as_str().ok_or("no passphrase")?;
+            let nfc = faraday_vault::kdbx::passphrase_bytes(p).map_err(err)?;
+            Ok(json!({"nfc": hex(&nfc)}))
         }
         _ => layout(name, req),
     }

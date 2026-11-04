@@ -195,7 +195,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `codex32-correct` | `faraday_bip::codex32::correct` | python-codex32's decoder, `correction.py` at a later commit (`codex32/correction/`), asked with BIP 93's bound | python-codex32's frozen correction corpus, 57 cases (`tools/vectors/codex32-correction/`) | random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, `ms1` damaged |
 | `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | Coldcard's own `xor` and `xor_split` (`coldcard/`, unchanged) with python-mnemonic (`bip39/`) for the words | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals; parts made by Coldcard's `xor_split` read back to their seed |
 | `hash` | `faraday_bip::hashes` and `faraday_codec::encodings` (`read`, the writers and `from_hex`), `faraday_core::file_menu::sha256`, and `faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`, `hmac_sha256`, `hmac_sha512`, `pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512` and `scrypt` | Bitcoin Core v31.1's functional-test framework (`core/`): `ripemd160.py`, `address.py` and `segwit_addr.py`, with `hashlib` for SHA-256 and `bytes.fromhex` for hex; PyCA cryptography's `HKDF` and `HKDFExpand` (OpenSSL) for the one HKDF; `hmac`, `hashlib.pbkdf2_hmac` and `hashlib.scrypt` (OpenSSL) for HMAC, PBKDF2 and scrypt | FIPS 180-4's SHA-256 examples, RIPEMD-160 of `abc`, BIP-173's key and its HASH160, Bitcoin Core's first `key_io_valid.json` address, BIP-173's and BIP-350's bech32 strings and their valid and invalid segwit addresses (`tools/vectors/addresses`) | random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes written and read as Base58Check, Base58, bech32 and bech32m, Core's writing read by Faraday, segwit addresses of every version Core's framework writes, and texts changed, cut or made of random characters read by both |
-| `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi, PyNaCl and PyCA cryptography (the distribution's packages; the last for HKDF-SHA256 and ChaCha20) | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the vaults and the slot vectors of `tools/vectors/vault/`, among them `two-keys.fvlt`, whose one slot PyNaCl verifies under two passphrases' keys | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types a caller writes (type 12 is retired and refused) with the seal count, encoded, decoded and broken a rule at a time; passphrases in every Unicode form, made and opened; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed with a count one higher, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key, a commitment block not zero and faulty contents |
+| `vault` | `faraday_vault`'s payload layouts and a passphrase's NFC form with the Unicode version it is made under, and `faraday_backup::argon2id` | `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi and Python's `unicodedata` | the Argon2id known answer (`tools/vectors/vault-primitives/`) | Argon2id at small random costs and the costs it refuses; payloads made, read and malformed; passphrases in NFC, by case and at random. The KDBX vault file is not in this area yet: it is judged by its own later area run, not yet built for what the store writes |
 | `bip39` | `faraday_bip::bip39` | python-mnemonic (`bip39/`); bip39_slip39 (`bip39-slip39/`) answering every operation beside it | the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in Faraday's languages; the Japanese vectors with non-ASCII passphrases | entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word |
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | btclib-wallet's `bip32` over btclib and `ecc` (`btclib/`), on btclib's own curve with libsecp256k1 turned off, through `bip32_ref.py`, and `hdkeychain` from btcd v0.27.0 (`btcd/`, Go, decred's secp256k1); the versions a strict reader takes (BIP-32's four, from btclib's network table), a version whose kind differs from the key's data, and a depth-0 key with a parent or an index are ours | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import, each judged by btclib and by `hdkeychain` |
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum, `faraday_bip::policy::WalletPolicy::from_descriptor` (an account descriptor's kind, text and script at an index) | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); btclib-wallet's `bip32` and `slip132` (`btclib/`, on btclib's own curve) for accounts' keys, and its descriptors (`descriptors`) for each account descriptor's kind, text, script at an index and checksum, and as a third checksum judge; Bitcoin Core v31.1's `bitcoind` on regtest for every account's address (`deriveaddresses`) and for reading Faraday's regtest descriptors (`getdescriptorinfo`) | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices, their descriptors read and changed; random descriptors' checksums |
@@ -274,13 +274,11 @@ leaves uncompared.
   hash is `file_menu::sha256` over a whole byte slice (it reads in no
   buffer, so no read size is probed); the Files screen's reading of a
   file from a stick is the files areas'.
-- `vault`: `check_primitives` runs before anything else: HKDF against
-  RFC 5869's three SHA-256 cases, ChaCha20 against RFC 8439's five block
-  vectors, PyNaCl against draft-irtf-cfrg-xchacha-03's AEAD vector,
-  argon2-cffi against `tools/vectors/kdf/`'s known answer; the versions
-  of argon2-cffi, PyNaCl and cryptography are written into the stamp;
-  the passphrase in NFC is `unicodedata`'s, and the area stops where
-  Python's Unicode is newer than `unicode-normalization`'s.
+- `vault`: `check_primitives` runs before anything else: argon2-cffi against
+  `tools/vectors/kdf/`'s known answer; the version of argon2-cffi is
+  written into the stamp; the area stops where Python's Unicode is newer
+  than `unicode-normalization`'s. The KDBX vault is judged by its own
+  later area run, not yet built for what the store writes.
 - `bip39`: its vendored files are hashed against `references.sha256`
   before any run, and a published vector's answer is required of the
   reference as well as of Faraday; python-mnemonic's own
@@ -531,11 +529,7 @@ difference"), and says why.
   - bech32 length: Core's decoder refuses more than 90 characters
     (BIP-173); Faraday accepts any length the checksum covers. The area
     reads longer strings the same way.
-- `vault`
-  - Both refuse a record of type 7 or 9 without its required fields, a
-    sheet past 16 KiB, an empty passphrase at create, and a second type
-    14 or type 10 record, as `docs/VAULT.md` §7 and §8 say (owner,
-    2026-10-23).
+- `vault`: none now; the area's checks of the earlier container went with it.
 - `bip39`
   - Both read a BIP-39 sentence in NFKD, so composed words and the
     Japanese vectors as published parse on both sides (owner,
@@ -994,7 +988,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode each picture this writes and whose payload is compared with the key's words | none | stick-write |
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode the picture this writes and whose payload is compared with the key's words | none | outbox |
 | `sps` | others' code | BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone | none | silent-send |
-| `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20), for the primitives | the container, its slot layout, key schedule and records, written in `area_vault.py` from the FVLT format's account (`docs/history/VAULT-LOG.md`) | vault-create, vault-unlock, vault-seal, vault-edit |
+| `vault` | others' code | argon2-cffi (the Argon2 designers' reference code) for Argon2id, and Python's `unicodedata` for a passphrase's NFC form; the payload layouts are written in `area_vault.py` from `docs/VAULT.md` §7 | none | vault-create, vault-unlock, vault-seal, vault-edit |
 | `kdbx` | others' code | pykeepass, by the libkeepass project (the distribution's package), and PyCA's cryptography over OpenSSL for the Argon2id | none | kdbx |
 | `totp` | others' code | pyotp, by the pyotp developers, which judges the code, the seconds left, the period and the reading of an otpauth URI's key, digits, period and hash; Faraday's stricter and wider readings of a URI are stated differences of the area | none | totp |
 <!-- crypto-manifest: end independence -->
@@ -1005,10 +999,8 @@ with an area and no class (`docs/crypto/check.py`).
 `hashlib`), `unshare` from util-linux with unprivileged user namespaces
 allowed, and the Rust toolchain; PyPy 3.11 or later if it is to go
 faster (above). Nothing is installed with pip. The
-`vault` area needs the distribution's Argon2, libsodium and
-cryptography bindings, argon2-cffi, PyNaCl and PyCA cryptography
-(Debian and Ubuntu: `python3-argon2` `python3-nacl`
-`python3-cryptography`), and the `kdbx` area the distribution's
+`vault` area needs the distribution's Argon2 binding, argon2-cffi
+(Debian and Ubuntu: `python3-argon2`), and the `kdbx` area the distribution's
 pykeepass (`python3-pykeepass`); without them each stops and names them,
 and the run fails. The `lightning` area needs Go 1.27 or later
 (`go version`; `run.sh` builds `tools/reference/lnd/` offline from its
