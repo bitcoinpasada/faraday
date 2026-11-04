@@ -82,6 +82,9 @@ pub struct Column<'a> {
     pub guided: bool,
     /// Whether Steps only · Guided is shown at the head of the column.
     pub switch: bool,
+    /// On the compact layout, whether a closed card's line too long for its
+    /// row wraps; otherwise it is cut to fit.
+    pub wrap_closed: bool,
     /// A line at the head of the column, about the page as a whole.
     pub note: Option<&'a str>,
     /// A chip at the head of the column: where the flow goes next, or
@@ -434,8 +437,9 @@ fn paged(
                 let role = if c.mono { BODY_S.mono() } else { BODY_S };
                 let room = inner - cw - 16.0;
                 let row = 34.0;
-                // A line that does not fit in one is wrapped, not cut.
-                let (h, after) = if ui.measure_as(role, &line) > room {
+                // A line that does not fit in one is wrapped where the flow
+                // asks; it is cut otherwise, below.
+                let (h, after) = if col.wrap_closed && ui.measure_as(role, &line) > room {
                     let used = ui.wrap_height_as(role, &line, room);
                     ui.wrap_as(
                         (M, y + tokens::GAP_SMALL, room),
@@ -445,6 +449,7 @@ fn paged(
                     );
                     (used + tokens::GAP, tokens::GAP_SMALL)
                 } else {
+                    let line = ui.fit_as(role, &line, room);
                     ui.text_mid_as((M, y, row), role, Role::OnSurfaceVariant, &line);
                     (row, 2.0)
                 };

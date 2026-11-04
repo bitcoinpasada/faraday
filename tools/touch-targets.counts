@@ -86,6 +86,7 @@ small_240x320 KeyGen KStep 5
 small_240x320 KeyGen WordList 4
 small_240x320 Restore RStep 7
 small_240x320 Settings Theme 42
+small_240x320 SignerCheck SignerCheck 2
 small_240x320 Silent SQr 1
 small_240x320 Silent SStep 2
 small_240x320 Spend Step 4
@@ -117,6 +118,7 @@ small_480x640 KeyGen KStep 6
 small_480x640 KeyGen WordList 4
 small_480x640 Restore RStep 7
 small_480x640 Settings Theme 46
+small_480x640 SignerCheck SignerCheck 3
 small_480x640 Silent SQr 1
 small_480x640 Silent SStep 2
 small_480x640 Spend Step 4
@@ -191,6 +193,7 @@ stick_1024x600 Restore RStep 7
 stick_1024x600 Restore Slide 2
 stick_1024x600 SetTime SetTimeBack 1
 stick_1024x600 Settings Theme 30
+stick_1024x600 SignerCheck SignerCheck 3
 stick_1024x600 Silent SStep 2
 stick_1024x600 Spend Osk 38
 stick_1024x600 Spend QrPart 1

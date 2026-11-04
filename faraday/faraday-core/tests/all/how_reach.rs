@@ -50,6 +50,7 @@ fn screen(name: &str) -> Screen {
         "Vanity" => S::Vanity,
         "Decode" => S::Decode,
         "NonceCheck" => S::NonceCheck,
+        "SignerCheck" => S::SignerCheck,
         "Catalog" => S::Catalog,
         "Transfer" => S::Transfer,
         "BackupFlow" => S::BackupFlow,

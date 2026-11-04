@@ -370,6 +370,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: &heading,
         guided: app.guided(),
         switch: checklist,
+        wrap_closed: false,
         note: None,
         // From Create the wallet is the one just made, and the way on is
         // its card.

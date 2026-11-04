@@ -93,6 +93,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // Guided switch (owner, 2026-10-25).
         guided: f.is_setup() && app.guided(),
         switch: f.is_setup(),
+        wrap_closed: false,
         note: None,
         chip: named.map(|n| n.1),
         chip_tap: None,

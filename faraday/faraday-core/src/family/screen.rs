@@ -102,6 +102,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         heading: from.as_deref().unwrap_or(EN.family_spend),
         guided: true,
         switch: false,
+        wrap_closed: false,
         note: from.is_none().then_some(EN.family_this_page_takes),
         chip: None,
         chip_tap: None,
