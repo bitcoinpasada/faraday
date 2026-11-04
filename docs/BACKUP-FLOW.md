@@ -503,8 +503,8 @@ Done → Unlock → the done card.
 **C. A 2-of-3, each key in its own vault.** Vault 1 an existing vault
 on one stick; Vault 2 and Vault 3 new, on empty sticks. Use vaults: Yes
 → Sticks and vaults: 3 vaults, 3 sticks, Vault 1 Already on a stick → insert
-Stick 2: it holds `main.fvlt`
-and `main-2.fvlt`; "Which vault is Vault 1?" → `main.fvlt`, copied in;
+Stick 2: it holds `main.kdbx`
+and `main-2.kdbx`; "Which vault is Vault 1?" → `main.kdbx`, copied in;
 tap → the stick for Vault 2: empty, checked, bound; tap → the stick for
 Vault 3: empty, reads as the second did, so the hold → every stick is
 read → the step offers Open Vault 1, Create Vault 2 and Create Vault
@@ -512,8 +512,8 @@ read → the step offers Open Vault 1, Create Vault 2 and Create Vault
 passphrase → New key three times, into memory → Back up's plan: Key 1
 into Vault 1, Key 2 into Vault 2, Key 3 into Vault 3, a place each → the
 rest of the plan and the checklist, each vault's **Save into** → Lock
-and write → the stick for Vault 1 (Place 1): `main.fvlt` replaced,
-`main-2.fvlt` untouched → Vault 2 (Place 2) → Vault 3 (Place 3) → Done.
+and write → the stick for Vault 1 (Place 1): `main.kdbx` replaced,
+`main-2.kdbx` untouched → Vault 2 (Place 2) → Vault 3 (Place 3) → Done.
 
 **D. A 2-of-3 mix.** Two vaults set up, Vault 1 and Vault 2, on a stick
 each; Key 3 on paper. The setup asks for two sticks only → Unlock or
@@ -951,7 +951,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   Sign opens the flow, until every place is written, then work after the unlock;
   the same keys unlocked from a stick work at once; a Nostr entry saved
   in the flow exports at once.
-- **Every form.** Example C writes three sticks, `main-2.fvlt` untouched;
+- **Every form.** Example C writes three sticks, `main-2.kdbx` untouched;
   example D asks for two sticks only, checks Key 3's copy by typed
   words, and writes Vault 1, Vault 2 and the stick of public files;
   example E draws no stick step and no lock.

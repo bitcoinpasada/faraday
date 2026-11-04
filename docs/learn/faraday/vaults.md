@@ -46,4 +46,4 @@ An entry in a vault (a title, a username, a password, a URL and notes) can leave
 
 ## Reading a vault without Faraday
 
-A vault is a KDBX 4 file, a published format that KeePass programs use, and its layout is in Faraday's source, in docs/VAULT.md. No KeePass program has been tried on what Faraday writes. The recovery tool in the same repository is not yet changed to read it.
+A vault is a KDBX 4 file, a published format that KeePass programs use, and its layout is in Faraday's source, in docs/VAULT.md. The tool tools/vault/open.py in the same repository reads it with pykeepass. No KeePass program has yet been tried on what Faraday writes.

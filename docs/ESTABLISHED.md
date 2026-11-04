@@ -95,7 +95,7 @@ Faraday's own (the session's randomness, the mixing of entropy) and
 carry F160's label. The vault is two published formats once F190 is
 built, KDBX 4 for a file and an RFC 9580 message for a QR code, each
 read by programs Faraday's authors did not write; the four-slot
-container of today, Faraday's own, goes then. The list of what Faraday implements
+container Faraday made first, its own, is gone. The list of what Faraday implements
 itself is generated from the manifest (§3), and the website's
 /cryptography page reads it from there.
 
@@ -372,15 +372,13 @@ below includes it.
 | The QR vault's OpenPGP message: the version 6 symmetric-key packet with the Argon2 S2K, the version 2 data packet and the literal data packet | `faraday/faraday-pgp/src/message.rs` | `vault-qr-pgp` | F190 | Faraday writes only the three packets a QR vault uses (F190 point 11), over argon2, aes and ocb3 and Faraday's HKDF (§3.3); rPGP, which no review Faraday trusts covers (§1.2), brings every OpenPGP algorithm. |
 | The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` §2.1 and §7 | `faraday/faraday-vault/src/contents.rs`, `faraday/faraday-vault/src/contents/` | `vault-contents` | F189, F190 | toml_parser reads the tokens; Faraday builds the tree and refuses what VAULT.md does not name, as the JSON visitor does over serde_json (`docs/deps/toml_parser.md`). |
 
-Two pieces in the tree today are in none of these tables, because
-F190's vault replaces them: the four-equal-slot FVLT container and its
-records (`faraday/faraday-vault`, `vault-create`, F178,
-`own-specification`), read by nothing once the vault is built (F189
-point 10, F190 point 9), and the KDBX 4 export
+One piece in the tree today is in none of these tables, because
+F190's vault takes it in: the KDBX 4 export
 (`core/faraday-backup/src/kdbx.rs`, `kdbx`, F178, `none-established`:
 no Rust KeePass library comes from a publisher Faraday's dependency
 review trusts), which is folded into the vault (F190 point 10). Until then
-each carries the reason given here.
+it carries the reason given here. The four-equal-slot FVLT container
+that stood beside it is gone.
 
 Thirty-nine pieces in all once the vault is built, the formatter
 included, against the eighteen lines of AUDIT §3 today. The switches
@@ -1196,9 +1194,7 @@ no user and went. What follows is the plan it was built from.
   `faraday-core` stays), and `SECRET_FILES` loses `sealed.rs` and gains
   `core/faraday-crypto/src/secret.rs` if it is not there.
 - **New in the graph.** None; `faraday-crypto` drops its
-  `chacha20poly1305` dependency (`faraday-vault` keeps its own for the
-  FVLT container, and drops it when F190's vault replaces that
-  container).
+  `chacha20poly1305` dependency, and `faraday-vault` has none.
 - **Reason.** No shipped code builds a session key or seals a value
   (the manifest's `hold`; STANDARDS §7 item 3). Should sealing in memory
   come back, it is XChaCha20-Poly1305 with a random nonce from the same
@@ -1401,9 +1397,9 @@ was built from.
 ### 5.15 The zero check, the wipes, one Argon2id call (batch C13)
 
 - **The zero check: withdrawn.** `committed` in
-  `faraday/faraday-vault/src/lib.rs` is the FVLT container's commitment
-  block, which goes with that container when F190's vault replaces it;
-  KDBX and the QR vault's message have no such block.
+  `faraday/faraday-vault/src/lib.rs` was the FVLT container's commitment
+  block, gone with that container; KDBX and the QR vault's message have
+  no such block.
 - **Files.** The Argon2 memory's `fill` and `black_box` in
   `core/faraday-backup/src/lib.rs`, `faraday/faraday-vault/src/kdbx/keys.rs`
   and `faraday/faraday-pgp/src/message.rs`, and those of
@@ -1417,8 +1413,7 @@ was built from.
   Argon2 derivation" in its first line, the algorithm Argon2id or, for a
   KeePass file read, Argon2d; all three call it, and their parameters
   and errors stay as they are. The FVLT container's own call
-  (`derive`) goes with that container and is not moved; if C13 lands
-  first, it is left as it is.
+  (`derive`) went with that container and was not moved.
 - **New in the graph.** None; `faraday-fat` gains `zeroize` (trusted, in
   the tree).
 - **deps page.** `docs/deps/zeroize.md` adds the users.
@@ -1485,11 +1480,9 @@ The pieces §3 keeps are each in one place:
   a `Secret`; the message calls it with the salts it uses today. `out` is
   a plain slice, as the expand's is: both callers fill a sub-slice of a
   buffer they wipe, which a `Secret` would copy. The FVLT
-  container's own `hkdf_sha256` (`faraday/faraday-vault/src/lib.rs`)
-  goes with that container when F190's vault replaces it and is not
+  container's own `hkdf_sha256` went with that container and was not
   moved. RFC 5869's cases 1 to 3 run through the whole function in
-  `core/faraday-crypto/tests/primitives.rs`; the FVLT container's own test
-  keeps its copy's case 3.
+  `core/faraday-crypto/tests/primitives.rs`.
 
 **Proof.** The tests of every crate touched; the Starter's stick and
 card tests (`tests/all/sticks.rs` in its shell); `tools/vectors/ur`,
@@ -1770,7 +1763,7 @@ Reference's list of conditions.
 | C10 | The descriptor checksum from miniscript | §5.12 | Built |
 | C11 | JSON from `serde_json` behind Faraday's visitor; `holds_secret` keeps no value; with X5 | §5.13, §9.7 | Built, with X5 |
 | C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
-| C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, which F190's vault replaces) | §5.15, §9.7 | Built, with X7 in area `kdbx` (the vault area's KDBX vault and QR vault wait for `docs/VAULT.md` §10) |
+| C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, now gone) | §5.15, §9.7 | Built, with X7 in area `kdbx` (the vault area's KDBX vault and QR vault wait for `docs/VAULT.md` §10) |
 | C14 | The quiz's seed from the session's generator | §5.16 | Built |
 | C15 | One copy of each kept piece; with X12 | §5.17, §9.7 | Built, with X12 |
 | D1 | Schema 5: `written_here` as entries with `why`, `note`, `decision`; `[[not_established]]` for lzma-rust2 and rqrr; getrandom's trust entry; `check.py` (§1.2's three ways, the version checked) and `gen.py`; AUDIT §3 grouped; STANDARDS §10 generated and §0's bullet; the counts; `crypto.established` made active; the manifest's entries filled as §3 | §1.2, §1.4, §2, §3 | 1 to 1.5 days |
@@ -1988,7 +1981,7 @@ not at all).
 | gpg-create, gpg-sign, gpg-verify | Own packets over ed25519-dalek; base64ct (C8) | GnuPG 2.4 (tests) | Sequoia's `sq` 1.3.1, built over Nettle (the tests and the cross-check's tools check fail unless `sq version` says so), inspects every certificate Faraday writes (both keys, the user ID, the expiry, the renewal), takes the revocation certificate and verifies each detached signature over SHA-256 and SHA-512, refusing one over other data; a signature `sq` makes (over SHA-512, the one hash `sq sign` offers) and its key are among gpg-verify's fixtures (`tools/vectors/release-sums/sequoia`) (X24, built) | none | none (tests) |
 | kdbx | Own format until the export is folded into the vault (F190 point 10); argon2 in one call (C13), chacha20, hmac, sha2 | pykeepass | none: X25 is withdrawn, `keepassxc-cli` reading the vault the export becomes (`vault-kdbx`) | none | outside |
 | totp | Own (§3.4) | none (the RFCs' vectors in tests) | Built (X26, area `totp`): pyotp's `TOTP.at` and `generate_otp` over RFC 6238 Appendix B's vectors and random keys of 1 to 300 bytes, times from 0 to 2^64 - 1 with the edges of each period, digits 6 to 8, periods and the three hashes (the code, the seconds left, the period), and `parse_uri` over random and damaged otpauth URIs. Faraday's own rules are stated differences, each pinned one URI at a time and judged on the URI with the difference taken out: it reads what pyotp refuses (a scheme, type or algorithm in other case, a parameter name or a `counter` pyotp does not take, a label issuer the parameter does not repeat, Base32 with spaces, hyphens or misplaced `=`, `encoder=steam` as a plain 6-digit code) and refuses what pyotp reads (a period over 3600 seconds, a pair with no value, a type with no label slash, percent-escaped values, a fragment, a bare key under 16 characters); HOTP is named as HOTP by Faraday and a HOTP object by pyotp. `from_fields` and `normalise` have no pyotp reader and stay with the crate's tests | none | outside |
-| vault-create, vault-unlock, vault-seal | The FVLT container, Faraday's own, until F190's vault replaces it (F189 point 10, F190 point 9); its Argon2 call and HKDF go with it, not moved (C13, C15) | argon2-cffi, PyNaCl, PyCA, until then | none: the actions become the KDBX vault's, judged as vault-kdbx is | the container's second version (`area_vault.py`, `tools/vault/open.py`'s FVLT reader) goes with the container; what stays of it for VAULT §7's names is not checked | outside-and-own until then; after, not checked |
+| vault-create, vault-unlock, vault-seal | The file vault over the KDBX container (`vault-kdbx`); argon2 in one call (C13) | argon2-cffi for Argon2id, Python's `unicodedata` for NFC | the payload layouts of VAULT §7 are the area's own; the KDBX file is read by pykeepass in tests, and a run against `keepassxc-cli` and keepass-rs is not built | `area_vault.py`, `tools/vault/open.py` over pykeepass | outside-and-own |
 | vault-kdbx | The KDBX 4 container written here (§3.4); argon2 in one call (C13), chacha20, aes, cbc, hmac, sha2, miniz_oxide | none: pykeepass's files read in tests | area `vault`: pykeepass and `keepassxc-cli` for the primitives, keepass-rs for the format only (F193), each opening the files the other made (F190 point 11, `docs/VAULT.md` §10, built with the vault and not an X batch); PyCA's Argon2id as a second Argon2 lineage (X7) | none | outside |
 | vault-qr-pgp | The RFC 9580 message written here (§3.4); argon2 in one call (C13), aes, ocb3; HKDF Faraday's, one copy (C15) | none: RFC 9580's vectors in tests | area `vault`: Debian's `sq`, over Nettle, for the primitives, rPGP for the format only (F193), pysequoia once its backend is checked, OpenPGP.js when Node is taken, each opening the files the other made (F190 point 11, VAULT §10, built with the vault); PyCA's Argon2id (X7) | none | outside |
 | vault-contents | The TOML tree over toml_parser (§3.4) | none: toml-test's cases in tests | CPython's `tomllib` reads every vault's TOML tree beside Faraday's reader, in area `vault` (F193) | none | outside |
@@ -1999,8 +1992,8 @@ Unchanged:
 - Faraday's own specifications, checked by Faraday's second version
   only, with no outside implementation: cards, camera, pointer-keys,
   mix, device, fresh, booklet, roller (class `own`); vault-edit's
-  records, which run no primitive and take the vault's class (FVLT's
-  typed records today, KeePass entries once F190's vault is built).
+  records, which run no primitive and take the vault's class (KeePass
+  entries).
 - Judged by others' code already, with nothing chosen to add:
   multisig-account, xpub-spellings, wif-shown, address-read,
   vault-load (`outside`); lightning-node (its ldk-node composition stays

@@ -9,7 +9,7 @@ what makes each of the few thousand possible PINs cost 64 MiB and three
 passes rather than one hash.
 
 **Why this crate.** It is the RustCrypto implementation, by the same
-authors as `sha2`, `hmac` and `chacha20poly1305`, which are already in
+authors as `sha2`, `hmac` and `chacha20`, which are already in
 the graph, and it carries the RFC 9106 test vectors. It is `no_std` and
 does not need an allocator: `hash_password_into_with_memory` takes the
 working memory as a `&mut [Block]` the caller owns, which is how

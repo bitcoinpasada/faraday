@@ -89,8 +89,8 @@ none is part of `just`, which stays fast.
    areas listed in `tools/crosscheck/README.md` (what they leave out is
    under `docs/CROSSCHECK.md` §10.5 items 4 and 6: PSBT signing and
    finalizing end to end, taproot script trees, miniscript, AEZ). The
-   `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
-   and pykeepass. A disagreement it finds is kept in
+   `vault` and `kdbx` areas need the distribution's argon2-cffi and
+   pykeepass. A disagreement it finds is kept in
    its `found` folder with its seed and inputs
    (`docs/decisions/F79.md`). A full run also writes
    `out/crosscheck-record.txt` (the tree it checked, seed, scale, date, each area's

@@ -6822,7 +6822,7 @@ tests = [
   "faraday/faraday-vault/tests/file.rs::two_seals_with_different_random_bytes_are_different_files",
   "faraday/faraday-vault/tests/file.rs::a_wrong_passphrase_is_named_and_the_two_forms_of_a_passphrase_are_one",
 ]
-not_crosschecked = "Not cross-checked, like vault-unlock and vault-seal: the `vault` cross-check area judges the Argon2id step (argon2-cffi) and the NFC step (Python's `unicodedata`) a vault is made with, not `file::create`; the KDBX file itself is read back only by pykeepass in the tests, and the full outside run (pykeepass, `keepassxc-cli` and keepass-rs, both directions) is later work."
+not_crosschecked = "The `vault` cross-check area judges the Argon2id step (argon2-cffi) and the NFC step (Python's `unicodedata`) a vault is made with, not `file::create`; the KDBX file itself is read back only by pykeepass in the tests, and the full outside run (pykeepass, `keepassxc-cli` and keepass-rs, both directions) is later work."
 fuzz_none = "Creation takes no outside bytes but the passphrase and the caller's answer; kdbx_file and kdbx_body fuzz what a vault is read from."
 other = [
   "tools/vault/open.py, a reader over pykeepass, opens the vectors the same code wrote (`faraday/faraday-vault/tests/open_py.rs`); the primitives under it are argon2-cffi's and OpenSSL's answers in `tools/vectors/kdf`",
@@ -6902,7 +6902,7 @@ libraries = [
   "unicode-normalization",
 ]
 through = [{ library = "argon2", crate = "core/faraday-crypto" }]
-adds = "The passphrase is put in NFC; the container is `kdbx::open` (the `vault-kdbx` action); a file longer than the largest vault takes, or whose cost or version is outside the limits, is refused before any work; a file of another length opens with no size stated, and its next seal takes the smallest size that holds the contents; a file a KeePass app saved is opened whatever its settings and its next seal writes it in Faraday's one shape; only a `faraday.format` newer than this build writes, or a Meta or custom data that cannot be told apart from what was read, holds a vault read only."
+adds = "The passphrase is put in NFC; the container is `kdbx::open` (the `vault-kdbx` action); a file longer than the largest vault takes, or whose cost or version is outside the limits, is refused before any work; a file of another length opens with no size stated, and its next seal takes the smallest size that holds the contents; a file a KeePass app saved with a cipher and a KDF the reader takes is opened and its next seal writes it in Faraday's one shape; only a `faraday.format` other than the one this build writes, or a Meta or custom data that cannot be told apart from what was read, holds a vault read only."
 written_here = "The file vault's opening: the size and cost checks, the NFC step and the read-only flag (`faraday-vault::file`)"
 
 [action.checked]
@@ -6923,7 +6923,8 @@ tests = [
   "faraday/faraday-vault/tests/open_py.rs::open_py_opens_the_nfd_vector_under_either_form",
   "faraday/faraday-vault/tests/open_py.rs::open_py_refuses_damage_an_older_version_and_names_the_qr_vault",
 ]
-not_crosschecked = "Faraday's own use of KDBX 4 as the file vault: read by tools/vault/open.py over pykeepass (the tests that run it), and the Argon2id step by argon2-cffi in `area_vault.py`; nothing outside Faraday reads what the store writes beyond those tests, and the full outside run (pykeepass, `keepassxc-cli` and keepass-rs, both directions) is later work."
+crosscheck = "vault"
+independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read back only by pykeepass in the tests (the full outside run is later work)" }
 fuzz = [
   "vault_header",
   "kdbx_file",
@@ -6946,7 +6947,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "A file a KeePass app saved with other settings is opened and changed like any vault, and its next seal writes it in Faraday's one shape; it is held read only only for a newer `faraday.format` or a Meta that reads ambiguously (F190)."
+text = "A file a KeePass app saved with other settings is opened and changed like any vault, and its next seal writes it in Faraday's one shape; it is held read only only for a `faraday.format` other than the one this build writes or a Meta that reads ambiguously (F190)."
 kind = "Conservative"
 decision = "F190"
 
@@ -7265,8 +7266,7 @@ tests = [
   "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
   "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_the_answers_the_system_gave",
 ]
-crosscheck = "vault"
-independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for the Argon2id step the container derives its keys with", ours = "the container itself: opened from pykeepass's files in both ciphers and both KDFs and the export's vector written again byte for byte, not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it); the area judges the Argon2id step and the passphrase's NFC form, not the container" }
+not_crosschecked = "Opened from pykeepass's files in both ciphers and both KDFs (read here) and the export's vector written again byte for byte; not yet cross-checked in both directions against pykeepass, `keepassxc-cli` and keepass-rs (F190 plans it)."
 fuzz = ["kdbx_file", "kdbx_body"]
 
 [action.secrets]
@@ -7336,7 +7336,8 @@ tests = [
   "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
   "faraday/faraday-keys/tests/vault.rs::a_seal_that_fails_leaves_the_vault_open_with_its_changes",
 ]
-not_crosschecked = "Faraday's own use of KDBX 4 as the file vault: read by tools/vault/open.py over pykeepass (the tests that run it), and the Argon2id step by argon2-cffi in `area_vault.py`; nothing outside Faraday reads what the store writes beyond those tests, and the full outside run (pykeepass, `keepassxc-cli` and keepass-rs, both directions) is later work."
+crosscheck = "vault"
+independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read back only by pykeepass in the tests (the full outside run is later work)" }
 fuzz_none = "Sealing takes the open vault's own document and the caller's answer; kdbx_file and kdbx_body fuzz the reading."
 
 [action.secrets]
@@ -7348,7 +7349,7 @@ wiped = "The plaintext is a Zeroizing buffer, sized before it is grown so a refu
 lines = [
   "Refuses changes that do not fit the largest size, and names the bytes over and the next size.",
   "Refuses a change the file cannot write, and keeps the vault open with its changes.",
-  "A vault held read only (a `faraday.format` newer than this build writes, or a Meta or custom data that reads ambiguously) refuses every change and every seal (`Error::ReadOnly`); a KeePass app's other settings do not hold it read only.",
+  "A vault held read only (a `faraday.format` other than the one this build writes, or a Meta or custom data that reads ambiguously) refuses every change and every seal (`Error::ReadOnly`); a KeePass app's other settings do not hold it read only.",
   "Nothing is sealed before the session's answer has arrived.",
 ]
 
@@ -7484,7 +7485,8 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::records_of_every_type_are_accepted_and_read_back",
 ]
 fuzz = ["kdbx_file"]
-not_crosschecked = "Faraday's own use of KDBX 4 as the file vault: read by tools/vault/open.py over pykeepass (the tests that run it), and the Argon2id step by argon2-cffi in `area_vault.py`; nothing outside Faraday reads what the store writes beyond those tests, and the full outside run (pykeepass, `keepassxc-cli` and keepass-rs, both directions) is later work."
+crosscheck = "vault"
+independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form", ours = "the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read back only by pykeepass in the tests (the full outside run is later work)" }
 
 [action.secrets]
 reveal = "none"
@@ -9217,7 +9219,7 @@ text = "The reader checks the version, the header's fields, the cost against its
 text = "A seal writes the file again with a fresh salt, fresh IVs and a fresh inner key, all from one answer the caller draws, and a seal count one more than the last with the time."
 
 [[construction.section.para]]
-text = "A file a KeePass app saved with another cipher, another KDF or other settings opens, and its next seal writes it in Faraday's shape; only a newer format of Faraday's own or a Meta that reads ambiguously holds a vault read only."
+text = "A file a KeePass app saved with another cipher or KDF the reader takes, or other settings, opens, and its next seal writes it in Faraday's shape; only a format mark other than the one this build writes or a Meta that reads ambiguously holds a vault read only."
 
 [[construction.section]]
 heading = "What it promises"

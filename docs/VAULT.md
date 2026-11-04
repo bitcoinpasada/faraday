@@ -1,15 +1,16 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults; the four-slot FVLT format this replaces has its account in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault as an OpenPGP message (§1.2, §2.1), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
+**Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
+**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock, its code and its vectors), the KeePass export folded into the vault (§8), the reader's QR half and the vectors of the QR vault, the file KeePassXC saved after an edit, and the outside cross-check area for the QR vault (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
 
 - **A file vault is a KDBX 4 database**, the format of KeePass, holding
   the person's keys, wallets, entries and notes as KeePass entries.
-  KeePassXC, KeePass, KeePassDX, Strongbox and pykeepass open it.
+  pykeepass opens what Faraday writes; KeePassXC, KeePass, KeePassDX and
+  Strongbox read the format and have not yet been tried on it.
 - **A QR vault is an RFC 9580 OpenPGP message** under a passphrase,
   holding one item, small enough to print as a code. Sequoia's `sq`,
   GopenPGP, OpenPGP.js and rPGP open it; GnuPG does not, since it
@@ -24,10 +25,10 @@ is written against; this file is Faraday's use of them and the names
 inside, and the vectors under `tools/vectors/vault/` settle a
 disagreement.
 
-The FVLT format this replaces (four equal slots under Argon2id and
+The first format (four equal slots under Argon2id and
 XChaCha20-Poly1305, `.fvlt`) and the age format F189 chose before it are
-read by nothing once this is built (F189 point 10). No vault exists
-anywhere, so nothing is migrated.
+read by nothing (F189 point 10). No vault exists anywhere, so nothing is
+migrated.
 
 ## 1. The file
 
@@ -584,7 +585,7 @@ names under the root; Faraday makes an entry in the root group.
 and reads it in any group. Fields a kind does not name, and KeePass's
 standard fields it leaves empty, must be absent or empty:
 
-| Kind (`faraday.kind`), group | FVLT record | Fields, and the published form of each | Custom data |
+| Kind (`faraday.kind`), group | Record type | Fields, and the published form of each | Custom data |
 |---|---|---|---|
 | `seed`, Bitcoin keys | 2 | `Title`: its label, or "Key {fingerprint}". `Password` (protected): the BIP-39 words of its list, one space between; or `hex` (protected): a BIP-32 seed of 16 to 64 bytes in lower-case hex; exactly one of the two. `list`: a list other than English (`japanese`, `korean`, `spanish`, `chinese-simplified`, `chinese-traditional`, `french`, `italian`, `czech`, `portuguese`). `passphrase` (protected): its BIP-39 passphrase, present only when the person chose to keep it with the seed. | `faraday.load` `false` when it is not loaded at unlock (F62); `faraday.held` `true` while it was made in Faraday with its backup not done (`docs/history/NEW-WALLET.md` §14.3); `faraday.codex32` and `faraday.child`, below |
 | `wallet`, Wallets | 3 | `Title`: its name. `policy`: its BIP-388 wallet policy, or `descriptor`: its descriptor (BIP 380) for a wallet whose key has no origin; exactly one. | `faraday.load` as a seed's |
@@ -883,27 +884,38 @@ code is first saved as its bytes (`zbarimg --raw -Sbinary code.png >
 vault.pgp`). GnuPG does not open a QR vault (§1.2).
 
 `tools/vault/open.py` reads a file vault with pykeepass and prints each
-item as §7 names it, and a QR vault from `sq decrypt`'s output; with
-`--field KIND.FIELD --out FILE` (`--index N` choosing among several) it
-prints nothing of the vault and writes that one value to a new file
-created with mode 0600, refusing a file that exists; that is how a
-secret value (a GPG key's armored secret key, `gpg.key`) reaches
-another tool without Faraday.
+item as §7 names it; with `--field KIND.FIELD --out FILE` (`--index N`
+choosing among several) it prints nothing of the vault and writes that
+one value to a new file created with mode 0600, refusing a file that
+exists; that is how a secret value (a GPG key's armored secret key,
+`gpg.key`) reaches another tool without Faraday. Its QR half, reading
+`sq decrypt`'s output, is not built.
 
-The vectors in `tools/vectors/vault/` are made again in the two
-formats: a 256 KiB vault holding one item of every kind, a 64 KiB vault,
-a QR vault of each item kind and an empty one, one of each made with
-"café" in NFD (e and U+0301) that opens under its NFC form, a file
+The vectors in `tools/vectors/vault/` are the file vaults and refused
+files `tools/vectors/vault/README.md` lists, written by
+`faraday/faraday-vault/examples/vectors.rs` byte for byte: a 256 KiB
+vault holding one item of every kind, a 64 KiB vault, one of a codex32
+set, one made with "café" in NFD (e and U+0301) that opens under its NFC
+form, a vault sealed once more at 64 MiB, 3 passes and 4 lanes, a file
+whose stream ends early, and one file refused for each rule of §1, §3,
+§4, §7 and §7.1. Faraday's Rust (`tests/vectors.rs`) and `open.py` with
+pykeepass read them. Files of other programs are under
+`tools/vectors/kdbx/` (pykeepass's, with the ciphers and KDFs Faraday
+refuses or reads, and one of KeePassXC's KDBX 3.1).
+
+Planned and not built (**Open**): the QR vault's vectors (one of each
+item kind and an empty one, one made with "café" in NFD), a file
 KeePassXC saved after an edit (AES-256, Argon2d, gzip, history and an
-attachment, opening at §7.1's dialog), a file whose stream ends early,
-and files refused for each rule of §1, §3, §4, §7 and §7.1. Faraday's
-KDBX is checked in the F79 area `vault` against pykeepass,
-`keepassxc-cli` and keepass-rs, and its OpenPGP against Sequoia (`sq`,
-or its Python binding pysequoia), OpenPGP.js and rPGP, both ways (the two
-Rust crates as test-only dependencies, never in what ships): each opens the files the
-other made (F190 point 11). A file KeePassXC saved after an edit opens
-with every attachment, icon, tag and custom data item it held, and
-Faraday's next seal writes them back byte for byte. Sequoia's default
+attachment, opening at §7.1's dialog), and the cross-check area `vault`
+(F79) taken to the formats: Faraday's KDBX against pykeepass,
+`keepassxc-cli` and keepass-rs, its OpenPGP against Sequoia (`sq`, or
+its Python binding pysequoia), OpenPGP.js and rPGP, both ways (the two
+Rust crates as test-only dependencies, never in what ships): each opens
+the files the other made (F190 point 11). Today the area checks §7's
+payload layouts, a passphrase's NFC form and Argon2id. A file KeePassXC
+saved after an edit is to open with every attachment, icon, tag and
+custom data item it held, and Faraday's next seal to write them back
+byte for byte. Sequoia's default
 passphrase encryption writes the older packets (a SKESK v4 and a SEIPD
 v1, without Argon2), which a QR vault refuses (§1.2): the area makes
 Sequoia's files under its RFC 9580 profile, and §10's commands for `sq`
@@ -914,9 +926,9 @@ Sequoia (pysequoia 0.1.36) opened it to the same plaintext.
 
 Each reader has a fuzz target, seeded from the vectors: the KDBX header
 and block stream, the inflate and the XML reader with §7's rules
-(`kdbx_file`, and `kdbx_body` for the padding, the inflate and the inner
-header past the HMACs), the QR vault's packets (`pgp_qr_vault`) and its TOML
-(`contents`).
+(`kdbx_file`, `kdbx_body` for the padding, the inflate and the inner
+header past the HMACs, and `kdbx_xml`), the QR vault's packets
+(`pgp_qr_vault`) and its TOML (`contents`).
 
 ## 11. What the app remembers of a locked vault
 

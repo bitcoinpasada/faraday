@@ -71,8 +71,8 @@ line saying what it is.
 >   cannot spend from, a backup or shares that do not restore); or
 >   crafted input runs code on Faraday.
 > - **High:** the same, but only under specific conditions (physical
->   access, a non-default setting, a rare input); a vault slot opens
->   without its passphrase or reveals how many slots are used; the air
+>   access, a non-default setting, a rare input); a vault opens
+>   without its passphrase; the air
 >   gap fails; secrets outlive the session; a tampered image or upgrade
 >   is accepted; Faraday Starter writes to the wrong disk; the design
 >   makes a mistake that loses funds or exposes a key likely, through a
@@ -105,9 +105,8 @@ The page offers them as a starting point for the audit's scope:
 > - **Correct results:** derivations, addresses, mnemonics, SLIP-39 and
 >   codex32 shares, backup files (KDBX), MuSig2,
 >   against published vectors and other implementations.
-> - **The vault:** each slot's passphrase opens only that slot, the
->   key-stretching cost is the one stated, the file does not reveal how
->   many slots are used, and a damaged file is detected.
+> - **The vault:** only its passphrase opens it, the
+>   key-stretching cost is the one stated, and a damaged file is detected.
 > - **The air gap and what remains:** no network interface comes up,
 >   secrets are written only where the user chooses, and none outlive
 >   the session.
@@ -297,7 +296,7 @@ the same files.
 
 | Specification | Actions (`id`) | Spec | Vectors and known answers | Faraday's code (not read first) | Cross-check area |
 |---|---|---|---|---|---|
-| The vault: its file, slots, key schedule, sealing and records | `vault-create`, `vault-unlock`, `vault-seal`, `vault-edit` | `docs/VAULT.md` §1 to §9 and §11; F97, F158, F159; `docs/SECURITY-MODEL.md`, "Vault cryptography"; RFC 9106, RFC 5869, draft-irtf-cfrg-xchacha-03, RFC 8439, UAX #15 | `tools/vectors/vault/` (its README lists each file and passphrase); `tools/vectors/vault-primitives/`; `tools/vectors/kdf/` | `faraday/faraday-vault/`, `faraday/faraday-keys/src/vault.rs`, `tools/vault/`, `tools/crosscheck/area_vault.py` | `vault` |
+| The vault: its KDBX file, key schedule, sealing and records | `vault-create`, `vault-unlock`, `vault-seal`, `vault-edit` | `docs/VAULT.md` §1 to §9 and §11; F97, F158, F159; `docs/SECURITY-MODEL.md`, "Vault cryptography"; KDBX 4 (`tools/reference/kdbx4/`), RFC 9106, RFC 8439, UAX #15 | `tools/vectors/vault/` (its README lists each file and passphrase); `tools/vectors/vault-primitives/`; `tools/vectors/kdf/` | `faraday/faraday-vault/`, `faraday/faraday-keys/src/vault.rs`, `tools/vault/`, `tools/crosscheck/area_vault.py` | `vault` |
 | Own randomness: the accumulator, the seed, the pool, a seed draw, the lock, and the pointer-and-keys commitment | `fresh`, `pointer-keys` | `docs/OWN-RANDOMNESS.md` §2.1, §2.3; F86, F154 | `tools/vectors/own-randomness/`, which `faraday/faraday-core/tests/all/own_randomness.rs` reads | `faraday/faraday-core/src/fresh.rs`, `core/faraday-entropy/src/pointer_keys.rs`, `tools/crosscheck/area_own.py` | `own` |
 | Entropy from playing cards, camera frames and a mix of sources | `cards`, `camera`, `mix` | `tools/reference/entropy/README.md` (the procedures as stated); `docs/STANDARDS.md` §3; F158 | `tools/vectors/cards/`, `tools/vectors/camera/` and `tools/vectors/mix/`, which the tests in `core/faraday-entropy/src/cards.rs`, `camera.rs` and `mix.rs` read; `tools/vectors/entropy/` for a mix's dice | `core/faraday-entropy/src/`, `tools/crosscheck/area_entropy.py` | `entropy` |
 | Faraday Demo's dice rollers | `roller` | `docs/CODEX32.md` §5.5, §5.6; `tools/reference/booklet-dice/README.md`; F96 | `tools/vectors/roller/` for the five dice, which `faraday/faraday-core/src/fresh/roller/five_tests.rs` reads; the one die has none beyond the cross-check's cases | `faraday/faraday-core/src/fresh/roller/`, `tools/crosscheck/area_roller.py` | `roller` |
@@ -334,7 +333,7 @@ what is asked: an outside implementation would have to reproduce the
 An outside implementation the cross-check can call is:
 
 - Python 3, over the standard library and the packages the cross-check
-  already takes from the distribution (`argon2-cffi`, PyNaCl, PyCA
+  already takes from the distribution (`argon2-cffi`, PyCA
   `cryptography`; `docs/DEVELOPING.md`), fetching nothing at run time,
   with no file over 2 MiB;
 - under a licence that allows copying it unchanged into this
@@ -346,14 +345,13 @@ decision, as Go was for LND's aezeed (F160 item 6).
 
 The operations each area compares:
 
-- **The vault:** open a file with a passphrase, giving the slot that
-  opens, its seal count and its records, or the refusal of §4 that
-  applies; make a vault from its passphrases, cost, slot size and records
-  with every random byte given (the salt, the order of the slots, the
-  nonces and the bytes of the unused slots; §8 leaves how they are drawn
-  to the implementation), so the file is compared byte for byte; seal an
-  open slot under a given nonce and time; write and read a slot's
-  records (§7), with each refusal.
+- **The vault:** open a file with a passphrase, giving its seal count
+  and its records, or the refusal of §4 that applies; make a vault from
+  its passphrase, cost, size and records with every random byte given
+  (the salt, the IVs and the inner key; §8 leaves how they are drawn to
+  the implementation), so the file is compared byte for byte; seal an
+  open vault at a given time; write and read the records (§7), with each
+  refusal.
 - **Own randomness:** §2.3's operations over given system answers: a
   batch added, the seed, a fresh answer for a purpose, a seed draw, This
   device's answer, a lock; and §2.1's commitments.
@@ -366,9 +364,8 @@ The operations each area compares:
 
 Once the outside implementation is written:
 
-- `python3 tools/vault/open.py tools/vectors/vault/vault-three.fvlt`
-  prints the records of the slot a passphrase opens (`docs/VAULT.md`
-  §10), over `argon2-cffi` and PyNaCl, or `cryptography`.
+- `python3 tools/vault/open.py tools/vectors/vault/vault-all.kdbx`
+  prints the vault and its items (`docs/VAULT.md` §10), over pykeepass.
 - `just crosscheck --area vault` runs one area: Faraday's Rust against
   the reference the area names, over a corpus drawn from a seed, and
   prints the seed. `just crosscheck --area vault --seed S --case

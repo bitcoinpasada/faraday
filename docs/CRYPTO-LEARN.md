@@ -1171,12 +1171,12 @@ page lists.
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| vault-create | Makes a vault file of four equal slots from one to four passphrases, with Argon2id, HKDF-SHA256 and XChaCha20-Poly1305, and a ChaCha20 keystream for the salt, the nonces and the unused slots. | `faraday_vault`: `create`, `derive`; `faraday_keys::vault`: `create`, `measure` | CreateVault | faraday:vaults |
-| vault-unlock | Opens the slot a passphrase opens: checks the header, derives the slot key once with Argon2id and HKDF-SHA256, tries XChaCha20-Poly1305 on all four slots and parses the one whose tag verifies. | `faraday_vault`: `open`, `open_with`; `faraday_keys::vault`: `OpenVaults::unlock` | Unlock | faraday:vaults |
+| vault-create | Makes a vault file: an empty KDBX 4 database with a root group of the given UUID and name, stamped as the first seal, written at one of four file sizes under one passphrase with Argon2id, ChaCha20 and an HMAC per block; the file's salt, IVs and inner key come from one 140-byte answer the caller draws. | `faraday_vault::file`: `create`; `faraday_keys::vault`: `create`, `measure` | CreateVault | faraday:vaults |
+| vault-unlock | Opens a vault file with its passphrase: checks the header and the cost before any memory is asked for, derives the keys once with Argon2id, checks the header's and every block's HMAC, decrypts and inflates the body and reads its items; a wrong passphrase and a damaged file are told apart only where KDBX 4 allows. | `faraday_vault::file`: `open`, `inspect`; `faraday_keys::vault`: `OpenVaults::unlock` | Unlock, VaultContents, BackupFlow | faraday:vaults |
 | vault-contents | Reads the TOML a vault holds into its items: the keys of a QR vault (a seed's words, a codex32 share, a passphrase, a note, or nothing), and the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields. | `faraday_vault::contents`: `read_qr`, `write_qr`, `read_plan`, `write_plan`, `read_codex32_facts`, `write_codex32_facts`, `read_child_facts`, `write_child_facts` | none | faraday:vaults |
 | vault-qr-pgp | Writes and reads a QR vault as an RFC 9580 message under a passphrase: the Argon2 S2K (Argon2id, 3 passes, 4 lanes) and HKDF-SHA-256 make the key that wraps the session key with AES-256-OCB, and a version 2 data packet holds the 226-byte contents in one OCB chunk. Every tag is checked before anything is returned, the cost is checked before memory is taken, and any other packet sequence is refused, named. | `faraday_pgp::message`: `seal`, `parse`, `Message::open` | none | faraday:vaults |
 | vault-kdbx | Writes and reads the KDBX 4 container a file vault is: Argon2id (Argon2d read only) over the passphrase's double SHA-256, ChaCha20 (AES-256-CBC read only) over the body, an HMAC-SHA-256 over the header and over every 1 MiB block, checked before any byte is used, gzip read with its length and CRC checked, and the inner ChaCha20 stream for protected values. The cost is checked before memory is taken; older versions, other key derivations and ciphers are refused, named. | `faraday_vault::kdbx`: `recognise`, `inspect`, `open`, `seal` | none | faraday:vaults |
-| vault-seal | Writes an open vault back: encrypts the open slot's records with XChaCha20-Poly1305 under a new 24-byte nonce and copies the other three slots unchanged. | `faraday_vault`: `Opened::seal` | VaultContents, BackupFlow | faraday:vaults |
+| vault-seal | Writes an open vault back: applies the changes to its document, stamps the seal count and time, and seals the file at the size the changes fit, with a fresh salt, IVs and inner key from the bytes the caller draws. | `faraday_vault::file`: `seal` | VaultContents, BackupFlow | faraday:vaults |
 | vault-reveal | Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, an entry's password, TOTP secret or notes, a note's text. | `faraday_keys::vault`: `OpenVaults::reveal`, `OpenVaults::words_of` | VaultContents | faraday:vaults |
 | vault-edit | Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop. | `faraday_keys::vault`: `OpenVaults::insert`, `OpenVaults::insert_at`, `OpenVaults::set_public_all`, `OpenVaults::set_public_all_in`, `OpenVaults::set_fields`, `OpenVaults::copy_record`, `OpenVaults::copy_out`, `OpenVaults::stage`, `OpenVaults::stage_passphrase` | VaultContents, BackupFlow | faraday:vaults |
 | vault-load | Loads a key kept in an open vault into the session: its words (BIP 39) and passphrase to the seed and the master key's fingerprint (BIP 32), or its master seed, or its codex32 set. | `faraday_keys::vault`: `OpenVaults::load_from_vault`, `OpenVaults::load_key_record`, `OpenVaults::load_key_with_passphrase`, `OpenVaults::passphrase_kept_for`, `OpenVaults::warm`, `OpenVaults::word_count`, `OpenVaults::words_id`, `OpenVaults::record_word_count`, `OpenVaults::record_words_id`, `OpenVaults::same_words`, `OpenVaults::holds_session_words`, `key_identity`, `key_account`; `faraday_keys::session`: `Keys::key_record`, `Keys::seed_record_id` | VaultContents, Unlock | faraday:vaults |
@@ -1398,9 +1398,8 @@ Reference.
 ## 18. Constructions: how a format is built
 
 (owner, 2026-10-28; F159.) The vault, and how strong a passphrase is,
-need an account of their own: the header field by field, the keys, the
-slots, opening and sealing, what the format promises and what it does
-not. No block holds that. This section adds it to the manifest as a
+need an account of their own: the file, the keys, opening and sealing,
+what the format promises and what it does not. No block holds that. This section adds it to the manifest as a
 **construction**, drawn in Learn under the vault's page and on
 /cryptography beside the vault's actions.
 
@@ -1408,9 +1407,9 @@ not. No block holds that. This section adds it to the manifest as a
 
 A block is facts about one action, in nine fixed fields (§1, F148). The
 vault's account is about the format several actions share (vault-create,
-vault-unlock, vault-seal), and much of it is why: why a changed header
-cannot expose a slot, what two copies show, what the format does not
-promise. That is explanation. CLAUDE.md keeps explanation off working
+vault-unlock, vault-seal), and much of it is why: why a changed byte
+stops a vault opening, what an older copy shows, what the format does
+not promise. That is explanation. CLAUDE.md keeps explanation off working
 screens and puts it in Learn and About, which are not working screens. A
 block is drawn in Learn, but its rule is facts only, so the account does
 not go into a block's field. Three forms were weighed:
@@ -1439,25 +1438,25 @@ learn = "faraday:vaults"        # the Learn page it is drawn after
 actions = ["vault-create", "vault-unlock", "vault-seal"]   # /cryptography shows it before their blocks
 
 [[construction.section]]
-heading = "The header"
+heading = "The file"
 
 [[construction.section.para]]
-text = "The header is the first {c:faraday/faraday-vault/src/lib.rs::HEADER_LEN} bytes. Nothing in it is secret, and none of it is a key."
+text = "A vault is one KDBX 4 file, in blocks of {c:faraday/faraday-vault/src/file.rs::BLOCK} bytes. Nothing in its header is secret, and none of it is a key."
 
 [[construction.section.para]]
-text = "Today the magic is OFVT."
-until = "magic"                 # dropped when that Open item is built
+text = "Today a seal keeps the vault's memory step."
+until = "memory"                # dropped when that Open item is built
 
 [[construction.section.para]]
-text = "The magic is FVLT."
-planned = "magic"               # an item of docs/VAULT-HARDENING.md's Open line (§18.6)
+text = "A seal takes the memory step the person chose."
+planned = "memory"              # an item of docs/VAULT.md's Open line (§18.6)
 
 [[construction.section.para]]
-table = "vault-header"          # a table gen.py writes from the code (§18.6), in its place among the paragraphs
+table = "vault-sizes"           # a table gen.py writes from the code (§18.6), in its place among the paragraphs
 
-[open_item.magic]               # an item of a Spec's Open line, by the words that line names it with
-spec = "docs/VAULT-HARDENING.md"
-names = "the `.fvlt` extension and the magic `FVLT`"
+[open_item.memory]              # an item of a Spec's Open line, by the words that line names it with
+spec = "docs/VAULT.md"
+names = "a seal that takes a new passphrase, memory step or size"
 
 [[name_with_digits]]
 name = "Argon2id"
@@ -1470,7 +1469,7 @@ reason = "The function's name (RFC 9106)."
   of that file, as `HEADER_LEN` is), `{len:<file>::<STATIC>}` for an
   array's length, `{f:<expr>}` for arithmetic over such placeholders
   (`log2` of a list's length, rounded to a tenth), and `|words` after any
-  of them for a count written as a word ("four slots"). A byte string
+  of them for a count written as a word ("four sizes"). A byte string
   (a magic, a label) is `{b:<file>::<CONST>}`. A literal the code
   states inside a function (Argon2id's version, its output length, the
   lanes and the fewest passes `check_cost` takes) is `{v:<name>}`, read
@@ -1492,15 +1491,12 @@ reason = "The function's name (RFC 9106)."
   paragraphs and its paragraphs' `planned` keys, rewording them as built,
   and the `[open_item]`.
 - **`para.table`**: in place of `text`, one of the tables gen.py writes
-  from the code, drawn where the paragraph stands: `vault-header` (the
-  header's fields, from `Header::to_bytes`), `vault-sizes` (each of
-  `SLOT_SIZES` with its file size, by `file_len`'s formula over the
+  from the code, drawn where the paragraph stands: `vault-sizes` (each of
+  `SIZES` with its file size, by `file_len`'s formula over the
   constants), `diceware-bits` (with `words = [4, 10]`: each list of
   `core/faraday-bip/src/diceware/`, its length read from its `WORDS`
-  array, and the bits for each count of words). `vault-slot` (a slot's
-  fields) and `vault-plain` (a slot's plaintext) are not written yet: the
-  account tells a slot in its paragraphs. A table typed by hand is not
-  allowed.
+  array, and the bits for each count of words). A table typed by hand is
+  not allowed.
 - **In faraday-learn:** gen.py writes `CONSTRUCTIONS` and
   `docs/crypto/gen_how.py` puts them after `BLOCKS` in
   `faraday/faraday-learn/src/how.rs`, each with its title, its page and its sections as headings,
@@ -1520,195 +1516,88 @@ reason = "The function's name (RFC 9106)."
 
 ### 18.3 The vault: how it is built
 
-The account as it ships, by section. A sentence marked **[M]**,
-**[P]**, **[C]**, **[S]** or **[N]** changes when that item lands: the
-file's name and magic, the passphrase in Form C, the commitment
-block and the seal count of `docs/VAULT-HARDENING.md` §2 to §5, and the
-fresh seal nonce (`docs/OWN-RANDOMNESS.md`, F154). "Planned, not built"
-sentences read as here until then; "Today" sentences are `until`
-paragraphs, dropped when their item lands. The numbers are what the
-placeholders give today.
-
-The fresh seal nonce ([N]) had landed when the account was built
-(`Faraday::vault_seal_nonce` takes a fresh answer for "vault seal" when one is
-waiting, `docs/VAULT.md` §5), and no Open line names it, so the
-manifest writes its sentences as built: the nonce is the first 24 bytes
-of a fresh answer when one is waiting, else of SHA-256 over the label,
-the seed and the count; and two seals share a nonce only when no fresh
-answer was waiting at either and the system gave both sessions the same
-seed. The sentences marked [N] below are as specified before it landed.
+The account as it ships, by section: the manifest's `vault` construction
+holds it, and Learn draws it under the vault's page. Its sentences are
+as built; what the Spec still plans (`docs/VAULT.md`, its Open line) is
+not in it.
 
 **The file**
 
-A vault is one file: a header of 53 bytes, then four slots of *L* + 40
-bytes each, 53 + 4 × (*L* + 40) bytes in all. *L* is a slot's plaintext
-length, chosen when the vault is made and fixed for its life:
+A vault is one KDBX 4 file, the database format KeePass writes, under
+one passphrase. Faraday writes it in one shape and reads the shapes a
+KeePass app saves within limits. The plaintext is one of four sizes,
+framed in blocks and wrapped in a header, so each size has one file
+length:
 
-| *L* | File |
+| Plaintext | File |
 |---|---|
-| 65 536 | 262 357 |
-| 262 144 | 1 048 789 |
-| 1 048 576 | 4 194 517 |
-| 4 194 304 | 16 777 429 |
+| 65 536 | 65 921 |
+| 262 144 | 262 529 |
+| 1 048 576 | 1 048 961 |
+| 4 194 304 | 4 194 797 |
 
-Every vault has four slots, whether it has one passphrase or four.
-
-- The file's name ends in `.fvlt`.
-
-**The header**
-
-The header is the first 53 bytes. Its integers are little-endian.
-Nothing in it is secret, and none of it is a key.
-
-| At | Bytes | What |
-|---|---|---|
-| 0 | 4 | magic |
-| 4 | 1 | version, 1 |
-| 5 | 4 | Argon2id memory, in KiB |
-| 9 | 4 | Argon2id passes |
-| 13 | 4 | Argon2id lanes |
-| 17 | 4 | *L* |
-| 21 | 32 | Argon2id salt |
-
-- The magic is `FVLT`.
+- The file's name ends in `.kdbx`. There is one passphrase and no
+  slots: a file does not hide how many passphrases exist, because there
+  is one.
 
 **The keys**
 
-The passphrase is stretched by Argon2id version 1.3 under the header's
-salt, memory, passes and lanes, to 32 bytes. HKDF-SHA256 (RFC 5869),
-with an empty salt and the label "Faraday vault v1 slot", makes the slot
-key from them. One passphrase gives one slot key, which is tried on
-every slot.
+The passphrase is put in Unicode Normalization Form C (UAX #15), and its
+UTF-8 bytes are hashed with SHA-256 twice to make KDBX 4's composite
+key. Then "é" typed as one character (U+00E9) and as "e" with a
+combining accent (U+0065 U+0301) open the same vault. Nothing else is
+changed: case, spaces and every character are kept as typed.
 
-- The passphrase is first put in Unicode Normalization Form C, and
-  Argon2id takes that form's UTF-8 bytes. Then "é" typed as one
-  character (U+00E9) and as "e" with a combining accent (U+0065 U+0301)
-  open the same slot, and
-  two passphrases with one Form C are refused as the same when a vault
-  is made. Nothing else is changed: case, spaces and every character are
-  kept as typed, and Form C keeps full-width letters and ligatures as
-  they are: "Ａ" is not "A".
+Argon2id version 1.3 (RFC 9106) stretches the composite key under the
+header's salt, memory, passes and lanes to 32 bytes; SHA-256 and SHA-512
+over that and the header make the encryption key and the HMAC base, and
+each block has its own HMAC key.
 
-**The slots**
+**Sealing and opening**
 
-Each slot is a 24-byte nonce, *L* bytes of ciphertext and a 16-byte
-Poly1305 tag, sealed with XChaCha20-Poly1305
-(draft-irtf-cfrg-xchacha-03). Its associated data is the whole header
-and the slot's number, 0 to 3: 54 bytes. A slot's plaintext is a format
-byte, the slot's records, an end record, and zeros to *L*.
+The body is the database's XML, gzipped and encrypted with ChaCha20, in
+blocks of 1 MiB each with its own HMAC-SHA-256 over its length and
+bytes. The header carries its own SHA-256 and HMAC-SHA-256.
 
-- The plaintext starts with 32 zero bytes, before the format byte. *L*
-  and the file's size do not change; the room for records is 32 bytes
-  less.
-- Every slot holds one seal count record: how many times the slot has
-  been written, and when it was last written by the clock of the
-  computer that wrote it.
+The reader checks the version, the header's fields, the cost against its
+limits (memory 8 MiB to 1 GiB, passes 1 to 100, lanes 1 to 64) and the
+file's length before any memory is asked for, then derives the keys
+once. Every block's HMAC is checked before its bytes are used; a missing
+or extra block, a changed byte and a cut file are refused.
 
-A slot no passphrase opens is a nonce and *L* + 16 bytes, drawn when the
-vault is made from a ChaCha20 keystream keyed by HKDF-SHA256 of the
-computer's randomness: random-looking bytes the length of a used slot.
-The salt, the order in which the passphrases take the slots, and each
-used slot's first nonce come from the same keystream.
-
-**Opening**
-
-The reader checks the magic, the version, *L* against the four sizes,
-the file's length against *L*, and the cost against its limits: memory
-8 MiB to 4 GiB, passes 1 to 10, lanes exactly 1. A file outside them is
-refused before any memory is taken. The memory a vault needs is in its
-header, and Unlock shows it before the passphrase is typed. Faraday makes
-vaults with at least 64 MiB and 2 passes.
-
-The slot key is derived once and tried on all four slots. One tag
-verifies: that slot opens. None: the passphrase opens nothing. More than
-one: the file is refused, since Faraday never makes two slots under one
-key. Every slot is tried whichever opens, so the time taken does not
-show which slot a passphrase opens. A passphrase that opens none
-decrypts and reads no slot, which the result shows anyway. The opened
-slot's records are read, and any fault refuses the slot.
-
-- A slot whose tag verifies and whose first 32 bytes are not zero
-  refuses the file.
-
-**Sealing**
-
-Sealing writes the open slot again under the same slot key with a new
-nonce, and copies the other three slots byte for byte. A session cannot
-tell an unused slot from one another passphrase opens, so it never
-rewrites one. The sealed vault is written to its stick as a new file,
-read back and compared byte for byte, and then takes the old copy's
-place.
-
-- **[N]** Today the nonce is the first 24 bytes of SHA-256 over a label,
-  the session's seed and the count of seals this session has made.
-  Planned, not built: each seal's nonce is drawn fresh from the system's
-  randomness; the seed and count are used only when no fresh answer is
-  available.
-- Each seal writes the slot's seal count, one more than the last, and
-  the time.
-
-**What a changed header can do**
-
-Changing the cost or the salt gives another key, so every slot fails.
-Changing *L*, the magic or the version fails the reader's checks, the
-length check or every tag. A slot moved to another position fails: its
-number is in its associated data. A slot moved to another vault fails:
-another salt gives another key, and another header is other associated
-data. The most a changed header can do is stop the vault opening, or,
-within the limits, make it slow or need more memory than a computer has.
+A seal writes the file again with a fresh salt, fresh IVs and a fresh
+inner key, all from one answer the caller draws, and a seal count one
+more than the last with the time. A file a KeePass app saved with
+another cipher, another KDF or other settings opens; it is held read
+only until it is sealed again in Faraday's shape.
 
 **What it promises**
 
-Without a passphrase, one copy of a vault shows four random-looking
-slots of equal size. It does not show how many passphrases exist or
-which slots are in use. Nothing in a slot can be read without its
-passphrase, and a changed byte makes its tag fail, so nothing in it can
-be changed unnoticed.
+Without the passphrase, the file shows its header, which states the cost
+and the salt, and a length that is one of the sizes. Nothing in the body
+can be read or changed without the passphrase: the header's and every
+block's HMAC fail first.
 
 **What it does not promise**
 
 - **Offline guessing.** Anyone with the file has its salt and cost and
   can try passphrases on their own computers. Each guess costs one
-  Argon2id at the vault's cost and tests all four slots. A slot is as
-  strong as its passphrase (Passphrase strength, §18.4).
+  Argon2id at the vault's cost. A vault is as strong as its passphrase
+  (Passphrase strength, §18.4).
 - **Rollback.** An older copy of a vault still opens. Someone who can
   write to the stick can put an older copy back; they cannot read or
-  change anything in it.
-  - **[S]** Built: Unlock shows a slot's seal count. An older copy is
-    named when a newer one was opened, sealed or sat among the copies in
-    Files since power-on, or when an open vault's backup plan records a
-    newer one; that unlock stops at a warning naming it, and the vault
-    opens only once the person presses Open (owner, 2026-10-29;
-    `docs/VAULT-HARDENING.md` §5.3). A stick visit reads no counts: a
-    process that holds a slot key is never handed a stick. A rollback is
-    not seen when no newer copy is opened or read between power-on and
-    the older copy's unlock and no open vault's plan records one, or
-    when a vault and its plan are rolled back together.
-  - **[S]** Built: a backup plan records, for each other vault it
-    places, that vault's salt, size, slot position, seal count and a
-    digest of the slot. Whoever opens the slot holding the plan learns
-    those vaults' salts and sizes, which slot of each holds the plan's
-    seeds, and how often it was sealed.
-- **The seal's nonce.** **[N]** Today the nonce comes from the session's
-  seed and a count. A computer started again from a saved state, a
-  virtual machine's snapshot for instance, can draw the same seed again;
-  two seals under one key with one nonce show much of the slot to
-  whoever has both copies, and let them forge it. Planned, not built: a
-  fresh nonce from the system at every seal.
-- **Two copies from different times.** A slot's bytes change only when
-  it is sealed. Someone with two copies sees which slots changed, and so
-  which are in use. That weakens deniability, not secrecy.
-- **Availability.** A slot is checked only when it is opened. A changed
-  byte in a slot no one opened is not noticed until its passphrase is
-  next used, and then that slot is lost. A damaged header loses all four
-  slots. A copy at another place is the remedy.
-- **Key commitment.** XChaCha20-Poly1305 does not commit to its key: a
-  slot can be made whose tag verifies under two passphrases, showing
-  other contents under each. Making one needs both passphrases.
-  - The 32 zero bytes at the start of every slot's plaintext: under a
-    second key they decrypt to other bytes, and the file is refused.
-- **The seal count is read by whoever opens the slot.** A decoy slot sealed twice beside one sealed daily says it
-  is little used. Opening and sealing the decoy raises its count.
+  change anything in it. The seal count is how an older copy is told
+  from a newer one: Unlock shows it, and names an older copy when a
+  newer one was opened, sealed or sat among the copies in Files since
+  power-on, or when an open vault's backup plan records a newer one.
+- **What is in the clear.** The cost and salt are in the header, and the
+  file's length says its size.
+- **Independent review.** Faraday's reader and writer are its own, read
+  back by pykeepass in tests; the full run against pykeepass,
+  `keepassxc-cli` and keepass-rs is later work.
+- **Availability.** A changed byte anywhere in the file fails its HMAC
+  and the vault does not open; a backup is how a damaged vault is
+  recovered.
 
 ### 18.4 Passphrase strength
 
@@ -1782,8 +1671,7 @@ The website links them; the device names them as text.
   integer expression gen.py can evaluate;
 - a paragraph's text holds a digit outside a placeholder, a standard's
   key, or a name in the manifest's `[[name_with_digits]]` list
-  (Argon2id, HKDF-SHA256, SHA-256, XChaCha20-Poly1305, ChaCha20,
-  Poly1305, UTF-8, U+ code points, log2, NIST Special Publication
+  (Argon2id, SHA-256, SHA-512, HMAC-SHA-256, ChaCha20, UTF-8, U+ code points, log2, NIST Special Publication
   800-63B, each with its reason; the label "Faraday vault v1 slot" is
   `SLOT_INFO`'s bytes, a placeholder), so no number is typed;
 - a `planned` or `until` names no `[open_item]`, or an item whose
@@ -1803,18 +1691,9 @@ manifest's.
 
 `docs/crypto/gen.py` reads what the tables and placeholders name:
 
-- `vault-header`: the offsets from `Header::to_bytes`' slices, failing
-  when the code no longer has that shape; and the sizes and offsets
-  `tools/vault/open.py` reads (`HEADER_LEN`, `NONCE_LEN`, `TAG_LEN`,
-  `SLOT_SIZES`, the salt's slice, the four integers), which
-  `faraday/faraday-vault/tests/open_py.rs` holds to the vectors;
-- `vault-sizes`: `SLOT_SIZES`, `HEADER_LEN`, `SLOTS`, `NONCE_LEN` and
-  `TAG_LEN`, by `file_len`'s formula; the vectors' lengths are held by
-  `faraday/faraday-vault/tests/vectors.rs`;
-- the cost limits: `MIN_MEMORY_KIB`, `MAX_MEMORY_KIB`, `MAX_PASSES`,
-  `CREATE_MIN_MEMORY_KIB`, `CREATE_MIN_PASSES`, and lanes' 1 from
-  `check_cost`;
-- the label: `SLOT_INFO`'s bytes;
+- `vault-sizes`: `SIZES`, by `file_len`'s formula over `HEAD`, `FRAME`
+  and `BLOCK`, failing when the formula changes; the vectors' lengths are
+  held by `faraday/faraday-vault/tests/vectors.rs`;
 - `diceware-bits`: each list's `WORDS` length, so a list changed in
   `tools/diceware/gen.py`'s output changes the table.
 

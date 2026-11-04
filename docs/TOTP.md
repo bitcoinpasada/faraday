@@ -247,9 +247,8 @@ documentation of `otp`.
 The vault's items read a person's entry the same way: each has its TOTP
 as `from_fields` reads it over all its fields (`Item::totp`), so an
 `otp` that does not read, HOTP and the other forms show as a badge on
-an entry that otherwise reads. This is built in `faraday-vault`; the
-codes page takes it with the vault swap (the screen still reads field
-6 of the FVLT record until then).
+an entry that otherwise reads. This is built in `faraday-vault`, and the
+codes page reads it.
 
 `Totp` holds the decoded secret in a `Zeroizing<Vec<u8>>`, the
 algorithm, digits and period, and its `Debug` prints no secret bytes.

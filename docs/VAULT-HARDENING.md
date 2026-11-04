@@ -1,8 +1,8 @@
 # Vault hardening: the file's name, the passphrase, key commitment and the seal count
 
 **Kind:** Spec
-**Status:** Specified (F159), amended by F189 and F190; the passphrase in NFC (§3) and the seal count (§5.1 to §5.7) built in the FVLT format; the file's name (§2), the commitment block (§4), the edit list (§6) and the outside review (§10) replaced by F189 and moved to `docs/history/VAULT-HARDENING-LOG.md`
-**Open:** the passphrase in NFC and the seal count in the KDBX vault, built with `docs/VAULT.md` (F190)
+**Status:** Specified (F159), amended by F189 and F190; the passphrase in NFC (§3) and the seal count (§5) built in the first format and carried into the KDBX vault (`docs/VAULT.md` §3, §7, §11), which the app reads and seals; the file's name (§2), the commitment block (§4), the edit list (§6) and the outside review (§10) replaced by F189 and moved to `docs/history/VAULT-HARDENING-LOG.md`
+**Open:** §3 and §5 are still written in the first format's terms (slots, a record, `.fvlt`); rewritten for the KDBX vault, or moved to history, when the KDBX vault is settled
 
 The vault's format is `docs/VAULT.md`. This spec changes it in four
 places and renames its file. Every change was settled by the owner on
@@ -26,7 +26,7 @@ needs no outside review of its own. §2, §4, §6 and §10 are in
 seal count (§5) carry over, as `docs/VAULT.md` §3, §5, §7 and §11 say:
 the count is `vault.seals` in the TOML, and a backup plan names another
 vault by the vault identifier inside it, not by its salt (§5.6). What
-follows in §3 and §5 is their account for the FVLT format, built.
+follows in §3 and §5 is their account for the first format, which the KDBX vault carries over.
 
 **F190 (2026-11-02).** The age file is replaced in turn: a file vault is
 a KDBX 4 database and a QR vault an RFC 9580 OpenPGP message, both under

@@ -63,7 +63,8 @@ with that group, are the second lineage for the curve (§10.7).
 | embit | Python | pure Python fallback, or `libsecp256k1` | BIP-32, 39, PSBT, descriptors, miniscript, addresses | Used by SeedSigner and Specter; runs on MicroPython (not yet checked whether its pure fallback does) |
 | noble-curves, scure-bip32/39, btc-signer | JavaScript | its own, audited | the same set as embit | Needs a JavaScript engine (QuickJS is about 1 MB) |
 | btcd / btcec, LND's `aezeed` | Go | its own | the same set; LND's aezeed with AEZ | Vendored in `tools/reference/lnd/` and built by `run.sh`; the `lightning` area asks it |
-| `argon2-cffi`, PyNaCl, PyCA cryptography | Python over C | n/a | Argon2id (the PHC reference C), XChaCha20-Poly1305 (libsodium), HKDF-SHA256 and ChaCha20 (OpenSSL) | Outside RustCrypto's lineage; `tools/vault/open.py` already opens a vault this way |
+| `argon2-cffi` | Python over C | n/a | Argon2id (the PHC reference C) | Outside RustCrypto's lineage |
+| pykeepass | Python | pure Python | KDBX 4 | `tools/vault/open.py` opens a vault this way |
 
 ## 4. What can be computed twice
 
@@ -85,7 +86,7 @@ with that group, are the second lineage for the curve (§10.7).
 | SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
 | Codex32 sets made (secret and derived shares, checksum worksheets) and error correction | BIP-93 | yes | BIP 93's reference code and python-codex32 (`tools/crosscheck/area_codex32.py`, `tools/crosscheck/area_codex32_correct.py`) |
 | Signed message | BIP-322, 137 | signing: yes; checking: no | Core's `signmessagewithprivkey` and btclib for BIP-137; Core has no BIP-322, which needs an outside implementation of its own (§10.7) |
-| Vault cost and seal | Argon2id, HKDF, XChaCha20-Poly1305 | yes | argon2-cffi, PyNaCl, PyCA `cryptography`, for the primitives; the container is Faraday's own specification and has no outside implementation |
+| Vault cost, passphrase and payload layouts | Argon2id, NFC, §7's payloads | yes | argon2-cffi for Argon2id, Python's `unicodedata` and the area's own §7 layouts; the KDBX file is read by pykeepass in the vectors' test, and its cross-check against `keepassxc-cli` and keepass-rs is not built (`docs/VAULT.md` §10) |
 
 Not worth computing twice: drawing randomness (only its conversion from
 dice, coins or cards is deterministic, and that can be checked), reading QR
@@ -201,8 +202,8 @@ As of 2026-10-29:
   worksheets, `compile` (the lift of a miniscript to a formula, written
   from the fragments' meanings; Core, python-bip380 and btclib take the
   descriptor), `sign-check` (the report of a reused nonce; python-ecdsa,
-  btclib and Core judge the signatures), and `vault` (the container,
-  HKDF and the ChaCha20 block, over argon2-cffi and libsodium).
+  btclib and Core judge the signatures), and `vault` (the payload
+  layouts of `docs/VAULT.md` §7, over argon2-cffi and `unicodedata`).
 - **Own only:** `own-randomness`, `entropy` and `roller`.
 
 The vault's container, own randomness, cards, the camera's commitment,
@@ -317,10 +318,9 @@ The cross-check fetches nothing, ever.
   commit. A first copy is checked against something other than the
   web's certificates: the BIPs repository's commit hash, Core's signed
   tag, Trezor's signed release.
-- **Argon2id, XChaCha20-Poly1305, HKDF-SHA256 and ChaCha20** come from the
-  Linux distribution's packages (argon2-cffi, PyNaCl and PyCA
-  cryptography: `python3-argon2`, `python3-nacl`, `python3-cryptography`
-  or their equivalents), installed once on the machine
+- **Argon2id** comes from the
+  Linux distribution's package (argon2-cffi: `python3-argon2`
+  or its equivalent), installed once on the machine
   that runs the cross-check and verified by the distribution's
   signatures, not by pip. Their versions are in the stamp.
 - **python-ecdsa** (`python3-ecdsa`, by Brian Warner and Hubert Kario; MIT,
@@ -389,8 +389,9 @@ The cross-check fetches nothing, ever.
 1. Faraday's own Rust, which no other library checks: MuSig2 (BIP-327,
    328, 390), silent payments (BIP-352), BIP-85,
    SLIP-39, codex32 (BIP-93) and Seed XOR. Built.
-2. The vault: Argon2id, HKDF, XChaCha20-Poly1305 and the vault's own
-   specification (`docs/VAULT.md`). Built (area `vault`).
+2. The vault: Argon2id and the vault's own specification
+   (`docs/VAULT.md`). Built in part (area `vault`: the payloads, the
+   passphrase and Argon2id; the formats against other programs are not).
 3. BIP-39 and BIP-32 derivation. Built (areas `bip39`, `bip32`).
 4. What comes from rust-bitcoin and rust-miniscript: sighash, PSBT,
    addresses, descriptor checksums, transaction ids, signed messages,

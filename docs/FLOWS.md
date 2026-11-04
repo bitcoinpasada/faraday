@@ -264,7 +264,7 @@ menu.
    open; the vault's own row keeps its Unlock (F60).
 2. **Rename, For the stick.** A popup, "Rename {name}": a field holding
    the name before its extension, the extension shown fixed after it
-   (`.fvlt` for a vault; every file keeps its own), and **Rename** and
+   (`.kdbx` for a vault; every file keeps its own), and **Rename** and
    **Cancel**. Refused, with a line in the popup and Rename disabled: an
    empty name, one starting with a dot, `/`, `\`, `:`, `*`, `?`, `"`,
    `<`, `>`, `|` or a control character, a name over 255 characters with
@@ -274,7 +274,7 @@ menu.
    it under; the visit's **Already on the stick** sheet then works as
    usual. A vault For the stick whose same vault (by identity,
    `docs/VAULT.md` §6) is on the stick under another name is written over
-   that file and the file takes the new name (or `name-2.fvlt` where
+   that file and the file takes the new name (or `name-2.kdbx` where
    another file has it); otherwise a vault written over its same vault
    keeps the name the stick has for it. Renaming a vault's file also
    renames the file the open vault seals back into. Renaming a vault's
@@ -564,7 +564,7 @@ all** above them →
   among them, shows Loaded and is not loaded twice), **Not now** loads
   nothing → the next vault, or, after the last,
   Wallets, on the first wallet loaded that can sign here, with "Savings
-  loaded from vault.fvlt" (decision 43; Home when no wallet loaded); a
+  loaded from vault.kdbx" (decision 43; Home when no wallet loaded); a
   wrong passphrase → stays, says so; **Cancel** → the vault stays in
   Files, locked → the next vault, or Home;
 - **Later**, or a tap beside the sheet → Home, nothing read, nothing
@@ -667,7 +667,7 @@ visit** directly.
   here" and is always replaced; a vault under another vault's name
   "{name} · another vault · kept, this one as {name-2}", whatever is
   chosen. Those two alone bring no sheet, nor does the settings file. A sealed vault replaces the file with its identity, or is written
-  under its own name (`name.fvlt`, `name-2.fvlt` when the stick has one;
+  under its own name (`name.kdbx`, `name-2.kdbx` when the stick has one;
   `docs/VAULT.md` §6) where there is none. A failed comparison
   leaves the file For the stick and says which. The first row is the
   settings, `faraday-settings.txt`, which is not a file For the stick: ticked
@@ -926,8 +926,8 @@ public) and its state:
   first place that keeps it, the second for the second, and so on; else
   **Not checked**. A place that keeps only a sheet reads its file.
 - the vault: the vault file holding the wallet and where it stands,
-  "vault.fvlt · for the stick", "vault.fvlt · on STICK, 14:02",
-  "vault.fvlt · changed since written"; "Not in a vault" when none holds
+  "vault.kdbx · for the stick", "vault.kdbx · on STICK, 14:02",
+  "vault.kdbx · changed since written"; "Not in a vault" when none holds
   it; "A vault is locked" when a locked vault not seen open this
   power-on might.
 - public files: "On {label}, {time}" once the last visit wrote and read
@@ -946,7 +946,7 @@ shows only from the plan an open vault keeps, else "Place 1". On the
 small panel one wallet a page, with **Previous** and **Next**.
 
 The wallet card's line, under its shape: "Backup: paper ×2 checked ·
-vault.fvlt · for the stick" (paper "1 of 2 checked" while one is not), or
+vault.kdbx · for the stick" (paper "1 of 2 checked" while one is not), or
 "Not backed up"; a press opens Backups on that wallet.
 
 ## Backup flow

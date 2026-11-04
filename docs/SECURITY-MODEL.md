@@ -269,72 +269,76 @@ everything below about the process still applies.
 
 ## Vault cryptography
 
-- A vault is one file. Its header (format version, Argon2id cost and a
-  random 32-byte salt) is not secret. Everything after it is ciphertext.
-- **Key.** Argon2id version 1.3 over the passphrase and the salt, then
-  HKDF-SHA256 with a fixed label, gives a 256-bit key. The passphrase is
-  put in Unicode NFC first, so "é" typed as one character or as "e" and
-  an accent is one passphrase; nothing else is changed in it. Faraday creates
-  vaults with at least 64 MiB of memory and 2 passes; presets go up to
-  2 GiB, chosen for the weakest machine that will open the vault.
-- **Cipher.** XChaCha20-Poly1305 with a random 24-byte nonce, drawn fresh
-  every time the vault is sealed. The header is authenticated as
-  associated data, so a changed salt or cost makes the file fail to open
-  rather than changing what a guess costs.
-- **Key commitment.** XChaCha20-Poly1305 does not commit to its key: a
-  slot can be made whose tag verifies under two keys. Every slot's
-  plaintext begins with 32 zero bytes, checked in constant time once the
-  tag verifies; under a second key they decrypt to other bytes, and the
-  file is refused.
-- **Seal count.** Every slot holds a count of the times it has been
-  sealed and the time of the last seal, inside the slot, so whoever
+- A file vault is one KDBX 4 file, the format KeePass writes. Its header
+  (format version, Argon2id cost and a random 32-byte salt) is not
+  secret. Everything after it is ciphertext, in blocks that each carry an
+  HMAC.
+- **Key.** The passphrase is put in Unicode NFC first, so "é" typed as one
+  character or as "e" and an accent is one passphrase; nothing else is
+  changed in it. KDBX's composite key (SHA-256 of SHA-256 of the
+  passphrase) goes through Argon2id version 1.3 under the salt, and
+  SHA-256 and SHA-512 over the result and a random master seed give the
+  encryption key and the HMAC keys. Faraday creates vaults with 64 MiB to
+  1 GiB of memory, 3 passes and 4 lanes, chosen for the weakest machine
+  that will open the vault.
+- **Cipher.** ChaCha20 with a random 12-byte IV, fresh every time the
+  vault is sealed, and HMAC-SHA-256 over the header and over every 1 MiB
+  block with a key of its own. A changed salt or cost makes the header's
+  HMAC fail rather than changing what a guess costs; every block's HMAC is
+  checked before any byte of it is decrypted.
+- **Key commitment.** The HMACs are keyed from the same key as the
+  cipher, so a file that verifies under two passphrases cannot be made
+  without breaking HMAC-SHA-256 or SHA-512.
+- **Seal count.** The file holds a count of the times it has been sealed
+  and the time of the last seal, inside the encrypted body, so whoever
   opens it can tell an older copy from a newer one.
 - **Fixed size.** The contents are padded to a size chosen at creation,
-  from 64 KiB to 4 MiB. The file does not grow as entries are added and
-  does not show how much it holds.
+  from 64 KiB to 4 MiB, with line feeds after the document. The file does
+  not grow as entries are added and does not show how much it holds.
 - **Limits before work.** A reader checks the stated cost against fixed
-  limits before allocating memory, and checks the authentication tag
-  before parsing anything inside.
+  limits before allocating memory, and checks every HMAC before parsing
+  anything inside.
 - **Writing back.** A sealed vault is written as a new file, read back
   and compared byte for byte, then renamed over the previous copy.
 - **The passphrase is what protects it.** Doubling the Argon2id cost adds
   one bit; one more word from the EFF long list adds 12.9. The built-in
   dice generator makes word passphrases, and a six-word one is 77.5 bits.
-- **Readable without Faraday.** The format is published in
-  `docs/VAULT.md`, with test vectors in `tools/vectors/vault/`.
-  `tools/vault/open.py`, a Python reader over standard libraries, opens a
-  vault with no Faraday code.
+- **Readable without Faraday.** The format is KDBX 4, and Faraday's use
+  of it is published in `docs/VAULT.md`, with test vectors in
+  `tools/vectors/vault/`. `tools/vault/open.py` prints a vault with
+  pykeepass, with no Faraday code. No KeePass app has yet been tried on
+  what Faraday writes.
 
 ## Why this construction holds up
 
 The pieces above are chosen so that the usual ways a passphrase-sealed
 file goes wrong are absent by construction, not patched after the fact.
 
-- **Standard primitives, used in the standard way.** Argon2id and
-  XChaCha20-Poly1305 are the current recommendations for passphrase
-  stretching and authenticated encryption, and both come from vetted
-  crates rather than anything invented here (`docs/AUDIT.md`). The work
-  is in how they are combined; none of it is new cryptography.
+- **Standard primitives, used in the standard way.** Argon2id is the
+  current recommendation for passphrase stretching, and KDBX 4 with
+  ChaCha20 and HMAC-SHA-256 is the format KeePass apps have used for
+  years; the primitives come from vetted crates rather than anything
+  invented here (`docs/AUDIT.md`). The work is in how they are combined;
+  none of it is new cryptography.
 - **Memory-hard stretching.** Argon2id makes each guess cost memory as
   well as time, which is what denies an attacker the advantage of
   massively parallel hardware. It raises the floor under a passphrase; it
   does not replace a strong one.
-- **Stateless sealing.** A 24-byte nonce is large enough to draw at
-  random on every seal with no meaningful chance of collision, so correct
-  use needs no counter and no saved state. A frequent source of AEAD
-  failures — a reused or mismanaged nonce — cannot arise here.
+- **A fresh key at every seal.** Each seal draws a new salt, master seed
+  and IV, so no key and IV pair is ever used twice and correct use needs
+  no counter and no saved state.
 - **Nothing is compressed before encryption.** Compressing secrets before
-  sealing them can leak their content through ciphertext length; this
-  format does not, and the fixed slot size means a file's length reveals
+  sealing them can leak their content through ciphertext length; Faraday
+  writes no compression, and the fixed size means a file's length reveals
   only its size bucket, never how much is stored or what kind of thing it
-  is. An unused slot is random bytes, indistinguishable from one in use.
-- **Open, not obscure.** The scheme is written down byte for byte, has
-  test vectors, and is opened by a second reader written from that text
-  (`tools/vault/open.py`, by Faraday's own authors, so not checked
-  against an outside source; the container is Faraday's own
-  specification, not yet reviewed outside Faraday, F160, F177), so its
-  security
-  rests on the passphrase and the primitives alone — not on the format
+  is.
+- **Open, not obscure.** The format is KDBX 4, which KeePass publishes;
+  Faraday's use of it is written down, has test vectors, and is opened
+  by pykeepass, a reader Faraday's authors did not write
+  (`tools/vault/open.py`). Faraday's own reader and writer are not yet
+  checked in both directions against KeePassXC and keepass-rs, nor
+  reviewed outside Faraday (F160, F177). Its security rests on the
+  passphrase and the primitives alone — not on the format
   staying secret, and a vault outlives the program that wrote it.
 
 ## What this does not defend against
