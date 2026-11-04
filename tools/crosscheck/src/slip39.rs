@@ -1,7 +1,10 @@
 //! SLIP-39 Shamir backup through `faraday_bip::slip39`.
 
+use faraday_bip::codex32::{self, Codex32};
+use faraday_bip::keys::{MasterKey, Network};
 use faraday_bip::slip39::{self, Ems, GroupSpec, Share};
 use faraday_crypto::work::Compute;
+use faraday_crypto::{Secret, SeedBytes};
 use serde_json::{Value, json};
 
 use crate::Answer;
@@ -20,6 +23,16 @@ fn words(share: &Share) -> String {
         .join(" ")
 }
 
+/// The master fingerprint of a seed, Faraday's.
+fn fingerprint(c: &Compute, seed: &[u8]) -> Result<[u8; 4], String> {
+    let seed = SeedBytes::new(seed).ok_or("seed too long")?;
+    Ok(
+        MasterKey::from_seed_bytes(c, &Secret::new(seed), Network::Mainnet)
+            .fingerprint()
+            .0,
+    )
+}
+
 fn shares(req: &Value) -> Result<Vec<Share>, String> {
     texts(req, "mnemonics")
         .into_iter()
@@ -33,6 +46,22 @@ pub fn handle(name: &str, req: &Value) -> Answer {
     match name {
         "split" => split(&c, req),
         "split_ems" => split_ems(req),
+        "one_of_one" => {
+            let share = slip39::one_of_one(&c, &bytes(req, "secret")).map_err(err)?;
+            Ok(json!({"mnemonic": words(&share)}))
+        }
+        "to_codex32" => {
+            let seed = bytes(req, "seed");
+            let id = codex32::identifier_for(fingerprint(&c, &seed)?);
+            let secret = Codex32::from_seed(0, id, &seed).map_err(err)?;
+            Ok(json!({"string": secret.encode().as_str()}))
+        }
+        "from_codex32" => {
+            let secret = Codex32::parse(text(req, "string")).map_err(err)?;
+            let seed = secret.to_seed().map_err(err)?;
+            let seed = seed.expose().bytes();
+            Ok(json!({"seed": hex(seed), "fingerprint": hex(&fingerprint(&c, seed)?)}))
+        }
         "recover" => {
             let secret = slip39::recover(&c, &shares(req)?, text(req, "passphrase").as_bytes())
                 .map_err(err)?;

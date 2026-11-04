@@ -1,6 +1,6 @@
 """SLIP-39 against python-shamir-mnemonic, Trezor's reference, and
-bip39_slip39 (the btclib developers', `bip39-slip39/`), which answers every
-split, recovery and cipher call beside it.
+bip39_slip39 (the btclib developers', `bip39-slip39/`), which answers each
+SLIP-39 split, recovery and cipher call beside it.
 
 All 45 of the reference's own vectors, then random backups: the same
 random bytes are handed to both splits, so the shares must match word
@@ -12,6 +12,13 @@ index, as rotating a set, adding a share and replacing a lost one do.
 SLIP-39's limits (16 groups, all
 needed, 16 members each) are split every run; the random tape is sized
 to what a split draws, which reaches 8 KiB there.
+
+A third loop (`convert`) runs the fixed 1 of 1 against both libraries and
+the codex32 conversions: Faraday's codex32 read by python-codex32, and a
+SLIP-39 set with a passphrase recovered by python-shamir-mnemonic, written
+as codex32 by python-codex32 and read by Faraday; fingerprints are btclib's.
+The lengths the 1 of 1 refuses are Faraday's own rule, which no second judge
+covers.
 
 One difference is known and kept out of the random corpus: Faraday
 refuses a group threshold of 1 over several groups, which the reference
@@ -26,10 +33,51 @@ use_reference("slip39")
 import shamir_mnemonic as S  # noqa: E402
 from shamir_mnemonic import cipher, shamir  # noqa: E402
 
+use_reference("codex32", "shims")
+use_reference("codex32")
+from codex32 import Codex32String  # noqa: E402
+from codex32.bech32 import CHARSET  # noqa: E402
+from codex32.bip93 import encode as codex32_encode  # noqa: E402
+
+import bip32_ref  # noqa: E402
+
 use_wheels("bip39-slip39", ["bip39_slip39-2026.10.24-py3-none-any.whl"])
 from bip39_slip39 import slip39 as B  # noqa: E402
 
 PRINTABLE = string.ascii_letters + string.digits + string.punctuation + " "
+
+
+def fingerprint(seed):
+    """The master fingerprint of a seed, btclib's (`bip32_ref.py`), never
+    Faraday's own."""
+    return bytes(bip32_ref.master(seed).fingerprint())
+
+
+def one_of_one_identifier(seed):
+    """SLIP-39's 15-bit identifier of a 1 of 1: the first 15 bits of the
+    master fingerprint (§4.4 of `docs/SEED-CONVERSION.md`)."""
+    return int.from_bytes(fingerprint(seed), "big") >> 17
+
+
+def codex32_identifier(seed):
+    """codex32's identifier of a seed: the first 20 bits of its master
+    fingerprint as four bech32 characters (`docs/CODEX32.md` §6.4.5)."""
+    bits = int.from_bytes(fingerprint(seed), "big")
+    return "".join(CHARSET[(bits >> (27 - 5 * i)) & 31] for i in range(4))
+
+
+def ref_one_of_one(seed, judge):
+    """The 1 of 1 of §4.4 through a SLIP-39 library: 16 or 32 bytes (the
+    lengths hardware wallets read, Faraday's rule), identifier from the
+    fingerprint, extendable, iteration exponent 1, no passphrase."""
+    if len(seed) not in (16, 32):
+        raise ValueError("a 1 of 1 is made of 16 or 32 bytes")
+    args = (seed, b"" if judge is ref_split else "", one_of_one_identifier(seed), True, 1, 1,
+            [(1, 1)], b"")
+    made = judge(*args)
+    if made["random_used"]:
+        raise AssertionError("a 1 of 1 drew random bytes")
+    return {"mnemonic": made["mnemonics"][0]}
 
 
 class Tape:
@@ -183,8 +231,11 @@ class Slip39(Area):
     reference = (
         'python-shamir-mnemonic (`slip39/`), its `recover_ems`, `split_ems` and '
         '`_interpolate` for a set\'s EMS, a new split of it and a member at an index; '
-        'bip39_slip39 (`bip39-slip39/`) answering every operation beside it; the refusals '
-        'of a member at an index before the arithmetic are ours (`derive_refused`)'
+        'bip39_slip39 (`bip39-slip39/`) answering each SLIP-39 operation beside it (not the '
+        'two codex32 operations); python-codex32 (`codex32/`) for the codex32 side of the '
+        'conversions and btclib (`bip32_ref.py`) for the fingerprint; the refusals '
+        'of a member at an index before the arithmetic are ours (`derive_refused`), and so '
+        'are the lengths the fixed 1 of 1 refuses, which no second judge covers'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -201,7 +252,14 @@ class Slip39(Area):
         'the same random bytes (some under a new identifier where extendable) and a member '
         'added or a lost one made again at an index, each recovering the first set\'s '
         'secret, and a member refused at an index given, past 15, from a short quorum and '
-        'across two groups'
+        'across two groups; random seeds of 16 and 32 bytes through the fixed 1 of 1 against '
+        'both libraries under the fingerprint\'s first 15 bits, recovered through both, and '
+        'the lengths it refuses, against Faraday\'s own rule; the seed written as codex32 by '
+        'Faraday and read by python-codex32, and a SLIP-39 set with a passphrase recovered '
+        'by Faraday and by python-shamir-mnemonic, written as codex32 by Faraday and by '
+        'python-codex32, the second read by Faraday, '
+        'the same bytes both ways, the identifier\'s 20 bits written and the fingerprint '
+        '(btclib\'s) compared on both sides'
     )
     differences = [
         (
@@ -435,7 +493,71 @@ class Slip39(Area):
         twin_at = sum(n for _t, n in groups[:gi])
         self.derive_member(given[:-1] + [twin[twin_at + members[-1]]], index)
 
-    LOOPS = (("corpus", 1500), ("sets", 500))
+    def one_of_one(self, seed):
+        """A length Faraday refuses (not 16 or 32) is its own rule, which
+        both libraries would accept: no `also`, so `compare` counts it as
+        not covered by bip39_slip39, once."""
+        also = (lambda: ref_one_of_one(seed, btl_split)) if len(seed) in (16, 32) else None
+        return self.compare("slip39.one_of_one", {"secret": seed.hex()},
+                            lambda: ref_one_of_one(seed, ref_split), also=also)
+
+    def to_codex32(self, seed):
+        """Faraday's codex32 string of a seed, which the codex32 reference
+        reads: the same bytes and identifier, and the fingerprint btclib
+        works out of the bytes the reference read equals the seed's."""
+        ident = codex32_identifier(seed)
+        made = self.compare("slip39.to_codex32", {"seed": seed.hex()},
+                            lambda: {"string": Codex32String(codex32_encode(
+                                "ms", f"0{ident}s", seed, pad_val=0)).s.lower()})
+        string = self.need(made, "a seed written as codex32")["string"]
+        read = Codex32String.from_string("ms", string)
+        if read.data != seed or read.ident.lower() != ident or read.share_idx.lower() != "s":
+            raise AssertionError("the codex32 reference does not read the seed back")
+        if fingerprint(bytes(read.data)) != fingerprint(seed):
+            raise AssertionError("the bytes the codex32 reference read have another fingerprint")
+        return string
+
+    def from_codex32(self, string, seed):
+        """Faraday's reading of a codex32 string the reference wrote: the
+        seed and its fingerprint, which btclib works out."""
+        return self.compare("slip39.from_codex32", {"string": string},
+                            lambda: {"seed": seed.hex(), "fingerprint": fingerprint(seed).hex()})
+
+    def convert_case(self):
+        rng = self.rng
+        seed = self.randbytes(rng.choice([16, 32]))
+        # The fixed 1 of 1: the words match both libraries word for word,
+        # and read back through both to the seed.
+        words = self.need(self.one_of_one(seed), "a 1 of 1")["mnemonic"]
+        if self.recover([words], "")[1]["secret"] != seed.hex():
+            raise AssertionError("a 1 of 1 does not recover its seed")
+        for bad in (rng.choice([20, 24, 28]), 64, rng.choice([0, 15, 17, 33])):
+            self.one_of_one(self.randbytes(bad))
+        # Faraday's codex32 of the seed, read by the codex32 reference.
+        self.to_codex32(seed)
+        # A SLIP-39 set with a passphrase, recovered by python-shamir-mnemonic,
+        # written as codex32 by the codex32 reference, read by Faraday.
+        passphrase = "".join(rng.choice(PRINTABLE) for _ in range(rng.choice([6, 20])))
+        gt, groups = rng.choice([(1, [(1, 1)]), (1, [(2, 3)]), (2, [(1, 1), (2, 3)])])
+        gt = 1 if len(groups) == 1 else gt
+        shares = self.need(self.split(
+            seed, passphrase, rng.randrange(1 << 15), rng.random() < 0.5, 0, gt, groups,
+            self.randbytes(tape_length(len(seed), gt, groups))), "a set")["mnemonics"]
+        subset, at = [], 0
+        for t, n in groups:
+            subset += rng.sample(shares[at:at + n], t)
+            at += n
+        got = S.combine_mnemonics(subset, passphrase.encode())
+        if got != seed:
+            raise AssertionError("python-shamir-mnemonic does not recover the seed")
+        ours = self.need(self.recover(subset, passphrase), "a set with a passphrase")
+        if bytes.fromhex(ours["secret"]) != seed:
+            raise AssertionError("Faraday does not recover the seed")
+        self.to_codex32(bytes.fromhex(ours["secret"]))
+        wallet = codex32_encode("ms", f"0{codex32_identifier(got)}s", got, pad_val=0)
+        self.from_codex32(wallet, got)
+
+    LOOPS = (("corpus", 1500), ("sets", 500), ("convert", 100))
 
     def prelude(self):
         self.published()
@@ -447,3 +569,6 @@ class Slip39(Area):
 
     def case_sets(self):
         self.sets_case()
+
+    def case_convert(self):
+        self.convert_case()

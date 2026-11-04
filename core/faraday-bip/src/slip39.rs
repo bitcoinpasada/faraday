@@ -34,11 +34,12 @@
 //! ```
 
 use faraday_crypto::work::Compute;
-use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
+use faraday_crypto::{Secret, SeedBytes, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
 
 use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
+use crate::keys::{MasterKey, Network as KeysNetwork};
 use crate::wordlists::slip39 as wordlist;
 
 /// Words in the shortest share (a 128-bit master secret).
@@ -1318,6 +1319,46 @@ pub fn split(
         )),
     };
     split_ems(&ems, group_threshold, groups, random, out)
+}
+
+/// Costs a PBKDF2 and a master key derivation. The fixed 1 of 1 of a
+/// master secret: its one share, the same for one secret every time.
+///
+/// `secret` is 16 or 32 bytes, the lengths hardware wallets read; the
+/// other lengths SLIP-39 allows (20, 24, 28) and anything else are
+/// refused with [`Error::InvalidSecretLength`]. The identifier is the
+/// first 15 bits of the master fingerprint (its two high bytes' leading
+/// bits, `fingerprint >> 17`, the same end of it as codex32's
+/// `identifier_for` takes). The set is extendable, one group of one share
+/// (a threshold of 1 draws no randomness), iteration exponent 1 and an
+/// empty passphrase, as New key and Trezor make them.
+pub fn one_of_one(c: &Compute, secret: &[u8]) -> Result<Share, Error> {
+    if secret.len() != 16 && secret.len() != 32 {
+        return Err(Error::InvalidSecretLength);
+    }
+    let seed = SeedBytes::new(secret).ok_or(Error::InvalidSecretLength)?;
+    let fingerprint = MasterKey::from_seed_bytes(c, &Secret::new(seed), KeysNetwork::Mainnet)
+        .fingerprint()
+        .0;
+    let identifier = (u32::from_be_bytes(fingerprint) >> 17) as u16;
+    let mut out = [Share::default()];
+    split(
+        c,
+        secret,
+        b"",
+        identifier,
+        true,
+        1,
+        1,
+        &[GroupSpec {
+            threshold: 1,
+            count: 1,
+        }],
+        &mut |_| unreachable!("a threshold of 1 asks for no randomness"),
+        &mut out,
+    )?;
+    let [share] = out;
+    Ok(share)
 }
 
 /// A new set of shares for `ems` under these groups. No PBKDF2 runs:

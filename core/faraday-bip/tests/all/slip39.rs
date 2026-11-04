@@ -1044,3 +1044,170 @@ fn the_set_functions_refuse_an_exponent_above_the_highest_read() {
     assert_eq!(slip39::recover_ems(&forged).err(), too_high);
     assert_eq!(slip39::derive_member(&forged, 9).err(), too_high);
 }
+
+// ---- the fixed 1 of 1 of a master secret (one_of_one) ----
+
+use faraday_bip::codex32::{self, Codex32};
+use faraday_bip::keys::{MasterKey, Network as KeysNetwork};
+use faraday_crypto::{Secret, SeedBytes};
+
+const BIP93_VECTORS: &str = include_str!("../../../../tools/vectors/bip93/vectors.json");
+
+fn words_of(share: &Share) -> String {
+    (0..share.word_count())
+        .map(|i| share.word(i))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn fingerprint_of(seed: &[u8]) -> [u8; 4] {
+    let c = Compute::unchecked();
+    MasterKey::from_seed_bytes(
+        &c,
+        &Secret::new(SeedBytes::new(seed).unwrap()),
+        KeysNetwork::Mainnet,
+    )
+    .fingerprint()
+    .0
+}
+
+fn read_back(share: &Share) -> Vec<u8> {
+    let c = Compute::unchecked();
+    let parsed = Share::parse(&words_of(share)).unwrap();
+    recover(&c, &[parsed], b"")
+        .unwrap()
+        .expose()
+        .as_bytes()
+        .to_vec()
+}
+
+#[test]
+fn a_seed_gives_the_same_words_twice() {
+    let c = Compute::unchecked();
+    for len in [16usize, 32] {
+        let seed: Vec<u8> = (0..len as u8).map(|i| i.wrapping_mul(11) ^ 0x5a).collect();
+        let a = slip39::one_of_one(&c, &seed).unwrap();
+        let b = slip39::one_of_one(&c, &seed).unwrap();
+        assert_eq!(words_of(&a), words_of(&b));
+    }
+}
+
+#[test]
+fn sixteen_bytes_are_twenty_words_and_thirty_two_are_thirty_three() {
+    let c = Compute::unchecked();
+    let a = slip39::one_of_one(&c, &[7u8; 16]).unwrap();
+    let b = slip39::one_of_one(&c, &[7u8; 32]).unwrap();
+    assert_eq!(a.word_count(), 20);
+    assert_eq!(b.word_count(), 33);
+}
+
+#[test]
+fn other_lengths_are_refused() {
+    let c = Compute::unchecked();
+    for len in [0usize, 15, 20, 24, 28, 64] {
+        assert_eq!(
+            slip39::one_of_one(&c, &vec![9u8; len]).err(),
+            Some(slip39::Error::InvalidSecretLength),
+            "{len} bytes"
+        );
+    }
+}
+
+#[test]
+fn the_share_recovers_the_seed() {
+    let c = Compute::unchecked();
+    for len in [16usize, 32] {
+        let seed: Vec<u8> = (0..len as u8).map(|i| i.wrapping_mul(29) ^ 0xc3).collect();
+        let share = slip39::one_of_one(&c, &seed).unwrap();
+        assert_eq!(read_back(&share), seed);
+    }
+}
+
+/// The 1 of 1 carries the parameters of `docs/SEED-CONVERSION.md` §4.4: the
+/// identifier is the first 15 bits of the seed's master fingerprint, the
+/// backup is extendable and the iteration exponent is 1.
+#[test]
+fn the_share_carries_the_fingerprints_identifier_and_the_fixed_parameters() {
+    let c = Compute::unchecked();
+    for len in [16usize, 32] {
+        let seed: Vec<u8> = (0..len as u8).map(|i| i.wrapping_mul(29) ^ 0xc3).collect();
+        let share = slip39::one_of_one(&c, &seed).unwrap();
+        let fingerprint = u32::from_be_bytes(fingerprint_of(&seed));
+        assert_eq!(
+            u32::from(share.identifier()),
+            fingerprint >> 17,
+            "{len} bytes"
+        );
+        assert!(share.is_extendable(), "{len} bytes");
+        assert_eq!(share.iteration_exponent(), 1, "{len} bytes");
+    }
+}
+
+/// A 16-byte and a 32-byte seed (byte i is 7i + 3, mod 256) through
+/// python-shamir-mnemonic's `split_mnemonics` as the fixed 1 of 1: the
+/// identifier the seed's master fingerprint gives (15837 and 8008),
+/// extendable, one group of one, exponent 1, no passphrase; the words are
+/// what the reference wrote (`tools/reference/slip39`, run once).
+#[test]
+fn a_one_of_one_matches_the_reference() {
+    let c = Compute::unchecked();
+    let cases = [
+        (
+            16usize,
+            "justice typical academic academic devote spill nuclear laundry mental museum \
+             empty legend fawn clothes laundry losing silent pipeline language space",
+        ),
+        (
+            32,
+            "duration email academic academic artwork aide modern reaction manual guilt \
+             smell picture member wolf yield warmth violence railroad item arena anatomy \
+             change antenna require short grownup smirk traveler critical brother havoc \
+             acquire satisfy",
+        ),
+    ];
+    for (len, words) in cases {
+        let seed: Vec<u8> = (0..len).map(|i| (i * 7 + 3) as u8).collect();
+        let share = slip39::one_of_one(&c, &seed).unwrap();
+        assert_eq!(words_of(&share), words, "{len} bytes");
+    }
+}
+
+#[test]
+fn bip93_seeds_written_as_slip39_read_back_the_same() {
+    let c = Compute::unchecked();
+    let v: Value = serde_json::from_str(BIP93_VECTORS).unwrap();
+    let mut n = 0;
+    for case in v["secrets"].as_array().unwrap() {
+        let seed = unhex(case["seed"].as_str().unwrap());
+        if seed.len() != 16 && seed.len() != 32 {
+            continue;
+        }
+        let share = slip39::one_of_one(&c, &seed).unwrap();
+        assert_eq!(read_back(&share), seed, "{}", case["string"]);
+        n += 1;
+    }
+    assert!(n >= 2, "a 16-byte and a 32-byte seed");
+}
+
+#[test]
+fn slip39_vectors_written_as_codex32_read_back_the_same() {
+    let mut n = 0;
+    for v in vectors() {
+        if v.master_secret.is_empty() {
+            continue;
+        }
+        let seed = combine(&v.mnemonics).unwrap();
+        if seed.len() != 16 && seed.len() != 32 {
+            continue;
+        }
+        let id = codex32::identifier_for(fingerprint_of(&seed));
+        let written = Codex32::from_seed(0, id, &seed).unwrap();
+        let read = Codex32::parse(written.encode().as_str()).unwrap();
+        let back = read.to_seed().unwrap();
+        assert_eq!(back.expose().bytes(), &seed[..], "{}", v.description);
+        let root = Xpriv::new_master(Network::Bitcoin, back.expose().bytes()).unwrap();
+        assert_eq!(root.to_string(), v.xprv, "{}", v.description);
+        n += 1;
+    }
+    assert!(n >= 2, "a 16-byte and a 32-byte vector");
+}
