@@ -198,7 +198,10 @@ class SilentSend(Area):
             "BIP-375: btclib-wallet takes a taproot input's NUMS internal key as a reason to skip "
             "the input only against a proof (a merkle root or a control block that tweaks the NUMS "
             "point to the output key), and counts the input otherwise; Faraday and the validator "
-            "skip on the claim. A PSBT with an unproved claim is not asked of btclib-wallet. The "
+            "skip on the claim. A PSBT with an unproved claim is not asked of btclib-wallet; the "
+            "run prints how many PSBTs it judged and how many it was not asked. A proved claim "
+            "only in a control block, with no internal key set, is not detected: btclib-wallet "
+            "would skip the input, Faraday would count it, and the run would stop on it. The "
             "corpus also makes inputs whose claim is proved, which all three skip."
         ),
     ]
@@ -207,6 +210,13 @@ class SilentSend(Area):
     )
 
     # -- what each side says ------------------------------------------
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # btclib-wallet's count: the PSBTs it judged, and those not asked of
+        # it (`btc_unproven_nums`), which the run prints beside the known
+        # differences.
+        self.second = {"judge": "btclib-wallet", "judged": 0, "uncovered": 0}
 
     def compare(self, op, inputs, ref_fn, expected=None, normalize=None, btc_fn=None):
         """The two-way comparison of `Area.compare`, and btclib's answer
@@ -232,6 +242,7 @@ class SilentSend(Area):
         # cannot prove (see `btc_unproven_nums`): the one difference of its rule.
         btc_asked = not btc_unproven_nums(b64)
         btc = btc_verdict(b64, checks) if btc_asked else None
+        self.second["judged" if btc_asked else "uncovered"] += 1
         self.compared += 1
         if expected is not None and valid != expected:
             raise Mismatch(self.name, "sps.check", inputs, rust, {"valid": valid},

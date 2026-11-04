@@ -488,9 +488,12 @@ difference"), and says why.
     a reason to skip the input only against a proof (a merkle root or a
     control block that tweaks the NUMS point to the output key), and
     counts the input otherwise; Faraday and the validator skip on the
-    claim. A PSBT with an unproved claim is not asked of btclib-wallet.
-    The corpus also makes inputs whose claim is proved, which all three
-    skip.
+    claim. A PSBT with an unproved claim is not asked of btclib-wallet;
+    the run prints how many PSBTs it judged and how many it was not
+    asked. A proved claim only in a control block, with no internal key
+    set, is not detected: btclib-wallet would skip the input, Faraday
+    would count it, and the run would stop on it. The corpus also makes
+    inputs whose claim is proved, which all three skip.
 - `slip39`
   - SLIP-39: Faraday refuses a group threshold of 1 over several groups;
     python-shamir-mnemonic makes the shares. The area checks that this
