@@ -4552,7 +4552,7 @@ impl Faraday {
         if key == KeyIn::Escape && self.pointer.tip_dismiss() {
             return;
         }
-        if self.selftest_failed() || self.key_refused_busy(key) || self.input_enter(key) {
+        if self.selftest_failed() || self.key_refused_busy(key) || self.input_sheet_key(key) {
             return;
         }
         // Ctrl+V is the scanner's Paste, or Paste words on the words form.

@@ -524,12 +524,36 @@ impl Faraday {
                 .is_some_and(|d| d.pointer && !d.touch && self.inputs.by_target(d))
     }
 
+    /// A trusted keyboard's key while a device's sheet is up stays on the
+    /// sheet: it moves through the sheet's controls, presses one or scrolls,
+    /// and never reaches the page beneath. Escape does nothing, since the
+    /// sheet stays until the device is decided. Whether the sheet was up.
+    pub(crate) fn input_sheet_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key;
+        if self.sheet != Some(Sheet::NewInput) {
+            return false;
+        }
+        if self.input_enter(key) {
+            return true;
+        }
+        match key {
+            Key::Down => self.glide(crate::motion::WHEEL_NOTCH),
+            Key::Up => self.glide(-crate::motion::WHEEL_NOTCH),
+            _ => self
+                .pointer
+                .focus_key(key)
+                .into_iter()
+                .for_each(|a| self.press_in(a)),
+        }
+        true
+    }
+
     /// Enter from a trusted keyboard lets in the pointer whose targets show,
     /// as **Use this pointer** does, once its line has been drawn and the
     /// keyboard quiet for [`ENTER_QUIET_MS`]. An earlier Enter does nothing,
     /// and a control the keyboard is on keeps its Enter. Whether the key was
     /// taken.
-    pub(crate) fn input_enter(&mut self, key: faraday_shell_api::Key) -> bool {
+    fn input_enter(&mut self, key: faraday_shell_api::Key) -> bool {
         if !self.input_enter_lets_in() {
             return false;
         }

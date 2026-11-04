@@ -1271,3 +1271,44 @@ fn nothing_dismisses_the_start_notice_and_it_goes_after_ten_seconds() {
     app.event(Event::Tick { now_ms: 11_100 });
     assert!(!said(&mut app).contains("Plugged in"));
 }
+
+/// Add a key with "a" typed, a trusted keyboard, and a mouse's sheet over it.
+fn sheet_over_a_form() -> Faraday {
+    use faraday_shell_api::Key;
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: true,
+    });
+    app.press(Action::Entry(None));
+    app.event(Event::Key(Key::Char('a')));
+    assert_eq!(&*testkit::entry(&app).typed, "a");
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    app
+}
+
+#[test]
+fn keys_typed_while_a_devices_sheet_is_up_do_not_reach_the_form_under_it() {
+    use faraday_shell_api::Key;
+    let mut app = sheet_over_a_form();
+    let screen = app.screen;
+    for key in [Key::Char('b'), Key::Backspace, Key::Escape] {
+        app.event(Event::Key(key));
+        assert_eq!(&*testkit::entry(&app).typed, "a");
+        assert_eq!(app.screen, screen);
+        assert_eq!(app.sheet, Some(Sheet::NewInput));
+    }
+}
+
+#[test]
+fn over_a_form_the_keyboard_can_tab_to_ignore_and_press_it() {
+    use faraday_shell_api::Key;
+    let mut app = sheet_over_a_form();
+    app.event(Event::Key(Key::Tab));
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.poll_input_decision(), Some((2, false)));
+    assert_eq!(&*testkit::entry(&app).typed, "a");
+}
