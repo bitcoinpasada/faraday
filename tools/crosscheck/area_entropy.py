@@ -1,7 +1,13 @@
 """The entropy procedures (`faraday_entropy`) against Coldcard's own scripts
 and a reference written here, never from the Rust.
 
-- Outside code: the hashed dice procedure, and every source's rolls
+- Outside code: SeedSigner's `mnemonic_generation.py` over embit's BIP-39
+  (`tools/reference/seedsigner/`, `tools/reference/embit/`) judges the
+  hashed procedure at 50 and 99 rolls and direct selection's last word at
+  every length (SeedSigner's `calculate_checksum` at 12 and 24 words, its
+  `generate_mnemonic_from_bytes` at 15, 18 and 21), compared as the entropy
+  embit reads back from the words; the hashed procedure
+  at every count, and every source's rolls
   commitment, are Coldcard's `rolls.py` and `rolls12.py` run
   (`tools/reference/coldcard-rolls/`); hex digits become bytes through
   CPython's `bytes.fromhex`. Ours, labelled: EntropyLab's
@@ -29,11 +35,21 @@ import io
 import json
 import math
 
-from common import ROOT, Area, use_reference
+from common import ROOT, Area, Mismatch, use_reference
 
 use_reference("coldcard-rolls")
 import rolls as coldcard_rolls  # noqa: E402
 import rolls12 as coldcard_rolls12  # noqa: E402
+
+use_reference("seedsigner", "shims")
+use_reference("seedsigner")
+use_reference("embit")
+import outside_imports  # noqa: E402
+
+outside_imports.install()
+from embit import bip39 as embit_bip39  # noqa: E402
+from seedsigner.helpers import mnemonic_generation as seedsigner_dice_module  # noqa: E402
+from seedsigner.models.seed import Seed as SeedSignerSeed  # noqa: E402
 
 STRENGTHS = [16, 20, 24, 28, 32]
 PROCEDURES = ["hashed", "six_as_zero", "words"]
@@ -129,16 +145,57 @@ def dice_entropy(kept, procedure, n):
     w = words(n)
     if len(kept) < 6 * w:
         return None
-    bits = ""
+    bits = "".join(format(i, "011b") for i in word_indices(kept, w))
+    bits = bits[:8 * n]
+    return int(bits, 2).to_bytes(n, "big").hex()
+
+
+def word_indices(kept, w):
+    """Direct selection's wordlist indices: two bits from each of five rolls
+    (faces 1 to 4) and the sixth roll read as a coin."""
+    out = []
     for i in range(w):
         group = kept[6 * i:6 * i + 6]
         index = 0
         for face in group[:5]:
             index = index * 4 + (face - 1)
-        index = index * 2 + (0 if group[5] <= 3 else 1)
-        bits += format(index, "011b")
-    bits = bits[:8 * n]
-    return int(bits, 2).to_bytes(n, "big").hex()
+        out.append(index * 2 + (0 if group[5] <= 3 else 1))
+    return out
+
+
+# ----- SeedSigner's dice steps over embit's BIP-39 -----
+
+def seedsigner_entropy(kept, procedure, n, fault=False):
+    """The entropy SeedSigner's `mnemonic_generation.py` gives, as embit's
+    BIP-39 reads it back from the words, or None where SeedSigner has no
+    such step. Its dice function hashes the rolls as ASCII digits and cuts
+    to 16 bytes only at exactly 50 rolls, and not at all otherwise, so it is
+    asked at 50 rolls (16 bytes) and 99 (32 bytes) only. Its
+    `calculate_checksum` completes 12 and 24 words only, so direct
+    selection's last word is asked of it at those lengths and of
+    `generate_mnemonic_from_bytes` (embit) at 15, 18 and 21; SeedSigner has
+    no six-as-zero step, no cut to 20, 24 or 28 bytes and no direct
+    selection from dice (the word indices are Faraday's rule, ours)."""
+    entropy = None
+    if procedure == "hashed" and (len(kept), n) in ((50, 16), (99, 32)):
+        text = "".join(str(r) for r in kept)
+        mnemonic = seedsigner_dice_module.generate_mnemonic_from_dice(text)
+        entropy = embit_bip39.mnemonic_to_bytes(" ".join(mnemonic))
+    elif procedure == "words" and len(kept) >= 6 * words(n):
+        w = words(n)
+        wordlist = SeedSignerSeed.get_wordlist("en")
+        chosen = [wordlist[i] for i in word_indices(kept, w)]
+        if w in (12, 24):
+            full = seedsigner_dice_module.calculate_checksum(chosen)
+        else:
+            raw = embit_bip39.mnemonic_to_bytes(" ".join(chosen), ignore_checksum=True)
+            full = seedsigner_dice_module.generate_mnemonic_from_bytes(raw)
+        entropy = embit_bip39.mnemonic_to_bytes(" ".join(full))
+    if entropy is None:
+        return None
+    if fault:
+        entropy = bytes([entropy[0] ^ 1]) + entropy[1:]
+    return entropy.hex()
 
 
 # ----- the other sources (tools/reference/entropy/README.md) -----
@@ -225,11 +282,14 @@ class Entropy(Area):
         '`tools/reference/dice/README.md`, except that the hashed dice procedure and every '
         "rolls commitment are Coldcard's own `rolls.py` and `rolls12.py` "
         "(`tools/reference/coldcard-rolls/`, run, public domain) and hex digits become bytes "
-        "through CPython's `bytes.fromhex`"
+        "through CPython's `bytes.fromhex`; SeedSigner's `mnemonic_generation.py` "
+        "(`tools/reference/seedsigner/`) over embit's BIP-39 (`tools/reference/embit/`) "
+        "reads the hashed procedure at 50 and 99 rolls and direct selection's last word back"
     )
     reference_checked = (
         "the hashed dice procedure is Coldcard's own scripts run, their files hashed against "
-        '`references.sha256` before any run; the rest is written in the area over `hashlib` '
+        '`references.sha256` before any run; SeedSigner\'s and embit\'s files are hashed '
+        'the same way and their functions run; the rest is written in the area over `hashlib` '
         'from the statements of `tools/reference/entropy/README.md` and '
         '`tools/reference/dice/README.md`, and the published dice answers are required of '
         'them as well as of Faraday'
@@ -245,16 +305,40 @@ class Entropy(Area):
     )
     differences = [
         (
-            'none'
+            "SeedSigner's `generate_mnemonic_from_dice` cuts to 16 bytes only at exactly 50 "
+            'rolls and takes every other count as 32 bytes, and its `calculate_checksum` '
+            "completes 12 and 24 words only: SeedSigner judges the hashed procedure at 50 and "
+            "99 rolls and direct selection's last word at 12 and 24 words (at 15, 18 and 21 "
+            "embit's checksum through `generate_mnemonic_from_bytes`), compared as the entropy "
+            "embit reads back from those words, the checksum itself being area `bip39`'s; it "
+            "has no six-as-zero, "
+            "no cut to 20, 24 or 28 bytes, and its dice take no direct selection, which stay "
+            "the area's own"
         ),
     ]
     not_compared = (
         'none'
     )
 
+    def __init__(self, exe, seed, scale, sabotage=None):
+        # The self-test makes SeedSigner's judge wrong on its own:
+        # `entropy.seedsigner` flips a bit of its answer.
+        self.seedsigner_fault = sabotage == "entropy.seedsigner"
+        super().__init__(exe, seed, scale, None if self.seedsigner_fault else sabotage)
+
     # ----- the requests -----
 
     def dice(self, rolls, procedure, n, expected=None):
+        kept, _ = dice_kept(rolls, PROCEDURES[procedure])
+        outside = seedsigner_entropy(kept, PROCEDURES[procedure], n, self.seedsigner_fault)
+        if outside is not None:
+            inside = dice_entropy(kept, PROCEDURES[procedure], n)
+            if inside != outside:
+                raise Mismatch(self.name, "entropy.seedsigner",
+                               {"rolls": rolls, "procedure": procedure, "bytes": n},
+                               ("ok", outside), ("ok", inside),
+                               "SeedSigner's dice steps over embit's BIP-39 differ from the area's")
+
         def ref():
             kept, out = dice_kept(rolls, PROCEDURES[procedure])
             return {"kept": out, "commitment": dice_commitment(kept).hex(),
@@ -422,9 +506,22 @@ class Entropy(Area):
 
     LOOPS = (("corpus", 3000),)
 
+    def seedsigner_cases(self):
+        """SeedSigner's steps at every count it has: the hashed procedure at
+        50 and 99 rolls, direct selection at every strength."""
+        rng = self.rng
+        for n, count in ((16, 50), (32, 99)):
+            for _ in range(3):
+                self.dice([rng.randint(1, 6) for _ in range(count)], 0, n)
+        for n in STRENGTHS:
+            for _ in range(3):
+                faces = [rng.randint(1, 6 if i % 6 == 5 else 4) for i in range(6 * words(n))]
+                self.dice(faces, 2, n)
+
     def prelude(self):
         self.published()
         self.counts()
+        self.seedsigner_cases()
 
     def case_corpus(self):
         self.corpus_case()

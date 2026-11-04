@@ -2978,7 +2978,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::too_few_rolls_make_no_words",
 ]
 crosscheck = "entropy"
-independence = { class = "outside-and-own", author = "Coldcard's `rolls.py` and `rolls12.py` (public domain), run for the hashed procedure and every rolls commitment", ours = "EntropyLab's six-as-zero and direct word selection (JavaScript, which needs Node, written out in `area_entropy.py` from `tools/reference/dice/README.md`), the cut of Coldcard's digest to 20, 24 and 28 bytes, and the roll counts and refused faces" }
+independence = { class = "outside-and-own", author = "Coldcard's `rolls.py` and `rolls12.py` (public domain), run for the hashed procedure and every rolls commitment; SeedSigner's `mnemonic_generation.py` (MIT) over embit's BIP-39, run for the hashed procedure at 50 and 99 rolls and for direct selection's entropy, read back from its completed words, at every length", ours = "EntropyLab's six-as-zero and direct word selection (JavaScript, which needs Node, written out in `area_entropy.py` from `tools/reference/dice/README.md`; the wordlist indices from faces are Faraday's rule, SeedSigner has no dice selection), the cut of Coldcard's digest to 20, 24 and 28 bytes, and the roll counts and refused faces" }
 fuzz_none = "Takes single key presses from a pad, one die face at a time; no text is parsed."
 
 [action.secrets]

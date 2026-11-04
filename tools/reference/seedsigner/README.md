@@ -5,7 +5,10 @@ Specter's numbered text parts, for the crypto cross-check's `seedqr` and
 `bbqr` areas (`tools/crosscheck/area_seedqr.py`, `area_bbqr.py`, F79,
 F160): `SeedQrEncoder` and `CompactSeedQrEncoder` (`encode_qr.py`),
 `DecodeQR` with `SeedQrDecoder` and `SpecterWalletQrDecoder`
-(`decode_qr.py`), and the files they import, copied unchanged. MIT
+(`decode_qr.py`), and the files they import, copied unchanged; and
+`helpers/mnemonic_generation.py` (the dice and coin-flip steps), which
+the `entropy` area runs over embit's BIP-39
+(`tools/crosscheck/area_entropy.py`). MIT
 (`LICENSE.md`, from the repository's root); `helpers/ur2/` is Blockchain
 Commons' code under BSD-2-Clause-Patent (`helpers/ur2/LICENSE`), which
 `decode_qr.py` and `encode_qr.py` import.
@@ -41,6 +44,7 @@ Faraday's rule, is in the facts of `seedqr` and `bbqr`
 | `seedsigner/__init__.py` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `seedsigner/helpers/__init__.py` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `seedsigner/helpers/l10n.py` | `611cbe564315817964999f3437eecc6a988e2b968a8169066b146e0d1f784686` |
+| `seedsigner/helpers/mnemonic_generation.py` | `1da00ac502a88ae77733681fd19f0fb61df03ebdee759b9ac78798fe9399c8fc` |
 | `seedsigner/helpers/qr.py` | `ed12c8c01002e52af9946e2c0b579c4fd692dee81612dabbc77e73fb1f0bdca8` |
 | `seedsigner/helpers/ur2/LICENSE` | `2f1b5bb0af989ba3080b7eae752992e65873e294db9fa13bef1858c96fc91113` |
 | `seedsigner/helpers/ur2/__init__.py` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |

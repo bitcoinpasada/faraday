@@ -90,7 +90,7 @@ AREAS = {
                    ("miniscript.script", "miniscript.inspect", "miniscript.recovery"), 460),
     "msg": ("area_msg", "Msg", ("msg.sign", "msg.verify", "msg.bip322"), 150),
     "own-randomness": ("area_own", "Own", "own.session", 80),
-    "entropy": ("area_entropy", "Entropy", "entropy.cards", 140),
+    "entropy": ("area_entropy", "Entropy", ("entropy.cards", "entropy.seedsigner"), 140),
     "roller": ("area_roller", "Roller", "roller.five", 45),
     "seedqr": ("area_seedqr", "SeedQR",
                ("seedqr.encode", "seedqr.segno-module", "seedqr.segno-mask",
