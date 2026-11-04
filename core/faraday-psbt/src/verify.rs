@@ -30,6 +30,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
+use bitcoin::WitnessVersion;
 use bitcoin::key::TapTweak;
 use bitcoin::opcodes::all::{OP_DUP, OP_EQUALVERIFY, OP_HASH160};
 use bitcoin::script::Instruction;
@@ -40,8 +41,9 @@ use bitcoin::{PublicKey, Script, ScriptBuf, Sequence, TxOut, Witness, ecdsa, tap
 use faraday_bip::keys::{Fingerprint, MasterKey};
 use faraday_crypto::work::Compute;
 
-use crate::classify::{Classified, classify, spent_output};
+use crate::classify::{Classified, Multisig, classify, spent_output};
 use crate::context::Context;
+use crate::finalize::{self, Judgement};
 use crate::inspect::SighashKind;
 use crate::psbt::Psbt;
 use crate::reason::Reason;
@@ -463,20 +465,82 @@ fn input_signatures<C: secp256k1::Verification>(
     ctx: &Context,
     index: usize,
 ) -> Vec<SignaturePresent> {
+    input_rows(secp, psbt, ctx, index).0
+}
+
+/// The most finalized ECDSA signatures of one input that are verified.
+/// Consensus allows 201 opcodes in a script and a signature check is one,
+/// so no true spend holds more; the rows past it read Unchecked.
+const ROW_BOUND: usize = 201;
+
+/// The rows of input `index`, and the interpreter's answer on its final
+/// fields (never asked of an input whose final data does not match its
+/// output, or is over consensus's limits).
+fn input_rows<C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
+    psbt: &Psbt,
+    ctx: &Context,
+    index: usize,
+) -> (Vec<SignaturePresent>, Judgement) {
     let c = classify(psbt.inner(), index);
     let input = &psbt.inner().inputs[index];
     let present = collect(&c, input);
     let restored = restore(psbt, index, &c);
-    let mismatch = witness_mismatch_of(&c, input);
+    let mismatch = hand_mismatch(&c, input, false);
+    // An input over consensus's limits is a mismatch whatever its rows say:
+    // none of them is verified.
+    let limited = mismatch && over_consensus_limits(&c, input);
+    let is_final = input.final_script_sig.is_some() || input.final_script_witness.is_some();
+    let judgement = match c.utxo.as_ref() {
+        Some(utxo) if is_final && !mismatch => finalize::judge(psbt.inner(), index, utxo),
+        _ => Judgement::NotJudged,
+    };
+    // A script that is not run proves no signature on it wrong.
+    let unrun = judgement == Judgement::NotJudged && not_evaluated_of(&c, input);
     let mut out = Vec::with_capacity(present.len());
-    for p in present {
+    let mut checked = Vec::with_capacity(present.len());
+    let mut messages = BTreeMap::new();
+    let mut verified = 0;
+    for p in &present {
         let mut preimage = false;
-        let (key, mut verdict) = check(secp, &restored, &c, index, &p, &mut preimage);
-        // A finalized script-path witness that does not commit to the
-        // output signs nothing the output holds: no row of it is valid
-        // (a proven preimage is data, not a signature).
-        if mismatch && p.finalized && p.leaf.is_some() && !preimage {
+        if p.finalized && p.kind == SigKind::Ecdsa {
+            verified += 1;
+            if limited || verified > ROW_BOUND {
+                let unchecked = Verdict::Unchecked(Unchecked::UnsupportedScript);
+                checked.push((p.key.clone(), unchecked, false));
+                continue;
+            }
+        }
+        let (key, verdict) = check(secp, &restored, &c, index, p, &mut preimage, &mut messages);
+        checked.push((key, verdict, preimage));
+    }
+    // A multisig's signatures stand in the script's key order, each key
+    // walked forward as `OP_CHECKMULTISIG` walks them. What the
+    // interpreter accepts needs no walk of ours.
+    let mismatch = mismatch
+        || (judgement != Judgement::Accepts
+            && out_of_order(
+                final_multisig(&restored, &c, index).as_ref(),
+                &present,
+                &checked,
+            ));
+    for (p, (key, mut verdict, preimage)) in present.into_iter().zip(checked) {
+        // A finalized script-path witness, or a finalized ECDSA scriptSig or
+        // witness, that does not commit to the output signs nothing the
+        // output holds: no row of it is valid (a proven preimage is data,
+        // not a signature). A taproot key-path row stays as it verifies,
+        // and so does the row of a signature in a multisig with too few of
+        // them: the signature is true, the input is short.
+        if mismatch && p.finalized && (p.leaf.is_some() || p.kind == SigKind::Ecdsa) && !preimage {
             verdict = Verdict::Invalid;
+        }
+        // An input the interpreter accepts has no signature that is wrong:
+        // an element shaped like one is data.
+        if judgement == Judgement::Accepts && p.finalized && verdict.is_invalid() {
+            verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
+        }
+        if unrun && p.finalized && p.kind == SigKind::Ecdsa && verdict.is_invalid() {
+            verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
         }
         let (fingerprint, ours) = origin(ctx, input, &key);
         out.push(SignaturePresent {
@@ -493,7 +557,133 @@ fn input_signatures<C: secp256k1::Verification>(
             preimage,
         });
     }
-    out
+    (out, judgement)
+}
+
+/// The multisig script input `index`'s final data spends, where it is one
+/// (up to 20 keys).
+fn final_multisig(restored: &bitcoin::Psbt, c: &Classified, index: usize) -> Option<Multisig> {
+    let input = &restored.inputs[index];
+    let script = input
+        .witness_script
+        .as_deref()
+        .or(input.redeem_script.as_deref())
+        .or_else(|| c.utxo.as_ref().map(|u| u.script_pubkey.as_script()))?;
+    Multisig::parse_wide(script)
+}
+
+/// Whether the finalized ECDSA signatures that verify under a multisig's
+/// keys are not in the order `OP_CHECKMULTISIG` takes: each under a key
+/// after the one the signature before it used (a key named twice is two
+/// places). Only a multisig script has an order.
+fn out_of_order(
+    multisig: Option<&Multisig>,
+    present: &[Present],
+    checked: &[(SigKey, Verdict, bool)],
+) -> bool {
+    let Some(multisig) = multisig else {
+        return false;
+    };
+    let mut next = 0;
+    for (p, (key, verdict, _)) in present.iter().zip(checked) {
+        if !p.finalized || p.kind != SigKind::Ecdsa || *verdict != Verdict::Valid {
+            continue;
+        }
+        let SigKey::Ecdsa(pk) = key else {
+            continue;
+        };
+        match multisig.keys[next..].iter().position(|k| k == pk) {
+            Some(at) => next += at + 1,
+            None => return true,
+        }
+    }
+    false
+}
+
+/// Costs a classify, a verification per signature (up to a bound of 201
+/// per input, each tried against the script's keys, so up to 201 times the
+/// keys a script of 10,000 bytes holds: some 58,000 verifications for an
+/// input of 999 signature-shaped elements under 290 keys, none of them
+/// true) and the interpreter's signature checks. The cost is per input,
+/// linear in that input's fields, with no bound over the whole file. An input over consensus's limits
+/// verifies nothing. Whether input `index` is final and its ECDSA signatures are
+/// refused: `miniscript`'s interpreter, where the script it spends parses
+/// as a miniscript, says so (and an input it accepts is never one); else
+/// one of the signatures, read as the nonce check reads them, is Invalid:
+/// another key's, a wrong message, a repeat or one out of the script's key
+/// order. A script holding `OP_CODESEPARATOR` is left out (its message is
+/// not worked out here), and so is a taproot input.
+pub fn final_invalid(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(input) = psbt.inputs.get(index) else {
+        return false;
+    };
+    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+        return false;
+    }
+    let c = classify(psbt, index);
+    let own = Psbt::from(psbt.clone());
+    let restored = restore(&own, index, &c);
+    let separator = |s: &Script| {
+        s.instructions()
+            .any(|i| matches!(i, Ok(Instruction::Op(op)) if op == bitcoin::opcodes::all::OP_CODESEPARATOR))
+    };
+    let restored_input = &restored.inputs[index];
+    if c.utxo.as_ref().is_some_and(|u| separator(&u.script_pubkey))
+        || restored_input
+            .redeem_script
+            .as_deref()
+            .is_some_and(separator)
+        || restored_input
+            .witness_script
+            .as_deref()
+            .is_some_and(separator)
+    {
+        return false;
+    }
+    let ctx = Context {
+        network: faraday_bip::keys::Network::Mainnet,
+        keys: &[],
+        wallets: &[],
+        musig_session: None,
+    };
+    let secp = Secp256k1::verification_only();
+    let (rows, judgement) = input_rows(&secp, &own, &ctx, index);
+    let wrong = || {
+        rows.iter()
+            .any(|s| s.finalized && s.kind == SigKind::Ecdsa && s.verdict.is_invalid())
+    };
+    match judgement {
+        Judgement::Accepts => false,
+        Judgement::Rejects => true,
+        // A script not run is never refused: its rows read Unchecked.
+        Judgement::NotJudged if not_evaluated_of(&c, input) => false,
+        Judgement::NotJudged => wrong(),
+    }
+}
+
+/// Costs what [`final_invalid`] costs. Whether a finalized ECDSA signature
+/// of input `index` reads Invalid (it has a row of its own on the review
+/// and the nonce check), as against a refusal by the script alone, such as
+/// a time lock the transaction does not meet or a non-minimal push.
+pub fn final_signature_wrong(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(input) = psbt.inputs.get(index) else {
+        return false;
+    };
+    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+        return false;
+    }
+    let own = Psbt::from(psbt.clone());
+    let ctx = Context {
+        network: faraday_bip::keys::Network::Mainnet,
+        keys: &[],
+        wallets: &[],
+        musig_session: None,
+    };
+    let secp = Secp256k1::verification_only();
+    input_rows(&secp, &own, &ctx, index)
+        .0
+        .iter()
+        .any(|s| s.finalized && s.kind == SigKind::Ecdsa && s.verdict.is_invalid())
 }
 
 /// A taproot signature as BIP-341 reads it: 64 bytes, or 65 with a
@@ -630,22 +820,129 @@ fn effective_script(spk: &Script, script_sig: &Script) -> Option<ScriptBuf> {
     Some(ScriptBuf::from(spk.as_bytes().to_vec()))
 }
 
-/// Costs a classify, and a tweak when the witness is a script-path
-/// spend: whether input `index`'s finalized witness is one no node
-/// confirms, but for a p2sh whose redeem script is the one its output
-/// hashes. It is a script-path spend of a taproot output that does not
-/// commit to it (its control block does not decode, or does not tie the
-/// leaf script to the output key), or a witness under an output key not
-/// on the curve, or one under a p2sh whose redeem script is not the one
-/// the output hashes. A key-path witness, a witness with no previous
-/// output to read ([`final_unread`] says that one) and any other input
-/// give `false`. The signing state, the nonce check, `collect`, `finish`
-/// and the review share it.
+/// Costs a classify, a tweak when the witness is a script-path spend, and
+/// the interpreter's signature checks (one per signature the script asks
+/// for) where the script parses. Whether input `index`'s finalized
+/// `scriptSig` and witness are ones no node relays: from hashes and shapes
+/// for what the output commits to, and, where the script the input spends
+/// parses as a miniscript, from `miniscript`'s interpreter, which runs it
+/// (a script that does not parse is not run). That is a `scriptSig` or
+/// witness that does not match the output it spends, or that the
+/// interpreter refuses:
+///
+/// - p2pkh: a `scriptSig` that is not `<signature> <key>` of pushes alone,
+///   with the key the output hashes and a signature that parses (a stray
+///   push or a non-push opcode is refused though a miner could take it);
+/// - p2wpkh: a witness not `[signature, key]` of that key;
+/// - p2wsh: a witness whose last element does not hash to the program;
+/// - p2sh: a `scriptSig` of other than pushes, a redeem script that is not
+///   the one the output hashes, or, of a witness program, a `scriptSig`
+///   that is not that one push;
+/// - a multisig script (p2sh, p2wsh or bare) whose stack is not an empty
+///   dummy and exactly the signatures it asks for, each parsing (a key
+///   named twice may take one signature twice), and a bare p2pk whose
+///   `scriptSig` is not one signature;
+/// - a script over consensus's limits (10,000 bytes, 1,000 stack elements,
+///   201 opcodes that are not pushes) or a p2sh redeem script over 520
+///   bytes: refused before any signature is read;
+/// - a version 0 witness program of another length than 20 or 32 bytes;
+/// - taproot: no witness or an empty one, a key-path element that is not
+///   64 or 65 bytes, a script path whose control block does not tie the
+///   leaf to the output key, or a witness under an output key not on the
+///   curve (a p2sh-wrapped version 1 program with no witness, or with a
+///   single element that is not 64 or 65 bytes, is refused too, though
+///   consensus ignores a p2sh-wrapped program of that version);
+/// - a native witness output with a `scriptSig`, an output of no witness
+///   kind with a witness.
+///
+/// A p2pkh, p2wpkh or p2pk signature, and each of a multisig's, must
+/// parse with its sighash byte: one with a sighash byte consensus accepts
+/// and `ecdsa::Signature` does not is refused (fail closed). A p2sh
+/// `scriptSig` holding `OP_RESERVED` is refused (executing it fails). Other witness program versions, an input with no previous
+/// output to read ([`final_unread`] says that one), a bare output of
+/// another script and any other input give `false`. The signing state, the
+/// nonce check, `collect`, `finish` and the review share it.
 pub fn witness_mismatch(psbt: &bitcoin::Psbt, index: usize) -> bool {
     let Some(input) = psbt.inputs.get(index) else {
         return false;
     };
-    witness_mismatch_of(&classify(psbt, index), input)
+    let c = classify(psbt, index);
+    witness_mismatch_of(&c, input) || interpreter_refuses(psbt, index, &c)
+}
+
+/// Costs a classify. [`witness_mismatch`] without the interpreter: the
+/// shape and commitment rules alone (the part of the answer that is not a
+/// signature's).
+pub fn witness_shape_mismatch(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    psbt.inputs
+        .get(index)
+        .is_some_and(|input| witness_mismatch_of(&classify(psbt, index), input))
+}
+
+/// Costs one signature check per signature the script asks for. Whether a
+/// final input's script parses as a miniscript and its interpreter refuses
+/// the final fields. An input over consensus's limits is not run.
+fn interpreter_refuses(psbt: &bitcoin::Psbt, index: usize, c: &Classified) -> bool {
+    let input = &psbt.inputs[index];
+    let is_final = input.final_script_sig.is_some() || input.final_script_witness.is_some();
+    match c.utxo.as_ref() {
+        Some(utxo) if is_final && !hand_mismatch(c, input, true) => {
+            finalize::judge(psbt, index, utxo) == Judgement::Rejects
+        }
+        _ => false,
+    }
+}
+
+/// Costs a classify. Whether input `index` is final, in shape, and spends
+/// a script Faraday does not evaluate: the interpreter does not judge it
+/// (not a miniscript) and no hand rule settles it. A key hash output
+/// (p2pkh, p2wpkh, wrapped or not), a bare p2pk and a multisig of
+/// `Multisig::parse_wide`'s form in any wrapping are settled by the shape check and the signature rows, and a
+/// taproot input is read by its own rules; a puzzle, an anchor, a hash
+/// time lock that is no miniscript are not run, so a signature on them is
+/// not known to be true.
+pub fn not_evaluated(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(input) = psbt.inputs.get(index) else {
+        return false;
+    };
+    not_evaluated_of(&classify(psbt, index), input)
+}
+
+fn not_evaluated_of(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
+    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+        return false;
+    }
+    let Some(utxo) = c.utxo.as_ref() else {
+        return false;
+    };
+    if hand_mismatch(c, input, true) {
+        return false;
+    }
+    let spk = &utxo.script_pubkey;
+    let script_sig = input.final_script_sig.clone().unwrap_or_default();
+    let witness = input.final_script_witness.clone().unwrap_or_default();
+    let Some(effective) = effective_script(spk, &script_sig) else {
+        return false;
+    };
+    // A bare p2pk is settled where its key parses; one off the curve or
+    // hybrid is settled by nothing here, nor is a multisig with such a key
+    // or over 20 keys (`Multisig::parse_wide` refuses both).
+    if effective.is_p2tr()
+        || effective.is_p2wpkh()
+        || spk.is_p2pkh()
+        || spk.p2pk_public_key().is_some()
+    {
+        return false;
+    }
+    let script = if effective.is_p2wsh() {
+        witness.last().map(Script::from_bytes)
+    } else {
+        Some(effective.as_script())
+    };
+    if script.is_some_and(|s| Multisig::parse_wide(s).is_some()) {
+        return false;
+    }
+    !finalize::judged(spk, &script_sig, &witness)
 }
 
 /// Costs a classify. Whether input `index` is final but what it says it
@@ -734,42 +1031,233 @@ pub fn unread_counts(psbt: &bitcoin::Psbt) -> (usize, usize) {
 }
 
 fn witness_mismatch_of(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
+    hand_mismatch(c, input, true)
+}
+
+/// The shape and commitment rules of [`witness_mismatch`], with or without
+/// its count of a multisig's signatures (`short`): the rows of an input
+/// read without it, as their signatures verify. A multisig's count is by
+/// hand; the interpreter's answer is [`witness_mismatch`]'s.
+fn hand_mismatch(c: &Classified, input: &bitcoin::psbt::Input, short: bool) -> bool {
+    let short_multisig = |script: &Script, items: &[&[u8]]| short && short_multisig(script, items);
+    use bitcoin::hashes::{Hash, hash160, sha256};
     let Some(utxo) = c.utxo.as_ref() else {
         return false;
     };
+    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+        return false;
+    }
+    let spk = &utxo.script_pubkey;
+    let script_sig = input.final_script_sig.clone().unwrap_or_default();
+    let witness = input.final_script_witness.clone().unwrap_or_default();
+    // Consensus caps a scriptSig at 10,000 bytes.
+    if script_sig.len() > 10_000 {
+        return true;
+    }
     // A native witness output takes an empty scriptSig (BIP-141, BIP-341),
     // with a witness or without.
-    if utxo.script_pubkey.is_p2tr()
-        && input
-            .final_script_sig
-            .as_ref()
-            .is_some_and(|s| !s.is_empty())
+    if spk.is_witness_program() && !script_sig.is_empty() {
+        return true;
+    }
+    // A p2sh scriptSig is pushes alone, as consensus requires of it: a
+    // script of other opcodes runs, and these checks do not.
+    if spk.is_p2sh()
+        && (!script_sig.is_push_only()
+            || script_sig
+                .instructions()
+                .any(|i| matches!(i, Ok(Instruction::Op(op)) if op.to_u8() == 0x50)))
     {
         return true;
     }
-    let Some(witness) = input.final_script_witness.as_ref() else {
+    // The script the input really spends: the output's, or the redeem
+    // script of a p2sh whose hash it is.
+    let Some(effective) = effective_script(spk, &script_sig) else {
+        return true;
+    };
+    // A p2sh of a witness program has a scriptSig of exactly that one push
+    // (BIP-141).
+    if spk.is_p2sh() && effective.is_witness_program() {
+        let mut one_push = alloc::vec![effective.len() as u8];
+        one_push.extend_from_slice(effective.as_bytes());
+        if script_sig.as_bytes() != one_push.as_slice() {
+            return true;
+        }
+    }
+    let elements: Vec<&[u8]> = witness.iter().collect();
+    if effective.is_p2wpkh() {
+        let program = &effective.as_bytes()[2..22];
+        return !(elements.len() == 2
+            && hash160::Hash::hash(elements[1]).as_byte_array() == program
+            && is_signature(elements[0])
+            && PublicKey::from_slice(elements[1]).is_ok());
+    }
+    if effective.is_p2wsh() {
+        let program = &effective.as_bytes()[2..34];
+        let Some((script, signatures)) = elements.split_last() else {
+            return true;
+        };
+        if sha256::Hash::hash(script).as_byte_array() != program {
+            return true;
+        }
+        let script = Script::from_bytes(script);
+        return over_limits(script, signatures.len()) || short_multisig(script, signatures);
+    }
+    // A version 0 program of another length than 20 or 32 bytes is one
+    // consensus refuses (BIP-141).
+    if effective.is_witness_program() && effective.witness_version() == Some(WitnessVersion::V0) {
+        return true;
+    }
+    if !effective.is_witness_program() {
+        // No witness kind: a witness is BIP-141's unexpected witness.
+        if !witness.is_empty() {
+            return true;
+        }
+        if spk.is_p2pkh() {
+            // `<sig> <key>`, the key the output's hash.
+            return match data_pushes(&script_sig).as_deref() {
+                Some([sig, key]) => {
+                    hash160::Hash::hash(key).as_byte_array() != &spk.as_bytes()[3..23]
+                        || !is_signature(sig)
+                        || PublicKey::from_slice(key).is_err()
+                }
+                _ => true,
+            };
+        }
+        let sig_pushes = data_pushes(&script_sig);
+        if spk.is_p2pk() {
+            // One signature.
+            return !matches!(sig_pushes.as_deref(), Some([sig]) if is_signature(sig));
+        }
+        if spk.is_p2sh() {
+            // `OP_0 <sig>… <redeem>`: the signatures of a multisig redeem
+            // script are as many as it asks for.
+            let all = pushes(&script_sig);
+            let signatures: Vec<&[u8]> = all
+                .split_last()
+                .map(|(_, rest)| rest.iter().map(Vec::as_slice).collect())
+                .unwrap_or_default();
+            // Consensus refuses a redeem script push of over 520 bytes.
+            return effective.len() > 520
+                || over_limits(&effective, signatures.len())
+                || short_multisig(&effective, &signatures);
+        }
+        // A bare multisig: `OP_0 <sig>…`.
+        if Multisig::parse_wide(spk).is_some() {
+            return match sig_pushes {
+                Some(p) => {
+                    let signatures: Vec<&[u8]> = p.iter().map(Vec::as_slice).collect();
+                    short_multisig(spk, &signatures)
+                }
+                None => true,
+            };
+        }
         return false;
+    }
+    if !effective.is_p2tr() {
+        return false;
+    }
+    taproot_mismatch(&effective, input)
+}
+
+/// Whether the script input `index`'s final data spends is over consensus's
+/// limits ([`over_limits`]), a p2sh redeem script over 520 bytes, or a
+/// scriptSig over 10,000 bytes: such an input is a mismatch before any
+/// signature is read.
+fn over_consensus_limits(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
+    let Some(utxo) = c.utxo.as_ref() else {
+        return false;
+    };
+    let script_sig = input.final_script_sig.clone().unwrap_or_default();
+    // Consensus caps a scriptSig at 10,000 bytes.
+    if script_sig.len() > 10_000 {
+        return true;
+    }
+    let Some(effective) = effective_script(&utxo.script_pubkey, &script_sig) else {
+        return false;
+    };
+    if effective.is_p2wsh() {
+        let witness = input.final_script_witness.clone().unwrap_or_default();
+        let elements: Vec<&[u8]> = witness.iter().collect();
+        return elements
+            .split_last()
+            .is_some_and(|(script, rest)| over_limits(Script::from_bytes(script), rest.len()));
+    }
+    if utxo.script_pubkey.is_p2sh() && !effective.is_witness_program() {
+        let stack = pushes(&script_sig).len().saturating_sub(1);
+        return effective.len() > 520 || over_limits(&effective, stack);
+    }
+    false
+}
+
+/// Whether a script, with `stack` elements under it, is over consensus's
+/// limits: 10,000 bytes, 1,000 stack elements, 201 opcodes that are not
+/// pushes. The count is of the script's own opcodes: consensus also counts
+/// the keys of each `OP_CHECKMULTISIG` it executes, which no static count
+/// can tell without refusing a true spend of a branch not taken.
+fn over_limits(script: &Script, stack: usize) -> bool {
+    let ops = script
+        .instructions()
+        .map_while(Result::ok)
+        .filter(|i| matches!(i, Instruction::Op(op) if op.to_u8() > 0x60))
+        .count();
+    script.len() > 10_000 || stack > 1_000 || ops > 201
+}
+
+/// Whether `bytes` is an ECDSA signature with its sighash byte.
+fn is_signature(bytes: &[u8]) -> bool {
+    ecdsa::Signature::from_slice(bytes).is_ok()
+}
+
+/// Whether `script` is a standard multisig (up to 20 keys) whose stack `items` is not what it takes: an
+/// empty dummy first (BIP-147), then exactly as many elements that parse as
+/// a signature with its sighash byte as the script asks for. A junk
+/// element, a filler or a count other than `m` makes it defective (no node
+/// relays it); a key named twice may take the same signature twice. Any
+/// other script is not.
+fn short_multisig(script: &Script, items: &[&[u8]]) -> bool {
+    let Some(m) = Multisig::parse_wide(script) else {
+        return false;
+    };
+    let Some((dummy, signatures)) = items.split_first() else {
+        return true;
+    };
+    !dummy.is_empty() || signatures.len() != m.m || !signatures.iter().all(|s| is_signature(s))
+}
+
+/// The pushes of a scriptSig that holds nothing else; `None` where it holds
+/// an opcode that is not a push, or does not parse.
+fn data_pushes(script: &Script) -> Option<Vec<Vec<u8>>> {
+    script
+        .instructions()
+        .map(|i| match i {
+            Ok(Instruction::PushBytes(b)) => Some(b.as_bytes().to_vec()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Whether a finalized witness under a taproot `effective` script is one no
+/// node relays.
+fn taproot_mismatch(effective: &Script, input: &bitcoin::psbt::Input) -> bool {
+    // A taproot spend has a witness (BIP-341).
+    let Some(witness) = input
+        .final_script_witness
+        .as_ref()
+        .filter(|w| !w.is_empty())
+    else {
+        return true;
     };
     let mut elements: Vec<&[u8]> = witness.iter().collect();
     if elements.len() >= 2 && elements.last().is_some_and(|e| e.first() == Some(&0x50)) {
         elements.pop();
     }
     let script_path = elements.len() >= 2;
-    // Where nothing can say the output is a taproot one, any witness
-    // stands for a spend that cannot be confirmed.
-    let any_witness = !witness.is_empty();
-    let script_sig = input.final_script_sig.clone().unwrap_or_default();
-    let Some(effective) = effective_script(&utxo.script_pubkey, &script_sig) else {
-        return any_witness;
-    };
-    if !effective.is_p2tr() {
-        return false;
-    }
-    let Some(key) = output_key(&effective) else {
-        return any_witness;
+    let Some(key) = output_key(effective) else {
+        return true;
     };
     if !script_path {
-        return false;
+        // A key-path spend is one signature of 64 or 65 bytes.
+        return !(elements.len() == 1 && matches!(elements[0].len(), 64 | 65));
     }
     let control = elements.pop().unwrap_or_default();
     let script = elements.pop().unwrap_or_default();
@@ -778,24 +1266,31 @@ fn witness_mismatch_of(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
         .is_ok_and(|cb| cb.verify_taproot_commitment(&secp, key, Script::from_bytes(script)))
 }
 
-/// The pushes of a scriptSig, in order.
+/// The pushes of a scriptSig, in order, each with the value it puts on the
+/// stack: `OP_1` to `OP_16` push 1 to 16 and `OP_1NEGATE` pushes 0x81. Any
+/// other opcode gives an empty entry (callers that need a push-only script
+/// check [`Script::is_push_only`]).
 fn pushes(script: &Script) -> Vec<Vec<u8>> {
     let mut out = Vec::new();
     for instruction in script.instructions() {
         match instruction {
             Ok(Instruction::PushBytes(b)) => out.push(b.as_bytes().to_vec()),
-            Ok(Instruction::Op(_)) => out.push(Vec::new()),
+            Ok(Instruction::Op(op)) => out.push(match op.to_u8() {
+                n @ 0x51..=0x60 => alloc::vec![n - 0x50],
+                0x4f => alloc::vec![0x81],
+                _ => Vec::new(),
+            }),
             Err(_) => return Vec::new(),
         }
     }
     out
 }
 
-/// The compressed keys a script names.
+/// The keys a script names, compressed or not.
 fn script_keys(script: &Script) -> Vec<SigKey> {
     pushes(script)
         .iter()
-        .filter(|b| b.len() == 33)
+        .filter(|b| matches!(b.len(), 33 | 65))
         .filter_map(|b| PublicKey::from_slice(b).ok())
         .map(SigKey::Ecdsa)
         .collect()
@@ -936,10 +1431,16 @@ fn final_signatures(c: &Classified, input: &bitcoin::psbt::Input) -> Vec<Present
             candidates: Vec::new(),
         }];
     }
+    if spk.is_p2pk() || Multisig::parse_wide(spk).is_some() {
+        // A bare output: `<sig>`, or `OP_0 <sig>…`, under the output's keys.
+        return ecdsa_candidates(&sig_pushes, &script_keys(spk));
+    }
     if let Some(redeem) = redeem {
         // `OP_0 <sig>… <redeem>`: bare multisig inside p2sh.
-        let keys = script_keys(&redeem);
-        return ecdsa_candidates(&sig_pushes[..sig_pushes.len().saturating_sub(1)], &keys);
+        let stack = &sig_pushes[..sig_pushes.len().saturating_sub(1)];
+        let mut keys = script_keys(&redeem);
+        keys.extend(ecdsa_pkh_keys(&redeem, stack));
+        return ecdsa_candidates(stack, &keys);
     }
     Vec::new()
 }
@@ -966,8 +1467,10 @@ fn segwit_witness(effective: &Script, witness: &Witness) -> Vec<Present> {
     let Some(script) = elements.last() else {
         return Vec::new();
     };
-    let keys = script_keys(Script::from_bytes(script));
-    ecdsa_candidates(&elements[..elements.len() - 1], &keys)
+    let stack = &elements[..elements.len() - 1];
+    let mut keys = script_keys(Script::from_bytes(script));
+    keys.extend(ecdsa_pkh_keys(Script::from_bytes(script), stack));
+    ecdsa_candidates(stack, &keys)
 }
 
 /// The signatures in a taproot witness: one element for a key path, and
@@ -1022,6 +1525,42 @@ fn taproot_witness(witness: &Witness) -> Vec<Present> {
         .collect()
 }
 
+/// The elements that are keys whose HASH160 a `DUP HASH160 <h20>
+/// EQUALVERIFY` window of `script` holds: a `pkh` names the hash, the key
+/// is in the witness.
+fn ecdsa_pkh_keys(script: &Script, elements: &[Vec<u8>]) -> Vec<SigKey> {
+    use bitcoin::hashes::{Hash, hash160};
+    let Ok(ins) = script.instructions().collect::<Result<Vec<_>, _>>() else {
+        return Vec::new();
+    };
+    let hashes: Vec<&[u8]> = ins
+        .windows(4)
+        .filter_map(|w| match w {
+            [
+                Instruction::Op(OP_DUP),
+                Instruction::Op(OP_HASH160),
+                Instruction::PushBytes(h),
+                Instruction::Op(OP_EQUALVERIFY),
+            ] if h.len() == 20 => Some(h.as_bytes()),
+            _ => None,
+        })
+        .collect();
+    if hashes.is_empty() {
+        return Vec::new();
+    }
+    elements
+        .iter()
+        .filter(|e| matches!(e.len(), 33 | 65))
+        .filter_map(|e| {
+            let key = PublicKey::from_slice(e).ok()?;
+            let h = hash160::Hash::hash(e);
+            hashes
+                .contains(&h.as_byte_array().as_slice())
+                .then_some(SigKey::Ecdsa(key))
+        })
+        .collect()
+}
+
 /// The stack elements that are ECDSA signatures, with the script's keys
 /// to check them against.
 fn ecdsa_candidates(elements: &[Vec<u8>], keys: &[SigKey]) -> Vec<Present> {
@@ -1056,35 +1595,33 @@ fn restore(psbt: &Psbt, index: usize, c: &Classified) -> bitcoin::Psbt {
     }
     let Some(script_sig) = input.final_script_sig.clone() else {
         if let Some(witness) = input.final_script_witness.clone() {
+            input.redeem_script = None;
             restore_witness(input, &utxo.script_pubkey, &witness);
         }
         return inner;
     };
-    if utxo.script_pubkey.is_p2sh()
-        && input.redeem_script.is_none()
-        && let Some(redeem) = pushes(&script_sig).last()
-    {
-        input.redeem_script = Some(ScriptBuf::from(redeem.clone()));
-    }
-    let effective = input
-        .redeem_script
-        .clone()
-        .unwrap_or_else(|| utxo.script_pubkey.clone());
-    if let Some(witness) = input.final_script_witness.clone() {
-        restore_witness(input, &effective, &witness);
-    }
+    // A final input's scripts are the ones its final data holds: a
+    // `redeem_script` or `witness_script` field beside it is not read.
+    let effective = if utxo.script_pubkey.is_p2sh() {
+        input.redeem_script = pushes(&script_sig).pop().map(ScriptBuf::from);
+        input.redeem_script.clone().unwrap_or_default()
+    } else {
+        input.redeem_script = None;
+        utxo.script_pubkey.clone()
+    };
+    let witness = input.final_script_witness.clone().unwrap_or_default();
+    restore_witness(input, &effective, &witness);
     inner
 }
 
 /// The witness script a finalized p2wsh witness carries as its last
-/// element.
+/// element; any `witness_script` field is replaced by it, or cleared where
+/// the input is no p2wsh.
 fn restore_witness(input: &mut bitcoin::psbt::Input, effective: &Script, witness: &Witness) {
-    if !effective.is_p2wsh() || input.witness_script.is_some() {
-        return;
-    }
-    if let Some(script) = witness.last() {
-        input.witness_script = Some(ScriptBuf::from(script.to_vec()));
-    }
+    input.witness_script = witness
+        .last()
+        .filter(|_| effective.is_p2wsh())
+        .map(|s| ScriptBuf::from(s.to_vec()));
 }
 
 /// Checks one signature, and says which key it is under.
@@ -1095,6 +1632,7 @@ fn check<C: secp256k1::Verification>(
     index: usize,
     p: &Present,
     preimage: &mut bool,
+    messages: &mut BTreeMap<u32, Option<Message>>,
 ) -> (SigKey, Verdict) {
     let Some(utxo) = c.utxo.as_ref() else {
         return (p.key.clone(), Verdict::Unchecked(Unchecked::NoPrevout));
@@ -1107,7 +1645,11 @@ fn check<C: secp256k1::Verification>(
                     Verdict::Unchecked(Unchecked::UnsupportedScript),
                 );
             };
-            let Some(msg) = ecdsa_message(restored, index, sig.sighash_type) else {
+            // One message per sighash type for the input.
+            let msg = *messages
+                .entry(sig.sighash_type.to_u32())
+                .or_insert_with(|| ecdsa_message(restored, index, sig.sighash_type));
+            let Some(msg) = msg else {
                 return (
                     p.key.clone(),
                     Verdict::Unchecked(Unchecked::UnsupportedScript),

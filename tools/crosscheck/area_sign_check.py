@@ -28,6 +28,18 @@ Core computes:
   signatures given, is run by btclib's script engine (`verify_input`, with
   the standardness rules on: strict DER, low S, null fail, clean stack),
   and must pass exactly when every signature it needs is valid;
+- a final input of any script (a miniscript, a hash time lock, a multisig that
+  names a key twice, bare, P2SH, P2WSH and P2SH-P2WSH, P2PKH, P2WPKH), built
+  here from a table of rows, is run by btclib's script engine under
+  consensus's rules alone (`CONSENSUS`), and Faraday's verdict on its final
+  fields (`witness_mismatch`, else `final_invalid`) must be "refused" exactly
+  when the engine fails it (a time lock included, with its sequence, lock time
+  and transaction version), but for a high S, a sighash byte no standard
+  defines, a junk element below the dummy of a legacy multisig and the other
+  shapes stated under the area's differences, which
+  Faraday refuses and consensus accepts, and for a script Faraday does not
+  run (a hash time lock), which it answers "unjudged" whatever the engine
+  decides;
 - Core's `finalizepsbt` finalizes a PSBT exactly when every input has its
   signatures and they verify (an unfinalized input is finalized only when
   they do), and `testmempoolaccept` takes the extracted transaction when
@@ -77,6 +89,11 @@ INFINITY = ecdsa.ellipticcurve.INFINITY
 TAPSCRIPT = 0xC0
 # The standardness rules the script engine is run under (Core's
 # STANDARD_SCRIPT_VERIFY_FLAGS, less the ones about upgrades).
+# The rules of consensus alone (Core's block script flags: the soft forks
+# through segwit, less taproot, which no row here runs, and BIP-147's empty dummy), which the final-input rows are
+# judged under: a high S, a sighash byte no standard defines and the policy
+# rules about stack shape and key form are not among them.
+CONSENSUS = "P2SH,DERSIG,NULLDUMMY,CHECKLOCKTIMEVERIFY,CHECKSEQUENCEVERIFY,WITNESS"
 FLAGS = ("P2SH,DERSIG,NULLDUMMY,CHECKLOCKTIMEVERIFY,CHECKSEQUENCEVERIFY,WITNESS,TAPROOT,"
          "STRICTENC,LOW_S,NULLFAIL,CLEANSTACK,MINIMALDATA,WITNESS_PUBKEYTYPE,SIGPUSHONLY")
 ECDSA_KINDS = ["p2pkh", "p2wpkh", "p2wsh-ms"]
@@ -302,6 +319,283 @@ def malform(rng, sig, ecdsa_kind):
     return rng.choice([sig[:-1], sig[:64] + b"\x00", sig[:64] + b"\x04", sig + b"\x01"])
 
 
+# ----- a final input of any script, judged by btclib's script engine --------------------------
+
+W3 = ("p2wsh", "p2sh-p2wsh", "p2sh")
+W4 = W3 + ("bare",)
+JUNK = bytes([0xAA]) * 9
+
+
+class Pd1(bytes):
+    """An element a scriptSig pushes by PUSHDATA1 where a direct push fits."""
+
+
+def push(data):
+    """A data push, as a scriptSig carries it: an int is the opcode OP_n."""
+    if isinstance(data, int):
+        return bytes([0x50 + data])
+    n = len(data)
+    if isinstance(data, Pd1):
+        return b"\x4c" + bytes([n]) + data
+    if n <= 75:
+        return bytes([n]) + data
+    if n <= 255:
+        return b"\x4c" + bytes([n]) + data
+    return b"\x4d" + n.to_bytes(2, "little") + data
+
+
+def cs(*items):
+    return bytes(S.CScript(list(items)))
+
+
+def ms(m, *keys):
+    return cs(m, *keys, len(keys), S.OP_CHECKMULTISIG)
+
+
+class Keys:
+    """Twenty keys of a case, and the signatures of the row being built."""
+
+    def __init__(self, rng):
+        self.rng = rng
+        self.ds = [rng.randrange(1, N) for _ in range(20)]
+
+    def pub(self, i, comp=True):
+        point = mul(self.ds[i])
+        return compressed(point) if comp else b"\x04" + point.x().to_bytes(32, "big") + \
+            point.y().to_bytes(32, "big")
+
+    def sign(self, i, digest, ht=1, high=False):
+        return ecdsa_sign(self.ds[i], digest, self.rng.randrange(1, N), high=high) + bytes([ht])
+
+
+def pkh_code(key):
+    return cs(S.OP_DUP, S.OP_HASH160, hash160(key), S.OP_EQUALVERIFY, S.OP_CHECKSIG)
+
+
+def thresh_script(k):
+    return cs(k.pub(0), S.OP_CHECKSIG, S.OP_SWAP, k.pub(1), S.OP_CHECKSIG, S.OP_ADD, S.OP_SWAP,
+              k.pub(2), S.OP_CHECKSIG, S.OP_ADD, 2, S.OP_EQUAL)
+
+
+def recovery_script(k, n=10):
+    """or_d(pk(A), and_v(v:pkh(B), older(n)))."""
+    return cs(k.pub(0), S.OP_CHECKSIG, S.OP_IFDUP, S.OP_NOTIF, S.OP_DUP, S.OP_HASH160,
+              hash160(k.pub(1)), S.OP_EQUALVERIFY, S.OP_CHECKSIGVERIFY, n,
+              S.OP_CHECKSEQUENCEVERIFY, S.OP_ENDIF)
+
+
+PREIMAGE = bytes([7]) * 32
+
+
+def lock_script(k):
+    """A hash lock on A, or a time lock of 144 on B."""
+    return cs(S.OP_IF, S.OP_SHA256, hashlib.sha256(PREIMAGE).digest(), S.OP_EQUALVERIFY,
+              k.pub(0), S.OP_CHECKSIG, S.OP_ELSE, 144, S.OP_CHECKSEQUENCEVERIFY, S.OP_DROP,
+              k.pub(1), S.OP_CHECKSIG, S.OP_ENDIF)
+
+
+def puzzle(length):
+    return cs(b"\x07" * length, S.OP_DROP, S.OP_1)
+
+
+def row(name, wrappers, script, stack, seq=0xFFFFFFFF, diff=None, unrun=False, **tx):
+    """(name, wrappers, script(keys) -> bytes, stack(keys, sign) -> [elements],
+    the input's sequence, the standard Faraday is stricter than consensus by,
+    whether the script is one Faraday does not run: True, or the wrappings in which
+    it is not, as an uncompressed key is not read in a segwit script), and the
+    transaction's `version` and `lock` time where they are not 2 and 0, and
+    `pd1`: the redeem script a p2sh scriptSig pushes by PUSHDATA1."""
+    return (name, wrappers, script, stack, seq, diff, unrun, tx)
+
+
+def input_rows():
+    out = []
+    add = lambda *a, **kw: out.append(row(*a, **kw))  # noqa: E731
+    two = lambda k: ms(2, k.pub(0), k.pub(1))  # noqa: E731
+    pk = lambda k: cs(k.pub(0), S.OP_CHECKSIG)  # noqa: E731
+    pkh = lambda k: pkh_code(k.pub(0))  # noqa: E731
+    # and_v(v:pk(A),pk(B))
+    and_v = lambda k: cs(k.pub(0), S.OP_CHECKSIGVERIFY, k.pub(1), S.OP_CHECKSIG)  # noqa: E731
+    add("and_v, both", W3, and_v, lambda k, s: [s(1), s(0)])
+    add("and_v, one signature", W3, and_v, lambda k, s: [s(0)])
+    add("and_v, junk", W3, and_v, lambda k, s: [JUNK, s(0)])
+    add("and_v, swapped", W3, and_v, lambda k, s: [s(0), s(1)])
+    add("and_v, empty", W3, and_v, lambda k, s: [b"", s(0)])
+    # thresh(2,pk(A),s:pk(B),s:pk(C))
+    add("thresh, A and B", ("p2wsh",), thresh_script, lambda k, s: [b"", s(1), s(0)])
+    add("thresh, A and C", ("p2wsh",), thresh_script, lambda k, s: [s(2), b"", s(0)])
+    add("thresh, B and C", ("p2wsh",), thresh_script, lambda k, s: [s(2), s(1), b""])
+    add("thresh, one", ("p2wsh",), thresh_script, lambda k, s: [b"", b"", s(0)])
+    add("thresh, three", ("p2wsh",), thresh_script, lambda k, s: [s(2), s(1), s(0)])
+    add("thresh, junk", ("p2wsh",), thresh_script, lambda k, s: [b"", JUNK, s(0)])
+    # pk
+    add("pk, true", W3, pk, lambda k, s: [s(0)])
+    add("pk, junk", W3, pk, lambda k, s: [JUNK])
+    add("pk, script alone", W3, pk, lambda k, s: [])
+    add("pk, empty", W3, pk, lambda k, s: [b""])
+    add("pk, wrong key", W3, pk, lambda k, s: [s(1)])
+    # pkh
+    add("pkh, true", W3, pkh, lambda k, s: [s(0), k.pub(0)])
+    add("pkh, junk", W3, pkh, lambda k, s: [JUNK, k.pub(0)])
+    add("pkh, wrong key", W3, pkh, lambda k, s: [s(2), k.pub(2)])
+    add("pkh, forged", W3, pkh, lambda k, s: [s(2), k.pub(0)])
+    # or_d with a recovery path
+    add("recovery, B after the delay", ("p2wsh",), recovery_script,
+        lambda k, s: [s(1), k.pub(1), b""], seq=10)
+    add("recovery, B before the delay", ("p2wsh",), recovery_script,
+        lambda k, s: [s(1), k.pub(1), b""], seq=9)
+    add("recovery, A", ("p2wsh",), recovery_script, lambda k, s: [s(0)], seq=9)
+    add("recovery, A forged", ("p2wsh",), recovery_script, lambda k, s: [s(2)], seq=10)
+    add("recovery, junk", ("p2wsh",), recovery_script,
+        lambda k, s: [JUNK, k.pub(1), b""], seq=10)
+    add("recovery, wrong key", ("p2wsh", "p2sh"), recovery_script,
+        lambda k, s: [s(2), k.pub(2), b""], seq=10)
+    # multisig that names a key twice, in the order of its keys or not
+    same = lambda k: ms(2, k.pub(0), k.pub(0))  # noqa: E731
+    add("2-of-2 [A,A], one signature twice", W4, same, lambda k, s: [b"", (x := s(0)), x])
+    add("2-of-2 [A,A], two signatures", W4, same, lambda k, s: [b"", s(0), s(0)])
+    add("2-of-2 [A,A], one", W4, same, lambda k, s: [b"", s(0)])
+    add("2-of-2 [A,A], ALL and ALL|ANYONECANPAY", W4, same,
+        lambda k, s: [b"", s(0, 1), s(0, 0x81)])
+    add("2-of-2 [A,A], ALL|ANYONECANPAY and ALL", W4, same,
+        lambda k, s: [b"", s(0, 0x81), s(0, 1)])
+    t3 = lambda k: ms(2, k.pub(0), k.pub(0), k.pub(1))  # noqa: E731
+    add("2-of-3 [A,A,B], A A", W4, t3, lambda k, s: [b"", s(0), s(0)])
+    add("2-of-3 [A,A,B], A B", W4, t3, lambda k, s: [b"", s(0), s(1)])
+    add("2-of-3 [A,A,B], B A", W4, t3, lambda k, s: [b"", s(1), s(0)])
+    aba = lambda k: ms(2, k.pub(0), k.pub(1), k.pub(0))  # noqa: E731
+    add("2-of-3 [A,B,A], B A", W4, aba, lambda k, s: [b"", s(1), s(0)])
+    add("2-of-3 [A,B,A], A B", W4, aba, lambda k, s: [b"", s(0), s(1)])
+    add("2-of-3 [A,B,A], A A", W4, aba, lambda k, s: [b"", s(0), s(0)])
+    # the dummy, padding, repeats and order in a 2-of-2 [A,B]
+    add("2-of-2, empty dummy", W4, two, lambda k, s: [b"", s(0), s(1)])
+    add("2-of-2, non-empty dummy", W4, two, lambda k, s: [b"\x01", s(0), s(1)])
+    add("2-of-2, junk dummy", W4, two, lambda k, s: [JUNK, s(0), s(1)])
+    # junk below the dummy: legacy consensus leaves it on the stack and accepts
+    add("2-of-2, junk below the dummy", ("bare", "p2sh"), two,
+        lambda k, s: [JUNK, b"", s(0), s(1)],
+        diff="junk below the dummy of a legacy multisig")
+    add("2-of-2, junk in place of a signature", W4, two, lambda k, s: [b"", JUNK, s(1)])
+    add("2-of-2, duplicate", W4, two, lambda k, s: [b"", s(0), s(0)])
+    add("2-of-2, swapped", W4, two, lambda k, s: [b"", s(1), s(0)])
+    add("2-of-2, three signatures", W4, two, lambda k, s: [b"", s(0), s(1), s(1)])
+    add("2-of-2, three signatures, the first twice", W4, two,
+        lambda k, s: [b"", (x := s(0)), x, s(1)])
+    add("2-of-2, one signature", W4, two, lambda k, s: [b"", s(0)])
+    add("2-of-2, wrong key", W4, two, lambda k, s: [b"", s(0), s(2)])
+    # many keys
+    add("2-of-17", ("p2wsh",), lambda k: ms(2, *[k.pub(i) for i in range(17)]),
+        lambda k, s: [b"", s(0), s(16)])
+    add("2-of-17, out of order", ("p2wsh",), lambda k: ms(2, *[k.pub(i) for i in range(17)]),
+        lambda k, s: [b"", s(16), s(0)])
+    twenty = lambda k: ms(17, *[k.pub(i) for i in range(20)])  # noqa: E731
+    add("17-of-20", ("p2wsh",), twenty, lambda k, s: [b""] + [s(i) for i in range(17)])
+    add("17-of-20, the last three", ("p2wsh",), twenty,
+        lambda k, s: [b""] + [s(i) for i in range(3, 20)])
+    add("17-of-20, sixteen", ("p2wsh",), twenty, lambda k, s: [b""] + [s(i) for i in range(16)])
+    add("17-of-20, one wrong", ("p2wsh",), twenty,
+        lambda k, s: [b""] + [s(i if i != 5 else 19) for i in range(17)])
+    # uncompressed keys
+    unc = lambda k: ms(2, k.pub(0, False), k.pub(1, False))  # noqa: E731
+    add("2-of-2 uncompressed", W4, unc, lambda k, s: [b"", s(0), s(1)])
+    add("2-of-2 uncompressed, one", W4, unc, lambda k, s: [b"", s(0)])
+    add("pk uncompressed", W3 + ("bare",), lambda k: cs(k.pub(0, False), S.OP_CHECKSIG),
+        lambda k, s: [s(0)], unrun=("p2wsh", "p2sh-p2wsh"))
+    # bare outputs
+    add("p2pk", ("bare",), pk, lambda k, s: [s(0)])
+    add("p2pk, junk", ("bare",), pk, lambda k, s: [JUNK])
+    add("p2pk, wrong key", ("bare",), pk, lambda k, s: [s(1)])
+    add("bare 2-of-3", ("bare",), lambda k: ms(2, k.pub(0), k.pub(1), k.pub(2)),
+        lambda k, s: [b"", s(0), s(2)])
+    add("bare 2-of-3, one", ("bare",), lambda k: ms(2, k.pub(0), k.pub(1), k.pub(2)),
+        lambda k, s: [b"", s(0)])
+    # p2pkh and p2wpkh
+    add("single key, true", ("p2pkh", "p2wpkh"), pkh, lambda k, s: [s(0), k.pub(0)])
+    add("single key, forged", ("p2pkh", "p2wpkh"), pkh, lambda k, s: [s(2), k.pub(0)])
+    add("single key, wrong key", ("p2pkh", "p2wpkh"), pkh, lambda k, s: [s(2), k.pub(2)])
+    add("single key, junk", ("p2pkh", "p2wpkh"), pkh, lambda k, s: [JUNK, k.pub(0)])
+    add("single key, uncompressed", ("p2pkh", "p2wpkh"),
+        lambda k: pkh_code(k.pub(0, False)), lambda k, s: [s(0), k.pub(0, False)])
+    # a hash time lock, on both branches
+    # Not a miniscript: Faraday does not run it, whatever the engine decides.
+    add("lock, hash branch", W3, lock_script, lambda k, s: [s(0), PREIMAGE, b"\x01"],
+        unrun=True)
+    add("lock, time branch", W3, lock_script, lambda k, s: [s(1), b""], seq=144, unrun=True)
+    add("lock, wrong preimage", W3, lock_script,
+        lambda k, s: [s(0), bytes([8]) * 32, b"\x01"], unrun=True)
+    add("lock, A's signature on the time branch", W3, lock_script,
+        lambda k, s: [s(0), b""], seq=144, unrun=True)
+    add("lock, sequence below the lock", W3, lock_script,
+        lambda k, s: [s(1), b""], seq=143, unrun=True)
+    # a redeem script over 520 bytes
+    add("p2sh puzzle of 500", ("p2sh",), lambda k: puzzle(500), lambda k, s: [],
+        unrun=True)
+    add("p2sh puzzle of 517", ("p2sh",), lambda k: puzzle(517), lambda k, s: [])
+    # standards Faraday keeps beyond consensus: a high S and a sighash byte no standard defines
+    std = "a high S"
+    add("single key, high S", ("p2pkh", "p2wpkh"), pkh,
+        lambda k, s: [s(0, 1, True), k.pub(0)], diff=std)
+    add("2-of-2, high S", W4, two, lambda k, s: [b"", s(0, 1, True), s(1)], diff=std)
+    add("pk, high S", W3 + ("bare",), pk, lambda k, s: [s(0, 1, True)], diff=std)
+    add("2-of-2, high S twice", W4, two, lambda k, s: [b"", s(0, 1, True), s(1, 1, True)],
+        diff=std)
+    odd = "a sighash byte no standard defines"
+    for ht in (0x05, 0x00, 0x04, 0x84):
+        add(f"single key, sighash byte {ht:#04x}", ("p2pkh", "p2wpkh"), pkh,
+            lambda k, s, ht=ht: [s(0, ht), k.pub(0)], diff=odd)
+        add(f"2-of-2, sighash byte {ht:#04x}", W4, two,
+            lambda k, s, ht=ht: [b"", s(0, ht), s(1)], diff=odd)
+    # time locks the interpreter reads in full: `after` needs this input's sequence not
+    # final (BIP-65), `older` a transaction of version 2 or more (BIP-112)
+    after = lambda k: cs(k.pub(0), S.OP_CHECKSIGVERIFY, 100, S.OP_CHECKLOCKTIMEVERIFY)  # noqa: E731
+    older = lambda k: cs(k.pub(0), S.OP_CHECKSIGVERIFY, 10, S.OP_CHECKSEQUENCEVERIFY)  # noqa: E731
+    wl = ("p2wsh", "p2sh")
+    add("after, lock time met, sequence final", wl, after, lambda k, s: [s(0)],
+        seq=0xFFFFFFFF, lock=100)
+    add("after, lock time met, sequence not final", wl, after, lambda k, s: [s(0)],
+        seq=0xFFFFFFFE, lock=100)
+    add("after, lock time not met", wl, after, lambda k, s: [s(0)], seq=0xFFFFFFFE, lock=99)
+    add("older, transaction version 1", wl, older, lambda k, s: [s(0)], seq=10, version=1)
+    add("older, transaction version 2", wl, older, lambda k, s: [s(0)], seq=10, version=2)
+    add("older, sequence below", wl, older, lambda k, s: [s(0)], seq=9, version=2)
+    # the lock of a branch not taken is not counted
+    ori_after = lambda k: cs(S.OP_IF, k.pub(0), S.OP_CHECKSIGVERIFY, 100,  # noqa: E731
+                             S.OP_CHECKLOCKTIMEVERIFY, S.OP_ELSE, k.pub(1), S.OP_CHECKSIG,
+                             S.OP_ENDIF)
+    add("or_i, the branch without the lock, sequence final", wl, ori_after,
+        lambda k, s: [s(1), b""], seq=0xFFFFFFFF)
+    add("or_i, the branch with the lock, sequence final", wl, ori_after,
+        lambda k, s: [s(0), b"\x01"], seq=0xFFFFFFFF, lock=100)
+    # What no wallet writes and no node relays, which consensus accepts and Faraday refuses.
+    pd1 = "a push by PUSHDATA1 where a direct push fits"
+    add("p2sh 1-of-1, redeem script by PUSHDATA1", ("p2sh",), lambda k: ms(1, k.pub(0)),
+        lambda k, s: [b"", s(0)], diff=pd1, pd1=True)
+    add("p2sh pk, signature by PUSHDATA1", ("p2sh",), pk, lambda k, s: [Pd1(s(0))], diff=pd1)
+    or_i = lambda k: cs(S.OP_IF, k.pub(0), S.OP_ELSE, k.pub(1), S.OP_ENDIF,  # noqa: E731
+                        S.OP_CHECKSIG)
+    add("p2sh or_i, selector OP_1", ("p2sh",), or_i, lambda k, s: [s(0), 1])
+    add("p2sh or_i, selector 01 01", ("p2sh",), or_i, lambda k, s: [s(0), b"\x01"],
+        diff="a selector that is not OP_1 or empty")
+    add("p2wsh or_i, selector [1]", ("p2wsh",), or_i, lambda k, s: [s(0), b"\x01"])
+    add("p2wsh or_i, selector [2]", ("p2wsh",), or_i, lambda k, s: [s(0), b"\x02"],
+        diff="a selector that is not OP_1 or empty")
+    or_d = lambda k: cs(k.pub(0), S.OP_CHECKSIG, S.OP_IFDUP, S.OP_NOTIF, k.pub(1),  # noqa: E731
+                        S.OP_CHECKSIG, S.OP_ENDIF)
+    add("or_d, dissatisfied by an empty element", ("p2wsh",), or_d,
+        lambda k, s: [s(1), b""])
+    add("or_d, dissatisfied by a wrong DER signature", ("p2wsh",), or_d,
+        lambda k, s: [s(1), s(2)], diff="a failed signature check given a signature, not empty")
+    add("p2sh pk, junk below", ("p2sh",), pk, lambda k, s: [JUNK, s(0)],
+        diff="an element left on the stack")
+    # a bare p2pk of a key off the curve is spent by nothing
+    add("p2pk, key off the curve", ("bare",), lambda k: cs(b"\x02" + bytes(32), S.OP_CHECKSIG),
+        lambda k, s: [s(0)], unrun=True)
+    return out
+
+
+ROWS = input_rows()
+
+
 class SignCheck(Area):
     name = "sign-check"
     faraday = (
@@ -314,7 +608,8 @@ class SignCheck(Area):
         "python-ecdsa (the distribution's package, its own curve) and btclib (`btclib/`, "
         "libsecp256k1 off) verify every signature over btclib's signature hashes "
         "(`sig_hash.py`); btclib's script engine (`verify_input`, standardness rules on) runs "
-        "every complete input; Bitcoin Core v31.1's `finalizepsbt` and `testmempoolaccept` "
+        "every complete input and, under consensus's rules alone, every final input of the "
+        "table (`CONSENSUS`); Bitcoin Core v31.1's `finalizepsbt` and `testmempoolaccept` "
         "judge the complete inputs and the transaction, and are named as sharing "
         "libsecp256k1 with Faraday; the reuse of a nonce is ours (`reused`, in "
         "`area_sign_check.py`)"
@@ -338,7 +633,14 @@ class SignCheck(Area):
         "witness), good, under the wrong key, over the wrong sighash type, with a high S, or "
         "malformed, with every sighash type; nonces reused on purpose across inputs that "
         "share a key (ECDSA with `k` and `-k` too, Schnorr), one nonce under two keys, and one "
-        "key under fresh nonces"
+        "key under fresh nonces; and, for the verdict on a final input, a table of "
+        "about ninety rows, each in every wrapping its script allows: `and_v`, `thresh`, "
+        "`pk`, `pkh`, an `or_d` recovery path with `older`, 2 of 2 over [A,A], 2 of 3 over "
+        "[A,A,B] and [A,B,A], the dummy empty and not, junk, repeated, swapped and extra "
+        "signatures, 2 of 17 and 17 of 20, uncompressed keys, bare P2PK and multisig, P2PKH "
+        "and P2WPKH true and forged, a hash time lock on both branches and three false spends of it, a redeem script of "
+        "500 and of 517 bytes, a high S and sighash bytes no standard defines, with keys "
+        "drawn for each case"
     )
     differences = [
         (
@@ -348,17 +650,49 @@ class SignCheck(Area):
             "unfinalized, Faraday refuses the PSBT or does not call the signature valid. "
             "Counted."
         ),
+        (
+            "A final input whose script Faraday does not run (a hash time lock, which is no "
+            "miniscript: a wrong preimage, the key of the other branch, a sequence below "
+            "the lock, and its true spends; a P2SH puzzle; a segwit `pk` of an "
+            "uncompressed key, which Faraday's segwit reading refuses, though a segwit "
+            "multisig of such keys is read by hand and answers `ok`; a bare P2PK of a key "
+            "off the curve): Faraday answers "
+            "`unjudged`, whatever the engine decides. Such a script reads not sound in the "
+            "nonce check and is not refused, and only these rows may answer so: a "
+            "miniscript or a multisig answering `unjudged` fails the area. Counted."
+        ),
+        (
+            "A legacy (bare or P2SH) multisig with a junk element below the dummy: "
+            "consensus leaves it on the stack and accepts, Faraday refuses it. No wallet "
+            "writes one, and the refusal stays. Counted."
+        ),
+        (
+            "What no wallet writes and no node relays, which consensus accepts: a P2SH "
+            "redeem script or signature pushed by PUSHDATA1 where a direct push fits; a "
+            "P2SH `or_i` selector `01 01` (a push of one byte, not OP_1); a P2WSH `or_i` "
+            "selector `[2]` (not `[1]` or empty); an `or_d` dissatisfied by a wrong DER "
+            "signature, not an empty element; an element left below a P2SH `pk`. Faraday's "
+            "reading of the final fields refuses each, and the refusal stays. Counted."
+        ),
+        (
+            "A final input with a high S, or with a sighash byte no standard defines "
+            "(0x00, 0x04, 0x05, 0x84), in a signature the script engine accepts under "
+            "consensus's rules: Faraday refuses it (a mismatch, or an invalid signature) "
+            "and consensus takes it. Faraday keeps to the standard here on purpose: a "
+            "node relays neither, so a transaction carrying one does not reach a miner. "
+            "Counted."
+        ),
     ]
     not_compared = (
         "A PSBT with no previous output for an input (Faraday leaves the signature "
         "unchecked); signatures under a `pkh` leaf or a script that names no key; MuSig2 "
-        "partial signatures (area `musig`); a finalized P2SH input; the order of the "
+        "partial signatures (area `musig`); the order of the "
         "signatures within a reuse report"
     )
     CORE = True
     FUND = {"corpus": 3}
     FUND_DEPTH = 0
-    LOOPS = (("corpus", 400),)
+    LOOPS = (("corpus", 400), ("input", 300))
 
     def __init__(self, *a):
         super().__init__(*a)
@@ -518,6 +852,106 @@ class SignCheck(Area):
                             "state": "final"})
         finals.append(("final", records))
         return records
+
+    # ----- a final input of any script ---------------------------------------------------------
+
+    def case_input(self):
+        """Row `i` of the table, in each wrapping it names, with keys drawn for the
+        case: btclib's script engine, under consensus's rules, says whether the
+        input spends its output, and Faraday's verdict on the final fields
+        (`witness_mismatch`, else `final_invalid`) must refuse exactly then not."""
+        name, wrappers, script_of, stack_of, seq, diff, unrun, tx = ROWS[self.case_at[1] % len(ROWS)]
+        keys = Keys(self.rng)
+        script = script_of(keys)
+        fails = [self.input_row(f"{name} in {wrapper}", wrapper, script, keys, stack_of, seq, diff,
+                                unrun is True or (unrun and wrapper in unrun), tx)
+                 for wrapper in wrappers]
+        fails = [f for f in fails if f]
+        if fails:
+            given, text = fails[0][0], "; ".join(f[1] for f in fails)
+            self.bad("sign-check.input", given, fails[0][2], fails[0][3], text)
+
+    def input_row(self, what, wrapper, script, keys, stack_of, seq, diff, unrun, tx_opts):
+        value = 10_000
+        segwit = wrapper in ("p2wpkh", "p2wsh", "p2sh-p2wsh")
+        wsh = p2wsh(script)
+        spk = {"bare": script, "p2sh": cs(S.OP_HASH160, hash160(script), S.OP_EQUAL),
+               "p2wsh": wsh, "p2sh-p2wsh": cs(S.OP_HASH160, hash160(wsh), S.OP_EQUAL),
+               # the script of a single key is its p2pkh code, which holds the key's hash
+               "p2pkh": p2pkh(script[3:23]), "p2wpkh": p2wpkh(script[3:23])}[wrapper]
+        txid = int.from_bytes(self.randbytes(32), "big")
+        version, lock = tx_opts.get("version", 2), tx_opts.get("lock", 0)
+        tx = CTransaction()
+        tx.version, tx.nLockTime = version, lock
+        tx.vin = [CTxIn(COutPoint(txid, 0), b"", seq)]
+        tx.vout = [CTxOut(value - 1000, p2wpkh(self.randbytes(20)))]
+        unsigned = BtclibTx.parse(tx.serialize_without_witness(), check_validity=False)
+
+        def digest(ht):
+            if segwit:
+                return btclib_sig_hash.segwit_v0(script, unsigned, 0, ht, value)
+            return btclib_sig_hash.legacy(script, unsigned, 0, ht)
+
+        stack = stack_of(keys, lambda i, ht=1, high=False: keys.sign(i, digest(ht), ht, high))
+        script_sig = witness = None
+        if wrapper in ("bare", "p2pkh"):
+            script_sig, stack = b"".join(push(x) for x in stack), []
+        elif wrapper == "p2sh":
+            redeem = Pd1(script) if tx_opts.get("pd1") else script
+            script_sig, stack = b"".join(push(x) for x in stack + [redeem]), []
+        elif wrapper == "p2sh-p2wsh":
+            script_sig, stack = push(wsh), stack + [script]
+        elif wrapper == "p2wsh":
+            script_sig, stack = b"", stack + [script]
+        else:
+            script_sig = b""
+        final = CTransaction()
+        final.version, final.nLockTime = version, lock
+        final.vin = [CTxIn(COutPoint(txid, 0), script_sig, seq)]
+        final.vout = tx.vout
+        w = CTxInWitness()
+        w.scriptWitness.stack = stack
+        final.wit.vtxinwit = [w]
+        engine_tx = BtclibTx.parse(final.serialize(), check_validity=False)
+        try:
+            verify_input([BtclibTxOut(value, spk, check_validity=False)], engine_tx, 0, CONSENSUS)
+            passes = True
+        except Exception:  # noqa: BLE001 - every refusal of the script engine
+            passes = False
+        fields = [(b"\x01", CTxOut(value, spk).serialize())]
+        if script_sig:
+            fields.append((b"\x07", script_sig))
+        if stack:
+            fields.append((b"\x08", witness_bytes(stack)))
+        raw = MAGIC + write_map([(b"\x00", tx.serialize_without_witness())]) + write_map(fields) + \
+            b"\0" * len(tx.vout)
+        given = {"psbt": raw.hex(), "network": "mainnet", "index": 0}
+        got = self.rust.call("sign-check.input", **given)
+        self.compared += 1
+        if got[0] != "ok":
+            return (given, f"{what}: Faraday refuses to read it: {got[1]}", got[1], passes)
+        verdict = got[1]["verdict"]
+        if verdict == "unjudged":
+            # A script Faraday does not run reads not sound and is not refused, whatever
+            # the engine decides: only the rows of such scripts may answer so.
+            if unrun:
+                self.known += 1
+                return None
+            return (given, f"{what}: Faraday answers unjudged for a script it should run",
+                    verdict, "spends" if passes else "refused by btclib")
+        if unrun:
+            return (given, f"{what}: Faraday ({verdict}) reads a script it does not run",
+                    verdict, "spends" if passes else "refused by btclib")
+        if (verdict == "ok") == passes:
+            return None
+        if verdict != "ok" and diff:
+            self.known += 1
+            return None
+        say = "takes an input the script engine refuses" if passes is False else \
+            "refuses an input the script engine accepts"
+        return (given, f"{what}: Faraday ({verdict}) {say}: spent output {spk.hex()}, scriptSig "
+                f"{script_sig.hex()}, witness {[x.hex() for x in stack]}",
+                verdict, "spends" if passes else "refused by btclib")
 
     # ----- the PSBT, and the judges ---------------------------------------------------------
 

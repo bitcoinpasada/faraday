@@ -7,12 +7,14 @@
 
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
-use faraday_psbt::verify::{Verdict, repeated_nonces, verify_signatures};
+use faraday_psbt::verify::{
+    Verdict, final_invalid, not_evaluated, repeated_nonces, verify_signatures, witness_mismatch,
+};
 use faraday_psbt::{Context, Psbt, SigKind};
 use serde_json::{Value, json};
 
 use crate::Answer;
-use crate::json::{bytes, hex, text};
+use crate::json::{bytes, hex, num, text};
 
 fn err<E: core::fmt::Debug>(e: E) -> String {
     format!("{e:?}")
@@ -85,6 +87,24 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 })
                 .collect();
             Ok(json!({"inputs": inputs}))
+        }
+        // The verdict on input `index`'s final fields, as the Spend screen
+        // reads it: "mismatch" (`witness_mismatch`), else "invalid"
+        // (`final_invalid`), else "unjudged" (`not_evaluated`), else "ok".
+        "input" => {
+            let psbt = Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
+            let index = usize::try_from(num(req, "index")).map_err(err)?;
+            let inner = psbt.inner();
+            let verdict = if witness_mismatch(inner, index) {
+                "mismatch"
+            } else if final_invalid(inner, index) {
+                "invalid"
+            } else if not_evaluated(inner, index) {
+                "unjudged"
+            } else {
+                "ok"
+            };
+            Ok(json!({ "verdict": verdict }))
         }
         _ => Err(format!("unknown sign-check op {name}")),
     }

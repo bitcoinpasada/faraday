@@ -40,8 +40,9 @@ use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
 use bitcoin::sighash::Prevouts;
 use bitcoin::taproot::ControlBlock;
 use bitcoin::{PublicKey, ScriptBuf, Transaction, TxOut, Witness};
+use miniscript::interpreter::SatisfiedConstraint;
 use miniscript::psbt::PsbtExt;
-use miniscript::{ExtParams, Interpreter, Miniscript, Segwitv0, Tap, Terminal};
+use miniscript::{ExtParams, Interpreter, Legacy, Miniscript, Segwitv0, Tap, Terminal};
 
 use crate::classify::{Classified, ScriptKind, Wrapper, classify, spent_output};
 use crate::psbt::{Error, Psbt};
@@ -436,17 +437,105 @@ fn first_signers(c: &Classified, input: &Input, wrapper: Wrapper, chosen: &Final
     }
 }
 
+/// What `miniscript`'s interpreter says of an input's final fields.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Judgement {
+    /// The script the input spends parses as a miniscript, and every step
+    /// of the interpreter passes.
+    Accepts,
+    /// It parses, and the interpreter refuses the fields.
+    Rejects,
+    /// The script is not a miniscript (a puzzle, an anchor, a raw script),
+    /// or the output has no script to read: nothing is judged.
+    NotJudged,
+}
+
+/// The script an input's final fields spend, where one is judged, and
+/// whether it is a witness script: the witness script of p2wsh or
+/// p2sh-p2wsh, the redeem script of p2sh, or the bare output. The key
+/// hash forms (p2pkh, p2wpkh) and taproot have none.
+fn spent_script(
+    spk: &bitcoin::Script,
+    script_sig: &ScriptBuf,
+    witness: &Witness,
+) -> Option<(bool, ScriptBuf)> {
+    let from_witness = || witness.last().map(|w| (true, ScriptBuf::from(w.to_vec())));
+    if spk.is_p2wsh() {
+        return from_witness();
+    }
+    if spk.is_p2sh() {
+        let redeem = script_sig
+            .instructions()
+            .filter_map(|i| match i {
+                Ok(bitcoin::script::Instruction::PushBytes(b)) => Some(b.as_bytes().to_vec()),
+                _ => None,
+            })
+            .last()?;
+        let redeem = ScriptBuf::from(redeem);
+        if redeem.is_p2wsh() {
+            return from_witness();
+        }
+        return (!redeem.is_witness_program()).then_some((false, redeem));
+    }
+    (!spk.is_witness_program() && !spk.is_p2pkh())
+        .then(|| (false, ScriptBuf::from(spk.as_bytes().to_vec())))
+}
+
+/// Whether `script` parses as a miniscript in its context, as
+/// `finalize` reads it.
+pub(crate) fn parses(witness: bool, script: &bitcoin::Script) -> bool {
+    if witness {
+        Miniscript::<PublicKey, Segwitv0>::parse_with_ext(script, &ExtParams::allow_all()).is_ok()
+    } else {
+        Miniscript::<PublicKey, Legacy>::parse_with_ext(script, &ExtParams::allow_all()).is_ok()
+    }
+}
+
+/// Whether the script the final fields spend is one `miniscript` reads.
+pub(crate) fn judged(spk: &bitcoin::Script, script_sig: &ScriptBuf, witness: &Witness) -> bool {
+    spent_script(spk, script_sig, witness).is_some_and(|(w, s)| parses(w, &s))
+}
+
+/// Costs one signature check per signature the script asks for: the
+/// interpreter's answer on input `index`'s final fields, for a final
+/// non-taproot input. The script must be within consensus's limits
+/// (the caller checks them first).
+pub(crate) fn judge(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut) -> Judgement {
+    let input = &psbt.inputs[index];
+    let empty = ScriptBuf::new();
+    let sig = input.final_script_sig.as_ref().unwrap_or(&empty);
+    let witness = input.final_script_witness.clone().unwrap_or_default();
+    if !judged(&utxo.script_pubkey, sig, &witness) {
+        return Judgement::NotJudged;
+    }
+    if accepts(psbt, index, utxo, sig, &witness) {
+        Judgement::Accepts
+    } else {
+        Judgement::Rejects
+    }
+}
+
 /// Costs one signature check per signature of the final fields: whether
 /// `miniscript`'s interpreter accepts them for the input.
 fn accepted(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut, fields: &Final) -> bool {
     let empty = ScriptBuf::new();
     let sig = fields.0.as_ref().unwrap_or(&empty);
     let witness = fields.1.clone().unwrap_or_default();
+    accepts(psbt, index, utxo, sig, &witness)
+}
+
+fn accepts(
+    psbt: &bitcoin::Psbt,
+    index: usize,
+    utxo: &TxOut,
+    sig: &ScriptBuf,
+    witness: &Witness,
+) -> bool {
     let tx = &psbt.unsigned_tx;
     let Ok(interpreter) = Interpreter::from_txdata(
         &utxo.script_pubkey,
         sig,
-        &witness,
+        witness,
         tx.input[index].sequence,
         tx.lock_time,
     ) else {
@@ -459,9 +548,20 @@ fn accepted(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut, fields: &Final) ->
         Some(outs) => Prevouts::All(outs),
         None => Prevouts::One(index, utxo),
     };
+    // The interpreter reads a lock's value; consensus also needs this
+    // input's sequence non-final for `after` (BIP-65) and a transaction
+    // version of 2 or more for `older` (BIP-112).
+    let sequence_final = tx.input[index].sequence == bitcoin::Sequence::MAX;
+    // Consensus reads the version here as unsigned.
+    let version_two = tx.version.0 as u32 >= 2;
     interpreter
         .iter(&secp, tx, index, &prevouts)
-        .all(|step| step.is_ok())
+        .all(|step| match step {
+            Ok(SatisfiedConstraint::AbsoluteTimelock { .. }) => !sequence_final,
+            Ok(SatisfiedConstraint::RelativeTimelock { .. }) => version_two,
+            Ok(_) => true,
+            Err(_) => false,
+        })
 }
 
 /// Whether a taproot leaf, read as a miniscript, checks a key by its

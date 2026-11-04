@@ -166,11 +166,23 @@ pub enum WarningKind {
         /// The key it is under, named as the review names one.
         key: String,
     },
-    /// A finalized taproot script-path witness does not commit to the
-    /// output the input spends: a taproot output's spend of it never
-    /// confirms, and a p2sh-wrapped one, whose control block consensus
-    /// ignores, is refused all the same, as nobody should sign it.
+    /// A finalized `scriptSig` or witness does not match the output the
+    /// input spends: its script is not the one the output hashes, its
+    /// shape is not the output kind's, a taproot script-path witness does
+    /// not tie its leaf to the output key, or a multisig holds fewer
+    /// signatures than it asks for. No node relays such a spend (a few
+    /// shapes a miner could still take, such as a p2sh-wrapped taproot
+    /// witness whose control block consensus ignores, are refused all the
+    /// same, as nobody should sign them).
     WitnessMismatch {
+        /// The input.
+        input: usize,
+    },
+    /// A finalized input's fields satisfy the shape of the output it spends
+    /// and no signature in them reads wrong, but the interpreter refuses
+    /// them (a time lock the transaction does not meet, a push that is not
+    /// minimal).
+    FinalFieldsRefused {
         /// The input.
         input: usize,
     },
@@ -1322,12 +1334,21 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     let signatures = crate::verify::verify_signatures(psbt, ctx);
     sighash::signature_cards(&mut warnings, &signatures, &inputs);
     for input in 0..inner.inputs.len() {
-        if crate::verify::witness_mismatch(inner, input) {
+        if crate::verify::witness_shape_mismatch(inner, input) {
             warn(
                 &mut warnings,
                 Level::Danger,
                 WarningKind::WitnessMismatch { input },
                 Detail::WitnessMismatch { input },
+            );
+        } else if crate::verify::witness_mismatch(inner, input)
+            && !crate::verify::final_signature_wrong(inner, input)
+        {
+            warn(
+                &mut warnings,
+                Level::Danger,
+                WarningKind::FinalFieldsRefused { input },
+                Detail::FinalFieldsRefused { input },
             );
         }
     }

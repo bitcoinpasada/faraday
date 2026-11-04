@@ -5224,8 +5224,10 @@ strings! {
     nonce_check_signatures: "signatures",
     /// Text in `nonce_check`.
     nonce_check_nonce_check: "Nonce check · a signature is wrong",
-    /// The nonce check's headline when only a witness does not match its output.
-    nonce_check_witness_wrong: "Nonce check · a witness does not match its output",
+    /// The nonce check's headline when only the final fields of inputs fail the script they spend.
+    nonce_check_fields_refused: "Nonce check · final fields fail the script",
+    /// The nonce check's headline when only signing data (a `scriptSig` or witness) does not match its output.
+    nonce_check_witness_wrong: "Nonce check · signing data does not match its output",
     /// Text in `nonce_check`. `{}`: `reuse.name()`, `inputs.join(", ")`.
     nonce_check_one_nonce: "{}: one nonce on inputs {} · this gives the key away",
     /// Text in `nonce_check`. `{}`: `r.input`.
@@ -5266,6 +5268,8 @@ strings! {
     nonce_unread_head: "Nonce check · {} not checked: the outputs they spend are not here",
     /// Headline of `nonce_check` when inputs, final or not, state an output their previous transaction does not. `{}`: how many inputs.
     nonce_disagree_head: "Nonce check · {} input(s) state an output their previous transaction does not",
+    /// Headline of `nonce_check` when a final input spends a script that is not run.
+    nonce_check_script_not_run: "Nonce check · a script was not run",
     /// Headline of `nonce_check` when the transaction carries no signature.
     nonce_check_no_signatures: "Nonce check · no signatures",
     // ----- nonce check of a transaction brought in (faraday-core/src/screens/nonce_check.rs) -----
@@ -5279,8 +5283,10 @@ strings! {
     nonce_screen_refused_unread: "Not finished: an input's output cannot be read",
     /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose `witness_utxo` and previous transaction state different outputs.
     nonce_screen_refused_disagree: "Not finished: an input states an output its previous transaction does not",
-    /// The nonce check's refusal line when only a witness does not match its output.
-    nonce_screen_refused_witness: "Not finished: a witness does not match its output",
+    /// The nonce check's refusal line when only the final fields of inputs fail the script they spend.
+    nonce_screen_refused_fields: "Not finished: final fields do not satisfy the script they spend",
+    /// The nonce check's refusal line when only signing data (a `scriptSig` or witness) does not match its output.
+    nonce_screen_refused_witness: "Not finished: signing data does not match its output",
     /// Headline of `nonce_check` when some signatures could not be checked. `{}`: how many were not checked, how many there are, `nonce_check_signature(s)`.
     nonce_unchecked_head: "Nonce check · {} of {} {} not checked",
     // ----- inbox_panel (faraday-core/src/screens/files.rs) -----
@@ -5926,7 +5932,10 @@ strings! {
     psbt_warn_signature_invalid: "input {}: the signature under {} is not a signature of this transaction",
     /// A warning on Review, a line of the nonce check card and why a spend
     /// is not finished. `{}`: the input.
-    psbt_warn_witness_mismatch: "input {}: its witness does not match the output it spends",
+    psbt_warn_witness_mismatch: "input {}: its signing data does not match the output it spends",
+    /// A warning on Review, a line of the nonce check card and why a spend
+    /// is not finished: the interpreter refuses the final fields. `{}`: the input.
+    psbt_final_signature_refused: "input {}: its final fields do not satisfy the script it spends",
     /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input; its `witness_utxo` and previous transaction state different outputs, final or not.
     psbt_final_prev_disagree: "input {}: its witness_utxo and its previous transaction state different outputs",
     /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input; it is final and the output it spends cannot be read.

@@ -155,6 +155,17 @@ impl Multisig {
     /// `OP_n OP_CHECKMULTISIG`, and nothing else; the script is written
     /// out again from what was read and must be the same bytes.
     pub fn parse(script: &Script) -> Option<Self> {
+        Self::parse_up_to(script, 16)
+    }
+
+    /// [`Multisig::parse`] for reading a spend's signatures: `m` and `n`
+    /// up to 20, the most `OP_CHECKMULTISIG` takes (a count above 16 is a
+    /// one-byte push). Signing accepts what `parse` does.
+    pub(crate) fn parse_wide(script: &Script) -> Option<Self> {
+        Self::parse_up_to(script, 20)
+    }
+
+    fn parse_up_to(script: &Script, most: usize) -> Option<Self> {
         let mut m = None;
         let mut keys = Vec::new();
         let mut n = None;
@@ -165,8 +176,17 @@ impl Multisig {
             }
             match ins.ok()? {
                 Instruction::Op(op) if m.is_none() => m = Some(small_int(op)?),
-                Instruction::PushBytes(bytes) if m.is_some() && n.is_none() => {
+                // A count above 16 is a one-byte push, in `m` or `n`.
+                Instruction::PushBytes(bytes) if m.is_none() => {
+                    m = Some(wide_int(bytes.as_bytes(), most)?)
+                }
+                Instruction::PushBytes(bytes)
+                    if m.is_some() && n.is_none() && keys.len() < most && bytes.len() > 1 =>
+                {
                     keys.push(PublicKey::from_slice(bytes.as_bytes()).ok()?);
+                }
+                Instruction::PushBytes(bytes) if n.is_none() && !keys.is_empty() => {
+                    n = Some(wide_int(bytes.as_bytes(), most)?)
                 }
                 Instruction::Op(op) if n.is_none() => n = Some(small_int(op)?),
                 Instruction::Op(op) if op == OP_CHECKMULTISIG => done = true,
@@ -183,7 +203,8 @@ impl Multisig {
 
     /// The script in its exact form: `OP_m <key>… OP_n OP_CHECKMULTISIG`.
     fn script(&self) -> ScriptBuf {
-        // Both counts are 1 to 16, which `push_int` writes as `OP_1..OP_16`.
+        // Both counts are 1 to 20: `push_int` writes `OP_1..OP_16`, and above
+        // 16 a one-byte push.
         let count = |k: usize| i64::try_from(k).unwrap_or(0);
         let mut b = Builder::new().push_int(count(self.m));
         for key in &self.keys {
@@ -197,6 +218,14 @@ impl Multisig {
     /// Keys in the script.
     pub fn n(&self) -> usize {
         self.keys.len()
+    }
+}
+
+/// A one-byte push of 17 up to `most`.
+fn wide_int(bytes: &[u8], most: usize) -> Option<usize> {
+    match bytes {
+        [b] if (17..=20).contains(b) && usize::from(*b) <= most => Some(usize::from(*b)),
+        _ => None,
     }
 }
 

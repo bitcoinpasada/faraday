@@ -2074,8 +2074,10 @@ PSBT's code for one still wanting signatures ("Not finished: more
 signatures are wanted"). A PSBT with every signature it needs is
 finished here as Spend finishes one. A wrong signature offers nothing
 to carry on ("Not finished: a signature is wrong"), and nor does a final
-witness that does not match the output it spends, with or without a
-signature row ("Not finished: a witness does not match its output", one
+`scriptSig` or witness that does not match the output it spends, with or without a
+signature row ("Not finished: signing data does not match its output", or
+"Not finished: final fields do not satisfy the script they spend" where its
+shape matches and the script's interpreter refuses it, one
 error line per input; the headline says so when no signature that stands
 is wrong and no nonce repeats, an unread input or an unchecked row on
 another input notwithstanding), nor a PSBT with an input, final or not,

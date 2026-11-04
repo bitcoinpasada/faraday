@@ -299,8 +299,13 @@ pub enum Detail {
         /// The key, named as the review names one.
         key: String,
     },
-    /// A finalized taproot witness does not match the output it spends.
+    /// A finalized scriptSig or witness does not match the output it spends.
     WitnessMismatch {
+        /// The input.
+        input: usize,
+    },
+    /// A finalized input's fields do not satisfy the script it spends.
+    FinalFieldsRefused {
         /// The input.
         input: usize,
     },

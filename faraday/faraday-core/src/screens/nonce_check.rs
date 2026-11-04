@@ -45,7 +45,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Why there is no finished transaction, when there is none.
     if o.finished.is_none() {
         let (line, tone) = if o.check.only_witness_wrong() {
-            (EN.nonce_screen_refused_witness, Role::Error)
+            if o.check.only_fields_refused() {
+                (EN.nonce_screen_refused_fields, Role::Error)
+            } else {
+                (EN.nonce_screen_refused_witness, Role::Error)
+            }
         } else if o.check.disagree_first() {
             (EN.nonce_screen_refused_disagree, Role::Error)
         } else if o.check.wrong() {

@@ -10,9 +10,9 @@ pub struct NonceCheck {
     pub rows: Vec<NonceRow>,
     /// Nonces used twice under one key: the key, given away.
     pub reused: Vec<faraday_psbt::verify::NonceReuse>,
-    /// Inputs whose finalized witness does not match the output it
-    /// spends, with or without a signature row: no node confirms them,
-    /// but for a p2sh with the right redeem script.
+    /// Inputs whose finalized `scriptSig` or witness does not match the
+    /// output it spends, with or without a signature row: no node relays
+    /// them, but for a few shapes refused all the same.
     pub mismatched: Vec<usize>,
     /// Inputs whose spent output is not known to be the one the
     /// transaction spends: a final input that states no output (a raw
@@ -25,6 +25,14 @@ pub struct NonceCheck {
     /// Of `unread`, the inputs, final or not, whose `witness_utxo` and
     /// previous transaction (of the right txid) state different outputs.
     pub disagree: usize,
+    /// Final inputs that spend a script Faraday does not evaluate (not a
+    /// miniscript, not a key, a key hash or a multisig): a signature on
+    /// them is not known to be true. Not a refusal.
+    pub not_evaluated: Vec<usize>,
+    /// Of `mismatched`, the inputs whose shape matches the output they
+    /// spend and that the script's interpreter refuses: a forged signature
+    /// among them also has its Invalid row.
+    pub fields_refused: Vec<usize>,
 }
 
 impl NonceCheck {
@@ -39,23 +47,25 @@ impl NonceCheck {
             && self.unread == 0
             && self.reused.is_empty()
             && self.mismatched.is_empty()
+            && self.not_evaluated.is_empty()
             && self.rows.iter().all(|r| !r.wrong() && !r.unchecked())
     }
 
     /// Whether a signature is wrong or a nonce repeats: an invalid
     /// signature, one made here by no nonce rule, a nonce used twice, or
-    /// a witness that does not match its output. A lookup per row.
+    /// a `scriptSig` or witness that does not match its output. A lookup
+    /// per row.
     pub fn wrong(&self) -> bool {
         !self.reused.is_empty()
             || !self.mismatched.is_empty()
             || self.rows.iter().any(NonceRow::wrong)
     }
 
-    /// Whether a witness that does not match its output is what makes the
-    /// check wrong, and no signature that stands is wrong and no nonce
-    /// repeats: an input of a failing witness reads as a row of its own
-    /// (every signature of it Invalid), and does not count against the
-    /// rest. It answers false beside an input whose `witness_utxo` and
+    /// Whether a `scriptSig` or witness that does not match its output is
+    /// what makes the check wrong, and no signature that stands is wrong
+    /// and no nonce repeats: an input of a failing witness reads as a row
+    /// of its own (its signatures read as they verify, or Invalid), and does not count
+    /// against the rest. It answers false beside an input whose `witness_utxo` and
     /// previous transaction differ ([`NonceCheck::disagree_first`] speaks
     /// first). It also answers true beside an unread input or an unchecked
     /// row on another input. A lookup per row.
@@ -67,6 +77,14 @@ impl NonceCheck {
                 .rows
                 .iter()
                 .any(|r| r.wrong() && !self.mismatched.contains(&r.input))
+    }
+
+    /// Whether every input of `mismatched` is one the interpreter refuses
+    /// with its shape matching (`fields_refused`). A lookup per input.
+    pub fn only_fields_refused(&self) -> bool {
+        self.mismatched
+            .iter()
+            .all(|i| self.fields_refused.contains(i))
     }
 
     /// Whether no signature is wrong and no nonce repeats, but an input
@@ -110,13 +128,19 @@ impl NonceCheck {
             EN.nonce_check_signatures
         };
         if self.only_witness_wrong() {
-            EN.nonce_check_witness_wrong.to_string()
+            if self.only_fields_refused() {
+                EN.nonce_check_fields_refused.to_string()
+            } else {
+                EN.nonce_check_witness_wrong.to_string()
+            }
         } else if self.disagree_first() {
             fill(EN.nonce_disagree_head, &[&self.disagree.to_string()])
         } else if self.wrong() {
             EN.nonce_check_nonce_check.to_string()
         } else if self.unread > 0 {
             fill(EN.nonce_unread_head, &[&self.unread.to_string()])
+        } else if !self.not_evaluated.is_empty() {
+            EN.nonce_check_script_not_run.to_string()
         } else if total == 0 {
             EN.nonce_check_no_signatures.to_string()
         } else if self.unchecked() > 0 {

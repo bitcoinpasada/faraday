@@ -68,7 +68,12 @@ pub(crate) fn nonce_card(
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
     }
     for input in check.mismatched.iter().take(SHOWN) {
-        let line = fill(EN.psbt_warn_witness_mismatch, &[&input.to_string()]);
+        let text = if check.fields_refused.contains(input) {
+            EN.psbt_final_signature_refused
+        } else {
+            EN.psbt_warn_witness_mismatch
+        };
+        let line = fill(text, &[&input.to_string()]);
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
     }
     const SHOWN: usize = 12;

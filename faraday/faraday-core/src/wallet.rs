@@ -797,7 +797,10 @@ impl Session {
     }
 
     /// Costs what `key_refs` and `deterministic` cost, a few classifies
-    /// per input and a tweak per final taproot witness. The nonce check at
+    /// per input, a tweak per final taproot witness and, per final
+    /// non-taproot input, what [`Spend::refused`] costs twice over (the
+    /// refusal and the rows). The cost is per input, linear in the file
+    /// (the sum over its inputs), with no file-wide bound. The nonce check at
     /// the end of a spend: every signature the PSBT carries checked against
     /// its key and this transaction, each one a key held here made
     /// recomputed from that key (RFC 6979 or BIP-340 with no extra
@@ -833,8 +836,19 @@ impl Session {
         let mismatched = (0..psbt.inner().inputs.len())
             .filter(|i| faraday_psbt::verify::witness_mismatch(psbt.inner(), *i))
             .collect();
+        let fields_refused = (0..psbt.inner().inputs.len())
+            .filter(|i| {
+                faraday_psbt::verify::witness_mismatch(psbt.inner(), *i)
+                    && !faraday_psbt::verify::witness_shape_mismatch(psbt.inner(), *i)
+            })
+            .collect();
+        let not_evaluated = (0..psbt.inner().inputs.len())
+            .filter(|i| faraday_psbt::verify::not_evaluated(psbt.inner(), *i))
+            .collect();
         let (unread, disagree) = faraday_psbt::verify::unread_counts(psbt.inner());
         NonceCheck {
+            not_evaluated,
+            fields_refused,
             rows,
             mismatched,
             reused: faraday_psbt::verify::repeated_nonces(psbt, &ctx),
@@ -1126,7 +1140,8 @@ fn signing_state(inner: &faraday_bip::bitcoin::Psbt) -> (bool, Vec<Fingerprint>)
     let mut unsigned_by: Vec<Fingerprint> = Vec::new();
     for (index, input) in inner.inputs.iter().enumerate() {
         if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
-            // A witness that does not commit to its output signs nothing.
+            // A `scriptSig` or witness that does not match its output signs
+            // nothing.
             signed |= !faraday_psbt::verify::witness_mismatch(inner, index);
             continue;
         }
@@ -1505,7 +1520,8 @@ impl Spend {
         out
     }
 
-    /// Costs what `read_psbt`, `signers` and `inspect` cost. Adds the
+    /// Costs what `read_psbt`, `signers` and `inspect` cost, and what
+    /// [`Spend::refused`] costs for the file read. Adds the
     /// signatures another device put on a copy of this transaction. A PSBT
     /// for any other transaction is refused, never merged, and so is one
     /// that asks another sighash of an input, or carries a signature made
@@ -1539,15 +1555,13 @@ impl Spend {
         }
         // The incoming file on its own, so a failing witness in it, and
         // none in the spend's own PSBT, is what it is blamed for.
-        if let Some(i) = (0..other.inner().inputs.len())
-            .find(|i| faraday_psbt::verify::witness_mismatch(other.inner(), *i))
-        {
-            return Err(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
+        if let Some(why) = file_witness_refusal(other.inner(), source) {
+            return Err(why);
         }
         // An own input still unread is left to the merged PSBT below: the
         // file may state the output it spends.
         if let Some(i) = (0..self.psbt.inner().inputs.len())
-            .find(|i| faraday_psbt::verify::witness_mismatch(self.psbt.inner(), *i))
+            .find(|i| faraday_psbt::verify::witness_shape_mismatch(self.psbt.inner(), *i))
         {
             return Err(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
         }
@@ -1614,8 +1628,10 @@ impl Spend {
         let merged = Psbt::from(merged);
         // A final input that cannot stand, rows or none, is no signing: the
         // spend's own PSBT holding one blames no file.
-        if let Some(why) = refusal_of(merged.inner()) {
-            return Err(why);
+        match refusal_of(merged.inner()) {
+            Some(FinalRefusal::Signature(_)) => return Err(fill(EN.wallet_a_signature, &[source])),
+            Some(FinalRefusal::Text(why)) => return Err(why),
+            None => {}
         }
         let inspection = session.inspect(c, &merged);
         if inspection
@@ -1643,18 +1659,23 @@ impl Spend {
         Ok(added)
     }
 
-    /// Costs a classify per input, final or not, and a tweak per final
-    /// taproot witness. Why no transaction is finished from `psbt`: its
-    /// first input whose finalized witness does not match its output, that
+    /// Costs a classify per input, final or not, a tweak per final taproot
+    /// witness and, per final non-taproot input, the interpreter's
+    /// signature checks and up to 201 signature verifications, each
+    /// against the keys of its script (`faraday_psbt::verify::final_invalid`;
+    /// an input over consensus's limits verifies none). Why no transaction is finished from `psbt`: its
+    /// first input whose finalized `scriptSig` or witness does not match
+    /// its output, that
     /// states an output its previous transaction does not, that is final
     /// with an output that cannot be read, or whose previous transaction
     /// is not the one it spends or lacks the output, final or not. A PSBT
     /// read with one reaches `finish` without `collect`. Drawing reads
     /// `SpendState::refused`, kept from this, and not this.
     pub fn refused(&self) -> Option<String> {
-        refusal_of(self.psbt.inner())
+        refusal_of(self.psbt.inner()).map(FinalRefusal::text)
     }
 
+    /// Costs what [`Spend::refused`] costs, and a finalize of a copy.
     /// Finishes the transaction when it has enough signatures.
     pub fn finish(&mut self) -> Result<(), String> {
         if let Some(why) = self.refused() {
@@ -1713,27 +1734,73 @@ fn file_lies(own: &faraday_bip::bitcoin::Psbt, file: &faraday_bip::bitcoin::Psbt
     })
 }
 
+/// Why a cosigner's file is refused for a final input that fails its
+/// output: a signature the output refuses names the file as a bad
+/// signature does; any other fault is the input's.
+fn file_witness_refusal(file: &faraday_bip::bitcoin::Psbt, source: &str) -> Option<String> {
+    use faraday_psbt::verify::{final_signature_wrong, witness_mismatch, witness_shape_mismatch};
+    let i = (0..file.inputs.len()).find(|i| witness_mismatch(file, *i))?;
+    if witness_shape_mismatch(file, i) {
+        return Some(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
+    }
+    if final_signature_wrong(file, i) {
+        return Some(fill(EN.wallet_a_signature, &[source]));
+    }
+    Some(fill(EN.psbt_final_signature_refused, &[&i.to_string()]))
+}
+
 /// Costs a few classifies per input and a tweak per final taproot witness. Why
 /// nothing finished is made from `psbt`: the first input, in order, with
 /// anything to say, and for that input the first of these: its finalized
-/// witness does not match the output it spends, its `witness_utxo` and
+/// `scriptSig` or witness does not match the output it spends, its `witness_utxo` and
 /// previous transaction differ, it is final and its previous output does
 /// not read, or its previous transaction is not the one it spends or lacks
-/// the output. There is no priority across inputs.
-fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<String> {
+/// the output, or one of its final ECDSA signatures reads Invalid
+/// ([`faraday_psbt::verify::final_invalid`]). There is no priority across inputs.
+fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<FinalRefusal> {
     (0..psbt.inputs.len()).find_map(|i| {
-        if faraday_psbt::verify::witness_mismatch(psbt, i) {
-            Some(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]))
+        let text = |t: &str| Some(FinalRefusal::Text(fill(t, &[&i.to_string()])));
+        // The script refuses the final fields: a signature of the file's
+        // where one reads wrong, else the fields alone.
+        let fields = |i: usize| {
+            let line = fill(EN.psbt_final_signature_refused, &[&i.to_string()]);
+            if faraday_psbt::verify::final_signature_wrong(psbt, i) {
+                Some(FinalRefusal::Signature(line))
+            } else {
+                Some(FinalRefusal::Text(line))
+            }
+        };
+        if faraday_psbt::verify::witness_shape_mismatch(psbt, i) {
+            text(EN.psbt_warn_witness_mismatch)
+        } else if faraday_psbt::verify::witness_mismatch(psbt, i) {
+            fields(i)
         } else if faraday_psbt::verify::utxos_disagree(psbt, i) {
-            Some(fill(EN.psbt_final_prev_disagree, &[&i.to_string()]))
+            text(EN.psbt_final_prev_disagree)
         } else if faraday_psbt::verify::final_unread(psbt, i) {
-            Some(fill(EN.psbt_final_prev_unread, &[&i.to_string()]))
+            text(EN.psbt_final_prev_unread)
         } else if faraday_psbt::verify::states_false(psbt, i) {
-            Some(fill(EN.psbt_prev_false, &[&i.to_string()]))
+            text(EN.psbt_prev_false)
+        } else if faraday_psbt::verify::final_invalid(psbt, i) {
+            fields(i)
         } else {
             None
         }
     })
+}
+
+/// Why a PSBT's final input cannot stand: a signature the output refuses
+/// (`collect` names the file that brings one), or another fault.
+enum FinalRefusal {
+    Signature(String),
+    Text(String),
+}
+
+impl FinalRefusal {
+    fn text(self) -> String {
+        match self {
+            FinalRefusal::Signature(t) | FinalRefusal::Text(t) => t,
+        }
+    }
 }
 
 /// What checking a signed message found.

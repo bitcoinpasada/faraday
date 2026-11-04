@@ -24,9 +24,9 @@ use faraday_bip::keys::{Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::{
-    Field, NonceMode, SigKey, Unchecked, Verdict, compare, deterministic, final_unread,
-    inscriptions, repeated_nonces, states_false, utxos_disagree, verify_signatures,
-    witness_mismatch,
+    Field, NonceMode, SigKey, Unchecked, Verdict, compare, deterministic, final_invalid,
+    final_unread, inscriptions, not_evaluated, repeated_nonces, states_false, utxos_disagree,
+    verify_signatures, witness_mismatch, witness_shape_mismatch,
 };
 use faraday_psbt::{
     Aux, Context, Detail, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, is_complete,
@@ -1873,14 +1873,14 @@ fn a_true_final_spend_of_a_non_taproot_output_is_never_a_witness_mismatch() {
             .push_slice(PushBytesBuf::try_from(bytes.to_vec()).unwrap())
             .into_script()
     };
-    let (sig, key) = (vec![0x30; 71], vec![2u8; 33]);
+    let (sig, sig2, key) = (some_sig(), sig_bytes(6, [9; 32]), key_bytes(5, true));
     let pkh = bitcoin::PubkeyHash::hash(&key);
     let p2wpkh =
         ScriptBuf::new_p2wpkh(&bitcoin::WPubkeyHash::from_byte_array(*pkh.as_byte_array()));
     let multisig = Builder::new()
         .push_opcode(OP_PUSHNUM_2)
         .push_slice(PushBytesBuf::try_from(key.clone()).unwrap())
-        .push_slice(PushBytesBuf::try_from(vec![3u8; 33]).unwrap())
+        .push_slice(PushBytesBuf::try_from(key_bytes(6, true)).unwrap())
         .push_opcode(OP_PUSHNUM_2)
         .push_opcode(bitcoin::opcodes::all::OP_CHECKMULTISIG)
         .into_script();
@@ -1896,7 +1896,7 @@ fn a_true_final_spend_of_a_non_taproot_output_is_never_a_witness_mismatch() {
             "p2sh-p2wsh",
             ScriptBuf::new_p2sh(&p2wsh.script_hash()),
             push(p2wsh.as_bytes()),
-            vec![vec![], sig.clone(), sig.clone(), multisig.to_bytes()],
+            vec![vec![], sig.clone(), sig2.clone(), multisig.to_bytes()],
         ),
         (
             "p2sh",
@@ -1913,12 +1913,15 @@ fn a_true_final_spend_of_a_non_taproot_output_is_never_a_witness_mismatch() {
             "p2wsh",
             p2wsh,
             ScriptBuf::new(),
-            vec![vec![], sig.clone(), sig, multisig.to_bytes()],
+            vec![vec![], sig.clone(), sig2, multisig.to_bytes()],
         ),
     ];
     for (what, spk, script_sig, witness) in cases {
         let psbt = final_input(spk, script_sig, &witness);
-        assert!(!faraday_psbt::verify::witness_mismatch(&psbt, 0), "{what}");
+        assert!(
+            !faraday_psbt::verify::witness_shape_mismatch(&psbt, 0),
+            "{what}"
+        );
         assert!(!faraday_psbt::verify::final_unread(&psbt, 0), "{what}");
     }
 }
@@ -2111,12 +2114,18 @@ fn no_committed_fixture_is_refused_for_agreeing_outputs() {
                         "{} {what}, input {i}",
                         path.display()
                     );
+                    assert!(
+                        !witness_mismatch(p.inner(), i),
+                        "{} {what}, input {i}",
+                        path.display()
+                    );
                 }
             }
             walked += 1;
         }
     }
     assert!(walked > 10, "{walked} fixtures walked");
+
     assert!(lying > 0, "the fixture meant to state a false output does");
 }
 
@@ -2134,4 +2143,2107 @@ fn finalize_names_a_previous_transaction_of_another_txid_as_it_is() {
         }
         other => panic!("{other:?}"),
     }
+}
+
+/// A row of the shapes table: what, output, scriptSig, witness, mismatch.
+type Row = (String, ScriptBuf, ScriptBuf, Vec<Vec<u8>>, bool);
+
+/// A finalized non-taproot input is read against the output it spends by
+/// hashes and shapes: each true shape reads no mismatch, each of the
+/// others is one, and the review says so once.
+#[test]
+#[expect(clippy::too_many_lines, reason = "a table of cases")]
+fn a_finalized_non_taproot_input_is_compared_with_its_output() {
+    use bitcoin::hashes::{hash160, sha256};
+    use bitcoin::script::{Builder, PushBytesBuf};
+    use bitcoin::{PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
+    let push = |bytes: &[u8]| PushBytesBuf::try_from(bytes.to_vec()).unwrap();
+    let (program, multisig) = (witness_program, multisig_script);
+    let pair = |a: &[u8], b: &[u8]| {
+        Builder::new()
+            .push_slice(push(a))
+            .push_slice(push(b))
+            .into_script()
+    };
+    let one = |a: &[u8]| Builder::new().push_slice(push(a)).into_script();
+    let (sig, key, other) = (some_sig(), key_bytes(5, true), key_bytes(6, true));
+    let sig2 = sig_bytes(6, [9; 32]);
+    let uncompressed = key_bytes(7, false);
+    let three = |a: &[u8], b: &[u8], c: &[u8]| {
+        Builder::new()
+            .push_slice(push(a))
+            .push_slice(push(b))
+            .push_slice(push(c))
+            .into_script()
+    };
+    let junk_key = vec![9u8; 7];
+    let h160 = |b: &[u8]| *hash160::Hash::hash(b).as_byte_array();
+    let p2pkh = |k: &[u8]| ScriptBuf::new_p2pkh(&PubkeyHash::from_byte_array(h160(k)));
+    let p2wpkh = |k: &[u8]| ScriptBuf::new_p2wpkh(&WPubkeyHash::from_byte_array(h160(k)));
+    let p2wsh = |s: &[u8]| {
+        ScriptBuf::new_p2wsh(&WScriptHash::from_byte_array(
+            *sha256::Hash::hash(s).as_byte_array(),
+        ))
+    };
+    let p2sh = |s: &[u8]| ScriptBuf::new_p2sh(&ScriptHash::from_byte_array(h160(s)));
+    let wpkh = p2wpkh(&key);
+    let wsh_script = vec![0x51u8];
+    let wsh = p2wsh(&wsh_script);
+    let none = ScriptBuf::new;
+    let p2pk = |k: &[u8]| {
+        Builder::new()
+            .push_slice(push(k))
+            .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+            .into_script()
+    };
+    let w = |e: &[&[u8]]| e.iter().map(|x| x.to_vec()).collect::<Vec<_>>();
+    // (what, output, scriptSig, witness, mismatch)
+    let cases = vec![
+        ("p2pkh", p2pkh(&key), pair(&sig, &key), w(&[]), false),
+        (
+            "p2pkh, uncompressed key",
+            p2pkh(&uncompressed),
+            pair(&sig, &uncompressed),
+            w(&[]),
+            false,
+        ),
+        (
+            "p2pkh of another key",
+            p2pkh(&other),
+            pair(&sig, &key),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2pkh, signature alone",
+            p2pkh(&key),
+            one(&sig),
+            w(&[]),
+            true,
+        ),
+        ("p2pkh, the key alone", p2pkh(&key), one(&key), w(&[]), true),
+        (
+            "p2pkh, three pushes",
+            p2pkh(&key),
+            three(&sig, &key, &key),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2pkh, a stray push first",
+            p2pkh(&key),
+            three(&[1], &sig, &key),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2pkh, a non-push opcode between",
+            p2pkh(&key),
+            Builder::new()
+                .push_slice(push(&sig))
+                .push_opcode(bitcoin::opcodes::all::OP_NOP)
+                .push_slice(push(&key))
+                .into_script(),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2pkh, a key that is not a key under its own hash",
+            p2pkh(&junk_key),
+            pair(&sig, &junk_key),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2pkh, an empty signature",
+            p2pkh(&key),
+            pair(&[], &key),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2pkh, a signature that does not parse",
+            p2pkh(&key),
+            pair(&[0x30; 71], &key),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2wpkh, a key that is not a key under its own hash",
+            p2wpkh(&junk_key),
+            none(),
+            w(&[&sig, &junk_key]),
+            true,
+        ),
+        (
+            "p2wpkh, an empty signature",
+            wpkh.clone(),
+            none(),
+            w(&[&[], &key]),
+            true,
+        ),
+        (
+            "p2wpkh, a signature that does not parse",
+            wpkh.clone(),
+            none(),
+            w(&[&[0x30; 71], &key]),
+            true,
+        ),
+        (
+            "p2sh-p2wpkh, a key that is not a key under its own hash",
+            p2sh(p2wpkh(&junk_key).as_bytes()),
+            one(p2wpkh(&junk_key).as_bytes()),
+            w(&[&sig, &junk_key]),
+            true,
+        ),
+        (
+            "p2pkh with a witness",
+            p2pkh(&key),
+            pair(&sig, &key),
+            w(&[&sig]),
+            true,
+        ),
+        ("p2wpkh", wpkh.clone(), none(), w(&[&sig, &key]), false),
+        (
+            "p2wpkh of another key",
+            p2wpkh(&other),
+            none(),
+            w(&[&sig, &key]),
+            true,
+        ),
+        (
+            "p2wpkh, one element",
+            wpkh.clone(),
+            none(),
+            w(&[&sig]),
+            true,
+        ),
+        (
+            "p2wpkh, three elements",
+            wpkh.clone(),
+            none(),
+            w(&[&sig, &key, &key]),
+            true,
+        ),
+        (
+            "p2wpkh with a scriptSig",
+            wpkh.clone(),
+            one(&key),
+            w(&[&sig, &key]),
+            true,
+        ),
+        (
+            "p2sh-p2wpkh",
+            p2sh(wpkh.as_bytes()),
+            one(wpkh.as_bytes()),
+            w(&[&sig, &key]),
+            false,
+        ),
+        (
+            "p2sh-p2wpkh, other key's witness",
+            p2sh(wpkh.as_bytes()),
+            one(wpkh.as_bytes()),
+            w(&[&sig, &other]),
+            true,
+        ),
+        (
+            "p2sh-p2wpkh, a second push",
+            p2sh(wpkh.as_bytes()),
+            pair(&[], wpkh.as_bytes()),
+            w(&[&sig, &key]),
+            true,
+        ),
+        ("p2wsh", wsh.clone(), none(), w(&[&sig, &wsh_script]), false),
+        (
+            "p2wsh of an empty script",
+            p2wsh(&[]),
+            none(),
+            w(&[&sig, &[]]),
+            false,
+        ),
+        (
+            "p2wsh of all zeros",
+            ScriptBuf::new_p2wsh(&WScriptHash::from_byte_array([0; 32])),
+            none(),
+            w(&[&sig, &wsh_script]),
+            true,
+        ),
+        ("p2wsh, empty witness", wsh.clone(), none(), w(&[]), true),
+        (
+            "p2sh-p2wsh",
+            p2sh(wsh.as_bytes()),
+            one(wsh.as_bytes()),
+            w(&[&sig, &wsh_script]),
+            false,
+        ),
+        (
+            "p2sh-p2wsh, another script",
+            p2sh(wsh.as_bytes()),
+            one(wsh.as_bytes()),
+            w(&[&sig, &[0x52]]),
+            true,
+        ),
+        (
+            "plain p2sh",
+            p2sh(&[0x51]),
+            Builder::new()
+                .push_int(0)
+                .push_slice(push(&sig))
+                .push_slice(push(&[0x51]))
+                .into_script(),
+            w(&[]),
+            false,
+        ),
+        (
+            "plain p2sh of all zeros",
+            ScriptBuf::new_p2sh(&ScriptHash::from_byte_array([0; 20])),
+            Builder::new()
+                .push_int(0)
+                .push_slice(push(&sig))
+                .push_slice(push(&[0x51]))
+                .into_script(),
+            w(&[]),
+            true,
+        ),
+        (
+            "plain p2sh with a witness",
+            p2sh(&[0x51]),
+            one(&[0x51]),
+            w(&[&sig]),
+            true,
+        ),
+        (
+            "plain p2sh, no scriptSig",
+            p2sh(&[0x51]),
+            none(),
+            w(&[]),
+            true,
+        ),
+        (
+            "plain p2sh, a non-push opcode before the redeem script",
+            p2sh(&[0x51]),
+            Builder::new()
+                .push_opcode(bitcoin::opcodes::all::OP_NOP)
+                .push_slice(push(&[0x51]))
+                .into_script(),
+            w(&[]),
+            true,
+        ),
+        (
+            "plain p2sh, OP_1 OP_DUP under the hash of nothing",
+            p2sh(&[]),
+            Builder::new()
+                .push_int(1)
+                .push_opcode(bitcoin::opcodes::all::OP_DUP)
+                .into_script(),
+            w(&[]),
+            true,
+        ),
+        (
+            "plain p2sh, OP_1 OP_1 OP_1NEGATE under the hash of 0x81",
+            p2sh(&[0x81]),
+            Builder::new()
+                .push_int(1)
+                .push_int(1)
+                .push_int(-1)
+                .into_script(),
+            w(&[]),
+            false,
+        ),
+        (
+            "plain p2sh, OP_1 OP_RESERVED under the hash of nothing",
+            p2sh(&[]),
+            Builder::new()
+                .push_int(1)
+                .push_opcode(bitcoin::opcodes::all::OP_RESERVED)
+                .into_script(),
+            w(&[]),
+            true,
+        ),
+        (
+            "plain p2sh, OP_1 as the redeem script itself",
+            p2sh(&[1]),
+            Builder::new().push_int(1).into_script(),
+            w(&[]),
+            false,
+        ),
+        (
+            "plain p2sh, OP_1 OP_0 under the hash of nothing",
+            p2sh(&[]),
+            Builder::new().push_int(1).push_int(0).into_script(),
+            w(&[]),
+            false,
+        ),
+        ("bare p2pk", p2pk(&key), one(&sig), w(&[]), false),
+        (
+            "bare p2pk, a push that is no signature",
+            p2pk(&key),
+            one(&[7; 5]),
+            w(&[]),
+            true,
+        ),
+        (
+            "bare p2pk, an empty scriptSig",
+            p2pk(&key),
+            none(),
+            w(&[]),
+            true,
+        ),
+        (
+            "bare multisig 1-of-1",
+            multisig(1, std::slice::from_ref(&key)),
+            pair(&[], &sig),
+            w(&[]),
+            false,
+        ),
+        (
+            "bare multisig 1-of-1, no signature",
+            multisig(1, std::slice::from_ref(&key)),
+            one(&[]),
+            w(&[]),
+            true,
+        ),
+        (
+            "bare multisig 2-of-2, one signature",
+            multisig(2, &[key.clone(), other.clone()]),
+            pair(&[], &sig),
+            w(&[]),
+            true,
+        ),
+        (
+            "bare multisig 2-of-2",
+            multisig(2, &[key.clone(), other.clone()]),
+            three(&[], &sig, &sig2),
+            w(&[]),
+            false,
+        ),
+        (
+            "p2sh 2-of-2",
+            p2sh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            Builder::new()
+                .push_int(0)
+                .push_slice(push(&sig))
+                .push_slice(push(&sig2))
+                .push_slice(push(multisig(2, &[key.clone(), other.clone()]).as_bytes()))
+                .into_script(),
+            w(&[]),
+            false,
+        ),
+        (
+            "p2sh 2-of-2, one signature",
+            p2sh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            three(
+                &[],
+                &sig,
+                multisig(2, &[key.clone(), other.clone()]).as_bytes(),
+            ),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2sh 2-of-2, the script alone",
+            p2sh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            one(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            w(&[]),
+            true,
+        ),
+        (
+            "p2wsh 2-of-2",
+            p2wsh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            none(),
+            w(&[
+                &[],
+                &sig,
+                &sig2,
+                multisig(2, &[key.clone(), other.clone()]).as_bytes(),
+            ]),
+            false,
+        ),
+        (
+            "p2wsh 2-of-2, one signature",
+            p2wsh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            none(),
+            w(&[
+                &[],
+                &sig,
+                multisig(2, &[key.clone(), other.clone()]).as_bytes(),
+            ]),
+            true,
+        ),
+        (
+            "p2wsh 2-of-2, the script alone",
+            p2wsh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            none(),
+            w(&[multisig(2, &[key.clone(), other.clone()]).as_bytes()]),
+            true,
+        ),
+        (
+            "p2wsh 2-of-3, three signatures where two are asked",
+            p2wsh(multisig(2, &[key.clone(), other.clone(), uncompressed.clone()]).as_bytes()),
+            none(),
+            w(&[
+                &[],
+                &sig,
+                &sig,
+                &sig,
+                multisig(2, &[key.clone(), other.clone(), uncompressed.clone()]).as_bytes(),
+            ]),
+            true,
+        ),
+        (
+            "p2wsh 2-of-2, an empty signature in place of one",
+            p2wsh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            none(),
+            w(&[
+                &[],
+                &sig,
+                &[],
+                multisig(2, &[key.clone(), other.clone()]).as_bytes(),
+            ]),
+            true,
+        ),
+        (
+            "p2wsh 2-of-2, one signature that does not parse",
+            p2wsh(multisig(2, &[key.clone(), other.clone()]).as_bytes()),
+            none(),
+            w(&[
+                &[],
+                &sig,
+                &[0x31; 71],
+                multisig(2, &[key.clone(), other.clone()]).as_bytes(),
+            ]),
+            true,
+        ),
+        (
+            "p2sh of a version 1 program, two pushes",
+            p2sh(program(1, 32).as_bytes()),
+            pair(&[], program(1, 32).as_bytes()),
+            w(&[&sig]),
+            true,
+        ),
+        (
+            "p2sh of a version 2 program, two pushes",
+            p2sh(program(2, 32).as_bytes()),
+            pair(&[], program(2, 32).as_bytes()),
+            w(&[&sig]),
+            true,
+        ),
+        (
+            "p2sh of a version 1, 32-byte program, two witness elements",
+            p2sh(program(1, 32).as_bytes()),
+            one(program(1, 32).as_bytes()),
+            w(&[&sig, &sig]),
+            true,
+        ),
+        (
+            "a version 0 program of 25 bytes",
+            program(0, 25),
+            none(),
+            w(&[&sig]),
+            true,
+        ),
+        (
+            "a version 0 program of 25 bytes, no witness",
+            program(0, 25),
+            none(),
+            w(&[]),
+            true,
+        ),
+        (
+            "a version 0 program of 2 bytes in p2sh",
+            p2sh(program(0, 2).as_bytes()),
+            one(program(0, 2).as_bytes()),
+            w(&[&sig]),
+            true,
+        ),
+        (
+            "a version 0 program of 40 bytes in p2sh",
+            p2sh(program(0, 40).as_bytes()),
+            one(program(0, 40).as_bytes()),
+            w(&[&sig]),
+            true,
+        ),
+    ];
+    // Every other version, and version 1 of another length than 32, is a
+    // program no rule here reads: spendable by anyone until a rule
+    // defines it.
+    let mut cases: Vec<Row> = cases
+        .into_iter()
+        .map(|(what, spk, sig, wit, bad)| (what.to_string(), spk, sig, wit, bad))
+        .collect();
+    for (version, len) in (1..=16u8)
+        .map(|v| (v, 32))
+        .chain([(1, 2), (1, 20), (1, 33), (1, 40)])
+    {
+        let name = format!("version {version} program of {len} bytes");
+        let inner = program(version, len);
+        if version == 1 && len == 32 {
+            continue;
+        }
+        let native = inner.clone();
+        let wrapped = p2sh(inner.as_bytes());
+        for (extra, witness) in [("", w(&[&sig])), (", no witness", w(&[]))] {
+            cases.push((
+                format!("{name}{extra}"),
+                native.clone(),
+                none(),
+                witness.clone(),
+                false,
+            ));
+            cases.push((
+                format!("{name} in p2sh{extra}"),
+                wrapped.clone(),
+                one(inner.as_bytes()),
+                witness,
+                false,
+            ));
+        }
+        cases.push((
+            format!("{name} with a scriptSig"),
+            native,
+            one(&[1]),
+            w(&[&sig]),
+            true,
+        ));
+    }
+    for (what, spk, script_sig, witness, mismatch) in cases {
+        let psbt = final_input(spk, script_sig, &witness);
+        assert_eq!(witness_shape_mismatch(&psbt, 0), mismatch, "{what}");
+        assert_eq!(
+            mismatch_cards(Psbt::from(psbt)),
+            usize::from(mismatch),
+            "{what}"
+        );
+    }
+}
+
+// ---- real keys and signatures for the final-input shapes ----
+
+fn secret(seed: u8) -> SecretKey {
+    SecretKey::from_slice(&[seed; 32]).unwrap()
+}
+
+/// The public key of `secret(seed)`, serialized.
+fn key_bytes(seed: u8, compressed: bool) -> Vec<u8> {
+    let key = PublicKey::from_secret_key(&Secp256k1::new(), &secret(seed));
+    if compressed {
+        key.serialize().to_vec()
+    } else {
+        key.serialize_uncompressed().to_vec()
+    }
+}
+
+/// A DER signature of `secret(seed)` over `digest`, with SIGHASH_ALL.
+fn sig_bytes(seed: u8, digest: [u8; 32]) -> Vec<u8> {
+    let sig = Secp256k1::new().sign_ecdsa(&Message::from_digest(digest), &secret(seed));
+    let mut bytes = sig.serialize_der().to_vec();
+    bytes.push(1);
+    bytes
+}
+
+/// A signature that parses, over nothing in particular.
+fn some_sig() -> Vec<u8> {
+    sig_bytes(5, [9; 32])
+}
+
+/// `OP_m <key>… OP_n OP_CHECKMULTISIG`.
+fn multisig_script(m: i64, keys: &[Vec<u8>]) -> ScriptBuf {
+    use bitcoin::script::{Builder, PushBytesBuf};
+    let mut b = Builder::new().push_int(m);
+    for key in keys {
+        b = b.push_slice(PushBytesBuf::try_from(key.clone()).unwrap());
+    }
+    b.push_int(i64::try_from(keys.len()).unwrap())
+        .push_opcode(bitcoin::opcodes::all::OP_CHECKMULTISIG)
+        .into_script()
+}
+
+/// A witness program of `version` with `len` program bytes.
+fn witness_program(version: u8, len: usize) -> ScriptBuf {
+    let mut bytes = vec![if version == 0 { 0 } else { 0x50 + version }, len as u8];
+    bytes.extend(std::iter::repeat_n(7u8, len));
+    ScriptBuf::from(bytes)
+}
+
+/// The digest the signer of input 0 of `psbt` signs for `script`: the
+/// script code of a p2wsh `script` (or of the p2wpkh `script`) when
+/// `segwit`, else a legacy signature hash.
+fn digest_of(psbt: &bitcoin::Psbt, script: &ScriptBuf, segwit: bool) -> [u8; 32] {
+    let amount = Amount::from_sat(10_000);
+    let mut cache = SighashCache::new(&psbt.unsigned_tx);
+    if !segwit {
+        cache
+            .legacy_signature_hash(0, script, 1)
+            .unwrap()
+            .to_byte_array()
+    } else if script.is_p2wpkh() {
+        cache
+            .p2wpkh_signature_hash(0, script, amount, EcdsaSighashType::All)
+            .unwrap()
+            .to_byte_array()
+    } else {
+        cache
+            .p2wsh_signature_hash(0, script, amount, EcdsaSighashType::All)
+            .unwrap()
+            .to_byte_array()
+    }
+}
+
+fn push_script(parts: &[&[u8]]) -> ScriptBuf {
+    use bitcoin::script::{Builder, PushBytesBuf};
+    let mut b = Builder::new();
+    for part in parts {
+        b = b.push_slice(PushBytesBuf::try_from(part.to_vec()).unwrap());
+    }
+    b.into_script()
+}
+
+fn p2sh_of(script: &ScriptBuf) -> ScriptBuf {
+    ScriptBuf::new_p2sh(&script.script_hash())
+}
+
+fn p2wsh_of(script: &ScriptBuf) -> ScriptBuf {
+    ScriptBuf::new_p2wsh(&script.wscript_hash())
+}
+
+/// A p2sh input of the multisig `script`, final, signed by each seed of
+/// `signers` over `script` (the signature a node checks).
+fn final_p2sh_multisig(script: &ScriptBuf, signers: &[u8]) -> bitcoin::Psbt {
+    let mut psbt = final_input(p2sh_of(script), ScriptBuf::new(), &[]);
+    let digest = digest_of(&psbt, script, false);
+    let mut parts: Vec<Vec<u8>> = vec![vec![]];
+    parts.extend(signers.iter().map(|s| sig_bytes(*s, digest)));
+    parts.push(script.to_bytes());
+    let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
+    psbt.inputs[0].final_script_sig = Some(push_script(&refs));
+    psbt
+}
+
+/// A p2wsh input of the multisig `script`, final and signed likewise.
+fn final_p2wsh_multisig(script: &ScriptBuf, signers: &[u8]) -> bitcoin::Psbt {
+    let mut psbt = final_input(p2wsh_of(script), ScriptBuf::new(), &[]);
+    let digest = digest_of(&psbt, script, true);
+    let mut parts: Vec<Vec<u8>> = vec![vec![]];
+    parts.extend(signers.iter().map(|s| sig_bytes(*s, digest)));
+    parts.push(script.to_bytes());
+    psbt.inputs[0].final_script_witness = Some(Witness::from_slice(&parts));
+    psbt
+}
+
+fn rows_of(psbt: &bitcoin::Psbt) -> Vec<Verdict> {
+    verdicts(&Psbt::from(psbt.clone()))
+}
+
+/// A multisig script that holds an uncompressed key is read: the
+/// signature of the uncompressed key reads Valid, and `Spend::finish`
+/// takes the same input.
+#[test]
+fn an_uncompressed_key_in_a_p2sh_multisig_checks_its_signature() {
+    let (a, b) = (key_bytes(5, false), key_bytes(6, true));
+    for (what, script) in [
+        ("1-of-2", multisig_script(1, &[a.clone(), b])),
+        ("1-of-1", multisig_script(1, std::slice::from_ref(&a))),
+    ] {
+        let psbt = final_p2sh_multisig(&script, &[5]);
+        assert!(!witness_mismatch(&psbt, 0), "{what}");
+        assert_eq!(rows_of(&psbt), vec![Verdict::Valid], "{what}");
+    }
+}
+
+/// A `redeem_script` or `witness_script` field beside a final input is
+/// not read: the scripts are the ones in the `scriptSig` and the witness,
+/// so a signature made over another script reads Invalid, and the true
+/// input reads Valid with the right field, a stale one or none.
+#[test]
+#[expect(clippy::too_many_lines, reason = "a table of cases")]
+fn a_stale_script_field_beside_a_final_input_is_not_read() {
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let real = multisig_script(1, std::slice::from_ref(&a));
+    let other = multisig_script(1, std::slice::from_ref(&b));
+    type Set = fn(&mut bitcoin::psbt::Input, &ScriptBuf);
+    let redeem: Set = |i, s| i.redeem_script = Some(s.clone());
+    let witness: Set = |i, s| i.witness_script = Some(s.clone());
+    // (what, how the input is made over a script, which field is stale)
+    let wsh = |code: &ScriptBuf| {
+        let mut p = final_input(p2wsh_of(&real), ScriptBuf::new(), &[]);
+        let digest = digest_of(&p, code, true);
+        p.inputs[0].final_script_witness = Some(Witness::from_slice(&[
+            vec![],
+            sig_bytes(5, digest),
+            real.to_bytes(),
+        ]));
+        p
+    };
+    let sh = |code: &ScriptBuf| {
+        let mut p = final_input(p2sh_of(&real), ScriptBuf::new(), &[]);
+        let digest = digest_of(&p, code, false);
+        p.inputs[0].final_script_sig =
+            Some(push_script(&[&[], &sig_bytes(5, digest), &real.to_bytes()]));
+        p
+    };
+    let sh_wsh = |code: &ScriptBuf| {
+        let inner = p2wsh_of(&real);
+        let mut p = final_input(p2sh_of(&inner), push_script(&[inner.as_bytes()]), &[]);
+        let digest = digest_of(&p, code, true);
+        p.inputs[0].final_script_witness = Some(Witness::from_slice(&[
+            vec![],
+            sig_bytes(5, digest),
+            real.to_bytes(),
+        ]));
+        p
+    };
+    let sh_wpkh = |code_key: &[u8]| {
+        let inner = ScriptBuf::new_p2wpkh(
+            &bitcoin::PublicKey::from_slice(&a)
+                .unwrap()
+                .wpubkey_hash()
+                .unwrap(),
+        );
+        let code = ScriptBuf::new_p2wpkh(
+            &bitcoin::PublicKey::from_slice(code_key)
+                .unwrap()
+                .wpubkey_hash()
+                .unwrap(),
+        );
+        let mut p = final_input(p2sh_of(&inner), push_script(&[inner.as_bytes()]), &[]);
+        let digest = digest_of(&p, &code, true);
+        p.inputs[0].final_script_witness =
+            Some(Witness::from_slice(&[sig_bytes(5, digest), a.clone()]));
+        (p, code)
+    };
+    let kinds: Vec<(
+        &str,
+        bitcoin::Psbt,
+        bitcoin::Psbt,
+        Set,
+        &ScriptBuf,
+        &ScriptBuf,
+    )> = vec![
+        ("p2wsh", wsh(&real), wsh(&other), witness, &real, &other),
+        ("plain p2sh", sh(&real), sh(&other), redeem, &real, &other),
+        (
+            "p2sh-p2wsh",
+            sh_wsh(&real),
+            sh_wsh(&other),
+            witness,
+            &real,
+            &other,
+        ),
+    ];
+    for (what, true_psbt, false_psbt, set, right, stale) in kinds {
+        assert_eq!(rows_of(&true_psbt), vec![Verdict::Valid], "{what}");
+        for field in [None, Some(right)] {
+            let mut p = true_psbt.clone();
+            if let Some(f) = field {
+                set(&mut p.inputs[0], f);
+            }
+            assert_eq!(rows_of(&p), vec![Verdict::Valid], "{what}: true input");
+            assert!(!witness_mismatch(&p, 0), "{what}");
+        }
+        let mut p = false_psbt;
+        assert_eq!(rows_of(&p), vec![Verdict::Invalid], "{what}: control");
+        set(&mut p.inputs[0], stale);
+        assert!(!witness_shape_mismatch(&p, 0), "{what}: the hash is right");
+        assert_eq!(
+            rows_of(&p),
+            vec![Verdict::Invalid],
+            "{what}: signed over the stale field's script"
+        );
+    }
+    // p2sh-p2wpkh: a stale redeem_script of another key's program.
+    let (true_psbt, _) = sh_wpkh(&a);
+    let (mut false_psbt, stale) = sh_wpkh(&b);
+    assert_eq!(rows_of(&true_psbt), vec![Verdict::Valid]);
+    assert_eq!(rows_of(&false_psbt), vec![Verdict::Invalid], "control");
+    false_psbt.inputs[0].redeem_script = Some(stale);
+    assert_eq!(
+        rows_of(&false_psbt),
+        vec![Verdict::Invalid],
+        "p2sh-p2wpkh: signed over the stale redeem_script's program"
+    );
+    let mut with_right = true_psbt;
+    with_right.inputs[0].redeem_script = with_right.inputs[0]
+        .final_script_sig
+        .as_ref()
+        .map(|s| ScriptBuf::from(s.as_bytes()[1..].to_vec()));
+    assert_eq!(rows_of(&with_right), vec![Verdict::Valid]);
+}
+
+/// A multisig input with fewer signatures than its script asks for is no
+/// spend a node takes: the input is a mismatch, whether or not the
+/// signature it holds is true. Two of three in key order are true.
+#[test]
+fn a_final_multisig_with_fewer_signatures_than_it_asks_for_is_a_mismatch() {
+    let keys = |seeds: &[u8]| {
+        seeds
+            .iter()
+            .map(|s| key_bytes(*s, true))
+            .collect::<Vec<_>>()
+    };
+    let two = multisig_script(2, &keys(&[5, 6]));
+    let three = multisig_script(2, &keys(&[5, 6, 7]));
+    for (what, make) in [
+        (
+            "p2sh",
+            final_p2sh_multisig as fn(&ScriptBuf, &[u8]) -> bitcoin::Psbt,
+        ),
+        ("p2wsh", final_p2wsh_multisig),
+    ] {
+        assert!(witness_mismatch(&make(&two, &[5]), 0), "{what}: one of two");
+        assert_eq!(
+            rows_of(&make(&two, &[5])),
+            vec![Verdict::Valid],
+            "{what}: the signature itself is true"
+        );
+        assert!(
+            witness_mismatch(&make(&two, &[]), 0),
+            "{what}: the script alone"
+        );
+        assert!(
+            !witness_mismatch(&make(&two, &[5, 6]), 0),
+            "{what}: two of two"
+        );
+        assert!(
+            witness_mismatch(&make(&three, &[7]), 0),
+            "{what}: one of three"
+        );
+        // Signatures stand in the script's key order, each key once, and
+        // exactly as many as the script asks for.
+        for (order, sound) in [
+            (vec![5, 6], true),
+            (vec![5, 7], true),
+            (vec![6, 7], true),
+            (vec![6, 5], false),
+            (vec![7, 5], false),
+            (vec![5, 5], false),
+            (vec![5, 6, 7], false),
+        ] {
+            let psbt = make(&three, &order);
+            assert_eq!(
+                witness_mismatch(&psbt, 0) || final_invalid(&psbt, 0),
+                !sound,
+                "{what}: {order:?}"
+            );
+        }
+    }
+}
+
+/// A taproot output's final witness is one signature of 64 or 65 bytes
+/// (with or without an annex) or a script path; a missing or empty
+/// witness, or one element of another size, is no spend.
+#[test]
+fn a_final_taproot_witness_is_a_signature_or_a_script_path() {
+    let secp = Secp256k1::new();
+    let (xonly, _) = Keypair::from_secret_key(&secp, &secret(5)).x_only_public_key();
+    let spk = ScriptBuf::new_p2tr(&secp, xonly, None);
+    let annex = {
+        let mut a = vec![0x50];
+        a.extend_from_slice(&[1; 5]);
+        a
+    };
+    let w = |e: &[&[u8]]| e.iter().map(|x| x.to_vec()).collect::<Vec<_>>();
+    let (s64, s65) = (vec![1u8; 64], vec![1u8; 65]);
+    let cases = vec![
+        ("a 64-byte signature", w(&[&s64]), false),
+        ("a 65-byte signature", w(&[&s65]), false),
+        (
+            "a 64-byte signature and an annex",
+            w(&[&s64, &annex]),
+            false,
+        ),
+        (
+            "a 65-byte signature and an annex",
+            w(&[&s65, &annex]),
+            false,
+        ),
+        ("63 bytes", w(&[&[1; 63]]), true),
+        ("66 bytes", w(&[&[1; 66]]), true),
+        ("32 bytes", w(&[&[1; 32]]), true),
+        ("an empty element", w(&[&[]]), true),
+        ("an annex alone", w(&[&annex]), true),
+        ("63 bytes and an annex", w(&[&[1; 63], &annex]), true),
+    ];
+    for (what, witness, mismatch) in cases {
+        let psbt = final_input(spk.clone(), ScriptBuf::new(), &witness);
+        assert_eq!(witness_mismatch(&psbt, 0), mismatch, "{what}");
+        assert_eq!(
+            mismatch_cards(Psbt::from(psbt)),
+            usize::from(mismatch),
+            "{what}"
+        );
+    }
+    let mut empty_witness = final_input(spk.clone(), ScriptBuf::new(), &[]);
+    empty_witness.inputs[0].final_script_witness = Some(Witness::new());
+    assert!(witness_mismatch(&empty_witness, 0), "an empty witness");
+    let empty_sig = final_input(spk, ScriptBuf::new(), &[]);
+    assert!(
+        witness_mismatch(&empty_sig, 0),
+        "an empty scriptSig and no witness"
+    );
+}
+
+/// A multisig of `script` spent under `wrapper` ("p2sh", "p2wsh",
+/// "p2sh-p2wsh" or "bare"), with the stack `make` gives from the digest
+/// the signers sign: the dummy first, then the signatures.
+fn multisig_spend(
+    wrapper: &str,
+    script: &ScriptBuf,
+    make: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>,
+) -> bitcoin::Psbt {
+    spend_at(wrapper, script, Sequence::MAX, make)
+}
+
+/// [`multisig_spend`] of any script, the input's sequence being `sequence`.
+fn spend_at(
+    wrapper: &str,
+    script: &ScriptBuf,
+    sequence: Sequence,
+    make: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>,
+) -> bitcoin::Psbt {
+    spend_in(wrapper, script, &|tx| tx.input[0].sequence = sequence, make)
+}
+
+/// [`spend_at`] with any change to the transaction (version, lock time,
+/// sequence) made before the signers sign.
+fn spend_in(
+    wrapper: &str,
+    script: &ScriptBuf,
+    tweak: &dyn Fn(&mut bitcoin::Transaction),
+    make: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>,
+) -> bitcoin::Psbt {
+    let wsh = p2wsh_of(script);
+    let spk = match wrapper {
+        "p2sh" => p2sh_of(script),
+        "p2wsh" => wsh.clone(),
+        "p2sh-p2wsh" => p2sh_of(&wsh),
+        _ => script.clone(),
+    };
+    let mut psbt = final_input(spk, ScriptBuf::new(), &[]);
+    tweak(&mut psbt.unsigned_tx);
+    let segwit = wrapper.ends_with("wsh");
+    let mut parts = make(digest_of(&psbt, script, segwit));
+    if wrapper == "bare" {
+        let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
+        psbt.inputs[0].final_script_sig = Some(push_script(&refs));
+        return psbt;
+    }
+    parts.push(script.to_bytes());
+    let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
+    if segwit {
+        psbt.inputs[0].final_script_witness = Some(Witness::from_slice(&parts));
+        if wrapper == "p2sh-p2wsh" {
+            psbt.inputs[0].final_script_sig = Some(push_script(&[wsh.as_bytes()]));
+        }
+    } else {
+        psbt.inputs[0].final_script_sig = Some(push_script(&refs));
+    }
+    psbt
+}
+
+const WRAPPERS: [&str; 4] = ["p2sh", "p2wsh", "p2sh-p2wsh", "bare"];
+
+/// A multisig stack padded with junk, a filler or a repeat in place of
+/// its signatures is no spend, and an input that is read as a spend is
+/// one signature of each key in the script's order.
+#[test]
+fn a_multisig_stack_that_is_not_the_signatures_it_asks_for_is_a_mismatch() {
+    let two = multisig_script(2, &[key_bytes(5, true), key_bytes(6, true)]);
+    let one = multisig_script(1, &[key_bytes(5, true)]);
+    let junk = vec![0x11; 5];
+    let sig = |seed: u8, d: [u8; 32]| sig_bytes(seed, d);
+    for wrapper in WRAPPERS {
+        let spend = |script: &ScriptBuf, f: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>| {
+            let psbt = multisig_spend(wrapper, script, f);
+            (witness_mismatch(&psbt, 0), final_invalid(&psbt, 0))
+        };
+        let (a, b) = (|d| sig(5, d), |d| sig(6, d));
+        assert_eq!(
+            spend(&two, &|d| vec![vec![], a(d), b(d)]),
+            (false, false),
+            "{wrapper}: true"
+        );
+        assert_eq!(
+            spend(&one, &|d| vec![vec![], a(d)]),
+            (false, false),
+            "{wrapper}: 1-of-1"
+        );
+        for (what, items) in [
+            (
+                "junk after the dummy",
+                vec![vec![], junk.clone(), a([1; 32])],
+            ),
+            (
+                "junk between",
+                vec![vec![], a([1; 32]), junk.clone(), b([1; 32])],
+            ),
+            (
+                "a non-empty dummy",
+                vec![junk.clone(), a([1; 32]), b([1; 32])],
+            ),
+            ("all junk", vec![vec![], junk.clone(), junk.clone()]),
+        ] {
+            let psbt = multisig_spend(wrapper, &two, &|_| items.clone());
+            assert!(witness_mismatch(&psbt, 0), "{wrapper}: {what}");
+        }
+        let (junk_one, _) = spend(&one, &|_| vec![vec![], junk.clone()]);
+        assert!(junk_one, "{wrapper}: 1-of-1 with junk");
+        // A sighash byte no node reads is refused, as p2pkh's is.
+        let (odd, _) = spend(&two, &|d| {
+            let mut s = a(d);
+            *s.last_mut().unwrap() = 0x00;
+            vec![vec![], s, b(d)]
+        });
+        assert!(odd, "{wrapper}: a sighash byte of 0");
+        // The same signature twice, or the keys out of order.
+        for (what, order) in [("twice", [5u8, 5]), ("out of order", [6, 5])] {
+            let psbt = multisig_spend(wrapper, &two, &|d| {
+                vec![vec![], sig(order[0], d), sig(order[1], d)]
+            });
+            assert!(
+                witness_mismatch(&psbt, 0) || final_invalid(&psbt, 0),
+                "{wrapper}: {what}"
+            );
+            assert!(
+                rows_of(&psbt).contains(&Verdict::Invalid) || witness_mismatch(&psbt, 0),
+                "{wrapper}: {what} reads red"
+            );
+        }
+    }
+}
+
+/// A finalized signature that does not verify makes the input refuse to
+/// finish: p2wpkh by another key, and a multisig with another key's.
+#[test]
+fn a_final_input_with_an_invalid_signature_reads_invalid() {
+    use bitcoin::hashes::{Hash, hash160};
+    let key = key_bytes(5, true);
+    let wpkh = ScriptBuf::new_p2wpkh(&bitcoin::WPubkeyHash::from_byte_array(
+        *hash160::Hash::hash(&key).as_byte_array(),
+    ));
+    let build = |seed: u8| {
+        let mut psbt = final_input(wpkh.clone(), ScriptBuf::new(), &[]);
+        let digest = digest_of(&psbt, &wpkh, true);
+        psbt.inputs[0].final_script_witness =
+            Some(Witness::from_slice(&[sig_bytes(seed, digest), key.clone()]));
+        psbt
+    };
+    assert!(!final_invalid(&build(5), 0));
+    assert!(final_invalid(&build(7), 0));
+    let two = multisig_script(2, &[key_bytes(5, true), key_bytes(6, true)]);
+    for wrapper in WRAPPERS {
+        let psbt = multisig_spend(wrapper, &two, &|d| {
+            vec![vec![], sig_bytes(7, d), sig_bytes(6, d)]
+        });
+        assert!(
+            final_invalid(&psbt, 0),
+            "{wrapper}: another key's signature"
+        );
+    }
+    // A script holding OP_CODESEPARATOR is signed over a message not
+    // worked out here: its true signature is not refused.
+    let sep = bitcoin::script::Builder::new()
+        .push_opcode(bitcoin::opcodes::all::OP_CODESEPARATOR)
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(key.clone()).unwrap())
+        .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+        .into_script();
+    let mut psbt = final_input(p2wsh_of(&sep), ScriptBuf::new(), &[]);
+    // Consensus signs the script after the separator.
+    let after = ScriptBuf::from(sep.as_bytes()[1..].to_vec());
+    let digest = digest_of(&psbt, &after, true);
+    psbt.inputs[0].final_script_witness =
+        Some(Witness::from_slice(&[sig_bytes(5, digest), sep.to_bytes()]));
+    assert!(!final_invalid(&psbt, 0));
+}
+
+/// A bare p2pk and a bare multisig have their signatures read.
+#[test]
+fn the_signatures_of_a_bare_output_are_read() {
+    let key = key_bytes(5, true);
+    let p2pk = bitcoin::script::Builder::new()
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(key.clone()).unwrap())
+        .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+        .into_script();
+    for (seed, row) in [(5u8, Verdict::Valid), (7, Verdict::Invalid)] {
+        let mut psbt = final_input(p2pk.clone(), ScriptBuf::new(), &[]);
+        let digest = digest_of(&psbt, &p2pk, false);
+        psbt.inputs[0].final_script_sig = Some(push_script(&[&sig_bytes(seed, digest)]));
+        assert_eq!(rows_of(&psbt), vec![row], "p2pk signed by seed {seed}");
+        assert_eq!(
+            final_invalid(&psbt, 0),
+            row == Verdict::Invalid,
+            "p2pk {seed}"
+        );
+    }
+    let two = multisig_script(2, &[key_bytes(5, true), key_bytes(6, true)]);
+    let psbt = multisig_spend("bare", &two, &|d| {
+        vec![vec![], sig_bytes(5, d), sig_bytes(6, d)]
+    });
+    assert_eq!(rows_of(&psbt), vec![Verdict::Valid; 2]);
+    let psbt = multisig_spend("bare", &two, &|d| {
+        vec![vec![], sig_bytes(7, d), sig_bytes(6, d)]
+    });
+    assert_eq!(rows_of(&psbt), vec![Verdict::Invalid, Verdict::Valid]);
+}
+
+/// A multisig of 17 to 20 keys is read: one signature of two is short,
+/// and every one of them in order is true.
+#[test]
+fn a_multisig_of_more_than_sixteen_keys_is_counted() {
+    let keys: Vec<Vec<u8>> = (1..=20).map(|s| key_bytes(s, true)).collect();
+    for (m, n, signers, mismatch) in [
+        (2, 17, vec![3u8], true),
+        (2, 17, vec![3, 17], false),
+        (17, 20, (1..=17).collect(), false),
+        (17, 20, (1..=16).collect(), true),
+    ] {
+        let script = multisig_script(m, &keys[..n]);
+        for wrapper in ["p2wsh", "p2sh-p2wsh"] {
+            let psbt = multisig_spend(wrapper, &script, &|d| {
+                let mut items = vec![vec![]];
+                items.extend(signers.iter().map(|s| sig_bytes(*s, d)));
+                items
+            });
+            assert_eq!(witness_mismatch(&psbt, 0), mismatch, "{wrapper} {m}-of-{n}");
+        }
+    }
+}
+
+// ---- a final input's script is judged by the interpreter ----
+
+/// Whether a final input is refused: a mismatch or a final signature that
+/// is wrong, and whether any of its rows reads Invalid.
+fn refused(psbt: &bitcoin::Psbt) -> bool {
+    witness_mismatch(psbt, 0) || final_invalid(psbt, 0)
+}
+
+fn check_all(
+    what: &str,
+    wrappers: &[&str],
+    script: &ScriptBuf,
+    make: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>,
+    refuse: bool,
+) {
+    for wrapper in wrappers {
+        let psbt = multisig_spend(wrapper, script, make);
+        assert_eq!(refused(&psbt), refuse, "{wrapper}: {what}");
+        if !refuse {
+            assert!(
+                !rows_of(&psbt).contains(&Verdict::Invalid),
+                "{wrapper}: {what}: a row reads Invalid"
+            );
+        }
+    }
+}
+
+fn script_of(parts: &[&[u8]], ops: &[bitcoin::opcodes::Opcode]) -> ScriptBuf {
+    use bitcoin::script::{Builder, PushBytesBuf};
+    let mut b = Builder::new();
+    for (i, part) in parts.iter().enumerate() {
+        b = b.push_slice(PushBytesBuf::try_from(part.to_vec()).unwrap());
+        if let Some(op) = ops.get(i) {
+            b = b.push_opcode(*op);
+        }
+    }
+    b.into_script()
+}
+
+/// `and_v(v:pk(A),pk(B))`.
+fn and_v_script(a: &[u8], b: &[u8]) -> ScriptBuf {
+    use bitcoin::opcodes::all::{OP_CHECKSIG, OP_CHECKSIGVERIFY};
+    script_of(&[a, b], &[OP_CHECKSIGVERIFY, OP_CHECKSIG])
+}
+
+/// `pk(A)`.
+fn pk_script(a: &[u8]) -> ScriptBuf {
+    script_of(&[a], &[bitcoin::opcodes::all::OP_CHECKSIG])
+}
+
+/// `pkh(A)`: `DUP HASH160 <hash> EQUALVERIFY CHECKSIG`.
+fn pkh_script(a: &[u8]) -> ScriptBuf {
+    use bitcoin::hashes::{Hash, hash160};
+    use bitcoin::opcodes::all::{OP_CHECKSIG, OP_DUP, OP_EQUALVERIFY, OP_HASH160};
+    bitcoin::script::Builder::new()
+        .push_opcode(OP_DUP)
+        .push_opcode(OP_HASH160)
+        .push_slice(hash160::Hash::hash(a).to_byte_array())
+        .push_opcode(OP_EQUALVERIFY)
+        .push_opcode(OP_CHECKSIG)
+        .into_script()
+}
+
+const SEGWIT_AND_P2SH: [&str; 3] = ["p2wsh", "p2sh-p2wsh", "p2sh"];
+
+#[test]
+fn a_miniscript_input_is_judged_by_the_interpreter() {
+    let (a, b, c) = (key_bytes(5, true), key_bytes(6, true), key_bytes(7, true));
+    let junk = vec![0xAA; 9];
+    let and_v = and_v_script(&a, &b);
+    // Both signatures, the later key's first: a true spend.
+    check_all(
+        "and_v",
+        &SEGWIT_AND_P2SH,
+        &and_v,
+        &|d| vec![sig_bytes(6, d), sig_bytes(5, d)],
+        false,
+    );
+    // One signature, or a junk element in place of the other: no spend.
+    check_all(
+        "and_v, one signature",
+        &SEGWIT_AND_P2SH,
+        &and_v,
+        &|d| vec![sig_bytes(5, d)],
+        true,
+    );
+    check_all(
+        "and_v, junk",
+        &SEGWIT_AND_P2SH,
+        &and_v,
+        &|d| vec![junk.clone(), sig_bytes(5, d)],
+        true,
+    );
+    // thresh(2,pk(A),s:pk(B),s:pk(C)), the third left empty.
+    let thresh = {
+        use bitcoin::opcodes::all::{OP_ADD, OP_CHECKSIG, OP_EQUAL, OP_SWAP};
+        bitcoin::script::Builder::new()
+            .push_slice(bitcoin::script::PushBytesBuf::try_from(a.clone()).unwrap())
+            .push_opcode(OP_CHECKSIG)
+            .push_opcode(OP_SWAP)
+            .push_slice(bitcoin::script::PushBytesBuf::try_from(b.clone()).unwrap())
+            .push_opcode(OP_CHECKSIG)
+            .push_opcode(OP_ADD)
+            .push_opcode(OP_SWAP)
+            .push_slice(bitcoin::script::PushBytesBuf::try_from(c.clone()).unwrap())
+            .push_opcode(OP_CHECKSIG)
+            .push_opcode(OP_ADD)
+            .push_int(2)
+            .push_opcode(OP_EQUAL)
+            .into_script()
+    };
+    check_all(
+        "thresh",
+        &["p2wsh"],
+        &thresh,
+        &|d| vec![vec![], sig_bytes(6, d), sig_bytes(5, d)],
+        false,
+    );
+    check_all(
+        "thresh, one signature",
+        &["p2wsh"],
+        &thresh,
+        &|d| vec![vec![], vec![], sig_bytes(5, d)],
+        true,
+    );
+    // pk(A): a signature, or junk, nothing or an empty signature.
+    let pk = pk_script(&a);
+    check_all(
+        "pk",
+        &SEGWIT_AND_P2SH,
+        &pk,
+        &|d| vec![sig_bytes(5, d)],
+        false,
+    );
+    check_all(
+        "pk, junk",
+        &SEGWIT_AND_P2SH,
+        &pk,
+        &|_| vec![junk.clone()],
+        true,
+    );
+    check_all("pk, nothing", &SEGWIT_AND_P2SH, &pk, &|_| vec![], true);
+    check_all("pk, empty", &SEGWIT_AND_P2SH, &pk, &|_| vec![vec![]], true);
+}
+
+#[test]
+fn a_pkh_input_is_judged_by_the_interpreter() {
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let junk = vec![0xAA; 9];
+    // pkh(A): the signature and the key; junk, a wrong key and a forged
+    // signature are refused.
+    let pkh = pkh_script(&a);
+    check_all(
+        "pkh",
+        &SEGWIT_AND_P2SH,
+        &pkh,
+        &|d| vec![sig_bytes(5, d), a.clone()],
+        false,
+    );
+    check_all(
+        "pkh, junk",
+        &["p2wsh"],
+        &pkh,
+        &|_| vec![junk.clone(), a.clone()],
+        true,
+    );
+    check_all(
+        "pkh, wrong key",
+        &["p2wsh"],
+        &pkh,
+        &|d| vec![sig_bytes(5, d), b.clone()],
+        true,
+    );
+    check_all(
+        "pkh, forged",
+        &["p2wsh", "p2sh"],
+        &pkh,
+        &|d| vec![sig_bytes(7, d), a.clone()],
+        true,
+    );
+}
+
+#[test]
+fn a_key_named_twice_takes_its_signature_twice() {
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let two = multisig_script(2, &[a.clone(), a.clone()]);
+    check_all(
+        "2-of-2 [A,A]",
+        &WRAPPERS,
+        &two,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(5, d)],
+        false,
+    );
+    let aab = multisig_script(2, &[a.clone(), a.clone(), b.clone()]);
+    let aba = multisig_script(2, &[a.clone(), b.clone(), a.clone()]);
+    check_all(
+        "[A,A,B] sigA sigA",
+        &WRAPPERS,
+        &aab,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(5, d)],
+        false,
+    );
+    check_all(
+        "[A,A,B] sigA sigB",
+        &WRAPPERS,
+        &aab,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(6, d)],
+        false,
+    );
+    check_all(
+        "[A,B,A] sigB sigA",
+        &WRAPPERS,
+        &aba,
+        &|d| vec![vec![], sig_bytes(6, d), sig_bytes(5, d)],
+        false,
+    );
+    check_all(
+        "[A,B,A] sigA sigB",
+        &WRAPPERS,
+        &aba,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(6, d)],
+        false,
+    );
+    // The signatures walk the keys forward: B's before A's is out of order
+    // in [A,B].
+    let ab = multisig_script(2, &[a.clone(), b.clone()]);
+    check_all(
+        "[A,B] sigB sigA",
+        &WRAPPERS,
+        &ab,
+        &|d| vec![vec![], sig_bytes(6, d), sig_bytes(5, d)],
+        true,
+    );
+    check_all(
+        "[A,B] sigA sigA",
+        &WRAPPERS,
+        &ab,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(5, d)],
+        true,
+    );
+    // ALL and ALL|ANYONECANPAY on [A,A].
+    for wrapper in WRAPPERS {
+        for ty in [1u8, 0x81] {
+            let mut psbt = multisig_spend(wrapper, &two, &|_| vec![]);
+            let segwit = wrapper.ends_with("wsh");
+            let digest = typed_digest(&psbt, &two, segwit, ty);
+            let sig = typed_sig(5, digest, ty);
+            let items = [vec![], sig.clone(), sig];
+            psbt = multisig_spend(wrapper, &two, &|_| items.to_vec());
+            assert!(!refused(&psbt), "{wrapper}: type {ty:#x}");
+        }
+    }
+}
+
+/// The digest of input 0 for `script` under a sighash type byte.
+fn typed_digest(psbt: &bitcoin::Psbt, script: &ScriptBuf, segwit: bool, ty: u8) -> [u8; 32] {
+    let mut cache = SighashCache::new(&psbt.unsigned_tx);
+    if segwit {
+        let ty = EcdsaSighashType::from_consensus(u32::from(ty));
+        cache
+            .p2wsh_signature_hash(0, script, Amount::from_sat(10_000), ty)
+            .unwrap()
+            .to_byte_array()
+    } else {
+        cache
+            .legacy_signature_hash(0, script, u32::from(ty))
+            .unwrap()
+            .to_byte_array()
+    }
+}
+
+fn typed_sig(seed: u8, digest: [u8; 32], ty: u8) -> Vec<u8> {
+    let mut sig = sig_bytes(seed, digest);
+    *sig.last_mut().unwrap() = ty;
+    sig
+}
+
+/// Uncompressed keys in a p2wsh script are not read as a miniscript: the
+/// order of the signatures is still the script's.
+#[test]
+fn signatures_out_of_the_keys_order_are_refused_where_the_script_is_not_a_miniscript() {
+    let (a, b) = (key_bytes(5, false), key_bytes(6, false));
+    let ab = multisig_script(2, &[a, b]);
+    check_all(
+        "in order",
+        &["p2wsh"],
+        &ab,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(6, d)],
+        false,
+    );
+    check_all(
+        "reversed",
+        &["p2wsh"],
+        &ab,
+        &|d| vec![vec![], sig_bytes(6, d), sig_bytes(5, d)],
+        true,
+    );
+    check_all(
+        "a repeat",
+        &["p2wsh"],
+        &ab,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(5, d)],
+        true,
+    );
+    check_all(
+        "one short",
+        &["p2wsh"],
+        &ab,
+        &|d| vec![vec![], sig_bytes(5, d)],
+        true,
+    );
+}
+
+/// The key is in the witness: a recovery path of `or_d(pk(A),
+/// and_v(v:pkh(B),older(144)))`.
+#[test]
+fn a_key_given_in_the_witness_is_the_one_the_script_hashes() {
+    use bitcoin::hashes::{Hash, hash160};
+    use bitcoin::opcodes::all::{
+        OP_CHECKSIG, OP_CHECKSIGVERIFY, OP_CSV, OP_DUP, OP_ENDIF, OP_EQUALVERIFY, OP_HASH160,
+        OP_IFDUP, OP_NOTIF,
+    };
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let script = bitcoin::script::Builder::new()
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(a.clone()).unwrap())
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_IFDUP)
+        .push_opcode(OP_NOTIF)
+        .push_opcode(OP_DUP)
+        .push_opcode(OP_HASH160)
+        .push_slice(hash160::Hash::hash(&b).to_byte_array())
+        .push_opcode(OP_EQUALVERIFY)
+        .push_opcode(OP_CHECKSIGVERIFY)
+        .push_int(144)
+        .push_opcode(OP_CSV)
+        .push_opcode(OP_ENDIF)
+        .into_script();
+    for wrapper in ["p2wsh", "p2sh-p2wsh", "p2sh"] {
+        let at = |seq: u32, items: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>| {
+            spend_at(wrapper, &script, Sequence(seq), items)
+        };
+        // The recovery key, after the delay.
+        let recovery = |d| vec![sig_bytes(6, d), b.clone(), vec![]];
+        let psbt = at(144, &recovery);
+        assert!(!refused(&psbt), "{wrapper}: the recovery spend");
+        assert_eq!(rows_of(&psbt), vec![Verdict::Valid], "{wrapper}: its row");
+        // Before the delay, with another key's signature, or the wrong key.
+        assert!(refused(&at(143, &recovery)), "{wrapper}: too early");
+        assert!(
+            refused(&at(144, &|d| vec![sig_bytes(7, d), b.clone(), vec![]])),
+            "{wrapper}: forged"
+        );
+        assert!(
+            refused(&at(144, &|d| vec![sig_bytes(6, d), a.clone(), vec![]])),
+            "{wrapper}: wrong key"
+        );
+        // The primary key.
+        assert!(
+            !refused(&at(144, &|d| vec![sig_bytes(5, d)])),
+            "{wrapper}: primary"
+        );
+    }
+}
+
+#[test]
+fn a_redeem_script_over_520_bytes_is_a_mismatch_and_a_16_of_16_in_p2wsh_stands() {
+    use bitcoin::opcodes::all::{OP_DROP, OP_PUSHNUM_1};
+    let puzzle = |len: usize| {
+        bitcoin::script::Builder::new()
+            .push_slice(bitcoin::script::PushBytesBuf::try_from(vec![7u8; len]).unwrap())
+            .push_opcode(OP_DROP)
+            .push_opcode(OP_PUSHNUM_1)
+            .into_script()
+    };
+    let spend =
+        |script: &ScriptBuf| final_input(p2sh_of(script), push_script(&[script.as_bytes()]), &[]);
+    // 500 + 4 bytes, and 517 + 4 = 521 with its push opcodes.
+    assert!(!witness_mismatch(&spend(&puzzle(500)), 0));
+    assert!(spend(&puzzle(517)).inputs[0].final_script_sig.is_some());
+    assert!(witness_mismatch(&spend(&puzzle(517)), 0));
+    let keys: Vec<Vec<u8>> = (1..=16).map(|s| key_bytes(s, true)).collect();
+    let sixteen = multisig_script(16, &keys);
+    let signers: Vec<u8> = (1..=16).collect();
+    assert!(!refused(&final_p2wsh_multisig(&sixteen, &signers)));
+    assert!(refused(&final_p2sh_multisig(&sixteen, &signers)));
+}
+
+#[test]
+fn a_witness_script_over_consensus_limits_is_a_mismatch() {
+    use bitcoin::opcodes::all::{OP_DROP, OP_NOP, OP_PUSHNUM_1};
+    let nops = |n: usize| {
+        let mut b = bitcoin::script::Builder::new();
+        for _ in 0..n {
+            b = b.push_opcode(OP_NOP);
+        }
+        b.push_opcode(OP_PUSHNUM_1).into_script()
+    };
+    let spend = |script: &ScriptBuf, stack: usize| {
+        let mut witness = vec![vec![]; stack];
+        witness.push(script.to_bytes());
+        final_input(p2wsh_of(script), ScriptBuf::new(), &witness)
+    };
+    assert!(!witness_shape_mismatch(&spend(&nops(200), 0), 0));
+    assert!(witness_shape_mismatch(&spend(&nops(202), 0), 0));
+    // 1,001 stack elements, and a script of 10,001 bytes.
+    let one = nops(0);
+    assert!(!witness_shape_mismatch(&spend(&one, 1000), 0));
+    assert!(witness_shape_mismatch(&spend(&one, 1001), 0));
+    let big = {
+        let mut b = bitcoin::script::Builder::new();
+        for _ in 0..20 {
+            b = b.push_slice(bitcoin::script::PushBytesBuf::try_from(vec![1u8; 500]).unwrap());
+            b = b.push_opcode(OP_DROP);
+        }
+        b.push_opcode(OP_PUSHNUM_1).into_script()
+    };
+    assert!(big.len() > 10_000);
+    assert!(witness_shape_mismatch(&spend(&big, 0), 0));
+}
+
+/// A file of many signature-shaped elements costs a bounded number of
+/// verifications: the rows past the bound read Unchecked.
+#[test]
+fn rows_stop_verifying_at_a_bound_per_input() {
+    use bitcoin::opcodes::all::OP_DROP;
+    // 280 keys and 200 drops: within the limits, and no miniscript.
+    let mut b = bitcoin::script::Builder::new();
+    for s in 1..=250u8 {
+        b = b.push_slice(bitcoin::script::PushBytesBuf::try_from(key_bytes(s, true)).unwrap());
+    }
+    for _ in 0..200 {
+        b = b.push_opcode(OP_DROP);
+    }
+    let script = b.push_int(1).into_script();
+    let mut psbt = final_input(p2wsh_of(&script), ScriptBuf::new(), &[]);
+    let digest = digest_of(&psbt, &script, true);
+    let mut witness: Vec<Vec<u8>> = (0..400).map(|_| sig_bytes(250, digest)).collect();
+    witness.push(script.to_bytes());
+    psbt.inputs[0].final_script_witness = Some(Witness::from_slice(&witness));
+    assert!(!witness_shape_mismatch(&psbt, 0));
+    let rows = rows_of(&psbt);
+    assert_eq!(rows.len(), 400);
+    assert!(rows[..201].iter().all(|r| *r == Verdict::Valid));
+    assert!(
+        rows[201..]
+            .iter()
+            .all(|r| matches!(r, Verdict::Unchecked(_)))
+    );
+}
+
+#[test]
+fn a_bare_multisig_of_more_than_sixteen_keys_is_read() {
+    let keys: Vec<Vec<u8>> = (1..=18).map(|s| key_bytes(s, true)).collect();
+    let script = multisig_script(2, &keys);
+    check_all(
+        "2-of-18",
+        &["bare"],
+        &script,
+        &|d| vec![vec![], sig_bytes(3, d), sig_bytes(17, d)],
+        false,
+    );
+    check_all(
+        "2-of-18, short",
+        &["bare"],
+        &script,
+        &|d| vec![vec![], sig_bytes(3, d)],
+        true,
+    );
+}
+
+/// A multisig by high-S signatures stays refused: Faraday's own rule.
+#[test]
+fn a_high_s_signature_in_a_final_multisig_stays_refused() {
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let two = multisig_script(2, &[a, b]);
+    let n = bitcoin::secp256k1::constants::CURVE_ORDER;
+    let flip = |sig: Vec<u8>| {
+        let parsed = bitcoin::secp256k1::ecdsa::Signature::from_der(&sig[..sig.len() - 1]).unwrap();
+        let mut compact = parsed.serialize_compact();
+        // s -> n - s
+        let mut s = [0u8; 32];
+        s.copy_from_slice(&compact[32..]);
+        let mut out = [0u8; 32];
+        let mut borrow = 0i16;
+        for i in (0..32).rev() {
+            let d = i16::from(n[i]) - i16::from(s[i]) - borrow;
+            borrow = i16::from(d < 0);
+            out[i] = (d + if d < 0 { 256 } else { 0 }) as u8;
+        }
+        compact[32..].copy_from_slice(&out);
+        let mut der = bitcoin::secp256k1::ecdsa::Signature::from_compact(&compact)
+            .unwrap()
+            .serialize_der()
+            .to_vec();
+        der.push(1);
+        der
+    };
+    check_all(
+        "high S",
+        &["p2wsh"],
+        &two,
+        &|d| vec![vec![], flip(sig_bytes(5, d)), sig_bytes(6, d)],
+        true,
+    );
+}
+
+/// A 1-of-16, and a 2-of-2 of uncompressed keys, are true in every wrapping
+/// that carries them.
+#[test]
+fn a_one_of_sixteen_and_uncompressed_multisigs_stand() {
+    let keys: Vec<Vec<u8>> = (1..=16).map(|s| key_bytes(s, true)).collect();
+    let one = multisig_script(1, &keys);
+    check_all(
+        "1-of-16, the last key",
+        &["p2wsh", "p2sh-p2wsh"],
+        &one,
+        &|d| vec![vec![], sig_bytes(16, d)],
+        false,
+    );
+    let ukeys = [key_bytes(5, false), key_bytes(6, false)];
+    let two = multisig_script(2, &ukeys);
+    check_all(
+        "2-of-2 uncompressed",
+        &["p2sh", "bare"],
+        &two,
+        &|d| vec![vec![], sig_bytes(5, d), sig_bytes(6, d)],
+        false,
+    );
+}
+
+/// A bare p2pk of a compressed or an uncompressed key.
+#[test]
+fn a_p2pk_of_either_key_form_stands() {
+    for compressed in [true, false] {
+        let script = pk_script(&key_bytes(5, compressed));
+        let mut psbt = final_input(script.clone(), ScriptBuf::new(), &[]);
+        let digest = digest_of(&psbt, &script, false);
+        psbt.inputs[0].final_script_sig = Some(push_script(&[&sig_bytes(5, digest)]));
+        assert!(!refused(&psbt), "compressed {compressed}");
+        assert_eq!(rows_of(&psbt), vec![Verdict::Valid]);
+    }
+}
+
+/// SIGHASH_SINGLE of an input past the outputs signs the constant one.
+#[test]
+fn a_legacy_sighash_single_past_the_outputs_stands() {
+    let script = pk_script(&key_bytes(5, true));
+    let mut psbt = final_input(script.clone(), ScriptBuf::new(), &[]);
+    let mut second = psbt.unsigned_tx.input[0].clone();
+    second.previous_output.vout = 1;
+    psbt.unsigned_tx.input.push(second);
+    psbt.inputs.push(psbt.inputs[0].clone());
+    psbt.inputs[0].final_script_sig = None;
+    let mut one = [0u8; 32];
+    one[0] = 1;
+    let cache = SighashCache::new(&psbt.unsigned_tx);
+    let at_one = cache.legacy_signature_hash(1, &script, 3).unwrap();
+    assert_eq!(at_one.to_byte_array(), one);
+    psbt.inputs[1].final_script_sig = Some(push_script(&[&typed_sig(5, one, 3)]));
+    assert!(!witness_mismatch(&psbt, 1));
+    assert!(!final_invalid(&psbt, 1));
+    assert_eq!(rows_of(&psbt), vec![Verdict::Valid]);
+}
+
+/// One input final and the other not, in each order.
+#[test]
+fn an_input_beside_an_unfinished_one_stands_in_either_order() {
+    let two = multisig_script(2, &[key_bytes(5, true), key_bytes(6, true)]);
+    for final_at in [0usize, 1] {
+        let mut psbt = final_input(p2wsh_of(&two), ScriptBuf::new(), &[]);
+        let mut second = psbt.unsigned_tx.input[0].clone();
+        second.previous_output.vout = 1;
+        psbt.unsigned_tx.input.push(second);
+        psbt.inputs.push(psbt.inputs[0].clone());
+        let digest = SighashCache::new(&psbt.unsigned_tx)
+            .p2wsh_signature_hash(
+                final_at,
+                &two,
+                Amount::from_sat(10_000),
+                EcdsaSighashType::All,
+            )
+            .unwrap()
+            .to_byte_array();
+        let parts = [
+            vec![],
+            sig_bytes(5, digest),
+            sig_bytes(6, digest),
+            two.to_bytes(),
+        ];
+        for i in 0..2 {
+            psbt.inputs[i].final_script_sig = None;
+        }
+        psbt.inputs[final_at].final_script_witness = Some(Witness::from_slice(&parts));
+        for i in 0..2 {
+            assert!(
+                !witness_mismatch(&psbt, i),
+                "final at {final_at}, input {i}"
+            );
+            assert!(!final_invalid(&psbt, i), "final at {final_at}, input {i}");
+        }
+        assert_eq!(
+            rows_of(&psbt),
+            vec![Verdict::Valid; 2],
+            "final at {final_at}"
+        );
+    }
+}
+
+/// A p2wsh hash time lock on both branches.
+#[test]
+fn a_p2wsh_hash_time_lock_stands_on_both_branches() {
+    use bitcoin::hashes::sha256;
+    use bitcoin::opcodes::all::{
+        OP_CHECKSIG, OP_CSV, OP_DROP, OP_ELSE, OP_ENDIF, OP_EQUALVERIFY, OP_IF, OP_SHA256,
+    };
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let preimage = [7u8; 32];
+    let hash = sha256::Hash::hash(&preimage).to_byte_array();
+    let script = bitcoin::script::Builder::new()
+        .push_opcode(OP_IF)
+        .push_opcode(OP_SHA256)
+        .push_slice(hash)
+        .push_opcode(OP_EQUALVERIFY)
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(a).unwrap())
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ELSE)
+        .push_int(144)
+        .push_opcode(OP_CSV)
+        .push_opcode(OP_DROP)
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(b).unwrap())
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ENDIF)
+        .into_script();
+    let hashed = spend_at("p2wsh", &script, Sequence::MAX, &|d| {
+        vec![sig_bytes(5, d), preimage.to_vec(), vec![1]]
+    });
+    assert!(!refused(&hashed), "the hash branch");
+    assert_eq!(rows_of(&hashed), vec![Verdict::Valid]);
+    let timed = spend_at("p2wsh", &script, Sequence(144), &|d| {
+        vec![sig_bytes(6, d), vec![]]
+    });
+    assert!(!refused(&timed), "the time branch");
+    assert_eq!(rows_of(&timed), vec![Verdict::Valid]);
+}
+
+/// A p2sh puzzle whose scriptSig pushes with OP_2 and OP_3, and an anchor.
+#[test]
+fn a_p2sh_puzzle_with_number_pushes_and_an_anchor_stand() {
+    use bitcoin::opcodes::all::{OP_ADD, OP_EQUAL, OP_PUSHNUM_2, OP_PUSHNUM_3, OP_PUSHNUM_5};
+    let puzzle = bitcoin::script::Builder::new()
+        .push_opcode(OP_ADD)
+        .push_opcode(OP_PUSHNUM_5)
+        .push_opcode(OP_EQUAL)
+        .into_script();
+    let script_sig = bitcoin::script::Builder::new()
+        .push_opcode(OP_PUSHNUM_2)
+        .push_opcode(OP_PUSHNUM_3)
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(puzzle.to_bytes()).unwrap())
+        .into_script();
+    let psbt = final_input(p2sh_of(&puzzle), script_sig, &[]);
+    assert!(!refused(&psbt));
+    let anchor = ScriptBuf::from(vec![0x51, 0x02, 0x4e, 0x73]);
+    let psbt = final_input(anchor, ScriptBuf::new(), &[vec![]]);
+    assert!(!refused(&psbt));
+}
+
+/// ALL|ACP, NONE, SINGLE and SINGLE|ACP on a 2-of-2, in each wrapping.
+#[test]
+fn every_sighash_type_stands_on_a_two_of_two_in_each_wrapping() {
+    let two = multisig_script(2, &[key_bytes(5, true), key_bytes(6, true)]);
+    for ty in [0x81u8, 2, 3, 0x83] {
+        for wrapper in WRAPPERS {
+            let segwit = wrapper.ends_with("wsh");
+            let blank = multisig_spend(wrapper, &two, &|_| vec![vec![], vec![], vec![]]);
+            let digest = typed_digest(&blank, &two, segwit, ty);
+            let psbt = multisig_spend(wrapper, &two, &|_| {
+                vec![vec![], typed_sig(5, digest, ty), typed_sig(6, digest, ty)]
+            });
+            assert!(!refused(&psbt), "{wrapper}: type {ty:#x}");
+            assert_eq!(
+                rows_of(&psbt),
+                vec![Verdict::Valid; 2],
+                "{wrapper}: {ty:#x}"
+            );
+        }
+    }
+}
+
+/// A corrupt signature in a 3-of-3 reads Invalid on its own row only.
+#[test]
+fn a_corrupt_signature_in_a_three_of_three_keeps_the_rows() {
+    let keys: Vec<Vec<u8>> = (5..=7).map(|s| key_bytes(s, true)).collect();
+    let three = multisig_script(3, &keys);
+    for wrapper in WRAPPERS {
+        let psbt = multisig_spend(wrapper, &three, &|d| {
+            vec![
+                vec![],
+                sig_bytes(5, d),
+                sig_bytes(6, [9; 32]),
+                sig_bytes(7, d),
+            ]
+        });
+        assert!(refused(&psbt), "{wrapper}");
+        assert_eq!(
+            rows_of(&psbt),
+            vec![Verdict::Valid, Verdict::Invalid, Verdict::Valid],
+            "{wrapper}"
+        );
+    }
+}
+
+/// The interpreter's answer is the one the signing state and `finish` both
+/// take: a short stack of a miniscript is refused by each reader alone, a
+/// spend it accepts by none.
+#[test]
+fn each_reader_takes_the_interpreters_answer() {
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let script = and_v_script(&a, &b);
+    for wrapper in SEGWIT_AND_P2SH {
+        let readers = |make: &dyn Fn([u8; 32]) -> Vec<Vec<u8>>| {
+            let psbt = multisig_spend(wrapper, &script, make);
+            (witness_mismatch(&psbt, 0), final_invalid(&psbt, 0))
+        };
+        assert_eq!(
+            readers(&|d| vec![sig_bytes(5, d)]),
+            (true, true),
+            "{wrapper}: one signature of two"
+        );
+        assert_eq!(
+            readers(&|d| vec![vec![9; 3], sig_bytes(5, d)]),
+            (true, true),
+            "{wrapper}: a junk element"
+        );
+        assert_eq!(
+            readers(&|d| vec![sig_bytes(6, d), sig_bytes(5, d)]),
+            (false, false),
+            "{wrapper}: the true spend"
+        );
+    }
+}
+
+/// `and_v(v:pk(A),after(n))` or `and_v(v:pk(A),older(n))`.
+fn locked(a: &[u8], n: i64, relative: bool) -> ScriptBuf {
+    use bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_CLTV, OP_CSV};
+    script_of(&[a], &[OP_CHECKSIGVERIFY])
+        .into_bytes()
+        .into_iter()
+        .chain(
+            bitcoin::script::Builder::new()
+                .push_int(n)
+                .push_opcode(if relative { OP_CSV } else { OP_CLTV })
+                .into_script()
+                .into_bytes(),
+        )
+        .collect::<Vec<u8>>()
+        .into()
+}
+
+/// A time lock is read in full: `after` needs this input's sequence not
+/// final (BIP-65) and `older` a transaction of version 2 or more
+/// (BIP-112), as well as the value, and the spend says so in each wrapping.
+#[test]
+fn a_time_lock_the_transaction_does_not_meet_is_refused_in_full() {
+    let a = key_bytes(5, true);
+    let sign = |d: [u8; 32]| vec![sig_bytes(5, d)];
+    let after = locked(&a, 100, false);
+    let older = locked(&a, 10, true);
+    let at = |lock: u32, seq: u32, version: i32| {
+        move |tx: &mut bitcoin::Transaction| {
+            tx.version = bitcoin::transaction::Version(version);
+            tx.lock_time = bitcoin::absolute::LockTime::from_consensus(lock);
+            tx.input[0].sequence = Sequence::from_consensus(seq);
+        }
+    };
+    for wrapper in ["p2wsh", "p2sh-p2wsh", "p2sh"] {
+        // The lock time is 100 and the sequence final: consensus fails it.
+        let psbt = spend_in(wrapper, &after, &at(100, 0xFFFF_FFFF, 2), &sign);
+        assert!(refused(&psbt), "{wrapper}: after, final sequence");
+        // The same, with a sequence that is not final: a true spend.
+        let psbt = spend_in(wrapper, &after, &at(100, 0xFFFF_FFFE, 2), &sign);
+        assert!(!refused(&psbt), "{wrapper}: after, non-final sequence");
+        assert_eq!(rows_of(&psbt), vec![Verdict::Valid], "{wrapper}");
+        // Version 1 with the sequence at 10: consensus fails it.
+        let psbt = spend_in(wrapper, &older, &at(0, 10, 1), &sign);
+        assert!(refused(&psbt), "{wrapper}: older, version 1");
+        // Version 2: a true spend.
+        let psbt = spend_in(wrapper, &older, &at(0, 10, 2), &sign);
+        assert!(!refused(&psbt), "{wrapper}: older, version 2");
+        assert_eq!(rows_of(&psbt), vec![Verdict::Valid], "{wrapper}");
+        // A version with its top bit set is a large one to consensus.
+        let psbt = spend_in(wrapper, &older, &at(0, 10, -1), &sign);
+        assert!(!refused(&psbt), "{wrapper}: older, version 0xFFFFFFFF");
+    }
+}
+
+/// Of `or_i(and_v(v:pk(A),after(100)),pk(B))`, the branch not taken has
+/// its lock unread: the other branch spends with a final sequence.
+#[test]
+fn a_time_lock_on_the_branch_not_taken_is_not_counted() {
+    use bitcoin::opcodes::all::{
+        OP_CHECKSIG, OP_CHECKSIGVERIFY, OP_CLTV, OP_ELSE, OP_ENDIF, OP_IF,
+    };
+    let (a, b) = (key_bytes(5, true), key_bytes(6, true));
+    let push = |v: &[u8]| bitcoin::script::PushBytesBuf::try_from(v.to_vec()).unwrap();
+    let script = bitcoin::script::Builder::new()
+        .push_opcode(OP_IF)
+        .push_slice(push(&a))
+        .push_opcode(OP_CHECKSIGVERIFY)
+        .push_int(100)
+        .push_opcode(OP_CLTV)
+        .push_opcode(OP_ELSE)
+        .push_slice(push(&b))
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ENDIF)
+        .into_script();
+    let psbt = spend_at("p2wsh", &script, Sequence::MAX, &|d| {
+        vec![sig_bytes(6, d), vec![]]
+    });
+    assert!(!refused(&psbt), "the branch with no lock");
+    assert_eq!(rows_of(&psbt), vec![Verdict::Valid]);
+}
+
+/// A script that is not run is never refused and never reads wrong: a
+/// signature on it is Unchecked. Its spend by BOLT-3's offered HTLC
+/// revocation path, and a hash time lock given a signature of a key it
+/// does not name, are neither refused nor judged.
+#[test]
+fn a_script_not_run_is_never_refused_and_no_row_reads_wrong() {
+    use bitcoin::hashes::{hash160, sha256};
+    use bitcoin::opcodes::all::*;
+    let push = |v: &[u8]| bitcoin::script::PushBytesBuf::try_from(v.to_vec()).unwrap();
+    let h160 = |v: &[u8]| hash160::Hash::hash(v).to_byte_array();
+    let (rev, remote, local) = (key_bytes(5, true), key_bytes(6, true), key_bytes(7, true));
+    let htlc = bitcoin::script::Builder::new()
+        .push_opcode(OP_DUP)
+        .push_opcode(OP_HASH160)
+        .push_slice(h160(&rev))
+        .push_opcode(OP_EQUAL)
+        .push_opcode(OP_IF)
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ELSE)
+        .push_slice(push(&remote))
+        .push_opcode(OP_SWAP)
+        .push_opcode(OP_SIZE)
+        .push_int(32)
+        .push_opcode(OP_EQUAL)
+        .push_opcode(OP_NOTIF)
+        .push_opcode(OP_DROP)
+        .push_int(2)
+        .push_opcode(OP_SWAP)
+        .push_slice(push(&local))
+        .push_int(2)
+        .push_opcode(OP_CHECKMULTISIG)
+        .push_opcode(OP_ELSE)
+        .push_opcode(OP_HASH160)
+        .push_slice([0x22u8; 20])
+        .push_opcode(OP_EQUALVERIFY)
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ENDIF)
+        .push_opcode(OP_ENDIF)
+        .into_script();
+    let revoked = spend_at("p2wsh", &htlc, Sequence::MAX, &|d| {
+        vec![sig_bytes(5, d), rev.clone()]
+    });
+    let lock = bitcoin::script::Builder::new()
+        .push_opcode(OP_IF)
+        .push_opcode(OP_SHA256)
+        .push_slice(sha256::Hash::hash(&[9u8; 32]).to_byte_array())
+        .push_opcode(OP_EQUALVERIFY)
+        .push_slice(push(&remote))
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ELSE)
+        .push_int(144)
+        .push_opcode(OP_CSV)
+        .push_opcode(OP_DROP)
+        .push_slice(push(&local))
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ENDIF)
+        .into_script();
+    let unnamed = spend_at("p2wsh", &lock, Sequence::MAX, &|d| {
+        vec![sig_bytes(8, d), vec![9u8; 32], vec![1]]
+    });
+    for (what, psbt) in [("a revocation spend", revoked), ("an unnamed key", unnamed)] {
+        assert!(!witness_mismatch(&psbt, 0), "{what}");
+        assert!(!final_invalid(&psbt, 0), "{what}");
+        assert!(not_evaluated(&psbt, 0), "{what}: unjudged");
+        assert!(
+            !rows_of(&psbt).contains(&Verdict::Invalid),
+            "{what}: a row reads Invalid"
+        );
+    }
+    // A wrong script hash is a proved mismatch, still refused.
+    let mut wrong = spend_at("p2wsh", &lock, Sequence::MAX, &|d| {
+        vec![sig_bytes(7, d), vec![9u8; 32], vec![1]]
+    });
+    wrong.inputs[0].witness_utxo.as_mut().unwrap().script_pubkey = p2wsh_of(&htlc);
+    assert!(witness_mismatch(&wrong, 0));
+    assert!(!not_evaluated(&wrong, 0));
+}
+
+/// A bare p2pk of a key off the curve is spent by nothing and is not
+/// settled by a shape check: the script is not run.
+#[test]
+fn a_bare_p2pk_of_a_key_off_the_curve_is_not_run() {
+    let mut off = vec![2u8];
+    off.extend([0u8; 32]);
+    let spk = pk_script(&off);
+    let psbt = final_input(spk, push_script(&[&some_sig()]), &[]);
+    assert!(not_evaluated(&psbt, 0));
+    let on = pk_script(&key_bytes(5, true));
+    let psbt = final_input(on, push_script(&[&some_sig()]), &[]);
+    assert!(!not_evaluated(&psbt, 0));
+}
+
+/// A scriptSig over 10,000 bytes is over consensus's limits: a p2sh
+/// puzzle (`<100 bytes> DROP 1`, not run) with filler pushes below its
+/// redeem script is a spend at 9,000 bytes of scriptSig and none at over
+/// 10,000.
+#[test]
+fn a_script_sig_over_ten_thousand_bytes_is_refused() {
+    use bitcoin::opcodes::all::{OP_DROP, OP_PUSHNUM_1};
+    let puzzle = bitcoin::script::Builder::new()
+        .push_slice(bitcoin::script::PushBytesBuf::try_from(vec![7u8; 100]).unwrap())
+        .push_opcode(OP_DROP)
+        .push_opcode(OP_PUSHNUM_1)
+        .into_script();
+    let with_fillers = |n: usize| {
+        let filler = vec![9u8; 520];
+        let mut parts: Vec<&[u8]> = vec![filler.as_slice(); n];
+        parts.push(puzzle.as_bytes());
+        final_input(p2sh_of(&puzzle), push_script(&parts), &[])
+    };
+    let under = with_fillers(17);
+    assert!(under.inputs[0].final_script_sig.as_ref().unwrap().len() < 10_000);
+    assert!(!witness_mismatch(&under, 0));
+    let over = with_fillers(20);
+    assert!(over.inputs[0].final_script_sig.as_ref().unwrap().len() > 10_000);
+    assert!(witness_mismatch(&over, 0));
 }

@@ -631,6 +631,247 @@ fn a_cosigners_failing_witness_is_not_merged_and_a_true_one_is() {
     assert!(spend.finished.is_none());
 }
 
+/// A finalized input whose signature is by another key than the one it
+/// names finishes nothing, beside the red card the check shows.
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
+)]
+fn a_final_signature_that_does_not_verify_finishes_nothing() {
+    use faraday_bip::bitcoin::{ScriptBuf, WPubkeyHash};
+    use faraday_core::wallet::Spend;
+    let secp = Secp256k1::new();
+    let signer = |seed: u8| {
+        let sk = SecretKey::from_slice(&[seed; 32]).unwrap();
+        let key = PublicKey::new(Point::from_secret_key(&secp, &sk));
+        let mut sig = secp
+            .sign_ecdsa(&Message::from_digest([9; 32]), &sk)
+            .serialize_der()
+            .to_vec();
+        sig.push(1);
+        (key, sig)
+    };
+    let (key, _) = signer(5);
+    let (_, other_sig) = signer(6);
+    let spk = ScriptBuf::new_p2wpkh(&WPubkeyHash::hash(&key.to_bytes()));
+    let psbt = second_input(spk, ScriptBuf::new(), vec![other_sig, key.to_bytes()]);
+    let app = testkit::started();
+    let check = app.session.nonce_check(&testkit::compute(), &psbt);
+    assert!(!check.sound());
+    let mut spend = Spend::new(psbt, "t.psbt");
+    assert_eq!(
+        spend.finish().unwrap_err(),
+        EN.psbt_final_signature_refused.replace("{}", "0")
+    );
+    assert!(spend.finished.is_none());
+}
+
+/// What `p2wsh_spend` signs with: a function of the key's seed.
+type Signer<'a> = &'a dyn Fn(u8) -> Vec<u8>;
+
+/// A final p2wsh input of `script` at `sequence`, its witness made from
+/// the signatures `make` signs over the input's digest (seeds 5 and 6
+/// are the keys A and B).
+fn p2wsh_spend(
+    script: &faraday_bip::bitcoin::ScriptBuf,
+    sequence: u32,
+    make: &dyn Fn(Signer) -> Vec<Vec<u8>>,
+) -> faraday_psbt::Psbt {
+    p2wsh_spend_v(script, sequence, 2, make)
+}
+
+/// [`p2wsh_spend`] in a transaction of `version`.
+fn p2wsh_spend_v(
+    script: &faraday_bip::bitcoin::ScriptBuf,
+    sequence: u32,
+    version: i32,
+    make: &dyn Fn(Signer) -> Vec<Vec<u8>>,
+) -> faraday_psbt::Psbt {
+    use faraday_bip::bitcoin::{ScriptBuf, Sequence};
+    let mut psbt = second_input(
+        ScriptBuf::new_p2wsh(&script.wscript_hash()),
+        ScriptBuf::new(),
+        vec![],
+    );
+    psbt.inner_mut().unsigned_tx.input[0].sequence = Sequence(sequence);
+    psbt.inner_mut().unsigned_tx.version = faraday_bip::bitcoin::transaction::Version(version);
+    let value = psbt.inner().inputs[0].witness_utxo.as_ref().unwrap().value;
+    let digest = SighashCache::new(&psbt.inner().unsigned_tx)
+        .p2wsh_signature_hash(0, script, value, EcdsaSighashType::All)
+        .unwrap()
+        .to_byte_array();
+    let secp = Secp256k1::new();
+    let sign = |seed: u8| {
+        let sk = SecretKey::from_slice(&[seed; 32]).unwrap();
+        let mut sig = secp
+            .sign_ecdsa(&Message::from_digest(digest), &sk)
+            .serialize_der()
+            .to_vec();
+        sig.push(1);
+        sig
+    };
+    let mut parts = make(&sign);
+    parts.push(script.to_bytes());
+    psbt.inner_mut().inputs[0].final_script_witness =
+        Some(faraday_bip::bitcoin::Witness::from_slice(&parts));
+    psbt
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
+)]
+fn key_of(seed: u8) -> Vec<u8> {
+    let secp = Secp256k1::new();
+    let sk = SecretKey::from_slice(&[seed; 32]).unwrap();
+    PublicKey::new(Point::from_secret_key(&secp, &sk)).to_bytes()
+}
+
+/// A final p2wpkh input of the key of `seed`, signed by it.
+fn p2wpkh_spend(seed: u8) -> faraday_psbt::Psbt {
+    use faraday_bip::bitcoin::{ScriptBuf, WPubkeyHash};
+    let key = key_of(seed);
+    let spk = ScriptBuf::new_p2wpkh(&WPubkeyHash::hash(&key));
+    let mut psbt = second_input(spk.clone(), ScriptBuf::new(), vec![]);
+    let value = psbt.inner().inputs[0].witness_utxo.as_ref().unwrap().value;
+    let hash = SighashCache::new(&psbt.inner().unsigned_tx)
+        .p2wpkh_signature_hash(0, &spk, value, EcdsaSighashType::All)
+        .unwrap();
+    let mut sig = Secp256k1::new()
+        .sign_ecdsa(
+            &Message::from_digest(hash.to_byte_array()),
+            &SecretKey::from_slice(&[seed; 32]).unwrap(),
+        )
+        .serialize_der()
+        .to_vec();
+    sig.push(1);
+    psbt.inner_mut().inputs[0].final_script_witness =
+        Some(faraday_bip::bitcoin::Witness::from_slice(&[sig, key]));
+    psbt
+}
+
+/// `IF SHA256 <hash> EQUALVERIFY <a> CHECKSIG ELSE 144 CSV DROP <b> CHECKSIG
+/// ENDIF`: not a miniscript.
+fn hash_time_lock(a: &[u8], b: &[u8], hash: [u8; 32]) -> faraday_bip::bitcoin::ScriptBuf {
+    use faraday_bip::bitcoin::opcodes::all::*;
+    use faraday_bip::bitcoin::script::{Builder, PushBytesBuf};
+    let push = |b: Builder, k: &[u8]| b.push_slice(PushBytesBuf::try_from(k.to_vec()).unwrap());
+    let s = Builder::new()
+        .push_opcode(OP_IF)
+        .push_opcode(OP_SHA256)
+        .push_slice(hash)
+        .push_opcode(OP_EQUALVERIFY);
+    let s = push(s, a).push_opcode(OP_CHECKSIG).push_opcode(OP_ELSE);
+    let s = s.push_int(144).push_opcode(OP_CSV).push_opcode(OP_DROP);
+    push(s, b)
+        .push_opcode(OP_CHECKSIG)
+        .push_opcode(OP_ENDIF)
+        .into_script()
+}
+
+/// A script Faraday does not run is not a refusal and not sound: a hash
+/// time lock's true and false spends all finish and none reads sound or
+/// wrong; a miniscript, a p2wpkh and a 2-of-2 still read sound.
+#[test]
+fn a_script_that_is_not_run_reads_not_sound_and_is_not_refused() {
+    use faraday_bip::bitcoin::ScriptBuf;
+    use faraday_bip::bitcoin::opcodes::all::*;
+    use faraday_bip::bitcoin::script::{Builder, PushBytesBuf};
+    use faraday_core::wallet::Spend;
+    let push = |b: Builder, k: Vec<u8>| b.push_slice(PushBytesBuf::try_from(k).unwrap());
+    let (a, b) = (key_of(5), key_of(6));
+    let preimage = [7u8; 32];
+    let hash = faraday_bip::bitcoin::hashes::sha256::Hash::hash(&preimage).to_byte_array();
+    let lock = hash_time_lock(&a, &b, hash);
+    let mut wrong_preimage = preimage;
+    wrong_preimage[0] ^= 1;
+    let app = testkit::started();
+    let c = testkit::compute();
+    let finishes = |what: &str, psbt: faraday_psbt::Psbt, sound: bool| {
+        let check = app.session.nonce_check(&c, &psbt);
+        assert!(!check.wrong(), "{what}");
+        assert_eq!(check.sound(), sound, "{what}");
+        assert_eq!(check.not_evaluated.is_empty(), sound, "{what}");
+        let mut spend = Spend::new(psbt, "t.psbt");
+        assert!(spend.finish().is_ok(), "{what}");
+    };
+    finishes(
+        "hash branch",
+        p2wsh_spend(&lock, 0xffff_ffff, &|s| {
+            vec![s(5), preimage.to_vec(), vec![1]]
+        }),
+        false,
+    );
+    finishes(
+        "time branch",
+        p2wsh_spend(&lock, 144, &|s| vec![s(6), vec![]]),
+        false,
+    );
+    finishes(
+        "wrong preimage",
+        p2wsh_spend(&lock, 0xffff_ffff, &|s| {
+            vec![s(5), wrong_preimage.to_vec(), vec![1]]
+        }),
+        false,
+    );
+    finishes(
+        "A's signature on the time branch",
+        p2wsh_spend(&lock, 144, &|s| vec![s(5), vec![]]),
+        false,
+    );
+    finishes(
+        "a sequence below the lock",
+        p2wsh_spend(&lock, 143, &|s| vec![s(6), vec![]]),
+        false,
+    );
+    // Scripts Faraday reads stay sound.
+    let pk = Builder::new();
+    let pk = push(pk, a.clone()).push_opcode(OP_CHECKSIG).into_script();
+    finishes(
+        "miniscript",
+        p2wsh_spend(&pk, 0xffff_ffff, &|s| vec![s(5)]),
+        true,
+    );
+    let two = {
+        let s = Builder::new().push_int(2);
+        let s = push(s, a.clone());
+        push(s, b.clone())
+            .push_int(2)
+            .push_opcode(OP_CHECKMULTISIG)
+            .into_script()
+    };
+    finishes(
+        "2-of-2",
+        p2wsh_spend(&two, 0xffff_ffff, &|s| vec![vec![], s(5), s(6)]),
+        true,
+    );
+    finishes("p2wpkh", p2wpkh_spend(5), true);
+    // A p2sh puzzle and an anchor are not run either, and not refused.
+    let puzzle = Builder::new()
+        .push_opcode(OP_ADD)
+        .push_opcode(OP_PUSHNUM_5)
+        .push_opcode(OP_EQUAL)
+        .into_script();
+    let script_sig = Builder::new()
+        .push_opcode(OP_PUSHNUM_2)
+        .push_opcode(OP_PUSHNUM_3)
+        .push_slice(PushBytesBuf::try_from(puzzle.to_bytes()).unwrap())
+        .into_script();
+    let psbt = second_input(
+        ScriptBuf::new_p2sh(&puzzle.script_hash()),
+        script_sig,
+        vec![],
+    );
+    finishes("p2sh puzzle", psbt, false);
+    let anchor = ScriptBuf::from(vec![0x51, 0x02, 0x4e, 0x73]);
+    finishes(
+        "anchor",
+        second_input(anchor, ScriptBuf::new(), vec![vec![]]),
+        false,
+    );
+}
+
 fn mismatch_text(input: usize) -> String {
     EN.psbt_warn_witness_mismatch
         .replace("{}", &input.to_string())
@@ -1851,6 +2092,8 @@ fn a_disagreement_beside_an_unread_input_is_named_and_not_called_unread() {
         mismatched: vec![1],
         unread: 1,
         disagree: 1,
+        not_evaluated: vec![],
+        fields_refused: vec![],
     };
     assert!(!o.only_witness_wrong());
     assert_eq!(o.headline(), EN.nonce_disagree_head.replace("{}", "1"));
@@ -2214,4 +2457,482 @@ fn an_anyone_can_pay_taproot_signature_with_no_readable_output_is_not_a_crash() 
             );
         }
     }
+}
+
+type Spoil = fn(&mut faraday_bip::bitcoin::psbt::Input);
+
+fn set_spk(input: &mut faraday_bip::bitcoin::psbt::Input, spk: faraday_bip::bitcoin::ScriptBuf) {
+    input.witness_utxo.as_mut().unwrap().script_pubkey = spk;
+}
+
+/// The signatures of a true spend, put under an output they do not
+/// commit to or into a shape no node relays (the finalized input is
+/// never run as a script: hashes and shapes only).
+#[test]
+#[expect(clippy::too_many_lines, reason = "a table of cases")]
+fn a_finalized_non_taproot_input_that_does_not_match_its_output_is_refused() {
+    use faraday_bip::bitcoin::script::{Builder, PushBytesBuf};
+    use faraday_bip::bitcoin::{
+        PubkeyHash, ScriptBuf, ScriptHash, WPubkeyHash, WScriptHash, Witness,
+    };
+    use faraday_core::wallet::{Session, Spend};
+    fn push(b: &[u8]) -> PushBytesBuf {
+        PushBytesBuf::try_from(b.to_vec()).unwrap()
+    }
+    let cases: Vec<(&str, usize, Spoil, bool)> = vec![
+        (
+            "p2wpkh of another key",
+            0,
+            |i| {
+                set_spk(
+                    i,
+                    ScriptBuf::new_p2wpkh(&WPubkeyHash::from_byte_array([9; 20])),
+                );
+            },
+            true,
+        ),
+        (
+            "p2wsh of all zeros",
+            4,
+            |i| {
+                set_spk(
+                    i,
+                    ScriptBuf::new_p2wsh(&WScriptHash::from_byte_array([0; 32])),
+                );
+            },
+            true,
+        ),
+        (
+            "p2pkh of another key",
+            5,
+            |i| {
+                set_spk(
+                    i,
+                    ScriptBuf::new_p2pkh(&PubkeyHash::from_byte_array([9; 20])),
+                );
+            },
+            true,
+        ),
+        (
+            "plain p2sh of all zeros",
+            3,
+            |i| {
+                set_spk(
+                    i,
+                    ScriptBuf::new_p2sh(&ScriptHash::from_byte_array([0; 20])),
+                );
+            },
+            true,
+        ),
+        (
+            "p2sh-p2wpkh under another hash",
+            1,
+            |i| {
+                set_spk(
+                    i,
+                    ScriptBuf::new_p2sh(&ScriptHash::from_byte_array([0; 20])),
+                );
+            },
+            true,
+        ),
+        (
+            "p2sh-p2wpkh with a scriptSig of two pushes",
+            1,
+            |i| {
+                let redeem = i.final_script_sig.clone().unwrap();
+                let mut s = Builder::new().push_int(0).into_script().to_bytes();
+                s.extend_from_slice(redeem.as_bytes());
+                i.final_script_sig = Some(ScriptBuf::from(s));
+            },
+            true,
+        ),
+        (
+            "p2sh-p2wpkh with no witness key",
+            1,
+            |i| {
+                let w: Vec<Vec<u8>> = i
+                    .final_script_witness
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .take(1)
+                    .map(<[u8]>::to_vec)
+                    .collect();
+                i.final_script_witness = Some(Witness::from_slice(&w));
+            },
+            false,
+        ),
+        (
+            "p2wpkh with a scriptSig",
+            0,
+            |i| {
+                i.final_script_sig = Some(Builder::new().push_int(0).into_script());
+            },
+            true,
+        ),
+        (
+            "p2wpkh with three elements",
+            0,
+            |i| {
+                let mut w: Vec<Vec<u8>> = i
+                    .final_script_witness
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(<[u8]>::to_vec)
+                    .collect();
+                w.push(vec![1]);
+                i.final_script_witness = Some(Witness::from_slice(&w));
+            },
+            false,
+        ),
+        (
+            "p2wsh with an empty witness",
+            4,
+            |i| {
+                i.final_script_witness = Some(Witness::new());
+            },
+            false,
+        ),
+        (
+            "p2wsh with another script last",
+            4,
+            |i| {
+                let mut w: Vec<Vec<u8>> = i
+                    .final_script_witness
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(<[u8]>::to_vec)
+                    .collect();
+                *w.last_mut().unwrap() = vec![0x51];
+                i.final_script_witness = Some(Witness::from_slice(&w));
+            },
+            true,
+        ),
+        (
+            "p2pkh with the signature alone",
+            5,
+            |i| {
+                let sig = i
+                    .final_script_sig
+                    .as_ref()
+                    .unwrap()
+                    .instructions()
+                    .next()
+                    .unwrap()
+                    .unwrap();
+                let faraday_bip::bitcoin::script::Instruction::PushBytes(b) = sig else {
+                    panic!()
+                };
+                i.final_script_sig =
+                    Some(Builder::new().push_slice(push(b.as_bytes())).into_script());
+            },
+            false,
+        ),
+        (
+            "p2pkh with a witness",
+            5,
+            |i| {
+                i.final_script_witness = Some(Witness::from_slice(&[vec![1u8]]));
+            },
+            true,
+        ),
+        (
+            "plain p2sh with a witness",
+            3,
+            |i| {
+                i.final_script_witness = Some(Witness::from_slice(&[vec![1u8]]));
+            },
+            true,
+        ),
+        (
+            "plain p2sh with a scriptSig of another script",
+            3,
+            |i| {
+                i.final_script_sig = Some(
+                    Builder::new()
+                        .push_int(0)
+                        .push_slice(push(&[1; 71]))
+                        .push_slice(push(&[0x51]))
+                        .into_script(),
+                );
+            },
+            false,
+        ),
+    ];
+    for (what, kind, spoil, rows) in cases {
+        let true_psbt = build(&[0, kind], true, false, None);
+        assert!(offered(&true_psbt), "{what}: the true spend is offered");
+        let mut psbt = true_psbt.clone();
+        spoil(&mut psbt.inner_mut().inputs[1]);
+        assert!(
+            faraday_psbt::verify::witness_mismatch(psbt.inner(), 1),
+            "{what}"
+        );
+        let mut app = with_inbox(vec![("t.psbt", psbt.to_bytes())]);
+        let o = checked(&mut app);
+        assert_eq!(o.check.mismatched, vec![1], "{what}");
+        let own_rows: Vec<_> = o.check.rows.iter().filter(|r| r.input == 1).collect();
+        assert_eq!(own_rows.is_empty(), !rows, "{what}: rows");
+        assert!(
+            own_rows.iter().all(|r| r.verdict == Verdict::Invalid),
+            "{what}"
+        );
+        assert!(
+            o.check
+                .rows
+                .iter()
+                .filter(|r| r.input == 0)
+                .all(|r| r.verdict == Verdict::Valid),
+            "{what}: the true input beside it"
+        );
+        assert!(!o.check.sound(), "{what}");
+        assert!(o.finished.is_none(), "{what}: nothing finished is offered");
+        let mut spend = Spend::new(psbt.clone(), "t.psbt");
+        assert_eq!(spend.finish().unwrap_err(), mismatch_text(1), "{what}");
+        assert!(spend.finished.is_none(), "{what}");
+        // A cosigner's file with it is not merged; the true one is.
+        let unfinalized = |p: &faraday_psbt::Psbt| {
+            let mut own = p.clone();
+            own.inner_mut().inputs[1].final_script_witness = None;
+            own.inner_mut().inputs[1].final_script_sig = None;
+            Spend::new(own, "own.psbt")
+        };
+        let c = testkit::compute();
+        let mut own = unfinalized(&true_psbt);
+        let before = own.psbt.to_bytes();
+        let why = own
+            .collect(&c, &Session::default(), &psbt.to_bytes(), "cosigner.psbt")
+            .expect_err(what);
+        assert_eq!(why, mismatch_text(1), "{what}");
+        assert_eq!(own.psbt.to_bytes(), before, "{what}");
+        let mut own = unfinalized(&true_psbt);
+        own.collect(
+            &c,
+            &Session::default(),
+            &true_psbt.to_bytes(),
+            "cosigner.psbt",
+        )
+        .expect("a true spend merges");
+        assert!(own.finish().is_ok(), "{what}");
+    }
+}
+
+/// A signer holding key A signs properly for an output of key B, naming
+/// A's own key in the witness or `scriptSig`: the output hashes B's key,
+/// so the input is a mismatch in each kind, where B's own key under the
+/// same output is not.
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test's own signer elsewhere, apart from the app's (docs/COMPUTE.md §7)"
+)]
+fn a_key_signing_for_another_keys_output_is_a_mismatch_in_each_kind() {
+    use faraday_bip::bitcoin::script::{Builder, PushBytesBuf};
+    use faraday_bip::bitcoin::{ScriptBuf, WPubkeyHash};
+    use faraday_core::wallet::Spend;
+    let secp = Secp256k1::new();
+    let signer = |seed: u8| {
+        let sk = SecretKey::from_slice(&[seed; 32]).unwrap();
+        let key = PublicKey::new(Point::from_secret_key(&secp, &sk));
+        let mut sig = secp
+            .sign_ecdsa(&Message::from_digest([9; 32]), &sk)
+            .serialize_der()
+            .to_vec();
+        sig.push(1);
+        (key, sig)
+    };
+    let (key_a, sig_a) = signer(5);
+    let (key_b, sig_b) = signer(6);
+    let push_all = |parts: &[&[u8]]| {
+        let mut b = Builder::new();
+        for p in parts {
+            b = b.push_slice(PushBytesBuf::try_from(p.to_vec()).unwrap());
+        }
+        b.into_script()
+    };
+    // (what, output of key B, the input A makes, the input B makes)
+    type Spent = (ScriptBuf, ScriptBuf, Vec<Vec<u8>>);
+    let kinds: Vec<(&str, ScriptBuf, Spent, Spent)> = {
+        let wpkh = |k: &PublicKey| ScriptBuf::new_p2wpkh(&WPubkeyHash::hash(&k.to_bytes()));
+        let inner_b = wpkh(&key_b);
+        vec![
+            (
+                "p2pkh",
+                ScriptBuf::new_p2pkh(&key_b.pubkey_hash()),
+                (
+                    push_all(&[&sig_a, &key_a.to_bytes()]),
+                    ScriptBuf::new(),
+                    vec![],
+                ),
+                (
+                    push_all(&[&sig_b, &key_b.to_bytes()]),
+                    ScriptBuf::new(),
+                    vec![],
+                ),
+            ),
+            (
+                "p2wpkh",
+                inner_b.clone(),
+                (
+                    ScriptBuf::new(),
+                    ScriptBuf::new(),
+                    vec![sig_a.clone(), key_a.to_bytes()],
+                ),
+                (
+                    ScriptBuf::new(),
+                    ScriptBuf::new(),
+                    vec![sig_b.clone(), key_b.to_bytes()],
+                ),
+            ),
+            (
+                "p2sh-p2wpkh",
+                ScriptBuf::new_p2sh(&inner_b.script_hash()),
+                (
+                    push_all(&[inner_b.as_bytes()]),
+                    ScriptBuf::new(),
+                    vec![sig_a.clone(), key_a.to_bytes()],
+                ),
+                (
+                    push_all(&[inner_b.as_bytes()]),
+                    ScriptBuf::new(),
+                    vec![sig_b.clone(), key_b.to_bytes()],
+                ),
+            ),
+        ]
+    };
+    for (what, spk, attack, own) in kinds {
+        let own = second_input(spk.clone(), own.0, own.2);
+        assert!(
+            !faraday_psbt::verify::witness_mismatch(own.inner(), 0),
+            "{what}: B's own input"
+        );
+        let psbt = second_input(spk, attack.0, attack.2);
+        assert!(
+            faraday_psbt::verify::witness_mismatch(psbt.inner(), 0),
+            "{what}"
+        );
+        let app = testkit::started();
+        let check = app.session.nonce_check(&testkit::compute(), &psbt);
+        assert_eq!(check.mismatched, vec![0], "{what}");
+        assert!(!check.sound(), "{what}");
+        let mut spend = Spend::new(psbt, "t.psbt");
+        assert_eq!(spend.finish().unwrap_err(), mismatch_text(0), "{what}");
+    }
+}
+
+/// The inheritance kit's recovery path, signed by the recovery key and
+/// finalized: the key is in the witness, the script holds its hash. It reads
+/// Valid, and finishes, from the final PSBT and through `collect`; a bad
+/// signature in it is refused as a signature, and `collect` names the file.
+#[test]
+fn a_finalized_recovery_spend_is_a_true_spend_and_a_forged_one_is_not() {
+    use faraday_core::wallet::{Origin, Spend};
+    let c = testkit::compute();
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "inheritance")
+        .unwrap();
+    let mut session = testkit::session();
+    for n in 1..3 {
+        let (words, label) = testkit::TEST_SEEDS[n];
+        session
+            .keys
+            .add_words(&c, &testkit::test_words(words), label, None)
+            .map_err(|e| e.text())
+            .unwrap();
+    }
+    session
+        .add_wallet(&c, kit.name, &kit.descriptor, "Test wallet", Origin::Named)
+        .map_err(|e| e.text())
+        .unwrap();
+    let mut signed = testkit::recovery(&kit).unwrap();
+    session
+        .sign(
+            &c,
+            &mut signed,
+            &faraday_crypto::Zeroizing::new([0; 32]),
+            &mut None,
+        )
+        .unwrap();
+    let mut done = signed.clone();
+    assert!(faraday_psbt::finalize(&mut done).unwrap().is_some());
+    let rows: Vec<Verdict> = session
+        .inspect(&c, &done)
+        .present_signatures()
+        .map(|s| s.verdict)
+        .collect();
+    assert!(!rows.is_empty() && rows.iter().all(|v| *v == Verdict::Valid));
+    // Read back from the final PSBT.
+    let read = faraday_psbt::Psbt::parse_bytes(&c, &done.to_bytes()).unwrap();
+    assert!(Spend::new(read, "r.psbt").finish().is_ok());
+    // Through collect, from the partly signed copy.
+    let mut spend = Spend::new(signed.clone(), "r.psbt");
+    spend
+        .collect(&c, &session, &done.to_bytes(), "f.psbt")
+        .expect("a true spend is collected");
+    assert!(spend.finish().is_ok());
+    // A signature that is another's.
+    let mut forged = done.clone();
+    let witness = forged.inner().inputs[0]
+        .final_script_witness
+        .clone()
+        .unwrap();
+    let mut items: Vec<Vec<u8>> = witness.iter().map(<[u8]>::to_vec).collect();
+    let at = items[0].len() - 2;
+    items[0][at] ^= 1;
+    forged.inner_mut().inputs[0].final_script_witness =
+        Some(faraday_psbt::bitcoin::Witness::from_slice(&items));
+    assert_eq!(
+        Spend::new(forged.clone(), "r.psbt").finish().unwrap_err(),
+        EN.psbt_final_signature_refused.replace("{}", "0")
+    );
+    let mut spend = Spend::new(signed, "r.psbt");
+    assert_eq!(
+        spend
+            .collect(&c, &session, &forged.to_bytes(), "f.psbt")
+            .unwrap_err(),
+        EN.wallet_a_signature.replace("{}", "f.psbt")
+    );
+}
+
+/// A script that the interpreter alone refuses (an `older` of a version 1
+/// transaction), with a true signature, is refused in the words of the
+/// final fields, on the review, the nonce check and the finish, and its
+/// true twin is not.
+#[test]
+fn a_time_lock_the_transaction_does_not_meet_is_refused_in_the_words_of_the_final_fields() {
+    use faraday_bip::bitcoin::opcodes::all::{OP_CHECKSIGVERIFY, OP_CSV};
+    use faraday_bip::bitcoin::script::{Builder, PushBytesBuf};
+    use faraday_core::wallet::Spend;
+    let a = key_of(5);
+    let script = Builder::new()
+        .push_slice(PushBytesBuf::try_from(a).unwrap())
+        .push_opcode(OP_CHECKSIGVERIFY)
+        .push_int(10)
+        .push_opcode(OP_CSV)
+        .into_script();
+    let words = EN.psbt_final_signature_refused.replace("{}", "0");
+    let c = testkit::compute();
+    let app = with_inbox(vec![]);
+    let make = |sign: Signer| vec![sign(5)];
+    let bad = p2wsh_spend_v(&script, 10, 1, &make);
+    assert_eq!(Spend::new(bad.clone(), "t.psbt").refused(), Some(words));
+    assert!(Spend::new(bad.clone(), "t.psbt").finish().is_err());
+    let cards = |p: &faraday_psbt::Psbt| {
+        app.session
+            .inspect(&c, p)
+            .warnings
+            .iter()
+            .filter(|w| matches!(w.kind, faraday_psbt::WarningKind::FinalFieldsRefused { .. }))
+            .count()
+    };
+    assert_eq!(cards(&bad), 1);
+    let check = app.session.nonce_check(&c, &bad);
+    assert_eq!(check.headline(), EN.nonce_check_fields_refused);
+    let good = p2wsh_spend_v(&script, 10, 2, &make);
+    assert_eq!(cards(&good), 0);
+    assert_eq!(Spend::new(good.clone(), "t.psbt").refused(), None);
+    assert!(Spend::new(good, "t.psbt").finish().is_ok());
 }
