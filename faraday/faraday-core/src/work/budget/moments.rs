@@ -311,8 +311,8 @@ const SIGN: Table = &[
     ),
     (
         Work::Address,
-        6,
-        "each of the two inspections (the signing's own and the signed PSBT's) derives Savings' script at the input's and the change output's places to verify the claims (3 each)",
+        7,
+        "each of the two inspections (the signing's own and the signed PSBT's) derives Savings' script at the input's and the change output's places to verify the claims (3 each); Savings' keys at the input's place, derived the first time a stated key is proved against them (1)",
     ),
     (
         Work::FullCanvas,
@@ -334,4 +334,22 @@ fn a_psbt_opened_to_its_review_and_signed_do_their_fixed_work() {
     let s = app.wallets.spend().expect("the spend");
     assert_eq!(s.spend.signed_here.len(), 2, "both seeds signed");
     check("Sign here", &since(&before), SIGN);
+}
+
+#[test]
+fn asking_which_wallet_a_place_belongs_to_derives_scripts_and_no_keys() {
+    let app = with_spend();
+    let c = testkit::compute();
+    let w = app.session.wallets.first().expect("a wallet");
+    let before = snapshot();
+    for index in 0..40 {
+        let _ = w.script_at(&c, false, index);
+    }
+    let done = since(&before);
+    assert_eq!(
+        done.of(Work::Address),
+        40,
+        "a script derivation per place, nothing for its keys"
+    );
+    assert_eq!(done.of(Work::KeyDerive), 0);
 }

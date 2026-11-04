@@ -144,7 +144,7 @@ type ScriptKept = (
     bool,
     u32,
     Option<faraday_bip::bitcoin::ScriptBuf>,
-    Vec<(Fingerprint, faraday_bip::bitcoin::PublicKey)>,
+    Option<Vec<(Fingerprint, faraday_bip::bitcoin::PublicKey)>>,
 );
 
 impl Wallet {
@@ -188,17 +188,17 @@ impl Wallet {
         if kept.len() >= WALLET_SCRIPTS_KEPT {
             kept.clear();
         }
-        let keys = self.policy.keys_at(change, index);
-        kept.push((change, index, s.clone(), keys));
+        kept.push((change, index, s.clone(), None));
         s
     }
 
-    /// Costs what `script_at` costs where the place is not kept yet. Whether
-    /// the key `stated` is what master `fp`'s key of this wallet derives to
-    /// at `path`: a place that is `key/change/index` for one of that
-    /// master's keys, and the keys the wallet derived there with its script
-    /// (public data kept beside it, so a read is a lookup). A path that is
-    /// no place of the wallet is not derived.
+    /// Costs what `script_at` costs where the place is not kept yet, and a
+    /// derivation of each key of the wallet at the place the first time.
+    /// Whether the key `stated` is what master `fp`'s key of this wallet
+    /// derives to at `path`: a place that is `key/change/index` for one of
+    /// that master's keys, and the keys the wallet derives there, kept
+    /// beside its script (public data, so a read after is a lookup). A path
+    /// that is no place of the wallet is not derived.
     pub fn derives(
         &self,
         c: &Compute,
@@ -210,11 +210,18 @@ impl Wallet {
             return false;
         };
         self.script_at(c, change, index);
-        self.scripts
-            .borrow()
-            .iter()
+        let mut kept = self.scripts.borrow_mut();
+        let Some((.., keys)) = kept
+            .iter_mut()
             .find(|(ch, i, ..)| *ch == change && *i == index)
-            .is_some_and(|(.., keys)| keys.iter().any(|(f, k)| *f == fp && stated.is(&k.inner)))
+        else {
+            return false;
+        };
+        let keys = keys.get_or_insert_with(|| {
+            c.count(faraday_crypto::work::Work::Address);
+            self.policy.keys_at(change, index)
+        });
+        keys.iter().any(|(f, k)| *f == fp && stated.is(&k.inner))
     }
 
     /// Costs a key derivation where the wallet names the master. `None`

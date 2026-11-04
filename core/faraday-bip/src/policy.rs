@@ -698,8 +698,8 @@ impl WalletPolicy {
         self.script_with(&secp, change, index)
     }
 
-    /// Costs a derivation of each key, uncounted (the script derivation
-    /// that goes with it is counted). Each of the policy's keys with a
+    /// Costs a derivation of each key, uncounted here (the caller counts
+    /// it: `Wallet::derives`). Each of the policy's keys with a
     /// master, derived at `change`/`index`.
     pub fn keys_at(&self, change: bool, index: u32) -> Vec<(Fingerprint, PublicKey)> {
         let secp = Secp256k1::verification_only();
