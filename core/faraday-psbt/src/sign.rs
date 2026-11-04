@@ -673,7 +673,7 @@ pub(crate) fn tap_prevouts(
             | TapSighashType::SinglePlusAnyoneCanPay
     );
     if anyone_can_pay {
-        let utxo = cl.utxo.as_ref().expect("checked by caller").clone();
+        let utxo = cl.utxo.clone().ok_or(Error::MissingUtxo { input: index })?;
         return Ok(PrevoutSet::One(index, utxo));
     }
     let mut prevouts: Vec<TxOut> = Vec::with_capacity(psbt.inner().inputs.len());

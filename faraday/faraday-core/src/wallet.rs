@@ -1600,14 +1600,15 @@ impl Spend {
             input.non_witness_utxo = prev;
             input.witness_utxo = witness;
         }
-        // What is left of a false statement the file brings, final or not
-        // (an amount of the spend's own that its previous transaction
-        // contradicts), is the file's: the spend's own PSBT stays as it
-        // was.
+        // What is left of a false statement after the merge is the spend's
+        // own: a file that lies was refused above, so this is an amount
+        // of the spend's own that the honest file's previous transaction
+        // contradicts. The reason is the spend's, naming no file, and the
+        // spend's own PSBT stays as it was.
         if let Some(i) = (0..merged.inputs.len())
             .find(|&i| !own_false[i] && faraday_psbt::verify::states_false(&merged, i))
         {
-            return Err(fill(EN.wallet_file_states_false, &[source, &i.to_string()]));
+            return Err(fill(EN.psbt_final_prev_disagree, &[&i.to_string()]));
         }
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);

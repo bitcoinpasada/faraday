@@ -269,7 +269,11 @@ pub(crate) fn review(
         outputs,
         fee: fill(
             EN.sweep_fee,
-            &[&crate::decode::btc(inspection.fee.to_sat())],
+            &[&if inspection.fee_rate_sat_vb.is_some() {
+                crate::decode::btc(inspection.fee.to_sat())
+            } else {
+                EN.step_fee_not_known.to_string()
+            }],
         ),
         warnings,
         stop,

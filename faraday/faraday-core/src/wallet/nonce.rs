@@ -74,7 +74,8 @@ impl NonceCheck {
     /// the check says first, as it is what is false of the transaction.
     /// An input of a failing witness reads as a row of its own, wrong
     /// by its witness, and does not stop this; a wrong signature on
-    /// another input does. A lookup per row.
+    /// any other row does, a signature over the stated amount on the
+    /// disagreeing input itself included. A lookup per row.
     pub fn disagree_first(&self) -> bool {
         self.disagree > 0
             && self.reused.is_empty()

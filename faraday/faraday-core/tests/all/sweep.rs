@@ -377,3 +377,33 @@ fn the_sweep_scanner_takes_a_pasted_key_on_the_desktop() {
     assert_eq!(app.sheet, Some(Sheet::Sweep), "{}", note(&app));
     assert!(app.session.keys.sweep().is_some());
 }
+
+#[test]
+fn a_fee_that_cannot_be_worked_out_is_not_shown_as_nothing() {
+    let mut app = swept(WIF);
+    let to = [(receive(&app, 3), 90_000)];
+    let mut inner = sweep_psbt(&app, &to).into_inner();
+    // A second input whose previous transaction is not the one it spends,
+    // beside a `witness_utxo`: what it brings in is not known.
+    let other = inner.inputs[0].non_witness_utxo.clone().unwrap();
+    inner.unsigned_tx.input.push(TxIn {
+        previous_output: OutPoint::new(other.compute_txid(), 0),
+        script_sig: ScriptBuf::new(),
+        sequence: Sequence::ENABLE_RBF_NO_LOCKTIME,
+        witness: Witness::new(),
+    });
+    let mut wrong = other.clone();
+    wrong.lock_time = LockTime::from_consensus(1);
+    inner.inputs.push(faraday_bip::bitcoin::psbt::Input {
+        witness_utxo: Some(other.output[0].clone()),
+        non_witness_utxo: Some(wrong),
+        ..Default::default()
+    });
+    app.press(Action::Sweep(S::Scan));
+    read(
+        &mut app,
+        faraday_psbt::Psbt::from(inner).to_base64().as_bytes(),
+    );
+    let r = app.sweep().unwrap().review.as_ref().expect("reviewed");
+    assert_eq!(r.fee, format!("Fee: {}", EN.step_fee_not_known));
+}

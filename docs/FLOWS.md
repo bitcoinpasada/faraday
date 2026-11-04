@@ -2091,8 +2091,9 @@ and a signature made over the stated amount reads wrong against it).
 The disagreement is what is said when no signature is wrong and no
 nonce repeats, beside another unread input or a failing witness too (the
 failing witness's own rows read Invalid and do not count); a wrong
-signature on another input, or a repeated nonce, is what is said
-otherwise. An input not yet final that
+signature on any other row (a signature over the stated amount on the
+disagreeing input itself included), or a repeated nonce, is what is
+said otherwise. An input not yet final that
 merely states no output, and a partly signed PSBT whose inputs are
 honest, are offered as they are. A raw transaction
 whose inputs state no output they spend is checked against the PSBT in

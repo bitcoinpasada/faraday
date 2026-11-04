@@ -1426,6 +1426,28 @@ fn collect_refuses_a_file_that_puts_a_witness_utxo_against_the_previous_transact
     assert!(spend.finish().is_ok());
 }
 
+/// The spend's own false `witness_utxo` is the spend's: an honest file
+/// is not named, the merge is refused and the spend stays as it was.
+#[test]
+fn collect_does_not_name_an_honest_file_for_the_spends_own_false_witness_utxo() {
+    use faraday_core::wallet::{Session, Spend};
+    let c = testkit::compute();
+    let session = Session::default();
+    let truth = key_spend_with_previous(50_000, 50_000, true);
+    let mut previous_only = truth.clone();
+    previous_only.inner_mut().inputs[0].witness_utxo = None;
+    for file in [truth, previous_only] {
+        let mut spend = Spend::new(key_spend_with_previous(50_000, 99_999, false), "own.psbt");
+        let before = spend.psbt.to_bytes();
+        let why = spend
+            .collect(&c, &session, &file.to_bytes(), "c.psbt")
+            .unwrap_err();
+        assert_eq!(why, EN.psbt_final_prev_disagree.replacen("{}", "0", 1));
+        assert!(!why.contains("c.psbt"), "{why}");
+        assert_eq!(spend.psbt.to_bytes(), before);
+    }
+}
+
 /// A real signature of each kind of spend, the previous transaction and
 /// `witness_utxo` stated as asked. Kinds: 0 p2wpkh, 1 p2sh-p2wpkh, 2
 /// p2sh-p2wsh, 3 p2sh, 4 p2wsh, 5 p2pkh, 6 taproot key path, 7 taproot
@@ -2137,4 +2159,59 @@ fn an_honest_partly_signed_multisig_and_script_path_are_offered() {
     let shown = app.drawn_texts().join(" | ");
     assert!(shown.contains(EN.nonce_screen_more_wanted), "{shown}");
     assert!(shown.contains(EN.vault_save_to_a_stick), "{shown}");
+}
+
+/// A taproot input signed with ANYONECANPAY whose spent output the file
+/// does not state truly (a previous transaction of another txid, or
+/// nothing) has no sighash to check against: the check says so and the
+/// app goes on.
+#[test]
+fn an_anyone_can_pay_taproot_signature_with_no_readable_output_is_not_a_crash() {
+    use faraday_bip::bitcoin as btc;
+    use faraday_bip::bitcoin::sighash::TapSighashType;
+    let signature = btc::taproot::Signature {
+        signature: btc::secp256k1::schnorr::Signature::from_slice(&[1u8; 64]).unwrap(),
+        sighash_type: TapSighashType::AllPlusAnyoneCanPay,
+    };
+    for script_path in [false, true] {
+        for form in [
+            "wrong txid beside witness_utxo",
+            "wrong txid alone",
+            "nothing",
+        ] {
+            let mut p = testkit::unsigned(&kit("taproot")).unwrap();
+            let input = &mut p.inner_mut().inputs[0];
+            if script_path {
+                let x = input.tap_internal_key.unwrap();
+                let leaf = btc::taproot::TapLeafHash::from_byte_array([7u8; 32]);
+                input.tap_script_sigs.insert((x, leaf), signature);
+            } else {
+                input.tap_key_sig = Some(signature);
+            }
+            if form != "nothing" {
+                let mut prev = input.non_witness_utxo.clone().unwrap();
+                prev.lock_time = btc::absolute::LockTime::from_consensus(1);
+                input.non_witness_utxo = Some(prev);
+            } else {
+                input.non_witness_utxo = None;
+            }
+            if form != "wrong txid beside witness_utxo" {
+                input.witness_utxo = None;
+            }
+            let mut app = testkit::started();
+            add_key(&mut app, "bacon");
+            let check = app.session.nonce_check(&testkit::compute(), &p);
+            let unread = usize::from(form != "nothing");
+            assert_eq!(
+                (
+                    check.rows.len(),
+                    check.unread,
+                    check.disagree,
+                    check.sound()
+                ),
+                (1, unread, 0, false),
+                "{script_path} {form}"
+            );
+        }
+    }
 }
