@@ -30,6 +30,7 @@ need. Each document's header says what kind it is:
 | How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count, `docs/VAULT-HARDENING.md` |
 | What is the proposed 29 × 29 encrypted seed code, offered for outside review? | `docs/ACE.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
+| How does Faraday read and write Krux's encrypted codes, and what are their trade-offs? | `docs/KEF.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | What does each scanner do with each kind of code, and with one read in the wrong scanner? | `docs/SCANNING.md` |
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
@@ -113,6 +114,7 @@ need. Each document's header says what kind it is:
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145), not built.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
+- `docs/KEF.md`: KEF, Krux's encrypted code, read and written in full, beside the QR vault. Planned; nothing built, and it waits on its decision.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built; paused until a Mac is available to test on.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).
