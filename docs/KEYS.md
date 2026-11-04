@@ -343,7 +343,7 @@ faraday-core sees an open vault's public fields and nothing else.
   record's words are written out from its payload (it costs a parse).
   `words_of` gives the words as a held `Mnemonic` for a SeedQR or a file,
   `gpg_paperkey` the paperkey text, `totp` the code and account of an
-  entry, `kdbx_job` a KeePass database of one, written and checked by `KdbxJob::run`.
+  entry, `kdbx_job` a vault of one entry for a KeePass app, written by `KdbxJob::run`.
 - **Operations by record.** `load_from_vault`, `load_key_record`,
   `load_key_with_passphrase`, `same_words`, `stores_passphrase_of`,
   `passphrase_record_is`, `holds_session_words`, `word_count` and

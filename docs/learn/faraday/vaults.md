@@ -42,7 +42,7 @@ The cards start from each record's Load at unlock, on its page in the vault: Yes
 
 ## KeePass export
 
-An entry in a vault (a title, a username, a password, a URL and notes) can leave as a KeePass database: Export for KeePass on the entry, under a passphrase of at least eight characters. The file is KDBX 4, which KeePassXC, KeePassDX, KeePassium and KeePass open. It holds that one entry, and is as safe as its passphrase.
+An entry in a vault (a title, a username, a password, a URL and notes) can leave as a KeePass database: Export for KeePass on the entry, under a passphrase of at least eight characters. The file is KDBX 4, which KeePassXC, KeePassDX, KeePassium and KeePass open. It is a vault of that one entry, which Faraday opens like any other, and is as safe as its passphrase.
 
 ## Reading a vault without Faraday
 

@@ -7,7 +7,7 @@
 //! main thread, and the open vault joins the store there.
 
 use faraday_crypto::work::Compute;
-use faraday_keys::job::{KdbxError, KdbxJob, StretchJob, Stretched};
+use faraday_keys::job::{KdbxJob, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
 use faraday_vault::file::STEPS_KIB;
 use faraday_vault::{Cost, records::field, records::kind};
@@ -382,14 +382,14 @@ pub(crate) struct KdbxWork {
 }
 
 /// A KeePass export's answer: the file (encrypted, so public, written
-/// and verified), or why there is none.
+/// as a new vault), or why there is none.
 pub(crate) struct KdbxDone {
-    file: Result<Vec<u8>, KdbxError>,
+    file: Result<Vec<u8>, faraday_vault::file::Error>,
     name: String,
 }
 
 impl KdbxWork {
-    /// Costs two Argon2id runs, the database's and the check after it.
+    /// Costs an Argon2id run, the new vault's.
     pub(crate) fn run(self, c: &Compute) -> KdbxDone {
         KdbxDone {
             file: self.job.run(c),
@@ -398,9 +398,11 @@ impl KdbxWork {
     }
 }
 
-/// The front half of the KeePass export: the selected entry, sealed
-/// under the prompt's passphrase, which is copied into the job (the prompt
-/// keeps it for an error) and wiped with it. False when nothing started.
+/// The front half of the KeePass export: the selected item, put in a new
+/// vault sealed under the prompt's passphrase, which is copied into the job
+/// (the prompt keeps it for an error) and wiped with it. The vault's
+/// identifier, seal and entry identifiers are drawn as Create a vault and
+/// a seal draw them. False when nothing started.
 fn kdbx_start(app: &mut Faraday) -> bool {
     let Some(at) = app.vault_selected_index() else {
         return false;
@@ -429,27 +431,38 @@ fn kdbx_start(app: &mut Faraday) -> bool {
     else {
         return false;
     };
-    // The database's own randomness, every byte the format needs
-    // taken fresh.
-    let Some(draw) = app.fresh_bytes(b"kdbx", faraday_keys::vault::KDBX_SEED_LEN) else {
-        if let Some(p) = app.vaults.state.prompt.as_mut() {
-            p.error = Some(EN.vaults_no_randomness.to_string());
-        }
+    let (Some(vid), Some(random), Some(uuids)) = (
+        app.fresh_bytes(b"vault id", 16),
+        app.fresh_bytes(b"vault seal", SEAL_RANDOM_LEN),
+        app.fresh_bytes(b"vault entries", 32),
+    ) else {
+        say_no_randomness(app);
         return false;
     };
-    let mut seed = Zeroizing::new([0u8; faraday_keys::vault::KDBX_SEED_LEN]);
-    seed.copy_from_slice(&draw);
-    let (out, name) = crate::bip85::kdbx_out(&app.outbox, &title);
-    let words = faraday_keys::vault::KdbxWords {
-        title: out,
-        username: EN.vaults_username,
-        url: EN.vaults_url,
+    let mut vid16 = [0u8; 16];
+    vid16.copy_from_slice(&vid);
+    let mut seal = Zeroizing::new([0u8; SEAL_RANDOM_LEN]);
+    seal.copy_from_slice(&random);
+    let mut u32s = [0u8; 32];
+    u32s.copy_from_slice(&uuids);
+    let now = app.clock_now();
+    // The memory step the prompt offers is the first; passes and lanes are
+    // the format's.
+    let cost = Cost {
+        memory_kib: STEPS_KIB[0],
+        passes: 3,
+        lanes: 4,
     };
-    let Some(job) = app
-        .vaults
-        .store()
-        .kdbx_job((id, at), &words, passphrase, seed)
-    else {
+    let (out, name) = crate::bip85::kdbx_out(&app.outbox, &title);
+    let Some(job) = app.vaults.store().kdbx_job(
+        (id, at),
+        out,
+        (vid16, EN.vaults_vault, now),
+        passphrase,
+        cost,
+        seal,
+        u32s,
+    ) else {
         return false;
     };
     app.start(
@@ -475,13 +488,12 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
         }
         Err(why) => {
             if let Some(p) = app.vaults.state.prompt.as_mut() {
-                p.error = Some(
-                    match why {
-                        KdbxError::TooLarge => EN.vaults_entry_too_large_kdbx,
-                        KdbxError::NotVerified => EN.vaults_kdbx_unverified,
+                p.error = Some(match why {
+                    faraday_vault::file::Error::Full { .. } => {
+                        EN.vaults_entry_too_large_kdbx.to_string()
                     }
-                    .to_string(),
-                );
+                    e => errors::error_text(&e),
+                });
             }
         }
     }

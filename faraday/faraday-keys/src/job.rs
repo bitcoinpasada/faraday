@@ -235,63 +235,65 @@ impl Sealed {
     }
 }
 
-/// A KeePass database to write on another thread: the entry's text and
-/// password and the passphrase it is sealed under, moved in, with the
-/// randomness the file needs. Everything wipes as the job ends.
+/// A vault holding one item to write on another thread, for a KeePass
+/// app: the item, the passphrase it is sealed under and the randomness the
+/// file needs, moved in. Everything wipes as the job ends.
 pub struct KdbxJob {
-    title: Vec<u8>,
-    notes: Zeroizing<Vec<u8>>,
-    password: Zeroizing<Vec<u8>>,
+    record: fv::Record,
+    names: Names,
+    vault: ([u8; 16], Box<str>, Option<u64>),
+    uuids: ([u8; 16], [u8; 16]),
     passphrase: SecretText,
-    seed: Zeroizing<[u8; crate::vault::KDBX_SEED_LEN]>,
+    cost: fv::Cost,
+    random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
 }
 
 impl KdbxJob {
     pub(crate) fn new(
-        title: Vec<u8>,
-        notes: Zeroizing<Vec<u8>>,
-        password: Zeroizing<Vec<u8>>,
+        record: fv::Record,
+        names: Names,
+        vault: ([u8; 16], Box<str>, Option<u64>),
+        uuids: ([u8; 16], [u8; 16]),
         passphrase: SecretText,
-        seed: Zeroizing<[u8; crate::vault::KDBX_SEED_LEN]>,
+        cost: fv::Cost,
+        random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
     ) -> KdbxJob {
         KdbxJob {
-            title,
-            notes,
-            password,
+            record,
+            names,
+            vault,
+            uuids,
             passphrase,
-            seed,
+            cost,
+            random,
         }
     }
 
-    /// Costs two Argon2id runs: a KDBX 4 database's own and the check after
-    /// it ([`crate::vault::write_kdbx`], then `faraday_backup::kdbx::verify`
-    /// under the same passphrase). The file, encrypted so public; an error
-    /// where the entry does not fit or the file written does not verify,
-    /// and then no file is given back.
-    pub fn run(self, c: &Compute) -> Result<Vec<u8>, KdbxError> {
-        let file = crate::vault::write_kdbx(
-            c,
-            &self.title,
-            &self.notes,
-            &self.password,
-            self.passphrase.as_bytes(),
-            &self.seed,
-        )
-        .ok_or(KdbxError::TooLarge)?;
-        if !faraday_backup::kdbx::verify(c, &file, self.passphrase.as_bytes()) {
-            return Err(KdbxError::NotVerified);
-        }
-        Ok(file)
+    /// Costs an Argon2id run at the job's cost and a document write (the
+    /// same calls as `faraday_vault::file::create_holding`). The vault
+    /// file, encrypted so public; an error where the item does not fit the
+    /// largest size, and then no file is given back.
+    pub fn run(self, c: &Compute) -> Result<Vec<u8>, fv::file::Error> {
+        let (id, label, now) = &self.vault;
+        let op = Op::Put {
+            uuid: self.uuids.0,
+            group_uuid: self.uuids.1,
+            new: true,
+            record: self.record.clone(),
+        };
+        with_changes(c, &self.names, &[op], true, *now, |changes| {
+            fv::file::create_holding(
+                c,
+                *id,
+                label,
+                self.cost,
+                self.passphrase.as_str(),
+                &self.random,
+                *now,
+                changes,
+            )
+        })
     }
-}
-
-/// Why a KeePass export gave no file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum KdbxError {
-    /// The entry does not fit in the database.
-    TooLarge,
-    /// The file written did not verify under its passphrase.
-    NotVerified,
 }
 
 /// A PSBT to sign on another thread (`docs/WORKERS.md` §6).

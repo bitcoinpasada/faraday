@@ -103,44 +103,61 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
         .find(|i| i.name.ends_with(".kdbx"))
         .expect("no KeePass file");
     assert_eq!(file.kind.exposure(), Exposure::Sealed);
-    assert!(faraday_backup::kdbx::verify(
-        &c,
-        &file.bytes,
-        b"keepass passphrase"
-    ));
-    assert!(!faraday_backup::kdbx::verify(&c, &file.bytes, b"another"));
-    // Its randomness is the system's fresh bytes as they came, an answer
-    // for every 32, the latest first: the master seed is the last
-    // answer's, 0x4b × 32, taken as SHA-256("faraday fresh" ‖ "kdbx" ‖
-    // answer), and the encryption IV the first 12 bytes of the one
-    // before's (computed with Python's `hashlib`).
+    let opened = faraday_vault::file::open(&c, &file.bytes, "keepass passphrase")
+        .expect("the file opens as a vault under its passphrase");
+    assert!(faraday_vault::file::open(&c, &file.bytes, "another").is_err());
+    // One entry, an ordinary one in the root group, at the smallest size.
+    let read = opened.read();
+    assert_eq!(read.items.len(), 1);
+    assert!(read.items[0].path.is_empty());
+    let faraday_vault::kdbx::items::Body::Record(r) = &read.items[0].body else {
+        panic!("a person's entry");
+    };
+    assert_eq!(r.text(faraday_vault::records::field::TITLE), Some("Mail"));
     assert_eq!(
-        hex(header_field(&file.bytes, 4)),
-        "3c654f400a8e486b60e50c4487b18f5f5e263fad2f571fbf1a4ff9460315d3f5"
+        r.text(faraday_vault::records::field::PASSWORD),
+        Some("hunter22")
     );
-    assert_eq!(
-        hex(header_field(&file.bytes, 7)),
-        "7e8f080f045fb896678ccbee"
-    );
+    assert_eq!(read.seals, 1);
+    pykeepass_reads_one_entry(&file.bytes);
+    assert_eq!(opened.facts().size, Some(65_536));
+    let cost = opened.facts().header.cost;
+    assert_eq!((cost.memory_kib, cost.passes, cost.lanes), (65_536, 3, 4));
 }
 
-fn hex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-
-/// The value of KDBX 4 outer header field `id`: after the two signatures
-/// and the version, each field is its id, a four-byte little-endian
-/// length and the value.
-fn header_field(file: &[u8], id: u8) -> &[u8] {
-    let mut at = 12;
-    loop {
-        let len = u32::from_le_bytes(file[at + 1..at + 5].try_into().unwrap()) as usize;
-        if file[at] == id {
-            return &file[at + 5..at + 5 + len];
-        }
-        assert_ne!(file[at], 0, "no field {id}");
-        at += 5 + len;
+/// The exported file read by pykeepass (tools/vectors/kdbx/reread.py): one
+/// entry, in the root group, with its password. Said and skipped where
+/// pykeepass is not installed.
+fn pykeepass_reads_one_entry(file: &[u8]) {
+    let dir = std::env::temp_dir().join(format!("faraday-export-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("export.kdbx");
+    std::fs::write(&path, file).unwrap();
+    let script =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/vectors/kdbx/reread.py");
+    let out = std::process::Command::new("python3")
+        .args(["-I", "-B"])
+        .arg(script)
+        .arg(&path)
+        .arg("keepass passphrase")
+        .output();
+    let _ = std::fs::remove_dir_all(&dir);
+    let Ok(out) = out else {
+        return;
+    };
+    let err = String::from_utf8_lossy(&out.stderr);
+    if !out.status.success() && (err.contains("ModuleNotFoundError") || err.contains("ImportError"))
+    {
+        eprintln!("pykeepass is not installed: skipped");
+        return;
     }
+    assert!(out.status.success(), "pykeepass: {err}");
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.starts_with("/Mail\t\thunter22\t\t0\t\nbin: no"),
+        "{text}"
+    );
 }
 
 fn kdbx_files(app: &Faraday) -> usize {

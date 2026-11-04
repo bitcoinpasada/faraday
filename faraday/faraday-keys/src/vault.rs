@@ -44,9 +44,6 @@ use zeroize::Zeroizing;
 use crate::identity::{Material, fingerprint};
 use crate::session::{Held, Keys, Part, Reveal, Revealed, WordsId, words_id};
 
-/// The random bytes one KDBX database needs.
-pub const KDBX_SEED_LEN: usize = faraday_backup::kdbx::SEED_LEN;
-
 /// The fields of a GPG record (type 7), by number
 /// (`docs/VAULT.md` §7).
 pub mod gpg_field {
@@ -2375,43 +2372,54 @@ impl OpenVaults {
         })
     }
 
-    /// A KeePass database to write on another thread: what
-    /// [`crate::job::KdbxJob::run`] writes, the passphrase moved in. A line
-    /// of the notes that is a BIP-85 path is left out, so a password
-    /// BIP-85 made goes without its index (F172). `None` where the record
-    /// is no entry.
+    /// A vault holding one item to write on another thread, for a KeePass
+    /// app (`docs/VAULT.md` §8): record `at` as it is kept, a person's
+    /// entry in the root group or an item in its kind's group, in a new
+    /// vault `id` named `label`, under `passphrase`, moved in, at `cost`,
+    /// with `random` for the seal and `uuids` for the entry and its group.
+    /// A line of the notes that is a BIP-85 path is left out, so a password
+    /// BIP-85 made goes without its index (F172), and the title is `title`.
+    /// `None` where the record is no entry or item.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each is a value the new file states; the caller draws them all"
+    )]
     pub fn kdbx_job(
         &self,
         at: (VaultId, usize),
-        words: &KdbxWords<'_>,
+        title: &str,
+        (id, label, now): ([u8; 16], &str, Option<u64>),
         passphrase: faraday_intake::secret_buf::SecretText,
-        seed: Zeroizing<[u8; KDBX_SEED_LEN]>,
+        cost: fv::Cost,
+        random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
+        uuids: [u8; 32],
     ) -> Option<crate::job::KdbxJob> {
-        let (id, i) = at;
-        let r = self.slot(id)?.records.get(i)?;
-        if r.kind != kind::ENTRY {
-            return None;
-        }
-        let mut notes = String::new();
-        for (label, f) in [(words.username, field::USERNAME), (words.url, field::URL)] {
-            if let Some(v) = r.text(f) {
-                notes.push_str(&format!("{label}: {v}\n"));
+        let (vid, i) = at;
+        let r = self.slot(vid)?.records.get(i)?;
+        let mut record = r.clone();
+        if record.kind == kind::ENTRY {
+            record.set(field::TITLE, title.as_bytes());
+            if let Some(n) = r.text(field::NOTES) {
+                let kept: String = n
+                    .split_inclusive('\n')
+                    .filter(|l| !l.trim_start().starts_with(BIP85_PATH))
+                    .collect();
+                record.set(field::NOTES, kept.as_bytes());
             }
         }
-        if let Some(n) = r.text(field::NOTES) {
-            for l in n.split_inclusive('\n') {
-                if !l.trim_start().starts_with(BIP85_PATH) {
-                    notes.push_str(l);
-                }
-            }
-        }
-        let notes = Zeroizing::new(notes.into_bytes());
+        body_of(&record)?;
+        let mut u = [0u8; 16];
+        let mut g = [0u8; 16];
+        u.copy_from_slice(&uuids[..16]);
+        g.copy_from_slice(&uuids[16..]);
         Some(crate::job::KdbxJob::new(
-            words.title.as_bytes().to_vec(),
-            notes,
-            Zeroizing::new(r.field(field::PASSWORD).unwrap_or(&[]).to_vec()),
+            record,
+            self.names.clone(),
+            (id, label.into(), now),
+            (u, g),
             passphrase,
-            seed,
+            cost,
+            random,
         ))
     }
 
@@ -3152,18 +3160,6 @@ impl OpenVaults {
 /// (F172).
 const BIP85_PATH: &str = "m/83696968'";
 
-/// The words a KeePass export puts around an entry's own text.
-pub struct KdbxWords<'a> {
-    /// The entry's title as the export carries it: the caller's, which
-    /// for a password BIP-85 made names neither its parent nor its index
-    /// (F172).
-    pub title: &'a str,
-    /// The label before the username in the notes.
-    pub username: &'a str,
-    /// The label before the URL in the notes.
-    pub url: &'a str,
-}
-
 /// What loading a key record with a passphrase came to.
 pub enum KeyLoad {
     /// The key it gives is not one `accept` took: its fingerprint, and
@@ -3467,24 +3463,4 @@ pub fn create(
 /// a vault's unlock takes on this computer, measured.
 pub fn measure(c: &Compute, facts: &fv::file::Facts) {
     let _ = fv::file::measure(c, facts);
-}
-
-/// Costs a KDBX 4 database's Argon2id run. A KeePass database holding one
-/// entry (`title`, `notes` and the secret `password`), sealed under
-/// `passphrase`, with its randomness from `seed`. The bytes are
-/// encrypted, so public; `None` where the entry does not fit.
-pub fn write_kdbx(
-    c: &Compute,
-    title: &[u8],
-    notes: &[u8],
-    password: &[u8],
-    passphrase: &[u8],
-    seed: &[u8; KDBX_SEED_LEN],
-) -> Option<Vec<u8>> {
-    let item = faraday_backup::kdbx::Item {
-        title,
-        notes,
-        secret: password,
-    };
-    faraday_backup::kdbx::write(c, &[item], passphrase, faraday_backup::DEVICE_PARAMS, seed)
 }

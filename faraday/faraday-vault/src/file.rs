@@ -485,3 +485,43 @@ pub fn create(
         e => e.into(),
     })
 }
+
+/// Costs an Argon2id run at `cost` and a document write for each item put.
+/// A new vault as [`create`] makes it (first seal, count 1), with `changes`
+/// put in it, each a [`Change::Put`], sealed at the smallest of [`SIZES`]
+/// that holds it; `Error::Full` where the largest does not.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each is a value the new file states; the caller draws them all"
+)]
+pub fn create_holding(
+    c: &Compute,
+    id: [u8; 16],
+    label: &str,
+    cost: Cost,
+    passphrase: &str,
+    random: &[u8; kdbx::RANDOM_LEN],
+    now: Option<u64>,
+    changes: &[Change<'_>],
+) -> Result<Vec<u8>, Error> {
+    let mut doc = Document::new(id, label);
+    for change in changes {
+        match change {
+            Change::Put { place, body } => items::put(c, &mut doc, place, body)?,
+            _ => return Err(Error::Unwritable(Unwritable::Unreadable)),
+        }
+    }
+    let time = now.and_then(items::utc_time);
+    items::stamp(&mut doc, 1, time.as_deref())?;
+    let xml = doc.write(kdbx::inner_key_of(random));
+    let size = smallest_holding(kdbx::plain_needs(&[], xml.len()));
+    let contents = Contents {
+        document: &xml,
+        binaries: &[],
+        public_custom_data: None,
+    };
+    kdbx::seal(c, passphrase, cost, random, &contents, size).map_err(|e| match e {
+        kdbx::Error::Full(n) => full(n, size),
+        e => e.into(),
+    })
+}

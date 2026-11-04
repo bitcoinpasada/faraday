@@ -200,14 +200,28 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
         .find(|i| i.name.ends_with(".kdbx"))
         .expect("no KeePass file");
     assert_eq!(file.name, "password.kdbx");
-    let body = faraday_backup::kdbx::open_for_tests(&c, &file.bytes, b"keepass passphrase")
+    let opened = faraday_vault::file::open(&c, &file.bytes, "keepass passphrase")
         .expect("the file opens under its passphrase");
-    let xml = String::from_utf8_lossy(&body);
-    assert!(
-        xml.contains("<Key>Title</Key><Value>Password</Value>"),
-        "{xml}"
+    let read = opened.read();
+    assert_eq!(read.items.len(), 1);
+    let faraday_vault::kdbx::items::Body::Record(r) = &read.items[0].body else {
+        panic!("a person's entry");
+    };
+    assert_eq!(r.kind, kind::ENTRY);
+    assert_eq!(r.text(field::TITLE), Some("Password"));
+    assert_eq!(r.field(field::PASSWORD), Some(want.as_str().as_bytes()));
+    assert!(read.items[0].path.is_empty(), "in the root group");
+    let all = format!(
+        "{} {:?} {}",
+        read.label,
+        read.items[0].path,
+        [field::TITLE, field::USERNAME, field::URL, field::NOTES]
+            .iter()
+            .filter_map(|f| r.text(*f))
+            .collect::<Vec<_>>()
+            .join(" ")
     );
-    assert_eq!(names_the_parent(&app, &body), None, "{xml}");
+    assert_eq!(names_the_parent(&app, all.as_bytes()), None, "{all}");
     assert_eq!(names_the_parent(&app, file.name.as_bytes()), None);
     // The same password out as a file, unprotected: itself alone.
     app.press(Action::Bip85);

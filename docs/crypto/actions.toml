@@ -7708,10 +7708,12 @@ functions = [
   "core/faraday-crypto/src/argon2.rs::argon2",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_job",
   "faraday/faraday-keys/src/job.rs::KdbxJob::run",
+  "faraday/faraday-vault/src/file.rs::create_holding",
 ]
 code = [
   "core/faraday-backup/src/kdbx.rs::write",
   "faraday/faraday-keys/src/job.rs::KdbxJob::run",
+  "faraday/faraday-vault/src/file.rs::create_holding",
 ]
 
 [[action.screens_not]]

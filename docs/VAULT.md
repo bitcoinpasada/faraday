@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), the KeePass export folded into the vault (§8), and the outside cross-check area for the QR vault (§10)
+**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), and the outside cross-check area for the QR vault (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -810,13 +810,23 @@ writes the Outbox as it writes any file. After each save the new code
 is shown, with the note that an earlier printed code still opens to
 what it held before.
 
-**The KeePass export is a vault** (F190 point 10). Where Faraday
-exported a key's words, a master seed, a note, a recovery sheet or an
-entry for a KeePass app (`docs/KDBX.md`), it makes a vault holding that
-one item, at the size it fits, under a passphrase typed for it: one
-KDBX writer and one shape. Its file is named as the export's was
-(`password.kdbx` for a BIP-85 password). `docs/KDBX.md`'s export, its
-strings and its vectors go when this is built.
+**The KeePass export is a vault** (F190 point 10). **Export for KeePass**
+on a person's entry makes a new vault holding that one entry, a
+person's entry in the root group (§7), at the smallest size it fits,
+Argon2id at the first memory step (§3.1), 3 passes and 4 lanes, under a
+passphrase typed for it (8 characters or more), as Create a vault makes
+one: its identifier, its seal and its entry's identifiers are drawn as a
+vault's are (`fresh_bytes`), and the seal is count 1. The file is named
+as the export's file always was (`password.kdbx` for a BIP-85
+password, `password-2.kdbx` beside one waiting) and waits in the Outbox
+sealed. The entry's title is its own, "Password" for a BIP-85 password,
+and a notes line that is a BIP-85 path is left out. A KeePass app reads
+it as a database of one entry; Faraday opens it as any vault. As
+Create a vault does, the export does not read the file back. Exporting a
+key's words, a master seed, a note or a recovery sheet this way is not
+built: the entry is the one item with an export. `docs/KDBX.md`'s writer,
+its strings and its vectors are still in the repository and go when the
+rest of this is built.
 
 ## 9. What the vault promises
 

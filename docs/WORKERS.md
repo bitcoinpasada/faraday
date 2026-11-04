@@ -97,7 +97,7 @@ table together and says in its message what was measured on what.
 | Work | Presses | Side |
 |---|---|---|
 | Argon2id for a vault | A vault opened, an older one opened, made; each changed vault at a lock, one at a time (`Kind::VaultSeal`); the boot import's unlock; the Spend tab's unlock | Job |
-| Argon2id for a KeePass file | The KDBX export written and verified (`V::ExportKdbx`, then `V::PromptGo`) | Job |
+| Argon2id for a KeePass file | The KDBX export written as a vault of one entry (`V::ExportKdbx`, then `V::PromptGo`) | Job |
 | Argon2id for each key | Practice's samples loaded (`SamplesLoad`) | Job |
 | scrypt | An aezeed read (Lightning) | Job |
 | Signing | A PSBT signed, on the Spend tab or from a review | Job |
