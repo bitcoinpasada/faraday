@@ -2027,11 +2027,11 @@ impl Faraday {
             | Action::LoadKey(_)
             | Action::KeyGen(None)
             | Action::CSlotVault(..)
+            | Action::Convert(convert::ConvertAction::VaultKey(..))
             | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_wallet,
-            // The ticks stay on the Load samples state while the sheet
-            // waits; the load runs when the stick is out.
+            // The ticks stay on Load samples' state; the load runs once the stick is out.
             Action::SamplesLoad if self.sample_area.any_ticked() => EN.pull_what_load_samples,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.

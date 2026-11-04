@@ -141,10 +141,17 @@ has signed, or a MuSig2 round is open here, Back goes back no further
 than the step after it. Escape is Back on BIP-85, Convert a seed and Vanity.
 
 **Convert a seed** (`docs/SEED-CONVERSION.md` §6). Tools' tile opens From, the
-loaded keys and **Add a key**, which returns here; with one key loaded, To
-opens on it. A press under To works out the value, on the tick after a
-frame, and Result opens with it masked, its Facts and **Done**. A dimmed row
-under To takes no press. Leaving Result, or the flow, drops the value.
+loaded keys, the open vaults' keys not loaded and **Add a key**, which returns
+here; a vault's key, pressed, loads and stays loaded, as under Make a new
+wallet's Keys; with one key loaded, To opens on it. A press under To works out
+the value, on the tick after a frame, and Result opens with it masked, its
+Facts, **Check my copy**, **Save as a file…** and **Done**. Check my copy takes
+the copy typed back, as dots, and on **Compare** or Enter says whether it
+matches; a difference wipes what was typed. **Save as a file…** opens the Secret
+out sheet (`docs/DESIGN.md` §4.10) with the value alone, and nothing is written
+until the sheet is answered. Both work in Practice, whose keys are public seeds.
+A dimmed row under To takes no press. Leaving Result, or the flow, drops the
+value and what was typed.
 
 **Mouse and typing** (decision 47). On the desktop the mouse's back
 button does what Back does (F77, F104: within a flow the step before,

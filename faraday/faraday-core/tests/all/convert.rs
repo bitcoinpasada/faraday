@@ -5,7 +5,7 @@
 use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
 use faraday_core::wallet::Origin;
 use faraday_core::{Action, Faraday, Screen, testkit};
-use faraday_shell_api::{App, Event};
+use faraday_shell_api::{App, Event, Key};
 
 /// BIP-39's first twelve-word vector.
 const ABOUT: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
@@ -221,6 +221,116 @@ fn the_paths_fact_names_the_wallets_that_hold_the_key() {
     );
 }
 
+/// The copy typed on the keyboard.
+fn type_copy(app: &mut Faraday, copy: &str) {
+    for c in copy.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+}
+
+/// Check my copy on `value`'s row: wrong, then right, each saying so where
+/// the person can read it.
+fn checks(row: &str, right: &str) {
+    let mut app = opened(mainnet(), ABOUT);
+    assert_eq!(make(&mut app, row).as_deref(), Some(right));
+    app.press(Action::Convert(C::Check));
+    // One character short, and one changed.
+    type_copy(&mut app, &right[..right.len() - 1]);
+    app.press(Action::Convert(C::Compare));
+    assert_eq!(convert::found(&app), Some(false));
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Your copy differs"));
+    assert_eq!(convert::typed(&app), Some(""), "what differs is wiped");
+    let mut changed = right.to_string();
+    changed.replace_range(..1, if right.starts_with('0') { "1" } else { "0" });
+    type_copy(&mut app, &changed);
+    assert_eq!(convert::found(&app), None, "typing clears the finding");
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(false));
+    type_copy(&mut app, right);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(true));
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Your copy matches"));
+    assert_eq!(convert::typed(&app), None, "a match closes the check");
+}
+
+#[test]
+fn check_my_copy_says_a_copy_of_the_hex_is_right_or_wrong() {
+    checks("Master seed, hex", ABOUT_SEED);
+}
+
+#[test]
+fn check_my_copy_says_a_copy_of_the_xprv_is_right_or_wrong() {
+    checks("xprv", ABOUT_XPRV);
+}
+
+#[test]
+fn check_my_copy_works_with_the_value_masked() {
+    let mut app = opened(mainnet(), ABOUT);
+    assert!(make(&mut app, "xprv").is_some());
+    app.press(Action::Convert(C::Show));
+    assert_eq!(convert::shown(&app), None);
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, ABOUT_XPRV);
+    app.press(Action::Convert(C::Compare));
+    assert_eq!(convert::found(&app), Some(true));
+}
+
+#[test]
+fn leaving_result_drops_what_was_typed() {
+    let mut app = opened(mainnet(), ABOUT);
+    assert!(make(&mut app, "xprv").is_some());
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, "xprv");
+    assert_eq!(convert::typed(&app), Some("xprv"));
+    // Escape closes the check, and the flow stays.
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(convert::typed(&app), None);
+    assert_eq!(app.screen, Screen::Convert);
+    // Back to To drops it.
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, "xprv");
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    assert_eq!(convert::typed(&app), None);
+    // So does leaving the flow.
+    assert!(make(&mut app, "xprv").is_some());
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, "xprv");
+    app.press(Action::Convert(C::Done));
+    assert_eq!(convert::typed(&app), None);
+    open(&mut app);
+    assert_eq!(convert::typed(&app), None);
+    assert_eq!(convert::found(&app), None);
+}
+
+#[test]
+fn save_offers_exactly_the_value_and_writes_nothing_until_answered() {
+    let mut app = opened(mainnet(), ABOUT);
+    let waiting = app.outbox.len();
+    assert_eq!(make(&mut app, "xprv").as_deref(), Some(ABOUT_XPRV));
+    assert_eq!(app.outbox.len(), waiting, "a conversion writes nothing");
+    app.press(Action::Convert(C::Save));
+    let out = testkit::secret_out(&app).expect("the Secret out sheet is up");
+    assert_eq!(out.bytes.as_slice(), ABOUT_XPRV.as_bytes());
+    assert_eq!(
+        app.outbox.len(),
+        waiting,
+        "nothing until the sheet is answered"
+    );
+    // Cancel writes nothing, and the result stays.
+    app.press(Action::Cancel);
+    assert_eq!(app.outbox.len(), waiting);
+    assert_eq!(convert::shown(&app), Some(ABOUT_XPRV));
+    // Answered: the file holds the value and nothing else.
+    app.press(Action::Convert(C::Save));
+    app.press(Action::SecretUnprotected);
+    assert_eq!(app.outbox.len(), waiting, "not before the hold");
+    app.press(Action::SecretHold);
+    let item = app.outbox.last().expect("the file is written");
+    assert_eq!(&item.bytes[..], ABOUT_XPRV.as_bytes());
+}
+
 #[test]
 fn practice_converts_a_public_seed() {
     let mut app = testkit::started();
@@ -233,5 +343,15 @@ fn practice_converts_a_public_seed() {
         .add_words(&c, &words, "Sample", None)
         .unwrap();
     open(&mut app);
-    assert!(make(&mut app, "xprv").is_some());
+    let value = make(&mut app, "xprv").unwrap();
+    // Check my copy and the sheet stay open there, the seed being public.
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &value);
+    app.press(Action::Convert(C::Compare));
+    assert_eq!(convert::found(&app), Some(true));
+    app.press(Action::Convert(C::Save));
+    assert_eq!(
+        testkit::secret_out(&app).map(|o| o.bytes.to_vec()),
+        Some(value.into_bytes())
+    );
 }

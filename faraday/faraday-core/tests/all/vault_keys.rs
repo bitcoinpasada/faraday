@@ -479,6 +479,57 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
 }
 
 #[test]
+fn an_open_vaults_key_can_be_converted_and_matches_its_fingerprint() {
+    use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
+    let mut app = device(vec![kit_file("vault.fvlt")]);
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    type_and_unlock(&mut app);
+    app.press(Action::Convert(C::Open));
+    let r = key_record(&app, testkit::TEST_SEEDS[0].1);
+    let fp = fp_of_words(&testkit::test_words(testkit::TEST_SEEDS[0].0));
+    let press = Action::Convert(C::VaultKey(0, r));
+    let _ = app.frame();
+    assert!(app.offers(press), "From lists the vault's key");
+    app.press(press);
+    let _ = app.frame();
+    app.event(Event::Tick { now_ms: 100_000 });
+    assert!(
+        app.session.keys.all().any(|k| k.fingerprint.0 == fp),
+        "the key is loaded"
+    );
+    let s = convert::state(&app).unwrap();
+    assert_eq!(s.key, Some(fp));
+    assert_eq!(s.open, Some(cstep::TO), "the flow goes on to To");
+    assert_eq!(app.vaults().open.len(), 1, "the vault stays open");
+    let xprv = ROWS.iter().position(|r| r.name == "xprv").unwrap() as u8;
+    app.press(Action::Convert(C::To(xprv)));
+    let _ = app.frame();
+    app.event(Event::Tick { now_ms: 200_000 });
+    testkit::settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let value = convert::shown(&app).expect("the value").to_string();
+    // The vault's key writes what its words write, of that fingerprint.
+    let c = testkit::compute();
+    let mut fresh = device(Vec::new());
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    fresh
+        .session
+        .keys
+        .add_words(&c, &words, "Test", None)
+        .unwrap();
+    assert_eq!(fresh.session.keys[0].fingerprint.0, fp);
+    let want = fresh
+        .session
+        .keys
+        .master_xprv(&c, 0, faraday_keys::Reveal::PaperForm)
+        .unwrap();
+    assert_eq!(value, want.as_str(), "the same wallet");
+    // Leaving keeps the key: conversions take a session position.
+    app.press(Action::Convert(C::Done));
+    assert!(app.session.keys.all().any(|k| k.fingerprint.0 == fp));
+}
+
+#[test]
 fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;

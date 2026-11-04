@@ -11,8 +11,10 @@ use crate::wallet::{fp_text, key_line};
 use crate::{Action, flow};
 use faraday_bip::keys::Fingerprint;
 use faraday_draw::tokens::{
-    self, BODY_M, BODY_S, BUTTON_H, DISABLED_CONTENT, GAP, GAP_SMALL, PAD, SHAPE_S, TITLE_S,
+    self, BODY_L, BODY_M, BODY_S, BUTTON_H, DISABLED_CONTENT, FIELD_GAP, FIELD_H, FIELD_PAD, GAP,
+    GAP_SMALL, LABEL_L, PAD, SHAPE_S, TITLE_S,
 };
+use faraday_ui::parts::button_rows;
 
 pub(crate) const TITLES: [&str; cstep::COUNT] = [
     EN.convert_from_title,
@@ -109,6 +111,15 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         let chosen = s.key == Some(fp.0);
         cy += row(ui, (x, cy, w), (&name, &source(k)), chosen, Some(press));
     }
+    // The open vaults' keys not loaded, after the loaded ones.
+    let vaults = app.create_vaults();
+    for group in &vaults.open {
+        let held = crate::strings::fill(EN.convert_from_vault, &[&group.name]);
+        for k in &group.keys {
+            let press = Action::Convert(C::VaultKey(group.vault, k.record));
+            cy += row(ui, (x, cy, w), (&k.line, &held), false, Some(press));
+        }
+    }
     ui.button(
         x,
         cy,
@@ -186,6 +197,58 @@ fn row(
     h + GAP
 }
 
+/// Check my copy: how the last comparison went and, while it is open, the
+/// copy typed back as dots with its count. Returns its height.
+fn check_my_copy(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    let check = app.tools.convert().check();
+    // Over the field, so a small panel's keyboard does not cover it.
+    match crate::convert::found(app) {
+        Some(true) => {
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, EN.convert_copy_matches) + GAP;
+        }
+        Some(false) => {
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, EN.convert_copy_differs) + GAP;
+        }
+        None => {}
+    }
+    if let Some(check) = check {
+        let n = check.typed.chars().count();
+        let label = crate::strings::fill(EN.convert_your_copy, &[&n.to_string()]);
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &label) + FIELD_GAP;
+        ui.field_box((x, cy, w), true, None);
+        let here = Action::TypeHere(crate::edit::Here::Convert);
+        ui.press_box(x, cy, w, FIELD_H, here);
+        ui.typed(
+            x + FIELD_PAD,
+            cy,
+            FIELD_H,
+            BODY_L.size,
+            crate::ui::W::R,
+            Role::OnSurface,
+            &"\u{2022}".repeat(n),
+            w - 2.0 * FIELD_PAD,
+            true,
+            here,
+        );
+        cy += FIELD_H + GAP;
+        let actions = [
+            (
+                EN.convert_compare.to_string(),
+                Style::Secondary,
+                Action::Convert(C::Compare),
+            ),
+            (
+                EN.convert_clear.to_string(),
+                Style::Ghost,
+                Action::Convert(C::CheckClear),
+            ),
+        ];
+        cy += button_rows(ui, x, cy, w, &actions);
+    }
+    cy - y
+}
+
 fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let key = s
@@ -224,6 +287,21 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             if k.has_passphrase {
                 fact(ui, EN.convert_passphrase, EN.convert_holds_passphrase);
             }
+            cy += GAP;
+            cy += check_my_copy(app, ui, (x, cy, w));
+            let actions = [
+                (
+                    EN.convert_check.to_string(),
+                    Style::Secondary,
+                    Action::Convert(C::Check),
+                ),
+                (
+                    EN.convert_save.to_string(),
+                    Style::Secondary,
+                    Action::Convert(C::Save),
+                ),
+            ];
+            cy += button_rows(ui, x, cy, w, &actions);
         }
         _ => {}
     }

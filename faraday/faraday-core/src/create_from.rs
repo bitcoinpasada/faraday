@@ -118,41 +118,15 @@ impl Faraday {
     /// slot `slot` with it. The vault stays open and unchanged. Costs the
     /// key's seed and master key.
     pub(crate) fn create_slot_vault(&mut self, slot: u8, v: usize, r: usize) {
-        let c = self.compute();
-        if !self.may_load_keys() {
-            return;
-        }
         let Some(cs) = self.create.state() else {
             return;
         };
         if cs.built.is_some() || usize::from(slot) >= cs.slots.len() {
             return;
         }
-        let Some(rec) = self
-            .vaults
-            .open
-            .get(v)
-            .and_then(|o| self.vaults.records(o.id).get(r))
-            .filter(|x| x.kind() == kind::KEY)
-        else {
+        let Some(fp) = self.vault_key_load(v, r) else {
             return;
         };
-        let want = crate::vault::screen::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
-        let before = self.session.keys.len();
-        self.vault_load_set(v, &BTreeSet::from([r]));
-        let fp = if self.session.keys.len() > before {
-            self.session.keys.all().last().map(|k| k.fingerprint.0)
-        } else {
-            want.filter(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == *fp))
-        };
-        let Some(fp) = fp else {
-            return;
-        };
-        let name = self.vaults.open[v].name.clone();
-        self.toast(&fill(
-            EN.vaults_loaded_note,
-            &[&fp_text(Fingerprint(fp)), &name],
-        ));
         if let Some(c) = self.create.state_mut()
             && let Some(s) = c.slots.get_mut(usize::from(slot))
         {
@@ -161,6 +135,37 @@ impl Faraday {
                 c.close_pass();
             }
         }
+    }
+
+    /// Costs the key's seed and master key. Loads record `r` of open vault
+    /// `v` into the session, with the passphrase the record stores, as Load
+    /// into session does, and says so; the vault stays open and unchanged.
+    /// Returns the key's fingerprint, once it is loaded.
+    pub(crate) fn vault_key_load(&mut self, v: usize, r: usize) -> Option<[u8; 4]> {
+        if !self.may_load_keys() {
+            return None;
+        }
+        let c = self.compute();
+        let rec = self
+            .vaults
+            .open
+            .get(v)
+            .and_then(|o| self.vaults.records(o.id).get(r))
+            .filter(|x| x.kind() == kind::KEY)?;
+        let want = crate::vault::screen::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
+        let before = self.session.keys.len();
+        self.vault_load_set(v, &BTreeSet::from([r]));
+        let fp = if self.session.keys.len() > before {
+            self.session.keys.all().last().map(|k| k.fingerprint.0)
+        } else {
+            want.filter(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == *fp))
+        }?;
+        let name = self.vaults.open[v].name.clone();
+        self.toast(&fill(
+            EN.vaults_loaded_note,
+            &[&fp_text(Fingerprint(fp)), &name],
+        ));
+        Some(fp)
     }
 
     /// The lowest account no loaded wallet of `kind` over the keys `fps`

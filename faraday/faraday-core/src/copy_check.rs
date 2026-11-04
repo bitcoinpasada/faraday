@@ -53,7 +53,8 @@ impl WordCheck {
         }
     }
 
-    /// A check of a passphrase on paper, with nothing typed.
+    /// A check of a passphrase on paper, or of any printable value typed
+    /// back whole, with nothing typed.
     pub(crate) fn passphrase() -> WordCheck {
         WordCheck {
             passphrase: true,

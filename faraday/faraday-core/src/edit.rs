@@ -241,6 +241,8 @@ pub enum Here {
     Tools,
     /// Add a key's words typed in Latin letters, a cell a word.
     Words,
+    /// Convert a seed's Check my copy, shown as dots.
+    Convert,
     /// Check my copy's words typed back, a cell a word.
     CheckWords,
     /// Add a key's words typed on a list's own keyboard, a cell a word.
@@ -305,6 +307,7 @@ impl Faraday {
                 Here::Aezeed
             }
             Screen::Tools if self.tools.state().is_some() => Here::Tools,
+            Screen::Convert if self.tools.convert().check().is_some() => Here::Convert,
             Screen::KeyGen
                 if self.keygen.state()?.codex32.as_ref()?.open()
                     == Some(crate::codex32::Card::Strings) =>
@@ -446,6 +449,7 @@ impl Faraday {
                 .and_then(|b| b.check.as_ref())
                 .is_some_and(|c| c.passphrase),
             Screen::Wallets => self.wallets.renaming().is_some(),
+            Screen::Convert => self.tools.convert().check().is_some(),
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
@@ -615,6 +619,7 @@ impl Faraday {
                 Here::Message => &self.message.state()?.text,
                 Here::Entry => &self.entry.state().typed,
                 Here::Tools => &self.tools.state()?.typed,
+                Here::Convert => &self.tools.convert().check()?.typed,
                 Here::Codex32Back => self.keygen.state()?.codex32.as_ref()?.typed_back().0,
                 Here::Words => &self.entry.state().typed,
                 Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,

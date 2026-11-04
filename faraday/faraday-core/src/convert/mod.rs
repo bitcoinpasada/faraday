@@ -5,6 +5,7 @@
 
 pub mod screen;
 
+use crate::copy_check::{Typed, WordCheck};
 use crate::flow;
 use crate::strings::{EN, fill};
 use crate::wallet::fp_text;
@@ -35,10 +36,21 @@ pub enum ConvertAction {
     Step(u8),
     /// Choose a loaded key, by fingerprint.
     Key([u8; 4]),
+    /// Load a key from an open vault, by that vault's place among those
+    /// open and the record's in it, and choose it.
+    VaultKey(usize, usize),
     /// Press a row of [`ROWS`], by its place there.
     To(u8),
     /// Show or hide the value.
     Show,
+    /// Open or close Check my copy.
+    Check,
+    /// Compare what is typed with the value.
+    Compare,
+    /// Clear what is typed.
+    CheckClear,
+    /// Offer the value as a file, on the secret sheet.
+    Save,
     /// Leave the flow.
     Done,
 }
@@ -66,6 +78,22 @@ impl Target {
         match self {
             Target::SeedHex => EN.convert_seed_restores,
             Target::Xprv => EN.convert_xprv_restores,
+        }
+    }
+
+    /// What the secret sheet calls the value.
+    fn secret(self) -> &'static str {
+        match self {
+            Target::SeedHex => EN.convert_secret_seed,
+            Target::Xprv => EN.convert_secret_xprv,
+        }
+    }
+
+    /// The end of the file's name.
+    fn file(self) -> &'static str {
+        match self {
+            Target::SeedHex => "seed-hex",
+            Target::Xprv => "xprv",
         }
     }
 }
@@ -161,6 +189,10 @@ pub struct ConvertArea {
     /// The value, wiped on drop: dropped when the Result card or the flow
     /// is left, or the session locks. Drawing only reads it.
     held: Option<faraday_keys::Held<Zeroizing<String>>>,
+    /// Check my copy, while it is open: what is typed, wiped on drop.
+    check: Option<WordCheck>,
+    /// What the last comparison found, until the next key or press.
+    found: Option<bool>,
 }
 
 impl ConvertArea {
@@ -172,7 +204,75 @@ impl ConvertArea {
     /// Forgets the flow and its result.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+        self.drop_value();
+    }
+
+    /// Drops the value and what is typed to check it.
+    fn drop_value(&mut self) {
         self.held = None;
+        self.check = None;
+        self.found = None;
+    }
+
+    /// Check my copy, while it is open.
+    pub(crate) fn check(&self) -> Option<&WordCheck> {
+        self.check.as_ref()
+    }
+
+    /// Opens Check my copy with nothing typed, or closes it.
+    fn toggle_check(&mut self) {
+        self.found = None;
+        self.check = match (&self.check, &self.held) {
+            (None, Some(_)) => Some(WordCheck::passphrase()),
+            _ => None,
+        };
+    }
+
+    /// Compares what is typed with the value and says which. A match
+    /// closes the check; a difference wipes what was typed, as the backup's
+    /// passphrase check does. Nothing typed compares nothing.
+    fn compare(&mut self) {
+        let (Some(check), Some(held)) = (self.check.as_mut(), self.held.as_ref()) else {
+            return;
+        };
+        if check.typed.is_empty() {
+            return;
+        }
+        let same = check.typed == *held.as_str();
+        check.typed.clear();
+        self.found = Some(same);
+        if same {
+            self.check = None;
+        }
+    }
+
+    /// Clears what is typed.
+    fn clear_check(&mut self) {
+        self.found = None;
+        if let Some(c) = self.check.as_mut() {
+            c.typed.clear();
+        }
+    }
+
+    /// A key typed into Check my copy. Returns whether the key was taken.
+    fn check_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        let Some(check) = self.check.as_mut() else {
+            return false;
+        };
+        match key {
+            // Every value here is printable ASCII: anything else cannot
+            // be part of a right copy, and is not typed.
+            K::Char(ch) if !(' '..='~').contains(&ch) => return true,
+            K::Char(_) | K::Backspace | K::Delete | K::Enter | K::Escape => {}
+            _ => return false,
+        }
+        match check.key(key) {
+            Typed::Compare => self.compare(),
+            Typed::Close => self.toggle_check(),
+            Typed::Nothing | Typed::Words => self.found = None,
+        }
+        true
     }
 
     /// The value, while its eye is open: a borrow, no work.
@@ -197,7 +297,7 @@ impl ConvertArea {
     /// Opens the flow on `key` (the only key loaded, if there is one), to
     /// return to `back`.
     fn open(&mut self, key: Option<[u8; 4]>, back: Screen) {
-        self.held = None;
+        self.drop_value();
         self.state = Some(ConvertState {
             open: Some(if key.is_some() {
                 cstep::TO
@@ -217,7 +317,7 @@ impl ConvertArea {
 
     /// Drops the result, as leaving its card does.
     fn drop_result(&mut self) {
-        self.held = None;
+        self.drop_value();
         if let Some(s) = self.state.as_mut() {
             s.target = None;
             s.shown = false;
@@ -292,6 +392,16 @@ pub fn shown(app: &Faraday) -> Option<&str> {
     app.tools.convert().held().map(|v| v.as_str())
 }
 
+/// What Check my copy has typed, while it is open.
+pub fn typed(app: &Faraday) -> Option<&str> {
+    app.tools.convert().check().map(|c| &*c.typed)
+}
+
+/// Whether the last comparison found the copy right, until the next key.
+pub fn found(app: &Faraday) -> Option<bool> {
+    app.tools.convert().found
+}
+
 /// The row at `place` of [`ROWS`], if it applies to the key chosen. A
 /// lookup.
 fn row_for(app: &Faraday, place: u8) -> Option<(usize, Target)> {
@@ -351,6 +461,35 @@ fn make(app: &mut Faraday, place: u8) {
     app.tools.convert_mut().made(target, given, paths);
 }
 
+/// Offers the value on the secret sheet: nothing is written until the
+/// sheet is answered, and what it writes is the value alone.
+fn save(app: &mut Faraday) {
+    let area = app.tools.convert();
+    let (Some(held), Some(s)) = (area.held.as_ref(), area.state()) else {
+        return;
+    };
+    let (Some(target), Some(fp)) = (s.target, s.key) else {
+        return;
+    };
+    let name = format!(
+        "{}-{}.txt",
+        fp_text(Fingerprint(fp)).to_lowercase(),
+        target.file()
+    );
+    let bytes = Zeroizing::new(held.as_str().as_bytes().to_vec());
+    let out = crate::secrets::SecretOut::new(name, bytes, target.secret(), EN.convert_secret_gives);
+    app.offer_secret(out);
+}
+
+/// Costs what `vault_key_load` costs: the key's seed and master key. The
+/// press on an open vault's key under From: it loads, stays loaded, and
+/// the flow goes on as for a loaded key.
+fn from_vault(app: &mut Faraday, v: usize, r: usize) {
+    if let Some(fp) = app.vault_key_load(v, r) {
+        app.tools.convert_mut().choose(fp);
+    }
+}
+
 /// A press in the flow.
 pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     match action {
@@ -366,6 +505,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
                 app.tools.convert_mut().choose(fp);
             }
         }
+        ConvertAction::VaultKey(v, r) => from_vault(app, v, r),
         ConvertAction::To(place) => make(app, place),
         ConvertAction::Show => {
             let area = app.tools.convert_mut();
@@ -375,6 +515,10 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
                 s.shown = !s.shown;
             }
         }
+        ConvertAction::Check => app.tools.convert_mut().toggle_check(),
+        ConvertAction::Compare => app.tools.convert_mut().compare(),
+        ConvertAction::CheckClear => app.tools.convert_mut().clear_check(),
+        ConvertAction::Save => save(app),
         ConvertAction::Done => {
             if let Some(back) = state(app).map(|s| s.back) {
                 app.act(Action::Nav(back));
@@ -383,12 +527,16 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     }
 }
 
-/// A key on the flow: Escape is Back. Returns whether it was taken.
+/// A key on the flow: typing while Check my copy is open, where Escape
+/// closes it; otherwise Escape is Back. Returns whether it was taken.
 pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
-    if key == faraday_shell_api::Key::Escape
-        && app.screen == Screen::Convert
-        && state(app).is_some()
-    {
+    if app.screen != Screen::Convert || app.sheet.is_some() || state(app).is_none() {
+        return false;
+    }
+    if app.tools.convert_mut().check_key(key) {
+        return true;
+    }
+    if key == faraday_shell_api::Key::Escape {
         app.back();
         return true;
     }

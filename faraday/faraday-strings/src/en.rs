@@ -1106,6 +1106,28 @@ strings! {
     convert_passphrase: "Passphrase",
     /// The passphrase fact.
     convert_holds_passphrase: "Holds the passphrase's wallet: restore it with no passphrase",
+    /// A vault's key under From. `{}`: the vault's name.
+    convert_from_vault: "In vault {}",
+    /// Result's button.
+    convert_check: "Check my copy",
+    /// Result's button.
+    convert_save: "Save as a file…",
+    /// The label over the copy typed back. `{}`: how many characters.
+    convert_your_copy: "Your copy, {} characters",
+    /// Check my copy's button.
+    convert_compare: "Compare",
+    /// Check my copy's button.
+    convert_clear: "Clear",
+    /// Check my copy's finding.
+    convert_copy_matches: "Your copy matches",
+    /// Check my copy's finding.
+    convert_copy_differs: "Your copy differs",
+    /// What the secret sheet calls a master seed in hex.
+    convert_secret_seed: "A master seed",
+    /// What the secret sheet calls an xprv.
+    convert_secret_xprv: "A master private key",
+    /// What the secret sheet says of either.
+    convert_secret_gives: "Whoever has it can spend from every wallet of this key",
     /// Result's button.
     convert_done: "Done",
     /// Toast in `bip85_open`.
