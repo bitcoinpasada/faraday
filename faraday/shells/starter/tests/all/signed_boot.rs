@@ -316,6 +316,41 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
     faraday_starter_shell::gpt::faraday_boot(&table, 0).expect("a Faraday stick");
 }
 
+/// A boot file signed with one's own db key, from a release image found
+/// in a folder: chosen and written as from the payload, and refused when
+/// the found file or the boot file changed.
+#[test]
+fn a_signed_boot_file_is_taken_from_a_found_release_file_too() {
+    let release_efi = release_program();
+    let image = release_image(&release_efi);
+    let (job, source, _) = crate::writer::found_job("signed-found.xz", &image);
+    let (signed, _) = signed_by_test_key(&release_efi);
+    let path = file("found.efi", &signed);
+    let (chosen, signer) = signed::choose(&path, &job).expect("taken");
+    assert_eq!(signer.subject, "Test db");
+
+    let (stick, before) = old_stick("found");
+    let mut disk = FileDisk::new(&stick);
+    let order = keep_data(&disk, source.clone(), Some(chosen.clone()));
+    let (r, _) = run(&order, &job, &mut disk);
+    assert_eq!(r, Ok(()));
+    let (from, to) = boot_range();
+    untouched_outside(&before, &stick, from as u64, to as u64);
+    let mut v = Volume::open(read(&stick, from as u64, to - from)).expect("FAT32");
+    assert_eq!(v.read_in(&BOOT_PATH, 64 << 20).expect("there"), signed);
+
+    // The boot file changed after it was chosen: not written.
+    let mut other = signed.clone();
+    *other.last_mut().expect("bytes") ^= 1;
+    std::fs::write(&path, other).expect("changed");
+    let (stick, before) = old_stick("found-changed");
+    let mut disk = FileDisk::new(&stick);
+    let order = keep_data(&disk, source, Some(chosen));
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BootFileChanged(_))), "{r:?}");
+    unchanged(&before, &stick);
+}
+
 #[test]
 fn the_same_program_with_one_code_byte_changed_then_signed_is_refused() {
     let release_efi = release_program();

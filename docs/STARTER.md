@@ -1257,7 +1257,8 @@ partition (F128).
   (`faraday_sb::pe::image_hash`, which leaves the signature, its
   directory entry and the checksum out) equals the image hash of the
   release's own `EFI/BOOT/BOOTX64.EFI`, read from the boot partition of
-  the payload file decompressed and checked against its manifest
+  the payload file or the found image file decompressed and checked
+  against its manifest or list line
   (`faraday_fat::Volume::read_in`) and padded to eight bytes as a signer
   pads it; and its certificate table is one signature alone at its end:
   where the release's program ends, ending the file, its one entry's

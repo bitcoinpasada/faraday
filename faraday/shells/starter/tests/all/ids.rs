@@ -127,6 +127,28 @@ fn two_sticks_written_from_one_image_have_their_own_ids_and_the_same_boot_partit
 }
 
 #[test]
+fn a_stick_written_from_a_found_release_file_has_its_own_ids_and_the_releases_boot_partition() {
+    let image = stick_image();
+    let (job, source, _) = crate::writer::found_job("ids-found", &image);
+    let (from, to) = sticks::boot_range();
+    let path = tmp("ids-found-stick");
+    Sparse::new(STICK).write(&path);
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    made_from(&path, &image, STICK);
+    let ids = ids_on(&path, STICK);
+    assert!(
+        !IDS.iter()
+            .any(|i| ids.disk == *i || ids.parts.contains(&i.to_string()))
+    );
+    assert!(v4(&ids.disk) && ids.parts.iter().all(|p| v4(p)), "{ids:?}");
+    assert_eq!(ids.serials[0], (SERIALS[0], SERIALS[0]));
+    assert_ne!(ids.serials[1].0, SERIALS[1]);
+    assert!(read(&path, from, (to - from) as usize) == image.bytes(from, (to - from) as usize));
+}
+
+#[test]
 fn a_pi_card_is_given_its_own_disk_signature_and_serials() {
     let image = card_image(0x5A5A_0001);
     let (img, source) = image_job("ids-card.img", &image);

@@ -309,7 +309,7 @@ fn a_payload_file_that_does_not_match_its_manifest_writes_nothing() {
 /// line in the release's list (the sums and size as the list says them),
 /// and the order's source for it. `xz_name` is the file's name, and the
 /// job's `PayloadFile` is what `Payload::found_job` makes of a list line.
-fn found_job(name: &str, image: &Sparse) -> (Job, Confirmed, PathBuf) {
+pub(crate) fn found_job(name: &str, image: &Sparse) -> (Job, Confirmed, PathBuf) {
     let img = image.to_vec();
     let xz = sticks::stored_xz(&img);
     let path = tmp(name);
@@ -383,6 +383,40 @@ fn a_truncated_found_file_is_refused_and_nothing_is_written() {
     let (r, _) = run(&order, &job, &mut disk);
     assert!(matches!(r, Err(Reason::ImageChanged { .. })), "{r:?}");
     assert!(read(&path, 0, 1 << 20) == before.bytes(0, 1 << 20));
+}
+
+#[test]
+fn keep_data_from_a_found_release_file_keeps_the_table_and_data_partition() {
+    let image = stick_image();
+    let (job, source, _) = found_job("found-kept", &image);
+    let (path, _) = blank("found-made-then-kept");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source.clone(), Mode::Whole);
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    let mut before = Sparse::new(STICK);
+    before.put(0, &read(&path, 0, STICK as usize));
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::KeepData);
+    assert_eq!(run(&order, &job, &mut disk).0, Ok(()));
+    let (from, to) = boot_range();
+    untouched_outside(&before, &path, from, to);
+}
+
+#[test]
+fn a_found_file_whose_boot_partition_is_not_the_listed_one_is_refused_and_nothing_is_written() {
+    let image = stick_image();
+    let (job, source, found) = found_job("found-boot-sum", &image);
+    let Job::Found { mut file, .. } = job else {
+        unreachable!()
+    };
+    file.boot_sha256 = faraday_payload::Sha256Sum::from_hex(&sticks::sha(b"another"));
+    let job = Job::Found { file, path: found };
+    let (path, before) = blank("found-boot-sum-disk");
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(source, Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert!(matches!(r, Err(Reason::BootSum { .. })), "{r:?}");
+    unchanged(&before, &path);
 }
 
 #[test]
