@@ -709,6 +709,10 @@ pub enum StarterEvent {
     Disks(Vec<Disk>),
     /// The payload's manifest, or `None` for a Starter built without one.
     Payload(Option<Payload>),
+    /// The file names of the release's images, for the hardware whose
+    /// image was not found: from the release's `IMAGES`, or from the
+    /// version and the naming when the Starter has no list.
+    ImagesWanted(Vec<String>),
     /// A developer's image given with `--image`.
     DevImage(DevImage),
     /// What is installed, or `None` when nothing is. Sent at start and

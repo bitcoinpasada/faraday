@@ -38,6 +38,7 @@ mod boot_file;
 mod clear_first;
 mod home;
 mod how;
+mod images;
 mod name;
 mod nav;
 mod row;
@@ -974,7 +975,11 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
         y += line(ui, x, y, w, S.starter_pi_cameras, Role::OnSurfaceVariant);
     }
+    y += images::section(starter, ui, x, y, w, target);
     if starter.image(target).is_none() {
+        if !starter.images_to_download(target).is_empty() {
+            return y;
+        }
         let s = match target {
             Target::Stick => S.starter_no_stick_image,
             Target::Pi => S.starter_no_pi_image,

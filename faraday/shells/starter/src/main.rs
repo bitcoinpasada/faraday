@@ -944,6 +944,7 @@ fn main() -> ExitCode {
     starter.starter_event(StarterEvent::Computer(computer));
     starter.starter_event(StarterEvent::OtherEncryption(system.other_encryption()));
     starter.starter_event(StarterEvent::Payload(payload.as_ref().map(Payload::event)));
+    starter.starter_event(StarterEvent::ImagesWanted(Payload::image_names()));
     if let Some(i) = &image {
         starter.starter_event(StarterEvent::DevImage(i.event()));
     }

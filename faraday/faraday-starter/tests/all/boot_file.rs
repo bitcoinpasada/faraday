@@ -363,3 +363,59 @@ fn a_pi_card_has_no_boot_file_choice() {
     assert!(!shows(&mut s, EN.starter_boot_file));
     assert!(!s.offers_action(StarterAction::BootChoice(true)));
 }
+
+/// Make a Pi card lists the payload's image and a found one, never one
+/// image twice, a found one can be chosen, and the file to download is
+/// named for hardware with none.
+#[test]
+fn make_a_pi_card_offers_the_found_image_beside_the_payloads_and_names_what_is_missing() {
+    use faraday_starter::api::{FoundImage, ImageFinding};
+    use faraday_starter::decide::Target;
+    let mut s = starter();
+    let payload_pi = s
+        .payload_file(faraday_starter::api::PayloadKind::Pi)
+        .expect("the test payload has a Pi image")
+        .clone();
+    let found = |name: &str, img: &str| FoundImage {
+        path: file(name),
+        name: name.into(),
+        xz_sha256: "aa".repeat(32),
+        img_sha256: img.into(),
+        inner_size: 4096,
+        build_id: "0.3.0".into(),
+        board: "pi3".into(),
+        panel: "any".into(),
+        starts: vec!["Pi 3B".into()],
+    };
+    s.starter_event(StarterEvent::ImagesWanted(vec![
+        payload_pi.name.clone(),
+        "faraday-stick-0.9.0-x86_64-uefi.img.xz".into(),
+    ]));
+    s.starter_event(StarterEvent::ImagesFound(vec![
+        // The payload's own image, found again: not offered twice.
+        ImageFinding::Found(found("faraday-pi-copy.img.xz", &payload_pi.inner_sha256)),
+        ImageFinding::Found(found("faraday-pi-0.3.0.img.xz", &"bb".repeat(32))),
+    ]));
+    s.press(StarterAction::Make(Target::Pi));
+    let heads: Vec<_> = s
+        .image_choices(Target::Pi)
+        .into_iter()
+        .map(|c| c.head)
+        .collect();
+    assert_eq!(heads, [payload_pi.name.as_str(), "faraday-pi-0.3.0.img.xz"]);
+    assert_eq!(
+        s.images_to_download(Target::Stick),
+        ["faraday-stick-0.9.0-x86_64-uefi.img.xz"]
+    );
+    assert!(s.images_to_download(Target::Pi).is_empty());
+    s.press(StarterAction::Image(1));
+    assert!(matches!(
+        s.image(Target::Pi).expect("chosen").source,
+        Source::Found { .. }
+    ));
+    s.press(StarterAction::Image(0));
+    assert!(matches!(
+        s.image(Target::Pi).expect("chosen").source,
+        Source::Payload { .. }
+    ));
+}

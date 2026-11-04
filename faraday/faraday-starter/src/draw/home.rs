@@ -474,9 +474,11 @@ fn stick_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 /// The Pi card: the Pi image's version, or that this Starter has none,
 /// and Make a Pi card, off without the image.
 fn pi_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let has = starter.image(Target::Pi).is_some();
-    let line = match (&starter.payload, has) {
-        (Some(p), true) => fill(S.starter_card_version, &[&p.version]),
+    let image = starter.image(Target::Pi);
+    let has = image.is_some();
+    let line = match (&starter.payload, image.and_then(|i| i.build)) {
+        (Some(p), Some(_)) => fill(S.starter_card_version, &[&p.version]),
+        (None, Some(build)) => fill(S.starter_card_version, &[&build]),
         _ => S.starter_card_pi_none.to_string(),
     };
     let mut y = y0;

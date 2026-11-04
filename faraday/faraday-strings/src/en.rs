@@ -277,6 +277,20 @@ strings! {
     starter_no_stick_image: "Faraday Starter carries no stick image",
     /// A Starter with no Pi image.
     starter_no_pi_image: "Faraday Starter carries no Pi image",
+    /// Make's label over the images to write from.
+    starter_images: "Image",
+    /// A found image's second line: `{}` the folder, `{}` the build.
+    starter_image_found: "In {}, build {}",
+    /// The payload's image, second line: `{}` the build.
+    starter_image_included: "In this Starter, build {}",
+    /// Label over the image files to download.
+    starter_images_missing: "Not found",
+    /// An image not found, second line.
+    starter_image_download: "Download it, then put it in Downloads",
+    /// A listed file whose contents are not the release's.
+    starter_image_mismatch: "Not the release's file",
+    /// A file of another release: `{}` the version this Starter needs.
+    starter_image_other: "Needs version {}",
     /// A computer that cannot write a disk from here.
     starter_no_writer: "This computer cannot write a stick from here",
     /// Which stick? with none attached.

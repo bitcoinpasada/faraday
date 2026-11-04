@@ -230,6 +230,9 @@ pub enum StarterAction {
     TextSize(faraday_ui::TextSize),
     /// What to write's Clear the whole stick first, ticked or not.
     ClearFirst,
+    /// A choice of image on Make a stick or Make a Pi card, by its place
+    /// in the list.
+    Image(u16),
     /// Boot file: the release's own (`false`) or one I signed (`true`).
     BootChoice(bool),
     /// A boot file of the listing, by its place in it, to be checked.
@@ -436,6 +439,7 @@ impl StarterAction {
             StarterAction::How => (68, 0),
             StarterAction::Name => (69, 0),
             StarterAction::ClearFirst => (70, 0),
+            StarterAction::Image(n) => (71, u32::from(n)),
         };
         (kind << 16) | arg
     }
@@ -530,6 +534,7 @@ impl StarterAction {
             68 => StarterAction::How,
             69 => StarterAction::Name,
             70 => StarterAction::ClearFirst,
+            71 => StarterAction::Image(arg as u16),
             _ => return None,
         })
     }
@@ -1058,8 +1063,9 @@ impl Starter {
     }
 
     /// What a stick or card is written from: for a stick, a developer's
-    /// image when one was given, else the payload's, else a release image
-    /// the finder found for the target.
+    /// image when one was given, else a found image the person chose, else
+    /// the payload's, else the first release image the finder found for
+    /// the target.
     pub fn image(&self, target: Target) -> Option<Image> {
         if target == Target::Stick
             && let Some(d) = &self.dev
@@ -1075,6 +1081,9 @@ impl Starter {
                 dev: true,
                 boot_only: d.boot_only,
             });
+        }
+        if self.found_chosen(target) {
+            return self.found_image(target);
         }
         let apple = self
             .making
@@ -1351,6 +1360,7 @@ impl Starter {
             }
             StarterEvent::Payload(p) => self.payload = p,
             StarterEvent::DevImage(d) => self.dev = Some(d),
+            StarterEvent::ImagesWanted(n) => self.images_wanted(n),
             StarterEvent::Installed(i) => self.installed_now(i),
             StarterEvent::TextKept(t) => self.text_kept_read(t),
             StarterEvent::NoWriter => self.no_writer = true,
@@ -2132,6 +2142,7 @@ impl Starter {
             // Typing goes to the field (`name::name_pressed`).
             StarterAction::Name => {}
             StarterAction::ClearFirst => self.toggle_clear_first(),
+            StarterAction::Image(n) => self.image_chosen(n),
         }
     }
 

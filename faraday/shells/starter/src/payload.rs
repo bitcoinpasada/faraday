@@ -48,6 +48,22 @@ impl Payload {
         faraday_payload::ImageList::parse(built::IMAGES?).ok()
     }
 
+    /// The file names of the release's images, for the hardware whose
+    /// image was not found: the list's own, else the names a release of
+    /// this Starter's version publishes (`faraday/builds.toml`'s `release`
+    /// entries of the images).
+    pub fn image_names() -> Vec<String> {
+        if let Some(list) = Self::image_list() {
+            return list.images().iter().map(|i| i.file.clone()).collect();
+        }
+        let built = faraday_core::BUILD.unwrap_or(env!("CARGO_PKG_VERSION"));
+        let v = built.split('+').next().unwrap_or(built);
+        vec![
+            format!("faraday-stick-{v}-x86_64-uefi.img.xz"),
+            format!("faraday-pi-{v}.img.xz"),
+        ]
+    }
+
     /// A payload from a manifest's bytes and the files' bytes, as the
     /// tests make one.
     pub fn from_parts(manifest: &[u8], files: Vec<(String, Vec<u8>)>) -> Result<Payload, String> {

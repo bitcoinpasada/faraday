@@ -877,6 +877,51 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     h.press(n);
     s.shot(&mut h, "pi-2-what")?;
 
+    // Found images (§3.2, §3.3): beside the payload's, and with no payload.
+    let found = |name: &str, img: &str, board: &str| {
+        faraday_starter::api::ImageFinding::Found(faraday_starter::api::FoundImage {
+            path: format!("/Downloads/{name}"),
+            name: name.into(),
+            xz_sha256: "aa".repeat(32),
+            img_sha256: img.into(),
+            inner_size: 1 << 30,
+            build_id: "0.3.0".into(),
+            board: board.into(),
+            panel: "any".into(),
+            starts: Vec::new(),
+        })
+    };
+    let wanted = vec![
+        "faraday-stick-0.3.0-x86_64-uefi.img.xz".to_string(),
+        "faraday-pi-0.3.0.img.xz".to_string(),
+    ];
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Disks(many()));
+    h.starter_event(StarterEvent::ImagesWanted(wanted.clone()));
+    h.starter_event(StarterEvent::ImagesFound(vec![
+        found("faraday-pi-0.3.0.img.xz", &"bb".repeat(32), "pi3"),
+        faraday_starter::api::ImageFinding::OtherRelease {
+            path: "/Downloads/faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+            name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+            needs: "0.3.0".into(),
+        },
+    ]));
+    h.press(StarterAction::Make(Target::Pi));
+    s.shot(&mut h, "images-1-pi-beside-payload")?;
+    h.press(StarterAction::Image(1));
+    s.shot(&mut h, "images-2-pi-found-chosen")?;
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Payload(None));
+    h.starter_event(StarterEvent::Disks(many()));
+    h.starter_event(StarterEvent::ImagesWanted(wanted));
+    h.starter_event(StarterEvent::ImagesFound(vec![found(
+        "faraday-pi-0.3.0.img.xz",
+        &"bb".repeat(32),
+        "pi3",
+    )]));
+    h.press(StarterAction::Make(Target::Stick));
+    s.shot(&mut h, "images-3-stick-to-download")?;
+
     // Start this computer from the stick.
     let mut h = s.starter();
     h.press(StarterAction::Start);

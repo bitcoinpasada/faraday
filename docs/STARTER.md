@@ -734,6 +734,25 @@ destinations; Faraday Demo and the device keep their own navigation
    M1 or M2". Nothing is chosen for the person, as with the disk; the
    row that fits this computer says "This computer". Keep data refuses
    a stick of the other kind (MAC §4.8).
+**Image** (`docs/IMAGES.md` §5), above the disks, once the finder
+(§1.3) has found a release image or there is hardware whose image it
+has not: a Material 3 list (Lists, two-line items) of the images that
+can be written, the Starter's own first, each a radio row with the
+file's name over "In <folder>, build <ID>" (the Starter's own: "In
+this Starter, build <ID>"). One is ticked: the one chosen, else the
+Starter's own, else the first found; a found image is written as the
+Starter's own is, through Confirm, as `Job::Found`. One image is
+listed once: a found file with the sums of the Starter's own image,
+or the same `.img` found in two places, is not listed again. Under it
+**Not found**: for each file of the release's image list (or, with no
+list, the names the release's version and `faraday/builds.toml` give)
+that is neither carried nor found, a row with the file's name over
+"Download it, then put it in Downloads", and a file named for the
+release but not matching it, or of another release ("Needs version
+<X>"), named the same way. With none of these the section is not
+shown. The finder works on a thread of its own (`FindImages`,
+`ImagesFound`), and a file dropped on the window is looked at with
+Downloads.
 1. **Which stick?** The USB disks attached now, each as a
    row for a person, not for a developer: maker and model, size, and
    what is on it. A Faraday stick says "Faraday stick" and the Faraday
@@ -821,6 +840,11 @@ an HDMI screen). The card list also
 offers the computer's own SD card reader (§4.2). *Replace Faraday,
 keep data* is offered once the Pi image can be replaced that way
 (§9.5).
+
+The **Image** section of §3.2 is the same for a card, with the Pi's
+files: the Pi image carried or found, and "faraday-pi-<version>.img.xz"
+named to download when it is neither. Home's Make a Pi card line (§3.1)
+names the version of the image that would be written, found or carried.
 
 ### 3.4 Start this computer from the stick
 
