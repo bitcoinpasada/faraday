@@ -582,7 +582,7 @@ impl Faraday {
             return;
         }
         self.learn.open(pages, &mut self.sheet);
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.command(faraday_shell_api::Command::Draw);
     }
 

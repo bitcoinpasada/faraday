@@ -13,7 +13,12 @@ use crate::storage_api::StorageCommand;
 pub(crate) struct Out {
     pub(crate) commands: VecDeque<Command>,
     pub(crate) storage_out: VecDeque<StorageCommand>,
-    pub(crate) dirty: bool,
+    dirty: bool,
+    /// Only the active region's offset or stretch changed
+    /// (`docs/FRAMES.md` §3.4).
+    moved: bool,
+    /// What the moved frame keeps between frames (`moved.rs`).
+    pub(crate) kept: crate::moved::State,
     /// The toast on show, and the tick it ends at.
     pub(crate) toast: Option<(String, u64)>,
     /// The tick the toast on show first came up at.
@@ -26,9 +31,47 @@ impl Out {
             commands: VecDeque::new(),
             storage_out: VecDeque::new(),
             dirty: true,
+            moved: false,
+            kept: crate::moved::State::default(),
             toast: None,
             toast_at: None,
         }
+    }
+
+    /// The next frame is drawn whole.
+    pub(crate) fn redraw(&mut self) {
+        self.dirty = true;
+    }
+
+    /// Only the active region's offset or stretch changed: the next
+    /// frame may move the rows already drawn, unless something asked for
+    /// it whole ([`Out::redraw`]). Called by the motion code alone.
+    pub(crate) fn moved(&mut self) {
+        self.moved = true;
+    }
+
+    /// The next frame is drawn whole when `yes`.
+    pub(crate) fn redraw_if(&mut self, yes: bool) {
+        self.dirty |= yes;
+    }
+
+    /// A frame is wanted, whole or moved.
+    pub(crate) fn wanted(&self) -> bool {
+        self.dirty || self.moved
+    }
+
+    /// A frame is wanted and only the region's motion asked for it.
+    pub(crate) fn only_moved(&self) -> bool {
+        self.moved && !self.dirty
+    }
+
+    /// Takes the want for a frame, and whether it was only the region's
+    /// motion.
+    pub(crate) fn take_wanted(&mut self) -> Option<bool> {
+        let want = self.wanted().then(|| self.only_moved());
+        self.dirty = false;
+        self.moved = false;
+        want
     }
 
     /// Shows `text` as the toast from `now_ms`, for

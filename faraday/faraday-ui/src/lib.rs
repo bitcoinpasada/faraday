@@ -31,7 +31,7 @@ pub mod tooltip;
 pub use controls::{Reach, Style, focus_step, reach_at};
 pub use pal::{Paint, Role, ThemeName};
 pub use press::{Plain, PressMark, Ring, Shape, Unpressed};
-pub use region::{Extent, Layer, Open, Region, Scrolled, Slot};
+pub use region::{Extent, Layer, Moves, Open, Plan, Region, Scrolled, Slot};
 pub use theme::{Contrast, Mode, TextSize, Theme};
 
 use faraday_draw::canvas::ShapeKey;
@@ -411,6 +411,14 @@ pub struct Ui<'a, A> {
     /// frame copies nothing, since nothing reads the layer yet
     /// (`docs/FRAMES.md` §3.1).
     pub keep_content: bool,
+    /// The region the core moves the rows of this frame, when it draws a
+    /// moved frame (`docs/FRAMES.md` §3.1).
+    pub moved: Option<Plan>,
+    /// A moved frame's whole view while a region paints only its strip.
+    seen: Option<Rect>,
+    /// A page gave back a region painted as a moved frame without closing
+    /// it: the core draws the frame whole again.
+    pub spoiled: bool,
     /// The region a page opened with [`Ui::region_begin`] and has not
     /// closed.
     begun: Option<Open>,
@@ -629,6 +637,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             oy_px: 0,
             content: Layer::default(),
             keep_content: false,
+            moved: None,
+            seen: None,
+            spoiled: false,
             begun: None,
             faces: std::cell::RefCell::new(Vec::new()),
             edit: Edit::default(),
@@ -1029,6 +1040,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
     }
 
+    /// The clip as the screen sees it: the whole view of a region drawn
+    /// as a moved frame, whose canvas clip is only the strip it paints.
+    /// What a row skips, the presses and the tips read this clip.
+    pub fn seen_clip(&self) -> Rect {
+        self.seen.unwrap_or_else(|| self.c.clip())
+    }
+
     /// Design units to pixels.
     pub fn px(&self, v: f32) -> i32 {
         (v * self.f).round() as i32
@@ -1059,7 +1077,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// of it is passed over, its height alone counted.
     pub fn shows(&self, y: f32, h: f32) -> bool {
         let band = self.rect(0.0, y, 1.0, h);
-        let clip = self.c.clip();
+        let clip = self.seen_clip();
         let spare = 4;
         band.y - spare < clip.bottom() && band.bottom() + spare > clip.y
     }
@@ -1696,7 +1714,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             return;
         }
         let whole = self.rect(x, y, w, h);
-        let rect = whole.intersect(&self.c.clip());
+        let rect = whole.intersect(&self.seen_clip());
         if rect.is_empty() {
             return;
         }
@@ -1742,7 +1760,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             }
             return;
         }
-        let clip = self.hit_clip.unwrap_or_else(|| self.c.clip());
+        let clip = self.hit_clip.unwrap_or_else(|| self.seen_clip());
         let whole = self.rect(x, y, w, h);
         let rect = whole.intersect(&clip);
         // A clip with no room is a pass that measures and draws nothing.
@@ -1814,7 +1832,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// Draws only inside `rect` until [`Ui::unreveal`], while what is
     /// drawn stays pressable as if it all showed.
     pub fn reveal(&mut self, rect: Rect) {
-        self.hit_clip = Some(self.c.clip());
+        self.hit_clip = Some(self.seen_clip());
         self.c.push_clip(rect);
     }
 

@@ -90,7 +90,7 @@ impl Faraday {
         {
             self.out.toast = None;
         }
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.commands.push_back(Command::Draw);
     }
     /// Runs jobs on the calling thread and applies them at once, as the
@@ -127,7 +127,7 @@ impl Faraday {
             done: 0,
             of: 0,
         }));
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.commands.push_back(crate::Command::Draw);
     }
 
@@ -177,7 +177,7 @@ impl Faraday {
             drop(done);
         }
         self.reblind_owed();
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.commands.push_back(crate::Command::Draw);
     }
 
@@ -261,7 +261,7 @@ impl Faraday {
             self.worker.stale();
             self.worker.set_busy(None);
             crate::vault::stretch::ended(self);
-            self.out.dirty = true;
+            self.out.redraw();
             self.out.commands.push_back(crate::Command::Draw);
         }
     }
@@ -336,7 +336,7 @@ impl Faraday {
     #[cfg(feature = "testkit")]
     pub(crate) fn show_busy(&mut self, busy: Busy) {
         self.worker.set_busy(Some(busy));
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.commands.push_back(crate::Command::Draw);
     }
 }

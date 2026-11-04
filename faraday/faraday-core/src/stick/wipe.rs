@@ -378,7 +378,7 @@ impl Faraday {
             stick: z.stick.clone(),
             from: z.next,
         });
-        self.out.dirty = true;
+        self.out.redraw();
         self.out
             .commands
             .push_back(faraday_shell_api::Command::Draw);
@@ -434,7 +434,7 @@ impl Faraday {
             self.sheet = None;
         }
         self.visit.log.push((line, ok));
-        self.out.dirty = true;
+        self.out.redraw();
         self.out
             .commands
             .push_back(faraday_shell_api::Command::Draw);

@@ -482,7 +482,7 @@ impl Faraday {
             self.osk_set_lift(lift);
         }
         if a.redraw {
-            self.out.dirty = true;
+            self.out.redraw();
             self.out
                 .commands
                 .push_back(faraday_shell_api::Command::Draw);
@@ -607,7 +607,7 @@ impl Faraday {
             c.record_ink(true);
         }
         self.before_frame();
-        self.render();
+        self.render(false);
         let ink = self
             .canvas
             .as_ref()
@@ -616,7 +616,7 @@ impl Faraday {
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(false);
         }
-        self.out.dirty = true;
+        self.out.redraw();
         ink
     }
 }

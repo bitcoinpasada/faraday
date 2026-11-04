@@ -91,7 +91,7 @@ impl Faraday {
         }
         self.flow_bind_ids(i, false);
         self.flow_settle();
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     fn flow_goto(&mut self, i: usize, step: Step) {
@@ -365,7 +365,7 @@ impl Faraday {
             F::UnlockDone(v) => self.flow_unlock_done(i, v),
             F::BackUpFirst(_) | F::Resume | F::Show(_) | F::WalletLock | F::Restore(_) => {}
         }
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     fn flow_add_place(&mut self, i: usize) {
@@ -2180,7 +2180,7 @@ impl Faraday {
         if kind_ == Kind::Gpg && !self.flows[i].public.is_empty() {
             self.toast_waits(FEN.vaults_made_the_certificate, &[]);
         }
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// The extra round: the key is copied from a vault that holds it into
@@ -2260,7 +2260,7 @@ impl Faraday {
                 }
             }
         }
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// The restore flow on Inbox file `k`, its own or a new one, on its head card.
@@ -2299,7 +2299,7 @@ impl Faraday {
     pub(crate) fn gpg_restore_key(&mut self, key: faraday_shell_api::Key) -> bool {
         let on = self.flow_screen() && self.sheet.is_none();
         let took = on && self.fi().is_some_and(|i| self.flows.restore_key(i, key));
-        self.out.dirty |= took;
+        self.out.redraw_if(took);
         took
     }
 

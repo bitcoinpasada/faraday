@@ -294,7 +294,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         text: &'static str,
         kind: TipKind,
     ) {
-        let at = self.rect(x, y, w, h).intersect(&self.c.clip());
+        let at = self.rect(x, y, w, h).intersect(&self.seen_clip());
         if at.w > 0 && at.h > 0 {
             self.tips.anchors.push(TipAnchor {
                 at,

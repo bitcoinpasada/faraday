@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first step of §3 is built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer, batch FR1), and so are the framebuffer write's first three points (§6, batch FR4a) and the face kept per size and `Ui::wrap_lines` linear in its words of §7 (batch FR6a); the rest is not
-**Open:** the rest of it: the moved frame itself, with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the content layer taken only when a frame asks for it (`Ui::keep_content`), the stretch moving the layer, a scroll step that moves the rows already drawn (§3), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4, batch FR4b), the shell taking the moved frame (§3.7, FR4b), what a frame does beside its pixels that §7 has not yet found or fixed (batch FR6b)
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer, batch FR1; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the compact Settings page only, batch FR2), and so are the framebuffer write's first three points (§6, batch FR4a) and the face kept per size and `Ui::wrap_lines` linear in its words of §7 (batch FR6a); the rest is not. No shell takes `Parts::moved` yet
+**Open:** the rest of it: `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column, batch FR2b; Faraday Demo's desktop Settings among them, whose card's corner differs by one anti-aliased pixel between a moved row and a drawn one), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4, batch FR4b), the shell taking the moved frame (§3.7, FR4b), what a frame does beside its pixels that §7 has not yet found or fixed (batch FR6b)
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -91,10 +91,10 @@ as today.
 The region's **content layer** is the region's pixels as its content
 left them, before any overlay: `Ui` copies the region's view into it at
 the start of `Ui::region`'s close, before the stretch, the edge fades and
-the scrollbar. Its cost is a copy of the view (about 20 µs of a 1.2 ms
-frame on the build machine at the Pi's size). The copy is taken only
-while `Ui::keep_content` is on, which the moved frame (FR2) turns on;
-until then nothing reads the layer and a frame copies nothing.
+the scrollbar. Its cost is a copy of the view (about 85 µs on the build machine at the
+Pi's size, measured on Settings; §3.5). The copy is taken only for a
+region that opts in (`Moves::Yes`), while `Ui::keep_content` is on,
+which the frame sets; any other region copies nothing.
 
 A moved frame, for the active region of the last frame, moving it `d`
 pixels:
@@ -201,6 +201,13 @@ full clock a scroll step of Home would take about 7 ms in the core, and
 with §5 and §6 a pass about 10: 60 Hz while dragging Home, Wallets,
 the backup flow and Settings. Files and Vault contents stay over a
 refresh on their floor, which is §7's.
+
+Those figures are a forecast and do not hold on the build machine. Measured
+there on compact Settings, three runs, a step of 40 pixels, every step a
+moved frame: a scroll step 0.37 ms before FR2 and 0.38 after, a frame drawn
+whole 0.32 before and 0.40 after. The two copies of the view cost about what
+the painting they save. What a Pi gains is not yet measured; it is read on
+the dev card, and more screens opt in (FR2b) only if it shows a gain.
 
 ### 3.6 Per shell
 
@@ -525,7 +532,8 @@ Each about fifty agent turns. FR0, FR1 to FR3 and FR5 leave
 | --- | --- | --- | --- | --- |
 | FR0 | What the floor is (§7): the Vault contents and Files frames timed part by part at a one-row clip, with a probe kept outside the repository; what costs named here, with the step that removes it | `docs/FRAMES.md` | No | Built |
 | FR1 | Content placed in whole pixels (`Ui::oy_px`), `Ui::region` in place of each clip and `report_scroll*` pair, the content layer taken and the stretch moving it; snapshots rendered again where an edge moved, each named in the report; the clipped-shapes test extended to bands through a shape, a glyph and a shadow | `faraday/faraday-ui/src/lib.rs`, `sheet.rs`, `menu.rs`, the 28 core files that report a region, `faraday-starter/src/draw.rs`, `core/faraday-draw/src/canvas.rs`, `docs/MOTION.md` §3.3 | No; a screen review of the tours that changed against Material's Scrolling | Built |
-| FR2 | The moved frame: `moved.rs`, `out.redraw()` and `out.moved()`, `Moves::Yes` on the long screens, `draw_whole_next`, the two tests of §3.2 and §3.4; `Parts::moved` and its composition; timed as SPEED §7 says, a scroll step of each screen that opted in | `faraday-core/src/moved.rs` (new), `lib.rs`, `motion.rs`, the screens that opt in, `faraday-ui/src/lib.rs`, `core/faraday-shell-api/src/lib.rs`, `docs/MOTION.md`, `docs/SPEED.md` §7 | No | Open |
+| FR2 | The moved frame: `moved.rs`, `out.redraw()` and `out.moved()`, `Moves::Yes` on the compact Settings page, `draw_whole_next`, the two tests of §3.2 and §3.4; `Parts::moved` and its composition; timed as SPEED §7 says, a scroll step of each screen that opted in (§3.5) | `faraday-core/src/moved.rs` (new), `lib.rs`, `motion.rs`, the screens that opt in, `faraday-ui/src/lib.rs`, `core/faraday-shell-api/src/lib.rs`, `docs/MOTION.md`, `docs/SPEED.md` §7 | No | Built for the compact Settings page only; `Parts::moved` not yet taken by a shell |
+| FR2b | `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column, Faraday Demo's desktop Settings once the cause of its card's corner difference is found), each timed as SPEED §7 says | the screens that opt in, `docs/SPEED.md` §7 | No | Open; waits for FR2's figure on a Pi (§3.5) |
 | FR3 | The Pi's panel in its own order (§5): `Depth::Rgba8888` from the driver's `fbswap`, the Presenter with no converted copy for it, the panel's `config.txt` and the README's colour line; the present tests at 32 bits in both orders; checked on the dev card | `faraday/shells/stick/src/fb.rs`, `present.rs`, `panel.rs`, `faraday/image/panels/any/screens/waveshare-28dpi/display.line`, `faraday/image/README.md`, `docs/HARDWARE.md` if it names the format | No | Open |
 | FR4a | The write (§6 points 1 to 3): `changed_rows` as bands, `Panel::write_known` with one comparison, no band copy outside the arrow; `present::tests` for a caret and a clock as two bands, the panel after each change with the arrow across a band and moved away, and turned frames | `faraday/shells/stick/src/present.rs`, `panel.rs`, `fb.rs`, `docs/SPEED.md` §11.1 | No | Built |
 | FR4b | The shell after a moved frame (§3.7) and §6 point 4: the Presenter moving its copies by `Parts::moved`, one buffer for `shown` and `last`; the stick takes `Parts`; `present::tests` for a moved frame (only the strip and the overlays converted, the panel showing the frame); measured on the dev card with `--timings` | `faraday/shells/stick/src/present.rs`, `panel.rs`, `main.rs` (one call), `docs/SPEED.md` §11.1 | No | Open |

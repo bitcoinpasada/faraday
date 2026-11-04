@@ -304,6 +304,11 @@ impl Canvas {
         self.ink = on.then(Vec::new);
     }
 
+    /// Whether the ink is being recorded ([`Canvas::record_ink`]).
+    pub fn recording_ink(&self) -> bool {
+        self.ink.is_some()
+    }
+
     /// What was drawn since the last [`Canvas::clear`] and where, while
     /// recording is on; empty otherwise.
     pub fn ink(&self) -> &[Ink] {
@@ -944,6 +949,34 @@ impl Canvas {
     /// The pixels [`Canvas::keep_layer`] kept, a row at a time.
     pub fn layer(&self) -> &[u8] {
         &self.layer
+    }
+
+    /// Costs a copy of the rectangle's pixels. Puts the content layer
+    /// ([`Canvas::keep_layer`] of `rect`) back inside `rect` moved by `dy`
+    /// rows, down for a positive `dy` and up for a negative one, ignoring
+    /// the clip: the rows `dy` brought into `rect` hold what was there, for
+    /// the caller to have drawn. A layer of another size puts nothing
+    /// back.
+    pub fn paste_layer(&mut self, rect: Rect, dy: i32) {
+        let r = rect.intersect(&self.bounds());
+        if r != rect
+            || r.is_empty()
+            || dy.abs() >= r.h
+            || self.layer.len() != (r.w * r.h * 4) as usize
+        {
+            return;
+        }
+        self.damaged(r);
+        let stride = self.pixmap.width() as usize * 4;
+        let n = r.w as usize * 4;
+        let data = self.pixmap.data_mut();
+        // Row `k` of the layer lands on row `k + dy` of the rectangle.
+        let (from, to) = if dy >= 0 { (0, r.h - dy) } else { (-dy, r.h) };
+        for k in from..to {
+            let at = (r.y + k + dy) as usize * stride + r.x as usize * 4;
+            let src = k as usize * n;
+            data[at..at + n].copy_from_slice(&self.layer[src..src + n]);
+        }
     }
 
     /// Costs a pass over the rectangle's pixels. Shows what was drawn

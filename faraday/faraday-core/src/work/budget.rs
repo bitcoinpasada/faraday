@@ -153,7 +153,7 @@ const CLOCK: u64 = 1_791_482_652;
 
 /// A panel a session is drawn on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct Panel {
+pub(crate) struct Panel {
     /// Pixels across.
     pub width: u16,
     /// Pixels down.
@@ -163,14 +163,14 @@ pub(super) struct Panel {
 }
 
 /// A desktop window.
-pub(super) const DESKTOP: Panel = Panel {
+pub(crate) const DESKTOP: Panel = Panel {
     width: 1366,
     height: 768,
     dpi: 160,
 };
 
 /// The Pi's 2.8-inch panel, portrait: its compact screens.
-pub(super) const PI: Panel = Panel {
+pub(crate) const PI: Panel = Panel {
     width: 480,
     height: 640,
     dpi: 286,
@@ -325,11 +325,11 @@ fn frame_costs(app: &mut Faraday) -> (Counts, u64, u64, u64) {
     let filled = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.outlines_filled());
     app.settle();
     let _ = app.frame();
-    app.out.dirty = true;
+    app.out.redraw();
     let _ = app.frame();
     let before = snapshot();
     let (allocs, drawn, fills) = (faraday_alloc_count::allocations(), lines(app), filled(app));
-    app.out.dirty = true;
+    app.out.redraw();
     let _ = app.frame();
     (
         since(&before),
@@ -435,7 +435,7 @@ pub(super) fn walk(c: &Compute, stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Fa
 
 /// [`walk`] on `panel`.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub(super) fn walk_on(
+pub(crate) fn walk_on(
     c: &Compute,
     panel: Panel,
     stop: &mut dyn FnMut(&mut Faraday, &str),

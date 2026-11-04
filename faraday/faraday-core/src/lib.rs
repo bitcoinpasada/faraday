@@ -28,7 +28,7 @@
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
-//!   the selection), `motion` (scrolling), `out` (what the core
+//!   the selection), `motion` (scrolling), `moved` (the moved frame), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
 //!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `worker` (the one thread costly work runs on), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
@@ -143,6 +143,7 @@ pub mod medium;
 pub mod memory;
 mod menu;
 pub mod motion;
+mod moved;
 pub mod nav;
 mod out;
 mod panes;
@@ -1332,7 +1333,7 @@ impl Faraday {
         {
             Some(e) => e,
             None => {
-                self.out.dirty = true;
+                self.out.redraw();
                 self.out.commands.push_back(Command::Draw);
                 return;
             }
@@ -1597,7 +1598,7 @@ impl Faraday {
                 self.restore_kept(&kept);
             }
         }
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.commands.push_back(Command::Draw);
     }
 
@@ -1674,7 +1675,7 @@ impl Faraday {
         self.stick.set_held(false);
         if !self.stick.is_empty() {
             self.stick_arrived();
-            self.out.dirty = true;
+            self.out.redraw();
             self.out.commands.push_back(Command::Draw);
         }
     }
@@ -2089,7 +2090,7 @@ impl Faraday {
         if self.selftest_failed() {
             self.sheet = None;
         }
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// The toast shown, if one is current.
@@ -4800,63 +4801,10 @@ impl Faraday {
         self.scroll.own(key);
     }
 
-    /// Runs `go` on the motion and the region that scrolls now, with how
-    /// far it goes as the last frame drew it. A motion left over from
-    /// another screen or sheet is stopped first.
-    fn with_region<R>(
-        &mut self,
-        go: impl FnOnce(&mut motion::Motion, &mut motion::Region) -> R,
-    ) -> Option<R> {
-        self.own_motion();
-        let extent = self.region_now();
-        let (f, h) = (self.f.max(0.1), self.h);
-        let mut m = self.scroll.take_motion(self.reduce_motion());
-        let out = self.scroll_slot().map(|offset| {
-            let mut region = motion::Region {
-                offset,
-                max: extent.map(|e| e.max),
-                view: extent.map_or(h, |e| e.view.h as f32 / f),
-                f,
-            };
-            go(&mut m, &mut region)
-        });
-        self.scroll.put_back(m);
-        out
-    }
-
     /// Finds what can be pressed under the pointer in the frame on
     /// screen. Returns whether that changed.
     fn find_hovered(&mut self) -> bool {
         self.pointer.find_hovered()
-    }
-
-    /// Fingers moved the content by `dy` units: at once.
-    fn pan(&mut self, dy: f32) {
-        self.with_region(|m, r| m.pan(r, dy));
-    }
-
-    /// A wheel or a key asked for `dy` units: the content glides there.
-    fn glide(&mut self, dy: f32) {
-        if self.reduce_motion() {
-            self.with_region(|m, r| m.jump(r, dy));
-        } else if self.scroll_slot().is_some() {
-            // A glide on the region the pointer has just moved to starts
-            // there, not on the region that was moving.
-            self.own_motion();
-            self.scroll.glide(dy);
-        }
-    }
-
-    /// Moves whatever is moving on to `now_ms`. Returns whether a frame
-    /// is wanted for it.
-    fn motion_tick(&mut self, now_ms: u64) -> bool {
-        match self.with_region(|m, r| m.tick(r, now_ms)) {
-            Some(moved) => moved,
-            None => {
-                self.scroll.stop();
-                false
-            }
-        }
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -4888,7 +4836,7 @@ impl Faraday {
                     self.pointer.set_drag(None);
                     self.pointer.set_swallow(false);
                     self.bar_drag(y);
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
@@ -4922,13 +4870,13 @@ impl Faraday {
                 self.pointer.tip_moved((x, y));
                 if self.pointer.bar_held().is_some() {
                     self.bar_drag(y);
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
                 // A board chip past the slop follows the finger.
                 if self.board_press_move(x, y) {
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
@@ -4953,7 +4901,7 @@ impl Faraday {
                     {
                         self.pointer.set_pressed(Some((a, h)));
                         self.act(a);
-                        self.out.dirty = true;
+                        self.out.redraw();
                         self.out.commands.push_back(Command::Draw);
                     }
                     return;
@@ -4970,7 +4918,7 @@ impl Faraday {
                         self.pointer.set_pressed(None);
                         self.pointer.set_drag(Some((y, true)));
                         self.pan_drag((x, y), last, start);
-                        self.out.dirty = true;
+                        self.out.moved();
                         self.out.commands.push_back(Command::Draw);
                         return;
                     }
@@ -4978,7 +4926,7 @@ impl Faraday {
                 // The scrollbar follows the finger anywhere once held.
                 if let Some(c) = held_bar {
                     self.visit_drag(c, y);
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                 } else if let Some((_, r)) = self.pointer.pressed()
                     && !r.contains(x, y)
@@ -4994,7 +4942,7 @@ impl Faraday {
                 // A board chip dragged is dropped where it is lifted.
                 if self.board_press_up(x, y) {
                     self.pointer.set_drag(None);
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
@@ -5111,14 +5059,14 @@ impl Faraday {
     /// returns, by whatever way it returns. Each drawing pass reads a
     /// [`drawing::View`]; what it noted for after it is written once it
     /// is drawn ([`drawing::After`]).
-    fn render(&mut self) {
+    fn render(&mut self, only_moved: bool) {
         self.drawing.clear();
-        self.render_frame();
+        self.render_frame(only_moved);
         self.drawing.clear();
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    fn render_frame(&mut self) {
+    fn render_frame(&mut self, only_moved: bool) {
         let Some(mut canvas) = self.canvas.take() else {
             return;
         };
@@ -5137,6 +5085,11 @@ impl Faraday {
             *offset = whole(*offset);
         }
         let stretch = (self.scroll.stretch() * f).round() as i32;
+        // A scroll step may move the rows already drawn
+        // (`docs/FRAMES.md` §3.3); drawn whole when the first pass does
+        // not suit.
+        let mut plan = self.moved_plan(&canvas, only_moved, stretch);
+        let mut layer = ui::Layer::default();
         // The overlay scrollbar shows while the offset moves and fades
         // once it has rested a moment.
         let key = self.region_key();
@@ -5166,6 +5119,7 @@ impl Faraday {
         let mut follow_to = None;
         let (mut scrolled, mut caret, mut reach) = (Vec::new(), None, Vec::new());
         let mut tips = Vec::new();
+        let mut spoiled: bool;
         // A field newly focused brings the keyboard up, worked out before
         // drawing, which reads the keyboard as it now is; on a small panel
         // the page scrolls the field into view above it (`osk_follow`).
@@ -5200,6 +5154,8 @@ impl Faraday {
                 ui.tips.shown = self.pointer.tip_shown();
                 ui.dimmed = self.demo_dimmed();
                 ui.keep_live = self.keep_live();
+                ui.keep_content = true;
+                ui.moved = plan.take();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
                 ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
@@ -5227,9 +5183,13 @@ impl Faraday {
                 self.pointer.set_cut(std::mem::take(&mut ui.cut));
                 follow_to = follow_to.or(ui.follow_to);
                 self.fade.keep_frost(frost_key, ui.frost.take());
+                layer = ui.content;
+                spoiled = ui.spoiled;
                 (ui.column, ui.focus_box, ui.focus_action)
             };
-            if !(self.osk_follow(column.1, column.2, &scrolled) | self.disclose(key, column.0)) {
+            if !(self.osk_follow(column.1, column.2, &scrolled) | self.disclose(key, column.0))
+                && !spoiled
+            {
                 break;
             }
         }
@@ -5242,7 +5202,7 @@ impl Faraday {
             } else {
                 self.scroll.glide_to(want - now);
             }
-            self.out.dirty = true;
+            self.out.redraw();
             self.out.commands.push_back(Command::Draw);
         }
         let drew = self.region_key();
@@ -5254,10 +5214,11 @@ impl Faraday {
         self.pointer.set_tip_anchors(tips);
         self.fade_end(&mut canvas);
         self.canvas = Some(canvas);
+        self.moved_drew(&layer, stretch, caret.is_some());
         // The frame moved things under a still pointer: the next frame
         // shows what it is over now.
         if self.find_hovered() {
-            self.out.dirty = true;
+            self.out.redraw();
             self.out.commands.push_back(Command::Draw);
         }
     }
@@ -5357,7 +5318,7 @@ impl Faraday {
         }
         // The next frame is the screen at rest, not on the way from the last.
         self.fade.restart();
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// Acts as if `action` had been pressed: for drivers that script the
@@ -5390,7 +5351,7 @@ impl Faraday {
         self.worker.set_inline(was_inline);
         self.backup_settle();
         self.after_input();
-        self.out.dirty = true;
+        self.out.redraw();
         self.out.commands.push_back(Command::Draw);
     }
 
@@ -5410,7 +5371,7 @@ impl Faraday {
             if let Some(text) = working_text(action) {
                 self.working(text);
             }
-            self.out.dirty = true;
+            self.out.redraw();
             self.out.commands.push_back(Command::Draw);
             return;
         }
@@ -5638,6 +5599,9 @@ impl App for Faraday {
         if settle {
             self.note_here();
         }
+        // A scroll or a wheel moves the region's offset and nothing else
+        // (`docs/FRAMES.md` §3.4).
+        let mut only_moved = false;
         match event {
             Event::Display(d) => self.display(d),
             Event::Touch { x, y, phase } => {
@@ -5666,7 +5630,7 @@ impl App for Faraday {
                     self.later = Some(Later::Key(k));
                     self.worker.set_drawn(false);
                     self.working(EN.working_node_key);
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;
                 } else {
@@ -5708,6 +5672,7 @@ impl App for Faraday {
                 // them, in this layout's units.
                 self.pan(f32::from(dy) / self.f.max(0.1));
                 self.pointer.set_scroll_at(Some(self.now_ms));
+                only_moved = true;
             }
             Event::Wheel { x, y, dy } => {
                 self.input_now();
@@ -5719,6 +5684,7 @@ impl App for Faraday {
                 // is this layout's, in units, so it covers the same amount
                 // of page on every screen.
                 self.wheel(f32::from(dy) / motion::SHELL_NOTCH_PX * motion::WHEEL_NOTCH);
+                only_moved = true;
             }
             Event::ScrollEnd { .. } => {
                 self.pointer.set_scroll_at(None);
@@ -5802,8 +5768,13 @@ impl App for Faraday {
                     self.scroll.release(self.f);
                 }
                 let tip = self.pointer.tip_tick(now_ms) | self.keygen.dice_tick(now_ms);
-                if self.own_tick(now_ms) | self.motion_tick(now_ms) || fading || tip {
-                    self.out.dirty = true;
+                let (own, motion) = (self.own_tick(now_ms), self.motion_tick(now_ms));
+                if own || fading || tip {
+                    self.out.redraw();
+                } else if motion {
+                    self.out.moved();
+                }
+                if own || motion || fading || tip {
                     self.out.commands.push_back(Command::Draw);
                 }
                 // A fade under way asks for its next step; unless
@@ -5813,7 +5784,7 @@ impl App for Faraday {
                     self.out.commands.push_back(Command::Draw);
                 }
                 if self.idle_tick(now_ms) {
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
@@ -5827,7 +5798,7 @@ impl App for Faraday {
                     | self.chart_side_tick(now_ms)
                     | self.key_path_sheet_open()
                 {
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                 }
                 // A live clock or a TOTP code on screen moves on by the
@@ -5836,18 +5807,18 @@ impl App for Faraday {
                     let now = self.clock_now();
                     if now != self.clock_drawn {
                         self.clock_drawn = now;
-                        self.out.dirty = true;
+                        self.out.redraw();
                         self.out.commands.push_back(Command::Draw);
                     }
                 }
                 self.vanity_tick(now_ms);
                 if self.scan_tick(now_ms) {
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                 }
                 self.zero_tick();
                 if self.qr.tick(now_ms, self.settings.qr_frame_ms()) {
-                    self.out.dirty = true;
+                    self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                 }
                 if let Some((_, until)) = &self.out.toast
@@ -5898,8 +5869,16 @@ impl App for Faraday {
             self.backup_settle();
             self.after_input();
         }
-        self.out.dirty = true;
+        if only_moved {
+            self.out.moved();
+        } else {
+            self.out.redraw();
+        }
         self.out.commands.push_back(Command::Draw);
+    }
+
+    fn parts(&mut self) -> faraday_shell_api::Parts<'_> {
+        self.parts_moved()
     }
 
     fn poll_command(&mut self) -> Option<Command> {
@@ -5908,12 +5887,12 @@ impl App for Faraday {
     }
 
     fn frame(&mut self) -> Frame<'_> {
-        if self.out.dirty {
-            self.out.dirty = false;
+        if let Some(only_moved) = self.out.take_wanted() {
             self.before_frame();
-            self.render();
+            self.render(only_moved);
         } else if self.fade.is_due() {
             self.fade_step();
+            self.out.kept.whole_frame();
         }
         match self.canvas.as_ref() {
             Some(c) => c.frame(),

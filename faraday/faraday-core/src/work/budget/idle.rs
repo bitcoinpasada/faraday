@@ -46,7 +46,7 @@ fn show(app: &mut Faraday, f: f32) {
 /// Whether the app asked for a frame since the last look, and what it
 /// asked was drawn.
 fn asked(app: &mut Faraday) -> bool {
-    let mut draw = std::mem::take(&mut app.out.dirty);
+    let mut draw = app.out.take_wanted().is_some();
     while let Some(c) = app.poll_command() {
         draw |= matches!(c, Command::Draw);
     }
@@ -65,11 +65,11 @@ fn idle_at(app: &mut Faraday, offset: f32) -> (usize, Option<f32>) {
     if let Some(o) = app.scroll_slot() {
         *o = offset;
     }
-    app.out.dirty = true;
+    app.out.redraw();
     let _ = app.frame();
     app.settle();
     for _ in 0..4 {
-        app.out.dirty = true;
+        app.out.redraw();
         let _ = app.frame();
     }
     while app.poll_command().is_some() {}

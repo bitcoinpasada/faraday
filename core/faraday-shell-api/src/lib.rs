@@ -916,6 +916,43 @@ pub struct Parts<'a> {
     /// shell may then copy and present these alone (a fade's steps), and
     /// takes the whole window where it is `None`.
     pub changed: Option<&'a [Changed]>,
+    /// How the frame moved the rows of one region against the frame the
+    /// shell last took (`docs/FRAMES.md` §3.7); `None` for a frame drawn
+    /// whole, or where two frames since moved different regions. A shell
+    /// that ignores it is right.
+    pub moved: Option<Moved>,
+}
+
+/// A region whose rows the frame moved: the rows of the frame the shell
+/// last took, inside `x` to `x + width`, now stand `dy` rows lower
+/// (higher for a negative `dy`), but for the rows the move brought into
+/// view, which the frame painted, and whatever is drawn over the region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Moved {
+    /// Left edge of the region, in the frame's pixels.
+    pub x: u16,
+    /// Top edge.
+    pub y: u16,
+    /// Width.
+    pub width: u16,
+    /// Height.
+    pub height: u16,
+    /// Rows the content moved down; negative for up.
+    pub dy: i16,
+}
+
+impl Moved {
+    /// This move, then `next` on the same region: one move by both.
+    /// `None` where `next` moves another region, or the two together
+    /// leave no row of the region in view.
+    #[must_use]
+    pub fn then(self, next: Moved) -> Option<Moved> {
+        let same =
+            (self.x, self.y, self.width, self.height) == (next.x, next.y, next.width, next.height);
+        let dy = self.dy.checked_add(next.dy)?;
+        (same && i32::from(dy).unsigned_abs() < u32::from(self.height.saturating_sub(1)))
+            .then_some(Moved { dy, ..self })
+    }
 }
 
 /// A rectangle of the window's pixels that a frame may have changed,
@@ -960,6 +997,7 @@ pub trait App {
             base_y: 0,
             inner: None,
             changed: None,
+            moved: None,
         }
     }
 }

@@ -26,7 +26,7 @@ fn filled(app: &Faraday) -> u64 {
 fn frame(app: &mut Faraday) -> (u64, Vec<u8>) {
     app.settle();
     let before = filled(app);
-    app.out.dirty = true;
+    app.out.redraw();
     let rgba = app.frame().rgba.to_vec();
     (filled(app) - before, rgba)
 }

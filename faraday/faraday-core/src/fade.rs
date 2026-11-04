@@ -7,7 +7,8 @@
 use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::Command;
 
-use crate::ui::Theme;
+use crate::moved::{Last, Look};
+use crate::ui::{self, Theme};
 use crate::{Faraday, ScreenKey, Sheet, motion};
 
 /// A change of screen, sheet or theme fading in, with the frosted page under an
@@ -161,6 +162,12 @@ impl Fade {
             self.due = true;
         }
         self.from.is_some()
+    }
+
+    /// Whether a fade is under way: the canvas shows a blend, not the
+    /// frame last drawn.
+    pub(crate) fn under_way(&self) -> bool {
+        self.from.is_some() || self.due
     }
 
     /// Whether the next frame is a fade's step.
@@ -392,13 +399,13 @@ impl Faraday {
     /// Whether the next frame the shell asks for is a fade's step, a
     /// blend of the two kept frames, rather than a frame drawn in full.
     pub fn next_frame_blends(&self) -> bool {
-        !self.out.dirty && self.fade.is_due()
+        !self.out.wanted() && self.fade.is_due()
     }
 
     /// Whether the next frame asked for changes the app's pixels: drawn in
     /// full, or a fade's step. Otherwise the canvas is shown as it is.
     pub(crate) fn paints_next(&self) -> bool {
-        self.out.dirty || self.fade.is_due()
+        self.out.wanted() || self.fade.is_due()
     }
 
     /// What fades have done since this was last called, and the counts
@@ -421,6 +428,103 @@ impl Faraday {
     /// Until a few steps have been timed, it does.
     pub(crate) fn fades(&self) -> bool {
         self.fade.fades(self.settings.reduce_motion())
+    }
+}
+
+// The moved frame's decision (`moved.rs`, `docs/FRAMES.md` §3.3).
+impl Faraday {
+    /// The next frame is drawn whole: a test of the moved frame draws the
+    /// same state both ways.
+    #[cfg(test)]
+    pub(crate) fn draw_whole_next(&mut self) {
+        self.out.kept.draw_whole_next();
+        self.out.redraw();
+    }
+
+    /// Whether the frame about to be drawn may be a moved frame
+    /// (`docs/FRAMES.md` §3.3), and if so the region whose rows it moves.
+    /// `only_moved`: nothing asked for the frame but the region's motion.
+    /// `stretch`: the stretch this frame is drawn with, pixels.
+    pub(crate) fn moved_plan(
+        &mut self,
+        c: &faraday_draw::Canvas,
+        only_moved: bool,
+        stretch: i32,
+    ) -> Option<ui::Plan> {
+        let whole_next = self.out.kept.take_whole_next();
+        let last = self.out.kept.last()?;
+        let hot = self.pointer.hovered().is_some()
+            || self.pointer.pressed().is_some()
+            || self.pointer.tip_shown().is_some();
+        let calm = !whole_next
+            // 2. Nothing asked for the frame but the region's motion.
+            && only_moved
+            // 1. The last frame drew the same region, as drawn now.
+            && last.drew(self.region_key(), self.slot(), self.look(c))
+            && self.sheet.is_none()
+            // 3. The stretch before and after is within the view.
+            && last.stretches_within(stretch)
+            // 4. Nothing in the region moves of itself.
+            && last.calm()
+            && !hot
+            && !self.fade.under_way()
+            && self.busy().is_none()
+            && self.out.toast.is_none()
+            && self.disclosed.as_ref().is_none_or(|d| !d.moving)
+            && self.guided_moving.is_none()
+            && (!self.shows_clock() || last.clock_is(self.clock_now()))
+            // 5. The ink audit reads every string's ink, which a strip
+            // does not draw.
+            && !c.recording_ink();
+        calm.then(|| last.plan())
+    }
+
+    /// What a frame on `c` is drawn for, besides its region.
+    fn look(&self, c: &faraday_draw::Canvas) -> Look {
+        Look {
+            theme: self.theme(),
+            f: self.f,
+            text: self.text_size(),
+            size: (c.width(), c.height()),
+        }
+    }
+
+    /// After a frame is drawn: what the next may move, and how this one
+    /// moved the rows for the shell.
+    pub(crate) fn moved_drew(&mut self, layer: &ui::Layer, stretch: i32, caret: bool) {
+        let Some(c) = self.canvas.as_ref() else {
+            self.out.kept.keep(None);
+            return;
+        };
+        let look = self.look(c);
+        let hot = self.pointer.hovered().is_some() || self.pointer.pressed().is_some();
+        let last = layer.of.map(|(slot, view)| {
+            Last::new(
+                (self.region_key(), slot),
+                (view, layer.px, stretch),
+                look,
+                (!caret && !hot, self.clock_now()),
+            )
+        });
+        self.out.kept.keep(last);
+        match (layer.moved, layer.of) {
+            (Some(d), Some((_, view))) => self.out.kept.moved_frame(view, d),
+            _ => self.out.kept.whole_frame(),
+        }
+    }
+
+    /// The current frame as parts, with how it moved the rows since the
+    /// shell last took them (`App::parts`).
+    pub(crate) fn parts_moved(&mut self) -> faraday_shell_api::Parts<'_> {
+        let _ = faraday_shell_api::App::frame(self);
+        let moved = self.out.kept.take_since();
+        faraday_shell_api::Parts {
+            base: faraday_shell_api::App::frame(self),
+            base_y: 0,
+            inner: None,
+            changed: None,
+            moved,
+        }
     }
 }
 

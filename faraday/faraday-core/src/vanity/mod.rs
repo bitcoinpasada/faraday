@@ -308,7 +308,7 @@ impl VanityArea {
             v.running = false;
             v.error = Some(EN.vanity_every_counter.into());
         }
-        out.dirty = true;
+        out.redraw();
         out.command(faraday_shell_api::Command::Draw);
         true
     }

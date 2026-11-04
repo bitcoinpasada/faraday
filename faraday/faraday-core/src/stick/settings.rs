@@ -546,7 +546,7 @@ impl Faraday {
     /// or kept set holds.
     pub fn draw_in(&mut self, theme: crate::ui::Theme) {
         self.settings.set_theme(theme);
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// Draws text at `text` from the next frame on, laid out again for
@@ -562,7 +562,7 @@ impl Faraday {
         if let Some(d) = self.last_display {
             self.display(d);
         }
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// How large the person has text drawn (Settings › Appearance,
@@ -610,7 +610,7 @@ impl Faraday {
     /// Notes that Faraday Demo's host holds the app ([`crate::Host`]).
     pub(crate) fn set_hosted(&mut self, on: bool) {
         self.settings.set_hosted(on);
-        self.out.dirty = true;
+        self.out.redraw();
     }
 
     /// Reduce motion: nothing slides, glides, coasts or stretches.

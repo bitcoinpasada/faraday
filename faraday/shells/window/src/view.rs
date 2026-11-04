@@ -542,6 +542,7 @@ mod tests {
                 1,
             )),
             changed: None,
+            moved: None,
         };
         // A window a column wider and a row taller than the frame: the
         // moment after a resize.
@@ -584,6 +585,7 @@ mod tests {
                 0,
             )),
             changed: None,
+            moved: None,
         };
         let mut buffer = vec![0u32; 5 * 6];
         copy(&parts, &mut buffer, 5);
@@ -635,6 +637,7 @@ mod tests {
             base_y: 0,
             inner: None,
             changed: None,
+            moved: None,
         }
     }
 

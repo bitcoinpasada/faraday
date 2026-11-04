@@ -635,10 +635,12 @@ User-facing behaviour only (`CLAUDE.md`):
   first (the snapshot tool does), and draws a frame after a press before
   scrolling, as a shell does: a scroll stops where the last frame said
   the page ends.
-- A fade's steps blend the kept frames only while `dirty` is not set;
-  anything that changes what a frame shows sets `dirty`, as it always
-  has, and is drawn in full. A change that alters the screen without
-  setting `dirty` would be shown only when the fade ends. A tick asks
+- A fade's steps blend the kept frames only while no frame is wanted;
+  anything that changes what a frame shows calls `Out::redraw`, and is
+  drawn in full; only the region's own motion (a pan, a wheel's glide, a
+  coast, the spring) calls `Out::moved`, a frame that may move the rows
+  already drawn (`docs/FRAMES.md` §3.4). A change that alters the screen
+  without asking for a frame would be shown only when the fade ends. A tick asks
   for the fade's next step through `fade_due`, not `dirty`.
 - Tests that read pixels after a change tick at 16 ms first, as a shell
   does (`tests/all/transitions.rs`, `tests/all/scroll.rs`).

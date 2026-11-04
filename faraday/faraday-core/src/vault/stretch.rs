@@ -79,7 +79,7 @@ pub(crate) fn defer(app: &mut Faraday, work: Work) {
     app.vaults.state.working = Some(work);
     app.later = Some(Later::Vault(work, app.worker.inline()));
     app.worker.set_drawn(false);
-    app.out.dirty = true;
+    app.out.redraw();
     app.out.commands.push_back(crate::Command::Draw);
 }
 

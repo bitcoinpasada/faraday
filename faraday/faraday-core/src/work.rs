@@ -345,6 +345,6 @@ pub fn take_vault_work() -> Vec<VaultWork> {
 }
 
 #[cfg(test)]
-mod budget;
+pub(crate) mod budget;
 #[cfg(test)]
 mod kept;

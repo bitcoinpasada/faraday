@@ -76,6 +76,18 @@ pub struct Scrolled {
     pub max_x: f32,
 }
 
+/// Whether a region's content is a function of its state and offset
+/// alone, so a scroll step may move the rows already drawn and paint only
+/// the rows it brings into view (`docs/FRAMES.md` §3.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Moves {
+    /// The region is drawn whole each frame.
+    #[default]
+    No,
+    /// The region may be drawn as a moved frame.
+    Yes,
+}
+
 /// A region about to be drawn: where it is seen, what it sits on and
 /// which offset it moves ([`Ui::region`]).
 #[derive(Debug, Clone, Copy)]
@@ -87,6 +99,7 @@ pub struct Region {
     offset: Option<f32>,
     pan: f32,
     whole: Option<f32>,
+    moves: Moves,
 }
 
 impl Region {
@@ -101,6 +114,7 @@ impl Region {
             offset: None,
             pan: 0.0,
             whole: None,
+            moves: Moves::No,
         }
     }
 
@@ -156,6 +170,26 @@ impl Region {
             ..self
         }
     }
+
+    /// Says whether the region may be drawn as a moved frame. It must be
+    /// laid out from zero ([`Region::from_zero`]), and its content must
+    /// depend on nothing but its state and offset.
+    pub fn moves(self, moves: Moves) -> Self {
+        Region { moves, ..self }
+    }
+}
+
+/// The region the core would move the rows of, for [`Ui`] to draw as a
+/// moved frame (`docs/FRAMES.md` §3.1): the region the last frame kept
+/// the content layer of, and the whole pixels its offset was at.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Plan {
+    /// The region.
+    pub slot: Slot,
+    /// Where it was seen.
+    pub view: Rect,
+    /// The whole pixels its offset moved its content by.
+    pub px: i32,
 }
 
 /// How far a region's content goes past its view, units: down, and
@@ -181,6 +215,10 @@ impl From<f32> for Extent {
 pub struct Open {
     region: Region,
     oy_px: i32,
+    /// The rows the offset moved the content by, on a moved frame.
+    moved: Option<i32>,
+    /// What [`Ui::seen_clip`] read before the region.
+    seen: Option<Rect>,
 }
 
 /// Which region the canvas's content layer ([`Canvas::layer`]) is of: the
@@ -190,6 +228,10 @@ pub struct Open {
 pub struct Layer {
     /// The region the pixels are of, with its view.
     pub of: Option<(Slot, Rect)>,
+    /// The whole pixels the region's offset moved its content by.
+    pub px: i32,
+    /// The frame drew the region as a moved frame, by this many rows.
+    pub moved: Option<i32>,
 }
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
@@ -211,12 +253,49 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// not fit one closure: pushes the view's clip and, for a region
     /// laid out from zero, the pixels its offset moves it by.
     pub fn region_open(&mut self, region: Region) -> Open {
-        self.c.push_clip(region.view);
         let oy_px = self.oy_px;
+        let seen = self.seen;
+        let mut moved = None;
+        let mut clip = region.view;
         if let Some(by) = region.whole {
-            self.oy_px = oy_px - self.px(by);
+            let px = self.px(by);
+            self.oy_px = oy_px - px;
+            if let Some(d) = self.moves_by(&region, px) {
+                // The whole view is seen for hits and for what a row
+                // skips; only the strip the move uncovered is painted.
+                self.seen = Some(self.c.clip().intersect(&region.view));
+                clip = match d {
+                    0 => Rect::new(clip.x, clip.y, clip.w, 0),
+                    d if d > 0 => Rect::new(clip.x, clip.bottom() - d, clip.w, d),
+                    d => Rect::new(clip.x, clip.y, clip.w, -d),
+                };
+                moved = Some(d);
+            }
         }
-        Open { region, oy_px }
+        self.c.push_clip(clip);
+        Open {
+            region,
+            oy_px,
+            moved,
+            seen,
+        }
+    }
+
+    /// How many rows this frame's region moves the layer by, when it is
+    /// drawn as a moved frame: the region is the one the core planned
+    /// to move and is the active one, its screen says it moves, and the
+    /// move leaves rows of the layer in view.
+    fn moves_by(&self, region: &Region, px: i32) -> Option<i32> {
+        let plan = self.moved?;
+        let d = px - plan.px;
+        (region.moves == Moves::Yes
+            && self.keep_content
+            && plan.slot == region.slot
+            && plan.view == region.view
+            && region.slot == self.active
+            && self.in_sheet == self.stretch_in_sheet
+            && d.abs() < region.view.h - 1)
+            .then_some(d)
     }
 
     /// [`Ui::region_open`] for a page whose drawing and closing are in
@@ -233,6 +312,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn page_begin(&mut self, (x0, cw, h): (f32, f32, f32), by: f32) {
         let view = self.rect(x0, 0.0, cw, h);
         self.region_begin(Region::page(view).from_zero(by));
+    }
+
+    /// [`Ui::page_begin`] for a page whose content depends on nothing
+    /// but its state and offset ([`Moves::Yes`]).
+    pub fn moving_page_begin(&mut self, (x0, cw, h): (f32, f32, f32), by: f32) {
+        let view = self.rect(x0, 0.0, cw, h);
+        self.region_begin(Region::page(view).from_zero(by).moves(Moves::Yes));
     }
 
     /// [`Ui::page_begin`] that returns `top`, where the page's content
@@ -252,9 +338,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Closes the region [`Ui::region_begin`] opened without reporting
     /// it, if it is still open: its clip and its pixels are given back.
     pub fn region_abandon(&mut self) {
-        if let Some(Open { oy_px, .. }) = self.begun.take() {
+        if let Some(Open {
+            oy_px, moved, seen, ..
+        }) = self.begun.take()
+        {
             self.oy_px = oy_px;
+            self.seen = seen;
             self.c.pop_clip();
+            self.spoiled |= moved.is_some();
         }
     }
 
@@ -262,17 +353,30 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// region's content layer, stretches the region past an end, fades
     /// its edges and draws its scrollbar.
     pub fn region_close(&mut self, open: Open, reach: impl Into<Extent>) {
-        let Open { region, oy_px } = open;
+        let Open {
+            region,
+            oy_px,
+            moved,
+            seen,
+        } = open;
         self.oy_px = oy_px;
+        self.seen = seen;
         self.c.pop_clip();
-        self.region_reported(region, reach);
+        self.region_finish(region, reach.into(), moved);
     }
 
     /// [`Ui::region_close`] for a region whose clip the screen pops
     /// itself (or never pushed): the region is reported as drawn, and
     /// stretched, faded and given its scrollbar.
     pub fn region_reported(&mut self, region: Region, reach: impl Into<Extent>) {
-        let reach = reach.into();
+        self.region_finish(region, reach.into(), None);
+    }
+
+    /// [`Ui::region_reported`], for a region drawn as a moved frame by
+    /// `moved` rows when it is: the layer of the frame before, moved, is
+    /// put back but for the strip painted, and the layer is taken again
+    /// before the overlays.
+    fn region_finish(&mut self, region: Region, reach: Extent, moved: Option<i32>) {
         let offset = region.offset.unwrap_or(self.offset);
         let (slot, view, ground) = (region.slot, region.view, region.ground);
         let max = reach.down.max(0.0);
@@ -291,9 +395,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             return;
         }
         if slot == self.active {
-            if self.keep_content {
+            if let Some(d) = moved {
+                self.c.paste_layer(view, -d);
+                self.content.moved = Some(d);
+            }
+            if self.keep_content && region.moves == Moves::Yes {
                 self.c.keep_layer(view);
                 self.content.of = Some((slot, view));
+                self.content.px = region.whole.map_or(0, |by| self.px(by));
             }
             self.stretch_view(view, ground);
         }

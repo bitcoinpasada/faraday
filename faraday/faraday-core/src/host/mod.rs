@@ -1156,6 +1156,7 @@ impl App for Host {
                 base_y: 0,
                 inner: None,
                 changed: None,
+                moved: None,
             };
         };
         let at = |v: i32| v.clamp(0, i32::from(u16::MAX)) as u16;
@@ -1193,6 +1194,7 @@ impl App for Host {
             base_y,
             inner: Some((painted(&self.app), at(a.x), at(a.y))),
             changed: known.is_some().then_some(self.changed.as_slice()),
+            moved: None,
         }
     }
 }

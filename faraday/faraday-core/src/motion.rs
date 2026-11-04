@@ -738,6 +738,59 @@ impl Scroll {
 
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
+    /// Runs `go` on the motion and the region that scrolls now, with how
+    /// far it goes as the last frame drew it. A motion left over from
+    /// another screen or sheet is stopped first.
+    pub(crate) fn with_region<R>(
+        &mut self,
+        go: impl FnOnce(&mut Motion, &mut Region) -> R,
+    ) -> Option<R> {
+        self.own_motion();
+        let extent = self.region_now();
+        let (f, h) = (self.f.max(0.1), self.h);
+        let mut m = self.scroll.take_motion(self.reduce_motion());
+        let out = self.scroll_slot().map(|offset| {
+            let mut region = Region {
+                offset,
+                max: extent.map(|e| e.max),
+                view: extent.map_or(h, |e| e.view.h as f32 / f),
+                f,
+            };
+            go(&mut m, &mut region)
+        });
+        self.scroll.put_back(m);
+        out
+    }
+
+    /// Fingers moved the content by `dy` units: at once.
+    pub(crate) fn pan(&mut self, dy: f32) {
+        self.with_region(|m, r| m.pan(r, dy));
+    }
+
+    /// A wheel or a key asked for `dy` units: the content glides there.
+    pub(crate) fn glide(&mut self, dy: f32) {
+        if self.reduce_motion() {
+            self.with_region(|m, r| m.jump(r, dy));
+        } else if self.scroll_slot().is_some() {
+            // A glide on the region the pointer has just moved to starts
+            // there, not on the region that was moving.
+            self.own_motion();
+            self.scroll.glide(dy);
+        }
+    }
+
+    /// Moves whatever is moving on to `now_ms`. Returns whether a frame
+    /// is wanted for it.
+    pub(crate) fn motion_tick(&mut self, now_ms: u64) -> bool {
+        match self.with_region(|m, r| m.tick(r, now_ms)) {
+            Some(moved) => moved,
+            None => {
+                self.scroll.stop();
+                false
+            }
+        }
+    }
+
     /// The navigation opens `to` (`Action::Nav`): another destination's
     /// list pane starts at its top, and Settings at its list
     /// (`docs/LAYOUT.md` §5); Backups opens on its first wallet.

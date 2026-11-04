@@ -88,7 +88,7 @@ fn kept<A: Copy + PartialEq>(
             .map(|(_, _, h)| *h)
     };
     if let Some(h) = known {
-        let clip = ui.c.clip();
+        let clip = ui.seen_clip();
         let (top, bottom) = (ui.py(y), ui.px(y + ui.oy + h) + ui.oy_px);
         if bottom < clip.y || top > clip.y + clip.h {
             return h;

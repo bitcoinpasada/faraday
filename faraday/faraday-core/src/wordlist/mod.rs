@@ -280,7 +280,7 @@ impl WordListArea {
             }
             _ => {}
         }
-        out.dirty = true;
+        out.redraw();
         glide.map_or(Keyed::Taken, Keyed::Glide)
     }
 }

@@ -895,7 +895,7 @@ impl Faraday {
             self.flows.restore_sheet(&self.inbox[..]);
             self.sheet = Some(Sheet::GpgRestore);
         }
-        self.out.dirty = true;
+        self.out.redraw();
         true
     }
 
@@ -926,7 +926,7 @@ impl Faraday {
                 }
             }
         }
-        self.out.dirty = true;
+        self.out.redraw();
     }
 }
 
