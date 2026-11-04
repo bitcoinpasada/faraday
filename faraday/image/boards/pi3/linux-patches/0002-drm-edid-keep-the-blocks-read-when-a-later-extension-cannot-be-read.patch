@@ -1,0 +1,33 @@
+drm/edid: keep the blocks read when a later extension cannot be read
+
+Faraday's own change, not upstream's (docs/DECISIONS.md F205). A read of EDID block 2 or later
+needs three I2C messages (segment pointer, offset, read). i2c-bcm2835
+starts each next message from its TXW interrupt, which holds for one
+write followed by a read; with three it programs the third while the
+first is on the bus, and the read ends short, on most boots of a screen
+with three or more blocks. One such failure threw the whole EDID away, so
+the screen had no modes. The base block and the first extension are read
+with two messages.
+
+diff --git a/drivers/gpu/drm/drm_edid.c b/drivers/gpu/drm/drm_edid.c
+--- a/drivers/gpu/drm/drm_edid.c
++++ b/drivers/gpu/drm/drm_edid.c
+@@ -2348,8 +2348,16 @@
+ 		edid_block_status_print(status, block, i);
+ 
+ 		if (!edid_block_status_valid(status, edid_block_tag(block))) {
+-			if (status == EDID_BLOCK_READ_FAIL)
+-				goto fail;
++			if (status == EDID_BLOCK_READ_FAIL) {
++				/*
++				 * The blocks read so far still describe the
++				 * screen: mark this one and those after it
++				 * invalid, and keep the others.
++				 */
++				memset(block, 0, (num_blocks - i) * EDID_LENGTH);
++				invalid_blocks += num_blocks - i;
++				break;
++			}
+ 			invalid_blocks++;
+ 		} else if (i == 1) {
+ 			/*

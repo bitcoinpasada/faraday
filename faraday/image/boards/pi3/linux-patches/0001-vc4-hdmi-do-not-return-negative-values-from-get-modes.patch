@@ -1,0 +1,20 @@
+drm/vc4: hdmi: do not return negative values from .get_modes()
+
+Mainline commit abf493988e38:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=abf493988e38
+Its one line applied to this tree; the message and its authorship are at
+that link. A failed EDID read now returns no modes rather than an error,
+so the probe helper's fallback modes are added.
+
+diff --git a/drivers/gpu/drm/vc4/vc4_hdmi.c b/drivers/gpu/drm/vc4/vc4_hdmi.c
+--- a/drivers/gpu/drm/vc4/vc4_hdmi.c
++++ b/drivers/gpu/drm/vc4/vc4_hdmi.c
+@@ -527,7 +527,7 @@
+ 	edid = drm_get_edid(connector, vc4_hdmi->ddc);
+ 	cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
+ 	if (!edid)
+-		return -ENODEV;
++		return 0;
+ 
+ 	drm_connector_update_edid_property(connector, edid);
+ 	ret = drm_add_edid_modes(connector, edid);

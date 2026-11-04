@@ -24,6 +24,10 @@ BR2_LINUX_KERNEL_DEFCONFIG="bcm2709"
 # versions its linux.hash lists, and this is not one, so without this line
 # nothing checks what was fetched.
 # KERNEL_SHA256 4d3a2af178ac6ed8f35b773836c8d216493a850aeb80932b379348e2df0cf5d2
+# Two changes to the EDID read (docs/IMAGES.md §3.2): without them a screen
+# whose EDID has three or more blocks shows nothing on most boots. /image is
+# this tree as build.sh sees it.
+BR2_LINUX_KERNEL_PATCH="/image/boards/pi3/linux-patches"
 
 BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
 BR2_LINUX_KERNEL_DTS_SUPPORT=y
