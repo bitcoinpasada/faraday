@@ -282,3 +282,97 @@ fn a_received_secret_is_saved_only_past_the_hold() {
     app.press(Action::Cancel);
     assert!(saves(&mut app).is_empty(), "cancelled");
 }
+
+/// The CBOR of an hdkey map from `(key, encoded value)` entries.
+fn hdkey_cbor(entries: &[(u64, Vec<u8>)]) -> Vec<u8> {
+    use faraday_qr::cbor::{bytes, head};
+    let g = [
+        0x02, 0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95, 0xce, 0x87,
+        0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16,
+        0xf8, 0x17, 0x98,
+    ];
+    let mut e = vec![(3, bytes(&g)), (4, bytes(&[7u8; 32]))];
+    e.extend(entries.iter().cloned());
+    e.sort_by_key(|(k, _)| *k);
+    let mut out = head(5, e.len() as u64);
+    for (k, v) in e {
+        out.extend(head(0, k));
+        out.extend(v);
+    }
+    out
+}
+
+/// Receives one code: nothing is saved before the hold, the file past it.
+fn saved_only_past_the_hold(ur: String) {
+    let mut app = receiving();
+    app.event(Event::Scanned {
+        bytes: ur.into_bytes(),
+    });
+    assert!(saves(&mut app).is_empty(), "not saved before the hold");
+    let (name, _) = testkit::plain_asked(&app).expect("the hold");
+    app.press(Action::SecretHold);
+    assert_eq!(saves(&mut app), vec![name]);
+}
+
+#[test]
+fn a_private_key_by_ur_is_saved_only_past_the_hold() {
+    let private = hdkey_cbor(&[(2, vec![0xf5])]);
+    saved_only_past_the_hold(faraday_codec::ur::encode_single("crypto-hdkey", &private));
+}
+
+#[test]
+fn a_seed_by_ur_is_saved_only_past_the_hold() {
+    saved_only_past_the_hold(faraday_codec::ur::encode_single(
+        "seed",
+        &[
+            0xa1, 0x01, 0x50, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+        ],
+    ));
+}
+
+#[test]
+fn a_public_key_in_a_refused_shape_is_saved_without_the_hold() {
+    use faraday_qr::cbor::head;
+    let steps = head(4, 2);
+    let mut path = head(5, 2);
+    path.extend(head(0, 1));
+    path.extend(steps);
+    path.extend(head(0, 48));
+    path.push(0xf5);
+    path.extend(head(0, 3));
+    path.extend(head(0, 9));
+    let mut tagged = head(6, 304);
+    tagged.extend(path);
+    let refused = hdkey_cbor(&[(6, tagged)]);
+    let mut app = receiving();
+    app.event(Event::Scanned {
+        bytes: faraday_codec::ur::encode_single("crypto-hdkey", &refused).into_bytes(),
+    });
+    assert_eq!(saves(&mut app).len(), 1, "saved without a hold");
+    assert!(testkit::plain_asked(&app).is_none());
+}
+
+#[test]
+fn a_master_key_by_ur_is_saved_only_past_the_hold() {
+    use faraday_qr::cbor::{bytes, head};
+    // BCR-2020-007's first example, BIP-32's vector 1 master: `is-master`
+    // and no `is-private`.
+    let key = [
+        0x00, 0xe8, 0xf3, 0x2e, 0x72, 0x3d, 0xec, 0xf4, 0x05, 0x1a, 0xef, 0xac, 0x8e, 0x2c, 0x93,
+        0xc9, 0xc5, 0xb2, 0x14, 0x31, 0x38, 0x17, 0xcd, 0xb0, 0x1a, 0x14, 0x94, 0xb9, 0x17, 0xc8,
+        0x43, 0x6b, 0x35,
+    ];
+    let chain = [
+        0x87, 0x3d, 0xff, 0x81, 0xc0, 0x2f, 0x52, 0x56, 0x23, 0xfd, 0x1f, 0xe5, 0x16, 0x7e, 0xac,
+        0x3a, 0x55, 0xa0, 0x49, 0xde, 0x3d, 0x31, 0x4b, 0xb4, 0x2e, 0xe2, 0x27, 0xff, 0xed, 0x37,
+        0xd5, 0x08,
+    ];
+    let mut cbor = head(5, 3);
+    cbor.extend(head(0, 1));
+    cbor.push(0xf5);
+    cbor.extend(head(0, 3));
+    cbor.extend(bytes(&key));
+    cbor.extend(head(0, 4));
+    cbor.extend(bytes(&chain));
+    saved_only_past_the_hold(faraday_codec::ur::encode_single("crypto-hdkey", &cbor));
+}

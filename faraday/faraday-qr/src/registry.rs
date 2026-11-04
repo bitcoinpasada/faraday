@@ -24,6 +24,26 @@ use crate::cbor::Value;
 const HDKEY: u64 = 303;
 const KEYPATH: u64 = 304;
 const OUTPUT: u64 = 308;
+const COININFO: u64 = 305;
+// The same three types under the numbers `ur:hdkey` gives them (BCR-2020-007's
+// vectors, and what the first reader here took): each means what its partner
+// does.
+const HDKEY_UR: u64 = 40303;
+const KEYPATH_UR: u64 = 40304;
+const COININFO_UR: u64 = 40305;
+const ACCOUNT: u64 = 311;
+
+/// `v` without the one tag (`n`, or its `ur:hdkey` number `m`) its type may
+/// carry. Another tag, or two, is not that type.
+fn strip(v: &Value, n: u64, m: u64) -> Option<&Value> {
+    match v {
+        Value::Tag(t, inner) if (*t == n || *t == m) && !matches!(**inner, Value::Tag(..)) => {
+            Some(inner)
+        }
+        Value::Tag(..) => None,
+        v => Some(v),
+    }
+}
 
 /// What a registry type was read as.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,15 +167,18 @@ impl Key {
 /// `[index, hardened, …]` as `/48h/0h` text, a wildcard as `*`.
 fn path(v: &Value) -> Result<String, Error> {
     let bad = || Error::Path;
-    let Some(Value::Array(c)) = v.untag().1.get(1) else {
-        return Ok(String::new());
+    // The components are required; an empty array is a path with no steps.
+    let Some(Value::Array(c)) = strip(v, KEYPATH, KEYPATH_UR).ok_or_else(bad)?.get(1) else {
+        return Err(bad());
     };
     if c.len() % 2 != 0 {
         return Err(bad());
     }
     let mut out = String::new();
     for pair in c.chunks(2) {
-        let hardened = matches!(pair[1], Value::Bool(true));
+        let Value::Bool(hardened) = pair[1] else {
+            return Err(bad());
+        };
         match &pair[0] {
             Value::Uint(i) if *i < 0x8000_0000 => out.push_str(&format!("/{i}")),
             Value::Array(a) if a.is_empty() => out.push_str("/*"),
@@ -168,32 +191,80 @@ fn path(v: &Value) -> Result<String, Error> {
     Ok(out)
 }
 
-fn hdkey(v: &Value) -> Result<Key, Error> {
+/// An hdkey map's public key and chain code, or why it holds neither.
+fn hdkey_public(v: &Value) -> Result<(PublicKey, [u8; 32]), Error> {
     let bad = || Error::Key;
-    let v = v.untag().1;
-    if matches!(v.get(2), Some(Value::Bool(true))) {
-        return Err(Error::Private);
+    match v.get(2) {
+        None | Some(Value::Bool(false)) => {}
+        Some(Value::Bool(true)) => return Err(Error::Private),
+        Some(_) => return Err(bad()),
     }
+    let master = match v.get(1) {
+        None | Some(Value::Bool(false)) => false,
+        Some(Value::Bool(true)) => true,
+        Some(_) => return Err(bad()),
+    };
     let Some(Value::Bytes(key)) = v.get(3) else {
         return Err(bad());
     };
+    // Key data starting 00 is a private key, with or without the flags:
+    // BCR-2020-007's master key says only `is-master`.
+    if key.first() == Some(&0) {
+        return Err(Error::Private);
+    }
+    // A master key is private, so `is-master` on a public one is refused.
+    if master {
+        return Err(bad());
+    }
     let Some(Value::Bytes(chain)) = v.get(4) else {
         return Err(Error::NoChainCode);
     };
+    // Key data is 33 bytes; `from_slice` would also take an uncompressed key.
+    if key.len() != 33 {
+        return Err(bad());
+    }
     let public_key = PublicKey::from_slice(key).map_err(|_| bad())?;
     let chain: [u8; 32] = chain.as_slice().try_into().map_err(|_| bad())?;
-    let network = match v.get(5).map(|u| u.untag().1.get(2)) {
-        Some(Some(Value::Uint(1))) => NetworkKind::Test,
-        _ => NetworkKind::Main,
+    Ok((public_key, chain))
+}
+
+fn hdkey(v: &Value) -> Result<Key, Error> {
+    let bad = || Error::Key;
+    let v = strip(v, HDKEY, HDKEY_UR).ok_or_else(bad)?;
+    let (public_key, chain) = hdkey_public(v)?;
+    // The use-info's network: 0 mainnet (the default), 1 Bitcoin testnet.
+    let network = match v.get(5) {
+        None => NetworkKind::Main,
+        Some(u) => match strip(u, COININFO, COININFO_UR).ok_or_else(bad)? {
+            u @ Value::Map(_) => {
+                // The coin type is 0 or 1; 1 is read on any path, as
+                // wallets write it (no comparison with the path).
+                match u.get(1) {
+                    None | Some(Value::Uint(0 | 1)) => {}
+                    Some(_) => return Err(bad()),
+                }
+                match u.get(2) {
+                    None | Some(Value::Uint(0)) => NetworkKind::Main,
+                    Some(Value::Uint(1)) => NetworkKind::Test,
+                    Some(_) => return Err(bad()),
+                }
+            }
+            _ => return Err(bad()),
+        },
     };
     let origin = v.get(6);
     let (origin_path, depth, last) = match origin {
         Some(o) => {
             let p = path(o)?;
             let comps = p.split('/').filter(|s| !s.is_empty()).count();
-            let depth = match o.untag().1.get(3) {
-                Some(Value::Uint(d)) => *d as usize,
-                _ => comps,
+            // A stated depth is the number of steps given. BCR-2020-007
+            // allows a larger one, a partial path, but Faraday writes
+            // `[fingerprint/path]`: the master's fingerprint and the path
+            // from it, so a partial path would read as a false full origin.
+            let depth = match strip(o, KEYPATH, KEYPATH_UR).ok_or_else(bad)?.get(3) {
+                None => comps,
+                Some(Value::Uint(d)) if *d as usize == comps => comps,
+                Some(_) => return Err(Error::Path),
             };
             let last = p.rsplit('/').next().unwrap_or("");
             let child = match last.strip_suffix('h') {
@@ -206,14 +277,24 @@ fn hdkey(v: &Value) -> Result<Key, Error> {
                     .ok()
                     .and_then(|n| ChildNumber::from_normal_idx(n).ok()),
             };
+            // An origin is the steps taken: a wildcard is not one.
+            if p.contains('*') {
+                return Err(Error::Path);
+            }
             (Some(p), depth, child)
         }
         None => (None, 0, None),
     };
+    // Parent fingerprint 0 is read: a key at depth 0 has one, and
+    // SeedSigner writes it. BIP-32 allows no other at depth 0.
     let parent = match v.get(8) {
+        None => [0; 4],
         Some(Value::Uint(f)) if *f <= u64::from(u32::MAX) => (*f as u32).to_be_bytes(),
-        _ => [0; 4],
+        Some(_) => return Err(bad()),
     };
+    if depth == 0 && parent != [0; 4] {
+        return Err(bad());
+    }
     let xpub = Xpub {
         network,
         depth: u8::try_from(depth).map_err(|_| bad())?,
@@ -222,10 +303,23 @@ fn hdkey(v: &Value) -> Result<Key, Error> {
         public_key,
         chain_code: ChainCode::from(chain),
     };
-    let source = origin.and_then(|o| match o.untag().1.get(2) {
-        Some(Value::Uint(f)) if *f <= u64::from(u32::MAX) => Some(*f as u32),
-        _ => None,
-    });
+    let source = match origin {
+        Some(o) => match strip(o, KEYPATH, KEYPATH_UR).ok_or_else(bad)?.get(2) {
+            None => None,
+            // The specification says `uint32 .ne 0`, and 0 is the usual
+            // placeholder for an unknown master: not an origin.
+            Some(Value::Uint(f)) if (1..=u64::from(u32::MAX)).contains(f) => Some(*f as u32),
+            Some(_) => return Err(Error::Path),
+        },
+        None => None,
+    };
+    // With one step the parent is the master: the two fingerprints, where
+    // both are stated, are identical.
+    if let (Some(s), Some(Value::Uint(p)), 1) = (source, v.get(8), depth)
+        && u64::from(s) != *p
+    {
+        return Err(Error::Path);
+    }
     let origin = match (source, origin_path) {
         (Some(fp), Some(p)) => Some(format!("{fp:08x}{p}")),
         _ => None,
@@ -250,7 +344,7 @@ fn output(v: &Value) -> Result<String, Error> {
     };
     let key = |v: &Value| -> Result<String, Error> {
         match v {
-            Value::Tag(HDKEY, _) | Value::Map(_) => hdkey(v).map(|k| k.in_wallet()),
+            Value::Tag(HDKEY | HDKEY_UR, _) | Value::Map(_) => hdkey(v).map(|k| k.in_wallet()),
             _ => Err(Error::NotExtended),
         }
     };
@@ -272,7 +366,7 @@ fn output(v: &Value) -> Result<String, Error> {
         409 => format!("tr({})", key(inner)?),
         406 => multi("multi", inner)?,
         407 => multi("sortedmulti", inner)?,
-        HDKEY => key(v)?,
+        HDKEY | HDKEY_UR => key(v)?,
         t => return Err(Error::Script(t)),
     })
 }
@@ -280,8 +374,11 @@ fn output(v: &Value) -> Result<String, Error> {
 /// A crypto-account's keys, one line each with its script above it, the
 /// native SegWit multisig key first: a cosigner file.
 fn account(v: &Value) -> Result<String, Error> {
-    let v = v.untag().1;
-    let Some(Value::Uint(fp)) = v.get(1) else {
+    let v = strip(v, ACCOUNT, ACCOUNT).ok_or(Error::Wallet)?;
+    let Some(Value::Uint(fp)) = v
+        .get(1)
+        .filter(|f| matches!(f, Value::Uint(f) if *f <= u64::from(u32::MAX)))
+    else {
         return Err(Error::NoFingerprint);
     };
     let Some(Value::Array(outputs)) = v.get(2) else {
@@ -293,13 +390,24 @@ fn account(v: &Value) -> Result<String, Error> {
             Value::Tag(OUTPUT, inner) => &**inner,
             o => o,
         };
-        let Value::Tag(tag, inner) = o else { continue };
+        // Every entry is a script expression; one that is not is refused,
+        // not left out of the account.
+        let Value::Tag(tag, inner) = o else {
+            return Err(Error::Wallet);
+        };
         // The key under any number of script wrappers, and the script.
+        if !(400..=410).contains(tag) {
+            return Err(Error::Wallet);
+        }
         let (script, mut at) = (*tag, &**inner);
         let mut wrap = vec![script];
         while let Value::Tag(t, i) = at {
-            if *t == HDKEY {
+            if *t == HDKEY || *t == HDKEY_UR {
                 break;
+            }
+            // Only the registry's script tags wrap a key.
+            if !(400..=410).contains(t) {
+                return Err(Error::Wallet);
             }
             wrap.push(*t);
             at = i;

@@ -385,8 +385,12 @@ class Hd:
         self.test = rng.random() < 0.3 if test is None else test
         self.path = [(rng.randrange(2**31), rng.random() < 0.7)
                      for _ in range(rng.randrange(1, 6))]
-        self.source = rng.randrange(2**32)
-        self.parent = rng.randrange(2**32)
+        # A source fingerprint is never 0 (the specification says `.ne 0`),
+        # and with one step the parent is the master.
+        self.source = rng.randrange(1, 2**32)
+        self.parent = self.source if len(self.path) == 1 else rng.randrange(2**32)
+        # `ur:hdkey`'s own numbers for the key, key path and use-info tags.
+        self.tags = (40303, 40304, 40305) if rng.random() < 0.3 else (303, 304, 305)
         self.children = children
         self.with_depth = rng.random() < 0.7
 
@@ -396,15 +400,15 @@ class Hd:
             keypath[3] = len(self.path)
         m = {3: self.key, 4: self.chain}
         if self.test:
-            m[5] = cbor2.CBORTag(305, {2: 1})
-        m[6] = cbor2.CBORTag(304, keypath)
+            m[5] = cbor2.CBORTag(self.tags[2], {2: 1})
+        m[6] = cbor2.CBORTag(self.tags[1], keypath)
         if self.children is not None:
-            m[7] = cbor2.CBORTag(304, {1: self.children})
+            m[7] = cbor2.CBORTag(self.tags[1], {1: self.children})
         m[8] = self.parent
         return m
 
     def tagged(self):
-        return cbor2.CBORTag(303, self.map())
+        return cbor2.CBORTag(self.tags[0], self.map())
 
     def text(self):
         index, hardened = self.path[-1]
@@ -517,11 +521,14 @@ def account_case(area):
     hd = Hd(rng)
     hd.children = None
     wpkh = rng.random() < 0.5
+    master = rng.randrange(1, 2**32)
+    hd.source = master
+    if len(hd.path) == 1:
+        hd.parent = master  # with one step the parent is the master
     xpub = xpub_text(hd.key, hd.chain, len(hd.path), hd.parent,
                      hd.path[-1][0] + 2**31 * hd.path[-1][1], hd.test)
-    master = rng.randrange(2**32)
-    hd.source = master
     hd.with_depth = True
+    hd.tags = (303, 304, 305)  # the numbers Faraday writes
     path = [f"{i}{'h' if h else ''}" for i, h in hd.path]
     inputs = {"master": master.to_bytes(4, "big").hex(), "path": path, "xpub": xpub,
               "wpkh": wpkh}

@@ -96,11 +96,13 @@ fn received(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
 
 /// Costs a PSBT parse (through `read_psbt`). What one code read on
 /// Receive did: still a part, a whole file, or nothing worth keeping
-/// (said in the note).
+/// (said in the note). `secret` is set when the registry said the file is
+/// a private key or a seed, which the saved CBOR no longer shows.
 fn read_any(
     c: &Compute,
     scan: &mut ScanState,
     bytes: &[u8],
+    secret: &mut bool,
 ) -> Option<(Option<String>, &'static str, Vec<u8>)> {
     scan.reads += 1;
     let Ok(raw) = std::str::from_utf8(bytes) else {
@@ -159,8 +161,17 @@ fn read_any(
                     | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
                         (None, "txt", t.into_bytes())
                     }
-                    // A kind this build does not read is kept as the
-                    // CBOR it carried.
+                    // A private key or a seed is kept as the CBOR it
+                    // carried and is a secret: the hold saves it.
+                    Err(
+                        faraday_qr::registry::Error::Private | faraday_qr::registry::Error::Seed,
+                    ) => {
+                        *secret = true;
+                        (None, "cbor", cbor)
+                    }
+                    // A kind this build does not read, and a registry UR
+                    // it refused as not in the registry's shape, are kept
+                    // as the CBOR they carried.
                     _ => (None, "cbor", cbor),
                 }
             }
@@ -287,7 +298,8 @@ impl TransferArea {
         bytes: &zeroize::Zeroizing<Vec<u8>>,
         out: &mut Out,
     ) -> Option<(String, zeroize::Zeroizing<Vec<u8>>)> {
-        let (named, ext, data) = read_any(c, scan, bytes)?;
+        let mut registry_secret = false;
+        let (named, ext, data) = read_any(c, scan, bytes, &mut registry_secret)?;
         let digest = {
             let mut whole = named.clone().unwrap_or_default().into_bytes();
             whole.push(0);
@@ -313,7 +325,8 @@ impl TransferArea {
         };
         // A secret the device let out past its secret sheet is saved as
         // asked, past the hold, and said to be one.
-        let secret = wallet::classify(c, &name, &data).exposure() == Exposure::Secret
+        let secret = registry_secret
+            || wallet::classify(c, &name, &data).exposure() == Exposure::Secret
             || crate::seed_in_code(c, bytes).is_some()
             || crate::scan_read::secret_kind(c, &data).is_some();
         if secret {
