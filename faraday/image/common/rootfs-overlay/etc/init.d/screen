@@ -4,7 +4,9 @@
 # app's loop starts; BusyBox sh. The image does not name its screen.
 #
 # In order (§3.2), stopping at the first found:
-#   1. HDMI connected: no panel's overlay is loaded.
+#   1. HDMI connected: no panel's overlay is loaded. With no /dev/fb0
+#      within the wait, the connector is forced on, which reads the
+#      monitor again.
 #   2. each panel in /etc/faraday/screens/order (the 2.8-inch's GT911
 #      for now): load its touch overlay through configfs, wait for its
 #      controller (name, bus, address), then load its display overlay,
@@ -166,6 +168,26 @@ fb_ready() {
     return 1
 }
 
+# /dev/fb0 at any mode, within the wait.
+fb_appears() {
+    i=0
+    while [ "$i" -lt "$FB_WAIT" ]; do
+        [ -e "$DEV/fb0" ] && return 0
+        sleep 0.1
+        i=$((i + 1))
+    done
+    return 1
+}
+
+# A monitor can read connected and give no modes, which leaves no
+# framebuffer: the forced connector's next probe reads its EDID.
+hdmi_up() {
+    fb_appears && return 0
+    log "HDMI connected but no framebuffer: forcing the connector on"
+    echo on-digital > "$SYS/class/drm/card0-HDMI-A-1/status" 2>/dev/null
+    fb_appears || log "HDMI: still no framebuffer after forcing the connector on"
+}
+
 # probe <screen>: 0 when the screen is attached and set up.
 probe() {
     s=$1
@@ -209,6 +231,7 @@ hdmi=$(cat "$SYS/class/drm/card0-HDMI-A-1/status" 2>/dev/null)
 if [ "$hdmi" = connected ]; then
     log "HDMI connected: no panel tried"
     found=hdmi
+    hdmi_up
 elif [ -f "$SCREENS/order" ]; then
     $MOUNT_CFG "$CFG" 2>/dev/null
     if [ -d "$OVERLAYS" ]; then

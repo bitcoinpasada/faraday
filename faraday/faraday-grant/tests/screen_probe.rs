@@ -82,6 +82,10 @@ impl Rig {
         .unwrap();
     }
 
+    fn hdmi_status(&self) -> String {
+        fs::read_to_string(self.root.join("sys/class/drm/card0-HDMI-A-1/status")).unwrap()
+    }
+
     /// The input device a controller answers as, on the bus the overlay
     /// creates.
     fn controller(&self, bus: &str, addr: &str, name: &str) {
@@ -150,6 +154,37 @@ fn an_hdmi_screen_wins_over_the_panel_also_attached() {
     let (args, _) = rig.run();
     assert_eq!(args, HDMI);
     assert!(rig.loaded().is_empty(), "no panel's overlay is loaded");
+}
+
+#[test]
+fn a_connected_monitor_with_a_framebuffer_is_left_alone() {
+    let rig = Rig::new("hdmi-up");
+    rig.hdmi("connected");
+    rig.framebuffer("1920,1080");
+    let (args, log) = rig.run();
+    assert_eq!(args, HDMI);
+    assert_eq!(rig.hdmi_status(), "connected");
+    assert!(!log.contains("forcing"), "{log}");
+}
+
+#[test]
+fn a_connected_monitor_with_no_framebuffer_is_forced_on() {
+    let rig = Rig::new("hdmi-no-modes");
+    rig.hdmi("connected");
+    let (args, log) = rig.run();
+    assert_eq!(args, HDMI);
+    assert_eq!(rig.hdmi_status().trim(), "on-digital");
+    assert!(log.contains("still no framebuffer"), "{log}");
+    assert!(rig.loaded().is_empty(), "no panel's overlay is loaded");
+}
+
+#[test]
+fn a_panel_with_hdmi_unplugged_does_not_force_the_connector() {
+    let rig = Rig::new("hdmi-unplugged");
+    rig.controller("i2c-gpio", "5d", "Goodix");
+    rig.framebuffer("480,640");
+    rig.run();
+    assert_eq!(rig.hdmi_status(), "disconnected");
 }
 
 #[test]

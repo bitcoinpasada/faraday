@@ -1655,7 +1655,7 @@ fn run(args: Args) -> Result<Exit, String> {
     };
     let fb = OpenOptions::new()
         .write(true)
-        .create(true)
+        .create(args.off_device)
         .truncate(false)
         .open(&args.fb)
         .map_err(|e| format!("cannot open {}: {e}", args.fb.display()))?;
