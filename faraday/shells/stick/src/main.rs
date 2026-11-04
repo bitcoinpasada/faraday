@@ -124,6 +124,7 @@ mod panel;
 mod pointer;
 mod present;
 mod radios;
+mod start_window;
 mod system;
 mod timings;
 mod touch;
@@ -644,6 +645,7 @@ fn input_device(value: &str) -> Result<evdev::Device, String> {
     };
     Ok(evdev::Device {
         node: PathBuf::from(path),
+        sys: PathBuf::new(),
         name: format!("--input {kind}"),
         keyboard: kind == "keys",
         mouse: kind == "mouse",
@@ -847,6 +849,10 @@ struct Shell {
     pointer_speed: f32,
     /// When the directory was last listed.
     scanned: Instant,
+    /// The start window: a device found while it is open is trusted.
+    window: start_window::Window,
+    /// When the shell started, which the window is timed from.
+    started: Instant,
     /// How long Super and S have been held (`keyboard.rs`).
     panic_timer: keyboard::PanicTimer,
     /// The panic chord was held for [`keyboard::PANIC_HOLD`]: the loop
@@ -862,14 +868,26 @@ impl Shell {
     /// plugged into a machine that had none also brings the arrow with
     /// it: the cursor is made here rather than only at start-up.
     fn rescan_inputs(&mut self) {
-        if self.scanned.elapsed() < evdev::RESCAN {
+        let every = if self.window.is_open() {
+            evdev::RESCAN_AT_START
+        } else {
+            evdev::RESCAN
+        };
+        if self.scanned.elapsed() < every {
             return;
         }
         self.scanned = Instant::now();
+        self.rescan_now();
+    }
+
+    /// The listing itself: whatever is new is read, trusted while the
+    /// start window is open and held after.
+    fn rescan_now(&mut self) {
         let (Some(watch), Some(tx)) = (self.watch.as_mut(), self.tx.as_ref()) else {
             return;
         };
-        for (id, device) in watch.rescan() {
+        let window = &mut self.window;
+        for (id, device) in watch.rescan(&mut |sys| window.admit(sys)) {
             if self.verbose {
                 eprintln!(
                     "input {} {:?}: {} (plugged in{})",
@@ -901,6 +919,49 @@ impl Shell {
                     believed,
                 },
             );
+        }
+        self.tell_trust();
+    }
+
+    /// Watches the start window and closes it (F202): once the USB device
+    /// list has been quiet, or at the cap, the devices found are trusted
+    /// and the app is told what external USB devices were plugged in, for
+    /// its notice. Nothing is said when there were none.
+    fn start_window_tick(&mut self) {
+        if !self.window.is_open() {
+            return;
+        }
+        if self.watch.is_none() {
+            self.window.close();
+            return;
+        }
+        let up = self.started.elapsed();
+        self.window
+            .observe(up, usb::devices(Path::new(USB_DEVICES)));
+        if !self.window.ready(up) {
+            return;
+        }
+        // One more look while the window is still open, so a device whose
+        // node came just now is found as it is.
+        self.rescan_now();
+        self.window.close();
+        self.window.save(Path::new(BOXES));
+        let usb = usb::devices(Path::new(USB_DEVICES));
+        let boot = match Record::parse(&std::fs::read_to_string(EXCHANGE).unwrap_or_default()) {
+            Record::Found { partition, .. } => {
+                start_window::medium_port(Path::new("/sys/class/block"), &partition)
+            }
+            _ => None,
+        };
+        let names = start_window::names(Path::new(USB_DEVICES), &usb, boot.as_deref());
+        if self.verbose {
+            eprintln!("start window closed; external USB devices: {names:?}");
+        }
+        if !names.is_empty()
+            && let Some(app) = self.app.as_mut()
+        {
+            app.storage(StorageEvent::BootUsb { names });
+            self.dirty = true;
         }
     }
 
@@ -1802,6 +1863,9 @@ fn run(args: Args) -> Result<Exit, String> {
     // packets standing in for a device, so the shell can be driven on a
     // build box that has none. It also says there is no directory to
     // watch: the files are the devices, and nothing is plugged in later.
+    // Once per power-on: a process started after a lock finds the list the
+    // window left and starts with the window closed (F202).
+    let mut window = start_window::Window::load(Path::new(BOXES));
     let mut watch = args.input.is_empty().then(|| {
         evdev::Watch::new(
             Path::new("/sys/class/input"),
@@ -1810,7 +1874,7 @@ fn run(args: Args) -> Result<Exit, String> {
         )
     });
     let found: Vec<(u32, evdev::Device)> = match watch.as_mut() {
-        Some(watch) => watch.rescan(),
+        Some(watch) => watch.rescan(&mut |sys| window.admit(sys)),
         None => args
             .input
             .iter()
@@ -1960,6 +2024,8 @@ fn run(args: Args) -> Result<Exit, String> {
         touch_panel,
         pointer_speed: args.pointer_speed,
         scanned: Instant::now(),
+        window,
+        started: Instant::now(),
         panic_timer: keyboard::PanicTimer::default(),
         panic: false,
     };
@@ -2257,6 +2323,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // Whatever has been plugged in since the last look, at most once
         // every couple of seconds.
         shell.rescan_inputs();
+        shell.start_window_tick();
         collapse_moves(&mut batch);
         // Input raises the CPU's lowest clock before it is handled, so
         // the frame it changes and a fade after it are drawn at speed.

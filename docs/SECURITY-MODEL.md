@@ -146,11 +146,13 @@ internal error rather than carrying on.
   driver. Interfaces are authorised one at a
   time: a device with a storage interface gets only that interface, so a
   stick that also claims to be a keyboard is never authorised as one. A
-  keyboard other than the computer's built-in one is ignored until it
-  types a random code shown on the screen, and until it is unplugged if
+  keyboard other than the computer's built-in one, and not plugged in
+  when Faraday started, is ignored until it types a random code shown on the screen, and until it is unplugged if
   it types three codes' worth of letters without it; after three such
   keyboards, new ones are ignored until Faraday starts again. A held device asks only once it is used, and one that never acts is
-  never believed. A new
+  never believed. What is plugged in while Faraday starts is trusted, as
+  the person chose it, and one notice lists the external USB devices for
+  10 s, which nothing dismisses (F202). A new
   pointer is ignored until a person approves it with a trusted pointer, or,
   while nothing trusted can point (a trusted keyboard does not), until it
   presses targets as a touchscreen does, or Enter on a trusted keyboard lets
@@ -366,6 +368,11 @@ file goes wrong are absent by construction, not patched after the fact.
   `docs/learn/faraday/boot/what-else-runs.md` says which computers have
   AMT and what to do.
 - A weak passphrase.
+- A malicious device that shows only as a keyboard or mouse and is plugged
+  in when Faraday starts: it is trusted, and a notice lists it so a person
+  can see it, but it can type or click blind. The owner accepts this (F202).
+  A device with a storage interface gets no keyboard interface authorised,
+  so that kind of stick still types nothing.
 - Timing and memory side channels on the device, in part. Some of the
   arithmetic that secrets pass through takes no branch on them and the
   secrets Faraday's own types hold are wiped, but neither is complete:

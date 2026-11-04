@@ -755,7 +755,7 @@ The sheets (`Sheet` in `faraday/faraday-core/src/lib.rs`, drawn in
 `faraday/faraday-core/src/screens/sheets.rs` and the area that owns
 them) include the QR sheet and the scanner (§4.9), the Learn sheet, the word list (a tab per list, Back, and at the start of the row under them a search field that finds a word by its word, number, bits or dice and lists only what it finds), a secret on its
 way out (§4.10), the lock and its question, the idle warning and the
-locked sheet (§4.14), power, a new input device (a held device's sheet shows only once the device is used, a toast naming it at plug-in, F202; a dialog; for a new USB
+locked sheet (§4.14), power, a new input device (a held device's sheet shows only once the device is used, a toast naming it at plug-in, F202, none for what was plugged in at start, which one snackbar lists for 10 s over any screen and sheet, nothing dismissing it; a dialog; for a new USB
 touchscreen, and for a new pointer while nothing trusted can point, the whole
 window instead: its title, name and **Tap the target** (**Press the
 target** for a pointer), on the line under it **Target 1 of 3** at the

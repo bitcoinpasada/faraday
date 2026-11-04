@@ -1579,6 +1579,7 @@ impl Faraday {
             | StorageEvent::InputTapped { .. }
             | StorageEvent::InputUsed { .. }
             | StorageEvent::InputTrust { .. }
+            | StorageEvent::BootUsb { .. }
             | StorageEvent::InputGone { .. }) => self.input_event(e),
             StorageEvent::Restored {
                 inbox,
@@ -5796,6 +5797,7 @@ impl App for Faraday {
                     | self.explore_tick(now_ms)
                     | self.chart_side_tick(now_ms)
                     | self.key_path_sheet_open()
+                    | self.boot_notice_tick(now_ms)
                 {
                     self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
@@ -5811,12 +5813,8 @@ impl App for Faraday {
                     }
                 }
                 self.vanity_tick(now_ms);
-                if self.scan_tick(now_ms) {
-                    self.out.redraw();
-                    self.out.commands.push_back(Command::Draw);
-                }
                 self.zero_tick();
-                if self.qr.tick(now_ms, self.settings.qr_frame_ms()) {
+                if self.scan_tick(now_ms) | self.qr.tick(now_ms, self.settings.qr_frame_ms()) {
                     self.out.redraw();
                     self.out.commands.push_back(Command::Draw);
                 }

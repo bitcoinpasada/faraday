@@ -475,6 +475,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // its Sticks menu as it closes.
     crate::stick::pills::draw(app, ui, full_w);
     ui.fade_disabled();
+    // What was plugged in at start, over the page and any sheet.
+    ui.ox = 0.0;
+    ui.oy = 0.0;
+    if let Some(t) = app.boot_notice_text() {
+        ui.snackbar((0.0, full_w, full_h), t, 1.0, 0.0);
+    }
     // Faraday Demo's host takes what the page and its sheet offered
     // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
     if app.hosted() {
@@ -732,6 +738,11 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
 fn toast(app: &View, ui: &mut Ui, x: f32, cw: f32, foot: f32) {
     if let Some(t) = app.toast_text().map(str::to_string) {
         let (shown, rise) = app.toast_shown();
+        // Above the list of what was plugged in at start, while it shows.
+        let foot = foot
+            - app
+                .boot_notice_text()
+                .map_or(0.0, |b| ui.snackbar_room(cw, b));
         ui.snackbar((x, cw, foot), &t, shown, rise);
     }
 }

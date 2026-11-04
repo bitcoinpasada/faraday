@@ -148,7 +148,13 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.app.usb_devices(&[]);
     t.pump();
     t.go_on = true;
-    t.shot("home-empty")
+    t.shot("home-empty")?;
+    // What was plugged in at start, listed over Home for ten seconds.
+    t.app.storage(faraday_core::StorageEvent::BootUsb {
+        names: vec!["USB Receiver".into(), "Backup Disk".into()],
+    });
+    t.pump();
+    t.shot("devices-plugged-in-at-start")
 }
 
 /// Toasts on Home (Material's snackbar): a wireless receiver let in as

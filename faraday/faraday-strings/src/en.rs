@@ -3382,6 +3382,11 @@ strings! {
     // ----- inputs (faraday-core/src/inputs.rs) -----
     /// Toast in `input_new`, a device held until it is used. `{}`: `d.name`.
     inputs_new_device_held: "New device: {}",
+    /// Toast in `input_boot_usb`, the external USB devices plugged in at
+    /// start. `{}`: their names, with commas.
+    inputs_plugged_in_at_start: "Plugged in: {}. Only your keyboard and mouse should be plugged in. Unplug anything else.",
+    /// The name of a USB device that gave none, in that toast.
+    inputs_usb_device_unnamed: "USB device",
     /// Toast in `input_believe`, a keyboard. `{}`: `d.name`.
     inputs_keyboard_in_use: "Keyboard in use: {}",
     /// Toast in `input_believe`, a pointer. `{}`: `d.name`.

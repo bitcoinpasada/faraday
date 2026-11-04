@@ -353,6 +353,14 @@ pub enum StorageEvent {
         /// A trusted device types.
         keyboard: bool,
     },
+    /// The shell's start window closed: the names of the external USB
+    /// devices that were plugged in, each once, hubs and the medium the
+    /// machine started from left out. A toast lists them. Sent once, and
+    /// not at all when there were none.
+    BootUsb {
+        /// Each device's product name, or a plain generic name.
+        names: Vec<String>,
+    },
     /// A held-back or ignored device was unplugged.
     InputGone {
         /// The device.

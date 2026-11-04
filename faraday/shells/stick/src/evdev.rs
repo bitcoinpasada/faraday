@@ -286,6 +286,10 @@ impl Caps {
 pub struct Device {
     /// The node to open, `/dev/input/eventN`.
     pub node: PathBuf,
+    /// The canonical path of its `/sys/class/input/eventN`: it holds the
+    /// kernel's input and HID numbers, so a device unplugged and plugged
+    /// back in has a new one within a boot.
+    pub sys: PathBuf,
     /// What the device calls itself, for `--verbose`.
     pub name: String,
     /// It sends [`Event::Key`](faraday_shell_api::Event::Key).
@@ -345,6 +349,10 @@ impl Device {
 /// `read_dir` of a directory with a handful of entries in it.
 pub const RESCAN: std::time::Duration = std::time::Duration::from_secs(2);
 
+/// How often the list is read while the start window is open, so a device
+/// that appears in it is found before the window closes.
+pub const RESCAN_AT_START: std::time::Duration = std::time::Duration::from_millis(250);
+
 /// Every device under `/sys/class/input` this shell can read.
 ///
 /// `wanted` is `--touch-name`: a device on a bus that is part of the
@@ -380,6 +388,7 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
             .to_string();
         let touchscreen = caps.touchscreen();
         let device = Device {
+            sys: fs::canonicalize(&dir).unwrap_or_else(|_| dir.clone()),
             trusted: trusted_by_bus(&dir),
             range: touchscreen
                 .then(|| touch_range(&dir, has_bit(&caps.abs, ABS_MT_POSITION_X)))
@@ -446,20 +455,22 @@ pub fn trusted_by_bus(dir: &Path) -> bool {
         // BUS_I8042, BUS_I2C, BUS_HOST.
         Some(0x11 | 0x18 | 0x19) => true,
         // BUS_USB: the device's port says whether it is built in.
-        Some(0x03) => {
-            let Ok(mut at) = fs::canonicalize(dir.join("device")) else {
-                return false;
-            };
-            loop {
-                if let Ok(r) = fs::read_to_string(at.join("removable")) {
-                    return r.trim() == "fixed";
-                }
-                if !at.pop() {
-                    return false;
-                }
-            }
-        }
+        Some(0x03) => fs::canonicalize(dir.join("device")).is_ok_and(port_fixed),
         _ => false,
+    }
+}
+
+/// Whether the USB port the device at `at` (a canonical `/sys` path)
+/// hangs from is hard-wired: the nearest `removable` file up the tree says
+/// `fixed`. A port the firmware does not describe, or none found, is not.
+pub fn port_fixed(mut at: PathBuf) -> bool {
+    loop {
+        if let Ok(r) = fs::read_to_string(at.join("removable")) {
+            return r.trim() == "fixed";
+        }
+        if !at.pop() {
+            return false;
+        }
     }
 }
 
@@ -687,13 +698,18 @@ impl Watch {
     ///
     /// A device whose reader has ended and whose node is gone is forgotten
     /// here, so plugging the same port again is a new device and is read.
-    pub fn rescan(&mut self) -> Vec<(u32, Device)> {
+    ///
+    /// `admit` is asked for each new device with its `sys` path and says
+    /// whether the start window trusts it, as it does one on the machine's
+    /// own bus (F202).
+    pub fn rescan(&mut self, admit: &mut dyn FnMut(&Path) -> bool) -> Vec<(u32, Device)> {
         self.known.retain(|k| k.live || k.node.exists());
         let mut fresh = Vec::new();
-        for device in find_devices(&self.sys_class_input, &self.dev_dir, &self.wanted) {
+        for mut device in find_devices(&self.sys_class_input, &self.dev_dir, &self.wanted) {
             if self.known.iter().any(|k| k.node == device.node) {
                 continue;
             }
+            device.trusted |= admit(&device.sys);
             let id = self.next_id;
             self.next_id += 1;
             self.known.push(Known {
@@ -867,6 +883,7 @@ mod tests {
     fn a_keyboard_and_mouse_on_one_node_types_and_points() {
         let device = Device {
             node: PathBuf::from("/dev/input/event0"),
+            sys: PathBuf::from("/sys/class/input/event0"),
             name: String::from("Wireless Receiver"),
             keyboard: true,
             mouse: true,
@@ -985,6 +1002,40 @@ mod tests {
         fs::write(dev.join(&node), []).expect("node");
     }
 
+    /// A keyboard and a mouse found while the start window is open are
+    /// trusted, one found after is held, and one trusted at start that is
+    /// unplugged and plugged back in is held.
+    #[test]
+    fn devices_present_at_start_are_trusted_and_later_ones_are_held() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-window-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        plug(&sys, &dev, 1, "USB Keyboard", &keyboard_caps());
+
+        let mut watch = Watch::new(&sys, &dev, "");
+        let first = watch.rescan(&mut |_| true);
+        assert_eq!(first.len(), 2);
+        assert!(first.iter().all(|(_, d)| d.trusted));
+        assert!(watch.trusted_points() && watch.trusted_types());
+
+        plug(&sys, &dev, 2, "Other Keyboard", &keyboard_caps());
+        let later = watch.rescan(&mut |_| false);
+        assert!(!later[0].1.trusted, "after the window it is held");
+
+        // The mouse is unplugged and plugged back in: held.
+        watch.ended(first[0].0);
+        fs::remove_file(dev.join("event0")).expect("unplug");
+        fs::remove_dir_all(sys.join("event0")).expect("unplug");
+        assert!(watch.rescan(&mut |_| false).is_empty());
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        let again = watch.rescan(&mut |_| false);
+        assert_eq!(again.len(), 1);
+        assert!(!again[0].1.trusted);
+
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
     #[test]
     fn a_keyboard_plugged_in_after_start_is_read() {
         let root = std::env::temp_dir().join(format!("faraday-pi-watch-{}", std::process::id()));
@@ -993,15 +1044,15 @@ mod tests {
         plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
 
         let mut watch = Watch::new(&sys, &dev, "");
-        let first = watch.rescan();
+        let first = watch.rescan(&mut |_| false);
         assert_eq!(first.len(), 1, "the mouse already plugged in");
         assert!(first[0].1.mouse && watch.pointing());
 
         // Nothing has changed, so nothing is opened a second time.
-        assert!(watch.rescan().is_empty());
+        assert!(watch.rescan(&mut |_| false).is_empty());
 
         plug(&sys, &dev, 1, "USB Keyboard", &keyboard_caps());
-        let second = watch.rescan();
+        let second = watch.rescan(&mut |_| false);
         assert_eq!(second.len(), 1, "only the keyboard is new");
         assert!(second[0].1.keyboard);
         assert_eq!(second[0].1.node, dev.join("event1"));
@@ -1013,11 +1064,11 @@ mod tests {
         assert!(!watch.pointing());
         fs::remove_file(dev.join("event0")).expect("unplug");
         fs::remove_dir_all(sys.join("event0")).expect("unplug");
-        assert!(watch.rescan().is_empty());
+        assert!(watch.rescan(&mut |_| false).is_empty());
 
         // Plugged back into the same port, it is a device again.
         plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
-        let third = watch.rescan();
+        let third = watch.rescan(&mut |_| false);
         assert_eq!(third.len(), 1);
         assert!(third[0].1.mouse && watch.pointing());
 
@@ -1046,7 +1097,7 @@ mod tests {
 
         let mut watch = Watch::new(&sys, &dev, "Goodix");
         assert!(!watch.trusted_points(), "nothing is known before a look");
-        let found = watch.rescan();
+        let found = watch.rescan(&mut |_| false);
         assert_eq!(found.len(), 2);
         assert!(watch.trusted_points(), "the panel is the machine's own");
         assert!(!watch.trusted_types(), "and it does not type");

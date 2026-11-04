@@ -46,6 +46,28 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             return 0.0;
         }
         let fade = |r: Role| r.at(shown);
+        let (w, lines, lh, h) = self.snackbar_size(cw, text);
+        let line = (w - 2.0 * TOAST_PAD).max(0.0);
+        let tx = x + (cw - w) / 2.0;
+        let lift = self.above_fab(tx, w, foot - TOAST_MARGIN);
+        let ty = foot - TOAST_MARGIN - lift - h + rise;
+        self.shadow_faded((tx, ty, w, h, SHAPE_XS), ELEVATION_FAB, shown);
+        self.wash(tx, ty, w, h, SHAPE_XS, fade(SNACKBAR_FILL));
+        let mut y = ty + (h - lines as f32 * lh) / 2.0;
+        let mut from = 0;
+        while let Some((shown_line, next)) = self.snackbar_line(text, from, line) {
+            let lw = self.measure_as(TOAST_TEXT, shown_line).min(line);
+            let at = (tx + (w - lw) / 2.0, y, lh);
+            self.text_mid_as(at, TOAST_TEXT, fade(SNACKBAR_INK), shown_line);
+            y += lh;
+            from = next;
+        }
+        lift + h + TOAST_STACK_GAP
+    }
+
+    /// What a snackbar with `text` takes in a window `cw` wide: its
+    /// width, its lines, a line's height and its own height. A lookup.
+    fn snackbar_size(&mut self, cw: f32, text: &str) -> (f32, usize, f32, f32) {
         let room = (cw - 2.0 * TOAST_MARGIN).max(0.0);
         let w = if cw < WINDOW_MEDIUM {
             room
@@ -63,21 +85,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let lines = lines.max(1);
         let lh = self.line_as(TOAST_TEXT);
         let h = (lines as f32 * lh + 2.0 * TOAST_PAD_Y).max(TOAST_H);
-        let tx = x + (cw - w) / 2.0;
-        let lift = self.above_fab(tx, w, foot - TOAST_MARGIN);
-        let ty = foot - TOAST_MARGIN - lift - h + rise;
-        self.shadow_faded((tx, ty, w, h, SHAPE_XS), ELEVATION_FAB, shown);
-        self.wash(tx, ty, w, h, SHAPE_XS, fade(SNACKBAR_FILL));
-        let mut y = ty + (h - lines as f32 * lh) / 2.0;
-        let mut from = 0;
-        while let Some((shown_line, next)) = self.snackbar_line(text, from, line) {
-            let lw = self.measure_as(TOAST_TEXT, shown_line).min(line);
-            let at = (tx + (w - lw) / 2.0, y, lh);
-            self.text_mid_as(at, TOAST_TEXT, fade(SNACKBAR_INK), shown_line);
-            y += lh;
-            from = next;
-        }
-        lift + h + TOAST_STACK_GAP
+        (w, lines, lh, h)
+    }
+
+    /// How far above its foot a snackbar with `text` puts the next one:
+    /// its height and the gap, as [`snackbar`](Self::snackbar) returns
+    /// them where no button lifts it. A lookup.
+    pub fn snackbar_room(&mut self, cw: f32, text: &str) -> f32 {
+        self.snackbar_size(cw, text).3 + TOAST_STACK_GAP
     }
 
     /// How far a snackbar `w` wide from `tx`, its foot at `bottom`,

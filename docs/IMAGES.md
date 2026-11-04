@@ -75,7 +75,8 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
 - **USB HID.** The generic HID and multitouch drivers, the USB keyboard
   and mouse. No vendor-specific HID drivers, as on the PC. The stick's
   rules for new devices come across unchanged (SECURITY-MODEL, "USB
-  devices"); a held device asks when it is used, with a notice naming it
+  devices"); what is plugged in at start is trusted and listed in one
+  notice; a held device asks when it is used, with a notice naming it
   at plug-in (F202):
   - interfaces are authorised one at a time;
   - a new keyboard counts once it types the code on the screen;

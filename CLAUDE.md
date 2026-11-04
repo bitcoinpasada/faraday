@@ -109,10 +109,11 @@ plan <paths>` lists the ones a change touches.
   copies in freed memory) are worth having but later work: recorded as
   open work and done when the app is mature, not fixed now. A malicious
   Faraday binary, firmware and the management engines, cold-boot attacks
-  and a weak passphrase are out of scope. Faraday Demo and the Starter run
-  on an online computer and hold test data. A risk outside this scope, or
-  later work found in passing, gets one line in a report; it is not fixed
-  without the owner asking.
+  and a weak passphrase are out of scope, and so is a USB device that shows
+  only as a keyboard or mouse and is plugged in at boot (trusted; a notice
+  lists it). Faraday Demo and the Starter run on an online computer and hold
+  test data. A risk outside this scope, or later work found in passing, gets
+  one line in a report; it is not fixed without the owner asking.
 
 ## By area
 

@@ -192,9 +192,20 @@ pub(crate) struct InputsArea {
     /// Decisions the shell has not been told: believed (`true`) or kept
     /// out (`false`).
     decisions: VecDeque<(u32, bool)>,
+    /// What was plugged in at start, and when the first frame drew it.
+    boot_notice: Option<(String, Option<u64>)>,
 }
 
+/// How long the list of what was plugged in at start shows, from the
+/// first frame that draws it, in milliseconds. Nothing dismisses it.
+pub(crate) const BOOT_NOTICE_MS: u64 = 10_000;
+
 impl InputsArea {
+    /// The list of what was plugged in at start, while it shows.
+    pub(crate) fn boot_notice(&self) -> Option<&str> {
+        self.boot_notice.as_ref().map(|(t, _)| t.as_str())
+    }
+
     /// The devices held back.
     pub(crate) fn held(&self) -> &[NewInput] {
         &self.held
@@ -538,6 +549,7 @@ impl Faraday {
     /// What a frame drew: the wait for Enter starts with the first frame
     /// showing pointer `line`'s Enter line, and ends with the sheet. Cheap.
     pub(crate) fn input_drawn(&mut self, line: Option<u32>) {
+        self.boot_notice_drawn();
         if self.sheet != Some(Sheet::NewInput) {
             self.inputs.enter_quiet = None;
         } else if let Some(id) = line {
@@ -555,6 +567,53 @@ impl Faraday {
             && self
                 .shown_input()
                 .is_some_and(|d| d.id == id && d.pointer && !d.touch && self.inputs.by_target(d))
+    }
+
+    /// What was plugged in when the shell's start window closed: one toast
+    /// lists it, which nothing dismisses and nothing replaces. It comes
+    /// once.
+    fn input_boot_usb(&mut self, names: &[String]) {
+        if names.is_empty() || self.inputs.boot_notice.is_some() {
+            return;
+        }
+        let named: Vec<&str> = names
+            .iter()
+            .map(|n| {
+                if n.is_empty() {
+                    EN.inputs_usb_device_unnamed
+                } else {
+                    n
+                }
+            })
+            .collect();
+        let text = fill(EN.inputs_plugged_in_at_start, &[&named.join(", ")]);
+        self.inputs.boot_notice = Some((text, None));
+        self.out.redraw();
+    }
+
+    /// The list of what was plugged in at start, while it shows.
+    pub fn boot_notice_text(&self) -> Option<&str> {
+        self.inputs.boot_notice()
+    }
+
+    /// Notes the first frame that drew the list: its time runs from there.
+    fn boot_notice_drawn(&mut self) {
+        if let Some((_, at @ None)) = self.inputs.boot_notice.as_mut() {
+            *at = Some(self.now_ms);
+        }
+    }
+
+    /// Takes the list away once its time is up. Whether it went.
+    pub(crate) fn boot_notice_tick(&mut self, now_ms: u64) -> bool {
+        let over = self
+            .inputs
+            .boot_notice
+            .as_ref()
+            .is_some_and(|(_, at)| at.is_some_and(|at| now_ms >= at + BOOT_NOTICE_MS));
+        if over {
+            self.inputs.boot_notice = None;
+        }
+        over
     }
 
     /// What the shell said of a held-back device: one announced, a key it
@@ -578,6 +637,7 @@ impl Faraday {
                 self.input_sheet();
             }
             StorageEvent::InputTrust { .. } => {}
+            StorageEvent::BootUsb { names } => self.input_boot_usb(&names),
             // `storage` passes only the events matched above.
             _ => {}
         }

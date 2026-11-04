@@ -1197,3 +1197,77 @@ fn a_press_just_after_the_seed_or_another_devices_sheet_counts_nothing() {
     });
     assert_eq!(app.new_inputs()[0].missed, 0);
 }
+
+// What was plugged in at start: one notice lists it (F202).
+
+fn boot_usb(app: &mut Faraday, names: &[&str]) {
+    app.storage(StorageEvent::BootUsb {
+        names: names.iter().map(|n| n.to_string()).collect(),
+    });
+}
+
+/// Everything the frame on screen says, as one line of text.
+fn said(app: &mut Faraday) -> String {
+    use faraday_draw::canvas::InkKind;
+    let _ = app.frame();
+    app.drawn_ink()
+        .iter()
+        .filter_map(|i| match &i.kind {
+            InkKind::Text { text, .. } => Some(text.to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn the_start_notice_lists_what_was_plugged_in_and_names_a_nameless_device() {
+    let mut app = on_screen(7);
+    boot_usb(&mut app, &["USB Receiver", "", "Backup Disk"]);
+    let said = said(&mut app);
+    assert!(
+        said.contains("Plugged in: USB Receiver, USB device, Backup Disk. Only your keyboard and mouse should be plugged in. Unplug anything else."),
+        "{said}"
+    );
+}
+
+#[test]
+fn nothing_plugged_in_at_start_shows_no_notice() {
+    let mut app = on_screen(7);
+    boot_usb(&mut app, &[]);
+    assert!(!said(&mut app).contains("Plugged in"));
+}
+
+#[test]
+fn nothing_dismisses_the_start_notice_and_it_goes_after_ten_seconds() {
+    use faraday_core::Screen;
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    boot_usb(&mut app, &["USB Receiver"]);
+    assert!(said(&mut app).contains("Plugged in"));
+    // Keys, Escape, a press and another toast do not touch it, and a press
+    // reaches the page under it.
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(app.screen, Screen::Settings);
+    app.storage(StorageEvent::NewInput {
+        id: 9,
+        name: "USB Keyboard".into(),
+        keyboard: true,
+        pointer: false,
+        touch: false,
+    });
+    let both = said(&mut app);
+    assert!(both.contains("Plugged in"), "{both}");
+    assert!(both.contains("New device"), "the other toast shows too");
+    app.event(Event::Tick { now_ms: 6000 });
+    assert!(said(&mut app).contains("Plugged in"));
+    app.event(Event::Tick { now_ms: 10_900 });
+    assert!(
+        said(&mut app).contains("Plugged in"),
+        "10 s from the first frame"
+    );
+    app.event(Event::Tick { now_ms: 11_100 });
+    assert!(!said(&mut app).contains("Plugged in"));
+}
