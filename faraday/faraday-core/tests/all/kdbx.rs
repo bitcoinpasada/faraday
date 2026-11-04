@@ -19,6 +19,11 @@ fn settle(app: &mut Faraday, from: u64) {
 /// A device with an entry open on its page and the passphrase of its
 /// KeePass export typed, the press that writes it still to come.
 fn at_the_export_prompt() -> Faraday {
+    at_the_export_prompt_with(12)
+}
+
+/// The same, with this many answers to the requests for randomness.
+fn at_the_export_prompt_with(answers: u8) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -34,7 +39,7 @@ fn at_the_export_prompt() -> Faraday {
     }));
     // The answers a shell gives to the requests for randomness: the
     // session's seed, then eleven pooled.
-    for i in 0..12u8 {
+    for i in 0..answers {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
@@ -59,6 +64,7 @@ fn at_the_export_prompt() -> Faraday {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Vault(V::LoadNotNow));
     app.press(Action::Nav(Screen::VaultContents));
     // An entry of its own, then exported.
     app.press(Action::Vault(V::Category(2)));
@@ -120,9 +126,49 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     );
     assert_eq!(read.seals, 1);
     pykeepass_reads_one_entry(&file.bytes);
+    // Its random fields are the session's fresh bytes, an answer for every
+    // 32, the latest first, each as SHA-256("faraday fresh" ‖ label ‖
+    // answer) (docs/OWN-RANDOMNESS.md row 6; computed with Python's
+    // `hashlib`): the vault's identifier from the last answer, 0x4b × 32,
+    // under "vault id"; the seal's from the five before it under "vault
+    // seal", its master seed the first (0x4a) and its IV the first 12 bytes
+    // of the next; the entry's UUID from the one after, under "vault
+    // entries". A fixed value in any of them would not match.
+    assert_eq!(
+        hex(&opened.vault_id()),
+        hex(b"3a6ee9af231bd7f7ef962395566a6f5e")
+    );
+    assert_eq!(
+        hex(header_field(&file.bytes, 4)),
+        "157d96e797d134db7e0f4b897cdf1e06531c59cdbbcfe0609ee15c98b95c9f39"
+    );
+    assert_eq!(
+        hex(header_field(&file.bytes, 7)),
+        "b8f9305623a00cb447e4ab9c"
+    );
+    assert_eq!(hex(&read.items[0].uuid), "6a40f706f73b5f0b290d485bed110795");
     assert_eq!(opened.facts().size, Some(65_536));
     let cost = opened.facts().header.cost;
     assert_eq!((cost.memory_kib, cost.passes, cost.lanes), (65_536, 3, 4));
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+/// The value of KDBX 4 outer header field `id`: after the two signatures
+/// and the version, each field is its id, a four-byte little-endian
+/// length and the value.
+fn header_field(file: &[u8], id: u8) -> &[u8] {
+    let mut at = 12;
+    loop {
+        let len = u32::from_le_bytes(file[at + 1..at + 5].try_into().unwrap()) as usize;
+        if file[at] == id {
+            return &file[at + 5..at + 5 + len];
+        }
+        assert_ne!(file[at], 0, "no field {id}");
+        at += 5 + len;
+    }
 }
 
 /// The exported file read by pykeepass (tools/vectors/kdbx/reread.py): one
@@ -206,4 +252,22 @@ fn a_lock_during_a_keepass_export_leaves_no_file() {
     testkit::settle_stale(&mut app);
     settle(&mut app, 100);
     assert_eq!(kdbx_files(&app), 0);
+}
+
+#[test]
+fn exporting_for_keepass_before_the_randomness_arrives_says_why() {
+    let mut app = at_the_export_prompt_with(6);
+    app.press(Action::Vault(V::PromptGo));
+    settle(&mut app, 30);
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_strings::EN.vaults_no_randomness),
+        "the prompt says why"
+    );
+    assert!(
+        app.outbox.iter().all(|i| !i.name.ends_with(".kdbx")),
+        "no file was made"
+    );
 }

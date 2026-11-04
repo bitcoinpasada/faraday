@@ -436,7 +436,9 @@ fn kdbx_start(app: &mut Faraday) -> bool {
         app.fresh_bytes(b"vault seal", SEAL_RANDOM_LEN),
         app.fresh_bytes(b"vault entries", 32),
     ) else {
-        say_no_randomness(app);
+        if let Some(p) = app.vaults.state.prompt.as_mut() {
+            p.error = Some(EN.vaults_no_randomness.to_string());
+        }
         return false;
     };
     let mut vid16 = [0u8; 16];

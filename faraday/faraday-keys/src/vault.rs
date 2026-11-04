@@ -1557,7 +1557,8 @@ impl OpenVaults {
 
     /// Takes `memory_kib` as the memory step the next seal of open vault
     /// `id` writes, up or down (passes stay the file's or 3, over 4
-    /// lanes). It counts as a change. Refused for a step that is not one of
+    /// lanes). The caller records the change, as the store's calls do not move
+    /// the open vault's change count a lock decides from. Refused for a step that is not one of
     /// [`fv::file::STEPS_KIB`], an unknown vault and a read-only or sealing
     /// one.
     pub fn set_step(&mut self, id: VaultId, memory_kib: u32) -> bool {
