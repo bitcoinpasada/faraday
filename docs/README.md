@@ -28,6 +28,7 @@ need. Each document's header says what kind it is:
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md`, the KDBX vault and the OpenPGP QR vault (F190); the first format, `docs/history/VAULT-LOG.md`; the passphrase in NFC and the seal count, `docs/VAULT-HARDENING.md` |
+| What is the proposed 29 × 29 encrypted seed code, offered for outside review? | `docs/ACE.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | What does each scanner do with each kind of code, and with one read in the wrong scanner? | `docs/SCANNING.md` |
@@ -101,6 +102,7 @@ need. Each document's header says what kind it is:
 
 **Spec**
 
+- `docs/ACE.md`: Argon Compact Envelope: a proposed open format for one seed under Argon2id in a 29 × 29 QR code. A draft for outside review; not built, and stays out of the app under `docs/STANDARDS.md` §0.
 - `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.

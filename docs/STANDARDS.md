@@ -418,6 +418,12 @@ Ranked by how much a mistake would cost. The call for an outside review
 of each, what a reviewer gets and how a review is recorded, is
 `docs/AUDIT-SUBMISSIONS.md` §10.
 
+The list below is of what is built. One specification is written and not
+built, and is offered for outside review: the Argon Compact Envelope
+(`docs/ACE.md`), one seed under Argon2id in a 29 × 29 QR code. It is
+Faraday's own specification, so under §0 it stays compiled out of the app
+until it is reviewed outside Faraday.
+
 <!-- crypto-manifest: begin §7 -->
 1. **Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop.** Faraday's own record layouts (`docs/VAULT.md` §7); the payload layouts are read by a second implementation Faraday's authors wrote from that document (`area_vault.py`) and the items by pykeepass, not by any other program. (F97) Own specification, not yet reviewed outside Faraday (F160, F177).
 2. **Records pointer moves and key presses with time and a running count, and commits them in batches of SHA-256 for the session's randomness.** Pointer and key timings are added to the session's randomness, never made into a key on their own. (F86) **Keeps the session's seed and pool from the shell's answers, mixes a person's own randomness in, never in place of the system's, and draws the seed of a MuSig2 round.** The mixing is Faraday's own specification. (F86) Own specification, not yet reviewed outside Faraday (F160, F177).
