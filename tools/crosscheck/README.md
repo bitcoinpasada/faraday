@@ -811,22 +811,22 @@ difference"), and says why.
     failure.
 - `totp`
   - Where Faraday reads and pyotp refuses: a scheme, type or `algorithm`
-    in other than lower (upper for the algorithm) case; `encoder=steam`,
-    which pyotp reads as a Steam code of five characters and Faraday as
-    a 6-digit SHA-1 code, the way it ignores any parameter it does not
-    know; a parameter name pyotp does not know, a `counter` on a TOTP, a
-    label issuer that the `issuer` parameter does not repeat; Base32
-    with spaces or hyphens (a bare key) or `=` in the wrong place, or a
-    length that Base32 cannot have. The area asks both about the URI
-    with that difference taken out and requires the same answer, and
-    Faraday's answer to the original to be that answer.
+    in other than lower (upper for the algorithm) case; a parameter name
+    pyotp does not know, a `counter` on a TOTP, a label issuer that the
+    `issuer` parameter does not repeat; Base32 with spaces or hyphens (a
+    bare key) or `=` in the wrong place, or a length that Base32 cannot
+    have. The area asks both about the URI with that difference taken
+    out and requires the same answer, and Faraday's answer to the
+    original to be that answer.
   - Where Faraday refuses and pyotp reads: a period over 3600 seconds
     (Faraday's rule), a pair with no `=` or no value, a type with no `/`
     before its `?`, a value written percent-encoded (Faraday reads it as
-    it is), a fragment after the last value, and a bare key of fewer
-    than 16 characters. The area asks both about the URI with that
-    difference taken out and requires the same answer; the percent
-    escapes, the fragment and the short key are pinned one URI at a
+    it is), a fragment after the last value, a bare key of fewer than 16
+    characters, and `encoder=steam`, which pyotp reads as a Steam code
+    of five characters and Faraday refuses, making no such code. The
+    area asks both about the URI with a period, pair or type difference
+    taken out and requires the same answer; the percent escapes, the
+    fragment, the short key and Steam's code are pinned one URI at a
     time.
   - HOTP: pyotp reads `otpauth://hotp/` as a HOTP; Faraday refuses it,
     naming it HOTP (`NotTotp::Hotp`) and reading no code.
