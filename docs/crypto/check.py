@@ -1091,9 +1091,11 @@ def resolve_cross(inv, call):
 
 def reached_crates(c, a):
     """Costs a walk of the inventory's call graph from the action's functions, across
-    crates: the crate directories whose functions the action reaches."""
+    crates: the crate directories whose functions the action reaches, and the names of the
+    crates it calls, a function the inventory leaves out (one reaching nothing cryptographic)
+    included."""
     inv = c.inv
-    seen, stack = set(), [f for f in as_list(a.get("functions")) if f in inv.fns]
+    seen, stack, called = set(), [f for f in as_list(a.get("functions")) if f in inv.fns], set()
     while stack:
         f = stack.pop()
         if f in seen:
@@ -1102,8 +1104,9 @@ def reached_crates(c, a):
         r = inv.fns[f]
         stack += [x for x in r["callees"] if x in inv.fns and x not in seen]
         for call in r["cross"]:
+            called.add(call.partition("::")[0])
             stack += [x for x in resolve_cross(inv, call) if x not in seen]
-    return {crate_dir_of(inv.fns[f]["file"]) for f in seen}
+    return {crate_dir_of(inv.fns[f]["file"]) for f in seen}, called
 
 
 def check_through(c, a, i):
@@ -1113,7 +1116,7 @@ def check_through(c, a, i):
     through another crate is listed is not checked."""
     entries = [t for t in as_list(a.get("implementation", {}).get("through"))
                if isinstance(t, dict) and str_ok(t.get("library")) and str_ok(t.get("crate"))]
-    reached = reached_crates(c, a) if entries else set()
+    reached, called = reached_crates(c, a) if entries else (set(), set())
     for t in entries:
         lib, crate = t["library"], t["crate"]
         if not (c.root / crate / "Cargo.toml").is_file():
@@ -1123,7 +1126,8 @@ def check_through(c, a, i):
             c.errors.add("untrue", f"implementation.through: {crate} does not depend on {lib}", i)
         if lib not in c.cargo_lock():
             c.errors.add("untrue", f"implementation.through: library {lib} is not in Cargo.lock", i)
-        if crate not in reached:
+        package = tomllib.loads(c.read(f"{crate}/Cargo.toml")).get("package", {}).get("name", "")
+        if crate not in reached and package not in called:
             c.errors.add("untrue", f"implementation.through: the action's functions reach no "
                          f"function of {crate}", i)
 
@@ -2447,6 +2451,12 @@ def self_test():
         out = through_case(good, moved)
         expect(any("reach no function of lib/t" in m for m in out),
                f"a crate the action's functions do not reach fails {out}")
+        recs_out = [json.loads(json.dumps(r)) for r in recs]
+        for r in recs_out:
+            if r.get("id") == "src/b.rs::f":
+                r["cross"] = ["t::not_printed"]
+        out = through_case(good, Inventory(json.dumps(r) for r in recs_out))
+        expect(not out, f"a call into a crate reaches it when the inventory leaves the callee out {out}")
         out = through_case('{ library = "lib2", crate = "lib/u" }', via_inv)
         expect(any("lib/u does not depend on lib2" in m for m in out),
                f"a crate that does not depend on the library fails {out}")

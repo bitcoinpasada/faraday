@@ -1121,6 +1121,7 @@ functions = [
   "core/faraday-bip/src/xkey.rs::decode_xpriv",
   "core/faraday-bip/src/keys.rs::MasterKey::for_network",
   "faraday/faraday-keys/src/session.rs::Keys::fingerprint_with",
+  "faraday/faraday-keys/src/identity.rs::fp_text",
 ]
 code = [
   "core/faraday-bip/src/keys.rs::MasterKey::from_seed",
@@ -1137,6 +1138,7 @@ libraries = [
 through = [
   { library = "hmac", crate = "core/faraday-crypto" },
   { library = "sha2", crate = "core/faraday-crypto" },
+  { library = "base16ct", crate = "core/faraday-crypto" },
 ]
 adds = "An extended private key typed or scanned is decoded by Faraday's own strict rules (78 bytes, version, zero parent and child number at depth 0, zero pad byte, scalar in 1..n) before bitcoin sees it; the key is kept on a pinned page; the fingerprint and a 32-byte identity (SHA-256 of the public key and chain code) are worked out once."
 
@@ -2147,6 +2149,7 @@ libraries = [
   "miniscript",
   "bitcoin",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot form puts one primary key on the key path; a wallet no one could recover is refused. The miniscript area builds wallets of these shapes with RecoveryPolicy in both forms and reads them back, and compares their scripts, kinds and ways to spend with Bitcoin Core and btclib."
 
 [action.checked]
@@ -2501,6 +2504,7 @@ crate = "core/faraday-bip"
 libraries = [
   "miniscript",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "The policy is compiled by rust-miniscript for SegWit or Taproot; Faraday reads the result back as a wallet and lists its spend paths."
 
 [action.checked]
@@ -5528,6 +5532,7 @@ code = ["faraday/faraday-qr/src/send.rs::bbqr_frames", "faraday/faraday-qr/src/s
 [action.implementation]
 crate = "faraday/faraday-qr"
 libraries = []
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "BBQr is written in base32 only and read in base32, hex and raw DEFLATE (miniz_oxide, decompressed within a bound); the numbered parts are Specter's and SeedSigner's pNofM; every limit fails closed. The assembler keeps a transfer part-way through across scans; a part of another transfer starts that one afresh, and any other refusal leaves the transfer as it was."
 
 [action.checked]
@@ -5585,6 +5590,7 @@ code = ["faraday/faraday-qr/src/envelope.rs::pack"]
 [action.implementation]
 crate = "faraday/faraday-qr"
 libraries = ["bitcoin"]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "The envelope is canonical JSON with sorted keys and no spaces; unpack reads the fields, puts the file in an envelope again and refuses unless the bytes are identical; the SHA-256 of the file is written in the envelope and checked when one is read. A scanned text is taken as an envelope only when it looks like one and unpack accepts it."
 
 [action.checked]
@@ -7607,6 +7613,7 @@ libraries = [
   "sha1",
   "sha2",
 ]
+through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "Reads an otpauth://totp URI or a bare Base32 key, and from an entry's fields KeePass 2's TimeOtp-* fields and older KeePassXC's TOTP Seed and TOTP Settings (docs/TOTP.md section 4.1); SHA1 by default as RFC 6238 does, SHA256 and SHA512 on request; the clock is the person's, checked or set by hand (docs/TOTP.md §1)."
 written_here = "TOTP code derivation (`faraday-vault::totp`)"
 
