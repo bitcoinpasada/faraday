@@ -190,5 +190,63 @@ fn aezeed_tour(t: &mut Tour) -> Result<(), String> {
     t.tick();
     t.press(Action::Convert(C::Show));
     t.shot("convert-aezeed-result")?;
+    set_tour(t)
+}
+
+/// SLIP-39's published case 4 (`tools/vectors/slip39`): a 2 of 3 group,
+/// the shares of members 1 and 3.
+const SET_A: &str = "shadow pistol academic acid actress prayer class unknown daughter sweater \
+    depict flip twice unkind craft early superior advocate guest smoking";
+const SET_B: &str = "shadow pistol academic always adequate wildlife fancy gross oasis cylinder \
+    mustang wrist rescue view short owner flip making coding armed";
+
+/// Hold one typed share with Enter.
+fn hold_share(t: &mut Tour, share: &str) {
+    use faraday_shell_api::{App, Event, Key};
+    type_text(t, share);
+    t.app.event(Event::Key(Key::Enter));
+}
+
+/// Make from a Settings card: the first press asks for the randomness,
+/// which the tour answers.
+fn make(t: &mut Tour) {
+    t.press(Action::Convert(C::Make));
+    t.tick();
+    t.press(Action::Convert(C::Make));
+}
+
+/// A SLIP-39 set as the source (`docs/SEED-CONVERSION.md` §8): the entry
+/// with shares held, Add, Replace and Rotate's Settings, and a Result.
+fn set_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Convert(C::Done));
+    open(t)?;
+    t.press(Action::Convert(C::SetSource));
+    hold_share(t, SET_A);
+    hold_share(t, SET_B);
+    type_text(t, "shadow pistol acad");
+    crate::tour::scroll(t, 400);
+    t.shot("convert-set-entry")?;
+    t.press(Action::Convert(C::SetAct(convert::SetAct::Add)));
+    t.shot("convert-set-add")?;
+    make(t);
+    t.press(Action::Convert(C::Show));
+    t.shot("convert-set-add-result")?;
+    t.press(Action::Convert(C::Step(cstep::TO)));
+    t.press(Action::Convert(C::SetAct(convert::SetAct::Replace)));
+    t.shot("convert-set-replace")?;
+    t.press(Action::Convert(C::Step(cstep::TO)));
+    t.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    t.shot("convert-set-rotate")?;
+    t.press(Action::Convert(C::Lost(0, 2)));
+    t.shot("convert-set-rotate-limit")?;
+    t.press(Action::Convert(C::Lost(0, -2)));
+    t.press(Action::Convert(C::Destroy(0, 0)));
+    t.press(Action::Convert(C::Destroy(0, 2)));
+    t.shot("convert-set-rotate-destroy")?;
+    t.press(Action::Convert(C::DestroyOthers));
+    t.shot("convert-set-rotate-shape")?;
+    make(t);
+    t.press(Action::Convert(C::Show));
+    t.shot("convert-set-rotate-result")?;
     Ok(())
 }

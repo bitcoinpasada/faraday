@@ -98,6 +98,8 @@ A SLIP-39 passphrase is never put on a result: a SLIP-39 set Faraday writes has 
 
 An LND aezeed is read as a source and goes one way. Its entropy is a 16-byte seed, which the tool writes as hex, an xprv, codex32 or SLIP-39, and it says the aezeed's birthday. Only the on-chain coins are the same wallet: channels come back through LND's channel backup, not through the seed.
 
+A SLIP-39 set can also be changed there. Tools › Convert a seed takes the shares of a set you type, one at a time, and with enough of them it adds a share, replaces a lost one with the very share that was lost, or rotates the set into a new one of the same secret. Rotating is not enough when shares have been exposed or lost beyond what the set tolerates: the old shares may be in other hands, and the coins belong in a new key. No passphrase is asked, and the set's own passphrase still opens the same wallet. Nothing is kept, and no plan or vault changes.
+
 Each result is held until you leave the tool, shown behind an eye, and checked against a typed copy or saved only when you ask. Practice converts a public sample key into its other spellings, a codex32 secret and a SLIP-39 share of 1 of 1, but makes no split into parts, since parts would look like a real backup.
 
 ## Which one

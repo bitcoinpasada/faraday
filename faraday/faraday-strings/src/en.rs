@@ -1282,6 +1282,76 @@ strings! {
     convert_part_sep: ":",
     /// Toast when a target that draws randomness finds none yet.
     convert_no_randomness: "No randomness from the system yet. Try again",
+    /// From's button for the set source.
+    convert_set_source: "A SLIP-39 set",
+    /// From's summary with a set held. `{}`: its identifier.
+    convert_set_summary: "SLIP-39 set {}",
+    /// Under From's set button in Practice, and the refusal there.
+    convert_set_practice: "Not offered in Practice",
+    /// Label of the set entry's field.
+    convert_set_field: "Type one share",
+    /// Button that holds the share typed.
+    convert_set_hold: "Use this share",
+    /// Button that forgets the set held.
+    convert_set_again: "Start again",
+    /// A share refused. `{}`: the reason.
+    convert_set_not_added: "Not added: {}",
+    /// Fact: the set held.
+    convert_set_label: "Set",
+    /// The set held. `{}`: identifier, groups needed, groups.
+    convert_set_id_value: "{}, groups needed {} of {}",
+    /// Fact label of a group held. `{}`: its number.
+    convert_set_group: "Group {}",
+    /// A group held. `{}`: shares needed, the numbers typed, whether enough.
+    convert_set_group_value: "Needs {}. Typed: {}. {}",
+    /// A group's quorum is met.
+    convert_set_enough: "Enough",
+    /// A group's quorum is not met.
+    convert_set_not_enough: "Not enough yet",
+    /// No share typed.
+    convert_set_none: "none",
+    /// Button to the next card with a set held.
+    convert_set_continue: "Continue",
+    /// To row: a share of a group.
+    convert_set_add: "Add a share",
+    /// Line of Add a share.
+    convert_set_add_line: "A new share of one group, at a number you choose",
+    /// To row: the lost share.
+    convert_set_replace: "Replace a lost share",
+    /// Line of Replace a lost share.
+    convert_set_replace_line: "The share that was lost, again, at its number",
+    /// To row: a new set.
+    convert_set_rotate: "Rotate the set",
+    /// Line of Rotate the set.
+    convert_set_rotate_line: "A new set of the same secret; the old set is no longer to be used",
+    /// Line of a row not yet offered. `{}`: the count.
+    convert_set_needs_shares: "Shares still needed in one group: {}",
+    /// Line of Rotate not yet offered. `{}`: the count.
+    convert_set_needs_groups: "Groups still needed: {}",
+    /// Stepper: the group a share is made for.
+    convert_set_group_step: "Group",
+    /// Stepper: the member number.
+    convert_set_member: "Share number",
+    /// Under Add a share's Settings.
+    convert_set_add_note: "The same number gives the same share again",
+    /// Stepper of Rotate's count. `{}`: the group.
+    convert_set_lost: "Group {} lost",
+    /// Rotate's count reaches the limit.
+    convert_set_other_hands: "The set may be in other hands. Rotating is not enough: move the coins to a new key",
+    /// A typed share to press once destroyed.
+    convert_set_destroyed: "Destroyed: group {}, share {}",
+    /// One press for the shares not typed.
+    convert_set_destroyed_others: "Destroyed: all other shares",
+    /// Standard fact of a share made.
+    convert_set_share_standard: "SLIP-39, group {} share {} of set {}",
+    /// Passphrase fact of a share or set made.
+    convert_set_passphrase: "The set's passphrase still opens the same wallet",
+    /// Fact label on a rotation's result.
+    convert_set_old: "Old set",
+    /// Fact value on a rotation's result.
+    convert_set_old_value: "No longer to be used",
+    /// A share or set that did not read back.
+    convert_not_same_set: "Not shown: it did not read back as the same set",
     /// Check my copy found the copy is one part of a result of several. `{}`: its place.
     convert_copy_matches_part: "Your copy matches part {}",
     /// The way in from a key's chart sheet and from Explore.

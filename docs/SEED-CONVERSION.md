@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S4b, SLIP-39 k of n and groups on the same card and result (§6); batch S5, an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's; batch S7, Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
-**Open:** the screen of the SLIP-39 set actions of §8 (batch S6; the core and `faraday-keys` are built), a codex32 set to a new codex32 set, a copy scanned back in Check my copy; the plan moves to a log of its own and the Kind to Reference when §8 is built
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S4b, SLIP-39 k of n and groups on the same card and result (§6); batch S5, an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's; batch S6, the SLIP-39 set actions on the screen (§8): From's row **A SLIP-39 set**, shares typed one at a time and held in `faraday-keys` (`Keys::slip39_set_hold`), To's Add a share, Replace a lost share and Rotate the set, their Settings and Result; batch S7, Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
+**Open:** the codex32 row opening the backup's set actions for a key with a plan, a copy scanned back in Check my copy (it is typed back), and refusing an identifier another set on this device carries (§6); the plan moves to a log of its own and the Kind to Reference when they are built
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -71,9 +71,10 @@ standard it is and which software restores it.
   `recover_ems`, `split_ems`, `derive_member` and `check_gathered` of §8; 16 to 32 bytes; extendable flag and iteration
   exponent as parameters), aezeed read only (`core/faraday-bip/src/aezeed.rs`), which
   Convert reads as a source (below).
-- **The SLIP-39 set actions' core and keys are built; the screen is
-  not** (§8): `faraday/faraday-keys/src/slip39_set.rs` holds the typed
-  shares and makes the share or the new set.
+- **The SLIP-39 set actions** (§8): `faraday/faraday-keys/src/slip39_set.rs`
+  holds the typed shares and makes the share or the new set; the screen
+  is `faraday/faraday-core/src/convert/set.rs` and `screen.rs`, From's
+  row **A SLIP-39 set** and To's three actions.
 - **Where they surface**: Add a key reads BIP-39, SeedQR, CompactSeedQR,
   codex32, SLIP-39 and Seed XOR (`faraday/faraday-core/src/forms.rs`);
   New key deals SLIP-39 shares (`faraday/faraday-core/src/keygen/mod.rs`,
@@ -106,9 +107,13 @@ standard it is and which software restores it.
   LND's published vector, the Lightning screen's refusal otherwise.
   Learn's section "Converting between forms", DESIGN §5's row and the
   guide's picture (`docs/guide/screens/convert.md`) say what is built.
-- **Not built**: the SLIP-39 set actions on a screen (§8); in the tool
-  (`faraday/faraday-core/src/convert/`), a set to a new set, and a copy
-  scanned back in Check my copy (it is typed back). Built there: Seed XOR
+- **Not built**: in the tool (`faraday/faraday-core/src/convert/`), a copy
+  scanned back in Check my copy (it is typed back). For a key with no
+  backup plan, a codex32 set to a new codex32 set is the codex32 row (a
+  fresh identifier on each Make, `codex32_converted`); for a key with a
+  plan the backup's set actions (`docs/CODEX32.md` §9.7) are the way, and
+  the row does not yet open them: nothing in `convert/` reads a plan, so
+  the row is offered as it is. Built there: Seed XOR
   parts (2 to 4) for a key of English words, the SLIP-39 1 of 1, SLIP-39 k
   of n and groups, and codex32 for a key of seed bytes, and the Settings
   card for Seed XOR, codex32 and SLIP-39 sets (§6); the six
@@ -286,24 +291,43 @@ on that key.
 1. **From** (Option rows, §4.2): the loaded keys and the open vaults'
    keys, each by fingerprint, label and what it was loaded from ("BIP-39
    words, 24", "codex32, 48 characters", "SLIP-39, 2 of 3"), then
-   **Add a key** (returns here) and **An LND aezeed** (the Lightning
-   screen's entry: the 24 words and its passphrase field).
+   **Add a key** (returns here), **An LND aezeed** (the Lightning
+   screen's entry: the 24 words and its passphrase field) and **A SLIP-39
+   set** (an entry for shares typed one at a time with the word keyboard,
+   Enter holding each one; below it what is held: the identifier, the
+   groups needed and per group its threshold and the members typed;
+   **Start again** forgets them; dimmed in Practice, refused with a stick
+   attached).
 2. **To** (Option rows): the targets §4 offers for that source, by
    group, each with its line naming the standard; then the dimmed rows
-   of §5 with their lines.
+   of §5 with their lines. For a held SLIP-39 set, **Add a share**,
+   **Replace a lost share** and **Rotate the set** instead (§8): the
+   first two once a group's quorum is met, Rotate once the set is
+   recoverable, a row not yet offered dimmed with the shares it needs.
 3. **Settings** (where the target has any): k and n on Steppers
    (§4.2) for a split; groups on a Stepper with a threshold Stepper per
    group (SLIP-39); the length (codex32 48 or 74 where the seed allows);
    for a new set, the identifier (codex32, typed as `docs/CODEX32.md`
    §6.2 types it). A row that would draw randomness carries
-   "Fresh randomness: Faraday's" as a Fact.
+   "Fresh randomness: Faraday's" as a Fact. Add and Replace: the group,
+   where more than one has its quorum, and the share number (1 to 16) on a
+   Stepper, the typed ones skipped; Add says the same number gives the
+   same share again. Rotate: per group a Stepper of shares lost or
+   exposed; at the rotate count's limit the set may be in other hands and
+   nothing is offered but the line to move the coins to a new key;
+   otherwise a press per typed share destroyed and one for every other
+   share held, and only then the shape (the SLIP-39 k of n card) and
+   Make.
 4. **Result**: a Held secret (§4.10) per string or share, numbered, and
    for a SeedQR or CompactSeedQR the code held; Facts (§4.11):
    **Standard**, **Restores in**, **Fingerprint** "73c5da0a · same as
    the source", **Paths** where §4.3 says, **Birthday** for an aezeed;
    **Word list** for a key not on the English list, written as hex
    entropy or word numbers, which carry no list (the saved file's name
-   carries it); the passphrase line of rule 3. Buttons: **Check my copy** (typed or
+   carries it); the passphrase line of rule 3. A share or set made from a
+   SLIP-39 set has no Fingerprint (no passphrase is taken) and says that the
+   set's own passphrase still opens the same wallet; Rotate adds that the old
+   set is no longer to be used. Buttons: **Check my copy** (typed or
    scanned back, as the backup's), **Save as a file…** (the Secret out
    sheet, §4.10), **Done**. Nothing is written or kept unless pressed.
 5. Leaving drops every result (rule 5).
@@ -338,7 +362,7 @@ has no node for them. codex32's stay with the backup
 (`docs/CODEX32.md` §9.7), whose steps 1 to 5 (marks, counting,
 destroying before making) apply here as written. The person types enough
 shares and gets the new shares; nothing is remembered, and no plan,
-vault or backup changes. Core and keys are built; the screen is not.
+vault or backup changes. Built: the core, `faraday-keys` and the screen.
 
 - **The source.** The shares are typed one at a time and held in
   `faraday-keys` (`Keys::slip39_set_hold`, `slip39_set.rs`) as an aezeed
@@ -448,8 +472,8 @@ keys loaded from a seed); S6 after C8 (codex32 in the backup).
 | S3 | The screen (§6) with §4.1 and §4.3; Tools tile and the two ways in | Opus | 2 days |
 | S4 | §4.2 and §4.4, settings for splits and groups | Sonnet | 1.5 days |
 | S5 | §4.5 (aezeed) | Sonnet | 0.5 day |
-| S6 | §8 with the backup's set actions | Opus | 1.5 days |
-| S7 | Practice (§7), Learn (`docs/learn/18-other-backups.md` gains a section on converting), DESIGN §5's row and the guide's picture: built. This file's plan to a history log of its own and its Kind to Reference wait for S6 | Sonnet | 0.5 day |
+| S6 | §8 with the backup's set actions: built | Opus | 1.5 days |
+| S7 | Practice (§7), Learn (`docs/learn/18-other-backups.md` gains a section on converting), DESIGN §5's row and the guide's picture: built. This file's plan to a history log of its own and its Kind to Reference wait for the copy scanned back | Sonnet | 0.5 day |
 
 S1's fixtures cover the rows an area already runs (§9 names it); the two codex32 ↔ SLIP-39 rows (codex32 ↔ SLIP-39, SLIP-39 with passphrase → codex32) run in the `slip39` area, built with S4's core, and aezeed's come with S5.
 

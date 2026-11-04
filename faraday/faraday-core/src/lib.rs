@@ -2025,7 +2025,7 @@ impl Faraday {
             | Action::LoadKey(_)
             | Action::KeyGen(None)
             | Action::CSlotVault(..)
-            | Action::Convert(C::VaultKey(..) | C::Aezeed)
+            | Action::Convert(C::VaultKey(..) | C::Aezeed | C::SetSource)
             | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_wallet,

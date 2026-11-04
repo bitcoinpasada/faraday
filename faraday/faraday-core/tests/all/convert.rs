@@ -5,7 +5,7 @@
 use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
 use faraday_core::forms::Form;
 use faraday_core::wallet::Origin;
-use faraday_core::{Action, Faraday, Screen, testkit};
+use faraday_core::{Action, Faraday, OskPress, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// BIP-39's first twelve-word vector.
@@ -2037,4 +2037,705 @@ fn practice_opens_lnds_published_aezeed_only() {
         make(&mut app, "Master seed, hex").as_deref(),
         Some(AEZEED_ENTROPY)
     );
+}
+
+// ---- A SLIP-39 set as the source (F204) ----
+
+/// SLIP-39's case 4: a 2 of 3 of one group, shares of members 2 and 0,
+/// the master secret under the passphrase TREZOR.
+const SET_B: &str = "shadow pistol academic always adequate wildlife fancy gross oasis cylinder \
+    mustang wrist rescue view short owner flip making coding armed";
+const SET_A: &str = "shadow pistol academic acid actress prayer class unknown daughter sweater \
+    depict flip twice unkind craft early superior advocate guest smoking";
+const SET_SECRET: &str = "b43ceb7e57a0ea8766221624d01b0864";
+
+/// The published shares of a vector, 1-based as the file numbers them.
+fn vector_shares(n: usize) -> Vec<String> {
+    let v: serde_json::Value = serde_json::from_str(SLIP39).unwrap();
+    v[n - 1][1]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_string())
+        .collect()
+}
+
+/// From's set row opened, and each share typed and held with Enter.
+fn type_set(app: &mut Faraday, shares: &[&str]) {
+    app.press(Action::Convert(C::SetSource));
+    for s in shares {
+        type_in(app, s);
+        app.event(Event::Key(Key::Enter));
+    }
+    let _ = app.frame();
+}
+
+fn held_members(app: &Faraday) -> Vec<(u8, Vec<u8>)> {
+    app.session
+        .keys
+        .slip39_set_facts()
+        .map_or_else(Vec::new, |f| {
+            f.groups
+                .iter()
+                .map(|g| (g.index, g.members.clone()))
+                .collect()
+        })
+}
+
+fn nothing_held(app: &Faraday) -> bool {
+    app.session.keys.slip39_set_facts().is_none()
+}
+
+/// The secret the shares of `lines` recover under the published
+/// passphrase.
+fn set_back(lines: &[String]) -> String {
+    let shares: Vec<faraday_bip::slip39::Share> = lines
+        .iter()
+        .map(|l| faraday_bip::slip39::Share::parse(l).unwrap())
+        .collect();
+    let s = faraday_keys::slip39_seed(&testkit::compute(), &shares, b"TREZOR").unwrap();
+    s.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// The member number (1 to 16) pressed to, from the Settings card.
+fn pick_member(app: &mut Faraday, member: u8) {
+    for _ in 0..16 {
+        if convert::state(app).unwrap().set.as_ref().unwrap().member == member {
+            return;
+        }
+        app.press(Action::Convert(C::SetMember(1)));
+    }
+    panic!("member {member} cannot be reached");
+}
+
+/// The share one Add or Replace makes for `member` (0-based).
+fn made_share(app: &mut Faraday, act: convert::SetAct, member: u8) -> String {
+    app.press(Action::Convert(C::SetAct(act)));
+    assert_eq!(convert::state(app).unwrap().open, Some(cstep::SETTINGS));
+    pick_member(app, member);
+    app.press(Action::Convert(C::Make));
+    settle(app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    convert::shown(app).expect("a share is made").to_string()
+}
+
+/// A share added from two of three recovers the published secret with
+/// either of the two typed.
+#[test]
+fn an_added_share_recovers_the_set_with_either_typed_share() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    assert_eq!(held_members(&app), vec![(0, vec![0, 2])]);
+    let new = made_share(&mut app, convert::SetAct::Add, 1);
+    assert_eq!(set_back(&[SET_A.into(), new.clone()]), SET_SECRET);
+    assert_eq!(set_back(&[new, SET_B.into()]), SET_SECRET);
+}
+
+/// A share made for the member that was lost is the published share
+/// itself.
+#[test]
+fn a_replaced_share_is_the_share_that_was_lost() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    let middle = made_share(&mut app, convert::SetAct::Replace, 1);
+    // A fresh entry of the new share and one published share: the lost
+    // second published share comes out exactly.
+    app.press(Action::Convert(C::SetAgain));
+    type_set(&mut app, &[&middle, SET_A]);
+    let again = made_share(&mut app, convert::SetAct::Replace, 2);
+    assert_eq!(again, SET_B);
+}
+
+/// Rotating gives a new set that recovers the same secret under the same
+/// passphrase, once every share held is pressed destroyed.
+#[test]
+fn a_rotated_set_recovers_the_same_secret_with_the_same_passphrase() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    for m in [0, 2] {
+        app.press(Action::Convert(C::Destroy(0, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    feed_many(&mut app, 40);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let lines: Vec<String> = convert::shown_parts(&app)
+        .expect("a set is made")
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    assert_eq!(lines.len(), 3);
+    assert!(!lines.iter().any(|l| l == SET_A || l == SET_B));
+    assert_eq!(set_back(&lines[..2]), SET_SECRET);
+    assert_eq!(set_back(&lines[1..]), SET_SECRET);
+    assert!(app.session.keys.is_empty(), "the set is no key");
+}
+
+/// With as many lost or exposed shares as a group needs, rotating is not
+/// enough: nothing is made however many are destroyed, until the count
+/// falls below the limit.
+#[test]
+fn rotating_stops_when_the_lost_shares_reach_the_limit() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    app.press(Action::Convert(C::Lost(0, 2)));
+    for m in [0, 2] {
+        app.press(Action::Convert(C::Destroy(0, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    feed_many(&mut app, 50);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    let s = convert::state(&app).unwrap();
+    assert_eq!(s.open, Some(cstep::SETTINGS));
+    assert!(convert::shown_parts(&app).is_none());
+
+    // One fewer: the presses start again, then it makes.
+    app.press(Action::Convert(C::Lost(0, -1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert!(convert::shown_parts(&app).is_none(), "destroys come first");
+    for m in [0, 2] {
+        app.press(Action::Convert(C::Destroy(0, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::RESULT));
+}
+
+/// Make takes no press until every typed share and every other share is
+/// pressed destroyed.
+#[test]
+fn rotating_makes_nothing_before_the_shares_are_destroyed() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    feed_many(&mut app, 60);
+    let steps: [&[C]; 3] = [
+        &[],
+        &[C::Destroy(0, 0), C::Destroy(0, 2)],
+        &[C::DestroyOthers],
+    ];
+    for (i, presses) in steps.iter().enumerate() {
+        app.press(Action::Convert(C::Make));
+        settle(&mut app);
+        let open = convert::state(&app).unwrap().open;
+        assert_eq!(open, Some(cstep::SETTINGS), "step {i}: nothing is made");
+        for p in *presses {
+            app.press(Action::Convert(*p));
+        }
+    }
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::RESULT));
+}
+
+/// A share that does not read, is of another set, or is typed twice is
+/// refused with its reason, and what is held stays.
+#[test]
+fn a_refused_share_adds_nothing() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A]);
+    let before = held_members(&app);
+    assert_eq!(before, vec![(0, vec![0])]);
+    let other = vector_shares(17).remove(0);
+    let bad = vector_shares(2).remove(0);
+    for text in [other.as_str(), bad.as_str(), SET_A] {
+        type_in(&mut app, text);
+        app.event(Event::Key(Key::Enter));
+        assert_eq!(held_members(&app), before);
+        let error = convert::state(&app)
+            .unwrap()
+            .set
+            .as_ref()
+            .unwrap()
+            .error
+            .clone();
+        assert!(error.is_some(), "a reason is shown");
+        for _ in 0..text.len() {
+            app.event(Event::Key(Key::Backspace));
+        }
+    }
+    assert!(app.session.keys.is_empty());
+}
+
+/// Start again drops every share held.
+#[test]
+fn start_again_leaves_nothing_held() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    assert!(!nothing_held(&app));
+    app.press(Action::Convert(C::SetAgain));
+    assert!(nothing_held(&app));
+    assert_eq!(
+        convert::state(&app).unwrap().set.as_ref().unwrap().act,
+        None
+    );
+}
+
+/// Leaving the flow, choosing a loaded key and locking each leave nothing
+/// held, and the key list is the same.
+#[test]
+fn leaving_choosing_a_key_and_locking_drop_the_set() {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    assert!(!nothing_held(&app));
+    assert_eq!(app.session.keys.len(), 1);
+
+    app.press(Action::Convert(C::Done));
+    assert!(nothing_held(&app));
+
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Nav(Screen::Catalog));
+    assert!(nothing_held(&app));
+
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Convert(C::Key(fp)));
+    assert!(nothing_held(&app));
+
+    type_set(&mut app, &[SET_A, SET_B]);
+    assert!(!nothing_held(&app));
+    crate::common::lock(&mut app);
+    assert!(nothing_held(&app));
+}
+
+/// Practice does not open the entry or hold a share.
+#[test]
+fn practice_does_not_take_a_set() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    assert!(nothing_held(&app));
+    assert!(convert::state(&app).unwrap().set.is_none());
+}
+
+/// A small panel (480 by 640) with the flow open.
+fn small_opened() -> Faraday {
+    let mut app = mainnet();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    open(&mut app);
+    app
+}
+
+/// Rotates the set held: every share typed and every other share pressed
+/// destroyed, then Make, with randomness fed. The new set's lines.
+fn rotated(app: &mut Faraday, typed: &[(u8, u8)]) -> Vec<String> {
+    rotate_made(app, typed);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    convert::shown_parts(app)
+        .expect("a set is made")
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+}
+
+/// Rotates as `rotated` does and stops at the Result, the set masked.
+fn rotate_made(app: &mut Faraday, typed: &[(u8, u8)]) {
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    feed_many(app, 40);
+    for &(g, m) in typed {
+        app.press(Action::Convert(C::Destroy(g, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    app.press(Action::Convert(C::Make));
+    settle(app);
+    assert_eq!(convert::state(app).unwrap().open, Some(cstep::RESULT));
+}
+
+/// With no keyboard of its own, the panel raises its keyboard for the
+/// entry's field, and a share typed on it is held.
+#[test]
+fn on_a_small_panel_the_share_is_typed_on_the_keyboard() {
+    let mut app = small_opened();
+    assert!(app.keyboard_top().is_none());
+    app.press(Action::Convert(C::SetSource));
+    let _ = app.frame();
+    assert!(app.keyboard_top().is_some(), "the keyboard is up");
+    for c in SET_A.chars() {
+        app.press(Action::Osk(OskPress::Char(c)));
+    }
+    app.press(Action::Osk(OskPress::Done));
+    assert_eq!(held_members(&app), vec![(0, vec![0])]);
+}
+
+/// Pressing the source again, with shares held, leaves the set usable:
+/// what is shown and what is held agree.
+#[test]
+fn pressing_the_set_source_again_keeps_the_held_set_usable() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Convert(C::SetSource));
+    assert_eq!(held_members(&app), vec![(0, vec![0, 2])]);
+    let s = convert::state(&app).unwrap();
+    assert!(s.done[usize::from(cstep::FROM)], "From is still done");
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::TO));
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Add)));
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::SETTINGS));
+}
+
+/// The file of a rotated set is named for the new set.
+#[test]
+fn a_rotated_sets_file_is_named_for_the_new_set() {
+    let mut app = mainnet();
+    open(&mut app);
+    // Convert's own sets are extendable: only those draw a new identifier.
+    let set = two_group_set(2);
+    type_set(&mut app, &[&set[0], &set[1], &set[3], &set[4]]);
+    let old = faraday_bip::slip39::Share::parse(&set[0])
+        .unwrap()
+        .identifier();
+    let lines = rotated(&mut app, &[(0, 0), (0, 1), (1, 0), (1, 1)]);
+    let new = faraday_bip::slip39::Share::parse(&lines[0])
+        .unwrap()
+        .identifier();
+    assert_ne!(old, new);
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert_eq!(out.name, format!("{new:04x}-slip39-set.txt"));
+}
+
+/// Another source chosen wipes the share being typed.
+#[test]
+fn choosing_another_source_wipes_the_typed_share() {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    open(&mut app);
+    app.press(Action::Convert(C::SetSource));
+    type_in(&mut app, SET_A);
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Convert(C::Key(fp)));
+    app.press(Action::Convert(C::SetSource));
+    app.event(Event::Key(Key::Enter));
+    assert!(nothing_held(&app), "the field is empty");
+}
+
+/// Pressing the set source again with nothing held keeps the share being
+/// typed.
+#[test]
+fn pressing_the_set_source_again_keeps_the_typed_share() {
+    let mut app = mainnet();
+    open(&mut app);
+    app.press(Action::Convert(C::SetSource));
+    type_in(&mut app, SET_A);
+    app.press(Action::Convert(C::SetSource));
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(held_members(&app), vec![(0, vec![0])]);
+}
+
+/// Two different shares saved are two files in the Outbox; the same share
+/// saved twice is one.
+#[test]
+fn two_shares_saved_are_two_files() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    let mut names = Vec::new();
+    for member in [1, 3, 3] {
+        let _ = made_share(&mut app, convert::SetAct::Add, member);
+        save(&mut app);
+        names.push(testkit::secret_out(&app).unwrap().name.clone());
+        app.press(Action::SecretUnprotected);
+        app.press(Action::SecretHold);
+    }
+    assert_ne!(names[0], names[1]);
+    assert_eq!(names[1], names[2]);
+    let kept: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
+    assert!(kept.contains(&names[0].as_str()), "{kept:?}");
+    assert!(kept.contains(&names[1].as_str()), "{kept:?}");
+    assert_eq!(kept.iter().filter(|n| **n == names[1]).count(), 1);
+}
+
+/// An aezeed held does not outlive the press on the set source.
+#[test]
+fn pressing_the_set_source_drops_an_aezeed() {
+    let mut app = mainnet();
+    open(&mut app);
+    read_aezeed(&mut app, AEZEED, "");
+    assert!(app.session.keys.aezeed_birthday().is_some());
+    app.press(Action::Convert(C::SetSource));
+    assert!(app.session.keys.aezeed_birthday().is_none());
+}
+
+/// An aezeed read after a set was typed replaces it.
+#[test]
+fn an_aezeed_as_the_other_source_drops_the_set() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    assert!(!nothing_held(&app));
+    read_aezeed(&mut app, AEZEED, "");
+    assert!(nothing_held(&app));
+    assert!(convert::state(&app).unwrap().set.is_none());
+}
+
+/// With a stick attached the set source asks for the stick to be pulled
+/// first, as the aezeed's row does.
+#[test]
+fn the_set_source_asks_for_the_stick_to_be_pulled() {
+    let mut app = mainnet();
+    app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: "stick".into(),
+            label: "STICK".into(),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        },
+    ]));
+    open(&mut app);
+    app.press(Action::Convert(C::SetSource));
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    assert!(convert::state(&app).unwrap().set.is_none());
+}
+
+/// Rotate's Settings card, collapsed under its Result, shows the set's
+/// shape.
+#[test]
+fn rotates_closed_settings_card_shows_its_shape() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    let _ = rotated(&mut app, &[(0, 0), (0, 2)]);
+    let texts = drawn(&mut app);
+    // The Result is closed too, so only the Settings card's summary draws it.
+    let shape = texts.iter().filter(|t| *t == "SLIP-39, 2 of 3 shares");
+    assert_eq!(shape.count(), 1, "{texts:?}");
+}
+
+/// Rotating makes nothing with the others pressed first and the typed
+/// shares destroyed only in part.
+#[test]
+fn rotating_needs_every_typed_share_destroyed_in_either_order() {
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    feed_many(&mut app, 60);
+    app.press(Action::Convert(C::DestroyOthers));
+    app.press(Action::Convert(C::Destroy(0, 0)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(
+        convert::state(&app).unwrap().open,
+        Some(cstep::SETTINGS),
+        "one typed share is not destroyed"
+    );
+    app.press(Action::Convert(C::Destroy(0, 2)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::RESULT));
+}
+
+/// A set made by Convert's own SLIP-39 row (no published vector has two
+/// groups and a known secret here): `groups_needed` of two groups of 2 of 3.
+fn two_group_set(groups_needed: i8) -> Vec<String> {
+    let mut app = slip_opened(&unhex(SEED_1));
+    app.press(Action::Convert(C::To(place(SLIP_SET))));
+    app.press(Action::Convert(C::SlipGroups(1)));
+    if groups_needed > 1 {
+        app.press(Action::Convert(C::SlipGroupK(1)));
+    }
+    assert_eq!(shape(&app).1.len(), 2);
+    made_set(&mut app, 3)
+}
+
+/// The group chosen is the group the share made belongs to.
+#[test]
+fn a_share_is_made_for_the_group_chosen() {
+    let set = two_group_set(2);
+    assert_eq!(set.len(), 6);
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[&set[0], &set[1], &set[3], &set[4]]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Add)));
+    assert_eq!(convert::state(&app).unwrap().set.as_ref().unwrap().group, 0);
+    app.press(Action::Convert(C::SetGroup(1)));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let made = convert::shown(&app).expect("a share").to_string();
+    let share = faraday_bip::slip39::Share::parse(&made).unwrap();
+    assert_eq!(share.group_index(), 1);
+    assert_eq!(share.member_index(), 2, "the first number not typed");
+    // And it is the share the set has at that place.
+    assert_eq!(made, set[5]);
+}
+
+/// A group never typed reaches Rotate with its threshold unknown, and the
+/// new set recovers the same secret.
+#[test]
+fn a_group_never_typed_does_not_stop_rotating() {
+    // Three groups of 2 of 3, two groups needed: the third is never typed.
+    let mut maker = slip_opened(&unhex(SEED_1));
+    maker.press(Action::Convert(C::To(place(SLIP_SET))));
+    maker.press(Action::Convert(C::SlipGroups(2)));
+    assert_eq!(shape(&maker).1.len(), 3);
+    let set = made_set(&mut maker, 3);
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[&set[0], &set[1], &set[3], &set[4]]);
+    let new = rotated(&mut app, &[(0, 0), (0, 1), (1, 0), (1, 1)]);
+    let (t, slip) = shape(&app);
+    let mut at = Vec::new();
+    let mut start = 0;
+    for (g, &(k, n)) in slip.iter().enumerate() {
+        if g < usize::from(t) {
+            at.extend(start..start + usize::from(k));
+        }
+        start += usize::from(n);
+    }
+    assert_eq!(slip_back(&new, &at), slip_back(&set, &[0, 1, 3, 4]));
+}
+
+/// A share lost in a group never typed counts as reaching its threshold:
+/// with another group at its limit, that is as many as the set needs.
+#[test]
+fn a_share_lost_in_a_group_never_typed_counts_as_out_of_reach() {
+    let mut maker = slip_opened(&unhex(SEED_1));
+    maker.press(Action::Convert(C::To(place(SLIP_SET))));
+    maker.press(Action::Convert(C::SlipGroups(2)));
+    let set = made_set(&mut maker, 3);
+    let mut app = mainnet();
+    open(&mut app);
+    type_set(&mut app, &[&set[0], &set[1], &set[3], &set[4]]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Rotate)));
+    feed_many(&mut app, 50);
+    app.press(Action::Convert(C::Lost(2, 1)));
+    app.press(Action::Convert(C::Lost(0, 2)));
+    for m in [0, 1] {
+        app.press(Action::Convert(C::Destroy(0, m)));
+        app.press(Action::Convert(C::Destroy(1, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::SETTINGS));
+    assert!(convert::shown_parts(&app).is_none());
+
+    // The lost share of the group typed falls below its threshold: it makes.
+    app.press(Action::Convert(C::Lost(0, -1)));
+    for m in [0, 1] {
+        app.press(Action::Convert(C::Destroy(0, m)));
+        app.press(Action::Convert(C::Destroy(1, m)));
+    }
+    app.press(Action::Convert(C::DestroyOthers));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::RESULT));
+}
+
+/// The Result of Add and of Rotate: the facts each carries, hidden at
+/// first, and Check my copy and Save working.
+#[test]
+fn the_result_of_a_share_and_of_a_set_say_what_they_are() {
+    // Tall, so every line of the Result is on the page at once.
+    let tall = || {
+        let mut app = mainnet();
+        app.event(Event::Display(DisplayInfo {
+            width: 480,
+            height: 2400,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        open(&mut app);
+        app
+    };
+    let mut app = tall();
+    type_set(&mut app, &[SET_A, SET_B]);
+    app.press(Action::Convert(C::SetAct(convert::SetAct::Add)));
+    pick_member(&mut app, 1);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    assert_eq!(convert::state(&app).unwrap().open, Some(cstep::RESULT));
+    assert!(convert::shown(&app).is_none(), "masked at first");
+    let _ = drawn(&mut app);
+    let texts = drawn(&mut app);
+    assert!(texts.iter().any(|t| t == "Standard"), "{texts:?}");
+    let id = faraday_bip::slip39::Share::parse(SET_A)
+        .unwrap()
+        .identifier();
+    let standard = format!("SLIP-39, group 1 share 2 of set {id:04x}");
+    assert!(texts.contains(&standard), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Passphrase"));
+    assert!(!texts.iter().any(|t| t == "Old set"));
+    assert!(!texts.iter().any(|t| t == "Fingerprint"));
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let share = convert::shown(&app).expect("a share is made").to_string();
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &share);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(true));
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert!(out.name.ends_with("-group-1-member-2.txt"), "{}", out.name);
+    assert_eq!(out.bytes.to_vec(), share.clone().into_bytes());
+
+    let mut app = tall();
+    type_set(&mut app, &[SET_A, SET_B]);
+    rotate_made(&mut app, &[(0, 0), (0, 2)]);
+    assert!(convert::shown_parts(&app).is_none(), "masked at first");
+    let _ = drawn(&mut app);
+    let texts = drawn(&mut app);
+    assert!(texts.iter().any(|t| t == "Old set"));
+    assert!(!texts.iter().any(|t| t == "Fingerprint"));
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let lines: Vec<String> = convert::shown_parts(&app)
+        .expect("a set is made")
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &lines[1]);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(true));
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert!(out.name.ends_with("slip39-set.txt"), "{}", out.name);
+    assert_eq!(out.bytes.to_vec(), (lines.join("\n") + "\n").into_bytes());
 }

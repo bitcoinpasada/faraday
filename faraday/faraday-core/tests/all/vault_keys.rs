@@ -561,3 +561,27 @@ fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     );
     assert!(!app.offers(unlock), "and it is not offered for unlocking");
 }
+
+/// A key of an open vault chosen as the source drops the SLIP-39 set typed
+/// under From.
+#[test]
+fn an_open_vaults_key_as_the_source_drops_a_typed_set() {
+    use faraday_core::convert::ConvertAction as C;
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    type_and_unlock(&mut app);
+    app.press(Action::Convert(C::Open));
+    app.press(Action::Convert(C::SetSource));
+    let share = "shadow pistol academic acid actress prayer class unknown daughter sweater \
+        depict flip twice unkind craft early superior advocate guest smoking";
+    for c in share.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.event(Event::Key(Key::Enter));
+    assert!(app.session.keys.slip39_set_facts().is_some(), "held");
+    let r = key_record(&app, testkit::TEST_SEEDS[0].1);
+    app.press(Action::Convert(C::VaultKey(0, r)));
+    let _ = app.frame();
+    app.event(Event::Tick { now_ms: 100_000 });
+    assert!(app.session.keys.slip39_set_facts().is_none(), "dropped");
+}

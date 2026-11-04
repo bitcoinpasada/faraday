@@ -26,6 +26,7 @@ Closed, the key chosen, or **Not chosen**.
 | a vault's key | a key in an open vault, **In vault 1**; a press loads it |
 | **Add a key** | [Add a key](add-a-key.md) |
 | **An LND aezeed** | the 24 words and passphrase of an LND aezeed, read and held for this flow and not loaded as a key; once read, its button is **LND aezeed, 24 words** |
+| **A SLIP-39 set** | an entry for SLIP-39 shares, one at a time; **Use this share** or Enter holds one, a refused share says why and adds nothing; below, the set's identifier, the groups needed and per group the shares needed and the numbers typed; **Start again** forgets them, **Continue** opens To. Dimmed in Practice; refused while a stick is attached |
 
 ### To
 
@@ -46,6 +47,16 @@ card, dimmed, with its reason.
 | **SLIP-39, k of n**, a key of seed bytes of 16 or 32 bytes | Trezor and Faraday; one group of k of n shares, or several groups; fresh randomness |
 | **codex32**, a key of seed bytes | Faraday and any codex32 tool |
 
+With a SLIP-39 set held, To lists three actions in place of the forms:
+
+| Action | What it makes |
+|---|---|
+| **Add a share** | one more share of a group, at a number you choose; offered once a group has its shares needed |
+| **Replace a lost share** | the very share that was lost, at its number; offered once a group has its shares needed |
+| **Rotate the set** | a new set of the same secret, which the old set no longer goes with; offered once the typed shares are enough to recover |
+
+A row not yet offered is dimmed with the shares or groups it still needs.
+
 A key of 64 bytes of seed lists **SLIP-39** dimmed, with "SLIP-39
 backups of 64 bytes are read by no wallet"; of 20, 24 or 28 bytes it has
 no SLIP-39 row. In Practice, Seed XOR and SLIP-39, k of n are dimmed and codex32's secret goes
@@ -64,6 +75,9 @@ Between To and Result, for Seed XOR, SLIP-39, k of n and codex32.
 | **Groups needed** | with several groups, how many are needed, 2 up to the groups |
 | **Shares needed**, **Shares made** | with one group, its k and n, each a Stepper, 1 to 16; a threshold of 1 only for one share |
 | **Group 1 needs**, **Group 1 shares** | with several groups, the same for each group, by its number |
+| **Group**, **Share number** | Add and Replace: the group, where more than one has its shares needed, and the share's number, 1 to 16, on Steppers; the numbers typed are skipped, and Add says the same number gives the same share again |
+| **Group 1 lost** | Rotate: shares of the group lost or exposed, a Stepper per group; when enough groups are out of reach the card says the set may be in other hands and to move the coins to a new key, and offers nothing to make |
+| **Destroyed: group 1, share 1**, **Destroyed: all other shares** | Rotate: one press for each typed share and one for every other share held, each once it is destroyed; the shape of the new set (the SLIP-39 rows above) and **Make** follow |
 | **Fresh randomness** | shown, with the value Faraday's, where the set draws randomness |
 | **Make** | works out the set; with no randomness ready a toast says so and the card stays |
 
@@ -74,10 +88,11 @@ The value is hidden until it is shown, and dropped when the card is left.
 | Line or control | What it does |
 |---|---|
 | the value, or **Show the code** | shows the text, or the code on a SeedQR form; a set has one eye over all its parts, numbered (the codex32 secret alone is not), several SLIP-39 groups as **Group 1, share 2:** |
-| **Standard**, **Restores in**, **Fingerprint** | what the value is, where it restores, and the key's fingerprint, the same as the source (an aezeed's is that of its seed, with no source to match) |
+| **Standard**, **Restores in**, **Fingerprint** | what the value is, where it restores, and the key's fingerprint, the same as the source (an aezeed's is that of its seed, with no source to match; a share or set made from a SLIP-39 set has none, since no passphrase is taken) |
 | **Word list** | on a form with no list of its own, for a key on another list than English |
 | **Paths** | the paths of the loaded wallets holding this key, or **No loaded wallet holds this key**; for an aezeed, the paths LND uses |
 | **Birthday**, **Channels** | for an aezeed: the date its wallet was made, and that it restores on-chain coins only |
+| **Old set** | on Rotate: **No longer to be used** |
 | **Passphrase** | on a key with a passphrase: whether the value holds the passphrase's wallet or needs the passphrase to restore it |
 | **Check my copy** | a copy typed back: **Compare** says **Your copy matches** or **Your copy differs**, **Clear** empties it; on a set it is compared with every part and says which part matched, or for groups **Your copy matches group 1, share 2** |
 | **Save as a file…** | the value to a stick (a set: every part, one per line, in group order), through [This is a secret](files.md#this-is-a-secret) |

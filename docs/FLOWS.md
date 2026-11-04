@@ -168,6 +168,21 @@ until the sheet is answered. Both work in Practice, whose keys are public seeds.
 A dimmed row under To takes no press. Leaving Result, or the flow, drops the
 value and what was typed.
 
+From also has **A SLIP-39 set** (`docs/SEED-CONVERSION.md` §8): an entry for one
+share at a time, held with Enter or **Use this share** (a refusal names its
+reason and adds nothing), under it the set's identifier, the groups needed and
+per group the shares needed and the numbers typed; **Start again** forgets
+them, and **Continue** opens To. Practice and an attached stick refuse it.
+To then offers **Add a share**, **Replace a lost share** and **Rotate the set**,
+each dimmed with the shares or groups it still needs until the set allows it.
+Add and Replace open a Settings card of the group (where several have a quorum)
+and the share number, 1 to 16; Rotate's has per group a count of shares lost or
+exposed, then a press for each typed share destroyed and one for all the
+others held, then the shape of the new set. At the count's limit the card says
+the set may be in other hands and offers nothing to make. The Result is the
+share or set, with no Fingerprint. The held set and the shares made drop on
+leaving the flow, on choosing a key as the source and on lock.
+
 **Mouse and typing** (decision 47). On the desktop the mouse's back
 button does what Back does (F77, F104: within a flow the step before,
 else the screen seen before, as it was seen; Escape where there is no

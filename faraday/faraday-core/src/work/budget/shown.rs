@@ -220,6 +220,45 @@ fn convert_a_set_is_joined_once_when_shown_and_the_frames_work_out_nothing() {
     );
 }
 
+#[test]
+fn the_frames_of_a_shown_share_work_out_nothing() {
+    use crate::convert::set::SetAct;
+    use faraday_shell_api::{Event, Key};
+    let mut app = testkit::started();
+    app.press(Action::Convert(ConvertAction::Open));
+    app.press(Action::Convert(ConvertAction::SetSource));
+    for share in [
+        "shadow pistol academic acid actress prayer class unknown daughter sweater \
+         depict flip twice unkind craft early superior advocate guest smoking",
+        "shadow pistol academic always adequate wildlife fancy gross oasis cylinder \
+         mustang wrist rescue view short owner flip making coding armed",
+    ] {
+        for c in share.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.event(Event::Key(Key::Enter));
+    }
+    app.press(Action::Convert(ConvertAction::SetAct(SetAct::Add)));
+    app.press(Action::Convert(ConvertAction::Make));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    app.settle();
+    let _ = app.frame();
+    assert!(
+        app.tools.convert().holds_value(),
+        "the share is held, masked"
+    );
+    assert!(app.tools.convert().shown_text().is_none());
+    let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
+    assert!(app.tools.convert().shown_text().is_some());
+    frames_work_out_nothing(&mut app);
+    let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
+    assert!(app.tools.convert().shown_text().is_none(), "hidden, gone");
+    app.press(Action::Convert(ConvertAction::Done));
+    assert!(!app.tools.convert().holds_value(), "leaving drops it");
+}
+
 /// The heavy session on the open vault's item `0` of `category`, its page
 /// shown and settled: Bitcoin keys 0, Entries 2, GPG keys 4.
 fn vault_page(category: usize) -> Faraday {

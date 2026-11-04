@@ -4,6 +4,9 @@
 //! result until the flow is left.
 
 pub mod screen;
+pub mod set;
+
+pub use set::{SetAct, SetState};
 
 use crate::copy_check::{Typed, WordCheck};
 use crate::flow;
@@ -71,6 +74,24 @@ pub enum ConvertAction {
     SlipK(u8, i8),
     /// More (1) or fewer (-1) shares in a SLIP-39 group, by its place.
     SlipN(u8, i8),
+    /// The source A SLIP-39 set: its entry opens.
+    SetSource,
+    /// Hold the share typed.
+    SetHold,
+    /// Forget the set held and start again.
+    SetAgain,
+    /// Press one of the set's three actions.
+    SetAct(SetAct),
+    /// The next (1) or previous (-1) group with its quorum met.
+    SetGroup(i8),
+    /// A higher (1) or lower (-1) member number.
+    SetMember(i8),
+    /// More (1) or fewer (-1) shares lost or exposed in a group.
+    Lost(u8, i8),
+    /// A typed share of a group and member pressed destroyed.
+    Destroy(u8, u8),
+    /// Every other share held pressed destroyed.
+    DestroyOthers,
     /// Make the result from the settings.
     Make,
     /// Show or hide the value.
@@ -391,6 +412,9 @@ pub struct ConvertState {
     /// Whether the source is the aezeed `faraday-keys` holds for this
     /// flow (`Keys::aezeed_hold`), not a loaded key.
     pub aezeed: bool,
+    /// The set source's state, where the source is A SLIP-39 set held by
+    /// `faraday-keys` (`Keys::slip39_set_hold`).
+    pub set: Option<SetState>,
     /// The target pressed.
     pub target: Option<Target>,
     /// Whether the value shows.
@@ -523,6 +547,8 @@ pub struct ConvertArea {
     shown_text: Option<Zeroizing<String>>,
     /// Check my copy, while it is open: what is typed, wiped on drop.
     check: Option<WordCheck>,
+    /// The set's share being typed, wiped on drop and with the flow.
+    set_typed: crate::secret_text::SecretText,
     /// What the last comparison found, until the next key or press.
     found: Option<bool>,
     /// Which part of a result of several the last copy matched, by number.
@@ -544,6 +570,7 @@ impl ConvertArea {
     /// Forgets the flow and its result.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+        self.set_typed.clear();
         self.drop_value();
     }
 
@@ -681,6 +708,7 @@ impl ConvertArea {
             scroll: flow::Scroll::default(),
             key,
             aezeed: false,
+            set: None,
             target: None,
             shown: false,
             back,
@@ -710,6 +738,9 @@ impl ConvertArea {
             if !keep_target {
                 s.target = None;
                 s.settings = false;
+                if let Some(x) = s.set.as_mut() {
+                    x.act = None;
+                }
                 s.done[usize::from(cstep::TO)] = false;
             }
         }
@@ -806,6 +837,8 @@ impl ConvertArea {
             }
             s.key = Some(key);
             s.aezeed = false;
+            s.set = None;
+            self.set_typed.clear();
             s.done[usize::from(cstep::FROM)] = true;
             s.open = Some(cstep::TO);
             s.scroll.follow = true;
@@ -904,6 +937,9 @@ pub(crate) fn slip_fits(len: usize, t: u8, slip: &[(u8, u8)], action: ConvertAct
 /// The seed bytes of the key chosen: 32 where it has none, the longest a
 /// SLIP-39 set takes. A lookup.
 pub(crate) fn seed_len_of(keys: &faraday_keys::Keys, state: &ConvertState) -> usize {
+    if state.set.is_some() {
+        return keys.slip39_set_facts().map_or(32, |f| f.secret_len);
+    }
     source_info(keys, state)
         .and_then(|k| k.seed_len)
         .unwrap_or(32)
@@ -960,7 +996,11 @@ pub fn found(app: &Faraday) -> Option<bool> {
 /// any other result. A read of the settings, which stay as made until the
 /// card is opened.
 pub fn groups_made(s: &ConvertState) -> Vec<u8> {
-    if s.target == Some(Target::SlipSet) {
+    let rotated = s
+        .set
+        .as_ref()
+        .is_some_and(|x| x.act == Some(SetAct::Rotate));
+    if s.target == Some(Target::SlipSet) || rotated {
         s.slip.iter().map(|g| g.1).collect()
     } else {
         Vec::new()
@@ -971,7 +1011,7 @@ pub fn groups_made(s: &ConvertState) -> Vec<u8> {
 /// any.
 pub fn order(s: &ConvertState) -> Vec<u8> {
     let mut order = vec![cstep::FROM, cstep::TO];
-    if s.settings && s.target.is_some() {
+    if s.settings && (s.target.is_some() || s.set.as_ref().is_some_and(|x| x.act.is_some())) {
         order.push(cstep::SETTINGS);
     }
     order.push(cstep::RESULT);
@@ -1039,28 +1079,7 @@ pub fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String 
             &[&s.k.to_string(), &s.n.to_string()],
         ),
         Target::Codex32 => EN.convert_codex32_secret.to_string(),
-        Target::SlipSet if s.slip.len() > 1 => {
-            let shapes: Vec<String> = s
-                .slip
-                .iter()
-                .map(|(k, n)| fill(EN.convert_slip39_shape, &[&k.to_string(), &n.to_string()]))
-                .collect();
-            fill(
-                EN.convert_slip39_groups_standard,
-                &[
-                    &s.slip_t.to_string(),
-                    &s.slip.len().to_string(),
-                    &shapes.join(&format!("{} ", EN.convert_slip39_shape_sep)),
-                ],
-            )
-        }
-        Target::SlipSet => {
-            let (k, n) = s.slip.first().copied().unwrap_or((2, 3));
-            fill(
-                EN.convert_slip39_set_standard,
-                &[&k.to_string(), &n.to_string()],
-            )
-        }
+        Target::SlipSet => slip_set_standard(s),
         // 16 bytes are 20 words, 32 bytes 33.
         Target::SlipOne => fill(
             EN.convert_slip39_standard,
@@ -1068,6 +1087,30 @@ pub fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String 
         ),
         _ => target.standard().to_string(),
     }
+}
+
+/// The Standard fact of a SLIP-39 set of the shape in the settings.
+pub(crate) fn slip_set_standard(s: &ConvertState) -> String {
+    if s.slip.len() > 1 {
+        let shapes: Vec<String> = s
+            .slip
+            .iter()
+            .map(|(k, n)| fill(EN.convert_slip39_shape, &[&k.to_string(), &n.to_string()]))
+            .collect();
+        return fill(
+            EN.convert_slip39_groups_standard,
+            &[
+                &s.slip_t.to_string(),
+                &s.slip.len().to_string(),
+                &shapes.join(&format!("{} ", EN.convert_slip39_shape_sep)),
+            ],
+        );
+    }
+    let (k, n) = s.slip.first().copied().unwrap_or((2, 3));
+    fill(
+        EN.convert_slip39_set_standard,
+        &[&k.to_string(), &n.to_string()],
+    )
 }
 
 /// The Paths fact's lines: each path the loaded wallets use from `fp`. A
@@ -1294,9 +1337,15 @@ fn save(app: &mut Faraday) {
 /// the flow goes on as for a loaded key.
 fn from_vault(app: &mut Faraday, v: usize, r: usize) {
     if let Some(fp) = app.vault_key_load(v, r) {
-        app.session.keys.aezeed_forget();
+        forget_held(app);
         app.tools.convert_mut().choose(fp);
     }
+}
+
+/// Wipes what faraday-keys holds for the flow: an aezeed and a typed set.
+fn forget_held(app: &mut Faraday) {
+    app.session.keys.aezeed_forget();
+    app.session.keys.slip39_set_forget();
 }
 
 /// A press in the flow.
@@ -1304,7 +1353,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     match action {
         ConvertAction::Aezeed => app.lightning_for_convert(),
         ConvertAction::Open => {
-            app.session.keys.aezeed_forget();
+            forget_held(app);
             let key = (app.session.keys.len() == 1).then(|| app.session.keys[0].fingerprint.0);
             let back = app.screen;
             app.tools.convert_mut().open(key, back);
@@ -1314,7 +1363,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             if app.session.keys.position_of(fp).is_none() {
                 return;
             }
-            app.session.keys.aezeed_forget();
+            forget_held(app);
             let back = app.screen;
             // Explore is kept for the way back; what its eyes show is not.
             app.explore_hide();
@@ -1324,7 +1373,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::Step(s) => app.tools.convert_mut().step(s),
         ConvertAction::Key(fp) => {
             if app.session.keys.position_of(fp).is_some() {
-                app.session.keys.aezeed_forget();
+                forget_held(app);
                 app.tools.convert_mut().choose(fp);
             }
         }
@@ -1340,6 +1389,18 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         }
         ConvertAction::K(by) => app.tools.convert_mut().threshold(by),
         ConvertAction::N(by) => app.tools.convert_mut().count(by),
+        ConvertAction::SetSource
+        | ConvertAction::SetHold
+        | ConvertAction::SetAgain
+        | ConvertAction::SetAct(_)
+        | ConvertAction::SetGroup(_)
+        | ConvertAction::SetMember(_)
+        | ConvertAction::Lost(..)
+        | ConvertAction::Destroy(..)
+        | ConvertAction::DestroyOthers => set::act(app, action),
+        ConvertAction::Make if state(app).is_some_and(|s| s.set.is_some()) => {
+            set::act(app, action);
+        }
         ConvertAction::Make => {
             let target = state(app).filter(|s| s.settings).and_then(|s| s.target);
             if let Some(target) = target {
@@ -1363,6 +1424,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::Check => app.tools.convert_mut().toggle_check(),
         ConvertAction::Compare => app.tools.convert_mut().compare(),
         ConvertAction::CheckClear => app.tools.convert_mut().clear_check(),
+        ConvertAction::Save if state(app).is_some_and(|s| s.set.is_some()) => set::save(app),
         ConvertAction::Save => save(app),
         ConvertAction::Done => {
             if let Some(back) = state(app).map(|s| s.back) {
@@ -1377,6 +1439,9 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
 pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     if app.screen != Screen::Convert || app.sheet.is_some() || state(app).is_none() {
         return false;
+    }
+    if set::key(app, key) {
+        return true;
     }
     if app.tools.convert_mut().check_key(key) {
         return true;
@@ -1409,7 +1474,7 @@ pub(crate) fn tidy(app: &mut Faraday) {
                 .is_some_and(|k| k.back == Screen::Convert))
         || (app.screen == Screen::Lightning && app.lightning.for_convert());
     if !kept {
-        app.session.keys.aezeed_forget();
+        forget_held(app);
         app.tools.convert_mut().clear();
     }
 }

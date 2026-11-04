@@ -1,5 +1,6 @@
 //! The Convert a seed screen: the step-card column over [`crate::convert`].
 
+use crate::convert::set::{self, SetAct};
 use crate::convert::{
     ConvertAction as C, ConvertState, ROWS, Target, Value, cstep, same_as_source, source,
     standard_text,
@@ -88,7 +89,31 @@ fn target_name(app: &View, name: &'static str, target: Option<Target>) -> &'stat
     }
 }
 
+fn set_act_name(act: SetAct) -> &'static str {
+    match act {
+        SetAct::Add => EN.convert_set_add,
+        SetAct::Replace => EN.convert_set_replace,
+        SetAct::Rotate => EN.convert_set_rotate,
+    }
+}
+
 fn summary(app: &View, s: &ConvertState, step: u8) -> String {
+    if let Some(x) = &s.set {
+        return match (step, app.session.keys.slip39_set_facts()) {
+            (cstep::FROM, Some(f)) => {
+                fill(EN.convert_set_summary, &[&format!("{:04x}", f.identifier)])
+            }
+            (cstep::FROM, None) => EN.convert_set_source.to_string(),
+            (cstep::TO, _) => x
+                .act
+                .map_or(EN.convert_not_chosen, set_act_name)
+                .to_string(),
+            (cstep::SETTINGS, _) if x.act == Some(SetAct::Rotate) => {
+                crate::convert::slip_set_standard(s)
+            }
+            _ => String::new(),
+        };
+    }
     match step {
         cstep::FROM => s.key.map_or_else(
             || EN.convert_not_chosen.to_string(),
@@ -147,7 +172,7 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         let press = Some(Action::Convert(C::Step(cstep::TO)));
         cy += row(ui, (x, cy, w), (&name, EN.convert_from_aezeed), true, press);
     }
-    let ways = [
+    let ways = vec![
         (
             EN.convert_add_a_key.to_string(),
             Style::Secondary,
@@ -158,12 +183,326 @@ fn from_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
             Style::Secondary,
             Action::Convert(C::Aezeed),
         ),
+        (
+            EN.convert_set_source.to_string(),
+            Style::chosen(s.set.is_some()),
+            Action::Convert(C::SetSource),
+        ),
     ];
+    if !app.makes_secrets() {
+        ui.dimmed.push(Action::Convert(C::SetSource));
+    }
     cy += button_rows(ui, x, cy, w, &ways);
+    if !app.makes_secrets() {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.convert_set_practice,
+        ) + GAP;
+    }
+    if s.set.is_some() {
+        cy += set_entry(app, s, ui, (x, cy, w));
+    }
     cy - y
 }
 
+/// The set's entry: the share typed, what is held of the set, and the way on.
+fn set_entry(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_S,
+        Role::OnSurfaceVariant,
+        EN.convert_set_field,
+    ) + FIELD_GAP;
+    ui.field_box((x, cy, w), true, None);
+    let here = Action::TypeHere(crate::edit::Here::Share);
+    ui.press_box(x, cy, w, FIELD_H, here);
+    ui.typed(
+        x + FIELD_PAD,
+        cy,
+        FIELD_H,
+        BODY_L.size,
+        crate::ui::W::R,
+        Role::OnSurface,
+        app.tools.convert().set_typed(),
+        w - 2.0 * FIELD_PAD,
+        true,
+        here,
+    );
+    cy += FIELD_H + GAP;
+    if let Some(e) = s.set.as_ref().and_then(|x| x.error.as_ref()) {
+        let line = fill(EN.convert_set_not_added, &[e]);
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
+    }
+    let mut actions = vec![(
+        EN.convert_set_hold.to_string(),
+        Style::Primary,
+        Action::Convert(C::SetHold),
+    )];
+    if let Some(f) = app.session.keys.slip39_set_facts() {
+        actions.push((
+            EN.convert_set_again.to_string(),
+            Style::Ghost,
+            Action::Convert(C::SetAgain),
+        ));
+        let id = format!("{:04x}", f.identifier);
+        let value = fill(
+            EN.convert_set_id_value,
+            &[
+                &id,
+                &f.group_threshold.to_string(),
+                &f.group_count.to_string(),
+            ],
+        );
+        cy += button_rows(ui, x, cy, w, &actions);
+        cy += crate::compact::kv(ui, x, cy, w, EN.convert_set_label, &value, Role::OnSurface);
+        for g in &f.groups {
+            let typed: Vec<String> = g.members.iter().map(|m| (m + 1).to_string()).collect();
+            let typed = if typed.is_empty() {
+                EN.convert_set_none.to_string()
+            } else {
+                typed.join(", ")
+            };
+            let state = if g.quorum {
+                EN.convert_set_enough
+            } else {
+                EN.convert_set_not_enough
+            };
+            let value = fill(
+                EN.convert_set_group_value,
+                &[&g.threshold.to_string(), &typed, state],
+            );
+            let label = fill(EN.convert_set_group, &[&(g.index + 1).to_string()]);
+            cy += crate::compact::kv(ui, x, cy, w, &label, &value, Role::OnSurface);
+        }
+        if s.done[usize::from(cstep::FROM)] {
+            let go = [(
+                EN.convert_set_continue.to_string(),
+                Style::Primary,
+                Action::Convert(C::Step(cstep::TO)),
+            )];
+            cy += GAP + button_rows(ui, x, cy, w, &go);
+        }
+    } else {
+        cy += button_rows(ui, x, cy, w, &actions);
+    }
+    cy - y
+}
+
+/// To for a set held: its three actions, each dimmed with what it still
+/// needs.
+fn set_to_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let Some(f) = app.session.keys.slip39_set_facts() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    let rows = [
+        (SetAct::Add, EN.convert_set_add_line),
+        (SetAct::Replace, EN.convert_set_replace_line),
+        (SetAct::Rotate, EN.convert_set_rotate_line),
+    ];
+    for (act, line) in rows {
+        let (line, press) = match set::offered(f, act) {
+            Ok(()) => (line.to_string(), Some(Action::Convert(C::SetAct(act)))),
+            Err(n) => {
+                let said = if act == SetAct::Rotate {
+                    EN.convert_set_needs_groups
+                } else {
+                    EN.convert_set_needs_shares
+                };
+                (fill(said, &[&n.to_string()]), None)
+            }
+        };
+        cy += row(ui, (x, cy, w), (set_act_name(act), &line), false, press);
+    }
+    cy - y
+}
+
+/// Add's and Replace's Settings: the group where several have a quorum, and
+/// the share number. Returns the row below them.
+fn member_settings(
+    f: &faraday_keys::slip39_set::SetFacts,
+    st: &set::SetState,
+    ui: &mut Ui,
+    (x, mut cy, w): (f32, f32, f32),
+) -> f32 {
+    let steps = tokens::STEPPER_ROW;
+    if set::quorum_groups(f).len() > 1 {
+        let (less, more) = (
+            Action::Convert(C::SetGroup(-1)),
+            Action::Convert(C::SetGroup(1)),
+        );
+        ui.stepper(
+            (x, cy, w),
+            EN.convert_set_group_step,
+            usize::from(st.group) + 1,
+            (less, more),
+            true,
+        );
+        cy += steps;
+    }
+    let (less, more) = (
+        Action::Convert(C::SetMember(-1)),
+        Action::Convert(C::SetMember(1)),
+    );
+    ui.stepper(
+        (x, cy, w),
+        EN.convert_set_member,
+        usize::from(st.member) + 1,
+        (less, more),
+        true,
+    );
+    cy += steps;
+    if st.act == Some(SetAct::Add) {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.convert_set_add_note,
+        ) + GAP;
+    }
+    cy
+}
+
+/// Settings for a set's action.
+fn set_settings(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let (Some(f), Some(st)) = (app.session.keys.slip39_set_facts(), s.set.as_ref()) else {
+        return 0.0;
+    };
+    let mut cy = y + GAP + GAP_SMALL;
+    let steps = tokens::STEPPER_ROW;
+    let mut make = true;
+    match st.act {
+        Some(SetAct::Rotate) => {
+            for g in 0..f.group_count {
+                let label = fill(EN.convert_set_lost, &[&(g + 1).to_string()]);
+                let value = usize::from(st.lost.get(usize::from(g)).copied().unwrap_or(0));
+                let (less, more) = (
+                    Action::Convert(C::Lost(g, -1)),
+                    Action::Convert(C::Lost(g, 1)),
+                );
+                ui.stepper((x, cy, w), &label, value, (less, more), true);
+                cy += steps;
+            }
+            let count = faraday_keys::slip39_set::rotate_count(
+                f.group_threshold,
+                &set::rotate_groups(f, &st.lost),
+            );
+            if count.may_be_in_other_hands {
+                return cy
+                    + ui.wrap_as((x, cy, w), BODY_M, Role::Error, EN.convert_set_other_hands)
+                    - y
+                    + GAP;
+            }
+            let mut presses = Vec::new();
+            for g in &f.groups {
+                for &m in &g.members {
+                    let on = st.destroyed.contains(&(g.index, m));
+                    let label = fill(
+                        EN.convert_set_destroyed,
+                        &[&(g.index + 1).to_string(), &(m + 1).to_string()],
+                    );
+                    presses.push((
+                        label,
+                        Style::chosen(on),
+                        Action::Convert(C::Destroy(g.index, m)),
+                    ));
+                }
+            }
+            presses.push((
+                EN.convert_set_destroyed_others.to_string(),
+                Style::chosen(st.others),
+                Action::Convert(C::DestroyOthers),
+            ));
+            cy += button_rows(ui, x, cy, w, &presses);
+            if set::all_destroyed(f, st) {
+                cy = slip_steppers(app, s, ui, (x, cy, w));
+                cy += crate::compact::kv(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    EN.convert_fresh,
+                    EN.convert_fresh_value,
+                    Role::OnSurface,
+                );
+            } else {
+                make = false;
+            }
+        }
+        _ => cy = member_settings(f, st, ui, (x, cy, w)),
+    }
+    if make {
+        ui.button(
+            x,
+            cy,
+            None,
+            BUTTON_H,
+            EN.convert_make,
+            Style::Primary,
+            Action::Convert(C::Make),
+        );
+        cy += BUTTON_H;
+    }
+    cy - y + GAP_SMALL
+}
+
+/// Result for a share or a set made.
+fn set_result(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    if let (Some(f), Some(st)) = (app.session.keys.slip39_set_facts(), s.set.as_ref()) {
+        if let Some(line) = &st.refused {
+            cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, line) + GAP;
+        } else {
+            cy += found_line(app, ui, (x, cy, w));
+            let eye = (Action::Convert(C::Show), s.shown);
+            let text = || app.convert_shown_text().unwrap_or_default();
+            cy += crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye) + GAP;
+            let mut fact = |ui: &mut Ui, label: &str, value: &str| {
+                cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
+            };
+            fact(ui, EN.convert_standard, &set::standard(f, s, st));
+            fact(ui, EN.convert_restores_in, EN.convert_slip39_restores);
+            fact(ui, EN.convert_passphrase, EN.convert_set_passphrase);
+            if st.act == Some(SetAct::Rotate) {
+                fact(ui, EN.convert_set_old, EN.convert_set_old_value);
+            }
+            cy += GAP;
+            cy += check_my_copy(app, ui, (x, cy, w));
+            let mut actions = Vec::new();
+            if s.checkable {
+                actions.push((
+                    EN.convert_check.to_string(),
+                    Style::Secondary,
+                    Action::Convert(C::Check),
+                ));
+            }
+            actions.push((
+                EN.convert_save.to_string(),
+                Style::Secondary,
+                Action::Convert(C::Save),
+            ));
+            cy += button_rows(ui, x, cy, w, &actions);
+        }
+    }
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.convert_done,
+        Style::Primary,
+        Action::Convert(C::Done),
+    );
+    cy + BUTTON_H - y + GAP_SMALL
+}
+
 fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    if s.set.is_some() {
+        return set_to_card(app, ui, (x, y, w));
+    }
     let Some(key) = key_of(app, s) else {
         return 0.0;
     };
@@ -239,6 +578,9 @@ fn slip_steppers(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32
 /// made, each on a Stepper (as New key's); where the set draws randomness,
 /// its Fact.
 fn settings_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    if s.set.is_some() {
+        return set_settings(app, s, ui, (x, y, w));
+    }
     // Room under the card's title, which a press on a small panel shares
     // with the first stepper.
     let mut cy = y + GAP + GAP_SMALL;
@@ -421,6 +763,9 @@ fn check_my_copy(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
 }
 
 fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    if s.set.is_some() {
+        return set_result(app, s, ui, (x, y, w));
+    }
     let mut cy = y;
     let key = key_of(app, s);
     match (s.refused, s.target, key) {
