@@ -1,12 +1,9 @@
-//! The one encrypted file Faraday writes for others, apart from any
-//! screen that asks for it:
-//!
-//! - [`kdbx`]: a KDBX 4 database a KeePass app opens with the same
-//!   passphrase (`docs/KDBX.md`).
-//!
-//! It stretches the passphrase with [`argon2id`] at a [`Cost`] the
-//! caller chooses and the file carries, and takes its salt and nonces
-//! from a seed the caller supplies: nothing here draws randomness.
+//! Argon2id at a [`Cost`] the caller chooses and a file carries. The
+//! self-test checks it against a known answer and the cross-check's
+//! `vault.argon2id` judges it. The vault (`docs/VAULT.md`) takes this
+//! crate's [`Cost`] and stretches its passphrases through
+//! `faraday_crypto::argon2` itself, which this function wraps. Nothing here
+//! draws randomness.
 //!
 //! `no_std` + `alloc`. The Argon2id working memory is asked for with
 //! `try_reserve`, so a cost a device cannot meet is an error rather
@@ -19,8 +16,6 @@ extern crate alloc;
 use argon2::{Algorithm, Params};
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
-
-pub mod kdbx;
 
 /// What Argon2id costs a guess, as a file carries it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

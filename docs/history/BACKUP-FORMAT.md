@@ -6,7 +6,7 @@
 Moved out of the documents on 2026-10-23 (F97): Faraday no longer reads
 `.oskb` files. The file sections here describe a format that is gone from
 the code, its reference decryptor and its vectors. The KDBX 4 sections
-are now `docs/KDBX.md`; the vault's record layouts, which borrowed this
+are now `docs/history/KDBX-LOG.md`; the vault's record layouts, which borrowed this
 format's payloads, are `docs/VAULT.md` §7.
 
 An `.oskb` file holds one thing encrypted under a passphrase a person

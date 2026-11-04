@@ -42,7 +42,6 @@ Three tiers, used through the rest of this file:
 | `faraday-bip` | BIP-32 keys (wraps `bitcoin::bip32`, so private material never gains `Debug`/`Clone`/a text form), BIP-39 mnemonics, BIP-44/49/84/86 accounts, SLIP-132, BIP-380 descriptor checksums, BIP-85 child mnemonics, SLIP-39 Shamir backup, BIP-327 MuSig2, BIP 93 codex32 (its worksheets, fresh sets and error correction), aezeed and AEZ, BIP-352 silent payments, BIP-374 DLEQ proofs. | Keys/addresses: `bitcoin`'s own `bip32` (external, vetted). **BIP-39, SLIP-39, MuSig2, codex32, aezeed with AEZ, silent payments and the DLEQ proofs are written here** — BIP-39: the bip39 crate's word lookup takes a time that follows the words; Faraday's is being made constant time, and the crate is what the tests compare it with. MuSig2: libsecp256k1's MuSig2 is in rust-secp256k1 0.32 and later; bitcoin 0.32, which Faraday uses, is on 0.29, and no miniscript release builds on bitcoin 0.33 yet. The others: no vetted `no_std` crate exists for them on this tree's pin. | `tools/vectors/{bip32,bip39,bip85,bip93,bip129,bip327,bip328,bip352,bip387,bip390,bip392}/`; BIP-39 and seed derivation additionally cross-checked against the `bip39` crate as a dev-dependency (`core/faraday-bip/tests/all/crosscheck.rs`). |
 | `faraday-psbt` | PSBT parse/serialise, inspection (amounts, fee, verified change, warnings) from non-secret data only, signing (key derived from the PSBT's own origin data, never a guessed path; deterministic nonces; verifies its own signature before writing it; signs twice to check determinism), BIP-137/BIP-322 message signing, finalisation, and verification of signatures already on a transaction. | Signing itself: `faraday-bip`'s keys, over `bitcoin`'s secp256k1. The PSBT format, inspection and verification logic: written here. | `tools/vectors/psbt/`, `tools/vectors/message/`; wallet fixtures built and checked in `core/faraday-psbt/examples/wallet.rs` / `tests/all/wallet_fixtures.rs`. |
 | `faraday-entropy` | Turns user-supplied dice, coin flips, hex, playing cards or camera noise into `RawEntropy` of the right size for a BIP-39 key, with the mistakes real hands make checked for and warned on; mixes two or more sources by hashing: SHA-256 over their 32-byte SHA-256 commitments, concatenated in the order taken, truncated to the strength (`mix.rs`). Seed XOR (`xor.rs`) is a separate paper form. | Written here (bit/face accumulation and packing; no external entropy crate fits a fixed-size, erase-on-drop buffer). | Its own unit tests (no published vectors exist for "pack these dice as entropy" — it is deterministic bit-packing, not a named standard); exercised end to end through `faraday-core/tests/all/keygen.rs`. |
-| `faraday-backup` | The KDBX 4 writer, and the Argon2id helper and `Cost` type the vault, the kept-key blob and the self-test use. Argon2id at a caller-chosen, file-carried `Cost`; it draws no randomness of its own. | Argon2id, the KDBX cipher stack: RustCrypto crates (`argon2`, `chacha20`, `sha2`, `hmac`). The KDBX file itself: written here. | `tools/vectors/backup/` (the KDBX file), read back by `tools/backup/read-kdbx.py`. |
 
 `faraday-bip` also uses private keys: BIP-85 derives from one, MuSig2
 signs with one, a silent payments wallet holds its scan key, and
@@ -128,10 +127,10 @@ The highest-leverage single fact for an auditor: everything above marked
 - The file vault's opening: the size and cost checks, the NFC step and the read-only flag (`faraday-vault::file`)
 - The vault's TOML reader and writer (`faraday-vault::contents`)
 - The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)
+- The KDBX 4 file format (`faraday-vault::kdbx`), used as the vault uses it
 - TOTP code derivation (`faraday-vault::totp`)
 - The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)
 - OpenPGP v4 packet construction (`faraday-pgp`)
-- The KDBX 4 file format (`faraday-backup`)
 - CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files (`faraday-sb`)
 <!-- crypto-manifest: end §3 -->
 
@@ -154,6 +153,7 @@ outside review in `docs/STANDARDS.md` §7.
 | Crate | What it does with the bytes |
 |---|---|
 | `faraday-core` | The app: flows, state, screens and wording. Holds handles to keys and records, public results (signatures, xpubs, addresses, fingerprints, signed files), and the input a person is typing until it is handed to `faraday-keys` (§2). Hashes for integrity and for ids, as the *Hashes* tier does. Its session randomness is §1's. |
+| `faraday-backup` | The Argon2id helper and `Cost` type the vault, the kept-key blob and the self-test use. It calls `faraday-crypto`'s Argon2id at a caller-chosen, file-carried `Cost`, computes no primitive of its own and draws no randomness. |
 | `faraday-codec` | QR/UR encoding and decoding, classification, PNG. Calls `faraday-crypto::sha256` only for SeedQR's own integrity check; never holds a private key. |
 | `faraday-qr` | BBQr, numbered text parts, the Faraday file envelope, the UR registry's key/wallet types. Calls `sha256` to check an envelope's declared hash against its data; computes no key material. |
 | `faraday-draw` | Layout engine and renderer. Takes `faraday-bip`/`faraday-codec` types (a fingerprint, an address, a QR code) to draw; never computes one. |

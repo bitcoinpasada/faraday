@@ -133,8 +133,8 @@ than under CPython. So when `pypy3` (3.11 or later) is on the `PATH`,
 the run gives PyPy those two areas (`--python auto`, the default), which
 takes a `--fresh` run from about 11 minutes to 10 on the build machine;
 `--python cpython` uses CPython alone, `--python pypy` (or a path to
-one) gives PyPy every area it can import (the `vault` and `kdbx` areas,
-which need the distribution's packages for CPython, stay on CPython).
+one) gives PyPy every area it can import (the `vault` area,
+which needs the distribution's packages for CPython, stays on CPython).
 The answers and the report are the same either way, and the stamp
 records which Python ran what. PyPy is not needed: get it from the
 distribution (Debian and Ubuntu: `pypy3`; Fedora: `pypy3.11`; Arch:
@@ -195,7 +195,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `codex32-correct` | `faraday_bip::codex32::correct` | python-codex32's decoder, `correction.py` at a later commit (`codex32/correction/`), asked with BIP 93's bound | python-codex32's frozen correction corpus, 57 cases (`tools/vectors/codex32-correction/`) | random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, `ms1` damaged |
 | `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | Coldcard's own `xor` and `xor_split` (`coldcard/`, unchanged) with python-mnemonic (`bip39/`) for the words | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals; parts made by Coldcard's `xor_split` read back to their seed |
 | `hash` | `faraday_bip::hashes` and `faraday_codec::encodings` (`read`, the writers and `from_hex`), `faraday_core::file_menu::sha256`, and `faraday_crypto::hkdf_sha256` and `hkdf_sha256_expand`, `hmac_sha256`, `hmac_sha512`, `pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512` and `scrypt` | Bitcoin Core v31.1's functional-test framework (`core/`): `ripemd160.py`, `address.py` and `segwit_addr.py`, with `hashlib` for SHA-256 and `bytes.fromhex` for hex; PyCA cryptography's `HKDF` and `HKDFExpand` (OpenSSL) for the one HKDF; `hmac`, `hashlib.pbkdf2_hmac` and `hashlib.scrypt` (OpenSSL) for HMAC, PBKDF2 and scrypt | FIPS 180-4's SHA-256 examples, RIPEMD-160 of `abc`, BIP-173's key and its HASH160, Bitcoin Core's first `key_io_valid.json` address, BIP-173's and BIP-350's bech32 strings and their valid and invalid segwit addresses (`tools/vectors/addresses`) | random bytes of every length from 0 to 130 and to 300 hashed (SHA-256, SHA-256d, HASH160) and as a file, files of 4 KiB, 64 KiB and 1 MiB with a byte more and less; random bytes written and read as Base58Check, Base58, bech32 and bech32m, Core's writing read by Faraday, segwit addresses of every version Core's framework writes, and texts changed, cut or made of random characters read by both |
-| `vault` | `faraday_vault`'s file (`file::create`, `open` and `seal`, the document model and the items of §7), its payload layouts and a passphrase's NFC form with the Unicode version it is made under, and `faraday_backup::argon2id` | pykeepass and `keepassxc-cli` (the distribution's packages) for the vault file, both ways, and keepass-rs for the file format only; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi (the distribution's package) and Python's `unicodedata`, for the payloads | the Argon2id known answer (`tools/vectors/vault-primitives/`); every file of `tools/vectors/vault/`, read by Faraday and by both outside readers | Argon2id at small random costs and the costs it refuses; payloads made, read and malformed; passphrases in NFC, by case and at random; vaults Faraday writes at small costs with items of every kind of §7 and seals once more, read by pykeepass (every group, entry, field, protected mark and custom data item) and `keepassxc-cli` (listing and every field), under the passphrase, its NFD form, a wrong one and a changed byte; files pykeepass makes at random (ciphers, KDFs, compression, tags, icons, custom properties, attachments, history, custom data) and `keepassxc-cli` makes (groups, entries, notes, attachments), opened in Faraday and sealed once more with nothing of the other program's lost; keepass-rs (format only, not counted for the primitives) reads the vaults Faraday writes and seals, with a wrong passphrase, the NFD form and a changed byte refused, and writes files (AES-256 or ChaCha20, Argon2d or Argon2id, compression or not, groups, entries, tags, icons, properties, attachments, custom data) that Faraday opens and seals once more |
+| `vault` | `faraday_vault`'s file (`file::create`, `open` and `seal`, the document model and the items of §7), its payload layouts and a passphrase's NFC form with the Unicode version it is made under, `file::create_holding` (an export), and `faraday_backup::argon2id` | pykeepass and `keepassxc-cli` (the distribution's packages) for the vault file, both ways, and keepass-rs for the file format only; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi and PyCA cryptography's Argon2id (OpenSSL's) (the distribution's packages) and Python's `unicodedata`, for the payloads | the Argon2id known answer (`tools/vectors/vault-primitives/`); the export vector of `tools/vectors/backup/`, read with a byte changed refused, and with each bit of the version field and bit 44 of the Argon2 iterations changed refused; every file of `tools/vectors/vault/`, read by Faraday and by both outside readers | Argon2id at small random costs and the costs it refuses; payloads made, read and malformed; passphrases in NFC, by case and at random; vaults Faraday writes at small costs with items of every kind of §7 and seals once more, read by pykeepass (every group, entry, field, protected mark and custom data item) and `keepassxc-cli` (listing and every field), under the passphrase, its NFD form, a wrong one and a changed byte; exports (`file::create_holding`) of one to eight entries whose Title, Notes and Password hold control characters, read the same way;  files pykeepass makes at random (ciphers, KDFs, compression, tags, icons, custom properties, attachments, history, custom data) and `keepassxc-cli` makes (groups, entries, notes, attachments), opened in Faraday and sealed once more with nothing of the other program's lost; keepass-rs (format only, not counted for the primitives) reads the vaults Faraday writes and seals, with a wrong passphrase, the NFD form and a changed byte refused, and writes files (AES-256 or ChaCha20, Argon2d or Argon2id, compression or not, groups, entries, tags, icons, properties, attachments, custom data) that Faraday opens and seals once more |
 | `bip39` | `faraday_bip::bip39` | python-mnemonic (`bip39/`); bip39_slip39 (`bip39-slip39/`) answering every operation beside it | the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in Faraday's languages; the Japanese vectors with non-ASCII passphrases | entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word |
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | btclib-wallet's `bip32` over btclib and `ecc` (`btclib/`), on btclib's own curve with libsecp256k1 turned off, through `bip32_ref.py`, and `hdkeychain` from btcd v0.27.0 (`btcd/`, Go, decred's secp256k1); the versions a strict reader takes (BIP-32's four, from btclib's network table), a version whose kind differs from the key's data, and a depth-0 key with a parent or an index are ours | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import, each judged by btclib and by `hdkeychain` |
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum, `faraday_bip::policy::WalletPolicy::from_descriptor` (an account descriptor's kind, text and script at an index) | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); btclib-wallet's `bip32` and `slip132` (`btclib/`, on btclib's own curve) for accounts' keys, and its descriptors (`descriptors`) for each account descriptor's kind, text, script at an index and checksum, and as a third checksum judge; Bitcoin Core v31.1's `bitcoind` on regtest for every account's address (`deriveaddresses`) and for reading Faraday's regtest descriptors (`getdescriptorinfo`) | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices, their descriptors read and changed; random descriptors' checksums |
@@ -217,7 +217,6 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `ur` | `faraday_codec::ur` (single-part URs, the animation's parts, the decoder), `faraday_crypto::crc32`, `faraday_codec::cbor` and `faraday_qr::registry` | Foundation Devices' foundation-ur-py (`ur/`), URKit ported; CPython's `zlib.crc32`; cbor2 | URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`) | messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut; CRC-32 of random messages and of the parts; the parts and single-part payloads read by cbor2; registry types built with cbor2 and read; random and mutated CBOR through Faraday's reader beside cbor2 |
 | `totp` | `faraday_vault::totp` (`parse`, `Totp::code`, `left` and `period`) | pyotp 2.9 (python3-pyotp): `TOTP.at` and `generate_otp` for the code, `parse_uri` for a URI's key, digits, period and hash | RFC 6238 Appendix B: the codes of the SHA-1, SHA-256 and SHA-512 seeds at its six times, 8 digits | random keys of 1 to 300 bytes in `otpauth://totp/` URIs and, from 10 bytes, as bare keys, digits 6 to 8, periods 1 to 3600 (and past it), the three hashes, times from 0 to 2^64 - 1 with the edges of each period, the code, the seconds left and the period; the URIs written in other spellings and damaged (a character changed, added, removed, a cut, a pair dropped or doubled), read by both; the pinned URIs |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
-| `kdbx` | `faraday_backup::kdbx` (the KDBX 4 export and its own check) and `faraday_backup::argon2id`, the export's derivation | pykeepass, the distribution's package (`python3-pykeepass`), and PyCA cryptography's Argon2id (OpenSSL's) beside it | the repository's export (`tools/vectors/backup/`), written again byte for byte and opened; the Argon2id known answer (`tools/vectors/vault-primitives/`) | Argon2id at small random costs, salts and passwords against PyCA's; databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte |
 | `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve) | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code |
 
 ### How each reference is checked
@@ -274,7 +273,8 @@ leaves uncompared.
   hash is `file_menu::sha256` over a whole byte slice (it reads in no
   buffer, so no read size is probed); the Files screen's reading of a
   file from a stick is the files areas'.
-- `vault`: `check_primitives` runs before anything else: argon2-cffi
+- `vault`: `check_primitives` runs before anything else: argon2-cffi and
+  PyCA (44 or later over OpenSSL 3.2 or later, or the area stops)
   against `tools/vectors/kdf/`'s known answer; pykeepass and
   `keepassxc-cli` are the distribution's packages and the area stops and
   names a missing one, so a run without it fails; their versions are
@@ -438,11 +438,6 @@ leaves uncompared.
 - `vanity`: the search is written in the area from the README's
   quotation of EntropyLab's counter, and EntropyLab's two finds are
   required of it as well as of Faraday.
-- `kdbx`: pykeepass is the distribution's package and the area stops and
-  names it when it is missing, so a run without it fails; the versions
-  are written into the stamp; PyCA cryptography must be 44 or later over
-  OpenSSL 3.2 or later or the area stops, and its Argon2id is checked
-  against `tools/vectors/vault-primitives/`'s known answer first.
 - `lightning`: LND's code reads the aezeed (wordlist, version, CRC-32C,
   scrypt, AEZ) and derives the node key, and its published answers
   (`tools/vectors/aezeed/`) are required of it as well as of Faraday;
@@ -534,6 +529,20 @@ difference"), and says why.
     (BIP-173); Faraday accepts any length the checksum covers. The area
     reads longer strings the same way.
 - `vault`
+  - pykeepass strips the characters XML 1.0 cannot hold from a protected
+    value after decrypting it; Faraday keeps a Password's characters as
+    they are put in (and leaves them out of a Title or Notes when it
+    writes). The `export` loop expects pykeepass's reading of a Password
+    and Faraday's own as put in, and counts the passwords that differ.
+  - pykeepass opens a file whose major version is neither 3 nor 4
+    without reading past it, deriving a key or checking a hash; KeePass
+    refuses such a file, and the area counts a file as opened only when
+    pykeepass read a KDBX 4 body (`readers.open_kdbx`). It also runs the
+    key derivation the header states before it checks the header's
+    SHA-256, so a changed bit in the Argon2 iterations (2^44 passes)
+    holds it for good; KeePass and `keepassxc-cli` refuse at once, and
+    the area asks pykeepass first with a key given and nothing
+    decrypted.
   - The vault's passphrase is put in NFC (§3); KeePass apps do not. A
     vault under an NFC passphrase opens in Faraday under its NFD form
     and in neither outside reader. The area counts the NFD tries and
@@ -892,21 +901,6 @@ difference"), and says why.
     not by Bitcoin Core, which shares libsecp256k1's curve maths with
     Faraday; Core is given the bare key and judges the script and the
     address text only.
-- `kdbx`
-  - KDBX: pykeepass strips the characters XML 1.0 cannot hold from a
-    protected value after decrypting it; Faraday writes a Password's
-    bytes as they are. The area expects pykeepass's reading and counts
-    the items that differ. pykeepass also opens a file whose major
-    version is neither 3 nor 4 without reading past it, deriving a key
-    or checking a hash; KeePass refuses such a file, and the area counts
-    a file as opened only when pykeepass read a KDBX 4 body.
-  - pykeepass runs the key derivation the header states before it checks
-    the header's SHA-256, so a changed bit in the Argon2 iterations
-    (2^44 passes) holds it for good; KeePass and KeePassXC check the
-    hash first and refuse at once. The area asks pykeepass first with a
-    key given and nothing decrypted, which checks the version and the
-    header's hash and derives nothing, and only then with the
-    passphrase.
 <!-- facts:end known-differences -->
 
 ## Where each reference comes from
@@ -1043,8 +1037,8 @@ with an area and no class (`docs/crypto/check.py`).
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode each picture this writes and whose payload is compared with the key's words | none | stick-write |
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode the picture this writes and whose payload is compared with the key's words | none | outbox |
 | `sps` | others' code | BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone | none | silent-send |
-| `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), for Argon2id, Python's `unicodedata`, for the NFC form, and pykeepass and KeePassXC's `keepassxc-cli`, for the file | the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file is written by Faraday and read by pykeepass and `keepassxc-cli`, and written by them and read by Faraday (keepass-rs is later work) | vault-unlock, vault-seal, vault-edit |
-| `kdbx` | others' code | pykeepass, by the libkeepass project (the distribution's package), and PyCA's cryptography over OpenSSL for the Argon2id | none | kdbx |
+| `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form | the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each), and `keepassxc-cli` has not yet run in the area | vault-unlock, vault-seal, vault-edit |
+| `vault` | others' code | pykeepass, by the libkeepass project, and KeePassXC's keepassxc-cli (the distribution's packages), and argon2-cffi and PyCA's cryptography over OpenSSL for the Argon2id | none | kdbx |
 | `totp` | others' code | pyotp, by the pyotp developers, which judges the code, the seconds left, the period and the reading of an otpauth URI's key, digits, period and hash; Faraday's stricter and wider readings of a URI are stated differences of the area | none | totp |
 <!-- crypto-manifest: end independence -->
 
@@ -1055,9 +1049,9 @@ with an area and no class (`docs/crypto/check.py`).
 allowed, and the Rust toolchain; PyPy 3.11 or later if it is to go
 faster (above). Nothing is installed with pip. The
 `vault` area needs the distribution's Argon2 binding, argon2-cffi
-(Debian and Ubuntu: `python3-argon2`), pykeepass (`python3-pykeepass`) and
-KeePassXC's `keepassxc-cli` (`keepassxc`), and the `kdbx` area the distribution's
-pykeepass; without them each stops and names them,
+(Debian and Ubuntu: `python3-argon2`), PyCA cryptography 44 or later over
+OpenSSL 3.2 or later (`python3-cryptography`), pykeepass (`python3-pykeepass`) and
+KeePassXC's `keepassxc-cli` (`keepassxc`); without them it stops and names them,
 and the run fails. The `lightning` area needs Go 1.27 or later
 (`go version`; `run.sh` builds `tools/reference/lnd/` offline from its
 vendored modules, with `GOTOOLCHAIN=local`) and stops the run when `go`

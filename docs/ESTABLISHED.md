@@ -372,13 +372,11 @@ below includes it.
 | The QR vault's OpenPGP message: the version 6 symmetric-key packet with the Argon2 S2K, the version 2 data packet and the literal data packet | `faraday/faraday-pgp/src/message.rs` | `vault-qr-pgp` | F190 | Faraday writes only the three packets a QR vault uses (F190 point 11), over argon2, aes and ocb3 and Faraday's HKDF (§3.3); rPGP, which no review Faraday trusts covers (§1.2), brings every OpenPGP algorithm. |
 | The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` §2.1 and §7 | `faraday/faraday-vault/src/contents.rs`, `faraday/faraday-vault/src/contents/` | `vault-contents` | F189, F190 | toml_parser reads the tokens; Faraday builds the tree and refuses what VAULT.md does not name, as the JSON visitor does over serde_json (`docs/deps/toml_parser.md`). |
 
-One piece in the tree today is in none of these tables, because
-F190's vault takes it in: the KDBX 4 export
-(`core/faraday-backup/src/kdbx.rs`, `kdbx`, F178, `none-established`:
-no Rust KeePass library comes from a publisher Faraday's dependency
-review trusts), which is folded into the vault (F190 point 10). Until then
-it carries the reason given here. The four-equal-slot FVLT container
-that stood beside it is gone.
+The KDBX 4 export, which stood in none of these tables because the
+vault was to take it in, is folded into the vault (F190 point 10): an
+export is a vault of one entry, written by the vault's own container
+(`vault-kdbx`), and its separate writer is gone. The four-equal-slot FVLT
+container that stood beside it is gone.
 
 Thirty-nine pieces in all once the vault is built, the formatter
 included, against the eighteen lines of AUDIT §3 today. The switches
@@ -1221,8 +1219,7 @@ was built from.
 - **Files.** `core/faraday-bip/src/base64.rs` (170 lines; PSBT v0 and v2,
   BIP-322, BSMS, BIP-85's password through `encode_into`);
   `faraday/faraday-pgp/src/lib.rs` (`base64`, the armour's encoder, and
-  `Base64Reader` with `base64_value`); `core/faraday-backup/src/kdbx.rs`
-  (`base64`, protected values and the UUID);
+  `Base64Reader` with `base64_value`);
   `faraday/shells/starter/src/macos/plist.rs` (`base64`, `diskutil`'s
   data).
 - **Crate.** `base64ct` 1.8.3 (RustCrypto/formats), `default-features =
@@ -1236,8 +1233,8 @@ was built from.
   `encode_string`; `Base64Reader` is replaced by gathering the body's
   characters with CR, LF, space and tab removed into one buffer and
   `decode_vec` (armour line widths vary between writers, so
-  `Decoder::new_wrapped` is not used). kdbx's `base64` encodes into its
-  `out` with `encode`. plist's strips ASCII white space, then
+  `Decoder::new_wrapped` is not used). the vault's KDBX XML writer encodes
+  protected values with `encode_string`, and its reader decodes them strictly. plist's strips ASCII white space, then
   `decode_vec`.
 - **Edge cases.** base64ct refuses padding bits that are not zero and a
   missing `=`; today's decoders accept the first. Faraday refuses them
@@ -1259,7 +1256,7 @@ was built from.
   `kdbx` and the actions §5 item 1 finds.
 - **Proof.** `tools/vectors/psbt`, `tools/vectors/psbt-bips`,
   `tools/vectors/message`, `tools/vectors/bip129`, `tools/vectors/bip85`;
-  areas `psbt`, `msg`, `bip85`, `kdbx`, `import`; GnuPG reading the
+  areas `psbt`, `msg`, `bip85`, `vault`, `import`; GnuPG reading the
   armour in `faraday-pgp`'s tests; the Starter's macOS plist fixtures;
   RFC 4648 §10's vectors in `faraday-bip`'s tests.
 - **Size.** About half a day.
@@ -1421,8 +1418,8 @@ was built from.
   argon2 by `core/faraday-crypto`.
 - **Proof.** `tools/vectors/kdbx`, `tools/vectors/kdf`,
   `tools/vectors/openpgp` (with its ignored Argon2 S2K test run); area
-  `kdbx`, and area `vault` once it judges the KDBX vault and the QR
-  vault (`docs/VAULT.md` §10); the tests of `faraday-fat`.
+  `vault`, which judges the KDBX vault (the QR vault is `docs/VAULT.md` §10's
+  to build); the tests of `faraday-fat`.
 - **Size.** About two hours.
 
 ### 5.16 The quiz's seed (batch C14)
@@ -1763,7 +1760,7 @@ Reference's list of conditions.
 | C10 | The descriptor checksum from miniscript | §5.12 | Built |
 | C11 | JSON from `serde_json` behind Faraday's visitor; `holds_secret` keeps no value; with X5 | §5.13, §9.7 | Built, with X5 |
 | C12 | Adler-32 from `adler2`; with X6 | §5.14, §9.7 | Built, with X6 |
-| C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, now gone) | §5.15, §9.7 | Built, with X7 in area `kdbx` (the vault area's KDBX vault and QR vault wait for `docs/VAULT.md` §10) |
+| C13 | The wipes through zeroize, one Argon2 call; with X7 (the zero check withdrawn: it was the FVLT container's, now gone) | §5.15, §9.7 | Built, with X7 in area `vault` over the KDBX vault and the export (the QR vault waits for `docs/VAULT.md` §10) |
 | C14 | The quiz's seed from the session's generator | §5.16 | Built |
 | C15 | One copy of each kept piece; with X12 | §5.17, §9.7 | Built, with X12 |
 | D1 | Schema 5: `written_here` as entries with `why`, `note`, `decision`; `[[not_established]]` for lzma-rust2 and rqrr; getrandom's trust entry; `check.py` (§1.2's three ways, the version checked) and `gen.py`; AUDIT §3 grouped; STANDARDS §10 generated and §0's bullet; the counts; `crypto.established` made active; the manifest's entries filled as §3 | §1.2, §1.4, §2, §3 | 1 to 1.5 days |
@@ -1979,7 +1976,7 @@ not at all).
 | sb-check | x509-cert (C5), der | sbverify; images signed by `sbsign` and `osslsigncode` | `pesigcheck` on two real signed binaries, each under 2 MiB, their signer and image hash named and compared with `pesign`'s (X2); the OVMF run (X1) | none | none (tests) |
 | starter-signed | rsa, sha2; the PE checksum and certificate table Faraday's | sbverify (tests) | python3-pefile's PE checksum field and certificate-table entry, compared with the image's header for every image signed, moved or real (X2) | none | none (tests) |
 | gpg-create, gpg-sign, gpg-verify | Own packets over ed25519-dalek; base64ct (C8) | GnuPG 2.4 (tests) | Sequoia's `sq` 1.3.1, built over Nettle (the tests and the cross-check's tools check fail unless `sq version` says so), inspects every certificate Faraday writes (both keys, the user ID, the expiry, the renewal), takes the revocation certificate and verifies each detached signature over SHA-256 and SHA-512, refusing one over other data; a signature `sq` makes (over SHA-512, the one hash `sq sign` offers) and its key are among gpg-verify's fixtures (`tools/vectors/release-sums/sequoia`) (X24, built) | none | none (tests) |
-| kdbx | Own format until the export is folded into the vault (F190 point 10); argon2 in one call (C13), chacha20, hmac, sha2 | pykeepass | none: X25 is withdrawn, `keepassxc-cli` reading the vault the export becomes (`vault-kdbx`) | none | outside |
+| kdbx | The export is a one-entry vault, written by the vault's own container (`vault-kdbx`, F190 point 10); argon2 in one call (C13), chacha20, hmac, sha2 | pykeepass | area `vault`: the export's function (`file::create_holding`) and its vector are read by pykeepass, `keepassxc-cli` and keepass-rs, a changed byte refused; `keepassxc-cli` has not yet run in the area | none | outside |
 | totp | Own (§3.4) | none (the RFCs' vectors in tests) | Built (X26, area `totp`): pyotp's `TOTP.at` and `generate_otp` over RFC 6238 Appendix B's vectors and random keys of 1 to 300 bytes, times from 0 to 2^64 - 1 with the edges of each period, digits 6 to 8, periods and the three hashes (the code, the seconds left, the period), and `parse_uri` over random and damaged otpauth URIs. Faraday's own rules are stated differences, each pinned one URI at a time and judged on the URI with the difference taken out: it reads what pyotp refuses (a scheme, type or algorithm in other case, a parameter name or a `counter` pyotp does not take, a label issuer the parameter does not repeat, Base32 with spaces, hyphens or misplaced `=`) and refuses what pyotp reads (a period over 3600 seconds, a pair with no value, a type with no label slash, percent-escaped values, a fragment, a bare key under 16 characters, `encoder=steam`, which pyotp reads as Steam's five-character code); HOTP is named as HOTP by Faraday and a HOTP object by pyotp. `from_fields` and `normalise` have no pyotp reader and stay with the crate's tests | none | outside |
 | vault-create, vault-unlock, vault-seal | The file vault over the KDBX container (`vault-kdbx`); argon2 in one call (C13) | argon2-cffi for Argon2id, Python's `unicodedata` for NFC | the payload layouts of VAULT §7 are the area's own; area `vault` writes the file with Faraday and reads it with pykeepass and `keepassxc-cli` (every field, group, attachment and custom data item, a wrong passphrase and a changed byte refused), and has them write files Faraday opens and seals again (built), and keepass-rs reads the files Faraday writes and writes files Faraday opens, for the format only (built, F193) | `area_vault.py`, `tools/vault/open.py` over pykeepass | outside-and-own |
 | vault-kdbx | The KDBX 4 container written here (§3.4); argon2 in one call (C13), chacha20, aes, cbc, hmac, sha2, miniz_oxide | none: pykeepass's files read in tests | area `vault`: pykeepass and `keepassxc-cli` both ways, built, its `keepassxc-cli` cases not yet run, each opening the files Faraday made and Faraday opening theirs (F190 point 11, `docs/VAULT.md` §10); keepass-rs for the format only (F193, built: reads Faraday's files, and writes files Faraday opens and seals, with Twofish, AES-KDF and Salsa20 files refused as known differences); PyCA's Argon2id as a second Argon2 lineage (X7) | none | outside |
@@ -2097,7 +2094,7 @@ a switch lands in that switch's commit (rule 6).
 | X4 | C9 | coins-hex's hex judged as outside (rule 5) | about an hour |
 | X5 | C11 | CPython's `json` reads every wallet file the area writes and refuses a duplicate key and a depth over 32, beside the visitor | about 2 hours |
 | X6 | C12 | every PNG the app writes read by Pillow and zlib | about 2 hours |
-| X7 | C13 | PyCA's Argon2id beside argon2-cffi for the one Argon2 call: in area `kdbx` over the export's, and in area `vault` over the KDBX vault's and the QR vault's once VAULT §10 builds it | about 2 hours |
+| X7 | C13 | PyCA's Argon2id beside argon2-cffi for the one Argon2 call: in area `vault` over the export's and the KDBX vault's, and over the QR vault's once VAULT §10 builds it | about 2 hours |
 | X8 | A1 | btclib's MuSig2 in full and BIP-373's roles; Core's `musig()` descriptors; the Core round trip named as sharing the curve | 1.5 to 2 days |
 | X9 | A7 | btclib's BIP-352, BIP-374 and BIP-375 in areas `sp` and `sps` | 1.5 to 2 days |
 | X10 | A4 | rust-codex32 and volvelle's worksheet program; the threshold rule and the 48- and 74-character rows retired | about 2 days |

@@ -2,8 +2,8 @@
 
 **Cryptography:** computes
 
-**Purpose.** The stream cipher the KDBX 4 writer needs
-(`core/faraday-backup/src/kdbx.rs`). KDBX encrypts its body and its inner random stream with plain
+**Purpose.** The stream cipher the KDBX 4 container needs
+(`faraday/faraday-vault/src/kdbx/`). KDBX encrypts its body and its inner random stream with plain
 ChaCha20 (RFC 8439), not with an AEAD: the authentication is KeePass's
 own HMAC-SHA-256 over the header and over each block of ciphertext.
 It is also the generator of the Secure Boot keys

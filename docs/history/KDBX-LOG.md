@@ -1,7 +1,13 @@
 # KDBX 4: the encrypted file Faraday writes for others
 
-**Kind:** Reference
-**Status:** Built
+**Kind:** History
+**Status:** Kept as written
+
+Moved out of the documents on 2026-11-04 (F190, point 10): Faraday no
+longer has a writer of its own for the KeePass file. An export for
+KeePass is a vault of one entry, written by `faraday-vault`
+(`docs/VAULT.md` §8), and the writer, its reader script, its cross-check
+area and its tests are gone. Below is the document as it stood.
 
 ## The file
 

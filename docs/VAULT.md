@@ -836,9 +836,11 @@ and a notes line that is a BIP-85 path is left out. A KeePass app reads
 it as a database of one entry; Faraday opens it as any vault. As
 Create a vault does, the export does not read the file back. Exporting a
 key's words, a master seed, a note or a recovery sheet this way is not
-built: the entry is the one item with an export. `docs/KDBX.md`'s writer,
-its strings and its vectors are still in the repository and go when the
-rest of this is built.
+built: the entry is the one item with an export. The export has no writer
+of its own: the one that wrote it before (`docs/history/KDBX-LOG.md`) is
+gone, and its one vector (`tools/vectors/backup/`) is opened and sealed
+again byte for byte by the vault's tests. To read an export without
+Faraday, `python3 tools/vault/open.py FILE` prints its entry.
 
 ## 9. What the vault promises
 

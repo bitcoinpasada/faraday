@@ -24,7 +24,6 @@ mod entropy;
 mod hash;
 mod import;
 mod json;
-mod kdbx;
 mod lightning;
 mod miniscript;
 mod msg;
@@ -90,7 +89,6 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "totp" => totp::handle(name, req),
         "ur" => ur::handle(name, req),
         "vanity" => vanity::handle(name, req),
-        "kdbx" => kdbx::handle(name, req),
         "lightning" => lightning::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }

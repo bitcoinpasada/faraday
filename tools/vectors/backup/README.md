@@ -7,22 +7,14 @@ all-zero-entropy English key (`abandon` ×11 `about`) and whose notes are
 battery staple`, at 65536 KiB, 3 passes and 1 lane, from 284 bytes of
 seed (the master seed, the encryption IV, the Argon2id salt, the inner
 random stream's key and nine UUIDs, the group's first) counted up from
-`00` to `ff` and on from `00` to `1b`. The format is `docs/KDBX.md`.
+`00` to `ff` and on from `00` to `1b`. It is the file the app's earlier,
+separate export writer made: a KeePass export is now a one-entry vault
+(`docs/VAULT.md` §8), and this file is the proof that the vault's code
+opens it and writes it again byte for byte.
 
-`core/faraday-backup/tests/vectors.rs` rebuilds the file from exactly
-those inputs and compares, so it cannot drift from the code that writes
-it, and reads it again with `tools/backup/read-kdbx.py` where Python's
-libraries are installed.
+`faraday/faraday-vault/tests/kdbx.rs` (`the_export_vector_opens_and_is_written_again_byte_for_byte`)
+opens it with its passphrase and seals the same document from the same
+bytes, and compares.
 
 There is no `.hex` beside it: a KDBX file is never scanned, and 1955
 bytes do not fit a QR.
-
-```
-python3 tools/backup/read-kdbx.py \
-    tools/vectors/backup/backup-kdbx-words-12-english.kdbx \
-    --passphrase 'correct horse battery staple'
-```
-
-Where `pykeepass` is installed, that is what reads it, and its agreement
-is the check that the file is KDBX and not merely self-consistent.
-Where it is not, the script's own reader runs and says so.

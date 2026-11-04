@@ -13,6 +13,7 @@
 use faraday_backup::Cost;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
+use faraday_vault::Record;
 use faraday_vault::child::{self, ChildOf};
 use faraday_vault::codex32::{SetFacts, State, set_payload};
 use faraday_vault::file::{self, Change};
@@ -21,7 +22,6 @@ use faraday_vault::kdbx::xml::{Document, Group};
 use faraday_vault::kdbx::{self, Contents, RANDOM_LEN};
 use faraday_vault::layouts::{self, Opened};
 use faraday_vault::records::{BACKUP_PENDING, NO_LOAD_AT_UNLOCK, field, kind};
-use faraday_vault::Record;
 use serde_json::{Value, json};
 
 use crate::Answer;
@@ -67,6 +67,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             Ok(json!({"nfc": hex(&nfc)}))
         }
         "create" => create(&c, req),
+        "export" => export(&c, req),
         "seal" => seal(&c, req),
         "open" => open(&c, req),
         _ => layout(name, req),
@@ -189,7 +190,11 @@ fn item(n: usize, v: &Value) -> Put {
                 s(v, "note").as_bytes(),
             )
             .expect("a small sheet");
-            rec(Record::new(kind::SHEET).with(field::SHEET, &p), "Recovery sheets", "")
+            rec(
+                Record::new(kind::SHEET).with(field::SHEET, &p),
+                "Recovery sheets",
+                "",
+            )
         }
         "gpg" => {
             let (u, g) = group("GPG keys");
@@ -340,6 +345,40 @@ fn create(c: &Compute, req: &Value) -> Answer {
     Ok(json!({"file": hex(&file)}))
 }
 
+/// Costs an Argon2id run at the cost asked and a document write for each item:
+/// `file::create_holding`, the function an export is made by, over the entries
+/// of the request, each put as `file::seal` puts one. Gives the file as hex.
+fn export(c: &Compute, req: &Value) -> Answer {
+    let id: [u8; 16] = bytes(req, "vault_id").try_into().expect("16 bytes");
+    let now = now_of(req);
+    let list: Vec<Put> = req["items"]
+        .as_array()
+        .map(|a| a.iter().enumerate().map(|(n, v)| item(n, v)).collect())
+        .unwrap_or_default();
+    let mut changes = vec![];
+    for p in &list {
+        match p {
+            Put::Entry(body, u, g, t) => changes.push(Change::Put {
+                place: place(*u, g, t, now),
+                body,
+            }),
+            _ => return Err("an export holds entries".into()),
+        }
+    }
+    let file = file::create_holding(
+        c,
+        id,
+        s(req, "label"),
+        cost(req)?,
+        s(req, "passphrase"),
+        &random_of(req),
+        now,
+        &changes,
+    )
+    .map_err(err)?;
+    Ok(json!({"file": hex(&file)}))
+}
+
 /// Costs `file::open` and `file::seal` (an Argon2id run each, the seal at the 64 MiB
 /// step): opens `file`, puts the request's items (and `label`) and seals it.
 fn seal(c: &Compute, req: &Value) -> Answer {
@@ -348,7 +387,12 @@ fn seal(c: &Compute, req: &Value) -> Answer {
     let now = now_of(req);
     let list: Vec<Put> = req["items"]
         .as_array()
-        .map(|a| a.iter().enumerate().map(|(n, v)| item(n + 100, v)).collect())
+        .map(|a| {
+            a.iter()
+                .enumerate()
+                .map(|(n, v)| item(n + 100, v))
+                .collect()
+        })
         .unwrap_or_default();
     let places: Vec<Place<'_>> = list
         .iter()
@@ -361,9 +405,15 @@ fn seal(c: &Compute, req: &Value) -> Answer {
     let mut plans = items::next_plan(opened.document()).map_err(err)?;
     for (p, at) in list.iter().zip(&places) {
         match p {
-            Put::Entry(body, ..) => changes.push(Change::Put { place: place(at.uuid, at.group, at.title, now), body }),
+            Put::Entry(body, ..) => changes.push(Change::Put {
+                place: place(at.uuid, at.group, at.title, now),
+                body,
+            }),
             Put::Plan(r) => {
-                changes.push(Change::Plan { n: plans, record: r });
+                changes.push(Change::Plan {
+                    n: plans,
+                    record: r,
+                });
                 plans += 1;
             }
             Put::Signed(r) => changes.push(Change::Signed(r)),

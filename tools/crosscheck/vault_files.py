@@ -15,6 +15,7 @@ entry's tags, icon, attachments (name and bytes) and history, and the groups.
 
 import hashlib
 import os
+import re
 import tempfile
 import unicodedata
 import uuid as uuidlib
@@ -202,19 +203,31 @@ def custom_expected(item, plans):
 POOL = ("abcdefghijklmnopqrstuvwxyz ABCXYZ 0123456789 <>&\"' é ß ñ ü ç å ø 日本語 ключ 🔑 "
         ",.;:!?()[]{}-_=+*#@%^~|")
 LINE_POOL = POOL + "\n\t\n"
+# The control characters of an export's Title, Notes and Password: every one XML 1.0 cannot
+# hold (the writer leaves them out of a plain field and writes a protected one as it is),
+# DEL, which it can, and a carriage return.
+CONTROLS = "".join(map(chr, [*range(0, 9), 0xB, 0xC, *range(0xE, 0x20), 0x7F, 0xFFFE, 0xFFFF])) \
+    + "\r"
+XML_INVALID = re.compile("[^\u0020-\ud7ff\u0009\u000a\u000d\ue000-\ufffd\U00010000-\U0010ffff]+")
 LETTERS = "abcdefghijklmnopqrstuvwxyzABCXYZ0123456789éßñü日本ключ"
 
 
-def word(rng, lo, hi, lines=False):
+def word(rng, lo, hi, lines=False, controls=False):
     """Text of up to `hi` characters (none when `hi` is 0 or, from `lo` 0, now and then)
-    that begins with a letter or digit (never a command line option) and has no space
-    or line end at the end; line ends and tabs inside when `lines`."""
+    that begins with a letter or digit (never a command line option) and has no space,
+    line end or control character at the end; line ends and tabs inside when `lines`,
+    control characters inside when `controls`."""
     if hi == 0 or (lo == 0 and rng.random() < 0.2):
         return ""
     n = rng.randint(max(lo, 1), max(hi, 1))
-    pool = LINE_POOL if lines else POOL
+    pool = (LINE_POOL if lines else POOL) + (CONTROLS * 2 if controls else "")
     out = rng.choice(LETTERS) + "".join(rng.choice(pool) for _ in range(n - 1))
-    return out.rstrip(" \n\t") or "x"
+    return out.rstrip(" \n\t" + CONTROLS) or "x"
+
+
+def xml_kept(text):
+    """Text without the characters XML 1.0 cannot hold."""
+    return XML_INVALID.sub("", text)
 
 
 def passphrase(rng):

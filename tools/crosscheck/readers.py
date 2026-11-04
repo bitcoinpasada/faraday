@@ -1,5 +1,5 @@
-"""The outside programs that read and write KDBX files for the `kdbx` and
-`vault` areas: pykeepass, the library KeePass tooling in Python uses, and
+"""The outside programs that read and write KDBX files for the `vault`
+area: pykeepass, the library KeePass tooling in Python uses, and
 `keepassxc-cli`, KeePassXC's command line. Neither knows anything of this
 repository. Both are the distribution's packages (Debian and Ubuntu:
 `python3-pykeepass`, `keepassxc`); an area that asks for one stops and
@@ -21,7 +21,7 @@ try:
     from pykeepass import PyKeePass
 except ImportError as e:  # pragma: no cover - the machine's packages
     raise HarnessError(
-        "the kdbx and vault areas need the distribution's pykeepass (Debian and Ubuntu: "
+        "the vault area needs the distribution's pykeepass (Debian and Ubuntu: "
         f"python3-pykeepass; Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
 
 

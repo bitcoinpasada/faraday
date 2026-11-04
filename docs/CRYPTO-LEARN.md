@@ -238,7 +238,7 @@ heading exist. A changed fingerprint lists them with the rest (§5.3).
 
 Found in the tree (§13 lists every one): `docs/SECURITY-MODEL.md`
 ("Where keys live in the program", "Vault cryptography", "Why this
-construction holds up"), `docs/INTEROP.md`, `docs/VAULT.md`, `docs/KDBX.md`,
+construction holds up"), `docs/INTEROP.md`, `docs/VAULT.md`,
 `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`,
 the crate READMEs (`core/faraday-bip/README.md`, `core/faraday-psbt/README.md`
 and the others), the Learn pages' own prose (`docs/learn/13-nonces.md`
@@ -1181,7 +1181,7 @@ page lists.
 | vault-reveal | Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, an entry's password, TOTP secret or notes, a note's text. | `faraday_keys::vault`: `OpenVaults::reveal`, `OpenVaults::words_of` | VaultContents | faraday:vaults |
 | vault-edit | Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop. | `faraday_keys::vault`: `OpenVaults::insert`, `OpenVaults::insert_at`, `OpenVaults::set_public_all`, `OpenVaults::set_public_all_in`, `OpenVaults::set_fields`, `OpenVaults::copy_record`, `OpenVaults::copy_out`, `OpenVaults::stage`, `OpenVaults::stage_passphrase` | VaultContents, BackupFlow | faraday:vaults |
 | vault-load | Loads a key kept in an open vault into the session: its words (BIP 39) and passphrase to the seed and the master key's fingerprint (BIP 32), or its master seed, or its codex32 set. | `faraday_keys::vault`: `OpenVaults::load_from_vault`, `OpenVaults::load_key_record`, `OpenVaults::load_key_with_passphrase`, `OpenVaults::passphrase_kept_for`, `OpenVaults::warm`, `OpenVaults::word_count`, `OpenVaults::words_id`, `OpenVaults::record_word_count`, `OpenVaults::record_words_id`, `OpenVaults::same_words`, `OpenVaults::holds_session_words`, `key_identity`, `key_account`; `faraday_keys::session`: `Keys::key_record`, `Keys::seed_record_id` | VaultContents, Unlock | faraday:vaults |
-| kdbx | Writes a KeePass KDBX 4.0 database of one to eight entries under a passphrase: Argon2id, SHA-256 and SHA-512 key steps, ChaCha20 over the body, HMAC-SHA-256 block authentication. | `faraday_backup::kdbx`: `write`, `verify`, `keys`, `header`, `hmac`, `chacha20`; `faraday_backup`: `argon2id`; `faraday_keys::job`: `KdbxJob::run`; `faraday_core::vault`: `Faraday::vault_kdbx` | VaultContents | faraday:vaults |
+| kdbx | Writes a KeePass database of one entry under a passphrase, as a one-entry vault: the same KDBX 4.0 file the vault is (Argon2id, SHA-256 and SHA-512 key steps, ChaCha20 over the body, HMAC-SHA-256 block authentication), sealed at the smallest size that holds it. |
 | totp | Computes a TOTP code from an entry's secret at a Unix time: HMAC-SHA1, SHA-256 or SHA-512 over the time step, then dynamic truncation. | `faraday_vault::totp`: `Totp::code`; `faraday_keys::vault`: `OpenVaults::totp` | Codes | faraday:time |
 
 ### GPG and Secure Boot
@@ -1230,7 +1230,7 @@ checked, or named for review.
 | `faraday/faraday-core/src/learn.rs` | Which pages each screen opens | Tested (§9.1) |
 | `docs/SECURITY-MODEL.md` | Where keys live, the vault's cryptography | Named for review |
 | `docs/INTEROP.md` | What is read and written, the refusals | Named for review |
-| `docs/VAULT.md`, `docs/KDBX.md`, `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`, `docs/WALLETS.md` §3.3, `docs/SPEND-FROM-BACKUP.md` | Their constructions and refusals | Named for review |
+| `docs/VAULT.md`, `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`, `docs/WALLETS.md` §3.3, `docs/SPEND-FROM-BACKUP.md` | Their constructions and refusals | Named for review |
 | The crate READMEs under `core/` | What each computes and refuses | Named for review |
 | `docs/learn/` and `docs/learn/faraday/` | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
 | `docs/guide/screens/README.md` and its pages | What a screen's control computes | Named for review |

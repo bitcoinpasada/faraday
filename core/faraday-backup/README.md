@@ -1,29 +1,32 @@
 # faraday-backup
 
-The KDBX 4 writer, apart from any screen that asks for it. `no_std` +
-`alloc`. It stretches the passphrase with Argon2id at a cost the file
-carries, and draws no randomness: salt and nonces come from a seed the
-caller supplies.
+Argon2id at a cost a file carries, apart from any screen that asks for
+it. `no_std` + `alloc`. The self-test runs it against a known answer. The
+vault (`faraday-vault`) takes this crate's `Cost` but stretches its
+passphrases through `faraday_crypto::argon2` itself, which `argon2id` wraps:
+PyCA and argon2-cffi judge that shared call through the cross-check's
+`vault.argon2id`, and the vault's own wrapper (Argon2d or Argon2id, the
+cost mapping) is judged through whole files by the outside readers in the
+`vault` area. A KeePass export is a one-entry vault (`docs/VAULT.md` §8),
+written by `faraday-vault`; this crate no longer has a writer of its own.
 
 ## What it computes
 
-- `kdbx`: a KDBX 4 database that a KeePass app opens with the same
-  passphrase (ChaCha20 body, HMAC-SHA-256 block stream). `docs/KDBX.md`.
 - `argon2id`: the Argon2id run, with its working memory asked for rather
-  than taken; the self-test and the KDBX writer use it.
+  than taken, at a `Cost` (`DEVICE_PARAMS` is the device's own, `MIN_PARAMS`
+  Argon2id's minimum for tests).
 
 ## Written in this crate
 
-`kdbx.rs` and the Argon2id helper in `lib.rs`. The KDBX cipher stack comes
-from `argon2`, `chacha20`, `sha2` and `hmac`.
+The Argon2id helper in `lib.rs`, over the `argon2` crate through
+`faraday_crypto::argon2`.
 
 ## Checked against
 
-- `tools/vectors/backup/` (one KDBX file), read by `tests/vectors.rs`: what
-  this crate writes from the inputs in that folder's README.
-- `tools/backup/read-kdbx.py` opens the KDBX file as another implementation
-  would, and `pykeepass` where installed.
-- `faraday/faraday-core/tests/all/kdbx.rs` for `kdbx::verify` end to end.
+- The cross-check's vault area (`tools/crosscheck/area_vault.py`):
+  Argon2id at random small costs against argon2-cffi and PyCA
+  cryptography's, and the known answer in `tools/vectors/vault-primitives/`.
+- The self-test's known answer (`core/faraday-selftest`) and this crate's own tests.
 
 ## `unsafe`
 
@@ -31,7 +34,4 @@ None. The workspace sets `unsafe_code = "forbid"`.
 
 ## Secrets
 
-`kdbx.rs` is in `tools/lint-secrets.sh`'s `SECRET_FILES`. The KDBX body,
-which holds the words in the clear until the cipher runs, is `Zeroizing`.
-Passphrase-derived keys are wiped through `faraday_crypto::Secret` and
-`Zeroize`.
+Passphrase-derived keys are wiped through `faraday_crypto::Secret`.

@@ -1,15 +1,17 @@
 """The vault area (`docs/VAULT.md`): Argon2id and the payload layouts of §7
 against a reader written here from that document, over Argon2id from
-argon2-cffi, the distribution's package (F79, `docs/CROSSCHECK.md` §10.4);
+argon2-cffi, the distribution's package (F79, `docs/CROSSCHECK.md` §10.4), and PyCA
+cryptography's (OpenSSL's) beside it as a second lineage;
 and the vault file, KDBX 4 (§1.1, §7, §7.1), against two outside programs
 that know nothing of this repository, pykeepass and `keepassxc-cli`, both
 ways.
 
-Before anything else the area checks argon2-cffi against `tools/vectors/kdf/`'s
-known answer (`tools/vectors/vault-primitives/`). Then:
+Before anything else the area checks argon2-cffi, and PyCA (44 or later over OpenSSL 3.2
+or later), against `tools/vectors/kdf/`'s known answer (`tools/vectors/vault-primitives/`). Then:
 
 - Argon2id (`faraday_backup::argon2id`) at random small costs, salts and
-  passwords, with the costs and salts Argon2 refuses.
+  passwords, with the costs and salts Argon2 refuses; PyCA's answer or refusal must be
+  argon2-cffi's.
 - The payload layouts of §7: words, seed and sheet, made and read, with
   every way a payload can be malformed, and a sheet past 16 KiB.
 - A passphrase's NFC form (§3) against Python's `unicodedata`: NFD
@@ -28,6 +30,11 @@ known answer (`tools/vectors/vault-primitives/`). Then:
   `keepassxc-cli` lists the groups and entries and shows every field. The
   passphrase is NFC (§3); the NFD form opens in Faraday and in neither
   outside reader. A wrong passphrase and a changed byte are refused by all.
+- An export, made by `file::create_holding` (`export` loop, the function the app's export
+  runs): entries whose Title, Notes and Password hold control characters, read as in the
+  `faraday` loop by pykeepass and `keepassxc-cli` and keepass-rs, a wrong passphrase, the NFD form and a changed byte refused. The export vector of
+  `tools/vectors/backup/` goes the same way with a byte changed, and with each bit of the
+  version field and bit 44 of the Argon2 iterations changed in turn: all refused.
 - They write, Faraday reads (`foreign` loop, `kpxc` loop): files made at
   random by pykeepass (cipher, KDF, compression, groups, entries, tags,
   icons, custom properties, attachments, history, custom data) and by
@@ -63,7 +70,7 @@ import unicodedata
 import keepass_rs as rs
 import readers
 import vault_files as vf
-from common import ROOT, Area, HarnessError, Mismatch
+from common import ROOT, Area, HarnessError, Mismatch, reference
 from vault_files import word
 
 try:
@@ -73,6 +80,16 @@ except ImportError as e:  # pragma: no cover - the machine's packages
         "the vault area needs the distribution's Argon2 binding, argon2-cffi "
         "(Debian and Ubuntu: python3-argon2; Fedora: python3-argon2-cffi; Arch: "
         f"python-argon2_cffi): {e}") from e
+
+try:
+    import cryptography
+    from cryptography.hazmat.backends.openssl import backend as openssl_backend
+    from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+except ImportError as e:  # pragma: no cover - the machine's packages
+    raise HarnessError(
+        "the vault area needs the distribution's PyCA cryptography, 44 or later, over OpenSSL "
+        "3.2 or later, for its Argon2id (Debian and Ubuntu: python3-cryptography; Fedora: "
+        f"python3-cryptography; Arch: python-cryptography): {e}") from e
 
 VECTORS = json.loads((ROOT / "tools/vectors/vault-primitives/vectors.json").read_text())
 
@@ -92,6 +109,13 @@ def argon2id(password, salt, memory_kib, passes, lanes):
     return hash_secret_raw(secret=bytes(password), salt=bytes(salt), time_cost=passes,
                            memory_cost=memory_kib,
                            parallelism=lanes, hash_len=32, type=Type.ID, version=19)
+
+
+def pyca_argon2id(password, salt, memory_kib, passes, lanes):
+    """PyCA cryptography's Argon2id (OpenSSL's), version 1.3, 32 bytes: the second lineage
+    beside argon2-cffi's reference C."""
+    return Argon2id(salt=bytes(salt), length=32, iterations=passes, lanes=lanes,
+                    memory_cost=memory_kib).derive(bytes(password))
 
 
 # ----- the payload layouts (§7) ---------------------------------------------
@@ -159,22 +183,25 @@ class Vault(Area):
     faraday = (
         "`faraday_vault`'s file (`file::create`, `open` and `seal`, the document model and the "
         "items of §7), its payload layouts and a passphrase's NFC form with the Unicode version "
-        "it is made under, and `faraday_backup::argon2id`"
+        "it is made under, `file::create_holding` (an export), and `faraday_backup::argon2id`"
     )
     reference = (
         "pykeepass and `keepassxc-cli` (the distribution's packages) for the vault file, both "
-        "ways, and keepass-rs for the file format only; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi (the "
-        "distribution's package) and Python's `unicodedata`, for the payloads"
+        "ways, and keepass-rs for the file format only; `docs/VAULT.md` §7 written out in `area_vault.py`, over argon2-cffi and PyCA "
+        "cryptography's Argon2id (OpenSSL's) (the distribution's packages) and Python's "
+        "`unicodedata`, for the payloads"
     )
     reference_checked = (
-        "`check_primitives` runs before anything else: argon2-cffi against "
-        "`tools/vectors/kdf/`'s known answer; pykeepass and `keepassxc-cli` are the "
+        "`check_primitives` runs before anything else: argon2-cffi and PyCA (44 or later over "
+        "OpenSSL 3.2 or later, or the area stops) against `tools/vectors/kdf/`'s known answer; pykeepass and `keepassxc-cli` are the "
         "distribution's packages and the area stops and names a missing one, so a run "
         "without it fails; their versions are written into the stamp; the area stops where "
         "Python's Unicode is newer than `unicode-normalization`'s"
     )
     vectors = (
-        "the Argon2id known answer (`tools/vectors/vault-primitives/`); every file of "
+        "the Argon2id known answer (`tools/vectors/vault-primitives/`); the export vector of "
+        "`tools/vectors/backup/`, read with a byte changed refused, and with each bit of the "
+        "version field and bit 44 of the Argon2 iterations changed refused; every file of "
         "`tools/vectors/vault/`, read by Faraday and by both outside readers"
     )
     corpus = (
@@ -183,7 +210,9 @@ class Vault(Area):
         'at small costs with items of every kind of §7 and seals once more, read by '
         'pykeepass (every group, entry, field, protected mark and custom data item) and '
         '`keepassxc-cli` (listing and every field), under the passphrase, its NFD form, a '
-        'wrong one and a changed byte; files pykeepass makes at random (ciphers, KDFs, '
+        'wrong one and a changed byte; exports (`file::create_holding`) of one to eight '
+        'entries whose Title, Notes and Password hold control characters, read the same '
+        'way;  files pykeepass makes at random (ciphers, KDFs, '
         'compression, tags, icons, custom properties, attachments, history, custom data) '
         'and `keepassxc-cli` makes (groups, entries, notes, attachments), opened in '
         "Faraday and sealed once more with nothing of the other program's lost; keepass-rs "
@@ -194,6 +223,22 @@ class Vault(Area):
         "seals once more"
     )
     differences = [
+        (
+            "pykeepass strips the characters XML 1.0 cannot hold from a protected value after "
+            "decrypting it; Faraday keeps a Password's characters as they are put in (and "
+            "leaves them out of a Title or Notes when it writes). The `export` loop expects "
+            "pykeepass's reading of a Password and Faraday's own as put in, and counts the "
+            "passwords that differ."
+        ),
+        (
+            "pykeepass opens a file whose major version is neither 3 nor 4 without reading "
+            "past it, deriving a key or checking a hash; KeePass refuses such a file, and the "
+            "area counts a file as opened only when pykeepass read a KDBX 4 body "
+            "(`readers.open_kdbx`). It also runs the key derivation the header states before "
+            "it checks the header's SHA-256, so a changed bit in the Argon2 iterations (2^44 "
+            "passes) holds it for good; KeePass and `keepassxc-cli` refuse at once, and the "
+            "area asks pykeepass first with a key given and nothing decrypted."
+        ),
         (
             "The vault's passphrase is put in NFC (§3); KeePass apps do not. A vault under "
             "an NFC passphrase opens in Faraday under its NFD form and in neither outside "
@@ -244,15 +289,32 @@ class Vault(Area):
         if argon2id(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
                     a["passes"], a["lanes"]).hex() != a["key"]:
             raise HarnessError("argon2-cffi fails the known Argon2id answer")
+        major = int(cryptography.__version__.split(".")[0])
+        ssl = openssl_backend.openssl_version_number()
+        if major < 44 or ssl < 0x30200000:
+            raise HarnessError(
+                "the vault area needs PyCA cryptography 44 or later over OpenSSL 3.2 or later, "
+                f"found {cryptography.__version__} over {openssl_backend.openssl_version_text()}")
+        if pyca_argon2id(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
+                         a["passes"], a["lanes"]).hex() != a["key"]:
+            raise HarnessError("PyCA's Argon2id fails the known Argon2id answer")
 
     # Each operation, both sides.
 
     def argon(self, password, salt, memory, passes, lanes, expected=None):
-        return self.compare(
-            "vault.argon2id",
-            {"password": password.hex(), "salt": salt.hex(), "memory_kib": memory,
-             "passes": passes, "lanes": lanes},
+        """Faraday's Argon2id against argon2-cffi's, then PyCA's against argon2-cffi's: the
+        same key, or a refusal by both."""
+        inputs = {"password": password.hex(), "salt": salt.hex(), "memory_kib": memory,
+                  "passes": passes, "lanes": lanes}
+        raw = self.compare(
+            "vault.argon2id", inputs,
             lambda: {"key": argon2id(password, salt, memory, passes, lanes).hex()}, expected)
+        other = reference(lambda: {"key": pyca_argon2id(password, salt, memory, passes,
+                                                        lanes).hex()})
+        if other[0] != raw[0] or (raw[0] == "ok" and other[1] != raw[1]):
+            raise Mismatch(self.name, "vault.argon2id", inputs, raw, other,
+                           "PyCA's Argon2id differs from argon2-cffi's and Faraday's")
+        return raw
 
     def payload(self, kind, p):
         def ref():
@@ -388,7 +450,7 @@ class Vault(Area):
                 f"unicode-normalization's {theirs}: a code point only one side composes could "
                 "differ")
 
-    LOOPS = (("argon", 40), ("payload", 1500), ("nfc", 1000), ("faraday", 16), ("foreign", 16),
+    LOOPS = (("argon", 60), ("payload", 1500), ("nfc", 1000), ("faraday", 16), ("export", 16), ("foreign", 16),
              ("kpxc", 6), ("rsfixed", 1), ("rsread", 6), ("rswrite", 8))
 
     def prelude(self):
@@ -500,7 +562,16 @@ class Vault(Area):
                               "keepassxc-cli opens a file with a byte changed", flip)
         self.compared += 1
 
-    def read_all(self, data, passphrase, kpxc, flips=True):
+    @staticmethod
+    def unstripped(v, raw):
+        """pykeepass's view with each Password as the export put it: pykeepass strips what XML
+        1.0 cannot hold from a protected value after decrypting it, Faraday reads it as it is
+        (a known difference). `raw` maps an entry's UUID to the Password put in."""
+        return v | {"entries": [
+            e | {"fields": [[k, raw.get(e["uuid"], val) if k == "Password" else val, prot]
+                            for k, val, prot in e["fields"]]} for e in v["entries"]]}
+
+    def read_all(self, data, passphrase, kpxc, flips=True, raw=None):
         """The file under every reader: pykeepass's view, Faraday's reading of it under the
         passphrase and its NFD form, the refusals (a wrong passphrase, the NFD form where
         it differs, a byte changed) by all, and `keepassxc-cli`'s listing when `kpxc`.
@@ -511,11 +582,12 @@ class Vault(Area):
             self.fail("pykeepass", {"file": self.tag(data)}, "refused", "opened",
                       "pykeepass does not open what Faraday wrote", data)
         v = vf.view(kp, deep=True)
-        self.open_faraday(data, passphrase, v)
+        mine = self.unstripped(v, raw) if raw else v
+        self.open_faraday(data, passphrase, mine)
         nfd = unicodedata.normalize("NFD", passphrase)
         if nfd != passphrase:
             # Faraday puts the passphrase in NFC (§3); no outside reader does.
-            self.open_faraday(data, nfd, v)
+            self.open_faraday(data, nfd, mine)
             self.known += 1
             if readers.open_kdbx(data, nfd) is not None:
                 self.fail("pykeepass", {"file": self.tag(data)}, "opened", "refused",
@@ -671,6 +743,18 @@ class Vault(Area):
             raise AssertionError(f"vault.create refused a valid vault: {ans[1]}; alone: {alone}")
         return bytes.fromhex(ans[1]["file"])
 
+    def export(self, items, cost, passphrase, label, now):
+        """`file::create_holding`, the function an export is made by, over entries."""
+        rng = self.rng
+        ans = self.rust.call(
+            "vault.export", vault_id=rng.randbytes(16).hex(), label=label, passphrase=passphrase,
+            memory_kib=cost[0], passes=cost[1], lanes=cost[2], random=rng.randbytes(140).hex(),
+            now=now, items=items)
+        self.compared += 1
+        if ans[0] != "ok":
+            raise AssertionError(f"vault.export refused a valid export: {ans[1]}")
+        return bytes.fromhex(ans[1]["file"])
+
     def seal(self, data, passphrase, items, label=None, now=None):
         rng = self.rng
         req = {"file": data.hex(), "passphrase": passphrase, "items": items,
@@ -763,6 +847,37 @@ class Vault(Area):
 
     # They write.
 
+    def export_case(self):
+        """An export as the app makes one: entries whose Title, Notes and Password hold control
+        characters, through `file::create_holding`, read by all. A Title and Notes are read
+        without the characters XML 1.0 cannot hold, as the writer leaves them out; a Password
+        is read by pykeepass without them and by Faraday as it was put in (a known
+        difference, counted)."""
+        rng = self.rng
+        items = self.items([], entries=rng.randint(1, 8))
+        for n, it in enumerate(items):
+            it["title"] = f"{word(rng, 1, 14, controls=True)} {n}"
+            it["notes"] = word(rng, 0, 60, lines=True, controls=True)
+            it["password"] = word(rng, 0, 20, controls=True)
+        raw = {vf.uuid_of(n): it["password"] for n, it in enumerate(items)}
+        self.known += sum(vf.xml_kept(p) != p for p in raw.values())
+        shown = [it | {k: vf.xml_kept(it[k]) for k in ("title", "notes", "password")}
+                 for it in items]
+        p = vf.passphrase(rng)
+        cost = (8192, rng.choice([1, 2]), rng.choice([1, 2]))
+        now = rng.choice([None, rng.randrange(1_500_000_000, 2_200_000_000)])
+        label = word(rng, 1, 20)
+        data = self.export(items, cost, p, label, now)
+        v = self.read_all(data, p, self.wants_kpxc(), raw=raw)
+        if v["label"] != label:
+            self.fail("vault.export", {}, v["label"], label,
+                      "the vault's name is not in the file", data)
+        self.put_check(v, shown, 0, 0, data)
+        self.rs_checks(data, p, self.unstripped(v, raw))
+
+    def case_export(self):
+        self.export_case()
+
     def foreign_case(self):
         """A file pykeepass makes: opens in Faraday with the same fields, and Faraday's seal
         keeps everything."""
@@ -850,10 +965,33 @@ class Vault(Area):
         "refused-xml-too-deep.kdbx": ({"pykeepass", "keepassxc-cli"}, "nesting past 64"),
     }
 
+    def refused_changed(self, data, at, mask, passphrase):
+        """The file with `mask` flipped at byte `at`: Faraday and pykeepass refuse it."""
+        changed = data[:at] + bytes([data[at] ^ mask]) + data[at + 1:]
+        self.open_faraday(changed, passphrase, None)
+        if readers.open_kdbx(changed, passphrase) is not None:
+            self.fail("pykeepass", {"file": self.tag(changed)}, "opened", "refused",
+                      "pykeepass opens a file with a version or cost bit changed", changed)
+
     def vectors(self):
         folder = ROOT / "tools" / "vectors" / "vault"
         kpxc = self.kpxc_on()
         pass_ = "correct horse battery staple"
+        # The export vector (`tools/vectors/backup/`, the file an export is: a one-entry
+        # vault), read by pykeepass and `keepassxc-cli` as Faraday reads it, with a byte
+        # changed refused by all.
+        vector = (ROOT / "tools/vectors/backup/backup-kdbx-words-12-english.kdbx").read_bytes()
+        self.read_all(vector, pass_, kpxc)
+        # The case `--fresh` once found (seed 62966c39701c90bed4224b29ed8cccdc): the major
+        # version's high bit set, 4 read as 132. No reader may open it, nor the file with any
+        # other bit of the version field changed.
+        for at in range(8, 12):
+            for bit in range(8):
+                self.refused_changed(vector, at, 1 << bit, pass_)
+        # Argon2's iterations with bit 44 set: refused from the header's hash, before any key
+        # derivation, by all.
+        at = vector.index(b"\x05\x01\x00\x00\x00I\x08\x00\x00\x00") + 10 + 5
+        self.refused_changed(vector, at, 0x10, pass_)
         for path in sorted(folder.glob("*.kdbx")):
             data = path.read_bytes()
             name = path.name

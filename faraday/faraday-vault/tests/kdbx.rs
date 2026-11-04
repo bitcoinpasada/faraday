@@ -246,6 +246,9 @@ fn the_export_vector_opens_and_is_written_again_byte_for_byte() {
         ),
         (Cipher::ChaCha20, Kdf::Argon2id, Compression::None)
     );
+    // The entry's title is the key's fingerprint and its notes name the words.
+    assert!(has(&opened.document, b"<Value>73c5da0a</Value>"));
+    assert!(has(&opened.document, b"<Value>12 words, English</Value>"));
     let secrets = protected_values(&opened.document, &opened.inner_key);
     assert_eq!(
         secrets,
@@ -761,6 +764,26 @@ fn a_file_with_one_byte_changed_or_cut_is_not_opened() {
 }
 
 #[test]
+fn every_byte_of_a_small_file_changed_in_turn_is_not_opened() {
+    // The smallest vault there is, at the cheapest cost: the header's bytes
+    // are refused by its hash before any derivation, the rest by the HMACs
+    // after one. Every header byte is tried; of the rest every third, since
+    // each costs an 8 MiB derivation and all of them took about two seconds
+    // in a debug build, which is too long for a test of the same refusal.
+    const HEADER: usize = 249;
+    let file = sealed(b"<x/>", 128);
+    assert!(open(&compute(), &file, PASSPHRASE).is_ok());
+    for at in (0..file.len()).filter(|&at| at < HEADER || at % 3 == 0) {
+        let mut bad = file.clone();
+        bad[at] ^= 0x01;
+        assert!(
+            open(&compute(), &bad, PASSPHRASE).is_err(),
+            "byte {at} changed"
+        );
+    }
+}
+
+#[test]
 fn a_file_too_long_for_the_largest_vault_is_refused_before_any_work() {
     let before = stretches();
     let mut f = file(&head());
@@ -779,6 +802,96 @@ fn the_derivation_runs_once_for_a_file_and_not_for_a_refusal() {
     let before = stretches();
     open(&compute(), &file, PASSPHRASE).expect("opens");
     assert_eq!(stretches(), before + 1);
+    // A refusal the header's hash gives, a changed cost within the limits
+    // among them, runs no derivation.
+    let before = stretches();
+    for bad in [with_passes(&file, 2), with_memory(&file, 16 * 1024)] {
+        assert_eq!(
+            open(&compute(), &bad, PASSPHRASE).err(),
+            Some(Error::Damaged)
+        );
+    }
+    assert_eq!(stretches(), before);
+    // A wrong passphrase is the one refusal that costs the run.
+    assert_eq!(
+        open(&compute(), &file, "another passphrase").err(),
+        Some(Error::Passphrase)
+    );
+    assert_eq!(stretches(), before + 1);
+}
+
+/// The Argon2 parameter dictionary's entry `key` (a one-letter name, its type
+/// byte before it), the offset of its value in `file`.
+fn kdf_value_at(file: &[u8], key: u8, kind: u8, len: u8) -> usize {
+    let head = [kind, 1, 0, 0, 0, key, len, 0, 0, 0];
+    file.windows(head.len())
+        .position(|w| w == head)
+        .expect("the parameter stands in the header")
+        + head.len()
+}
+
+/// `file` with the Argon2 passes written as `passes`, the header's hash left as it was.
+fn with_passes(file: &[u8], passes: u64) -> Vec<u8> {
+    let at = kdf_value_at(file, b'I', 5, 8);
+    let mut f = file.to_vec();
+    f[at..at + 8].copy_from_slice(&passes.to_le_bytes());
+    f
+}
+
+/// `file` with the Argon2 memory written as `kib`, the header's hash left as it was.
+fn with_memory(file: &[u8], kib: u64) -> Vec<u8> {
+    let at = kdf_value_at(file, b'M', 5, 8);
+    let mut f = file.to_vec();
+    f[at..at + 8].copy_from_slice(&(kib * 1024).to_le_bytes());
+    f
+}
+
+#[test]
+fn a_changed_cost_within_the_limits_is_refused_without_a_derivation() {
+    let file = vector("backup", "backup-kdbx-words-12-english.kdbx");
+    let before = stretches();
+    let c = compute();
+    // The passes the export states are 3; two and four are within the limits.
+    for passes in [2, 4] {
+        assert_eq!(
+            open(
+                &c,
+                &with_passes(&file, passes),
+                "correct horse battery staple"
+            )
+            .err(),
+            Some(Error::Damaged),
+            "passes {passes}"
+        );
+    }
+    assert_eq!(stretches(), before);
+}
+
+#[test]
+fn every_bit_of_the_version_changed_is_refused_and_a_major_of_132_by_name() {
+    let file = vector("backup", "backup-kdbx-words-12-english.kdbx");
+    let before = stretches();
+    let c = compute();
+    for bit in 0..32 {
+        let mut bad = file.clone();
+        bad[8 + bit / 8] ^= 1 << (bit % 8);
+        assert!(
+            open(&c, &bad, "correct horse battery staple").is_err(),
+            "version bit {bit}"
+        );
+    }
+    // The case the cross-check once found: the major's high bit set, 4 read
+    // as 132.
+    let mut bad = file.clone();
+    bad[10] |= 0x80;
+    assert_eq!(
+        open(&c, &bad, "correct horse battery staple").err(),
+        Some(Error::Newer {
+            major: 132,
+            minor: 0
+        })
+    );
+    assert_eq!(stretches(), before);
 }
 
 #[test]

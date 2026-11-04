@@ -44,7 +44,7 @@ it: Bitcoin Core 31.1 for wallets and PSBTs
 (`faraday/faraday-pgp/tests/gnupg.rs`,
 `faraday/faraday-pgp/tests/paperkey.rs`), OpenSSL and sbverify for
 Secure Boot keys (`faraday/faraday-sb/tests/judged.rs`), pykeepass for
-KeePass files (the cross-check's `kdbx` area), and other wallets' own
+KeePass files (the cross-check's `vault` area), and other wallets' own
 files (`faraday/faraday-core/tests/all/interop.rs`). The GnuPG,
 paperkey, OpenSSL and sbverify tests run in `just` and fail where the
 program is missing (`docs/DEVELOPING.md` §1).

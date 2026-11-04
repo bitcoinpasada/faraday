@@ -1,8 +1,8 @@
 # The KDBX 4 format, as KeePass publishes it
 
-The two pages `core/faraday-backup/src/kdbx.rs` and
-`tools/backup/read-kdbx.py` were written against, copied here verbatim
-so that the writer can be read against the description it was built
+The two pages the vault's KDBX container (`faraday/faraday-vault/src/kdbx/`)
+is written against, copied here verbatim
+so that the code can be read against the description it was built
 from, and so that a later change to the pages is visible as a change to
 these files rather than as a silent difference of opinion.
 
@@ -22,5 +22,5 @@ Fetched 2026-09-19.
 | `kdbx_4.html` | `4536a9920225560e03367ac50839d02e68f5629e75ff1fdfdc59256a28f36cb8` |
 
 The tree writes KDBX 4.0. The specification page describes 4.1; the two
-differ only in XML elements this writer does not use, and every KDBX 4
+differ only in XML elements the vault does not use, and every KDBX 4
 reader takes a 4.0 file.

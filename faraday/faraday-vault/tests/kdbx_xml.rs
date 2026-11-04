@@ -227,9 +227,10 @@ fn region<'a>(text: &'a str, open: &str, close: &str) -> &'a str {
 
 #[test]
 fn a_file_keepassxc_saved_after_an_edit_opens_with_its_history_counted() {
-    let bytes =
-        std::fs::read(repo("tools/vectors/kdbx/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx"))
-            .unwrap();
+    let bytes = std::fs::read(repo(
+        "tools/vectors/kdbx/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx",
+    ))
+    .unwrap();
     let o = open(&compute(), &bytes, PASSPHRASE).expect("opens");
     let doc = Document::read(&o.document, &o.inner_key).unwrap();
     // One entry has history (three earlier versions of it); the dialog counts entries.
@@ -252,9 +253,10 @@ fn a_file_keepassxc_saved_after_an_edit_opens_with_its_history_counted() {
 
 #[test]
 fn what_keepassxc_kept_is_written_back_byte_for_byte_and_read_by_pykeepass() {
-    let bytes =
-        std::fs::read(repo("tools/vectors/kdbx/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx"))
-            .unwrap();
+    let bytes = std::fs::read(repo(
+        "tools/vectors/kdbx/keepassxc-2.7-aes-argon2d-gzip-edited.kdbx",
+    ))
+    .unwrap();
     let o = open(&compute(), &bytes, PASSPHRASE).expect("opens");
     let doc = Document::read(&o.document, &o.inner_key).unwrap();
     let written = doc.write(&o.inner_key);
@@ -265,9 +267,16 @@ fn what_keepassxc_kept_is_written_back_byte_for_byte_and_read_by_pykeepass() {
     // The attachment's reference, the database's custom data and the entry's
     // tag, icon number and custom data are the same text.
     let reference = region(before, "<Binary><Key>note.txt", "</Binary>");
-    assert_eq!(region(after, "<Binary><Key>note.txt", "</Binary>"), reference);
+    assert_eq!(
+        region(after, "<Binary><Key>note.txt", "</Binary>"),
+        reference
+    );
     fn meta(t: &str) -> &str {
-        region(t.split("<Root>").next().unwrap(), "<CustomData>", "</CustomData>")
+        region(
+            t.split("<Root>").next().unwrap(),
+            "<CustomData>",
+            "</CustomData>",
+        )
     }
     let custom = meta(before);
     assert!(custom.contains("KPXC_RANDOM_SLUG") && custom.contains("_LAST_MODIFIED"));
@@ -294,8 +303,14 @@ fn what_keepassxc_kept_is_written_back_byte_for_byte_and_read_by_pykeepass() {
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
-        assert!(text.contains(&format!("attachment: note.txt={hex}\n")), "{text}");
-        assert!(text.contains("entry: Example tags=sample icon=5\n"), "{text}");
+        assert!(
+            text.contains(&format!("attachment: note.txt={hex}\n")),
+            "{text}"
+        );
+        assert!(
+            text.contains("entry: Example tags=sample icon=5\n"),
+            "{text}"
+        );
         assert!(text.contains("entry data: my.note=kept\n"), "{text}");
         for item in custom_items(custom) {
             assert!(text.contains(&format!("data: {item}\n")), "{item}: {text}");

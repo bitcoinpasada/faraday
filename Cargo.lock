@@ -763,13 +763,7 @@ name = "faraday-backup"
 version = "0.1.0"
 dependencies = [
  "argon2",
- "base64ct",
- "chacha20",
- "faraday-bip",
  "faraday-crypto",
- "hmac",
- "sha2",
- "zeroize",
 ]
 
 [[package]]
@@ -811,7 +805,6 @@ name = "faraday-core"
 version = "0.1.9"
 dependencies = [
  "faraday-alloc-count",
- "faraday-backup",
  "faraday-bip",
  "faraday-boot",
  "faraday-codec",

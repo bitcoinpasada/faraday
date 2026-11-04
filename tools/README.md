@@ -64,7 +64,6 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/crosscheck/` | test | `just crosscheck` (`run.sh`) | the crypto cross-check (F79): Faraday's Rust against the vendored Python references over the published vectors and a seeded random corpus; writes `stamp` ([README](crosscheck/README.md)) |
 | `tools/scripts/{musig,tapmulti}-regtest.sh` | generator | by hand; `core/faraday-psbt/examples/` and `just psbt-fixtures` write the rest | Bitcoin Core regtest round trips behind the MuSig2 and taproot-multisig PSBT fixtures |
 | `tools/scripts/signer-core.py` | generator | `python3 -I -B tools/scripts/signer-core.py <directory>`, by hand; its two files are inputs of `core/faraday-psbt/examples/signer.rs` | Bitcoin Core 31.1 on regtest signing `wallet-2of3.psbt` and `demo-regtest.psbt`: the signer check's two Core fixtures |
-| `tools/backup/read-kdbx.py` | test, dev aid | `faraday-backup` `tests/vectors.rs` | opens a KDBX 4 file Faraday wrote and prints its entries |
 | `tools/vault/open.py` | test, dev aid | `faraday-vault` `tests/open_py.rs` | opens a Faraday vault with published libraries |
 | `tools/guide-pictures.py` | dev aid | `just guide-pictures` | collects the user guide's pictures from the guide, screens and Starter tours: every picture a page of `docs/guide/` shows or names as to come, with its mark; removes the ones none shows, lists the ones no tour drew, and fails on text, EXIF, ICC or time chunks; `--check` and `--strip IMAGE...` list and remove the metadata of any image (`lint-tree.sh` runs `--check` over every tracked one) |
 | `tools/winvm/` | dev aid | `docs/history/BITLOCKER-ACCEPTANCE.md`, `docs/STARTER.md` | Windows 11 test machine in QEMU for the Starter's BitLocker checks |
@@ -89,7 +88,7 @@ none is part of `just`, which stays fast.
    areas listed in `tools/crosscheck/README.md` (what they leave out is
    under `docs/CROSSCHECK.md` §10.5 items 4 and 6: PSBT signing and
    finalizing end to end, taproot script trees, miniscript, AEZ). The
-   `vault` and `kdbx` areas need the distribution's argon2-cffi and
+   `vault` area needs the distribution's argon2-cffi, PyCA cryptography and
    pykeepass. A disagreement it finds is kept in
    its `found` folder with its seed and inputs
    (`docs/decisions/F79.md`). A full run also writes

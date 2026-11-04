@@ -413,8 +413,7 @@ The cross-check fetches nothing, ever.
 6. What `docs/STANDARDS.md` §0 asks of the rest: the entropy procedures
    (area `entropy`), Faraday Demo's dice rollers (`roller`), SeedQR
    and the QR encoder (`seedqr`), BBQr and numbered parts (`bbqr`), UR
-   (`ur`), the vanity search (`vanity`), the KDBX export read by
-   pykeepass (`kdbx`), the Lightning node keys and the aezeed read by
+   (`ur`), the vanity search (`vanity`), the Lightning node keys and the aezeed read by
    LND's own Go code (`lightning`, vendored in `tools/reference/lnd/`),
    and BIP 380's own checksum code beside Core's in `addr`. Built.
 

@@ -42,15 +42,13 @@
 # faraday/faraday-vault/src/layouts.rs (the payloads a vault record holds),
 # faraday/faraday-vault/src/qr.rs (a QR vault's item and its passphrase),
 # faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/secret.rs (a GPG key's paperkey read back: its
-#   lines, its data and the secret parts in it) and
-# core/faraday-backup/src/kdbx.rs (the KDBX 4 writer, which holds the words
-# and the seed in the clear until the cipher runs):
+#   lines, its data and the secret parts in it):
 #   3. No heap text: the tokens `String`, `alloc::string`, `to_string`,
 #      `to_owned` and `format!` may not appear, in code or comments. Words
 #      are u16 indices; text is `&str` borrowed from the embedded lists.
 #      One exception, because it is not Rust's type at all: a byte-string
-#      literal holding the KDBX XML element `<String>`, which kdbx.rs
-#      writes into a document.
+#      literal holding the KDBX XML element `<String>`, which the vault's
+#      xml/mod.rs writes into a document.
 #      Other files in faraday-bip (accounts, descriptors, SLIP-132) hold only
 #      public data and may use String freely. A new module that touches
 #      secrets must be added to SECRET_FILES below; paths are relative to
@@ -117,7 +115,7 @@ rule2() {
 report "Debug derived on a secret type (rule 2)" "$(rule2)"
 
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/header.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/xml/mod.rs faraday/faraday-vault/src/kdbx/xml/read.rs faraday/faraday-vault/src/kdbx/items/mod.rs faraday/faraday-vault/src/kdbx/items/write.rs faraday/faraday-vault/src/kdbx/items/forms.rs faraday/faraday-vault/src/kdbx/gzip.rs faraday/faraday-vault/src/file.rs core/faraday-crypto/src/secret.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs faraday/faraday-keys/src/slip39_set.rs faraday/faraday-pgp/src/secret.rs faraday/faraday-vault/src/qr.rs"
+SECRET_FILES="faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/header.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/xml/mod.rs faraday/faraday-vault/src/kdbx/xml/read.rs faraday/faraday-vault/src/kdbx/items/mod.rs faraday/faraday-vault/src/kdbx/items/write.rs faraday/faraday-vault/src/kdbx/items/forms.rs faraday/faraday-vault/src/kdbx/gzip.rs faraday/faraday-vault/src/file.rs core/faraday-crypto/src/secret.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs faraday/faraday-keys/src/slip39_set.rs faraday/faraday-pgp/src/secret.rs faraday/faraday-vault/src/qr.rs"
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
