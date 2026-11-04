@@ -73,7 +73,7 @@ Every control of Make and its steps: [Make](../screens/starter-make.md).
 | Card | Shows | Button |
 |---|---|---|
 | **Faraday stick** | **No Faraday stick attached**, or the attached stick's Faraday version | **Make a Faraday stick**: writes a USB stick, step by step (**Which stick?**, **What to write?**, **Confirm**, **Writing**, **Written**) |
-| **Pi card** | **Version …** of the Pi image, or **Not in this Starter** | **Make a Pi card**: writes an SD card for a Raspberry Pi the same way; grey when this Starter carries no Pi image |
+| **Pi card** | **Version …** of the Pi image, or **No image found** | **Make a Pi card**: writes an SD card for a Raspberry Pi the same way; grey when no Pi image is found |
 
 A disk is never chosen for you: the one USB disk attached is as often a
 backup drive as a stick.

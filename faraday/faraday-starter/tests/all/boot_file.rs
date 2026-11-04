@@ -6,7 +6,7 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
-    BootFile, BootSigner, Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile,
+    BootFile, BootSigner, Bus, Computer, Disk, FaradayStick, FoundImage, ImageFinding, Mode, Os,
     Reason, Source, StarterCommand, StarterEvent,
 };
 use faraday_starter::decide::Target;
@@ -32,29 +32,31 @@ fn display() -> Event {
     })
 }
 
-fn payload() -> Payload {
-    Payload {
-        version: "0.3.0".into(),
-        commit: "89abcdef0123456789abcdef0123456789abcdef".into(),
-        files: vec![
-            PayloadFile {
-                name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
-                sha256: "a".repeat(64),
-                inner: "faraday-stick-0.3.0-x86_64-uefi.img".into(),
-                inner_sha256: "b".repeat(64),
-                inner_size: 202_395_648,
-                build_id: "0.3.0+89abcdef0123".into(),
-            },
-            PayloadFile {
-                name: "faraday-pi-0.3.0-pi3.img.xz".into(),
-                sha256: "d".repeat(64),
-                inner: "faraday-pi-0.3.0-pi3.img".into(),
-                inner_sha256: "e".repeat(64),
-                inner_size: 205_520_896,
-                build_id: "0.3.0+89abcdef0123".into(),
-            },
-        ],
-    }
+/// The release's stick and Pi images, as the finder found them in
+/// Downloads.
+fn images() -> Vec<ImageFinding> {
+    let file = |name: &str, xz: char, img: char, size: u64| {
+        ImageFinding::Found(FoundImage {
+            path: format!("{DOWNLOADS}/{name}"),
+            name: name.into(),
+            xz_sha256: xz.to_string().repeat(64),
+            img_sha256: img.to_string().repeat(64),
+            inner_size: size,
+            build_id: "0.3.0+89abcdef0123".into(),
+            board: String::new(),
+            panel: String::new(),
+            starts: Vec::new(),
+        })
+    };
+    vec![
+        file(
+            "faraday-stick-0.3.0-x86_64-uefi.img.xz",
+            'a',
+            'b',
+            202_395_648,
+        ),
+        file("faraday-pi-0.3.0-pi3.img.xz", 'd', 'e', 205_520_896),
+    ]
 }
 
 /// A Faraday stick holding an older release.
@@ -89,7 +91,7 @@ fn starter() -> Starter {
         secure_boot: Some(true),
         tpm_unlock: false,
     }));
-    s.starter_event(StarterEvent::Payload(Some(payload())));
+    s.starter_event(StarterEvent::ImagesFound(images()));
     s.starter_event(StarterEvent::Disks(vec![stick()]));
     s
 }
@@ -103,9 +105,10 @@ fn commands(s: &mut Starter) -> Vec<StarterCommand> {
 }
 
 fn release_source() -> Source {
-    Source::Payload {
-        name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
-        inner_sha256: "b".repeat(64),
+    Source::Found {
+        path: file("faraday-stick-0.3.0-x86_64-uefi.img.xz"),
+        xz_sha256: "a".repeat(64),
+        img_sha256: "b".repeat(64),
     }
 }
 
@@ -278,12 +281,10 @@ fn downloads_without_an_efi_file_says_so() {
     );
 }
 
-/// A card or stick is written from the release image the finder found
-/// when the Starter carries no payload for it, and from the payload when
-/// it does.
+/// A card or stick is written from the release image the finder found,
+/// the first of its kind.
 #[test]
-fn a_found_image_is_what_a_pi_card_is_written_from_when_no_payload_is_carried() {
-    use faraday_starter::api::{FoundImage, ImageFinding};
+fn a_found_image_is_what_a_pi_card_is_written_from() {
     use faraday_starter::decide::Target;
     let found = FoundImage {
         path: file("faraday-pi-0.3.0.img.xz"),
@@ -300,14 +301,6 @@ fn a_found_image_is_what_a_pi_card_is_written_from_when_no_payload_is_carried() 
     s.starter_event(StarterEvent::ImagesFound(vec![ImageFinding::Found(
         found.clone(),
     )]));
-    let carried = s.image(Target::Pi).expect("the payload's");
-    assert!(matches!(carried.source, Source::Payload { .. }));
-    assert!(matches!(
-        s.image(Target::Stick).expect("the payload's").source,
-        Source::Payload { .. }
-    ));
-
-    s.starter_event(StarterEvent::Payload(None));
     let image = s.image(Target::Pi).expect("the found file's");
     assert_eq!(
         image.source,
@@ -325,7 +318,6 @@ fn a_found_image_is_what_a_pi_card_is_written_from_when_no_payload_is_carried() 
 
 #[test]
 fn what_the_finder_answers_is_kept_and_the_matching_images_listed() {
-    use faraday_starter::api::{FoundImage, ImageFinding};
     let mut s = starter();
     let found = FoundImage {
         path: file("faraday-pi-0.3.0.img.xz"),
@@ -364,18 +356,13 @@ fn a_pi_card_has_no_boot_file_choice() {
     assert!(!s.offers_action(StarterAction::BootChoice(true)));
 }
 
-/// Make a Pi card lists the payload's image and a found one, never one
-/// image twice, a found one can be chosen, and the file to download is
-/// named for hardware with none.
+/// Make a Pi card lists the images found, never one image twice, one can
+/// be chosen, and the file to download is named for hardware with none.
 #[test]
-fn make_a_pi_card_offers_the_found_image_beside_the_payloads_and_names_what_is_missing() {
-    use faraday_starter::api::{FoundImage, ImageFinding};
+fn make_a_pi_card_offers_the_found_images_once_and_names_what_is_missing() {
     use faraday_starter::decide::Target;
     let mut s = starter();
-    let payload_pi = s
-        .payload_file(faraday_starter::api::PayloadKind::Pi)
-        .expect("the test payload has a Pi image")
-        .clone();
+    let first_pi = "faraday-pi-0.3.0-pi3.img.xz";
     let found = |name: &str, img: &str| FoundImage {
         path: file(name),
         name: name.into(),
@@ -388,21 +375,23 @@ fn make_a_pi_card_offers_the_found_image_beside_the_payloads_and_names_what_is_m
         starts: vec!["Pi 3B".into()],
     };
     s.starter_event(StarterEvent::ImagesWanted(vec![
-        payload_pi.name.clone(),
+        first_pi.into(),
         "faraday-stick-0.9.0-x86_64-uefi.img.xz".into(),
     ]));
-    s.starter_event(StarterEvent::ImagesFound(vec![
-        // The payload's own image, found again: not offered twice.
-        ImageFinding::Found(found("faraday-pi-copy.img.xz", &payload_pi.inner_sha256)),
+    let mut all = images();
+    all.extend([
+        // The same image found again: not offered twice.
+        ImageFinding::Found(found("faraday-pi-copy.img.xz", &"e".repeat(64))),
         ImageFinding::Found(found("faraday-pi-0.3.0.img.xz", &"bb".repeat(32))),
-    ]));
+    ]);
+    s.starter_event(StarterEvent::ImagesFound(all));
     s.press(StarterAction::Make(Target::Pi));
     let heads: Vec<_> = s
         .image_choices(Target::Pi)
         .into_iter()
         .map(|c| c.head)
         .collect();
-    assert_eq!(heads, [payload_pi.name.as_str(), "faraday-pi-0.3.0.img.xz"]);
+    assert_eq!(heads, [first_pi, "faraday-pi-0.3.0.img.xz"]);
     assert_eq!(
         s.images_to_download(Target::Stick),
         ["faraday-stick-0.9.0-x86_64-uefi.img.xz"]
@@ -416,6 +405,6 @@ fn make_a_pi_card_offers_the_found_image_beside_the_payloads_and_names_what_is_m
     s.press(StarterAction::Image(0));
     assert!(matches!(
         s.image(Target::Pi).expect("chosen").source,
-        Source::Payload { .. }
+        Source::Found { path, .. } if path.ends_with(first_pi)
     ));
 }

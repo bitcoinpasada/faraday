@@ -16,8 +16,8 @@
 #   recipe    the just recipe; vars are just variables set before its name
 #             (`just board=pi3 faraday-pi-image`), args its arguments,
 #             env the environment it needs ({version} is the release's)
-#   needs     what must be built first: "payload" is the stick and Pi
-#             images staged by faraday/tools/stage-release.sh's first pass
+#   needs     what must be built first: "images" is the release's IMAGES
+#             list, staged by faraday/tools/stage-release.sh's first pass
 #   dev       true when dev=1 builds a dev variant (a console and a login)
 #   outputs   the files it leaves, from the repository's root; {dev} is
 #             "-dev" for a dev build and "" otherwise
@@ -119,8 +119,8 @@ group = "starter"
 status = "built"
 recipe = "faraday-linux-bin"
 args = ["out/linux", "out/build/run", "faraday-starter-shell", "faraday-starter"]
-env = { FARADAY_STARTER_PAYLOAD = "out/payload/{version}/linux" }
-needs = "payload"
+env = { FARADAY_STARTER_IMAGES = "out/release/{version}/IMAGES" }
+needs = "images"
 outputs = ["out/linux/faraday-starter"]
 release = ["Faraday-Starter-{version}-Linux.tar.gz"]
 
@@ -130,7 +130,7 @@ label = "Faraday Starter for Windows"
 group = "starter"
 status = "built"
 recipe = "faraday-windows-bin"
-env = { FARADAY_STARTER_PAYLOAD = "out/payload/{version}/windows" }
-needs = "payload"
+env = { FARADAY_STARTER_IMAGES = "out/release/{version}/IMAGES" }
+needs = "images"
 outputs = ["out/windows/faraday-starter.exe"]
 release = ["Faraday-Starter-{version}-Windows.exe"]

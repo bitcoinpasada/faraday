@@ -6,8 +6,8 @@
 use std::io::Cursor;
 
 use faraday_payload::{
-    ImageKind, ImageSum, Manifest, ManifestFault, PayloadError, PayloadFile, Sha256Sum, hash_image,
-    write_image, write_payload,
+    ImageKind, ImageSum, PayloadError, PayloadFile, Sha256Sum, hash_image, write_image,
+    write_payload,
 };
 
 const FIXTURE_XZ: &[u8] = include_bytes!("vectors/fixture.img.xz");
@@ -19,8 +19,6 @@ const ZEROS_XZ: &[u8] = include_bytes!("vectors/zeros.img.xz");
 const ZEROS_XZ_SHA256: &str = "236e07f110fe513771bfb64dc3670d1051209787b11ca55f60167cd0df9a64ee";
 const ZEROS_SHA256: &str = "bb9f8df61474d25e71fa00722318cd387396ca1736605e1248821cc0de3d3af8";
 const ZEROS_SIZE: u64 = 4 * 1024 * 1024;
-
-const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 
 /// The image inside `fixture.img.xz`, made as `vectors/README.md` makes it.
 fn fixture_image() -> Vec<u8> {
@@ -44,34 +42,30 @@ fn sha256(bytes: &[u8]) -> String {
         .collect()
 }
 
-fn line(name: &str, xz_sum: &str, inner: &str, inner_sum: &str, size: u64) -> String {
-    // A stick image's line carries its boot partition's sum, any other `-`.
-    let boot = if name.starts_with("faraday-stick-") {
-        FIXTURE_SHA256
-    } else {
-        "-"
-    };
-    format!("{name}\t{xz_sum}\t{inner}\t{inner_sum}\t{size}\t6.6.84-faraday-0.2.0\t{boot}")
-}
-
-fn manifest(lines: &[String]) -> Vec<u8> {
-    let mut text = format!("# Faraday Starter payload 0.2.0, commit {COMMIT}\n");
-    for l in lines {
-        text.push_str(l);
-        text.push('\n');
+/// A payload file's entry, as the list names it: a stick image's carries
+/// its boot partition's sum, any other none.
+fn entry(name: &str, xz_sum: &str, inner: &str, inner_sum: &str, size: u64) -> PayloadFile {
+    PayloadFile {
+        name: name.to_owned(),
+        sha256: sum(xz_sum),
+        inner_name: inner.to_owned(),
+        inner_sha256: sum(inner_sum),
+        inner_size: size,
+        build_id: "6.6.84-faraday-0.2.0".to_owned(),
+        boot_sha256: name
+            .starts_with("faraday-stick-")
+            .then(|| sum(FIXTURE_SHA256)),
     }
-    text.into_bytes()
 }
 
 fn fixture_entry() -> PayloadFile {
-    PayloadFile::parse_line(&line(
+    entry(
         "fixture.img.xz",
         FIXTURE_XZ_SHA256,
         "fixture.img",
         FIXTURE_SHA256,
         FIXTURE_SIZE,
-    ))
-    .unwrap()
+    )
 }
 
 /// The outcome of a write, what the writer received and the last
@@ -90,17 +84,7 @@ fn write(xz: &[u8], entry: &PayloadFile) -> Written {
 
 #[test]
 fn a_payload_made_by_xz_decodes_to_exactly_the_original_bytes() {
-    let manifest = Manifest::parse(&manifest(&[line(
-        "fixture.img.xz",
-        FIXTURE_XZ_SHA256,
-        "fixture.img",
-        FIXTURE_SHA256,
-        FIXTURE_SIZE,
-    )]))
-    .unwrap();
-    let entry = manifest.file("fixture.img.xz").unwrap();
-
-    let (r, out, last) = write(FIXTURE_XZ, entry);
+    let (r, out, last) = write(FIXTURE_XZ, &fixture_entry());
 
     r.unwrap();
     assert_eq!(out, fixture_image());
@@ -109,14 +93,13 @@ fn a_payload_made_by_xz_decodes_to_exactly_the_original_bytes() {
 
 #[test]
 fn an_image_larger_than_one_write_decodes_whole() {
-    let entry = PayloadFile::parse_line(&line(
+    let entry = entry(
         "zeros.img.xz",
         ZEROS_XZ_SHA256,
         "zeros.img",
         ZEROS_SHA256,
         ZEROS_SIZE,
-    ))
-    .unwrap();
+    );
     let mut reports = 0;
     let mut out = Vec::new();
     write_payload(Cursor::new(ZEROS_XZ), &entry, &mut out, |_, _| reports += 1).unwrap();
@@ -127,7 +110,7 @@ fn an_image_larger_than_one_write_decodes_whole() {
 
 #[test]
 fn a_payload_whose_xz_sum_does_not_match_is_refused_before_anything_is_written() {
-    // One byte of the .xz changed: the manifest's sum no longer matches.
+    // One byte of the .xz changed: the list's sum no longer matches.
     let mut damaged = FIXTURE_XZ.to_vec();
     damaged[FIXTURE_XZ.len() / 2] ^= 0x01;
     let (r, out, last) = write(&damaged, &fixture_entry());
@@ -135,7 +118,7 @@ fn a_payload_whose_xz_sum_does_not_match_is_refused_before_anything_is_written()
     assert!(out.is_empty(), "the writer received {} bytes", out.len());
     assert_eq!(last, None);
 
-    // The right file against a manifest line with another sum.
+    // The right file against a line in the list with another sum.
     let mut entry = fixture_entry();
     entry.sha256 = sum(ZEROS_XZ_SHA256);
     let (r, out, _) = write(FIXTURE_XZ, &entry);
@@ -144,7 +127,7 @@ fn a_payload_whose_xz_sum_does_not_match_is_refused_before_anything_is_written()
 }
 
 #[test]
-fn decompressed_bytes_that_do_not_match_the_manifest_are_a_failure() {
+fn decompressed_bytes_that_do_not_match_the_list_are_a_failure() {
     // Another SHA-256 for what is inside.
     let mut entry = fixture_entry();
     entry.inner_sha256 = sum(ZEROS_SHA256);
@@ -175,7 +158,7 @@ fn decompressed_bytes_that_do_not_match_the_manifest_are_a_failure() {
 fn a_truncated_xz_is_refused() {
     for keep in [0, 6, 100, FIXTURE_XZ.len() / 2, FIXTURE_XZ.len() - 1] {
         let cut = &FIXTURE_XZ[..keep];
-        // The manifest describes the cut file, so the .xz sum check
+        // The list describes the cut file, so the .xz sum check
         // passes and the decoder itself has to notice.
         let mut entry = fixture_entry();
         entry.sha256 = sum(&sha256(cut));
@@ -191,7 +174,7 @@ fn a_truncated_xz_is_refused() {
 }
 
 #[test]
-fn a_damaged_xz_with_no_manifest_is_refused_by_its_own_checks() {
+fn a_damaged_xz_with_no_list_is_refused_by_its_own_checks() {
     // A changed byte inside the compressed data, and one in the block's
     // CRC-64, its last 8 bytes (the block starts 12 bytes in, and
     // `xz -lvv` gives its total size as 6028).
@@ -256,226 +239,4 @@ fn a_developers_image_that_changed_after_it_was_confirmed_is_a_failure() {
         |_, _| {},
     );
     assert!(matches!(r, Err(PayloadError::Sum { .. })), "{r:?}");
-}
-
-#[test]
-fn a_manifest_parses_into_its_files() {
-    let text = manifest(&[
-        line(
-            "a.img.xz",
-            FIXTURE_XZ_SHA256,
-            "a.img",
-            FIXTURE_SHA256,
-            FIXTURE_SIZE,
-        ),
-        line(
-            "b-linux-x86_64.xz",
-            ZEROS_XZ_SHA256,
-            "b-linux-x86_64",
-            ZEROS_SHA256,
-            ZEROS_SIZE,
-        ),
-    ]);
-    let m = Manifest::parse(&text).unwrap();
-    assert_eq!(m.version(), "0.2.0");
-    assert_eq!(m.commit(), COMMIT);
-    assert_eq!(m.files().len(), 2);
-    let b = m.file("b-linux-x86_64.xz").unwrap();
-    assert_eq!(b.inner_name, "b-linux-x86_64");
-    assert_eq!(b.inner_sha256, sum(ZEROS_SHA256));
-    assert_eq!(b.inner_size, ZEROS_SIZE);
-    assert_eq!(b.build_id, "6.6.84-faraday-0.2.0");
-    assert!(m.file("c.img.xz").is_none());
-
-    // Without its final newline too.
-    let mut bare = text.clone();
-    bare.pop();
-    assert_eq!(Manifest::parse(&bare).unwrap(), m);
-}
-
-#[test]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
-    let good = line(
-        "a.img.xz",
-        FIXTURE_XZ_SHA256,
-        "a.img",
-        FIXTURE_SHA256,
-        FIXTURE_SIZE,
-    );
-    let header = format!("# Faraday Starter payload 0.2.0, commit {COMMIT}");
-    let refused = |text: String, line: usize, fault: ManifestFault| {
-        let e = Manifest::parse(text.as_bytes()).unwrap_err();
-        assert_eq!((e.line, e.fault), (line, fault), "{text:?}");
-    };
-
-    // Headers.
-    for bad in [
-        String::new(),
-        "# Faraday payload 0.2.0, commit 0123".to_string(),
-        format!("# Faraday Starter payload , commit {COMMIT}"),
-        format!("# Faraday Starter payload 0.2.0 commit {COMMIT}"),
-        "# Faraday Starter payload 0.2.0, commit 0123456".to_string(),
-        format!(
-            "# Faraday Starter payload 0.2.0, commit {}",
-            COMMIT.to_uppercase()
-        ),
-    ] {
-        refused(format!("{bad}\n{good}\n"), 1, ManifestFault::Header);
-    }
-
-    // No files, an empty line, a field too many or too few.
-    refused(format!("{header}\n"), 2, ManifestFault::NoFiles);
-    refused(
-        format!("{header}\n{good}\n\n{good}\n"),
-        3,
-        ManifestFault::EmptyLine,
-    );
-    refused(
-        format!("{header}\n{good}\textra\n"),
-        2,
-        ManifestFault::FieldCount(8),
-    );
-    refused(
-        format!("{header}\n{}\n", good.replace('\t', " ")),
-        2,
-        ManifestFault::FieldCount(1),
-    );
-    refused(
-        format!("{header}\n{good}\n{good}\n"),
-        3,
-        ManifestFault::Duplicate,
-    );
-
-    // Each field.
-    let cases: [(String, ManifestFault); 12] = [
-        (
-            line("a.img", FIXTURE_XZ_SHA256, "a.img", FIXTURE_SHA256, 1),
-            ManifestFault::Name,
-        ),
-        (
-            line(".xz", FIXTURE_XZ_SHA256, "a.img", FIXTURE_SHA256, 1),
-            ManifestFault::Name,
-        ),
-        (
-            line("../a.img.xz", FIXTURE_XZ_SHA256, "a.img", FIXTURE_SHA256, 1),
-            ManifestFault::Name,
-        ),
-        (
-            line(
-                "a.img.xz",
-                FIXTURE_XZ_SHA256,
-                "dir/a.img",
-                FIXTURE_SHA256,
-                1,
-            ),
-            ManifestFault::Name,
-        ),
-        (
-            line("a.img.xz", FIXTURE_XZ_SHA256, "", FIXTURE_SHA256, 1),
-            ManifestFault::Name,
-        ),
-        (
-            line(
-                "a.img.xz",
-                &FIXTURE_XZ_SHA256.to_uppercase(),
-                "a.img",
-                FIXTURE_SHA256,
-                1,
-            ),
-            ManifestFault::Sum,
-        ),
-        (
-            line(
-                "a.img.xz",
-                FIXTURE_XZ_SHA256,
-                "a.img",
-                &FIXTURE_SHA256[1..],
-                1,
-            ),
-            ManifestFault::Sum,
-        ),
-        (
-            line("a.img.xz", FIXTURE_XZ_SHA256, "a.img", FIXTURE_SHA256, 0),
-            ManifestFault::Size,
-        ),
-        (good.replace("\t39936\t", "\t039936\t"), ManifestFault::Size),
-        (good.replace("\t39936\t", "\t-39936\t"), ManifestFault::Size),
-        (
-            good.replace("\t39936\t", "\t99999999999999999999\t"),
-            ManifestFault::Size,
-        ),
-        (
-            good.replace("6.6.84-faraday-0.2.0", ""),
-            ManifestFault::BuildId,
-        ),
-    ];
-    for (bad, fault) in cases {
-        refused(format!("{header}\n{good}\n{bad}\n"), 3, fault);
-    }
-
-    // Windows line ends leave a carriage return in the last field.
-    refused(format!("{header}\r\n{good}\r\n"), 1, ManifestFault::Header);
-    refused(format!("{header}\n{good}\r\n"), 2, ManifestFault::Sum);
-
-    // Not text.
-    let e = Manifest::parse(b"# Faraday Starter payload \xff").unwrap_err();
-    assert_eq!(e.fault, ManifestFault::NotText);
-}
-
-#[test]
-fn a_stick_images_line_needs_its_boot_partitions_sum_and_no_other_line_has_one() {
-    let stick = line(
-        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-        FIXTURE_XZ_SHA256,
-        "faraday-stick-0.2.0-x86_64-uefi.img",
-        FIXTURE_SHA256,
-        1,
-    );
-    let entry = PayloadFile::parse_line(&stick).unwrap();
-    assert_eq!(entry.boot_sha256, Some(sum(FIXTURE_SHA256)));
-    let other = PayloadFile::parse_line(&line(
-        "faraday-pi-0.2.0-hdmi.img.xz",
-        FIXTURE_XZ_SHA256,
-        "faraday-pi-0.2.0-hdmi.img",
-        FIXTURE_SHA256,
-        1,
-    ))
-    .unwrap();
-    assert_eq!(other.boot_sha256, None);
-
-    let without = stick.rsplit_once('\t').unwrap().0;
-    assert_eq!(
-        PayloadFile::parse_line(without),
-        Err(ManifestFault::FieldCount(6))
-    );
-    for bad in [
-        "-",
-        "",
-        "xyz",
-        &FIXTURE_SHA256.to_uppercase(),
-        &FIXTURE_SHA256[1..],
-    ] {
-        assert_eq!(
-            PayloadFile::parse_line(&format!("{without}\t{bad}")),
-            Err(ManifestFault::Sum),
-            "{bad}"
-        );
-    }
-    let pi_with_sum = format!("{}\t{FIXTURE_SHA256}", other_line_without_boot());
-    assert_eq!(
-        PayloadFile::parse_line(&pi_with_sum),
-        Err(ManifestFault::Sum)
-    );
-}
-
-fn other_line_without_boot() -> String {
-    let l = line(
-        "faraday-pi-0.2.0-hdmi.img.xz",
-        FIXTURE_XZ_SHA256,
-        "faraday-pi-0.2.0-hdmi.img",
-        FIXTURE_SHA256,
-        1,
-    );
-    l.rsplit_once('\t').unwrap().0.to_string()
 }

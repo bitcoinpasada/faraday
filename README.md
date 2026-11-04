@@ -219,7 +219,7 @@ SD card", "Remove the SD card".
 
 A Faraday stick is upgraded from a computer with Faraday Starter: Make
 a Faraday stick → **Replace Faraday, keep data**. It checks the new
-release's image against the release's manifest, writes the stick's boot
+release's image against the release's image list, writes the stick's boot
 partition, reads it back and compares; the data partition, with its
 vaults and settings file, is not read and not written. Faraday itself
 writes no boot partition (`docs/DECISIONS.md` F128). Plugging the stick
@@ -511,7 +511,7 @@ just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
 *keep data* can write (the boot partition, with the vaults and settings
 on the data partition left alone). The screens and the writer are the
 release's: Confirm says the image is not Faraday Starter's own and shows its
-SHA-256. A Faraday Starter built without a payload offers only `--image`. On
+SHA-256. A Faraday Starter built without a release's image list offers only `--image`. On
 Linux the write goes through udisks2 and the desktop may ask for a
 password; the Starter never runs as root. `docs/STARTER.md` §4.1 says what
 the writer checks and in what order.

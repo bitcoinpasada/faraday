@@ -9,8 +9,7 @@
 use faraday_core::work::{self, KINDS, Work};
 use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
-    Bus, Computer, Concern, Disk, FaradayStick, InstallItem, Installed, Kind, Os, Payload,
-    PayloadFile, StarterEvent,
+    Bus, Computer, Concern, Disk, FaradayStick, InstallItem, Installed, Kind, Os, StarterEvent,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{Starter, StarterAction};
@@ -18,35 +17,6 @@ use faraday_starter::{Starter, StarterAction};
 const GB: u64 = 1_000_000_000;
 const W: u16 = 1100;
 const H: u16 = 760;
-
-fn payload() -> Payload {
-    let file = |name: &str, inner: &str, build: &str, n: char| PayloadFile {
-        name: name.into(),
-        sha256: n.to_string().repeat(64),
-        inner: inner.into(),
-        inner_sha256: n.to_ascii_uppercase().to_string().repeat(64),
-        inner_size: 3 * GB,
-        build_id: build.into(),
-    };
-    Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
-        files: vec![
-            file(
-                "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-                "faraday-stick-0.2.0-x86_64-uefi.img",
-                "0.2.0",
-                'a',
-            ),
-            file(
-                "faraday-pi-0.2.0.img.xz",
-                "faraday-pi-0.2.0.img",
-                "0.2.0",
-                'b',
-            ),
-        ],
-    }
-}
 
 fn laptop(os: Os, secure_boot: bool) -> Computer {
     Computer {
@@ -96,7 +66,7 @@ fn starter() -> Starter {
         memory_mib: None,
     }));
     s.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
-    s.starter_event(StarterEvent::Payload(Some(payload())));
+    s.starter_event(StarterEvent::ImagesFound(super::starter::images("0.2.0")));
     s.starter_event(StarterEvent::Disks(vec![
         disk("sdb", false),
         disk("sdc", false),

@@ -1,8 +1,8 @@
 //! The Starter's shell (`docs/STARTER.md` §2): `faraday_starter::Starter` in a
 //! window, and what it reads and writes on this computer.
 //!
-//! - [`payload`]: the payload built in (`FARADAY_STARTER_PAYLOAD`), and a
-//!   developer's image given with `--image`.
+//! - [`image`]: a developer's image given with `--image`; [`finder`]
+//!   finds the release's images beside their `IMAGES` list.
 //! - [`writer`]: the writer, the same on every system, over a
 //!   [`writer::Device`] each system opens its own way; [`gpt`] knows a
 //!   Faraday stick by its layout, and [`ids`] gives each stick and card
@@ -28,10 +28,10 @@
 pub mod finder;
 pub mod gpt;
 pub mod ids;
+pub mod image;
 #[cfg(target_os = "linux")]
 pub mod linux;
 pub mod macos;
-pub mod payload;
 pub mod pdf;
 pub mod platform;
 pub mod scheme;

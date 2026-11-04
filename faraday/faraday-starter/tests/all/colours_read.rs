@@ -17,7 +17,7 @@ use faraday_starter::decide::Target;
 use faraday_starter::{Starter, StarterAction};
 use faraday_ui::Theme;
 
-use super::starter::{disk, display, faraday_stick, linux, payload, windows};
+use super::starter::{disk, display, faraday_stick, images, linux, windows};
 
 const GB: u64 = 1_000_000_000;
 
@@ -115,7 +115,7 @@ fn start(w: u16, h: u16, theme: Theme, windows_pc: bool) -> Starter {
         linux(true)
     };
     s.starter_event(StarterEvent::Computer(pc));
-    s.starter_event(StarterEvent::Payload(Some(payload("0.2.0"))));
+    s.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
     s.starter_event(StarterEvent::Disks(many()));
     s
 }

@@ -46,7 +46,8 @@ use super::install::{self, Dirs, Left};
 use super::pipe::{self, Message};
 use super::registry::{self, Facts};
 use super::sys::{self, Elevation};
-use crate::payload::{Image, Payload};
+use crate::finder::found_job;
+use crate::image::Image;
 use crate::platform::Platform;
 use crate::stick;
 use crate::writer::{self, Device, Identity, Job};
@@ -502,7 +503,7 @@ fn elevate_write(
     }
     let image_size = match job {
         Job::Image(i) => Some(i.sum.size),
-        Job::Payload { .. } | Job::Found { .. } => None,
+        Job::Found { .. } => None,
     };
     let pipe_name = pipe_name();
     let fail = |e: std::io::Error| Reason::WriteFailed(e.to_string());
@@ -709,7 +710,7 @@ fn elevated_write(args: &[String]) -> ExitCode {
         // it again and refuses the same build.
         if e.order.mode == Mode::KeepData {
             let build = match &job {
-                Job::Payload { file, .. } | Job::Found { file, .. } => Some(file.build_id.as_str()),
+                Job::Found { file, .. } => Some(file.build_id.as_str()),
                 Job::Image(i) => i.build_id.as_deref(),
             };
             let on_stick = release_of(&mut device, &e.order.device)?;
@@ -794,19 +795,16 @@ fn release_of(device: &mut PhysicalDrive, name: &str) -> Result<Option<String>, 
     writer::release_on_stick(&mut f, len, name)
 }
 
-/// What the elevated copy writes: the one payload file named, from the
-/// payload built into this same file, or the developer's image held to
+/// What the elevated copy writes: the release image found, held to its
+/// line in the list built in, or the developer's image held to
 /// the sum Confirm showed.
 fn job(e: &Elevated) -> Result<Job, Reason> {
     match &e.order.source {
-        Source::Payload { name, inner_sha256 } => Payload::built_in()
-            .and_then(|p| p.job(name, inner_sha256))
-            .ok_or(Reason::NotCarried),
         Source::Found {
             path,
             xz_sha256,
             img_sha256,
-        } => Payload::found_job(path, xz_sha256, img_sha256).ok_or(Reason::NotCarried),
+        } => found_job(path, xz_sha256, img_sha256).ok_or(Reason::NotCarried),
         Source::Image { path, sha256 } => {
             let sha256 = Sha256Sum::from_hex(sha256).ok_or(Reason::NotCarried)?;
             let path = PathBuf::from(path);

@@ -267,19 +267,9 @@ fn = "parse"
 target = "faraday/fuzz/fuzz_targets/bip39_words.rs"
 
 [[parser]]
-file = "faraday/faraday-payload/src/manifest.rs"
-fn = "parse"
-target = "faraday/fuzz/fuzz_targets/manifest.rs"
-
-[[parser]]
 file = "faraday/faraday-payload/src/images.rs"
 fn = "parse"
 target = "faraday/fuzz/fuzz_targets/image_list.rs"
-
-[[parser]]
-file = "faraday/faraday-payload/src/manifest.rs"
-fn = "parse_line"
-target = "faraday/fuzz/fuzz_targets/payload_line.rs"
 
 [[parser]]
 file = "core/faraday-codec/src/cbor.rs"

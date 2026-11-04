@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F145, F185, F186), the PC's one build, the Pi's one build, the one Pi image for an HDMI screen and the 2.8-inch (its screen directories, overlays, boot script and kernel options) and the release's files and image list built
-**Open:** the one Pi image built and booted under QEMU (§9 step 10), each screen tried on it (§9 step 11), a full release's size and staging time measured, the Starter finding images, the website's choice
+**Open:** the one Pi image built and booted under QEMU (§9 step 10), each screen tried on it (§9 step 11), a full release's size and staging time measured, the Starter's finder tried on a computer with a real release's images (§9 step 6), the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it: one for the PC stick, and one for the Pi that finds its screen at
@@ -11,8 +11,8 @@ Each is its own release file. Nothing is edited after the build. The Starter car
 images: the person downloads the Starter and the images they chose, and
 the Starter offers what it finds. The owner's choices are F145, which
 replaces this plan's earlier form in `docs/STARTER.md` §9.3 (one image,
-edited for its screen by the Starter) and the Starter's payload of
-images (§1.3).
+edited for its screen by the Starter) and the Starter's earlier payload of
+images (§1.3, removed).
 
 ## 1. One build on each platform
 
@@ -345,8 +345,9 @@ unmounts it before the app starts.
   "Verifying a release" shows both checks: the downloaded file, and a
   card or stick.
 - **The release's image list** (`IMAGES`, a plain-text file in the
-  release; the Starter carries it from §9 step 6) is staged with the
-  manifest (`docs/STARTER.md` §1.3) and covered by `SHA256SUMS`. Its
+  release; the Starter carries it, §9 step 6) is staged in
+  the release folder and covered by `SHA256SUMS`; the Starters are built
+  with it (`docs/STARTER.md` §1.3). Its
   first line is `# Faraday X.Y.Z images, commit <full hash>`; then one
   line per image, in `faraday/builds.toml`'s order, its nine fields
   separated by one tab:
@@ -363,9 +364,7 @@ unmounts it before the app starts.
      `-boot.vfat` value of `SHA256SUMS`); `-` for the Pi image.
 
   Fields 2, 3, 7, 8 and 9 are what writing a file needs beyond its
-  name (the manifest's line carries the same, `docs/STARTER.md` §1.3),
-  so one list serves the Starter's payload and a file it finds; a list
-  with fewer fields is refused with its line.
+  name; a list with fewer fields is refused with its line.
 
   The Pi image's line, its tabs shown as two spaces and its sums
   shortened:
@@ -392,13 +391,13 @@ unmounts it before the app starts.
 ## 5. The Starter
 
 - **It carries no images.** It holds its own code, Faraday Demo (F126),
-  and the release's image list. That is about 17 MB in place of about
-  43 MB.
+  and the release's image list, built in from the release's `IMAGES`
+  file (`docs/STARTER.md` §1.3).
 - **It finds images.** It looks in the Downloads folder Transfer uses
   (`--downloads`, as F133's signed boot file is found), and in files
   dropped on its window. Each file whose name is on the image list is
-  hashed and checked against its line; a file that does not match is
-  named and not offered. A file of another release is named with the
+  hashed and checked against its line in the built-in list, and only
+  against it; a file that does not match is named and not offered. A file of another release is named with the
   version this Starter needs.
 - **Make a Faraday stick and Make a Pi card offer what was found**, by
   its hardware: "Pi 3, Waveshare 2.8-inch". Hardware without its image is
@@ -455,7 +454,7 @@ marked so (`docs/HARDWARE.md` §6).
 | Document | Change |
 |---|---|
 | `docs/HARDWARE.md` | §1 and §2: a row per image and screen; for the one Pi image (§3), each of its two screens built, not tried until tried, §4 the ribbon camera beside each screen as tried, §6 a screen whose check failed |
-| `docs/STARTER.md` | §1.1 release files; §1.3 no payload of images, the image list; §3.2 and §3.3 what is offered; §9 points here |
+| `docs/STARTER.md` | §1.1 release files; §1.3 no images, the image list; §3.2 and §3.3 what is offered; §9 points here |
 | `docs/SECURITY-MODEL.md` | the Pi's table and "What the kernel can reach"; the PC's command line; "When root is used": the boot script's probes and overlays, configfs unmounted before the app (§3.4) |
 | `docs/ORIENTATION.md` | §1: the Pi's panel directories; §5 Rotation on them |
 | `docs/DEVELOPING.md` | the recipes for one image and for all |
@@ -491,24 +490,26 @@ marked so (`docs/HARDWARE.md` §6).
 5. The release recipes, `SHA256SUMS` lines and the image list (built:
    `just faraday-release-stage` stages every released image of
    `faraday/builds.toml`, its boot partition's line and `IMAGES`, and
-   refuses images of two builds; the Starter's payload is the stick
-   and the 2.8-inch Pi image until step 6). Left: the
+   refuses images of two builds; its second pass adds the Starters,
+   built with `IMAGES`). Left: the
    size and staging time of a full set, measured on the next release's
    builds.
-6. The Starter: no payload of images, finding and checking them, the
-   offers. Built: the finder (`faraday/shells/starter/src/finder.rs`):
-   the image list (`IMAGES`) is embedded beside the payload, Downloads
+6. The Starter: no images, finding and checking them, the offers.
+   Built: the Starter carries no payload; the release's image list
+   (`IMAGES`, named by `FARADAY_STARTER_IMAGES` at build) is embedded and
+   is all a found file is checked against; the finder
+   (`faraday/shells/starter/src/finder.rs`): Downloads
    and dropped files are looked at, and each file whose name is on the
    list is hashed off the window's thread and found, named as not
    matching, or named as another release's with the version needed; the
    Starter keeps the answer (`Starter::image_findings`). The writer
-   writes from a found file (`Source::Found`, from `Starter::image`
-   when the Starter carries no payload for the target): the `.xz`'s sum
+   writes from a found file (`Source::Found`, from `Starter::image`): the `.xz`'s sum
    is checked before a byte is written, and the size and SHA-256 of
-   what is written against the list's line, as the payload's are; a
-   file changed since it was found is refused with its path and sum. A
-   Pi card and a whole stick image only. Left: the offers, the
-   payload's removal.
+   what is written against the list's line; a
+   file changed since it was found is refused with its path and sum. The
+   offers (Make a Faraday stick and Make a Pi card, For which computer?,
+   Not found) are built. Left: the finder tried by a person on a
+   computer with a real release's images, which a release brings.
 7. Each screen's values, from its documentation, and tried on the
    panel to be marked tested: the 10-inch HDMI (with the USB
    touchscreen rule, §2) on the HDMI image today, and the 2.8-inch and

@@ -9,7 +9,6 @@
 
 use crate::api::{BootFile, BootSigner, Reason, StarterCommand, StarterEvent};
 use crate::decide::Target;
-use crate::macs::StickFor;
 use crate::{Page, Starter};
 
 /// The boot file a stick is written with, as What to write chose it.
@@ -30,12 +29,12 @@ pub struct BootPick {
 
 impl Starter {
     /// Whether the stick being made can be written with a boot file the
-    /// person signed: a stick for a PC or an Intel Mac, whose boot file
-    /// is `BOOTX64.EFI`. A lookup.
+    /// person signed: a stick, whose boot file is `BOOTX64.EFI`. A lookup.
     pub fn boot_file_offered(&self) -> bool {
-        self.making.as_ref().is_some_and(|m| {
-            m.target == Target::Stick && m.stick_for != Some(StickFor::AppleSilicon)
-        }) && self.image(Target::Stick).is_some()
+        self.making
+            .as_ref()
+            .is_some_and(|m| m.target == Target::Stick)
+            && self.image(Target::Stick).is_some()
     }
 
     /// What to write's boot file: the release's own, or one the person

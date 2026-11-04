@@ -2085,33 +2085,6 @@ const FINGERPRINT: &str = "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD";
 fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = appearance::text_size(starter, ui, x, y0, w);
     y += fact_row(ui, x, y, w, S.starter_version, crate::VERSION);
-    match &starter.payload {
-        Some(p) => {
-            y += fact_row(ui, x, y, w, S.starter_release, &p.version);
-            y += mono_row(ui, x, y, w, S.starter_commit, &p.commit);
-            y += 16.0;
-            y += label(ui, x, y, S.starter_payload);
-            for f in &p.files {
-                y += 4.0;
-                y += ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &f.name) + 4.0;
-                y += fact_row(ui, x, y, w, S.starter_build, &describe(&f.build_id));
-                y += mono_row(ui, x, y, w, S.starter_sha_xz, &grouped(&f.sha256));
-                let inner = fill(S.starter_sha_inner, &[&f.inner]);
-                y += mono_row(ui, x, y, w, &inner, &grouped(&f.inner_sha256));
-                y += 8.0;
-            }
-        }
-        None => {
-            y += line(
-                ui,
-                x,
-                y + 8.0,
-                w,
-                S.starter_no_payload,
-                Role::OnSurfaceVariant,
-            ) + 8.0
-        }
-    }
     if let Some(d) = &starter.dev {
         y += 8.0;
         y += warning(ui, x, y, w, S.starter_dev_image);

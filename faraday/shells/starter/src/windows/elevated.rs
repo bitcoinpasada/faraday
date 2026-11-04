@@ -7,7 +7,7 @@
 //! ```text
 //! --write --pipe \\.\pipe\faraday-starter-… --disk \\.\PhysicalDrive2
 //!   --device "Disk 2" --serial S --size N --mode whole|keep-data
-//!   (--payload NAME | --image PATH --image-size N) --sha256 HEX
+//!   (--found PATH --img-sha256 HEX | --image PATH --image-size N) --sha256 HEX
 //!   [--boot-file PATH --boot-file-sha256 HEX] [--name NAME]
 //!   [--clear-first yes]
 //! ```
@@ -41,9 +41,8 @@ pub const READ_VERSION: &str = "--read-version";
 /// Every pipe the Starter makes starts so.
 pub const PIPE_PREFIX: &str = r"\\.\pipe\faraday-starter-";
 
-/// The longest serial, payload name and image path taken.
+/// The longest serial and image path taken.
 const MAX_SERIAL: usize = 256;
-const MAX_NAME: usize = 200;
 const MAX_PATH: usize = 1024;
 
 /// A confirmed write, as the elevated copy is given it.
@@ -81,10 +80,6 @@ impl Elevated {
             .into(),
         ];
         match &o.source {
-            Source::Payload { name, inner_sha256 } => {
-                a.extend(["--payload".into(), name.clone()]);
-                a.extend(["--sha256".into(), inner_sha256.clone()]);
-            }
             Source::Found {
                 path,
                 xz_sha256,
@@ -127,14 +122,13 @@ impl Elevated {
         if !rest.len().is_multiple_of(2) {
             return Err(String::from("a key without its value"));
         }
-        const KEYS: [&str; 16] = [
+        const KEYS: [&str; 15] = [
             "--pipe",
             "--disk",
             "--device",
             "--serial",
             "--size",
             "--mode",
-            "--payload",
             "--image",
             "--image-size",
             "--sha256",
@@ -145,7 +139,7 @@ impl Elevated {
             "--found",
             "--img-sha256",
         ];
-        let mut got: [Option<&str>; 16] = [None; 16];
+        let mut got: [Option<&str>; 15] = [None; 15];
         for pair in rest.chunks(2) {
             let i = KEYS
                 .iter()
@@ -172,11 +166,11 @@ impl Elevated {
             "keep-data" => Mode::KeepData,
             m => return Err(format!("--mode {m}: not a mode")),
         };
-        let sha256 = need(9)?;
+        let sha256 = need(8)?;
         if !hex_sum(sha256) {
             return Err(String::from("--sha256: not a SHA-256"));
         }
-        let boot_file = match (got[10], got[11]) {
+        let boot_file = match (got[9], got[10]) {
             (None, None) => None,
             (Some(path), Some(sum)) => {
                 if !drive_path(path) {
@@ -192,19 +186,19 @@ impl Elevated {
             }
             _ => return Err(String::from("--boot-file with --boot-file-sha256")),
         };
-        let name = match got[12] {
+        let name = match got[11] {
             None => None,
             Some(n) if crate::ids::label_of(n).is_some() => Some(n.to_string()),
             Some(n) => return Err(format!("--name {n}: not a data partition's name")),
         };
-        let clear_first = match got[13] {
+        let clear_first = match got[12] {
             None => false,
             Some("yes") if mode == Mode::Whole => true,
             Some(c) => return Err(format!("--clear-first {c}: not asked for here")),
         };
-        let (source, image_size) = match (got[6], got[7], got[8]) {
-            (None, None, None) if got[14].is_some() => {
-                let (path, img) = (got[14].unwrap_or_default(), got[15].unwrap_or_default());
+        let (source, image_size) = match (got[6], got[7]) {
+            (None, None) if got[13].is_some() => {
+                let (path, img) = (got[13].unwrap_or_default(), got[14].unwrap_or_default());
                 if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
                     return Err(String::from("--found: not a full path"));
                 }
@@ -220,28 +214,10 @@ impl Elevated {
                     None,
                 )
             }
-            _ if got[14].is_some() || got[15].is_some() => {
+            _ if got[13].is_some() || got[14].is_some() => {
                 return Err(String::from("--found stands alone, with --img-sha256"));
             }
-            (Some(name), None, None) => {
-                let fine = !name.is_empty()
-                    && name.len() <= MAX_NAME
-                    && name.bytes().all(|b| {
-                        b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+')
-                    })
-                    && !name.starts_with('.');
-                if !fine {
-                    return Err(format!("--payload {name}: not a payload file's name"));
-                }
-                (
-                    Source::Payload {
-                        name: name.to_string(),
-                        inner_sha256: sha256.to_string(),
-                    },
-                    None,
-                )
-            }
-            (None, Some(path), Some(len)) => {
+            (Some(path), Some(len)) => {
                 if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
                     return Err(String::from("--image: not a full path"));
                 }
@@ -255,9 +231,7 @@ impl Elevated {
                 )
             }
             _ => {
-                return Err(String::from(
-                    "one of --payload or --image with --image-size",
-                ));
+                return Err(String::from("one of --found or --image with --image-size"));
             }
         };
         Ok(Elevated {

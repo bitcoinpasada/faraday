@@ -4,7 +4,7 @@
 //! the Starter asks for no frame.
 
 use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware, TouchPhase};
-use faraday_starter::api::{Computer, Os, Payload, PayloadFile, StarterEvent};
+use faraday_starter::api::{Computer, Os, StarterEvent};
 use faraday_starter::decide::Item;
 use faraday_starter::{Page, Starter, StarterAction};
 
@@ -38,22 +38,7 @@ fn starter(width: u16, height: u16) -> Starter {
         secure_boot: Some(true),
         tpm_unlock: false,
     }));
-    let file = |name: &str, n: char| PayloadFile {
-        name: name.into(),
-        sha256: n.to_string().repeat(64),
-        inner: name.trim_end_matches(".xz").into(),
-        inner_sha256: n.to_ascii_uppercase().to_string().repeat(64),
-        inner_size: 4_000_000_000,
-        build_id: "0.2.0".into(),
-    };
-    s.starter_event(StarterEvent::Payload(Some(Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
-        files: vec![
-            file("faraday-stick-0.2.0-x86_64-uefi.img.xz", 'a'),
-            file("faraday-pi-0.2.0.img.xz", 'b'),
-        ],
-    })));
+    s.starter_event(StarterEvent::ImagesFound(super::starter::images("0.2.0")));
     s.starter_event(StarterEvent::Disks(Vec::new()));
     let _ = s.drawn_texts();
     while s.poll_command().is_some() {}

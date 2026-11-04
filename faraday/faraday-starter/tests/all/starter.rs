@@ -3,7 +3,7 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
-    Bus, Computer, DevImage, Disk, FaradayStick, InUse, Mode, Os, Payload, PayloadFile, Reason,
+    Bus, Computer, DevImage, Disk, FaradayStick, FoundImage, ImageFinding, InUse, Mode, Os, Reason,
     Source, StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
@@ -26,35 +26,32 @@ pub(super) fn display(width: u16, height: u16, dpi: u16) -> Event {
     })
 }
 
-pub(super) fn payload(stick_build: &str) -> Payload {
-    let file = |name: &str, inner: &str, size: u64, build: &str, n: char| PayloadFile {
-        name: name.into(),
-        sha256: n.to_string().repeat(64),
-        inner: inner.into(),
-        inner_sha256: n.to_ascii_uppercase().to_string().repeat(64),
-        inner_size: size,
-        build_id: build.into(),
+/// The stick and Pi images the finder found in Downloads, the stick's
+/// carrying `stick_build`.
+pub(super) fn images(stick_build: &str) -> Vec<ImageFinding> {
+    let file = |name: &str, size: u64, build: &str, n: char, img: char| {
+        ImageFinding::Found(FoundImage {
+            path: format!("/Downloads/{name}"),
+            name: name.into(),
+            xz_sha256: n.to_string().repeat(64),
+            img_sha256: img.to_string().repeat(64),
+            inner_size: size,
+            build_id: build.into(),
+            board: String::new(),
+            panel: String::new(),
+            starts: Vec::new(),
+        })
     };
-    Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
-        files: vec![
-            file(
-                "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-                "faraday-stick-0.2.0-x86_64-uefi.img",
-                4 * GB,
-                stick_build,
-                'a',
-            ),
-            file(
-                "faraday-pi-0.2.0.img.xz",
-                "faraday-pi-0.2.0.img",
-                3 * GB,
-                "0.2.0",
-                'b',
-            ),
-        ],
-    }
+    vec![
+        file(
+            "faraday-stick-0.2.0-x86_64-uefi.img.xz",
+            4 * GB,
+            stick_build,
+            'a',
+            '1',
+        ),
+        file("faraday-pi-0.2.0.img.xz", 3 * GB, "0.2.0", 'b', '2'),
+    ]
 }
 
 pub(super) fn disk(id: &str, model: &str, size: u64) -> Disk {
@@ -147,7 +144,7 @@ fn starter_with(disks: Vec<Disk>) -> Starter {
     let mut starter = Starter::new();
     starter.event(display(1280, 800, 160));
     starter.starter_event(StarterEvent::Computer(linux(true)));
-    starter.starter_event(StarterEvent::Payload(Some(payload("0.2.0"))));
+    starter.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
     starter.starter_event(StarterEvent::Disks(disks));
     starter
 }
@@ -318,9 +315,7 @@ fn confirm_writes_the_disk_confirmed_with_its_serial_and_size() {
     assert_eq!(order.serial, "SN-sdb");
     assert_eq!(order.size, 16 * GB);
     assert_eq!(order.mode, Mode::Whole);
-    assert!(
-        matches!(&order.source, Source::Payload { name, .. } if name.starts_with("faraday-stick-"))
-    );
+    assert!(matches!(&order.source, Source::Found { path, .. } if path.contains("faraday-stick-")));
     assert_eq!(starter.page, Page::Writing);
 }
 
@@ -783,19 +778,13 @@ fn start_opens_the_makers_page_and_its_address_is_on_the_restart() {
 }
 
 #[test]
-fn about_lists_the_payload() {
+fn about_shows_the_release_key_and_how_to_check_a_download() {
     let mut starter = starter_with(Vec::new());
     starter.press(StarterAction::About);
-    for s in [
-        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-        "faraday-pi-0.2.0.img.xz",
-        "aaaa aaaa",
-        "AAAA AAAA",
-        "SHA-256 of faraday-stick-0.2.0-x86_64-uefi.img",
-        "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD",
-    ] {
-        assert!(seen_scrolling(&mut starter, s), "{s}");
-    }
+    assert!(seen_scrolling(
+        &mut starter,
+        "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD"
+    ));
 }
 
 /// Whether `s` is drawn anywhere on the page, scrolled from its top to

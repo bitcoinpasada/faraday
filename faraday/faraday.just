@@ -46,13 +46,13 @@ stick_panel := "efi-framebuffer"
 # Demo inside the Starter, which carries it compiled in (F126). The
 # Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
-# the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
-# `just faraday-release-stage` left: FARADAY_STARTER_PAYLOAD=out/payload/VERSION/linux
+# the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the image list a first
+# `just faraday-release-stage` left: FARADAY_STARTER_IMAGES=out/release/VERSION/IMAGES
 # in the environment is mounted into the container and built in (STARTER
-# §1.3); without it the Starter carries no payload. Then
+# §1.3); without it the Starter finds no image of a release. Then
 # `just faraday-release-stage-starter VERSION` adds it to the release.
 #
-#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0/linux just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter
+#   FARADAY_STARTER_IMAGES=out/release/0.2.0/IMAGES just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter
 #
 # Sticks are folders in ~/faraday-sticks: BOOTSTICK, plugged in at start
 # as the stick the device booted from (renamed, the app starts with no
@@ -73,16 +73,16 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
     {{docker}} build -t faraday-build-linux -f faraday/build/linux/Containerfile faraday/build/linux
-    # The Starter's payload, mounted where build.rs reads it.
-    payload=()
-    if [ -n "${FARADAY_STARTER_PAYLOAD:-}" ]; then
-        [ -f "$FARADAY_STARTER_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_STARTER_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
-        payload=(-v "$(realpath "$FARADAY_STARTER_PAYLOAD")":/payload:ro -e FARADAY_STARTER_PAYLOAD=/payload)
+    # The release's image list, mounted where build.rs reads it.
+    images=()
+    if [ -n "${FARADAY_STARTER_IMAGES:-}" ]; then
+        [ -f "$FARADAY_STARTER_IMAGES" ] || { echo "$FARADAY_STARTER_IMAGES: not there" >&2; exit 1; }
+        images=(-v "$(realpath "$FARADAY_STARTER_IMAGES")":/images/IMAGES:ro -e FARADAY_STARTER_IMAGES=/images/IMAGES)
     fi
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
         -e FARADAY_BUILD="$FARADAY_BUILD" \
-        ${payload[@]+"${payload[@]}"} \
+        ${images[@]+"${images[@]}"} \
         -v "$root":/src:ro \
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/linux":/build \
@@ -98,12 +98,12 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 # Parameters are positional, in this order, as faraday-linux-bin's are;
 # the last two default to the Starter, which carries Faraday Demo compiled
 # in (F126); the desktop app alone is a developer's build.
-# FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
-# builds that payload into the Starter (the stick and Pi images); without
-# it the Starter offers only --image. what
+# FARADAY_STARTER_IMAGES=out/release/VERSION/IMAGES
+# builds that image list into the Starter; without
+# it the Starter finds no image of a release and offers only --image. what
 # `clippy` runs clippy for the Windows target on that package instead.
 #
-#   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0/windows just faraday-windows-bin
+#   FARADAY_STARTER_IMAGES=out/release/0.2.0/IMAGES just faraday-windows-bin
 #   just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
 #   just faraday-windows-bin clippy out/windows out/build/run faraday-desktop faraday
 [group('build')]
@@ -115,15 +115,15 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV=0 FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
     {{docker}} build -t faraday-build-windows -f faraday/build/windows/Containerfile faraday/build/windows
-    payload=()
-    if [ -n "${FARADAY_STARTER_PAYLOAD:-}" ]; then
-        [ -f "$FARADAY_STARTER_PAYLOAD/MANIFEST" ] || { echo "$FARADAY_STARTER_PAYLOAD/MANIFEST: not there" >&2; exit 1; }
-        payload=(-v "$(realpath "$FARADAY_STARTER_PAYLOAD")":/payload:ro -e FARADAY_STARTER_PAYLOAD=/payload)
+    images=()
+    if [ -n "${FARADAY_STARTER_IMAGES:-}" ]; then
+        [ -f "$FARADAY_STARTER_IMAGES" ] || { echo "$FARADAY_STARTER_IMAGES: not there" >&2; exit 1; }
+        images=(-v "$(realpath "$FARADAY_STARTER_IMAGES")":/images/IMAGES:ro -e FARADAY_STARTER_IMAGES=/images/IMAGES)
     fi
     {{docker}} run --rm \
         -e SOURCE_DATE_EPOCH="{{source_date_epoch}}" \
         -e FARADAY_BUILD="$FARADAY_BUILD" \
-        ${payload[@]+"${payload[@]}"} \
+        ${images[@]+"${images[@]}"} \
         -v "$root":/src:ro \
         -v "$root/{{out}}":/out \
         -v "$root/{{cache}}/windows":/build \
@@ -261,8 +261,8 @@ guide-pictures out="docs/guide/pictures": (faraday-testkit "out/testkit-mainnet"
 # The Starter (docs/STARTER.md), built and run here: `just faraday-starter`, or
 # `just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img` to write
 # a dev image, through the same screens and writer as a release's.
-# FARADAY_STARTER_PAYLOAD=out/payload/VERSION builds that payload in; without
-# it the Starter offers only --image. release=1 makes a release
+# FARADAY_STARTER_IMAGES=out/release/VERSION/IMAGES builds that image list in; without
+# it the Starter finds no image of a release and offers only --image. release=1 makes a release
 # build with no local paths in it (faraday/image/path-remap.sh); the build
 # for publishing is `just faraday-linux-bin` with the arguments
 # `out/linux out/build/run faraday-starter-shell faraday-starter`, in the glibc 2.31 container (`just faraday-linux-bin`'s
@@ -470,17 +470,15 @@ faraday-pi-image: faraday-pi-bin
 # Stages a release's plain files under out/release/VERSION/: every built
 # image faraday/builds.toml names release files for, as .xz under those
 # names (docs/IMAGES.md §4), the stick builds' boot programs, IMAGES (the
-# release's image list) and SHA256SUMS listing each file, each image
-# inside its .xz and each image's boot partition, for the owner to sign,
-# and the Starter's payload and MANIFEST under out/payload/VERSION/
-# (STARTER §1.3); refuses files carrying a home folder, user name or host
+# release's image list, which the Starters are built with, STARTER §1.3)
+# and SHA256SUMS listing each file, each image
+# inside its .xz and each image's boot partition, for the owner to sign;
+# refuses files carrying a home folder, user name or host
 # name. Every image must be built first (the image recipes above, each
 # screen), all must carry one build ID, and that the release's
 # (release=1); --any-build tries it on a test build. Faraday Demo is
 # compiled into the Starter (F126) and staged nowhere: no faraday-demo
-# file is in the payload or the release folder. The payload has linux/
-# and windows/, one for each Starter, each holding the stick image,
-# the 2.8-inch Pi image and MANIFEST.
+# file is in the release folder.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR
@@ -490,11 +488,11 @@ faraday-release-stage VERSION *args:
 
 # The second pass of staging (STARTER §1.3): adds the Linux Starter,
 # out/linux/faraday-starter, and the Windows Starter,
-# out/windows/faraday-starter.exe, both built against the payload the first
+# out/windows/faraday-starter.exe, both built against the IMAGES the first
 # pass wrote, to the folder the first pass staged:
 # Faraday-Starter-VERSION-Linux.tar.gz holding Faraday-Starter-VERSION-Linux,
 # and Faraday-Starter-VERSION-Windows.exe, all three in SHA256SUMS. Refuses a
-# Starter that does not carry that payload. With --out DIR it adds to DIR,
+# Starter that does not carry that list. With --out DIR it adds to DIR,
 # as the first pass was given.
 #
 #   just faraday-release-stage-starter 0.2.0

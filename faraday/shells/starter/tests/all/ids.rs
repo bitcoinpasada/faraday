@@ -18,7 +18,7 @@ use crate::sticks::{
     self, BOOT_FIRST, DATA_FIRST, IDS, IMAGE, SECTOR, SERIALS, STICK, Sparse, card_id_places,
     card_image, ids_put_back, read, stick_image,
 };
-use crate::writer::{FileDisk, image_job, made_from, release_payload, run, tmp};
+use crate::writer::{FileDisk, image_job, made_from, release_image, run, tmp};
 
 /// The data partition's length on a stick made for a disk of `disk_len`
 /// bytes: from sector 133120 to the last usable sector.
@@ -92,7 +92,7 @@ fn v4(guid: &str) -> bool {
 #[test]
 fn two_sticks_written_from_one_image_have_their_own_ids_and_the_same_boot_partition() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let (from, to) = sticks::boot_range();
     let boot = image.bytes(from, (to - from) as usize);
     let mut seen = Vec::new();
@@ -185,7 +185,7 @@ fn name_on(path: &Path, at: u64, len: u64) -> Option<String> {
 #[test]
 fn a_stick_written_with_a_name_shows_it_on_the_data_partition_alone() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let path = tmp("name-stick");
     Sparse::new(STICK).write(&path);
     let mut disk = FileDisk::new(&path);
@@ -229,7 +229,7 @@ fn a_pi_card_written_with_a_name_shows_it() {
 #[test]
 fn a_name_a_fat_label_cannot_be_or_a_boot_partitions_is_refused_and_nothing_is_written() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     for name in [
         "EFI",
         "bootfs",
@@ -357,7 +357,7 @@ fn a_stick_made_for_its_size_reads_clean_in_other_tools_at_1_32_and_256_gb() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a folder");
     let img = tools_image(&dir);
-    let image = faraday_starter_shell::payload::Image::hash(&img).expect("hashed");
+    let image = faraday_starter_shell::image::Image::hash(&img).expect("hashed");
     let source = faraday_starter::api::Source::Image {
         path: img.display().to_string(),
         sha256: image.sum.sha256.to_string(),
@@ -444,7 +444,7 @@ fn a_name_the_starter_wrote_reads_the_same_in_fatlabel_and_the_volume_passes_fsc
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("a folder");
     let img = tools_image(&dir);
-    let image = faraday_starter_shell::payload::Image::hash(&img).expect("hashed");
+    let image = faraday_starter_shell::image::Image::hash(&img).expect("hashed");
     let source = faraday_starter::api::Source::Image {
         path: img.display().to_string(),
         sha256: image.sum.sha256.to_string(),

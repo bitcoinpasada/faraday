@@ -6,8 +6,7 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
-    Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile, Reason, StarterCommand,
-    StarterEvent,
+    Bus, Computer, Disk, FaradayStick, Mode, Os, Reason, StarterCommand, StarterEvent,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{Page, Starter, StarterAction};
@@ -28,21 +27,6 @@ fn display() -> Event {
         boot: BootState::Unknown,
         memory_mib: None,
     })
-}
-
-fn payload() -> Payload {
-    Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
-        files: vec![PayloadFile {
-            name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
-            sha256: "a".repeat(64),
-            inner: "faraday-stick-0.2.0-x86_64-uefi.img".into(),
-            inner_sha256: "A".repeat(64),
-            inner_size: 4 * GB,
-            build_id: "0.2.0".into(),
-        }],
-    }
 }
 
 /// A Faraday stick as Windows lists it without elevation.
@@ -81,7 +65,7 @@ fn starter() -> Starter {
     let mut s = Starter::new();
     s.event(display());
     s.starter_event(StarterEvent::Computer(windows()));
-    s.starter_event(StarterEvent::Payload(Some(payload())));
+    s.starter_event(StarterEvent::ImagesFound(super::starter::images("0.2.0")));
     s.starter_event(StarterEvent::Disks(vec![unread_stick()]));
     s
 }

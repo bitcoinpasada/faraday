@@ -124,7 +124,8 @@ none is part of `just`, which stays fast.
    The notes also quote `crosscheck-<version>.txt`: the seed, the scale,
    each area's answers and "every answer agreed".
 4. The release is staged (`faraday/tools/stage-release.sh`, `docs/STARTER.md`
-   §1.3) and signed.
+   §1.3): the plain files and `IMAGES`, then the Starters, built against
+   that `IMAGES` (`FARADAY_STARTER_IMAGES`); and signed.
 
 A new parser of untrusted input gets its fuzz target in the change that
 adds it; `fuzz/README.md` and `faraday/fuzz/README.md` list what each

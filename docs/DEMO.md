@@ -8,7 +8,7 @@
 1. Faraday Starter on Linux and Windows has Faraday Demo compiled in:
    **Open Faraday Demo** on Home shows it in the Starter's own window,
    under the Starter's top app bar (F126, which amends F83; F83 amends
-   F30 and F61). It is not installed and not a payload file. Releases
+   F30 and F61). It is not installed and not a release file. Releases
    do not publish it on its own; the macOS Starter and the macOS
    desktop app carry none.
 2. The code and its builds stay: `faraday/shells/desktop`, `cargo build
@@ -279,8 +279,8 @@ Moved to `docs/history/DEMO-LOG.md`.
 
 ## 9. Releases
 
-A payload carries the images alone: Faraday Demo is compiled into the
-Starter (F126). Staging (`faraday/tools/stage-release.sh`) takes no
+The Starter carries no image: Faraday Demo is compiled into it
+(F126). Staging (`faraday/tools/stage-release.sh`) takes no
 Faraday Demo build and refuses a release folder holding any file named
 `faraday-demo-…`. The desktop app is not published beside the
 Starters.

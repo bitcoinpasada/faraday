@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use faraday_starter::api::{Mode, Reason, Source as Confirmed, StickFault, WriteOrder, WriteStage};
 use faraday_starter_shell::gpt;
-use faraday_starter_shell::payload::{Image, Payload};
+use faraday_starter_shell::image::Image;
 use faraday_starter_shell::writer::{self, Device, Identity, Job};
 
 use crate::sticks::{
@@ -20,7 +20,6 @@ const XZ_SHA: &str = "d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5ea
 const IMG_SHA: &str = "c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c";
 const IMG_SIZE: usize = 39_936;
 const NAME: &str = "faraday-stick-0.2.0-x86_64-uefi.img.xz";
-const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 
 /// The image inside `fixture.img.xz`, made again as its README says.
 fn fixture_img() -> Vec<u8> {
@@ -146,51 +145,45 @@ impl Device for FileDisk {
     }
 }
 
-fn manifest() -> Vec<u8> {
-    format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\t{IMG_SHA}\n"
-    )
-    .into_bytes()
-}
-
-fn payload(xz: &[u8]) -> Payload {
-    Payload::from_parts(&manifest(), vec![(NAME.to_string(), xz.to_vec())]).expect("a payload")
-}
-
-fn payload_source() -> Confirmed {
-    Confirmed::Payload {
+/// The fixture image as a release image found in a folder: its `.xz`
+/// on disk and its line in the release's list, and the order's source
+/// for it.
+fn fixture() -> (Job, Confirmed) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let path = tmp(&format!(
+        "fixture-{}.img.xz",
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    std::fs::write(&path, XZ).expect("the found file");
+    let file = faraday_payload::PayloadFile {
         name: NAME.to_string(),
-        inner_sha256: IMG_SHA.to_string(),
-    }
-}
-
-/// The Starter's payload carrying `image` as a release's stick image,
-/// and the order's source for it.
-pub(crate) fn release_payload(image: &Sparse) -> (Job, Confirmed) {
-    let (from, to) = boot_range();
-    let boot = sticks::sha(&image.to_vec()[from as usize..to as usize]);
-    release_payload_listing(image, &boot)
-}
-
-/// The same, with `boot_sha` as the manifest's SHA-256 of the image's
-/// boot partition.
-fn release_payload_listing(image: &Sparse, boot_sha: &str) -> (Job, Confirmed) {
-    let img = image.to_vec();
-    let xz = sticks::stored_xz(&img);
-    let img_sha = sticks::sha(&img);
-    drop(img);
-    let manifest = format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{}\tfaraday-stick-0.2.0-x86_64-uefi.img\t{img_sha}\t{}\t0.2.0+0123456789ab\t{boot_sha}\n",
-        sticks::sha(&xz),
-        image.len,
-    );
-    let payload =
-        Payload::from_parts(manifest.as_bytes(), vec![(NAME.to_string(), xz)]).expect("a payload");
-    let job = payload.job(NAME, &img_sha).expect("carried");
-    let source = Confirmed::Payload {
-        name: NAME.to_string(),
-        inner_sha256: img_sha,
+        sha256: faraday_payload::Sha256Sum::from_hex(XZ_SHA).expect("a sum"),
+        inner_name: NAME.trim_end_matches(".xz").to_string(),
+        inner_sha256: faraday_payload::Sha256Sum::from_hex(IMG_SHA).expect("a sum"),
+        inner_size: IMG_SIZE as u64,
+        build_id: "0.2.0+0123456789ab".to_string(),
+        boot_sha256: faraday_payload::Sha256Sum::from_hex(IMG_SHA),
     };
+    let source = Confirmed::Found {
+        path: path.display().to_string(),
+        xz_sha256: XZ_SHA.to_string(),
+        img_sha256: IMG_SHA.to_string(),
+    };
+    (Job::Found { file, path }, source)
+}
+
+/// `image` as a release's stick image found in a folder, and the order's
+/// source for it.
+pub(crate) fn release_image(image: &Sparse) -> (Job, Confirmed) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let name = format!(
+        "release-image-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    );
+    let (job, source, _) = found_job(&name, image);
     (job, source)
 }
 
@@ -260,9 +253,9 @@ fn kept(path: &Path, at: u64, byte: u8, len: usize) {
 }
 
 #[test]
-fn a_whole_write_from_the_payload_makes_a_stick_for_the_disk() {
+fn a_whole_write_from_a_found_image_makes_a_stick_for_the_disk() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let (path, _) = blank("whole");
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source, Mode::Whole);
@@ -286,16 +279,20 @@ fn a_whole_write_from_the_payload_makes_a_stick_for_the_disk() {
 }
 
 #[test]
-fn a_payload_file_that_does_not_match_its_manifest_writes_nothing() {
-    let path = tmp("bad-payload");
+fn a_found_file_that_does_not_match_its_list_line_writes_nothing() {
+    let path = tmp("bad-found");
     std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(payload_source(), Mode::Whole);
+    let (job, source) = fixture();
+    let Job::Found { path: found, .. } = &job else {
+        unreachable!()
+    };
     let mut damaged = XZ.to_vec();
     damaged[200] ^= 1;
-    let job = payload(&damaged).job(NAME, IMG_SHA).expect("carried");
+    std::fs::write(found, damaged).expect("damaged");
+    let order = disk.order(source, Mode::Whole);
     let (r, _) = run(&order, &job, &mut disk);
-    assert_eq!(r, Err(Reason::PayloadSum));
+    assert!(matches!(r, Err(Reason::ImageChanged { .. })), "{r:?}");
     assert!(
         std::fs::read(&path)
             .expect("read")
@@ -449,10 +446,10 @@ fn a_found_file_whose_inside_is_not_the_listed_size_fails_the_write() {
 fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte() {
     let path = tmp("changed");
     std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
-    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let (job, source) = fixture();
     for change in ["serial", "size"] {
         let mut disk = FileDisk::new(&path);
-        let order = disk.order(payload_source(), Mode::Whole);
+        let order = disk.order(source.clone(), Mode::Whole);
         match change {
             "serial" => disk.now.serial = String::from("SERIAL2"),
             _ => disk.now.size += 512,
@@ -513,9 +510,9 @@ fn an_image_with_no_place_for_a_sticks_own_ids_is_not_written_whole() {
     // The payload fixture is text: no partition table at all.
     let path = tmp("no-table");
     std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
-    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let (job, source) = fixture();
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(payload_source(), Mode::Whole);
+    let order = disk.order(source.clone(), Mode::Whole);
     let (r, _) = run(&order, &job, &mut disk);
     assert!(matches!(r, Err(Reason::NotStickImage(_))), "{r:?}");
     assert_eq!(disk.calls, ["identity"]);
@@ -547,28 +544,25 @@ fn an_image_with_no_place_for_a_sticks_own_ids_is_not_written_whole() {
 #[test]
 fn a_source_one_byte_off_is_refused_and_nothing_is_written() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
-    let Job::Payload { file, .. } = &job else {
-        panic!("a payload");
+    let (job, source) = release_image(&image);
+    let Job::Found { path: found, .. } = &job else {
+        panic!("a found image");
     };
     let mut off = image.to_vec();
     off[boot_range().0 as usize + 1000] ^= 1;
-    let job = Job::Payload {
-        file: file.clone(),
-        bytes: std::borrow::Cow::Owned(sticks::stored_xz(&off)),
-    };
+    std::fs::write(found, sticks::stored_xz(&off)).expect("replaced");
     let (path, before) = blank("off-by-one");
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source, Mode::Whole);
     let (r, _) = run(&order, &job, &mut disk);
-    assert_eq!(r, Err(Reason::PayloadSum));
+    assert!(matches!(r, Err(Reason::ImageChanged { .. })), "{r:?}");
     unchanged(&before, &path);
 }
 
 #[test]
 fn a_boot_partition_read_back_one_byte_off_fails_the_write() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let (path, _) = blank("read-off");
     let mut disk = FileDisk::new(&path);
     disk.flip_on_read = Some(boot_range().0 + 5000);
@@ -580,7 +574,7 @@ fn a_boot_partition_read_back_one_byte_off_fails_the_write() {
 #[test]
 fn a_table_read_back_one_byte_off_fails_the_write() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let (path, _) = blank("read-off-table");
     let mut disk = FileDisk::new(&path);
     disk.flip_on_read = Some(STICK - 100);
@@ -619,7 +613,7 @@ fn data_head(path: &Path) -> u64 {
 #[test]
 fn clearing_first_leaves_every_sector_outside_what_is_then_written_zero() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let mut dirty = Sparse::new(STICK);
     for at in [0, 3 << 20, 100 << 20, IMAGE + 4096, STICK - 4096] {
         dirty.put(at, &[0xEE; 4096]);
@@ -658,7 +652,7 @@ fn keep_data_does_not_clear_first() {
     let before = stick();
     let path = disk_file("keep-clear", &before);
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let mut disk = FileDisk::new(&path);
     let order = WriteOrder {
         clear_first: true,
@@ -672,7 +666,7 @@ fn keep_data_does_not_clear_first() {
 #[test]
 fn keep_data_on_a_stick_made_for_its_size_keeps_its_table_and_data_partition() {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let (path, _) = blank("made-then-kept");
     let mut disk = FileDisk::new(&path);
     let order = disk.order(source.clone(), Mode::Whole);
@@ -909,9 +903,9 @@ fn a_refused_write_reads_as_its_string_from_the_strings_file() {
     use faraday_core::strings::fill;
     let path = tmp("reads-as");
     std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
-    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let (job, source) = fixture();
     let mut disk = FileDisk::new(&path);
-    let order = disk.order(payload_source(), Mode::Whole);
+    let order = disk.order(source.clone(), Mode::Whole);
     disk.now.serial = String::from("SERIAL2");
     let size = disk.now.size.to_string();
     let (r, _) = run(&order, &job, &mut disk);
@@ -1190,7 +1184,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
     )
     .expect("a recorded answer");
     let objects = Objects::parse(&recorded).expect("a well-formed recording");
-    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let (job, source) = fixture();
     let cases = [
         (
             "sdh",
@@ -1206,7 +1200,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
         let block = format!("/org/freedesktop/UDisks2/block_devices/{name}");
         let order = WriteOrder {
             clear_first: false,
-            source: payload_source(),
+            source: source.clone(),
             disk: block.clone(),
             device: format!("/dev/{name}"),
             serial: serial.into(),

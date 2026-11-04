@@ -4,8 +4,8 @@
 //! programs, published on their own for signing on Faraday (F134), and the
 //! release's image list, whose lines and `SHA256SUMS` check a download, the
 //! image inside it and a card or stick already written; images of two
-//! builds are refused. Each Starter's payload holds the stick and
-//! the 2.8-inch Pi image and its MANIFEST, and no Faraday Demo file is
+//! builds are refused. The Starter carries no image, only that list: a
+//! Starter built without it is not added. No Faraday Demo file is
 //! needed or staged anywhere: it is compiled into the Starter (F126). A
 //! release folder holding a desktop app is refused by name. The builds are
 //! small stand-ins carrying a build ID where the script reads one; the
@@ -15,7 +15,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use faraday_payload::Manifest;
 use sha2::{Digest, Sha256};
 
 const VERSION: &str = "0.9.0";
@@ -49,9 +48,6 @@ const IMAGES: [Image; 2] = [
         listed: ["pi3", "any", PI_BOARDS],
     },
 ];
-/// The stick's and the Pi's, which each Starter carries.
-const STICK: &str = "faraday-stick-0.9.0-x86_64-uefi.img";
-const PI: &str = "faraday-pi-0.9.0.img";
 
 fn fresh(name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("stage-release-{name}"));
@@ -219,14 +215,11 @@ fn stage_builds(root: &Path, builds: &Path) -> Output {
         builds.to_str().expect("a path"),
         "--out",
         root.join("release").to_str().expect("a path"),
-        "--payload",
-        root.join("payload").to_str().expect("a path"),
     ])
 }
 
-/// A first pass over the test builds. Returns the release and payload
-/// folders.
-fn first_pass(root: &Path) -> (PathBuf, PathBuf) {
+/// A first pass over the test builds. Returns the release folder.
+fn first_pass(root: &Path) -> PathBuf {
     let builds = builds(root);
     let done = stage_builds(root, &builds);
     assert!(
@@ -234,7 +227,7 @@ fn first_pass(root: &Path) -> (PathBuf, PathBuf) {
         "staging failed: {}",
         String::from_utf8_lossy(&done.stderr)
     );
-    (root.join("release"), root.join("payload"))
+    root.join("release")
 }
 
 fn names(dir: &Path) -> Vec<String> {
@@ -279,12 +272,12 @@ fn boot_partition(image: &[u8]) -> &[u8] {
 }
 
 /// With no Faraday Demo built at all, the release holds every image, the
-/// boot program, `IMAGES` and `SHA256SUMS`, and each payload the
-/// stick image, the 2.8-inch Pi image, its MANIFEST and the image list.
+/// boot program, `IMAGES` and `SHA256SUMS`, and nothing is staged
+/// beside the release folder.
 #[test]
-fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
+fn the_release_holds_the_images_and_staging_needs_no_faraday_demo() {
     let root = fresh("staged");
-    let (out, payload) = first_pass(&root);
+    let out = first_pass(&root);
 
     let listed: Vec<String> = sums(&out).into_iter().map(|(_, name)| name).collect();
     let mut want: Vec<String> = IMAGES
@@ -316,44 +309,8 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
         .unwrap_or_err("sha256sum");
     assert!(checked.status.success(), "{checked:?}");
 
-    for system in ["linux", "windows"] {
-        let dir = payload.join(system);
-        assert_eq!(
-            names(&dir),
-            [
-                "IMAGES",
-                "MANIFEST",
-                &format!("{PI}.xz"),
-                &format!("{STICK}.xz")
-            ],
-            "{system}"
-        );
-        let m = Manifest::parse(&fs::read(dir.join("MANIFEST")).expect("MANIFEST"))
-            .expect("a manifest");
-        let files: Vec<&str> = m.files().iter().map(|f| f.name.as_str()).collect();
-        assert_eq!(
-            files,
-            [format!("{STICK}.xz"), format!("{PI}.xz")],
-            "{system}"
-        );
-        // The stick's line carries its boot partition's sum as
-        // SHA256SUMS lists it; the Pi's carries none.
-        let listed = sums(&out)
-            .into_iter()
-            .find(|(_, n)| *n == format!("{}-boot.vfat", STICK.trim_end_matches(".img")))
-            .map(|(sum, _)| sum);
-        assert_eq!(
-            m.file(&format!("{STICK}.xz"))
-                .and_then(|f| f.boot_sha256)
-                .map(|s| s.to_string()),
-            listed,
-            "{system}"
-        );
-        assert_eq!(
-            m.file(&format!("{PI}.xz")).map(|f| f.boot_sha256),
-            Some(None)
-        );
-    }
+    // No payload folder is made beside the release.
+    assert!(!root.join("payload").exists());
 }
 
 /// The release's image list: one line per image, its sums those of the
@@ -364,7 +321,7 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
 #[test]
 fn the_image_list_and_the_sums_check_each_image_and_a_written_card() {
     let root = fresh("list");
-    let (out, _) = first_pass(&root);
+    let out = first_pass(&root);
     let list = fs::read_to_string(out.join("IMAGES")).expect("IMAGES");
     let mut lines = list.lines();
     assert!(
@@ -427,11 +384,11 @@ fn staging_refuses_images_of_different_builds() {
 /// The boot programs a release publishes (F134): each stick image's
 /// `EFI/BOOT/BOOTX64.EFI` byte for byte, beside the images and listed in
 /// `SHA256SUMS` with its SHA-256, so the sums Faraday checks before
-/// signing it name it; and not in the Starter's payload.
+/// signing it name it.
 #[test]
 fn staging_publishes_the_boot_program_and_lists_it_in_the_sums() {
     let root = fresh("boot");
-    let (out, payload) = first_pass(&root);
+    let out = first_pass(&root);
     let published = fs::read(out.join(BOOT)).expect("the boot program is published");
     assert_eq!(published, kernel());
     let sha = Command::new("sha256sum")
@@ -449,9 +406,6 @@ fn staging_publishes_the_boot_program_and_lists_it_in_the_sums() {
         "{sums}"
     );
     assert!(sums.starts_with(&format!("# Faraday {VERSION}, commit ")));
-    for system in ["linux", "windows"] {
-        assert!(!payload.join(system).join(BOOT).exists(), "{system}");
-    }
 }
 
 #[test]
@@ -489,20 +443,11 @@ fn staging_refuses_a_stick_image_without_a_boot_program() {
 #[test]
 fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
     let root = fresh("refused");
-    let (out, payload) = first_pass(&root);
+    let out = first_pass(&root);
     // A desktop app left in the release folder, which is not published.
     let left = out.join(format!("faraday-demo-{VERSION}-testnet-only-linux-x86_64"));
     fs::write(&left, "a desktop app").expect("file");
-    // A Starter built against the payload: it carries its MANIFEST's
-    // first line.
-    let first = fs::read_to_string(payload.join("linux/MANIFEST"))
-        .expect("MANIFEST")
-        .lines()
-        .next()
-        .expect("a first line")
-        .to_string();
-    let starter = root.join("faraday-starter");
-    fs::write(&starter, format!("a Starter\n{first}\n")).expect("starter");
+    let starter = starter_with(&root, &out);
 
     let done = stage(&[
         VERSION,
@@ -510,8 +455,6 @@ fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
         starter.to_str().expect("a path"),
         "--out",
         out.to_str().expect("a path"),
-        "--payload",
-        payload.to_str().expect("a path"),
     ]);
     assert!(
         !done.status.success(),
@@ -525,6 +468,61 @@ fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
             .exists()
     );
     assert!(out.join("SHA256SUMS").is_file());
+}
+
+/// A Starter built against the release's image list carries it; one built
+/// without it, or against another release's, is not added. What the
+/// second pass adds is listed in `SHA256SUMS`.
+#[test]
+fn a_starter_is_added_only_if_it_carries_this_releases_image_list() {
+    let root = fresh("second");
+    let out = first_pass(&root);
+    let tar = format!("Faraday-Starter-{VERSION}-Linux.tar.gz");
+
+    let bare = root.join("bare-starter");
+    fs::write(&bare, "a Starter built without an image list\n").expect("starter");
+    let done = stage(&[
+        VERSION,
+        "--starter",
+        bare.to_str().expect("a path"),
+        "--out",
+        out.to_str().expect("a path"),
+    ]);
+    assert!(!done.status.success());
+    let said = String::from_utf8_lossy(&done.stderr);
+    assert!(said.contains("image list"), "{said}");
+    assert!(!out.join(&tar).exists());
+
+    let starter = starter_with(&root, &out);
+    let done = stage(&[
+        VERSION,
+        "--starter",
+        starter.to_str().expect("a path"),
+        "--out",
+        out.to_str().expect("a path"),
+    ]);
+    assert!(
+        done.status.success(),
+        "adding the Starter failed: {}",
+        String::from_utf8_lossy(&done.stderr)
+    );
+    assert!(out.join(&tar).is_file());
+    assert!(sums(&out).iter().any(|(_, n)| *n == tar));
+    assert!(!root.join("payload").exists());
+}
+
+/// A stand-in Starter built against the release's `IMAGES`: it holds
+/// the list's first line, which names the release and the commit.
+fn starter_with(root: &Path, out: &Path) -> PathBuf {
+    let first = fs::read_to_string(out.join("IMAGES"))
+        .expect("IMAGES")
+        .lines()
+        .next()
+        .expect("a first line")
+        .to_string();
+    let starter = root.join("faraday-starter");
+    fs::write(&starter, format!("a Starter\n{first}\n")).expect("starter");
+    starter
 }
 
 /// A trial staging (`--any-build`) stages no cross-check record, even
@@ -545,8 +543,6 @@ fn a_trial_staging_takes_no_cross_check_record() {
         builds.to_str().expect("a path"),
         "--out",
         out.to_str().expect("a path"),
-        "--payload",
-        root.join("payload").to_str().expect("a path"),
     ]);
     assert!(
         done.status.success(),

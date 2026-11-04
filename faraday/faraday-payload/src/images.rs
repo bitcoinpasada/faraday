@@ -21,7 +21,7 @@ use std::io::{self, Read};
 
 use sha2::{Digest, Sha256};
 
-use crate::manifest::{STICK_PREFIX, parse_size};
+use crate::file::{STICK_PREFIX, parse_size};
 use crate::{PayloadFile, Sha256Sum};
 
 const HEADER_PREFIX: &str = "# Faraday ";

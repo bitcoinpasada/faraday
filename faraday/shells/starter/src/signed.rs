@@ -4,9 +4,9 @@
 //!
 //! Only its signature is taken from it. Its Authenticode image hash,
 //! which leaves the signature out, must be the image hash of the
-//! release's `BOOTX64.EFI` as the payload checked against its manifest
-//! holds it, and its certificate table must be one signature alone at its
-//! end. The file written is then built from the release's own bytes,
+//! release's `BOOTX64.EFI` as the found image, checked against the
+//! built-in image list, holds it, and its certificate table must be one
+//! signature alone at its end. The file written is then built from the release's own bytes,
 //! padded as signing pads them, with that file's checksum, certificate
 //! table entry and certificate table (`faraday_sb::pe::transplant`), so
 //! every byte the signature does not cover is the release's by

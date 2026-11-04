@@ -2,15 +2,15 @@
 # Stages a Faraday release's plain files under out/release/VERSION/, named
 # as docs/STARTER.md §1.1 names them, with SHA256SUMS for the owner to sign.
 #
-#   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] [--builds DIR]
-#   faraday/tools/stage-release.sh VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]
+#   faraday/tools/stage-release.sh VERSION [--any-build] [--out DIR] [--builds DIR]
+#   faraday/tools/stage-release.sh VERSION [--starter FILE] [--starter-windows FILE] [--out DIR]
 #
 # A release is staged in two passes (STARTER §1.3). The first, the form
-# above without --starter, stages the plain files and the Starter's payload.
-# The Starter is built against that payload (`FARADAY_STARTER_PAYLOAD=
-# out/payload/VERSION/linux just faraday-linux-bin out/linux out/build/run
-# faraday-starter-shell faraday-starter`, which leaves out/linux/faraday-starter;
-# the Windows Starter against out/payload/VERSION/windows), and the second
+# above without --starter, stages the plain files, IMAGES among them. The
+# Starter carries no image, only that list: it is built against it
+# (`FARADAY_STARTER_IMAGES=out/release/VERSION/IMAGES just faraday-linux-bin
+# out/linux out/build/run faraday-starter-shell faraday-starter`, which leaves
+# out/linux/faraday-starter; the Windows Starter the same), and the second
 # pass, `--starter out/linux/faraday-starter` (`just faraday-release-stage-starter
 # VERSION`), adds it to the folder the first made: Faraday-Starter-VERSION-Linux.tar.gz
 # holding one file, Faraday-Starter-VERSION-Linux, with its executable bit, made
@@ -18,7 +18,7 @@
 # --mtime=@$SOURCE_DATE_EPOCH, gzip -n; SOURCE_DATE_EPOCH is the last
 # commit's time unless set), and two more lines in SHA256SUMS: the .tar.gz,
 # and the file inside it under its inner name. The second pass refuses a
-# Starter that does not carry this payload's MANIFEST, runs the
+# Starter that does not carry this release's IMAGES, runs the
 # published-file check below on the .tar.gz and the file inside it, and
 # never touches what the first pass staged. `--starter-windows
 # out/windows/faraday-starter.exe` adds the Windows Starter the same way,
@@ -39,7 +39,7 @@
 # with SHA256SUMS and SHA256SUMS.asc and signs it on Faraday, which signs
 # only a boot program those sums list (docs/decisions/F134.md). It must
 # carry the images' build ID.
-# Faraday Demo is neither a release file nor a payload file: it runs inside
+# Faraday Demo is not a release file: it runs inside
 # the Starter's window, compiled into the Starter (docs/decisions/F126.md),
 # so no faraday-demo build is taken or staged.
 #
@@ -75,15 +75,6 @@
 # its kernel is compressed. xz runs single-threaded at -9e, so the same
 # image always gives the same .xz.
 #
-# Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
-# (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
-# system, linux/ and windows/, each with hard links to the stick's and
-# the Pi image .xz (builds stick and
-# pi3-any, the only images released: until
-# the Starter stops carrying images, IMAGES §9 step 6)
-# and its own MANIFEST (the first line is the same in both). The two
-# folders stay apart: each Starter embeds its own.
-#
 # Before it finishes, either pass refuses a release folder that holds a
 # file whose name starts faraday-demo- (F83, F126), and names it.
 #
@@ -98,13 +89,12 @@ set -euo pipefail
 
 die() { printf 'stage-release: %s\n' "$1" >&2; exit 1; }
 
-[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--payload DIR] [--builds DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--out DIR] [--payload DIR]"
+[ $# -ge 1 ] || die "usage: stage-release.sh VERSION [--any-build] [--out DIR] [--builds DIR] | VERSION [--starter FILE] [--starter-windows FILE] [--out DIR]"
 version="$1"
 shift
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must look like X.Y.Z, got '$version'"
 any=0
 out=""
-payload=""
 builds=""
 starter=""
 starter_win=""
@@ -113,7 +103,6 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --any-build) any=1; shift ;;
         --out) [ $# -ge 2 ] || die "--out needs a directory"; out="$2"; shift 2 ;;
-        --payload) [ $# -ge 2 ] || die "--payload needs a directory"; payload="$2"; shift 2 ;;
         --builds) [ $# -ge 2 ] || die "--builds needs a directory"; builds="$(realpath "$2")"; shift 2 ;;
         --crosscheck) [ $# -ge 2 ] || die "--crosscheck needs the record's file"; record="$2"; shift 2 ;;
         --starter) [ $# -ge 2 ] || die "--starter needs the Starter's file"; starter="$2"; shift 2 ;;
@@ -126,9 +115,6 @@ done
 second=""
 [ -z "$starter$starter_win" ] || second=1
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-if [ -z "$payload" ]; then
-    if [ -n "$out" ]; then payload="$out.payload"; else payload="out/payload/$version"; fi
-fi
 out="${out:-out/release/$version}"
 
 check="$(mktemp -d)"
@@ -228,12 +214,11 @@ PY
     fi
 
     [ ! -e "$out" ] || die "$out exists; move it aside first"
-    [ ! -e "$payload" ] || die "$payload exists; move it aside first"
-    mkdir -p "$out" "$payload/linux" "$payload/windows"
+    mkdir -p "$out"
 
     # The boot program off a GPT image's boot partition. A refusal here
     # takes back the folders just made.
-    unstage() { rm -rf "$out" "$payload"; die "$1 (nothing staged)"; }
+    unstage() { rm -rf "$out"; die "$1 (nothing staged)"; }
     for k in "${!ids[@]}"; do
         [ "${efi[k]}" != - ] || continue
         dest="$out/${efi[k]}"
@@ -308,38 +293,6 @@ PY
         (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
         rm -f "$check/${img[k]}" "$check/${img[k]%.img}-boot.vfat"
     done
-
-    # The payload the Starter embeds (STARTER §1.3), one folder per system:
-    # the images' .xz as hard links to the staged ones, and MANIFEST. One
-    # line per file, tab-separated: the payload file, its SHA-256, what is
-    # inside it, that file's SHA-256 and size, the build ID it carries, and,
-    # for a stick image, the SHA-256 of its boot partition (the -boot.vfat
-    # value of SHA256SUMS; - for any other file).
-    # Both MANIFESTs start with the same line. The stick and the
-    # Pi image, until the Starter carries no images (IMAGES §9
-    # step 6).
-    carried=()
-    for want in stick pi3-any; do
-        found=""
-        for k in "${!ids[@]}"; do [ "${ids[k]}" != "$want" ] || found="$k"; done
-        [ -n "$found" ] || unstage "faraday/builds.toml releases no $want, which the Starter carries"
-        carried+=("$found")
-    done
-    for system in linux windows; do
-        dir="$payload/$system"
-        {
-            echo "# Faraday Starter payload $version, commit $commit"
-            for k in "${carried[@]}"; do
-                ln "$out/${img[k]}.xz" "$dir/${img[k]}.xz"
-                boot="-"
-                case "${img[k]}" in faraday-stick-*) boot="${boot_sum[k]}" ;; esac
-                printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img[k]}" \
-                    "${img_sum[k]}" "$(stat -c %s "${src[k]}")" "$build" "$boot"
-            done
-        } > "$dir/MANIFEST"
-        # The release's image list beside it, which the Starter finds images by.
-        ln "$out/IMAGES" "$dir/IMAGES"
-    done
 fi
 
 # The published-file check (STARTER §2). The values come from the account and
@@ -359,14 +312,14 @@ forbidden_in() {
     grep -a -i -F -f "$patterns" "$strs" | head -3 || true
     [ -z "$host_name" ] || grep -a -i -w -F "$host_name" "$strs" | head -3 || true
 }
-# What a refusal takes back: the first pass stages the folders, the
+# What a refusal takes back: the first pass stages the folder, the
 # second only the files it adds (the first pass's files stay).
 refuse() {
     if [ -n "$second" ]; then
         rm -f "$out/$tar_name" "$out/$exe_name"
         die "$1 (nothing added)"
     fi
-    rm -rf "$out" "$payload"
+    rm -rf "$out"
     die "$1 (nothing staged)"
 }
 starter_release_name="Faraday-Starter" # the one place the release files are named (F16)
@@ -397,22 +350,22 @@ scan() {
     done
 }
 # A Starter the second pass adds must sit on a first pass's output and
-# carry its payload: the MANIFEST's first line names the release and the
-# commit, and is in the binary as a string. Prints that line.
-starter_payload() { # the Starter's file, the name it is published as, its system's folder
-    [ -f "$out/SHA256SUMS" ] && [ -f "$payload/$3/MANIFEST" ] \
-        || die "$out and $payload/$3 are not a first pass's output: stage the plain files first"
+# carry its image list: IMAGES' first line names the release and the commit,
+# and is in the binary as a string. Prints that line.
+starter_images() { # the Starter's file, the name it is published as
+    [ -f "$out/SHA256SUMS" ] && [ -f "$out/IMAGES" ] \
+        || die "$out is not a first pass's output: stage the plain files first"
     [ ! -e "$out/$2" ] || die "$out/$2 exists; move it aside first"
     local first
-    first="$(head -1 "$payload/$3/MANIFEST")"
-    grep -aqF -- "$first" "$1" || die "$1 does not carry the payload in $payload/$3 (its MANIFEST's first line is not in it); build it against that payload"
+    first="$(head -1 "$out/IMAGES")"
+    grep -aqF -- "$first" "$1" || die "$1 does not carry the image list in $out/IMAGES (its first line is not in it); build it with FARADAY_STARTER_IMAGES=$out/IMAGES"
     printf '%s' "$first"
 }
 # The second pass: the Linux Starter (STARTER §1.1, §1.2).
 add_starter() {
     local first
     [ -f "$starter" ] || die "$starter: not built (just faraday-linux-bin out/linux out/build/run faraday-starter-shell faraday-starter)"
-    first="$(starter_payload "$starter" "$tar_name" linux)"
+    first="$(starter_images "$starter" "$tar_name")"
     # The tar holds one file, with its executable bit and no owner,
     # time or name of the building computer; gzip -n leaves out the
     # name and time of its own.
@@ -446,7 +399,7 @@ add_starter() {
 add_starter_windows() {
     local first
     [ -f "$starter_win" ] || die "$starter_win: not built (just faraday-windows-bin)"
-    first="$(starter_payload "$starter_win" "$exe_name" windows)"
+    first="$(starter_images "$starter_win" "$exe_name")"
     cp "$starter_win" "$out/$exe_name"
     scan "$out/$exe_name" "$out/$exe_name" 0
     (cd "$out" && sha256sum "$exe_name") >> "$out/SHA256SUMS"
@@ -474,9 +427,7 @@ if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter
     [ -z "$starter_win" ] || add_starter_windows
 else
-for f in "$out"/* "$payload"/*/*; do
-    # The payload's image .xz are the release's own files.
-    case "$f" in "$payload"/*/*) [ ! -e "$out/$(basename "$f")" ] || continue ;; esac
+for f in "$out"/*; do
     case "$f" in
         *.xz)
             xz -d -c "$f" > "$check/inner"

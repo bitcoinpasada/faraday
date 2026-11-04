@@ -280,7 +280,7 @@ image to a stick: it makes the stick from it.
    so nothing of it is carried over.
 
 The source is still the release image: it is decompressed and its
-SHA-256 checked against the manifest as it streams past, as keep data
+SHA-256 checked against the release's image list as it streams past, as keep data
 does now, and only its boot partition reaches the stick. A stick of
 32 GB then has about 32 GB for vaults and files, where it had 128 MiB.
 
@@ -327,7 +327,7 @@ the same patches in place. Then:
 
 - With the patches taken back out of what was read (the image's own
   IDs and label put back in their places), the SHA-256 of the whole is
-  the release manifest's. This is the check a person can repeat (§8).
+  the release's image list's. This is the check a person can repeat (§8).
 - The screen says what was checked, and names what was expected to
   differ: "Matches the release image, except this card's own IDs, as
   expected", with "its name" named before ", as expected" where it
@@ -339,15 +339,16 @@ made for its size: its table and data partition are the Starter's own.
 What is checked, and against what:
 
 - **The source**: the image's SHA-256, as it streams past, is the
-  manifest's (as keep data checks it now). A source that does not match
+  list's (as keep data checks it now). A source that does not match
   is refused before the stick's boot partition is complete, and the
   write fails.
 - **The boot partition**: read back whole and compared byte for byte
   with the image's, the signed boot file in place where there is one.
   Without one, its SHA-256 is also the boot partition's published value:
   the `-boot.vfat` line `SHA256SUMS` lists (`docs/IMAGES.md`), which the
-  payload's `MANIFEST` (`docs/STARTER.md` §1.3) carries as a seventh
-  field on a stick image's line (`-` on every other line). The Starter
+  release's image list `IMAGES` (`docs/IMAGES.md` §4, built into the
+  Starter, `docs/STARTER.md` §1.3) carries as its ninth field on a stick
+  image's line (`-` on every other line). The Starter
   checks against a published number and not only against the stream.
 - **The table and the data partition's FAT32**: every sector written is
   read back and compared with what the Starter made. No published value
@@ -538,13 +539,13 @@ With F182:
   `post-image.sh` (the first usable sector, the boot FAT, the checks
   with `sgdisk`, `sfdisk` and `fsck.fat`), `faraday/image/README.md`,
   `faraday/tools/stage-release.sh` (the boot partition's sum in
-  `MANIFEST`).
+  `IMAGES`).
 - The device and the layout: `faraday/faraday-boot/src/layout.rs`,
   `faraday/faraday-grant/src/lib.rs`, `faraday/faraday-disk/src/lib.rs`,
   `faraday/image/stick-boot.sh`, `faraday/tools/disk-test.py`.
 - The Starter: `faraday/faraday-fat/src/lib.rs` (the FAT32 formatter),
-  `faraday/faraday-payload/src/manifest.rs`,
-  `faraday/shells/starter/src/gpt.rs`, `writer.rs`, `payload.rs`,
+  `faraday/faraday-payload/src/images.rs`,
+  `faraday/shells/starter/src/gpt.rs`, `writer.rs`, `finder.rs`,
   `faraday/faraday-starter/src/api.rs` and `decide.rs`, What to write?'s
   Clear the whole stick first, the check's lines and Writing's clearing
   pass in `faraday/faraday-strings/src/en.rs`.
@@ -563,7 +564,7 @@ Faraday did not write:
   GUIDs, partition GUIDs and data partition serials, and the same boot
   partition, the release's; two Pi cards likewise, each reading back
   as the image with its IDs, and with the IDs put back its SHA-256 the
-  manifest's.
+  list's.
 - The Starter knows a stick written so as a Faraday stick on each
   system's fixture, and refuses a disk with another layout; keep data
   keeps the stick's GUIDs and writes the release's boot partition as it is.
@@ -600,7 +601,7 @@ For F182:
   serial and label, at sizes either side of each step of the cluster
   table: the same boot sector fields, FSInfo and FAT starts, and
   `fsck.fat -n` clean.
-- The payload's `MANIFEST` with the boot partition's sum is read; a
+- The image list `IMAGES` with the boot partition's sum is read; a
   stick image's line without it, or with a sum that is not hex, is
   refused.
 - Clear the whole stick first: every sector outside what the Starter
@@ -674,8 +675,8 @@ Chosen here, within F182; each is the owner's to change:
 
 - Clear the whole stick first writes zeros and does not read them back,
   and its time is estimated at 8 MB/s (§4.2).
-- The boot partition's sum is a seventh field on a stick image's line
-  of `MANIFEST` (§4.3).
+- The boot partition's sum is the ninth field on a stick image's line
+  of `IMAGES` (§4.3).
 
 ## 12. Order of work
 

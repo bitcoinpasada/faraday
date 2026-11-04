@@ -12,11 +12,10 @@
 //! faraday-starter --record-bitlocker              (Windows, as administrator)
 //! ```
 //!
-//! `--image FILE` writes a developer's own image in place of the
-//! payload's stick image (§1.1): an `.img`, an `.img.xz`, or a
+//! `--image FILE` writes a developer's own image in place of a found
+//! stick image (§1.1): an `.img`, an `.img.xz`, or a
 //! `-boot.vfat`, which only *keep data* writes. Its SHA-256 is computed
-//! at start and shown on Confirm. A Starter built without a payload
-//! (`FARADAY_STARTER_PAYLOAD` unset) offers only this.
+//! at start and shown on Confirm.
 //!
 //! Transfer sends from and saves into `$HOME/Downloads`, or `--downloads
 //! DIR`, as the desktop app's does; the camera is the desktop app's too.
@@ -55,8 +54,8 @@ use faraday_desktop::{Asked, Demo, Paths};
 use faraday_shell_api::{App, Command, Event};
 use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOrder};
 use faraday_starter::{Starter, StarterAction};
-use faraday_starter_shell::finder::Finder;
-use faraday_starter_shell::payload::{Image, Payload};
+use faraday_starter_shell::finder::{Finder, built_in_list, found_job, image_names};
+use faraday_starter_shell::image::Image;
 use faraday_starter_shell::platform::{self, Platform};
 use faraday_starter_shell::signed;
 use faraday_starter_shell::writer::Job;
@@ -91,8 +90,7 @@ struct Shell {
     proxy: EventLoopProxy<()>,
     /// The operating system's side (`Platform`).
     system: Arc<dyn Platform>,
-    payload: Option<Payload>,
-    /// The release's image list and the sums worked out against it.
+    /// The release's image list built in and the sums worked out against it.
     finder: Arc<Finder>,
     image: Option<Image>,
     /// What the system's threads report: the disks, a write.
@@ -343,7 +341,7 @@ impl Shell {
                 });
             }
             StarterCommand::Install => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let done = system.install();
                     let ok = done.is_ok();
@@ -354,7 +352,7 @@ impl Shell {
                 });
             }
             StarterCommand::Uninstall => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let done = system.uninstall();
                     // The firmware's entry goes too; declined, the
@@ -387,7 +385,7 @@ impl Shell {
                 let _ = self.check.send(());
             }
             StarterCommand::RemoveBootEntry => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::BootEntryRemoved(system.remove_stick_entry()));
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
@@ -433,13 +431,13 @@ impl Shell {
                 let _ = self.tx.send(StarterEvent::NotesOpened(opened));
             }
             StarterCommand::ReadBitLocker => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::BitLocker(system.bitlocker()));
                 });
             }
             StarterCommand::BitLocker(step) => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let (result, read) = system.bitlocker_step(step);
                     let _ = tx.send(StarterEvent::BitLockerDone { step, result });
@@ -450,7 +448,7 @@ impl Shell {
                 });
             }
             StarterCommand::ReadVersion { disk, serial, size } => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let result = system.read_version(&disk, &serial, size);
                     let _ = tx.send(StarterEvent::VersionRead {
@@ -462,7 +460,7 @@ impl Shell {
                 });
             }
             StarterCommand::ReadRecoveryKey => {
-                let (system, tx, _) = self.threaded();
+                let (system, tx) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::RecoveryKey(system.recovery_key()));
                 });
@@ -500,27 +498,20 @@ impl Shell {
 
     /// What a thread of its own needs to answer the system's slow
     /// commands.
-    fn threaded(&self) -> (Arc<dyn Platform>, Sender<StarterEvent>, Option<Payload>) {
-        (
-            Arc::clone(&self.system),
-            self.tx.clone(),
-            self.payload.clone(),
-        )
+    fn threaded(&self) -> (Arc<dyn Platform>, Sender<StarterEvent>) {
+        (Arc::clone(&self.system), self.tx.clone())
     }
 
-    /// What the writer takes for `source`: the payload file or the
-    /// developer's image the Starter named, when it is carried. A lookup.
+    /// What the writer takes for `source`: the release image found, with
+    /// its line in the list beside it, or the developer's image the
+    /// Starter named. A lookup.
     fn job(&self, source: &Source) -> Option<Job> {
         match source {
-            Source::Payload { name, inner_sha256 } => self
-                .payload
-                .as_ref()
-                .and_then(|p| p.job(name, inner_sha256)),
             Source::Found {
                 path,
                 xz_sha256,
                 img_sha256,
-            } => Payload::found_job(path, xz_sha256, img_sha256),
+            } => found_job(path, xz_sha256, img_sha256),
             Source::Image { path, sha256 } => self
                 .image
                 .as_ref()
@@ -531,7 +522,7 @@ impl Shell {
         }
     }
 
-    /// Starts a confirmed write, from the payload or the developer's
+    /// Starts a confirmed write, from the image found or the developer's
     /// image the Starter named.
     fn write(&mut self, order: WriteOrder) {
         let Some(job) = self.job(&order.source) else {
@@ -830,7 +821,7 @@ fn watch_concerns(system: Arc<dyn Platform>, out: Sender<StarterEvent>, checks: 
 }
 
 const HELP: &str = "faraday-starter [--image FILE] [--downloads DIR] [--size WxH] [--timings] [--uninstall] | --version
-  --image: write FILE (.img, .img.xz, or -boot.vfat for keep data) in place of the payload's stick image
+  --image: write FILE (.img, .img.xz, or -boot.vfat for keep data) in place of a found stick image
   --downloads: the folder Transfer sends from and saves into (default ~/Downloads)
   --timings: once a second, what the frames cost on stderr
   --version: print this build's version and exit
@@ -928,8 +919,7 @@ fn main() -> ExitCode {
     // crash, a power cut) goes now (F49).
     faraday_starter_shell::pdf::sweep_key_sheets(&faraday_starter_shell::pdf::key_base());
     let computer = system.computer();
-    let payload = Payload::built_in();
-    let finder = Arc::new(Finder::new(Payload::image_list()));
+    let finder = Arc::new(Finder::new(built_in_list()));
     let mut starter = Starter::new();
     starter.find_images();
     // Cobalt, Light or Dark as this computer's own setting says (F126).
@@ -943,8 +933,9 @@ fn main() -> ExitCode {
     }
     starter.starter_event(StarterEvent::Computer(computer));
     starter.starter_event(StarterEvent::OtherEncryption(system.other_encryption()));
-    starter.starter_event(StarterEvent::Payload(payload.as_ref().map(Payload::event)));
-    starter.starter_event(StarterEvent::ImagesWanted(Payload::image_names()));
+    starter.starter_event(StarterEvent::ImagesWanted(image_names(
+        built_in_list().as_ref(),
+    )));
     if let Some(i) = &image {
         starter.starter_event(StarterEvent::DevImage(i.event()));
     }
@@ -986,7 +977,6 @@ fn main() -> ExitCode {
         proxy: event_loop.create_proxy(),
         starter,
         system,
-        payload,
         finder,
         image,
         events,

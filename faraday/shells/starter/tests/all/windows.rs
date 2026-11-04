@@ -314,12 +314,13 @@ const PIPE: &str = r"\\.\pipe\faraday-starter-1f2c-18c4a2b9d0e1f";
 
 #[test]
 fn the_elevated_writer_reads_back_the_order_it_was_started_with() {
-    let payload = Elevated {
+    let found = Elevated {
         pipe: PIPE.into(),
         order: order(
-            Source::Payload {
-                name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
-                inner_sha256: SUM.into(),
+            Source::Found {
+                path: r"D:\Downloads\faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+                xz_sha256: SUM.into(),
+                img_sha256: SUM.into(),
             },
             "AAA 111 \"x\\\"",
             Mode::Whole,
@@ -338,7 +339,7 @@ fn the_elevated_writer_reads_back_the_order_it_was_started_with() {
         ),
         image_size: Some(IMAGE),
     };
-    for e in [payload, image] {
+    for e in [found, image] {
         let line = command_line(&e.args());
         assert_eq!(Elevated::parse(&split(&line)), Ok(e));
     }
@@ -398,9 +399,10 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
     let good = Elevated {
         pipe: PIPE.into(),
         order: order(
-            Source::Payload {
-                name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
-                inner_sha256: SUM.into(),
+            Source::Found {
+                path: r"D:\Downloads\faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+                xz_sha256: SUM.into(),
+                img_sha256: SUM.into(),
             },
             "FFF333",
             Mode::Whole,
@@ -428,8 +430,16 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
         with("--mode", "everything"),
         with("--sha256", "abc"),
         with("--sha256", &SUM.to_uppercase()),
-        with("--payload", r"..\..\Windows\System32\config\SAM"),
-        with("--payload", "a/b"),
+        with("--found", r"..\..\Windows\System32\config\SAM"),
+        with("--found", "a/b"),
+        [
+            good.clone(),
+            vec![
+                "--payload".into(),
+                "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+            ],
+        ]
+        .concat(),
         with("--serial", "two\nlines"),
         good[1..].to_vec(),
         [
@@ -442,7 +452,7 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
         good[..good.len() - 1].to_vec(),
         good.iter()
             .map(|a| {
-                if a == "--image" {
+                if a == "--found" {
                     "--payload".into()
                 } else {
                     a.clone()
@@ -456,7 +466,7 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
     }
     // An image needs its full path and its size.
     let image = |path: &str, size: Option<&str>| {
-        let mut a = good[..good.len() - 4].to_vec();
+        let mut a = good[..good.len() - 6].to_vec();
         a.extend(["--image".into(), path.to_string()]);
         if let Some(s) = size {
             a.extend(["--image-size".into(), s.to_string()]);
@@ -484,9 +494,10 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
                 sha256: SUM.into(),
             }),
             ..order(
-                Source::Payload {
-                    name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
-                    inner_sha256: SUM.into(),
+                Source::Found {
+                    path: r"D:\Downloads\faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
+                    xz_sha256: SUM.into(),
+                    img_sha256: SUM.into(),
                 },
                 "GGG444",
                 Mode::KeepData,
@@ -536,9 +547,10 @@ fn the_elevated_writer_takes_the_data_partitions_name_as_fat_writes_it() {
             clear_first: false,
             name: Some(String::from("MY STICK")),
             ..order(
-                Source::Payload {
-                    name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
-                    inner_sha256: SUM.into(),
+                Source::Found {
+                    path: r"D:\Downloads\faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
+                    xz_sha256: SUM.into(),
+                    img_sha256: SUM.into(),
                 },
                 "GGG444",
                 Mode::Whole,

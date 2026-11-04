@@ -1,13 +1,11 @@
-//! Builds the payload in (`docs/STARTER.md` §1.3): the folder
-//! `FARADAY_STARTER_PAYLOAD` names holds `MANIFEST` and the files it lists,
-//! and each is embedded as it is. The manifest is parsed here and every
-//! file it names must be in the folder, or the build stops and says
-//! which. Without the variable the Starter carries no payload and offers
-//! only `--image`.
-//!
-//! The files are checked against their sums when they are used, not
-//! here and not at start: the release's `SHA256SUMS` and its signature
-//! cover the Starter file itself.
+//! The Windows resources of the Starter's `.exe`, and the one thing the
+//! Starter carries (`docs/STARTER.md` §1.3): the release's image list.
+//! `FARADAY_STARTER_IMAGES` names the release's `IMAGES` file; it is
+//! parsed here (a list that does not parse stops the build and names the
+//! file) and embedded as it is. Nothing else is embedded: the images
+//! themselves are found at run time and each is checked against its line
+//! in this list. Without the variable the Starter finds nothing and
+//! offers only `--image`.
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -22,7 +20,7 @@ mod names;
 mod resources;
 
 fn main() {
-    println!("cargo:rerun-if-env-changed=FARADAY_STARTER_PAYLOAD");
+    println!("cargo:rerun-if-env-changed=FARADAY_STARTER_IMAGES");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         let manifest_dir =
             PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets it"));
@@ -37,82 +35,26 @@ fn main() {
     }
     let out = PathBuf::from(std::env::var_os("OUT_DIR").expect("cargo sets OUT_DIR"));
     let mut code = String::from("// Written by build.rs.\n");
-    match std::env::var_os("FARADAY_STARTER_PAYLOAD").filter(|v| !v.is_empty()) {
-        None => {
-            code.push_str(
-                "/// No payload was built in.\npub const MANIFEST: Option<&[u8]> = None;\n",
-            );
-            code.push_str(
-                "/// The payload's files, by name.\npub const FILES: &[(&str, &[u8])] = &[];\n",
-            );
-            code.push_str(
-                "/// No image list was built in.\npub const IMAGES: Option<&[u8]> = None;\n",
-            );
-        }
-        Some(dir) => {
-            let dir = PathBuf::from(dir);
-            let dir = dir
+    match std::env::var_os("FARADAY_STARTER_IMAGES").filter(|v| !v.is_empty()) {
+        None => code
+            .push_str("/// No image list was built in.\npub const IMAGES: Option<&[u8]> = None;\n"),
+        Some(file) => {
+            let file = PathBuf::from(file);
+            let file = file
                 .canonicalize()
-                .unwrap_or_else(|e| panic!("FARADAY_STARTER_PAYLOAD {}: {e}", dir.display()));
-            let manifest = dir.join("MANIFEST");
-            println!("cargo:rerun-if-changed={}", manifest.display());
-            let bytes =
-                std::fs::read(&manifest).unwrap_or_else(|e| panic!("{}: {e}", manifest.display()));
-            let parsed = faraday_payload::Manifest::parse(&bytes)
-                .unwrap_or_else(|e| panic!("{}: {e:?}", manifest.display()));
-            let missing: Vec<&str> = parsed
-                .files()
-                .iter()
-                .filter(|f| !dir.join(&f.name).is_file())
-                .map(|f| f.name.as_str())
-                .collect();
-            assert!(
-                missing.is_empty(),
-                "{}: the manifest names files the folder does not hold: {}",
-                dir.display(),
-                missing.join(", ")
-            );
+                .unwrap_or_else(|e| panic!("FARADAY_STARTER_IMAGES {}: {e}", file.display()));
+            println!("cargo:rerun-if-changed={}", file.display());
+            let bytes = std::fs::read(&file).unwrap_or_else(|e| panic!("{}: {e}", file.display()));
+            faraday_payload::ImageList::parse(&bytes)
+                .unwrap_or_else(|e| panic!("{}: {e:?}", file.display()));
             // `include_bytes!` reads the file at compile time; its path
             // goes into cargo's dependency file, not into the binary.
             let _ = writeln!(
                 code,
-                "/// The payload's MANIFEST.\npub const MANIFEST: Option<&[u8]> = Some(include_bytes!({:?}));",
-                manifest.display().to_string()
+                "/// The release's image list.\npub const IMAGES: Option<&[u8]> = Some(include_bytes!({:?}));",
+                file.display().to_string()
             );
-            code.push_str(
-                "/// The payload's files, by name.\npub const FILES: &[(&str, &[u8])] = &[\n",
-            );
-            for f in parsed.files() {
-                let path = dir.join(&f.name);
-                println!("cargo:rerun-if-changed={}", path.display());
-                let _ = writeln!(
-                    code,
-                    "    ({:?}, include_bytes!({:?})),",
-                    f.name,
-                    path.display().to_string()
-                );
-            }
-            code.push_str("];\n");
-            // The release's image list, beside the manifest when the
-            // release stages one (IMAGES §4).
-            let images = dir.join("IMAGES");
-            if images.is_file() {
-                println!("cargo:rerun-if-changed={}", images.display());
-                let bytes =
-                    std::fs::read(&images).unwrap_or_else(|e| panic!("{}: {e}", images.display()));
-                faraday_payload::ImageList::parse(&bytes)
-                    .unwrap_or_else(|e| panic!("{}: {e}", images.display()));
-                let _ = writeln!(
-                    code,
-                    "/// The release's image list.\npub const IMAGES: Option<&[u8]> = Some(include_bytes!({:?}));",
-                    images.display().to_string()
-                );
-            } else {
-                code.push_str(
-                    "/// No image list was built in.\npub const IMAGES: Option<&[u8]> = None;\n",
-                );
-            }
         }
     }
-    std::fs::write(out.join("payload.rs"), code).expect("OUT_DIR is writable");
+    std::fs::write(out.join("images.rs"), code).expect("OUT_DIR is writable");
 }

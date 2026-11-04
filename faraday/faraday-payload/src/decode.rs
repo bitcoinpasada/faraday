@@ -55,15 +55,15 @@ pub enum PayloadError {
     Read(io::Error),
     /// Writing the destination failed.
     Write(io::Error),
-    /// The payload file's SHA-256 is not the manifest's. Nothing was
+    /// The payload file's SHA-256 is not the list's. Nothing was
     /// written.
     PayloadSum {
-        /// The manifest's sum.
+        /// The list's sum.
         expected: Sha256Sum,
         /// The file's.
         actual: Sha256Sum,
     },
-    /// The payload file matched its manifest line when it was checked,
+    /// The payload file matched its line in the list when it was checked,
     /// and read differently while it was decompressed.
     PayloadChanged,
     /// The `.xz` is not a whole, intact xz stream: it is truncated, it is
@@ -85,7 +85,7 @@ pub enum PayloadError {
     },
     /// The decompressed bytes' SHA-256 is not the expected one.
     Sum {
-        /// The sum the manifest or the Confirm page gave.
+        /// The sum the list or the Confirm page gave.
         expected: Sha256Sum,
         /// The sum of what was written.
         actual: Sha256Sum,
@@ -99,7 +99,7 @@ impl fmt::Display for PayloadError {
             Self::Write(e) => write!(f, "writing failed: {e}"),
             Self::PayloadSum { expected, actual } => write!(
                 f,
-                "the payload file's SHA-256 is {actual}, the manifest's is {expected}; nothing was written"
+                "the payload file's SHA-256 is {actual}, the list's is {expected}; nothing was written"
             ),
             Self::PayloadChanged => write!(f, "the payload file changed while it was read"),
             Self::Damaged(e) => write!(f, "the .xz file is damaged: {e}"),
@@ -123,13 +123,13 @@ impl std::error::Error for PayloadError {}
 /// Writes the image or binary inside a payload file to `out`.
 ///
 /// `src` is the payload file, the `.xz`, positioned at its start, and
-/// `file` its manifest line. First the whole of `src` is read and its
-/// SHA-256 compared with the manifest's; on a mismatch nothing is
+/// `file` its line in the list. First the whole of `src` is read and its
+/// SHA-256 compared with the list's; on a mismatch nothing is
 /// written. Then `src` is read again from the same position and
 /// decompressed into `out` as it is read, and `progress` is called with
-/// the bytes written so far and the manifest's size after each write.
-/// Success means `out` was flushed and received exactly the manifest's
-/// size in bytes, with the manifest's SHA-256.
+/// the bytes written so far and the list's size after each write.
+/// Success means `out` was flushed and received exactly the list's
+/// size in bytes, with the list's SHA-256.
 pub fn write_payload<R, W, P>(
     mut src: R,
     file: &PayloadFile,

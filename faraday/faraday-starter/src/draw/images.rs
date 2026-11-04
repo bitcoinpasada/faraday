@@ -20,7 +20,7 @@ pub(super) fn section(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, t
     let choices = starter.image_choices(t);
     let missing = starter.images_to_download(t);
     let refused = starter.images_refused(t);
-    if missing.is_empty() && refused.is_empty() && !choices.iter().any(|c| c.folder.is_some()) {
+    if missing.is_empty() && refused.is_empty() && choices.is_empty() {
         return 0.0;
     }
     let mut y = y0;
@@ -28,10 +28,7 @@ pub(super) fn section(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, t
         y += label(ui, x, y, S.starter_images);
         ui.rule(x, y, w, Role::OutlineVariant);
         for (n, c) in choices.iter().enumerate() {
-            let sub = match &c.folder {
-                Some(f) => fill(S.starter_image_found, &[f, &c.build]),
-                None => fill(S.starter_image_included, &[&c.build]),
-            };
+            let sub = fill(S.starter_image_found, &[&c.folder, &c.build]);
             let action = StarterAction::Image(n as u16);
             press_row(ui, x, y, w, LIST_2, action);
             radio_mark(ui, x, y + LIST_2 / 2.0, c.selected, true);

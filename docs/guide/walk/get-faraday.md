@@ -162,4 +162,4 @@ stick in until the result shows.
 | "… is no longer the disk that was confirmed …", "The disk is no longer attached." | the stick was pulled out or replaced; nothing was written | plug it in and start again from **Make a Faraday stick** |
 | "A partition on it is mounted at …", "Unmounting it failed" | the system is using the stick; nothing was written | close any window showing the stick's files, **Try again** |
 | "Administrator permission was declined. Nothing was changed." | the permission prompt was declined | **Try again** and answer *Yes* |
-| "The payload file does not match the manifest", "The .xz file is damaged", "The decompressed image's SHA-256 is …, not the expected one" | the Starter's own copy of Faraday is damaged | download the Starter again and check it (step 1.1) |
+| "The image file does not match its list", "The .xz file is damaged", "The decompressed image's SHA-256 is …, not the expected one" | the downloaded image is damaged | download the image again and check it against `SHA256SUMS` (step 1.1) |

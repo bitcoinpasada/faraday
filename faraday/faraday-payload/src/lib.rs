@@ -1,25 +1,24 @@
-//! The Starter's payload (`docs/STARTER.md` §1.3): the release's `.xz` files
-//! carried inside the Starter, the `MANIFEST` that names each with its
-//! two SHA-256 sums, and the decoder that turns a payload file back into
-//! the image or binary it holds while it is written.
+//! The release's image list and the decoder that writes an image
+//! (`docs/STARTER.md` §1.3): the `IMAGES` list the Starter is built with,
+//! and the decoder that turns an image's `.xz` back into the image it
+//! holds while it is written.
 //!
 //! Nothing here touches a disk or a file: a source is a `Read` (a
 //! `Read + Seek` for a payload file, which is read twice) and a
 //! destination is a `Write`, so every refusal is tested without a disk.
 //!
-//! - [`Manifest::parse`] reads `MANIFEST` and refuses a malformed one,
-//!   saying which line and why.
 //! - [`ImageList::parse`] reads `IMAGES`, the release's image list
-//!   (`docs/IMAGES.md` §4), the same way, and [`ImageList::classify`]
+//!   (`docs/IMAGES.md` §4), and refuses a malformed one, saying which
+//!   line and why; [`ImageList::classify`]
 //!   says from a file's name alone whether it is on the list, of
 //!   another release, or neither.
 //! - [`write_payload`] checks a payload file's `.xz` sum against its
-//!   manifest line before a byte is written, then decompresses it into
+//!   line in the list before a byte is written, then decompresses it into
 //!   the writer as a stream, and succeeds only if what was written has
-//!   the manifest's size and SHA-256.
+//!   the list's size and SHA-256.
 //! - [`hash_image`] and [`write_image`] do the same for a developer's own
 //!   image (`--image`, §1.1), a plain file or a `.xz`, which has no
-//!   manifest: the first computes the SHA-256 the Confirm page shows,
+//!   line in the list: the first computes the SHA-256 the Confirm page shows,
 //!   the second writes the image and succeeds only if what it wrote has
 //!   that sum.
 //!
@@ -30,14 +29,14 @@
 //! [`MEMORY_LIMIT_KIB`]. No image is ever held in memory whole.
 
 mod decode;
+mod file;
 mod images;
-mod manifest;
 
 pub use decode::{
     ImageKind, ImageSum, MEMORY_LIMIT_KIB, PayloadError, hash_image, write_image, write_payload,
 };
+pub use file::PayloadFile;
 pub use images::{ImageList, ImageListError, ImageListFault, ListedImage, NameClass, sha256_of};
-pub use manifest::{Manifest, ManifestError, ManifestFault, PayloadFile};
 
 use core::fmt;
 

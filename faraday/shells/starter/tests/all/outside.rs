@@ -23,7 +23,7 @@ use faraday_starter_shell::writer::Job;
 
 use crate::ids::{runs, tool};
 use crate::sticks::{SECTOR, STICK, Sparse, card_image, read, sha, stick_image};
-use crate::writer::{FileDisk, image_job, release_payload, run, tmp};
+use crate::writer::{FileDisk, image_job, release_image, run, tmp};
 
 /// 7-Zip's own program, `7zz` or the name some systems give it, `7z`; not
 /// p7zip, the old fork, whose banner says so.
@@ -209,7 +209,7 @@ fn xz_streams_good_and_damaged_are_decoded_or_refused_as_xz_and_7_zip_do() {
 
 fn write_stick(name: &str, size: u64) -> PathBuf {
     let image = stick_image();
-    let (job, source) = release_payload(&image);
+    let (job, source) = release_image(&image);
     let path = tmp(name);
     Sparse::new(size).write(&path);
     let mut disk = FileDisk::new(&path);

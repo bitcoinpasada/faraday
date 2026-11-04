@@ -52,7 +52,7 @@ downloads".
 | `Faraday-Starter-X.Y.Z-Linux.tar.gz` | the Starter for Linux (x86_64): one file inside, `Faraday-Starter-X.Y.Z-Linux`, with its executable bit (§1.2) |
 | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | the stick image (`docs/IMAGES.md` §1) |
 | `faraday-pi-X.Y.Z.img.xz` | the Pi image, for every supported Pi and every Pi screen listed, the 2.8-inch and an HDMI screen: it finds its screen at boot (IMAGES §3, §4) |
-| `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter's payload |
+| `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter |
 | `IMAGES` | the release's image list: one line per image, with its two sums, size, build, platform, screen and the boards it starts (IMAGES §4) |
 | `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
 | `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1, batch A1) |
@@ -61,9 +61,9 @@ downloads".
 Faraday Demo is not a release file of its own (F83): the Linux
 Starter and the Windows Starter each have it compiled in and run it in
 their own window (F126, §5.3).
-The macOS rows arrive with their batches. Every Starter carries the
-Apple Silicon image and the start-up file template in its payload once
-they exist.
+The macOS rows arrive with their batches. The Apple
+Silicon image is found and checked like the others, and the start-up
+file template is built into every Starter, once they exist.
 
 `SHA256SUMS` lists the `.tar.gz` and the file inside it, under the
 inner name, so a person can check either, and each image's boot
@@ -84,8 +84,8 @@ partition, so a card or stick already written can be checked (IMAGES
   Developers build dev images (`just dev=1 faraday-stick-image`) and
   write them with the Starter itself: `faraday-starter --image
   out/stick/faraday-x86_64-uefi-dev.img` (or a `.img.xz`, or a
-  `-boot.vfat` for keep data) puts that file in place of the payload's
-  stick image, through the same screens and the same writer, with the
+  `-boot.vfat` for keep data) puts that file in place of a found
+  release image, through the same screens and the same writer, with the
   Confirm page saying the image is not the Starter's own and showing
   its SHA-256. tools/flash-stick (the window, `write.sh`, the
   launcher) was removed in batch L, when this worked (owner, 2026-10-12).
@@ -122,24 +122,25 @@ later decision, if people get stuck there.
 
 ### 1.3 What is inside the Starter
 
-The Starter carries its payload: the bytes of the release's `.xz`
-files, unchanged, and a manifest naming each with its two SHA-256 sums
-(of the `.xz` and of the `.img` or binary inside) and the build ID it
-carries. The payload is built in by the Starter's build from `out/release/`
-and is the same bytes the release publishes beside it.
+The Starter carries no image. It carries the release's image list,
+`IMAGES` (`docs/IMAGES.md` §4): for each image the release publishes, its
+file name, the SHA-256 of the `.xz` and of the `.img` inside it, its
+size, the build ID it carries and, for a stick image, the SHA-256 of its
+boot partition. The person downloads the images they want beside the
+Starter, and the Starter finds them on the computer (§3.2 step 0, the
+finder of `docs/IMAGES.md` §5) and checks each against its line in this
+built-in list, and only against it: a list read from Downloads or from
+beside a file would decide nothing.
 
 | Starter | Carries |
 |---|---|
-| Linux | the stick image, the Pi image |
-| Windows | the stick image, the Pi image |
+| Linux | the release's image list |
+| Windows | the release's image list |
 
-The release's other images are published beside the Starter, not in
-it, until the Starter carries no images (`docs/IMAGES.md` §5, §9 step 6).
-
-Before a payload file is written to a disk, the Starter
-app checks it against its manifest and refuses one that does not match.
-It does not hash the whole payload at start: a start is instant, and
-the check matters at the moment the bytes are used. That catches
+Before an image is written to a disk, the Starter app hashes the found
+file, compares it with its line in the built-in list and refuses one that
+does not match. It does not hash anything at start: a start is instant,
+and the check matters at the moment the bytes are used. That catches
 corruption, not tampering: the defence against tampering is
 `SHA256SUMS` and its signature over the Starter file itself, which
 About (§3.7) explains.
@@ -151,34 +152,26 @@ and a C decompressor is the wrong place to take that risk again. The
 decoder streams: an image is decompressed as it is written, never into
 a temporary file.
 
-**The manifest and where it is built** (orchestrator, 2026-10-12).
-A release is staged in two passes. The first, `just
-faraday-release-stage`, stages the plain files and also writes the
-payload to `out/payload/VERSION/`, outside the folder that is
-uploaded, one folder per system, `linux/` and `windows/`. Each holds
-the two image `.xz` files (hard links to the staged ones), its own
-`MANIFEST` and the release's image list `IMAGES` (`docs/IMAGES.md` §4,
-embedded too, for the finder of §5), nothing else; the two manifests have the same first line.
-The two folders stay apart, since each Starter embeds its own and they
-may differ later. `MANIFEST` is plain text: a
-first line `# Faraday Starter payload VERSION, commit <full hash>`, then
-one line per file, its fields separated by one tab: the payload file's
-name, its SHA-256, the name of what is inside it, that file's SHA-256,
-that file's size in bytes, the build ID it carries, and, on a stick
-image's line, the SHA-256 of its boot partition (the `-boot.vfat` value
-`SHA256SUMS` lists; `-` on every other line). The reader refuses a stick
-image's line without it or with one that is not 64 lowercase hex digits,
-and another line with one. The Starter's
-build embeds a system's folder, named by `FARADAY_STARTER_PAYLOAD`
-(`out/payload/VERSION/linux` for the Linux Starter,
-`out/payload/VERSION/windows` for the Windows one); a Starter built
-without it carries no payload and offers only `--image`. No payload
-holds Faraday Demo: it is compiled into the Starter (F126, §5.3). The
-second pass (batch L) builds the Starters against the payload and adds them,
-the `.tar.gz` and its inner file to the release folder and its
-`SHA256SUMS`. The manifest's parser and the verifying, streaming
-decoder are a crate of their own, `faraday/faraday-payload`, no I/O
-beyond `Read` and `Write`, so its refusals are tested without a disk.
+**The image list and where it is built** (orchestrator, 2026-10-12;
+changed when the Starter stopped carrying images). A release is staged in
+two passes. The first, `just faraday-release-stage`, stages the plain
+files, `IMAGES` among them, in the folder that is uploaded. `IMAGES` is
+plain text: a first line `# Faraday X.Y.Z images, commit <full hash>`,
+then one line per image, its nine fields separated by one tab
+(`docs/IMAGES.md` §4). The reader refuses a stick image's line without
+its boot partition's sum or with one that is not 64 lowercase hex digits,
+and another line with one. The Starter's build embeds the file named by
+`FARADAY_STARTER_IMAGES` (`out/release/VERSION/IMAGES`, for the Linux
+Starter and the Windows one alike), after checking that it parses; a
+Starter built without it finds no image of a release and offers only
+`--image`. No image and no Faraday Demo file is built in: Faraday Demo is
+compiled into the Starter (F126, §5.3). The second pass builds the
+Starters against that file and adds them, the `.tar.gz` and its inner
+file, to the release folder and its `SHA256SUMS`; it refuses a Starter
+that does not carry that release's `IMAGES`. The list's parser and the
+verifying, streaming decoder are a crate of their own,
+`faraday/faraday-payload`, no I/O beyond `Read` and `Write`, so its
+refusals are tested without a disk.
 
 **The Pi image's build ID.** The Pi's kernel is a compressed zImage,
 so its release string is not in the image's bytes. The Pi image build
@@ -188,9 +181,8 @@ release string and a newline (`6.6.84-faraday-0.2.0`), so
 reads a stick's, and the staging script and the Starter read the Pi's
 build ID the same way.
 
-Estimated size: about 36 MB on each system (11 + 12 MB images, the
-Starter itself about 13 MB), and Faraday Demo's own code and samples
-compiled in beside it (F126, §5.3).
+Estimated size: about 13 MB on each system, Faraday Demo's own code and
+samples compiled in (F126, §5.3).
 
 ## 2. How it is built
 
@@ -199,7 +191,7 @@ compiled in beside it (F126, §5.3).
   It draws with `faraday-core::ui` and `faraday-draw`, so it looks like
   Faraday and obeys the same tokens.
 - `faraday/shells/starter`: the window (winit and softbuffer, as the
-  desktop shell; both run on Windows), the payload, and one module per
+  desktop shell; both run on Windows), the image finder and the built-in image list, and one module per
   operating system for what differs: listing disks, writing them,
   installing, reading this computer's facts, restarting into firmware.
 - **Transfer and Learn are the desktop app's own screens.** The
@@ -229,11 +221,11 @@ compiled in beside it (F126, §5.3).
   `--write` runs before anything else in the binary is initialised.
 - **On Windows the privileged writer is the same binary.** The Starter
   starts itself elevated (`ShellExecuteExW` with `runas`) with
-  `--write` and the mode, the payload file, the device and the
+  `--write` and the mode, the image file, the device and the
   confirmed serial and size; the elevated copy reports progress over a
   named pipe only the person's account can open. `--write` is handled
   before anything else in the binary is initialised: no window, no
-  payload beyond the one file named, nothing read from the environment.
+  image beyond the one file named, nothing read from the environment.
   The writer checks the device again before it writes (§4.3) and never
   takes a path from anything but its arguments. (The BitLocker calls
   that went through it as `--bitlocker <verb>` are removed by F33,
@@ -729,7 +721,7 @@ destinations; Faraday Demo and the device keep their own navigation
 
 ### 3.2 Make a Faraday stick
 
-0. **For which computer?**, only once the payload carries
+0. **For which computer?**, only once the finder has found
    both stick images (MAC A1): "A PC or an Intel Mac" or "A Mac with
    M1 or M2". Nothing is chosen for the person, as with the disk; the
    row that fits this computer says "This computer". Keep data refuses
@@ -1004,7 +996,7 @@ Text size: Standard, Large, Larger, as Faraday's (`docs/TEXT-SIZE.md`
 §6, F85), a row at the top, its label beside the sizes or over them on
 a compact window: the Starter's pages, its held Transfer and Learn and
 Faraday Demo inside it drawn at once at the size chosen, the layout
-stepping down a class for it (§3.1d). Version; each payload file with its build ID and SHA-256; the release
+stepping down a class for it (§3.1d). Version; each image of the built-in list with its build ID and SHA-256; the release
 key's fingerprint as the README prints it; how to check the Starter
 file itself with `SHA256SUMS` and its signature; on Windows, why the
 file is unsigned (§10.2).
@@ -1091,9 +1083,9 @@ A disk with any other layout is refused, and nothing is relabelled. A
 stick whose boot partition is smaller than the image's 64 MiB, such as
 one made with a 48 MB boot partition before F80, is refused the same
 way, with both sizes. The image's boot partition must be FAT32
-labelled `EFI`. The source is decompressed from the payload while it
+labelled `EFI`. The source is decompressed from the found image while it
 is written, and the SHA-256 of the decompressed stream must equal the
-manifest's before the writer reports success.
+list's before the writer reports success.
 
 **A stick is made for its size** (`docs/STICK-IDENTITY.md` §4.2, F182).
 Writing a whole stick, the Starter does not copy the image: it makes
@@ -1109,9 +1101,9 @@ serial, the name of §3.2 and `docs/STICK-IDENTITY.md` §6), of which
 only the reserved sectors, the FATs and the root directory are
 written. The IDs come from the system's randomness and are not secret.
 Sectors are 512 bytes whatever the disk's own. The source is still
-decompressed as it is written and its SHA-256 must be the manifest's;
+decompressed as it is written and its SHA-256 must be the list's;
 only its boot partition reaches the stick, and with no boot file signed
-that partition's SHA-256 must be the manifest's `-boot.vfat` value,
+that partition's SHA-256 must be the list's `-boot.vfat` value,
 checked before the disk is opened. *Clear the whole stick first* writes
 zeros over every sector before this, with its own progress. Read back:
 every region written (the table and the FAT32) and the boot partition
@@ -1120,7 +1112,7 @@ release" (with "except the boot file you signed, as expected"). A Pi
 card is the image with a new MBR disk signature and new serials,
 patches on the stream with the name's, written so and compared so, and
 with the image's own bytes put back the SHA-256 of what was read must be
-the manifest's; Done says "Matches the release image, except this card's
+the list's; Done says "Matches the release image, except this card's
 own IDs, as expected" (with "its name"). *Keep data* writes no
 partition table: the stick keeps its GUIDs, and the new boot partition
 is the release's as it is, serial included.
@@ -1219,10 +1211,10 @@ it with a drive letter. The vaults there are encrypted; the settings
 file is not. The Learn page "Replacing Faraday on a stick" says this.
 Keep data is how a Faraday stick is upgraded: Faraday itself writes no
 boot partition, and the Starter checks every image against the
-release's manifest before it writes it (F128).
+release's image list before it writes it (F128).
 Where no boot file is signed (§4.5), keep data also checks, before
 anything is written, that the SHA-256 of the boot partition it is about
-to write is the manifest's `-boot.vfat` value; a payload whose boot
+to write is the list's `-boot.vfat` value; an image whose boot
 partition is not that is refused with its own fault and nothing is
 written. With a signed boot file the check is the byte-for-byte read
 back only. Done says "The boot partition matches the release", or, with
@@ -1281,8 +1273,8 @@ partition (F128).
   (`faraday_sb::pe::image_hash`, which leaves the signature, its
   directory entry and the checksum out) equals the image hash of the
   release's own `EFI/BOOT/BOOTX64.EFI`, read from the boot partition of
-  the payload file or the found image file decompressed and checked
-  against its manifest or list line
+  the found image file decompressed and checked
+  against its line in the list
   (`faraday_fat::Volume::read_in`) and padded to eight bytes as a signer
   pads it; and its certificate table is one signature alone at its end:
   where the release's program ends, ending the file, its one entry's
@@ -1433,15 +1425,15 @@ else's, and stays. The cache an earlier Starter ran it from
 goes too. Installed's Record lists the Starter's own files only. Never
 `~/faraday-sticks` or what is in it.
 
-**Releases** (§1.1, §1.3). Staging takes no Faraday Demo build: each
-payload folder holds the two images and its `MANIFEST`, and staging
-refuses a release folder that holds a `faraday-demo-…` file. The
+**Releases** (§1.1, §1.3). Staging takes no Faraday Demo build: the
+release folder holds the images and `IMAGES`, the Starters are built
+against that list, and staging refuses a release folder that holds a `faraday-demo-…` file. The
 `faraday-desktop` package and its `faraday` binary stay for developers
 (`cargo run -p faraday-desktop`, `README.md`).
 
 **Size.** Faraday Demo's own code and the samples are compiled into the
-Starter in place of the 5.6 MB `.xz` the payload carried (measured
-2026-10-23); most of what the Demo runs, `faraday-core`, was in the
+Starter (the Demo's 5.6 MB `.xz` was measured on
+2026-10-23, when a payload still carried images); most of what the Demo runs, `faraday-core`, was in the
 Starter already for Transfer and Learn. The Starter's release size is
 measured at the next release build.
 
@@ -1456,7 +1448,7 @@ from each system's answers (`tests/all/scheme.rs`); install puts no
 Faraday Demo, removes an earlier one that answers as Faraday's under
 either name, with its cache, and leaves somebody else's
 (`faraday/shells/starter/tests/all/install.rs`, `windows.rs`); staging
-needs no Faraday Demo build and puts none in a payload
+needs no Faraday Demo build and puts none in the release
 (`faraday/faraday-payload/tests/stage_release.rs`).
 
 ### 5.4 Uninstalling
@@ -2052,8 +2044,8 @@ forbids today (§12, D2). A Pi card is upgraded by writing it whole.
 ### 10.1 What the Starter is trusted with
 
 The Starter runs on an online computer and writes the system a person
-will trust with their keys. It carries the release's own bytes, checks
-them against its manifest, shows their sums, reads every write back,
+will trust with their keys. It carries the release's image list, checks
+the images it finds against it, shows their sums, reads every write back,
 and has no network code. The writer runs elevated for one write and
 takes its device, serial and size as arguments it checks again. The
 Starter never reads a Faraday stick's data partition.
@@ -2114,8 +2106,8 @@ Starter and opened at again, and written by no run without an install
 (`faraday/faraday-starter/tests/all/text_size.rs`); the firmware steps closed by another encryption product
 until its rescue is confirmed; F33's and F49's tests
 (`docs/history/STARTER-LOG.md` §6.5); the
-guide chosen for a maker string; a payload file that does not match
-its manifest refused; the stick's power-off line for each Secure Boot
+guide chosen for a maker string; an image that does not match
+its line in the list refused; the stick's power-off line for each Secure Boot
 byte.
 
 ## 12. Decisions

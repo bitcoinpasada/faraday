@@ -100,7 +100,6 @@ shipped binary does.
 | `pe_transplant` | `pe::transplant` against a fixed release PE (`faraday-sb`'s `tests/vectors/tiny.efi`) and `pe::signer`, on the input as a signed boot file: whenever it is taken, what is built has the release's image hash and is the release's bytes but for the checksum, the certificate-table entry and the table. |
 | `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. And `faraday_boot::find_release`, with which the Starter reads a stick's version, over the input as a boot partition's bytes. |
 | `v4l2_luma` | The V4L2 shell's frame converters (`luma`, `chroma`, the two downscales) over a format, a size, a stride and a buffer taken from the input; `abi.rs` and `convert.rs` are included by path. |
-| `manifest` | `faraday_payload::Manifest::parse`. |
 | `plist` | The Starter's macOS property list reader; `plist.rs` is included by path. |
 
 `classify_file`, `inbox_found`, `read_wallet` and `png_qr` take inputs up to

@@ -7,6 +7,7 @@
 
 use crate::api::{FoundImage, ImageFinding, PayloadKind, Source, StarterCommand, StarterEvent};
 use crate::decide::Target;
+use crate::macs::StickFor;
 use crate::{Image, Starter};
 
 /// What the finder has found, and the files dropped to be looked at.
@@ -20,19 +21,19 @@ pub(crate) struct Found {
     /// hardware there is an image for.
     wanted: Vec<String>,
     /// The found image a person chose, by its path; none while the
-    /// payload's, or the first found, stands.
+    /// first found stands.
     chosen: Option<String>,
 }
 
 /// One image a person can choose on Make a stick or Make a Pi card.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImageChoice {
-    /// The file's name, or what the payload's is called.
+    /// The file's name.
     pub head: String,
     /// The build it carries.
     pub build: String,
-    /// Where it was found: the folder; none for the payload's.
-    pub folder: Option<String>,
+    /// Where it was found: the folder.
+    pub folder: String,
     /// Whether this is what would be written.
     pub selected: bool,
 }
@@ -83,14 +84,19 @@ impl Starter {
     }
 
     /// The found images to offer for `target`: those named for it, one
-    /// of each image (the same `.img` dropped from two places is one), and
-    /// none the payload carries already. A lookup.
+    /// of each image (the same `.img` dropped from two places is one);
+    /// for a stick, once For which computer? is answered, only the kind
+    /// answered. A lookup.
     fn offered_found(&self, target: Target) -> Vec<&FoundImage> {
-        let payload = self.payload_sum(target);
+        let kind = match (target, self.making.as_ref().and_then(|m| m.stick_for)) {
+            (Target::Stick, Some(StickFor::Pc)) => Some(PayloadKind::Stick),
+            (Target::Stick, Some(StickFor::AppleSilicon)) => Some(PayloadKind::AppleStick),
+            _ => None,
+        };
         let mut out: Vec<&FoundImage> = Vec::new();
         for f in self.found_images() {
             if f.name.starts_with(prefix(target))
-                && payload.as_deref() != Some(f.img_sha256.as_str())
+                && kind.is_none_or(|k| PayloadKind::of(&f.name) == Some(k))
                 && !out.iter().any(|o| o.img_sha256 == f.img_sha256)
             {
                 out.push(f);
@@ -99,13 +105,10 @@ impl Starter {
         out
     }
 
-    /// The `.img` SHA-256 of the payload's image for `target`. A lookup.
-    fn payload_sum(&self, target: Target) -> Option<String> {
-        let kind = match target {
-            Target::Stick => PayloadKind::Stick,
-            Target::Pi => PayloadKind::Pi,
-        };
-        self.payload_file(kind).map(|f| f.inner_sha256.clone())
+    /// Whether an image of `kind` was found, whoever's it is. A lookup.
+    pub(crate) fn found_kind_offered(&self, kind: PayloadKind) -> bool {
+        self.found_images()
+            .any(|f| PayloadKind::of(&f.name) == Some(kind))
     }
 
     /// What a stick or card is written from when a found image answers
@@ -130,56 +133,29 @@ impl Starter {
         })
     }
 
-    /// Whether a found image the person chose stands in for the
-    /// payload's. A lookup.
-    pub(crate) fn found_chosen(&self, target: Target) -> bool {
-        self.found
-            .chosen
-            .as_deref()
-            .is_some_and(|c| self.offered_found(target).iter().any(|f| f.path == c))
-    }
-
-    /// The images to choose from for `target`, the payload's first, as
-    /// Make's list shows them. A lookup.
+    /// The images to choose from for `target`, as Make's list shows
+    /// them. A lookup.
     pub fn image_choices(&self, target: Target) -> Vec<ImageChoice> {
         let now = self.image(target).map(|i| i.source);
-        let mut out = Vec::new();
-        let kind = match target {
-            Target::Stick => PayloadKind::Stick,
-            Target::Pi => PayloadKind::Pi,
-        };
-        if let Some(f) = self.payload_file(kind) {
-            out.push(ImageChoice {
+        self.offered_found(target)
+            .into_iter()
+            .map(|f| ImageChoice {
                 head: f.name.clone(),
                 build: f.build_id.clone(),
-                folder: None,
-                selected: matches!(now, Some(Source::Payload { .. })),
-            });
-        }
-        for f in self.offered_found(target) {
-            out.push(ImageChoice {
-                head: f.name.clone(),
-                build: f.build_id.clone(),
-                folder: Some(folder_of(&f.path)),
+                folder: folder_of(&f.path),
                 selected: matches!(&now, Some(Source::Found { path, .. }) if *path == f.path),
-            });
-        }
-        out
+            })
+            .collect()
     }
 
-    /// The release files for `target` that neither the payload nor the
-    /// finder has: the names to download. A lookup.
+    /// The release files for `target` that the finder has not found: the
+    /// names to download. A lookup.
     pub fn images_to_download(&self, target: Target) -> Vec<&str> {
-        let kind = match target {
-            Target::Stick => PayloadKind::Stick,
-            Target::Pi => PayloadKind::Pi,
-        };
-        let have = self.payload_file(kind).map(|f| f.name.as_str());
         self.found
             .wanted
             .iter()
             .map(String::as_str)
-            .filter(|n| n.starts_with(prefix(target)) && Some(*n) != have)
+            .filter(|n| n.starts_with(prefix(target)))
             .filter(|n| !self.found_images().any(|f| f.name == *n))
             .collect()
     }
@@ -211,14 +187,11 @@ impl Starter {
         let Some(c) = choices.get(usize::from(n)) else {
             return;
         };
-        self.found.chosen = match &c.folder {
-            None => None,
-            Some(_) => self
-                .offered_found(target)
-                .into_iter()
-                .find(|f| f.name == c.head && c.build == f.build_id)
-                .map(|f| f.path.clone()),
-        };
+        self.found.chosen = self
+            .offered_found(target)
+            .into_iter()
+            .find(|f| f.name == c.head && c.build == f.build_id)
+            .map(|f| f.path.clone());
         self.dirty = true;
     }
 

@@ -28,7 +28,7 @@ the Starter that drew them is 0.1.8 and carries test images of 0.2.0.
 | Card | Line | Button |
 |---|---|---|
 | **Faraday stick** | **No Faraday stick attached**, or "Faraday stick attached · 0.1.8" | **Make a Faraday stick**: the primary button until a Faraday stick is attached. Opens [For which computer?](#for-which-computer) or [Which stick?](#which-stick-or-which-card) |
-| **Pi card** | "Version 0.2.0", the Pi image's, or **Not in this Starter** | **Make a Pi card**: opens [Which card?](#which-stick-or-which-card). Grey when this Starter carries no Pi image |
+| **Pi card** | "Version 0.2.0", the found Pi image's, or **No image found** | **Make a Pi card**: opens [Which card?](#which-stick-or-which-card). Grey when no Pi image is found |
 
 ## Make a Faraday stick
 

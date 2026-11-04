@@ -8,13 +8,13 @@ use faraday_starter::api::{InstallItem, Installed, StarterCommand, StarterEvent}
 use faraday_starter::{Page, Starter, StarterAction};
 use faraday_ui::TextSize;
 
-use super::starter::{display, linux, payload};
+use super::starter::{display, images, linux};
 
 fn shown() -> Starter {
     let mut s = Starter::new();
     s.event(display(1280, 800, 160));
     s.starter_event(StarterEvent::Computer(linux(true)));
-    s.starter_event(StarterEvent::Payload(Some(payload("0.2.0"))));
+    s.starter_event(StarterEvent::ImagesFound(images("0.2.0")));
     s
 }
 

@@ -5,8 +5,7 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
-    Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, Payload, PayloadFile,
-    StarterEvent,
+    Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, StarterEvent,
 };
 use faraday_starter::decide::{Item, Target};
 use faraday_starter::{Page, Starter, StarterAction};
@@ -26,25 +25,6 @@ fn display(width: u16, height: u16) -> Event {
         boot: BootState::Unknown,
         memory_mib: None,
     })
-}
-
-fn payload() -> Payload {
-    let file = |name: &str, n: char| PayloadFile {
-        name: name.into(),
-        sha256: n.to_string().repeat(64),
-        inner: name.trim_end_matches(".xz").into(),
-        inner_sha256: n.to_ascii_uppercase().to_string().repeat(64),
-        inner_size: 4 * GB,
-        build_id: "0.2.0".into(),
-    };
-    Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
-        files: vec![
-            file("faraday-stick-0.2.0-x86_64-uefi.img.xz", 'a'),
-            file("faraday-pi-0.2.0.img.xz", 'b'),
-        ],
-    }
 }
 
 fn stick() -> Disk {
@@ -78,7 +58,7 @@ fn starter(width: u16, height: u16) -> Starter {
         secure_boot: Some(true),
         tpm_unlock: false,
     }));
-    s.starter_event(StarterEvent::Payload(Some(payload())));
+    s.starter_event(StarterEvent::ImagesFound(super::starter::images("0.2.0")));
     s.starter_event(StarterEvent::Disks(Vec::new()));
     s
 }

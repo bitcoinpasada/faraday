@@ -180,13 +180,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "manifest"
-path = "fuzz_targets/manifest.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "image_list"
 path = "fuzz_targets/image_list.rs"
 test = false
@@ -238,13 +231,6 @@ bench = false
 [[bin]]
 name = "qr_specter"
 path = "fuzz_targets/qr_specter.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "payload_line"
-path = "fuzz_targets/payload_line.rs"
 test = false
 doc = false
 bench = false

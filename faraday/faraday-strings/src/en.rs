@@ -202,7 +202,7 @@ strings! {
     starter_mac_utility_full: "macOS Recovery, Startup Security Utility: Full Security, and Disallow booting from external or removable media",
     /// Guide title.
     starter_learn_mac_intel: "Starting an Intel Mac from the stick",
-    /// Make a Faraday stick's first choice, once the payload carries both stick images (docs/MAC.md §6).
+    /// Make a Faraday stick's first choice, once the images found include both stick images (docs/MAC.md §6).
     starter_which_title: "For which computer?",
     /// Row.
     starter_which_pc: "A PC or an Intel Mac",
@@ -247,8 +247,8 @@ strings! {
     starter_card_stick: "Faraday stick",
     /// Make's second card.
     starter_card_pi: "Pi card",
-    /// Make's Pi card, without the image in this Starter.
-    starter_card_pi_none: "Not in this Starter",
+    /// Make's Pi card, with no Pi image found.
+    starter_card_pi_none: "No image found",
     /// A card's line naming a version: `{}` the version.
     starter_card_version: "Version {}",
     /// Home's card for Faraday Demo.
@@ -281,8 +281,6 @@ strings! {
     starter_images: "Image",
     /// A found image's second line: `{}` the folder, `{}` the build.
     starter_image_found: "In {}, build {}",
-    /// The payload's image, second line: `{}` the build.
-    starter_image_included: "In this Starter, build {}",
     /// Label over the image files to download.
     starter_images_missing: "Not found",
     /// An image not found, second line.
@@ -681,7 +679,7 @@ strings! {
     /// Reason. `{}` disk size, `{}` image size.
     starter_why_too_small: "The disk ({}) is smaller than the image ({}). Nothing was written.",
     /// Reason.
-    starter_why_payload_sum: "The payload file does not match the manifest. Nothing was written.",
+    starter_why_payload_sum: "The image file does not match its list. Nothing was written.",
     /// Reason. `{}` file, `{}` sum.
     starter_why_image_changed: "{} has changed since the app started: its SHA-256 is now {}. Nothing was written.",
     /// Reason.
@@ -731,7 +729,7 @@ strings! {
     /// Reason. `{}` the system's words.
     starter_why_write_failed: "Writing failed: {}",
     /// Reason.
-    starter_why_payload_changed: "The payload file changed while it was read",
+    starter_why_payload_changed: "The image file changed while it was read",
     /// Reason. `{}` the decoder's words.
     starter_why_damaged: "The .xz file is damaged: {}",
     /// Reason. `{}` bytes.
@@ -842,18 +840,6 @@ strings! {
     starter_fault_name: "its data partition cannot take this name",
     /// About row.
     starter_version: "Version",
-    /// About row.
-    starter_release: "Release",
-    /// About row.
-    starter_commit: "Commit",
-    /// About label.
-    starter_payload: "Carried in this app",
-    /// About, with no payload.
-    starter_no_payload: "Faraday Starter carries no images",
-    /// About row.
-    starter_sha_xz: "SHA-256",
-    /// About row: `{}` the file inside.
-    starter_sha_inner: "SHA-256 of {}",
     /// About label.
     starter_release_key: "Release key",
     /// About label.

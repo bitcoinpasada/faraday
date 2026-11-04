@@ -179,7 +179,7 @@ before.
 ![Which card? with the boards and cameras lines, and an SD card reader of 32 GB listed](../pictures/starter-tools-pi-card.png)
 
 On **Make**, the **Pi card** card shows the Pi image's **Version …**,
-or **Not in this Starter**, when **Make a Pi card** is grey.
+or **No image found**, when **Make a Pi card** is grey.
 
 Press **Make a Pi card**. **Which card?** opens with what the card is
 for: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8

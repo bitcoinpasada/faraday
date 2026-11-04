@@ -99,17 +99,14 @@ On a narrow window each row's label is over its control.
 
 **Opened from:** the ⋮ menu's **About**.
 
-![About: Text size, Version, Release, Commit, and the images carried with their builds and sums](../pictures/starter-about.png)
+![About: Text size and Version](../pictures/starter-about.png)
 
-*About: **Text size** on **Standard**, **Version** 0.1.8, **Release** and **Commit**, then **Carried in this app** with the stick, Pi and Faraday Demo files, each with **Build** and its sums. The release, commit and sums are made up for the picture.*
+*About: **Text size** on **Standard** and **Version** 0.1.8.*
 
 | Control | What it does |
 |---|---|
 | **Text size** | **Standard**, **Large**, **Larger**, as Faraday's own: the Starter's pages, and Transfer, Learn and Faraday Demo inside it, drawn at once at the size chosen; a size chosen in Faraday Demo is the Starter's too. An installed Starter keeps it and opens at it; one run without installing keeps it until it is closed |
 | **Version** | this Starter's version |
-| **Release**, **Commit** | the release the carried images are from, and its commit |
-| **Carried in this app** | each image the Starter carries, by its file name, with **Build** (its build ID), **SHA-256** (the compressed file's) and "SHA-256 of …" (the image inside it) |
-| **Faraday Starter carries no images** | in place of the above, when it carries none |
 | **Not Faraday Starter's own image** | in the warning band, when the Starter was started with a developer's image: then **Image file** and **SHA-256 of this image** |
 | **Release key** | the release key's fingerprint, as the README prints it |
 | **Checking this file** | **Check this file against SHA256SUMS and its signature, SHA256SUMS.asc, from the release, with the release key above.**, then the three commands that do it |

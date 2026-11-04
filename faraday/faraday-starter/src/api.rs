@@ -5,9 +5,8 @@
 //!
 //! The shell sends what it reads, as it reads it, and sends it again
 //! whenever it changes: this computer's facts at start, every disk
-//! attached each time the set or a disk changes, the payload's manifest
-//! once. The Starter keeps only the latest of each and keeps no file
-//! (§5.1): Home's checklist is drawn from them every time.
+//! attached each time the set or a disk changes. The Starter keeps only
+//! the latest of each and keeps no file (§5.1): Home's checklist is drawn from them every time.
 
 /// Which operating system the Starter runs on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -241,7 +240,7 @@ pub struct Disk {
     pub faraday: Option<FaradayStick>,
 }
 
-/// What a payload file holds, from its name.
+/// What a release image holds, from its file name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PayloadKind {
     /// The stick image for a PC or an Intel Mac (`faraday-stick-…`).
@@ -254,8 +253,8 @@ pub enum PayloadKind {
 }
 
 impl PayloadKind {
-    /// The kind a payload file's name says, or `None` for a name the Starter
-    /// does not know.
+    /// The kind a release image's name says, or `None` for a name the
+    /// Starter does not know.
     pub fn of(name: &str) -> Option<PayloadKind> {
         if name.starts_with("faraday-stick-") && name.ends_with("-arm64-apple.img.xz") {
             Some(PayloadKind::AppleStick)
@@ -269,44 +268,8 @@ impl PayloadKind {
     }
 }
 
-/// One line of the payload's `MANIFEST` (§1.3), its tab-separated fields
-/// as `faraday-payload` parses them.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PayloadFile {
-    /// The payload file's name (`faraday-stick-0.2.0-x86_64-uefi.img.xz`).
-    pub name: String,
-    /// Its SHA-256, hex.
-    pub sha256: String,
-    /// The name of what is inside it (`faraday-stick-0.2.0-x86_64-uefi.img`).
-    pub inner: String,
-    /// That file's SHA-256, hex: what is written and checked.
-    pub inner_sha256: String,
-    /// That file's size in bytes.
-    pub inner_size: u64,
-    /// The build ID it carries (`docs/DECISIONS.md` F5).
-    pub build_id: String,
-}
-
-impl PayloadFile {
-    /// What it holds, from its name.
-    pub fn kind(&self) -> Option<PayloadKind> {
-        PayloadKind::of(&self.name)
-    }
-}
-
-/// The payload the Starter carries (§1.3).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Payload {
-    /// The release it is (`0.2.0`), from the manifest's first line.
-    pub version: String,
-    /// The commit it was built from, from the same line.
-    pub commit: String,
-    /// Its files.
-    pub files: Vec<PayloadFile>,
-}
-
 /// A developer's own image (`faraday-starter --image FILE`, §1.1), in place
-/// of the payload's stick image.
+/// of a found stick image.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DevImage {
     /// The file as given.
@@ -451,7 +414,7 @@ pub enum Reason {
         /// The image's.
         image: u64,
     },
-    /// The payload file's SHA-256 is not the manifest's.
+    /// A release image's file does not have the SHA-256 its list gives.
     PayloadSum,
     /// A developer's image changed since the Starter started.
     ImageChanged {
@@ -646,8 +609,8 @@ pub enum Reason {
         sha256: String,
     },
     /// Keep data, no boot file signed: the boot partition the release's
-    /// stick image carries does not have the SHA-256 the payload's
-    /// manifest gives for it (the `-boot.vfat` value, §4.4). Nothing was
+    /// stick image carries does not have the SHA-256 the release's
+    /// list gives for it (the `-boot.vfat` value, §4.4). Nothing was
     /// written.
     BootSum {
         /// The SHA-256 it has, hex.
@@ -707,11 +670,9 @@ pub enum StarterEvent {
     /// Every disk attached now. Sent at start and whenever the set or a
     /// disk changes (plugged in, pulled out, mounted, written).
     Disks(Vec<Disk>),
-    /// The payload's manifest, or `None` for a Starter built without one.
-    Payload(Option<Payload>),
     /// The file names of the release's images, for the hardware whose
-    /// image was not found: from the release's `IMAGES`, or from the
-    /// version and the naming when the Starter has no list.
+    /// image was not found: from the `IMAGES` list built into the
+    /// Starter, or from its version and the release's naming.
     ImagesWanted(Vec<String>),
     /// A developer's image given with `--image`.
     DevImage(DevImage),
@@ -887,14 +848,6 @@ pub enum Mode {
 /// What a write takes its bytes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source {
-    /// A payload file, by its name in the manifest; the writer checks
-    /// the decompressed stream against `inner_sha256`.
-    Payload {
-        /// The payload file's name.
-        name: String,
-        /// The SHA-256 of what is inside it, hex.
-        inner_sha256: String,
-    },
     /// A release image the finder found (`docs/IMAGES.md` §5), by its
     /// path and the list's sums for it; the writer takes its size, build
     /// and boot partition's sum from the list built in, and checks the

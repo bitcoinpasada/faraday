@@ -4,7 +4,7 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
-    Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile, PayloadKind, Source,
+    Bus, Computer, Disk, FaradayStick, FoundImage, ImageFinding, Mode, Os, PayloadKind, Source,
     StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
@@ -27,37 +27,28 @@ fn display() -> Event {
     })
 }
 
-fn file(name: &str, inner: &str, n: char) -> PayloadFile {
-    PayloadFile {
+fn file(name: &str, n: char) -> ImageFinding {
+    ImageFinding::Found(FoundImage {
+        path: format!("/Downloads/{name}"),
         name: name.into(),
-        sha256: n.to_string().repeat(64),
-        inner: inner.into(),
-        inner_sha256: n.to_ascii_uppercase().to_string().repeat(64),
+        xz_sha256: n.to_string().repeat(64),
+        img_sha256: n.to_ascii_uppercase().to_string().repeat(64),
         inner_size: 4 * GB,
         build_id: "0.2.0".into(),
-    }
+        board: String::new(),
+        panel: String::new(),
+        starts: Vec::new(),
+    })
 }
 
-/// A payload with the PC stick image, and the Apple silicon one when
-/// `apple` (a stand-in: no release carries it until `docs/MAC.md` A1).
-fn payload(apple: bool) -> Payload {
-    let mut files = vec![file(
-        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-        "faraday-stick-0.2.0-x86_64-uefi.img",
-        'a',
-    )];
+/// The PC stick image found, and the Apple silicon one when `apple` (a
+/// stand-in: no release carries it until `docs/MAC.md` A1).
+fn images(apple: bool) -> Vec<ImageFinding> {
+    let mut found = vec![file("faraday-stick-0.2.0-x86_64-uefi.img.xz", 'a')];
     if apple {
-        files.push(file(
-            "faraday-stick-0.2.0-arm64-apple.img.xz",
-            "faraday-stick-0.2.0-arm64-apple.img",
-            'd',
-        ));
+        found.push(file("faraday-stick-0.2.0-arm64-apple.img.xz", 'd'));
     }
-    Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
-        files,
-    }
+    found
 }
 
 fn blank(id: &str) -> Disk {
@@ -108,7 +99,7 @@ fn starter(c: Computer, disks: Vec<Disk>, apple_image: bool) -> Starter {
     let mut starter = Starter::new();
     starter.event(display());
     starter.starter_event(StarterEvent::Computer(c));
-    starter.starter_event(StarterEvent::Payload(Some(payload(apple_image))));
+    starter.starter_event(StarterEvent::ImagesFound(images(apple_image)));
     starter.starter_event(StarterEvent::Disks(disks));
     starter
 }
@@ -358,7 +349,7 @@ fn the_start_page_on_an_unknown_mac_marks_the_t2_steps() {
 }
 
 #[test]
-fn for_which_computer_is_asked_only_when_both_stick_images_are_carried() {
+fn for_which_computer_is_asked_only_when_both_stick_images_are_found() {
     // One stick image: straight to the disks.
     let mut h = starter(mac(Os::MacOs, "MacBookPro11,1", false), Vec::new(), false);
     h.press(StarterAction::Make(Target::Stick));
@@ -452,7 +443,7 @@ fn the_apple_silicon_choice_writes_the_apple_silicon_image() {
         assert!(
             matches!(
                 sent.as_slice(),
-                [StarterCommand::Write(o)] if matches!(&o.source, Source::Payload { name: n, .. } if n == name)
+                [StarterCommand::Write(o)] if matches!(&o.source, Source::Found { path, .. } if path.ends_with(name))
             ),
             "{sent:?}"
         );

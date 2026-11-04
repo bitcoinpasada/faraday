@@ -12,7 +12,6 @@ use faraday_fat::Volume;
 use faraday_payload::ImageKind;
 use faraday_sb::rng::stream;
 use faraday_starter::api::{BootFile, Mode, Reason, Source as Confirmed, WriteOrder};
-use faraday_starter_shell::payload::Payload;
 use faraday_starter_shell::signed::{self, BOOT_PATH};
 use faraday_starter_shell::writer::Job;
 
@@ -24,7 +23,6 @@ use crate::writer::{FileDisk, run, tmp};
 
 const NOW: u64 = 1_791_000_000;
 const NAME: &str = "faraday-stick-0.3.0-x86_64-uefi.img.xz";
-const COMMIT: &str = "89abcdef0123456789abcdef0123456789abcdef";
 const BUILD: &[u8] = b"0.3.0+89abcdef0123\n";
 
 /// A PE32+ EFI program: headers, then one section of `code_len` bytes of
@@ -178,14 +176,14 @@ fn sum(bytes: &[u8]) -> (String, u64) {
     (s.sha256.to_string(), s.size)
 }
 
-/// The Starter's payload carrying the release image of `efi`, and the
-/// order's source for it.
+/// The release image of `efi` found in a folder, and the order's source
+/// for it.
 fn release(efi: &[u8]) -> (Job, Confirmed) {
     release_listing(efi, false)
 }
 
-/// The same; with `off` the manifest's boot partition sum is the
-/// partition's with one byte changed.
+/// The same; with `off` the list's boot partition sum is the partition's
+/// with one byte changed.
 fn release_listing(efi: &[u8], off: bool) -> (Job, Confirmed) {
     let img = release_image(efi).to_vec();
     let xz = stored_xz(&img);
@@ -197,17 +195,27 @@ fn release_listing(efi: &[u8], off: bool) -> (Job, Confirmed) {
         boot[1000] ^= 1;
     }
     let (boot_sha, _) = sum(&boot);
-    let manifest = format!(
-        "# Faraday Starter payload 0.3.0, commit {COMMIT}\n{NAME}\t{xz_sha}\tfaraday-stick-0.3.0-x86_64-uefi.img\t{img_sha}\t{size}\t0.3.0+89abcdef0123\t{boot_sha}\n"
-    );
-    let payload =
-        Payload::from_parts(manifest.as_bytes(), vec![(NAME.to_string(), xz)]).expect("a payload");
-    let job = payload.job(NAME, &img_sha).expect("carried");
-    let source = Confirmed::Payload {
+    let path = tmp(&format!(
+        "signed-release-{}-{xz_sha}.img.xz",
+        std::process::id()
+    ));
+    std::fs::write(&path, &xz).expect("the found file");
+    let sha = |h: &str| faraday_payload::Sha256Sum::from_hex(h).expect("a sum");
+    let file = faraday_payload::PayloadFile {
         name: NAME.to_string(),
-        inner_sha256: img_sha,
+        sha256: sha(&xz_sha),
+        inner_name: NAME.trim_end_matches(".xz").to_string(),
+        inner_sha256: sha(&img_sha),
+        inner_size: size,
+        build_id: "0.3.0+89abcdef0123".to_string(),
+        boot_sha256: Some(sha(&boot_sha)),
     };
-    (job, source)
+    let source = Confirmed::Found {
+        path: path.display().to_string(),
+        xz_sha256: xz_sha,
+        img_sha256: img_sha,
+    };
+    (Job::Found { file, path }, source)
 }
 
 /// A db key and its certificate, made as Faraday's Secure Boot tools
@@ -317,7 +325,7 @@ fn a_release_boot_file_signed_with_ones_own_db_key_is_written_in_place_of_the_re
 }
 
 /// A boot file signed with one's own db key, from a release image found
-/// in a folder: chosen and written as from the payload, and refused when
+/// in a folder: chosen and written as from the release image, and refused when
 /// the found file or the boot file changed.
 #[test]
 fn a_signed_boot_file_is_taken_from_a_found_release_file_too() {

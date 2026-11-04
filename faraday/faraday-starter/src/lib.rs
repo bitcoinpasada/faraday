@@ -46,8 +46,7 @@ use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase
 
 use api::{
     BitLocker, BitLockerStep, Computer, Concern, DevImage, Disk, Installed, Kind, Mode, Os,
-    Payload, PayloadFile, PayloadKind, Protection, Reason, Source, StarterCommand, StarterEvent,
-    WriteOrder, WriteStage,
+    PayloadKind, Protection, Reason, Source, StarterCommand, StarterEvent, WriteOrder, WriteStage,
 };
 use decide::{Facts, Item, Target};
 use macs::StickFor;
@@ -68,8 +67,8 @@ pub enum Page {
     Make,
     /// Tools: the Transfer and Blank templates cards (§3.1d).
     Tools,
-    /// For which computer? (§3.2 step 0), once the payload carries both
-    /// stick images.
+    /// For which computer? (§3.2 step 0), once the images found include
+    /// both stick images.
     Which,
     /// Which stick? or Which card? (§3.2 step 1, §3.3).
     Disks,
@@ -573,8 +572,8 @@ pub struct Making {
     pub clear_first: bool,
 }
 
-/// What a stick or card is written from: a payload file, or a developer's
-/// image.
+/// What a stick or card is written from: a release image the finder
+/// found, or a developer's image.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Image {
     /// Where the bytes come from.
@@ -656,9 +655,7 @@ pub struct Starter {
     pub version_reading: Option<String>,
     /// Why the last such read did not happen.
     pub version_failed: Option<Reason>,
-    /// The payload, when the Starter carries one.
-    pub payload: Option<Payload>,
-    /// A developer's image, in place of the payload's stick image.
+    /// A developer's image, in place of a found one.
     pub dev: Option<DevImage>,
     /// What is installed.
     pub installed: Option<Installed>,
@@ -805,7 +802,6 @@ impl Starter {
             versions: Vec::new(),
             version_reading: None,
             version_failed: None,
-            payload: None,
             dev: None,
             installed: None,
             no_writer: false,
@@ -1053,19 +1049,9 @@ impl Starter {
         self.out.pop_front()
     }
 
-    /// The payload file of `kind`, when the Starter carries one.
-    pub fn payload_file(&self, kind: PayloadKind) -> Option<&PayloadFile> {
-        self.payload
-            .as_ref()?
-            .files
-            .iter()
-            .find(|f| f.kind() == Some(kind))
-    }
-
     /// What a stick or card is written from: for a stick, a developer's
-    /// image when one was given, else a found image the person chose, else
-    /// the payload's, else the first release image the finder found for
-    /// the target.
+    /// image when one was given, else the found image the person chose,
+    /// else the first release image the finder found for the target.
     pub fn image(&self, target: Target) -> Option<Image> {
         if target == Target::Stick
             && let Some(d) = &self.dev
@@ -1082,41 +1068,17 @@ impl Starter {
                 boot_only: d.boot_only,
             });
         }
-        if self.found_chosen(target) {
-            return self.found_image(target);
-        }
-        let apple = self
-            .making
-            .as_ref()
-            .is_some_and(|m| m.stick_for == Some(StickFor::AppleSilicon));
-        let kind = match target {
-            Target::Stick if apple => PayloadKind::AppleStick,
-            Target::Stick => PayloadKind::Stick,
-            Target::Pi => PayloadKind::Pi,
-        };
-        let Some(f) = self.payload_file(kind) else {
-            return self.found_image(target);
-        };
-        Some(Image {
-            source: Source::Payload {
-                name: f.name.clone(),
-                inner_sha256: f.inner_sha256.clone(),
-            },
-            build: Some(f.build_id.clone()),
-            sha256: f.inner_sha256.clone(),
-            size: f.inner_size,
-            dev: false,
-            boot_only: false,
-        })
+        self.found_image(target)
     }
 
     /// Whether Make a Faraday stick asks For which computer? first
-    /// (§3.2 step 0): only when the payload carries both stick images,
-    /// and no developer's image stands in for the PC one.
+    /// (§3.2 step 0): only when the images found offer both a PC stick
+    /// and an Apple Silicon stick, and no developer's image stands in
+    /// for them. A lookup.
     pub fn asks_which(&self) -> bool {
         self.dev.is_none()
-            && self.payload_file(PayloadKind::Stick).is_some()
-            && self.payload_file(PayloadKind::AppleStick).is_some()
+            && self.found_kind_offered(PayloadKind::Stick)
+            && self.found_kind_offered(PayloadKind::AppleStick)
     }
 
     /// The bytes a disk must hold for `target`: none for a boot
@@ -1327,7 +1289,7 @@ impl Starter {
     }
 
     /// Reports what the shell read (§2): this computer, the disks, the
-    /// payload, a write's progress.
+    /// images wanted, a write's progress.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn starter_event(&mut self, event: StarterEvent) {
         self.frost = None;
@@ -1358,7 +1320,6 @@ impl Starter {
                     }
                 }
             }
-            StarterEvent::Payload(p) => self.payload = p,
             StarterEvent::DevImage(d) => self.dev = Some(d),
             StarterEvent::ImagesWanted(n) => self.images_wanted(n),
             StarterEvent::Installed(i) => self.installed_now(i),

@@ -13,7 +13,7 @@ use std::time::{Duration, SystemTime};
 use faraday_crypto::work::{Compute, Work};
 use faraday_payload::{ImageList, sha256_of};
 use faraday_starter::api::ImageFinding;
-use faraday_starter_shell::finder::{Memo, find};
+use faraday_starter_shell::finder::{Memo, find, found_job_in};
 
 use crate::writer::tmp;
 
@@ -47,9 +47,10 @@ fn sum(bytes: &[u8]) -> String {
     sha256_of(bytes).expect("a slice reads").to_string()
 }
 
-/// The release's image list for a fake Pi image and a fake stick image.
-fn list(pi: &[u8], stick: &[u8]) -> ImageList {
-    let text = format!(
+/// The text of the release's image list for a fake Pi image and a fake
+/// stick image.
+fn list_text(pi: &[u8], stick: &[u8]) -> String {
+    format!(
         "# Faraday 0.3.0 images, commit {COMMIT}\n\
          {STICK}\t{}\t{}\tx86_64-uefi\tefi-framebuffer\tPC\t11\t0.3.0\t{}\n\
          {PI}\t{}\t{}\tpi3\tany\tPi 3B, Pi 3B+, Pi Zero 2 W\t8\t0.3.0\t-\n",
@@ -58,8 +59,12 @@ fn list(pi: &[u8], stick: &[u8]) -> ImageList {
         sum(b"boot"),
         sum(pi),
         sum(b"inner pi"),
-    );
-    ImageList::parse(text.as_bytes()).expect("a good list")
+    )
+}
+
+/// The release's image list for a fake Pi image and a fake stick image.
+fn list(pi: &[u8], stick: &[u8]) -> ImageList {
+    ImageList::parse(list_text(pi, stick).as_bytes()).expect("a good list")
 }
 
 /// A new, empty Downloads folder.
@@ -193,4 +198,31 @@ fn a_file_is_hashed_once_and_again_when_it_is_replaced() {
         "{found:?}"
     );
     assert_eq!(hashed(), before + 2);
+}
+
+/// An image and an `IMAGES` list in Downloads, the list naming that image
+/// with its own sums, do not make the image one to write: only the list
+/// built into the Starter does.
+#[test]
+fn an_image_and_a_list_planted_in_downloads_are_not_offered_or_written() {
+    let (pi, stick) = (b"a pi image".as_slice(), b"a stick image".as_slice());
+    let built_in = list(pi, stick);
+    let planted_image = b"an image someone put in Downloads".as_slice();
+    let dir = downloads("finder-planted");
+    fs::write(dir.join(STICK), planted_image).expect("write");
+    fs::write(dir.join("IMAGES"), list_text(pi, planted_image)).expect("write");
+    let found = findings(&built_in, &dir, &[], &mut Memo::default());
+    assert!(
+        !found.iter().any(|f| matches!(f, ImageFinding::Found(_))),
+        "{found:?}"
+    );
+    let path = dir.join(STICK).display().to_string();
+    let inner = sum(b"inner stick");
+    assert!(found_job_in(&built_in, &path, &sum(planted_image), &inner).is_none());
+    // The list's own image, by its own name and both sums, is taken.
+    assert!(found_job_in(&built_in, &path, &sum(stick), &inner).is_some());
+    // Not under another line's name, nor with another line's sums.
+    let as_pi = dir.join(PI).display().to_string();
+    assert!(found_job_in(&built_in, &as_pi, &sum(stick), &inner).is_none());
+    assert!(found_job_in(&built_in, &path, &sum(stick), &sum(b"inner pi")).is_none());
 }

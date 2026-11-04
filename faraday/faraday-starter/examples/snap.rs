@@ -5,8 +5,8 @@
 //! cargo run -p faraday-starter --example snap -- [--guide|--tour] WxH[@DPI] OUT_DIR [THEME]
 //! ```
 //!
-//! The shell's reports are made up here: a laptop, sticks and disks, a
-//! payload. Each picture is `OUT_DIR/<name>.png`, named for the page and
+//! The shell's reports are made up here: a laptop, sticks and disks, the
+//! found images. Each picture is `OUT_DIR/<name>.png`, named for the page and
 //! its state. `--guide` draws the user guide's pictures of the Starter
 //! instead (`docs/guide/`), each named as its picture's file, with
 //! `<name>.mark.json` beside one whose next control is marked. `--tour`
@@ -23,8 +23,8 @@ use std::process::ExitCode;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_starter::api::{
     BitLocker, BitLockerStep, BootFile, BootSigner, Bus, Computer, Concern, DevImage, Disk,
-    FaradayStick, InUse, InstallItem, Installed, Kind, Mode, Os, Payload, PayloadFile, Protection,
-    Reason, RecoveryKey, StarterEvent, Volume, WriteStage,
+    FaradayStick, FoundImage, ImageFinding, InUse, InstallItem, Installed, Kind, Mode, Os,
+    Protection, Reason, RecoveryKey, StarterEvent, Volume, WriteStage,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::notes::Notes;
@@ -46,45 +46,40 @@ const STICK_IMAGE: u64 = 202_395_648;
 /// The Pi card image's size: 196 MiB.
 const CARD_IMAGE: u64 = 205_520_896;
 
-fn payload() -> Payload {
-    let file = |name: &str, inner: &str, size: u64, build: &str, a: &str, b: &str| PayloadFile {
-        name: name.into(),
-        sha256: a.repeat(8),
-        inner: inner.into(),
-        inner_sha256: b.repeat(8),
-        inner_size: size,
-        build_id: build.into(),
+/// The release images the finder found in Downloads, as the screens
+/// after Home take them: the stick's and the Pi card's.
+fn found_images() -> Vec<ImageFinding> {
+    let file = |name: &str, size: u64, build: &str, a: &str, b: &str, board: &str| {
+        ImageFinding::Found(FoundImage {
+            path: format!("/Downloads/{name}"),
+            name: name.into(),
+            xz_sha256: a.repeat(8),
+            img_sha256: b.repeat(8),
+            inner_size: size,
+            build_id: build.into(),
+            board: board.into(),
+            panel: "any".into(),
+            starts: Vec::new(),
+        })
     };
-    Payload {
-        version: "0.2.0".into(),
-        commit: "4d0680b1a2b3c4d5e6f708192a3b4c5d6e7f8091".into(),
-        files: vec![
-            file(
-                "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-                "faraday-stick-0.2.0-x86_64-uefi.img",
-                STICK_IMAGE,
-                "0.2.0",
-                "3f9a0c1d",
-                "8be41a07",
-            ),
-            file(
-                "faraday-pi-0.2.0.img.xz",
-                "faraday-pi-0.2.0.img",
-                CARD_IMAGE,
-                "0.2.0",
-                "11d0e2a9",
-                "c07b5e33",
-            ),
-            file(
-                "faraday-demo-0.2.0-linux-x86_64.xz",
-                "faraday-demo-0.2.0-linux-x86_64",
-                14_500_000,
-                "0.2.0",
-                "5aa1f00e",
-                "e2c94b10",
-            ),
-        ],
-    }
+    vec![
+        file(
+            "faraday-stick-0.2.0-x86_64-uefi.img.xz",
+            STICK_IMAGE,
+            "0.2.0",
+            "3f9a0c1d",
+            "8be41a07",
+            "x86_64-uefi",
+        ),
+        file(
+            "faraday-pi-0.2.0.img.xz",
+            CARD_IMAGE,
+            "0.2.0",
+            "11d0e2a9",
+            "c07b5e33",
+            "pi3",
+        ),
+    ]
 }
 
 fn disk(id: &str, vendor: &str, model: &str, size: u64, volumes: &[(&str, bool)]) -> Disk {
@@ -219,7 +214,7 @@ impl Snap<'_> {
             memory_mib: None,
         }));
         starter.starter_event(StarterEvent::Computer(laptop(Os::Linux, true)));
-        starter.starter_event(StarterEvent::Payload(Some(payload())));
+        starter.starter_event(StarterEvent::ImagesFound(found_images()));
         starter.starter_event(StarterEvent::Disks(Vec::new()));
         starter.set_theme(self.theme);
         if let Some(text) = self.text {
@@ -702,13 +697,16 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
         ..mac("Mac14,2")
     }));
     s.shot(&mut h, "home-mac-m2")?;
-    // For which computer?, with a stand-in Apple silicon image.
-    let mut p = payload();
-    let mut apple = p.files[0].clone();
-    apple.name = "faraday-stick-0.2.0-arm64-apple.img.xz".into();
-    apple.inner = "faraday-stick-0.2.0-arm64-apple.img".into();
-    p.files.push(apple);
-    h.starter_event(StarterEvent::Payload(Some(p)));
+    // For which computer?, with a stand-in Apple silicon image found too.
+    let mut images = found_images();
+    if let Some(ImageFinding::Found(stick)) = images.first().cloned() {
+        images.push(ImageFinding::Found(FoundImage {
+            path: "/Downloads/faraday-stick-0.2.0-arm64-apple.img.xz".into(),
+            name: "faraday-stick-0.2.0-arm64-apple.img.xz".into(),
+            ..stick
+        }));
+    }
+    h.starter_event(StarterEvent::ImagesFound(images));
     h.press(StarterAction::Make(Target::Stick));
     s.shot(&mut h, "stick-0-which-mac-m2")?;
 
@@ -877,7 +875,7 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     h.press(n);
     s.shot(&mut h, "pi-2-what")?;
 
-    // Found images (§3.2, §3.3): beside the payload's, and with no payload.
+    // Found images (§3.2, §3.3): two for one card, and one for the other.
     let found = |name: &str, img: &str, board: &str| {
         faraday_starter::api::ImageFinding::Found(faraday_starter::api::FoundImage {
             path: format!("/Downloads/{name}"),
@@ -900,6 +898,7 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     h.starter_event(StarterEvent::ImagesWanted(wanted.clone()));
     h.starter_event(StarterEvent::ImagesFound(vec![
         found("faraday-pi-0.3.0.img.xz", &"bb".repeat(32), "pi3"),
+        found("faraday-pi-0.3.0-copy.img.xz", &"cc".repeat(32), "pi3"),
         faraday_starter::api::ImageFinding::OtherRelease {
             path: "/Downloads/faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
             name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
@@ -907,11 +906,10 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
         },
     ]));
     h.press(StarterAction::Make(Target::Pi));
-    s.shot(&mut h, "images-1-pi-beside-payload")?;
+    s.shot(&mut h, "images-1-pi-two-found")?;
     h.press(StarterAction::Image(1));
     s.shot(&mut h, "images-2-pi-found-chosen")?;
     let mut h = s.starter();
-    h.starter_event(StarterEvent::Payload(None));
     h.starter_event(StarterEvent::Disks(many()));
     h.starter_event(StarterEvent::ImagesWanted(wanted));
     h.starter_event(StarterEvent::ImagesFound(vec![found(

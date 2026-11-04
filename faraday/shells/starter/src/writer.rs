@@ -7,9 +7,9 @@
 //!
 //! 1. The disk is still the one confirmed: the same device, serial and
 //!    size, and the computer does not use it.
-//! 2. What is written fits it; a payload file matches its manifest, and
+//! 2. What is written fits it; a found image matches its list line, and
 //!    a developer's image still has the SHA-256 Confirm showed; with no
-//!    boot file signed, the boot partition it carries has the manifest's
+//!    boot file signed, the boot partition it carries has the list's
 //!    `-boot.vfat` SHA-256. A boot file the person signed is still the
 //!    file chosen, and the release's own program signed
 //!    (`crate::signed`, §4.5). A Pi card is given its own IDs, drawn from
@@ -26,20 +26,19 @@
 //!    as it streams, and the progress counts that partition's bytes
 //!    alone, the only ones that reach a stick.
 //! 5. The regions, then the source decompressed as it is written, its
-//!    SHA-256 the manifest's (or Confirm's); a signed boot file's
+//!    SHA-256 the list's (or Confirm's); a signed boot file's
 //!    partition goes in place of the source's own; then everything is
 //!    flushed.
 //! 6. Everything written is read back from the disk and compared: the
 //!    regions, then the source decompressed again; for a Pi card, the
 //!    SHA-256 of what was read, with the source's own bytes put back
-//!    where the changes went, must be the manifest's (§4.3).
+//!    where the changes went, must be the list's (§4.3).
 //! 7. *Keep data*: the partition table is what it was.
 //! 8. The system is asked to read the partition table again.
 
-use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::fs::File;
-use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
+use std::io::{self, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
@@ -52,7 +51,7 @@ use sha2::{Digest, Sha256};
 
 use crate::gpt::{self, Boot};
 use crate::ids::{Capture, Patch, Shape};
-use crate::payload::Image;
+use crate::image::Image;
 use crate::signed;
 
 /// What is written and compared at a time.
@@ -109,13 +108,6 @@ pub trait Device {
 /// What a write takes its bytes from, held by the writer's thread.
 #[derive(Debug, Clone)]
 pub enum Job {
-    /// A payload file and its manifest line.
-    Payload {
-        /// Its manifest line.
-        file: PayloadFile,
-        /// Its bytes, the `.xz`.
-        bytes: Cow<'static, [u8]>,
-    },
     /// A release image the finder found: its list line as a payload
     /// file, and where the `.xz` is.
     Found {
@@ -132,7 +124,6 @@ impl Job {
     /// The source to write.
     pub fn source(&self) -> Source<'_> {
         match self {
-            Job::Payload { file, bytes } => Source::Payload { file, bytes },
             Job::Found { file, path } => Source::Found { file, path },
             Job::Image(i) => Source::Image(i),
         }
@@ -173,13 +164,6 @@ where
 /// What a write takes its bytes from.
 #[derive(Debug, Clone, Copy)]
 pub enum Source<'a> {
-    /// A payload file and its manifest line.
-    Payload {
-        /// Its manifest line.
-        file: &'a PayloadFile,
-        /// Its bytes, the `.xz`.
-        bytes: &'a [u8],
-    },
     /// A release image found in a folder, read from the file as it is
     /// written.
     Found {
@@ -196,16 +180,16 @@ impl Source<'_> {
     /// The bytes written, decompressed.
     fn size(&self) -> u64 {
         match self {
-            Source::Payload { file, .. } | Source::Found { file, .. } => file.inner_size,
+            Source::Found { file, .. } => file.inner_size,
             Source::Image(i) => i.sum.size,
         }
     }
 
-    /// The SHA-256 of the bytes written, decompressed: the manifest's,
+    /// The SHA-256 of the bytes written, decompressed: the list's,
     /// or Confirm's.
     fn sha256(&self) -> Sha256Sum {
         match self {
-            Source::Payload { file, .. } | Source::Found { file, .. } => file.inner_sha256,
+            Source::Found { file, .. } => file.inner_sha256,
             Source::Image(i) => i.sum.sha256,
         }
     }
@@ -217,7 +201,7 @@ impl Source<'_> {
     /// Costs a decompression of the whole source and its SHA-256: the
     /// boot partition it writes (its own, or the whole of a
     /// boot partition image) and where that starts in it, checked as a
-    /// write checks them: the manifest's sum (or Confirm's), a Faraday
+    /// write checks them: the list's sum (or Confirm's), a Faraday
     /// stick's partition table, a FAT32 boot sector labelled EFI.
     fn boot_partition(&self) -> Result<(u64, Vec<u8>), Reason> {
         if self.boot_only() {
@@ -246,9 +230,6 @@ impl Source<'_> {
         progress: &mut dyn FnMut(u64, u64),
     ) -> Result<(), PayloadError> {
         match self {
-            Source::Payload { file, bytes } => {
-                faraday_payload::write_payload(Cursor::new(*bytes), file, out, progress)
-            }
             Source::Found { file, path } => {
                 let f = File::open(path).map_err(PayloadError::Read)?;
                 faraday_payload::write_payload(
@@ -272,14 +253,14 @@ impl Source<'_> {
     }
 
     /// Costs a decompression of the whole source and the SHA-256 of its
-    /// boot partition: for a stick made or keep data from a payload
-    /// file with no boot file signed, that partition's SHA-256 is the
-    /// manifest's (`docs/STICK-IDENTITY.md` §4.3, §4.4). The write then
+    /// boot partition: for a stick made or keep data from a release
+    /// image with no boot file signed, that partition's SHA-256 is the
+    /// list's (`docs/STICK-IDENTITY.md` §4.3, §4.4). The write then
     /// puts it on the stick byte for byte and reads it back so, so the
     /// stick's is the release's. With a boot file signed the check is
     /// byte for byte only.
     fn check_boot_sum(&self, order: &WriteOrder) -> Result<(), Reason> {
-        let (Source::Payload { file, .. } | Source::Found { file, .. }) = self else {
+        let Source::Found { file, .. } = self else {
             return Ok(());
         };
         let Some(want) = file.boot_sha256 else {
@@ -298,16 +279,10 @@ impl Source<'_> {
         Ok(())
     }
 
-    /// Checks the source before the disk is touched: a payload file
-    /// against its manifest, an image against the sum Confirm showed.
+    /// Checks the source before the disk is touched: a found image
+    /// against its list line, an image against the sum Confirm showed.
     fn check(&self) -> Result<(), Reason> {
         match self {
-            Source::Payload { file, bytes } => {
-                let actual = sum(Cursor::new(*bytes), ImageKind::Plain)?.0;
-                if actual != file.sha256 {
-                    return Err(Reason::PayloadSum);
-                }
-            }
             Source::Found { file, path } => {
                 let shown = path.display().to_string();
                 let f = File::open(path).map_err(|e| Reason::File {

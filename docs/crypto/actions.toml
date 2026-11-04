@@ -8509,7 +8509,7 @@ places = ["docs/AUDIT.md"]
 [[action]]
 id = "starter-write"
 name = "Write an image to a stick"
-action = "Writes an image to a stick and checks it: the SHA-256 of the payload file against its manifest before any write, of the decompressed bytes against the manifest as they are written, and of what was read back from the stick, with the stick's own IDs and name taken back out, against the manifest after."
+action = "Writes an image to a stick and checks it: the SHA-256 of the found image file against the release's image list before any write, of the decompressed bytes against the list as they are written, and of what was read back from the stick, with the stick's own IDs and name taken back out, against the list after."
 row = "starter-image"
 standards = ["FIPS 180-4"]
 learn = "faraday:checking-written"
@@ -8545,13 +8545,13 @@ libraries = [
   "lzma-rust2",
   "getrandom",
 ]
-adds = "The payload is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the manifest's size with the manifest's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a Pi card is read back and compared with the stream as written, and the SHA-256 of what was read, with the card's own IDs put back where they went (docs/STICK-IDENTITY.md §4.3), must be the manifest's. A stick is made for its size, not copied (docs/STICK-IDENTITY.md §4.2): only the image's boot partition reaches it, byte for byte with the release's serial; its protective MBR, GPT (new disk and partition GUIDs from getrandom, the data partition to the last usable sector, every CRC-32 worked out again) and its data partition's FAT32 (faraday-fat's formatter, a new serial from getrandom) are written as regions and every region and the boot partition are read back and compared byte for byte; the GUIDs and serials are identities, not secrets. A stick made or keep data from a payload file with no boot file signed first checks that the SHA-256 of the image's boot partition is the manifest's (the `-boot.vfat` value of SHA256SUMS) and writes nothing otherwise. Clearing the whole stick first writes zeros over every sector and reads none back. A name given the data partition (docs/STICK-IDENTITY.md §6) is faraday-fat's label write run over the sectors captured, each byte it changed a patch put back the same way."
+adds = "The image file is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the list's size with the list's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a Pi card is read back and compared with the stream as written, and the SHA-256 of what was read, with the card's own IDs put back where they went (docs/STICK-IDENTITY.md §4.3), must be the list's. A stick is made for its size, not copied (docs/STICK-IDENTITY.md §4.2): only the image's boot partition reaches it, byte for byte with the release's serial; its protective MBR, GPT (new disk and partition GUIDs from getrandom, the data partition to the last usable sector, every CRC-32 worked out again) and its data partition's FAT32 (faraday-fat's formatter, a new serial from getrandom) are written as regions and every region and the boot partition are read back and compared byte for byte; the GUIDs and serials are identities, not secrets. A stick made or keep data from a found image with no boot file signed first checks that the SHA-256 of the image's boot partition is the list's and writes nothing otherwise. Clearing the whole stick first writes zeros over every sector and reads none back. A name given the data partition (docs/STICK-IDENTITY.md §6) is faraday-fat's label write run over the sectors captured, each byte it changed a patch put back the same way."
 
 [action.checked]
 tests = [
   "faraday/faraday-payload/tests/payload.rs::a_payload_made_by_xz_decodes_to_exactly_the_original_bytes",
   "faraday/faraday-payload/tests/payload.rs::a_payload_whose_xz_sum_does_not_match_is_refused_before_anything_is_written",
-  "faraday/faraday-payload/tests/payload.rs::decompressed_bytes_that_do_not_match_the_manifest_are_a_failure",
+  "faraday/faraday-payload/tests/payload.rs::decompressed_bytes_that_do_not_match_the_list_are_a_failure",
   "faraday/faraday-payload/tests/payload.rs::a_developers_image_has_the_sum_sha256sum_gives_plain_or_xz",
   "faraday/faraday-payload/tests/payload.rs::a_developers_image_that_changed_after_it_was_confirmed_is_a_failure",
   "faraday/shells/starter/tests/all/ids.rs::two_sticks_written_from_one_image_have_their_own_ids_and_the_same_boot_partition",
@@ -8567,7 +8567,7 @@ tests = [
   "faraday/shells/starter/tests/all/signed_boot.rs::keep_data_refuses_a_boot_partition_that_is_not_the_one_the_release_lists_unless_a_boot_file_is_signed",
 ]
 not_crosschecked = "The sums are compared with `sha256sum`'s in the tests, and the tests judge the decoder with `xz` and 7-Zip (`7zz` or `7z`) over good and damaged streams, the tables written with `sfdisk --verify` and `sgdisk -v`, the `diskutil` answers with Python's `plistlib` and the GUIDs with Python's `uuid` and the CRC-32 fields of the GPT headers and partition arrays with `zlib.crc32`; each is skipped without its tool in `just` and fails in `just crosscheck`. No F79 area runs the decoder."
-fuzz_none = "The manifest target fuzzes the manifest's reading; no target runs the xz decoder or the hash."
+fuzz_none = "The image_list target fuzzes the image list's reading; no target runs the xz decoder or the hash."
 
 [action.secrets]
 reveal = "none"

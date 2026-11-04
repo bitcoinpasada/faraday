@@ -5,7 +5,7 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
-    Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile, StarterCommand,
+    Bus, Computer, Disk, FaradayStick, FoundImage, ImageFinding, Mode, Os, StarterCommand,
     StarterEvent, WriteStage,
 };
 use faraday_starter::decide::Target;
@@ -38,18 +38,19 @@ fn starter() -> Starter {
         secure_boot: Some(true),
         tpm_unlock: false,
     }));
-    s.starter_event(StarterEvent::Payload(Some(Payload {
-        version: "0.3.0".into(),
-        commit: "89abcdef0123456789abcdef0123456789abcdef".into(),
-        files: vec![PayloadFile {
+    s.starter_event(StarterEvent::ImagesFound(vec![ImageFinding::Found(
+        FoundImage {
+            path: "/Downloads/faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
             name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
-            sha256: "a".repeat(64),
-            inner: "faraday-stick-0.3.0-x86_64-uefi.img".into(),
-            inner_sha256: "b".repeat(64),
+            xz_sha256: "a".repeat(64),
+            img_sha256: "b".repeat(64),
             inner_size: 202_395_648,
             build_id: "0.3.0+89abcdef0123".into(),
-        }],
-    })));
+            board: String::new(),
+            panel: String::new(),
+            starts: Vec::new(),
+        },
+    )]));
     s.starter_event(StarterEvent::Disks(vec![Disk {
         id: SDB.into(),
         device: "/dev/sdb".into(),

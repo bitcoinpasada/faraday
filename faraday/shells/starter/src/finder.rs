@@ -22,6 +22,64 @@ use faraday_crypto::work::{Compute, Work};
 use faraday_payload::{ImageList, NameClass, Sha256Sum, sha256_of};
 use faraday_starter::api::{FoundImage, ImageFinding};
 
+use crate::writer::Job;
+
+mod built {
+    include!(concat!(env!("OUT_DIR"), "/images.rs"));
+}
+
+/// Costs a parse of the release's image list: the one built into this
+/// Starter, or `None` for a Starter built without one (or, which the
+/// build prevents, with a list that does not parse). The list is not
+/// read from Downloads or from beside a file: it is what decides which
+/// image may be written to a stick.
+pub fn built_in_list() -> Option<ImageList> {
+    ImageList::parse(built::IMAGES?).ok()
+}
+
+/// The file names of the release's images, for the hardware whose image
+/// was not found: `list`'s own, else the names a release of this
+/// Starter's version publishes (`faraday/builds.toml`'s `release` entries
+/// of the images).
+pub fn image_names(list: Option<&ImageList>) -> Vec<String> {
+    if let Some(list) = list {
+        return list.images().iter().map(|i| i.file.clone()).collect();
+    }
+    let built = faraday_core::BUILD.unwrap_or(env!("CARGO_PKG_VERSION"));
+    let v = built.split('+').next().unwrap_or(built);
+    vec![
+        format!("faraday-stick-{v}-x86_64-uefi.img.xz"),
+        format!("faraday-pi-{v}.img.xz"),
+    ]
+}
+
+/// What the writer takes for the release image at `path`, when the list
+/// built in has a line with that file name and these two sums: the size,
+/// build and boot partition's sum are the line's, never the order's. A
+/// lookup.
+pub fn found_job(path: &str, xz_sha256: &str, img_sha256: &str) -> Option<Job> {
+    found_job_in(built_in_list().as_ref()?, path, xz_sha256, img_sha256)
+}
+
+/// [`found_job`] against `list`.
+pub fn found_job_in(
+    list: &ImageList,
+    path: &str,
+    xz_sha256: &str,
+    img_sha256: &str,
+) -> Option<Job> {
+    let name = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    let image = list.images().iter().find(|i| {
+        i.file == name
+            && i.xz_sha256.to_string() == xz_sha256
+            && i.img_sha256.to_string() == img_sha256
+    })?;
+    Some(Job::Found {
+        file: image.payload_file(),
+        path: PathBuf::from(path),
+    })
+}
+
 /// What a file was hashed as: its size and modification time, and the
 /// sum.
 type Stamp = (u64, SystemTime, Sha256Sum);
