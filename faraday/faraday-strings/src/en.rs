@@ -5224,6 +5224,8 @@ strings! {
     nonce_check_signatures: "signatures",
     /// Text in `nonce_check`.
     nonce_check_nonce_check: "Nonce check · a signature is wrong",
+    /// The nonce check's headline when only a witness does not match its output.
+    nonce_check_witness_wrong: "Nonce check · a witness does not match its output",
     /// Text in `nonce_check`. `{}`: `reuse.name()`, `inputs.join(", ")`.
     nonce_check_one_nonce: "{}: one nonce on inputs {} · this gives the key away",
     /// Text in `nonce_check`. `{}`: `r.input`.
@@ -5271,6 +5273,10 @@ strings! {
     nonce_screen_more_wanted: "Not finished: more signatures are wanted",
     /// Line in `Screen::NonceCheck` when a signature is wrong.
     nonce_screen_refused: "Not finished: a signature is wrong",
+    /// Line in `Screen::NonceCheck` when a PSBT has a final input whose output cannot be read.
+    nonce_screen_refused_unread: "Not finished: an input's output cannot be read",
+    /// The nonce check's refusal line when only a witness does not match its output.
+    nonce_screen_refused_witness: "Not finished: a witness does not match its output",
     /// Headline of `nonce_check` when some signatures could not be checked. `{}`: how many were not checked, how many there are, `nonce_check_signature(s)`.
     nonce_unchecked_head: "Nonce check · {} of {} {} not checked",
     // ----- inbox_panel (faraday-core/src/screens/files.rs) -----
@@ -5914,6 +5920,11 @@ strings! {
     psbt_warn_sighash_partial: "input {} signs with {}: not the whole transaction is committed to",
     /// A warning on Review. `{}`: the input, the key.
     psbt_warn_signature_invalid: "input {}: the signature under {} is not a signature of this transaction",
+    /// A warning on Review, a line of the nonce check card and why a spend
+    /// is not finished. `{}`: the input.
+    psbt_warn_witness_mismatch: "input {}: its witness does not match the output it spends",
+    /// Why a spend is not finished (the Send it step's line, `Spend::finish`, a refused `collect`). `{}`: the input.
+    psbt_final_prev_unread: "input {}: it is final but the output it spends cannot be read",
     /// A warning on Review. `{}`: the input, why (a `nonce_unchecked_*`).
     psbt_warn_signature_unchecked: "input {}: a signature was not checked: {}",
     /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.

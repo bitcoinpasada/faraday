@@ -25,7 +25,7 @@ use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::{
     Field, NonceMode, SigKey, Unchecked, Verdict, compare, deterministic, inscriptions,
-    repeated_nonces, verify_signatures,
+    repeated_nonces, verify_signatures, witness_mismatch,
 };
 use faraday_psbt::{
     Aux, Context, Detail, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, sign,
@@ -377,30 +377,59 @@ fn leaf_spend_with(
 }
 
 /// As [`leaf_spend_with`] on a PSBT already finalized, whose transaction
-/// the signatures commit to.
+/// the signatures commit to. The output it spends is a real one: key A
+/// tweaked by the tree that holds the leaf.
 fn leaf_spend_on(
+    psbt: Psbt,
+    script: impl Fn(&bitcoin::XOnlyPublicKey, &bitcoin::XOnlyPublicKey) -> ScriptBuf,
+    witness: impl Fn(&LeafSpend) -> Vec<Vec<u8>>,
+) -> Psbt {
+    leaf_spend_tree(psbt, 7, 0, script, witness)
+}
+
+/// As [`leaf_spend_on`] with key A made from `seed`, and the leaf `depth`
+/// levels down a tree whose other leaves are `OP_TRUE`.
+fn leaf_spend_tree(
     mut psbt: Psbt,
+    seed: u8,
+    depth: u8,
     script: impl Fn(&bitcoin::XOnlyPublicKey, &bitcoin::XOnlyPublicKey) -> ScriptBuf,
     witness: impl Fn(&LeafSpend) -> Vec<Vec<u8>>,
 ) -> Psbt {
     let secp = Secp256k1::new();
-    let keypair = Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[7; 32]).expect("key"));
+    let keypair =
+        Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[seed; 32]).expect("key"));
     let keypair_b = Keypair::from_secret_key(&secp, &SecretKey::from_slice(&[9; 32]).expect("key"));
     let (xonly, _) = keypair.x_only_public_key();
     let (xonly_b, _) = keypair_b.x_only_public_key();
     let script = script(&xonly, &xonly_b);
-    let mut control = vec![0xc0];
-    control.extend_from_slice(&xonly.serialize());
+    let filler = ScriptBuf::from_bytes(vec![0x51]);
+    let mut builder = taproot::TaprootBuilder::new();
+    for d in 1..depth {
+        builder = builder.add_leaf(d, filler.clone()).expect("a filler leaf");
+    }
+    builder = builder.add_leaf(depth, script.clone()).expect("the leaf");
+    if depth > 0 {
+        builder = builder.add_leaf(depth, filler).expect("a filler leaf");
+    }
+    let info = builder.finalize(&secp, xonly).expect("a complete tree");
+    let control = info
+        .control_block(&(script.clone(), taproot::LeafVersion::TapScript))
+        .expect("the leaf is in the tree")
+        .serialize();
+    let mut prev = psbt.inner().inputs[0]
+        .witness_utxo
+        .clone()
+        .expect("the output it spends");
+    prev.script_pubkey = ScriptBuf::new_p2tr_tweaked(info.output_key());
+    psbt.inner_mut().inputs[0].witness_utxo = Some(prev.clone());
     let spend = LeafSpend {
         script,
         control,
         xonly: [xonly, xonly_b],
         keypairs: [keypair, keypair_b],
         tx: psbt.unsigned_tx().clone(),
-        prev: psbt.inner().inputs[0]
-            .witness_utxo
-            .clone()
-            .expect("the output it spends"),
+        prev,
     };
     let witness = witness(&spend);
     psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&witness));
@@ -1467,4 +1496,427 @@ fn a_signature_under_a_sighash_not_asked_for_is_flagged_taproot() {
         ))
         .is_empty()
     );
+}
+
+// ---- a finalized script-path witness is checked against the output ----
+
+fn mismatch_cards(psbt: Psbt) -> usize {
+    leaf_cards(psbt, PsbtSighashType::from_u32(0))
+        .warnings
+        .iter()
+        .filter(|w| {
+            w.level == Level::Danger
+                && matches!(w.kind, WarningKind::WitnessMismatch { .. })
+                && matches!(w.detail, Detail::WitnessMismatch { input: 0 })
+        })
+        .count()
+}
+
+fn pk_leaf(a: &bitcoin::XOnlyPublicKey, _: &bitcoin::XOnlyPublicKey) -> ScriptBuf {
+    bitcoin::script::Builder::new()
+        .push_x_only_key(a)
+        .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+        .into_script()
+}
+
+fn pk_spend(seed: u8, depth: u8) -> Psbt {
+    let psbt = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    let mut psbt = psbt;
+    finalize(&mut psbt).expect("a single-signature input finalizes");
+    leaf_spend_tree(psbt, seed, depth, pk_leaf, |l| {
+        vec![
+            l.sign(0, TapSighashType::Default, None, None),
+            l.script.to_bytes(),
+            l.control.clone(),
+        ]
+    })
+}
+
+/// The witness with its last element (the control block) changed.
+fn with_control(mut psbt: Psbt, change: impl Fn(&mut Vec<u8>)) -> Psbt {
+    let mut elements: Vec<Vec<u8>> = psbt.inner().inputs[0]
+        .final_script_witness
+        .as_ref()
+        .expect("a witness")
+        .iter()
+        .map(<[u8]>::to_vec)
+        .collect();
+    change(elements.last_mut().expect("a control block"));
+    psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&elements));
+    psbt
+}
+
+#[test]
+fn a_true_script_path_spend_has_no_witness_card() {
+    for depth in [0, 1, 2] {
+        let psbt = pk_spend(7, depth);
+        valid(&psbt, "the true spend");
+        assert_eq!(mismatch_cards(psbt), 0, "depth {depth}");
+    }
+    // The odd-parity output key.
+    let odd = (1..=40u8)
+        .map(|seed| pk_spend(seed, 1))
+        .find(|p| {
+            p.inner().inputs[0]
+                .final_script_witness
+                .as_ref()
+                .and_then(Witness::last)
+                .is_some_and(|c| c[0] & 1 == 1)
+        })
+        .expect("a seed with an odd output key");
+    valid(&odd, "the odd-parity spend");
+    assert_eq!(mismatch_cards(odd), 0);
+}
+
+#[test]
+fn a_made_up_leaf_with_its_keys_real_signature_is_invalid() {
+    // The output holds a leaf for key A; the witness spends a leaf of key
+    // B's, signed by B, with a control block for it.
+    let psbt = leaf_spend_with(pk_leaf, |l| {
+        let made_up = bitcoin::script::Builder::new()
+            .push_x_only_key(&l.xonly[1])
+            .push_opcode(bitcoin::opcodes::all::OP_CHECKSIG)
+            .into_script();
+        assert_ne!(made_up, l.script);
+        let theirs = LeafSpend {
+            script: made_up.clone(),
+            control: Vec::new(),
+            xonly: l.xonly,
+            keypairs: l.keypairs,
+            tx: l.tx.clone(),
+            prev: l.prev.clone(),
+        };
+        let mut control = vec![0xc0];
+        control.extend_from_slice(&l.xonly[0].serialize());
+        vec![
+            theirs.sign(1, TapSighashType::Default, None, None),
+            made_up.to_bytes(),
+            control,
+        ]
+    });
+    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    assert_eq!(mismatch_cards(psbt), 1);
+}
+
+#[test]
+fn an_output_key_not_on_the_curve_gets_the_card() {
+    // BIP-340's not-on-the-curve x-coordinate as the output key.
+    let mut psbt = pk_spend(7, 0);
+    psbt.inner_mut().inputs[0]
+        .witness_utxo
+        .as_mut()
+        .expect("the output")
+        .script_pubkey =
+        ScriptBuf::from_hex("5120eefdea4cdb677750a420fee807eacf21eb9898ae79b9768766e4faa04a2d4a34")
+            .expect("hex");
+    assert!(witness_mismatch(psbt.inner(), 0));
+    assert!(!verdicts(&psbt).contains(&Verdict::Valid));
+    assert_eq!(mismatch_cards(psbt), 1);
+}
+
+/// `pk_spend(7, 0)` with its taproot output wrapped in p2sh: the redeem
+/// script is the p2tr script, in the `scriptSig`; the output hashes
+/// `hashed` instead of it when given.
+fn wrapped(hashed: Option<[u8; 20]>) -> Psbt {
+    let mut psbt = pk_spend(7, 0);
+    let input = &mut psbt.inner_mut().inputs[0];
+    let utxo = input.witness_utxo.as_mut().expect("the output");
+    let redeem = utxo.script_pubkey.clone();
+    let hash = hashed.unwrap_or_else(|| redeem.script_hash().to_byte_array());
+    utxo.script_pubkey = ScriptBuf::new_p2sh(&bitcoin::ScriptHash::from_byte_array(hash));
+    let push = bitcoin::script::PushBytesBuf::try_from(redeem.to_bytes()).expect("a push");
+    input.final_script_sig = Some(
+        bitcoin::script::Builder::new()
+            .push_slice(push)
+            .into_script(),
+    );
+    psbt
+}
+
+#[test]
+fn a_p2sh_whose_redeem_script_is_not_the_hashed_one_gets_the_card() {
+    // The online side's scriptSig names the output key; the output hashes
+    // something else.
+    let psbt = wrapped(Some([0; 20]));
+    assert!(witness_mismatch(psbt.inner(), 0));
+    assert!(!verdicts(&psbt).contains(&Verdict::Valid));
+    assert_eq!(mismatch_cards(psbt), 1);
+}
+
+#[test]
+fn a_p2sh_with_the_right_hash_and_a_witness_that_does_not_commit_is_refused_all_the_same() {
+    // Consensus would ignore the control block here; the card still stands.
+    let psbt = with_control(wrapped(None), |c| c[3] ^= 1);
+    assert!(witness_mismatch(psbt.inner(), 0));
+    assert_eq!(mismatch_cards(psbt), 1);
+    assert!(!witness_mismatch(wrapped(None).inner(), 0));
+}
+
+/// The witness of a finalized spend with `annex` after its control block.
+fn with_annex(psbt: Psbt, annex: &[u8], spoil: bool) -> Psbt {
+    let mut psbt = psbt;
+    let mut elements: Vec<Vec<u8>> = psbt.inner().inputs[0]
+        .final_script_witness
+        .as_ref()
+        .expect("a witness")
+        .iter()
+        .map(<[u8]>::to_vec)
+        .collect();
+    if spoil {
+        elements.last_mut().expect("control")[2] ^= 1;
+    }
+    elements.push(annex.to_vec());
+    psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::from_slice(&elements));
+    psbt
+}
+
+#[test]
+fn an_annex_is_set_aside_before_the_witness_is_checked() {
+    let annex = [0x50, 1, 2, 3];
+    let true_spend = with_annex(pk_spend(7, 1), &annex, false);
+    assert!(!witness_mismatch(true_spend.inner(), 0));
+    assert_eq!(mismatch_cards(true_spend), 0);
+    let spoiled = with_annex(pk_spend(7, 1), &annex, true);
+    assert!(witness_mismatch(spoiled.inner(), 0));
+    assert_eq!(mismatch_cards(spoiled), 1);
+    // A key-path spend with an annex.
+    let mut key_path = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut key_path).expect("finalizes");
+    let key_path = with_annex(key_path, &annex, false);
+    assert_eq!(
+        key_path.inner().inputs[0]
+            .final_script_witness
+            .as_ref()
+            .map(Witness::len),
+        Some(2)
+    );
+    assert!(!witness_mismatch(key_path.inner(), 0));
+}
+
+#[test]
+fn a_witness_with_nothing_to_check_it_against_is_no_mismatch() {
+    let mut no_prev = pk_spend(7, 0);
+    let input = &mut no_prev.inner_mut().inputs[0];
+    input.witness_utxo = None;
+    input.non_witness_utxo = None;
+    assert!(!witness_mismatch(no_prev.inner(), 0));
+    let mut key_path = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut key_path).expect("finalizes");
+    assert!(!witness_mismatch(key_path.inner(), 0));
+    let mut segwit = signed_single(
+        ScriptType::NativeSegwit,
+        Nonce::LowR,
+        Aux::Deterministic,
+        29_000,
+    );
+    finalize(&mut segwit).expect("finalizes");
+    assert!(!witness_mismatch(segwit.inner(), 0));
+}
+
+#[test]
+fn a_spoiled_control_block_gets_the_card_and_invalid_rows() {
+    type Spoil = fn(&mut Vec<u8>);
+    let spoils: [(&str, u8, Spoil); 5] = [
+        ("internal key", 1, |c| c[4] ^= 1),
+        ("merkle node", 1, |c| c[40] ^= 1),
+        ("parity", 1, |c| c[0] ^= 1),
+        ("leaf version", 1, |c| c[0] ^= 0x02),
+        ("length", 1, |c| {
+            c.pop();
+        }),
+    ];
+    for (what, depth, spoil) in spoils {
+        let psbt = with_control(pk_spend(7, depth), spoil);
+        assert_eq!(verdicts(&psbt), vec![Verdict::Invalid], "{what}");
+        assert_eq!(mismatch_cards(psbt), 1, "{what}");
+    }
+}
+
+#[test]
+fn a_real_none_signature_hidden_before_a_junk_leaf_gets_the_card() {
+    let psbt = leaf_spend_with(pk_leaf, |l| {
+        vec![
+            l.sign(0, TapSighashType::None, None, None),
+            vec![0x51],
+            l.control.clone(),
+        ]
+    });
+    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    assert_eq!(mismatch_cards(psbt), 1);
+}
+
+#[test]
+fn a_witness_with_no_signature_is_checked_against_the_output_too() {
+    let preimage = vec![0xcd; 32];
+    let committing = leaf_spend(hashlock_leaf(&preimage), |_| vec![preimage.clone()]);
+    assert!(verdicts(&committing).is_empty());
+    assert!(!witness_mismatch(committing.inner(), 0));
+    assert_eq!(mismatch_cards(committing.clone()), 0);
+    let spoiled = with_control(committing, |c| c[2] ^= 1);
+    assert!(verdicts(&spoiled).is_empty());
+    assert!(witness_mismatch(spoiled.inner(), 0));
+    assert_eq!(mismatch_cards(spoiled), 1);
+}
+
+#[test]
+fn a_proven_preimage_in_a_witness_that_does_not_commit_stays_unchecked() {
+    let preimage = vec![0xcd; 64];
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, preimage.clone()]);
+    let psbt = with_control(psbt, |c| c[2] ^= 1);
+    let found = verdicts(&psbt);
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(found.contains(&Verdict::Invalid), "{found:?}");
+    assert!(
+        found.contains(&Verdict::Unchecked(Unchecked::UnsupportedScript)),
+        "{found:?}"
+    );
+    assert_eq!(mismatch_cards(psbt), 1);
+}
+
+/// BIP-341's wallet test vectors (`scriptPubKey`): the script-path spends
+/// of its tests 1 (odd parity) and 3 (a leaf one level down) commit.
+#[test]
+fn bip_341_script_path_vectors_commit() {
+    let cases = [
+        (
+            "5120147c9c57132f6e7ecddba9800bb0c4449251c92a1e60371ee77557b6620f3ea3",
+            "20d85a959b0290bf19bb89ed43c916be835475d013da4b362117393e25a48229b8ac",
+            "c1187791b6f712a8ea41c8ecdd0ee77fab3e85263b37e1ec18a3651926b3a6cf27",
+        ),
+        (
+            "5120712447206d7a5238acc7ff53fbe94a3b64539ad291c7cdbc490b7577e4b17df5",
+            "20387671353e273264c495656e27e39ba899ea8fee3bb69fb2a680e22093447d48ac",
+            "c0ee4fe085983462a184015d1f782d6a5f8b9c2b60130aff050ce221ecf3786592f224a923cd0021ab202ab139cc56802ddb92dcfc172b9212261a539df79a112a",
+        ),
+    ];
+    for (spk, script, control) in cases {
+        let bytes = |h: &str| ScriptBuf::from_hex(h).expect("hex").into_bytes();
+        let mut psbt = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+        finalize(&mut psbt).expect("a single-signature input finalizes");
+        let input = &mut psbt.inner_mut().inputs[0];
+        input
+            .witness_utxo
+            .as_mut()
+            .expect("the output it spends")
+            .script_pubkey = ScriptBuf::from_hex(spk).expect("hex");
+        input.final_script_witness = Some(Witness::from_slice(&[
+            vec![1; 32],
+            bytes(script),
+            bytes(control),
+        ]));
+        assert!(!witness_mismatch(psbt.inner(), 0), "{spk}");
+        let spoiled = with_control(psbt, |c| c[1] ^= 1);
+        assert!(witness_mismatch(spoiled.inner(), 0), "{spk}");
+    }
+}
+
+/// BIP-341's script-path vector whose leaf version is not 0xc0.
+#[test]
+fn a_true_spend_of_a_leaf_with_another_version_commits() {
+    let bytes = |h: &str| ScriptBuf::from_hex(h).expect("hex").into_bytes();
+    let mut psbt = signed_single(ScriptType::Taproot, Nonce::LowR, Aux::Deterministic, 29_000);
+    finalize(&mut psbt).expect("a single-signature input finalizes");
+    let input = &mut psbt.inner_mut().inputs[0];
+    input
+        .witness_utxo
+        .as_mut()
+        .expect("the output it spends")
+        .script_pubkey =
+        ScriptBuf::from_hex("5120712447206d7a5238acc7ff53fbe94a3b64539ad291c7cdbc490b7577e4b17df5")
+            .expect("hex");
+    input.final_script_witness = Some(Witness::from_slice(&[
+        vec![1; 32],
+        bytes("06424950333431"),
+        bytes(
+            "faee4fe085983462a184015d1f782d6a5f8b9c2b60130aff050ce221ecf37865928ad69ec7cf41c2a4001fd1f738bf1e505ce2277acdcaa63fe4765192497f47a7",
+        ),
+    ]));
+    assert!(!witness_mismatch(psbt.inner(), 0));
+}
+
+/// A one-input PSBT whose input is final as given, spending `spk`.
+fn final_input(spk: ScriptBuf, script_sig: ScriptBuf, witness: &[Vec<u8>]) -> bitcoin::Psbt {
+    let tx = bitcoin::Transaction {
+        version: bitcoin::transaction::Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(bitcoin::Txid::from_byte_array([3; 32]), 0),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: vec![TxOut {
+            value: Amount::from_sat(9_000),
+            script_pubkey: spk.clone(),
+        }],
+    };
+    let mut psbt = bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    psbt.inputs[0].witness_utxo = Some(TxOut {
+        value: Amount::from_sat(10_000),
+        script_pubkey: spk,
+    });
+    psbt.inputs[0].final_script_sig = Some(script_sig);
+    if !witness.is_empty() {
+        psbt.inputs[0].final_script_witness = Some(Witness::from_slice(witness));
+    }
+    psbt
+}
+
+#[test]
+fn a_true_final_spend_of_a_non_taproot_output_is_never_a_witness_mismatch() {
+    use bitcoin::opcodes::all::{OP_PUSHNUM_1, OP_PUSHNUM_2};
+    use bitcoin::script::{Builder, PushBytesBuf};
+    let push = |bytes: &[u8]| {
+        Builder::new()
+            .push_slice(PushBytesBuf::try_from(bytes.to_vec()).unwrap())
+            .into_script()
+    };
+    let (sig, key) = (vec![0x30; 71], vec![2u8; 33]);
+    let pkh = bitcoin::PubkeyHash::hash(&key);
+    let p2wpkh =
+        ScriptBuf::new_p2wpkh(&bitcoin::WPubkeyHash::from_byte_array(*pkh.as_byte_array()));
+    let multisig = Builder::new()
+        .push_opcode(OP_PUSHNUM_2)
+        .push_slice(PushBytesBuf::try_from(key.clone()).unwrap())
+        .push_slice(PushBytesBuf::try_from(vec![3u8; 33]).unwrap())
+        .push_opcode(OP_PUSHNUM_2)
+        .push_opcode(bitcoin::opcodes::all::OP_CHECKMULTISIG)
+        .into_script();
+    let p2wsh = ScriptBuf::new_p2wsh(&multisig.wscript_hash());
+    let cases = [
+        (
+            "p2sh-p2wpkh",
+            ScriptBuf::new_p2sh(&p2wpkh.script_hash()),
+            push(p2wpkh.as_bytes()),
+            vec![sig.clone(), key.clone()],
+        ),
+        (
+            "p2sh-p2wsh",
+            ScriptBuf::new_p2sh(&p2wsh.script_hash()),
+            push(p2wsh.as_bytes()),
+            vec![vec![], sig.clone(), sig.clone(), multisig.to_bytes()],
+        ),
+        (
+            "p2sh",
+            ScriptBuf::new_p2sh(
+                &Builder::new()
+                    .push_opcode(OP_PUSHNUM_1)
+                    .into_script()
+                    .script_hash(),
+            ),
+            push(&[OP_PUSHNUM_1.to_u8()]),
+            vec![],
+        ),
+        (
+            "p2wsh",
+            p2wsh,
+            ScriptBuf::new(),
+            vec![vec![], sig.clone(), sig, multisig.to_bytes()],
+        ),
+    ];
+    for (what, spk, script_sig, witness) in cases {
+        let psbt = final_input(spk, script_sig, &witness);
+        assert!(!faraday_psbt::verify::witness_mismatch(&psbt, 0), "{what}");
+        assert!(!faraday_psbt::verify::final_unread(&psbt, 0), "{what}");
+    }
 }

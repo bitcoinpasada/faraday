@@ -240,7 +240,8 @@ pub fn decode(
     })
 }
 
-/// The outputs a PSBT's inputs spend, in order, as far as it says.
+/// Costs a txid per input with a previous transaction. The outputs a
+/// PSBT's inputs spend, in order, as far as it says.
 pub fn prevouts_of(psbt: &faraday_psbt::Psbt) -> Vec<Option<TxOut>> {
     let inner = psbt.inner();
     inner
@@ -248,10 +249,13 @@ pub fn prevouts_of(psbt: &faraday_psbt::Psbt) -> Vec<Option<TxOut>> {
         .iter()
         .zip(&inner.unsigned_tx.input)
         .map(|(input, txin)| {
+            // A previous transaction of another txid states nothing, as
+            // the PSBT's own checks read it.
             input.witness_utxo.clone().or_else(|| {
                 input
                     .non_witness_utxo
                     .as_ref()
+                    .filter(|t| t.compute_txid() == txin.previous_output.txid)
                     .and_then(|t| t.output.get(txin.previous_output.vout as usize).cloned())
             })
         })
@@ -386,17 +390,13 @@ impl DecodeArea {
     }
 }
 
-/// The inputs that carry signature data, final, but state no output they
-/// spend ([`crate::wallet::NonceCheck::unread`]). A lookup per input.
+/// Costs a classify per input. The inputs that are final but whose
+/// previous output does not read: none stated, or a previous transaction
+/// of another txid or without the output
+/// ([`crate::wallet::NonceCheck::unread`]).
 fn unread(psbt: &faraday_psbt::Psbt) -> usize {
-    psbt.inner()
-        .inputs
-        .iter()
-        .filter(|i| {
-            (i.final_script_sig.is_some() || i.final_script_witness.is_some())
-                && i.witness_utxo.is_none()
-                && i.non_witness_utxo.is_none()
-        })
+    (0..psbt.inner().inputs.len())
+        .filter(|i| faraday_psbt::verify::final_unread(psbt.inner(), *i))
         .count()
 }
 
@@ -582,12 +582,16 @@ impl Faraday {
         };
         let mut check = self.session.nonce_check(c, &psbt);
         check.unread = unread(&psbt);
-        // A wrong signature or a nonce used twice refuses the
+        // A wrong signature, a witness or a nonce used twice refuses the
         // transaction: nothing finished is offered.
         let finished = if check.wrong() {
             None
         } else if let Some(tx) = &raw {
             Some(tx.clone())
+        } else if check.unread > 0 {
+            // A final input whose output does not read is one nothing of
+            // can be checked: no transaction is finished from the PSBT.
+            None
         } else {
             let mut copy = psbt.clone();
             faraday_psbt::finalize(&mut copy).ok().flatten()
@@ -650,7 +654,12 @@ impl Faraday {
                 }
             }
             CheckPress::Qr => {
-                let Some(o) = self.decode.outside.as_deref().filter(|o| !o.check.wrong()) else {
+                let Some(o) = self
+                    .decode
+                    .outside
+                    .as_deref()
+                    .filter(|o| !o.check.refused(o.hex.is_some()))
+                else {
                     return;
                 };
                 let view = match &o.hex {
@@ -662,7 +671,7 @@ impl Faraday {
             // A transaction the check refuses is not offered to carry on.
             CheckPress::Out => {
                 if let Some(o) = self.decode.outside.as_ref()
-                    && !o.check.wrong()
+                    && !o.check.refused(o.hex.is_some())
                 {
                     let (name, bytes) = o.out.clone();
                     self.put_outbox(&name, bytes);

@@ -299,6 +299,11 @@ pub enum Detail {
         /// The key, named as the review names one.
         key: String,
     },
+    /// A finalized taproot witness does not match the output it spends.
+    WitnessMismatch {
+        /// The input.
+        input: usize,
+    },
     /// A signature could not be checked.
     SignatureUnchecked {
         /// The input.

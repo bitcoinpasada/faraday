@@ -10,9 +10,14 @@ pub struct NonceCheck {
     pub rows: Vec<NonceRow>,
     /// Nonces used twice under one key: the key, given away.
     pub reused: Vec<faraday_psbt::verify::NonceReuse>,
-    /// Inputs of a raw transaction that carry signature data but state
-    /// no output they spend, so no signature on them could be read; 0
-    /// for a PSBT, where an input with no output is a row of its own.
+    /// Inputs whose finalized witness does not match the output it
+    /// spends, with or without a signature row: no node confirms them,
+    /// but for a p2sh with the right redeem script.
+    pub mismatched: Vec<usize>,
+    /// Inputs that carry signature data but state no output they spend
+    /// (a raw transaction's, or a PSBT's, with no output stated or a
+    /// previous transaction of another txid or without that output), so
+    /// no signature on them could be read.
     pub unread: usize,
 }
 
@@ -27,14 +32,40 @@ impl NonceCheck {
         !self.rows.is_empty()
             && self.unread == 0
             && self.reused.is_empty()
+            && self.mismatched.is_empty()
             && self.rows.iter().all(|r| !r.wrong() && !r.unchecked())
     }
 
     /// Whether a signature is wrong or a nonce repeats: an invalid
-    /// signature, one made here by no nonce rule, or a nonce used twice.
-    /// A lookup per row.
+    /// signature, one made here by no nonce rule, a nonce used twice, or
+    /// a witness that does not match its output. A lookup per row.
     pub fn wrong(&self) -> bool {
-        !self.reused.is_empty() || self.rows.iter().any(NonceRow::wrong)
+        !self.reused.is_empty()
+            || !self.mismatched.is_empty()
+            || self.rows.iter().any(NonceRow::wrong)
+    }
+
+    /// Whether a witness that does not match its output is what makes the
+    /// check wrong, and no signature that stands is wrong and no nonce
+    /// repeats: an input of a failing witness reads as a row of its own
+    /// (every signature of it Invalid), and does not count against the
+    /// rest. It also answers true beside an unread input or an unchecked
+    /// row on another input. A lookup per row.
+    pub fn only_witness_wrong(&self) -> bool {
+        !self.mismatched.is_empty()
+            && self.reused.is_empty()
+            && !self
+                .rows
+                .iter()
+                .any(|r| r.wrong() && !self.mismatched.contains(&r.input))
+    }
+
+    /// Whether nothing is offered to carry on: the check is wrong, or a
+    /// PSBT has a final input whose output does not read (`has_finished`
+    /// is false for it; a raw transaction keeps its offers, and a PSBT
+    /// with no final input is offered as it is). A lookup per row.
+    pub fn refused(&self, has_finished: bool) -> bool {
+        self.wrong() || (self.unread > 0 && !has_finished)
     }
 
     /// How many signatures could not be checked. A lookup per row.
@@ -53,7 +84,9 @@ impl NonceCheck {
         } else {
             EN.nonce_check_signatures
         };
-        if self.wrong() {
+        if self.only_witness_wrong() {
+            EN.nonce_check_witness_wrong.to_string()
+        } else if self.wrong() {
             EN.nonce_check_nonce_check.to_string()
         } else if self.unread > 0 {
             fill(EN.nonce_unread_head, &[&self.unread.to_string()])

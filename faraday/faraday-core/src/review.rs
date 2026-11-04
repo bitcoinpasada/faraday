@@ -212,6 +212,7 @@ fn other_words(d: &Detail) -> Cow<'static, str> {
             &[&n(*input), &sighash_text(*sighash)],
         ),
         D::SignatureInvalid { input, key } => t(EN.psbt_warn_signature_invalid, &[&n(*input), key]),
+        D::WitnessMismatch { input } => t(EN.psbt_warn_witness_mismatch, &[&n(*input)]),
         D::SignatureUnchecked { input, reason } => t(
             EN.psbt_warn_signature_unchecked,
             &[&n(*input), unchecked_text(*reason)],

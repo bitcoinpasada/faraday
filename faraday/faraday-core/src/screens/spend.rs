@@ -67,6 +67,10 @@ pub(crate) fn nonce_card(
         );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
     }
+    for input in check.mismatched.iter().take(SHOWN) {
+        let line = fill(EN.psbt_warn_witness_mismatch, &[&input.to_string()]);
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
+    }
     const SHOWN: usize = 12;
     for r in check.rows.iter().take(SHOWN) {
         ui.text_mid_as(
@@ -1316,8 +1320,8 @@ pub(crate) fn step_body(
         7 => {
             if s.spend.finished.is_none() {
                 let missing = needed.saturating_sub(s.signers.len()).max(1);
-                let line = match s.spend.finish_reason() {
-                    Some(r) if s.signers.len() >= needed => r,
+                let line = match s.spend.finish_reason(s.refused.as_deref()) {
+                    Some(r) if s.refused.is_some() || s.signers.len() >= needed => r,
                     _ => fill(
                         EN.step_needs,
                         &[

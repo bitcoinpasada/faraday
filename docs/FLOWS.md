@@ -2073,7 +2073,16 @@ it**, **Show the raw hex** and **Show as QR** for a finished one, the
 PSBT's code for one still wanting signatures ("Not finished: more
 signatures are wanted"). A PSBT with every signature it needs is
 finished here as Spend finishes one. A wrong signature offers nothing
-to carry on ("Not finished: a signature is wrong"). A raw transaction
+to carry on ("Not finished: a signature is wrong"), and nor does a final
+witness that does not match the output it spends, with or without a
+signature row ("Not finished: a witness does not match its output", one
+error line per input; the headline says so when no signature that stands
+is wrong and no nonce repeats, an unread input or an unchecked row on
+another input notwithstanding), nor a PSBT with a final input whose
+previous output does not read or is stated falsely (a previous
+transaction of another txid, beside a `witness_utxo` or not; "Not
+finished: an input's output cannot be read", no Save to a stick, no Show
+as QR). A raw transaction
 whose inputs state no output they spend is checked against the PSBT in
 Files of the same transaction, as Decode reads its amounts; with none,
 its headline says how many inputs could not be checked.

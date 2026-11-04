@@ -44,6 +44,7 @@ use crate::classify::{Classified, classify, spent_output};
 use crate::context::Context;
 use crate::inspect::SighashKind;
 use crate::psbt::Psbt;
+use crate::reason::Reason;
 use crate::sign::{SigKind, tap_prevouts};
 use crate::v2;
 
@@ -466,10 +467,17 @@ fn input_signatures<C: secp256k1::Verification>(
     let input = &psbt.inner().inputs[index];
     let present = collect(&c, input);
     let restored = restore(psbt, index, &c);
+    let mismatch = witness_mismatch_of(&c, input);
     let mut out = Vec::with_capacity(present.len());
     for p in present {
         let mut preimage = false;
-        let (key, verdict) = check(secp, &restored, &c, index, &p, &mut preimage);
+        let (key, mut verdict) = check(secp, &restored, &c, index, &p, &mut preimage);
+        // A finalized script-path witness that does not commit to the
+        // output signs nothing the output holds: no row of it is valid
+        // (a proven preimage is data, not a signature).
+        if mismatch && p.finalized && p.leaf.is_some() && !preimage {
+            verdict = Verdict::Invalid;
+        }
         let (fingerprint, ours) = origin(ctx, input, &key);
         out.push(SignaturePresent {
             input: index,
@@ -606,6 +614,102 @@ fn output_key(spk: &Script) -> Option<XOnlyPublicKey> {
         return None;
     }
     XOnlyPublicKey::from_slice(&spk.as_bytes()[2..34]).ok()
+}
+
+/// The script a finalized input really spends: the previous output's, or
+/// for p2sh the redeem script the `scriptSig` ends in. A redeem script
+/// that does not hash to the output's own hash is not the script it
+/// spends: `None`.
+fn effective_script(spk: &Script, script_sig: &Script) -> Option<ScriptBuf> {
+    if spk.is_p2sh() {
+        let redeem = pushes(script_sig).pop()?;
+        let hash = <bitcoin::hashes::hash160::Hash as bitcoin::hashes::Hash>::hash(&redeem);
+        let same = spk.as_bytes().get(2..22) == Some(bitcoin::hashes::Hash::as_byte_array(&hash));
+        return same.then(|| ScriptBuf::from(redeem));
+    }
+    Some(ScriptBuf::from(spk.as_bytes().to_vec()))
+}
+
+/// Costs a classify, and a tweak when the witness is a script-path
+/// spend: whether input `index`'s finalized witness is one no node
+/// confirms, but for a p2sh whose redeem script is the one its output
+/// hashes. It is a script-path spend of a taproot output that does not
+/// commit to it (its control block does not decode, or does not tie the
+/// leaf script to the output key), or a witness under an output key not
+/// on the curve, or one under a p2sh whose redeem script is not the one
+/// the output hashes. A key-path witness, a witness with no previous
+/// output to read ([`final_unread`] says that one) and any other input
+/// give `false`. The signing state, the nonce check, `collect`, `finish`
+/// and the review share it.
+pub fn witness_mismatch(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(input) = psbt.inputs.get(index) else {
+        return false;
+    };
+    witness_mismatch_of(&classify(psbt, index), input)
+}
+
+/// Costs a classify. Whether input `index` is final but what it says it
+/// spends does not read or is false: no previous output stated, or a
+/// previous transaction of another txid or without that output, beside a
+/// `witness_utxo` or not. Nothing of such an input can be checked, so it
+/// is neither sound nor finished.
+pub fn final_unread(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(input) = psbt.inputs.get(index) else {
+        return false;
+    };
+    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+        return false;
+    }
+    let c = classify(psbt, index);
+    c.utxo.is_none()
+        || c.problems
+            .iter()
+            .any(|r| matches!(r, Reason::PrevTxNotSpent | Reason::PrevTxNoOutput))
+}
+
+fn witness_mismatch_of(c: &Classified, input: &bitcoin::psbt::Input) -> bool {
+    let Some(utxo) = c.utxo.as_ref() else {
+        return false;
+    };
+    // A native witness output takes an empty scriptSig (BIP-141, BIP-341),
+    // with a witness or without.
+    if utxo.script_pubkey.is_p2tr()
+        && input
+            .final_script_sig
+            .as_ref()
+            .is_some_and(|s| !s.is_empty())
+    {
+        return true;
+    }
+    let Some(witness) = input.final_script_witness.as_ref() else {
+        return false;
+    };
+    let mut elements: Vec<&[u8]> = witness.iter().collect();
+    if elements.len() >= 2 && elements.last().is_some_and(|e| e.first() == Some(&0x50)) {
+        elements.pop();
+    }
+    let script_path = elements.len() >= 2;
+    // Where nothing can say the output is a taproot one, any witness
+    // stands for a spend that cannot be confirmed.
+    let any_witness = !witness.is_empty();
+    let script_sig = input.final_script_sig.clone().unwrap_or_default();
+    let Some(effective) = effective_script(&utxo.script_pubkey, &script_sig) else {
+        return any_witness;
+    };
+    if !effective.is_p2tr() {
+        return false;
+    }
+    let Some(key) = output_key(&effective) else {
+        return any_witness;
+    };
+    if !script_path {
+        return false;
+    }
+    let control = elements.pop().unwrap_or_default();
+    let script = elements.pop().unwrap_or_default();
+    let secp = Secp256k1::verification_only();
+    !bitcoin::taproot::ControlBlock::decode(control)
+        .is_ok_and(|cb| cb.verify_taproot_commitment(&secp, key, Script::from_bytes(script)))
 }
 
 /// The pushes of a scriptSig, in order.

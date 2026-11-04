@@ -41,11 +41,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &o.source) + PAD;
     y += nonce_card(ui, &o.check, x, y, w);
-    let wrong = o.check.wrong();
+    let wrong = o.check.refused(o.finished.is_some());
     // Why there is no finished transaction, when there is none.
     if o.finished.is_none() {
-        let (line, tone) = if wrong {
+        let (line, tone) = if o.check.only_witness_wrong() {
+            (EN.nonce_screen_refused_witness, Role::Error)
+        } else if o.check.wrong() {
             (EN.nonce_screen_refused, Role::Error)
+        } else if wrong {
+            (EN.nonce_screen_refused_unread, Role::Error)
         } else {
             (EN.nonce_screen_more_wanted, Role::OnSurfaceVariant)
         };

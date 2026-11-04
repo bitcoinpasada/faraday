@@ -166,6 +166,14 @@ pub enum WarningKind {
         /// The key it is under, named as the review names one.
         key: String,
     },
+    /// A finalized taproot script-path witness does not commit to the
+    /// output the input spends: a taproot output's spend of it never
+    /// confirms, and a p2sh-wrapped one, whose control block consensus
+    /// ignores, is refused all the same, as nobody should sign it.
+    WitnessMismatch {
+        /// The input.
+        input: usize,
+    },
     /// Two signatures under one key share a nonce, anywhere in the
     /// transaction. The key can be worked out from them.
     NonceReuse {
@@ -1313,6 +1321,16 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     // twice and an inscription envelope all reach the review as cards.
     let signatures = crate::verify::verify_signatures(psbt, ctx);
     sighash::signature_cards(&mut warnings, &signatures, &inputs);
+    for input in 0..inner.inputs.len() {
+        if crate::verify::witness_mismatch(inner, input) {
+            warn(
+                &mut warnings,
+                Level::Danger,
+                WarningKind::WitnessMismatch { input },
+                Detail::WitnessMismatch { input },
+            );
+        }
+    }
     let nonce_reuse = crate::verify::repeated_nonces(psbt, ctx);
     for reuse in &nonce_reuse {
         warn(

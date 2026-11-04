@@ -796,7 +796,8 @@ impl Session {
         self.wallets.iter().map(|w| w.policy.clone()).collect()
     }
 
-    /// Costs what `key_refs` and `deterministic` cost. The nonce check at
+    /// Costs what `key_refs` and `deterministic` cost, and a classify per
+    /// input and a tweak per final taproot witness. The nonce check at
     /// the end of a spend: every signature the PSBT carries checked against
     /// its key and this transaction, each one a key held here made
     /// recomputed from that key (RFC 6979 or BIP-340 with no extra
@@ -829,8 +830,12 @@ impl Session {
                 });
             }
         }
+        let mismatched = (0..psbt.inner().inputs.len())
+            .filter(|i| faraday_psbt::verify::witness_mismatch(psbt.inner(), *i))
+            .collect();
         NonceCheck {
             rows,
+            mismatched,
             reused: faraday_psbt::verify::repeated_nonces(psbt, &ctx),
             unread: 0,
         }
@@ -1006,8 +1011,8 @@ impl Kind {
 }
 
 impl Session {
-    /// Costs a txid and, the first time a wallet is asked a place, a script
-    /// derivation ([`Wallet::script_at`]). The loaded wallet whose script
+    /// Costs what `PsbtSeen::of` costs and, the first time a wallet is asked
+    /// a place, a script derivation ([`Wallet::script_at`]). The loaded wallet whose script
     /// the transaction's first input spends, found by re-deriving each
     /// wallet's script at the paths the input's own key origins state.
     pub fn wallet_for(&self, c: &Compute, psbt: &Psbt) -> Option<usize> {
@@ -1067,7 +1072,8 @@ pub struct PsbtSeen {
 }
 
 impl PsbtSeen {
-    /// What `psbt` says. Costs a txid.
+    /// What `psbt` says. Costs a txid, a classify per input and a tweak per
+    /// final taproot witness.
     pub fn of(psbt: &Psbt) -> PsbtSeen {
         let inner = psbt.inner();
         let sigs = inner.inputs.iter().map(|i| i.partial_sigs.len()).sum();
@@ -1120,13 +1126,15 @@ impl PsbtSeen {
 
 /// Whether a PSBT carries a signature, and the masters its key origins
 /// name on an input not yet final whose key has not signed that input
-/// ([`PsbtSeen::unsigned_by`]). A lookup per field.
+/// ([`PsbtSeen::unsigned_by`]). A lookup per field, a classify per final input
+/// and a tweak per final taproot witness.
 fn signing_state(inner: &faraday_bip::bitcoin::Psbt) -> (bool, Vec<Fingerprint>) {
     let mut signed = false;
     let mut unsigned_by: Vec<Fingerprint> = Vec::new();
-    for input in &inner.inputs {
+    for (index, input) in inner.inputs.iter().enumerate() {
         if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
-            signed = true;
+            // A witness that does not commit to its output signs nothing.
+            signed |= !faraday_psbt::verify::witness_mismatch(inner, index);
             continue;
         }
         signed |= !input.partial_sigs.is_empty()
@@ -1542,6 +1550,20 @@ impl Spend {
         if asks_other {
             return Err(fill(EN.wallet_sighash_field_other, &[source]));
         }
+        // The incoming file on its own, so a failing witness in it, and
+        // none in the spend's own PSBT, is what it is blamed for.
+        if let Some(i) = (0..other.inner().inputs.len())
+            .find(|i| faraday_psbt::verify::witness_mismatch(other.inner(), *i))
+        {
+            return Err(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
+        }
+        // An own input still unread is left to the merged PSBT below: the
+        // file may state the output it spends.
+        if let Some(i) = (0..self.psbt.inner().inputs.len())
+            .find(|i| faraday_psbt::verify::witness_mismatch(self.psbt.inner(), *i))
+        {
+            return Err(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]));
+        }
         let before = self.signers(c, session);
         let mut merged = self.psbt.inner().clone();
         merged
@@ -1549,6 +1571,11 @@ impl Spend {
             .map_err(|e| fill(EN.wallet_cannot_combine, &[&e.to_string()]))?;
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);
+        // A final input that cannot stand, rows or none, is no signing: the
+        // spend's own PSBT holding one blames no file.
+        if let Some(why) = refusal_of(merged.inner()) {
+            return Err(why);
+        }
         let inspection = session.inspect(c, &merged);
         if inspection
             .present_signatures()
@@ -1575,8 +1602,21 @@ impl Spend {
         Ok(added)
     }
 
+    /// Costs a classify per input, final or not, and a tweak per final
+    /// taproot witness. Why no transaction is finished from `psbt`: its
+    /// first input whose finalized witness does not match its output, or
+    /// that is final with an output that cannot be read. A PSBT read with
+    /// one reaches `finish` without `collect`. Drawing reads
+    /// `SpendState::refused`, kept from this, and not this.
+    pub fn refused(&self) -> Option<String> {
+        refusal_of(self.psbt.inner())
+    }
+
     /// Finishes the transaction when it has enough signatures.
     pub fn finish(&mut self) -> Result<(), String> {
+        if let Some(why) = self.refused() {
+            return Err(why);
+        }
         let mut copy = self.psbt.clone();
         match faraday_psbt::finalize(&mut copy) {
             Ok(Some(tx)) => {
@@ -1589,7 +1629,13 @@ impl Spend {
     }
 
     /// Why the transaction cannot be finished yet, when it cannot.
-    pub fn finish_reason(&self) -> Option<String> {
+    /// `refused` is what [`Spend::refused`] said for this PSBT, kept where
+    /// the spend changes (`SpendState::refused`): a lookup, and costly
+    /// work of the finalize of a copy.
+    pub fn finish_reason(&self, refused: Option<&str>) -> Option<String> {
+        if let Some(why) = refused {
+            return Some(why.to_string());
+        }
         let mut copy = self.psbt.clone();
         match faraday_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
@@ -1602,6 +1648,22 @@ impl Spend {
     pub fn finished_hex(&self) -> Option<String> {
         self.finished.as_ref().map(serialize_hex)
     }
+}
+
+/// Costs a classify per input and a tweak per final taproot witness. Why
+/// nothing finished is made from `psbt`: the first input whose finalized
+/// witness does not match the output it spends, else the first final input
+/// whose previous output does not read.
+fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<String> {
+    (0..psbt.inputs.len()).find_map(|i| {
+        if faraday_psbt::verify::witness_mismatch(psbt, i) {
+            Some(fill(EN.psbt_warn_witness_mismatch, &[&i.to_string()]))
+        } else if faraday_psbt::verify::final_unread(psbt, i) {
+            Some(fill(EN.psbt_final_prev_unread, &[&i.to_string()]))
+        } else {
+            None
+        }
+    })
 }
 
 /// What checking a signed message found.
@@ -1856,6 +1918,9 @@ pub struct SpendState {
     pub opened: bool,
     /// The register sheet, while it is open over this spend.
     pub register: Option<crate::register::RegisterAsk>,
+    /// [`Spend::refused`] of the PSBT as it is, worked out with the
+    /// inspection (`refresh_spend`), read when drawing.
+    pub refused: Option<String>,
 }
 
 impl SpendState {
@@ -1870,7 +1935,9 @@ impl SpendState {
         inputs: InspectInputs,
     ) -> Self {
         let inspected = Some((spend.psbt.clone(), inputs));
+        let refused = spend.refused();
         SpendState {
+            refused,
             spend,
             open: None,
             done: [false; 10],
@@ -2206,6 +2273,7 @@ impl Faraday {
             if !s.inspected_for(&inputs) {
                 s.inspection = self.session.inspect(&c, &s.spend.psbt);
                 s.inspected = Some((s.spend.psbt.clone(), inputs));
+                s.refused = s.spend.refused();
             }
             s.signers = s
                 .spend
