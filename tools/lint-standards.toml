@@ -79,8 +79,16 @@ file = "faraday/faraday-core/src/create.rs"
 reason = "Names rust-bitcoin's derivation-path types to write a new wallet's path; the keys at it are derived by faraday-keys and faraday-bip, which the stamp covers."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/decode.rs"
+file = "faraday/faraday-core/src/decode/mod.rs"
 reason = "Decode's view of a transaction: each output's address with rust-bitcoin's `Address::from_script`, and the txid and wtxid with rust-bitcoin's `compute_txid` and `compute_wtxid`. No secret; no F79 area runs it."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/decode/check.rs"
+reason = "Check a signer's report in words and its view of the two PSBTs: the txids come from rust-bitcoin's `compute_txid`, and the comparison and the nonce recomputation are faraday-psbt's `signer::check` and faraday-keys' `recompute_signatures_all`, which the stamp covers. No secret; no F79 area runs it."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/decode/check_words.rs"
+reason = "Check a signer's findings in words: an outpoint is written as rust-bitcoin's `OutPoint` shows it; the findings are faraday-psbt's. No secret; no F79 area runs it."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/seeds/read.rs"

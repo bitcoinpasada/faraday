@@ -432,11 +432,25 @@ fn paged(
                 let cw = ui.measure_as(LABEL_L, EN.flow_change);
                 let line = format!("{} · {}", c.title, c.summary);
                 let role = if c.mono { BODY_S.mono() } else { BODY_S };
-                let line = ui.fit_as(role, &line, inner - cw - 16.0);
-                ui.text_mid_as((M, y, 34.0), role, Role::OnSurfaceVariant, &line);
-                ui.text_right_as((M + inner, y, 34.0), LABEL_L, Role::Primary, EN.flow_change);
-                ui.press_box(M, y, inner, 34.0, c.toggle);
-                y += 36.0;
+                let room = inner - cw - 16.0;
+                let row = 34.0;
+                // A line that does not fit in one is wrapped, not cut.
+                let (h, after) = if ui.measure_as(role, &line) > room {
+                    let used = ui.wrap_height_as(role, &line, room);
+                    ui.wrap_as(
+                        (M, y + tokens::GAP_SMALL, room),
+                        role,
+                        Role::OnSurfaceVariant,
+                        &line,
+                    );
+                    (used + tokens::GAP, tokens::GAP_SMALL)
+                } else {
+                    ui.text_mid_as((M, y, row), role, Role::OnSurfaceVariant, &line);
+                    (row, 2.0)
+                };
+                ui.text_right_as((M + inner, y, h), LABEL_L, Role::Primary, EN.flow_change);
+                ui.press_box(M, y, inner, h, c.toggle);
+                y += h + after;
                 defaults = true;
             }
             if defaults {

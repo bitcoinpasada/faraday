@@ -23,7 +23,7 @@
 //! The only door private material comes through is [`deterministic`]'s
 //! `keys`, and what it returns is a verdict, never a key.
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -457,6 +457,28 @@ pub fn verify_signatures(psbt: &Psbt, ctx: &Context) -> Vec<InputSignatures> {
             signatures: input_signatures(&secp, psbt, ctx, index),
         })
         .collect()
+}
+
+/// Costs a classification per input. How many signatures the PSBT
+/// carries, read the way [`verify_signatures`] reads them (partial,
+/// taproot key and script, and final fields), none of them checked.
+pub fn count_signatures(psbt: &Psbt) -> usize {
+    psbt.inner()
+        .inputs
+        .iter()
+        .enumerate()
+        .map(|(index, input)| {
+            // One signature is one, by its bytes, whether it sits in a
+            // partial field and again in a final witness; a hash preimage
+            // in a script-path witness is not one.
+            collect(&classify(psbt.inner(), index), input)
+                .into_iter()
+                .filter(|p| !p.preimage)
+                .map(|p| p.bytes)
+                .collect::<BTreeSet<_>>()
+                .len()
+        })
+        .sum()
 }
 
 fn input_signatures<C: secp256k1::Verification>(

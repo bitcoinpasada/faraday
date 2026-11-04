@@ -51,6 +51,7 @@ name, its line and its standards; the groups below scroll into view.*
 | | **Back up a wallet** | the backup of the wallet chosen on Wallets |
 | **Transactions** | **Sign a transaction** | the spend of the PSBT in Files, or the camera |
 | | **Nonce check** | the signed spend's last card; or the nonce check of a signed PSBT or a finished transaction in Files; or the camera |
+| | **Check a signer** | Check a signer, with nothing chosen: [Check a signer](signer-check.md) |
 | | **Decode a transaction** | Decode, on a transaction in Files, or the camera |
 | | **Check an address** | the camera |
 | **Messages** | **Sign a message**, **Check a signed message** | each tool's page |

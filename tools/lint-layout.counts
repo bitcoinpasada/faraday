@@ -22,7 +22,7 @@ impl-faraday faraday/faraday-core/src/compact/mod.rs
 impl-faraday faraday/faraday-core/src/compute.rs
 impl-faraday faraday/faraday-core/src/create.rs
 impl-faraday faraday/faraday-core/src/create_from.rs
-impl-faraday faraday/faraday-core/src/decode.rs
+impl-faraday faraday/faraday-core/src/decode/mod.rs
 impl-faraday faraday/faraday-core/src/demo.rs
 impl-faraday faraday/faraday-core/src/devices.rs
 impl-faraday faraday/faraday-core/src/drawing.rs

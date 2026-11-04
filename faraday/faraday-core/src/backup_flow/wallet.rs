@@ -377,8 +377,11 @@ impl Faraday {
     // ---- Back up: the plan the flow follows ----
 
     /// The flow's answers follow the backup's, while the backup is open on
-    /// a wallet whose flow has not locked yet. Called after each press.
+    /// a wallet whose flow has not locked yet. Called after each press,
+    /// which is why a kept Check a signer report is made again here when
+    /// the press left other keys ([`Faraday::signer_check_sync`]).
     pub(crate) fn wallet_flow_sync(&mut self) {
+        self.signer_check_sync();
         let c = self.compute();
         let Some(i) = self.wallet_flow_of_backup() else {
             return;

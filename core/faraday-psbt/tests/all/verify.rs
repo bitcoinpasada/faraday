@@ -4252,3 +4252,28 @@ fn a_script_sig_over_ten_thousand_bytes_is_refused() {
     assert!(over.inputs[0].final_script_sig.as_ref().unwrap().len() > 10_000);
     assert!(witness_mismatch(&over, 0));
 }
+
+/// A signature in a partial field and again in a final witness is one
+/// signature, and a hash preimage in a script-path witness is none.
+#[test]
+fn a_signature_in_two_places_counts_once_and_a_preimage_not_at_all() {
+    use faraday_psbt::verify::count_signatures;
+    for script_type in [ScriptType::NativeSegwit, ScriptType::Taproot] {
+        let signed = signed_single(script_type, Nonce::LowR, Aux::Deterministic, 29_000);
+        assert_eq!(count_signatures(&signed), 1, "{script_type:?}");
+        let mut finalized = signed.clone();
+        finalize(&mut finalized).expect("a single-signature input finalizes");
+        assert_eq!(count_signatures(&finalized), 1, "{script_type:?}");
+
+        let mut both = signed;
+        let input = &mut both.inner_mut().inputs[0];
+        let done = &finalized.inner().inputs[0];
+        input.final_script_witness = done.final_script_witness.clone();
+        input.final_script_sig = done.final_script_sig.clone();
+        assert_eq!(count_signatures(&both), 1, "{script_type:?} in both places");
+    }
+
+    let preimage = vec![0xab; 64];
+    let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, preimage.clone()]);
+    assert_eq!(count_signatures(&psbt), 1);
+}

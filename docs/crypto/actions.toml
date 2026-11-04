@@ -443,10 +443,9 @@ standard_note = "Faraday's review rules"
 id = "check-signer"
 section = 4
 what = "Check a signer"
-completeness = "Not built (`docs/SIGNER-CHECK.md`)"
-no_action = "Not built."
-standard = "None"
-verified = "None"
+completeness = "Faraday's own rule, compared against the fields BIP 174 defines: a field the check does not know is reported as unknown, and no cross-check against another implementation was run (`docs/SIGNER-CHECK.md`)"
+uses = ["sign-check"]
+standard = "BIP 174 names the fields compared; the comparison itself is Faraday's own rule"
 own = "Fails closed by design (F84). Conservative."
 
 [[row]]
@@ -5155,12 +5154,16 @@ standards = [
   "RFC 6979",
   "BIP 143",
   "BIP 341",
+  "BIP 174",
+  "BIP 373",
 ]
 learn = "nonces"
-screens = ["Spend", "NonceCheck"]
+screens = ["Spend", "NonceCheck", "SignerCheck", "Decode"]
 functions = [
   "core/faraday-psbt/src/verify.rs::compare",
+  "core/faraday-psbt/src/verify.rs::count_signatures",
   "core/faraday-psbt/src/verify.rs::deterministic",
+  "core/faraday-psbt/src/verify.rs::deterministic_all",
   "core/faraday-psbt/src/verify.rs::ecdsa_mode",
   "core/faraday-psbt/src/verify.rs::schnorr_mode",
   "core/faraday-psbt/src/verify.rs::verify_signatures",
@@ -5203,11 +5206,16 @@ functions = [
   "core/faraday-psbt/src/signer.rs::unknown_of",
   "core/faraday-psbt/src/signer.rs::witness_script_of",
   "faraday/faraday-keys/src/psbt.rs::recompute_signatures",
+  "faraday/faraday-keys/src/psbt.rs::recompute_signatures_all",
   "faraday/faraday-keys/src/psbt.rs::key_refs",
   "faraday/faraday-keys/src/session.rs::Keys::key_refs",
   "faraday/faraday-keys/src/session.rs::Keys::recompute_signatures",
-  "faraday/faraday-core/src/decode.rs::Faraday::nonce_check_open",
-  "faraday/faraday-core/src/decode.rs::raw_as_psbt",
+  "faraday/faraday-keys/src/session.rs::Keys::recompute_signatures_all",
+  "faraday/faraday-core/src/decode/check.rs::shown",
+  "faraday/faraday-core/src/decode/check_words.rs::outpoint",
+  "faraday/faraday-core/src/decode/check_words.rs::script",
+  "faraday/faraday-core/src/decode/mod.rs::Faraday::nonce_check_open",
+  "faraday/faraday-core/src/decode/mod.rs::raw_as_psbt",
 ]
 code = ["core/faraday-psbt/src/verify.rs::verify_signatures", "core/faraday-psbt/src/verify.rs::deterministic"]
 
@@ -5461,12 +5469,12 @@ functions = [
   "core/faraday-psbt/src/transaction.rs::Spending::prevouts",
   "core/faraday-psbt/src/transaction.rs::prevout_of",
   "core/faraday-psbt/src/transaction.rs::money_total",
-  "faraday/faraday-core/src/decode.rs::decode",
-  "faraday/faraday-core/src/decode.rs::Faraday::amounts_in",
-  "faraday/faraday-core/src/decode.rs::prevouts_of",
-  "faraday/faraday-core/src/decode.rs::same_unsigned",
-  "faraday/faraday-core/src/decode.rs::script_kind",
-  "faraday/faraday-core/src/decode.rs::btc",
+  "faraday/faraday-core/src/decode/mod.rs::decode",
+  "faraday/faraday-core/src/decode/mod.rs::Faraday::amounts_in",
+  "faraday/faraday-core/src/decode/mod.rs::prevouts_of",
+  "faraday/faraday-core/src/decode/mod.rs::same_unsigned",
+  "faraday/faraday-core/src/decode/mod.rs::script_kind",
+  "faraday/faraday-core/src/decode/mod.rs::btc",
   "faraday/faraday-qr/src/lib.rs::transaction_hex",
 ]
 code = [

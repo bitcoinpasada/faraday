@@ -172,6 +172,8 @@ impl Faraday {
             self.worker.finished();
             self.worker.set_busy(None);
             self.apply_done(done);
+            // An answer may have loaded or dropped a key.
+            self.signer_check_sync();
         } else {
             // Made stale by Back: dropped, and wiped as it drops.
             drop(done);

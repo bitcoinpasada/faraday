@@ -5368,7 +5368,7 @@ strings! {
     catalog_find_a_tool: "Find a tool: a name, a BIP number",
     /// Line in `catalog_screen`.
     catalog_no_tool_matches: "No tool matches",
-    // ----- decode_back (faraday-core/src/screens/decode.rs) -----
+    // ----- decode_back (faraday-core/src/decode/screen.rs) -----
     /// Text in `decode_back`.
     decode_back_sign_transaction: "Sign a transaction",
     /// Text in `decode_back`.
@@ -5383,7 +5383,7 @@ strings! {
     decode_back_back: "Back",
     /// Text in `decode_back`.
     decode_back_nonce_check: "Nonce check",
-    // ----- decode (faraday-core/src/screens/decode.rs) -----
+    // ----- decode (faraday-core/src/decode/screen.rs) -----
     /// Title in `decode_screen`.
     decode_decode_a_transaction: "Decode a transaction",
     /// Text in `decode_screen`. `{}`: `f`, `f as f64 / t.size.1.max(1) as f64`.
@@ -12195,4 +12195,234 @@ strings! {
     sweep_qr_psbt: "Swept PSBT",
     /// A signing refusal: a legacy input whose script code holds OP_CODESEPARATOR.
     sign_codeseparator: "A legacy input with OP_CODESEPARATOR is not signed",
+    /// The Tools tile's name for comparing the PSBT sent with the one returned.
+    catalog_check_a_signer: "Check a signer",
+    /// The Check a signer tile's line.
+    catalog_sent_and_returned: "Sent and returned PSBTs compared",
+    /// Check a signer's first card: the PSBT that went to the device.
+    signer_sent: "Sent",
+    /// Check a signer's second card: the PSBT that came back.
+    signer_returned: "Returned",
+    /// Check a signer's last card: the verdict.
+    signer_result: "Result",
+    /// The name of a PSBT read by the scanner, on a closed card.
+    signer_scanned: "Scanned",
+    /// The scanner's title on the Sent card.
+    signer_scan_sent: "Scan the PSBT sent",
+    /// The scanner's title on the Returned card.
+    signer_scan_returned: "Scan the PSBT returned",
+    /// The button that opens the scanner on a card.
+    signer_scan: "Scan",
+    /// The Sent card's empty state.
+    signer_no_psbt: "No PSBT in Files",
+    /// The Returned card's label over the PSBTs of other transactions.
+    signer_other_transactions: "Other transactions",
+    /// A PSBT row's line. `{}`: its signatures, its transaction's short id.
+    signer_row: "{} signatures · {}",
+    /// A PSBT row's line with one signature. `{}`: its transaction's short id.
+    signer_row_one: "1 signature · {}",
+    /// The verdict where only signatures were added.
+    signer_only_signatures: "Only signatures were added",
+    /// The verdict where signatures were added and inputs finalized. `{}`: how many.
+    signer_only_finalized: "Only signatures were added; {} inputs finalized from them",
+    /// The verdict where signatures were added and one input finalized.
+    signer_only_one_finalized: "Only signatures were added; 1 input finalized from them",
+    /// The verdict where a MuSig2 nonce was added with the signatures.
+    signer_only_nonces: "Only nonces and signatures were added",
+    /// The verdict with findings. `{}`: how many.
+    signer_findings: "{} findings",
+    /// The verdict with one finding.
+    signer_one_finding: "1 finding",
+    /// The verdict where the two PSBTs share no input.
+    signer_not_the_same: "Not the same transaction",
+    /// A place in a Check a signer line: the transaction itself.
+    signer_at_transaction: "Transaction",
+    /// A place in a Check a signer line. `{}`: the input, from 0.
+    signer_at_input: "Input {}",
+    /// A place in a Check a signer line. `{}`: the output, from 0.
+    signer_at_output: "Output {}",
+    /// A finding's level word, in its tone.
+    signer_level_blocked: "Blocked",
+    /// A finding's level word, in its tone.
+    signer_level_danger: "Danger",
+    /// A finding's level word, in its tone.
+    signer_level_caution: "Caution",
+    /// A line's level word where the level is only a note.
+    signer_level_info: "Info",
+    /// A finding: the version changed. `{}`: where, the version sent, the one returned.
+    signer_t_version: "{}: version {} sent, {} returned",
+    /// A finding: the locktime changed. `{}`: where, the locktime sent, the one returned.
+    signer_t_locktime: "{}: locktime {} sent, {} returned",
+    /// A finding: the input count changed. `{}`: where, the count sent, the one returned.
+    signer_t_inputs: "{}: {} inputs sent, {} returned",
+    /// A finding: the output count changed. `{}`: where, the count sent, the one returned.
+    signer_t_outputs: "{}: {} outputs sent, {} returned",
+    /// A finding: an input spends another outpoint. `{}`: where, the one returned, the one sent.
+    signer_t_spends: "{}: spends {}, not {}",
+    /// A finding: an input's sequence changed. `{}`: where, the sequence sent, the one returned.
+    signer_t_sequence: "{}: sequence {} sent, {} returned",
+    /// A finding: an output's amount changed. `{}`: where, the amount returned, the one sent.
+    signer_t_amount: "{}: {} returned, {} sent",
+    /// A finding: an output pays another script. `{}`: where, the one returned, the one sent.
+    signer_t_pays: "{}: pays {}, not {}",
+    /// A script that has no address. `{}`: its length in bytes.
+    signer_script_bytes: "script {} bytes",
+    /// A finding: an added signature does not verify. `{}`: where, the key.
+    signer_s_invalid: "{}: the signature under {} is not a signature of this transaction",
+    /// A finding: an added signature was not checked. `{}`: where, the key, why.
+    signer_s_unchecked: "{}: the signature under {} was not checked: {}",
+    /// Why a MuSig2 signature was not checked: its wallet is not registered.
+    signer_unchecked_musig_wallet: "the MuSig2 wallet is not registered",
+    /// Why a MuSig2 signature was not checked: a participant's nonce is missing.
+    signer_unchecked_musig_nonce: "a participant's nonce is missing",
+    /// A finding: a signature under a key the sent PSBT does not name. `{}`: where, the key.
+    signer_s_unnamed: "{}: signature under {}, a key the sent PSBT does not name",
+    /// A finding: a signature over a leaf the sent PSBT does not hold. `{}`: where, the key.
+    signer_s_leaf: "{}: the signature under {} is over a leaf the sent PSBT does not hold",
+    /// A finding: another sighash than asked. `{}`: where, the key, the sighash signed with, the one asked for.
+    signer_s_sighash: "{}: the signature under {} signs with {}, not the {} asked for",
+    /// A finding: another sighash than asked that commits to no output. `{}`: where, the key, signed with, asked for.
+    signer_s_sighash_none: "{}: the signature under {} signs with {}, not the {} asked for: outputs are not committed to",
+    /// A finding: a sighash that commits to more than asked. `{}`: where, the key, signed with, asked for.
+    signer_s_sighash_more: "{}: the signature under {} signs with {}, which commits to more than the {} asked for",
+    /// A finding: one nonce in more than one place. `{}`: the keys, the inputs.
+    signer_s_nonce_reuse: "{}: one nonce on inputs {}",
+    /// A finding: a nonce a loaded key would not make. `{}`: where, the key.
+    signer_s_not_reproduced: "{}: the signature under {} could not be reproduced. Either the device signed with fresh randomness, or it chose the nonce",
+    /// A finding: a signature that could not be recomputed. `{}`: where, the key.
+    signer_s_not_recomputed: "{}: the signature under {} could not be recomputed",
+    /// A finding: a signature that is gone. `{}`: where, the key.
+    signer_s_removed: "{}: the signature under {} was removed",
+    /// A finding: a signature with other bytes. `{}`: where, the key.
+    signer_s_changed: "{}: the signature under {} changed",
+    /// A finding: nothing was added.
+    signer_s_none_added: "No signature was added",
+    /// A finding: the final fields differ from what the signatures give. `{}`: where.
+    signer_f_differs: "{}: finalized; the final fields differ from what its signatures give",
+    /// A finding: the final fields cannot be compared. `{}`: where.
+    signer_f_not_compared: "{}: finalized; Faraday cannot finalize this input to compare",
+    /// A finding: the final fields changed. `{}`: where.
+    signer_f_changed: "{}: the final fields changed",
+    /// A finding: the final fields were removed. `{}`: where.
+    signer_f_removed: "{}: the final fields were removed",
+    /// A finding: a field was added. `{}`: where, the field.
+    signer_m_added: "{}: {} added",
+    /// A finding: a field changed. `{}`: where, the field.
+    signer_m_changed: "{}: {} changed",
+    /// A finding: a field was removed. `{}`: where, the field.
+    signer_m_removed: "{}: {} removed",
+    /// A finding: a difference the check names no case for. `{}`: where, the field.
+    signer_unnamed: "{}: {} differs in a way the check does not name",
+    /// A finding: an unknown pair added. `{}`: where, its type, its key's bytes, its value's bytes.
+    signer_p_unknown_added: "{}: unknown field added · type {} · key {} bytes · value {} bytes",
+    /// A finding: an unknown pair changed. `{}`: where, its type, the value's bytes before, after.
+    signer_p_unknown_changed: "{}: unknown field changed · type {} · value {} → {} bytes",
+    /// A finding: a proprietary pair added. `{}`: where, the prefix's bytes, the subtype, the value's bytes.
+    signer_p_proprietary_added: "{}: proprietary field added · prefix {} bytes · subtype {} · value {} bytes",
+    /// A finding: a proprietary pair changed. `{}`: where, the prefix's bytes, the subtype, the value's bytes before, after.
+    signer_p_proprietary_changed: "{}: proprietary field changed · prefix {} bytes · subtype {} · value {} → {} bytes",
+    /// A finding: an unknown pair removed. `{}`: where, its type.
+    signer_p_unknown_removed: "{}: unknown field removed · type {}",
+    /// A finding: a proprietary pair removed. `{}`: where, the prefix's bytes, the subtype.
+    signer_p_proprietary_removed: "{}: proprietary field removed · prefix {} bytes · subtype {}",
+    /// A finding: bytes in the returned file no field accounts for. `{}`: how many.
+    signer_e_unaccounted: "Returned file: {} bytes its fields do not account for",
+    /// A stated line: a MuSig2 public nonce was added. `{}`: where, the key.
+    signer_i_nonce_added: "{}: public nonce added for {}",
+    /// A stated line: an input was finalized. `{}`: where.
+    signer_i_finalized: "{}: finalized",
+    /// A field's name in a Check a signer line.
+    signer_field_version: "version",
+    /// A field's name in a Check a signer line.
+    signer_field_locktime: "locktime",
+    /// A field's name in a Check a signer line.
+    signer_field_input_count: "input count",
+    /// A field's name in a Check a signer line.
+    signer_field_output_count: "output count",
+    /// A field's name in a Check a signer line.
+    signer_field_spends: "spent outpoint",
+    /// A field's name in a Check a signer line.
+    signer_field_sequence: "sequence",
+    /// A field's name in a Check a signer line.
+    signer_field_amount: "amount",
+    /// A field's name in a Check a signer line.
+    signer_field_script: "script",
+    /// A field's name in a Check a signer line.
+    signer_field_previous_transaction: "previous transaction",
+    /// A field's name in a Check a signer line.
+    signer_field_spent_output: "spent output",
+    /// A field's name in a Check a signer line.
+    signer_field_redeem_script: "redeem script",
+    /// A field's name in a Check a signer line.
+    signer_field_witness_script: "witness script",
+    /// A field's name in a Check a signer line.
+    signer_field_sighash: "sighash type",
+    /// A field's name in a Check a signer line.
+    signer_field_key_origins: "key origins",
+    /// A field's name in a Check a signer line.
+    signer_field_taproot_key_origins: "taproot key origins",
+    /// A field's name in a Check a signer line.
+    signer_field_internal_key: "taproot internal key",
+    /// A field's name in a Check a signer line.
+    signer_field_merkle_root: "taproot merkle root",
+    /// A field's name in a Check a signer line.
+    signer_field_leaf_scripts: "taproot leaf scripts",
+    /// A field's name in a Check a signer line.
+    signer_field_unknown: "unknown fields",
+    /// A field's name in a Check a signer line.
+    signer_field_proprietary: "proprietary fields",
+    /// A field's name in a Check a signer line.
+    signer_field_xpubs: "extended public keys",
+    /// A field's name in a Check a signer line.
+    signer_field_preimages: "preimages",
+    /// A field's name in a Check a signer line.
+    signer_field_tap_tree: "taproot tree",
+    /// A field's name in a Check a signer line.
+    signer_field_psbt_version: "PSBT version",
+    /// A field's name in a Check a signer line.
+    signer_field_v2_fields: "version 2 fields",
+    /// A field's name in a Check a signer line.
+    signer_field_modifiable: "modifiable flags",
+    /// A field's name in a Check a signer line.
+    signer_field_musig_participants: "MuSig2 participants",
+    /// A field's name in a Check a signer line.
+    signer_field_musig_nonce: "MuSig2 public nonce",
+    /// A field's name in a Check a signer line.
+    signer_field_musig_partial_sig: "MuSig2 partial signature",
+    /// The Result's fact: the transaction's id where both PSBTs have it.
+    signer_transaction: "Transaction",
+    /// The Result's fact: how many signatures the device added.
+    signer_signatures_added: "Signatures added",
+    /// The Result's fact: how many inputs the device finalized.
+    signer_inputs_finalized: "Inputs finalized",
+    /// A closed card's line for a file replaced in Files since it was
+    /// chosen. `{}`: the file's name.
+    signer_file_differs: "{} · changed or no longer in Files",
+    /// A finding's line: its level's word, then the finding. `{}`: the
+    /// level's word; the finding.
+    signer_finding_line: "{} · {}",
+    /// The Result's change fact, where an output is verified change.
+    signer_change_verified: "verified",
+    /// The Result's change fact, where no output is.
+    signer_change_not_verified: "not verified",
+    /// The Result's fact: how many added signatures' nonces a loaded key reproduced.
+    signer_nonces_recomputed: "Nonces recomputed",
+    /// The value of that fact. `{}`: how many were recomputed, how many were added under an ordinary key.
+    signer_nonces_of: "{} of {}",
+    /// The value of that fact, one line per key whose seed is not loaded. `{}`: the key's fingerprint.
+    signer_nonces_none: "None: {} not loaded",
+    /// A line of that fact beside a count: a key whose seed is not loaded. `{}`: the key's fingerprint.
+    signer_nonces_not_loaded: "{} not loaded",
+    /// The Result's button that opens Add a key for a key that signed and is not loaded. `{}`: the key's fingerprint.
+    signer_load: "Load {}",
+    /// The Result's label over the findings.
+    signer_findings_label: "Findings",
+    /// The Result's line where the check found nothing.
+    signer_no_findings: "No findings",
+    /// The Result's label over what is stated and is no finding.
+    signer_stated_label: "Stated",
+    /// The Result's button that swaps the two PSBTs and checks again.
+    signer_swap: "Swap",
+    /// The Result's button that opens the Returned card.
+    signer_choose_again: "Choose again",
 }

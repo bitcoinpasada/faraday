@@ -247,6 +247,16 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Checking a signer",
+                paragraphs: &[
+                    "Tools › Check a signer compares two PSBTs: the one sent to a signing device and the one that came back. It compares the unsigned transaction (version, locktime, every input and output), every signature and final field, the key origins and scripts, any other field, unknown and proprietary pairs included, and the bytes of the returned file.",
+                    "A clean verdict, \"Only signatures were added\", says that the transaction is the one sent and that the only differences are signatures added under keys the sent PSBT names, which verify over this transaction, and inputs finalized from such signatures. \"Only nonces and signatures were added\" is the same for a MuSig2 PSBT, which also gains public nonces. A clean verdict says nothing more: it does not say the signatures are the ones you wanted, or that the coordinator's transaction was right. Read the transaction in Spend before signing.",
+                    "Anything else is a finding, with its place (Transaction, an input or an output) and its level: Blocked, the transaction is not the one sent or a signature commits to no output; Danger, a field added or changed; Caution, something removed or not checked. A signature that cannot be checked is a finding, never a pass. A signature under a key the sent PSBT does not name is a finding even when it verifies. With no input in common the verdict is \"Not the same transaction\".",
+                    "Stated lists what the check saw and accepted without calling it a finding: a MuSig2 nonce added, an input finalized, a field a signer adds that Faraday checks in full against the transaction.",
+                    "The Nonces recomputed line needs the seed of the key that signed: a loaded key signs the input again here, and the line counts the signatures it reproduces (\"1 of 2\"). A key not loaded is named (\"None: 0f1a2b3c not loaded\"); its signature's nonce is not recomputed, which is not the same as cleared. A nonce chosen by a signer can hide its key, and only the seed shows it. Load the key (the Load button on the result) and the check runs again.",
+                ],
+            },
+            Section {
                 heading: "Warning cards",
                 paragraphs: &[
                     "When Faraday cannot confirm something, the review shows a warning under the transaction. A danger is in red: an input whose value cannot be checked, a signature type that does not cover the outputs, a fee out of all proportion to the amount. Change it cannot rebuild from a loaded wallet is shown as a payment, under Sends. A danger stops the review: Faraday does not sign it. Only a fee this high has a way past, a hold, for a child paying for its parent, a large batch or a consolidation.",

@@ -851,6 +851,17 @@ impl Session {
         self.wallets.iter().map(|w| w.policy.clone()).collect()
     }
 
+    /// Costs what `deterministic_all` costs. The nonce lines of the signer
+    /// check: `view` (`faraday_psbt::signer::nonce_view`) recomputed with
+    /// every key held here, for `faraday_psbt::signer::with_nonces`.
+    pub fn recompute_all(
+        &self,
+        c: &Compute,
+        view: &Psbt,
+    ) -> Vec<faraday_psbt::verify::Determinism> {
+        self.keys.recompute_signatures_all(c, view)
+    }
+
     /// Costs what `key_refs` and `deterministic` cost, a few classifies
     /// per input, and, per final input, what [`Spend::refused`] costs twice
     /// over (the refusal and the rows), a taproot script-path one's
@@ -1153,7 +1164,8 @@ impl InspectInputs {
 pub struct PsbtSeen {
     /// The unsigned transaction's id.
     pub txid: Txid,
-    /// Partial signatures on all its inputs.
+    /// Signatures on all its inputs: partial, taproot and those in final
+    /// fields.
     pub sigs: usize,
     /// It carries a signature: a partial one, a taproot one or an input
     /// finalized.
@@ -1173,7 +1185,7 @@ impl PsbtSeen {
     /// (`Session::wallet_for`), never a frame.
     pub fn of(psbt: &Psbt) -> PsbtSeen {
         let inner = psbt.inner();
-        let sigs = inner.inputs.iter().map(|i| i.partial_sigs.len()).sum();
+        let sigs = faraday_psbt::verify::count_signatures(psbt);
         let first = input_place(inner, 0);
         let (signed, unsigned_by) = signing_state(inner);
         PsbtSeen {

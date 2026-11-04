@@ -222,7 +222,7 @@ fn = "decode"
 target = "faraday/fuzz/fuzz_targets/memory_kept.rs"
 
 [[parser]]
-file = "faraday/faraday-core/src/decode.rs"
+file = "faraday/faraday-core/src/decode/mod.rs"
 fn = "decode"
 target = "faraday/fuzz/fuzz_targets/decode_tx.rs"
 

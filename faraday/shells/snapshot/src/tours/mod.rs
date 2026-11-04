@@ -52,6 +52,7 @@ pub(crate) mod roller;
 pub(crate) mod screens;
 pub(crate) mod seedfile;
 pub(crate) mod seeds;
+pub(crate) mod signer;
 pub(crate) mod silent;
 pub(crate) mod site_tour;
 pub(crate) mod spend;

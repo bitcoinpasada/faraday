@@ -686,6 +686,8 @@ impl Faraday {
                 | ScanPurpose::KeyPart
                 | ScanPurpose::WalletKey(_)
                 | ScanPurpose::GpgPublic
+                | ScanPurpose::CheckSent
+                | ScanPurpose::CheckReturned
                 | ScanPurpose::Sweep => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
@@ -928,6 +930,7 @@ impl Faraday {
         if self.seed_scan_codex32(&bytes)
             || self.gpg_restore_scanned(&bytes)
             || self.sweep_scanned(&bytes)
+            || self.signer_check_scanned(&bytes)
         {
             return;
         }

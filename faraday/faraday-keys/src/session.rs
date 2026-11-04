@@ -1627,6 +1627,17 @@ impl Keys {
         crate::psbt::recompute_signatures(c, psbt, &masters)
     }
 
+    /// Costs what `deterministic_all` costs. As [`Self::recompute_signatures`],
+    /// with a result also for a signature whose hash cannot be computed.
+    pub fn recompute_signatures_all(
+        &self,
+        c: &Compute,
+        psbt: &faraday_psbt::Psbt,
+    ) -> Vec<faraday_psbt::verify::Determinism> {
+        let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &*e.key.master).collect();
+        crate::psbt::recompute_signatures_all(c, psbt, &masters)
+    }
+
     /// A job that signs `psbt` with the keys in `selection`, against the
     /// `context` (network, key references, policies), past the holdable dangers in `accepted` (F136). It holds a clone of
     /// each selected key's `Arc`, not a copy of the key; a key forgotten or

@@ -50,6 +50,7 @@ Each row has one button for what its kind is for, and **⋮** for the rest.
 | entries | **Import into the vault** | adds them to the open vault. Shown while a vault is open |
 | a text file | **Add to vault** | adds it to the open vault as a note. Shown while a vault is open |
 | a finished transaction | **Nonce check** | opens its [nonce check](../walk/check-and-decode.md#4-nonce-check), with **Decode it** on it |
+| a PSBT | ⋮ → **Check a signer** | opens [Check a signer](signer-check.md) with it as the PSBT returned |
 | a signed message | **Check the signature** | opens Check a signed message on it |
 | shares of a wallet | "Restore the wallet · 3 shares" | opens Restore with them; "2 of 3 keys in hand" while some are missing |
 | a recovery sheet | **Make PDF** | Faraday Demo only: makes its PDF |
@@ -112,15 +113,15 @@ files from the stick give something to load. Its parts are
 **Opened from:** a file row's **⋮**: a menu under it, a sheet on a
 small window.
 
-![The ⋮ menu of payment-signed.psbt on For the stick: Show as QR, Rename, Details, Remove](../pictures/files-menu.png)
+![The ⋮ menu of payment-signed.psbt on For the stick: Show as QR, Check a signer, Rename, Details, Remove](../pictures/files-menu.png)
 
 *A file's **⋮** on **For the stick**: the file's name over **Show as
-QR**, **Rename**, **Details** and **Remove**.*
+QR**, **Check a signer**, **Rename**, **Details** and **Remove**.*
 
 | Row | Choices |
 |---|---|
-| a file from the stick | **Add to vault** (a wallet or seed words, while a vault is open), **Details**, **Remove** |
-| a file for the stick | **Make PDF** (a recovery sheet, Faraday Demo only), **Show as QR** (where it fits in codes; never a vault), **Rename**, **Details**, **Remove** |
+| a file from the stick | **Add to vault** (a wallet or seed words, while a vault is open), **Check a signer** (a PSBT), **Details**, **Remove** |
+| a file for the stick | **Make PDF** (a recovery sheet, Faraday Demo only), **Show as QR** (where it fits in codes; never a vault), **Check a signer** (a PSBT), **Rename**, **Details**, **Remove** |
 | a file on a stick visited | **Rename**, "Delete from the stick", **Details** |
 
 **Remove** takes the file out of Files. "Delete from the stick" opens

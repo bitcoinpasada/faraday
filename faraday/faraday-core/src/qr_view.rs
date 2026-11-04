@@ -65,6 +65,11 @@ pub enum ScanPurpose {
     /// The Sweep sheet's: a private key, then the sweep's PSBT
     /// (`seeds::sweep`, F171).
     Sweep,
+    /// Check a signer's **Scan** on the Sent card: a PSBT for that card,
+    /// never filed.
+    CheckSent,
+    /// Check a signer's **Scan** on the Returned card.
+    CheckReturned,
 }
 
 /// What the camera sheet holds.

@@ -272,8 +272,9 @@ menu.
    sheet From the stick, Add to vault where it is the only action. The
    ⋮ holds, in this order and only where the row has them: **Add to
    vault** (where it is not the visible one), **Show as QR**, **Make
-   PDF** (For the stick), **Rename** (For the stick only), **Details**,
-   **Remove**. There is no visible **Remove** button. A row with no main
+   PDF** (For the stick), **Check a signer** (a PSBT's row, after
+   **Show as QR** where it has one), **Rename** (For the stick only),
+   **Details**, **Remove**. There is no visible **Remove** button. A row with no main
    action shows only the ⋮. A vault action (Add to vault, Import, Sign
    with key) is not shown, as a button or in the ⋮, while no vault is
    open; the vault's own row keeps its Unlock (F60).
@@ -1843,7 +1844,7 @@ the small Home's tiles; `Action::Resume`.
 4. **Room.** Rows are added after their tab, in the order the flows
    were started; the seeds and wallets groups at the foot give up rows
    as they do today (`sidebar_caps`). A flow that keeps nothing when
-   left (a calculator, Explore) has no row.
+   left (a calculator, Explore, Check a signer) has no row.
 5. **The narrow window and the small panel** (the compact layout): the
    small Home leads with one tile per flow in progress, its name and
    step, opening it, before its other tiles.
@@ -2128,3 +2129,54 @@ repairing every false input is the way out.
 
 The check is made once, when it opens, against the keys and wallets
 loaded then; Decode's way back makes it again when they have changed.
+
+## Check a signer
+
+**A PSBT that came back from a signing device is compared with the one
+sent, not signed** (F84; `docs/SIGNER-CHECK.md` holds the rules and every
+finding). Tools' Transactions group carries the tile **Check a signer**,
+after **Nonce check**; it opens with nothing needed first, no key and no
+wallet.
+
+| From | What opens it |
+|---|---|
+| Tools | **Check a signer**: the Sent card open |
+| Files | a PSBT row's ⋮, **Check a signer**, From the stick and For the stick alike: that file is Returned, its card closed on it with **Change** |
+
+Where exactly one other PSBT in Files shares the file's unsigned
+transaction and carries fewer signatures, that one is Sent and the check
+has run; otherwise the Sent card is open. From Tools the same default
+applies to the whole of Files: one transaction with exactly two files,
+their signature counts differing, opens both cards closed on their
+choice with the check run. Files of other transactions, one each, do not
+stop it; a second transaction with two files, or three files of one,
+leave both cards open.
+
+The screen is a step flow (`Screen::SignerCheck`) of three cards:
+**Sent**, **Returned** and **Result**. Sent and Returned list the PSBTs in
+Files, a row each, the file's name and "{n} signatures · {txid short
+form}", and carry **Scan** (the scanner titled "Scan the PSBT sent" or
+"Scan the PSBT returned"): a PSBT read there goes to that card, named
+"Scanned", and is not put in Files and does not open Spend. Returned lists
+the Sent one's transaction first, then "Other transactions". A closed card
+reads what was chosen and **Change**. The check runs on the press that
+completes the second card, or on **Swap**, and again when a key is loaded
+or dropped while a result is kept.
+
+The Result card: the verdict ("Only signatures were added", with "; {n}
+inputs finalized from them" where an input was, "Only nonces and
+signatures were added" where a MuSig2 nonce was; "{n} findings" at
+Caution, Danger or Blocked; "Not the same transaction" where no input is
+in common); the facts, Transaction, Signatures added, Inputs finalized,
+Nonces recomputed ("{n} of {m}", or "None: {fp} not loaded" with a line
+per key not loaded), Sends, Fee and Change ("verified" or "not
+verified"); Findings, one line each by level and place, or "No
+findings"; Stated, the lines that are not findings. Its actions: **Show as
+QR** (the Returned PSBT), **Swap**, **Choose again**, **Done**, and **Load
+{fp}** for a key that signed and is not loaded, which opens Add a key and
+comes back to the result.
+
+A file that does not parse as a PSBT is refused on the card as Files
+refuses it; a finished transaction as Returned is refused the same way.
+The flow keeps public data only, until a lock or power-off; a lock
+forgets it. Its ? opens Learn at Verifying and Tools.

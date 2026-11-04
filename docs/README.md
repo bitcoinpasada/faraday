@@ -36,6 +36,7 @@ need. Each document's header says what kind it is:
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
+| What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/screens/signer-check.md`, `docs/learn/06-verifying.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
@@ -129,7 +130,7 @@ need. Each document's header says what kind it is:
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88); built: SLIP-39's set functions in `faraday-bip` and the held set and its actions in `faraday-keys`, the conversions, the tool's flow with every target and way in, an aezeed as a source, Practice, Learn's section and the guide's picture; not built: the SLIP-39 set actions on a screen (§8, in Convert a seed, F204).
-- `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.
+- `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built but for Practice's sample pair.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.

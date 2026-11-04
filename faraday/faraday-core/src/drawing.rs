@@ -270,6 +270,8 @@ pub(crate) enum Scrolled {
     Silent,
     /// BIP-85.
     Bip85,
+    /// Check a signer.
+    SignerCheck,
     /// Convert a seed.
     Convert,
     /// New key.
@@ -440,6 +442,9 @@ impl Faraday {
                 }
                 Scrolled::Silent => {
                     self.silent.set_scroll(to);
+                }
+                Scrolled::SignerCheck => {
+                    self.decode.set_check_scroll(to);
                 }
                 Scrolled::Bip85 => {
                     self.bip85.set_scroll(to);

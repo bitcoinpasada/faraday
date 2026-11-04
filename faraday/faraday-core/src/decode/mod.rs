@@ -7,6 +7,11 @@
 //! The parsing is rust-bitcoin's, through `faraday_psbt::transaction`; this
 //! module only arranges what it read.
 
+pub mod check;
+pub(crate) mod check_screen;
+pub(crate) mod check_words;
+pub(crate) mod screen;
+
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
@@ -17,7 +22,7 @@ use faraday_psbt::transaction::money_total;
 
 use crate::Screen;
 use crate::wallet::Session;
-use crate::{Action, Faraday, QrView, decode, wallet};
+use crate::{Action, Faraday, Item, QrView, decode, wallet};
 
 /// One input, as decoded.
 #[derive(Debug, Clone)]
@@ -338,6 +343,9 @@ pub(crate) struct DecodeArea {
     /// Boxed: it holds a PSBT and its check, and `Faraday` is built on
     /// the stack.
     outside: Option<Box<OutsideCheck>>,
+    /// Check a signer's flow: two PSBTs and the report on them, public,
+    /// kept until a lock or power-off. Boxed as `outside` is.
+    check: Option<Box<check::CheckState>>,
 }
 
 impl DecodeArea {
@@ -366,6 +374,28 @@ impl DecodeArea {
     pub(crate) fn toggle_hex(&mut self) {
         if let Some(d) = self.state.as_mut() {
             d.show_hex = !d.show_hex;
+        }
+    }
+
+    /// Check a signer's state, while the flow is kept.
+    pub(crate) fn check(&self) -> Option<&check::CheckState> {
+        self.check.as_deref()
+    }
+
+    /// Check a signer's column scroll, while the flow is open.
+    pub(crate) fn check_scroll_mut(&mut self) -> Option<&mut crate::flow::Scroll> {
+        self.check.as_mut().map(|c| &mut c.scroll)
+    }
+
+    /// Forgets Check a signer's flow: its two PSBTs and the report.
+    pub(crate) fn clear_check(&mut self) {
+        self.check = None;
+    }
+
+    /// Takes the column's scroll as the drawing pass left it.
+    pub(crate) fn set_check_scroll(&mut self, to: crate::flow::Scroll) {
+        if let Some(c) = self.check.as_mut() {
+            c.scroll = to;
         }
     }
 
@@ -677,6 +707,8 @@ impl Faraday {
     /// it: handles the Decode screen's actions (`DecodeFinished`, `DecodeInbox`, `QrDecoded`, `DecodeHex`, `SpendHex`).
     pub(crate) fn decode_act(&mut self, action: Action, c: &Compute) {
         match action {
+            Action::NonceCheck(p) => self.nonce_check_act(p, c),
+            Action::SignerCheck(p) => self.signer_check_act(p, c),
             Action::DecodeFinished => {
                 if let Some(s) = self.wallets.spend()
                     && let Some(tx) = s.spend.finished.as_ref()
@@ -724,5 +756,385 @@ impl Faraday {
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
+    }
+}
+
+/// Check a signer: the presses of `Screen::SignerCheck`
+/// (`docs/SIGNER-CHECK.md` §3).
+impl Faraday {
+    /// Costs what `act` costs. The Nonce check tile: the first PSBT in Files not signed here, or
+    /// the scanner.
+    pub(crate) fn nonce_check_tile(&mut self) {
+        match (0..self.inbox.len()).find(|k| self.checked_not_signed(*k)) {
+            Some(k) => self.act(Action::NonceCheck(CheckPress::Inbox(k))),
+            None => self.act(Action::Scan),
+        }
+    }
+
+    /// Costs what `act` costs. The Tools tile opens the flow.
+    pub(crate) fn signer_check_tile(&mut self) {
+        self.act(Action::SignerCheck(check::SignerPress::Open));
+    }
+
+    /// Whether Check a signer's flow is kept: its two PSBTs and report.
+    pub fn signer_check_kept(&self) -> bool {
+        self.decode.check().is_some()
+    }
+
+    /// Check a signer's state, while the flow is kept.
+    pub(crate) fn signer_check(&self) -> Option<&check::CheckState> {
+        self.decode.check()
+    }
+
+    /// Costs what reading a PSBT and the check cost, when a press
+    /// completes the second card. Does what the press does.
+    pub(crate) fn signer_check_act(&mut self, press: check::SignerPress, c: &Compute) {
+        use check::SignerPress as P;
+        match press {
+            P::Open => self.signer_check_open(c),
+            P::Card(n) => {
+                let ready = self.decode.check().is_some_and(|s| s.report.is_some());
+                if let Some(s) = self.decode.check.as_mut()
+                    && (n < check::RESULT || ready)
+                {
+                    s.open_card(n);
+                }
+            }
+            P::Pick(slot, k) => {
+                let picked = {
+                    let all = check::files(&self.inbox, &self.outbox);
+                    all.get(k).map(|(out, _, item)| {
+                        (
+                            item.bytes.clone(),
+                            check::Origin::File {
+                                outbox: *out,
+                                name: item.name.clone(),
+                            },
+                        )
+                    })
+                };
+                if let Some((bytes, origin)) = picked {
+                    let name = match &origin {
+                        check::Origin::File { name, .. } => name.clone(),
+                        check::Origin::Scanned => EN.signer_scanned.to_string(),
+                    };
+                    self.signer_check_take(c, slot, &bytes, name, origin);
+                }
+            }
+            P::Scan(slot) => {
+                let mut scan = crate::qr_view::ScanState::default();
+                scan.purpose = match slot {
+                    check::Slot::Sent => crate::ScanPurpose::CheckSent,
+                    check::Slot::Returned => crate::ScanPurpose::CheckReturned,
+                };
+                self.camera.open(scan);
+                self.sheet = Some(crate::Sheet::Scan);
+                self.out
+                    .commands
+                    .push_back(faraday_shell_api::Command::CameraOn);
+            }
+            P::Back => {
+                if let Some(s) = self.decode.check() {
+                    self.screen = s.back;
+                    self.list_offset = 0.0;
+                }
+            }
+            P::Qr => {
+                let returned = self
+                    .decode
+                    .check()
+                    .and_then(|s| s.returned.as_ref())
+                    .map(|r| r.bytes.clone());
+                if let Some(bytes) = returned {
+                    self.open_qr(QrView::psbt(c, EN.signer_returned, &bytes));
+                }
+            }
+            P::Swap => {
+                if let Some(s) = self.decode.check.as_mut() {
+                    s.swap();
+                    self.signer_check_run(c);
+                }
+            }
+            P::Again => {
+                if let Some(s) = self.decode.check.as_mut() {
+                    s.open_card(check::Slot::Returned.card());
+                }
+            }
+            // Add a key opens with this screen as its way back; the key
+            // loaded makes the check again (`signer_check_sync`).
+            P::Load(_) => self.keygen_open(None),
+            P::File(outbox, k) => self.signer_check_file(c, outbox, k),
+        }
+    }
+
+    /// Costs what the default's reading of two files and the check cost.
+    /// Opens the flow, closed on the default pair where Files has one.
+    fn signer_check_open(&mut self, c: &Compute) {
+        // A flow kept opens as it was (its report is the check against the
+        // keys loaded now: `signer_check_sync`), with the way back set anew.
+        // An empty one (no side chosen) is not one to keep: the default is
+        // worked out anew.
+        if let Some(s) = self.decode.check.as_mut()
+            && (s.sent.is_some() || s.returned.is_some())
+        {
+            s.back = self.screen;
+            s.refused = [None, None];
+            self.screen = Screen::SignerCheck;
+            self.list_offset = 0.0;
+            self.signer_check_sync();
+            return;
+        }
+        let pair = {
+            let all = check::files(&self.inbox, &self.outbox);
+            check::default_pair(&all)
+                .map(|(a, b)| (Self::check_file_at(&all, a), Self::check_file_at(&all, b)))
+        };
+        match pair {
+            Some((sent, returned)) => self.signer_check_start(c, Some(sent), Some(returned)),
+            None => self.signer_check_start(c, None, None),
+        }
+    }
+
+    /// Costs what [`Faraday::signer_check_open`] costs. Files' ⋮ **Check a
+    /// signer** on a PSBT: the file is Returned; the one other PSBT of
+    /// its transaction with fewer signatures, where there is exactly one,
+    /// is Sent and the check has run.
+    fn signer_check_file(&mut self, c: &Compute, outbox: bool, k: usize) {
+        let picked = {
+            let all = check::files(&self.inbox, &self.outbox);
+            all.iter()
+                .position(|(o, i, _)| *o == outbox && *i == k)
+                .map(|n| {
+                    let mine = all[n].2.psbt();
+                    // Exactly one other file of its transaction with fewer
+                    // signatures is Sent.
+                    let fewer: Vec<usize> = (0..all.len())
+                        .filter(|m| {
+                            *m != n
+                                && mine.is_some_and(|a| {
+                                    all[*m]
+                                        .2
+                                        .psbt()
+                                        .is_some_and(|p| p.txid == a.txid && p.sigs < a.sigs)
+                                })
+                        })
+                        .collect();
+                    let sent = match fewer.as_slice() {
+                        [m] => Some(Self::check_file_at(&all, *m)),
+                        _ => None,
+                    };
+                    (sent, Self::check_file_at(&all, n))
+                })
+        };
+        if let Some((sent, returned)) = picked {
+            self.signer_check_start(c, sent, Some(returned));
+        }
+    }
+
+    /// The file at this place of [`check::files`]: its bytes, name and
+    /// origin.
+    fn check_file_at(all: &[(bool, usize, &Item)], n: usize) -> (Vec<u8>, String, check::Origin) {
+        let (out, _, item) = all[n];
+        (
+            item.bytes.clone(),
+            item.name.clone(),
+            check::Origin::File {
+                outbox: out,
+                name: item.name.clone(),
+            },
+        )
+    }
+
+    /// Costs what two reads and the check cost. Opens the flow from the
+    /// screen on show, with these two (either may be left out).
+    fn signer_check_start(
+        &mut self,
+        c: &Compute,
+        sent: Option<(Vec<u8>, String, check::Origin)>,
+        returned: Option<(Vec<u8>, String, check::Origin)>,
+    ) {
+        let back = match (self.screen, self.decode.check()) {
+            (Screen::SignerCheck, Some(s)) => s.back,
+            (s, _) => s,
+        };
+        self.decode.check = Some(Box::new(check::CheckState::new(back)));
+        self.screen = Screen::SignerCheck;
+        self.list_offset = 0.0;
+        for (slot, file) in [(check::Slot::Sent, sent), (check::Slot::Returned, returned)] {
+            if let Some((bytes, name, origin)) = file {
+                self.signer_check_take(c, slot, &bytes, name, origin);
+            }
+        }
+    }
+
+    /// Costs a PSBT parse, and the check when this completes the second
+    /// card. Reads `bytes` as the PSBT of `slot`, or says on the card
+    /// why not. Returns whether it was one.
+    pub(crate) fn signer_check_take(
+        &mut self,
+        c: &Compute,
+        slot: check::Slot,
+        bytes: &[u8],
+        name: String,
+        origin: check::Origin,
+    ) -> bool {
+        let Some((psbt, _)) = wallet::read_psbt_kept(c, bytes) else {
+            if let Some(s) = self.decode.check.as_mut() {
+                s.refused[usize::from(slot.card())] = Some(EN.wallet_not_a_psbt.to_string());
+            }
+            return false;
+        };
+        let txid = psbt.inner().unsigned_tx.compute_txid();
+        let side = check::Side {
+            bytes: check::raw_bytes(bytes),
+            psbt,
+            name,
+            origin,
+            differs: false,
+            txid,
+        };
+        let Some(s) = self.decode.check.as_mut() else {
+            return false;
+        };
+        if s.put(slot, side) {
+            self.signer_check_run(c);
+        }
+        true
+    }
+
+    /// Costs what `faraday_psbt::signer::check` costs: a parse-free
+    /// reading of both PSBTs, a signature verification per signature and
+    /// a finalization per finalized input. Checks the two PSBTs kept and
+    /// keeps the report.
+    fn signer_check_run(&mut self, c: &Compute) {
+        let refs = self.session.key_refs(c);
+        let policies = self.session.policies();
+        let network = self.session.network();
+        let ctx = wallet::context(network, &refs, &policies);
+        let made_with = self.session.inspect_inputs();
+        if let Some(s) = self.decode.check.as_mut()
+            && let (Some(sent), Some(returned)) = (&s.sent, &s.returned)
+        {
+            let report = faraday_psbt::signer::check(
+                c,
+                &sent.psbt,
+                &returned.psbt,
+                &sent.bytes,
+                &returned.bytes,
+                &ctx,
+            );
+            // The nonce lines: every added signature recomputed with the
+            // keys loaded, through the session (no key leaves it).
+            let view = faraday_psbt::signer::nonce_view(&sent.psbt, &returned.psbt);
+            let found = self.session.recompute_all(c, &view);
+            let report = faraday_psbt::signer::with_nonces(
+                report,
+                &found,
+                &refs.iter().map(|r| r.fingerprint).collect::<Vec<_>>(),
+            );
+            // What the Result shows of the Returned PSBT against the
+            // wallets loaded, worked out here and not while drawing.
+            let inspection = faraday_psbt::inspect(c, &returned.psbt, &ctx);
+            s.shown = Some(check::shown(
+                &report,
+                (&sent.txid, &returned.txid),
+                &inspection,
+                network,
+            ));
+            s.report = Some(report);
+            s.made_with = Some(made_with);
+        }
+    }
+
+    /// Costs a read of every PSBT file in Files (a base64 decode of each
+    /// text one), the PSBT's parse-free reading and what
+    /// [`Faraday::signer_check_run`] costs when the keys or wallets
+    /// changed. The one place every load and drop of a key
+    /// reaches: `act` calls it after each press, the event loop after each
+    /// input and `take_answer` after each worker answer, whichever flow
+    /// loaded or forgot the key, so a kept report is the check against the
+    /// keys loaded now (SIGNER-CHECK §8.2). It also marks a side whose file
+    /// was replaced or taken out of Files, keeping its copy and report.
+    /// Work with its token; drawing never calls it.
+    pub(crate) fn signer_check_sync(&mut self) {
+        if self.decode.check().is_none() {
+            return;
+        }
+        // Only the flow drawn needs the marks, and one arriving works them
+        // out through its open.
+        if self.screen != Screen::SignerCheck {
+            self.signer_check_stale();
+            return;
+        }
+        let differs =
+            |side: &Option<check::Side>| match side.as_ref().map(|s| (&s.origin, &s.bytes)) {
+                // The same name and bytes in either box is the file.
+                Some((check::Origin::File { name, .. }, bytes)) => !self
+                    .inbox
+                    .iter()
+                    .chain(self.outbox.iter())
+                    .any(|i| i.name == *name && check::same_bytes(&i.bytes, bytes)),
+                _ => false,
+            };
+        let marks = self
+            .decode
+            .check()
+            .map(|s| (differs(&s.sent), differs(&s.returned)));
+        if let (Some((a, b)), Some(s)) = (marks, self.decode.check.as_mut()) {
+            if let Some(side) = s.sent.as_mut() {
+                side.differs = a;
+            }
+            if let Some(side) = s.returned.as_mut() {
+                side.differs = b;
+            }
+        }
+        self.signer_check_stale();
+    }
+
+    /// Costs what [`Faraday::signer_check_run`] costs when the keys or
+    /// wallets changed since the report was made.
+    fn signer_check_stale(&mut self) {
+        let stale = self.decode.check().is_some_and(|s| {
+            s.report.is_some() && s.made_with.as_ref() != Some(&self.session.inspect_inputs())
+        });
+        if stale {
+            let c = self.compute();
+            self.signer_check_run(&c);
+        }
+    }
+
+    /// Costs what [`Faraday::signer_check_take`] costs. A code the
+    /// Check a signer scanners read: a PSBT goes to that card as
+    /// "Scanned" and nowhere else; anything else is named on the
+    /// scanner. Returns whether the scanner on screen is one of them.
+    pub(crate) fn signer_check_scanned(&mut self, bytes: &[u8]) -> bool {
+        let slot = match self.camera.scan().map(|s| s.purpose) {
+            Some(crate::ScanPurpose::CheckSent) => check::Slot::Sent,
+            Some(crate::ScanPurpose::CheckReturned) => check::Slot::Returned,
+            _ => return false,
+        };
+        let c = self.compute();
+        let name = EN.signer_scanned.to_string();
+        if self.signer_check_take(&c, slot, bytes, name, check::Origin::Scanned) {
+            self.scan_close();
+        } else {
+            // The scanner says it; the card says nothing of it after.
+            if let Some(s) = self.decode.check.as_mut() {
+                s.refused[usize::from(slot.card())] = None;
+            }
+            self.scan_say(EN.wallet_not_a_psbt.to_string());
+        }
+        true
+    }
+}
+
+/// What an input leaves to settle.
+impl Faraday {
+    /// Costs what [`Faraday::signer_check_sync`] costs. An input that may
+    /// have loaded or dropped a key or changed Files: the backup's
+    /// checklist, then Check a signer's kept report.
+    pub(crate) fn event_settled(&mut self) {
+        self.backup_settle();
+        self.signer_check_sync();
     }
 }

@@ -1273,7 +1273,7 @@ was built from.
   `core/faraday-codec/src/encodings.rs`, `core/faraday-psbt/src/verify.rs`,
   `core/faraday-psbt/src/sign.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`,
   `faraday/faraday-core/src/backup_flow/gpg_restore.rs`,
-  `faraday/faraday-core/src/backups/mod.rs`, `faraday/faraday-core/src/decode.rs`,
+  `faraday/faraday-core/src/backups/mod.rs`, `faraday/faraday-core/src/decode/mod.rs`,
   `faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-qr/src/bbqr.rs`,
   `faraday/faraday-qr/src/envelope.rs`, `faraday/faraday-payload/src/lib.rs`,
   `faraday/shells/starter/src/windows/disks.rs`,

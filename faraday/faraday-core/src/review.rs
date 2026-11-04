@@ -381,7 +381,7 @@ fn locktime_text(lt: faraday_psbt::Locktime) -> String {
 
 /// A sighash by its name (`SIGHASH_ALL`), or one no algorithm accepts in
 /// the strings file's words.
-fn sighash_text(s: faraday_psbt::SighashKind) -> String {
+pub(crate) fn sighash_text(s: faraday_psbt::SighashKind) -> String {
     use faraday_psbt::SighashKind as S;
     match s {
         S::Ecdsa(t) => t.to_string(),

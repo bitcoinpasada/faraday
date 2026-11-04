@@ -52,6 +52,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
             | Screen::CreateVault
             | Screen::BackupFlow
             | Screen::Family
+            | Screen::SignerCheck
     )
 }
 
@@ -86,6 +87,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Vanity => EN.compact_vanity_address,
         Screen::Decode => EN.compact_transaction,
         Screen::NonceCheck => EN.compact_nonce_check,
+        Screen::SignerCheck => EN.catalog_check_a_signer,
         Screen::Transfer => EN.compact_transfer,
         Screen::BackupFlow => EN.backup_flow_heading,
     }
@@ -523,6 +525,14 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         // The nonce check goes back where it was opened from.
         Screen::NonceCheck => match app.outside_check() {
             Some(o) => (crate::screens::decode_back(o.back), Action::Nav(o.back)),
+            None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
+        },
+        // Check a signer goes back where it was opened from.
+        Screen::SignerCheck => match app.signer_check() {
+            Some(s) => (
+                crate::screens::decode_back(s.back),
+                Action::SignerCheck(crate::decode::check::SignerPress::Back),
+            ),
             None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },
         Screen::Tools | Screen::Lightning | Screen::Codes => {

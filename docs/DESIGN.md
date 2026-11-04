@@ -691,7 +691,7 @@ surface or its components.
 
 ## 5. The screens
 
-A screen is one of the thirty-four variants of `Screen` in
+A screen is one of the thirty-six variants of `Screen` in
 `faraday/faraday-core/src/lib.rs`, drawn in the file that file's code
 map names: an area's `screen.rs`, or `screens/<name>.rs` for a screen
 with no area. Each is drawn in one of three ways:
@@ -733,6 +733,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `CheckMessage` | Checking a signed message against its address. | Page |
 | `Decode` | A transaction taken apart, field by field. | Page |
 | `NonceCheck` | A signed PSBT no key here is left to sign, or a finished transaction, brought in by the camera, Files or Tools: the file's name, Send it's nonce check of it, whether it is finished, and **Save to a stick**, **Decode it**, **Show the raw hex** and **Show as QR** (`docs/FLOWS.md`, Nonce check). | Page |
+| `SignerCheck` | Check a signer, from Tools: the PSBT sent and the one returned, chosen from Files or scanned, and the verdict of what the signer changed: the Sent, Returned and Result cards, each PSBT's name and its line "{n} signatures · {txid short form}", **Scan** and **Change** (`docs/SIGNER-CHECK.md` §3, §4). | Step flow |
 | `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
 | `Bip85` | BIP-85's applications from a loaded key: a child seed's words, a private key, a password, at an index. | Step flow |
 | `Convert` | Convert a seed: From a loaded key, an open vault's key, an LND aezeed or a typed SLIP-39 set, To a form that restores the same wallet (the words another way, SeedQR, hex entropy, master seed in hex, xprv, Seed XOR parts, codex32, SLIP-39) or, for a SLIP-39 set, Add a share, Replace a lost share and Rotate the set, with what is not offered dimmed and its line saying why; a Settings card for a split or a set action; Result with a masked value, its Facts, **Check my copy** and **Save as a file…** (`docs/SEED-CONVERSION.md` §6). | Step flow |

@@ -855,6 +855,8 @@ pub enum Action {
     /// A press on the nonce check of a transaction brought in
     /// (`Screen::NonceCheck`).
     NonceCheck(crate::decode::CheckPress),
+    /// A press on Check a signer (`Screen::SignerCheck`).
+    SignerCheck(crate::decode::check::SignerPress),
     /// Show or hide the decoded transaction's hex.
     DecodeHex,
     /// The decoded transaction as a QR code.

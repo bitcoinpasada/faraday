@@ -1,7 +1,7 @@
 # Nonce check
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/nonce_check.rs`, `faraday/faraday-core/src/decode.rs`, `faraday/faraday-core/src/catalog.rs`)
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/nonce_check.rs`, `faraday/faraday-core/src/decode/mod.rs`, `faraday/faraday-core/src/catalog.rs`)
 **Screen:** `NonceCheck`
 **Group:** Tools
 

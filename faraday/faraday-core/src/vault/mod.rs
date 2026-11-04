@@ -1162,6 +1162,8 @@ impl Faraday {
                 }
             }
             redraw = true;
+            // A hold may have dropped a key.
+            self.signer_check_sync();
         }
         redraw
             | dice::tick(self, now_ms)

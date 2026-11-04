@@ -236,7 +236,9 @@ this pass came from, is on the board.
   the backup flow's `board_mut`, `scroll_y_mut` and
   `board_list_offset_mut`, Message's `scroll_y_mut`, New key's
   `sheet_pan_mut` (the codex32 worksheet's pan, as the other offsets)
-  Tools' `convert_mut` and Convert a seed's `scroll_mut`, and boot import's `state_mut`. These are to be narrowed into named methods
+  Tools' `convert_mut` and Convert a seed's `scroll_mut`, Check a signer's
+  `check_scroll_mut` (the decode area's, its column's scroll, as the other
+  offsets), and boot import's `state_mut`. These are to be narrowed into named methods
   (planned, not scheduled).
 
 ### 7.4 Phase 7's plan

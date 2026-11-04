@@ -3732,7 +3732,7 @@ area sign_check 63b4b18cc42eadea7668e651f136379ffdf7bd9702833dde963331e3be66c2a0
 fn 008a19c5e984fc85959d020738ca4c36f79f57bbe79b41c39678166876175f46 core/faraday-psbt/src/verify.rs::sighash_of
 fn 09cbeb23925e0ccdf1421f73747f711400097a31472acf33c053e85b748ba174 core/faraday-psbt/src/verify.rs::script_text
 fn 0ad134c5e70f0b9312cef4832effef5b61c8260246713fb3e742903aea9002bf faraday/faraday-core/src/register.rs::wallet_xpubs
-fn 0e329cc19c7b9e21888f661e53212f30577eaf8c173d9b7e4b80c019c99739b3 faraday/faraday-core/src/decode.rs::Faraday::nonce_check_open
+fn 0e329cc19c7b9e21888f661e53212f30577eaf8c173d9b7e4b80c019c99739b3 faraday/faraday-core/src/decode/mod.rs::Faraday::nonce_check_open
 fn 1028e14e9bd9dc0fb256916cb437e8e2776e6990b5bf2ab06a41bead55eeb064 core/faraday-psbt/src/context.rs::Context::key
 fn 15505e6324af07fc04bfa15ee78599fe080f2443042b8df627318598c450dc8b core/faraday-psbt/src/verify.rs::signing_diff
 fn 15b70fdb3d1e7f79ac2b94f2d845d4eb7c5f4261394c4abfa85d0f38467a09bb faraday/faraday-keys/src/psbt.rs::key_refs
@@ -3765,7 +3765,7 @@ fn 7d4c38d84308dedff1180b324a99d3e65c7e7cc8b9051b68dbbf70f94bf33446 core/faraday
 fn 80a339a3cd0c43c6d642de7a81602f54444071fc9fff199fefaae010ea25128b core/faraday-psbt/src/classify.rs::Multisig::script
 fn 895480da035844d68d37921ec596a32feebf66a0ba7fd7c50c132c7f1738f394 core/faraday-psbt/src/classify.rs::read_miniscript
 fn 89c5f7220aa4546f42dc5557dc140d21e4f17316545ff6972aaa3b43f79c915a core/faraday-psbt/src/classify.rs::script_key_set
-fn 8db4fbe5b33cad68b4de283cebab13e9f51292b8b6b6dbf3dbc9041d07b98092 faraday/faraday-core/src/decode.rs::unread
+fn 8db4fbe5b33cad68b4de283cebab13e9f51292b8b6b6dbf3dbc9041d07b98092 faraday/faraday-core/src/decode/mod.rs::unread
 fn 9435aaccdceef2bf4d875976a0337db45e34b62776822fa2a23820dcb40f3602 faraday/faraday-core/src/wallet.rs::Session::inspect_inputs
 fn 9516f657d57a988471fc7e9bc2c9c8d074f666ce3d5e3e8b2f49621e174ca801 core/faraday-psbt/src/verify.rs::unknown_text
 fn 998b475254220b5322d6531365ea25e46de7624ec9608f600a6196a0e22946a3 core/faraday-psbt/src/verify.rs::restore
@@ -3779,7 +3779,7 @@ fn ac101f879d14f79dcdd98374791baf62f00678c7b5aa4a1e65d8a670833a9eac faraday/fara
 fn b521c3edaba72778f9c2e7f68b114c5a1cd2a2d641e583fdb1c9b7b80c75374c core/faraday-psbt/src/sign.rs::PrevoutSet::as_ref
 fn c0b1aab9c47cc5cbe9c8a3d195f43676cdff57315d1c1a5cfc959aa4ea3feb6d core/faraday-psbt/src/verify.rs::repeated_nonces
 fn ca7b9f8dd398cf3cdacad342522a07f3afeef56e875f75b2b21cc1f031f40a51 faraday/faraday-keys/src/session.rs::Keys::key_refs
-fn cd6338eacc6ef7fd28e2eb0ca5898c3b34fd355241685efdb5a7c453b0ee1ad5 faraday/faraday-core/src/decode.rs::raw_as_psbt
+fn cd6338eacc6ef7fd28e2eb0ca5898c3b34fd355241685efdb5a7c453b0ee1ad5 faraday/faraday-core/src/decode/mod.rs::raw_as_psbt
 fn d3914fb8bdf9a50f04dbbd43a82824c7fd8be5734b1e79f9edf49f9da4d0c123 faraday/faraday-core/src/wallet.rs::Session::key_refs
 fn d9ba130e78c90592460c9b24b9304cfce1a9b4e22ce370279b26d3f920bb4ac8 core/faraday-psbt/src/verify.rs::hex
 fn db68b06325452bb63eb9e01a3981561a29e1b6b27a4d1f9c21292ad8fb107656 core/faraday-psbt/src/context.rs::KeyRef::derive
@@ -4915,23 +4915,23 @@ lib sha2 0.11.0 446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4
 
 [tx-decode]
 area tx cb82aab6436d5b79121a6a415566c135bdaf7d17e38f5993403b40af6168fc79
-fn 02e092930f3002e5228c490d715b7452345b3925b14b76b9a8730fb5b7a8dc17 faraday/faraday-core/src/decode.rs::Faraday::amounts_in
+fn 02e092930f3002e5228c490d715b7452345b3925b14b76b9a8730fb5b7a8dc17 faraday/faraday-core/src/decode/mod.rs::Faraday::amounts_in
 fn 0fdf6046689dbbd85188251264e8678a29d133be7fb1330ae4cf6c8e4c40454e core/faraday-psbt/src/transaction.rs::prevout_of
-fn 10df19e468900982e90a8ee53cd34038b93529b1d94f56997d5edb475cfb991c faraday/faraday-core/src/decode.rs::same_unsigned
+fn 10df19e468900982e90a8ee53cd34038b93529b1d94f56997d5edb475cfb991c faraday/faraday-core/src/decode/mod.rs::same_unsigned
 fn 128056ade08ee66dd345b3d0146cb5862d1985b5d5aa709e37bed45a542f2698 faraday/faraday-qr/src/lib.rs::transaction_hex
 fn 15ec4e6047b815d238ab3a66b1fe461b0375d5383381e227ccc3399ab6ab1a9b faraday/faraday-core/src/qr_view.rs::QrView::psbt
 fn 1ed13df488f82d2152120fd1b5640f02dc82ecac5a6af72848f4057398ad03a3 core/faraday-psbt/src/transaction.rs::Spending::tx
 fn 20e60db3422021843ad0b7cd89221f3578f6bcd9b6066269467acea3ad59632b core/faraday-psbt/src/transaction.rs::Spending::prevouts
-fn 2a56698045908f7752b18d682ae53d3b6d77afa5ee34f5797172eb3351588ff2 faraday/faraday-core/src/decode.rs::prevouts_of
+fn 2a56698045908f7752b18d682ae53d3b6d77afa5ee34f5797172eb3351588ff2 faraday/faraday-core/src/decode/mod.rs::prevouts_of
 fn 38c866214871a9c76fa2ea4b6e99ed6abd616745643df64268e13039b876be20 core/faraday-psbt/src/transaction.rs::decode
-fn 4f32b069beb1fd2a931b75ae96eb4c61be4d4f2ac9df2898170fe48b24aeccd5 faraday/faraday-core/src/decode.rs::script_kind
+fn 4f32b069beb1fd2a931b75ae96eb4c61be4d4f2ac9df2898170fe48b24aeccd5 faraday/faraday-core/src/decode/mod.rs::script_kind
 fn 5eb1b3a46bec9bd8a67bf0c5eb64574dbcdcad211e6449080a514efd07ba2145 faraday/faraday-core/src/qr_view.rs::QrView::of
-fn 65be9cf2a87e4215127f1c349f782c96f10e686fb91a2e0a27020fbb62336308 faraday/faraday-core/src/decode.rs::hex
+fn 65be9cf2a87e4215127f1c349f782c96f10e686fb91a2e0a27020fbb62336308 faraday/faraday-core/src/decode/mod.rs::hex
 fn 6aa55ed021df1f6caa8e2debb785e4af258b07a35b56ec1756f2469a62d2489e core/faraday-psbt/src/transaction.rs::Spending::add_previous
-fn 862eefde1b2a8aa3f807490ac6f24c5d6102bc7432fca771418f54e7f1d94b28 faraday/faraday-core/src/decode.rs::decode
+fn 862eefde1b2a8aa3f807490ac6f24c5d6102bc7432fca771418f54e7f1d94b28 faraday/faraday-core/src/decode/mod.rs::decode
 fn 964139fa977f1419cff9b0b829863a84a884e1c095fa5e6e4190d764df3b9497 core/faraday-psbt/src/transaction.rs::Spending::from_psbt
 fn 9c1dafe29583094255e19759afac4483c4560e5598e05dbf392b2ef2741055f8 core/faraday-psbt/src/transaction.rs::wrap_raw
-fn a6bd43fb33dcfec79f5e2e15a08344ad66ba0e00bca8e2f9144db6a894a05831 faraday/faraday-core/src/decode.rs::btc
+fn a6bd43fb33dcfec79f5e2e15a08344ad66ba0e00bca8e2f9144db6a894a05831 faraday/faraday-core/src/decode/mod.rs::btc
 fn b2961dd7dddac393b7e221093552d12bfd87453f687a5bcdabfdf973f419f9cd core/faraday-psbt/src/transaction.rs::Spending::waiting_for
 fn b4e637bfeb64d254e612a501fa66387497d724f8c13b5624166f7253ad7010ad core/faraday-psbt/src/transaction.rs::Spending::read
 fn d11c170a7f7cf71f2bf59405c2f160e5531381dd8d6c89c895185ba6f91b19d1 core/faraday-psbt/src/transaction.rs::read_raw

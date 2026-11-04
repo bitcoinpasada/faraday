@@ -10,14 +10,14 @@ mod backup;
 mod catalog;
 mod check_message;
 mod create;
-mod decode;
+use crate::decode::screen as decode;
 mod entry;
 mod files;
 mod home;
 mod learn_pane;
 mod message;
 mod nonce_check;
-mod parts;
+pub(crate) mod parts;
 pub(crate) mod randomness;
 mod restore;
 mod set_time;
@@ -121,6 +121,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Vanity
         | Screen::Decode
         | Screen::NonceCheck
+        | Screen::SignerCheck
         | Screen::Family => Area::Reading(READING_PAGE_W),
         // Tools, Transfer and a stick visit are reading content
         // (fields, rows, two lists side by side), each in its own area;
@@ -586,8 +587,9 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::VaultContents => crate::vault::screen::contents(app, ui, x, cw, h),
         Screen::Family => crate::family::screen::draw(app, ui, x, cw, h),
         Screen::Vanity => crate::vanity::screen::draw(app, ui, x, cw, h),
-        Screen::Decode => decode::draw(app, ui, x, cw, h),
+        Screen::Decode => crate::decode::screen::draw(app, ui, x, cw, h),
         Screen::NonceCheck => nonce_check::draw(app, ui, x, cw, h),
+        Screen::SignerCheck => crate::decode::check_screen::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),
         Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
         Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),

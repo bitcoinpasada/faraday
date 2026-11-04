@@ -1,7 +1,7 @@
 //! `Screen::Decode`: a transaction taken apart.
 
-use super::parts::spaced;
 use crate::drawing::View;
+use crate::screens::parts::spaced;
 use crate::strings::{EN, fill};
 use crate::ui::Region;
 use crate::ui::pal::*;
@@ -38,7 +38,7 @@ pub(crate) fn decode_back_to(back: Screen) -> Action {
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::decode::btc;
     let Some(d) = app.decode() else {
         return;
@@ -59,7 +59,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         14.0
     } else {
         let back = app.named_back((decode_back(d.back), decode_back_to(d.back)));
-        super::bar_head(ui, Some(back), EN.decode_decode_a_transaction)
+        crate::screens::bar_head(ui, Some(back), EN.decode_decode_a_transaction)
     };
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &t.source) + 14.0;

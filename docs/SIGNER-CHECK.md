@@ -1,8 +1,8 @@
 # Check a signer
 
 **Kind:** Spec
-**Status:** Planned, not built; to be built after the structure pass (`docs/STRUCTURE-PASS.md` §7)
-**Open:** batches S4 and S5 (§10.2; S1, S2 and S3 are built); the owner's choices in §10.4 are decided (2026-10-23)
+**Status:** Built but for Practice's sample pair (batch S5); the check is `faraday_psbt::signer` and the flow is the decode area's `check.rs` and `check_screen.rs`
+**Open:** batch S5 (§10.2; S1 to S4 are built); the owner's choices in §10.4 are decided (2026-10-23)
 
 A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
@@ -46,8 +46,8 @@ The verdict fails closed.
 
 ## 2. What is built today
 
-Every check is in `core/faraday-psbt`; nothing in faraday-core calls
-the comparison.
+Every check is in `core/faraday-psbt`; faraday-core's flow (§8.1) calls
+`signer::check`.
 
 - `faraday_psbt::verify::compare` (`core/faraday-psbt/src/verify.rs`):
   the unsigned transaction's fields, the signing state (which keys
@@ -83,7 +83,8 @@ its standards BIP-174 and BIP-373. It opens with nothing needed first:
 no key, no wallet. It has no sidebar row and no Cancel: it keeps
 nothing a person would lose (`docs/FLOWS.md`, Flows in progress, item
 4). Its state, public, is kept until a lock or power-off, as Decode's
-is.
+is: the tile reopens a kept flow as it was, its report included, with the
+way back set anew. Files' ⋮ **Check a signer** replaces what is kept.
 
 **From Files.** A PSBT row's ⋮ in Files, From the stick and For the
 stick alike, carries **Check a signer** (`docs/FLOWS.md`, A ⋮ on every
@@ -115,16 +116,27 @@ card is open, the file's transaction first.
 - Bytes that do not parse as a PSBT, version 0 or version 2, are
   refused on the card as Files refuses them (`wallet::read_psbt`).
 
-**Which is which.** The person says. One default: where exactly two
-PSBTs in Files share an unsigned transaction and one carries fewer
-signatures, that one is Sent and the other Returned, both cards closed
-on their choice with **Change** (DESIGN §4.14, Default), and the check
-has run. Otherwise both cards are open, Sent first.
+**Which is which.** The person says. One default: where Files holds one
+unsigned transaction in exactly two PSBTs, their signature counts
+differing, the one with fewer is Sent and the other Returned, both cards
+closed on their choice with **Change** (DESIGN §4.14, Default), and the
+check has run. Files of other transactions, one each, do not stop it; a
+second transaction with two files, or three files of one transaction,
+leave no default. Otherwise both cards are open, Sent first.
 
 The Returned card lists first the PSBTs of the Sent one's transaction,
 then under a section label "Other transactions" the rest. The file
 chosen as Sent is not listed. Two files with the same bytes are listed
 both; picking them gives "No signature was added" (§6.2, S9).
+
+A signature count is every signature the file carries: partial,
+taproot key and script, and those in final fields.
+
+A file taken from Files is kept as it was chosen. Where Files now holds
+another file of that name, or none, the copy and its report stay and the
+closed card reads the name followed by "changed or no longer in Files"
+(the same name and bytes in either box is the file);
+**Change** picks again.
 
 **Swap** on the Result card swaps the two and checks again.
 
@@ -170,11 +182,16 @@ The Result card, top down:
      not, labelled "Sent" and "Returned";
    - "Signatures added": a count;
    - "Inputs finalized": a count, only where one was;
-   - "Nonces recomputed": "{n} of {m}", or "None: {fp} not loaded",
-     one line per key not loaded;
+   - "Nonces recomputed", only where a signature was added under an
+     ordinary key: "{n} of {m}" where a loaded key recomputed any, with a
+     line "{fp} not loaded" under it per key that signed and is not
+     loaded (a mix of keys loaded and not); where none was recomputed,
+     "None: {fp} not loaded", one line per key not loaded;
    - "Sends", "Fee", "Change": the inspection's values for the Returned
-     PSBT against the loaded wallets (§4.7), "Change": "verified" or
-     "not verified".
+     PSBT against the loaded wallets (§4.7); "Change" reads "verified"
+     where at least one output is verified change on the change chain and
+     no output claims a key origin it could not verify
+     (`OutputKind::UnverifiedChange`), else "not verified".
 3. **Findings**, a section label, then a Warning line (§4.11) per
    finding, ordered Blocked, Danger, Caution; within a level by where
    (the transaction, the inputs in order, the outputs in order), and
@@ -192,9 +209,9 @@ the Result page scrolls.
 
 | Verdict | Tone | When |
 |---|---|---|
-| "Only signatures were added" | `OK` | No finding, no input finalized |
-| "Only signatures were added; {n} inputs finalized from them" | `OK` | No finding, an input finalized ("1 input finalized") |
-| "Only nonces and signatures were added" | `OK` | No finding, a MuSig2 nonce among what was added |
+| "Only signatures were added" | `OK` | No finding, no input finalized, no MuSig2 nonce added |
+| "Only signatures were added; {n} inputs finalized from them" | `OK` | No finding, an input finalized ("1 input finalized"), no MuSig2 nonce added |
+| "Only nonces and signatures were added" | `OK` | No finding, a MuSig2 nonce among what was added, an input finalized or not (the nonce line wins) |
 | "{n} findings" | `ERR` | A finding at Danger or Blocked ("1 finding") |
 | "{n} findings" | `WARN` | Findings at Caution only |
 | "Not the same transaction" | `ERR` | No input in common |
@@ -427,7 +444,8 @@ the file has one, is what the file's own length is held to. For a version
 2 has, written out again (§6.5 compares them all, so they are accounted
 for); bytes past the last map, or a pair written longer than it needs,
 are E1. A file whose maps cannot be read at all is `Kind::Unnamed` at
-Danger, never clean.
+Danger, never clean, worded "{where}: {field} differs in a way the check
+does not name" (`signer_unnamed` in `en.rs`).
 
 Where the parser refuses such a file, it is refused on the card (§3),
 which is no clean verdict either.
@@ -524,9 +542,16 @@ whole PSBT.
   computed where only Returned holds them. `Determinism` carries the
   leaf and the signature's bytes, so two signatures under one key in two
   leaves, or in two fields, are each judged on their own bytes.
-- **The nonce lines**, in faraday-core's glue: `recompute_signatures`
-  through the session's keys (no new reveal, `docs/KEYS.md`), turned
-  into S6 and the "Nonces recomputed" fact.
+- **The nonce lines**, in faraday-core's glue: `recompute_signatures_all`
+  (`faraday/faraday-keys/src/psbt.rs`, and `Keys::recompute_signatures_all`
+  in `session.rs`) through the session's keys, reached as
+  `Session::recompute_all` (`faraday/faraday-core/src/wallet.rs`) (no new
+  reveal, `docs/KEYS.md`), turned into S6 and the "Nonces recomputed"
+  fact in `faraday/faraday-core/src/decode/check_words.rs` (every
+  finding's, stated line's and field's text, in an exhaustive match). A
+  key loaded or dropped re-runs the check while a report is kept: the
+  press's `wallet_flow_sync` calls `signer_check_sync`, which compares
+  the keys the report was made with against the keys now loaded.
 - **The flow**, in the decode area: Decode and Check a signer both read
   a transaction from Files or a scan to show what it is. The area's
   module becomes a folder, faraday/faraday-core/src/decode/ with
@@ -653,8 +678,8 @@ only fall.
 | S1 | built: the fields `compare` did not read (§2): an output's taproot key origins and tap tree, an input's hash preimages; and from the two files' bytes the PSBT's version, the pairs only version 2 has and the modifiable flags (§6.5), with the returned file's length on version 2 (§6.7). Its tests in `core/faraday-psbt/tests/all/signer.rs` | Opus |
 | S2 | `faraday_psbt::signer`: §1, §5, §6, the byte count of §6.7; the fixtures of §9.1 and the README rows; §9.2's core tests | Opus |
 | S3 | §7: `UnknownFields` in the inspection, its string, its test | Sonnet |
-| S4 | The flow: the decode area's folder, `Screen::SignerCheck`, the tile, Files' ⋮ entry (§3), the cards, the strings, the nonce lines, the Learn section, faraday-core's and the budget tests; then the docs of §10.3, and this file's plan moved to docs/history/SIGNER-CHECK-LOG.md (new) and its Kind to Reference | Opus for the flow, Sonnet for the docs |
-| S5 | Practice: a sample pair, one clean and one with a proprietary pair (§10.4 item 4) | Sonnet |
+| S4 | built: the flow: the decode area's folder, `Screen::SignerCheck`, the tile, Files' ⋮ entry (§3), the cards, the strings, the nonce lines, the Learn section, faraday-core's and the budget tests; the docs of §10.3 | Opus for the flow, Sonnet for the docs |
+| S5 | Practice: a sample pair, one clean and one with a proprietary pair (§10.4 item 4); then this file's plan moved to docs/history/SIGNER-CHECK-LOG.md (new) and its Kind to Reference | Sonnet |
 
 ### 10.3 Edit list
 
@@ -665,7 +690,7 @@ only fall.
 | `core/faraday-psbt/src/inspect.rs` | S3: `WarningKind::UnknownFields` |
 | `core/faraday-psbt/README.md` | S2: the module's line |
 | `tools/vectors/psbt/README.md` | S2: the fixtures |
-| `faraday/faraday-core/src/decode.rs`, `faraday/faraday-core/src/screens/decode.rs` | S4: into the decode/ folder (§8.1) |
+| `faraday/faraday-core/src/decode/mod.rs`, `faraday/faraday-core/src/decode/screen.rs` | S4: built, in the decode/ folder (§8.1) |
 | `faraday/faraday-core/src/lib.rs` | S4: `Screen::SignerCheck`, the code map |
 | `faraday/faraday-core/src/catalog.rs` | S4: the tile, `Go::SignerCheck` |
 | `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/files.rs` | S4: **Check a signer** on a PSBT row's ⋮ (§3) |

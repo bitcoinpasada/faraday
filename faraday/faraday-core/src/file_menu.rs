@@ -238,8 +238,8 @@ impl Faraday {
 
     /// The row's ⋮ menu's choices, in decision 61's order and only those
     /// the row has (a map read): From the stick, Add to vault where it is
-    /// not the row's button, Details and Remove; For the stick, Show as
-    /// QR or Make PDF, Rename, Details and Remove; on the stick, Rename,
+    /// not the row's button, Check a signer on a PSBT, Details and Remove;
+    /// For the stick, Show as QR or Make PDF, Check a signer on a PSBT, Rename, Details and Remove; on the stick, Rename,
     /// Delete from the stick and Details.
     pub(crate) fn file_menu_lines(&self, row: Row) -> Vec<(String, Action)> {
         let mut out: Vec<(String, Action)> = Vec::new();
@@ -270,6 +270,12 @@ impl Faraday {
                         Action::Flow(FlowAction::Restore(RestorePress::From(k))),
                     ));
                 }
+                if item.psbt().is_some() {
+                    out.push((
+                        EN.catalog_check_a_signer.to_string(),
+                        Action::SignerCheck(crate::decode::check::SignerPress::File(false, k)),
+                    ));
+                }
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
             }
@@ -284,6 +290,12 @@ impl Faraday {
                 }
                 if crate::qr_fits(item) {
                     out.push((EN.files_show_as_qr.to_string(), Action::QrOutbox(k)));
+                }
+                if item.psbt().is_some() {
+                    out.push((
+                        EN.catalog_check_a_signer.to_string(),
+                        Action::SignerCheck(crate::decode::check::SignerPress::File(true, k)),
+                    ));
                 }
                 out.push((
                     EN.file_menu_rename.to_string(),

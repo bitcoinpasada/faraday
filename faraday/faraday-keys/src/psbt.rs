@@ -24,6 +24,17 @@ pub fn recompute_signatures(c: &Compute, psbt: &Psbt, masters: &[&MasterKey]) ->
     faraday_psbt::verify::deterministic(c, psbt, masters)
 }
 
+/// Costs what `deterministic_all` costs. As [`recompute_signatures`], with
+/// a result also for a signature whose hash cannot be computed, so that
+/// which masters were given is known (the signer check).
+pub fn recompute_signatures_all(
+    c: &Compute,
+    psbt: &Psbt,
+    masters: &[&MasterKey],
+) -> Vec<Determinism> {
+    faraday_psbt::verify::deterministic_all(c, psbt, masters)
+}
+
 /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the
 /// `masters` chosen by `selection`; `seed` is the pass's own randomness
 /// for the nonces it draws. `accepted`, beside the context, is the

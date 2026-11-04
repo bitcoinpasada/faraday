@@ -21,6 +21,7 @@ mod presses;
 mod roller;
 mod scaling;
 mod shown;
+mod signer;
 
 /// The test binary's allocator, counting each thread's allocations for
 /// the frame budgets below.

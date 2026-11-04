@@ -241,6 +241,33 @@ fn one_nonce_on_two_inputs_is_blocked() {
     assert_eq!(inputs, &[0, 1]);
 }
 
+/// A signature of a loaded key that could not be recomputed (no prevout
+/// to hash) is a finding even where Sent holds no origin to file it under.
+#[test]
+fn a_loaded_keys_signature_that_could_not_be_hashed_is_never_clean() {
+    use faraday_psbt::verify::Determinism;
+    let report = run_with(&demo(), &read("signer-random-nonce.psbt"), &[]);
+    let mut report = report;
+    let fp = Fingerprint::from(abandon().fingerprint());
+    let added = &mut report.facts.added[0];
+    added.fingerprint = None;
+    let hit = Determinism {
+        input: added.input,
+        key: added.key.clone(),
+        leaf: added.leaf,
+        fingerprint: fp.into(),
+        signature: added.bytes.clone(),
+        hashed: false,
+        mode: None,
+    };
+    let folded = with_nonces(report, &[hit], &[fp.into()]);
+    assert_findings(
+        &folded,
+        &[("S6u", Level::Danger, Where::Input(0))],
+        Level::Danger,
+    );
+}
+
 #[test]
 fn a_random_nonce_is_clean_without_the_key_and_a_finding_with_it() {
     let c = Compute::unchecked();
@@ -249,7 +276,7 @@ fn a_random_nonce_is_clean_without_the_key_and_a_finding_with_it() {
     let report = run_with(&sent, &returned, &[]);
     assert_clean(&report, 0, false);
 
-    let none = with_nonces(report.clone(), &[]);
+    let none = with_nonces(report.clone(), &[], &[]);
     assert_clean(&none, 0, false);
     let recomputed = none.facts.recomputed.expect("the fact is stated");
     assert_eq!((recomputed.recomputed, recomputed.of), (0, 1));
@@ -257,7 +284,11 @@ fn a_random_nonce_is_clean_without_the_key_and_a_finding_with_it() {
 
     let abandon = master(ABANDON, Network::Regtest);
     let found = deterministic_all(&c, &returned, &[&abandon]);
-    let folded = with_nonces(report, &found);
+    let folded = with_nonces(
+        report,
+        &found,
+        &[Fingerprint::from(abandon.fingerprint()).into()],
+    );
     assert_findings(
         &folded,
         &[("S6", Level::Danger, Where::Input(0))],
@@ -937,7 +968,11 @@ fn a_nonce_a_loaded_key_makes_is_recomputed_from_the_view() {
     let returned = signed(&sent, 0, &abandon(), EcdsaSighashType::All, Nonce::Rfc6979);
     let report = run_with(&sent, &returned, &[]);
     let found = deterministic_all(&c, &nonce_view(&sent, &returned), &[&abandon()]);
-    let folded = with_nonces(report, &found);
+    let folded = with_nonces(
+        report,
+        &found,
+        &[Fingerprint::from(abandon().fingerprint()).into()],
+    );
     assert_clean(&folded, 0, false);
     let recomputed = folded.facts.recomputed.expect("stated");
     assert_eq!((recomputed.recomputed, recomputed.of), (1, 1));
@@ -952,7 +987,11 @@ fn a_nonce_in_final_fields_is_recomputed_with_the_sent_origins() {
     assert!(returned.inner().inputs[0].bip32_derivation.is_empty());
     let report = run_with(&sent, &returned, &[]);
     let found = deterministic_all(&c, &nonce_view(&sent, &returned), &[&abandon()]);
-    let folded = with_nonces(report, &found);
+    let folded = with_nonces(
+        report,
+        &found,
+        &[Fingerprint::from(abandon().fingerprint()).into()],
+    );
     assert_clean(&folded, 1, false);
     let recomputed = folded.facts.recomputed.expect("stated");
     assert_eq!((recomputed.recomputed, recomputed.of), (1, 1));
@@ -966,7 +1005,11 @@ fn a_finalized_input_with_a_chosen_nonce_is_s6() {
     let returned = finalized(&sent, &abandon(), Nonce::Chosen);
     let report = run_with(&sent, &returned, &[]);
     let found = deterministic_all(&c, &nonce_view(&sent, &returned), &[&abandon()]);
-    let folded = with_nonces(report, &found);
+    let folded = with_nonces(
+        report,
+        &found,
+        &[Fingerprint::from(abandon().fingerprint()).into()],
+    );
     assert_one(&folded, "S6", Level::Danger, Where::Input(0));
     let Kind::NonceNotDeterministic { fingerprint } = folded.findings[0].kind else {
         panic!("S6");
@@ -1030,7 +1073,11 @@ fn a_second_signature_under_one_key_in_another_leaf_is_judged_on_its_own() {
         .collect();
     assert_eq!(found.len(), 2, "both signatures reach a result");
     assert!(found.iter().all(|d| d.hashed));
-    let folded = with_nonces(report, &found);
+    let folded = with_nonces(
+        report,
+        &found,
+        &[Fingerprint::from(abandon().fingerprint()).into()],
+    );
     let recomputed = folded.facts.recomputed.clone().expect("stated");
     assert_eq!((recomputed.recomputed, recomputed.of), (1, 2));
     let s6: Vec<_> = folded
@@ -1728,7 +1775,7 @@ fn two_signatures_under_one_key_in_other_fields_are_changed_and_not_recomputed_t
         found(&report)
     );
     let found_ = deterministic_all(&c, &nonce_view(&sent, &returned), &[&abandon()]);
-    let folded = with_nonces(report, &found_);
+    let folded = with_nonces(report, &found_, &[]);
     let recomputed = folded.facts.recomputed.clone().expect("stated");
     assert_eq!((recomputed.recomputed, recomputed.of), (1, 2));
     // The final signature fills the view's place under the key: the
@@ -1794,7 +1841,7 @@ fn a_chosen_key_path_signature_beside_a_final_taproot_witness_is_changed() {
         found(&report)
     );
     let found_ = deterministic_all(&c, &nonce_view(&sent, &returned), &[&m]);
-    let folded = with_nonces(report, &found_);
+    let folded = with_nonces(report, &found_, &[]);
     let recomputed = folded.facts.recomputed.expect("stated");
     assert!(recomputed.recomputed < recomputed.of, "{recomputed:?}");
 }
@@ -1823,7 +1870,7 @@ fn a_signature_that_needs_a_field_only_returned_has_is_recomputed_or_s6u() {
         }
         let report = run_with(&sent, &reparse(&returned), &[]);
         let found_ = deterministic_all(&c, &nonce_view(&sent, &returned), &[&abandon()]);
-        let folded = with_nonces(report, &found_);
+        let folded = with_nonces(report, &found_, &[]);
         let ids: Vec<_> = folded.findings.iter().map(|f| id(&f.kind)).collect();
         assert_eq!(ids.contains(&"S6"), want_s6, "{ids:?}");
         assert!(!ids.contains(&"S6u"), "{ids:?}");
@@ -1842,7 +1889,7 @@ fn a_signature_that_needs_a_field_only_returned_has_is_recomputed_or_s6u() {
     returned.inner_mut().inputs[0].partial_sigs.insert(pk, sig);
     let report = run_with(&sent, &reparse(&returned), &[]);
     let found_ = deterministic_all(&c, &nonce_view(&sent, &returned), &[&abandon()]);
-    let folded = with_nonces(report, &found_);
+    let folded = with_nonces(report, &found_, &[]);
     assert!(
         folded
             .findings
@@ -1910,6 +1957,7 @@ fn an_added_signature_of_a_finalized_input_with_no_key_loaded_names_its_master()
     let folded = with_nonces(
         report,
         &deterministic_all(&c, &nonce_view(&sent, &returned), &[]),
+        &[],
     );
     let r = folded.facts.recomputed.expect("stated");
     assert_eq!(r.not_loaded, vec![fp.into()]);
@@ -3042,7 +3090,7 @@ fn an_unloaded_key_path_signature_does_not_hide_a_leaf_signature_of_a_loaded_key
     let found_ = deterministic_all(&c, &view, &[loaded]);
     assert!(!found_.is_empty(), "the leaf signature reaches a result");
     let report = run_with(&sent, &returned, &[]);
-    let folded = with_nonces(report, &found_);
+    let folded = with_nonces(report, &found_, &[]);
     assert!(
         has(&folded, "S6", Level::Danger, Where::Input(0)),
         "{:?}",
@@ -3255,4 +3303,19 @@ fn a_version_2_pair_with_its_flags_updated_by_the_rule_is_clean() {
     let report = run_v2(&sent, &returned);
     assert_clean(&report, 0, false);
     assert_eq!(report.facts.added.len(), 1);
+}
+
+#[test]
+fn a_signature_that_cannot_be_filed_under_a_loaded_key_is_s6u_not_not_loaded() {
+    let sent = demo();
+    let returned = signed(&sent, 0, &abandon(), EcdsaSighashType::All, Nonce::Rfc6979);
+    let report = run_with(&sent, &returned, &[]);
+    // The view could not carry the signature, so no result came for it;
+    // the key is loaded all the same.
+    let loaded = [Fingerprint::from(abandon().fingerprint()).into()];
+    let folded = with_nonces(report, &[], &loaded);
+    assert_one(&folded, "S6u", Level::Danger, Where::Input(0));
+    let recomputed = folded.facts.recomputed.expect("stated");
+    assert_eq!((recomputed.recomputed, recomputed.of), (0, 1));
+    assert!(recomputed.not_loaded.is_empty());
 }

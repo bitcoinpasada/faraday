@@ -557,15 +557,19 @@ pub fn nonce_view(sent: &Psbt, returned: &Psbt) -> Psbt {
 /// gives, and the "Nonces recomputed" fact. A lookup.
 ///
 /// `found` is `deterministic`'s result for the view and the keys loaded,
-/// and an empty one when none is loaded. A report of two PSBTs that are
+/// and an empty one when none is loaded; `loaded` is the master
+/// fingerprint of every key loaded, so a signature that could not be
+/// filed in the view (and so has no result) is still S6u under a key
+/// that is loaded, never "not loaded". A report of two PSBTs that are
 /// not one transaction is returned as it is.
-pub fn with_nonces(mut report: Report, found: &[Determinism]) -> Report {
+pub fn with_nonces(mut report: Report, found: &[Determinism], loaded: &[Fingerprint]) -> Report {
     if !report.facts.same_transaction {
         return report;
     }
     let mut recomputed = 0;
-    // The masters given: those a result names.
-    let mut loaded: Vec<Fingerprint> = found.iter().map(|d| d.fingerprint).collect();
+    // The masters loaded, and those a result names.
+    let mut loaded: Vec<Fingerprint> = loaded.to_vec();
+    loaded.extend(found.iter().map(|d| d.fingerprint));
     for added in &report.facts.added {
         // A result is for this signature's own bytes, not for its place.
         let hit = found.iter().find(|d| {
@@ -583,14 +587,19 @@ pub fn with_nonces(mut report: Report, found: &[Determinism]) -> Report {
                     fingerprint: hit.fingerprint,
                 },
             )),
-            (hit, Some(fingerprint)) => {
-                let fingerprint = hit.map_or(fingerprint, |h| h.fingerprint);
-                report.findings.push(Finding::new(
-                    Where::Input(added.input),
-                    Kind::NonceNotRecomputed { fingerprint },
-                ));
-            }
-            (_, None) => {}
+            // A signature of a key this device holds that it did not
+            // recompute is a finding, whatever the origin in Sent says.
+            (Some(hit), _) => report.findings.push(Finding::new(
+                Where::Input(added.input),
+                Kind::NonceNotRecomputed {
+                    fingerprint: hit.fingerprint,
+                },
+            )),
+            (None, Some(fingerprint)) => report.findings.push(Finding::new(
+                Where::Input(added.input),
+                Kind::NonceNotRecomputed { fingerprint },
+            )),
+            (None, None) => {}
         }
     }
     loaded.dedup();

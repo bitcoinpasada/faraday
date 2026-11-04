@@ -43,6 +43,8 @@ pub enum Go {
     Sign,
     /// The nonce check, at the end of signing.
     NonceCheck,
+    /// Check a signer: the PSBT sent and the one returned.
+    SignerCheck,
     /// Decode a transaction.
     Decode,
     /// Scan an address to check against the loaded wallets.
@@ -252,6 +254,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_every_signature,
         tags: &["RFC 6979", "BIP-340"],
         go: Go::NonceCheck,
+    },
+    Tile {
+        group: EN.catalog_transactions,
+        name: EN.catalog_check_a_signer,
+        line: EN.catalog_sent_and_returned,
+        tags: &["BIP-174", "BIP-373"],
+        go: Go::SignerCheck,
     },
     Tile {
         group: EN.catalog_transactions,
@@ -526,10 +535,8 @@ impl Faraday {
                 }
                 self.act(Action::Nav(Screen::Spend));
             }
-            Go::NonceCheck => match (0..self.inbox.len()).find(|k| self.checked_not_signed(*k)) {
-                Some(k) => self.act(Action::NonceCheck(crate::decode::CheckPress::Inbox(k))),
-                None => self.act(Action::Scan),
-            },
+            Go::NonceCheck => self.nonce_check_tile(),
+            Go::SignerCheck => self.signer_check_tile(),
             Go::Decode => match self
                 .inbox
                 .iter()

@@ -43,15 +43,12 @@
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
 //!   glance), `guide` (Guided mode's walk-through), `scan_key`, `scan_read`
-//!   (what a code read is), `pdf` (the
-//!   printed sheets), `picture` (a QR code to keep), `demo` (what Practice
-//!   refuses), `devices` (what else captures the screen or the keys) and
-//!   `edid` (what a screen says it is).
+//!   (what a code read is), `pdf` (the printed sheets), `picture` (a QR code to keep), `demo` (what Practice refuses),
+//!   `devices` (what else captures the screen or the keys) and `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
-//!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
-//!   `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
+//!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
 //!   `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
@@ -113,8 +110,9 @@
 //! | `Codes` | `codes/screen.rs` |
 //! | `Family` | `family/screen.rs` |
 //! | `Vanity` | `vanity/screen.rs` |
-//! | `Decode` | `screens/decode.rs` |
+//! | `Decode` | `decode/screen.rs` |
 //! | `NonceCheck` | `screens/nonce_check.rs` |
+//! | `SignerCheck` | `decode/check_screen.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
 //! | `Transfer` | `transfer/screen.rs` |
 //! | `BackupFlow` | `backup_flow/screen.rs` |
@@ -360,6 +358,8 @@ pub enum Screen {
     Decode,
     /// A signed transaction brought in, checked rather than signed.
     NonceCheck,
+    /// Check a signer: the PSBT sent and the one returned, compared.
+    SignerCheck,
     /// Tools: every flow on one page, with its standards.
     Catalog,
     /// The online app as the device's QR link: files out as codes, in by
@@ -1327,7 +1327,7 @@ impl Faraday {
         let screen = self.screen;
         self.note_here();
         self.storage_event(event.in_own_words());
-        self.backup_settle();
+        self.event_settled();
         self.stick.note_visit(self.screen == Screen::Visit);
         self.storage_left(screen);
     }
@@ -2950,7 +2950,7 @@ impl Faraday {
             | Action::QrDecoded
             | Action::DecodeHex
             | Action::SpendHex) => self.decode_act(a, &c),
-            Action::NonceCheck(p) => self.nonce_check_act(p, &c),
+            a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
             a @ (Action::SignMessage
             | Action::MStep(..)
             | Action::MNext(..)
@@ -5863,7 +5863,7 @@ impl App for Faraday {
             _ => return,
         }
         if settle {
-            self.backup_settle();
+            self.event_settled();
             self.after_input();
         }
         if only_moved {

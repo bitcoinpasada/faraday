@@ -42,7 +42,7 @@ This walkthrough uses two groups:
 
 | Group | Tiles |
 |---|---|
-| **Transactions** | **Sign a transaction**, **Nonce check**, **Decode a transaction**, **Check an address** |
+| **Transactions** | **Sign a transaction**, **Nonce check**, **Check a signer**, **Decode a transaction**, **Check an address** |
 | **Calculators** | **Hashes**, **Encodings**, **Descriptor checksum**, **Convert an xpub**, **Units**, **Miniscript compiler** |
 
 A tile that needs something first is grey, and its line says what, in

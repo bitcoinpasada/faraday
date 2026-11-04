@@ -152,6 +152,7 @@ mod settings_file;
 mod settings_guided;
 mod shared_keys;
 mod sidebar;
+mod signer_check;
 mod signer_count;
 mod silent;
 mod slow_press;

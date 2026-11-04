@@ -347,6 +347,7 @@ impl Faraday {
             Screen::SetTime | Screen::Codes => vec![time_page()],
             Screen::Decode => vec![&EN.verifying, &EN.tools],
             Screen::NonceCheck => vec![&EN.nonces, &EN.verifying],
+            Screen::SignerCheck => vec![&EN.verifying, &EN.tools],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
             Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],
         }
