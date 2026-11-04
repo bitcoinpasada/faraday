@@ -7561,6 +7561,7 @@ functions = [
   "faraday/faraday-keys/src/vault.rs::OpenVaults::word_count",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::words_id",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::record_word_count",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::record_language",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::record_words_id",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::same_words",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::holds_session_words",

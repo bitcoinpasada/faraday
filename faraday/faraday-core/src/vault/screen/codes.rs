@@ -31,21 +31,16 @@ pub(super) fn entry_code_row(app: &View, ui: &mut Ui, dx: f32, y: f32) -> (f32, 
     let now = app.clock_now().filter(|_| app.clock_checked());
     // Nothing held (a sheet is over the page, drawn once for its frosted
     // copy): no digits and no badge, the secret still reads as TOTP.
-    let Some(h) = app.entry_code_held() else {
-        ui.text_as(dx, dy, BODY_S, muted, EN.vault_code);
-        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL + 36.0;
-        return (dy + 10.0 - y, true);
-    };
-    let code = match &h.result {
+    let code = app.entry_code_held().map(|h| match &h.result {
         Ok(Some(s)) => Ok(Some((&*s.grouped, left_of(s.period, now)))),
         Ok(None) => Ok(None),
         Err(e) => Err(*e),
-    };
-    let reads = code.is_ok();
+    });
+    let reads = code.is_none_or(|c| c.is_ok());
     ui.text_as(dx, dy, BODY_S, muted, EN.vault_code);
     dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     match code {
-        Ok(Some((grouped, left))) => {
+        Some(Ok(Some((grouped, left)))) => {
             let gw = ui.measure_as(BODY_L.mono(), grouped);
             ui.text_as(dx, dy, BODY_L.mono(), ink, grouped);
             ui.text_as(
@@ -57,7 +52,7 @@ pub(super) fn entry_code_row(app: &View, ui: &mut Ui, dx: f32, y: f32) -> (f32, 
             );
             dy += ui.advance_as(BODY_S, 34.0);
         }
-        Ok(None) => {
+        Some(Ok(None)) => {
             ui.button(
                 dx,
                 dy,
@@ -69,12 +64,16 @@ pub(super) fn entry_code_row(app: &View, ui: &mut Ui, dx: f32, y: f32) -> (f32, 
             );
             dy += 44.0;
         }
-        Err(faraday_keys::totp::NotTotp::Hotp) => {
-            code_badge(ui, dx, dy, "HOTP");
-            dy += 36.0;
-        }
-        Err(faraday_keys::totp::NotTotp::Unreadable) => {
-            code_badge(ui, dx, dy, EN.vault_unreadable);
+        other => {
+            match other {
+                Some(Err(faraday_keys::totp::NotTotp::Hotp)) => {
+                    code_badge(ui, dx, dy, "HOTP");
+                }
+                Some(Err(faraday_keys::totp::NotTotp::Unreadable)) => {
+                    code_badge(ui, dx, dy, EN.vault_unreadable);
+                }
+                _ => {}
+            }
             dy += 36.0;
         }
     }

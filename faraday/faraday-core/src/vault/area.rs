@@ -474,7 +474,7 @@ impl VaultArea {
                 state.store.words_of(c, r, Reveal::VaultEntry(Part::Words)),
                 None,
             ),
-            kind::GPG => (None, state.store.gpg_paperkey(r, Reveal::GpgPaperkey)),
+            kind::GPG => (None, crate::gpg::paperkey_shown(&state.store, r)),
             _ => (None, None),
         };
         state.words = words.map(|m| (here.record, m));

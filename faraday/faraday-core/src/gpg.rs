@@ -15,6 +15,16 @@ use faraday_crypto::work::Compute;
 
 use faraday_keys::vault::{GpgFacts as Facts, RecordView, gpg_facts, gpg_field as f};
 
+/// Costs the paperkey's encoding and its CRC-24s. GPG record `r`'s paperkey
+/// text, made at its eye's press on the item page and held while shown
+/// (F195).
+pub(crate) fn paperkey_shown(
+    store: &faraday_keys::vault::OpenVaults,
+    r: RecordView<'_>,
+) -> Option<faraday_keys::Held<zeroize::Zeroizing<String>>> {
+    store.gpg_paperkey(r, faraday_keys::Reveal::GpgPaperkey)
+}
+
 /// GnuPG's year: 365 days, as `--quick-set-expire 2y` counts it.
 pub const YEAR: u32 = 31_536_000;
 
