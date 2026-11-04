@@ -245,6 +245,12 @@ impl<'a> View<'a> {
         self.after.borrow_mut().wordlist = Some((max, scroll));
     }
 
+    /// The sheet of pointer `id` drew its line about Enter, noted after
+    /// the pass.
+    pub(crate) fn enter_line(&self, id: u32) {
+        self.after.borrow_mut().enter_line = Some(id);
+    }
+
     /// How far the wide layout draws the page up under its keyboard
     /// ([`Faraday::osk_lift_now`]), kept after the pass for the caret.
     /// Cheap.
@@ -300,6 +306,8 @@ pub(crate) struct After {
     pub wordlist: Option<(f32, f32)>,
     /// How far the wide layout drew the page up under its keyboard.
     pub lift: Option<f32>,
+    /// The pointer whose line about Enter this pass drew.
+    pub enter_line: Option<u32>,
 }
 
 /// A string a frame draws and the box of its ink in pixels (x, y, w, h).
@@ -424,6 +432,7 @@ impl Faraday {
 
     /// Writes what a drawing pass noted. Cheap.
     pub(crate) fn apply_after(&mut self, a: After) {
+        self.input_drawn(a.enter_line);
         for (column, to) in a.scrolls {
             match column {
                 Scrolled::BackupFlow => {

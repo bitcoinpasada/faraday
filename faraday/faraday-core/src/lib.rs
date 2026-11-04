@@ -1578,7 +1578,7 @@ impl Faraday {
             | StorageEvent::InputTyped { .. }
             | StorageEvent::InputTapped { .. }
             | StorageEvent::InputUsed { .. }
-            | StorageEvent::InputAlone { .. }
+            | StorageEvent::InputTrust { .. }
             | StorageEvent::InputGone { .. }) => self.input_event(e),
             StorageEvent::Restored {
                 inbox,
@@ -4551,7 +4551,7 @@ impl Faraday {
         if key == KeyIn::Escape && self.pointer.tip_dismiss() {
             return;
         }
-        if self.selftest_failed() || self.key_refused_busy(key) {
+        if self.selftest_failed() || self.key_refused_busy(key) || self.input_enter(key) {
             return;
         }
         // Ctrl+V is the scanner's Paste, or Paste words on the words form.

@@ -15,7 +15,7 @@
 //! when it is used: a notice at plug-in, its sheet at its first act.
 
 use faraday_core::strings::EN;
-use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Sheet, StorageEvent, inputs, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
 /// An app whose shell answered its first request for randomness.
@@ -281,7 +281,10 @@ fn get_in(app: &mut Faraday, id: u32) -> usize {
 /// A USB pointer plugged in with nothing trusted, and the frame that
 /// shows its target.
 fn new_pointer(app: &mut Faraday, id: u32) {
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     app.storage(StorageEvent::NewInput {
         id,
         name: "USB Mouse".into(),
@@ -714,7 +717,10 @@ fn past_the_limit_a_new_pointer_is_ignored_when_alone_and_asked_when_not() {
     assert_eq!(app.sheet, Some(Sheet::NewInput));
     // The trusted device is unplugged while the pointer is held for its
     // dialog: its hits believe nothing, and it is turned away.
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     assert!(app.new_inputs().is_empty());
     assert_eq!(app.poll_input_decision(), Some((30, false)));
     assert_eq!(app.sheet, None);
@@ -731,7 +737,10 @@ fn past_the_limit_a_new_pointer_is_ignored_when_alone_and_asked_when_not() {
 #[test]
 fn a_keyboard_with_a_pointer_gets_no_target_and_its_code_lets_it_in() {
     let mut app = on_screen(7);
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     new_device(&mut app, 1, true, true);
     let _ = app.frame();
     assert!(!app.input_aims(1));
@@ -780,7 +789,10 @@ fn under_another_sheet_a_pointer_does_not_aim_and_presses_count_nothing() {
 #[test]
 fn a_touchscreen_never_aims() {
     let mut app = on_screen(7);
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     new_touchscreen(&mut app, 1);
     assert!(!app.input_aims(1));
 }
@@ -826,7 +838,10 @@ fn a_new_device_shows_a_notice_with_its_name_and_no_sheet() {
         (3, (false, false, true)),
     ] {
         let mut app = on_screen(7);
-        app.storage(StorageEvent::InputAlone { alone: true });
+        app.storage(StorageEvent::InputTrust {
+            pointer: false,
+            keyboard: false,
+        });
         announce(&mut app, id, "USB Thing", kinds);
         assert_eq!(app.sheet, None);
         assert!(
@@ -856,7 +871,10 @@ fn a_keyboards_first_letter_brings_up_the_code_and_counts() {
 #[test]
 fn a_pointers_first_motion_and_a_touchscreens_first_touch_bring_up_targets_and_count_for_nothing() {
     let mut app = on_screen(7);
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     announce(&mut app, 2, "USB Mouse", (false, true, false));
     assert_eq!(app.sheet, None);
     app.storage(StorageEvent::InputUsed { id: 2 });
@@ -884,7 +902,10 @@ fn a_pointers_first_motion_and_a_touchscreens_first_touch_bring_up_targets_and_c
 #[test]
 fn a_receivers_parts_ask_only_for_the_one_used() {
     let mut app = on_screen(7);
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     for id in 1..=5 {
         announce(&mut app, id, "USB Receiver", (false, true, false));
     }
@@ -906,13 +927,180 @@ fn a_receivers_parts_ask_only_for_the_one_used() {
 #[test]
 fn with_trusted_input_a_pointer_gets_its_dialog_when_it_moves() {
     let mut app = on_screen(7);
-    app.storage(StorageEvent::InputAlone { alone: false });
+    app.storage(StorageEvent::InputTrust {
+        pointer: true,
+        keyboard: false,
+    });
     announce(&mut app, 2, "USB Mouse", (false, true, false));
     assert_eq!(app.sheet, None);
     app.storage(StorageEvent::InputUsed { id: 2 });
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::NewInput));
     assert!(app.where_offered(Action::InputUse(2)).is_some());
+}
+
+/// A trusted keyboard and nothing trusted that points, then a USB mouse
+/// that has moved: its sheet is up.
+fn mouse_beside_a_keyboard(trusted_keyboard: bool) -> Faraday {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: trusted_keyboard,
+    });
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn with_only_a_trusted_keyboard_a_mouse_gets_its_targets_and_arrow() {
+    let mut app = mouse_beside_a_keyboard(true);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(app.input_aims(2));
+    assert!(app.where_offered(Action::InputUse(2)).is_none());
+    get_in(&mut app, 2);
+    assert_eq!(app.poll_input_decision(), Some((2, true)));
+}
+
+/// The keyboard stays quiet with the sheet up for `ms`.
+fn wait(app: &mut Faraday, ms: u64) {
+    let now = app.now_ms() + ms;
+    app.event(Event::Tick { now_ms: now });
+}
+
+#[test]
+fn enter_on_a_trusted_keyboard_lets_the_shown_mouse_in_and_the_sheet_says_so() {
+    let mut app = mouse_beside_a_keyboard(true);
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == EN.new_input_enter_also)
+    );
+    wait(&mut app, inputs::ENTER_QUIET_MS);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.poll_input_decision(), Some((2, true)));
+    assert_eq!(app.toast_text(), Some("Pointer in use: USB Mouse"));
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn enter_as_a_mouse_sheet_comes_up_lets_nothing_in() {
+    // A mouse that moves as a person presses Enter on what they are typing.
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: true,
+    });
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    let _ = app.frame();
+    assert_eq!(app.poll_input_decision(), None);
+    assert_eq!(app.new_inputs().len(), 1);
+
+    // Drawn, but not up long enough to have been read.
+    wait(&mut app, inputs::ENTER_QUIET_MS - 1);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.poll_input_decision(), None);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+}
+
+#[test]
+fn enter_at_the_end_of_typing_lets_nothing_in_however_long_the_sheet_was_up() {
+    let mut app = mouse_beside_a_keyboard(true);
+    for _ in 0..5 {
+        wait(&mut app, inputs::ENTER_QUIET_MS / 2);
+        app.event(Event::Key(faraday_shell_api::Key::Char('a')));
+    }
+    wait(&mut app, inputs::ENTER_QUIET_MS / 2);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.poll_input_decision(), None);
+
+    // The person stops and reads, and means it.
+    wait(&mut app, inputs::ENTER_QUIET_MS);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.poll_input_decision(), Some((2, true)));
+}
+
+#[test]
+fn enter_on_ignore_keeps_the_mouse_out() {
+    let mut app = mouse_beside_a_keyboard(true);
+    // Tab goes to the first control drawn, Ignore.
+    app.event(Event::Key(faraday_shell_api::Key::Tab));
+    let _ = app.frame();
+    wait(&mut app, inputs::ENTER_QUIET_MS);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    let _ = app.frame();
+    assert_eq!(app.poll_input_decision(), Some((2, false)));
+}
+
+#[test]
+fn without_a_trusted_keyboard_the_sheet_has_no_enter_line_and_enter_does_nothing() {
+    let mut app = mouse_beside_a_keyboard(false);
+    assert!(app.input_aims(2));
+    assert!(
+        !app.drawn_texts()
+            .iter()
+            .any(|t| t == EN.new_input_enter_also)
+    );
+    wait(&mut app, inputs::ENTER_QUIET_MS);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.poll_input_decision(), None);
+    assert_eq!(app.new_inputs().len(), 1);
+}
+
+#[test]
+fn with_a_trusted_pointer_and_keyboard_the_mouse_gets_the_dialog_and_no_aim() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputTrust {
+        pointer: true,
+        keyboard: true,
+    });
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    let _ = app.frame();
+    assert!(!app.input_aims(2));
+    assert!(app.where_offered(Action::InputUse(2)).is_some());
+    assert!(
+        !app.drawn_texts()
+            .iter()
+            .any(|t| t == EN.new_input_enter_also)
+    );
+}
+
+#[test]
+fn wrong_tries_still_count_with_a_trusted_keyboard() {
+    let mut app = mouse_beside_a_keyboard(true);
+    for n in 1..=3 {
+        let at = beside(&app, 2);
+        tap_held(&mut app, 2, at);
+        if n < 3 {
+            assert_eq!(app.new_inputs().len(), 1);
+        }
+    }
+    assert!(app.new_inputs().is_empty());
+    assert_eq!(app.poll_input_decision(), Some((2, false)));
+}
+
+#[test]
+fn a_keyboard_believed_before_the_mouse_moved_does_not_stop_its_targets() {
+    let mut app = on_screen(7);
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
+    announce(&mut app, 1, "USB Keyboard", (true, false, false));
+    let code = code_of(&app);
+    type_on(&mut app, 1, &code);
+    assert_eq!(app.poll_input_decision(), Some((1, true)));
+    announce(&mut app, 2, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id: 2 });
+    let _ = app.frame();
+    assert!(app.input_aims(2));
+    wait(&mut app, inputs::ENTER_QUIET_MS);
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.poll_input_decision(), Some((2, true)));
 }
 
 #[test]
@@ -945,7 +1133,10 @@ fn a_device_used_under_another_sheet_waits_for_it() {
 
 /// A pointer plugged in and used, and no frame drawn yet.
 fn used_undrawn(app: &mut Faraday, id: u32) {
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     app.storage(StorageEvent::NewInput {
         id,
         name: "USB Mouse".into(),

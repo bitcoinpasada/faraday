@@ -7407,6 +7407,9 @@ strings! {
     new_input_tap_target: "Tap the target",
     /// Label in `new_input_target`, over a pointer's target.
     new_input_press_target: "Press the target",
+    /// Line in `new_input_target` of a pointer, shown only with a trusted
+    /// keyboard.
+    new_input_enter_also: "Enter on the keyboard also lets the pointer in.",
     /// Line in `new_input_target`, which target of how many. `{}`: the
     /// one showing, from 1; how many.
     new_input_target_step: "Target {} of {}",

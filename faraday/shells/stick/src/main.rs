@@ -780,9 +780,10 @@ struct Shell {
     held: std::collections::BTreeMap<u32, Hold>,
     /// Held-back devices found before the app was there to be told.
     announce: Vec<Announce>,
-    /// What the app was last told of whether no input is trusted
-    /// (`StorageEvent::InputAlone`); it starts as the app has it.
-    alone_told: bool,
+    /// What the app was last told of what input is trusted
+    /// (`StorageEvent::InputTrust`: can point, types); it starts as the
+    /// app has it.
+    trust_told: (bool, bool),
     /// The app locked: exit with the restart code.
     restart: bool,
     /// The framebuffer and what is on it, shared with the input threads,
@@ -929,7 +930,7 @@ impl Shell {
     fn input_ended(&mut self, id: u32) {
         self.say("an input device ended");
         self.input_ended_inner(id);
-        self.tell_alone();
+        self.tell_trust();
     }
 
     /// The part of [`input_ended`](Self::input_ended) before the app is
@@ -1409,9 +1410,8 @@ impl Shell {
     /// Tells the app about held-back devices it has not heard of, and takes
     /// what it decided about others.
     fn take_input_decisions(&mut self) {
-        self.tell_alone();
+        self.tell_trust();
         let Some(app) = self.app.as_mut() else { return };
-        let mut kept_out = false;
         for Announce {
             id,
             name,
@@ -1432,7 +1432,6 @@ impl Shell {
             });
         }
         while let Some((id, believed)) = app.poll_input_decision() {
-            kept_out |= !believed;
             if let Some(h) = self.held.get_mut(&id) {
                 *h = if believed {
                     Hold::Believed
@@ -1444,36 +1443,81 @@ impl Shell {
                 flag.store(true, Ordering::Relaxed);
             }
         }
-        self.tell_alone();
+        self.tell_trust();
         // A device kept out with nothing trusted leaves nothing that can
         // move the arrow: it goes, as it does when the last mouse does.
-        if kept_out
-            && self.alone()
-            && let Some(c) = self.cursor.clone()
-        {
-            lock(&c).hide();
-            self.move_arrow();
-        }
+        // A held pointer whose targets show gets it from the first frame.
+        self.sync_arrow();
     }
 
-    /// Whether no input is trusted: the shell watches the machine's
-    /// devices, none of its own is still read, and none a person let in
-    /// is. With no watch (`--input`) it cannot say, and the answer is no.
+    /// What input is trusted, as (can point, types): a device of the
+    /// machine's own still being read, or one a person let in. A mouse, a
+    /// touchpad or a touchscreen points; a trusted keyboard does not.
+    /// With no watch (`--input`) the shell cannot say: pointing is
+    /// trusted and typing is not.
+    fn trust(&self) -> (bool, bool) {
+        let Some(w) = self.watch.as_ref() else {
+            return (true, false);
+        };
+        let believed = |live: &dyn Fn(u32) -> bool| {
+            self.held
+                .iter()
+                .any(|(id, h)| *h == Hold::Believed && live(*id))
+        };
+        (
+            w.trusted_points() || believed(&|id| w.live_points(id)),
+            w.trusted_types() || believed(&|id| w.live_types(id)),
+        )
+    }
+
+    /// Whether nothing trusted can point: a held pointer is then let in
+    /// by its targets, and its arrow shows.
     fn alone(&self) -> bool {
-        self.watch.as_ref().is_some_and(|w| !w.trusted_live())
-            && !self.held.values().any(|h| *h == Hold::Believed)
+        !self.trust().0
     }
 
-    /// Tells the app whether input is trusted when that has changed.
-    fn tell_alone(&mut self) {
-        let alone = self.alone();
-        if alone == self.alone_told {
+    /// Tells the app what input is trusted when that has changed.
+    fn tell_trust(&mut self) {
+        let trust = self.trust();
+        if trust == self.trust_told {
             return;
         }
         let Some(app) = self.app.as_mut() else { return };
-        app.storage(StorageEvent::InputAlone { alone });
-        self.alone_told = alone;
+        app.storage(StorageEvent::InputTrust {
+            pointer: trust.0,
+            keyboard: trust.1,
+        });
+        self.trust_told = trust;
         self.dirty = true;
+    }
+
+    /// Shows the arrow when a held pointer's targets are up, from the
+    /// sheet's first frame, and takes it away when none is and nothing
+    /// trusted can point: a held mouse has no arrow of its own until its
+    /// sheet asks for one.
+    fn sync_arrow(&mut self) {
+        let Some(app) = self.app.as_ref() else { return };
+        let aiming = self
+            .held
+            .iter()
+            .any(|(id, h)| *h == Hold::Pending && app.input_aims(*id));
+        let alone = self.alone();
+        let Some(c) = self.cursor.clone() else { return };
+        let changed = {
+            let mut c = lock(&c);
+            if aiming && !c.visible() {
+                c.show();
+                true
+            } else if !aiming && alone && c.visible() {
+                c.hide();
+                true
+            } else {
+                false
+            }
+        };
+        if changed {
+            self.move_arrow();
+        }
     }
 
     /// What a held-back device sent: through, once believed; its typed
@@ -1517,9 +1561,11 @@ impl Shell {
         if !app.input_aims(id) {
             // Nothing to aim at yet: the first motion or press brings up
             // the sheet, and nothing else reaches the app or the cursor.
+            // The arrow comes with the sheet's first frame.
             if !app.input_is_used(id) {
                 app.storage(StorageEvent::InputUsed { id });
                 self.dirty = true;
+                self.take_input_decisions();
             }
             return;
         }
@@ -1881,7 +1927,7 @@ fn run(args: Args) -> Result<Exit, String> {
         usb: None,
         held: initial.iter().map(|a| (a.id, Hold::Pending)).collect(),
         announce: initial,
-        alone_told: false,
+        trust_told: (true, false),
         restart: false,
         panel,
         geometry,

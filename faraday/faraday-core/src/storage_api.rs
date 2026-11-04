@@ -342,12 +342,16 @@ pub enum StorageEvent {
         /// It read.
         read: bool,
     },
-    /// Whether no input is trusted: none of the machine's own, and none a
-    /// person let in, is still being read. A pointer may then press
-    /// targets to be let in (F202). Sent when it changes; false until then.
-    InputAlone {
-        /// No input is trusted.
-        alone: bool,
+    /// What input is trusted: a device of the machine's own, or one a
+    /// person let in, still being read. With nothing trusted that can
+    /// point, a held pointer presses targets to be let in (F202); with a
+    /// trusted keyboard, Enter on it lets that pointer in. Sent when it
+    /// changes; nothing trusted until then.
+    InputTrust {
+        /// A trusted device points: a mouse, a touchpad or a touchscreen.
+        pointer: bool,
+        /// A trusted device types.
+        keyboard: bool,
     },
     /// A held-back or ignored device was unplugged.
     InputGone {

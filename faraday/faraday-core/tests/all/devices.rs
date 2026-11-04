@@ -622,7 +622,10 @@ fn a_tv_makers_screen_or_no_edid_still_gets_the_reminder() {
 fn a_mouse_alone_behind_the_devices_sheet_gets_its_targets_then_the_sheet_back() {
     let mut app = shown(laptop());
     app.event(Event::Entropy(EntropyBytes::new([7u8; 32])));
-    app.storage(StorageEvent::InputAlone { alone: true });
+    app.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
     app.usb_devices(&[kvm()]);
     assert_eq!(app.sheet, Some(Sheet::Devices));
     assert!(app.device_holds(Action::Entry(None)));

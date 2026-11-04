@@ -635,6 +635,10 @@ struct Known {
     node: PathBuf,
     /// It moves the cursor.
     pointer: bool,
+    /// It can point: it moves the cursor or names places on the screen.
+    points: bool,
+    /// It types.
+    types: bool,
     /// It is part of the machine (`Device::trusted`), not held back.
     trusted: bool,
     /// Its reader thread has not ended.
@@ -696,6 +700,8 @@ impl Watch {
                 id,
                 node: device.node.clone(),
                 pointer: device.mouse || device.touchpad,
+                points: device.mouse || device.touchpad || device.touchscreen,
+                types: device.keyboard,
                 trusted: device.trusted,
                 live: true,
             });
@@ -719,9 +725,25 @@ impl Watch {
     }
 
     /// Whether any device of the machine's own, trusted without a
-    /// person's say, is still being read.
-    pub fn trusted_live(&self) -> bool {
-        self.known.iter().any(|k| k.live && k.trusted)
+    /// person's say, is still being read and can point.
+    pub fn trusted_points(&self) -> bool {
+        self.known.iter().any(|k| k.live && k.trusted && k.points)
+    }
+
+    /// Whether any device of the machine's own, trusted without a
+    /// person's say, is still being read and types.
+    pub fn trusted_types(&self) -> bool {
+        self.known.iter().any(|k| k.live && k.trusted && k.types)
+    }
+
+    /// Whether device `id` is still being read and can point.
+    pub fn live_points(&self, id: u32) -> bool {
+        self.known.iter().any(|k| k.id == id && k.live && k.points)
+    }
+
+    /// Whether device `id` is still being read and types.
+    pub fn live_types(&self, id: u32) -> bool {
+        self.known.iter().any(|k| k.id == id && k.live && k.types)
     }
 }
 
@@ -1023,13 +1045,17 @@ mod tests {
         plug(&sys, &dev, 1, "Logitech Mouse", &mouse_caps());
 
         let mut watch = Watch::new(&sys, &dev, "Goodix");
-        assert!(!watch.trusted_live(), "nothing is known before a look");
+        assert!(!watch.trusted_points(), "nothing is known before a look");
         let found = watch.rescan();
         assert_eq!(found.len(), 2);
-        assert!(watch.trusted_live(), "the panel is the machine's own");
+        assert!(watch.trusted_points(), "the panel is the machine's own");
+        assert!(!watch.trusted_types(), "and it does not type");
         let panel = found.iter().find(|(_, d)| d.trusted).expect("panel").0;
         watch.ended(panel);
-        assert!(!watch.trusted_live(), "the mouse is held back, not trusted");
+        assert!(
+            !watch.trusted_points(),
+            "the mouse is held back, not trusted"
+        );
         fs::remove_dir_all(&root).expect("clean up");
     }
 

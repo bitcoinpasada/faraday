@@ -67,6 +67,11 @@ pub const BESIDE_LIMIT: usize = KEPT_OUT_LIMIT * TAP_TRIES;
 /// none.
 pub const TARGETS_MAX: usize = 16;
 
+/// How long a pointer's targets must have been drawn, with no key pressed
+/// on the trusted keyboard, before Enter lets the pointer in, in ms: an
+/// Enter a person meant for what they were typing lets nothing in (F202).
+pub const ENTER_QUIET_MS: u64 = 1000;
+
 /// The code's letters: no two that look alike.
 const LETTERS: &[u8] = b"acdefhjkmnprtvwxy";
 
@@ -175,9 +180,15 @@ pub(crate) struct InputsArea {
     /// How many presses beside a target any device made this session:
     /// unplugging and Ignore do not clear it.
     beside: usize,
-    /// No input is trusted, as the shell says: a pointer may approve
+    /// Nothing trusted can point, as the shell says: a pointer may approve
     /// itself. False until it says so.
     alone: bool,
+    /// A trusted device types, as the shell says: Enter on it lets in the
+    /// pointer whose targets show.
+    typist: bool,
+    /// The pointer whose Enter line was drawn, and when it was drawn or a
+    /// key last pressed since, whichever is later.
+    enter_quiet: Option<(u32, u64)>,
     /// Decisions the shell has not been told: believed (`true`) or kept
     /// out (`false`).
     decisions: VecDeque<(u32, bool)>,
@@ -201,23 +212,55 @@ impl InputsArea {
         !d.keyboard && (d.touch || (d.pointer && self.alone))
     }
 
-    /// The shell says whether no input is trusted.
-    /// The pointers waiting then are let in by targets, unless the door is
-    /// closed: they are swept as the door's closing sweeps. Whether any
-    /// was.
-    pub(crate) fn set_alone(&mut self, alone: bool) -> bool {
-        self.alone = alone;
-        if alone && self.closed() {
+    /// The shell says whether anything trusted points, and whether
+    /// anything trusted types. With nothing that points, the pointers
+    /// waiting are let in by targets, unless the door is closed: they are
+    /// swept as the door's closing sweeps. Whether anything changed that
+    /// the sheet shows.
+    pub(crate) fn set_trust(&mut self, pointer: bool, keyboard: bool) -> bool {
+        let was = (self.alone, self.typist);
+        self.alone = !pointer;
+        self.typist = keyboard;
+        if self.alone && self.closed() {
             let before = self.held.len();
             self.sweep();
-            return self.held.len() != before;
+            if self.held.len() != before {
+                return true;
+            }
         }
-        false
+        was != (self.alone, self.typist)
     }
 
-    /// Whether no input is trusted.
+    /// Whether nothing trusted can point.
     pub(crate) fn alone(&self) -> bool {
         self.alone
+    }
+
+    /// Whether a trusted device types.
+    pub(crate) fn typist(&self) -> bool {
+        self.typist
+    }
+
+    /// The Enter line of pointer `id` was drawn at `now`: its wait starts,
+    /// unless it already has.
+    fn enter_drawn(&mut self, id: u32, now: u64) {
+        if !self.enter_quiet.is_some_and(|(at, _)| at == id) {
+            self.enter_quiet = Some((id, now));
+        }
+    }
+
+    /// A key was pressed at `now` while pointer `id` waits: whether its
+    /// line had been up and the keyboard quiet long enough, and the wait
+    /// starts again.
+    fn enter_key(&mut self, id: u32, now: u64) -> bool {
+        match self.enter_quiet.as_mut() {
+            Some((at, since)) if *at == id => {
+                let quiet = now.saturating_sub(*since) >= ENTER_QUIET_MS;
+                *since = now;
+                quiet
+            }
+            _ => false,
+        }
     }
 
     /// The door is closed: too many devices kept out, or too many presses
@@ -394,13 +437,18 @@ impl InputsArea {
         self.held.iter().any(|d| d.id == id && d.used)
     }
 
-    /// The device is believed from now on; it, if it was waiting. Input
-    /// is trusted from here on, whatever the shell last said.
+    /// The device is believed from now on; it, if it was waiting. What it
+    /// does is trusted from here on, whatever the shell last said.
     pub(crate) fn believe(&mut self, id: u32) -> Option<NewInput> {
         let i = self.held.iter().position(|d| d.id == id)?;
         let d = self.held.remove(i);
         self.decisions.push_back((id, true));
-        self.alone = false;
+        if d.pointer || d.touch {
+            self.alone = false;
+        }
+        if d.keyboard {
+            self.typist = true;
+        }
         Some(d)
     }
 
@@ -455,6 +503,48 @@ impl Faraday {
         self.inputs.by_target(d)
     }
 
+    /// Whether Enter on a trusted keyboard lets in the pointer whose
+    /// targets show: there is one, and such a keyboard exists.
+    pub fn input_enter_lets_in(&self) -> bool {
+        self.inputs.typist()
+            && self.sheet == Some(Sheet::NewInput)
+            && self
+                .shown_input()
+                .is_some_and(|d| d.pointer && !d.touch && self.inputs.by_target(d))
+    }
+
+    /// Enter from a trusted keyboard lets in the pointer whose targets show,
+    /// as **Use this pointer** does, once its line has been drawn and the
+    /// keyboard quiet for [`ENTER_QUIET_MS`]. An earlier Enter does nothing,
+    /// and a control the keyboard is on keeps its Enter. Whether the key was
+    /// taken.
+    pub(crate) fn input_enter(&mut self, key: faraday_shell_api::Key) -> bool {
+        if !self.input_enter_lets_in() {
+            return false;
+        }
+        let Some(id) = self.shown_input().map(|d| d.id) else {
+            return false;
+        };
+        let quiet = self.inputs.enter_key(id, self.now_ms);
+        if key != faraday_shell_api::Key::Enter || self.pointer.focused().is_some() {
+            return false;
+        }
+        if quiet {
+            self.input_believe(id);
+        }
+        true
+    }
+
+    /// What a frame drew: the wait for Enter starts with the first frame
+    /// showing pointer `line`'s Enter line, and ends with the sheet. Cheap.
+    pub(crate) fn input_drawn(&mut self, line: Option<u32>) {
+        if self.sheet != Some(Sheet::NewInput) {
+            self.inputs.enter_quiet = None;
+        } else if let Some(id) = line {
+            self.inputs.enter_drawn(id, self.now_ms);
+        }
+    }
+
     /// Whether the held pointer `id` is the one whose targets show, so the
     /// shell moves its cursor and arrow for it: the sheet is the new
     /// input's, it is first, and it is let in by pressing. True before the
@@ -482,10 +572,12 @@ impl Faraday {
             StorageEvent::InputTapped { id, x, y } => self.input_tapped(id, x, y),
             StorageEvent::InputUsed { id } => self.input_used(id),
             StorageEvent::InputGone { id } => self.input_gone(id),
-            StorageEvent::InputAlone { alone } if self.inputs.set_alone(alone) => {
+            StorageEvent::InputTrust { pointer, keyboard }
+                if self.inputs.set_trust(pointer, keyboard) =>
+            {
                 self.input_sheet();
             }
-            StorageEvent::InputAlone { .. } => {}
+            StorageEvent::InputTrust { .. } => {}
             // `storage` passes only the events matched above.
             _ => {}
         }

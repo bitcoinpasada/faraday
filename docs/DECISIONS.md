@@ -216,4 +216,4 @@ Read this table, then only the decision you need.
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
 | [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
 | [F201](decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Active | design |
-| [F202](decisions/F202.md) | A USB pointer with no other input approves itself by pressing targets in a row, and tries at a target are counted for the session | 2026-11-04 | Active | security |
+| [F202](decisions/F202.md) | A USB pointer approves itself by pressing targets in a row while nothing trusted can point, and tries at a target are counted for the session | 2026-11-04 | Active | security |

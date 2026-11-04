@@ -79,9 +79,9 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
   at plug-in (F202):
   - interfaces are authorised one at a time;
   - a new keyboard counts once it types the code on the screen;
-  - a new pointer counts once trusted input approves it, or, with no
-    input trusted, once it presses the targets on the screen in a row
-    (F202);
+  - a new pointer counts once a trusted pointer approves it, or, with
+    nothing trusted that can point, once it presses the targets on the
+    screen in a row, or Enter on a trusted keyboard lets it in (F202);
   - a new touchscreen counts once it taps the targets on the screen in
     a row.
 - **A new USB touchscreen approves itself; nothing is trusted by name**

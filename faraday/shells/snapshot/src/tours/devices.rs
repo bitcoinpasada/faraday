@@ -121,6 +121,29 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.shot("devices-new-touchscreen")?;
     t.press(Action::InputIgnore(id));
+    // A USB mouse with only a keyboard trusted: its targets, and the line
+    // saying Enter also lets it in (F202).
+    t.app.storage(faraday_core::StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: true,
+    });
+    let id = 10;
+    t.app.storage(faraday_core::StorageEvent::NewInput {
+        id,
+        name: "USB Mouse".into(),
+        keyboard: false,
+        pointer: true,
+        touch: false,
+    });
+    t.pump();
+    t.app.storage(faraday_core::StorageEvent::InputUsed { id });
+    t.pump();
+    t.shot("devices-new-mouse")?;
+    t.press(Action::InputIgnore(id));
+    t.app.storage(faraday_core::StorageEvent::InputTrust {
+        pointer: true,
+        keyboard: true,
+    });
     t.app.devices = laptop();
     t.app.usb_devices(&[]);
     t.pump();

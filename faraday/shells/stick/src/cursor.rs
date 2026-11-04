@@ -259,6 +259,12 @@ impl Cursor {
         self.visible
     }
 
+    /// Brings the arrow back where the cursor is: a held pointer's
+    /// targets are up and it is the only thing that can aim at them.
+    pub fn show(&mut self) {
+        self.visible = true;
+    }
+
     /// Takes the arrow away: a finger has touched the screen, so the
     /// person is pointing at it and not with the mouse.
     pub fn hide(&mut self) {

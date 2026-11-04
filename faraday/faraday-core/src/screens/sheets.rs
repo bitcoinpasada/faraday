@@ -1509,6 +1509,10 @@ fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inpu
         - (y + ui.wrap_height_as(LABEL_L, ask, iw) + GAP_SMALL + ui.line_as(LABEL_L) + GAP)
         - TOUCH)
         .max(0.0);
+    // A pointer's sheet says Enter on a trusted keyboard lets it in.
+    let enter = app.input_enter_lets_in().then_some(EN.new_input_enter_also);
+    let room_h =
+        (room_h - enter.map_or(0.0, |t| ui.wrap_height_as(LABEL_L, t, iw) + GAP_SMALL)).max(0.0);
     let of = crate::inputs::target_count(room_w, room_h);
     let (lead, ink) = if of.is_none() || (d.spots.is_none() && app.seed_missing()) {
         (none, Role::Error)
@@ -1534,6 +1538,10 @@ fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inpu
         ui.text_as(PAD + iw - tw, y, LABEL_L, Role::Error, &tries);
     }
     y += ui.line_as(LABEL_L) + GAP;
+    if let Some(t) = enter {
+        y += ui.wrap_as((PAD, y, iw), LABEL_L, Role::OnSurfaceVariant, t) + GAP_SMALL;
+        app.enter_line(d.id);
+    }
     ui.button(
         w - PAD - bw,
         by,

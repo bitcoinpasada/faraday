@@ -151,9 +151,10 @@ internal error rather than carrying on.
   it types three codes' worth of letters without it; after three such
   keyboards, new ones are ignored until Faraday starts again. A held device asks only once it is used, and one that never acts is
   never believed. A new
-  pointer is ignored until a person approves it with trusted input, or,
-  while no input is trusted, until it presses targets as a touchscreen
-  does; only the pointer whose target shows moves the arrow, and nothing
+  pointer is ignored until a person approves it with a trusted pointer, or,
+  while nothing trusted can point (a trusted keyboard does not), until it
+  presses targets as a touchscreen does, or Enter on a trusted keyboard lets
+  it in; only the pointer whose target shows moves the arrow, and nothing
   else it does reaches the app (F202). A new USB touchscreen is ignored
   until it taps targets the app draws in a row, each at a place drawn from
   the system's randomness, and until it is unplugged if it taps beside
