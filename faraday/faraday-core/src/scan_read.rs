@@ -286,9 +286,12 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, text: &str) -> Kind {
         FileKind::Entries => Kind::Entries,
         FileKind::SeedPart => Kind::Codex32Share,
         FileKind::Gpg => Kind::Gpg,
-        FileKind::Sheet | FileKind::Vault | FileKind::EfiImage | FileKind::Kdbx | FileKind::Pdf => {
-            Kind::File
-        }
+        FileKind::Sheet
+        | FileKind::Vault
+        | FileKind::EfiImage
+        | FileKind::Kdbx
+        | FileKind::KdbxOther
+        | FileKind::Pdf => Kind::File,
         FileKind::Text | FileKind::Other => text_kind(text, kind == FileKind::Text),
     }
 }

@@ -507,7 +507,13 @@ mod set {
         assert_eq!(facts, keys[0].codex32.clone().unwrap());
         assert!(r.public(field::KEY).is_none(), "the seed is secret");
         let mut again = Keys::on(Network::Mainnet);
-        let loaded = store.load_from_vault(&c, &mut again, id, &BTreeSet::from([at]));
+        let loaded = store.load_from_vault(
+            &c,
+            &mut again,
+            id,
+            &BTreeSet::from([at]),
+            &Default::default(),
+        );
         assert_eq!(loaded, vec![keys[0].fingerprint]);
         assert_eq!(again[0].codex32, keys[0].codex32);
         assert!(again.holds_seed_bytes(0));

@@ -320,7 +320,7 @@ fn with_gpg_key() -> Faraday {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![
@@ -342,7 +342,7 @@ fn with_gpg_key() -> Faraday {
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..21 {
         let _ = app.frame();
@@ -520,33 +520,16 @@ fn the_wallet_cards_receive_address_opens_its_code() {
 /// An app with a vault holding one recovery sheet of `descriptor`, named
 /// `name`, unlocked and on the sheet's page.
 fn on_a_sheet(name: &str, descriptor: &str) -> Faraday {
+    use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
-    use faraday_vault::{Contents, Cost, Record};
-    let c = testkit::compute();
     let payload =
         faraday_vault::layouts::sheet_payload(descriptor.as_bytes(), name.as_bytes(), b"")
             .expect("a sheet");
-    let records = vec![
-        Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Sheets"),
-        Record::new(kind::SHEET).with(field::SHEET, &payload),
-    ];
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    let vault = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &["sheets"],
-        &[Contents { records }],
-        &[0x5e; 32],
-    )
-    .unwrap();
+    let records = vec![Record::new(kind::SHEET).with(field::SHEET, &payload)];
+    let vault = crate::common::vault_of("Sheets", "sheets", 0x5e, records);
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("sheets.fvlt".to_string(), vault)],
+        inbox: vec![("sheets.kdbx".to_string(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -93,7 +93,7 @@ fn with_keys(files: &[(String, Vec<u8>)]) -> Faraday {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -108,7 +108,7 @@ fn with_keys(files: &[(String, Vec<u8>)]) -> Faraday {
     visit(&mut app, files);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));

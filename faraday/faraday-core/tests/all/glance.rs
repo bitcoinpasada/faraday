@@ -664,7 +664,7 @@ fn on_a_small_panel_where_it_is_closes_the_sheet_to_show_the_chart() {
 
 /// What the lock saved: For the stick, and the kept state.
 fn saved_at_lock(app: &mut Faraday) -> (Files, Files) {
-    app.press(Action::Lock);
+    crate::common::lock(app);
     let mut last = (Vec::new(), Vec::new());
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
@@ -752,7 +752,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     let (outbox, _) = saved_at_lock(&mut app);
     let vault: Files = outbox
         .into_iter()
-        .filter(|(n, _)| n.ends_with(".fvlt"))
+        .filter(|(n, _)| n.ends_with(".kdbx"))
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not put For the stick");
     let mut app = device_full(1440, 900, 160, vault, Vec::new());

@@ -89,3 +89,45 @@ fn a_listing_reads_four_bytes_of_a_vault_on_a_fat_stick_and_not_the_file() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn writing_a_vault_back_does_not_read_the_files_that_are_not_vaults() {
+    let dir = std::env::temp_dir().join(format!("faraday-files-photos-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let img = dir.join("data.img");
+    let made = Command::new(mkfs())
+        .args(["-C", "-F", "32", "-n", "FARADAYDATA"])
+        .arg(&img)
+        .arg("131072")
+        .status();
+    if !made.is_ok_and(|s| s.success()) {
+        eprintln!("mkfs.fat is not installed: the FAT check is skipped");
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+    let reads = Rc::new(Cell::new(0));
+    let disk = Counting(std::fs::read(&img).unwrap(), reads.clone());
+    let mut place = Fat(Volume::open(disk).unwrap());
+    // Photos: of a length a vault can have, and not beginning as one.
+    for i in 0..20 {
+        place
+            .create(&format!("PHOTO{i}.JPG"), &vec![0xFF; 65_900])
+            .unwrap();
+    }
+    let vault = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tools/vectors/kdbx/pykeepass-chacha20-argon2id-gzip.kdbx"),
+    )
+    .unwrap();
+    let photos = 20 * 65_900;
+    reads.set(0);
+    let copy = faraday_crypto::sha256_whole(&compute(), &[1, 2, 3]);
+    faraday_files::write_vault(&compute(), &mut place, "MY.KDBX", &vault, &[copy]).unwrap();
+    assert!(
+        reads.get() < photos / 4,
+        "{} bytes were read from a stick of {photos} bytes of photos",
+        reads.get()
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}

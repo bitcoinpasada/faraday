@@ -3,7 +3,7 @@
 //! a changed vault open seals nothing, writes nothing, keeps the vault open
 //! with its changes and says why; the same lock seals once the randomness
 //! arrives. Two sessions given different randomness seal the same vault
-//! under different nonces, and a fresh answer waiting is taken first.
+//! into different bytes.
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
@@ -16,7 +16,7 @@ use faraday_vault::records::kind;
 /// A vault the first test passphrase opens, at the smallest cost: nothing
 /// here is about the cost, and the nonces do not depend on it.
 fn cheap_vault() -> Vec<u8> {
-    crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7)
+    crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7)
 }
 
 /// A device whose shell has not answered a request for randomness, the
@@ -28,7 +28,7 @@ pub(crate) fn device(vault: Vec<u8>) -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), vault)],
+        inbox: vec![("vault.kdbx".into(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -42,7 +42,7 @@ fn randomness(app: &mut Faraday, byte: u8) {
 /// Opens the vault with its first passphrase: the keys it holds.
 fn open(app: &mut Faraday) -> usize {
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         let _ = app.frame();
@@ -80,16 +80,10 @@ pub(crate) fn sealed(app: &Faraday) -> Option<Vec<u8>> {
         .map(|i| i.bytes.clone())
 }
 
-/// Each slot's nonce.
-pub(crate) fn nonces(file: &[u8]) -> Vec<Vec<u8>> {
-    use faraday_vault::{HEADER_LEN, NONCE_LEN, SLOTS, TAG_LEN};
-    let slot = faraday_vault::read_header(file).unwrap().slot_len as usize;
-    (0..SLOTS)
-        .map(|i| {
-            let at = HEADER_LEN + i * (slot + NONCE_LEN + TAG_LEN);
-            file[at..at + NONCE_LEN].to_vec()
-        })
-        .collect()
+/// A lock, the seals run on the worker and taken.
+fn lock(app: &mut Faraday) {
+    app.press(Action::Lock);
+    testkit::settle(app);
 }
 
 #[test]
@@ -127,7 +121,16 @@ fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
     // the passphrase, holding the key saved into it.
     randomness(&mut app, 0x21);
     assert!(!app.drawn_texts().iter().any(|t| t == EN.seed_missing));
-    app.press(Action::Lock);
+    // A seal waits for five answers: the seed and four more are short.
+    for b in 0..4 {
+        randomness(&mut app, 0x30 + b);
+    }
+    lock(&mut app);
+    assert_eq!(sealed(&app), None);
+    assert!(!app.restart_requested());
+    assert_eq!(app.vaults().open.len(), 1);
+    crate::common::top_up(&mut app);
+    lock(&mut app);
     assert!(app.restart_requested());
     let file = sealed(&app).expect("the vault was not sealed");
     let mut next = device(file);
@@ -160,7 +163,8 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
     assert!(app.new_inputs()[0].code.is_some());
     app.press(Action::InputIgnore(5));
     open_and_change(&mut app);
-    app.press(Action::Lock);
+    crate::common::top_up(&mut app);
+    lock(&mut app);
     assert!(sealed(&app).is_some());
 }
 
@@ -176,52 +180,35 @@ fn locking_without_sealing_writes_nothing() {
     assert_eq!(sealed(&app), None);
 }
 
-/// The nonce of the one slot a lock seals again, as hex.
-fn resealed_nonce(original: &[u8], file: &[u8]) -> String {
-    let (before, after) = (nonces(original), nonces(file));
-    let i: Vec<usize> = (0..before.len())
-        .filter(|&i| after[i] != before[i])
-        .collect();
-    assert_eq!(i.len(), 1, "one slot is sealed again");
-    after[i[0]].iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// A seal takes a fresh answer from the system when one waits, so a
-/// session brought back with the same seed (a virtual machine restored
-/// from a snapshot) seals under a new nonce once the system answers
-/// again; with none waiting it falls back to the seed and a count, and
-/// the lock does not wait (`docs/VAULT.md` §5, F158). The known answers
-/// were computed with Python's `hashlib` from §5's definitions:
-/// SHA-256("faraday fresh" ‖ "vault seal" ‖ answer)[..24], and
-/// SHA-256("faraday vault draw" ‖ "nonce" ‖ seed ‖ 1 as u64 LE)[..24].
+/// A seal draws its randomness from the answers the system gave, so a
+/// session brought back with the same answers (a virtual machine restored
+/// from a snapshot) seals the same bytes, and one given other answers
+/// seals other bytes. With none waiting, a lock seals nothing.
 #[test]
-fn a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does() {
+fn a_seal_takes_the_answers_the_system_gave() {
     let original = cheap_vault();
-    let lock_with = |pooled: Option<u8>| {
+    let lock_with = |first: u8, answers: u8| {
         let mut app = device(original.clone());
-        randomness(&mut app, 0x31);
-        if let Some(b) = pooled {
-            randomness(&mut app, b);
+        randomness(&mut app, first);
+        for i in 0..10 {
+            randomness(&mut app, answers.wrapping_add(i));
         }
         open_and_change(&mut app);
-        app.press(Action::Lock);
-        let file = sealed(&app).expect("the vault was not sealed");
-        resealed_nonce(&original, &file)
+        lock(&mut app);
+        sealed(&app).expect("the vault was not sealed")
     };
+    let one = lock_with(0x31, 0x41);
     assert_eq!(
-        lock_with(Some(0x41)),
-        "f5e857cb91c365432586065225439d989e63e7bb37729fbb"
+        one,
+        lock_with(0x31, 0x41),
+        "the same answers seal the same file"
     );
-    assert_eq!(
-        lock_with(Some(0x42)),
-        "9e83f9d146a86bcd57311378e196fa524d3eaa142aad1016",
-        "the same seed with another answer seals under another nonce"
+    assert_ne!(
+        one,
+        lock_with(0x31, 0x51),
+        "other answers seal another file"
     );
-    assert_eq!(
-        lock_with(None),
-        "1750933f1f70a7c34e6ab25e7c8855b216c5a69d7a6ff766",
-        "with no answer waiting, the seed and a count"
-    );
+    assert_ne!(one, original);
 }
 
 #[test]
@@ -229,7 +216,7 @@ fn two_sessions_with_no_randomness_write_nothing() {
     for _ in 0..2 {
         let mut app = device(cheap_vault());
         open_and_change(&mut app);
-        app.press(Action::Lock);
+        lock(&mut app);
         assert_eq!(sealed(&app), None);
         assert!(!app.restart_requested());
     }

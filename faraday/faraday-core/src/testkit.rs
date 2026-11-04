@@ -645,7 +645,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     for (fp, p) in partials {
         out.push((format!("musig-partial-{fp}.psbt"), p.to_bytes()));
     }
-    out.push(("vault.fvlt".to_string(), test_vault()?));
+    out.push(("vault.kdbx".to_string(), test_vault()?));
     out.push((
         "vault-entries.txt".to_string(),
         ENTRIES_FILE.as_bytes().to_vec(),
@@ -1103,7 +1103,7 @@ pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>
 /// picture, the multisig config, the split shares with their pictures,
 /// the wallet .json, the BIP 129 record, Bitcoin Core's
 /// import file, the backup sheet and the blank template as PDFs);
-/// `vault.fvlt`, whose passphrase is `a`, holding the three seeds, each
+/// `vault.kdbx`, whose passphrase is `a`, holding the three seeds, each
 /// loaded at unlock; and an unsigned spend from the wallet. All testnet.
 /// The full kit is [`files`].
 pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
@@ -1112,7 +1112,7 @@ pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
         .find(|k| k.id == "taproot-multisig")
         .ok_or("no Taproot multisig kit")?;
     let mut out = public_files(kit.name, &kit.descriptor)?;
-    out.push(("vault.fvlt".to_string(), seeds_vault()?));
+    out.push(("vault.kdbx".to_string(), seeds_vault()?));
     // A spend to try the Spend tab and Wallets on: what a coordinator
     // such as Sparrow hands over.
     let (unsigned, _) = spend_of(&kit)?;
@@ -1124,51 +1124,163 @@ pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
 }
 
 /// The backup test stick's vault: the three test seeds, loaded at
-/// unlock, under one passphrase at the Light cost.
+/// unlock, under one passphrase at the test cost.
 fn seeds_vault() -> Result<Vec<u8>, String> {
     let c = compute();
+    use faraday_vault::Record;
     use faraday_vault::records::{self, field, kind};
-    use faraday_vault::{Contents, Cost, Record};
-    let mut main = Contents {
-        records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Test seeds")],
-    };
+    let mut records = Vec::new();
     for (word, label) in TEST_SEEDS {
         let m = Mnemonic::parse(&c, Language::English, &test_words(word))
             .map_err(|e| format!("{e:?}"))?;
-        main.records.push(
+        records.push(
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&m))
                 .with(field::KEY_LABEL, label.as_bytes()),
         );
     }
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 3,
+    kdbx_vault("Test seeds", BACKUP_VAULT_PASSPHRASE, 0x5b, records)
+}
+
+/// A vault file labelled `label` under `passphrase` holding `records`,
+/// at the test cost (8 MiB, one pass, one lane). `id` makes its
+/// identifier and the randomness of its seals.
+pub fn kdbx_vault(
+    label: &str,
+    passphrase: &str,
+    id: u8,
+    records: Vec<faraday_vault::Record>,
+) -> Result<Vec<u8>, String> {
+    kdbx_vault_at(
+        label,
+        passphrase,
+        id,
+        faraday_vault::MIN_MEMORY_KIB,
+        records,
+    )
+}
+
+/// [`kdbx_vault`] stretched with `memory_kib` of memory (one pass, one
+/// lane), which its header states.
+pub fn kdbx_vault_at(
+    label: &str,
+    passphrase: &str,
+    id: u8,
+    memory_kib: u32,
+    records: Vec<faraday_vault::Record>,
+) -> Result<Vec<u8>, String> {
+    let c = compute();
+    let cost = faraday_vault::Cost {
+        memory_kib,
+        passes: 1,
         lanes: 1,
     };
-    faraday_vault::create(
+    let file = faraday_vault::file::create(
         &c,
-        faraday_vault::SLOT_SIZES[0],
+        [id; 16],
+        label,
         cost,
-        &[BACKUP_VAULT_PASSPHRASE],
-        &[main],
-        &[0x5b; 32],
+        faraday_vault::file::SIZES[0],
+        passphrase,
+        &[id; faraday_vault::kdbx::RANDOM_LEN],
+        None,
+    )
+    .map_err(|e| format!("{e:?}"))?;
+    if records.is_empty() {
+        return Ok(file);
+    }
+    let mut store = faraday_keys::vault::OpenVaults::default();
+    store.set_names(crate::vault::errors::names());
+    let (vid, _) = store
+        .unlock(&c, file, passphrase)
+        .map_err(|e| format!("{e:?}"))?;
+    for r in records {
+        store.insert(vid, r).ok_or("not kept")?;
+    }
+    let n = store.uuid_bytes(vid).ok_or("not held")?;
+    let uuids: Vec<u8> = (0..n).map(|i| id.wrapping_add((i / 16) as u8)).collect();
+    store
+        .seal_job(vid, &[id; faraday_vault::kdbx::RANDOM_LEN], &uuids, None)
+        .ok_or("no job")?
+        .run(&c)
+        .into_file()
+        .map_err(|e| format!("{e:?}"))
+}
+
+/// A vault file, at the test cost, whose empty document `edit` changes and
+/// whose XML `tweak` then rewrites as text: what a KeePass app or a newer
+/// Faraday could leave (history, a recycle bin, a damaged item, a newer
+/// format).
+pub fn kdbx_edited(
+    label: &str,
+    passphrase: &str,
+    id: u8,
+    edit: impl FnOnce(&mut faraday_vault::kdbx::xml::Document),
+    tweak: impl FnOnce(String) -> String,
+) -> Result<Vec<u8>, String> {
+    use faraday_vault::kdbx;
+    let mut doc = kdbx::xml::Document::new([id; 16], label);
+    kdbx::items::stamp(&mut doc, 1, None).map_err(|e| format!("{e:?}"))?;
+    edit(&mut doc);
+    let random = [id; kdbx::RANDOM_LEN];
+    let xml = String::from_utf8(doc.write(kdbx::inner_key_of(&random)).to_vec())
+        .map_err(|e| e.to_string())?;
+    let xml = tweak(xml);
+    let contents = kdbx::Contents {
+        document: xml.as_bytes(),
+        binaries: &[],
+        public_custom_data: None,
+    };
+    let cost = faraday_vault::Cost {
+        memory_kib: faraday_vault::MIN_MEMORY_KIB,
+        passes: 1,
+        lanes: 1,
+    };
+    kdbx::seal(
+        &compute(),
+        passphrase,
+        cost,
+        &random,
+        &contents,
+        faraday_vault::file::SIZES[0],
     )
     .map_err(|e| format!("{e:?}"))
 }
 
-/// The test vault's passphrase, and the decoy passphrase that opens its
-/// second slot.
-pub const VAULT_PASSPHRASES: [&str; 2] = ["test vault", "decoy"];
+/// `file` (a vault `passphrase` opens) sealed once more, as another
+/// place would: the next seal count and other bytes under `nonce`.
+pub fn kdbx_reseal(file: &[u8], passphrase: &str, nonce: u8) -> Result<Vec<u8>, String> {
+    let c = compute();
+    let mut store = faraday_keys::vault::OpenVaults::default();
+    store.set_names(crate::vault::errors::names());
+    let (vid, _) = store
+        .unlock(&c, file.to_vec(), passphrase)
+        .map_err(|e| format!("{e:?}"))?;
+    let n = store.uuid_bytes(vid).ok_or("not held")?;
+    let uuids: Vec<u8> = (0..n).map(|i| nonce.wrapping_add((i / 16) as u8)).collect();
+    store
+        .seal_job(
+            vid,
+            &[nonce; faraday_vault::kdbx::RANDOM_LEN],
+            &uuids,
+            Some(1_790_000_000),
+        )
+        .ok_or("no job")?
+        .run(&c)
+        .into_file()
+        .map_err(|e| format!("{e:?}"))
+}
 
-/// The test stick's vault (`docs/VAULT.md`): two passphrases at the
-/// Light cost with 64 KiB slots. The first opens test key 1 (ticked at
-/// unlock), every test wallet, an entry and a note; the second opens a
-/// slot with one entry. Everything is a dummy.
+/// The test vault's passphrase.
+pub const VAULT_PASSPHRASE: &str = "test vault";
+
+/// The test stick's vault (`docs/VAULT.md`): one passphrase at the test
+/// cost. It opens test key 1 (ticked at unlock), every test wallet, an
+/// entry and a note. Everything is a dummy.
 pub fn test_vault() -> Result<Vec<u8>, String> {
     let c = compute();
+    use faraday_vault::Record;
     use faraday_vault::records::{self, field, kind};
-    use faraday_vault::{Contents, Cost, Record};
     let m = Mnemonic::parse(&c, Language::English, &test_words(TEST_SEEDS[0].0))
         .map_err(|e| format!("{e:?}"))?;
     let mut wallets: Vec<(String, String)> = kits()
@@ -1179,53 +1291,29 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
         "MuSig2".to_string(),
         musig_policy()?.to_descriptor_checksummed(),
     ));
-    let mut main = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Test vault"),
-            Record::new(kind::KEY)
-                .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_LABEL, TEST_SEEDS[0].1.as_bytes()),
-            Record::new(kind::ENTRY)
-                .with(field::TITLE, b"Email")
-                .with(field::USERNAME, b"you@example.com")
-                .with(field::PASSWORD, b"correct-horse-battery-staple")
-                .with(field::URL, b"https://mail.example.com")
-                .with(
-                    field::TOTP,
-                    b"otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP",
-                ),
-            Record::new(kind::NOTE).with(field::NOTE, b"Recovery codes\n1111-2222\n3333-4444"),
-        ],
-    };
+    let mut records = vec![
+        Record::new(kind::KEY)
+            .with(field::KEY, &records::words_payload(&m))
+            .with(field::KEY_LABEL, TEST_SEEDS[0].1.as_bytes()),
+        Record::new(kind::ENTRY)
+            .with(field::TITLE, b"Email")
+            .with(field::USERNAME, b"you@example.com")
+            .with(field::PASSWORD, b"correct-horse-battery-staple")
+            .with(field::URL, b"https://mail.example.com")
+            .with(
+                field::TOTP,
+                b"otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP",
+            ),
+        Record::new(kind::NOTE).with(field::NOTE, b"Recovery codes\n1111-2222\n3333-4444"),
+    ];
     for (name, text) in &wallets {
-        main.records.push(
+        records.push(
             Record::new(kind::WALLET)
                 .with(field::WALLET, text.as_bytes())
                 .with(field::WALLET_NAME, name.as_bytes()),
         );
     }
-    let decoy = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Everyday"),
-            Record::new(kind::ENTRY)
-                .with(field::TITLE, b"Library card")
-                .with(field::PASSWORD, b"1234"),
-        ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 3,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[VAULT_PASSPHRASES[0], VAULT_PASSPHRASES[1]],
-        &[main, decoy],
-        &[0x7a; 32],
-    )
-    .map_err(|e| format!("{e:?}"))
+    kdbx_vault("Test vault", VAULT_PASSPHRASE, 0x7a, records)
 }
 
 /// A text file of entries for a vault: a TOTP setup URI and an entry in
@@ -1752,6 +1840,13 @@ pub fn vault_edit<T>(
     change: impl FnOnce(&mut faraday_keys::vault::OpenVaults) -> T,
 ) -> T {
     app.vaults.edit(id, change)
+}
+
+/// The signed-amount memory's records `new` go into open vault `o`, the
+/// oldest leaving while it is over full, as a seal does it.
+pub fn vault_add_amounts(app: &mut crate::Faraday, o: usize, new: Vec<faraday_vault::Record>) {
+    let c = app.compute();
+    app.vaults.add_amounts_now(&c, o, new);
 }
 
 /// Open vault `o` has one more change not sealed.

@@ -17,6 +17,44 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
         unix_secs: 1_791_000_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
+    // The test vault opened here once: a vault file is known by what the
+    // app has opened or sealed, so its copy on the stick is read as it.
+    let vault = faraday_core::testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.kdbx")
+        .ok_or("no test vault")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![vault],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
+    crate::tour::type_text(t, faraday_core::testkit::VAULT_PASSPHRASE);
+    t.press(Action::Vault(faraday_core::vault::VaultAction::Unlock));
+    for _ in 0..30 {
+        t.tick();
+    }
+    crate::tour::not_now_load(t);
+    t.app.press(Action::Lock);
+    let mut kept = None;
+    while let Some(c) = t.app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes {
+            inbox,
+            outbox,
+            kept: k,
+        } = c
+        {
+            kept = Some((inbox, outbox, k));
+        }
+    }
+    t.pump();
+    let (inbox, outbox, kept) = kept.ok_or("the lock saved nothing")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox,
+        kept,
+    });
     t.press(Action::OpenSetTime);
     t.press(Action::SetTimeKeep);
     let tile = faraday_core::catalog::TILES
@@ -42,8 +80,8 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
         .app
         .flow()
         .and_then(|f| f.live.reading.as_ref())
-        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "vault.fvlt"))
-        .ok_or("the stick shows no vault.fvlt")?;
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "vault.kdbx"))
+        .ok_or("the stick shows no vault.kdbx")?;
     t.press(Action::Flow(F::PickFile(0, k)));
     t.shot("flow-4-confirm")?;
     t.press(Action::Flow(F::Tap));
@@ -75,7 +113,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.press(Action::Flow(F::SticksOn));
     t.shot("flow-6-vaults")?;
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     t.tick();
     t.tick();

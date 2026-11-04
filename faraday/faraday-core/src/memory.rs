@@ -33,6 +33,7 @@ const PICTURE_KINDS: &[FileKind] = &[
     FileKind::Entries,
     FileKind::EfiImage,
     FileKind::Kdbx,
+    FileKind::KdbxOther,
     FileKind::Pdf,
     FileKind::SeedPart,
     FileKind::Text,
@@ -293,6 +294,19 @@ impl Faraday {
         self.memory.seals()
     }
 
+    /// What a lock for idleness tells the next process: the idle time, and
+    /// whether a vault's changes were lost to the lock.
+    fn idle_kept(&self) -> Vec<(String, Vec<u8>)> {
+        let Some(ms) = self.idle_locked_after() else {
+            return Vec::new();
+        };
+        let mut out = vec![("idle".to_string(), ms.to_string().into_bytes())];
+        if self.vaults.changes_lost() {
+            out.push(("idle-unsaved".to_string(), b"1".to_vec()));
+        }
+        out
+    }
+
     /// What is kept across a lock: the settings and the memory.
     pub(crate) fn kept(&self) -> Vec<(String, Vec<u8>)> {
         let settings = format!(
@@ -417,9 +431,7 @@ impl Faraday {
         }
         // A lock for idleness tells the next process how long the person
         // has been away.
-        if let Some(ms) = self.idle_locked_after() {
-            out.push(("idle".to_string(), ms.to_string().into_bytes()));
-        }
+        out.extend(self.idle_kept());
         out
     }
 
@@ -520,6 +532,7 @@ impl Faraday {
                         }
                     }
                 }
+                "idle-unsaved" => self.vaults.set_changes_lost(),
                 "idle" => {
                     if let Ok(ms) = String::from_utf8_lossy(bytes).parse() {
                         self.idle_locked(ms);

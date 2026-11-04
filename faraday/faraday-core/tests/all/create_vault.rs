@@ -261,7 +261,8 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
         .into_iter()
         .find(|f| f.name == made)
         .unwrap();
-    (f.header.cost.memory_kib / 1024, f.header.cost.passes)
+    let h = &f.facts.header;
+    (h.cost.memory_kib / 1024, h.cost.passes)
 }
 
 #[test]
@@ -281,27 +282,20 @@ fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
     assert_eq!(create_and_read_cost(&mut app), (64, 3));
 }
 
-/// Every passphrase of a new vault opens a slot named after the vault:
-/// the slot one passphrase opens says nothing of the others.
+/// A new vault goes by the name typed for it.
 #[test]
-fn every_slot_of_a_new_vault_goes_by_the_vaults_name() {
+fn a_new_vault_goes_by_the_vaults_name() {
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CName));
     type_text(&mut app, "Savings");
-    for (i, p) in ["first phrase", "second phrase"].iter().enumerate() {
-        if i > 0 {
-            app.press(Action::Vault(V::CAddPhrase));
-        }
-        app.press(Action::Vault(V::CFocus(i, false)));
-        type_text(&mut app, p);
-        app.press(Action::Vault(V::CFocus(i, true)));
-        type_text(&mut app, p);
-    }
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "first phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "first phrase");
     app.press(Action::Vault(V::CGo));
     settle(&mut app, 1);
     assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    // The second passphrase's slot reads as the vault, not as a second.
-    type_text(&mut app, "second phrase");
+    type_text(&mut app, "first phrase");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
     assert_eq!(app.vaults().open.len(), 1, "it unlocked");

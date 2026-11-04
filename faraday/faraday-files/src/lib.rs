@@ -557,8 +557,16 @@ fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
             .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
 }
 
-/// Costs a read and a SHA-256 pass over each file of a vault's length on
-/// the stick. The names of the files on the stick whose SHA-256 is among
+/// Whether a file begins with KDBX's signatures and major version 4:
+/// reads its first twelve bytes only.
+fn has_vault_head(place: &mut dyn Place, name: &str) -> bool {
+    place
+        .head(name, vault_file::HEAD_LEN, MAX_READ)
+        .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
+}
+
+/// Costs a read and a SHA-256 pass over each file that begins as a vault
+/// does on the stick. The names of the files on the stick whose SHA-256 is among
 /// `copies`, the SHA-256 of whole files (`docs/VAULT.md` §6).
 fn copies_on(
     c: &Compute,
@@ -571,6 +579,10 @@ fn copies_on(
     }
     for (n, len) in place.files()? {
         if n.starts_with('.') || !vault_file::is_vault_len(len) || len > MAX_READ {
+            continue;
+        }
+        // Only a file that begins as a vault does is read whole.
+        if !has_vault_head(place, &n) {
             continue;
         }
         if let Ok(b) = place.read(&n, len)
@@ -597,8 +609,8 @@ pub fn write_vault(
     write_vault_over(c, place, name, bytes, copies, true, false)
 }
 
-/// Costs a read and a SHA-256 pass over each file of a vault's length on
-/// the stick. [`write_vault`], refusing to go over a copy when `over` is
+/// Costs a read and a SHA-256 pass over each file that begins as a vault
+/// does on the stick. [`write_vault`], refusing to go over a copy when `over` is
 /// false. Over a copy the file keeps the name it has on the stick,
 /// unless `renamed`: the person renamed the vault's file For the stick,
 /// and the file takes that name (`docs/FLOWS.md` decision 61 item 2), or
@@ -677,7 +689,11 @@ pub fn rename(
         .iter()
         .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
     {
-        let both = len == *olen && vault_file::is_vault_len(len) && len <= MAX_READ;
+        let both = len == *olen
+            && vault_file::is_vault_len(len)
+            && len <= MAX_READ
+            && has_vault_head(place, from)
+            && has_vault_head(place, other);
         let same = both && {
             let a = place.read(from, MAX_READ).ok();
             let b = place.read(other, MAX_READ).ok();

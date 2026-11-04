@@ -5,6 +5,7 @@
 //! up after them; the checklist's **Write to sticks**, and every stick
 //! written inside the flow.
 
+use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{BackupFlow, Step, Target};
@@ -242,15 +243,17 @@ pub(crate) fn save_vaults(app: &mut Faraday) {
         app.press(Action::BVaultSave(v as u8));
         assert!(
             app.backup_item_done_now(&c, Item::Vault(v)),
-            "Vault {} saved",
+            "Vault {} is saved",
             v + 1
         );
     }
 }
 
 pub(crate) fn restart(shell: &mut Shell, app: &mut Faraday) -> Faraday {
+    // A lock's seals run on the worker; settle it before the shell reads.
+    testkit::settle(app);
     shell.pump(app);
-    assert!(app.restart_requested(), "locked");
+    assert!(app.restart_requested(), "the lock restarts the app");
     shell.restart()
 }
 
@@ -263,12 +266,12 @@ fn no_visit(shell: &Shell) {
     assert!(shell.sheets.iter().all(|s| *s != Sheet::Lock));
 }
 
-pub(crate) fn fvlt(shell: &Shell, d: &str) -> Option<Vec<u8>> {
+pub(crate) fn kdbx(shell: &Shell, d: &str) -> Option<Vec<u8>> {
     shell
         .disk(d)
         .files
         .iter()
-        .find(|(n, _)| n.ends_with(".fvlt"))
+        .find(|(n, _)| n.ends_with(".kdbx"))
         .map(|(_, b)| b.clone())
 }
 
@@ -467,10 +470,10 @@ fn a_single_key_with_a_vault_on_two_sticks_and_the_descriptor_on_a_stick_of_file
     shell.pull(&mut app, "S3");
     assert_eq!(step(&app), Step::Done);
     no_visit(&shell);
-    assert!(fvlt(&shell, "S1").is_some(), "{:?}", names(&shell, "S1"));
+    assert!(kdbx(&shell, "S1").is_some(), "{:?}", names(&shell, "S1"));
     assert_eq!(
-        fvlt(&shell, "S1"),
-        fvlt(&shell, "S2"),
+        kdbx(&shell, "S1"),
+        kdbx(&shell, "S2"),
         "the same sealed bytes"
     );
     assert!(
@@ -481,7 +484,7 @@ fn a_single_key_with_a_vault_on_two_sticks_and_the_descriptor_on_a_stick_of_file
         names(&shell, "S3")
     );
     assert!(
-        fvlt(&shell, "S3").is_none(),
+        kdbx(&shell, "S3").is_none(),
         "no vault copy on the stick of files"
     );
     // After the checklist nothing waits For the stick.
@@ -675,11 +678,11 @@ fn the_flow_follows_its_places_and_none_past_one_per_key() {
 /// sticks. `software` chooses Sparrow's files too.
 fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     sticks(shell, 4);
-    let main = vault("Main", &[PHRASE], 0x41);
-    let other = vault("Other", &[PHRASE_2], 0x42);
+    let main = vault("Main", PHRASE, 0x41);
+    let other = vault("Other", PHRASE_2, 0x42);
     {
         let d = shell.disk_mut("S1");
-        d.files = vec![("main.fvlt".into(), main), ("main-2.fvlt".into(), other)];
+        d.files = vec![("main.kdbx".into(), main), ("main-2.kdbx".into(), other)];
     }
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -701,7 +704,7 @@ fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
         .unwrap()
         .files
         .iter()
-        .position(|(f, _)| f.name == "main.fvlt")
+        .position(|(f, _)| f.name == "main.kdbx")
         .unwrap();
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);
@@ -778,8 +781,8 @@ fn a_two_of_three_with_an_existing_vault_and_two_new_ones_writes_each_stick_by_p
     let c = faraday_core::testkit::compute();
     let mut shell = Shell::new();
     let mut app = two_of_three_ready(&mut shell, false);
-    let other = shell.disk("S1").file("main-2.fvlt").cloned().unwrap();
-    let before = shell.disk("S1").file("main.fvlt").cloned().unwrap();
+    let other = shell.disk("S1").file("main-2.kdbx").cloned().unwrap();
+    let before = shell.disk("S1").file("main.kdbx").cloned().unwrap();
     assert_eq!(
         app.backup_items_now(&c),
         vec![
@@ -814,17 +817,17 @@ fn a_two_of_three_with_an_existing_vault_and_two_new_ones_writes_each_stick_by_p
     assert_eq!(step(&app), Step::Done);
     no_visit(&shell);
     // The other vault on S1 is what it was; the chosen one is replaced.
-    assert_eq!(shell.disk("S1").file("main-2.fvlt"), Some(&other));
-    assert_ne!(shell.disk("S1").file("main.fvlt"), Some(&before));
+    assert_eq!(shell.disk("S1").file("main-2.kdbx"), Some(&other));
+    assert_ne!(shell.disk("S1").file("main.kdbx"), Some(&before));
     // Three different vaults, one on each; the sheet on the stick of
     // public files, which holds no vault.
-    let v1 = shell.disk("S1").file("main.fvlt").cloned();
-    let v2 = fvlt(&shell, "S2");
-    let v3 = fvlt(&shell, "S3");
+    let v1 = shell.disk("S1").file("main.kdbx").cloned();
+    let v2 = kdbx(&shell, "S2");
+    let v3 = kdbx(&shell, "S3");
     assert!(v1.is_some() && v2.is_some() && v3.is_some());
     assert_ne!(v1, v2);
     assert_ne!(v2, v3);
-    assert!(fvlt(&shell, "S4").is_none());
+    assert!(kdbx(&shell, "S4").is_none());
     assert!(
         names(&shell, "S4")
             .iter()
@@ -868,7 +871,7 @@ fn the_account_keys_and_their_records_are_written_to_the_stick_of_public_files()
         );
     }
     assert!(
-        fvlt(&shell, "S4").is_none(),
+        kdbx(&shell, "S4").is_none(),
         "no vault copy on the public stick"
     );
 }
@@ -1005,8 +1008,8 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
     }
     assert_eq!(step(&app), Step::Done);
     no_visit(&shell);
-    assert!(fvlt(&shell, "S1").is_some() && fvlt(&shell, "S2").is_some());
-    assert_ne!(fvlt(&shell, "S1"), fvlt(&shell, "S2"));
+    assert!(kdbx(&shell, "S1").is_some() && kdbx(&shell, "S2").is_some());
+    assert_ne!(kdbx(&shell, "S1"), kdbx(&shell, "S2"));
 }
 
 fn shape_with(passphrase: bool, seeds_n: usize) -> Shape {
@@ -1235,6 +1238,7 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     );
     shell.flow(&mut app, F::MadeContinue);
     assert_eq!(step(&app), Step::Lock);
+    top_up(&mut app);
     shell.flow(&mut app, F::LockWrite);
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(step(&app), Step::Write);
@@ -1259,8 +1263,8 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     );
     no_visit(&shell);
     // The copy of Vault 2 that went to its stick holds both seeds.
-    let bytes = fvlt(&shell, "S2").expect("Vault 2 on S2");
-    let mut next = process(vec![("vault.fvlt".into(), bytes)], Vec::new(), Vec::new());
+    let bytes = kdbx(&shell, "S2").expect("Vault 2 on S2");
+    let mut next = process(vec![("vault.kdbx".into(), bytes)], Vec::new(), Vec::new());
     faraday_core::testkit::vault_speed(&mut next, Some(180));
     next.press(Action::Nav(Screen::Vaults));
     next.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
@@ -1502,7 +1506,7 @@ fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
     );
     // S3 is Place 2's stick of files, written in its place's turn; S4
     // the new place's.
-    assert!(fvlt(&shell, "S4").is_some(), "the new place was written");
+    assert!(kdbx(&shell, "S4").is_some(), "the new place was written");
     no_visit(&shell);
 }
 
@@ -1909,7 +1913,7 @@ fn passphrase_records(app: &Faraday, v: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
         .vaults()
         .open
         .iter()
-        .find(|o| o.header().salt == salt)
+        .find(|o| o.vault_id() == salt)
         .expect("the vault is open");
     app.vaults()
         .store()
@@ -1936,7 +1940,7 @@ fn the_round_copies_a_lone_passphrase_from_another_vaults_passphrase_record() {
             .vaults()
             .open
             .iter()
-            .position(|o| Some(o.header().salt) != salt)
+            .position(|o| Some(o.vault_id()) != salt)
             .expect("another open vault");
         {
             let id = app.vaults().open[o].id;
@@ -1979,7 +1983,6 @@ fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
                 app.vaults()
                     .store()
                     .contents_for_tests(open.id)
-                    .records
                     .iter()
                     .position(|r| r.kind == kind::KEY && r.field(field::KEY) == Some(&payload[..]))
                     .map(|k| (o, k))
@@ -2006,10 +2009,10 @@ fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
 /// [`two_of_three_ready`] with Key 1 typed in with a passphrase.
 fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
     sticks(shell, 4);
-    let main = vault("Main", &[PHRASE], 0x41);
+    let main = vault("Main", PHRASE, 0x41);
     {
         let d = shell.disk_mut("S1");
-        d.files = vec![("main.fvlt".into(), main)];
+        d.files = vec![("main.kdbx".into(), main)];
     }
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -2024,7 +2027,7 @@ fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
         .unwrap()
         .files
         .iter()
-        .position(|(f, _)| f.name == "main.fvlt")
+        .position(|(f, _)| f.name == "main.kdbx")
         .unwrap();
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);
@@ -2072,8 +2075,8 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
-    let main = vault("Main", &[PHRASE], 0x41);
-    let mut app = process(vec![("main.fvlt".into(), main)], Vec::new(), Vec::new());
+    let main = vault("Main", PHRASE, 0x41);
+    let mut app = process(vec![("main.kdbx".into(), main)], Vec::new(), Vec::new());
     keep_time(&mut app);
     create_single_key(&mut app);
     // Not in a vault: the default.
@@ -2108,7 +2111,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    assert!(fvlt(&shell, "S1").is_some() || fvlt(&shell, "S2").is_some());
+    assert!(kdbx(&shell, "S1").is_some() || kdbx(&shell, "S2").is_some());
     no_visit(&shell);
 }
 
@@ -2367,32 +2370,14 @@ fn back_on_a_card_before_the_keys_returns_to_make_a_new_wallet_and_a_refusal_say
 /// A vault file of one passphrase that already holds the key of
 /// `TEST_SEEDS[n]`.
 fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
-    let c = testkit::compute();
     use faraday_vault::Record;
     use faraday_vault::records::{self, field};
-    let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
-        passes: 1,
-        lanes: 1,
-    };
+    let c = testkit::compute();
     let words = testkit::test_words(testkit::TEST_SEEDS[n].0);
     let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
         .unwrap();
-    let contents = faraday_vault::Contents {
-        records: vec![
-            Record::new(records::kind::SLOT_LABEL).with(field::LABEL, label.as_bytes()),
-            Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
-        ],
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[phrase],
-        &[contents],
-        &[seed; 32],
-    )
-    .unwrap()
+    let key = Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m));
+    vault_of(label, phrase, seed, vec![key])
 }
 
 /// Loads the keys of the first vault of a fresh process into it.
@@ -2559,9 +2544,10 @@ fn two_planned_vaults_holding_the_same_seed_are_never_one_open_vault() {
     let p = vault_place(&app, 1);
     vault_at(&mut app, p, 1, &[0]);
     app.press(Action::BChecklist);
-    app.press(Action::BVaultSave(1));
+    save_vaults(&mut app);
     app.press(Action::BOut(3));
     app.press(Action::BNext(bstep::ENVELOPE));
+    top_up(&mut app);
     shell.flow(&mut app, F::WalletLock);
     let app = restart(&mut shell, &mut app);
     let salts: Vec<Option<[u8; 32]>> = app.backup_flows()[0]
@@ -2643,7 +2629,7 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
     sticks(&mut shell, 2);
     // Main holds the key of Key 2 (TEST_SEEDS[1]) already.
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
-    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
+    shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
@@ -2657,7 +2643,7 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
         .unwrap()
         .files
         .iter()
-        .position(|(f, _)| f.name == "main.fvlt")
+        .position(|(f, _)| f.name == "main.kdbx")
         .unwrap();
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);
@@ -2729,7 +2715,7 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let other = vault_with_key("Other", PHRASE_2, 0x42, 1);
-    let mut app = process(vec![("other.fvlt".into(), other)], Vec::new(), Vec::new());
+    let mut app = process(vec![("other.kdbx".into(), other)], Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
     bring_in_all(&mut shell, &mut app, &["S1"]);
@@ -2771,8 +2757,8 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
 fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_matches_nothing() {
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
-    let vb = vault("Second", &[PHRASE_2], 0x43);
-    let mut app = process(vec![("second.fvlt".into(), vb)], Vec::new(), Vec::new());
+    let vb = vault("Second", PHRASE_2, 0x43);
+    let mut app = process(vec![("second.kdbx".into(), vb)], Vec::new(), Vec::new());
     keep_time(&mut app);
     // Wallet A: its vault made and open.
     create_with_vaults(&mut app, false, 1);
@@ -2800,7 +2786,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
         unlock(&mut app, PHRASE_2);
     }
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
-    let sb = app.vaults().open[1].header().salt;
+    let sb = app.vaults().open[1].vault_id();
     testkit::flows_mut(&mut app)[1].step = Step::Make;
     testkit::flows_mut(&mut app)[1].plan.vaults[0].salt = Some(sb);
     let fp = key_in(&mut app, 1);
@@ -2984,8 +2970,8 @@ fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_th
 fn two_vaults_ask_for_two_sticks_read_before_any_unlock_and_are_open_before_the_keys() {
     let mut shell = Shell::new();
     sticks(&mut shell, 3);
-    let main = vault("Main", &[PHRASE], 0x41);
-    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
+    let main = vault("Main", PHRASE, 0x41);
+    shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 2);
@@ -3004,7 +2990,7 @@ fn two_vaults_ask_for_two_sticks_read_before_any_unlock_and_are_open_before_the_
         .unwrap()
         .files
         .iter()
-        .position(|(f, _)| f.name == "main.fvlt")
+        .position(|(f, _)| f.name == "main.kdbx")
         .unwrap();
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);
@@ -3090,10 +3076,10 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let (s1, s3) = (fvlt(&shell, "S1"), fvlt(&shell, "S3"));
+    let (s1, s3) = (kdbx(&shell, "S1"), kdbx(&shell, "S3"));
     assert!(s1.is_some() && s1 == s3, "the same sealed copy");
     assert!(
-        fvlt(&shell, "S2").is_none(),
+        kdbx(&shell, "S2").is_none(),
         "Vault 2 holds nothing: not written"
     );
     no_visit(&shell);
@@ -3648,14 +3634,14 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let sealed = fvlt(&shell, "S1").expect("the vault's copy");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
+    let sealed = kdbx(&shell, "S1").expect("the vault's copy");
+    let c = kdbx_records(&sealed, PHRASE);
     assert_eq!(c.of(kind::WALLET_SHARE).count(), 1, "sealed with the share");
     // Restore: that vault open, Share 1 in the Inbox.
     let name = format!("{stem}-share-1-of-{n}.txt");
     let mut r = process(
         vec![
-            ("vault-1.fvlt".into(), sealed),
+            ("vault-1.kdbx".into(), sealed),
             (name.clone(), share(0).into_bytes()),
         ],
         Vec::new(),
@@ -3757,8 +3743,8 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
+    let sealed = kdbx(&shell, "S1").expect("Vault 1 on S1");
+    let c = kdbx_records(&sealed, PHRASE);
     assert_eq!(
         c.of(kind::WALLET_SHARE).count(),
         1,
@@ -3957,7 +3943,6 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
 /// the sealed copy on S1 keeps the key without its passphrase.
 #[test]
 fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it() {
-    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -4011,8 +3996,8 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
+    let sealed = kdbx(&shell, "S1").expect("Vault 1 on S1");
+    let c = kdbx_records(&sealed, PHRASE);
     let keys: Vec<bool> = c
         .of(kind::KEY)
         .map(|(_, r)| {
@@ -4366,21 +4351,8 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
                 .with(field::PLAN_ANSWERS, text.as_bytes()),
         ],
     };
-    let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
-        passes: 1,
-        lanes: 1,
-    };
-    let file = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[PHRASE],
-        &[contents],
-        &[9; 32],
-    )
-    .unwrap();
-    let mut next = process(vec![("old.fvlt".into(), file)], Vec::new(), Vec::new());
+    let file = vault_of("Savings", PHRASE, 9, contents.records);
+    let mut next = process(vec![("old.kdbx".into(), file)], Vec::new(), Vec::new());
     keep_time(&mut next);
     next.press(Action::Nav(Screen::Vaults));
     next.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
@@ -4414,11 +4386,10 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
 /// before the flow is refused, and the sealed copy still holds it.
 #[test]
 fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
-    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
-    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
+    shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
@@ -4429,7 +4400,7 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
         .live
         .reading
         .as_ref()
-        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.fvlt"));
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.kdbx"));
     if let Some(k) = k {
         shell.flow(&mut app, F::PickFile(0, k));
     }
@@ -4476,8 +4447,8 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
+    let sealed = kdbx(&shell, "S1").expect("Vault 1 on S1");
+    let c = kdbx_records(&sealed, PHRASE);
     assert_eq!(c.of(kind::KEY).count(), 1, "Key 1 stays");
 }
 
@@ -4575,8 +4546,8 @@ fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
         app.flow().unwrap().live.problem
     );
     for d in ["S1", "S2"] {
-        let sealed = fvlt(&shell, d).expect("Vault 1's copy");
-        let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
+        let sealed = kdbx(&shell, d).expect("Vault 1's copy");
+        let c = kdbx_records(&sealed, PHRASE);
         assert_eq!(c.of(kind::KEY).count(), 1, "{d} holds the key");
     }
     assert!(
@@ -5039,7 +5010,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
-    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
+    shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
@@ -5050,7 +5021,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
         .live
         .reading
         .as_ref()
-        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.fvlt"));
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.kdbx"));
     if let Some(k) = k {
         shell.flow(&mut app, F::PickFile(0, k));
     }
@@ -5303,12 +5274,11 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
 /// passphrase.
 #[test]
 fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
-    let c = testkit::compute();
     use faraday_vault::records::field;
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
-    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
+    shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_with_vaults(&mut app, false, 1);
@@ -5319,7 +5289,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
         .live
         .reading
         .as_ref()
-        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.fvlt"));
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "main.kdbx"));
     if let Some(k) = k {
         shell.flow(&mut app, F::PickFile(0, k));
     }
@@ -5368,8 +5338,8 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
+    let sealed = kdbx(&shell, "S1").expect("Vault 1 on S1");
+    let c = kdbx_records(&sealed, PHRASE);
     let keys: Vec<bool> = c
         .of(kind::KEY)
         .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
@@ -5433,28 +5403,14 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
         .unwrap();
     let contents = faraday_vault::Contents {
         records: vec![
-            Record::new(records::kind::SLOT_LABEL).with(field::LABEL, b"Second"),
             Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
             Record::new(kind::WALLET)
                 .with(field::WALLET, desc.as_bytes())
                 .with(field::WALLET_NAME, name.as_bytes()),
         ],
     };
-    let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
-        passes: 1,
-        lanes: 1,
-    };
-    let second = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[PHRASE_2],
-        &[contents],
-        &[0x77; 32],
-    )
-    .unwrap();
-    shell.boxes.0.push(("second.fvlt".into(), second));
+    let second = vault_of("Second", PHRASE_2, 0x77, contents.records);
+    shell.boxes.0.push(("second.kdbx".into(), second));
     let mut app = restart(&mut shell, &mut app);
     let flow_before = app.flow().unwrap().clone();
     // The second vault unlocked.
@@ -5627,7 +5583,7 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
             .open
             .iter()
             .find(|o| app.vaults().store().contents_for_tests(o.id).of(k).count() > 0)
-            .map(|o| app.vaults().store().contents_for_tests(o.id).clone())
+            .map(|o| app.vaults().store().contents_for_tests(o.id).to_vec())
             .expect("a vault with it")
     };
     let words = with(kind::KEY);

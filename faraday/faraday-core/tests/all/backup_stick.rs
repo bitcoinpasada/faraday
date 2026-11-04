@@ -49,7 +49,7 @@ fn the_stick_holds_the_backup_and_no_seed_outside_the_vault() {
         "taproot-multisig-share-1-of-3.txt",
         "taproot-multisig-share-1-of-3.pdf",
         "taproot-multisig-share-3-of-3.txt",
-        "vault.fvlt",
+        "vault.kdbx",
         "taproot-multisig-unsigned.psbt",
     ] {
         assert!(n.iter().any(|x| x == want), "no {want}");
@@ -188,7 +188,7 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
     let v = app
         .vault_files()
         .iter()
-        .position(|f| f.name == "vault.fvlt")
+        .position(|f| f.name == "vault.kdbx")
         .unwrap();
     app.press(Action::Family(F::Pick(v)));
     for c in testkit::BACKUP_VAULT_PASSPHRASE.chars() {
@@ -285,7 +285,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -312,7 +312,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     );
     // The test vault, which holds the seed; the wallet saved into it.
     app.press(Action::Vault(V::Open(0)));
-    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
@@ -347,15 +347,15 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
 /// other.
 #[test]
 fn with_two_vault_files_waiting_a_visit_ticks_one() {
-    let vault = crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7);
+    let vault = crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7);
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: vec![
-            ("vault.fvlt".into(), vault.clone()),
-            ("vault-2.fvlt".into(), vault),
+            ("vault.kdbx".into(), vault.clone()),
+            ("vault-2.kdbx".into(), vault),
         ],
         kept: Vec::new(),
     });
@@ -372,13 +372,13 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
         app.visit()
             .out
             .iter()
-            .filter(|n| n.ends_with(".fvlt"))
+            .filter(|n| n.ends_with(".kdbx"))
             .cloned()
             .collect()
     };
     app.storage(StorageEvent::Sticks(vec![stick("FIRST")]));
     app.press(Action::Nav(Screen::Visit));
-    assert_eq!(ticked(&app), vec!["vault.fvlt".to_string()]);
+    assert_eq!(ticked(&app), vec!["vault.kdbx".to_string()]);
     app.press(Action::VisitWrite);
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::Write { stick, name, .. } = c {
@@ -391,11 +391,11 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
     }
     let r = app.receipt().expect("a receipt");
     assert_eq!(r.label, "FIRST");
-    assert!(r.wrote("vault.fvlt") && !r.wrote("vault-2.fvlt"));
+    assert!(r.wrote("vault.kdbx") && !r.wrote("vault-2.kdbx"));
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.storage(StorageEvent::Sticks(vec![stick("SECOND")]));
     app.press(Action::Nav(Screen::Visit));
-    assert_eq!(ticked(&app), vec!["vault-2.fvlt".to_string()]);
+    assert_eq!(ticked(&app), vec!["vault-2.kdbx".to_string()]);
 }
 
 /// A split sheet that names one key twice, or two sheets that give one

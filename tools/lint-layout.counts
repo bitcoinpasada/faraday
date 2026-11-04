@@ -2,8 +2,8 @@
 # is the owner's decision, recorded in DECISIONS.
 #
 # Files over 5,000 lines, at their size: split them, and lower the line.
-file faraday/faraday-core/src/lib.rs 5974
-file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5810
+file faraday/faraday-core/src/lib.rs 5971
+file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5766
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
 fields Faraday 83

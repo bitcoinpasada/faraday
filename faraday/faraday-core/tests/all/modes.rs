@@ -104,12 +104,12 @@ fn with_unsealed_change() -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
     app.press(Action::Vault(V::Open(0)));
-    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {

@@ -180,7 +180,7 @@ fn a_key_in_a_vault_loads_as_the_key_the_bips_publish() {
     let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
     let mut keys = Keys::on(Network::Mainnet);
     let all = store.records(id).of(kind::KEY).map(|(i, _)| i).collect();
-    let loaded = store.load_from_vault(&c, &mut keys, id, &all);
+    let loaded = store.load_from_vault(&c, &mut keys, id, &all, &Default::default());
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0].0, [0x73, 0xc5, 0xda, 0x0a]);
     assert_eq!(keys.len(), 1);
@@ -433,7 +433,13 @@ fn a_key_record_copied_between_vaults_is_the_same_key_there() {
     store.copy_record(a, AT, b, None).expect("copied");
     assert_eq!(store.records(b).len(), AT + 1);
     let mut keys = Keys::on(Network::Mainnet);
-    let loaded = store.load_from_vault(&c, &mut keys, b, &[AT].into_iter().collect());
+    let loaded = store.load_from_vault(
+        &c,
+        &mut keys,
+        b,
+        &[AT].into_iter().collect(),
+        &Default::default(),
+    );
     assert_eq!(loaded[0].0, [0x73, 0xc5, 0xda, 0x0a]);
     let bare = store
         .copy_out(a, AT, Some(field::KEY_LABEL))
@@ -1082,7 +1088,7 @@ fn every_edit_is_refused_on_a_read_only_vault_for_either_reason() {
         );
         assert_eq!(open.remove_where(id, |_| true), 0);
         assert!(open.copy_record(w, AT, id, None).is_none());
-        assert!(!open.fits(&c, id, &[], &[]));
+        assert!(!open.fits(&c, id, &[], &[] as &[&Record]));
         assert!(
             open.seal_job(id, &[9u8; SEAL_RANDOM_LEN], &[0u8; 64], None)
                 .is_none()
@@ -1324,4 +1330,202 @@ fn an_edited_transactions_amounts_leave_no_trace_of_the_old_transaction() {
         .map(|k| k.key.as_str())
         .collect();
     assert_eq!(keys, [format!("faraday.signed.{}", "02".repeat(32))]);
+}
+
+fn amounts_of(tx: u8) -> Record {
+    Record::new(kind::AMOUNTS)
+        .with(field::AMOUNTS_TX, &[tx; 32])
+        .with(field::AMOUNTS_INPUT, &5u64.to_le_bytes())
+}
+
+fn custom_keys(file: &[u8]) -> Vec<String> {
+    sealed_open(file)
+        .read()
+        .custom
+        .iter()
+        .map(|k| k.key.clone())
+        .collect()
+}
+
+#[test]
+fn amounts_removed_and_added_again_are_still_there_after_a_seal() {
+    let c = compute();
+    let mut doc = fresh_doc();
+    items::put_signed(&mut doc, &amounts_of(1)).expect("put");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let at = first(&store, id, kind::AMOUNTS);
+    assert!(store.remove(id, at));
+    store.insert(id, amounts_of(1)).expect("added");
+    let sealed = seal(&mut store, &c, id);
+    assert_eq!(
+        custom_keys(&sealed),
+        [format!("faraday.signed.{}", "01".repeat(32))]
+    );
+}
+
+/// Seals open vault `id` and says why it gave no file; the vault stays
+/// open with its changes.
+fn refused(store: &mut OpenVaults, c: &Compute, id: vault::VaultId) -> faraday_vault::file::Error {
+    let uuids = uuids_of(store, id, 0x10);
+    let err = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+        .expect("a job")
+        .run(c)
+        .error()
+        .expect("refused");
+    store.seal_ended(id, false);
+    err
+}
+
+#[test]
+fn a_change_the_seal_cannot_write_refuses_the_seal_and_keeps_the_vault_open() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let before = store.records(id).len();
+    let round = Record::new(kind::ROUND);
+    assert!(!store.fits(&c, id, &[], &[&round]), "fits agrees");
+    store.insert(id, round).expect("kept");
+    assert!(matches!(
+        refused(&mut store, &c, id),
+        faraday_vault::file::Error::Unwritable(_)
+    ));
+    assert_eq!(store.records(id).len(), before + 1, "the changes are kept");
+}
+
+#[test]
+fn a_new_plan_with_no_number_left_refuses_the_seal_but_other_changes_seal() {
+    let c = compute();
+    let plan = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, b"Wallet")
+        .with(field::PLAN_PLACE, b"Home");
+    let mut doc = fresh_doc();
+    items::put_plan(&mut doc, u32::MAX, &plan).expect("put");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let note = Record::new(kind::NOTE).with(field::NOTE, b"n");
+    assert!(store.fits(&c, id, &[], &[&note]), "no new plan, no number");
+    assert!(!store.fits(&c, id, &[], &[&plan]));
+    store.insert(id, plan.clone()).expect("kept");
+    assert!(matches!(
+        refused(&mut store, &c, id),
+        faraday_vault::file::Error::Unwritable(_)
+    ));
+    let at = store.records(id).len() - 1;
+    assert!(store.remove(id, at));
+    store.insert(id, note).expect("kept");
+    let sealed = seal(&mut store, &c, id);
+    assert_eq!(custom_keys(&sealed), ["faraday.plan.4294967295"]);
+}
+
+#[test]
+fn a_note_and_an_entry_with_nothing_typed_stay_editable_and_seal() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let n = store
+        .set_fields(&c, id, None, kind::NOTE, &[(field::NOTE, b"text")])
+        .expect("a note");
+    store
+        .set_fields(&c, id, Some(n), kind::NOTE, &[(field::NOTE, b"")])
+        .expect("the text cleared is not a full vault");
+    let e = store
+        .set_fields(&c, id, None, kind::ENTRY, &[(1, b"Mail"), (2, b"me")])
+        .expect("an entry");
+    assert!(store.set_public(id, e, 1, b""), "the title cleared");
+    let sealed = seal(&mut store, &c, id);
+    let (id, _) = store.unlock(&c, sealed, "pass").expect("opens");
+    assert_eq!(store.records(id).of(kind::NOTE).count(), 1);
+    let (_, entry) = store.records(id).of(kind::ENTRY).next().expect("the entry");
+    assert_eq!(entry.public(2), Some(&b"me"[..]), "its other fields stay");
+}
+
+#[test]
+fn an_edit_of_an_entry_keeps_its_totp_code() {
+    let c = compute();
+    let doc = with_entries(&entry_xml(
+        9,
+        &[
+            ("Title", "Mail"),
+            ("UserName", "me"),
+            ("TimeOtp-Secret-Base32", "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"),
+        ],
+    ));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let at = first(&store, id, kind::ENTRY);
+    assert!(store.set_public(id, at, 2, b"you"));
+    let t = store
+        .totp(id, at, Some(59), Reveal::VaultEntry(Part::Totp))
+        .expect("still a TOTP entry");
+    assert_eq!(
+        t.code
+            .expect("reads")
+            .expect("a code")
+            .grouped
+            .replace(' ', ""),
+        "287082"
+    );
+}
+
+#[test]
+fn a_vault_name_taken_out_is_gone_after_a_seal() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let at = first(&store, id, kind::SLOT_LABEL);
+    assert!(store.remove(id, at));
+    let sealed = seal(&mut store, &c, id);
+    assert_eq!(sealed_open(&sealed).read().label, "");
+}
+
+#[test]
+fn two_strings_of_one_index_do_not_stop_the_key_loading() {
+    let c = compute();
+    let seed: Vec<u8> = (1..=16).collect();
+    let mut owner = Keys::on(Network::Mainnet);
+    owner.add_seed(&c, &seed, "").expect("a key");
+    let fp = owner.info(0).expect("info").fingerprint.0;
+    const R: usize = 8 * 103;
+    let split = |random: u8| -> Vec<String> {
+        owner
+            .codex32_shares(0, 2, 3, &[random; R], Reveal::PaperForm)
+            .expect("shares")
+            .iter()
+            .map(|s| s.as_str().to_string())
+            .collect()
+    };
+    let (right, other) = (split(1), split(2));
+    let ident = |s: &str| {
+        faraday_bip::codex32::Codex32::parse(s)
+            .expect("parses")
+            .identifier()
+    };
+    assert_eq!(ident(&right[0]), ident(&other[0]), "one set header");
+    assert_ne!(right[0], other[0]);
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    // The wrong string of an index comes first.
+    for s in [&other[0], &right[0], &right[1]] {
+        store
+            .insert(
+                id,
+                Record::new(kind::CODEX32_SHARE)
+                    .with(field::CODEX32_STRING, s.as_bytes())
+                    .with(field::CODEX32_KEY, &fp),
+            )
+            .expect("kept");
+    }
+    assert_eq!(
+        store.records(id).of(kind::CODEX32_SHARE).count(),
+        3,
+        "all kept"
+    );
+    let mut keys = Keys::on(Network::Mainnet);
+    assert_eq!(
+        store.gather_codex32(&c, &mut keys).len(),
+        1,
+        "the key loads"
+    );
 }

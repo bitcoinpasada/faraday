@@ -131,7 +131,7 @@ pub struct Stick {
     /// Its top-level files and their sizes.
     pub files: Vec<(String, u64)>,
     /// The files among them that are vaults by their contents and are
-    /// not named `.fvlt` (`docs/VAULT-HARDENING.md` §2.1), read once
+    /// not named `.kdbx` (`docs/VAULT-HARDENING.md` §2.1), read once
     /// when the listing was made.
     pub vaults: Vec<String>,
     /// Why it cannot be used for a backup, when it cannot: found by the disk
@@ -768,7 +768,7 @@ mod tests {
             },
             Request::Write {
                 stick: "sdb1@7".into(),
-                name: "vault.fvlt".into(),
+                name: "vault.kdbx".into(),
                 copies: vec![[7; 32], [8; 32]],
                 replace: false,
                 renamed: true,
@@ -802,8 +802,8 @@ mod tests {
             },
             Request::Rename {
                 stick: "sdb1@7".into(),
-                from: "vault.fvlt".into(),
-                to: "savings.fvlt".into(),
+                from: "vault.kdbx".into(),
+                to: "savings.kdbx".into(),
                 vaults: vec![vec![[1; 32], [2; 32]], Vec::new(), vec![[3; 32]]],
             },
             Request::Name {

@@ -124,22 +124,22 @@ fn a_file_for_the_stick_renamed_is_written_under_its_new_name() {
 
 #[test]
 fn a_vault_renamed_goes_over_the_same_vault_on_the_stick_under_its_new_name() {
-    let v = vault("Savings", &["pass one"], 7);
+    let v = vault("Savings", "pass one", 7);
     let (mut shell, mut app) = visiting(
-        vec![file("vault.fvlt", &v)],
-        vec![file("vault.fvlt", &v), file("notes.txt", b"n")],
+        vec![file("vault.kdbx", &v)],
+        vec![file("vault.kdbx", &v), file("notes.txt", b"n")],
     );
     app.press(Action::Nav(Screen::Files));
     menu_of(&mut app, Row::Out(0));
     choose(&mut app, "Rename");
     assert_eq!(
         app.files_menu().renaming.as_ref().map(|r| r.ext.as_str()),
-        Some(".fvlt"),
-        "a vault keeps .fvlt"
+        Some(".kdbx"),
+        "a vault keeps .kdbx"
     );
     type_name(&mut app, "savings");
     app.press(Action::File(FilePress::RenameGo));
-    assert_eq!(app.outbox[0].name, "savings.fvlt");
+    assert_eq!(app.outbox[0].name, "savings.kdbx");
     shell.press(&mut app, Action::Nav(Screen::Visit));
     shell.press(&mut app, Action::VisitWrite);
     let vaults: Vec<&str> = shell
@@ -147,9 +147,9 @@ fn a_vault_renamed_goes_over_the_same_vault_on_the_stick_under_its_new_name() {
         .files
         .iter()
         .map(|(n, _)| n.as_str())
-        .filter(|n| n.ends_with(".fvlt"))
+        .filter(|n| n.ends_with(".kdbx"))
         .collect();
-    assert_eq!(vaults, ["savings.fvlt"], "one copy, under its new name");
+    assert_eq!(vaults, ["savings.kdbx"], "one copy, under its new name");
 }
 
 #[test]
@@ -224,14 +224,19 @@ fn a_file_on_the_stick_renamed_is_listed_under_its_new_name_with_its_bytes() {
 #[test]
 fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named_only_for_copies_the_session_knows()
  {
-    let v = vault("Savings", &["pass one"], 7);
+    // `v` is a vault the session has seen (`vault` makes it known);
+    // `unseen` is one it has not.
+    let v = vault("Savings", "pass one", 7);
+    let unseen = faraday_core::testkit::kdbx_vault("Other", "pass two", 9, Vec::new()).unwrap();
     let (mut shell, mut app) = visiting(
         Vec::new(),
         vec![
             file("a.txt", b"a"),
             file("B.txt", b"b"),
-            file("vault.fvlt", &v),
-            file("vault-copy.fvlt", &v),
+            file("vault.kdbx", &unseen),
+            file("vault-copy.kdbx", &unseen),
+            file("known.kdbx", &v),
+            file("known-copy.kdbx", &v),
         ],
     );
     let at = |app: &Faraday, name: &str| {
@@ -248,10 +253,16 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named_only_for_co
     type_name(&mut app, "b");
     app.press(Action::File(FilePress::RenameGo));
     shell.pump(&mut app);
-    let k = at(&app, "vault-copy.fvlt");
+    let k = at(&app, "vault-copy.kdbx");
     menu_of(&mut app, Row::Stick(k));
     choose(&mut app, "Rename");
     type_name(&mut app, "vault");
+    app.press(Action::File(FilePress::RenameGo));
+    shell.pump(&mut app);
+    let k = at(&app, "known-copy.kdbx");
+    menu_of(&mut app, Row::Stick(k));
+    choose(&mut app, "Rename");
+    type_name(&mut app, "known");
     app.press(Action::File(FilePress::RenameGo));
     shell.pump(&mut app);
     assert_eq!(shell.disk("S1").files, before, "nothing written");
@@ -259,7 +270,11 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named_only_for_co
     assert!(log.contains(&"b.txt is already on this stick"), "{log:?}");
     // Never opened or sealed here: two equal files are not known to be one vault.
     assert!(
-        log.contains(&"vault.fvlt is already on this stick"),
+        log.contains(&"vault.kdbx is already on this stick"),
+        "{log:?}"
+    );
+    assert!(
+        log.contains(&"known.kdbx on this stick is this same vault"),
         "{log:?}"
     );
 }
@@ -289,8 +304,8 @@ fn delete_from_the_stick_opens_the_sheet_with_that_file_alone_chosen() {
 
 #[test]
 fn a_vault_deleted_from_the_stick_takes_a_hold() {
-    let v = vault("Savings", &["pass one"], 7);
-    let (_shell, mut app) = visiting(Vec::new(), vec![file("vault.fvlt", &v)]);
+    let v = vault("Savings", "pass one", 7);
+    let (_shell, mut app) = visiting(Vec::new(), vec![file("vault.kdbx", &v)]);
     menu_of(&mut app, Row::Stick(0));
     choose(&mut app, "Delete from the stick");
     while app.poll_storage().is_some() {}
@@ -313,8 +328,8 @@ fn a_vault_deleted_from_the_stick_takes_a_hold() {
 }
 
 #[test]
-fn a_file_named_fvlt_holding_other_bytes_is_deleted_by_a_hold_too() {
-    let (_shell, mut app) = visiting(Vec::new(), vec![file("notes.fvlt", b"just text")]);
+fn a_file_named_kdbx_holding_other_bytes_is_deleted_by_a_hold_too() {
+    let (_shell, mut app) = visiting(Vec::new(), vec![file("notes.kdbx", b"just text")]);
     menu_of(&mut app, Row::Stick(0));
     choose(&mut app, "Delete from the stick");
     while app.poll_storage().is_some() {}
@@ -363,6 +378,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         },

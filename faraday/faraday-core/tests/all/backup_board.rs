@@ -329,7 +329,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
         let w = f.slots[0].written.as_ref().expect("S1 written");
         let wrote: Vec<&str> = w.files.iter().map(|(n, _)| n.as_str()).collect();
         assert!(wrote.contains(&seed_b.as_str()), "{wrote:?}");
-        assert!(wrote.iter().any(|n| n.ends_with(".fvlt")), "{wrote:?}");
+        assert!(wrote.iter().any(|n| n.ends_with(".kdbx")), "{wrote:?}");
         assert!(f.slots[1].written.is_none());
     }
     let on_s1 = names(&shell, "S1");
@@ -655,7 +655,7 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
     );
     for d in ["S1", "S2"] {
         assert!(
-            names(&shell, d).iter().any(|n| n.ends_with(".fvlt")),
+            names(&shell, d).iter().any(|n| n.ends_with(".kdbx")),
             "{d}: {:?}",
             names(&shell, d)
         );
@@ -1414,7 +1414,6 @@ fn a_vault_that_holds_something_says_what_before_it_is_taken_off() {
 /// wallet's description (the spending kit, returned). Its backup open on
 /// the board.
 fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
-    let c = testkit::compute();
     use faraday_vault::records::{field, kind};
     sticks(shell, 1);
     // Vault "Main" on S1, holding another wallet's description.
@@ -1422,30 +1421,16 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
         .into_iter()
         .find(|k| k.id == "spending")
         .expect("the spending kit");
-    let main = {
-        let cost = faraday_vault::Cost {
-            memory_kib: faraday_vault::MIN_MEMORY_KIB,
-            passes: 1,
-            lanes: 1,
-        };
-        let contents = vec![faraday_vault::Contents {
-            records: vec![
-                faraday_vault::Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
-                faraday_vault::Record::new(kind::WALLET)
-                    .with(field::WALLET, other.descriptor.as_bytes()),
-            ],
-        }];
-        faraday_vault::create(
-            &c,
-            faraday_vault::SLOT_SIZES[0],
-            cost,
-            &[PHRASE],
-            &contents,
-            &[0x41; 32],
-        )
-        .unwrap()
-    };
-    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
+    let main = vault_with(
+        "Main",
+        PHRASE,
+        0x41,
+        vec![
+            faraday_vault::Record::new(kind::WALLET)
+                .with(field::WALLET, other.descriptor.as_bytes()),
+        ],
+    );
+    shell.disk_mut("S1").files = vec![("main.kdbx".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
@@ -1465,7 +1450,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
         .unwrap()
         .files
         .iter()
-        .position(|(f, _)| f.name == "main.fvlt")
+        .position(|(f, _)| f.name == "main.kdbx")
         .expect("the vault is read");
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);

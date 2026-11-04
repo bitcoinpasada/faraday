@@ -136,7 +136,7 @@ fn folder_stick(name: &str, label: &str, files: &[(&str, Vec<u8>)]) -> Result<St
             .collect(),
         vaults: files
             .iter()
-            .filter(|(_, b)| b.starts_with(b"FVLT"))
+            .filter(|(_, b)| faraday_codec::vault_file::is_vault_file(b))
             .map(|(n, _)| (*n).to_string())
             .collect(),
     })

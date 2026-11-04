@@ -38,7 +38,7 @@ impl FileKind {
     /// Who may read a file of this kind.
     pub fn exposure(self) -> Exposure {
         match self {
-            FileKind::Vault | FileKind::Kdbx => Exposure::Sealed,
+            FileKind::Vault | FileKind::Kdbx | FileKind::KdbxOther => Exposure::Sealed,
             FileKind::Entries | FileKind::Words | FileKind::SeedPart | FileKind::SecretWallet => {
                 Exposure::Secret
             }

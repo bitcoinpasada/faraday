@@ -35,6 +35,10 @@ pub struct LoadSheet {
     /// it: the record's place, and which of them (from 0). Absent: the
     /// first.
     pub choice: BTreeMap<usize, usize>,
+    /// How each passphrase kept for a key record reads, worked out once
+    /// when the sheet opens (a fingerprint each costs a key stretch);
+    /// the view only reads it. Records with one or none are absent.
+    pub passphrases: BTreeMap<usize, Vec<String>>,
 }
 
 /// A seed of a wallet card, or a key of the Keys card.
@@ -244,11 +248,18 @@ impl super::Vaults {
         v: usize,
         ticked: &BTreeSet<usize>,
         choice: &BTreeMap<usize, usize>,
+        texts: Option<&BTreeMap<usize, Vec<String>>>,
     ) -> LoadView {
         let Some(open) = self.open.get(v) else {
             return LoadView::default();
         };
         let held = |fp: &str| session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
+        // Passphrases are looked for only where some open vault keeps one:
+        // finding them parses each key's words.
+        let any_passphrase = self
+            .open
+            .iter()
+            .any(|o| self.records(o.id).of(kind::PASSPHRASE).next().is_some());
         // The vault's keys: record, fingerprint, label.
         let keys: Vec<(usize, Option<String>, String)> = self
             .records(open.id)
@@ -313,13 +324,19 @@ impl super::Vaults {
                 more => Some(fill(EN.load_sheet_also_in_n, &[&more.len().to_string()])),
             };
             // Several passphrases kept for it: the card asks which.
-            let kept = if loaded {
+            let kept = if loaded || texts.is_some() || !any_passphrase {
                 Vec::new()
             } else {
                 self.store()
                     .passphrases_of_key(c, &session.keys, open.id, *i)
             };
-            let passphrases = if kept.len() > 1 {
+            let passphrases = if let Some(t) = texts {
+                if loaded {
+                    Vec::new()
+                } else {
+                    t.get(i).cloned().unwrap_or_default()
+                }
+            } else if kept.len() > 1 {
                 let many = self.open.len() > 1;
                 kept.iter()
                     .map(|&(vid, at)| {

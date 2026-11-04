@@ -6532,6 +6532,8 @@ strings! {
     /// Text in `kind_name`.
     kind_name_keepass_database: "A KeePass file of an older version",
     /// Text in `kind_name`.
+    kind_name_keepass_file: "A KeePass file",
+    /// Text in `kind_name`.
     kind_name_pdf_to_print: "PDF to print",
     /// Text in `kind_name`.
     kind_name_efi_image: "EFI image",
@@ -7338,6 +7340,8 @@ strings! {
     locked_locked: "Locked",
     /// Line in `locked_sheet`.
     locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
+    /// Line in `locked_sheet`, after a vault's changes were lost.
+    locked_changes_lost: "Changes to a vault were not saved. It was too big for its size, or it could not be written.",
     /// Text in `locked_sheet`. `{}`: `clock_text(off.saturating_sub(app.idl…`.
     locked_power_off_countdown: "Powers off in {} without input",
     /// Text in `locked_sheet`. `{}`: `app.outbox.len()`, `app.medium.for_the()`.
@@ -9034,8 +9038,8 @@ strings! {
     vault_kib: "{} KiB",
     /// The head and Unlock: a file Faraday never sealed.
     vault_not_sealed_yet: "Not sealed by Faraday yet",
-    /// Line in the Open this copy? dialog. `{}`: the vault, its history, its recycle bin.
-    vault_history_line: "{} holds a history of {} entries and {} entries in its recycle bin",
+    /// Line in the Open this copy? dialog. `{}`: its history, its recycle bin.
+    vault_history_line: "The next seal leaves out history entries: {}, recycle bin entries: {}",
     /// Unlock refused. `{}`: the vault, the file it is open from.
     vault_already_open: "{} is open already, from {}",
     /// Section title. `{}`: how many items.
@@ -9211,6 +9215,8 @@ strings! {
     vaults_is_in_the_vault: "{} is in the vault",
     /// Toast in `vault_push_in`.
     vaults_slot_too_small: "That does not fit in this vault's size",
+    /// Toast in `seal_stop` and `vault_form_save`: the store refuses to write the vault.
+    vaults_cannot_write: "This vault cannot be written as it is",
     /// Text in `vault_create_check`. `{}`: `medium.noun()`.
     vaults_remove_the_first: "Remove the {} first",
     /// Text in `vault_create_check`. `{}`: `n + 1`.
@@ -9404,7 +9410,7 @@ strings! {
     /// Name of the LND cipher seed sample.
     sample_aezeed: "LND cipher seed",
     /// File name of the sample vault, which Use a sample puts in the Inbox.
-    sample_vault_file: "sample.fvlt",
+    sample_vault_file: "sample.kdbx",
     /// File name of the sample signed message, which Use a sample puts in
     /// the Inbox.
     sample_message_file: "sample-message.txt",

@@ -298,10 +298,10 @@ pub(super) fn unlock_test_vault(app: &mut Faraday) {
     let n = app
         .vault_files()
         .iter()
-        .position(|f| f.name == "vault.fvlt")
+        .position(|f| f.name == "vault.kdbx")
         .expect("the test vault is listed");
     app.press(Action::Vault(V::Open(n)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults.open.is_empty() {

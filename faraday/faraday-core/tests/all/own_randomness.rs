@@ -13,7 +13,7 @@
 //! SHA-256(what ‖ seed ‖ count).
 
 use crate::rounds::{at, device as musig_device, our_nonce};
-use crate::vault_seal::{device as vault_device, nonces, open_and_change, sealed};
+use crate::vault_seal::{device as vault_device, open_and_change, sealed};
 use faraday_core::fresh::page::Act;
 use faraday_core::fresh::{OwnCounts, OwnSource};
 use faraday_core::keygen::Way;
@@ -72,6 +72,14 @@ fn hex(b: [u8; 32]) -> String {
 
 fn answer(app: &mut Faraday, bytes: [u8; 32]) {
     app.event(Event::Entropy(EntropyBytes::new(bytes)));
+}
+
+/// The answers a seal draws its randomness from once the session holds
+/// them: the same in every session, so two seals can be compared.
+fn answers_for_a_seal(app: &mut Faraday) {
+    for i in 0..8u8 {
+        answer(app, [0x40 + i; 32]);
+    }
 }
 
 /// The rolls 1 to 6, added as Add randomness adds a batch.
@@ -225,17 +233,16 @@ fn dice_added_change_the_seal_nonce_the_keyboard_code_and_a_new_keys_bytes() {
         let key = testkit::fresh(&mut app, b"vault").expect("an answer pooled");
         app.press(Action::InputIgnore(4));
         open_and_change(&mut app);
+        answers_for_a_seal(&mut app);
         app.press(Action::Lock);
+        testkit::settle(&mut app);
         let file = sealed(&app).expect("the vault was not sealed");
-        (code, key, nonces(&file))
+        (code, key, file)
     };
     let (plain, mixed) = (session(false), session(true));
     assert_ne!(plain.0, mixed.0, "the keyboard's code");
     assert_ne!(plain.1, mixed.1, "a new key's fresh bytes");
-    let resealed: Vec<usize> = (0..plain.2.len())
-        .filter(|&i| plain.2[i] != mixed.2[i])
-        .collect();
-    assert_eq!(resealed.len(), 1, "the slot sealed again has another nonce");
+    assert_ne!(plain.2, mixed.2, "the sealed file's randomness");
     // The same session again is the same: only the dice made the change.
     assert_eq!(session(true).0, mixed.0);
 }
@@ -287,10 +294,12 @@ fn a_vault_does_not_seal_on_what_was_added_alone() {
     add_frame(&mut app);
     open_and_change(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     assert_eq!(sealed(&app), None);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
-    answer(&mut app, SEED);
+    answers_for_a_seal(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     assert!(sealed(&app).is_some());
 }
 
@@ -411,6 +420,7 @@ fn a_lock_wipes_what_was_added() {
     add_dice(&mut app);
     assert!(app.own_counts().any());
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     assert!(app.restart_requested());
     assert_eq!(app.own_counts(), OwnCounts::default());
     // The pooled answer is no longer mixed with anything.
@@ -497,6 +507,7 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
         Some("System: getrandom(2) · your own: 99 dice rolls")
     );
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     assert!(app.restart_requested());
     app.press(Action::Nav(Screen::Settings));
     crate::common::settings_section(&mut app, "Randomness");
@@ -556,6 +567,7 @@ fn the_page_says_what_it_adds_to_and_each_batch_added_changes_its_line() {
     );
     // A lock wipes it with what was added.
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     app.press(Action::Nav(Screen::Settings));
     crate::common::settings_section(&mut app, "Randomness");
     app.press(own(Act::Open));
@@ -1168,11 +1180,15 @@ fn an_open_vault_with_changes_offers_add_randomness_on_its_screen_and_on_the_loc
         app.press(Action::Cancel);
     }
     opens_from_the_press_and_comes_back(&mut app, Action::LockAsk);
+    // The lock sheet draws a seal's nonce, and offers its row, where the
+    // system has answered what a seal needs.
+    answers_for_a_seal(&mut app);
     app.press(Action::LockAsk);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     opens_from_the_press_and_comes_back(&mut app, Action::Lock);
     // The lock still seals, as it did.
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     assert!(sealed(&app).is_some(), "the lock did not seal");
 }
 
@@ -1191,12 +1207,14 @@ fn on_the_pis_panel_add_randomness_is_the_first_row_of_the_menu() {
 #[test]
 fn a_vault_with_no_changes_has_no_randomness_row() {
     let mut app = changed_vault();
+    answers_for_a_seal(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     let mut app = vault_device(sealed(&app).expect("sealed"));
     answer(&mut app, SEED);
     app.event(Event::Display(tall()));
     app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
-    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(faraday_core::vault::VaultAction::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {

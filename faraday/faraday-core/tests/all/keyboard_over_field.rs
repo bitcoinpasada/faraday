@@ -226,7 +226,7 @@ fn unlock_s_passphrase_stands_above_the_keyboard() {
             id: "boot".into(),
             label: "FARADAY".into(),
             boot: true,
-            files: vec![("vault.fvlt".into(), vault.len() as u64)],
+            files: vec![("vault.kdbx".into(), vault.len() as u64)],
             vaults: Vec::new(),
         }]));
         pump(&mut app, &vault);

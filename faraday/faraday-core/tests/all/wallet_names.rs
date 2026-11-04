@@ -120,26 +120,7 @@ fn a_sheet_naming_its_descriptor_twice_is_refused() {
 
 /// A vault file holding the records given, under `phrase`.
 fn vault_with(records: Vec<faraday_vault::Record>, phrase: &str) -> Vec<u8> {
-    let c = testkit::compute();
-    let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
-        passes: 1,
-        lanes: 1,
-    };
-    let mut records = records;
-    records.insert(
-        0,
-        faraday_vault::Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
-    );
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[phrase],
-        &[faraday_vault::Contents { records }],
-        &[3; 32],
-    )
-    .unwrap()
+    testkit::kdbx_vault("Main", phrase, 3, records).unwrap()
 }
 
 /// Unlocks the vault file `name` with `phrase`.
@@ -171,13 +152,13 @@ fn a_vault_wallet_named_over_two_lines_reads_as_a_one_line_name() {
     app.session = testkit::session();
     app.storage(StorageEvent::Restored {
         inbox: vec![(
-            "named.fvlt".to_string(),
+            "named.kdbx".to_string(),
             vault_with(vec![record], "named phrase"),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    unlock_file(&mut app, "named.fvlt", "named phrase");
+    unlock_file(&mut app, "named.kdbx", "named phrase");
     assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.wallets.len(), 1);

@@ -72,7 +72,7 @@ pub struct StagedFile {
     pub name: String,
     /// Its size on the stick.
     pub size: u64,
-    /// Whether the listing found it a vault: named `.fvlt`, or told by
+    /// Whether the listing found it a vault: named `.kdbx`, or told by
     /// its contents when the listing was made (`docs/VAULT-HARDENING.md`
     /// §2.1).
     pub vault: bool,

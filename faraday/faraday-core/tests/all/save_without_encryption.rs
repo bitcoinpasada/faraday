@@ -3,6 +3,7 @@
 //! **Unprotected**, when Back up's plan keeps a seed's file on a stick at
 //! a place, and when Transfer's Receive reads one. Into a vault, no hold.
 
+use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::What;
@@ -117,7 +118,7 @@ fn vault_open(app: &mut Faraday) {
     testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -133,7 +134,7 @@ fn test_vault() -> (String, Vec<u8>) {
     testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap()
 }
 

@@ -37,7 +37,9 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     // The shell's randomness, which a lock seals a vault with.
-    app.event(Event::Entropy(EntropyBytes::new([3u8; 32])));
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([3 + i; 32])));
+    }
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
@@ -66,7 +68,7 @@ fn unlock(app: &mut Faraday) {
     faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -163,10 +165,11 @@ fn notes_in_vault(app: &Faraday) -> usize {
 /// loaded.
 fn reopened(app: &mut Faraday) -> Vec<Fingerprint> {
     app.press(Action::Lock);
+    testkit::settle(app);
     let vault = app
         .outbox
         .iter()
-        .find(|i| i.name == "vault.fvlt")
+        .find(|i| i.name == "vault.kdbx")
         .map(|i| (i.name.clone(), i.bytes.clone()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![vault]);
@@ -221,7 +224,7 @@ fn secrets_out(app: &Faraday) -> usize {
 
 #[test]
 fn saved_into_the_vault_from_the_seeds_step_the_key_loads_at_the_next_unlock() {
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     let fp = backing_up(&mut app, false);
     unlock(&mut app);
     let before = keys_in_vault(&app);
@@ -235,7 +238,7 @@ fn saved_into_the_vault_from_the_seeds_step_the_key_loads_at_the_next_unlock() {
 
 #[test]
 fn with_its_passphrase_the_vault_keeps_the_key_as_it_was_loaded() {
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     let fp = backing_up(&mut app, true);
     unlock(&mut app);
     app.press(Action::BVaultSave(0));
@@ -244,7 +247,7 @@ fn with_its_passphrase_the_vault_keeps_the_key_as_it_was_loaded() {
 
 #[test]
 fn the_secret_sheet_saves_a_seed_as_a_key_and_not_a_note() {
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     let fp = backing_up(&mut app, false);
     unlock(&mut app);
     let (keys, notes) = (keys_in_vault(&app), notes_in_vault(&app));
@@ -390,6 +393,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         });
@@ -447,7 +451,7 @@ fn savings_backup(app: &mut Faraday) {
 
 #[test]
 fn the_panel_says_which_vault_holds_the_seed_and_the_wallet() {
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     backing_up(&mut app, false);
     let locked = line("Not checked: no vault unlocked", Tone::Dim);
     assert_eq!(kept(&app).wallet, locked);
@@ -462,20 +466,20 @@ fn the_panel_says_which_vault_holds_the_seed_and_the_wallet() {
     app.press(Action::BVaultSave(0));
     assert_eq!(
         kept(&app).seeds[0].lines[0],
-        line("In vault.fvlt", Tone::Ok)
+        line("In vault.kdbx", Tone::Ok)
     );
-    assert_eq!(kept(&app).wallet, line("Wallet in vault.fvlt", Tone::Ok));
+    assert_eq!(kept(&app).wallet, line("Wallet in vault.kdbx", Tone::Ok));
 }
 
 #[test]
 fn saved_with_its_passphrase_the_panel_says_so() {
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     backing_up(&mut app, true);
     unlock(&mut app);
     app.press(Action::BVaultSave(0));
     assert_eq!(
         kept(&app).seeds[0].lines[0],
-        line("In vault.fvlt with its passphrase", Tone::Ok)
+        line("In vault.kdbx with its passphrase", Tone::Ok)
     );
 }
 

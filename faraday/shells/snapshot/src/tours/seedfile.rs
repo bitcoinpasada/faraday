@@ -44,7 +44,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // The test vault, unlocked: it holds test key 1, not test key 2.
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
     let inbox: Vec<(String, Vec<u8>)> = t
         .app
@@ -64,7 +64,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..20 {
         t.tick();

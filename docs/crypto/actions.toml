@@ -6883,10 +6883,8 @@ functions = [
   "faraday/faraday-vault/src/lib.rs::open",
   "faraday/faraday-vault/src/lib.rs::open_with",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_seals",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::opened_digest",
   "faraday/faraday-vault/src/lib.rs::Opened::copy_seals",
-  "faraday/faraday-keys/src/vault.rs::slot_digest",
   "faraday/faraday-keys/src/job.rs::StretchJob::run",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::adopt",
 ]
@@ -7177,7 +7175,7 @@ reviewed = "2026-11-03"
 [[action]]
 id = "vault-kdbx"
 name = "Seal and open KDBX"
-action = "Writes and reads the KDBX 4 container a file vault is: Argon2id (or, read only, Argon2d) over the SHA-256 of the passphrase's SHA-256, SHA-256 and SHA-512 key steps, ChaCha20 (or, read only, AES-256-CBC) over the body, HMAC-SHA-256 over the header and over every block of the stream, gzip read, and the inner stream's ChaCha20 over protected values."
+action = "Writes and reads the KDBX 4 container a file vault is: Argon2id (or, read only, Argon2d) over the SHA-256 of the passphrase's SHA-256, SHA-256 and SHA-512 key steps, ChaCha20 (or, read only, AES-256-CBC) over the body, HMAC-SHA-256 over the header and over every block of the stream, gzip read, and the inner stream's ChaCha20 over protected values. The store's functions listed here make the seal's job: the writes a seal makes from the records changed (a change the seal cannot write refuses it, never dropped), the UUIDs new entries and groups take from the bytes the seal draws (one fresh answer expanded by SHA-256 over a domain string, the answer and a counter: the UUIDs need to differ, not to be secret), and the check that the changes fit the file's size."
 row = "vault"
 label = "own specification, not yet reviewed outside Faraday"
 standards = [
@@ -7189,14 +7187,16 @@ standards = [
   "RFC 1952",
 ]
 learn = "faraday:vaults"
-screens = []
+screens = ["CreateVault", "Unlock", "VaultContents", "Vaults"]
 functions = [
   "faraday/faraday-keys/src/job.rs::SealJob::run",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::fits",
+  "faraday/faraday-keys/src/vault.rs::Records::unwritable",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::remove",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::remove_where",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::seal_job",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::uuid_bytes",
+  "faraday/faraday-core/src/vault/seal.rs::uuid_bytes_from",
   "faraday/faraday-vault/src/kdbx/mod.rs::inspect",
   "faraday/faraday-vault/src/kdbx/mod.rs::checked_header",
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
@@ -7335,7 +7335,7 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::each_seal_of_one_opening_counts_one_more_and_keeps_its_time",
   "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
   "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
-  "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does",
+  "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_the_answers_the_system_gave",
 ]
 crosscheck = "vault"
 independence = { class = "outside-and-own", author = "argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20), for the primitives", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from the FVLT format's account (`docs/history/VAULT-LOG.md`)" }
@@ -7453,13 +7453,20 @@ label = "own specification, not yet reviewed outside Faraday"
 standards = []
 learn = "faraday:vaults"
 screens = [
-  "VaultContents",
   "BackupFlow",
+  "CreateVault",
+  "Unlock",
+  "VaultContents",
+  "Vaults",
 ]
 functions = [
   "faraday/faraday-keys/src/vault.rs::OpenVaults::insert",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::insert_at",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public_all",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_secret",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::relates",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::passphrases_of_key",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public_all_in",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::set_fields",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_record",
@@ -9098,7 +9105,7 @@ own = "the two-part and three-part files, made from the definition of Seed XOR"
 
 [open_item.kdbx]
 spec = "docs/VAULT.md"
-names = "the KDBX file vault"
+names = "the FVLT code"
 
 [[name_with_digits]]
 name = "Argon2"
@@ -9194,7 +9201,7 @@ actions = ["vault-create", "vault-unlock", "vault-seal"]
 heading = "The file"
 
 [[construction.section.para]]
-text = "the vault becomes a KDBX 4 database under one passphrase, with Argon2id and ChaCha20 as KeePass writes them, its items as KeePass entries, in four sizes; and the smallest, a QR code, an RFC 9580 OpenPGP message under its Argon2 S2K with AES-256-OCB, holding one item. Both open in programs Faraday's authors did not write. It replaces the four-slot account below, which is the vault built today."
+text = "this account of the four-slot format leaves with its code. A file vault is now a KDBX 4 database under one passphrase, with Argon2id and ChaCha20 as KeePass writes them, its items as KeePass entries, in four sizes, and it opens in programs Faraday's authors did not write; the smallest vault, a QR code, becomes an RFC 9580 OpenPGP message under its Argon2 S2K with AES-256-OCB, holding one item."
 planned = "kdbx"
 
 [[construction.section.para]]
@@ -9219,7 +9226,7 @@ text = "The header is the first {c:faraday/faraday-vault/src/lib.rs::HEADER_LEN}
 table = "vault-header"
 
 [[construction.section.para]]
-text = "The magic is {b:faraday/faraday-intake/src/lib.rs::VAULT_MAGIC}."
+text = "The magic is {b:core/faraday-codec/src/vault_file.rs::MAGIC}."
 
 [[construction.section]]
 heading = "The keys"

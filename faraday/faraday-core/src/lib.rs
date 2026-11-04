@@ -1711,15 +1711,6 @@ impl Faraday {
         self.idle.ms(self.now_ms)
     }
 
-    /// When the idle warning comes up and when the lock follows, ms
-    /// without input; `None` when the session never locks for idleness.
-    pub(crate) fn idle_lock_at(&self) -> Option<(u64, u64)> {
-        (self.idle_lock_min() > 0).then(|| {
-            let lock = u64::from(self.idle_lock_min()) * 60_000;
-            (lock - IDLE_WARN_MS.min(lock / 2), lock)
-        })
-    }
-
     /// Ms without input at which the machine powers off, when it would:
     /// nothing held, nothing in the Outbox, not the online app.
     pub(crate) fn idle_off_at(&self) -> Option<u64> {
@@ -1744,7 +1735,7 @@ impl Faraday {
         // Make a new wallet before its keys are kept anywhere: no idle
         // lock at all (`docs/history/NEW-WALLET.md` §18).
         let held = self.lock_held(&c);
-        if let Some((warn, lock)) = self.idle_lock_at()
+        if let Some((warn, lock)) = idle::lock_at(self.idle_lock_min())
             && idle >= warn
             && idle < lock
             && self.lockable()
@@ -3624,8 +3615,14 @@ impl Faraday {
             .filter_map(|(_, r)| r.to_public())
             .collect();
         if !ours.is_empty() {
+            // `remove_where` asks each record once, in order: the count is
+            // the record's place before any went (its own place shifts).
+            let mut seen = 0;
             self.vaults.edit(id, |s| {
-                s.remove_where(id, |r| r.home().is_some_and(|(_, i)| same(i)))
+                s.remove_where(id, |_| {
+                    seen += 1;
+                    same(seen - 1)
+                })
             });
         }
         if !self.vault_push_in(

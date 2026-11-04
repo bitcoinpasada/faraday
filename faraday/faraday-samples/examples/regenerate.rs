@@ -451,37 +451,22 @@ fn wallets(c: &Compute, keys: &[Key]) -> Vec<Wallet> {
     out
 }
 
-/// The vault: sample key 1 and the Savings wallet, under `faraday`.
+/// The vault: sample key 1 and the Savings wallet, under `faraday`, as
+/// a KDBX file at the test cost.
 fn vault_file(c: &Compute) -> Vec<u8> {
+    use faraday_vault::Record;
     use faraday_vault::records::{self, field, kind};
-    use faraday_vault::{Contents, Cost, Record};
     let words = faraday_core::samples::repeated("bacon", 24);
     let m = Mnemonic::parse(c, Language::English, &words).expect("words");
-    let contents = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Sample vault"),
-            Record::new(kind::KEY)
-                .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_LABEL, b"Sample key 1"),
-            Record::new(kind::WALLET)
-                .with(field::WALLET, testkit::savings().as_bytes())
-                .with(field::WALLET_NAME, b"Savings"),
-        ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 3,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[PASSPHRASE],
-        &[contents],
-        &[0x7a; 32],
-    )
-    .expect("a vault")
+    let records = vec![
+        Record::new(kind::KEY)
+            .with(field::KEY, &records::words_payload(&m))
+            .with(field::KEY_LABEL, b"Sample key 1"),
+        Record::new(kind::WALLET)
+            .with(field::WALLET, testkit::savings().as_bytes())
+            .with(field::WALLET_NAME, b"Savings"),
+    ];
+    testkit::kdbx_vault("Sample vault", PASSPHRASE, 0x7a, records).expect("a vault")
 }
 
 /// A message signed by sample Spending's first receive address.
@@ -568,7 +553,7 @@ fn main() {
     std::fs::create_dir_all(root().join("data")).expect("data dir");
     let keys = keys(&c);
     let wallets = wallets(&c, &keys);
-    std::fs::write(root().join("data/sample.fvlt"), vault_file(&c)).expect("write");
+    std::fs::write(root().join("data/sample.kdbx"), vault_file(&c)).expect("write");
     let (address, message) = signed_message(&c);
     let totp = testkit::ENTRIES_FILE.lines().next().expect("a line");
 
@@ -587,7 +572,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.fvlt\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

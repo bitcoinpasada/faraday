@@ -202,9 +202,15 @@ pub fn is_vault(bytes: &[u8]) -> bool {
 }
 
 /// Whether the bytes begin as a KeePass database (KDBX) does but are not
-/// a vault: a file of an older version, or one of a length no vault has.
+/// a vault: a file of another version, or one of a length no vault has.
 pub fn is_kdbx(bytes: &[u8]) -> bool {
     bytes.starts_with(&faraday_codec::vault_file::SIGNATURE) && !is_vault(bytes)
+}
+
+/// Whether the bytes begin as a KeePass database of version 3 or older,
+/// which Faraday names and does not open.
+pub fn is_older_kdbx(bytes: &[u8]) -> bool {
+    faraday_codec::vault_file::is_older_kdbx(bytes)
 }
 
 /// Whether text looks like entries for a vault: an `otpauth://` line, or

@@ -2,13 +2,13 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/panes_screen.rs`, `faraday/faraday-core/src/vault/load_screen.rs`, `faraday/faraday-core/src/vault/mod.rs`)
-**Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `OlderCopy`, `PassphraseSeeds`
+**Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `OlderCopy`, `SaveAlso`, `PassphraseSeeds`
 **Group:** Vaults
 
 The list of the vaults in Files, a vault's Unlock, the dialog an
 unlock of an older copy stops at, and the two sheets that load from a
 vault once it is open. A vault is one encrypted file
-(`.fvlt`); Files holds it while Faraday runs, and a stick visit carries
+(`.kdbx`); Files holds it while Faraday runs, and a stick visit carries
 it in and out.
 
 ## Vaults
@@ -155,8 +155,20 @@ title is **Load from …** with the vault's name ("Load from Passwords"), or "Lo
 
 What is ticked at first is what the vault saves with **Load at unlock**
 on ([Vault contents](vault.md#a-key)). After the sheet, a wallet loaded
-opens Wallets on it, with "… loaded from vault.fvlt"; with none, Files
+opens Wallets on it, with "… loaded from vault.kdbx"; with none, Files
 stays.
+
+## Save another?
+
+**Opened from:** saving a BIP-39 passphrase, or a share of a set, into
+an open vault that already holds one for that key or set. A dialog: the
+vault's name, then "<vault> already holds a passphrase for this key" or
+"A share of this set is already in <vault>", in the warning tone.
+
+| Control | What it does |
+|---|---|
+| **Continue** | saves the record too, beside the one held |
+| **Cancel** | saves nothing |
 
 ## Seeds with no passphrase stored
 

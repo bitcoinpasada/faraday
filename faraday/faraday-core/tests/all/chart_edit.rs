@@ -202,7 +202,9 @@ fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
 
 /// What the lock saved: For the stick, and the kept state.
 fn saved_at_lock(app: &mut Faraday) -> (Files, Files) {
+    crate::common::top_up(app);
     app.press(Action::Lock);
+    testkit::settle(app);
     let mut last = (Vec::new(), Vec::new());
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
@@ -322,7 +324,7 @@ fn a_plan_edited_on_the_chart_loads_back_the_same_from_the_vault() {
     let (outbox, _) = saved_at_lock(&mut app);
     let vault: Files = outbox
         .into_iter()
-        .filter(|(n, _)| n.ends_with(".fvlt"))
+        .filter(|(n, _)| n.ends_with(".kdbx"))
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not put For the stick");
     let mut app = device(vault, Vec::new());

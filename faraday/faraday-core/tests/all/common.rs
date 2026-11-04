@@ -178,6 +178,29 @@ fn display(app: &mut Faraday) {
     }));
 }
 
+/// A lock, as a person's: the pool filled for the seals it draws, the
+/// lock pressed and its sealing waited for.
+pub fn lock(app: &mut Faraday) {
+    top_up(app);
+    app.press(Action::Lock);
+    faraday_core::testkit::settle(app);
+}
+
+/// The answers the shell gives to the requests a vault's making or seal
+/// has made: the pool filled again.
+pub fn top_up(app: &mut Faraday) {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    // Every answer differs, as a system's do: two vaults made in one
+    // session never share an identifier.
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    for _ in 0..16 {
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let mut bytes = [0x80u8; 32];
+        bytes[..4].copy_from_slice(&n.to_le_bytes());
+        app.event(Event::Entropy(EntropyBytes::new(bytes)));
+    }
+}
+
 /// A process with these files, the clock known and its time kept.
 pub fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     let mut app = Faraday::new();
@@ -185,6 +208,8 @@ pub fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
     }
+    know_files(&mut app, &inbox);
+    know_files(&mut app, &outbox);
     app.storage(StorageEvent::Restored {
         inbox,
         outbox,
@@ -519,13 +544,16 @@ impl Shell {
     pub fn vault_writes(&self) -> usize {
         self.writes
             .iter()
-            .filter(|(_, n)| n.ends_with(".fvlt"))
+            .filter(|(_, n)| n.ends_with(".kdbx"))
             .count()
     }
 
     pub fn plug(&mut self, app: &mut Faraday, id: &str) {
         if !self.present.iter().any(|p| p == id) {
             self.present.push(id.into());
+        }
+        if let Some(d) = self.disks.iter().find(|d| d.id == id) {
+            know_files(app, &d.files);
         }
         app.storage(StorageEvent::Sticks(self.infos()));
         self.pump(app);
@@ -568,7 +596,11 @@ impl Shell {
     /// A lock: the process the app was is gone, and a clean one reads what
     /// it kept.
     pub fn lock(&mut self, app: &mut Faraday) -> Faraday {
+        top_up(app);
         app.press(Action::Lock);
+        // The seals run on the worker; each answer is taken before the
+        // next vault's seal starts.
+        faraday_core::testkit::settle(app);
         self.pump(app);
         assert!(app.restart_requested(), "locked");
         self.restart()
@@ -586,13 +618,10 @@ pub fn write_any(
     replace: bool,
     renamed: bool,
 ) -> String {
-    if name.ends_with(".fvlt")
-        && bytes.starts_with(b"FVLT")
-        && faraday_vault::read_header(bytes).is_ok()
-    {
+    if name.ends_with(".kdbx") && faraday_vault::file::inspect(bytes).is_ok() {
         if replace
             && let Some(at) = files.iter().position(|(n, b)| {
-                n.ends_with(".fvlt") && copies.contains(&faraday_crypto::sha256(b))
+                n.ends_with(".kdbx") && copies.contains(&faraday_crypto::sha256(b))
             })
         {
             // The file keeps its name on the stick, unless the person
@@ -651,8 +680,8 @@ pub fn rename(
     {
         let mine = &files[at].1;
         let (a, b) = (faraday_crypto::sha256(mine), faraday_crypto::sha256(other));
-        let same = from.ends_with(".fvlt")
-            && to.ends_with(".fvlt")
+        let same = from.ends_with(".kdbx")
+            && to.ends_with(".kdbx")
             && vaults.iter().any(|v| v.contains(&a) && v.contains(&b));
         return Some(if same {
             faraday_core::Unrenamed::SameVault
@@ -664,32 +693,96 @@ pub fn rename(
     None
 }
 
-/// A vault file with a label and these passphrases.
-pub fn vault(label: &str, phrases: &[&str], seed: u8) -> Vec<u8> {
-    let c = faraday_core::testkit::compute();
-    let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
-        passes: 1,
-        lanes: 1,
-    };
-    let contents: Vec<faraday_vault::Contents> = phrases
-        .iter()
-        .map(|_| faraday_vault::Contents {
-            records: vec![
-                faraday_vault::Record::new(faraday_vault::records::kind::SLOT_LABEL)
-                    .with(faraday_vault::records::field::LABEL, label.as_bytes()),
-            ],
-        })
+/// A vault file labelled `label` under `phrase`, with no record. `id`
+/// makes its identifier.
+pub fn vault(label: &str, phrase: &str, id: u8) -> Vec<u8> {
+    vault_with(label, phrase, id, Vec::new())
+}
+
+/// [`vault`] holding `records`.
+pub fn vault_with(
+    label: &str,
+    phrase: &str,
+    id: u8,
+    records: Vec<faraday_vault::Record>,
+) -> Vec<u8> {
+    let file = faraday_core::testkit::kdbx_vault(label, phrase, id, records).unwrap();
+    MADE.with(|m| {
+        m.borrow_mut()
+            .push((faraday_crypto::sha256(&file), id, label.to_string()))
+    });
+    file
+}
+
+/// A vault file labelled `label` under `phrase` holding `records` (a
+/// label record is the file's name, not a record). `id` makes its
+/// identifier.
+pub fn vault_of(label: &str, phrase: &str, id: u8, records: Vec<faraday_vault::Record>) -> Vec<u8> {
+    let records = records
+        .into_iter()
+        .filter(|r| r.kind != faraday_vault::records::kind::SLOT_LABEL)
         .collect();
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        phrases,
-        &contents,
-        &[seed; 32],
-    )
-    .unwrap()
+    let file = faraday_core::testkit::kdbx_vault(label, phrase, id, records).unwrap();
+    MADE.with(|m| {
+        m.borrow_mut()
+            .push((faraday_crypto::sha256(&file), id, label.to_string()))
+    });
+    file
+}
+
+/// `copy` (a changed copy of `file`, which `vault` made) is a file of the
+/// same vault.
+pub fn same_vault(file: &[u8], copy: &[u8]) {
+    MADE.with(|m| {
+        let mut m = m.borrow_mut();
+        let sha = faraday_crypto::sha256(file);
+        let (_, id, label) = m
+            .iter()
+            .find(|e| e.0 == sha)
+            .cloned()
+            .expect("made by vault");
+        m.push((faraday_crypto::sha256(copy), id, label));
+    });
+}
+
+thread_local! {
+    /// The vault files `vault` made: their SHA-256, id byte and label.
+    static MADE: std::cell::RefCell<Vec<([u8; 32], u8, String)>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
+}
+
+/// The session has seen these vault files before (a file names
+/// no vault by itself; the session's summaries link a file to one by its
+/// SHA-256): each that `vault` made is a known copy of its vault.
+pub fn know_files(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
+    for (name, bytes) in files {
+        let sha = faraday_crypto::sha256(bytes);
+        let Some((_, id, label)) = MADE.with(|m| m.borrow().iter().find(|e| e.0 == sha).cloned())
+        else {
+            continue;
+        };
+        let mut vault_id = [0u8; 32];
+        for k in 0..16 {
+            vault_id[2 * k] = b"0123456789abcdef"[usize::from(id >> 4)];
+            vault_id[2 * k + 1] = b"0123456789abcdef"[usize::from(id & 15)];
+        }
+        let summaries = faraday_core::testkit::vault_summaries_mut(app);
+        match summaries.iter_mut().find(|s| s.id == vault_id) {
+            Some(s) => {
+                if !s.copies.contains(&sha) {
+                    s.copies.push(sha);
+                }
+            }
+            None => summaries.push(faraday_core::vault::VaultSummary {
+                file: name.clone(),
+                id: vault_id,
+                copies: vec![sha],
+                name: label,
+                ..Default::default()
+            }),
+        }
+    }
 }
 
 /// The tile of Tools that makes this kind.
@@ -734,6 +827,7 @@ pub fn has_part(app: &mut Faraday, part: &str) -> bool {
 
 /// Create a vault inside the flow: the passphrase typed twice, then made.
 pub fn create_vault(shell: &mut Shell, app: &mut Faraday, v: usize, phrase: &str) {
+    top_up(app);
     shell.flow(app, F::CreateVault(v));
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(app, phrase);
@@ -814,7 +908,7 @@ pub fn at_make(app: &mut Faraday, kind: Kind) {
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
     let (salt, name) = {
         let o = &app.vaults().open[app.vaults().current];
-        (o.header().salt, o.name.clone())
+        (o.vault_id(), o.name.clone())
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);
@@ -1417,8 +1511,19 @@ pub fn gpg_key_of(r: &faraday_vault::Record) -> Option<faraday_pgp::Key> {
     })
 }
 
+/// The records of one type, with their positions.
+pub trait RecordsOf {
+    fn of(&self, kind: u8) -> impl Iterator<Item = (usize, &faraday_vault::Record)>;
+}
+
+impl RecordsOf for [faraday_vault::Record] {
+    fn of(&self, kind: u8) -> impl Iterator<Item = (usize, &faraday_vault::Record)> {
+        self.iter().enumerate().filter(move |(_, r)| r.kind == kind)
+    }
+}
+
 /// Open vault `o`'s records as they are, through the store's test door.
-pub fn contents(app: &Faraday, o: usize) -> &faraday_vault::Contents {
+pub fn contents(app: &Faraday, o: usize) -> &[faraday_vault::Record] {
     app.vaults()
         .store()
         .contents_for_tests(app.vaults().open[o].id)
@@ -1541,4 +1646,14 @@ pub fn codes_offered(app: &mut Faraday) -> Vec<Action> {
             )
         })
         .collect()
+}
+
+/// The records of a vault file, opened under `phrase` through the store.
+pub fn kdbx_records(file: &[u8], phrase: &str) -> Vec<faraday_vault::Record> {
+    let c = faraday_core::testkit::compute();
+    let mut store = faraday_keys::vault::OpenVaults::default();
+    let (vid, _) = store
+        .unlock(&c, file.to_vec(), phrase)
+        .unwrap_or_else(|e| panic!("opens: {e:?}"));
+    store.contents_for_tests(vid).to_vec()
 }

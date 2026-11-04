@@ -21,7 +21,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 /// One file of the test stick, made alone: building the whole stick costs
 /// every kit's spend and the test vault.
 fn kit_file(name: &str) -> (String, Vec<u8>) {
-    if name == "vault.fvlt" {
+    if name == "vault.kdbx" {
         return (name.to_string(), testkit::test_vault().unwrap());
     }
     let id = name
@@ -223,7 +223,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
 #[test]
 fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     let fp = add_key(&mut app, 1);
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(S::Make));
@@ -251,7 +251,7 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     // The vault is locked: Unlock it, and back to this step.
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     press_offered(&mut app, Action::Vault(V::OpenFrom(0, Screen::Backup)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() && app.screen == Screen::Backup {

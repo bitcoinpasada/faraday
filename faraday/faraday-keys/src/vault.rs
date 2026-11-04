@@ -33,7 +33,7 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::{Compute, Work};
 use faraday_intake::wallet::Refusal;
 use faraday_vault::file::Change;
-use faraday_vault::kdbx::items::{self, Body, Damage, Fault, Place, Unreadable};
+use faraday_vault::kdbx::items::{self, Body, Damage, Fault, Place, Unreadable, Unwritable};
 use faraday_vault::layouts;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Record};
@@ -252,16 +252,64 @@ impl Held<Record> {
 /// What can be made a record of an open vault: a record built from input
 /// in hand, or one an operation of this crate made and holds. Only the
 /// edits of [`OpenVaults`] take the record out of it.
-pub trait IntoRecord {
+pub trait IntoRecord: Fit {
     /// The record.
     fn into_record(self) -> Record;
+    /// The record held, to wait (a dialog's pending list) with its
+    /// secrets still guarded.
+    fn staged(self) -> Staged;
     /// The bytes the record takes in a slot.
     fn size(&self) -> usize;
+}
+
+/// Proof of being inside this crate: only it can make one, so only it
+/// reads the record of a [`Fit`].
+pub struct Inside(());
+
+/// What can be measured against a slot or looked up for a related
+/// record without the record leaving its guard: [`OpenVaults::fits`] and
+/// [`OpenVaults::relates`] take it.
+pub trait Fit {
+    /// The record; for this crate's use.
+    fn record_of(&self, _: Inside) -> &Record;
+}
+
+impl Fit for Record {
+    fn record_of(&self, _: Inside) -> &Record {
+        self
+    }
+}
+
+impl Fit for Held<Record> {
+    fn record_of(&self, _: Inside) -> &Record {
+        self
+    }
+}
+
+impl Fit for MadeKey {
+    fn record_of(&self, _: Inside) -> &Record {
+        &self.0
+    }
+}
+
+impl Fit for &MadeKey {
+    fn record_of(&self, _: Inside) -> &Record {
+        &self.0
+    }
+}
+
+impl Fit for Staged {
+    fn record_of(&self, _: Inside) -> &Record {
+        self.record()
+    }
 }
 
 impl IntoRecord for Record {
     fn into_record(self) -> Record {
         self
+    }
+    fn staged(self) -> Staged {
+        Staged::Made(self)
     }
     fn size(&self) -> usize {
         Record::size(self)
@@ -271,6 +319,9 @@ impl IntoRecord for Record {
 impl IntoRecord for Held<Record> {
     fn into_record(self) -> Record {
         self.release()
+    }
+    fn staged(self) -> Staged {
+        Staged::Held(self)
     }
     fn size(&self) -> usize {
         self.view().size()
@@ -305,6 +356,9 @@ impl IntoRecord for &MadeKey {
     fn into_record(self) -> Record {
         self.0.clone()
     }
+    fn staged(self) -> Staged {
+        Staged::Made(self.0.clone())
+    }
     fn size(&self) -> usize {
         MadeKey::size(self)
     }
@@ -334,12 +388,18 @@ impl Staged {
         self.view().size()
     }
 
-    /// The record itself, to measure with [`OpenVaults::fits`].
-    pub fn record(&self) -> &Record {
+    /// The record itself, for this crate's measures.
+    pub(crate) fn record(&self) -> &Record {
         match self {
             Staged::Made(r) => r,
             Staged::Held(h) => h,
         }
+    }
+}
+
+impl std::fmt::Debug for Staged {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Staged(..)")
     }
 }
 
@@ -349,6 +409,9 @@ impl IntoRecord for Staged {
             Staged::Made(r) => r,
             Staged::Held(h) => h.release(),
         }
+    }
+    fn staged(self) -> Staged {
+        self
     }
     fn size(&self) -> usize {
         Staged::size(self)
@@ -406,8 +469,8 @@ pub(crate) fn with_changes<T>(
     ops: &[Op],
     exact: bool,
     now: Option<u64>,
-    f: impl FnOnce(&[Change<'_>]) -> T,
-) -> T {
+    f: impl FnOnce(&[Change<'_>]) -> Result<T, fv::file::Error>,
+) -> Result<T, fv::file::Error> {
     struct Prepared {
         title: String,
         body: Body,
@@ -423,37 +486,38 @@ pub(crate) fn with_changes<T>(
         })
         .collect();
     let when = now.and_then(|n| i64::try_from(n).ok());
-    let changes: Vec<Change<'_>> = ops
-        .iter()
-        .zip(&prepared)
-        .filter_map(|(op, p)| {
-            Some(match op {
-                Op::Put {
-                    uuid,
-                    group_uuid,
-                    record,
-                    ..
-                } => {
-                    let p = p.as_ref()?;
-                    Change::Put {
-                        place: Place {
-                            uuid: *uuid,
-                            group: names.group(record.kind),
-                            group_uuid: *group_uuid,
-                            title: &p.title,
-                            now: when,
-                        },
-                        body: &p.body,
-                    }
+    let mut changes: Vec<Change<'_>> = Vec::with_capacity(ops.len());
+    for (op, p) in ops.iter().zip(&prepared) {
+        changes.push(match op {
+            Op::Put {
+                uuid,
+                group_uuid,
+                record,
+                ..
+            } => {
+                // A record with no form to write is a refusal, never a
+                // change left out.
+                let p = p
+                    .as_ref()
+                    .ok_or(fv::file::Error::Unwritable(Unwritable::Record(record.kind)))?;
+                Change::Put {
+                    place: Place {
+                        uuid: *uuid,
+                        group: names.group(record.kind),
+                        group_uuid: *group_uuid,
+                        title: &p.title,
+                        now: when,
+                    },
+                    body: &p.body,
                 }
-                Op::Remove(uuid) => Change::Remove(*uuid),
-                Op::RemoveCustom(key) => Change::RemoveCustom(key),
-                Op::Plan { n, record } => Change::Plan { n: *n, record },
-                Op::Signed(record) => Change::Signed(record),
-                Op::Label(label) => Change::Label(label),
-            })
-        })
-        .collect();
+            }
+            Op::Remove(uuid) => Change::Remove(*uuid),
+            Op::RemoveCustom(key) => Change::RemoveCustom(key),
+            Op::Plan { n, record } => Change::Plan { n: *n, record },
+            Op::Signed(record) => Change::Signed(record),
+            Op::Label(label) => Change::Label(label),
+        });
+    }
     f(&changes)
 }
 
@@ -510,6 +574,14 @@ impl<'a> Records<'a> {
     /// 0 for a vault that is read-only or not held.
     pub fn used(&self, c: &Compute) -> usize {
         self.slot.map_or(0, |(s, names)| s.used(c, names))
+    }
+
+    /// Costs what [`Records::used`] costs. Whether the seal refuses to
+    /// write this vault as it is (a record it cannot write, a file it
+    /// cannot make): then its size says nothing, and taking records out
+    /// to make room cannot help unless the refused one goes.
+    pub fn unwritable(&self, c: &Compute) -> bool {
+        self.used(c) == usize::MAX
     }
 }
 
@@ -569,7 +641,7 @@ impl Names {
     }
 
     /// Costs a PBKDF2 and an elliptic-curve multiplication for a key with
-    /// no label, when `exact`. The title written where the record has none
+    /// no label, when `exact` (a label is the title, so a key with one costs nothing). The title written where the record has none
     /// of its own; with `exact` false a key's fingerprint is a stand-in of
     /// the same length.
     pub(crate) fn title(&self, c: &Compute, r: &Record, exact: bool) -> String {
@@ -580,7 +652,8 @@ impl Names {
         };
         match r.kind {
             kind::KEY => {
-                let fp = if exact {
+                let labelled = r.text(field::KEY_LABEL).is_some_and(|t| !t.is_empty());
+                let fp = if exact && !labelled {
                     with_material(c, r, |m, p| fingerprint(c, m, p, Network::Mainnet))
                         .map(crate::identity::fp_text)
                 } else {
@@ -726,19 +799,25 @@ fn drop_op(o: &Origin, ops: &mut Vec<Op>) {
     match o {
         Origin::Entry { uuid, .. } => ops.push(Op::Remove(*uuid)),
         Origin::Custom { key } => ops.push(Op::RemoveCustom(key.clone())),
-        Origin::Label | Origin::New => {}
+        // The name taken out is a name cleared.
+        Origin::Label => ops.push(Op::Label(String::new())),
+        Origin::New => {}
     }
 }
 
 /// A record with no place in the file yet.
-fn fresh_op(rec: &Record, plan: &mut u32, ops: &mut Vec<Op>) {
+///
+/// A kind with no place in the file, or no number left for a plan, is a
+/// refusal: the seal does not leave the change out.
+fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(), Unwritable> {
     match rec.kind {
         kind::PLAN => {
+            let n = plan.ok_or(Unwritable::Plan)?;
             ops.push(Op::Plan {
-                n: *plan,
+                n,
                 record: rec.clone(),
             });
-            *plan = plan.saturating_add(1);
+            *plan = n.checked_add(1);
         }
         kind::AMOUNTS => ops.push(Op::Signed(rec.clone())),
         kind::SLOT_LABEL => ops.push(Op::Label(rec.text(field::LABEL).unwrap_or("").to_string())),
@@ -748,12 +827,19 @@ fn fresh_op(rec: &Record, plan: &mut u32, ops: &mut Vec<Op>) {
             new: true,
             record: rec.clone(),
         }),
-        _ => {}
+        k => return Err(Unwritable::Record(k)),
     }
+    Ok(())
 }
 
 /// What a record present says to write: nothing when it is as read.
-fn put_op(o: &Origin, rec: &Record, dirty: bool, plan: &mut u32, ops: &mut Vec<Op>) {
+fn put_op(
+    o: &Origin,
+    rec: &Record,
+    dirty: bool,
+    plan: &mut Option<u32>,
+    ops: &mut Vec<Op>,
+) -> Result<(), Unwritable> {
     match o {
         Origin::Entry { uuid, kind, .. } if is_entry_kind(rec.kind) && rec.kind == *kind => {
             if dirty {
@@ -794,20 +880,21 @@ fn put_op(o: &Origin, rec: &Record, dirty: bool, plan: &mut u32, ops: &mut Vec<O
                 }
                 None => {
                     drop_op(o, ops);
-                    fresh_op(rec, plan, ops);
+                    fresh_op(rec, plan, ops)?;
                 }
             }
         }
         Origin::Label if rec.kind == kind::SLOT_LABEL => {
             if dirty {
-                fresh_op(rec, plan, ops);
+                fresh_op(rec, plan, ops)?;
             }
         }
         _ => {
             drop_op(o, ops);
-            fresh_op(rec, plan, ops);
+            fresh_op(rec, plan, ops)?;
         }
     }
+    Ok(())
 }
 
 /// One open file of one vault.
@@ -891,9 +978,20 @@ impl Slot {
     /// The writes a seal makes: what changed, with the UUIDs new entries
     /// and groups take from `next`, in this order: each new entry, then
     /// one group for each kind among them.
-    fn ops(&self, ov: &Overlay<'_>, next: &mut dyn FnMut() -> [u8; 16]) -> Vec<Op> {
+    fn ops(
+        &self,
+        ov: &Overlay<'_>,
+        next: &mut dyn FnMut() -> [u8; 16],
+    ) -> Result<Vec<Op>, Unwritable> {
         let mut ops = Vec::new();
-        let mut plan = items::next_plan(self.opened.document()).unwrap_or(u32::MAX);
+        // What was taken out goes first: a record taken out and put again
+        // under its key is written after the key is cleared, not before.
+        for o in &self.removed {
+            drop_op(o, &mut ops);
+        }
+        // The next plan number, when the file has one to give: only a new
+        // plan needs it.
+        let mut plan = items::next_plan(self.opened.document()).ok();
         for (i, rec) in self.records.iter().enumerate() {
             if ov.remove.contains(&i) {
                 drop_op(&self.origin[i], &mut ops);
@@ -903,13 +1001,10 @@ impl Slot {
                 Some((_, r)) => (*r, true),
                 None => (rec, self.dirty[i]),
             };
-            put_op(&self.origin[i], rec, dirty, &mut plan, &mut ops);
+            put_op(&self.origin[i], rec, dirty, &mut plan, &mut ops)?;
         }
         for rec in ov.add {
-            fresh_op(rec, &mut plan, &mut ops);
-        }
-        for o in &self.removed {
-            drop_op(o, &mut ops);
+            fresh_op(rec, &mut plan, &mut ops)?;
         }
         for op in ops.iter_mut() {
             if let Op::Put {
@@ -939,7 +1034,7 @@ impl Slot {
                 };
             }
         }
-        ops
+        Ok(ops)
     }
 
     /// Costs a document write and a read of each item put. The plaintext
@@ -958,17 +1053,24 @@ impl Slot {
             let mut u = [0u8; 16];
             u[..8].copy_from_slice(&n.to_le_bytes());
             u
-        });
+        })?;
         with_changes(c, names, &ops, false, Some(0), |changes| {
             self.opened.used(c, changes)
         })
     }
 
     /// Costs what [`Slot::used_with`] costs, the first time after a change.
+    /// A vault the seal cannot write (a change it refuses, a file it cannot
+    /// make) reads as full, `usize::MAX`: its room shows empty, never as
+    /// free. A read-only vault has no changes to hold: 0.
     fn used(&self, c: &Compute, names: &Names) -> usize {
         *self
             .used
-            .get_or_init(|| self.used_with(c, names, &Overlay::NONE).unwrap_or(0))
+            .get_or_init(|| match self.used_with(c, names, &Overlay::NONE) {
+                Ok(n) => n,
+                Err(fv::file::Error::ReadOnly) => 0,
+                Err(_) => usize::MAX,
+            })
     }
 }
 
@@ -992,6 +1094,112 @@ pub struct OpenVaults {
 /// The vault does not have room for an edit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Full;
+
+type Codex32 = faraday_bip::codex32::Codex32;
+
+/// Costs a seed and its fingerprint for each combination of strings, at
+/// most 16 (one when no index has two strings). A seed of the first `need`
+/// indices of a codex32 set that has the fingerprint `fp`, with the set's
+/// strings as they made it; `None` for more combinations, or when none
+/// makes `fp`.
+fn codex32_pick<'a>(
+    c: &Compute,
+    fp: [u8; 4],
+    need: usize,
+    list: &'a [(Codex32, Zeroizing<String>)],
+    others: &'a [(Codex32, Zeroizing<String>)],
+) -> Option<(Zeroizing<Vec<u8>>, Vec<&'a str>)> {
+    // The strings of the first `need` indices; where an index has two,
+    // each is tried, the first combination whose seed has the fingerprint
+    // the records name winning.
+    let alts: Vec<Vec<&(Codex32, Zeroizing<String>)>> = list
+        .iter()
+        .take(need)
+        .map(|e| {
+            std::iter::once(e)
+                .chain(
+                    others
+                        .iter()
+                        .filter(|o| o.0.share_index() == e.0.share_index()),
+                )
+                .collect()
+        })
+        .collect();
+    let sizes: Vec<usize> = alts.iter().map(Vec::len).collect();
+    for pick in combinations(&sizes)? {
+        let parts: Vec<Codex32> = pick
+            .iter()
+            .zip(&alts)
+            .filter_map(|(&n, a)| Codex32::parse(&a[n].1).ok())
+            .collect();
+        let Ok(seed) = crate::operations::codex32_seed(&parts) else {
+            continue;
+        };
+        if crate::identity::fingerprint_of_seed(c, &seed) == Some(Fingerprint(fp)) {
+            let texts = list
+                .iter()
+                .enumerate()
+                .map(|(i, (_, t))| match pick.get(i) {
+                    Some(&n) => alts[i][n].1.as_str(),
+                    None => t.as_str(),
+                })
+                .collect();
+            return Some((seed, texts));
+        }
+    }
+    None
+}
+
+/// Every way to pick one of each of `sizes` things, as the choice made at
+/// each place; `None` for more than 16 ways.
+fn combinations(sizes: &[usize]) -> Option<Vec<Vec<usize>>> {
+    let mut out: Vec<Vec<usize>> = vec![Vec::new()];
+    for &n in sizes {
+        if out.len().checked_mul(n)? > 16 {
+            return None;
+        }
+        out = out
+            .into_iter()
+            .flat_map(|p| {
+                (0..n).map(move |k| {
+                    let mut q = p.clone();
+                    q.push(k);
+                    q
+                })
+            })
+            .collect();
+    }
+    Some(out)
+}
+
+/// Why a form was not written: the vault has no room for it, or the seal
+/// would refuse what it holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NotSet {
+    /// The vault does not have room for the record.
+    Full,
+    /// The record is one the seal cannot write.
+    Unwritable,
+}
+
+/// Sets field `number` of `r` as [`Record::set`] does, except that a
+/// required field left empty stays as an empty field: a note with no text
+/// and an entry with no title are still records.
+fn set_field(r: &mut Record, number: u8, bytes: &[u8]) {
+    r.set(number, bytes);
+    keep_required(r, &[number]);
+}
+
+/// Puts back, empty, each field of `emptied` that the record requires.
+fn keep_required(r: &mut Record, emptied: &[u8]) {
+    while let Err(records::Fault::Missing(_, n)) = r.check() {
+        if !emptied.contains(&n) {
+            break;
+        }
+        r.push(n, &[]);
+        r.fields.sort_by_key(|f| f.number);
+    }
+}
 
 /// The random bytes one seal draws (`faraday_vault::kdbx::RANDOM_LEN`).
 pub const SEAL_RANDOM_LEN: usize = fv::kdbx::RANDOM_LEN;
@@ -1147,11 +1355,14 @@ impl OpenVaults {
     pub fn uuid_bytes(&self, id: VaultId) -> Option<usize> {
         let s = self.slot(id)?;
         let mut n = 0;
-        s.ops(&Overlay::NONE, &mut || {
-            n += 1;
-            [0; 16]
-        });
-        Some(n * 16)
+        // A seal that refuses draws nothing: its job carries the refusal.
+        let ok = s
+            .ops(&Overlay::NONE, &mut || {
+                n += 1;
+                [0; 16]
+            })
+            .is_ok();
+        Some(if ok { n * 16 } else { 0 })
     }
 
     /// Makes the job that seals open vault `id`, which stays in the
@@ -1187,9 +1398,11 @@ impl OpenVaults {
                 }
             }
         });
-        if short {
+        if short && ops.is_ok() {
             return None;
         }
+        // A change the seal cannot write is its refusal, not a change left out.
+        let ops = ops.map_err(fv::file::Error::from);
         let s = &mut self.slots[at];
         s.sealing = true;
         Some(crate::job::SealJob::new(
@@ -1320,10 +1533,12 @@ impl OpenVaults {
     /// after records `remove` (by place) are taken out and the records
     /// `add` are put in: the exact plaintext the seal would take, against
     /// the file's size. False for a vault that is read-only or not held.
-    pub fn fits(&self, c: &Compute, id: VaultId, remove: &[usize], add: &[&Record]) -> bool {
+    pub fn fits<R: Fit>(&self, c: &Compute, id: VaultId, remove: &[usize], add: &[&R]) -> bool {
         let Some(s) = self.slot(id) else {
             return false;
         };
+        let add: Vec<&Record> = add.iter().map(|r| r.record_of(Inside(()))).collect();
+        let add = &add[..];
         let ov = Overlay {
             remove,
             add,
@@ -1434,7 +1649,7 @@ impl OpenVaults {
         if is_secret(r.kind, number) {
             return false;
         }
-        r.set(number, bytes);
+        set_field(r, number, bytes);
         s.touch(i);
         true
     }
@@ -1527,7 +1742,7 @@ impl OpenVaults {
         if !is_secret(r.kind, number) {
             return false;
         }
-        r.set(number, bytes);
+        set_field(r, number, bytes);
         s.touch(i);
         true
     }
@@ -1562,8 +1777,11 @@ impl OpenVaults {
         at: Option<usize>,
         k: u8,
         fields: &[(u8, &[u8])],
-    ) -> Result<usize, Full> {
-        let s = self.slot(id).filter(|s| !s.locked()).ok_or(Full)?;
+    ) -> Result<usize, NotSet> {
+        let s = self
+            .slot(id)
+            .filter(|s| !s.locked())
+            .ok_or(NotSet::Unwritable)?;
         let place = at.filter(|&i| i < s.records.len());
         let mut record = match place {
             Some(i) => s.records[i].clone(),
@@ -1572,6 +1790,12 @@ impl OpenVaults {
         for (n, bytes) in fields {
             record.set(*n, bytes);
         }
+        let emptied: Vec<u8> = fields
+            .iter()
+            .filter(|(_, b)| b.is_empty())
+            .map(|(n, _)| *n)
+            .collect();
+        keep_required(&mut record, &emptied);
         let ov = match place {
             Some(i) => Overlay {
                 remove: &[],
@@ -1584,12 +1808,12 @@ impl OpenVaults {
                 edit: &[],
             },
         };
-        if s.used_with(c, &self.names, &ov)
-            .map_or(true, |n| n > s.limit())
-        {
-            return Err(Full);
+        match s.used_with(c, &self.names, &ov) {
+            Ok(n) if n <= s.limit() => {}
+            Ok(_) | Err(fv::file::Error::Full { .. }) => return Err(NotSet::Full),
+            Err(_) => return Err(NotSet::Unwritable),
         }
-        let s = self.slot_mut(id).ok_or(Full)?;
+        let s = self.slot_mut(id).ok_or(NotSet::Unwritable)?;
         let i = match place {
             Some(i) => {
                 s.records[i] = record;
@@ -1852,8 +2076,11 @@ impl OpenVaults {
                 .filter(|a| !a.is_empty())
         };
         // An entry as read has its TOTP worked out over every field it
-        // may be in; one changed here is read from its `otp` field.
-        if let (false, Some(Origin::Entry { item, .. })) = (s.dirty[i], s.origin.get(i)) {
+        // may be in; one changed here is read from its `otp` field, and
+        // from the same fields as when read where it has none (Faraday
+        // writes only `otp` and never rewrites a field it did not make).
+        let own = s.dirty[i] && r.field(field::TOTP).is_some();
+        if let (false, Some(Origin::Entry { item, .. })) = (own, s.origin.get(i)) {
             let read = s.opened.read().items.get(*item)?.totp.as_ref()?;
             return Some(Totp {
                 account: r.text(field::TOTP).and_then(account),
@@ -2177,8 +2404,10 @@ impl OpenVaults {
         use faraday_bip::codex32::Codex32;
         use fv::codex32::{SetFacts, State};
         // Each set, by the fingerprint the records name and its
-        // identifier: its strings, one per index.
-        type Set = ([u8; 4], Vec<(Codex32, Zeroizing<String>)>);
+        // identifier: its strings, one per index, and the other strings
+        // of an index it has more than one of.
+        type Strings = Vec<(Codex32, Zeroizing<String>)>;
+        type Set = ([u8; 4], Strings, Strings);
         let mut sets: Vec<Set> = Vec::new();
         for slot in &self.slots {
             for r in slot
@@ -2196,7 +2425,7 @@ impl OpenVaults {
                 let Ok(share) = Codex32::parse(text) else {
                     continue;
                 };
-                let at = match sets.iter().position(|(f, list)| {
+                let at = match sets.iter().position(|(f, list, _)| {
                     *f == fp
                         && list
                             .first()
@@ -2204,21 +2433,30 @@ impl OpenVaults {
                 }) {
                     Some(at) => at,
                     None => {
-                        sets.push((fp, Vec::new()));
+                        sets.push((fp, Vec::new(), Vec::new()));
                         sets.len() - 1
                     }
                 };
-                let list = &mut sets[at].1;
-                if !list
+                let (_, list, others) = &mut sets[at];
+                let text = Zeroizing::new(text.to_string());
+                let same = |(x, t): &(Codex32, Zeroizing<String>)| {
+                    x.share_index() == share.share_index() && t.eq_ignore_ascii_case(&text)
+                };
+                if list.iter().any(&same) || others.iter().any(&same) {
+                    continue;
+                }
+                if list
                     .iter()
                     .any(|(x, _)| x.share_index() == share.share_index())
                 {
-                    list.push((share, Zeroizing::new(text.to_string())));
+                    others.push((share, text));
+                } else {
+                    list.push((share, text));
                 }
             }
         }
         let mut loaded = Vec::new();
-        for (fp, list) in sets {
+        for (fp, list, others) in sets {
             let texts: Vec<&str> = list.iter().map(|(_, t)| t.as_str()).collect();
             if let Some(k) = keys.position_of(fp) {
                 keys.keep_codex32(k, &texts);
@@ -2231,17 +2469,9 @@ impl OpenVaults {
             if need < 2 || list.len() < need {
                 continue;
             }
-            let parts: Vec<Codex32> = list
-                .iter()
-                .take(need)
-                .filter_map(|(_, t)| Codex32::parse(t).ok())
-                .collect();
-            let Ok(seed) = crate::operations::codex32_seed(&parts) else {
+            let Some((seed, texts)) = codex32_pick(c, fp, need, &list, &others) else {
                 continue;
             };
-            if crate::identity::fingerprint_of_seed(c, &seed) != Some(Fingerprint(fp)) {
-                continue;
-            }
             let Ok(got) = keys.add_seed(c, &seed, "") else {
                 continue;
             };
@@ -2503,8 +2733,9 @@ impl OpenVaults {
     /// related to (a passphrase for the same key, a share of the same
     /// index and key): `None` where `r` is no such record, nothing like it
     /// is held, or the same record is.
-    pub fn relates(&self, id: VaultId, r: &Record) -> Option<RelatedKind> {
+    pub fn relates(&self, id: VaultId, r: &impl Fit) -> Option<RelatedKind> {
         let s = self.slot(id)?;
+        let r = r.record_of(Inside(()));
         let (kind, key) = pair_of(r)?;
         let mut held = false;
         for o in &s.records {

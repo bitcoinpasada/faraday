@@ -298,20 +298,27 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         ),
         Response::Bytes(b"replaced".to_vec())
     );
-    let mut vault = vec![7u8; 53 + 4 * (65_536 + 40)];
-    vault[0..4].copy_from_slice(b"FVLT");
-    vault[17..21].copy_from_slice(&65_536u32.to_le_bytes());
-    vault[21..53].fill(1);
+    // A whole KDBX 4 file of a vault's shape: a header that ends at once,
+    // the 64 bytes of its hash and HMAC, one block and the empty block.
+    let mut vault = vec![0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5, 0, 0, 4, 0];
+    vault.extend_from_slice(&[0, 0, 0, 0, 0]);
+    vault.extend_from_slice(&[1; 64]);
+    vault.extend_from_slice(&[9; 32]);
+    vault.extend_from_slice(&65_536u32.to_le_bytes());
+    vault.resize(vault.len() + 65_536, 7);
+    vault.extend_from_slice(&[9; 32]);
+    vault.extend_from_slice(&0u32.to_le_bytes());
+    let body = 12 + 5 + 64 + 36;
     assert_eq!(
-        d.handle(&c, w("vault.fvlt", &vault)),
-        Response::Written("vault.fvlt".into())
+        d.handle(&c, w("vault.kdbx", &vault)),
+        Response::Written("vault.kdbx".into())
     );
     let first = faraday_crypto::sha256(&vault);
-    vault[100] = 9;
+    vault[body + 100] = 9;
     // Over a copy only where the app says its session wrote it.
     let back = |replace: bool| Request::Write {
         stick: id.clone(),
-        name: "vault.fvlt".into(),
+        name: "vault.kdbx".into(),
         copies: vec![first],
         replace,
         renamed: false,
@@ -320,14 +327,14 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     assert!(matches!(d.handle(&c, back(false)), Response::Failed(_)));
     assert_eq!(
         d.handle(&c, back(true)),
-        Response::Written("vault.fvlt".into())
+        Response::Written("vault.kdbx".into())
     );
     assert_eq!(
         d.handle(
             &c,
             Request::Read {
                 stick: id.clone(),
-                name: "vault.fvlt".into()
+                name: "vault.kdbx".into()
             }
         ),
         Response::Bytes(vault.clone())
@@ -337,7 +344,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     let names: Vec<&str> = list[0].files.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
         names,
-        ["savings-signed-2.psbt", "savings-signed.psbt", "vault.fvlt"]
+        ["savings-signed-2.psbt", "savings-signed.psbt", "vault.kdbx"]
     );
     // And the partition is FAT another reader takes.
     let mut v = faraday_fat::Volume::open(fs::read(m.dev().join("sdb1")).unwrap()).unwrap();
@@ -630,7 +637,7 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
         &c,
         Request::Write {
             stick: "sdb2@sdb#11".into(),
-            name: "backup.fvlt".into(),
+            name: "backup.kdbx".into(),
             copies: Vec::new(),
             replace: false,
             renamed: false,

@@ -745,6 +745,9 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         stick_field(app.medium, ui, x, y, w);
     }
     y += FIELD_H + 12.0 + never_under(app, ui, x, y, w);
+    if let Some(e) = &app.vaults.unlock_error {
+        y += ui.wrap_as((x, y, w), BODY_M, bad, e) + 12.0;
+    }
     if app.vaults.working == Some(vault::Work::Unlock) {
         let f = files.get(app.vaults.pick);
         let t = f
@@ -777,9 +780,6 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None => EN.vault_this_computer_memory.to_string(),
         };
         y += ui.wrap_as((x, y, w), BODY_S, muted, &free) + 12.0;
-    }
-    if let Some(e) = &app.vaults.unlock_error {
-        y += ui.wrap_as((x, y, w), BODY_M, bad, e) + 12.0;
     }
     y += about(ui, x, y, w, EN.vault_choose_the_vault);
     finish(app, ui, h, y - top + 16.0);
@@ -1460,8 +1460,8 @@ fn create_panel(
             &v,
         );
         let step = if by_size { vstep::PRESET } else { k as u8 };
-        ui.press_box(x - 8.0, y - 4.0, w + 16.0, 42.0, va(V::CStep(step)));
-        y += 46.0;
+        ui.press_box(x - 8.0, y - 4.0, w + 16.0, 44.0, va(V::CStep(step)));
+        y += 48.0;
     }
     y += create_summary(app, ui, x, y, w);
     let by = (h - 26.0 - create_button_h(app, ui, w)).max(y + 12.0);
@@ -1958,6 +1958,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.button(ix, by, Some(bw), BUTTON_H, &label, style, action);
             by += 50.0;
         }
+        unread::section(app, ui, v, (ix, by, w - kinds_w - 16.0));
         return;
     }
     let cat_label = CATEGORIES[app.vaults.category].0;
@@ -2235,9 +2236,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         cost_text(&v.facts().header.cost),
         v.size_text()
     );
-    let sub = ui.fit_as(BODY_S.mono(), &sub, w);
-    ui.text_as(x, y, BODY_S.mono(), muted, &sub);
-    y += ui.advance_as(BODY_S.mono(), 26.0);
+    y += ui.wrap_as((x, y, w), BODY_S.mono(), muted, &sub) + faraday_draw::tokens::GAP_SMALL;
     if v.changes > 0 {
         y += own_row(app, ui, (x, y, w));
     }
@@ -2302,10 +2301,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     let empty = shows_empty(app, v);
     if !kind_items.is_empty() {
-        y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 4.0;
+        y += wrap_buttons(ui, x, y, w, 36.0, &kind_items) + 4.0;
     }
     if !empty {
-        y += add_rows(ui, x, y, w, 36.0) + 4.0;
+        y += add_rows(ui, x, y, w, 40.0) + 4.0;
     }
     ui.rule(x, y, w, Role::OutlineVariant);
     y += 14.0;
@@ -2316,6 +2315,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.button(x, y, Some(w), BUTTON_H, &label, style, action);
             y += 54.0;
         }
+        y += unread::section(app, ui, v, (x, y, w));
         finish(app, ui, h, y - top + 16.0);
         return;
     }
@@ -2627,7 +2627,7 @@ fn detail(
                 .collect();
             let all = widths.iter().sum::<f32>() + 6.0;
             let (name_w, by) = if ui.compact {
-                (dw - 40.0 - signed_w - 8.0, dy + 40.0)
+                (dw - 40.0 - signed_w - 8.0, dy + 44.0)
             } else {
                 (dw - 40.0 - all - signed_w - 24.0, dy + 2.0)
             };
@@ -2646,7 +2646,13 @@ fn detail(
             // On a small panel the buttons are on the line below: the
             // whole first line ticks.
             let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
-            ui.press_box(dx, dy, hit_w, 40.0, va(V::GpgTick(fi)));
+            ui.press_box(
+                dx,
+                dy,
+                hit_w,
+                if ui.compact { 44.0 } else { 40.0 },
+                va(V::GpgTick(fi)),
+            );
             let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
             for ((label, action), bw) in buttons.iter().zip(&widths) {
                 ui.button(
@@ -2662,7 +2668,7 @@ fn detail(
             }
             // What is signed: the file's SHA-256, and a small text file's
             // text, so that the bytes can be checked before the hold.
-            let mut ey = dy + if ui.compact { 84.0 } else { 46.0 };
+            let mut ey = dy + if ui.compact { 88.0 } else { 46.0 };
             let hex: String = faraday_crypto::hex::encode_string(&f.hash);
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {

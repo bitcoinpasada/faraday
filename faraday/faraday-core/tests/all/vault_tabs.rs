@@ -29,7 +29,7 @@ fn contents() -> Faraday {
     }
     app.press(Action::ReduceMotion(true));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -37,7 +37,7 @@ fn contents() -> Faraday {
     app.press(Action::Vault(V::Open(0)));
     let _ = app.frame();
     app.press(Action::Vault(V::FocusPassphrase));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     crate::common::settle(&mut app, 100);
     if app.sheet == Some(faraday_core::Sheet::UnlockLoad) {

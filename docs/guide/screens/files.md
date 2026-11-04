@@ -80,7 +80,7 @@ written stays in **From the stick**, locked, to **Unlock** again.*
 
 ## An open vault
 
-A panel for each open vault, headed by its file and name ("vault.fvlt ·
+A panel for each open vault, headed by its file and name ("vault.kdbx ·
 Vault 1 · open").
 
 | Control | What it does |
@@ -179,18 +179,18 @@ GPG revocation, and a secret file ticked on a stick visit to be copied
 to another stick. Its title is **This is a secret**, or **This may be a
 secret** for text Faraday cannot tell about.
 
-![This is a secret for a child seed's words file, with Save into vault.fvlt and Put it for the stick unprotected](../pictures/files-this-is-a-secret.png)
+![This is a secret for a child seed's words file, with Save into vault.kdbx and Put it for the stick unprotected](../pictures/files-this-is-a-secret.png)
 
 *The sheet **This is a secret** for 6d6ea9fe-words.txt, a child seed's
-words: **Sealed in a vault** over "Save into vault.fvlt", then
+words: **Sealed in a vault** over "Save into vault.kdbx", then
 "Unprotected, for the stick" over "Put it for the stick unprotected".*
 
 | Control | What it does |
 |---|---|
 | **File**, **What it is**, **Who can use it** | the file's name, what it holds, and who can use it |
 | **Sealed in a vault** | in the ok tone, where the secret can go into a vault |
-| "Save into vault.fvlt" | puts the secret into the open vault, sealed; the button names the open vault by its file. "In vault.fvlt" in its place where the vault holds it already |
-| "Make a vault", "Unlock vault.fvlt", **Unlock a vault** | with no vault open: opens [Create a vault](create-vault.md) or [Unlock](vaults.md#unlock); the sheet opens again after |
+| "Save into vault.kdbx" | puts the secret into the open vault, sealed; the button names the open vault by its file. "In vault.kdbx" in its place where the vault holds it already |
+| "Make a vault", "Unlock vault.kdbx", **Unlock a vault** | with no vault open: opens [Create a vault](create-vault.md) or [Unlock](vaults.md#unlock); the sheet opens again after |
 | "Unprotected, for the stick" | in the error tone: what the other way is; "Unprotected, on the stick" for a file a stick visit copies |
 | the forms | where the secret has more than one form (a seed's **Words** or **SeedQR**), a button each |
 | "Put it for the stick unprotected" | at the foot: opens [Save without encryption?](#save-without-encryption) |

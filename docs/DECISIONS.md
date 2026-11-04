@@ -71,7 +71,7 @@ Read this table, then only the decision you need.
 | [F54](decisions/F54.md) | A ⋮ on every file; files renamed | 2026-10-20 | Active | stick |
 | [F55](decisions/F55.md) | The derivation path on Check, its account on Kind | 2026-10-20 | Amended by F98 | wallets |
 | [F56](decisions/F56.md) | Seeds alone spend; a place says how near it brings a spend | 2026-10-20 | Active | backup |
-| [F57](decisions/F57.md) | A new vault's slots go by the vault's name | 2026-10-20 | Active | vault |
+| [F57](history/decisions/F57.md) | A new vault's slots go by the vault's name | 2026-10-20 | Superseded by F190 | vault |
 | [F58](decisions/F58.md) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
 | [F59](history/decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Replaced by F99 | signing |
 | [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62, F130 | stick |

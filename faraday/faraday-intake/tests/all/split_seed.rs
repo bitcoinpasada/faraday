@@ -137,3 +137,56 @@ fn text_with_otpauth_or_title_lines_is_entries_for_a_vault() {
     assert!(looks_like_entries("Title: Bank\npassword: x"));
     assert!(!looks_like_entries("abandon abandon about"));
 }
+
+#[test]
+fn only_a_keepass_file_of_version_3_or_older_is_named_older() {
+    use faraday_intake::is_older_kdbx;
+    let head = |major: u8| {
+        let mut v = faraday_codec::vault_file::SIGNATURE.to_vec();
+        v.extend_from_slice(&[0, 0, major, 0]);
+        v
+    };
+    let sized = |major: u8, len: usize| {
+        let mut v = head(major);
+        v.resize(len, 0);
+        v
+    };
+    assert!(is_older_kdbx(&sized(3, 70_000)));
+    // KDBX 5, a KDBX 4 too long or too short, and a cut file are KeePass's,
+    // and none is an older one.
+    for file in [
+        sized(5, 70_000),
+        sized(4, 5_000_000),
+        sized(4, 300),
+        head(4),
+        head(4)[..10].to_vec(),
+    ] {
+        assert!(is_kdbx(&file) && !is_older_kdbx(&file), "{}", file.len());
+    }
+}
+
+#[test]
+fn every_keepass_file_of_the_vectors_is_told_as_it_is() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/vectors/kdbx");
+    let (mut vaults, mut older) = (0, 0);
+    for e in std::fs::read_dir(dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "kdbx") {
+            continue;
+        }
+        let bytes = std::fs::read(&path).unwrap();
+        if path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("-3.1-")
+        {
+            assert!(is_kdbx(&bytes) && faraday_intake::is_older_kdbx(&bytes));
+            older += 1;
+        } else {
+            assert!(is_vault(&bytes) && !is_kdbx(&bytes), "{path:?}");
+            vaults += 1;
+        }
+    }
+    assert_eq!((vaults, older), (9, 1));
+}

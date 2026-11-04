@@ -30,7 +30,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         names.push(format!("{stem}-share-{k}-of-3.txt"));
         names.push(format!("{stem}-key-{k}-sheet.pdf"));
     }
-    names.push(format!("{stem}-vault.fvlt"));
+    names.push(format!("{stem}-vault.kdbx"));
     names.push(format!("{stem}-checklist.pdf"));
     names.push(format!("{stem}-recovery.txt"));
     for name in &names {
@@ -42,6 +42,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         });
@@ -53,6 +54,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         secret: true,
         picture: None,
         sha: None,
+        facts: None,
         wallet: None,
         psbt: None,
     });
@@ -116,6 +118,7 @@ fn not_clean(t: &mut Tour) -> Result<(), String> {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         },

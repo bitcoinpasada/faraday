@@ -1040,6 +1040,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Vault => EN.kind_name_vault_locked,
         FileKind::Entries => EN.kind_name_vault_entries,
         FileKind::Kdbx => EN.kind_name_keepass_database,
+        FileKind::KdbxOther => EN.kind_name_keepass_file,
         FileKind::Pdf => EN.kind_name_pdf_to_print,
         FileKind::EfiImage => EN.kind_name_efi_image,
         FileKind::SeedPart => EN.kind_name_seed_part,

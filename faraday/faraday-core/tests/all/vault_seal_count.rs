@@ -10,8 +10,8 @@ use crate::common::type_text;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
+use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Record};
 
 type Files = Vec<(String, Vec<u8>)>;
 
@@ -106,77 +106,40 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
 
 /// A vault file named `label` with one passphrase, seal count 1.
 fn made(label: &str, phrase: &str, seed: u8) -> Vec<u8> {
-    crate::common::vault(label, &[phrase], seed)
+    crate::common::vault(label, phrase, seed)
 }
 
 /// `file` sealed once more under `nonce`, as another place would: the
 /// next count.
 fn resealed(file: &[u8], phrase: &str, nonce: u8) -> Vec<u8> {
-    let c = testkit::compute();
-    let (mut opened, contents) = faraday_vault::open(&c, file, phrase).unwrap();
-    opened
-        .seal(
-            file,
-            &contents,
-            &[nonce; faraday_vault::NONCE_LEN],
-            Some(1_790_000_000),
-        )
-        .unwrap()
+    testkit::kdbx_reseal(file, phrase, nonce).unwrap()
 }
 
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-/// The SHA-256 of the slot `phrase` opens in `file`.
-fn slot_digest(file: &[u8], phrase: &str) -> [u8; 32] {
-    let c = testkit::compute();
-    let (opened, _) = faraday_vault::open(&c, file, phrase).unwrap();
-    let h = faraday_vault::read_header(file).unwrap();
-    let at = faraday_vault::slot_range(h.slot_len, opened.position());
-    faraday_crypto::sha256(&file[at])
+/// The identifier of the vault `made` gives `id`, as a plan names it.
+fn id_hex(id: u8) -> String {
+    hex(&[id; 16])
 }
 
-/// The position the plan's line must name: the slot `phrase` opens.
-fn position(file: &[u8], phrase: &str) -> usize {
-    let c = testkit::compute();
-    faraday_vault::open(&c, file, phrase).unwrap().0.position()
-}
-
-/// `with_plan_for`, naming the slot of `other` that `other_phrase` opens.
-fn plan_naming(other: &[u8], other_phrase: &str, count: u64, digest: [u8; 32]) -> Vec<u8> {
-    let c = testkit::compute();
-    let h = faraday_vault::read_header(other).unwrap();
-    let line = format!(
-        "seals {} {} {} {} {}\n",
-        hex(&h.salt),
-        h.slot_len,
-        position(other, other_phrase),
-        count,
-        hex(&digest)
-    );
-    let desc = testkit::savings();
-    let contents = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Plans"),
-            Record::new(kind::PLAN)
-                .with(field::PLAN_WALLET, desc.as_bytes())
-                .with(field::PLAN_ANSWERS, format!("seeds 1\n{line}").as_bytes()),
-        ],
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        faraday_vault::Cost {
-            memory_kib: faraday_vault::MIN_MEMORY_KIB,
-            passes: 1,
-            lanes: 1,
-        },
-        &["a phrase"],
-        &[contents],
-        &[0x33; 32],
+/// The plan line that records `count` and the file's digest for vault `id`.
+fn seals_line(id: u8, count: u64, file: &[u8]) -> String {
+    format!(
+        "seals {} {count} {}\n",
+        id_hex(id),
+        hex(&faraday_crypto::sha256(file))
     )
-    .unwrap()
+}
+
+/// A vault `phrase` opens, labelled `label`, with a plan for the Savings
+/// wallet that holds `lines`.
+fn with_lines(label: &str, phrase: &str, id: u8, lines: &str) -> Vec<u8> {
+    let plan = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, testkit::savings().as_bytes())
+        .with(field::PLAN_ANSWERS, format!("seeds 1\n{lines}").as_bytes());
+    crate::common::vault_of(label, phrase, id, vec![plan])
 }
 
 const A: &str = "a phrase";
@@ -185,7 +148,7 @@ const B: &str = "b phrase";
 #[test]
 fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
     let original = made("Main", B, 1);
-    let mut app = process(vec![("main.fvlt".into(), original)], Vec::new(), Vec::new());
+    let mut app = process(vec![("main.kdbx".into(), original)], Vec::new(), Vec::new());
     unlock(&mut app, 0, B);
     let texts = head(&mut app);
     assert!(said(&texts, "Sealed once"), "{texts:?}");
@@ -196,7 +159,9 @@ fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
     app.press(Action::Vault(V::SaveKey(0)));
+    crate::common::top_up(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = process(inbox, outbox, kept);
     unlock(&mut app, 0, B);
@@ -205,12 +170,41 @@ fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
     assert!(!said(&texts, "older copy"), "{texts:?}");
 }
 
+/// A seal waits for five answers of the system's: a lock with none
+/// seals nothing and the count stays.
+#[test]
+fn a_lock_with_too_few_answers_seals_nothing() {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    testkit::vault_speed(&mut app, Some(100));
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("main.kdbx".into(), made("Main", B, 1))],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.event(Event::Entropy(EntropyBytes::new([0x40; 32])));
+    unlock(&mut app, 0, B);
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::Vault(V::SaveKey(0)));
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let (_, outbox, _) = saved(&mut app);
+    assert!(outbox.is_empty(), "nothing was sealed");
+    assert_eq!(app.vaults().open.len(), 1, "the vault stays open");
+    let texts = head(&mut app);
+    assert!(said(&texts, "Sealed once"), "{texts:?}");
+}
+
 /// A process holding the first copy of a vault, unlocked, where a copy
 /// sealed twice was open since power-on (what the last process kept).
 fn older_unlocked() -> Faraday {
     let original = made("Main", B, 1);
     let mut app = process(
-        vec![("main.fvlt".into(), original.clone())],
+        vec![("main.kdbx".into(), original.clone())],
         Vec::new(),
         Vec::new(),
     );
@@ -219,11 +213,13 @@ fn older_unlocked() -> Faraday {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
     app.press(Action::Vault(V::SaveKey(0)));
+    crate::common::top_up(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     let (_, _, kept) = saved(&mut app);
 
     // The next process, with the first copy and what the last kept.
-    let mut app = process(vec![("main.fvlt".into(), original)], Vec::new(), kept);
+    let mut app = process(vec![("main.kdbx".into(), original)], Vec::new(), kept);
     unlock(&mut app, 0, B);
     app
 }
@@ -247,7 +243,7 @@ fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
     // Power off: nothing is kept, and the older copy opens with no
     // warning, which is what a count can detect (VAULT-HARDENING §5.4).
     let original = made("Main", B, 1);
-    let mut app = process(vec![("main.fvlt".into(), original)], Vec::new(), Vec::new());
+    let mut app = process(vec![("main.kdbx".into(), original)], Vec::new(), Vec::new());
     unlock(&mut app, 0, B);
     let texts = head(&mut app);
     assert!(!said(&texts, "older copy"), "{texts:?}");
@@ -304,6 +300,7 @@ fn a_lock_while_the_dialog_shows_closes_the_older_copy_and_ends_the_dialog() {
     let mut app = older_unlocked();
     assert_eq!(app.sheet, Some(Sheet::OlderCopy));
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     assert!(app.vaults().open.is_empty(), "the lock closed it");
     assert_ne!(app.sheet, Some(Sheet::OlderCopy));
     settle(&mut app, |_| false);
@@ -321,11 +318,13 @@ fn two_copies_sealed_from_one_copy_say_so() {
     let other = resealed(&original, B, 0x52);
     assert_ne!(one, other);
     // The first is open and locked unchanged: it is what the session saw.
-    let mut app = process(vec![("one.fvlt".into(), one)], Vec::new(), Vec::new());
+    let mut app = process(vec![("one.kdbx".into(), one)], Vec::new(), Vec::new());
     unlock(&mut app, 0, B);
+    crate::common::top_up(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     let (_, _, kept) = saved(&mut app);
-    let mut app = process(vec![("other.fvlt".into(), other)], Vec::new(), kept);
+    let mut app = process(vec![("other.kdbx".into(), other)], Vec::new(), kept);
     unlock(&mut app, 0, B);
     open_anyway(&mut app, "Another copy was sealed 2 times too");
     let texts = head(&mut app);
@@ -338,21 +337,22 @@ fn two_copies_sealed_from_one_copy_say_so() {
     );
 }
 
-fn plans_vault_and_b(b_at_unlock: &[u8], a_line_count: u64, a_line_digest: [u8; 32]) -> Files {
-    let a = plan_naming(b_at_unlock, B, a_line_count, a_line_digest);
-    vec![("a.fvlt".into(), a)]
+/// Vault A, holding a plan that records `file` as vault B's copy at
+/// `count`.
+fn plans_vault_and_b(count: u64, file: &[u8]) -> Files {
+    let a = with_lines("Plans", A, 3, &seals_line(2, count, file));
+    vec![("a.kdbx".into(), a)]
 }
 
 #[test]
 fn a_plan_in_one_vault_names_an_older_copy_of_another_after_power_off() {
     let b_old = made("Savings", B, 2);
     let b_new = resealed(&b_old, B, 0x61);
-    let digest = slot_digest(&b_new, B);
 
     // Power-on: A (holding the plan that records B at 2) and B's older
     // copy; nothing else is kept.
-    let mut inbox = plans_vault_and_b(&b_old, 2, digest);
-    inbox.push(("b.fvlt".into(), b_old.clone()));
+    let mut inbox = plans_vault_and_b(2, &b_new);
+    inbox.push(("b.kdbx".into(), b_old.clone()));
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
@@ -369,8 +369,8 @@ fn a_plan_in_one_vault_names_an_older_copy_of_another_after_power_off() {
 
     // The older copy first, then the plan's vault: the warning appears
     // when the plan opens.
-    let mut inbox = plans_vault_and_b(&b_old, 2, digest);
-    inbox.push(("b.fvlt".into(), b_old));
+    let mut inbox = plans_vault_and_b(2, &b_new);
+    inbox.push(("b.kdbx".into(), b_old));
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 1, B);
     let texts = head(&mut app);
@@ -385,11 +385,10 @@ fn a_plan_in_one_vault_names_an_older_copy_of_another_after_power_off() {
 fn a_plan_that_records_the_copy_opened_says_nothing_and_one_with_other_bytes_says_so() {
     let b_old = made("Savings", B, 2);
     let b_new = resealed(&b_old, B, 0x61);
-    let digest = slot_digest(&b_new, B);
 
     // B current: nothing is said.
-    let mut inbox = plans_vault_and_b(&b_old, 2, digest);
-    inbox.push(("b.fvlt".into(), b_new.clone()));
+    let mut inbox = plans_vault_and_b(2, &b_new);
+    inbox.push(("b.kdbx".into(), b_new.clone()));
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
@@ -401,8 +400,8 @@ fn a_plan_that_records_the_copy_opened_says_nothing_and_one_with_other_bytes_say
 
     // B at the plan's count with other bytes.
     let b_alt = resealed(&b_old, B, 0x62);
-    let mut inbox = plans_vault_and_b(&b_old, 2, digest);
-    inbox.push(("b.fvlt".into(), b_alt));
+    let mut inbox = plans_vault_and_b(2, &b_new);
+    inbox.push(("b.kdbx".into(), b_alt));
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
@@ -412,9 +411,9 @@ fn a_plan_that_records_the_copy_opened_says_nothing_and_one_with_other_bytes_say
 
     // An older copy of the plan's vault carries an older line: no warning
     // on B, the limit §5.6 states.
-    let old_line = plans_vault_and_b(&b_old, 1, slot_digest(&b_old, B));
+    let old_line = plans_vault_and_b(1, &b_old);
     let mut inbox = old_line;
-    inbox.push(("b.fvlt".into(), b_new));
+    inbox.push(("b.kdbx".into(), b_new));
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
@@ -423,89 +422,57 @@ fn a_plan_that_records_the_copy_opened_says_nothing_and_one_with_other_bytes_say
 }
 
 #[test]
-fn another_copy_in_files_is_read_with_the_key_just_opened() {
+fn a_copy_in_files_that_was_never_opened_is_not_compared() {
     let original = made("Main", B, 1);
     let newer = resealed(&original, B, 0x71);
     let other = resealed(&original, B, 0x72);
 
-    // The older copy opens, the newer one is in Files beside it.
+    // The older copy opens with a newer one unopened in Files beside it:
+    // no dialog and nothing said (`docs/VAULT.md` §11).
     let mut app = process(
-        vec![("newer.fvlt".into(), newer.clone())],
-        vec![("main.fvlt".into(), original.clone())],
+        vec![("newer.kdbx".into(), newer.clone())],
+        vec![("main.kdbx".into(), original.clone())],
         Vec::new(),
     );
     unlock(&mut app, 0, B);
-    open_anyway(&mut app, "is in Files");
+    assert_eq!(app.sheet, None);
     let texts = head(&mut app);
-    assert!(
-        said(
-            &texts,
-            "An older copy: sealed once. A copy sealed 2 times is in Files."
-        ),
-        "{texts:?}"
-    );
-    assert_eq!(app.vaults().open.len(), 1, "warned, not refused");
+    assert!(!said(&texts, "older copy"), "{texts:?}");
 
     // The newer copy opens with the older beside it: nothing is said.
     let mut app = process(
-        vec![("main.fvlt".into(), original)],
-        vec![("newer.fvlt".into(), newer.clone())],
+        vec![("main.kdbx".into(), original)],
+        vec![("newer.kdbx".into(), newer.clone())],
         Vec::new(),
     );
     unlock(&mut app, 0, B);
     let texts = head(&mut app);
     assert!(!said(&texts, "older copy"), "{texts:?}");
 
-    // Two copies sealed from one copy.
+    // Another copy of the same count, unopened in Files: nothing is said.
     let mut app = process(
-        vec![("other.fvlt".into(), other)],
-        vec![("newer.fvlt".into(), newer)],
+        vec![("other.kdbx".into(), other)],
+        vec![("newer.kdbx".into(), newer)],
         Vec::new(),
     );
     unlock(&mut app, 0, B);
-    open_anyway(&mut app, "Another copy was sealed 2 times too");
+    assert_eq!(app.sheet, None);
     let texts = head(&mut app);
-    assert!(
-        said(
-            &texts,
-            "Another copy was sealed 2 times too, with other changes"
-        ),
-        "{texts:?}"
-    );
+    assert!(!said(&texts, "Another copy"), "{texts:?}");
 }
 
 /// A vault `phrase` opens that keeps a plan for the Savings wallet.
-fn with_plan(label: &str, phrase: &str, seed: u8) -> Vec<u8> {
-    let c = testkit::compute();
-    let contents = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes()),
-            Record::new(kind::PLAN)
-                .with(field::PLAN_WALLET, testkit::savings().as_bytes())
-                .with(field::PLAN_ANSWERS, b"seeds 1\n"),
-        ],
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        faraday_vault::Cost {
-            memory_kib: faraday_vault::MIN_MEMORY_KIB,
-            passes: 1,
-            lanes: 1,
-        },
-        &[phrase],
-        &[contents],
-        &[seed; 32],
-    )
-    .unwrap()
+fn with_plan(label: &str, phrase: &str, id: u8) -> Vec<u8> {
+    with_lines(label, phrase, id, "")
 }
 
 /// The `seals` lines of the plan in the vault `phrase` opens in `file`.
 fn plan_lines(file: &[u8], phrase: &str) -> Vec<String> {
     let c = testkit::compute();
-    let (_, contents) = faraday_vault::open(&c, file, phrase).unwrap();
-    contents
-        .records
+    let mut store = faraday_keys::vault::OpenVaults::default();
+    let (vid, _) = store.unlock(&c, file.to_vec(), phrase).unwrap();
+    store
+        .contents_for_tests(vid)
         .iter()
         .filter(|r| r.kind == kind::PLAN)
         .flat_map(|r| {
@@ -527,41 +494,50 @@ fn plan_lines(file: &[u8], phrase: &str) -> Vec<String> {
 fn a_plan_placing_two_vaults_records_each_for_the_other_at_the_lock() {
     let a = with_plan("Plans A", A, 5);
     let b = with_plan("Plans B", B, 6);
-    let (ha, hb) = (
-        faraday_vault::read_header(&a).unwrap(),
-        faraday_vault::read_header(&b).unwrap(),
-    );
     let mut app = process(
-        vec![("a.fvlt".into(), a), ("b.fvlt".into(), b)],
+        vec![("a.kdbx".into(), a), ("b.kdbx".into(), b)],
         Vec::new(),
         Vec::new(),
     );
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
+    crate::common::top_up(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
     let (_, outbox, _) = saved(&mut app);
-    let find = |salt: [u8; 32]| {
+    assert_eq!(outbox.len(), 2, "both were sealed");
+    let find = |phrase: &str| {
         outbox
             .iter()
-            .find(|(_, f)| faraday_vault::read_header(f).is_ok_and(|h| h.salt == salt))
+            .find(|(_, f)| {
+                faraday_keys::vault::OpenVaults::default()
+                    .unlock(&testkit::compute(), f.clone(), phrase)
+                    .is_ok()
+            })
             .map(|(_, f)| f.clone())
             .expect("the vault was sealed")
     };
-    let (a2, b2) = (find(ha.salt), find(hb.salt));
+    let (a2, b2) = (find(A), find(B));
     let in_a = plan_lines(&a2, A);
     let in_b = plan_lines(&b2, B);
     assert_eq!(in_a.len(), 1, "{in_a:?}");
     assert_eq!(in_b.len(), 1, "{in_b:?}");
     assert!(
-        in_a[0].starts_with(&format!("seals {} ", hex(&hb.salt))),
+        in_a[0].starts_with(&format!("seals {} ", id_hex(6))),
         "{in_a:?}"
     );
     assert!(
-        in_b[0].starts_with(&format!("seals {} ", hex(&ha.salt))),
+        in_b[0].starts_with(&format!("seals {} ", id_hex(5))),
         "{in_b:?}"
     );
-    // The first vault sealed took the other's count before it was sealed
-    // (1); the second took the first's after (2).
-    assert_eq!(in_a[0].split(' ').nth(4), Some("1"));
-    assert_eq!(in_b[0].split(' ').nth(4), Some("2"));
+    // The vault sealed first took the other's count as it was opened (c);
+    // the one sealed second took the first's after its seal (c + 1).
+    let at = |file: &[u8]| outbox.iter().position(|(_, f)| f == file).unwrap();
+    let (first, second) = if at(&a2) < at(&b2) {
+        (&in_a, &in_b)
+    } else {
+        (&in_b, &in_a)
+    };
+    let count = |lines: &[String]| lines[0].split(' ').nth(2).unwrap().parse::<u64>().unwrap();
+    assert_eq!(count(second), count(first) + 1, "{in_a:?} {in_b:?}");
 }

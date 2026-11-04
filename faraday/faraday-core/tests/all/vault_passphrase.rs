@@ -110,21 +110,6 @@ fn passphrases_are_masked_until_shown() {
     assert!(!app.vaults().create.as_ref().unwrap().shown);
 }
 
-#[test]
-fn a_second_passphrase_added_by_mistake_can_be_removed() {
-    let mut app = faraday_core::testkit::started();
-    app.press(Action::Vault(V::Create));
-    assert_eq!(app.vaults().create.as_ref().unwrap().phrases.len(), 1);
-    app.press(Action::Vault(V::CAddPhrase));
-    assert_eq!(app.vaults().create.as_ref().unwrap().phrases.len(), 2);
-    app.press(Action::Vault(V::CRemovePhrase(1)));
-    assert_eq!(
-        app.vaults().create.as_ref().unwrap().phrases.len(),
-        1,
-        "the flow would otherwise be stuck on an extra, empty passphrase"
-    );
-}
-
 fn shown() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.event(faraday_shell_api::Event::Display(
@@ -149,8 +134,8 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
     let mut app = shown();
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
-            "vault.fvlt".to_string(),
-            crate::common::vault("Test", &[faraday_core::testkit::VAULT_PASSPHRASES[0]], 7),
+            "vault.kdbx".to_string(),
+            crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),

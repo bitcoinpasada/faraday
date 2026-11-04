@@ -3,6 +3,7 @@
 //! unprotected without the secret sheet, and a password out (for KeePass
 //! or as a file) names neither the key it came from nor its index.
 
+use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use faraday_bip::bip39::Language;
 use faraday_core::testkit;
@@ -95,13 +96,13 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     let mut app = with_key(vec![vault]);
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -152,7 +153,7 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     let mut app = with_key(vec![vault]);
     for i in 0..12u8 {
@@ -163,7 +164,7 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     crate::common::settle(&mut app, 1);
     assert_eq!(app.vaults().open.len(), 1);

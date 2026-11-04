@@ -27,7 +27,7 @@ writes the vault back over its own file.
 | **Rename** | opens **Rename the vault** in the detail: **Name**, **Save**, **Cancel** |
 | **Lock** | locks, sealing every open vault; [Lock](lock-and-power.md#lock) asks first when the lock would end something |
 | the seals line | under the file's line: "Sealed 12 times · last 28 Oct 2026, 14:02" ("Sealed once"; "last time not recorded" when the sealing computer's clock was not set), and, in the warning tone, "An older copy: sealed 9 times. A copy sealed 12 times was open since power-on." when the copy is not the newest seen |
-| the line under the state | the file and its unlock cost ("vault.fvlt · 64 MiB · 3 passes"); with more than one vault open, a button per vault, the one shown filled |
+| the line under the state | the file and its unlock cost ("vault.kdbx · 64 MiB · 3 passes"); with more than one vault open, a button per vault, the one shown filled |
 | "A secret value shows after a press on its eye …" | in Guided mode |
 
 The page has three columns: the kinds, the items of the kind chosen,
@@ -133,7 +133,7 @@ The title is its user ID; its line **Ed25519 · does not expire** or
 
 ![Vault 1 on GPG keys with Example Signer chosen: fingerprint, signing subkey, valid dates, Renew for and Export public key](../pictures/vault-gpg-key.png)
 
-*Vault 1 (Vault-1.fvlt) on **GPG keys**: Example Signer's key, valid 2026-10-26 to 2029-10-25, its revocation certificate kept, its backup **Written to every place**, **Renew for** with **Renew** grey, and **Export public key**, **Show as QR** and **PNG**.*
+*Vault 1 (Vault-1.kdbx) on **GPG keys**: Example Signer's key, valid 2026-10-26 to 2029-10-25, its revocation certificate kept, its backup **Written to every place**, **Renew for** with **Renew** grey, and **Export public key**, **Show as QR** and **PNG**.*
 
 | Field or control | What it is |
 |---|---|

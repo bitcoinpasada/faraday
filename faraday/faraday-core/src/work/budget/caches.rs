@@ -83,7 +83,7 @@ fn round(app: &mut Faraday, n: usize) {
     // Files in under new names, and out again.
     let mut inbox = testkit::files().expect("the test stick's files");
     // The vault keeps its name: it is unlocked below by it.
-    for (name, _) in inbox.iter_mut().filter(|(name, _)| name != "vault.fvlt") {
+    for (name, _) in inbox.iter_mut().filter(|(name, _)| name != "vault.kdbx") {
         *name = format!("{n}-{name}");
     }
     app.storage(StorageEvent::Restored {

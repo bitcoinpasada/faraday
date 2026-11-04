@@ -100,3 +100,13 @@ impl Idle {
         self.warn_min = minutes;
     }
 }
+
+/// When the idle warning comes up and when the lock follows, ms without
+/// input, for a lock after `lock_min` minutes; `None` when the session
+/// never locks for idleness.
+pub(crate) fn lock_at(lock_min: u16) -> Option<(u64, u64)> {
+    (lock_min > 0).then(|| {
+        let lock = u64::from(lock_min) * 60_000;
+        (lock - crate::IDLE_WARN_MS.min(lock / 2), lock)
+    })
+}

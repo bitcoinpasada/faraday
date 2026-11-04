@@ -31,6 +31,8 @@ pub(crate) enum Plan {
     Create {
         typed: String,
         first: Zeroizing<String>,
+        /// The vault's root group UUID, which names it (`docs/VAULT.md` §7).
+        id: [u8; 16],
     },
 }
 
@@ -197,7 +199,11 @@ fn create_start(app: &mut Faraday) -> bool {
             job,
             act: VaultAct::Made,
             cost,
-            plan: Plan::Create { typed, first },
+            plan: Plan::Create {
+                typed,
+                first,
+                id: id16,
+            },
         })),
         EN.working_vault_make,
     );
@@ -210,7 +216,7 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
     let StretchDone { stretched, plan } = done;
     match plan {
         Plan::Unlock { name, for_import } => unlocked(app, stretched, name, for_import),
-        Plan::Create { typed, first } => created(app, stretched, &typed, &first),
+        Plan::Create { typed, first, id } => created(app, stretched, &typed, &first, id),
     }
 }
 
@@ -279,7 +285,7 @@ fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: b
     }
 }
 
-fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str) {
+fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str, id: [u8; 16]) {
     // A stick put in while the vault was made: the press's own refusal.
     if !app.stick.is_empty() {
         drop(stretched);
@@ -293,6 +299,27 @@ fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str) {
         Ok(file) => {
             let name = app.free_vault_name(&vault_stem(typed));
             app.put_outbox(&name, file);
+            // The file is a copy of the vault it makes: nothing in the
+            // file says which, so the session's summary does.
+            let sha = app
+                .outbox
+                .iter()
+                .find(|it| it.name == name)
+                .and_then(|it| it.sha);
+            if let Some(sha) = sha {
+                let mut vault_id = [0u8; 32];
+                for (k, b) in id.iter().enumerate() {
+                    vault_id[2 * k] = b"0123456789abcdef"[usize::from(b >> 4)];
+                    vault_id[2 * k + 1] = b"0123456789abcdef"[usize::from(b & 15)];
+                }
+                app.vaults.merge_summaries(vec![super::area::VaultSummary {
+                    file: name.clone(),
+                    id: vault_id,
+                    copies: vec![sha],
+                    name: name.clone(),
+                    ..Default::default()
+                }]);
+            }
             // Made inside a backup flow: unlocked at once with the
             // passphrase just typed twice, never leaving the flow.
             if app.flow_vault_made(&name, first) {

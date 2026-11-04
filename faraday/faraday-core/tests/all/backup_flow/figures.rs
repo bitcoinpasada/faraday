@@ -67,7 +67,7 @@ fn checked_with_files() -> (Shell, Faraday) {
     };
     d.files = vec![
         ("notes.txt".into(), vec![b'x'; 1500]),
-        ("other.fvlt".into(), vault("Other", &[PHRASE_2], 0x42)),
+        ("other.kdbx".into(), vault("Other", PHRASE_2, 0x42)),
     ];
     shell.add(d);
     let mut app = started(Kind::Gpg);
@@ -89,7 +89,7 @@ fn a_press_on_a_checked_figure_opens_the_sticks_sheet_and_close_closes_it() {
     assert!(has(&mut app, "16 GB"));
     assert!(has(&mut app, "1234-5678"));
     assert!(has(&mut app, "notes.txt: 1.5 KB"));
-    assert!(has(&mut app, "other.fvlt"));
+    assert!(has(&mut app, "other.kdbx"));
     assert!(has(&mut app, "Close"));
     shell.press(&mut app, Action::Cancel);
     assert!(!has(&mut app, "1234-5678"));

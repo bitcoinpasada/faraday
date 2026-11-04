@@ -21,7 +21,7 @@ pub(super) fn run(c: &Compute, t: &mut Tour) -> Result<(), String> {
     key_session(t);
     let kit = single_kit(c, t, 1_410)?;
     let psbt = testkit::unsigned(&kit)?.to_bytes();
-    let vault = std::fs::read(t.kit.join("vault.fvlt")).map_err(|e| format!("vault.fvlt: {e}"))?;
+    let vault = std::fs::read(t.kit.join("vault.kdbx")).map_err(|e| format!("vault.kdbx: {e}"))?;
     make_it_a_wallet(t)?;
     write_asks_to_lock(t, &psbt)?;
     this_is_a_secret(t, &vault)?;
@@ -72,7 +72,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
         "KEYSTICK",
         &[
             ("payment-signed.psbt", psbt.to_vec()),
-            ("vault.fvlt", vault.to_vec()),
+            ("vault.kdbx", vault.to_vec()),
         ],
     )?;
     t.app.storage(StorageEvent::Sticks(vec![keystick.clone()]));
@@ -81,7 +81,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.shot("stick-visit")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    files_in(t, &[], &[signed[0].clone(), ("vault.fvlt", vault.to_vec())]);
+    files_in(t, &[], &[signed[0].clone(), ("vault.kdbx", vault.to_vec())]);
     t.app.storage(StorageEvent::Sticks(vec![keystick.clone()]));
     t.pump();
     t.press(Action::Nav(Screen::Visit));
@@ -174,14 +174,14 @@ fn write_asks_to_lock(t: &mut Tour, psbt: &[u8]) -> Result<(), String> {
 /// and sent out, This is a secret offering the open vault.
 fn this_is_a_secret(t: &mut Tour, vault: &[u8]) -> Result<(), String> {
     key_session(t);
-    files_in(t, &[("vault.fvlt", vault.to_vec())], &[]);
+    files_in(t, &[("vault.kdbx", vault.to_vec())], &[]);
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
     testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..20 {
         t.tick();

@@ -4,6 +4,7 @@
 //! time zone is a fixed offset kept in the settings file; and every time
 //! shown to a person is local.
 
+use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use faraday_core::set_time::Focus;
 use faraday_core::stick::settings::FILE;
@@ -40,7 +41,7 @@ fn vault_app(clock: Option<u64>) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), vault)],
+        inbox: vec![("vault.kdbx".into(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -49,7 +50,7 @@ fn vault_app(clock: Option<u64>) -> Faraday {
     }
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     let _ = app.frame();
     app.event(Event::Tick { now_ms: 1_000 });
@@ -78,7 +79,6 @@ fn gpg_created(app: &Faraday) -> u32 {
         .vaults()
         .store()
         .contents_for_tests(v.id)
-        .records
         .iter()
         .rev()
         .find(|r| r.kind == kind::GPG)
@@ -336,7 +336,7 @@ fn written_to_stick_shows_the_local_time() {
     });
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        outbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Sticks(vec![stick("FIRST", false, None)]));

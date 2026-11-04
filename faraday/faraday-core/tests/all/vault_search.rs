@@ -6,7 +6,7 @@
 //! and nothing is cut off; on a wide window the contents run to the
 //! window's edge and the codes stand centred in their reading area.
 
-use crate::common::type_text;
+use crate::common::{know_files, type_text, vault_with};
 use faraday_core::codes::codes_rows;
 use faraday_core::testkit;
 use faraday_core::vault::{SearchAct, SearchIn, VaultAction as V};
@@ -15,8 +15,8 @@ use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
 };
 use faraday_ui::keyboard::OskPress;
+use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Cost, Record};
 
 const PASSPHRASE: &str = "many entries";
 
@@ -28,10 +28,9 @@ fn titles() -> Vec<(String, bool)> {
     banks.chain(mails).collect()
 }
 
-/// A one-slot vault holding [`titles`]' entries.
+/// A vault holding [`titles`]' entries.
 fn many_entries() -> Vec<u8> {
-    let c = testkit::compute();
-    let mut records = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Passwords")];
+    let mut records = Vec::new();
     for (t, totp) in titles() {
         let mut r = Record::new(kind::ENTRY)
             .with(field::TITLE, t.as_bytes())
@@ -44,20 +43,7 @@ fn many_entries() -> Vec<u8> {
         }
         records.push(r);
     }
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 3,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[PASSPHRASE],
-        &[Contents { records }],
-        &[0x42; 32],
-    )
-    .unwrap()
+    vault_with("Passwords", PASSPHRASE, 0x42, records)
 }
 
 /// The app at `width` × `height` pixels and `dpi`, the vault unlocked on
@@ -80,8 +66,10 @@ fn unlocked(width: u16, height: u16, dpi: u16) -> Faraday {
     for i in 0..6u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
     }
+    let inbox = vec![("passwords.kdbx".to_string(), many_entries())];
+    know_files(&mut app, &inbox);
     app.storage(StorageEvent::Restored {
-        inbox: vec![("passwords.fvlt".into(), many_entries())],
+        inbox,
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -157,7 +145,13 @@ fn a_search_follows_an_entry_added_and_a_query_changed() {
     let id = app.vaults().open[0].id;
     for title in ["Bank 9", "Shop"] {
         testkit::vault_edit(&mut app, id, |s| {
-            s.set_fields(id, None, kind::ENTRY, &[(field::TITLE, title.as_bytes())])
+            s.set_fields(
+                &testkit::compute(),
+                id,
+                None,
+                kind::ENTRY,
+                &[(field::TITLE, title.as_bytes())],
+            )
         })
         .unwrap();
     }

@@ -43,7 +43,7 @@ fn device() -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.fvlt")],
+        inbox: vec![kit_file("vault.kdbx")],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -65,7 +65,7 @@ fn unlock_vault(app: &mut Faraday) {
     faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {

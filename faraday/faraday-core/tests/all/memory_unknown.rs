@@ -10,28 +10,10 @@ use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Secure
 
 const UNKNOWN: &str = "This computer does not say how much memory it has free";
 
-/// A Light vault (64 MiB) of the test passphrase, and the same file with
-/// its header stating `mib`: Unlock reads the cost from the header before
-/// anything is decrypted.
+/// A vault of the test passphrase whose header states `mib` MiB: Unlock
+/// reads the cost from the header before anything is decrypted.
 fn vault_at(mib: u32) -> Vec<u8> {
-    let c = testkit::compute();
-    let mut bytes = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        faraday_vault::Cost {
-            memory_kib: 64 * 1024,
-            passes: 1,
-            lanes: 1,
-        },
-        &["memory phrase"],
-        &[faraday_vault::Contents {
-            records: Vec::new(),
-        }],
-        &[0x3c; 32],
-    )
-    .unwrap();
-    bytes[5..9].copy_from_slice(&(mib * 1024).to_le_bytes());
-    bytes
+    testkit::kdbx_vault_at("Memory", "memory phrase", 0x3c, mib * 1024, Vec::new()).unwrap()
 }
 
 /// A computer that never says how much memory it has free.
@@ -80,8 +62,8 @@ fn try_unlock(app: &mut Faraday, name: &str) {
 
 #[test]
 fn memory_unknown_a_vault_above_light_is_not_unlocked_and_says_why() {
-    let mut app = silent(vec![("big.fvlt".into(), vault_at(256))]);
-    try_unlock(&mut app, "big.fvlt");
+    let mut app = silent(vec![("big.kdbx".into(), vault_at(256))]);
+    try_unlock(&mut app, "big.kdbx");
     assert!(app.vaults().open.is_empty(), "unlocked with memory unknown");
     let e = app.vaults().unlock_error.clone().unwrap_or_default();
     assert!(e.starts_with(UNKNOWN), "{e}");
@@ -89,8 +71,8 @@ fn memory_unknown_a_vault_above_light_is_not_unlocked_and_says_why() {
 
 #[test]
 fn memory_unknown_a_light_vault_unlocks() {
-    let mut app = silent(vec![("light.fvlt".into(), vault_at(64))]);
-    try_unlock(&mut app, "light.fvlt");
+    let mut app = silent(vec![("light.kdbx".into(), vault_at(64))]);
+    try_unlock(&mut app, "light.kdbx");
     assert_eq!(
         app.vaults().open.len(),
         1,

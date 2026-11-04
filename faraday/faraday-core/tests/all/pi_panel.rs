@@ -177,7 +177,7 @@ fn sheets() -> Vec<Sheet> {
     let mut all = every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Learn, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, Delete, Zeroing, Taken, Devices, VaultSave,
-        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, OlderCopy,
+        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SaveAlso, OlderCopy,
         ChildRecord, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
         GpgRestore, FigMenu, LaterAsk, StickSheet,
@@ -899,14 +899,14 @@ fn vaults(on: On, mode: Mode) -> Vec<String> {
     let mut rig = rig(
         on,
         mode,
-        vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
     );
     rig.press(Action::Nav(Screen::Vaults));
     rig.press(Action::Vault(V::Open(0)));
     rig.settle();
     let mut found = walk(&mut rig, "Unlock");
     rig.press(Action::Vault(V::FocusPassphrase));
-    crate::common::type_text(&mut rig, testkit::VAULT_PASSPHRASES[0]);
+    crate::common::type_text(&mut rig, testkit::VAULT_PASSPHRASE);
     rig.press(Action::Vault(V::Unlock));
     crate::common::settle(&mut rig, 100);
     if rig.sheet == Some(Sheet::UnlockLoad) {

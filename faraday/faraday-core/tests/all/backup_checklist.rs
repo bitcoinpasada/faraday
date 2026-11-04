@@ -5,6 +5,7 @@
 //! in the vault, where the next backup of the wallet finds the plan, and
 //! in no file. The blank template has a line per place and no name.
 
+use crate::common::RecordsOf as _;
 use crate::common::{files_stick, form, no_words, put, type_text};
 use faraday_core::board::{Thing, Zone};
 use faraday_core::plan::Item;
@@ -45,14 +46,14 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn vault_file() -> (String, Vec<u8>) {
-    ("vault.fvlt".to_string(), testkit::test_vault().unwrap())
+    ("vault.kdbx".to_string(), testkit::test_vault().unwrap())
 }
 
 fn unlock(app: &mut Faraday) {
     faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -575,7 +576,10 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
         });
     }
     assert!(found, "Lock it and make a new vault is not offered");
+    // The lock seals the first vault with the system's answers.
+    crate::common::top_up(&mut app);
     app.press(Action::BNewVault(1));
+    faraday_core::testkit::settle(&mut app);
     assert_eq!(app.vaults().open.len(), 0, "the first vault is locked");
     make_the_vault(&mut app);
     assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT + 1));
@@ -588,7 +592,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     assert_eq!(
         app.outbox
             .iter()
-            .filter(|i| i.name.ends_with(".fvlt"))
+            .filter(|i| i.name.ends_with(".kdbx"))
             .count(),
         2,
         "two vault files for the sticks"

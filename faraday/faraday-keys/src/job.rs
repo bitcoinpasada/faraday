@@ -169,7 +169,7 @@ impl Stretched {
 /// ends or is dropped.
 pub struct SealJob {
     opened: Arc<fv::file::Opened>,
-    ops: Vec<Op>,
+    ops: Result<Vec<Op>, fv::file::Error>,
     names: Names,
     random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
     now: Option<u64>,
@@ -184,7 +184,7 @@ pub struct Sealed {
 impl SealJob {
     pub(crate) fn new(
         opened: Arc<fv::file::Opened>,
-        ops: Vec<Op>,
+        ops: Result<Vec<Op>, fv::file::Error>,
         names: Names,
         random: &[u8; SEAL_RANDOM_LEN],
         now: Option<u64>,
@@ -202,9 +202,12 @@ impl SealJob {
     /// each entry changed and a PBKDF2 for each new key with no label (the
     /// same calls as `faraday_vault::file::seal`).
     pub fn run(self, c: &Compute) -> Sealed {
-        let out = with_changes(c, &self.names, &self.ops, true, self.now, |changes| {
-            fv::file::seal(c, &self.opened, changes, &self.random, self.now)
-        });
+        let out = match &self.ops {
+            Ok(ops) => with_changes(c, &self.names, ops, true, self.now, |changes| {
+                fv::file::seal(c, &self.opened, changes, &self.random, self.now)
+            }),
+            Err(e) => Err(e.clone()),
+        };
         Sealed {
             out: out.map(Zeroizing::new),
         }

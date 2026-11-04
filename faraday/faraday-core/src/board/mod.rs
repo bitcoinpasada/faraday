@@ -1212,8 +1212,13 @@ impl Faraday {
                                 // A vault not made yet is made in the checklist
                                 // (`docs/BACKUP-FLOW.md` §17.21 item 6).
                                 let (sealed, sealed_short) = if self.board_vault_made(&shape, v) {
-                                    let band = fill(EN.board_sealed, &[&head.name]);
-                                    (band.clone(), band)
+                                    // Where the file's name makes the band too long,
+                                    // the vault's number alone.
+                                    let bare = fill(EN.plan_vault, &[&(v + 1).to_string()]);
+                                    (
+                                        fill(EN.board_sealed, &[&head.name]),
+                                        fill(EN.board_sealed, &[&bare]),
+                                    )
                                 } else {
                                     (
                                         fill(EN.board_sealed_made, &[&head.name]),

@@ -70,13 +70,13 @@ fn with_vault(clipboard: bool) -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
     app.event(Event::Entropy(EntropyBytes::new([7; 32])));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -124,7 +124,7 @@ fn in_new_entry(app: &Faraday) {
     );
     assert_eq!(app.screen, Screen::VaultContents);
     assert!(app.vaults().form.is_some(), "no entry form opened");
-    assert!(app.inbox().iter().all(|i| i.name == "vault.fvlt"));
+    assert!(app.inbox().iter().all(|i| i.name == "vault.kdbx"));
 }
 
 #[test]

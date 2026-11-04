@@ -20,7 +20,7 @@ use faraday_vault::records::{field, kind};
 /// One file of the test stick, made alone: building the whole stick costs
 /// every kit's spend and the test vault.
 fn kit_file(name: &str) -> (String, Vec<u8>) {
-    if name == "vault.fvlt" {
+    if name == "vault.kdbx" {
         return (name.to_string(), testkit::test_vault().unwrap());
     }
     let id = name
@@ -50,7 +50,7 @@ fn opened() -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.fvlt")],
+        inbox: vec![kit_file("vault.kdbx")],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -59,7 +59,7 @@ fn opened() -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
-    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
@@ -92,7 +92,6 @@ fn on_wallet(name: &str) -> Faraday {
         .vaults()
         .store()
         .contents_for_tests(app.vaults().open[0].id)
-        .records
         .iter()
         .filter(|r| [kind::WALLET, kind::WALLET_SHARE].contains(&r.kind))
         .position(|r| r.text(field::WALLET_NAME) == Some(name))
@@ -178,7 +177,7 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
 fn vault_now(app: &Faraday) -> (usize, usize) {
     let v = &app.vaults().open[0];
     (
-        app.vaults().store().contents_for_tests(v.id).records.len(),
+        app.vaults().store().contents_for_tests(v.id).len(),
         v.changes,
     )
 }
@@ -309,26 +308,11 @@ fn save_to_a_stick_says_the_seed_line_first_and_writes_the_ticked_forms() {
 #[test]
 fn a_japanese_seed_saved_to_a_stick_is_its_words() {
     use faraday_vault::records;
-    let c = testkit::compute();
     let m = Mnemonic::from_entropy(Language::Japanese, &[0xb7; 32]).unwrap();
     let record = faraday_vault::Record::new(kind::KEY)
         .with(field::KEY, &records::words_payload(&m))
         .with(field::KEY_LABEL, b"Japanese");
-    let vault = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        faraday_vault::Cost {
-            memory_kib: 64 * 1024,
-            passes: 1,
-            lanes: 1,
-        },
-        &["japanese phrase"],
-        &[faraday_vault::Contents {
-            records: vec![record],
-        }],
-        &[0x6a; 32],
-    )
-    .unwrap();
+    let vault = crate::common::vault_of("Japanese", "japanese phrase", 0x6a, vec![record]);
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -343,7 +327,7 @@ fn a_japanese_seed_saved_to_a_stick_is_its_words() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("japanese.fvlt".into(), vault)],
+        inbox: vec![("japanese.kdbx".into(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -538,12 +522,11 @@ fn a_codex32_key_saved_by_bitcoin_key_reads_back_from_the_vault_as_itself() {
         .vaults()
         .store()
         .contents_for_tests(id)
-        .records
         .iter()
         .filter(|r| [kind::KEY, kind::PASSPHRASE, kind::CODEX32_SHARE].contains(&r.kind))
         .count()
         - 1;
-    let saved = &app.vaults().store().contents_for_tests(id).records;
+    let saved = &app.vaults().store().contents_for_tests(id);
     assert_eq!(
         saved.last().map(|r| r.kind),
         Some(kind::KEY),

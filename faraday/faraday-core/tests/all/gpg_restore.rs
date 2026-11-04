@@ -11,6 +11,7 @@
 //! its paperkey as paperkey 1.6 printed it from the key's secret key,
 //! comment header and all.
 
+use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
 use faraday_core::backup_flow::{BackupFlow, Kind, Plan, RestoreFrom, Step};
@@ -390,13 +391,13 @@ fn with_test_vault() -> Faraday {
     let vault = faraday_core::testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     let mut app = process(vec![vault], Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, faraday_core::testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, faraday_core::testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
@@ -409,7 +410,7 @@ fn restore_at_make(app: &mut Faraday, from: RestoreFrom) {
     let c = faraday_core::testkit::compute();
     let (salt, name) = {
         let o = &app.vaults().open[app.vaults().current];
-        (o.header().salt, o.name.clone())
+        (o.vault_id(), o.name.clone())
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);

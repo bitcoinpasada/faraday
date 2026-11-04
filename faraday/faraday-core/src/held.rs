@@ -588,8 +588,14 @@ impl Faraday {
         if !gone.is_empty()
             && let Some(id) = self.vaults.open.get(cur).map(|o| o.id)
         {
+            // `remove_where` asks each record once, in order: the count is
+            // the record's place before any went (its own place shifts).
+            let mut seen = 0;
             self.vaults.edit(id, |s| {
-                s.remove_where(id, |r| r.home().is_some_and(|(_, i)| gone.contains(&i)))
+                s.remove_where(id, |_| {
+                    seen += 1;
+                    gone.contains(&(seen - 1))
+                })
             });
             self.vaults.changed(id);
         }

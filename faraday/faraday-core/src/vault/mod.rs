@@ -38,7 +38,7 @@ use crate::stick;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::{IntoRecord, RecordView, RelatedKind, VaultId};
+use faraday_keys::vault::{IntoRecord, RecordView, RelatedKind, Staged, VaultId};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Cost, Record};
 use related::SaveHold;
@@ -1707,6 +1707,16 @@ impl Faraday {
         stick::focus(self, Focus::Field(0));
     }
 
+    /// The form's record was not set: the form stays, and the toast says
+    /// whether the vault is full or cannot be written.
+    fn vault_form_refused(&mut self, form: Form, why: faraday_keys::vault::NotSet) {
+        self.vaults.state.form = Some(form);
+        self.toast(match why {
+            faraday_keys::vault::NotSet::Full => EN.vaults_slot_too_small,
+            faraday_keys::vault::NotSet::Unwritable => EN.vaults_cannot_write,
+        });
+    }
+
     fn vault_form_save(&mut self) {
         // The backup flow's Make form is saved by Make the key.
         if self.screen == Screen::BackupFlow {
@@ -1806,10 +1816,9 @@ impl Faraday {
         let placed = self
             .vaults
             .edit(id, |s| s.set_fields(&c, id, form.record, form.kind, &typed));
-        let Ok(place) = placed else {
-            self.vaults.state.form = Some(form);
-            self.toast(EN.vaults_slot_too_small);
-            return;
+        let place = match placed {
+            Ok(place) => place,
+            Err(why) => return self.vault_form_refused(form, why),
         };
         if was.is_none() {
             self.vaults.state.select_place(place);
@@ -1945,11 +1954,10 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
-        let record = record.into_record();
         // A second passphrase for a key, or a share of a set held: the
         // person decides.
         if let Some(kind) = self.vaults.store().relates(id, &record) {
-            self.vault_hold_save(id, record, said, kind);
+            self.vault_hold_save(id, record.staged(), said, kind);
             return true;
         }
         self.vault_put_in(v, record, said)
@@ -1957,7 +1965,7 @@ impl Faraday {
 
     /// Adds `record` to open vault `v` with no question, saying `said`.
     /// False when it does not fit.
-    pub(crate) fn vault_put_in(&mut self, v: usize, record: Record, said: &str) -> bool {
+    pub(crate) fn vault_put_in(&mut self, v: usize, record: impl IntoRecord, said: &str) -> bool {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
@@ -2022,9 +2030,21 @@ impl Faraday {
     }
 
     /// Whether a lock would lose an open vault's changes: the session's
-    /// seed, which every seal's nonce is drawn from, has not arrived.
+    /// seed has not arrived, or fewer answers wait than the seals of the
+    /// changed vaults draw (five each, and one more for every 32 bytes of
+    /// new entries' identifiers).
     pub fn seal_waits(&self) -> bool {
-        !self.seeded() && self.vaults.open.iter().any(|v| v.changes > 0)
+        let need: usize = self
+            .vaults
+            .open
+            .iter()
+            .filter(|v| v.changes > 0)
+            .map(|v| {
+                let entries = self.vaults.store().uuid_bytes(v.id).unwrap_or(0);
+                faraday_keys::vault::SEAL_RANDOM_LEN.div_ceil(32) + usize::from(entries > 0)
+            })
+            .sum();
+        need > 0 && !self.seal_answers_ready(need)
     }
 
     /// Costs what [`Vaults::seal_blocked`] costs. Whether a lock would lose
@@ -3099,6 +3119,7 @@ impl Faraday {
             v,
             &s.ticked,
             &s.choice,
+            Some(&s.passphrases),
         )))
     }
 
@@ -3135,13 +3156,20 @@ impl Faraday {
             })
             .collect();
         // Everything it holds is in the session already: nothing to ask.
-        if !self
+        let first = self
             .vaults
-            .load_view(&c, &self.session, v, &ticked, &BTreeMap::new())
-            .tickable()
-        {
+            .load_view(&c, &self.session, v, &ticked, &BTreeMap::new(), None);
+        if !first.tickable() {
             return false;
         }
+        let passphrases = first
+            .cards
+            .iter()
+            .flat_map(|c| c.seeds.iter())
+            .chain(first.keys.iter())
+            .filter(|s| !s.passphrases.is_empty())
+            .map(|s| (s.record, s.passphrases.clone()))
+            .collect();
         let Some(open) = self.vaults.open.get(v) else {
             return false;
         };
@@ -3151,6 +3179,7 @@ impl Faraday {
             wallets_before,
             ticked,
             choice: Default::default(),
+            passphrases,
         });
         self.sheet = Some(Sheet::UnlockLoad);
         true
@@ -3176,9 +3205,10 @@ impl Faraday {
             .as_ref()
             .map(|s| s.choice.clone())
             .unwrap_or_default();
+        let texts = self.vaults.load.as_ref().map(|s| s.passphrases.clone());
         let view = self
             .vaults
-            .load_view(&c, &self.session, v, &ticked, &choice);
+            .load_view(&c, &self.session, v, &ticked, &choice, texts.as_ref());
         match a {
             VaultAction::LoadTick(r) => {
                 if !view.tickable_records().contains(&r) {
@@ -3517,7 +3547,7 @@ impl Faraday {
     pub(crate) fn vault_hold_save(
         &mut self,
         id: VaultId,
-        record: Record,
+        record: Staged,
         said: &str,
         kind: RelatedKind,
     ) {
@@ -3566,7 +3596,7 @@ impl Faraday {
             return;
         };
         for (record, said) in hold.pending {
-            self.vault_put_in(v, record.into_record(), &said);
+            self.vault_put_in(v, record, &said);
         }
     }
 

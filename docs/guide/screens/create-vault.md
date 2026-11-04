@@ -75,25 +75,23 @@ memory ticked.
 
 | Control | What it does |
 |---|---|
-| **64 KiB**, **256 KiB**, **1 MiB**, **4 MiB** | the space each passphrase's contents get, with the file's size under it ("file …"). 256 KiB is chosen at first. A press chooses it and moves on |
+| **64 KiB**, **256 KiB**, **1 MiB**, **4 MiB** | the space the vault's contents get, with the file's size under it ("file …"). 256 KiB is chosen at first. A press chooses it and moves on |
 
 ### Name and passphrases
 
-![Name and passphrases with the name Passwords, Passphrase 1 from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
+![Name and passphrases with the name Passwords, the passphrase from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
 
-*The vault named Passwords ("File Passwords.fvlt"), **Passphrase 1** from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
+*The vault named Passwords ("File Passwords.kdbx"), the passphrase from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
 
 | Control | What it does |
 |---|---|
-| **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.fvlt"). Left empty, the file is `vault.fvlt` and the vault's title is "Vault" |
-| **Show passphrases**, **Hide passphrases** | shows or hides every passphrase typed |
-| **Passphrase 1** | the first passphrase: two fields, typed, then typed again |
+| **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.kdbx"). Left empty, the file is `vault.kdbx` and the vault's title is "Vault" |
+| **Show passphrases**, **Hide passphrases** | shows or hides the passphrase typed |
+| **Passphrase** | the vault's one passphrase: two fields, typed, then typed again |
 | **Generate with dice** | opens the dice panel under the fields; "or type your own below" beside it |
 | the line under the fields | **Matches**, **Does not match yet** in the warning tone, or **Type it, then type it again** |
 | the strength line | "77.5 bits from dice + ≈17.6 from the unlock cost ≈ 95.1 bits" for words from dice; "Typed: its own bits are not measured · the unlock cost adds ≈…" for a typed one |
-| **Remove** | beside a second, third or fourth passphrase: removes it |
-| **Add another passphrase** | adds one, up to four. Each passphrase opens its own contents |
-| "Remove the stick, then type the passphrases" | in place of the fields while a stick is attached |
+| "Remove the stick, then type the passphrase" | in place of the fields while a stick is attached |
 
 #### Generate with dice
 
@@ -115,8 +113,8 @@ passphrase** and **Name and passphrases**, each with its answer or
 | Control | What it does |
 |---|---|
 | a warning | "This computer cannot allocate 4 GiB. A vault it could not open is never written." in the error tone; "Medium needs 512 MiB. Pi Zero 2 W gives a vault … at most." and "Unlocking takes about 14 s here." in the warning tone; **Raspberry Pi unlock times are not measured yet.** |
-| **Will create** | **File**, **Size**, **Unlock memory**, **Unlock here**, **Unlock cost adds**, **Strength** (**Weakest passphrase** with more than one) and **Goes to** (**For the stick**) |
-| **Create vault** | makes the vault and puts it in Files, for the stick. Grey while a stick is attached. What stops it is named under **Will create**, and nothing is made: **Every passphrase needs a value**, **Each passphrase must be typed the same twice**, **Two passphrases are the same. Each must differ**, "Finish step 1 first" |
+| **Will create** | **File**, **Size**, **Unlock memory**, **Unlock here**, **Unlock cost adds**, **Strength** and **Goes to** (**For the stick**) |
+| **Create vault** | makes the vault and puts it in Files, for the stick. Grey while a stick is attached. What stops it is named under **Will create**, and nothing is made: **Every passphrase needs a value**, **Each passphrase must be typed the same twice**, "Finish step 1 first" |
 
 | State | What the page shows |
 |---|---|

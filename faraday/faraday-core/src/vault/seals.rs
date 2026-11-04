@@ -372,10 +372,12 @@ impl Vaults {
         };
         let digest = faraday_crypto::sha256_whole(c, bytes);
         self.copy_seen(&vault_id, digest);
+        // The file opened carries the count it was opened at; the seal
+        // wrote one higher.
         self.seals_raise(
             vault_id,
             SealSeen {
-                count: seals.count,
+                count: seals.count.saturating_add(1),
                 digest,
                 planned: Vec::new(),
             },
@@ -434,7 +436,7 @@ impl VaultArea {
         if let Some((history, bin)) = store.history(o.id).filter(|(h, b)| h + b > 0) {
             why.push(fill(
                 EN.vault_history_line,
-                &[&o.label(store), &history.to_string(), &bin.to_string()],
+                &[&history.to_string(), &bin.to_string()],
             ));
         }
         why.extend(o.seal_warning());
@@ -450,6 +452,16 @@ impl VaultArea {
             summary,
         }));
         true
+    }
+
+    /// Whether an idle lock lost a vault's changes.
+    pub(crate) fn changes_lost(&self) -> bool {
+        self.state.unsaved
+    }
+
+    /// An idle lock lost a vault's changes (or the next process is told so).
+    pub(crate) fn set_changes_lost(&mut self) {
+        self.state.unsaved = true;
     }
 
     /// Takes the hold, if any.

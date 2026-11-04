@@ -1,8 +1,8 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189); what is built is the four-slot FVLT format this replaces, whose account is `docs/history/VAULT-LOG.md`
-**Open:** the KDBX container and its XML document are built (`faraday-vault::kdbx`: §1.1 and the limits of §3 and §7.1, read and written; `kdbx::xml`: the document read, carried through unchanged and written, history and the recycle bin dropped and counted; `kdbx::items`: §7's entries and the database's custom data mapped to the records the app reads and back, a damaged item named and written back as read; `file`: a vault opened, changed, sealed and created, §2 to §5 and §8; a GPG key in Faraday's own shape and its record, §7); not built: the KDBX file vault in the app (§4 to §6: the app reading and sealing the file vault, which still uses FVLT), a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the dialog for files saved by other programs (§7.1), the QR vault as an OpenPGP message (§1.2, §2.1), the memory steps and sizes (§2, §3), sealing with the session's randomness (§5), the seal count by the vault identifier (§9, §11), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
+**Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults; the four-slot FVLT format this replaces has its account in `docs/history/VAULT-LOG.md`
+**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault as an OpenPGP message (§1.2, §2.1), the KeePass export folded into the vault (§8), the reader and the vectors (§10); the FVLT code is still in `faraday-vault` and `faraday-codec`, unused by the file vault
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -70,7 +70,9 @@ the passphrase, Argon2id, ChaCha20 and the HMACs.
 **Recognised by its contents.** A file the person selects is a vault
 when it begins with KDBX's two signatures and a major version of 4,
 whatever its name or extension. A KDBX 3.1 file (major version 3) is
-named "A KeePass file of an older version" and not opened. `.kdbx` is the
+named "A KeePass file of an older version" and not opened; any other
+file that begins with KDBX's signatures and is not a vault (KDBX 5, KDBX 4
+of a length no vault has, or cut short) is named "A KeePass file". `.kdbx` is the
 name Faraday writes and the one its lists group its own files by. The
 wipe asks for its hold on any file named `.kdbx` or `.pgp`, whatever it
 holds.
@@ -391,8 +393,8 @@ It does not start Argon2id.
    stopping at 4 MiB. Any failure refuses the file, and nothing of the
    contents is read.
 6. Read the inner header and the XML (§7, §7.1). Any fault refuses the
-   file, naming it. A file a KeePass app saved stops at §7.1's dialog
-   before it opens.
+   file, naming it. A file holding entry history or a recycle bin stops
+   at §7.1's dialog before it opens.
 7. Compare the seal count with what the session has seen (§11).
 
 **A QR vault.**
@@ -441,8 +443,10 @@ S2K and every data packet.
 - **The seal count is one higher** (§7, `faraday.seals`), with the time
   by this computer's clock when it is known, written by the vault crate
   alone. The app keeps the highest count it has seen of each vault
-  (§11); a backup plan can carry the counts of other vaults across a
-  power-off (§7, `plan`).
+  (§11); a vault sealed in the session is seen at the count its seal
+  wrote, one higher than the copy opened, so the copy opened is older
+  than it once the vault is sealed; a backup plan can carry the counts
+  of other vaults across a power-off (§7, `plan`).
 - **The contents are padded to the vault's size.** A vault whose
   changes do not fit its size is never closed at a lock. Entries read
   from the camera or from files are added only if they fit the room
@@ -452,7 +456,10 @@ S2K and every data packet.
   does not go ahead, nothing is wiped, the vault stays open with its
   changes and the Lock sheet names the vault, by how many bytes it is
   over, and the next size that holds it (§8). "Lock without sealing" is
-  the person's own choice to lose those changes. Locking one vault alone
+  the person's own choice to lose those changes. That rule is for a lock
+  the person asks for: an idle lock has no one to ask, so it goes ahead
+  and wipes, those changes are lost, and the Locked sheet says that
+  changes were not saved, too big for the size or not writable. Locking one vault alone
   (a backup's "Lock it and make a new vault") refuses the same way with
   a toast.
 
@@ -544,7 +551,7 @@ The vault's own values are the database's:
 
 | Where | What |
 |---|---|
-| `Meta/DatabaseName` | the vault's label (≤ 64 bytes), shown on Vaults while open. Starts as the vault's name, or "Vault" when none is typed (F57). |
+| `Meta/DatabaseName` | the vault's label (≤ 64 bytes), shown on Vaults while open. Starts as the vault's name, or "Vault" when none is typed. |
 | `faraday.format` | `1`. Written by Faraday; missing or not 1, see **A file that is not Faraday's** below. |
 | the root group's `UUID` | the vault identifier (owner, 2026-11-02): KDBX's own 16 bytes, drawn once when the vault is made (`fresh_bytes("vault id", 16)`) and kept for its life; KeePass apps keep a group's UUID when they save. Written as 32 lower-case hex digits wherever Faraday names it. By it a backup plan names another vault (`plan`, below); it is not a secret, and only whoever opens the vault reads it. |
 | `faraday.seals` | how many times the vault has been sealed, a decimal integer, 1 or more. Written by `faraday-vault` alone: each seal writes one more than the vault was opened with (or than the last seal of the same opening). |
@@ -731,10 +738,10 @@ which it sets when the clock is set.
 when `Meta`'s `RecycleBinEnabled` is True or absent (KeePassXC counts an
 absent one as enabled); with it False, the group the database names as
 its recycle bin is an ordinary group.
-A file holding either stops before it opens at a dialog, **Saved by
-another program**, naming the vault and what the next seal leaves out
-("the history of 12 entries, 2 entries in the recycle bin"): **Keep
-locked** closes it unread, **Open** opens it.
+A file holding either stops before it opens at the dialog **Open this
+copy?**, naming the vault and what the next seal leaves out ("history
+entries: 12, recycle bin entries: 2"): **Keep locked** closes it,
+**Open** opens it.
 
 **The file's settings.** The next seal writes the file as Faraday writes
 a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the

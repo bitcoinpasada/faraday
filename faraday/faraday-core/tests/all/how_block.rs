@@ -247,7 +247,7 @@ fn a_vaults_secure_boot_keys_list_the_page_about_them_and_it_opens() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -263,7 +263,7 @@ fn a_vaults_secure_boot_keys_list_the_page_about_them_and_it_opens() {
     testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..21 {
         let _ = app.frame();

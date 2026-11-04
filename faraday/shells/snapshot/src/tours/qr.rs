@@ -12,7 +12,7 @@ use faraday_crypto::work::Compute;
 /// extended key's code; the Lightning node key with its Show as QR
 /// and PNG; a recovery sheet's page and its code; and the test vault's
 /// entry with its TOTP Show as QR, and the Secret sheet it opens.
-pub(crate) fn qr_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+pub(crate) fn qr_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     // The wallets' files first, while no key is held to stop the copy;
     // then test key 1 alone: the pages that read a key, no wallet beside.
     t.copy_wallets();
@@ -43,9 +43,9 @@ pub(crate) fn qr_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("qr-receive")?;
     t.press(Action::Cancel);
     // A vault with a recovery sheet beside the test vault's entry.
-    let vault = sheet_vault(c)?;
+    let vault = sheet_vault()?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".to_string(), vault)],
+        inbox: vec![("vault.kdbx".to_string(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -55,7 +55,7 @@ pub(crate) fn qr_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     t.tick();
     not_now_load(t);
@@ -80,14 +80,13 @@ pub(crate) fn qr_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// Costs a vault's making (an Argon2id run). The test vault's passphrase
 /// over a vault holding an entry with a TOTP secret and a recovery sheet
 /// of the Savings wallet.
-fn sheet_vault(c: &Compute) -> Result<Vec<u8>, String> {
+fn sheet_vault() -> Result<Vec<u8>, String> {
+    use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
-    use faraday_vault::{Contents, Cost, Record};
     let savings = testkit::savings();
     let sheet = faraday_vault::layouts::sheet_payload(savings.as_bytes(), b"Savings", b"")
         .ok_or("no sheet payload")?;
     let records = vec![
-        Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Test vault"),
         Record::new(kind::ENTRY)
             .with(field::TITLE, b"Email")
             .with(field::USERNAME, b"you@example.com")
@@ -98,18 +97,11 @@ fn sheet_vault(c: &Compute) -> Result<Vec<u8>, String> {
             ),
         Record::new(kind::SHEET).with(field::SHEET, &sheet),
     ];
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[testkit::VAULT_PASSPHRASES[0]],
-        &[Contents { records }],
-        &[0x51; 32],
+    testkit::kdbx_vault_at(
+        "Test vault",
+        testkit::VAULT_PASSPHRASE,
+        0x51,
+        64 * 1024,
+        records,
     )
-    .map_err(|e| format!("{e:?}"))
 }

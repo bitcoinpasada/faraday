@@ -36,7 +36,7 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::Back));
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
     t.app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -47,7 +47,7 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("tools-vault-locked")?;
     t.press(Action::Catalog(gpg));
     t.shot("unlock-for-gpg")?;
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..20 {
         t.tick();

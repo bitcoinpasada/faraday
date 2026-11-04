@@ -139,7 +139,8 @@ report "heap text in secret-handling source (rule 3)" \
 #       set, faraday_keys::gpg::Restore, does these), Secure Boot keys made or used
 #       (faraday_sb make, enrolment, Keys, Pair, pe::sign), a vault
 #       opened, sealed, created or its slot key derived (faraday_vault
-#       open, open_with, create, derive, seal, Opened), a PSBT signed
+#       open, open_with, create, derive, seal, Opened; and the file API,
+#       file::open, seal, create, measure, Opened and kdbx::open, seal), a PSBT signed
 #       (faraday_psbt::sign, and with a WIF key, faraday_psbt::sweep::sign),
 #       a WIF read into a key (faraday_bip::wif), BIP-352's receiver, an
 #       aezeed decoded;
@@ -199,7 +200,7 @@ report "a key or seed outside faraday-keys (rule 4a)" \
 report "seed words made outside faraday_keys::words (rule 4b)" \
     "$(in_code 'Mnemonic::(parse|from_indices|from_entropy|from_phrase)|seedqr::from_(entropy|digits)|slip39::split|records::words_of' "${WORDS_FILES[@]}")"
 report "a primitive's secret-taking function outside faraday-keys (rule 4c)" \
-    "$(in_code 'faraday_pgp::(Key|paperkey|restore|Restored|certificate::(restore|Restored))\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|faraday_psbt::sign\(|faraday_psbt::sweep::sign\(|faraday_bip::wif\b|faraday_bip::silent::Receiver|aezeed::(decode|node_key)|use faraday_(pgp|sb|vault)::\{[^}]*\b(Key|paperkey|restore|Restored|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
+    "$(in_code 'faraday_pgp::(Key|paperkey|restore|Restored|certificate::(restore|Restored))\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|faraday_vault::file::(open|seal|create|measure|Opened)\b|faraday_vault::kdbx::(open|seal)\b|use faraday_vault::file::(open|seal|create|measure|Opened)\b|use faraday_vault::kdbx::(open|seal)\b|faraday_psbt::sign\(|faraday_psbt::sweep::sign\(|faraday_bip::wif\b|faraday_bip::silent::Receiver|aezeed::(decode|node_key)|use faraday_(pgp|sb|vault)::\{[^}]*\b(Key|paperkey|restore|Restored|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
 report "a codex32 set made, split or recovered outside faraday-keys (rule 4e)" \
     "$(in_code 'fresh_set|FreshSet|ChecksumWorksheet|TranslationWorksheet|Codex32::(from_seed|split|recover|derive_share)\b' "${BOUNDARY[@]}")"
 report "a held secret taken out of its guard outside the named sites (rule 4d)" \

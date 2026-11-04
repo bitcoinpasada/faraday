@@ -4,7 +4,6 @@
 //! The state is `backup_flow.rs`; the cards are `backup_flow/screen.rs`.
 
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::IntoRecord;
 use faraday_vault::{self as fv, records::kind};
 
 use crate::backup_flow::{
@@ -1736,9 +1735,7 @@ impl Faraday {
         // Every vault takes it, or none does.
         for &o in &opens {
             let vid = self.vaults.open[o].id;
-            // Each vault takes a copy of the record, as the insert does.
-            let record = (&built.record).into_record();
-            if !self.vaults.store().fits(c, vid, &[], &[&record]) {
+            if !self.vaults.store().fits(c, vid, &[], &[&built.record]) {
                 return self.toast(FEN.vaults_slot_too_small);
             }
         }

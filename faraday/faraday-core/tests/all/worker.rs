@@ -91,7 +91,7 @@ mod vault_open {
         });
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Restored {
-            inbox: vec![("vault.fvlt".into(), vault("Test", &[PASS], 7))],
+            inbox: vec![("vault.kdbx".into(), vault("Test", PASS, 7))],
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -222,8 +222,8 @@ mod vault_open {
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Restored {
             inbox: vec![
-                ("vault.fvlt".into(), vault("Test", &[PASS], 7)),
-                ("second.fvlt".into(), vault("Second", &[PASS], 8)),
+                ("vault.kdbx".into(), vault("Test", PASS, 7)),
+                ("second.kdbx".into(), vault("Second", PASS, 8)),
             ],
             outbox: Vec::new(),
             kept: Vec::new(),

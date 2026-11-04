@@ -64,7 +64,7 @@ fn stick_files() -> Vec<(String, Vec<u8>)> {
             "summer-words.txt".into(),
             testkit::test_words(testkit::TEST_SEEDS[2].0).into_bytes(),
         ),
-        ("vault.fvlt".into(), testkit::test_vault().unwrap()),
+        ("vault.kdbx".into(), testkit::test_vault().unwrap()),
         ("zebra-seedqr.png".into(), b"a picture".to_vec()),
         (
             "zebra-wallet.txt".into(),
@@ -188,7 +188,7 @@ fn unlocked_elsewhere() -> Faraday {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     assert_eq!(app.screen, Screen::Unlock);
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     run_unlock(&mut app);
     assert_eq!(
@@ -202,31 +202,14 @@ fn unlocked_elsewhere() -> Faraday {
 
 /// A second vault, of its own salt: one slot with one entry.
 fn spare_vault() -> Vec<u8> {
-    let c = testkit::compute();
+    use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
-    use faraday_vault::{Contents, Cost, Record};
-    let slot = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Spare"),
-            Record::new(kind::ENTRY)
-                .with(field::TITLE, b"Locker")
-                .with(field::PASSWORD, b"4321"),
-        ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &["spare"],
-        &[slot],
-        &[0x5b; 32],
-    )
-    .unwrap()
+    let records = vec![
+        Record::new(kind::ENTRY)
+            .with(field::TITLE, b"Locker")
+            .with(field::PASSWORD, b"4321"),
+    ];
+    crate::common::vault_of("Spare", "spare", 0x5c, records)
 }
 
 fn drawn(app: &mut Faraday) -> String {
@@ -322,7 +305,7 @@ fn before_import_the_sheet_lists_names_and_sizes_and_nothing_is_read() {
             assert!(f.line.contains(&size), "{name}: {}", f.line);
         }
     }
-    assert!(file(&view, "vault.fvlt").line.starts_with("Vault"));
+    assert!(file(&view, "vault.kdbx").line.starts_with("Vault"));
     assert!(
         file(&view, "savings-unsigned.psbt")
             .line
@@ -356,7 +339,7 @@ fn declining_the_import_reads_nothing() {
 fn import_reads_exactly_the_ticked_files() {
     let files = stick_files();
     let mut app = boot_only(&files);
-    for name in ["notes.txt", "vault.fvlt"] {
+    for name in ["notes.txt", "vault.kdbx"] {
         let k = row(&app, name);
         app.press(Action::Import(I::File(k)));
     }
@@ -369,7 +352,7 @@ fn import_reads_exactly_the_ticked_files() {
     let ticked: Vec<String> = files
         .iter()
         .map(|(n, _)| n.clone())
-        .filter(|n| n != "notes.txt" && n != "vault.fvlt")
+        .filter(|n| n != "notes.txt" && n != "vault.kdbx")
         .collect();
     assert_eq!(reads(&mut app, &files), ticked);
     // What they held comes in; the unticked ones stay on the stick.
@@ -486,7 +469,7 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
             "photo.jpg",
             "savings-unsigned.psbt",
             "summer-words.txt",
-            "vault.fvlt",
+            "vault.kdbx",
             "zebra-seedqr-words.txt",
             "zebra-wallet.txt"
         ]
@@ -501,12 +484,12 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert_eq!(
         app.import_field().map(|v| v.name),
-        Some("vault.fvlt".into())
+        Some("vault.kdbx".into())
     );
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Submit)));
     assert!(app.offers(Action::Import(I::Cancel)));
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(
@@ -544,7 +527,7 @@ fn a_seed_imported_from_its_file_and_held_by_the_vault_loads_once() {
     ));
     let mut app = imported_with(&files);
     assert!(key_fps(&app).contains(&fp(0)), "the words file's key");
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(
@@ -578,7 +561,7 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     );
     // And the right one, typed again, unlocks: its Load sheet, then the
     // import is over.
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
@@ -602,7 +585,7 @@ fn import_with_the_stick_in_waits_for_the_pull_to_unlock() {
     let _ = app.frame();
     // The words file's key loads as the stick goes; the field is ready.
     assert!(key_fps(&app).contains(&fp(2)));
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(
@@ -638,7 +621,7 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     }
     assert_eq!(app.sheet, Some(Sheet::Import));
     assert!(app.import_field().is_some());
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
@@ -677,7 +660,7 @@ fn later_with_the_stick_in_leaves_the_files_to_the_stick_visit() {
     app.press(Action::VisitCopy);
     pump(&mut app, &files);
     assert!(app.inbox().iter().any(|i| i.name == "notes.txt"));
-    assert!(app.inbox().iter().any(|i| i.name == "vault.fvlt"));
+    assert!(app.inbox().iter().any(|i| i.name == "vault.kdbx"));
 }
 
 #[test]
@@ -696,7 +679,7 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
         "what was typed stays"
     );
     let texts = drawn(&mut app);
-    assert!(texts.contains("Unlock vault.fvlt"), "{texts}");
+    assert!(texts.contains("Unlock vault.kdbx"), "{texts}");
     app.press(boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
     let _ = app.frame();
@@ -706,13 +689,13 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
 #[test]
 fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     let mut files = stick_files();
-    files.push(("spare.fvlt".into(), spare_vault()));
+    files.push(("spare.kdbx".into(), spare_vault()));
     let mut app = imported_with(&files);
     assert_eq!(
         app.import_field().map(|v| v.name),
-        Some("vault.fvlt".into())
+        Some("vault.kdbx".into())
     );
-    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(
@@ -732,7 +715,7 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert_eq!(
         app.import_field().map(|v| v.name),
-        Some("spare.fvlt".into())
+        Some("spare.kdbx".into())
     );
     app.press(Action::Import(I::Cancel));
     assert!(app.import().is_none());
@@ -740,7 +723,7 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     let spare = app
         .vault_files()
         .into_iter()
-        .find(|f| f.name == "spare.fvlt")
+        .find(|f| f.name == "spare.kdbx")
         .expect("the cancelled vault is not in Files");
     assert!(spare.open.is_none());
 }
@@ -760,7 +743,7 @@ fn cancel_leaves_the_only_vault_locked_in_files() {
 fn with_no_vault_import_brings_the_files_in_and_home_leads_with_the_psbt() {
     let files: Vec<(String, Vec<u8>)> = stick_files()
         .into_iter()
-        .filter(|(n, _)| n != "vault.fvlt")
+        .filter(|(n, _)| n != "vault.kdbx")
         .collect();
     let mut app = booted_with(&files);
     assert!(app.import().is_some() && app.inbox().is_empty());
@@ -832,11 +815,11 @@ fn an_unticked_file_is_not_imported_and_its_key_does_not_load() {
 #[test]
 fn an_unticked_vault_stays_out_of_files_and_nothing_asks_to_unlock_it() {
     let mut app = booted();
-    let k = row(&app, "vault.fvlt");
+    let k = row(&app, "vault.kdbx");
     app.press(Action::Import(I::File(k)));
     go(&mut app, &stick_files());
     pull(&mut app);
-    assert!(!app.inbox().iter().any(|i| i.name == "vault.fvlt"));
+    assert!(!app.inbox().iter().any(|i| i.name == "vault.kdbx"));
     assert!(app.import().is_none());
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
@@ -1223,9 +1206,8 @@ fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
 /// A vault holding a master seed, as a SLIP-39 or codex32 key is kept
 /// (BIP 93 vector 1's master seed), its key loading at unlock.
 fn seed_vault() -> Vec<u8> {
-    let c = testkit::compute();
+    use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
-    use faraday_vault::{Contents, Cost, Record};
     let seed = faraday_bip::codex32::Codex32::parse(CODEX32_SECRET)
         .unwrap()
         .to_seed()
@@ -1234,28 +1216,12 @@ fn seed_vault() -> Vec<u8> {
     let mut payload = vec![0u8; 65];
     payload[0] = seed.len() as u8;
     payload[1..1 + seed.len()].copy_from_slice(seed);
-    let slot = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Seeds"),
-            Record::new(kind::KEY)
-                .with(field::KEY, &payload)
-                .with(field::KEY_LABEL, b"codex32"),
-        ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &["seeds"],
-        &[slot],
-        &[0x5c; 32],
-    )
-    .unwrap()
+    let records = vec![
+        Record::new(kind::KEY)
+            .with(field::KEY, &payload)
+            .with(field::KEY_LABEL, b"codex32"),
+    ];
+    crate::common::vault_of("Seeds", "seeds", 0x5d, records)
 }
 
 /// The key a codex32 secret file gives, imported from the boot sheet.
@@ -1281,13 +1247,13 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
         (
             "BIP-39 words",
             testkit::test_vault().unwrap(),
-            testkit::VAULT_PASSPHRASES[0],
+            testkit::VAULT_PASSPHRASE,
             fp(0),
         ),
         ("master seed", seed_vault(), "seeds", codex32),
     ];
     for (kind, vault, phrase, want) in cases {
-        let files = vec![("vault.fvlt".to_string(), vault)];
+        let files = vec![("vault.kdbx".to_string(), vault)];
         // On the boot sheet.
         let mut app = imported_with(&files);
         type_in(&mut app, phrase);
@@ -1374,7 +1340,7 @@ fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
 fn a_vault_under_a_short_name_is_counted_and_imported_as_a_vault() {
     let mut files = stick_files();
     for f in &mut files {
-        if f.0 == "vault.fvlt" {
+        if f.0 == "vault.kdbx" {
             f.0 = "VAULT~1.FVL".into();
         }
     }
@@ -1394,10 +1360,10 @@ fn a_vault_under_a_short_name_is_counted_and_imported_as_a_vault() {
 }
 
 #[test]
-fn a_file_named_fvlt_that_holds_other_bytes_is_not_counted_as_a_vault() {
+fn a_file_named_kdbx_that_holds_other_bytes_is_not_counted_as_a_vault() {
     let mut files = stick_files();
     for f in &mut files {
-        if f.0 == "vault.fvlt" {
+        if f.0 == "vault.kdbx" {
             f.1 = b"not a vault".to_vec();
         }
     }

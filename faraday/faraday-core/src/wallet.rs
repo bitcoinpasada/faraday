@@ -1235,8 +1235,13 @@ pub enum FileKind {
     Entries,
     /// An EFI image to sign or check for Secure Boot.
     EfiImage,
-    /// A KeePass database, sealed under its passphrase.
+    /// A KeePass database of version 3 or older, sealed under its
+    /// passphrase: named, not opened.
     Kdbx,
+    /// A file that begins as a KeePass database does and is not a vault
+    /// or an older one: KDBX 5, or KDBX 4 of a length no vault has, or cut
+    /// short. Sealed; named, not opened.
+    KdbxOther,
     /// A PDF to print: a backup sheet or a blank template.
     Pdf,
     /// A SLIP-39 share or a codex32 string: part of a seed, or a whole
@@ -1333,8 +1338,11 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if bytes.starts_with(b"%PDF-") {
         return FileKind::Pdf.into();
     }
-    if faraday_intake::is_kdbx(bytes) {
+    if faraday_intake::is_older_kdbx(bytes) {
         return FileKind::Kdbx.into();
+    }
+    if faraday_intake::is_kdbx(bytes) {
+        return FileKind::KdbxOther.into();
     }
     if crate::secure_boot::is_image(name) && bytes.starts_with(b"MZ") {
         return FileKind::EfiImage.into();

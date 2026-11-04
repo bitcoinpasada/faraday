@@ -7,6 +7,7 @@
 //! sheet never changes the saved setting. A wallet the backup flow seals
 //! into a vault loads at unlock unless its vault item turns it off.
 
+use crate::common::RecordsOf as _;
 use crate::common::{device, type_text};
 use std::rc::Rc;
 
@@ -17,8 +18,8 @@ use faraday_core::vault::load::{LoadCard, LoadView};
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_core::{bstep, testkit};
 use faraday_shell_api::{App, Event};
+use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
-use faraday_vault::{Contents, Cost, Record};
 
 type Files = Vec<(String, Vec<u8>)>;
 
@@ -88,45 +89,28 @@ fn not_at_unlock(mut r: Record) -> Record {
 /// vault does not hold; and two keys in no wallet, the second set not to
 /// load at unlock.
 fn load_vault() -> Vec<u8> {
-    let c = testkit::compute();
-    let slot = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Cellar"),
-            test_key(0),
-            test_key(1),
-            loose_key(
-                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-                "Loose A",
-            ),
-            not_at_unlock(loose_key(
-                "legal winner thank year wave sausage worth useful legal winner thank yellow",
-                "Loose B",
-            )),
-            wallet("Savings", &testkit::savings()),
-            not_at_unlock(wallet(
-                "Spending",
-                &format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'")),
-            )),
-            wallet(
-                "Summer",
-                &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/84'/1'/0'")),
-            ),
-        ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[PHRASE],
-        &[slot],
-        &[0x5d; 32],
-    )
-    .unwrap()
+    let records = vec![
+        test_key(0),
+        test_key(1),
+        loose_key(
+            "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+            "Loose A",
+        ),
+        not_at_unlock(loose_key(
+            "legal winner thank year wave sausage worth useful legal winner thank yellow",
+            "Loose B",
+        )),
+        wallet("Savings", &testkit::savings()),
+        not_at_unlock(wallet(
+            "Spending",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'")),
+        )),
+        wallet(
+            "Summer",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/84'/1'/0'")),
+        ),
+    ];
+    crate::common::vault_of("Cellar", PHRASE, 0x5d, records)
 }
 
 fn view(app: &Faraday) -> Rc<LoadView> {
@@ -163,8 +147,8 @@ fn key_labels(app: &Faraday) -> Vec<String> {
 /// ticked loads exactly that and lands on Wallets.
 #[test]
 fn from_the_vaults_tab_the_sheet_ticks_by_setting_and_load_ticked_loads_that() {
-    let mut app = device(vec![("cellar.fvlt".into(), load_vault())]);
-    unlock_on_vaults(&mut app, "cellar.fvlt", PHRASE);
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
     let v = view(&app);
@@ -215,8 +199,8 @@ fn from_the_vaults_tab_the_sheet_ticks_by_setting_and_load_ticked_loads_that() {
 /// tab still loads from it.
 #[test]
 fn not_now_loads_nothing_and_the_vault_can_still_load_later() {
-    let mut app = device(vec![("cellar.fvlt".into(), load_vault())]);
-    unlock_on_vaults(&mut app, "cellar.fvlt", PHRASE);
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     app.press(Action::Vault(V::LoadNotNow));
     assert_eq!((app.screen, app.sheet), (Screen::Files, None));
     assert_eq!(app.vaults().open.len(), 1);
@@ -230,8 +214,8 @@ fn not_now_loads_nothing_and_the_vault_can_still_load_later() {
 /// loads with its seed, and its setting stays No.
 #[test]
 fn a_wallet_set_not_to_load_ticked_on_the_sheet_loads_and_keeps_its_setting() {
-    let mut app = device(vec![("cellar.fvlt".into(), load_vault())]);
-    unlock_on_vaults(&mut app, "cellar.fvlt", PHRASE);
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     let spending = card(&view(&app), "Spending").record;
     let savings = card(&view(&app), "Savings").record;
     // Only Spending.
@@ -244,14 +228,12 @@ fn a_wallet_set_not_to_load_ticked_on_the_sheet_loads_and_keeps_its_setting() {
     let r = &app
         .vaults()
         .store()
-        .contents_for_tests(app.vaults().open[0].id)
-        .records[spending];
+        .contents_for_tests(app.vaults().open[0].id)[spending];
     assert!(!records::loads_at_unlock(r), "the tick changed the setting");
     let r = &app
         .vaults()
         .store()
-        .contents_for_tests(app.vaults().open[0].id)
-        .records[savings];
+        .contents_for_tests(app.vaults().open[0].id)[savings];
     assert!(records::loads_at_unlock(r));
     assert_eq!(
         app.vaults().open[0].changes,
@@ -264,8 +246,8 @@ fn a_wallet_set_not_to_load_ticked_on_the_sheet_loads_and_keeps_its_setting() {
 /// does not load.
 #[test]
 fn a_seed_in_two_wallets_loads_with_the_ticked_one_alone() {
-    let mut app = device(vec![("cellar.fvlt".into(), load_vault())]);
-    unlock_on_vaults(&mut app, "cellar.fvlt", PHRASE);
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     let v = view(&app);
     let (savings, summer, a) = (
         card(&v, "Savings").record,
@@ -290,8 +272,8 @@ fn a_seed_in_two_wallets_loads_with_the_ticked_one_alone() {
 /// Loose A ticked and Loose B not; ticked by hand, Loose B loads.
 #[test]
 fn a_key_in_no_wallet_follows_its_own_setting() {
-    let mut app = device(vec![("cellar.fvlt".into(), load_vault())]);
-    unlock_on_vaults(&mut app, "cellar.fvlt", PHRASE);
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     let v = view(&app);
     for c in &v.cards {
         if c.ticked {
@@ -313,7 +295,7 @@ fn a_key_in_no_wallet_follows_its_own_setting() {
 #[test]
 fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
     let c = faraday_core::testkit::compute();
-    let mut app = device(vec![("cellar.fvlt".into(), load_vault())]);
+    let mut app = device(vec![("cellar.kdbx".into(), load_vault())]);
     // Test key 1 and Summer, here before the unlock.
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
@@ -327,7 +309,7 @@ fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
             faraday_core::wallet::Origin::Named,
         )
         .unwrap();
-    unlock_on_vaults(&mut app, "cellar.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
     let v = view(&app);
     let summer = card(&v, "Summer");
     assert!(summer.loaded && summer.done && !summer.ticked);
@@ -372,8 +354,8 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 #[test]
 fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
     let files: Files = vec![
-        ("cellar.fvlt".into(), load_vault()),
-        ("vault.fvlt".into(), testkit::test_vault().unwrap()),
+        ("cellar.kdbx".into(), load_vault()),
+        ("vault.kdbx".into(), testkit::test_vault().unwrap()),
     ];
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
@@ -403,34 +385,41 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
         app.event(Event::Tick { now_ms: 1000 });
         let _ = app.frame();
     };
-    assert_eq!(
-        app.import_field().map(|v| v.name),
-        Some("cellar.fvlt".into())
-    );
-    unlock(&mut app, PHRASE);
+    // Each unlock asks what to load before the next vault's Unlock, in
+    // whichever order the stick's files came back.
+    let phrase_of = |name: &str| {
+        if name == "cellar.kdbx" {
+            PHRASE
+        } else {
+            testkit::VAULT_PASSPHRASE
+        }
+    };
+    let first = app.import_field().map(|v| v.name).unwrap();
+    unlock(&mut app, phrase_of(&first));
     assert_eq!(
         (app.screen, app.sheet),
         (Screen::Home, Some(Sheet::UnlockLoad))
     );
-    assert!(!card(&view(&app), "Spending").ticked);
     app.press(Action::Vault(V::LoadNotNow));
     assert!(app.session.wallets.is_empty());
     // The next vault's Unlock, then its Load sheet.
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert_eq!(
-        app.import_field().map(|v| v.name),
-        Some("vault.fvlt".into())
-    );
-    unlock(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    let second = app.import_field().map(|v| v.name).unwrap();
+    assert_ne!(first, second);
+    unlock(&mut app, phrase_of(&second));
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
-    assert!(view(&app).cards.iter().all(|c| c.ticked));
-    // Test key 1 is in every test wallet: counted, not named.
-    let n = card(&view(&app), "Savings").seeds[0].also.len();
-    assert!(n >= 3);
-    assert_eq!(
-        card(&view(&app), "Savings").seeds[0].also_line,
-        Some(format!("also in {n} other wallets"))
-    );
+    if second == "cellar.kdbx" {
+        assert!(!card(&view(&app), "Spending").ticked);
+    } else {
+        assert!(view(&app).cards.iter().all(|c| c.ticked));
+        // Test key 1 is in every test wallet: counted, not named.
+        let n = card(&view(&app), "Savings").seeds[0].also.len();
+        assert!(n >= 3);
+        assert_eq!(
+            card(&view(&app), "Savings").seeds[0].also_line,
+            Some(format!("also in {n} other wallets"))
+        );
+    }
     app.press(Action::Vault(V::LoadTicked));
     assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
@@ -445,7 +434,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
 fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
     let c = faraday_core::testkit::compute();
     for off in [false, true] {
-        let vault = ("vault.fvlt".to_string(), testkit::test_vault().unwrap());
+        let vault = ("vault.kdbx".to_string(), testkit::test_vault().unwrap());
         let mut app = device(vec![vault]);
         // Test key 2 typed in and a one-key wallet over it.
         app.press(Action::Entry(None));
@@ -456,7 +445,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
         let w = app.session.wallets.len() - 1;
         let name = app.session.wallets[w].name.clone();
-        unlock_on_vaults(&mut app, "vault.fvlt", testkit::VAULT_PASSPHRASES[0]);
+        unlock_on_vaults(&mut app, "vault.kdbx", testkit::VAULT_PASSPHRASE);
         app.press(Action::Vault(V::LoadNotNow));
         app.press(Action::Backup(w));
         testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
@@ -531,12 +520,12 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         }
         let sealed: Files = outbox
             .into_iter()
-            .filter(|(n, _)| n.ends_with(".fvlt"))
+            .filter(|(n, _)| n.ends_with(".kdbx"))
             .collect();
         assert_eq!(sealed.len(), 1, "the vault was not sealed");
         let file = sealed[0].0.clone();
         let mut app = device(sealed);
-        unlock_on_vaults(&mut app, &file, testkit::VAULT_PASSPHRASES[0]);
+        unlock_on_vaults(&mut app, &file, testkit::VAULT_PASSPHRASE);
         assert_eq!(card(&view(&app), &name).ticked, !off, "off: {off}");
     }
 }
@@ -566,36 +555,21 @@ fn trio_with_passphrase() -> String {
 /// A vault of the three test keys, the third kept without the
 /// passphrase Trio uses it with, Trio, and `extra`.
 fn trio_vault(extra: Vec<Record>) -> Vec<u8> {
-    let c = testkit::compute();
     let mut records = vec![
-        Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Trio"),
         test_key(0),
         test_key(1),
         test_key(2),
         wallet("Trio", &trio_with_passphrase()),
     ];
     records.extend(extra);
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[PHRASE],
-        &[Contents { records }],
-        &[0x5e; 32],
-    )
-    .unwrap()
+    crate::common::vault_of("Trio", PHRASE, 0x5e, records)
 }
 
 /// Trio's vault unlocked and Trio's card alone loaded: two of its three
 /// keys here.
 fn trio_loaded(extra: Vec<Record>) -> Faraday {
-    let mut app = device(vec![("trio.fvlt".into(), trio_vault(extra))]);
-    unlock_on_vaults(&mut app, "trio.fvlt", PHRASE);
+    let mut app = device(vec![("trio.kdbx".into(), trio_vault(extra))]);
+    unlock_on_vaults(&mut app, "trio.kdbx", PHRASE);
     let v = view(&app);
     for k in v.keys.iter().filter(|k| k.ticked) {
         app.press(Action::Vault(V::LoadTick(k.record)));
@@ -636,8 +610,8 @@ fn try_passphrase(app: &mut Faraday, passphrase: &str) {
 /// the right passphrase gives the wallet every key.
 #[test]
 fn a_seed_kept_without_its_passphrase_is_on_the_keys_card_and_loads_with_one_later() {
-    let mut app = device(vec![("trio.fvlt".into(), trio_vault(Vec::new()))]);
-    unlock_on_vaults(&mut app, "trio.fvlt", PHRASE);
+    let mut app = device(vec![("trio.kdbx".into(), trio_vault(Vec::new()))]);
+    unlock_on_vaults(&mut app, "trio.kdbx", PHRASE);
     let v = view(&app);
     let trio = card(&v, "Trio");
     assert_eq!(trio.seeds.len(), 2);

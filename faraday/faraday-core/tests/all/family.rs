@@ -64,7 +64,7 @@ fn desc(p: &faraday_bip::policy::WalletPolicy) -> String {
 }
 
 fn vault_file() -> (String, Vec<u8>) {
-    ("vault.fvlt".to_string(), testkit::test_vault().unwrap())
+    ("vault.kdbx".to_string(), testkit::test_vault().unwrap())
 }
 
 fn savings_psbt() -> (String, Vec<u8>) {
@@ -199,9 +199,9 @@ fn unlock_on_tab(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     let text = drawn(app);
-    assert!(text.contains("Unlock vault.fvlt"), "{text}");
+    assert!(text.contains("Unlock vault.kdbx"), "{text}");
     app.press(Action::Family(F::Pick(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Family(F::Unlock));
     settle(app);
     // Unlocked: everything is ticked, nothing loaded until Load.
@@ -220,7 +220,7 @@ fn an_unlock_the_spend_asks_for_shows_no_load_sheet() {
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     app.press(Action::Family(F::Pick(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Family(F::Unlock));
     settle(&mut app);
     assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
@@ -261,7 +261,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     // bytes.
     let mut other = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     other.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
-    type_text(&mut other, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut other, testkit::VAULT_PASSPHRASE);
     other.press(Action::Vault(faraday_core::vault::VaultAction::Unlock));
     settle(&mut other);
     other.press(Action::Vault(faraday_core::vault::VaultAction::LoadAll(0)));
@@ -418,7 +418,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
         kept: Vec::new(),
     });
     app.press(Action::Family(F::Pick(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Family(F::Unlock));
     settle(&mut app);
     app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(

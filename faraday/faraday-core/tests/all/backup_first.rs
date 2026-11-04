@@ -26,7 +26,7 @@ const WARNING: &str = "Back up before you receive";
 /// One file of the test stick, made alone: building the whole stick costs
 /// every kit's spend and the test vault.
 fn kit_file(name: &str) -> (String, Vec<u8>) {
-    if name == "vault.fvlt" {
+    if name == "vault.kdbx" {
         return (name.to_string(), testkit::test_vault().unwrap());
     }
     let id = name
@@ -252,7 +252,7 @@ fn unlock(app: &mut Faraday) {
     faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -267,7 +267,7 @@ fn unlock(app: &mut Faraday) {
 #[test]
 fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.fvlt")], 768);
+    let mut app = device(vec![kit_file("vault.kdbx")], 768);
     let (_, fp) = made_here(&mut app);
     checklist(&mut app, Preset::PaperVault);
     check_the_copy(&mut app, fp);
@@ -283,7 +283,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     assert!(app.key_held(&c, fp), "the checklist is not done");
     let vault: Vec<_> = locked(&mut app)
         .into_iter()
-        .filter(|(n, _)| n == "vault.fvlt")
+        .filter(|(n, _)| n == "vault.kdbx")
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not sealed");
     let mut next = device(vault, 768);
@@ -526,7 +526,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
 #[test]
 fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.fvlt")], 2400);
+    let mut app = device(vec![kit_file("vault.kdbx")], 2400);
     let (_, fp) = made_here(&mut app);
     checklist(&mut app, Preset::PaperVault);
     check_the_copy(&mut app, fp);
@@ -555,7 +555,7 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert!(!app.backup_items_now(&c).contains(&bstep::VAULT));
-    let line = format!("vault.fvlt holds seed {}", fp_text(fp));
+    let line = format!("vault.kdbx holds seed {}", fp_text(fp));
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(&line), "{shown}");
     assert!(app.key_held(&c, fp), "the paper items are not done");

@@ -301,7 +301,12 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
         .backup_vault_open(&c, 0)
         .expect("an open vault holds the plan's vault");
     let name = app.vaults.open[o].name.clone();
-    assert!(app.vault_lock_one(o, After::Nothing), "the vault locks");
+    app.vault_lock_one(o, After::Nothing);
+    testkit::settle(&mut app);
+    assert!(
+        app.vaults.open.iter().all(|v| v.name != name),
+        "the vault locks"
+    );
     assert_eq!(
         app.backup_vault_fits(&c, 0),
         Some(name.clone()),

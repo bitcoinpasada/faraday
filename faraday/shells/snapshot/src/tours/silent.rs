@@ -31,6 +31,7 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
                 secret: false,
                 picture: None,
                 sha: None,
+                facts: None,
                 wallet: None,
                 psbt: None,
             },

@@ -11,7 +11,6 @@ desktop_1280x800 BackupFlow Board 14
 desktop_1280x800 BackupFlow Flow 3
 desktop_1280x800 BackupFlow LearnTopic 1
 desktop_1280x800 BackupFlow Resume 3
-desktop_1280x800 BackupFlow Vault 1
 desktop_1280x800 Backups Resume 1
 desktop_1280x800 Bip85 Resume 1
 desktop_1280x800 Catalog Osk 38
@@ -19,7 +18,7 @@ desktop_1280x800 Catalog WordList 1
 desktop_1280x800 Codes Resume 2
 desktop_1280x800 Create Resume 1
 desktop_1280x800 CreateVault Resume 3
-desktop_1280x800 CreateVault Vault 7
+desktop_1280x800 CreateVault Vault 6
 desktop_1280x800 CreateVault WordList 21
 desktop_1280x800 Entry EntryCandidate 17
 desktop_1280x800 Entry EntryKey 55
@@ -90,7 +89,6 @@ small_240x320 Settings Theme 42
 small_240x320 Silent SQr 1
 small_240x320 Silent SStep 2
 small_240x320 Spend Step 4
-small_240x320 VaultContents Vault 4
 small_240x320 Visit File 1
 small_240x320 Visit VisitInAll 1
 small_240x320 Wallets PickKey 1
@@ -124,7 +122,7 @@ small_480x640 Silent SStep 2
 small_480x640 Spend Step 4
 small_480x640 VaultContents CodePng 2
 small_480x640 VaultContents ShowCode 2
-small_480x640 VaultContents Vault 8
+small_480x640 VaultContents Vault 1
 small_480x640 Visit File 2
 small_480x640 Visit VisitInAll 1
 small_480x640 Visit VisitOutAll 1
@@ -205,7 +203,7 @@ stick_1024x600 Vanity Vanity 3
 stick_1024x600 VaultContents CodePng 5
 stick_1024x600 VaultContents Osk 38
 stick_1024x600 VaultContents ShowCode 5
-stick_1024x600 VaultContents Vault 18
+stick_1024x600 VaultContents Vault 15
 stick_1024x600 Visit DeletePick 4
 stick_1024x600 Visit File 10
 stick_1024x600 Visit VisitOutAll 1

@@ -97,8 +97,8 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
 /// its keys loaded. Returns it, the parent's fingerprint, and the sealed
 /// file.
 fn sealed_and_opened(record: bool) -> (Faraday, String, Vec<u8>) {
-    let file = crate::common::vault("Child", &[PHRASE], 3);
-    let mut app = process(vec![("child.fvlt".into(), file)], Vec::new(), Vec::new());
+    let file = crate::common::vault("Child", PHRASE, 3);
+    let mut app = process(vec![("child.kdbx".into(), file)], Vec::new(), Vec::new());
     let parent = add_parent(&mut app);
     unlock(&mut app);
     child_words(&mut app, Action::PVault);
@@ -106,11 +106,11 @@ fn sealed_and_opened(record: bool) -> (Faraday, String, Vec<u8>) {
     assert_eq!(app.sheet, None);
     let id = app.vaults().open[0].id;
     assert_eq!(app.vaults().records(id).of(kind::KEY).count(), 1);
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let sealed = inbox
         .iter()
-        .find(|(n, _)| n.ends_with(".fvlt"))
+        .find(|(n, _)| n.ends_with(".kdbx"))
         .map(|(_, b)| b.clone())
         .expect("the sealed vault");
     let mut app = process(inbox, outbox, kept);
@@ -152,9 +152,7 @@ fn a_child_seed_not_recorded_leaves_no_trace_of_its_parent_in_the_vault() {
     let (app, parent, sealed) = sealed_and_opened(false);
     assert!(app.session.keys.all().all(|k| k.child_of.is_none()));
     let parent_bytes = app.session.keys[0].fingerprint.0;
-    let c = testkit::compute();
-    let (_, contents) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
-    for r in &contents.records {
+    for r in &crate::common::kdbx_records(&sealed, PHRASE) {
         assert!(r.field(field::KEY_CHILD).is_none(), "a child record");
         for f in &r.fields {
             let text = String::from_utf8_lossy(&f.bytes).to_lowercase();

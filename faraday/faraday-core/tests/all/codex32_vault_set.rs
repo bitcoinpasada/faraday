@@ -9,7 +9,7 @@
 
 use crate::backup_flow_wallet::{
     PHRASE as FLOW_PHRASE, bring_in_all, create_with_vaults, flow_board, flow_into_vault,
-    flow_vault_zone, fvlt, restart, save_vaults, step, sticks, write_sticks,
+    flow_vault_zone, kdbx, restart, save_vaults, step, sticks, write_sticks,
 };
 use crate::codex32_kept::{
     A, C, D, FP, PHRASE, codex32_item, ix, key_from_strings, share_records, type_each_back,
@@ -35,10 +35,13 @@ pub(crate) const SECRET: &str = "MS12NAMES6XQGUZTTXKEQNJSJZV4JV3NZ5K3KWGSPHUH6EV
 /// `phrase`.
 pub(crate) fn sealed_strings(bytes: &[u8], phrase: &str) -> Vec<Vec<u8>> {
     let c = testkit::compute();
-    let (_, contents) = faraday_vault::open(&c, bytes, phrase).unwrap();
-    contents
-        .of(kind::CODEX32_SHARE)
-        .map(|(_, r)| r.field(field::CODEX32_STRING).unwrap_or_default().to_vec())
+    let mut store = faraday_keys::vault::OpenVaults::default();
+    let (id, _) = store.unlock(&c, bytes.to_vec(), phrase).unwrap();
+    store
+        .contents_for_tests(id)
+        .iter()
+        .filter(|r| r.kind == kind::CODEX32_SHARE)
+        .map(|r| r.field(field::CODEX32_STRING).unwrap_or_default().to_vec())
         .collect()
 }
 
@@ -125,7 +128,7 @@ fn round_and_write(shell: &mut Shell, app: &mut Faraday, typed: &[&str]) -> Vec<
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    fvlt(shell, "S1").expect("Vault 1 on S1")
+    kdbx(shell, "S1").expect("Vault 1 on S1")
 }
 
 /// A codex32 string put into a vault after the lock sends that vault back
@@ -175,11 +178,11 @@ fn a_codex32_string_moved_out_of_a_vault_after_the_lock_leaves_it() {
 fn after_a_new_set_the_vault_holds_the_new_sets_string_and_not_the_old_one() {
     assert!(BIP93.contains(SECRET));
     let c = testkit::compute();
-    let mut app = device(vec![("home.fvlt".into(), vault_of(PHRASE, Vec::new(), 7))]);
+    let mut app = device(vec![("home.kdbx".into(), vault_of(PHRASE, Vec::new(), 7))]);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x70 + i; 32])));
     }
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     key_from_strings(&mut app);
     wallet_and_backup(&mut app);
     vault_at(&mut app, 0, 0, &[]);

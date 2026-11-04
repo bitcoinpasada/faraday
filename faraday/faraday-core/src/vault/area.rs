@@ -209,6 +209,13 @@ impl VaultArea {
         self.state.changed(id);
     }
 
+    /// Costs what [`Vaults::add_amounts`] costs. The signed-amount memory's
+    /// records `new` go into open vault `o`.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn add_amounts_now(&mut self, c: &Compute, o: usize, new: Vec<Record>) {
+        self.state.add_amounts(c, o, new);
+    }
+
     /// Open vault `o` has one more change not saved.
     pub(crate) fn bump(&mut self, o: usize) {
         self.state.open[o].changes += 1;
@@ -871,6 +878,11 @@ impl Vaults {
     fn cannot_seal_with(&self, i: usize, used: usize) -> Option<String> {
         let v = self.open.get(i)?;
         let slot = v.slot_limit();
+        if v.changes > 0 && used == usize::MAX {
+            // The store reads a vault it cannot write as full: it is not
+            // a number of bytes over.
+            return Some(EN.vaults_cannot_write.to_string());
+        }
         let over = (used - slot.min(used)).to_string();
         (v.changes > 0 && used > slot).then(|| fill(EN.vault_cannot_seal, &[&v.name, &over]))
     }
@@ -900,7 +912,9 @@ impl Vaults {
             for r in new {
                 s.insert(id, r);
             }
-            while s.records(id).used(c) > slot_len {
+            // A vault the seal refuses for another reason is not over for
+            // amounts: nothing is trimmed.
+            while !s.records(id).unwritable(c) && s.records(id).used(c) > slot_len {
                 let oldest = s
                     .records(id)
                     .iter()
@@ -1418,6 +1432,9 @@ pub struct Vaults {
     /// An unlock stopped at the older-copy dialog ([`OpenHold`]), boxed:
     /// a summary is large and the hold is rare.
     pub older: Option<Box<super::OpenHold>>,
+    /// An idle lock let a vault go with changes that could not be sealed:
+    /// the Locked sheet says so.
+    pub(crate) unsaved: bool,
     /// Records waiting at the dialog that a vault already holds a related
     /// passphrase or share ([`super::related::SaveHold`]).
     pub save_hold: Option<Box<super::related::SaveHold>>,
@@ -1735,10 +1752,10 @@ pub(crate) fn wallet_name_in<'a>(
     crate::wallet::wallet_name(r.public_text(number).unwrap_or(or))
 }
 
-/// Longest name a vault's file takes, before `.fvlt`.
+/// Longest name a vault's file takes, before `.kdbx`.
 pub const NAME_MAX: usize = 40;
 
-/// The file name, less `.fvlt`, a vault named `typed` is written under:
+/// The file name, less `.kdbx`, a vault named `typed` is written under:
 /// letters, digits, hyphens and underscores, spaces made hyphens,
 /// anything else left out; `vault` when that leaves nothing, and a
 /// Windows device name (`con`, `com1`) with `-vault` after it.

@@ -6,6 +6,7 @@
 //! named the place is read with that name replaced on the way into the
 //! kept summary.
 
+use crate::common::RecordsOf as _;
 use crate::common::{device, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
@@ -49,7 +50,7 @@ fn vault_file() -> (String, Vec<u8>) {
     testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap()
 }
 
@@ -67,7 +68,7 @@ fn unlock(app: &mut Faraday) {
     faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(app, |a| !a.vaults().open.is_empty());
     assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
@@ -218,7 +219,7 @@ fn a_place_names_name_never_leaves_the_vault() {
         );
     }
 
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (_, outbox, kept) = saved(&mut app);
     for (name, bytes) in &kept {
         assert!(
@@ -239,7 +240,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     // meets them again as its Inbox.
     let sealed_vault = outbox
         .iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .cloned()
         .expect("the locked vault was sealed for the stick");
     let mut app = shown(vec![sealed_vault], Vec::new(), kept);
@@ -276,7 +277,7 @@ fn a_plan_written_the_old_way_is_read_with_its_place_named_by_number() {
         faraday_core::testkit::vault_edit(&mut app, id, |s| s.insert(id, record));
     }
 
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (_, outbox, kept) = saved(&mut app);
     for (name, bytes) in &kept {
         assert!(

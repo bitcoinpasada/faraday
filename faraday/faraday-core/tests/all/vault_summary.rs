@@ -103,7 +103,7 @@ fn locked_with_a_wallet_and_a_key() -> ((Files, Files, Files), String, String) {
     app.press(Action::Vault(V::SaveKey(0)));
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(0)));
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     (saved(&mut app), name, fp)
 }
 
@@ -189,7 +189,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
     );
 
     // The passphrase was typed: the next process writes it.
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
@@ -232,7 +232,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
         "open with a change: {texts:?}"
     );
     // Sealed at the lock, its bytes are not the ones written.
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     let texts = vaults_list(&mut app);
@@ -247,7 +247,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
 /// reads "Unchanged" (§3.5).
 #[test]
 fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
-    let vault = crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7);
+    let vault = crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7);
     let mut app = shown(Vec::new(), Vec::new(), Vec::new());
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
         make: Default::default(),
@@ -255,7 +255,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
         id: "S".into(),
         label: "VAULTSTICK".into(),
         boot: false,
-        files: vec![("vault.fvlt".into(), vault.len() as u64)],
+        files: vec![("vault.kdbx".into(), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
@@ -276,7 +276,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
         "copied in, unchanged: {texts:?}"
     );
     // The next process remembers where it came from.
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut next = shown(inbox.clone(), outbox.clone(), kept);
     let texts = vaults_list(&mut next);

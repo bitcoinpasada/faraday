@@ -122,6 +122,15 @@ impl Tour {
                     .collect()
             })
             .unwrap_or_default();
+        // A vault is found by its contents, as the stick's listing finds it.
+        let vaults = files
+            .iter()
+            .filter(|(n, _)| {
+                std::fs::read(self.kit.join(n))
+                    .is_ok_and(|b| faraday_codec::vault_file::is_vault_file(&b))
+            })
+            .map(|(n, _)| n.clone())
+            .collect();
         files.push(("IMG_0412.jpg".into(), 2_300_000));
         files.sort();
         StickInfo {
@@ -131,7 +140,7 @@ impl Tour {
             label: "TESTSTICK".into(),
             boot: false,
             files,
-            vaults: Vec::new(),
+            vaults,
         }
     }
 
@@ -863,7 +872,7 @@ pub(crate) fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
     let (salt, name) = {
         let o = &t.app.vaults().open[t.app.vaults().current];
-        (o.header().salt, o.name.clone())
+        (o.vault_id(), o.name.clone())
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);

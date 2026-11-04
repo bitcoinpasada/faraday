@@ -25,6 +25,8 @@ fn started() -> Faraday {
 /// Makes a vault from the Vaults tab, named `name` when it is not empty,
 /// under the passphrase `test phrase`.
 fn make(app: &mut Faraday, name: &str) {
+    // A creation takes six answers of the system's.
+    crate::common::top_up(app);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     if !name.is_empty() {
@@ -48,11 +50,11 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
 fn a_named_vaults_file_takes_its_name() {
     let mut app = started();
     make(&mut app, "Family savings!");
-    assert_eq!(outbox_names(&app), ["Family-savings.fvlt"]);
+    assert_eq!(outbox_names(&app), ["Family-savings.kdbx"]);
 }
 
 #[test]
-fn an_unnamed_vault_is_vault_fvlt_and_a_second_of_one_name_is_numbered() {
+fn an_unnamed_vault_is_vault_kdbx_and_a_second_of_one_name_is_numbered() {
     let mut app = started();
     make(&mut app, "");
     make(&mut app, "");
@@ -60,7 +62,7 @@ fn an_unnamed_vault_is_vault_fvlt_and_a_second_of_one_name_is_numbered() {
     make(&mut app, "spare");
     assert_eq!(
         outbox_names(&app),
-        ["vault.fvlt", "vault-2.fvlt", "spare.fvlt", "spare-2.fvlt"]
+        ["vault.kdbx", "vault-2.kdbx", "spare.kdbx", "spare-2.kdbx"]
     );
 }
 

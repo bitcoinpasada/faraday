@@ -108,10 +108,10 @@ fn at_unlock() -> Faraday {
     let n = app
         .vault_files()
         .iter()
-        .position(|f| f.name == "vault.fvlt")
+        .position(|f| f.name == "vault.kdbx")
         .expect("the test vault is listed");
     app.press(Action::Vault(V::Open(n)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     let _ = app.frame();
     app
 }
@@ -129,8 +129,8 @@ const UNLOCK: Table = &[
     ),
     (
         Work::WordsParse,
-        5,
-        "the three seed files in Files once each; the vault's key record twice, for its words' hash (VaultRecords) and its identity (key_identity), each kept",
+        6,
+        "the three seed files in Files once each; the vault's key record three times: once by the vault's reader, which checks the words read as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a seed that does not read is shown as unreadable), then for its words' hash (VaultRecords) and its identity (key_identity), each kept",
     ),
     (
         Work::FileHash,
@@ -144,8 +144,8 @@ const UNLOCK: Table = &[
     ),
     (
         Work::DescriptorParse,
-        13,
-        "each of the vault's 11 wallet records read once and kept (VaultRecords); Savings' share sheets in Files put together, the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
+        24,
+        "each of the vault's 11 wallet records read twice: once by the vault's reader, which checks the policy or descriptor reads as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a wallet that does not read is shown as unreadable), once for the description the app keeps (Vaults::read, VaultRecords); Savings' share sheets in Files put together, the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
     ),
     (
         Work::Blur,

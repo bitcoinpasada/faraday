@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|screens|tour|codex32]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|vaultstates|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|screens|tour|codex32]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -155,6 +155,7 @@ pub(crate) const TOURS: &[&str] = &[
     "qr",
     "seedfile",
     "vaultway",
+    "vaultstates",
     "kept",
     "again",
     "plan",
@@ -293,6 +294,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
         "qr" => tours::qr::qr_tour(c, t),
         "seedfile" => tours::seedfile::seedfile_tour(c, t),
         "vaultway" => tours::vaultway::vaultway_tour(t),
+        "vaultstates" => tours::vault_states::vault_states_tour(t),
         "kept" => tours::kept::kept_tour(c, t),
         "again" => tours::again::again_tour(t),
         "plan" => tours::plan::plan_tour(c, t),
@@ -374,7 +376,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|guide|screens|tour|codex32]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|vaultstates|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|guide|screens|tour|codex32]"
         );
         return ExitCode::from(2);
     }
@@ -412,7 +414,7 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| !TOURS.contains(&m)) {
         eprintln!(
-            "the tour is spend, devices, toasts, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, busy, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
+            "the tour is spend, devices, toasts, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, vaultstates, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, busy, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
         return ExitCode::from(2);
     }

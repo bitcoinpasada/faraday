@@ -17,8 +17,8 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_bip::bitcoin::bip32::DerivationPath;
     use faraday_core::vault::VaultAction as V;
+    use faraday_vault::Record;
     use faraday_vault::records::{self, field, kind};
-    use faraday_vault::{Contents, Cost, Record};
     let words = |p: &str| Mnemonic::parse(c, Language::English, p).map_err(|e| format!("{e:?}"));
     let key = |m: &Mnemonic, label: &str| {
         Record::new(kind::KEY)
@@ -40,7 +40,7 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         master.fingerprint(),
         master.derive(c, &path).to_xpub(c)
     );
-    let mut records = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Trio")];
+    let mut records: Vec<Record> = Vec::new();
     for n in 0..3 {
         let m = words(&testkit::test_words(testkit::TEST_SEEDS[n].0))?;
         records.push(key(&m, testkit::TEST_SEEDS[n].1));
@@ -54,22 +54,9 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             .with(field::WALLET, trio.as_bytes())
             .with(field::WALLET_NAME, b"Trio"),
     );
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    let file = faraday_vault::create(
-        c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &["trio phrase"],
-        &[Contents { records }],
-        &[0x5e; 32],
-    )
-    .map_err(|e| format!("{e:?}"))?;
+    let file = testkit::kdbx_vault_at("Trio", "trio phrase", 0x5e, 64 * 1024, records)?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("trio.fvlt".into(), file)],
+        inbox: vec![("trio.kdbx".into(), file)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

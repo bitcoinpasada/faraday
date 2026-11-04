@@ -8,6 +8,7 @@
 //! shares in two vaults, unlocked one after the other, load the key; a
 //! place's line counts its shares.
 
+use crate::common::RecordsOf as _;
 use crate::common::*;
 use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
@@ -20,9 +21,9 @@ use faraday_core::{Action, BStage, Faraday, Screen, bstep, cstep, testkit};
 use faraday_keys::texts::Spec;
 use faraday_shell_api::{App, Event, Key};
 use faraday_ui::keyboard::OskPress;
+use faraday_vault::Record;
 use faraday_vault::codex32::{SetFacts, State};
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Cost, Record};
 
 /// Vector 2: shares A, C and D; the fingerprint of its seed's key.
 pub(crate) const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
@@ -206,24 +207,9 @@ pub(crate) fn unlock_on_vaults(app: &mut Faraday, name: &str, phrase: &str) {
     }
 }
 
-/// A vault file whose one slot, opened by `phrase`, holds `records`.
+/// A vault file opened by `phrase`, holding `records`.
 pub(crate) fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> {
-    let c = testkit::compute();
-    let mut all = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Vault")];
-    all.extend(records);
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        Cost {
-            memory_kib: faraday_vault::MIN_MEMORY_KIB,
-            passes: 1,
-            lanes: 1,
-        },
-        &[phrase],
-        &[Contents { records: all }],
-        &[seed; 32],
-    )
-    .unwrap()
+    vault_with("Vault", phrase, seed, records)
 }
 
 /// Share `s` of vector 2's key, as a vault's share record.
@@ -235,8 +221,8 @@ fn share_record(s: &str) -> Record {
 
 #[test]
 fn a_string_the_plan_keeps_in_a_vault_is_saved_as_a_share_record() {
-    let mut app = device(vec![("home.fvlt".into(), vault_of(PHRASE, Vec::new(), 7))]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    let mut app = device(vec![("home.kdbx".into(), vault_of(PHRASE, Vec::new(), 7))]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     key_from_strings(&mut app);
     wallet_and_backup(&mut app);
     // D, the one string not typed in, kept in the vault as well as on
@@ -276,8 +262,8 @@ fn the_vault_item_lists_the_strings_it_will_hold() {
     let line = "1 of 2 shares of fab6868a".to_string();
     let n = bstep::of(plan::Item::Vault(0));
     for with_string in [false, true] {
-        let mut app = device(vec![("home.fvlt".into(), vault_of(PHRASE, Vec::new(), 7))]);
-        unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+        let mut app = device(vec![("home.kdbx".into(), vault_of(PHRASE, Vec::new(), 7))]);
+        unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
         key_from_strings(&mut app);
         wallet_and_backup(&mut app);
         // The vault keeps the seed, and string D when asked.
@@ -323,8 +309,8 @@ fn the_plan_asks_how_many_strings_there_are() {
 /// vault without being typed again (§9.5).
 #[test]
 fn strings_typed_in_are_kept_with_their_key() {
-    let mut app = device(vec![("home.fvlt".into(), vault_of(PHRASE, Vec::new(), 8))]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    let mut app = device(vec![("home.kdbx".into(), vault_of(PHRASE, Vec::new(), 8))]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     key_from_strings(&mut app);
     let k = app.session.keys.position_of(FP).unwrap();
     assert!(app.session.keys.holds_codex32(k, b'a'));
@@ -346,10 +332,10 @@ fn strings_typed_in_are_kept_with_their_key() {
 #[test]
 fn a_string_typed_counts_with_a_vaults_share() {
     let mut app = device(vec![(
-        "home.fvlt".into(),
+        "home.kdbx".into(),
         vault_of(PHRASE, vec![share_record(C)], 9),
     )]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     assert!(
         app.session.keys.is_empty(),
         "one share of 2 of 3 is nothing"
@@ -380,15 +366,15 @@ fn a_string_typed_counts_with_a_vaults_share() {
 fn shares_in_two_vaults_load_the_key_once_both_are_unlocked() {
     let mut app = device(vec![
         (
-            "home.fvlt".into(),
+            "home.kdbx".into(),
             vault_of(PHRASE, vec![share_record(A)], 3),
         ),
         (
-            "bank.fvlt".into(),
+            "bank.kdbx".into(),
             vault_of("bank phrase", vec![share_record(C)], 4),
         ),
     ]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     assert!(
         app.session.keys.is_empty(),
         "one share of 2 of 3 is nothing"
@@ -405,7 +391,7 @@ fn shares_in_two_vaults_load_the_key_once_both_are_unlocked() {
         texts.iter().any(|t| t == "codex32 name · threshold 2"),
         "{texts:?}"
     );
-    unlock_on_vaults(&mut app, "bank.fvlt", "bank phrase");
+    unlock_on_vaults(&mut app, "bank.kdbx", "bank phrase");
     let k = app
         .session
         .keys
@@ -426,10 +412,10 @@ fn shares_of_another_key_named_in_a_record_load_nothing() {
             .with(field::CODEX32_KEY, &[1, 2, 3, 4])
     };
     let mut app = device(vec![(
-        "home.fvlt".into(),
+        "home.kdbx".into(),
         vault_of(PHRASE, vec![wrong(A), wrong(D)], 5),
     )]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     assert!(app.session.keys.is_empty());
 }
 
@@ -476,10 +462,10 @@ fn type_string(app: &mut Faraday, s: &str) {
 fn a_string_typed_loads_its_own_seed_beside_another_seeds_share() {
     let (other, other_fp) = other_seeds_c();
     let mut app = device(vec![(
-        "home.fvlt".into(),
+        "home.kdbx".into(),
         vault_of(PHRASE, vec![other, share_record(D)], 11),
     )]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     assert!(app.session.keys.is_empty());
     type_string(&mut app, A);
     let fps: Vec<[u8; 4]> = (0..app.session.keys.len())
@@ -502,10 +488,10 @@ fn a_string_typed_loads_its_own_seed_beside_another_seeds_share() {
 fn a_string_typed_with_only_another_seeds_share_loads_nothing() {
     let (other, _) = other_seeds_c();
     let mut app = device(vec![(
-        "home.fvlt".into(),
+        "home.kdbx".into(),
         vault_of(PHRASE, vec![other], 12),
     )]);
-    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
     type_string(&mut app, A);
     assert!(app.session.keys.is_empty(), "a key loaded");
 }

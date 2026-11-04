@@ -3,7 +3,7 @@
 //! `Action`s and `StorageEvent`s as `clock.rs`, `import.rs` and `gpg.rs`
 //! do.
 
-use crate::common::type_text;
+use crate::common::{know_files, type_text, vault_with};
 use faraday_core::catalog::TILES;
 use faraday_core::codes::{CodeKind, codes_rows};
 use faraday_core::set_time::Focus;
@@ -13,8 +13,8 @@ use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, SecureHardware,
 };
+use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Cost, Record};
 
 fn display() -> Event {
     Event::Display(DisplayInfo {
@@ -56,7 +56,7 @@ fn fresh_app(clock: Option<u64>, online: bool) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), vault)],
+        inbox: vec![("vault.kdbx".into(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -72,36 +72,24 @@ fn open_codes_from_tools(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Catalog));
     app.press(Action::Catalog(tile("TOTP codes")));
     assert_eq!(app.screen, Screen::Unlock, "no vault open leads to Unlock");
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(app, |a| !a.vaults().open.is_empty());
 }
 
-/// A minimal one-slot vault holding one entry with this field 6 value.
-fn entry_vault(passphrase: &str, label: &str, title: &str, totp: &[u8], seed: u8) -> Vec<u8> {
-    let c = testkit::compute();
-    let main = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes()),
+/// A minimal vault holding one entry with this TOTP field value; `id`
+/// makes its identifier.
+fn entry_vault(passphrase: &str, label: &str, title: &str, totp: &[u8], id: u8) -> Vec<u8> {
+    vault_with(
+        label,
+        passphrase,
+        id,
+        vec![
             Record::new(kind::ENTRY)
                 .with(field::TITLE, title.as_bytes())
                 .with(field::TOTP, totp),
         ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 3,
-        lanes: 1,
-    };
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[passphrase],
-        &[main],
-        &[seed; 32],
     )
-    .unwrap()
 }
 
 #[test]
@@ -267,8 +255,13 @@ fn two_open_vaults_each_show_their_rows_and_a_hotp_entry_shows_no_code() {
         b"otpauth://hotp/Exchange?secret=JBSWY3DPEHPK3PXP",
         0x11,
     );
+    let inbox = vec![
+        ("vault.kdbx".to_string(), first),
+        ("second.kdbx".to_string(), second),
+    ];
+    know_files(&mut app, &inbox);
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), first), ("second.fvlt".into(), second)],
+        inbox,
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -277,7 +270,7 @@ fn two_open_vaults_each_show_their_rows_and_a_hotp_entry_shows_no_code() {
     });
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, |a| a.vaults().open.len() == 1);
     app.press(Action::Nav(Screen::Vaults));
@@ -403,39 +396,28 @@ const URI: &str = "otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3P
 /// An app with a one-entry vault unlocked and the entry's page open: the
 /// entry's TOTP field `totp`, and a password and notes beside it.
 fn on_an_entry(totp: &str) -> Faraday {
-    let c = testkit::compute();
-    let main = Contents {
-        records: vec![
-            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
+    let vault = vault_with(
+        "Main",
+        "entry",
+        0x2a,
+        vec![
             Record::new(kind::ENTRY)
                 .with(field::TITLE, b"Example")
                 .with(field::PASSWORD, b"correct horse")
                 .with(field::NOTES, b"a note")
                 .with(field::TOTP, totp.as_bytes()),
         ],
-    };
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 1,
-        lanes: 1,
-    };
-    let vault = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &["entry"],
-        &[main],
-        &[0x2a; 32],
-    )
-    .unwrap();
+    );
     let mut app = Faraday::new();
     app.online = true;
     app.event(display());
     for i in 0..6u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
     }
+    let inbox = vec![("entry.kdbx".to_string(), vault)];
+    know_files(&mut app, &inbox);
     app.storage(StorageEvent::Restored {
-        inbox: vec![("entry.fvlt".into(), vault)],
+        inbox,
         outbox: Vec::new(),
         kept: Vec::new(),
     });

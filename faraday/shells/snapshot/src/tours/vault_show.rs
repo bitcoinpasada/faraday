@@ -13,7 +13,7 @@ use faraday_shell_api::{App, Event, TouchPhase};
 pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
     t.app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -26,7 +26,7 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));
     t.tick();
     crate::tour::not_now_load(t);

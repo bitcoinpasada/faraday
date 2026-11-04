@@ -28,8 +28,8 @@ const VAULT_PHRASE: &str = "faraday";
 /// An empty vault, in Files from the start.
 fn vault_file() -> (String, Vec<u8>) {
     (
-        "demo.fvlt".to_string(),
-        crate::common::vault("Demo", &[VAULT_PHRASE], 9),
+        "demo.kdbx".to_string(),
+        crate::common::vault("Demo", VAULT_PHRASE, 9),
     )
 }
 

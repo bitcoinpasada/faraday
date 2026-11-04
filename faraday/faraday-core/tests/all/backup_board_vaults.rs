@@ -59,7 +59,7 @@ fn two_vaults_on_one_stick_survive_a_save_and_are_both_written_to_it_each_its_ow
     );
     let vaults: Vec<String> = names(&shell, "S1")
         .into_iter()
-        .filter(|n| n.ends_with(".fvlt"))
+        .filter(|n| n.ends_with(".kdbx"))
         .collect();
     assert_eq!(vaults.len(), 2, "{vaults:?}");
     assert_ne!(vaults[0], vaults[1]);
@@ -68,7 +68,7 @@ fn two_vaults_on_one_stick_survive_a_save_and_are_both_written_to_it_each_its_ow
         .disk("S1")
         .files
         .iter()
-        .filter(|(n, _)| n.ends_with(".fvlt"))
+        .filter(|(n, _)| n.ends_with(".kdbx"))
         .cloned()
         .collect();
     for phrase in ["first vault phrase", "second vault phrase"] {
@@ -129,7 +129,7 @@ fn a_vault_put_on_the_second_of_two_copies_sticks_is_written_to_that_stick_only(
     let on = |d: &str| {
         names(&shell, d)
             .iter()
-            .filter(|n| n.ends_with(".fvlt"))
+            .filter(|n| n.ends_with(".kdbx"))
             .count()
     };
     assert_eq!(on("S1"), 1, "the first stick holds Vault 1 only");

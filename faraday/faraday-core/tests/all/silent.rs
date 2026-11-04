@@ -6,6 +6,7 @@
 //! BIP-352's sending side made to it, to the address or to a label, and
 //! not one made to someone else.
 
+use crate::common::RecordsOf as _;
 use faraday_bip::bitcoin::key::TapTweak;
 use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use faraday_bip::bitcoin::{
@@ -335,7 +336,7 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     files(
         &mut app,
         &[
-            ("vault.fvlt", testkit::test_vault().unwrap()),
+            ("vault.kdbx", testkit::test_vault().unwrap()),
             ("silent-1.txt", record.clone().into_bytes()),
         ],
     );
@@ -343,7 +344,7 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     // what it holds without loading it, as today (`docs/history/NEW-WALLET.md`
     // §11.1a), so the wallet picked below is the silent one just loaded.
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
-    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));

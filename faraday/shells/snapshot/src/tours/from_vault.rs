@@ -26,7 +26,7 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     boot.boot = true;
     boot.label = "FARADAY".into();
     boot.files
-        .retain(|(n, _)| n == "vault.fvlt" || n == "savings-unsigned.psbt");
+        .retain(|(n, _)| n == "vault.kdbx" || n == "savings-unsigned.psbt");
     t.app.storage(StorageEvent::Sticks(vec![boot]));
     t.pump();
     t.app.storage(StorageEvent::Memory {
@@ -37,7 +37,7 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     t.press(Action::Vault(V::FocusPassphrase));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Import(I::Submit));
     t.tick();
     // The unlock offers what to load; everything ticked loads.

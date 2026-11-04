@@ -3,6 +3,7 @@
 //! seed, with a passphrase if it has one, or a cosigner's xpub; the
 //! wallet, its first addresses, and the backup or a spend after.
 
+use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::backup_flow::steps::FlowAction;
@@ -717,7 +718,7 @@ fn restored_from_vault_named(file: &str) -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..20u64 {
         let _ = app.frame();
@@ -756,7 +757,7 @@ fn restored_from_vault_named(file: &str) -> Faraday {
 #[test]
 fn a_wallet_restored_from_a_vault_with_any_name_goes_the_vault_route() {
     use faraday_core::family::Route;
-    let app = restored_from_vault_named("Savings vault.fvlt");
+    let app = restored_from_vault_named("Savings vault.kdbx");
     assert_eq!(app.family().route, Some(Route::Vault));
 }
 

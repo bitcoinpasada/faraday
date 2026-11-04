@@ -161,6 +161,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         });
@@ -173,6 +174,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             secret: true,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         });
@@ -489,7 +491,7 @@ fn the_visit_says_then_home_and_goes_there() {
 #[test]
 fn a_visit_for_a_vault_sealed_at_lock_says_then_unlock_and_goes_there() {
     let vault = (
-        "vault.fvlt".to_string(),
+        "vault.kdbx".to_string(),
         faraday_core::testkit::test_vault().unwrap(),
     );
     let mut app = visiting(vec![vault]);
@@ -820,6 +822,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         });
@@ -928,13 +931,13 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     let len = vault.len() as u64;
     let mut app = writing_over(
         &[
-            ("vault.fvlt", len),
-            ("old.fvlt", len + 1),
+            ("vault.kdbx", len),
+            ("old.kdbx", len + 1),
             ("backup-00.pdf", 10),
         ],
         vec![
-            ("vault.fvlt", vault.clone()),
-            ("old.fvlt", vault.clone()),
+            ("vault.kdbx", vault.clone()),
+            ("old.kdbx", vault.clone()),
             ("backup-00.pdf", b"new".to_vec()),
         ],
     );
@@ -942,8 +945,8 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     app.press(Action::VisitWrite);
     let texts = app.drawn_texts();
     for row in [
-        "vault.fvlt · the same vault, updated here",
-        "old.fvlt · another vault · kept, this one as old-2.fvlt",
+        "vault.kdbx · the same vault, updated here",
+        "old.kdbx · another vault · kept, this one as old-2.kdbx",
     ] {
         assert!(texts.iter().any(|t| t == row), "{row}: {texts:?}");
     }
@@ -953,17 +956,17 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     assert_eq!(
         writes(&mut app),
         [
-            ("vault.fvlt".to_string(), true),
-            ("old.fvlt".to_string(), true),
+            ("vault.kdbx".to_string(), true),
+            ("old.kdbx".to_string(), true),
             ("backup-00.pdf".to_string(), true)
         ]
     );
     // The same vault alone, sealed again here, is written back with no
     // question.
-    let mut app = writing_over(&[("vault.fvlt", len)], vec![("vault.fvlt", vault)]);
+    let mut app = writing_over(&[("vault.kdbx", len)], vec![("vault.kdbx", vault)]);
     asked(&mut app);
     app.press(Action::VisitWrite);
-    assert_eq!(writes(&mut app), [("vault.fvlt".to_string(), true)]);
+    assert_eq!(writes(&mut app), [("vault.kdbx".to_string(), true)]);
 }
 
 #[test]
@@ -1021,6 +1024,7 @@ fn made_unclean(app: &mut Faraday) {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         },

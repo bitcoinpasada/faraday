@@ -160,11 +160,27 @@ fn seal_next(app: &mut Faraday) {
             }
             continue;
         }
-        let Some(work) = seal_work(app, id) else {
-            if !all {
-                seal_stop(app);
+        // A vault whose changes do not fit is let go unsealed: the person
+        // chose Lock without sealing, or an idle lock had no one to ask.
+        if all {
+            let c = app.compute();
+            if app.vaults.cannot_seal(&c, i).is_some() {
+                app.vaults.set_changes_lost();
+                continue;
             }
-            continue;
+        }
+        let work = match seal_work(app, id) {
+            Ok(work) => work,
+            // A lock of one stays open with its changes and the person is
+            // told; a lock of every vault lets it go and goes on to the wipes.
+            Err(why) => {
+                if !all {
+                    seal_stop(app, why);
+                } else {
+                    app.vaults.set_changes_lost();
+                }
+                continue;
+            }
         };
         let line = EN.vault_sealing;
         if let Some(run) = app.vaults.state.sealing.as_mut() {
@@ -196,33 +212,78 @@ fn seal_memory(app: &mut Faraday, i: usize) {
     app.vaults.state.add_amounts(&c, i, new);
 }
 
+/// Why a seal could not be made into a job.
+enum NoJob {
+    /// The session's answers have not arrived (the shell is asked).
+    Seed,
+    /// The store cannot write this vault.
+    Unwritable,
+}
+
+/// `n` bytes for the UUIDs of new entries and groups, from one fresh
+/// answer: SHA-256 over a domain string, the answer and a counter, block
+/// by block. The UUIDs need to differ, not to be secret, so one answer
+/// serves any number of them.
+fn uuid_bytes_from(answer: &[u8], n: usize) -> Zeroizing<Vec<u8>> {
+    let mut out = Zeroizing::new(Vec::with_capacity(n + 32));
+    let mut counter = 0u32;
+    while out.len() < n {
+        let mut input = Vec::with_capacity(32 + answer.len() + 4);
+        input.extend_from_slice(b"faraday vault seal uuids");
+        input.extend_from_slice(answer);
+        input.extend_from_slice(&counter.to_be_bytes());
+        out.extend_from_slice(&faraday_crypto::sha256(&input));
+        counter += 1;
+    }
+    out.truncate(n);
+    out
+}
+
 /// The front half: open vault `id`'s seal made into a job, which takes
-/// the vault's job. `None` where the session's answers
-/// have not arrived (and the shell is asked), or the store gave no job.
-fn seal_work(app: &mut Faraday, id: VaultId) -> Option<SealWork> {
+/// the vault's job. Why not where the session's answers have not arrived
+/// (and the shell is asked), or the store gave no job.
+fn seal_work(app: &mut Faraday, id: VaultId) -> Result<SealWork, NoJob> {
     if !app.seeded() {
         app.out.command(faraday_shell_api::Command::RequestEntropy);
-        return None;
+        return Err(NoJob::Seed);
     }
-    let n = app.vaults.store().uuid_bytes(id)?;
-    let random = app.fresh_bytes(b"vault seal", SEAL_RANDOM_LEN)?;
+    let n = app.vaults.store().uuid_bytes(id).ok_or(NoJob::Unwritable)?;
+    let random = app
+        .fresh_bytes(b"vault seal", SEAL_RANDOM_LEN)
+        .ok_or(NoJob::Seed)?;
     let mut seal = Zeroizing::new([0u8; SEAL_RANDOM_LEN]);
     seal.copy_from_slice(&random);
     let uuids = if n == 0 {
         Zeroizing::new(Vec::new())
     } else {
-        app.fresh_bytes(b"vault entries", n)?
+        let answer = app.fresh_bytes(b"vault entries", 32).ok_or(NoJob::Seed)?;
+        uuid_bytes_from(&answer, n)
     };
     let now = app.clock_now();
-    let name = app.vaults.open.iter().find(|o| o.id == id)?.name.clone();
-    let job = app.vaults.state.store.seal_job(id, &seal, &uuids, now)?;
-    Some(SealWork { job, id, name })
+    let name = app
+        .vaults
+        .open
+        .iter()
+        .find(|o| o.id == id)
+        .ok_or(NoJob::Unwritable)?
+        .name
+        .clone();
+    let job = app
+        .vaults
+        .state
+        .store
+        .seal_job(id, &seal, &uuids, now)
+        .ok_or(NoJob::Unwritable)?;
+    Ok(SealWork { job, id, name })
 }
 
 /// A lock of one that could not seal: the vault stays open.
-fn seal_stop(app: &mut Faraday) {
+fn seal_stop(app: &mut Faraday, why: NoJob) {
     app.vaults.state.sealing = None;
-    app.toast(EN.seed_missing);
+    app.toast(match why {
+        NoJob::Seed => EN.seed_missing,
+        NoJob::Unwritable => EN.vaults_cannot_write,
+    });
 }
 
 /// Closes open vault `id` after a lock of it alone.
@@ -259,8 +320,12 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             run.running = None;
             run.all
         }
-        // A lock ended the run: nothing is left to go on with.
-        None => return,
+        // The run is gone: the vault is let go as it is, its changes
+        // kept, so that it can be edited and sealed again.
+        None => {
+            app.vaults.state.store.seal_ended(id, false);
+            return;
+        }
     };
     match sealed.into_file() {
         Ok(bytes) => {
@@ -276,6 +341,13 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
         // The vault stays open with its changes, the lock goes no
         // further (the rest of the queue is not sealed, nothing is
         // wiped), and the person is told.
+        // An idle lock has no one to ask: the changes are lost and the
+        // lock goes on to the wipes.
+        Err(_) if all && app.idle_locked_after().is_some() => {
+            app.vaults.state.store.seal_ended(id, false);
+            app.vaults.set_changes_lost();
+            return seal_next(app);
+        }
         Err(why) => {
             app.vaults.state.store.seal_ended(id, false);
             app.vaults.state.sealing = None;

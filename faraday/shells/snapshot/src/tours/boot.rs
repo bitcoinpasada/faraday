@@ -38,7 +38,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     if t.app.screen != Screen::Home
         || t.app.sheet != Some(Sheet::Import)
-        || t.app.inbox().iter().any(|i| i.name == "vault.fvlt")
+        || t.app.inbox().iter().any(|i| i.name == "vault.kdbx")
     {
         return Err("the boot stick's files did not come up for the import".into());
     }
@@ -95,7 +95,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         return Err("the import did not open again from Home".into());
     }
     t.press(Action::Vault(V::FocusPassphrase));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.shot("boot-unlock")?;
     t.press(Action::Import(I::Submit));
     t.tick();

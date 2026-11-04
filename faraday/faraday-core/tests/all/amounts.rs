@@ -81,15 +81,11 @@ const PHRASE: &str = "amounts phrase";
 /// A vault remembering `psbt` signed with its input stating one satoshi
 /// more than it does, holding the spending wallet when `with_wallet`.
 fn remembering_vault(psbt: &faraday_psbt::Psbt, with_wallet: bool) -> Vec<u8> {
+    use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
-    use faraday_vault::{Contents, Cost, Record};
-    let c = testkit::compute();
     let (hash, mut amounts) = faraday_core::memory::stated(psbt).unwrap();
     amounts[0] += 1;
-    let mut records = vec![
-        Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Ledger"),
-        faraday_core::memory::record_of(&(hash, amounts)),
-    ];
+    let mut records = vec![faraday_core::memory::record_of(&(hash, amounts))];
     if with_wallet {
         records.push(
             Record::new(kind::WALLET)
@@ -97,19 +93,7 @@ fn remembering_vault(psbt: &faraday_psbt::Psbt, with_wallet: bool) -> Vec<u8> {
                 .with(field::WALLET_NAME, b"Spending"),
         );
     }
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        Cost {
-            memory_kib: 64 * 1024,
-            passes: 1,
-            lanes: 1,
-        },
-        &[PHRASE],
-        &[Contents { records }],
-        &[0x4d; 32],
-    )
-    .unwrap()
+    testkit::kdbx_vault_at("Ledger", PHRASE, 0x4d, 64 * 1024, records).unwrap()
 }
 
 /// The vault unlocked and nothing loaded from it; then the spending
@@ -125,7 +109,7 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
     }
     app.storage(StorageEvent::Restored {
         inbox: vec![
-            ("ledger.fvlt".to_string(), vault),
+            ("ledger.kdbx".to_string(), vault),
             ("spend.psbt".to_string(), psbt.to_bytes()),
             (
                 "spending-wallet.txt".to_string(),

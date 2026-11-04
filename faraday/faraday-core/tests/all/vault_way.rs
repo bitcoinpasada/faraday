@@ -27,7 +27,7 @@ const VAULT_TILES: [(&str, usize); 1] = [("KeePass export", 2)];
 /// One file of the test stick, made alone: building the whole stick costs
 /// every kit's spend and the test vault.
 fn kit_file(name: &str) -> (String, Vec<u8>) {
-    if name == "vault.fvlt" {
+    if name == "vault.kdbx" {
         return (name.to_string(), testkit::test_vault().unwrap());
     }
     let id = name
@@ -179,7 +179,7 @@ fn a_vault_tile_with_no_vault_says_make_one_and_makes_it_then_opens_its_category
 #[test]
 fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
     for (name, category) in VAULT_TILES {
-        let mut app = device(vec![kit_file("vault.fvlt")]);
+        let mut app = device(vec![kit_file("vault.kdbx")]);
         app.press(Action::Nav(Screen::Catalog));
         let i = tile(name);
         assert_eq!(
@@ -189,7 +189,7 @@ fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
         app.press(Action::Catalog(i));
         assert_eq!(app.screen, Screen::Unlock, "{name}");
         assert_eq!(app.vaults().pick, 0, "the only vault is picked");
-        unlock_with(&mut app, testkit::VAULT_PASSPHRASES[0]);
+        unlock_with(&mut app, testkit::VAULT_PASSPHRASE);
         assert_eq!(app.screen, Screen::VaultContents, "{name}");
         assert_eq!(app.vaults().category, category, "{name}");
     }
@@ -197,7 +197,7 @@ fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
 
 #[test]
 fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
@@ -213,7 +213,7 @@ fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
     assert_ne!(app.screen, Screen::Unlock);
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Unlock, "Unlock opens once it is out");
-    unlock_with(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    unlock_with(&mut app, testkit::VAULT_PASSPHRASE);
     assert_eq!(app.screen, Screen::VaultContents);
     assert_eq!(app.vaults().category, 2);
 }
@@ -482,17 +482,32 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
-    // Light's 64 MiB, twice the 1 MiB file and 100 MiB for the app.
-    app.storage(StorageEvent::Memory { available_mib: 165 });
+    // Light's 64 MiB, twice the file and 100 MiB for the app.
+    const MIB: usize = 1024 * 1024;
+    let file = app
+        .outbox
+        .last()
+        .expect("the vault was written")
+        .bytes
+        .len();
+    let need = 64 + ((2 * file + MIB / 2) / MIB) as u32 + 100;
+    app.storage(StorageEvent::Memory {
+        available_mib: need - 1,
+    });
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, |a| !a.vaults().open.is_empty());
     assert!(app.vaults().open.is_empty(), "it unlocked short of memory");
     assert_eq!(
-        app.vaults().unlock_error.as_deref(),
-        Some("Needs 166 MiB. This computer has 165 MiB free.")
+        app.vaults().unlock_error,
+        Some(format!(
+            "Needs {need} MiB. This computer has {} MiB free.",
+            need - 1
+        ))
     );
-    app.storage(StorageEvent::Memory { available_mib: 166 });
+    app.storage(StorageEvent::Memory {
+        available_mib: need,
+    });
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     unlock_with(&mut app, NEW_PHRASE);

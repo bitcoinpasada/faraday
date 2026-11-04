@@ -10,8 +10,8 @@ use faraday_core::wallet::{Origin, Session};
 use faraday_core::wallet_backup::{split_plan, split_share};
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, Event};
+use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Cost, Record};
 
 /// The 2-of-3 over the three test seeds at BIP-48 account `account`.
 fn two_of_three(account: u32) -> String {
@@ -63,24 +63,9 @@ fn sheets_of_different_names_do_not_merge() {
     assert!(merge(&[a[0].clone(), renamed]).is_err());
 }
 
-/// A vault file whose one slot, opened by `phrase`, holds `records`.
+/// A vault file opened by `phrase`, holding `records`.
 fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> {
-    let c = testkit::compute();
-    let mut all = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Vault")];
-    all.extend(records);
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        Cost {
-            memory_kib: faraday_vault::MIN_MEMORY_KIB,
-            passes: 1,
-            lanes: 1,
-        },
-        &[phrase],
-        &[Contents { records: all }],
-        &[seed; 32],
-    )
-    .unwrap()
+    testkit::kdbx_vault("Vault", phrase, seed, records).unwrap()
 }
 
 /// Unlocks vault file `name` from the Vaults tab with `phrase`, loading
@@ -124,9 +109,9 @@ fn a_sheet_in_hand_and_a_vaults_sheet_of_another_wallet_load_no_wallet() {
         .with(field::SHARE_OF, &[3]);
     let mut app = device(vec![
         ("savings-share-1-of-3.txt".into(), a[0].clone().into_bytes()),
-        ("home.fvlt".into(), vault_of("home phrase", vec![share], 21)),
+        ("home.kdbx".into(), vault_of("home phrase", vec![share], 21)),
     ]);
-    unlock_on_vaults(&mut app, "home.fvlt", "home phrase");
+    unlock_on_vaults(&mut app, "home.kdbx", "home phrase");
     let wallets = app.session.wallets.len();
     app.press(Action::RestoreWallet);
     let i = app
@@ -172,9 +157,9 @@ fn a_vaults_sheet_of_a_wallet_without_the_keys_in_hand_is_not_taken() {
         .with(field::SHARE_OF, &[3]);
     let mut app = device(vec![
         ("savings-share-3-of-3.txt".into(), a[2].clone().into_bytes()),
-        ("home.fvlt".into(), vault_of("home phrase", vec![share], 22)),
+        ("home.kdbx".into(), vault_of("home phrase", vec![share], 22)),
     ]);
-    unlock_on_vaults(&mut app, "home.fvlt", "home phrase");
+    unlock_on_vaults(&mut app, "home.kdbx", "home phrase");
     let wallets = app.session.wallets.len();
     app.press(Action::RestoreWallet);
     let i = app

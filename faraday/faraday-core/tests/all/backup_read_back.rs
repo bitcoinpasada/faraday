@@ -629,26 +629,7 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
 
 /// A vault file holding the records given, under `phrase`.
 fn vault_with(records: Vec<faraday_vault::Record>, phrase: &str, salt: u8) -> Vec<u8> {
-    let c = testkit::compute();
-    let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
-        passes: 1,
-        lanes: 1,
-    };
-    let mut records = records;
-    records.insert(
-        0,
-        faraday_vault::Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
-    );
-    faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[phrase],
-        &[faraday_vault::Contents { records }],
-        &[salt; 32],
-    )
-    .unwrap()
+    crate::common::vault_of("Main", phrase, salt, records)
 }
 
 /// Unlocks the vault file `name` with `phrase`.
@@ -684,11 +665,11 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         .with(field::PASSPHRASE, PASS.as_bytes());
     let files = vec![
         (
-            "words.fvlt".to_string(),
+            "words.kdbx".to_string(),
             vault_with(vec![key], "words phrase", 1),
         ),
         (
-            "apart.fvlt".to_string(),
+            "apart.kdbx".to_string(),
             vault_with(vec![pass], "apart phrase", 2),
         ),
     ];
@@ -698,8 +679,8 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    unlock_file(&mut app, "apart.fvlt", "apart phrase");
-    unlock_file(&mut app, "words.fvlt", "words phrase");
+    unlock_file(&mut app, "apart.kdbx", "apart phrase");
+    unlock_file(&mut app, "words.kdbx", "words phrase");
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     let v = app
         .vaults()
@@ -717,7 +698,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    unlock_file(&mut app, "words.fvlt", "words phrase");
+    unlock_file(&mut app, "words.kdbx", "words phrase");
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint.0, fp_of(2, ""));

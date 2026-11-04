@@ -42,7 +42,7 @@ fn opened() -> Faraday {
         )));
     }
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.fvlt")],
+        inbox: vec![kit_file("vault.kdbx")],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -51,7 +51,7 @@ fn opened() -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {

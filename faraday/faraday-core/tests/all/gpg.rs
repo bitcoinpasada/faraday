@@ -6,6 +6,7 @@
 //! nothing, a renewal counts its term from the clock, and what is signed
 //! is what the page shows.
 
+use crate::common::RecordsOf as _;
 use crate::common::type_text;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -104,7 +105,7 @@ fn copied_in() -> Faraday {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -140,7 +141,7 @@ fn unlocked() -> Faraday {
     let mut app = copied_in();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
@@ -897,6 +898,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         },
@@ -920,7 +922,7 @@ fn with_one_file_it_starts_ticked() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.fvlt")
+        .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault, ("SHA256SUMS".into(), b"hello".to_vec())],
@@ -934,7 +936,7 @@ fn with_one_file_it_starts_ticked() {
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
@@ -975,6 +977,7 @@ fn a_signature_never_overwrites_the_certificate() {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         },
@@ -1056,6 +1059,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
             secret: false,
             picture: None,
             sha: None,
+            facts: None,
             wallet: None,
             psbt: None,
         },
@@ -1321,7 +1325,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
-    let boot = [("vault.fvlt".to_string(), testkit::test_vault().unwrap())];
+    let boot = [("vault.kdbx".to_string(), testkit::test_vault().unwrap())];
     let listing = |files: &[(String, Vec<u8>)]| -> Vec<(String, u64)> {
         files
             .iter()
@@ -1347,7 +1351,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(
         faraday_core::boot_import::ImportAction::Submit,
     ));
@@ -1407,7 +1411,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     let _ = app.frame();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
     app.press(Action::Vault(V::LoadTicked));
@@ -1457,7 +1461,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
         ),
     ];
     let mut boot = files.clone();
-    boot.push(("vault.fvlt".to_string(), testkit::test_vault().unwrap()));
+    boot.push(("vault.kdbx".to_string(), testkit::test_vault().unwrap()));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         make: Default::default(),
         serial: None,
@@ -1486,7 +1490,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Import(
         faraday_core::boot_import::ImportAction::Submit,
     ));

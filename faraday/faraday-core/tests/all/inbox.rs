@@ -3,6 +3,7 @@
 //! and the shares of a split backup put back together into the wallet
 //! from Files itself.
 
+use crate::common::RecordsOf as _;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
@@ -37,11 +38,11 @@ fn with_files(files: Vec<(String, Vec<u8>)>) -> Faraday {
 fn unlocked(mut files: Vec<(String, Vec<u8>)>) -> Faraday {
     files.insert(
         0,
-        ("vault.fvlt".to_string(), testkit::test_vault().unwrap()),
+        ("vault.kdbx".to_string(), testkit::test_vault().unwrap()),
     );
     let mut app = with_files(files);
     app.press(Action::Vault(V::Open(0)));
-    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
@@ -146,7 +147,7 @@ fn files_offers(app: &mut Faraday, action: Action) -> bool {
 /// own row (F60). Once the vault is open, Add to vault is there.
 #[test]
 fn a_text_file_offers_add_to_vault_only_while_a_vault_is_open() {
-    let vault = ("vault.fvlt".to_string(), testkit::test_vault().unwrap());
+    let vault = ("vault.kdbx".to_string(), testkit::test_vault().unwrap());
     let codes = ("gmail-codes.txt".to_string(), CODES.as_bytes().to_vec());
     let mut app = with_files(vec![vault, codes.clone()]);
     let k = at(&app, "gmail-codes.txt");
@@ -164,7 +165,7 @@ fn a_text_file_offers_add_to_vault_only_while_a_vault_is_open() {
     assert!(
         !texts
             .iter()
-            .any(|t| t == "Add to vault" || t == "Unlock vault.fvlt"),
+            .any(|t| t == "Add to vault" || t == "Unlock vault.kdbx"),
         "{texts:?}"
     );
 
@@ -318,7 +319,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
     });
     app.storage(StorageEvent::Restored {
         inbox: vec![
-            kit("vault.fvlt"),
+            kit("vault.kdbx"),
             kit("spending-wallet.txt"),
             ("gmail-codes.txt".into(), CODES.into()),
         ],
@@ -422,15 +423,15 @@ fn no_screen_or_sheet_calls_either_half_inbox_or_outbox() {
 /// vault's Unlock.
 #[test]
 fn a_copy_of_an_open_vault_under_another_name_is_that_vault() {
-    let b = crate::common::vault("B", &["b phrase"], 0x31);
+    let b = crate::common::vault("B", "b phrase", 0x31);
     let mut app = crate::common::process(
         vec![
             (
-                "a.fvlt".to_string(),
-                crate::common::vault("A", &["a phrase"], 0x30),
+                "a.kdbx".to_string(),
+                crate::common::vault("A", "a phrase", 0x30),
             ),
-            ("b.fvlt".to_string(), b.clone()),
-            ("b-copy.fvlt".to_string(), b),
+            ("b.kdbx".to_string(), b.clone()),
+            ("b-copy.kdbx".to_string(), b),
         ],
         Vec::new(),
         Vec::new(),
@@ -442,7 +443,7 @@ fn a_copy_of_an_open_vault_under_another_name_is_that_vault() {
     let _ = app.frame();
     let texts = app.drawn_texts();
     let contents = texts.iter().filter(|t| t.as_str() == "Contents").count();
-    assert_eq!(contents, 2, "b.fvlt and its copy are both open: {texts:?}");
+    assert_eq!(contents, 2, "b.kdbx and its copy are both open: {texts:?}");
 }
 
 /// A file read from a stick under a name Files already holds, with other
@@ -491,12 +492,12 @@ fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
 fn a_vault_row_names_its_own_vault_not_another_of_its_name() {
     let mut app = crate::common::process(
         vec![(
-            "v.fvlt".to_string(),
-            crate::common::vault("B", &["b phrase"], 0x31),
+            "v.kdbx".to_string(),
+            crate::common::vault("B", "b phrase", 0x31),
         )],
         vec![(
-            "v.fvlt".to_string(),
-            crate::common::vault("A", &["a phrase"], 0x30),
+            "v.kdbx".to_string(),
+            crate::common::vault("A", "a phrase", 0x30),
         )],
         Vec::new(),
     );
@@ -515,26 +516,26 @@ fn a_vault_row_names_its_own_vault_not_another_of_its_name() {
 /// one numbered beside it, and the visit says so.
 #[test]
 fn a_written_vault_beside_another_of_its_name_is_kept_numbered() {
-    let a = crate::common::vault("A", &["a phrase"], 0x30);
-    let b = crate::common::vault("B", &["b phrase"], 0x31);
+    let a = crate::common::vault("A", "a phrase", 0x30);
+    let b = crate::common::vault("B", "b phrase", 0x31);
     let mut app = crate::common::process(
-        vec![("v.fvlt".to_string(), b.clone())],
-        vec![("v.fvlt".to_string(), a.clone())],
+        vec![("v.kdbx".to_string(), b.clone())],
+        vec![("v.kdbx".to_string(), a.clone())],
         Vec::new(),
     );
     app.storage(StorageEvent::Written {
         stick: "s".into(),
-        name: "v.fvlt".into(),
-        wrote_as: "v.fvlt".into(),
+        name: "v.kdbx".into(),
+        wrote_as: "v.kdbx".into(),
     });
     let held: Vec<(&str, bool)> = app
         .inbox()
         .iter()
         .map(|i| (i.name.as_str(), i.bytes == a))
         .collect();
-    assert_eq!(held, vec![("v.fvlt", false), ("v-2.fvlt", true)]);
+    assert_eq!(held, vec![("v.kdbx", false), ("v-2.kdbx", true)]);
     assert!(
-        app.visit().log.iter().any(|(l, _)| l.contains("v-2.fvlt")),
+        app.visit().log.iter().any(|(l, _)| l.contains("v-2.kdbx")),
         "{:?}",
         app.visit().log
     );

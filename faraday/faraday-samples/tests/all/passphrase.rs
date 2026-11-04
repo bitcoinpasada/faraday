@@ -331,7 +331,7 @@ fn in_demo_the_unlock_passphrase_is_empty_and_offers_faraday() {
     );
     app.press(Action::UseSample);
     assert_eq!(app.vault_files().len(), 1, "the sample vault is listed");
-    assert_eq!(app.vault_files()[0].name, "sample.fvlt");
+    assert_eq!(app.vault_files()[0].name, "sample.kdbx");
     app.press(Action::Vault(V::Open(0)));
     assert!(
         app.vaults().passphrase.text.is_empty(),
@@ -385,7 +385,7 @@ fn on_testnet_the_unlock_passphrase_is_typed_and_masked_and_no_sample_is_offered
     app.samples = Some(&SAMPLES);
     app.press(Action::Nav(Screen::Vaults));
     assert!(!crate::common::strip_offers(&mut app, Action::UseSample));
-    let (name, bytes) = ("v.fvlt".to_string(), SAMPLES.inputs.vault.to_vec());
+    let (name, bytes) = ("v.kdbx".to_string(), SAMPLES.inputs.vault.to_vec());
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(name, bytes)],
         outbox: Vec::new(),

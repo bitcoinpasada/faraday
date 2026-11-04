@@ -264,7 +264,7 @@ fn vault_in_files(app: &mut Faraday) {
     });
     testkit::vault_speed(app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -275,7 +275,7 @@ fn vault_in_files(app: &mut Faraday) {
 /// run to its end.
 fn unlock(app: &mut Faraday) {
     assert_eq!(app.screen, Screen::Unlock);
-    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {

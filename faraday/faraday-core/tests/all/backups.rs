@@ -216,7 +216,7 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
     assert_eq!(before, format!("{file} · for the stick"));
 
     // Sealed at the lock; the next process writes it.
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
@@ -267,7 +267,7 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::SaveKey(1)));
     let file = app.vault_files()[0].name.clone();
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     assert!(app.vaults().open.is_empty(), "the vault is locked");
@@ -319,7 +319,7 @@ fn a_wallet_seen_only_in_a_locked_vaults_summary_is_listed_from_it() {
     open_a_vault(&mut app);
     app.press(Action::Vault(V::AddKind(1)));
     app.press(Action::Vault(V::SaveWallet(0)));
-    app.press(Action::Lock);
+    crate::common::lock(&mut app);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
     assert!(app.session.wallets.is_empty());

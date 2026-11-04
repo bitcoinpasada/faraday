@@ -1549,7 +1549,7 @@ fn clock_text(ms: u64) -> String {
 /// The idle lock coming: how long without input, when it locks, what it
 /// wipes, seals and keeps, and when the machine powers off after it.
 pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    if app.idle_lock_at().is_none() {
+    if crate::idle::lock_at(app.idle_lock_min()).is_none() {
         return;
     }
     let keys = app.session.keys.len();
@@ -1659,6 +1659,9 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         &mut |ui, x, y, iw| {
             let mut cy = y;
             cy += ui.wrap_as((x, cy, iw), BODY_M, muted, EN.locked_locked_after) + 12.0;
+            if app.vaults().unsaved {
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Warning, EN.locked_changes_lost) + 12.0;
+            }
             if let Some(off) = app.idle_off_at() {
                 let line = fill(
                     EN.locked_power_off_countdown,

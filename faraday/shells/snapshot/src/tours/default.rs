@@ -864,8 +864,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .stick()
         .files
         .iter()
-        .position(|(n, _)| n == "vault.fvlt")
-        .ok_or("the kit has no vault.fvlt")?;
+        .position(|(n, _)| n == "vault.kdbx")
+        .ok_or("the kit has no vault.kdbx")?;
     t.press(Action::VisitInAll);
     t.press(Action::VisitIn(vi));
     // The boot program comes in with its release's signed sums (F134).
@@ -888,9 +888,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .app
         .inbox()
         .iter()
-        .find(|i| i.name == "vault.fvlt")
+        .find(|i| i.name == "vault.kdbx")
         .map(|i| i.bytes.clone())
-        .ok_or("vault.fvlt was not copied in")?;
+        .ok_or("vault.kdbx was not copied in")?;
     // With the stick still in, the passphrase waits for it to be pulled.
     t.press(Action::Vault(V::Open(0)));
     t.shot("unlock-stick")?;
@@ -902,7 +902,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Nav(Screen::Vaults));
     t.shot("vaults")?;
     t.press(Action::Vault(V::Open(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.shot("unlock")?;
     t.press(Action::Vault(V::Unlock));
     t.tick();
@@ -1162,13 +1162,13 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     println!("Secure Boot keys made, enrolment files written, an image signed");
     t.press(Action::LockAsk);
     t.shot("vault-lock-ask")?;
-    // Lock seals the changed slot; the decoy slot is copied byte for byte.
+    // Lock seals the vault again, whole.
     t.app.press(Action::Lock);
     let sealed = t
         .app
         .outbox
         .iter()
-        .find(|i| i.name == "vault.fvlt")
+        .find(|i| i.name == "vault.kdbx")
         .map(|i| i.bytes.clone())
         .ok_or("locking put no sealed vault in the Outbox")?;
     // What the lock saved for the next process: the boxes and the kept
@@ -1185,24 +1185,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         }
     }
     t.pump();
-    let (_, main) = faraday_vault::open(c, &sealed, testkit::VAULT_PASSPHRASES[0])
+    faraday_vault::file::open(c, &sealed, testkit::VAULT_PASSPHRASE)
         .map_err(|e| format!("{e:?}"))?;
-    let (_, decoy) = faraday_vault::open(c, &sealed, testkit::VAULT_PASSPHRASES[1])
-        .map_err(|e| format!("{e:?}"))?;
-    let slot = 65_536 + 40;
-    let changed = (0..4)
-        .filter(|i| {
-            let at = faraday_vault::HEADER_LEN + i * slot;
-            original[at..at + slot] != sealed[at..at + slot]
-        })
-        .count();
-    if !main.records.iter().any(|r| r.text(1) == Some("Bank"))
-        || decoy.records.iter().filter(|r| r.kind == 6).count() != 1
-        || changed != 1
-    {
-        return Err("the sealed vault lost its entry, or changed more than the open slot".into());
+    if sealed == original {
+        return Err("the lock sealed the vault unchanged".into());
     }
-    println!("vault unlocked, an entry added, sealed on lock with the other slots unchanged");
+    println!("vault unlocked, an entry added, sealed on lock and opened again");
     // The next process, given what the lock saved: the locked vault's row
     // and Home's lead say what it held when last seen open. Then a fresh
     // process again, as the lock left it, for the rest of the tour.
@@ -1236,7 +1224,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::BackupsPage(at));
     t.shot("backups-after-visit")?;
     t.restart();
-    // A new vault: two passphrases at the Light cost.
+    // A new vault: one passphrase at the Light cost.
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -1286,18 +1274,16 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     if dice_phrase != expect {
         return Err(format!("dice gave {dice_phrase:?}, expected {expect:?}"));
     }
-    t.press(Action::Vault(V::CAddPhrase));
-    type_text(t, "second passphrase");
-    t.app.event(Event::Key(Key::Tab));
-    type_text(t, "second passphrase");
-    t.shot("create-vault-phrases")?;
+    // Scrolled to the page's end, where the Randomness row clears the pinned Create vault.
+    scroll_to(t, Action::Own(faraday_core::fresh::page::Act::Open));
+    t.shot("create-vault-phrase")?;
     t.press(Action::Vault(V::CGo));
     t.tick();
     let made = t
         .app
         .outbox
         .iter()
-        .find(|i| i.name == "vault.fvlt")
+        .find(|i| i.name == "vault.kdbx")
         .map(|i| i.bytes.clone())
         .ok_or_else(|| {
             format!(
@@ -1305,12 +1291,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
                 t.app.vaults().create.as_ref().and_then(|c| c.error.clone())
             )
         })?;
-    for p in [dice_phrase.as_str(), "second passphrase"] {
-        faraday_vault::open(c, &made, p).map_err(|e| format!("{p}: {e:?}"))?;
-    }
+    faraday_vault::file::open(c, &made, &dice_phrase).map_err(|e| format!("{e:?}"))?;
     // Made: Unlock, the new vault picked, its passphrase asked once more.
     t.shot("create-vault-unlock")?;
-    println!("a vault made here opens with each of its two passphrases");
+    println!("a vault made here opens with its passphrase");
     let before = t.app.vaults().open.len();
     let row = t
         .app

@@ -1505,8 +1505,7 @@ impl Faraday {
                 let key = r.kind() == rkind::KEY;
                 !(tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
             });
-            let adds: Vec<&faraday_vault::records::Record> =
-                w.add.iter().map(Staged::record).collect();
+            let adds: Vec<&Staged> = w.add.iter().collect();
             if !self
                 .vaults
                 .store()

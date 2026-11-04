@@ -11,7 +11,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware}
 /// One file of the test stick, made alone: building the whole stick costs
 /// every kit's spend and the test vault.
 fn kit_file(name: &str) -> (String, Vec<u8>) {
-    if name == "vault.fvlt" {
+    if name == "vault.kdbx" {
         return (name.to_string(), testkit::test_vault().unwrap());
     }
     let id = name
@@ -57,7 +57,7 @@ fn find(app: &Faraday, name: &str) -> usize {
 
 /// Types the test vault's passphrase on the Unlock screen and waits.
 fn type_and_unlock(app: &mut Faraday) {
-    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
@@ -83,7 +83,7 @@ fn add_key(app: &mut Faraday, n: usize) {
 fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     let mut app = device(vec![
         kit_file("spending-wallet.txt"),
-        kit_file("vault.fvlt"),
+        kit_file("vault.kdbx"),
     ]);
     // Opened from a flow (the vault way), not the Vaults list: it shows
     // what it holds without loading it until asked, as today
@@ -108,7 +108,7 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
 fn a_locked_vault_is_offered_from_the_wallet_card_and_unlocking_comes_back() {
     let mut app = device(vec![
         kit_file("spending-wallet.txt"),
-        kit_file("vault.fvlt"),
+        kit_file("vault.kdbx"),
     ]);
     let w = find(&app, "spending-wallet.txt");
     app.press(Action::LoadWallet(w));
@@ -164,7 +164,7 @@ fn a_key_the_quorum_needs_is_asked_for() {
 #[test]
 fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until `LoadWithKeys` is pressed, as today
     // (`docs/history/NEW-WALLET.md` §11.1a).
@@ -186,7 +186,7 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
 #[test]
 fn only_the_chosen_wallets_load_with_their_seeds() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until chosen (`docs/history/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
@@ -286,7 +286,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
     use faraday_core::keygen::Way;
     use faraday_core::{StorageCommand, cstep};
 
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
@@ -335,7 +335,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
     let vault = out
         .expect("nothing queued on locking")
         .into_iter()
-        .filter(|(n, _)| n == "vault.fvlt")
+        .filter(|(n, _)| n == "vault.kdbx")
         .collect();
     (vault, made)
 }
@@ -417,7 +417,6 @@ fn key_record(app: &Faraday, label: &str) -> usize {
     app.vaults()
         .store()
         .contents_for_tests(app.vaults().open[0].id)
-        .records
         .iter()
         .position(|r| r.kind == kind::KEY && r.text(field::KEY_LABEL) == Some(label))
         .expect("the vault keeps the key")
@@ -442,7 +441,7 @@ fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
 #[test]
 fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     use faraday_core::create::{NewKind, Source};
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     add_key(&mut app, 1);
@@ -454,7 +453,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     let texts = app.drawn_texts();
     assert!(app.offers(press), "Key 1 offers the vault's key");
     assert!(
-        texts.iter().any(|t| t == "vault.fvlt"),
+        texts.iter().any(|t| t == "vault.kdbx"),
         "under the vault's name: {texts:?}"
     );
     let line = faraday_core::wallet::key_line(
@@ -533,7 +532,7 @@ fn an_open_vaults_key_can_be_converted_and_matches_its_fingerprint() {
 fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;
-    let mut app = device(vec![kit_file("vault.fvlt")]);
+    let mut app = device(vec![kit_file("vault.kdbx")]);
     add_key(&mut app, 1);
     add_key(&mut app, 2);
     create_on_keys(&mut app, NewKind::Multi);
@@ -541,7 +540,7 @@ fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     let texts = app.drawn_texts();
     assert!(app.offers(unlock), "the locked vault is offered");
     assert!(
-        texts.iter().any(|t| t == "Unlock vault.fvlt"),
+        texts.iter().any(|t| t == "Unlock vault.kdbx"),
         "as Unlock and its name: {texts:?}"
     );
     app.press(unlock);

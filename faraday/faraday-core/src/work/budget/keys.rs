@@ -209,14 +209,24 @@ fn fields() -> Vec<Field> {
     out.push((
         "Unlock a vault, its passphrase",
         |app| {
-            while !app.vaults.open.is_empty() {
-                let _ = app.vault_lock_one(0, After::Nothing);
+            // The seal asks the shell for an answer per entry's UUID.
+            for i in 0..8u8 {
+                let bytes = faraday_shell_api::EntropyBytes::new([0x70 + i; 32]);
+                app.event(Event::Entropy(bytes));
             }
+            for _ in 0..8 {
+                if app.vaults.open.is_empty() {
+                    break;
+                }
+                let _ = app.vault_lock_one(0, After::Nothing);
+                testkit::settle(app);
+            }
+            assert!(app.vaults.open.is_empty(), "the test vault locks");
             on(app, Screen::Vaults);
             let n = app
                 .vault_files()
                 .iter()
-                .position(|f| f.name == "vault.fvlt")
+                .position(|f| f.name == "vault.kdbx")
                 .expect("the test vault is listed");
             app.press(Action::Vault(V::Open(n)));
         },

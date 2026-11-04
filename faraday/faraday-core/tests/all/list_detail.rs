@@ -30,7 +30,7 @@ fn with_wallets(width: u16, height: u16, dpi: u16) -> Faraday {
     let files: Vec<(String, Vec<u8>)> = testkit::files()
         .expect("the test stick's files")
         .into_iter()
-        .filter(|(n, _)| n.ends_with("-wallet.txt") || n == "vault.fvlt")
+        .filter(|(n, _)| n.ends_with("-wallet.txt") || n == "vault.kdbx")
         .collect();
     let names: Vec<String> = files
         .iter()

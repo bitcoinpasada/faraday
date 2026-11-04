@@ -117,6 +117,7 @@ fn the_session_strip_names_the_current_stage() {
         secret: false,
         picture: None,
         sha: None,
+        facts: None,
         wallet: None,
         psbt: None,
     });
@@ -145,7 +146,7 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
-            "vault.fvlt".to_string(),
+            "vault.kdbx".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
         )],
         outbox: Vec::new(),
@@ -156,7 +157,7 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::Open(0)));
-    for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in faraday_core::testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
@@ -889,7 +890,7 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
-            "vault.fvlt".to_string(),
+            "vault.kdbx".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
         )],
         outbox: Vec::new(),
@@ -900,7 +901,7 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::Open(0)));
-    type_in(&mut app, faraday_core::testkit::VAULT_PASSPHRASES[0]);
+    type_in(&mut app, faraday_core::testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {

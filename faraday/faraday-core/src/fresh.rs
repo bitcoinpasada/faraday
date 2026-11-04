@@ -427,6 +427,12 @@ impl Fresh {
         self.seed.is_some()
     }
 
+    /// Whether the seed is there and `n` answers wait in the pool (at
+    /// most as many as it holds).
+    pub(crate) fn answers_ready(&self, n: usize) -> bool {
+        self.seed.is_some() && self.pool.len() >= n.min(POOL)
+    }
+
     /// Whether no answer waits in the pool.
     pub(crate) fn pool_is_empty(&self) -> bool {
         self.pool.is_empty()
@@ -790,6 +796,11 @@ impl Faraday {
     /// keyboard gets its code, only once it has.
     pub fn seeded(&self) -> bool {
         self.fresh.seeded()
+    }
+
+    /// The seed has arrived and `n` answers wait for a seal to take.
+    pub(crate) fn seal_answers_ready(&self, n: usize) -> bool {
+        self.fresh.answers_ready(n)
     }
 
     /// The seed is still missing well after the first display: the

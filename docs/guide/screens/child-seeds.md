@@ -65,7 +65,7 @@ Closed, the path.
 | the application's name (**Words**) | the value, hidden as dots until **Show** |
 | **Show**, **Hide** | the value on screen, or hidden; it is hidden again once the card is left |
 | "Save into Vault 1" | into the open vault, by its name: a password as an entry and anything else as a note, each named "BIP-85 Password (base64) · 3dca6805 · index 0"; child words as a key, after [Record it as a child seed?](#record-it-as-a-child-seed) |
-| **Make a vault**, "Unlock Vault-1.fvlt", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
+| **Make a vault**, "Unlock Vault-1.kdbx", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
 | **Load as a key** | for **Words**: loads the child words as a key of this session ("Key … added"), after [Record it as a child seed?](#record-it-as-a-child-seed) |
 | **Out unprotected…** | the value to the stick unprotected, through [This is a secret](files.md#this-is-a-secret); child words go as a seed's words file named by the child's own fingerprint ("…-words.txt"), holding the words alone, and a password as "password.txt", holding the password alone |
 

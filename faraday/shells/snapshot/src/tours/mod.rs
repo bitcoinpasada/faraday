@@ -60,6 +60,7 @@ pub(crate) mod themes;
 pub(crate) mod tooltips;
 pub(crate) mod transfer;
 pub(crate) mod vault_show;
+pub(crate) mod vault_states;
 pub(crate) mod vaultway;
 pub(crate) mod visit;
 pub(crate) mod wallet_flow;

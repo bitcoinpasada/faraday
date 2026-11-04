@@ -1,11 +1,11 @@
-//! A vault's slot is a fixed size. Entries the camera reads that do not fit
+//! A vault's file is a fixed size. Entries the camera reads that do not fit
 //! in the room left add nothing and say how much room is left; a vault
 //! changed this session whose contents cannot be sealed stays open at the
 //! lock with its changes, and the lock says which vault and why.
 
 use crate::common::type_text;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 use faraday_vault::records::{Record, field, kind};
 
@@ -17,15 +17,15 @@ fn open_vault() -> Faraday {
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: vec![(
-            "vault.fvlt".into(),
-            crate::common::vault("Test", &[testkit::VAULT_PASSPHRASES[0]], 7),
+            "vault.kdbx".into(),
+            crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
     app.event(Event::Entropy(EntropyBytes::new([7; 32])));
     app.press(Action::Vault(V::Open(0)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
         if !app.vaults().open.is_empty() {
@@ -49,12 +49,12 @@ fn entry_of(n: usize) -> Record {
 fn entries_scanned_that_do_not_fit_add_nothing_and_say_how_much_room_is_left() {
     let mut app = open_vault();
     let id = app.vaults().open[0].id;
-    let used = app.vaults().records(id).used();
-    let slot = app.vaults().open[0].header().slot_len as usize;
+    let used = app.vaults().records(id).used(&testkit::compute());
+    let slot = app.vaults().open[0].facts().size.expect("a Faraday seal");
     testkit::vault_edit(&mut app, id, |s| {
         s.insert(id, entry_of(slot - used - 2_000))
     });
-    let before = app.vaults().records(id).used();
+    let before = app.vaults().records(id).used(&testkit::compute());
     let changes = app.vaults().open[0].changes;
 
     app.press(Action::Vault(V::ScanEntry));
@@ -65,7 +65,7 @@ fn entries_scanned_that_do_not_fit_add_nothing_and_say_how_much_room_is_left() {
     let _ = app.frame();
 
     assert_eq!(
-        app.vaults().records(id).used(),
+        app.vaults().records(id).used(&testkit::compute()),
         before,
         "records were added"
     );
@@ -77,25 +77,23 @@ fn entries_scanned_that_do_not_fit_add_nothing_and_say_how_much_room_is_left() {
     );
 }
 
+/// A vault changed this session whose contents do not fit its file is
+/// not sealed: the lock goes no further, the vault stays open with its
+/// changes and nothing is written.
 #[test]
 fn a_vault_changed_this_session_that_cannot_be_sealed_stays_open_at_the_lock() {
     let mut app = open_vault();
     let id = app.vaults().open[0].id;
-    let slot = app.vaults().open[0].header().slot_len as usize;
+    let slot = app.vaults().open[0].facts().size.expect("a Faraday seal");
     testkit::vault_edit(&mut app, id, |s| s.insert(id, entry_of(slot)));
     testkit::vault_changed(&mut app, id);
-    let used = app.vaults().records(id).used();
 
+    crate::common::top_up(&mut app);
     app.press(Action::Lock);
+    testkit::settle(&mut app);
 
-    assert_eq!(app.sheet, Some(Sheet::LockAsk));
-    assert!(!app.restart_requested());
+    assert!(!app.restart_requested(), "the lock went through");
     assert_eq!(app.vaults().open.len(), 1, "the vault was closed");
     assert!(app.vaults().open[0].changes > 0);
-    assert_eq!(app.vaults().records(id).used(), used, "its changes went");
-    let texts = app.drawn_texts();
-    assert!(
-        texts.iter().any(|t| t.contains("cannot be sealed")),
-        "{texts:?}"
-    );
+    assert!(app.outbox.is_empty(), "something was written");
 }

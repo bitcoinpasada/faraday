@@ -30,7 +30,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Family));
     t.sticks(true);
     t.press(Action::VisitInAll);
-    for name in ["vault.fvlt", "savings-unsigned.psbt"] {
+    for name in ["vault.kdbx", "savings-unsigned.psbt"] {
         if let Some(i) = t.stick().files.iter().position(|(n, _)| n == name) {
             t.press(Action::VisitIn(i));
         }
@@ -42,7 +42,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
         return Err("pulling the stick did not return to the Spend tab".into());
     }
     t.press(fam(F::Pick(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    type_text(t, testkit::VAULT_PASSPHRASE);
     t.shot("spend-vault-passphrase")?;
     t.press(fam(F::Unlock));
     t.tick();

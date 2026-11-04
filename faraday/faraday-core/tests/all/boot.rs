@@ -53,7 +53,7 @@ fn booted() -> (Faraday, Vec<u8>) {
         id: "boot".into(),
         label: "FARADAY".into(),
         boot: true,
-        files: vec![("vault.fvlt".into(), vault.len() as u64)],
+        files: vec![("vault.kdbx".into(), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
     pump(&mut app, &vault);
@@ -71,7 +71,7 @@ fn later() -> (Faraday, Vec<u8>) {
 }
 
 fn unlock(app: &mut Faraday) {
-    for c in testkit::VAULT_PASSPHRASES[0].chars() {
+    for c in testkit::VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
@@ -84,7 +84,7 @@ fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up()
     let (mut app, _) = booted();
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(!app.inbox().iter().any(|i| i.name == "vault.fvlt"));
+    assert!(!app.inbox().iter().any(|i| i.name == "vault.kdbx"));
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
     assert_eq!(app.sheet, Some(Sheet::Import));
@@ -110,7 +110,7 @@ fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(
         app.toast_text(),
-        Some(format!("{n} wallets loaded from vault.fvlt").as_str())
+        Some(format!("{n} wallets loaded from vault.kdbx").as_str())
     );
     // The wallet shown is the one with a key here (Savings' seed loaded).
     let slots = app.session.slots(&app.session.wallets[app.wallet_index()]);
