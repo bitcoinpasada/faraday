@@ -483,7 +483,7 @@ pub(super) fn walk_on(
     app.press(Action::SetTimeKeep);
     let (salt, name) = {
         let o = &app.vaults.open[app.vaults.current];
-        (o.header().salt, o.name.clone())
+        (o.vault_id(), o.name.clone())
     };
     let mut plan = Plan::key_default();
     plan.vaults[0].salt = Some(salt);

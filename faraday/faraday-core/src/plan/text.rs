@@ -188,20 +188,16 @@ pub fn tag_of(at: At, what: What) -> Tag {
     }
 }
 
-/// One `seals` line of a plan's text (`docs/VAULT-HARDENING.md` §5.6):
-/// the seal count and digest this session last saw of another vault's
-/// slot, `seals <salt> <L> <position> <count> <digest>`.
+/// One `seals` line of a plan (`docs/VAULT.md` §7): the seal count and
+/// digest this session last saw of another vault,
+/// `seals <id> <count> <digest>`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SealLine {
-    /// The vault's salt: its identity on a stick with its size.
-    pub salt: [u8; 32],
-    /// The slot length *L*.
-    pub len: u32,
-    /// The slot's position, 0 to 3.
-    pub position: u8,
-    /// The slot's seal count.
+    /// The vault's identifier (its root group's UUID, in hex).
+    pub id: [u8; 32],
+    /// The vault's seal count.
     pub count: u64,
-    /// The SHA-256 of the slot's 40 + *L* bytes at that count.
+    /// The SHA-256 of the whole file at that count.
     pub digest: [u8; 32],
 }
 
@@ -209,10 +205,8 @@ impl SealLine {
     /// The line as the plan keeps it, with its line break.
     pub fn to_line(&self) -> String {
         format!(
-            "seals {} {} {} {} {}\n",
-            crate::backups::hex32(&self.salt),
-            self.len,
-            self.position,
+            "seals {} {} {}\n",
+            String::from_utf8_lossy(&self.id),
             self.count,
             crate::backups::hex32(&self.digest)
         )
@@ -222,19 +216,20 @@ impl SealLine {
     /// does not read.
     pub fn from_line(line: &str) -> Option<SealLine> {
         let mut f = line.strip_prefix("seals ")?.split(' ');
+        let id = f.next()?;
         let line = SealLine {
-            salt: crate::backups::read_hex32(f.next()?)?,
-            len: f.next()?.parse().ok()?,
-            position: f.next()?.parse().ok().filter(|p| *p < 4)?,
+            id: <[u8; 32]>::try_from(id.as_bytes())
+                .ok()
+                .filter(|b| b.iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f')))?,
             count: f.next()?.parse().ok().filter(|c| *c >= 1)?,
             digest: crate::backups::read_hex32(f.next()?)?,
         };
         f.next().is_none().then_some(line)
     }
 
-    /// Whether this line and `other` are for one slot of one vault.
-    pub fn same_slot(&self, other: &SealLine) -> bool {
-        self.salt == other.salt && self.len == other.len && self.position == other.position
+    /// Whether this line and `other` are for one vault.
+    pub fn same_vault(&self, other: &SealLine) -> bool {
+        self.id == other.id
     }
 }
 

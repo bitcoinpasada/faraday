@@ -73,7 +73,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
         .map(|(i, _)| i)
         .expect("the test vault keeps a wallet");
     let file = app.vault_files().into_iter().next().expect("a vault file");
-    let salt = app.vaults.open[app.vaults.current].header().salt;
+    let salt = app.vaults.open[app.vaults.current].vault_id();
     let slot = app.session.slots(&app.session.wallets[w]).remove(0);
     let seeds = SeedsState {
         keys: app.session.keys.all().map(|k| k.fingerprint.0).collect(),

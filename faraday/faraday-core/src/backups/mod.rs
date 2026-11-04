@@ -1013,7 +1013,7 @@ impl Faraday {
         let locked = |s: &crate::vault::VaultSummary| {
             files
                 .iter()
-                .find(|f| f.open.is_none() && f.header.salt == s.salt)
+                .find(|f| f.open.is_none() && f.sha.is_some_and(|d| s.copies.contains(&d)))
         };
         let open_file = self
             .vaults
@@ -2202,7 +2202,7 @@ impl Faraday {
         self.vaults
             .summaries
             .iter()
-            .find(|s| s.salt == f.header.salt)
+            .find(|s| f.sha.is_some_and(|d| s.copies.contains(&d)))
     }
 
     /// Writes each open vault's summary over the one kept for it: on
@@ -2267,7 +2267,7 @@ impl Faraday {
                 .collect();
             fresh.push(VaultSummary {
                 file: v.name.clone(),
-                salt: v.header().salt,
+                id: v.vault_id(),
                 copies: Vec::new(),
                 name: v.label(self.vaults.store()),
                 wallets,
@@ -2278,7 +2278,7 @@ impl Faraday {
                 entries: self.vaults.records(v.id).of(kind::ENTRY).count(),
                 map,
                 seen,
-                seals: Vec::new(),
+                seal: None,
             });
         }
         self.vaults.merge_summaries(fresh);
@@ -2296,17 +2296,10 @@ impl Faraday {
         let before = self.vaults.summary_before(v);
         self.vault_summaries_refresh();
         let c = self.compute();
-        let files: Vec<(&str, &[u8])> = self
-            .inbox
-            .iter()
-            .chain(self.outbox.iter())
-            .filter(|i| i.kind == crate::FileKind::Vault)
-            .map(|i| (i.name.as_str(), i.bytes.as_slice()))
-            .collect();
-        self.vaults.seals_unlocked(&c, v, &files);
+        self.vaults.seals_unlocked(&c, v);
         // The file opened is a copy of the vault seen.
         if let Some(o) = self.vaults.open.get(v) {
-            let (name, salt) = (o.name.clone(), o.header().salt);
+            let (name, id) = (o.name.clone(), o.vault_id());
             let sha = self
                 .outbox
                 .iter()
@@ -2314,7 +2307,7 @@ impl Faraday {
                 .find(|i| i.kind == crate::FileKind::Vault && i.name == name)
                 .and_then(|i| i.sha);
             if let Some(sha) = sha {
-                self.vaults.copy_seen(&salt, sha);
+                self.vaults.copy_seen(&id, sha);
             }
         }
         if !self.vaults.older_hold(v, (for_import, self.sheet), before) {

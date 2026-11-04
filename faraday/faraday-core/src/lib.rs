@@ -446,6 +446,10 @@ pub struct Item {
     /// `None` for any other file. An Item's bytes never change after it
     /// is made.
     pub sha: Option<[u8; 32]>,
+    /// What a vault file's header and length state, read once when the
+    /// file came in as [`Item::sha`] is taken; `None` for any other file
+    /// and for a vault file whose header does not read.
+    pub facts: Option<faraday_vault::file::Facts>,
     /// The wallet a wallet file describes, read once when the file came
     /// in, as [`Item::sha`] is taken (`docs/SPEED.md` §3.3): `None` for
     /// any other file. An Item's bytes are never changed after it is
@@ -487,6 +491,9 @@ impl Item {
         let wallet::Classified { kind, psbt, wallet } = wallet::classify_read(c, name, &bytes);
         let sha =
             matches!(kind, FileKind::Vault | FileKind::EfiImage).then(|| sha256_of(c, &bytes));
+        let facts = (kind == FileKind::Vault)
+            .then(|| faraday_vault::file::inspect(&bytes).ok())
+            .flatten();
         Item {
             name: name.to_string(),
             bytes,
@@ -494,6 +501,7 @@ impl Item {
             secret: false,
             picture: None,
             sha,
+            facts,
             wallet,
             psbt,
         }
@@ -2282,7 +2290,7 @@ impl Faraday {
         let (keys, wallets) = self.unsaved_now(&c);
         let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
         if self.lock_ends_create(&c)
-            || self.lock_would_lose()
+            || self.lock_would_lose(&c)
             || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
         {
             self.sheet = Some(Sheet::LockAsk);
@@ -2302,7 +2310,11 @@ impl Faraday {
     /// is sealed or wiped, the vaults stay open with their changes, and
     /// the Lock sheet says what a lock without sealing loses.
     fn lock(&mut self) {
-        if self.lock_would_lose() {
+        if self.sealing() {
+            return;
+        }
+        let c = self.compute();
+        if self.lock_would_lose(&c) {
             if self.seal_waits() {
                 self.out.commands.push_back(Command::RequestEntropy);
             }
@@ -2324,6 +2336,9 @@ impl Faraday {
 
     /// Lock: what can be sealed is, and the session goes.
     fn lock_now(&mut self) {
+        if self.sealing() {
+            return;
+        }
         self.job_locked();
         // The code on show goes first, its text wiped: it may be an
         // entry's TOTP secret (`docs/QR.md` §7.1).
@@ -2336,33 +2351,9 @@ impl Faraday {
             self.create_drop();
         }
         self.flow_before_lock();
+        // The vaults seal on the worker; the lock goes on in
+        // `lock_finish` when the last is done.
         self.vault_seal_all();
-        // What the boot stick brought and was not imported is not kept:
-        // its bytes are wiped as it drops.
-        self.import.clear_all();
-        // Nothing secret copied in outlives the process that read it
-        // (`docs/history/PLAN.md` §5.3): the next process is clean, and these would be
-        // in its memory and in `/run/faraday`. They are still on the stick
-        // they came from.
-        // A picture goes as what its codes hold, and as Other when none read.
-        self.inbox.retain(|i| !i.dropped_at_lock());
-        self.session.wipe();
-        self.own_wipe();
-        self.wallets.clear_spend();
-        self.backup.close();
-        self.message.clear();
-        self.create.clear();
-        self.restore.clear();
-        self.keygen.forget();
-        self.wordlist.clear();
-        self.bip85.clear();
-        self.tools.convert_mut().clear();
-        self.explore.clear();
-        self.secrets.clear();
-        self.entry.reset();
-        self.save_boxes_for_lock();
-        self.restart = true;
-        self.out.commands.push_back(Command::Exit);
     }
 
     /// Finish makes both results For the stick the moment the transaction is

@@ -1,6 +1,6 @@
 //! The seal count in the app (`docs/VAULT-HARDENING.md` §5.2 to §5.6):
 //! the count shown at unlock and on the open vault's head, the highest
-//! count seen of each slot since power-on (kept with the vault's summary,
+//! count seen of each vault since power-on (kept with the vault's summary,
 //! `docs/VAULT.md` §11), the comparison of a copy against it, and the
 //! `seals` lines of the backup plan that carry other vaults' counts across
 //! a power-off.
@@ -9,22 +9,16 @@ use super::*;
 use crate::plan::text::{SealLine, seals_in, with_seals};
 use faraday_keys::vault::OpenVaults;
 
-/// The highest seal count seen of one slot of a vault since power-on,
-/// with the SHA-256 of the slot's 40 + *L* bytes at that count, so two
-/// seals with one count are told apart. A slot is told by the vault's
-/// salt (the summary's), its length and its position, which is never
-/// shown.
+/// The highest seal count seen of a vault since power-on, with the
+/// SHA-256 of the whole file at that count, so two seals with one count
+/// are told apart. The vault is told by its identifier (the summary's).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SealSeen {
-    /// The slot length *L*.
-    pub len: u32,
-    /// The slot's position in the file, 0 to 3.
-    pub position: u8,
     /// The highest count seen.
     pub count: u64,
-    /// The digest of the slot at that count.
+    /// The digest of the file at that count.
     pub digest: [u8; 32],
-    /// The descriptor checksums of the wallets this slot keeps a plan for
+    /// The descriptor checksums of the wallets this vault keeps a plan for
     /// (the summary's `planned`, as last seen open): what says which
     /// plans place this vault, for their `seals` lines.
     pub planned: Vec<String>,
@@ -67,8 +61,6 @@ pub enum SealFrom {
     Power,
     /// Recorded by the backup plan of the vault of this name.
     Plan(String),
-    /// A copy of the vault in Files.
-    Files,
 }
 
 /// "once" or "12 times".
@@ -89,11 +81,6 @@ impl SealWarn {
                 seen,
                 from: SealFrom::Power,
             } => fill(EN.vault_seals_older, &[&times(*mine), &times(*seen)]),
-            SealWarn::Older {
-                mine,
-                seen,
-                from: SealFrom::Files,
-            } => fill(EN.vault_seals_older_files, &[&times(*mine), &times(*seen)]),
             SealWarn::Older {
                 mine,
                 seen,
@@ -168,20 +155,16 @@ impl Vaults {
             .unwrap_or_default()
     }
 
-    /// Raises the highest count seen of one slot of the vault with `salt`
+    /// Raises the highest count seen of the vault with identifier `id`
     /// to `seen` when it is higher, and says where `seen` stands against
     /// it. A vault with no summary kept says `Current` and keeps nothing:
     /// summaries are made when a vault opens, before any count is seen.
-    pub(crate) fn seals_raise(&mut self, salt: [u8; 32], seen: SealSeen) -> SealOrder {
-        let Some(s) = self.summaries.iter_mut().find(|s| s.salt == salt) else {
+    pub(crate) fn seals_raise(&mut self, id: [u8; 32], seen: SealSeen) -> SealOrder {
+        let Some(s) = self.summaries.iter_mut().find(|s| s.id == id) else {
             return SealOrder::Current;
         };
-        let Some(e) = s
-            .seals
-            .iter_mut()
-            .find(|e| e.len == seen.len && e.position == seen.position)
-        else {
-            s.seals.push(seen);
+        let Some(e) = s.seal.as_mut() else {
+            s.seal = Some(seen);
             return SealOrder::Current;
         };
         if seen.count > e.count {
@@ -200,59 +183,47 @@ impl Vaults {
         }
     }
 
-    /// Sets the plans each open slot's entry keeps from the summary, once
+    /// Sets the plans each open vault's entry keeps from the summary, once
     /// the summaries are refreshed.
     pub(crate) fn seals_planned_sync(&mut self) {
-        let open: Vec<(VaultId, Header)> = self.open.iter().map(|o| (o.id, *o.header())).collect();
-        for (id, header) in open {
-            let Some((pos, _)) = self.store().seal_state(id) else {
-                continue;
-            };
-            if let Some(s) = self.summaries.iter_mut().find(|s| s.salt == header.salt) {
+        let open: Vec<[u8; 32]> = self.open.iter().map(|o| o.vault_id).collect();
+        for id in open {
+            if let Some(s) = self.summaries.iter_mut().find(|s| s.id == id) {
                 let planned = s.planned.clone();
-                if let Some(e) = s
-                    .seals
-                    .iter_mut()
-                    .find(|e| e.len == header.slot_len && usize::from(e.position) == pos)
-                {
+                if let Some(e) = s.seal.as_mut() {
                     e.planned = planned;
                 }
             }
         }
     }
 
-    /// Costs a SHA-256 over one slot of the file opened (counted as a
-    /// file hash), and what `plan_seals_check` costs. Open vault `v`,
-    /// just unlocked: its count raises the highest seen, a count lower
-    /// than the highest seen, or the same with other bytes, is kept for
-    /// Unlock and the vault's head to say (§5.3 item 1), and the backup
-    /// plans of the open vaults are read for the counts they record
-    /// (§5.6).
-    pub(crate) fn seals_unlocked(&mut self, c: &Compute, v: usize, files: &[(&str, &[u8])]) {
+    /// Costs a SHA-256 over the file opened (counted as a file hash), and
+    /// what `plan_seals_check` costs. Open vault `v`, just unlocked: its
+    /// count raises the highest seen, a count lower than the highest
+    /// seen, or the same with other bytes, is kept for Unlock and the
+    /// vault's head to say (§5.3 item 1), and the backup plans of the
+    /// open vaults are read for the counts they record (§5.6). Other
+    /// copies in Files are not read: a copy's count costs its own unlock.
+    pub(crate) fn seals_unlocked(&mut self, c: &Compute, v: usize) {
         let Some(o) = self.open.get(v) else {
             return;
         };
-        let (id, header) = (o.id, *o.header());
-        let Some((pos, seals)) = self.store().seal_state(id) else {
+        let (id, vault_id) = (o.id, o.vault_id);
+        let Some((_, seals)) = self.store().seal_state(id) else {
             return;
         };
         let Some(digest) = self.store().opened_digest(c, id) else {
             return;
         };
         let order = self.seals_raise(
-            header.salt,
+            vault_id,
             SealSeen {
-                len: header.slot_len,
-                position: pos as u8,
                 count: seals.count,
                 digest,
                 planned: Vec::new(),
             },
         );
         self.seals_planned_sync();
-        // The other copies of this vault in Files are read with the key
-        // just opened: each is a copy seen.
-        let order = self.seals_files_copies(c, v, pos, digest, files, order);
         let o = &mut self.open[v];
         o.seal_digest = digest;
         o.seal_warn = match order {
@@ -268,10 +239,10 @@ impl Vaults {
     }
 
     /// The `seals` lines of every open vault's plans, each compared with
-    /// each open slot of the same salt, length and position and treated
-    /// as a copy seen: a higher count makes that slot an older copy, the
-    /// same count with another digest says so, otherwise nothing is said.
-    /// Never refuses: the slot stays open (§5.6 reading).
+    /// each open vault of the same identifier and treated as a copy seen:
+    /// a higher count makes that vault an older copy, the same count with
+    /// another digest says so, otherwise nothing is said. Never refuses:
+    /// the vault stays open (§5.6 reading).
     pub(crate) fn plan_seals_check(&mut self) {
         let mut lines: Vec<(String, SealLine)> = Vec::new();
         for o in &self.open {
@@ -285,16 +256,12 @@ impl Vaults {
         for (label, l) in lines {
             for v in 0..self.open.len() {
                 let o = &self.open[v];
-                let header = *o.header();
-                if header.salt != l.salt || header.slot_len != l.len {
+                if o.vault_id != l.id {
                     continue;
                 }
-                let Some((pos, seals)) = self.store().seal_state(o.id) else {
+                let Some((_, seals)) = self.store().seal_state(o.id) else {
                     continue;
                 };
-                if pos != usize::from(l.position) {
-                    continue;
-                }
                 let (mine, digest) = (seals.count, o.seal_digest);
                 let held = o.seal_warn.is_some();
                 let held_older = match &o.seal_warn {
@@ -314,10 +281,8 @@ impl Vaults {
                 };
                 // A line is a copy seen.
                 self.seals_raise(
-                    l.salt,
+                    l.id,
                     SealSeen {
-                        len: l.len,
-                        position: l.position,
                         count: l.count,
                         digest: l.digest,
                         planned: Vec::new(),
@@ -341,7 +306,7 @@ impl Vaults {
         let Some(o) = self.open.get(i) else {
             return;
         };
-        let (id, own) = (o.id, o.header().salt);
+        let (id, own) = (o.id, o.vault_id);
         let mut edits: Vec<(usize, String)> = Vec::new();
         for (k, r, d) in self.described_of(c, id, kind::PLAN) {
             let Some(old) = r.public_text(field::PLAN_ANSWERS) else {
@@ -349,20 +314,19 @@ impl Vaults {
             };
             let kept = seals_in(old);
             let mut lines = kept.clone();
-            for s in self.summaries.iter().filter(|s| s.salt != own) {
-                for e in s.seals.iter().filter(|e| e.planned.contains(&d.checksum)) {
-                    let new = SealLine {
-                        salt: s.salt,
-                        len: e.len,
-                        position: e.position,
-                        count: e.count,
-                        digest: e.digest,
-                    };
-                    match lines.iter_mut().find(|l| l.same_slot(&new)) {
-                        Some(l) if new.count >= l.count => *l = new,
-                        Some(_) => {}
-                        None => lines.push(new),
-                    }
+            for s in self.summaries.iter().filter(|s| s.id != own) {
+                let Some(e) = s.seal.as_ref().filter(|e| e.planned.contains(&d.checksum)) else {
+                    continue;
+                };
+                let new = SealLine {
+                    id: s.id,
+                    count: e.count,
+                    digest: e.digest,
+                };
+                match lines.iter_mut().find(|l| l.same_vault(&new)) {
+                    Some(l) if new.count >= l.count => *l = new,
+                    Some(_) => {}
+                    None => lines.push(new),
                 }
             }
             if lines != kept {
@@ -380,91 +344,34 @@ impl Vaults {
         self.changed(id);
     }
 
-    /// Costs a decryption of the slot and a SHA-256 over it for each copy
-    /// of open vault `v` in Files other than the file it was opened from
-    /// (counted as file hashes). Each copy's count raises the highest
-    /// seen; the order of the opened copy (digest `own`) against what was
-    /// seen and all of them is given.
-    fn seals_files_copies(
-        &mut self,
-        c: &Compute,
-        v: usize,
-        pos: usize,
-        own: [u8; 32],
-        files: &[(&str, &[u8])],
-        mut order: SealOrder,
-    ) -> SealOrder {
-        let o = &self.open[v];
-        let (id, header, name) = (o.id, *o.header(), o.name.clone());
-        let copies = files.iter().filter(|(n, b)| {
-            *n != name
-                && fv::read_header(b)
-                    .is_ok_and(|h| h.salt == header.salt && h.slot_len == header.slot_len)
-        });
-        let mine = self.store().seal_state(id).map_or(0, |(_, s)| s.count);
-        for (_, bytes) in copies {
-            let Some(seals) = self.store().copy_seals(c, id, bytes) else {
-                continue;
-            };
-            let Some(digest) = faraday_keys::vault::slot_digest(c, header.slot_len, bytes, pos)
-            else {
-                continue;
-            };
-            self.seals_raise(
-                header.salt,
-                SealSeen {
-                    len: header.slot_len,
-                    position: pos as u8,
-                    count: seals.count,
-                    digest,
-                    planned: Vec::new(),
-                },
-            );
-            if seals.count > mine {
-                let higher = match &order {
-                    SealOrder::Older(n, _) => (*n).max(seals.count),
-                    _ => seals.count,
-                };
-                order = SealOrder::Older(higher, SealFrom::Files);
-            } else if seals.count == mine && digest != own && matches!(order, SealOrder::Current) {
-                order = SealOrder::SameCount;
-            }
-        }
-        order
-    }
-
-    /// The file of the vault with `salt` is a copy of it the session has
-    /// seen, whose SHA-256 is `digest`; a vault with no summary kept keeps
-    /// nothing, as for [`Vaults::seals_raise`].
-    pub(crate) fn copy_seen(&mut self, salt: &[u8; 32], digest: [u8; 32]) {
-        if let Some(s) = self.summaries.iter_mut().find(|s| &s.salt == salt)
+    /// The file of the vault with identifier `id` is a copy of it the
+    /// session has seen, whose SHA-256 is `digest`; a vault with no
+    /// summary kept keeps nothing, as for [`Vaults::seals_raise`].
+    pub(crate) fn copy_seen(&mut self, id: &[u8; 32], digest: [u8; 32]) {
+        if let Some(s) = self.summaries.iter_mut().find(|s| &s.id == id)
             && !s.copies.contains(&digest)
         {
             s.copies.push(digest);
         }
     }
 
-    /// Costs a SHA-256 over one slot and one over the whole file (counted
-    /// as file hashes). Open vault `i` has just been sealed into `bytes`:
-    /// its new count and digest raise the highest seen, and the file is a
-    /// copy of the vault seen.
+    /// Costs a SHA-256 over the whole file (counted as a file hash). Open
+    /// vault `i` has just been sealed into `bytes`: its new count and the
+    /// file's digest raise the highest seen, and the file is a copy of the
+    /// vault seen.
     pub(crate) fn seals_sealed(&mut self, c: &Compute, i: usize, bytes: &[u8]) {
         let Some(o) = self.open.get(i) else {
             return;
         };
-        let (id, header) = (o.id, *o.header());
-        let Some((pos, seals)) = self.store().seal_state(id) else {
+        let (id, vault_id) = (o.id, o.vault_id);
+        let Some((_, seals)) = self.store().seal_state(id) else {
             return;
         };
-        let Some(digest) = faraday_keys::vault::slot_digest(c, header.slot_len, bytes, pos) else {
-            return;
-        };
-        self.copy_seen(&header.salt, faraday_crypto::sha256_whole(c, bytes));
+        let digest = faraday_crypto::sha256_whole(c, bytes);
+        self.copy_seen(&vault_id, digest);
         self.seals_raise(
-            header.salt,
+            vault_id,
             SealSeen {
-                len: header.slot_len,
-                position: pos as u8,
                 count: seals.count,
                 digest,
                 planned: Vec::new(),
@@ -498,11 +405,11 @@ impl VaultArea {
     /// The summary remembered of the vault open vault `v` is a copy of,
     /// before an unlock refreshes it: what **Keep locked** puts back.
     pub(crate) fn summary_before(&self, v: usize) -> Option<VaultSummary> {
-        let salt = self.state.open.get(v)?.header().salt;
+        let id = self.state.open.get(v)?.vault_id;
         self.state
             .summaries
             .iter()
-            .find(|s| s.salt == salt)
+            .find(|s| s.id == id)
             .cloned()
     }
 
@@ -537,13 +444,13 @@ impl VaultArea {
         let Some(i) = self.state.open.iter().position(|o| o.id == h.id) else {
             return;
         };
-        let salt = self.state.open[i].header().salt;
+        let id = self.state.open[i].vault_id;
         self.state.close(i);
         self.state.current = 0;
-        let at = self.state.summaries.iter().position(|s| s.salt == salt);
+        let at = self.state.summaries.iter().position(|s| s.id == id);
         match (at, h.summary) {
             (Some(at), Some(mut was)) => {
-                was.seals = std::mem::take(&mut self.state.summaries[at].seals);
+                was.seal = self.state.summaries[at].seal.take();
                 self.state.summaries[at] = was;
             }
             (Some(at), None) => {

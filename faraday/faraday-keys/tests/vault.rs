@@ -7,10 +7,14 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 use faraday_keys::Keys;
-use faraday_keys::vault::{self, OpenVaults, gpg_field, is_secret};
+use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN, gpg_field, is_secret};
 use faraday_keys::{Part, Reveal};
+use faraday_vault::file::SIZES;
+use faraday_vault::kdbx::items::{self, Body, Place, Related, RelatedKind};
+use faraday_vault::kdbx::xml::Document;
+use faraday_vault::kdbx::{self};
 use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Cost, Record};
+use faraday_vault::{Cost, Record};
 
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -25,45 +29,157 @@ fn compute() -> Compute {
     Compute::new(|_| {})
 }
 
-/// A vault of the smallest slot holding one key record of the "abandon"
-/// words under `passphrase`. Costs the cheapest Argon2id `create` allows.
+/// The names the app writes, as the strings hold them.
+fn names() -> Names {
+    let s = |t: &str| t.to_string();
+    Names {
+        group_keys: s("Seeds"),
+        group_wallets: s("Wallets"),
+        group_notes: s("Notes"),
+        group_sheets: s("Sheets"),
+        group_gpg: s("GPG keys"),
+        group_secure_boot: s("Secure Boot"),
+        group_wallet_shares: s("Wallet shares"),
+        group_passphrases: s("Passphrases"),
+        group_shares: s("Codex32 shares"),
+        title_key: s("Key {fingerprint}"),
+        title_note: s("Note"),
+        title_passphrase: s("Passphrase for {for}"),
+        title_share: s("Codex32 share for {for}"),
+        title_secure_boot: s("Secure Boot keys"),
+    }
+}
+
+/// A store that writes `names()`.
+fn store() -> OpenVaults {
+    let mut s = OpenVaults::default();
+    s.set_names(names());
+    s
+}
+
+/// The cheapest cost the tests create a vault at: 8 MiB, one pass, one
+/// lane.
+const COST: Cost = Cost {
+    memory_kib: 8192,
+    passes: 1,
+    lanes: 1,
+};
+
+/// A vault with no record, of the smallest size, under `passphrase`.
+fn empty(c: &Compute, passphrase: &str) -> Vec<u8> {
+    vault::create(
+        c,
+        [7u8; 16],
+        "Test",
+        COST,
+        SIZES[0],
+        passphrase,
+        &[7u8; SEAL_RANDOM_LEN],
+        None,
+    )
+    .expect("a vault")
+}
+
+/// The file open vault `id` seals to, with the vault closed by it, its
+/// new entries' UUIDs from `salt`. Costs the seal's own Argon2id run.
+fn seal_with(store: &mut OpenVaults, c: &Compute, id: vault::VaultId, salt: u8) -> Vec<u8> {
+    let uuids = uuids_of(store, id, salt);
+    let file = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, Some(1_780_000_000))
+        .expect("a job")
+        .run(c)
+        .into_file()
+        .expect("sealed");
+    store.seal_ended(id, true);
+    file
+}
+
+#[test]
+fn a_seal_that_fails_leaves_the_vault_open_with_its_changes() {
+    let c = compute();
+    let note = |n: u8| Record::new(kind::NOTE).with(field::NOTE, &[n]);
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    store.insert(id, note(1)).expect("kept");
+    let len = store.records(id).len();
+    let uuids = uuids_of(&store, id, 0x10);
+    let job = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+        .expect("a job");
+    assert!(
+        store.insert(id, note(2)).is_none(),
+        "edits refuse while sealing"
+    );
+    assert!(
+        store
+            .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+            .is_none()
+    );
+    drop(job);
+    store.seal_ended(id, false);
+    assert_eq!(store.records(id).len(), len, "the changes are kept");
+    store.insert(id, note(2)).expect("edits work again");
+    let file = seal(&mut store, &c, id);
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
+    assert_eq!(store.records(id).len(), len + 1);
+}
+
+fn seal(store: &mut OpenVaults, c: &Compute, id: vault::VaultId) -> Vec<u8> {
+    seal_with(store, c, id, 0x10)
+}
+
+/// `uuids` for a seal of `id`, each of its 16-byte chunks different.
+fn uuids_of(store: &OpenVaults, id: vault::VaultId, salt: u8) -> Vec<u8> {
+    let n = store.uuid_bytes(id).expect("held");
+    (0..n).map(|i| salt + (i / 16) as u8).collect()
+}
+
+/// A vault of the smallest size holding `records`, under `passphrase`.
+fn made_with(c: &Compute, passphrase: &str, records: Vec<Record>) -> Vec<u8> {
+    let file = empty(c, passphrase);
+    if records.is_empty() {
+        return file;
+    }
+    let mut store = store();
+    let (id, _) = store.unlock(c, file, passphrase).expect("opens");
+    for r in records {
+        store.insert(id, r).expect("kept");
+    }
+    seal_with(&mut store, c, id, 0x80)
+}
+
+/// A vault holding one key record of the "abandon" words under
+/// `passphrase`.
 fn made(c: &Compute, passphrase: &str) -> Vec<u8> {
     let m = Mnemonic::parse(c, Language::English, ABANDON).expect("the words");
-    let contents = Contents {
-        records: vec![
+    made_with(
+        c,
+        passphrase,
+        vec![
             Record::new(kind::KEY)
                 .with(field::KEY, &faraday_vault::records::words_payload(&m))
                 .with(field::KEY_LABEL, b"Test"),
         ],
-    };
-    let cost = Cost {
-        memory_kib: faraday_vault::CREATE_MIN_MEMORY_KIB,
-        passes: faraday_vault::CREATE_MIN_PASSES,
-        lanes: 1,
-    };
-    vault::create(
-        c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[passphrase],
-        &[contents],
-        &[7u8; 32],
     )
-    .expect("a vault")
+}
+
+/// The place of the first record of kind `k` in open vault `id`.
+fn first(store: &OpenVaults, id: vault::VaultId, k: u8) -> usize {
+    store.records(id).of(k).next().expect("a record of it").0
 }
 
 #[test]
 fn a_key_in_a_vault_loads_as_the_key_the_bips_publish() {
     let c = compute();
     let file = made(&c, "first passphrase");
-    let mut store = OpenVaults::default();
+    let mut store = store();
     assert!(
         store.unlock(&c, file.clone(), "another one").is_err(),
         "a wrong passphrase opens nothing"
     );
     let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
     let mut keys = Keys::on(Network::Mainnet);
-    let all = (0..store.records(id).len()).collect();
+    let all = store.records(id).of(kind::KEY).map(|(i, _)| i).collect();
     let loaded = store.load_from_vault(&c, &mut keys, id, &all);
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0].0, [0x73, 0xc5, 0xda, 0x0a]);
@@ -74,35 +190,32 @@ fn a_key_in_a_vault_loads_as_the_key_the_bips_publish() {
 fn a_vault_sealed_after_a_change_opens_with_it() {
     let c = compute();
     let file = made(&c, "first passphrase");
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
     store.insert(id, Record::new(kind::NOTE).with(field::NOTE, b"kept"));
-    let sealed = store.sealed(id, &[9u8; 24], None).expect("seals");
-    store.close(id);
+    let sealed = seal(&mut store, &c, id);
+    assert!(store.records(id).is_empty(), "the seal took the vault out");
     let (again, _) = store
         .unlock(&c, sealed, "first passphrase")
         .expect("the sealed vault opens");
-    assert_eq!(store.records(again).of(kind::NOTE).count(), 1);
-    assert_eq!(store.records(again).of(kind::KEY).count(), 1);
+    let kinds: Vec<u8> = store.records(again).iter().map(|(_, r)| r.kind()).collect();
+    assert_eq!(
+        store.records(again).of(kind::NOTE).count(),
+        1,
+        "{kinds:?} {:?}",
+        store.unreadable(again).len()
+    );
+    assert_eq!(
+        store.records(again).of(kind::KEY).count(),
+        1,
+        "{kinds:?} {:?}",
+        store.unreadable(again)
+    );
 }
 
-/// A vault of the smallest slot holding `records`, under `passphrase`.
-fn made_with(c: &Compute, passphrase: &str, records: Vec<Record>) -> Vec<u8> {
-    let cost = Cost {
-        memory_kib: faraday_vault::CREATE_MIN_MEMORY_KIB,
-        passes: faraday_vault::CREATE_MIN_PASSES,
-        lanes: 1,
-    };
-    vault::create(
-        c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[passphrase],
-        &[Contents { records }],
-        &[7u8; 32],
-    )
-    .expect("a vault")
-}
+/// Where the first record after the vault's label is, in a vault opened
+/// from a file with one entry or key or a store's first insert.
+const AT: usize = 1;
 
 fn entry() -> Record {
     Record::new(kind::ENTRY)
@@ -116,9 +229,9 @@ fn entry() -> Record {
 fn a_record_shows_its_public_fields_and_only_the_length_of_a_secret_one() {
     let c = compute();
     let file = made_with(&c, "pass", vec![entry()]);
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
-    let r = store.records(id).get(0).expect("the entry");
+    let r = store.records(id).get(AT).expect("the entry");
     assert_eq!(r.public_text(field::TITLE), Some("Mail"));
     assert_eq!(r.public_text(field::USERNAME), Some("me"));
     assert_eq!(r.public(field::PASSWORD), None);
@@ -134,9 +247,9 @@ fn a_record_shows_its_public_fields_and_only_the_length_of_a_secret_one() {
 fn a_secret_leaves_a_record_only_through_a_reveal_that_names_it() {
     let c = compute();
     let file = made_with(&c, "pass", vec![entry()]);
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
-    let shown = |why| store.reveal(&c, id, 0, field::PASSWORD, why).to_string();
+    let shown = |why| store.reveal(&c, id, AT, field::PASSWORD, why).to_string();
     assert_eq!(shown(Reveal::VaultEntry(Part::Password)), "hunter2");
     assert_eq!(
         shown(Reveal::VaultEntry(Part::EntryNotes)),
@@ -147,14 +260,14 @@ fn a_secret_leaves_a_record_only_through_a_reveal_that_names_it() {
         &*store.reveal(
             &c,
             id,
-            0,
+            AT,
             field::NOTES,
             Reveal::VaultEntry(Part::EntryNotes)
         ),
         "recovery code 1234"
     );
     assert_eq!(
-        &*store.reveal(&c, id, 0, field::TITLE, Reveal::VaultEntry(Part::Password)),
+        &*store.reveal(&c, id, AT, field::TITLE, Reveal::VaultEntry(Part::Password)),
         "",
         "a public field is read as public"
     );
@@ -179,34 +292,36 @@ fn gpg_key() -> Record {
 fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
     let c = compute();
     let file = made_with(&c, "pass", vec![gpg_key()]);
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let rev = Reveal::OutboxFile(Part::Revocation);
     assert!(
-        store.gpg_revocation_file(id, 0, rev).is_none(),
+        store.gpg_revocation_file(id, AT, rev).is_none(),
         "none kept yet"
     );
-    assert!(store.gpg_keep_revocation(id, 0, 1_780_000_100));
+    assert!(store.gpg_keep_revocation(id, AT, 1_780_000_100));
     assert!(
-        !store.gpg_keep_revocation(id, 0, 1_780_000_200),
+        !store.gpg_keep_revocation(id, AT, 1_780_000_200),
         "one is kept"
     );
-    let r = store.records(id).get(0).expect("the key");
+    let r = store.records(id).get(AT).expect("the key");
     assert!(r.has(gpg_field::REVOCATION));
     assert_eq!(r.public(gpg_field::REVOCATION), None);
     assert_eq!(vault::gpg_revocation_kept_at(r), Some(1_780_000_100));
     assert!(
         store
-            .gpg_revocation_file(id, 0, Reveal::OutboxFile(Part::Words))
+            .gpg_revocation_file(id, AT, Reveal::OutboxFile(Part::Words))
             .is_none(),
         "another part is not the revocation"
     );
-    let kept = store.gpg_revocation_file(id, 0, rev).expect("the kept one");
+    let kept = store
+        .gpg_revocation_file(id, AT, rev)
+        .expect("the kept one");
     assert!(kept.starts_with("This is a revocation certificate for the OpenPGP key:"));
     let new = store
         .gpg_new_revocation_file(
             id,
-            0,
+            AT,
             1_780_000_300,
             faraday_pgp::Reason::Superseded,
             "",
@@ -215,7 +330,7 @@ fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
         .expect("a new one");
     assert_ne!(**new, **kept);
     assert_eq!(
-        vault::gpg_revocation_kept_at(store.records(id).get(0).expect("the key")),
+        vault::gpg_revocation_kept_at(store.records(id).get(AT).expect("the key")),
         Some(1_780_000_100),
         "a new one does not replace the kept one"
     );
@@ -225,26 +340,31 @@ fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
 fn a_secret_field_is_written_as_secret_and_a_public_one_as_public() {
     let c = compute();
     let file = made_with(&c, "pass", vec![entry()]);
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
-    assert!(!store.set_public(id, 0, field::PASSWORD, b"x"));
-    assert!(!store.set_secret(id, 0, field::TITLE, &zeroize::Zeroizing::new(b"x".to_vec())));
-    assert!(store.set_public(id, 0, field::TITLE, b"Work"));
+    assert!(!store.set_public(id, AT, field::PASSWORD, b"x"));
+    assert!(!store.set_secret(
+        id,
+        AT,
+        field::TITLE,
+        &zeroize::Zeroizing::new(b"x".to_vec())
+    ));
+    assert!(store.set_public(id, AT, field::TITLE, b"Work"));
     assert!(store.set_secret(
         id,
-        0,
+        AT,
         field::PASSWORD,
         &zeroize::Zeroizing::new(b"correct horse".to_vec())
     ));
     assert_eq!(
-        store.records(id).get(0).unwrap().public_text(field::TITLE),
+        store.records(id).get(AT).unwrap().public_text(field::TITLE),
         Some("Work")
     );
     assert_eq!(
         &*store.reveal(
             &c,
             id,
-            0,
+            AT,
             field::PASSWORD,
             Reveal::VaultEntry(Part::Password)
         ),
@@ -256,25 +376,25 @@ fn a_secret_field_is_written_as_secret_and_a_public_one_as_public() {
 fn every_edit_moves_the_version_and_a_read_does_not() {
     let c = compute();
     let file = made_with(&c, "pass", vec![entry()]);
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let v0 = store.version(id);
     let _ = store.records(id).iter().count();
     let _ = store.reveal(
         &c,
         id,
-        0,
+        AT,
         field::PASSWORD,
         Reveal::VaultEntry(Part::Password),
     );
     assert_eq!(store.version(id), v0, "reading changes nothing");
-    store.set_public(id, 0, field::TITLE, b"Work");
+    store.set_public(id, AT, field::TITLE, b"Work");
     let v1 = store.version(id);
     assert!(v1 > v0);
     store.insert(id, Record::new(kind::NOTE).with(field::NOTE, b"n"));
     let v2 = store.version(id);
     assert!(v2 > v1);
-    store.remove(id, 1);
+    store.remove(id, AT + 1);
     assert!(store.version(id) > v2);
 }
 
@@ -288,17 +408,17 @@ fn what_is_read_of_the_words_follows_the_record_it_was_read_from() {
         Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(m))
     };
     let file = made_with(&c, "pass", vec![key(&m12)]);
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
-    assert_eq!(store.word_count(&c, id, 0), Some(12));
-    let before = store.words_id(&c, id, 0).copied();
-    store.replace(id, 0, key(&m24));
+    assert_eq!(store.word_count(&c, id, AT), Some(12));
+    let before = store.words_id(&c, id, AT).copied();
+    store.replace(id, AT, key(&m24));
     assert_eq!(
-        store.word_count(&c, id, 0),
+        store.word_count(&c, id, AT),
         Some(24),
         "the new record's words"
     );
-    assert_ne!(store.words_id(&c, id, 0).copied(), before);
+    assert_ne!(store.words_id(&c, id, AT).copied(), before);
 }
 
 #[test]
@@ -306,17 +426,17 @@ fn a_key_record_copied_between_vaults_is_the_same_key_there() {
     let c = compute();
     let from = made(&c, "first");
     let to = made_with(&c, "second", Vec::new());
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (a, _) = store.unlock(&c, from, "first").expect("opens");
     let (b, _) = store.unlock(&c, to, "second").expect("opens");
-    assert_eq!(store.records(b).len(), 0);
-    store.copy_record(a, 0, b, None).expect("copied");
-    assert_eq!(store.records(b).len(), 1);
+    assert_eq!(store.records(b).len(), AT, "only the label");
+    store.copy_record(a, AT, b, None).expect("copied");
+    assert_eq!(store.records(b).len(), AT + 1);
     let mut keys = Keys::on(Network::Mainnet);
-    let loaded = store.load_from_vault(&c, &mut keys, b, &[0].into_iter().collect());
+    let loaded = store.load_from_vault(&c, &mut keys, b, &[AT].into_iter().collect());
     assert_eq!(loaded[0].0, [0x73, 0xc5, 0xda, 0x0a]);
     let bare = store
-        .copy_out(a, 0, Some(field::KEY_LABEL))
+        .copy_out(a, AT, Some(field::KEY_LABEL))
         .expect("a copy");
     assert!(
         !bare.view().has(field::KEY_LABEL),
@@ -355,7 +475,7 @@ fn read_cert(packets: &[u8]) -> faraday_pgp::Certificate {
 /// store, their ids, and the key's paperkey as its page shows it.
 fn with_made(c: &Compute, made: &faraday_keys::gpg::Made) -> (OpenVaults, [vault::VaultId; 2]) {
     let file = made_with(c, "pass", Vec::new());
-    let mut store = OpenVaults::default();
+    let mut store = store();
     let (a, _) = store.unlock(c, file.clone(), "pass").expect("opens");
     let (b, _) = store.unlock(c, file, "pass").expect("opens");
     store.insert(a, &made.key).expect("kept");
@@ -381,7 +501,7 @@ fn a_key_restored_from_its_paperkey_is_the_record_make_wrote() {
     let made = gpg_made();
     let (mut store, [a, b]) = with_made(&c, &made);
     let shown = store
-        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .gpg_paperkey(store.records(a).get(AT).unwrap(), Reveal::GpgPaperkey)
         .expect("the paperkey");
     let mut restore = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
     assert_eq!(restore.lines(), None, "the count waits for the lengths");
@@ -399,8 +519,8 @@ fn a_key_restored_from_its_paperkey_is_the_record_make_wrote() {
     assert_eq!(restored.made.facts.expiry, made.facts.expiry);
     store.insert(b, &restored.made.key).expect("kept");
     let (mine, theirs) = (
-        store.records(a).get(0).unwrap(),
-        store.records(b).get(0).unwrap(),
+        store.records(a).get(AT).unwrap(),
+        store.records(b).get(AT).unwrap(),
     );
     for n in 1..=9 {
         assert_eq!(mine.has(n), theirs.has(n), "field {n}");
@@ -408,14 +528,13 @@ fn a_key_restored_from_its_paperkey_is_the_record_make_wrote() {
     }
     let rev = Reveal::OutboxFile(Part::Revocation);
     assert_eq!(
-        **store.gpg_revocation_file(a, 0, rev).unwrap(),
-        **store.gpg_revocation_file(b, 0, rev).unwrap(),
+        **store.gpg_revocation_file(a, AT, rev).unwrap(),
+        **store.gpg_revocation_file(b, AT, rev).unwrap(),
         "the kept revocation"
     );
-    // The two vaults, sealed under one nonce, are the same bytes: every
+    // The two vaults, sealed under one random, are the same bytes: every
     // field of the two records, secret ones included, is the same.
-    let nonce = [3u8; 24];
-    assert_eq!(store.sealed(a, &nonce, None), store.sealed(b, &nonce, None));
+    assert_eq!(seal(&mut store, &c, a), seal(&mut store, &c, b));
 }
 
 /// A line mistyped is refused and nothing of it kept; once typed right,
@@ -426,7 +545,7 @@ fn a_mistyped_line_is_refused_and_typed_again() {
     let made = gpg_made();
     let (store, [a, _]) = with_made(&c, &made);
     let shown = store
-        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .gpg_paperkey(store.records(a).get(AT).unwrap(), Reveal::GpgPaperkey)
         .expect("the paperkey");
     let lines: Vec<&str> = shown.lines().collect();
     let mut restore = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
@@ -523,7 +642,7 @@ fn a_restored_key_signs_renews_and_revokes_as_makes_does() {
     let made = gpg_made();
     let (mut store, [a, b]) = with_made(&c, &made);
     let shown = store
-        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .gpg_paperkey(store.records(a).get(AT).unwrap(), Reveal::GpgPaperkey)
         .expect("the paperkey");
     let mut restore = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
     typed_back(&mut restore, &shown);
@@ -532,8 +651,8 @@ fn a_restored_key_signs_renews_and_revokes_as_makes_does() {
 
     let data = b"A file signed after a restore.\n";
     let at = MADE + 600;
-    let mine = store.gpg_sign_armored(a, 0, data, at).expect("signs");
-    let theirs = store.gpg_sign_armored(b, 0, data, at).expect("signs");
+    let mine = store.gpg_sign_armored(a, AT, data, at).expect("signs");
+    let theirs = store.gpg_sign_armored(b, AT, data, at).expect("signs");
     assert_eq!(mine, theirs);
     let cert = faraday_pgp::armor(faraday_pgp::Armor::PublicKey, &restored.made.certificate);
     if let Some(said) = gnupg_verifies(cert.as_bytes(), data, &theirs, at + 60) {
@@ -546,16 +665,16 @@ fn a_restored_key_signs_renews_and_revokes_as_makes_does() {
     let renewed = MADE + YEAR;
     let expiry = Some(renewed - MADE + 2 * YEAR);
     assert_eq!(
-        store.gpg_certificate(a, 0, renewed, expiry),
-        store.gpg_certificate(b, 0, renewed, expiry)
+        store.gpg_certificate(a, AT, renewed, expiry),
+        store.gpg_certificate(b, AT, renewed, expiry)
     );
     let rev = Reveal::OutboxFile(Part::Revocation);
     let (mine, theirs) = (
         store
-            .gpg_new_revocation_file(a, 0, renewed, faraday_pgp::Reason::Retired, "Gone", rev)
+            .gpg_new_revocation_file(a, AT, renewed, faraday_pgp::Reason::Retired, "Gone", rev)
             .expect("a revocation"),
         store
-            .gpg_new_revocation_file(b, 0, renewed, faraday_pgp::Reason::Retired, "Gone", rev)
+            .gpg_new_revocation_file(b, AT, renewed, faraday_pgp::Reason::Retired, "Gone", rev)
             .expect("a revocation"),
     );
     assert_eq!(**mine, **theirs);
@@ -569,13 +688,13 @@ fn a_revoked_certificate_restores_a_record_marked_revoked() {
     let made = gpg_made();
     let (store, [a, _]) = with_made(&c, &made);
     let shown = store
-        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .gpg_paperkey(store.records(a).get(AT).unwrap(), Reveal::GpgPaperkey)
         .expect("the paperkey");
     let when = MADE + 900;
     let rev = store
         .gpg_new_revocation_file(
             a,
-            0,
+            AT,
             when,
             faraday_pgp::Reason::Compromised,
             "",
@@ -745,4 +864,464 @@ fn a_paperkey_code_that_does_not_hold_is_refused_and_keeps_the_lines_typed() {
     // Line 1 typed before is still there.
     assert_eq!(r.checked(), 1);
     assert_eq!(r.next(), 2);
+}
+
+// ---- Files built here, and what the store does to them ----
+
+/// A document of an empty vault, as a seal leaves one.
+fn fresh_doc() -> Document {
+    let mut doc = Document::new([7u8; 16], "Test");
+    items::stamp(&mut doc, 1, None).expect("stamped");
+    doc
+}
+
+/// The file of `doc` at the smallest size, at the tests' cost, under
+/// "pass".
+fn file_of(c: &Compute, doc: &Document) -> Vec<u8> {
+    let random = [5u8; kdbx::RANDOM_LEN];
+    let xml = doc.write(kdbx::inner_key_of(&random));
+    let contents = kdbx::Contents {
+        document: &xml,
+        binaries: &[],
+        public_custom_data: None,
+    };
+    kdbx::seal(c, "pass", COST, &random, &contents, SIZES[0]).expect("sealed")
+}
+
+/// Puts `body` in `doc` as the entry `[n; 16]`, in group `group`.
+fn put(c: &Compute, doc: &mut Document, n: u8, group: &str, body: &Body) {
+    let place = Place {
+        uuid: [n; 16],
+        group,
+        group_uuid: [0xa0; 16],
+        title: "Title",
+        now: None,
+    };
+    items::put(c, doc, &place, body).expect("put");
+}
+
+fn titled(title: &str) -> Body {
+    Body::Record(Record::new(kind::ENTRY).with(field::TITLE, title.as_bytes()))
+}
+
+fn sealed_open(file: &[u8]) -> faraday_vault::file::Opened {
+    faraday_vault::file::open(&compute(), file, "pass").expect("opens")
+}
+
+#[test]
+fn a_change_by_place_is_a_change_of_that_entry_alone() {
+    let c = compute();
+    let mut doc = fresh_doc();
+    put(&c, &mut doc, 1, "", &titled("Mail"));
+    put(&c, &mut doc, 2, "", &titled("Bank"));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let bank = store
+        .records(id)
+        .iter()
+        .find(|(_, r)| r.public_text(field::TITLE) == Some("Bank"))
+        .expect("the bank")
+        .0;
+    assert!(store.set_public(id, bank, field::TITLE, b"Work"));
+    let sealed = seal(&mut store, &c, id);
+    let (again, _) = store.unlock(&c, sealed.clone(), "pass").expect("opens");
+    let mut titles: Vec<String> = store
+        .records(again)
+        .of(kind::ENTRY)
+        .map(|(_, r)| r.public_text(field::TITLE).unwrap_or("").to_string())
+        .collect();
+    titles.sort();
+    assert_eq!(titles, ["Mail", "Work"]);
+    let mut uuids: Vec<[u8; 16]> = sealed_open(&sealed)
+        .read()
+        .items
+        .iter()
+        .map(|i| i.uuid)
+        .collect();
+    uuids.sort();
+    assert_eq!(uuids, [[1; 16], [2; 16]], "the same two entries");
+}
+
+#[test]
+fn a_new_plans_number_goes_past_one_that_does_not_read() {
+    let c = compute();
+    let mut doc = fresh_doc();
+    doc.custom_mut()
+        .set("faraday.plan.5", "not a plan")
+        .expect("set");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    assert_eq!(store.unreadable(id).len(), 1, "the plan that does not read");
+    store.insert(
+        id,
+        Record::new(kind::PLAN)
+            .with(field::PLAN_WALLET, b"Wallet")
+            .with(field::PLAN_PLACE, b"Home"),
+    );
+    let sealed = seal(&mut store, &c, id);
+    let opened = sealed_open(&sealed);
+    let keys: Vec<&str> = opened
+        .read()
+        .custom
+        .iter()
+        .map(|k| k.key.as_str())
+        .collect();
+    assert_eq!(keys, ["faraday.plan.6"]);
+    assert_eq!(opened.read().unreadable.len(), 1, "kept as it was");
+}
+
+/// Whether `fits` says what a seal then does, at the most that fits and
+/// one byte more: `extra` records and a note of a length found by
+/// halving are put in an empty vault of the smallest size.
+fn fits_is_exact(c: &Compute, extra: &[Record]) {
+    let note = |n: usize| Record::new(kind::NOTE).with(field::NOTE, &vec![b'x'; n]);
+    let file = empty(c, "pass");
+    let fits = |n: usize| {
+        let mut store = store();
+        let (id, _) = store.unlock(c, file.clone(), "pass").expect("opens");
+        let filler = note(n);
+        let mut add: Vec<&Record> = extra.iter().collect();
+        add.push(&filler);
+        store.fits(c, id, &[], &add)
+    };
+    let sealed = |n: usize| {
+        let mut store = store();
+        let (id, _) = store.unlock(c, file.clone(), "pass").expect("opens");
+        for r in extra {
+            store.insert(id, r.clone()).expect("kept");
+        }
+        store.insert(id, note(n)).expect("kept");
+        let uuids = uuids_of(&store, id, 0x10);
+        store
+            .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, Some(1_780_000_000))
+            .expect("a job")
+            .run(c)
+            .into_file()
+    };
+    let (mut lo, mut hi) = (0usize, SIZES[0]);
+    assert!(fits(lo) && !fits(hi));
+    while hi - lo > 1 {
+        let mid = usize::midpoint(lo, hi);
+        if fits(mid) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    let got = sealed(lo).err();
+    assert!(got.is_none(), "{lo} bytes fit and seal: {got:?}");
+    assert!(
+        matches!(sealed(hi), Err(faraday_vault::file::Error::Full { .. })),
+        "{hi} bytes are one over and are refused"
+    );
+}
+
+#[test]
+fn fits_says_what_a_seal_takes_to_the_byte() {
+    fits_is_exact(&compute(), &[]);
+}
+
+/// A key with no label has its title worked out where it is sealed; what
+/// `fits` counts for it is the same length.
+#[test]
+fn fits_is_exact_for_a_key_with_no_label_too() {
+    let c = compute();
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).expect("the words");
+    let key = Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(&m));
+    fits_is_exact(&c, &[key]);
+}
+
+#[test]
+fn every_edit_is_refused_on_a_read_only_vault_for_either_reason() {
+    let c = compute();
+    let mut newer = fresh_doc();
+    put(&c, &mut newer, 1, "", &titled("Mail"));
+    newer.custom_mut().set("faraday.format", "2").expect("set");
+    let mut one = fresh_doc();
+    put(&c, &mut one, 1, "", &titled("Mail"));
+    let mut text = String::from_utf8(one.write(&[0; 64]).to_vec()).expect("text");
+    let at = text.find("</DatabaseName>").expect("a name") + "</DatabaseName>".len();
+    text.insert_str(at, "<DatabaseName>second</DatabaseName>");
+    let ambiguous = Document::read(text.as_bytes(), &[0; 64]).expect("reads");
+
+    // What the same edits do to a vault that is not read-only.
+    let mut open = store();
+    let (w, _) = open.unlock(&c, file_of(&c, &one), "pass").expect("opens");
+    assert!(open.read_only(w).is_none());
+
+    for doc in [&newer, &ambiguous] {
+        let (id, _) = open.unlock(&c, file_of(&c, doc), "pass").expect("opens");
+        assert!(open.read_only(id).is_some());
+        let (len, version) = (open.records(id).len(), open.version(id));
+        let note = Record::new(kind::NOTE).with(field::NOTE, b"n");
+        for i in 0..len + 1 {
+            assert!(!open.set_public(id, i, field::TITLE, b"x"));
+            assert!(!open.set_secret(
+                id,
+                i,
+                field::PASSWORD,
+                &zeroize::Zeroizing::new(b"x".to_vec())
+            ));
+            assert!(!open.set_loads_at_unlock(id, i, true));
+            assert!(!open.replace(id, i, note.clone()));
+            assert!(!open.remove(id, i));
+            assert!(!open.insert_at(id, i, note.clone()));
+            assert!(
+                open.set_fields(&c, id, Some(i), kind::ENTRY, &[(field::TITLE, b"x")])
+                    .is_err()
+            );
+            assert!(
+                open.set_public_all_in(&c, id, &[i], field::TITLE, &[b"x"])
+                    .is_err()
+            );
+        }
+        assert!(open.insert(id, note.clone()).is_none());
+        assert!(
+            open.set_fields(&c, id, None, kind::NOTE, &[(field::NOTE, b"n")])
+                .is_err()
+        );
+        assert_eq!(open.remove_where(id, |_| true), 0);
+        assert!(open.copy_record(w, AT, id, None).is_none());
+        assert!(!open.fits(&c, id, &[], &[]));
+        assert!(
+            open.seal_job(id, &[9u8; SEAL_RANDOM_LEN], &[0u8; 64], None)
+                .is_none()
+        );
+        assert_eq!(open.records(id).len(), len);
+        assert_eq!(open.version(id), version, "nothing was edited");
+    }
+    assert!(open.set_public(w, AT, field::TITLE, b"x"), "a control");
+}
+
+/// The entry of a person's other app as that app wrote it.
+fn entry_xml(n: u8, fields: &[(&str, &str)]) -> String {
+    const A: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let u = [n; 16];
+    let mut id = String::new();
+    for ch in u.chunks(3) {
+        let v = (u32::from(ch[0]) << 16)
+            | (u32::from(*ch.get(1).unwrap_or(&0)) << 8)
+            | u32::from(*ch.get(2).unwrap_or(&0));
+        for k in 0..4 {
+            if k <= ch.len() {
+                id.push(A[((v >> (18 - 6 * k)) & 63) as usize] as char);
+            } else {
+                id.push('=');
+            }
+        }
+    }
+    let f: String = fields
+        .iter()
+        .map(|(k, v)| format!("<String><Key>{k}</Key><Value>{v}</Value></String>"))
+        .collect();
+    format!("<Entry><UUID>{id}</UUID>{f}</Entry>")
+}
+
+fn with_entries(xml: &str) -> Document {
+    let mut text = String::from_utf8(fresh_doc().write(&[0; 64]).to_vec()).expect("text");
+    let at = text.rfind("</Group></Root>").expect("the root's end");
+    text.insert_str(at, xml);
+    Document::read(text.as_bytes(), &[0; 64]).expect("reads")
+}
+
+#[test]
+fn a_persons_entry_that_was_not_changed_keeps_its_own_fields_and_its_totp() {
+    let c = compute();
+    let b32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+    let doc = with_entries(&entry_xml(
+        9,
+        &[
+            ("Title", "Mail"),
+            ("UserName", "me"),
+            ("Custom Thing", "kept"),
+            ("TimeOtp-Secret-Base32", b32),
+        ],
+    ));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let code = |store: &OpenVaults, id| {
+        let at = first(store, id, kind::ENTRY);
+        let t = store
+            .totp(id, at, Some(59), Reveal::VaultEntry(Part::Totp))
+            .expect("a TOTP entry");
+        t.code
+            .expect("reads")
+            .expect("a code")
+            .grouped
+            .replace(' ', "")
+    };
+    assert_eq!(
+        code(&store, id),
+        "287082",
+        "RFC 6238's SHA-1 vector at 59 s"
+    );
+    store.insert(
+        id,
+        Record::new(kind::NOTE).with(field::NOTE, b"another change"),
+    );
+    let sealed = seal(&mut store, &c, id);
+    let (again, _) = store.unlock(&c, sealed.clone(), "pass").expect("opens");
+    assert_eq!(code(&store, again), "287082");
+    let opened = sealed_open(&sealed);
+    let item = opened
+        .read()
+        .items
+        .iter()
+        .find(|i| i.uuid == [9; 16])
+        .expect("the entry");
+    let names: Vec<&str> = item.extra.iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"Custom Thing"), "{names:?}");
+    assert!(names.contains(&"TimeOtp-Secret-Base32"), "{names:?}");
+    assert!(!names.contains(&"otp"), "not turned into another form");
+}
+
+#[test]
+fn a_gpg_key_that_is_not_faradays_own_is_unreadable_and_written_back_as_read() {
+    use faraday_vault::kdbx::items::GpgKey;
+    use zeroize::Zeroizing;
+    let c = compute();
+    let key = |seed: u8| faraday_pgp::Key {
+        primary_seed: [seed; 32],
+        created: MADE,
+        subkey_seed: [seed + 1; 32],
+        subkey_created: MADE,
+        user_ids: vec!["Test Person <test@example.com>".to_string()],
+        expiry: YEAR,
+    };
+    let k = key(0x11);
+    let foreign = GpgKey {
+        title: "Foreign".to_string(),
+        key: Zeroizing::new(
+            String::from_utf8(faraday_pgp::armor_secret(&k, MADE).to_vec()).expect("text"),
+        ),
+        // Another key's certificate: not the key's own.
+        public: Some(faraday_pgp::armor(
+            faraday_pgp::Armor::PublicKey,
+            &key(0x33).certificate(MADE),
+        )),
+        revocation: None,
+        revoked: None,
+    };
+    let mut doc = fresh_doc();
+    put(&c, &mut doc, 4, "GPG keys", &Body::Gpg(foreign));
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    assert_eq!(
+        store.records(id).of(kind::GPG).count(),
+        0,
+        "no record of it"
+    );
+    let lost = store.unreadable(id);
+    assert_eq!(lost.len(), 1);
+    assert_eq!(lost[0].title, "Foreign");
+    assert_eq!(lost[0].uuid, Some([4; 16]));
+    store.insert(
+        id,
+        Record::new(kind::NOTE).with(field::NOTE, b"another change"),
+    );
+    let sealed = seal(&mut store, &c, id);
+    let before = sealed_open(&file_of(&c, &doc));
+    let after = sealed_open(&sealed);
+    let gpg = |o: &faraday_vault::file::Opened| {
+        o.read()
+            .items
+            .iter()
+            .find(|i| i.uuid == [4; 16])
+            .and_then(|i| match &i.body {
+                Body::Gpg(g) => Some((g.title.clone(), g.key.to_string(), g.public.clone())),
+                Body::Record(_) => None,
+            })
+            .expect("the key")
+    };
+    assert_eq!(gpg(&after), gpg(&before), "written back as it was read");
+}
+
+#[test]
+fn a_key_with_two_passphrases_gives_both_each_with_its_place() {
+    let c = compute();
+    let passphrase = |key: [u8; 4], text: &[u8]| {
+        Body::Record(
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &key)
+                .with(field::PASSPHRASE, text),
+        )
+    };
+    let mut doc = fresh_doc();
+    put(&c, &mut doc, 1, "Passphrases", &passphrase([1; 4], b"one"));
+    put(&c, &mut doc, 2, "Passphrases", &passphrase([1; 4], b"two"));
+    put(
+        &c,
+        &mut doc,
+        3,
+        "Passphrases",
+        &passphrase([2; 4], b"other"),
+    );
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    assert!(store.unreadable(id).is_empty());
+    let places: Vec<usize> = store
+        .records(id)
+        .of(kind::PASSPHRASE)
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(places.len(), 3, "each is kept");
+    let of_key = |k: u8| -> Vec<usize> {
+        places
+            .iter()
+            .copied()
+            .filter(|&i| {
+                store
+                    .records(id)
+                    .get(i)
+                    .and_then(|r| r.public(field::PASSPHRASE_KEY))
+                    == Some(&[k; 4][..])
+            })
+            .collect()
+    };
+    let (two, one) = (of_key(1), of_key(2));
+    assert_eq!(two.len(), 2);
+    for (n, &i) in two.iter().enumerate() {
+        assert_eq!(
+            store.related(id, i),
+            Some(Related {
+                kind: RelatedKind::Passphrases,
+                place: n + 1,
+                of: 2
+            })
+        );
+    }
+    assert_eq!(store.related(id, one[0]), None, "a passphrase alone");
+    let read = sealed_open(&file_of(&c, &doc));
+    let labelled = read
+        .read()
+        .items
+        .iter()
+        .filter(|i| i.related.is_some())
+        .count();
+    assert_eq!(labelled, 2, "the file's own reading says it too");
+}
+
+#[test]
+fn an_edited_transactions_amounts_leave_no_trace_of_the_old_transaction() {
+    let c = compute();
+    let amounts = |tx: u8| {
+        Record::new(kind::AMOUNTS)
+            .with(field::AMOUNTS_TX, &[tx; 32])
+            .with(field::AMOUNTS_INPUT, &5u64.to_le_bytes())
+    };
+    let mut doc = fresh_doc();
+    items::put_signed(&mut doc, &amounts(1)).expect("put");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let at = first(&store, id, kind::AMOUNTS);
+    assert!(store.replace(id, at, amounts(2)));
+    let sealed = seal(&mut store, &c, id);
+    let opened = sealed_open(&sealed);
+    let keys: Vec<&str> = opened
+        .read()
+        .custom
+        .iter()
+        .map(|k| k.key.as_str())
+        .collect();
+    assert_eq!(keys, [format!("faraday.signed.{}", "02".repeat(32))]);
 }

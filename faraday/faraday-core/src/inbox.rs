@@ -712,21 +712,16 @@ impl Faraday {
         kept
     }
 
-    /// Costs a SHA-256 of the vault (through `Item::new`) and a header read
-    /// per vault in Files. A vault written from For the stick stays in
+    /// Costs a SHA-256 of the vault (through `Item::new`). A vault written from For the stick stays in
     /// Files as the stick now holds it: its copy from before goes; another
     /// file of its name stays, the vault numbered beside it and said.
     pub(crate) fn inbox_vault_written(&mut self, c: &Compute, item: &Item) {
         if item.kind != FileKind::Vault {
             return;
         }
-        let Ok(h) = faraday_vault::read_header(&item.bytes) else {
-            return;
-        };
-        self.inbox.retain(|i| {
-            !(i.kind == FileKind::Vault
-                && faraday_vault::read_header(&i.bytes).is_ok_and(|o| o.salt == h.salt))
-        });
+        let vaults = &self.vaults;
+        self.inbox
+            .retain(|i| !(i.kind == FileKind::Vault && vaults.same_vault_files(i.sha, item.sha)));
         let kept = self.free_inbox_name(&item.name);
         if kept != item.name {
             let told = fill(EN.storage_event_kept_as, &[&item.name, &kept]);

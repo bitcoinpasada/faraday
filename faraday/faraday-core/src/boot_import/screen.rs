@@ -279,7 +279,7 @@ fn unlocking(app: &View, file: usize) -> String {
         .get(file)
         .map(|f| {
             app.vaults
-                .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
+                .time_text(f.facts.header.cost.memory_kib / 1024, f.facts.header.cost.passes)
         })
         .unwrap_or_default();
     fill(EN.boot_import_unlocking, &[&time.to_string()])

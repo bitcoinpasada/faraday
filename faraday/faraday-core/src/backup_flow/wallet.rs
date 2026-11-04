@@ -868,7 +868,7 @@ impl Faraday {
         for &(v, o) in &opens {
             let (salt, vname) = {
                 let open = &self.vaults.open[o];
-                (open.header().salt, open.name.clone())
+                (open.vault_id(), open.name.clone())
             };
             let f = &mut self.flows.all[i];
             if f.plan.vaults.len() <= v {
@@ -1180,7 +1180,7 @@ impl Faraday {
             };
             // What the vault held before the flow first put anything in it,
             // and the keys other wallets' records in it name: kept.
-            let salt = self.vaults.open[o].header().salt;
+            let salt = self.vaults.open[o].vault_id();
             let first = self.vault_tokens(&c, o);
             let others = self.vault_others(&c, o, &cs);
             if let Some(f) = self.flows.all[i].wallet.as_mut() {
@@ -1505,11 +1505,12 @@ impl Faraday {
                 let key = r.kind() == rkind::KEY;
                 !(tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
             });
-            let sizes: Vec<usize> = w.add.iter().map(Staged::size).collect();
+            let adds: Vec<&faraday_vault::records::Record> =
+                w.add.iter().map(Staged::record).collect();
             if !self
                 .vaults
                 .store()
-                .fits(self.vaults.open[o].id, &w.out, &sizes)
+                .fits(&c, self.vaults.open[o].id, &w.out, &adds)
             {
                 return self.toast(EN.vaults_slot_too_small);
             }

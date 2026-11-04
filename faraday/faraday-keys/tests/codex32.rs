@@ -414,7 +414,7 @@ mod set {
     use faraday_keys::{Keys, Reveal, WorkSet, identity};
     use faraday_vault::codex32::{State, set_of};
     use faraday_vault::records::{field, kind};
-    use faraday_vault::{Contents, Cost, Record};
+    use faraday_vault::{Cost, Record};
 
     /// Vector 2: shares A and C, D derived, its secret, and its seed.
     const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
@@ -482,18 +482,20 @@ mod set {
                 Reveal::VaultEntry(faraday_keys::Part::Words),
             )
             .expect("a seed key has a record");
-        let cost = Cost {
-            memory_kib: faraday_vault::CREATE_MIN_MEMORY_KIB,
-            passes: faraday_vault::CREATE_MIN_PASSES,
-            lanes: 1,
-        };
+        // An empty vault at 8 MiB, one pass, one lane.
         let file = vault::create(
             &c,
-            faraday_vault::SLOT_SIZES[0],
-            cost,
-            &["pass"],
-            &[Contents::default()],
-            &[7u8; 32],
+            [7u8; 16],
+            "Test",
+            Cost {
+                memory_kib: 8192,
+                passes: 1,
+                lanes: 1,
+            },
+            faraday_vault::file::SIZES[0],
+            "pass",
+            &[7u8; vault::SEAL_RANDOM_LEN],
+            None,
         )
         .unwrap();
         let mut store = OpenVaults::default();

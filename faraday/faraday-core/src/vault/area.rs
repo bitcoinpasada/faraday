@@ -11,7 +11,7 @@ use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{OpenVaults, RecordView, Records, VaultId};
 use faraday_vault::records::{field, kind};
-use faraday_vault::{self as fv, Cost, Header, Record};
+use faraday_vault::{self as fv, Cost, Record};
 
 use crate::work::{self, VaultAct};
 use crate::{Action, Screen, flow};
@@ -26,13 +26,16 @@ pub(crate) struct VaultArea {
 
 impl Default for VaultArea {
     fn default() -> VaultArea {
+        let mut state = Vaults {
+            // A new GPG key's term starts at GnuPG's default, never at
+            // "never".
+            gpg_years: crate::gpg::DEFAULT_YEARS,
+            ..Vaults::default()
+        };
+        // The names new groups and titles take, set before the first edit.
+        state.store.set_names(super::errors::names());
         VaultArea {
-            state: Vaults {
-                // A new GPG key's term starts at GnuPG's default, never at
-                // "never".
-                gpg_years: crate::gpg::DEFAULT_YEARS,
-                ..Vaults::default()
-            },
+            state,
             item_offset: 0.0,
         }
     }
@@ -135,17 +138,17 @@ impl VaultArea {
 
     /// Costs what [`Vaults::seals_unlocked`] costs. Open vault `v` was just
     /// unlocked.
-    pub(crate) fn seals_unlocked(&mut self, c: &Compute, v: usize, files: &[(&str, &[u8])]) {
-        self.state.seals_unlocked(c, v, files);
+    pub(crate) fn seals_unlocked(&mut self, c: &Compute, v: usize) {
+        self.state.seals_unlocked(c, v);
     }
 
     /// Writes each fresh summary over the one kept for its vault, keeping
     /// the seal counts seen since power-on.
     pub(crate) fn merge_summaries(&mut self, fresh: Vec<VaultSummary>) {
         for mut s in fresh {
-            match self.state.summaries.iter_mut().find(|o| o.salt == s.salt) {
+            match self.state.summaries.iter_mut().find(|o| o.id == s.id) {
                 Some(o) => {
-                    s.seals = std::mem::take(&mut o.seals);
+                    s.seal = o.seal.take();
                     s.copies = std::mem::take(&mut o.copies);
                     *o = s;
                 }
@@ -155,10 +158,45 @@ impl VaultArea {
         self.state.seals_planned_sync();
     }
 
-    /// The file of the vault with `salt` is a copy of it the session has
-    /// seen, whose SHA-256 is `digest`.
-    pub(crate) fn copy_seen(&mut self, salt: &[u8; 32], digest: [u8; 32]) {
-        self.state.copy_seen(salt, digest);
+    /// The file of the vault with identifier `id` is a copy of it the
+    /// session has seen, whose SHA-256 is `digest`.
+    pub(crate) fn copy_seen(&mut self, id: &[u8; 32], digest: [u8; 32]) {
+        self.state.copy_seen(id, digest);
+    }
+
+    /// The summary of the vault a file in Files is a copy of, told by the
+    /// file's SHA-256 ([`crate::Item::sha`]) being among the summary's
+    /// copies: the only link between a file and a vault before the file
+    /// is opened. `None` for a file never opened or sealed here.
+    pub(crate) fn summary_of_file(&self, sha: Option<[u8; 32]>) -> Option<&VaultSummary> {
+        let sha = sha?;
+        self.state
+            .summaries
+            .iter()
+            .find(|s| s.copies.contains(&sha))
+    }
+
+    /// The identifier of the vault a file in Files is a copy of
+    /// ([`VaultArea::summary_of_file`]); `None` for a file never opened
+    /// or sealed here.
+    pub(crate) fn vault_id_of_file(&self, sha: Option<[u8; 32]>) -> Option<[u8; 32]> {
+        self.summary_of_file(sha).map(|s| s.id)
+    }
+
+    /// Whether two files in Files are known to be copies of one vault:
+    /// both SHA-256 are among one summary's copies.
+    pub(crate) fn same_vault_files(&self, a: Option<[u8; 32]>, b: Option<[u8; 32]>) -> bool {
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                a == b
+                    || self
+                        .state
+                        .summaries
+                        .iter()
+                        .any(|s| s.copies.contains(&a) && s.copies.contains(&b))
+            }
+            _ => false,
+        }
     }
 
     /// Changes open vault `id`'s records through `change` ([`Vaults::edit`]).
@@ -505,7 +543,7 @@ impl VaultArea {
     /// file was.
     pub(crate) fn rename_open(&mut self, salt: &[u8; 32], from: &str, to: &str) {
         for v in &mut self.state.open {
-            if v.header().salt == *salt && v.name == from {
+            if v.vault_id() == *salt && v.name == from {
                 v.name = to.to_string();
             }
         }
@@ -615,14 +653,18 @@ pub struct VaultFile {
     /// It waits in the Outbox (made or sealed here), rather than having
     /// come from a stick.
     pub in_outbox: bool,
-    /// Its header.
-    pub header: Header,
+    /// What its header and length state, read once when it came in.
+    pub facts: fv::file::Facts,
+    /// Its SHA-256, which links it to a vault through the summaries'
+    /// copies ([`VaultArea::summary_of_file`]).
+    pub sha: Option<[u8; 32]>,
     /// Its length in bytes.
     pub len: usize,
-    /// The open vault it is, when one of its slots is open.
+    /// The open vault it is, when one is open.
     pub open: Option<usize>,
-    /// The names of the other files in Files that are this vault (the
-    /// same header salt), which it is listed once for.
+    /// The names of the other files in Files that are known copies of
+    /// this vault (their SHA-256 are among its summary's copies), which
+    /// it is listed once for.
     pub copies: Vec<String>,
 }
 
@@ -715,6 +757,8 @@ pub(super) struct Read {
     version: u64,
     /// The wallet description each holds.
     described: Vec<Option<Described>>,
+    /// The bytes of plaintext the next seal takes.
+    used: usize,
 }
 
 impl Vaults {
@@ -788,52 +832,75 @@ impl Vaults {
             .map(|(_, m)| m)
     }
 
-    /// Why `records` do not fit open vault `id`'s slot: the bytes they
-    /// take and the room left; None when they fit.
-    pub(crate) fn no_room(&self, id: VaultId, records: &[Record]) -> Option<String> {
-        let sizes: Vec<usize> = records.iter().map(|r| r.size()).collect();
-        if self.store.fits(id, &[], &sizes) {
+    /// Costs a document write and a read of each record put (through
+    /// `fits` and `used`). Why `records` do not fit open vault `id`'s
+    /// slot: the bytes they take and the room left; None when they fit.
+    pub(crate) fn no_room(&self, c: &Compute, id: VaultId, records: &[Record]) -> Option<String> {
+        let refs: Vec<&Record> = records.iter().collect();
+        if self.store.fits(c, id, &[], &refs) {
             return None;
         }
         let slot = self
             .open
             .iter()
             .find(|o| o.id == id)
-            .map_or(0, |o| o.header().slot_len);
-        let room = (slot as usize).saturating_sub(self.records(id).used());
-        let need = sizes.iter().sum::<usize>().to_string();
+            .map_or(0, |o| o.slot_limit());
+        let room = slot.saturating_sub(self.records(id).used(c));
+        let need = records.iter().map(|r| r.size()).sum::<usize>().to_string();
         Some(fill(EN.vaults_those_entries, &[&need, &room.to_string()]))
     }
 
-    /// Why open vault `i` cannot be sealed: its changes are more than its
-    /// slot holds, so a lock would lose them. None when it can be.
-    pub(crate) fn cannot_seal(&self, i: usize) -> Option<String> {
+    /// Costs a document write and a read of each record changed (through
+    /// `used`). Why open vault `i` cannot be sealed: its changes are more
+    /// than its slot holds, so a lock would lose them. None when it can be.
+    pub(crate) fn cannot_seal(&self, c: &Compute, i: usize) -> Option<String> {
         let v = self.open.get(i)?;
-        let slot = v.header().slot_len as usize;
-        let used = self.records(v.id).used();
+        self.cannot_seal_with(i, self.records(v.id).used(c))
+    }
+
+    /// What [`Vaults::cannot_seal`] says, from what [`Vaults::warm`] read
+    /// before the frame: lookups only, for drawing. None until read.
+    pub(crate) fn cannot_seal_seen(&self, i: usize) -> Option<String> {
+        let v = self.open.get(i)?;
+        let used = v.read.read.get()?.used;
+        self.cannot_seal_with(i, used)
+    }
+
+    /// Why open vault `i` cannot be sealed when its seal takes `used`
+    /// bytes of plaintext.
+    fn cannot_seal_with(&self, i: usize, used: usize) -> Option<String> {
+        let v = self.open.get(i)?;
+        let slot = v.slot_limit();
         let over = (used - slot.min(used)).to_string();
         (v.changes > 0 && used > slot).then(|| fill(EN.vault_cannot_seal, &[&v.name, &over]))
     }
 
-    /// Why the first open vault that cannot be sealed cannot be
-    /// ([`Vaults::cannot_seal`]). Reads only.
-    pub fn seal_blocked(&self) -> Option<String> {
-        (0..self.open.len()).find_map(|i| self.cannot_seal(i))
+    /// Costs what [`Vaults::cannot_seal`] costs, for each open vault. Why
+    /// the first open vault that cannot be sealed cannot be. Reads only.
+    pub fn seal_blocked(&self, c: &Compute) -> Option<String> {
+        (0..self.open.len()).find_map(|i| self.cannot_seal(c, i))
     }
 
-    /// The signed-amount memory's records `new` into open vault `i`, the
-    /// oldest of them leaving first while the slot is over full
-    /// (`docs/VAULT.md` §7, type 10).
-    pub(crate) fn add_amounts(&mut self, i: usize, new: Vec<Record>) {
+    /// What [`Vaults::seal_blocked`] says from what was read before the
+    /// frame: lookups only, for drawing.
+    pub fn seal_blocked_seen(&self) -> Option<String> {
+        (0..self.open.len()).find_map(|i| self.cannot_seal_seen(i))
+    }
+
+    /// Costs a document write and a read of each record changed, each time
+    /// it checks the fit. The signed-amount memory's records `new` into
+    /// open vault `i`, the oldest of them leaving first while the slot is
+    /// over full (`docs/VAULT.md` §7, type 10).
+    pub(crate) fn add_amounts(&mut self, c: &Compute, i: usize, new: Vec<Record>) {
         let Some(v) = self.open.get(i).filter(|_| !new.is_empty()) else {
             return;
         };
-        let (id, slot_len) = (v.id, v.header().slot_len as usize);
+        let (id, slot_len) = (v.id, v.slot_limit());
         self.edit(id, |s| {
             for r in new {
                 s.insert(id, r);
             }
-            while s.records(id).used() > slot_len {
+            while s.records(id).used(c) > slot_len {
                 let oldest = s
                     .records(id)
                     .iter()
@@ -900,6 +967,7 @@ impl Vaults {
             self.store.warm(c, id);
             Read {
                 version: self.store.version(id),
+                used: self.store.records(id).used(c),
                 described: self
                     .store
                     .records(id)
@@ -1025,9 +1093,12 @@ pub struct OpenVault {
     pub name: String,
     /// Which slot of [`Vaults::store`] it is.
     pub id: VaultId,
-    /// The header of the file it was opened from, copied from the store
-    /// when it opened: public, and the same for as long as it is open.
-    pub(super) header: Header,
+    /// What the header and length of the file it was opened from stated,
+    /// copied from the store when it opened: public, and the same for as
+    /// long as it is open.
+    pub(super) facts: fv::file::Facts,
+    /// The vault's identifier, from the store when it opened.
+    pub(super) vault_id: [u8; 32],
     /// Changes not yet sealed.
     pub changes: usize,
     /// Keys and wallets left out of the next load, by record position.
@@ -1068,9 +1139,23 @@ impl OpenVault {
             .to_string()
     }
 
-    /// The header of the file it was opened from.
-    pub fn header(&self) -> &Header {
-        &self.header
+    /// The most plaintext a seal of this vault may take: the size its file
+    /// shows, else the largest size.
+    pub fn slot_limit(&self) -> usize {
+        self.facts
+            .size
+            .unwrap_or(fv::file::SIZES[fv::file::SIZES.len() - 1])
+    }
+
+    /// What the header and length of the file it was opened from stated.
+    pub fn facts(&self) -> &fv::file::Facts {
+        &self.facts
+    }
+
+    /// The vault's identifier: its root group's UUID in hex, kept for as
+    /// long as it is open.
+    pub fn vault_id(&self) -> [u8; 32] {
+        self.vault_id
     }
 }
 
@@ -1096,8 +1181,8 @@ pub struct CreateForm {
     pub memory: u32,
     /// A custom cost's passes.
     pub passes: u32,
-    /// The slot size.
-    pub slot: u32,
+    /// The vault's size: its plaintext, one of `faraday_vault::file::SIZES`.
+    pub size: usize,
     /// The vault's name, which its file is named after.
     pub name: TextBox,
     /// Each passphrase, typed twice.
@@ -1129,7 +1214,7 @@ impl Default for CreateForm {
             preset: Some(preset),
             memory: 512,
             passes: 3,
-            slot: fv::DEFAULT_SLOT,
+            size: fv::file::DEFAULT_SIZE,
             name: TextBox::default(),
             phrases: vec![(TextBox::default(), TextBox::default())],
             from_dice: vec![None],
@@ -1268,6 +1353,8 @@ pub struct Vaults {
     pub(super) measure_from: Option<u64>,
     /// Work waiting for its frame.
     pub working: Option<Work>,
+    /// The seals of a lock under way ([`super::SealRun`]).
+    pub(crate) sealing: Option<super::SealRun>,
     /// A frame has been drawn since the work was asked for.
     pub(crate) drawn: bool,
     /// When the press now held began, ms.
@@ -1348,9 +1435,6 @@ pub struct Vaults {
     /// be derived. What confirms a record is a wallet slot's key
     /// ([`crate::vault::screen::record_is_policy_key`]). In memory only.
     pub(crate) accounts: std::cell::RefCell<Vec<KeyAccount>>,
-    /// Seal nonces drawn from the session's seed, when no fresh answer
-    /// waited ([`crate::Faraday::vault_seal_nonce`]): only ever counts up.
-    pub(super) draws: u64,
     /// The selected key's SeedQR while its eye shows it, by record
     /// index: made at the press that shows it, dropped at the press that
     /// hides it and with [`Vaults::shown`].
@@ -1406,8 +1490,8 @@ pub fn mib_text(mib: u32) -> String {
     }
 }
 
-/// A slot size as a person reads it.
-pub fn size_text(slot: u32) -> String {
+/// A vault's size as a person reads it.
+pub fn size_text(slot: usize) -> String {
     if slot >= 1_048_576 {
         fill(EN.vaults_mib, &[&(slot / 1_048_576).to_string()])
     } else {
@@ -1485,12 +1569,12 @@ impl Vaults {
     }
 
     /// Why this computer does not unlock a vault of `memory_mib` unlock
-    /// memory and `slot_len` slots, by what it has free; `None` when it
+    /// memory and `size` plaintext, by what it has free; `None` when it
     /// does. Not knowing what it has free, it unlocks only Light's, which
     /// opens anywhere (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
-    pub(crate) fn unlock_memory_refusal(&self, cost: Cost, slot_len: u32) -> Option<String> {
+    pub(crate) fn unlock_memory_refusal(&self, cost: Cost, size: usize) -> Option<String> {
         let memory_mib = cost.memory_kib / 1024;
-        let need = vault_need_mib(memory_mib, slot_len);
+        let need = vault_need_mib(memory_mib, size);
         let refusal = match self.memory_free_mib {
             Some(free) if need > free => Some(fill(
                 EN.vaults_needs_this_computer,
@@ -1510,7 +1594,7 @@ impl Vaults {
     /// only Light's (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
     pub(crate) fn create_memory_refusal(&self) -> Option<String> {
         let (_, mem, passes) = self.form_cost()?;
-        let slot = self.create.as_ref()?.slot;
+        let slot = self.create.as_ref()?.size;
         let refusal = match self.memory_free_mib {
             Some(free) if vault_need_mib(mem, slot) > free => {
                 Some(EN.vaults_choose_a_cost.to_string())
@@ -1528,7 +1612,7 @@ impl Vaults {
     pub(super) fn adopt(
         &mut self,
         stretched: faraday_keys::job::Stretched,
-    ) -> Result<(VaultId, Header), fv::Error> {
+    ) -> Result<(VaultId, fv::file::Facts), fv::file::Error> {
         self.store.adopt(stretched)
     }
 
@@ -1541,7 +1625,10 @@ impl Vaults {
         let Some(free) = self.memory_free_mib else {
             return LIGHT_MIB;
         };
-        let slot = self.create.as_ref().map_or(fv::DEFAULT_SLOT, |c| c.slot);
+        let slot = self
+            .create
+            .as_ref()
+            .map_or(fv::file::DEFAULT_SIZE, |c| c.size);
         CUSTOM_MEMORY
             .iter()
             .copied()
@@ -1743,8 +1830,10 @@ impl Currency {
 pub struct VaultSummary {
     /// The file it was opened from.
     pub file: String,
-    /// The file's salt, which is the vault's identity.
-    pub salt: [u8; 32],
+    /// The vault's identifier: its root group's UUID in hex
+    /// (`docs/VAULT.md` §7). A file has no identifier Files can read, so
+    /// a file is linked to a vault by [`VaultSummary::copies`].
+    pub id: [u8; 32],
     /// The SHA-256 of every copy of the vault the session has seen: the
     /// file opened and each seal (`docs/VAULT.md` §6). A file on a stick
     /// is a copy of the vault when its SHA-256 is among them.
@@ -1771,9 +1860,9 @@ pub struct VaultSummary {
     pub map: Vec<String>,
     /// When it was last seen open, Unix seconds, when the clock is known.
     pub seen: Option<u64>,
-    /// The highest seal count seen of each of its slots since power-on
+    /// The highest seal count seen of it since power-on
     /// (`docs/VAULT-HARDENING.md` §5.3).
-    pub seals: Vec<SealSeen>,
+    pub seal: Option<SealSeen>,
 }
 
 impl VaultSummary {
@@ -1955,12 +2044,12 @@ pub const MAX_UNLOCK_MIB: u32 = 4096;
 pub const APP_MIB: u32 = 100;
 
 /// The memory a machine needs free to open a vault of this unlock memory
-/// and slot size, MiB: the Argon2id memory, twice the file (the file and
+/// and size, MiB: the Argon2id memory, twice the file (the file and
 /// a sealed copy beside it while it is written) and [`APP_MIB`]
 /// (`docs/VAULT.md` §3.1).
-pub fn vault_need_mib(memory_mib: u32, slot_len: u32) -> u32 {
+pub fn vault_need_mib(memory_mib: u32, size: usize) -> u32 {
     const MIB: u64 = 1024 * 1024;
-    let twice = (2 * fv::file_len(slot_len) as u64 + MIB / 2) / MIB;
+    let twice = (2 * fv::file::file_len(size) as u64 + MIB / 2) / MIB;
     memory_mib + twice as u32 + APP_MIB
 }
 
@@ -2101,12 +2190,8 @@ pub enum VaultAction {
     CMemory(usize),
     /// A custom cost's passes.
     CPasses(usize),
-    /// The slot size.
+    /// The size, by its place in `faraday_vault::file::SIZES`.
     CSize(usize),
-    /// Another passphrase.
-    CAddPhrase,
-    /// Remove a passphrase.
-    CRemovePhrase(usize),
     /// Type into passphrase n, its first or second field.
     CFocus(usize, bool),
     /// Type the vault's name.

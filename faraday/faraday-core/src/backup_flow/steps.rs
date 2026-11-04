@@ -4,6 +4,7 @@
 //! The state is `backup_flow.rs`; the cards are `backup_flow/screen.rs`.
 
 use faraday_crypto::work::Compute;
+use faraday_keys::vault::IntoRecord;
 use faraday_vault::{self as fv, records::kind};
 
 use crate::backup_flow::{
@@ -116,7 +117,7 @@ impl Faraday {
         self.vaults
             .open
             .iter()
-            .position(|o| o.header().salt == salt)
+            .position(|o| o.vault_id() == salt)
     }
 
     /// The vaults of flow `i` that must be open for the key to be made or
@@ -571,7 +572,7 @@ impl Faraday {
                 .vaults
                 .open
                 .iter()
-                .position(|o| o.header().salt == salt)
+                .position(|o| o.vault_id() == salt)
             else {
                 continue;
             };
@@ -583,12 +584,13 @@ impl Faraday {
                 .is_some_and(|id| self.flow_vault_holds_only(o, kind, id));
             if only_key && !vp.existing {
                 self.vaults.close_at(o);
+                let vaults = &self.vaults;
                 let same = |it: &Item| {
-                    it.kind == FileKind::Vault
-                        && fv::read_header(&it.bytes).is_ok_and(|h| h.salt == salt)
+                    it.kind == FileKind::Vault && vaults.vault_id_of_file(it.sha) == Some(salt)
                 };
-                self.outbox.retain(|it| !same(it));
-                self.inbox.retain(|it| !same(it));
+                let (outbox, inbox) = (&mut self.outbox, &mut self.inbox);
+                outbox.retain(|it| !same(it));
+                inbox.retain(|it| !same(it));
                 self.save_boxes();
             } else if let Some(id) = subject.as_deref() {
                 self.flow_remove_subject(o, kind, id);
@@ -845,19 +847,24 @@ impl Faraday {
         let Some(i) = self.fi() else {
             return;
         };
+        // A file never opened or sealed here has no vault id: it is left
+        // out, as a file that is not a vault is.
+        let sha = bytes.as_ref().map(|b| sha256_of(&c, b));
+        let vault_id = self.vaults.vault_id_of_file(sha);
         let Some(r) = self.flows.all[i].live.reading.as_mut() else {
             return;
         };
         r.pending.retain(|n| n != name);
         if let Some(bytes) = bytes
-            && let Ok(h) = fv::read_header(&bytes)
+            && let Some(sha) = sha
+            && let Some(id) = vault_id
         {
             r.files.push((
                 VaultRead {
                     name: name.to_string(),
                     len: bytes.len(),
-                    sha: sha256_of(&c, &bytes),
-                    salt: h.salt,
+                    sha,
+                    salt: id,
                 },
                 bytes,
             ));
@@ -1075,7 +1082,7 @@ impl Faraday {
     fn flow_files_differ(&self, c: &Compute, salt: &[u8; 32], sha: &[u8; 32]) -> bool {
         self.inbox.iter().chain(self.outbox.iter()).any(|it| {
             it.kind == FileKind::Vault
-                && fv::read_header(&it.bytes).is_ok_and(|h| &h.salt == salt)
+                && self.vaults.vault_id_of_file(it.sha).as_ref() == Some(salt)
                 && &it.hash(c) != sha
         })
     }
@@ -1085,7 +1092,7 @@ impl Faraday {
     /// else its file name.
     pub(crate) fn flow_files_copy_label(&self, c: &Compute, salt: &[u8; 32]) -> String {
         let Some(it) = self.inbox.iter().chain(self.outbox.iter()).find(|it| {
-            it.kind == FileKind::Vault && fv::read_header(&it.bytes).is_ok_and(|h| &h.salt == salt)
+            it.kind == FileKind::Vault && self.vaults.vault_id_of_file(it.sha).as_ref() == Some(salt)
         }) else {
             return String::new();
         };
@@ -1122,11 +1129,11 @@ impl Faraday {
             if let Some((bytes, label)) = found {
                 // The sticks already bound with another copy of this vault
                 // are declined: each is written over only after a hold.
-                if let Ok(h) = fv::read_header(&bytes) {
-                    let sha = sha256_of(&c, &bytes);
+                let sha = sha256_of(&c, &bytes);
+                if let Some(id) = self.vaults.vault_id_of_file(Some(sha)) {
                     for s in &mut self.flows.all[i].slots {
                         if let Some(b) = s.bound.as_mut()
-                            && b.vaults.iter().any(|r| r.salt == h.salt && r.sha != sha)
+                            && b.vaults.iter().any(|r| r.salt == id && r.sha != sha)
                             && !b.declined.contains(&v)
                         {
                             b.declined.push(v);
@@ -1393,12 +1400,14 @@ impl Faraday {
         label: &str,
     ) -> String {
         let c = self.compute();
-        let salt = fv::read_header(&bytes).map(|h| h.salt).ok();
+        let salt = self
+            .vaults
+            .vault_id_of_file(Some(sha256_of(&c, &bytes)));
         // A different vault already under that name keeps its name.
         let clash = self.inbox.iter().any(|it| {
             it.name == name
                 && !(it.kind == FileKind::Vault
-                    && fv::read_header(&it.bytes).ok().map(|h| h.salt) == salt)
+                    && self.vaults.vault_id_of_file(it.sha) == salt)
         });
         let own = if clash {
             self.free_vault_name(&crate::stem(name))
@@ -1409,7 +1418,7 @@ impl Faraday {
         self.inbox.retain(|it| {
             it.name != own
                 && !(it.kind == FileKind::Vault
-                    && fv::read_header(&it.bytes).ok().map(|h| h.salt) == salt)
+                    && self.vaults.vault_id_of_file(it.sha) == salt)
         });
         self.inbox.push(Item::new(&c, &own, bytes));
         self.save_boxes();
@@ -1493,7 +1502,9 @@ impl Faraday {
         let Some(at) = self
             .vault_files()
             .iter()
-            .position(|f| f.header.salt == salt && f.open.is_none())
+            .position(|f| {
+                self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none()
+            })
         else {
             return;
         };
@@ -1525,7 +1536,7 @@ impl Faraday {
         let Some(it) = self.outbox.iter().find(|it| it.name == name) else {
             return false;
         };
-        let Ok(h) = fv::read_header(&it.bytes) else {
+        let Some(id) = self.vaults.vault_id_of_file(it.sha) else {
             return false;
         };
         let len = it.bytes.len();
@@ -1533,7 +1544,7 @@ impl Faraday {
             let vp = &mut self.flows.all[i].plan.vaults[v];
             vp.existing = false;
             vp.file = Some(name.to_string());
-            vp.salt = Some(h.salt);
+            vp.salt = Some(id);
             vp.len = len;
         }
         self.flows.all[i].live.creating = None;
@@ -1542,7 +1553,7 @@ impl Faraday {
         let Some(at) = self
             .vault_files()
             .iter()
-            .position(|f| f.header.salt == h.salt)
+            .position(|f| self.vaults.vault_id_of_file(f.sha) == Some(id))
         else {
             return true;
         };
@@ -1738,7 +1749,9 @@ impl Faraday {
         // Every vault takes it, or none does.
         for &o in &opens {
             let vid = self.vaults.open[o].id;
-            if !self.vaults.store().fits(vid, &[], &[built.record.size()]) {
+            // Each vault takes a copy of the record, as the insert does.
+            let record = (&built.record).into_record();
+            if !self.vaults.store().fits(c, vid, &[], &[&record]) {
                 return self.toast(FEN.vaults_slot_too_small);
             }
         }
@@ -1814,9 +1827,10 @@ impl Faraday {
             return self.toast(FEN.backup_flow_unlock_first);
         };
         let from = self.vaults.open[holder_open].id;
-        let Some(size) = self.vaults.records(from).get(holder_at).map(|r| r.size()) else {
+        let Some(copy) = self.vaults.store().copy_out(from, holder_at, None) else {
             return self.toast(FEN.backup_flow_unlock_first);
         };
+        let c = self.compute();
         let added: Vec<usize> = used
             .iter()
             .copied()
@@ -1829,7 +1843,7 @@ impl Faraday {
             if !self
                 .vaults
                 .store()
-                .fits(self.vaults.open[o].id, &[], &[size])
+                .fits(&c, self.vaults.open[o].id, &[], &[&*copy])
             {
                 return self.toast(FEN.vaults_slot_too_small);
             }
@@ -1969,7 +1983,7 @@ impl Faraday {
     /// not a backup of the key.
     pub(crate) fn flow_sealed(&mut self, o: usize, name: &str, bytes: &[u8]) {
         let c = self.compute();
-        let Some(salt) = self.vaults.open.get(o).map(|v| v.header().salt) else {
+        let Some(salt) = self.vaults.open.get(o).map(|v| v.vault_id()) else {
             return;
         };
         let sha = sha256_of(&c, bytes);
@@ -2534,11 +2548,12 @@ impl Faraday {
                 .position(|it| it.name == s.name && sha256_of(&c, &it.bytes) == s.sha)
             {
                 let item = self.outbox.remove(k);
-                if let Ok(h) = fv::read_header(&item.bytes) {
+                if let Some(id) = self.vaults.vault_id_of_file(item.sha) {
+                    let vaults = &self.vaults;
                     self.inbox.retain(|it| {
                         it.name != item.name
                             && !(it.kind == FileKind::Vault
-                                && fv::read_header(&it.bytes).is_ok_and(|o| o.salt == h.salt))
+                                && vaults.vault_id_of_file(it.sha) == Some(id))
                     });
                 }
                 self.inbox
@@ -2585,7 +2600,9 @@ impl Faraday {
         let Some(at) = self
             .vault_files()
             .iter()
-            .position(|f| f.header.salt == salt && f.open.is_none())
+            .position(|f| {
+                self.vaults.vault_id_of_file(f.sha) == Some(salt) && f.open.is_none()
+            })
         else {
             // Open already: its key's page, or the wallet's checklist.
             if kind_.is_wallet() {
@@ -2888,7 +2905,7 @@ impl Faraday {
 
     /// What was seen of the vault with this salt: "Main · seen 14:02".
     pub(crate) fn vault_summary_for_salt(&self, salt: &[u8; 32]) -> Option<String> {
-        let s = self.vaults.summaries.iter().find(|s| &s.salt == salt)?;
+        let s = self.vaults.summaries.iter().find(|s| &s.id == salt)?;
         Some(match s.seen {
             Some(t) => fill(
                 FEN.backup_flow_seen,

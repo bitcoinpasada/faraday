@@ -139,7 +139,7 @@ pub(crate) fn own_at_press(app: &crate::Faraday) -> bool {
 /// the Lock sheet's Randomness row (`docs/OWN-RANDOMNESS.md` §8.1 row
 /// 15). Only lookups.
 pub(crate) fn lock_seals_changes(app: &crate::Faraday) -> bool {
-    !app.lock_would_lose() && app.vaults.open.iter().any(|v| v.changes > 0)
+    !app.lock_would_lose_seen() && app.vaults.open.iter().any(|v| v.changes > 0)
 }
 
 /// [`own_at_press`] on an open vault's contents: Export for KeePass's

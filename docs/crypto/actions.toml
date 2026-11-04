@@ -7191,6 +7191,12 @@ standards = [
 learn = "faraday:vaults"
 screens = []
 functions = [
+  "faraday/faraday-keys/src/job.rs::SealJob::run",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::fits",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::remove",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::remove_where",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::seal_job",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::uuid_bytes",
   "faraday/faraday-vault/src/kdbx/mod.rs::inspect",
   "faraday/faraday-vault/src/kdbx/mod.rs::checked_header",
   "faraday/faraday-vault/src/kdbx/mod.rs::open",

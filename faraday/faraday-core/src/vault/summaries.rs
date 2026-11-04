@@ -15,10 +15,10 @@ fn kept_field(s: &str) -> String {
 pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
     let mut out = String::new();
     for s in all {
-        let salt: String = faraday_crypto::hex::encode_string(&s.salt);
+        let id = String::from_utf8_lossy(&s.id);
         let seen = s.seen.map(|t| t.to_string()).unwrap_or_default();
         out.push_str(&format!(
-            "vault\t{salt}\t{}\t{}\t{}\t{seen}\n",
+            "vault\t{id}\t{}\t{}\t{}\t{seen}\n",
             kept_field(&s.file),
             kept_field(&s.name),
             s.entries
@@ -52,11 +52,9 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
         for m in &s.map {
             out.push_str(&format!("map\t{}\n", kept_field(m)));
         }
-        for e in &s.seals {
+        if let Some(e) = &s.seal {
             out.push_str(&format!(
-                "seal\t{}\t{}\t{}\t{}\t{}\n",
-                e.len,
-                e.position,
+                "seal\t{}\t{}\t{}\n",
                 e.count,
                 crate::backups::hex32(&e.digest),
                 kept_field(&e.planned.join(","))
@@ -73,11 +71,11 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
     for line in text.lines() {
         let f: Vec<&str> = line.split('\t').collect();
         match f[..] {
-            ["vault", salt, file, name, entries, seen] => {
+            ["vault", id, file, name, entries, seen] => {
                 let mut s = VaultSummary::default();
-                match faraday_crypto::hex::decode_exact::<32>(salt) {
-                    Some(b) => s.salt = b,
-                    None => continue,
+                match <[u8; 32]>::try_from(id.as_bytes()) {
+                    Ok(b) if b.iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f')) => s.id = b,
+                    _ => continue,
                 }
                 s.file = file.to_string();
                 s.name = name.to_string();
@@ -122,11 +120,9 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
                     s.map.push(m.to_string());
                 }
             }
-            ["seal", len, position, count, digest, planned] => {
+            ["seal", count, digest, planned] => {
                 let seen = (|| {
                     Some(SealSeen {
-                        len: len.parse().ok()?,
-                        position: position.parse().ok().filter(|p| *p < 4)?,
                         count: count.parse().ok().filter(|c| *c >= 1)?,
                         digest: crate::backups::read_hex32(digest)?,
                         planned: planned
@@ -137,7 +133,7 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
                     })
                 })();
                 if let (Some(s), Some(seen)) = (out.last_mut(), seen) {
-                    s.seals.push(seen);
+                    s.seal = Some(seen);
                 }
             }
             _ => {}

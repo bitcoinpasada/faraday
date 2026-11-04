@@ -513,7 +513,7 @@ impl Faraday {
         }
         self.vaults.set_current(cur);
         // What the vault held before this backup first saved into it.
-        let salt = self.vaults.open[cur].header().salt;
+        let salt = self.vaults.open[cur].vault_id();
         if self
             .backup
             .state()

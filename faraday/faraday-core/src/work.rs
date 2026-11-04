@@ -238,7 +238,7 @@ pub enum VaultAct {
 pub enum VaultEnded {
     /// The stretch ran.
     Ran,
-    /// Its memory could not be allocated (`faraday_vault::Error::Memory`).
+    /// Its memory could not be allocated (`faraday_vault::file::Error::Memory`).
     NoMemory,
     /// Not started: the memory free here is less than it needs
     /// (`docs/VAULT.md` §3.1).
@@ -249,17 +249,28 @@ pub enum VaultEnded {
 
 impl VaultEnded {
     /// How a vault's open or make ended, by its error's kind. Cheap.
-    pub fn of<T>(result: &Result<T, faraday_vault::Error>) -> VaultEnded {
-        VaultEnded::of_error(result.as_ref().err().copied())
+    pub fn of<T>(result: &Result<T, faraday_vault::file::Error>) -> VaultEnded {
+        VaultEnded::of_error(result.as_ref().err())
     }
 
     /// [`VaultEnded::of`] for a run that gives its error apart from its
-    /// answer. Cheap.
-    pub fn of_error(error: Option<faraday_vault::Error>) -> VaultEnded {
-        use faraday_vault::Error as E;
+    /// answer. A file refused for what it is, before any run, counts as
+    /// refused. Cheap.
+    pub fn of_error(error: Option<&faraday_vault::file::Error>) -> VaultEnded {
+        use faraday_vault::file::Error as E;
+        use faraday_vault::kdbx::Error as K;
         match error {
-            Some(E::Memory(_)) => VaultEnded::NoMemory,
-            Some(E::Magic | E::Version | E::SlotSize | E::Length | E::Cost) => VaultEnded::Refused,
+            Some(E::Memory(_) | E::Kdbx(K::Memory(_))) => VaultEnded::NoMemory,
+            Some(E::Kdbx(
+                K::NotKdbx
+                | K::Older { .. }
+                | K::Newer { .. }
+                | K::UnknownField(_)
+                | K::Unsupported(_)
+                | K::Cost
+                | K::TooLarge
+                | K::Damaged,
+            )) => VaultEnded::Refused,
             _ => VaultEnded::Ran,
         }
     }

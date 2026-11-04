@@ -41,7 +41,7 @@ pub(crate) fn look(app: &View, f: &vault::VaultFile) -> Look {
         .inbox
         .iter()
         .filter(|i| i.kind == crate::FileKind::Vault)
-        .any(|i| faraday_vault::read_header(&i.bytes).is_ok_and(|h| h.salt == f.header.salt));
+        .any(|i| app.vaults.same_vault_files(i.sha, f.sha));
     let fresh = f.in_outbox && !in_inbox;
     // A locked vault seen open since power-on goes by its name.
     let remembered = app.vault_summary(f).map(|s| s.name.as_str());

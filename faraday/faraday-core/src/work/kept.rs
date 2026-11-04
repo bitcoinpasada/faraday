@@ -8,6 +8,7 @@ use faraday_shell_api::App;
 
 use super::budget::{heavy, unlock_test_vault};
 use crate::wallet::{Origin, Wallet, read_wallet, same_wallet};
+use crate::vault::seal::After;
 use crate::{Action, Screen, testkit};
 
 /// A wallet's shape, as the session names it.
@@ -300,24 +301,27 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
         .backup_vault_open(&c, 0)
         .expect("an open vault holds the plan's vault");
     let name = app.vaults.open[o].name.clone();
-    assert!(app.vault_lock_one(o), "the vault locks");
+    assert!(app.vault_lock_one(o, After::Nothing), "the vault locks");
     assert_eq!(
         app.backup_vault_fits(&c, 0),
         Some(name.clone()),
         "the locked vault is done"
     );
-    let salt = app
+    let sha = app
         .vault_files()
         .iter()
         .find(|f| f.name == name)
         .expect("the vault's file")
-        .header
-        .salt;
+        .sha;
+    let salt = app
+        .vaults
+        .vault_id_of_file(sha)
+        .expect("the vault's id");
     let at = app
         .vaults()
         .summaries
         .iter()
-        .position(|s| s.salt == salt)
+        .position(|s| s.id == salt)
         .expect("its summary");
 
     // A summary kept before the ids were: not done.

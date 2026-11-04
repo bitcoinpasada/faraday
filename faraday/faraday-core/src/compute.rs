@@ -187,6 +187,7 @@ impl Faraday {
             Done::Stretch(s) => crate::vault::stretch::stretched(self, *s),
             Done::Aezeed(r) => self.aezeed_read(*r),
             Done::Kdbx(k) => crate::vault::stretch::kdbx_written(self, *k),
+            Done::Seal(d) => crate::vault::seal::sealed(self, *d),
             Done::Sign(d) => crate::signing::signed_spend(self, *d),
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
@@ -222,6 +223,8 @@ impl Faraday {
             {
                 true
             }
+            // A seal is not made stale: its vault has left the store.
+            A::Back | A::Cancel if self.sealing() => false,
             A::Back | A::Cancel => {
                 self.worker.stale();
                 self.worker.set_busy(None);
@@ -248,6 +251,7 @@ impl Faraday {
             self.device_sheet();
         }
         let moved = self.worker.busy().is_some()
+            && !self.sealing()
             && self
                 .worker
                 .origin()

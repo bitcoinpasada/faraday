@@ -24,6 +24,8 @@ pub enum Kind {
     AezeedRead,
     /// A KeePass database written: its Argon2id runs.
     KdbxWrite,
+    /// An open vault sealed at a lock: its Argon2id runs.
+    VaultSeal,
     /// A PSBT signed.
     Signing,
     /// A PSBT read and inspected.
@@ -41,6 +43,7 @@ impl Kind {
             | Kind::VaultStretch
             | Kind::AezeedRead
             | Kind::KdbxWrite
+            | Kind::VaultSeal
             | Kind::Signing
             | Kind::PsbtRead
             | Kind::PublicFiles => false,
@@ -71,6 +74,7 @@ pub(crate) enum Job {
     Stretch(Box<crate::vault::StretchWork>),
     Aezeed(Box<crate::lightning::ReadWork>),
     Kdbx(Box<crate::vault::KdbxWork>),
+    Seal(Box<crate::vault::SealWork>),
     Sign(Box<crate::signing::SignWork>),
     SpendRead(Box<crate::signing::read::ReadWork>),
     Files(Box<crate::public_files::FilesWork>),
@@ -82,6 +86,7 @@ pub(crate) enum Done {
     Stretch(Box<crate::vault::StretchDone>),
     Aezeed(Box<crate::lightning::ReadDone>),
     Kdbx(Box<crate::vault::KdbxDone>),
+    Seal(Box<crate::vault::SealDone>),
     Sign(Box<crate::signing::SignDone>),
     SpendRead(Box<crate::signing::read::ReadDone>),
     Files(Box<crate::public_files::FilesDone>),
@@ -94,6 +99,7 @@ impl Job {
             Job::Stretch(_) => Kind::VaultStretch,
             Job::Aezeed(_) => Kind::AezeedRead,
             Job::Kdbx(_) => Kind::KdbxWrite,
+            Job::Seal(_) => Kind::VaultSeal,
             Job::Sign(_) => Kind::Signing,
             Job::SpendRead(_) => Kind::PsbtRead,
             Job::Files(_) => Kind::PublicFiles,
@@ -107,6 +113,7 @@ impl Job {
             Job::Stretch(j) => Done::Stretch(Box::new(j.run(c))),
             Job::Aezeed(j) => Done::Aezeed(Box::new(j.run(c))),
             Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
+            Job::Seal(j) => Done::Seal(Box::new(j.run(c))),
             Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
             Job::SpendRead(j) => Done::SpendRead(Box::new(j.run(c))),
             Job::Files(j) => Done::Files(Box::new(j.run(c))),

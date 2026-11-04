@@ -192,7 +192,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
                 .filter(|&&v| {
                     f.plan.vaults[v]
                         .salt
-                        .is_some_and(|s| app.vaults.open.iter().any(|o| o.header().salt == s))
+                        .is_some_and(|s| app.vaults.open.iter().any(|o| o.vault_id() == s))
                 })
                 .count();
             fill(
@@ -1013,7 +1013,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
     let open = |v: usize| {
         f.plan.vaults[v]
             .salt
-            .is_some_and(|s| app.vaults.open.iter().any(|o| o.header().salt == s))
+            .is_some_and(|s| app.vaults.open.iter().any(|o| o.vault_id() == s))
     };
     // Every stick is read before this step: it offers each vault found
     // to open and each new one to create, in any order; the one being
@@ -1282,7 +1282,7 @@ pub(super) fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f3
         .iter()
         .filter_map(|&v| {
             let salt = f.plan.vaults.get(v)?.salt?;
-            app.vaults.open.iter().position(|o| o.header().salt == salt)
+            app.vaults.open.iter().position(|o| o.vault_id() == salt)
         })
         .find_map(|o| {
             let at = super::record_in(&app.vaults, o, f.kind, &sub.id)?;

@@ -18,6 +18,7 @@ use super::{unlock_test_vault, walk};
 use crate::create::NewKind;
 use crate::plan::{Answers, Preset};
 use crate::seeds::SeedsState;
+use crate::vault::seal::After;
 use crate::wallet::{KeyTexts, Origin, WALLET_ADDRESSES_KEPT, WALLET_SCRIPTS_KEPT};
 use crate::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_keys::KEY_TEXTS_KEPT;
@@ -111,7 +112,7 @@ fn round(app: &mut Faraday, n: usize) {
         }
     }
     // The test vault locked and unlocked, its contents drawn.
-    let _ = app.vault_lock_one(0);
+    let _ = app.vault_lock_one(0, After::Nothing);
     unlock_test_vault(app);
     app.press(Action::Nav(Screen::VaultContents));
     let _ = app.frame();

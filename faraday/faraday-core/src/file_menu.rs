@@ -122,7 +122,7 @@ pub struct Renaming {
     pub from: String,
     /// What the field holds: the name before its extension.
     pub stem: String,
-    /// The extension, fixed: `.fvlt` for a vault; empty for a name with
+    /// The extension, fixed: `.kdbx` for a vault; empty for a name with
     /// none.
     pub ext: String,
 }
@@ -168,7 +168,7 @@ const NOT_IN_NAMES: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
 /// The longest name, its extension with it.
 const NAME_MAX: usize = 255;
 
-/// A name split before its extension: `.fvlt` for a vault, every file its
+/// A name split before its extension: `.kdbx` for a vault, every file its
 /// own; a name with no dot past its first character has none.
 fn split(name: &str) -> (String, String) {
     match name.rfind('.') {
@@ -539,11 +539,11 @@ impl Faraday {
                     self.visit.out.insert(to.clone());
                 }
                 // A vault open here seals again under the file's new name.
-                if let Some(h) = (item.kind == FileKind::Vault)
-                    .then(|| faraday_vault::read_header(&item.bytes).ok())
+                if let Some(id) = (item.kind == FileKind::Vault)
+                    .then(|| self.vaults.vault_id_of_file(item.sha))
                     .flatten()
                 {
-                    self.vaults.rename_open(&h.salt, &r.from, &to);
+                    self.vaults.rename_open(&id, &r.from, &to);
                 }
                 self.save_boxes();
             }

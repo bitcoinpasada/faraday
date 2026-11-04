@@ -574,7 +574,7 @@ fn qr_speed_labels() -> [&'static str; 3] {
 }
 
 pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let blocked = app.vaults().seal_blocked();
+    let blocked = app.vaults().seal_blocked_seen();
     let (head, line, lock) = if app.seal_waits() {
         (
             (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),

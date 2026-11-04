@@ -2,7 +2,8 @@
 //! (`docs/KEYS.md` §4 step 3).
 //!
 //! A vault is opened here ([`OpenVaults::unlock`]) and sealed by a job
-//! this store makes ([`OpenVaults::seal_job`]), which takes the vault out.
+//! this store makes ([`OpenVaults::seal_job`]), which marks the vault
+//! sealing until [`OpenVaults::seal_ended`].
 //! The opened file, with the passphrase it seals under, is private to this
 //! module and the job. The caller holds a [`VaultId`], which tells open
 //! vaults apart and says nothing else.
@@ -332,6 +333,14 @@ impl Staged {
     /// The bytes the record takes in a slot.
     pub fn size(&self) -> usize {
         self.view().size()
+    }
+
+    /// The record itself, to measure with [`OpenVaults::fits`].
+    pub fn record(&self) -> &Record {
+        match self {
+            Staged::Made(r) => r,
+            Staged::Held(h) => h,
+        }
     }
 }
 
@@ -761,6 +770,13 @@ fn put_op(o: &Origin, rec: &Record, dirty: bool, plan: &mut u32, ops: &mut Vec<O
             if rec.kind == kind::AMOUNTS && key.starts_with("faraday.signed.") =>
         {
             if dirty {
+                // The key names the transaction: one changed to another
+                // leaves the old key to go.
+                let tx = rec.field(field::AMOUNTS_TX).unwrap_or(&[]);
+                let now: String = tx.iter().map(|b| format!("{b:02x}")).collect();
+                if key.strip_prefix("faraday.signed.") != Some(now.as_str()) {
+                    drop_op(o, ops);
+                }
                 ops.push(Op::Signed(rec.clone()));
             }
         }
@@ -820,6 +836,8 @@ struct Slot {
     facts: OnceCell<Vec<Option<Fact>>>,
     /// The plaintext the next seal takes; dropped by every edit.
     used: OnceCell<usize>,
+    /// A seal job holds the file: every edit refuses until it ends.
+    sealing: bool,
 }
 
 impl Slot {
@@ -839,9 +857,9 @@ impl Slot {
         self.changed();
     }
 
-    /// Whether the vault may not be changed.
+    /// Whether the vault may not be changed: read-only, or sealing.
     fn locked(&self) -> bool {
-        self.opened.read_only().is_some()
+        self.sealing || self.opened.read_only().is_some()
     }
 
     /// The most plaintext a seal may take.
@@ -933,7 +951,15 @@ impl Slot {
         names: &Names,
         ov: &Overlay<'_>,
     ) -> Result<usize, fv::file::Error> {
-        let ops = self.ops(ov, &mut || [0; 16]);
+        // Each new entry and group gets a UUID of its own, as the seal's:
+        // two with one would count as one.
+        let mut n = 0u64;
+        let ops = self.ops(ov, &mut || {
+            n += 1;
+            let mut u = [0u8; 16];
+            u[..8].copy_from_slice(&n.to_le_bytes());
+            u
+        });
         with_changes(c, names, &ops, false, Some(0), |changes| {
             self.opened.used(c, changes)
         })
@@ -948,12 +974,12 @@ impl Slot {
 }
 
 /// The open vaults. Each is held from its unlock until it is closed or
-/// its seal job is made, with the file it was opened from; both are wiped
+/// its seal ends in a file, with the file it was opened from; both are wiped
 /// when it goes.
 ///
 /// Invariant: a [`VaultId`] this store has made names its slot until
-/// [`OpenVaults::close`], [`OpenVaults::clear`] or [`OpenVaults::seal_job`]
-/// drops it, and the opened file does not change. A slot's
+/// [`OpenVaults::close`], [`OpenVaults::clear`] or [`OpenVaults::seal_ended`]
+/// (with a file made) drops it, and the opened file does not change. A slot's
 /// [`OpenVaults::version`] moves with every edit of its records, and only
 /// then; the facts worked out of the key records' words are dropped with
 /// it.
@@ -1101,6 +1127,7 @@ impl OpenVaults {
             version: 0,
             facts: OnceCell::new(),
             used: OnceCell::new(),
+            sealing: false,
         });
         (id, facts)
     }
@@ -1128,13 +1155,14 @@ impl OpenVaults {
         Some(n * 16)
     }
 
-    /// Takes open vault `id` out of the store and makes the job that
-    /// seals it: its changes written, the seal count one higher with the
+    /// Makes the job that seals open vault `id`, which stays in the
+    /// store, marked sealing (every edit refuses) until
+    /// [`OpenVaults::seal_ended`]. The job's file is written with the changes: its changes written, the seal count one higher with the
     /// time `now` (Unix seconds, `None` when the clock is not set), under
     /// `random` and with the new entries' and groups' UUIDs from `uuids`
-    /// ([`OpenVaults::uuid_bytes`] long). The vault is closed when its job
-    /// is made. `None`, and the vault still open, for an id this store does
-    /// not hold, a read-only vault or too few `uuids`.
+    /// ([`OpenVaults::uuid_bytes`] long). `None`, and the vault not
+    /// marked, for an id this store does not hold, a read-only or already
+    /// sealing vault or too few `uuids`.
     pub fn seal_job(
         &mut self,
         id: VaultId,
@@ -1163,14 +1191,26 @@ impl OpenVaults {
         if short {
             return None;
         }
-        let s = self.slots.remove(at);
+        let s = &mut self.slots[at];
+        s.sealing = true;
         Some(crate::job::SealJob::new(
-            s.opened,
+            Arc::clone(&s.opened),
             ops,
             self.names.clone(),
             random,
             now,
         ))
+    }
+
+    /// A seal job of open vault `id` ended: with `ok` the vault is closed
+    /// (its file was made); else it stays open with its changes and may
+    /// be edited and sealed again.
+    pub fn seal_ended(&mut self, id: VaultId, ok: bool) {
+        if ok {
+            self.slots.retain(|s| s.id != id);
+        } else if let Some(s) = self.slots.iter_mut().find(|s| s.id == id) {
+            s.sealing = false;
+        }
     }
 
     /// A lookup. Open vault `id`'s identifier (the root group's UUID in

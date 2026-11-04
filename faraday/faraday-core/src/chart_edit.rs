@@ -180,12 +180,13 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
+        let c = self.compute();
         let texts: Vec<String> = notes.iter().map(Note::to_text).collect();
         let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
         if self
             .vaults
             .edit(id, |s| {
-                s.set_public_all_in(id, &ours, field::PLAN_NOTE, &values)
+                s.set_public_all_in(&c, id, &ours, field::PLAN_NOTE, &values)
             })
             .is_err()
         {

@@ -1256,12 +1256,12 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             fill(EN.family_copied_from_medium, &[app.medium.a()])
         };
         let where_ = format!("{where_} · {}", file_text(f.len));
-        let mem = f.header.cost.memory_kib / 1024;
+        let mem = f.facts.header.cost.memory_kib / 1024;
         let time = fill(
             EN.family_unlock_time,
             &[&app
                 .vaults()
-                .time_text(mem, f.header.cost.passes)
+                .time_text(mem, f.facts.header.cost.passes)
                 .to_string()],
         );
         if compact {
@@ -1280,7 +1280,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x + w - 14.0, cy + 32.0, 24.0),
                 BODY_S,
                 muted,
-                &cost_text(&f.header.cost),
+                &cost_text(&f.facts.header.cost),
             );
         }
         ui.press_box(x, cy, w, ch, fa(F::Pick(*i)));

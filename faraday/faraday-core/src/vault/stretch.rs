@@ -8,7 +8,9 @@
 
 use faraday_crypto::work::Compute;
 use faraday_keys::job::{KdbxError, KdbxJob, StretchJob, Stretched};
-use faraday_vault::{Contents, Cost, Record, records::field, records::kind};
+use faraday_keys::vault::SEAL_RANDOM_LEN;
+use faraday_vault::{Cost, records::field, records::kind};
+use faraday_vault::file::STEPS_KIB;
 use zeroize::Zeroizing;
 
 use super::{VaultAction, Work, errors, vault_stem};
@@ -51,7 +53,8 @@ impl StretchWork {
     /// stretch noted ([`work::note_vault`]).
     pub(crate) fn run(self, c: &Compute) -> StretchDone {
         let stretched = self.job.run(c);
-        work::note_vault(self.act, self.cost, VaultEnded::of_error(stretched.error()));
+        let error = stretched.error();
+        work::note_vault(self.act, self.cost, VaultEnded::of_error(error.as_ref()));
         StretchDone {
             stretched,
             plan: self.plan,
@@ -109,7 +112,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
         return false;
     };
     let name = f.name.clone();
-    let cost = f.header.cost;
+    let cost = f.facts.header.cost;
     // Unlocked on the boot import's sheet: the unlock imports.
     let for_import = app.sheet == Some(crate::Sheet::Import) && app.import.state().is_some();
     let passphrase = std::mem::take(&mut app.vaults.state.passphrase.text);
@@ -125,9 +128,9 @@ fn unlock_start(app: &mut Faraday) -> bool {
     true
 }
 
-/// The front half of Create: the form's passphrases are copied into
-/// the job (the form keeps them for a Back or an error) and wiped
-/// with it. False when nothing started.
+/// The front half of Create: the form's passphrase is copied into the
+/// job (the form keeps it for a Back or an error) and wiped with it.
+/// False when nothing started.
 fn create_start(app: &mut Faraday) -> bool {
     // Everything random in a vault comes from fresh system entropy of
     // its own; a vault is never made before it has arrived.
@@ -141,17 +144,32 @@ fn create_start(app: &mut Faraday) -> bool {
     let Some((_, mem, passes)) = app.vaults.form_cost() else {
         return false;
     };
-    let Some(seed) = app.fresh(b"vault create") else {
+    let Some(id) = app.fresh_bytes(b"vault id", 16) else {
         return false;
     };
-    let seed = Zeroizing::new(seed);
+    let Some(random) = app.fresh_bytes(b"vault seal", SEAL_RANDOM_LEN) else {
+        return false;
+    };
+    let mut id16 = [0u8; 16];
+    id16.copy_from_slice(&id);
+    let mut seal = Zeroizing::new([0u8; SEAL_RANDOM_LEN]);
+    seal.copy_from_slice(&random);
+    let now = app.clock_now();
     let Some(form) = app.vaults.create.as_ref() else {
         return false;
     };
+    // The memory is the largest step the file takes at or below what the
+    // form states; its lanes are the format's.
+    let memory_kib = STEPS_KIB
+        .iter()
+        .copied()
+        .filter(|k| *k <= mem.saturating_mul(1024))
+        .max()
+        .unwrap_or(STEPS_KIB[0]);
     let cost = Cost {
-        memory_kib: mem * 1024,
+        memory_kib,
         passes,
-        lanes: 1,
+        lanes: 4,
     };
     let first = Zeroizing::new(
         form.phrases
@@ -159,17 +177,12 @@ fn create_start(app: &mut Faraday) -> bool {
             .map(|(a, _)| a.text.to_string())
             .unwrap_or_default(),
     );
-    let phrases = form
-        .phrases
-        .iter()
-        .map(|(a, _)| crate::secret_text::SecretText::of(&a.text))
-        .collect();
-    // Every slot starts with the vault's name: a slot opened under
-    // pressure says nothing of the others (`docs/VAULT.md` §9, F57).
+    let phrase = crate::secret_text::SecretText::of(&first);
+    // The vault's name is the database's name: 64 bytes at most
+    // (`docs/VAULT.md` §7).
     let label = match form.name.text.trim() {
         "" => EN.vaults_vault,
         typed => {
-            // A slot's label holds 64 bytes (`docs/VAULT.md` §7).
             let end = (0..=typed.len().min(64))
                 .rev()
                 .find(|&i| typed.is_char_boundary(i))
@@ -177,14 +190,7 @@ fn create_start(app: &mut Faraday) -> bool {
             &typed[..end]
         }
     };
-    let contents: Vec<Contents> = form
-        .phrases
-        .iter()
-        .map(|_| Contents {
-            records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes())],
-        })
-        .collect();
-    let job = StretchJob::make(form.slot, cost, phrases, contents, seed);
+    let job = StretchJob::make(id16, label.into(), cost, form.size, phrase, seal, now);
     let typed = form.name.text.to_string();
     app.start(
         Job::Stretch(Box::new(StretchWork {
@@ -219,13 +225,15 @@ fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: b
     }
     let before = app.vaults.open.len();
     match app.vaults.state.adopt(stretched) {
-        Ok((id, header)) => {
+        Ok((id, facts)) => {
+            let vault_id = app.vaults.state.store().vault_id(id).unwrap_or_default();
             app.vaults.state.typed_shown = false;
             app.vaults.state.focus = None;
             app.vaults.state.open.push(super::OpenVault {
                 name,
                 id,
-                header,
+                facts,
+                vault_id,
                 changes: 0,
                 skip: Default::default(),
                 each_shown: false,
@@ -239,7 +247,7 @@ fn unlocked(app: &mut Faraday, stretched: Stretched, name: String, for_import: b
             }
         }
         Err(e) => {
-            app.vaults.state.unlock_error = Some(errors::error_text(e));
+            app.vaults.state.unlock_error = Some(errors::error_text(&e));
         }
     }
     if app.vaults.open.len() > before && app.vaults.older.is_none() {
@@ -281,7 +289,7 @@ fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str) {
         }
         Err(e) => {
             if let Some(c) = app.vaults.state.create.as_mut() {
-                c.error = Some(errors::error_text(e));
+                c.error = Some(errors::error_text(&e));
             }
         }
     }

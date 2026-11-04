@@ -804,9 +804,9 @@ fn out_line(
 ) -> (String, (&'static str, Role)) {
     use crate::secrets::Exposure;
     let open_here = (item.kind == FileKind::Vault)
-        .then(|| faraday_vault::read_header(&item.bytes).ok())
+        .then(|| app.vaults.vault_id_of_file(item.sha))
         .flatten()
-        .and_then(|h| app.vaults.open.iter().find(|v| v.header().salt == h.salt));
+        .and_then(|id| app.vaults.open.iter().find(|v| v.vault_id() == id));
     let line = match open_here {
         // With no seed to seal with, Lock does not seal it.
         Some(v) if v.changes > 0 => fill(

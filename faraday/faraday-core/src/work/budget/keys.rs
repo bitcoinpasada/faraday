@@ -10,6 +10,7 @@ use faraday_shell_api::{App, Event, Key};
 
 use super::walk;
 use crate::vault::VaultAction as V;
+use crate::vault::seal::After;
 use crate::work::{Counts, KINDS, PIXELS, Work, since, snapshot};
 use crate::{Action, Faraday, Screen, testkit};
 
@@ -209,7 +210,7 @@ fn fields() -> Vec<Field> {
         "Unlock a vault, its passphrase",
         |app| {
             while !app.vaults.open.is_empty() {
-                let _ = app.vault_lock_one(0);
+                let _ = app.vault_lock_one(0, After::Nothing);
             }
             on(app, Screen::Vaults);
             let n = app

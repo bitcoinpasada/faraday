@@ -26,7 +26,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
         .vaults
         .create
         .as_ref()
-        .map_or(faraday_vault::DEFAULT_SLOT, |c| c.slot);
+        .map_or(faraday_vault::file::DEFAULT_SIZE, |c| c.size);
     if let Some(free) = app.vaults.memory_free_mib
         && vault::vault_need_mib(mem, slot) > free
     {
@@ -78,9 +78,9 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
     let facts = [
         (
             EN.vault_file,
-            format!("{}.fvlt", vault::vault_stem(&c.name.text)),
+            format!("{}.kdbx", vault::vault_stem(&c.name.text)),
         ),
-        (EN.vault_size, file_text(file_len(c.slot))),
+        (EN.vault_size, file_text(file_len(c.size))),
         (EN.vault_unlock_memory, mib_text(mem)),
         (EN.vault_unlock_here, app.vaults.time_text(mem, passes)),
         (
@@ -88,11 +88,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
             fill(EN.vault_bits, &[&format!("{cost:.1}")]),
         ),
         (
-            if c.phrases.len() > 1 {
-                EN.vault_weakest_passphrase
-            } else {
-                EN.vault_strength
-            },
+            EN.vault_strength,
             strength,
         ),
         (EN.vault_goes_to_label, app.medium.for_box().to_string()),

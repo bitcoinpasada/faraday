@@ -1564,7 +1564,7 @@ strings! {
     catalog_unlock_a_vault: "Unlock a vault first",
     // ----- chart_edit (faraday-core/src/chart_edit.rs) -----
     /// Toast in `chart_notes_change`.
-    chart_edit_that_does: "That does not fit in this vault's slot size",
+    chart_edit_that_does: "That does not fit in this vault's size",
     /// Text in `edit_title`.
     chart_edit_a_new_place: "a new place",
     /// Text in `edit_title`. `{}`: `p + 1`.
@@ -2285,7 +2285,7 @@ strings! {
     /// Text. `{}`: `m.a_full_cap()`.
     family_labelled_faraday: "{} labelled Faraday, and a passphrase on a separate card",
     /// Text. `{}`: `m.noun()`.
-    family_looks_medium: "The {} starts the computer and carries the vault, a locked file named like vault.fvlt. The passphrase opens it. The vault holds the wallet and the keys that sign for it.",
+    family_looks_medium: "The {} starts the computer and carries the vault, a locked file named like vault.kdbx. The passphrase opens it. The vault holds the wallet and the keys that sign for it.",
     /// Text in `title`.
     family_how_to_spend: "How to spend bitcoin",
     /// Text in `title`. `{}`: `app.medium.noun()`.
@@ -8294,19 +8294,13 @@ strings! {
     /// Text in `create_guide`.
     vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines, the cost and the space one by one.",
     /// Text in `create_guide`.
-    vault_each_passphrase: "Each passphrase opens its own contents, and the file does not say how many there are. They are fixed now: a change later means a new vault. Six EFF words are out of reach at any cost.",
+    vault_each_passphrase: "The passphrase is fixed now: a change later means a new vault. Six EFF words are out of reach at any cost.",
     /// Text in `create_summaries`.
     vault_none_chosen: "None chosen",
     /// Text. `{}`: `name`, `mib_text(mem)`, `passes`.
     vault_cost_row: "{} · {} · {} passes",
     /// Text. `{}`: `size_text(c.slot)`, `file_text(file_len(c.slot))`.
     vault_file_n: "{} · file {}",
-    /// Text. `{}`: `vault::vault_stem(&c.name.text)`, `n`, `if n == 1 { FEN.vault_passphrase_inline } …`, `if ok { FEN.vault_match } else { FEN.…`.
-    vault_fvlt: "{}.fvlt · {} {} · {}",
-    /// Text in `create_summaries`.
-    vault_passphrase_inline: "passphrase",
-    /// Text in `create_summaries`.
-    vault_passphrases: "passphrases",
     /// Text in `create_summaries`.
     vault_match: "match",
     /// Text in `create_summaries`.
@@ -8356,17 +8350,13 @@ strings! {
     /// Line in `create_body`.
     vault_name: "Name",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
-    vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.fvlt",
-    /// Text in `create_body`. `{}`: `vault::vault_stem(&c.name.text)`.
-    vault_file_fvlt: "File {}.fvlt",
+    vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.kdbx",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
     vault_remove_the_then: "Remove the {}, then type the passphrases",
     /// Text in `create_body`.
     vault_hide_passphrases: "Hide passphrases",
     /// Text in `create_body`.
     vault_show_passphrases: "Show passphrases",
-    /// Text in `create_body`. `{}`: `i + 1`.
-    vault_passphrase_n: "Passphrase {}",
     /// Button in `create_body`.
     vault_remove: "Remove",
     /// Button in `create_body`.
@@ -8386,8 +8376,6 @@ strings! {
     vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
     /// Text in `create_body`. `{}`: `cost`.
     vault_typed_its_own: "Typed: its own bits are not measured · the unlock cost adds ≈{}",
-    /// Button in `create_body`.
-    vault_add_another_passphrase: "Add another passphrase",
     /// Text in `dice_panel`. `{}`: `list.dice_per_word()`.
     vault_dice_per_word: "Roll {} dice for each word and type the numbers",
     /// Line in `dice_panel`.
@@ -8442,8 +8430,6 @@ strings! {
     vault_unlock_cost_adds: "Unlock cost adds",
     /// Text in `create_summary`. `{}`: `cost`.
     vault_bits: "≈{} bits",
-    /// Text in `create_summary`.
-    vault_weakest_passphrase: "Weakest passphrase",
     /// Text in `create_summary`.
     vault_strength: "Strength",
     /// Text in `create_summary`.
@@ -8732,7 +8718,7 @@ strings! {
     vault_not_sealed: "Not sealed",
     /// Toast in `vault_lock_one` and the Lock sheet's line. `{}`: the
     /// vault's name, the bytes its changes are over its slot.
-    vault_cannot_seal: "{} cannot be sealed: its changes are {} bytes over its slot",
+    vault_cannot_seal: "{} cannot be sealed: its changes are {} bytes over its size",
     /// Button in `lock_ask_sheet`, in place of Lock while the system has given
     /// no randomness or a vault cannot be sealed: the changes are lost.
     vault_lock_without_sealing: "Lock without sealing",
@@ -8947,59 +8933,125 @@ strings! {
     vaults_email: "Email",
     /// Text in `vault_form`.
     vaults_owner_name: "Owner name",
+    /// Text. `{}`: `vault::vault_stem(&c.name.text)`, `if ok { FEN.vault_match } else { FEN.…`.
+    vault_kdbx: "{}.kdbx · passphrase {}",
+    /// Text beside the name field. `{}`: `vault::vault_stem(&c.name.text)`.
+    vault_file_kdbx: "File {}.kdbx",
     // ----- A vault refused (faraday-core/src/vault/errors.rs) -----
-    /// Under Unlock: the file is not a vault.
-    vault_error_magic: "Not a Faraday vault",
-    /// Under Unlock: a newer vault format.
-    vault_error_version: "A vault version this build does not read",
-    /// Under Unlock: a slot size the format does not list.
-    vault_error_slot_size: "A slot size this build does not read",
-    /// Under Unlock: the file's length is wrong.
-    vault_error_length: "The file is cut short or has bytes added",
-    /// Under Unlock: the stated unlock cost is out of bounds.
+    /// Under Unlock: the file is not KeePass.
+    vault_error_not_kdbx: "Not a KeePass file",
+    /// Under Unlock: KeePass 3 or older.
+    vault_error_older: "A KeePass file of an older version",
+    /// Under Unlock. `{}`: the version, as `4.2`.
+    vault_error_newer: "A KeePass file of version {}, which this build does not read",
+    /// Under Unlock. `{}`: the field's number.
+    vault_error_unknown_field: "A header field this build does not know: {}",
+    /// Under Unlock: Twofish.
+    vault_error_twofish: "Saved in Twofish, which this build does not read",
+    /// Under Unlock: a cipher other than AES-256, ChaCha20 and Twofish.
+    vault_error_other_cipher: "Saved in a cipher this build does not read",
+    /// Under Unlock: AES-KDF.
+    vault_error_aes_kdf: "Saved with AES-KDF, which this build does not read",
+    /// Under Unlock: a key derivation other than Argon2.
+    vault_error_other_kdf: "Saved with a key derivation this build does not read",
+    /// Under Unlock: a compression other than none and gzip.
+    vault_error_compression: "Saved with a compression this build does not read",
+    /// Under Unlock: Salsa20 inner stream.
+    vault_error_salsa20: "Saved with Salsa20, which this build does not read",
+    /// Under Unlock: an inner stream other than ChaCha20.
+    vault_error_other_inner: "Saved with an inner stream this build does not read",
+    /// Under Unlock: the unlock cost is outside what is read.
     vault_error_cost: "Its unlock cost is outside what Faraday reads",
-    /// Under Unlock and Create: the memory could not be had. `{}`: the MiB it needs.
+    /// Under Unlock. `{}`: the MiB it needs.
     vault_error_memory: "Needs {} MiB, which this computer cannot spare",
-    /// Under Unlock: no slot opens.
-    vault_error_passphrase: "That passphrase opens nothing in this vault",
-    /// Under Unlock: two slots opened.
-    vault_error_two_slots: "Two slots opened under one passphrase; the file is not sound",
-    /// Under Unlock: a slot opened whose commitment block is not zero.
-    vault_error_commitment: "A slot opened that is not committed to its passphrase; the file is not sound",
-    /// Under Unlock. `{}`: one of the `vault_fault_*` lines.
-    vault_error_contents: "The slot opened but its contents are faulty: {}",
-    /// Saving: the contents are too big for the slot.
-    vault_error_full: "The contents do not fit in this vault's slot size",
-    /// Create: the passphrases given.
-    vault_error_passphrases: "One to four passphrases, none of them empty",
-    /// Create: two passphrases alike.
-    vault_error_same_passphrase: "Two passphrases are the same. Each must differ",
-    /// Saving into another file than the slot was opened from.
-    vault_error_other_file: "That slot was opened from another file",
-    /// What is faulty in a slot's contents.
-    vault_fault_format: "a slot format this build does not read",
-    /// What is faulty. `{}`: the record type.
-    vault_fault_unknown_type: "record type {} is unknown to this build",
-    /// What is faulty.
-    vault_fault_truncated: "a record runs past the slot",
-    /// What is faulty.
-    vault_fault_trailing: "bytes after the last record",
-    /// What is faulty. `{}`: the field, the record type.
-    vault_fault_unknown_field: "field {} is not part of record type {}",
-    /// What is faulty. `{}`: the record type, the field.
-    vault_fault_missing: "record type {} lacks field {}",
-    /// What is faulty. `{}`: the field, the record type.
-    vault_fault_repeated: "field {} of record type {} appears twice",
-    /// What is faulty. `{}`: the field, the record type.
-    vault_fault_value: "field {} of record type {} has a bad value",
-    /// What is faulty.
-    vault_fault_two_labels: "two slot labels",
-    /// What is faulty: not exactly one seal count record.
-    vault_fault_seals: "no single seal count",
-    /// What is faulty. `{}`: the key's fingerprint.
-    vault_fault_two_passphrases: "two passphrase records for key {}",
-    /// What is faulty. `{}`: the start of the transaction's SHA-256.
-    vault_fault_two_amounts: "two signed amounts records for transaction {}…",
+    /// Under Unlock: the wrong passphrase, or a file that needs more than one.
+    vault_error_passphrase: "Wrong passphrase. A file that also needs a key file or a security key cannot be opened here.",
+    /// Under Unlock and Create: an empty passphrase.
+    vault_error_empty_passphrase: "The passphrase is empty",
+    /// Under Unlock: damage found before any run.
+    vault_error_damaged: "The file is damaged",
+    /// Under Unlock: more than Faraday opens.
+    vault_error_too_large: "The file is larger than Faraday opens",
+    /// Under Unlock: the XML document holds what cannot be carried.
+    vault_error_contents: "The contents cannot be read here",
+    /// Under Unlock and Lock: the contents do not fit the size.
+    vault_error_full: "The contents do not fit in this vault's size",
+    /// Under Lock: a change that cannot be written.
+    vault_error_unwritable: "That change cannot be written to this vault",
+    /// Under Lock: a vault opened to read only.
+    vault_error_read_only: "This vault is open to read only",
+    /// Under Create: a size the list does not hold.
+    vault_error_size: "A size Faraday does not offer",
+    // ----- Group names in a vault (faraday-core/src/vault/mod.rs) -----
+    /// A KeePass group.
+    vault_group_keys: "Bitcoin keys",
+    /// A KeePass group.
+    vault_group_wallets: "Wallets",
+    /// A KeePass group.
+    vault_group_notes: "Notes",
+    /// A KeePass group.
+    vault_group_sheets: "Recovery sheets",
+    /// A KeePass group.
+    vault_group_gpg: "GPG keys",
+    /// A KeePass group.
+    vault_group_secure_boot: "Secure Boot",
+    /// A KeePass group.
+    vault_group_wallet_shares: "Wallet shares",
+    /// A KeePass group.
+    vault_group_passphrases: "Passphrases",
+    /// A KeePass group.
+    vault_group_shares: "Codex32 shares",
+    /// Title of a key with no label. `{}`: its fingerprint.
+    vault_title_key: "Key {fingerprint}",
+    /// Title of a note.
+    vault_title_note: "Note",
+    /// Title of a passphrase. `{for}` stands for the fingerprint it is for.
+    vault_title_passphrase: "Passphrase for {for}",
+    /// Title of a codex32 share. `{for}` stands for the fingerprint it is for.
+    vault_title_share: "Codex32 share for {for}",
+    /// Title of Secure Boot keys.
+    vault_title_secure_boot: "Secure Boot keys",
+    // ----- What is open to read only, kept apart, or not read -----
+    /// The head: a newer Faraday made it.
+    vault_read_only_newer: "Made by a newer version of Faraday: open to read only",
+    /// The head: its database settings are ambiguous.
+    vault_read_only_settings: "Its database settings cannot be read unambiguously: open to read only",
+    /// The head: the vault was saved by another program.
+    vault_saved_by_other: "Saved by another program · {}",
+    /// The head. `{}`: the cipher, key derivation and compression.
+    vault_other_settings: "Saved in {}",
+    /// The head and Unlock: a file Faraday never sealed.
+    vault_not_sealed_yet: "Not sealed by Faraday yet",
+    /// Line in the Open this copy? dialog. `{}`: the vault, its history, its recycle bin.
+    vault_history_line: "{} holds a history of {} entries and {} entries in its recycle bin",
+    /// Unlock refused. `{}`: the vault, the file it is open from.
+    vault_already_open: "{} is open already, from {}",
+    /// Section title. `{}`: how many items.
+    vault_not_read: "Not read here · {}",
+    /// Row title of an item without one.
+    vault_no_title: "No title",
+    /// Toast at unlock: one item.
+    vault_not_read_toast_one: "1 item in {} could not be read",
+    /// Toast at unlock. `{}`: how many, the vault.
+    vault_not_read_toast: "{} items in {} could not be read",
+    /// Fault of an item.
+    vault_fault_unknown_kind: "Kind not known to this build",
+    /// Fault of an item.
+    vault_fault_unknown_field: "Field not known to this build",
+    /// Fault of an item.
+    vault_fault_missing: "A required field is missing",
+    /// Fault of an item.
+    vault_fault_value: "A value in a form this build does not read",
+    /// Fault of an item.
+    vault_fault_twice: "Written twice",
+    /// Fault of an item.
+    vault_fault_format: "A format this build does not read",
+    /// Fault of an item.
+    vault_fault_same_uuid: "Shares its UUID with another item",
+    /// Fault of an item.
+    vault_fault_same_field: "Two fields of one name",
+    /// Fault of an item.
+    vault_fault_ambiguous: "Cannot be told apart from another item",
     // ----- A stick's FAT refused (faraday-files' `fat_text`, faraday-fat's kinds) -----
     /// Why a stick's file could not be read or written.
     fat_io: "the stick could not be read or written",
@@ -9130,7 +9182,7 @@ strings! {
     /// Text in `vault_save_wallet`. `{}`: `name`.
     vaults_is_in_the_vault: "{} is in the vault",
     /// Toast in `vault_push_in`.
-    vaults_slot_too_small: "That does not fit in this vault's slot size",
+    vaults_slot_too_small: "That does not fit in this vault's size",
     /// Text in `vault_create_check`. `{}`: `medium.noun()`.
     vaults_remove_the_first: "Remove the {} first",
     /// Text in `vault_create_check`. `{}`: `n + 1`.
@@ -9139,8 +9191,6 @@ strings! {
     vaults_every_passphrase: "Every passphrase needs a value",
     /// Text in `vault_create_check`.
     vaults_each_passphrase: "Each passphrase must be typed the same twice",
-    /// Text in `vault_create_check`.
-    vaults_two_passphrases: "Two passphrases are the same. Each must differ",
     /// Text in `vault_create_check`.
     vaults_choose_a_cost: "Choose a cost this computer can allocate",
     /// Text in `vault_create_check`, free memory not reported. `{}`:
@@ -9209,8 +9259,6 @@ strings! {
     vault_seals_older_plan: "An older copy: sealed {}. {}'s backup plan records a copy sealed {}.",
     /// Text in `SealWarn::line`. `{}`: `times(count)`.
     vault_seals_same_count: "Another copy was sealed {} too, with other changes.",
-    /// Text in `SealWarn::line`. `{}`: `times(mine)`, `times(seen)`.
-    vault_seals_older_files: "An older copy: sealed {}. A copy sealed {} is in Files.",
     /// Head of `older_copy`, the dialog an unlock of an older copy stops at.
     vault_older_head: "Open this copy?",
     /// Action in `older_copy`: the copy closes, nothing of it read.

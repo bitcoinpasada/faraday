@@ -1452,7 +1452,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(o) else {
             return Vec::new();
         };
-        let salt = open.header().salt;
+        let salt = open.vault_id();
         let tokens = before
             .iter()
             .find(|(s, _)| *s == salt)

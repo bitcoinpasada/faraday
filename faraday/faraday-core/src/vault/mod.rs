@@ -19,6 +19,7 @@ pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod panes_screen;
 pub(crate) mod screen;
+pub(crate) mod seal;
 mod seals;
 mod search;
 mod strength;
@@ -28,6 +29,7 @@ mod summaries;
 pub use area::*;
 pub use seals::{OlderHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
+pub(crate) use seal::{SealDone, SealRun, SealWork};
 pub(crate) use stretch::{KdbxDone, KdbxWork, StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
@@ -37,7 +39,7 @@ use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{IntoRecord, RecordView, VaultId};
 use faraday_vault::records::{self, field, kind};
-use faraday_vault::{self as fv, Cost, Header, Record};
+use faraday_vault::{self as fv, Cost, Record};
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
@@ -218,20 +220,21 @@ impl Faraday {
         let mut out: Vec<VaultFile> = Vec::new();
         for (in_outbox, items) in [(true, &self.outbox), (false, &self.inbox)] {
             for it in items.iter().filter(|i| i.kind == FileKind::Vault) {
-                let Ok(header) = fv::read_header(&it.bytes) else {
+                let Some(facts) = it.facts.clone() else {
                     continue;
                 };
                 // A copy of a vault listed already, under another name.
-                if let Some(v) = out.iter_mut().find(|v| v.header.salt == header.salt) {
+                if let Some(v) = out
+                    .iter_mut()
+                    .find(|v| self.vaults.same_vault_files(v.sha, it.sha))
+                {
                     v.copies.push(it.name.clone());
                     continue;
                 }
-                let open = self
-                    .vaults
-                    .open
-                    .iter()
-                    .position(|o| o.header().salt == header.salt);
-                out.push(VaultFile::new(it, in_outbox, header, open));
+                let open = self.vaults.summary_of_file(it.sha).and_then(|s| {
+                    self.vaults.open.iter().position(|o| o.vault_id == s.id)
+                });
+                out.push(VaultFile::new(it, in_outbox, facts, open));
             }
         }
         // Open vaults whose file is in neither box still list.
@@ -330,22 +333,6 @@ impl Faraday {
             .iter()
             .find(|i| i.name == f.name)
             .map(|i| i.bytes.clone())
-    }
-
-    /// A seal's nonce (`docs/VAULT.md` §5, F158): a fresh answer for "vault
-    /// seal" when one waits, else the seed with a count, so a lock never
-    /// waits; `None` before the seed, and the shell is asked again.
-    pub(crate) fn vault_seal_nonce(&mut self) -> Option<[u8; 32]> {
-        if !self.fresh.seeded() {
-            self.out.command(faraday_shell_api::Command::RequestEntropy);
-            return None;
-        }
-        if let Some(fresh) = self.fresh(b"vault seal") {
-            return Some(fresh);
-        }
-        self.vaults.state.draws += 1;
-        let what = [b"faraday vault draw".as_slice(), b"nonce"].concat();
-        self.fresh.draw(&what, &self.vaults.draws.to_le_bytes())
     }
 
     /// Runs a vault action.
@@ -656,28 +643,7 @@ impl Faraday {
             }
             V::CSize(k) => {
                 if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.slot = fv::SLOT_SIZES[k.min(3)];
-                }
-            }
-            V::CAddPhrase => {
-                if let Some(c) = self.vaults.state.create.as_mut()
-                    && c.phrases.len() < fv::SLOTS
-                {
-                    c.phrases.push((TextBox::default(), TextBox::default()));
-                    c.from_dice.push(None);
-                    self.vaults.state.focus = Some(Focus::Phrase(c.phrases.len() - 1, false));
-                }
-            }
-            V::CRemovePhrase(i) => {
-                if let Some(c) = self.vaults.state.create.as_mut()
-                    && c.phrases.len() > 1
-                    && i < c.phrases.len()
-                {
-                    c.phrases.remove(i);
-                    if i < c.from_dice.len() {
-                        c.from_dice.remove(i);
-                    }
-                    self.vaults.state.focus = None;
+                    c.size = fv::file::SIZES[k.min(fv::file::SIZES.len() - 1)];
                 }
             }
             V::CFocus(i, second) => {
@@ -964,7 +930,8 @@ impl Faraday {
         let Some(id) = self.vaults.current_id() else {
             return;
         };
-        if let Some(why) = self.vaults.no_room(id, &records) {
+        let c = self.compute();
+        if let Some(why) = self.vaults.no_room(&c, id, &records) {
             self.toast(&why);
             return;
         }
@@ -1026,7 +993,8 @@ impl Faraday {
             let records = fv::entries::parse(t);
             if let Some(id) = self.vaults.current_id() {
                 let n = records.len();
-                if let Some(why) = self.vaults.no_room(id, &records) {
+                let c = self.compute();
+                if let Some(why) = self.vaults.no_room(&c, id, &records) {
                     self.toast(&why);
                     return Err(why);
                 }
@@ -1126,18 +1094,26 @@ impl Faraday {
             self.vaults.state.working = None;
             match work {
                 Work::Measure => {
-                    let header = Header {
-                        cost: Cost {
-                            memory_kib: 64 * 1024,
-                            passes: 1,
-                            lanes: 1,
+                    let cost = Cost {
+                        memory_kib: 64 * 1024,
+                        passes: 1,
+                        lanes: 1,
+                    };
+                    let facts = fv::file::Facts {
+                        header: fv::kdbx::Header {
+                            minor: 0,
+                            cipher: fv::kdbx::Cipher::ChaCha20,
+                            compression: fv::kdbx::Compression::None,
+                            kdf: fv::kdbx::Kdf::Argon2id,
+                            cost,
+                            public_custom_data: None,
                         },
-                        slot_len: fv::SLOT_SIZES[0],
-                        salt: [0; 32],
+                        len: 0,
+                        size: Some(fv::file::SIZES[0]),
                     };
                     self.vaults.state.measure_from = Some(now_ms);
-                    faraday_keys::vault::measure(&c, &header);
-                    work::note_vault(VaultAct::Measured, header.cost, VaultEnded::Ran);
+                    faraday_keys::vault::measure(&c, &facts);
+                    work::note_vault(VaultAct::Measured, cost, VaultEnded::Ran);
                 }
                 Work::Unlock | Work::Create | Work::Kdbx => {}
                 Work::FlowMake => self.flow_make_work(),
@@ -1172,7 +1148,7 @@ impl Faraday {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
             self.vaults
-                .unlock_memory_refusal(f.header.cost, f.header.slot_len)
+                .unlock_memory_refusal(f.facts.header.cost, f.facts.size.unwrap_or(f.facts.len))
         };
         self.vaults.state.unlock_error = error;
         if self.vaults.unlock_error.is_none() {
@@ -1728,8 +1704,7 @@ impl Faraday {
             self.vaults.edit(id, |s| {
                 s.remove_where(id, |r| r.kind() == kind::SLOT_LABEL);
                 if !name.is_empty() {
-                    let name: String = name.chars().take(64).collect();
-                    let mut name = name;
+                    let mut name: String = name.chars().take(64).collect();
                     while name.len() > 64 {
                         name.pop();
                     }
@@ -1796,9 +1771,10 @@ impl Faraday {
         }
         // A new record must still fit in the slot.
         let was = form.record.filter(|&i| i < self.vaults.records(id).len());
+        let c = self.compute();
         let placed = self
             .vaults
-            .edit(id, |s| s.set_fields(id, form.record, form.kind, &typed));
+            .edit(id, |s| s.set_fields(&c, id, form.record, form.kind, &typed));
         let Ok(place) = placed else {
             self.vaults.state.form = Some(form);
             self.toast(EN.vaults_slot_too_small);
@@ -1938,7 +1914,9 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
-        if !self.vaults.store().fits(id, &[], &[record.size()]) {
+        let record = record.into_record();
+        let c = self.compute();
+        if !self.vaults.store().fits(&c, id, &[], &[&record]) {
             self.toast(EN.vaults_slot_too_small);
             return false;
         }
@@ -1969,11 +1947,6 @@ impl Faraday {
         } else if (0..c.phrases.len()).any(|i| !Vaults::phrase_ok(c, i)) {
             c.open = Some(vstep::PHRASES);
             Some(EN.vaults_each_passphrase.to_string())
-        } else if (0..c.phrases.len())
-            .any(|i| (i + 1..c.phrases.len()).any(|j| *c.phrases[i].0.text == *c.phrases[j].0.text))
-        {
-            c.open = Some(vstep::PHRASES);
-            Some(EN.vaults_two_passphrases.to_string())
         } else {
             memory
         };
@@ -1984,7 +1957,7 @@ impl Faraday {
         }
     }
 
-    /// `stem.fvlt`, or the first `stem-n.fvlt` no box holds.
+    /// `stem.kdbx`, or the first `stem-n.kdbx` no box holds.
     pub(crate) fn free_vault_name(&self, stem: &str) -> String {
         let taken = |n: &str| {
             self.outbox
@@ -1992,14 +1965,14 @@ impl Faraday {
                 .chain(self.inbox.iter())
                 .any(|i| i.name.eq_ignore_ascii_case(n))
         };
-        let first = format!("{stem}.fvlt");
+        let first = format!("{stem}.kdbx");
         if !taken(&first) {
             return first;
         }
         (2..100)
-            .map(|n| format!("{stem}-{n}.fvlt"))
+            .map(|n| format!("{stem}-{n}.kdbx"))
             .find(|n| !taken(n))
-            .unwrap_or_else(|| format!("{stem}-100.fvlt"))
+            .unwrap_or_else(|| format!("{stem}-100.kdbx"))
     }
 
     /// Whether a lock would lose an open vault's changes: the session's
@@ -2008,104 +1981,32 @@ impl Faraday {
         !self.seeded() && self.vaults.open.iter().any(|v| v.changes > 0)
     }
 
-    /// Whether a lock would lose a changed vault's changes: the seed
-    /// has not arrived, or a vault's records no longer fit its slot.
-    pub fn lock_would_lose(&self) -> bool {
-        self.seal_waits() || self.vaults.seal_blocked().is_some()
+    /// Costs what [`Vaults::seal_blocked`] costs. Whether a lock would lose
+    /// a changed vault's changes: the seed has not arrived, or a vault's
+    /// records no longer fit its slot.
+    pub fn lock_would_lose(&self, c: &Compute) -> bool {
+        self.seal_waits() || self.vaults.seal_blocked(c).is_some()
     }
 
-    /// Seals every open vault with changes into the Outbox (`docs/history/PLAN.md`
-    /// §5.3). A vault nobody changed is not rewritten: a slot's bytes
-    /// change only when there is something to keep, which is all a second
-    /// copy can compare (`docs/VAULT.md` §9). Before the session's seed
-    /// arrived nothing is sealed: the lock that calls this asked first
-    /// ([`Faraday::seal_waits`]).
+    /// What [`Self::lock_would_lose`] says from what was read before the
+    /// frame: lookups only, for drawing.
+    pub fn lock_would_lose_seen(&self) -> bool {
+        self.seal_waits() || self.vaults.seal_blocked_seen().is_some()
+    }
+
+    /// Whether a lock's seals are under way ([`seal`]).
+    pub(crate) fn sealing(&self) -> bool {
+        seal::sealing(self)
+    }
+
+    /// Seals every open vault, then finishes the lock ([`seal`]).
     pub(crate) fn vault_seal_all(&mut self) {
-        // What each open vault holds, remembered across the lock.
-        self.vault_summaries_refresh();
-        let mut sealed: Vec<(String, Vec<u8>)> = Vec::new();
-        for i in 0..self.vaults.open.len() {
-            // Its plans take the counts of the vaults sealed before it
-            // (`docs/VAULT-HARDENING.md` §5.6).
-            let c = self.compute();
-            self.vaults.seals_write(&c, i);
-            sealed.extend(self.vault_sealed(i));
-        }
-        for (name, bytes) in sealed {
-            self.put_outbox(&name, bytes);
-        }
-        self.vaults.state.close_all();
-        self.vaults.state.load = None;
-        self.vaults.state.pass_seeds = None;
+        seal::vault_seal_all(self);
     }
 
-    /// Open vault `i`, with the signed-amount memory added, sealed: its
-    /// name and bytes, or None when nobody changed it or the session's
-    /// seed has not arrived.
-    fn vault_sealed(&mut self, i: usize) -> Option<(String, Vec<u8>)> {
-        // A held key's record says so before the vault goes
-        // (`docs/history/NEW-WALLET.md` §14.3).
-        self.held_sweep();
-        // The signed-amount memory goes into every open vault that lacks
-        // part of it, the oldest records leaving first when the slot is
-        // full (`docs/VAULT.md` §7, type 10).
-        if self.memory.seals()
-            && let Some(id) = self.vaults.open.get(i).map(|o| o.id)
-        {
-            let have: Vec<[u8; 32]> = self
-                .vaults
-                .records(id)
-                .of(kind::AMOUNTS)
-                .filter_map(|(_, r)| crate::memory::from_record(r).map(|e| e.0))
-                .collect();
-            let new: Vec<Record> = self.memory.records_lacking(&have);
-            self.vaults.state.add_amounts(i, new);
-        }
-        if self.vaults.open.get(i)?.changes == 0 {
-            return None;
-        }
-        let draw = self.vault_seal_nonce()?;
-        let mut nonce = [0u8; fv::NONCE_LEN];
-        nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
-        let now = self.clock_now();
-        let id = self.vaults.open[i].id;
-        let bytes = self.vaults.state.store.sealed(id, &nonce, now)?;
-        let name = self.vaults.open[i].name.clone();
-        let c = self.compute();
-        self.vaults.seals_sealed(&c, i, &bytes);
-        // The keys waiting for their copies that this sealing holds.
-        self.flow_sealed(i, &name, &bytes);
-        Some((name, bytes))
-    }
-
-    /// Locks open vault `i` alone: sealed into the Outbox when changed,
-    /// what it holds remembered, and closed. The rest stay open. A
-    /// changed vault stays open, its changes kept, while the session's
-    /// seed has not arrived: then this returns false.
-    pub(crate) fn vault_lock_one(&mut self, i: usize) -> bool {
-        if i >= self.vaults.open.len() {
-            return true;
-        }
-        if !self.seeded() && self.vaults.open[i].changes > 0 {
-            self.out.command(faraday_shell_api::Command::RequestEntropy);
-            self.toast(EN.seed_missing);
-            return false;
-        }
-        if let Some(why) = self.vaults.cannot_seal(i) {
-            self.toast(&why);
-            return false;
-        }
-        self.vault_summaries_refresh();
-        let c = self.compute();
-        self.vaults.seals_write(&c, i);
-        if let Some((name, bytes)) = self.vault_sealed(i) {
-            self.put_outbox(&name, bytes);
-        }
-        self.vaults.state.close(i);
-        self.vaults.state.current = 0;
-        self.vaults.state.item_open = false;
-        self.vaults.state.form = None;
-        true
+    /// Locks open vault `i` alone ([`seal`]): true when it is closed now.
+    pub(crate) fn vault_lock_one(&mut self, i: usize, after: seal::After) -> bool {
+        seal::vault_lock_one(self, i, after)
     }
 
     /// Typing on a vault screen. Returns whether the key was taken.
@@ -2371,33 +2272,21 @@ impl Faraday {
 impl Faraday {
     /// Costs a hash of a whole file (a SHA-256 pass). The SHA-256 of
     /// every copy the session has seen of the vault `bytes` is: the
-    /// copies its summary keeps, the vault files in Files with its salt,
-    /// and `bytes` themselves. None for what is not a vault
-    /// (`docs/VAULT.md` §6).
+    /// copies its summary keeps, when `bytes` is one of them, and `bytes`
+    /// themselves. None for what is not a vault (`docs/VAULT.md` §6).
     pub(crate) fn vault_copies(&self, c: &Compute, bytes: &[u8]) -> Vec<[u8; 32]> {
-        let Ok(h) = faraday_vault::read_header(bytes) else {
+        if fv::file::inspect(bytes).is_err() {
             return Vec::new();
-        };
+        }
+        let digest = faraday_crypto::sha256_whole(c, bytes);
         let mut out: Vec<[u8; 32]> = self
             .vaults
             .summaries
             .iter()
-            .filter(|s| s.salt == h.salt)
+            .filter(|s| s.copies.contains(&digest))
             .flat_map(|s| s.copies.iter().copied())
             .collect();
-        for it in self
-            .inbox
-            .iter()
-            .chain(self.outbox.iter())
-            .filter(|i| i.kind == FileKind::Vault)
-        {
-            if let Some(sha) = it.sha
-                && faraday_vault::read_header(&it.bytes).is_ok_and(|o| o.salt == h.salt)
-            {
-                out.push(sha);
-            }
-        }
-        out.push(faraday_crypto::sha256_whole(c, bytes));
+        out.push(digest);
         out.sort_unstable();
         out.dedup();
         out
@@ -2415,21 +2304,23 @@ impl Faraday {
     }
 
     /// Costs a hash of a whole file (a SHA-256 pass). A vault in Files
-    /// that this session unlocked or wrote: its salt is an open vault's, or
-    /// its bytes are what the last write of this session put on a stick. A
-    /// copy of any other vault never goes over a vault of the same size on
-    /// a stick.
+    /// that this session unlocked or wrote: it is a copy of an open
+    /// vault, or its bytes are what the last write of this session put on
+    /// a stick. A copy of any other vault never goes over a vault of the
+    /// same size on a stick.
     pub(crate) fn vault_is_this_sessions(&self, c: &Compute, bytes: &[u8]) -> bool {
-        let Ok(h) = faraday_vault::read_header(bytes) else {
+        if fv::file::inspect(bytes).is_err() {
             return false;
-        };
-        if self.vaults.open.iter().any(|v| v.header().salt == h.salt) {
+        }
+        let hash = faraday_crypto::sha256_whole(c, bytes);
+        if self.vaults.summaries.iter().any(|s| {
+            s.copies.contains(&hash) && self.vaults.open.iter().any(|v| v.vault_id == s.id)
+        }) {
             return true;
         }
         // Only a write of this session's own visit counts: the flow's
         // sealings do not, so that a later ordinary visit never writes the
         // flow's bytes over a newer copy on another stick.
-        let hash = faraday_crypto::sha256_whole(c, bytes);
         self.visit
             .receipt()
             .as_ref()

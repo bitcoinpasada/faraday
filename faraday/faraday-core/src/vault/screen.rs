@@ -28,7 +28,7 @@ use faraday_keys::{Part, Reveal};
 use faraday_ui::Status;
 pub(crate) use faraday_ui::hold::HoldTone;
 use faraday_vault::records::{field, kind};
-use faraday_vault::{SLOT_SIZES, file_len};
+use faraday_vault::file::{SIZES as SIZES_FILE, file_len};
 
 mod codes;
 mod create;
@@ -430,11 +430,11 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             muted,
             &format!("{where_} · {}", file_text(f.len)),
         );
-        let mem = f.header.cost.memory_kib / 1024;
-        let cost = cost_text(&f.header.cost);
+        let mem = f.facts.header.cost.memory_kib / 1024;
+        let cost = cost_text(&f.facts.header.cost);
         let time = fill(
             EN.vault_unlock_time_here,
-            &[&app.vaults.time_text(mem, f.header.cost.passes).to_string()],
+            &[&app.vaults.time_text(mem, f.facts.header.cost.passes).to_string()],
         );
         ui.text_right_as((x + w - 18.0, y + 10.0, 24.0), LABEL_L, ink, &cost);
         ui.text_right_as((x + w - 18.0, y + 36.0, 24.0), BODY_S, muted, &time);
@@ -465,7 +465,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = f
             .map(|f| {
                 app.vaults
-                    .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
+                    .time_text(f.facts.header.cost.memory_kib / 1024, f.facts.header.cost.passes)
             })
             .unwrap_or_default();
         let line = fill(EN.vault_unlocking, &[&t.to_string()]);
@@ -500,7 +500,7 @@ pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Strin
         format!(
             "{where_} · {} · {}",
             file_text(f.len),
-            cost_text(&f.header.cost)
+            cost_text(&f.facts.header.cost)
         )
     } else {
         match app.vault_summary(f) {
@@ -706,12 +706,12 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         let line = ui.fit_as(BODY_S, &format!("{where_} · {}", file_text(f.len)), room);
         ui.text_as(x + 60.0, y + 32.0, BODY_S, muted, &line);
-        let mem = f.header.cost.memory_kib / 1024;
+        let mem = f.facts.header.cost.memory_kib / 1024;
         let cost = fill(
             EN.vault_here,
             &[
-                &cost_text(&f.header.cost).to_string(),
-                &app.vaults.time_text(mem, f.header.cost.passes).to_string(),
+                &cost_text(&f.facts.header.cost).to_string(),
+                &app.vaults.time_text(mem, f.facts.header.cost.passes).to_string(),
             ],
         );
         let cost = ui.fit_as(LABEL_M, &cost, w - 24.0);
@@ -742,7 +742,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = f
             .map(|f| {
                 app.vaults
-                    .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
+                    .time_text(f.facts.header.cost.memory_kib / 1024, f.facts.header.cost.passes)
             })
             .unwrap_or_default();
         let line = fill(EN.vault_unlocking, &[&t.to_string()]);
@@ -920,20 +920,14 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
         fill(
             EN.vault_file_n,
             &[
-                &size_text(c.slot).to_string(),
-                &file_text(file_len(c.slot)).to_string(),
+                &size_text(c.size).to_string(),
+                &file_text(file_len(c.size)).to_string(),
             ],
         ),
         fill(
-            EN.vault_fvlt,
+            EN.vault_kdbx,
             &[
                 &vault::vault_stem(&c.name.text).to_string(),
-                &n.to_string(),
-                (if n == 1 {
-                    EN.vault_passphrase_inline
-                } else {
-                    EN.vault_passphrases
-                }),
                 (if ok {
                     EN.vault_match
                 } else {
@@ -1136,7 +1130,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 .vaults
                 .create
                 .as_ref()
-                .map_or(faraday_vault::DEFAULT_SLOT, |c| c.slot);
+                .map_or(faraday_vault::file::DEFAULT_SIZE, |c| c.size);
             let row_h = if ui.compact { 70.0 } else { 56.0 };
             for (r, (label, preset, _)) in SIZES.iter().enumerate() {
                 let (_, mem, passes) = PRESETS[*preset];
@@ -1214,8 +1208,8 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         vstep::SIZE => {
             let bw = (w - 18.0) / 4.0;
-            for (k, s) in SLOT_SIZES.iter().enumerate() {
-                let on = *s == c.slot;
+            for (k, s) in SIZES_FILE.iter().enumerate() {
+                let on = *s == c.size;
                 let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
                 let bx = x + k as f32 * (bw + 6.0);
                 ui.fill(bx, cy, bw, 62.0, 8.0, selected_or(on, inset));
@@ -1260,7 +1254,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 va(V::CName),
             );
             let file = fill(
-                EN.vault_file_fvlt,
+                EN.vault_file_kdbx,
                 &[&vault::vault_stem(&c.name.text).to_string()],
             );
             if nw + 16.0 + ui.measure_as(BODY_S, &file) <= w {
@@ -1294,19 +1288,8 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     (x, cy, 36.0),
                     LABEL_L,
                     ink,
-                    &fill(EN.vault_passphrase_n, &[&(i + 1).to_string()]),
+                    EN.vault_passphrase,
                 );
-                if i > 0 {
-                    ui.button(
-                        x + w - (ui.measure_as(LABEL_L, EN.vault_remove) + 28.0),
-                        cy,
-                        None,
-                        BUTTON_H,
-                        EN.vault_remove,
-                        Style::Secondary,
-                        va(V::CRemovePhrase(i)),
-                    );
-                }
                 cy += 44.0;
                 // Two ways to make it, side by side: dice, or typed.
                 let dice_style = if !may {
@@ -1409,18 +1392,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 // words: the "Demo only" card says so (`docs/DEMO.md` §5.2).
                 cy += 12.0;
                 cy += super::dice_screen::dice_panel(app, ui, (x, cy, w), i);
-            }
-            if c.phrases.len() < faraday_vault::SLOTS {
-                ui.button(
-                    x,
-                    cy,
-                    None,
-                    BUTTON_H,
-                    EN.vault_add_another_passphrase,
-                    Style::Tonal,
-                    va(V::CAddPhrase),
-                );
-                cy += 46.0;
             }
             // A small panel has no side panel: what will be made, and
             // Create vault, come after the last step's controls.
@@ -1840,7 +1811,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid_as((from, y, BUTTON_H), BODY_S, muted, &count);
     }
     y += BUTTON_H + tokens::GAP;
-    let sub = format!("{} · {}", v.name, cost_text(&v.header().cost));
+    let sub = format!("{} · {}", v.name, cost_text(&v.facts().header.cost));
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
     let mut vx = x + ui.measure_as(BODY_S.mono(), &sub) + 24.0;
     if app.vaults.open.len() > 1 {
@@ -2193,7 +2164,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &state,
     );
     y += ui.advance_as(LABEL_L, 22.0);
-    let sub = format!("{} · {}", v.name, cost_text(&v.header().cost));
+    let sub = format!("{} · {}", v.name, cost_text(&v.facts().header.cost));
     let sub = ui.fit_as(BODY_S.mono(), &sub, w);
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
     y += ui.advance_as(BODY_S.mono(), 26.0);

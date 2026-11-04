@@ -1554,8 +1554,10 @@ impl Faraday {
                         // locked away from here.
                         let name = self.vaults.open[t].name.to_string();
                         self.toast(&fill(EN.backup_flow_set_up_holds_other, &[&name]));
-                    } else if self.vault_lock_one(t) {
-                        self.vault_act(vault::VaultAction::CreateFrom(Screen::Backup));
+                    } else {
+                        // The vault is made from once the lock's seal is done.
+                        let after = vault::seal::After::CreateFrom(Screen::Backup);
+                        self.vault_lock_one(t, after);
                     }
                 }
             }
@@ -2340,11 +2342,11 @@ impl Faraday {
         let has = |s: &crate::vault::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };
-        let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
+        let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.vault_id()).collect();
         self.vaults
             .summaries
             .iter()
-            .filter(|s| !salts.contains(&s.salt))
+            .filter(|s| !salts.contains(&s.id))
             .find(|s| {
                 own.iter().all(|f| has(s, f) == Some(true))
                     && others.iter().all(|f| has(s, f) == Some(false))

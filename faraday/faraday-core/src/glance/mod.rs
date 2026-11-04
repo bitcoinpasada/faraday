@@ -734,7 +734,7 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
     let unlock = app
         .vault_files()
         .iter()
-        .position(|f| f.open.is_none() && f.header.salt == s.salt)
+        .position(|f| f.open.is_none() && f.sha.is_some_and(|d| s.copies.contains(&d)))
         .map_or(crate::vault::VaultAction::ListFrom(back), |k| {
             crate::vault::VaultAction::OpenFrom(k, back)
         });
