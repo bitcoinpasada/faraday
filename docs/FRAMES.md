@@ -480,11 +480,35 @@ Pixels are as before (the snapshot and budget tests pass).
 
 **Not yet found or fixed.**
 
-- Home (46 % floor), Wallets (58 %) and a wallet's page (55 %) cost
-  about 1 ms on the build machine with 400 to 700 characters measured
-  and 1 000 to 2 000 allocations: neither is most of it. The part is
-  not yet named; it needs a sampling profile (`perf` on the build
-  machine) or section timers as for Files.
+- **Home's floor is `View::backups()`, worked out again at every frame.**
+  A probe outside the repository (section timers in a temporary copy of
+  the budget test, release, 480 × 640, the session of SPEED §7, each frame
+  drawn under a one-row clip so only the floor remains): Home's frame
+  took 486 µs, 378 µs of it in the Pi's compact page, and 377 µs of that
+  in the one call `app.backups()` that the tile list makes to count the
+  wallets without a backup (`compact::tiles`); the rest of the tile list,
+  the lead, the files line, the flows in progress, the head and the
+  session strip took under 15 µs together. `backups_now` builds an
+  `Entry` with a line per place for every wallet of the session, of each
+  open vault and of each locked vault's summary (the session's 12 wallets
+  and more): about 700 of the frame's 877 allocations. The drawing memo
+  keeps it only until the frame ends, so a frame drawn again builds it
+  again. `Faraday::vault_files` (a header read of each vault file) was
+  suspected and timed: under 1 µs a call, 80 files; a memo of it moved
+  nothing and was dropped. The fix is the entries kept on the state,
+  worked out again when a wallet is loaded or dropped, a vault opens,
+  closes or is written, a backup record or plan changes or the backup
+  under way moves; its inputs are spread over the session, the vaults
+  (`faraday-core/src/vault/`, not changed by this batch), the backups area
+  and the backup flow, so the invalidation is a change of its own and is
+  not made here. Home needs only the count of entries with no map, which
+  the lines are worked out for. Wallets (554 µs floor) and a wallet's page
+  (603 µs) spend 482 and 526 µs in their page code, the same size, and
+  were not split further: the cause is not shown to be the same call.
+- The signing page (the spend of the session's test PSBT) has a floor of
+  125 µs, 38 µs of it in its page, against 1.2 ms with its pixels: its
+  wrapping is not what the floor holds here, so keeping its lines by file
+  would save at most that 38 µs and is left open.
 - Files, what is left: the vault card is still measured and then drawn
   (two walks of its rows); its wallets with seeds ask the vault's rows a
   second time inside the accessor; the Inbox's card about a fifth.
