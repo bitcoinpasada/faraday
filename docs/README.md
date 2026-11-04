@@ -112,12 +112,12 @@ need. Each document's header says what kind it is:
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
-- `docs/MAC.md`: Faraday on Macs. Partly built.
+- `docs/MAC.md`: Faraday on Macs. Partly built; paused until a Mac is available to test on.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).
 - `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
-- `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built, a stick Windows leaves whole included; the Windows 11 virtual machine run with real builds, its timings and macOS keys checked against a Mac are not.
+- `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built, a stick Windows leaves whole included; the Windows 11 virtual machine run with real builds, its timings and macOS keys checked against a Mac (paused until one is available) are not.
 - `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Specified (F190, amending F189), not built; the FVLT format it replaces is what is built.
 - `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), amended by F189: the passphrase in NFC and the seal count built in the FVLT format and carried into the KDBX vault; the rest replaced and moved to history.
 - `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. Planned, not built.

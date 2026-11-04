@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F174, F182); built: the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1)
-**Open:** §12's batch 5: the dev build and disk test, the write timings and the Windows 11 virtual machine run of §10; macOS's `diskutil` keys checked against a Mac (`docs/MAC.md`)
+**Open:** §12's batch 5: the dev build and disk test, the write timings and the Windows 11 virtual machine run of §10; macOS's `diskutil` keys checked against a Mac, paused until one is available (`docs/MAC.md`)
 
 A Faraday stick or Pi card has partitions with the same names as any
 other stick or card, its own IDs, and nothing in Faraday that finds it

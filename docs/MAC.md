@@ -1,7 +1,7 @@
 # Faraday on Macs
 
 **Kind:** Spec
-**Status:** Partly built: the Starter's macOS module and Home on a Mac (batches A3a, A3b), without a Mac
+**Status:** Paused until a Mac is available to test on. Partly built: the Starter's macOS module and Home on a Mac (batches A3a, A3b), without a Mac
 **Open:** Intel Macs (batch I), the Apple Silicon image and start-up file (A1, A2, A4), the Starter built and tried on a Mac (A3c), the README's "Which Macs" (§7)
 
 Decided by the owner (`docs/DECISIONS.md` F13; every decision in §9
