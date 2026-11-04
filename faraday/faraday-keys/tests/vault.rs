@@ -1517,10 +1517,14 @@ fn two_strings_of_one_index_do_not_stop_the_key_loading() {
     let mut owner = Keys::on(Network::Mainnet);
     owner.add_seed(&c, &seed, "").expect("a key");
     let fp = owner.info(0).expect("info").fingerprint.0;
-    const R: usize = 8 * 103;
+    // The same four bytes after a share's own draw the same identifier:
+    // two sets of one header, their strings differing.
+    let need = faraday_bip::codex32::symbols_for(16);
     let split = |random: u8| -> Vec<String> {
+        let mut bytes = vec![random; need + 4];
+        bytes[need..].fill(7);
         owner
-            .codex32_shares(0, 2, 3, &[random; R], Reveal::PaperForm)
+            .codex32_shares(0, 2, 3, &bytes, Reveal::PaperForm)
             .expect("shares")
             .iter()
             .map(|s| s.as_str().to_string())
@@ -1567,10 +1571,14 @@ fn a_typed_share_finds_its_seed_where_the_vault_holds_two_strings_of_an_index() 
     let mut owner = Keys::on(Network::Mainnet);
     owner.add_seed(&c, &seed, "").expect("a key");
     let fp = owner.info(0).expect("info").fingerprint.0;
-    const R: usize = 8 * 103;
+    // The same four bytes after a share's own draw the same identifier:
+    // two sets of one header, their strings differing.
+    let need = faraday_bip::codex32::symbols_for(16);
     let split = |random: u8| -> Vec<String> {
+        let mut bytes = vec![random; need + 4];
+        bytes[need..].fill(7);
         owner
-            .codex32_shares(0, 2, 3, &[random; R], Reveal::PaperForm)
+            .codex32_shares(0, 2, 3, &bytes, Reveal::PaperForm)
             .expect("shares")
             .iter()
             .map(|s| s.as_str().to_string())

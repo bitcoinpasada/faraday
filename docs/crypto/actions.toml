@@ -1606,7 +1606,7 @@ code = [
 crate = "faraday/faraday-keys"
 libraries = []
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
-adds = "Each conversion is given only for Reveal::PaperForm, and only when its result, read back through the standard's own decoder (hex, the strict xprv importer, SLIP-39's share and recover, a set's first and last qualifying subsets each recovered, codex32's parse of every share and recover from the first k and the last k), gives the key's master fingerprint; otherwise nothing is returned. A key's words written in another form are read back to the same entropy on the same list, so the same words and the same fingerprint, with no PBKDF2 run; SeedQR forms take English 12 or 24 words, and 4-letter starts English. A key with words is refused for SLIP-39 and codex32; SLIP-39 holds 16 and 32 bytes only. A SLIP-39 set is made with an empty passphrase, the extendable flag set and iteration exponent 1, its identifier and shares from the randomness passed in, and a shape the split refuses is refused."
+adds = "Each conversion is given only for Reveal::PaperForm, and only when its result, read back through the standard's own decoder (hex, the strict xprv importer, SLIP-39's share, every share of a set parsed before any recovery and then a first and a last qualifying subset each recovered, codex32's parse of every share and recover from the first k and the last k), gives the key's master fingerprint; otherwise nothing is returned. A key's words written in another form are read back to the same entropy on the same list, so the same words and the same fingerprint, with no PBKDF2 run; SeedQR forms take English 12 or 24 words, and 4-letter starts English. A key with words is refused for SLIP-39 and codex32; SLIP-39 holds 16 and 32 bytes only; Seed XOR is given for a key on the English list only, the list its parts are restored on. A codex32 set of k above 0 takes its identifier from the randomness passed in, never the one of the key's fingerprint nor of its own set, so two sets of one key are not one set; the secret alone keeps the fingerprint's. A SLIP-39 set is made with an empty passphrase, the extendable flag set and iteration exponent 1, its identifier and shares from the randomness passed in, and a shape the split refuses is refused."
 
 [action.checked]
 vectors = [
@@ -1631,11 +1631,15 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::another_list_gives_words_and_numbers_but_no_codes_or_starts_and_seed_bytes_give_none",
   "faraday/faraday-keys/tests/operations.rs::seed_xor_gives_coldcards_published_parts",
   "faraday/faraday-keys/tests/operations.rs::seed_xor_is_refused_for_the_wrong_reason",
+  "faraday/faraday-keys/tests/operations.rs::seed_xor_is_not_given_for_a_key_on_another_list",
+  "faraday/faraday-keys/tests/operations.rs::a_codex32_set_of_a_key_has_an_identifier_of_its_own_each_time",
   "faraday/faraday-core/tests/all/convert.rs::seed_xor_parts_typed_into_add_a_key_give_the_same_key",
   "faraday/faraday-core/tests/all/convert.rs::a_set_is_checked_part_by_part_saved_whole_and_dropped_on_leaving",
   "faraday/faraday-core/tests/all/convert.rs::a_slip39_two_of_three_recovers_the_published_secret_from_any_two",
   "faraday/faraday-core/tests/all/convert.rs::a_slip39_set_of_groups_recovers_the_secret_and_names_each_shares_group",
   "faraday/faraday-core/tests/all/convert.rs::the_slip39_card_cannot_reach_a_shape_the_split_refuses",
+  "faraday/faraday-core/tests/all/convert.rs::the_slip39_card_walked_to_its_limits_makes_a_set_each_time",
+  "faraday/faraday-core/tests/all/convert.rs::each_codex32_set_of_a_key_has_an_identifier_of_its_own",
   "faraday/faraday-core/tests/all/convert.rs::a_slip39_copy_is_checked_by_group_and_the_file_has_every_share",
 ]
 not_crosschecked = "The core functions are judged in their own areas; these wrappers add the gate and the read-back, and are tested here against the published vectors, with no cross-check run of their own."

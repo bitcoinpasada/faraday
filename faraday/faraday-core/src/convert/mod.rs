@@ -311,7 +311,7 @@ pub const ROWS: [Row; 17] = [
         name: EN.convert_xor,
         line: EN.convert_xor_line,
         target: Some(Target::SeedXor),
-        applies: KeyInfo::has_words,
+        applies: english_words,
     },
     Row {
         name: EN.convert_slip39,
@@ -510,6 +510,11 @@ pub struct ConvertArea {
     /// The value, wiped on drop: dropped when the Result card or the flow
     /// is left, or the session locks. Drawing only reads it.
     held: Option<Value>,
+    /// What the field shows of a text or set held (a set's strings
+    /// joined and numbered), made once by the press that opens the eye
+    /// and held while it is open (F195): wiped when the eye closes, the
+    /// value is dropped, the flow is left and at a lock.
+    shown_text: Option<Zeroizing<String>>,
     /// Check my copy, while it is open: what is typed, wiped on drop.
     check: Option<WordCheck>,
     /// What the last comparison found, until the next key or press.
@@ -519,6 +524,12 @@ pub struct ConvertArea {
 }
 
 impl ConvertArea {
+    /// The text the open eye shows, held since the press: a borrow, no
+    /// work. `None` with the eye closed or for a code.
+    pub(crate) fn shown_text(&self) -> Option<&str> {
+        self.shown_text.as_deref().map(String::as_str)
+    }
+
     /// The flow's state, while it is open.
     pub(crate) fn state(&self) -> Option<&ConvertState> {
         self.state.as_ref()
@@ -533,6 +544,7 @@ impl ConvertArea {
     /// Drops the value and what is typed to check it.
     fn drop_value(&mut self) {
         self.held = None;
+        self.shown_text = None;
         self.check = None;
         self.found = None;
         self.found_part = None;
@@ -721,7 +733,7 @@ impl ConvertArea {
         if let Some(s) = self.state.as_mut() {
             s.k = match (s.k, by.signum()) {
                 (0, 1) => 2,
-                (2, -1) => 0,
+                (0, _) | (2, -1) => 0,
                 (k, d) => k.saturating_add_signed(d).clamp(2, 9),
             };
             s.n = if s.k == 0 {
@@ -742,60 +754,17 @@ impl ConvertArea {
         }
     }
 
-    /// Keeps the SLIP-39 thresholds to what the split takes: groups needed
-    /// 1 for one group, else 2 to the count; shares needed 1 for one
-    /// share, else 2 to the count.
-    fn slip_fit(&mut self) {
-        let Some(s) = self.state.as_mut() else {
-            return;
-        };
-        let fit = |t: u8, of: u8| if of <= 1 { 1 } else { t.clamp(2, of) };
-        s.slip_t = fit(s.slip_t, s.slip.len() as u8);
-        for g in &mut s.slip {
-            g.0 = fit(g.0, g.1);
-        }
-    }
-
-    /// Changes the SLIP-39 groups by `by`, from 1 to 16; a group added is
-    /// 2 of 3.
-    fn slip_groups(&mut self, by: i8) {
+    /// A press on the SLIP-39 shape (`action` one of the four Slip
+    /// presses), for a key of `len` seed bytes: made only when the shape
+    /// it gives is one the randomness can pay for ([`slip_fits`]); else it
+    /// does nothing.
+    fn slip_press(&mut self, action: ConvertAction, len: usize) {
         if let Some(s) = self.state.as_mut() {
-            let n = s.slip.len().saturating_add_signed(isize::from(by));
-            s.slip.resize(n.clamp(1, MAX_SLIP), (2, 3));
+            let (t, slip) = slip_after(s.slip_t, &s.slip, action);
+            if slip_need(len, t, &slip) <= crate::fresh::TAKE_MAX {
+                (s.slip_t, s.slip) = (t, slip);
+            }
         }
-        self.slip_fit();
-    }
-
-    /// Changes the SLIP-39 groups needed by `by`.
-    fn slip_group_k(&mut self, by: i8) {
-        if let Some(s) = self.state.as_mut() {
-            s.slip_t = s.slip_t.saturating_add_signed(by);
-        }
-        self.slip_fit();
-    }
-
-    /// Changes group `g`'s shares needed by `by`.
-    fn slip_k(&mut self, g: u8, by: i8) {
-        if let Some(group) = self
-            .state
-            .as_mut()
-            .and_then(|s| s.slip.get_mut(usize::from(g)))
-        {
-            group.0 = group.0.saturating_add_signed(by);
-        }
-        self.slip_fit();
-    }
-
-    /// Changes group `g`'s shares made by `by`, from 1 to 16.
-    fn slip_n(&mut self, g: u8, by: i8) {
-        if let Some(group) = self
-            .state
-            .as_mut()
-            .and_then(|s| s.slip.get_mut(usize::from(g)))
-        {
-            group.1 = group.1.saturating_add_signed(by).clamp(1, MAX_SLIP as u8);
-        }
-        self.slip_fit();
     }
 
     /// Opens or closes card `step`. A card opens when those before it are
@@ -857,6 +826,66 @@ impl ConvertArea {
             s.scroll.follow = true;
         }
     }
+}
+
+/// The SLIP-39 shape after `action` (a Slip press), kept to what the split
+/// takes: groups 1 to 16, a group added 2 of 3; groups needed 1 for one
+/// group, else 2 to the count; shares needed 1 for one share, else 2 to
+/// the count; shares made 1 to 16. A lookup.
+pub(crate) fn slip_after(t: u8, slip: &[(u8, u8)], action: ConvertAction) -> (u8, Vec<(u8, u8)>) {
+    let (mut t, mut slip) = (t, slip.to_vec());
+    match action {
+        ConvertAction::SlipGroups(by) => {
+            let n = slip.len().saturating_add_signed(isize::from(by));
+            slip.resize(n.clamp(1, MAX_SLIP), (2, 3));
+        }
+        ConvertAction::SlipGroupK(by) => t = t.saturating_add_signed(by),
+        ConvertAction::SlipK(g, by) => {
+            if let Some(group) = slip.get_mut(usize::from(g)) {
+                group.0 = group.0.saturating_add_signed(by);
+            }
+        }
+        ConvertAction::SlipN(g, by) => {
+            if let Some(group) = slip.get_mut(usize::from(g)) {
+                group.1 = group.1.saturating_add_signed(by).clamp(1, MAX_SLIP as u8);
+            }
+        }
+        _ => {}
+    }
+    let fit = |t: u8, of: u8| if of <= 1 { 1 } else { t.clamp(2, of) };
+    t = fit(t, slip.len() as u8);
+    for g in &mut slip {
+        g.0 = fit(g.0, g.1);
+    }
+    (t, slip)
+}
+
+/// The fresh bytes a SLIP-39 set of this shape takes for a key of `len`
+/// seed bytes. A lookup.
+pub(crate) fn slip_need(len: usize, t: u8, slip: &[(u8, u8)]) -> usize {
+    let groups: Vec<faraday_bip::slip39::GroupSpec> = slip
+        .iter()
+        .map(|&(threshold, count)| faraday_bip::slip39::GroupSpec { threshold, count })
+        .collect();
+    faraday_keys::slip39_random_len(len, t, &groups)
+}
+
+/// Whether `action` leaves a shape the randomness can pay for
+/// ([`crate::fresh::TAKE_MAX`]), for a key of `len` seed bytes: a press
+/// that does not is not taken, and its button shows disabled. A lookup.
+pub(crate) fn slip_fits(len: usize, t: u8, slip: &[(u8, u8)], action: ConvertAction) -> bool {
+    let (t, slip) = slip_after(t, slip, action);
+    slip_need(len, t, &slip) <= crate::fresh::TAKE_MAX
+}
+
+/// The seed bytes of the key chosen: 32 where it has none, the longest a
+/// SLIP-39 set takes. A lookup.
+pub(crate) fn seed_len_of(keys: &faraday_keys::Keys, state: &ConvertState) -> usize {
+    state
+        .key
+        .and_then(|fp| keys.all().find(|k| k.fingerprint.0 == fp))
+        .and_then(|k| k.seed_len)
+        .unwrap_or(32)
 }
 
 /// The flow's state, while it is open.
@@ -1068,7 +1097,11 @@ fn make(app: &mut Faraday, target: Target) {
     let need = match target {
         Target::SeedXor => faraday_keys::seed_xor_random_len(parts),
         Target::Codex32 => faraday_keys::codex32_random_len(k),
-        Target::SlipSet => faraday_keys::slip39_random_len(slip_t, &groups),
+        Target::SlipSet => faraday_keys::slip39_random_len(
+            app.session.keys[i].seed_len.unwrap_or(32),
+            slip_t,
+            &groups,
+        ),
         _ => 0,
     };
     let random = if need == 0 {
@@ -1233,10 +1266,13 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::VaultKey(v, r) => from_vault(app, v, r),
         ConvertAction::To(place) => press(app, place),
         ConvertAction::Parts(by) => app.tools.convert_mut().parts(by),
-        ConvertAction::SlipGroups(by) => app.tools.convert_mut().slip_groups(by),
-        ConvertAction::SlipGroupK(by) => app.tools.convert_mut().slip_group_k(by),
-        ConvertAction::SlipK(g, by) => app.tools.convert_mut().slip_k(g, by),
-        ConvertAction::SlipN(g, by) => app.tools.convert_mut().slip_n(g, by),
+        ConvertAction::SlipGroups(_)
+        | ConvertAction::SlipGroupK(_)
+        | ConvertAction::SlipK(..)
+        | ConvertAction::SlipN(..) => {
+            let len = state(app).map_or(32, |s| seed_len_of(&app.session.keys, s));
+            app.tools.convert_mut().slip_press(action, len);
+        }
         ConvertAction::K(by) => app.tools.convert_mut().threshold(by),
         ConvertAction::N(by) => app.tools.convert_mut().count(by),
         ConvertAction::Make => {
@@ -1251,6 +1287,12 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
                 && let Some(s) = area.state.as_mut()
             {
                 s.shown = !s.shown;
+                let groups = groups_made(s);
+                area.shown_text = if s.shown {
+                    area.held.as_ref().and_then(|v| v.display(&groups))
+                } else {
+                    None
+                };
             }
         }
         ConvertAction::Check => app.tools.convert_mut().toggle_check(),
@@ -1284,7 +1326,9 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
 /// Closes the eye: the idle warning, so that nothing secret stays on
 /// screen while no one is there.
 pub(crate) fn hide(app: &mut Faraday) {
-    if let Some(s) = app.tools.convert_mut().state.as_mut() {
+    let area = app.tools.convert_mut();
+    area.shown_text = None;
+    if let Some(s) = area.state.as_mut() {
         s.shown = false;
     }
 }

@@ -1278,7 +1278,7 @@ for it.
 #### 6.4.5 The identifier: refusals, and the fingerprint where a seed exists
 
 Where a seed already exists (a set rotated, §9.7), the identifier is
-the one from the fingerprint, as `Keys::codex32_new_set` takes it. The same
+the one from the fingerprint, as `Keys::codex32_new_set` takes it. Convert a seed's set is not a rotation: each set it makes draws an identifier of its own, never the fingerprint's, since a second press would otherwise carry the same header and shares of the two would interpolate to another seed with no error (`docs/SEED-CONVERSION.md` §6). The same
 arithmetic would allow it for a fresh set, since S's data is the interpolation of the initial shares'
 data at `s`, position by position, which depends on the data and the
 share indices alone and not on the identifier, so the seed and its

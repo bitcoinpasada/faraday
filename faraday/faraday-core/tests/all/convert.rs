@@ -509,15 +509,23 @@ fn a_key_on_another_list_is_not_offered_the_codes_or_the_starts() {
         .filter(|r| r.applies(key) && r.target.is_some())
         .map(|r| r.name)
         .collect();
-    for name in ["SeedQR", "CompactSeedQR", "4-letter starts"] {
+    // Seed XOR's parts are restored on the English list only.
+    for name in [
+        "SeedQR",
+        "CompactSeedQR",
+        "4-letter starts",
+        "Seed XOR parts",
+    ] {
         assert!(!listed.contains(&name), "{name} is offered");
     }
     // A press on one, were it made, does nothing.
-    app.press(Action::Convert(C::To(place("SeedQR"))));
-    let _ = app.frame();
-    let now = app.now_ms() + 16;
-    app.event(Event::Tick { now_ms: now });
-    assert_eq!(convert::state(&app).unwrap().target, None);
+    for name in ["SeedQR", "Seed XOR parts"] {
+        app.press(Action::Convert(C::To(place(name))));
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        assert_eq!(convert::state(&app).unwrap().target, None);
+    }
     // The rest read in its own list; the words have no typed check.
     assert_eq!(
         make(&mut app, "Hex entropy").as_deref(),
@@ -1029,8 +1037,18 @@ fn codex32_reads_back_as_the_published_seed_alone_and_as_a_set() {
                 .iter()
                 .any(|t| t == "BIP-93 codex32, the secret")
         );
-        // The card again: 0 steps to 2 and back; n follows k.
+        // The card again: 0 steps to 2 and back; n follows k; a minus at
+        // 0 stays at 0.
         app.press(Action::Convert(C::Step(cstep::SETTINGS)));
+        app.press(Action::Convert(C::K(-1)));
+        let s = convert::state(&app).unwrap();
+        assert_eq!((s.k, s.n), (0, 1));
+        app.press(Action::Convert(C::K(1)));
+        let s = convert::state(&app).unwrap();
+        assert_eq!((s.k, s.n), (2, 2));
+        app.press(Action::Convert(C::K(-1)));
+        let s = convert::state(&app).unwrap();
+        assert_eq!((s.k, s.n), (0, 1));
         app.press(Action::Convert(C::K(1)));
         let s = convert::state(&app).unwrap();
         assert_eq!((s.k, s.n), (2, 2));
@@ -1055,6 +1073,56 @@ fn codex32_reads_back_as_the_published_seed_alone_and_as_a_set() {
                 .any(|t| t == "BIP-93 codex32, 2 of 3 shares")
         );
     }
+}
+
+/// Every Make of a codex32 set from one key is a new set: its identifier
+/// is drawn, is neither the fingerprint's nor the other set's, and a
+/// share of one with a share of the other does not recover a seed. The
+/// secret alone keeps the fingerprint's identifier.
+#[test]
+fn each_codex32_set_of_a_key_has_an_identifier_of_its_own() {
+    let seed = unhex(SEED_1);
+    let mut app = seed_opened(&seed);
+    let fp = app.session.keys[0].fingerprint.0;
+    let own = faraday_bip::codex32::identifier_for(fp);
+    let alone = {
+        feed_many(&mut app, 1);
+        make_set(&mut app, "codex32").unwrap()
+    };
+    let secret = faraday_bip::codex32::Codex32::parse(&alone[0]).unwrap();
+    assert_eq!(secret.identifier(), own);
+    app.press(Action::Convert(C::Step(cstep::SETTINGS)));
+    app.press(Action::Convert(C::K(1)));
+    app.press(Action::Convert(C::N(1)));
+    let (mut sets, mut texts) = (Vec::new(), Vec::new());
+    for base in [10u8, 120] {
+        feed_many(&mut app, base);
+        app.press(Action::Convert(C::Make));
+        settle(&mut app);
+        app.press(Action::Convert(C::Show));
+        let _ = app.frame();
+        let text: Vec<String> = convert::shown_parts(&app)
+            .unwrap()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let set: Vec<_> = text
+            .iter()
+            .map(|s| faraday_bip::codex32::Codex32::parse(s).unwrap())
+            .collect();
+        texts.push(text);
+        assert_eq!(*faraday_keys::codex32_seed(&set[..2]).unwrap(), seed);
+        app.press(Action::Convert(C::Step(cstep::SETTINGS)));
+        sets.push(set);
+    }
+    let (a, b) = (sets[0][0].identifier(), sets[1][0].identifier());
+    assert_ne!(a, b);
+    assert!(a != own && b != own);
+    for set in &sets {
+        assert!(set.iter().all(|s| s.identifier() == set[0].identifier()));
+    }
+    let parse = |i: usize, j: usize| faraday_bip::codex32::Codex32::parse(&texts[i][j]).unwrap();
+    assert!(faraday_keys::codex32_seed(&[parse(0, 0), parse(1, 1)]).is_err());
 }
 
 /// The parts of Seed XOR typed into Add a key give the same key.
@@ -1385,6 +1453,96 @@ fn the_slip39_card_cannot_reach_a_shape_the_split_refuses() {
     assert_eq!(convert::state(&app).unwrap().slip[0], (1, 1));
     app.press(Action::Convert(C::SlipN(0, 1)));
     assert_eq!(convert::state(&app).unwrap().slip[0], (2, 2));
+}
+
+/// Answers of the system's randomness for the most one press asks (a
+/// shape the card offers at most), each its own.
+fn feed_many(app: &mut Faraday, base: u8) {
+    for i in 0..30u8 {
+        app.event(Event::Entropy(EntropyBytes::new(
+            [base.wrapping_add(i); 32],
+        )));
+    }
+}
+
+/// The card's shape: groups needed and each group's (needed, made).
+fn shape(app: &Faraday) -> (u8, Vec<(u8, u8)>) {
+    let s = convert::state(app).unwrap();
+    (s.slip_t, s.slip.clone())
+}
+
+/// Presses Make with randomness fed, and the lines of the set made,
+/// every one parsed by SLIP-39's decoder.
+fn made_set(app: &mut Faraday, base: u8) -> Vec<String> {
+    feed_many(app, base);
+    app.press(Action::Convert(C::Make));
+    settle(app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let lines: Vec<String> = convert::shown_parts(app)
+        .expect("a set is made")
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+    let want: usize = shape(app).1.iter().map(|g| usize::from(g.1)).sum();
+    assert_eq!(lines.len(), want);
+    for l in &lines {
+        faraday_bip::slip39::Share::parse(l).expect("a line parses");
+    }
+    app.press(Action::Convert(C::Step(cstep::SETTINGS)));
+    lines
+}
+
+/// Raises every group's shares made and needed, and the groups needed,
+/// round after round, until the card takes no more.
+fn raise_to_the_limit(app: &mut Faraday, groups: u8) {
+    for _ in 0..groups {
+        app.press(Action::Convert(C::SlipGroups(1)));
+    }
+    for _ in 0..40 {
+        let before = shape(app);
+        app.press(Action::Convert(C::SlipGroupK(16)));
+        for g in 0..groups {
+            app.press(Action::Convert(C::SlipN(g, 16)));
+            app.press(Action::Convert(C::SlipK(g, 1)));
+        }
+        if shape(app) == before {
+            return;
+        }
+    }
+    panic!("the card never stopped");
+}
+
+/// The card walked to the most shares it takes, for a key of 16 and one
+/// of 32 bytes, in two groups and in sixteen: a set is made from each,
+/// every line parsing, and one more press changes nothing where the pool
+/// cannot pay for it.
+#[test]
+fn the_slip39_card_walked_to_its_limits_makes_a_set_each_time() {
+    let long = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    for (hex, groups) in [(SEED_1, 2u8), (SEED_1, 15), (long, 1), (long, 15)] {
+        let mut app = slip_opened(&unhex(hex));
+        app.press(Action::Convert(C::To(place(SLIP_SET))));
+        raise_to_the_limit(&mut app, groups);
+        let (t, slip) = shape(&app);
+        assert_eq!(slip.len(), usize::from(groups) + 1);
+        let lines = made_set(&mut app, 3);
+        assert!(lines.len() >= 2 * usize::from(t));
+        // The same shape again, with other randomness, is another set.
+        let again = made_set(&mut app, 90);
+        assert_ne!(lines, again);
+    }
+    // Two groups of 16 of 16 take more randomness than the pool holds, for
+    // a key of either length: the card stops short of them, and what it
+    // stops at is made.
+    for hex in [SEED_1, long] {
+        let mut app = slip_opened(&unhex(hex));
+        app.press(Action::Convert(C::To(place(SLIP_SET))));
+        raise_to_the_limit(&mut app, 1);
+        let all = shape(&app).1.iter().all(|g| *g == (16, 16));
+        assert!(!all);
+        made_set(&mut app, 5);
+    }
 }
 
 /// A group of one share, needed on its own, still makes a set that

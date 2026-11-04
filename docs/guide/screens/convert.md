@@ -38,7 +38,7 @@ card, dimmed, with its reason.
 | **Hex entropy**, a key of words only | Ian Coleman's BIP-39 page, Faraday's New key |
 | **Word numbers**, a key of words only | any BIP-39 wallet, once turned back into words by the list |
 | **4-letter starts**, a key of English words | a wallet that completes a word from its start, and any, written out in full |
-| **Seed XOR parts**, a key of words only | Coldcard and Faraday; each part is itself valid BIP-39 words |
+| **Seed XOR parts**, a key of English words only | Coldcard and Faraday; each part is itself valid BIP-39 words |
 | **SLIP-39, 1 of 1**, a key of seed bytes of 16 or 32 bytes | Trezor and Faraday; no settings, the same words every time |
 | **SLIP-39, k of n**, a key of seed bytes of 16 or 32 bytes | Trezor and Faraday; one group of k of n shares, or several groups; fresh randomness |
 | **codex32**, a key of seed bytes | Faraday and any codex32 tool |
@@ -55,9 +55,9 @@ Between To and Result, for Seed XOR, SLIP-39, k of n and codex32.
 | Control | What it does |
 |---|---|
 | **Parts** | a Stepper, 2 to 4, for Seed XOR |
-| **Shares needed (0: the secret alone)** | codex32's k, the shares needed: 0 (the secret alone), then 2 to 9 |
+| **Shares needed (0: the secret alone)** | codex32's k, the shares needed: 0 (the secret alone, and a minus there stays at 0), then 2 to 9; each set of 2 or more takes a new identifier |
 | **Shares made** | codex32's n, the shares made, k to 31; none while k is 0 |
-| **Groups** | SLIP-39's groups, 1 to 16 |
+| **Groups** | SLIP-39's groups, 1 to 16; a plus that would leave a shape the system's randomness one press can be given cannot pay for shows disabled and does nothing |
 | **Groups needed** | with several groups, how many are needed, 2 up to the groups |
 | **Shares needed**, **Shares made** | with one group, its k and n, each a Stepper, 1 to 16; a threshold of 1 only for one share |
 | **Group 1 needs**, **Group 1 shares** | with several groups, the same for each group, by its number |

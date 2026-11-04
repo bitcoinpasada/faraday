@@ -74,17 +74,19 @@ standard it is and which software restores it.
   lists each word's number and bits; New key takes hex entropy; the
   Lightning screen reads an aezeed.
 - **Conversions in `faraday-keys`** (`faraday/faraday-keys/src/operations.rs`):
-  `master_seed_hex`, `master_xprv`, `slip39_one_of_one` and
-  `codex32_converted` and `seed_xor_converted` (Seed XOR parts, read back and
+  `master_seed_hex`, `master_xprv`, `slip39_one_of_one`,
+  `slip39_converted` (a SLIP-39 set of groups, every share parsed and a
+  first and a last qualifying subset recovered), `codex32_converted` and
+  `seed_xor_converted` (Seed XOR parts, read back and
   compared with the key's entropy), each for `Reveal::PaperForm` only and each read
   back through its standard's decoder to the key's master fingerprint
   before it is returned (`Convert::NotSameWallet` otherwise).
 - **Not built**: the SLIP-39 set actions on a screen (§8); in the tool
-  (`faraday/faraday-core/src/convert/`), SLIP-39 k of n and groups, a set
-  to a new set, and a copy scanned back in Check my copy (it is typed
-  back). Built there: Seed XOR parts (2 to 4) for a key of words, the
-  SLIP-39 1 of 1 and codex32 for a key of seed bytes, and the Settings
-  card for Seed XOR and codex32 (§6); the six
+  (`faraday/faraday-core/src/convert/`), a set to a new set, and a copy
+  scanned back in Check my copy (it is typed back). Built there: Seed XOR
+  parts (2 to 4) for a key of English words, the SLIP-39 1 of 1, SLIP-39 k
+  of n and groups, and codex32 for a key of seed bytes, and the Settings
+  card for Seed XOR, codex32 and SLIP-39 sets (§6); the six
   writings of §4.1 (`words_written` and `seedqr_written` in
   `operations.rs`, each read back before it is returned) and the two ways
   in.
@@ -230,8 +232,24 @@ shares", or for groups "SLIP-39, 2 of 3 groups: 2 of 3, 3 of 5, 1 of 1". The
 file Save writes is every share, one a line, in group order; a line carries
 no group, since a reader of plain share lines would not take one. The
 identifier and shares come from the randomness drawn, the passphrase is
-empty, and the set is read back from a first and a last qualifying subset.
-A new set's identifier and a copy scanned back are not built.
+empty, and the set is read back: every share is parsed, then a first and a
+last qualifying subset are recovered. The card offers only shapes the
+randomness one press can be given pays for (the pool's answers,
+`TAKE_MAX` in `faraday/faraday-core/src/fresh.rs`, worked out from the
+key's own seed length): a press of a Stepper that would leave a shape
+needing more does nothing, and that plus button shows disabled, so
+"No randomness from the system yet" says only that the system has not
+given what the shape needs. Seed XOR is offered for a key on the English
+list only, the one Add a key reads parts on; a key on another list is not
+given it. A codex32 set (k above 0) draws its identifier from the
+randomness, so each Make is a new set, never `identifier_for` the
+fingerprint nor the key's own set's (shares of two sets of one header
+would otherwise combine into another seed with no error); the secret alone
+keeps `identifier_for`. Not built: refusing an identifier another set on
+this device carries (`docs/CODEX32.md` §6.4.5), which needs the open vaults
+and Add a key's form, and a copy scanned back. The shown set is joined and
+numbered once, by the press that opens the eye, and held while it shows
+(F195).
 
 A new step flow, `Screen::Convert`, drawn as DESIGN §5's step flow, from
 DESIGN §4's components; a row in DESIGN §5's table (edit list). Ways in:

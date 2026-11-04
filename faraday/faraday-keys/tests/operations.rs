@@ -839,6 +839,86 @@ fn a_codex32_set_of_a_key_recovers_the_same_wallet() {
     }
 }
 
+/// A codex32 set of a key takes its identifier from the randomness: never
+/// the fingerprint's nor the key's own set's, a different one for other
+/// randomness, and shares of two such sets do not recover a seed together.
+/// The secret alone keeps the fingerprint's, and a draw too short for the
+/// identifier is refused.
+#[test]
+fn a_codex32_set_of_a_key_has_an_identifier_of_its_own_each_time() {
+    let c = compute();
+    let seed = unhex("000102030405060708090a0b0c0d0e0f");
+    let mut keys = seed_key(&c, Network::Mainnet, &seed);
+    let fp = keys.info(0).unwrap().fingerprint;
+    let own = faraday_bip::codex32::identifier_for(fp.0);
+    let set = |keys: &Keys, base: usize| {
+        let random: Vec<u8> = (0..faraday_keys::codex32_random_len(2))
+            .map(|i| (i * 11 + base) as u8)
+            .collect();
+        keys.codex32_converted(&c, 0, 2, 3, &random, Reveal::PaperForm)
+            .map(|h| h.release())
+    };
+    let parse = |set: &[zeroize::Zeroizing<String>]| -> Vec<Codex32> {
+        set.iter().map(|s| Codex32::parse(s).unwrap()).collect()
+    };
+    let (sa, sb) = (set(&keys, 3).unwrap(), set(&keys, 9).unwrap());
+    let (a, b) = (parse(&sa), parse(&sb));
+    assert_ne!(a[0].identifier(), b[0].identifier());
+    assert!(a[0].identifier() != own && b[0].identifier() != own);
+    assert!(a.iter().all(|s| s.identifier() == a[0].identifier()));
+    assert!(faraday_keys::codex32_seed(&parse(&[sa[0].clone(), sb[1].clone()])).is_err());
+    assert_eq!(*faraday_keys::codex32_seed(&a[1..]).unwrap(), seed);
+    // The key's own set's identifier is not drawn either: randomness that
+    // would give it is stepped on to another.
+    let drawn: Vec<u8> = a[0].identifier().to_vec();
+    keys.set_codex32(
+        0,
+        Some(faraday_vault::codex32::SetFacts {
+            threshold: 2,
+            identifier: a[0].identifier(),
+            length: 48,
+            unknown: 0,
+            strings: Vec::new(),
+        }),
+    );
+    let again = parse(&set(&keys, 3).unwrap());
+    assert_ne!(again[0].identifier().to_vec(), drawn);
+    assert_ne!(again[0].identifier(), own);
+    // The secret alone is fixed by the fingerprint and draws nothing.
+    let alone = keys
+        .codex32_converted(&c, 0, 0, 1, &[], Reveal::PaperForm)
+        .unwrap()
+        .release();
+    assert_eq!(Codex32::parse(&alone[0]).unwrap().identifier(), own);
+    // Too little randomness for the identifier is refused.
+    // A 16-byte seed's share takes its symbols, then four for the identifier.
+    let short = vec![1u8; faraday_bip::codex32::symbols_for(16) + 3];
+    assert_eq!(
+        keys.codex32_converted(&c, 0, 2, 3, &short, Reveal::PaperForm)
+            .map(|h| h.release()),
+        Err(Convert::Refused)
+    );
+}
+
+/// Seed XOR is given for a key on the English list only: a published
+/// Japanese BIP-39 vector key is refused, whatever randomness is given.
+#[test]
+fn seed_xor_is_not_given_for_a_key_on_another_list() {
+    let c = compute();
+    let jp: Value = serde_json::from_str(include_str!(
+        "../../../tools/vectors/bip39/test_JP_BIP39.json"
+    ))
+    .unwrap();
+    let words = jp[0]["mnemonic"].as_str().unwrap();
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_words_with(&c, words, "", "", None).unwrap();
+    assert_eq!(
+        keys.seed_xor_converted(&c, 0, 3, &[7u8; 96], Reveal::PaperForm)
+            .map(|h| h.release()),
+        Err(Convert::NotGiven)
+    );
+}
+
 /// A SLIP-39 set of a key, as SLIP-39's decoder reads it: the key's seed
 /// from the shares at `at` of `shares`.
 fn slip39_back(c: &Compute, shares: &[zeroize::Zeroizing<String>], at: &[usize]) -> Vec<u8> {
@@ -859,7 +939,11 @@ fn slip39_set(
         .iter()
         .map(|&(threshold, count)| GroupSpec { threshold, count })
         .collect();
-    let random: Vec<u8> = (0..faraday_keys::slip39_random_len(gt, &groups))
+    let random: Vec<u8> = (0..faraday_keys::slip39_random_len(
+        keys.info(0).and_then(|k| k.seed_len).unwrap_or(32),
+        gt,
+        &groups,
+    ))
         .map(|i| (i * 13 + 5) as u8)
         .collect();
     keys.slip39_converted(c, 0, gt, &groups, &random, Reveal::PaperForm)

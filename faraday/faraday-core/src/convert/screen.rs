@@ -176,11 +176,63 @@ fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
     cy - y
 }
 
+/// The SLIP-39 steppers: groups, how many are needed, and each group's
+/// shape. Returns the y under the last.
+fn slip_steppers(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    let steps = tokens::ICON_BUTTON + GAP_SMALL;
+    let one = s.slip.len() == 1;
+    let len = crate::convert::seed_len_of(&app.session.keys, s);
+    let mut step = |ui: &mut Ui, label: &str, value: u8, (less, more): (C, C), on: bool| {
+        // A press that would leave a shape the randomness cannot
+        // pay for is not taken: its plus shows disabled.
+        if !crate::convert::slip_fits(len, s.slip_t, &s.slip, more) {
+            ui.dimmed.push(Action::Convert(more));
+        }
+        let (less, more) = (Action::Convert(less), Action::Convert(more));
+        ui.stepper((x, cy, w), label, usize::from(value), (less, more), on);
+        cy += steps;
+    };
+    step(
+        ui,
+        EN.convert_slip39_groups,
+        s.slip.len() as u8,
+        (C::SlipGroups(-1), C::SlipGroups(1)),
+        true,
+    );
+    if !one {
+        step(
+            ui,
+            EN.convert_slip39_groups_needed,
+            s.slip_t,
+            (C::SlipGroupK(-1), C::SlipGroupK(1)),
+            true,
+        );
+    }
+    for (g, &(k, n)) in s.slip.iter().enumerate() {
+        let (g8, num) = (g as u8, (g + 1).to_string());
+        let (needed, made) = if one {
+            (
+                EN.convert_slip39_needed.to_string(),
+                EN.convert_slip39_made.to_string(),
+            )
+        } else {
+            (
+                fill(EN.convert_slip39_group_needed, &[&num]),
+                fill(EN.convert_slip39_group_made, &[&num]),
+            )
+        };
+        step(ui, &needed, k, (C::SlipK(g8, -1), C::SlipK(g8, 1)), n > 1);
+        step(ui, &made, n, (C::SlipN(g8, -1), C::SlipN(g8, 1)), true);
+    }
+    cy
+}
+
 /// Settings: Seed XOR's parts, a codex32 set's threshold and count, or a
 /// SLIP-39 set's groups, groups needed and each group's shares needed and
 /// made, each on a Stepper (as New key's); where the set draws randomness,
 /// its Fact.
-fn settings_card(_app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+fn settings_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let steps = tokens::ICON_BUTTON + GAP_SMALL;
     let draws = match s.target {
@@ -197,44 +249,7 @@ fn settings_card(_app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f3
             true
         }
         Some(Target::SlipSet) => {
-            let one = s.slip.len() == 1;
-            let mut step = |ui: &mut Ui, label: &str, value: u8, (less, more): (C, C), on: bool| {
-                let (less, more) = (Action::Convert(less), Action::Convert(more));
-                ui.stepper((x, cy, w), label, usize::from(value), (less, more), on);
-                cy += steps;
-            };
-            step(
-                ui,
-                EN.convert_slip39_groups,
-                s.slip.len() as u8,
-                (C::SlipGroups(-1), C::SlipGroups(1)),
-                true,
-            );
-            if !one {
-                step(
-                    ui,
-                    EN.convert_slip39_groups_needed,
-                    s.slip_t,
-                    (C::SlipGroupK(-1), C::SlipGroupK(1)),
-                    true,
-                );
-            }
-            for (g, &(k, n)) in s.slip.iter().enumerate() {
-                let (g8, num) = (g as u8, (g + 1).to_string());
-                let (needed, made) = if one {
-                    (
-                        EN.convert_slip39_needed.to_string(),
-                        EN.convert_slip39_made.to_string(),
-                    )
-                } else {
-                    (
-                        fill(EN.convert_slip39_group_needed, &[&num]),
-                        fill(EN.convert_slip39_group_made, &[&num]),
-                    )
-                };
-                step(ui, &needed, k, (C::SlipK(g8, -1), C::SlipK(g8, 1)), n > 1);
-                step(ui, &made, n, (C::SlipN(g8, -1), C::SlipN(g8, 1)), true);
-            }
+            cy = slip_steppers(app, s, ui, (x, cy, w));
             true
         }
         Some(Target::Codex32) => {
@@ -417,10 +432,9 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
                 let label = EN.convert_show_code;
                 crate::vault::screen::secret::code_with(ui, (x, cy, w), code, label, eye)
             } else {
-                // The closure runs only with the eye open; its copy lives
-                // for the frame, wiped, and is on no state.
-                let groups = crate::convert::groups_made(s);
-                let text = || held.and_then(|v| v.display(&groups)).unwrap_or_default();
+                // Joined and numbered by the press that opened the eye and
+                // held while it is open: drawing only reads it.
+                let text = || app.convert_shown_text().unwrap_or_default();
                 crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye)
             } + GAP;
             let mut fact = |ui: &mut Ui, label: &str, value: &str| {

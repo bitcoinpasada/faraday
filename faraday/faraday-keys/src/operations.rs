@@ -91,17 +91,46 @@ pub fn seed_xor_random_len(parts: u8) -> usize {
 
 /// The fresh bytes a codex32 set any `k` of which recover the seed takes
 /// at most (a lookup): a symbol for each of the longest seed's, 64 bytes,
-/// in each of the `k − 1` random shares ([`Keys::codex32_shares`],
-/// [`Keys::codex32_new_set`]).
+/// in each of the `k − 1` random shares, then, for a set (`k` above 0),
+/// four for its identifier ([`Keys::codex32_shares`],
+/// [`Keys::codex32_new_set`], which leaves the last four unused).
 pub fn codex32_random_len(k: u8) -> usize {
-    usize::from(k.saturating_sub(1)) * codex32::symbols_for(64)
+    match k {
+        0 => 0,
+        k => usize::from(k - 1) * codex32::symbols_for(64) + IDENTIFIER_LEN,
+    }
 }
 
-/// The fresh bytes a SLIP-39 set of these groups takes at most (a lookup),
-/// for the longest secret, 32 bytes: two for the identifier, then what the
+/// The characters of a codex32 identifier.
+const IDENTIFIER_LEN: usize = 4;
+
+/// A codex32 identifier drawn from `random`'s first four bytes, five bits
+/// of each, that is none of `avoid`: a draw that lands on one has its last
+/// character stepped on until it does not (two steps at most).
+fn drawn_identifier(random: &[u8], avoid: &[[u8; 4]]) -> [u8; 4] {
+    let mut id = [0u8; 4];
+    for (c, b) in id.iter_mut().zip(random) {
+        *c = codex32::CHARSET[usize::from(b & 31)];
+    }
+    while avoid.contains(&id) {
+        let at = codex32::CHARSET
+            .iter()
+            .position(|&c| c == id[3])
+            .unwrap_or(0);
+        id[3] = codex32::CHARSET[(at + 1) % 32];
+    }
+    id
+}
+
+/// The fresh bytes a SLIP-39 set of these groups takes for a secret of
+/// `seed_len` bytes (a lookup): two for the identifier, then what the
 /// split asks for ([`slip39::random_len`]).
-pub fn slip39_random_len(group_threshold: u8, groups: &[slip39::GroupSpec]) -> usize {
-    2 + slip39::random_len(32, group_threshold, groups)
+pub fn slip39_random_len(
+    seed_len: usize,
+    group_threshold: u8,
+    groups: &[slip39::GroupSpec],
+) -> usize {
+    2 + slip39::random_len(seed_len, group_threshold, groups)
 }
 
 impl Keys {
@@ -249,8 +278,12 @@ impl Keys {
     /// from, at that seed's own length; a key with words is refused
     /// ([`Paper::Words`]). `random` is fresh randomness, taken as it is:
     /// the other shares' symbols are its first bytes in turn, one byte a
-    /// symbol; fewer than they need are refused ([`codex32_random_len`]
-    /// is always enough).
+    /// symbol, and for a set the four bytes after them draw its
+    /// identifier, never `identifier_for` the key's fingerprint nor its own
+    /// set's (a new set from a seed is not the same set: shares of two
+    /// would otherwise interpolate to another seed with no error); fewer
+    /// than they need are refused ([`codex32_random_len`] is always
+    /// enough). The secret alone, `k` 0, keeps that identifier.
     pub fn codex32_shares(
         &self,
         i: usize,
@@ -283,6 +316,12 @@ impl Keys {
         let fresh = random
             .get(..need)
             .ok_or_else(|| one(codex32::Error::NotEnoughRandomness))?;
+        let drawn = random
+            .get(need..need + IDENTIFIER_LEN)
+            .ok_or_else(|| one(codex32::Error::NotEnoughRandomness))?;
+        let own = self[i].codex32.as_ref().map(|f| f.identifier);
+        let avoid: Vec<[u8; 4]> = std::iter::once(id).chain(own).collect();
+        let id = drawn_identifier(drawn, &avoid);
         Codex32::from_seed(k, id, seed)
             .and_then(|secret| secret.split(k, n, fresh))
             .map(|shares| {
@@ -478,8 +517,10 @@ impl Keys {
     /// `random` are the identifier, the rest the split's. Read back: the
     /// first threshold's worth of members of each of the first
     /// `group_threshold` groups and the last threshold's worth of each of
-    /// the last, each parsed and recovered with an empty passphrase, give
-    /// the key's fingerprint; anything else is [`Convert::NotSameWallet`].
+    /// the last, each recovered with an empty passphrase, give the key's
+    /// fingerprint, after every share has been parsed (a share that does
+    /// not parse is [`Convert::NotSameWallet`]); anything else is
+    /// [`Convert::NotSameWallet`].
     /// The shares are in group, then member order.
     pub fn slip39_converted(
         &self,
@@ -499,7 +540,7 @@ impl Keys {
         if seed.len() != 16 && seed.len() != 32 {
             return Err(Convert::Length);
         }
-        let need = 2 + slip39::random_len(seed.len(), group_threshold, groups);
+        let need = slip39_random_len(seed.len(), group_threshold, groups);
         let random = random.get(..need).ok_or(Convert::Refused)?;
         let (id, mut rest) = random.split_at(2);
         let identifier = u16::from_le_bytes([id[0], id[1]]) & 0x7fff;
@@ -546,10 +587,13 @@ impl Keys {
             at += usize::from(g.count);
         }
         let g = usize::from(group_threshold);
+        // Every share parses before any recovery is paid for.
+        let parsed: Option<Vec<Share>> = lines.iter().map(|l| Share::parse(l).ok()).collect();
+        let parsed = parsed.ok_or(Convert::NotSameWallet)?;
         let recovers = |chosen: &mut dyn Iterator<Item = usize>| {
-            let parsed: Option<Vec<Share>> = chosen.map(|n| Share::parse(&lines[n]).ok()).collect();
-            parsed
-                .and_then(|p| slip39_seed(c, &p, b"").ok())
+            let own: Vec<Share> = chosen.map(|n| parsed[n].clone()).collect();
+            slip39_seed(c, &own, b"")
+                .ok()
                 .and_then(|secret| fingerprint_of_seed(c, &secret))
         };
         let mut first =
@@ -584,6 +628,12 @@ impl Keys {
         let s = self.convert_source(i, why)?;
         if !(2..=4).contains(&parts) {
             return Err(Convert::Refused);
+        }
+        // Seed XOR's parts are restored on the English list only, so a key
+        // on another list is not given: the parts would not be the same
+        // wallet by what the app says restores them.
+        if s.language != Language::English {
+            return Err(Convert::NotGiven);
         }
         let m = Mnemonic::parse(c, s.language, s.words.ok_or(Convert::NotGiven)?)
             .map_err(|_| Convert::NotGiven)?;

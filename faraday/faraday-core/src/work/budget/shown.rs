@@ -176,3 +176,43 @@ fn convert_a_seeds_code_is_held_once_and_the_frames_work_out_nothing() {
         ],
     );
 }
+
+#[test]
+fn convert_a_set_is_joined_once_when_shown_and_the_frames_work_out_nothing() {
+    use faraday_shell_api::{EntropyBytes, Event};
+    let c = testkit::compute();
+    let (mut app, _) = walk(&c, &mut |_, _| {});
+    let fp = app.session.keys[0].fingerprint.0;
+    app.press(Action::Convert(ConvertAction::OpenOn(fp)));
+    for i in 0..6u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    let at = ROWS
+        .iter()
+        .position(|r| r.name == "Seed XOR parts")
+        .unwrap() as u8;
+    app.press(Action::Convert(ConvertAction::To(at)));
+    app.press(Action::Convert(ConvertAction::Make));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    app.settle();
+    let _ = app.frame();
+    assert!(app.tools.convert().holds_value(), "the set is held, masked");
+    assert!(app.tools.convert().shown_text().is_none());
+    // The press that opens the eye joins the set once; the frames after
+    // it draw what is held.
+    let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
+    assert!(app.tools.convert().shown_text().is_some(), "joined, held");
+    frames_work_out_nothing(&mut app);
+    let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
+    assert!(app.tools.convert().shown_text().is_none(), "hidden, gone");
+    assert!(app.tools.convert().holds_value());
+    app.press(Action::Convert(ConvertAction::Show));
+    assert!(app.tools.convert().shown_text().is_some());
+    app.press(Action::Convert(ConvertAction::Done));
+    assert!(
+        app.tools.convert().shown_text().is_none(),
+        "leaving drops it"
+    );
+}

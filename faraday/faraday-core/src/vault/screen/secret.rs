@@ -14,7 +14,7 @@ pub(crate) fn secret(
     mono: bool,
     eye: (Action, bool),
 ) -> f32 {
-    secret_with(ui, at, || value.to_string().into(), mono, eye)
+    secret_with(ui, at, || value, mono, eye)
 }
 
 /// The eye at the right end of a secret field whose top is `y`: open
@@ -47,10 +47,10 @@ fn secret_eye(ui: &mut Ui, x: f32, y: f32, w: f32, (action, shown): (Action, boo
 }
 
 /// [`secret`] with the value made only while it shows.
-pub(crate) fn secret_with(
+pub(crate) fn secret_with<V: AsRef<str>>(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
-    value: impl FnOnce() -> zeroize::Zeroizing<String>,
+    value: impl FnOnce() -> V,
     mono: bool,
     eye: (Action, bool),
 ) -> f32 {
@@ -59,7 +59,7 @@ pub(crate) fn secret_with(
     let shown = eye.1;
     let role = if mono { BODY_M.mono() } else { BODY_M };
     let text = if shown {
-        crate::secret_text::SecretText::of(&value())
+        crate::secret_text::SecretText::of(value().as_ref())
     } else {
         crate::secret_text::SecretText::of(&"\u{2022}".repeat(24))
     };

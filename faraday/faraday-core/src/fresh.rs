@@ -38,6 +38,11 @@ pub(crate) mod roller;
 /// answers.
 pub const POOL: usize = 26;
 
+/// The most bytes one [`Fresh::take_bytes`] gives: [`POOL`] answers of 32.
+/// A press that needs more is never given them, so a screen offers no
+/// shape that does.
+pub const TAKE_MAX: usize = POOL * 32;
+
 /// How long after the first display a missing seed is said on screen.
 /// The shell answers the first `RequestEntropy` within the first frame;
 /// two seconds is many frames on the slowest panel, so a seed still
@@ -300,7 +305,7 @@ impl Fresh {
     /// of its own, as [`Fresh::take`] makes them: `ceil(n / 32)` answers,
     /// the last one cut to what is left. `None`, with nothing taken,
     /// while fewer answers wait than it needs, or when `n` is more than
-    /// [`POOL`] answers hold; either way as many answers are asked for
+    /// [`TAKE_MAX`]; either way as many answers are asked for
     /// as it takes.
     pub(crate) fn take_bytes(
         &mut self,
@@ -312,7 +317,7 @@ impl Fresh {
         for _ in 0..answers {
             out.command(Command::RequestEntropy);
         }
-        if answers > POOL || self.pool.len() < answers {
+        if n > TAKE_MAX || self.pool.len() < answers {
             return None;
         }
         let mut bytes = Zeroizing::new(Vec::with_capacity(answers * 32));

@@ -148,9 +148,9 @@ sheet or on Explore has **Write it in another form**, which opens the flow on
 that key, To open; Done returns to the screen it came from. To lists the
 master seed in hex and the xprv, and for a key of words the words, SeedQR,
 CompactSeedQR, hex entropy, word numbers (`1 (0)` a line), 4-letter starts and
-Seed XOR parts; for a key of seed bytes the SLIP-39 1 of 1 and k of n (16 or 32 bytes; 64
+Seed XOR parts (English words only); for a key of seed bytes the SLIP-39 1 of 1 and k of n (16 or 32 bytes; 64
 bytes dimmed) and codex32. Seed XOR, SLIP-39 k of n and codex32 open a Settings card between To
-and Result (Parts; k and n, or SLIP-39's groups, groups needed and each group's shares needed and made; Make; with no randomness ready a toast says so),
+and Result (Parts; k and n, or SLIP-39's groups, groups needed and each group's shares needed and made, a plus that would need more randomness than one press can be given disabled and doing nothing; Make; with no randomness ready a toast says so), a codex32 set of 2 or more taking a new identifier on each Make,
 and their Result is a set: one eye, the parts numbered, Check my copy against
 every part (a SLIP-39 set of groups says which group), Save as a file with every part one per line; Practice dims Seed XOR
 and SLIP-39 k of n and goes from codex32's secret straight to Result;

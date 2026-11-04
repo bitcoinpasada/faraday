@@ -51,6 +51,12 @@ impl View<'_> {
         self.app.tools.convert().held()
     }
 
+    /// The text Convert's open eye shows, held since the press that
+    /// opened it: a borrow, nothing costs.
+    pub fn convert_shown_text(&self) -> Option<&str> {
+        self.app.tools.convert().shown_text()
+    }
+
     /// A vault key record's words, read for this frame to be shown
     /// ([`faraday_keys::vault::OpenVaults::words_of`];
     /// [`Allowed::SecretShown`]). Costs a parse of the words.
