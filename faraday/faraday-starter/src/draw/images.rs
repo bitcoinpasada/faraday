@@ -3,7 +3,7 @@
 //! files to download for hardware whose image was not found. A Material 3
 //! list: two-line items, a radio on the choices, a file icon on the rest.
 
-use faraday_draw::tokens::LIST_2;
+use faraday_draw::tokens::{IMAGE_LIST_GAP, LIST_2};
 use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_ui::Role;
@@ -45,7 +45,7 @@ pub(super) fn section(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, t
             y += LIST_2;
             ui.rule(x, y, w, Role::OutlineVariant);
         }
-        y += 12.0;
+        y += IMAGE_LIST_GAP;
     }
     if !missing.is_empty() || !refused.is_empty() {
         y += label(ui, x, y, S.starter_images_missing);
@@ -70,7 +70,7 @@ pub(super) fn section(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, t
             );
             y += nav_row(ui, x, y, w, Icon::File, name, &sub, "", None);
         }
-        y += 12.0;
+        y += IMAGE_LIST_GAP;
     }
     y - y0
 }

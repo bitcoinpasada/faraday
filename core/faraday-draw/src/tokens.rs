@@ -644,6 +644,10 @@ pub const MODE_PILL_HEIGHT: f32 = 28.0;
 /// The mode pill's inset from its edge to its label, each side.
 pub const MODE_PILL_PAD: f32 = 12.0;
 
+/// The gap above and below the Starter's list of images, between it and
+/// what comes next on the page.
+pub const IMAGE_LIST_GAP: f32 = 12.0;
+
 /// The mode sheet's widest, as the Load sheet's.
 pub const MODE_SHEET_WIDTH: f32 = 640.0;
 
