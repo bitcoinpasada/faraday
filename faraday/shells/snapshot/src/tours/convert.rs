@@ -20,7 +20,7 @@ fn open(t: &mut Tour) -> Result<(), String> {
 /// Convert a seed (`docs/SEED-CONVERSION.md` §6): From with no key, From
 /// with an open vault's key, and that key loaded; To for a key of words; the
 /// xprv's Result masked and shown; Check my copy typing, wrong and right; and
-/// the Secret out sheet.
+/// the Secret out sheet; Seed XOR's Settings card and its result of parts.
 pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     open(t)?;
     t.shot("convert-from-empty")?;
@@ -93,6 +93,27 @@ pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::Convert(C::Show));
         t.shot(&format!("convert-{name}-shown"))?;
     }
+    // A target with settings, and a result of several parts checked one
+    // part at a time.
+    t.press(Action::Convert(C::Step(cstep::TO)));
+    let xor = ROWS
+        .iter()
+        .position(|r| r.name == "Seed XOR parts")
+        .ok_or("no Seed XOR row")?;
+    t.press(Action::Convert(C::To(xor as u8)));
+    t.shot("convert-settings")?;
+    // The first press asks for the randomness, which the tour answers.
+    t.press(Action::Convert(C::Make));
+    t.tick();
+    t.press(Action::Convert(C::Make));
+    t.shot("convert-set")?;
+    t.press(Action::Convert(C::Show));
+    t.shot("convert-set-shown")?;
+    let part = convert::shown_parts(&t.app).ok_or("no parts")?[1].to_string();
+    t.press(Action::Convert(C::Check));
+    type_text(t, &part);
+    t.press(Action::Convert(C::Compare));
+    t.shot("convert-set-matches")?;
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::Convert(C::Done));
     t.press(Action::Explore);

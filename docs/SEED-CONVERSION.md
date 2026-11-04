@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
-**Open:** the rest of batch S3 (§4.3's Settings step and a copy scanned back in Check my copy) and batches S4 to S7 (§10)
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`; batch S4a, Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); batch S3's flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's
+**Open:** SLIP-39 k of n and groups, a set to a new set, a copy scanned back in Check my copy, and the rest of §10
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -75,12 +75,16 @@ standard it is and which software restores it.
   Lightning screen reads an aezeed.
 - **Conversions in `faraday-keys`** (`faraday/faraday-keys/src/operations.rs`):
   `master_seed_hex`, `master_xprv`, `slip39_one_of_one` and
-  `codex32_converted`, each for `Reveal::PaperForm` only and each read
+  `codex32_converted` and `seed_xor_converted` (Seed XOR parts, read back and
+  compared with the key's entropy), each for `Reveal::PaperForm` only and each read
   back through its standard's decoder to the key's master fingerprint
   before it is returned (`Convert::NotSameWallet` otherwise).
 - **Not built**: the SLIP-39 set actions on a screen (§8); in the tool
-  (`faraday/faraday-core/src/convert/`), the Settings step and a copy
-  scanned back in Check my copy (it is typed back). Built there: the six
+  (`faraday/faraday-core/src/convert/`), SLIP-39 k of n and groups, a set
+  to a new set, and a copy scanned back in Check my copy (it is typed
+  back). Built there: Seed XOR parts (2 to 4) for a key of words, the
+  SLIP-39 1 of 1 and codex32 for a key of seed bytes, and the Settings
+  card for Seed XOR and codex32 (§6); the six
   writings of §4.1 (`words_written` and `seedqr_written` in
   `operations.rs`, each read back before it is returned) and the two ways
   in.
@@ -199,6 +203,22 @@ Each is a dimmed row under **To**, its line in place of a press.
 | Shamir39 | "Not offered" | §11 (Q1) |
 
 ## 6. The screen
+
+Built (batch S4a): the rows under To for Seed XOR parts, SLIP-39 1 of 1
+(16 or 32 bytes; 64 bytes is listed dimmed, "SLIP-39 backups of 64 bytes
+are read by no wallet"; 20, 24 and 28 bytes have no row) and codex32, and
+a Settings card between To and Result for Seed XOR and codex32 only:
+Parts (2 to 4), codex32's k (0, then 2 to 9) and n (k to 31, none while k
+is 0), the Fact "Fresh randomness: Faraday's" where a set draws
+randomness, and Make; with no randomness ready a toast says so and the
+card stays. A set is one Held value with one eye, the parts numbered (a
+set of one string, the codex32 secret, unnumbered); Check my copy compares
+one typed string with every part and says which part matched or that it
+differs; Save as a file writes every part, one per line; all are dropped
+when Result is left. In Practice Seed XOR alone is dimmed and codex32's
+secret goes straight to Result. The codex32 length setting of item 3
+below is left out: a loaded key's seed fixes it. The groups, a new set's
+identifier and a copy scanned back are not built.
 
 A new step flow, `Screen::Convert`, drawn as DESIGN §5's step flow, from
 DESIGN §4's components; a row in DESIGN §5's table (edit list). Ways in:

@@ -910,7 +910,7 @@ pub static EN: Learn = Learn {
                     "Seed XOR splits one key into two or more parts. Each part is a full set of seed words of the same length as the original, and combining the parts with the XOR operation gives the original key back. It is Coldcard's scheme: parts made here combine on a Coldcard, and parts made on a Coldcard combine here.",
                     "All but the last part are random, and the last is worked out so that the parts XOR back to your key. Every part is needed: it has no threshold, two parts of a three-part split are worth nothing, and losing one loses the key. In exchange it is simple enough to do with pencil and paper from the wordlist numbers, and any wallet can read a part.",
                     "Each part is also a valid set of seed words, so each is a working wallet with addresses of its own. Coins sent to an address derived from a part are held by that part alone, not by your key. Treat every part with the same care as the original words.",
-                    "In Faraday, a backup splits a seed among its copies by hand into two or three parts, with the random parts drawn from the device's own generator. Add a key › Type Seed XOR parts combines them into the key that already existed.",
+                    "In Faraday, a backup splits a seed among its copies by hand into two or three parts, with the random parts drawn from the device's own generator. Add a key › Type Seed XOR parts combines them into the key that already existed. Convert a seed writes a key of words as two to four parts too, with the number of parts under Settings, and reads the parts back to your key before it shows them.",
                 ],
             },
             Section {

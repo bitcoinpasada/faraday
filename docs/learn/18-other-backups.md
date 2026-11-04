@@ -80,7 +80,7 @@ All but the last part are random, and the last is worked out so that the parts X
 
 Each part is also a valid set of seed words, so each is a working wallet with addresses of its own. Coins sent to an address derived from a part are held by that part alone, not by your key. Treat every part with the same care as the original words.
 
-In Faraday, a backup splits a seed among its copies by hand into two or three parts, with the random parts drawn from the device's own generator. Add a key › Type Seed XOR parts combines them into the key that already existed.
+In Faraday, a backup splits a seed among its copies by hand into two or three parts, with the random parts drawn from the device's own generator. Add a key › Type Seed XOR parts combines them into the key that already existed. Convert a seed writes a key of words as two to four parts too, with the number of parts under Settings, and reads the parts back to your key before it shows them.
 
 ## A vault
 

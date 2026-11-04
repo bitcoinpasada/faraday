@@ -1186,6 +1186,62 @@ strings! {
     convert_word_list: "Word list",
     /// The Passphrase fact of a form that leaves the passphrase out.
     convert_keeps_passphrase: "Not in this form: restore it with the passphrase",
+    /// Title of Convert's Settings card, between To and Result.
+    convert_settings_title: "Settings",
+    /// The button on Settings that makes the result.
+    convert_make: "Make",
+    /// The Seed XOR row under To, and its Standard fact with the parts' count.
+    convert_xor: "Seed XOR parts",
+    /// The line of `convert_xor`.
+    convert_xor_line: "Seed XOR (Coldcard's), 2, 3 or 4 parts",
+    /// The Standard fact of Seed XOR parts. `{}`: how many parts.
+    convert_xor_standard: "Seed XOR (Coldcard's), {} parts",
+    /// The Restores in fact of Seed XOR parts.
+    convert_xor_restores: "Coldcard, Faraday; each part is itself valid BIP-39 words",
+    /// Name of Seed XOR parts on the secret sheet.
+    convert_secret_xor: "A seed's Seed XOR parts",
+    /// The codex32 row under To.
+    convert_codex32: "codex32",
+    /// The line of `convert_codex32`.
+    convert_codex32_line: "BIP-93 codex32, the secret or a set of shares",
+    /// The Standard fact of the codex32 secret.
+    convert_codex32_secret: "BIP-93 codex32, the secret",
+    /// The Standard fact of a codex32 set. `{}`: shares needed, shares made.
+    convert_codex32_set: "BIP-93 codex32, {} of {} shares",
+    /// The Restores in fact of codex32.
+    convert_codex32_restores: "Faraday, and any program that reads BIP-93 codex32",
+    /// Name of codex32 strings on the secret sheet.
+    convert_secret_codex32: "A seed's codex32 strings",
+    /// The SLIP-39 1 of 1 row under To.
+    convert_slip39: "SLIP-39, 1 of 1",
+    /// The line of `convert_slip39`.
+    convert_slip39_line: "SLIP-39, one group of one share, 20 or 33 words",
+    /// The Standard fact of SLIP-39 1 of 1. `{}`: how many words.
+    convert_slip39_standard: "SLIP-39, 1 of 1, {} words",
+    /// The Restores in fact of SLIP-39 1 of 1.
+    convert_slip39_restores: "Trezor (Model T, Safe 3, Safe 5), Faraday",
+    /// Name of a SLIP-39 backup on the secret sheet.
+    convert_secret_slip39: "A seed's SLIP-39 words",
+    /// The dimmed SLIP-39 row for a seed of 64 bytes.
+    convert_no_slip39_64: "SLIP-39",
+    /// The line of `convert_no_slip39_64`.
+    convert_no_slip39_64_line: "SLIP-39 backups of 64 bytes are read by no wallet",
+    /// Settings: how many Seed XOR parts, on a stepper.
+    convert_parts: "Parts",
+    /// Settings: a codex32 set's threshold, on a stepper; 0 is the secret alone.
+    convert_codex32_k: "Shares needed (0: the secret alone)",
+    /// Settings: how many codex32 shares are made, on a stepper.
+    convert_codex32_n: "Shares made",
+    /// A fact on Settings where the target draws randomness: its label.
+    convert_fresh: "Fresh randomness",
+    /// The value of `convert_fresh`.
+    convert_fresh_value: "Faraday's",
+    /// What follows a part's number, before a space and the part, in a result of several.
+    convert_part_sep: ":",
+    /// Toast when a target that draws randomness finds none yet.
+    convert_no_randomness: "No randomness from the system yet. Try again",
+    /// Check my copy found the copy is one part of a result of several. `{}`: its place.
+    convert_copy_matches_part: "Your copy matches part {}",
     /// The way in from a key's chart sheet and from Explore.
     convert_way_in: "Write it in another form",
     /// Toast in `bip85_open`.

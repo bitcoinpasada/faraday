@@ -46,7 +46,8 @@ pub enum Paper {
 
 /// Why a conversion of a key's master seed was not made
 /// ([`Keys::master_seed_hex`], [`Keys::master_xprv`],
-/// [`Keys::slip39_one_of_one`], [`Keys::codex32_converted`]).
+/// [`Keys::slip39_one_of_one`], [`Keys::codex32_converted`],
+/// [`Keys::seed_xor_converted`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Convert {
     /// No such key, a reason but `Reveal::PaperForm`, or no words or seed
@@ -456,6 +457,53 @@ impl Keys {
             .and_then(|share| slip39_seed(c, &[share], b"").ok())
             .and_then(|secret| fingerprint_of_seed(c, &secret));
         checked(s.master.fingerprint(), read, text)
+    }
+
+    /// Costs what [`Keys::seed_xor`] costs and a parse of each part.
+    /// [`Keys::seed_xor`] for key `i`, given only for `Reveal::PaperForm`
+    /// and only when the parts read back: each part parsed as BIP-39 words
+    /// on the key's own list, and their entropies XORed give the key's
+    /// entropy on that list, so the same words. Anything else is
+    /// [`Convert::NotSameWallet`]; a key with no words is
+    /// [`Convert::NotGiven`], and too little randomness is
+    /// [`Convert::Refused`].
+    pub fn seed_xor_converted(
+        &self,
+        c: &Compute,
+        i: usize,
+        parts: u8,
+        random: &[u8],
+        why: Reveal,
+    ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        if !(2..=4).contains(&parts) {
+            return Err(Convert::Refused);
+        }
+        let m = Mnemonic::parse(c, s.language, s.words.ok_or(Convert::NotGiven)?)
+            .map_err(|_| Convert::NotGiven)?;
+        let lines = self
+            .seed_xor(c, i, parts, random, why)
+            .map_err(|e| match e {
+                Paper::NoWords | Paper::Words => Convert::NotGiven,
+                Paper::Refused(_) | Paper::Failed => Convert::Refused,
+            })?
+            .release();
+        let mut xor = SeedXor::new();
+        let mut read_all = lines.len() == usize::from(parts);
+        for line in lines.iter() {
+            match Mnemonic::parse(c, m.language(), line) {
+                Ok(part) => read_all &= xor.push(part.entropy().expose().as_bytes()).is_ok(),
+                Err(_) => read_all = false,
+            }
+        }
+        let read = if read_all {
+            xor.entropy()
+                .ok()
+                .and_then(|e| Mnemonic::from_entropy(m.language(), e.as_bytes()).ok())
+        } else {
+            None
+        };
+        same_words(&m, read.as_ref(), lines)
     }
 
     /// Costs what [`Keys::codex32_shares`] costs and a master key.

@@ -2,6 +2,7 @@
 
 use crate::convert::{
     ConvertAction as C, ConvertState, ROWS, Target, Value, cstep, same_as_source, source,
+    standard_text,
 };
 use crate::drawing::{Scrolled, View};
 use crate::strings::EN;
@@ -20,6 +21,7 @@ use faraday_ui::parts::button_rows;
 pub(crate) const TITLES: [&str; cstep::COUNT] = [
     EN.convert_from_title,
     EN.convert_to_title,
+    EN.convert_settings_title,
     EN.convert_result_title,
 ];
 
@@ -27,8 +29,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = crate::convert::state(app) else {
         return;
     };
-    let cards: Vec<flow::Card> = (0..cstep::COUNT as u8)
-        .map(|step| flow::Card {
+    let order = crate::convert::order(s);
+    let cards: Vec<flow::Card> = order
+        .iter()
+        .map(|&step| flow::Card {
             title: TITLES[usize::from(step)].to_string(),
             summary: summary(app, s, step),
             mono: false,
@@ -65,7 +69,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match crate::convert::state(app_ref) {
-                Some(s) => card(app_ref, s, ui, i as u8, (x, y, w)),
+                Some(s) => card(app_ref, s, ui, order[i], (x, y, w)),
                 None => 0.0,
             }
         };
@@ -97,14 +101,25 @@ fn summary(app: &View, s: &ConvertState, step: u8) -> String {
                 target_name(app, r.name, r.target)
             })
             .to_string(),
+        cstep::SETTINGS => match (s.target, key_of(app, s)) {
+            (Some(target), Some(k)) => standard_text(s, k, target),
+            _ => String::new(),
+        },
         _ => String::new(),
     }
+}
+
+/// The key chosen, if it is loaded.
+fn key_of<'a>(app: &'a View, s: &ConvertState) -> Option<&'a faraday_keys::KeyInfo> {
+    s.key
+        .and_then(|fp| app.session.keys.all().find(|k| k.fingerprint.0 == fp))
 }
 
 fn card(app: &View, s: &ConvertState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32, f32)) -> f32 {
     match step {
         cstep::FROM => from_card(app, s, ui, (x, y, w)),
         cstep::TO => to_card(app, s, ui, (x, y, w)),
+        cstep::SETTINGS => settings_card(app, s, ui, (x, y, w)),
         _ => result_card(app, s, ui, (x, y, w)),
     }
 }
@@ -151,11 +166,79 @@ fn to_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
         if !r.applies(key) {
             continue;
         }
-        let press = r.target.map(|_| Action::Convert(C::To(place as u8)));
+        let press = r
+            .target
+            .filter(|&t| !crate::convert::dimmed(app, t))
+            .map(|_| Action::Convert(C::To(place as u8)));
         let name = target_name(app, r.name, r.target);
         cy += row(ui, (x, cy, w), (name, r.line), false, press);
     }
     cy - y
+}
+
+/// Settings: Seed XOR's parts, or a codex32 set's threshold and count, each
+/// on a Stepper; where the set draws randomness, its Fact. SLIP-39's
+/// shares and groups would stand here too.
+fn settings_card(_app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    let steps = tokens::ICON_BUTTON + GAP_SMALL;
+    let draws = match s.target {
+        Some(Target::SeedXor) => {
+            let (less, more) = (Action::Convert(C::Parts(-1)), Action::Convert(C::Parts(1)));
+            ui.stepper(
+                (x, cy, w),
+                EN.convert_parts,
+                usize::from(s.parts),
+                (less, more),
+                true,
+            );
+            cy += steps;
+            true
+        }
+        Some(Target::Codex32) => {
+            let (less, more) = (Action::Convert(C::K(-1)), Action::Convert(C::K(1)));
+            ui.stepper(
+                (x, cy, w),
+                EN.convert_codex32_k,
+                usize::from(s.k),
+                (less, more),
+                true,
+            );
+            cy += steps;
+            let (less, more) = (Action::Convert(C::N(-1)), Action::Convert(C::N(1)));
+            ui.stepper(
+                (x, cy, w),
+                EN.convert_codex32_n,
+                usize::from(s.n),
+                (less, more),
+                s.k > 0,
+            );
+            cy += steps;
+            s.k > 0
+        }
+        _ => false,
+    };
+    if draws {
+        cy += crate::compact::kv(
+            ui,
+            x,
+            cy,
+            w,
+            EN.convert_fresh,
+            EN.convert_fresh_value,
+            Role::OnSurface,
+        );
+    }
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.convert_make,
+        Style::Primary,
+        Action::Convert(C::Make),
+    );
+    cy + BUTTON_H - y + GAP_SMALL
 }
 
 /// An Option row with its line under its name, the line being long: it
@@ -208,7 +291,13 @@ fn row(
 /// would put it out of sight under it. Returns its height.
 fn found_line(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     match crate::convert::found(app) {
-        Some(true) => ui.wrap_as((x, y, w), LABEL_L, Role::Ok, EN.convert_copy_matches) + GAP,
+        Some(true) => {
+            let line = match crate::convert::found_part(app) {
+                Some(n) => crate::strings::fill(EN.convert_copy_matches_part, &[&n.to_string()]),
+                None => EN.convert_copy_matches.to_string(),
+            };
+            ui.wrap_as((x, y, w), LABEL_L, Role::Ok, &line) + GAP
+        }
         Some(false) => ui.wrap_as((x, y, w), LABEL_L, Role::Error, EN.convert_copy_differs) + GAP,
         None => 0.0,
     }
@@ -278,17 +367,13 @@ fn result_card(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, 
             } else {
                 // The closure runs only with the eye open; its copy lives
                 // for the frame, wiped, and is on no state.
-                let text = || {
-                    held.and_then(Value::text)
-                        .map(|v| v.to_string().into())
-                        .unwrap_or_default()
-                };
+                let text = || held.and_then(Value::display).unwrap_or_default();
                 crate::vault::screen::secret::secret_with(ui, (x, cy, w), text, true, eye)
             } + GAP;
             let mut fact = |ui: &mut Ui, label: &str, value: &str| {
                 cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
             };
-            fact(ui, EN.convert_standard, target.standard());
+            fact(ui, EN.convert_standard, &standard_text(s, k, target));
             fact(ui, EN.convert_restores_in, target.restores_in());
             fact(ui, EN.convert_fingerprint, &same_as_source(k.fingerprint));
             if target.lacks_list() && k.language != Language::English {

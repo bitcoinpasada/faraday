@@ -19,17 +19,20 @@ use faraday_keys::operations::WordsForm;
 use faraday_keys::{Held, KeyInfo, Reveal, operations::Convert};
 use zeroize::Zeroizing;
 
-/// The cards, in order. A target with settings would have its card
-/// between [`cstep::TO`] and [`cstep::RESULT`].
+/// The cards, in order. A target with settings has its card between
+/// [`cstep::TO`] and [`cstep::RESULT`]; a target without goes from To to
+/// Result.
 pub mod cstep {
     /// Which key.
     pub const FROM: u8 = 0;
     /// Which standard.
     pub const TO: u8 = 1;
+    /// The target's settings, where it has any.
+    pub const SETTINGS: u8 = 2;
     /// The value and its facts.
-    pub const RESULT: u8 = 2;
+    pub const RESULT: u8 = 3;
     /// How many cards.
-    pub const COUNT: usize = 3;
+    pub const COUNT: usize = 4;
 }
 
 /// Everything the flow can do.
@@ -49,6 +52,14 @@ pub enum ConvertAction {
     VaultKey(usize, usize),
     /// Press a row of [`ROWS`], by its place there.
     To(u8),
+    /// More (1) or fewer (-1) Seed XOR parts.
+    Parts(i8),
+    /// A higher (1) or lower (-1) codex32 threshold: 0, then 2 to 9.
+    K(i8),
+    /// More (1) or fewer (-1) codex32 shares made.
+    N(i8),
+    /// Make the result from the settings.
+    Make,
     /// Show or hide the value.
     Show,
     /// Open or close Check my copy.
@@ -82,6 +93,12 @@ pub enum Target {
     WordNumbers,
     /// Each word's first four letters.
     Starts,
+    /// The words as Seed XOR parts.
+    SeedXor,
+    /// The seed as SLIP-39, 1 of 1.
+    SlipOne,
+    /// The seed as codex32: the secret, or a set.
+    Codex32,
 }
 
 impl Target {
@@ -96,6 +113,9 @@ impl Target {
             Target::HexEntropy => EN.convert_entropy_line,
             Target::WordNumbers => EN.convert_numbers_line,
             Target::Starts => EN.convert_starts_line,
+            Target::SeedXor => EN.convert_xor_line,
+            Target::SlipOne => EN.convert_slip39_line,
+            Target::Codex32 => EN.convert_codex32_line,
         }
     }
 
@@ -110,6 +130,9 @@ impl Target {
             Target::HexEntropy => EN.convert_entropy_restores,
             Target::WordNumbers => EN.convert_numbers_restores,
             Target::Starts => EN.convert_starts_restores,
+            Target::SeedXor => EN.convert_xor_restores,
+            Target::SlipOne => EN.convert_slip39_restores,
+            Target::Codex32 => EN.convert_codex32_restores,
         }
     }
 
@@ -123,6 +146,9 @@ impl Target {
             Target::HexEntropy => EN.convert_secret_entropy,
             Target::WordNumbers => EN.convert_secret_numbers,
             Target::Starts => EN.convert_secret_starts,
+            Target::SeedXor => EN.convert_secret_xor,
+            Target::SlipOne => EN.convert_secret_slip39,
+            Target::Codex32 => EN.convert_secret_codex32,
         }
     }
 
@@ -153,7 +179,22 @@ impl Target {
             Target::HexEntropy => "entropy",
             Target::WordNumbers => "word-numbers",
             Target::Starts => "starts",
+            Target::SeedXor => "seed-xor",
+            Target::SlipOne => "slip39",
+            Target::Codex32 => "codex32",
         }
+    }
+
+    /// Whether the target has a Settings card: the parts of Seed XOR, the
+    /// threshold and count of a codex32 set.
+    pub(crate) fn has_settings(self) -> bool {
+        matches!(self, Target::SeedXor | Target::Codex32)
+    }
+
+    /// Whether every press draws randomness: Seed XOR's random parts. A
+    /// codex32 set does only for a threshold above 0.
+    pub(crate) fn draws_randomness(self) -> bool {
+        self == Target::SeedXor
     }
 
     /// Whether the value is a code, drawn and saved as a picture.
@@ -172,7 +213,8 @@ impl Target {
     /// not be ASCII and are not compared: a copy typed by hand may be
     /// composed otherwise, and the keyboard may not hold them.
     fn checks(self, lang: Language) -> bool {
-        !self.is_code() && (self != Target::Words || lang == Language::English)
+        !self.is_code()
+            && (!matches!(self, Target::Words | Target::SeedXor) || lang == Language::English)
     }
 }
 
@@ -209,7 +251,7 @@ impl Row {
 
 /// Every row under To: the targets, then what is not offered, each with
 /// the sources it applies to.
-pub const ROWS: [Row; 12] = [
+pub const ROWS: [Row; 16] = [
     Row {
         name: EN.convert_words,
         line: EN.convert_words_line,
@@ -245,6 +287,30 @@ pub const ROWS: [Row; 12] = [
         line: EN.convert_starts_line,
         target: Some(Target::Starts),
         applies: english_words,
+    },
+    Row {
+        name: EN.convert_xor,
+        line: EN.convert_xor_line,
+        target: Some(Target::SeedXor),
+        applies: KeyInfo::has_words,
+    },
+    Row {
+        name: EN.convert_slip39,
+        line: EN.convert_slip39_line,
+        target: Some(Target::SlipOne),
+        applies: |k| matches!(k.seed_len, Some(16 | 32)),
+    },
+    Row {
+        name: EN.convert_codex32,
+        line: EN.convert_codex32_line,
+        target: Some(Target::Codex32),
+        applies: |k| k.seed_len.is_some(),
+    },
+    Row {
+        name: EN.convert_no_slip39_64,
+        line: EN.convert_no_slip39_64_line,
+        target: None,
+        applies: |k| k.seed_len == Some(64),
     },
     Row {
         name: EN.convert_seed,
@@ -308,6 +374,14 @@ pub struct ConvertState {
     /// the press. Public text. It stays right because every way to change
     /// the wallets or keys leaves the flow, which drops it.
     pub paths: Vec<String>,
+    /// Whether the target pressed has a Settings card in this session.
+    pub settings: bool,
+    /// Seed XOR's parts, 2 to 4.
+    pub parts: u8,
+    /// A codex32 set's threshold: 0 for the secret alone, else 2 to 9.
+    pub k: u8,
+    /// How many codex32 shares are made: 1 with k 0, else k to 31.
+    pub n: u8,
 }
 
 /// What a press gave: text, or a code with its word count. Wiped on drop.
@@ -316,6 +390,8 @@ pub enum Value {
     Text(Held<Zeroizing<String>>),
     /// A SeedQR or CompactSeedQR, for a seed of this many words.
     Code(Box<Held<QrMatrix>>, usize),
+    /// A result of several strings, each one a secret, numbered when shown.
+    Set(Held<Vec<Zeroizing<String>>>),
 }
 
 impl Value {
@@ -323,6 +399,31 @@ impl Value {
     pub(crate) fn text(&self) -> Option<&str> {
         match self {
             Value::Text(t) => Some(t.as_str()),
+            Value::Code(..) | Value::Set(_) => None,
+        }
+    }
+
+    /// What the field shows: the text, or a set's strings a line each,
+    /// numbered when there are several. A copy, wiped on drop; `None` for a
+    /// code.
+    pub(crate) fn display(&self) -> Option<Zeroizing<String>> {
+        match self {
+            Value::Text(t) => Some(Zeroizing::new(t.to_string())),
+            Value::Set(parts) => {
+                let mut out = Zeroizing::new(String::new());
+                for (i, part) in parts.iter().enumerate() {
+                    if i > 0 {
+                        out.push('\n');
+                    }
+                    if parts.len() > 1 {
+                        out.push_str(&(i + 1).to_string());
+                        out.push_str(EN.convert_part_sep);
+                        out.push(' ');
+                    }
+                    out.push_str(part);
+                }
+                Some(out)
+            }
             Value::Code(..) => None,
         }
     }
@@ -331,7 +432,7 @@ impl Value {
     pub(crate) fn code(&self) -> Option<&QrMatrix> {
         match self {
             Value::Code(m, _) => Some(m),
-            Value::Text(_) => None,
+            Value::Text(_) | Value::Set(_) => None,
         }
     }
 }
@@ -362,6 +463,8 @@ pub struct ConvertArea {
     check: Option<WordCheck>,
     /// What the last comparison found, until the next key or press.
     found: Option<bool>,
+    /// Which part of a result of several the last copy matched, by number.
+    found_part: Option<usize>,
 }
 
 impl ConvertArea {
@@ -381,6 +484,7 @@ impl ConvertArea {
         self.held = None;
         self.check = None;
         self.found = None;
+        self.found_part = None;
     }
 
     /// Check my copy, while it is open.
@@ -391,6 +495,7 @@ impl ConvertArea {
     /// Opens Check my copy with nothing typed, or closes it.
     fn toggle_check(&mut self) {
         self.found = None;
+        self.found_part = None;
         let checkable = self.state.as_ref().is_some_and(|s| s.checkable);
         self.check = match (&self.check, &self.held) {
             (None, Some(_)) if checkable => Some(WordCheck::passphrase()),
@@ -403,18 +508,28 @@ impl ConvertArea {
     /// passphrase check does. Nothing typed compares nothing.
     fn compare(&mut self) {
         let target = self.state.as_ref().and_then(|s| s.target);
-        let (Some(check), Some(value)) = (
-            self.check.as_mut(),
-            self.held.as_ref().and_then(Value::text),
-        ) else {
+        let (Some(check), Some(value)) = (self.check.as_mut(), self.held.as_ref()) else {
             return;
         };
         if check.typed.is_empty() {
             return;
         }
-        let same = copy_is(target, &check.typed, value);
+        // Against the text, or every part of a set; a set of several says
+        // which part by its number.
+        let (same, part) = match value {
+            Value::Text(t) => (copy_is(target, &check.typed, t), None),
+            Value::Set(parts) => {
+                let hit = parts.iter().position(|p| copy_is(target, &check.typed, p));
+                (
+                    hit.is_some(),
+                    hit.filter(|_| parts.len() > 1).map(|i| i + 1),
+                )
+            }
+            Value::Code(..) => return,
+        };
         check.typed.clear();
         self.found = Some(same);
+        self.found_part = part;
         if let Some(s) = self.state.as_mut() {
             // The answer is at the top of the Result card.
             s.scroll.follow = true;
@@ -427,6 +542,7 @@ impl ConvertArea {
     /// Clears what is typed.
     fn clear_check(&mut self) {
         self.found = None;
+        self.found_part = None;
         if let Some(c) = self.check.as_mut() {
             c.typed.clear();
         }
@@ -449,7 +565,10 @@ impl ConvertArea {
         match check.key(key) {
             Typed::Compare => self.compare(),
             Typed::Close => self.toggle_check(),
-            Typed::Nothing | Typed::Words => self.found = None,
+            Typed::Nothing | Typed::Words => {
+                self.found = None;
+                self.found_part = None;
+            }
         }
         true
     }
@@ -489,7 +608,7 @@ impl ConvertArea {
             } else {
                 cstep::FROM
             }),
-            done: [key.is_some(), false, false],
+            done: [key.is_some(), false, false, false],
             scroll: flow::Scroll::default(),
             key,
             target: None,
@@ -498,20 +617,75 @@ impl ConvertArea {
             checkable: false,
             refused: None,
             paths: Vec::new(),
+            settings: false,
+            parts: 2,
+            k: 0,
+            n: 1,
         });
     }
 
-    /// Drops the result, as leaving its card does.
-    fn drop_result(&mut self) {
+    /// Drops the result, as leaving its card does; with `keep_target` the
+    /// target pressed stays, for its Settings card.
+    fn drop_result(&mut self, keep_target: bool) {
         self.drop_value();
         if let Some(s) = self.state.as_mut() {
-            s.target = None;
             s.shown = false;
             s.checkable = false;
             s.refused = None;
             s.paths.clear();
-            s.done[usize::from(cstep::TO)] = false;
+            s.done[usize::from(cstep::SETTINGS)] = false;
             s.done[usize::from(cstep::RESULT)] = false;
+            if !keep_target {
+                s.target = None;
+                s.settings = false;
+                s.done[usize::from(cstep::TO)] = false;
+            }
+        }
+    }
+
+    /// Opens the Settings card of `target`, pressed under To.
+    fn open_settings(&mut self, target: Target) {
+        self.drop_result(false);
+        if let Some(s) = self.state.as_mut() {
+            s.target = Some(target);
+            s.settings = true;
+            s.done[usize::from(cstep::TO)] = true;
+            s.open = Some(cstep::SETTINGS);
+            s.scroll.follow = true;
+        }
+    }
+
+    /// Changes Seed XOR's parts by `by`, within 2 to 4.
+    fn parts(&mut self, by: i8) {
+        if let Some(s) = self.state.as_mut() {
+            s.parts = s.parts.saturating_add_signed(by).clamp(2, 4);
+        }
+    }
+
+    /// Steps a codex32 set's threshold through 0 (the secret alone), 2 to
+    /// 9, and keeps the count in step with it.
+    fn threshold(&mut self, by: i8) {
+        if let Some(s) = self.state.as_mut() {
+            s.k = match (s.k, by.signum()) {
+                (0, 1) => 2,
+                (2, -1) => 0,
+                (k, d) => k.saturating_add_signed(d).clamp(2, 9),
+            };
+            s.n = if s.k == 0 {
+                1
+            } else {
+                s.n.clamp(s.k, 31).max(s.k)
+            };
+        }
+    }
+
+    /// Changes a codex32 set's count by `by`, from k to 31; the secret
+    /// alone is one string.
+    fn count(&mut self, by: i8) {
+        if let Some(s) = self.state.as_mut()
+            && s.k > 0
+        {
+            s.n = s.n.saturating_add_signed(by).clamp(s.k, 31);
         }
     }
 
@@ -527,14 +701,17 @@ impl ConvertArea {
             s.open = Some(step);
             s.scroll.follow = true;
         }
-        if s.open != Some(cstep::RESULT) {
-            self.drop_result();
+        match s.open {
+            Some(cstep::RESULT) => {}
+            // The target stays for its settings; the result does not.
+            Some(cstep::SETTINGS) => self.drop_result(true),
+            _ => self.drop_result(false),
         }
     }
 
     /// Chooses `key`, and To opens.
     fn choose(&mut self, key: [u8; 4]) {
-        self.drop_result();
+        self.drop_result(false);
         if let Some(s) = self.state.as_mut() {
             s.key = Some(key);
             s.done[usize::from(cstep::FROM)] = true;
@@ -549,9 +726,9 @@ impl ConvertArea {
         target: Target,
         given: Result<Value, Convert>,
         checkable: bool,
-        paths: Vec<String>,
+        (paths, settings): (Vec<String>, bool),
     ) {
-        self.drop_result();
+        self.drop_result(false);
         let (held, refused) = match given {
             Ok(value) => (Some(value), None),
             Err(Convert::NotSameWallet) => (None, Some(EN.convert_not_same_wallet)),
@@ -563,7 +740,9 @@ impl ConvertArea {
             s.checkable = checkable && refused.is_none();
             s.refused = refused;
             s.paths = paths;
+            s.settings = settings;
             s.done[usize::from(cstep::TO)] = true;
+            s.done[usize::from(cstep::SETTINGS)] = true;
             s.done[usize::from(cstep::RESULT)] = true;
             s.open = Some(cstep::RESULT);
             s.scroll.follow = true;
@@ -586,6 +765,15 @@ pub fn shown_code(app: &Faraday) -> Option<&QrMatrix> {
     app.tools.convert().held().and_then(Value::code)
 }
 
+/// The strings of a result of several, while its eye is open: a borrow, no
+/// work.
+pub fn shown_parts(app: &Faraday) -> Option<Vec<&str>> {
+    match app.tools.convert().held()? {
+        Value::Set(parts) => Some(parts.iter().map(|p| p.as_str()).collect()),
+        _ => None,
+    }
+}
+
 /// What Check my copy has typed, while it is open.
 pub fn typed(app: &Faraday) -> Option<&str> {
     app.tools.convert().check().map(|c| &*c.typed)
@@ -596,17 +784,49 @@ pub fn found(app: &Faraday) -> Option<bool> {
     app.tools.convert().found
 }
 
+/// The cards shown, in order: Settings only where the target pressed has
+/// any.
+pub fn order(s: &ConvertState) -> Vec<u8> {
+    let mut order = vec![cstep::FROM, cstep::TO];
+    if s.settings && s.target.is_some() {
+        order.push(cstep::SETTINGS);
+    }
+    order.push(cstep::RESULT);
+    order
+}
+
+/// Which part of a result of several the last copy matched, by number.
+pub fn found_part(app: &Faraday) -> Option<usize> {
+    app.tools.convert().found_part
+}
+
+/// Whether `target` is dimmed in this session: a target that draws
+/// randomness makes a secret, which the demo does not.
+pub fn dimmed(app: &Faraday, target: Target) -> bool {
+    target.draws_randomness() && !app.makes_secrets()
+}
+
+/// Whether the Settings card is shown for `target`: Seed XOR's parts, or a
+/// codex32 set's threshold and count where this session makes secrets.
+fn has_settings(app: &Faraday, target: Target) -> bool {
+    target.has_settings() && app.makes_secrets()
+}
+
+/// The place of the key chosen, if `target` is a row that applies to it. A
+/// lookup.
+fn key_for(app: &Faraday, target: Target) -> Option<usize> {
+    let fp = app.tools.convert().state()?.key?;
+    let i = app.session.keys.position_of(fp)?;
+    ROWS.iter()
+        .any(|r| r.target == Some(target) && r.applies(&app.session.keys[i]))
+        .then_some(i)
+}
+
 /// The row at `place` of [`ROWS`], if it applies to the key chosen. A
 /// lookup.
-fn row_for(app: &Faraday, place: u8) -> Option<(usize, Target)> {
-    let area = app.tools.convert();
-    let fp = area.state()?.key?;
-    let i = app.session.keys.position_of(fp)?;
-    let row = ROWS.get(usize::from(place))?;
-    (row.applies(&app.session.keys[i]))
-        .then_some(row.target)
-        .flatten()
-        .map(|target| (i, target))
+fn row_for(app: &Faraday, place: u8) -> Option<Target> {
+    let target = ROWS.get(usize::from(place))?.target?;
+    key_for(app, target).map(|_| target)
 }
 
 /// What a loaded key was loaded from, as far as its facts say.
@@ -618,6 +838,26 @@ pub fn source(key: &KeyInfo) -> String {
         return fill(EN.convert_from_codex32, &[&set.length.to_string()]);
     }
     EN.convert_from_seed.to_string()
+}
+
+/// The Standard fact of a result: the target's, with what the settings and
+/// the key made it, as made (the settings stay as they were until the card
+/// is opened, which drops the result).
+pub fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String {
+    match target {
+        Target::SeedXor => fill(EN.convert_xor_standard, &[&s.parts.to_string()]),
+        Target::Codex32 if s.settings && s.k > 0 => fill(
+            EN.convert_codex32_set,
+            &[&s.k.to_string(), &s.n.to_string()],
+        ),
+        Target::Codex32 => EN.convert_codex32_secret.to_string(),
+        // 16 bytes are 20 words, 32 bytes 33.
+        Target::SlipOne => fill(
+            EN.convert_slip39_standard,
+            &[if key.seed_len == Some(16) { "20" } else { "33" }],
+        ),
+        _ => target.standard().to_string(),
+    }
 }
 
 /// The Paths fact's lines: each path the loaded wallets use from `fp`. A
@@ -638,13 +878,52 @@ fn paths_of(app: &Faraday, fp: Fingerprint) -> Vec<String> {
     out
 }
 
+/// The press on the row at `place`: a target with settings opens its
+/// card, any other is made; a row not offered, or dimmed, does nothing.
+fn press(app: &mut Faraday, place: u8) {
+    let Some(target) = row_for(app, place) else {
+        return;
+    };
+    if dimmed(app, target) {
+        return;
+    }
+    if has_settings(app, target) {
+        app.tools.convert_mut().open_settings(target);
+    } else {
+        make(app, target);
+    }
+}
+
 /// Costs what the target's operation costs: a PBKDF2 on a key of words for
 /// `master_seed_hex` or `master_xprv`, a parse of the words or two for a
-/// written form, a parse and a QR encoding and a scan of it for a code. The press on the row
-/// at `place`; a row not offered does nothing.
-fn make(app: &mut Faraday, place: u8) {
-    let Some((i, target)) = row_for(app, place) else {
+/// written form, a parse and a QR encoding and a scan of it for a code, a
+/// parse of each part for Seed XOR, a master key from the seed read back
+/// for SLIP-39 and codex32. The press on a row without settings, or Make;
+/// a target that draws randomness waits for it, as New key's split does
+/// ([`Faraday::fresh_bytes`]), and says so.
+fn make(app: &mut Faraday, target: Target) {
+    let Some(i) = key_for(app, target) else {
         return;
+    };
+    if dimmed(app, target) {
+        return;
+    }
+    let settings = has_settings(app, target);
+    let Some((parts, k, n)) = app.tools.convert().state().map(|s| (s.parts, s.k, s.n)) else {
+        return;
+    };
+    let (parts, k, n) = if settings { (parts, k, n) } else { (2, 0, 1) };
+    let need = match target {
+        Target::SeedXor => faraday_keys::seed_xor_random_len(parts),
+        Target::Codex32 => faraday_keys::codex32_random_len(k),
+        _ => 0,
+    };
+    let random = if need == 0 {
+        Zeroizing::new(Vec::new())
+    } else if let Some(draw) = app.fresh_bytes(b"convert split", need) {
+        draw
+    } else {
+        return app.toast(EN.convert_no_randomness);
     };
     let c = app.compute();
     let keys = &app.session.keys;
@@ -666,11 +945,18 @@ fn make(app: &mut Faraday, place: u8) {
         Target::HexEntropy => written(WordsForm::HexEntropy),
         Target::WordNumbers => written(WordsForm::Numbers),
         Target::Starts => written(WordsForm::Starts),
+        Target::SeedXor => keys
+            .seed_xor_converted(&c, i, parts, &random, why)
+            .map(Value::Set),
+        Target::SlipOne => keys.slip39_one_of_one(&c, i, why).map(Value::Text),
+        Target::Codex32 => keys
+            .codex32_converted(&c, i, k, n, &random, why)
+            .map(Value::Set),
     };
     let paths = paths_of(app, keys[i].fingerprint);
     let checkable = target.checks(keys[i].language);
     let area = app.tools.convert_mut();
-    area.made(target, given, checkable, paths);
+    area.made(target, given, checkable, (paths, settings));
 }
 
 /// Costs a scan of the code and a parse of the words. Whether a scanner
@@ -721,6 +1007,18 @@ fn save(app: &mut Faraday) {
     let fp = fp_text(Fingerprint(fp));
     let lower = fp.to_lowercase();
     let (name, bytes, keep) = match held {
+        Value::Set(parts) => {
+            let mut all = Zeroizing::new(Vec::new());
+            for part in parts.iter() {
+                all.extend_from_slice(part.as_bytes());
+                all.push(b'\n');
+            }
+            (
+                format!("{lower}-{}.txt", target.file_for(lang)),
+                all,
+                Keep::Note,
+            )
+        }
         Value::Text(text) => (
             format!("{lower}-{}.txt", target.file_for(lang)),
             Zeroizing::new(text.as_str().as_bytes().to_vec()),
@@ -777,7 +1075,16 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             }
         }
         ConvertAction::VaultKey(v, r) => from_vault(app, v, r),
-        ConvertAction::To(place) => make(app, place),
+        ConvertAction::To(place) => press(app, place),
+        ConvertAction::Parts(by) => app.tools.convert_mut().parts(by),
+        ConvertAction::K(by) => app.tools.convert_mut().threshold(by),
+        ConvertAction::N(by) => app.tools.convert_mut().count(by),
+        ConvertAction::Make => {
+            let target = state(app).filter(|s| s.settings).and_then(|s| s.target);
+            if let Some(target) = target {
+                make(app, target);
+            }
+        }
         ConvertAction::Show => {
             let area = app.tools.convert_mut();
             if area.held.is_some()
@@ -851,8 +1158,7 @@ pub(crate) static CONVERT_STEPS: ConvertSteps = ConvertSteps;
 impl crate::trail::StepFlow for ConvertSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
-        let order = (0..cstep::COUNT as u8).collect();
-        Some(crate::trail::Steps::new(order, s.open))
+        Some(crate::trail::Steps::new(order(s), s.open))
     }
 
     fn open(&self, _: &Faraday, k: u8) -> Action {

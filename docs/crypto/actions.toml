@@ -581,7 +581,7 @@ completeness = "PK, KEK and db RSA-2048, `.auth` files, signing a release's boot
 id = "convert-seed"
 section = 5
 what = "Convert a seed"
-completeness = "The screen writes a loaded key as its master seed, xprv and word forms; SLIP-39 k of n, groups and settings, aezeed and Practice are not built (`docs/SEED-CONVERSION.md`)"
+completeness = "The screen writes a loaded key as its master seed, xprv, word forms, Seed XOR parts, a SLIP-39 1 of 1 and a codex32 set with its settings; SLIP-39 k of n and groups, a set to a new set and aezeed are not built (`docs/SEED-CONVERSION.md`)"
 
 [[row]]
 id = "seed-xor-tool"
@@ -1572,7 +1572,7 @@ places = [
 [[action]]
 id = "seed-converted"
 name = "Convert a key's master seed"
-action = "Writes a key's master seed as hex, its master extended private key, a SLIP-39 1 of 1 or a codex32 set, and a key's words as words, SeedQR, CompactSeedQR, hex entropy, word numbers or 4-letter starts, each read back through its standard's decoder to the key's wallet."
+action = "Writes a key's master seed as hex, its master extended private key, a SLIP-39 1 of 1 or a codex32 set, a key's words as Seed XOR parts, and a key's words as words, SeedQR, CompactSeedQR, hex entropy, word numbers or 4-letter starts, each read back through its standard's decoder to the key's wallet."
 row = "convert-seed"
 standards = [
   "BIP 32",
@@ -1580,6 +1580,7 @@ standards = [
   "SLIP-0039",
   "BIP 93",
   "SeedQR",
+  "Seed XOR",
 ]
 learn = "other_backups"
 screens = ["Convert"]
@@ -1588,6 +1589,7 @@ functions = [
   "faraday/faraday-keys/src/operations.rs::Keys::master_xprv",
   "faraday/faraday-keys/src/operations.rs::Keys::slip39_one_of_one",
   "faraday/faraday-keys/src/operations.rs::Keys::codex32_converted",
+  "faraday/faraday-keys/src/operations.rs::Keys::seed_xor_converted",
   "faraday/faraday-keys/src/operations.rs::Keys::words_written",
   "faraday/faraday-keys/src/operations.rs::Keys::seedqr_written",
   "faraday/faraday-keys/src/operations.rs::Keys::convert_source",
@@ -1623,6 +1625,10 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::a_key_of_words_is_written_as_a_seedqr_and_a_compact_seedqr",
   "faraday/faraday-keys/tests/operations.rs::a_key_of_another_length_than_12_or_24_words_has_no_seedqr",
   "faraday/faraday-keys/tests/operations.rs::another_list_gives_words_and_numbers_but_no_codes_or_starts_and_seed_bytes_give_none",
+  "faraday/faraday-keys/tests/operations.rs::seed_xor_gives_coldcards_published_parts",
+  "faraday/faraday-keys/tests/operations.rs::seed_xor_is_refused_for_the_wrong_reason",
+  "faraday/faraday-core/tests/all/convert.rs::seed_xor_parts_typed_into_add_a_key_give_the_same_key",
+  "faraday/faraday-core/tests/all/convert.rs::a_set_is_checked_part_by_part_saved_whole_and_dropped_on_leaving",
 ]
 not_crosschecked = "The core functions are judged in their own areas; these wrappers add the gate and the read-back, and are tested here against the published vectors, with no cross-check run of their own."
 fuzz_none = "Takes a held key and a reason; no outside input is parsed."

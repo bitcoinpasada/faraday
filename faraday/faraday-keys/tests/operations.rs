@@ -1046,3 +1046,83 @@ fn another_list_gives_words_and_numbers_but_no_codes_or_starts_and_seed_bytes_gi
         Err(Convert::NotGiven)
     ));
 }
+
+const XOR: &str = include_str!("../../../tools/vectors/xor/coldcard.json");
+
+/// Coldcard's published Seed XOR examples: with the first parts given as
+/// the random ones, the last part is the one Coldcard publishes, and every
+/// part is words on the list.
+#[test]
+fn seed_xor_gives_coldcards_published_parts() {
+    let c = compute();
+    let v: Value = serde_json::from_str(XOR).unwrap();
+    for e in v["examples"].as_array().unwrap() {
+        let parts: Vec<&str> = e["parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p.as_str().unwrap())
+            .collect();
+        let mut random = Vec::new();
+        for p in &parts[..parts.len() - 1] {
+            random.extend_from_slice(words(p).entropy().expose().as_bytes());
+        }
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_words_with(&c, e["seed"].as_str().unwrap(), "", "", None)
+            .unwrap();
+        let made = keys
+            .seed_xor_converted(&c, 0, parts.len() as u8, &random, Reveal::PaperForm)
+            .unwrap()
+            .release();
+        let made: Vec<&str> = made.iter().map(|p| p.as_str()).collect();
+        assert_eq!(made, parts, "{}", e["name"]);
+    }
+}
+
+/// Seed XOR is made only for the paper form, 2 to 4 parts, a key of words
+/// and enough randomness; each refusal says which.
+#[test]
+fn seed_xor_is_refused_for_the_wrong_reason() {
+    let c = compute();
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_words_with(&c, ABANDON, "", "", None).unwrap();
+    let random = [7u8; 96];
+    let xor = |keys: &Keys, parts, random: &[u8], why| {
+        keys.seed_xor_converted(&c, 0, parts, random, why)
+            .map(|h| h.release())
+    };
+    assert_eq!(
+        xor(&keys, 3, &random, Reveal::Words),
+        Err(Convert::NotGiven)
+    );
+    assert_eq!(
+        xor(&keys, 5, &random, Reveal::PaperForm),
+        Err(Convert::Refused)
+    );
+    assert_eq!(
+        xor(&keys, 1, &random, Reveal::PaperForm),
+        Err(Convert::Refused)
+    );
+    assert_eq!(
+        xor(&keys, 3, &random[..16], Reveal::PaperForm),
+        Err(Convert::Refused)
+    );
+    let seed = seed_key(&c, Network::Mainnet, &[9u8; 16]);
+    assert_eq!(
+        xor(&seed, 2, &random, Reveal::PaperForm),
+        Err(Convert::NotGiven)
+    );
+}
+
+/// A key's seed length is known without its bytes: none for words.
+#[test]
+fn a_key_knows_how_long_its_seed_is() {
+    let c = compute();
+    let mut words_key = Keys::on(Network::Mainnet);
+    words_key.add_words_with(&c, ABANDON, "", "", None).unwrap();
+    assert_eq!(words_key.info(0).unwrap().seed_len, None);
+    for n in [16usize, 20, 32, 64] {
+        let k = seed_key(&c, Network::Mainnet, &vec![3u8; n]);
+        assert_eq!(k.info(0).unwrap().seed_len, Some(n));
+    }
+}

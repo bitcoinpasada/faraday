@@ -65,6 +65,9 @@ pub struct KeyInfo {
     pub language: Language,
     /// How many words it has; `None` for a key loaded from a master seed.
     pub word_count: Option<u8>,
+    /// How many bytes its master seed has; `None` for a key of words. A
+    /// length, never the bytes.
+    pub seed_len: Option<usize>,
     /// Whether it was loaded with a BIP-39 passphrase.
     pub has_passphrase: bool,
     /// The codex32 set the key's seed is split into, as its plain facts
@@ -1658,6 +1661,7 @@ impl Entry {
             label,
             language,
             word_count,
+            seed_len: seed.as_ref().map(|b| b.len()),
             has_passphrase: passphrase.is_some(),
             codex32: None,
             child_of: None,

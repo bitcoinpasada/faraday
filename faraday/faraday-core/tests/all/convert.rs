@@ -3,9 +3,10 @@
 //! press, and nothing stays once the flow is left.
 
 use faraday_core::convert::{self, ConvertAction as C, ROWS, cstep};
+use faraday_core::forms::Form;
 use faraday_core::wallet::Origin;
 use faraday_core::{Action, Faraday, Screen, testkit};
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// BIP-39's first twelve-word vector.
 const ABOUT: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
@@ -535,7 +536,7 @@ fn a_key_on_another_list_is_not_offered_the_codes_or_the_starts() {
 }
 
 #[test]
-fn a_key_with_no_words_is_offered_none_of_the_six() {
+fn a_key_with_no_words_is_offered_none_of_the_words_forms() {
     let mut app = mainnet();
     let c = testkit::compute();
     let seed: Vec<u8> = (0..16).collect();
@@ -543,6 +544,7 @@ fn a_key_with_no_words_is_offered_none_of_the_six() {
     let key = &app.session.keys[0];
     for name in [
         "The words",
+        "Seed XOR parts",
         "SeedQR",
         "CompactSeedQR",
         "Hex entropy",
@@ -885,4 +887,354 @@ fn the_idle_warning_closes_the_eye_of_the_result() {
     assert_eq!(app.sheet, Some(faraday_core::Sheet::IdleWarn));
     let _ = app.frame();
     assert_eq!(convert::shown(&app), None);
+}
+
+const SLIP39: &str = include_str!("../../../../tools/vectors/slip39/vectors.json");
+const BIP93: &str = include_str!("../../../../tools/vectors/bip93/vectors.json");
+
+fn unhex(s: &str) -> Vec<u8> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+        .collect()
+}
+
+/// The system's randomness answered, as the shell does.
+fn feed(app: &mut Faraday) {
+    for i in 0..6u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x70 + i; 32])));
+    }
+}
+
+/// `app` with a key of these seed bytes loaded, the flow open on it.
+fn seed_opened(seed: &[u8]) -> Faraday {
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_seed(&c, seed, "Test").unwrap();
+    open(&mut app);
+    app
+}
+
+/// Runs the work asked for by a press: on the tick after the frame.
+fn settle(app: &mut Faraday) {
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    testkit::settle(app);
+}
+
+/// Presses a row, then Make where it has a Settings card, and opens the
+/// eye. The strings of a set, if it made one.
+fn make_set(app: &mut Faraday, name: &str) -> Option<Vec<String>> {
+    app.press(Action::Convert(C::To(place(name))));
+    settle(app);
+    if convert::state(app).unwrap().open == Some(cstep::SETTINGS) {
+        app.press(Action::Convert(C::Make));
+        settle(app);
+    }
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    convert::shown_parts(app).map(|p| p.into_iter().map(str::to_string).collect())
+}
+
+fn rows_listed(key: &faraday_keys::KeyInfo) -> Vec<&'static str> {
+    ROWS.iter()
+        .filter(|r| r.applies(key))
+        .map(|r| r.name)
+        .collect()
+}
+
+/// A key of seed bytes is offered SLIP-39 1 of 1 at 16 and 32 bytes, and
+/// codex32 at every length; 64 bytes lists SLIP-39 dimmed with its line;
+/// 20, 24 and 28 bytes list no SLIP-39 at all; a key of words is offered
+/// Seed XOR and neither.
+#[test]
+fn the_rows_for_seed_bytes_follow_the_seeds_length() {
+    let c = testkit::compute();
+    for (len, slip, dimmed) in [
+        (16, true, false),
+        (20, false, false),
+        (24, false, false),
+        (28, false, false),
+        (32, true, false),
+        (64, false, true),
+    ] {
+        let mut app = mainnet();
+        app.session
+            .keys
+            .add_seed(&c, &vec![5u8; len], "Test")
+            .unwrap();
+        let rows = rows_listed(&app.session.keys[0]);
+        assert_eq!(rows.contains(&"SLIP-39, 1 of 1"), slip, "{len} bytes");
+        assert_eq!(rows.contains(&"SLIP-39"), dimmed, "{len} bytes");
+        assert!(rows.contains(&"codex32"), "{len} bytes");
+        assert!(!rows.contains(&"Seed XOR parts"), "{len} bytes");
+    }
+    let line = ROWS.iter().find(|r| r.name == "SLIP-39").unwrap();
+    assert_eq!(
+        line.line,
+        "SLIP-39 backups of 64 bytes are read by no wallet"
+    );
+    assert_eq!(line.target, None);
+    let mut app = mainnet();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    let rows = rows_listed(&app.session.keys[0]);
+    assert!(rows.contains(&"Seed XOR parts"));
+    assert!(!rows.contains(&"SLIP-39, 1 of 1") && !rows.contains(&"codex32"));
+}
+
+/// Every published SLIP-39 secret of one share, written as SLIP-39 1 of 1,
+/// is read by SLIP-39's decoder as the same secret, and written twice gives
+/// the same words.
+#[test]
+fn slip39_one_of_one_reads_back_as_the_published_secret() {
+    let v: serde_json::Value = serde_json::from_str(SLIP39).unwrap();
+    let mut seen = 0;
+    for e in v.as_array().unwrap() {
+        let (words, secret) = (e[1].as_array().unwrap(), e[2].as_str().unwrap());
+        if words.len() != 1 || secret.is_empty() {
+            continue;
+        }
+        let seed = unhex(secret);
+        let mut app = seed_opened(&seed);
+        let made = make(&mut app, "SLIP-39, 1 of 1").unwrap();
+        let share = faraday_bip::slip39::Share::parse(&made).unwrap();
+        let back = faraday_keys::slip39_seed(&testkit::compute(), &[share], b"").unwrap();
+        assert_eq!(back.as_slice(), seed.as_slice(), "{}", e[0]);
+        app.press(Action::Convert(C::Step(cstep::TO)));
+        assert_eq!(make(&mut app, "SLIP-39, 1 of 1"), Some(made), "twice");
+        seen += 1;
+    }
+    assert!(seen > 0);
+}
+
+/// Every published codex32 master seed, written as codex32: the secret
+/// alone, and a set of 2 of 3, each decoded by BIP-93's reader to the same
+/// seed; the settings step through the thresholds BIP-93 allows.
+#[test]
+fn codex32_reads_back_as_the_published_seed_alone_and_as_a_set() {
+    let v: serde_json::Value = serde_json::from_str(BIP93).unwrap();
+    for e in v["secrets"].as_array().unwrap() {
+        let seed = unhex(e["seed"].as_str().unwrap());
+        let mut app = seed_opened(&seed);
+        feed(&mut app);
+        let alone = make_set(&mut app, "codex32").unwrap();
+        assert_eq!(alone.len(), 1);
+        let part = faraday_bip::codex32::Codex32::parse(&alone[0]).unwrap();
+        assert_eq!(*faraday_keys::codex32_seed(&[part]).unwrap(), seed);
+        assert!(
+            drawn(&mut app)
+                .iter()
+                .any(|t| t == "BIP-93 codex32, the secret")
+        );
+        // The card again: 0 steps to 2 and back; n follows k.
+        app.press(Action::Convert(C::Step(cstep::SETTINGS)));
+        app.press(Action::Convert(C::K(1)));
+        let s = convert::state(&app).unwrap();
+        assert_eq!((s.k, s.n), (2, 2));
+        app.press(Action::Convert(C::N(1)));
+        assert_eq!(convert::state(&app).unwrap().n, 3);
+        app.press(Action::Convert(C::Make));
+        settle(&mut app);
+        app.press(Action::Convert(C::Show));
+        let _ = app.frame();
+        let set = convert::shown_parts(&app).unwrap();
+        assert_eq!(set.len(), 3);
+        let parsed: Vec<_> = set
+            .iter()
+            .map(|s| faraday_bip::codex32::Codex32::parse(s).unwrap())
+            .collect();
+        for two in [&parsed[..2], &parsed[1..]] {
+            assert_eq!(*faraday_keys::codex32_seed(two).unwrap(), seed);
+        }
+        assert!(
+            drawn(&mut app)
+                .iter()
+                .any(|t| t == "BIP-93 codex32, 2 of 3 shares")
+        );
+    }
+}
+
+/// The parts of Seed XOR typed into Add a key give the same key.
+fn xor_added(parts: &[String]) -> [u8; 4] {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    let form = Form::ALL.iter().position(|f| *f == Form::Xor).unwrap();
+    app.press(Action::EntryForm(form as u8));
+    for p in parts {
+        type_copy(&mut app, p);
+        app.event(Event::Key(Key::Enter));
+    }
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        testkit::entry(&app).error
+    );
+    app.session.keys[0].fingerprint.0
+}
+
+#[test]
+fn seed_xor_parts_typed_into_add_a_key_give_the_same_key() {
+    for parts in [2u8, 3, 4] {
+        let mut app = opened(mainnet(), LEGAL);
+        feed(&mut app);
+        app.press(Action::Convert(C::To(place("Seed XOR parts"))));
+        assert_eq!(convert::state(&app).unwrap().open, Some(cstep::SETTINGS));
+        for _ in 2..parts {
+            app.press(Action::Convert(C::Parts(1)));
+        }
+        app.press(Action::Convert(C::Make));
+        settle(&mut app);
+        app.press(Action::Convert(C::Show));
+        let _ = app.frame();
+        let set = convert::shown_parts(&app).unwrap();
+        assert_eq!(set.len(), usize::from(parts));
+        assert!(set.iter().all(|p| p.split(' ').count() == 12));
+        let set: Vec<String> = set.into_iter().map(str::to_string).collect();
+        assert_eq!(xor_added(&set), app.session.keys[0].fingerprint.0);
+        assert!(
+            drawn(&mut app)
+                .iter()
+                .any(|t| t == &format!("Seed XOR (Coldcard's), {parts} parts"))
+        );
+    }
+}
+
+/// The parts stay between 2 and 4, whatever is pressed.
+#[test]
+fn the_parts_stay_between_two_and_four() {
+    let mut app = opened(mainnet(), ABOUT);
+    app.press(Action::Convert(C::To(place("Seed XOR parts"))));
+    for _ in 0..5 {
+        app.press(Action::Convert(C::Parts(1)));
+    }
+    assert_eq!(convert::state(&app).unwrap().parts, 4);
+    for _ in 0..5 {
+        app.press(Action::Convert(C::Parts(-1)));
+    }
+    assert_eq!(convert::state(&app).unwrap().parts, 2);
+}
+
+/// What is drawn once a card that has just opened has finished growing: the
+/// clock moves only on a tick, and a card opened by the last tick shows
+/// nothing of its body yet.
+fn opened_up(app: &mut Faraday) -> Vec<String> {
+    for _ in 0..40 {
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+    }
+    drawn(app)
+}
+
+/// On a small panel, where the open card is the page, the answer to Check my
+/// copy is on it.
+#[test]
+fn a_small_panel_shows_which_part_a_copy_matched() {
+    let mut app = mainnet();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let mut app = opened(app, LEGAL);
+    feed(&mut app);
+    let set = make_set(&mut app, "Seed XOR parts").unwrap();
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &set[1]);
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        opened_up(&mut app)
+            .iter()
+            .any(|t| t == "Your copy matches part 2")
+    );
+}
+
+/// Check my copy takes one part and says which it matched, or that it
+/// differs; Save writes every part; leaving drops them all.
+#[test]
+fn a_set_is_checked_part_by_part_saved_whole_and_dropped_on_leaving() {
+    let mut app = opened(mainnet(), LEGAL);
+    feed(&mut app);
+    let set = make_set(&mut app, "Seed XOR parts").unwrap();
+    assert_eq!(set.len(), 2);
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &set[1]);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(true));
+    assert_eq!(convert::found_part(&app), Some(2));
+    assert!(
+        opened_up(&mut app)
+            .iter()
+            .any(|t| t == "Your copy matches part 2")
+    );
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, &set[0]);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found_part(&app), Some(1));
+    assert!(
+        opened_up(&mut app)
+            .iter()
+            .any(|t| t == "Your copy matches part 1")
+    );
+    app.press(Action::Convert(C::Check));
+    type_copy(&mut app, ABOUT);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(convert::found(&app), Some(false));
+    assert!(opened_up(&mut app).iter().any(|t| t == "Your copy differs"));
+    save(&mut app);
+    let out = testkit::secret_out(&app).unwrap();
+    assert!(out.name.ends_with("seed-xor.txt"), "{}", out.name);
+    assert_eq!(out.bytes.to_vec(), (set.join("\n") + "\n").into_bytes());
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    app.press(Action::Convert(C::Show));
+    assert_eq!(convert::shown_parts(&app), None);
+    assert_eq!(convert::state(&app).unwrap().target, None);
+}
+
+/// With no randomness answered yet, no set is made: the card stays and
+/// says so; once answered, Make gives one.
+#[test]
+fn no_randomness_gives_no_set() {
+    let mut app = opened(mainnet(), ABOUT);
+    app.press(Action::Convert(C::To(place("Seed XOR parts"))));
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    let s = convert::state(&app).unwrap();
+    assert_eq!(s.open, Some(cstep::SETTINGS));
+    app.press(Action::Convert(C::Show));
+    assert_eq!(convert::shown_parts(&app), None);
+    feed(&mut app);
+    app.press(Action::Convert(C::Make));
+    settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    assert!(convert::shown_parts(&app).is_some());
+}
+
+/// In Practice Seed XOR is dimmed and makes nothing.
+#[test]
+fn practice_does_not_make_seed_xor() {
+    let mut app = testkit::started();
+    testkit::into_demo(&mut app);
+    let c = testkit::compute();
+    let (word, count) = testkit::SAMPLE_WORDS[0];
+    let words = vec![word; usize::from(count)].join(" ");
+    app.session
+        .keys
+        .add_words(&c, &words, "Sample", None)
+        .unwrap();
+    open(&mut app);
+    feed(&mut app);
+    app.press(Action::Convert(C::To(place("Seed XOR parts"))));
+    let s = convert::state(&app).unwrap();
+    assert_eq!((s.target, s.open), (None, Some(cstep::TO)));
 }
