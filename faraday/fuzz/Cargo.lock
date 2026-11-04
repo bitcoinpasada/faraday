@@ -738,12 +738,7 @@ name = "faraday-backup"
 version = "0.1.0"
 dependencies = [
  "argon2",
- "base64ct",
- "chacha20",
  "faraday-crypto",
- "hmac",
- "sha2",
- "zeroize",
 ]
 
 [[package]]

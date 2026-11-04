@@ -167,14 +167,13 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::VaultContents));
     t.shot("vault-saved-by-another")?;
 
-    // A file with a history: Open this copy? names it.
+    // A file with a history opens as any other: nothing asks about it.
     let history = vector!("pykeepass-chacha20-argon2id-plain-history.kdbx");
     only(t, vec![("history.kdbx".into(), history)], Vec::new());
     unlock(t, FOREIGN);
-    if t.app.sheet != Some(Sheet::OlderCopy) {
-        return Err("a vault with a history did not stop at Open this copy".into());
+    if t.app.sheet == Some(Sheet::OlderCopy) {
+        return Err("a vault with a history stopped at Open this copy".into());
     }
-    t.shot("open-this-copy-history")?;
     // A vault of Faraday's sealed here, then its copy from before opened
     // in the same power-on: the dialog says it is older.
     let fresh = testkit::kdbx_vault("Main", testkit::VAULT_PASSPHRASE, 1, Vec::new())?;

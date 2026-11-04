@@ -532,6 +532,12 @@ fn the_keys_page_draws_no_text_over_other_text() {
         app.sheet,
         app.toast_text()
     );
+    // The toast from making the key lies over the page until it goes.
+    let toast = app.toast_text();
+    let texts: Vec<_> = texts
+        .iter()
+        .filter(|(t, _)| Some(t.as_str()) != toast)
+        .collect();
     let mut over = Vec::new();
     for (i, (a, ra)) in texts.iter().enumerate() {
         for (b, rb) in &texts[i + 1..] {
