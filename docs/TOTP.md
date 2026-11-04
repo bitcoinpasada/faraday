@@ -200,7 +200,8 @@ value:
   `SHA256` or `SHA512`, case-insensitive. `digits` is 6 (default), 7
   or 8. `period` is 30 (default), from 1 to 3600. Unknown parameters
   (`issuer`, `image`, …) are ignored. Any present parameter with a value
-  outside these refuses the URI as `NotTotp::Unreadable`.
+  outside these refuses the URI as `NotTotp::Unreadable`, and so does
+  `encoder=steam`: a plain code from that key is one Steam will not take.
 - An `otpauth://hotp/…` URI: `NotTotp::Hotp`. A HOTP code needs its
   counter written back to the vault on every use; not in this spec.
 - A bare Base32 key, as services show "can't scan? type this key"

@@ -96,6 +96,14 @@ fn the_first_form_present_decides() {
 fn hotp_steam_and_malformed_forms_are_not_read() {
     let b32 = base32(SHA1_SEED);
     let err = |f: &[(&str, &str)]| from_fields(f).expect("a form is held").unwrap_err();
+    let steam = format!("otpauth://totp/x?secret={b32}&encoder=steam");
+    assert_eq!(err(&[("otp", &steam)]), NotTotp::Unreadable);
+    let other = format!("otpauth://totp/x?secret={b32}&encoder=other");
+    assert!(
+        from_fields(&[("otp", &other)])
+            .expect("a form is held")
+            .is_ok()
+    );
     let hotp = "otpauth://hotp/x?secret=JBSWY3DPEHPK3PXP&counter=1";
     assert_eq!(err(&[("otp", hotp)]), NotTotp::Hotp);
     assert_eq!(err(&[("HmacOtp-Secret-Base32", &b32)]), NotTotp::Hotp);
