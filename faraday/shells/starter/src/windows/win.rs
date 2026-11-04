@@ -469,7 +469,9 @@ fn follow(out: &Sender<StarterEvent>, forget: &Receiver<String>) {
                             .boot
                             .as_deref()
                             .and_then(|b| stick::release_at(Path::new(b)));
-                        versions.insert(disk.id.clone(), (key, r.clone()));
+                        if f.boot.is_some() {
+                            versions.insert(disk.id.clone(), (key, r.clone()));
+                        }
                         r
                     }
                 };

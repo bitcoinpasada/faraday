@@ -20,8 +20,8 @@ use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
     CloseHandle, ERROR_CANCELLED, ERROR_INSUFFICIENT_BUFFER, ERROR_MORE_DATA, ERROR_NO_DATA,
-    ERROR_PIPE_CONNECTED, ERROR_SUCCESS, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
-    WAIT_OBJECT_0,
+    ERROR_PIPE_CONNECTED, ERROR_SUCCESS, FILETIME, GetLastError, HANDLE, INVALID_HANDLE_VALUE,
+    LocalFree, WAIT_OBJECT_0,
 };
 use windows_sys::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -30,8 +30,9 @@ use windows_sys::Win32::Security::{
     GetTokenInformation, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    FILE_FLAG_FIRST_PIPE_INSTANCE, FindFirstVolumeW, FindNextVolumeW, FindVolumeClose,
-    GetVolumeInformationW, GetVolumePathNamesForVolumeNameW, PIPE_ACCESS_DUPLEX, QueryDosDeviceW,
+    FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_WRITE_ATTRIBUTES, FindFirstVolumeW, FindNextVolumeW,
+    FindVolumeClose, GetVolumeInformationW, GetVolumePathNamesForVolumeNameW, PIPE_ACCESS_DUPLEX,
+    QueryDosDeviceW, SetFileTime,
 };
 use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SetThreadErrorMode};
@@ -220,6 +221,30 @@ pub fn volume_paths(name: &str) -> Vec<String> {
         .take_while(|s| !s.is_empty())
         .map(String::from_utf16_lossy)
         .collect()
+}
+
+/// Opens a file to read without Windows' FAT driver stamping its
+/// last-access date on the stick: with write-attributes access, setting
+/// the access time to all ones tells the file system to leave it alone
+/// for this handle. A write-protected stick refuses that access (and
+/// cannot be stamped anyway), so it is opened for reading alone.
+pub fn open_read_keeping_access_date(path: &Path) -> io::Result<File> {
+    use std::os::windows::fs::OpenOptionsExt;
+    const GENERIC_READ: u32 = 0x8000_0000;
+    let Ok(f) = std::fs::OpenOptions::new()
+        .access_mode(GENERIC_READ | FILE_WRITE_ATTRIBUTES)
+        .open(path)
+    else {
+        return File::open(path);
+    };
+    let keep = FILETIME {
+        dwLowDateTime: u32::MAX,
+        dwHighDateTime: u32::MAX,
+    };
+    // SAFETY: the handle is open for the life of `f`; `keep` outlives the
+    // call; the other times may be null.
+    unsafe { SetFileTime(f.as_raw_handle() as HANDLE, ptr::null(), &keep, ptr::null()) };
+    Ok(f)
 }
 
 /// A volume's label and file system's name, each empty when Windows has

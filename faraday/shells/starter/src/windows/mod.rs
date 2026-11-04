@@ -36,4 +36,6 @@ mod sys;
 mod win;
 
 #[cfg(windows)]
+pub use sys::open_read_keeping_access_date;
+#[cfg(windows)]
 pub use win::{Windows, early, snapshot};

@@ -367,6 +367,9 @@ checked (a stick with a signed boot file holds that file, so its sum is
 not the release's). It holds for a stick written with `dd` too, and,
 with the boot partition built as Windows leaves it (§4.1), after the
 stick has been in Windows.
+On Windows the Starter reads a stick's boot file, to show its version,
+without changing the file's last-access date, which Windows' FAT driver
+would otherwise write into the boot partition.
 
 ### 4.4 Keep data
 
