@@ -157,7 +157,7 @@ pub(super) fn signature_cards(
 /// Whether a signature made under `signed` answers an input that asks
 /// for `asked`: the same sighash, or, for the default, `ALL` or taproot's
 /// `DEFAULT`, which commit to the same. A lookup.
-fn sighash_answers(asked: SighashKind, signed: SighashKind) -> bool {
+pub(crate) fn sighash_answers(asked: SighashKind, signed: SighashKind) -> bool {
     asked == signed || (asked.is_default() && signed.is_default())
 }
 
@@ -165,7 +165,7 @@ fn sighash_answers(asked: SighashKind, signed: SighashKind) -> bool {
 /// under `asked` would, and more: as many outputs or more (`ALL` over
 /// `SINGLE` over `NONE`), and the other inputs where `asked` leaves them
 /// out (`ANYONECANPAY`). A lookup.
-fn sighash_stricter(asked: SighashKind, signed: SighashKind) -> bool {
+pub(crate) fn sighash_stricter(asked: SighashKind, signed: SighashKind) -> bool {
     let (Some((asked_outputs, asked_acp)), Some((signed_outputs, signed_acp))) =
         (commitment(asked), commitment(signed))
     else {

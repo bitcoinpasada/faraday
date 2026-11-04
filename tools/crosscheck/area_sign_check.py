@@ -33,15 +33,15 @@ Core computes:
   they do), and `testmempoolaccept` takes the extracted transaction when
   the run gave the area coins on the node (`Area.FUND`).
 
-What is ours is the report of a reused nonce: the definition is that two
-signatures under one key, over different messages, with the same `r`
-(ECDSA; `k` and `-k` give one `r`) or the same `R` (Schnorr) give the key
-away. `reused()` finds them from the signatures that verify, without
-Faraday's code, and Faraday's report must be the same: the same key, the
-same nonce, the same inputs. Cases reuse a nonce on purpose, across inputs
-that share a key (legacy, SegWit, multisig, taproot key and script
-path), and the near misses: one nonce under two keys, one key under two
-nonces.
+What is ours is the report of a reused nonce: Faraday's rule, failing
+closed, is that two signatures that verify with the same `r` (ECDSA; `k`
+and `-k` give one `r`) or the same `R` (Schnorr), differing in key or in
+message, are reported, under one key or several. `reused()` finds them
+from the signatures that verify, without Faraday's code, and Faraday's
+report must be the same: the same keys, the same nonce, the same inputs.
+Cases reuse a nonce on purpose, across inputs that share a key (legacy,
+SegWit, multisig, taproot key and script path), under two keys (reported
+as well), and the near miss of one key under two nonces.
 """
 
 import base64
@@ -182,19 +182,26 @@ def judge_schnorr(sig, xonly, digest_of):
 
 
 def reused(sigs):
-    """Costs nothing: the nonces used twice, from the definition. Two
-    signatures that verify, under one key, over different messages, with one
-    nonce (`r` of an ECDSA signature, `R`'s x of a Schnorr one): the
-    key is the difference of their s values over the difference of their
-    messages. Each is (kind, key, nonce, message, input), only those that
-    verify. The reports, sorted: (kind, key, nonce, the inputs)."""
+    """Costs nothing: the nonces used twice, from Faraday's own rule, which
+    fails closed. Signatures that verify and share one nonce (`r` of an
+    ECDSA signature, `R`'s x of a Schnorr one) are reported when at least
+    two of them differ in key or in message. With one key the private key
+    is the difference of their s values over the difference of their
+    messages; with keys whose difference is known it follows the same way;
+    one nonce under unrelated keys is reported all the same, because an
+    honest signer never does it. Each is (kind, key, nonce, message,
+    input), only those that verify. The reports, sorted: (kind, the keys,
+    sorted, in hex, the nonce, the inputs). The kind is the first's: the
+    generator never shares a nonce between an ECDSA and a Schnorr
+    signature."""
     groups = {}
     for kind, key, nonce, message, index in sigs:
-        groups.setdefault((kind, key, nonce.hex()), []).append((message, index))
+        groups.setdefault(nonce.hex(), []).append((kind, key, message, index))
     out = []
-    for (kind, key, nonce), members in sorted(groups.items()):
-        if len({m for m, _ in members}) >= 2:
-            out.append((kind, key, nonce, sorted(i for _, i in members)))
+    for nonce, members in sorted(groups.items()):
+        if len({(k, m) for _, k, m, _ in members}) >= 2:
+            out.append((members[0][0], sorted({k for _, k, _, _ in members}), nonce,
+                        sorted({i for _, _, _, i in members})))
     return out
 
 
@@ -612,14 +619,15 @@ class SignCheck(Area):
                          for r in sigs if r["status"] == "valid"])
         if counted[0] != "ok":
             raise Mismatch(self.name, "sign-check.reuse", given, counted, ("ok", wanted), "refused")
-        report = sorted((x["kind"], x["key"], x["nonce"], sorted(x["inputs"])) for x in counted[1]["reused"])
+        report = sorted((x["kind"], sorted(x["keys"]), x["nonce"], sorted(x["inputs"]))
+                        for x in counted[1]["reused"])
         wanted = [tuple(x) for x in wanted]
         self.compared += 1
         if counted[1]["count"] != len(wanted) or report != wanted:
             raise Mismatch(self.name, "sign-check.reuse", given, counted,
                            ("ok", {"count": len(wanted), "reused": wanted}),
                            "the report of a reused nonce differs")
-        if mode in ("reuse", "negated") and not wanted:
+        if mode in ("reuse", "negated", "other-key") and not wanted:
             raise HarnessError("a case made to reuse a nonce reuses none")
 
     def verdicts(self, given, answer, inputs, finals):

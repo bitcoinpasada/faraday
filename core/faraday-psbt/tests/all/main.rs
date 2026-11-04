@@ -19,6 +19,7 @@ mod nonce;
 mod registered;
 mod satisfaction;
 mod sign;
+mod signer;
 mod silent;
 mod sweep;
 mod tapmulti;

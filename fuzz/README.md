@@ -170,6 +170,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `seedqr` | `faraday_codec::seedqr::from_digits`, `from_entropy` |
 | `ur_receive` | `faraday_codec::ur::Decoder::receive`, one part and a sequence |
 | `psbt_parse` | `faraday_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key, then `finalize` on a copy |
+| `signer_check` | `faraday_psbt::signer::check` and `nonce_view` over two files (sent, returned) read as version 0 or version 2; a file written canonically, against itself, has no Blocked or Danger finding but a repeated nonce |
 | `policy` | `faraday_bip::policy::WalletPolicy::parse_any` |
 | `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses; `parse_signed` on the whole input, its result verified |
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |

@@ -115,7 +115,7 @@ pub(crate) fn is_zero_sighash_schnorr(sig: &[u8]) -> bool {
 
 /// The global fields version 0 does not have, which [`PsbtV2::to_v0`]
 /// leaves out: BIP-370's and BIP-375's.
-const GLOBAL_V2_ONLY: &[u8] = &[
+pub(crate) const GLOBAL_V2_ONLY: &[u8] = &[
     GLOBAL_TX_VERSION,
     GLOBAL_FALLBACK_LOCKTIME,
     GLOBAL_INPUT_COUNT,
@@ -126,7 +126,7 @@ const GLOBAL_V2_ONLY: &[u8] = &[
     0x08,
 ];
 /// The input fields version 0 does not have: BIP-370's and BIP-375's.
-const INPUT_V2_ONLY: &[u8] = &[
+pub(crate) const INPUT_V2_ONLY: &[u8] = &[
     IN_PREVIOUS_TXID,
     IN_OUTPUT_INDEX,
     IN_SEQUENCE,
@@ -136,7 +136,7 @@ const INPUT_V2_ONLY: &[u8] = &[
     0x1e,
 ];
 /// The output fields version 0 does not have: BIP-370's and BIP-375's.
-const OUTPUT_V2_ONLY: &[u8] = &[OUT_AMOUNT, OUT_SCRIPT, 0x09, 0x0a];
+pub(crate) const OUTPUT_V2_ONLY: &[u8] = &[OUT_AMOUNT, OUT_SCRIPT, 0x09, 0x0a];
 
 /// The input fields a signing pass adds, which [`PsbtV2::merge_signed`]
 /// takes back: partial signatures, the final scriptSig and witness,
@@ -379,6 +379,94 @@ fn compact_value(bytes: &[u8]) -> Option<u64> {
 /// A little-endian `u32` that is the whole of `bytes`.
 fn u32_value(bytes: &[u8]) -> Option<u32> {
     Some(u32::from_le_bytes(bytes.try_into().ok()?))
+}
+
+/// A PSBT file's maps as written, whatever its version: what
+/// [`read_file`] gives.
+pub(crate) struct File {
+    /// 0 or 2.
+    pub version: u32,
+    /// Whether the file writes `PSBT_GLOBAL_VERSION`.
+    pub explicit_version: bool,
+    /// The global map.
+    pub global: Map,
+    /// Version 2 only: one map per input.
+    pub inputs: Vec<Map>,
+    /// Version 2 only: one map per output.
+    pub outputs: Vec<Map>,
+}
+
+/// Reads the maps of a file as the person has it, for the signer check:
+/// the global map, and for version 2 the counted input and output maps.
+/// What BIP-370 requires of the fields is the caller's own parse; this
+/// reads the structure, so a file it refuses is one no parser reads.
+pub(crate) fn read_file(bytes: &[u8]) -> Result<File, Error> {
+    if bytes.len() < MAGIC.len() || &bytes[..MAGIC.len()] != MAGIC {
+        return Err(Error::NotPsbt);
+    }
+    let mut r = Reader {
+        bytes,
+        at: MAGIC.len(),
+    };
+    let global = r.map()?;
+    let (version, explicit_version) = match global.get_type(GLOBAL_VERSION) {
+        None => (0, false),
+        Some(v) => (
+            u32_value(v).ok_or(Error::Field("PSBT_GLOBAL_VERSION"))?,
+            true,
+        ),
+    };
+    let (mut inputs, mut outputs) = (Vec::new(), Vec::new());
+    match version {
+        0 => {}
+        2 => {
+            let count = |ty, name| {
+                global
+                    .get_type(ty)
+                    .and_then(compact_value)
+                    .ok_or(Error::Field(name))
+            };
+            let n_in = count(GLOBAL_INPUT_COUNT, "PSBT_GLOBAL_INPUT_COUNT")?;
+            let n_out = count(GLOBAL_OUTPUT_COUNT, "PSBT_GLOBAL_OUTPUT_COUNT")?;
+            if n_in.saturating_add(n_out) > (bytes.len() - r.at) as u64 {
+                return Err(Error::Truncated);
+            }
+            for _ in 0..n_in {
+                inputs.push(r.map()?);
+            }
+            for _ in 0..n_out {
+                outputs.push(r.map()?);
+            }
+        }
+        _ => return Err(Error::Version),
+    }
+    Ok(File {
+        version,
+        explicit_version,
+        global,
+        inputs,
+        outputs,
+    })
+}
+
+impl Map {
+    /// The pairs whose type is in `only`, as (whole key, value).
+    pub(crate) fn pairs_of_types<'a>(
+        &'a self,
+        only: &'a [u8],
+    ) -> impl Iterator<Item = (&'a [u8], &'a [u8])> + 'a {
+        self.pairs()
+            .filter(move |(k, _)| k.first().is_some_and(|t| only.contains(t)))
+    }
+}
+
+/// The bytes a pair takes written out: its key's length, the key, the
+/// value's length and the value.
+pub(crate) fn pair_len(key: &[u8], value: &[u8]) -> usize {
+    let mut out = Vec::new();
+    write_compact(&mut out, key.len() as u64);
+    write_compact(&mut out, value.len() as u64);
+    out.len() + key.len() + value.len()
 }
 
 /// A version 2 PSBT as its maps.

@@ -787,6 +787,13 @@ title = "a KDBX file's contents never refuse it: a damaged or ambiguous item is 
 source = ["docs/decisions/F194.md", "docs/VAULT.md §7"]
 when = ["faraday/faraday-vault/src/kdbx/**", "faraday/faraday-vault/src/totp.rs"]
 kind = "review"
+
+[[rule]]
+id = "keys.signer-added-fields"
+title = "a field a signer adds to a returned PSBT is stated only when its content is checked in full against the unchanged transaction or Sent, never Returned's own copy, and is a finding otherwise; the words state it without \"change\" or \"mine\""
+source = ["docs/decisions/F199.md", "docs/SIGNER-CHECK.md §6.9"]
+when = ["core/faraday-psbt/src/signer.rs"]
+kind = "review"
 [[rule]]
 id = "compute.token"
 title = "costly work takes the compute token and says so"

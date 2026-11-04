@@ -276,13 +276,25 @@ pub fn fixtures() -> Vec<Fixture> {
     let demo = read("demo-regtest.psbt");
     let (_, zoo_secret) = own_key(&core_signed, 0, &zoo);
 
-    // Returned, against wallet-2of3.psbt as Sent.
+    // The Sent for everything built from core-signed: wallet-2of3.psbt with
+    // the one witness script Core added to output 1 beside its signature,
+    // which is a difference of its own (SIGNER-CHECK §1).
+    let mut core_sent = read("wallet-2of3.psbt");
+    core_sent.inner_mut().outputs[1].witness_script =
+        core_signed.inner().outputs[1].witness_script.clone();
+    add(
+        "signer-core-sent.psbt",
+        "Sent: wallet-2of3.psbt plus the witness script Core added to output 1, copied from signer-core-signed",
+        &core_sent,
+    );
+
+    // Returned, against signer-core-sent.psbt as Sent.
     let mut psbt = core_signed.clone();
     let output = &mut psbt.inner_mut().unsigned_tx.output[0];
     output.value = Amount::from_sat(output.value.to_sat() - 1);
     add(
         "signer-output-changed.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed with output 0 one sat less",
+        "Returned, against signer-core-sent.psbt: signer-core-signed with output 0 one sat less",
         &psbt,
     );
 
@@ -300,7 +312,7 @@ pub fn fixtures() -> Vec<Fixture> {
     sigs.insert(pk, sig);
     add(
         "signer-invalid.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed with the last bit of its signature's s flipped",
+        "Returned, against signer-core-sent.psbt: signer-core-signed with the last bit of its signature's s flipped",
         &psbt,
     );
 
@@ -308,7 +320,7 @@ pub fn fixtures() -> Vec<Fixture> {
     sign(&mut psbt, 0, &fixed(5), EcdsaSighashType::All, None);
     add(
         "signer-foreign-key.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed plus a valid signature under a key no origin names",
+        "Returned, against signer-core-sent.psbt: signer-core-signed plus a valid signature under a key no origin names",
         &psbt,
     );
 
@@ -408,7 +420,7 @@ pub fn fixtures() -> Vec<Fixture> {
     psbt.inner_mut().inputs[0].bip32_derivation.clear();
     add(
         "signer-origin-removed.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed with input 0's key origins removed",
+        "Returned, against signer-core-sent.psbt: signer-core-signed with input 0's key origins removed",
         &psbt,
     );
 
@@ -423,7 +435,7 @@ pub fn fixtures() -> Vec<Fixture> {
     );
     add(
         "signer-xpub-added.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed plus one global extended public key",
+        "Returned, against signer-core-sent.psbt: signer-core-signed plus one global extended public key",
         &psbt,
     );
 
@@ -433,17 +445,17 @@ pub fn fixtures() -> Vec<Fixture> {
         .insert(unknown_key(), vec![1, 2, 3, 4]);
     add(
         "signer-unknown-added.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed plus a global pair of type 0xf0, a 2-byte key and a 4-byte value",
+        "Returned, against signer-core-sent.psbt: signer-core-signed plus a global pair of type 0xf0, a 2-byte key and a 4-byte value",
         &psbt,
     );
 
-    let mut sent = read("wallet-2of3.psbt");
+    let mut sent = core_sent.clone();
     sent.inner_mut()
         .unknown
         .insert(unknown_key(), vec![1, 2, 3, 4]);
     add(
         "signer-unknown-sent.psbt",
-        "Sent: wallet-2of3.psbt plus a global pair of type 0xf0, a 2-byte key and a 4-byte value",
+        "Sent: signer-core-sent.psbt plus a global pair of type 0xf0, a 2-byte key and a 4-byte value",
         &sent,
     );
     let mut psbt = core_signed.clone();
@@ -467,7 +479,7 @@ pub fn fixtures() -> Vec<Fixture> {
     );
     add(
         "signer-proprietary-added.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed plus an input pair under the prefix \"device\", subtype 1, a 4-byte value",
+        "Returned, against signer-core-sent.psbt: signer-core-signed plus an input pair under the prefix \"device\", subtype 1, a 4-byte value",
         &psbt,
     );
 
@@ -482,7 +494,7 @@ pub fn fixtures() -> Vec<Fixture> {
     );
     add(
         "signer-osk-added.psbt",
-        "Returned, against wallet-2of3.psbt: signer-core-signed plus an input record under Faraday's own prefix \"osk\", subtype 0, a 32-byte value",
+        "Returned, against signer-core-sent.psbt: signer-core-signed plus an input record under Faraday's own prefix \"osk\", subtype 0, a 32-byte value",
         &psbt,
     );
 
@@ -490,7 +502,7 @@ pub fn fixtures() -> Vec<Fixture> {
     bytes.extend_from_slice(b"trailing");
     out.push(Fixture {
         name: "signer-trailing.psbt",
-        note: "Returned, against wallet-2of3.psbt: the bytes of signer-core-signed with eight bytes after the last map",
+        note: "Returned, against signer-core-sent.psbt: the bytes of signer-core-signed with eight bytes after the last map",
         text: base64(&bytes),
     });
     out

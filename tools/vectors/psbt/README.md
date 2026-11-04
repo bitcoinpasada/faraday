@@ -40,9 +40,10 @@
 | `finalize-tap-leaf-order-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: the leaf whose script sorts first by its bytes (`core/faraday-psbt/tests/all/satisfaction.rs`) |
 | `signer-core-signed.psbt` | `wallet-2of3.psbt` as Bitcoin Core 31.1 signed it: `walletprocesspsbt` (sign, no finalize) in a regtest wallet holding the "zoo … wrong" key and the other two as their xpubs, `tools/scripts/signer-core.py`; one partial signature under the zoo key, the input not final. Not rebuilt by `examples/signer.rs`, which reads it |
 | `signer-core-final.psbt` | `demo-regtest.psbt` signed and finalized by Core 31.1 (`walletprocesspsbt`, sign and finalize) in a regtest wallet holding the "abandon … about" key, `tools/scripts/signer-core.py`: input 0 final, its witness a signature and the key. Not rebuilt by `examples/signer.rs`, which reads it |
-| `signer-output-changed.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed with output 0 one sat less; written by `examples/signer.rs` |
-| `signer-invalid.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed with the last bit of its signature's s flipped; written by `examples/signer.rs` |
-| `signer-foreign-key.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed plus a valid signature under a key no origin names; written by `examples/signer.rs` |
+| `signer-core-sent.psbt` | Sent: `wallet-2of3.psbt` plus the one witness script Core added to output 1 beside its signature, copied from `signer-core-signed.psbt`; the Sent for every fixture below built from core-signed. `wallet-2of3.psbt` itself against core-signed is clean with one Info line, the witness script added at output 1, which hashes to that output's P2WSH program (F199); written by `examples/signer.rs` |
+| `signer-output-changed.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed with output 0 one sat less; written by `examples/signer.rs` |
+| `signer-invalid.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed with the last bit of its signature's s flipped; written by `examples/signer.rs` |
+| `signer-foreign-key.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus a valid signature under a key no origin names; written by `examples/signer.rs` |
 | `signer-sighash-none.psbt` | Returned, against demo-regtest.psbt: signed by the "abandon" key with SIGHASH_NONE; written by `examples/signer.rs` |
 | `signer-sighash-single.psbt` | Returned, against demo-regtest.psbt: signed by the "abandon" key with SIGHASH_SINGLE; written by `examples/signer.rs` |
 | `signer-random-nonce.psbt` | Returned, against demo-regtest.psbt: signed by the "abandon" key with a nonce RFC 6979 does not give; written by `examples/signer.rs` |
@@ -51,14 +52,14 @@
 | `signer-sig-removed.psbt` | Returned, against wallet-tapmulti-signed.psbt: that file less one of its two script signatures; written by `examples/signer.rs` |
 | `signer-sig-changed.psbt` | Returned, against signer-core-signed.psbt: its signature remade, as valid, with another nonce; written by `examples/signer.rs` |
 | `signer-final-extra.psbt` | Returned, against demo-regtest.psbt: signer-core-final with one more item, a byte, at the end of the witness; written by `examples/signer.rs` |
-| `signer-origin-removed.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed with input 0's key origins removed; written by `examples/signer.rs` |
-| `signer-xpub-added.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed plus one global extended public key; written by `examples/signer.rs` |
-| `signer-unknown-added.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed plus a global pair of type 0xf0, a 2-byte key and a 4-byte value; written by `examples/signer.rs` |
-| `signer-unknown-sent.psbt` | Sent: wallet-2of3.psbt plus a global pair of type 0xf0, a 2-byte key and a 4-byte value; written by `examples/signer.rs` |
+| `signer-origin-removed.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed with input 0's key origins removed; written by `examples/signer.rs` |
+| `signer-xpub-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus one global extended public key; written by `examples/signer.rs` |
+| `signer-unknown-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus a global pair of type 0xf0, a 2-byte key and a 4-byte value; written by `examples/signer.rs` |
+| `signer-unknown-sent.psbt` | Sent: signer-core-sent.psbt plus a global pair of type 0xf0, a 2-byte key and a 4-byte value; written by `examples/signer.rs` |
 | `signer-unknown-changed.psbt` | Returned, against signer-unknown-sent.psbt: signer-core-signed with that pair's value two bytes longer; written by `examples/signer.rs` |
-| `signer-proprietary-added.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed plus an input pair under the prefix "device", subtype 1, a 4-byte value; written by `examples/signer.rs` |
-| `signer-osk-added.psbt` | Returned, against wallet-2of3.psbt: signer-core-signed plus an input record under Faraday's own prefix "osk", subtype 0, a 32-byte value; written by `examples/signer.rs` |
-| `signer-trailing.psbt` | Returned, against wallet-2of3.psbt: the bytes of signer-core-signed with eight bytes after the last map; written by `examples/signer.rs` |
+| `signer-proprietary-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus an input pair under the prefix "device", subtype 1, a 4-byte value; written by `examples/signer.rs` |
+| `signer-osk-added.psbt` | Returned, against signer-core-sent.psbt: signer-core-signed plus an input record under Faraday's own prefix "osk", subtype 0, a 32-byte value; written by `examples/signer.rs` |
+| `signer-trailing.psbt` | Returned, against signer-core-sent.psbt: the bytes of signer-core-signed with eight bytes after the last map; written by `examples/signer.rs` |
 
 ## The miniscript wallets' addresses
 

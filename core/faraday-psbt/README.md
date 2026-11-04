@@ -8,15 +8,18 @@ finalization. `no_std` + `alloc`, no `unsafe`. Dependencies: `bitcoin` and
 
 Written in this crate rather than taken from another: the PSBT inspection
 and verification logic (`inspect`, `verify`, `classify`), signing
-orchestration (`sign`), finalization (`finalize`), BIP-137 and BIP-322
+orchestration (`sign`), finalization (`finalize`), the check of a signing
+device's returned PSBT against the one sent (`signer`: signatures added or
+an input finalized, a typed finding for anything else, no key needed),
+BIP-137 and BIP-322
 message signing (`message`), and the MuSig2 signing rounds over
 `faraday-bip`'s arithmetic (`musig`). PSBT parsing and secp256k1 are
 `bitcoin`'s.
 
 Checked against: `tools/vectors/psbt/` (BIP-174 vectors, RFC 6979,
 Bitcoin Core's regtest PSBTs for MuSig2 and taproot multisig), read by
-`tests/all/vectors.rs`, `fixtures.rs`, `wallet_fixtures.rs`, `musig.rs`
-and `tapmulti.rs`; `tools/vectors/message/` (`tests/all/message.rs`).
+`tests/all/vectors.rs`, `fixtures.rs`, `wallet_fixtures.rs`, `musig.rs`,
+`tapmulti.rs` and `signer.rs` (Core-signed pairs and one change each); `tools/vectors/message/` (`tests/all/message.rs`).
 
 `unsafe`: none (the workspace forbids it).
 

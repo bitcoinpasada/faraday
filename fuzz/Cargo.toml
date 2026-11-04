@@ -257,3 +257,10 @@ path = "fuzz_targets/hex_decode.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "signer_check"
+path = "fuzz_targets/signer_check.rs"
+test = false
+doc = false
+bench = false

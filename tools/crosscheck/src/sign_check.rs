@@ -1,7 +1,7 @@
 //! The signature check of a PSBT: `faraday_psbt::verify::verify_signatures`
 //! (each signature in a partial-signature field or a final scriptSig or
 //! witness, checked against its sighash) and
-//! `faraday_psbt::verify::repeated_nonces` (one `r` or `R` under one key
+//! `faraday_psbt::verify::repeated_nonces` (one `r` or `R` under any keys
 //! in more than one place), as the Spend screen's signature check and the
 //! nonce check call them. No key is held, so no signature is "ours".
 
@@ -42,9 +42,11 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 let reused: Vec<Value> = repeated_nonces(&psbt, &ctx)
                     .iter()
                     .map(|r| {
+                        let mut keys: Vec<String> = r.keys.iter().map(|k| k.hex()).collect();
+                        keys.sort();
                         json!({
                             "kind": kind(r.kind),
-                            "key": r.key.hex(),
+                            "keys": keys,
                             "nonce": r.nonce,
                             "inputs": r.inputs,
                         })

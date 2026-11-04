@@ -23,6 +23,10 @@
 //!   rule made a signature under a key this device holds, diffs two
 //!   PSBTs and states an inscription envelope (§16.111). Nothing there
 //!   signs.
+//! - [`signer`]: states whether a signing device did only what it was
+//!   asked, from the PSBT sent and the one that came back: signatures
+//!   added or an input finalized from them, and a finding for anything
+//!   else. Nothing there needs a key.
 //! - [`sweep`]: signs with one private key read from a WIF, matched by
 //!   the scripts it pays rather than by a key origin, for a sweep.
 //! - [`transaction`]: reads a raw transaction, or a PSBT as the
@@ -97,6 +101,7 @@ mod psbt;
 mod reason;
 mod register;
 mod sign;
+pub mod signer;
 pub mod silent;
 pub mod sweep;
 pub mod transaction;

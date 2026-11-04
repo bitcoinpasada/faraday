@@ -5,7 +5,8 @@
 //! inside a finalized `scriptSig` or witness — and checks each against
 //! the key it is under and the sighash the input's own fields give.
 //! [`repeated_nonces`] looks for one `r` (or one `R`) used twice under
-//! one key, which is the key itself in two pieces.
+//! any keys, or one point of a MuSig2 public nonce in two places, which
+//! is the key itself in two pieces.
 //! [`deterministic`] recomputes a signature under a key this device
 //! holds and says which nonce rule produced it. [`compare`] diffs two
 //! PSBTs, and [`inscriptions`] states an `ord` envelope without
@@ -25,6 +26,7 @@
 use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
@@ -45,8 +47,10 @@ use crate::psbt::Psbt;
 use crate::sign::{SigKind, tap_prevouts};
 use crate::v2;
 
-/// The key a signature is under, as the transaction names it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// The key a signature is under, as the transaction names it. One key is
+/// one point: the compressed and the uncompressed form of a public key
+/// are equal, so a signature filed under either is under the same key.
+#[derive(Debug, Clone, Eq)]
 pub enum SigKey {
     /// A compressed public key, which is what an ECDSA signature is
     /// checked against.
@@ -57,6 +61,17 @@ pub enum SigKey {
     /// The script does not name the key, so there is nothing to check
     /// the signature against.
     Unknown,
+}
+
+impl PartialEq for SigKey {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (SigKey::Ecdsa(a), SigKey::Ecdsa(b)) => a.inner == b.inner,
+            (SigKey::Schnorr(a), SigKey::Schnorr(b)) => a == b,
+            (SigKey::Unknown, SigKey::Unknown) => true,
+            _ => false,
+        }
+    }
 }
 
 impl SigKey {
@@ -178,23 +193,36 @@ pub struct InputSignatures {
     pub signatures: Vec<SignaturePresent>,
 }
 
-/// One `r` under one key, in more than one place.
+/// One nonce point in more than one place: an `r` or `R` under any keys
+/// (compared as its 32-byte x coordinate, ECDSA and Schnorr alike), or a
+/// point of a MuSig2 public nonce. The signatures that share it
+/// give the private key away.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NonceReuse {
-    /// The key both signatures are under.
-    pub key: SigKey,
+    /// The keys the signatures sharing it are under (a MuSig2 nonce's
+    /// participants), each once.
+    pub keys: Vec<SigKey>,
+    /// The raw keys of MuSig2 pairs that do not read as a public key, each
+    /// once: named by their first bytes.
+    pub unread: Vec<Vec<u8>>,
     /// ECDSA or Schnorr.
     pub kind: SigKind,
     /// The repeated nonce point, in hex.
     pub nonce: String,
-    /// The inputs the signatures sign, in order.
+    /// The inputs it is on, in order, each once.
     pub inputs: Vec<usize>,
 }
 
 impl NonceReuse {
-    /// How a card names the key: the first eight hex characters of it.
+    /// How a card names the keys: the first eight hex characters of each,
+    /// separated by commas.
     pub fn name(&self) -> String {
-        short(&self.key)
+        let unread = self
+            .unread
+            .iter()
+            .map(|raw| hex(raw).chars().take(8).collect::<String>());
+        let names: Vec<String> = self.keys.iter().map(short).chain(unread).collect();
+        names.join(", ")
     }
 }
 
@@ -233,8 +261,17 @@ pub struct Determinism {
     pub input: usize,
     /// The key it is under.
     pub key: SigKey,
+    /// The leaf it signs, for a taproot script path.
+    pub leaf: Option<TapLeafHash>,
     /// The master the key was derived from.
     pub fingerprint: Fingerprint,
+    /// The signature as its field holds it (what [`SignaturePresent::bytes`]
+    /// is): a result is for this signature, not for the place alone.
+    pub signature: Vec<u8>,
+    /// Whether the signature hash could be computed. `false`: no rule
+    /// was tried, and `mode` is `None` for that reason; only
+    /// [`deterministic_all`] gives such a result.
+    pub hashed: bool,
     /// The rule that reproduced it, or `None` when none did.
     pub mode: Option<NonceMode>,
 }
@@ -295,6 +332,17 @@ pub enum Field {
     Proprietary,
     /// The global extended public keys.
     Xpubs,
+    /// An input's hash preimages (ripemd160, sha256, hash160, hash256).
+    Preimages,
+    /// An output's taproot tree.
+    TapTree,
+    /// The PSBT's version, and whether the file writes it.
+    PsbtVersion,
+    /// The fields only a version 2 PSBT has, other than the modifiable
+    /// flags.
+    V2Fields,
+    /// `PSBT_GLOBAL_TX_MODIFIABLE`.
+    ModifiableFlags,
 }
 
 impl fmt::Display for Field {
@@ -470,6 +518,16 @@ fn origin(
     input: &bitcoin::psbt::Input,
     key: &SigKey,
 ) -> (Option<Fingerprint>, bool) {
+    let fp = origin_fingerprint(input, key);
+    let ours = fp.is_some_and(|fp| ctx.is_ours(fp));
+    (fp, ours)
+}
+
+/// The master fingerprint a key origin on the input names for `key`.
+pub(crate) fn origin_fingerprint(
+    input: &bitcoin::psbt::Input,
+    key: &SigKey,
+) -> Option<Fingerprint> {
     let fp = match key {
         SigKey::Ecdsa(pk) => input.bip32_derivation.get(&pk.inner).map(|(fp, _)| *fp),
         SigKey::Schnorr(xonly) => input
@@ -485,9 +543,7 @@ fn origin(
             }),
         SigKey::Unknown => None,
     };
-    let fp = fp.map(Fingerprint::from);
-    let ours = fp.is_some_and(|fp| ctx.is_ours(fp));
-    (fp, ours)
+    fp.map(Fingerprint::from)
 }
 
 /// Every signature one input carries, from the partial-signature fields
@@ -1009,13 +1065,97 @@ fn taproot_message(
     Some(Message::from(sighash))
 }
 
-/// Every repeated nonce in the transaction: one `r` under one key in two
-/// places, which is the private key in two pieces.
+/// Every repeated nonce in the transaction: one `r` or `R` in two places
+/// under any keys, or one point of a MuSig2 public nonce in two places,
+/// which is the private key in two pieces.
 ///
 /// Finalized signatures count: a transaction that carries one signature
 /// in a witness and another in a partial-signature field has still
 /// leaked the key.
 pub fn repeated_nonces(psbt: &Psbt, ctx: &Context) -> Vec<NonceReuse> {
+    let mut out = nonce_reuse_among(
+        verify_signatures(psbt, ctx)
+            .into_iter()
+            .flat_map(|i| i.signatures),
+    );
+    out.extend(repeated_pub_nonces(&[psbt]));
+    out
+}
+
+/// A point of a MuSig2 public nonce (`PSBT_IN_MUSIG2_PUB_NONCE`, two
+/// 33-byte points, compared by the 32-byte x coordinate, as a point and
+/// its negation give one) that is in two places among `psbts` taken
+/// together: another input, or another participant or aggregate on one input. The same pair
+/// on two of `psbts` at one place is one place. Three partial signatures
+/// over one nonce solve for the key (BIP-327).
+pub fn repeated_pub_nonces(psbts: &[&Psbt]) -> Vec<NonceReuse> {
+    /// A place: the input and the pair's key, whole.
+    type Place = (usize, Vec<u8>);
+    let mut points: Vec<(Vec<u8>, Vec<Place>)> = Vec::new();
+    for psbt in psbts {
+        for (i, input) in psbt.inner().inputs.iter().enumerate() {
+            for (key, value) in &input.unknown {
+                if key.type_value != crate::musig::IN_PUB_NONCE || value.len() != 66 {
+                    continue;
+                }
+                for point in [&value[..33], &value[33..]] {
+                    let place = (i, key.key.clone());
+                    match points.iter_mut().find(|(p, _)| p[1..] == point[1..]) {
+                        Some((_, places)) if places.contains(&place) => {}
+                        Some((_, places)) => places.push(place),
+                        None => points.push((point.to_vec(), alloc::vec![place])),
+                    }
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for (point, places) in points {
+        if places.len() < 2 {
+            continue;
+        }
+        let mut keys: Vec<SigKey> = Vec::new();
+        let mut unread: Vec<Vec<u8>> = Vec::new();
+        let mut inputs: Vec<usize> = Vec::new();
+        for (input, key) in &places {
+            match key
+                .get(..33)
+                .and_then(|b| secp256k1::PublicKey::from_slice(b).ok())
+            {
+                Some(participant) => {
+                    let participant = SigKey::Ecdsa(PublicKey::new(participant));
+                    if !keys.contains(&participant) {
+                        keys.push(participant);
+                    }
+                }
+                None if !unread.contains(key) => unread.push(key.clone()),
+                None => {}
+            }
+            if !inputs.contains(input) {
+                inputs.push(*input);
+            }
+        }
+        inputs.sort_unstable();
+        out.push(NonceReuse {
+            keys,
+            unread,
+            kind: SigKind::Schnorr,
+            nonce: hex(&point[1..]),
+            inputs,
+        });
+    }
+    out
+}
+
+/// A nonce used for more than one signature, under one key or several,
+/// among `signatures` taken together (each carries the input it signs).
+/// Keys do not matter: sibling keys of one xpub differ by a number the
+/// xpub gives, and one point is an ECDSA key in one input and an x-only
+/// key in another, so the nonce is compared as its x coordinate. The same
+/// bytes twice under one key, or on one input, count once.
+pub(crate) fn nonce_reuse_among(
+    signatures: impl IntoIterator<Item = SignaturePresent>,
+) -> Vec<NonceReuse> {
     /// One signature as the search for a repeated nonce holds it.
     struct Seen {
         key: SigKey,
@@ -1025,50 +1165,62 @@ pub fn repeated_nonces(psbt: &Psbt, ctx: &Context) -> Vec<NonceReuse> {
         input: usize,
     }
     let mut seen: Vec<Seen> = Vec::new();
-    for input in verify_signatures(psbt, ctx) {
-        for sig in input.signatures {
-            if sig.key == SigKey::Unknown {
-                continue;
-            }
-            let nonce = sig.nonce_point();
-            if nonce.is_empty() {
-                continue;
-            }
-            // The same bytes in two places are one signature written
-            // twice, not two signatures under one nonce.
-            if seen
-                .iter()
-                .any(|s| s.key == sig.key && s.nonce == nonce && s.bytes == sig.bytes)
-            {
-                continue;
-            }
-            seen.push(Seen {
-                key: sig.key,
-                kind: sig.kind,
-                nonce,
-                bytes: sig.bytes,
-                input: input.index,
-            });
+    for sig in signatures {
+        if sig.key == SigKey::Unknown {
+            continue;
         }
+        let nonce = sig.nonce_point();
+        if nonce.is_empty() {
+            continue;
+        }
+        // The same bytes in two places are one signature written
+        // twice, not two signatures under one nonce: under one key, or on
+        // one input, whichever key each field reads it under.
+        if seen.iter().any(|s| {
+            s.nonce == nonce && s.bytes == sig.bytes && (s.key == sig.key || s.input == sig.input)
+        }) {
+            continue;
+        }
+        seen.push(Seen {
+            key: sig.key,
+            kind: sig.kind,
+            nonce,
+            bytes: sig.bytes,
+            input: sig.input,
+        });
     }
-    let mut out: Vec<NonceReuse> = Vec::new();
+    let mut out: Vec<(NonceReuse, usize)> = Vec::new();
     for found in seen {
         let nonce = hex(&found.nonce);
-        match out
-            .iter_mut()
-            .find(|r| r.key == found.key && r.nonce == nonce)
-        {
-            Some(hit) => hit.inputs.push(found.input),
-            None => out.push(NonceReuse {
-                key: found.key,
-                kind: found.kind,
-                nonce,
-                inputs: alloc::vec![found.input],
-            }),
+        match out.iter_mut().find(|(r, _)| r.nonce == nonce) {
+            Some((hit, count)) => {
+                *count += 1;
+                if !hit.keys.contains(&found.key) {
+                    hit.keys.push(found.key);
+                }
+                if !hit.inputs.contains(&found.input) {
+                    hit.inputs.push(found.input);
+                }
+            }
+            None => out.push((
+                NonceReuse {
+                    keys: alloc::vec![found.key],
+                    unread: Vec::new(),
+                    kind: found.kind,
+                    nonce,
+                    inputs: alloc::vec![found.input],
+                },
+                1,
+            )),
         }
     }
-    out.retain(|r| r.inputs.len() > 1);
-    out
+    out.into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(mut r, _)| {
+            r.inputs.sort_unstable();
+            r
+        })
+        .collect()
 }
 
 /// Costs a key derivation per signature checked (through `ecdsa_mode`
@@ -1078,6 +1230,15 @@ pub fn repeated_nonces(psbt: &Psbt, ctx: &Context) -> Vec<NonceReuse> {
 /// The key is derived from the PSBT's own origin data, the way
 /// [`crate::sign`] derives it, and lives only inside this call.
 pub fn deterministic(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
+    let mut all = deterministic_all(c, psbt, keys);
+    all.retain(|d| d.hashed);
+    all
+}
+
+/// Costs what [`deterministic`] costs. The same, with a result also for
+/// a signature whose hash cannot be computed (`hashed` false, no rule
+/// tried): the signer check reads from it which masters were given.
+pub fn deterministic_all(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
     let mut out = Vec::new();
     for index in 0..psbt.inner().inputs.len() {
         let cl = classify(psbt.inner(), index);
@@ -1093,37 +1254,46 @@ pub fn deterministic(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Deter
             else {
                 continue;
             };
-            let Some(msg) = ecdsa_message(&restored, index, sig.sighash_type) else {
-                continue;
-            };
+            let msg = ecdsa_message(&restored, index, sig.sighash_type);
             out.push(Determinism {
                 input: index,
                 key: SigKey::Ecdsa(*pk),
+                leaf: None,
                 fingerprint: master.fingerprint(),
-                mode: ecdsa_mode(c, master, path, &msg, &pk.inner, &sig.signature),
+                signature: sig.to_vec(),
+                hashed: msg.is_some(),
+                mode: msg.and_then(|m| ecdsa_mode(c, master, path, &m, &pk.inner, &sig.signature)),
             });
         }
-        if let Some(sig) = input.tap_key_sig {
+        // One signature's skip is its own: the leaf signatures below are
+        // read whatever became of the key path's.
+        'key_path: {
+            let Some(sig) = input.tap_key_sig else {
+                break 'key_path;
+            };
             let Some(internal) = input.tap_internal_key else {
-                continue;
+                break 'key_path;
             };
             let Some((_, (fp, path))) = input.tap_key_origins.get(&internal) else {
-                continue;
+                break 'key_path;
             };
             let Some(master) = keys
                 .iter()
                 .find(|k| k.fingerprint() == Fingerprint::from(*fp))
             else {
-                continue;
+                break 'key_path;
             };
-            let Some(msg) = taproot_message(&restored, &cl, index, None, sig.sighash_type) else {
-                continue;
-            };
+            let msg = taproot_message(&restored, &cl, index, None, sig.sighash_type);
             out.push(Determinism {
                 input: index,
                 key: key_path_key(&cl, input),
+                leaf: None,
                 fingerprint: master.fingerprint(),
-                mode: schnorr_mode(c, master, path, &msg, Some(input.tap_merkle_root), &sig),
+                signature: sig.to_vec(),
+                hashed: msg.is_some(),
+                mode: msg.and_then(|m| {
+                    schnorr_mode(c, master, path, &m, Some(input.tap_merkle_root), &sig)
+                }),
             });
         }
         for ((xonly, leaf), sig) in &input.tap_script_sigs {
@@ -1136,15 +1306,15 @@ pub fn deterministic(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Deter
             else {
                 continue;
             };
-            let Some(msg) = taproot_message(&restored, &cl, index, Some(*leaf), sig.sighash_type)
-            else {
-                continue;
-            };
+            let msg = taproot_message(&restored, &cl, index, Some(*leaf), sig.sighash_type);
             out.push(Determinism {
                 input: index,
                 key: SigKey::Schnorr(*xonly),
+                leaf: Some(*leaf),
                 fingerprint: master.fingerprint(),
-                mode: schnorr_mode(c, master, path, &msg, None, sig),
+                signature: sig.to_vec(),
+                hashed: msg.is_some(),
+                mode: msg.and_then(|m| schnorr_mode(c, master, path, &m, None, sig)),
             });
         }
     }
@@ -1369,181 +1539,204 @@ fn signers(input: &bitcoin::psbt::Input) -> Vec<String> {
 
 /// Every key-value pair that is not the transaction and not a
 /// signature, compared on what it decodes to.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+///
+/// Each level is taken apart by `Input { .. }`-style patterns that name
+/// every field (no `..`), so a field a later `bitcoin` adds fails to
+/// compile here instead of going unread.
 fn metadata_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<FieldDiff> {
     let mut out = Vec::new();
-    field(
+    pair_up(
         &mut out,
         Where::Transaction,
-        Field::Xpubs,
-        map(x.xpub.iter().map(|(k, v)| (k.to_string(), origin_text(v)))),
-        map(y.xpub.iter().map(|(k, v)| (k.to_string(), origin_text(v)))),
-    );
-    field(
-        &mut out,
-        Where::Transaction,
-        Field::Unknown,
-        unknown_text(&x.unknown),
-        unknown_text(&y.unknown),
+        global_texts(x),
+        global_texts(y),
     );
     for i in 0..x.inputs.len().min(y.inputs.len()) {
-        let (a, b) = (&x.inputs[i], &y.inputs[i]);
-        let at = Where::Input(i);
-        field(
+        pair_up(
             &mut out,
-            at,
-            Field::PreviousTransaction,
-            txt(&a.non_witness_utxo),
-            txt(&b.non_witness_utxo),
-        );
-        field(
-            &mut out,
-            at,
-            Field::SpentOutput,
-            utxo_text(&a.witness_utxo),
-            utxo_text(&b.witness_utxo),
-        );
-        field(
-            &mut out,
-            at,
-            Field::RedeemScript,
-            script_text(&a.redeem_script),
-            script_text(&b.redeem_script),
-        );
-        field(
-            &mut out,
-            at,
-            Field::WitnessScript,
-            script_text(&a.witness_script),
-            script_text(&b.witness_script),
-        );
-        field(
-            &mut out,
-            at,
-            Field::Sighash,
-            txt(&a.sighash_type),
-            txt(&b.sighash_type),
-        );
-        field(
-            &mut out,
-            at,
-            Field::KeyOrigins,
-            map(a
-                .bip32_derivation
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), origin_text(v)))),
-            map(b
-                .bip32_derivation
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), origin_text(v)))),
-        );
-        field(
-            &mut out,
-            at,
-            Field::TaprootKeyOrigins,
-            map(a
-                .tap_key_origins
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{v:?}")))), // not shown: a comparison value, a developer's
-            map(b
-                .tap_key_origins
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{v:?}")))), // not shown: as above
-        );
-        field(
-            &mut out,
-            at,
-            Field::InternalKey,
-            txt(&a.tap_internal_key),
-            txt(&b.tap_internal_key),
-        );
-        field(
-            &mut out,
-            at,
-            Field::MerkleRoot,
-            txt(&a.tap_merkle_root),
-            txt(&b.tap_merkle_root),
-        );
-        field(
-            &mut out,
-            at,
-            Field::LeafScripts,
-            map(a
-                .tap_scripts
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{:?}", v)))), // not shown: as above
-            map(b
-                .tap_scripts
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{:?}", v)))), // not shown: as above
-        );
-        field(
-            &mut out,
-            at,
-            Field::Unknown,
-            unknown_text(&a.unknown),
-            unknown_text(&b.unknown),
-        );
-        field(
-            &mut out,
-            at,
-            Field::Proprietary,
-            map(a
-                .proprietary
-                .iter()
-                .map(|(k, v)| (format!("{k:?}"), hex(v)))), // not shown: as above
-            map(b
-                .proprietary
-                .iter()
-                .map(|(k, v)| (format!("{k:?}"), hex(v)))), // not shown: as above
+            Where::Input(i),
+            input_texts(&x.inputs[i]),
+            input_texts(&y.inputs[i]),
         );
     }
     for i in 0..x.outputs.len().min(y.outputs.len()) {
-        let (a, b) = (&x.outputs[i], &y.outputs[i]);
-        let at = Where::Output(i);
-        field(
+        pair_up(
             &mut out,
-            at,
-            Field::RedeemScript,
-            script_text(&a.redeem_script),
-            script_text(&b.redeem_script),
-        );
-        field(
-            &mut out,
-            at,
-            Field::WitnessScript,
-            script_text(&a.witness_script),
-            script_text(&b.witness_script),
-        );
-        field(
-            &mut out,
-            at,
-            Field::KeyOrigins,
-            map(a
-                .bip32_derivation
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), origin_text(v)))),
-            map(b
-                .bip32_derivation
-                .iter()
-                .map(|(k, v)| (hex(&k.serialize()), origin_text(v)))),
-        );
-        field(
-            &mut out,
-            at,
-            Field::InternalKey,
-            txt(&a.tap_internal_key),
-            txt(&b.tap_internal_key),
-        );
-        field(
-            &mut out,
-            at,
-            Field::Unknown,
-            unknown_text(&a.unknown),
-            unknown_text(&b.unknown),
+            Where::Output(i),
+            output_texts(&x.outputs[i]),
+            output_texts(&y.outputs[i]),
         );
     }
     out
+}
+
+/// The fields of two same-shaped lists, one by one.
+fn pair_up(out: &mut Vec<FieldDiff>, at: Where, a: Vec<(Field, String)>, b: Vec<(Field, String)>) {
+    for ((name, left), (_, right)) in a.into_iter().zip(b) {
+        field(out, at, name, left, right);
+    }
+}
+
+/// The global fields this comparison reads, as text.
+fn global_texts(psbt: &bitcoin::Psbt) -> Vec<(Field, String)> {
+    let bitcoin::Psbt {
+        unsigned_tx: _, // `compare` reads it
+        version: _,     // `signer::check` reads the file's own version bytes
+        xpub,
+        proprietary: _, // `signer::check` reads them pair by pair
+        unknown,
+        inputs: _,
+        outputs: _,
+    } = psbt;
+    vec![
+        (
+            Field::Xpubs,
+            map(xpub.iter().map(|(k, v)| (k.to_string(), origin_text(v)))),
+        ),
+        (Field::Unknown, unknown_text(unknown)),
+    ]
+}
+
+/// One input's fields this comparison reads, as text.
+fn input_texts(input: &bitcoin::psbt::Input) -> Vec<(Field, String)> {
+    let bitcoin::psbt::Input {
+        non_witness_utxo,
+        witness_utxo,
+        partial_sigs: _, // `signing_diff` and `signer::check` read the signatures
+        sighash_type,
+        redeem_script,
+        witness_script,
+        bip32_derivation,
+        final_script_sig: _,     // read as the final fields, in `signer::check`
+        final_script_witness: _, // as above
+        ripemd160_preimages,
+        sha256_preimages,
+        hash160_preimages,
+        hash256_preimages,
+        tap_key_sig: _,     // read as a signature
+        tap_script_sigs: _, // as above
+        tap_scripts,
+        tap_key_origins,
+        tap_internal_key,
+        tap_merkle_root,
+        proprietary,
+        unknown,
+    } = input;
+    let preimages = map(preimage_pairs("ripemd160", ripemd160_preimages)
+        .chain(preimage_pairs("sha256", sha256_preimages))
+        .chain(preimage_pairs("hash160", hash160_preimages))
+        .chain(preimage_pairs("hash256", hash256_preimages)));
+    vec![
+        (
+            Field::PreviousTransaction,
+            non_witness_utxo
+                .as_ref()
+                .map(|t| hex(&bitcoin::consensus::serialize(t)))
+                .unwrap_or_default(),
+        ),
+        (Field::SpentOutput, utxo_text(witness_utxo)),
+        (Field::RedeemScript, script_text(redeem_script)),
+        (Field::WitnessScript, script_text(witness_script)),
+        (Field::Sighash, txt(sighash_type)),
+        (
+            Field::KeyOrigins,
+            map(bip32_derivation
+                .iter()
+                .map(|(k, v)| (hex(&k.serialize()), origin_text(v)))),
+        ),
+        (Field::Preimages, preimages),
+        (Field::TaprootKeyOrigins, tap_origins_text(tap_key_origins)),
+        (Field::InternalKey, txt(tap_internal_key)),
+        (Field::MerkleRoot, txt(tap_merkle_root)),
+        (
+            Field::LeafScripts,
+            map(tap_scripts.iter().map(|(k, (script, version))| {
+                (
+                    hex(&k.serialize()),
+                    format!("{:02x}:{}", version.to_consensus(), hex(script.as_bytes())),
+                )
+            })),
+        ),
+        (Field::Unknown, unknown_text(unknown)),
+        (
+            Field::Proprietary,
+            map(proprietary.iter().map(|(k, v)| (format!("{k:?}"), hex(v)))), // not shown: a comparison value; every byte of the key prints
+        ),
+    ]
+}
+
+/// One output's fields this comparison reads, as text.
+fn output_texts(output: &bitcoin::psbt::Output) -> Vec<(Field, String)> {
+    let bitcoin::psbt::Output {
+        redeem_script,
+        witness_script,
+        bip32_derivation,
+        tap_internal_key,
+        tap_tree,
+        tap_key_origins,
+        proprietary: _, // `signer::check` reads them pair by pair
+        unknown,
+    } = output;
+    let tree = tap_tree
+        .as_ref()
+        .map(|t| {
+            t.script_leaves()
+                .map(|l| {
+                    format!(
+                        "{}:{:02x}:{}",
+                        l.merkle_branch().len(),
+                        l.version().to_consensus(),
+                        hex(l.script().as_bytes())
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .map(|t| format!("tree:{t}"))
+        .unwrap_or_default();
+    vec![
+        (Field::RedeemScript, script_text(redeem_script)),
+        (Field::WitnessScript, script_text(witness_script)),
+        (
+            Field::KeyOrigins,
+            map(bip32_derivation
+                .iter()
+                .map(|(k, v)| (hex(&k.serialize()), origin_text(v)))),
+        ),
+        (Field::InternalKey, txt(tap_internal_key)),
+        (Field::TapTree, tree),
+        (Field::TaprootKeyOrigins, tap_origins_text(tap_key_origins)),
+        (Field::Unknown, unknown_text(unknown)),
+    ]
+}
+
+/// A preimage map's pairs, each tagged with its hash's kind.
+fn preimage_pairs<'a, H: fmt::Display + 'a>(
+    kind: &'static str,
+    preimages: &'a BTreeMap<H, Vec<u8>>,
+) -> impl Iterator<Item = (String, String)> + 'a {
+    preimages
+        .iter()
+        .map(move |(h, v)| (format!("{kind}:{h}"), hex(v)))
+}
+
+/// Taproot key origins as text: each key, its leaf hashes and its origin.
+fn tap_origins_text(
+    origins: &BTreeMap<
+        XOnlyPublicKey,
+        (
+            Vec<bitcoin::taproot::TapLeafHash>,
+            bitcoin::bip32::KeySource,
+        ),
+    >,
+) -> String {
+    map(origins.iter().map(|(k, (leaves, source))| {
+        let leaves: Vec<String> = leaves.iter().map(ToString::to_string).collect();
+        (
+            hex(&k.serialize()),
+            format!("{}|{}", leaves.join("+"), origin_text(source)),
+        )
+    }))
 }
 
 /// A map as one sorted string, so that the order the pairs were written
@@ -1565,10 +1758,12 @@ fn txt<T: fmt::Debug>(value: &Option<T>) -> String {
     }
 }
 
+/// A script as text: empty for an absent one, and `0x` then its hex for
+/// one that is there, so that an empty script differs from none.
 fn script_text(script: &Option<ScriptBuf>) -> String {
     script
         .as_ref()
-        .map(|s| hex(s.as_bytes()))
+        .map(|s| format!("0x{}", hex(s.as_bytes())))
         .unwrap_or_default()
 }
 

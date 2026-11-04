@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Planned, not built; to be built after the structure pass (`docs/STRUCTURE-PASS.md` §7)
-**Open:** batches S1, S2, S4 and S5 (§10.2; S3 is built); the owner's choices in §10.4 are decided (2026-10-23)
+**Open:** batches S4 and S5 (§10.2; S1, S2 and S3 are built); the owner's choices in §10.4 are decided (2026-10-23)
 
 A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
@@ -19,15 +19,19 @@ The verdict fails closed.
    difference between the two PSBTs is one of these:
    - a signature added under a key the sent PSBT names for that input
      (a key origin on it, §6.2), that verifies over this transaction,
-     under the sighash the input asks for;
+     under the sighash the input asks for, and for a script path over a
+     leaf the sent PSBT holds;
    - an input finalized, where Faraday's own finalizer, given the sent
      PSBT and the signatures the final fields carry, writes the same
      final fields byte for byte, and those signatures pass the line
      above (§6.3);
    - the fields a finalizer clears, cleared on an input it finalized;
    - a MuSig2 public nonce or partial signature (BIP-373) added for a
-     participant the sent PSBT names (§6.4).
-2. **Anything else is a finding**: a field added, changed or removed, an
+     participant the sent PSBT names (§6.4);
+   - a field added whose whole content is checked against the unchanged
+     transaction or the sent PSBT, stated and not a finding (§6.9, F199).
+2. **Anything else is a finding**: a field added (other than one §6.9
+   states), changed or removed, an
    unknown or proprietary pair that appeared or changed, a signature
    removed or changed, bytes in the file its fields do not account for.
 3. **A signature not checked is never clean.** Where a signature cannot
@@ -48,18 +52,17 @@ the comparison.
 - `faraday_psbt::verify::compare` (`core/faraday-psbt/src/verify.rs`):
   the unsigned transaction's fields, the signing state (which keys
   signed which input, what is finalized), and the other pairs compared
-  on what they decode to. Gaps the check needs filled (batch S1):
-  - unknown and proprietary pairs are compared as one string per map,
-    so a finding cannot name the pair; global and output proprietary
-    pairs are not compared at all;
-  - a signature is compared by its key only, so the same key with other
-    signature bytes is no difference; `tap_key_sig` likewise;
-  - final `scriptSig` and witness are not compared when both are final;
-  - not compared: an output's taproot key origins and tap tree, an
-    input's hash preimages (`ripemd160`, `sha256`, `hash160`,
-    `hash256`), the PSBT's global version;
-  - BIP-373's MuSig2 pairs live in `unknown` (`core/faraday-psbt/src/musig.rs`)
-    and are compared as unknown.
+  on what they decode to, including an input's hash preimages, an
+  output's taproot tree and taproot key origins; every field of `bitcoin`'s
+  `Psbt`, `Input` and `Output` is named in `metadata_diff`'s patterns, so a
+  field a later `bitcoin` adds fails to compile there until it is read. The
+  check reads unknown and proprietary pairs (pair by pair, by key type and
+  sizes), signature bytes, final fields and BIP-373's MuSig2 pairs itself,
+  in `signer.rs`. It reads both files as the person has them (`sent_bytes`,
+  `returned_bytes`), which the version 0 forms do not show: the PSBT's
+  version, the pairs only version 2 has, BIP-370's modifiable flags, and
+  the returned file's length (§6.5, §6.7). Scripts and transactions are
+  compared on their serialized bytes, never on `Debug`.
 - `verify_signatures`, `repeated_nonces`, `deterministic` in the same
   file; `deterministic` reaches a seed only through faraday-keys'
   `recompute_signatures` (`faraday/faraday-keys/src/session.rs`), the
@@ -173,8 +176,9 @@ The Result card, top down:
      PSBT against the loaded wallets (§4.7), "Change": "verified" or
      "not verified".
 3. **Findings**, a section label, then a Warning line (§4.11) per
-   finding, ordered Blocked, Danger, Caution, then by where (the
-   transaction, the inputs in order, the outputs in order). Each line
+   finding, ordered Blocked, Danger, Caution; within a level by where
+   (the transaction, the inputs in order, the outputs in order), and
+   within a place in the order the check found them (a stable sort). Each line
    leads with its level's word in its tone, as the Spend review's
    warnings do. "No findings" where there are none.
 4. **Stated**, a section label, then the Info lines (§6.8), where there
@@ -232,7 +236,13 @@ in a partial-signature field, `tap_key_sig`, `tap_script_sigs` or read
 out of a final field the device wrote (`verify_signatures`). A key the
 sent PSBT **names** for an input is one in that input's
 `bip32_derivation` or `tap_key_origins`; for a taproot key path, the
-output key of the `tap_internal_key` it names with an origin.
+output key of the `tap_internal_key` it names with an origin. One key is
+one point: a public key in its compressed and in its uncompressed form
+is the same key wherever two signatures, or a signature and Sent's, are
+compared (a repeated nonce, a changed signature). An added signature
+filed under a form of a key other than one Sent's scripts hold (its
+P2PKH hash, or its bytes in a script) is S3, the closest row; where no
+script of Sent holds the key, only the compressed form is held.
 
 | Id | Level | Wording | When |
 |---|---|---|---|
@@ -240,12 +250,14 @@ output key of the `tap_internal_key` it names with an origin.
 | S2 | Caution | "Input {i}: the signature under {key} was not checked: {reason}" | Added, `Verdict::Unchecked` |
 | S3 | Danger | "Input {i}: signature under {key}, a key the sent PSBT does not name" | Added under a key not named |
 | S4 | Danger | "Input {i}: the signature under {key} signs with {kind}, not the {asked} asked for" | The sighash card's rule (`inspect/sighash.rs`) |
-| S4n | Blocked | the same, with ": outputs are not committed to" | as S4, a `NONE` sighash the input does not ask for |
+| S3l | Danger | "Input {i}: the signature under {key} is over a leaf the sent PSBT does not hold" | A `tap_script_sigs` signature whose leaf hash is in no `tap_scripts` of Sent and in no leaf list of that key's origin on Sent |
+| S4n | Blocked | the same, with ": outputs are not committed to" | as S4, a `NONE` sighash the input does not ask for, and any `SINGLE` signature on an input with no output at its index (it commits to no output, whatever is asked) |
 | S4m | Caution | "Input {i}: the signature under {key} signs with {kind}, which commits to more than the {asked} asked for" | as S4, a sighash committing to everything asked and more: every input over `ANYONECANPAY`, `ALL` over `SINGLE` over `NONE` (a `SINGLE` with no output at its index commits to none) |
-| S5 | Blocked | "{key}: one nonce on inputs {list}" | `repeated_nonces` over the Returned PSBT, sent signatures included |
-| S6 | Danger | "Input {i}: the signature under {fp} was not made by RFC 6979 or BIP-340" | The key's seed is loaded and `deterministic` finds no rule |
+| S5 | Blocked | "{key}: one nonce on inputs {list}" | `repeated_nonces` over Sent's and Returned's signatures together: one `r` or `R` in two signatures under any keys, compared as its 32-byte x coordinate for ECDSA and Schnorr alike (sibling keys of one xpub differ by a number the xpub gives, and one point is an ECDSA and an x-only key), or a point of a MuSig2 public nonce in two places, compared by its x coordinate (§6.4). An honest signer never does either. `{key}` names every key it was found under, separated by commas; `{list}` lists an input once. A signature changed to one with the same nonce is S5 as well as S8 |
+| S6 | Danger | "Input {i}: the signature under {fp} could not be reproduced. Either the device signed with fresh randomness, or it chose the nonce" | The key's seed is loaded and `deterministic` finds no rule (RFC 6979, or BIP-340 with zero auxiliary randomness) for that signature's own bytes. A signature made with fresh auxiliary randomness (BIP-340 recommends it) is not told from one with a chosen nonce, which is what the check is for, so it is S6 as well, and the line says it is one or the other |
+| S6u | Danger | "Input {i}: the signature under {fp} could not be recomputed" | An added signature whose key's master is among those given, and no result for its bytes (no signature hash could be computed, or another signature took its place in the view) |
 | S7 | Caution | "Input {i}: the signature under {key} was removed" | On Sent, not on Returned (in no field and not in a final field) |
-| S8 | Danger | "Input {i}: the signature under {key} changed" | On both, other bytes |
+| S8 | Danger | "Input {i}: the signature under {key} changed" | On both, other bytes, unless both are final (F3 says so); and two signatures on Returned under one key and leaf with other bytes, in whichever fields |
 | S9 | Caution | "No signature was added" | No signature or MuSig2 nonce added on any input, and no input finalized |
 
 ### 6.3 Finalization
@@ -254,18 +266,20 @@ An input the device finalized (final fields on Returned, none on Sent):
 
 - Its signatures are read out of the final fields and held to §6.2.
 - Faraday finalizes a copy of the Sent PSBT's input with exactly those
-  signatures as partial signatures (`finalize.rs`); the result's
+  signatures as its partial, `tap_key_sig` and `tap_script_sigs` (the
+  copy's own are cleared first) (`finalize.rs`); the result's
   `final_script_sig` and `final_script_witness` must equal the
-  device's byte for byte. That covers the scripts, a control block, a
-  multisig's dummy item, and any extra item a device could add to the
-  witness.
+  device's byte for byte. Where the finalizer runs, that covers the
+  scripts, a control block, a multisig's dummy item, and any extra item
+  a device could add to the witness. Where it refuses (F2) nothing is
+  compared and nothing accounts for what the final fields carry.
 - The fields Faraday's own finalizer clears (BIP-174's list) are
   expected to be gone from that input; their absence is no finding.
 
 | Id | Level | Wording | When |
 |---|---|---|---|
-| F1 | Danger | "Input {i}: finalized; the final fields differ from what its signatures give" | Faraday's final fields differ |
-| F2 | Caution | "Input {i}: finalized; Faraday cannot finalize this input to compare" | Faraday's finalizer refuses it |
+| F1 | Danger | "Input {i}: finalized; the final fields differ from what its signatures give" | Faraday's final fields differ, or no signature can be read out of them and Faraday's finalizer refuses the input |
+| F2 | Danger | "Input {i}: finalized; Faraday cannot finalize this input to compare" | Signatures were read out of the final fields and Faraday's finalizer refuses it (fewer signatures than the threshold, say): the other items of the final fields are unchecked |
 | F3 | Danger | "Input {i}: the final fields changed" | Final on both, bytes differ |
 | F4 | Caution | "Input {i}: the final fields were removed" | Final on Sent, not on Returned |
 
@@ -273,6 +287,20 @@ An input the device finalized (final fields on Returned, none on Sent):
 
 BIP-373's pairs (`musig.rs`) are known to the check, not unknown.
 
+- A pair's key is read whole: participant (33 bytes), aggregate (33)
+  and, optionally, a leaf hash (32). The aggregate must be one of the
+  three forms the crate reads, anchored to Sent: the root aggregate Sent's
+  participants field for that input is keyed by, the aggregate derived at
+  the sub-path (Sent's internal key), or the taproot output key of the
+  output Sent spends (which Core keys a key-path pair by, BIP-373), with
+  the participant under it. A key with a leaf hash (98 bytes; BIP-373
+  allows the form) is not read: script-path MuSig2 is not loaded, so such
+  a nonce or partial signature is a field finding (M1, M2), whichever
+  leaf it names. With the
+  wallet registered the crate's own reader decides, and it checks the
+  output key's parity and the derived aggregate by its x coordinate;
+  without it, the output key is the script's x coordinate alone. Any other length or value makes the pair a field finding
+  (§6.5), never clean, for a nonce and a partial signature alike.
 - A public nonce added for a participant the input's participants field
   on the Sent PSBT names, where Sent carries none from it: no finding,
   and an Info line (§6.8). A nonce is random by design and cannot be
@@ -286,6 +314,17 @@ BIP-373's pairs (`musig.rs`) are known to the check, not unknown.
 - Anything else in those pairs (a participants field changed, a second
   nonce from one participant, a nonce changed) is a field finding
   (§6.5).
+- On an input that is final on Returned, the removal of Sent's participant,
+  nonce and partial signature pairs is no finding: BIP-174's Input
+  Finalizer clears every field but the UTXO and unknown fields, and to a
+  reader of BIP-373 these types are known. Pairs kept there are compared
+  as above (a changed one is M2); an input not final keeps M3.
+- A point of a public nonce that is in two places, compared by its
+  x coordinate, is S5 (§6.2),
+  over Sent's and Returned's nonce pairs together: another input, or
+  another participant or aggregate on one input. The same pair on Sent and
+  Returned at one place is one place. Three partial signatures over one
+  nonce solve for the key (BIP-327).
 
 ### 6.5 Other fields
 
@@ -298,10 +337,53 @@ and BIP-373's, at every level: global, each input, each output.
 | M2 | Danger | "{where}: {field} changed" |
 | M3 | Caution | "{where}: {field} removed" |
 
+An empty script is a script: adding one is M1, and replacing a script
+with an empty one is M2.
+
+M1 is not raised for a field §6.9 states: that one is an Info line.
+
 `{field}` is `Field`'s name (`verify.rs`): "key origins", "spent
 output", "previous transaction", "witness script", "extended public
-keys" and the rest, with the new ones S1 adds: "taproot tree",
-"preimages", "PSBT version".
+keys", "taproot tree", "preimages" (the four hash kinds together) and the
+rest, and for the files' own bytes "PSBT version", "version 2 fields" and
+"modifiable flags". An added preimage, tap tree or taproot key origins is
+never stated at Info (§6.9 does not name them).
+
+**The version** (at the transaction). Version 0 on one side and 2 on the
+other is M2. Both 0: an explicit `PSBT_GLOBAL_VERSION` of 0 on Returned
+only is M1 and on Sent only is M3 (`bitcoin` does not keep it, so the
+files' bytes say it); Bitcoin Core writes none.
+
+**Version 2 only pairs** (both files version 2). Every pair of a type
+`PsbtV2::to_v0` leaves out (BIP-370's and BIP-375's, `GLOBAL_V2_ONLY`,
+`INPUT_V2_ONLY`, `OUTPUT_V2_ONLY` in `v2.rs`) other than the modifiable
+flags is compared byte for byte, by place, on the two files' maps: added is
+M1, changed M2, removed M3, one finding of each at a place ("version 2
+fields"). A required locktime can change with no change to the
+transaction worked out from it. BIP-375's silent payment pairs are in
+those lists (global `0x07`, `0x08`, input `0x1d`, `0x1e`, output `0x09`,
+`0x0a`), so none goes unread; on a version 0 file they are unknown pairs
+(P1 to P6).
+
+**The modifiable flags** (`PSBT_GLOBAL_TX_MODIFIABLE`, "modifiable flags").
+BIP-370 ("Signer") requires a signer to update them, so a byte comparison
+would condemn every conforming signer. The result is worked out from
+Sent's byte: each signature added (partial, taproot, MuSig2 partial, or in
+final fields) that does not use `SIGHASH_ANYONECANPAY` clears bit 0
+(inputs modifiable), each that does not use `SIGHASH_NONE` clears bit 1
+(outputs modifiable), each that uses `SIGHASH_SINGLE` sets bit 2; other
+bits never change, and a taproot signature with no sighash byte
+(`SIGHASH_DEFAULT`) commits like `ALL`. With the field on Sent, Returned's
+byte equal to the result is nothing; any other value is M2 and the field
+gone is M3, including a byte left as it was where the result differs.
+That is strict for a signer that does not update the field, on purpose: a
+case the rule does not name stays a finding. With no field on Sent,
+staying absent is nothing, and a field on Returned is nothing only where
+a signature was added and it holds exactly the result worked out from 0,
+`00` included (BIP-370's signer "must update" the field, and a signer with
+nothing to clear writes it as it is); anything else is M1, and so is the
+field added with no signature added. A returned file with no signature added
+holds Sent's byte, which the rule gives by itself.
 
 ### 6.6 Unknown and proprietary pairs
 
@@ -335,6 +417,18 @@ length, and is no finding.
 |---|---|---|
 | E1 | Danger | "Returned file: {n} bytes its fields do not account for" |
 
+The comparison is against the fields written out again in `bitcoin`'s
+canonical form, not the maps as read (a key written as 65 uncompressed
+bytes decodes to the same field and is longer than its canonical 33): the
+length of that form, and of an explicit `PSBT_GLOBAL_VERSION` of 0 where
+the file has one, is what the file's own length is held to. For a version
+2 file the length is the version 0 form's, less the
+`PSBT_GLOBAL_UNSIGNED_TX` pair `to_v0` wrote, plus every pair only version
+2 has, written out again (§6.5 compares them all, so they are accounted
+for); bytes past the last map, or a pair written longer than it needs,
+are E1. A file whose maps cannot be read at all is `Kind::Unnamed` at
+Danger, never clean.
+
 Where the parser refuses such a file, it is refused on the card (§3),
 which is no clean verdict either.
 
@@ -344,6 +438,48 @@ which is no clean verdict either.
 |---|---|
 | "Input {i}: public nonce added for {key}" | §6.4 |
 | "Input {i}: finalized" | An input finalized with no finding on it |
+| "{where}: {field} added" (Info) | A field added that §6.9 checks in full |
+
+### 6.9 Fields a signer adds that are checked in full (F199)
+
+Major signers add fields beside their signatures: Bitcoin Core adds
+scripts, UTXOs and tap fields for what it can solve, and Passport adds
+the sighash type. An added field is stated, at Info and not a finding,
+when its content is fixed by what was sent, each anchored only to the
+unchanged transaction or to the sent PSBT, never to the returned PSBT's
+own copy of anything. Each applies to a field absent on Sent and present
+on Returned, under a key of exactly one byte (the type byte; the parser
+refuses a longer key for these fields):
+
+| Field | Stated when |
+|---|---|
+| Witness script | Its SHA256 is the P2WSH program of the output's script, or of the spent output's script; for P2SH-P2WSH, the HASH160 of `0 <SHA256(script)>` is the P2SH script, anchored directly and not through a redeem script Returned supplies |
+| Redeem script | Its HASH160 is the P2SH script of the output or of the spent output |
+| Witness UTXO | Equal to the output at this input's index in the sent non-witness UTXO, whose txid is this input's previous txid |
+| Non-witness UTXO | Its txid is this input's previous txid and every input of it has an empty witness, read as parsed: a transaction with witness data has the same txid |
+| Input internal key and merkle root | Together they recompute the spent output's key (no root: no script tree); a value Sent held may be used |
+| Sighash type | Equal to the sighash byte of every signature on the input, and at least one: with none, it is a finding |
+
+The spent output's script comes only from the sent PSBT's UTXO fields,
+a non-witness UTXO with its txid checked; with none for the input there
+is no anchor and the added field is M1. Tap trees, leaf scripts, key
+origins, extended public keys, preimages, an output's internal key,
+proprietary and unknown fields are findings. A removal is M3.
+
+The wording of the Info line never says "changed" or "mine": whether a
+signer adds such a field is itself a signal (Core adds a script only to
+an output it can solve). What is left is a presence bit and the order of
+a map, small beside a signature's nonce.
+
+Sources (read 2026-11-03, nothing run): Bitcoin Core 31.1 `src/psbt.cpp`
+(adds scripts, derivations, tap fields and UTXOs; drops non-witness UTXOs
+when every input is taproot); Passport 2.3.11 `psbt.py` (adds the sighash
+type); Coldcard `shared/psbt.py` (adds a redeem script for imported-key
+inputs). Seed Signer, Specter DIY, Trezor, BitBox02 and Ledger add none or
+return signatures only. BIP-174: a Signer "must only add data"; an Updater
+adds scripts and derivations. Hosts: Sparrow's drongo `PSBT.java` rejects
+replaced input scripts before merging; Electrum's `transaction.py` checks
+UTXO consistency, not signatures.
 
 ## 7. Unknown fields in a single PSBT's review
 
@@ -366,12 +502,28 @@ whole PSBT.
 
 - **The check**, in core/faraday-psbt/src/signer.rs (new),
   `faraday_psbt::signer`: `check(c, sent, returned, sent_bytes,
-  returned_bytes, ctx) -> Report`, pure, with no key. `Report` holds the
+  returned_bytes, ctx) -> Report`, where `sent_bytes` and `returned_bytes`
+  are the two files as the person has them (raw, base64 decoded where the
+  file is text) and `sent` and `returned` their version 0 forms (a version
+  2 file through `PsbtV2::to_v0`): the flow must pass both files' bytes, pure, with no key. `Report` holds the
   verdict, the facts, the findings as typed values (`Finding { level,
   at, kind }`, one `kind` per id in §6) and the Info lines. It calls
   `compare`, `verify_signatures`, `repeated_nonces`, the sighash rule,
   `finalize` on a copy, `partial_sig_verify`, and the inspection for
   the facts. Its first doc line says what it costs (CLAUDE.md).
+- **`signer::nonce_view(sent, returned) -> Psbt`**: a copy of Sent
+  carrying every signature of Returned as a partial or taproot
+  signature, those read out of final fields included, with Sent's own
+  origins. faraday-core calls it, runs `verify::deterministic` over it
+  with the keys loaded (`verify::deterministic_all`, which also answers
+  for a signature whose hash cannot be computed, so that which masters
+  were given is known; `deterministic` leaves those out) (so a finalized input's signature reaches a key
+  and a fingerprint), and hands the result to `with_nonces` (S6, S6u; the
+  "Nonces recomputed" fact). The view also carries the fields §6.9
+  states (scripts, UTXOs, internal key), so a signature hash can be
+  computed where only Returned holds them. `Determinism` carries the
+  leaf and the signature's bytes, so two signatures under one key in two
+  leaves, or in two fields, are each judged on their own bytes.
 - **The nonce lines**, in faraday-core's glue: `recompute_signatures`
   through the session's keys (no new reveal, `docs/KEYS.md`), turned
   into S6 and the "Nonces recomputed" fact.
@@ -409,13 +561,15 @@ implementation where one exists.
 
 ### 9.1 Fixtures
 
+Each row below is exact in `tests/all/signer.rs`: the verdict and the
+whole list of findings, in order, at their levels.
+
 In `tools/vectors/psbt/`, listed in its README. Existing pairs used as
 they are:
 
 | Sent | Returned | Expect |
 |---|---|---|
 | `wallet-musig-core-first.psbt` | `wallet-musig-core-first-signed.psbt` | clean: a nonce and a partial signature added (§6.4) |
-| `wallet-threshold-first.psbt` | `wallet-threshold-signed.psbt` | clean, input finalized |
 | `wallet-tapmulti-first.psbt` | `wallet-tapmulti-signed.psbt` | clean, two script-path signatures |
 | `demo-regtest.psbt` | `wallet-2of3.psbt` | Not the same transaction |
 
@@ -427,17 +581,18 @@ change each, and committed:
 
 | Fixture | From | Expect |
 |---|---|---|
-| core-signed | `wallet-2of3.psbt` signed by Core holding the "zoo" key | clean |
+| core-sent | `wallet-2of3.psbt` plus the witness script Core added to output 1 | the Sent of core-signed and of every fixture below built from it (against `wallet-2of3.psbt` itself, core-signed is clean with one Info line for the witness script at Output 1, §6.9) |
+| core-signed | `signer-core-sent.psbt` signed by Core holding the "zoo" key | clean |
 | core-final | `demo-regtest.psbt` signed and finalized by Core | clean, 1 input finalized |
-| output-changed | core-signed, output 0 one sat less | T7, verdict "{n} findings" |
+| output-changed | core-signed, output 0 one sat less | T7 and S1 (Core's signature no longer verifies over the changed transaction), verdict "{n} findings" |
 | invalid | core-signed, a signature byte flipped | S1 |
-| foreign-key | core-signed plus a valid signature under a key no origin names | S3 |
+| foreign-key | core-signed plus a valid signature under a key no origin names | S3 only (the signature verifies, so not S2) |
 | sighash-none | `demo-regtest.psbt` signed with `NONE` | S4n |
 | sighash-single | the same with `SINGLE` | S4 |
 | nonce-reuse | two inputs signed under one key with one nonce | S5 |
 | random-nonce | signed by the "abandon" key with a random nonce | S6 with "abandon" loaded; clean with "Nonces recomputed: None" without |
-| sig-removed | `wallet-tapmulti-signed.psbt` less one signature, against itself as Sent | S7 |
-| sig-changed | core-signed, the signature remade with another valid nonce | S8 |
+| sig-removed | `wallet-tapmulti-signed.psbt` less one signature, against itself as Sent | S7 and S9 (nothing was added) |
+| sig-changed | core-signed, the signature remade with another valid nonce | S8 and S9 (nothing was added) |
 | final-extra | core-final with an extra witness item | F1 |
 | origin-removed | core-signed less an input's key origins | M3 |
 | xpub-added | core-signed plus a global xpub | M1 |
@@ -445,13 +600,27 @@ change each, and committed:
 | unknown-sent, unknown-changed | an unknown pair on Sent, its value two bytes longer on Returned | P2 |
 | proprietary-added | core-signed plus an input proprietary pair | P3 |
 | osk-added | core-signed plus an `osk` record | P3 |
-| trailing | core-signed with eight bytes after the last map | E1, or refused at read |
+| trailing | core-signed with eight bytes after the last map | refused at read (the parser refuses it, as it refuses a length written in more bytes than it needs, raw or base64; E1 is for bytes that parse with the Returned PSBT: a key written as 65 bytes in a version 0 file, or a version 2 key length written in more bytes than it needs, which the tests below build) |
+
+Cases with no fixture file are built in the test from these fixtures, and
+each asserts its exact findings at their levels: a signature added beside
+final fields (S8, with "abandon" loaded S6 from a final field through
+`nonce_view`); a script-path signature over a leaf Sent lacks (S3l); a
+second signature under one key in another leaf judged on its own; a
+`SINGLE` signature with no output at its index (S4n); a nonce or partial
+signature keyed by more than a named participant, by an aggregate Sent
+does not name, or by a leaf Sent does not hold (M1); a failing and a
+removed MuSig2 pair; an empty script added or put in place of one (M1,
+M2); a key written as 65 uncompressed bytes (E1); a map in another order
+(no finding); Sent holding three of a 2-of-3 and the device finalizing
+with the other two (S7, no F1).
 
 ### 9.2 The tests
 
 - core/faraday-psbt/tests/all/signer.rs (new): every row of §9.1 gives
-  its verdict and exactly its findings, at their levels; Swap of a clean
-  pair gives S7 per signature and no clean verdict; a pair written with
+  its verdict and exactly its findings, at their levels (the Sent of the
+  core-signed rows is core-sent); Swap of a clean pair gives S7 per
+  signature and S9, and no clean verdict; a pair written with
   its maps in another order is clean; the two Core fixtures are clean.
 - `core/faraday-psbt/tests/all/inspect.rs`: proprietary-added and
   unknown-added give one Info `UnknownFields` with count 1;
@@ -481,7 +650,7 @@ only fall.
 
 | Batch | What | Model |
 |---|---|---|
-| S1 | `compare`'s gaps (§2): pair-by-pair diff of unknown and proprietary pairs with key type and sizes at every level; signature bytes and final fields compared; the fields not compared added; BIP-373 pairs read as known. Its tests in `core/faraday-psbt/tests/all/verify.rs` | Opus |
+| S1 | built: the fields `compare` did not read (§2): an output's taproot key origins and tap tree, an input's hash preimages; and from the two files' bytes the PSBT's version, the pairs only version 2 has and the modifiable flags (§6.5), with the returned file's length on version 2 (§6.7). Its tests in `core/faraday-psbt/tests/all/signer.rs` | Opus |
 | S2 | `faraday_psbt::signer`: §1, §5, §6, the byte count of §6.7; the fixtures of §9.1 and the README rows; §9.2's core tests | Opus |
 | S3 | §7: `UnknownFields` in the inspection, its string, its test | Sonnet |
 | S4 | The flow: the decode area's folder, `Screen::SignerCheck`, the tile, Files' ⋮ entry (§3), the cards, the strings, the nonce lines, the Learn section, faraday-core's and the budget tests; then the docs of §10.3, and this file's plan moved to docs/history/SIGNER-CHECK-LOG.md (new) and its Kind to Reference | Opus for the flow, Sonnet for the docs |
@@ -491,7 +660,7 @@ only fall.
 
 | File | Change |
 |---|---|
-| `core/faraday-psbt/src/verify.rs` | S1 |
+| `core/faraday-psbt/src/verify.rs`, `core/faraday-psbt/src/v2.rs`, `core/faraday-psbt/src/signer.rs` | S1: built |
 | core/faraday-psbt/src/signer.rs (new), `core/faraday-psbt/src/lib.rs` | S2 |
 | `core/faraday-psbt/src/inspect.rs` | S3: `WarningKind::UnknownFields` |
 | `core/faraday-psbt/README.md` | S2: the module's line |

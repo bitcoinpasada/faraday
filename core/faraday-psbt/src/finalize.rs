@@ -102,22 +102,7 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
                 // BIP-174 keeps the UTXO and unknown fields and clears the
                 // rest; proprietary fields are cleared too, which it does not
                 // require keeping.
-                input.partial_sigs.clear();
-                input.sighash_type = None;
-                input.redeem_script = None;
-                input.witness_script = None;
-                input.bip32_derivation.clear();
-                input.tap_key_sig = None;
-                input.tap_script_sigs.clear();
-                input.tap_scripts.clear();
-                input.tap_key_origins.clear();
-                input.tap_internal_key = None;
-                input.tap_merkle_root = None;
-                input.proprietary.clear();
-                input.ripemd160_preimages.clear();
-                input.sha256_preimages.clear();
-                input.hash160_preimages.clear();
-                input.hash256_preimages.clear();
+                clear_signing_fields(input);
             }
             None => all_final = false,
         }
@@ -130,6 +115,26 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
         .extract_tx()
         .map(Some)
         .map_err(|e| Error::Extract(e.to_string()))
+}
+
+/// Clears what a finalized input no longer needs.
+pub(crate) fn clear_signing_fields(input: &mut Input) {
+    input.partial_sigs.clear();
+    input.sighash_type = None;
+    input.redeem_script = None;
+    input.witness_script = None;
+    input.bip32_derivation.clear();
+    input.tap_key_sig = None;
+    input.tap_script_sigs.clear();
+    input.tap_scripts.clear();
+    input.tap_key_origins.clear();
+    input.tap_internal_key = None;
+    input.tap_merkle_root = None;
+    input.proprietary.clear();
+    input.ripemd160_preimages.clear();
+    input.sha256_preimages.clear();
+    input.hash160_preimages.clear();
+    input.hash256_preimages.clear();
 }
 
 /// The first input that states no `witness_utxo` and whose

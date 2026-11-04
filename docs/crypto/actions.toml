@@ -5075,6 +5075,33 @@ functions = [
   "core/faraday-psbt/src/verify.rs::schnorr_mode",
   "core/faraday-psbt/src/verify.rs::verify_signatures",
   "core/faraday-psbt/src/verify.rs::repeated_nonces",
+  "core/faraday-psbt/src/signer.rs::Run::expected_final",
+  "core/faraday-psbt/src/signer.rs::Run::expected_len",
+  "core/faraday-psbt/src/signer.rs::Run::input_pairs",
+  "core/faraday-psbt/src/signer.rs::Run::musig_added",
+  "core/faraday-psbt/src/signer.rs::Run::musig_pairs",
+  "core/faraday-psbt/src/signer.rs::Run::output_pairs",
+  "core/faraday-psbt/src/signer.rs::Run::partial_sig_check",
+  "core/faraday-psbt/src/signer.rs::Run::participant_name",
+  "core/faraday-psbt/src/signer.rs::Run::proprietary_pairs",
+  "core/faraday-psbt/src/signer.rs::Run::unknown_pairs",
+  "core/faraday-psbt/src/signer.rs::check",
+  "core/faraday-psbt/src/signer.rs::clear_signatures",
+  "core/faraday-psbt/src/signer.rs::form_held",
+  "core/faraday-psbt/src/signer.rs::has_final",
+  "core/faraday-psbt/src/signer.rs::in_tap_scripts",
+  "core/faraday-psbt/src/signer.rs::key_path_key",
+  "core/faraday-psbt/src/signer.rs::named_pair_participant",
+  "core/faraday-psbt/src/signer.rs::names",
+  "core/faraday-psbt/src/signer.rs::nonce_view",
+  "core/faraday-psbt/src/signer.rs::pair_participant",
+  "core/faraday-psbt/src/signer.rs::put_signature",
+  "core/faraday-psbt/src/signer.rs::redeem_script_of",
+  "core/faraday-psbt/src/signer.rs::sent_holds_leaf",
+  "core/faraday-psbt/src/signer.rs::sent_spent_output",
+  "core/faraday-psbt/src/signer.rs::stated_field",
+  "core/faraday-psbt/src/signer.rs::unknown_of",
+  "core/faraday-psbt/src/signer.rs::witness_script_of",
   "faraday/faraday-keys/src/psbt.rs::recompute_signatures",
   "faraday/faraday-keys/src/psbt.rs::key_refs",
   "faraday/faraday-keys/src/session.rs::Keys::key_refs",
@@ -5088,7 +5115,7 @@ code = ["core/faraday-psbt/src/verify.rs::verify_signatures", "core/faraday-psbt
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
-adds = "Each signature is checked against the key it is under and the sighash the input's fields give, including the ones inside a finalized witness; one r or one R under one key twice is reported; a signature under a key this device holds is recomputed to say which nonce rule produced it."
+adds = "Each signature is checked against the key it is under and the sighash the input's fields give, including the ones inside a finalized witness; one r or one R in more than one place is reported, under one key or several, and so is a point of a MuSig2 public nonce; a signature under a key this device holds is recomputed to say which nonce rule produced it."
 
 [action.checked]
 vectors = ["psbt"]
@@ -5100,10 +5127,12 @@ tests = [
   "core/faraday-psbt/tests/all/verify.rs::the_devices_own_signatures_are_recognised_by_their_nonce_rule",
   "core/faraday-psbt/tests/all/verify.rs::two_transactions_are_compared_on_what_they_decode_to",
   "core/faraday-psbt/tests/all/verify.rs::a_finalized_taproot_signature_with_sighash_byte_zero_is_invalid",
+  "core/faraday-psbt/tests/all/signer.rs::what_core_signed_is_clean",
+  "core/faraday-psbt/tests/all/signer.rs::what_core_finalized_is_clean_and_states_the_input",
 ]
 crosscheck = "sign_check"
-independence = { class = "outside-and-own", author = "python-ecdsa, by Brian Warner and Hubert Kario, and btclib, by the btclib developers, on btclib's own curve, verify every signature (ECDSA, and BIP-340 over python-ecdsa's points and btclib's `ssa`); the signature hashes are btclib's (`sig_hash.py`); btclib's script engine runs every complete input; Bitcoin Core v31.1 itself (`finalizepsbt`, `testmempoolaccept`), by Bitcoin Core's contributors, judges the complete inputs and the transaction, and shares libsecp256k1 with Faraday", ours = "the report of a reused nonce, written in `area_sign_check.py` from the definition (two signatures that verify, under one key, over different messages, with one `r` or `R`), which no outside library reports" }
-fuzz = ["psbt_parse"]
+independence = { class = "outside-and-own", author = "python-ecdsa, by Brian Warner and Hubert Kario, and btclib, by the btclib developers, on btclib's own curve, verify every signature (ECDSA, and BIP-340 over python-ecdsa's points and btclib's `ssa`); the signature hashes are btclib's (`sig_hash.py`); btclib's script engine runs every complete input; Bitcoin Core v31.1 itself (`finalizepsbt`, `testmempoolaccept`), by Bitcoin Core's contributors, judges the complete inputs and the transaction, and shares libsecp256k1 with Faraday", ours = "the report of a reused nonce, written in `area_sign_check.py` from Faraday's own rule, failing closed (signatures that verify with one `r` or `R`, differing in key or in message), which no outside library reports" }
+fuzz = ["psbt_parse", "signer_check"]
 
 [action.secrets]
 reveal = "none"

@@ -34,6 +34,7 @@ mod detail;
 mod sighash;
 
 pub use detail::Detail;
+pub(crate) use sighash::{sighash_answers, sighash_stricter};
 
 /// Fee at or above this share of the amount sent is a caution.
 pub const HIGH_FEE_CAUTION_PCT: u64 = 5;
