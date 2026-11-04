@@ -8,10 +8,12 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::bitcoin::secp256k1::{Secp256k1, SecretKey};
 use faraday_bip::bitcoin::{Address, Network as Chain};
+use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_bip::silent::Receiver;
+use faraday_bip::slip39::Share;
 use faraday_crypto::work::Compute;
-use faraday_keys::{Keys, Material, Part, Reveal, bip85, identity};
+use faraday_keys::{Convert, Keys, Material, Part, Reveal, bip85, identity};
 use serde_json::Value;
 
 const BIP85: &str = include_str!("../../../tools/vectors/bip85/vectors.json");
@@ -623,5 +625,187 @@ mod explore {
         // A key of words has no seed to show: its words are lent instead.
         assert!(keys.seed_shown(0, Reveal::SeedShown).is_none());
         assert_eq!(&*keys.reveal(0, Reveal::Words), ABANDON);
+    }
+}
+
+const BIP39: &str = include_str!("../../../tools/vectors/bip39/vectors.json");
+const BIP93: &str = include_str!("../../../tools/vectors/bip93/vectors.json");
+const SLIP39: &str = include_str!("../../../tools/vectors/slip39/vectors.json");
+const R: usize = 8 * 103;
+
+/// The master seeds, and the xprv where the vector gives one, of SLIP-39's
+/// valid vectors of one master secret (16 and 32 bytes) and of BIP 93's
+/// (16, 20, 24, 28, 32 and 64 bytes).
+fn seed_vectors(set: &str) -> Vec<(Vec<u8>, Option<String>)> {
+    let v: Value = serde_json::from_str(set).unwrap();
+    if let Some(list) = v.as_array() {
+        return list
+            .iter()
+            .filter(|x| !x[2].as_str().unwrap().is_empty())
+            .filter(|x| x[1].as_array().unwrap().len() == 1)
+            .map(|x| {
+                (
+                    unhex(x[2].as_str().unwrap()),
+                    Some(x[3].as_str().unwrap().into()),
+                )
+            })
+            .collect();
+    }
+    v["secrets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| {
+            (
+                unhex(x["seed"].as_str().unwrap()),
+                x["xprv"].as_str().map(String::from),
+            )
+        })
+        .collect()
+}
+
+fn seed_key(c: &Compute, network: Network, seed: &[u8]) -> Keys {
+    let mut keys = Keys::on(network);
+    keys.add_seed(c, seed, "").unwrap();
+    keys
+}
+
+/// Every conversion of key 0, in the order: hex, xprv, SLIP-39, codex32.
+fn all(c: &Compute, keys: &Keys, why: Reveal) -> [Result<String, Convert>; 4] {
+    let text = |r: Result<faraday_keys::Held<zeroize::Zeroizing<String>>, Convert>| {
+        r.map(|h| h.release().as_str().to_string())
+    };
+    [
+        text(keys.master_seed_hex(c, 0, why)),
+        text(keys.master_xprv(c, 0, why)),
+        text(keys.slip39_one_of_one(c, 0, why)),
+        keys.codex32_converted(c, 0, 0, 1, &[], why)
+            .map(|h| h.release()[0].as_str().to_string()),
+    ]
+}
+
+/// BIP-39's published vector, with the passphrase TREZOR: the seed and the
+/// xprv; SLIP-39 and codex32 are not made from words.
+#[test]
+fn a_key_of_words_gives_its_seed_and_xprv_and_no_slip39_or_codex32() {
+    let c = compute();
+    let v: Value = serde_json::from_str(BIP39).unwrap();
+    let row = &v["english"][0];
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_words_with(&c, row[1].as_str().unwrap(), "TREZOR", "", None)
+        .unwrap();
+    let [hex, xprv, slip, codex] = all(&c, &keys, Reveal::PaperForm);
+    assert_eq!(hex.unwrap(), row[2].as_str().unwrap());
+    assert_eq!(xprv.unwrap(), row[3].as_str().unwrap());
+    assert_eq!(slip, Err(Convert::Words));
+    assert_eq!(codex, Err(Convert::Words));
+}
+
+/// A key loaded from a published master secret writes it back as hex and
+/// its published xprv; its 1 of 1 and codex32 each load as a new key with
+/// the same fingerprint.
+#[test]
+fn a_key_of_seed_bytes_converts_to_the_same_wallet() {
+    let c = compute();
+    let mut sets = seed_vectors(SLIP39);
+    sets.extend(seed_vectors(BIP93));
+    assert!(sets.len() >= 8);
+    let mut lengths = Vec::new();
+    for (seed, xprv) in sets {
+        let keys = seed_key(&c, Network::Mainnet, &seed);
+        let want = keys.info(0).unwrap().fingerprint;
+        let [hex, x, slip, codex] = all(&c, &keys, Reveal::PaperForm);
+        assert_eq!(unhex(&hex.unwrap()), seed);
+        if let Some(xprv) = xprv {
+            assert_eq!(x.unwrap(), xprv);
+        }
+        match slip {
+            Ok(words) => {
+                assert!(seed.len() == 16 || seed.len() == 32);
+                let share = Share::parse(&words).unwrap();
+                let back = faraday_keys::slip39_seed(&c, &[share], b"").unwrap();
+                let fresh = seed_key(&c, Network::Mainnet, &back);
+                assert_eq!(fresh.info(0).unwrap().fingerprint, want);
+            }
+            Err(e) => {
+                assert!(seed.len() != 16 && seed.len() != 32);
+                assert_eq!(e, Convert::Length);
+                lengths.push(seed.len());
+            }
+        }
+        let parts = [Codex32::parse(&codex.unwrap()).unwrap()];
+        let back = faraday_keys::codex32_seed(&parts).unwrap();
+        assert_eq!(*back, seed);
+        let fresh = seed_key(&c, Network::Mainnet, &back);
+        assert_eq!(fresh.info(0).unwrap().fingerprint, want);
+    }
+    for n in [20, 24, 28] {
+        assert!(lengths.contains(&n), "{n} bytes reached Convert::Length");
+    }
+}
+
+/// Every share of a codex32 set of a key reads, and the last `k` recover
+/// the key as the first `k` do.
+#[test]
+fn a_codex32_set_of_a_key_recovers_the_same_wallet() {
+    let c = compute();
+    let seed = unhex("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100");
+    let keys = seed_key(&c, Network::Mainnet, &seed);
+    let want = keys.info(0).unwrap().fingerprint;
+    let random: Vec<u8> = (0..R).map(|i| (i * 7 + 3) as u8).collect();
+    let shares = keys
+        .codex32_converted(&c, 0, 2, 3, &random, Reveal::PaperForm)
+        .unwrap()
+        .release();
+    assert_eq!(shares.len(), 3);
+    let parts: Vec<Codex32> = shares.iter().map(|s| Codex32::parse(s).unwrap()).collect();
+    for part in [&parts[..2], &parts[1..]] {
+        let back = faraday_keys::codex32_seed(part).unwrap();
+        let fresh = seed_key(&c, Network::Mainnet, &back);
+        assert_eq!(fresh.info(0).unwrap().fingerprint, want);
+    }
+}
+
+/// On a test network the master key is a tprv.
+#[test]
+fn a_test_network_gives_a_tprv() {
+    let c = compute();
+    let keys = seed_key(
+        &c,
+        Network::Testnet,
+        &unhex("000102030405060708090a0b0c0d0e0f"),
+    );
+    let x = keys
+        .master_xprv(&c, 0, Reveal::PaperForm)
+        .unwrap()
+        .release();
+    assert!(x.starts_with("tprv"));
+}
+
+/// Any reason but the paper form gives nothing, from any of the four.
+#[test]
+fn another_reason_gives_nothing() {
+    let c = compute();
+    let keys = seed_key(
+        &c,
+        Network::Mainnet,
+        &unhex("000102030405060708090a0b0c0d0e0f"),
+    );
+    for why in [
+        Reveal::Words,
+        Reveal::CopyByHand,
+        Reveal::SeedShown,
+        Reveal::ExtendedPrivateKey,
+    ] {
+        for r in all(&c, &keys, why) {
+            assert_eq!(r, Err(Convert::NotGiven));
+        }
+    }
+    let mut words = Keys::on(Network::Mainnet);
+    words
+        .add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "", None)
+        .unwrap();
+    for r in all(&c, &words, Reveal::Words) {
+        assert_eq!(r, Err(Convert::NotGiven));
     }
 }

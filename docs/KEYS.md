@@ -58,7 +58,8 @@ Moved to `docs/history/KEYS-LOG.md`.
   (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9;
   the last three owner, 2026-10-26, F125):
   the words shown; the typed passphrase shown; SeedQR; a copy-by-hand
-  check; paper forms (Seed XOR, codex32, SLIP-39 shares, and the work
+  check; paper forms (Seed XOR, codex32, SLIP-39 shares, a master seed as hex,
+  an xprv, and the work
   set's worksheets and strings); a BIP-85 child
   shown; a Lightning node key shown; GPG paperkey; a vault entry's secret
   (a password or TOTP code); an unprotected file to the Outbox; the

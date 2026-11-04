@@ -6,9 +6,10 @@
 use faraday_bip::bip39::Mnemonic;
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::codex32::{self, Codex32};
-use faraday_bip::keys::ScriptType;
-use faraday_bip::slip39;
+use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
+use faraday_bip::slip39::{self, Share};
 use faraday_crypto::work::Compute;
+use faraday_crypto::{Secret, SeedBytes};
 use faraday_entropy::SeedXor;
 use zeroize::Zeroizing;
 
@@ -39,6 +40,28 @@ pub enum Paper {
     Refused(String),
     /// Something else went wrong; there is nothing to say.
     Failed,
+}
+
+/// Why a conversion of a key's master seed was not made
+/// ([`Keys::master_seed_hex`], [`Keys::master_xprv`],
+/// [`Keys::slip39_one_of_one`], [`Keys::codex32_converted`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Convert {
+    /// No such key, a reason but `Reveal::PaperForm`, or no words or seed
+    /// bytes to convert.
+    NotGiven,
+    /// The key has words: their seed is the words' and passphrase's, which
+    /// SLIP-39 and codex32 do not carry as the words' wallet.
+    Words,
+    /// The seed's length is not one the standard holds (SLIP-39: 16 or
+    /// 32 bytes).
+    Length,
+    /// The standard refused the shape asked for (codex32's threshold,
+    /// count or fresh bytes).
+    Refused,
+    /// The result did not read back, through its standard's decoder, as
+    /// the same wallet (the same master fingerprint): nothing is returned.
+    NotSameWallet,
 }
 
 /// The fresh bytes Seed XOR into `parts` parts takes at most (a lookup):
@@ -246,6 +269,168 @@ impl Keys {
             .map(Held::of)
             .map_err(one)
     }
+
+    /// Costs a parse of the words and a PBKDF2 for a key with words, and a
+    /// master key from the seed read back. Key `i`'s master seed in
+    /// lower-case hex: the 64-byte seed of a key's words and passphrase,
+    /// or the seed bytes of a key loaded by `add_seed`. Read back: the hex
+    /// decoded and its master key's fingerprint is the key's.
+    pub fn master_seed_hex(
+        &self,
+        c: &Compute,
+        i: usize,
+        why: Reveal,
+    ) -> Result<Held<Zeroizing<String>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        let full;
+        let seed: &[u8] = match (s.words, s.seed) {
+            (Some(words), _) => {
+                let m = Mnemonic::parse(c, s.language, words).map_err(|_| Convert::NotGiven)?;
+                full = m
+                    .to_seed(c, s.passphrase.unwrap_or("").as_bytes())
+                    .map_err(|_| Convert::NotGiven)?;
+                &full.expose()[..]
+            }
+            (None, Some(bytes)) => bytes,
+            (None, None) => return Err(Convert::NotGiven),
+        };
+        let text = faraday_crypto::hex::encode_secret(seed);
+        let back = faraday_crypto::hex::decode_vec(&text).map(Zeroizing::new);
+        let read = back.as_deref().and_then(|b| fingerprint_of_seed(c, b));
+        checked(s.master.fingerprint(), read, text)
+    }
+
+    /// Costs a parse of the master key's text. Key `i`'s master extended
+    /// private key as text: `xprv…` on mainnet, `tprv…` on a test network.
+    /// Read back: the text parsed by the strict importer has the key's
+    /// fingerprint.
+    pub fn master_xprv(
+        &self,
+        c: &Compute,
+        i: usize,
+        why: Reveal,
+    ) -> Result<Held<Zeroizing<String>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        let mut text = faraday_intake::secret_buf::room();
+        text.push_str(s.master.xpriv_ascii().as_str());
+        let read = MasterKey::decode(c, &text).ok().map(|k| k.fingerprint());
+        checked(s.master.fingerprint(), read, text)
+    }
+
+    /// Costs a master key and what `slip39::one_of_one` and
+    /// `slip39::recover` cost (a PBKDF2 each). Key `i`'s seed bytes as the
+    /// SLIP-39 1 of 1, as words: a key loaded by `add_seed` of 16 or 32
+    /// bytes; any other length is refused ([`Convert::Length`]), and a key
+    /// with words ([`Convert::Words`]), since the words' entropy as
+    /// SLIP-39 is another wallet and SLIP-39 holds no 64-byte seed. Read
+    /// back: the words parsed and recovered with an empty passphrase give
+    /// the key's fingerprint.
+    pub fn slip39_one_of_one(
+        &self,
+        c: &Compute,
+        i: usize,
+        why: Reveal,
+    ) -> Result<Held<Zeroizing<String>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        let seed = match (s.words, s.seed) {
+            (Some(_), _) => return Err(Convert::Words),
+            (None, Some(bytes)) => bytes,
+            (None, None) => return Err(Convert::NotGiven),
+        };
+        if seed.len() != 16 && seed.len() != 32 {
+            return Err(Convert::Length);
+        }
+        let share = slip39::one_of_one(c, seed).map_err(|_| Convert::Refused)?;
+        let mut text = faraday_intake::secret_buf::room();
+        for n in 0..share.word_count() {
+            if n > 0 {
+                text.push(' ');
+            }
+            text.push_str(share.word(n));
+        }
+        let read = Share::parse(&text)
+            .ok()
+            .and_then(|share| slip39_seed(c, &[share], b"").ok())
+            .and_then(|secret| fingerprint_of_seed(c, &secret));
+        checked(s.master.fingerprint(), read, text)
+    }
+
+    /// Costs what [`Keys::codex32_shares`] costs and a master key.
+    /// [`Keys::codex32_shares`] for key `i` (`k` 0 and `n` 1 is the secret
+    /// itself), given only for `Reveal::PaperForm` and only when the set
+    /// read back through codex32's decoder (every share parsed, and the
+    /// first `k` and the last `k` each recovering the key, or the secret)
+    /// gives the key's fingerprint. A key with words is refused
+    /// ([`Convert::Words`]).
+    pub fn codex32_converted(
+        &self,
+        c: &Compute,
+        i: usize,
+        k: u8,
+        n: u8,
+        random: &[u8],
+        why: Reveal,
+    ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
+        let s = self.convert_source(i, why)?;
+        let shares = self
+            .codex32_shares(i, k, n, random, why)
+            .map_err(|e| match e {
+                Paper::Words => Convert::Words,
+                Paper::NoWords => Convert::NotGiven,
+                Paper::Refused(_) | Paper::Failed => Convert::Refused,
+            })?
+            .release();
+        let take = usize::from(k.max(1));
+        let mut parsed = Vec::with_capacity(shares.len());
+        for t in shares.iter() {
+            match Codex32::parse(t) {
+                Ok(p) => parsed.push(p),
+                Err(_) => return Err(Convert::NotSameWallet),
+            }
+        }
+        // The first `take` shares and the last `take` each recover the key.
+        let of = |part: &[Codex32]| {
+            codex32_seed(part)
+                .ok()
+                .and_then(|seed| fingerprint_of_seed(c, &seed))
+        };
+        let first = of(&parsed[..take.min(parsed.len())]);
+        let last = of(&parsed[parsed.len().saturating_sub(take)..]);
+        let read = if first == last { first } else { None };
+        checked(s.master.fingerprint(), read, shares)
+    }
+
+    /// The key `i`'s secrets for a conversion: only for `Reveal::PaperForm`
+    /// (each result is written by hand), and only for a key that is held.
+    fn convert_source(
+        &self,
+        i: usize,
+        why: Reveal,
+    ) -> Result<crate::session::Secrets<'_>, Convert> {
+        if why != Reveal::PaperForm {
+            return Err(Convert::NotGiven);
+        }
+        self.secrets(i).ok_or(Convert::NotGiven)
+    }
+}
+
+/// Costs an HMAC-SHA512 and an elliptic-curve multiplication. The master
+/// fingerprint of a BIP-32 seed read back from a result (the network does
+/// not change it); `None` for one that is too long.
+fn fingerprint_of_seed(c: &Compute, seed: &[u8]) -> Option<Fingerprint> {
+    let bytes = SeedBytes::new(seed)?;
+    Some(MasterKey::from_seed_bytes(c, &Secret::new(bytes), Network::Mainnet).fingerprint())
+}
+
+/// `result`, held, when what it read back as is the key's wallet: the same
+/// master fingerprint. Anything else, including a result that did not
+/// read at all (`None`), gives [`Convert::NotSameWallet`] and no result.
+fn checked<T>(key: Fingerprint, read: Option<Fingerprint>, result: T) -> Result<Held<T>, Convert> {
+    if read == Some(key) {
+        Ok(Held::of(result))
+    } else {
+        Err(Convert::NotSameWallet)
+    }
 }
 
 /// The master seed `parts` make: the one that holds the secret itself, or
@@ -267,4 +452,21 @@ pub fn slip39_seed(
 ) -> Result<Zeroizing<Vec<u8>>, slip39::Error> {
     let secret = slip39::recover(c, shares, passphrase)?;
     Ok(Zeroizing::new(secret.expose().as_bytes().to_vec()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A result that reads back as another wallet is not returned.
+    #[test]
+    fn a_wrong_fingerprint_gives_the_error_and_no_result() {
+        let key = Fingerprint([0x73, 0xc5, 0xda, 0x0a]);
+        assert!(checked(key, Some(key), "x").is_ok());
+        assert_eq!(
+            checked(key, Some(Fingerprint([0, 0, 0, 1])), "x").err(),
+            Some(Convert::NotSameWallet)
+        );
+        assert_eq!(checked(key, None, "x").err(), Some(Convert::NotSameWallet));
+    }
 }

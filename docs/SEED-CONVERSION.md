@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks
-**Open:** batches S2 to S7 (§10): the conversions, the screen, Practice
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: batch S1, SLIP-39's set functions in `faraday-bip` (§8); batch S4's core, the fixed 1 of 1 (§4.4) and its cross-checks; batch S2, the conversions in `faraday-keys`
+**Open:** batches S3 to S7 (§10): the screen, Practice
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -42,10 +42,10 @@ standard it is and which software restores it.
    tool. Typed words therefore follow Add a key's rules for transient
    input, and the tool holds no secret of its own (`docs/KEYS.md` §2).
 6. **The seed bytes must exist.** A key loaded from a master seed
-   (codex32, SLIP-39) keeps its master key and not
-   its seed today (`Keys::add_seed`, `faraday/faraday-keys/src/session.rs`);
-   `docs/CODEX32.md` batch C4 keeps the seed bytes. Until then, such a
-   key offers only the conversions from its master key (xprv).
+   (codex32, SLIP-39) keeps its seed bytes (`Keys::add_seed`,
+   `holds_seed_bytes`, `faraday/faraday-keys/src/session.rs`), as a key of
+   words keeps its words: every key has its seed bytes or its words, and
+   no key offers only its xprv.
 7. **A set action is the backup's.** Add a share, Replace a lost share
    and Rotate the set change what a plan's places keep, so they live
    with the backup (`docs/CODEX32.md` §9.7; SLIP-39's in §8 here). The
@@ -72,13 +72,17 @@ standard it is and which software restores it.
   (`faraday/faraday-keys/src/operations.rs`); the BIP-39 words tool
   lists each word's number and bits; New key takes hex entropy; the
   Lightning screen reads an aezeed.
-- **Not built**: the SLIP-39 set actions on a screen (§8), master seed
-  or xprv shown as text, the tool itself.
+- **Conversions in `faraday-keys`** (`faraday/faraday-keys/src/operations.rs`):
+  `master_seed_hex`, `master_xprv`, `slip39_one_of_one` and
+  `codex32_converted`, each for `Reveal::PaperForm` only and each read
+  back through its standard's decoder to the key's master fingerprint
+  before it is returned (`Convert::NotSameWallet` otherwise).
+- **Not built**: the SLIP-39 set actions on a screen (§8), the tool
+  itself.
 - **Leaving the store**: a paper form leaves through
   `Reveal::PaperForm` (`faraday/faraday-keys/src/session.rs`), which
-  names Seed XOR, codex32 and SLIP-39. A master seed as hex and an xprv
-  are not in the list today; they will leave through it too, each being
-  written by hand, and no `Reveal` variant is added (Q3).
+  names Seed XOR, codex32, SLIP-39, a master seed as hex and an xprv, each
+  being written by hand; no `Reveal` variant was added (Q3).
 
 ## 3. Words
 

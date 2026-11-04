@@ -100,7 +100,8 @@ pub enum Reveal {
     SeedQr,
     /// The words shown for the person to copy by hand.
     CopyByHand,
-    /// The words a paper form (Seed XOR, codex32, SLIP-39) is made from.
+    /// A paper form (Seed XOR, codex32, SLIP-39), the master seed as hex
+    /// and the xprv, of a key's words or seed bytes.
     PaperForm,
     /// The words a BIP-85 child is derived from.
     Bip85Child,
