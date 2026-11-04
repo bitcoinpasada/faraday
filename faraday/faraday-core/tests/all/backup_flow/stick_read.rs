@@ -953,3 +953,22 @@ fn a_stick_named_by_its_own_press_with_an_unrelated_file_shows_the_line_beside()
     shell.flow(&mut app, F::UseBoot(k));
     expect(&mut app, "Vault 1 goes beside these");
 }
+
+#[test]
+fn two_copies_learned_across_two_locks_say_the_second_is_not_that_vault_with_nothing_pressed() {
+    let (mut shell, mut app) = two_vaults_one_file_each();
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE);
+    let mut app = shell.lock_unseen(&mut app);
+    shell.flow(&mut app, F::UnlockVault(1));
+    unlock(&mut app, PHRASE);
+    expect(&mut app, "b.kdbx is not Vault 2");
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE);
+    // What the lock kept knows both files as one vault: one row in Files.
+    let mut app = shell.lock_unseen(&mut app);
+    assert_eq!(app.vault_files().len(), 1);
+    expect(&mut app, "b.kdbx is not Vault 2");
+    expect(&mut app, "A new vault beside it");
+    assert_eq!(shell.vault_writes(), 0);
+}
