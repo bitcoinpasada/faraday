@@ -65,7 +65,7 @@ pub(crate) fn nonce_card(
             EN.nonce_check_one_nonce,
             &[&reuse.name().to_string(), &inputs.join(", ").to_string()],
         );
-        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
     for input in check.mismatched.iter().take(SHOWN) {
         let text = if check.fields_refused.contains(input) {
@@ -74,7 +74,7 @@ pub(crate) fn nonce_card(
             EN.psbt_warn_witness_mismatch
         };
         let line = fill(text, &[&input.to_string()]);
-        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
     const SHOWN: usize = 12;
     for r in check.rows.iter().take(SHOWN) {
