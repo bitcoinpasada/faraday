@@ -81,14 +81,8 @@ base16ct = { version = "1.0", default-features = false, features = ["alloc"] }
 # Base64 in four places (docs/deps/base64ct.md): PSBT, BIP-322, BSMS,
 # BIP-85, the OpenPGP armour, KDBX and the Starter's plist.
 base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
-# The vault container's AEAD (docs/deps/chacha20poly1305.md). No `alloc`,
-# no RNG.
-chacha20poly1305 = { version = "0.11", default-features = false, features = ["zeroize"] }
-# The KDBX 4 writer's stream cipher (§16.112 pass E2). This is the crate
-# `chacha20poly1305` already builds on, at the version already in the
-# lock file, named here because it is not re-exported: KDBX encrypts its
-# body and its inner random stream with plain ChaCha20 (RFC 8439), not
-# with an AEAD. No new crate enters the graph.
+# The KDBX 4 stream cipher (docs/deps/chacha20.md): KDBX encrypts its
+# body and its inner random stream with plain ChaCha20 (RFC 8439).
 chacha20 = { version = "0.10", default-features = false, features = ["cipher", "zeroize"] }
 # AES's round function alone, for AEZ, which aezeed enciphers with
 # (docs/deps/aes.md). `hazmat` is the feature that exposes the round; it

@@ -4341,17 +4341,15 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
     let mut answers = Answers::preset(&shape, Preset::Paper);
     answers.set_places(&shape, 4);
     let text = answers.to_text();
-    let contents = faraday_vault::Contents {
-        records: vec![
-            Record::new(kind::WALLET)
-                .with(field::WALLET, desc.as_bytes())
-                .with(field::WALLET_NAME, b"Savings"),
-            Record::new(kind::PLAN)
-                .with(field::PLAN_WALLET, desc.as_bytes())
-                .with(field::PLAN_ANSWERS, text.as_bytes()),
-        ],
-    };
-    let file = vault_of("Savings", PHRASE, 9, contents.records);
+    let records = vec![
+        Record::new(kind::WALLET)
+            .with(field::WALLET, desc.as_bytes())
+            .with(field::WALLET_NAME, b"Savings"),
+        Record::new(kind::PLAN)
+            .with(field::PLAN_WALLET, desc.as_bytes())
+            .with(field::PLAN_ANSWERS, text.as_bytes()),
+    ];
+    let file = vault_of("Savings", PHRASE, 9, records);
     let mut next = process(vec![("old.kdbx".into(), file)], Vec::new(), Vec::new());
     keep_time(&mut next);
     next.press(Action::Nav(Screen::Vaults));
@@ -5401,15 +5399,13 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
     let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
         .unwrap();
-    let contents = faraday_vault::Contents {
-        records: vec![
-            Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
-            Record::new(kind::WALLET)
-                .with(field::WALLET, desc.as_bytes())
-                .with(field::WALLET_NAME, name.as_bytes()),
-        ],
-    };
-    let second = vault_of("Second", PHRASE_2, 0x77, contents.records);
+    let key_records = vec![
+        Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
+        Record::new(kind::WALLET)
+            .with(field::WALLET, desc.as_bytes())
+            .with(field::WALLET_NAME, name.as_bytes()),
+    ];
+    let second = vault_of("Second", PHRASE_2, 0x77, key_records);
     shell.boxes.0.push(("second.kdbx".into(), second));
     let mut app = restart(&mut shell, &mut app);
     let flow_before = app.flow().unwrap().clone();

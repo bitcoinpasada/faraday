@@ -48,14 +48,3 @@ pub fn is_vault_file(bytes: &[u8]) -> bool {
 pub fn is_older_kdbx(bytes: &[u8]) -> bool {
     kdbx_major(bytes).is_some_and(|m| m <= 3)
 }
-
-// The file vault this replaces, until its code is removed with it.
-
-/// The first four bytes of every FVLT vault.
-pub const MAGIC: [u8; 4] = *b"FVLT";
-/// The slot plaintext lengths an FVLT reader accepts, smallest first.
-pub const SLOT_SIZES: [u32; 4] = [65_536, 262_144, 1_048_576, 4_194_304];
-/// An FVLT vault's whole length for a slot length.
-pub const fn file_len(slot_len: u32) -> usize {
-    (4 + 1 + 4 + 4 + 4 + 4 + 32) + 4 * (slot_len as usize + 24 + 16)
-}

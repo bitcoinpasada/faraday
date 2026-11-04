@@ -36,11 +36,17 @@ pub const SIZES: [usize; 4] = [65_536, 262_144, 1_048_576, 4_194_304];
 pub const DEFAULT_SIZE: usize = 262_144;
 
 /// The memory steps Faraday writes, in KiB (§3): 64 MiB to 1 GiB.
-pub const STEPS_KIB: [u32; 5] = [65_536, 131_072, 262_144, 524_288, 1_048_576];
+pub const STEPS_KIB: [u32; 5] = [FIRST_STEP_KIB, 131_072, 262_144, 524_288, LAST_STEP_KIB];
 
-/// The passes and lanes Faraday writes (§3).
-const PASSES: u32 = 3;
-const LANES: u32 = 4;
+/// The smallest of [`STEPS_KIB`], in KiB.
+pub const FIRST_STEP_KIB: u32 = 65_536;
+/// The largest of [`STEPS_KIB`], in KiB.
+pub const LAST_STEP_KIB: u32 = 1_048_576;
+
+/// The passes Faraday writes (§3).
+pub const PASSES: u32 = 3;
+/// The lanes Faraday writes (§3).
+pub const LANES: u32 = 4;
 
 /// The length of the block a file's plaintext is framed in.
 const BLOCK: usize = 1024 * 1024;
@@ -211,10 +217,7 @@ pub fn open(c: &Compute, file: &[u8], passphrase: &str) -> Result<Opened, Error>
     let opened = kdbx::open(c, file, passphrase)?;
     let doc = Document::read(&opened.document, &opened.inner_key).map_err(Error::Xml)?;
     let read = items::read(c, &doc);
-    let nfc = crate::nfc(passphrase).map_err(|e| match e {
-        crate::Error::Memory(mib) => Error::Memory(mib),
-        _ => Error::Kdbx(kdbx::Error::Damaged),
-    })?;
+    let nfc = crate::nfc(passphrase).map_err(Error::Memory)?;
     let mut passphrase = Zeroizing::new(Vec::new());
     passphrase
         .try_reserve_exact(nfc.len())

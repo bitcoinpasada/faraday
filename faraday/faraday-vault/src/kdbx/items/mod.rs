@@ -5,15 +5,14 @@
 //! a view of it, and every change goes back into it ([`put`], [`remove`],
 //! [`put_plan`], [`put_signed`], [`remove_custom`], [`stamp`]), entry by
 //! UUID, so what the app does not change is written back as read (the
-//! document's own carry-through). The view gives the app the records it
-//! already reads from an FVLT slot ([`Record`], by kind number), each with
-//! the entry's UUID and its group path beside it, so that moving the app
-//! from FVLT slots to KDBX changes its callers little: a record is turned
-//! into an entry's fields by its published text form, and back. One kind is
-//! not a record: a GPG key ([`Body::Gpg`]), whose FVLT record holds the
-//! keys' seeds where the vault holds the armored secret key, and turning
-//! one into the other needs an OpenPGP secret-key reader not written yet;
-//! its fields are given as text.
+//! document's own carry-through). The view gives the app its records
+//! ([`Record`], by kind number), each with the entry's UUID and its group
+//! path beside it: a record is turned into an entry's fields by its
+//! published text form, and back. One kind is not a record: a GPG key
+//! ([`Body::Gpg`]), whose record holds the keys' seeds where the vault
+//! holds the armored secret key, and turning one into the other needs an
+//! OpenPGP secret-key reader not written yet; its fields are given as
+//! text.
 //!
 //! **Nothing about Faraday's items refuses the file** (owner, 2026-11-03).
 //! An item that does not read (an unknown `faraday.kind`, a field its kind
@@ -81,7 +80,7 @@ pub const FORMAT: &str = "1";
 
 /// What an entry holds for the app.
 pub enum Body {
-    /// An FVLT record of its kind (§7's table): a key, a wallet, a note, a
+    /// A record of its kind (§7's table): a key, a wallet, a note, a
     /// sheet, Secure Boot keys, a wallet share, a passphrase, a codex32
     /// share, or a person's entry (type 6).
     Record(Record),
@@ -90,7 +89,7 @@ pub enum Body {
 }
 
 impl Body {
-    /// The FVLT record type this is.
+    /// The record type this is.
     pub fn kind(&self) -> u8 {
         match self {
             Body::Record(r) => r.kind,
@@ -101,7 +100,7 @@ impl Body {
 
 // ------------------------------------------------------------- the kinds
 
-/// `faraday.kind` of each FVLT record type that is an entry.
+/// `faraday.kind` of each record type that is an entry.
 const KINDS: [(&str, u8); 9] = [
     ("seed", kind::KEY),
     ("wallet", kind::WALLET),

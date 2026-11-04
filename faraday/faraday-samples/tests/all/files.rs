@@ -13,7 +13,7 @@ use faraday_vault::records::{field, kind};
 fn the_vault_opens_under_the_passphrase_to_sample_key_1_and_the_savings_wallet() {
     let c = compute();
     let vault = SAMPLES.inputs.vault;
-    assert!(faraday_vault::is_vault(vault));
+    assert!(faraday_intake::is_vault(vault));
     assert!(faraday_vault::file::open(&c, vault, "password").is_err());
     let opened = faraday_vault::file::open(&c, vault, PASSPHRASE).expect("it opens");
     let contents = opened.read();

@@ -1,14 +1,14 @@
 //! A vault keeps a codex32 key's set as its plain facts and no string,
 //! and one string of a set without its seed, as a codex32 share record
 //! (`docs/VAULT.md` §7, `docs/CODEX32.md` §9.4, §9.5); the committed
-//! vector holds both, and a slot holding neither reads as it always did.
+//! vector holds both, and a vault holding neither reads as it always did.
 
 #[path = "../examples/vectors.rs"]
 mod vectors;
 
+use faraday_vault::Record;
 use faraday_vault::codex32::{SetFacts, State, set_of, set_payload};
 use faraday_vault::records::{Fault, field, kind};
-use faraday_vault::{Contents, Record};
 
 fn committed(name: &str) -> Vec<u8> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -31,15 +31,12 @@ fn two_of_three() -> SetFacts {
     }
 }
 
-/// A slot of `records`, encoded and read back.
-fn round_trip(records: Vec<Record>) -> Result<Contents, Fault> {
-    let plain = Contents { records }
-        .encode(
-            65_536 - faraday_vault::COMMIT_LEN,
-            faraday_vault::Seals::FIRST,
-        )
-        .map_err(|_| Fault::Truncated)?;
-    Contents::decode(&plain).map(|(c, _)| c)
+/// The records, when every one of them passes its type's rules.
+fn checked(records: Vec<Record>) -> Result<Vec<Record>, Fault> {
+    for r in &records {
+        r.check()?;
+    }
+    Ok(records)
 }
 
 #[test]
@@ -76,7 +73,7 @@ fn a_key_record_keeps_the_sets_facts_and_no_string() {
     // k, the identifier, the length, the unknown count, and two bytes a
     // string: nothing a string could be read from.
     assert_eq!(payload, b"\x02name\x30\x00a\x01c\x01d\x00");
-    let back = round_trip(vec![
+    let back = checked(vec![
         Record::new(kind::KEY)
             .with(
                 field::KEY,
@@ -85,7 +82,7 @@ fn a_key_record_keeps_the_sets_facts_and_no_string() {
             .with(field::KEY_CODEX32, &payload),
     ])
     .expect("reads");
-    let key = &back.records[0];
+    let key = &back[0];
     assert_eq!(
         set_of(key.field(field::KEY_CODEX32).unwrap()),
         Some(two_of_three())
@@ -122,7 +119,7 @@ fn a_set_of_strings_whose_indices_are_not_all_known_reads_back() {
 }
 
 #[test]
-fn a_set_that_is_not_a_codex32_set_refuses_the_slot() {
+fn a_set_that_is_not_a_codex32_set_is_not_written_and_a_record_holding_one_is_refused() {
     let bad = |f: &dyn Fn(&mut SetFacts)| {
         let mut s = two_of_three();
         f(&mut s);
@@ -167,16 +164,16 @@ fn a_set_that_is_not_a_codex32_set_refuses_the_slot() {
 }
 
 #[test]
-fn a_codex32_share_record_round_trips_and_holds_only_a_share() {
+fn a_codex32_share_record_holds_only_a_share() {
     let fp = vectors::VECTOR_2.2;
     let share = |s: &str| {
         Record::new(kind::CODEX32_SHARE)
             .with(field::CODEX32_STRING, s.as_bytes())
             .with(field::CODEX32_KEY, &fp)
     };
-    let back = round_trip(vec![share(vectors::VECTOR_2.1)]).expect("reads");
+    let back = checked(vec![share(vectors::VECTOR_2.1)]).expect("reads");
     assert_eq!(
-        back.records[0].text(field::CODEX32_STRING),
+        back[0].text(field::CODEX32_STRING),
         Some(vectors::VECTOR_2.1)
     );
     // The secret is the seed, kept as a key record; upper case, a broken

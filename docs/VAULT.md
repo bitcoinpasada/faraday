@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults; the four-slot FVLT format this replaces has its account in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault as an OpenPGP message (§1.2, §2.1), the KeePass export folded into the vault (§8), the reader and the vectors (§10); the FVLT code is still in `faraday-vault` and `faraday-codec`, unused by the file vault
+**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault as an OpenPGP message (§1.2, §2.1), the KeePass export folded into the vault (§8), the reader and the vectors (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):

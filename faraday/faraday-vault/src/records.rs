@@ -1,40 +1,25 @@
-//! A slot's plaintext (`docs/VAULT.md` §7) after its commitment block:
-//! the format byte, typed records, the end record, and zeros to the
-//! slot's length.
+//! The app's record model (`docs/VAULT.md` §7): typed records of fields,
+//! which `kdbx::items` maps to and from the items of a KDBX file.
 //!
-//! Every slot holds exactly one seal count (type 16), which this crate
-//! writes and no caller does: [`Contents::decode`] takes it out of the
-//! records and gives it back beside them as [`Seals`], and
-//! [`Contents::encode`] writes the one it is given and refuses records
-//! that hold one.
-//!
-//! A record is a type byte, a `u32` body length and the body; a body is
-//! fields, each a number, a `u16` length and the bytes. What each type
+//! A record is a type and fields, each a number and its bytes; the KDBX
+//! file holds them as items, not as bytes of this model. What each type
 //! may hold is [`rules`]: a field it does not list, a required field
 //! missing, a field repeated where it may not be, text that is not
-//! UTF-8, or a value of the wrong length refuses the slot. So does an
-//! unknown type: a build reads only what it knows. So do two slot
-//! labels, two passphrase records (type 14) for one key, and two signed
-//! amounts records (type 10) for one transaction.
+//! UTF-8, or a value of the wrong length refuses the record. So does an
+//! unknown type: a build reads only what it knows.
 //!
 //! Every field's bytes are wiped when the record is dropped.
 
-use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::Mnemonic;
 use zeroize::Zeroizing;
 
-use crate::Error;
-
-/// The slot format this build writes and reads.
-pub const FORMAT: u8 = 1;
-
 /// The record types (§7).
 pub mod kind {
-    /// The end record.
-    pub const END: u8 = 0;
-    /// The slot's label.
+    // Type 0 was the end record of the first vault format. It is retired
+    // with the type 12 below: an unknown type is refused.
+    /// The vault's label.
     pub const SLOT_LABEL: u8 = 1;
     /// A Bitcoin key.
     pub const KEY: u8 = 2;
@@ -57,7 +42,7 @@ pub mod kind {
     /// A wallet's backup plan.
     pub const PLAN: u8 = 11;
     // Type 12 was an APK signing key. It is retired: no build knows it,
-    // and a slot holding one is refused like any unknown type
+    // and a vault holding one is refused like any unknown type
     // (`docs/VAULT.md` §7).
     /// A share of a multisig wallet's description, some keys left off
     /// (`docs/BACKUP-FLOW.md` §15.6).
@@ -68,14 +53,11 @@ pub mod kind {
     /// One codex32 string of a set, kept without the seed it rebuilds
     /// (`docs/CODEX32.md` §9.5).
     pub const CODEX32_SHARE: u8 = 15;
-    /// The slot's seal count: how many times it has been written, and
-    /// when last. Written by this crate alone ([`super::Seals`]).
-    pub const SEALS: u8 = 16;
 }
 
 /// The fields of each record type, by number.
 pub mod field {
-    /// Slot label: the label.
+    /// Vault label: the label.
     pub const LABEL: u8 = 1;
 
     /// Bitcoin key: the words or the seed payload (§7).
@@ -174,14 +156,6 @@ pub mod field {
     pub const CODEX32_STRING: u8 = 1;
     /// Codex32 share: the fingerprint of the key its set makes (4 bytes).
     pub const CODEX32_KEY: u8 = 2;
-
-    /// Seal count: how many times the slot has been written, `u64`, 1 or
-    /// more.
-    pub const SEAL_COUNT: u8 = 1;
-    /// Seal count: the time of the last seal, `u64` seconds since
-    /// 1970-01-01 UTC by the sealing computer's clock; absent when that
-    /// clock was not set.
-    pub const SEAL_TIME: u8 = 2;
 }
 
 /// Bit 0 of a key's or a wallet's flags: the Load sheet an unlock
@@ -193,17 +167,11 @@ pub const NO_LOAD_AT_UNLOCK: u8 = 1;
 /// not done; it signs nothing until it is. Never a secret.
 pub const BACKUP_PENDING: u8 = 2;
 
-/// Why a slot's contents were refused.
+/// Why a record was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Fault {
-    /// The first byte is not a slot format this build reads.
-    Format,
     /// A record type this build does not know.
     UnknownType(u8),
-    /// A record or field runs past what holds it.
-    Truncated,
-    /// Bytes after the end record are not zero.
-    Trailing,
     /// A field a type does not list.
     UnknownField(u8, u8),
     /// A required field is missing.
@@ -212,53 +180,6 @@ pub enum Fault {
     Repeated(u8, u8),
     /// A value of the wrong length or not UTF-8.
     Value(u8, u8),
-    /// More than one slot label.
-    TwoLabels,
-    /// The slot does not hold exactly one seal count (type 16), or
-    /// records given to be written hold one, which only this crate
-    /// writes.
-    Seals,
-    /// Two records of a type that holds one per key or per transaction:
-    /// a passphrase (type 14) for the key whose fingerprint `of` is, or
-    /// signed amounts (type 10) for the transaction whose SHA-256 starts
-    /// with `of`.
-    Duplicate {
-        /// The record type.
-        kind: u8,
-        /// The key's fingerprint, or the first four bytes of the
-        /// transaction's SHA-256.
-        of: [u8; 4],
-    },
-}
-
-/// The one-per-slot rules across records: at most one slot label, one
-/// passphrase record per key (§7, type 14) and one signed amounts record
-/// per transaction (type 10). Each record is already checked, so the
-/// fields the rules read are there and of their lengths.
-fn check_across(records: &[Record]) -> Result<(), Fault> {
-    if records
-        .iter()
-        .filter(|r| r.kind == kind::SLOT_LABEL)
-        .count()
-        > 1
-    {
-        return Err(Fault::TwoLabels);
-    }
-    for (ty, by) in [
-        (kind::PASSPHRASE, field::PASSPHRASE_KEY),
-        (kind::AMOUNTS, field::AMOUNTS_TX),
-    ] {
-        let mut seen: BTreeSet<&[u8]> = BTreeSet::new();
-        for r in records.iter().filter(|r| r.kind == ty) {
-            let Some(id) = r.field(by) else { continue };
-            if !seen.insert(id) {
-                let mut of = [0u8; 4];
-                of.copy_from_slice(&id[..4]);
-                return Err(Fault::Duplicate { kind: ty, of });
-            }
-        }
-    }
-    Ok(())
 }
 
 /// What a field's bytes must be.
@@ -355,10 +276,6 @@ const PLAN_RULES: &[Rule] = &[
     rule(3, false, true, Shape::Text(128)),
     rule(4, false, true, TEXT),
     rule(5, false, true, TEXT),
-    // Field 6, an access layer's name, was written only by test builds
-    // before the layers were withdrawn (`docs/DECISIONS.md` F38): still
-    // allowed so such a record opens, and read by nothing.
-    rule(6, false, true, Shape::Text(128)),
 ];
 
 const WALLET_SHARE_RULES: &[Rule] = &[
@@ -379,11 +296,6 @@ const CODEX32_SHARE_RULES: &[Rule] = &[
     rule(2, true, false, Shape::Exact(4)),
 ];
 
-const SEALS_RULES: &[Rule] = &[
-    rule(1, true, false, Shape::Exact(8)),
-    rule(2, false, false, Shape::Exact(8)),
-];
-
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
     Some(match kind {
@@ -401,7 +313,6 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::WALLET_SHARE => WALLET_SHARE_RULES,
         kind::PASSPHRASE => PASSPHRASE_RULES,
         kind::CODEX32_SHARE => CODEX32_SHARE_RULES,
-        kind::SEALS => SEALS_RULES,
         _ => return None,
     })
 }
@@ -421,7 +332,7 @@ impl core::fmt::Debug for Field {
     }
 }
 
-/// One record of a slot.
+/// One record of a vault.
 #[derive(Clone, Debug)]
 pub struct Record {
     /// Its type (`kind`).
@@ -538,9 +449,6 @@ impl Record {
         {
             return Err(Fault::Value(self.kind, field::CODEX32_STRING));
         }
-        if self.kind == kind::SEALS && self.field(field::SEAL_COUNT) == Some(&[0u8; 8][..]) {
-            return Err(Fault::Value(self.kind, field::SEAL_COUNT));
-        }
         if self.kind == kind::SHEET
             && let Some(payload) = self.field(field::SHEET)
             && crate::layouts::payload_of(crate::layouts::KIND_SHEET, payload).is_none()
@@ -550,179 +458,11 @@ impl Record {
         Ok(())
     }
 
-    fn encoded_len(&self) -> usize {
-        1 + 4 + self.fields.iter().map(|f| 3 + f.bytes.len()).sum::<usize>()
-    }
-
-    /// The bytes this record takes in a slot: its type, its length and its
-    /// fields. Public: it says how big the record is, not what it holds.
+    /// A figure for how big the record is: a type, a length and, for each
+    /// field, its number, its length and its bytes. Public: it says how
+    /// big the record is, not what it holds.
     pub fn size(&self) -> usize {
-        self.encoded_len()
-    }
-}
-
-/// A slot's seal count (type 16): how many times the slot has been
-/// written, and the time of the last seal by the clock that sealed it.
-/// Not secret to whoever opens the slot; never written by a caller.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Seals {
-    /// How many times the slot has been written, 1 or more.
-    pub count: u64,
-    /// The last seal's time, Unix seconds by the sealing computer's
-    /// clock; `None` when that clock was not set.
-    pub last: Option<u64>,
-}
-
-impl Seals {
-    /// What `create` writes in every used slot: the first write, with no
-    /// time.
-    pub const FIRST: Seals = Seals {
-        count: 1,
-        last: None,
-    };
-
-    fn record(self) -> Record {
-        let r = Record::new(kind::SEALS).with(field::SEAL_COUNT, &self.count.to_le_bytes());
-        match self.last {
-            Some(t) => r.with(field::SEAL_TIME, &t.to_le_bytes()),
-            None => r,
-        }
-    }
-
-    /// The seal count a checked type 16 record holds.
-    fn of(r: &Record) -> Seals {
-        let u64_of = |n: u8| {
-            r.field(n).map(|b| {
-                let mut a = [0u8; 8];
-                a.copy_from_slice(b);
-                u64::from_le_bytes(a)
-            })
-        };
-        Seals {
-            count: u64_of(field::SEAL_COUNT).unwrap_or(0),
-            last: u64_of(field::SEAL_TIME),
-        }
-    }
-}
-
-/// The most bytes a seal count record takes: its type and length, the
-/// count and the time. The room for records is reckoned with it, so
-/// whether a slot is full does not depend on whether the clock was set.
-const SEALS_MAX: usize = 5 + 3 + 8 + 3 + 8;
-
-/// A slot's records, without its seal count.
-#[derive(Clone, Debug, Default)]
-pub struct Contents {
-    /// The records, in the order they are written.
-    pub records: Vec<Record>,
-}
-
-impl Contents {
-    /// The `len` bytes of a slot's plaintext that follow its commitment
-    /// block (`len` is *L* − [`crate::COMMIT_LEN`]): the format byte, the
-    /// seal count `seals`, these records, the end record and zeros.
-    /// `Full` when [`Contents::used`] is more than *L*.
-    pub fn encode(&self, len: usize, seals: Seals) -> Result<Zeroizing<Vec<u8>>, Error> {
-        if self.records.iter().any(|r| r.kind == kind::SEALS) {
-            return Err(Error::Contents(Fault::Seals));
-        }
-        for r in &self.records {
-            r.check().map_err(Error::Contents)?;
-        }
-        check_across(&self.records).map_err(Error::Contents)?;
-        let seal = seals.record();
-        seal.check().map_err(Error::Contents)?;
-        if self.used() > len + crate::COMMIT_LEN {
-            return Err(Error::Full);
-        }
-        let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
-        out.try_reserve_exact(len)
-            .map_err(|_| Error::Memory((len / (1024 * 1024)) as u32 + 1))?;
-        out.push(FORMAT);
-        for r in core::iter::once(&seal).chain(&self.records) {
-            out.push(r.kind);
-            let body: usize = r.encoded_len() - 5;
-            out.extend_from_slice(&(body as u32).to_le_bytes());
-            for f in &r.fields {
-                out.push(f.number);
-                out.extend_from_slice(&(f.bytes.len() as u16).to_le_bytes());
-                out.extend_from_slice(&f.bytes);
-            }
-        }
-        out.push(kind::END);
-        out.resize(len, 0);
-        Ok(out)
-    }
-
-    /// The bytes these records take in a slot of *L* bytes, which they
-    /// fit while this is at most *L*: the commitment block, the format
-    /// byte, the seal count at its largest, the records and the end
-    /// record.
-    pub fn used(&self) -> usize {
-        crate::COMMIT_LEN
-            + 2
-            + SEALS_MAX
-            + self.records.iter().map(Record::encoded_len).sum::<usize>()
-    }
-
-    /// Reads the bytes of a slot's plaintext after its commitment block:
-    /// the records, and the seal count taken out of them.
-    pub fn decode(plain: &[u8]) -> Result<(Contents, Seals), Fault> {
-        if plain.first() != Some(&FORMAT) {
-            return Err(Fault::Format);
-        }
-        let mut at = 1usize;
-        let mut records = Vec::new();
-        let mut seals: Option<Seals> = None;
-        let mut twice = false;
-        loop {
-            let t = *plain.get(at).ok_or(Fault::Truncated)?;
-            at += 1;
-            if t == kind::END {
-                break;
-            }
-            if rules(t).is_none() {
-                return Err(Fault::UnknownType(t));
-            }
-            let len = plain.get(at..at + 4).ok_or(Fault::Truncated)?;
-            let len = u32::from_le_bytes([len[0], len[1], len[2], len[3]]) as usize;
-            at += 4;
-            let end = at.checked_add(len).ok_or(Fault::Truncated)?;
-            let body = plain.get(at..end).ok_or(Fault::Truncated)?;
-            let mut record = Record::new(t);
-            let mut p = 0usize;
-            while p < body.len() {
-                let head = body.get(p..p + 3).ok_or(Fault::Truncated)?;
-                let n = usize::from(u16::from_le_bytes([head[1], head[2]]));
-                let bytes = body.get(p + 3..p + 3 + n).ok_or(Fault::Truncated)?;
-                record.push(head[0], bytes);
-                p += 3 + n;
-            }
-            record.check()?;
-            if t == kind::SEALS {
-                twice |= seals.is_some();
-                seals = Some(Seals::of(&record));
-            } else {
-                records.push(record);
-            }
-            at = end;
-        }
-        if plain[at..].iter().any(|&b| b != 0) {
-            return Err(Fault::Trailing);
-        }
-        check_across(&records)?;
-        match seals {
-            Some(s) if !twice => Ok((Contents { records }, s)),
-            _ => Err(Fault::Seals),
-        }
-    }
-
-    /// The records of one type, with their positions.
-    pub fn of(&self, kind: u8) -> impl Iterator<Item = (usize, &Record)> {
-        self.records
-            .iter()
-            .enumerate()
-            .filter(move |(_, r)| r.kind == kind)
+        1 + 4 + self.fields.iter().map(|f| 3 + f.bytes.len()).sum::<usize>()
     }
 }
 

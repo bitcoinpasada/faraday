@@ -2,10 +2,10 @@
 
 File vaults in the format of `docs/VAULT.md` (KDBX 4), and the files a
 reader refuses, published for any implementation to open. Faraday's Rust
-(`faraday/faraday-vault/tests/vectors.rs`), `tools/vault/open.py` with
-pykeepass (`tests/open_py.rs`) and the cross-check's `vault` area read
-them. A reproduction by an outside party is asked for in
-`docs/AUDIT-SUBMISSIONS.md` §10.
+(`faraday/faraday-vault/tests/vectors.rs`) and `tools/vault/open.py` with
+pykeepass (`tests/open_py.rs`) read them; the cross-check does not, and a
+run of them by outside programs is later work. A reproduction by an
+outside party is asked for in `docs/AUDIT-SUBMISSIONS.md` §10.
 
 Every file is made at the lowest cost a reader accepts: Argon2id with
 8 MiB of memory, one pass and one lane, except `vault-sealed.kdbx`. The
@@ -27,7 +27,10 @@ KDBX 3.1 and Twofish are refused by files of other programs, used where
 they are: `tools/vectors/kdbx/keepassxc-3.1-aeskdf.kdbx` and
 `pykeepass-twofish-argon2d-gzip.kdbx`. Not here: Salsa20 as the inner
 stream and an empty passphrase (this build writes neither, so no file of
-its own makes them), and a QR vault's vectors (the QR vault is not built).
+its own makes them), a file too long for the largest vault (6 MiB of
+it would be committed; `tests/kdbx.rs`'s
+`a_file_too_long_for_the_largest_vault_is_refused_before_any_work` makes
+one), and a QR vault's vectors (the QR vault is not built).
 
 How they are made:
 

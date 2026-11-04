@@ -259,16 +259,9 @@ fn the_vaults_page_goes_on_to_how_the_vault_is_built_and_passphrase_strength() {
             "{w}x{h}: the vault's account"
         );
         assert!(has("Passphrase strength"), "{w}x{h}: after it");
-        assert!(
-            has("The header") && has("Bytes"),
-            "{w}x{h}: the header's table"
-        );
-        assert!(has("16 777 429"), "{w}x{h}: the largest vault's size");
+        assert!(has("The keys") && has("File"), "{w}x{h}: the sizes' table");
+        assert!(has("4 194 797"), "{w}x{h}: the largest vault's file length");
         assert!(has("77.5"), "{w}x{h}: six words of the large list");
-        assert!(
-            lines.iter().any(|l| l.starts_with("Planned, not built:")),
-            "{w}x{h}: the vault's account says the KDBX and OpenPGP vault is still to be built"
-        );
         assert!(past.is_empty(), "{w}x{h}: nothing past a side: {past:?}");
     }
 }

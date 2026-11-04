@@ -43,7 +43,7 @@ MAX_SHEET = 16 * 1024
 
 
 class Refused(Exception):
-    """A refusal, named as `faraday_vault::Error` names its kinds."""
+    """A refusal the area compares, with the reason `faraday_vault`'s layouts or NFC step give."""
 
     def __init__(self, kind, detail=""):
         super().__init__(f"{kind}: {detail}" if detail else kind)
@@ -134,7 +134,7 @@ class Vault(Area):
         'and malformed; passphrases in NFC, by case and at random. The KDBX vault file is not '
         'in this area yet'
     )
-    differences = []
+    differences = ["none"]
     not_compared = (
         'the KDBX vault file, judged by its own later area run'
     )

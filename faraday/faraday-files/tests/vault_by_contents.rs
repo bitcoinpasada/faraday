@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 use faraday_codec::vault_file::SIGNATURE;
 use faraday_crypto::work::Compute;
 use faraday_files::{
-    Place, Unrenamed, Zeroed, finish_vault_writes, rename, vault_names, write_any, write_replacing,
-    write_vault,
+    Place, Unrenamed, Zeroed, finish_vault_writes, listing, rename, vault_names, write_any,
+    write_replacing, write_vault,
 };
 
 #[derive(Default)]
@@ -117,6 +117,19 @@ fn a_vault_is_found_by_its_contents_under_any_name() {
         vault_names(&compute(), &mut place, &files),
         ["VAULT~1.KDB", "named.kdbx", "vault"]
     );
+}
+
+/// The first vault format is no longer read: a `.fvlt` file, at the length
+/// that format had, is no vault; it is listed as any other file.
+#[test]
+fn a_fvlt_file_is_listed_as_a_plain_file() {
+    let mut place = Memory::default();
+    let mut old = b"FVLT".to_vec();
+    old.resize(53 + 4 * (65_536 + 40), 0);
+    place.files.insert("old.fvlt".into(), old);
+    let files = place.files().unwrap();
+    assert!(vault_names(&compute(), &mut place, &files).is_empty());
+    assert!(listing(&mut place).iter().any(|(n, _)| n == "old.fvlt"));
 }
 
 #[test]

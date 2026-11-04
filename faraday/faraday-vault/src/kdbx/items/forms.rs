@@ -1,5 +1,5 @@
 //! The published text forms of the secret values an item holds
-//! (`docs/VAULT.md` §7), each to the bytes of its FVLT record and back:
+//! (`docs/VAULT.md` §7), each to the bytes of its record and back:
 //! BIP-39 words of a list, a BIP-32 seed in hex, a PEM block, and the
 //! small public forms beside them (a fingerprint, a GUID, a decimal).
 //!

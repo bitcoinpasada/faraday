@@ -375,8 +375,8 @@ def gen_written_here(data):
 # from the code here; nothing in them is typed by hand.
 
 PLANNED_LEAD = "Planned, not built: "
-TABLE_KINDS = ("vault-header", "vault-sizes", "diceware-bits")
-VAULT = "faraday/faraday-vault/src/lib.rs"
+TABLE_KINDS = ("vault-sizes", "diceware-bits")
+VAULT = "faraday/faraday-vault/src/file.rs"
 ARGON2 = "core/faraday-crypto/src/argon2.rs"
 DICEWARE = "core/faraday-bip/src/diceware"
 NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
@@ -386,20 +386,8 @@ NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "
 CODE_VALUES = {
     "argon2-version": (ARGON2, "argon2", r"Version::V0x(\d)(\d)", lambda m: f"{m[1]}.{m[2]}"),
     "argon2-out": (ARGON2, "argon2", r"Some\((\d+)\)", lambda m: int(m[1])),
-    "lanes": (VAULT, "check_cost", r"cost\.lanes != (\d+)", lambda m: int(m[1])),
-    "min-passes": (VAULT, "check_cost", r"\((\d+)\.\.=MAX_PASSES\)", lambda m: int(m[1])),
 }
-# The header's fields, by what `Header::to_bytes` copies into each.
-HEADER_FIELDS = {
-    "MAGIC": "magic",
-    "VERSION": "version, {VERSION}",
-    "self.cost.memory_kib": "Argon2id memory, in KiB",
-    "self.cost.passes": "Argon2id passes",
-    "self.cost.lanes": "Argon2id lanes",
-    "self.slot_len": "L",
-    "self.salt": "Argon2id salt",
-}
-FILE_LEN = "HEADER_LEN + SLOTS * (slot_len as usize + NONCE_LEN + TAG_LEN)"
+FILE_LEN = "HEAD + size + framing(size)"
 
 
 class Unresolved(Exception):
@@ -665,37 +653,14 @@ def render_text(code, text, planned=False):
     return "".join(out)
 
 
-def table_vault_header(code):
-    body = code.body(VAULT, "to_bytes")
-    rows, at = [], 0
-    for m in re.finditer(r"h\[(\d+)(?:\.\.(\d+))?\](?:\.copy_from_slice\(&(.+?)\);| = (\w+);)", body):
-        start = int(m[1])
-        end = int(m[2]) if m[2] else start + 1
-        src = (m[3] or m[4]).removesuffix(".to_le_bytes()")
-        if start != at:
-            raise Unresolved(f"{VAULT}::Header::to_bytes writes a field at {start}, where {at} "
-                             "was expected")
-        if src not in HEADER_FIELDS:
-            raise Unresolved(f"{VAULT}::Header::to_bytes copies `{src}`, which gen.py's "
-                             "HEADER_FIELDS does not name")
-        what = HEADER_FIELDS[src].replace("{VERSION}", str(code.const(VAULT, "VERSION")))
-        rows.append([fmt_num(start), fmt_num(end - start), what])
-        at = end
-    header_len = code.const(VAULT, "HEADER_LEN")
-    if not rows or at != header_len:
-        raise Unresolved(f"{VAULT}::Header::to_bytes writes {at} bytes, and HEADER_LEN is "
-                         f"{header_len}")
-    return ["At", "Bytes", "What"], rows
-
-
 def table_vault_sizes(code):
     body = " ".join(code.body(VAULT, "file_len").split())
     if body != FILE_LEN:
         raise Unresolved(f"{VAULT}::file_len is no longer `{FILE_LEN}`")
-    h, s = code.const(VAULT, "HEADER_LEN"), code.const(VAULT, "SLOTS")
-    n, t = code.const(VAULT, "NONCE_LEN"), code.const(VAULT, "TAG_LEN")
-    return ["L", "File"], [[fmt_num(sl), fmt_num(h + s * (sl + n + t))]
-                           for sl in code.int_list(VAULT, "SLOT_SIZES")]
+    head, frame = code.const(VAULT, "HEAD"), code.const(VAULT, "FRAME")
+    block = code.const(VAULT, "BLOCK")
+    return ["Size", "File"], [[fmt_num(sz), fmt_num(head + sz + frame * (-(-sz // block) + 1))]
+                              for sz in code.int_list(VAULT, "SIZES")]
 
 
 def diceware_lists(code):
@@ -727,8 +692,6 @@ def table_diceware(code, words):
 
 def render_table(code, para):
     kind = para.get("table")
-    if kind == "vault-header":
-        return table_vault_header(code)
     if kind == "vault-sizes":
         return table_vault_sizes(code)
     if kind == "diceware-bits":

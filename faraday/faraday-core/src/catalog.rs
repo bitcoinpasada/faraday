@@ -285,7 +285,7 @@ pub const TILES: &[Tile] = &[
         group: EN.catalog_vaults_group,
         name: EN.catalog_vaults,
         line: EN.catalog_keys_wallets,
-        tags: &["Argon2id", "XChaCha20-Poly1305"],
+        tags: &["Argon2id"],
         go: Go::Vaults,
     },
     Tile {

@@ -292,11 +292,6 @@ fn = "parse"
 target = "faraday/fuzz/fuzz_targets/vault_entries.rs"
 
 [[parser]]
-file = "faraday/faraday-vault/src/records.rs"
-fn = "decode"
-target = "faraday/fuzz/fuzz_targets/vault_records.rs"
-
-[[parser]]
 file = "faraday/faraday-vault/src/totp.rs"
 fn = "parse"
 target = "faraday/fuzz/fuzz_targets/vault_entries.rs"

@@ -1,5 +1,5 @@
 //! Argon2 (RFC 9106), the one call the backup's, the KeePass file's and the
-//! OpenPGP message's derivations make (the FVLT container keeps its own).
+//! OpenPGP message's derivations make.
 //!
 //! The working memory is asked for with `try_reserve` rather than taken,
 //! so a device that cannot spare what a cost asks for gets

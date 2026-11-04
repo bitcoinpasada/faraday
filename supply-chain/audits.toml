@@ -325,13 +325,6 @@ start = "2025-09-01"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
-[[trusted.chacha20poly1305]]
-criteria = "safe-to-deploy"
-user-id = 267 # Tony Arcieri (tarcieri)
-start = "2019-08-30"
-end = "2027-10-01"
-notes = "F71: trusted publisher (docs/decisions/F71.md)"
-
 [[trusted.cipher]]
 criteria = "safe-to-deploy"
 trusted-publisher = "github:RustCrypto/traits"

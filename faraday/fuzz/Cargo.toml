@@ -138,13 +138,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "vault_records"
-path = "fuzz_targets/vault_records.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "vault_entries"
 path = "fuzz_targets/vault_entries.rs"
 test = false

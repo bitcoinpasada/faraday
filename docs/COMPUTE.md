@@ -75,7 +75,7 @@ finds them.
 | Kind | Roots |
 |---|---|
 | `WordsParse` | `faraday_bip::bip39::Mnemonic::parse` |
-| `Kdf` | `faraday_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`, `argon2` (the one Argon2 call); `faraday_backup::argon2id`; `faraday-vault`'s Argon2id, with `faraday_vault::kdbx::open` and `seal` (Argon2id or Argon2d over the stated cost); `faraday_pgp::message::seal` and `faraday_pgp::message::Message::open`. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
+| `Kdf` | `faraday_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`, `argon2` (the one Argon2 call); `faraday_backup::argon2id`; `faraday_vault::file::open`, `create`, `seal` and `measure`, and `faraday_vault::kdbx::open` and `seal` (Argon2id or Argon2d over the stated cost); `faraday_pgp::message::seal` and `faraday_pgp::message::Message::open`. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
 | `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key` (each works out the fingerprint, §5.1) |
 | `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; through these BIP-85 and silent payments derivations |
 | `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |

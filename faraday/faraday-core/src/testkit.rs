@@ -1155,7 +1155,7 @@ pub fn kdbx_vault(
         label,
         passphrase,
         id,
-        faraday_vault::MIN_MEMORY_KIB,
+        *faraday_vault::kdbx::MEMORY_KIB.start(),
         records,
     )
 }
@@ -1232,7 +1232,7 @@ pub fn kdbx_edited(
         public_custom_data: None,
     };
     let cost = faraday_vault::Cost {
-        memory_kib: faraday_vault::MIN_MEMORY_KIB,
+        memory_kib: *faraday_vault::kdbx::MEMORY_KIB.start(),
         passes: 1,
         lanes: 1,
     };

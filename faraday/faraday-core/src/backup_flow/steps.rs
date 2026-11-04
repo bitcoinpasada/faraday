@@ -17,9 +17,9 @@ use crate::{Action, Faraday, FileKind, Item, Screen, Sheet, StickInfo, StorageCo
 pub use super::action::{Built, FlowAction, RestorePress, is_hold};
 
 /// The room a new vault is counted at before its size is chosen: the
-/// default slot's file.
+/// default size's file.
 pub(crate) fn new_vault_len() -> u64 {
-    fv::file_len(fv::DEFAULT_SLOT) as u64
+    fv::file::file_len(fv::file::DEFAULT_SIZE) as u64
 }
 
 impl Faraday {

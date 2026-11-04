@@ -459,7 +459,7 @@ cannot make; `0x00` would be untrue of most keys.
 | Need | Where it comes from | Cost |
 |---|---|---|
 | scrypt | `faraday_crypto::scrypt`, written in the tree for LND's aezeed | None. No `scrypt` crate is in `Cargo.lock`. |
-| XChaCha20-Poly1305 | `chacha20poly1305` 0.11, already used by `faraday-crypto`, `faraday-backup`, `faraday-vault` and others (`docs/deps/chacha20poly1305.md`) | None new: `faraday-core` adds it as a workspace dependency. |
+| XChaCha20-Poly1305 | `chacha20poly1305` 0.11, which no crate in the tree uses now | New again: its `docs/deps/` page and `cargo vet` entry are written when `faraday-core` adds it. |
 | Bech32 | `bitcoin`'s re-export of `bech32` 0.11 | None. |
 | NFKC | not needed (printable ASCII only) | `unicode-normalization` is in the graph only as `faraday-bip`'s dev-dependency; not added. |
 

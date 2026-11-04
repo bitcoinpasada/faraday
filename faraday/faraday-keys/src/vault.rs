@@ -137,6 +137,17 @@ pub fn is_secret(kind: u8, field: u8) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct VaultId(u32);
 
+/// A vault's seal count: how many times it has been written, and the
+/// time of the last seal (Unix seconds by the sealing computer's clock;
+/// `None` when it was not set or is not readable).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Seals {
+    /// How many times the vault has been written.
+    pub count: u64,
+    /// The last seal's time.
+    pub last: Option<u64>,
+}
+
 /// A record, as the caller may read it: its public fields, and whether a
 /// secret field is there and how long. Cheap to copy. It borrows the
 /// record (in an open vault, or one held beside it), so it cannot outlive
@@ -1525,12 +1536,12 @@ impl OpenVaults {
     /// A lookup. Open vault `id`'s identifier (the root group's UUID in
     /// hex) and its seal count with the time of the last seal, as the file
     /// was opened. `None` for an id this store does not hold.
-    pub fn seal_state(&self, id: VaultId) -> Option<([u8; 32], fv::Seals)> {
+    pub fn seal_state(&self, id: VaultId) -> Option<([u8; 32], Seals)> {
         let s = self.slot(id)?;
         let read = s.opened.read();
         Some((
             s.opened.vault_id(),
-            fv::Seals {
+            Seals {
                 count: read.seals,
                 last: read.sealed.as_deref().and_then(unix_of_rfc3339),
             },

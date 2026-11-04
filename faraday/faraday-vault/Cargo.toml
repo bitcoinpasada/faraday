@@ -1,7 +1,7 @@
 [package]
 name = "faraday-vault"
 version = "0.1.9"
-description = "The Faraday vault file: four equal slots under Argon2id and XChaCha20-Poly1305, each opened by its own passphrase (docs/VAULT.md)"
+description = "The Faraday vault file: a KDBX 4 file under one passphrase, Argon2id and ChaCha20 (docs/VAULT.md)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -16,16 +16,13 @@ zeroize = { workspace = true, features = ["alloc"] }
 # Every passphrase in Unicode NFC before Argon2id (docs/VAULT.md §3); the
 # version faraday-bip already takes for BIP-39's NFKD.
 unicode-normalization.workspace = true
-# What a vault and its entries look like.
+# What a list of entries looks like.
 faraday-intake = { path = "../faraday-intake" }
-# Argon2id over the passphrase, as faraday-backup stretches it.
+# Argon2id over the passphrase.
 argon2 = { workspace = true }
-# Each slot's cipher.
-chacha20poly1305 = { workspace = true }
-# The keystream a new vault's salt, nonces and unused slots come from.
+# The KDBX inner stream's cipher (ChaCha20).
 chacha20 = { workspace = true }
-# HKDF-SHA256 from the stretched key to the slot key, written out over
-# HMAC: one extract and one expand block. Also the TOTP code's HMAC
+# KDBX's key hashes and its HMAC per block, and the TOTP code's HMAC
 # (`docs/TOTP.md` §4): SHA-1, SHA-256 or SHA-512.
 sha2 = { workspace = true }
 hmac = { workspace = true }

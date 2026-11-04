@@ -190,9 +190,6 @@ pub fn part_of(text: &str) -> Option<Part> {
     Codex32::parse(text.trim()).ok().map(Part::Codex32)
 }
 
-/// The first four bytes of every FVLT vault, until its code is removed.
-pub const VAULT_MAGIC: [u8; 4] = faraday_codec::vault_file::MAGIC;
-
 /// Whether a whole file is a vault, whatever its name: it begins with
 /// KDBX's signatures and major version 4, and its length is one a vault
 /// can have (`docs/VAULT.md` §1.1, `docs/VAULT-HARDENING.md` §2.1). Says

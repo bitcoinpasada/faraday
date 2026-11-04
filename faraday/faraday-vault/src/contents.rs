@@ -36,7 +36,7 @@ use zeroize::Zeroizing;
 use crate::child::ChildOf;
 use crate::codex32::{self, SetFacts, State};
 use crate::layouts::{self, Opened};
-use crate::records::{Fault, Record, field, kind};
+use crate::records::{Record, field, kind};
 use tree::{Arr, Table, Val};
 
 /// The most a TOML value is, in bytes: a backup plan is the longest.
@@ -89,8 +89,6 @@ pub enum Why {
     BadValue,
     /// A number outside its range.
     Range,
-    /// Two items of which one is allowed, or a record the layouts refuse.
-    Twice,
     /// An item a QR vault does not hold, or a QR vault of the wrong
     /// length.
     NotQr,
@@ -238,14 +236,6 @@ impl Out {
     }
 }
 
-/// Says why a record's fault refuses it.
-fn fault_why(f: Fault) -> Why {
-    match f {
-        Fault::Duplicate { .. } | Fault::TwoLabels => Why::Twice,
-        _ => Why::BadValue,
-    }
-}
-
 fn text_of(r: &Record, n: u8) -> &str {
     r.text(n).unwrap_or("")
 }
@@ -373,7 +363,7 @@ fn parse_tree(bytes: &[u8], max: usize) -> Result<Table, Refusal> {
 /// [`QR_NOTE_MAX`]; an empty note is the empty form, the padding alone.
 pub fn write_qr(record: &Record) -> Result<Zeroizing<Vec<u8>>, Refusal> {
     let mut o = Out::new(QR_LEN)?;
-    record.check().map_err(|f| refuse(fault_why(f)))?;
+    record.check().map_err(|_| refuse(Why::BadValue))?;
     match record.kind {
         kind::KEY => {
             let payload = record.field(field::KEY).unwrap_or(&[]);
@@ -512,7 +502,7 @@ pub fn read_qr(c: &Compute, bytes: &[u8]) -> Result<Record, Refusal> {
         }
     }
     it.finish()?;
-    rec.check().map_err(|f| refuse(fault_why(f)))?;
+    rec.check().map_err(|_| refuse(Why::BadValue))?;
     // A form that is shorter written than `write_qr` writes it (`note="…"`
     // without spaces, a literal string with no escapes) can hold more than
     // the limits: what `write_qr` would refuse as too long is refused here.
@@ -533,7 +523,7 @@ pub fn write_plan(record: &Record) -> Result<Zeroizing<Vec<u8>>, Refusal> {
     if record.kind != kind::PLAN {
         return Err(refuse(Why::Unknown));
     }
-    record.check().map_err(|f| refuse(fault_why(f)))?;
+    record.check().map_err(|_| refuse(Why::BadValue))?;
     let mut o = Out::new(MAX_VALUE)?;
     o.line("wallet", |o| o.text(text_of(record, field::PLAN_WALLET)));
     if let Some(a) = record.text(field::PLAN_ANSWERS) {
@@ -591,7 +581,7 @@ pub fn read_plan(bytes: &[u8]) -> Result<Record, Refusal> {
         }
     }
     it.finish()?;
-    rec.check().map_err(|f| refuse(fault_why(f)))?;
+    rec.check().map_err(|_| refuse(Why::BadValue))?;
     // A plan that `write_plan` would refuse as too long (backslashes in
     // literal strings, line breaks, tabs or many short items take more
     // written than read) is refused here, so no vault opens that cannot be
