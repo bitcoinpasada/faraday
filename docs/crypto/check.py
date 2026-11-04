@@ -1662,7 +1662,8 @@ def report(errors, show_all=False, out=sys.stdout):
     for cat, a, msg in errors.items:
         cats.setdefault(cat, []).append((a, msg))
     for cat in ("deps", "schema", "construction", "untrue", "coverage", "uncovered", "unnamed",
-                "fingerprint", "audit", "reveal", "compute", "tiles", "screens", "ratchet"):
+                "fingerprint", "audit", "reveal", "compute", "tiles", "screens", "ratchet",
+                "learn-list"):
         items = cats.get(cat, [])
         if not items:
             continue

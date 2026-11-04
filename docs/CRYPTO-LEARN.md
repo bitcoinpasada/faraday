@@ -1045,7 +1045,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 97 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 98 actions, each from its entry in `docs/crypto/actions.toml`
 as batch 5 left it (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under
@@ -1128,6 +1128,7 @@ page lists.
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
 | hashes-macs | Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, and stretches a password with PBKDF2. | `faraday_crypto::hash`: `sha256`, `sha256_whole`, `hmac_sha512`, `hmac_sha256`, `pbkdf2_hmac_sha512`, `pbkdf2_hmac_sha256`, `pbkdf2_sha256` | none | tools |
+| hkdf | Derives keys with HKDF over SHA-256, extracting under a salt and expanding, or expanding alone. | `faraday_crypto::hash`: `hkdf_sha256`, `hkdf_sha256_expand` | none | tools |
 | scrypt | Stretches a password with scrypt, written in this crate, for LND's aezeed. | `faraday_crypto::scrypt`: `scrypt` | none | tools |
 | tools-hash | Hashes bytes with SHA-256, SHA-256d and HASH160, and reads and writes Base58Check, bech32 and bech32m text. | `faraday_bip::hashes`: `hashes`; `faraday_codec::encodings`: `read`, `read_bech32`, `from_hex`, `base58check`, `base58`, `bech32`, `bech32m`, `read_input` | Tools | tools |
 | bip85 | Derives a BIP 85 child (words, a WIF, an extended private key, hex or a password) from a held key. | `faraday_bip::bip85`: `derive`, `child_mnemonic`, `child_wif`, `child_xprv`, `child_hex`, `child_password_base64`, `child_password_base85`; `faraday_keys::bip85`: `child`; `faraday_keys::operations`: `Keys::bip85_child`; `faraday_bip::base64`: `encode`, `decode` | Bip85 | tools |

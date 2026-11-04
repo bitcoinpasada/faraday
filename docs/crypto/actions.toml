@@ -6984,7 +6984,6 @@ functions = [
   "faraday/faraday-pgp/src/message.rs::seal_at",
   "faraday/faraday-pgp/src/message.rs::seal_packets",
   "faraday/faraday-pgp/src/message.rs::s2k",
-  "faraday/faraday-pgp/src/message.rs::hkdf",
   "faraday/faraday-pgp/src/message.rs::wrapping_key",
   "faraday/faraday-pgp/src/message.rs::wrap_session_key",
   "faraday/faraday-pgp/src/message.rs::unwrap_session_key",
