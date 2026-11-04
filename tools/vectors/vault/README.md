@@ -30,7 +30,7 @@ stream and an empty passphrase (this build writes neither, so no file of
 its own makes them), a file too long for the largest vault (6 MiB of
 it would be committed; `tests/kdbx.rs`'s
 `a_file_too_long_for_the_largest_vault_is_refused_before_any_work` makes
-one), and a QR vault's vectors (the QR vault is not built).
+one), and the QR vault's vectors, which are in `qr/` (`qr/README.md`).
 
 How they are made:
 

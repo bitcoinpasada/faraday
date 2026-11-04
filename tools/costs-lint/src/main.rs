@@ -95,6 +95,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "the vault's vector tool and the test that runs it",
     ),
     (
+        "faraday/faraday-vault/examples/qr_vectors.rs",
+        "compute",
+        "the QR vault's vector tool and the test that runs it",
+    ),
+    (
         "faraday/faraday-vault/tests/contents.rs",
         "compute",
         "faraday-vault's contents tests, which cannot reach faraday-core's test kit",

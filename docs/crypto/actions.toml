@@ -386,8 +386,8 @@ completeness = "Words, passphrase, SeedQR and codex32 files for a stick; words a
 id = "vault"
 section = 3
 what = "The vault (`faraday/faraday-vault`, `docs/VAULT.md`)"
-completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). Planned (F190, `docs/VAULT.md`): the QR vault as an RFC 9580 message; the file checked against pykeepass, `keepassxc-cli` and keepass-rs, and the message against Sequoia's `sq`, both ways"
-standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass in the repository's tests only. Planned (F190): an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault, holding TOML v1.0.0"
+completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The QR vault as an RFC 9580 message is built as `faraday-vault::qr` (over `faraday-pgp::message`) and read by Sequoia's `sq` in `tools/vault/open.py`. Planned (F190, `docs/VAULT.md`): the app's screens for the QR vault; the file checked against pykeepass, `keepassxc-cli` and keepass-rs, and the message against Sequoia's `sq`, both ways (each opening the files the other made)"
+standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass in the repository's tests only. Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only; the both-ways cross-check is planned (F190)"
 
 [[row]]
 id = "kdbx"
@@ -6897,7 +6897,7 @@ tests = [
 not_crosschecked = "The `vault` cross-check area judges the Argon2id step (argon2-cffi) and the NFC step (Python's `unicodedata`) a vault is made with, not `file::create`; the KDBX file itself is read back only by pykeepass in the tests, and the full outside run (pykeepass, `keepassxc-cli` and keepass-rs, both directions) is later work."
 fuzz_none = "Creation takes no outside bytes but the passphrase and the caller's answer; kdbx_file and kdbx_body fuzz what a vault is read from."
 other = [
-  "tools/vault/open.py, a reader over pykeepass, opens the vectors the same code wrote (`faraday/faraday-vault/tests/open_py.rs`); the primitives under it are argon2-cffi's and OpenSSL's answers in `tools/vectors/kdf`",
+  "tools/vault/open.py, a reader over pykeepass and, for a QR vault, Sequoia's sq, opens the vectors the same code wrote (`faraday/faraday-vault/tests/open_py.rs`); the primitives under it are argon2-cffi's and OpenSSL's answers in `tools/vectors/kdf`",
 ]
 
 [action.secrets]

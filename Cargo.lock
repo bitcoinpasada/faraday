@@ -1268,6 +1268,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-intake",
+ "faraday-pgp",
  "hmac",
  "miniz_oxide 0.8.9",
  "pem-rfc7468",

@@ -18,6 +18,8 @@ zeroize = { workspace = true, features = ["alloc"] }
 unicode-normalization.workspace = true
 # What a list of entries looks like.
 faraday-intake = { path = "../faraday-intake" }
+# The QR vault's OpenPGP message (docs/VAULT.md §1.2), sealed and opened by `qr`.
+faraday-pgp = { path = "../faraday-pgp" }
 # Argon2id over the passphrase.
 argon2 = { workspace = true }
 # The KDBX inner stream's cipher (ChaCha20).

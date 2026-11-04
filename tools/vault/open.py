@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Open a Faraday file vault with pykeepass and print what it holds.
+"""Open a Faraday vault, a file vault with pykeepass or a QR vault with sq, and print what it holds.
 
 A file vault is a KDBX 4 database (`docs/VAULT.md` §1.1, §7). It is not
 Faraday's secret: this file and a published library read it, so a person
@@ -13,6 +13,8 @@ Usage:
     python3 tools/vault/open.py vault.kdbx
     python3 tools/vault/open.py vault.kdbx --passphrase PASSPHRASE
     python3 tools/vault/open.py vault.kdbx --field gpg.key --out gpg-key.asc
+    python3 tools/vault/open.py vault.pgp
+    python3 tools/vault/open.py vault.pgp --field note --out note.txt
 
 With no `--passphrase` it is read from the terminal without echo, or from
 one line of standard input where that is not a terminal. Type it at the
@@ -37,8 +39,17 @@ secret key, `gpg.key`) reaches another tool without Faraday
 `--index N` takes the N-th in the order they are printed, counting from 1;
 without it the command refuses and says how many there are.
 
-A QR vault is an OpenPGP message and is not read here: the QR vault is not
-built.
+A QR vault is an OpenPGP message (`docs/VAULT.md` §1.2). It is opened by
+Sequoia's `sq decrypt` (on PATH; pykeepass is not needed for it). This
+file is a recovery reader: it parses no OpenPGP and reads whatever `sq`
+opens under the passphrase and whose text is the QR TOML. Refusing a message
+that §1.2's packets or §2.1's rules exclude is Faraday's Rust
+(`faraday_vault::qr::open`), not this file. The passphrase, in NFC, goes to
+`sq` through a pipe, never as an argument or in a file. What is printed is the item as §2.1 names it, the TOML keys
+`words`, `codex32`, `passphrase` or `note` and `for`, without the line
+feeds that pad it to its length; an empty vault prints "QR vault: empty".
+`--field KEY --out FILE` writes one key's value, as the bytes of the
+text. A QR vault holds one item, so `--index` is not taken for it.
 """
 
 from __future__ import annotations
@@ -46,28 +57,44 @@ from __future__ import annotations
 import argparse
 import getpass
 import os
+import shutil
 import struct
+import subprocess
 import sys
+import tempfile
 import unicodedata
 from pathlib import Path
 
-try:
-    from pykeepass import PyKeePass
-except ImportError as e:
-    raise SystemExit(
-        "open.py needs the distribution's pykeepass (Debian and Ubuntu: python3-pykeepass;"
-        f" Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
+
+def pykeepass():
+    """The distribution's pykeepass, imported only where a file vault is read."""
+    try:
+        from pykeepass import PyKeePass
+    except ImportError as e:
+        raise SystemExit(
+            "open.py needs the distribution's pykeepass (Debian and Ubuntu: python3-pykeepass;"
+            f" Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
+    return PyKeePass
 
 SIGNATURES = (0x9AA2D903, 0xB54BFB67)
 KINDS = ("seed", "wallet", "note", "sheet", "gpg", "secure_boot", "wallet_share", "passphrase", "share")
 
 
+QR_KEYS = ("words", "codex32", "passphrase", "note", "for")
+
+
+def is_qr(path: str) -> bool:
+    """A file that is not KDBX and begins like an OpenPGP packet (a byte
+    whose top bit is set)."""
+    data = Path(path).read_bytes()
+    if len(data) >= 12 and struct.unpack_from("<2I", data, 0) == SIGNATURES:
+        return False
+    return bool(data[:1]) and bool(data[0] & 0x80)
+
+
 def read_file(path: str) -> bytes:
     data = Path(path).read_bytes()
     if len(data) < 12 or struct.unpack_from("<2I", data, 0) != SIGNATURES:
-        # An OpenPGP packet begins with a byte whose top bit is set.
-        if data[:1] and data[0] & 0x80:
-            raise SystemExit("A QR vault is not read here: the QR vault is not built.")
         raise SystemExit("not a KeePass file")
     minor, major = struct.unpack_from("<2H", data, 8)
     if major < 4:
@@ -142,7 +169,10 @@ def write_field(kp, spec: str, index: int | None, out: str) -> None:
     values = [v for k, v in same[index - 1] if k == name]
     if len(values) != 1:
         raise SystemExit(f"that {kind} has no field {name}" if not values else f"that {kind} repeats field {name}")
-    data = values[0].encode()
+    write_value(values[0].encode(), out)
+
+
+def write_value(data: bytes, out: str) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
     try:
         fd = os.open(out, flags, 0o600)
@@ -153,11 +183,64 @@ def write_field(kp, spec: str, index: int | None, out: str) -> None:
     print(f"wrote {len(data)} bytes to {out}", file=sys.stderr)
 
 
+def decrypt_qr(path: str, passphrase: str) -> str:
+    """The QR TOML of a QR vault, as `sq decrypt` prints it, padding included."""
+    sq = shutil.which("sq")
+    if sq is None:
+        raise SystemExit("open.py needs Sequoia's sq on PATH to read a QR vault (Debian and Ubuntu: sq; Fedora: sequoia-sq; Arch: sequoia-sq)")
+    if os.name == "nt":
+        raise SystemExit("open.py reads a QR vault on POSIX systems only; on Windows run sq decrypt by hand (docs/VAULT.md, section 10)")
+    # The passphrase reaches sq through a pipe, so it is never in a file. It
+    # is written before sq starts and the write end closed, which a pipe's
+    # buffer holds at this length.
+    secret = passphrase.encode()
+    if len(secret) > 4096:
+        raise SystemExit("a passphrase over 4096 bytes is not read here")
+    r, w = os.pipe()
+    try:
+        os.write(w, secret)
+        os.close(w)
+        w = -1
+        with tempfile.TemporaryDirectory(prefix="faraday-open-") as home:
+            done = subprocess.run(
+                [sq, "--home", home, "--cert-store=none", "--key-store=none", "decrypt",
+                 "--password-file", f"/dev/fd/{r}", "--signatures", "0", path],
+                # No terminal: sq asks for a password when none of the ones it was
+                # given fits, and this file has given its one.
+                capture_output=True, stdin=subprocess.DEVNULL, start_new_session=True,
+                pass_fds=(r,))
+    finally:
+        os.close(r)
+        if w >= 0:
+            os.close(w)
+    if done.returncode != 0:
+        said = done.stderr.decode(errors="replace").strip().splitlines()
+        raise SystemExit("sq did not open the QR vault (a wrong passphrase, or not a message sq opens): "
+                         + (said[-1].strip() if said else f"exit {done.returncode}"))
+    try:
+        return done.stdout.decode()
+    except UnicodeDecodeError:
+        raise SystemExit("the QR vault does not hold text")
+
+
+def qr_items(plain: str) -> list[tuple[str, str]]:
+    """The keys of the QR TOML in order, with their values as text."""
+    import tomllib
+    try:
+        table = tomllib.loads(plain)
+    except tomllib.TOMLDecodeError as e:
+        raise SystemExit(f"the QR vault does not hold TOML: {e}")
+    for key, value in table.items():
+        if key not in QR_KEYS or not isinstance(value, str):
+            raise SystemExit(f"the QR vault holds a key it should not: {key}")
+    return list(table.items())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("vault")
     parser.add_argument("--passphrase")
-    parser.add_argument("--field", help="KIND.FIELD to write, as gpg.key")
+    parser.add_argument("--field", help="a file vault's KIND.FIELD to write, as gpg.key; a QR vault's KEY, as note")
     parser.add_argument("--index", type=int, help="which item of that kind, from 1")
     parser.add_argument("--out", help="the new file --field writes")
     args = parser.parse_args()
@@ -165,7 +248,11 @@ def main() -> None:
         raise SystemExit("--field and --out go together, and --index goes with them")
     if args.field is not None and args.passphrase is not None:
         raise SystemExit("--passphrase is refused with --field: an argument stays in the shell's history; type it at the prompt")
-    read_file(args.vault)
+    qr = is_qr(args.vault)
+    if qr and args.index is not None:
+        raise SystemExit("--index is for file vaults: a QR vault holds one item")
+    if not qr:
+        read_file(args.vault)
     if args.passphrase is not None:
         passphrase = args.passphrase
     elif sys.stdin.isatty():
@@ -176,8 +263,19 @@ def main() -> None:
     nfc = unicodedata.normalize("NFC", passphrase)
     if not nfc:
         raise SystemExit("an empty passphrase opens nothing")
+    if qr:
+        pairs = qr_items(decrypt_qr(args.vault, nfc))
+        if args.field is not None:
+            values = [v for k, v in pairs if k == args.field]
+            if not values:
+                raise SystemExit(f"the QR vault has no {args.field}")
+            return write_value(values[0].encode(), args.out)
+        print("QR vault" if pairs else "QR vault: empty")
+        for key, value in pairs:
+            print(f"  {key}: {value}")
+        return
     try:
-        kp = PyKeePass(args.vault, password=nfc)
+        kp = pykeepass()(args.vault, password=nfc)
     except Exception as e:
         name = type(e).__name__
         if name == "CredentialsError":

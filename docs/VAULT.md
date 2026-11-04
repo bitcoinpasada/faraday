@@ -1,8 +1,8 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock, its code and its vectors), the KeePass export folded into the vault (§8), the reader's QR half and the vectors of the QR vault, the file KeePassXC saved after an edit, and the outside cross-check area for the QR vault (§10)
+**Status:** Specified (F190, amending F189); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
+**Open:** not built: a seal that takes a new passphrase, memory step or size (§8's Change passphrase, Memory and Size), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), the KeePass export folded into the vault (§8), the file KeePassXC saved after an edit, and the outside cross-check area for the QR vault (§10)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -891,8 +891,15 @@ item as §7 names it; with `--field KIND.FIELD --out FILE` (`--index N`
 choosing among several) it prints nothing of the vault and writes that
 one value to a new file created with mode 0600, refusing a file that
 exists; that is how a secret value (a GPG key's armored secret key,
-`gpg.key`) reaches another tool without Faraday. Its QR half, reading
-`sq decrypt`'s output, is not built.
+`gpg.key`) reaches another tool without Faraday. Given a QR vault it runs
+`sq decrypt` (Sequoia, on PATH; the passphrase goes to it through a pipe,
+never as an argument or in a file) and prints the item as §2.1 names it, the
+TOML keys without their padding; `--field KEY --out FILE` writes one key's
+value the same way. For a QR vault `open.py` is a recovery reader: it parses
+no OpenPGP and reads whatever `sq` opens under the passphrase and whose text
+is the QR TOML. Refusing the messages §1.2's packets and §2.1's rules
+exclude is Faraday's Rust (`faraday_vault::qr::open`), tested on the refused
+vectors in `tests/qr.rs`; `open.py` and `sq` do not claim it.
 
 The vectors in `tools/vectors/vault/` are the file vaults and refused
 files `tools/vectors/vault/README.md` lists, written by
@@ -906,8 +913,17 @@ pykeepass read them. Files of other programs are under
 `tools/vectors/kdbx/` (pykeepass's, with the ciphers and KDFs Faraday
 refuses or reads, and one of KeePassXC's KDBX 3.1).
 
-Planned and not built (**Open**): the QR vault's vectors (one of each
-item kind and an empty one, one made with "café" in NFD), a file
+The QR vault's vectors, `tools/vectors/vault/qr/` (`README.md` there),
+are Faraday's own, not an outside check: one vault of each item kind (a
+12-word and a 24-word seed, a codex32 share, a passphrase, a note), an
+empty one, one made with "café" in NFD that opens under its NFC form, and
+four refused messages (a SKESK v4 with a SEIPD v1, a second SKESK, a
+compressed packet, data after the SEIPD), written byte for byte by
+`faraday/faraday-vault/examples/qr_vectors.rs`; Faraday's Rust
+(`tests/qr.rs`) reads them and refuses the four, and `open.py` with Sequoia
+opens the seven vaults.
+
+Planned and not built (**Open**): a file
 KeePassXC saved after an edit (AES-256, Argon2d, gzip, history and an
 attachment, opening at §7.1's dialog), and the cross-check area `vault`
 (F79) taken to the formats: Faraday's KDBX against pykeepass,

@@ -63,7 +63,7 @@ nothing else.
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
 - **GnuPG 2.4, paperkey 1.6, Sequoia's `sq` 1.3 built over Nettle, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
   `certtool`, pesign** (`pesign`, `pesigcheck`) and **python3-pefile**: the
-  GPG and Secure Boot tests run these tools against Faraday's files. A
+  GPG, Secure Boot and QR vault tests run these tools against Faraday's files. A
   missing GnuPG, paperkey, `sq`, OpenSSL or sbverify fails them, and so does
   an `sq` whose `sq version` does not say "cryptographic backend Nettle"; a missing
   `certtool`, pesign or pefile skips its test with a note in `just` and
