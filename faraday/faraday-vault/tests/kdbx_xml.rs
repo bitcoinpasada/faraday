@@ -802,6 +802,28 @@ fn a_protected_field_after_the_recycle_bin_keeps_the_stream_in_step() {
     assert_eq!(String::from_utf8_lossy(&doc.write(KEY)), text);
 }
 
+#[test]
+fn markup_in_a_group_uuid_before_the_bins_uuid_leaves_the_bin_a_bin() {
+    let mut doc = Document::new([1; 16], "V");
+    let mut bin = Group::new([4; 16], "Recycle Bin");
+    bin.push_entry(entry_of(2, &[("Title", "Gone", false)]))
+        .unwrap();
+    doc.root_mut().push_group(bin).unwrap();
+    let mut text = written(&doc);
+    let meta = "<RecycleBinUUID>BAQEBAQEBAQEBAQEBAQEBA==</RecycleBinUUID><RecycleBinEnabled>True</RecycleBinEnabled>";
+    const NONE: &str = "<RecycleBinUUID>AAAAAAAAAAAAAAAAAAAAAA==</RecycleBinUUID>";
+    text = text.replace(NONE, meta);
+    let own = "<UUID>BAQEBAQEBAQEBAQEBAQEBA==</UUID>";
+    assert!(text.contains(own));
+    let text = text.replace(
+        own,
+        "<UUID>AAAAAAAAAAAAAAAAAAAAAA==</UUID><UUID><x/></UUID><UUID>BAQEBAQEBAQEBAQEBAQEBA==</UUID>",
+    );
+    let doc = Document::read(text.as_bytes(), KEY).unwrap();
+    assert_eq!(doc.recycle_bin_entries(), 1);
+    assert_eq!(doc.root().groups().count(), 0);
+}
+
 /// A protected Base64 text for a plaintext of one byte, at the start of the
 /// stream under KEY.
 fn one_byte(plain: &str) -> String {

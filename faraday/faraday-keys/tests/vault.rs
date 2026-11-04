@@ -1621,12 +1621,12 @@ fn a_new_passphrase_and_step_are_sealed_and_a_failed_seal_keeps_them() {
         "an empty one is refused"
     );
     assert!(
-        !store.set_step(id, 100_000),
+        store.set_step(id, 100_000).is_none(),
         "a step not offered is refused"
     );
     assert_eq!(store.version(id), v0);
     assert!(store.set_passphrase(id, SecretText::of("new")));
-    assert!(store.set_step(id, STEPS_KIB[1]));
+    assert_eq!(store.set_step(id, STEPS_KIB[1]), Some(true));
     assert!(store.rekeyed(id));
     assert!(store.version(id) > v0, "it counts as a change");
     assert_eq!(
@@ -1655,6 +1655,24 @@ fn a_vault_being_sealed_refuses_a_new_passphrase_and_step() {
         .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
         .expect("a job");
     assert!(!store.set_passphrase(id, SecretText::of("new")));
-    assert!(!store.set_step(id, STEPS_KIB[1]));
+    assert_eq!(store.set_step(id, STEPS_KIB[1]), None);
     assert!(!store.rekeyed(id));
+}
+
+#[test]
+fn a_key_record_gets_no_keepass_export() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, made(&c, "first"), "first").expect("opens");
+    let at = first(&store, id, kind::KEY);
+    let job = store.kdbx_job(
+        (id, at),
+        "Seed",
+        ([1; 16], "Export", None),
+        SecretText::of("export"),
+        COST,
+        zeroize::Zeroizing::new([3u8; SEAL_RANDOM_LEN]),
+        [5; 32],
+    );
+    assert!(job.is_none(), "a key stays in the vault");
 }

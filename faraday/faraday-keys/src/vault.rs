@@ -1557,23 +1557,28 @@ impl OpenVaults {
 
     /// Takes `memory_kib` as the memory step the next seal of open vault
     /// `id` writes, up or down (passes stay the file's or 3, over 4
-    /// lanes). The caller records the change, as the store's calls do not move
-    /// the open vault's change count a lock decides from. Refused for a step that is not one of
-    /// [`fv::file::STEPS_KIB`], an unknown vault and a read-only or sealing
-    /// one.
-    pub fn set_step(&mut self, id: VaultId, memory_kib: u32) -> bool {
+    /// lanes). The step the file already has, with none pending, changes
+    /// nothing, and it takes back another one pending. `Some(true)` where
+    /// the pending step changed, which the caller records, as the store's
+    /// calls do not move the open vault's change count a lock decides from.
+    /// `None` for a step that is not one of [`fv::file::STEPS_KIB`], an
+    /// unknown vault and a read-only or sealing one.
+    pub fn set_step(&mut self, id: VaultId, memory_kib: u32) -> Option<bool> {
         if !fv::file::STEPS_KIB.contains(&memory_kib) {
-            return false;
+            return None;
         }
-        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
-            return false;
-        };
+        let s = self.slots.iter_mut().find(|s| s.id == id)?;
         if s.locked() {
-            return false;
+            return None;
         }
-        s.new_step = Some(memory_kib);
+        let have = s.opened.next_cost_at(None).memory_kib == memory_kib;
+        let new_step = (!have).then_some(memory_kib);
+        if s.new_step == new_step {
+            return Some(false);
+        }
+        s.new_step = new_step;
         s.changed();
-        true
+        Some(true)
     }
 
     /// A lookup. The cost the next seal of open vault `id` writes: its
@@ -2382,12 +2387,13 @@ impl OpenVaults {
 
     /// A vault holding one item to write on another thread, for a KeePass
     /// app (`docs/VAULT.md` §8): record `at` as it is kept, a person's
-    /// entry in the root group or an item in its kind's group, in a new
+    /// entry in the root group, in a new
     /// vault `id` named `label`, under `passphrase`, moved in, at `cost`,
     /// with `random` for the seal and `uuids` for the entry and its group.
     /// A line of the notes that is a BIP-85 path is left out, so a password
     /// BIP-85 made goes without its index (F172), and the title is `title`.
-    /// `None` where the record is no entry or item.
+    /// `None` where the record is no entry: a key, a seed or any other kind
+    /// stays in the vault (F70).
     #[expect(
         clippy::too_many_arguments,
         reason = "each is a value the new file states; the caller draws them all"
@@ -2404,16 +2410,17 @@ impl OpenVaults {
     ) -> Option<crate::job::KdbxJob> {
         let (vid, i) = at;
         let r = self.slot(vid)?.records.get(i)?;
+        if r.kind != kind::ENTRY {
+            return None;
+        }
         let mut record = r.clone();
-        if record.kind == kind::ENTRY {
-            record.set(field::TITLE, title.as_bytes());
-            if let Some(n) = r.text(field::NOTES) {
-                let kept: String = n
-                    .split_inclusive('\n')
-                    .filter(|l| !l.trim_start().starts_with(BIP85_PATH))
-                    .collect();
-                record.set(field::NOTES, kept.as_bytes());
-            }
+        record.set(field::TITLE, title.as_bytes());
+        if let Some(n) = r.text(field::NOTES) {
+            let kept: String = n
+                .split_inclusive('\n')
+                .filter(|l| !l.trim_start().starts_with(BIP85_PATH))
+                .collect();
+            record.set(field::NOTES, kept.as_bytes());
         }
         body_of(&record)?;
         let mut u = [0u8; 16];

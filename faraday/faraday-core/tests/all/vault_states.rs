@@ -481,6 +481,35 @@ fn a_changed_memory_step_is_the_cost_the_sealed_file_states() {
 }
 
 #[test]
+fn pressing_the_memory_step_a_vault_has_changes_nothing_and_takes_a_pending_one_back() {
+    let mut app = open_vault();
+    let steps = faraday_vault::file::STEPS_KIB;
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let own = steps.iter().position(|&s| s >= have).unwrap();
+    let other = if own == 1 { 2 } else { 1 };
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(own)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.vaults().open[0].changes, 0, "nothing was changed");
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(other)));
+    assert!(app.vaults().open[0].changes > 0);
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(own)));
+    let sealed = lock_and_seal(&mut app);
+    let mut app = process(sealed);
+    try_unlock(&mut app, PHRASE);
+    assert_eq!(
+        app.vaults().open[0].facts().header.cost.memory_kib,
+        steps[own],
+        "the pending step was taken back"
+    );
+}
+
+#[test]
 fn a_read_only_vault_offers_neither_and_opens_neither() {
     let (name, file, _) = read_only_files().into_iter().next().unwrap();
     let mut app = process(vec![("ro.kdbx".into(), file)]);

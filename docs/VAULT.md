@@ -903,13 +903,17 @@ are buttons on a writable vault's page, each opening a dialog; a
 read-only vault offers neither. Change passphrase takes the new
 passphrase typed twice, refusing an empty one and two that differ, and
 does not ask for the old one: the vault is open. Memory lists the file's
-five steps (§3.1) with the next seal's marked and the most the weakest
-computer gives a vault, as Create does. Either counts as an unsaved
+five steps (§3.1) with the next seal's marked. It offers what this
+computer can unlock with (Unlock's test) and refuses another at the
+action; it does not weigh another machine, so a step higher than another
+machine has free cannot be unlocked there, though earlier copies keep
+their step. Either counts as an unsaved
 change, so a lock seals it, and a toast says it takes effect at the
 next seal, which runs Argon2id under the new passphrase and step. Copies
-of the vault sealed before keep their old passphrase and step. Memory
-offers only the steps this computer could unlock (Unlock's test), and
-refuses another at the action; neither button is offered, or taken,
+of the vault sealed before keep their old passphrase and step. Pressing
+the step the vault already has, with none pending, changes nothing, and
+pressing it with another pending takes that one back. Neither button is
+offered, or taken,
 while an entry or anything else is being written. Escape and the mouse
 back close either dialog as Cancel does, dropping what was typed. An idle
 lock whose seal cannot allocate the new step seals again at the file's own,

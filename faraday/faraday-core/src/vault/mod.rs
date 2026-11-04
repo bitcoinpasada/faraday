@@ -3915,9 +3915,9 @@ impl Faraday {
             self.toast(&why);
             return;
         }
-        let ok = self.vaults.edit(id, |s| s.set_step(id, kib));
+        let moved = self.vaults.edit(id, |s| s.set_step(id, kib));
         self.vault_sheet_closed();
-        if ok {
+        if moved == Some(true) {
             self.vaults.changed(id);
             self.toast(EN.vault_memory_next_seal);
         }

@@ -691,8 +691,15 @@ impl<'a> Rd<'a> {
                                     "a group's UUID marked Protected beside a recycle bin",
                                 ));
                             }
+                            let at = (self.r.clone(), self.pos, self.depth);
                             if let Some(t) = self.text_or_markup()? {
                                 bin |= uuid_of(&t.text).is_ok_and(|u| self.bins.contains(&u));
+                            } else {
+                                // Markup in the UUID: it names nothing, and
+                                // is walked as any element, so its end does
+                                // not close the group.
+                                (self.r, self.pos, self.depth) = at;
+                                open.push(false);
                             }
                         }
                         continue;
