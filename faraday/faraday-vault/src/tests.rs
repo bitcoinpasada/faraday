@@ -175,3 +175,45 @@ fn a_child_seed_record_that_does_not_fit_its_key_is_refused() {
         .with(field::KEY_CHILD, &child::payload(&of).unwrap());
     assert!(seed.check().is_err());
 }
+
+/// The document a seal writes is read back before the file is made: an
+/// ordinary one passes, and a leading mark twice, a document cut short and
+/// one whose value would be written differently are each refused.
+#[test]
+fn a_seal_refuses_a_document_that_does_not_read_back_as_written() {
+    use crate::kdbx::Error as K;
+    use crate::kdbx::xml::Document;
+    const KEY: &[u8] = &[7; 64];
+    let xml = Document::new([1; 16], "Vault").write(KEY);
+    let refused = |bytes: &[u8]| {
+        matches!(
+            file::read_back(bytes, KEY),
+            Err(file::Error::Kdbx(K::ReadBack))
+        )
+    };
+
+    assert!(file::read_back(&xml, KEY).is_ok());
+
+    let twice = [b"\xEF\xBB\xBF\xEF\xBB\xBF".as_slice(), &xml].concat();
+    assert!(refused(&twice));
+
+    assert!(refused(&xml[..xml.len() / 2]));
+
+    // A protected value written under a stream other than the file's.
+    let mut secret = b"secret".to_vec();
+    crate::kdbx::InnerStream::new(&[8; 64]).apply(&mut secret);
+    let value = <base64ct::Base64 as base64ct::Encoding>::encode_string(&secret);
+    let text = core::str::from_utf8(&xml).unwrap();
+    let with = text.replacen(
+        "</Group>",
+        &alloc::format!(
+            "<Entry><UUID>AgICAgICAgICAgICAgICAg==</UUID><String><Key>Password</Key><Value Protected=\"True\">{value}</Value></String></Entry></Group>"
+        ),
+        1,
+    );
+    let written = Document::read(with.as_bytes(), &[8; 64])
+        .unwrap()
+        .write(&[8; 64]);
+    assert!(file::read_back(&written, &[8; 64]).is_ok());
+    assert!(refused(&written));
+}

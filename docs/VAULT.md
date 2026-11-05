@@ -540,6 +540,21 @@ S2K and every data packet.
   drawn ending in `0x20` has that byte changed to `0x21`, so no seal rests
   on the key's padding rule. A lock that seals a vault waits for its
   Argon2id.
+- **The file is read back before it is given.** The document the seal
+  wrote is read again and written once more, and the bytes must be the
+  same, so a document that does not parse, or that the reader takes
+  otherwise than it was written (a protected value out of step with the
+  inner stream), is caught; a value the writer got wrong in a way that
+  still reads back the same is not. Then the file made is opened again with the keys it
+  was made under, which checks its header, every block's HMAC, the
+  decryption and the inner header, and the plaintext must be the one
+  written. A file that fails is not given: nothing goes to the Outbox,
+  the Lock sheet says the vault was not sealed, and the vault stays open
+  with its changes (an idle lock loses them, as for any seal that
+  cannot be written). It does not run Argon2id a second time, so a key
+  derived from the passphrase is not derived again: a wrong derivation
+  would not be seen here. It does not compare the file with what
+  another KeePass app reads.
 - **The seal count is one higher** (§7, `faraday.seals`), with the time
   by this computer's clock when it is known, written by the vault crate
   alone. The app keeps the highest count it has seen of each vault
@@ -969,7 +984,8 @@ any file of that name waiting (`password-2.kdbx`), never over it, and waits
 in the Outbox sealed. The entry's title is its own, "Password" for a BIP-85 password,
 and a notes line that is a BIP-85 path is left out. A KeePass app reads
 it as a database of one entry; Faraday opens it as any vault. As
-Create a vault does, the export does not read the file back. Exporting a
+Create a vault does, the export reads its container back under the keys
+it was made with, as a seal does, but not its document. Exporting a
 key's words, a master seed, a note or a recovery sheet this way is not
 built: the entry is the one item with an export. The export has no writer
 of its own: the one that wrote it before (`docs/history/KDBX-LOG.md`) is

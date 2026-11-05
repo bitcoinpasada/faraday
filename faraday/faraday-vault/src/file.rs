@@ -398,7 +398,8 @@ pub fn seal(
 }
 
 /// Costs an Argon2id run at [`Opened::next_cost_at`] the step of `rekey`,
-/// and a document write for each item changed. A new file from `opened`
+/// a document write for each item changed, and a read of the document
+/// and of the file made, written and read again. A new file from `opened`
 /// with `changes` applied to a copy of its document, `faraday.format`
 /// stamped 1, the seal count one higher and the time `now` (Unix seconds;
 /// none when the clock is not set). The file is sealed under `rekey`'s
@@ -409,7 +410,10 @@ pub fn seal(
 /// KeePass app's save that grew past it takes the smallest larger size.
 /// `opened` is not changed: a refusal leaves the vault open with its
 /// changes. A read-only vault is refused, an empty passphrase and a step
-/// outside [`STEPS_KIB`] too.
+/// outside [`STEPS_KIB`] too. The document written is read and written
+/// again, and the file made is opened again with the keys it was made
+/// under (no second Argon2id run): a file that would not read back is
+/// refused as [`kdbx::Error::ReadBack`].
 pub fn seal_with(
     c: &Compute,
     opened: &Opened,
@@ -426,6 +430,7 @@ pub fn seal_with(
     }
     let doc = applied(c, &opened.doc, &opened.read, changes, now)?;
     let xml = doc.write(kdbx::inner_key_of(random));
+    read_back(&xml, kdbx::inner_key_of(random))?;
     let needs = kdbx::plain_needs(&opened.binaries, xml.len());
     let size = opened.size_for(needs);
     let contents = Contents {
@@ -449,6 +454,23 @@ pub fn seal_with(
         kdbx::Error::Full(n) => full(n, size),
         e => e.into(),
     })
+}
+
+/// Costs a parse of the document and a write of it again, linear in its
+/// size (at most the vault's largest, 4 MiB). Reads the document `xml` a
+/// seal has written, under the inner key `inner_key`, and writes what it
+/// read: [`kdbx::Error::ReadBack`] unless it reads and the bytes written
+/// again are the bytes given, so a document that does not parse, or that
+/// the reader takes otherwise than it was written, is refused before the
+/// file is made. A value the writer got wrong in a way that reads back the
+/// same is not seen here.
+pub(crate) fn read_back(xml: &[u8], inner_key: &[u8]) -> Result<(), Error> {
+    let doc = Document::read(xml, inner_key).map_err(|_| kdbx::Error::ReadBack)?;
+    let again = doc.write(inner_key);
+    if again.as_slice() != xml {
+        return Err(kdbx::Error::ReadBack.into());
+    }
+    Ok(())
 }
 
 /// Costs an Argon2id run at `cost`. A new vault: the root group with the

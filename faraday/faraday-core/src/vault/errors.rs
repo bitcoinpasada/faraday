@@ -36,6 +36,7 @@ fn kdbx_text(k: &Kdbx) -> String {
         Kdbx::Damaged => EN.vault_error_damaged.to_string(),
         Kdbx::TooLarge => EN.vault_error_too_large.to_string(),
         Kdbx::Full(_) => EN.vault_error_full.to_string(),
+        Kdbx::ReadBack => EN.vault_error_read_back.to_string(),
     }
 }
 

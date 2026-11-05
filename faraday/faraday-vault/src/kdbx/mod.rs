@@ -139,6 +139,10 @@ pub enum Error {
     /// The contents do not fit the plaintext length asked for: the bytes
     /// they take.
     Full(usize),
+    /// A file just made would not read: the document written does not read
+    /// back as it was, or the container does not open under the keys it
+    /// was made with.
+    ReadBack,
 }
 
 /// A file opened.
@@ -252,7 +256,6 @@ pub fn passphrase_bytes(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
 pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error> {
     let nfc = passphrase_bytes(passphrase)?;
     let parsed = checked_header(bytes)?;
-    let header_end = parsed.len;
     let keys = keys::file_keys(
         c,
         &nfc,
@@ -261,6 +264,25 @@ pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error
         &parsed.header.cost,
         &parsed.salt,
     )?;
+    let body = decrypted(bytes, &parsed, &keys)?;
+    let (document, inner) = read_body(body, parsed.header.compression)?;
+    Ok(Opened {
+        header: parsed.header,
+        document,
+        inner_key: inner.key,
+        binaries: inner.binaries,
+    })
+}
+
+/// The body of `bytes`, whose header `parsed` is, under the keys `keys`
+/// (derived from the passphrase): the header's HMAC, every block's HMAC
+/// and the decryption checked, and the padding taken off.
+fn decrypted(
+    bytes: &[u8],
+    parsed: &header::Parsed,
+    keys: &keys::Keys,
+) -> Result<Zeroizing<Vec<u8>>, Error> {
+    let header_end = parsed.len;
     let header_key = keys::block_key(&keys.hmac_base, keys::HEADER_BLOCK);
     if !keys::hmac_ok(
         &header_key,
@@ -287,13 +309,7 @@ pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error
             body.truncate(plain);
         }
     }
-    let (document, inner) = read_body(body, parsed.header.compression)?;
-    Ok(Opened {
-        header: parsed.header,
-        document,
-        inner_key: inner.key,
-        binaries: inner.binaries,
-    })
+    Ok(body)
 }
 
 /// A decrypted, unpadded body read: inflated when it is gzip, its inner
@@ -360,8 +376,9 @@ fn strip_padding(body: &[u8]) -> Result<usize, Error> {
     Ok(start)
 }
 
-/// Costs an Argon2id run at `cost`. Writes a file as Faraday writes one:
-/// 4.0, ChaCha20, Argon2id, no compression, the passphrase (put in NFC
+/// Costs an Argon2id run at `cost`, and a read of the file made without
+/// one (its HMACs, its decryption and its inner header). Writes a file as
+/// Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, the passphrase (put in NFC
 /// here) alone, 1 MiB blocks, and a plaintext of exactly `plain_len`
 /// bytes: the inner header, the document and line feeds after it. Every
 /// random value comes from `random`.
@@ -392,6 +409,7 @@ pub fn seal(
     inner::write(inner_key_of(random), contents.binaries, &mut plain);
     plain.extend_from_slice(contents.document);
     plain.resize(plain_len, b'\n');
+    let written = Sha256::digest(&plain);
 
     let (master_seed, rest) = random.split_at(32);
     let (iv, rest) = rest.split_at(12);
@@ -413,7 +431,25 @@ pub fn seal(
         &[&head],
     ));
     blocks::write(&plain, &keys.hmac_base, &mut out);
+    read_back(&out, &keys, &written)?;
     Ok(out)
+}
+
+/// Costs a hash of the file, its blocks' HMACs, one decryption and one
+/// inner header read, no Argon2id: opens the file `out` just made with the
+/// keys it was made under, and requires the plaintext to hash to `written`.
+/// [`Error::ReadBack`] when the header, a block, the cipher or the inner
+/// header does not read, or the plaintext is not the one written.
+fn read_back(out: &[u8], keys: &keys::Keys, written: &[u8]) -> Result<(), Error> {
+    let read = || -> Result<(), Error> {
+        let parsed = checked_header(out)?;
+        let body = decrypted(out, &parsed, keys)?;
+        if Sha256::digest(&body).as_slice() != written {
+            return Err(Error::Damaged);
+        }
+        read_body(body, parsed.header.compression).map(|_| ())
+    };
+    read().map_err(|_| Error::ReadBack)
 }
 
 #[cfg(test)]

@@ -204,8 +204,9 @@ impl SealJob {
     }
 
     /// Costs an Argon2id run at the vault's next cost, a document write for
-    /// each entry changed and a PBKDF2 for each new key with no label (the
-    /// same calls as `faraday_vault::file::seal_with`).
+    /// each entry changed, a PBKDF2 for each new key with no label and a
+    /// read back of the document and of the file made (the same calls as
+    /// `faraday_vault::file::seal_with`).
     pub fn run(self, c: &Compute) -> Sealed {
         let out = match &self.ops {
             Ok(ops) => with_changes(c, &self.names, ops, true, self.now, |changes| {
