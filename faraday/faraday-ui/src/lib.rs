@@ -1201,7 +1201,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let mark = wordmark_outlines();
         let s = cap / WORDMARK_CAP;
         let k = s * self.f;
-        let (ox, oy) = ((x + self.ox) * self.f, (y + self.oy) * self.f);
+        let (ox, oy) = (
+            (x + self.ox) * self.f,
+            (y + self.oy) * self.f + self.oy_px as f32,
+        );
         let place = |os: &[Vec<(f32, f32)>], dx: f32| -> Vec<Vec<(f32, f32)>> {
             os.iter()
                 .map(|o| {
@@ -1272,7 +1275,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             .flatten()
             .map(|p| p.0)
             .fold(f32::MAX, f32::min);
-        let (ox, oy) = ((x + self.ox) * self.f, (wy + self.oy) * self.f);
+        let (ox, oy) = (
+            (x + self.ox) * self.f,
+            (wy + self.oy) * self.f + self.oy_px as f32,
+        );
         let outlines = || {
             word.outlines
                 .iter()
