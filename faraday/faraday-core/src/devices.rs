@@ -427,13 +427,6 @@ impl DeviceCheck {
         self.asking = false;
     }
 
-    /// Another sheet replaced this one: the press that waited is dropped,
-    /// so no later hold carries it on. What waits under a new device's
-    /// sheet or the import stays.
-    pub(crate) fn drop_press(&mut self) {
-        self.after = None;
-    }
-
     /// A virtual machine is among the items: no Continue anyway.
     pub fn refuses(&self) -> bool {
         self.held.iter().any(|c| c.kind == Kind::VirtualMachine)
@@ -531,6 +524,14 @@ impl Faraday {
                 V::ShowSeedQr => self.vaults.seedqr_shown(on_page).is_none(),
                 _ => false,
             }
+    }
+
+    /// The Lock sheet comes up over whatever is open: the press that waited
+    /// under the device sheet goes, so no later hold carries it on. What
+    /// waits under a new device's sheet or the import stays.
+    pub(crate) fn lock_sheet_replaces_devices(&mut self) {
+        self.devices.after = None;
+        self.sheet = Some(Sheet::Lock);
     }
 
     /// `action` was held: the sheet comes up, and it is done once the
