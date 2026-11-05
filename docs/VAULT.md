@@ -917,7 +917,8 @@ offered, or taken,
 while an entry or anything else is being written. Escape and the mouse
 back close either dialog as Cancel does, dropping what was typed. An idle
 lock whose seal cannot allocate the new step seals again at the file's own,
-so its changes are kept.
+so its changes are kept, and the Locked sheet says the vault was sealed at
+its earlier memory setting.
 
 A vault opened with a YubiKey's secret offers **Remove YubiKey secret** on its
 ⋮, taking effect at the next seal (F208).

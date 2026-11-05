@@ -461,6 +461,22 @@ impl VaultArea {
         self.state.unsaved = false;
     }
 
+    /// Whether an idle lock sealed a vault at its earlier memory step.
+    pub(crate) fn step_dropped(&self) -> bool {
+        self.state.step_dropped
+    }
+
+    /// An idle lock dropped a vault's new memory step (or the next process
+    /// is told so).
+    pub(crate) fn set_step_dropped(&mut self) {
+        self.state.step_dropped = true;
+    }
+
+    /// A lock begins with no step dropped yet.
+    pub(crate) fn clear_step_dropped(&mut self) {
+        self.state.step_dropped = false;
+    }
+
     /// Takes the hold, if any.
     pub(crate) fn older_take(&mut self) -> Option<OpenHold> {
         self.state.older.take().map(|h| *h)

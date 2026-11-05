@@ -1529,6 +1529,9 @@ pub struct Vaults {
     /// An idle lock let a vault go with changes that could not be sealed:
     /// the Locked sheet says so.
     pub(crate) unsaved: bool,
+    /// An idle lock could not allocate a chosen new memory step and sealed
+    /// a vault at the file's own: the Locked sheet says so.
+    pub(crate) step_dropped: bool,
     /// Records waiting at the dialog that a vault already holds a related
     /// passphrase or share ([`super::related::SaveHold`]).
     pub save_hold: Option<Box<super::related::SaveHold>>,

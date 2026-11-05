@@ -1829,6 +1829,13 @@ pub fn backup_drop(app: &mut crate::Faraday) {
     app.backup.close();
 }
 
+/// The next seal of a vault with a new memory step pending fails as if
+/// this computer could not allocate the step; a retry at the file's own
+/// step is not touched.
+pub fn fail_next_step_seal() {
+    crate::vault::fail_next_step_seal();
+}
+
 /// How long one Argon2id pass over 64 MiB takes here, ms, set as if
 /// measured: the costs and waits shown are worked out from it.
 pub fn vault_speed(app: &mut crate::Faraday, ms: Option<u64>) {

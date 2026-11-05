@@ -1690,8 +1690,14 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         &mut |ui, x, y, iw| {
             let mut cy = y;
             cy += ui.wrap_as((x, cy, iw), BODY_M, muted, EN.locked_locked_after) + 12.0;
-            if app.vaults().unsaved {
-                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Warning, EN.locked_changes_lost) + 12.0;
+            let lines = [
+                (app.vaults().unsaved, EN.locked_changes_lost),
+                (app.vaults().step_dropped, EN.locked_step_dropped),
+            ];
+            for (shown, text) in lines {
+                if shown {
+                    cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Warning, text) + 12.0;
+                }
             }
             if let Some(off) = app.idle_off_at() {
                 let line = fill(

@@ -288,7 +288,8 @@ impl Faraday {
     }
 
     /// What a lock for idleness tells the next process: the idle time, and
-    /// whether a vault's changes were lost to the lock.
+    /// whether a vault's changes were lost to the lock or its new memory step
+    /// dropped.
     fn idle_kept(&self) -> Vec<(String, Vec<u8>)> {
         let Some(ms) = self.idle_locked_after() else {
             return Vec::new();
@@ -296,6 +297,9 @@ impl Faraday {
         let mut out = vec![("idle".to_string(), ms.to_string().into_bytes())];
         if self.vaults.changes_lost() {
             out.push(("idle-unsaved".to_string(), b"1".to_vec()));
+        }
+        if self.vaults.step_dropped() {
+            out.push(("idle-step-dropped".to_string(), b"1".to_vec()));
         }
         out
     }
@@ -526,6 +530,7 @@ impl Faraday {
                     }
                 }
                 "idle-unsaved" => self.vaults.set_changes_lost(),
+                "idle-step-dropped" => self.vaults.set_step_dropped(),
                 "idle" => {
                     if let Ok(ms) = String::from_utf8_lossy(bytes).parse() {
                         self.idle_locked(ms);

@@ -388,6 +388,79 @@ fn an_idle_lock_of_a_vault_that_seals_says_nothing_of_lost_changes() {
     assert!(!texts.contains(EN.locked_changes_lost), "{texts}");
 }
 
+/// An idle lock of a vault with an entry added and a new memory step
+/// chosen, the seal of the new step failing when `fail`. Returns the
+/// process that locked and the memory step the vault was opened with.
+fn idle_locked_with_step(fail: bool) -> (Faraday, u32) {
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let file = testkit::kdbx_vault("Step", PHRASE, 0x22, Vec::new()).unwrap();
+    let mut app = process(vec![("step.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    let id = app.vaults().open[0].id;
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let steps = faraday_vault::file::STEPS_KIB;
+    let pick = if have == steps[1] { 2 } else { 1 };
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(pick)));
+    let rec = Record::new(kind::ENTRY).with(field::TITLE, b"kept");
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut app, id);
+    crate::common::top_up(&mut app);
+    if fail {
+        testkit::fail_next_step_seal();
+    }
+    app.event(Event::Tick { now_ms: 100_000 });
+    app.event(Event::Tick {
+        now_ms: 100_000 + 30 * MIN,
+    });
+    testkit::settle(&mut app);
+    (app, have)
+}
+
+#[test]
+fn an_idle_lock_that_cannot_allocate_a_new_memory_step_seals_at_the_old_one_and_says_so() {
+    let (mut app, have) = idle_locked_with_step(true);
+    assert!(app.restart_requested(), "the idle lock restarts");
+    assert!(app.vaults().open.is_empty());
+    let (outbox, texts) = locked_page(&mut app);
+    assert_eq!(outbox.len(), 1, "the retried seal reached the Outbox");
+    assert!(texts.contains(EN.locked_step_dropped), "{texts}");
+    assert!(!texts.contains(EN.locked_changes_lost), "{texts}");
+
+    let mut next = process(outbox);
+    try_unlock(&mut next, PHRASE);
+    assert_eq!(
+        next.vaults().open.len(),
+        1,
+        "the passphrase did not open it"
+    );
+    let steps = faraday_vault::file::STEPS_KIB;
+    let own = steps[steps.iter().position(|&s| s >= have).unwrap()];
+    assert_eq!(next.vaults().open[0].facts().header.cost.memory_kib, own);
+    let id = next.vaults().open[0].id;
+    let held = next
+        .vaults()
+        .records(id)
+        .of(faraday_vault::records::kind::ENTRY)
+        .count();
+    assert_eq!(held, 1, "the change was not kept");
+}
+
+#[test]
+fn an_idle_lock_that_seals_the_new_memory_step_says_nothing_of_a_dropped_one() {
+    let (mut app, have) = idle_locked_with_step(false);
+    let (outbox, texts) = locked_page(&mut app);
+    assert_eq!(outbox.len(), 1);
+    assert!(!texts.contains(EN.locked_step_dropped), "{texts}");
+    let mut next = process(outbox);
+    try_unlock(&mut next, PHRASE);
+    let steps = faraday_vault::file::STEPS_KIB;
+    let own = steps[steps.iter().position(|&s| s >= have).unwrap()];
+    assert_ne!(next.vaults().open[0].facts().header.cost.memory_kib, own);
+}
+
 /// An open writable vault under `PHRASE`.
 fn open_vault() -> Faraday {
     let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();

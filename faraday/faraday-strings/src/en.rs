@@ -7573,6 +7573,8 @@ strings! {
     locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
     /// Line in `locked_sheet`, after a vault's changes were lost.
     locked_changes_lost: "Changes to a vault were not saved. They did not fit in the vault, or the vault could not be written.",
+    /// Line in `locked_sheet`, after a vault was sealed without its new memory step.
+    locked_step_dropped: "A vault was sealed at its earlier memory setting. This computer did not have the memory for the new one.",
     /// Text in `locked_sheet`. `{}`: `clock_text(off.saturating_sub(app.idl…`.
     locked_power_off_countdown: "Powers off in {} without input",
     /// Text in `locked_sheet`. `{}`: `app.outbox.len()`, `app.medium.for_the()`.

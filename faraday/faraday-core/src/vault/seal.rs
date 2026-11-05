@@ -91,6 +91,7 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
     // This lock has lost nothing yet: an earlier process's warning is not
     // repeated by a lock that loses none.
     app.vaults.clear_changes_lost();
+    app.vaults.clear_step_dropped();
     // What each open vault holds, remembered across the lock.
     app.vault_summaries_refresh();
     // A held key's record says so before the vault goes
@@ -376,6 +377,20 @@ fn seal_end(app: &mut Faraday) {
     }
 }
 
+/// A test's wish that the next seal of a vault with a new memory step
+/// pending fails as if the step could not be allocated.
+#[cfg(feature = "testkit")]
+static FAIL_STEP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+#[cfg(feature = "testkit")]
+use std::sync::atomic::Ordering;
+
+/// Makes the next seal of a vault with a new memory step pending fail as
+/// if this computer could not allocate it.
+#[cfg(feature = "testkit")]
+pub(crate) fn fail_next_step_seal() {
+    FAIL_STEP.store(true, Ordering::SeqCst);
+}
+
 /// The back half: the file to the Outbox, and the next vault.
 pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     let SealDone { sealed, id, name } = done;
@@ -391,7 +406,14 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             return;
         }
     };
-    match sealed.into_file() {
+    let result = sealed.into_file();
+    #[cfg(feature = "testkit")]
+    let result = if app.vaults.store().has_step(id) && FAIL_STEP.swap(false, Ordering::SeqCst) {
+        Err(faraday_vault::file::Error::Memory(1))
+    } else {
+        result
+    };
+    match result {
         Ok(bytes) => {
             app.put_outbox(&name, bytes.clone());
             if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
@@ -414,6 +436,7 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
         {
             app.vaults.state.store.seal_ended(id, false);
             app.vaults.state.store.clear_step(id);
+            app.vaults.set_step_dropped();
             if let Some(run) = app.vaults.state.sealing.as_mut() {
                 run.queue.push_front(id);
             }
