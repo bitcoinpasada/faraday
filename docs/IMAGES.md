@@ -200,7 +200,10 @@ probe that finds nothing removes what it loaded before the next starts.
    1024x768 (mainline abf493988e38). The third patch there is not about
    the EDID: vc4's framebuffer emulation is 32 bits a pixel in XBGR8888,
    red first in memory, with the colours the console reports to match
-   (`docs/FRAMES.md` §5).
+   (`docs/FRAMES.md` §5). The fourth stops vc4's output polling when the
+   driver unbinds: without it, the rebind below leaves the poll's timer
+   pending on the freed device, and a Pi on the 2.8-inch panics about
+   13 s after power-on.
 2. **The 2.8-inch's GT911**, on the bit-banged I²C its touch overlay
    declares on the GPIO header: the touch overlay is loaded whenever
    HDMI does not read connected. It declares the GT911 at either of its

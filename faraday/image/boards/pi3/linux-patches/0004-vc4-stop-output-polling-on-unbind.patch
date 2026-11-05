@@ -1,0 +1,33 @@
+drm/vc4: stop output polling when the driver unbinds
+
+Faraday's own change, not from mainline.
+
+vc4_kms_load calls drm_kms_helper_poll_init, which queues the output
+poll's delayed work 10 s ahead, and nothing in vc4 calls
+drm_kms_helper_poll_fini. Unbinding the driver frees the DRM device
+that holds that work while its timer is still pending. The timer then
+fires from freed memory and the kernel panics in a timer softirq with a
+bad PC.
+
+The Pi's boot unbinds and binds vc4 again to bring up a DPI panel, so a
+Pi with the 2.8-inch panel panicked about 13 s after power-on. HDMI's
+route does not unbind.
+
+--- a/drivers/gpu/drm/vc4/vc4_drv.c
++++ b/drivers/gpu/drm/vc4/vc4_drv.c
+@@ -34,6 +34,7 @@
+ #include <drm/drm_atomic_helper.h>
+ #include <drm/drm_drv.h>
+ #include <drm/drm_fb_helper.h>
++#include <drm/drm_probe_helper.h>
+ #include <drm/drm_vblank.h>
+ 
+ #include <soc/bcm2835/raspberrypi-firmware.h>
+@@ -428,6 +429,7 @@
+ {
+ 	struct drm_device *drm = dev_get_drvdata(dev);
+ 
++	drm_kms_helper_poll_fini(drm);
+ 	drm_dev_unplug(drm);
+ 	drm_atomic_helper_shutdown(drm);
+ }
