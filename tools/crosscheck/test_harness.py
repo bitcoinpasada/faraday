@@ -45,6 +45,104 @@ class TxJudges(unittest.TestCase):
             area_tx.agreed([("btclib", ("err", "x")), ("core", ("err", "y"))])
 
 
+class CompileBip379Rules(unittest.TestCase):
+    """python-bip380's `and_b` and `thresh` each differ from BIP 379's in a
+    rule, and the compile area's allowance admits those rules and nothing
+    else."""
+
+    KEYS = ("0337a81055b1531de97da188bd663ce16ad4abd4f96f94cee6f53af1a2ec357206",
+            "03500eed94442c618b1d839c8a0c387cbd0ff72e125ccfb7f45e7adebb3c90f49c",
+            "029dc690a96f1b5cbe46a9a0894a3a978a009c19cb7ea1193a82578e81c9baf6c6",
+            "02c59714a43affeddb6ce4ef7f154cc461c4aae39894080767bb0ceab0ae1d3aa6",
+            "02103900c53b39753a17ec37193da877dc0ca635db4ef6a12744bb38362a120fe2")
+
+    def thresh(self, second):
+        a, b, c, d, e = self.KEYS
+        first = f"jc:and_v(v:pk({a}),or_i(pk_h({b}),pk_k({c})))"
+        return f"thresh(1,{first},{second.format(d=d, e=e)})"
+
+    def test_both_sides_signed_is_the_difference(self):
+        import area_compile as ac
+        text = self.thresh("a:and_b(pk({d}),s:pk({e}))")
+        self.assertFalse(ac.bip380_sane(ac.fr.Node.from_str(text, False)))
+        self.assertTrue(ac.sane_under_bip379_rules(text, False))
+
+    def test_a_side_with_no_signature_stays_malleable(self):
+        import area_compile as ac
+        text = self.thresh("a:and_b(pk({d}),adv:older(1))")
+        self.assertFalse(ac.bip380_sane(ac.fr.Node.from_str(text, False)))
+        self.assertFalse(ac.sane_under_bip379_rules(text, False))
+
+    def test_or_c_over_a_signed_thresh_is_the_difference(self):
+        import area_compile as ac
+        a, b, c, d, _ = self.KEYS
+        text = (f"t:or_c(thresh(1,or_i(tv:pkh({a}),pk({b})),"
+                f"snj:and_v(v:pk({c}),after(1))),v:pkh({d}))")
+        self.assertFalse(ac.bip380_sane(ac.fr.Node.from_str(text, False)))
+        self.assertTrue(ac.sane_under_bip379_rules(text, False))
+
+    def test_a_thresh_spent_with_no_signature_stays_not_sane(self):
+        import area_compile as ac
+        text = self.thresh("andv:older(1)")
+        self.assertFalse(ac.bip380_sane(ac.fr.Node.from_str(text, False)))
+        self.assertFalse(ac.sane_under_bip379_rules(text, False))
+
+    def test_a_signed_part_behind_l_is_the_difference(self):
+        import area_compile as ac
+        a, b, c, d, _ = self.KEYS
+        text = (f"thresh(1,nl:and_v(vc:or_i(pk_h({a}),pk_h({b})),after(1)),"
+                f"a:and_b(pk({c}),s:pk({d})))")
+        self.assertFalse(ac.bip380_sane(ac.fr.Node.from_str(text, False)))
+        self.assertTrue(ac.sane_under_bip379_rules(text, False))
+
+    def thresh_inside_a_thresh(self, inner):
+        a, b, c, d, _ = self.KEYS
+        return f"thresh(2,{inner.format(a=a, b=b)},a:pkh({c}),a:pkh({d}))"
+
+    def test_a_thresh_of_one_inside_a_thresh_is_read_again(self):
+        import area_compile as ac
+        text = self.thresh_inside_a_thresh("thresh(1,pkh({a}),a:pkh({b}))")
+        with self.assertRaises(TypeError):
+            ac.fr.Node.from_str(text, False)
+        node = ac.read_miniscript(text, False)
+        self.assertTrue(ac.read_again(node))
+        self.assertTrue(ac.bip380_sane(node))
+        names = {bytes.fromhex(key): i for i, key in enumerate(self.KEYS)}
+        self.assertEqual(ac.lift(node, names)[:2], ("atleast", 2))
+
+    def test_a_miniscript_read_the_first_time_is_not_counted(self):
+        import area_compile as ac
+        text = self.thresh_inside_a_thresh("pkh({a})")
+        self.assertFalse(ac.read_again(ac.read_miniscript(text, False)))
+
+    def test_a_thresh_of_one_keeps_the_locks_of_its_parts(self):
+        import area_compile as ac
+        text = self.thresh_inside_a_thresh("thresh(1,pkh({a}),andv:older(144))")
+        node = ac.read_miniscript(text, False)
+        self.assertTrue(node.subs[0].rel_heightlocks)
+        self.assertFalse(node.subs[0].abs_heightlocks)
+        self.assertTrue(node.rel_heightlocks)
+
+    def test_an_error_with_another_cause_still_raises(self):
+        import area_compile as ac
+        with self.assertRaises(Exception):
+            ac.read_miniscript("thresh(1,pkh(zz))", False)
+
+    def test_only_the_opcodes_are_respelled(self):
+        import area_compile as ac
+        from bip380.utils.script import CScript
+        key = "9c69" * 16
+        script = CScript(bytes.fromhex("20" + key + "9c69" + "ac"))
+        self.assertEqual(ac.numequalverify_spelled(script).hex(), "20" + key + "9d" + "ac")
+
+    def test_the_rules_are_put_back(self):
+        import area_compile as ac
+        theirs = ac.fr.AndB, ac.fr.Thresh, ac.fr.Just0
+        ac.sane_under_bip379_rules(self.thresh("a:and_b(pk({d}),s:pk({e}))"), False)
+        ac.read_miniscript(self.thresh_inside_a_thresh("thresh(1,pkh({a}),a:pkh({b}))"), False)
+        self.assertEqual((ac.fr.AndB, ac.fr.Thresh, ac.fr.Just0), theirs)
+
+
 class Corpus(area_tx.Tx):
     """The tx area's transaction writer, without a Rust process."""
 

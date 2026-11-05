@@ -38,9 +38,13 @@ each is judged by something Faraday did not write:
 What is ours: the lift of a miniscript to a formula (`lift`), written
 here from the meaning of each fragment in the miniscript specification and
 applied to python-bip380's parse; rust-miniscript's own `lift` is not
-used. And the rules by which a policy is refused (a threshold of 0 or
+used. The rules by which a policy is refused (a threshold of 0 or
 above its parts, a lock of 0, a key twice, nothing typed), which no
-outside compiler states.
+outside compiler states. And three of python-bip380's typing rules
+written out as BIP 379 has them (`and_b`, `thresh` and `0`, below), asked
+only where python-bip380 calls a miniscript not sane, and a `thresh` of 1's
+lock fields, asked only where python-bip380 cannot read a miniscript without
+them; Core and btclib judge every such miniscript on their own.
 """
 
 import hashlib
@@ -60,8 +64,11 @@ from test_framework.descriptors import descsum_create  # noqa: E402
 
 use_reference("miniscript")
 from bip380.miniscript import fragments as fr  # noqa: E402
+from bip380.utils.script import OP_NUMEQUAL, OP_VERIFY  # noqa: E402
 
 MAX_KEYS = 6
+# Script's own number for it: python-bip380 has no name for this opcode.
+OP_NUMEQUALVERIFY = 0x9d
 CHAINS = "/<0;1>/*"
 CHECKSUM = re.compile(r"#[a-z0-9]{8}$")
 
@@ -212,7 +219,7 @@ def lift(node, names, wrong=False):
         # X and Y, or (X dissatisfied and) Z; X is `d` and `u`, so it can
         # be dissatisfied without anything else.
         return ("or", [("or" if wrong else "and", [sub(0), sub(1)]), sub(2)])
-    if kind == "Thresh":
+    if kind in ("Thresh", "ThreshWithLocks"):
         return ("atleast", node.k, [sub(i) for i in range(len(node.subs))])
     if kind in ("WrapA", "WrapS", "WrapC", "WrapD", "WrapV", "WrapJ", "WrapN"):
         # a: and s: move the stack, c: checks the signature, d: tests
@@ -220,6 +227,113 @@ def lift(node, names, wrong=False):
         # what satisfies the fragment.
         return sub(0)
     raise AssertionError(f"no lift for {kind}")
+
+
+# ----- python-bip380's sanity, and the three rules of it that are not BIP 379's --------
+
+def bip380_sane(node):
+    """python-bip380's word on a miniscript: a signature in every spend,
+    no malleability, no two timelocks of one kind in one spend."""
+    return node.needs_sig and node.is_nonmalleable and node.no_timelock_mix
+
+
+class AndBOfBip379(fr.AndB):
+    """`and_b` with BIP 379's `e=e_X e_Y s_X s_Y`. python-bip380 writes
+    `f_X s_X f_Y s_Y`, so it calls `and_b(pk(A),s:pk(B))` not expressive,
+    and a `thresh` holding it behind `a:` malleable, where BIP 379, Core
+    and btclib call it sane. All else stays python-bip380's."""
+
+    def __init__(self, sub_x, sub_y):
+        super().__init__(sub_x, sub_y)
+        self.is_expressive = all(sub.is_expressive and sub.needs_sig for sub in self.subs)
+
+
+class ThreshWithLocks(fr.Thresh):
+    """`thresh` of 1 with its lock fields, each set when a part has that
+    lock, as Core keeps them for any k. python-bip380 leaves them `None`, so
+    a `thresh` of 2 or more holding one raises a TypeError as it reads it.
+    All else stays python-bip380's."""
+
+    def __init__(self, k, subs):
+        super().__init__(k, subs)
+        if k == 1:
+            for field in ("abs_heightlocks", "rel_heightlocks", "abs_timelocks", "rel_timelocks"):
+                setattr(self, field, any(getattr(sub, field) for sub in subs))
+
+
+class ThreshOfBip379(ThreshWithLocks):
+    """`thresh` with BIP 379's rules over all its parts: `s` when at most
+    k-1 are not `s`, `e` when all are `s`, non-malleable when all are `e`
+    and `m` and at most k are not `s`. python-bip380's loop leaves out the
+    first part, so it never calls a `thresh` expressive and calls an
+    `or_c` or `or_d` over one malleable, where BIP 379, Core and btclib
+    call it sane. All else stays python-bip380's."""
+
+    def __init__(self, k, subs):
+        super().__init__(k, subs)
+        signed = sum(1 for sub in subs if sub.needs_sig)
+        every_e = all(sub.is_expressive for sub in subs)
+        self.needs_sig = signed >= len(subs) - k + 1
+        self.is_expressive = every_e and signed == len(subs)
+        self.is_nonmalleable = (every_e and all(sub.is_nonmalleable for sub in subs)
+                                and signed >= len(subs) - k)
+
+
+class Just0OfBip379(fr.Just0):
+    """`0` with BIP 379's `s`: nothing satisfies it, so no satisfaction goes
+    without a signature. python-bip380 has it not `s`, so `l:X` and `u:X`,
+    which are `or_i` with a 0, lose X's `s`."""
+
+    def __init__(self):
+        super().__init__()
+        self.needs_sig = True
+
+
+def read_miniscript(leaf, tap):
+    """python-bip380's parse of a miniscript. Only where it raises a
+    TypeError is it asked again with `ThreshWithLocks`, and any other cause
+    of the error raises again. Workers are processes and read one miniscript
+    at a time, so the swap is seen by this parse alone."""
+    try:
+        return fr.Node.from_str(leaf, tap)
+    except TypeError:
+        theirs = fr.Thresh
+        fr.Thresh = ThreshWithLocks
+        try:
+            return fr.Node.from_str(leaf, tap)
+        finally:
+            fr.Thresh = theirs
+
+
+def read_again(node):
+    """Whether `read_miniscript` needed `ThreshWithLocks` for this parse."""
+    return isinstance(node, ThreshWithLocks) or any(read_again(sub) for sub in node.subs)
+
+
+def sane_under_bip379_rules(leaf, tap):
+    """Whether python-bip380 calls a miniscript sane once those three rules
+    are BIP 379's. Every other reason it has to call one not sane still
+    stands, so this admits exactly those differences and no wider. Workers
+    are processes and read one miniscript at a time, so the swap is seen
+    by this parse alone."""
+    theirs = fr.AndB, fr.Thresh, fr.Just0
+    fr.AndB, fr.Thresh, fr.Just0 = AndBOfBip379, ThreshOfBip379, Just0OfBip379
+    try:
+        return bip380_sane(fr.Node.from_str(leaf, tap))
+    finally:
+        fr.AndB, fr.Thresh, fr.Just0 = theirs
+
+
+def numequalverify_spelled(script):
+    """A script of python-bip380's with each `OP_NUMEQUAL OP_VERIFY` as the
+    one `OP_NUMEQUALVERIFY` BIP 379 and Core write, read opcode by opcode so
+    that a key's bytes are left alone."""
+    ops = list(script.raw_iter())
+    out = bytearray(script)
+    for (op, _, at), (following, _, _) in reversed(list(zip(ops, ops[1:]))):
+        if op == OP_NUMEQUAL and following == OP_VERIFY:
+            out[at:at + 2] = bytes([OP_NUMEQUALVERIFY])
+    return bytes(out)
 
 
 def split_top(text):
@@ -250,7 +364,7 @@ def lift_descriptor(text, names, wrong=False):
     descriptor `wsh(miniscript)` or `tr(key[,tree])` written with raw
     keys and no checksum."""
     if text.startswith("wsh(") and text.endswith(")"):
-        node = fr.Node.from_str(text[4:-1], False)
+        node = read_miniscript(text[4:-1], False)
         return lift(node, names, wrong), [(text[4:-1], node)], False
     if text.startswith("tr(") and text.endswith(")"):
         parts = split_top(text[3:-1])
@@ -258,7 +372,7 @@ def lift_descriptor(text, names, wrong=False):
         nodes = []
         if len(parts) > 1:
             for leaf in tree_leaves(parts[1]):
-                nodes.append((leaf, fr.Node.from_str(leaf, True)))
+                nodes.append((leaf, read_miniscript(leaf, True)))
         branches = [internal] + [lift(n, names, wrong) for _, n in nodes]
         return ("or", branches), nodes, True
     raise AssertionError(f"neither a wsh nor a tr: {text}")
@@ -307,9 +421,22 @@ class Compile(Area):
             "A single key as a `tr()` policy: rust-miniscript's `compile_tr` takes the key "
             "as the internal key, is left with no leaf and refuses it (`Empty Miniscript "
             "compilation`); Faraday refuses it too, in its own words, and the area counts the refusal. "
-            "python-bip380 writes `v:multi_a` as `OP_NUMEQUAL OP_VERIFY` where BIP 379 and "
-            "Core write `OP_NUMEQUALVERIFY`, so a leaf with one is not compared to python-bip380's "
-            "script (counted); the output key, which commits to the leaf, is Core's and btclib's."
+            "python-bip380 writes a `v:` over a `multi_a`, at any depth, as `OP_NUMEQUAL OP_VERIFY` "
+            "where BIP 379 and Core write `OP_NUMEQUALVERIFY`, so such a leaf must equal btclib's "
+            "script but for that (counted); the output key, which commits to the leaf, is Core's "
+            "and btclib's. "
+            "python-bip380 types `and_b`'s `e` as `f_X s_X f_Y s_Y` where BIP 379 has "
+            "`e_X e_Y s_X s_Y`, so it calls `thresh(1,X,a:and_b(pk(A),s:pk(B)))` malleable where "
+            "BIP 379, Core and btclib call it sane. Its `thresh` leaves the first part out of "
+            "`e`, `s` and `m`, so it never calls a `thresh` expressive and calls an `or_c` over "
+            "one malleable, where the same three call it sane. Its `0` is not `s` where BIP 379's "
+            "is, so `l:X` and `u:X` lose X's `s`. Such a miniscript is asked of python-bip380 "
+            "again with those three rules as BIP 379's, must be sane then and is counted; any "
+            "other reason python-bip380 gives stops the area. "
+            "Its `thresh` of 1 never sets its lock fields, so reading one inside a `thresh` of 2 "
+            "or more raises a TypeError, where BIP 379, Core and btclib read it. Such a miniscript "
+            "is read again with those fields set from its parts, as Core keeps them, and is "
+            "counted; any other error stops the area."
         ),
     ]
     not_compared = (
@@ -547,8 +674,14 @@ class Compile(Area):
             raise Mismatch(self.name, "compile.compile", inputs, ("ok", {what: faraday}),
                            ("ok", {what: reference}), f"{what}: {leaf}")
         self.compared += 1
-        if not (node.needs_sig and node.is_nonmalleable and node.no_timelock_mix):
-            disagree("sane", True, "python-bip380 does not call it sane")
+        if read_again(node):
+            self.known += 1
+        if not bip380_sane(node):
+            # Core has read this descriptor, and Core refuses a miniscript
+            # that is not sane; btclib is asked below.
+            if not sane_under_bip379_rules(leaf, tap):
+                disagree("sane", True, "python-bip380 does not call it sane")
+            self.known += 1
         if not node.p.has_all("B"):
             disagree("type", "B", str(node.p))
         try:
@@ -557,13 +690,14 @@ class Compile(Area):
             disagree("read", True, f"btclib refuses it: {str(e)[:80]}")
         if not (theirs["valid"] and theirs["sane"]):
             disagree("sane", True, f"btclib: {theirs}")
-        if tap and "v:multi_a(" in leaf:
-            # python-bip380 writes OP_NUMEQUAL OP_VERIFY where BIP 379 and
-            # Core write OP_NUMEQUALVERIFY; the output key, which commits
-            # to the leaf, is Core's and btclib's.
+        if theirs["script"] != bytes(node.script).hex():
+            # A `v:` over a `multi_a`, at any depth: python-bip380 writes
+            # OP_NUMEQUAL OP_VERIFY where BIP 379 and Core write
+            # OP_NUMEQUALVERIFY. The two must be the same but for that, and
+            # the output key, which commits to the leaf, is Core's and btclib's.
+            if not (tap and numequalverify_spelled(node.script).hex() == theirs["script"]):
+                disagree("python-bip380's script", bytes(node.script).hex(), "btclib: " + theirs["script"])
             self.known += 1
-        elif theirs["script"] != bytes(node.script).hex():
-            disagree("python-bip380's script", bytes(node.script).hex(), "btclib: " + theirs["script"])
 
     def paths_check(self, inputs, out, wanted, count, accounts):
         """Each way Faraday lists satisfies the policy, and every set of

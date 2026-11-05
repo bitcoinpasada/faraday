@@ -768,11 +768,25 @@ difference"), and says why.
   - A single key as a `tr()` policy: rust-miniscript's `compile_tr`
     takes the key as the internal key, is left with no leaf and refuses
     it (`Empty Miniscript compilation`); Faraday refuses it too, in its
-    own words, and the area counts the refusal. python-bip380 writes
-    `v:multi_a` as `OP_NUMEQUAL OP_VERIFY` where BIP 379 and Core write
-    `OP_NUMEQUALVERIFY`, so a leaf with one is not compared to
-    python-bip380's script (counted); the output key, which commits to
-    the leaf, is Core's and btclib's.
+    own words, and the area counts the refusal. python-bip380 writes a
+    `v:` over a `multi_a`, at any depth, as `OP_NUMEQUAL OP_VERIFY`
+    where BIP 379 and Core write `OP_NUMEQUALVERIFY`, so such a leaf
+    must equal btclib's script but for that (counted); the output key,
+    which commits to the leaf, is Core's and btclib's. python-bip380
+    types `and_b`'s `e` as `f_X s_X f_Y s_Y` where BIP 379 has `e_X e_Y
+    s_X s_Y`, so it calls `thresh(1,X,a:and_b(pk(A),s:pk(B)))` malleable
+    where BIP 379, Core and btclib call it sane. Its `thresh` leaves the
+    first part out of `e`, `s` and `m`, so it never calls a `thresh`
+    expressive and calls an `or_c` over one malleable, where the same
+    three call it sane. Its `0` is not `s` where BIP 379's is, so `l:X`
+    and `u:X` lose X's `s`. Such a miniscript is asked of python-bip380
+    again with those three rules as BIP 379's, must be sane then and is
+    counted; any other reason python-bip380 gives stops the area. Its
+    `thresh` of 1 never sets its lock fields, so reading one inside a
+    `thresh` of 2 or more raises a TypeError, where BIP 379, Core and
+    btclib read it. Such a miniscript is read again with those fields
+    set from its parts, as Core keeps them, and is counted; any other
+    error stops the area.
 - `miniscript`
   - Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one
     leaf; BIP 387 allows it deeper in a tree, and Core reads it there.
