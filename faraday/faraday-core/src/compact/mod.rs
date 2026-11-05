@@ -648,7 +648,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // §5).
     let (l1, l2) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
     let card_h = ui.row_height(52.0, l1 + l2, faraday_draw::tokens::GRID);
-    let top = y + (card_h - l1 - l2) / 2.0;
+    let text_top = y + (card_h - l1 - l2) / 2.0;
     ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
     ui.press(
@@ -656,12 +656,12 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Role::OnSurface.paint(),
         action,
     );
-    ui.dot(M + 16.0, top + l1 / 2.0, 4.0, dot);
+    ui.dot(M + 16.0, text_top + l1 / 2.0, 4.0, dot);
     let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
-    ui.text_mid_as((M + 28.0, top, l1), LABEL_L, Role::OnSurface, &line);
+    ui.text_mid_as((M + 28.0, text_top, l1), LABEL_L, Role::OnSurface, &line);
     let sub = ui.fit_as(BODY_S, &sub, inner - 40.0);
     ui.text_mid_as(
-        (M + 28.0, top + l1, l2),
+        (M + 28.0, text_top + l1, l2),
         BODY_S,
         Role::OnSurfaceVariant,
         &sub,

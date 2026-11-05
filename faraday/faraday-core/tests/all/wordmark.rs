@@ -180,3 +180,85 @@ fn the_pis_panel_draws_faraday_offline_clear_beside_the_mode_pill() {
     let mut app = home(false, false, (480, 640, 286));
     name_clear(&mut app, 480, "testnet");
 }
+
+/// Scrolls Home by `dy` wheel units and draws it.
+fn scroll_home(app: &mut faraday_core::Faraday, dy: i16) {
+    use faraday_shell_api::{App, Event};
+    app.event(Event::Scroll { x: 240, y: 300, dy });
+    let _ = app.frame();
+}
+
+#[test]
+fn on_the_small_panel_the_name_scrolls_up_with_home_and_goes_off_the_top() {
+    use faraday_shell_api::App;
+    let mut app = home(false, false, (480, 640, 286));
+    let (before, _) = name_and_bar(&mut app);
+    assert!(!before.is_empty());
+    let still = app.frame().rgba.to_vec();
+    scroll_home(&mut app, 4);
+    let (mid, _) = name_and_bar(&mut app);
+    assert!(
+        mid.iter().zip(&before).all(|(m, b)| m.y < b.y),
+        "the name stayed: {before:?} then {mid:?}"
+    );
+    // What is on the screen, not only where the name was noted: the last
+    // row of the name's ink moved up with the page.
+    let moved = app.frame().rgba.to_vec();
+    let (was, now) = (before[0], mid[0]);
+    let last_ink = |rgba: &[u8]| -> Option<i32> {
+        (was.y..was.y + was.h).rev().find(|&y| {
+            let at = |x: i32| (y as usize * 480 + x as usize) * 4;
+            let page = &rgba[at(1)..at(1) + 3];
+            (was.x..was.x + was.w).any(|x| {
+                let p = &rgba[at(x)..at(x) + 3];
+                p.iter().zip(page).any(|(a, b)| a.abs_diff(*b) > 60)
+            })
+        })
+    };
+    let (ink, ink_moved) = (last_ink(&still), last_ink(&moved));
+    assert_eq!(
+        ink_moved,
+        ink.map(|y| y - (was.y - now.y)),
+        "the name's pixels did not move with the page"
+    );
+    scroll_home(&mut app, 20_000);
+    let (gone, _) = name_and_bar(&mut app);
+    assert!(
+        gone.iter().all(|r| r.y + r.h <= 0),
+        "the name is still on the page: {gone:?}"
+    );
+}
+
+#[test]
+fn on_the_small_panel_home_scrolls_to_a_power_off_button_that_can_be_pressed() {
+    let mut app = home(false, false, (480, 640, 286));
+    for _ in 0..30 {
+        scroll_home(&mut app, 30);
+    }
+    let (x, y, w, h) = app
+        .hit_box(faraday_core::Action::PowerAsk)
+        .expect("Power off is not offered");
+    assert!(
+        u32::from(y) + u32::from(h) <= 640 && u32::from(x) + u32::from(w) <= 480,
+        "Power off is off the window"
+    );
+    // The round button whole, not a sliver above the Scan button's strip.
+    assert!(h + 2 >= w, "only {h} of Power off's {w} shows");
+    use faraday_shell_api::{App, Event, TouchPhase};
+    let (cx, cy) = (x + w / 2, y + h / 2);
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch {
+            x: cx,
+            y: cy,
+            phase,
+        });
+    }
+    app.settle();
+    let _ = app.frame();
+    let commands: Vec<_> = std::iter::from_fn(|| app.poll_command()).collect();
+    assert!(
+        app.sheet == Some(faraday_core::Sheet::Power)
+            || commands.contains(&faraday_shell_api::Command::Exit),
+        "pressing Power off did nothing"
+    );
+}
