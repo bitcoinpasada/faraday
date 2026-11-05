@@ -118,6 +118,7 @@ mod fb;
 mod files;
 mod hid;
 mod keyboard;
+mod notice;
 mod orient;
 mod pace;
 mod panel;
@@ -164,6 +165,9 @@ use timings::{Bucket, Timings};
 
 /// How long the main loop waits to be woken before sending a tick.
 const TICK: Duration = Duration::from_millis(50);
+
+/// How long the line saying a file was written stays over the screen.
+const NOTICE_FOR: Duration = Duration::from_secs(3);
 
 /// Wakes the channel holds. A pass takes every one of them, so the
 /// depth only has to cover the touches a controller can report between
@@ -767,6 +771,9 @@ struct Shell {
     boot_medium: BootMedium,
     /// When the mounts are looked at next.
     next_scan: Instant,
+    /// When the line a dev run puts over the top of the screen after a
+    /// file is written goes away again (`notice.rs`).
+    notice_until: Option<Instant>,
     /// The disk process, when the image runs one.
     disk: Option<DiskProcess>,
     /// Sticks that are folders, where the image runs no disk process.
@@ -1079,6 +1086,32 @@ impl Shell {
         }
     }
 
+    /// A dev file was written: the kernel log says so, and so does a
+    /// line over the top of the screen for [`NOTICE_FOR`], since the
+    /// console is off the screen while the app runs. Not at exit, when
+    /// the screen is going.
+    fn written(&mut self, name: &str, last: bool) {
+        let message = format!("{name} written");
+        self.say(&message);
+        if last {
+            return;
+        }
+        if lock(&self.panel).set_notice(Some(message)).is_ok() {
+            self.notice_until = Some(Instant::now() + NOTICE_FOR);
+        }
+    }
+
+    /// Takes the line away when its time is up. Called on every pass of
+    /// the main loop, so an idle screen clears it too.
+    fn expire_notice(&mut self) {
+        if self.notice_until.is_some_and(|t| Instant::now() >= t) {
+            self.notice_until = None;
+            if let Err(e) = lock(&self.panel).set_notice(None) {
+                self.say(&format!("framebuffer write failed: {e}"));
+            }
+        }
+    }
+
     /// Paints the panel black: what was on it is gone before the power is.
     fn blank(&mut self) {
         lock(&self.panel).blank();
@@ -1234,7 +1267,7 @@ impl Shell {
             t.save(Path::new(BOXES));
         }
         match wrote {
-            Ok(true) => self.say(&format!("{} written", files::TIMINGS)),
+            Ok(true) => self.written(files::TIMINGS, last),
             Ok(false) => {}
             Err(reason) => {
                 if self.timings.take().is_some() {
@@ -1292,7 +1325,7 @@ impl Shell {
         };
         report.schedule.tried(elapsed, true);
         match wrote {
-            Ok(()) => self.say(&format!("{name} written")),
+            Ok(()) => self.written(&name, last),
             Err(reason) => {
                 if !std::mem::replace(&mut report.said, true) {
                     self.say(&format!("no boot report: {reason}"));
@@ -1990,6 +2023,7 @@ fn run(args: Args) -> Result<Exit, String> {
         sticks: Vec::new(),
         boot_medium: BootMedium::Known,
         next_scan: Instant::now(),
+        notice_until: None,
         disk: if Path::new(DISK_REQUESTS).exists() {
             DiskProcess::open(Path::new(DISK_REQUESTS), Path::new(DISK_RESPONSES)).ok()
         } else {
@@ -2534,6 +2568,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         }
         shell.report(false);
         shell.write_boot_report(false);
+        shell.expire_notice();
         shell.scan_sticks(false);
     }
 }

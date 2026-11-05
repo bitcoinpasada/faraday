@@ -21,5 +21,14 @@
 # found is saved as faraday-app-ended.txt on the data partition, at once and
 # again before the power-off, with mtools (a Pi kernel has no FAT). Status 76 is Restart on the power sheet: the
 # computer restarts at once.
-::once:/bin/sh -c 'while :; do /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args /run/faraday-screen/args 2>/dev/null) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; if [ $code -eq 76 ]; then /sbin/reboot -f; else echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; for w in 0 60; do sleep $w; { echo "app ended with code $code"; ls -l /dev/fb* /dev/dri; cat /proc/fb; grep -H . /sys/class/drm/*/status; cat /run/faraday-screen/args; dmesg; } > /run/app-ended.txt 2>&1; MTOOLS_SKIP_CHECK=1 /usr/bin/mcopy -o -i "$(cat /etc/faraday/exchange)" /run/app-ended.txt ::faraday-app-ended.txt 2> /dev/kmsg; done; /sbin/poweroff -f; fi'
+#
+# Console level: from the app's start the kernel console level is 1 on a
+# real machine, so the kernel log stops painting over the app on the screen
+# (and quiets the serial console too); the lines stay in the kernel log and
+# so in the boot report, and a panic still prints. When the app ends with
+# anything but a lock the level goes back, so the reason shows. Under QEMU
+# (the DMI vendor says so; a Pi has no DMI and is never run there) it is
+# left alone: faraday/tools/qemu-check.py and disk-test.py read the serial
+# console and see all of it.
+::once:/bin/sh -c 'lv=; if ! grep -qi qemu /sys/class/dmi/id/sys_vendor 2>/dev/null; then read lv _ < /proc/sys/kernel/printk; echo 1 > /proc/sys/kernel/printk; fi; while :; do /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args /run/faraday-screen/args 2>/dev/null) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; if [ $code -eq 76 ]; then /sbin/reboot -f; else [ -z "$lv" ] || echo "$lv" > /proc/sys/kernel/printk; echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; for w in 0 60; do sleep $w; { echo "app ended with code $code"; ls -l /dev/fb* /dev/dri; cat /proc/fb; grep -H . /sys/class/drm/*/status; cat /run/faraday-screen/args; dmesg; } > /run/app-ended.txt 2>&1; MTOOLS_SKIP_CHECK=1 /usr/bin/mcopy -o -i "$(cat /etc/faraday/exchange)" /run/app-ended.txt ::faraday-app-ended.txt 2> /dev/kmsg; done; /sbin/poweroff -f; fi'
 @TTY@::respawn:/sbin/getty -L @TTY@ 115200 vt100

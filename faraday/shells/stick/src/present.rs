@@ -580,4 +580,85 @@ mod tests {
         present(&mut p, &turned, Turn::R90);
         assert_eq!(shown(), out);
     }
+
+    const SAID: &str = "faraday-timings.txt written";
+
+    /// What a panel `g` should hold for an opaque grey frame at `turn`
+    /// with the line over it (and the arrow on that) if asked.
+    fn lined(
+        g: Geometry,
+        turn: Turn,
+        frame: &[u8],
+        line: bool,
+        arrow: Option<(u16, u16)>,
+    ) -> Vec<u8> {
+        let mut out = vec![0u8; g.row_bytes() * usize::from(g.height)];
+        let (_, fh) = turn.frame_size((g.width, g.height));
+        fb::convert_turned(
+            frame,
+            (0, usize::from(fh) - 1),
+            g.depth,
+            turn,
+            (g.width, g.height),
+            &mut out,
+        );
+        if line {
+            crate::notice::draw_rows(&mut out, g, turn, SAID, 0);
+        }
+        if let Some(at) = arrow {
+            crate::cursor::draw_rows(&mut out, g, turn, at, 0);
+        }
+        out
+    }
+
+    #[test]
+    fn a_line_over_the_top_stays_through_frames_and_leaves_the_frame_as_it_was() {
+        let g565 = Geometry { stride: 960, ..G };
+        for (g, turn) in [
+            (G32, Turn::R0),
+            (g565, Turn::R0),
+            (G32, Turn::R90),
+            (g565, Turn::R270),
+        ] {
+            let panel = Mutex::new(Panel::new(Vec::new(), g));
+            lock(&panel).set_turn(turn);
+            let mut p = Presenter::default();
+            let mut frame = opaque(turn, 40);
+            let present = |p: &mut Presenter, frame: &[u8]| {
+                p.present(frame, g, turn, &panel, None).expect("written");
+            };
+            let shown = || lock(&panel).sink().clone();
+            let tag = format!("{:?} {turn:?}", g.depth);
+            present(&mut p, &frame);
+            let before = shown();
+            assert_eq!(before, lined(g, turn, &frame, false, None), "{tag}");
+            // The line goes up over the frame.
+            lock(&panel).set_notice(Some(SAID.into())).expect("up");
+            assert_eq!(shown(), lined(g, turn, &frame, true, None), "{tag}");
+            assert_ne!(shown(), before, "{tag}");
+            // A frame written meanwhile, under the line and away from it,
+            // keeps it; so does the arrow on the same rows.
+            dot(&mut frame, turn, 5, 3, 255);
+            dot(&mut frame, turn, 100, 200, 255);
+            present(&mut p, &frame);
+            assert_eq!(shown(), lined(g, turn, &frame, true, None), "{tag}");
+            lock(&panel).move_arrow(Some((10, 2))).expect("moved");
+            assert_eq!(
+                shown(),
+                lined(g, turn, &frame, true, Some((10, 2))),
+                "{tag}"
+            );
+            dot(&mut frame, turn, 50, 4, 90);
+            present(&mut p, &frame);
+            assert_eq!(
+                shown(),
+                lined(g, turn, &frame, true, Some((10, 2))),
+                "{tag}"
+            );
+            lock(&panel).move_arrow(None).expect("moved");
+            // It ends: the panel holds the frame exactly.
+            lock(&panel).set_notice(None).expect("down");
+            assert_eq!(shown(), lined(g, turn, &frame, false, None), "{tag}");
+        }
+    }
 }

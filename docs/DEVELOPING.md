@@ -231,7 +231,13 @@ Never use it for keys that matter.
 
 - **The kernel console on the screen**, and on the serial port (`ttyS0`
   at 115200 on the stick, `serial0` on the Pi's GPIO header), with a
-  root login there and no password.
+  root login there and no password. The boot text scrolls until the app
+  starts; from then on, on a real machine, the console level is 1, so the
+  kernel log stops painting over the app and the serial port goes quiet
+  too (the lines stay in the kernel log and the boot report, and a panic
+  still prints). When the app ends with anything but a lock the level
+  goes back so the reason shows. Under QEMU the level is left alone, so
+  the serial console keeps all of it.
 - **`--verbose`**: the app says which panel it chose and every input and
   camera device it found, and what it made of each.
 - **The boot report, every 30 seconds.** The app writes
@@ -280,7 +286,11 @@ Never use it for keys that matter.
   back and wait 30 seconds, and the file holds them.
 - **When a file is written.** The panel's console says
   `faraday-timings.txt written` and `faraday-boot-report.txt written`
-  each time one is, so you can see when it is safe to power off.
+  each time one is, so you can see when it is safe to power off. The
+  app puts the same text in one or two lines at the top of the screen
+  for about 3 seconds, over whatever shows, and only when the write
+  worked; a write that failed, or a card that is out, shows nothing
+  there and stays in the kernel log and so in the boot report.
 
 The release image writes neither file: its app is started without
 those flags, its kernel log stays closed to the app, and

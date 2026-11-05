@@ -219,7 +219,11 @@ and only then build the release image.
 `just dev=1 faraday-pi-image` is for bringing up a new board or a new panel
 without a serial
 adapter: the kernel console goes to `tty1` as well as the serial port and
-`quiet` is dropped, so the probe lines scroll on the panel; a getty runs on
+`quiet` is dropped, so the probe lines scroll on the panel until the app
+starts, when the console level drops to 1 (the dev inittab; not under QEMU,
+whose serial console the checks read) so the kernel log stays off the screen
+and the serial port, and comes back if the app ends with anything but a
+lock; a getty runs on
 the serial port and the root password is empty; and the app is started with
 `--verbose --timings --boot-report`, so it says what it found and records
 what its loop and its costly work cost and what the board reports.

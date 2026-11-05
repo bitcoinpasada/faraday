@@ -17,6 +17,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::cursor;
 use crate::fb::{self, Geometry};
+use crate::notice;
 use crate::orient::Turn;
 
 /// Rows a frame is written in per hold of the lock: about half a
@@ -68,6 +69,9 @@ pub struct Panel<S: Sink = File> {
     stale: bool,
     /// Where the arrow is, in the frame's pixels, if it is drawn.
     arrow: Option<(u16, u16)>,
+    /// A line of text over the top of the frame, if one is up: drawn as
+    /// the arrow is, and likewise absent from `shown`.
+    notice: Option<String>,
     /// How the frame is turned onto the panel, which the arrow follows.
     turn: Turn,
     /// The band of rows being written, kept so a write allocates
@@ -87,6 +91,7 @@ impl<S: Sink> Panel<S> {
             shown: Vec::new(),
             stale: true,
             arrow: None,
+            notice: None,
             turn: Turn::R0,
             band: Vec::new(),
             written: 0,
@@ -196,21 +201,22 @@ impl<S: Sink> Panel<S> {
         let row = g.row_bytes();
         let bytes = g.depth.bytes_per_pixel();
         let cols = x0 * bytes..(x1 + 1) * bytes;
-        let arrow = self.arrow.map(|at| (at, cursor::rows(g, self.turn, at)));
+        let over = self.overlay_bands(first, last);
         for y in first..=last {
             let band = y * row + cols.start..y * row + cols.end;
             if self.shown[band.clone()] == frame[band.clone()] {
                 continue;
             }
             self.band.clear();
-            match arrow {
-                Some((at, (a, b))) if (a..=b).contains(&y) => {
-                    self.band.extend_from_slice(&frame[y * row..(y + 1) * row]);
-                    cursor::draw_rows(&mut self.band, g, self.turn, at, y);
-                    self.band.drain(..cols.start);
-                    self.band.truncate(cols.len());
-                }
-                _ => self.band.extend_from_slice(&frame[band.clone()]),
+            if over.iter().any(|&(a, b)| (a..=b).contains(&y)) {
+                self.band.extend_from_slice(&frame[y * row..(y + 1) * row]);
+                let mut full = std::mem::take(&mut self.band);
+                self.overlay(&mut full, y);
+                full.drain(..cols.start);
+                full.truncate(cols.len());
+                self.band = full;
+            } else {
+                self.band.extend_from_slice(&frame[band.clone()]);
             }
             self.written += 1;
             if let Err(e) = self
@@ -252,6 +258,35 @@ impl<S: Sink> Panel<S> {
                 .map(|a| cursor::rows(g, self.turn, a))
                 .collect(),
         );
+        self.rewrite(bands)
+    }
+
+    /// A line of text is over the top of the frame, or gone: the rows it
+    /// leaves and the rows it lands on are written again from the kept
+    /// frame, now. Before a whole frame is on the panel only the text is
+    /// noted; that frame draws it.
+    pub fn set_notice(&mut self, text: Option<String>) -> std::io::Result<()> {
+        if text == self.notice {
+            return Ok(());
+        }
+        let g = self.geometry;
+        let bands = fb::merge_bands(
+            [self.notice.as_deref(), text.as_deref()]
+                .into_iter()
+                .flatten()
+                .map(|t| notice::rows(g, self.turn, t))
+                .collect(),
+        );
+        self.notice = text;
+        if self.stale {
+            return Ok(());
+        }
+        self.rewrite(bands)
+    }
+
+    /// Rows `bands` written again from the kept frame, with whatever is
+    /// drawn over it where it falls.
+    fn rewrite(&mut self, bands: Vec<(usize, usize)>) -> std::io::Result<()> {
         let shown = std::mem::take(&mut self.shown);
         let result = bands
             .into_iter()
@@ -261,6 +296,36 @@ impl<S: Sink> Panel<S> {
             self.stale = true;
         }
         result
+    }
+
+    /// The rows within `first..=last` that something is drawn over (the
+    /// arrow, the text), merged.
+    fn overlay_bands(&self, first: usize, last: usize) -> Vec<(usize, usize)> {
+        let g = self.geometry;
+        let arrow = self.arrow.map(|at| cursor::rows(g, self.turn, at));
+        let text = self
+            .notice
+            .as_deref()
+            .map(|t| notice::rows(g, self.turn, t));
+        fb::merge_bands(
+            [arrow, text]
+                .into_iter()
+                .flatten()
+                .map(|(a, b)| (a.max(first), b.min(last)))
+                .filter(|(a, b)| a <= b)
+                .collect(),
+        )
+    }
+
+    /// Draws what goes over the frame into `out`, a band of the panel's
+    /// rows starting at row `first`: the text, then the arrow on it.
+    fn overlay(&self, out: &mut [u8], first: usize) {
+        if let Some(t) = &self.notice {
+            notice::draw_rows(out, self.geometry, self.turn, t, first);
+        }
+        if let Some(at) = self.arrow {
+            cursor::draw_rows(out, self.geometry, self.turn, at, first);
+        }
     }
 
     /// Paints the panel black: what was on it is gone before the power
@@ -273,37 +338,33 @@ impl<S: Sink> Panel<S> {
         }
         self.stale = true;
         self.arrow = None;
+        self.notice = None;
     }
 
-    /// Rows `first..=last` of `frame` to the panel, the arrow drawn in
-    /// where it falls: the rows the arrow does not cross go out from
-    /// `frame` as they are, and only the arrow's rows are copied to draw
-    /// it in. `write_all_at` needs no seek and no `mmap`, so the whole
+    /// Rows `first..=last` of `frame` to the panel, the arrow and the text
+    /// drawn in where they fall: the rows nothing crosses go out from
+    /// `frame` as they are, and only the rows drawn over are copied to
+    /// draw on. `write_all_at` needs no seek and no `mmap`, so the whole
     /// path stays inside safe `std`.
     fn write_band(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
-        let g = self.geometry;
-        let row = g.row_bytes();
-        let crossed = self.arrow.and_then(|at| {
-            let (a, b) = cursor::rows(g, self.turn, at);
-            let (lo, hi) = (a.max(first), b.min(last));
-            (lo <= hi).then_some((at, lo, hi))
-        });
-        let Some((at, lo, hi)) = crossed else {
-            return self.put(frame, first, last);
-        };
-        if first < lo {
-            self.put(frame, first, lo - 1)?;
+        let row = self.geometry.row_bytes();
+        let mut next = first;
+        for (lo, hi) in self.overlay_bands(first, last) {
+            if next < lo {
+                self.put(frame, next, lo - 1)?;
+            }
+            self.band.clear();
+            self.band
+                .extend_from_slice(&frame[lo * row..(hi + 1) * row]);
+            let mut band = std::mem::take(&mut self.band);
+            self.overlay(&mut band, lo);
+            let result = self.put_from(&band, lo, lo, hi);
+            self.band = band;
+            result?;
+            next = hi + 1;
         }
-        self.band.clear();
-        self.band
-            .extend_from_slice(&frame[lo * row..(hi + 1) * row]);
-        cursor::draw_rows(&mut self.band, g, self.turn, at, lo);
-        let band = std::mem::take(&mut self.band);
-        let result = self.put_from(&band, lo, lo, hi);
-        self.band = band;
-        result?;
-        if hi < last {
-            self.put(frame, hi + 1, last)?;
+        if next <= last {
+            self.put(frame, next, last)?;
         }
         Ok(())
     }
