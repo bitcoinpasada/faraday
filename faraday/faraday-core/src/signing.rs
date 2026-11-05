@@ -255,7 +255,22 @@ pub(crate) fn part_out(app: &mut Faraday) {
     if s.complete {
         // The part file this spend sent is not the answer of a spend that
         // needs no more: it is taken back. Another file of its name stays.
-        if let Some(name) = s.out_names.part.clone()
+        // A spend opened again has no name recorded, and the Outbox outlives
+        // it: the fixed name goes only if it holds this transaction.
+        let name = match s.out_names.part.clone() {
+            Some(name) => Some(name),
+            None => {
+                let name = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
+                let tx = s.spend.psbt.unsigned_tx().clone();
+                let c = app.compute();
+                app.outbox
+                    .iter()
+                    .find(|i| i.name == name)
+                    .is_some_and(|w| unsigned_tx_of(&c, &w.bytes).as_ref() == Some(&tx))
+                    .then_some(name)
+            }
+        };
+        if let Some(name) = name
             && app.outbox.iter().any(|i| i.name == name)
         {
             app.outbox.retain(|i| i.name != name);

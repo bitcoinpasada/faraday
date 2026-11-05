@@ -1519,5 +1519,56 @@ mod signing {
             assert!(app.spend().unwrap().complete, "the aggregation completed");
             assert_eq!(names(&app), ["musig-part.psbt"]);
         }
+
+        /// Signed here, the same file opened again, then a file holding every
+        /// part collected; `other` has another transaction at the part file's
+        /// name by then. The part files left in the Outbox.
+        fn part_files_after_a_reopened_spend_completes(other: bool) -> Vec<Vec<u8>> {
+            let mut app = device(true);
+            app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            app.press(Action::SignHere);
+            for i in nonce_copies(&app) {
+                app.press(Action::Collect(i));
+            }
+            app.press(Action::SignHere);
+            let partials: Vec<usize> = app
+                .inbox()
+                .iter()
+                .enumerate()
+                .filter(|(_, i)| i.name.starts_with("musig-partial-"))
+                .map(|(i, _)| i)
+                .collect();
+            let whole = every_part_in_one_file(&app, &partials);
+            let another = testkit::musig_unsigned_at(1).unwrap().to_bytes();
+            let waiting = app
+                .outbox
+                .iter_mut()
+                .find(|o| o.name == "musig-part.psbt")
+                .expect("the part file is in the Outbox");
+            if other {
+                waiting.bytes = another;
+            }
+            app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            give(&mut app, whole);
+            assert!(app.spend().unwrap().complete, "the spend completed");
+            app.outbox
+                .iter()
+                .filter(|o| o.name.starts_with("musig-part"))
+                .map(|o| o.bytes.clone())
+                .collect()
+        }
+
+        #[test]
+        fn a_reopened_spend_that_completes_takes_back_its_part_file() {
+            assert!(part_files_after_a_reopened_spend_completes(false).is_empty());
+        }
+
+        #[test]
+        fn a_reopened_spend_that_completes_leaves_another_transactions_file() {
+            assert_eq!(
+                part_files_after_a_reopened_spend_completes(true),
+                [testkit::musig_unsigned_at(1).unwrap().to_bytes()]
+            );
+        }
     }
 }
