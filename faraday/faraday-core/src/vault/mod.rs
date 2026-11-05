@@ -814,10 +814,21 @@ impl Faraday {
             V::MemoryAsk => {
                 if self.vault_may_reseal() && !screen::writing(self) {
                     self.vaults.state.focus = None;
+                    self.vaults.state.memory_ticks_reset();
                     self.sheet = Some(Sheet::VaultMemory);
                 }
             }
             V::MemoryStep(k) => self.vault_memory_step(k),
+            V::MemoryHere => {
+                if self.memory_dialog_open() {
+                    self.vaults.state.memory_toggle_here();
+                }
+            }
+            V::MemoryMachine(k) => {
+                if self.memory_dialog_open() {
+                    self.vaults.state.memory_toggle(k);
+                }
+            }
             V::Rename => {
                 let label = self
                     .vaults
@@ -3904,6 +3915,11 @@ impl Faraday {
             self.vaults.changed(id);
             self.toast(EN.vault_passphrase_next_seal);
         }
+    }
+
+    /// The Memory dialog is up over an open vault.
+    fn memory_dialog_open(&self) -> bool {
+        matches!(self.sheet, Some(Sheet::VaultMemory)) && self.vaults.current_id().is_some()
     }
 
     /// Memory: step `k` of the file's five becomes the next seal's.

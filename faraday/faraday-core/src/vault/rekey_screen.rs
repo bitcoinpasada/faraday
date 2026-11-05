@@ -75,7 +75,8 @@ pub(crate) fn passphrase_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// **Memory**: the file's five steps, the next seal's marked, each with
-/// the passes and bits it adds, and the most this computer gives a vault.
+/// the passes and bits it adds, the machines it is weighed for, and the
+/// most the weakest of them gives a vault.
 pub(crate) fn memory_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(id) = app.vaults.current_id() else {
         return;
@@ -83,7 +84,9 @@ pub(crate) fn memory_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(next) = app.vaults.store().next_cost(id) else {
         return;
     };
-    let (weakest, limit) = app.vaults.weakest();
+    let (weakest, limit) = app.vaults.memory_weakest(id);
+    let ticks = app.vaults.memory_ticks();
+    let here = crate::vault::screen::here_text(app, app.vaults.memory_here_limit(id));
     let head = (Icon::Lock.into(), Role::Primary.paint(), EN.vault_memory);
     let actions = [(EN.vault_cancel, Style::Secondary, va(V::FormCancel))];
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
@@ -121,8 +124,11 @@ pub(crate) fn memory_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     EN.vault_next_seal.to_string()
                 } else if fits {
                     EN.vault_fits.to_string()
-                } else {
+                } else if usable {
                     fill(EN.vault_too_large, &[&weakest])
+                } else {
+                    // Refused for this computer, ticked or not.
+                    fill(EN.vault_too_large, &[EN.vaults_this_computer_name])
                 };
                 let color = on_selected(
                     on,
@@ -147,6 +153,15 @@ pub(crate) fn memory_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 }
                 cy += rh + GAP_SMALL;
             }
+            cy += GAP_SMALL;
+            cy = crate::vault::screen::machine_rows(
+                ui,
+                (x, cy, iw),
+                ticks,
+                &here,
+                (va(V::MemoryHere), V::MemoryMachine),
+            );
+            cy += GAP_SMALL;
             let has = fill(EN.vault_memory_limit, &[&weakest, &mib_text(limit)]);
             cy += ui.wrap_as((x, cy, iw), BODY_S, muted, &has) + GAP_SMALL;
             if next.memory_kib / 1024 > limit {

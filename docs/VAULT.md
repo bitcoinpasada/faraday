@@ -324,7 +324,7 @@ passphrase's own bits are not measured, and the form says so.
 **Memory on the Create form.** The form's **Memory** card lists the five
 steps with 256 MiB chosen, each with the machines it opens on (below)
 and its unlock time here, or what this computer has free where that
-falls short. **Where it will be opened** marks the largest step that
+falls short. **Where will you open it?** marks the largest step that
 fits the weakest machine chosen as suggested. **This computer** is
 ticked by default and can be unticked; it gives a vault the largest step
 that fits in what it has free beside twice the vault file and 100 MiB
@@ -946,11 +946,16 @@ are buttons on a writable vault's page, each opening a dialog; a
 read-only vault offers neither. Change passphrase takes the new
 passphrase typed twice, refusing an empty one and two that differ, and
 does not ask for the old one: the vault is open. Memory lists the file's
-five steps (§3.1) with the next seal's marked. It offers what this
-computer can unlock with (Unlock's test) and refuses another at the
-action; it does not weigh another machine, so a step higher than another
-machine has free cannot be unlocked there, though earlier copies keep
-their step. Either counts as an unsaved
+five steps (§3.1) with the next seal's marked. It lists the
+rows Create's Where will you open it? does (This computer, ticked, and
+the five machines of §3.1), the dialog's own ticks: each opening starts
+with This computer alone, as a vault file does not record its machines,
+and they are neither Create's nor kept. The ticked machines set the
+limit; a step above it is marked too large for the weakest, with the
+warning, and stays choosable. It refuses at the action what this
+computer cannot unlock with (Unlock's test), whatever is ticked. Earlier
+copies keep their step, so a copy sealed at a step above another
+machine's limit cannot be unlocked there. Either counts as an unsaved
 change, so a lock seals it, and a toast says it takes effect at the
 next seal, which runs Argon2id under the new passphrase and step. Copies
 of the vault sealed before keep their old passphrase and step. Pressing

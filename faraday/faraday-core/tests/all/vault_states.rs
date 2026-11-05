@@ -853,16 +853,16 @@ fn escape_and_the_mouse_back_close_change_passphrase_and_memory_and_drop_what_wa
 }
 
 /// The size of the Memory dialog's row marked as the next seal's, looked
-/// for at its end and then at its top.
+/// for on the way to its end and back to its top.
 fn next_seal_size(app: &mut Faraday) -> String {
     for key in [faraday_shell_api::Key::Down, faraday_shell_api::Key::Up] {
         for _ in 0..30 {
             app.event(Event::Key(key));
             let _ = app.frame();
-        }
-        let texts = app.drawn_texts();
-        if let Some(at) = texts.iter().position(|t| t == EN.vault_next_seal) {
-            return texts[at - 1].to_string();
+            let texts = app.drawn_texts();
+            if let Some(at) = texts.iter().position(|t| t == EN.vault_next_seal) {
+                return texts[at - 1].to_string();
+            }
         }
     }
     panic!("no row is marked as the next seal");
@@ -870,19 +870,26 @@ fn next_seal_size(app: &mut Faraday) -> String {
 
 #[test]
 fn the_last_memory_step_is_reached_by_keys_alone_at_the_smallest_size() {
-    // Each try on a fresh device: Down scrolls the sheet to its end, Tab
-    // is pressed n times, Enter presses what Tab reached. The 1 GiB row is
+    // Each try on a fresh device: Down scrolls the sheet by some steps (the
+    // rows of machines lie between 1 GiB and the end), Tab is pressed n
+    // times, Enter presses what Tab reached. The 1 GiB row is
     // among them.
     let last = EN.vaults_gib.replace("{}", "1");
     let mut taken = Vec::new();
-    for n in 1..=8 {
+    for (down, n) in (0..=30)
+        .step_by(3)
+        .flat_map(|d| (1..=12).map(move |n| (d, n)))
+    {
+        if taken.contains(&last) {
+            break;
+        }
         let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
         let mut app = process_at(320, 480, vec![("main.kdbx".into(), file)]);
         try_unlock(&mut app, PHRASE);
         app.press(Action::Nav(Screen::VaultContents));
         app.press(Action::Vault(V::MemoryAsk));
         let _ = app.frame();
-        for _ in 0..30 {
+        for _ in 0..down {
             app.event(Event::Key(faraday_shell_api::Key::Down));
             let _ = app.frame();
         }
@@ -1071,4 +1078,108 @@ fn a_seal_replaces_the_earlier_copy_of_the_same_vault_waiting_across_a_lock() {
     );
     assert_eq!(outbox[0].0, "main.kdbx");
     assert_ne!(outbox[0].1, earlier, "the earlier copy is still there");
+}
+
+/// An open vault on a window tall enough to show the Memory dialog whole,
+/// with 8000 MiB free.
+fn tall_open_vault() -> Faraday {
+    let file = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut app = process_with(480, 2000, Some(8000), vec![("main.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    app.press(Action::Nav(Screen::VaultContents));
+    app
+}
+
+/// How many rows of the Memory dialog read as too large for `machine`.
+fn too_large_rows(app: &mut Faraday, machine: &str) -> usize {
+    let _ = app.frame();
+    let note = EN.vault_too_large.replace("{}", machine);
+    app.drawn_texts().iter().filter(|t| **t == note).count()
+}
+
+/// The Zero's place among the machines.
+const ZERO: usize = 4;
+
+#[test]
+fn ticking_a_smaller_machine_in_memory_makes_a_higher_step_too_large_for_it() {
+    let mut app = tall_open_vault();
+    app.press(Action::Vault(V::MemoryAsk));
+    let zero = EN.vaults_pi_zero_2_w;
+    assert_eq!(too_large_rows(&mut app, zero), 0);
+    app.press(Action::Vault(V::MemoryMachine(ZERO)));
+    assert_eq!(too_large_rows(&mut app, zero), 2, "512 MiB and 1 GiB");
+    app.press(Action::Vault(V::MemoryMachine(ZERO)));
+    assert_eq!(too_large_rows(&mut app, zero), 0);
+}
+
+#[test]
+fn a_step_over_the_ticked_limit_can_still_be_chosen_in_memory() {
+    let mut app = open_vault_with_free(8000);
+    app.press(Action::Vault(V::MemoryAsk));
+    app.press(Action::Vault(V::MemoryMachine(ZERO)));
+    app.press(Action::Vault(V::MemoryStep(3)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.vaults().open[0].changes, 1);
+}
+
+#[test]
+fn creates_ticks_and_the_memory_dialogs_do_not_reach_each_other() {
+    let mut app = tall_open_vault();
+    app.press(Action::Vault(V::Create));
+    app.press(Action::Vault(V::CMachine(ZERO)));
+    let before = app.vaults().create.as_ref().map(|c| (c.on, c.not_here));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::MemoryAsk));
+    assert_eq!(too_large_rows(&mut app, EN.vaults_pi_zero_2_w), 0);
+    app.press(Action::Vault(V::MemoryMachine(3)));
+    app.press(Action::Vault(V::MemoryHere));
+    let after = app.vaults().create.as_ref().map(|c| (c.on, c.not_here));
+    assert_eq!(before, after, "Memory changed Create's ticks");
+}
+
+#[test]
+fn memory_opens_with_this_computer_alone() {
+    let mut app = tall_open_vault();
+    let zero = EN.vaults_pi_zero_2_w;
+    app.press(Action::Vault(V::MemoryAsk));
+    app.press(Action::Vault(V::MemoryMachine(ZERO)));
+    assert_eq!(too_large_rows(&mut app, zero), 2);
+    app.press(Action::Vault(V::FormCancel));
+    app.press(Action::Vault(V::MemoryAsk));
+    assert_eq!(too_large_rows(&mut app, zero), 0);
+}
+
+#[test]
+fn a_step_this_computer_cannot_unlock_stays_refused_whatever_is_ticked() {
+    let mut app = open_vault_with_free(1100);
+    app.press(Action::Vault(V::MemoryAsk));
+    let last = Action::Vault(V::MemoryStep(LAST_STEP));
+    app.press(Action::Vault(V::MemoryHere));
+    app.press(Action::Vault(V::MemoryMachine(0)));
+    assert!(!crate::common::offered(&mut app, last));
+    app.press(last);
+    assert_eq!(app.sheet, Some(Sheet::VaultMemory));
+    assert_eq!(app.vaults().open[0].changes, 0);
+}
+
+#[test]
+fn a_step_refused_for_lack_of_memory_here_names_this_computer_not_the_machine_ticked() {
+    let mut app = tall_open_vault();
+    app.storage(StorageEvent::Memory {
+        available_mib: 1100,
+    });
+    app.press(Action::Vault(V::MemoryAsk));
+    app.press(Action::Vault(V::MemoryHere));
+    app.press(Action::Vault(V::MemoryMachine(0)));
+    assert_eq!(too_large_rows(&mut app, EN.vaults_other_pcs), 0);
+    assert_eq!(too_large_rows(&mut app, EN.vaults_this_computer_name), 1);
+}
+
+#[test]
+fn a_memory_tick_with_no_dialog_open_does_nothing() {
+    let mut app = tall_open_vault();
+    app.press(Action::Vault(V::MemoryMachine(ZERO)));
+    app.press(Action::Vault(V::MemoryHere));
+    app.press(Action::Vault(V::MemoryAsk));
+    assert_eq!(too_large_rows(&mut app, EN.vaults_pi_zero_2_w), 0);
 }

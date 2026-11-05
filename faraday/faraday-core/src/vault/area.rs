@@ -1441,6 +1441,15 @@ pub enum Work {
     Kdbx,
 }
 
+/// The machines ticked in an open vault's Memory dialog: this computer
+/// unless `not_here`, and those of `MACHINES` in `on`. A default has this
+/// computer alone.
+#[derive(Default)]
+struct MemoryTicks {
+    not_here: bool,
+    on: [bool; 5],
+}
+
 /// The app's vaults.
 #[derive(Default)]
 pub struct Vaults {
@@ -1453,6 +1462,8 @@ pub struct Vaults {
     pub(super) store: OpenVaults,
     /// Create a vault, while it is on screen.
     pub create: Option<CreateForm>,
+    /// The machines ticked in the Memory dialog, its own.
+    memory_ticks: MemoryTicks,
     /// The vault chosen to unlock, by its place in the list.
     pub pick: usize,
     /// The unlock passphrase.
@@ -1912,13 +1923,43 @@ impl Vaults {
     /// as much as a vault needs; Light's, which opens anywhere, when it
     /// does not say (`docs/VAULT.md` §3.1).
     pub fn here_limit(&self) -> u32 {
-        let Some(free) = self.memory_free_mib else {
-            return LIGHT_MIB;
-        };
         let slot = self
             .create
             .as_ref()
             .map_or(fv::file::DEFAULT_SIZE, |c| c.size);
+        self.here_limit_for(slot)
+    }
+
+    /// The machine that gives a vault the least unlock memory among
+    /// those chosen, label and MiB: this computer what it has free (see
+    /// `here_limit`), any other half of its memory. With none chosen,
+    /// this computer.
+    pub fn weakest(&self) -> (String, u32) {
+        match self.create.as_ref() {
+            Some(c) => Self::weakest_of(self.here_limit(), c.not_here, &c.on),
+            None => Self::weakest_of(self.here_limit(), false, &[false; 5]),
+        }
+    }
+
+    /// The weakest of the machines ticked, as Create states it: `here` is
+    /// what this computer gives, `not_here` drops it, `on` are the
+    /// machines in `MACHINES` order. With none ticked, this computer.
+    pub fn weakest_of(here: u32, not_here: bool, on: &[bool; 5]) -> (String, u32) {
+        let here = (EN.vaults_this_computer_name.to_string(), here);
+        let mut w: Option<(String, u32)> = (!not_here).then_some(here.clone());
+        for (k, m) in MACHINES.iter().enumerate() {
+            if on[k] && w.as_ref().is_none_or(|w| m.3 / 2 < w.1) {
+                w = Some((m.0.to_string(), m.3 / 2));
+            }
+        }
+        w.unwrap_or(here)
+    }
+
+    /// What this computer gives a vault of `slot` bytes' plaintext.
+    pub fn here_limit_for(&self, slot: usize) -> u32 {
+        let Some(free) = self.memory_free_mib else {
+            return LIGHT_MIB;
+        };
         CUSTOM_MEMORY
             .iter()
             .copied()
@@ -1927,22 +1968,45 @@ impl Vaults {
             .unwrap_or(CUSTOM_MEMORY[0])
     }
 
-    /// The machine that gives a vault the least unlock memory among
-    /// those chosen, label and MiB: this computer what it has free (see
-    /// `here_limit`), any other half of its memory. With none chosen,
-    /// this computer.
-    pub fn weakest(&self) -> (String, u32) {
-        let here = (EN.vaults_this_computer_name.to_string(), self.here_limit());
-        let Some(c) = self.create.as_ref() else {
-            return here;
-        };
-        let mut w: Option<(String, u32)> = (!c.not_here).then_some(here.clone());
-        for (k, m) in MACHINES.iter().enumerate() {
-            if c.on[k] && w.as_ref().is_none_or(|w| m.3 / 2 < w.1) {
-                w = Some((m.0.to_string(), m.3 / 2));
-            }
+    /// What this computer gives open vault `id`: by its own size, never
+    /// the Create form's.
+    pub fn memory_here_limit(&self, id: VaultId) -> u32 {
+        let slot = self
+            .store()
+            .facts(id)
+            .map_or(fv::file::DEFAULT_SIZE, |f| f.size.unwrap_or(f.len));
+        self.here_limit_for(slot)
+    }
+
+    /// The Memory dialog's weakest machine over its own ticks, for open
+    /// vault `id`.
+    pub fn memory_weakest(&self, id: VaultId) -> (String, u32) {
+        let t = &self.memory_ticks;
+        Self::weakest_of(self.memory_here_limit(id), t.not_here, &t.on)
+    }
+
+    /// The Memory dialog's ticks: `(not_here, on)`, `on` in `MACHINES`
+    /// order. Not Create's, and not kept between openings.
+    pub fn memory_ticks(&self) -> (bool, [bool; 5]) {
+        (self.memory_ticks.not_here, self.memory_ticks.on)
+    }
+
+    /// Tick or untick this computer in the Memory dialog.
+    pub(crate) fn memory_toggle_here(&mut self) {
+        self.memory_ticks.not_here = !self.memory_ticks.not_here;
+    }
+
+    /// Tick or untick machine `k` in the Memory dialog; out of range does
+    /// nothing.
+    pub(crate) fn memory_toggle(&mut self, k: usize) {
+        if let Some(t) = self.memory_ticks.on.get_mut(k) {
+            *t = !*t;
         }
-        w.unwrap_or(here)
+    }
+
+    /// The Memory dialog opens with this computer alone.
+    pub(crate) fn memory_ticks_reset(&mut self) {
+        self.memory_ticks = MemoryTicks::default();
     }
 
     /// The largest preset the weakest machine gives the memory for.
@@ -2469,6 +2533,10 @@ pub enum VaultAction {
     CMachine(usize),
     /// Choose or drop this computer as one the vault is sized for.
     CHere,
+    /// In Memory, choose or drop a machine the vault will be opened on.
+    MemoryMachine(usize),
+    /// In Memory, choose or drop this computer.
+    MemoryHere,
     /// Choose a preset, or `CUSTOM`.
     CPreset(usize),
     /// Choose one of the two sizes, by its place in `SIZES`.

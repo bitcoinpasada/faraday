@@ -950,6 +950,49 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
     ]
 }
 
+/// What this computer gives a vault, for its row: the most unlock memory,
+/// and what it has free.
+pub(super) fn here_text(app: &View, limit: u32) -> String {
+    match app.vaults.memory_free_mib {
+        Some(free) => fill(
+            EN.vault_free,
+            &[&mib_text(limit).to_string(), &mib_text(free).to_string()],
+        ),
+        None => EN.vault_memory_not_reported.to_string(),
+    }
+}
+
+/// The rows of machines a vault is sized for, Create's and Memory's: this
+/// computer with `here` at its right, then each of `MACHINES`, each a
+/// checkbox, its label, its memory and a press box. `ticks` is this
+/// computer's tick and the machines'; `acts` the press of this computer
+/// and the press of machine `k`. Returns the y under the last row.
+pub(super) fn machine_rows(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    ticks: (bool, [bool; 5]),
+    here: &str,
+    acts: (Action, fn(usize) -> V),
+) -> f32 {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
+    let mut cy = y;
+    ui.checkbox(x, cy + 12.0, ticks.0, true);
+    ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, EN.vault_this_computer);
+    ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, here);
+    ui.press_box(x, cy, w, 40.0, acts.0);
+    ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
+    cy += 46.0;
+    for (k, m) in MACHINES.iter().enumerate() {
+        ui.checkbox(x, cy + 12.0, ticks.1[k], true);
+        ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, m.0);
+        ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, m.2);
+        ui.press_box(x, cy, w, 40.0, va(acts.1(k)));
+        ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
+        cy += 46.0;
+    }
+    cy
+}
+
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     let good = Role::Ok;
@@ -968,30 +1011,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         vstep::WHERE => {
             // This computer: the most unlock memory it gives a vault, and
             // what it has free.
-            let here = match app.vaults.memory_free_mib {
-                Some(free) => fill(
-                    EN.vault_free,
-                    &[
-                        &mib_text(app.vaults.here_limit()).to_string(),
-                        &mib_text(free).to_string(),
-                    ],
-                ),
-                None => EN.vault_memory_not_reported.to_string(),
-            };
-            ui.checkbox(x, cy + 12.0, !c.not_here, true);
-            ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, EN.vault_this_computer);
-            ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, &here);
-            ui.press_box(x, cy, w, 40.0, va(V::CHere));
-            ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
-            cy += 46.0;
-            for (k, m) in MACHINES.iter().enumerate() {
-                ui.checkbox(x, cy + 12.0, c.on[k], true);
-                ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, m.0);
-                ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, m.2);
-                ui.press_box(x, cy, w, 40.0, va(V::CMachine(k)));
-                ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
-                cy += 46.0;
-            }
+            let here = here_text(app, app.vaults.here_limit());
+            cy = machine_rows(
+                ui,
+                (x, cy, w),
+                (!c.not_here, c.on),
+                &here,
+                (va(V::CHere), V::CMachine),
+            );
             cy += 10.0;
             if crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n))) {
                 cy += 50.0;

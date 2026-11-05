@@ -70,14 +70,17 @@ wallet in this session is in the vault**.
 **Change passphrase** takes **New passphrase** and **Passphrase again**.
 It refuses an empty passphrase and two that differ, and does not ask for
 the old one, because the vault is open. **Memory** lists the file's five
-steps, with **Next seal** on the one the next seal writes. A step this
-computer cannot unlock with is refused when pressed. Pressing the step the
-vault already has changes nothing, and takes back another one pending.
+steps, with **Next seal** on the one the next seal writes, then the machines
+of Create's **Where will you open it?**, starting at each opening with This
+computer alone. A step too large for the weakest machine ticked is marked so
+and can still be chosen. A step this computer cannot unlock with is refused
+when pressed, whatever is ticked. Pressing the step the vault already has
+changes nothing, and takes back another one pending.
 
 Either counts as an unsaved change, so the next lock seals it. Copies of
-the vault sealed before keep their old passphrase and step. Memory weighs
-only this computer: a step higher than another computer has free cannot be
-unlocked there. **Cancel** drops what was typed.
+the vault sealed before keep their old passphrase and step; a copy sealed at
+a step higher than another computer has free cannot be unlocked there.
+**Cancel** drops what was typed.
 
 ## A key
 

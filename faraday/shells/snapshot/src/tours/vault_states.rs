@@ -213,6 +213,9 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::FormCancel));
     t.press(Action::Vault(V::MemoryAsk));
     t.shot("vault-memory")?;
+    t.press(Action::Vault(V::MemoryMachine(4)));
+    crate::tour::scroll_to(t, Action::Vault(V::MemoryMachine(4)));
+    t.shot("vault-memory-ticked")?;
     t.press(Action::Vault(V::FormCancel));
 
     // A vault changed past its size: the Lock sheet says it cannot be sealed.
