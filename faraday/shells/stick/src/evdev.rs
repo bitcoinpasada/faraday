@@ -641,9 +641,12 @@ pub fn spawn(id: u32, device: Device, panel: &TouchPanel, tx: SyncSender<Wake>, 
 struct Known {
     /// What [`Wake::InputEnded`] names this device by.
     id: u32,
-    /// The node, which is also the identity: the same path is the same
-    /// device until it goes away.
+    /// The node, which only one device holds at a time.
     node: PathBuf,
+    /// The device's resolved sysfs path. It holds the kernel's `inputN`,
+    /// which is never used twice, so a device plugged back in on the same
+    /// node has another one.
+    sys: PathBuf,
     /// It moves the cursor.
     pointer: bool,
     /// It can point: it moves the cursor or names places on the screen.
@@ -668,8 +671,9 @@ struct Known {
 ///   classification [`find_devices`] does.
 /// - [`ended`](Watch::ended) is the reader thread saying its device gave
 ///   an error or end of file, which is what an unplugged device does. The
-///   entry stays until the node itself is gone, so a device whose reader
-///   stopped for another reason is not opened again and again.
+///   entry stays until the node is gone or holds another device, so a
+///   device whose reader stopped for another reason is not opened again
+///   and again.
 #[derive(Debug)]
 pub struct Watch {
     sys_class_input: PathBuf,
@@ -696,16 +700,21 @@ impl Watch {
     /// The devices that have appeared since the last call, each with the
     /// id its reader will report when it ends.
     ///
-    /// A device whose reader has ended and whose node is gone is forgotten
-    /// here, so plugging the same port again is a new device and is read.
+    /// A device whose reader has ended is forgotten here once its node is
+    /// gone or holds another device, so plugging the same port again is a
+    /// new device and is read, however soon it comes back.
     ///
     /// `admit` is asked for each new device with its `sys` path and says
     /// whether the start window trusts it, as it does one on the machine's
     /// own bus (F202).
     pub fn rescan(&mut self, admit: &mut dyn FnMut(&Path) -> bool) -> Vec<(u32, Device)> {
-        self.known.retain(|k| k.live || k.node.exists());
+        let found = find_devices(&self.sys_class_input, &self.dev_dir, &self.wanted);
+        self.known.retain(|k| {
+            let replaced = found.iter().any(|d| d.node == k.node && d.sys != k.sys);
+            k.live || (k.node.exists() && !replaced)
+        });
         let mut fresh = Vec::new();
-        for mut device in find_devices(&self.sys_class_input, &self.dev_dir, &self.wanted) {
+        for mut device in found {
             if self.known.iter().any(|k| k.node == device.node) {
                 continue;
             }
@@ -715,6 +724,7 @@ impl Watch {
             self.known.push(Known {
                 id,
                 node: device.node.clone(),
+                sys: device.sys.clone(),
                 pointer: device.mouse || device.touchpad,
                 points: device.mouse || device.touchpad || device.touchscreen,
                 types: device.keyboard,
@@ -1071,6 +1081,42 @@ mod tests {
         let third = watch.rescan(&mut |_| false);
         assert_eq!(third.len(), 1);
         assert!(third[0].1.mouse && watch.pointing());
+
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A mouse unplugged and back between two looks has the same node and
+    /// a new `inputN`: it is read again, as a device not yet believed. A
+    /// reader that stopped with its device still there is not started again.
+    #[test]
+    fn a_device_back_on_its_node_between_two_looks_is_read_again() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-replug-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (class, dev) = (root.join("class"), root.join("dev"));
+        fs::create_dir_all(&class).expect("class");
+        let link = class.join("event0");
+        let input = |n: u32| root.join(format!("devices/input{n}"));
+        plug(&input(7), &dev, 0, "Logitech Mouse", &mouse_caps());
+        std::os::unix::fs::symlink(input(7).join("event0"), &link).expect("link");
+
+        let mut watch = Watch::new(&class, &dev, "");
+        let first = watch.rescan(&mut |_| true);
+        assert_eq!(first.len(), 1);
+
+        // The reader stops and the device is still there.
+        watch.ended(first[0].0);
+        assert!(watch.rescan(&mut |_| false).is_empty());
+        assert!(!watch.pointing());
+
+        // Unplugged and back before this look: only the sysfs path differs.
+        fs::remove_file(&link).expect("unplug");
+        plug(&input(8), &dev, 0, "Logitech Mouse", &mouse_caps());
+        std::os::unix::fs::symlink(input(8).join("event0"), &link).expect("link");
+        let again = watch.rescan(&mut |_| false);
+        assert_eq!(again.len(), 1);
+        assert!(!again[0].1.trusted, "after the window it is held");
+        assert!(watch.pointing());
+        assert!(watch.rescan(&mut |_| false).is_empty());
 
         fs::remove_dir_all(&root).expect("clean up");
     }
