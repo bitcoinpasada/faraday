@@ -4539,6 +4539,7 @@ screens = [
 ]
 functions = [
   "core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes",
+  "faraday/faraday-core/src/signing.rs::unsigned_tx_of",
   "core/faraday-psbt/src/psbt.rs::Psbt::parse_base64",
   "core/faraday-psbt/src/psbt.rs::Psbt::to_bytes",
   "core/faraday-psbt/src/psbt.rs::Psbt::to_base64",
