@@ -390,6 +390,12 @@ completeness = "Built: create, open, seal and the records, as a KDBX 4 file vaul
 standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area. Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only, and in the cross-check area `qrvault` by `sq`, rPGP and a PyCA judge, with rPGP's and the judge's seals opened by Faraday; checked against RFC 9580's own vectors for the session key and the data packet (AES-128 and OCB, byte for byte) and for the Argon2 S2K, the S2K held to A.12.3 by an ignored test that takes 2 GiB (`tools/vectors/openpgp/README.md`); OpenPGP.js is not run"
 
 [[row]]
+id = "kef"
+section = 3
+what = "KEF, Krux's encrypted code (`faraday/faraday-kef`, `core/faraday-codec/src/kef.rs`, `docs/KEF.md`)"
+completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target. Not built: the Reveal variant, the worker job, the classifier's arm and the screens"
+
+[[row]]
 id = "diceware"
 section = 3
 what = "Diceware passphrases"
@@ -4488,6 +4494,12 @@ status = "Convention"
 checked = "2026-10-28"
 source = "bbqr.org"
 
+[standard."KEF"]
+name = "KEF, Krux's encrypted code"
+status = "Convention"
+checked = "2026-11-05"
+source = "github.com/selfcustody/krux"
+
 [standard."Specter pNofM"]
 name = "Numbered text parts, pNofM"
 status = "Convention"
@@ -5904,6 +5916,83 @@ decision = "F155"
 fingerprint = "2331cffda76406e9ba438b892b2d889255197ec867074c877bca0f9488cf845f"
 reviewed = "2026-11-05"
 places = ["docs/QR.md"]
+
+[[action]]
+id = "kef"
+name = "Seal and open Krux codes"
+action = "Writes and reads a Krux encrypted code (KEF): a passphrase and a count of PBKDF2-HMAC-SHA-256 rounds over an id give an AES-256 key, and one of twelve versions (ECB, CBC, CTR or GCM, with or without compression) seals the bytes with the format's own check."
+row = "kef"
+standards = ["KEF"]
+learn = "other_backups"
+screens = []
+functions = [
+  "faraday/faraday-kef/src/lib.rs::seal",
+  "faraday/faraday-kef/src/lib.rs::seal_with_key",
+  "faraday/faraday-kef/src/lib.rs::open",
+  "faraday/faraday-kef/src/lib.rs::open_with_key",
+  "faraday/faraday-kef/src/lib.rs::cbc",
+  "faraday/faraday-kef/src/lib.rs::aes",
+  "faraday/faraday-kef/src/lib.rs::ctr",
+  "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha256_block",
+]
+code = [
+  "faraday/faraday-kef/src/lib.rs::seal",
+  "faraday/faraday-kef/src/lib.rs::open",
+]
+
+[action.implementation]
+crate = "faraday/faraday-kef"
+libraries = [
+  "aes",
+  "cbc",
+  "ctr",
+  "aes-gcm",
+  "miniz_oxide",
+  "sha2",
+]
+through = [{ library = "hmac", crate = "core/faraday-crypto" }]
+adds = "Only the part used is written: the twelve versions of Krux's table, their padding and their checks, the tolerant reading of Krux's own inconsistencies, and the refusal of what Krux refuses to write (a hidden check ending in 0x00). A compressed code inflates under a limit. The PBKDF2 loop can stop and counts; it is one 32-byte block, checked against the library's PBKDF2 and RFC 7914's vectors."
+
+[[action.implementation.written_here]]
+what = "KEF: the envelope, the version table, padding, the two SHA-256 checks and base43 (`faraday-codec::kef`, `faraday-kef`), and PBKDF2's loop over HMAC-SHA-256 for one block, with a cancel check (`faraday-crypto::hash`)"
+why = "only-part-used"
+note = "No library reads or writes this format. The pbkdf2 crate is one call that cannot stop, and a count of 100 million rounds must be stoppable."
+decision = "F219"
+
+[action.checked]
+vectors = ["kef"]
+tests = [
+  "faraday/faraday-kef/tests/kef.rs::krux_ctr_code_opens_to_its_entropy",
+  "faraday/faraday-kef/tests/kef.rs::krux_gcm_code_opens_to_its_entropy",
+  "faraday/faraday-kef/tests/kef.rs::krux_gcm_code_with_a_wrong_passphrase_or_a_changed_byte_does_not_open",
+  "faraday/faraday-kef/tests/kef.rs::krux_version_5_code_opens_and_a_wrong_passphrase_that_passes_gives_other_bytes",
+  "faraday/faraday-kef/tests/kef.rs::every_version_opens_what_it_seals",
+  "faraday/faraday-kef/tests/kef.rs::what_krux_refuses_to_write_is_refused_and_names_a_version_that_works",
+  "faraday/faraday-kef/tests/kef.rs::a_count_of_100_million_stops_when_told",
+]
+crosscheck = "kef"
+independence = { class = "outside-and-own", author = "Krux's `kef.py`, by the Krux developers, vendored unchanged and run under CPython, for all twelve versions, written and read", ours = "Faraday's refusals listed as known differences in `area_kef.py` (an empty plaintext, an id of 253 bytes, a text that inflates past the limit, a passphrase or count Krux's field does not offer, suggestions over 1,024 bytes), and krux's three shims (`ucryptolib`, `uhashlib_hw` and deflate at wbits -10, over hashlib, PyCA and zlib)" }
+fuzz = ["kef"]
+other = [
+  "Krux's own code is the judge of the format (`tools/reference/krux/` holds it): the format is Krux's, an implementation by another project's authors; all twelve versions are run against it, and nothing is run on a device",
+]
+
+[action.secrets]
+reveal = "none"
+constant_time = "The GCM tag is compared in constant time by aes-gcm; the check bytes of the other versions are compared as Krux does; AES and PBKDF2 state nothing more."
+wiped = "The key, the passphrase bytes and the opened plaintext are Zeroizing values wiped on drop."
+
+[action.limits]
+lines = [
+  "A written passphrase is printable ASCII of at most 200 characters; a read one is tried as typed, in NFC and in NFD.",
+  "A code that inflates past 100 KiB does not open.",
+  "A count over 550,000 is not written; PBKDF2 runs in steps of 5,000 rounds and stops when told.",
+]
+
+[[action.own]]
+text = "What Krux refuses to write is refused here, and a refusal names a version that works."
+kind = "Conservative"
+decision = "F219"
 
 [[action]]
 id = "envelope"
@@ -9157,6 +9246,12 @@ author = "the RustCrypto developers"
 [library.cbc]
 author = "the RustCrypto developers"
 
+[library.ctr]
+author = "the RustCrypto developers"
+
+[library.aes-gcm]
+author = "the RustCrypto developers"
+
 [library.chacha20]
 author = "the RustCrypto developers"
 
@@ -9366,6 +9461,10 @@ own = "the wallet policies, the warning PSBTs and the PSBTs this tree signed"
 [vector.wallet-files]
 source = "published"
 by = "the wallets' own test suites: Coldcard's firmware, Caravan, Liana, Sparrow and BlueWallet (the commit, licence and SHA-256 of each file are in the folder's README and the interop vectors' README)"
+
+[vector.kef]
+source = "published"
+by = "Krux's test data (tests/test_kef.py and tests/test_encryption.py of selfcustody/krux; the commit, licence and SHA-256 of each file are in the folder's README)"
 
 [vector.bbqr]
 source = "published"

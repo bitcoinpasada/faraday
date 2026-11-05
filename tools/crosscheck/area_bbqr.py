@@ -296,7 +296,7 @@ class Bbqr(Area):
             "only, decodes `J` and `U` as UTF-8 in `2` and `Z` only, stops at 160 KiB "
             "of characters (Coinkite's `signed.txn` is over it, in `H`), and can write "
             "a last part longer than the others, which Faraday refuses; its deflate "
-            "reads a 256-byte window on a device, where the shim reads the largest. "
+            "reads a 1,024-byte window on a device, which the shim reads and writes. "
             "A set with an empty last part is read by Coinkite and krux and "
             "refused by Faraday, which refuses any part with no data."
         ),

@@ -213,6 +213,13 @@ start = "2026-04-10"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.aes-gcm]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/AEADs"
+start = "2026-08-21"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
 [[trusted.argon2]]
 criteria = "safe-to-deploy"
 trusted-publisher = "github:RustCrypto/password-hashes"
@@ -367,6 +374,13 @@ start = "2026-02-04"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.ctr]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/block-modes"
+start = "2026-05-20"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
 [[trusted.ctutils]]
 criteria = "safe-to-deploy"
 trusted-publisher = "github:RustCrypto/utils"
@@ -443,6 +457,13 @@ trusted-publisher = "github:rust-random/getrandom"
 start = "2025-12-27"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md), added by F180"
+
+[[trusted.ghash]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/universal-hashes"
+start = "2026-02-28"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
 [[trusted.hashbrown]]
 criteria = "safe-to-deploy"
@@ -581,6 +602,13 @@ notes = "F71: trusted publisher (docs/decisions/F71.md)"
 criteria = "safe-to-deploy"
 trusted-publisher = "github:RustCrypto/universal-hashes"
 start = "2026-05-10"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.polyval]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/universal-hashes"
+start = "2026-07-17"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 

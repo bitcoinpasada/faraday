@@ -3,19 +3,25 @@ krux's `bbqr.py` uses as `DeflateIO(stream)` to write and as
 `DeflateIO(BytesIO(data))` to read, raw deflate. Written for the
 cross-check, not krux's, over the standard library's zlib.
 
-krux calls `DeflateIO(stream)` with no format and no window, which
-MicroPython's documentation (library/deflate.rst in the MicroPython repository, "DeflateIO")
-gives as a raw stream compressed with a 256-byte window (wbits 8) and, for
-a raw stream, read with a 256-byte window. zlib's smallest raw window is
-512 bytes (wbits 9: it refuses 8), so this writes with that, the nearest
-the standard library has; every stream a 256-byte window writes is valid
-in it, and what it writes is read by any reader of a window of 512 bytes
-or more (Coinkite's reader uses 1,024). Reading accepts the largest
-window, where a device reads 256 bytes and refuses a stream of Coinkite's
-that reaches further back (a named difference of the area).
+krux calls `DeflateIO(stream)` with no format and no window, which the
+firmware it pins reads as a raw stream with a 1,024-byte window
+(selfcustody/micropython `b11923f020e0caf2572e5874957f29128da2bb45`,
+`extmod/moddeflate.c`, `DEFLATEIO_DEFAULT_WBITS` 10; MicroPython's own
+documentation gives 256 bytes). This writes and reads raw deflate with
+zlib's `wbits` -10, the window the firmware uses.
+
+Reading stops where the firmware's does: `DEFLATEIO_MAX_DECOMPRESSED_SIZE`
+is 100 * 1024 bytes, and `deflateio_read` caps each read to what is left
+and raises `ValueError` once none is left and the stream has not ended.
+`read()` takes the stream 256 bytes at a time (`stream_readall`), and the
+decoder stops at the end of a read without reading the end-of-block code, so
+a stream of exactly 102,400 bytes is read to its limit with the stream not
+yet ended, and the next read raises: the firmware opens up to 102,399 bytes.
 """
 
 import zlib
+
+MAX_DECOMPRESSED_SIZE = 100 * 1024
 
 
 class DeflateIO:
@@ -28,7 +34,7 @@ class DeflateIO:
 
     def __exit__(self, *exc):
         if not exc[0] and self.buffer is not None and self.writing:
-            c = zlib.compressobj(wbits=-9)
+            c = zlib.compressobj(wbits=-10)
             self.stream.write(c.compress(self.buffer) + c.flush())
         return False
 
@@ -40,6 +46,22 @@ class DeflateIO:
 
     def read(self):
         try:
-            return zlib.decompress(self.stream.read(), -15)
+            # One byte at a time: zlib counts what a single call has written
+            # as available besides its window, so only a call that gives one
+            # byte holds a match to the 1,024 bytes of the window, as the
+            # firmware's decoder does.
+            d = zlib.decompressobj(-10)
+            data = self.stream.read()
+            out = bytearray()
+            while not d.eof:
+                before = len(data)
+                piece = d.decompress(data, 1)
+                data = d.unconsumed_tail
+                out += piece
+                if len(out) >= MAX_DECOMPRESSED_SIZE:
+                    raise ValueError("decompressed data exceeds size limit")
+                if not piece and len(data) == before and not d.eof:
+                    raise ValueError("incomplete stream")
+            return bytes(out)
         except zlib.error as e:
             raise ValueError(str(e))

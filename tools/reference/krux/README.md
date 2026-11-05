@@ -1,4 +1,4 @@
-# krux's numbered QR parts, vendored
+# krux's code, vendored
 
 The code of krux (a Bitcoin signer on a Kendryte K210 board) that writes
 and reads a QR code in numbered parts, for the crypto cross-check's `bbqr`
@@ -29,8 +29,24 @@ MicroPython's own, each a few lines over the standard library:
   1,024-byte window (selfcustody/micropython
   `b11923f020e0caf2572e5874957f29128da2bb45`, `extmod/moddeflate.c`,
   `DEFLATEIO_DEFAULT_WBITS` 10; MicroPython's own documentation gives 256
-  bytes). The shim writes with a 512-byte window, which a device reads, and reads with
-  the largest (a device reads 1,024).
+  bytes). The shim writes and reads at `wbits` -10, the firmware's window.
+  Reading stops where the firmware's does: the same file defines
+  `DEFLATEIO_MAX_DECOMPRESSED_SIZE` as 100 KiB, caps each read to what is
+  left and raises `ValueError` when asked for more with none left and the
+  stream not ended. `read()` takes 256 bytes at a time (`py/stream.c`,
+  `stream_readall`) and the decoder (`lib/uzlib/tinflate.c`) stops at the end
+  of a read before it sees the end-of-block code, so a stream of exactly
+  102,400 bytes raises, and the shim reads up to 102,399. The shim asks zlib for one byte at a
+  time, because zlib otherwise holds a match to anything it has written in the
+  same call and not to its window alone; a match back over 1,024 bytes is refused. The pinned
+  commit's hash is updated here, and the files read, when the firmware is.
+
+The KEF area (`tools/crosscheck/area_kef.py`, `docs/KEF.md` section 14)
+adds `src/krux/kef.py`, copied unchanged, and two more shims for the modules
+it imports: `ucryptolib.py`, `aes(key, mode, ...)` in ECB, CBC, CTR and GCM
+over PyCA cryptography, and `uhashlib_hw.py`, `sha256` and
+`pbkdf2_hmac_sha256` over `hashlib`. `kef.py` is the file of that commit
+whose SHA-256 the table gives, fetched with the others.
 
 `gc` is MicroPython's and CPython's alike and needs no shim.
 
@@ -45,7 +61,10 @@ name each.
 |---|---|
 | `LICENSE.md` | `5f6b49dbeb691eb1822f23a6857a9d5fa1e802c687f0819cc101e30fc7fb91b3` |
 | `src/krux/bbqr.py` | `76a0f655f208a2b02dd5999e60795c140f31e065ce53efce96fc0e0416bb644e` |
+| `src/krux/kef.py` | `deb09c47bf20998696f11ed9b9fcc95bcb856b2def8428190c1044c1cf119a59` |
 | `src/krux/qr.py` | `e448e374e13dc81126fea500760d3285a07682eca8895005fef8e2dc73ed9ddc` |
 | `shims/base32.py` (written here) | `0f62c41a9f6e652daa6e7a47b8e3450fa4b10c5a01d716c0f3046f04d3499a71` |
-| `shims/deflate.py` (written here) | `f13eee136955b03502b2c4013f13b5c032588e0baabd910f9875fe9c2f947f19` |
+| `shims/deflate.py` (written here) | `4628d5c5302feb8f0aac1d1f3ebd16bd79b7e54a82ebb467b25e56ff4bb5d334` |
 | `shims/qrcode.py` (written here) | `481483384eb3464ef403557932ed2d450de48d3d36f38a8edcc14013a417aad8` |
+| `shims/ucryptolib.py` (written here) | `bd29deb43157f7bdc3c92538bfa5cb605c647c0d440c9a2291e7e7ab01f4104b` |
+| `shims/uhashlib_hw.py` (written here) | `dea3802be20aebc86dcd06f41fd5c402ddd9fc79f69d7c8f1c70aeff31d151ad` |

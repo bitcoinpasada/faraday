@@ -11,6 +11,11 @@ version = "0.9.3"
 when = "2026-08-28"
 trusted-publisher = "github:RustCrypto/block-ciphers"
 
+[[publisher.aes-gcm]]
+version = "0.11.1"
+when = "2026-08-21"
+trusted-publisher = "github:RustCrypto/AEADs"
+
 [[publisher.argon2]]
 version = "0.6.0"
 when = "2026-08-27"
@@ -173,6 +178,11 @@ version = "0.2.2"
 when = "2026-05-19"
 trusted-publisher = "github:RustCrypto/traits"
 
+[[publisher.ctr]]
+version = "0.10.1"
+when = "2026-05-20"
+trusted-publisher = "github:RustCrypto/block-modes"
+
 [[publisher.ctutils]]
 version = "0.4.6"
 when = "2026-10-25"
@@ -237,6 +247,11 @@ trusted-publisher = "github:rust-lang/cc-rs"
 version = "0.4.3"
 when = "2026-06-17"
 trusted-publisher = "github:rust-random/getrandom"
+
+[[publisher.ghash]]
+version = "0.6.0"
+when = "2026-02-28"
+trusted-publisher = "github:RustCrypto/universal-hashes"
 
 [[publisher.hashbrown]]
 version = "0.17.1"
@@ -373,6 +388,11 @@ trusted-publisher = "github:RustCrypto/formats"
 [[publisher.poly1305]]
 version = "0.9.1"
 when = "2026-07-08"
+trusted-publisher = "github:RustCrypto/universal-hashes"
+
+[[publisher.polyval]]
+version = "0.7.3"
+when = "2026-07-17"
 trusted-publisher = "github:RustCrypto/universal-hashes"
 
 [[publisher.proc-macro2]]

@@ -4,7 +4,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use faraday_crypto::{
     HKDF_SHA256_MAX, Pinned, Secret, Zeroize, ZeroizeOnDrop, hkdf_sha256, hkdf_sha256_expand,
-    hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, work::Compute,
+    hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha256_block, pbkdf2_hmac_sha512,
+    sha256, work::Compute,
 };
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -413,4 +414,64 @@ fn hex_refuses_odd_long_and_non_hex_text() {
     assert_eq!(faraday_crypto::hex::decode_into("zz", &mut out), None);
     assert_eq!(faraday_crypto::hex::decode_into("+f", &mut out), None);
     assert_eq!(faraday_crypto::hex::decode_into("aA", &mut out), Some(1));
+}
+
+/// The stoppable PBKDF2 gives the first 32 bytes `pbkdf2_hmac_sha256` does
+/// and RFC 7914 §11's answers, counts its rounds, and stops when told.
+#[test]
+fn pbkdf2_block_agrees_with_pbkdf2_and_rfc7914() {
+    let c = Compute::new(|_| {});
+    let k = pbkdf2_hmac_sha256_block(&c, b"passwd", b"salt", 1, &mut |_| true).unwrap();
+    assert_eq!(
+        k.expose().to_vec(),
+        unhex("55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc")
+    );
+    let mut seen = Vec::new();
+    let k = pbkdf2_hmac_sha256_block(&c, b"Password", b"NaCl", 80_000, &mut |n| {
+        seen.push(n);
+        true
+    })
+    .unwrap();
+    assert_eq!(
+        k.expose().to_vec(),
+        unhex("4ddcd8f60b98be21830cee5ef22701f9641a4418d04c0414aeff08876b34ab56")
+    );
+    assert_eq!(seen.first(), Some(&0));
+    assert_eq!(seen.last(), Some(&80_000));
+    for rounds in [2u32, 3, 4_999, 5_000, 5_001, 12_345] {
+        let mut want = [0u8; 32];
+        pbkdf2_hmac_sha256(&c, b"pw", b"salt", rounds, &mut want);
+        let got = pbkdf2_hmac_sha256_block(&c, b"pw", b"salt", rounds, &mut |_| true).unwrap();
+        assert_eq!(got.expose(), &want, "{rounds} rounds");
+    }
+}
+
+#[test]
+fn pbkdf2_block_stops_when_told_and_refuses_no_rounds() {
+    let c = Compute::new(|_| {});
+    let mut calls = 0;
+    let out = pbkdf2_hmac_sha256_block(&c, b"pw", b"salt", 100_000_000, &mut |_| {
+        calls += 1;
+        calls < 3
+    });
+    assert!(out.is_none());
+    assert_eq!(calls, 3);
+    assert!(pbkdf2_hmac_sha256_block(&c, b"pw", b"salt", 0, &mut |_| true).is_none());
+    assert!(pbkdf2_hmac_sha256_block(&c, b"pw", b"salt", 5, &mut |_| false).is_none());
+}
+
+/// A passphrase over 64 bytes (HMAC hashes it first) and a long salt give
+/// the same key from both PBKDF2s, and the one Python's `hashlib` gives.
+#[test]
+fn pbkdf2_with_a_passphrase_over_64_bytes() {
+    let c = Compute::new(|_| {});
+    let mut password = vec![b'k'; 100];
+    password.extend([0xff; 100]);
+    let salt = b"salt".repeat(20);
+    let want = unhex("7da3ef56e2002aaa2e98f7d6ad46c7793ab26a69ab25a2ebcfad6e13597ee0de");
+    let mut got = [0u8; 32];
+    pbkdf2_hmac_sha256(&c, &password, &salt, 3, &mut got);
+    assert_eq!(got.to_vec(), want);
+    let block = pbkdf2_hmac_sha256_block(&c, &password, &salt, 3, &mut |_| true).unwrap();
+    assert_eq!(block.expose().to_vec(), want);
 }

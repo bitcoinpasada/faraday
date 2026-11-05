@@ -40,6 +40,7 @@ CRATES = [
     "core/faraday-backup",
     "core/faraday-codec",
     "faraday/faraday-intake",
+    "faraday/faraday-kef",
     "faraday/faraday-keys",
     "faraday/faraday-qr",
     "faraday/faraday-vault",
@@ -71,7 +72,7 @@ NOT_CRYPTO = {
     "proc-macro2", "quote", "syn", "unicode-ident", "libc", "getrandom", "r-efi",
 }
 CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy", "faraday-backup",
-        "faraday-vault", "faraday-qr"]
+        "faraday-vault", "faraday-qr", "faraday-kef"]
 
 
 def source_files():

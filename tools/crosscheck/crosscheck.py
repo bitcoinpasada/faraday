@@ -101,6 +101,7 @@ AREAS = {
     "totp": ("area_totp", "Totp", ("totp.code", "totp.read"), 60),
     "vanity": ("area_vanity", "Vanity", "vanity.grind", 460),
     "qrvault": ("area_qrvault", "QrVault", ("qrvault.seal", "qrvault.open"), 60),
+    "kef": ("area_kef", "Kef", ("kef.seal", "kef.open"), 60),
     "lightning": ("area_lightning", "Lightning",
                   ("lightning.ldk", "lightning.aezeed", "lightning.lnd", "lightning.aezeed-soft"), 280),
 }

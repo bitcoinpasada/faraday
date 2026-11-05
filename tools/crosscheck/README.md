@@ -227,6 +227,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `totp` | `faraday_vault::totp` (`parse`, `Totp::code`, `left` and `period`) | pyotp 2.9 (python3-pyotp): `TOTP.at` and `generate_otp` for the code, `parse_uri` for a URI's key, digits, period and hash | RFC 6238 Appendix B: the codes of the SHA-1, SHA-256 and SHA-512 seeds at its six times, 8 digits | random keys of 1 to 300 bytes in `otpauth://totp/` URIs and, from 10 bytes, as bare keys, digits 6 to 8, periods 1 to 3600 (and past it), the three hashes, times from 0 to 2^64 - 1 with the edges of each period, the code, the seconds left and the period; the URIs written in other spellings and damaged (a character changed, added, removed, a cut, a pair dropped or doubled), read by both; the pinned URIs |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `qrvault` | `faraday_vault::qr` (the QR vault sealed and opened, with `faraday_pgp::message`) | Sequoia's `sq`, the distribution's package, over Nettle (judges the primitives except Argon2, which it shares with the app's lineage); rPGP (`tools/crosscheck/rpgp/`, a program outside the workspace, on RustCrypto like the app: judges the format only); PyCA cryptography's Argon2id, HKDF-SHA-256 and AES-256-OCB (OpenSSL's), which judge the primitives, under the OpenPGP framing written in the area from RFC 9580 and `docs/VAULT.md` §1.2 (Faraday's second version, not another program's); the QR TOML `qr_toml` written in the area from §2.1, each opened item also read by CPython's `tomllib` | the seven vaults of `tools/vectors/vault/qr/` opened by `sq`, rPGP and the PyCA judge to the item each holds and by Faraday; the four refused messages refused by Faraday and by the PyCA judge; the PyCA judge refuses a vector with a byte changed in each field | an item of every kind of §2.1 (12 and 24 words, a codex32 share, a passphrase, a note with markup, control characters and several scripts, the empty vault) sealed by Faraday and opened by `sq`, rPGP, the PyCA judge and Faraday, and sealed by rPGP and by the PyCA judge (memory 2^13 to 2^16 KiB) and opened by Faraday, each opened item read by `tomllib`; each memory step of §3 (2^16 to 2^20 KiB) sealed by Faraday at scale 1, each message equal byte for byte to the PyCA judge's seal of the same random bytes; items at the size limits (a note of 216 and 217 bytes, a passphrase of 193 and 194, a 24-word seed of the longest words); a passphrase in NFD or NFC either way; a wrong passphrase; a 15-word seed and a document of two keys sealed by rPGP, refused by Faraday; the messages `sq` writes, refused by Faraday and the PyCA judge; two items sealed by rPGP in chunks of 64 bytes (chunk size octet 0), opened by Faraday |
+| `kef` | `faraday_kef` (`seal`, `seal_with_key`, `open`, `open_with_key`, `suggest_versions`), `faraday_codec::kef::unwrap` | krux's `kef.py` (`krux/`, unchanged), by the krux developers, on three small shims for the firmware's AES, SHA-256 and PBKDF2, and deflate modules (PyCA cryptography's AES, `hashlib`, zlib at `wbits` -10) | krux's test data for versions 5, 15 and 20 (`tools/vectors/kef/`): a CTR code under `key`, a GCM code under `test key` at 100,000 rounds, and the version 5 code opened by `abc` and by a wrong passphrase that passes its 3-byte check | each of the twelve versions sealed by Faraday and by krux, byte for byte for the ten that do not compress and opened by the other for all twelve, over entropy of 16 and 32 bytes, short and long text, text up to 1,024 bytes, text ending in NUL, text whose hidden check ends in 0x00, repeated blocks, ids of 0, 8, 252 and random lengths, every edge of the count, and wrong IV lengths; codes under a passphrase at 10,000 to 30,000 rounds, one of 200 characters with an id of 252 bytes, and keys of raw bytes (to 200 bytes) krux seals and Faraday opens; codes from a writer that skipped the NUL rules, with 1 to 8 NULs at the end; envelopes cut or changed; the suggested versions for each mode at every length to 1,024 |
 | `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve) | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code |
 
 ### How each reference is checked
@@ -464,6 +465,16 @@ leaves uncompared.
   SEIPD packet and the literal data, and every length form RFC 9580
   allows; of the chunk size octets only 0 (rPGP seals several chunks,
   Faraday opens them) and 10 are run.
+- `kef`: the vendored files are hashed against `references.sha256`
+  before any run; krux's own vectors (`tools/vectors/kef/`) are required
+  of the reference as well as of Faraday; every plaintext Faraday seals
+  is opened by krux's `decrypt`, and every plaintext krux seals by
+  Faraday, to the plaintext that went in. Not compared: the text forms
+  and the classifier (krux's `kef.py` holds neither), the Reveal variant
+  and the worker; whether Faraday notes that the check passed only after
+  putting NULs back; a key entered as hex that Faraday writes under (it
+  refuses a passphrase that is not printable ASCII), so keys of raw
+  bytes are compared only when Faraday opens.
 - `lightning`: LND's code reads the aezeed (wordlist, version, CRC-32C,
   scrypt, AEZ) and derives the node key, and its published answers
   (`tools/vectors/aezeed/`) are required of it as well as of Faraday;
@@ -893,8 +904,8 @@ difference"), and says why.
     `U` only, decodes `J` and `U` as UTF-8 in `2` and `Z` only, stops at
     160 KiB of characters (Coinkite's `signed.txn` is over it, in `H`),
     and can write a last part longer than the others, which Faraday
-    refuses; its deflate reads a 256-byte window on a device, where the
-    shim reads the largest. A set with an empty last part is read by
+    refuses; its deflate reads a 1,024-byte window on a device, which
+    the shim reads and writes. A set with an empty last part is read by
     Coinkite and krux and refused by Faraday, which refuses any part
     with no data.
 - `ur`
@@ -958,6 +969,31 @@ difference"), and says why.
     the other direction, and the area asserts that Faraday and the PyCA
     judge refuse what `sq` writes. The PyCA judge's framing is the
     area's own Python; OpenPGP.js is not run.
+- `kef`
+  - KEF: Faraday refuses an empty plaintext, a compressed version over
+    1,024 bytes, an id of 253 bytes or more when reading (krux's
+    `unwrap` does not check it), a count over 550,000 and a passphrase
+    that is not printable ASCII when it works out the key, and a stream
+    that inflates to over 102,400 bytes; krux does none of these. Each
+    is asked of krux and counted. Faraday does not suggest a compressed
+    version over 1,024 bytes.
+  - KEF: a stream that inflates to exactly 102,400 bytes is read by
+    Faraday and refused by krux's firmware (its read is capped at the
+    limit and raises when it is asked for more before the stream has
+    ended); one of 102,401 bytes or more is refused by both. A stream
+    whose matches reach back more than 1,024 bytes is read by Faraday
+    (any window to 32 KiB) and refused by krux's 1,024-byte window;
+    Faraday writes none.
+  - KEF: Faraday's `unwrap` refuses at once a payload that holds nothing
+    but the IV, the exposed check and the hidden check; krux's `unwrap`
+    takes it apart and its decryption then fails. Both end in a code
+    that does not open.
+  - KEF: version 7 (ECB with deflate) is refused for a repeated block by
+    the side whose compressor makes a stream with one; the stream of the
+    other has none, and that side's code is opened by both.
+  - KEF: the compressed versions are not equal byte for byte, as
+    Faraday's deflate and zlib's write different streams. Each opens the
+    other's; krux's decryption inflates under zlib at `wbits` -10.
 <!-- facts:end known-differences -->
 
 ## Where each reference comes from
@@ -1084,6 +1120,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `seedqr` | others' code | Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers | none | qr, codex32qr |
 | `ur` | others' code | foundation-ur-py, by Foundation Devices, and CPython's `zlib.crc32` and cbor2, by the cbor2 developers, which judge the one CRC-32 and the one CBOR (the parts' and payloads' CBOR and the registry's types) | none | ur |
 | `bbqr` | others' code and, for a part, Faraday's second version | Coinkite's BBQr library, by Coinkite, for BBQr; krux's `qr.py` and `bbqr.py`, by the krux developers, for writing and reading numbered parts; SeedSigner's `SpecterWalletQrDecoder`, by the SeedSigner developers, for the numbered parts | Faraday's refusals written in `area_bbqr.py` in front of SeedSigner's decoder (a part number of 0 or past the count, a repeat with other text, a header in upper case or missing, a count over 1,000), the one-table pyqrcode shim checked against `qrcodegen.py`, and krux's three shims (QR, base32, deflate) | bbqr |
+| `kef` | others' code and, for a part, Faraday's second version | Krux's `kef.py`, by the Krux developers, vendored unchanged and run under CPython, for all twelve versions, written and read | Faraday's refusals listed as known differences in `area_kef.py` (an empty plaintext, an id of 253 bytes, a text that inflates past the limit, a passphrase or count Krux's field does not offer, suggestions over 1,024 bytes), and krux's three shims (`ucryptolib`, `uhashlib_hw` and deflate at wbits -10, over hashlib, PyCA and zlib) | kef |
 | `hash` | others' code | Python's `hashlib` (SHA-256), over random files of every length around the 64-byte blocks and of 4 KiB, 64 KiB and 1 MiB with a byte more and less | none | file-hash |
 | `seedqr` | others' code and, for a part, Faraday's second version | SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki, and segno, by Lars Heuer, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers | the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself) | seedqr-make |
 | `seedqr` | others' code and, for a part, Faraday's second version | SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki, and the pictures decoded by zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers | Faraday's rule written in `area_seedqr.py` in front of SeedSigner's reader (exactly 48 or 96 digits, 16 or 32 bytes), and the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define | seedqr-read |

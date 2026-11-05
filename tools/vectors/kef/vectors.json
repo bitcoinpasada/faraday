@@ -1,0 +1,30 @@
+{
+  "source": "selfcustody/krux tag v26.09.0, commit 2b20e3370169731a0d89839a4113ad9a1b732078; tests/test_kef.py and tests/test_encryption.py",
+  "ctr": {
+    "envelope": "07746573742049440f0000014f52a1936c3e3271209e9d64de442732247c37cb455d1b5410b25744dad4ac6fe4f2f4cf5c4de77bfc829682938298f0",
+    "passphrase": "key",
+    "count": 10000,
+    "version": 15,
+    "plaintext": "ec54ea346caa1ed06cb35c96c4ef23228a26a2e0996c71d0608ec2ba49ce2316"
+  },
+  "gcm": {
+    "envelope": "07746573742049441400000a4f52a1936c3e3271209e9d64bfb7766f5d5d8a4f908e86e738344c025d8fed54",
+    "passphrase": "test key",
+    "count": 100000,
+    "version": 20,
+    "plaintext": "350e7b31a36727c5f2fc76b58304668c"
+  },
+  "grind": {
+    "envelope": "08613165366337653405000001e3c3b2a72967a5711e54d8734bf1fdd02ddc80",
+    "count": 10000,
+    "version": 5,
+    "right": {
+      "passphrase": "abc",
+      "plaintext": "49276d20313620726177206279746573"
+    },
+    "wrong_that_passes": {
+      "passphrase": "421a8f",
+      "plaintext": "27602bca9a6c74ee9a64266b87db0d70"
+    }
+  }
+}

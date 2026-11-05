@@ -30,6 +30,7 @@ members = [
     "faraday/faraday-grant",
     "faraday/faraday-boot",
     "faraday/faraday-pgp",
+    "faraday/faraday-kef",
     "faraday/faraday-sb",
     "faraday/faraday-payload",
     "faraday/faraday-strings",
@@ -93,6 +94,10 @@ aes = { version = "0.9", default-features = false, features = ["hazmat"] }
 # (docs/deps/ocb3.md): the mode over the `aes` above, with the 15-byte
 # nonce RFC 9580 uses.
 ocb3 = { version = "0.2", default-features = false }
+# KEF (docs/KEF.md §11): AES-256 in CTR and GCM over the `aes` above.
+# `hazmat` is the feature that allows GCM's 4-byte tag (docs/deps/aes-gcm.md).
+ctr = { version = "0.10", default-features = false }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "hazmat"] }
 # rust-bitcoin without `std`: no_std + alloc. Brings `secp256k1` (§16.1).
 # `secp-recovery` is a feature of the same crate, not another dependency:
 # it turns on libsecp256k1's public-key recovery and rust-bitcoin's

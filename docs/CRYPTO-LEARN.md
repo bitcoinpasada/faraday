@@ -1052,7 +1052,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 100 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 101 actions, each from its entry in `docs/crypto/actions.toml`
 as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under
@@ -1126,6 +1126,7 @@ page lists.
 | codex32-make | Fills the codex32 booklet's worksheets one character at a time and makes a fresh set or derived shares from them. | `faraday_bip::codex32::worksheet`: `ChecksumWorksheet::of`, `ChecksumWorksheet::push`, `ChecksumWorksheet::finish`, `TranslationWorksheet::of`, `TranslationWorksheet::push`, `TranslationWorksheet::result`; `faraday_bip::codex32::fresh`: `fresh_set`; `faraday_keys::codex32`: `WorkSet::new`, `WorkSet::push`, `WorkSet::make`, `WorkSet::translation`, `WorkSet::given`, `WorkSet::live_translation`, `WorkSet::worksheet`, `StringCheck::of`, `StringCheck::worksheet`, `Keys::codex32_derive`, `Keys::codex32_new_set`, `Keys::codex32_rebuilds`; `faraday_keys::operations`: `Keys::codex32_shares` | KeyGen, Backup | other_backups |
 | codex32-correct | Proposes the one correction a codex32 checksum justifies for a damaged string, within BIP 93's bound. | `faraday_bip::codex32::correct`: `correct` | Entry, Backups | other_backups |
 | codex32qr | Writes a 48-character codex32 string as a Codex32QR code. | `faraday_codec::qr`: `codex32qr` | KeyGen, Backups | other_backups |
+| kef | Writes and reads a Krux encrypted code (KEF): a passphrase and a count of PBKDF2-HMAC-SHA-256 rounds over an id give an AES-256 key, and one of twelve versions (ECB, CBC, CTR or GCM, with or without compression) seals the bytes with the format's own check. | `faraday_kef`: `seal`, `seal_with_key`, `open`, `open_with_key`, `cbc`, `aes`, `ctr`; `faraday_crypto::hash`: `pbkdf2_hmac_sha256_block` | none | other_backups |
 | slip39 | Splits a master secret into SLIP-39 shares and recovers it from them, with the passphrase's Feistel encryption. | `faraday_bip::slip39`: `split`, `recover`, `encrypt`, `decrypt`, `Share::parse`, `Share::from_indices`; `faraday_keys::words`: `slip39_split`; `faraday_keys::operations`: `slip39_seed`; `faraday_core::keygen`: `KeyGen::deal` | Backup, Entry, KeyGen | other_backups |
 | xor | Splits a seed into Seed XOR parts, each a BIP 39 mnemonic, and combines parts into the seed. | `faraday_entropy::xor`: `SeedXor::push`, `SeedXor::entropy`; `faraday_keys::operations`: `Keys::seed_xor` | Backup, Entry, Tools | other_backups |
 | stick-write | Makes the file a backup stick holds for a key: its words or passphrase as one line, its SeedQR as a labelled picture, a codex32 string as one line or as a Codex32QR picture. | `faraday_core::backup_flow::wallet`: `Faraday::seed_stick_bytes`; `faraday_core::backups`: `Faraday::codex32_stick_bytes` | BackupFlow, Backup | backups |

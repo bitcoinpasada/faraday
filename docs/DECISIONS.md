@@ -233,4 +233,4 @@ Read this table, then only the decision you need.
 | [F216](decisions/F216.md) | On the Pi, "card or stick" where the app says "stick" | 2026-11-05 | Active | stick |
 | [F217](history/decisions/F217.md) | A QR vault is a third form of a seed in the backup, with Open to test before the lock | 2026-11-05 | Withdrawn | backup |
 | [F218](decisions/F218.md) | The list of what was plugged in at start can be dismissed, by its × or Escape, never by a held device | 2026-11-05 | Active | security |
-| [F219](decisions/F219.md) | KEF, Krux's encrypted code, enters Faraday, all twelve versions read and written, checked against Krux's code and not on a device | 2026-11-05 | Active, the design decided and not built | crypto |
+| [F219](decisions/F219.md) | KEF, Krux's encrypted code, enters Faraday, all twelve versions read and written, checked against Krux's code and not on a device | 2026-11-05 | Active, the crate built and the screens not | crypto |

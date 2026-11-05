@@ -93,3 +93,54 @@ pub fn pbkdf2_hmac_sha256(c: &Compute, password: &[u8], salt: &[u8], rounds: u32
 pub(crate) fn pbkdf2_sha256(password: &[u8], salt: &[u8], rounds: u32, out: &mut [u8]) {
     pbkdf2::pbkdf2_hmac::<Sha256>(password, salt, rounds, out);
 }
+
+/// How many rounds [`pbkdf2_hmac_sha256_block`] runs between two calls to
+/// its `between`.
+pub const PBKDF2_STEP: u32 = 5_000;
+
+/// Costs a PBKDF2 of `rounds` HMACs: PBKDF2 with HMAC-SHA-256 as the PRF
+/// (RFC 8018 §5.2) for the one 32-byte block, `T_1`, that can be stopped
+/// and counted. It is [`pbkdf2_hmac_sha256`] for a 32-byte `out`, run in
+/// steps of [`PBKDF2_STEP`] rounds; before the first and after each step
+/// `between` is called with the rounds done so far, and the work stops,
+/// returning `None`, when it returns `false`. `None` also for 0 `rounds`.
+/// The key is in a [`Secret`] and the running value `u` and the sum are
+/// [`Zeroizing`](zeroize::Zeroizing); the HMAC states are not wiped.
+pub fn pbkdf2_hmac_sha256_block(
+    c: &Compute,
+    password: &[u8],
+    salt: &[u8],
+    rounds: u32,
+    between: &mut dyn FnMut(u32) -> bool,
+) -> Option<Secret<[u8; 32]>> {
+    if rounds == 0 || !between(0) {
+        return None;
+    }
+    c.count(Work::Kdf);
+    let prf = Hmac::<Sha256>::new_from_slice(password).expect("HMAC accepts any key length");
+    // U_1 = PRF(P, S || INT(1)).
+    let mut mac = prf.clone();
+    mac.update(salt);
+    mac.update(&1u32.to_be_bytes());
+    let mut u = zeroize::Zeroizing::new([0u8; 32]);
+    u.copy_from_slice(&mac.finalize().into_bytes());
+    let mut t = Secret::new(*u);
+    let mut done = 1u32;
+    while done < rounds {
+        let stop = done.saturating_add(PBKDF2_STEP).min(rounds);
+        for _ in done..stop {
+            let mut mac = prf.clone();
+            mac.update(&*u);
+            u.copy_from_slice(&mac.finalize().into_bytes());
+            for (a, b) in t.expose_mut().iter_mut().zip(u.iter()) {
+                *a ^= b;
+            }
+        }
+        done = stop;
+        if done < rounds && !between(done) {
+            return None;
+        }
+    }
+    between(rounds);
+    Some(t)
+}

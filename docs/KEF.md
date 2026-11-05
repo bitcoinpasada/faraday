@@ -1,8 +1,8 @@
 # KEF: Krux's encrypted code, read and written in full
 
 **Kind:** Spec
-**Status:** Specified; decided by F219; nothing built.
-**Open:** F219 decided the design and none of it is built: the crate, the classifier's arm, the worker job, the screens, the cross-check area, the fuzz target, the dependency pages. Questions a source could not settle are in §13.
+**Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code and the fuzz target are built; the rest is not.
+**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) and the fuzz target `faraday/fuzz/fuzz_targets/kef.rs`. Not built: the `Reveal` variant, the worker job, the classifier's arm, the screens and the strings. Questions a source could not settle are in §13.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's
@@ -140,14 +140,21 @@ After decrypting:
   than the length fails. The check decides, and every failure reads the same.
 - **NUL padding:** trailing NULs are removed and the check tried; if it
   fails, NULs are put back one at a time and it is tried again, up to
-  `min(bytes removed, |auth| + 1) + 1` tries in all, as `_authenticate`
-  does. For a hidden check, each try moves a byte from the check to the
+  `min(bytes removed, |auth| + 1) + 1` tries in all (`removed.min(17) + 1` for a
+  16-byte check). For versions 5 and 10 Krux's count is the same (checked at 1 to 8 NULs:
+  version 5 opens with 4 put back and fails with 5, version 10 opens with 5 and fails
+  with 6). For versions 0 and 1 Krux counts the bytes removed after taking the hidden
+  check off the end as well, so it makes 17 or 18 tries where Faraday makes
+  removed + 1: a hand-made code that needs a try past Faraday's last (a check whose
+  16 bytes have all been moved back) opens on Krux and is refused here. No real
+  code reaches it, as the check would be 16 zero bytes. For a hidden check, each try moves a byte from the check to the
   plaintext and adds a NUL to the check. This opens codes from a writer
   that skipped §4.1. A plaintext opened on any try after the first gets a
   note after it opens, as the specification suggests.
 - **Compression** is undone after the check passes, with the limit of §7.
 
-Duplicate ECB blocks are not refused on reading.
+Duplicate ECB blocks are not refused on reading. A suggestion can still be refused when the code is
+written, for repeated blocks in ECB, as on Krux; the refusal names the version that works (§4.1).
 
 ## 5. On a QR code
 
@@ -251,6 +258,11 @@ opened here; through `miniz_oxide`'s
 `decompress_to_vec_with_limit`, as BBQr does. Reading takes any window up
 to 32 KiB, which the specification allows.
 
+A scanned text in base43 of more than **8,192 characters** is not taken for a
+code and is not decoded: base43 is worked out digit by digit, its time grows
+with the square of the text, and an envelope is far shorter (a 24-word code in
+base43 is 90 to 113 characters, §5). The check is on the length, before any decoding.
+
 ### 7.2 Iterations
 
 The version, the id and the count are public, and are shown before the
@@ -325,7 +337,7 @@ as `0x` hex, as Krux shows it.
 The specification: `K` is bytes, UTF-8 and unnormalised, with a minimal set of
 characters advised on writing and several normalisations allowed on reading.
 
-**Writing: printable ASCII only** (0x20 to 0x7E), at most 200 characters. Krux's
+**Writing: printable ASCII only** (0x20 to 0x7E), 1 to 200 characters; an empty passphrase is refused. Krux's
 key field offers exactly those 95 characters on its four keypads and takes at most
 200 (`load_key`, `ENCRYPTION_KEY_MAX_LEN`), ASCII is the same in every normal form,
 and the rule can be stated in a line. Other text, or a longer one, is refused at the field. This is stricter than the vault's

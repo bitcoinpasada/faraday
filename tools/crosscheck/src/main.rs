@@ -24,6 +24,7 @@ mod entropy;
 mod hash;
 mod import;
 mod json;
+mod kef;
 mod lightning;
 mod miniscript;
 mod msg;
@@ -91,6 +92,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "ur" => ur::handle(name, req),
         "vanity" => vanity::handle(name, req),
         "qrvault" => qrvault::handle(name, req),
+        "kef" => kef::handle(name, req),
         "lightning" => lightning::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }
