@@ -137,6 +137,9 @@ fn row_verdict(r: &crate::wallet::NonceRow) -> (String, Role) {
     use faraday_psbt::verify::Verdict;
     match (r.verdict, r.recomputed) {
         (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
+        (Verdict::Unchecked(_), _) if r.preimage => {
+            (EN.nonce_check_preimage.to_string(), Role::OnSurfaceVariant)
+        }
         (Verdict::Unchecked(why), _) => (
             fill(EN.nonce_check_not_checked, &[unchecked_text(why)]),
             Role::OnSurfaceVariant,
@@ -2012,5 +2015,32 @@ fn nonce_mode_text(m: faraday_psbt::verify::NonceMode) -> &'static str {
         M::LowR => EN.nonce_mode_low_r,
         M::First => EN.nonce_mode_first,
         M::Bip340 => EN.nonce_mode_bip340,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::wallet::NonceRow;
+    use faraday_psbt::verify::{Unchecked, Verdict};
+
+    fn row(preimage: bool) -> NonceRow {
+        NonceRow {
+            input: 0,
+            name: "k".into(),
+            verdict: Verdict::Unchecked(Unchecked::UnsupportedScript),
+            preimage,
+            recomputed: None,
+            unmatched: None,
+        }
+    }
+
+    #[test]
+    fn a_preimage_row_is_not_called_an_unchecked_signature_and_another_reads_as_before() {
+        assert_eq!(row_verdict(&row(true)).0, EN.nonce_check_preimage);
+        assert_eq!(
+            row_verdict(&row(false)).0,
+            fill(EN.nonce_check_not_checked, &[EN.nonce_unchecked_script])
+        );
     }
 }

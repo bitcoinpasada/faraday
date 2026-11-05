@@ -102,6 +102,7 @@ pub(super) fn signature_cards(
                 Detail::SignatureUnchecked {
                     input: sig.input,
                     reason,
+                    preimage: sig.preimage,
                 },
             ),
         }

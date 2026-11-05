@@ -321,6 +321,8 @@ pub enum Detail {
         input: usize,
         /// Why.
         reason: Unchecked,
+        /// The element is a proven hash preimage, not a signature.
+        preimage: bool,
     },
     /// A signature signs with a `NONE` sighash, not the one asked for.
     SignedNone {

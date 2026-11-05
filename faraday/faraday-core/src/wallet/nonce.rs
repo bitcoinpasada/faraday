@@ -166,6 +166,8 @@ pub struct NonceRow {
     pub name: String,
     /// Whether it is the key's over this transaction.
     pub verdict: Verdict,
+    /// The element is a proven hash preimage, not a signature.
+    pub preimage: bool,
     /// For a key held here: the nonce rule that recomputed it, or `None`
     /// inside when none did. `None` outside for a key held elsewhere,
     /// whose nonce cannot be recomputed without its private key.

@@ -903,6 +903,7 @@ impl Session {
                     input: input.index,
                     name: sig.name(),
                     verdict: sig.verdict,
+                    preimage: sig.preimage,
                     recomputed,
                     unmatched,
                 });

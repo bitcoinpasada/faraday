@@ -755,6 +755,22 @@ fn a_signature_on_a_leaf_that_is_not_run_is_not_refused() {
     }
 }
 
+#[test]
+fn a_64_byte_preimage_row_is_marked_a_preimage_and_a_true_unsupported_row_is_not() {
+    let app = with_inbox(vec![]);
+    let check = |tap| {
+        app.session
+            .nonce_check(&testkit::compute(), &taproot_psbt(&[tap]))
+    };
+    let rows = check(Tap::Lock {
+        preimage: vec![0xcd; 64],
+        spoil: true,
+    })
+    .rows;
+    assert!(rows.iter().any(|r| r.preimage && r.unchecked()));
+    assert!(check(Tap::Key).rows.iter().all(|r| !r.preimage));
+}
+
 fn lock(spoil: bool) -> Tap {
     Tap::Lock {
         preimage: vec![0xcd; 32],

@@ -5248,6 +5248,8 @@ strings! {
     nonce_mode_first: "first",
     /// The same: BIP-340 with zero auxiliary randomness.
     nonce_mode_bip340: "BIP-340",
+    /// Text in `nonce_check`: the row is a hash preimage on a script leaf, not a signature.
+    nonce_check_preimage: "Hash preimage · not a signature",
     /// Why a signature was not checked, in `nonce_check_not_checked`: the input has no previous output.
     nonce_unchecked_no_prevout: "no previous output",
     /// The same: a script Faraday does not take apart.
@@ -5962,6 +5964,8 @@ strings! {
     wallet_scripts_differ: "{}: input {}: the spend and this file hold different scripts for one control block, and no output is stated to check them",
     /// A warning on Review. `{}`: the input, why (a `nonce_unchecked_*`).
     psbt_warn_signature_unchecked: "input {}: a signature was not checked: {}",
+    /// A warning on Review. `{}`: the input; the element is a hash preimage, not a signature.
+    psbt_warn_preimage_unchecked: "input {}: a hash preimage was not checked as a signature",
     /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.
     psbt_warn_signed_none: "input {}: the signature under {} signs with {}, not the {} asked for: outputs are not committed to, anyone can redirect the funds",
     /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.

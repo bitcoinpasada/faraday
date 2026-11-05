@@ -215,10 +215,7 @@ fn other_words(d: &Detail) -> Cow<'static, str> {
         D::SignatureInvalidUnkeyed { input } => t(EN.psbt_warn_signature_unkeyed, &[&n(*input)]),
         D::WitnessMismatch { input } => t(EN.psbt_warn_witness_mismatch, &[&n(*input)]),
         D::FinalFieldsRefused { input } => t(EN.psbt_final_signature_refused, &[&n(*input)]),
-        D::SignatureUnchecked { input, reason } => t(
-            EN.psbt_warn_signature_unchecked,
-            &[&n(*input), unchecked_text(*reason)],
-        ),
+        D::SignatureUnchecked { .. } => Cow::Owned(unchecked_warning(d)),
         D::SignedNone {
             input,
             key,
@@ -406,6 +403,29 @@ fn script_kind_text(k: faraday_psbt::ScriptKind) -> String {
     }
 }
 
+/// The Caution that an element was not checked (`d` is a
+/// `SignatureUnchecked`): a hash preimage is said to be one, not called a
+/// signature.
+fn unchecked_warning(d: &Detail) -> String {
+    let Detail::SignatureUnchecked {
+        input,
+        reason,
+        preimage,
+    } = d
+    else {
+        return String::new();
+    };
+    let input = input.to_string();
+    if *preimage {
+        fill(EN.psbt_warn_preimage_unchecked, &[&input])
+    } else {
+        fill(
+            EN.psbt_warn_signature_unchecked,
+            &[&input, unchecked_text(*reason)],
+        )
+    }
+}
+
 /// Why a signature was not checked, in the strings file's words.
 pub(crate) fn unchecked_text(u: faraday_psbt::verify::Unchecked) -> &'static str {
     use faraday_psbt::verify::Unchecked as U;
@@ -523,4 +543,26 @@ pub(crate) fn signed(
         })
         .map_err(|e| crate::review::sign_error_text(&e));
     (psbt, result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_psbt::verify::Unchecked;
+
+    fn text(preimage: bool) -> String {
+        other_words(&Detail::SignatureUnchecked {
+            input: 0,
+            reason: Unchecked::UnsupportedScript,
+            preimage,
+        })
+        .into_owned()
+    }
+
+    #[test]
+    fn a_preimage_caution_does_not_say_a_signature_was_not_checked() {
+        assert!(!text(true).contains("a signature was not checked"));
+        assert!(text(true).contains("hash preimage"));
+        assert!(text(false).contains("a signature was not checked: unsupported script"));
+    }
 }
