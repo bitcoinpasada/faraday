@@ -131,6 +131,8 @@ does what is `tools/README.md`'s.
 | `crypto.at-source`: core/ is Faraday's own code: a thing is fixed at its source rather than wrapped | `core/**` | review | - | - | - | `CLAUDE.md` |
 | `crypto.kept-values`: a type re-implemented from a core/ one keeps the values the original works out once | `faraday/**/src/**`<br>`!**/screen.rs`<br>`!faraday/faraday-core/src/screens/**`<br>`!faraday/faraday-ui/**` | review | - | - | - | `CLAUDE.md` |
 | `crypto.costs-said`: a function that costs more than a lookup says "Costs" in the first line of its doc | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**` | review | - | `costs-lint` | work that is costly and not marked so | `CLAUDE.md` |
+| `crypto.kef-claim`: what Faraday says of KEF is what it does: all twelve versions read and written, Krux's refusals kept when writing, seeds.json and a passphrase that is a code left out, and the claim says it was checked against Krux's code and not on a device | `docs/KEF.md` | review | - | - | whether the claim is still true of what is built, until a review reads it against the code and Krux's | `docs/decisions/F219.md`<br>`docs/KEF.md` §2<br>`docs/STANDARDS.md` §0 |
+| `crypto.kef-claim-code`: the first of KEF's code is read against the claim in docs/KEF.md, and the commit that adds it names the paths in crypto.kef-claim's when, since a path that does not exist yet cannot be named there | `core/faraday-codec/src/kef*.rs`<br>`faraday/faraday-kef/**`<br>on add | review | - | - | a change to KEF's code before crypto.kef-claim names its paths | `docs/decisions/F219.md`<br>`docs/KEF.md` §11 |
 
 ### 2.7 keys
 
@@ -285,6 +287,8 @@ No script holds these; a reviewer reads this list for the change.
 | `crypto.at-source`: core/ is Faraday's own code: a thing is fixed at its source rather than wrapped | `CLAUDE.md` |
 | `crypto.kept-values`: a type re-implemented from a core/ one keeps the values the original works out once | `CLAUDE.md` |
 | `crypto.costs-said`: a function that costs more than a lookup says "Costs" in the first line of its doc | `CLAUDE.md` |
+| `crypto.kef-claim`: what Faraday says of KEF is what it does: all twelve versions read and written, Krux's refusals kept when writing, seeds.json and a passphrase that is a code left out, and the claim says it was checked against Krux's code and not on a device | `docs/decisions/F219.md`<br>`docs/KEF.md` §2<br>`docs/STANDARDS.md` §0 |
+| `crypto.kef-claim-code`: the first of KEF's code is read against the claim in docs/KEF.md, and the commit that adds it names the paths in crypto.kef-claim's when, since a path that does not exist yet cannot be named there | `docs/decisions/F219.md`<br>`docs/KEF.md` §11 |
 | `keys.secret-files`: a file that starts to hold secrets is added to lint-secrets' SECRET_FILES | `tools/README.md` |
 | `keys.child-vault-only`: that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password | `docs/decisions/F166.md`<br>`docs/decisions/F172.md` |
 | `keys.home-scan-takes-all`: a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line, or on the read card for a TOTP setup code with no vault open | `docs/decisions/F167.md`<br>`docs/decisions/F173.md` |

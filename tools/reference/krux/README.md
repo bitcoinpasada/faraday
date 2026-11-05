@@ -25,10 +25,12 @@ MicroPython's own, each a few lines over the standard library:
 - `base32.py`: `encode(data, padding)` and `decode(text)`, RFC 4648 in
   upper case, the two calls `bbqr.py` makes.
 - `deflate.py`: `DeflateIO`, raw deflate over zlib. krux gives it no
-  format and no window, which MicroPython's `deflate` documentation
-  (library/deflate.rst in the MicroPython repository) reads as raw with a 256-byte window; zlib
-  has no raw window under 512 bytes, so it writes with 512 and reads with
-  the largest (a device reads 256).
+  format and no window, which the firmware it pins reads as raw with a
+  1,024-byte window (selfcustody/micropython
+  `b11923f020e0caf2572e5874957f29128da2bb45`, `extmod/moddeflate.c`,
+  `DEFLATEIO_DEFAULT_WBITS` 10; MicroPython's own documentation gives 256
+  bytes). The shim writes with a 512-byte window, which a device reads, and reads with
+  the largest (a device reads 1,024).
 
 `gc` is MicroPython's and CPython's alike and needs no shim.
 

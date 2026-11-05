@@ -1,14 +1,14 @@
 # KEF: Krux's encrypted code, read and written in full
 
 **Kind:** Spec
-**Status:** Specified; nothing built. No decision number yet.
-**Open:** All of it: the decision, the crate, the classifier's arm, the worker job, the screens, the cross-check area, the fuzz target, the dependency pages. Questions a source could not settle are in §13.
+**Status:** Specified; decided by F219; nothing built.
+**Open:** F219 decided the design and none of it is built: the crate, the classifier's arm, the worker job, the screens, the cross-check area, the fuzz target, the dependency pages. Questions a source could not settle are in §13.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's
 published specification, with that project's code as its reference. This
-document says what Faraday does with it, beside the QR vault
-(`docs/VAULT.md` §2.1). All values were read from the sources in §1.
+document says what Faraday does with it. All values were read from the
+sources in §1.
 
 ## 1. Sources
 
@@ -19,7 +19,7 @@ selfcustody/krux, tag `v26.09.0`, commit
 - `src/krux/kef.py` (SHA-256 `deb09c47bf20998696f11ed9b9fcc95bcb856b2def8428190c1044c1cf119a59`)
 - docs/getting-started/features/encryption/kef-specifications.en.md, "the specification" below
 - `tests/test_kef.py`, `tests/test_encryption.py`, `tests/shared_mocks.py`
-- `src/krux/pages/encryption_ui.py`, `mnemonic_loader.py`, `wallet_settings.py`, `home_pages/wallet_descriptor.py`, `datum_tool.py`, `src/krux/baseconv.py`, `krux_settings.py`
+- `src/krux/pages/encryption_ui.py`, `mnemonic_loader.py`, `wallet_settings.py`, `home_pages/wallet_descriptor.py`, `datum_tool.py`, `src/krux/pages/__init__.py`, `src/krux/encryption.py`, `src/krux/baseconv.py`, `krux_settings.py`
 
 And the firmware Krux pins: selfcustody/MaixPy
 `ec79e131f5a1977bdcddaa24f6cdfc3497ae2496`,
@@ -35,22 +35,33 @@ own formula hash the compressed bytes.
 
 Against `docs/STANDARDS.md` §0: its cryptography is standard and not Faraday's own, and it
 can be checked against code Faraday did not write, but it is neither a BIP, SLIP or RFC nor a
-convention other wallets use, since one project uses it. It enters by a decision naming that.
+convention other wallets use, since one project uses it. It enters by the decision naming that (F219).
 
 The specification asks that a claim of support be clear and precise.
 Faraday's, once built:
 
-> Reads KEF versions 0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20 and 21. Writes
-> versions 5, 6, 7, 10, 11, 12, 15, 16, 20 and 21. As in Krux v26.09.0.
-> Reads an envelope as raw bytes or as hex, base32, base43 or base64 text.
-> Decompressed contents up to 100 KiB; PBKDF2 counts up to 100,000,000.
+> Reads and writes KEF versions 0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20 and
+> 21, as in Krux v26.09.0; 0 and 1 are labelled legacy. Reads an envelope as
+> raw bytes or as hex, base32, base43 or base64 text. Decompressed contents
+> up to 100 KiB; PBKDF2 counts up to 100,000,000. Checked against Krux's
+> code, and not on a Krux device. Left out: Krux's `seeds.json` store, and a
+> passphrase that is itself a KEF code.
 
-Not claimed: Krux's `seeds.json` store (§13), a passphrase that is itself
-a KEF code, and anything of a later Krux release until it is read here.
+Nor is anything of a later Krux release claimed until it is read here.
 
-Versions 0 and 1 are read and not written: the specification marks them
-legacy, "consider using" 5 and 10. **Krux still can write them.** Its
-automatic choice (`suggest_versions`) never picks them, but the Datum
+Left out, and what a person does instead:
+
+- **`seeds.json`** is Krux's store on flash and SD card (`{id: {"b64_kef": …}}`,
+  and an older form with `version`, `key_iterations` and `data`). It is not in
+  KEF's specification. A person can open an envelope from it only as a file of
+  its own bytes.
+- **A passphrase that is itself a code**, which Krux can scan, and which may
+  itself be KEF. A person holding one can read it off and type it, unless it is
+  not text; **Enter as hex** (§9) covers that.
+
+Versions 0 and 1 are written one level further down, labelled legacy. The
+specification marks them legacy, "consider using" 5 and 10, but **Krux still
+can write them.** Its automatic choice (`suggest_versions`) never picks them, but the Datum
 tool's version menu (`input_version_ui`) lists every entry of `VERSIONS`,
 0 and 1 included, and `Cipher.encrypt` accepts them. The documentation's
 "Legacy (<= v25.03.0)" describes the default, not what the firmware can do.
@@ -96,19 +107,21 @@ The unused byte values refuse: a code with another `v` is not KEF.
 
 ### 4.1 Writing: strict
 
-Each refusal is Krux's, with `fail_unsafe` on. A refusal says which other
-version would work.
+The ECB and NUL refusals are Krux's, with `fail_unsafe` on. A refusal says
+which other version would work.
 
 - **ECB:** the padded bytes (the check and padding included where they are
   encrypted) must have no two equal 16-byte blocks.
 - **NUL padding, exposed check (5, 10):** the bytes before padding must not
   end in 0x00.
-- **NUL padding, hidden check (0, 1):** never written here.
+- **NUL padding, hidden check (0, 1):** the check's last byte must not be
+  0x00, which refuses about 1 plaintext in 256. The plaintext itself may end in
+  0x00, since the check follows it.
 - **An IV is 12 or 16 fresh bytes of the session's** (`fresh_bytes`, F154,
-  with Add randomness offered as for a QR vault), never reused, never
+  with Add randomness offered before the code is made), never reused, never
   supplied. ECB takes none.
-- **Empty plaintext** is refused (Krux raises on it in the NUL-padded
-  versions and has no use for it elsewhere).
+- **Empty plaintext** is refused (Krux raises on it in versions 5 and 10
+  and has no use for it elsewhere).
 - **Compression:** a compressed version is written only for a plaintext of
   at most 1,024 bytes (§10).
 
@@ -153,7 +166,14 @@ must re-encode to the same text, to narrow what matches (§8). Larger
 contents go as raw bytes in the numbered or BBQr parts Faraday already
 writes.
 
-Sizes at medium error correction, by the capacity tables, with an 8-byte id:
+**Low error correction** is offered for version 5, one level down, since a
+smaller code is the reason to pick that version: a 24-word code then reaches
+29 × 29. Low restores about 7% of a code's words where medium restores about
+15%, so it tolerates about half the damage. A code on paper meant to last is
+safer at medium.
+
+Sizes at medium error correction unless a row says low, by the capacity
+tables, with an 8-byte id:
 
 | Contents | Version | Bytes | Base43 characters | Code |
 |---|---|---|---|---|
@@ -162,11 +182,17 @@ Sizes at medium error correction, by the capacity tables, with an 8-byte id:
 | 24 words, 16-byte id | 20 | 69 | 102 | 37 × 37 |
 | 12 words | 5 | 32 | 47 | 29 × 29 |
 | 24 words | 5 | 48 | 70 | 33 × 33 |
+| 12 words | 5, at low | 32 | 47 | 25 × 25 (version 2's whole capacity) |
+| 24 words | 5, at low | 48 | 70 | 29 × 29 |
 | 24 words | 10 | 65 | 95 | 37 × 37 |
+| 12 words | 0, legacy | 45 | 66 | 33 × 33 |
+| 24 words | 0, legacy | 61 | 90 | 33 × 33 |
+| 12 words | 1, legacy | 61 | 90 | 33 × 33 |
+| 24 words | 1, legacy | 77 | 113 | 37 × 37 |
 
 Binary at the same sizes gives the same codes: 61 bytes also fits version 4.
 The base43 form is what Krux's mnemonic path writes, and what a person can
-transcribe. A QR vault is 77 × 77 for every contents.
+transcribe. A QR vault (`docs/VAULT.md` §2.1) is 77 × 77 for every contents.
 
 ## 6. What goes in and what comes out
 
@@ -192,7 +218,7 @@ SeedQR. A KEF envelope inside a KEF envelope is opened in turn.
 | A BIP-39 passphrase, a codex32 share, a note | its UTF-8 text, nothing around it | 20 |
 | A wallet's policy or descriptor | its text | 20; 21 is offered |
 
-Unlike the QR vault, there is no padding and no TOML: Krux must be able to
+There is no padding and nothing around the plaintext: Krux must be able to
 read it. **So a code shows its contents' length**, and whether it is a
 12- or a 24-word seed (§12).
 
@@ -238,7 +264,7 @@ passphrase is asked for. A hostile code can demand 100,000,000.
   one worker for minutes. The loop checks a cancel flag between steps and
   reports its count, so the bar is determinate.
 - The screen shows the count and the estimated time here, from a short timed
-  run. Over 550,000, the most Krux's own screen accepts, the card says so
+  run. Over 550,000, the most Krux itself writes (§10), the card says so
   and asks once more: a person who made this code on a Krux did not choose it.
 
 ### 7.3 A wrong passphrase that passes
@@ -299,18 +325,19 @@ as `0x` hex, as Krux shows it.
 The specification: `K` is bytes, UTF-8 and unnormalised, with a minimal set of
 characters advised on writing and several normalisations allowed on reading.
 
-**Writing: printable ASCII only** (0x20 to 0x7E). Krux's keypads offer letters,
-digits and symbols (§13), ASCII is the same in every normal form, and the rule can be stated in a
-line. Other text is refused at the field. This is stricter than the vault's
+**Writing: printable ASCII only** (0x20 to 0x7E), at most 200 characters. Krux's
+key field offers exactly those 95 characters on its four keypads and takes at most
+200 (`load_key`, `ENCRYPTION_KEY_MAX_LEN`), ASCII is the same in every normal form,
+and the rule can be stated in a line. Other text, or a longer one, is refused at the field. This is stricter than the vault's
 NFC (`docs/VAULT-HARDENING.md`), because a vault opens in Faraday and a KEF
 code must open on a device with a small keypad. The dice passphrase comes
-first, as for a vault.
+first.
 
 **Reading:** the field's text as typed, in UTF-8. If it holds anything outside
 ASCII, then also NFC and NFD where they differ: at most three runs, each a full
 PBKDF2, said on the card before the press. One level down, **Enter as hex**
 takes the bytes themselves, since a Krux key scanned from a code can be any
-bytes. A passphrase scanned from a code is not offered on the first build (§13).
+bytes. A passphrase scanned from a code is left out (§2).
 
 The passphrase is not stored; it is given to the job by move, as Unlock's is.
 
@@ -322,15 +349,21 @@ The passphrase is not stored; it is given to the job by move, as Unlock's is.
   24-word code at 33 × 33. NIST SP 800-132 asks for at least 128 random bits of
   salt; 16 bytes gives that at 37 × 37, one level down. A salt here needs only to
   differ between codes under one passphrase, which 64 bits does.
-- **Not the fingerprint**, Krux's default: it would put the wallet's fingerprint,
+- **The fingerprint, Krux's default, is one level down** beside 16 bytes and a
+  typed label, and is not the default: it would put the wallet's fingerprint,
   which also appears in descriptors and PSBTs, on a printed code; would tell its
   holder which wallet it opens; and would give every code of a seed under one
-  passphrase and count the same key. A label typed one level down is public and
-  printed, and the form says so; a typed label gets Krux's small random change
-  to the count (within 10%), so a reused label does not mean a reused key.
-- **Iterations: 100,000.** Krux's default (`pbkdf2_iterations`, range 10,000 to
-  500,000), so every Krux opens it in the time its owner expects. One level down:
-  10,000 to 500,000. The form says what §12 says: the passphrase matters far more.
+  passphrase and count the same key. A label or the fingerprint is public and
+  printed, and the form says so. Either adds to the count a random change under
+  10% of it, as Krux does, so a reused id does not mean a reused key.
+- **Iterations: 100,000.** Krux's default, so every Krux opens it in the time its
+  owner expects. Krux's setting (`pbkdf2_iterations`) runs from 10,000 to 500,000,
+  and it adds a change under 10% of the setting to every new code, whatever its id
+  (`KEFEnvelope.__init__`), so at most 549,999. A count typed for one code replaces
+  that and is taken from 10,000 to 550,000 (`input_iterations_ui`; the field's title
+  says 510K). So 550,000 is the most Krux itself writes, and the setting's range is
+  what Faraday offers. One level down: 10,000 to 500,000, and with a label or the
+  fingerprint the change on top. The form says what §12 says: the passphrase matters far more.
   How long 500,000 takes on Krux's slowest board is not known here (§13).
 
 Compression is not automatic: Krux's choice of 21 at 120 bytes and above is
@@ -382,8 +415,8 @@ Reason: `only-part-used` (ESTABLISHED §1.1), over `aes`, `cbc`, `ctr`, `aes-gcm
   derives a key takes `c: &Compute`, says "Costs a PBKDF2 of `count` rounds" and
   takes bytes, holding no key of its own (F70).
 - **Sealing a seed:** the entropy comes through `Keys` by a named reveal
-  (`docs/KEYS.md`). `Reveal` is a closed list: the implementation uses the variant
-  the QR vault's seal uses if that one's meaning covers this, otherwise adds a
+  (`docs/KEYS.md`). `Reveal` is a closed list: the implementation uses an existing
+  variant if its meaning covers this, otherwise adds a
   variant in `faraday-keys` with its doc, in the same commit.
 - **Opening a seed:** decrypted entropy goes in as a scanned CompactSeedQR's does,
   wiped on its way, and is key material from there. What is in `faraday-kef`'s
@@ -399,7 +432,7 @@ the code, whose `independence` is others' code (Krux's).
 Accurate enough to be the website's explainer, and to be read as a warning.
 
 **What KEF is for.** A short code, opened by a Krux device or by Faraday. The
-QR vault's strengths are the opposite ones: it hides what it holds, takes more
+QR vault's strengths (`docs/VAULT.md` §2.1) are the opposite ones: it hides what it holds, takes more
 memory to attack and is a public standard, at 77 × 77.
 
 **Each version.**
@@ -410,7 +443,7 @@ memory to attack and is a public standard, at 77 × 77.
 | 15, 16 (CTR) | Devices without GCM | The check is an unkeyed hash inside the ciphertext. Someone who knows the plaintext can change the code to say anything else and fix the check, without the passphrase |
 | 10, 11, 12 (CBC) | The same | Larger: a 16-byte IV |
 | 5, 6, 7 (ECB) | The smallest code | No IV: below |
-| 0, 1 | Reading only | Replaced by 5 and 10 |
+| 0, 1 | Legacy, one level further down: what Krux's first releases wrote, for a Krux that may open nothing newer (§13) | Replaced by 5 and 10, and larger than them: a 16-byte check. About 1 plaintext in 256 is refused (§4.1). 0 also has ECB's leak |
 
 **ECB's leak.** Under one key, equal 16-byte blocks of plaintext give equal blocks
 of ciphertext, and the same plaintext gives the same code each time. A refusal of
@@ -419,9 +452,12 @@ passphrase, id and count, the same seed gives the same code, which says the two
 hold the same thing. Random entropy has no repeats to find within a code; text
 can have similar blocks that stop short of being equal. Faraday's random id gives
 each code its own key, which removes the case between codes, and ECB still is not
-the default. Its use is a smaller code: 29 × 29 for 12 words.
+the default. With a typed label or the fingerprint, only the count's random change
+gives a code its own key, and two codes can draw the same one. Its use is
+a smaller code: 29 × 29 for 12 words, and at low error correction 25 × 25, or 29 × 29
+for 24 words (§5).
 
-**Truncated checks.** 3 or 4 bytes, against 16 in the QR vault. They say the
+**Truncated checks.** 3 or 4 bytes, against 16 in the QR vault and in versions 0 and 1. They say the
 passphrase was probably right; they do not prove the bytes are what was written.
 A wrong passphrase passes 1 time in 16,777,216 or 4,294,967,296 (§7.3), and a
 change made to a GCM code passes 1 time in 4,294,967,296 for each time the person enters a passphrase. The specification
@@ -436,16 +472,17 @@ also needs its memory for every guess, which this count does not show. OWASP's
 Password Storage Cheat Sheet asks for 600,000 for PBKDF2-HMAC-SHA-256, more than
 Krux's setting allows.
 
-In guesses, taking a round 10^10 HMAC-SHA-256 per second for one attacker's graphics
-card (an assumption for scale, not a measurement, §13), at 100,000: 100,000 guesses
-a second.
+In guesses, from a public hashcat benchmark
+(https://gist.github.com/Chick3nman/32e662a5bb63bc4f51b847bb422222fd): 8,865.7 kH/s
+for mode 10900, PBKDF2-HMAC-SHA256 at 999 iterations, on one graphics card. At 100,000
+that is about 88,000 guesses a second.
 
 | Passphrase | To try them all, on one such card |
 |---|---|
-| 6 dice words, 77.5 bits | about 68 billion years |
-| 4 dice words, 51.7 bits | about 1,160 years; 1,000 cards, about a year |
-| 8 random lower-case letters, 37.6 bits | about 24 days |
-| One dice word and 4 digits, 26.2 bits | about 13 minutes |
+| 6 dice words, 77.5 bits | about 76 billion years |
+| 4 dice words, 51.7 bits | about 1,300 years; 1,000 cards, about 16 months |
+| 8 random lower-case letters, 37.6 bits | about 27 days |
+| One dice word and 4 digits, 26.2 bits | about 15 minutes |
 
 **So the passphrase is the whole of the protection.** The specification: "KEF offers
 no expectation of security for a weak user-supplied `key`." A code is meant to be
@@ -473,22 +510,15 @@ of the engine's 16 tag bytes "have ever been exercised in the field".
 
 - **A code from a real Krux device.** All vectors here come from Krux's tests, which run
   over PyCryptodome and not the K210's engine. That the engine's first 4 tag bytes equal
-  standard GCM's follows from Krux's claim of compatibility and is not shown here. A code
-  from a device, in each mode, goes into the vectors before release.
+  standard GCM's follows from Krux's claim of compatibility and is not shown here. No device
+  is at hand, so KEF is offered as checked against Krux's code and not on a device, and the
+  claim says so (§2). A device's code joins the vectors if one ever turns up.
 - **How long a count takes on Krux's slowest board**, for the default (§10), and on a Pi 3B+
   for §7.2's estimate.
-- **The guess rate in §12** is for scale. A measurement from a named source replaces it
-  before the website uses it.
-- **`seeds.json`**, Krux's store on flash and SD card (`{id: {"b64_kef": …}}`, and an older
-  form with `version`, `key_iterations` and `data`). It is not KEF's specification. Not read
-  on the first build; a person can open the envelope only as a file of its own bytes.
-- **A passphrase scanned from a code**, which Krux allows, itself possibly KEF. Not on the
-  first build. A person holding one can read it off and type it, unless it is not text;
-  **Enter as hex** covers that.
+- **What Krux's older releases open.** Whether a release up to v25.03.0, which the
+  specification's "Legacy" names, opens anything but versions 0 and 1 was not read.
 - **`miniz_oxide`'s dictionary:** §10's bound assumes it offers no 1,024-byte window; the
   cross-check confirms each compressed output inflates under `wbits` 10.
-- **Krux's keypads** being ASCII only, which §9's rule rests on: `pages/keypads.py` and its
-  character sets were not read.
 - **Whether Krux's numbered or BBQr parts carry a KEF** from its Datum tool as Faraday's
   reassembly expects. `view_qr` was not read.
 
@@ -513,9 +543,9 @@ Behaviour a person or Krux would notice, and vectors:
   under such shims, all twelve versions making and opening their own payloads. `test_kef.py`
   does not run this way: it needs Krux's `conftest.py`, its mocks, `pytest`, `embit` and
   PyCryptodome. Its data is taken and not its code.
-  Each of the twelve versions (the ten for writing) over: both sizes of entropy, short and long
-  text, NUL-ended text, repeated blocks, ids of 0, 8 and 252 bytes, counts at each edge, the
-  written 0-and-1 codes from Krux to Faraday only. Refusals agree where Krux's do, and §8's
+  Each of the twelve versions, each way, over: both sizes of entropy, short and long
+  text, NUL-ended text, text whose hidden check ends in 0x00, repeated blocks, ids of 0, 8 and
+  252 bytes, counts at each edge. Refusals agree where Krux's do, and §8's
   stricter ones are listed as facts.
 - **Written compressed codes** inflate under `zlib` at `wbits` -10.
 - **A fuzz target**, faraday/fuzz/fuzz_targets/kef.rs, on the parse and on decryption with a
@@ -530,12 +560,16 @@ Behaviour a person or Krux would notice, and vectors:
 
 Strings are not written here. Every string goes to `en.rs`; a screen review names its Material page.
 
-- **Making one.** In the backup flow beside **QR vault**: **Krux code (KEF)**. The first step
-  has what to hold and the passphrase, dice first. Written at version 20, 8-byte random id,
-  100,000. **Options**, one level down, hold the version (all ten, grouped by mode, ECB's
-  carrying its one line), the count, the id (16 bytes, or a typed label) and nothing else.
-  A refusal of §4.1 names the version that works.
-- **The code.** A labelled PNG and a file to the Outbox, as a QR vault's; the label never
+- **Making one.** **Krux code (KEF)** is a form on a seed on the backup board's Customize page
+  (`docs/BACKUP-FLOW.md` §17.21), one level down; it adds no answer to the question on vaults.
+  Its first step has the passphrase, dice first. Written at version 20, 8-byte random id,
+  100,000. **Options**, one level down, hold the version (grouped by mode, ECB's carrying its
+  one line; 0 and 1 one level further down, labelled legacy), low error correction for version
+  5, the count, the id (16 bytes, a typed label or the fingerprint) and nothing else.
+  A refusal of §4.1 names the version that works. A code of anything else §6 writes (a
+  passphrase, a share, a note, a wallet's text) is made with a tool in Tools, with the same
+  first step, defaults and Options.
+- **The code.** A labelled PNG and a file to the Outbox; the label never
   says what it holds. Not a secret under `docs/QR.md` §7.1.
 - **Scanning one.** §8's card: version, id, count, time here. **Open** asks for the passphrase;
   **Enter as hex** is one level down. A bar with Cancel. Then §6's road, the fingerprint on

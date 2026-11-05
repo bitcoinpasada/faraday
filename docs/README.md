@@ -116,7 +116,7 @@ need. Each document's header says what kind it is:
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145), not built.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
-- `docs/KEF.md`: KEF, Krux's encrypted code, read and written in full, beside the QR vault. Planned; nothing built, and it waits on its decision.
+- `docs/KEF.md`: KEF, Krux's encrypted code, read and written in full. Specified (F219); nothing built.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built; paused until a Mac is available to test on.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).
