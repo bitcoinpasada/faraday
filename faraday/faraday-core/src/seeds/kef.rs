@@ -1,0 +1,633 @@
+//! A scanned Krux encrypted code, opened (`docs/KEF.md` §6, §7, §8, §15):
+//! the read card's header and the sheet that asks the passphrase, shows
+//! the bar while the key is worked out on the worker, and takes what
+//! comes out down §6's road. Nothing runs before **Open** is pressed.
+//!
+//! The header (version, id, count, the time the count takes here) is
+//! worked out once, at the read; drawing reads it. A short timed run at
+//! the first read gives the time: its rate arrives with the next tick.
+
+use crate::drawing::View;
+use crate::secret_text::SecretText;
+use crate::strings::{EN, fill};
+use crate::ui::pal::*;
+use crate::ui::{Style, Ui};
+use crate::{Action, Faraday, Sheet};
+use faraday_crypto::work::Compute;
+use faraday_draw::tokens::{BODY_S, GAP as T_GAP, GAP_SMALL, LABEL_L};
+use faraday_draw::widgets::Icon;
+use faraday_keys::kef::Envelope;
+use faraday_shell_api::Key as KeyIn;
+use zeroize::Zeroizing;
+
+/// The most Krux itself writes (`docs/KEF.md` §10): above it the card
+/// asks once more.
+pub(crate) const COUNT_ASKED: u32 = 550_000;
+
+/// How deep codes inside codes are offered (`docs/KEF.md` §6).
+const DEPTH_MAX: u8 = 8;
+
+/// The most of an id the card and the sheet show, in characters: an id
+/// may run to 252 bytes, and the field stays in view.
+const ID_SHOWN: usize = 24;
+
+/// The rounds of the short timed run.
+const TIMED_ROUNDS: u32 = 50_000;
+
+/// A code's header on the read card.
+pub(crate) struct Header {
+    /// The code, which the passphrase opens.
+    pub(crate) envelope: Envelope,
+    /// The count is above what Krux writes.
+    pub(crate) high: bool,
+    /// The second press of **Open** is the one that goes on.
+    pub(crate) sure: bool,
+}
+
+/// What the sheet is doing.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stage {
+    /// The passphrase is asked.
+    Ask,
+    /// The key is worked out on the worker.
+    Working,
+    /// The contents parse as another encrypted code: offered as one, with
+    /// a way to read them as what else they may be.
+    Offer,
+    /// The contents are text that names nothing.
+    Note,
+    /// The contents are bytes that are not text.
+    Bytes,
+}
+
+/// What the sheet's presses do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KefAct {
+    /// Typing goes to the passphrase field.
+    Field,
+    /// Open with what is typed.
+    Open,
+    /// Switch between typed text and hex bytes.
+    Hex,
+    /// The eye on the contents.
+    Show,
+    /// The contents offered as a code are something else.
+    NotEncrypted,
+    /// The note is carried to the next seed's passphrase.
+    UseAsPassphrase,
+}
+
+/// The sheet's state, wiped when it closes.
+pub(crate) struct KefRead {
+    envelope: Envelope,
+    /// The header's facts as one line, worked out when the sheet opens.
+    facts: String,
+    depth: u8,
+    stage: Stage,
+    hex: bool,
+    pass: SecretText,
+    focus: bool,
+    error: Option<String>,
+    /// The passphrases still to try if the one running fails.
+    forms: Vec<Zeroizing<Vec<u8>>>,
+    /// The contents, as shown (a note's text or the bytes in hex).
+    shown: Option<Zeroizing<String>>,
+    eye: bool,
+    retried: bool,
+    /// The contents offered as a code, kept until one of the two ways.
+    offered: Option<Zeroizing<Vec<u8>>>,
+    /// A count above what Krux writes was seen and **Open** pressed once.
+    sure: bool,
+}
+
+impl KefRead {
+    pub(crate) fn new(envelope: Envelope, depth: u8, rate: Option<u64>) -> Self {
+        Self {
+            facts: facts(&envelope, rate).join(" · "),
+            envelope,
+            depth,
+            stage: Stage::Ask,
+            hex: false,
+            pass: SecretText::new(),
+            focus: true,
+            error: None,
+            forms: Vec::new(),
+            shown: None,
+            eye: false,
+            retried: false,
+            offered: None,
+            sure: false,
+        }
+    }
+
+    /// The text typing goes to.
+    pub(crate) fn field(&self) -> Option<&SecretText> {
+        (self.stage == Stage::Ask && self.focus).then_some(&self.pass)
+    }
+}
+
+/// The id as the card shows it: text, or `0x` hex (`docs/KEF.md` §8).
+fn id_shown(id: &[u8]) -> String {
+    let whole = match faraday_codec::kef::id_text(id) {
+        Some(t) => t.to_string(),
+        None => format!("0x{}", hex(id)),
+    };
+    if whole.chars().count() <= ID_SHOWN {
+        return whole;
+    }
+    let mut cut: String = whole.chars().take(ID_SHOWN).collect();
+    cut.push('…');
+    cut
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Whole bytes from hex text, spaces left out.
+fn unhex(text: &str) -> Option<Zeroizing<Vec<u8>>> {
+    let digits: Zeroizing<Vec<u8>> = Zeroizing::new(
+        text.bytes()
+            .filter(|b| !b.is_ascii_whitespace())
+            .collect::<Vec<u8>>(),
+    );
+    if digits.is_empty() || !digits.len().is_multiple_of(2) {
+        return None;
+    }
+    let mut out = Zeroizing::new(Vec::with_capacity(digits.len() / 2));
+    for pair in digits.chunks(2) {
+        let s = std::str::from_utf8(pair).ok()?;
+        out.push(u8::from_str_radix(s, 16).ok()?);
+    }
+    Some(out)
+}
+
+/// The time the count takes here, from the rate in milliseconds per timed
+/// run: "under a second", "12 s", "3 min".
+fn time_text(count: u32, rate_ms: u64) -> String {
+    let ms = u64::from(count) * rate_ms / u64::from(TIMED_ROUNDS);
+    if ms < 1000 {
+        EN.kef_under_a_second.to_string()
+    } else if ms < 120_000 {
+        fill(EN.kef_seconds, &[&(ms / 1000).to_string()])
+    } else {
+        fill(EN.kef_minutes, &[&(ms / 60_000).to_string()])
+    }
+}
+
+/// The facts a code's header gives: version, id, count and time.
+fn facts(envelope: &Envelope, rate: Option<u64>) -> Vec<String> {
+    let spec = envelope.spec();
+    let count = envelope.count;
+    let count_line = match rate {
+        Some(r) => fill(
+            EN.kef_count_fact,
+            &[&count.to_string(), &time_text(count, r)],
+        ),
+        None => fill(EN.kef_count_only, &[&count.to_string()]),
+    };
+    let id = fill(EN.kef_id_fact, &[&id_shown(&envelope.id)]);
+    // The line about a high count takes the version's name's room, so the
+    // card holds three lines on the smallest screen.
+    if count > COUNT_ASKED {
+        return vec![
+            fill(EN.kef_version_fact, &[&spec.version.to_string(), &id]),
+            count_line,
+            EN.kef_count_high.to_string(),
+        ];
+    }
+    vec![
+        fill(EN.kef_version_fact, &[&spec.version.to_string(), spec.name]),
+        id,
+        count_line,
+    ]
+}
+
+/// Costs a timed run of 50,000 PBKDF2 rounds the first time, none after.
+/// The read card's header and facts for the code `code` is, if it is
+/// one (`docs/KEF.md` §8): worked out once, at the read.
+pub(crate) fn kef_header(
+    app: &mut Faraday,
+    c: &Compute,
+    code: &[u8],
+) -> Option<(Header, Vec<String>)> {
+    let found = faraday_codec::kef::recognize(code)?;
+    let envelope = found.envelope;
+    if app.seed_read.rate().is_none() && !app.seed_read.timing() {
+        let mut out = [0u8; 32];
+        faraday_crypto::pbkdf2_hmac_sha256(c, b"timing", b"run", TIMED_ROUNDS, &mut out);
+        app.seed_read.time_from(app.now_ms);
+    }
+    let facts = facts(&envelope, app.seed_read.rate());
+    let high = envelope.count > COUNT_ASKED;
+    Some((
+        Header {
+            envelope,
+            high,
+            sure: false,
+        },
+        facts,
+    ))
+}
+
+/// A tick: the timed run's rate is known, and the card's count line
+/// gains the time. Returns whether the card changed.
+pub(crate) fn kef_tick(app: &mut Faraday, now_ms: u64) -> bool {
+    let Some(rate) = app.seed_read.finish_timing(now_ms) else {
+        return false;
+    };
+    let Some(card) = app.camera.scan_mut().and_then(|s| s.card.as_mut()) else {
+        return false;
+    };
+    let Some(h) = card.kef.as_ref() else {
+        return false;
+    };
+    card.facts = facts(&h.envelope, Some(rate));
+    true
+}
+
+/// The card's **Open**: the camera goes and the sheet asks the
+/// passphrase.
+pub(crate) fn kef_open_sheet(app: &mut Faraday, envelope: Envelope, depth: u8) {
+    let rate = app.seed_read.rate();
+    app.seed_read
+        .set_kef(Some(KefRead::new(envelope, depth, rate)));
+    app.sheet = Some(Sheet::KefRead);
+}
+
+/// The sheet's presses.
+pub(crate) fn kef_act(app: &mut Faraday, act: KefAct) {
+    let Some(k) = app.seed_read.kef_mut() else {
+        return;
+    };
+    match act {
+        KefAct::Field => k.focus = true,
+        KefAct::Hex => {
+            k.hex = !k.hex;
+            k.pass.clear();
+            k.error = None;
+            k.focus = true;
+        }
+        KefAct::Show => k.eye = !k.eye,
+        KefAct::Open if k.stage == Stage::Offer => {
+            if k.envelope.count > COUNT_ASKED && !k.sure {
+                k.sure = true;
+            } else {
+                k.stage = Stage::Ask;
+                k.offered = None;
+            }
+        }
+        KefAct::NotEncrypted => {
+            if let Some(plain) = k.offered.take() {
+                k.stage = Stage::Ask;
+                kef_road_on(app, plain);
+            }
+        }
+        KefAct::Open => kef_go(app),
+        KefAct::UseAsPassphrase => kef_use_as_passphrase(app),
+    }
+}
+
+/// Starts the job with what is typed. Nothing runs before this press.
+fn kef_go(app: &mut Faraday) {
+    let Some(k) = app.seed_read.kef_mut() else {
+        return;
+    };
+    if k.stage != Stage::Ask {
+        return;
+    }
+    let mut forms = if k.hex {
+        match unhex(k.pass.as_str()) {
+            Some(bytes) => vec![bytes],
+            None => {
+                k.error = Some(EN.kef_hex_bad.to_string());
+                return;
+            }
+        }
+    } else if k.pass.is_empty() {
+        vec![Zeroizing::new(Vec::new())]
+    } else {
+        faraday_keys::kef::reading_passphrases(k.pass.as_str())
+    };
+    // Popped from the back, so the typed form goes first.
+    forms.reverse();
+    k.forms = forms;
+    k.error = None;
+    kef_try_next(app);
+}
+
+/// The next passphrase form goes to the worker; none left is a failure.
+fn kef_try_next(app: &mut Faraday) {
+    let Some(k) = app.seed_read.kef_mut() else {
+        return;
+    };
+    let Some(pass) = k.forms.pop() else {
+        k.stage = Stage::Ask;
+        k.error = Some(EN.kef_failed.to_string());
+        return;
+    };
+    k.stage = Stage::Working;
+    let envelope = k.envelope.clone();
+    app.kef_open(pass, envelope, EN.kef_working);
+}
+
+/// The worker's answer for a code opened here, taken when it comes
+/// (`Faraday::apply_done`). Returns whether the sheet used it.
+pub(crate) fn kef_opened_here(app: &mut Faraday) {
+    if app.seed_read.kef().is_none() {
+        return;
+    }
+    let Some(answer) = app.kef_take_opened() else {
+        return;
+    };
+    match answer {
+        Ok(opened) => {
+            let retried = opened.retried;
+            if let Some(k) = app.seed_read.kef_mut() {
+                k.retried = retried;
+                k.forms.clear();
+            }
+            kef_road(app, opened.plaintext);
+        }
+        Err(faraday_keys::kef::OpenError::Cancelled) => {
+            if let Some(k) = app.seed_read.kef_mut() {
+                k.stage = Stage::Ask;
+                k.forms.clear();
+            }
+        }
+        Err(_) => kef_try_next(app),
+    }
+}
+
+/// Costs a mnemonic's checksum and what the intake costs. §6's road for
+/// what came out: 16 or 32 bytes to the seed sheet, a code inside a
+/// code offered again, text through the intake, a note, or hex.
+fn kef_road(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) {
+    kef_road_from(app, plain, true);
+}
+
+/// Costs what [`Faraday::kef_road`] costs. The road past the offer of
+/// a code inside a code: the contents are not one.
+fn kef_road_on(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) {
+    kef_road_from(app, plain, false);
+}
+
+fn kef_road_from(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool) {
+    let Some(k) = app.seed_read.kef() else {
+        return;
+    };
+    let (depth, id) = (k.depth, k.envelope.id.clone());
+    let c = app.compute();
+    if matches!(plain.len(), 16 | 32) {
+        let lang = faraday_bip::bip39::Language::English;
+        if let Ok(m) = faraday_keys::words::from_compact_seedqr(&plain, lang) {
+            let words = lang.words();
+            let mut typed = crate::secret_text::room();
+            for (n, &i) in m.indices().iter().enumerate() {
+                if n > 0 {
+                    typed.push(' ');
+                }
+                typed.push_str(words[usize::from(i)]);
+            }
+            drop(plain);
+            app.seed_read.set_kef(None);
+            app.sheet = None;
+            app.seed_scanned(&typed, scan_kind());
+            app.seed_read_kef_id(&id);
+            return;
+        }
+    }
+    if offer
+        && depth + 1 < DEPTH_MAX
+        && let Some(found) = faraday_codec::kef::recognize(&plain)
+    {
+        let mut next = KefRead::new(found.envelope, depth + 1, app.seed_read.rate());
+        next.stage = Stage::Offer;
+        next.offered = Some(plain);
+        app.seed_read.set_kef(Some(next));
+        return;
+    }
+    let Ok(text) = std::str::from_utf8(&plain) else {
+        return kef_show(app, Stage::Bytes, Zeroizing::new(hex(&plain)));
+    };
+    let names_something = crate::scan_read::secret_kind(&c, &plain).is_some()
+        || !matches!(
+            crate::scan_read::public_kind(crate::wallet::classify(&c, "", &plain), false, &plain),
+            crate::scan_read::Kind::Text | crate::scan_read::Kind::Unreadable
+        );
+    if names_something {
+        app.seed_read.set_kef(None);
+        app.sheet = None;
+        let mut scan = crate::ScanState::default();
+        scan.ask = crate::Ask::Any;
+        app.camera.open(scan);
+        app.sheet = Some(Sheet::Scan);
+        return app.scanned(plain.to_vec());
+    }
+    let shown = Zeroizing::new(text.to_string());
+    drop(plain);
+    kef_show(app, Stage::Note, shown);
+}
+
+fn kef_show(app: &mut Faraday, stage: Stage, shown: Zeroizing<String>) {
+    if let Some(k) = app.seed_read.kef_mut() {
+        k.stage = stage;
+        k.shown = Some(shown);
+        k.eye = false;
+    }
+}
+
+/// The note is carried to the next seed read as its passphrase: the
+/// scanner for a seed opens (`docs/KEF.md` §6).
+fn kef_use_as_passphrase(app: &mut Faraday) {
+    let Some(k) = app.seed_read.kef_mut() else {
+        return;
+    };
+    let Some(text) = k.shown.take() else {
+        return;
+    };
+    app.seed_read.set_kef(None);
+    app.sheet = None;
+    app.seed_read.carry_passphrase(&text);
+    app.act(Action::ScanSeed);
+}
+
+/// Cancel on the sheet: while the key is worked out it stops the work
+/// and asks the passphrase again; anywhere else it closes the sheet.
+pub(crate) fn kef_cancel(app: &mut Faraday) {
+    let Some(k) = app.seed_read.kef_mut() else {
+        app.sheet = None;
+        return;
+    };
+    if k.stage == Stage::Working {
+        k.stage = Stage::Ask;
+        k.forms.clear();
+        return;
+    }
+    app.seed_read.set_kef(None);
+    app.sheet = None;
+}
+
+/// Keys typed into the sheet's field. Returns whether it took the key.
+pub(crate) fn kef_read_key(app: &mut Faraday, key: KeyIn) -> bool {
+    if app.sheet != Some(Sheet::KefRead) {
+        return false;
+    }
+    let Some(k) = app.seed_read.kef_mut() else {
+        return false;
+    };
+    if k.stage != Stage::Ask {
+        return false;
+    }
+    match key {
+        KeyIn::Char(ch) if !ch.is_control() => k.pass.push(ch),
+        KeyIn::Backspace => {
+            k.pass.pop();
+        }
+        KeyIn::Enter => {
+            kef_go(app);
+            return true;
+        }
+        _ => return false,
+    }
+    k.error = None;
+    true
+}
+
+/// Whether typing goes to the sheet's field now.
+pub(crate) fn kef_typing(app: &Faraday) -> bool {
+    app.sheet == Some(Sheet::KefRead) && app.seed_read.kef().is_some_and(|k| k.field().is_some())
+}
+
+/// The sheet's field text, for the caret.
+pub(crate) fn kef_field(app: &Faraday) -> Option<&SecretText> {
+    app.seed_read.kef()?.field()
+}
+
+/// The kind a contents of 16 or 32 bytes are read as on the seed sheet.
+fn scan_kind() -> crate::scan_read::Kind {
+    crate::scan_read::Kind::CompactSeedQr
+}
+
+/// The sheet's buttons for what it is doing.
+fn sheet_items(k: &KefRead) -> Vec<(&'static str, Style, Action)> {
+    let mut items: Vec<(&str, Style, Action)> = Vec::new();
+    match k.stage {
+        Stage::Ask => {
+            items.push((EN.kef_cancel, Style::Ghost, Action::Cancel));
+            items.push((
+                if k.hex {
+                    EN.kef_enter_text
+                } else {
+                    EN.kef_enter_hex
+                },
+                Style::Secondary,
+                Action::KefRead(KefAct::Hex),
+            ));
+            items.push((EN.kef_open, Style::Primary, Action::KefRead(KefAct::Open)));
+        }
+        Stage::Offer => {
+            items.push((EN.kef_cancel, Style::Ghost, Action::Cancel));
+            items.push((
+                EN.kef_not_encrypted,
+                Style::Secondary,
+                Action::KefRead(KefAct::NotEncrypted),
+            ));
+            let open = if k.envelope.count > COUNT_ASKED && k.sure {
+                EN.kef_open_anyway
+            } else {
+                EN.kef_open
+            };
+            items.push((open, Style::Primary, Action::KefRead(KefAct::Open)));
+        }
+        Stage::Working => items.push((EN.kef_cancel, Style::Primary, Action::Cancel)),
+        Stage::Note => {
+            items.push((EN.kef_done, Style::Ghost, Action::Cancel));
+            items.push((
+                EN.kef_use_passphrase,
+                Style::Primary,
+                Action::KefRead(KefAct::UseAsPassphrase),
+            ));
+        }
+        Stage::Bytes => items.push((EN.kef_done, Style::Primary, Action::Cancel)),
+    }
+    items
+}
+
+/// The sheet.
+pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(k) = app.seed_read.kef() else {
+        return;
+    };
+    let items = sheet_items(k);
+    let title = match k.stage {
+        Stage::Note => EN.kef_note_title,
+        Stage::Bytes => EN.kef_bytes_title,
+        _ => EN.kef_sheet_title,
+    };
+    let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
+        let mut cy = y;
+        if matches!(k.stage, Stage::Ask | Stage::Working | Stage::Offer) {
+            // One paragraph, so the field stays in view on a small screen.
+            cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurface, &k.facts) + T_GAP;
+        }
+        match k.stage {
+            Stage::Ask => {
+                cy += crate::screens::pass_field(
+                    ui,
+                    x,
+                    cy,
+                    iw,
+                    if k.hex { EN.kef_hex } else { EN.kef_passphrase },
+                    &k.pass,
+                    (k.focus, None),
+                    Action::KefRead(KefAct::Field),
+                );
+                if let Some(e) = &k.error {
+                    cy += ui.wrap_as((x, cy + GAP_SMALL, iw), LABEL_L, Role::Error, e) + T_GAP;
+                }
+            }
+            Stage::Offer => {}
+            Stage::Working => {
+                if let Some(b) = app.busy() {
+                    crate::screens::busy_bar(app, ui, (x, cy + T_GAP, iw), b);
+                    cy += faraday_draw::tokens::PROGRESS_H + T_GAP + T_GAP;
+                }
+            }
+            Stage::Note | Stage::Bytes => {
+                if let Some(text) = &k.shown {
+                    let eye = (Action::KefRead(KefAct::Show), k.eye);
+                    cy += crate::vault::screen::secret::secret(
+                        ui,
+                        (x, cy, iw),
+                        text,
+                        k.stage == Stage::Bytes,
+                        eye,
+                    ) + T_GAP;
+                }
+                if k.retried {
+                    cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, EN.kef_retried)
+                        + T_GAP;
+                }
+            }
+        }
+        cy - y
+    };
+    let head = (Icon::Keys.into(), Role::Primary.paint(), title);
+    crate::compact::dialog(
+        ui,
+        (w, h, faraday_draw::tokens::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| body(ui, x, y, iw),
+        &items,
+    );
+}
+
+/// A note shown on the sheet, for the budget tests.
+#[cfg(test)]
+pub(crate) fn test_note(app: &mut Faraday, text: &str) {
+    let code = faraday_codec::kef::wrap(b"id", 20, 10_000, &[7u8; 20]).unwrap();
+    let env = faraday_codec::kef::recognize(&code).unwrap().envelope;
+    kef_open_sheet(app, env, 0);
+    kef_show(app, Stage::Note, Zeroizing::new(text.to_string()));
+}

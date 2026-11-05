@@ -9,6 +9,7 @@
 //! seeds' account keys are derived at that path and the descriptor is
 //! [`NewKind::descriptor`]'s, the one Make a new wallet writes.
 
+pub mod kef;
 pub mod read;
 pub(crate) mod screen;
 pub mod sweep;
@@ -338,6 +339,14 @@ pub fn cosigner_label(key: &str) -> String {
 pub(crate) struct SeedsArea {
     state: Option<read::SeedRead>,
     sweep: Option<sweep::Sweep>,
+    /// A Krux encrypted code being opened (`seeds/kef`).
+    kef: Option<crate::seeds::kef::KefRead>,
+    /// Milliseconds a short timed run of PBKDF2 took here, and when one
+    /// began and is not yet timed.
+    kef_rate: Option<u64>,
+    kef_from: Option<u64>,
+    /// A note carried from an opened code to the next seed's passphrase.
+    carried_pass: Option<crate::secret_text::SecretText>,
 }
 
 impl SeedsArea {
@@ -352,9 +361,55 @@ impl SeedsArea {
         self.state.as_mut()
     }
 
-    /// Forgets the sheet.
+    /// Forgets the sheet, and the Krux code's contents with it.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+        self.kef = None;
+    }
+
+    /// The Krux code sheet's state, while it is open.
+    pub(crate) fn kef(&self) -> Option<&crate::seeds::kef::KefRead> {
+        self.kef.as_ref()
+    }
+
+    pub(crate) fn kef_mut(&mut self) -> Option<&mut crate::seeds::kef::KefRead> {
+        self.kef.as_mut()
+    }
+
+    pub(crate) fn set_kef(&mut self, kef: Option<crate::seeds::kef::KefRead>) {
+        self.kef = kef;
+    }
+
+    /// The time a timed run took, once known.
+    pub(crate) fn rate(&self) -> Option<u64> {
+        self.kef_rate
+    }
+
+    /// Whether a timed run waits for the next tick.
+    pub(crate) fn timing(&self) -> bool {
+        self.kef_from.is_some()
+    }
+
+    pub(crate) fn time_from(&mut self, now_ms: u64) {
+        self.kef_from = Some(now_ms);
+    }
+
+    /// Ends a timed run at `now_ms`: its rate, the first time.
+    pub(crate) fn finish_timing(&mut self, now_ms: u64) -> Option<u64> {
+        let t0 = self.kef_from.take()?;
+        let rate = now_ms.saturating_sub(t0).max(1);
+        self.kef_rate = Some(rate);
+        Some(rate)
+    }
+
+    /// Keeps a note for the next seed's passphrase.
+    pub(crate) fn carry_passphrase(&mut self, text: &str) {
+        self.carried_pass = Some(crate::secret_text::SecretText::of(text));
+    }
+
+    /// The note kept, once.
+    pub(crate) fn take_carried_passphrase(&mut self) -> Option<crate::secret_text::SecretText> {
+        self.carried_pass.take()
     }
 
     /// The Sweep sheet's state, while it is open.

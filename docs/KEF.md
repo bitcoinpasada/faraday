@@ -1,8 +1,8 @@
 # KEF: Krux's encrypted code, read and written in full
 
 **Kind:** Spec
-**Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code, the fuzz target, the classifier's arm, the `Reveal` variant and the stoppable worker jobs are built; the screens and the strings are not.
-**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Also built: `Reveal::KefCode` and `Keys::kef_entropy` (a seed of 12 or 24 English words, nothing else), and the worker jobs `Kind::KefSeal` and `Kind::KefOpen` (`faraday-keys/src/kef.rs`, `faraday-core/src/worker/kef.rs`, `Faraday::kef_seal`, `Faraday::kef_open`), which draw the IV and the id from the session's fresh bytes and really stop on Cancel. Not built: the screens and the strings. Questions a source could not settle are in §13.
+**Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code, the fuzz target, the classifier's arm, the `Reveal` variant, the stoppable worker jobs and scanning one (the card, the passphrase sheet, the road after opening) are built; sealing one and the options screens are not.
+**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Also built: `Reveal::KefCode` and `Keys::kef_entropy` (a seed of 12 or 24 English words, nothing else), and the worker jobs `Kind::KefSeal` and `Kind::KefOpen` (`faraday-keys/src/kef.rs`, `faraday-core/src/worker/kef.rs`, `Faraday::kef_seal`, `Faraday::kef_open`), which draw the IV and the id from the session's fresh bytes and really stop on Cancel. Also built: scanning a code in every scanner, Paste and a picture's codes (`Kind::Kef` in `scan_read.rs`, `seeds/kef.rs`): the card with version, id, count and the time here, **Open**, **Not encrypted**, the question above 550,000, the passphrase sheet with **Enter as hex**, the bar with Cancel, and §6's road (a seed to the seed sheet with the id line, text through the intake, a note with **Use as a passphrase**, bytes as hex, a code inside a code offered with **Not encrypted** to a depth of 8); **Open as an encrypted code** on the seed sheet of a raw 16 or 32 byte code. Not built: sealing one (the screens of §15 other than scanning) and the Starter's reading. Questions a source could not settle are in §13.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's
@@ -325,12 +325,13 @@ So KEF is **the classifier's last arm** (`core/faraday-codec/src/classify.rs`,
    Text forms in Krux's order (§5), each re-encoding to the same text.
 
 A match never runs anything. It gives a card naming the version, id and count
-with **Open** and **This is not encrypted**, which sends it on as an unknown
+with **Open** and **Not encrypted**, which sends it on as an unknown
 code. The cost of a false match is one extra press, which is why the arm may
 be this loose: it must accept whatever Krux wrote.
 
 An id is shown as text when it is UTF-8 with no control characters, otherwise
-as `0x` hex, as Krux shows it.
+as `0x` hex, as Krux shows it. The card and the passphrase sheet show its first
+24 characters, then `…`.
 
 ## 9. Passphrase bytes
 
@@ -585,5 +586,6 @@ Strings are not written here. Every string goes to `en.rs`; a screen review name
   says what it holds. Not a secret under `docs/QR.md` §7.1.
 - **Scanning one.** §8's card: version, id, count, time here. **Open** asks for the passphrase;
   **Enter as hex** is one level down. A bar with Cancel. Then §6's road, the fingerprint on
-  the seed sheet.
+  the seed sheet. The card follows SCANNING §5's; the sheet is a Material 3 dialog (Dialogs, with
+  a text field from Text fields) as the other sheets are.
 - **Learn** explains §12; a working screen says what it is and no more. Practice gets a sample.

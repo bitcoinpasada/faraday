@@ -32,6 +32,7 @@ pub(crate) mod host;
 pub(crate) mod how;
 pub(crate) mod in_progress;
 pub(crate) mod inbox;
+pub(crate) mod kef;
 pub(crate) mod kept;
 pub(crate) mod key_path;
 pub(crate) mod keygen;

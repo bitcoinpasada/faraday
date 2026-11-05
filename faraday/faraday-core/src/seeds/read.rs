@@ -54,6 +54,8 @@ pub enum Choice {
     Xor,
     /// Not this one: the words go, and the intake scanner comes back.
     Skip,
+    /// The code is also a Krux encrypted code: open it as one.
+    Kef,
 }
 
 /// What the Spend tab opened the sheet for.
@@ -164,6 +166,9 @@ pub struct SeedRead {
     key_of: Option<String>,
     /// Twelve or 24 words read: the sheet offers **It is a Seed XOR part**.
     xor: bool,
+    /// The code read is also this Krux encrypted code: the sheet offers
+    /// **Open as an encrypted code** (`docs/KEF.md` §8).
+    kef: Option<faraday_keys::kef::Envelope>,
 }
 
 impl SeedRead {
@@ -196,6 +201,36 @@ impl SeedRead {
 }
 
 impl Faraday {
+    /// The seed sheet that opened offers to open the code as a Krux
+    /// encrypted code too.
+    pub(crate) fn seed_read_offer_kef(&mut self, envelope: faraday_keys::kef::Envelope) {
+        if self.sheet == Some(Sheet::SeedRead)
+            && let Some(s) = self.seed_read.state_mut()
+        {
+            s.kef = Some(envelope);
+        }
+    }
+
+    /// A seed opened from a Krux code: the sheet notes the code's id
+    /// beside the key, marked when an 8-character hex id matches
+    /// (`docs/KEF.md` §7.3).
+    pub(crate) fn seed_read_kef_id(&mut self, id: &[u8]) {
+        let Some(s) = self.seed_read.state_mut() else {
+            return;
+        };
+        let shown = faraday_codec::kef::id_text(id).map(str::to_string);
+        s.key_of = shown.map(|t| {
+            let hex8 = t.len() == 8 && t.bytes().all(|b| b.is_ascii_hexdigit());
+            match (hex8, s.plain) {
+                (true, Some(fp)) if fp_text(fp).eq_ignore_ascii_case(&t) => {
+                    fill(EN.kef_id_matches, &[&t])
+                }
+                (true, Some(_)) => fill(EN.kef_id_differs, &[&t]),
+                _ => fill(EN.kef_id_line, &[&t]),
+            }
+        });
+    }
+
     /// The seed reader's sheet, while it is open.
     pub fn seed_read(&self) -> Option<&SeedRead> {
         self.seed_read.state()
@@ -215,9 +250,13 @@ impl Faraday {
             self.seed_read_load(words, "");
             return;
         };
+        let carried = self.seed_read.take_carried_passphrase();
         self.seed_read.state = Some(SeedRead {
             source: Source::Words(SecretText::of(words)),
             plain: Some(plain),
+            adding: carried.is_some(),
+            pass: carried.clone().unwrap_or_default(),
+            pass2: carried.unwrap_or_default(),
             ..SeedRead::default()
         });
         self.sheet = Some(Sheet::SeedRead);
@@ -296,6 +335,12 @@ impl Faraday {
             return;
         };
         match choice {
+            Choice::Kef => {
+                if let Some(e) = s.kef.take() {
+                    self.seed_read.state = None;
+                    crate::seeds::kef::kef_open_sheet(self, e, 0);
+                }
+            }
             Choice::Skip => {
                 self.seed_read.state = None;
                 self.sheet = None;
@@ -522,6 +567,9 @@ impl Faraday {
     /// Keys typed into the sheet's passphrase fields. Returns whether they
     /// took the key.
     pub(crate) fn seed_read_key(&mut self, key: KeyIn) -> bool {
+        if crate::seeds::kef::kef_read_key(self, key) {
+            return true;
+        }
         if self.sheet != Some(Sheet::SeedRead) {
             return false;
         }
@@ -969,6 +1017,12 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         items.insert(
             0,
             (EN.read_go_xor, Style::Ghost, Action::SeedRead(Choice::Xor)),
+        );
+    }
+    if s.kef.is_some() && !s.adding {
+        items.insert(
+            0,
+            (EN.kef_open_as, Style::Ghost, Action::SeedRead(Choice::Kef)),
         );
     }
     items.insert(0, cancel);

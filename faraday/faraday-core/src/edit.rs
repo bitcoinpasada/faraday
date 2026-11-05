@@ -427,6 +427,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::SeedRead) {
             return self.seed_read.state().is_some_and(|s| s.focus.is_some());
         }
+        if self.sheet == Some(Sheet::KefRead) {
+            return crate::seeds::kef::kef_typing(self);
+        }
         if self.sheet == Some(Sheet::Sweep) {
             return self.sweep_typing();
         }
@@ -508,6 +511,10 @@ impl Faraday {
         }
         if self.sheet == Some(Sheet::Sweep) {
             return Some(Action::Sweep(crate::seeds::sweep::SweepAction::Field));
+        }
+        if self.sheet == Some(Sheet::KefRead) {
+            return crate::seeds::kef::kef_typing(self)
+                .then_some(Action::KefRead(crate::seeds::kef::KefAct::Field));
         }
         if self.sheet == Some(Sheet::SeedRead) {
             return self
@@ -615,6 +622,7 @@ impl Faraday {
             }
             Action::EntryPassphrase => &self.entry.state().passphrase,
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
+            Action::KefRead(_) => crate::seeds::kef::kef_field(self)?,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,

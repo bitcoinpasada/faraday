@@ -345,6 +345,8 @@ pub enum Action {
     OpenInstitute,
     /// The sheet of a seed the camera read.
     SeedRead(seeds::read::Choice),
+    /// The Krux encrypted code sheet (`seeds/kef`).
+    KefRead(crate::seeds::kef::KefAct),
     /// The Sweep sheet: a private key swept (`seeds::sweep`, F171).
     Sweep(seeds::sweep::SweepAction),
     /// The stick visit's Delete files: the sheet that chooses what.

@@ -795,3 +795,20 @@ fn the_codes_screen_draws_hotp_unreadable_and_two_periods_each_rolling_over_alon
     }
     assert!(moved_some, "one rollover left the 60 s entry alone");
 }
+
+#[test]
+fn a_krux_codes_contents_are_drawn_twice_and_dropped_on_leaving_and_at_a_lock() {
+    let mut app = vault_page(0);
+    crate::seeds::kef::test_note(&mut app, "a note the code held");
+    app.settle();
+    let _ = app.frame();
+    assert!(app.seed_read.kef().is_some());
+    frames_work_out_nothing(&mut app);
+    // Leaving the sheet drops what was held.
+    app.press(Action::Cancel);
+    assert!(app.seed_read.kef().is_none(), "left");
+    crate::seeds::kef::test_note(&mut app, "a note the code held");
+    assert!(app.seed_read.kef().is_some());
+    lock(&mut app);
+    assert!(app.seed_read.kef().is_none(), "locked");
+}

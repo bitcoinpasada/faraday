@@ -418,6 +418,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::BoardPartials => crate::board::screen::partials_sheet(app, ui, w, h),
             Sheet::BoardMenu => crate::board::screen::menu_sheet(app, ui, w, h),
             Sheet::SeedRead => crate::seeds::read::sheet(app, ui, w, h),
+            Sheet::KefRead => crate::seeds::kef::sheet(app, ui, w, h),
             Sheet::Sweep => crate::seeds::sweep::sheet(app, ui, w, h),
             Sheet::Delete => crate::stick::wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick::wipe::zeroing_sheet(app, ui, w, h),

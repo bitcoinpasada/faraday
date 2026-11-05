@@ -662,7 +662,16 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         (w - 200.0).clamp(320.0, 640.0)
     };
-    let side_h = side_w * 0.75;
+    // A Krux encrypted code's card has a line more for each of its facts
+    // than the picture's height holds above the ways stacked at its foot.
+    let more = sc
+        .card
+        .as_ref()
+        .filter(|card| card.kef.is_some())
+        .map_or(0.0, |card| {
+            card.facts.len().saturating_sub(2) as f32 * faraday_draw::tokens::CARD_FACT_LINE
+        });
+    let side_h = side_w * 0.75 + more;
     let sw = side_w + 2.0 * pad;
     let rows = if ui.compact && app.cameras().len() > 1 {
         app.cameras().len() as f32 * 40.0
@@ -771,6 +780,14 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     let y = y + keys_h;
     let (px, py) = (x + 32.0, y + top);
+    // Where a read card's ways stand on their own row, the card ends above it.
+    let side_h = match sc.card.as_ref() {
+        Some(card) if !read_card_foot_fits(ui, side_w, card) => {
+            let foot = y - keys_h + sh - 32.0 - 44.0;
+            side_h.min(foot - ui.button_height(BUTTON_H) - T::GAP - T::GAP_SMALL - py)
+        }
+        _ => side_h,
+    };
     let rect = ui.rect(px, py, side_w, side_h);
     ui.fill(px, py, side_w, side_h, 8.0, Role::SurfaceContainerHighest);
     // A QR found and read, still in view: the brackets turn green.
@@ -955,11 +972,45 @@ fn read_card(
     }
 }
 
+/// A way over's label on the read card.
+fn way_label(card: &crate::scan_read::ReadCard, way: &crate::scan_read::Way) -> String {
+    if *way == crate::scan_read::Way::Open && card.kef.as_ref().is_some_and(|h| h.sure) {
+        EN.kef_open_anyway.to_string()
+    } else {
+        way.label()
+    }
+}
+
+/// **Done** once the code is filed, **Cancel** before.
+fn read_card_leave(card: &crate::scan_read::ReadCard) -> &'static str {
+    if card.filed.is_some() {
+        EN.scan_done
+    } else {
+        EN.scan_cancel
+    }
+}
+
+/// How wide a row of buttons with these labels is, with a gap after each.
+fn row_width(ui: &Ui, labels: &[String]) -> f32 {
+    labels
+        .iter()
+        .map(|l| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)
+        .sum()
+}
+
+/// Whether the read card's ways over fit on one row with **Scan again**
+/// and **Cancel**.
+fn read_card_foot_fits(ui: &Ui, w: f32, card: &crate::scan_read::ReadCard) -> bool {
+    let ways: Vec<String> = card.ways.iter().map(|way| way_label(card, way)).collect();
+    let leave = [EN.read_again.to_string(), read_card_leave(card).to_string()];
+    row_width(ui, &leave) + row_width(ui, &ways) <= w + T::GAP
+}
+
 /// The read card's foot (`docs/SCANNING.md` §5.2, DESIGN §4.13): **Scan
 /// again**, a text button, first; **Cancel** beside it; the ways over at
 /// the end, the last filled, one that loads a key dimmed while a stick is
 /// in. Where they do not fit one row, the ways over stand on the row
-/// above, at the card's foot.
+/// above, under the card.
 fn read_card_foot(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
@@ -978,30 +1029,21 @@ fn read_card_foot(
                 (false, false) => Style::Tonal,
                 (false, true) => Style::TonalOff,
             };
-            (way.label(), style, Action::ReadGo(i as u8))
+            (way_label(card, way), style, Action::ReadGo(i as u8))
         })
         .collect();
     let leave = [
         (EN.read_again.to_string(), Style::Ghost, Action::ReadAgain),
         (
-            if card.filed.is_some() {
-                EN.scan_done
-            } else {
-                EN.scan_cancel
-            }
-            .to_string(),
+            read_card_leave(card).to_string(),
             Style::Secondary,
             Action::Cancel,
         ),
     ];
-    let width = |ui: &Ui, row: &[(String, Style, Action)]| {
-        row.iter()
-            .map(|(l, _, _)| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)
-            .sum::<f32>()
-    };
-    let (lw, ww) = (width(ui, &leave), width(ui, &ways));
+    let labels: Vec<String> = ways.iter().map(|(l, _, _)| l.clone()).collect();
+    let ww = row_width(ui, &labels);
     button_rows(ui, x, y, w, &leave);
-    if lw + ww <= w + T::GAP {
+    if read_card_foot_fits(ui, w, card) {
         button_rows(ui, x + w - ww + T::GAP, y, ww, &ways);
     } else {
         let bh = ui.button_height(BUTTON_H);

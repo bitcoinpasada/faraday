@@ -70,6 +70,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::ScanSample
             | Action::SamplePsbt
             | Action::PRecord(_)
+            | Action::ReadGo(_)
             | Action::POut
             | Action::PotentialMake
             | Action::SecretHold

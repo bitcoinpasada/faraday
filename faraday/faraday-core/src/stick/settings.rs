@@ -344,6 +344,24 @@ impl Settings {
 }
 
 impl Faraday {
+    /// The idle time this process locked after, when it locked for
+    /// idleness.
+    pub(crate) fn idle_locked_after(&self) -> Option<u64> {
+        self.idle.locking()
+    }
+
+    /// This process follows a lock for idleness after `ms` without input:
+    /// the time counts toward power-off, and the lock screen shows.
+    pub(crate) fn idle_locked(&mut self, ms: u64) {
+        self.idle.followed_lock(ms);
+        self.sheet = Some(crate::Sheet::Locked);
+    }
+
+    /// Time without input so far, counted across an idle lock.
+    pub(crate) fn idle_ms(&self) -> u64 {
+        self.idle.ms(self.now_ms)
+    }
+
     /// The settings a stick carries (see [`Settings::body`]).
     pub(crate) fn settings_body(&self) -> String {
         self.settings.body()

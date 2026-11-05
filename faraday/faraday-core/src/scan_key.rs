@@ -1090,7 +1090,7 @@ impl Faraday {
         let kind = scan_read::public_kind(
             crate::wallet::classify(&c, "", &data),
             named.is_some(),
-            &String::from_utf8_lossy(&data),
+            &data,
         );
         self.read_card_show(&c, kind, (named, ext, data));
     }
@@ -1144,7 +1144,7 @@ impl Faraday {
     /// worked out once here (`docs/SCANNING.md` §5.2), never a secret's
     /// value.
     pub(crate) fn read_card(
-        &self,
+        &mut self,
         c: &Compute,
         kind: Kind,
         (named, ext, code): (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
@@ -1153,6 +1153,7 @@ impl Faraday {
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
         let mut facts = Vec::new();
         let mut not_kept = false;
+        let mut kef = None;
         let ways = match kind {
             k if k.seed() => {
                 facts.extend(self.read_key_fact(c, k, &code, &text));
@@ -1190,6 +1191,14 @@ impl Faraday {
                 facts.extend(scan_read::account_fact(&text));
                 vec![Way::Keep]
             }
+            Kind::Kef => match crate::seeds::kef::kef_header(self, c, &code) {
+                Some((h, lines)) => {
+                    facts.extend(lines);
+                    kef = Some(h);
+                    vec![Way::NotEncrypted, Way::Open]
+                }
+                None => Vec::new(),
+            },
             Kind::Message => vec![Way::Check],
             Kind::Gpg | Kind::File => vec![Way::Keep],
             Kind::Text if self.vaults.current_id().is_some() => vec![Way::Keep, Way::Note],
@@ -1211,6 +1220,7 @@ impl Faraday {
             named,
             ext,
             filed: None,
+            kef,
         }
     }
 
@@ -1289,6 +1299,19 @@ impl Faraday {
         if way.loads_a_key() && !self.may_load_keys() {
             return;
         }
+        // A count above what Krux writes asks once more (`docs/KEF.md` §7.2).
+        if way == Way::Open
+            && let Some(h) = self
+                .camera
+                .scan_mut()
+                .and_then(|s| s.card.as_mut())
+                .and_then(|k| k.kef.as_mut())
+            && h.high
+            && !h.sure
+        {
+            h.sure = true;
+            return;
+        }
         let Some(card) = self.camera.scan_mut().and_then(|s| s.card.take()) else {
             return;
         };
@@ -1298,6 +1321,7 @@ impl Faraday {
             named,
             ext,
             filed,
+            kef,
             ..
         } = card;
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
@@ -1308,12 +1332,21 @@ impl Faraday {
             Way::Key => {
                 let c = self.compute();
                 self.scan_close();
+                // A CompactSeedQR that is also an encrypted code: its sheet
+                // offers to open it (`docs/KEF.md` §8).
+                let also = (kind == Kind::CompactSeedQr)
+                    .then(|| faraday_codec::kef::recognize(&code))
+                    .flatten();
                 if let Some(words) = seed_in_code(&c, &code) {
                     drop(code);
                     self.act(Action::Entry(None));
                     self.seed_scanned(&words, kind);
+                    if let Some(found) = also {
+                        self.seed_read_offer_kef(found.envelope);
+                    }
                 }
             }
+            Way::Open | Way::NotEncrypted => self.read_go_kef(way, kef, (named, ext, code)),
             Way::Share => {
                 self.intake_key_part(&code);
             }
@@ -1352,6 +1385,28 @@ impl Faraday {
                 None => self.read_go_file(way, named, ext, code),
             },
         }
+    }
+
+    /// Costs what [`Faraday::read_card`] costs. A Krux encrypted code's
+    /// card pressed: **Open** asks the passphrase; **This is not
+    /// encrypted** sends the code on as an unknown one.
+    fn read_go_kef(
+        &mut self,
+        way: scan_read::Way,
+        kef: Option<crate::seeds::kef::Header>,
+        (named, ext, code): (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
+    ) {
+        if way == scan_read::Way::Open {
+            drop(code);
+            self.scan_close();
+            if let Some(h) = kef {
+                crate::seeds::kef::kef_open_sheet(self, h.envelope, 0);
+            }
+            return;
+        }
+        let c = self.compute();
+        let kind = scan_read::unknown_kind(&code);
+        self.read_card_show(&c, kind, (named, ext, code));
     }
 
     /// Costs a file's classification and what the flow it opens costs. A
@@ -1485,8 +1540,7 @@ impl Faraday {
         let Some(item) = self.inbox.get(at) else {
             return false;
         };
-        let text = String::from_utf8_lossy(&item.bytes).into_owned();
-        let kind = scan_read::public_kind(item.kind, false, &text);
+        let kind = scan_read::public_kind(item.kind, false, &item.bytes);
         let bytes = zeroize::Zeroizing::new(item.bytes.clone());
         let mut card = self.read_card(c, kind, (None, "txt", bytes));
         card.ways.retain(|w| *w != Way::Keep);
@@ -1665,6 +1719,11 @@ impl Faraday {
         } else {
             Kind::CompactSeedQr
         };
+        // A raw code that is also an encrypted one: the seed sheet offers
+        // to open it as one (`docs/KEF.md` §8).
+        let also = (!digits)
+            .then(|| faraday_codec::kef::recognize(&bytes))
+            .flatten();
         zeroize::Zeroize::zeroize(&mut *bytes);
         let words = lang.words();
         let mut typed = crate::secret_text::room();
@@ -1675,6 +1734,9 @@ impl Faraday {
             typed.push_str(words[usize::from(i)]);
         }
         self.seed_scanned(&typed, read_as);
+        if let Some(found) = also {
+            self.seed_read_offer_kef(found.envelope);
+        }
     }
 
     /// Costs a mnemonic's checksum, a key part's parse and what a code
@@ -1735,8 +1797,15 @@ impl Faraday {
         if camera && let Some(words) = seed_in_code(&c, &bytes) {
             let kind = scan_read::secret_kind(&c, &bytes).unwrap_or(Kind::SeedWords);
             if self.may_load_keys() {
+                let also = (kind == Kind::CompactSeedQr)
+                    .then(|| faraday_codec::kef::recognize(&bytes))
+                    .flatten();
                 self.act(Action::Entry(None));
-                return self.seed_scanned(&words, kind);
+                self.seed_scanned(&words, kind);
+                if let Some(found) = also {
+                    self.seed_read_offer_kef(found.envelope);
+                }
+                return;
             }
             if sticks {
                 return self.scan_say(crate::stick::keys_load(self.medium));
@@ -1751,12 +1820,21 @@ impl Faraday {
             let kind = scan_read::public_kind(
                 crate::wallet::classify(&c, "", &data),
                 named.is_some(),
-                &String::from_utf8_lossy(&data),
+                &data,
             );
             if !scan_read::asked(ask, kind) {
                 let data = zeroize::Zeroizing::new(data);
                 return self.read_card_show(&c, kind, (named, ext, data));
             }
+        }
+        // A Krux encrypted code is not filed: its card asks first
+        // (`docs/KEF.md` §8).
+        if named.is_none()
+            && scan_read::public_kind(crate::wallet::classify(&c, "", &data), false, &data)
+                == Kind::Kef
+        {
+            let data = zeroize::Zeroizing::new(data);
+            return self.read_card_show(&c, Kind::Kef, (None, "txt", data));
         }
         self.file_scanned(&c, named, ext, data, intake);
     }
@@ -1984,7 +2062,15 @@ impl Faraday {
                     }
                     return None;
                 }
-                faraday_intake::arrival(faraday_qr::classify_text(&text))
+                // A Krux encrypted code read as raw bytes keeps its bytes:
+                // the text above would change each one that is no UTF-8.
+                if std::str::from_utf8(&bytes).is_err()
+                    && scan_read::recognize_kef(&bytes).is_some()
+                {
+                    (None, "txt", bytes.to_vec())
+                } else {
+                    faraday_intake::arrival(faraday_qr::classify_text(&text))
+                }
             }
         };
         Some((named, ext, data))

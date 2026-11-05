@@ -16,7 +16,8 @@ use zeroize::Zeroizing;
 
 pub use faraday_codec::kef::ID_MAX;
 pub use faraday_kef::{
-    Envelope, OpenError, Opened, Refusal, SealError, Sealing, count_with_change, unwrap,
+    Envelope, OpenError, Opened, Refusal, SealError, Sealing, count_with_change,
+    reading_passphrases, unwrap,
 };
 
 /// How far a running job is, and whether it is told to stop: shared by

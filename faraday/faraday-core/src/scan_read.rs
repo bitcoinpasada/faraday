@@ -74,6 +74,9 @@ pub enum Kind {
     Invoice,
     /// A web address.
     Web,
+    /// A Krux encrypted code (`docs/KEF.md` §8): the last arm, after every
+    /// stricter kind has said no.
+    Kef,
     /// Printable text that is none of these.
     Text,
     /// Bytes that are none of these.
@@ -146,6 +149,7 @@ impl Kind {
             Kind::Labels => EN.read_labels,
             Kind::Invoice => EN.read_invoice,
             Kind::Web => EN.read_web,
+            Kind::Kef => EN.read_kef,
             Kind::Text => EN.read_text,
             Kind::Unreadable => EN.read_unreadable,
         }
@@ -270,8 +274,11 @@ pub(crate) fn on_a_word_list(words: &[&str]) -> bool {
 
 /// The kind of a whole code that is no secret, from what Files files it
 /// as (`kind`) and its text: an address and a payment request are told
-/// apart here, since nothing files them. A lookup.
-pub(crate) fn public_kind(kind: FileKind, enveloped: bool, text: &str) -> Kind {
+/// apart here, since nothing files them. Costs, for base43 text, a base43
+/// decoding of up to 8,192 characters (a Krux encrypted code's check).
+pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind {
+    let text = String::from_utf8_lossy(data);
+    let text = text.as_ref();
     if enveloped {
         return Kind::File;
     }
@@ -292,8 +299,26 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, text: &str) -> Kind {
         | FileKind::Kdbx
         | FileKind::KdbxOther
         | FileKind::Pdf => Kind::File,
-        FileKind::Text | FileKind::Other => text_kind(text, kind == FileKind::Text),
+        FileKind::Text | FileKind::Other => match text_kind(text, kind == FileKind::Text) {
+            Kind::Text | Kind::Unreadable if recognize_kef(data).is_some() => Kind::Kef,
+            other => other,
+        },
     }
+}
+
+/// Costs, for base43 text, a base43 decoding of up to 8,192 characters.
+/// The Krux encrypted code `data` is, if it is one: the classifier's last
+/// arm (`docs/KEF.md` §8). Raw 16 or 32 bytes are a CompactSeedQR before
+/// this is asked.
+pub(crate) fn recognize_kef(data: &[u8]) -> Option<faraday_codec::kef::Recognized> {
+    faraday_codec::kef::recognize(data)
+}
+
+/// Text that names nothing, or bytes that are none of the kinds: what a
+/// code is once it is said not to be encrypted.
+pub(crate) fn unknown_kind(data: &[u8]) -> Kind {
+    let printable = std::str::from_utf8(data).is_ok();
+    text_kind(&String::from_utf8_lossy(data), printable)
 }
 
 /// What text Files keeps as a note, or reads as nothing, is: an
@@ -372,6 +397,11 @@ pub enum Way {
     Note,
     /// A public kind filed.
     Keep,
+    /// A Krux encrypted code: its passphrase is asked.
+    Open,
+    /// A Krux encrypted code that is something else: it goes on as an
+    /// unknown code.
+    NotEncrypted,
 }
 
 impl Way {
@@ -393,6 +423,8 @@ impl Way {
             Way::Check => EN.read_go_check.to_string(),
             Way::Note => EN.read_go_note.to_string(),
             Way::Keep => EN.read_keep.to_string(),
+            Way::Open => EN.kef_open.to_string(),
+            Way::NotEncrypted => EN.kef_not_encrypted.to_string(),
         }
     }
 
@@ -432,6 +464,9 @@ pub struct ReadCard {
     /// The Inbox file Home's Scan put it in, already there: **Done** in
     /// place of **Cancel** (`docs/SCANNING.md` §5.4).
     pub filed: Option<usize>,
+    /// A Krux encrypted code's header and the time its count takes here,
+    /// worked out once at the read.
+    pub(crate) kef: Option<crate::seeds::kef::Header>,
 }
 
 /// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":

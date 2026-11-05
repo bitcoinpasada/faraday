@@ -350,6 +350,7 @@ pub(crate) fn field_action(a: Action) -> bool {
             | Action::KPassField(_)
             | Action::CPassField(_)
             | Action::SeedRead(seeds::read::Choice::Field(_))
+            | Action::KefRead(crate::seeds::kef::KefAct::Field)
             | Action::Rename
             | Action::KTyping(true)
             | Action::Seeds(seeds::SeedsAction::Focus(_))

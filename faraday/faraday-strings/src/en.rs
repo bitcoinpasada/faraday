@@ -4145,6 +4145,66 @@ strings! {
     read_go_note: "Save as a note",
     /// The read card's way over for a public kind: filed in Files.
     read_keep: "Keep in Files",
+    /// The read card's kind for a Krux encrypted code.
+    read_kef: "An encrypted code",
+    /// The card's version line: the version number and its name.
+    kef_version_fact: "Version {} · {}",
+    /// The card's id line, the id as text or as 0x hex.
+    kef_id_fact: "Id {}",
+    /// The card's count line: rounds of PBKDF2 and the time here.
+    kef_count_fact: "{} rounds · {}",
+    /// The card's count line before the time here is known.
+    kef_count_only: "{} rounds",
+    /// The card's time here, under a second.
+    kef_under_a_second: "under a second",
+    /// The card's time here in seconds.
+    kef_seconds: "about {} s",
+    /// The card's time here in minutes.
+    kef_minutes: "about {} min",
+    /// The card's line for a count above what Krux itself writes.
+    kef_count_high: "More rounds than Krux writes",
+    /// The second press of Open on a code above what Krux writes.
+    kef_open_anyway: "Open anyway",
+    /// The card's action: open the code.
+    kef_open: "Open",
+    /// The card's action: the code is something else.
+    kef_not_encrypted: "Not encrypted",
+    /// The seed sheet's action for a CompactSeedQR that also reads as an encrypted code.
+    kef_open_as: "Open as an encrypted code",
+    /// The passphrase sheet's title.
+    kef_sheet_title: "Encrypted code",
+    /// The passphrase field's label.
+    kef_passphrase: "Passphrase",
+    /// The hex field's label.
+    kef_hex: "Passphrase bytes in hex",
+    /// The action that switches to the hex field.
+    kef_enter_hex: "Enter as hex",
+    /// The action that switches to the typed field.
+    kef_enter_text: "Enter as text",
+    /// The one message for every failure to open.
+    kef_failed: "Could not open. Wrong passphrase or damaged code.",
+    /// A hex field that is not whole bytes.
+    kef_hex_bad: "Not whole bytes of hex.",
+    /// The working line while the key is worked out.
+    kef_working: "Opening the code",
+    /// Stops the opening.
+    kef_cancel: "Cancel",
+    /// The sheet's title for contents that are a note.
+    kef_note_title: "Decrypted text",
+    /// The sheet's title for contents that are bytes.
+    kef_bytes_title: "Decrypted bytes",
+    /// The note's action: carry the text to the next seed's passphrase.
+    kef_use_passphrase: "Use as a passphrase",
+    /// The sheet's close action.
+    kef_done: "Done",
+    /// A note the opening left: the check passed only after NULs were put back.
+    kef_retried: "The writer left out NUL padding.",
+    /// The seed sheet's line for a code id of 8 hex characters: it matches the key.
+    kef_id_matches: "Code id {} matches this key",
+    /// The seed sheet's line for a code id of 8 hex characters: it differs from the key.
+    kef_id_differs: "Code id {} differs from this key",
+    /// The seed sheet's line for an id that is not a fingerprint.
+    kef_id_line: "Code id {}",
     /// The read card's Scan again: the code wiped, the camera back on.
     read_again: "Scan again",
     /// The seed sheet's text button for 12 or 24 words: Add a key's Seed XOR form, the words in.

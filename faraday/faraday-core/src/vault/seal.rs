@@ -574,6 +574,7 @@ fn lock_finish(app: &mut Faraday) {
     app.session.wipe();
     app.own_wipe();
     app.wallets.clear_spend();
+    app.seed_read.clear();
     app.decode.clear_check();
     app.backup.close();
     app.message.clear();

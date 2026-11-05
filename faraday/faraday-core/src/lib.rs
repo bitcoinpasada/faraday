@@ -617,6 +617,8 @@ pub enum Sheet {
     StickSheet,
     /// A seed the camera read, asking how it loads: with no passphrase or with one (`seed_read`).
     SeedRead,
+    /// A Krux encrypted code: its passphrase, the bar while it opens, what came out (`seeds/kef`).
+    KefRead,
     /// **Sweep a private key**: a WIF's addresses, its PSBT reviewed and signed (`seeds::sweep`).
     Sweep,
     /// Delete files: chosen files, free space or the files partition, asked first (`stick_wipe`).
@@ -1685,19 +1687,6 @@ impl Faraday {
         self.idle.input(self.now_ms);
     }
 
-    /// The idle time this process locked after, when it locked for
-    /// idleness.
-    pub(crate) fn idle_locked_after(&self) -> Option<u64> {
-        self.idle.locking()
-    }
-
-    /// This process follows a lock for idleness after `ms` without input:
-    /// the time counts toward power-off, and the lock screen shows.
-    pub(crate) fn idle_locked(&mut self, ms: u64) {
-        self.idle.followed_lock(ms);
-        self.sheet = Some(Sheet::Locked);
-    }
-
     /// Whether locking would wipe anything: a key, a vault, a wallet or a
     /// spend.
     fn lockable(&self) -> bool {
@@ -1705,11 +1694,6 @@ impl Faraday {
             || !self.vaults.open.is_empty()
             || !self.session.wallets.is_empty()
             || self.wallets.spend().is_some()
-    }
-
-    /// Time without input so far, counted across an idle lock.
-    pub(crate) fn idle_ms(&self) -> u64 {
-        self.idle.ms(self.now_ms)
     }
 
     /// Ms without input at which the machine powers off, when it would:
@@ -2492,6 +2476,7 @@ impl Faraday {
             }
             // Sign with {key}'s Cancel: nothing is signed (F63).
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
+            Action::Cancel if self.sheet == Some(Sheet::KefRead) => seeds::kef::kef_cancel(self),
             Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
@@ -2716,6 +2701,7 @@ impl Faraday {
             | Action::TransferReceive
             | Action::TransferOpenFolder) => self.transfer_act(a),
             Action::SeedRead(c) => self.seed_read_act(c),
+            Action::KefRead(a) => crate::seeds::kef::kef_act(self, a),
             Action::Sweep(a) => self.sweep_act(a),
             a @ (Action::DeleteFiles
             | Action::DeleteWhat(..)
