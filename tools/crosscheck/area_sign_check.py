@@ -40,6 +40,18 @@ Core computes:
   Faraday refuses and consensus accepts, and for a script Faraday does not
   run (a hash time lock), which it answers "unjudged" whatever the engine
   decides;
+- a final taproot input, built here from a second table of rows (an output
+  key, a control block, a leaf, a witness stack and every spent output, with
+  the signatures made here over btclib's signature hash), is run by btclib's
+  script engine under consensus's rules with TAPROOT (`CONSENSUS_TAP`), and
+  Faraday's verdict is judged as above. The rows are a key path (true,
+  forged, SIGHASH_SINGLE with no output of its index, with an annex signed
+  and with an annex the signature does not cover), a script path on a Tap
+  miniscript leaf (a single key, a `multi_a`; true, forged, with an annex,
+  with a control block that does not commit to the output key, with a
+  65-byte element ending 0x00) and the leaves Faraday does not run (a leaf
+  version other than 0xc0, a hash lock, a leaf with OP_CODESEPARATOR, a leaf
+  with OP_DROP), which it answers "unjudged" whatever the engine decides;
 - Core's `finalizepsbt` finalizes a PSBT exactly when every input has its
   signatures and they verify (an unfinalized input is finalized only when
   they do), and `testmempoolaccept` takes the extracted transaction when
@@ -90,10 +102,12 @@ TAPSCRIPT = 0xC0
 # The standardness rules the script engine is run under (Core's
 # STANDARD_SCRIPT_VERIFY_FLAGS, less the ones about upgrades).
 # The rules of consensus alone (Core's block script flags: the soft forks
-# through segwit, less taproot, which no row here runs, and BIP-147's empty dummy), which the final-input rows are
+# through segwit, and BIP-147's empty dummy), which the final-input rows are
 # judged under: a high S, a sighash byte no standard defines and the policy
-# rules about stack shape and key form are not among them.
+# rules about stack shape and key form are not among them. A taproot row is
+# judged under the same rules with TAPROOT (BIP-341 and BIP-342).
 CONSENSUS = "P2SH,DERSIG,NULLDUMMY,CHECKLOCKTIMEVERIFY,CHECKSEQUENCEVERIFY,WITNESS"
+CONSENSUS_TAP = CONSENSUS + ",TAPROOT"
 FLAGS = ("P2SH,DERSIG,NULLDUMMY,CHECKLOCKTIMEVERIFY,CHECKSEQUENCEVERIFY,WITNESS,TAPROOT,"
          "STRICTENC,LOW_S,NULLFAIL,CLEANSTACK,MINIMALDATA,WITNESS_PUBKEYTYPE,SIGPUSHONLY")
 ECDSA_KINDS = ["p2pkh", "p2wpkh", "p2wsh-ms"]
@@ -593,7 +607,139 @@ def input_rows():
     return out
 
 
+# ----- a final taproot input, judged by btclib's script engine with TAPROOT ----------------
+
+def xonly(k, i):
+    return mul(k.ds[i]).x().to_bytes(32, "big")
+
+
+def tweaked(d, merkle=b""):
+    """(internal key, the secret of the output key, the output key's x, its
+    y parity) of internal secret `d` under `merkle`."""
+    internal = mul(d).x().to_bytes(32, "big")
+    even = d if mul(d).y() % 2 == 0 else N - d
+    t = int.from_bytes(tagged("TapTweak", internal + merkle), "big")
+    out = mul((even + t) % N)
+    return internal, (even + t) % N, out.x().to_bytes(32, "big"), out.y() & 1
+
+
+def key_path(ht=0, forged=False, annex=None, annex_signed=True, single_missing=False):
+    def build(k, digest):
+        internal, dd, out, _ = tweaked(k.ds[0])
+        spk = b"\x51\x20" + out
+        if single_missing:
+            # BIP-341 hashes no output the input has no index for: no digest exists
+            msg = k.rng.randbytes(32)
+        else:
+            msg = digest(spk, ht, 0, annex if annex_signed and annex else b"", b"")
+        d = k.ds[2] if forged else dd
+        sig = schnorr_sign(d, msg, k.rng.randrange(1, N)) + (bytes([ht]) if ht else b"")
+        return spk, [sig] + ([annex] if annex else [])
+    return build
+
+
+ANNEX = b"\x50" + bytes([0xA5]) * 7
+
+
+def script_path(script_of, stack_of, version=0xC0, annex=None, annex_signed=True, fake=False):
+    """A script path: the output key commits to the one leaf (or, `fake`, to another
+    leaf than the one the witness shows); `stack_of(k, sign, script)` gives the
+    elements below the script, `sign(i, ht=0, forged=False, pos=0xffffffff)` signing
+    with key `i` of the case."""
+    def build(k, digest):
+        script = script_of(k)
+        committed = cs(xonly(k, 7), S.OP_CHECKSIG) if fake else script
+        internal, _, out, parity = tweaked(k.ds[19], leaf_hash(version, committed))
+        spk = b"\x51\x20" + out
+        control = bytes([version | parity]) + internal
+        own = leaf_hash(version, script)
+
+        def sign(i, ht=0, forged=False, pos=0xFFFFFFFF):
+            msg = digest(spk, ht, 1, annex if annex_signed and annex else b"",
+                         own + b"\x00" + pos.to_bytes(4, "little"))
+            d = k.ds[18] if forged else k.ds[i]
+            return schnorr_sign(d, msg, k.rng.randrange(1, N)) + (bytes([ht]) if ht else b"")
+
+        stack = stack_of(k, sign, script)
+        return spk, stack + [script, control] + ([annex] if annex else [])
+    return build
+
+
+def tap_rows():
+    out = []
+    add = lambda name, build, **kw: out.append(  # noqa: E731
+        row(name, ("p2tr",), build, None, **kw))
+    pk = lambda k: cs(xonly(k, 0), S.OP_CHECKSIG)  # noqa: E731
+    multi_a = lambda k: cs(xonly(k, 0), S.OP_CHECKSIG, xonly(k, 1), S.OP_CHECKSIGADD,  # noqa: E731
+                           xonly(k, 2), S.OP_CHECKSIGADD, 2, S.OP_NUMEQUAL)
+    ab = lambda k, s, c: [b"", s(1), s(0)]  # noqa: E731
+    # key path
+    add("taproot key path, true", key_path())
+    add("taproot key path, true, SIGHASH_ALL", key_path(ht=1))
+    add("taproot key path, true, ALL|ANYONECANPAY", key_path(ht=0x81))
+    add("taproot key path, forged", key_path(forged=True))
+    add("taproot key path, forged, SIGHASH_ALL", key_path(ht=1, forged=True))
+    add("taproot key path, SIGHASH_SINGLE with no output of its index",
+        key_path(ht=3, single_missing=True))
+    add("taproot key path, annex signed", key_path(annex=ANNEX))
+    add("taproot key path, annex not signed", key_path(annex=ANNEX, annex_signed=False))
+    add("taproot key path, annex signed, forged", key_path(annex=ANNEX, forged=True))
+    # script path on a Tap miniscript leaf
+    one = lambda k, s, c: [s(0)]  # noqa: E731
+    add("taproot script path, pk, true", script_path(pk, one))
+    add("taproot script path, pk, true, SIGHASH_ALL", script_path(pk, lambda k, s, c: [s(0, 1)]))
+    add("taproot script path, pk, forged", script_path(pk, lambda k, s, c: [s(0, forged=True)]))
+    add("taproot script path, pk, empty signature", script_path(pk, lambda k, s, c: [b""]))
+    add("taproot script path, pk, a control block that does not commit to the output key",
+        script_path(pk, one, fake=True))
+    add("taproot script path, pk, annex signed", script_path(pk, one, annex=ANNEX))
+    add("taproot script path, pk, annex not signed",
+        script_path(pk, one, annex=ANNEX, annex_signed=False))
+    add("taproot script path, multi_a, A and B", script_path(multi_a, ab))
+    add("taproot script path, multi_a, B and C",
+        script_path(multi_a, lambda k, s, c: [s(2), s(1), b""]))
+    add("taproot script path, multi_a, one",
+        script_path(multi_a, lambda k, s, c: [b"", b"", s(0)]))
+    add("taproot script path, multi_a, one forged",
+        script_path(multi_a, lambda k, s, c: [b"", s(1), s(0, forged=True)]))
+    add("taproot script path, multi_a, annex signed", script_path(multi_a, ab, annex=ANNEX))
+    add("taproot script path, multi_a, annex not signed",
+        script_path(multi_a, ab, annex=ANNEX, annex_signed=False))
+    # a 65-byte element ending 0x00 is no signature BIP-341 takes
+    add("taproot script path, pk, 65 bytes ending 00",
+        script_path(pk, lambda k, s, c: [s(0) + b"\x00"]))
+    add("taproot script path, multi_a, 65 bytes ending 00 in a slot",
+        script_path(multi_a, lambda k, s, c: [s(2) + b"\x00", s(1), s(0)]))
+    # leaves Faraday does not run, whatever the engine decides
+    add("taproot future leaf version, junk",
+        script_path(pk, lambda k, s, c: [JUNK], version=0xC2), unrun=True)
+    add("taproot future leaf version, a signature", script_path(pk, one, version=0xC2),
+        unrun=True)
+    hashlock = lambda k: cs(S.OP_SHA256, hashlib.sha256(PREIMAGE).digest(),  # noqa: E731
+                            S.OP_EQUALVERIFY, xonly(k, 0), S.OP_CHECKSIG)
+    add("taproot hash lock, true", script_path(hashlock, lambda k, s, c: [s(0), PREIMAGE]),
+        unrun=True)
+    add("taproot hash lock, wrong preimage",
+        script_path(hashlock, lambda k, s, c: [s(0), bytes([8]) * 32]), unrun=True)
+    add("taproot hash lock, forged",
+        script_path(hashlock, lambda k, s, c: [s(0, forged=True), PREIMAGE]), unrun=True)
+    # OP_CODESEPARATOR is the first opcode: a signature commits to position 0
+    sep = lambda k: cs(S.OP_CODESEPARATOR, xonly(k, 0), S.OP_CHECKSIG)  # noqa: E731
+    add("taproot OP_CODESEPARATOR, true", script_path(sep, lambda k, s, c: [s(0, pos=0)]),
+        unrun=True)
+    add("taproot OP_CODESEPARATOR, signed as if none ran",
+        script_path(sep, lambda k, s, c: [s(0)]), unrun=True)
+    add("taproot OP_CODESEPARATOR, forged",
+        script_path(sep, lambda k, s, c: [s(0, forged=True, pos=0)]), unrun=True)
+    drop = lambda k: cs(S.OP_DROP, xonly(k, 0), S.OP_CHECKSIG)  # noqa: E731
+    add("taproot OP_DROP, true", script_path(drop, lambda k, s, c: [s(0), JUNK]), unrun=True)
+    add("taproot OP_DROP, forged",
+        script_path(drop, lambda k, s, c: [s(0, forged=True), JUNK]), unrun=True)
+    return out
+
+
 ROWS = input_rows()
+ALL_ROWS = ROWS + tap_rows()
 
 
 class SignCheck(Area):
@@ -640,7 +786,11 @@ class SignCheck(Area):
         "signatures, 2 of 17 and 17 of 20, uncompressed keys, bare P2PK and multisig, P2PKH "
         "and P2WPKH true and forged, a hash time lock on both branches and three false spends of it, a redeem script of "
         "500 and of 517 bytes, a high S and sighash bytes no standard defines, with keys "
-        "drawn for each case"
+        "drawn for each case; and about thirty taproot rows, run under TAPROOT: a key path "
+        "and a script path on a Tap miniscript leaf, true and forged, an annex signed and "
+        "not, SIGHASH_SINGLE with no output of its index, a control block that does not "
+        "commit to the output key, a 65-byte element ending 0x00, and the leaves not run "
+        "(another leaf version, a hash lock, OP_CODESEPARATOR, OP_DROP)"
     )
     differences = [
         (
@@ -656,7 +806,8 @@ class SignCheck(Area):
             "the lock, and its true spends; a P2SH puzzle; a segwit `pk` of an "
             "uncompressed key, which Faraday's segwit reading refuses, though a segwit "
             "multisig of such keys is read by hand and answers `ok`; a bare P2PK of a key "
-            "off the curve): Faraday answers "
+            "off the curve; a taproot leaf of a version other than 0xc0, a taproot hash lock, a "
+            "taproot leaf with OP_CODESEPARATOR or OP_DROP): Faraday answers "
             "`unjudged`, whatever the engine decides. Such a script reads not sound in the "
             "nonce check and is not refused, and only these rows may answer so: a "
             "miniscript or a multisig answering `unjudged` fails the area. Counted."
@@ -860,8 +1011,13 @@ class SignCheck(Area):
         case: btclib's script engine, under consensus's rules, says whether the
         input spends its output, and Faraday's verdict on the final fields
         (`witness_mismatch`, else `final_invalid`) must refuse exactly then not."""
-        name, wrappers, script_of, stack_of, seq, diff, unrun, tx = ROWS[self.case_at[1] % len(ROWS)]
+        name, wrappers, script_of, stack_of, seq, diff, unrun, tx = ALL_ROWS[self.case_at[1] % len(ALL_ROWS)]
         keys = Keys(self.rng)
+        if wrappers == ("p2tr",):
+            fail = self.tap_row(name, script_of, keys, seq, diff, unrun)
+            if fail:
+                self.bad("sign-check.input", fail[0], fail[2], fail[3], fail[1])
+            return
         script = script_of(keys)
         fails = [self.input_row(f"{name} in {wrapper}", wrapper, script, keys, stack_of, seq, diff,
                                 unrun is True or (unrun and wrapper in unrun), tx)
@@ -926,6 +1082,13 @@ class SignCheck(Area):
         raw = MAGIC + write_map([(b"\x00", tx.serialize_without_witness())]) + write_map(fields) + \
             b"\0" * len(tx.vout)
         given = {"psbt": raw.hex(), "network": "mainnet", "index": 0}
+        return self.verdict_of(what, given, passes, diff, unrun,
+                               f"spent output {spk.hex()}, scriptSig {script_sig.hex()}, "
+                               f"witness {[x.hex() for x in stack]}")
+
+    def verdict_of(self, what, given, passes, diff, unrun, shown):
+        """Faraday's verdict on the final fields in `given` against whether the
+        engine spends them: None when they agree or differ as stated."""
         got = self.rust.call("sign-check.input", **given)
         self.compared += 1
         if got[0] != "ok":
@@ -949,9 +1112,50 @@ class SignCheck(Area):
             return None
         say = "takes an input the script engine refuses" if passes is False else \
             "refuses an input the script engine accepts"
-        return (given, f"{what}: Faraday ({verdict}) {say}: spent output {spk.hex()}, scriptSig "
-                f"{script_sig.hex()}, witness {[x.hex() for x in stack]}",
+        return (given, f"{what}: Faraday ({verdict}) {say}: {shown}",
                 verdict, "spends" if passes else "refused by btclib")
+
+    def tap_row(self, what, build, keys, seq, diff, unrun):
+        """A taproot input: two inputs, the second spent, so a SIGHASH_SINGLE has
+        no output of its index; `build(keys, digest)` gives the spent output
+        script and the witness stack, signed over btclib's signature hash."""
+        value0, value = 7_000, 10_000
+        spk0 = p2wpkh(self.randbytes(20))
+        tx = CTransaction()
+        tx.version, tx.nLockTime = 2, 0
+        tx.vin = [CTxIn(COutPoint(int.from_bytes(self.randbytes(32), "big"), 0), b"", seq)
+                  for _ in range(2)]
+        tx.vout = [CTxOut(value - 1000, p2wpkh(self.randbytes(20)))]
+        unsigned = BtclibTx.parse(tx.serialize_without_witness(), check_validity=False)
+
+        def spent(spk):
+            return [BtclibTxOut(value0, spk0, check_validity=False),
+                    BtclibTxOut(value, spk, check_validity=False)]
+
+        def digest(spk, ht, ext_flag, annex, ext):
+            return btclib_sig_hash.taproot(unsigned, 1, spent(spk), ht, ext_flag, annex, ext)
+
+        spk, stack = build(keys, digest)
+        final = CTransaction()
+        final.version, final.nLockTime = 2, 0
+        final.vin = tx.vin
+        final.vout = tx.vout
+        w = CTxInWitness()
+        w.scriptWitness.stack = stack
+        final.wit.vtxinwit = [CTxInWitness(), w]
+        engine_tx = BtclibTx.parse(final.serialize(), check_validity=False)
+        try:
+            verify_input(spent(spk), engine_tx, 1, CONSENSUS_TAP)
+            passes = True
+        except Exception:  # noqa: BLE001 - every refusal of the script engine
+            passes = False
+        raw = MAGIC + write_map([(b"\x00", tx.serialize_without_witness())]) + \
+            write_map([(b"\x01", CTxOut(value0, spk0).serialize())]) + \
+            write_map([(b"\x01", CTxOut(value, spk).serialize()),
+                       (b"\x08", witness_bytes(stack))]) + b"\0" * len(tx.vout)
+        given = {"psbt": raw.hex(), "network": "mainnet", "index": 1}
+        return self.verdict_of(what, given, passes, diff, unrun,
+                               f"spent output {spk.hex()}, witness {[x.hex() for x in stack]}")
 
     # ----- the PSBT, and the judges ---------------------------------------------------------
 
