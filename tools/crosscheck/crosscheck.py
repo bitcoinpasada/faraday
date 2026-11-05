@@ -940,6 +940,7 @@ def run(args, areas, jobs, only, seed, scale, core):
     """The self-test and the run, with Bitcoin Core's node already up when
     an area needs it (`core` is what it is, for the stamp)."""
     interpreters = interpreters_for(args)
+    os.environ["FARADAY_CROSSCHECK_CPYTHON"] = sys.executable  # for the QR helper (qr_decode.py)
     if args.python == "auto":
         global ALTERNATIVE_FOR
         ALTERNATIVE_FOR = PYPY_FASTER

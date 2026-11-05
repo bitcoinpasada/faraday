@@ -21,12 +21,13 @@ one, or reads as other bytes than the payload, is a disagreement
 decoder's last byte is changed, as a decoder reading wrongly would).
 """
 
-import io
+import atexit
+import json
 import os
+import pathlib
 import subprocess
+import sys
 import tempfile
-
-from PIL import Image
 
 from common import Mismatch
 
@@ -37,6 +38,67 @@ READERS = (ZBAR, ZXING)
 
 class Unreadable(Exception):
     pass
+
+
+class HelperFailed(RuntimeError):
+    """The CPython helper died or crashed: the run stops, it is never a
+    picture a decoder could not read."""
+
+
+_helper = None
+
+
+def _cpython():
+    """CPython, for the helper: this interpreter when it is one, else the
+    one the driver passed down."""
+    if sys.implementation.name == "cpython":
+        return sys.executable
+    return os.environ.get("FARADAY_CROSSCHECK_CPYTHON") or "python3"
+
+
+def _stop_helper():
+    global _helper
+    if _helper is not None:
+        try:
+            _helper.stdin.close()
+            _helper.wait(timeout=10)
+        except (OSError, subprocess.TimeoutExpired):
+            _helper.kill()
+        _helper = None
+
+
+def ask(op, png):
+    """The helper's answer to `op` on a PNG. The helper (`qr_helper.py`:
+    Pillow and zxing-cpp, which PyPy cannot import) starts on the first
+    question and lives as long as this process."""
+    global _helper
+    if _helper is not None and _helper.poll() is not None:
+        raise HelperFailed(f"the QR helper exited with {_helper.returncode}")
+    if _helper is None:
+        _helper = subprocess.Popen(
+            [_cpython(), "-I", str(pathlib.Path(__file__).with_name("qr_helper.py"))],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        atexit.register(_stop_helper)
+    try:
+        _helper.stdin.write(json.dumps({"op": op, "png": png.hex()}) + "\n")
+        _helper.stdin.flush()
+        line = _helper.stdout.readline()
+    except OSError as e:
+        raise HelperFailed(f"the QR helper cannot be reached: {e}") from e
+    if not line:
+        raise HelperFailed("the QR helper ended without an answer")
+    answer = json.loads(line)
+    if "crash" in answer:
+        raise HelperFailed(f"the QR helper failed:\n{answer['crash']}")
+    return answer
+
+
+def pixels(png):
+    """Pillow's reading of a PNG: (luma bytes, (width, height))."""
+    a = ask("pixels", png)
+    if "err" in a:
+        raise AssertionError(f"Pillow cannot read the picture: {a['err']}")
+    return bytes.fromhex(a["ok"]), tuple(a["size"])
 
 
 def zbar_read(png):
@@ -55,12 +117,10 @@ def zbar_read(png):
 
 def zxing_read(png):
     """The one QR symbol zxing-cpp finds in a PNG, as bytes."""
-    import zxingcpp  # noqa: PLC0415 (a decoder PyPy may lack: the area then runs under CPython)
-    image = Image.open(io.BytesIO(png)).convert("L")
-    found = zxingcpp.read_barcodes(image, formats=zxingcpp.BarcodeFormat.QRCode)
-    if len(found) != 1:
-        raise Unreadable(f"{len(found)} symbols")
-    return bytes(found[0].bytes)
+    a = ask("zxing", png)
+    if "err" in a:
+        raise Unreadable(a["err"])
+    return bytes.fromhex(a["ok"])
 
 
 def swapped(data):

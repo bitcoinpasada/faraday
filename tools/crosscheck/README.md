@@ -137,6 +137,10 @@ takes a `--fresh` run from about 11 minutes to 10 on the build machine;
 `--python cpython` uses CPython alone, `--python pypy` (or a path to
 one) gives PyPy every area it can import (the `vault` area,
 which needs the distribution's packages for CPython, stays on CPython).
+Pillow and zxing-cpp have no PyPy build: under PyPy the `seedqr` area
+asks a CPython helper process (`qr_helper.py`) to decode the pictures, the
+same decoders on the same pictures; a helper that dies stops the run. An
+area PyPy cannot import runs under CPython, and the log says so.
 The answers and the report are the same either way, and the stamp
 records which Python ran what. PyPy is not needed: get it from the
 distribution (Debian and Ubuntu: `pypy3`; Fedora: `pypy3.11`; Arch:

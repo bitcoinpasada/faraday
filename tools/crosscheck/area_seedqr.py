@@ -92,12 +92,9 @@ Codex32QR.
   known difference, the mask choice, which a reader ignores.
 """
 
-import io
 import json
 import struct
 import zlib
-
-from PIL import Image
 
 from common import ROOT, Area, Mismatch, use_reference
 import qr_decode
@@ -267,11 +264,7 @@ def png_read_outside(data):
     raw = zlib.decompress(idat)
     if idat[-4:] != struct.pack(">I", zlib.adler32(raw)):
         raise AssertionError("the zlib stream's Adler-32 is not zlib's")
-    image = Image.open(io.BytesIO(data))
-    image.load()
-    image = image.convert("L")
-    w, h = image.size
-    pixels = image.tobytes()
+    pixels, (w, h) = qr_decode.pixels(data)
     rows = [pixels[y * w:(y + 1) * w] for y in range(h)]
     if rows != png_luma(data):
         raise AssertionError("Pillow reads other pixels than this area's reader")
