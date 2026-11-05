@@ -187,7 +187,7 @@ does what is `tools/README.md`'s.
 | `strings.guide-names`: a string renamed is renamed in the guide's bold names | `faraday/faraday-strings/src/en.rs` | held | - | `lint-guide` | - | `CLAUDE.md`<br>`tools/README.md` |
 | `strings.no-explanation`: a working screen carries labels, values and actions, never an explanation; Learn and About explain | `faraday/faraday-strings/src/en.rs` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F112.md` |
 | `strings.plain`: text anywhere in the product is plain statement of fact, never mannered prose | `faraday/faraday-strings/src/en.rs`<br>`docs/learn/**`<br>`docs/guide/**` | review | - | - | - | `CLAUDE.md`<br>`docs/DESIGN.md` §2 |
-| `strings.medium`: the medium's words come from Medium; "SD card" where it is one | `faraday/faraday-strings/src/en.rs` | review | - | - | - | `docs/decisions/F4.md` |
+| `strings.medium`: the medium's words come from Medium; "card or stick" on the Pi, "SD card" only for the card it started from | `faraday/faraday-strings/src/en.rs` | review | - | - | - | `docs/decisions/F216.md` |
 
 ### 2.12 design
 
@@ -303,7 +303,7 @@ No script holds these; a reviewer reads this list for the change.
 | `structure.vault-together`: the vault code is not split per screen (F170) | `docs/decisions/F170.md` |
 | `strings.no-explanation`: a working screen carries labels, values and actions, never an explanation; Learn and About explain | `CLAUDE.md`<br>`docs/decisions/F112.md` |
 | `strings.plain`: text anywhere in the product is plain statement of fact, never mannered prose | `CLAUDE.md`<br>`docs/DESIGN.md` §2 |
-| `strings.medium`: the medium's words come from Medium; "SD card" where it is one | `docs/decisions/F4.md` |
+| `strings.medium`: the medium's words come from Medium; "card or stick" on the Pi, "SD card" only for the card it started from | `docs/decisions/F216.md` |
 | `design.left-out`: none of F111's left-out components is added | `docs/decisions/F111.md` |
 | `design.demo-matches`: Faraday Demo differs from the device only by a decision | `docs/decisions/F117.md` |
 | `design.maker-pages`: the Starter's maker pages show several families at once, no model, no maker's screenshot or name | `docs/decisions/F14.md`<br>`docs/decisions/F18.md` |

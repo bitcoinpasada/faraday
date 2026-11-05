@@ -1,4 +1,4 @@
-//! On the Pi every removable medium is an SD card, and the app says so:
+//! On the Pi every removable medium is a card or stick, and the app says so:
 //! the stick shell starts it with `Medium::SdCard`. The PC keeps "stick".
 
 use faraday_core::{Action, Faraday, Medium, StickInfo, StorageEvent};
@@ -43,25 +43,25 @@ fn attach(app: &mut Faraday, on: bool) {
 }
 
 #[test]
-fn the_pi_s_home_says_no_sd_card() {
+fn the_pi_s_home_says_no_card_or_stick() {
     let app = panel(Medium::SdCard);
-    assert_eq!(app.home_files_line(), "none · no SD card");
+    assert_eq!(app.home_files_line(), "none · no card or stick");
     let pc = panel(Medium::Stick);
     assert_eq!(pc.home_files_line(), "none · no stick");
 }
 
 #[test]
-fn the_pi_names_an_sd_card_with_its_article_and_at_the_start_of_a_line() {
+fn the_pi_names_a_card_or_stick_with_its_article_and_at_the_start_of_a_line() {
     let mut app = panel(Medium::SdCard);
-    // Write to an SD card with none attached.
+    // Write to a card or stick with none attached.
     app.press(Action::WriteAsk);
     assert_eq!(
         app.toast_text(),
-        Some("Plug in an SD card: the visit writes what waits for it")
+        Some("Plug in a card or stick: the visit writes what waits for it")
     );
     attach(&mut app, true);
     attach(&mut app, false);
-    assert_eq!(app.toast_text(), Some("SD card removed"));
+    assert_eq!(app.toast_text(), Some("Card or stick removed"));
 
     let mut pc = panel(Medium::Stick);
     pc.press(Action::WriteAsk);

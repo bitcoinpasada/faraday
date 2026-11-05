@@ -25,7 +25,7 @@ pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
         (
             EN.family_offline,
             EN.family_open_the_wallet_here,
-            fill(EN.family_start_a_computer, &[m.noun()]),
+            fill(EN.family_start_a_computer, &[m.started_from()]),
         ),
         (
             EN.family_online,
@@ -77,7 +77,7 @@ pub fn looks(m: Medium) -> [(String, String); 8] {
     let [a, b, c, d, e, f, g] = looks.map(|(look, what)| (look.to_string(), what.to_string()));
     let medium = (
         fill(EN.family_labelled_faraday, &[m.a_full_cap()]),
-        fill(EN.family_looks_medium, &[m.noun()]),
+        fill(EN.family_looks_medium, &[m.started_from()]),
     );
     [medium, a, b, c, d, e, f, g]
 }
@@ -85,7 +85,7 @@ pub fn looks(m: Medium) -> [(String, String); 8] {
 /// A card's title.
 pub fn title(app: &Faraday, id: CardId) -> String {
     match id {
-        CardId::Page(page::SAFE) => fill(EN.family_title_start, &[app.medium.noun()]),
+        CardId::Page(page::SAFE) => fill(EN.family_title_start, &[app.medium.started_from()]),
         _ => name(app, id).to_string(),
     }
 }
@@ -129,10 +129,10 @@ pub fn lead(app: &View, id: CardId) -> String {
     let s: &str = match id {
         CardId::Page(page::MAP) => EN.family_six_stops_three,
         CardId::Page(page::SAFE) if app.online => {
-            return fill(EN.family_lead_desktop_copy, &[app.medium.noun()]);
+            return fill(EN.family_lead_desktop_copy, &[app.medium.started_from()]);
         }
         CardId::Page(page::SAFE) => {
-            return fill(EN.family_lead_running_offline, &[app.medium.noun()]);
+            return fill(EN.family_lead_running_offline, &[app.medium.started_from()]);
         }
         // Starting from the stick heads What do you have? until something
         // comes in (F103): its own card took a press that chose nothing.
@@ -223,8 +223,8 @@ pub fn more(app: &View, id: CardId) -> Vec<String> {
         CardId::Page(page::SAFE) => {
             return vec![
                 EN.family_shut_the_computer.to_string(),
-                fill(EN.family_plug_the_faraday, &[m.noun()]),
-                fill(EN.family_more_pick_boot_device, &[m.full()]),
+                fill(EN.family_plug_the_faraday, &[m.started_from()]),
+                fill(EN.family_more_pick_boot_device, &[m.started_from_full()]),
                 fill(EN.family_if_the_is_missing, &[m.noun(), m.a()]),
             ];
         }

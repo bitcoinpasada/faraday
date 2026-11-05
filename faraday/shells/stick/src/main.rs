@@ -367,9 +367,9 @@ const USB_MOUNTS: &str = "/mnt/usb";
 /// found the stick, then its data partition's node, or `none` or `two`.
 const EXCHANGE: &str = "/etc/faraday/exchange";
 
-/// What the removable medium is called on this machine: an SD card on
-/// the Pi, which has no USB storage, and a stick everywhere else (an SD
-/// card in a USB reader included). The Pi build knows it is one; any
+/// What the removable medium is called on this machine: a card or
+/// stick on the Pi, which reads its SD card and USB sticks alike, and a
+/// stick everywhere else (an SD card in a USB reader included). The Pi build knows it is one; any
 /// other build knows by its boot medium being the board's own card.
 fn medium() -> Medium {
     let card =

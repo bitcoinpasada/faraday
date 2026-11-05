@@ -402,7 +402,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let width = cw - 2.0 * PAGE_INSET;
     // The top app bar names the page; where pulling the stick goes leads
     // it.
-    let mut y = super::bar_head(ui, None, app.medium.visit());
+    let mut y = super::bar_head(ui, None, app.medium.visit_title());
     ui.chip(
         x,
         y + 4.0,

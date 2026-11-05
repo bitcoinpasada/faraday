@@ -1150,8 +1150,8 @@ pub struct Faraday {
     /// desktop app. The scanner's Paste is dimmed where it is not set,
     /// which is never on the device (`docs/QR.md` §8 item 5).
     pub clipboard: bool,
-    /// What the removable medium is called and drawn as: a stick, or an
-    /// SD card on the Pi. The shell sets it at start.
+    /// What the removable medium is called and drawn as: a stick, or a
+    /// card or stick on the Pi. The shell sets it at start.
     pub medium: Medium,
     /// Whether the machine started with Secure Boot on, as the stick shell
     /// read it once at start. Unknown everywhere else.

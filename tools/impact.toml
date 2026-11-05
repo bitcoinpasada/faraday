@@ -1022,8 +1022,8 @@ kind = "review"
 
 [[rule]]
 id = "strings.medium"
-title = "the medium's words come from Medium; \"SD card\" where it is one"
-source = ["docs/decisions/F4.md"]
+title = "the medium's words come from Medium; \"card or stick\" on the Pi, \"SD card\" only for the card it started from"
+source = ["docs/decisions/F216.md"]
 when = ["faraday/faraday-strings/src/en.rs"]
 kind = "review"
 

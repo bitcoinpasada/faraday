@@ -461,7 +461,7 @@ inserted before step 2.
   the vault choice is a Choice; the hold is the Hold layout (the record
   centred, the hold at the bottom with **Use another stick** beside it);
   Writing is the Progress bar; Done is a Result.
-- **On the Pi** "stick" is "SD card" by `app.medium` (F4). **A developer
+- **On the Pi** "stick" is "card or stick" by `app.medium` (F216). **A developer
   build of Faraday Demo** (F30) uses its stick folders as sticks; the
   demo makes none of these keys (F30) and never shows the flow.
 - **Never the stick visit**, at any step, 2 and 6 included. While the
@@ -2016,8 +2016,8 @@ seen. Built in F2d with §17.16.
    at one end), Faraday's own drawing, replaces `Icon::Drive` everywhere
    a stick is meant across Faraday and the Starter: the stick box's head,
    the medium's glyph (`medium.rs`), the Starter's drive rows. Where the
-   medium is an SD card (the Pi, F4) the same places draw `Icon::SdCard`
-   and say "SD card n" where they say "Stick n" (`Medium` already words
+   medium is an SD card (the Pi, F216) the same places draw `Icon::SdCard`
+   and say "Card or stick n" where they say "Stick n" (`Medium` already words
    it). A drive that is not a stick (the Starter's internal disk, if it
    has one) keeps `Icon::Drive`.
 5. **The vault glyph on the board.** The vault box's header draws the

@@ -4710,66 +4710,76 @@ strings! {
     medium_stick_inline: "stick",
     /// Text in `nouns`.
     medium_sticks_inline: "sticks",
+    /// Text in `nouns`.
+    medium_cards_or_sticks_inline: "cards or sticks",
     /// Text in `a`.
     medium_a_stick_inline: "a stick",
     /// Text in `a`.
-    medium_an_sd_card_inline: "an SD card",
+    medium_a_card_or_stick_inline: "a card or stick",
+    /// Text in `noun`.
+    medium_card_or_stick_inline: "card or stick",
     /// Text in `cap`.
     medium_stick: "Stick",
+    /// Text in `cap`.
+    medium_card_or_stick: "Card or stick",
     /// Text in `caps`.
     medium_sticks: "Sticks",
     /// Text in `caps`.
-    medium_sd_cards: "SD cards",
+    medium_cards_or_sticks: "Cards or sticks",
     /// Text in `a_cap`.
     medium_a_stick: "A stick",
+    /// Text in `a_cap`.
+    medium_a_card_or_stick: "A card or stick",
     /// Text in `full`.
     medium_usb_stick: "USB stick",
     /// Text in `full`.
-    medium_sd_card: "SD card",
+    medium_sd_card_or_usb_stick: "SD card or USB stick",
     /// Text in `a_full_cap`.
     medium_a_usb_stick: "A USB stick",
     /// Text in `a_full_cap`.
-    medium_an_sd_card: "An SD card",
+    medium_an_sd_card_or_usb_stick: "An SD card or USB stick",
     /// Text in `from_box`.
     medium_from_the_stick: "From the stick",
     /// Text in `from_box`.
-    medium_from_the_sd_card: "From the SD card",
+    medium_from_the_card_or_stick: "From the card or stick",
     /// Text in `for_box`.
     medium_for_the_stick: "For the stick",
     /// Text in `for_box`.
-    medium_for_the_sd_card: "For the SD card",
+    medium_for_the_card_or_stick: "For the card or stick",
     /// Text in `on_box`.
     medium_on_box_stick: "On the stick",
     /// Text in `on_box`.
-    medium_on_box_sd_card: "On the SD card",
+    medium_on_box_card_or_stick: "On the card or stick",
     /// Text in `on_this_box`.
     medium_on_this_stick: "On this stick",
     /// Text in `on_this_box`.
-    medium_on_this_sd_card: "On this SD card",
+    medium_on_this_card_or_stick: "On this card or stick",
     /// Text in `from_the`.
     medium_from_the_stick_inline: "from the stick",
     /// Text in `from_the`.
-    medium_from_the_sd: "from the SD card",
+    medium_from_the_card_or_stick_inline: "from the card or stick",
     /// Text in `on_the`.
     medium_on_the_stick: "on the stick",
     /// Text in `on_the`.
-    medium_on_the_sd_card: "on the SD card",
+    medium_on_the_card_or_stick: "on the card or stick",
     /// Text in `for_the`.
     medium_for_the_stick_inline: "for the stick",
     /// Text in `for_the`.
-    medium_for_the_sd_card_inline: "for the SD card",
+    medium_for_the_card_or_stick_inline: "for the card or stick",
     /// Text in `visit`.
     medium_stick_visit: "Stick visit",
-    /// Text in `visit`.
-    medium_sd_card_visit: "SD card visit",
+    /// Text in `visit_title`.
+    medium_visit: "Visit",
     /// Text in `and_vaults`.
     medium_sticks_and_vaults: "Sticks and vaults",
     /// Text in `and_vaults`.
-    medium_sd_cards_and_vaults: "SD cards and vaults",
+    medium_cards_or_sticks_and_vaults: "Cards, sticks and vaults",
     /// Text in `boot`.
     medium_boot_stick: "Boot stick",
     /// Text in `boot`.
     medium_boot_sd_card: "Boot SD card",
+    /// Text in `started_from`, `started_from_full`.
+    medium_started_from_sd_card: "SD card",
     /// Text in `use_boot`.
     medium_use_boot_stick: "Use the boot stick",
     /// Text in `use_boot`.
@@ -10270,8 +10280,8 @@ strings! {
     backup_flow_pill_boot_card: "Boot card",
     /// A device's pill word on a USB stick.
     backup_flow_pill_stick: "Stick",
-    /// A device's pill word on an SD card.
-    backup_flow_pill_card: "Card",
+    /// A device's pill word on a card or stick.
+    backup_flow_pill_card_or_stick: "Card or stick",
     /// Under a stick's row once it is first taken for its place: the
     /// pill's word and number.
     backup_flow_mark_as: "Mark it as {} {}",
@@ -10569,9 +10579,9 @@ strings! {
     /// A stick zone's label. `{}`: its pill's number, one numbering
     /// across the places, from 2 (the boot stick is 1).
     board_stick: "Stick {}",
-    /// A stick zone's label where the medium is an SD card (the Pi).
+    /// A stick zone's label where the medium is a card or stick (the Pi).
     /// `{}`: its pill's number, as `board_stick`.
-    board_sd_card: "SD card {}",
+    board_card_or_stick: "Card or stick {}",
     /// The files box's header inside a stick box: the files kept on the
     /// stick outside any vault (`docs/BACKUP-FLOW.md` §17.17).
     board_files_not_sealed: "Files · not sealed",
@@ -10768,7 +10778,7 @@ strings! {
     /// A file's ⋮ menu: the sheet of its name, kind, size and SHA-256.
     file_menu_details: "Details",
     /// A file on the stick visited: its ⋮ menu's way to the Delete files
-    /// sheet with it alone chosen. `{}`: "stick", "SD card".
+    /// sheet with it alone chosen. `{}`: "stick", "card or stick".
     file_menu_delete_from_medium: "Delete from the {}",
     /// The ⋮ menu's way out on the small panel, where it is a sheet.
     file_menu_cancel: "Cancel",
@@ -10801,7 +10811,7 @@ strings! {
     /// The visit's line: the stick refused the rename. `{}`: the name, why.
     rename_not_done: "{} not renamed: {}",
     // ----- Rename stick: the data partition's name (docs/STICK-IDENTITY.md §6), faraday-core -----
-    /// The visit's button and its dialog's title. `{}`: "stick", "SD card".
+    /// The visit's button and its dialog's title. `{}`: "stick", "card or stick".
     stick_name_button: "Rename {}",
     /// The line under the field when what is typed is written otherwise:
     /// in capitals, as FAT keeps a name. `{}`: the name as written.

@@ -278,10 +278,18 @@ fn on_a_device_there_are_no_pills_without_a_flow_and_one_per_stick_of_the_flow()
     for want in ["Stick 2 · out", "Stick 3 · out", "Stick 4 · out"] {
         assert!(t.iter().any(|s| s == want), "{want} in {t:?}");
     }
-    // On the Pi the medium is an SD card.
+    // The Pi's medium.
     app.medium = Medium::SdCard;
     let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
-    assert_eq!(labels, ["Boot card", "Card 2", "Card 3", "Card 4"]);
+    assert_eq!(
+        labels,
+        [
+            "Boot card",
+            "Card or stick 2",
+            "Card or stick 3",
+            "Card or stick 4"
+        ]
+    );
 }
 
 #[test]
@@ -324,7 +332,7 @@ fn the_first_backup_stick_is_stick_2_on_every_shell() {
     assert_eq!(labels, ["Boot stick", "Stick 2", "Stick 3"]);
     app.medium = Medium::SdCard;
     let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
-    assert_eq!(labels, ["Boot card", "Card 2", "Card 3"]);
+    assert_eq!(labels, ["Boot card", "Card or stick 2", "Card or stick 3"]);
 }
 
 #[test]
@@ -385,7 +393,7 @@ fn on_a_device_the_writes_name_each_stick_by_its_number() {
     shell.pull(&mut app, "S1");
     expect(&mut app, "Insert Stick 3: Vault 1 (Place 2)");
     app.medium = Medium::SdCard;
-    expect(&mut app, "Insert Card 3: Vault 1 (Place 2)");
+    expect(&mut app, "Insert Card or stick 3: Vault 1 (Place 2)");
     app.medium = Medium::Stick;
     shell.plug(&mut app, "S2");
     shell.flow(&mut app, F::Hold);
@@ -440,7 +448,7 @@ fn the_mark_line_shows_once_a_stick_is_bound_and_goes_when_it_is_pulled() {
     assert!(!has(&mut app, "Mark it as Stick 2"));
     // On the Pi it is a card.
     app.medium = Medium::SdCard;
-    expect(&mut app, "Mark it as Card 3");
+    expect(&mut app, "Mark it as Card or stick 3");
 }
 
 #[test]
@@ -476,11 +484,11 @@ fn on_the_pis_panel_a_five_stick_flow_fits_on_one_row_in_numbers_alone() {
                 .unwrap_or_else(|| panic!("no pill {n} in {boxes:?}"))
         })
         .collect();
-    // No pill in its short form: the card rows below read "Card 2 · …".
+    // No pill in its short form: the card rows below read "Card or stick 2 · …".
+    let top = pills[0].1 + 60;
     assert!(
-        !boxes
-            .iter()
-            .any(|(t, _)| t == "Boot card" || (2..=6).any(|n| *t == format!("Card {n}"))),
+        !boxes.iter().any(|(t, b)| b.1 < top
+            && (t == "Boot card" || (2..=6).any(|n| *t == format!("Card or stick {n}")))),
         "{boxes:?}"
     );
     // A glyph's ink sits a pixel or so higher or lower than another's.

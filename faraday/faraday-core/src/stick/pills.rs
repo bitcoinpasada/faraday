@@ -231,15 +231,15 @@ impl Faraday {
         pills
     }
 
-    /// The word a pill uses for its medium: Stick, Card.
+    /// The word a pill uses for its medium: Stick, Card or stick.
     pub(crate) fn pill_word(&self) -> &'static str {
         match self.medium {
             Medium::Stick => EN.backup_flow_pill_stick,
-            Medium::SdCard => EN.backup_flow_pill_card,
+            Medium::SdCard => EN.backup_flow_pill_card_or_stick,
         }
     }
 
-    /// Pill `n`: Stick 2, Card 2.
+    /// Pill `n`: Stick 2, Card or stick 2.
     fn pill_name(&self, n: usize) -> String {
         fill(EN.backup_flow_pill, &[self.pill_word(), &n.to_string()])
     }

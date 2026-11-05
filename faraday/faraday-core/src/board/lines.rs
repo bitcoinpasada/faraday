@@ -280,11 +280,11 @@ pub(super) fn stick_numbers(
     }
 }
 
-/// "Stick {}", or "SD card {}" where the medium is an SD card
+/// "Stick {}", or "Card or stick {}" where the medium is a card or stick
 /// (`docs/BACKUP-FLOW.md` §19.17 item 4).
 pub(crate) fn stick_word(medium: crate::Medium) -> &'static str {
     match medium {
         crate::Medium::Stick => EN.board_stick,
-        crate::Medium::SdCard => EN.board_sd_card,
+        crate::Medium::SdCard => EN.board_card_or_stick,
     }
 }

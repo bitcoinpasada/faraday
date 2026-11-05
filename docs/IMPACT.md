@@ -391,7 +391,7 @@ From an inventory of `CLAUDE.md`, `CONTRIBUTING.md`, `tools/README.md`,
 `docs/STRUCTURE-PASS.md` §7, `docs/SPEED.md` §3.3 and §7,
 `docs/COMPUTE.md` §8, `docs/KEYS.md` §2, `docs/CRYPTO-LEARN.md` §14,
 `faraday/builds.toml`'s header and the decisions that bind later
-changes (F4, F14, F18, F66, F68 to F74, F79, F90, F91, F92, F108,
+changes (F216, F14, F18, F66, F68 to F74, F79, F90, F91, F92, F108,
 F109, F111, F112, F116, F117, F127, F136, F145, F148). Kinds:
 H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 §9.3 builds.
@@ -451,7 +451,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `strings.guide-names` | `faraday/faraday-strings/src/en.rs` | H | `lint-guide` | `tools/README.md` |
 | `strings.no-explanation` | `faraday/faraday-strings/src/en.rs` | R | a working screen carries labels, values, actions; F112's one exception | `CLAUDE.md`, F112 |
 | `strings.plain` | `faraday/faraday-strings/src/en.rs`, `docs/learn/**`, `docs/guide/**` | R | plain statement of fact | `CLAUDE.md`, `docs/DESIGN.md` §2 |
-| `strings.medium` | `faraday/faraday-strings/src/en.rs` | R | the medium's words from `Medium`; "SD card" | F4 |
+| `strings.medium` | `faraday/faraday-strings/src/en.rs` | R | the medium's words from `Medium`; "card or stick" on the Pi | F216 |
 | `design.material3` | `**/screen.rs`, `faraday/faraday-core/src/screens/**`, `core/faraday-draw/src/widgets/**`, `faraday/faraday-ui/**`, `faraday/faraday-starter/src/**` | T | a `Material: <page>` trailer naming the Material page checked (§3); a difference has a decision | `CLAUDE.md`, F91, F92, F108 |
 | `design.left-out` | the same | R | none of F111's components | F111 |
 | `design.new-component` | `core/faraday-draw/src/widgets/*.rs` added | P | `docs/DESIGN.md` (§4) | `CLAUDE.md` |

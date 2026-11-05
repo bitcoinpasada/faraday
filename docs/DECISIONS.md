@@ -18,7 +18,7 @@ Read this table, then only the decision you need.
 | [F1](decisions/F1.md) | The boot import, and one line of fact on its sheet | 2026-10-08 | Active | stick |
 | [F2](decisions/F2.md) | Faraday upgrades another Faraday stick, and never signs inside the upgrade | 2026-10-08 | Amended by F11, F128 | stick |
 | [F3](decisions/F3.md) | A multi-choice list beside Choice, for the backup's plan | 2026-10-09 | Active | design |
-| [F4](decisions/F4.md) | On the Pi, "SD card" where the app says "stick" | 2026-10-09 | Active | stick |
+| [F4](history/decisions/F4.md) | On the Pi, "SD card" where the app says "stick" | 2026-10-09 | Replaced by F216 | stick |
 | [F5](decisions/F5.md) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Amended by F128 | release |
 | [F6](decisions/F6.md) | The backup before the spend | 2026-10-10 | Active | backup |
 | [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Amended by F123 | keys |
@@ -230,3 +230,4 @@ Read this table, then only the decision you need.
 | [F213](decisions/F213.md) | quick-xml is a library the manifest names that is not established | 2026-11-05 | Active | security |
 | [F214](decisions/F214.md) | A Spec holds the design and whether it is built, and carries no work list | 2026-11-05 | Active | repository |
 | [F215](decisions/F215.md) | A GPG key's paperkey has a code, for moving the key to a vault on another machine | 2026-11-05 | Active | QR |
+| [F216](decisions/F216.md) | On the Pi, "card or stick" where the app says "stick" | 2026-11-05 | Active | stick |

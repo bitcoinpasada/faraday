@@ -105,7 +105,7 @@ fn picker(
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &c.line()) + 16.0;
         // Nothing is read until Import, and Import reads the stick.
         if !app.import_stick_in() {
-            let back = fill(EN.boot_import_put_back, &[app.medium.noun()]);
+            let back = fill(EN.boot_import_put_back, &[app.medium.started_from()]);
             cy += stick_banner(ui, x, cy, w, &back);
         }
     }
@@ -180,7 +180,7 @@ fn unlock(
         &fill(EN.boot_import_read_source, &[label]),
     );
     if !may {
-        let pull = fill(EN.boot_import_pull_medium, &[app.medium.noun()]);
+        let pull = fill(EN.boot_import_pull_medium, &[app.medium.started_from()]);
         cy += stick_banner(ui, x, cy, w, &pull);
     }
     ui.icon(

@@ -668,7 +668,7 @@ fn summary(app: &View, id: CardId) -> String {
         CardId::Page(page::MAP) => EN.family_six_stops,
         CardId::Page(page::SAFE) if app.online => EN.family_desktop_copy,
         CardId::Page(page::SAFE) => {
-            return fill(EN.family_running_from_medium, &[app.medium.noun()]);
+            return fill(EN.family_running_from_medium, &[app.medium.started_from()]);
         }
         CardId::Page(page::HOLDING | page::OPEN) => {
             return match app.family_wallet().map(|i| &app.session.wallets[i]) {

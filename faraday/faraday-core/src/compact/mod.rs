@@ -63,7 +63,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::WalletsStart | Screen::Wallets => EN.compact_wallets,
         Screen::Spend | Screen::Family => EN.compact_spend,
         Screen::Files => EN.compact_files,
-        Screen::Visit => medium.visit(),
+        Screen::Visit => medium.visit_title(),
         Screen::Entry => EN.compact_add_a_key,
         Screen::Backup => EN.compact_back_up,
         Screen::Message => EN.compact_sign_a_message,

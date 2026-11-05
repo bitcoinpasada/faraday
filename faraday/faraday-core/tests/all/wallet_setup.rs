@@ -157,10 +157,10 @@ fn changing_the_card_after_a_stick_is_read_asks_for_the_stick_again() {
     assert!(app.flow().unwrap().slots.iter().all(|s| s.bound.is_none()));
 }
 
-/// On the Pi the Sticks and vaults card says SD card where the PC says
+/// On the Pi the Sticks and vaults card says card or stick where the PC says
 /// stick: the count's label, the segment, the stick boxes and a check.
 #[test]
-fn the_card_names_an_sd_card_on_the_pi() {
+fn the_card_names_a_card_or_stick_on_the_pi() {
     use faraday_core::Medium;
     use faraday_core::board::{BoardPress as BP, Thing, Zone};
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -171,11 +171,11 @@ fn the_card_names_an_sd_card_on_the_pi() {
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CVaultN(2));
     app.press(Action::Board(BP::Off(Zone::Card(1), Thing::Vault(1))));
-    expect_wrapped(&mut app, "SD cards and vaults");
-    expect_wrapped(&mut app, "Already on an SD card");
-    expect_wrapped(&mut app, "SD card 2");
-    expect_wrapped(&mut app, "Vault 2 is on no SD card");
-    expect_wrapped(&mut app, "SD card 3 holds no vault");
+    expect_wrapped(&mut app, "Cards, sticks and vaults");
+    expect_wrapped(&mut app, "Already on a card or stick");
+    expect_wrapped(&mut app, "Card or stick 2");
+    expect_wrapped(&mut app, "Vault 2 is on no card or stick");
+    expect_wrapped(&mut app, "Card or stick 3 holds no vault");
 }
 
 /// Make a new wallet with three vaults on three sticks, at Bring in the

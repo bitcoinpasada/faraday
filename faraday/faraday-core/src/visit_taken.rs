@@ -880,7 +880,7 @@ impl Faraday {
     }
 
     /// A toast `template` names the medium in: its `{}` are `what`, then
-    /// "for the stick" or "for the SD card".
+    /// "for the stick" or "for the card or stick".
     pub(crate) fn toast_waits(&mut self, template: &str, what: &[&str]) {
         let mut args = what.to_vec();
         args.push(self.medium.for_the());

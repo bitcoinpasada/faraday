@@ -545,7 +545,7 @@ impl Faraday {
         if self.import_stick_in() {
             return;
         }
-        let noun = self.medium.noun();
+        let noun = self.medium.started_from();
         let Some(imp) = self.import.state_mut() else {
             return;
         };

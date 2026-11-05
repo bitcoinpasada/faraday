@@ -39,7 +39,7 @@ xpub file", **Scan its xpub** (decision 58).
 
 **From the stick, For the stick** (decision 1). Files' two halves are
 named by direction, **From the stick** and **For the stick** ("From the
-SD card", "For the SD card" on the Pi), on Files, the stick visit, the
+card or stick", "For the card or stick" on the Pi), on Files, the stick visit, the
 sheets and every button; no screen says "Inbox" or "Outbox", which
 remain the code's names only.
 
@@ -653,9 +653,10 @@ Faraday Demo; a Mac as `docs/MAC.md` §3.2. The sheet also offers
 
 ## Sticks and cards
 
-On the Pi every medium is an SD card and every screen says so: "SD card"
-for "stick", **SD card visit** for **Stick visit**, **Lock and use SD
-card**, "Remove the SD card" (`docs/DECISIONS.md` F4). The flows
+On the Pi every screen says "card or stick" for "stick" (it reads its SD
+card and USB sticks alike): **Card or stick**, and **Visit** in the top bar, for **Stick visit**,
+**Lock and use card or stick**, "Remove the card or stick"
+(`docs/DECISIONS.md` F216). The card the Pi started from stays "SD card". The flows
 below use the PC's words.
 
 **A stick or card inserted while unlocked** → **Lock to use this stick**
@@ -699,7 +700,7 @@ visit** directly.
   where it stays for the next stick: a copy from one stick to another,
   one after the other or both in at once. A file the stick shown holds
   already (by name and size) is listed greyed, tagged **On this stick**
-  (**On this SD card**), with a disabled checkbox that cannot be ticked:
+  (**On this card or stick**), with a disabled checkbox that cannot be ticked:
   a file just copied in shows here at once, and no "Copied" line says
   it. A public or sealed file (a GPG public key or signature
   included, F22; a revocation `.rev` file is not one, F32) is ticked like a file For the stick, and
