@@ -21,6 +21,7 @@ mod steps;
 mod targets;
 mod template;
 mod template_codex32;
+mod template_krux;
 mod text_size;
 mod touch;
 mod unread_version;

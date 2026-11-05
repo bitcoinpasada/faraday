@@ -11,12 +11,12 @@
 
 ![Tools: the Transfer card with Open Transfer, and the Blank templates card with Open blank templates](../pictures/starter-tools.png)
 
-*Tools: **Transfer** (**Send and Receive**) with **Open Transfer**, and **Blank templates** (**Words, SeedQR and codex32**) with **Open blank templates**.*
+*Tools: **Transfer** (**Send and Receive**) with **Open Transfer**, and **Blank templates** (**Words, SeedQR, codex32 and Krux code**) with **Open blank templates**.*
 
 | Card | Line | Button |
 |---|---|---|
 | **Transfer** | **Send and Receive** | **Open Transfer**, the primary button: opens Faraday's own [Transfer](qr-and-scan.md#transfer) under the Starter's top app bar, which reads **Transfer** with the way back to **Tools** |
-| **Blank templates** | **Words, SeedQR and codex32** | **Open blank templates**: opens [Blank templates](#blank-templates) |
+| **Blank templates** | **Words, SeedQR, codex32 and Krux code** | **Open blank templates**: opens [Blank templates](#blank-templates) |
 
 ![Transfer opened from the Starter's Tools: payment.psbt in Downloads under Send, Scan with the camera and Open folder under Receive](../pictures/starter-tools-send.png)
 

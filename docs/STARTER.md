@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); the blank template for a Krux code (§3.8, `docs/KEF.md` §15.5); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -1027,8 +1027,8 @@ back; then the buttons:
   file is
   `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr|codex32qr-4}[-worksheets].pdf`.
   A length that no longer holds a choice (Codex32QR or the worksheets)
-  puts that choice back to String or None. A third form, **Krux code**,
-  is planned, for an encrypted code copied by hand and holding nothing
+  puts that choice back to String or None. A third form, **Krux code** (built),
+  is for an encrypted code copied by hand and holding nothing
   of one: **Size** (25 × 25 · 29 × 29 · 33 × 33 chosen · 37 × 37) and
   **Places**, the file `faraday-blank-template-krux-code-{25x25|29x29|33x33|37x37}.pdf`
   (`docs/KEF.md` §15.5); the Starter does not scan or print the code itself;

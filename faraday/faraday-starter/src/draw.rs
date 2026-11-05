@@ -21,7 +21,7 @@ use crate::api::{
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
 use crate::notes;
-use crate::template::{CODEX_LENGTHS, CodexCopy, Copy, Form};
+use crate::template::{CODEX_LENGTHS, CodexCopy, Copy, Form, KRUX_SIZES};
 use crate::{
     Card, Destination, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction,
     TemplateChoice,
@@ -48,7 +48,8 @@ use row::{ROW_ROOM, ROW_TEXT, press_row};
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
     LABEL_L, LABEL_S, LIST_1, LIST_2, LIST_PAD_V, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H,
-    PROGRESS_H, RAIL_W, SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S, TypeRole,
+    PROGRESS_H, RAIL_W, SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S, TPL_OPTION_GAP,
+    TPL_OPTION_INDENT, TypeRole,
 };
 
 /// The widest a task page's column grows (a text column, not a grid).
@@ -118,6 +119,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::TemplateForm => template_form(starter, ui, x, y0, cw),
         Page::TemplateLength => template_length(starter, ui, x, y0, cw),
         Page::TemplateWorksheets => template_worksheets(starter, ui, x, y0, cw),
+        Page::TemplateSize => template_size(starter, ui, x, y0, cw),
     };
     let content = end - y0 + 2.0 * margin;
     let max = (content - view_h).max(0.0);
@@ -235,6 +237,7 @@ fn page_name_of(starter: &Starter, page: Page) -> String {
         Page::TemplateForm => S.starter_tpl_form.to_string(),
         Page::TemplateLength => S.starter_tpl_length.to_string(),
         Page::TemplateWorksheets => S.starter_tpl_worksheets.to_string(),
+        Page::TemplateSize => S.starter_tpl_size.to_string(),
     }
 }
 
@@ -270,7 +273,8 @@ fn back_name(starter: &Starter) -> Option<String> {
         | Page::TemplatePlaces
         | Page::TemplateForm
         | Page::TemplateLength
-        | Page::TemplateWorksheets => Some(S.starter_row_templates.to_string()),
+        | Page::TemplateWorksheets
+        | Page::TemplateSize => Some(S.starter_row_templates.to_string()),
         Page::Disks if starter.asks_which() && target_of(starter) == Target::Stick => {
             Some(S.starter_which_title.to_string())
         }
@@ -2130,6 +2134,7 @@ fn form_text(f: Form) -> &'static str {
     match f {
         Form::Words => S.starter_tpl_form_words,
         Form::Codex32 => S.starter_tpl_form_codex32,
+        Form::Krux => S.starter_tpl_form_krux,
     }
 }
 
@@ -2146,6 +2151,21 @@ fn codex_copy_text(c: CodexCopy) -> &'static str {
 /// A codex32 length as the menu has it.
 fn chars_text(n: usize) -> String {
     fill(S.starter_tpl_chars, &[&n.to_string()])
+}
+
+/// A Krux code's size as the menu has it.
+fn side_text(n: usize) -> String {
+    fill(S.starter_tpl_square, &[&n.to_string(), &n.to_string()])
+}
+
+/// What a Krux code size holds, by size.
+fn size_line(n: usize) -> &'static str {
+    match n {
+        25 => S.starter_tpl_size_25,
+        29 => S.starter_tpl_size_29,
+        33 => S.starter_tpl_size_33,
+        _ => S.starter_tpl_size_37,
+    }
 }
 
 /// What Worksheets reads as.
@@ -2202,6 +2222,11 @@ fn template_rows(starter: &Starter) -> Vec<(&'static str, String, TemplateChoice
                 worksheets_text(t.worksheets).to_string(),
                 TemplateChoice::Worksheets,
             ),
+            places,
+        ],
+        Form::Krux => vec![
+            form,
+            (S.starter_tpl_size, side_text(t.size), TemplateChoice::Size),
             places,
         ],
     }
@@ -2365,7 +2390,7 @@ fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     ui.rule(x, y, w, Role::OutlineVariant);
-    for f in [Form::Words, Form::Codex32] {
+    for f in [Form::Words, Form::Codex32, Form::Krux] {
         y += tick_row(
             ui,
             x,
@@ -2392,6 +2417,29 @@ fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
             starter.template.chars == n,
             StarterAction::TemplateLength(n),
         );
+    }
+    choice_done(ui, x, y, w)
+}
+
+fn template_size(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0;
+    ui.rule(x, y, w, Role::OutlineVariant);
+    for n in KRUX_SIZES {
+        y += tick_row(
+            ui,
+            x,
+            y,
+            w,
+            &side_text(n),
+            starter.template.size == n,
+            StarterAction::TemplateSize(n),
+        );
+        y += ui.wrap_as(
+            (x + TPL_OPTION_INDENT, y, w - TPL_OPTION_INDENT),
+            BODY_M,
+            Role::OnSurfaceVariant,
+            size_line(n),
+        ) + TPL_OPTION_GAP;
     }
     choice_done(ui, x, y, w)
 }

@@ -104,6 +104,8 @@ pub enum Page {
     TemplateLength,
     /// Blank templates' codex32 Worksheets.
     TemplateWorksheets,
+    /// Blank templates' Krux code Size.
+    TemplateSize,
 }
 
 impl Page {
@@ -309,6 +311,8 @@ pub enum StarterAction {
     TemplateCodexCopy(template::CodexCopy),
     /// Codex32 worksheets, ticked or not.
     TemplateWorksheets(bool),
+    /// Chooses a Krux code's size, in squares a side.
+    TemplateSize(usize),
     /// Copy, ticked.
     TemplateCopy(template::Copy),
     /// Places: one fewer.
@@ -355,6 +359,8 @@ pub enum TemplateChoice {
     Length,
     /// Codex32 worksheets.
     Worksheets,
+    /// Krux code size.
+    Size,
 }
 
 /// A maker page's number in an action's code: this plus its place in
@@ -439,6 +445,7 @@ impl StarterAction {
             StarterAction::Name => (69, 0),
             StarterAction::ClearFirst => (70, 0),
             StarterAction::Image(n) => (71, u32::from(n)),
+            StarterAction::TemplateSize(n) => (72, n as u32),
         };
         (kind << 16) | arg
     }
@@ -495,6 +502,7 @@ impl StarterAction {
                 3 => TemplateChoice::Form,
                 4 => TemplateChoice::Length,
                 5 => TemplateChoice::Worksheets,
+                6 => TemplateChoice::Size,
                 _ => TemplateChoice::Places,
             }),
             43 => StarterAction::TemplateWords(arg as usize),
@@ -509,10 +517,10 @@ impl StarterAction {
             52 => StarterAction::SuspendBitLocker,
             53 => StarterAction::ResumeBitLocker,
             54 => StarterAction::RestartStick,
-            55 => StarterAction::TemplateForm(if arg == 1 {
-                template::Form::Codex32
-            } else {
-                template::Form::Words
+            55 => StarterAction::TemplateForm(match arg {
+                1 => template::Form::Codex32,
+                2 => template::Form::Krux,
+                _ => template::Form::Words,
             }),
             56 => StarterAction::TemplateLength(arg as usize),
             57 => StarterAction::TemplateCodexCopy(*template::CodexCopy::ALL.get(arg as usize)?),
@@ -534,6 +542,7 @@ impl StarterAction {
             69 => StarterAction::Name,
             70 => StarterAction::ClearFirst,
             71 => StarterAction::Image(arg as u16),
+            72 => StarterAction::TemplateSize(arg as usize),
             _ => return None,
         })
     }
@@ -1952,6 +1961,7 @@ impl Starter {
                 TemplateChoice::Form => Page::TemplateForm,
                 TemplateChoice::Length => Page::TemplateLength,
                 TemplateChoice::Worksheets => Page::TemplateWorksheets,
+                TemplateChoice::Size => Page::TemplateSize,
             }),
             StarterAction::TemplateForm(f) if self.page == Page::TemplateForm => {
                 self.template.form = f;
@@ -1967,6 +1977,10 @@ impl Starter {
             }
             StarterAction::TemplateWorksheets(on) if self.page == Page::TemplateWorksheets => {
                 self.template.set_worksheets(on);
+                self.template.saved = None;
+            }
+            StarterAction::TemplateSize(n) if self.page == Page::TemplateSize => {
+                self.template.set_size(n);
                 self.template.saved = None;
             }
             StarterAction::TemplateWords(n) if self.page == Page::TemplateWords => {
@@ -2094,6 +2108,7 @@ impl Starter {
             | StarterAction::TemplateLength(_)
             | StarterAction::TemplateCodexCopy(_)
             | StarterAction::TemplateWorksheets(_)
+            | StarterAction::TemplateSize(_)
             | StarterAction::TemplateCopy(_)
             | StarterAction::PlacesFewer
             | StarterAction::PlacesMore
@@ -2226,7 +2241,8 @@ impl Starter {
             | Page::TemplatePlaces
             | Page::TemplateForm
             | Page::TemplateLength
-            | Page::TemplateWorksheets => Page::Templates,
+            | Page::TemplateWorksheets
+            | Page::TemplateSize => Page::Templates,
             _ => self.origin.map_or(Page::Home, |(p, _)| p),
         };
         if to == Page::Disks

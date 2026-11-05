@@ -27,6 +27,8 @@ pub enum Form {
     Words,
     /// codex32 shares.
     Codex32,
+    /// A Krux encrypted code copied by hand (`docs/KEF.md` §15.5).
+    Krux,
 }
 
 /// What a codex32 template is copied onto: the string's boxes, the
@@ -76,6 +78,10 @@ impl CodexCopy {
 /// The lengths of a codex32 template, in characters.
 pub const CODEX_LENGTHS: [usize; 3] = [48, 74, 127];
 
+/// The sizes of a Krux code's template, in squares a side: QR versions 2
+/// to 5.
+pub const KRUX_SIZES: [usize; 4] = [25, 29, 33, 37];
+
 /// The choices and what became of the last save or print.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Template {
@@ -89,6 +95,8 @@ pub struct Template {
     pub codex_copy: CodexCopy,
     /// Codex32: the booklet's worksheets are printed too (none at 127).
     pub worksheets: bool,
+    /// Krux code: squares a side, one of [`KRUX_SIZES`].
+    pub size: usize,
     /// What is copied onto the sheet.
     pub copy: Copy,
     /// Places to fill in by hand: one or more.
@@ -109,6 +117,7 @@ impl Default for Template {
             chars: 48,
             codex_copy: CodexCopy::String,
             worksheets: false,
+            size: 33,
             copy: Copy::Words,
             places: 2,
             saving: false,
@@ -131,12 +140,21 @@ impl Template {
                 self.places
             );
         }
+        if self.form == Form::Krux {
+            return format!(
+                "faraday-sheet 1\nkind: krux\nside: {}\nplaces: {}\n",
+                self.size, self.places
+            );
+        }
         sheet_blank(self.words, self.copy, None, Network::Mainnet, self.places)
     }
 
     /// Costs what `sheet` costs. The PDF of [`Template::sheet`].
     pub fn pdf(&self, c: &Compute) -> Result<Vec<u8>, String> {
         if self.form == Form::Codex32 {
+            return sheets::sheet(c, &self.sheet());
+        }
+        if self.form == Form::Krux {
             return sheets::sheet(c, &self.sheet());
         }
         pdf::sheet(c, &self.sheet())
@@ -151,6 +169,9 @@ impl Template {
                 self.codex_copy.file_part(),
                 if self.worksheets { "-worksheets" } else { "" }
             );
+        }
+        if self.form == Form::Krux {
+            return format!("faraday-blank-template-krux-code-{0}x{0}.pdf", self.size);
         }
         format!(
             "faraday-blank-template-{}-words-{}.pdf",
@@ -174,6 +195,14 @@ impl Template {
         }
         if chars == 127 {
             self.worksheets = false;
+        }
+    }
+
+    /// Chooses a Krux code's size; a side that is not one of the four is
+    /// ignored.
+    pub fn set_size(&mut self, size: usize) {
+        if KRUX_SIZES.contains(&size) {
+            self.size = size;
         }
     }
 

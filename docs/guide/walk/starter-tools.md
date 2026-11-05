@@ -39,7 +39,7 @@ Press **Tools** on the rail. It holds two cards
 | Card | Line | Button |
 |---|---|---|
 | **Transfer** | **Send and Receive** | **Open Transfer** (steps 2 and 3) |
-| **Blank templates** | **Words, SeedQR and codex32** | **Open blank templates** (step 4) |
+| **Blank templates** | **Words, SeedQR, codex32 and Krux code** | **Open blank templates** (step 4) |
 
 ## 2. Send a file to Faraday
 

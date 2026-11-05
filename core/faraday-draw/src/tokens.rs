@@ -2080,3 +2080,47 @@ pub const COPY_HEAD_TEXT_X: f32 = 42.0;
 /// The Copy to another vault sheet on a wide panel: the title's row with
 /// the gap under it.
 pub const COPY_HEAD_BLOCK: f32 = 46.0;
+
+// The Starter's Krux code template, a sheet in PDF points (1 pt is 1/72 inch).
+
+/// Krux code sheet: side of a grid square at 25 × 25 and 29 × 29.
+pub const KRUX_CELL_SMALL: f32 = 16.0;
+/// Krux code sheet: side of a grid square at 33 × 33.
+pub const KRUX_CELL_33: f32 = 14.0;
+/// Krux code sheet: side of a grid square at 37 × 37.
+pub const KRUX_CELL_37: f32 = 12.5;
+/// Krux code sheet: the title's size.
+pub const KRUX_TITLE_SIZE: f32 = 18.0;
+/// Krux code sheet: the size of its lines and labels.
+pub const KRUX_TEXT_SIZE: f32 = 9.0;
+/// Krux code sheet: the size of the grid's caption.
+pub const KRUX_CAPTION_SIZE: f32 = 7.0;
+/// Krux code sheet: from the title to the passphrase line.
+pub const KRUX_PASS_Y: f32 = 26.0;
+/// Krux code sheet: from the title to the line saying how to fill the grid.
+pub const KRUX_HAND_Y: f32 = 38.0;
+/// Krux code sheet: from the top margin to the lines to fill in.
+pub const KRUX_FIELDS_Y: f32 = 66.0;
+/// Krux code sheet: where the Version line ends, from the left margin.
+pub const KRUX_VERSION_END: f32 = 110.0;
+/// Krux code sheet: where the Rounds line starts, from the left margin.
+pub const KRUX_ROUNDS_X: f32 = 140.0;
+/// Krux code sheet: where the Rounds line ends, from the left margin.
+pub const KRUX_ROUNDS_END: f32 = 290.0;
+/// Krux code sheet: where the Id line starts, from the left margin.
+pub const KRUX_ID_X: f32 = 320.0;
+/// Krux code sheet: the room a label takes before its rule.
+pub const KRUX_LABEL_W: f32 = 44.0;
+/// Krux code sheet: from a label's top to its rule.
+pub const KRUX_RULE_DROP: f32 = 11.0;
+/// Krux code sheet: the grey of a rule to write on.
+pub const KRUX_RULE_GREY: f32 = 0.55;
+/// Krux code sheet: from the lines to fill in to the grid.
+pub const KRUX_GRID_GAP: f32 = 44.0;
+/// Krux code sheet: from the grid to its caption.
+pub const KRUX_CAPTION_GAP: f32 = 6.0;
+/// Blank templates: the indent of an option's line under its name, the
+/// width of its ring and the room before its name.
+pub const TPL_OPTION_INDENT: f32 = 36.0;
+/// Blank templates: the room under an option's line.
+pub const TPL_OPTION_GAP: f32 = 10.0;

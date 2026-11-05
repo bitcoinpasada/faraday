@@ -87,7 +87,7 @@ Every control of Tools and Blank templates: [Tools](../screens/starter-tools.md)
 | Card | Shows | Button |
 |---|---|---|
 | **Transfer** | **Send and Receive** | **Open Transfer**: sends a file from this computer's Downloads folder as animated QR codes for the device's camera, and receives the device's codes through this computer's camera into Downloads |
-| **Blank templates** | **Words, SeedQR and codex32** | **Open blank templates**: printable sheets to copy a seed onto by hand. They hold nothing of any wallet. Choose the rows, then **Print** (opens the PDF in this computer's viewer) or **Save the PDF** (into Downloads) |
+| **Blank templates** | **Words, SeedQR, codex32 and Krux code** | **Open blank templates**: printable sheets to copy a seed onto by hand. They hold nothing of any wallet. Choose the rows, then **Print** (opens the PDF in this computer's viewer) or **Save the PDF** (into Downloads) |
 
 The backup walkthrough prints its 12-word template from here
 ([Back it up](back-up.md)).

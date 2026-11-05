@@ -23,6 +23,7 @@ use faraday_core::pdf::{RawPage, pdf_text, raw_document};
 
 mod dice;
 use faraday_crypto::work::Compute;
+use faraday_draw::tokens;
 use faraday_strings::{EN, fill};
 
 /// A4, in points.
@@ -287,6 +288,9 @@ fn glyph_bytes(v: u8) -> (&'static str, u8) {
 pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     let f = fields(text);
     let f = f.as_slice();
+    if get(f, "kind") == Some("krux") {
+        return krux_sheet(c, f);
+    }
     if get(f, "kind") != Some("codex32") {
         return Err(EN.pdf_not_a_faraday_sheet.into());
     }
@@ -338,6 +342,116 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     ))
 }
 
+/// Costs a picture drawn (through `document`). The PDF of a Krux code's
+/// sheet file: `side:` squares (25, 29, 33 or 37) and `places:`.
+fn krux_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
+    let side: usize = get(f, "side").and_then(|v| v.parse().ok()).unwrap_or(33);
+    if ![25, 29, 33, 37].contains(&side) {
+        return Err(EN.pdf_krux_size.into());
+    }
+    let places: usize = get(f, "places")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1)
+        .clamp(1, faraday_core::pdf::PLACES_MAX);
+    let pages = [krux_page(side), places_page(places)];
+    Ok(raw_document(
+        c,
+        pages
+            .into_iter()
+            .map(|p| RawPage {
+                ops: p.ops,
+                size: p.media,
+            })
+            .collect(),
+    ))
+}
+
+/// The squares of a Krux code's grid, in points: the sizes of
+/// [`tokens`], so the grid is about 462 points wide at every size but 25.
+fn krux_cell(side: usize) -> f32 {
+    match side {
+        25 | 29 => tokens::KRUX_CELL_SMALL,
+        33 => tokens::KRUX_CELL_33,
+        _ => tokens::KRUX_CELL_37,
+    }
+}
+
+/// The Krux code sheet: lines for what the picture's label says above a
+/// grid at true size, the squares every code of the side shares printed
+/// black ([`structural_fixed`], the SeedQR sheet's rule) and the format
+/// areas left blank.
+///
+/// [`structural_fixed`]: faraday_core::wallet_backup::structural_fixed
+fn krux_page(side: usize) -> Canvas {
+    let mut p = Canvas::portrait();
+    let blocks = side.div_ceil(5);
+    let last = char::from(b'A' + u8::try_from(blocks - 1).unwrap_or(0));
+    let text = tokens::KRUX_TEXT_SIZE;
+    p.sans(
+        MARGIN,
+        MARGIN,
+        tokens::KRUX_TITLE_SIZE,
+        true,
+        &fill(EN.pdf_krux_title, &[&side.to_string(), &side.to_string()]),
+    );
+    p.sans(
+        MARGIN,
+        MARGIN + tokens::KRUX_PASS_Y,
+        text,
+        false,
+        EN.pdf_krux_passphrase,
+    );
+    p.sans(
+        MARGIN,
+        MARGIN + tokens::KRUX_HAND_Y,
+        text,
+        false,
+        &fill(EN.pdf_krux_hand, &[&blocks.to_string(), &last.to_string()]),
+    );
+    let top = MARGIN + tokens::KRUX_FIELDS_Y;
+    let right = PAGE_W - MARGIN;
+    let fields = [
+        (
+            EN.pdf_krux_version,
+            MARGIN,
+            MARGIN + tokens::KRUX_VERSION_END,
+        ),
+        (
+            EN.pdf_krux_rounds,
+            MARGIN + tokens::KRUX_ROUNDS_X,
+            MARGIN + tokens::KRUX_ROUNDS_END,
+        ),
+        (EN.pdf_krux_id, MARGIN + tokens::KRUX_ID_X, right),
+    ];
+    for (label, x0, x1) in fields {
+        p.sans(x0, top, text, false, label);
+        let y = top + tokens::KRUX_RULE_DROP;
+        p.line(
+            x0 + tokens::KRUX_LABEL_W,
+            y,
+            x1,
+            y,
+            0.5,
+            tokens::KRUX_RULE_GREY,
+        );
+    }
+    let cell = krux_cell(side);
+    let gy = top + tokens::KRUX_GRID_GAP;
+    let gx = MARGIN + (PAGE_W - 2.0 * MARGIN - side as f32 * cell) / 2.0;
+    qr_grid(&mut p, gx, gy, cell, side, |x, y| {
+        faraday_core::wallet_backup::structural_fixed(x, y, side)
+    });
+    p.sans(
+        gx,
+        gy + side as f32 * cell + tokens::KRUX_CAPTION_GAP,
+        tokens::KRUX_CAPTION_SIZE,
+        false,
+        EN.pdf_krux_grid,
+    );
+    p.footer();
+    p
+}
+
 /// The places page, as the words template has it.
 fn places_page(places: usize) -> Canvas {
     let mut q = Canvas::portrait();
@@ -370,6 +484,11 @@ pub fn codex32qr_fixed() -> Vec<(usize, usize)> {
         .flat_map(|y| (0..n).map(move |x| (x, y)))
         .filter(|&(x, y)| faraday_core::codex32_backup::printed(x, y))
         .collect()
+}
+
+/// Whether a square of a Codex32QR grid is printed black.
+fn codex32_printed(x: usize, y: usize) -> bool {
+    faraday_core::codex32_backup::printed(x, y)
 }
 
 /// The share card: `ms1` printed in boxes 1 to 3, the labelled boxes,
@@ -470,23 +589,31 @@ fn header_boxes(p: &mut Canvas, x: f32, y: f32, bsz: f32) -> f32 {
     under + 2.0 * size + 2.0 - y
 }
 
-/// A blank Codex32QR grid of 29 × 29 squares of side `cell`, its top
-/// left square at (gx, gy): the squares every version 3 code shares
-/// printed black ([`codex32qr_fixed`]), a thin rule round every square
+/// A blank grid of `n` × `n` squares of side `cell`, its top left square
+/// at (gx, gy): the squares `fixed` names printed black (for a Codex32QR
+/// the squares every version 3 code shares, [`codex32qr_fixed`]), a thin rule round every square
 /// and a heavier one every five from the top left, and the blocks named
 /// as the device names them, columns 1 to 6 above and rows A to F to the
 /// left, in grey outside the grid. True size: printed at 100%, a filled
 /// grid is a code a camera reads.
-fn qr_grid(p: &mut Canvas, gx: f32, gy: f32, cell: f32) {
-    let n = faraday_core::codex32_backup::QR_SIDE;
-    for (x, y) in codex32qr_fixed() {
-        p.fill(
-            gx + x as f32 * cell,
-            gy + y as f32 * cell,
-            cell,
-            cell,
-            [0.0, 0.0, 0.0],
-        );
+fn qr_grid(
+    p: &mut Canvas,
+    gx: f32,
+    gy: f32,
+    cell: f32,
+    n: usize,
+    fixed: impl Fn(usize, usize) -> bool,
+) {
+    for (x, y) in (0..n).flat_map(|y| (0..n).map(move |x| (x, y))) {
+        if fixed(x, y) {
+            p.fill(
+                gx + x as f32 * cell,
+                gy + y as f32 * cell,
+                cell,
+                cell,
+                [0.0, 0.0, 0.0],
+            );
+        }
     }
     let side = n as f32 * cell;
     for i in 0..=n {
@@ -533,7 +660,7 @@ fn codex32qr_page() -> Canvas {
     let cell = 16.0;
     let gy = top + 90.0;
     let gx = MARGIN + (PAGE_W - 2.0 * MARGIN - 29.0 * cell) / 2.0;
-    qr_grid(&mut p, gx, gy, cell);
+    qr_grid(&mut p, gx, gy, cell, 29, codex32_printed);
     p.sans(gx, gy + 29.0 * cell + 6.0, 7.0, false, EN.pdf_c32_grid);
     p.footer();
     p
@@ -553,7 +680,7 @@ fn codex32qr_grids_page() -> Canvas {
     for q in 0..4 {
         let x = MARGIN + (q % 2) as f32 * half + 14.0;
         let y = MARGIN + 80.0 + (q / 2) as f32 * 330.0;
-        qr_grid(&mut p, x, y, cell);
+        qr_grid(&mut p, x, y, cell, 29, codex32_printed);
         header_boxes(&mut p, x, y + 29.0 * cell + 14.0, 16.0);
     }
     p.footer();

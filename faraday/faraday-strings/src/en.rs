@@ -262,7 +262,7 @@ strings! {
     /// Tools' Transfer card's button.
     starter_open_transfer: "Open Transfer",
     /// Tools' Blank templates card's line.
-    starter_card_templates_line: "Words, SeedQR and codex32",
+    starter_card_templates_line: "Words, SeedQR, codex32 and Krux code",
     /// Tools' Blank templates card's button.
     starter_open_templates: "Open blank templates",
     /// Title: which disk becomes the stick.
@@ -888,6 +888,20 @@ strings! {
     starter_tpl_form_words: "BIP-39 words",
     /// Form: codex32.
     starter_tpl_form_codex32: "codex32",
+    /// Form: a Krux encrypted code.
+    starter_tpl_form_krux: "Krux code",
+    /// Krux code size row.
+    starter_tpl_size: "Size",
+    /// A Krux code size. `{}`: squares across, then squares down.
+    starter_tpl_square: "{} × {}",
+    /// What a 25 × 25 Krux code holds.
+    starter_tpl_size_25: "12 words, version 5 at low error correction",
+    /// What a 29 × 29 Krux code holds.
+    starter_tpl_size_29: "24 words, version 5 at low error correction; 12 words, version 5",
+    /// What a 33 × 33 Krux code holds.
+    starter_tpl_size_33: "12 or 24 words at the default, version 20; 24 words, version 5; 12 or 24 words, version 0; 12 words, version 1",
+    /// What a 37 × 37 Krux code holds.
+    starter_tpl_size_37: "24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1",
     /// Codex32 length row.
     starter_tpl_length: "Length",
     /// A codex32 length. `{}`: 48, 74 or 127.
@@ -4922,6 +4936,22 @@ strings! {
     pdf_c32_index: "Share index",
     /// Label over the alphabet at the foot of the share card.
     pdf_c32_alphabet: "The 32 characters",
+    /// Error when a Krux sheet's side is not one of the four.
+    pdf_krux_size: "the Krux code template is for 25, 29, 33 or 37 squares",
+    /// Title of the Krux code sheet. `{}`, `{}`: squares across and down.
+    pdf_krux_title: "Krux code · {} × {} squares",
+    /// Line on the Krux code sheet about the passphrase.
+    pdf_krux_passphrase: "The passphrase is never written on this sheet.",
+    /// Line on the Krux code sheet. `{}`: blocks across, last row letter.
+    pdf_krux_hand: "Fill each square the code shows black, block by block: columns 1 to {}, rows A to {}.",
+    /// Label on the Krux code sheet.
+    pdf_krux_version: "Version",
+    /// Label on the Krux code sheet.
+    pdf_krux_rounds: "Rounds",
+    /// Label on the Krux code sheet.
+    pdf_krux_id: "Id",
+    /// Caption of the Krux code grid.
+    pdf_krux_grid: "The black squares are printed already; the format squares beside them are drawn by hand.",
     /// Caption of the Codex32QR grid on the share card.
     pdf_c32_grid: "Codex32QR · the black squares are printed already",
     /// Title of the Codex32QR sheet.
