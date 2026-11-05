@@ -356,6 +356,58 @@ fn the_public_key_scanned_on_the_sheet_is_filed_and_restored_from() {
     assert!(has(&mut app, "Line 1 of its paperkey"));
 }
 
+/// A GPG public key scanned at Home's Scan is filed as the Restore sheet's
+/// own scan files it, `{name}-{fp8}.asc`; the toast names it and Restore a
+/// GPG key lists it. A file sent in the Faraday file envelope keeps the
+/// name it was sent under.
+#[test]
+fn a_public_key_scanned_at_home_keeps_its_real_name() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    scan(&mut app, &cert_file(&k).1);
+    let hex: String = k.fingerprint().iter().map(|b| format!("{b:02X}")).collect();
+    let name = format!("test-person-{}.asc", &hex[32..]);
+    let names = |app: &Faraday| {
+        app.inbox()
+            .iter()
+            .map(|i| i.name.clone())
+            .collect::<Vec<_>>()
+    };
+    assert!(names(&app).contains(&name), "{:?}", names(&app));
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("{name} is in Files").as_str())
+    );
+    let files = app.inbox().len();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    scan(&mut app, &cert_file(&k).1);
+    assert_eq!(
+        app.inbox().len(),
+        files,
+        "the same file is the one in Files"
+    );
+    app.press(Action::Flow(F::Restore(R::Sheet)));
+    assert!(
+        has(&mut app, "Test Person <test@example.com>"),
+        "{:?}",
+        texts(&mut app)
+    );
+
+    let env = faraday_qr::envelope::pack("sent-key.asc", &cert_file(&k).1, "file").unwrap();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    scan(&mut app, &env);
+    assert!(
+        names(&app).contains(&"sent-key.asc".to_string()),
+        "{:?}",
+        names(&app)
+    );
+}
+
 /// A public key scanned that is not restored here is still filed, and the
 /// sheet comes back saying why.
 #[test]

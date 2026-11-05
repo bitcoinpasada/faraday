@@ -898,11 +898,11 @@ impl Faraday {
             return true;
         };
         let public = faraday_pgp::read_public_armor(&data) == Some(faraday_pgp::Armor::PublicKey);
-        let from = crate::backup_flow::RestoreFrom::read(&data).ok();
-        let name = match (&from, named) {
-            (Some(r), _) => format!("{}.asc", crate::gpg::stem_of(&r.user_id, &r.fingerprint)),
-            (None, Some(n)) => n,
-            (None, None) => format!("scanned-{}.asc", self.camera.next_number()),
+        let (from, name) = match (self.gpg_public_name(&data), named) {
+            (Some((None, _)), Some(n)) => (None, n),
+            (Some((from, name)), _) => (from, name),
+            (None, Some(n)) => (None, n),
+            (None, None) => (None, format!("scanned-{}.asc", self.camera.next_number())),
         };
         let item = crate::Item::new(&c, &self.free_inbox_name(&name), data);
         if !public || item.kind != crate::FileKind::Gpg {

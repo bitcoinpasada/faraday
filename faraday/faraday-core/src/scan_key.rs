@@ -1002,6 +1002,37 @@ impl Faraday {
         changed
     }
 
+    /// Costs a SHA-1 of each key. The name a GPG public key's code is
+    /// filed under: `{name}-{fp8}.asc` where it reads as a certificate
+    /// (the certificate with it), `scanned-N.asc` where it is an armoured
+    /// public key that does not, and `None` for anything else.
+    pub(crate) fn gpg_public_name(
+        &mut self,
+        data: &[u8],
+    ) -> Option<(Option<crate::backup_flow::RestoreFrom>, String)> {
+        let from = crate::backup_flow::RestoreFrom::read(data).ok();
+        if let Some(r) = &from {
+            let name = format!("{}.asc", crate::gpg::stem_of(&r.user_id, &r.fingerprint));
+            return Some((from, name));
+        }
+        (faraday_pgp::read_public_armor(data) == Some(faraday_pgp::Armor::PublicKey))
+            .then(|| (None, format!("scanned-{}.asc", self.camera.next_number())))
+    }
+
+    /// Costs a SHA-1 of each key. The name a code read as a file is filed
+    /// under in Files: the name it was sent under in the Faraday file
+    /// envelope (`docs/QR.md` §2), a GPG public key's own, else
+    /// `scanned-N` and its extension.
+    fn scanned_file_name(&mut self, named: Option<String>, ext: &str, data: &[u8]) -> String {
+        if let Some(n) = named {
+            return self.free_inbox_name(&n);
+        }
+        match self.gpg_public_name(data) {
+            Some((_, n)) => self.free_inbox_name(&n),
+            None => format!("scanned-{}.{ext}", self.camera.next_number()),
+        }
+    }
+
     /// `name`, or `stem-2.ext`, … when the Inbox has it.
     pub(crate) fn free_inbox_name(&self, name: &str) -> String {
         let taken = |n: &str| self.inbox.iter().any(|i| i.name == n);
@@ -1334,11 +1365,7 @@ impl Faraday {
         code: zeroize::Zeroizing<Vec<u8>>,
     ) {
         let c = self.compute();
-        let number = self.camera.next_number();
-        let name = match named {
-            Some(n) => self.free_inbox_name(&n),
-            None => format!("scanned-{number}.{ext}"),
-        };
+        let name = self.scanned_file_name(named, ext, &code);
         let at = self.inbox_file_in(crate::Item::new(&c, &name, code.to_vec()));
         drop(code);
         self.scan_close();
@@ -1746,14 +1773,10 @@ impl Faraday {
         data: Vec<u8>,
         intake: bool,
     ) {
-        let number = self.camera.next_number();
         // A file in the Faraday file envelope is a file sent as one, of
         // whatever kind (`docs/QR.md` §2): it is filed under its name.
         let enveloped = named.is_some();
-        let name = match named {
-            Some(n) => self.free_inbox_name(&n),
-            None => format!("scanned-{number}.{ext}"),
-        };
+        let name = self.scanned_file_name(named, ext, &data);
         let item = crate::Item::new(c, &name, data);
         if item.kind == crate::wallet::FileKind::Other && !enveloped {
             if let Some(scan) = self.camera.scan_mut() {

@@ -159,7 +159,7 @@ destination's action.
 
 | Scanner | Takes | Hands over | Names |
 |---|---|---|---|
-| Home's Scan | every kind, to §4.2's destination | — | as §4.2 |
+| Home's Scan | every kind, to §4.2's destination | — | as §4.2; a GPG public key is filed as `{name}-{fp8}.asc` (`scanned-N.asc` where it does not read as a certificate), a file in the envelope under its own name |
 | Files, Tools' Scan a QR code | as Home's | — | as §4.2 |
 | Tools' Check an address, Sign, Decode | as Home's, titled for what they ask (§7.1) | — | as §4.2 |
 | Restore's Scan it and Scan descriptor | a wallet description, split sheets; a seed or a codex32 secret into the first slot with no seed (after the seed sheet); an account key into its slot | every other kind Faraday takes | as §4.2 |
