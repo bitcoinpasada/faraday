@@ -133,6 +133,11 @@ pub enum Reveal {
     /// The private key of one address, as WIF, shown on Explore behind its
     /// eye ([`Keys::wif_at`]).
     AddressKey,
+    /// A seed's entropy, 16 or 32 bytes, sealed as a Krux encrypted code
+    /// ([`Keys::kef_entropy`], `docs/KEF.md` §6): the bytes leave as a
+    /// wiped-on-drop buffer and go straight into the code's encryption.
+    /// It lends no stored text.
+    KefCode,
 }
 
 /// Which of a key's two texts a file carries.
@@ -174,7 +179,10 @@ impl Reveal {
             | Reveal::OutboxFile(Part::Passphrase)
             | Reveal::BackupStick(Part::Passphrase) => Part::Passphrase,
             Reveal::VaultEntry(p) | Reveal::OutboxFile(p) | Reveal::BackupStick(p) => p,
-            Reveal::SeedShown | Reveal::ExtendedPrivateKey | Reveal::AddressKey => return None,
+            Reveal::SeedShown
+            | Reveal::ExtendedPrivateKey
+            | Reveal::AddressKey
+            | Reveal::KefCode => return None,
             Reveal::Words
             | Reveal::SeedQr
             | Reveal::CopyByHand
@@ -1445,6 +1453,35 @@ impl Keys {
         }
         out.extend(held.into_iter().cloned());
         Some(Held(out))
+    }
+
+    /// Costs a parse of the words. Key `i`'s seed entropy for a Krux
+    /// encrypted code (`Reveal::KefCode`, `docs/KEF.md` §6): 16 bytes for
+    /// 12 words, 32 for 24. `None` for another reason, for a seed of 15,
+    /// 18 or 21 words, for another list's words, for a key with no words
+    /// (Krux's loader takes 12 or 24 words of the English list) or no such
+    /// key.
+    pub fn kef_entropy(
+        &self,
+        c: &Compute,
+        i: usize,
+        why: Reveal,
+    ) -> Option<Held<Zeroizing<Vec<u8>>>> {
+        if why != Reveal::KefCode {
+            return None;
+        }
+        let e = self.entries.get(i)?;
+        if e.info.language != Language::English {
+            return None;
+        }
+        let m = Mnemonic::parse(c, e.info.language, e.key.words.as_deref()?).ok()?;
+        if !matches!(m.word_count(), 12 | 24) {
+            return None;
+        }
+        let entropy = m.entropy();
+        Some(Held::of(Zeroizing::new(
+            entropy.expose().as_bytes().to_vec(),
+        )))
     }
 
     /// Costs a key derivation. Key `i`'s extended private key at `path`

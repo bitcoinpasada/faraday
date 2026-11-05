@@ -444,7 +444,7 @@ mod explore {
     }
 
     /// Every reason but the three Explore's eyes name.
-    const OTHERS: [Reveal; 13] = [
+    const OTHERS: [Reveal; 14] = [
         Reveal::Words,
         Reveal::Passphrase,
         Reveal::SeedQr,
@@ -458,6 +458,7 @@ mod explore {
         Reveal::BackupStick(Part::Words),
         Reveal::VaultEntry(Part::Passphrase),
         Reveal::BackupStick(Part::Codex32),
+        Reveal::KefCode,
     ];
 
     fn abandon(c: &Compute) -> Keys {
@@ -1532,4 +1533,69 @@ fn is_wif_reads_a_wif_and_refuses_a_very_long_text() {
         "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ{}",
         "1".repeat(16 << 20)
     )));
+}
+
+/// A seed sealed as a Krux code (`docs/KEF.md` §6): the entropy of 12 or
+/// 24 English words, and nothing else.
+mod kef_entropy {
+    use super::{ABANDON, compute, unhex};
+    use faraday_bip::keys::Network;
+    use faraday_keys::{Keys, Reveal};
+
+    const TWELVE: &str =
+        "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    const TWENTY_FOUR: &str = "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
+    const FIFTEEN: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon address";
+
+    fn with(words: &str) -> Keys {
+        let c = compute();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_words_with(&c, words, "", "seed", None)
+            .expect("a valid seed");
+        keys
+    }
+
+    #[test]
+    fn a_12_and_a_24_word_seed_give_16_and_32_bytes_of_entropy() {
+        let c = compute();
+        let twelve = with(TWELVE);
+        let held = twelve.kef_entropy(&c, 0, Reveal::KefCode).unwrap();
+        assert_eq!(&held[..], &unhex(&"7f".repeat(16))[..]);
+        let big = with(TWENTY_FOUR);
+        let held = big.kef_entropy(&c, 0, Reveal::KefCode).unwrap();
+        assert_eq!(&held[..], &unhex(&"7f".repeat(32))[..]);
+        let held = with(ABANDON).kef_entropy(&c, 0, Reveal::KefCode).unwrap();
+        assert_eq!(&held[..], &[0u8; 16][..]);
+    }
+
+    #[test]
+    fn a_seed_of_15_words_is_refused() {
+        let c = compute();
+        assert!(with(FIFTEEN).kef_entropy(&c, 0, Reveal::KefCode).is_none());
+    }
+
+    #[test]
+    fn a_key_with_no_words_or_no_such_key_gives_nothing() {
+        let c = compute();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_seed(&c, &unhex("000102030405060708090a0b0c0d0e0f"), "")
+            .unwrap();
+        assert!(keys.kef_entropy(&c, 0, Reveal::KefCode).is_none());
+        assert!(keys.kef_entropy(&c, 7, Reveal::KefCode).is_none());
+    }
+
+    #[test]
+    fn another_reason_gets_nothing_and_this_one_lends_no_text() {
+        let c = compute();
+        let keys = with(TWELVE);
+        for why in [
+            Reveal::Words,
+            Reveal::SeedShown,
+            Reveal::PaperForm,
+            Reveal::SeedQr,
+        ] {
+            assert!(keys.kef_entropy(&c, 0, why).is_none(), "{why:?}");
+        }
+        assert_eq!(&*keys.reveal(0, Reveal::KefCode), "");
+    }
 }

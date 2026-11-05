@@ -393,7 +393,7 @@ standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8
 id = "kef"
 section = 3
 what = "KEF, Krux's encrypted code (`faraday/faraday-kef`, `core/faraday-codec/src/kef.rs`, `docs/KEF.md`)"
-completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target. Not built: the Reveal variant, the worker job, the classifier's arm and the screens"
+completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target. Not built: the screens"
 
 [[row]]
 id = "diceware"
@@ -5961,6 +5961,9 @@ functions = [
   "faraday/faraday-kef/src/lib.rs::aes",
   "faraday/faraday-kef/src/lib.rs::ctr",
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha256_block",
+  "faraday/faraday-keys/src/session.rs::Keys::kef_entropy",
+  "faraday/faraday-keys/src/kef.rs::SealJob::run",
+  "faraday/faraday-keys/src/kef.rs::OpenJob::run",
 ]
 code = [
   "faraday/faraday-kef/src/lib.rs::seal",
@@ -5996,6 +5999,9 @@ tests = [
   "faraday/faraday-kef/tests/kef.rs::every_version_opens_what_it_seals",
   "faraday/faraday-kef/tests/kef.rs::what_krux_refuses_to_write_is_refused_and_names_a_version_that_works",
   "faraday/faraday-kef/tests/kef.rs::a_count_of_100_million_stops_when_told",
+  "faraday/faraday-keys/tests/operations.rs::kef_entropy::a_12_and_a_24_word_seed_give_16_and_32_bytes_of_entropy",
+  "faraday/faraday-keys/tests/operations.rs::kef_entropy::a_seed_of_15_words_is_refused",
+  "faraday/faraday-keys/tests/operations.rs::kef_entropy::another_reason_gets_nothing_and_this_one_lends_no_text",
 ]
 crosscheck = "kef"
 independence = { class = "outside-and-own", author = "Krux's `kef.py`, by the Krux developers, vendored unchanged and run under CPython, for all twelve versions, written and read", ours = "Faraday's refusals listed as known differences in `area_kef.py` (an empty plaintext, an id of 253 bytes, a text that inflates past the limit, a passphrase or count Krux's field does not offer, suggestions over 1,024 bytes), and krux's three shims (`ucryptolib`, `uhashlib_hw` and deflate at wbits -10, over hashlib, PyCA and zlib)" }
@@ -6005,7 +6011,9 @@ other = [
 ]
 
 [action.secrets]
-reveal = "none"
+reveal = [
+  "Reveal::KefCode",
+]
 constant_time = "The GCM tag is compared in constant time by aes-gcm; the check bytes of the other versions are compared as Krux does; AES and PBKDF2 state nothing more."
 wiped = "The key, the passphrase bytes and the opened plaintext are Zeroizing values wiped on drop."
 

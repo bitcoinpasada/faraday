@@ -1021,6 +1021,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-entropy",
  "faraday-intake",
+ "faraday-kef",
  "faraday-pgp",
  "faraday-psbt",
  "faraday-sb",

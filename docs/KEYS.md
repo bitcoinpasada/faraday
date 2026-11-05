@@ -54,9 +54,9 @@ Moved to `docs/history/KEYS-LOG.md`.
   shell reports change; `docs/SECURITY-MODEL.md`).
 - **Leaving.** Key material leaves only through `reveal(id, Reveal::…)`.
   It returns a guard that borrows the store and wipes its copy on drop.
-  The list of reasons is closed, fourteen `Reveal` variants
+  The list of reasons is closed, fifteen `Reveal` variants
   (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9;
-  the last three owner, 2026-10-26, F125):
+  the three before the last owner, 2026-10-26, F125; the last, F219):
   the words shown; the typed passphrase shown; SeedQR; a copy-by-hand
   check; paper forms (Seed XOR, codex32, SLIP-39 shares, a master seed as hex,
   an xprv, and the work
@@ -66,7 +66,8 @@ Moved to `docs/history/KEYS-LOG.md`.
   backup flow writing words or a SeedQR picture to a stick; and on
   Explore, each behind its eye, a key's master seed (`SeedShown`), an
   extended private key (`ExtendedPrivateKey`) and an address's private
-  key (`AddressKey`). A new reason is a new variant, seen in review.
+  key (`AddressKey`); and a seed's entropy sealed as a Krux encrypted code
+  (`KefCode`). A new reason is a new variant, seen in review.
   A reason gives only its own text: `Reveal::part` names the stored
   text a reason lends, and Explore's three lend none, so `reveal` and
   a vault record's reveal give them nothing.
@@ -248,7 +249,11 @@ impl Keys {
   - an address's private key: `Keys::wif_at(c, i, path,
     Reveal::AddressKey)`, compressed WIF on the store's network, for the
     address at the path and for each address on the Addresses page, each
-    its own eye. Costs a key derivation.
+    its own eye. Costs a key derivation;
+  - a seed's entropy for a Krux encrypted code: `Keys::kef_entropy(c, i,
+    Reveal::KefCode)`, 16 bytes for a seed of 12 English words and 32 for 24,
+    held and wiped on drop, and nothing for a seed of 15, 18 or 21 words, another
+    list's or a key with no words (`docs/KEF.md` §6). Costs a parse of the words.
 
   Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
   `Zeroizing` strings, every one wiped on drop) and is made once, at the
@@ -512,7 +517,7 @@ Moved to `docs/history/KEYS-LOG.md`.
 An auditor reads faraday/faraday-keys and the primitive crates, plus
 the reveal list, and can state:
 - every byte of key material lives in one crate;
-- it leaves through these fourteen named reasons;
+- it leaves through these fifteen named reasons;
 - `just` fails if any other code touches a secret type.
 
 Before F70 that took reading 36 files of faraday-core. As built, the

@@ -1,8 +1,8 @@
 # KEF: Krux's encrypted code, read and written in full
 
 **Kind:** Spec
-**Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code, the fuzz target and the classifier's arm are built; the rest is not.
-**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`), the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Not built: the `Reveal` variant, the worker job, the screens and the strings. Questions a source could not settle are in §13.
+**Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code, the fuzz target, the classifier's arm, the `Reveal` variant and the stoppable worker jobs are built; the screens and the strings are not.
+**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Also built: `Reveal::KefCode` and `Keys::kef_entropy` (a seed of 12 or 24 English words, nothing else), and the worker jobs `Kind::KefSeal` and `Kind::KefOpen` (`faraday-keys/src/kef.rs`, `faraday-core/src/worker/kef.rs`, `Faraday::kef_seal`, `Faraday::kef_open`), which draw the IV and the id from the session's fresh bytes and really stop on Cancel. Not built: the screens and the strings. Questions a source could not settle are in §13.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's

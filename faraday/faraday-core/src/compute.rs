@@ -9,8 +9,12 @@
 use faraday_crypto::work::Compute;
 
 use crate::strings::EN;
+use crate::worker::kef::{KefId, KefStart};
 use crate::worker::{Answer, Busy, Done, Job};
 use crate::{Action, Command, Faraday, Later, motion};
+use faraday_keys::kef::{Envelope, OpenError, OpenJob, Opened, Progress, SealError, SealJob};
+use std::sync::Arc;
+use zeroize::Zeroizing;
 
 impl Faraday {
     /// A token for costly work, for code that holds the app to change
@@ -134,6 +138,7 @@ impl Faraday {
     /// Applies the answers that have come. Returns whether any came.
     pub(crate) fn drain_jobs(&mut self) -> bool {
         let mut any = false;
+        self.kef_progress_sync();
         while let Some(answer) = self.worker.try_answer() {
             self.take_answer(answer);
             any = true;
@@ -193,6 +198,8 @@ impl Faraday {
             Done::Sign(d) => crate::signing::signed_spend(self, *d),
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
+            Done::KefSeal(d) => self.worker.kef_mut().sealed_done(*d),
+            Done::KefOpen(d) => self.worker.kef_mut().opened_done(*d),
         }
     }
 
@@ -230,6 +237,7 @@ impl Faraday {
             A::Back | A::Cancel if self.sealing() => false,
             A::Back | A::Cancel => {
                 self.worker.stale();
+                self.worker.kef_mut().stop();
                 self.worker.set_busy(None);
                 crate::vault::stretch::ended(self);
                 true
@@ -261,6 +269,7 @@ impl Faraday {
                 .is_some_and(|o| o != (self.screen, self.sheet));
         if moved {
             self.worker.stale();
+            self.worker.kef_mut().stop();
             self.worker.set_busy(None);
             crate::vault::stretch::ended(self);
             self.out.redraw();
@@ -278,6 +287,7 @@ impl Faraday {
     /// A lock: the running job's answer has nowhere to go.
     pub(crate) fn job_locked(&mut self) {
         self.worker.locked();
+        self.worker.kef_mut().clear();
         self.worker.set_busy(None);
         crate::vault::stretch::ended(self);
     }
@@ -341,5 +351,117 @@ impl Faraday {
         self.worker.set_busy(Some(busy));
         self.out.redraw();
         self.out.commands.push_back(crate::Command::Draw);
+    }
+}
+
+/// Krux's encrypted code on the worker (`docs/KEF.md` §7.2, §10): what a
+/// screen calls. The work is `faraday_keys::kef`'s, the state
+/// `worker::kef`'s.
+impl Faraday {
+    /// Starts sealing `plaintext` under `passphrase` as a Krux code of
+    /// `version` and `count` rounds, on the worker, `line` its working
+    /// line. The IV (12 or 16 bytes, none for ECB) and a random id are
+    /// drawn from the session's fresh bytes; with a public id the count
+    /// takes Krux's random change. Without enough fresh bytes nothing
+    /// starts: [`KefStart::NoFreshBytes`].
+    pub fn kef_seal(
+        &mut self,
+        passphrase: Zeroizing<Vec<u8>>,
+        plaintext: Zeroizing<Vec<u8>>,
+        version: u8,
+        id: KefId,
+        count: u32,
+        line: &'static str,
+    ) -> Result<(), KefStart> {
+        let refused = |r| KefStart::Refused(SealError::Refused(r));
+        let iv_len = faraday_keys::kef::iv_len(version)
+            .ok_or_else(|| refused(faraday_keys::kef::Refusal::Version))?;
+        let random_len = match &id {
+            KefId::Random(n) => *n,
+            KefId::Public(_) => 0,
+        };
+        if random_len > faraday_keys::kef::ID_MAX {
+            return Err(refused(faraday_keys::kef::Refusal::IdLength));
+        }
+        // One draw for the IV, the id and the number the count's change is
+        // taken from: the bytes are spent only if all of them are here.
+        let drawn = self
+            .fresh_bytes(b"kef code", iv_len + random_len + 4)
+            .ok_or(KefStart::NoFreshBytes)?;
+        let (iv, rest) = drawn.split_at(iv_len);
+        let (fresh_id, number) = rest.split_at(random_len);
+        let number = u32::from_be_bytes(number.try_into().expect("four bytes"));
+        let (id, count) = match id {
+            KefId::Random(_) => (fresh_id.to_vec(), count),
+            KefId::Public(bytes) => (bytes, faraday_keys::kef::count_with_change(count, number)),
+        };
+        let progress = Arc::new(Progress::default());
+        let how = faraday_keys::kef::Sealing {
+            version,
+            id: &id,
+            count,
+            iv,
+        };
+        let job = SealJob::new(passphrase, plaintext, &how, Arc::clone(&progress));
+        let job = Job::KefSeal(Box::new(crate::worker::kef::SealWork { job }));
+        self.kef_started(progress, count, line, job);
+        Ok(())
+    }
+
+    /// Starts opening `envelope` under `passphrase` on the worker, `line`
+    /// its working line. The envelope's count is the work (`docs/KEF.md`
+    /// §7.2): nothing runs before this press.
+    pub fn kef_open(
+        &mut self,
+        passphrase: Zeroizing<Vec<u8>>,
+        envelope: Envelope,
+        line: &'static str,
+    ) {
+        let progress = Arc::new(Progress::default());
+        let count = envelope.count;
+        let job = OpenJob::new(passphrase, envelope, Arc::clone(&progress));
+        let job = Job::KefOpen(Box::new(crate::worker::kef::OpenWork { job }));
+        self.kef_started(progress, count, line, job);
+    }
+
+    fn kef_started(&mut self, progress: Arc<Progress>, count: u32, line: &'static str, job: Job) {
+        self.worker.kef_mut().started(progress);
+        self.start(job, line);
+        if let Some(b) = self.worker.busy().copied() {
+            self.worker.set_busy(Some(Busy { of: count, ..b }));
+        }
+    }
+
+    /// The last seal's answer, if one has come: the envelope's bytes or
+    /// why there are none.
+    pub fn kef_sealed(&self) -> Option<&Result<Vec<u8>, SealError>> {
+        self.worker.kef().sealed()
+    }
+
+    /// The last open's answer, if one has come.
+    pub fn kef_opened(&self) -> Option<&Result<Opened, OpenError>> {
+        self.worker.kef().opened()
+    }
+
+    /// Takes the last seal's answer, leaving none.
+    pub fn kef_take_sealed(&mut self) -> Option<Result<Vec<u8>, SealError>> {
+        self.worker.kef_mut().take_sealed()
+    }
+
+    /// Takes the last open's answer, leaving none; what it holds wipes
+    /// when dropped.
+    pub fn kef_take_opened(&mut self) -> Option<Result<Opened, OpenError>> {
+        self.worker.kef_mut().take_opened()
+    }
+
+    /// Notes the rounds done on the running job's `Busy`, for a
+    /// determinate bar.
+    pub(crate) fn kef_progress_sync(&mut self) {
+        let Some(done) = self.worker.kef().rounds() else {
+            return;
+        };
+        if let Some(b) = self.worker.busy().copied() {
+            self.worker.set_busy(Some(Busy { done, ..b }));
+        }
     }
 }

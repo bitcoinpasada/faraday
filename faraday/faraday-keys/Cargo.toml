@@ -1,7 +1,7 @@
 [package]
 name = "faraday-keys"
 version = "0.1.10"
-description = "Where Faraday's key material is held and used: the session's keys, the open vaults, every operation on them, and the fourteen reasons a secret leaves (docs/KEYS.md)"
+description = "Where Faraday's key material is held and used: the session's keys, the open vaults, every operation on them, and the fifteen reasons a secret leaves (docs/KEYS.md)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -20,6 +20,8 @@ faraday-vault = { path = "../faraday-vault" }
 faraday-backup = { path = "../../core/faraday-backup" }
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 faraday-intake = { path = "../faraday-intake" }
+# Krux's encrypted code, sealed and opened as a job (docs/KEF.md).
+faraday-kef = { path = "../faraday-kef" }
 faraday-strings = { path = "../faraday-strings" }
 zeroize = { workspace = true, features = ["alloc"] }
 

@@ -97,6 +97,7 @@ mod inputs;
 mod interop;
 mod interop_outcomes;
 mod kdbx;
+mod kef;
 mod key_path;
 mod keyboard_over_field;
 mod keygen;

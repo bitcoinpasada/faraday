@@ -100,6 +100,7 @@ table together and says in its message what was measured on what.
 | Argon2id for a KeePass file | The KDBX export written as a vault of one entry (`V::ExportKdbx`, then `V::PromptGo`) | Job |
 | Argon2id for each key | Practice's samples loaded (`SamplesLoad`) | Job |
 | scrypt | An aezeed read (Lightning) | Job |
+| PBKDF2 for a Krux code | A Krux encrypted code sealed or opened (`Kind::KefSeal`, `Kind::KefOpen`; `Faraday::kef_seal`, `Faraday::kef_open`); its count runs from 10,000 to 100,000,000 rounds, so it is a job whatever the count, and it stops on Cancel (§4) | Job |
 | Signing | A PSBT signed, on the Spend tab or from a review | Job |
 | A PSBT's inspection | A PSBT parsed and inspected, from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`); the key references it is given are worked out on the main thread, and a scanned card's one-line fact (`read_psbt_fact`) still parses there, both left for the measurement on a Pi | Job |
 | A set of files | A wallet's public files (`PublicOut` 2, 4 and 14: the multisig config checked, the split shares, Specter's numbered pictures), the backup's checklist (`BChecklist`) and its Make the files (`BFilesMake`): jobs; the backup stick's files made at Lock and write and the flow's writes (`Flow`), which write to a stick beside secret words | Job (the files made inside Lock and write stay with the write, §7.3) |
@@ -211,12 +212,22 @@ tab) keeps its text and gets the moving bar. The shell is asked for
 frames while `busy` is set, at the motion pace (`motion.rs`), and for
 none once it clears.
 
+**A job that stops.** A Krux code's seal or open (`docs/KEF.md` §7.2) is
+the one job that really stops on Back, Cancel, a lock or a screen moved
+away from, since its count can be 100,000,000 rounds and a stale job would
+hold the one worker for minutes. It shares a flag and a count of rounds
+done with the main thread (`faraday_keys::kef::Progress`): the work reads
+the flag between steps of 5,000 rounds, an answer of `Cancelled` comes at
+once and is dropped as a stale one is, and the worker takes the next job
+without waiting. `Busy.of` is the count and `Busy.done` the rounds done,
+brought up to date on each pass, so the bar is determinate.
+
 **What is taken, what is refused, what cancels.**
 
 | While a job runs | What happens |
 |---|---|
 | The same press again, or any other action of the screen | Refused: the buttons are disabled, and a press on one does nothing |
-| Back, Cancel on the screen or sheet that started the job | Accepted: the screen goes back as it would, the answer is made stale and dropped when it comes; what the job was given by move (a typed passphrase) is gone with it, so the person types it again |
+| Back, Cancel on the screen or sheet that started the job | Accepted: the screen goes back as it would, the answer is made stale and dropped when it comes; what the job was given by move (a typed passphrase) is gone with it, so the person types it again. For most jobs the work runs on to its end with its answer dropped; **a Krux code's job really stops** (below) |
 | A tab, the rail or the menu | Refused, drawn disabled (§10, question 2) |
 | Lock | Accepted at once: the session is dropped as a lock drops it, the worker ends with the app, and the answer, when it comes, has nowhere to go and is wiped on the worker |
 | The idle warning and the idle lock | The idle clock does not run while a job runs and starts again from its end (§10, question 3); a job is the person's own press, and today the frame it held let no idle tick through either |

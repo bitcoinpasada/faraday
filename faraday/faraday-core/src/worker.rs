@@ -13,6 +13,8 @@ use faraday_crypto::work::Compute;
 
 use crate::work;
 
+pub mod kef;
+
 /// What a job is, for the busy screen and for the rules between jobs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -32,6 +34,10 @@ pub enum Kind {
     PsbtRead,
     /// A set of a wallet's public files made.
     PublicFiles,
+    /// A Krux code sealed: its PBKDF2 runs, and stops on Cancel.
+    KefSeal,
+    /// A Krux code opened: its PBKDF2 runs, and stops on Cancel.
+    KefOpen,
 }
 
 impl Kind {
@@ -46,7 +52,9 @@ impl Kind {
             | Kind::VaultSeal
             | Kind::Signing
             | Kind::PsbtRead
-            | Kind::PublicFiles => false,
+            | Kind::PublicFiles
+            | Kind::KefSeal
+            | Kind::KefOpen => false,
         }
     }
 }
@@ -78,6 +86,8 @@ pub(crate) enum Job {
     Sign(Box<crate::signing::SignWork>),
     SpendRead(Box<crate::signing::read::ReadWork>),
     Files(Box<crate::public_files::FilesWork>),
+    KefSeal(Box<kef::SealWork>),
+    KefOpen(Box<kef::OpenWork>),
 }
 
 /// What a job gives back.
@@ -90,6 +100,8 @@ pub(crate) enum Done {
     Sign(Box<crate::signing::SignDone>),
     SpendRead(Box<crate::signing::read::ReadDone>),
     Files(Box<crate::public_files::FilesDone>),
+    KefSeal(Box<kef::SealDone>),
+    KefOpen(Box<kef::OpenDone>),
 }
 
 impl Job {
@@ -103,6 +115,8 @@ impl Job {
             Job::Sign(_) => Kind::Signing,
             Job::SpendRead(_) => Kind::PsbtRead,
             Job::Files(_) => Kind::PublicFiles,
+            Job::KefSeal(_) => Kind::KefSeal,
+            Job::KefOpen(_) => Kind::KefOpen,
         }
     }
 
@@ -117,6 +131,8 @@ impl Job {
             Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
             Job::SpendRead(j) => Done::SpendRead(Box::new(j.run(c))),
             Job::Files(j) => Done::Files(Box::new(j.run(c))),
+            Job::KefSeal(j) => Done::KefSeal(Box::new(j.run(c))),
+            Job::KefOpen(j) => Done::KefOpen(Box::new(j.run(c))),
         }
     }
 }
@@ -163,6 +179,8 @@ pub(crate) struct Worker {
     origin: Option<(crate::Screen, Option<crate::Sheet>)>,
     /// Whether a frame has been drawn since a press was left to wait.
     drawn: bool,
+    /// Krux's encrypted code: the running job's progress and the answers.
+    kef: kef::KefArea,
 }
 
 impl Worker {
@@ -176,6 +194,7 @@ impl Worker {
             busy: None,
             origin: None,
             drawn: false,
+            kef: kef::KefArea::default(),
         }
     }
 
@@ -185,6 +204,14 @@ impl Worker {
         if let Ok(mut slot) = self.wake.lock() {
             *slot = Some(wake);
         }
+    }
+
+    pub(crate) fn kef(&self) -> &kef::KefArea {
+        &self.kef
+    }
+
+    pub(crate) fn kef_mut(&mut self) -> &mut kef::KefArea {
+        &mut self.kef
     }
 
     pub(crate) fn busy(&self) -> Option<&Busy> {

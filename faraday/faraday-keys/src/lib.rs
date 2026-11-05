@@ -28,6 +28,7 @@ pub mod codex32;
 pub mod gpg;
 pub mod identity;
 pub mod job;
+pub mod kef;
 pub mod lightning;
 pub mod message;
 pub mod operations;
