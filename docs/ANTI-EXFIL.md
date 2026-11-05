@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Planned, not built; experimental, for dev builds only, compiled out of every shipped app (F162)
-**Open:** all of it: Faraday as the host that checks a signer (§4) first, keeping a protected key (§2.1), Faraday as a signer a host checks (§5) second, the Nonce check's reading of an exchange (§6), the encoding and the draft BIP (§7), the tests (§8), and the owner's open question in §9
+**Open:** all of it: Faraday as the host that checks a signer (§4) first, keeping a protected key (§2.1), Faraday as a signer a host checks (§5) second, the Nonce check's reading of an exchange (§6), the encoding and the draft BIP (§7), and the tests (§8)
 
 The problem it solves: a signer that chooses its own nonce can hide the
 private key in it, and the signature it makes that way verifies like an
@@ -264,6 +264,8 @@ Faraday as host follows these, which keep the protected-key level of
    kept secret so that a restart could rebuild it: that secret would
    rebuild every past `rho`, and with it every key a backdoored signer
    leaked into a checked signature, wherever the vault is copied.
+   The idle lock waits until the exchange ends, so sitting idle between
+   two QR crossings does not lose `rho` or count an abort.
 3. **Aborts are counted, in the vault.** A protected exchange needs an
    open vault, and is refused without one, so the count survives a
    restart. An abort after the reveal is counted per signer key for the
@@ -435,10 +437,8 @@ reveal per key for its life, a warning from the first and "move the
 funds" past 20; no review at stage 2 on Faraday as signer; the reveal
 never in a PSBT, the split carriage of §7 proposed for the draft BIP.
 
-Open:
-
-1. Whether the idle lock waits while an exchange is under way, or ends
-   it (after the reveal, ending it is a counted abort, rule 2 of §4.4).
+Decided (owner, 2026-11-05): the idle lock waits until an exchange ends,
+rather than ending it (rule 2 of §4.4).
 
 ## 10. How it is described
 
