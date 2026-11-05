@@ -28,6 +28,7 @@ import base64
 import datetime
 import hashlib
 import re
+import urllib.parse
 
 import pyotp
 
@@ -72,7 +73,7 @@ PINNED = [
     ("otpauth://totp/x", "unreadable", "err"),
     ("otpauth://totp/x?secret=", "unreadable", "err"),
     ("http://totp/x?secret=" + KEY, "unreadable", "err"),
-    (f"otpauth://totp/x?secret={KEY}&secret=GEZDGNBVGY3TQOJQ", "ok", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&secret=GEZDGNBVGY3TQOJQ", "unreadable", "totp"),
     # HOTP: pyotp reads it as a HOTP; Faraday names it and reads no code.
     (f"otpauth://hotp/x?secret={KEY}&counter=1", "hotp", "hotp"),
     (f"otpauth://hotp/x?secret={KEY}", "hotp", "hotp"),
@@ -109,9 +110,44 @@ PINNED = [
     # `issuer` parameter does not repeat, and `counter` on a TOTP; Faraday
     # ignores what it does not know.
     (f"otpauth://totp/x?secret={KEY}&foo=1", "ok", "err"),
-    (f"otpauth://totp/x?secret={KEY}&SECRET={KEY}", "ok", "err"),
+    (f"otpauth://totp/x?secret={KEY}&SECRET={KEY}", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&digits=6&DIGITS=8", "unreadable", "err"),
     (f"otpauth://totp/A:b?secret={KEY}&issuer=C", "ok", "err"),
     (f"otpauth://totp/x?secret={KEY}&counter=1", "ok", "err"),
+    # A parameter written twice: Faraday refuses; pyotp keeps the last, and
+    # refuses two different issuers.
+    (f"otpauth://totp/x?secret={KEY}&issuer=A&issuer=B", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&issuer=A&issuer=A", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&secret={KEY}", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&digits=7&digits=7", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&image=a&image=b", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&encoder=a&encoder=a", "unreadable", "totp"),
+    # A name written percent-encoded or with a tab in it is a second copy to
+    # pyotp, which unquotes the whole URI and whose parser strips the tab.
+    (f"otpauth://totp/x?secret={KEY}&s%65cret=GEZDGNBVGY3TQOJQ", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&digits=6&d%69gits=8", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&sec\tret=GEZDGNBVGY3TQOJQ", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&s%2565cret=GEZDGNBVGY3TQOJQ", "unreadable", "totp"),
+    # A known name written once in another way is read by pyotp, with its
+    # value, and refused by Faraday, which would otherwise ignore the value.
+    (f"otpauth://totp/x?secret={KEY}&d%69gits=8", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&alg%6Frithm=SHA256", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&p%65riod=60", "unreadable", "totp"),
+    (f"otpauth://totp/x?secret={KEY}&%65ncoder=steam", "unreadable", "steam"),
+    (f"otpauth://totp/x?secret={KEY}&ENCODER=steam", "unreadable", "err"),
+    (f"otpauth://totp/x?s%65cret={KEY}", "unreadable", "totp"),
+    # A name with a space or a control character stays an unknown name to
+    # pyotp, and both refuse it; Faraday ignored such a name before.
+    (f"otpauth://totp/x?secret={KEY}&foo bar=1", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&Issuer=Foo", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&Period=30", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&sec ret=1", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&sec%00ret=1", "unreadable", "err"),
+    (f"otpauth://totp/x?secret={KEY}&se%7Fcret=1", "unreadable", "err"),
+    # An escaped `&` and `=` in an issuer's value are Faraday's one issuer;
+    # pyotp unquotes first and reads a second secret from it, so the two read
+    # different keys (the pins judge the kind only).
+    (f"otpauth://totp/x?secret={KEY}&issuer=a%26secret%3DGEZDGNBVGY3TQOJQ", "ok", "totp"),
 ]
 
 # Bare keys: Faraday's rule (at least 16 characters once spaces, hyphens and
@@ -135,7 +171,9 @@ BARE = [
 # the original as it reads the changed one; where Faraday refuses and pyotp
 # reads (STRICT) the answers on the changed URI must agree. Nothing else
 # explains a disagreement.
-STRICT = {"period over 3600", "no label slash", "pair without a value"}
+STRICT = {"period over 3600", "no label slash", "pair without a value",
+          "repeated parameter", "name written another way",
+          "name with a tab or line break", "value written percent-encoded"}
 LENIENT = {"scheme, type or algorithm case", "name pyotp does not know",
            "counter", "label issuer", "base32 spelling"}
 
@@ -152,6 +190,12 @@ def base32_spelling(value):
     if len(clean) % 8 in (1, 3, 6):
         clean = clean[:-1]
     return clean
+
+
+def name_of(pair):
+    """A parameter's name as pyotp reads it: unquoted twice, once with the URI
+    and once by the query parser."""
+    return urllib.parse.unquote(urllib.parse.unquote(pair.partition("=")[0]))
 
 
 def changed(uri):
@@ -175,12 +219,38 @@ def changed(uri):
     label = path[1:]
     pairs, out = query.split("&") if query else [], []
     issuer = None
+    spelt = []
     for pair in pairs:
+        k, eq, v = pair.partition("=")
+        name = name_of(pair)
+        if eq and v and re.search(r"[\t\r\n]", name):
+            # The parser strips these from the URI: the name is another one.
+            why.append("name with a tab or line break")
+            continue
+        if eq and v and name in PYOTP_NAMES and name != k:
+            why.append("name written another way")
+            pair = f"{name}={v}"
+        if eq and "%" in v:
+            # pyotp unquotes the URI and then each value; Faraday reads a
+            # value as it is written.
+            plain = urllib.parse.unquote(urllib.parse.unquote(v))
+            if plain != v:
+                why.append("value written percent-encoded")
+                pair = f"{k}={plain}"
+        spelt.append(pair)
+    pairs = spelt
+    last = {}
+    for i, pair in enumerate(pairs):
+        last[pair.partition("=")[0]] = i
+    for i, pair in enumerate(pairs):
         k, eq, v = pair.partition("=")
         if pair == "":
             out.append(pair)
         elif not eq or not v:
             why.append("pair without a value")
+        elif k in PYOTP_NAMES and last[k] != i:
+            # pyotp keeps the last of a repeated parameter; Faraday refuses.
+            why.append("repeated parameter")
         elif k == "algorithm" and v != v.upper():
             out.append(f"{k}={v.upper()}")
             why.append("scheme, type or algorithm case")
@@ -297,13 +367,23 @@ class Totp(Area):
         ),
         (
             "Where Faraday refuses and pyotp reads: a period over 3600 seconds (Faraday's rule), "
-            "a pair with no `=` or no value, a type with no `/` before its `?`, a value "
+            "a parameter of the key URI format written twice or in a case other than lower or with a "
+            "percent-escape in its name (pyotp keeps the last, or reads the decoded name), a "
+            "parameter name with a tab or line break in it (pyotp strips them), a pair with no `=` "
+            "or no value, a type with no `/` before its `?`, a value "
             "written percent-encoded (Faraday reads it as it is), a fragment after the last "
             "value, a bare key of fewer than 16 characters, and `encoder=steam`, which pyotp "
             "reads as a Steam code of five characters and Faraday refuses, making no such code. "
-            "The area asks both about the URI with a period, pair or type difference taken "
-            "out and requires the same answer; the percent escapes, the fragment, the short "
+            "The area asks both about the URI with a period, repeated parameter, name, pair or type "
+            "difference taken out and requires the same answer; the percent escapes, the fragment, the short "
             "key and Steam's code are pinned one URI at a time."
+        ),
+        (
+            "Where both read and the keys differ: an escaped `&` or `=` in a value, such as an "
+            "issuer's `a%26secret%3DB`. pyotp unquotes the whole URI first and reads a second "
+            "`secret` from it; Faraday reads the value as written, one issuer and the key "
+            "before it, which is the reading the URI's writer meant. Pinned one URI at a time, "
+            "where the pin judges the kind and not the key."
         ),
         (
             "HOTP: pyotp reads `otpauth://hotp/` as a HOTP; Faraday refuses it, naming it HOTP "
@@ -451,6 +531,13 @@ class Totp(Area):
             params.append(rng.choice([("image", "https://x/y.png"), ("encoder", "steam"),
                                       ("encoder", "other"), ("counter", "5"), ("foo", "bar")]))
         rng.shuffle(params)
+        if rng.random() < 0.04:
+            # One character of a known name percent-encoded: Faraday refuses it.
+            j = rng.randrange(len(params))
+            name, value = params[j]
+            c = rng.randrange(len(name))
+            hexed = f"%{ord(name[c]):02{rng.choice('xX')}}"
+            params[j] = (name[:c] + hexed + name[c + 1:], value)
         kind = rng.choice(["totp"] * 30 + ["hotp", "Totp", "TOTP"])
         label = rng.choice(["x", "Example:alice", "Example:a%40b", "a b", ""])
         if label == "Example:alice" and ("issuer", "Example") not in params:

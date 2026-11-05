@@ -883,15 +883,25 @@ difference"), and says why.
     out and requires the same answer, and Faraday's answer to the
     original to be that answer.
   - Where Faraday refuses and pyotp reads: a period over 3600 seconds
-    (Faraday's rule), a pair with no `=` or no value, a type with no `/`
-    before its `?`, a value written percent-encoded (Faraday reads it as
-    it is), a fragment after the last value, a bare key of fewer than 16
-    characters, and `encoder=steam`, which pyotp reads as a Steam code
-    of five characters and Faraday refuses, making no such code. The
-    area asks both about the URI with a period, pair or type difference
-    taken out and requires the same answer; the percent escapes, the
-    fragment, the short key and Steam's code are pinned one URI at a
-    time.
+    (Faraday's rule), a parameter of the key URI format written twice or
+    in a case other than lower or with a percent-escape in its name
+    (pyotp keeps the last, or reads the decoded name), a parameter name
+    with a tab or line break in it (pyotp strips them), a pair with no
+    `=` or no value, a type with no `/` before its `?`, a value written
+    percent-encoded (Faraday reads it as it is), a fragment after the
+    last value, a bare key of fewer than 16 characters, and
+    `encoder=steam`, which pyotp reads as a Steam code of five
+    characters and Faraday refuses, making no such code. The area asks
+    both about the URI with a period, repeated parameter, name, pair or
+    type difference taken out and requires the same answer; the percent
+    escapes, the fragment, the short key and Steam's code are pinned one
+    URI at a time.
+  - Where both read and the keys differ: an escaped `&` or `=` in a
+    value, such as an issuer's `a%26secret%3DB`. pyotp unquotes the
+    whole URI first and reads a second `secret` from it; Faraday reads
+    the value as written, one issuer and the key before it, which is the
+    reading the URI's writer meant. Pinned one URI at a time, where the
+    pin judges the kind and not the key.
   - HOTP: pyotp reads `otpauth://hotp/` as a HOTP; Faraday refuses it,
     naming it HOTP (`NotTotp::Hotp`) and reading no code.
   - Times: pyotp works from a `datetime`, which ends in year 9999; past

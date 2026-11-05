@@ -199,7 +199,13 @@ value:
   refused, at least one byte decoded). `algorithm` is `SHA1` (default),
   `SHA256` or `SHA512`, case-insensitive. `digits` is 6 (default), 7
   or 8. `period` is 30 (default), from 1 to 3600. Unknown parameters
-  (`issuer`, `image`, …) are ignored. Any present parameter with a value
+  (`issuer`, `image`, …) are ignored. A parameter of the format
+  (`secret`, `issuer`, `algorithm`, `digits`, `period`, `counter`, `image`,
+  `encoder`) written twice, in a case other than lower, or with a
+  percent-escape in its name refuses the URI as `NotTotp::Unreadable`: which
+  value is meant is not guessed, and a parser that decodes the name reads
+  another than Faraday does. So does a parameter name with a space or a
+  control character in it. Any present parameter with a value
   outside these refuses the URI as `NotTotp::Unreadable`, and so does
   `encoder=steam`: a plain code from that key is one Steam will not take.
 - An `otpauth://hotp/…` URI: `NotTotp::Hotp`. A HOTP code needs its

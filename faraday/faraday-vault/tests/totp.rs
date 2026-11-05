@@ -91,6 +91,47 @@ fn the_first_form_present_decides() {
     assert!(from_fields(&[]).is_none());
 }
 
+/// A parameter written twice, or in another spelling than lower case, is not read.
+#[test]
+fn a_parameter_written_twice_is_not_read() {
+    let b32 = base32(SHA1_SEED);
+    for twice in [
+        format!("secret={b32}&secret={b32}"),
+        format!("secret={b32}&issuer=A&issuer=B"),
+        format!("secret={b32}&issuer=A&issuer=A"),
+        format!("secret={b32}&algorithm=SHA1&algorithm=SHA1"),
+        format!("secret={b32}&digits=7&digits=7"),
+        format!("secret={b32}&period=60&period=30"),
+        format!("secret={b32}&counter=1&counter=1"),
+        format!("secret={b32}&image=a&image=b"),
+        format!("secret={b32}&encoder=a&encoder=a"),
+        format!("secret={b32}&s%65cret={b32}"),
+        format!("secret={b32}&digits=6&d%69gits=8"),
+        format!("secret={b32}&s%2565cret={b32}"),
+        format!("secret={b32}&SECRET=GEZDGNBVGY3TQOJQ"),
+        format!("secret={b32}&digits=6&DIGITS=8"),
+        format!("secret={b32}&sec\tret=GEZDGNBVGY3TQOJQ"),
+        format!("secret={b32}&d%69gits=8"),
+        format!("secret={b32}&alg%6Frithm=SHA256"),
+        format!("secret={b32}&p%65riod=60"),
+        format!("secret={b32}&%65ncoder=steam"),
+        format!("secret={b32}&ENCODER=steam"),
+        format!("s%65cret={b32}"),
+        format!("secret={b32}&foo bar=1"),
+        format!("secret={b32}&Issuer=Foo"),
+        format!("secret={b32}&Period=30"),
+    ] {
+        let uri = format!("otpauth://totp/x?{twice}");
+        assert_eq!(
+            from_fields(&[("otp", &uri)])
+                .expect("a form is held")
+                .unwrap_err(),
+            NotTotp::Unreadable,
+            "{uri}"
+        );
+    }
+}
+
 /// HOTP, a Steam seed and each malformed field are told apart.
 #[test]
 fn hotp_steam_and_malformed_forms_are_not_read() {

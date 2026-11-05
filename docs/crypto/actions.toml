@@ -7815,6 +7815,7 @@ tests = [
   "faraday/faraday-vault/tests/totp.rs::rfc_4226_appendix_d_vectors",
   "faraday/faraday-vault/tests/totp.rs::the_key_uri_example_and_its_typed_form_agree",
   "faraday/faraday-vault/tests/totp.rs::unreadable_and_hotp_values_are_told_apart",
+  "faraday/faraday-vault/tests/totp.rs::a_parameter_written_twice_is_not_read",
   "faraday/faraday-vault/tests/totp.rs::every_form_an_entry_holds_gives_rfc_6238_codes",
   "faraday/faraday-vault/tests/totp.rs::keepass_two_algorithm_and_period_fields",
   "faraday/faraday-vault/tests/totp.rs::the_first_form_present_decides",
@@ -7845,6 +7846,10 @@ lines = [
 text = "A manual clock with a fixed-offset time zone, since a device with no network has no other time (F7)."
 kind = "Neutral"
 decision = "F7"
+
+[[action.own]]
+text = "A parameter of the otpauth key URI written twice, in a case other than lower, or with a percent-escape in its name, or a parameter name with a space or control character in it, is refused; pyotp keeps the last of a repeated parameter and reads a decoded name."
+kind = "Conservative"
 
 [action.review]
 fingerprint = "a30ab01d596e17b3992b7d3134a4b956126e19f78e8153529787021e4a63a4e5"

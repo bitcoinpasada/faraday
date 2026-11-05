@@ -110,6 +110,49 @@ fn percent_encode(s: &str) -> String {
     out
 }
 
+/// The query parameters of the key URI format; one written twice is refused.
+const KNOWN_PARAMETERS: [&str; 8] = [
+    "secret",
+    "issuer",
+    "algorithm",
+    "digits",
+    "period",
+    "counter",
+    "image",
+    "encoder",
+];
+
+/// A query parameter's name as a URI parser reads it: percent escapes
+/// decoded (again while one is left, as a name escaped twice is) and
+/// lowercased, for comparing it with the names of the format.
+fn parameter_name(raw: &str) -> String {
+    let mut name = raw.as_bytes().to_vec();
+    for _ in 0..4 {
+        let mut out = Vec::with_capacity(name.len());
+        let mut i = 0;
+        let mut changed = false;
+        while i < name.len() {
+            let hex = |b: u8| (b as char).to_digit(16);
+            if name[i] == b'%'
+                && i + 2 < name.len()
+                && let (Some(h), Some(l)) = (hex(name[i + 1]), hex(name[i + 2]))
+            {
+                out.push((h * 16 + l) as u8);
+                i += 3;
+                changed = true;
+            } else {
+                out.push(name[i]);
+                i += 1;
+            }
+        }
+        name = out;
+        if !changed {
+            break;
+        }
+    }
+    String::from_utf8_lossy(&name).to_ascii_lowercase()
+}
+
 /// `parse(field)` from a type 6 field 6 value (§4.1).
 pub fn parse(field: &str) -> Result<Totp, NotTotp> {
     let field = field.trim();
@@ -130,11 +173,28 @@ pub fn parse(field: &str) -> Result<Totp, NotTotp> {
         let mut algorithm = Algorithm::Sha1;
         let mut digits: u32 = 6;
         let mut period: u64 = 30;
+        let mut seen: Vec<String> = Vec::new();
         for pair in query.split('&') {
             if pair.is_empty() {
                 continue;
             }
             let (k, v) = pair.split_once('=').ok_or(NotTotp::Unreadable)?;
+            // A parameter of the key URI format is read only as written in
+            // lower case: its name in another case or percent-encoded is
+            // refused, as is one written twice, since a parser that decodes
+            // the name reads another value than the one used here. A name
+            // with a space or a control character in it is refused too: a
+            // parser may strip it and read a parameter.
+            let name = parameter_name(k);
+            if name.contains(|c: char| c.is_ascii_whitespace() || c.is_ascii_control()) {
+                return Err(NotTotp::Unreadable);
+            }
+            if KNOWN_PARAMETERS.contains(&name.as_str()) {
+                if name != k || seen.contains(&name) {
+                    return Err(NotTotp::Unreadable);
+                }
+                seen.push(name);
+            }
             match k {
                 "secret" => secret = Some(v),
                 "algorithm" => {
