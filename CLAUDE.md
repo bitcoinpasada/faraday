@@ -57,9 +57,10 @@ plan <paths>` lists the ones a change touches.
 - `docs/DEVELOPING.md` is how anyone builds, checks, reproduces and tries
   Faraday. A change to any of that (a recipe, a prerequisite, a dev-image
   feature, an output path) changes it in the same commit, and every
-  command it shows runs as written. GitHub Actions runs the check and
-  nothing else (F183): `just` on every push to main and pull request,
-  read-only, no secrets, actions pinned by commit, no metered services.
+  command it shows runs as written. GitHub Actions runs the check (F183):
+  `just` on every push to main and pull request, and, started by hand, the
+  fuzz run before a release (F210), nothing else; read-only, no secrets,
+  actions pinned by commit, no metered services.
 - The tree stays clean (`tools/lint-tree.sh`): top-level entries only as
   README.md's "Repository layout" lists them, nothing an editor, a merge or
   a session leaves behind, no file over 2 MiB, build output in `out/` and

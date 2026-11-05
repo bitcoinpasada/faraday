@@ -224,3 +224,4 @@ Read this table, then only the decision you need.
 | [F207](decisions/F207.md) | A KeePass file keeps its entry history and recycle bin, written back and never shown | 2026-11-04 | Active | security |
 | [F208](decisions/F208.md) | A file vault takes a key file, and a KeePassXC file protected by a YubiKey opens from that key's typed secret | 2026-11-04 | Active | security |
 | [F209](decisions/F209.md) | Check a signer carries the step card's touch-target exception | 2026-11-04 | Active | design |
+| [F210](decisions/F210.md) | The fuzz run before a release may run on GitHub Actions, started by hand, under F183's limits | 2026-11-04 | Active | repository |

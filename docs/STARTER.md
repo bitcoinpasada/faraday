@@ -272,7 +272,7 @@ samples compiled in (F126, §5.3).
   against hand-written answers (HANDOFF item 73).
 - Builds: Linux in the §1.2 container; Windows cross-compiled for
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
-  GitHub Actions runs the check alone (F183). Batch W tries the Windows
+  GitHub Actions builds nothing for release (F183, F210). Batch W tries the Windows
   Starter on a Windows computer, natively.
 - **No path and nothing about the build computer in a published
   file** (owner, 2026-10-12). Every recipe that builds something

@@ -101,7 +101,9 @@ none is part of `just`, which stays fast.
    names, and `just lint-release` passes: the release is what is
    cross-checked, the tip between releases is not (F197).
 3. The fuzz run, and the corpora published after it (`fuzz/README.md`,
-   "Before a release"). On the build machine:
+   "Before a release"). On any machine, or on GitHub's runners with
+   `.github/workflows/fuzz.yml` started by hand, which does 1 and 2 in
+   sixteen partitions and joins them (F210):
    1. `just fuzz-release`, starting from the last published corpus
       (`FARADAY_FUZZ_CORPUS=<checkout of the corpus repository>`): every
       target for 10 minutes, in parallel, each keeping its corpus between

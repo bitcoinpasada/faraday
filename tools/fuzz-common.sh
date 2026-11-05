@@ -52,10 +52,14 @@ dictionary() {
 # Builds both fuzz crates and prints "DIR TARGET" for each target. The
 # lock files are committed: a lock that is out of date fails here
 # (`cargo fuzz` has no --locked of its own), and a build then changes none.
+# `FARADAY_FUZZ_PREBUILT=1` says the binaries are already in place (a job of
+# `.github/workflows/fuzz.yml`, from the job that compiled them): only lists.
 build_all() {
     for dir in fuzz faraday/fuzz; do
-        cargo metadata --locked --format-version 1 --manifest-path "$dir/Cargo.toml" >/dev/null
-        cargo fuzz build --fuzz-dir "$dir" >&2
+        if [ "${FARADAY_FUZZ_PREBUILT:-}" != 1 ]; then
+            cargo metadata --locked --format-version 1 --manifest-path "$dir/Cargo.toml" >/dev/null
+            cargo fuzz build --fuzz-dir "$dir" >&2
+        fi
         cargo fuzz list --fuzz-dir "$dir" | while read -r name; do
             [ -n "$name" ] && echo "$dir $name"
         done

@@ -1,0 +1,223 @@
+# The fuzz run before a release on GitHub's Linux runners
+# (docs/decisions/F210.md), started by hand on the tree to fuzz. It runs
+# what tools/README.md, "Before a release", calls the fuzz run and nothing
+# else: no image, no app, no release, no signature. It reads only: no
+# secrets, the checkout's token not kept, GitHub's own actions pinned by
+# commit. Nothing is cached: every run compiles from the commit.
+#
+# One job compiles every target once and archives them, sixteen each run a
+# sixteenth of them from the last published corpus, and the last joins their
+# records and corpora with tools/fuzz-join.py. Its artifacts are the record,
+# the corpus and any input that crashed a target, kept on a failure too.
+name: fuzz
+
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: Seconds a target
+        default: "600"
+      corpus:
+        description: The published corpus's tag to start from (empty for the latest)
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  CARGO_FUZZ_VERSION: 0.13.2
+  PARTS: 16
+  FUZZ_SECONDS: ${{ inputs.seconds }}
+
+jobs:
+  build:
+    name: build targets
+    runs-on: ubuntu-26.04
+    timeout-minutes: 180
+    outputs:
+      corpus: ${{ steps.corpus.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The corpus to start from
+        id: corpus
+        env:
+          WANTED: ${{ inputs.corpus }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          tag="$WANTED"
+          if [ -z "$tag" ]; then
+            tag="$(git ls-remote --tags --refs "https://github.com/$REPOSITORY-fuzz-corpus.git" \
+              | sed 's|.*refs/tags/||' | sort -V | tail -1)"
+          fi
+          case "$tag" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "not a release's tag: $tag" >&2; exit 2 ;;
+          esac
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+      - name: Build output on the runner's larger disk
+        run: |
+          for d in fuzz faraday/fuzz; do
+            mkdir -p "$d/target"
+            sudo mkdir -p "/mnt/$d"
+            sudo chown "$(id -u):$(id -g)" "/mnt/$d"
+            sudo mount --bind "/mnt/$d" "$d/target"
+          done
+          df -h . fuzz/target
+      - name: The nightly and cargo-fuzz
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup toolchain install "$(sed -n 's/^channel *= *"\(.*\)"$/\1/p' fuzz/rust-toolchain.toml)" --profile minimal
+          cargo install --locked "cargo-fuzz@${CARGO_FUZZ_VERSION}"
+      - name: Compile every target and archive them
+        run: |
+          . tools/fuzz-common.sh
+          build_all >targets.txt
+          wc -l targets.txt
+          awk -v host="$host" '{ print $1 "/target/" host "/release/" $2 }' targets.txt >binaries.txt
+          du -ch $(cat binaries.txt) | tail -1
+          tar --zstd -cf fuzz-build.tar.zst -T binaries.txt -C "$HOME/.cargo/bin" cargo-fuzz
+          ls -lh fuzz-build.tar.zst
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-build
+          path: fuzz-build.tar.zst
+          retention-days: 1
+          compression-level: 0
+
+  part:
+    name: part ${{ matrix.part }}/16
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    env:
+      FARADAY_FUZZ_PREBUILT: "1"
+      FARADAY_FUZZ_JOBS: "4"
+      FARADAY_FUZZ_PARTITION: ${{ matrix.part }}/16
+      CORPUS_TAG: ${{ needs.build.outputs.corpus }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: fuzz-build
+      - name: The compiled targets, the nightly and the starting corpus
+        run: |
+          tar --zstd -xf fuzz-build.tar.zst
+          mkdir -p "$HOME/.cargo/bin"
+          mv cargo-fuzz "$HOME/.cargo/bin/"
+          rm -f fuzz-build.tar.zst
+          rustup toolchain install "$(sed -n 's/^channel *= *"\(.*\)"$/\1/p' fuzz/rust-toolchain.toml)" --profile minimal
+          git clone -q --depth 1 --branch "$CORPUS_TAG" \
+            "https://github.com/$REPOSITORY-fuzz-corpus.git" "$RUNNER_TEMP/faraday-fuzz-corpus"
+      - name: Fuzz this part's targets
+        env:
+          FARADAY_FUZZ_CORPUS: ${{ runner.temp }}/faraday-fuzz-corpus
+        run: tools/fuzz-release.sh "$FUZZ_SECONDS"
+      - name: Minimize their corpora
+        id: export
+        if: ${{ !cancelled() }}
+        run: tools/fuzz-corpus-export.sh
+      - name: Pack what this part left
+        if: ${{ !cancelled() }}
+        env:
+          EXPORTED: ${{ steps.export.outcome }}
+        run: |
+          mkdir -p "part/out"
+          cp out/fuzz-release.txt part/out/ || true
+          [ "$EXPORTED" != success ] || mv out/fuzz-corpus part/out/
+          # An input that crashed a target, and that target's log. What is
+          # committed under artifacts/ is an old crash kept as a test, not this run's.
+          mkdir -p part/crashes
+          git ls-files --others -- fuzz/artifacts faraday/fuzz/artifacts | while read -r f; do
+            cp "$f" part/crashes/
+          done
+          grep -l CRASH out/fuzz-release/*.result 2>/dev/null | while read -r r; do
+            cp "${r%.result}.log" part/
+          done
+          tar --zstd -cf "part-${{ matrix.part }}.tar.zst" -C part .
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: fuzz-part-${{ matrix.part }}
+          path: part-${{ matrix.part }}.tar.zst
+          retention-days: 1
+          compression-level: 0
+
+  join:
+    name: join
+    if: ${{ !cancelled() }}
+    needs: [build, part]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: fuzz-part-*
+          path: packed
+      - name: Unpack the parts
+        run: |
+          mkdir -p parts crashes
+          for f in packed/*/*.tar.zst; do
+            p="parts/$(basename "$f" .tar.zst)"
+            mkdir -p "$p"
+            tar --zstd -xf "$f" -C "$p"
+            [ ! -d "$p/crashes" ] || find "$p/crashes" -type f -exec cp {} crashes/ \;
+            find "$p" -maxdepth 1 -name '*.log' -exec cp {} crashes/ \;
+          done
+          ls -A crashes | head -50
+      # A part whose minimizing failed has no corpus to join, so the record
+      # is still joined, and the run has failed by that part's job.
+      - name: Join the record and corpus
+        env:
+          PART_RESULTS: ${{ needs.part.result }}
+        run: |
+          missing=0
+          for p in parts/*; do [ -d "$p/out/fuzz-corpus" ] || missing=1; done
+          if [ "$missing" = 1 ]; then
+            echo "a part has no corpus: joining the records alone"
+            for p in parts/*; do rm -rf "$p/out/fuzz-corpus"; done
+          fi
+          # shellcheck disable=SC2046
+          python3 -I -B tools/fuzz-join.py joined $(for p in parts/*; do echo "$p/out"; done)
+          [ "$PART_RESULTS" = success ]
+      - name: Pack the corpus
+        if: ${{ !cancelled() }}
+        run: |
+          [ ! -d joined/fuzz-corpus ] || tar --zstd -cf fuzz-corpus.tar.zst -C joined fuzz-corpus
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: fuzz-record
+          path: joined/fuzz-release.txt
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: fuzz-corpus
+          path: fuzz-corpus.tar.zst
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: fuzz-crashes
+          path: crashes/
+          retention-days: 14
+          if-no-files-found: ignore

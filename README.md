@@ -650,7 +650,8 @@ alike, and `just` enforces most of them: a change that breaks one fails
 the check.
 
 - GitHub Actions runs `just` on every push to main and every pull
-  request, and nothing else; everything builds and tests locally too.
+  request and, started by hand, the fuzz run before a release, and nothing
+  else; everything builds and tests locally too.
 - Nothing private is committed.
 - Every decision is numbered and kept (`docs/DECISIONS.md`); every
   document says whether it describes what is built or what is planned

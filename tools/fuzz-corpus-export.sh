@@ -30,13 +30,20 @@ export_one() {
     [ -d "$dir/corpus/$name" ] && find "$dir/corpus/$name" -type f -exec cp --update=none {} "$to/" \;
     # An input that crashes is written beside the run's own
     # (fuzz/artifacts/<target>/), never into the working directory.
+    # What `cargo fuzz cmin` does, on the binary the run used: into a new
+    # folder, what between them reaches everything the set reaches.
+    rm -rf "$to.min"
+    mkdir -p "$to.min"
     # shellcheck disable=SC2046
-    cargo fuzz cmin --fuzz-dir "$dir" "$name" "$to" -- -rss_limit_mb=2048 \
+    "$dir/target/$host/release/$name" -merge=1 -rss_limit_mb=2048 \
         -artifact_prefix="$dir/artifacts/$name/" $(options "$name") \
-        >"$out/$name.log" 2>&1 || {
+        "$to.min" "$to" >"$out/$name.log" 2>&1 || {
         echo "fuzz-corpus-export: $name failed, see out/fuzz-corpus/$name.log" >&2
+        rm -rf "$to.min"
         return 1
     }
+    rm -rf "$to"
+    mv "$to.min" "$to"
     rm -f "$out/$name.log"
     # The store keeps the minimized set in place of what it held: it
     # reaches what the store reached, and a slow target, which runs every
@@ -51,7 +58,7 @@ export_one() {
     echo "fuzz-corpus-export: $name: $(find "$to" -type f | wc -l) inputs"
 }
 export -f export_one options
-export store out
+export store out host
 
 echo "fuzz-corpus-export: building every target with $nightly"
 list="$(mktemp)"

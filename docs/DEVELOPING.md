@@ -6,8 +6,8 @@
 How to build Faraday from a fresh clone, check it, reproduce a release,
 and try it on your own hardware. Each section names the document that
 says more. Everything here runs on your own machine; GitHub Actions runs
-the check (§2) on every push to main and every pull request, and
-nothing else.
+the check (§2) on every push to main and every pull request and, started
+by hand, the fuzz run before a release (§8), and nothing else.
 
 ## 1. What you need
 
@@ -404,7 +404,10 @@ just fuzz psbt_parse 300        one target for 300 seconds
 on the stable toolchain, no nightly or cargo-fuzz needed).
 
 The fuzz targets need the nightly in `fuzz/rust-toolchain.toml` and
-cargo-fuzz. `fuzz/README.md` and `faraday/fuzz/README.md` say what each
+cargo-fuzz. The run before a release can also run on GitHub's runners,
+started by hand on the tree to fuzz (`gh workflow run fuzz.yml --ref BRANCH`,
+`.github/workflows/fuzz.yml`, F210): sixteen jobs from one compile, and the
+record, corpus and any crash input as the run's artifacts. `fuzz/README.md` and `faraday/fuzz/README.md` say what each
 target feeds; `tools/README.md`, "Before a release", is the release run.
 
 ## 9. Where to read next

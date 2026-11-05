@@ -15,9 +15,9 @@ shell is the only process on the board and is built with
 `panic = "abort"`, so a panic in any of these is a poweroff in the middle
 of a signing session.
 
-This runs on a developer's machine and nowhere else. There is no hosted
-CI and no GitHub Actions. The run before a release is `just fuzz-release`
-(below, and `tools/README.md`, "Before a release").
+This runs on a developer's machine; GitHub Actions runs a fuzz target only
+in the run before a release, started by hand (F210). That run is `just
+fuzz-release` (below, and `tools/README.md`, "Before a release").
 
 ## Setup
 
@@ -87,8 +87,9 @@ just fuzz-corpus-export        then their corpora, minimized
 `just fuzz-release [SECONDS]` runs `tools/fuzz-release.sh`: every target of
 `fuzz/` and `faraday/fuzz/` for SECONDS each (600), as many at once as
 there are cores. Any crash, out-of-memory or timeout fails it and names
-the input. It is run on the build machine, whose cores are the point, and
-the record is taken from there.
+the input. Cores are the point: it runs on a machine with many, or split
+over GitHub's runners (`.github/workflows/fuzz.yml`), and the record is taken
+from there.
 
 Each target keeps the corpus it has grown between runs, in
 `~/.cache/faraday-fuzz/<target>/` on the machine that runs it (a synced

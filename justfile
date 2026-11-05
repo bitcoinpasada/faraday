@@ -247,7 +247,7 @@ fuzz TARGET seconds=fuzz_seconds:
 fuzz-release seconds="600":
     tools/fuzz-release.sh {{seconds}}
 
-# Each target's kept corpus and seeds, minimized with `cargo fuzz cmin`
+# Each target's kept corpus and seeds, minimized as `cargo fuzz cmin` does,
 # into out/fuzz-corpus/<target>/, ready to commit to the corpus
 # repository after a release. On the machine that ran fuzz-release.
 [group('test')]
