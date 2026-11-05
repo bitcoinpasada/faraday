@@ -40,7 +40,20 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::MadeContinue));
     lock_and_write(t, notes, Some("gpg-write"))?;
     unlock_done(t)?;
+    // Scrolled to Renew for and the Backup row, then back to the top.
+    let (w, h) = t.size();
+    let wheel = |t: &mut Tour, dy: i16| {
+        let _ = t.app.frame();
+        t.app.event(Event::Scroll {
+            x: w * 3 / 4,
+            y: h / 2,
+            dy,
+        });
+        let _ = t.app.frame();
+    };
+    wheel(t, 240);
     t.shot("gpg-key-page")?;
+    wheel(t, -240);
     t.shot("vault-gpg-key")?;
     sign(t)
 }

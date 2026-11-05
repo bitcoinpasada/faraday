@@ -67,6 +67,20 @@ pub fn wrap_buttons<A: Copy + PartialEq>(
     h: f32,
     items: &[(&str, Style, A)],
 ) -> f32 {
+    wrap_buttons_spaced(ui, x, y, w, h, GAP, items)
+}
+
+/// [`wrap_buttons`] with `row_gap` between its rows, for a row of choices
+/// whose rows each keep a full touch target.
+pub fn wrap_buttons_spaced<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    row_gap: f32,
+    items: &[(&str, Style, A)],
+) -> f32 {
     let h = ui.button_height(h);
     let (mut bx, mut by) = (x, y);
     for &(label, style, action) in items {
@@ -74,12 +88,12 @@ pub fn wrap_buttons<A: Copy + PartialEq>(
         let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD + tick).min(w);
         if bx > x && bx + bw > x + w {
             bx = x;
-            by += h + GAP;
+            by += h + row_gap;
         }
         let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD - tick);
         bx += ui.button(bx, by, Some(bw), h, &label, style, action) + GAP;
     }
-    by - y + h + GAP
+    by - y + h + row_gap
 }
 
 /// The height [`wrap_buttons`] takes for these labels, `h` high in `w`,

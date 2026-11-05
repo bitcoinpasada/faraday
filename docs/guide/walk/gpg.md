@@ -208,7 +208,7 @@ before the copy was checked. Nothing counted**): plug it in again.
 
 ## 7. Done, and the key's page
 
-![Vault 1 open on GPG keys, Example Signer's page with its fingerprint, Renew for and Backup written to every place](../pictures/gpg-key-page.png)
+![Vault 1 open on GPG keys, Example Signer's page scrolled down from its fingerprint to the paperkey, Renew for and Backup written to every place](../pictures/gpg-key-page.png)
 
 **Done** reads **Written**, with a line per stick: its pill, its
 place, its label and the time ("Stick 2 · Vault 1 (Place 1) · KEYSTICK

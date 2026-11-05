@@ -7,7 +7,7 @@
 //! is what the page shows.
 
 use crate::common::RecordsOf as _;
-use crate::common::type_text;
+use crate::common::{scroll_to_text, type_text};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -524,6 +524,7 @@ fn the_keys_page_draws_no_text_over_other_text() {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     app.press(Action::Vault(V::Item(0)));
+    scroll_to_text(&mut app, "Never");
     let texts = app.drawn_past_sides_and_text().1;
     assert!(
         texts.iter().any(|(t, _)| t == "Never"),

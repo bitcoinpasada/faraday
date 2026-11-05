@@ -1583,6 +1583,24 @@ pub fn device(inbox: Files) -> Faraday {
     app
 }
 
+/// The page scrolled down, as a person would, until `want` is drawn (at
+/// most 12 wheel steps); it is then read as it stands.
+pub fn scroll_to_text(app: &mut Faraday, want: &str) {
+    let _ = app.frame();
+    for _ in 0..12 {
+        if app.drawn_texts().iter().any(|t| t == want) {
+            return;
+        }
+        let (w, h) = app.size();
+        app.event(Event::Scroll {
+            x: (w * 0.75) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
+}
+
 /// A hold, `a`, held past its time and let go: the window scrolled
 /// down first, as a person would, until it shows.
 pub fn hold(app: &mut Faraday, a: Action) {

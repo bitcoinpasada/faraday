@@ -341,7 +341,10 @@ pub(crate) fn years_row(
         (label, style, va(act(years)))
     })
     .collect();
-    crate::screens::wrap_buttons(ui, x, y, w, 32.0, &items) - 8.0
+    // Rows a full touch target apart, so a chip's target is not cut by the
+    // row beside it.
+    let row_gap = faraday_draw::tokens::GAP * 2.0;
+    crate::screens::wrap_buttons_spaced(ui, x, y, w, 32.0, row_gap, &items) - row_gap
 }
 
 /// GnuPG's reasons for a revocation, in its menu's order. Returns the

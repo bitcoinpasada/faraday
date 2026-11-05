@@ -466,6 +466,7 @@ fn example_a_writes_both_sticks_and_the_key_page_reads_every_place_written() {
     shell.flow(&mut app, F::UnlockDone(0));
     unlock(&mut app, PHRASE);
     assert_eq!(app.screen, Screen::VaultContents);
+    scroll_to_text(&mut app, "Written to every place");
     expect(&mut app, "Written to every place");
     assert!(has(&mut app, "Release") || has_part(&mut app, "Release"));
 }
@@ -640,6 +641,7 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     app.press(Action::Vault(V::Item(0)));
+    scroll_to_text(&mut app, "Back up first");
     expect(&mut app, "Back up first");
     // The Backup row is under the renew terms, and under the vault's
     // Randomness row while it holds a change not yet sealed: the page
@@ -671,6 +673,7 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
     shell.flow(&mut app, F::UnlockDone(0));
     unlock(&mut app, PHRASE);
     assert!(!has(&mut app, "Back up first"));
+    scroll_to_text(&mut app, "Written to every place");
     expect(&mut app, "Written to every place");
     app.press(Action::Vault(V::GpgSignPick));
     assert!(app.vaults().signing);
@@ -1782,6 +1785,7 @@ fn the_code_of_a_signature_waits_for_the_backup_like_the_signing() {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     app.press(Action::Vault(V::Item(0)));
+    scroll_to_text(&mut app, "Back up first");
     expect(&mut app, "Back up first");
     app.press(Action::ShowCode(faraday_core::Code::GpgSignature([0; 8])));
     assert!(
