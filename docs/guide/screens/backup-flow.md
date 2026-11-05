@@ -230,7 +230,7 @@ The flow has the cards of Make, with the public key first:
 | **Lock**, "Write the sticks", **Done** | as for a GPG key made |
 
 **Type the paperkey** takes the paperkey a line at a time on the hex
-keyboard docked at the foot, each line as it is printed: its number,
+keyboard docked at the foot (on a small panel it comes up when the field is pressed), each line as it is printed: its number,
 the bytes, and its six-digit CRC.
 
 | Control | What it does |

@@ -846,3 +846,105 @@ fn a_paperkey_code_too_fine_for_the_camera_says_to_type_it() {
         Some("Too fine for this camera: bring it closer, or type the paperkey")
     );
 }
+
+/// The line being typed, with its label, is above the docked keyboard.
+fn line_clear(app: &mut Faraday, what: &str) {
+    for _ in 0..3 {
+        let _ = app.frame();
+    }
+    let top = app.keyboard_top().expect("the keyboard is docked");
+    let (_, y, _, h) = app.focused_field().expect("the line has focus");
+    assert!(
+        y >= 0 && y + h <= i32::from(top),
+        "{what}: the line ({y} to {}) is above the keyboard's top ({top})",
+        y + h
+    );
+}
+
+/// Step 4 on the Pi's panel, a line typed with the keyboard up: the line
+/// stays above the keyboard as its digits wrap and grow it, and after
+/// Next line moves on.
+#[test]
+fn the_line_typed_stays_above_the_docked_keyboard_on_the_pi_panel() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let from = RestoreFrom::read(&cert_file(&k).1).unwrap();
+    restore_at_make(&mut app, from);
+    app.press(Action::Flow(F::Restore(R::Field)));
+    line_clear(&mut app, "an empty line");
+    let ls = printed();
+    let mut at = 0;
+    for c in ls[0].chars() {
+        app.event(Event::Key(KeyIn::Char(c)));
+        at += 1;
+        if at % 12 == 0 {
+            line_clear(&mut app, &format!("{at} characters typed"));
+        }
+    }
+    app.press(Action::Flow(F::Restore(R::Next)));
+    line_clear(&mut app, "the next line");
+}
+
+/// Step 4 on the Pi's panel with nothing typed: the keyboard is down, so
+/// Scan the paperkey and Next line show; pressing the line brings the
+/// keyboard up and digits type.
+#[test]
+fn step_four_opens_with_the_keyboard_down_and_the_line_brings_it_up() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    restore_at_make(&mut app, RestoreFrom::read(&cert_file(&k).1).unwrap());
+    for _ in 0..3 {
+        let _ = app.frame();
+    }
+    assert!(app.keyboard_top().is_none(), "the keyboard is down");
+    assert!(has(&mut app, "Scan the paperkey"), "{:?}", texts(&mut app));
+    assert!(has(&mut app, "Next line"), "{:?}", texts(&mut app));
+    app.press(Action::Flow(F::Restore(R::Field)));
+    for _ in 0..3 {
+        let _ = app.frame();
+    }
+    assert!(app.keyboard_top().is_some(), "the keyboard is up");
+    let ls = printed();
+    for c in ls[0].chars() {
+        app.event(Event::Key(KeyIn::Char(c)));
+    }
+    assert!(has(&mut app, "Line 2"), "{:?}", texts(&mut app));
+}
+
+/// With a computer's keyboard at the wide layout, digits typed on arrival
+/// land in the line without a press first.
+#[test]
+fn digits_typed_on_arrival_at_step_four_land_in_the_line() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    restore_at_make(&mut app, RestoreFrom::read(&cert_file(&k).1).unwrap());
+    let ls = printed();
+    for c in ls[0].chars() {
+        app.event(Event::Key(KeyIn::Char(c)));
+    }
+    assert!(has(&mut app, "Line 1 · checked"), "{:?}", texts(&mut app));
+}

@@ -343,6 +343,11 @@ Keys:
   `core/faraday-draw/src/widgets/keyboard.rs`), docked as the passphrase
   keyboard is (DESIGN §4.3, Keyboard), with **Next line** beside the
   field.
+  On a small panel the step opens with the keyboard down while no
+  line is typed or checked, so **Next line** and **Scan the paperkey**
+  show first; pressing the field brings it up, and from then on it
+  stays up for the next line. A computer's keys type at the step
+  without that press.
 - On a keyboard, 0 to 9 and A to F in either case. Spaces are taken and
   ignored. A colon makes what came before it on the line its number,
   checked against the line's (so a person who types "  3: " as printed

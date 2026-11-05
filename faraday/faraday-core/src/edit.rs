@@ -407,6 +407,15 @@ impl Faraday {
                 .is_some_and(|i| self.flows.restore_typing(i))
     }
 
+    /// Whether the hex keyboard stands under step 4's line now.
+    pub(crate) fn gpg_restore_keyboard(&self) -> bool {
+        self.screen == Screen::BackupFlow
+            && self
+                .flows
+                .on()
+                .is_some_and(|i| self.flows.restore_keyboard(i))
+    }
+
     /// Whether typing goes to a text field now.
     pub(crate) fn typing_field(&self) -> bool {
         if self.chart_typing() {
@@ -441,7 +450,7 @@ impl Faraday {
                 self.vaults.focus.is_some()
                     || (self.screen == Screen::BackupFlow
                         && (self.backup.state().is_some_and(|b| b.naming.is_some())
-                            || self.gpg_restore_typing()))
+                            || self.gpg_restore_keyboard()))
             }
             Screen::Entry => true,
             Screen::SetTime => self.set_time.focus().is_some(),

@@ -193,7 +193,8 @@ pub struct RestoreLive {
     /// The open vault that holds the key already, by its place, and its
     /// name.
     in_vault: Option<(usize, String)>,
-    /// Typing goes to the line.
+    /// The line's field was pressed, or a line was typed: the hex keyboard
+    /// stands under it. A new restore starts without it.
     pub(crate) focused: bool,
     /// An edit inside the line is being typed through its keys: the line
     /// does not end by itself until it is done (`docs/TEXT-CURSOR.md`).
@@ -216,7 +217,7 @@ impl RestoreLive {
             error: None,
             refused: None,
             in_vault: None,
-            focused: true,
+            focused: false,
             held: false,
             fingerprint_shown: None,
         })
@@ -356,7 +357,7 @@ impl RestoreLive {
         self.error = None;
         self.refused = None;
         self.in_vault = None;
-        self.focused = true;
+        self.focused = n > 1;
     }
 
     /// Every line forgotten, the certificate kept: a lock's.
@@ -507,14 +508,20 @@ impl BackupFlowArea {
     }
 
     /// Whether step 4 of flow `i` takes typing now: a restore's line
-    /// being typed, focused. Where the hex keyboard docks.
+    /// being typed, a computer's keys included.
     pub(crate) fn restore_typing(&self, i: usize) -> bool {
         self.all
             .get(i)
             .is_some_and(|f| f.step == super::Step::Make && !f.made && !f.adding)
             && self
                 .restoring(i)
-                .is_some_and(|r| r.focused && !r.complete())
+                .is_some_and(|r| !r.complete())
+    }
+
+    /// Whether the hex keyboard stands under step 4's line: it takes typing
+    /// and the field was pressed or a line is under way.
+    pub(crate) fn restore_keyboard(&self, i: usize) -> bool {
+        self.restore_typing(i) && self.restoring(i).is_some_and(|r| r.focused)
     }
 
     /// Costs what `RestoreLive::paperkey_code` costs. A paperkey code read for flow
@@ -554,6 +561,7 @@ impl BackupFlowArea {
             KeyIn::Enter => r.hand_in(false),
             _ => return false,
         }
+        r.focused = true;
         true
     }
 

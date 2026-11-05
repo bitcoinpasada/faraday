@@ -1066,6 +1066,12 @@ pub(crate) struct Osk {
     kept: Option<Action>,
     /// The focused field this frame drew, when it drew one.
     drawn: Option<Option<Action>>,
+    /// Where that field stood in the page (its top and height, pixels) on
+    /// the last frame, and on this one: a field that grew or moved in the
+    /// page, as a line wraps or the next line takes its place, is brought
+    /// into view again.
+    kept_shape: Option<(i32, i32)>,
+    drawn_shape: Option<(i32, i32)>,
     /// Where the last pass drew the focused field with its label, pixels.
     drawn_box: Option<faraday_draw::Rect>,
     /// On a small panel, the field typing goes to was pressed since the
@@ -1163,6 +1169,7 @@ impl CompactArea {
         self.osk.drawn_box = None;
         if let Some(drawn) = self.osk.drawn.take() {
             self.osk.kept = drawn;
+            self.osk.kept_shape = self.osk.drawn_shape.take();
             self.osk.reveal = false;
         }
         self.osk.reveal |= rose || (shown && !self.osk.was_shown);
@@ -1186,9 +1193,10 @@ impl CompactArea {
 
     /// A pass drew the focused field, pressed with `action`: whether it
     /// is to be brought into view above the keyboard.
-    pub(crate) fn reveal_due(&mut self, action: Option<Action>) -> bool {
+    pub(crate) fn reveal_due(&mut self, action: Option<Action>, shape: (i32, i32)) -> bool {
         self.osk.drawn = Some(action);
-        self.osk.reveal || self.osk.kept != action
+        self.osk.drawn_shape = Some(shape);
+        self.osk.reveal || self.osk.kept != action || self.osk.kept_shape != Some(shape)
     }
 
     /// How far the wide layout draws the page up while its keyboard is
@@ -1376,7 +1384,7 @@ impl Faraday {
             }
             Screen::Explore if self.sheet.is_none() => K::Path,
             // A GPG key's paperkey line, typed in hex (`docs/GPG-PAPERKEY.md` §4.5).
-            Screen::BackupFlow if self.sheet.is_none() && self.gpg_restore_typing() => K::Hex,
+            Screen::BackupFlow if self.sheet.is_none() && self.gpg_restore_keyboard() => K::Hex,
             // The codex32 form types on the codex32 keyboard, with `?`
             // while corrections are suggested (`docs/CODEX32.md` §8.4).
             _ if self.sheet.is_none()
@@ -1520,14 +1528,18 @@ impl Faraday {
         let Some(field) = field else {
             return false;
         };
-        if !self.panel.reveal_due(action) {
-            return false;
-        }
         let Some(region) = regions.iter().find(|r| r.slot == crate::ui::Slot::Page) else {
             return false;
         };
-        let by = reveal_by(field, region.view, self.f);
         let (f, max) = (self.f.max(0.01), region.max);
+        let Some(slot) = self.page_slot() else {
+            return false;
+        };
+        let shape = (field.y + (*slot * f).round() as i32, field.h);
+        if !self.panel.reveal_due(action, shape) {
+            return false;
+        }
+        let by = reveal_by(field, region.view, self.f);
         let Some(slot) = self.page_slot() else {
             return false;
         };
@@ -1591,8 +1603,13 @@ impl Faraday {
 fn reveal_by(field: faraday_draw::Rect, view: faraday_draw::Rect, f: f32) -> f32 {
     use faraday_draw::tokens::KEYBOARD_CLEAR;
     let f = f.max(0.01);
-    let top = (field.y - view.y) as f32 / f - KEYBOARD_CLEAR;
-    let foot = (field.bottom() - view.bottom()) as f32 / f + KEYBOARD_CLEAR;
+    // Where the region is too short for the field and both clears (a
+    // small panel's keyboard leaves little), the clears give way, so the
+    // field still stands whole above the keyboard.
+    let spare = (view.h - field.h) as f32 / f / 2.0;
+    let clear = KEYBOARD_CLEAR.min(spare.max(0.0));
+    let top = (field.y - view.y) as f32 / f - clear;
+    let foot = (field.bottom() - view.bottom()) as f32 / f + clear;
     if foot > 0.0 {
         foot.min(top)
     } else {
