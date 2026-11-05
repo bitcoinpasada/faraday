@@ -1935,6 +1935,9 @@ impl Faraday {
         let boot = self.stick.iter().find(|s| s.boot).cloned();
         if !self.clean() {
             self.stick.set_not_now(false);
+            // The Lock sheet replaces the device sheet: what waited under
+            // it is not done later with no press.
+            self.devices.drop_press();
             self.sheet = Some(Sheet::Lock);
         } else {
             self.visit.out = self.visit_default_out(&c);

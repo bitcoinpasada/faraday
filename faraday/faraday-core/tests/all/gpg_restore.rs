@@ -649,20 +649,15 @@ fn a_gpg_keys_paperkey_shows_as_one_secret_code_and_is_gone_after_done_and_a_loc
     }
 }
 
-/// A KVM plugged in with the key's page open, its sheet closed and the
-/// KVM still there: the press waits under the sheet and no code shows
-/// until the KVM is pulled.
-#[test]
-fn a_paperkeys_code_waits_while_a_kvm_is_attached() {
-    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
-    let mut app = key_page(480, 640, 160);
-    app.devices = DeviceCheck::machine("flags\t\t: fpu\n", "LENOVO", "20XW", "10");
+/// A PiKVM among the USB devices.
+fn kvm() -> faraday_core::devices::UsbDevice {
+    use faraday_core::devices::{Interface, UsbDevice};
     let hid = |protocol| Interface {
         class: 3,
         subclass: 1,
         protocol,
     };
-    let kvm = UsbDevice {
+    UsbDevice {
         port: "1-2".into(),
         vendor: 0x1d6b,
         product: 0x0104,
@@ -677,10 +672,35 @@ fn a_paperkeys_code_waits_while_a_kvm_is_attached() {
                 protocol: 0x50,
             },
         ],
-    };
-    app.usb_devices(&[kvm]);
+    }
+}
+
+/// The key's page open, a KVM plugged in, its sheet closed and the KVM
+/// still there.
+fn key_page_with_kvm() -> Faraday {
+    use faraday_core::devices::DeviceCheck;
+    let mut app = key_page(480, 640, 160);
+    app.devices = DeviceCheck::machine("flags\t\t: fpu\n", "LENOVO", "20XW", "10");
+    app.usb_devices(&[kvm()]);
     assert_eq!(app.sheet, Some(Sheet::Devices));
     app.press(Action::Cancel);
+    app
+}
+
+/// The key's page open with the press waiting, the KVM pulled and checked
+/// again: the reminder about a TV is due too, and understood.
+fn kvm_gone(app: &mut Faraday) {
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    app.press(Action::DevicesUnderstood);
+}
+
+/// A KVM plugged in with the key's page open, its sheet closed and the
+/// KVM still there: the press waits under the sheet and no code shows
+/// until the KVM is pulled.
+#[test]
+fn a_paperkeys_code_waits_while_a_kvm_is_attached() {
+    let mut app = key_page_with_kvm();
     app.press(Action::Vault(V::PaperkeyQr));
     assert_eq!(app.sheet, Some(Sheet::Devices));
     assert!(app.qr().is_none(), "the code showed with a KVM attached");
@@ -690,6 +710,41 @@ fn a_paperkeys_code_waits_while_a_kvm_is_attached() {
     assert!(app.qr().is_none(), "the code showed over the reminder");
     app.press(Action::DevicesUnderstood);
     assert!(app.qr().is_some(), "the press did not carry on");
+}
+
+/// A press that waited under the device sheet is dropped when a stick
+/// arriving in an unclean session puts up the lock sheet: the sheet
+/// closed later, and a new device checked again, show no code.
+#[test]
+fn a_press_that_waited_does_not_run_after_the_lock_sheet_replaced_the_sheet() {
+    let mut app = key_page_with_kvm();
+    app.press(Action::Vault(V::PaperkeyQr));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    let stick = |on: bool| {
+        if on {
+            vec![faraday_core::StickInfo {
+                make: Default::default(),
+                serial: None,
+                id: "a".into(),
+                label: "STICK".into(),
+                boot: false,
+                files: Vec::new(),
+                vaults: Vec::new(),
+            }]
+        } else {
+            Vec::new()
+        }
+    };
+    app.storage(StorageEvent::Sticks(stick(true)));
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.storage(StorageEvent::Sticks(stick(false)));
+    assert_eq!(app.sheet, None);
+    let mut other = kvm();
+    other.port = "1-3".into();
+    app.usb_devices(&[other]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    kvm_gone(&mut app);
+    assert!(app.qr().is_none(), "the old press ran with no press");
 }
 
 /// The code's text, scanned at Restore's step 4 on another machine, fills

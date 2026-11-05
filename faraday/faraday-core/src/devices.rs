@@ -427,6 +427,13 @@ impl DeviceCheck {
         self.asking = false;
     }
 
+    /// Another sheet replaced this one: the press that waited is dropped,
+    /// so no later hold carries it on. What waits under a new device's
+    /// sheet or the import stays.
+    pub(crate) fn drop_press(&mut self) {
+        self.after = None;
+    }
+
     /// A virtual machine is among the items: no Continue anyway.
     pub fn refuses(&self) -> bool {
         self.held.iter().any(|c| c.kind == Kind::VirtualMachine)
