@@ -290,8 +290,13 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         "message-{}.txt",
                         &sig.address[sig.address.len().saturating_sub(6)..]
                     );
-                    let (state, (label, style, action)) =
-                        made_state(app, &file, None, (EN.message_make_the_file, Action::MOut));
+                    // The file this message put, under the name it went out as.
+                    let (state, (label, style, action)) = made_state(
+                        app,
+                        m.out_name.as_deref().unwrap_or(""),
+                        None,
+                        (EN.message_make_the_file, Action::MOut),
+                    );
                     let png = fill(EN.message_png, &[app.medium.for_the()]);
                     cy += file_row(
                         ui,

@@ -233,6 +233,23 @@ impl VisitArea {
 }
 
 impl Faraday {
+    /// Costs a comparison with a file of that name. A file to the Outbox
+    /// that goes beside a different file of its name
+    /// and not over it: a file of that name holding the same bytes is left
+    /// as it is. The name it ended up under.
+    pub(crate) fn put_outbox_beside(&mut self, name: &str, bytes: Vec<u8>) -> String {
+        if self
+            .outbox
+            .iter()
+            .any(|i| i.name == name && i.bytes == bytes)
+        {
+            return name.to_string();
+        }
+        let free = outbox_free_name(&self.outbox, name);
+        self.put_outbox(&free, bytes);
+        free
+    }
+
     /// The stick visit's state.
     pub fn visit(&self) -> &crate::VisitState {
         &self.visit

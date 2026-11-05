@@ -869,10 +869,10 @@ impl Faraday {
             Ok(Some(tx)) => Some(faraday_psbt::bitcoin::consensus::encode::serialize_hex(&tx)),
             _ => None,
         };
-        self.put_outbox("sweep-signed.psbt", bytes.clone());
+        self.put_outbox_beside("sweep-signed.psbt", bytes.clone());
         let line = match &hex {
             Some(h) => {
-                self.put_outbox("sweep-final.txn", h.clone().into_bytes());
+                self.put_outbox_beside("sweep-final.txn", h.clone().into_bytes());
                 fill(EN.sweep_signed_final, &[&n])
             }
             None => fill(EN.sweep_signed_part, &[&n]),

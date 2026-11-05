@@ -2355,29 +2355,30 @@ impl Faraday {
             return;
         };
         let stem = result_stem(&s.spend.source);
-        let mut made: Vec<(String, Vec<u8>)> = Vec::new();
+        let mut made: Vec<(bool, String, Vec<u8>)> = Vec::new();
         if !s.out_signed {
             let Ok(bytes) = s.spend.out_bytes() else {
                 return self.toast(EN.spend_v2_not_written);
             };
             s.out_signed = true;
-            made.push((format!("{stem}-signed.psbt"), bytes));
+            made.push((true, format!("{stem}-signed.psbt"), bytes));
         }
         if !s.out_tx
             && let Some(hex) = s.spend.finished_hex()
         {
             s.out_tx = true;
-            made.push((format!("{stem}-final.txn"), hex.into_bytes()));
+            made.push((false, format!("{stem}-final.txn"), hex.into_bytes()));
         }
-        for (name, bytes) in made {
-            self.put_outbox(&name, bytes);
+        for (signed, name, bytes) in made {
+            let name = self.put_outbox_beside(&name, bytes);
+            if let Some(s) = self.wallets.spend_mut() {
+                if signed {
+                    s.out_names.signed = Some(name);
+                } else {
+                    s.out_names.tx = Some(name);
+                }
+            }
         }
-    }
-
-    /// The PSBT with what this pass added, For the stick for the other
-    /// signers while more are needed (`signing::part_out`).
-    fn part_out(&mut self) {
-        signing::part_out(self);
     }
 
     /// Costs a hash of a whole file (through `vault_changed`). The session
@@ -3849,7 +3850,7 @@ impl Faraday {
             Ok(k) => {
                 let name = format!("xpub-{}.txt", k.fp);
                 let bytes = format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text);
-                self.put_outbox(&name, bytes.into_bytes());
+                let name = self.put_outbox_beside(&name, bytes.into_bytes());
                 self.backup_sent(i, std::slice::from_ref(&name));
                 self.toast_out(&name);
             }
@@ -3862,7 +3863,7 @@ impl Faraday {
         match self.wallet_key_record(&c, i, slot) {
             Ok((fp, text)) => {
                 let name = format!("xpub-{fp}-bsms.txt");
-                self.put_outbox(&name, text.into_bytes());
+                let name = self.put_outbox_beside(&name, text.into_bytes());
                 self.backup_sent(i, std::slice::from_ref(&name));
                 self.toast_out(&name);
             }

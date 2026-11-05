@@ -66,7 +66,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // code of the finished transaction, or the PSBT's code.
     let mut items: Vec<(&str, Style, Action)> = Vec::new();
     if !wrong {
-        match made_place(app, &o.out.0) {
+        match o.out_name.as_deref().and_then(|n| made_place(app, n)) {
             Some((_, Some(i))) => {
                 items.push((EN.step_remove, Style::Ghost, Action::OutboxRemove(i)))
             }
@@ -100,7 +100,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Action::NonceCheck(crate::decode::CheckPress::Qr),
         ));
     }
-    if let Some((place, _)) = made_place(app, &o.out.0) {
+    if let Some((place, _)) = o.out_name.as_deref().and_then(|n| made_place(app, n)) {
         y += ui.wrap_as((x, y, w), BODY_S, Role::Ok, &place) + GAP;
     }
     y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + GAP;

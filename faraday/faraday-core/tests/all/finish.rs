@@ -27,8 +27,108 @@ fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     app
 }
 
+fn waiting(app: &Faraday, stem: &str) -> Vec<String> {
+    app.outbox
+        .iter()
+        .filter(|i| i.name.starts_with(stem))
+        .map(|i| i.name.clone())
+        .collect()
+}
+
+/// A signed PSBT put For the stick again makes no second file, and one
+/// that differs from the file of its name goes beside it.
+#[test]
+fn a_signed_psbt_goes_beside_a_different_file_of_its_name() {
+    let mut app = spending_finished();
+    assert_eq!(waiting(&app, "spend-signed"), ["spend-signed.psbt"]);
+    app.press(Action::SignedToOutbox);
+    assert_eq!(waiting(&app, "spend-signed"), ["spend-signed.psbt"]);
+    app.outbox
+        .iter_mut()
+        .find(|i| i.name == "spend-signed.psbt")
+        .unwrap()
+        .bytes = b"another".to_vec();
+    app.press(Action::SignedToOutbox);
+    assert_eq!(
+        waiting(&app, "spend-signed"),
+        ["spend-signed.psbt", "spend-signed-2.psbt"]
+    );
+}
+
+/// The part-signed PSBT of a transaction is replaced by the next pass of
+/// the same transaction; a different transaction's file of the name stays.
+#[test]
+fn a_part_signed_psbt_replaces_its_own_transaction_and_keeps_another() {
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let sign_with = |waiting_part: Vec<u8>| {
+        let mut app = faraday_core::testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: vec![
+                ("spend.psbt".to_string(), unsigned.to_bytes()),
+                (
+                    "savings-wallet.txt".to_string(),
+                    k.descriptor.clone().into_bytes(),
+                ),
+            ],
+            outbox: vec![("spend-part.psbt".to_string(), waiting_part)],
+            kept: Vec::new(),
+        });
+        app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+        add_key(&mut app, "zebra");
+        app.press(Action::StartSpend(at(&app, "spend.psbt")));
+        app.press(Action::SignHere);
+        app
+    };
+    let same = sign_with(unsigned.to_bytes());
+    assert_eq!(waiting(&same, "spend-part"), ["spend-part.psbt"]);
+    let other = sign_with(b"psbt of another transaction".to_vec());
+    assert_eq!(
+        waiting(&other, "spend-part"),
+        ["spend-part.psbt", "spend-part-2.psbt"]
+    );
+}
+
 fn at(app: &Faraday, name: &str) -> usize {
     app.inbox().iter().position(|i| i.name == name).unwrap()
+}
+
+/// A spend whose files went out beside another spend's of the same names
+/// offers Remove on its own files and not on the other's.
+#[test]
+fn a_second_spends_remove_takes_off_its_own_file() {
+    let k = kit("spending");
+    let psbt = testkit::unsigned(&k).unwrap();
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            ("spend.psbt".to_string(), psbt.to_bytes()),
+            ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
+        ],
+        outbox: vec![
+            ("spend-signed.psbt".to_string(), b"first spend".to_vec()),
+            ("spend-final.txn".to_string(), b"first spend".to_vec()),
+        ],
+        kept: Vec::new(),
+    });
+    app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
+    add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    app.press(Action::SignHere);
+    let index = |app: &Faraday, name: &str| app.outbox.iter().position(|i| i.name == name).unwrap();
+    let (first, own) = (
+        index(&app, "spend-signed.psbt"),
+        index(&app, "spend-signed-2.psbt"),
+    );
+    let (first_tx, own_tx) = (
+        index(&app, "spend-final.txn"),
+        index(&app, "spend-final-2.txn"),
+    );
+    let _ = app.frame();
+    assert!(app.offers(Action::OutboxRemove(own)));
+    assert!(app.offers(Action::OutboxRemove(own_tx)));
+    assert!(!app.offers(Action::OutboxRemove(first)));
+    assert!(!app.offers(Action::OutboxRemove(first_tx)));
 }
 
 /// Spending, signed and finished here with test key 1.

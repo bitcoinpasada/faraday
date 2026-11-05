@@ -192,7 +192,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], (psbt, signed): (Psbt, Result<Sign
     }
     if nonce_only {
         app.refresh_spend();
-        app.part_out();
+        part_out(app);
         if let Some(s) = app.wallets.spend_mut() {
             s.open = Some(wallet::step::NONCES);
             s.follow = true;
@@ -206,7 +206,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], (psbt, signed): (Psbt, Result<Sign
         .spend()
         .is_some_and(|s| s.spend.psbt.to_bytes() != before)
     {
-        app.part_out();
+        part_out(app);
     }
     if let Some(s) = app.wallets.spend_mut() {
         s.follow = true;
@@ -233,7 +233,7 @@ pub(crate) fn collect_end(app: &mut Faraday, before: &[u8], nothing: Option<&Str
         .spend()
         .is_some_and(|s| s.spend.psbt.to_bytes() != before)
     {
-        app.part_out();
+        part_out(app);
     }
     if let Some(s) = app.wallets.spend_mut() {
         s.follow = true;
@@ -244,24 +244,62 @@ pub(crate) fn collect_end(app: &mut Faraday, before: &[u8], nothing: Option<&Str
     }
 }
 
-/// The PSBT with what this pass added, For the stick for the other
+/// Costs a serialisation of the PSBT and a decode of it and of the file
+/// waiting. The PSBT with what this pass added, for the stick for the other
 /// signers while more are needed; once the spend is complete, the one sent
-/// before is taken back, as it is not the answer of a spend that needs no
-/// more.
+/// before is taken back.
 pub(crate) fn part_out(app: &mut Faraday) {
     let Some(s) = app.wallets.spend() else {
         return;
     };
-    let name = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
     if s.complete {
-        if app.outbox.iter().any(|i| i.name == name) {
+        // The part file this spend sent is not the answer of a spend that
+        // needs no more: it is taken back. Another file of its name stays.
+        if let Some(name) = s.out_names.part.clone()
+            && app.outbox.iter().any(|i| i.name == name)
+        {
             app.outbox.retain(|i| i.name != name);
             app.save_boxes();
         }
         return;
     }
+    // The file this spend put before, else the fixed name.
+    let name = s
+        .out_names
+        .part
+        .clone()
+        .unwrap_or_else(|| format!("{}-part.psbt", crate::result_stem(&s.spend.source)));
     let Ok(bytes) = s.spend.out_bytes() else {
         return app.toast(EN.spend_v2_not_written);
     };
-    app.put_outbox(&name, bytes);
+    // A pass of the same transaction replaces the file waiting; a
+    // different transaction of the name goes beside it.
+    let c = app.compute();
+    let waiting = app
+        .outbox
+        .iter()
+        .find(|i| i.name == name)
+        .and_then(|w| unsigned_tx_of(&c, &w.bytes));
+    let same = waiting.is_some() && waiting == unsigned_tx_of(&c, &bytes);
+    let name = if same {
+        app.put_outbox(&name, bytes);
+        name
+    } else {
+        app.put_outbox_beside(&name, bytes)
+    };
+    if let Some(s) = app.wallets.spend_mut() {
+        s.out_names.part = Some(name);
+    }
+}
+
+/// Costs a decode of a PSBT. The unsigned transaction a PSBT file (either
+/// version) carries, `None` for bytes that are not one.
+fn unsigned_tx_of(c: &Compute, bytes: &[u8]) -> Option<faraday_psbt::bitcoin::Transaction> {
+    if let Ok(p) = faraday_psbt::Psbt::parse_bytes(c, bytes) {
+        return Some(p.unsigned_tx().clone());
+    }
+    faraday_psbt::v2::PsbtV2::parse_bytes(c, bytes)
+        .ok()?
+        .unsigned_tx()
+        .ok()
 }

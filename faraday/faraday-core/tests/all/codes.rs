@@ -298,6 +298,56 @@ fn a_signed_message_reads_back_from_its_code_and_its_picture() {
     reads_back(&mut app, Code::Message, &format!("{name}.png"), &want);
 }
 
+/// A second message from one address goes beside the first, and the
+/// toast names the new file.
+#[test]
+fn a_second_message_from_one_address_goes_beside_the_first() {
+    let c = testkit::compute();
+    let mut app = testkit::started();
+    app.session = testkit::session();
+    app.session
+        .keys
+        .add_words(
+            &c,
+            &testkit::test_words(testkit::TEST_SEEDS[0].0),
+            "Bacon",
+            None,
+        )
+        .expect("the key");
+    let spending = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    app.session
+        .add_wallet(
+            &c,
+            spending.name,
+            &spending.descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("the wallet");
+    app.press(Action::SignMessage);
+    for text in ["First", "Second"] {
+        testkit::message_text(&mut app, text);
+        // Signing puts the message For the stick.
+        app.press(Action::MSign);
+    }
+    app.press(Action::MStep(faraday_core::mstep::SIGN));
+    let _ = app.frame();
+    let own = app
+        .outbox
+        .iter()
+        .position(|i| i.name.ends_with("-2.txt"))
+        .unwrap();
+    assert!(app.offers(Action::OutboxRemove(own)));
+    assert!(!app.offers(Action::OutboxRemove(0)), "the first's file");
+    let names: Vec<&String> = app.outbox.iter().map(|i| &i.name).collect();
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert!(names[1].ends_with("-2.txt"), "{names:?}");
+    assert!(app.toast_text().unwrap().contains(names[1].as_str()));
+}
+
 /// An app with a new GPG key in the open test vault, its certificate
 /// and revocation in the Outbox, and a file in the Inbox to sign.
 fn with_gpg_key() -> Faraday {

@@ -1285,7 +1285,7 @@ impl Faraday {
                             self.open_qr(view);
                         } else {
                             let name = format!("xpub-{fp}.txt");
-                            self.put_outbox(
+                            let name = self.put_outbox_beside(
                                 &name,
                                 format!("# Account xpub {fp}, {kind}\n{text}\n").into_bytes(),
                             );
@@ -1298,7 +1298,7 @@ impl Faraday {
             Action::CKeyBsms(k) => match self.create_key_bsms(c, k) {
                 Some((fpt, text)) => {
                     let name = format!("xpub-{fpt}-bsms.txt");
-                    self.put_outbox(&name, text.into_bytes());
+                    let name = self.put_outbox_beside(&name, text.into_bytes());
                     self.toast_out(&name);
                 }
                 None => self.toast(EN.act_bip_129_covers),

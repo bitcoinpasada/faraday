@@ -2793,6 +2793,17 @@ pub fn musig_nonces(
         .collect()
 }
 
+/// The names a spend's files went out under (`None` until put there).
+#[derive(Default, Clone, Debug)]
+pub struct OutNames {
+    /// The signed PSBT.
+    pub signed: Option<String>,
+    /// The finished transaction.
+    pub tx: Option<String>,
+    /// The part-signed PSBT.
+    pub part: Option<String>,
+}
+
 /// A transaction being signed, with its screen's state.
 pub struct SpendState {
     /// The spend.
@@ -2829,6 +2840,10 @@ pub struct SpendState {
     pub out_signed: bool,
     /// The finished transaction went to the Outbox.
     pub out_tx: bool,
+    /// The names this spend's files went out under, beside any other
+    /// transaction's file of the name: the signed PSBT, the finished
+    /// transaction and the part-signed PSBT.
+    pub out_names: OutNames,
     /// The finished transaction's hex is shown.
     pub show_hex: bool,
     /// The last nonce check, with the PSBT bytes it was made over: it
@@ -2901,6 +2916,7 @@ impl SpendState {
             failed: Vec::new(),
             out_signed: false,
             out_tx: false,
+            out_names: OutNames::default(),
             show_hex: false,
             nonce_check: Default::default(),
             scroll: 0.0,
@@ -3437,7 +3453,10 @@ impl Faraday {
                         return self.toast(EN.spend_v2_not_written);
                     };
                     s.out_signed = true;
-                    self.put_outbox(&name, bytes);
+                    let name = self.put_outbox_beside(&name, bytes);
+                    if let Some(s) = self.wallets.spend_mut() {
+                        s.out_names.signed = Some(name);
+                    }
                 }
             }
             Action::TxToOutbox => {
@@ -3446,7 +3465,10 @@ impl Faraday {
                 {
                     let name = format!("{}-final.txn", result_stem(&s.spend.source));
                     s.out_tx = true;
-                    self.put_outbox(&name, hex.into_bytes());
+                    let name = self.put_outbox_beside(&name, hex.into_bytes());
+                    if let Some(s) = self.wallets.spend_mut() {
+                        s.out_names.tx = Some(name);
+                    }
                 }
             }
             Action::Primary => self.primary(),

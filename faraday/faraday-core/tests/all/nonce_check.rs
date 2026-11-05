@@ -213,6 +213,35 @@ fn a_psbt_signed_elsewhere_is_checked_valid_and_its_nonces_need_that_device() {
     let _ = app.frame();
 }
 
+/// A checked transaction whose file went beside another check's of the
+/// same name offers Remove on its own file, and a check not yet saved
+/// offers Save and not Remove on a file of its name that is not its.
+#[test]
+fn a_second_checks_remove_takes_off_its_own_file() {
+    let mut app = with_inbox(vec![(
+        "seedsigner.psbt",
+        signed_elsewhere(How::LowR).to_bytes(),
+    )]);
+    checked(&mut app);
+    app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Out));
+    app.outbox[0].bytes = b"another file".to_vec();
+    checked(&mut app);
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::OutboxRemove(0)),
+        "the file of the name is not this check's"
+    );
+    app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Out));
+    let own = app
+        .outbox
+        .iter()
+        .position(|i| i.name == "seedsigner-2.psbt")
+        .expect("beside the other");
+    let _ = app.frame();
+    assert!(app.offers(Action::OutboxRemove(own)));
+    assert!(!app.offers(Action::OutboxRemove(0)));
+}
+
 #[test]
 fn with_the_other_signers_seed_loaded_here_each_signature_is_recomputed() {
     for how in [How::LowR, How::First] {

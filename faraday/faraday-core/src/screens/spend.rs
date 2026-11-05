@@ -1324,8 +1324,9 @@ pub(crate) fn step_body(
                 }
             }
             if !complete {
-                let part = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
-                cy += made_line(app, ui, x, cy, w, &part);
+                if let Some(part) = s.out_names.part.as_deref() {
+                    cy += made_line(app, ui, x, cy, w, part);
+                }
                 cy += wrap_buttons(
                     ui,
                     x,
@@ -1374,11 +1375,13 @@ pub(crate) fn step_body(
                 // Side by side where each card's head, its place and its
                 // buttons fit its half; on a small panel, or where the
                 // text size leaves them no room, one under the other.
-                let stem = crate::result_stem(&s.spend.source);
                 use faraday_draw::tokens::{BUTTON_PAD, FINISH_CARD_GAP, FINISH_CARD_INSET, GAP};
                 let side = (w - FINISH_CARD_GAP) / 2.0 - 2.0 * FINISH_CARD_INSET;
-                let fits = |ui: &Ui, head: &str, file: String| {
-                    let tag = made_place(app, &file).map_or(0.0, |(t, _)| {
+                // Where each result went, under the name it went out as.
+                let signed_file = s.out_names.signed.clone().unwrap_or_default();
+                let tx_file = s.out_names.tx.clone().unwrap_or_default();
+                let fits = |ui: &Ui, head: &str, file: &str| {
+                    let tag = made_place(app, file).map_or(0.0, |(t, _)| {
                         ui.measure_as(LABEL_M, &t) + faraday_draw::tokens::GAP_SMALL
                     });
                     ui.measure_as(TITLE_S, head) + tag <= side
@@ -1390,25 +1393,21 @@ pub(crate) fn step_body(
                     + GAP;
                 let compact = ui.compact
                     || buttons > side
-                    || !fits(ui, EN.step_signed_psbt, format!("{stem}-signed.psbt"))
-                    || !fits(
-                        ui,
-                        EN.step_finished_transaction,
-                        format!("{stem}-final.txn"),
-                    );
+                    || !fits(ui, EN.step_signed_psbt, &signed_file)
+                    || !fits(ui, EN.step_finished_transaction, &tx_file);
                 let half = if compact { w } else { (w - 12.0) / 2.0 };
                 let mut card_y = cy;
                 for (k, (head, sub, file, action)) in [
                     (
                         EN.step_signed_psbt,
                         EN.step_for_the_wallet,
-                        format!("{stem}-signed.psbt"),
+                        &signed_file,
                         Action::SignedToOutbox,
                     ),
                     (
                         EN.step_finished_transaction,
                         EN.step_ready_to_broadcast,
-                        format!("{stem}-final.txn"),
+                        &tx_file,
                         Action::TxToOutbox,
                     ),
                 ]
@@ -1461,7 +1460,9 @@ pub(crate) fn step_body(
                     let sub = ui.fit_as(BODY_S, sub, half - 28.0);
                     ui.text_as(bx + 14.0, cy + 38.0, BODY_S, Role::OnSurfaceVariant, &sub);
                     let detail = if k == 0 {
-                        format!("{}-signed.psbt", crate::result_stem(&s.spend.source))
+                        s.out_names.signed.clone().unwrap_or_else(|| {
+                            format!("{}-signed.psbt", crate::result_stem(&s.spend.source))
+                        })
                     } else {
                         let Some(tx) = s.spend.finished.as_ref() else {
                             continue;
@@ -1607,8 +1608,9 @@ pub(crate) fn step_body(
                 if !items.is_empty() {
                     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 2.0;
                 }
-                let part = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
-                cy += made_line(app, ui, x, cy, w, &part);
+                if let Some(part) = s.out_names.part.as_deref() {
+                    cy += made_line(app, ui, x, cy, w, part);
+                }
                 let others_in = rows.iter().filter(|r| !r.2).all(|r| r.3);
                 let mine_in = rows.iter().filter(|r| r.2).all(|r| r.3);
                 cy += wrap_buttons(

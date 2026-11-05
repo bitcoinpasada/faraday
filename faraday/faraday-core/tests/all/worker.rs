@@ -1479,5 +1479,45 @@ mod signing {
             }
             panic!("the round did not complete");
         }
+
+        /// A completed aggregation takes off the stick its own part-signed
+        /// file and no other transaction's of the same name.
+        #[test]
+        fn a_completed_aggregation_removes_only_its_own_part_file() {
+            let mut app = device(true);
+            app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            app.press(Action::SignHere);
+            for i in nonce_copies(&app) {
+                app.press(Action::Collect(i));
+            }
+            app.press(Action::SignHere);
+            let partials: Vec<usize> = app
+                .inbox()
+                .iter()
+                .enumerate()
+                .filter(|(_, i)| i.name.starts_with("musig-partial-"))
+                .map(|(i, _)| i)
+                .collect();
+            // The file of that name now belongs to another transaction.
+            for o in app
+                .outbox
+                .iter_mut()
+                .filter(|o| o.name == "musig-part.psbt")
+            {
+                o.bytes = b"psbt of another transaction".to_vec();
+            }
+            app.press(Action::Collect(partials[0]));
+            let names = |app: &Faraday| -> Vec<String> {
+                app.outbox
+                    .iter()
+                    .filter(|o| o.name.starts_with("musig-part"))
+                    .map(|o| o.name.clone())
+                    .collect()
+            };
+            assert_eq!(names(&app), ["musig-part.psbt", "musig-part-2.psbt"]);
+            app.press(Action::Collect(partials[1]));
+            assert!(app.spend().unwrap().complete, "the aggregation completed");
+            assert_eq!(names(&app), ["musig-part.psbt"]);
+        }
     }
 }

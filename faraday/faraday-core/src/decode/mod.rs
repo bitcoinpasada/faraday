@@ -297,6 +297,9 @@ pub struct OutsideCheck {
     pub finished: Option<Transaction>,
     /// The finished transaction in hex, kept with it.
     pub hex: Option<String>,
+    /// The name the file went out under, beside any other file of its name;
+    /// `None` until Save to a stick.
+    pub out_name: Option<String>,
     /// The file Save to a stick puts For the stick: its name and bytes.
     pub out: (String, Vec<u8>),
     /// The screen its back link returns to.
@@ -616,6 +619,7 @@ impl Faraday {
             finished,
             hex,
             out,
+            out_name: None,
             back,
             show_hex: false,
             made_with: self.session.inspect_inputs(),
@@ -679,7 +683,10 @@ impl Faraday {
                     && !o.check.refused(o.hex.is_some())
                 {
                     let (name, bytes) = o.out.clone();
-                    self.put_outbox(&name, bytes);
+                    let name = self.put_outbox_beside(&name, bytes);
+                    if let Some(o) = self.decode.outside.as_mut() {
+                        o.out_name = Some(name.clone());
+                    }
                     self.toast_out(&name);
                 }
             }

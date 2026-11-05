@@ -407,3 +407,19 @@ fn a_fee_that_cannot_be_worked_out_is_not_shown_as_nothing() {
     let r = app.sweep().unwrap().review.as_ref().expect("reviewed");
     assert_eq!(r.fee, format!("Fee: {}", EN.step_fee_not_known));
 }
+
+/// A second sweep's signed transaction goes beside the first, not over it.
+#[test]
+fn two_sweeps_leave_both_signed_transactions_in_the_outbox() {
+    let mut app = swept(WIF);
+    for amount in [90_000, 80_000] {
+        let psbt = sweep_psbt(&app, &[(receive(&app, 3), amount)]);
+        app.press(Action::Sweep(S::Scan));
+        read(&mut app, psbt.to_base64().as_bytes());
+        app.press(Action::Sweep(S::Hold));
+        assert!(app.sweep().unwrap().signed.is_some());
+    }
+    let names: Vec<&str> = app.outbox.iter().map(|i| i.name.as_str()).collect();
+    assert!(names.contains(&"sweep-signed.psbt") && names.contains(&"sweep-signed-2.psbt"));
+    assert!(names.contains(&"sweep-final.txn") && names.contains(&"sweep-final-2.txn"));
+}

@@ -623,6 +623,8 @@ pub struct MessageState {
     pub bip322: bool,
     /// The signature, once made.
     pub signed: Option<faraday_psbt::message::Signed>,
+    /// The name the signed message's file went out under.
+    pub out_name: Option<String>,
     /// The last refusal.
     pub error: Option<String>,
 }
@@ -843,6 +845,7 @@ impl Faraday {
                     match self.session.sign_message(c, w, m.index, &m.text, format) {
                         Ok(signed) => {
                             m.signed = Some(signed);
+                            m.out_name = None;
                             m.error = None;
                             m.done[mstep::SIGN as usize] = true;
                         }
@@ -870,7 +873,10 @@ impl Faraday {
                             "message-{}.txt",
                             &sig.address[sig.address.len().saturating_sub(6)..]
                         );
-                        self.put_outbox(&name, text.into_bytes());
+                        let name = self.put_outbox_beside(&name, text.into_bytes());
+                        if let Some(m) = self.message.state.as_mut() {
+                            m.out_name = Some(name.clone());
+                        }
                         self.toast_out(&name);
                     } else {
                         let view = self.code_view(c, Code::Message);
