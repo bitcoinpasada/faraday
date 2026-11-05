@@ -28,6 +28,11 @@ ignore = [
     # faces it opens are the ones committed here. Named by advisory id,
     # so a defect reported against the same crate still fails.
     { id = "RUSTSEC-2026-0192", reason = "build tool and desktop only; the faces are committed here" },
+    # RUSTSEC-2026-0441: pin-utils is unmaintained, its repository archived.
+    # It is reached only by `nix` 0.26 under `rustbus` 0.19.3, the newest
+    # release, in the Linux Starter's bus client. No device binary links it.
+    # Named by advisory id, so a defect reported against it still fails.
+    { id = "RUSTSEC-2026-0441", reason = "Linux Starter only, through rustbus; no newer rustbus drops it" },
     # RUSTSEC-2023-0071 ("Marvin"): the timing of `rsa`'s private-key
     # operation can leak the key. Faraday never decrypts with RSA, and it
     # signs with blinding (`faraday-sb` `x509::sign`, fresh system bytes).
