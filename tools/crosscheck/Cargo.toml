@@ -26,6 +26,8 @@ faraday-psbt = { path = "../../core/faraday-psbt" }
 # reads it (`wallet::read_wallet`).
 faraday-intake = { path = "../../faraday/faraday-intake" }
 faraday-vault = { path = "../../faraday/faraday-vault" }
+# The OpenPGP message's size (`RANDOM_LEN`) the QR vault seals with.
+faraday-pgp = { path = "../../faraday/faraday-pgp" }
 # The session's fresh randomness and what a person adds of their own
 # (`fresh.rs`, docs/OWN-RANDOMNESS.md §2.3), driven through the testkit
 # as the app's tests drive it; never in a shipped binary, as this

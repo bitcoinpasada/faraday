@@ -20,6 +20,7 @@ does what is `tools/README.md`'s.
 | `cargo-vet-fuzz` | just lint | `cargo vet --locked --manifest-path fuzz/Cargo.toml --store-path supply-chain` | the same, for the core fuzz workspace | - | built |
 | `cargo-vet-faraday-fuzz` | just lint | `cargo vet --locked --manifest-path faraday/fuzz/Cargo.toml --store-path supply-chain` | the same, for faraday's fuzz workspace | - | built |
 | `cargo-vet-crosscheck-keepass-rs` | just lint | `cargo vet --locked --manifest-path tools/crosscheck/keepass-rs/Cargo.toml --store-path supply-chain` | the same, for the keepass-rs cross-check workspace | - | built |
+| `cargo-vet-crosscheck-rpgp` | just lint | `cargo vet --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml --store-path supply-chain` | the same, for the rPGP cross-check workspace | - | built |
 | `cargo-fmt` | just lint | `cargo fmt --all --check` | formatting | - | built |
 | `lint-secrets` | just lint | `tools/lint-secrets.sh` | printing or Debug of secret types, heap text in the files that hold secrets, key material outside faraday-keys (rule 4) | a file that starts to hold secrets and is not yet in SECRET_FILES | built |
 | `lint-strings` | just lint | `tools/lint-strings.sh` | a wording literal in screen code; a string no code uses; an untidy string | Learn pages and the self-test's check names, by rule | built |
@@ -228,7 +229,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `deps.vetted`: every dependency passes cargo vet and cargo deny | `**/Cargo.toml`<br>`Cargo.lock` | held | - | `cargo-vet`, `cargo-vet-fuzz`, `cargo-vet-faraday-fuzz`, `cargo-vet-crosscheck-keepass-rs`, `cargo-deny` | - | `CLAUDE.md`<br>`docs/decisions/F71.md` |
+| `deps.vetted`: every dependency passes cargo vet and cargo deny | `**/Cargo.toml`<br>`Cargo.lock` | held | - | `cargo-vet`, `cargo-vet-fuzz`, `cargo-vet-faraday-fuzz`, `cargo-vet-crosscheck-keepass-rs`, `cargo-vet-crosscheck-rpgp`, `cargo-deny` | - | `CLAUDE.md`<br>`docs/decisions/F71.md` |
 | `deps.page`: a direct dependency added has its page in docs/deps/ | `**/Cargo.toml`<br>lines matching `^\+(?!(name\|version\|edition\|license\|description\|publish\|rust-version\|authors\|default-run\|default-features\|features\|resolver\|members\|repository\|readme\|exclude\|include\|build\|path\|harness\|test\|bench\|doc\|crate-type\|required-features\|workspace\|optional\|package\|git\|branch\|rev\|tag)\b)(?!.*\bpath\s*=)[a-z][a-z0-9_-]*\s*=\s*(\{\|")` | pair | `docs/deps/*.md` | - | a version bump of an existing dependency also matches; the page of the new name is not matched by name; a path dependency on a workspace crate has no page and is not matched | `docs/decisions/F71.md` |
 | `deps.locked`: builds and checks pass --locked | `justfile`<br>`faraday/faraday.just`<br>`**/*.sh`<br>lines matching `^\+.*\bcargo (build\|test\|run\|nextest\|clippy\|check\|doc)\b(?!.*--locked)` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F71.md` |
 

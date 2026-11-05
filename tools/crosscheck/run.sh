@@ -137,10 +137,10 @@ for line in sys.stdin:
     export FARADAY_SOFT_RUST="$soft_exe" FARADAY_LND_SOFT_REF="$PWD/$progress/lnd-ref-soft"
 fi
 
-# The Rust answer programs of the codex32 area, built offline from the
-# vendored crates of their own (outside the workspace, never shipped):
-# rust-codex32's over tools/reference/rust-codex32/ and volvelle-website's
-# checksum worksheet over tools/vectors/codex32-volvelle/harness/.
+# The Rust answer programs of the codex32 area, built with --frozen from the
+# Cargo.lock of their own (outside the workspace, never shipped): rust-codex32's over
+# tools/reference/rust-codex32/ and volvelle-website's checksum worksheet over
+# tools/vectors/codex32-volvelle/harness/.
 for prog in "rust-codex32-ref tools/reference/rust-codex32 rust-codex32-answers" \
         "volvelle-ref tools/vectors/codex32-volvelle/harness volvelle-cells"; do
     read -r name dir bin <<<"$prog"
@@ -154,6 +154,20 @@ for prog in "rust-codex32-ref tools/reference/rust-codex32 rust-codex32-answers"
     cp "$progress/rust-target-$name/debug/$bin" "$progress/$name"
     say "build: $name done"
 done
+
+# rPGP as the QR vault's outside sealer and reader (area qrvault; F193
+# point 1): its own workspace, tools/crosscheck/rpgp/, built here from its
+# Cargo.lock and never reaching an app. Its crates are fetched beforehand
+# (cargo fetch --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml).
+say "build: rPGP's program (cargo build --frozen, tools/crosscheck/rpgp)"
+if ! CARGO_TARGET_DIR="$PWD/$progress/rust-target-rpgp-ref" cargo build --frozen -q \
+        --manifest-path tools/crosscheck/rpgp/Cargo.toml 2>"$progress/cargo-rpgp-ref.log"; then
+    cat "$progress/cargo-rpgp-ref.log" >&2
+    say "build: FAILED: rPGP's program did not build (fetch its crates first: docs/DEVELOPING.md)"
+    exit 2
+fi
+cp "$progress/rust-target-rpgp-ref/debug/faraday-crosscheck-rpgp" "$progress/rpgp-ref"
+say "build: rPGP's program done"
 
 # The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
 # rule 4): the tests that skip without an outside tool under plain `just`

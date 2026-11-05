@@ -16,6 +16,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import tomllib
 
 # (tool, the package that has it on Debian or Ubuntu, the version command;
 # None where the tool has none and the package's version stands for it)
@@ -151,6 +152,27 @@ def pyotp_version():
     return got.stdout.strip() if got.returncode == 0 and got.stdout.strip() else "unknown"
 
 
+def pyca_version():
+    """PyCA cryptography's version and the OpenSSL under it (the qrvault and kdbx areas'
+    primitive judge), or None when Python cannot import it."""
+    code = ("import cryptography;"
+            "from cryptography.hazmat.backends.openssl import backend as b;"
+            "print(cryptography.__version__, 'over', b.openssl_version_text())")
+    got = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
+    return got.stdout.strip() if got.returncode == 0 and got.stdout.strip() else None
+
+
+def rpgp_version():
+    """The `pgp` crate's version in the Cargo.lock of the program the qrvault area builds
+    (tools/crosscheck/rpgp/), or None."""
+    try:
+        root = pathlib.Path(__file__).resolve().parents[2]
+        lock = tomllib.loads((root / "tools/crosscheck/rpgp/Cargo.lock").read_text())
+    except (OSError, ValueError):
+        return None
+    return next((p["version"] for p in lock.get("package", []) if p["name"] == "pgp"), None)
+
+
 def missing():
     out = [f"{tool} (package {pkg})" for tool, pkg, _ in TOOLS if not find(tool)]
     if find("sq") and "cryptographic backend Nettle" not in (sq_backend() or ""):
@@ -188,6 +210,8 @@ def versions():
     lines.append(f"python3-zxing-cpp {zxingcpp_version() or 'missing'}")
     lines.append(f"python3-cbor2 {cbor2_version() or 'missing'}")
     lines.append(f"python3-pyotp {pyotp_version() or 'missing'}")
+    lines.append(f"python3-cryptography {pyca_version() or 'missing'}")
+    lines.append(f"rpgp (pgp crate, tools/crosscheck/rpgp/Cargo.lock) {rpgp_version() or 'missing'}")
     code = ovmf()
     if code:
         digest = subprocess.run(["sha256sum", code],

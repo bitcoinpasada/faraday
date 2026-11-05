@@ -18,6 +18,10 @@ by hand, the fuzz run before a release (§8), and nothing else.
   vendored `tools/reference/rust-codex32/` (rust-codex32) and
   `tools/vectors/codex32-volvelle/harness/` (volvelle's worksheet), offline
   with `cargo build --frozen`: the toolchain above is all they need.
+  Its `qrvault` area builds a third, `tools/crosscheck/rpgp/` (rPGP, the
+  `pgp` crate, pinned by its own `Cargo.lock`, outside the workspace), also
+  with `--frozen`; that one has crates to fetch, once beforehand:
+  `cargo fetch --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml`.
 - **just** (the task runner) and, for the check, `cargo install --locked
   cargo-nextest cargo-deny cargo-vet`, and the two Mac targets, `rustup
   target add aarch64-apple-darwin x86_64-apple-darwin`
@@ -68,7 +72,7 @@ by hand, the fuzz run before a release (§8), and nothing else.
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
 - **GnuPG 2.4, paperkey 1.6, Sequoia's `sq` 1.3 built over Nettle, OpenSSL, sbsigntool** (`sbverify`), **GnuTLS's
   `certtool`, pesign** (`pesign`, `pesigcheck`) and **python3-pefile**: the
-  GPG, Secure Boot and QR vault tests run these tools against Faraday's files. A
+  GPG, Secure Boot and QR vault tests run these tools against Faraday's files (the `qrvault` area also asks `sq` to open a QR vault and checks that Faraday refuses what `sq` writes; rPGP's output is `rpgp-ref` in the run's progress folder). A
   missing GnuPG, paperkey, `sq`, OpenSSL or sbverify fails them, and so does
   an `sq` whose `sq version` does not say "cryptographic backend Nettle"; a missing
   `certtool`, pesign or pefile skips its test with a note in `just` and

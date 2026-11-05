@@ -27,6 +27,7 @@
   once during review; that is not reproducible here.
 
 RFC 9580 gives no vector for the Argon2 S2K with AES-256 and OCB in a
-version 6 packet together; checking that pairing against Sequoia,
-OpenPGP.js and rPGP in both directions is planned in the F79 area
-`vault` and not done.
+version 6 packet together; that pairing is checked in the F79 area
+`qrvault`: Faraday's seals opened by Sequoia's `sq`, rPGP and a PyCA judge
+(OpenSSL's Argon2id, HKDF-SHA-256 and AES-256-OCB), and rPGP's and the
+judge's seals opened by Faraday. OpenPGP.js is not run.

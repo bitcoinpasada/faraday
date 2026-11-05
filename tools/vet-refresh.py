@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """`just vet-refresh`: fetch the imported audit sets, prune what they now
-cover, and keep the exemptions the fuzz workspaces and the keepass-rs
+cover, and keep the exemptions the fuzz workspaces, the keepass-rs and the rPGP
 cross-check workspace still need (F71).
 
 cargo vet sees one workspace at a time. `fuzz/` and `faraday/fuzz/` are
@@ -36,6 +36,7 @@ FUZZ = [
     "fuzz/Cargo.toml",
     "faraday/fuzz/Cargo.toml",
     "tools/crosscheck/keepass-rs/Cargo.toml",
+    "tools/crosscheck/rpgp/Cargo.toml",
 ]
 
 

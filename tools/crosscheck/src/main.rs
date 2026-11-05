@@ -31,6 +31,7 @@ mod musig;
 mod own;
 mod parts;
 mod psbt;
+mod qrvault;
 mod review;
 mod roller;
 mod seedqr;
@@ -89,6 +90,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "totp" => totp::handle(name, req),
         "ur" => ur::handle(name, req),
         "vanity" => vanity::handle(name, req),
+        "qrvault" => qrvault::handle(name, req),
         "lightning" => lightning::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }

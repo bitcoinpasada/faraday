@@ -204,10 +204,10 @@ Read this table, then only the decision you need.
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
 | [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
-| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207 and F208 | security |
+| [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207, F208 and F211 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
-| [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 | crypto |
-| [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Active | crypto |
+| [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 and F211 | crypto |
+| [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Amended by F211 | crypto |
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Active | security |
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
 | [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Active | repository |
@@ -225,3 +225,4 @@ Read this table, then only the decision you need.
 | [F208](decisions/F208.md) | A file vault takes a key file, and a KeePassXC file protected by a YubiKey opens from that key's typed secret | 2026-11-04 | Active | security |
 | [F209](decisions/F209.md) | Check a signer carries the step card's touch-target exception | 2026-11-04 | Active | design |
 | [F210](decisions/F210.md) | The fuzz run before a release may run on GitHub Actions, started by hand, under F183's limits | 2026-11-04 | Active | repository |
+| [F211](decisions/F211.md) | The QR vault's judges: PyCA's primitives, sq reads only and shares Argon2, rPGP the only outside sealer | 2026-11-04 | Active | crypto |

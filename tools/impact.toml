@@ -42,6 +42,12 @@ stage = "just lint"
 catches = "the same, for the keepass-rs cross-check workspace"
 
 [[check]]
+id = "cargo-vet-crosscheck-rpgp"
+run = "cargo vet --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml --store-path supply-chain"
+stage = "just lint"
+catches = "the same, for the rPGP cross-check workspace"
+
+[[check]]
 id = "cargo-fmt"
 run = "cargo fmt --all --check"
 stage = "just lint"
@@ -1128,7 +1134,7 @@ title = "every dependency passes cargo vet and cargo deny"
 source = ["CLAUDE.md", "docs/decisions/F71.md"]
 when = ["**/Cargo.toml", "Cargo.lock"]
 kind = "held"
-held_by = ["cargo-vet", "cargo-vet-fuzz", "cargo-vet-faraday-fuzz", "cargo-vet-crosscheck-keepass-rs", "cargo-deny"]
+held_by = ["cargo-vet", "cargo-vet-fuzz", "cargo-vet-faraday-fuzz", "cargo-vet-crosscheck-keepass-rs", "cargo-vet-crosscheck-rpgp", "cargo-deny"]
 
 [[rule]]
 id = "deps.page"

@@ -1,0 +1,24 @@
+[package]
+name = "faraday-crosscheck-rpgp"
+version = "0.1.0"
+description = "rPGP seals and opens a QR vault for the cross-check's qrvault area; test-only, never shipped (F190 point 11, docs/VAULT.md section 10)"
+edition = "2024"
+license = "MIT"
+publish = false
+
+# Its own workspace, excluded from the root one: rPGP and what it brings
+# stay out of the shipped crates' lock file. It is under `cargo vet`
+# all the same (`just lint-deps`), and outside the root workspace only
+# because it has this [workspace] of its own.
+[workspace]
+
+[dependencies]
+pgp = "0.21"
+rand = "0.8"
+
+[lints.clippy]
+too_many_lines = "warn"
+
+# Argon2 at 64 MiB is too slow unoptimised for a run of seals.
+[profile.dev]
+opt-level = 3

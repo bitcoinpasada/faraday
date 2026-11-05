@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189; F208); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size (one of four, until F206 is built) and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), the QR vault in the app (§1.2, §2.1: its create and unlock and its code), and the outside cross-check area for the QR vault (§10)
+**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), and the QR vault in the app (§1.2, §2.1: its create and unlock and its code)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -1096,14 +1096,11 @@ compressed packet, data after the SEIPD), written byte for byte by
 (`tests/qr.rs`) reads them and refuses the four, and `open.py` with Sequoia
 opens the seven vaults.
 
-Planned and not built (**Open**): the cross-check area `vault`
-(F79) taken to the rest of the formats: Faraday's KDBX against keepass-rs
-and its OpenPGP against Sequoia (`sq`, or its Python binding pysequoia),
-OpenPGP.js and rPGP, both ways (the Rust crates as test-only
-dependencies, never in what ships): each opens the files the other made
-(F190 point 11). Built: the area's KDBX cases against pykeepass and
-`keepassxc-cli`, both ways: Faraday's files (every kind of §7, a TOTP
-entry, a seal over each) are to open in both with every field, group and
+The cross-check area `vault` (F79) takes Faraday's KDBX to pykeepass,
+`keepassxc-cli` and keepass-rs (a test-only dependency, never in what
+ships), both ways: each opens the files the other made (F190 point 11).
+Faraday's files (every kind of §7, a TOTP
+entry, a seal over each) are to open in pykeepass and `keepassxc-cli` with every field, group and
 attachment; files they make are to open in Faraday with the same fields,
 and Faraday's next seal to keep all that the file held, an entry's history
 and the recycle bin among it; each reader is to refuse a
@@ -1111,12 +1108,23 @@ wrong passphrase, a changed byte and, where Faraday's NFC form differs
 from the typed one, the NFD form; every file of `tools/vectors/vault/`
 is read by both. KeePassXC ends a protected value at its first NUL, which
 Faraday keeps, so such a Password reads shorter there (a known difference,
-counted). Today for the QR vault the area checks §7's payload
-layouts, a passphrase's NFC form and Argon2id. Sequoia's default
+counted).
+
+The QR vault's OpenPGP has its own area, `qrvault` (built, F211): Faraday's seals
+opened by `sq`, by rPGP and by a PyCA judge, and rPGP's and the judge's
+opened by Faraday. `sq` judges the primitives except Argon2, which it
+takes from the RustCrypto crate the app uses; rPGP, a program of its
+own (`tools/crosscheck/rpgp/`, outside the workspace and never shipped),
+runs RustCrypto too and judges the format only; the judge is PyCA
+cryptography's Argon2id, HKDF-SHA-256 and AES-256-OCB over OpenSSL, under
+an OpenPGP framing the area writes from §1.2 (Faraday's second version,
+not another program's) that accepts nothing but a QR vault. OpenPGP.js is
+left out of it. Sequoia's default
 passphrase encryption writes the older packets (a SKESK v4 and a SEIPD
-v1, without Argon2), which a QR vault refuses (§1.2): the area makes
-Sequoia's files under its RFC 9580 profile, and §10's commands for `sq`
-say to. Measured (2026-11-02): OpenPGP.js 6.1.0 made a QR vault of the
+v1, without Argon2), which a QR vault refuses (§1.2): `sq` 1.3.1
+writes only those two packets for a password, under either profile
+(`--profile rfc9580` included), so it cannot seal a QR vault, and the
+area `qrvault` asserts that Faraday refuses what it writes. Measured (2026-11-02): OpenPGP.js 6.1.0 made a QR vault of the
 226-byte plaintext of §2.1 at 64 MiB, 3 passes and 4 lanes in 396 bytes,
 a SKESK v6 and a SEIPD v2, QR version 15 at medium error correction, and
 Sequoia (pysequoia 0.1.36) opened it to the same plaintext.

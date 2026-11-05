@@ -59,6 +59,9 @@ lint-deps:
     # The keepass-rs cross-check crate is a workspace of its own too
     # (docs/deps/keepass.md).
     cargo vet --locked --manifest-path tools/crosscheck/keepass-rs/Cargo.toml --store-path supply-chain
+    # The rPGP cross-check program is a workspace of its own too
+    # (docs/deps/pgp.md).
+    cargo vet --locked --manifest-path tools/crosscheck/rpgp/Cargo.toml --store-path supply-chain
     # Every fuzz target still builds against the code it feeds: the two fuzz
     # crates are workspaces of their own, which nothing else compiles. A
     # check on the workspace's stable toolchain, with no cargo-fuzz.

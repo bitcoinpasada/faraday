@@ -386,8 +386,8 @@ completeness = "Words, passphrase, SeedQR and codex32 files for a stick; words a
 id = "vault"
 section = 3
 what = "The vault (`faraday/faraday-vault`, `docs/VAULT.md`)"
-completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The file is checked against pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area, both ways. The QR vault as an RFC 9580 message is built as `faraday-vault::qr` (over `faraday-pgp::message`) and read by Sequoia's `sq` in `tools/vault/open.py`. Planned (F190, `docs/VAULT.md`): the app's screens for the QR vault; the message checked against Sequoia's `sq`, both ways (each opening the files the other made)"
-standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area. Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only; the both-ways cross-check is planned (F190)"
+completeness = "Built: create, open, seal and the records, as a KDBX 4 file vault (`faraday-vault::file`, over `faraday-vault::kdbx`). The file is checked against pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area, both ways. The QR vault as an RFC 9580 message is built as `faraday-vault::qr` (over `faraday-pgp::message`) and read by Sequoia's `sq` in `tools/vault/open.py`. Planned (F190, `docs/VAULT.md`): the app's screens for the QR vault"
+standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8439) for the file vault, read by pykeepass, `keepassxc-cli` and keepass-rs in the `vault` cross-check area. Built: an RFC 9580 message under its Argon2 S2K with AES-256-OCB for a QR vault (`faraday-vault::qr`), holding TOML v1.0.0, opened by `sq` in the repository's tests only, and in the cross-check area `qrvault` by `sq`, rPGP and a PyCA judge, with rPGP's and the judge's seals opened by Faraday; checked against RFC 9580's own vectors for the session key and the data packet (AES-128 and OCB, byte for byte) and for the Argon2 S2K, the S2K held to A.12.3 by an ignored test that takes 2 GiB (`tools/vectors/openpgp/README.md`); OpenPGP.js is not run"
 
 [[row]]
 id = "diceware"
@@ -7130,7 +7130,7 @@ tests = [
   "faraday/faraday-vault/tests/kdbx_items.rs::a_persons_entry_with_a_field_of_any_length_reads_and_keeps_it",
   "faraday/faraday-vault/tests/kdbx_items.rs::a_plan_or_signed_amount_that_does_not_read_is_neither_replaced_nor_removed",
 ]
-not_crosschecked = "The TOML syntax is checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and values) are Faraday's and are not checked against an outside source."
+not_crosschecked = "The TOML syntax is checked against toml-test's published cases for TOML v1.0.0, made by the TOML authors' test suite; the vault's own rules (its keys, limits and values) are Faraday's and are not checked against an outside source. The action is not cross-checked as one, since the KDBX vault's items have no such judge; area qrvault compares the QR form's writer byte for byte and its reader by item, tomllib reading the canonical form the area writes."
 fuzz = ["contents", "kdbx_xml"]
 
 [action.secrets]
@@ -7227,7 +7227,8 @@ tests = [
   "faraday/faraday-pgp/src/message/tests.rs::what_else_is_in_the_plaintext_is_named",
   "faraday/faraday-pgp/src/message/tests.rs::a_compressed_first_packet_in_partial_lengths_is_named",
 ]
-not_crosschecked = "Checked against RFC 9580's own vectors for the session key and the data packet (AES-128 and OCB, byte for byte) and for the Argon2 S2K; not yet cross-checked against Sequoia, OpenPGP.js and rPGP in both directions (F190 plans it in the F79 area `vault`). The Argon2 S2K is held to A.12.3 by an ignored test that takes 2 GiB (`tools/vectors/openpgp/README.md`)."
+crosscheck = "qrvault"
+independence = { class = "outside-and-own", author = "Sequoia's sq, by the Sequoia PGP developers (judges the primitives except Argon2, which it shares with the app's lineage, and opens Faraday's messages), rPGP, by the rPGP developers (judges the format only, on the app's lineage: opens Faraday's messages and seals the ones Faraday opens), and PyCA cryptography over OpenSSL (judges Argon2id, HKDF-SHA-256 and AES-256-OCB)", ours = "the OpenPGP framing around PyCA's primitives, read and written strictly in `area_qrvault.py` from RFC 9580 and `docs/VAULT.md` §1.2, and the QR TOML (`qr_toml`) from §2.1, read beside by CPython's `tomllib`; Faraday's second version of the framing, not another program's" }
 fuzz = ["pgp_qr_vault"]
 
 [action.secrets]

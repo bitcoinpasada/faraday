@@ -223,6 +223,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `ur` | `faraday_codec::ur` (single-part URs, the animation's parts, the decoder), `faraday_crypto::crc32`, `faraday_codec::cbor` and `faraday_qr::registry` | Foundation Devices' foundation-ur-py (`ur/`), URKit ported; CPython's `zlib.crc32`; cbor2 | URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`) | messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut; CRC-32 of random messages and of the parts; the parts and single-part payloads read by cbor2; registry types built with cbor2 and read; random and mutated CBOR through Faraday's reader beside cbor2 |
 | `totp` | `faraday_vault::totp` (`parse`, `Totp::code`, `left` and `period`) | pyotp 2.9 (python3-pyotp): `TOTP.at` and `generate_otp` for the code, `parse_uri` for a URI's key, digits, period and hash | RFC 6238 Appendix B: the codes of the SHA-1, SHA-256 and SHA-512 seeds at its six times, 8 digits | random keys of 1 to 300 bytes in `otpauth://totp/` URIs and, from 10 bytes, as bare keys, digits 6 to 8, periods 1 to 3600 (and past it), the three hashes, times from 0 to 2^64 - 1 with the edges of each period, the code, the seconds left and the period; the URIs written in other spellings and damaged (a character changed, added, removed, a cut, a pair dropped or doubled), read by both; the pinned URIs |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
+| `qrvault` | `faraday_vault::qr` (the QR vault sealed and opened, with `faraday_pgp::message`) | Sequoia's `sq`, the distribution's package, over Nettle (judges the primitives except Argon2, which it shares with the app's lineage); rPGP (`tools/crosscheck/rpgp/`, a program outside the workspace, on RustCrypto like the app: judges the format only); PyCA cryptography's Argon2id, HKDF-SHA-256 and AES-256-OCB (OpenSSL's), which judge the primitives, under the OpenPGP framing written in the area from RFC 9580 and `docs/VAULT.md` §1.2 (Faraday's second version, not another program's); the QR TOML `qr_toml` written in the area from §2.1, each opened item also read by CPython's `tomllib` | the seven vaults of `tools/vectors/vault/qr/` opened by `sq`, rPGP and the PyCA judge to the item each holds and by Faraday; the four refused messages refused by Faraday and by the PyCA judge; the PyCA judge refuses a vector with a byte changed in each field | an item of every kind of §2.1 (12 and 24 words, a codex32 share, a passphrase, a note with markup, control characters and several scripts, the empty vault) sealed by Faraday and opened by `sq`, rPGP, the PyCA judge and Faraday, and sealed by rPGP and by the PyCA judge (memory 2^13 to 2^16 KiB) and opened by Faraday, each opened item read by `tomllib`; each memory step of §3 (2^16 to 2^20 KiB) sealed by Faraday at scale 1, each message equal byte for byte to the PyCA judge's seal of the same random bytes; items at the size limits (a note of 216 and 217 bytes, a passphrase of 193 and 194, a 24-word seed of the longest words); a passphrase in NFD or NFC either way; a wrong passphrase; a 15-word seed and a document of two keys sealed by rPGP, refused by Faraday; the messages `sq` writes, refused by Faraday and the PyCA judge; two items sealed by rPGP in chunks of 64 bytes (chunk size octet 0), opened by Faraday |
 | `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve) | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code |
 
 ### How each reference is checked
@@ -444,6 +445,22 @@ leaves uncompared.
 - `vanity`: the search is written in the area from the README's
   quotation of EntropyLab's counter, and EntropyLab's two finds are
   required of it as well as of Faraday.
+- `qrvault`: `sq` is the distribution's package, built over Nettle (the
+  run stops otherwise, `judges.py`), its version written into the stamp;
+  rPGP is built from the crates.io release
+  `tools/crosscheck/rpgp/Cargo.lock` names; PyCA must be 44 or later
+  over OpenSSL 3.2 or later or the area stops, and its Argon2id,
+  HKDF-SHA-256 and AES-OCB are checked against the repository's Argon2id
+  known answer, RFC 5869 test case 1 and RFC 7253's first vector first;
+  `sq` and rPGP open the repository's vault vectors, and so does the
+  PyCA judge, which reads strictly and refuses anything but a QR vault.
+  Not compared: OpenPGP.js, which `docs/VAULT.md` §10 names, is not run;
+  `sq` does not seal a QR vault (below); rPGP judges the format only.
+  §1.2's wider reading, which only Faraday's reader is held to, is not
+  compared with a judge: any literal date, padding packets after the
+  SEIPD packet and the literal data, and every length form RFC 9580
+  allows; of the chunk size octets only 0 (rPGP seals several chunks,
+  Faraday opens them) and 10 are run.
 - `lightning`: LND's code reads the aezeed (wordlist, version, CRC-32C,
   scrypt, AEZ) and derives the node key, and its published answers
   (`tools/vectors/aezeed/`) are required of it as well as of Faraday;
@@ -931,6 +948,13 @@ difference"), and says why.
     not by Bitcoin Core, which shares libsecp256k1's curve maths with
     Faraday; Core is given the bare key and judges the script and the
     address text only.
+- `qrvault`
+  - QR vault: `sq` 1.3.1 writes a SKESK v4 and a SEIPD v1 for a password
+    under either `--profile`, never the SKESK v6 and SEIPD v2 of RFC
+    9580, so `sq` cannot seal a QR vault; rPGP and the PyCA judge seal
+    the other direction, and the area asserts that Faraday and the PyCA
+    judge refuse what `sq` writes. The PyCA judge's framing is the
+    area's own Python; OpenPGP.js is not run.
 <!-- facts:end known-differences -->
 
 ## Where each reference comes from
@@ -1068,6 +1092,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `seedqr` | others' code | zbar, by the zbar developers, and zxing-cpp, by the zxing-cpp developers, which decode the picture this writes and whose payload is compared with the key's words | none | outbox |
 | `sps` | others' code | BIP-374/375 authors (bitcoin/bips), and btclib's `dleq.py` (BIP-374) and btclib-wallet's BIP-375 roles (Signer, Extractor), by the btclib developers, on btclib's own curve: proofs, shares, output scripts and the verdict on a PSBT; btclib-wallet counts a taproot input's NUMS claim only against a proof, so a PSBT with an unproved claim is judged by the validator alone | none | silent-send |
 | `vault` | others' code and, for a part, Faraday's second version | argon2-cffi (the Argon2 designers' reference code), for Argon2id, and Python's `unicodedata`, for the NFC form | the payload layouts of `docs/VAULT.md` §7, written in `area_vault.py` from that document; the KDBX file itself is read by pykeepass, `keepassxc-cli` and keepass-rs in the area (an outside reader each) | vault-unlock, vault-seal, vault-edit |
+| `qrvault` | others' code and, for a part, Faraday's second version | Sequoia's sq, by the Sequoia PGP developers (judges the primitives except Argon2, which it shares with the app's lineage, and opens Faraday's messages), rPGP, by the rPGP developers (judges the format only, on the app's lineage: opens Faraday's messages and seals the ones Faraday opens), and PyCA cryptography over OpenSSL (judges Argon2id, HKDF-SHA-256 and AES-256-OCB) | the OpenPGP framing around PyCA's primitives, read and written strictly in `area_qrvault.py` from RFC 9580 and `docs/VAULT.md` §1.2, and the QR TOML (`qr_toml`) from §2.1, read beside by CPython's `tomllib`; Faraday's second version of the framing, not another program's | vault-qr-pgp |
 | `vault` | others' code | pykeepass, by the libkeepass project, and KeePassXC's keepassxc-cli (the distribution's packages), and argon2-cffi and PyCA's cryptography over OpenSSL for the Argon2id | none | kdbx |
 | `totp` | others' code | pyotp, by the pyotp developers, which judges the code, the seconds left, the period and the reading of an otpauth URI's key, digits, period and hash; Faraday's stricter and wider readings of a URI are stated differences of the area | none | totp |
 <!-- crypto-manifest: end independence -->
