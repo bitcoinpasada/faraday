@@ -15,6 +15,30 @@ fn every_word_round_trips_through_index_of() {
     }
 }
 
+/// A text that is a listed word with something added or taken off is not
+/// found, whatever its length.
+#[test]
+fn a_changed_word_is_not_found() {
+    for lang in Language::ALL {
+        for i in (0..2048u16).step_by(7) {
+            let w = lang.word_nfkd(i);
+            assert_eq!(lang.index_of(&format!("{w}\0")), None);
+            assert_eq!(lang.index_of(&format!("{w}a")), None);
+            assert_eq!(lang.index_of(&format!("{w}{w}{w}{w}{w}{w}")), None);
+            if let Some((cut, _)) = w.char_indices().last() {
+                assert_eq!(lang.index_of(&w[..cut]).filter(|&j| j == i), None);
+            }
+            // Every length around the longest word, with the word's own
+            // bytes first and the rest zero or a letter.
+            for len in (w.len() + 1).max(33)..=41 {
+                let rest = len - w.len();
+                assert_eq!(lang.index_of(&format!("{w}{}", "\0".repeat(rest))), None);
+                assert_eq!(lang.index_of(&format!("{w}{}", "a".repeat(rest))), None);
+            }
+        }
+    }
+}
+
 #[test]
 fn no_word_is_longer_than_the_nfkd_bound() {
     for lang in Language::ALL {

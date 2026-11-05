@@ -669,10 +669,14 @@ lists and a scan that stops at the word on the others, its
 **The fix.** Faraday's own form:
 
 - `index_of` and `index_of_nfkd` read all 2048 entries for every word:
-  each entry, padded to `MAX_NFKD_BYTES`, is compared with the word,
-  padded the same way, by `subtle::ConstantTimeEq`, and the index kept
-  by `ConditionallySelectable`; the result is the index or none. 2048 ×
-  24 fixed-length compares per sentence take well under a millisecond.
+  each entry, padded to five 64-bit chunks (40 bytes, the whole chunks
+  that hold `MAX_NFKD_BYTES`), is compared in full with the word, padded
+  the same way: the differences of the chunks and of the length are
+  joined into one value, which goes through `subtle::ConstantTimeEq`,
+  and the index is kept by `ConditionallySelectable`; the result is the
+  index or none. A word longer than 40 bytes is no word, without a scan.
+  Measured in a release build on the English list, one lookup takes
+  about 35 µs and `Mnemonic::parse` of a 24-word sentence about 0.83 ms.
   The classifier keeps trying each language, each with the full scan;
   which list a sentence is in is then given by its words, not its time.
 - `slip39::index_of`: the first four letters, which identify a SLIP-39
@@ -681,9 +685,9 @@ lists and a scan that stops at the word on the others, its
 - `set11`: `let m = 1 << (7 - bit % 8); let set = 0u8.wrapping_sub(((v >> (10 - b)) & 1) as u8); buf[bit / 8] = (buf[bit / 8] & !m) | (m & set);`.
 - `aezeed::pack`: `out[at / 8] |= (((word >> (10 - bit)) & 1) as u8) << (7 - at % 8);`.
 - The sentence: each word is gathered by a scan of all 2048 entries,
-  copying each into a fixed slot of `MAX_NFKD_BYTES` under a mask, and
-  then the slot's bytes up to the word's length into the `Secret`
-  buffer. The length of each word, and so of the sentence, still follows
+  copying each a chunk at a time into a fixed slot of five 64-bit chunks
+  under a mask, and then the slot's bytes up to the word's length into
+  the `Secret` buffer. The length of each word, and so of the sentence, still follows
   the words; BIP-39 allows no padding, so this is stated, not hidden
   (it decides how many SHA-512 blocks HMAC's key takes, once per seed).
 

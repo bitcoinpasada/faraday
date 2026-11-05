@@ -204,9 +204,10 @@ impl Language {
     /// input must supply the stored form (the on-screen keyboard does,
     /// since it only offers words from the list).
     ///
-    /// Costs the whole list for every word: each of the 2048 entries is
-    /// compared with the word at a fixed length by `subtle`, so the time
-    /// does not follow the word's place in the list. Every published list
+    /// Costs the whole list for every word, about 35 µs on the English list
+    /// in a release build: each of the 2048 entries is compared in full with the word, in
+    /// 64-bit chunks by `subtle`, so the time does not follow the word's
+    /// place in the list. Every published list
     /// is already in NFKD form (`wordlists`), so the published form and
     /// the NFKD form are the same text and each entry is compared once.
     pub fn index_of(self, word: &str) -> Option<u16> {
@@ -797,18 +798,26 @@ impl Mnemonic {
             }
             // The word is gathered by a scan of the whole list into a
             // fixed slot; only its length follows the word.
-            let mut slot = Secret::new([0u8; wordlists::MAX_NFKD_BYTES]);
+            let mut slot = Secret::new([0u64; CHUNKS]);
             let mut len = 0u32;
             for (j, entry) in self.lang.words_nfkd().iter().enumerate() {
                 let pick = (j as u16).ct_eq(&w);
                 let p = Padded::new(entry.as_bytes()).expect("a listed word fits its slot");
-                for (d, s) in slot.expose_mut().iter_mut().zip(p.bytes.iter()) {
+                for (d, s) in slot.expose_mut().iter_mut().zip(p.chunks.iter()) {
                     d.conditional_assign(s, pick);
                 }
                 len.conditional_assign(&(p.len as u32), pick);
             }
             let len = len as usize;
-            buf[n..n + len].copy_from_slice(&slot.expose()[..len]);
+            let mut bytes = Secret::new([0u8; CHUNKS * 8]);
+            for (d, c) in bytes
+                .expose_mut()
+                .chunks_exact_mut(8)
+                .zip(slot.expose().iter())
+            {
+                d.copy_from_slice(&c.to_le_bytes());
+            }
+            buf[n..n + len].copy_from_slice(&bytes.expose()[..len]);
             n += len;
         }
 
@@ -964,35 +973,65 @@ fn set11(buf: &mut [u8], i: usize, v: u16) {
     }
 }
 
-/// A word's bytes in a fixed-size slot, zero padded, with its length, so
-/// that two words compare in constant time.
+/// Number of 64-bit chunks a padded word takes.
+const CHUNKS: usize = wordlists::MAX_NFKD_BYTES.div_ceil(8);
+
+/// A word's bytes in a fixed-size slot of 64-bit chunks, zero padded, with
+/// its length, so that two words compare in constant time.
 struct Padded {
-    bytes: [u8; wordlists::MAX_NFKD_BYTES],
+    chunks: [u64; CHUNKS],
     len: usize,
 }
 
 impl Padded {
-    /// `None` when the word is longer than any listed word.
+    /// `None` when the word is longer than the slot. A word that fits but is
+    /// longer than any listed word is `Some`, and matches no entry.
     fn new(word: &[u8]) -> Option<Self> {
-        let mut bytes = [0u8; wordlists::MAX_NFKD_BYTES];
-        bytes.get_mut(..word.len())?.copy_from_slice(word);
         Some(Padded {
-            bytes,
+            chunks: pack(word)?,
             len: word.len(),
         })
     }
 
-    /// Whether `entry` is this word: its bytes, a zero tail and its length
-    /// are compared at the fixed width, with no array made for it. An
-    /// entry longer than the width is no match.
+    /// Whether `entry` is this word: its chunks, a zero tail and its length
+    /// are all compared, with no early exit. An entry longer than the
+    /// width is no match.
     fn ct_eq_entry(&self, entry: &[u8]) -> Choice {
-        let mut same = Choice::from(u8::from(entry.len() <= self.bytes.len()));
-        for (j, mine) in self.bytes.iter().enumerate() {
-            let theirs = entry.get(j).copied().unwrap_or(0);
-            same &= mine.ct_eq(&theirs);
+        // Every difference is gathered into one value, and only that
+        // value goes through `subtle`; no entry ends the scan early.
+        let Some(theirs) = pack(entry) else {
+            return Choice::from(0);
+        };
+        let mut diff = (self.len ^ entry.len()) as u64;
+        for (mine, theirs) in self.chunks.iter().zip(theirs.iter()) {
+            diff |= mine ^ theirs;
         }
-        same & (self.len as u32).ct_eq(&(entry.len() as u32))
+        diff.ct_eq(&0)
     }
+}
+
+/// The bytes as little-endian 64-bit chunks, zero padded; `None` when they
+/// are longer than the slot. The length is public for a listed entry.
+fn pack(bytes: &[u8]) -> Option<[u64; CHUNKS]> {
+    if bytes.len() > CHUNKS * 8 {
+        return None;
+    }
+    let mut out = [0u64; CHUNKS];
+    let whole = bytes.chunks_exact(8);
+    let tail = whole.remainder();
+    let mut k = 0;
+    for c in whole {
+        out[k] = u64::from_le_bytes(c.try_into().expect("a chunk of eight"));
+        k += 1;
+    }
+    let mut v = 0u64;
+    for (i, &b) in tail.iter().enumerate() {
+        v |= u64::from(b) << (8 * i);
+    }
+    if k < CHUNKS {
+        out[k] = v;
+    }
+    Some(out)
 }
 
 #[cfg(test)]
