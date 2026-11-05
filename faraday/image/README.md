@@ -294,7 +294,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Piece | Choice |
 |---|---|
 | Buildroot | 2024.02 LTS, pinned to a release tag in the `justfile` |
-| Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins, with two patches to the EDID read (`linux-patches/`, `docs/IMAGES.md` §3.2), and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/DECISIONS.md` F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
+| Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins, with two patches to the EDID read and a third that makes vc4's framebuffer 32 bits, red first (`linux-patches/`, `docs/IMAGES.md` §3.2, `docs/FRAMES.md` §5), and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/DECISIONS.md` F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
 | C library | musl, static only. BusyBox is the one package Buildroot builds for the target, so there is no shared library in the image at all |
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
 | Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |
@@ -818,7 +818,8 @@ not:
 - **Red and blue exchanged on the 2.8-inch.** The colour order is the pixel
   format in `panels/any/screens/waveshare-28dpi/display.line`
   (`docs/IMAGES.md` §3.3); it is worked out again on the panel, and a
-  change is a change to that line.
+  change is a change to that line. The framebuffer itself is red first
+  (`docs/FRAMES.md` §5).
 - **Panel right, touch dead.** Check `/run/faraday-screen/args`: `--touch-name`
   must be a substring of what the controller calls itself and
   `--touch-grid` its reported range. On the Waveshare panel the Goodix

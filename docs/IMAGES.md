@@ -46,8 +46,10 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
 
 - **DRM, for the display only.** vc4's display side, the DPI panel's
   driver, and the 2.8-inch's I²C touch controller. The Pi
-  builds the board's kernel source with one kernel patch of Faraday's
-  own, to the EDID read (owner, F153, F205), and one mainline commit. vc4 also binds the GPU's 3D block,
+  builds the board's kernel source with two kernel patches of Faraday's
+  own, one to the EDID read (owner, F153, F205) and one that makes vc4's
+  framebuffer 32 bits with red first, so the shell writes its frame
+  without a conversion (`docs/FRAMES.md` §5), and one mainline commit. vc4 also binds the GPU's 3D block,
   V3D, and creates a render node, `/dev/dri/renderD128`; Kconfig has no
   switch for either. **The render node is root's alone, no patch:**
   `faraday/image/common/rootfs-overlay/etc/mdev.conf` gives it and
@@ -195,7 +197,10 @@ probe that finds nothing removes what it loaded before the next starts.
    cannot be relied on for the three messages an EDID's block 2 or later
    takes, so a read that fails keeps the blocks before it (F205); and an
    EDID with no block read at all gives the kernel's fallback modes up to
-   1024x768 (mainline abf493988e38).
+   1024x768 (mainline abf493988e38). The third patch there is not about
+   the EDID: vc4's framebuffer emulation is 32 bits a pixel in XBGR8888,
+   red first in memory, with the colours the console reports to match
+   (`docs/FRAMES.md` §5).
 2. **The 2.8-inch's GT911**, on the bit-banged I²C its touch overlay
    declares on the GPIO header: the touch overlay is loaded whenever
    HDMI does not read connected. It declares the GT911 at either of its

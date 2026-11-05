@@ -754,7 +754,13 @@ mod tests {
 
     #[test]
     fn the_arrow_is_black_with_a_white_edge_at_the_pointer() {
-        for depth in [Depth::Rgb565, Depth::Bgr888, Depth::Rgb888, Depth::Bgra8888] {
+        for depth in [
+            Depth::Rgb565,
+            Depth::Bgr888,
+            Depth::Rgb888,
+            Depth::Bgra8888,
+            Depth::Rgba8888,
+        ] {
             let g = geometry(depth);
             let bytes = depth.bytes_per_pixel();
             let mut frame = vec![0x7fu8; usize::from(g.width) * usize::from(g.height) * bytes];

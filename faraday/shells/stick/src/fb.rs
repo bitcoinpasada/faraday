@@ -1,16 +1,22 @@
 //! The framebuffer: its geometry, and the conversion from the core's
 //! premultiplied RGBA8888 frame to what the panel wants.
 //!
-//! Four formats are supported:
+//! Five formats are supported:
 //!
 //! - **RGB565**, 16 bits per pixel, little-endian, red in the top five
-//!   bits. This is what the DRM/KMS path reports, and what the Pi's panel
-//!   is (the SeedSigner fork's `hardware/DPI28.py` writes the same).
+//!   bits. A framebuffer that is 16 bits (a DRM/KMS one that is not
+//!   Faraday's Pi kernel) is written this way, as is the SeedSigner
+//!   fork's `hardware/DPI28.py`.
 //! - **BGR888** and **RGB888**, 24 bits per pixel, three bytes and no
 //!   pad. A UEFI firmware that hands over a 24-bit mode is the reason
 //!   these are here.
 //! - **BGRA8888**, 32 bits per pixel, blue first, alpha forced opaque.
 //!   This is what the legacy firmware framebuffer reports.
+//! - **RGBA8888**, 32 bits per pixel, red first: the core's own bytes. The
+//!   Pi's kernel is patched so that vc4's framebuffer is this
+//!   (`faraday/image/boards/pi3/linux-patches/`, `docs/FRAMES.md` §5); it
+//!   is taken for a 32-bit framebuffer whose sysfs `name` is `vc4drmfb`,
+//!   and the presenter writes the frame to it with no conversion.
 //!
 //! Which one is in front of us is a runtime question, not a build-time
 //! one, so it is read from sysfs at start-up along with the size and the
@@ -46,6 +52,9 @@ pub enum Depth {
     Rgb888,
     /// 32 bits: blue, green, red, alpha.
     Bgra8888,
+    /// 32 bits: red, green, blue, alpha (or a pad byte): the core's own
+    /// frame, which needs no conversion.
+    Rgba8888,
 }
 
 impl Depth {
@@ -54,7 +63,7 @@ impl Depth {
         match self {
             Depth::Rgb565 => 2,
             Depth::Bgr888 | Depth::Rgb888 => 3,
-            Depth::Bgra8888 => 4,
+            Depth::Bgra8888 | Depth::Rgba8888 => 4,
         }
     }
 
@@ -128,6 +137,7 @@ impl Geometry {
         })?;
         let depth = match depth {
             Depth::Bgr888 => three_byte_order(dir),
+            Depth::Bgra8888 if is_vc4_fbdev(dir) => Depth::Rgba8888,
             other => other,
         };
         let (width, height) = match (u16::try_from(w), u16::try_from(h)) {
@@ -152,6 +162,14 @@ impl Geometry {
             stride,
         })
     }
+}
+
+/// Whether the framebuffer is the Pi's vc4 fbdev emulation, which
+/// Faraday's kernel patch makes 32 bits with red first in memory. Its
+/// `name` file reads `vc4drmfb`; any other name, or none, is a
+/// framebuffer whose 32 bits are blue first.
+fn is_vc4_fbdev(dir: &Path) -> bool {
+    fs::read_to_string(dir.join("name")).is_ok_and(|n| n.trim() == "vc4drmfb")
 }
 
 /// Which way round the three bytes of a 24-bit pixel go.
@@ -211,6 +229,11 @@ pub fn bgra8888(r: u8, g: u8, b: u8) -> [u8; 4] {
     [b, g, r, 0xff]
 }
 
+/// One opaque pixel as RGBA8888: the core's own bytes, alpha opaque.
+pub fn rgba8888(r: u8, g: u8, b: u8) -> [u8; 4] {
+    [r, g, b, 0xff]
+}
+
 /// Costs a pass over every pixel: converts `rgba` (a whole number of
 /// pixels) into `out`, which must be exactly `pixels × bytes_per_pixel`
 /// long.
@@ -234,6 +257,11 @@ pub fn convert_into(rgba: &[u8], depth: Depth, out: &mut [u8]) {
         Depth::Bgra8888 => {
             for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(4)) {
                 dst.copy_from_slice(&bgra8888(src[0], src[1], src[2]));
+            }
+        }
+        Depth::Rgba8888 => {
+            for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(4)) {
+                dst.copy_from_slice(&rgba8888(src[0], src[1], src[2]));
             }
         }
     }
@@ -281,6 +309,7 @@ pub fn convert_turned(
         Depth::Bgr888 => walk.put(out, bgr888),
         Depth::Rgb888 => walk.put(out, rgb888),
         Depth::Bgra8888 => walk.put(out, bgra8888),
+        Depth::Rgba8888 => walk.put(out, rgba8888),
     }
 }
 
@@ -462,6 +491,24 @@ mod tests {
                 stride: 1920,
             })
         );
+        clean(&dir);
+    }
+
+    #[test]
+    fn the_pis_thirty_two_bit_framebuffer_is_red_first_and_any_other_is_blue_first() {
+        let dir = dir("fb32");
+        std::fs::write(dir.join("virtual_size"), "1920,1080\n").expect("write");
+        std::fs::write(dir.join("bits_per_pixel"), "32\n").expect("write");
+        std::fs::write(dir.join("stride"), "7680\n").expect("write");
+        let depth = |dir: &std::path::Path| Geometry::from_sysfs(dir).map(|g| g.depth);
+        assert_eq!(depth(&dir), Ok(Depth::Bgra8888), "no name");
+        std::fs::write(dir.join("name"), "EFI VGA\n").expect("write");
+        assert_eq!(depth(&dir), Ok(Depth::Bgra8888), "another driver");
+        std::fs::write(dir.join("name"), "vc4drmfb\n").expect("write");
+        assert_eq!(depth(&dir), Ok(Depth::Rgba8888));
+        // Only at 32 bits.
+        std::fs::write(dir.join("bits_per_pixel"), "16\n").expect("write");
+        assert_eq!(depth(&dir), Ok(Depth::Rgb565));
         clean(&dir);
     }
 

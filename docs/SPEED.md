@@ -680,6 +680,11 @@ that is the same converts and writes nothing; a stale panel (the first
 frame, after a blanking or a failed write) still takes the whole frame,
 and a frame turned a quarter still writes one span of columns. The cost
 is a copy of the core's frame (1.2 MB at 480×640, 8.3 MB at 1920×1080).
+On the Pi, whose framebuffer takes the core's frame as it is (red first,
+32 bits, `docs/FRAMES.md` §5), at no turn there is no last frame and no
+converted copy: the frame goes to `Panel::write_rows`, which compares it
+with the panel's own kept copy, so one comparison and one copy stand, and
+the time counts in the `write` bucket.
 
 The measurements: moved to `docs/history/SPEED-LOG.md`.
 

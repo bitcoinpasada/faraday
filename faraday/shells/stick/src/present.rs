@@ -13,11 +13,16 @@
 //! the same way, by the core's rows; they are the panel's rows at 0 and
 //! 180, and a band of its columns at 90 and 270, written row by row
 //! where the band changed.
+//!
+//! A panel that takes the core's own bytes ([`Depth::Rgba8888`], the
+//! Pi's, `docs/FRAMES.md` §5) at no turn needs none of that: the frame
+//! goes to the panel, which compares it with its kept copy and writes
+//! what differs, and nothing is converted or kept here.
 
 use std::sync::Mutex;
 use std::time::Instant;
 
-use crate::fb::{self, Geometry};
+use crate::fb::{self, Depth, Geometry};
 use crate::orient::Turn;
 use crate::panel::{CHUNK_ROWS, Panel, Sink, lock};
 use crate::timings::{Bucket, Timings};
@@ -71,6 +76,9 @@ impl Presenter {
         let (rows, frame_rows) = (usize::from(g.height), usize::from(fh));
         if rows == 0 || frame_rows == 0 {
             return Ok(());
+        }
+        if g.depth == Depth::Rgba8888 && turn == Turn::R0 {
+            return self.present_unconverted(rgba, g, panel, timings);
         }
         let src_row = usize::from(fw) * 4;
         let out_row = g.row_bytes();
@@ -150,6 +158,47 @@ impl Presenter {
         result
     }
 
+    /// Costs a comparison of `rgba` with what the panel shows and a write
+    /// of the rows that differ: a panel that takes the core's own bytes
+    /// ([`Depth::Rgba8888`]) at no turn needs no converted copy and no
+    /// last frame, so `rgba` goes to [`Panel::write_rows`] in bands of
+    /// [`CHUNK_ROWS`], each under its own hold of the lock, and the
+    /// panel's kept copy is the only one. The time counts as the write.
+    ///
+    /// What the presenter kept for a turned frame is dropped, so a turn
+    /// back starts from a whole frame, as the panel (marked stale by
+    /// [`Panel::set_turn`]) expects.
+    fn present_unconverted<S: Sink>(
+        &mut self,
+        rgba: &[u8],
+        g: Geometry,
+        panel: &Mutex<Panel<S>>,
+        timings: Option<&mut Timings>,
+    ) -> std::io::Result<()> {
+        self.last = Vec::new();
+        self.converted = Vec::new();
+        self.turn = None;
+        let start = timings.is_some().then(Instant::now);
+        let rows = usize::from(g.height);
+        let mut result = Ok(());
+        let mut first = 0;
+        while first < rows {
+            let last = (first + CHUNK_ROWS - 1).min(rows - 1);
+            result = lock(panel).write_rows(rgba, first, last);
+            if result.is_err() {
+                break;
+            }
+            first = last + 1;
+        }
+        if result.is_ok() {
+            lock(panel).complete();
+        }
+        if let (Some(start), Some(t)) = (start, timings) {
+            t.add(Bucket::Write, start.elapsed());
+        }
+        result
+    }
+
     /// What has been converted, and what `panel` has written.
     #[cfg(test)]
     pub fn counts<S: Sink>(&self, panel: &Mutex<Panel<S>>) -> Counts {
@@ -163,7 +212,6 @@ impl Presenter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fb::Depth;
     use faraday_core::Faraday;
     use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
 
@@ -433,5 +481,103 @@ mod tests {
                 "{turn:?}"
             );
         }
+    }
+
+    /// The Pi's panel with the framebuffer the kernel patch gives it.
+    const G32: Geometry = Geometry {
+        width: 480,
+        height: 640,
+        depth: Depth::Rgba8888,
+        stride: 1920,
+    };
+
+    /// An opaque frame of one grey, `turn`'s size.
+    fn opaque(turn: Turn, v: u8) -> Vec<u8> {
+        let mut frame = grey(turn, v);
+        frame.chunks_exact_mut(4).for_each(|p| p[3] = 255);
+        frame
+    }
+
+    #[test]
+    fn a_red_first_panel_holds_the_frame_as_it_is_and_nothing_is_converted() {
+        let panel = Mutex::new(Panel::new(Vec::new(), G32));
+        let mut p = Presenter::default();
+        let rows = u64::from(G32.height);
+        let present = |p: &mut Presenter, frame: &[u8], turn: Turn| {
+            let before = p.counts(&panel);
+            p.present(frame, G32, turn, &panel, None).expect("written");
+            since(p.counts(&panel), before)
+        };
+        let shown = || lock(&panel).sink().clone();
+
+        // A whole frame, in colours that tell red from blue.
+        let mut frame = opaque(Turn::R0, 40);
+        frame
+            .chunks_exact_mut(4)
+            .for_each(|p| p[..3].copy_from_slice(&[200, 100, 10]));
+        let spent = present(&mut p, &frame, Turn::R0);
+        assert_eq!(
+            spent,
+            Counts {
+                converted: 0,
+                written: rows
+            }
+        );
+        assert_eq!(shown(), frame);
+
+        // The same frame again writes nothing; a caret writes its row.
+        assert_eq!(present(&mut p, &frame, Turn::R0), Counts::default());
+        dot(&mut frame, Turn::R0, 100, 20, 255);
+        let spent = present(&mut p, &frame, Turn::R0);
+        assert_eq!(
+            spent,
+            Counts {
+                converted: 0,
+                written: 1
+            }
+        );
+        assert_eq!(shown(), frame);
+
+        // The arrow across a band of changes, and moved away.
+        lock(&panel).move_arrow(Some((200, 300))).expect("moved");
+        for y in 280..330 {
+            dot(&mut frame, Turn::R0, 0, y, 90);
+        }
+        present(&mut p, &frame, Turn::R0);
+        let mut with_arrow = frame.clone();
+        crate::cursor::draw_rows(&mut with_arrow, G32, Turn::R0, (200, 300), 0);
+        assert_eq!(shown(), with_arrow);
+        lock(&panel).move_arrow(None).expect("moved");
+        assert_eq!(shown(), frame);
+
+        // A turn and back: each shows its frame whole.
+        lock(&panel).set_turn(Turn::R90);
+        let mut turned = opaque(Turn::R90, 60);
+        dot(&mut turned, Turn::R90, 5, 7, 255);
+        present(&mut p, &turned, Turn::R90);
+        let mut out = vec![0u8; G32.row_bytes() * usize::from(G32.height)];
+        let (_, fh) = Turn::R90.frame_size((G32.width, G32.height));
+        fb::convert_turned(
+            &turned,
+            (0, usize::from(fh) - 1),
+            G32.depth,
+            Turn::R90,
+            (G32.width, G32.height),
+            &mut out,
+        );
+        assert_eq!(shown(), out);
+        lock(&panel).set_turn(Turn::R0);
+        let spent = present(&mut p, &frame, Turn::R0);
+        assert_eq!(
+            spent,
+            Counts {
+                converted: 0,
+                written: rows
+            }
+        );
+        assert_eq!(shown(), frame);
+        lock(&panel).set_turn(Turn::R90);
+        present(&mut p, &turned, Turn::R90);
+        assert_eq!(shown(), out);
     }
 }

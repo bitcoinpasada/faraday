@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the compact Settings page only), and so are the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the rest is not. No shell takes `Parts::moved` yet
-**Open:** the rest of it: `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column; Faraday Demo's desktop Settings among them, whose card's corner differs by one anti-aliased pixel between a moved row and a drawn one), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the Pi's panel taking the core's frame without a conversion (§5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), the shell taking the moved frame (§3.7), what a frame does beside its pixels that §7 has not yet found or fixed
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the compact Settings page only), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the rest is not. No shell takes `Parts::moved` yet
+**Open:** the rest of it: `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column; Faraday Demo's desktop Settings among them, whose card's corner differs by one anti-aliased pixel between a moved row and a drawn one), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), the shell taking the moved frame (§3.7), what a frame does beside its pixels that §7 has not yet found or fixed
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -20,9 +20,10 @@ shell's comparison and conversion (`present.rs`, the `convert` bucket of
 `--timings`) and the write to the framebuffer (`panel.rs`, `write`).
 The Pi's dev card, measured at its lowest clock while a finger moved:
 frame 27 to 32 ms (worst 53), convert 4.8 to 5.1 ms, write 3.1 to
-3.4 ms. The firmware's framebuffer there is 32 bits a pixel (the boot
-report's `panel` line) and the firmware gives the kernel
-`bcm2708_fb.fbswap=1`.
+3.4 ms, on the firmware's 32-bit framebuffer. The kernel's vc4 emulation
+the image has now is 16 bits (the boot report's `panel` line) until the
+patch of §5 makes it 32: the panel is written as the core's frame is,
+with no conversion (§5).
 
 **Measured** (the build machine, release, the heaviest session of
 `docs/SPEED.md` §7, the median of 41 frames each drawn in full; a probe
@@ -353,50 +354,53 @@ run with its own count of bands, so they check it too.
 ## 5. The Pi's panel takes the core's frame as it is
 
 The core's frame is premultiplied RGBA, red first in memory; drawn over
-an opaque page, its alpha is 255 everywhere. The Pi's firmware
-framebuffer is 32 bits a pixel, and with `bcm2708_fb.fbswap=1` (which
-the firmware puts on the kernel's command line) the kernel's driver
-lays out its 24 and 32-bit modes red first too, at bit offset 0. So the
-two already agree, and the conversion is a reordering that the image
-then undoes:
+an opaque page, its alpha is 255 everywhere.
 
-- The shell reads 32 bits as `Depth::Bgra8888`, blue first, whatever the
-  driver says (`fb::Depth::from_bits`; the bitfields are read only for
-  24 bits, from sysfs files the fbdev driver does not publish).
-- The colours' order is the pixel format of the panel's display overlay
-  line (`faraday/image/panels/any/screens/waveshare-28dpi/display.line`,
-  `rgb666-padhi`), on the kernel's DPI driver; it is worked out again on
-  the panel (`docs/IMAGES.md` §3.3). On the firmware's framebuffer the
-  image set `dpi_output_format=0x7F206` where Waveshare's documentation
-  gives `0x7F216`: the two differ in the DPI output's colour order, and
-  the firmware's DPI documentation names orders 1 to 4 (RGB, BGR, GRB,
-  BRG), not 0.
+**What the Pi's framebuffer was.** The Pi's panel is driven by the
+kernel's vc4 with the generic framebuffer emulation (`FB_BCM2708`, the
+firmware's driver, is not in the image: `faraday/image/boards/pi3/kernel.forbidden`).
+vc4 sets that emulation up at 16 bits a pixel
+(`drm_fbdev_generic_setup(drm, 16)`), which the boot report shows as
+`panel 1920x1080 16bpp` on an HDMI screen, so the shell converted every
+pixel of a changed row to RGB565. On a Pi 3B+ at 1400 MHz at 1080p that
+`convert` bucket averaged 19.6 ms of a 25.9 ms frame, and the write
+2.3 ms. The emulation's 32-bit format is XRGB8888, blue first in memory,
+which would still have been a reordering.
 
-The change:
+**What is built.** Faraday's own kernel patch,
+`faraday/image/boards/pi3/linux-patches/0003-vc4-fbdev-is-32-bits-with-red-first-so-the-shell-writes-the-frame-unconverted.patch`
+(not from mainline), makes three changes:
 
-1. `Depth::Rgba8888`, red first. The shell takes it for 32 bits when
-   `/sys/module/bcm2708_fb/parameters/fbswap` reads 1 (the driver's
-   parameter, readable in sysfs), and keeps `Bgra8888` otherwise, so a
-   PC's firmware framebuffer (blue first) is unchanged. The dev card
-   confirms both the file and the colours before the change lands.
-2. The panel's `config.txt` goes back to Waveshare's `0x7F216`, and
-   `framebuffer_ignore_alpha=1` so the firmware never reads the alpha
-   byte; `faraday/image/README.md`'s line on red and blue exchanged
-   says so.
-3. For `Rgba8888` at no turn, the `Presenter` keeps no converted copy:
-   the panel is written from the kept frame itself, and the panel's own
-   kept copy is that frame (§6), so one comparison and one copy stand
-   where a comparison, a conversion and three copies stood.
+- vc4 asks for a 32-bit emulation (`drm_fbdev_generic_setup(drm, 32)`).
+- The generic emulation picks XBGR8888, red first in memory, where the
+  legacy table gives XRGB8888. The display engine reads XBGR8888 as it
+  is (it is among `vc4_plane.c`'s formats).
+- `drm_fb_helper_fill_pixel_fmt` reports red at bit 0 and blue at bit 16
+  for XBGR8888, so the console and the boot logo keep their colours.
 
-On the build machine's figures a pass's `convert` falls from about 166
-µs (comparison, conversion, copy) to about 37 (comparison, copy), so on
-the Pi from about 5 ms to about 1.1 at its lowest clock and about half
-that at full clock. A frame turned a quarter is still walked tile by
-tile (`fb::convert_turned`), as now.
+The shell takes it as `fb::Depth::Rgba8888`, red first: `Geometry::from_sysfs`
+reads 32 bits as that when the directory's `name` file reads `vc4drmfb`,
+and as `Bgra8888` (blue first) for any other name, so a PC's firmware
+framebuffer is unchanged. For `Rgba8888` at no turn the `Presenter`
+keeps no converted copy and no last frame: the core's frame goes to
+`Panel::write_rows` in bands of `CHUNK_ROWS`, each under its own hold of
+the lock, which compares it with the panel's kept copy and writes what
+differs (§6). One comparison and one copy stand where a comparison, a
+conversion and three copies stood, and the time counts in the `write`
+bucket. A frame turned a quarter or a half is still converted and walked
+tile by tile (`fb::convert_turned`), as is every other depth; turning
+and turning back leaves the panel right, because `Panel::set_turn` marks
+it stale and the `Presenter` drops what it kept for a turned frame.
 
-Not taken: a 16-bit framebuffer (`framebuffer_depth=16`) halves the
-bytes written but needs a conversion again and shows five bits of red
-and blue on a panel wired for six. The PC stick's conversion stays (its
+**What it costs.** 32 bits double the bytes a full write moves and the
+size of the panel's kept copy, against 16. The colours gain: the panel
+shows the frame's eight bits of each of red, green and blue, not 5-6-5.
+The figure on a card is taken later with `--timings`; none is claimed
+here.
+
+What the earlier plan (the firmware's `bcm2708_fb.fbswap` and a
+`dpi_output_format` change in the panel's `config.txt`) assumed is not
+in the image, so neither is used. The PC stick's conversion stays (its
 firmware framebuffer is blue first and the canvas paints red first): a
 word-at-a-time swap measured no quicker than the byte loop (134 µs
 against 129); §3.7 is its gain.
@@ -527,9 +531,10 @@ Pixels are as before (the snapshot and budget tests pass).
 The content placed in whole pixels and `Ui::region` (§3.2, built) come
 before the moved frame, and the bands (§4) need the regions drawn through
 `Ui::region`. They are best measured after the moved frame is in. The
-Pi's own colour order (§5) and the framebuffer write (§6 points 1 to 3,
-built) need nothing before them. The shell after a moved frame (§3.7) and
-§6 point 4 need both the moved frame and the Pi's colour order. Opting
+Pi's frame written as it is (§5, built) and the framebuffer write (§6
+points 1 to 3, built) need nothing before them. The shell after a moved
+frame (§3.7) and §6 point 4 need both the moved frame and the Pi's frame
+written as it is. Opting
 more screens in to the moved frame waits for its figure on a Pi (§3.5).
 None of this touches keys, cryptography or what the device takes in.
 
@@ -546,11 +551,12 @@ What each piece changes:
   `core/faraday-shell-api/src/lib.rs`, `docs/MOTION.md`, `docs/SPEED.md`
   §7; the two tests of §3.2 and §3.4; a scroll step of each screen that
   opts in is timed as SPEED §7 says (§3.5).
-- **The Pi's panel in its own order** (§5, not built):
-  `faraday/shells/stick/src/fb.rs`, `present.rs`, `panel.rs`, the panel's
-  `display.line`, `faraday/image/README.md` and `docs/HARDWARE.md` if it
-  names the format; the present tests at 32 bits in both orders, checked
-  on the dev card.
+- **The Pi's frame written as it is** (§5, built):
+  `faraday/image/boards/pi3/linux-patches/` (the third patch),
+  `faraday/shells/stick/src/fb.rs`, `present.rs`, `cursor.rs`,
+  `docs/IMAGES.md` §3.2 and the stick shell's module docs; the present
+  tests at 32 bits red first and the framebuffer test for `vc4drmfb`; the
+  figure on a card is taken later with `--timings`.
 - **The framebuffer write** (§6 points 1 to 3 built; point 4 not):
   `present.rs`, `panel.rs`, `fb.rs`, `docs/SPEED.md` §11.1; the
   `present::tests` for a caret and a clock as two bands, the panel after
