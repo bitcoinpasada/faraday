@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189; F208); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size (one of four, until F206 is built) and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), and the QR vault in the app (§1.2, §2.1: its create and unlock and its code)
+**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), and the QR vault in the app (§1.2, §2.1: its create and unlock and its code) and in the backup flow (`docs/BACKUP-FLOW.md` §17.25)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -233,17 +233,19 @@ holds. What it holds can be changed at any time, however it was made
 other, or emptied. Each change is sealed as a new code; a code printed
 before still opens, to what it held when it was sealed, so the screen
 says to print the new code and destroy the old. It is not a secret
-under `docs/QR.md` §7.1: it is drawn and printed as any code is, and
-offered as a labelled PNG (`docs/QR.md` §4 items 3 and 4) whose label lines
-are "QR vault", the vault's name and the date it was sealed, never what
-it holds.
+under `docs/QR.md` §7.1: it is drawn as any code is, and offered as a
+labelled PNG (`docs/QR.md` §4 items 3 and 4) whose label lines are "QR
+vault", the vault's name and the date it was sealed, never what it holds.
+A code of 77 × 77 modules is not copied by hand: its paper is that PNG,
+carried on a stick to a computer with a printer, which may be online. The
+code holds no name and no date; only the label does.
 
-Scanned wherever a SeedQR is taken, it asks for its passphrase, opens,
-and its words go to the seed sheet (**Use without a passphrase** /
+Scanned wherever a SeedQR is taken, it asks for its passphrase and a
+name, opens, and its words go to the seed sheet (**Use without a passphrase** /
 **Add a passphrase**, `docs/FLOWS.md`), then load as a scanned SeedQR's
 do; a share goes to Add a key's codex32 form, and a passphrase to the
-seed it belongs to, found by its fingerprint. The Starter scans and
-prints a QR vault and never asks for its passphrase.
+seed it belongs to, found by its fingerprint. Faraday Starter does not
+scan or print a QR vault.
 
 ## 3. Keys
 
@@ -994,11 +996,15 @@ can be used again at any time to replace what it holds. **Save** seals
 it as a new code with a new salt and session key; the memory step and
 passphrase can be changed as a file vault's can. The backup flow,
 wherever a seed, a share or a passphrase is placed, makes a QR vault
-holding it in the same way, **Add randomness** offered first. Several
+holding it in the same way, **Add randomness** offered first, and does
+not leave it open (`docs/BACKUP-FLOW.md` §17.25). Several
 shares or parts take **one shared passphrase** or **a passphrase for
-each**, and the flow says to keep each in a separate place.
+each**, and the flow says to keep each in a separate place. The passphrase
+is not measured: a warning line says the code is only as strong as it,
+with no minimum beyond not being empty.
 
-A QR vault's page and the backup flow, wherever one is placed, offer
+A QR vault's page and the backup flow, wherever one is placed
+(`docs/BACKUP-FLOW.md` §17.25), offer
 **Show as QR**, **PNG to the Outbox** (the labelled picture, §2.1) and
 **To the Outbox** (the `.pgp` file, which `sq decrypt` opens); a stick visit
 writes the Outbox as it writes any file. After each save the new code

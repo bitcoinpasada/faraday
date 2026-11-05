@@ -209,9 +209,8 @@ own checks. Faraday adds only:
 - **Bytes that are not text** are shown as hex and go no further.
 - **A plaintext that parses as KEF** is offered as one, to a depth of 8.
 
-Nothing decrypted is written to disk unless the person then saves it. The
-Starter scans and prints a KEF code and never asks for its passphrase, as
-for a QR vault.
+Nothing decrypted is written to disk unless the person then saves it.
+Faraday Starter does not scan or print a KEF code.
 
 ## 7. What comes from a scanned code
 

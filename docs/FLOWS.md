@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned); the QR vault in the backup, its third answer to Use vaults included (`docs/BACKUP-FLOW.md` §17.25)
 
 Every flow, where it starts, and where it leaves the person.
 

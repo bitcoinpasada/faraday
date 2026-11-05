@@ -819,6 +819,14 @@ kind = "review"
 misses = "a new way to a QR view that does not set the view fixed, until a review reads it"
 
 [[rule]]
+id = "keys.qr-vault-form"
+title = "a QR vault in the backup is a third form on a seed, a codex32 string or a passphrase, never a box or a stick of its own; its code's .pgp goes on the stick beside its PNG; a seed's only copy as a code is offered Open to test before the lock, and skipping it warns and never refuses; Scan to check compares bytes and needs no passphrase"
+source = ["docs/decisions/F217.md", "docs/BACKUP-FLOW.md §17.25"]
+when = ["faraday/faraday-core/src/backup_flow/wallet_files.rs", "faraday/faraday-core/src/backup_flow/steps.rs", "faraday/faraday-core/src/screens/backup.rs"]
+kind = "review"
+misses = "a new way to place a code that skips the plan's forms, until a review reads it"
+
+[[rule]]
 id = "keys.vault-memory-need"
 title = "a change to what opening or sealing a file vault holds in memory keeps the one function that checks it first true, and its factor only falls by a measurement"
 source = ["docs/decisions/F206.md", "docs/VAULT.md §2"]
