@@ -5,7 +5,10 @@
         coverage, schema, truth of what an entry names; with --release,
         which `just lint-release` passes, the fingerprints too (F197)
     check.py review ID [--inventory FILE]
-        the only writer of a fingerprint (§5.3): `just crypto-review ID`
+        one of the two writers of a fingerprint (§5.3): `just crypto-review ID`
+    check.py review-stale [--inventory FILE]
+        the other: stamps every action and construction whose fingerprint fails,
+        each as `review` would, in one call (all or none): `just crypto-review-stale`
     check.py changes TAG [--inventory FILE]
         the actions whose fingerprint changed since a tag: `just crypto-changes TAG`
     check.py --self-test
@@ -1803,10 +1806,19 @@ def touchpoints(c, a):
     return out
 
 
-def cmd_review_construction(root, i):
-    """Stamp a construction (§18.6): what its placeholders and tables read is its
-    fingerprint, and reading it needs no inventory."""
-    c = Ctx(root, Inventory([]))
+def construction_ids(text):
+    try:
+        return {x.get("id") for x in tomllib.loads(text).get("construction", [])
+                if isinstance(x, dict)}
+    except tomllib.TOMLDecodeError:
+        return set()
+
+
+def review_construction(root, i, manifest, lock_raw):
+    """Work out a construction's stamp (§18.6): what its placeholders and tables read is
+    its fingerprint, and reading it needs no inventory. Writes nothing. Returns
+    (status, manifest, lock_raw), status "clean", "refused" or "stamped"."""
+    c = Ctx(root, Inventory([]), manifest, lock_raw)
     con = next(x for x in constructions(c) if x.get("id") == i)
     check_constructions(c)
     mine = [x for x in c.errors.items if x[0] == "construction" and x[1] in (i, None)]
@@ -1815,7 +1827,7 @@ def cmd_review_construction(root, i):
     if (locked is not None and review.get("fingerprint") == fingerprint_of(locked)
             and sorted(locked) == sorted(now) and not mine):
         print(f"{i}: nothing changed since the last review")
-        return 0
+        return "clean", manifest, lock_raw
     lines, s, e = action_block(c.text, i, "construction")
     print(f"== construction {i}")
     print("\n".join(lines[s:e]).rstrip())
@@ -1828,36 +1840,65 @@ def cmd_review_construction(root, i):
         print("review refuses; nothing was written:")
         for cat, _, msg in mine:
             print(f"  [{cat}] {msg}")
-        return 1
-    if not regenerate(root):
-        print("review refuses; nothing was written: the generator failed")
-        return 1
+        return "refused", manifest, lock_raw
     lock = dict(c.lock)
     lock[i] = sorted(now)
     text = edit_stamp(c.text, i, fingerprint_of(now), datetime.date.today().isoformat(),
                       "construction")
     tomllib.loads(text)
-    (root / MANIFEST).write_text(text)
-    (root / LOCK).write_text(lock_text(lock))
-    print(f"{i}: reviewed; fingerprint {fingerprint_of(now)[:12]}")
+    return "stamped", text, lock_text(lock)
+
+
+def generated_paths(root):
+    """The files `gen.py write` may rewrite, as they exist."""
+    if not (pathlib.Path(root) / GEN).exists():
+        return []
+    g = gen_module()
+    rel = sorted({p for p, _, _ in g.PLACES} | {g.HOW})
+    return [p for p in rel if (pathlib.Path(root) / p).is_file()]
+
+
+def write_stamps(root, manifest, lock_raw):
+    """Write the manifest and the lock, then regenerate the generated places from the
+    manifest as it now stands. If the generator fails every file it or this wrote is put
+    back and False is returned: nothing stays written."""
+    root = pathlib.Path(root)
+    files = [MANIFEST, LOCK] + generated_paths(root)
+    saved = {p: (root / p).read_bytes() for p in files if (root / p).exists()}
+    (root / MANIFEST).write_text(manifest)
+    (root / LOCK).write_text(lock_raw)
+    if regenerate(root):
+        return True
+    for p, data in saved.items():
+        (root / p).write_bytes(data)
+    return False
+
+
+def cmd_review_construction(root, i):
+    root = pathlib.Path(root)
+    c = Ctx(root, Inventory([]))
+    status, manifest, lock_raw = review_construction(root, i, c.text, c.lock_raw)
+    if status == "refused":
+        return 1
+    if status == "clean":
+        return 0
+    if not write_stamps(root, manifest, lock_raw):
+        print("review refuses; nothing was written: the generator failed")
+        return 1
+    print(f"{i}: reviewed; fingerprint {fingerprint_of(parse_lock(lock_raw)[i])[:12]}")
     return 0
 
 
-def cmd_review(root, i, inv_path, inv=None):
-    root = pathlib.Path(root)
-    try:
-        cons = {x.get("id") for x in tomllib.loads((root / MANIFEST).read_text())
-                .get("construction", []) if isinstance(x, dict)}
-    except (OSError, tomllib.TOMLDecodeError):
-        cons = set()
-    if i in cons:
-        return cmd_review_construction(root, i)
-    inv = inv or read_inventory(root, inv_path)
-    c = Ctx(root, inv)
+def review_action(root, inv, i, manifest, lock_raw, memo):
+    """Work out an action's stamp: the report, the refusals, the new manifest and lock.
+    Writes and regenerates nothing; `memo` keeps the stamp check to one run. Returns
+    (status, manifest, lock_raw), status "missing", "clean", "repointed" (moved functions
+    only, no stamp), "refused" or "stamped"."""
+    c = Ctx(root, inv, manifest, lock_raw)
     if i not in c.by_id:
         print(f"review: no action {i} in {MANIFEST}")
-        return 1
-    manifest, mapping = c.text, {}
+        return "missing", manifest, lock_raw
+    mapping = {}
     a = c.by_id[i]
     for f in as_list(a.get("functions")):
         if f not in inv.fns:
@@ -1866,7 +1907,7 @@ def cmd_review(root, i, inv_path, inv=None):
                 mapping[f] = t
     if mapping:
         manifest = edit_repoint(manifest, i, mapping)
-        c = Ctx(root, inv, manifest, c.lock_raw)
+        c = Ctx(root, inv, manifest, lock_raw)
         a = c.by_id[i]
         for old, new in mapping.items():
             print(f"{i}: moved, body unchanged: {old} -> {new}")
@@ -1887,29 +1928,108 @@ def cmd_review(root, i, inv_path, inv=None):
         print("\nreview refuses; nothing was written:")
         for cat, _, msg in mine:
             print(f"  [{cat}] {msg}")
-        return 1
-    if not clean and a.get("checked", {}).get("crosscheck") and not stamp_ok(root):
-        print("\nreview refuses; nothing was written: tools/crosscheck/stamp.py check fails "
-              "(run just crosscheck)")
-        return 1
+        return "refused", manifest, lock_raw
+    if not clean and a.get("checked", {}).get("crosscheck"):
+        if "stamp" not in memo:
+            memo["stamp"] = stamp_ok(root)
+        if not memo["stamp"]:
+            print("\nreview refuses; nothing was written: tools/crosscheck/stamp.py check fails "
+                  "(run just crosscheck)")
+            return "refused", manifest, lock_raw
     lock = dict(c.lock)
+    lock[i] = sorted(now)
     if clean:
         if not mapping:
             print(f"{i}: nothing changed since the last review")
-            return 0
-        lock[i] = sorted(now)
-        (root / MANIFEST).write_text(manifest)
-        (root / LOCK).write_text(lock_text(lock))
-        return 0
-    if not regenerate(root):
-        print("review refuses; nothing was written: the generator failed")
-        return 1
-    lock[i] = sorted(now)
+            return "clean", manifest, lock_raw
+        return "repointed", manifest, lock_text(lock)
     text = edit_stamp(manifest, i, fingerprint_of(now), datetime.date.today().isoformat())
     tomllib.loads(text)
-    (root / MANIFEST).write_text(text)
-    (root / LOCK).write_text(lock_text(lock))
-    print(f"\n{i}: reviewed; fingerprint {fingerprint_of(now)[:12]}")
+    return "stamped", text, lock_text(lock)
+
+
+def cmd_review(root, i, inv_path, inv=None):
+    root = pathlib.Path(root)
+    try:
+        cons = construction_ids((root / MANIFEST).read_text())
+    except OSError:
+        cons = set()
+    if i in cons:
+        return cmd_review_construction(root, i)
+    inv = inv or read_inventory(root, inv_path)
+    c = Ctx(root, inv)
+    status, manifest, lock_raw = review_action(root, inv, i, c.text, c.lock_raw, {})
+    if status in ("missing", "refused"):
+        return 1
+    if status == "clean":
+        return 0
+    if status == "repointed":
+        (root / MANIFEST).write_text(manifest)
+        (root / LOCK).write_text(lock_raw)
+        return 0
+    if not write_stamps(root, manifest, lock_raw):
+        print("review refuses; nothing was written: the generator failed")
+        return 1
+    print(f"\n{i}: reviewed; fingerprint {fingerprint_of(parse_lock(lock_raw)[i])[:12]}")
+    return 0
+
+
+def cmd_review_stale(root, inv_path, inv=None):
+    """Stamp every action and construction whose fingerprint fails, as `cmd_review` does
+    for each id, over one inventory, one stamp check and one regenerate. All or none:
+    when one id refuses, every refusal is listed and nothing is written."""
+    root = pathlib.Path(root)
+    inv = inv or read_inventory(root, inv_path)
+    c = Ctx(root, inv)
+    check_fingerprints(c)
+    stale = []
+    for _, i, _ in c.errors.items:
+        if i is not None and i not in stale:
+            stale.append(i)
+    if not stale:
+        print("review-stale: no fingerprint is stale; nothing was written")
+        return 0
+    cons = construction_ids(c.text)
+    manifest, lock_raw, memo = c.text, c.lock_raw, {}
+    done, refused = [], []
+    for i in stale:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            if i in cons:
+                status, m2, l2 = review_construction(root, i, manifest, lock_raw)
+            else:
+                status, m2, l2 = review_action(root, inv, i, manifest, lock_raw, memo)
+        if status in ("missing", "refused"):
+            refused.append((i, buf.getvalue()))
+        elif status in ("stamped", "repointed"):
+            manifest, lock_raw = m2, l2
+            done.append((i, status))
+    # A used action's stamp does not change what its users read (their lines hold the
+    # used action's code), so one pass settles it; this holds the call to that.
+    c2 = Ctx(root, inv, manifest, lock_raw)
+    check_fingerprints(c2)
+    left = sorted({i for _, i, _ in c2.errors.items if i is not None} - {i for i, _ in refused})
+    if refused:
+        for i, text in refused:
+            print(f"{i}:")
+            print(text[text.find("review refuses"):].rstrip() if "review refuses" in text
+                  else text.rstrip())
+            print()
+        print(f"review-stale refuses; nothing was written: {len(refused)} of {len(stale)} "
+              f"refuse: {', '.join(i for i, _ in refused)}")
+        return 1
+    if left:
+        print("review-stale refuses; nothing was written: still stale after stamping: "
+              + ", ".join(left))
+        return 1
+    if not write_stamps(root, manifest, lock_raw):
+        print("review-stale refuses; nothing was written: the generator failed")
+        return 1
+    lock = parse_lock(lock_raw)
+    for i, status in done:
+        print(f"{i}: " + ("reviewed; fingerprint " + fingerprint_of(lock[i])[:12]
+                          if status == "stamped" else "moved, body unchanged"))
+    print(f"{len(done)} stamped")
     return 0
 
 
@@ -2183,6 +2303,35 @@ def self_test():
         c = check(base)
         expect(not c.errors.items, f"check passes after review {msgs(c)}")
         expect(sorted(c.uses["one"]) == ["two"], "one uses two (f calls g)")
+
+        print("review-stale stamps every stale fingerprint in one call:")
+        m_ok, l_ok = (root / MANIFEST).read_text(), (root / LOCK).read_text()
+
+        def stale_run(inv):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = cmd_review_stale(root, None, inv)
+            return rc, buf.getvalue()
+
+        rc, out = stale_run(base)
+        expect(rc == 0 and "no fingerprint is stale" in out
+               and (root / MANIFEST).read_text() == m_ok, "nothing stale prints that and exits 0")
+        changed = fixture_inventory(g_hash="g2")
+        c = check(changed)
+        expect({i for _, i, _ in c.errors.items if i} == {"one", "two"},
+               "a changed g makes two and the one that uses it stale")
+        rc, out = stale_run(changed)
+        expect(rc == 0 and "one: reviewed" in out and "two: reviewed" in out
+               and "2 stamped" in out, f"both are stamped in one call {out!r}")
+        c = check(changed)
+        expect(not c.errors.items, f"check passes after review-stale {msgs(c)}")
+        (root / MANIFEST).write_text(m_ok)
+        (root / LOCK).write_text(l_ok)
+        gone = fixture_inventory(g_hash="g2", test=False)
+        rc, out = stale_run(gone)
+        expect(rc == 1 and "refuse" in out and "t_one" in out
+               and (root / MANIFEST).read_text() == m_ok and (root / LOCK).read_text() == l_ok,
+               "one id refusing lists the refusal and writes nothing")
 
         print("a closure in faraday-core stops at glue (§4.4):")
         core = "faraday-core"
@@ -2554,6 +2703,8 @@ def main(argv):
         return cmd_inventory(ROOT)
     if rest[:1] == ["review"] and len(rest) == 2:
         return cmd_review(ROOT, rest[1], inv_path)
+    if rest[:1] == ["review-stale"] and len(rest) == 1:
+        return cmd_review_stale(ROOT, inv_path)
     if rest[:1] == ["changes"] and len(rest) == 2:
         return cmd_changes(ROOT, rest[1], inv_path)
     print(__doc__)

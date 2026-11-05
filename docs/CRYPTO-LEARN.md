@@ -482,7 +482,10 @@ sign-ecdsa: the code changed since it was reviewed on 2026-11-02
 
 ### 5.3 The re-stamp recipe
 
-just crypto-review (new) `<id>` is the only writer of a fingerprint:
+just crypto-review (new) `<id>` and `just crypto-review-stale` are the only writers of a
+fingerprint; the second does what the first does for every action and construction whose
+fingerprint fails, in one call, over one inventory, one stamp check and one regenerate, and
+refuses as a whole (nothing written, every refusal listed) when any one of them refuses:
 
 1. It prints the action's entry, the parts that changed with their diff
    since the commit that last wrote the fingerprint, and every
@@ -1251,7 +1254,7 @@ exception and the structure rules:
   (the compute token in the crates that hold keys, a reveal, a primitive
   crate named, a public function that reaches one) and no action covers
   fails `just lint`; an action whose code, libraries or vectors changed
-  since its fingerprint fails `just lint-release` (F197). `just crypto-review <id>` is the only
+  since its fingerprint fails `just lint-release` (F197). `just crypto-review <id>` (or `just crypto-review-stale`, for all that fail) is the only
   way to re-stamp: it lists every place the action touches, regenerates
   what is generated, and refuses while a named test, area or vector is
   missing. A function the rules find that computes nothing on a secret

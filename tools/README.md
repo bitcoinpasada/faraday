@@ -48,7 +48,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-themes.sh` | lint | `just lint` | the colour tables are what the vendored material-color-utilities makes (below) |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
 | `tools/costs-lint/` (`crypto-inventory`) | generator | `cargo run -q -p costs-lint --bin crypto-inventory`; `just lint` through `docs/crypto/check.py check` | the cryptographic functions of the tree with their body hashes, callees, tests and call sites in faraday-core, as JSON lines (`docs/CRYPTO-LEARN.md` §4, below) |
-| `docs/crypto/check.py` | lint, generator | `just crypto-review ID`, `just crypto-changes TAG`, `just lint` (`check`), `just lint-release` (`check --release`) | the manifest `docs/crypto/actions.toml` against the inventory and the tree: coverage, schema, what its entries name, fingerprints; `review` is the only writer of a fingerprint (`docs/CRYPTO-LEARN.md` §5); it also checks `docs/AUDIT.md` §1's crate rows, that every `Reveal` variant is named and the count in words, `docs/COMPUTE.md` §2.3's roots, the Tools tiles' tags and the `[[not_crypto]]` count against `tools/lint-crypto.counts` (a ratchet that only falls; raising it is the owner's decision); `inventory` prints the inventory for `--inventory FILE`; `--self-test` runs a fixture |
+| `docs/crypto/check.py` | lint, generator | `just crypto-review ID`, `just crypto-review-stale`, `just crypto-changes TAG`, `just lint` (`check`), `just lint-release` (`check --release`) | the manifest `docs/crypto/actions.toml` against the inventory and the tree: coverage, schema, what its entries name, fingerprints; `review` is the only writer of a fingerprint (`docs/CRYPTO-LEARN.md` §5); it also checks `docs/AUDIT.md` §1's crate rows, that every `Reveal` variant is named and the count in words, `docs/COMPUTE.md` §2.3's roots, the Tools tiles' tags and the `[[not_crypto]]` count against `tools/lint-crypto.counts` (a ratchet that only falls; raising it is the owner's decision); `inventory` prints the inventory for `--inventory FILE`; `--self-test` runs a fixture |
 | `docs/crypto/gen.py` | generator, lint | `python3 -I -B docs/crypto/gen.py write`, `just lint` (`check`; `just crypto-review` runs `write`) | the generated places of `docs/STANDARDS.md` §1 to §7 and `docs/AUDIT.md` §3, between `crypto-manifest` marker lines, from `docs/crypto/actions.toml`; `check` regenerates in memory and fails on any difference; `--self-test` runs a fixture (`docs/CRYPTO-LEARN.md` §3.1) |
 | `tools/learn/sync.py` | lint, generator | `just lint` (`check`), `just learn-export`, `just learn-import` | keeps `docs/learn/*.md` and the Learn pages' `en.rs` identical |
 | `tools/fontbake/` | generator | `just fonts` | turns `tools/fonts/` into glyph outlines for `faraday-draw` |
@@ -97,8 +97,8 @@ none is part of `just`, which stays fast.
    result); staging puts it beside `SHA256SUMS` as
    `crosscheck-<version>.txt`, listed there so it is signed, and the
    release notes quote its summary as they do the fuzz record. Then
-   `just crypto-review ID` for each action `check.py check --release`
-   names, and `just lint-release` passes: the release is what is
+   `just crypto-review-stale` (or `just crypto-review ID` for one action) for
+   what `check.py check --release` names, and `just lint-release` passes: the release is what is
    cross-checked, the tip between releases is not (F197).
 3. The fuzz run, and the corpora published after it (`fuzz/README.md`,
    "Before a release"). On any machine, or on GitHub's runners with

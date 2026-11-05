@@ -275,10 +275,17 @@ learn-import:
 # The cryptographic actions' manifest (docs/CRYPTO-LEARN.md, docs/crypto/check.py).
 # `crypto-review ID` prints an action's entry, what changed in its code and
 # every place to read with it, then writes its fingerprint; it is the only
-# writer of one, and refuses while the entry is untrue.
+# writer of one with `crypto-review-stale`, and refuses while the entry is untrue.
 [group('dev')]
 crypto-review id:
     python3 -I -B docs/crypto/check.py review {{id}}
+
+# Stamps every action and construction whose fingerprint fails, in one call:
+# one inventory, one stamp check, one regenerate, the same refusals as
+# `crypto-review` for each id. All or none: when one refuses, none is written.
+[group('dev')]
+crypto-review-stale:
+    python3 -I -B docs/crypto/check.py review-stale
 
 # The actions whose fingerprint changed since a tag, for the release notes
 # and the deep cross-check before a release.

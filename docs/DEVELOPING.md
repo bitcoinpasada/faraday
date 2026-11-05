@@ -374,6 +374,8 @@ later:
 ```
 just crypto-review ID           print the action's entry, what changed in its code and the
                                 places to read with it; then write its fingerprint
+just crypto-review-stale        the same for every action and construction whose fingerprint
+                                fails, in one call; none is written if one refuses
 just crypto-changes TAG         the actions whose fingerprint changed since a tag
 python3 -I -B docs/crypto/check.py check        coverage, truth and the places it checks
                                                 (AUDIT §1, the Reveal count, COMPUTE §2.3,
