@@ -28,9 +28,13 @@ fn the_committed_fixtures_are_the_ones_the_example_builds() {
         );
         named.push(f.name.to_string());
     }
-    // The signer check's: the two files Bitcoin Core made are inputs of the
-    // example, read and not rebuilt.
-    let core = ["signer-core-signed.psbt", "signer-core-final.psbt"];
+    // The signer check's: the files Bitcoin Core made are read, not rebuilt.
+    let core = [
+        "signer-core-signed.psbt",
+        "signer-core-final.psbt",
+        "signer-core-musig-sent.psbt",
+        "signer-core-musig-final.psbt",
+    ];
     for f in signer::fixtures() {
         let path = dir.join(f.name);
         let committed = std::fs::read_to_string(&path)

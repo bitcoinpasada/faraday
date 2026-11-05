@@ -565,6 +565,32 @@ fn two_script_path_signatures_added_are_clean() {
 }
 
 #[test]
+fn a_musig_spend_finalized_by_core_drops_its_pairs_without_a_finding() {
+    let report = run(
+        "signer-core-musig-sent.psbt",
+        "signer-core-musig-final.psbt",
+    );
+    assert_eq!(report.findings, vec![], "findings");
+}
+
+#[test]
+fn musig_pairs_removed_from_an_input_that_is_not_final_are_caution() {
+    let sent = read("signer-core-musig-sent.psbt");
+    let mut returned = sent.clone();
+    let input = &mut returned.inner_mut().inputs[0];
+    input.unknown.clear();
+    input.tap_key_sig = None;
+    let report = run_with(&sent, &returned, &[]);
+    assert!(
+        found(&report).iter().any(|(id, level, at)| *id == "M3"
+            && *level == Level::Caution
+            && *at == Where::Input(0)),
+        "{:?}",
+        found(&report)
+    );
+}
+
+#[test]
 fn a_proprietary_pair_added_to_a_finalized_input_is_still_a_finding() {
     let sent = read("demo-regtest.psbt");
     let mut returned = read("signer-core-final.psbt");
