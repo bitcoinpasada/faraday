@@ -666,8 +666,10 @@ mod tests {
 
     #[test]
     fn slow_theme_change_steps_leave_fades_on() {
-        let mut f = Fade::default();
-        f.theme_fade = true;
+        let mut f = Fade {
+            theme_fade: true,
+            ..Fade::default()
+        };
         let mut now = 1_000;
         for _ in 0..20 {
             now += 70;
