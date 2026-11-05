@@ -24,6 +24,11 @@ fn at_the_export_prompt() -> Faraday {
 
 /// The same, with this many answers to the requests for randomness.
 fn at_the_export_prompt_with(answers: u8) -> Faraday {
+    at_the_export_prompt_beside(answers, Vec::new())
+}
+
+/// The same, with these files waiting in the Outbox.
+fn at_the_export_prompt_beside(answers: u8, outbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -51,7 +56,7 @@ fn at_the_export_prompt_with(answers: u8) -> Faraday {
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],
-        outbox: Vec::new(),
+        outbox,
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Memory {
@@ -174,6 +179,24 @@ fn header_field(file: &[u8], id: u8) -> &[u8] {
 /// The exported file read by pykeepass (tools/vectors/kdbx/reread.py): one
 /// entry, in the root group, with its password. Said and skipped where
 /// pykeepass is not installed.
+#[test]
+fn an_export_named_as_a_sealed_vault_waiting_goes_beside_it() {
+    let c = testkit::compute();
+    let sealed = testkit::test_vault().unwrap();
+    let mut app = at_the_export_prompt_beside(12, vec![("mail.kdbx".into(), sealed.clone())]);
+    app.press(Action::Vault(V::PromptGo));
+    testkit::settle(&mut app);
+    let file = |name: &str| app.outbox.iter().find(|i| i.name == name);
+    assert_eq!(
+        file("mail.kdbx").map(|i| &i.bytes),
+        Some(&sealed),
+        "the sealed vault is still there, unchanged"
+    );
+    let export = file("mail-2.kdbx").expect("the export beside it");
+    faraday_vault::file::open(&c, &export.bytes, "keepass passphrase")
+        .expect("the export opens under its own passphrase");
+}
+
 fn pykeepass_reads_one_entry(file: &[u8]) {
     let dir = std::env::temp_dir().join(format!("faraday-export-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

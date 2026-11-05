@@ -963,9 +963,9 @@ Argon2id at the first memory step (§3.1), 3 passes and 4 lanes, under a
 passphrase typed for it (8 characters or more), as Create a vault makes
 one: its identifier, its seal and its entry's identifiers are drawn as a
 vault's are (`fresh_bytes`), and the seal is count 1. The file is named
-as the export's file always was (`password.kdbx` for a BIP-85
-password, `password-2.kdbx` beside one waiting) and waits in the Outbox
-sealed. The entry's title is its own, "Password" for a BIP-85 password,
+for the entry's title (`password.kdbx` for a BIP-85 password), goes beside
+any file of that name waiting (`password-2.kdbx`), never over it, and waits
+in the Outbox sealed. The entry's title is its own, "Password" for a BIP-85 password,
 and a notes line that is a BIP-85 path is left out. A KeePass app reads
 it as a database of one entry; Faraday opens it as any vault. As
 Create a vault does, the export does not read the file back. Exporting a

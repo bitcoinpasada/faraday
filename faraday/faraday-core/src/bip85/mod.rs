@@ -64,12 +64,12 @@ pub fn app_name(app: Bip85App) -> &'static str {
     }
 }
 
-/// What an entry titled `title` is called in a file out of Faraday, and
-/// whether that is another name (F172): the title BIP-85 gives a password
-/// it puts into a vault names the key it came from and its index, so out
-/// of the vault the password is "Password", as a child seed out is named
-/// by nothing but itself (F166); any other title goes as it is.
-pub(crate) fn out_title(title: &str) -> (&str, bool) {
+/// What an entry titled `title` is called in a file out of Faraday (F172):
+/// the title BIP-85 gives a password it puts into a vault names the key it
+/// came from and its index, so out of the vault the password is "Password",
+/// as a child seed out is named by nothing but itself (F166); any other
+/// title goes as it is.
+pub(crate) fn out_title(title: &str) -> &str {
     let mut parts = EN.bip85_bip_85_index.split("{}");
     let (head, sep) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
     let bip85 = [Bip85App::Base64, Bip85App::Base85].into_iter().any(|app| {
@@ -78,23 +78,16 @@ pub(crate) fn out_title(title: &str) -> (&str, bool) {
             .and_then(|t| t.strip_prefix(app_name(app)))
             .is_some_and(|t| t.starts_with(sep))
     });
-    if bip85 {
-        (EN.bip85_password_out, true)
-    } else {
-        (title, false)
-    }
+    if bip85 { EN.bip85_password_out } else { title }
 }
 
 /// The title an entry titled `title` carries in a KeePass export and the
-/// file's name: as [`out_title`] calls it, and a password BIP-85 made
-/// beside any other waiting in the Outbox rather than over it (F172).
+/// file's name: as [`out_title`] calls it, beside any other file waiting in
+/// the Outbox rather than over it, since that may be a sealed vault (F172).
 pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, String) {
-    let (out, renamed) = out_title(title);
+    let out = out_title(title);
     let name = format!("{}.kdbx", crate::file_stem(out));
-    match renamed {
-        true => (out, crate::visit_taken::outbox_free_name(outbox, &name)),
-        false => (out, name),
-    }
+    (out, crate::visit_taken::outbox_free_name(outbox, &name))
 }
 
 /// Where child words go once the person has said whether they are
