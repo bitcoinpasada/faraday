@@ -513,9 +513,7 @@ impl BackupFlowArea {
         self.all
             .get(i)
             .is_some_and(|f| f.step == super::Step::Make && !f.made && !f.adding)
-            && self
-                .restoring(i)
-                .is_some_and(|r| !r.complete())
+            && self.restoring(i).is_some_and(|r| !r.complete())
     }
 
     /// Whether the hex keyboard stands under step 4's line: it takes typing
