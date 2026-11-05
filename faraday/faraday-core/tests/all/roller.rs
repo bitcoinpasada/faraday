@@ -76,7 +76,7 @@ fn a_roll_fills_the_rolls_as_the_keys_would() {
     // rolls' as typed.
     assert_eq!(rolled_phrase, faraday_core::demo::PASSPHRASE);
     assert_eq!(
-        faraday_core::vault::dice_words(&made, List::Large).len(),
+        faraday_core::dice_entry::dice_words(&made, List::Large).len(),
         1,
         "five rolls make one word of the long list"
     );
@@ -145,7 +145,7 @@ fn rolls_per_click_is_one_five_ten_a_typed_number_or_to_the_end() {
     let n = rolls(&app).len();
     assert_eq!(n, 30);
     let bits = List::Large.bits(n / List::Large.dice_per_word());
-    assert!(bits >= faraday_core::vault::STRONG_BITS);
+    assert!(bits >= faraday_core::dice_entry::STRONG_BITS);
 }
 
 #[test]

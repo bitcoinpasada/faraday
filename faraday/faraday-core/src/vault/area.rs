@@ -58,6 +58,11 @@ impl VaultArea {
         &self.state
     }
 
+    /// The same, to change: the dice entry's rolls, list, roller and focus.
+    pub(crate) fn state_mut(&mut self) -> &mut Vaults {
+        &mut self.state
+    }
+
     /// Design units scrolled past in Vault contents' item, on a desktop.
     pub(crate) fn item_offset(&self) -> f32 {
         self.item_offset
@@ -2261,35 +2266,6 @@ pub fn vault_stem(typed: &str) -> String {
     }
 }
 
-/// The words a list's dice rolls spell, for as many whole words as the
-/// rolls make (`faraday-bip`'s diceware lists, in roll order).
-pub fn dice_words(rolls: &str, list: faraday_bip::diceware::List) -> Vec<&'static str> {
-    let per = list.dice_per_word();
-    let digits: Vec<u8> = rolls
-        .bytes()
-        .filter(|b| (b'1'..=b'6').contains(b))
-        .map(|b| b - b'0')
-        .collect();
-    digits
-        .chunks_exact(per)
-        .filter_map(|w| list.word(w))
-        .collect()
-}
-
-/// The place in its list of each whole word the rolls make, in order:
-/// the dice read as a number in base 6, first die highest.
-pub fn dice_word_indices(rolls: &str, list: faraday_bip::diceware::List) -> Vec<u16> {
-    let digits: Vec<u16> = rolls
-        .bytes()
-        .filter(|b| (b'1'..=b'6').contains(b))
-        .map(|b| u16::from(b - b'1'))
-        .collect();
-    digits
-        .chunks_exact(list.dice_per_word())
-        .map(|w| w.iter().fold(0u16, |n, d| n * 6 + d))
-        .collect()
-}
-
 /// Whether a form field takes several lines, Enter starting a new one: a
 /// note's text and an entry's notes.
 pub fn multiline(kind: u8, number: u8) -> bool {
@@ -2588,22 +2564,6 @@ pub const CATEGORIES: [(&str, &[u8]); 6] = [
     (EN.vaults_gpg_keys, &[kind::GPG]),
     (EN.vaults_secure_boot, &[kind::SECURE_BOOT]),
 ];
-
-/// Bits of a passphrase from dice counted strong: six words of the EFF
-/// long list (`docs/VAULT.md` §3.1).
-pub const STRONG_BITS: u32 = 77;
-
-/// The words this list needs for a strong passphrase, said with where the
-/// lists come from: text, since Faraday is offline.
-pub fn dice_aim(list: faraday_bip::diceware::List) -> String {
-    let n = (1..=20)
-        .find(|&n| list.bits(n) >= STRONG_BITS)
-        .unwrap_or(20);
-    fill(
-        EN.vaults_aim_for_words,
-        &[&n.to_string(), &STRONG_BITS.to_string()],
-    )
-}
 
 /// The bits an unlock cost adds to every passphrase (`docs/VAULT.md`
 /// §3.1): one guess is memory × passes of Argon2id's 1 KiB block steps,

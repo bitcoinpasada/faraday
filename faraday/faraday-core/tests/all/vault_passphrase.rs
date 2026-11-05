@@ -159,7 +159,7 @@ fn create_vault_passphrase_fields_have_the_eye() {
 
 #[test]
 fn the_dice_panel_says_how_many_words_make_a_strong_passphrase() {
-    use faraday_core::vault::dice_aim;
+    use faraday_core::dice_entry::dice_aim;
     assert!(dice_aim(List::Large).starts_with("Aim for 6 words"));
     assert!(dice_aim(List::Short1).starts_with("Aim for 8 words"));
     assert!(dice_aim(List::Large).contains("eff.org/dice"));

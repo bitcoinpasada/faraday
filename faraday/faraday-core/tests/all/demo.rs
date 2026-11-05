@@ -795,14 +795,14 @@ fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
 #[test]
 fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_faraday() {
     let rolled =
-        faraday_core::vault::dice_words(ROLLS, faraday_bip::diceware::List::Large).join("");
+        faraday_core::dice_entry::dice_words(ROLLS, faraday_bip::diceware::List::Large).join("");
     let mut app = app_on(true);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::Dice(0)));
     crate::common::type_text(&mut app, ROLLS);
     // The rolled words are shown as they are rolled.
-    let words = faraday_core::vault::dice_words(ROLLS, faraday_bip::diceware::List::Large);
+    let words = faraday_core::dice_entry::dice_words(ROLLS, faraday_bip::diceware::List::Large);
     assert!(crate::common::has_part(&mut app, words[0]));
     app.press(Action::Vault(V::DiceUse));
     assert!(

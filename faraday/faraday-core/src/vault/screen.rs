@@ -837,7 +837,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has no side panel, nor has a window too low to hold
     // it whole: its summary and Create vault follow the last step.
     let compact = ui.compact || h < create_panel_h(app, ui, panel_w);
-    let foot = super::dice_screen::foot(app, ui);
+    let foot = crate::dice_entry::screen::foot(app, ui);
     let col = flow::Column {
         area_x: x0,
         area_w: if compact { cw } else { cw - panel_w },
@@ -868,7 +868,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::CreateVault, next, again);
-    super::dice_screen::foot_panel(app, ui, (&col, h), foot);
+    crate::dice_entry::screen::foot_panel(app, ui, (&col, h), foot);
     if !compact {
         create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
     }
@@ -1423,7 +1423,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                                 &format!("{:.1}", own + cost),
                             ],
                         ),
-                        if own >= vault::STRONG_BITS as f32 {
+                        if own >= crate::dice_entry::STRONG_BITS as f32 {
                             good
                         } else {
                             muted
@@ -1441,7 +1441,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 // The demo's public passphrase stands in for the rolled
                 // words: the "Demo only" card says so (`docs/DEMO.md` §5.2).
                 cy += 12.0;
-                cy += super::dice_screen::dice_panel(app, ui, (x, cy, w), i);
+                cy += crate::dice_entry::screen::dice_panel(app, ui, (x, cy, w), i);
             }
             // A small panel has no side panel: what will be made, and
             // Create vault, come after the last step's controls.

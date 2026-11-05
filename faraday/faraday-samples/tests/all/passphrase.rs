@@ -271,7 +271,7 @@ fn in_demo_generate_with_dice_shows_the_rolled_words_then_puts_faraday_in_place(
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::Dice(0)));
     type_in(&mut app, ROLLS);
-    let words = faraday_core::vault::dice_words(ROLLS, faraday_bip::diceware::List::Large);
+    let words = faraday_core::dice_entry::dice_words(ROLLS, faraday_bip::diceware::List::Large);
     let _ = app.frame();
     assert!(shows_part(&mut app, words[0]), "the rolled words show");
     app.press(Action::Vault(V::DiceUse));

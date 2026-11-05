@@ -13,8 +13,6 @@
 mod area;
 pub(crate) mod copy;
 pub(crate) mod copy_screen;
-pub(crate) mod dice;
-mod dice_screen;
 pub(crate) mod errors;
 pub(crate) mod keep;
 pub mod load;
@@ -983,7 +981,7 @@ impl Faraday {
             }
             V::SbCheck(k) => self.sb_check(k),
             // The dice entry's and the roller's.
-            _ => dice::act(self, a),
+            _ => crate::dice_entry::act(self, a),
         }
     }
 
@@ -1209,7 +1207,7 @@ impl Faraday {
             self.signer_check_sync();
         }
         redraw
-            | dice::tick(self, now_ms)
+            | crate::dice_entry::tick(self, now_ms)
             | self.vault_older_settle()
             | self.vault_save_also_settle()
             | copy::settle(self)
@@ -2233,7 +2231,7 @@ impl Faraday {
             return true;
         }
         if matches!(focus, Focus::Dice | Focus::Rolls) {
-            return dice::key(self, focus, key);
+            return crate::dice_entry::key(self, focus, key);
         }
         if focus == Focus::Prompt {
             if let Some(p) = self.vaults.state.prompt.as_mut() {

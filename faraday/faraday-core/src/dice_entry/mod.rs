@@ -4,11 +4,59 @@
 //! as this computer's, so that the passphrase's strength line says
 //! "simulated dice".
 
-use super::{Focus, STRONG_BITS, TextBox, VaultAction as V, dice_words};
+use crate::vault::{Focus, TextBox, VaultAction as V};
+use crate::strings::{EN, fill};
 use crate::Faraday;
 use crate::fresh::roller::{Act, PerClick};
 use faraday_shell_api::Key as K;
 use zeroize::Zeroizing;
+
+pub(crate) mod screen;
+
+/// Bits of a passphrase from dice counted strong: six words of the EFF
+/// long list (`docs/VAULT.md` §3.1).
+pub const STRONG_BITS: u32 = 77;
+
+/// The words this list needs for a strong passphrase, said with where the
+/// lists come from: text, since Faraday is offline.
+pub fn dice_aim(list: faraday_bip::diceware::List) -> String {
+    let n = (1..=20)
+        .find(|&n| list.bits(n) >= STRONG_BITS)
+        .unwrap_or(20);
+    fill(
+        EN.vaults_aim_for_words,
+        &[&n.to_string(), &STRONG_BITS.to_string()],
+    )
+}
+
+/// The words a list's dice rolls spell, for as many whole words as the
+/// rolls make (`faraday-bip`'s diceware lists, in roll order).
+pub fn dice_words(rolls: &str, list: faraday_bip::diceware::List) -> Vec<&'static str> {
+    let per = list.dice_per_word();
+    let digits: Vec<u8> = rolls
+        .bytes()
+        .filter(|b| (b'1'..=b'6').contains(b))
+        .map(|b| b - b'0')
+        .collect();
+    digits
+        .chunks_exact(per)
+        .filter_map(|w| list.word(w))
+        .collect()
+}
+
+/// The place in its list of each whole word the rolls make, in order:
+/// the dice read as a number in base 6, first die highest.
+pub fn dice_word_indices(rolls: &str, list: faraday_bip::diceware::List) -> Vec<u16> {
+    let digits: Vec<u16> = rolls
+        .bytes()
+        .filter(|b| (b'1'..=b'6').contains(b))
+        .map(|b| u16::from(b - b'1'))
+        .collect();
+    digits
+        .chunks_exact(list.dice_per_word())
+        .map(|w| w.iter().fold(0u16, |n, d| n * 6 + d))
+        .collect()
+}
 
 /// The most words the roller adds, one click or many.
 const MAX_WORDS: usize = 20;
@@ -30,17 +78,17 @@ pub(crate) fn room(app: &Faraday) -> usize {
 }
 
 /// A press on the dice entry or the roller.
-pub(super) fn act(app: &mut Faraday, a: V) {
+pub(crate) fn act(app: &mut Faraday, a: V) {
     match a {
         V::DiceKey(0) => {
-            if let Some((_, rolls, _)) = app.vaults.state.dice.as_mut() {
+            if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
                 rolls.text.pop();
                 let len = rolls.text.len();
-                app.vaults.state.roller.trim(len);
+                app.vaults.state_mut().roller.trim(len);
             }
         }
         V::DiceKey(f @ 1..=6) => {
-            if let Some((_, rolls, _)) = app.vaults.state.dice.as_mut() {
+            if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
                 rolls.text.push(char::from(b'0' + f));
             }
         }
@@ -48,27 +96,27 @@ pub(super) fn act(app: &mut Faraday, a: V) {
         V::Dice(i) => {
             // Pressed again, the rolls box keeps what is rolled.
             if app.vaults.dice.as_ref().is_none_or(|d| d.0 != i) {
-                app.vaults.state.dice =
+                app.vaults.state_mut().dice =
                     Some((i, TextBox::default(), faraday_bip::diceware::List::Large));
-                app.vaults.state.roller.reset();
+                app.vaults.state_mut().roller.reset();
             }
-            app.vaults.state.focus = Some(Focus::Dice);
+            app.vaults.state_mut().focus = Some(Focus::Dice);
         }
         V::DiceList(k) => {
-            if let Some((_, rolls, list)) = app.vaults.state.dice.as_mut()
+            if let Some((_, rolls, list)) = app.vaults.state_mut().dice.as_mut()
                 && let Some(&l) = faraday_bip::diceware::List::ALL.get(usize::from(k))
                 && l != *list
             {
                 *list = l;
                 rolls.clear();
-                app.vaults.state.roller.reset();
+                app.vaults.state_mut().roller.reset();
             }
         }
         V::DiceUse => use_words(app),
         V::DiceClose => {
-            app.vaults.state.dice = None;
-            app.vaults.state.focus = None;
-            app.vaults.state.roller.reset();
+            app.vaults.state_mut().dice = None;
+            app.vaults.state_mut().focus = None;
+            app.vaults.state_mut().roller.reset();
         }
         V::Roller(r) if app.roller_offered() => roll(app, r),
         _ => {}
@@ -77,7 +125,7 @@ pub(super) fn act(app: &mut Faraday, a: V) {
 
 /// Fills the passphrase with the words the rolls made.
 fn use_words(app: &mut Faraday) {
-    let Some((i, rolls, list)) = app.vaults.state.dice.take() else {
+    let Some((i, rolls, list)) = app.vaults.state_mut().dice.take() else {
         return;
     };
     let words = dice_words(&rolls.text, list);
@@ -85,7 +133,7 @@ fn use_words(app: &mut Faraday) {
     // The demo puts its public passphrase in place of the rolled words,
     // which are dropped (`docs/DEMO.md` §5.2).
     let public = !app.makes_secrets();
-    if let Some(c) = app.vaults.state.create.as_mut()
+    if let Some(c) = app.vaults.state_mut().create.as_mut()
         && let Some((a, b)) = c.phrases.get_mut(i)
         && !words.is_empty()
     {
@@ -103,16 +151,16 @@ fn use_words(app: &mut Faraday) {
             *d = Some((phrase, bits, sim));
         }
     }
-    app.vaults.state.roller.reset();
-    app.vaults.state.focus = None;
+    app.vaults.state_mut().roller.reset();
+    app.vaults.state_mut().focus = None;
 }
 
 /// A press on the roller: its choice, or Roll, whose values are entered
 /// at once, in the frame that shows the press.
 fn roll(app: &mut Faraday, r: Act) {
     let (room, now) = (room(app), app.now_ms());
-    app.vaults.state.roller.act(r, room, now);
-    app.vaults.state.focus = Some(if r == Act::Count {
+    app.vaults.state_mut().roller.act(r, room, now);
+    app.vaults.state_mut().focus = Some(if r == Act::Count {
         Focus::Rolls
     } else {
         Focus::Dice
@@ -124,21 +172,21 @@ fn roll(app: &mut Faraday, r: Act) {
 
 /// The roller's tick: the values it made land on the rolls. Returns
 /// whether the screen needs a frame.
-pub(super) fn tick(app: &mut Faraday, now_ms: u64) -> bool {
+pub(crate) fn tick(app: &mut Faraday, now_ms: u64) -> bool {
     if !app.vaults.roller.active() {
         return false;
     }
     let (reduce, room) = (app.reduce_motion(), room(app));
     let Some(len) = app.vaults.dice.as_ref().map(|d| d.1.text.len()) else {
-        app.vaults.state.roller.reset();
+        app.vaults.state_mut().roller.reset();
         return false;
     };
-    let mut roller = std::mem::take(&mut app.vaults.state.roller);
+    let mut roller = std::mem::take(&mut app.vaults.state_mut().roller);
     let (values, redraw) = roller.tick(now_ms, reduce, len, room, &mut || {
         app.fresh(b"faraday dice roller")
     });
-    app.vaults.state.roller = roller;
-    if let Some((_, rolls, _)) = app.vaults.state.dice.as_mut() {
+    app.vaults.state_mut().roller = roller;
+    if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
         for v in values {
             rolls.text.push(char::from(b'0' + v));
         }
@@ -148,23 +196,23 @@ pub(super) fn tick(app: &mut Faraday, now_ms: u64) -> bool {
 
 /// Typing while the rolls or the roller's number has the keys. Returns
 /// whether the key was taken.
-pub(super) fn key(app: &mut Faraday, focus: Focus, key: K) -> bool {
+pub(crate) fn key(app: &mut Faraday, focus: Focus, key: K) -> bool {
     if focus == Focus::Rolls {
         match key {
-            K::Char(c) => app.vaults.state.roller.digit(c),
-            K::Backspace => app.vaults.state.roller.backspace(),
-            K::Enter => app.vaults.state.focus = Some(Focus::Dice),
+            K::Char(c) => app.vaults.state_mut().roller.digit(c),
+            K::Backspace => app.vaults.state_mut().roller.backspace(),
+            K::Enter => app.vaults.state_mut().focus = Some(Focus::Dice),
             _ => {}
         }
         return true;
     }
-    if let Some((_, rolls, _)) = app.vaults.state.dice.as_mut() {
+    if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
         match key {
             K::Char(c) if ('1'..='6').contains(&c) => rolls.text.push(c),
             K::Backspace => {
                 rolls.text.pop();
                 let len = rolls.text.len();
-                app.vaults.state.roller.trim(len);
+                app.vaults.state_mut().roller.trim(len);
             }
             K::Enter => act(app, V::DiceUse),
             _ => {}

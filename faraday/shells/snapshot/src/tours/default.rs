@@ -1343,7 +1343,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("create-vault-dice")?;
     // The first word in its list, and back to the rolls as they were.
     let first =
-        faraday_core::vault::dice_word_indices(rolls, faraday_bip::diceware::List::Large)[0];
+        faraday_core::dice_entry::dice_word_indices(rolls, faraday_bip::diceware::List::Large)[0];
     t.press(Action::WordList(
         faraday_core::wordlist::WordListAction::Open(1, Some(first)),
     ));
@@ -1360,7 +1360,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .map(|c| c.phrases[0].0.text.to_string())
         .unwrap_or_default();
     let expect =
-        faraday_core::vault::dice_words(rolls, faraday_bip::diceware::List::Large).join("");
+        faraday_core::dice_entry::dice_words(rolls, faraday_bip::diceware::List::Large).join("");
     if dice_phrase != expect {
         return Err(format!("dice gave {dice_phrase:?}, expected {expect:?}"));
     }

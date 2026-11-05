@@ -47,8 +47,7 @@
 //!   `devices` (what else captures the screen or the keys) and `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
-//!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
-//!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
+//!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`),
 //!   `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
@@ -158,6 +157,7 @@ pub mod worker;
 // Screens and drawing: what is drawn from the state (each area's `screen.rs` is in its folder).
 pub mod demo;
 pub mod devices;
+pub mod dice_entry;
 mod drawing;
 pub mod edid;
 pub mod glance;

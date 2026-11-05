@@ -1,8 +1,9 @@
 //! Generate with dice on Create a vault (`docs/FLOWS.md`, Create a vault):
-//! drawing only. What a press does is `vault/dice.rs`.
+//! drawing only. What a press does is `dice_entry/mod.rs`.
 
-use super::screen::text_box;
+use crate::vault::screen::text_box;
 use crate::Action;
+use crate::dice_entry;
 use crate::drawing::View;
 use crate::screens::{dice_pad, never_under};
 use crate::strings::EN;
@@ -23,7 +24,7 @@ fn va(a: V) -> Action {
 /// on a window that is not the small panel and where it takes at most
 /// `INPUT_PANEL_MAX` of the height, while the on-screen keyboard is not
 /// up; else `None`, and all three stay in the card. Arithmetic.
-pub(super) fn foot(app: &View, ui: &Ui) -> Option<f32> {
+pub(crate) fn foot(app: &View, ui: &Ui) -> Option<f32> {
     use faraday_draw::tokens as t;
     let open = app
         .vaults
@@ -41,7 +42,7 @@ pub(super) fn foot(app: &View, ui: &Ui) -> Option<f32> {
 /// The input panel at the foot of the flow's page, `fh` tall, where
 /// [`foot`] stands it: the rolls, the strength line and the pad, a key
 /// per face and Backspace, in the column `col` lays the cards in.
-pub(super) fn foot_panel(
+pub(crate) fn foot_panel(
     app: &View,
     ui: &mut Ui,
     (col, h): (&crate::flow::Column, f32),
@@ -106,7 +107,7 @@ fn rolls_box(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), rolls: &TextBo
 /// typed, the words they make, and the strength so far; the rolls and
 /// the strength stand in the input panel at the foot where [`foot`]
 /// stands it. Returns its height.
-pub(super) fn dice_panel(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), i: usize) -> f32 {
+pub(crate) fn dice_panel(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), i: usize) -> f32 {
     match app.vaults.dice.as_ref() {
         Some((di, rolls, list)) if *di == i => {
             let at_foot = foot(app, ui).is_some();
@@ -118,7 +119,7 @@ pub(super) fn dice_panel(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), i:
 
 /// The strength line for `rolls` from `list`, and its tone.
 fn strength(app: &View, rolls: &str, list: faraday_bip::diceware::List) -> (String, Role) {
-    let words = vault::dice_words(rolls, list);
+    let words = dice_entry::dice_words(rolls, list);
     let per = list.dice_per_word();
     let left = rolls.len() % per;
     let bits = list.bits(words.len());
@@ -149,7 +150,7 @@ fn strength(app: &View, rolls: &str, list: faraday_bip::diceware::List) -> (Stri
             .to_string(),
         ],
     );
-    let tone = if bits >= vault::STRONG_BITS {
+    let tone = if bits >= dice_entry::STRONG_BITS {
         Role::Ok
     } else {
         Role::OnSurfaceVariant
@@ -220,7 +221,7 @@ fn dice_card(
     }
     // The computer's roller, on Faraday Demo only, is in the strip
     // (`docs/CODEX32.md` §5.6, `host`).
-    let words = vault::dice_words(&rolls.text, list);
+    let words = dice_entry::dice_words(&rolls.text, list);
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
     if words.is_empty() {
@@ -239,7 +240,7 @@ fn dice_card(
         let mut bx = x;
         for (word, i) in words
             .iter()
-            .zip(vault::dice_word_indices(&rolls.text, list))
+            .zip(dice_entry::dice_word_indices(&rolls.text, list))
         {
             let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
             if bx > x && bx + bw > x + w {
@@ -264,7 +265,7 @@ fn dice_card(
         (x, cy, w),
         BODY_S,
         Role::OnSurfaceVariant,
-        &vault::dice_aim(list),
+        &dice_entry::dice_aim(list),
     ) + 12.0;
     let style = Style::Primary.when(!words.is_empty());
     let uw = ui.button(

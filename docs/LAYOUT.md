@@ -688,7 +688,7 @@ the panel, the words so far, the check and the card's buttons in the
 page above it (`keygen/dice_panel.rs`); Generate with dice stands the
 rolls' field, the strength line and a pad of the six faces and
 Backspace in the panel, the list's choice, the words and Use these
-words in the card (`vault/dice_screen.rs`). While the on-screen keyboard
+words in the card (`dice_entry/screen.rs`). While the on-screen keyboard
 is up for the rolls' field, its keys are the pad and the panel stands
 in the card. The page scrolls clear of the panel. Dice typed as one
 string keep their field in the card.
