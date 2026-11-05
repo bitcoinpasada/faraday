@@ -15,10 +15,42 @@ framebuffer as it is.
   XRGB8888.
 - drm_fb_helper_fill_pixel_fmt reports red at bit 0 and blue at bit 16
   for XBGR8888, so the console and the boot logo keep their colours.
+- The client's framebuffer is made with drm_mode_addfb2, which takes the
+  format. drm_mode_addfb takes only bits and depth and works out
+  XRGB8888 from them again, so without this the buffer stays blue first
+  and red and blue show exchanged on every screen.
 
-The second change reaches every driver that uses the generic fbdev
-emulation at 32 bits; vc4 is the only DRM driver this board builds.
+The second and fourth changes reach every driver that uses the generic
+fbdev emulation or a DRM client; vc4 is the only DRM driver this board
+builds. A format the legacy table gives comes out the same either way.
 
+--- a/drivers/gpu/drm/drm_client.c
++++ b/drivers/gpu/drm/drm_client.c
+@@ -389,19 +389,16 @@
+ 				   u32 width, u32 height, u32 format)
+ {
+ 	struct drm_client_dev *client = buffer->client;
+-	struct drm_mode_fb_cmd fb_req = { };
+-	const struct drm_format_info *info;
++	struct drm_mode_fb_cmd2 fb_req = { };
+ 	int ret;
+ 
+-	info = drm_format_info(format);
+-	fb_req.bpp = drm_format_info_bpp(info, 0);
+-	fb_req.depth = info->depth;
+ 	fb_req.width = width;
+ 	fb_req.height = height;
+-	fb_req.handle = buffer->handle;
+-	fb_req.pitch = buffer->pitch;
++	fb_req.pixel_format = format;
++	fb_req.handles[0] = buffer->handle;
++	fb_req.pitches[0] = buffer->pitch;
+ 
+-	ret = drm_mode_addfb(client->dev, &fb_req, client->file);
++	ret = drm_mode_addfb2(client->dev, &fb_req, client->file);
+ 	if (ret)
+ 		return ret;
+ 
 --- a/drivers/gpu/drm/drm_fb_helper.c
 +++ b/drivers/gpu/drm/drm_fb_helper.c
 @@ -1341,6 +1341,10 @@
