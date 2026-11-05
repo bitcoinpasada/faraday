@@ -42,7 +42,7 @@ Read this table, then only the decision you need.
 | [F25](history/decisions/F25.md) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Replaced by F99 | signing |
 | [F26](decisions/F26.md) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Amended by F30 | stick |
 | [F27](decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
-| [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123 | QR |
+| [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123, F215 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
 | [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83 | release |
 | [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58, F99 | backup |
@@ -229,3 +229,4 @@ Read this table, then only the decision you need.
 | [F212](decisions/F212.md) | GitHub's cache may hold compiled dependencies, never Faraday's own crates, written only by a push to main | 2026-11-04 | Active | repository |
 | [F213](decisions/F213.md) | quick-xml is a library the manifest names that is not established | 2026-11-05 | Active | security |
 | [F214](decisions/F214.md) | A Spec holds the design and whether it is built, and carries no work list | 2026-11-05 | Active | repository |
+| [F215](decisions/F215.md) | A GPG key's paperkey has a code, for moving the key to a vault on another machine | 2026-11-05 | Active | QR |

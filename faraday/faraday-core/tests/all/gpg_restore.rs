@@ -565,3 +565,215 @@ fn nothing_of_a_restore_is_cut_off_on_the_pi_panel() {
         found.join("\n")
     );
 }
+
+/// The key of [`paper_key`] restored into the test vault, its page open
+/// on a panel of `width` × `height` at `dpi`.
+fn key_page(width: u16, height: u16, dpi: u16) -> Faraday {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    restore_at_make(&mut app, RestoreFrom::read(&cert_file(&k).1).unwrap());
+    app.press(Action::Flow(F::Restore(R::ScanPaperkey)));
+    scan(&mut app, PRINTED.as_bytes());
+    app.press(Action::Flow(F::Restore(R::Restore)));
+    assert!(app.flow().unwrap().made, "{:?}", texts(&mut app));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(Kind::Gpg.category())));
+    app.press(Action::Vault(V::Item(0)));
+    let _ = app.frame();
+    assert!(has_part(&mut app, "Test Person"), "{:?}", texts(&mut app));
+    app
+}
+
+/// The key's page offers Show as QR under the masked paperkey; one press,
+/// with no hold, opens the sheet marked Secret on the paperkey's lines,
+/// with no picture, no Outbox file and no choice of format, speed or
+/// size; Done and a lock each take it away (F215).
+#[test]
+fn a_gpg_keys_paperkey_shows_as_one_secret_code_and_is_gone_after_done_and_a_lock() {
+    let mut app = key_page(480, 640, 160);
+    let show = Action::Vault(V::PaperkeyQr);
+    assert!(offered(&mut app, show), "{:?}", texts(&mut app));
+    for end in [Action::Cancel, Action::Lock] {
+        app.press(show);
+        let q = app.qr().expect("a press opens the sheet");
+        assert!(q.secret && q.one_code);
+        assert!(!q.offers_png());
+        assert!(
+            has(&mut app, "Secret · whoever scans this can use it"),
+            "{:?}",
+            texts(&mut app)
+        );
+        assert!(has_part(&mut app, "Test Person"));
+        assert!(has_part(&mut app, "· Paperkey"));
+        for no in ["UR", "BBQr", "Parts", "Small", "Medium", "Large"] {
+            assert!(!has(&mut app, no), "{no} is offered");
+        }
+        assert!(!app.drawn_actions().iter().any(|a| matches!(
+            a,
+            Action::QrFormat(_) | Action::QrPartSize(_) | Action::QrPng
+        )));
+        // A paperkey always fits one code, so a size taken would show only
+        // in what the sheet holds, not in its frames.
+        let (format, part) = {
+            let q = app.qr().unwrap();
+            (q.format, q.part)
+        };
+        let size = faraday_core::QR_PARTS
+            .into_iter()
+            .find(|n| *n != part)
+            .expect("another size");
+        app.press(Action::QrFormat(1));
+        app.press(Action::QrPartSize(size));
+        app.press(Action::QrPng);
+        let q = app.qr().unwrap();
+        assert_eq!(q.frames.len(), 1);
+        assert_eq!((q.format, q.part), (format, part), "a choice was taken");
+        assert!(app.outbox.is_empty(), "the paperkey went to the Outbox");
+        app.press(end);
+        assert!(app.qr().is_none(), "{end:?} left the code on screen");
+        if end == Action::Lock {
+            break;
+        }
+    }
+}
+
+/// A KVM plugged in with the key's page open, its sheet closed and the
+/// KVM still there: the press waits under the sheet and no code shows
+/// until the KVM is pulled.
+#[test]
+fn a_paperkeys_code_waits_while_a_kvm_is_attached() {
+    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+    let mut app = key_page(480, 640, 160);
+    app.devices = DeviceCheck::machine("flags\t\t: fpu\n", "LENOVO", "20XW", "10");
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    let kvm = UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![
+            hid(1),
+            hid(2),
+            Interface {
+                class: 8,
+                subclass: 6,
+                protocol: 0x50,
+            },
+        ],
+    };
+    app.usb_devices(&[kvm]);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.press(Action::Cancel);
+    app.press(Action::Vault(V::PaperkeyQr));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(app.qr().is_none(), "the code showed with a KVM attached");
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    // This machine passed no EDID, so the reminder about a TV is due too.
+    assert!(app.qr().is_none(), "the code showed over the reminder");
+    app.press(Action::DevicesUnderstood);
+    assert!(app.qr().is_some(), "the press did not carry on");
+}
+
+/// The code's text, scanned at Restore's step 4 on another machine, fills
+/// every line and restores the same key, the record equal to Make's; on
+/// Home's Scan it is named and filed nowhere.
+#[test]
+fn the_shown_paperkey_restores_the_key_on_another_machine() {
+    let k = paper_key();
+    let mut old = key_page(480, 640, 160);
+    old.press(Action::Vault(V::PaperkeyQr));
+    let text = crate::common::qr_text(&old);
+    let mut home = faraday_core::testkit::started();
+    home.press(Action::Nav(Screen::Home));
+    home.press(Action::Scan);
+    scan(&mut home, text.as_bytes());
+    assert!(
+        scan_note(&home).is_some_and(|n| n.contains("paperkey")),
+        "{:?}",
+        scan_note(&home)
+    );
+    assert!(home.inbox().is_empty(), "the paperkey was filed");
+    let mut shell = Shell::new();
+    let mut app = machine(&mut shell, &k);
+    to_lines(&mut shell, &mut app);
+    app.press(Action::Flow(F::Restore(R::ScanPaperkey)));
+    scan(&mut app, text.as_bytes());
+    assert_eq!(app.sheet, None, "{:?}", scan_note(&app));
+    assert!(has(&mut app, "Line 7 · checked"), "{:?}", texts(&mut app));
+    shell.flow(&mut app, F::Restore(R::Restore));
+    assert!(app.flow().unwrap().made, "{:?}", texts(&mut app));
+    let records = gpg_records(&app);
+    assert_eq!(records.len(), 1);
+    let kept = gpg_key_of(&records[0]).expect("a key");
+    assert_eq!(kept.fingerprint(), k.fingerprint());
+    assert_eq!(kept.primary_seed, k.primary_seed);
+    assert_eq!(kept.subkey_seed, k.subkey_seed);
+    assert_eq!(records[0].field(7), Some(&made_by_make(&k).certificate[..]));
+}
+
+/// The module size, pixels, of the code the frame draws: the top row of
+/// the first finder pattern is seven modules.
+fn module_px(app: &mut Faraday) -> usize {
+    app.settle();
+    let f = app.frame();
+    let dark: Vec<bool> = f
+        .rgba
+        .chunks_exact(4)
+        .map(|p| p[..3].iter().all(|v| *v < 16))
+        .collect();
+    let first = dark.iter().position(|d| *d).expect("a code is drawn");
+    let run = dark[first..].iter().take_while(|d| **d).count();
+    run / 7
+}
+
+/// The code takes the sheet's whole width: two pixels a module at
+/// 240 × 320, four at 480 × 640.
+#[test]
+fn the_paperkey_code_draws_at_two_pixels_a_module_on_the_smallest_panel() {
+    for (w, h, dpi, want) in [(240, 320, 143, 2), (480, 640, 286, 4)] {
+        let mut app = key_page(w, h, dpi);
+        app.press(Action::Vault(V::PaperkeyQr));
+        assert_eq!(module_px(&mut app), want, "{w}x{h}");
+    }
+}
+
+/// A paperkey code too fine for the camera says to bring it closer or
+/// type the paperkey, not to use smaller parts.
+#[test]
+fn a_paperkey_code_too_fine_for_the_camera_says_to_type_it() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    restore_at_make(&mut app, RestoreFrom::read(&cert_file(&k).1).unwrap());
+    app.press(Action::Flow(F::Restore(R::ScanPaperkey)));
+    for _ in 0..3 {
+        app.storage(StorageEvent::QrSeen {
+            width: 640,
+            height: 480,
+            corners: [(100, 100), (300, 100), (300, 300), (100, 300)],
+            module_tenths: 14,
+            read: false,
+        });
+    }
+    assert_eq!(
+        scan_note(&app).as_deref(),
+        Some("Too fine for this camera: bring it closer, or type the paperkey")
+    );
+}

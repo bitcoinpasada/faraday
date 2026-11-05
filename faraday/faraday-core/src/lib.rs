@@ -1515,7 +1515,7 @@ impl Faraday {
                         s.too_fine = 0;
                     }
                     if s.too_fine >= TOO_FINE_PASSES {
-                        s.note = Some(EN.storage_event_too_fine.to_string());
+                        s.note = Some(qr_view::too_fine_line(&s.purpose).to_string());
                     }
                     // Large enough and still not read after a while: the
                     // picture is the problem (`docs/QR.md` §8 item 8).

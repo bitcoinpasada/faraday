@@ -1776,7 +1776,7 @@ pub fn codes_offered(app: &mut Faraday) -> Vec<Action> {
                 Action::ShowCode(_)
                     | Action::CodePng(_)
                     | Action::QrWallet(_)
-                    | Action::Vault(V::TotpQr | V::WalletQr)
+                    | Action::Vault(V::TotpQr | V::WalletQr | V::PaperkeyQr)
             )
         })
         .collect()

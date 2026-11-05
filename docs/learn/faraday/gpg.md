@@ -76,7 +76,9 @@ clock's time, and says so in GnuPG's words.
 The paperkey is the secret numbers of the key in text. With the public
 certificate it rebuilds the secret key: `gpg --dearmor` on the
 certificate, then `paperkey --pubring cert.gpg --secrets paperkey.txt
---output secret.gpg`. It is shown while held and made only then.
+--output secret.gpg`. It is shown behind its eye and made only then.
+Show as QR, under it, shows it as one code, marked Secret, for another
+vault of yours to scan; it is never saved as a picture or a file.
 Anyone who reads a copy of it has the key, so a printed paperkey is kept
 as a secret is.
 
@@ -120,6 +122,13 @@ stick in, reads the paperkey as a code instead: its lines as the
 paperkey program prints them, or its raw form (--output-type raw). Every
 line of it is checked as a typed line is, and the code fills every line
 at once, or is refused on the scanner at the line that does not hold.
+
+This moves a key to a vault on another machine with only a camera between
+them. On the old vault, the key's page has Show as QR for the public key
+and, under the paperkey, for the paperkey. Scan the public key first, then
+Scan the paperkey at its step. The old vault keeps the key until you
+delete it there. Two vaults open on one machine use the vault's copy of
+an item instead.
 
 When the last digit of a line is typed and its check holds, the line is
 taken and the next one opens by itself. The card then shows "Line 1 ·

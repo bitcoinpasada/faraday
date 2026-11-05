@@ -361,6 +361,24 @@ fn a_gpg_paperkey_is_made_once_when_shown() {
     assert!(app.vaults.paperkey.is_none(), "locked");
 }
 
+#[test]
+fn a_gpg_paperkeys_code_is_made_once_at_the_press_and_dropped_with_the_sheet() {
+    let mut app = vault_page(4);
+    frames_work_out_nothing(&mut app);
+    let work = press_work(&mut app, Action::Vault(V::PaperkeyQr));
+    costs(&work, &[(Work::QrEncode, 1)]);
+    assert!(app.qr().is_some(), "the press opens the sheet");
+    // Drawing the sheet works nothing out.
+    frames_work_out_nothing(&mut app);
+    app.press(Action::Cancel);
+    assert!(app.qr().is_none(), "Done drops the code");
+    let _ = press_work(&mut app, Action::Vault(V::PaperkeyQr));
+    app.press(Action::Vault(V::ItemBack));
+    app.settle();
+    lock(&mut app);
+    assert!(app.qr().is_none(), "a lock drops the code");
+}
+
 /// The code the entry gives now, as the page draws it.
 fn code_now(app: &Faraday) -> String {
     let now = app.clock_now().expect("a checked clock");

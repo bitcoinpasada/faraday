@@ -84,7 +84,7 @@ need. Each document's header says what kind it is:
 - `docs/DESIGN.md`: Design system. Built.
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.
 - `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, the order of work, and what the cross-check compares each action with after the switches. Built (F178, F180, F181, F190, F191, F192, F193, F213); how it was built is in `docs/history/ESTABLISHED-LOG.md`; §6 is the work kept for later.
-- `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Built (F169).
+- `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey, and move a key to a vault on another machine by camera. Built (F169, F215).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.

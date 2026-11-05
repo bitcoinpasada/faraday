@@ -316,6 +316,9 @@ pub struct QrView {
     /// The text the code holds, shown whole under it: a wallet's
     /// descriptor, so it can be read against the code.
     pub whole: Option<String>,
+    /// One static code with no choice of format, speed or size (a GPG
+    /// key's paperkey, `docs/GPG-PAPERKEY.md` §12).
+    pub one_code: bool,
 }
 
 /// A code on screen may be a seed: what it was made from, the codes
@@ -539,7 +542,27 @@ pub(crate) fn scan_refusal(r: faraday_qr::Refusal) -> String {
     }
 }
 
+/// The line for a code too fine for the camera: a paperkey has no smaller
+/// parts or file to carry it as (`docs/GPG-PAPERKEY.md` §12.4).
+pub(crate) fn too_fine_line(purpose: &ScanPurpose) -> &'static str {
+    if *purpose == ScanPurpose::GpgPaperkey {
+        EN.gpg_restore_too_fine
+    } else {
+        EN.storage_event_too_fine
+    }
+}
+
 impl QrView {
+    /// Costs what `secret` costs. A secret as one static code with no
+    /// choice of format, speed or size, the sheet marked Secret (a GPG
+    /// key's paperkey, `docs/GPG-PAPERKEY.md` §12).
+    pub fn secret_one_code(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
+        QrView::secret(c, title, text).map(|mut v| {
+            v.one_code = true;
+            v
+        })
+    }
+
     /// Costs what `of` costs. A PSBT as `ur:crypto-psbt`: one code when it
     /// fits, else animated.
     pub fn psbt(c: &Compute, title: &str, bytes: &[u8]) -> Result<QrView, String> {
@@ -607,6 +630,7 @@ impl QrView {
             label: Vec::new(),
             png_name: String::new(),
             whole: None,
+            one_code: false,
         })
     }
 
@@ -620,6 +644,7 @@ impl QrView {
             v.label = self.label.clone();
             v.png_name = self.png_name.clone();
             v.whole = self.whole.clone();
+            v.one_code = self.one_code;
             v
         })
     }
@@ -803,14 +828,14 @@ impl Faraday {
                 }
             }
             Action::QrFormat(i) => {
-                if let Some(q) = self.qr.view() {
+                if let Some(q) = self.qr.view().filter(|q| !q.one_code) {
                     let f = QrFormat::ALL[usize::from(i) % QrFormat::ALL.len()];
                     let v = q.redo(c, f, q.part);
                     self.open_qr(v);
                 }
             }
             Action::QrPartSize(n) => {
-                if let Some(q) = self.qr.view() {
+                if let Some(q) = self.qr.view().filter(|q| !q.one_code) {
                     let v = q.redo(c, q.format, n);
                     self.open_qr(v);
                 }
@@ -1273,6 +1298,7 @@ impl Faraday {
             // descriptor.
             V::WalletQr => self.with_vault_wallet(|app, i| app.code_view(&c, Code::Descriptor(i))),
             V::TotpQr => self.vault_totp_view(&c),
+            V::PaperkeyQr => self.vault_paperkey_view(&c),
             _ => None,
         };
         if let Some(view) = view {
@@ -1304,6 +1330,25 @@ impl Faraday {
         );
         let uri = store.reveal(c, id, i, field::TOTP, why);
         Some(QrView::secret(c, &title, &uri))
+    }
+
+    /// Costs what `secret` costs and the paperkey's encoding. The selected
+    /// GPG key's paperkey, the text its eye shows, as one static code on
+    /// the sheet marked Secret, with no picture and no file, made through
+    /// the eye's reveal and held with the view (`docs/GPG-PAPERKEY.md`
+    /// §12, F215). `None` where there is none to show.
+    fn vault_paperkey_view(&self, c: &Compute) -> Option<Result<QrView, String>> {
+        use faraday_vault::records::kind;
+        if !self.vault_on_page() {
+            return None;
+        }
+        let (_, r) = self.vault_record_of(kind::GPG)?;
+        let text = crate::gpg::paperkey_shown(self.vaults.store(), r)?;
+        let name = faraday_keys::vault::gpg_facts(r)
+            .and_then(|f| f.user_ids.first().cloned())
+            .unwrap_or_default();
+        let title = fill(EN.code_view_paperkey, &[&name]);
+        Some(QrView::secret_one_code(c, &title, text.as_str()))
     }
 }
 

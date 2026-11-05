@@ -332,7 +332,10 @@ its first line of dashes is removed, then `gpg --import`.
 Press the eye beside **Paperkey**: the key's secret
 part shows as text, made only while it shows, and hides at the next
 press or when the page is left. With the public key, it rebuilds the
-secret key in GnuPG's `paperkey`, and in Faraday.
+secret key in GnuPG's `paperkey`, and in Faraday. **Show as QR** under
+it shows the same text as one code, on a sheet marked Secret, for
+another machine with only a camera between them. It has no picture and
+no file, and goes when the sheet closes.
 
 To bring the key back into a vault from its paperkey, press **Restore
 from a paperkey** under **Make a key** in Vault contents, or **Restore

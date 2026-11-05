@@ -1202,8 +1202,10 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .map(|(i, (label, _))| (label, Action::QrFormat(i as u8)))
         .collect();
     let chosen = crate::QrFormat::ALL.iter().position(|f| *f == q.format);
-    bx += ui.segmented((bx, row, 36.0), 13.0, &formats, chosen, None) + 14.0;
-    if q.frames.len() > 1 {
+    if !q.one_code {
+        bx += ui.segmented((bx, row, 36.0), 13.0, &formats, chosen, None) + 14.0;
+    }
+    if q.frames.len() > 1 && !q.one_code {
         let speeds: Vec<(&str, Action)> = qr_speed_labels()
             .into_iter()
             .zip(crate::QR_SPEEDS)
@@ -1226,7 +1228,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Style::Secondary,
             Action::QrPng,
         );
-    } else if q.frames.len() > 1 || q.part != crate::QR_PARTS[1] {
+    } else if !q.one_code && (q.frames.len() > 1 || q.part != crate::QR_PARTS[1]) {
         let sizes: Vec<(&str, Action)> = [EN.qr_small, EN.qr_medium, EN.qr_large]
             .into_iter()
             .zip(crate::QR_PARTS)
@@ -1283,17 +1285,17 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         .position(|n| *n == q.part)
         .unwrap_or(1);
     let mut cycles: Vec<(&str, Style, Action)> = Vec::new();
-    if formats.len() > 1 {
+    if formats.len() > 1 && !q.one_code {
         cycles.push((fname, Style::Secondary, Action::QrFormat(next_i as u8)));
     }
-    if animated {
+    if animated && !q.one_code {
         cycles.push((
             qr_speed_labels()[sp],
             Style::Secondary,
             Action::QrSpeed(crate::QR_SPEEDS[(sp + 1) % 3]),
         ));
     }
-    if animated || q.part != crate::QR_PARTS[1] {
+    if !q.one_code && (animated || q.part != crate::QR_PARTS[1]) {
         cycles.push((
             [EN.qr_sheet_small, EN.qr_sheet_medium, EN.qr_sheet_large][pp],
             Style::Secondary,
@@ -1332,7 +1334,11 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         // text, a 2-of-3 descriptor's code is one pixel a module at
         // 240x320, which no camera reads.
         let room = h - 16.0 - 32.0 - 46.0 - 16.0 - (cy - y) - 8.0;
-        let side = if q.whole.is_some() {
+        let side = if q.one_code {
+            // The whole width: two pixels a module at 240x320, with Done
+            // under it and the sheet scrolling where it does not fit.
+            iw
+        } else if q.whole.is_some() {
             iw.min(room + 16.0)
         } else {
             iw.min(room - rows_h)

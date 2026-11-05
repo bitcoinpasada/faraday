@@ -3008,6 +3008,7 @@ fn detail(
                     true,
                     (va(V::Reveal(0)), shown_fields & 1 != 0),
                 ) + 14.0;
+                dy += codes::paperkey_qr_button(ui, dx, dy);
                 // The term now, then the new term to choose: nothing is
                 // renewed until one is chosen.
                 let now_line = if g.expires == EN.vault_never {

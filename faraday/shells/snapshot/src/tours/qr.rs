@@ -74,6 +74,16 @@ pub(crate) fn qr_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::TotpQr));
     t.shot("qr-entry-secret")?;
     t.press(Action::Cancel);
+    // A GPG key's paperkey: one static code, marked Secret, no choices.
+    t.press(Action::Vault(V::Category(
+        faraday_core::backup_flow::Kind::Gpg.category(),
+    )));
+    t.press(Action::Vault(V::Item(0)));
+    scroll_to(t, Action::Vault(V::PaperkeyQr));
+    t.shot("qr-paperkey")?;
+    t.press(Action::Vault(V::PaperkeyQr));
+    t.shot("qr-paperkey-secret")?;
+    t.press(Action::Cancel);
     Ok(())
 }
 
@@ -81,11 +91,13 @@ pub(crate) fn qr_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// over a vault holding an entry with a TOTP secret and a recovery sheet
 /// of the Savings wallet.
 fn sheet_vault() -> Result<Vec<u8>, String> {
+    use faraday_keys::vault::gpg_field;
     use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
     let savings = testkit::savings();
     let sheet = faraday_vault::layouts::sheet_payload(savings.as_bytes(), b"Savings", b"")
         .ok_or("no sheet payload")?;
+    let at = 1_780_000_000u32.to_le_bytes();
     let records = vec![
         Record::new(kind::ENTRY)
             .with(field::TITLE, b"Email")
@@ -96,6 +108,12 @@ fn sheet_vault() -> Result<Vec<u8>, String> {
                 b"otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP",
             ),
         Record::new(kind::SHEET).with(field::SHEET, &sheet),
+        Record::new(kind::GPG)
+            .with(gpg_field::PRIMARY, &[1; 32])
+            .with(gpg_field::CREATED, &at)
+            .with(gpg_field::SUBKEY, &[2; 32])
+            .with(gpg_field::SUBKEY_CREATED, &at)
+            .with(gpg_field::USER_ID, b"Faraday test"),
     ];
     testkit::kdbx_vault_at(
         "Test vault",

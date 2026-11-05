@@ -722,7 +722,7 @@ impl Faraday {
             }
             V::Reveal(n) => self.vaults.toggle_shown(&c, self.vault_on_page(), n),
             V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_on_page()),
-            V::WalletQr | V::TotpQr => self.vault_qr_act(a),
+            V::WalletQr | V::TotpQr | V::PaperkeyQr => self.vault_qr_act(a),
             V::SaveToStick => self.vault_stick_save_open(),
             V::SaveTick(k) => {
                 if let Some(f) = self

@@ -226,7 +226,7 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
     }
     if faraday_intake::looks_like_entries(t) {
         let one = t.lines().filter(|l| !l.trim().is_empty()).count() == 1;
-        return Some(if one && t.starts_with("otpauth://") {
+        return Some(if one && faraday_intake::is_otpauth(t) {
             Kind::Totp
         } else {
             Kind::Entries

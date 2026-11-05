@@ -134,6 +134,7 @@ fn a_file_is_a_vault_or_an_older_keepass_database_by_how_it_begins() {
 #[test]
 fn text_with_otpauth_or_title_lines_is_entries_for_a_vault() {
     assert!(looks_like_entries("otpauth://totp/Example?secret=ABC"));
+    assert!(looks_like_entries("OTPAUTH://totp/Example?secret=ABC"));
     assert!(looks_like_entries("Title: Bank\npassword: x"));
     assert!(!looks_like_entries("abandon abandon about"));
 }

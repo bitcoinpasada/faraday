@@ -811,6 +811,14 @@ when = ["faraday/faraday-core/src/qr_view.rs", "faraday/faraday-core/src/scan_ke
 kind = "review"
 
 [[rule]]
+id = "keys.paperkey-one-code"
+title = "a GPG key's paperkey reaches a code only as one static code of its base16 lines on the QR sheet marked Secret: no format choice, no parts, no picture, no file, made at the press through the existing reveal"
+source = ["docs/decisions/F215.md", "docs/QR.md §7.1"]
+when = ["faraday/faraday-core/src/qr_view.rs", "faraday/faraday-core/src/screens/sheets.rs", "faraday/faraday-core/src/gpg.rs", "faraday/faraday-qr/src/send.rs"]
+kind = "review"
+misses = "a new way to a QR view that does not set the view fixed, until a review reads it"
+
+[[rule]]
 id = "keys.vault-memory-need"
 title = "a change to what opening or sealing a file vault holds in memory keeps the one function that checks it first true, and its factor only falls by a measurement"
 source = ["docs/decisions/F206.md", "docs/VAULT.md §2"]

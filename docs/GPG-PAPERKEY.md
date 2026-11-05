@@ -1,11 +1,11 @@
 # Restore a GPG key from its paperkey
 
 **Kind:** Reference
-**Status:** Built (F169): reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`; the flow in faraday-core, `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and its screen; the public key and the paperkey scanned as codes
+**Status:** Built (F169, F215): reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`; the flow in faraday-core, `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and its screen; the public key and the paperkey scanned as codes, and the paperkey shown as a code
 
 A person whose GPG key's vault is lost, but who wrote down its paperkey,
 brings the key back into a vault and signs with it again (F169). The
-paperkey is shown on the key's page, held to show (F32); with its public
+paperkey is shown on the key's page, behind its eye (F32, F123); with its public
 key it rebuilds the key in GnuPG (`paperkey --pubring … --secrets …` and
 `gpg --import`, `docs/learn/faraday/gpg.md`, "The paperkey") and, as this
 document says, in Faraday.
@@ -434,8 +434,9 @@ certificate. Restore does not ask for the time first (decision 58).
 - **No new reveal.** The lines checked are never shown again, so
   nothing leaves to be drawn; the paperkey of the restored key is
   shown, as for any key, through the existing `Reveal::GpgPaperkey`
-  (`faraday/faraday-keys/src/session.rs`). The reasons of F70 (fourteen
-  since F125) stand.
+  (`faraday/faraday-keys/src/session.rs`), and its code is made under the
+  same reason by the same `OpenVaults::gpg_paperkey` (§12). The reasons
+  of F70 (fourteen since F125) stand.
 - **Wiped** when the flow is cancelled, at the idle lock and at step 5's
   lock, with every other secret. The flow's state keeps the certificate
   and the plan (public) across a lock; the lines typed are not kept,
@@ -456,7 +457,8 @@ certificate. Restore does not ask for the time first (decision 58).
 | `faraday/faraday-core/src/gpg.rs` | The certificate's facts for the cards; the refusals' strings |
 | `faraday/faraday-core/src/backup_flow/` | `Kind::Gpg` with the restore's certificate in the flow's state; step 4's card and its keys; the sheet of §4.1 |
 | `faraday/faraday-core/src/qr_view.rs` | The two scanners: the sheet's, which files a public key and opens its flow, and step 4's, which hands a paperkey code to the restore set |
-| `faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/screens/catalog.rs` | **Restore from a paperkey**; the tile's line |
+| `faraday/faraday-core/src/qr_view.rs` (`vault_paperkey_view`, `QrView::secret_one_code`), `faraday/faraday-core/src/screens/sheets.rs` | The paperkey's code (§12): made at the press of `VaultAction::PaperkeyQr`, the sheet without its format, speed and size |
+| `faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/screens/catalog.rs` | **Restore from a paperkey**; **Show as QR** under the masked paperkey; the tile's line |
 | `faraday/faraday-strings/src/en.rs` | §7.3 |
 
 ### 7.2 Costs and drawing
@@ -518,6 +520,8 @@ In `faraday/faraday-strings/src/en.rs`, prefix `gpg_restore_`:
 | `gpg_restore_not_paperkey` | Not a paperkey |
 | `gpg_restore_crc_missing` | CRC of secret is missing |
 | `gpg_restore_after` | Line {n} comes after the CRC of secret |
+| `gpg_restore_too_fine` | Too fine for this camera: bring it closer, or type the paperkey |
+| `code_view_paperkey` | {name} · Paperkey |
 
 The revoked line reuses the key page's. The Learn page carries the why
 (§9).
@@ -672,3 +676,71 @@ Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
 ### 11.4 Questions for the owner
 
 Moved to `docs/history/GPG-PAPERKEY-LOG.md`.
+
+## 12. Moving a key to a vault on another machine
+
+F215. Two machines with only a camera between them: the old vault shows
+the key, the new vault scans it. For two vaults open on one machine, the
+vault's copy of an item is the way, and this section does not apply.
+
+### 12.1 The path
+
+1. **The new vault's machine**: Vault contents' GPG kind, **Restore from
+   a paperkey**, **Scan the public key**.
+2. **The old vault's machine**: the key's page, **Show as QR** on the
+   **Export public key** row. The certificate is public. Past what a small
+   panel's camera can read, the sheet's **BBQr** or **Parts** shows it
+   animated, which this scanner gathers (§3).
+3. **The new vault's machine**: the backup flow opens on the certificate.
+   The head card shows line 1's bytes; the plan, the sticks and the vaults
+   are §4.2's. An existing vault is given to a place as for any key.
+4. **Step 4**: **Scan the paperkey**, with no stick in.
+5. **The old vault's machine**: the key's page, **Show as QR** under the
+   masked paperkey, then **Done** once the new vault has read it.
+6. **The new vault's machine**: every line checked at once, **Restore the
+   key** (§4.3), then Make's lock, writes and Done. The key signs at once.
+
+The old vault keeps its copy until the person deletes it there. Nothing
+is shorter than this for now: the flow's plan is F31's check on a key that
+cannot be made again, a new vault has to reach its sticks in any case, and
+the only step a move adds to that is the second place.
+
+### 12.2 What is shown
+
+The text the eye shows, §2.2's base16 lines, as one code (`docs/QR.md`
+§7.1 row 23). `Restore::paperkey_code` reads it as it reads paperkey's
+printed lines, which differ only by their comment lines; a QR reader's
+text saved to a file is what `paperkey --secrets` reads. The raw form,
+§2.3, is read and not shown.
+
+| Option of the QR sheet | For this code |
+|---|---|
+| **Show as QR** | Yes, under the masked paperkey |
+| Secret mark | Yes: "Secret · whoever scans this can use it" |
+| **PNG** | No: `QrView::offers_png` refuses a secret |
+| Outbox file | No |
+| Whole text under the code | No: the eye shows the text |
+| Format (UR, BBQr, Parts) | No: §4.5's scanner reads whole codes only |
+| Speed | No: one frame |
+| Part size | No: one frame |
+
+Animated parts would make the modules larger only on the smallest panel:
+in Parts at the middle size, three frames at version 8, 49 modules; at the
+small size, five frames at version 5, 37 modules. They would need the
+paperkey's scanner to gather parts and a part set held in the assembler,
+and are not built.
+
+### 12.3 How it is held
+
+As §6 holds what is typed, on the other side: no new reveal. The view is
+made in the press, never in drawing. `QrView`'s `Drop` wipes its source
+and frames; it drops at Done, on leaving and at a lock (`lock_now`). The
+press hides nothing of the eye by itself; a sheet over the page does, as
+for every shown secret (F123).
+
+### 12.4 A code too fine
+
+The scanner's line for a code too fine says to show it animated or carry
+it as a file, neither of which a paperkey has. **Scan the paperkey**'s
+says "Too fine for this camera: bring it closer, or type the paperkey"
+(`gpg_restore_too_fine`).

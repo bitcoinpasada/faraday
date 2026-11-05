@@ -210,10 +210,19 @@ pub fn is_older_kdbx(bytes: &[u8]) -> bool {
     faraday_codec::vault_file::is_older_kdbx(bytes)
 }
 
+/// Whether a line begins with the `otpauth://` scheme, in either case: the
+/// spelling the TOTP reader accepts and an entry stores.
+pub fn is_otpauth(line: &str) -> bool {
+    line.get(..OTPAUTH.len())
+        .is_some_and(|p| p.eq_ignore_ascii_case(OTPAUTH))
+}
+
+const OTPAUTH: &str = "otpauth://";
+
 /// Whether text looks like entries for a vault: an `otpauth://` line, or
 /// a `title:` line.
 pub fn looks_like_entries(text: &str) -> bool {
     text.lines()
         .map(str::trim)
-        .any(|l| l.starts_with("otpauth://") || l.to_ascii_lowercase().starts_with("title:"))
+        .any(|l| is_otpauth(l) || l.to_ascii_lowercase().starts_with("title:"))
 }

@@ -163,6 +163,15 @@ fn a_totp_setup_code_scanned_on_home_with_no_vault_open_asks_for_one() {
     assert!(app.inbox().is_empty(), "the setup code was filed");
 }
 
+#[test]
+fn a_totp_setup_code_in_upper_case_is_named_and_not_filed() {
+    let mut app = testkit::started();
+    home_scan(&mut app);
+    read(&mut app, &TOTP.replace("otpauth", "OTPAUTH"));
+    assert_eq!(make_a_vault(&app), Some(true), "{}", note(&app));
+    assert!(app.inbox().is_empty(), "the setup code was filed");
+}
+
 /// Whether the read card asks for a vault to be made, the code not kept
 /// (`docs/SCANNING.md` §4.5).
 fn make_a_vault(app: &Faraday) -> Option<bool> {

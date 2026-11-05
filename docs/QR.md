@@ -55,6 +55,7 @@ open.
 | Frame rate (2, 3 or 5 per second; 2 by default) and part size (small, medium, large) | yes | yes |
 | Every code on the QR sheet says whether it is public ("Public · safe to scan") or a secret; a secret code only for a file let out through the secret sheet (`docs/FLOWS.md` decision 6) | no | yes |
 | Receive addresses, Explore's values, the node id, a recovery sheet's descriptor and the TOTP secret as codes | no | yes: §7 |
+| A GPG key's paperkey as one code, for its restore in another vault | no | yes: §7 row 23, F215 |
 
 ### The scanner itself
 
@@ -217,7 +218,7 @@ intact, not who sent it.
    nothing scans them; the PDFs are the printed sheets themselves;
    vaults, keys and signed images are sealed or binary, too large for
    one code. A secret never gets either: it leaves only through the
-   secret sheet (since F28, an entry's TOTP secret also as a code, §7). Files' own **Show as QR** shows any Outbox file that
+   secret sheet (since F28, an entry's TOTP secret also as a code, and since F215 a GPG key's paperkey, §7). Files' own **Show as QR** shows any Outbox file that
    fits, as before, and offers no picture. A public file past one code
    is shown animated and its **PNG** says it is more than one code;
    only the descriptor is written as one picture per part.
@@ -246,7 +247,8 @@ Moved to `docs/history/QR-LOG.md`.
 ## 7. QR codes for public values, and the TOTP secret (F28)
 
 The decision is `docs/DECISIONS.md` F28, its presses amended by F123
-(a press, never a hold); this section is what the app does.
+(a press, never a hold) and its secrets by F215 (a GPG key's paperkey);
+this section is what the app does.
 `docs/FLOWS.md` and the code are the record where they say more.
 
 The owner's ask: "offer QR codes wherever it would be convenient for
@@ -266,9 +268,10 @@ read by eye (fingerprints, hashes, GUIDs) or taken from a stick
 these doors: its encrypted form carries the code in its place (the
 ncryptsec); a file let out through the secret sheet is shown
 by Files, marked Secret (`docs/FLOWS.md` decision 6); a seed's SeedQR in
-the backup's checklist; and the two exceptions the owner has made,
+the backup's checklist; and the three exceptions the owner has made,
 each because the secret's usual destination takes it by scanning and
-reads no encrypted form of it: SeedQR and the TOTP secret (below). The
+reads no encrypted form of it: SeedQR, the TOTP secret and a GPG key's
+paperkey (below). The
 Starter's BitLocker recovery key (`docs/STARTER.md` D18) was a third
 until `docs/DECISIONS.md` F33 (2026-10-14) removed it: no app of
 Faraday's shows that key, as a code or otherwise.
@@ -304,7 +307,8 @@ rule's reach is written down):
 | 20 | BIP-85 | Child words, hex, WIF, xprv, Base64 and Base85 passwords | Secret | Not on the screen; **Out unprotected…** writes, past the secret sheet, child words as `{fingerprint}-words.txt` (the words alone, F166), a password as `password.txt` (itself alone, F172) and the rest as `bip85-{fp}-{app}-{index}.txt`, and Files shows it as a secret text code (the path line, then the value, for the rest) | No; no SeedQR of child words (owner, 2026-10-14) | A child seed is a seed and a child password is a password |
 | 21 | Nostr key | nsec | Secret | Specified: never (F27) | No | Its ncryptsec carries the code |
 | 22 | Lightning node key; Silent payments | Private key, aezeed; scan key | Secret | Files only, past the secret sheet | No | Imported from a file or typed by the software that uses them |
-| 23 | GPG, Secure Boot key | Paperkey; private keys | Secret | No | No | Paper, or never leave the vault |
+| 23 | A GPG key's vault page | Paperkey, its base16 lines | Secret | No | **Show as QR**: the QR sheet marked Secret, one static code, no format choice; no PNG, no file (F215) | A GPG restore's **Scan the paperkey** takes it (§2); its only other way into a vault is typing seven lines |
+| 24 | GPG, Secure Boot key | Private keys | Secret | No | No | Never leave the vault |
 
 **Placement**, in each screen's own idiom:
 
@@ -329,6 +333,14 @@ rule's reach is written down):
   HOTP or unreadable one shows none. No hold shows a secret (§4.10 of
   `docs/DESIGN.md`, F123): a press opens the sheet, Done or leaving
   closes it. Only the entry's own page opens it, with no sheet over it.
+- **A GPG key's paperkey** (row 23): **Show as QR**, a button under the
+  masked **Paperkey** box, as under the TOTP secret's. A press opens the
+  sheet, with no hold, whether or not the eye shows the text; Done or
+  leaving closes it. Only the key's own page opens it, with no sheet
+  over it, and while a device that can capture the screen is attached
+  the press waits under the device check's sheet. The button is
+  Material 3's outlined common button and the
+  sheet its bottom sheet, the pages this was checked against.
 - A pressable row is a touch target tall at least (48 dp), its text in
   its middle; the chevron is `ROW_CHEVRON` in an `ICON_SMALL` box
   (`screens::row_press`, `screens::address_press`; Explore's
@@ -349,6 +361,9 @@ rule's reach is written down):
 - The TOTP secret: the stored URI as it is (a bare key is stored as one,
   `docs/TOTP.md` §4.3), so the authenticator gets the issuer and the
   account. One plain-text code.
+- A GPG key's paperkey: the text its eye shows, paperkey's base16 lines
+  with their CRCs and no comment lines (`docs/GPG-PAPERKEY.md` §2.2), not
+  the raw form. One plain-text code, never in parts.
 
 **Pictures.** The node id's PNG is `lightning-{first 8 hex of the node
 id}.png`, labelled "Lightning node id", the node's kind as the screen
@@ -366,8 +381,13 @@ scans this can use it" under it, as for a secret file. It offers no
 the Outbox. Its text is wiped when the sheet closes (`QrView`'s
 `Drop`). A lock, by hand or idle, closes the sheet first
 (`lock_now` drops the view, which today it leaves to the process's
-end), then ends the process. It is the one code Faraday shows of a secret that has not passed the
-secret sheet: the hold is its acknowledgement.
+end), then ends the process. It and the paperkey's are the codes Faraday shows of a secret that has
+not passed the secret sheet: the press is the acknowledgement.
+
+**The paperkey on screen** is the same, and its view is fixed
+(`QrView::one_code`): the sheet draws no format, speed or size choice,
+and takes `Action::QrFormat` and `Action::QrPartSize` to do nothing. The
+small panel gives the code the sheet's whole width (`qr_sheet_compact`).
 
 **Code.** `Code` (`faraday/faraday-core/src/qr_view.rs`) has a variant
 for each public value: `Receive(wallet, index)`, `VanityAddress`,
@@ -377,13 +397,21 @@ for each public value: `Receive(wallet, index)`, `VanityAddress`,
 views carry no picture, so `CodePng` of one does nothing. The TOTP
 secret has no `Code`, so `CodePng` cannot reach it: the vault action
 `VaultAction::TotpQr` reveals the stored URI through
-`Reveal::VaultEntry(Part::Totp)` and opens it as `QrView::secret`.
+`Reveal::VaultEntry(Part::Totp)` and opens it as `QrView::secret`. The
+paperkey has none for the same reason: `VaultAction::PaperkeyQr` makes it
+through `OpenVaults::gpg_paperkey` under `Reveal::GpgPaperkey`.
 
 **Size.** A value is one code while it fits version 25 at error
 correction M (about 1,000 bytes; `faraday-qr`'s `send`). An address is
 26 to 62 characters, an xpub about 111, a public key or node id 66, an
 `otpauth://` URI 100 to 300, a single-key descriptor about 150 to 200:
-each one code. A multisig descriptor on a recovery sheet may pass
+each one code. A key of Faraday's paperkey is at most 447 bytes in its
+base16 lines, always version 16 at M (450 bytes), 81 modules, 89 with
+the quiet zone: at 240 × 320 at 143 dpi, two pixels a module once it has
+the sheet's width (178 pixels wanted, the width 197), a code 29 mm across
+with modules of 0.36 mm, the size a 2-of-3 descriptor's code has there.
+A camera 1280 pixels wide and 60° across meets the scanner's 2.5 pixels
+a module from about 16 cm. A multisig descriptor on a recovery sheet may pass
 version 25; the QR sheet then shows it animated, as any descriptor, and
 its PNG goes as parts.
 
@@ -397,6 +425,8 @@ Moved to `docs/history/QR-LOG.md`.
   on the QR sheet marked Secret, no PNG and no Outbox file (owner,
   2026-10-14). F27's "No Entry gains a QR of any other field" now names
   it as the exception.
+- A GPG key's paperkey as a code: yes, one static code on the QR sheet
+  marked Secret, no PNG and no Outbox file (owner, 2026-11-05; F215).
 - BIP-85 child words as a SeedQR: no (owner, 2026-10-14). The BIP-85
   screen shows no code of any output.
 - A receive address as a PNG: no. A node id as a PNG: yes.

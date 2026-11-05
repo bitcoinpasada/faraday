@@ -52,8 +52,11 @@ fn percent_decoded(s: &str) -> String {
 /// What an `otpauth://` URI names: the issuer, or the label before its
 /// colon, and the account after it.
 pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
-    let rest = uri.trim().strip_prefix("otpauth://")?;
-    let (_, rest) = rest.split_once('/')?;
+    let uri = uri.trim();
+    if !faraday_intake::is_otpauth(uri) || uri.contains(['\n', '\r']) {
+        return None;
+    }
+    let (_, rest) = uri["otpauth://".len()..].split_once('/')?;
     let (label, query) = rest.split_once('?').unwrap_or((rest, ""));
     let label = percent_decoded(label);
     let (from_label, account) = match label.split_once(':') {
@@ -145,7 +148,7 @@ pub fn parse(text: &str) -> Vec<Record> {
             finish(&mut fields, &mut extra, &mut out);
             continue;
         }
-        if l.starts_with("otpauth://") {
+        if faraday_intake::is_otpauth(l) {
             // A second code in one block starts a new entry.
             if fields.iter().any(|(k, _)| *k == field::TOTP) {
                 finish(&mut fields, &mut extra, &mut out);
@@ -193,5 +196,30 @@ mod tests {
         assert_eq!(e[1].text(field::NOTES), Some("PIN: 1234"));
         assert_eq!(e[2].text(field::TITLE), Some("GitHub"));
         assert!(e.iter().all(|r| r.check().is_ok()));
+    }
+
+    /// Text that goes on past its first line is entries, not one code: no
+    /// name is read from it, so nothing after the URI lands in a title.
+    #[test]
+    fn a_uri_with_lines_after_it_names_no_one_code() {
+        for scheme in ["otpauth", "OTPAUTH"] {
+            let text = format!("{scheme}://totp/Git:octo?secret=ABC\n\ntitle: Router\npassword: x");
+            assert_eq!(otpauth_names(&text), None);
+            let e = parse(&text);
+            assert_eq!(e.len(), 2);
+            assert_eq!(e[0].text(field::TITLE), Some("Git"));
+            assert_eq!(e[1].text(field::TITLE), Some("Router"));
+        }
+    }
+
+    /// A scheme in upper case is the same code, as the TOTP reader takes it.
+    #[test]
+    fn an_upper_case_scheme_reads_as_the_same_entry() {
+        let e = parse("OTPAUTH://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP\n");
+        assert_eq!(e.len(), 1);
+        assert_eq!(e[0].text(field::TITLE), Some("GitHub"));
+        assert_eq!(e[0].text(field::USERNAME), Some("octo"));
+        assert!(e[0].text(field::TOTP).is_some());
+        assert_eq!(e[0].text(field::NOTES), None);
     }
 }

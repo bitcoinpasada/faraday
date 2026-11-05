@@ -4202,6 +4202,8 @@ strings! {
     storage_event_saved: "Saved {}",
     /// Text in `storage_event`.
     storage_event_too_fine: "Too fine for this camera: show it as an animated code with smaller parts, bring it closer, or carry it as a file",
+    /// Text in `storage_event`, where the code scanned is a GPG key's paperkey, which has no smaller parts.
+    gpg_restore_too_fine: "Too fine for this camera: bring it closer, or type the paperkey",
     /// Toast in `storage_event`. `{}`: `reason`.
     storage_event_not_printed: "Not printed: {}",
     // ----- sticks_changed (faraday-core/src/lib.rs) -----
@@ -4552,6 +4554,8 @@ strings! {
     code_view_sheet: "{} · recovery sheet descriptor",
     /// Title of an entry's TOTP secret's QR sheet. `{}`: the entry's title.
     code_view_totp: "{} · TOTP secret",
+    /// Title of a GPG key's paperkey QR sheet. `{}`: the key's first user ID.
+    code_view_paperkey: "{} · Paperkey",
     /// Error in `code_view`: the wallet gives no address there.
     code_view_no_address: "No address to show",
     /// Error in `code_view`: no Lightning node key is on screen.

@@ -2702,6 +2702,9 @@ pub enum VaultAction {
     /// The selected entry's TOTP secret as its `otpauth://` URI, on the QR
     /// sheet marked Secret (`docs/QR.md` §7.1).
     TotpQr,
+    /// The selected GPG key's paperkey as one static code on the QR sheet
+    /// marked Secret (`docs/GPG-PAPERKEY.md` §12, F215).
+    PaperkeyQr,
     /// The Load sheet (F62): tick or untick wallet record or Keys-card
     /// key record n.
     LoadTick(usize),

@@ -92,6 +92,17 @@ pub(super) fn totp_qr_button(ui: &mut Ui, dx: f32, dy: f32) -> f32 {
     BUTTON_H + tokens::PAD - tokens::GAP
 }
 
+/// **Show as QR** under a GPG key's masked paperkey: the text its eye
+/// shows, as one code on the sheet marked Secret (`docs/GPG-PAPERKEY.md`
+/// §12). Returns the height used, as `totp_qr_button`.
+pub(super) fn paperkey_qr_button(ui: &mut Ui, dx: f32, dy: f32) -> f32 {
+    let label = EN.vault_show_as_qr;
+    let a = va(V::PaperkeyQr);
+    let y = dy - tokens::GAP;
+    ui.button(dx, y, None, BUTTON_H, label, Style::Secondary, a);
+    BUTTON_H + tokens::PAD - tokens::GAP
+}
+
 /// The entry form on the codes screen (`docs/TOTP.md` §5.3): Add an
 /// entry, or the form a scanned setup code filled in. Always a new
 /// entry — editing one happens on Vault contents, where its row leads.

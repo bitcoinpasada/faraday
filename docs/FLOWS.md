@@ -893,8 +893,9 @@ item's page stacks the same nodes in that order, with no lines.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
 - A Bitcoin key or wallet → **Open in Wallets** or **Don't load at unlock** / **Load at unlock** (F62: a wallet's, and a key's in no wallet of the vault; a key in one reads "Loads with {wallet}").
-- A GPG key → **Export public key** with **Show as QR** and **PNG** on its
-  row; **Export the kept revocation** and **Make a revocation** (the
+- A GPG key → **Show as QR** under its masked paperkey (F215: the
+  QR sheet marked Secret, no PNG, no file); **Export public key** with
+  **Show as QR** and **PNG** on its row; **Export the kept revocation** and **Make a revocation** (the
   secret sheet, no code or picture); **Sign a file**, whose list shows
   each file's SHA-256 and a small text file's text, with **Show as QR** and
   **PNG** on each file's row, and **Sign**, whose sheet shows the files
@@ -1652,6 +1653,14 @@ or **Scan the paperkey** (paperkey's lines or its raw form) while no
 line is checked → **Restore the key**, which makes every signature of
 the key again and saves the record into every vault of the plan; it
 signs at once. Then Make's lock, writes and Done.
+
+**Move a key to a vault on another machine** (F215;
+`docs/GPG-PAPERKEY.md` §12) is this restore, with only a camera between
+the machines: the old vault's **Show as QR** on **Export public key**
+for **Scan the public key**, then at step 4 the **Show as QR** under the
+masked paperkey, one code on the QR sheet marked Secret, for **Scan the
+paperkey**. The old vault keeps its copy until the person deletes it. For
+two vaults open on one machine, the vault's copy of an item is the way.
 
 ## Secure Boot
 

@@ -497,7 +497,9 @@ impl Faraday {
                         | Action::SDescriptorOut(_)
                         | Action::SecretUnprotected
                         | Action::Bip85
-                        | Action::Vault(V::Unlock | V::Show(_) | V::FocusPassphrase)
+                        | Action::Vault(
+                            V::Unlock | V::Show(_) | V::FocusPassphrase | V::PaperkeyQr
+                        )
                         | Action::Nav(Screen::Unlock | Screen::VaultContents | Screen::Codes)
                 ))
     }

@@ -161,6 +161,7 @@ The title is its user ID; its line **Ed25519 · does not expire** or
 | **Status** | "Revoked on …", once marked revoked |
 | **Revocation certificate** | "Kept with the key · made …", or **None kept yet** |
 | **Paperkey** | the secret key as paperkey text, hidden behind its eye |
+| **Show as QR** | under the paperkey: the same text as one code, on the sheet marked Secret, for restoring the key on another machine |
 | "Term now: expires …" | the term as it stands; **Term now: does not expire** |
 | **Renew for** | **1 year**, **2 years**, **3 years**, **5 years**, **Never**; **Renew** sets the new term from now, grey until one is chosen |
 | **Backup** | for a key made by the backup flow: "1 of 2 written", and **Continue the backup** until every place is; then **Written to every place** |
