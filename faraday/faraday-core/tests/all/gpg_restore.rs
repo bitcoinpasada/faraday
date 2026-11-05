@@ -649,50 +649,12 @@ fn a_gpg_keys_paperkey_shows_as_one_secret_code_and_is_gone_after_done_and_a_loc
     }
 }
 
-/// A PiKVM among the USB devices.
-fn kvm() -> faraday_core::devices::UsbDevice {
-    use faraday_core::devices::{Interface, UsbDevice};
-    let hid = |protocol| Interface {
-        class: 3,
-        subclass: 1,
-        protocol,
-    };
-    UsbDevice {
-        port: "1-2".into(),
-        vendor: 0x1d6b,
-        product: 0x0104,
-        manufacturer: "PiKVM".into(),
-        name: "Composite KVM Device".into(),
-        interfaces: vec![
-            hid(1),
-            hid(2),
-            Interface {
-                class: 8,
-                subclass: 6,
-                protocol: 0x50,
-            },
-        ],
-    }
-}
-
 /// The key's page open, a KVM plugged in, its sheet closed and the KVM
 /// still there.
 fn key_page_with_kvm() -> Faraday {
-    use faraday_core::devices::DeviceCheck;
     let mut app = key_page(480, 640, 160);
-    app.devices = DeviceCheck::machine("flags\t\t: fpu\n", "LENOVO", "20XW", "10");
-    app.usb_devices(&[kvm()]);
-    assert_eq!(app.sheet, Some(Sheet::Devices));
-    app.press(Action::Cancel);
+    attach_kvm(&mut app);
     app
-}
-
-/// The key's page open with the press waiting, the KVM pulled and checked
-/// again: the reminder about a TV is due too, and understood.
-fn kvm_gone(app: &mut Faraday) {
-    app.usb_devices(&[]);
-    app.press(Action::DevicesCheck);
-    app.press(Action::DevicesUnderstood);
 }
 
 /// A KVM plugged in with the key's page open, its sheet closed and the

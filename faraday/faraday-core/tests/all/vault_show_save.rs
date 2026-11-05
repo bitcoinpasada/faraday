@@ -239,6 +239,46 @@ fn a_key_s_words_show_at_a_press_on_their_eye_and_hide_at_the_next() {
     assert!(app.session.keys.is_empty(), "showing them loads the key");
 }
 
+/// A KVM plugged in after the vault opened, its sheet closed and the KVM
+/// still there: the eye on a key's words waits under the sheet and shows
+/// nothing until the KVM is pulled; hiding them again never waits.
+#[test]
+fn a_keys_words_wait_for_a_kvm_attached_after_the_vault_opened() {
+    let mut app = on_key();
+    let eye = Action::Vault(V::Reveal(0));
+    crate::common::attach_kvm(&mut app);
+    app.press(eye);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(!words_on_screen(&mut app), "the words showed with a KVM");
+    crate::common::kvm_gone(&mut app);
+    assert!(words_on_screen(&mut app), "the press did not carry on");
+    // With another KVM attached, hiding them goes through.
+    app.usb_devices(&[crate::common::kvm()]);
+    app.press(Action::Cancel);
+    app.press(eye);
+    assert_eq!(app.sheet, None);
+    assert!(!words_on_screen(&mut app), "hiding waited");
+}
+
+/// The same for a key's SeedQR: its code waits for the KVM to go, and
+/// hiding it goes through.
+#[test]
+fn a_keys_seedqr_waits_for_a_kvm_attached_after_the_vault_opened() {
+    let mut app = on_key();
+    let show = Action::Vault(V::ShowSeedQr);
+    crate::common::attach_kvm(&mut app);
+    app.press(show);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(on_screen(&mut app).is_empty(), "a code showed with a KVM");
+    crate::common::kvm_gone(&mut app);
+    assert_eq!(on_screen(&mut app), vec![seedqr_digits()]);
+    app.usb_devices(&[crate::common::kvm()]);
+    app.press(Action::Cancel);
+    app.press(show);
+    assert_eq!(app.sheet, None);
+    assert!(on_screen(&mut app).is_empty(), "hiding waited");
+}
+
 #[test]
 fn a_shown_secret_is_hidden_again_after_leaving_and_coming_back() {
     let mut app = on_key();

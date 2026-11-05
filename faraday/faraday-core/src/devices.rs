@@ -508,7 +508,29 @@ impl Faraday {
                             V::Unlock | V::Show(_) | V::FocusPassphrase | V::PaperkeyQr
                         )
                         | Action::Nav(Screen::Unlock | Screen::VaultContents | Screen::Codes)
-                ))
+                )
+                || self.vault_page_shows_secret(action))
+    }
+
+    /// `action` turns on a secret on the open vault's item page: a TOTP
+    /// secret's code, a masked field's eye or a seed's code. Hiding one
+    /// never waits.
+    fn vault_page_shows_secret(&self, action: Action) -> bool {
+        use crate::vault::VaultAction as V;
+        let Action::Vault(v) = action else {
+            return false;
+        };
+        let on_page = self.vault_on_page();
+        on_page
+            && match v {
+                V::TotpQr => true,
+                V::Reveal(n) => u32::try_from(n)
+                    .ok()
+                    .and_then(|n| 1u64.checked_shl(n))
+                    .is_some_and(|bit| self.vaults.fields_shown(on_page) & bit == 0),
+                V::ShowSeedQr => self.vaults.seedqr_shown(on_page).is_none(),
+                _ => false,
+            }
     }
 
     /// `action` was held: the sheet comes up, and it is done once the

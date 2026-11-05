@@ -332,7 +332,10 @@ rule's reach is written down):
   the masked **TOTP secret** row, shown when the URI reads as TOTP; an
   HOTP or unreadable one shows none. No hold shows a secret (§4.10 of
   `docs/DESIGN.md`, F123): a press opens the sheet, Done or leaving
-  closes it. Only the entry's own page opens it, with no sheet over it.
+  closes it. Only the entry's own page opens it, with no sheet over it,
+  and while a device that can capture the screen is attached the press
+  waits under the device check's sheet, as the eye on a masked field and
+  a seed's code do when they turn on (hiding never waits).
 - **A GPG key's paperkey** (row 23): **Show as QR**, a button under the
   masked **Paperkey** box, as under the TOTP secret's. A press opens the
   sheet, with no hold, whether or not the eye shows the text; Done or

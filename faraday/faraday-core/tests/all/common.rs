@@ -1791,3 +1791,45 @@ pub fn kdbx_records(file: &[u8], phrase: &str) -> Vec<faraday_vault::Record> {
         .unwrap_or_else(|e| panic!("opens: {e:?}"));
     store.contents_for_tests(vid).to_vec()
 }
+
+/// A PiKVM among the USB devices.
+pub fn kvm() -> faraday_core::devices::UsbDevice {
+    use faraday_core::devices::{Interface, UsbDevice};
+    let hid = |protocol| Interface {
+        class: 3,
+        subclass: 1,
+        protocol,
+    };
+    UsbDevice {
+        port: "1-2".into(),
+        vendor: 0x1d6b,
+        product: 0x0104,
+        manufacturer: "PiKVM".into(),
+        name: "Composite KVM Device".into(),
+        interfaces: vec![
+            hid(1),
+            hid(2),
+            Interface {
+                class: 8,
+                subclass: 6,
+                protocol: 0x50,
+            },
+        ],
+    }
+}
+
+/// A KVM plugged in, its sheet closed and the KVM still there.
+pub fn attach_kvm(app: &mut Faraday) {
+    use faraday_core::devices::DeviceCheck;
+    app.devices = DeviceCheck::machine("flags\t\t: fpu\n", "LENOVO", "20XW", "10");
+    app.usb_devices(&[kvm()]);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Devices));
+    app.press(Action::Cancel);
+}
+
+/// The KVM pulled and checked again: the reminder about a TV is due too, and understood.
+pub fn kvm_gone(app: &mut Faraday) {
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    app.press(Action::DevicesUnderstood);
+}

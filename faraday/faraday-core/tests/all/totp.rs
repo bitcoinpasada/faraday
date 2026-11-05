@@ -511,6 +511,20 @@ fn an_entry_whose_totp_does_not_read_can_be_edited_and_keeps_it() {
     assert_eq!(app.toast_text(), Some("Not a TOTP key"));
 }
 
+/// A KVM plugged in after the vault opened, its sheet closed and the KVM
+/// still there: the TOTP secret's code waits under the sheet and shows
+/// nothing until the KVM is pulled.
+#[test]
+fn an_entrys_totp_code_waits_for_a_kvm_attached_after_the_vault_opened() {
+    let mut app = on_an_entry(URI);
+    crate::common::attach_kvm(&mut app);
+    app.press(Action::Vault(V::TotpQr));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Devices));
+    assert!(app.qr().is_none(), "the code showed with a KVM attached");
+    crate::common::kvm_gone(&mut app);
+    assert!(app.qr().is_some(), "the press did not carry on");
+}
+
 /// An HOTP secret has no code to show: no Show as QR, and its press shows
 /// none.
 #[test]
