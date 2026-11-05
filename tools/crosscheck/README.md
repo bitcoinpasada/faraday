@@ -172,8 +172,9 @@ gives it for the release), seed, scale and UTC date;
 each area with its cases, answers, known differences and result; each
 reference folder with its commit and the SHA-256 of its files; Bitcoin
 Core's version and tarball SHA-256; and "every answer agreed" or the
-first disagreement. `faraday/tools/stage-release.sh` stages it as
-`crosscheck-<version>.txt` beside `SHA256SUMS`, listed in it.
+first disagreement, or that the OVMF Secure Boot run failed. A signal to
+`run.sh` ends both that run and the areas. `faraday/tools/stage-release.sh`
+stages the record as `crosscheck-<version>.txt` beside `SHA256SUMS`, listed in it.
 
 ## The self-test
 

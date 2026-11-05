@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import pathlib
 
@@ -745,6 +746,92 @@ class CoreRequired(unittest.TestCase):
             self.assertNotIn("self-test", r.stdout)
         finally:
             shutil.rmtree(tmp)
+
+
+class RunScript(unittest.TestCase):
+    """run.sh itself, with its builds, the areas and the OVMF run replaced."""
+
+    def setUp(self):
+        made = tempfile.TemporaryDirectory()
+        self.addCleanup(made.cleanup)
+        self.root = pathlib.Path(made.name)
+        self.script = self.root / "tools/crosscheck/run.sh"
+        self.script.parent.mkdir(parents=True)
+        shutil.copy(HERE / "run.sh", self.script)
+        for name in ("judges.py", "soft.py"):
+            (self.script.parent / name).write_text("")
+        (self.root / "faraday/tools").mkdir(parents=True)
+        stubs = self.root / "stubs"
+        stubs.mkdir()
+        self.stub(stubs / "go", "#!/bin/sh\nexit 0\n")
+        self.stub(stubs / "unshare", "#!/bin/sh\n"
+                  'while case "$1" in --*) true ;; *) false ;; esac; do shift; done\nexec "$@"\n')
+        self.stub(stubs / "cargo", "#!/bin/sh\n"
+                  'if [ -n "$CARGO_TARGET_DIR" ]; then\n'
+                  '    mkdir -p "$CARGO_TARGET_DIR/debug"\n'
+                  "    for b in rust-codex32-answers volvelle-cells faraday-crosscheck-rpgp; do\n"
+                  '        : > "$CARGO_TARGET_DIR/debug/$b"\n'
+                  "    done\n"
+                  "fi\n"
+                  """echo '{"reason":"compiler-artifact","executable":"/stub","""
+                  """"target":{"name":"faraday-crosscheck"}}'\n""")
+        self.env = dict(os.environ, PATH=f"{stubs}:{os.environ['PATH']}", STUB_DIR=str(self.root))
+        self.record = self.root / "out/crosscheck-record.txt"
+
+    @staticmethod
+    def stub(path, body):
+        path.write_text(body)
+        path.chmod(0o755)
+
+    def sides(self, areas, ovmf):
+        head = "import os, pathlib, subprocess, sys, time\nroot = pathlib.Path(os.environ['STUB_DIR'])\n"
+        (self.script.parent / "crosscheck.py").write_text(head + areas)
+        (self.root / "faraday/tools/sb-ovmf-check.py").write_text(head + ovmf)
+
+    def test_both_sides_failing_names_both_and_fails_the_run(self):
+        self.sides("print('beta: MISMATCH')\n(root / 'areas-ended').touch()\nsys.exit(1)\n",
+                   "while not (root / 'areas-ended').exists():\n    time.sleep(0.02)\nsys.exit(1)\n")
+        r = subprocess.run([str(self.script)], env=self.env, capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("beta: MISMATCH", r.stdout)
+        self.assertIn("FAILED: the OVMF Secure Boot run", r.stderr)
+
+    def test_a_failed_ovmf_run_leaves_no_record_of_agreement(self):
+        self.sides("(root / 'out/crosscheck-record.txt').write_text('result: every answer agreed\\n')\n"
+                   "(root / 'areas-ended').touch()\n",
+                   "while not (root / 'areas-ended').exists():\n    time.sleep(0.02)\nsys.exit(1)\n")
+        r = subprocess.run([str(self.script)], env=self.env, capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotIn("every answer agreed", self.record.read_text())
+
+    def test_a_signal_ends_the_areas_the_ovmf_run_and_its_qemu(self):
+        self.sides("(root / 'areas.pid').write_text(str(os.getpid()))\ntime.sleep(300)\n",
+                   "qemu = subprocess.Popen(['sleep', '300'])\n"
+                   "(root / 'qemu.pid').write_text(str(qemu.pid))\n"
+                   "(root / 'ovmf.pid').write_text(str(os.getpid()))\ntime.sleep(300)\n")
+        run = subprocess.Popen([str(self.script)], env=self.env,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(run.kill)
+        files = [self.root / f"{n}.pid" for n in ("areas", "ovmf", "qemu")]
+        deadline = time.monotonic() + 60
+        while not all(f.exists() and f.read_text() for f in files):
+            self.assertLess(time.monotonic(), deadline, "the two sides did not start")
+            time.sleep(0.02)
+        pids = [int(f.read_text()) for f in files]
+        run.terminate()
+        self.assertEqual(run.wait(timeout=30), 143)
+        deadline = time.monotonic() + 10
+        while any(self.alive(p) for p in pids):
+            self.assertLess(time.monotonic(), deadline, "something run.sh started is still running")
+            time.sleep(0.02)
+
+    @staticmethod
+    def alive(pid):
+        try:
+            state = pathlib.Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+        except OSError:
+            return False
+        return state != "Z"
 
 
 if __name__ == "__main__":

@@ -207,11 +207,25 @@ if [ "${1:-}" = --identity ]; then
     exec unshare --user --map-root-user --net \
         python3 -I -B tools/crosscheck/identity.py --rust "$exe" "$@"
 fi
+# A signal to this script ends what it started: the OVMF run has a process group
+# of its own, so its QEMU goes with it, and crosscheck.py ends its own workers.
 ovmf_pid=
+check_pid=
+end_started() {
+    trap - INT TERM HUP
+    [ -z "$ovmf_pid" ] || kill -TERM -- "-$ovmf_pid" 2>/dev/null || true
+    [ -z "$check_pid" ] || kill -TERM "$check_pid" 2>/dev/null || true
+    wait 2>/dev/null || true
+    say "crosscheck: stopped by a signal"
+    exit "$1"
+}
+trap 'end_started 129' HUP
+trap 'end_started 130' INT
+trap 'end_started 143' TERM
 if [ -n "$ovmf" ]; then
     say "judges: Secure Boot in OVMF (faraday/tools/sb-ovmf-check.py), beside the areas"
     mkdir -p "$progress/sb-ovmf"
-    python3 -I -B faraday/tools/sb-ovmf-check.py "$PWD/$progress/sb-ovmf" \
+    setsid python3 -I -B faraday/tools/sb-ovmf-check.py "$PWD/$progress/sb-ovmf" \
         >"$progress/sb-ovmf.log" 2>&1 &
     ovmf_pid=$!
 fi
@@ -224,6 +238,11 @@ if [ -n "$ovmf_pid" ]; then
     if [ "$ovmf_rc" -ne 0 ]; then
         kill "$check_pid" 2>/dev/null || true
         wait "$check_pid" 2>/dev/null || true
+        # The areas may have agreed and written the record: this run did not.
+        if [ -f out/crosscheck-record.txt ]; then
+            sed -i 's/^result: every answer agreed$/result: the OVMF Secure Boot run failed/' \
+                out/crosscheck-record.txt
+        fi
         tail -n 40 "$progress/sb-ovmf.log" >&2
         say "judges: FAILED: the OVMF Secure Boot run (out/crosscheck/sb-ovmf.log)"
         exit 2
