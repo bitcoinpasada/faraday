@@ -320,7 +320,7 @@ fn sealed(doc: &Document, passphrase: &str, size: usize, seed: u8) -> Vec<u8> {
         &random,
         &Contents {
             document: &xml,
-            binaries: &[],
+            binaries: faraday_vault::kdbx::Binaries::all(&[]),
             public_custom_data: None,
         },
         size,
@@ -517,7 +517,7 @@ fn with_document(text: &[u8], seed: u8) -> Vec<u8> {
         &random,
         &Contents {
             document: text,
-            binaries: &[],
+            binaries: faraday_vault::kdbx::Binaries::all(&[]),
             public_custom_data: None,
         },
         4096,

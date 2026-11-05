@@ -33,6 +33,54 @@ pub struct Binary {
     pub data: Zeroizing<Vec<u8>>,
 }
 
+/// The attachments a seal writes: those read, with the ones nothing refers
+/// to emptied in place (bytes gone, protection flag and position kept) and
+/// the trailing emptied ones left off. Borrows the bytes, copies none.
+pub struct Binaries<'a> {
+    all: &'a [Binary],
+    /// How many are written.
+    len: usize,
+    /// Per position of `all`: written empty. Empty when none is.
+    emptied: Vec<bool>,
+}
+
+impl<'a> Binaries<'a> {
+    /// All of `all`, as read.
+    pub fn all(all: &'a [Binary]) -> Self {
+        Self {
+            all,
+            len: all.len(),
+            emptied: Vec::new(),
+        }
+    }
+
+    /// `all` with the positions `used` does not mark emptied and the
+    /// trailing ones left off. `used` has one entry per attachment.
+    pub(super) fn used(all: &'a [Binary], used: &[bool]) -> Self {
+        let len = used.iter().rposition(|&u| u).map_or(0, |last| last + 1);
+        let emptied: Vec<bool> = used[..len].iter().map(|&u| !u).collect();
+        Self { all, len, emptied }
+    }
+
+    /// Each written attachment: whether it is protected, and its bytes.
+    pub fn iter(&self) -> impl Iterator<Item = (bool, &[u8])> + '_ {
+        self.all[..self.len].iter().enumerate().map(|(i, b)| {
+            let gone = self.emptied.get(i).copied().unwrap_or(false);
+            (b.protected, if gone { &[][..] } else { &b.data[..] })
+        })
+    }
+
+    /// How many are written.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether none is written.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
 /// What the inner header holds.
 pub(super) struct Inner {
     /// The inner stream's key, as long as the file states.
@@ -101,25 +149,25 @@ pub(super) fn read_inner(body: &[u8]) -> Result<Inner, Error> {
 }
 
 /// The inner header Faraday writes.
-pub(super) fn write(key: &[u8], binaries: &[Binary], out: &mut Vec<u8>) {
+pub(super) fn write(key: &[u8], binaries: &Binaries<'_>, out: &mut Vec<u8>) {
     put_field(INNER_STREAM_ID, &STREAM_CHACHA20.to_le_bytes(), out);
     put_field(INNER_STREAM_KEY, key, out);
-    for binary in binaries {
+    for (protected, data) in binaries.iter() {
         out.push(INNER_BINARY);
-        out.extend_from_slice(&(binary.data.len() as u32 + 1).to_le_bytes());
-        out.push(u8::from(binary.protected));
-        out.extend_from_slice(&binary.data);
+        out.extend_from_slice(&(data.len() as u32 + 1).to_le_bytes());
+        out.push(u8::from(protected));
+        out.extend_from_slice(data);
     }
     put_field(INNER_END, &[], out);
 }
 
 /// The length [`write`] gives, worked out without writing.
-pub(super) fn written_len(key: &[u8], binaries: &[Binary]) -> usize {
+pub(super) fn written_len(key: &[u8], binaries: &Binaries<'_>) -> usize {
     // Each field: an id, a length and the value.
     let fixed = (5 + 4) + (5 + key.len()) + 5;
-    binaries
-        .iter()
-        .fold(fixed, |sum, b| sum.saturating_add(5 + 1 + b.data.len()))
+    binaries.iter().fold(fixed, |sum, (_, data)| {
+        sum.saturating_add(5 + 1 + data.len())
+    })
 }
 
 /// The inner random stream: ChaCha20 under the first 32 bytes of the

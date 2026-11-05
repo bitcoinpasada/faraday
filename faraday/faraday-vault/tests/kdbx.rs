@@ -61,7 +61,7 @@ fn random() -> [u8; RANDOM_LEN] {
 fn contents<'a>(document: &'a [u8]) -> Contents<'a> {
     Contents {
         document,
-        binaries: &[],
+        binaries: faraday_vault::kdbx::Binaries::all(&[]),
         public_custom_data: None,
     }
 }
@@ -294,7 +294,7 @@ fn a_sealed_file_opens_with_everything_it_was_given() {
         &random(),
         &Contents {
             document,
-            binaries: &binaries,
+            binaries: faraday_vault::kdbx::Binaries::all(&binaries),
             public_custom_data: Some(&custom),
         },
         65_536,

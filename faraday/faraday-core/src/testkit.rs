@@ -1231,7 +1231,7 @@ pub fn kdbx_edited(
     let xml = tweak(xml);
     let contents = kdbx::Contents {
         document: xml.as_bytes(),
-        binaries: &[],
+        binaries: faraday_vault::kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
     let cost = faraday_vault::Cost {

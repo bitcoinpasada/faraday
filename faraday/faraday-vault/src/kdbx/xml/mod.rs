@@ -93,6 +93,9 @@ use zeroize::Zeroizing;
 use super::InnerStream;
 
 mod read;
+mod refs;
+
+pub use refs::referenced;
 
 /// The deepest nesting of elements a document may have.
 pub const MAX_DEPTH: usize = 64;
@@ -1287,5 +1290,7 @@ pub fn fuzz_document(document: &[u8]) -> bool {
     let first = doc.write(NEW);
     let again = Document::read(&first, NEW).expect("a written document reads");
     assert_eq!(&first[..], &again.write(NEW)[..]);
+    // The attachment references of what is written are read.
+    let _ = referenced(&first, 3);
     true
 }

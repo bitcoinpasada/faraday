@@ -331,7 +331,7 @@ fn a_note_in_the_recycle_bin_or_in_a_history_is_not_an_item() {
     let seal = |xml: &str| {
         let contents = kdbx::Contents {
             document: xml.as_bytes(),
-            binaries: &[],
+            binaries: faraday_vault::kdbx::Binaries::all(&[]),
             public_custom_data: None,
         };
         kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SIZES[0]).unwrap()
@@ -412,7 +412,7 @@ fn sealed_document(doc: &Document) -> Vec<u8> {
     let xml = doc.write(kdbx::inner_key_of(&random));
     let contents = kdbx::Contents {
         document: &xml,
-        binaries: &[],
+        binaries: faraday_vault::kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
     kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SIZES[0]).unwrap()

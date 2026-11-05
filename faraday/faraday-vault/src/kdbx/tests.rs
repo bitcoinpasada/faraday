@@ -175,7 +175,8 @@ fn the_inner_header_length_is_worked_out_as_it_is_written() {
     ];
     for set in [&binaries[..0], &binaries[..1], &binaries[..]] {
         let mut out = Vec::new();
-        inner::write(&[5; 64], set, &mut out);
-        assert_eq!(inner::written_len(&[5; 64], set), out.len());
+        let set = inner::Binaries::all(set);
+        inner::write(&[5; 64], &set, &mut out);
+        assert_eq!(inner::written_len(&[5; 64], &set), out.len());
     }
 }

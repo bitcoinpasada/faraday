@@ -893,7 +893,7 @@ fn file_of(c: &Compute, doc: &Document) -> Vec<u8> {
     let xml = doc.write(kdbx::inner_key_of(&random));
     let contents = kdbx::Contents {
         document: &xml,
-        binaries: &[],
+        binaries: faraday_vault::kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
     kdbx::seal(c, "pass", COST, &random, &contents, SIZES[0]).expect("sealed")

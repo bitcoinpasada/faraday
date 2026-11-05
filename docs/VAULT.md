@@ -135,7 +135,7 @@ A QR vault has one length (§2.1). A file vault has no size to choose
 (F206): it starts at 32 KiB of plaintext and grows by itself, each seal
 padding it to the smallest multiple of 32 KiB that holds its contents, up
 to 256 MiB. The plaintext is the inner header, the XML document (history and a recycle bin are in it, so they count), the
-attachments' bytes and the line feeds after the document. It shrinks in
+bytes of the attachments something refers to (§7.1) and the line feeds after the document. It shrinks in
 the same way when what it holds does: a seal remembers nothing of the
 size before.
 
@@ -857,7 +857,8 @@ passphrase is.
 **Carried through unchanged** (owner, 2026-11-02): everything a KeePass
 app wrote that Faraday does not read is kept as it was and written back
 where it was: attachments (the inner header's binaries, with their
-protection flag, and the entries' references to them), custom icons and
+protection flag, and the entries' references to them, except that an
+attachment nothing refers to is dropped at the seal, below), custom icons and
 icon numbers, times, tags, AutoType, colours, the groups and their
 settings, deleted-object records, `PublicCustomData`, the database's
 settings in `Meta`, and custom data whose key does not begin
@@ -886,9 +887,23 @@ goes with its own history; deleting moves nothing to the recycle bin.
 A `RecycleBinUUID` that names the root group keeps the root listed: only
 a group under the root is kept out. A group with any `UUID` naming the bin
 is the bin, and a file with a bin that marks a group's `UUID` Protected is
-refused, since the bin must be known without decrypting anything. An entry deleted in Faraday leaves
-any attachment it had in the file's shared binaries, where it stays
-until a later change removes it.
+refused, since the bin must be known without decrypting anything.
+
+**An attachment nothing refers to** is dropped at the next seal, so an
+entry deleted in Faraday takes its attachments out of the file. KDBX refers
+to the inner header's binaries by position, so a dropped one is emptied in
+place (its bytes gone, its protection flag and its position kept, no
+reference rewritten) and the trailing ones are left off. A reference is
+counted anywhere in the document as it will be written: an entry, an
+entry's history, an entry in the recycle bin; an attachment two entries
+share stays while one of them does. A reference that cannot be understood
+(a `Ref` that is not a plain number, a `Binary` element that is not a
+`Key` and a `Value` with a `Ref`) keeps every attachment for that seal; a
+reference to a position that does not exist changes nothing. A file a
+KeePass app saved with an attachment nothing refers to loses it at its
+next seal too; a read-only vault is not sealed and is untouched. The
+document is read once more for a vault that has attachments, at each
+change and each seal; none is read for one without.
 
 **The file's settings.** The next seal needs what the file needed (§5),
 and writes the file as Faraday writes a vault: ChaCha20, Argon2id at the step of §3 nearest at or above the

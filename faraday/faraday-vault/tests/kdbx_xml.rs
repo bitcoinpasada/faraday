@@ -134,7 +134,7 @@ fn pykeepass_reads_with(
         &random,
         &Contents {
             document: &document,
-            binaries,
+            binaries: faraday_vault::kdbx::Binaries::all(binaries),
             public_custom_data: None,
         },
         total + document.len() + 4096,

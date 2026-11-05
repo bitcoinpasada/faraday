@@ -336,7 +336,7 @@ fn create(c: &Compute, req: &Value) -> Answer {
         &random,
         &Contents {
             document: &xml,
-            binaries: &[],
+            binaries: faraday_vault::kdbx::Binaries::all(&[]),
             public_custom_data: None,
         },
         size,

@@ -38,7 +38,7 @@ fn main() {
         };
         let contents = Contents {
             document: b"<KeePassFile/>",
-            binaries: &[],
+            binaries: faraday_vault::kdbx::Binaries::all(&[]),
             public_custom_data: None,
         };
         let mut times = Vec::new();

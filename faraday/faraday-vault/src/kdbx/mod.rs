@@ -53,7 +53,7 @@ use zeroize::Zeroizing;
 use crate::Cost;
 
 pub use header::{Cipher, Compression, Header, Kdf, LANES, MEMORY_KIB, PASSES};
-pub use inner::{Binary, InnerStream};
+pub use inner::{Binaries, Binary, InnerStream};
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub use items::fuzz_items;
@@ -164,7 +164,7 @@ pub struct Contents<'a> {
     /// [`inner_key_of`] the random bytes sealed with.
     pub document: &'a [u8],
     /// The inner header's attachments.
-    pub binaries: &'a [Binary],
+    pub binaries: Binaries<'a>,
     /// The outer header's public custom data, to be written as it was
     /// read.
     pub public_custom_data: Option<&'a [u8]>,
@@ -199,8 +199,24 @@ pub fn head_len(bytes: &[u8]) -> Result<usize, Error> {
 /// The plaintext a file takes to hold an XML document of `document_len`
 /// bytes and these attachments: the inner header (with an inner key as
 /// long as Faraday writes) and the document, before any padding.
-pub fn plain_needs(binaries: &[Binary], document_len: usize) -> usize {
+pub fn plain_needs(binaries: &Binaries<'_>, document_len: usize) -> usize {
     inner::written_len(&[0u8; RANDOM_LEN - INNER_KEY_AT], binaries).saturating_add(document_len)
+}
+
+/// Costs a read of `document`, linear in its size (at most 4 MiB), and
+/// nothing when there is no attachment: the attachments a seal of
+/// `document` writes (VAULT §7.1). An attachment no entry, history entry or
+/// recycle bin entry refers to is emptied in place and the trailing ones
+/// are left off; when a reference cannot be understood every attachment is
+/// kept.
+pub fn kept_binaries<'a>(binaries: &'a [Binary], document: &[u8]) -> Binaries<'a> {
+    if binaries.is_empty() {
+        return Binaries::all(binaries);
+    }
+    match xml::referenced(document, binaries.len()) {
+        Some(used) => Binaries::used(binaries, &used),
+        None => Binaries::all(binaries),
+    }
 }
 
 /// Costs an Argon2 run at the cost and function `header` states, for a
@@ -397,7 +413,7 @@ pub fn seal(
     }
     // The length first, so a refusal leaves no copy of the inner key in a
     // buffer that grew.
-    let needs = inner::written_len(inner_key_of(random), contents.binaries)
+    let needs = inner::written_len(inner_key_of(random), &contents.binaries)
         .saturating_add(contents.document.len());
     if needs > plain_len {
         return Err(Error::Full(needs));
@@ -406,7 +422,7 @@ pub fn seal(
     plain
         .try_reserve_exact(plain_len)
         .map_err(|_| Error::TooLarge)?;
-    inner::write(inner_key_of(random), contents.binaries, &mut plain);
+    inner::write(inner_key_of(random), &contents.binaries, &mut plain);
     plain.extend_from_slice(contents.document);
     plain.resize(plain_len, b'\n');
     let written = Sha256::digest(&plain);

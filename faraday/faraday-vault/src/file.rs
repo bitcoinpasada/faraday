@@ -309,7 +309,8 @@ impl Opened {
         now: Option<u64>,
     ) -> Result<usize, Error> {
         let doc = applied(c, &self.doc, &self.read, changes, now)?;
-        let needs = kdbx::plain_needs(&self.binaries, doc.write(&[0u8; 64]).len());
+        let xml = doc.write(&[0u8; 64]);
+        let needs = kdbx::plain_needs(&self.sealed_binaries(&xml), xml.len());
         Ok(self.size_for(needs))
     }
 
@@ -350,10 +351,14 @@ impl Opened {
     /// bytes fewer.
     pub fn used(&self, c: &Compute, changes: &[Change<'_>]) -> Result<usize, Error> {
         let doc = applied(c, &self.doc, &self.read, changes, Some(0))?;
-        Ok(kdbx::plain_needs(
-            &self.binaries,
-            doc.write(&[0u8; 64]).len(),
-        ))
+        let xml = doc.write(&[0u8; 64]);
+        Ok(kdbx::plain_needs(&self.sealed_binaries(&xml), xml.len()))
+    }
+
+    /// Costs a read of `xml` (nothing without attachments): the attachments
+    /// a seal of the document `xml` writes (VAULT §7.1).
+    fn sealed_binaries(&self, xml: &[u8]) -> kdbx::Binaries<'_> {
+        kdbx::kept_binaries(&self.binaries, xml)
     }
 }
 
@@ -431,11 +436,12 @@ pub fn seal_with(
     let doc = applied(c, &opened.doc, &opened.read, changes, now)?;
     let xml = doc.write(kdbx::inner_key_of(random));
     read_back(&xml, kdbx::inner_key_of(random))?;
-    let needs = kdbx::plain_needs(&opened.binaries, xml.len());
+    let binaries = opened.sealed_binaries(&xml);
+    let needs = kdbx::plain_needs(&binaries, xml.len());
     let size = opened.size_for(needs);
     let contents = Contents {
         document: &xml,
-        binaries: &opened.binaries,
+        binaries,
         public_custom_data: opened.facts.header.public_custom_data.as_deref(),
     };
     let passphrase = match rekey.passphrase {
@@ -499,7 +505,7 @@ pub fn create(
     let xml = doc.write(kdbx::inner_key_of(random));
     let contents = Contents {
         document: &xml,
-        binaries: &[],
+        binaries: kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
     kdbx::seal(c, passphrase, cost, random, &contents, size).map_err(|e| match e {
@@ -536,10 +542,10 @@ pub fn create_holding(
     let time = now.and_then(items::utc_time);
     items::stamp(&mut doc, 1, time.as_deref())?;
     let xml = doc.write(kdbx::inner_key_of(random));
-    let size = smallest_holding(kdbx::plain_needs(&[], xml.len()));
+    let size = smallest_holding(kdbx::plain_needs(&kdbx::Binaries::all(&[]), xml.len()));
     let contents = Contents {
         document: &xml,
-        binaries: &[],
+        binaries: kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
     kdbx::seal(c, passphrase, cost, random, &contents, size).map_err(|e| match e {
