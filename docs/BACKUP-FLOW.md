@@ -2318,6 +2318,10 @@ the board in Customize backup.
     adds it.
 13. **A key with a codex32 set** opens on its own standard way:
     one string per place, on paper, with the description (§17.23).
+14. **A Krux code of a seed** (planned): a form on the seed, one level down in
+    the seed list chip's ⋮, kept in a stick's files, adding no answer to the
+    question on vaults: `docs/KEF.md` §15.1 (the chip, `What::KefCode`, its
+    checklist item, what checked means).
 
 **As built** (2026-10-20; the block as written is in `docs/history/BACKUP-FLOW-LOG.md`):
 

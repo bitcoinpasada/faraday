@@ -140,6 +140,9 @@ way) takes no Back. Once a wallet is made from its seeds, or a key here
 has signed, or a MuSig2 round is open here, Back goes back no further
 than the step after it. Escape is Back on BIP-85, Convert a seed and Vanity.
 
+**Krux code** (planned; `docs/KEF.md` §15.2): a Tools tile, not a calculator, that
+seals a typed text or a loaded wallet's descriptor as a Krux code.
+
 **Convert a seed** (`docs/SEED-CONVERSION.md` §6). Tools' tile opens From, the
 loaded keys, the open vaults' keys not loaded and **Add a key**, which returns
 here; a vault's key, pressed, loads and stays loaded, as under Make a new
