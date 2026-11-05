@@ -87,10 +87,11 @@ fn run(inittab: &str, codes: &[u8]) -> String {
         .replace(APP, &app.display().to_string())
         .replace("2>/dev/kmsg", "2>/dev/null")
         .replace("> /dev/kmsg", "> /dev/null")
-        .replace("sleep 60", ":")
+        .replace("sleep $w", ":")
         .replace("/sbin/reboot", &reboot.display().to_string())
         .replace("/sbin/poweroff", &poweroff.display().to_string());
     assert!(command.contains(&app.display().to_string()), "{command}");
+    assert!(!command.contains("sleep "), "a wait left in {command}");
     let status = Command::new("/bin/sh")
         .arg("-c")
         .arg(&command)
