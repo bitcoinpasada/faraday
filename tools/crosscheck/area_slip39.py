@@ -458,8 +458,9 @@ class Slip39(Area):
         if self.recover(again, passphrase)[1]["secret"] != secret.hex():
             raise AssertionError("the rotated set does not recover the secret")
 
-        # A member at an index: of a group whose threshold is above 1.
-        wide = [gi for gi, (t, _n) in enumerate(groups) if t > 1]
+        # A member at an index: of a group whose threshold is above 1 and below 16 (a
+        # group asking for all sixteen has no index left to make).
+        wide = [gi for gi, (t, _n) in enumerate(groups) if 1 < t < 16]
         if not wide:
             gi = rng.randrange(len(groups))
             self.derive_member(rng.sample(by_group[gi], groups[gi][0]), rng.randrange(16))

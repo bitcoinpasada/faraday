@@ -89,7 +89,7 @@ class Kpxc:
         os.mkdir(home)
         self.env = {"PATH": os.environ.get("PATH", "/usr/bin"), "HOME": home,
                     "XDG_CONFIG_HOME": home, "XDG_CACHE_HOME": home, "XDG_DATA_HOME": home,
-                    "QT_QPA_PLATFORM": "offscreen", "LC_ALL": "C.UTF-8"}
+                    "XDG_RUNTIME_DIR": self.dir.name, "QT_QPA_PLATFORM": "offscreen", "LC_ALL": "C.UTF-8"}
         with open(self.path, "wb") as f:
             f.write(data)
 
@@ -105,9 +105,11 @@ class Kpxc:
 
     def run(self, args, passphrase, more=""):
         """(exit status, standard output); `more` follows the passphrase on
-        standard input (the entry's password, for `add -p`)."""
+        standard input (the entry's password, for `add -p`). What the command wrote to
+        standard error is kept in `self.error`, for a message when it fails."""
         run = subprocess.run([self.exe, *args], input=(passphrase + "\n" + more).encode(),
                              capture_output=True, env=self.env, timeout=300)
+        self.error = run.stderr.decode("utf-8", "replace").strip()
         return run.returncode, run.stdout.decode("utf-8", "surrogateescape")
 
     def entries(self, passphrase):

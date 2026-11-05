@@ -354,7 +354,7 @@ def kpxc_edit(rng, k, passphrase_):
         parent = rng.choice(groups)
         path = parent + [f"{word(rng, 1, 10)} g{i}"]
         if not k.mkdir(passphrase_, "/".join(path)):
-            raise AssertionError(f"keepassxc-cli mkdir {path} failed")
+            raise AssertionError(f"keepassxc-cli mkdir {path} failed: {k.error}")
         groups.append(path)
     model = {}
     for i in range(rng.randint(1, 4)):
@@ -364,11 +364,11 @@ def kpxc_edit(rng, k, passphrase_):
              "URL": "https://example.org/" + word(rng, 1, 5), "Notes": ""}
         entry = "/".join(g + [title])
         if not k.add(passphrase_, entry, f["UserName"], f["Password"], f["URL"]):
-            raise AssertionError(f"keepassxc-cli add {entry} failed")
+            raise AssertionError(f"keepassxc-cli add {entry} failed: {k.error}")
         if rng.random() < 0.6:
             f["Notes"] = word(rng, 1, 80, lines=True)
             if not k.edit_notes(passphrase_, entry, f["Notes"]):
-                raise AssertionError(f"keepassxc-cli edit {entry} failed")
+                raise AssertionError(f"keepassxc-cli edit {entry} failed: {k.error}")
         files = {}
         for j in range(rng.choice([0, 0, 1, 2])):
             name = f"att{j}{rng.choice(['.bin', '.txt'])}"
@@ -377,7 +377,7 @@ def kpxc_edit(rng, k, passphrase_):
             with open(src, "wb") as h:
                 h.write(files[name])
             if not k.attach(passphrase_, entry, name, src):
-                raise AssertionError(f"keepassxc-cli attachment-import {entry} failed")
+                raise AssertionError(f"keepassxc-cli attachment-import {entry} failed: {k.error}")
             os.unlink(src)
         model[(tuple(g), title)] = f | {"attachments": files}
     return model
