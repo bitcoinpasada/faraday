@@ -45,7 +45,7 @@ Read this table, then only the decision you need.
 | [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123, F215 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
 | [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83 | release |
-| [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58, F99, F217 | backup |
+| [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58, F99 | backup |
 | [F32](decisions/F32.md) | GPG follows GnuPG's behaviour | 2026-10-14 | Amended by F63 | signing |
 | [F33](decisions/F33.md) | Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion | 2026-10-14 | Amended by F34, F48, F49 | Starter |
 | [F34](decisions/F34.md) | Faraday Companion is dropped | 2026-10-15 | Amended by F99 | platforms |
@@ -117,7 +117,7 @@ Read this table, then only the decision you need.
 | [F100](decisions/F100.md) | The 7-inch and 10-inch panels run in landscape, with portrait a setting | 2026-10-23 | Active | design |
 | [F101](decisions/F101.md) | A window is laid out at its screen's own density; F78 is superseded | 2026-10-23 | Amended by F100 | design |
 | [F102](decisions/F102.md) | A late seed is said only at a press that needs it; the Pi's generator is mixed, not credited | 2026-10-23 | Active | security |
-| [F103](decisions/F103.md) | A choice that decides a step moves on by itself | 2026-10-23 | Amended by F217 | design |
+| [F103](decisions/F103.md) | A choice that decides a step moves on by itself | 2026-10-23 | Active | design |
 | [F104](decisions/F104.md) | Back and Forward move within a flow's steps | 2026-10-23 | Active | design |
 | [F105](decisions/F105.md) | The boot guides give written directions, not mock-ups of firmware screens | 2026-10-23 | Active | Starter |
 | [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |
@@ -203,7 +203,7 @@ Read this table, then only the decision you need.
 | [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187, F198 | release |
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
-| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190, F217 | security |
+| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
 | [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207, F208 and F211 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 and F211 | crypto |
@@ -231,5 +231,5 @@ Read this table, then only the decision you need.
 | [F214](decisions/F214.md) | A Spec holds the design and whether it is built, and carries no work list | 2026-11-05 | Active | repository |
 | [F215](decisions/F215.md) | A GPG key's paperkey has a code, for moving the key to a vault on another machine | 2026-11-05 | Active | QR |
 | [F216](decisions/F216.md) | On the Pi, "card or stick" where the app says "stick" | 2026-11-05 | Active | stick |
-| [F217](decisions/F217.md) | A QR vault is a third form of a seed in the backup, with Open to test before the lock | 2026-11-05 | Active, the design decided and not built | backup |
+| [F217](history/decisions/F217.md) | A QR vault is a third form of a seed in the backup, with Open to test before the lock | 2026-11-05 | Withdrawn | backup |
 | [F218](decisions/F218.md) | The list of what was plugged in at start can be dismissed, by its × or Escape, never by a held device | 2026-11-05 | Active | security |

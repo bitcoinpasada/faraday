@@ -1,8 +1,8 @@
 # The backup flow
 
 **Kind:** Spec
-**Status:** Partly built: GPG keys, the Secure Boot keys and the Bitcoin wallet. The QR vault in the backup is specified and not built (§17.25)
-**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled); backups age, when each copy was last checked and a recovery path's wait (§18, planned, not scheduled); the QR vault in the backup (§17.25; §1, §2, §10.2, §11, §15.8, §17.3 and §17.5 read as they will be): none of it is built, and the QR vault in the app (`docs/VAULT.md` §2.1, §8) must come first
+**Status:** Partly built: GPG keys, the Secure Boot keys and the Bitcoin wallet
+**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled); backups age, when each copy was last checked and a recovery path's wait (§18, planned, not scheduled)
 
 Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
 the backup board F37).
@@ -89,7 +89,7 @@ The agent's working rules: moved to `docs/history/BACKUP-FLOW-LOG.md`.
   included (NEW-WALLET §14.4). The plan's check lines report what the
   places give; they do not block.
 - **Every form the plan allows**: a vault on a stick, paper (words,
-  SeedQR, steel), a QR vault (§17.25), shares, the wallet sheet, a stick of files, the
+  SeedQR, steel), shares, the wallet sheet, a stick of files, the
   watch-only software, or a mix. The stick steps cover only the places
   whose plan includes a stick. A plan with no stick has nothing to bring
   in and no lock for writing.
@@ -119,7 +119,6 @@ else:
 |---|---|
 | `At::Place(p)` holding `VaultStick(v)` | a stick, "the stick for Vault v (Place p)": brought in at step 2, written at step 6 |
 | `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares, codex32 strings | the checklist's paper items (Templates, printed from Faraday Starter; Copy with F29's check; Codex32 strings, §17.23; Passphrase, typed back, NEW-WALLET §14.7 item 5; Sheets) |
-| `At::Place(p)` holding `QrVault(x)`, or a stick holding `QrVaultFile(x)` | the checklist's QR vault item (§17.25); on Paper its labelled PNG goes on the stick of public files, on a stick its files at step 6 |
 | `At::Vault(v)` | a vault: existing or new (step 1), unlocked or made (step 3), its seeds made into it (step 4) |
 | `At::Files` | "the stick of files" (seed files, public files): written at step 6 |
 | `At::Software` | the descriptor shown, or its files on a stick: written at step 6 |
@@ -626,15 +625,13 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
 - **Make a new wallet** asks about vaults after its kind and shape and
   before Keys, and its plan is made in Back up after the keys (owner,
   2026-10-15). In order:
-  1. **Whether vaults are part of the backup.** A question with three
-     answers, **No**, **Yes, on sticks** and **Yes, as QR codes**
-     (§17.25): "Will you use vaults as part of this backup?", and under it,
+  1. **Whether vaults are part of the backup.** A question with Yes and
+     No: "Will you use vaults as part of this backup?", and under it,
      in the muted style, "Vaults already on sticks are brought in here,
      not later." (§17.21 item 5: a stick not read this power-on cannot
      be read after the keys without the lock, which wipes them). It is
      not done, and shows no check, until the person has pressed an answer,
-     which moves on (F103). No goes on to Keys, and so does Yes, as QR
-     codes, which brings in no stick. Steps 2 and 3 are Yes, on sticks' only.
+     which moves on (F103). No goes on to Keys.
   2. **Sticks and vaults** (`docs/STICK-SETUP.md` §2). Two steppers,
      Vaults and Sticks, each one to 1024 (the most a saved plan reads
      back), and under them the board's chips: a chip per vault with New
@@ -696,11 +693,9 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
     the plan keeps seeds as files;
   - **the stick of public files**: the public files where the plan keeps
     the wallet as files or gives the software its text form, and the
-    sheet or shares as PDFs, to print, and the labelled PNG of each QR
-    vault the plan keeps on Paper (§17.25). It goes to an online computer,
+    sheet or shares as PDFs, to print. It goes to an online computer,
     so it never keeps a secret file (a seed's words, SeedQR or
-    passphrase, or a codex32 string, as a file); a QR vault's files are
-    not secret files. Where a place that
+    passphrase, or a codex32 string, as a file). Where a place that
     keeps a vault's stick holds the wallet, it is that place's first
     stick, in the flow's order, that keeps no secret file; else, where
     the plan's `At::Files` spot holds the wallet and no seed's file,
@@ -833,9 +828,7 @@ public files on any stick, with no line.
 ## 11. Restore
 
 Restore asks the same question as Make a new wallet (§10.2): will vaults
-be part of this backup, and how many. **Yes, as QR codes** sets nothing
-up: the seeds go into memory and the plan after places them as §17.25 says.
-With **Yes, on sticks**, the vaults are set up
+be part of this backup, and how many. With vaults, the vaults are set up
 (steps 2 and 3) before the seeds are typed or scanned, which then go
 into memory. Back up's plan, which says which seed goes into which vault,
 comes after, as it does for Make a new wallet. A restored key signs at
@@ -1287,7 +1280,7 @@ brought in here (§4.8, §17.21 item 5).
 
 **Files and paper stay as they were made.** After the lock, a change to
 words or a SeedQR by hand, a passphrase on paper, a seed's file, the
-sheet or a share on paper, a QR vault (§17.25), the description's or a share's files, the
+sheet or a share on paper, the description's or a share's files, the
 software or the form, or Whole / In shares and the keys left off each
 share while any of the description is on paper or in a file, is refused
 with "Files and paper stay as made after the lock; finish the writes,
@@ -1499,12 +1492,12 @@ checklist read forms as they read everything else.
 
 | Zone | A seed *i* | Its passphrase | The description, or share *j* |
 |---|---|---|---|
-| Paper | `Words(i)`, `SeedQr(i)`, `QrVault(Seed(i))` | `Passphrase(i)`, `QrVault(Pass(i))` | `Sheet`, or `Share(j)`, as today |
-| Stick (files) | `SeedFile(i)` (words, `.txt`), `SeedQrFile(i)` (`.png`), `QrVaultFile(Seed(i))` | `PassphraseFile(i)` (`.txt`), `QrVaultFile(Pass(i))` | `WalletFile(form)`, `ShareFile(j, form)`: `form::TEXT` (`.txt`), `form::QR` (`.png`); and `SoftwareFile`, the chosen software's own file |
+| Paper | `Words(i)`, `SeedQr(i)` | `Passphrase(i)` | `Sheet`, or `Share(j)`, as today |
+| Stick (files) | `SeedFile(i)` (words, `.txt`), `SeedQrFile(i)` (`.png`) | `PassphraseFile(i)` (`.txt`) | `WalletFile(form)`, `ShareFile(j, form)`: `form::TEXT` (`.txt`), `form::QR` (`.png`); and `SoftwareFile`, the chosen software's own file |
 | Vault | `Seed(i)` | `SeedPassphrase(i)`, with its seed | `Wallet`, or `Share(j)` |
 | Scanned in (software) | | | `Wallet` at `At::Software`, as today |
 
-A codex32 string's forms per zone are §17.23's, and a QR vault, §17.25.
+A codex32 string's forms per zone are §17.23's.
 
 - New `What`s: `SeedQrFile(i)` and `PassphraseFile(i)` (tag Secret),
   `SoftwareFile` (Public). `WalletFile` and `ShareFile(j)` gain the form
@@ -1580,8 +1573,7 @@ reads what the drop worked out. A seed kept beside a share gives its
 own key, the one the share left off, when the plan works out whether a
 place rebuilds the description.
 
-A seed kept as codex32 strings adds its own checks (§17.23). A QR vault is
-read as §17.25 says.
+A seed kept as codex32 strings adds its own checks (§17.23).
 
 **Make the checklist** is offered with any warning standing, except
 a seed kept nowhere, which holds The plan card as today (§15.1): with
@@ -2584,193 +2576,6 @@ other device once filled in."
 Tests: `tests/all/codex32qr_copy.rs` (the sheet named, the grid's
 blocks and rows, a copy drawn on the sheet's grid read back and
 checked), `check_copy.rs` (the SeedQR's blocks, keys and rows).
-
-### 17.25 A QR vault in the backup (owner, 2026-11-05; specified, not built)
-
-A QR vault (`docs/VAULT.md` §1.2, §2.1) holds one thing, so in a wallet's
-backup it is one more form of that thing, beside its words and its SeedQR.
-It is no box of its own on a place card, it needs no stick, and no vault is
-set up for it before the keys. Wallet backups only: a GPG key or a set of
-Secure Boot keys does not fit in the code, and the other kinds' plan has no
-forms to choose (§2). This needs the QR vault in the app first (`docs/VAULT.md`
-§2.1, §8): the flow makes each code with what Create a vault uses.
-
-Two passphrases are meant below and are never called by one name on a
-screen: a seed's BIP-39 passphrase, which can be what a code holds, and the
-passphrase that opens the code.
-
-**The question.** §10.2's has three answers, as Option buttons (DESIGN
-§4.2), in Make a new wallet and Restore (§11) alike:
-
-- **No**: Keys, as today. Nothing stops a QR vault being added later in
-  Customize backup.
-- **Yes, on sticks**: what Yes was: Sticks and vaults, Bring in the sticks,
-  Vaults, then Keys.
-- **Yes, as QR codes**: Keys, with no stick brought in and no vault made.
-  A press moves on, as No does (F103). The closed card reads the answer.
-
-Back up then opens on the board as §17.6 opens it, read-only until Customize
-backup, with the standard way placed (§17.6, §17.23) and these changes
-(`plan::qr_vault::standard`): each seed is a QR vault on Paper in place of its
-words, since words beside the code would defeat it; a seed's BIP-39 passphrase
-is a QR vault of its own at the place §10.3 gives it; a key with a codex32 set
-has each string as a QR vault on Paper in place of the string written. The
-wallet description stays as the standard way puts it. A cosigner's seed, not
-here, is placed as the standard way places it. A seed or passphrase that does
-not fit stays in its written form, and a line under the board names it. A plan
-already saved opens as it was.
-
-**The board.** A third form on a chip that holds a seed, a codex32 string or a
-BIP-39 passphrase, a toggle like the others (§17.3): "◉ 9a6a2580 [Words]
-[SeedQR] [✓ QR vault] ×". The read-only board reads "9a6a2580 · QR vault". A
-passphrase's other form on Paper reads **Written**. The last form on stays on.
-A description, a share of it and anything in a vault have no such toggle. A
-seed of another word count or word list, and a passphrase over §2.1's length,
-have none either.
-
-| Zone | What it means | `What` | Plan code |
-|---|---|---|---|
-| Paper | the printed code | `QrVault(Seed(i))`, `QrVault(Pass(i))`, `QrVault(Str(i, j))` | `qv{i}`, `qvp{i}`, `qvs{i}.{j}` |
-| Stick (files) | its `.pgp` file and its labelled PNG, by one toggle | `QrVaultFile(Seed(i))`, `QrVaultFile(Pass(i))`, `QrVaultFile(Str(i, j))` | `qvf{i}`, `qvfp{i}`, `qvfs{i}.{j}` |
-
-All are tagged Sealed, and neither form is a secret file: the stick of public
-files may carry them (§10.2). The same item at two places is one code, printed
-twice or kept twice, under one passphrase.
-
-**The checks** (§17.5) read a code as they read a vault's copy opened with its
-passphrase. It counts as kept for "Any one place lost", `lost_why` and
-`kept_nowhere`; for "One place found", `alone` and §17.22's reach, whoever finds
-it alone gets nothing until the passphrase is known; `all_at_one_place` counts a
-seed's code as a vault whose stick is there. A code holding a BIP-39 passphrase
-raises no warning beside that seed's words or code: §17.5's rule on a passphrase
-kept where its words are does not read it, nor does `all_at_one_place`. Strings
-count towards k as §17.23 says.
-
-**The checklist's item, one per code,** `Item::QrVault`, after the seeds' copy
-and passphrase items and before the vaults' items, while the key is in memory.
-Its title names what it holds and its places. A secret not in this session is
-named and stops the item, as a codex32 string's does (§17.23). In order:
-
-1. **Add randomness** offered, as Create a vault's row (`docs/OWN-RANDOMNESS.md`
-   §2.2).
-2. **Name**, filled in with "Code {n}", which says nothing of what it holds; the
-   name is printed in clear beside the code.
-3. **Passphrase**: **Roll with dice** (the EFF list, `faraday_bip::diceware`) or
-   typed twice, and always the warning line that the code is only as strong as
-   its passphrase. It has no minimum beyond not being empty: a typed passphrase
-   cannot be measured.
-4. **Memory**: Create a vault's rows and default (`docs/VAULT.md` §3.1).
-5. **Make the code**: Progress while it runs, then the file is read back as a
-   seal's is (`docs/VAULT.md` §5). The passphrase is wiped, and the code's bytes,
-   its name and the date it was sealed are kept in the flow's state and the
-   wallet's backup record: none is a secret, so they outlast the lock and go at
-   power-off. The code is not opened on Vaults, and no lock seals it.
-
-The item is then done, and offers what `docs/VAULT.md` §2.1 and §8 name, and
-**Open to test** (below): **Show as QR**, **PNG to the Outbox** (the labelled picture: "QR vault", its name
-and the date sealed, never what it holds) and **To the Outbox** (its `.pgp`
-file). A press whose file already waits says so and adds nothing; pressed after
-that file was written, it gives another copy to print or keep.
-
-**Open to test** (owner, 2026-11-05). Before the lock a new seed's only copy may
-be this code, and nothing yet proves that its passphrase opens it. The item offers
-**Open to test** while the key is in memory: the passphrase is typed again, the
-code's bytes are opened as a scanned code is (`faraday_vault::qr::open`), and the
-words, string or passphrase that come out are compared with what the plan put in.
-Nothing opened is shown, filed or loaded. A match reads "Opened and matches"; a
-wrong passphrase or other contents read as such and may be tried again. What it
-proves is that the passphrase, spelled as typed, opens the very bytes that go on
-the stick to what the plan holds; it does not prove that the paper prints, which
-Scan to check does. It is not required: a code never opened before the lock reads
-"Not opened" in `WARN` on the item, and **Lock and write** shows the same line,
-as a warning and no refusal, since the person may have the passphrase by heart or
-by another test. The passphrase typed is wiped as the flow's other uses of it are,
-when the test ends and at a lock, never kept with the code. It costs one Argon2id
-run at the code's memory, and Progress shows while it runs (`docs/VAULT.md` §3.1;
-`docs/COMPUTE.md`): the same as making the code, so the flow's costly steps are
-this, Make the code and Make a new code. After the lock the test is gone with the
-key; the passphrase is typed where a SeedQR is taken (`docs/VAULT.md` §2.1).
-
-**Make a new code**, offered while the key is in memory, runs steps 1 to 5 again:
-a new salt at the same length, under the passphrase given then. The new code reads
-"Not opened" and "Not scanned back" until each is done again. The screen says to
-print the new code and destroy the old one, which still opens to what it held.
-
-**Several strings of one set.** The first item of a set asks **One passphrase for
-all** or **A passphrase for each**, always with the line to keep each in a
-separate place, whichever is chosen. With one, the set's later items skip steps
-3 and 4, and the passphrase is wiped when the last of them is sealed or at a lock.
-The same holds for Seed XOR parts wherever they are placed.
-
-**To paper.** A code on Paper has 77 × 77 modules and is not copied by hand: its
-paper is the device's labelled PNG (its `.pgp` file rides beside it), carried on a stick to a computer with a
-printer. The code is not a secret (`docs/QR.md` §7.1), so that computer may be
-online. So the PNG of a code on Paper goes For the stick when it is sealed, with its `.pgp`
-file beside it, and both are files of the stick of public files (§10.2). The `.pgp`
-is the code in a form that `sq decrypt` and Open to test read, so a print that
-fails is made again from the stick, not from a key the lock has wiped. **Yes, as QR codes** brings
-in no stick before the keys; this stick is named after step 2 and checked at step
-6, as that stick always is. A plan with a code on Paper therefore has
-`Item::Sticks`. Faraday Starter does not scan or print a QR vault.
-
-**Scan to check** (paper only; a stick's file is read back when it is written).
-It need not be done. Until it is, the item stays done and reads "Not scanned back"
-in `WARN`, and nothing else in the plan waits on it (§17.5). Since printing comes
-after the lock, it is offered on the item and on the checklist's done card, a row
-per code, as are **Show as QR** and the two Outbox presses. It opens the camera
-(`ScanPurpose::CheckQrVault`), compares the scan with the code's bytes and needs
-no passphrase: the same reads "Scanned back"; other bytes read "Not this code",
-and anything else "Not a QR vault". Nothing scanned there is opened, loaded or
-filed. After a power-off the flow's state is gone: the code is opened where a
-SeedQR is taken (`docs/VAULT.md` §2.1), which checks more.
-
-**One envelope per place** (`docs/guide/walk/back-up.md`, step 4.9). The list names
-each code the place keeps, "QR vault {name}", with Show as QR, PNG to the Outbox
-and To the Outbox; a code on Paper adds that it is printed from the stick of public
-files after Write to sticks, and goes in this envelope then. Done stays a press.
-
-**The lock.** **Lock and write** wipes a new seed whose only copies are codes, and
-the code on paper exists only after it. So its release (§10.2, F6's hold) is when
-the stick carrying its PNG and `.pgp` is written, as with a seed's own planned
-stick; the key comes back by scanning the code with its passphrase. A code not
-opened to test shows its warning here (Open to test); it does not stop the lock.
-
-**Changes** (§4.8, §15.8). Before the lock, turning a form off drops the code and
-its files waiting, and says to destroy any copy made from the screen. After it, a
-code is paper and files: "Files and paper stay as made after the lock", and a new
-**Back up** that leaves it out keeps it on the map as what it is until **I destroyed
-this copy**, whose row names it. Rotating a codex32 set makes a string's code not
-the plan's, and its item not done. A code opened and changed on its own page
-(`docs/VAULT.md` §8) is a new code the plan does not know: Scan to check reads "Not
-this code" for it.
-
-**What the code does not say.** It holds no name and no date (`docs/VAULT.md` §2.1):
-only the PNG's label does.
-
-**Worked.** A single key with a BIP-39 passphrase, **Yes, as QR codes**: no stick
-before Keys. The board: Place 1, Paper: "9a6a2580 · QR vault" and Whole; Place 2,
-Paper: "9a6a2580 passphrase · QR vault". The checks: any one place lost, the rest do
-not rebuild; one place found: cannot spend. The checklist: QR vault Code 1, QR vault
-Code 2, the sheet, envelopes, Write to sticks. The stick of public files holds the
-two PNGs and the sheet; it goes to a computer with a printer; each print is scanned
-back, or reads "Not scanned back".
-
-**Strings** are `backup_flow_` (§0): the three answers, the toggle, the steps'
-labels, the warning line, the set's question and its line, the offers, the states.
-A Learn page says what a QR vault is: an OpenPGP message that `sq decrypt` opens, that
-phone apps may garble its raw bytes, and that a scan with Faraday is what it is for.
-
-**Tests** (user-facing behaviour): each of the three answers goes where it says; Yes,
-as QR codes reads no stick and opens the board with each seed, string and passphrase
-as above; the toggles change the checklist; the board's lines for a code alone and
-beside a passphrase; an item's steps make a code that `faraday_vault::qr::open` opens
-to what the plan put in it and `sq` reads (the cross-check's area `qrvault`); two
-places give one item; the set's two passphrase choices; the PNG and the `.pgp` on the stick of
-public files after Write to sticks, the label naming nothing it holds; Open to test
-with the right and a wrong passphrase, its warning when skipped, no refusal of the
-lock, and its passphrase gone after; Scan to check's three
-answers, before and after the lock, with the warning until it is done; a form turned
-off before and after the lock; a saved plan with these lines reads back the same.
 
 ## 18. Backups age (planned, not built; F87)
 
