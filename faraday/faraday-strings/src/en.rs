@@ -10714,6 +10714,8 @@ strings! {
     backup_flow_layout_new: "New",
     /// A vault's segment: it is on a stick already. `{}`: `medium.a()`.
     backup_flow_layout_existing: "Already on {}",
+    /// A vault's segment as `backup_flow_layout_existing`, where that is wider than the line.
+    backup_flow_layout_existing_short: "Existing",
     /// A vault chip's menu title and its first item, naming the sticks.
     backup_flow_layout_put_on: "Put on…",
     /// A check: `{}`: the vault, `medium.noun()`.

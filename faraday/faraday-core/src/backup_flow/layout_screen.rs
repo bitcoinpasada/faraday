@@ -153,8 +153,12 @@ fn vault_list(
         FEN.backup_flow_vault_count_label,
     ) + tokens::GAP_SMALL;
     let existing = fill(FEN.backup_flow_layout_existing, &[l.medium().a()]);
-    let labels = [FEN.backup_flow_layout_new, existing.as_str()];
-    let seg_w = 2.0 * ui.segment_width(LABEL_L.size, &labels);
+    let mut labels = [FEN.backup_flow_layout_new, existing.as_str()];
+    let mut seg_w = 2.0 * ui.segment_width(LABEL_L.size, &labels);
+    if seg_w > w {
+        labels[1] = FEN.backup_flow_layout_existing_short;
+        seg_w = 2.0 * ui.segment_width(LABEL_L.size, &labels);
+    }
     let rows: Vec<(ChipView, bool)> = (0..l.vaults())
         .map(|v| {
             let cv = chip_of(l, v, None);

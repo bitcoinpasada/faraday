@@ -5760,3 +5760,46 @@ fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
         "nothing is tied to the one taken back"
     );
 }
+
+#[test]
+fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_second_can_be_pressed()
+ {
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    create_single_key(&mut app);
+    app.press(Action::CVaults(true));
+    app.press(Action::CNext(cstep::WHERE));
+    let _ = app.frame();
+    let second = Action::Board(BoardPress::Form(Zone::List, Thing::Vault(0), 1));
+    let first = Action::Board(BoardPress::Form(Zone::List, Thing::Vault(0), 0));
+    assert!(offered_down(&mut app, first), "the choice is never offered");
+    for a in [first, second] {
+        let (x, _, w, _) = app
+            .hit_box(a)
+            .unwrap_or_else(|| panic!("{a:?} is not offered"));
+        assert!(
+            u32::from(x) + u32::from(w) <= 480,
+            "{a:?} runs off the window: x {x}, w {w}"
+        );
+    }
+    assert!(texts(&mut app).iter().any(|t| t == "Existing"));
+    app.press(second);
+    let _ = app.frame();
+    assert!(
+        texts(&mut app).iter().any(|t| t.starts_with("Existing")),
+        "the second segment was not taken"
+    );
+}
