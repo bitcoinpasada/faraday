@@ -1149,7 +1149,9 @@ impl Shell {
         self.last_blend = blends;
         let watch = costly::Watch::start(self.timings.as_ref());
         let start = self.timings.is_some().then(Instant::now);
-        let frame = self.app.as_mut().map(App::frame);
+        let parts = self.app.as_mut().map(App::parts);
+        let moved = parts.as_ref().and_then(|p| p.moved);
+        let frame = parts.map(|p| p.base);
         if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
             let bucket = if blends { Bucket::Blend } else { Bucket::Frame };
             t.add(bucket, start.elapsed());
@@ -1159,14 +1161,17 @@ impl Shell {
         }
         match frame {
             Some(frame) if (frame.width, frame.height) != (fw, fh) => {
+                self.presenter.skipped();
                 complaint = Some("frame does not match the panel; not drawing");
             }
             Some(frame) if frame.rgba.len() < pixels * 4 => {
+                self.presenter.skipped();
                 complaint = Some("short frame; not drawing");
             }
             Some(frame) => {
-                result = Some(self.presenter.present(
+                result = Some(self.presenter.present_moved(
                     &frame.rgba[..pixels * 4],
+                    moved,
                     g,
                     turn,
                     &self.panel,

@@ -9,6 +9,11 @@
 //! `memcmp`; converting is a loop over every pixel, several times slower
 //! on the Pi.
 //!
+//! A frame the core says moved a region ([`Presenter::present_moved`],
+//! `docs/FRAMES.md` §3.7) is compared after the kept frame and its
+//! converted copy have moved the same rows, so only the strip and the
+//! overlays are converted; the panel still writes every row of the view.
+//!
 //! A frame turned onto the panel (`docs/ORIENTATION.md` §3) is compared
 //! the same way, by the core's rows; they are the panel's rows at 0 and
 //! 180, and a band of its columns at 90 and 270, written row by row
@@ -21,6 +26,8 @@
 
 use std::sync::Mutex;
 use std::time::Instant;
+
+use faraday_shell_api::Moved;
 
 use crate::fb::{self, Depth, Geometry};
 use crate::orient::Turn;
@@ -63,9 +70,37 @@ impl Presenter {
     /// [`CHUNK_ROWS`], each under its own hold of the panel's lock, so a
     /// mouse move from an input thread slips in between two bands and
     /// the arrow never waits for a frame.
+    #[cfg(test)]
     pub fn present<S: Sink>(
         &mut self,
         rgba: &[u8],
+        g: Geometry,
+        turn: Turn,
+        panel: &Mutex<Panel<S>>,
+        timings: Option<&mut Timings>,
+    ) -> std::io::Result<()> {
+        self.present_moved(rgba, None, g, turn, panel, timings)
+    }
+
+    /// Forgets the kept frame: the core gave a frame the shell did not
+    /// put out, so the next `moved` is relative to a frame the presenter
+    /// never saw, and the next frame is taken whole.
+    pub fn skipped(&mut self) {
+        self.last.clear();
+    }
+
+    /// Costs what [`Presenter::present`] costs, for a frame the core says
+    /// moved a region (`docs/FRAMES.md` §3.7). At no turn or a half turn on the
+    /// converting path the rows of the kept frame and of the converted
+    /// copy are moved inside the region's columns first, in ordinary
+    /// memory, so the comparison finds only the strip, the overlays and
+    /// what is outside the region, and only those are converted. A
+    /// `moved` that does not fit the kept frame (another size, a quarter
+    /// turn, nothing kept) is ignored.
+    pub fn present_moved<S: Sink>(
+        &mut self,
+        rgba: &[u8],
+        moved: Option<Moved>,
         g: Geometry,
         turn: Turn,
         panel: &Mutex<Panel<S>>,
@@ -75,6 +110,7 @@ impl Presenter {
         let (fw, fh) = turn.frame_size(panel_size);
         let (rows, frame_rows) = (usize::from(g.height), usize::from(fh));
         if rows == 0 || frame_rows == 0 {
+            self.skipped();
             return Ok(());
         }
         if g.depth == Depth::Rgba8888 && turn == Turn::R0 {
@@ -83,10 +119,14 @@ impl Presenter {
         let src_row = usize::from(fw) * 4;
         let out_row = g.row_bytes();
         let start = timings.is_some().then(Instant::now);
-        let changed = if self.last.len() != rgba.len()
-            || self.converted.len() != rows * out_row
-            || self.turn != Some(turn)
-        {
+        let kept = self.last.len() == rgba.len()
+            && self.converted.len() == rows * out_row
+            && self.turn == Some(turn);
+        let view = match (kept, moved) {
+            (true, Some(m)) => self.move_kept(m, (fw, fh), g, turn),
+            _ => None,
+        };
+        let changed = if !kept {
             self.last.clear();
             self.last.resize(rgba.len(), 0);
             self.converted.clear();
@@ -105,6 +145,13 @@ impl Presenter {
         if let (Some(start), Some(t)) = (start, timings.as_deref_mut()) {
             t.add(Bucket::Convert, start.elapsed());
         }
+
+        // The panel's own rows of the moved view all changed, though
+        // none of them was converted again: each shows another row.
+        let changed = match view {
+            Some(v) => fb::merge_bands([changed, vec![v]].concat()),
+            None => changed,
+        };
 
         // Where the frame's changed bands are on the panel: its rows, or
         // (turned a quarter) one band of its columns down every row,
@@ -158,6 +205,47 @@ impl Presenter {
         result
     }
 
+    /// Moves the rows of `last` and of `converted` as the core moved the
+    /// region `m` of a frame `(fw, fh)` pixels. A quarter turn moves
+    /// columns of the panel instead: nothing moves and the frame is
+    /// taken whole, as without `moved`. A region not inside the frame
+    /// moves nothing. Gives the frame's rows of the region that moved.
+    fn move_kept(
+        &mut self,
+        m: Moved,
+        (fw, fh): (u16, u16),
+        g: Geometry,
+        turn: Turn,
+    ) -> Option<(usize, usize)> {
+        let (x, y, w, h) = (
+            usize::from(m.x),
+            usize::from(m.y),
+            usize::from(m.width),
+            usize::from(m.height),
+        );
+        let dy = isize::from(m.dy);
+        let (fw, fh) = (usize::from(fw), usize::from(fh));
+        if dy == 0 || w == 0 || x + w > fw || y + h > fh || dy.unsigned_abs() >= h {
+            return None;
+        }
+        let (stride, bpp) = (g.row_bytes(), g.depth.bytes_per_pixel());
+        match turn {
+            Turn::R0 => move_rows(&mut self.converted, stride, bpp, (x, w), (y, h), dy),
+            // The panel is the frame turned half over.
+            Turn::R180 => move_rows(
+                &mut self.converted,
+                stride,
+                bpp,
+                (fw - x - w, w),
+                (fh - y - h, h),
+                -dy,
+            ),
+            Turn::R90 | Turn::R270 => return None,
+        }
+        move_rows(&mut self.last, fw * 4, 4, (x, w), (y, h), dy);
+        Some((y, y + h - 1))
+    }
+
     /// Costs a comparison of `rgba` with what the panel shows and a write
     /// of the rows that differ: a panel that takes the core's own bytes
     /// ([`Depth::Rgba8888`]) at no turn needs no converted copy and no
@@ -206,6 +294,33 @@ impl Presenter {
             converted: self.rows_converted,
             written: lock(panel).rows_written(),
         }
+    }
+}
+
+/// Moves the pixels of columns `(x, w)` of rows `(y, h)` of `buf` (rows
+/// of `stride` bytes, `bpp` bytes a pixel) down by `dy` rows, up for a
+/// negative `dy`, inside those rows; the rows the move brings into view
+/// keep what they held.
+fn move_rows(
+    buf: &mut [u8],
+    stride: usize,
+    bpp: usize,
+    (x, w): (usize, usize),
+    (y, h): (usize, usize),
+    dy: isize,
+) {
+    let by = dy.unsigned_abs();
+    let (c0, c1) = (x * bpp, (x + w) * bpp);
+    for i in 0..h - by {
+        // Read a row before it is written: the far end first.
+        let (from, to) = if dy > 0 {
+            let from = y + h - by - 1 - i;
+            (from, from + by)
+        } else {
+            let from = y + by + i;
+            (from, from - by)
+        };
+        buf.copy_within(from * stride + c0..from * stride + c1, to * stride + c0);
     }
 }
 
@@ -660,5 +775,238 @@ mod tests {
             lock(&panel).set_notice(None).expect("down");
             assert_eq!(shown(), lined(g, turn, &frame, false, None), "{tag}");
         }
+    }
+
+    /// A panel of the Pi's size in `depth`.
+    fn panel_of(depth: Depth) -> Geometry {
+        Geometry {
+            depth,
+            stride: usize::from(G.width) * depth.bytes_per_pixel(),
+            ..G
+        }
+    }
+
+    /// The scene the moved-frame tests move: a region from row 60 to 60
+    /// short of the foot and 10 in from each side, whose content is the
+    /// page `offset` rows down, every row of it different; the rest of
+    /// the frame is one colour.
+    struct Scene {
+        turn: Turn,
+        fw: usize,
+        fh: usize,
+    }
+
+    impl Scene {
+        fn new(turn: Turn) -> Scene {
+            let (fw, fh) = turn.frame_size((G.width, G.height));
+            Scene {
+                turn,
+                fw: usize::from(fw),
+                fh: usize::from(fh),
+            }
+        }
+
+        /// The region as the core reports it moved by `dy`.
+        fn region(&self, dy: i16) -> Moved {
+            Moved {
+                x: 10,
+                y: 60,
+                width: (self.fw - 20) as u16,
+                height: (self.fh - 120) as u16,
+                dy,
+            }
+        }
+
+        /// The frame with the page `offset` rows down, and a dot at
+        /// the pixel `over` if given.
+        fn frame(&self, offset: i32, over: Option<(usize, usize)>) -> Vec<u8> {
+            let r = self.region(0);
+            let (x0, x1) = (usize::from(r.x), usize::from(r.x + r.width));
+            let (y0, y1) = (usize::from(r.y), usize::from(r.y + r.height));
+            let mut out = vec![255u8; self.fw * self.fh * 4];
+            for y in 0..self.fh {
+                for x in 0..self.fw {
+                    let v = if (x0..x1).contains(&x) && (y0..y1).contains(&y) {
+                        let page = (y as i32 + offset).rem_euclid(100_000) as u32;
+                        let h = page.wrapping_mul(2_654_435_761) ^ (x as u32).wrapping_mul(40_503);
+                        [h as u8, (h >> 8) as u8, (h >> 16) as u8]
+                    } else {
+                        [30, 60, 90]
+                    };
+                    out[(y * self.fw + x) * 4..][..3].copy_from_slice(&v);
+                }
+            }
+            if let Some((x, y)) = over {
+                dot(&mut out, self.turn, x, y, 250);
+            }
+            out
+        }
+    }
+
+    #[test]
+    fn a_panel_after_moved_frames_holds_what_a_whole_redraw_gives() {
+        for depth in [
+            Depth::Rgb565,
+            Depth::Bgr888,
+            Depth::Bgra8888,
+            Depth::Rgba8888,
+        ] {
+            for turn in [Turn::R0, Turn::R90, Turn::R180, Turn::R270] {
+                let g = panel_of(depth);
+                let scene = Scene::new(turn);
+                let panel = Mutex::new(Panel::new(Vec::new(), g));
+                lock(&panel).set_turn(turn);
+                let mut p = Presenter::default();
+                let tag = format!("{depth:?} {turn:?}");
+                let (mut offset, mut line, mut arrow, mut over) = (0, false, None, None);
+                // Each step: how far the page moved (two moves composed
+                // are one), whether the take before it was skipped, and
+                // what goes over the page.
+                let steps: [(i16, bool, u8); 10] = [
+                    (0, false, 0),
+                    (8, false, 0),
+                    (-8, false, 0),
+                    (31, false, 0),
+                    (-3, false, 0),
+                    (5 + 7, false, 0),
+                    (9, true, 0),
+                    (-6, false, 1),
+                    (12, false, 2),
+                    (-20, false, 3),
+                ];
+                for (i, &(dy, skip, extra)) in steps.iter().enumerate() {
+                    if skip {
+                        p.skipped();
+                    }
+                    match extra {
+                        1 => {
+                            arrow = Some((200, 300));
+                            lock(&panel).move_arrow(arrow).expect("moved");
+                            over = Some((4, 3));
+                        }
+                        2 => {
+                            line = true;
+                            lock(&panel).set_notice(Some(SAID.into())).expect("up");
+                        }
+                        3 => {
+                            arrow = None;
+                            lock(&panel).move_arrow(None).expect("moved");
+                            over = None;
+                        }
+                        _ => {}
+                    }
+                    offset -= i32::from(dy);
+                    let frame = scene.frame(offset, over);
+                    let moved = (i > 0).then(|| scene.region(dy));
+                    p.present_moved(&frame, moved, g, turn, &panel, None)
+                        .expect("written");
+                    assert_eq!(
+                        *lock(&panel).sink(),
+                        lined(g, turn, &frame, line, arrow),
+                        "{tag}, step {i}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_moved_scroll_step_converts_only_the_strip_and_what_changed() {
+        let strip = 8u64;
+        for depth in [Depth::Rgb565, Depth::Bgra8888] {
+            for turn in [Turn::R0, Turn::R180] {
+                let g = panel_of(depth);
+                let scene = Scene::new(turn);
+                let view_rows = u64::from(scene.region(0).height);
+                let panel = Mutex::new(Panel::new(Vec::new(), g));
+                lock(&panel).set_turn(turn);
+                let mut p = Presenter::default();
+                let tag = format!("{depth:?} {turn:?}");
+                let first = scene.frame(0, None);
+                p.present_moved(&first, None, g, turn, &panel, None)
+                    .expect("written");
+
+                // A step down, then up: the strip is converted, and the
+                // whole view written, each of its rows showing another.
+                let mut offset = 0;
+                for dy in [8i16, -8] {
+                    offset -= i32::from(dy);
+                    let before = p.counts(&panel);
+                    let frame = scene.frame(offset, None);
+                    p.present_moved(&frame, Some(scene.region(dy)), g, turn, &panel, None)
+                        .expect("written");
+                    let spent = since(p.counts(&panel), before);
+                    assert_eq!(spent.converted, strip, "{tag}, dy {dy}");
+                    assert_eq!(spent.written, view_rows, "{tag}, dy {dy}");
+                }
+
+                // A dot in the head of the frame with the step: the
+                // strip and that row, and not the rows between.
+                offset -= 8;
+                let before = p.counts(&panel);
+                let frame = scene.frame(offset, Some((4, 3)));
+                p.present_moved(&frame, Some(scene.region(8)), g, turn, &panel, None)
+                    .expect("written");
+                let spent = since(p.counts(&panel), before);
+                assert_eq!(spent.converted, strip + 1, "{tag}: {spent:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_pis_panel_at_no_turn_converts_nothing_for_a_moved_frame() {
+        let g = panel_of(Depth::Rgba8888);
+        let scene = Scene::new(Turn::R0);
+        let panel = Mutex::new(Panel::new(Vec::new(), g));
+        let mut p = Presenter::default();
+        let first = scene.frame(0, None);
+        p.present_moved(&first, None, g, Turn::R0, &panel, None)
+            .expect("written");
+        let before = p.counts(&panel);
+        let frame = scene.frame(-8, None);
+        p.present_moved(&frame, Some(scene.region(8)), g, Turn::R0, &panel, None)
+            .expect("written");
+        let spent = since(p.counts(&panel), before);
+        assert_eq!(spent.converted, 0);
+        assert_eq!(spent.written, u64::from(scene.region(0).height));
+        assert_eq!(*lock(&panel).sink(), frame);
+    }
+
+    #[test]
+    fn a_page_scrolled_in_the_app_shows_what_a_whole_redraw_shows() {
+        let panel = Mutex::new(Panel::new(Vec::new(), G));
+        let mut p = Presenter::default();
+        let mut app = core();
+        app.press(faraday_core::Action::Nav(faraday_core::Screen::Settings));
+        let take = |app: &mut Faraday, p: &mut Presenter, event: Event| {
+            app.event(event);
+            while app.poll_command().is_some() {}
+            let parts = app.parts();
+            let moved = parts.moved;
+            p.present_moved(parts.base.rgba, moved, G, Turn::R0, &panel, None)
+                .expect("written");
+            moved
+        };
+        for now in (1..20).map(|i| i * 16) {
+            take(&mut app, &mut p, Event::Tick { now_ms: now });
+        }
+        let mut moves = 0;
+        for dy in [30, 30, 12, -20, -40, 7, 60, 60, -90] {
+            let before = p.counts(&panel);
+            let event = Event::Scroll { x: 240, y: 320, dy };
+            if take(&mut app, &mut p, event).is_some() {
+                moves += 1;
+                let spent = since(p.counts(&panel), before);
+                assert!(
+                    spent.converted < u64::from(G.height) / 2,
+                    "a moved step converts the strip: {spent:?}"
+                );
+            }
+            let frame = app.frame();
+            let mut want = vec![0u8; G.row_bytes() * usize::from(G.height)];
+            fb::convert_into(frame.rgba, G.depth, &mut want);
+            assert_eq!(*lock(&panel).sink(), want, "dy {dy}");
+        }
+        assert!(moves > 0, "Settings scrolled as moved frames");
     }
 }

@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the compact Settings page only), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the rest is not. No shell takes `Parts::moved` yet
-**Open:** the rest of it: `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column; Faraday Demo's desktop Settings among them, whose card's corner differs by one anti-aliased pixel between a moved row and a drawn one), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), the shell taking the moved frame (§3.7), what a frame does beside its pixels that §7 has not yet found or fixed
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the compact Settings page only), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
+**Open:** the rest of it: `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column; Faraday Demo's desktop Settings among them, whose card's corner differs by one anti-aliased pixel between a moved row and a drawn one), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -412,9 +412,8 @@ lock, it compares the rows with its own kept copy (`shown`) a second
 time, copies the rows into a band buffer, draws the arrow in where it
 falls, and calls `pwrite`; the kernel's fbdev write copies the bytes
 in from the program a page at a time and then into the framebuffer.
-It writes only the rows from the first to the last that changed
-(SPEED §11.1). After a scroll step that is the whole view, and must be
-(§3.7).
+It writes only the bands of rows that changed (SPEED §11.1). After a
+scroll step that is the whole view, and must be (§3.7).
 
 The change (points 1 to 3 are built, point 4 is not):
 
@@ -561,11 +560,11 @@ What each piece changes:
   `present.rs`, `panel.rs`, `fb.rs`, `docs/SPEED.md` §11.1; the
   `present::tests` for a caret and a clock as two bands, the panel after
   each change with the arrow across a band and moved away, and turned
-  frames. Point 4 and the shell taking the moved frame add the stick's
-  `main.rs` (one call, taking `Parts` for `frame`, after the main-loop
-  change of `docs/WORKERS.md` §2) and `present::tests` for a moved frame
-  (only the strip and the overlays converted, the panel showing the
-  frame), measured on the dev card with `--timings`.
+  frames. The shell taking the moved frame (built) added the stick's `main.rs`
+  (one call, taking `Parts` for `frame`) and `present::tests` for a moved
+  frame (only the strip and the overlays converted, the panel showing the
+  frame); its figure on the dev card with `--timings` is not yet taken.
+  Point 4 is not built.
 - **The bands** (§4, not built): `core/faraday-draw/src/canvas.rs`,
   `canvas/list.rs` (new), `faraday-core/src/bands.rs` (new), `lib.rs`
   (`render_frame`), `docs/WORKERS.md` (rule 1 of its §2 worded for the
