@@ -1,10 +1,10 @@
 # Cryptographic actions (docs/CRYPTO-LEARN.md §2.2).
 # The standards table is the only place a standard's name and status are
 # written. docs/crypto/check.py checks every entry against the code and lists
-# every function no action covers; docs/crypto/gen.py writes STANDARDS §1 to §7
-# and AUDIT §3 from this file.
+# every function no action covers; docs/crypto/gen.py writes STANDARDS §1 to §7 and §10
+# and §10 and AUDIT §3 from this file.
 
-schema = 4                      # 2: constructions (docs/CRYPTO-LEARN.md §18); 3: independence (F160); 4: classes outside, outside-and-own and own, the label, [library.*] and [vector.*] (F177)
+schema = 5                      # 2: constructions (docs/CRYPTO-LEARN.md §18); 3: independence (F160); 4: classes outside, outside-and-own and own, the label, [library.*] and [vector.*] (F177); 5: written_here as pieces with a reason, [[not_established]] (ESTABLISHED §2)
 
 [standard."BIP 32"]
 name = "Hierarchical Deterministic Wallets"
@@ -887,7 +887,19 @@ libraries = [
 ]
 through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "The sentence is read in NFKD and split on Unicode whitespace; the first word not in the list is reported by position; a word typed by pinyin, zhuyin, kana or hangul is composed to the listed word."
-written_here = "BIP-39 mnemonics (`faraday-bip::bip39`)"
+
+[[action.implementation.written_here]]
+what = "BIP-39 entry and display: words typed by pinyin, zhuyin, kana or hangul, the last word's candidates, the explorer's view of the checksum (`faraday-bip::bip39`)"
+why = "own-specification"
+note = "How a person types and sees the words is Faraday's own."
+decision = "F178"
+
+[[action.implementation.written_here]]
+what = "BIP-39 mnemonics: entropy to words and back, the checksum, a word's place in its list (`faraday-bip::bip39`)"
+why = "does-not-fit"
+unfit = "bip39 2.2.2 finds a word by a binary search or a scan that stops at it (`find_word`) and packs entropy with a branch on each bit (`from_entropy_in`), so the time it takes follows the secret words"
+note = "The Rust BIP-39 library's word lookup takes a time that follows the secret words; Faraday's looks each word up in constant time and is tested against that library and the reference."
+decision = "F180"
 
 [action.checked]
 vectors = [
@@ -1031,6 +1043,13 @@ through = [
   { library = "sha2", crate = "core/faraday-crypto" },
 ]
 adds = "The passphrase is checked to printable ASCII before the derivation; the sentence and salt are built in Secret buffers; a key already held is refused as a duplicate."
+
+[[action.implementation.written_here]]
+what = "The BIP-39 seed, PBKDF2-HMAC-SHA512 over the sentence through `faraday-crypto` (`faraday-bip::bip39`)"
+why = "does-not-fit"
+unfit = "bip39's `to_seed` returns the seed as a plain `[u8; 64]`, and its own PBKDF2 leaves its HMAC state unwiped (bip39 2.2.2's `src/pbkdf2.rs`)"
+note = "The seed is derived with the RustCrypto PBKDF2 Faraday uses everywhere, into a buffer that is wiped."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -1406,6 +1425,12 @@ libraries = [
   "secp256k1",
 ]
 adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes (a key a signing job holds is randomized as soon as the job's answer is applied or dropped), each key's blind drawn by HKDF-Expand under a count so no two are the same; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop."
+
+[[action.implementation.written_here]]
+what = "WipeOnFree, the allocator that wipes what it frees (`faraday-crypto::wipe`)"
+why = "none-established"
+note = "No wiping allocator comes from a publisher Faraday's dependency review trusts; this one is installed in no shipped program (F181)."
+decision = "F180"
 
 [action.checked]
 tests = [
@@ -2005,7 +2030,13 @@ code = [
 crate = "core/faraday-crypto"
 libraries = []
 adds = "Written here, with one caller (the aezeed reader), because it is small enough that a crate would cost more than it saves."
-written_here = "scrypt (`faraday-crypto::scrypt`)"
+
+[[action.implementation.written_here]]
+what = "scrypt (`faraday-crypto::scrypt`)"
+why = "does-not-fit"
+unfit = "scrypt 0.12.0 frees its passphrase-derived working buffers (`b`, `v`, `t`) without wiping them"
+note = "The Rust scrypt library leaves its passphrase-derived working memory unwiped; Faraday's wipes it."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -2495,6 +2526,12 @@ libraries = [
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "JSON is read by serde_json, behind Faraday's refusal of a key named twice and of a nesting deeper than 32 (and of a text over 1 MiB); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth. An account key alone becomes a wallet of the kind its path's purpose names (44 legacy, 49 nested SegWit, 84 native SegWit, 86 taproot), and a purpose of 45, 48 or 87 is a cosigner's key and no wallet on its own; a key of a test network is taken as testnet unless the session is already on a test network; the file for Wasabi is written only for a native SegWit single-key wallet whose key has an origin at exactly 84h/0h/0h or 84h/1h/0h. Specter DIY's addwallet command is read with its name before the last `&`, its descriptor's checksum checked where it has one (Specter DIY drops it unread), and keys none of which carries a derivation as the two chains; a single-key or multisig wallet is written without its keys' derivations and with no checksum, as Sparrow writes it, any other with them."
 
+[[action.implementation.written_here]]
+what = "The JSON visitor that refuses a key named twice and counts depth (`faraday-bip::json`)"
+why = "only-part-used"
+note = "serde_json reads the text; Faraday refuses a key named twice and a nesting deeper than 32."
+decision = "F180"
+
 [action.checked]
 vectors = [
   "wallet-files",
@@ -2756,7 +2793,18 @@ through = [
   { library = "base16ct", crate = "core/faraday-crypto" },
 ]
 adds = "Written here over libsecp256k1's point and scalar operations; keys inside a musig() are sorted after derivation and before aggregation as BIP 390 requires, while key_agg itself sorts nothing."
-written_here = "BIP-327 MuSig2 (`faraday-bip::musig`)"
+
+[[action.implementation.written_here]]
+what = "BIP-327 MuSig2, with BIP-328 and BIP-390 (`faraday-bip::musig`)"
+why = "none-established"
+note = "libsecp256k1's MuSig2 is in rust-secp256k1 0.32 and later; bitcoin 0.32, which Faraday uses, is on 0.29, and no miniscript release builds on bitcoin 0.33 yet."
+decision = "F178"
+
+[[action.implementation.written_here]]
+what = "A 32-byte hash reduced modulo the curve order, without a branch (`faraday-bip::musig`)"
+why = "only-part-used"
+note = "libsecp256k1's Rust bindings take a scalar only below the order and offer no reduction; Faraday's is a single conditional subtraction."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -3056,7 +3104,12 @@ crate = "core/faraday-entropy"
 libraries = []
 through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "Hashed rolls are SHA-256 of the rolls as ASCII digits, truncated to the strength; the second procedure writes every 6 as 0 first; the third names every word from five rolls of 1 to 4 and a sixth read as a coin, and the checksum replaces the last word's low bits."
-written_here = "Dice, coin, card, hex and camera entropy accumulation and packing, the mix of sources, and Seed XOR (`faraday-entropy`)"
+
+[[action.implementation.written_here]]
+what = "Dice, coin, card, hex and camera entropy accumulation and packing, and the mix of sources (`faraday-entropy`)"
+why = "own-specification"
+note = "Faraday's own procedures over SHA-256; the card, camera and mix procedures are labelled as not yet reviewed outside Faraday."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -3593,7 +3646,12 @@ novel_rank = 3
 crate = "faraday/faraday-core"
 libraries = ["bitcoin_hashes"]
 adds = "The seed is the shell's first answer, hashed with the person's accumulator when there is one and again at each batch added (SHA-256 of a label, the base and the accumulator); the accumulator chains each batch's commitment; a fresh answer is SHA-256 of a label, what it is for, the answer and the accumulator; a signing round's seed is SHA-256 of a label, the session's seed and a count of rounds; nothing is made before the system has answered."
-written_here = "The session's random generator: its seed and pool, and the mixing of a person's own randomness (`faraday-core::fresh`)"
+
+[[action.implementation.written_here]]
+what = "The session's random generator: its seed and pool, and the mixing of a person's own randomness (`faraday-core::fresh`)"
+why = "own-specification"
+note = "Faraday's own procedure over SHA-256, labelled as not yet reviewed outside Faraday."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -4021,7 +4079,12 @@ libraries = [
 ]
 through = [{ library = "blake2", crate = "core/faraday-crypto" }]
 adds = "AEZ v5 is written here, over the aes crate's AES round; the words are 24 x 11 bits with a CRC-32C checked before scrypt (N 32768, r 8, p 1) runs; reading only: an aezeed is never made, and never loaded as a key."
-written_here = "aezeed and AEZ v5 (`faraday-bip::aezeed`, `faraday-bip::aez`)"
+
+[[action.implementation.written_here]]
+what = "AEZ v5 and aezeed, with aezeed's CRC-32C (`faraday-bip::aez`, `faraday-bip::aezeed`)"
+why = "none-established"
+note = "No maintained Rust implementation of AEZ exists; Faraday's follows the Go code LND uses and is tested against LND's vectors. Its AES round is the aes crate's and its BLAKE2b the blake2 crate's."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -4222,7 +4285,12 @@ through = [
   { library = "base16ct", crate = "core/faraday-crypto" },
 ]
 adds = "The scan and spend keys are taken at BIP 352's paths; a transaction's eligible inputs give the input hash and shared secret, and every output it pays to the wallet is found with the label it was paid to, up to K_max; the scan private key leaves only as BIP 392's spscan1q text, or the sp() descriptor over it with its key origin, for a named reason. An sp() descriptor, or its key alone after its origin, is read as a silent payments record: the scan key is read for its public key, in constant time, and wiped; an origin that is missing or not BIP 352's path on the key's network is refused, as are sp(KEY,KEY), spspend and a key with a derivation; a text that holds a scan key is a wallet file in Files, and one that holds a spend key a secret no scanner files. The app's check of a transaction takes its previous transactions one at a time and gives the previous outputs, in input order, once every one is known."
-written_here = "BIP-352 silent payments (`faraday-bip::silent`)"
+
+[[action.implementation.written_here]]
+what = "BIP-352 silent payments (`faraday-bip::silent`)"
+why = "none-established"
+note = "libsecp256k1's silent payments module is not yet in its Rust bindings."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -4479,7 +4547,12 @@ through = [
   { library = "base64ct", crate = "core/faraday-bip" },
 ]
 adds = "Refuses a version other than 0, version 2 fields inside a version 0 file, a 65-byte taproot signature whose sighash byte is 0 (BIP 341) and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read. The app tells a file is a PSBT by reading it once as bytes, else as base64 text, when it comes in."
-written_here = "The PSBT format, inspection, signing orchestration and verification logic (`faraday-psbt`, over `faraday-bip`'s keys and `bitcoin`'s secp256k1)"
+
+[[action.implementation.written_here]]
+what = "PSBT inspection, signing orchestration and verification logic (`faraday-psbt`)"
+why = "own-specification"
+note = "What Faraday checks before it signs is Faraday's own rule; the PSBT format itself is rust-bitcoin's."
+decision = "F178"
 
 [action.checked]
 vectors = ["psbt", "psbt-bips"]
@@ -4550,7 +4623,12 @@ code = ["core/faraday-psbt/src/v2.rs::PsbtV2::parse_bytes", "core/faraday-psbt/s
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
 adds = "bitcoin reads version 0 only, so the maps are read here. Every pair is kept as read and written back with what was set; a version 2 PSBT becomes version 0 once every output has a script, and only the signing fields (partial signatures, final scripts, taproot and MuSig2 signatures and nonces) are taken back from it. A version 0 PSBT becomes version 2 and back to its own bytes. The app reads a version 2 file wherever it reads a PSBT, signs its version 0 form and writes the version 2 PSBT that came in with the signatures added; where they do not go back into it, nothing is written or shown, never the version 0 form."
-written_here = "The PSBT version 2 reader (`faraday-psbt::v2`)"
+
+[[action.implementation.written_here]]
+what = "The PSBT version 2 reader (`faraday-psbt::v2`)"
+why = "none-established"
+note = "rust-bitcoin reads only version 0 PSBTs; its version 2 crate is pre-release."
+decision = "F178"
 
 [action.checked]
 vectors = ["psbt-bips"]
@@ -5288,6 +5366,12 @@ crate = "core/faraday-psbt"
 libraries = ["bitcoin", "miniscript"]
 adds = "every input goes through miniscript's finalizer with its interpreter check (pkh, wpkh, sh-wpkh, multisig under sh, wsh and sh-wsh, a miniscript, a tree); among satisfactions of a wsh miniscript the smaller by real signature size is chosen, as Bitcoin Core's finalizepsbt chooses it, a multi() inside it keeping its k smallest signatures, and a plain multisig keeps the first m signers' under any wrapper as Core does, each checked by the interpreter again; the signing fields are cleared as BIP 174 requires. The app keeps the finished transaction and writes it as hex."
 
+[[action.implementation.written_here]]
+what = "The choice among a script's satisfactions by real signature size (`faraday-psbt::finalize`)"
+why = "own-specification"
+note = "For a miniscript Faraday picks the smallest witness as Bitcoin Core's `finalizepsbt` does; a plain multisig carries the first m signers' signatures, as Core writes them; miniscript builds and checks each witness."
+decision = "F178"
+
 [action.checked]
 vectors = ["psbt"]
 tests = [
@@ -5362,6 +5446,12 @@ through = [
   { library = "sha2", crate = "core/faraday-crypto" },
 ]
 adds = "The address is derived from the key that signs, so the address in the result is the one the signature verifies against; BIP 137 low-R is ground here, libsecp256k1 having no low-R recoverable signer; the key's own blinded curve context is used. In the app the key is the one behind an address of a loaded single-key wallet's receive chain, and a wallet of several keys is refused."
+
+[[action.implementation.written_here]]
+what = "BIP-322 \"simple\" message signatures (`faraday-psbt::message`)"
+why = "none-established"
+note = "The bip322 crate is pre-release."
+decision = "F178"
 
 [action.checked]
 vectors = ["message"]
@@ -5562,6 +5652,13 @@ libraries = ["rqrr"]
 through = [{ library = "bitcoin", crate = "core/faraday-bip" }]
 adds = "The encoder is a port of Project Nayuki's qrcodegen, rewritten for no_std and secret payloads: the module grid and every buffer holding payload bits wipe on drop, and the error-correction level is never raised; the PNG writer is here; reading is rqrr's."
 
+[[action.implementation.written_here]]
+what = "The QR encoder, a port of Nayuki's `qrcodegen`, with its GF(256) and Reed-Solomon (`faraday-codec::qr`)"
+why = "none-established"
+note = "No QR encoder comes from a publisher Faraday's dependency review trusts; Faraday's port of Nayuki's code wipes a SeedQR's buffers."
+tier = "carries"
+decision = "F178"
+
 [action.checked]
 vectors = ["seedqr"]
 tests = [
@@ -5664,6 +5761,20 @@ through = [
 ]
 adds = "The whole transport is written here: bytewords in the minimal style with their CRC-32, the xoshiro generator that picks a part's fragments, the fountain parts with their CBOR and the ur: text; SHA-256 and CRC-32 come from faraday-crypto. A decoder reduces a mix by any buffered mix whose fragments are a subset of its own. The registry's crypto-hdkey, crypto-account and crypto-output are read as key lines or a descriptor, and a crypto-account is written for one key as SeedSigner shows it."
 
+[[action.implementation.written_here]]
+what = "BC-UR, with its CBOR (`faraday-codec::ur`, `faraday-codec::cbor`)"
+why = "none-established"
+note = "No library for this format comes from a publisher Faraday's dependency review trusts."
+tier = "carries"
+decision = "F178"
+
+[[action.implementation.written_here]]
+what = "CRC-32 (`faraday-crypto::crc32`)"
+why = "none-established"
+note = "The CRC-32 crate in the tree, crc32fast 1.5.1, is not covered by an outside review at that version; Faraday's is a branch-free loop checked against the published check values."
+tier = "carries"
+decision = "F180"
+
 [action.checked]
 vectors = ["ur"]
 tests = [
@@ -5746,6 +5857,13 @@ crate = "faraday/faraday-qr"
 libraries = []
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "BBQr is written in base32 only and read in base32, hex and raw DEFLATE (miniz_oxide, decompressed within a bound); the numbered parts are Specter's and SeedSigner's pNofM; every limit fails closed. The assembler keeps a transfer part-way through across scans; a part of another transfer starts that one afresh, and any other refusal leaves the transfer as it was."
+
+[[action.implementation.written_here]]
+what = "BBQr (`faraday-qr::bbqr`)"
+why = "none-established"
+note = "No library for this format comes from a publisher Faraday's dependency review trusts."
+tier = "carries"
+decision = "F178"
 
 [action.checked]
 tests = [
@@ -5939,6 +6057,21 @@ through = [
 ]
 adds = "The word indices as four decimal digits each in numeric mode, or the entropy bytes in byte mode, at error-correction level L; the matrix and the digit buffer are wiped; the code is the smallest version that holds the payload. The app writes the picture as an eight-bit greyscale PNG with the key's fingerprint as its title, and wipes the pixels drawn once the file is made; the blank sheet's grid is the SeedQR of an all-zero seed of the same length, so its fixed squares are every seed's."
 
+[[action.implementation.written_here]]
+what = "SeedQR (`faraday-codec::seedqr`)"
+why = "none-established"
+note = "No Rust library implements SeedQR."
+tier = "carries"
+decision = "F178"
+
+[[action.implementation.written_here]]
+what = "The PNG writer, with zlib's stored blocks (`faraday-codec::png`)"
+why = "does-not-fit"
+unfit = "png 0.18.1 needs `std`, which `faraday-codec` does not have, and does not wipe a picture's rows"
+note = "Faraday writes a SeedQR's picture in buffers it wipes; its Adler-32 is the adler2 crate's."
+tier = "carries"
+decision = "F180"
+
 [action.checked]
 vectors = ["seedqr"]
 tests = [
@@ -6052,7 +6185,13 @@ code = ["core/faraday-bip/src/codex32/mod.rs::Codex32::parse", "core/faraday-bip
 crate = "core/faraday-bip"
 libraries = []
 adds = "The BCH checksum and the Lagrange interpolation over GF(32) are written here, with no codex32 crate; the string, its payload and the seed live in fixed arrays wiped on drop. Recovery takes exactly k shares; a further share is derived only from exactly k strings at an index not in use."
-written_here = "BIP 93 codex32 (`faraday-bip::codex32`)"
+
+[[action.implementation.written_here]]
+what = "BIP 93 codex32 (`faraday-bip::codex32`)"
+why = "does-not-fit"
+unfit = "codex32 0.1.0 holds the seed in a `String` that is `Clone` and `Debug` and never wiped, which `tools/lint-secrets.sh` refuses, and needs `std`, which `faraday-bip` does not have"
+note = "The reference library keeps the seed in text that is never wiped and needs a full operating system."
+decision = "F178"
 
 [action.checked]
 vectors = ["bip93"]
@@ -6322,7 +6461,12 @@ through = [
   { library = "sha2", crate = "core/faraday-crypto" },
 ]
 adds = "Written here over faraday-crypto's HMAC-SHA256 and PBKDF2-HMAC-SHA256: the RS1024 checksum, Shamir over GF(256), the digest share and the Feistel cipher. The recovered master secret is the BIP 32 seed, not BIP 39 entropy. New key's split takes the shares' identifier and the split's randomness from the session's randomness, each 32 bytes from an answer of the system's of its own; the identifier is 15 bits of the first two bytes."
-written_here = "SLIP-39 Shamir backup (`faraday-bip::slip39`)"
+
+[[action.implementation.written_here]]
+what = "SLIP-39 Shamir backup (`faraday-bip::slip39`)"
+why = "none-established"
+note = "No maintained Rust implementation of SLIP-39 exists."
+decision = "F178"
 
 [action.checked]
 vectors = ["slip39"]
@@ -6422,6 +6566,12 @@ through = [
 ]
 adds = "The bitwise XOR of the parts' entropy; the random parts are taken in turn, the seed's length each, from 32 fresh bytes for each random part; every part is a valid mnemonic of the same word count."
 
+[[action.implementation.written_here]]
+what = "Seed XOR (`faraday-entropy::xor`)"
+why = "only-part-used"
+note = "Faraday writes only the few lines the standard needs, over standard XOR."
+decision = "F178"
+
 [action.checked]
 vectors = ["xor"]
 tests = [
@@ -6474,6 +6624,13 @@ code = [
 crate = "faraday/faraday-core"
 libraries = []
 adds = "Each secret is lent by faraday-keys for the reason BackupStick, which names the part (words, passphrase, SeedQR or codex32), and written into a zeroizing buffer; the words and the passphrase are one line each; the SeedQR is made by the SeedQR encoder and drawn as a labelled picture."
+
+[[action.implementation.written_here]]
+what = "FAT16 and FAT32, read and written (`faraday-fat`)"
+why = "none-established"
+note = "No FAT library comes from a publisher Faraday's dependency review trusts."
+tier = "carries"
+decision = "F180"
 
 [action.checked]
 tests = [
@@ -6683,7 +6840,12 @@ crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
 through = [{ library = "sha2", crate = "core/faraday-crypto" }]
 adds = "BIP 374's proofs are written here (faraday-bip); each share a·B_scan carries a proof that it came from the input's key, every private multiplication going through secp256k1's ecdh; the scripts are set once every eligible input has a share, and signable gives the version 0 PSBT that sign signs."
-written_here = "BIP-374 DLEQ proofs (`faraday-bip::dleq`) and BIP-375's sending fields (`faraday-psbt::silent`)"
+
+[[action.implementation.written_here]]
+what = "BIP-374 DLEQ proofs and BIP-375's sending fields (`faraday-bip::dleq`, `faraday-psbt::silent`)"
+why = "none-established"
+note = "No Rust library implements BIP-374 proofs or BIP-375's PSBT fields."
+decision = "F178"
 
 [action.checked]
 vectors = [
@@ -6894,7 +7056,6 @@ libraries = [
 ]
 through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "The passphrase is put in NFC; the container is `kdbx::seal` (the `vault-kdbx` action); a size that is not one of the four is refused before any work; a cost whose memory cannot be allocated is an error that names the MiB needed."
-written_here = "The file vault's creation: the empty database, its first seal stamp and the size check (`faraday-vault::file`)"
 
 [action.checked]
 vectors = [
@@ -6992,7 +7153,6 @@ libraries = [
 ]
 through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "The passphrase is put in NFC; the container is `kdbx::open` (the `vault-kdbx` action); a file longer than the largest vault takes, or whose cost or version is outside the limits, is refused before any work; a file of another length opens with no size stated, and its next seal takes the smallest size that holds the contents; a file a KeePass app saved with a cipher and a KDF the reader takes is opened and its next seal writes it in Faraday's one shape; only a `faraday.format` other than the one this build writes, or a Meta or custom data that cannot be told apart from what was read, holds a vault read only."
-written_here = "The file vault's opening: the size and cost checks, the NFC step and the read-only flag (`faraday-vault::file`)"
 
 [action.checked]
 vectors = [
@@ -7096,7 +7256,12 @@ libraries = [
 ]
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name. The KDBX mapping (`kdbx/items/`) is Faraday's own over the document model, faraday-bip's BIP-39, wallet policy, descriptor and codex32 readers, the TOTP reader and pem-rfc7468: the field names, the kinds, the labels of related secrets (several passphrases for one key, several shares of one index and key) and the Unreadable items of docs/VAULT.md section 7."
-written_here = "The vault's TOML reader and writer (`faraday-vault::contents`)"
+
+[[action.implementation.written_here]]
+what = "The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` (`faraday-vault::contents`)"
+why = "only-part-used"
+note = "toml_parser reads the tokens; Faraday builds the tree and refuses what VAULT.md does not name, as the JSON visitor does over serde_json."
+decision = "F189, F190"
 
 [action.checked]
 vectors = ["toml"]
@@ -7208,7 +7373,19 @@ libraries = [
 ]
 through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "Only the part used is written: the version 6 symmetric-key packet with the Argon2 S2K and the version 2 data packet, both AES-256 and OCB, and the one literal data packet, in any length form RFC 9580 allows. The Argon2 cost is checked against the limits right after the key packet, before the data packet is read or any Argon2 memory is taken, padding packets are ignored, every tag is checked before plaintext is returned, and every other packet, version, algorithm or trailing byte is named and not opened. HKDF-SHA-256 is Faraday's own (`faraday-crypto`); Argon2id, AES and OCB are the RustCrypto crates."
-written_here = "The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)"
+
+[[action.implementation.written_here]]
+what = "HKDF-SHA256, one copy (`faraday-crypto::hash`)"
+why = "does-not-fit"
+unfit = "hkdf 0.13.0 returns the pseudorandom key and leaves each output block T(i) in plain arrays it does not wipe"
+note = "The Rust HKDF library leaves the pseudorandom key and its output blocks unwiped; Faraday's holds both in buffers it wipes."
+decision = "F180"
+
+[[action.implementation.written_here]]
+what = "The QR vault's OpenPGP message: the version 6 symmetric-key packet with the Argon2 S2K, the version 2 data packet and the literal data packet (`faraday-pgp::message`)"
+why = "only-part-used"
+note = "Faraday writes only the three packets a QR vault uses, over argon2, aes and ocb3 and Faraday's HKDF; rPGP, which no review Faraday trusts covers, brings every OpenPGP algorithm."
+decision = "F190"
 
 [action.checked]
 vectors = ["openpgp"]
@@ -7318,7 +7495,12 @@ libraries = [
 ]
 through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "The container only, not the meaning of entries: signatures and version (4.0 and 4.1), the header fields (an unknown one refused), the KDF parameters' VariantDictionary with the cost checked against the vault's limits before any memory is asked for, the header's SHA-256 and HMAC, the HMAC block stream (every block's HMAC checked before its bytes are used, a missing or extra block refused), the cipher, gzip read into a buffer sized from its stated length and bounded by the largest vault, and the inner header with its attachments carried. KDBX 3.1, AES-KDF, Twofish, Salsa20 as the inner stream and an empty passphrase are named and refused; a key file or a challenge-response key is not recorded in a KDBX 4 header, so such a file cannot be told from a wrong passphrase (owner, 2026-11-02) and the wrong-passphrase message for a KeePass file says that a file which also needs one cannot be opened here. An Argon2 version missing from the parameters is a damaged file, as KeePass and KeePassXC take it. A file is written as Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, 1 MiB blocks, the plaintext padded with line feeds to the size asked for; the master seed, IV, Argon2 salt and inner stream key are the 140 bytes the caller passes. The XML document (`kdbx::xml`) is read over quick-xml's tokenizer and refused, naming what was found, for a document not well formed, a DOCTYPE, an entity other than XML's five and character references, an XML declaration anywhere but the start, anything after the root other than XML whitespace, comments and processing instructions, nesting past 64, markup inside a text element the model reads, a Meta or Root missing or repeated, and a protected value that is not canonical Base64 (base64ct) of text; a comment or processing instruction is carried, and skipped in text the model reads; an entry or group with two UUIDs or a UUID of other than 16 bytes, a field with two values and the like is marked ambiguous and left as read, not refused; every protected value, those in carried bytes, history and the recycle bin included, is decrypted in document order and, on writing, the ones written are encrypted in document order under the new key from their plaintexts; what the model does not read is carried as the bytes read, and history and the recycle bin (the bin dropped while RecycleBinEnabled is True or absent) are dropped and counted."
-written_here = "The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)"
+
+[[action.implementation.written_here]]
+what = "The KDBX 4 container a file vault is: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)"
+why = "only-part-used"
+note = "Faraday writes only the part of KeePass's format the vault uses, over argon2, chacha20, aes and cbc, hmac, sha2 and miniz_oxide; keepass-rs, which no review Faraday trusts covers, drops the XML elements it does not read and draws a save's randomness itself."
+decision = "F190"
 
 [action.checked]
 vectors = [
@@ -7736,7 +7918,6 @@ libraries = [
 ]
 through = [{ library = "argon2", crate = "core/faraday-crypto" }]
 adds = "A KeePass export is a vault of one entry (`docs/VAULT.md` section 8): the vault's own container and document model, one group and one entry holding the secret, sealed by the vault's `kdbx::seal` at the smallest of the vault sizes that holds it, under the passphrase put in NFC. The vault id, the seal's salt, seed, IV and inner key, and the entry's UUIDs are three draws of the session's randomness, each with its label (`vault id`, `vault seal`, `vault entries`), and nothing is made until the system has answered."
-written_here = "The KDBX 4 file format (`faraday-vault::kdbx`), used as the vault uses it"
 
 [action.checked]
 vectors = [
@@ -7813,7 +7994,12 @@ libraries = [
 ]
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
 adds = "Reads an otpauth://totp URI or a bare Base32 key, and from an entry's fields KeePass 2's TimeOtp-* fields and older KeePassXC's TOTP Seed and TOTP Settings (docs/TOTP.md section 4.1); SHA1 by default as RFC 6238 does, SHA256 and SHA512 on request; the clock is the person's, checked or set by hand (docs/TOTP.md §1)."
-written_here = "TOTP code derivation (`faraday-vault::totp`)"
+
+[[action.implementation.written_here]]
+what = "TOTP code derivation (`faraday-vault::totp`)"
+why = "only-part-used"
+note = "Faraday writes only the few lines RFC 6238 needs, over standard HMAC."
+decision = "F178"
 
 [action.checked]
 vectors = []
@@ -7916,7 +8102,12 @@ libraries = [
   "base64ct",
 ]
 adds = "The armoured secret key a KDBX vault's GPG entry holds is the key's own packets (`Key::secret_key`) in ASCII armour, and it is read back only when writing the key it names gives the same bytes. Version-4 packets for one key shape: EdDSALegacy Ed25519 for the primary (certify) and the subkey (sign), SHA-1 fingerprints, self-signatures over SHA-512, the subkey's back signature, and a revocation certificate kept in the vault record as GnuPG 2.1 and later keep one; every signature is deterministic."
-written_here = "OpenPGP v4 packet construction (`faraday-pgp`)"
+
+[[action.implementation.written_here]]
+what = "OpenPGP v4 packets for one key shape, the armour's CRC-24, and the paperkey format (`faraday-pgp`)"
+why = "only-part-used"
+note = "Faraday writes only the packets of its one key shape, over Ed25519 from dalek and SHA-1/SHA-2 from RustCrypto, each judged by GnuPG and paperkey; the armour's base64 is the base64ct crate's."
+decision = "F178"
 
 [action.checked]
 vectors = ["paperkey"]
@@ -8365,7 +8556,12 @@ libraries = [
   "der",
 ]
 adds = "The RSA key generator draws from the chacha20 crate's `ChaCha20Rng`, seeded with a fresh 32-byte draw (a system answer, with the person's own randomness hashed in when they added some), with a stream for the key, one for the GUID and serials and one that blinds the signing; the certificates are `x509-cert`'s builder signing through `rsa`'s `pkcs1v15::SigningKey`, and the CMS SignedData and Authenticode structures are `der` types; the `rsa` crate is a release candidate and pinned."
-written_here = "CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files (`faraday-sb`)"
+
+[[action.implementation.written_here]]
+what = "CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files (`faraday-sb`)"
+why = "none-established"
+note = "No library writes Authenticode signatures or EFI signature lists; the CMS crate for the DER version Faraday uses is a release candidate."
+decision = "F178"
 
 [action.checked]
 vectors = []
@@ -8682,6 +8878,34 @@ libraries = [
 ]
 adds = "The image file is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the list's size with the list's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a Pi card is read back and compared with the stream as written, and the SHA-256 of what was read, with the card's own IDs put back where they went (docs/STICK-IDENTITY.md §4.3), must be the list's. A stick is made for its size, not copied (docs/STICK-IDENTITY.md §4.2): only the image's boot partition reaches it, byte for byte with the release's serial; its protective MBR, GPT (new disk and partition GUIDs from getrandom, the data partition to the last usable sector, every CRC-32 worked out again) and its data partition's FAT32 (faraday-fat's formatter, a new serial from getrandom) are written as regions and every region and the boot partition are read back and compared byte for byte; the GUIDs and serials are identities, not secrets. A stick made or keep data from a found image with no boot file signed first checks that the SHA-256 of the image's boot partition is the list's and writes nothing otherwise. Clearing the whole stick first writes zeros over every sector and reads none back. A name given the data partition (docs/STICK-IDENTITY.md §6) is faraday-fat's label write run over the sectors captured, each byte it changed a patch put back the same way."
 
+[[action.implementation.written_here]]
+what = "The FAT32 formatter for the Starter's data partition (`faraday-fat::format`)"
+why = "none-established"
+note = "No FAT library comes from a publisher Faraday's dependency review trusts; the partition it makes is checked by dosfstools' `fsck.fat`, against what `mkfs.fat` makes."
+tier = "carries"
+decision = "F180"
+
+[[action.implementation.written_here]]
+what = "GPT and MBR tables, read and rewritten (`faraday-starter-shell::gpt`, `faraday-starter-shell::ids`)"
+why = "none-established"
+note = "No partition-table library comes from a publisher Faraday's dependency review trusts."
+tier = "carries"
+decision = "F180"
+
+[[action.implementation.written_here]]
+what = "The plist reader for the disk tool's output (`faraday/shells/starter`)"
+why = "none-established"
+note = "No plist library comes from a publisher Faraday's dependency review trusts."
+tier = "carries"
+decision = "F180"
+
+[[action.implementation.written_here]]
+what = "The form of a version 4 UUID (`faraday-starter-shell::ids`)"
+why = "only-part-used"
+note = "Four lines setting RFC 9562's version and variant bits over bytes from getrandom."
+tier = "carries"
+decision = "F180"
+
 [action.checked]
 tests = [
   "faraday/faraday-payload/tests/payload.rs::a_payload_made_by_xz_decodes_to_exactly_the_original_bytes",
@@ -8823,6 +9047,13 @@ code = [
 crate = "faraday/faraday-starter"
 libraries = []
 adds = "A key is taken only as eight groups of six digits joined by hyphens, for a drive that is a letter and a colon; it is held in a zeroizing string, printed on the sheet after the other rows with its drive, four groups to a line, and the rows' copies of its text are zeroized once the PDF is made; Debug prints none of it."
+
+[[action.implementation.written_here]]
+what = "The PDF writer (`faraday-core::pdf`, `faraday-starter::sheets`)"
+why = "none-established"
+note = "No PDF library comes from a publisher Faraday's dependency review trusts."
+tier = "carries"
+decision = "F180"
 
 [action.checked]
 tests = [
@@ -9387,3 +9618,18 @@ text = "NIST Special Publication 800-63B, Digital Identity Guidelines, on what m
 [construction.review]
 fingerprint = "cbc906edd4e3328733dd723a4b927a626de379995e0bf02c865ec03342835822"
 reviewed = "2026-11-05"
+
+[[not_established]]
+crate = "lzma-rust2"
+reason = "The Starter's xz decoder. No established pure-Rust streaming xz decoder exists, and the Starter's design (`docs/STARTER.md`) rules out the C library liblzma; what it writes is checked against the signed manifest's SHA-256 and size."
+decision = "F180"
+
+[[not_established]]
+crate = "rqrr"
+reason = "The camera's QR decoder, vendored and patched against panics on hostile frames (third_party/rqrr/PATCHES.md): the only maintained pure-Rust QR decoder. What it reads is untrusted input that Faraday's parsers check. The same panic is reported upstream as rqrr's issue 54."
+decision = "F180"
+
+[[not_established]]
+crate = "quick-xml"
+reason = "The tokenizer under the XML of a KDBX vault file. It does no cryptography and has no outside review; its default features are off and it is already in the dependency graph. Which references are refused, the nesting cap and everything else the reader does are Faraday's own."
+decision = "F213"

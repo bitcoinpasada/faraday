@@ -233,6 +233,11 @@ version = "0.1.12"
 when = "2026-09-04"
 trusted-publisher = "github:rust-lang/cc-rs"
 
+[[publisher.getrandom]]
+version = "0.4.3"
+when = "2026-06-17"
+trusted-publisher = "github:rust-random/getrandom"
+
 [[publisher.hashbrown]]
 version = "0.17.1"
 when = "2026-05-09"

@@ -14,8 +14,10 @@ marker lines, `<!-- crypto-manifest: begin §3 -->` and
     STANDARDS §6       the Conservative own calls, with and without a decision
     STANDARDS §7       the Novel own calls, in the order of `novel_rank`; actions
                        of one rank are one item
-    AUDIT §3           the "written here" list: each action's
-                       `implementation.written_here`, grouped by crate
+    STANDARDS §10      What Faraday writes itself: a table per reason, one row per piece
+                       of an action's `implementation.written_here`, and the libraries
+                       that are not established (ESTABLISHED §2.3)
+    AUDIT §3           the same pieces in four lists, one per reason
     tools/crosscheck/README.md, independence
                        what each area compares Faraday with: one row per area
                        and class (F160, F177, F179), others' code or Faraday's
@@ -355,16 +357,71 @@ def gen_independence(data, areas):
     return "\n".join(lines)
 
 
+# The four reasons a piece is written here (ESTABLISHED §1.1), in that order: the value,
+# the heading of its list and of its table.
+WHY = [("own-specification", "Faraday's own specification"),
+       ("none-established", "No established implementation exists"),
+       ("does-not-fit", "One exists but does not fit the key rules"),
+       ("only-part-used", "Only the part used is written")]
+
+
+def pieces(data):
+    """[(action, piece)] in the manifest's order."""
+    return [(a, p) for a in data["action"]
+            for p in a.get("implementation", {}).get("written_here", [])]
+
+
 def gen_written_here(data):
-    by_crate = {}
-    for a in data["action"]:
-        impl = a.get("implementation", {})
-        if impl.get("written_here"):
-            name = impl.get("crate", "?").rsplit("/", 1)[-1]
-            by_crate.setdefault(name, []).append(bare(impl["written_here"]))
+    """AUDIT §3: the pieces in four lists, one per reason, each line the `what`, and for
+    does-not-fit the `unfit` after a colon; a carried format is marked (carries)."""
     out = []
-    for crate, texts in by_crate.items():
-        out += [f"- {t}" for t in uniq(texts)]
+    for why, heading in WHY:
+        lines = []
+        for _, p in pieces(data):
+            if p["why"] != why:
+                continue
+            line = f"- {p['what']}"
+            if p.get("tier") == "carries":
+                line += " (carries)"
+            if why == "does-not-fit":
+                line += f": {p['unfit']}"
+            lines.append(line)
+        if lines:
+            out += ([""] if out else []) + [f"**{heading}** ({len(lines)})", ""] + lines
+    return "\n".join(out)
+
+
+def where_of(a, p):
+    """The code a piece lives in: the parenthesis that ends its `what`, else the action's crate."""
+    m = re.fullmatch(r"(.*?)\s*\(((?:`[^`]*`)(?:,? (?:and )?`[^`]*`)*)\)", p["what"])
+    return (m.group(1), m.group(2)) if m else (p["what"], f"`{a['implementation']['crate']}`")
+
+
+def gen_standards_written(data):
+    """STANDARDS §10: a table per reason (Piece, Where, Note, Decision; does-not-fit adds the
+    rule it fails), then the libraries that are not established."""
+    out = []
+    for why, heading in WHY:
+        rows = [(a, p) for a, p in pieces(data) if p["why"] == why]
+        if not rows:
+            continue
+        unfit = why == "does-not-fit"
+        out += ([""] if out else []) + [
+            f"**{heading}**", "",
+            "| Piece | Where | " + ("Fails | " if unfit else "") + "Note | Decision |",
+            "|---|---|" + ("---|" if unfit else "") + "---|---|"]
+        for a, p in rows:
+            piece, where = where_of(a, p)
+            if p.get("tier") == "carries":
+                piece += " (carries)"
+            out.append(f"| {cell(piece)} | {cell(where)} | "
+                       + (f"{cell(p['unfit'])} | " if unfit else "")
+                       + f"{cell(p['note'])} | {cell(p['decision'])} |")
+    nots = data.get("not_established", [])
+    if nots:
+        out += ["", "**Libraries that are not established**", "", "| Library | Reason | Decision |",
+                "|---|---|---|"]
+        out += [f"| `{cell(t['crate'])}` | {cell(t['reason'])} | {cell(t['decision'])} |" for t in nots]
     return "\n".join(out)
 
 
@@ -772,6 +829,7 @@ PLACES = [
     (STANDARDS, "§5", lambda d, ar: gen_row_table(d, 5, ar)),
     (STANDARDS, "§6", lambda d, ar: gen_conservative(d)),
     (STANDARDS, "§7", lambda d, ar: gen_novel(d)),
+    (STANDARDS, "§10", lambda d, ar: gen_standards_written(d)),
     (AUDIT, "§3", lambda d, ar: gen_written_here(d)),
     (CC_README, "independence", gen_independence),
 ]
@@ -872,7 +930,13 @@ def self_test():
             {"id": "a", "action": "Does a thing.", "row": "r",
              "standards": ["BIP 32", "BIP 44", "BIP 45", "BIP 46", "BIP 93", "Seed XOR"],
              "implementation": {"crate": "core/faraday-x", "libraries": [],
-                                "written_here": "The thing."},
+                                "written_here": [
+                                    {"what": "The thing (`core/faraday-x::t`)", "why": "none-established",
+                                     "note": "No library has it.", "decision": "F178"},
+                                    {"what": "A format (`faraday-x::f`)", "why": "none-established",
+                                     "note": "None.", "decision": "F180", "tier": "carries"},
+                                    {"what": "A lookup", "why": "does-not-fit",
+                                     "unfit": "x 1.0 leaks", "note": "Wiped.", "decision": "F178"}]},
              "checked": {"vectors": ["v"], "tests": ["core/faraday-x/tests/t.rs::t"],
                          "not_crosschecked": "No second one.", "other": ["Core end to end."]},
              "own": [{"text": "Refuses it", "kind": "Conservative", "decision": "F90"},
@@ -914,7 +978,19 @@ def self_test():
     expect(nv[0].startswith("1. **Does b.** Mixes it. (F86) **Does c.** Folds it.")
            and nv[1].startswith("2. **Does a thing.**"),
            f"Novel calls by novel_rank, one item per rank, unranked after: {nv}")
-    expect(gen_written_here(data) == "- The thing", "written here, one line each, by crate")
+    data["not_established"] = [{"crate": "k", "reason": "One publisher.", "decision": "F180"}]
+    expect(gen_written_here(data) == "\n".join([
+        "**No established implementation exists** (2)", "", "- The thing (`core/faraday-x::t`)",
+        "- A format (`faraday-x::f`) (carries)", "",
+        "**One exists but does not fit the key rules** (1)", "", "- A lookup: x 1.0 leaks"]),
+        f"AUDIT §3: a list per reason, carries marked, unfit after a colon: {gen_written_here(data)}")
+    s10 = gen_standards_written(data).split("\n")
+    expect("| The thing | `core/faraday-x::t` | No library has it. | F178 |" in s10
+           and "| A format (carries) | `faraday-x::f` | None. | F180 |" in s10
+           and "| A lookup | `core/faraday-x` | x 1.0 leaks | Wiped. | F178 |" in s10,
+           f"STANDARDS §10: a table per reason, the module apart from the piece: {s10}")
+    expect(s10[-1] == "| `k` | One publisher. | F180 |",
+           "STANDARDS §10: the libraries that are not established")
     print("regions:")
     t = f"x\n{begin('§1')}\nold\n{end('§1')}\ny\n"
     n = replace_region(t, "§1", "new", "t")

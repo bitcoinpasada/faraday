@@ -22,6 +22,10 @@ cryptographic is found, with its closure), which costs one read and parse
 of every source file. Standard library only
 (`tomllib`, Python 3.11).
 
+Schema 5 (docs/ESTABLISHED.md §2.2): each `written_here` piece gives one of the four reasons and
+names its decision; each library the actions name is established (a trusted publisher or an
+imported audit) or has a `[[not_established]]` entry; both counts only fall.
+
 Checked places (§3.2): docs/AUDIT.md §1's and §4's crate rows and §1's "written here"
 claims against `implementation.written_here`,
 every `Reveal` variant named by an action and the count in words (AUDIT, KEYS,
@@ -68,8 +72,16 @@ CFG_OK = {"cfg(test)", 'cfg(target_pointer_width = "64")', "cfg(unix)",
 
 TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold",
             "tag_no_standard", "construction", "name_with_digits", "open_item", "library",
-            "vector"}
-SCHEMA = 4
+            "vector", "not_established"}
+# Schema 5 (ESTABLISHED §2): `implementation.written_here` is an array of tables, one per piece
+# Faraday writes itself, and `[[not_established]]` lists the libraries that are not established.
+SCHEMA = 5
+WHY_VALUES = ("own-specification", "none-established", "does-not-fit", "only-part-used")
+WRITTEN_KEYS = {"what", "why", "note", "unfit", "tier", "decision"}
+NOT_ESTABLISHED_KEYS = {"crate", "reason", "decision"}
+DECISIONS_DIR = "docs/decisions"
+AUDITS = "supply-chain/audits.toml"
+IMPORTS = "supply-chain/imports.lock"
 # What an action's cross-check compares Faraday with (F160, F177, schema 4): an outside
 # implementation, an outside one and, for a part (`ours`), one Faraday's authors wrote, or
 # only one Faraday's authors wrote.
@@ -585,6 +597,70 @@ def schema_sources(e, d):
                         "saying whose answers it holds (F177)")
 
 
+def decision_problem(c, value):
+    """Why a `decision` value is not accepted, else None: it names decisions (`F178`, or
+    `F189, F190` for a piece two decisions accept), each a file in docs/decisions/ whose Status is
+    Active or Amended by. A decision moved to history is not one."""
+    if not (str_ok(value) and re.fullmatch(r"F\d+(, F\d+)*", value)):
+        return f"`decision` {value!r} is not a decision (F178) or decisions (F189, F190)"
+    for n in re.findall(r"F\d+", value):
+        text = c.read(f"{DECISIONS_DIR}/{n}.md")
+        m = re.search(r"^\*\*Status:\*\*\s*(.*)$", text, re.M)
+        if not text:
+            return f"`decision` {n} has no file in {DECISIONS_DIR}/"
+        if not (m and (m.group(1).startswith("Active") or m.group(1).startswith("Amended by"))):
+            return f"`decision` {n} is not Active or Amended by ({m.group(1) if m else 'no Status'})"
+    return None
+
+
+def check_piece(c, where, p, i=None):
+    """One `written_here` piece (ESTABLISHED §2.2, item 1): what, why, note and decision; why is
+    one of the four reasons; unfit exactly when why is does-not-fit; tier only `carries`."""
+    e = c.errors
+    unknown(e, where, p, WRITTEN_KEYS, i)
+    for k in ("what", "why", "note", "decision"):
+        if not str_ok(p.get(k)):
+            e.add("schema", f"{where}: `{k}` is missing or empty", i)
+    if str_ok(p.get("why")) and p["why"] not in WHY_VALUES:
+        e.add("schema", f"{where}: why `{p['why']}` is not one of {', '.join(WHY_VALUES)}", i)
+    if (p.get("why") == "does-not-fit") != ("unfit" in p):
+        e.add("schema", f"{where}: `unfit` is given exactly when why is does-not-fit", i)
+    elif "unfit" in p and not str_ok(p["unfit"]):
+        e.add("schema", f"{where}: `unfit` is empty", i)
+    if "tier" in p and p["tier"] != "carries":
+        e.add("schema", f"{where}: tier `{p['tier']}` is not carries", i)
+    if str_ok(p.get("decision")):
+        why = decision_problem(c, p["decision"])
+        if why:
+            e.add("schema", f"{where}: {why}", i)
+
+
+def check_not_established(c):
+    """`[[not_established]]` entries: crate, reason, decision (ESTABLISHED §2.2, item 4)."""
+    e = c.errors
+    entries = c.data.get("not_established", [])
+    if not isinstance(entries, list):
+        e.add("schema", "not_established is not an array of tables")
+        return
+    seen = set()
+    for n, t in enumerate(entries):
+        where = f"not_established[{n + 1}]"
+        if not isinstance(t, dict):
+            e.add("schema", f"{where} is not a table")
+            continue
+        unknown(e, where, t, NOT_ESTABLISHED_KEYS)
+        for k in NOT_ESTABLISHED_KEYS:
+            if not str_ok(t.get(k)):
+                e.add("schema", f"{where}: `{k}` is missing or empty")
+        if t.get("crate") in seen:
+            e.add("schema", f"{where}: {t['crate']} is named twice")
+        seen.add(t.get("crate"))
+        if str_ok(t.get("decision")):
+            why = decision_problem(c, t["decision"])
+            if why:
+                e.add("schema", f"{where}: {why}")
+
+
 def schema_action(c, a, i):
     e = c.errors
 
@@ -656,8 +732,14 @@ def schema_action(c, a, i):
             if (t["library"], t["crate"]) in pairs:
                 bad(f"{w}: {t['library']} through {t['crate']} is named twice")
             pairs.add((t["library"], t["crate"]))
-        if "written_here" in impl and not str_ok(impl["written_here"]):
-            bad("implementation.written_here is empty")
+        if "written_here" in impl:
+            pieces = impl["written_here"]
+            if not (isinstance(pieces, list) and pieces and all(isinstance(p, dict) for p in pieces)):
+                bad("implementation.written_here is not a list of tables, one per piece "
+                    "(schema 5, ESTABLISHED §2.1)")
+            else:
+                for n, p in enumerate(pieces):
+                    check_piece(c, f"action {i}.implementation.written_here[{n + 1}]", p, i)
     if isinstance(chk, dict):
         for k in ("vectors", "tests", "selftest", "fuzz", "other"):
             if k in chk and not (isinstance(chk[k], list) and all(str_ok(x) for x in chk[k])):
@@ -1136,12 +1218,28 @@ def check_through(c, a, i):
                          f"function of {crate}", i)
 
 
+def written_pieces(a):
+    """The `written_here` pieces (tables) of an action."""
+    impl = a.get("implementation")
+    pieces = impl.get("written_here") if isinstance(impl, dict) else None
+    return [p for p in pieces if isinstance(p, dict)] if isinstance(pieces, list) else []
+
+
+def audit_untouched_crates(c):
+    """The crates AUDIT §4 lists (touch cryptographic bytes, compute none) and §5 names in its
+    prose (no cryptographic involvement): a format they write carries bytes and computes nothing."""
+    out = set(audit_crate_rows(c, 4))
+    out |= set(re.findall(r"`([a-z0-9-]+)`", audit_section(c.read("docs/AUDIT.md"), 5)))
+    return out
+
+
 def check_audit_crates(c):
-    """AUDIT §1 and §4: a row for every crate an action names, an action for every row of §1,
-    and §1's 'written here' agrees with its actions' `implementation.written_here`; a crate of §4
-    (it touches cryptographic bytes and computes none) writes nothing here."""
+    """AUDIT §1, §4 and §5: a row for every crate an action names, an action for every row of §1,
+    and §1's 'written here' agrees with its actions' pieces. A crate of §4 or §5 (it computes
+    nothing) writes only pieces that carry a format (`tier = "carries"`, ESTABLISHED §2.2), and
+    such a piece on a crate of §4 or §5 is marked so; a crate only of §1 carries none."""
     e = c.errors
-    rows, carries = audit_crate_rows(c, 1), audit_crate_rows(c, 4)
+    rows, carries = audit_crate_rows(c, 1), audit_untouched_crates(c)
     if not rows:
         e.add("audit", "docs/AUDIT.md §1 has no crate rows (| `crate` | … |)")
         return
@@ -1152,12 +1250,17 @@ def check_audit_crates(c):
             named.setdefault(package_name(c, crate), []).append(a)
     for crate, acts in sorted(named.items()):
         ids = ", ".join(a.get("id") for a in acts[:4]) + (", …" if len(acts) > 4 else "")
-        here = [a.get("id") for a in acts if a["implementation"].get("written_here")]
+        pieces = [(a.get("id"), p) for a in acts for p in written_pieces(a)]
+        here = [i for i, p in pieces if p.get("tier") != "carries"]
+        for i, p in pieces:
+            if p.get("tier") == "carries" and crate not in carries:
+                e.add("audit", f"docs/AUDIT.md §1 has `{crate}`, not §4 or §5, and the piece "
+                      f"`{p.get('what')}` carries a format: remove its tier", i)
         if crate in carries and crate not in rows:
             if here:
                 e.add("audit", f"docs/AUDIT.md §4 has `{crate}` computing nothing, and the action(s) "
-                      f"{', '.join(here[:4])} say what is written here: move its row to §1, or "
-                      "remove implementation.written_here")
+                      f"{', '.join(dict.fromkeys(here))} write a piece that does not carry a format: move "
+                      "the crate's row to §1, or give the piece tier = \"carries\"")
             continue
         if crate not in rows:
             e.add("audit", f"docs/AUDIT.md §1 and §4 have no row for `{crate}`, which the actions "
@@ -1166,8 +1269,8 @@ def check_audit_crates(c):
             continue
         if here and not rows[crate]:
             e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` does not say 'written here', "
-                  f"and the action(s) {', '.join(here[:4])} give implementation.written_here: say in "
-                  "the row what is written here, or remove it from the actions")
+                  f"and the action(s) {', '.join(dict.fromkeys(here))} give implementation.written_here: "
+                  "say in the row what is written here, or remove it from the actions")
         if rows[crate] and not here:
             e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` says 'written here', and no "
                   "action of that crate gives implementation.written_here: change the row, or say "
@@ -1175,6 +1278,137 @@ def check_audit_crates(c):
     for crate in sorted(set(rows) - set(named)):
         e.add("audit", f"docs/AUDIT.md §1 has a row for `{crate}`, and no action's "
               "implementation.crate names it: remove the row, or add the action")
+
+
+# ------------------------------------------- what is established (ESTABLISHED §1.2, §2.2)
+
+def parse_toml(text):
+    try:
+        return tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return {}
+
+
+def lock_packages(c):
+    """{package name: [Cargo.lock package tables]}."""
+    out = {}
+    for p in parse_toml(c.read("Cargo.lock")).get("package", []):
+        out.setdefault(p.get("name"), []).append(p)
+    return out
+
+
+def versions_named(c, lib, crate_dirs):
+    """The versions of `lib` the crates `crate_dirs` depend on, read from Cargo.lock's dependency
+    edges ("name" when the lock holds one version, "name version" when it holds several); when no
+    such crate has an edge, the lock's version if it holds one, else nothing."""
+    pk = lock_packages(c)
+    found = set()
+    for d in crate_dirs:
+        for p in pk.get(package_name(c, d), []):
+            for dep in p.get("dependencies", []):
+                t = dep.split(" ")
+                if t[0] == lib:
+                    found.add(t[1] if len(t) > 1 else pk[lib][0]["version"])
+    if not found and len(pk.get(lib, [])) == 1:
+        found.add(pk[lib][0]["version"])
+    return found
+
+
+def criteria_ok(v):
+    return v == "safe-to-deploy" or (isinstance(v, list) and "safe-to-deploy" in v)
+
+
+def publisher_matches(entry, pub):
+    """A trust entry or wildcard audit names the publisher recorded for a version, and the version
+    was published within the entry's start and end."""
+    same = ("user-id" in entry and entry["user-id"] == pub.get("user-id")) or \
+        ("trusted-publisher" in entry and entry["trusted-publisher"] == pub.get("trusted-publisher"))
+    return same and str(entry.get("start", "")) <= str(pub.get("when", "")) <= str(entry.get("end", ""))
+
+
+def established_by(audits, imports, lib, version):
+    """How `lib` at `version` is established (ESTABLISHED §1.2), else None: a trusted publisher of
+    audits.toml, an imported audit (full, or a chain of deltas from a full one) or an imported
+    wildcard audit, each with criteria safe-to-deploy. An exemption or an audit of Faraday's own
+    is not."""
+    pubs = [p for p in imports.get("publisher", {}).get(lib, []) if p.get("version") == version]
+    for t in audits.get("trusted", {}).get(lib, []):
+        if criteria_ok(t.get("criteria")) and any(publisher_matches(t, p) for p in pubs):
+            return "a trusted publisher"
+    full, edges = set(), {}
+    for src in imports.get("audits", {}).values():
+        for w in src.get("wildcard-audits", {}).get(lib, []):
+            if criteria_ok(w.get("criteria")) and any(publisher_matches(w, p) for p in pubs):
+                return "an imported wildcard audit"
+        for au in src.get("audits", {}).get(lib, []):
+            if not criteria_ok(au.get("criteria")):
+                continue
+            if "version" in au:
+                full.add(au["version"])
+            elif "delta" in au:
+                x, _, y = (q.strip() for q in au["delta"].partition("->"))
+                edges.setdefault(x, set()).add(y)
+                edges.setdefault(y, set()).add(x)
+    seen, todo = set(full), list(full)
+    while todo:
+        for y in edges.get(todo.pop(), ()):
+            if y not in seen:
+                seen.add(y)
+                todo.append(y)
+    return "an imported audit" if version in seen else None
+
+
+def libraries_named(c):
+    """{library: {version: [action ids]}} for every library an action names in `libraries` or
+    `through`, at the versions the crate that depends on it names (Cargo.lock)."""
+    out = {}
+    for a in c.actions:
+        impl = a.get("implementation") if isinstance(a.get("implementation"), dict) else {}
+        i = a.get("id")
+        dirs = [impl.get("crate")] + [crate_dir_of(f.split("::")[0]) for f in as_list(a.get("functions"))]
+        dirs = [d for d in dict.fromkeys(dirs) if isinstance(d, str) and d]
+        wants = [(lib, dirs) for lib in as_list(impl.get("libraries"))]
+        wants += [(t.get("library"), [t.get("crate")]) for t in as_list(impl.get("through"))
+                  if isinstance(t, dict)]
+        for lib, where in wants:
+            if not isinstance(lib, str):
+                continue
+            vs = versions_named(c, lib, [w for w in where if isinstance(w, str)]) or {"?"}
+            for v in vs:
+                out.setdefault(lib, {}).setdefault(v, [])
+                if i not in out[lib][v]:
+                    out[lib][v].append(i)
+    return out
+
+
+def check_established(c):
+    """ESTABLISHED §2.2, item 4: every library an action names is established at the version
+    checked, or has a `[[not_established]]` entry; an entry for a library that has become
+    established is stale; and the counts of pieces and entries only fall."""
+    e = c.errors
+    audits, imports = parse_toml(c.read(AUDITS)), parse_toml(c.read(IMPORTS))
+    entries = {t.get("crate"): t for t in c.data.get("not_established", []) if isinstance(t, dict)}
+    named = libraries_named(c)
+    for lib, versions in sorted(named.items()):
+        missing = []
+        for v, ids in sorted(versions.items()):
+            if v == "?":
+                e.add("untrue", f"library {lib}: its version cannot be read from Cargo.lock "
+                      f"(no crate of the action names it, and the lock holds several)", ids[0])
+            elif not established_by(audits, imports, lib, v):
+                missing.append(v)
+        if missing and lib not in entries:
+            ids = sorted({i for v in missing for i in versions[v]})
+            e.add("untrue", f"library {lib} {', '.join(missing)} is not established (ESTABLISHED "
+                  f"§1.2: a trusted publisher, an imported audit or an imported wildcard audit) and "
+                  f"has no [[not_established]] entry; the action(s) {', '.join(ids[:4])} name it", ids[0])
+        if lib in entries and not missing and "?" not in versions:
+            e.add("untrue", f"[[not_established]] {lib} is stale: {lib} is established at "
+                  f"{', '.join(sorted(versions))}; remove the entry")
+    for crate in sorted(set(entries) - set(named)):
+        e.add("untrue", f"[[not_established]] {crate} is named by no action's libraries or through")
+    check_ratchet_line(c, "written_here", sum(len(written_pieces(a)) for a in c.actions))
+    check_ratchet_line(c, "not_established", len(entries))
 
 
 def count_word(n):
@@ -1651,12 +1885,14 @@ def run_checks(c, release=True):
     check_screens(c)
     check_deps(c)
     check_schema(c)
+    check_not_established(c)
     check_constructions(c)
     check_truth(c)
     check_coverage(c)
     if release:
         check_fingerprints(c)
     check_audit_crates(c)
+    check_established(c)
     check_reveals(c)
     check_learn_actions(c)
     check_compute(c)
@@ -2090,7 +2326,7 @@ def fn_rec(file, name, h, rules=(3,), callees=(), cross=(), crate="c"):
             "cross": list(cross)}
 
 
-FIXTURE_MANIFEST = '''schema = 4
+FIXTURE_MANIFEST = '''schema = 5
 
 [standard."BIP 1"]
 name = "A standard"
@@ -2159,7 +2395,12 @@ code = ["src/a.rs::g"]
 crate = "src"
 libraries = []
 adds = "Nothing."
-written_here = "Two."
+
+[[action.implementation.written_here]]
+what = "The second thing (`src::two`)"
+why = "none-established"
+note = "No established implementation of it exists."
+decision = "F1"
 
 [action.checked]
 vectors = []
@@ -2184,6 +2425,21 @@ source = "published"
 by = "its authors"
 '''
 
+SUPPLY_AUDITS = '''
+[[trusted.lib1]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:org/lib1"
+start = "2025-01-01"
+end = "2027-01-01"
+'''
+
+SUPPLY_IMPORTS = '''
+[[publisher.lib1]]
+version = "1.0.0"
+when = "2025-06-01"
+trusted-publisher = "github:org/lib1"
+'''
+
 FIXTURE_FILES = {
     "docs/AUDIT.md": "# Audit\n\n## 1. Crates\n\n| Crate | Computes | Written here | Checked |\n"
                      "|---|---|---|---|\n| `src` | things | **written here** | v |\n\n"
@@ -2199,7 +2455,12 @@ FIXTURE_FILES = {
                        "| `Sign` | `a::g` |\n| Faraday's own | `plan::map` |\n\n## 3. Who\n",
     "faraday/faraday-core/src/catalog.rs": "pub const TILES: &[Tile] = &[\n    Tile {\n"
                                            "        tags: &[\"BIP-1\"],\n        go: Go::Sign,\n    },\n];\n",
-    "tools/lint-crypto.counts": "not_crypto 0\nscreens_not 0\n",
+    "tools/lint-crypto.counts": "not_crypto 0\nscreens_not 0\nwritten_here 1\nnot_established 0\n",
+    "docs/decisions/F1.md": "# F1 A decision\n\n**Kind:** Record\n**Status:** Active\n",
+    "docs/decisions/F2.md": "# F2 Another\n\n**Kind:** Record\n**Status:** Amended by F3\n",
+    "docs/decisions/F9.md": "# F9 Withdrawn\n\n**Kind:** Record\n**Status:** Withdrawn\n",
+    "supply-chain/audits.toml": SUPPLY_AUDITS,
+    "supply-chain/imports.lock": SUPPLY_IMPORTS,
     "faraday/faraday-learn/src/lib.rs": 'const OWN: [(&str, &str); 1] = [\n'
                                         '    ("page", include_str!("page.md")),\n];\n',
     "src/k.rs": "pub const SIDES: usize = 2 + EXTRA;\nconst EXTRA: usize = 4;\n"
@@ -2235,6 +2496,13 @@ planned = "dice"
 '''
 
 FIXTURE_CARGO = '''[[package]]
+name = "src"
+version = "0.1.0"
+dependencies = [
+ "lib1",
+]
+
+[[package]]
 name = "lib1"
 version = "1.0.0"
 checksum = "abc"
@@ -2565,6 +2833,93 @@ def self_test():
                        "schema", "has no [vector.v1]")
         expect(ok, "a vector folder an action names says whose answers it holds")
 
+        print("the pieces written here and what is established (ESTABLISHED §2.2):")
+        piece = "[[action.implementation.written_here]]\n"
+        two = ("what = \"The second thing (`src::two`)\"\nwhy = \"none-established\"\n"
+               "note = \"No established implementation of it exists.\"\ndecision = \"F1\"\n")
+        for old, new, needle, what in (
+                ("why = \"none-established\"", "why = \"because\"", "is not one of",
+                 "a reason outside the four fails"),
+                ("why = \"none-established\"", "why = \"does-not-fit\"", "exactly when why",
+                 "does-not-fit without unfit fails"),
+                ("decision = \"F1\"\n", "decision = \"F1\"\nunfit = \"x 1.0\"\n", "exactly when why",
+                 "unfit on another reason fails"),
+                ("decision = \"F1\"\n", "decision = \"F1\"\ntier = \"computes\"\n", "is not carries",
+                 "a tier other than carries fails"),
+                ("note = \"No established implementation of it exists.\"\n", "", "`note` is missing",
+                 "a piece without a note fails"),
+                ("decision = \"F1\"\n", "decision = \"F1\"\nwhat2 = \"x\"\n", "unknown key `what2`",
+                 "a key the schema does not have fails"),
+                ("decision = \"F1\"\n", "decision = \"F9\"\n", "F9 is not Active",
+                 "a withdrawn decision fails"),
+                ("decision = \"F1\"\n", "decision = \"F77\"\n", "F77 has no file",
+                 "a decision with no file fails"),
+                ("decision = \"F1\"\n", "decision = \"F1, F9\"\n", "F9 is not Active",
+                 "a piece with two decisions checks each")):
+            ok, _ = broken("docs/crypto/actions.toml", piece + two, piece + two.replace(old, new, 1),
+                           "schema", needle)
+            expect(ok, what)
+        ok, _ = broken("docs/crypto/actions.toml", piece + two,
+                       piece + two.replace('decision = "F1"', 'decision = "F1, F2"', 1), "schema", "")
+        expect(not ok and not msgs(check(moved), "schema"), "a piece with two decisions passes")
+        ok, _ = broken("docs/crypto/actions.toml", piece + two,
+                       piece + two + "tier = \"carries\"\n", "audit", "not §4 or §5")
+        expect(ok, "tier carries on a crate AUDIT §4 and §5 do not list fails")
+        ok, _ = broken("tools/lint-crypto.counts", "written_here 1", "written_here 0", "ratchet",
+                       "allows 0")
+        expect(ok, "more pieces than tools/lint-crypto.counts allows fails")
+        trusted = SUPPLY_AUDITS
+        ok, _ = broken(AUDITS, trusted, "", "untrue", "lib1 1.0.0 is not established")
+        expect(ok, "a library with no trust entry, audit or wildcard audit fails")
+        ok, _ = broken(AUDITS, "github:org/lib1", "github:org/other", "untrue", "is not established")
+        expect(ok, "a trust entry for another publisher than the lock records fails")
+        ok, _ = broken(IMPORTS, "2025-06-01", "2024-06-01", "untrue", "is not established")
+        expect(ok, "a version published before the entry's start fails")
+        ok, _ = broken(AUDITS, "safe-to-deploy", "safe-to-run", "untrue", "is not established")
+        expect(ok, "a trust entry for other criteria fails")
+
+        def supplied(audits, imports, extra=""):
+            """The messages about lib1 with the supply-chain files replaced."""
+            a0, i0, m0 = (root / AUDITS).read_text(), (root / IMPORTS).read_text(), (root / MANIFEST).read_text()
+            (root / AUDITS).write_text(audits)
+            (root / IMPORTS).write_text(imports)
+            (root / MANIFEST).write_text(m0 + extra)
+            try:
+                return [m for m in msgs(check(moved), "untrue") + msgs(check(moved), "ratchet")]
+            finally:
+                (root / AUDITS).write_text(a0)
+                (root / IMPORTS).write_text(i0)
+                (root / MANIFEST).write_text(m0)
+
+        def imported(*lines):
+            return "\n".join(lines) + "\n"
+
+        full = imported("[[audits.src.audits.lib1]]", 'criteria = "safe-to-deploy"', 'version = "1.0.0"')
+        out = supplied("", full)
+        expect(not out, f"an imported full audit establishes a version {out}")
+        chain = imported("[[audits.src.audits.lib1]]", 'criteria = "safe-to-deploy"', 'version = "0.9.0"',
+                         "[[audits.src.audits.lib1]]", 'criteria = "safe-to-deploy"', 'delta = "0.9.0 -> 1.0.0"')
+        expect(not supplied("", chain), "a delta chain from a full audit establishes a version")
+        bare = imported("[[audits.src.audits.lib1]]", 'criteria = "safe-to-deploy"', 'delta = "0.9.0 -> 1.0.0"')
+        expect(any("is not established" in m for m in supplied("", bare)),
+               "a chain of deltas with no full audit does not")
+        run = full.replace("safe-to-deploy", "safe-to-run")
+        expect(any("is not established" in m for m in supplied("", run)),
+               "an imported audit for other criteria does not")
+        wild = imported("[[publisher.lib1]]", 'version = "1.0.0"', 'when = "2025-06-01"', "user-id = 7",
+                        "[[audits.src.wildcard-audits.lib1]]", 'criteria = "safe-to-deploy"', "user-id = 7",
+                        'start = "2025-01-01"', 'end = "2027-01-01"')
+        expect(not supplied("", wild), "an imported wildcard audit for the recorded publisher establishes it")
+        late = wild.replace("2027-01-01", "2025-03-01")
+        expect(any("is not established" in m for m in supplied("", late)),
+               "a wildcard audit that ended before the version was published does not")
+        entry = ('\n[[not_established]]\ncrate = "lib1"\nreason = "R."\ndecision = "F1"\n')
+        out = supplied("", "", entry)
+        expect(not any("is not established" in m for m in out) and any("allows 0" in m for m in out),
+               f"an entry stands for a library that is not established, within its count {out}")
+        expect(any("[[not_established]] lib1 is stale" in m for m in supplied(trusted, SUPPLY_IMPORTS, entry)),
+               "an entry for a library that has become established is stale")
+
         print("a library reached through another crate (F179):")
         (root / "lib/t/src").mkdir(parents=True)
         (root / "lib/t/Cargo.toml").write_text('[package]\nname = "t"\n\n[dependencies]\nlib2 = "1"\n')
@@ -2593,7 +2948,7 @@ def self_test():
                 c = check(inv)
             finally:
                 path.write_text(before)
-            return [m for m in msgs(c) if "through" in m or "lib2" in m]
+            return [m for m in msgs(c) if ("through" in m or "lib2" in m) and "established" not in m]
 
         good = '{ library = "lib2", crate = "lib/t" }'
         out = through_case(good, via_inv)

@@ -108,35 +108,68 @@ To audit key use, read `faraday/faraday-keys` and the primitive crates of
 ## 3. In-house algorithms, named
 
 The highest-leverage single fact for an auditor: everything above marked
-"written here" rather than "from a crate". In one list:
+"written here" rather than "from a crate". In four lists, one for each
+reason: Faraday's own specification, no established implementation
+exists, one exists but does not fit the key rules, and only the part
+used is written:
 
 <!-- crypto-manifest: begin §3 -->
-- BIP-39 mnemonics (`faraday-bip::bip39`)
-- BIP-327 MuSig2 (`faraday-bip::musig`)
-- aezeed and AEZ v5 (`faraday-bip::aezeed`, `faraday-bip::aez`)
-- BIP-352 silent payments (`faraday-bip::silent`)
-- BIP 93 codex32 (`faraday-bip::codex32`)
-- SLIP-39 Shamir backup (`faraday-bip::slip39`)
-- scrypt (`faraday-crypto::scrypt`)
-- Dice, coin, card, hex and camera entropy accumulation and packing, the mix of sources, and Seed XOR (`faraday-entropy`)
+**Faraday's own specification** (5)
+
+- BIP-39 entry and display: words typed by pinyin, zhuyin, kana or hangul, the last word's candidates, the explorer's view of the checksum (`faraday-bip::bip39`)
+- Dice, coin, card, hex and camera entropy accumulation and packing, and the mix of sources (`faraday-entropy`)
 - The session's random generator: its seed and pool, and the mixing of a person's own randomness (`faraday-core::fresh`)
-- The PSBT format, inspection, signing orchestration and verification logic (`faraday-psbt`, over `faraday-bip`'s keys and `bitcoin`'s secp256k1)
+- PSBT inspection, signing orchestration and verification logic (`faraday-psbt`)
+- The choice among a script's satisfactions by real signature size (`faraday-psbt::finalize`)
+
+**No established implementation exists** (19)
+
+- WipeOnFree, the allocator that wipes what it frees (`faraday-crypto::wipe`)
+- BIP-327 MuSig2, with BIP-328 and BIP-390 (`faraday-bip::musig`)
+- AEZ v5 and aezeed, with aezeed's CRC-32C (`faraday-bip::aez`, `faraday-bip::aezeed`)
+- BIP-352 silent payments (`faraday-bip::silent`)
 - The PSBT version 2 reader (`faraday-psbt::v2`)
-- BIP-374 DLEQ proofs (`faraday-bip::dleq`) and BIP-375's sending fields (`faraday-psbt::silent`)
-- The file vault's creation: the empty database, its first seal stamp and the size check (`faraday-vault::file`)
-- The file vault's opening: the size and cost checks, the NFC step and the read-only flag (`faraday-vault::file`)
-- The vault's TOML reader and writer (`faraday-vault::contents`)
-- The KDBX 4 container: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)
-- The KDBX 4 file format (`faraday-vault::kdbx`), used as the vault uses it
-- TOTP code derivation (`faraday-vault::totp`)
-- The QR vault's OpenPGP message: packet reading in every length form, the Argon2 S2K call, the key wrapping, the chunked data packet and its final tag (`faraday-pgp::message`)
-- OpenPGP v4 packet construction (`faraday-pgp`)
+- BIP-322 "simple" message signatures (`faraday-psbt::message`)
+- The QR encoder, a port of Nayuki's `qrcodegen`, with its GF(256) and Reed-Solomon (`faraday-codec::qr`) (carries)
+- BC-UR, with its CBOR (`faraday-codec::ur`, `faraday-codec::cbor`) (carries)
+- CRC-32 (`faraday-crypto::crc32`) (carries)
+- BBQr (`faraday-qr::bbqr`) (carries)
+- SeedQR (`faraday-codec::seedqr`) (carries)
+- SLIP-39 Shamir backup (`faraday-bip::slip39`)
+- FAT16 and FAT32, read and written (`faraday-fat`) (carries)
+- BIP-374 DLEQ proofs and BIP-375's sending fields (`faraday-bip::dleq`, `faraday-psbt::silent`)
 - CMS SignedData, Authenticode's image hash and signature, EFI signature lists and `.auth` files (`faraday-sb`)
+- The FAT32 formatter for the Starter's data partition (`faraday-fat::format`) (carries)
+- GPT and MBR tables, read and rewritten (`faraday-starter-shell::gpt`, `faraday-starter-shell::ids`) (carries)
+- The plist reader for the disk tool's output (`faraday/shells/starter`) (carries)
+- The PDF writer (`faraday-core::pdf`, `faraday-starter::sheets`) (carries)
+
+**One exists but does not fit the key rules** (6)
+
+- BIP-39 mnemonics: entropy to words and back, the checksum, a word's place in its list (`faraday-bip::bip39`): bip39 2.2.2 finds a word by a binary search or a scan that stops at it (`find_word`) and packs entropy with a branch on each bit (`from_entropy_in`), so the time it takes follows the secret words
+- The BIP-39 seed, PBKDF2-HMAC-SHA512 over the sentence through `faraday-crypto` (`faraday-bip::bip39`): bip39's `to_seed` returns the seed as a plain `[u8; 64]`, and its own PBKDF2 leaves its HMAC state unwiped (bip39 2.2.2's `src/pbkdf2.rs`)
+- scrypt (`faraday-crypto::scrypt`): scrypt 0.12.0 frees its passphrase-derived working buffers (`b`, `v`, `t`) without wiping them
+- The PNG writer, with zlib's stored blocks (`faraday-codec::png`) (carries): png 0.18.1 needs `std`, which `faraday-codec` does not have, and does not wipe a picture's rows
+- BIP 93 codex32 (`faraday-bip::codex32`): codex32 0.1.0 holds the seed in a `String` that is `Clone` and `Debug` and never wiped, which `tools/lint-secrets.sh` refuses, and needs `std`, which `faraday-bip` does not have
+- HKDF-SHA256, one copy (`faraday-crypto::hash`): hkdf 0.13.0 returns the pseudorandom key and leaves each output block T(i) in plain arrays it does not wipe
+
+**Only the part used is written** (9)
+
+- The JSON visitor that refuses a key named twice and counts depth (`faraday-bip::json`)
+- A 32-byte hash reduced modulo the curve order, without a branch (`faraday-bip::musig`)
+- Seed XOR (`faraday-entropy::xor`)
+- The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` (`faraday-vault::contents`)
+- The QR vault's OpenPGP message: the version 6 symmetric-key packet with the Argon2 S2K, the version 2 data packet and the literal data packet (`faraday-pgp::message`)
+- The KDBX 4 container a file vault is: header, VariantDictionary, HMAC block stream, inner header and gzip framing (`faraday-vault::kdbx`)
+- TOTP code derivation (`faraday-vault::totp`)
+- OpenPGP v4 packets for one key shape, the armour's CRC-24, and the paperkey format (`faraday-pgp`)
+- The form of a version 4 UUID (`faraday-starter-shell::ids`) (carries)
 <!-- crypto-manifest: end §3 -->
 
-The list is generated from the manifest of cryptographic actions
-(`docs/crypto/actions.toml`, each action's `implementation.written_here`)
-by `docs/crypto/gen.py`, and is never edited by hand. Each is checked
+The lists are generated from the manifest of cryptographic actions
+(`docs/crypto/actions.toml`, each action's `implementation.written_here`
+pieces) by `docs/crypto/gen.py`, and are never edited by hand. The four
+reasons and each piece's decision are in `docs/STANDARDS.md` §10. Each is checked
 against a published vector set, a library or tool Faraday did not
 write, a second implementation Faraday's own authors wrote in Python
 (not checked against an outside source: `tools/crosscheck/README.md`,

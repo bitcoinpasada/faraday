@@ -437,6 +437,13 @@ start = "2025-09-05"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.getrandom]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:rust-random/getrandom"
+start = "2025-12-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md), added by F180"
+
 [[trusted.hashbrown]]
 criteria = "safe-to-deploy"
 user-id = 55123 # rust-lang-owner

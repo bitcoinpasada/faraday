@@ -132,7 +132,11 @@ through = [{ library = "pbkdf2", crate = "core/faraday-crypto" }]
                              # crate, and that crate; check.py holds that the crate depends on it,
                              # that it has a [library.*] table and that the action's functions
                              # reach the crate; not that every such library is listed
-written_here = "…"           # what the crate writes itself rather than takes from a library (AUDIT §3)
+[[action.implementation.written_here]]   # one per piece the crate writes itself rather than takes from a library (AUDIT §3, ESTABLISHED §2.1)
+what = "…"
+why = "…"
+note = "…"
+decision = "F…"
 
 [action.checked]
 vectors = ["psbt"]           # folders under tools/vectors/
@@ -208,7 +212,7 @@ difference, as `tools/learn/sync.py check` does for the Learn pages.
 | `docs/STANDARDS.md` §2 to §5 | Each table between two marker lines (`<!-- crypto-manifest: begin §3 -->` and its end), one row per `[[row]]`: What, Standard (status) (the standards its actions name, grouped by status, then its `standard_note`), Completeness, Verified by (the union of its actions' checks: vectors, each cross-check area by its name and what it is compared against, the `other` checks, the tests counted by crate, self-test checks, fuzz targets, the reasons an action is not cross-checked), Faraday's own call (the union of their own calls). A row that `uses` other actions takes their cells; one with no action gives its own. §0, §8 and §9 stay hand-written. |
 | `docs/STANDARDS.md` §6 | The list of Conservative own calls, with and without a decision. |
 | `docs/STANDARDS.md` §7 | The Novel own calls, in the rank each entry's `novel_rank` gives; actions of one rank are one item. |
-| `docs/AUDIT.md` §3 | The "written here" list: each action's `implementation.written_here`, grouped by crate. |
+| `docs/AUDIT.md` §3 | The "written here" list: each action's `implementation.written_here` pieces, in four lists, one per reason. |
 
 The first generation of STANDARDS and AUDIT §3 was settled row for row
 against the hand-written text it replaced, each difference against the
@@ -1221,7 +1225,7 @@ checked, or named for review.
 
 | Place | What depends | Kind |
 |---|---|---|
-| `docs/STANDARDS.md` §1 to §7 | Statuses, rows, own calls, novel list | Generated |
+| `docs/STANDARDS.md` §1 to §7 and §10 | Statuses, rows, own calls, novel list, what Faraday writes itself | Generated |
 | `docs/AUDIT.md` §1, §2, §3 | Crates, reveals, written-here list | Checked, checked, generated |
 | `docs/KEYS.md` | The reveals and their count | Checked |
 | `docs/COMPUTE.md` §2.3 | The token's roots | Checked |
@@ -1260,7 +1264,7 @@ exception and the structure rules:
   missing. A function the rules find that computes nothing on a secret
   or signed data is a `[[not_crypto]]` entry with its reason; their count
   only falls.
-- The "How Faraday does it" blocks, `docs/STANDARDS.md` §1 to §7 and
+- The "How Faraday does it" blocks, `docs/STANDARDS.md` §1 to §7 and §10 and
   `docs/AUDIT.md` §3 are generated from the manifest and never edited by
   hand; the blocks' values are a third exception to the one strings
   file, beside the Learn pages and the self-test's check names.

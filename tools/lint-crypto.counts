@@ -7,3 +7,12 @@ not_crypto 6
 # action's root and does not offer the action (docs/CRYPTO-LEARN.md §9.2). It only
 # falls; raising it is the owner's decision, recorded in DECISIONS (F164).
 screens_not 22
+# Held by docs/crypto/check.py (docs/ESTABLISHED.md §2.2). The count of
+# `implementation.written_here` pieces in docs/crypto/actions.toml: what Faraday writes
+# itself, each with its reason and decision. It only falls; raising it is the owner's
+# decision, recorded in DECISIONS (F178, F180).
+written_here 39
+# The count of `[[not_established]]` entries: libraries the actions name that no
+# trusted publisher or imported audit establishes (ESTABLISHED §1.2). It only falls;
+# raising it is the owner's decision, recorded in DECISIONS (F180).
+not_established 3

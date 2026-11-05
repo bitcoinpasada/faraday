@@ -440,7 +440,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `crypto.crosscheck-stamp` | the stamp's files, before a release | H | `lint-crosscheck`, `crypto-fingerprints` | F79, F197 |
 | `crypto.tested` | `core/*/src/**` | R | tested against published vectors or another implementation (planned: F148's inventory and re-stamp) | `CLAUDE.md`, F148 |
 | `crypto.action-covered` | `core/*/src/**`, `faraday/faraday-keys/src/**` | H, planned | F148's inventory | F148 |
-| `crypto.generated` | `docs/STANDARDS.md` §1 to §7, `docs/AUDIT.md` §3 | H, planned | F148's `gen.py check` | F148 |
+| `crypto.generated` | `docs/STANDARDS.md` §1 to §7 and §10, `docs/AUDIT.md` §3 | H, planned | F148's `gen.py check` | F148 |
 | `crypto.at-source` | `core/**` | R | fixed at its source, not wrapped | `CLAUDE.md` |
 | `crypto.kept-values` | a type re-implemented from `core/` | R | keeps the values the original keeps | `CLAUDE.md` |
 | `crypto.costs-said` | a costly function added | R | "Costs …" first in its doc (H by `costs-lint` where it takes the token) | `CLAUDE.md` |

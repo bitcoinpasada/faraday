@@ -536,10 +536,6 @@ notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md
 version = "0.3.4"
 criteria = "safe-to-deploy"
 
-[[exemptions.getrandom]]
-version = "0.4.3"
-criteria = "safe-to-deploy"
-
 [[exemptions.ghash]]
 version = "0.5.1"
 criteria = "safe-to-deploy"
