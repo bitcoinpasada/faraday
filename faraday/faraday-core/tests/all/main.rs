@@ -191,6 +191,7 @@ mod vault_seal_room;
 mod vault_seal_stop;
 mod vault_search;
 mod vault_settings_line;
+mod vault_short_window;
 mod vault_show_save;
 mod vault_states;
 mod vault_summary;

@@ -222,7 +222,7 @@ fn on_create_vault() -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
-        height: 768,
+        height: 1000,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -448,7 +448,7 @@ fn creating_a_vault_with_too_few_answers_says_the_randomness_has_not_come() {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
-        height: 768,
+        height: 1000,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,

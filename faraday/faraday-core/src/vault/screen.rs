@@ -834,14 +834,15 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             learn: Some(crate::learn::Topic::Vaults),
         })
         .collect();
-    // A small panel has no side panel: its summary and Create vault follow the last step.
-    let compact = ui.compact;
+    // A small panel has no side panel, nor has a window too low to hold
+    // it whole: its summary and Create vault follow the last step.
+    let compact = ui.compact || h < create_panel_h(app, ui, panel_w);
     let foot = super::dice_screen::foot(app, ui);
     let col = flow::Column {
         area_x: x0,
         area_w: if compact { cw } else { cw - panel_w },
         x: x0 + 40.0,
-        w: (cw - panel_w - 72.0).min(820.0),
+        w: (if compact { cw } else { cw - panel_w } - 72.0).min(820.0),
         h: h - foot.unwrap_or(0.0),
         // Made for another flow: back to it, and where it goes next.
         back: Some(app.named_back(match app.vaults.back_to {
@@ -861,7 +862,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            create_body(app_ref, ui, steps[i], x, y, w)
+            create_body(app_ref, ui, steps[i], x, y, w, compact)
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
@@ -994,7 +995,7 @@ pub(super) fn machine_rows(
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: bool) -> f32 {
     let good = Role::Ok;
     let (muted, ink, primary, warn, inset) = (
         Role::OnSurfaceVariant,
@@ -1443,7 +1444,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
             // A small panel has no side panel: what will be made, and
             // Create vault, come after the last step's controls.
-            if ui.compact {
+            if in_page {
                 cy += 10.0;
                 ui.rule(x, cy, w, Role::OutlineVariant);
                 cy += 16.0;
@@ -1453,6 +1454,24 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     cy - y
+}
+
+/// Costs a layout of the summary's text: the height the side panel needs
+/// to hold all its parts, Create vault at its foot included, `panel_w`
+/// wide: a window lower than this has the
+/// summary and Create vault in the page after the last step instead.
+fn create_panel_h(app: &View, ui: &mut Ui, panel_w: f32) -> f32 {
+    let w = panel_w - 2.0 * tokens::CREATE_PANEL_INSET;
+    let head = ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
+    let summary = crate::compact::screen::measured(ui, |ui| create_summary(app, ui, 0.0, 0.0, w));
+    let rows = vstep::COUNT as f32 - 1.0;
+    tokens::SIDE_PANEL_TOP
+        + head
+        + tokens::CREATE_PANEL_ROW * rows
+        + summary
+        + tokens::CREATE_PANEL_GAP
+        + create_button_h(app, ui, w)
+        + tokens::CREATE_PANEL_INSET
 }
 
 fn create_panel(
@@ -1470,8 +1489,8 @@ fn create_panel(
     };
     ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
     ui.fill(px, 0.0, 1.0, h, 0.0, rule);
-    let x = px + 26.0;
-    let w = pw - 52.0;
+    let x = px + tokens::CREATE_PANEL_INSET;
+    let w = pw - 2.0 * tokens::CREATE_PANEL_INSET;
     let mut y = tokens::SIDE_PANEL_TOP;
     ui.text_as(x, y, LABEL_L, muted, EN.vault_your_choices);
     y += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
@@ -1504,10 +1523,11 @@ fn create_panel(
         );
         let step = if by_size { vstep::PRESET } else { k as u8 };
         ui.press_box(x - 8.0, y - 4.0, w + 16.0, 44.0, va(V::CStep(step)));
-        y += 48.0;
+        y += tokens::CREATE_PANEL_ROW;
     }
     y += create_summary(app, ui, x, y, w);
-    let by = (h - 26.0 - create_button_h(app, ui, w)).max(y + 12.0);
+    let by = (h - tokens::CREATE_PANEL_INSET - create_button_h(app, ui, w))
+        .max(y + tokens::CREATE_PANEL_GAP);
     create_button(app, ui, x, by, w);
 }
 

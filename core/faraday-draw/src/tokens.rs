@@ -642,6 +642,13 @@ pub const POOR_PICTURE_MS: u64 = 4000;
 /// which stand over the panel's top (`docs/MODES.md` §3).
 pub const SIDE_PANEL_TOP: f32 = GRID * 6.0;
 
+/// Create a vault's side panel: the room at each side and at its foot.
+pub const CREATE_PANEL_INSET: f32 = 26.0;
+/// Create a vault's side panel: a row of its choices.
+pub const CREATE_PANEL_ROW: f32 = 48.0;
+/// Create a vault's side panel: the gap above Create vault.
+pub const CREATE_PANEL_GAP: f32 = 12.0;
+
 /// The mode pill's height (`docs/MODES.md` §3).
 pub const MODE_PILL_HEIGHT: f32 = 28.0;
 
