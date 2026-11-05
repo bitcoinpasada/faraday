@@ -171,6 +171,11 @@ internal error rather than carrying on.
   device is trusted for the name it gives. A touchscreen on a bus that
   is part of the machine (a Pi panel's touch controller on I²C, a
   laptop's built-in touchscreen) is trusted input.
+  A device that can capture the screen, arriving after a vault opened,
+  hides what its item page shows at once: the eye's words, paperkey and
+  other masked fields, a seed's code, and a TOTP secret's or a
+  paperkey's code on the QR sheet. They show again with no press once the device is gone and
+  checked again, or let through; a Lock in between drops them.
 - **Also absent:** swap, suspend, hibernation, core dumps, `/dev/mem`,
   `/proc/kcore`, kexec, debugfs, BPF, kernel probes and tracing,
   io_uring, asynchronous I/O, System V IPC, the kernel keyring, one

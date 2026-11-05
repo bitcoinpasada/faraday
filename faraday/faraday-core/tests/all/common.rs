@@ -1845,6 +1845,24 @@ pub fn attach_kvm(app: &mut Faraday) {
     app.press(Action::Cancel);
 }
 
+/// A KVM plugged in with its sheet up, for a page whose secrets already
+/// show.
+pub fn kvm_arrives(app: &mut Faraday) {
+    app.usb_devices(&[kvm()]);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Devices));
+}
+
+/// The machine's device check read, before any KVM, and `show` pressed:
+/// its reminder about a TV is understood and the secret shows.
+pub fn shown_on_a_read_machine(app: &mut Faraday, show: Action) {
+    use faraday_core::devices::DeviceCheck;
+    app.devices = DeviceCheck::machine("flags\t\t: fpu\n", "LENOVO", "20XW", "10");
+    app.usb_devices(&[]);
+    app.press(show);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Devices));
+    app.press(Action::DevicesUnderstood);
+}
+
 /// The KVM pulled and checked again: the reminder about a TV is due too, and understood.
 pub fn kvm_gone(app: &mut Faraday) {
     app.usb_devices(&[]);

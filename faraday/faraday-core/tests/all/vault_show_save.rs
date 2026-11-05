@@ -241,7 +241,7 @@ fn a_key_s_words_show_at_a_press_on_their_eye_and_hide_at_the_next() {
 
 /// A KVM plugged in after the vault opened, its sheet closed and the KVM
 /// still there: the eye on a key's words waits under the sheet and shows
-/// nothing until the KVM is pulled; hiding them again never waits.
+/// nothing until the KVM is pulled; shown, they hide when it arrives.
 #[test]
 fn a_keys_words_wait_for_a_kvm_attached_after_the_vault_opened() {
     let mut app = on_key();
@@ -252,16 +252,16 @@ fn a_keys_words_wait_for_a_kvm_attached_after_the_vault_opened() {
     assert!(!words_on_screen(&mut app), "the words showed with a KVM");
     crate::common::kvm_gone(&mut app);
     assert!(words_on_screen(&mut app), "the press did not carry on");
-    // With another KVM attached, hiding them goes through.
+    // Shown, and another KVM attached: they hide, and the eye waits again.
     app.usb_devices(&[crate::common::kvm()]);
     app.press(Action::Cancel);
+    assert!(!words_on_screen(&mut app), "the words showed with a KVM");
     app.press(eye);
-    assert_eq!(app.sheet, None);
-    assert!(!words_on_screen(&mut app), "hiding waited");
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(!words_on_screen(&mut app), "the words showed with a KVM");
 }
 
-/// The same for a key's SeedQR: its code waits for the KVM to go, and
-/// hiding it goes through.
+/// The same for a key's SeedQR: its code waits for the KVM to go.
 #[test]
 fn a_keys_seedqr_waits_for_a_kvm_attached_after_the_vault_opened() {
     let mut app = on_key();
@@ -274,9 +274,69 @@ fn a_keys_seedqr_waits_for_a_kvm_attached_after_the_vault_opened() {
     assert_eq!(on_screen(&mut app), vec![seedqr_digits()]);
     app.usb_devices(&[crate::common::kvm()]);
     app.press(Action::Cancel);
+    assert!(on_screen(&mut app).is_empty(), "a code showed with a KVM");
     app.press(show);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(on_screen(&mut app).is_empty(), "a code showed with a KVM");
+}
+
+/// A key's words and SeedQR already showing when a KVM arrives are gone
+/// from the screen, also when its sheet is closed with the KVM still
+/// there, and are back once the KVM is pulled and checked, with no press.
+#[test]
+fn shown_words_and_seedqr_hide_for_a_kvm_and_come_back_when_it_is_gone() {
+    let mut app = on_key();
+    crate::common::shown_on_a_read_machine(&mut app, Action::Vault(V::Reveal(0)));
+    app.press(Action::Vault(V::ShowSeedQr));
+    assert!(words_on_screen(&mut app));
+    assert_eq!(on_screen(&mut app), vec![seedqr_digits()]);
+    crate::common::kvm_arrives(&mut app);
+    assert!(!words_on_screen(&mut app), "the words under the sheet");
+    assert!(on_screen(&mut app).is_empty(), "the code under the sheet");
+    app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
-    assert!(on_screen(&mut app).is_empty(), "hiding waited");
+    assert!(!words_on_screen(&mut app), "the words with the KVM there");
+    assert!(
+        on_screen(&mut app).is_empty(),
+        "the code with the KVM there"
+    );
+    // Pulled and checked again.
+    app.usb_devices(&[]);
+    app.press(Action::DevicesCheck);
+    app.press(Action::DevicesUnderstood);
+    assert!(words_on_screen(&mut app), "the words did not come back");
+    assert_eq!(on_screen(&mut app), vec![seedqr_digits()]);
+}
+
+/// A Lock between the KVM's arrival and its going drops what showed.
+#[test]
+fn shown_words_do_not_come_back_after_the_lock_sheet_replaced_the_devices_sheet() {
+    let mut app = on_key();
+    crate::common::shown_on_a_read_machine(&mut app, Action::Vault(V::Reveal(0)));
+    crate::common::kvm_arrives(&mut app);
+    let stick = |on: bool| {
+        if on {
+            vec![faraday_core::StickInfo {
+                make: Default::default(),
+                serial: None,
+                id: "a".into(),
+                label: "STICK".into(),
+                boot: false,
+                files: Vec::new(),
+                vaults: Vec::new(),
+            }]
+        } else {
+            Vec::new()
+        }
+    };
+    app.storage(faraday_core::StorageEvent::Sticks(stick(true)));
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    app.storage(faraday_core::StorageEvent::Sticks(stick(false)));
+    crate::common::kvm_gone(&mut app);
+    assert!(
+        !words_on_screen(&mut app),
+        "the words came back after a lock"
+    );
 }
 
 #[test]

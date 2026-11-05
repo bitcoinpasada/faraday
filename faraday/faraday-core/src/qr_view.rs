@@ -682,6 +682,10 @@ impl QrView {
 #[derive(Default)]
 pub(crate) struct QrArea {
     view: Option<QrView>,
+    /// The held press that opened the view (a TOTP secret's or a
+    /// paperkey's code): a device arriving takes the view off the sheet
+    /// and that press waits under the device check.
+    held_press: Option<crate::vault::VaultAction>,
 }
 
 impl QrArea {
@@ -693,7 +697,18 @@ impl QrArea {
     /// Shows `view` on the QR sheet.
     pub(crate) fn open(&mut self, view: QrView, sheet: &mut Option<Sheet>) {
         self.view = Some(view);
+        self.held_press = None;
         *sheet = Some(Sheet::Qr);
+    }
+
+    /// The view on show was opened by held press `a`.
+    pub(crate) fn opened_by(&mut self, a: crate::vault::VaultAction) {
+        self.held_press = Some(a);
+    }
+
+    /// The held press that opened the view on show, if it was one.
+    pub(crate) fn held_press(&self) -> Option<crate::vault::VaultAction> {
+        self.held_press.filter(|_| self.view.is_some())
     }
 
     /// Drops the view (its source is wiped).
@@ -1303,6 +1318,9 @@ impl Faraday {
         };
         if let Some(view) = view {
             self.open_qr(view);
+            if matches!(a, V::TotpQr | V::PaperkeyQr) {
+                self.qr.opened_by(a);
+            }
         }
     }
 

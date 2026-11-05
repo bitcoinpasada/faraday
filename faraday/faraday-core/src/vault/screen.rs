@@ -2775,7 +2775,7 @@ fn detail(
     dy += ui.advance_as(BODY_S, 34.0);
     let mut secret_id = 0usize;
     // The secrets shown by their eyes here, read once for the page.
-    let shown_fields = app.vaults.fields_shown(app.vault_on_page());
+    let shown_fields = app.vaults.fields_shown(app.vault_secrets_on_page());
     let field_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
         ui.text_as(dx, *dy, BODY_S, muted, label);
         *dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;

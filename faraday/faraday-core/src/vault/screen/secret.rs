@@ -97,7 +97,7 @@ pub(crate) fn secret_with<V: AsRef<str>>(
 /// ([`crate::vault::VaultArea::toggle_seedqr`]); drawing makes none.
 /// Returns the height.
 pub(super) fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let code = app.vaults.seedqr_shown(app.vault_on_page());
+    let code = app.vaults.seedqr_shown(app.vault_secrets_on_page());
     let shown = code.is_some();
     code_with(
         ui,

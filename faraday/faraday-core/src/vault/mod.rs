@@ -720,8 +720,10 @@ impl Faraday {
                 self.vaults.state.sb_sign = None;
                 self.vaults.state.focus = None;
             }
-            V::Reveal(n) => self.vaults.toggle_shown(&c, self.vault_on_page(), n),
-            V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_on_page()),
+            V::Reveal(n) => self
+                .vaults
+                .toggle_shown(&c, self.vault_secrets_on_page(), n),
+            V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_secrets_on_page()),
             V::WalletQr | V::TotpQr | V::PaperkeyQr => self.vault_qr_act(a),
             V::SaveToStick => self.vault_stick_save_open(),
             V::SaveTick(k) => {
@@ -3425,12 +3427,25 @@ impl Faraday {
         self.screen == Screen::VaultContents && self.sheet.is_none()
     }
 
+    /// Where the item page's secrets are kept: the page is on screen with
+    /// no sheet over it, or with the Devices sheet, which hides them and
+    /// gives them back ([`Self::vault_secrets_on_page`]).
+    fn vault_page_kept(&self) -> bool {
+        self.screen == Screen::VaultContents && matches!(self.sheet, None | Some(Sheet::Devices))
+    }
+
+    /// The item page's secrets may be drawn: the page is on screen with no
+    /// sheet over it and nothing is held under the device check.
+    pub(crate) fn vault_secrets_on_page(&self) -> bool {
+        self.vault_on_page() && !self.devices.holding()
+    }
+
     /// After every input: the item page's secrets hidden once the place
     /// they were shown is left ([`Vaults::shown`]'s invariant). The codes
     /// are not made here but before the next frame
     /// ([`Self::vault_code_refresh`]).
     pub(crate) fn vault_shown_tidy(&mut self) {
-        let on = self.vault_on_page();
+        let on = self.vault_page_kept();
         self.vaults.tidy_shown(on);
         self.vault_older_settle();
     }

@@ -449,11 +449,24 @@ impl Faraday {
             })
             .collect();
         // Gone ones stay named until Check again; new ones join.
+        let mut arrived = false;
         for c in d.now() {
             if !d.held.iter().any(|h| h.key == c.key) {
                 d.held.push(c);
                 d.due = true;
                 d.asking = false;
+                arrived = true;
+            }
+        }
+        let read = d.read;
+        if let Some(press) = self.qr.held_press().filter(|_| arrived && read) {
+            // A TOTP secret's or a paperkey's code on show goes off the
+            // sheet at once and is shown again by the press that waits,
+            // once the device is gone and checked.
+            if self.sheet == Some(Sheet::Qr) {
+                self.qr.close();
+                self.devices.due = false;
+                self.device_hold(Action::Vault(press));
             }
         }
         self.device_sheet();
@@ -513,8 +526,8 @@ impl Faraday {
         let Action::Vault(v) = action else {
             return false;
         };
-        let on_page = self.vault_on_page();
-        on_page
+        let on_page = self.vault_secrets_on_page();
+        self.vault_on_page()
             && match v {
                 V::TotpQr => true,
                 V::Reveal(n) => u32::try_from(n)
@@ -527,16 +540,25 @@ impl Faraday {
     }
 
     /// The Lock sheet comes up over whatever is open: the press that waited
-    /// under the device sheet goes, so no later hold carries it on. What
+    /// under the device sheet goes, so no later hold carries it on, and the
+    /// secrets the sheet hid on the item page go with it. What
     /// waits under a new device's sheet or the import stays.
     pub(crate) fn lock_sheet_replaces_devices(&mut self) {
         self.devices.after = None;
+        // What the device hid is not given back after a lock.
+        self.vaults.tidy_shown(false);
         self.sheet = Some(Sheet::Lock);
     }
 
     /// `action` was held: the sheet comes up, and it is done once the
     /// hold ends.
     pub(crate) fn device_hold(&mut self, action: Action) {
+        use crate::vault::VaultAction as V;
+        // An eye pressed under the hold shows its secret alone when the
+        // hold ends: what was hidden by the device is not kept with it.
+        if matches!(action, Action::Vault(V::Reveal(_) | V::ShowSeedQr)) {
+            self.vaults.tidy_shown(false);
+        }
         self.devices.after = Some(action);
         self.devices.asking = false;
         self.devices.over_import = self.sheet == Some(Sheet::Import);

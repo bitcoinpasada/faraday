@@ -61,13 +61,17 @@ impl View<'_> {
     /// The selected key record's words, held since its eye opened them
     /// (F195): a borrow, nothing costs.
     pub fn record_words_held(&self) -> Option<&Mnemonic> {
-        self.app.vaults.words_shown(self.app.vault_on_page())
+        self.app
+            .vaults
+            .words_shown(self.app.vault_secrets_on_page())
     }
 
     /// The selected GPG key's paperkey, held since its eye opened it
     /// (F195): a borrow, nothing costs.
     pub fn paperkey_held(&self) -> Option<&str> {
-        self.app.vaults.paperkey_shown(self.app.vault_on_page())
+        self.app
+            .vaults
+            .paperkey_shown(self.app.vault_secrets_on_page())
     }
 
     /// What the entry on the page gives for its TOTP secret, held for the

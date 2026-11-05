@@ -525,6 +525,20 @@ fn an_entrys_totp_code_waits_for_a_kvm_attached_after_the_vault_opened() {
     assert!(app.qr().is_some(), "the press did not carry on");
 }
 
+/// The TOTP secret's code on show when a KVM arrives goes off the sheet
+/// at once, and shows again once the KVM is gone and checked, with no
+/// press.
+#[test]
+fn an_entrys_totp_code_on_show_hides_for_a_kvm_and_comes_back_when_it_is_gone() {
+    let mut app = on_an_entry(URI);
+    crate::common::shown_on_a_read_machine(&mut app, Action::Vault(V::TotpQr));
+    assert!(app.qr().is_some());
+    crate::common::kvm_arrives(&mut app);
+    assert!(app.qr().is_none(), "the code stayed with a KVM arriving");
+    crate::common::kvm_gone(&mut app);
+    assert!(app.qr().is_some(), "the code did not come back");
+}
+
 /// An HOTP secret has no code to show: no Show as QR, and its press shows
 /// none.
 #[test]
