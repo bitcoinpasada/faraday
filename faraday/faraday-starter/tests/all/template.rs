@@ -1,4 +1,4 @@
-//! Blank templates (`docs/STARTER.md` §3.8, batch T): what a person sees and
+//! Blank templates (`docs/STARTER.md` §3.8): what a person sees and
 //! gets from the Blank templates page.
 
 use faraday_core::pdf;

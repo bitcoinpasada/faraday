@@ -9778,7 +9778,7 @@ strings! {
     wallet_key_path_cancel: "Cancel",
     /// Toast once the wallet is added from the key path sheet. `{}`: its name.
     wallet_key_path_added: "{} added",
-    // ----- Which account of a Coldcard export loads (docs/INTEROP.md §5 I9), faraday-core -----
+    // ----- Which account of a Coldcard export loads (docs/INTEROP.md §5, BIP-392 sp()), faraday-core -----
     /// Text in `text`: a Coldcard export holding a single-sig account and
     /// a silent payments account, not added until one is chosen.
     wallet_account_unchosen: "Not added yet: its account is to be chosen",
@@ -12132,7 +12132,7 @@ strings! {
     storage_answer_zeroing: "an answer that is not zeroing",
     /// The disk process answered a rename with another answer.
     storage_answer_rename: "an answer that is not a rename",
-    // ----- Sweep a private key (docs/INTEROP.md §5 I11, F171), faraday-core -----
+    // ----- Sweep a private key (docs/INTEROP.md §5, Sweeping a private key, F171), faraday-core -----
     /// Text in `TILES`, and the Sweep sheet's title.
     catalog_sweep_key: "Sweep a private key",
     /// Text in `TILES`.

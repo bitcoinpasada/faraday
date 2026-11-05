@@ -273,7 +273,7 @@ pub fn sign(
 
     // A legacy input whose script code holds OP_CODESEPARATOR, named
     // by a selected key, refuses the whole PSBT before anything is
-    // signed (INTEROP §5 I11).
+    // signed (INTEROP §5, Sweeping a private key).
     for (i, input) in psbt.inner().inputs.iter().enumerate() {
         let names_selected = input
             .bip32_derivation

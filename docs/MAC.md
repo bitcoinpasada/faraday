@@ -1,8 +1,8 @@
 # Faraday on Macs
 
 **Kind:** Spec
-**Status:** Paused until a Mac is available to test on. Partly built: the Starter's macOS module and Home on a Mac (batches A3a, A3b), without a Mac
-**Open:** Intel Macs (batch I), the Apple Silicon image and start-up file (A1, A2, A4), the Starter built and tried on a Mac (A3c), the README's "Which Macs" (§7)
+**Status:** Paused until a Mac is available to test on. Partly built: the Starter's macOS module and Home on a Mac, without a Mac
+**Open:** Intel Macs (§3, not built yet), the Apple Silicon image and start-up file (§4.1–§4.4, not built yet), the Starter built and tried on a Mac and the Apple Silicon setup and removal (§4.5–§4.6, §6, not built yet), the README's "Which Macs" (§7)
 
 Decided by the owner (`docs/DECISIONS.md` F13; every decision in §9
 taken). F13 supersedes F11's "no macOS app": Faraday targets Macs
@@ -27,15 +27,15 @@ of its boot code from a FAT partition on the Mac's disk, unchecked, and
 says it has no secure boot. Faraday puts every byte that runs before its
 kernel inside the sealed start-up file (§4.2).
 
-## 0. Rules for the implementing agent
+## 0. Rules for building
 
-Rules for the remaining batches:
+Rules for the parts not built yet:
 
-- **§2.2 and §4.3 are requirements, not goals.** If a batch finds one
+- **§2.2 and §4.3 are requirements, not goals.** If building finds one
   cannot be met (m1n1 cannot be built without its USB proxy, U-Boot
   cannot be built without a command line, the preseeded Secure Boot
   starts an unsigned image in QEMU, the kernel takes an initrd from
-  outside), it stops and reports. It does not weaken the requirement
+  outside), the work stops and says so. It does not weaken the requirement
   or work around it.
 - Every claim about a Mac model in a document a person reads (README,
   Learn pages, the website's text) cites its source: Apple's
@@ -114,7 +114,7 @@ Hold Option (Alt) at power-on; the stick shows as "EFI Boot". The
 stick's GPT layout and its one file, `EFI/BOOT/BOOTX64.EFI`, are what
 Mac firmware starts; no `bless`, HFS+ volume or hybrid MBR. Older
 firmware is pickier about sticks: a 2008–2012 Mac is tried before
-batch I is done, and what it finds goes into the code or the Learn
+Intel Mac support is built, and what it finds goes into the code or the Learn
 page, not into a list of tried models (§7).
 
 The stick's kernel is 6.18 (F23), whose EFI stub no longer reads the
@@ -129,11 +129,11 @@ address, stride and size from its table (iMac4,1 to iMac11,1,
 Macmini1,1, 3,1 and 4,1, MacBook1,1 to 7,1, MacBookAir1,1 and 3,1,
 MacBookPro1,1 to 8,2), and efifb takes 32 bits a pixel, x8r8g8b8, when
 nothing says otherwise. A Mac with UGA only and not in that table
-would start with no picture. Batch I's Mac says which it has.
+would start with no picture. The first Intel Mac tried says which it has.
 
 On the dual-GPU MacBook Pros, the stub's `apple_set_os` runs by itself
-(firmware vendor "Apple", models listed in `x86-stub.c`). Batch I
-records which GPU drives the panel on one if one is tried.
+(firmware vendor "Apple", models listed in `x86-stub.c`). The first one
+tried records which GPU drives the panel on one if one is tried.
 
 ### 3.2 Firmware
 
@@ -173,7 +173,7 @@ In `faraday/image/boards/x86_64-uefi/`:
   a root port (the built-in keyboard, a USB keyboard plugged straight
   in) is handed to EHCI's UHCI companion controller, so Faraday sees
   no keyboard there. From 2011 the chipset's own hub matches rates and
-  EHCI alone serves it. Bound by PCI class, as OHCI. Until batch I,
+  EHCI alone serves it. Bound by PCI class, as OHCI. Until Intel Mac support is built,
   the Learn page says a keyboard on
   a pre-2011 Mac may not be found and a USB 2.0 hub between works.
 - `kernel.forbidden`: `MOUSE_BCM5974`, with `HID_APPLE`'s reason: it
@@ -292,7 +292,7 @@ Each is checked by the build (configuration lines asserted, as
 - **m1n1:** stage 1 with its payloads; no chainload; no `chainload=`
   or ESP variable read. When it cannot start its payload, it powers the
   Mac off: it never falls into its USB proxy mode, which takes commands
-  from another computer over the cable. Batch A2 establishes how m1n1
+  from another computer over the cable. Building the start-up file starts by establishing how m1n1
   behaves on failure at the pinned commit before anything else; if the
   proxy cannot be left out, it stops (§0).
 - **U-Boot:** no command line (`CMDLINE` off) or, if bootstd needs it,
@@ -388,8 +388,8 @@ person presses its button.
    `step2.sh` runs at the pinned commit, with the owner's credentials
    when asked. Not `bless --setBoot`: macOS stays the Mac's default, and
    Faraday starts only when chosen. The exact commands are in the Learn
-   page and on the QR code; batch A3 copies them from `step2.sh` and
-   tries them on a Mac before the page is published.
+   page and on the QR code; the Starter's recipe copies them from `step2.sh` and
+   they are tried on a Mac before the page is published.
 7. **Done:** to start Faraday, plug in the stick, hold the power button,
    choose Faraday.
 
@@ -427,7 +427,7 @@ and the link says so. As in STARTER §3.1c for Linux's boot entry.
 container grown back (`resizeContainer … 0`). It needs the
 administrator password, not recovery. The Options screen no longer
 shows Faraday. What may remain is the volume's entry in the Mac's
-security policy storage, which only recovery can see; batch A3 checks
+security policy storage, which only recovery can see; the Mac try checks
 and the Learn page says what it found. Setting up again later repeats
 §4.5 in full, recovery included.
 
@@ -454,7 +454,7 @@ whatever its machine type; the first-signing build record (`docs/history/PLAN.md
 ## 5. The desktop app on macOS
 
 Not published, and dropped from the plan (owner, 2026-10-14, F30): no
-release carries a macOS desktop app, and batch D is not built. F83
+release carries a macOS desktop app, and it is not built. F83
 (2026-10-23) puts Faraday Demo inside the Linux and Windows Starters;
 the macOS Starter carries none. A
 developer with a Mac can still build the desktop shell there; this
@@ -493,8 +493,8 @@ On a Mac the Starter knows a Faraday stick by its layout
 `Content` `GUID_partition_scheme`, and on each partition `Content` (its
 type: `EFI`, `Microsoft Basic Data`, or the type's GUID),
 `PartitionMapPartitionOffset` and `Size`, in bytes. These keys were
-written from documentation, not recorded on a Mac; batch A3c checks
-them against a recording.
+written from documentation, not recorded on a Mac; they are checked
+against a recording made on a Mac.
 
 The list as written: moved to `docs/history/MAC-LOG.md`.
 
@@ -530,17 +530,23 @@ fault, not whose Mac showed it. The same holds for the Learn pages:
 the Mac pages end with their documentation sources and the date read,
 not a model tried on.
 
-## 8. Batches
+## 8. Order of building
 
-| Batch | What | Needs | Order |
-|---|---|---|---|
-| I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2) with the Intel Mac guide's QR code, the README's Intel rows from A3b's table, with the test that they agree (§7) | decided | independent of the Starter batches; the README rows after A3b |
-| A1 | The `arm64-apple` stick image (§4.1), with the Asahi keyboard patches and their `docs/deps` review | decided | after I |
-| A2 | The start-up file (§4.2–§4.4): m1n1 and U-Boot pinned and built under §4.3, `faraday-macboot`, the QEMU check, the published no-check file | decided | after A1 |
-| A3c | The Starter on a Mac: the bundle and its recipe, every answer recorded on a Mac, the device checks; then the Apple Silicon setup and removal (§4.5–§4.6), tried on an M1 or M2 Mac with the owner; the Apple Silicon README rows | a Mac to build on and an M1 or M2 Mac to try (M7) | after A3b, and A2 for Apple Silicon; waits for a Mac |
-| A4 | Faraday's Secure Boot screen showing the start-up file's hash for a key (§4.4); the arm64 build record | decided | after A2 |
+The Intel Mac work (§3) is independent of the Starter's Mac work and comes
+first; the README's Intel rows follow the Starter's Mac table, which they
+are tested against (§7). The Apple Silicon stick image (§4.1), with the Asahi
+keyboard patches and their `docs/deps` review, follows it. The start-up
+file (§4.2–§4.4) follows the image: m1n1 and U-Boot pinned and built under
+§4.3, `faraday-macboot`, the QEMU check and the published no-check file.
+Faraday's Secure Boot screen showing the start-up file's hash for a key
+(§4.4), and the arm64 build record, follow the start-up file. The Starter on
+a Mac comes last and waits for a Mac to build on and an M1 or M2 Mac to try
+(M7): the bundle and its recipe, every answer recorded on a Mac, the device
+checks, then the Apple Silicon setup and removal (§4.5–§4.6) and the Apple
+Silicon README rows.
 
-Built rows (A3a, A3b) and the dropped D: moved to `docs/history/MAC-LOG.md`.
+The Starter's macOS module and its Home on a Mac are built; the desktop app
+on macOS is dropped (§5).
 
 Tests state what a person sees or can do: the SPI keyboard trusted and
 a USB device faking the bus not (§3.4); the Mac power-off line for a T2
@@ -570,8 +576,8 @@ Taken by the owner on 2026-10-12 in discussion, except where marked.
 - **M6 No "Tried" in anything published:** the Mac list's status is
   Expected or Not supported, from cited documentation; no published
   text names a model tried on (§7.1).
-- **M7 No Mac yet:** batches I, A1, A2 and A4 go ahead without one; D
-  and A3 wait until a Mac is available to build on (Apple's SDK
+- **M7 No Mac yet:** Intel Macs, the Apple Silicon image and start-up file and
+  the Secure Boot screen's hash go ahead without one; the Starter on a Mac waits until a Mac is available to build on (Apple's SDK
   licence allows it only on a Mac) and an M1 or M2 Mac to try.
 - **M8 Signing on macOS:** ad-hoc, not notarized; Open Anyway.
 - **M9 Removing the start-up volume:** offered by the Starter, for privacy

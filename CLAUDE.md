@@ -12,12 +12,16 @@ plan <paths>` lists the ones a change touches.
 - `docs/` holds what is true now or still to be built; how it was built
   is history (`docs/history/`). `docs/README.md` says which document
   answers which question: open it first, then read only the section you
-  need. A Reference describes what is built; a Spec is planned work and
-  carries an `**Open:**` line naming what is not built. The change that
-  builds the last of a Spec's open work moves its plan to
-  `docs/history/<NAME>-LOG.md` and makes it a Reference; a moved section
-  keeps its heading with one line, ``Moved to `docs/history/<NAME>-LOG.md`.``,
-  and sections are never renumbered. `lint-docs` holds this.
+  need. A Reference describes what is built; a Spec holds a feature's
+  design and whether it is built, with an `**Open:**` line saying in plain
+  words what is not, and carries no work list: no table of work, no labels
+  for pieces of work, no estimates (F214). What must come first and which
+  files change stay as plain text where they matter to anyone building
+  Faraday. The change that builds the last of a Spec's open work moves what
+  is only about building it to `docs/history/<NAME>-LOG.md` and makes it a
+  Reference; a moved section keeps its heading with one line, ``Moved to
+  `docs/history/<NAME>-LOG.md`.``, and sections are never renumbered.
+  `lint-docs` holds this.
 - Faraday's decisions are numbered F1 onward, one file each
   (`docs/decisions/F<n>.md`), indexed in `docs/DECISIONS.md`: read the
   index, then only the decision you need. A new decision is a new file

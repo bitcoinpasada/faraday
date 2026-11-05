@@ -1,5 +1,5 @@
 //! A wallet's public files, made from owned public inputs
-//! (`docs/WORKERS.md` §2.1, W7): the descriptor, the sheets, the shares and
+//! (`docs/WORKERS.md` §2.1): the descriptor, the sheets, the shares and
 //! their pictures, the other software's files. The same making serves the
 //! files a person asks for one kind at a time and the checklist's, whether
 //! it runs on the worker as a [`FilesWork`] job or on the thread that asked

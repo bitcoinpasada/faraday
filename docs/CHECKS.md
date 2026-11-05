@@ -91,6 +91,7 @@ does what is `tools/README.md`'s.
 | `docs.paths`: every repository path a document names exists | `**/*.md` | held | - | `lint-docs` | - | `CLAUDE.md` |
 | `docs.readme-index`: a document added, deleted or changed in Kind has its line in docs/README.md | `docs/*.md`<br>`!docs/README.md`<br>lines matching `^[+-]\*\*Kind:\*\*` | pair | `docs/README.md` | - | - | `docs/README.md` |
 | `docs.spec-done`: a Spec that stops being one moves its plan to docs/history/<NAME>-LOG.md and becomes a Reference | `docs/{name}.md`<br>`!docs/README.md`<br>on modify<br>lines matching `^-\*\*Kind:\*\* Spec` | pair | `docs/history/{name}-LOG.md` | `lint-docs` | lint-docs rule 4 holds the Open line and the plan's place in part | `CLAUDE.md` |
+| `docs.spec-no-work-list`: a Spec holds the design and whether it is built, and carries no work list | `docs/*.md` | held | - | `lint-docs` | lint-docs rule 8 sees the word batch in an Open line or a heading and a table of batches; a label of another form is for a reader to catch | `CLAUDE.md`<br>`docs/decisions/F214.md` |
 | `docs.no-silent-delete`: a decision or a docs/*.md document is moved to docs/history/, never deleted | `docs/decisions/{f}.md`<br>`docs/{f}.md`<br>on delete | forbid | one of `docs/history/decisions/{f}.md`<br>`docs/history/{f}.md` | - | - | `docs/decisions/F149.md` |
 
 ### 2.4 decisions

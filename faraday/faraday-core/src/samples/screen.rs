@@ -1,4 +1,4 @@
-//! The Load samples sheet (F81, `docs/MODES.md` §3 and §10 M6): the sample
+//! The Load samples sheet (F81, `docs/MODES.md` §3): the sample
 //! wallets, then the sample keys, each a tick box; Select all or Unselect
 //! all over them; Not now and Load ticked at the foot. A sample already
 //! loaded shows ticked and dimmed. Drawing reads the rows

@@ -11,7 +11,7 @@
 //! The Load samples sheet (`screen.rs`) and what its presses do are here:
 //! the sheet lists the samples, a person ticks some, and Load ticked puts
 //! them in the session through the paths a typed or scanned key and wallet
-//! take (`docs/MODES.md` §5, §10 M6).
+//! take (`docs/MODES.md` §5).
 
 pub(crate) mod put;
 pub(crate) mod screen;
@@ -26,7 +26,7 @@ use faraday_keys::Handout;
 
 /// The passphrase of every sample that has one: the backup, the vault, and
 /// the second fingerprint of each key that takes a passphrase
-/// (`docs/MODES.md` §6.2, §10 M6b). All lowercase.
+/// (`docs/MODES.md` §6.2). All lowercase.
 pub const PASSPHRASE: &str = crate::demo::PASSPHRASE;
 
 /// The form a key sample is read in (`docs/MODES.md` §5.1).
@@ -58,8 +58,7 @@ impl SampleForm {
     }
 }
 
-/// How big a key sample is, as its type line says it (`docs/MODES.md`
-/// §10 M6b): what the form counts.
+/// How big a key sample is, as its type line says it (`docs/MODES.md`): what the form counts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SampleSize {
     /// BIP-39 words (or an LND cipher seed's).

@@ -1,6 +1,6 @@
 //! Signing with a WIF key for a sweep (`faraday_psbt::sweep`), and the
 //! refusal of a legacy input whose script code holds `OP_CODESEPARATOR`
-//! (`docs/INTEROP.md` §5 I11).
+//! (`docs/INTEROP.md` §5, Sweeping a private key).
 
 use crate::common::builder::funding_tx;
 use crate::common::{ABANDON, hex, master, unhex};

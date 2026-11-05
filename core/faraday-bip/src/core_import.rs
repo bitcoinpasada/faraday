@@ -74,7 +74,7 @@ pub fn import_descriptors(descriptor: &str, rescan: Rescan) -> String {
 const MULTIPATH: &str = "<0;1>";
 
 /// The wallet's receive and change descriptors for Bitcoin Core before
-/// 29, which takes no multipath descriptor (`docs/INTEROP.md` §5 I4):
+/// 29, which takes no multipath descriptor (`docs/INTEROP.md` §5, Bitcoin Core before 29):
 /// the wallet's descriptor with `<0;1>` as `0` or `1`, as miniscript's
 /// `into_single_descriptors` splits it, each with its own checksum. The
 /// origins are kept as the wallet writes them, so a wallet read from

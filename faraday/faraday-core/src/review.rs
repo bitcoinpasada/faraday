@@ -276,7 +276,7 @@ pub(crate) fn sign_error_text(e: &faraday_psbt::Error) -> String {
         E::Parse(_) => EN.psbt_error_parse.to_string(),
         E::UnsupportedVersion(v) => fill(EN.psbt_error_version, &[&v.to_string()]),
         E::MissingUtxo { input } => fill(EN.psbt_error_no_utxo, &[&n(*input)]),
-        // Said whole, as the spend's refusal (INTEROP §5 I11).
+        // Said whole, as the spend's refusal (INTEROP §5, Sweeping a private key).
         E::Unsupported {
             reason: faraday_psbt::Reason::CodeSeparator,
             ..

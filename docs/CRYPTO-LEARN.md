@@ -216,7 +216,7 @@ difference, as `tools/learn/sync.py check` does for the Learn pages.
 
 The first generation of STANDARDS and AUDIT §3 was settled row for row
 against the hand-written text it replaced, each difference against the
-code (batch 5, §15).
+code.
 
 ### 3.2 Checked
 
@@ -772,9 +772,9 @@ The values are the manifest's and the cross-check's, carried by
 ### 8.7 The guide's pages
 
 The bar's new button changes the guide's pictures of the screens that
-offer an action, and the guide's text that names the bar's tools. Batch
-7 draws them again (`just guide-pictures`) and says so in each page's
-"On this screen" table, after the ?:
+offer an action, and the guide's text that names the bar's tools. They are
+drawn again (`just guide-pictures`) and each page's "On this screen"
+table says so, after the ?:
 
 - Faraday's screens: `docs/guide/screens/add-a-key.md` (Entry),
   `restore.md`, `files.md`, `spend-tab.md` (Family), `new-key.md`
@@ -862,7 +862,7 @@ non-empty:
 
 The README's "What runs" table and "Known differences" are generated
 from these (§3.1), so the area, the README and the block cannot
-disagree; today's text is moved into the attributes in batch 8, word for
+disagree; today's text is moved into the attributes, word for
 word, and differences settled against the area's code. A passing run
 writes, per area, its case count beside the seed in the stamp; the
 block's last line reads it.
@@ -1053,7 +1053,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 ## 12. The actions found in the code
 
 The manifest's 100 actions, each from its entry in `docs/crypto/actions.toml`
-as batch 5 left it (2026-10-28): what it does, its roots (the functions
+as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under
 `core/` and `faraday/`, and every one is covered by an action or by one
@@ -1250,7 +1250,7 @@ checked, or named for review.
 
 ## 14. Rule lines for CLAUDE.md
 
-Added when batch 4 puts the lint in `just lint`, beside the Learn
+Added when the lint enters `just lint`, beside the Learn
 exception and the structure rules:
 
 - Every cryptographic function is covered by an action of
@@ -1271,67 +1271,59 @@ exception and the structure rules:
 - A screen that offers an action of the manifest carries **How Faraday
   does it** in its top app bar, and the reachability test holds it.
 
-## 15. Order of work
+## 15. Order of building
 
-Each batch is its own commit; the lint enters `just lint` only when the
-manifest covers every function it finds, with no transitional
-exemptions.
+The lint enters `just lint` only when the manifest covers every
+function it finds, with no transitional exemptions. What comes before
+what:
 
-1. **Inventory** (Sonnet). The `crypto-inventory` binary in
-   `tools/costs-lint`, the walker shared with the costs lint; rules 1 to
-   4 of §4.2; closures; body hashes; test functions; call sites in
-   `faraday-core`; JSON lines out. A self-test over a fixture crate, as
-   `tools/lint-guide.py --self-test` has, showing each rule and each row
-   of §5.1's table. Check: `cargo run -q -p costs-lint --bin
-   crypto-inventory` over the tree, its count of cryptographic functions
-   reported.
-2. **Manifest and checker** (Sonnet). The schema of §2.2;
-   docs/crypto/check.py (`check`, `review <id>`, `changes <tag>`); the
-   `**Cryptography:**` line on the primitive crates' `docs/deps/` pages;
-   the empty manifest and the list of uncovered functions it prints.
-3. **Entries** (Sonnet, several agents, one area each of §12's groups,
-   at most four groups per agent). Each entry filled from the code, every
+1. The inventory (`crypto-inventory` in `tools/costs-lint`, the walker
+   shared with the costs lint: rules 1 to 4 of §4.2, closures, body
+   hashes, test functions, call sites in `faraday-core`, JSON lines out)
+   comes first. A self-test over a fixture crate, as
+   `tools/lint-guide.py --self-test` has, shows each rule and each row of
+   §5.1's table.
+2. The schema of §2.2 and the checker (docs/crypto/check.py: `check`,
+   `review <id>`, `changes <tag>`) come next, with the `**Cryptography:**`
+   line on the primitive crates' `docs/deps/` pages. The entries follow,
+   one area of §12's groups at a time. Each is filled from the code, every
    fact checked there: the roots exist, the tests exist and run, the
    vectors and areas are the ones named, the libraries' versions are the
-   lock's, a status is STANDARDS' as read on its date. Seeded from §12
-   and STANDARDS §2 to §5; every function the inventory reports
-   uncovered is added to an action or to `[[not_crypto]]` with its
-   reason. Each agent stamps its entries with the recipe.
-4. **Generators and the lint** (Sonnet). docs/crypto/gen.py for §3.1;
-   STANDARDS and AUDIT §3 regenerated; the checks of §3.2; the ratchet
-   file; `just lint` runs the inventory, `check.py check`, `gen.py check`;
-   CLAUDE.md's lines (§14) and `docs/DEVELOPING.md` and `tools/README.md`
-   for the recipes.
-5. **Review** (Opus). The generated STANDARDS and AUDIT §3 against
-   today's text, each difference settled against the code; the
-   `[[not_crypto]]` list read entry by entry.
-6. **Screens** (Opus). Designed: the icon, the bar's order, the Learn
-   tab and the block's drawing at every size and the Pi, the Starter's
-   sheet (§8); the strings listed (§8.6); the two new Learn pages
-   written (`docs/learn/faraday/secure-boot-keys.md`,
+   lock's, a status is STANDARDS' as read on its date. Every function the
+   inventory reports uncovered is added to an action or to
+   `[[not_crypto]]` with its reason, and each entry is stamped with the
+   recipe.
+3. The cross-check's facts as attributes (§10.1), moved from the README's
+   table word for word, come before the generators, so the Cross-check
+   field has its source: the README's table and differences generated,
+   the stamp recording each area's case count, and
+   `tools/crosscheck/stamp.py` reading `FILES` and `VECTORS` from the
+   manifest and naming the changed actions (§10.2).
+4. The generators and the lint come after the entries: docs/crypto/gen.py
+   for §3.1, STANDARDS and AUDIT §3 regenerated, the checks of §3.2, the
+   ratchet file, and `just lint` running the inventory, `check.py check`
+   and `gen.py check`, with CLAUDE.md's lines (§14) and
+   `docs/DEVELOPING.md` and `tools/README.md` for the recipes. The
+   generated STANDARDS and AUDIT §3 are read against the earlier text,
+   each difference settled against the code, and the `[[not_crypto]]`
+   list is read entry by entry.
+5. The screens are designed before they are built (§8): the icon, the
+   bar's order, the Learn tab and the block's drawing at every size and
+   the Pi, the Starter's sheet; the strings (§8.6); the two new Learn
+   pages (`docs/learn/faraday/secure-boot-keys.md`,
    `docs/learn/faraday/checking-written.md`); DESIGN §4.1 and §4.12 and
-   LAYOUT §8 point to §8; the guide's pages listed (§8.7). Left to
-   batch 7, being code: the strings themselves, the two pages in
-   faraday-learn's `OWN` table and the Starter's `LearnId`, and Bip85's
-   and Explore's Learn lists (`faraday/faraday-core/src/learn.rs`).
-7. **Screens built** (Sonnet). From batch 6's design (§8): the icon
-   baked, the strings of §8.6, the pages registered (`secure-boot-keys`
-   in `OWN` and on VaultContents' Secure Boot kind, `checking-written`
-   in `OWN` and `LearnId`), `keys_kept_page()` added to Explore's
-   pages and `&EN.tools` to Bip85's, the guide's pages of §8.7 drawn
-   again; the reachability
-   test (§9.1); the screens check (§9.2); one tour rendered per size.
-8. **The cross-check** (Sonnet). Each area's facts as attributes
-   (§10.1), moved from the README's table word for word; the README's
-   table and differences generated; the stamp records each area's case
-   count; `tools/crosscheck/stamp.py` reads `FILES` and `VECTORS` from
-   the manifest and names the changed actions (§10.2). Before batch 4's
-   generator, so the Cross-check field has its source.
-9. **The website** (later, its own repository; §11).
+   LAYOUT §8 point to §8; the guide's pages (§8.7). The code follows: the
+   icon baked, the strings, the pages registered (`secure-boot-keys` in
+   `OWN` and on VaultContents' Secure Boot kind, `checking-written` in
+   `OWN` and `LearnId`), `keys_kept_page()` added to Explore's pages and
+   `&EN.tools` to Bip85's (`faraday/faraday-core/src/learn.rs`), the
+   guide's pages drawn again, the reachability test (§9.1), the screens
+   check (§9.2), one tour rendered per size.
+6. The website comes later, in its own repository (§11).
 
-The last batch to build moves this spec's plan (§12's seed table, §14,
-§15, §16) to docs/history/CRYPTO-LEARN-LOG.md (new) and makes it a
-Reference.
+The change that builds the last of this spec's open work moves its plan
+(§12's seed table, §14, §15, §16) to docs/history/CRYPTO-LEARN-LOG.md and
+makes it a Reference.
 
 ## 16. Questions for the owner
 
@@ -1495,7 +1487,7 @@ reason = "The function's name (RFC 9106)."
   text begins in lower case unless its first word is a name; a number of
   that work, which no constant holds yet, is `{planned:<n>}`, allowed only
   there. **`para.until`** marks a paragraph about today's behaviour that
-  the item replaces. The batch that builds the item drops its `until`
+  the item replaces. The change that builds the item drops its `until`
   paragraphs and its paragraphs' `planned` keys, rewording them as built,
   and the `[open_item]`.
 - **`para.table`**: in place of `text`, one of the tables gen.py writes
@@ -1683,7 +1675,7 @@ The website links them; the device names them as text.
   800-63B, each with its reason; the label "Faraday vault v1 slot" is
   `SLOT_INFO`'s bytes, a placeholder), so no number is typed;
 - a `planned` or `until` names no `[open_item]`, or an item whose
-  Spec's Open line no longer names it: the batch that builds an item,
+  Spec's Open line no longer names it: the change that builds an item,
   which removes it from the Open line, must rewrite its paragraphs in the
   same change; an `[open_item]` no paragraph names fails too;
 - a `{planned:<n>}` stands outside a planned paragraph;
@@ -1734,15 +1726,16 @@ What changes in §11.1:
 - **The schema:** the website reads `schema = 2`; a build of it that
   knows only 1 stops, as §11 has it.
 
-### 18.8 Order of work
+### 18.8 Order of building
 
-One batch (Sonnet, before or after VAULT-HARDENING's batch 0, its
-sentences marked): the schema of §18.2 in check.py (`TOP_KEYS` gains
-`construction` and `name_with_digits`; `schema = 2`; `--self-test`
-covers a placeholder that does not resolve, a typed digit, a planned
-item no Open line names), gen.py's tables and placeholders, the two
-constructions in docs/crypto/actions.toml with §18.3's and §18.4's text,
-`CONSTRUCTIONS` in `faraday/faraday-learn/src/how.rs`, the Learn page's
-drawing of them, and `docs/learn/faraday/vaults.md`'s "Passphrase
-strength" section removed. Each later VAULT-HARDENING batch rewrites its
-planned paragraphs (§18.6).
+The two constructions are built together: the schema of §18.2 in
+check.py (`TOP_KEYS` gains `construction` and `name_with_digits`;
+`schema = 2`; `--self-test` covers a placeholder that does not resolve,
+a typed digit, a planned item no Open line names), gen.py's tables and
+placeholders, the two constructions in docs/crypto/actions.toml with
+§18.3's and §18.4's text, `CONSTRUCTIONS` in
+`faraday/faraday-learn/src/how.rs`, the Learn page's drawing of them, and
+`docs/learn/faraday/vaults.md`'s "Passphrase strength" section removed.
+They may come before or after the rename of `docs/VAULT-HARDENING.md`
+(§2), its sentences marked. Each later change of that document rewrites
+its planned paragraphs (§18.6).

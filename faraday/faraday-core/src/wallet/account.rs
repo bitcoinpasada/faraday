@@ -1,5 +1,5 @@
 //! A Coldcard export holding a single-sig account and a silent payments
-//! account (`bip352`, `docs/INTEROP.md` §5 I9): which of the two loads is
+//! account (`bip352`, `docs/INTEROP.md` §5, BIP-392 sp()): which of the two loads is
 //! the person's choice (owner, 2026-10-29). The export waits here, both
 //! wallets read, while the account dialog asks; the choice is kept for
 //! the session, so the press that asked runs again and loads the one

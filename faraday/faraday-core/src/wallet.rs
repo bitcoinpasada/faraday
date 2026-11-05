@@ -1328,7 +1328,7 @@ pub enum FileKind {
     Wallet,
     /// Another wallet's file that holds a private key or a seed beside its
     /// public keys (an Electrum wallet file with an `xprv` or a `seed`,
-    /// `docs/INTEROP.md` §5 I6): a secret. It loads as the wallet its
+    /// `docs/INTEROP.md` §5, Electrum wallet files): a secret. It loads as the wallet its
     /// public keys describe; nothing secret in it is read.
     SecretWallet,
     /// A finished transaction, as hex.

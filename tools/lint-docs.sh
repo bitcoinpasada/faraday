@@ -58,6 +58,11 @@
 #    assignments (`dev=1`) and options (`--fresh`) before the
 #    recipe are skipped; its arguments are not checked.
 #
+# 8. No work list in a Spec or Reference (F214): no table whose first
+#    column is Batch, no batch named in an `**Open:**` line, and in a Spec
+#    no heading of batches or order of work unless its whole body is the
+#    stub of rule 4.
+#
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does.
 set -u
@@ -140,6 +145,49 @@ def check_log(f, kind):
         fail(f, n + 1, f"heading `{title}` is plan or build log in a "
                        "Reference; move the section to docs/history/ and "
                        "leave a one-line stub")
+
+
+# Rule 8: no work list in a Spec or Reference (F214).
+WORK_WORD = re.compile(r"\bbatch(es)?\b", re.I)
+WORK_HEAD = re.compile(r"\bbatch(es)?\b|order of work", re.I)
+WORK_TABLE = re.compile(r"^\|\s*batch(es)?\s*\|", re.I)
+# Still to be done, after the move of its plan to history.
+WORK_LIST_LATER = {"docs/ESTABLISHED.md"}
+
+
+def check_work_list(f, kind):
+    if kind not in ("Spec", "Reference") or f in WORK_LIST_LATER:
+        return
+    lines = open(f, encoding="utf-8").read().split("\n")
+    fenced = False
+    heads = []
+    for n, l in enumerate(lines):
+        if re.match(r"\s*(```|~~~)", l):
+            fenced = not fenced
+        elif fenced:
+            continue
+        elif WORK_TABLE.match(l):
+            fail(f, n + 1, "a table of batches; a Spec carries no work list "
+                           "(F214): move it to docs/history/")
+        elif l.startswith("**Open:**") and n < 12 and WORK_WORD.search(l):
+            fail(f, n + 1, "an `**Open:**` line naming a batch; say in plain "
+                           "words what is not built (F214)")
+        else:
+            m = re.match(r"(#+)\s+(.*)", l)
+            if m:
+                heads.append((n, len(m.group(1)), m.group(2)))
+    if kind != "Spec":
+        return
+    for i, (n, level, title) in enumerate(heads):
+        if not WORK_HEAD.search(title):
+            continue
+        end = next((m for m, lv, _ in heads[i + 1:] if lv <= level), len(lines))
+        body = [l.strip() for l in lines[n + 1:end] if l.strip()]
+        if len(body) == 1 and STUB.match(body[0]):
+            continue
+        fail(f, n + 1, f"heading `{title}` names work in a Spec (F214); say "
+                       "it as design, or move the section to docs/history/ "
+                       "and leave a one-line stub")
 
 
 # Rule 5: the decisions and their index.
@@ -270,6 +318,7 @@ for f in files:
     if kind in ("Reference", "Record") and opens:
         fail(f, 1, f"an `**Open:**` line in a {kind}; open work makes it a Spec")
     check_log(f, kind)
+    check_work_list(f, kind)
 
 
 # Rule 2: paths.

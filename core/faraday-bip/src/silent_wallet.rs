@@ -248,7 +248,7 @@ pub fn parse_descriptor(c: &Compute, text: &str) -> Result<SilentWallet, ReadErr
 /// from a scan key expression and the origin a file states beside it:
 /// Coldcard's export, whose `bip352` account carries the key and its
 /// `deriv` and is rooted at the master's `xfp`, the file's top-level one
-/// (`docs/INTEROP.md` §5 I9).
+/// (`docs/INTEROP.md` §5, BIP-392 sp()).
 pub fn from_scan_key(
     c: &Compute,
     key: &str,

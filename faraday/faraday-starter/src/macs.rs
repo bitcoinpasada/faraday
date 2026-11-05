@@ -196,7 +196,7 @@ pub enum Start {
     },
     /// 32-bit EFI firmware: it cannot start the stick.
     Firmware32,
-    /// Apple silicon: not yet (until `docs/MAC.md` A1 and A2).
+    /// Apple silicon: not yet (until the Apple Silicon image and start-up file of `docs/MAC.md` §4 exist).
     NotYet,
 }
 

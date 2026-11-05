@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F174, F182); built: the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1)
-**Open:** §12's batch 5: the dev build and disk test, the write timings and the Windows 11 virtual machine run of §10; macOS's `diskutil` keys checked against a Mac, paused until one is available (`docs/MAC.md`)
+**Open:** the dev build and disk test, the write timings and the Windows 11 virtual machine run of §10; macOS's `diskutil` keys checked against a Mac, paused until one is available (`docs/MAC.md`)
 
 A Faraday stick or Pi card has partitions with the same names as any
 other stick or card, its own IDs, and nothing in Faraday that finds it
@@ -270,7 +270,7 @@ image to a stick: it makes the stick from it.
    there is one.
 3. **The data partition**: a FAT32 volume at the partition's size,
    made by Faraday's own formatter in `faraday/faraday-fat` (F180,
-   `docs/ESTABLISHED.md` §3.2, batch E1), with Microsoft's FAT
+   `docs/ESTABLISHED.md` §3.2), with Microsoft's FAT
    specification's table of cluster sizes as `mkfs.fat -F 32` follows
    it (4 KiB to 8 GB, 8 KiB to 16 GB, 16 KiB to 32 GB, 32 KiB above),
    the stick's own data serial and the person's name (§6), no files.
@@ -644,7 +644,7 @@ For F182:
   sector try no longer hides the 512-byte one's fault).
 - The time to write and check a stick made for its size, on a USB 2
   and a USB 3 stick, against the whole-image write.
-- In the Windows 11 virtual machine, with real builds (§12, batch 5): a
+- In the Windows 11 virtual machine, with real builds (§12): a
   stick made by the Starter, an image written with `dd`, and two of each
   at once, through plugging in, copying to the data partition, a
   shutdown with the stick in, and pulling it out while mounted; after
@@ -697,15 +697,6 @@ Chosen here, within F182; each is the owner's to change:
 - The boot partition's sum is the ninth field on a stick image's line
   of `IMAGES` (§4.3).
 
-## 12. Order of work
+## 12. Order of building
 
-Each batch is its own change, landed when its tests pass; each needs
-the one before it, except 2 and 3, which can go in either order.
-
-| Batch | What | Where | Size |
-|---|---|---|---|
-| 1 | This specification and F182 | §2, §4, §5.1, §10, §11 | Built |
-| 2 | The image: first usable sector 34, the boot FAT as Windows leaves it, the build's checks with `sgdisk`, `sfdisk` and `fsck.fat` | §4.1 | Built |
-| 3 | The device and the layout: §5.1's rule in `faraday-boot`, `faraday-grant`, `faraday-disk` and `stick-boot.sh`, with fixtures of each shape and one Windows rewrote; `disk-test.py --no-kvm` | §5.1, §5.2 | Built |
-| 4 | The Starter: the stick made for its size, the FAT32 formatter (`docs/ESTABLISHED.md` §3.2, batch E1), the boot partition's sum in `MANIFEST` and its check, Clear the whole stick first, the check's lines, keep data's check, Learn's Checking what is written, the guide's Written picture | §4.2 to §4.4 | Built |
-| 5 | A dev build and the disk test; the timings; the Windows 11 virtual machine run with real builds, the Pi card's FAT16 boot partition included; what it finds, if anything, is a change of its own | §10's last items | half a day to a day |
+The order of building was: this specification, then the image (§4.1), then the device and the layout (§5.1, §5.2) and the Starter (§4.2 to §4.4), each needing the one before it, except that the device and the Starter's work can go in either order. All of it is built except the dev build and disk test, the timings and the Windows 11 virtual machine run with real builds, the Pi card's FAT16 boot partition included (§10's last items); what that run finds, if anything, is a change of its own.

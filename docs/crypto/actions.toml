@@ -223,7 +223,7 @@ completeness = "Key path only; script-path spends refused; no WIF participant or
 id = "silent-receive"
 section = 2
 what = "Silent payments, receive (`core/faraday-bip/src/silent.rs`, `core/faraday-bip/src/silent_wallet.rs`)"
-completeness = "Receive, labels, scan-key export, `sp()` read and written (INTEROP §5 I9); `sp(KEY,KEY)` and `spspend` refused; scanning stops at K_max; sender arithmetic is test-only"
+completeness = "Receive, labels, scan-key export, `sp()` read and written (INTEROP §5, BIP-392 sp()); `sp(KEY,KEY)` and `spspend` refused; scanning stops at K_max; sender arithmetic is test-only"
 
 [[row]]
 id = "silent-send"
@@ -353,7 +353,7 @@ completeness = "Applications 2', 32', 39', 128169', 707764', 707785'; no DICE, R
 id = "electrum-seeds"
 section = 3
 what = "Electrum seeds"
-completeness = "Not built (INTEROP §5 I7)"
+completeness = "Not built (INTEROP §5, Electrum seed words)"
 no_action = "Not built."
 standard = "Electrum's own scheme"
 verified = "None"
@@ -405,7 +405,7 @@ completeness = "Signs every wallet kind above; miniscript finalizes, and Faraday
 id = "psbt-v2"
 section = 4
 what = "PSBT v2 (`core/faraday-psbt/src/v2.rs`)"
-completeness = "Read, checked and converted to version 0 in core; the silent payments code uses it; the app reads it wherever it reads a PSBT, signs its version 0 form and writes it back out as version 2 (INTEROP §5 I10)"
+completeness = "Read, checked and converted to version 0 in core; the silent payments code uses it; the app reads it wherever it reads a PSBT, signs its version 0 form and writes it back out as version 2 (INTEROP §5, PSBT version 2)"
 
 [[row]]
 id = "sighash"
@@ -511,7 +511,7 @@ completeness = "Reads and writes the descriptors of §2; one text, with `h`"
 id = "bsms"
 section = 4
 what = "BSMS (`core/faraday-bip/src/bsms.rs`)"
-completeness = "NO_ENCRYPTION records only (INTEROP §5 I3); signer records' signatures checked"
+completeness = "NO_ENCRYPTION records only (INTEROP §5, BIP 129 records); signer records' signatures checked"
 
 [[row]]
 id = "wallet-files"

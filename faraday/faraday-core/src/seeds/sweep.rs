@@ -1,4 +1,4 @@
-//! Sweep a private key (`docs/INTEROP.md` §5 I11, F171): a WIF scanned
+//! Sweep a private key (`docs/INTEROP.md` §5, Sweeping a private key, F171): a WIF scanned
 //! on Home's Scan or the sheet's own scanner, or typed on the sheet,
 //! never loaded as a key and never kept.
 //!
@@ -88,7 +88,7 @@ pub struct Review {
     /// The PSBT as read, in its version 0 form, which is what is signed.
     pub psbt: Psbt,
     /// The version 2 PSBT as read, when it came as one (BIP-370,
-    /// `docs/INTEROP.md` §5 I10): the signed PSBT goes back out as it
+    /// `docs/INTEROP.md` §5, PSBT version 2): the signed PSBT goes back out as it
     /// ([`out_bytes`]).
     pub v2: Option<faraday_psbt::v2::PsbtV2>,
     /// The line on the key's inputs: how many, and their total.

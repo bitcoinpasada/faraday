@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Not built (F26, amended by F30)
-**Open:** all of it, batches L1 and L2 (§12).
+**Open:** all of it (§12).
 
 The problem it solves: a stick visit reads at most 18 MiB of a file
 (`faraday-files` `MAX_READ`, `faraday-core` `READ_MAX`). The figure was
@@ -181,12 +181,12 @@ app reserves at the file's size before the first part, its cost already
 in the ledger. A whole import is parsed from that buffer alone, never
 from what the sheet read.
 
-### 4.2 Saving the boxes (L1)
+### 4.2 Saving the boxes
 
 Today `save_boxes` clones every Inbox and Outbox item into the command
 it sends, and `Boxes::save` empties each box directory and writes every
 item again, on every call. With a large file that is a third copy and a
-rewrite of the whole file at every toast or setting. L1 changes both:
+rewrite of the whole file at every toast or setting. The change is to both:
 
 - Items are held as shared, immutable buffers, and the save command
   carries references to them, not copies.
@@ -247,7 +247,7 @@ the panic key lose them.
   state with the signature's hashed part and the v4 trailer (`0x04`,
   `0xFF`, the hashed part's length as four bytes), and signs. A whole
   file uses the same call, the app hashing the file where it is held, so
-  no copy of it is made (L1). The detached signature goes For the stick
+  no copy of it is made. The detached signature goes For the stick
   as any signature does: `{file}.asc`, with **Show as QR** and **PNG**.
 
 ## 7. Writing a signed APK on a later visit
@@ -398,21 +398,20 @@ app's are.
   MiB of fixed bytes (a ChaCha20 stream from a fixed key) in a file.
   Every judged check above runs on it.
 
-## 12. Batches
+## 12. Order of building
 
-- **L1, any size.** The protocol of §8 (List and ListFiles, ReadPart
-  with its chain position, the write requests, ReadQr's bound, the
-  timeouts), vault files read and written back in parts; no cap; the
-  threshold; §9's names; the boot import's count; the sheet with Import
-  the whole file only; §4's rule with `vault_need_mib` shared with
-  Unlock, *F* kept from power-on, the ledger, the visit's total and
-  Unlock's Delete; §4.2's box saving; `faraday-pgp` signing from a hash
-  state; progress, Stop and the idle lock's wait; writes in parts, so an
-  Outbox file of any size is written. Its tests.
-- **L2, signing only.** §5 and §6: the single streamed pass, the
-  signing-only entry and its box, GPG over it; the 200 MiB fixture. Its
-  tests.
+Any size comes first, then signing only. First: the protocol of §8 (List
+and ListFiles, ReadPart with its chain position, the write requests,
+ReadQr's bound, the timeouts), vault files read and written back in
+parts; no cap; the threshold; §9's names; the boot import's count; the
+sheet with Import the whole file only; §4's rule with `vault_need_mib`
+shared with Unlock, *F* kept from power-on, the ledger, the visit's total
+and Unlock's Delete; §4.2's box saving; `faraday-pgp` signing from a hash
+state; progress, Stop and the idle lock's wait; writes in parts, so an
+Outbox file of any size is written. Then §5 and §6: the single streamed
+pass, the signing-only entry and its box, GPG over it; the 200 MiB
+fixture. Each comes with its tests.
 
-Until L1, `README.md`, `docs/history/PLAN.md` and `docs/FLOWS.md` give
-today's 18 MiB and mark this spec's behaviour as not built; L1's
-completion report changes them.
+Until the first is built, `README.md`, `docs/history/PLAN.md` and
+`docs/FLOWS.md` give today's 18 MiB and mark this spec's behaviour as not
+built; building it changes them.

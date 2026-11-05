@@ -42,7 +42,7 @@ fn file(name: &str, n: char) -> ImageFinding {
 }
 
 /// The PC stick image found, and the Apple silicon one when `apple` (a
-/// stand-in: no release carries it until `docs/MAC.md` A1).
+/// stand-in: no release carries it until the Apple Silicon image of `docs/MAC.md` §4.1 exists).
 fn images(apple: bool) -> Vec<ImageFinding> {
     let mut found = vec![file("faraday-stick-0.2.0-x86_64-uefi.img.xz", 'a')];
     if apple {

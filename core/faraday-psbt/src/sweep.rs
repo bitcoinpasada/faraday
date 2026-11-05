@@ -1,5 +1,5 @@
 //! Signing with one private key read from a WIF, for a sweep
-//! (`docs/INTEROP.md` §5 I11, F171): the key's coins, which an online
+//! (`docs/INTEROP.md` §5, Sweeping a private key, F171): the key's coins, which an online
 //! wallet watching its addresses gathered into a PSBT, signed over to
 //! the person's own wallet.
 //!

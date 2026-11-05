@@ -1,8 +1,8 @@
 # Your own randomness, and the kernel's at boot
 
 **Kind:** Spec
-**Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (R3; `core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3, R4); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (R7, F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
+**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -51,15 +51,15 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   source (F158, §2.1). A key from dice alone takes nothing from the
   system, by design: it can be reproduced elsewhere.
 
-What a person adds reaches the seed and the pool (R1) from Add
-randomness (R2): Settings › Randomness and New key's This device open
+What a person adds reaches the seed and the pool from Add
+randomness: Settings › Randomness and New key's This device open
 it, and §8 adds every other press that draws the system's (F157, not
 built); camera, dice, coins and cards are entered on New key's own pads.
 A camera frame is added as it is taken, its commitment that of a
-one-frame `CameraNoise` (SHA-256 over the frame's SHA-256), as R1's
-tests take it. New key's This device bytes taken before an addition,
+one-frame `CameraNoise` (SHA-256 over the frame's SHA-256), as the
+mixing's tests take it. New key's This device bytes taken before an addition,
 not yet made into words, are asked for again, so its label says what
-they hold. Pointer and keys (R3) is offered where the shell says it
+they hold. Pointer and keys is offered where the shell says it
 has a pointer and keys (`Faraday::set_pointer_keys_offered`: the
 desktop app; the Starter's held app shows only Transfer and Learn, so
 no Add randomness), its events recorded and
@@ -294,7 +294,7 @@ weighed to make the image and its comments agree:
   one that says so. With §2, a person who does not trust the CPU can add
   their own randomness.
 
-A is built (R4, 2026-10-23): `boards/x86_64-uefi/cmdline.txt` carries
+A is built (2026-10-23): `boards/x86_64-uefi/cmdline.txt` carries
 both parameters; `kernel.forbidden` no longer lists the two dead
 symbols; a new `boards/x86_64-uefi/kernel.cmdline` lists the two words
 and `check-kernel-config.sh` fails a config whose `CONFIG_CMDLINE`
@@ -446,19 +446,11 @@ listed first, and the others stay available (§2.2). Since 2026-10-26
 (owner) the page opens with nothing chosen, the camera off until Camera
 is pressed.
 
-## 6. Batches
+## 6. Order of building and files changed
 
-| Batch | What | Size |
-|---|---|---|
-| R1 | `Own` in `fresh.rs`: adding, the seed's and the pool's mixing, the lock; tests 1–4; the cross-check | Built |
-| R2 | The Add randomness page: camera (the default), dice, coins and cards on every shell, through `faraday-entropy`'s accumulators; Settings' row and the status line; New key's label and link; tests 5 | Built |
-| R3 | Pointer and keys on the desktop app, as §5 item 4 decides: `faraday-entropy`'s `PointerKeys`, the source on the page and the card, its known answers in the cross-check; test 6. Built | small |
-| R4 | The kernel: A (§3.3), the comments at `faraday/image/boards/x86_64-uefi/linux.fragment:267-275`, `kernel.forbidden:8-9`, the Pi fragments' lines 81-82, the stick shell's comment; the dev instrumentation; then the measurement on hardware | Built, then hardware |
-| R5 | §3.5: the late seed (Home's line gone, a press waiting with "Waiting for randomness", the minute's bound) in `fresh.rs` and the screens that need the seed; tests that a press made before the seed goes on when it arrives and that a minute without one says so | small |
-| R6 | §3.5: the Pi's generator mixed, not credited (the command line, and the shell's write where the kernel needs it), checked against the Pi kernel's source | small |
-| R7 | §8: the Randomness row at every press of §8.1, its place in the Pi's ⋮, the way back to the press; §8.5's tests | medium |
+The mixing and the lock come first, then the Add randomness page, then the desktop's pointer and keys, which need the page. The kernel change does not wait for the others. The late seed and the Pi's generator (§3.5) follow, and the Randomness row at every press (§8) comes last, as it needs the page.
 
-R4 does not wait for the measurement; the measurement confirms it, and
+The kernel change does not wait for the measurement; the measurement confirms it, and
 the comments say what the kernel does.
 
 Edit list:
@@ -661,7 +653,7 @@ before the press:
   offers it, even where the bar's tools would otherwise fit (DESIGN
   §4's Bar row). Its 48 dp target and the chevron's do not overlap.
 
-### 8.4 Code changes (batch R7)
+### 8.4 Code changes
 
 - `faraday/faraday-core/src/screens/randomness.rs`: `row`, the Randomness
   row of §8.2, drawn by every screen below; the compact short form of

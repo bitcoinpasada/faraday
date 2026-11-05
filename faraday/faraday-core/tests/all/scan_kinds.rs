@@ -605,7 +605,7 @@ fn it_is_a_seed_xor_part_opens_the_seed_xor_form_with_the_words_in() {
 }
 
 /// Sparrow's Specter DIY `addwallet` command and Keystone's `sp()`
-/// (`docs/INTEROP.md` §5 I8, I9), read at Add a key's scanner, show the
+/// (`docs/INTEROP.md` §5, Specter DIY addwallet and BIP-392 sp()), read at Add a key's scanner, show the
 /// card naming a wallet description, whose way over loads it; the spend
 /// key in an `sp()` is named there with no way over and nothing filed.
 #[test]

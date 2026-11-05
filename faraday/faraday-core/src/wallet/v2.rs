@@ -1,4 +1,4 @@
-//! A version 2 PSBT (BIP-370, `docs/INTEROP.md` §5 I10) in a spend: read
+//! A version 2 PSBT (BIP-370, `docs/INTEROP.md` §5, PSBT version 2) in a spend: read
 //! as the version 0 PSBT of its transaction, which is what is signed,
 //! and written out again as version 2.
 

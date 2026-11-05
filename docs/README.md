@@ -6,8 +6,9 @@
 Where to look for what. Open this first, then only the section you
 need. Each document's header says what kind it is:
 - **Reference** describes what is built and true now.
-- **Spec** is planned work, or work partly built; its `**Open:**` line
-  says what is not built.
+- **Spec** is a feature's design, not built or partly built; its
+  `**Open:**` line says in plain words what is not built. It carries no
+  work list (F214).
 - **Record** is kept as written: the decisions.
 - **History**, in `docs/history/`, describes how things were built and
   the tree as it was. A section moved there leaves its heading and one
@@ -63,7 +64,7 @@ need. Each document's header says what kind it is:
 | What is run before a release, and which parsers are fuzzed? | `tools/README.md`, "Before a release"; `fuzz/README.md`, `faraday/fuzz/README.md` |
 | For each cryptographic action, which standard, code and checks, and how does a screen show it; what fails `just lint` when one is added or changed? | `docs/CRYPTO-LEARN.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
-| What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below); the board holds the rest |
+| What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below) |
 | How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
 | How do I submit an audit, or an outside review of one of Faraday's own specifications? | `docs/AUDIT-SUBMISSIONS.md`; the own specifications, §10 |
 | How do I report a security problem? | `SECURITY.md` |
@@ -139,6 +140,6 @@ need. Each document's header says what kind it is:
 
 - `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FLOWS-LOG.md`, `GPG-PAPERKEY-LOG.md`, `HANDOFF.md`, `IMPACT-LOG.md`, `INTEROP-LOG.md`, `KDBX-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `LAYOUT-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `ORIENTATION-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SCANNING-LOG.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `SPEND-FROM-BACKUP-LOG.md`, `STARTER-LOG.md`, `STICK-SETUP-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TEXT-CURSOR-LOG.md`, `TEXT-SIZE-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-HARDENING-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
+**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `CRYPTO-LEARN-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FLOWS-LOG.md`, `FRAMES-LOG.md`, `GPG-PAPERKEY-LOG.md`, `HANDOFF.md`, `IMAGES-LOG.md`, `IMPACT-LOG.md`, `INTEROP-LOG.md`, `KDBX-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `LAYOUT-LOG.md`, `MAC-LOG.md`, `MODES-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `ORIENTATION-LOG.md`, `OWN-RANDOMNESS-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SCANNING-LOG.md`, `SEED-CONVERSION-LOG.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `SPEND-FROM-BACKUP-LOG.md`, `STARTER-LOG.md`, `STICK-IDENTITY-LOG.md`, `STICK-SETUP-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TEXT-CURSOR-LOG.md`, `TEXT-SIZE-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-HARDENING-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn, `WORKERS-LOG.md`.
 
 **Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures, `docs/guide/pictures/` the user guide's.

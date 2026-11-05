@@ -363,7 +363,7 @@ pub enum Code {
     /// A wallet's BIP 129 descriptor record.
     Bsms(usize),
     /// A wallet as Specter DIY's `addwallet` command, in Specter's
-    /// numbered parts (`docs/INTEROP.md` §5 I8).
+    /// numbered parts (`docs/INTEROP.md` §5, Specter DIY addwallet).
     SpecterDiy(usize),
     /// The account key of Create's slot n, for the cosigners.
     Key(u8),

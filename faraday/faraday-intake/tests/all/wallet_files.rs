@@ -487,7 +487,7 @@ fn a_descriptor_in_a_receive_and_change_pair_or_alone_is_one_wallet_with_one_fir
     );
 }
 
-// Specter DIY's `addwallet` (`docs/INTEROP.md` §5 I8).
+// Specter DIY's `addwallet` (`docs/INTEROP.md` §5, Specter DIY addwallet).
 
 #[test]
 fn sparrows_specter_diy_export_reads_as_its_2_of_3_named_sparrow_multisig() {
@@ -574,7 +574,7 @@ fn an_addwallet_command_faraday_cannot_verify_is_refused() {
     assert!(read_wallet(&c, &bare).is_err());
 }
 
-// BIP-392's `sp()` (`docs/INTEROP.md` §5 I9).
+// BIP-392's `sp()` (`docs/INTEROP.md` §5, BIP-392 sp()).
 
 #[test]
 fn keystones_sp_and_specter_diys_key_alone_read_as_one_silent_payments_wallet_of_0f056943() {

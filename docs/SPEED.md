@@ -359,7 +359,7 @@ Create's Start and Wallet cards, the flows-in-progress rows).
   checklist at every stage, a scroll, a pointer move, the board in
   every layer view, Create's cards, at 1366×768 and 2560×1600 scale 2;
   the results in §6. Any frame over 16 ms is named with what it spends
-  its time on, for a later batch; nothing else is changed in this one.
+  its time on; nothing else is changed here.
 
 ## 4. Measuring
 
@@ -373,7 +373,7 @@ build machine, release profile, at 1366×768 scale 1 and 2560×1600 scale
 - one scroll frame on the same checklist;
 - the event handling of a pointer move over it.
 
-The plan of measuring before and after each batch: moved to `docs/history/SPEED-LOG.md`.
+The plan of measuring before and after each change: moved to `docs/history/SPEED-LOG.md`.
 
 ## 5. Batches
 
@@ -385,19 +385,19 @@ Moved to `docs/history/SPEED-LOG.md`.
 
 ## 7. Standing rule: a late-flow frame is timed (owner, 2026-10-15)
 
-After any batch that adds or changes what a screen works out while it
+After a change that adds or changes what a screen works out while it
 draws, or what runs after every event, it is timed once with the
 harness of §4, before the work is pushed (owner, 2026-11-01: once for the
-batch, not before each commit):
+whole change, not before each commit):
 
-- one frame, and one scroll frame, of each screen the batch touched,
+- one frame, and one scroll frame, of each screen the change touched,
   in the heaviest session the flow reaches: a 2-of-3 wallet whose three
   keys were made here, its backup flow under way, a vault open;
 - the event handling of a pointer move over the same screen.
 
-The numbers go in the batch's report beside the ones from before it. A
+The numbers are reported beside the ones from before the change. A
 frame that costs more than before, by more than the run-to-run spread,
-is explained in the report or fixed in the batch. The harness stays
+is explained in the report or fixed in the change. The harness stays
 outside the repository; this rule is how it is used.
 
 The counts are enforced in `just` (owner, 2026-10-20): each costly
@@ -412,33 +412,32 @@ keep what it draws, with why. A secret the person chose to show is held while sh
 (F195), so the tests draw each twice and the second frame works out
 nothing. The token of §3.3 holds the same rule at
 compile time: drawing cannot call costly work but through `View`'s
-accessors. The timing above stays for milliseconds. Since batch S1 (§8)
+accessors. The timing above stays for milliseconds. Since the speed audit (§8)
 the same budget tests also press what each main screen offers, compare
 frames as the Inbox and the wallets grow, let every flow page rest at
-seven scales, and fix the work of the key moments; since COMPUTE D1
-(§8.3) they also hold each kept accessor, a frame's allocations and
+seven scales, and fix the work of the key moments; (§8.3) they also hold each kept accessor, a frame's allocations and
 lines of text, each typed character, the Pi's panel and a long
 session's kept lists.
 
-## 8. The speed audit and batch S1 (2026-10-21)
+## 8. The speed audit (2026-10-21)
 
 Every path a person waits on is held by counts in `just`, no wall
 time: frames, every press, screens as the Inbox and the wallets grow,
 pages at rest, and the key moments (§8.3), in the kinds of §8.2.
 
-The speed audit and what S1 fixed: moved to `docs/history/SPEED-LOG.md`.
+The speed audit and what it fixed: moved to `docs/history/SPEED-LOG.md`.
 
-### 8.1 What S1 fixed
+### 8.1 What the audit fixed
 
 Moved to `docs/history/SPEED-LOG.md`.
 
 ### 8.2 New counted kinds
 
-Counted at their source, the core's through `faraday_crypto::work` (F65). S1 counted them behind a `count` feature and a
-process-wide counter the app installed; since COMPUTE C3 the count
+Counted at their source, the core's through `faraday_crypto::work` (F65). They were first counted behind a `count` feature and a
+process-wide counter the app installed; now the count
 goes through the token the caller holds (`c.count(kind)`), the feature
 and the counter are gone, and Faraday's tokens carry
-`work::core_count`, which maps each core kind to Faraday's own. S1's
+`work::core_count`, which maps each core kind to Faraday's own. The
 kinds:
 
 | Kind | Where |
@@ -562,7 +561,7 @@ token but `View`'s; no mint while drawing), `faraday/clippy.toml` run
 through `tools/clippy.py`, and the `compile_fail` doctests on
 `Compute` and `View`.
 
-## 9. Batch S2: nothing a person waits on blocks a frame (2026-10-21)
+## 9. Nothing a person waits on blocks a frame (2026-10-21)
 
 Nothing a person waits on blocks a frame. What holds:
 
@@ -625,12 +624,12 @@ Nothing a person waits on blocks a frame. What holds:
    change (Settings' idle and scale choices) is made once and kept.
    The backup board's overdraw is its look and stays.
 
-The batch's account, with its measurements: moved to
+The account, with its measurements: moved to
 `docs/history/SPEED-LOG.md`.
 
-## 10. Batch S3: what the Inbox gives is kept with the Inbox (2026-10-21)
+## 10. What the Inbox gives is kept with the Inbox (2026-10-21)
 
-What S2 left: moved to `docs/history/SPEED-LOG.md`.
+What §9 left: moved to `docs/history/SPEED-LOG.md`.
 
 `Faraday::inbox` is now `InboxFiles`, which reads as the files
 (`Vec<Item>`) and keeps that result (`Found`) beside them. It is worked
@@ -660,13 +659,12 @@ none, with 1x and 5x the files.
 
 The measurements: moved to `docs/history/SPEED-LOG.md`.
 
-## 11. Batch E: the stick's panel and the Starter (2026-10-21)
+## 11. The stick's panel and the Starter (2026-10-21)
 
-The counts of §8 covered faraday-core. Batch E (owner; not §5's E,
-the web demo) takes them to the two places they did not reach: the stick shell's path from the core's
+The counts of §8 covered faraday-core. They are taken to the two places they did not reach: the stick shell's path from the core's
 frame to the framebuffer, and the Starter.
 
-### 11.1 E1: the stick shell writes only what changed
+### 11.1 The stick shell writes only what changed
 
 What was found: moved to `docs/history/SPEED-LOG.md`.
 
@@ -694,7 +692,7 @@ twice, none; a changed frame and the frames after it, at most 640 rows
 converted and 640 written each, and the panel then holds the frame; a
 blanked panel takes the next frame whole without converting it again.
 
-### 11.2 E2: the Starter
+### 11.2 The Starter
 
 What was found: moved to `docs/history/SPEED-LOG.md`.
 

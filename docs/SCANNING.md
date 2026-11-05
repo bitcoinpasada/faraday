@@ -137,8 +137,8 @@ destination's action.
 | codex32 share | Add a key's codex32 form with the string in. **Add this share** |
 | SLIP-39 share | Add a key's SLIP-39 form with the share in. **Add this share** |
 | Seed XOR part | the seed sheet, which offers **It is a Seed XOR part** (§6) |
-| Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: named (`docs/INTEROP.md` §5 I7). Anything else: named |
-| WIF private key | the Sweep sheet (`docs/INTEROP.md` §5 I11, F171). **Sweep a private key** |
+| Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: named (`docs/INTEROP.md` §5, Electrum seed words). Anything else: named |
+| WIF private key | the Sweep sheet (`docs/INTEROP.md` §5, Sweeping a private key, F171). **Sweep a private key** |
 | Extended private key, `ur:crypto-seed`, private `hdkey`, Nostr secret key, silent payments spend key | named |
 | GPG paperkey | a GPG restore's Scan the paperkey only, which needs its public key first; every other scanner names it ("That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files") and files nothing (F167) |
 | TOTP setup code | a new entry's form in the open vault, filled, as the TOTP scanner fills it. **Add to {vault}**; with a vault in Files but none open, **Unlock {vault}**, the code carried through the unlock and the form opened filled once it is; with no vault at all, **Make a vault**, and the code is not kept: the card says "Not kept · scan it again once the vault is open", and the code is wiped at the press (§4.5) |

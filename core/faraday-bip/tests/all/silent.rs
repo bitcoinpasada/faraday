@@ -625,7 +625,7 @@ fn text_that_begins_with_other_scripts_is_not_an_address() {
     }
 }
 
-// BIP-392's `sp()` read (`docs/INTEROP.md` §5 I9).
+// BIP-392's `sp()` read (`docs/INTEROP.md` §5, BIP-392 sp()).
 
 /// The keystores Sparrow's test suite carries for one silent payments
 /// wallet of the key 0f056943: Keystone's `sp()`, Specter DIY's key

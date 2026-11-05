@@ -1,5 +1,5 @@
 //! Electrum's wallet file, unencrypted, as Electrum 4.x and Sparrow
-//! write it (`docs/INTEROP.md` §5 I6):
+//! write it (`docs/INTEROP.md` §5, Electrum wallet files):
 //!
 //! ```text
 //! {"keystore": {"type": "bip32" | "hardware", "xpub", "derivation",

@@ -121,3 +121,16 @@ Home goes on to the next step (HANDOFF item 73, A3a).
 | D | The desktop app on macOS (§5) | dropped (owner, 2026-10-14, F30): not published; a developer with a Mac may build it | not built |
 | A3a | The Starter's macOS module (§6): disks, writing through `authopen`, facts, install; type-checked for both Mac targets and tested on Linux against hand-written answers (HANDOFF item 73) | decided | now (owner, 2026-10-13); needs no Mac |
 | A3b | Home, the Start page and Make a stick on a Mac (Intel Macs; Apple Silicon says it cannot start Faraday yet); the Mac table in `faraday-starter`; the Intel Mac Learn page (moved here from I) | decided | after A3a; needs no Mac |
+
+## §8 Batches: the open rows (from docs/MAC.md, 2026-11-05)
+
+The labels in this log (I, A1 to A4, D) are the ones decisions and old
+commits use.
+
+| Batch | What | Needs | Order |
+|---|---|---|---|
+| I | Intel Macs: the PC kernel's changes (§3.3), SPI input trust (§3.4), the Mac power-off line (§3.2) with the Intel Mac guide's QR code, the README's Intel rows from A3b's table, with the test that they agree (§7) | decided | independent of the Starter batches; the README rows after A3b |
+| A1 | The `arm64-apple` stick image (§4.1), with the Asahi keyboard patches and their `docs/deps` review | decided | after I |
+| A2 | The start-up file (§4.2–§4.4): m1n1 and U-Boot pinned and built under §4.3, `faraday-macboot`, the QEMU check, the published no-check file | decided | after A1 |
+| A3c | The Starter on a Mac: the bundle and its recipe, every answer recorded on a Mac, the device checks; then the Apple Silicon setup and removal (§4.5–§4.6), tried on an M1 or M2 Mac with the owner; the Apple Silicon README rows | a Mac to build on and an M1 or M2 Mac to try (M7) | after A3b, and A2 for Apple Silicon; waits for a Mac |
+| A4 | Faraday's Secure Boot screen showing the start-up file's hash for a key (§4.4); the arm64 build record | decided | after A2 |

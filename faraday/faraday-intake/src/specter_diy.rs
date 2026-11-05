@@ -1,5 +1,5 @@
 //! Specter DIY's wallet command, `addwallet {name}&{descriptor}`, which
-//! Sparrow writes for it and Specter DIY scans (`docs/INTEROP.md` §5 I8):
+//! Sparrow writes for it and Specter DIY scans (`docs/INTEROP.md` §5, Specter DIY addwallet):
 //!
 //! ```text
 //! addwallet Sparrow Multisig&wsh(sortedmulti(2,[7fd1bbf4/48h/0h/0h/2h]xpub…,…))

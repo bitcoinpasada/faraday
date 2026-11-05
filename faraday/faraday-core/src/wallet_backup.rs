@@ -40,12 +40,12 @@ use zeroize::Zeroize;
 mod shown;
 
 /// The public files of wallet `w` that are under Public files' More
-/// options (F64, `docs/INTEROP.md` §5 I4), as [`Faraday::public_out`]
+/// options (F64, `docs/INTEROP.md` §5, Bitcoin Core before 29), as [`Faraday::public_out`]
 /// numbers them, each with its file's name: Bitcoin Core before 29, the
 /// Electrum wallet file, the Caravan config, Specter DIY's `addwallet`
-/// command (`docs/INTEROP.md` §5 I8) and the Wasabi file, where the
+/// command (`docs/INTEROP.md` §5, Specter DIY addwallet) and the Wasabi file, where the
 /// wallet has each; and a silent payments wallet's BIP-392 `sp()`
-/// descriptor (15, §5 I9), which is not public: it carries the scan key,
+/// descriptor (15, INTEROP §5, BIP-392 sp()), which is not public: it carries the scan key,
 /// and its row goes through the secret sheet, not `public_out`.
 pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, String)> {
     let stem = file_stem(&w.name);

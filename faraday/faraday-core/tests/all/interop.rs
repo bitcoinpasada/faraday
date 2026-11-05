@@ -255,7 +255,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
     }
 }
 
-// SLIP-132 keys (`docs/INTEROP.md` §5 I1).
+// SLIP-132 keys (`docs/INTEROP.md` §5, SLIP-132 keys).
 
 /// BIP-84's published account key for the `abandon … about` seed, which
 /// SLIP-0132 writes as a zpub; BIP-84's first receive address for it.
@@ -349,7 +349,7 @@ fn a_slip132_key_whose_version_disagrees_with_its_script_or_path_is_refused() {
     assert!(key_for(NewKind::NestedSegwit, &moved).is_none());
 }
 
-// Single-key JSON files (`docs/INTEROP.md` §5 I2).
+// Single-key JSON files (`docs/INTEROP.md` §5, Single-key JSON files).
 
 #[test]
 fn cobos_single_key_file_for_bip_84s_seed_has_bip_84s_first_address() {
@@ -505,7 +505,7 @@ fn faradays_wasabi_file_reads_back_as_the_same_wallet_and_only_bip_84s_account_0
     assert!(public_out(&account_1, WASABI_ROW).is_empty());
 }
 
-// Caravan and Unchained configs (`docs/INTEROP.md` §5 I5).
+// Caravan and Unchained configs (`docs/INTEROP.md` §5, Caravan and Unchained configs).
 
 #[test]
 fn blue_wallets_caravan_file_with_its_third_keys_path_loads_at_blue_wallets_first_address() {
@@ -556,7 +556,7 @@ fn faradays_caravan_file_reads_back_with_the_same_first_address() {
     }
 }
 
-// Specter DIY's `addwallet` (`docs/INTEROP.md` §5 I8).
+// Specter DIY's `addwallet` (`docs/INTEROP.md` §5, Specter DIY addwallet).
 
 /// Public files' Specter DIY row.
 const SPECTER_DIY_ROW: u8 = 12;
@@ -619,7 +619,7 @@ fn faradays_specter_diy_file_reads_back_with_the_same_first_address_and_its_name
     }
 }
 
-// Bitcoin Core before 29 (`docs/INTEROP.md` §5 I4).
+// Bitcoin Core before 29 (`docs/INTEROP.md` §5, Bitcoin Core before 29).
 
 /// Public files' row for Bitcoin Core before 29.
 const CORE_BEFORE_29_ROW: u8 = 9;
@@ -809,7 +809,7 @@ fn a_taproot_sortedmulti_a_pair_of_two_wallets_or_with_a_wrong_checksum_is_refus
     assert!(read_wallet(&c, &format!("{recv}\n{wrong}")).is_err());
 }
 
-// Electrum wallet files (`docs/INTEROP.md` §5 I6).
+// Electrum wallet files (`docs/INTEROP.md` §5, Electrum wallet files).
 
 #[test]
 fn sparrows_electrum_multisig_file_is_the_coldcards_own_setup_file_its_fingerprints_little_endian()

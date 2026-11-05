@@ -384,7 +384,7 @@ fn sheet_frames_are_free(app: &mut Faraday, what: &str) {
 /// Load samples in Practice: Samples pressed (in Faraday Demo's host
 /// strip), the sheet's frames, a tick and Load ticked, each against its
 /// budget; the sheet at rest does nothing
-/// costly (`docs/MODES.md` §10 M6).
+/// costly (`docs/MODES.md` §3).
 fn samples_sheet_holds_on(panel: Panel) {
     use crate::samples::Pick;
     let mut app = Faraday::new();

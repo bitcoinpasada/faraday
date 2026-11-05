@@ -10,8 +10,8 @@ use crate::{boot_import, seeds, vanity};
 /// its work is over the line, so it is not drawn first; the screen stays
 /// and shows the busy line while the worker runs it. Practice's samples
 /// loaded, the backup's checklist and its Make the files, and a wallet's multisig config, split
-/// shares and Specter DIY pictures (W7); the batches that follow move the
-/// others here from [`drawn_first`].
+/// shares and Specter DIY pictures; the other presses move
+/// here from [`drawn_first`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
         a,

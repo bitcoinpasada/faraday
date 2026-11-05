@@ -1,8 +1,8 @@
 # Interoperability with other wallets
 
 **Kind:** Spec
-**Status:** Tested; §2 lists what works; §5 I1 to I6 and I8 to I11 built
-**Open:** §5 I7: Electrum seed words.
+**Status:** Tested; §2 lists what works; §5 is built except Electrum seed words
+**Open:** Electrum seed words (§5, Electrum seed words) are not built.
 
 Faraday is a signer. Other wallets hand it a wallet description, a
 cosigner's key or a PSBT, and take back a signed PSBT, a finished
@@ -54,17 +54,17 @@ program is missing (`docs/DEVELOPING.md` §1).
 | From or to | Format | Faraday reads | Faraday writes | Tested |
 |---|---|---|---|---|
 | Bitcoin Core ≥ 29 | `importdescriptors` file, multipath | — | yes | Core, end to end |
-| Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5 I4) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2 or silent payments | Core's own `listdescriptors` strings come back, checksums and all; not yet run against Core 28 |
+| Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5, Bitcoin Core before 29) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2 or silent payments | Core's own `listdescriptors` strings come back, checksums and all; not yet run against Core 28 |
 | Bitcoin Core | PSBT in, finished transaction or signed PSBT out | yes | yes | Core, end to end |
-| Bitcoin Core (`dumpprivkey`), paper wallets | A WIF private key, swept (§5 I11) | yes, never kept | the swept PSBT and transaction | Core's `key_io` vectors; Core signs the same sweep in the cross-check |
+| Bitcoin Core (`dumpprivkey`), paper wallets | A WIF private key, swept (§5, Sweeping a private key) | yes, never kept | the swept PSBT and transaction | Core's `key_io` vectors; Core signs the same sweep in the cross-check |
 | Sparrow, Liana, Nunchuk, BlueWallet, Keeper | Descriptor with `<0;1>` | yes | yes | Sparrow's and Coldcard Mk4's files |
 | Coldcard, Sparrow, Electrum, Nunchuk, BlueWallet, Keystone, Jade, Keeper | Coldcard multisig setup `.txt` (one derivation, or one per key) | yes | yes | Coldcard's, Sparrow's and Electrum's files |
-| Nunchuk, Sparrow, Coldcard, Keeper | BIP 129 descriptor record, also with an upper-case bech32 address or `No path restrictions` (§5 I3) | yes, first address checked | yes | Nunchuk's and Sparrow's records |
+| Nunchuk, Sparrow, Coldcard, Keeper | BIP 129 descriptor record, also with an upper-case bech32 address or `No path restrictions` (§5, BIP 129 records) | yes, first address checked | yes | Nunchuk's and Sparrow's records |
 | Nunchuk, Coldcard | BIP 129 signer record (a cosigner's key) | yes, signature checked | yes | `faraday-core/tests/all/bsms.rs` |
 | Coldcard, Passport, Nunchuk, Sparrow | Coldcard's generic account export `.json`, as a single-sig wallet | yes (BIP-84, else 86, 49, 44), `first` checked | — | Coldcard Mk4, Coldcard Q, Nunchuk, Sparrow |
 | Sparrow, Specter | Specter Desktop wallet `.json` with a `<0;1>` descriptor | yes | yes | Faraday's own read back; not against Specter |
 | Sparrow, Keystone, SeedSigner, Jade, Passport | `ur:crypto-output`, `ur:crypto-account`, `ur:crypto-hdkey` | yes | `crypto-account` for a wsh cosigner key | Sparrow's multisig code, a Keystone/Cobo account code, SeedSigner's vector |
-| Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P`; version 0 or version 2 (BIP-370, §5 I10) | yes | binary, `crypto-psbt`, BBQr `P`, in the version read | BlueWallet's sample, Core; version 2: BIP-370's vectors and HWI |
+| Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P`; version 0 or version 2 (BIP-370, §5, PSBT version 2) | yes | binary, `crypto-psbt`, BBQr `P`, in the version read | BlueWallet's sample, Core; version 2: BIP-370's vectors and HWI |
 | Coldcard, Sparrow | Finished transaction as hex (`-final.txn`) | yes | yes | Core |
 | SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/all/import.rs` |
 | Trezor, Keystone | SLIP-39 shares | yes: typed, the SLIP-39 form's Scan, Home's Scan, What do you have? (F167) | yes | `tests/all/keygen_slip39.rs`, `faraday/faraday-core/tests/all/home_scan.rs` |
@@ -76,13 +76,13 @@ program is missing (`docs/DEVELOPING.md` §1).
 | Jade, Keystone | A receive descriptor alone (`/0/*`) | yes, as `<0;1>` | — | Jade's file, BIP-84's published address |
 | Specter Desktop, Sparrow | Wallet `.json` whose keys carry no derivation | yes, as `<0;1>` | — | Specter's files; Sparrow's Specter and Coldcard exports of one wallet read as one |
 | Keystone | A change descriptor alone (`/1/*`) | yes, as `<0;1>` | — | Keystone's file |
-| Casa, Specter DIY, BlueWallet, Keystone, Electrum | SLIP-132 keys (`ypub`, `zpub`, `Ypub`, `Zpub`, `upub`, `vpub`, `Upub`, `Vpub`) in a descriptor, on a key line or bare, checked against the script or path (§5 I1) | yes; a `zpub`/`vpub` or `ypub`/`upub` alone as its single-key wallet | — | Casa's descriptor, Specter DIY's keystore, Keystone's, BIP-84's account as a zpub at its published first address |
-| Cobo, Keystone | Single-key `.json` (`ExtPubKey`, `MasterFingerprint`, `AccountKeyPath`), the version checked against the path (§5 I2) | yes, also in Create's key slots | — | Sparrow's Cobo file at BIP-84's first address; BlueWallet's Cobo file as Keystone's export of the same key |
-| Coldcard, Wasabi | Coldcard's Wasabi file (`ColdCardFirmwareVersion`), as BIP-84 account 0 (§5 I2) | yes | `{stem}-wasabi.json`, BIP-84 account 0 only | Coldcard Mk4's file against its generic export's `first`; Faraday's read back |
-| Electrum 4.x, Sparrow | Electrum wallet file, unencrypted: one key (`xpub`/`ypub`/`zpub` → `pkh`/`sh(wpkh)`/`wpkh`) or `NofM` `sortedmulti` (`xpub`/`Ypub`/`Zpub` → `sh`/`sh(wsh)`/`wsh`), fingerprint from `root_fingerprint` or `ckcc_xfp` little-endian (§5 I6) | yes; a multisig keystore with no fingerprint and derivation refused; a file with an `xprv`, a `seed` or imported keys is a secret; an encrypted file refused | `{stem}-electrum.json` under More options, keys in their SLIP-132 version, `root_fingerprint` and derivation | Sparrow's two files (its multisig one equals the same Coldcards' setup file); BlueWallet's two; BIP-84's account at its published first address; Faraday's read back |
-| Specter DIY, Sparrow | Specter DIY's `addwallet {name}&{descriptor}`, from a scan or a file, its name the wallet's; keys without a derivation read as `<0;1>` (§5 I8) | yes; a checksum, where there is one, checked (Specter DIY drops it unread) | `{stem}-specter-diy.txt`, Show as QR and PNG in Specter's numbered parts, under More options; not MuSig2 or silent payments | Sparrow's export, named Sparrow Multisig, and Faraday's text for it equal to Sparrow's; every test wallet's read back at its first address; the `import` area against Core's `deriveaddresses` |
-| Sparrow, Keystone, Specter DIY, Coldcard | BIP-392 `sp([fp/352h/coinh/accounth]spscan1q…)`, `tspscan` on a test network, its checksum where it has one; the key alone with its origin (Specter DIY); Coldcard's export of its `bip352` account, rooted at the top-level `xfp`, alone or, beside a single-sig account, as the person chooses (§5 I9) | yes, as a `faraday-silent 1` record: the scan private key is read for its public key and not kept; no origin refused; with the key loaded, keys that are not its own refused; the file is a wallet file in Files | `{stem}-sp-descriptor.txt` under More options, through the secret sheet, with the key loaded | Sparrow's Keystone, Specter DIY and Coldcard keystores one wallet rooted at 0f056943; BIP-352's vector keys written and read back; the `sp` area against BIP-352's reference bech32m and curve |
-| Caravan, Unchained, Sparrow, BlueWallet | Caravan wallet config, `sortedmulti` (§5 I5) | yes; a key with no `bip32Path` or `xfp` refused | `{stem}-caravan.json`, `sortedmulti` with every origin | Sparrow's exports (its two refused ones refused); BlueWallet's at its first address once its third key's path is given; Faraday's read back |
+| Casa, Specter DIY, BlueWallet, Keystone, Electrum | SLIP-132 keys (`ypub`, `zpub`, `Ypub`, `Zpub`, `upub`, `vpub`, `Upub`, `Vpub`) in a descriptor, on a key line or bare, checked against the script or path (§5, SLIP-132 keys) | yes; a `zpub`/`vpub` or `ypub`/`upub` alone as its single-key wallet | — | Casa's descriptor, Specter DIY's keystore, Keystone's, BIP-84's account as a zpub at its published first address |
+| Cobo, Keystone | Single-key `.json` (`ExtPubKey`, `MasterFingerprint`, `AccountKeyPath`), the version checked against the path (§5, Single-key JSON files) | yes, also in Create's key slots | — | Sparrow's Cobo file at BIP-84's first address; BlueWallet's Cobo file as Keystone's export of the same key |
+| Coldcard, Wasabi | Coldcard's Wasabi file (`ColdCardFirmwareVersion`), as BIP-84 account 0 (§5, Single-key JSON files) | yes | `{stem}-wasabi.json`, BIP-84 account 0 only | Coldcard Mk4's file against its generic export's `first`; Faraday's read back |
+| Electrum 4.x, Sparrow | Electrum wallet file, unencrypted: one key (`xpub`/`ypub`/`zpub` → `pkh`/`sh(wpkh)`/`wpkh`) or `NofM` `sortedmulti` (`xpub`/`Ypub`/`Zpub` → `sh`/`sh(wsh)`/`wsh`), fingerprint from `root_fingerprint` or `ckcc_xfp` little-endian (§5, Electrum wallet files) | yes; a multisig keystore with no fingerprint and derivation refused; a file with an `xprv`, a `seed` or imported keys is a secret; an encrypted file refused | `{stem}-electrum.json` under More options, keys in their SLIP-132 version, `root_fingerprint` and derivation | Sparrow's two files (its multisig one equals the same Coldcards' setup file); BlueWallet's two; BIP-84's account at its published first address; Faraday's read back |
+| Specter DIY, Sparrow | Specter DIY's `addwallet {name}&{descriptor}`, from a scan or a file, its name the wallet's; keys without a derivation read as `<0;1>` (§5, Specter DIY addwallet) | yes; a checksum, where there is one, checked (Specter DIY drops it unread) | `{stem}-specter-diy.txt`, Show as QR and PNG in Specter's numbered parts, under More options; not MuSig2 or silent payments | Sparrow's export, named Sparrow Multisig, and Faraday's text for it equal to Sparrow's; every test wallet's read back at its first address; the `import` area against Core's `deriveaddresses` |
+| Sparrow, Keystone, Specter DIY, Coldcard | BIP-392 `sp([fp/352h/coinh/accounth]spscan1q…)`, `tspscan` on a test network, its checksum where it has one; the key alone with its origin (Specter DIY); Coldcard's export of its `bip352` account, rooted at the top-level `xfp`, alone or, beside a single-sig account, as the person chooses (§5, BIP-392 sp()) | yes, as a `faraday-silent 1` record: the scan private key is read for its public key and not kept; no origin refused; with the key loaded, keys that are not its own refused; the file is a wallet file in Files | `{stem}-sp-descriptor.txt` under More options, through the secret sheet, with the key loaded | Sparrow's Keystone, Specter DIY and Coldcard keystores one wallet rooted at 0f056943; BIP-352's vector keys written and read back; the `sp` area against BIP-352's reference bech32m and curve |
+| Caravan, Unchained, Sparrow, BlueWallet | Caravan wallet config, `sortedmulti` (§5, Caravan and Unchained configs) | yes; a key with no `bip32Path` or `xfp` refused | `{stem}-caravan.json`, `sortedmulti` with every origin | Sparrow's exports (its two refused ones refused); BlueWallet's at its first address once its third key's path is given; Faraday's read back |
 
 Ledger, Trezor and BitBox02 sign over USB through a coordinator; they
 reach Faraday as keys inside the wallet files above, which work.
@@ -101,17 +101,17 @@ only words its refusals. The bug this fixed: moved to
 ## 4. Not read or not written yet
 
 In the order they would matter to a person bringing files from those
-wallets. Items 1 to 4, 6 and 7 are built (§2, §5 I1 to I6), and of item
-8 Specter DIY's `addwallet` and BIP-392 `sp()` (§5 I8, I9); what this
+wallets. Items 1 to 4, 6 and 7 are built (§2, §5), and of item
+8 Specter DIY's `addwallet` and BIP-392 `sp()` (§5); what this
 list said of them: moved to `docs/history/INTEROP-LOG.md`.
 
 5. **Electrum's own seeds** (not BIP-39): an Electrum wallet's words do not
-   load (§5 I7).
-8. PSBT version 2 is read and written (§5 I10). A single WIF private key
-   is swept, never loaded (§5 I11). BIP-329 label files and Coldcard's
+   load (§5, Electrum seed words).
+8. PSBT version 2 is read and written (§5, PSBT version 2). A single WIF private key
+   is swept, never loaded (§5, Sweeping a private key). BIP-329 label files and Coldcard's
    encrypted backup file are left out (§5, "Left out").
 
-## 5. The batches that build §4 (F64, owner 2026-10-20)
+## 5. Formats read and written (F64)
 
 Every reader goes in `faraday-intake`, after the pattern of
 `caravan` and `electrum`, except where `core/`'s crates also read
@@ -122,7 +122,7 @@ and licence in that folder's README. Reading needs no choice: every format
 is recognised by its content wherever a wallet, a key or a PSBT is read
 today. Choices few people need sit under **More options** (F64).
 
-### I1. SLIP-132 keys everywhere (§4 item 1)
+### SLIP-132 keys
 
 Reads extended keys with SLIP-0132's version bytes:
 
@@ -161,7 +161,7 @@ reads as `<0;1>`; `wpkh(Zpub…)` and `wsh(multi(…Ypub…))` are refused; the
 `abandon…about` BIP-84 vector given as a zpub has BIP-84's published first
 address.
 
-### I2. A JSON reader; single-key JSON from Cobo/Keystone and Wasabi (§4 item 4; #46)
+### Single-key JSON files
 
 `faraday_bip::json` (`core/faraday-bip/src/json.rs`, moved from `faraday-intake`
 2026-10-20): a value parser (depth ≤ 32, size ≤ 1 MiB, full string
@@ -174,7 +174,7 @@ Coldcard's files, whose scanners (`json_string`, `json_object`,
 
 Reads Cobo/Keystone `{"ExtPubKey","MasterFingerprint","AccountKeyPath"}`
 (`AccountKeyPath` may lack `m/`; the version is checked against the path
-as in I1) as the single-key wallet `[fp/path]xpub/<0;1>/*`, also offered as
+as in SLIP-132 keys above) as the single-key wallet `[fp/path]xpub/<0;1>/*`, also offered as
 a key in Create's slots; and Coldcard's Wasabi file
 `{"MasterFingerprint","ExtPubKey","ColdCardFirmwareVersion"}`, which
 names no path: Wasabi assumes BIP-84 account 0, so it reads as
@@ -194,7 +194,7 @@ Wasabi file is the BIP-84 account of its generic file, with the generic
 file's `first`; Faraday's Wasabi file reads back as the same wallet; JSON
 past the depth limit is refused.
 
-### I3. BIP 129 records Faraday refuses (§4 item 7; #50)
+### BIP 129 records
 
 In `faraday_bip::bsms::DescriptorRecord::parse` (since 2026-10-20; before
 that a tidy-up in `faraday-intake/src/wallet.rs` ran first): (a) the
@@ -212,7 +212,7 @@ address; Sparrow's refused records (`-5`, `-7`, `-9`, `-11`, `-13`, `-14`,
 `-15`, `-17`) stay refused; a base58 address with its case changed is
 refused.
 
-### I4. More options on Public files; Bitcoin Core before 29 (§4 item 6; #48)
+### Bitcoin Core before 29
 
 `screens/backup.rs::public_files` splits its rows into primary and more;
 `public_rows_for` draws the primary rows, a ghost **More options**
@@ -242,7 +242,7 @@ as its `multi_a` twin, its checksum checked over the line as written
 (`faraday_bip::descriptor::reads_as_descriptor`). `core-check.py` against Core
 28.x is not done. The build's notes: moved to `docs/history/INTEROP-LOG.md`.
 
-### I5. Caravan and Unchained configs (§4 item 2; #44)
+### Caravan and Unchained configs
 
 Reads and writes
 `{"name","addressType":"P2WSH"|"P2SH-P2WSH"|"P2SH","network","client":{"type":"public"},"quorum":{"requiredSigners","totalSigners"},"extendedPublicKeys":[{"name","bip32Path","xpub","xfp","method"?}],"startingAddressIndex":0}`
@@ -257,18 +257,18 @@ the descriptor written by hand; BlueWallet's Caravan file loads at its
 first address once its third key's path is given, and as written is
 refused; Faraday's file reads back with the same first address.
 
-### I6. Electrum wallet files (§4 item 3; #45)
+### Electrum wallet files
 
 Reads an unencrypted Electrum 4.x file: standard
 `{"keystore":{"type":"bip32"|"hardware","xpub","derivation","root_fingerprint"|"ckcc_xfp"},"wallet_type":"standard"}`
 and multisig `{"wallet_type":"2of3","x1/":{…},…}`. Script type from each
-key's version (I1): single key `xpub`→`pkh`, `ypub`→`sh(wpkh)`,
+key's version (SLIP-132 keys above): single key `xpub`→`pkh`, `ypub`→`sh(wpkh)`,
 `zpub`→`wpkh`; multisig `xpub`→`sh`, `Ypub`→`sh(wsh)`, `Zpub`→`wsh`, always
 `sortedmulti`, every key the same type. Fingerprint from `root_fingerprint`
 (hex) or `ckcc_xfp`, a decimal u32 read little-endian (1130956047 →
 `0f056943`). A keystore without fingerprint and derivation is read
 origin-less only for a single key, which the wallet policy holds; a
-multisig one is refused with a line naming the key, as Caravan's is (I5).
+multisig one is refused with a line naming the key, as Caravan's is.
 `"use_encryption": true` or an encrypted blob is refused
 ("This Electrum file is encrypted"). A file holding `xprv` or `seed` is a
 secret (`FileKind::SecretWallet`): `classify` gives it the secret sheet,
@@ -298,7 +298,7 @@ is refused by name. The whole-file encryption recognised is the base64 of
 Electrum's `BIE1` envelope. Not done: `electrum-check.py`. The build's
 notes: moved to `docs/history/INTEROP-LOG.md`.
 
-### I7. Electrum seed words (§4 item 5; #47)
+### Electrum seed words
 
 Add a key › Other forms › **Type Electrum seed words** (and the Entry
 form's other forms): 12 or 13 English words, Electrum 2.0 and later.
@@ -309,7 +309,7 @@ with their own lines; anything else "These words are not an Electrum
 seed". The seed is PBKDF2-HMAC-SHA512(words, "electrum" + extension, 2048
 rounds, 64 bytes); the key loads through `Session::add_seed`. Paths:
 standard `pkh([fp]xpub/<0;1>/*)` at the master; segwit `wpkh([fp/0h]…)`;
-as a multisig cosigner (from an Electrum file, I6) segwit `m/1h` (`wsh`),
+as a multisig cosigner (from an Electrum file) segwit `m/1h` (`wsh`),
 standard `m/` (`sh`). After Lock in, the Key card offers **Load its
 Electrum wallet**. The key is never treated as BIP-39 words: `Key` gains
 `electrum: Option<ElectrumType>`; its Backup menu offers the words by hand
@@ -322,7 +322,7 @@ and change addresses); a BIP-39 phrase that is no Electrum seed is
 refused here; an Electrum key's Backup menu has no SeedQR; an extension in
 capitals gives the same key.
 
-### I8. Specter DIY `addwallet` (§4 item 8; #49)
+### Specter DIY addwallet
 
 Reads `addwallet {name}&{descriptor}` from a scan or a file (keys without
 `/<0;1>/*`, which `with_chains` reads). Writes the same text as Show as
@@ -353,7 +353,7 @@ named by it. The `import` cross-check area writes it from every test
 wallet, with and without derivations, checksum or not, and reads
 Sparrow's export, against Core's `deriveaddresses`.
 
-### I9. BIP-392 `sp()` (§4 item 8; #49)
+### BIP-392 sp()
 
 Reads `sp([fp/352h/{coin}h/{acct}h]spscan1q…)` and `tspscan` (Keystone,
 Sparrow), a bare `[origin]spscan1q…` (Specter DIY), and Coldcard's export
@@ -405,7 +405,7 @@ reference's curve, damaged one character, in another version and in
 upper case, and the `sp()` around it from BIP-392's text. The fuzz target
 is `fuzz/fuzz_targets/silent.rs`.
 
-### I10. PSBT version 2 (§4 item 8; #49)
+### PSBT version 2
 
 Built. `bitcoin` 0.32 reads version 0 only, so Faraday converts, in
 `core/faraday-psbt/src/v2.rs` on raw BIP-174 maps (`faraday_psbt::v2`;
@@ -450,7 +450,7 @@ holds every version 0 PSBT's v2 form against HWI's `convert_to_v2`,
 map by map, and its v0 again against the bytes read; version 2 reading
 and `to_v0` were held against HWI and Core already.
 
-### I11. A single private key: sweep it (owner, 2026-10-20; F171, 2026-10-29)
+### Sweeping a private key (F171)
 
 Built as F171 has it: a WIF is swept and never kept. The plan of
 2026-10-20 (the key loaded as a key and a wallet, kept in a vault):
@@ -543,16 +543,16 @@ moved to `docs/history/INTEROP-LOG.md`.
   the Cobo/Keystone single-key writer, and a longer Back up software
   question (its `software` field is five bits).
 
-### What these batches change in `core/`
+### What changes in `core/`
 
 `faraday_bip::slip132` multisig versions and a version/script check;
-`faraday_bip::bsms` (#50); `faraday_bip::coldcard::parse` rooting at the top-level
-`xfp`; `faraday-psbt` reading and writing BIP-370 (built, I10); `faraday_bip::silent` public
+`faraday_bip::bsms`; `faraday_bip::coldcard::parse` rooting at the top-level
+`xfp`; `faraday-psbt` reading and writing BIP-370 (built, §5); `faraday_bip::silent` public
 `spscan`/`sp()` decoding; `faraday_bip::core_import` before 29;
 `faraday_bip::slip132` writing a key in the version that names its script
-(the Electrum file, §5 I6); a receive and a change `sortedmulti_a`
-descriptor read as one wallet, which `miniscript` cannot parse (§5 I4);
+(the Electrum file, §5, Electrum wallet files); a receive and a change `sortedmulti_a`
+descriptor read as one wallet, which `miniscript` cannot parse (§5, Bitcoin Core before 29);
 `faraday_bip::wif` and `faraday_psbt::sweep`, a WIF key read and its
-sweep signed, and the refusal of a legacy `OP_CODESEPARATOR` (§5 I11).
+sweep signed, and the refusal of a legacy `OP_CODESEPARATOR` (§5, Sweeping a private key).
 `faraday-psbt` matching a key by its account xpub's own fingerprint stays
 refused: BIP-174's fingerprint is the master key's.

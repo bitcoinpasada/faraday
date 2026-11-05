@@ -1,5 +1,5 @@
 //! Caravan's multisig wallet config, which Unchained also writes and
-//! reads, and Sparrow and BlueWallet read (`docs/INTEROP.md` §5 I5):
+//! reads, and Sparrow and BlueWallet read (`docs/INTEROP.md` §5, Caravan and Unchained configs):
 //!
 //! ```text
 //! {"name", "addressType": "P2WSH" | "P2SH-P2WSH" | "P2SH", "network",

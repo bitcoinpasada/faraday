@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
-**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, batch S); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, not built yet); panel profiles (§9.3); paused by the owner, with nothing built for them: the Pi 4 and Pi 5 (§9.4), macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -54,14 +54,14 @@ downloads".
 | `faraday-pi-X.Y.Z.img.xz` | the Pi image, for every supported Pi and every Pi screen listed, the 2.8-inch and an HDMI screen: it finds its screen at boot (IMAGES §3, §4) |
 | `faraday-X.Y.Z-BOOTX64.EFI` | the stick's boot program as it is, unsigned: what a person with their own Secure Boot keys signs on Faraday with this release's `SHA256SUMS` and `SHA256SUMS.asc` beside it (F134, README "With Secure Boot"); not in the Starter |
 | `IMAGES` | the release's image list: one line per image, with its two sums, size, build, platform, screen and the boards it starts (IMAGES §4) |
-| `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac, MAC batch A3c) |
-| `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1, batch A1) |
-| `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4, batch A2) |
+| `Faraday-Starter-X.Y.Z-macOS.zip` | the Starter for macOS, one universal file (x86_64 and arm64), `Faraday Starter.app`, ad-hoc signed (`docs/MAC.md` §6; built on a Mac; not built yet) |
+| `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1; not built yet) |
+| `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4; not built yet) |
 
 Faraday Demo is not a release file of its own (F83): the Linux
 Starter and the Windows Starter each have it compiled in and run it in
 their own window (F126, §5.3).
-The macOS rows arrive with their batches. The Apple
+The macOS rows are not built yet. The Apple
 Silicon image is found and checked like the others, and the start-up
 file template is built into every Starter, once they exist.
 
@@ -88,7 +88,7 @@ partition, so a card or stick already written can be checked (IMAGES
   release image, through the same screens and the same writer, with the
   Confirm page saying the image is not the Starter's own and showing
   its SHA-256. tools/flash-stick (the window, `write.sh`, the
-  launcher) was removed in batch L, when this worked (owner, 2026-10-12).
+  launcher) was removed when this worked (owner, 2026-10-12).
 - The README's "Verifying a release" gains: verifying on Windows
   (`Get-FileHash -Algorithm SHA256` for the sums, Gpg4win for the
   signature), and why the Windows Starter is unsigned (§10.2).
@@ -105,7 +105,7 @@ Ubuntu 24.04 (2.39) and Debian 12 (2.36) do not have. The Starter is
 built in a pinned container against
 glibc 2.31 (Debian 11), so one x86_64 file runs on Ubuntu 20.04 and
 later, Debian 11 and later, Fedora 32 and later, and Arch. This is the
-`just faraday-linux-bin` the README said was not set up (built in batch R:
+`just faraday-linux-bin` the README said was not set up (built:
 `faraday/build/linux/`; Debian 11 has reached end of life, so the
 container takes its packages from `archive.debian.org`). Every other
 library the apps use at run time (X11 or Wayland, xkbcommon) is loaded
@@ -146,7 +146,7 @@ corruption, not tampering: the defence against tampering is
 About (§3.7) explains.
 
 Decompression is a pure-Rust xz decoder with an entry in `docs/deps/`
-(the choice is batch R's, after reading the candidates). Faraday does
+(chosen after reading the candidates). Faraday does
 not link liblzma: xz-utils 5.6.0 and 5.6.1 carried a backdoor in 2024,
 and a C decompressor is the wrong place to take that risk again. The
 decoder streams: an image is decompressed as it is written, never into
@@ -197,12 +197,12 @@ samples compiled in (F126, §5.3).
 - **Transfer and Learn are the desktop app's own screens.** The
   Starter holds a `Faraday` in online mode, limited to Transfer and Learn,
   and draws it under its own top app bar when one of them is open
-  (§3.1d); Back returns to the Starter's page it was opened from. The desktop app's `--transfer` already opens it this way. Batch
-  R checks that `faraday-core` can be held this way and adds what is
+  (§3.1d); Back returns to the Starter's page it was opened from. The desktop app's `--transfer` already opens it this way. The Starter
+  checks that `faraday-core` can be held this way and adds what is
   missing, without changing what the desktop app does.
 - **On Linux the Starter writes through udisks2 and never runs as
   root** (owner, D13). It talks to udisks2 over D-Bus through a
-  pure-Rust D-Bus crate with a `docs/deps/` entry (batch L chooses it).
+  pure-Rust D-Bus crate with a `docs/deps/` entry (chosen when the writer is built).
   Disks come from udisks2's objects: `Drive` (vendor, model, serial,
   size, `ConnectionBus`, `Removable`, `Ejectable`), `Block` and
   `Partition` (the partitions, their names and sizes), `Filesystem`
@@ -211,13 +211,13 @@ samples compiled in (F126, §5.3).
   `Block.OpenDevice` in `rw` mode with `O_EXCL` and `O_SYNC`, and the
   descriptor udisks2 hands back is what the Starter writes, flushes,
   reads back from and `Block.Rescan`s. polkit decides whether a
-  password is asked for (`org.freedesktop.udisks2.open-device`); batch
-  L records what each distribution it tries asks, and the Learn page
+  password is asked for (`org.freedesktop.udisks2.open-device`); what each distribution tried
+  asks is recorded, and the Learn page
   says a password may be asked. A distribution without udisks2 gets
   one line, "This computer cannot write a stick from here", and the
   README's plain-image route. The v0.1 path (`pkexec <its own path>
   --write …`, as tools/flash-stick/write.sh did) is not built unless
-  batch L finds a tried desktop distribution without udisks2; if it is,
+  a tried desktop distribution is found without udisks2; if it is,
   `--write` runs before anything else in the binary is initialised.
 - **On Windows the privileged writer is the same binary.** The Starter
   starts itself elevated (`ShellExecuteExW` with `runas`) with
@@ -235,8 +235,8 @@ samples compiled in (F126, §5.3).
   through it, and no other Windows crate is added.
 - **The desktop app runs on Windows too** (owner, 2026-10-12, D20;
   F11 said there was none). Nothing in it is Linux by design: it draws
-  through winit and softbuffer as the Starter does. Batch C made the
-  changes it needs. Built: the home folder is read by one function,
+  through winit and softbuffer as the Starter does. The
+  changes it needs are built: the home folder is read by one function,
   `home()`, from `HOME` and, when that is unset, `USERPROFILE`, for the
   sticks folder (`%USERPROFILE%\faraday-sticks`), Downloads
   (`%USERPROFILE%\Downloads`; a Downloads folder Windows has moved
@@ -272,8 +272,8 @@ samples compiled in (F126, §5.3).
   against hand-written answers (HANDOFF item 73).
 - Builds: Linux in the §1.2 container; Windows cross-compiled for
   `x86_64-pc-windows-gnu` in a pinned container on the build machine.
-  GitHub Actions builds nothing for release (F183, F210). Batch W tries the Windows
-  Starter on a Windows computer, natively.
+  GitHub Actions builds nothing for release (F183, F210). The Windows
+  Starter is tried on a Windows computer, natively.
 - **No path and nothing about the build computer in a published
   file** (owner, 2026-10-12). Every recipe that builds something
   published sources `faraday/image/path-remap.sh` or does the same
@@ -394,7 +394,7 @@ Boot back on (the steps put a T2 Mac's Startup Security back). A Mac
 with 32-bit firmware, and for now every Apple Silicon Mac, gets one
 line, "This Mac cannot start Faraday" or "… yet", and keeps *Make a
 Faraday stick*, for another computer. Once the Apple Silicon image and
-start-up file exist (MAC A1, A2), an M1 or M2 Mac's checklist is *Set
+start-up file exist (MAC §4.1, §4.4), an M1 or M2 Mac's checklist is *Set
 up this Mac to start Faraday*, then *Start Faraday*, with *Remove
 Faraday from this Mac* in the rows once set up (MAC §4.5, §4.6).
 
@@ -722,7 +722,7 @@ destinations; Faraday Demo and the device keep their own navigation
 ### 3.2 Make a Faraday stick
 
 0. **For which computer?**, only once the finder has found
-   both stick images (MAC A1): "A PC or an Intel Mac" or "A Mac with
+   both stick images (MAC §4.1): "A PC or an Intel Mac" or "A Mac with
    M1 or M2". Nothing is chosen for the person, as with the disk; the
    row that fits this computer says "This computer". Keep data refuses
    a stick of the other kind (MAC §4.8).
@@ -1003,7 +1003,7 @@ file is unsigned (§10.2).
 
 ### 3.8 Blank templates (F31)
 
-(owner, 2026-10-14; `docs/BACKUP-FLOW.md` §10.2. Built: batch T.) The printable sheets a seed is copied onto by hand, offered
+(owner, 2026-10-14; `docs/BACKUP-FLOW.md` §10.2. Built.) The printable sheets a seed is copied onto by hand, offered
 here because the Starter runs on the computer with the printer, and a
 blank template holds nothing of any wallet. Faraday's backup checklist
 says to print them from here (its **Templates** item) and writes none to
@@ -1015,7 +1015,7 @@ right, each opening a page of its options (a ring each, filled on the
 one chosen) or, for Places, **Fewer** and **More**, with **Continue**
 back; then the buttons:
 
-- **Form** (first row, `docs/CODEX32.md` §11; built: batch C9):
+- **Form** (first row, `docs/CODEX32.md` §11; built):
   **BIP-39 words** (chosen) · **codex32**. With codex32 the rows are
   **Length** (48 chosen · 74 · 127 characters), **Copy** (**String**
   chosen · **Codex32QR** · **Both** · **Four Codex32QR grids**, the
@@ -1050,8 +1050,7 @@ back; then the buttons:
   never over a file ("name (2).pdf", as Transfer's Receive names) →
   "Saved {path}" with **Open it** (the viewer).
 
-Nothing else: no wallet, key or seed is asked for or shown. Tests (batch
-T): each of the six choices of Words and Copy makes a PDF whose sheet
+Nothing else: no wallet, key or seed is asked for or shown. Tests: each of the six choices of Words and Copy makes a PDF whose sheet
 text has those `words:` and `copy:` lines and no `name:`, saved under
 its name; a second save beside a first is named "(2)"; Print makes the
 same PDF bytes as Save and asks the shell to open it. Built:
@@ -1064,7 +1063,7 @@ equal to the booklet's `tables.json`, no secret in any blank).
 
 ### 4.1 What the writer does
 
-As tools/flash-stick/write.sh did (removed in batch L, D21; this
+As tools/flash-stick/write.sh did (removed, D21; this
 section is the reference): refuse unless
 the device is still the stick that was confirmed (serial and size);
 unmount what the desktop mounted from it; where Clear the whole stick
@@ -1125,7 +1124,7 @@ partition, and only to learn which Faraday it holds: the build string
 card (§1.3). On Linux it is read from the desktop's own mount of the
 boot partition; when it is not mounted, the Starter has udisks2 mount it
 read-only without asking for a password (`auth.no_user_interaction`),
-reads it and unmounts it (batch L: opening the raw partition needs
+reads it and unmounts it (opening the raw partition needs
 `OpenDevice`, whose polkit prompt would ask for a password just to list
 disks). A stick whose version cannot be read
 shows as one made before versions were recorded. That version is shown
@@ -1193,8 +1192,7 @@ product, serial) and `IOCTL_DISK_GET_DRIVE_GEOMETRY_EX` (size); find
 the system disk through its volumes' disk extents. Before writing, lock
 and dismount every volume on the disk and hold the locks for the whole
 write; write `\\.\PhysicalDriveN` unbuffered, write-through, in
-sector-aligned buffers; then `IOCTL_DISK_UPDATE_PROPERTIES`. Batch W
-records what Windows does with the stick after the write (drive letters
+sector-aligned buffers; then `IOCTL_DISK_UPDATE_PROPERTIES`. What Windows does with the stick after the write (drive letters
 given to the boot and data partitions, folders it writes such as `System Volume
 Information`) and reports it. The data partition keeps its drive letter: nothing
 sets the GPT "no drive letter" attribute, and Faraday reads what
@@ -1374,7 +1372,7 @@ Uninstall remove the one an earlier Starter installed.
 ### 5.3 The desktop app from the Starter
 
 Faraday Demo runs inside the Starter (F126, owner 2026-10-25; amending
-F83's batch DS, which carried it as a payload file, installed it and
+F83's design, which carried it as a payload file, installed it and
 started it as a program of its own). Releases do not publish it on its
 own (F83).
 
@@ -1607,7 +1605,7 @@ step: nothing waits on it, and Home has no BitLocker item.
   for, and to have it. The Starter detects a `tpm2-device` in
   `/etc/crypttab` and shows that line first.
 
-### 6.5 Batches (F33)
+### 6.5 Still to be seen on Windows (F33)
 
 Still to be seen on real Windows, which only it can show: the elevation
 prompt on an administrator's and a standard account, the shell property
@@ -1615,7 +1613,7 @@ and WMI on Windows Home with Device encryption, a managed computer's
 refusal code, how Windows counts the starts, and whether
 the viewer holds the key sheet open when the Starter exits.
 
-The F33 batches and their tests, and F49's batch and its tests: moved to `docs/history/STARTER-LOG.md`.
+F33's and F49's work lists and their tests: moved to `docs/history/STARTER-LOG.md`.
 
 ### 6.6 What is removed
 
@@ -1623,7 +1621,7 @@ Moved to `docs/history/STARTER-LOG.md`.
 
 ### 6.7 The guides' new text
 
-Applied in batch F33d, in `docs/learn/` (the guides are compiled into
+Applied in `docs/learn/` (the guides are compiled into
 every app, so the pages change with the code that reads them).
 
 - **The last step, everywhere.** In the Windows, Linux and maker pages
@@ -1908,7 +1906,7 @@ paragraph of the Steps.
 Faraday can make its own Secure Boot keys and sign `BOOTX64.EFI`. On a
 firmware that lets a db key be added beside Microsoft's, both Windows
 and Faraday start with Secure Boot on and there is nothing to turn back
-on. A later batch writes that guide, per maker, never suggesting the
+on. That guide is not written yet; it will be, per maker, never suggesting the
 Microsoft keys be removed (on some laptops that stops the graphics
 firmware loading). Surface has no custom keys. Not in the first
 release (§12, D9).
@@ -1922,9 +1920,9 @@ of the TPM's PCR 7 measurement, so adding a key changes it exactly as
 turning Secure Boot off does, and Windows asks for the recovery key at
 its next start unless BitLocker is suspended. Until F33 the guard ran
 once before the enrolment and Resume after it. F33 removed the guard
-(owner, 2026-10-14: decided): when batch S enrols Faraday's key, its
+(owner, 2026-10-14: decided): when Faraday's key is enrolled, its
 guide tells the person to have the recovery key ready, with the same
-pointer as §6.7's; nothing more. When S is scheduled is decided then,
+pointer as §6.7's; nothing more. When that is built is decided then,
 by the owner. What the guide
 removes is the second firmware visit every time, not the first.
 
@@ -2015,7 +2013,7 @@ serves every panel. A card made from the plain image (without the Starter
 app) starts with the 2.8 inch profile, and the README says which one
 line to change on its boot partition for each other screen.
 
-When the day comes, that batch starts by checking each mechanism on
+When the day comes, the work starts by checking each mechanism on
 the Pi 3 (does the firmware take `include` as this needs; does the
 shell get the command line) and writes down what it found before
 building.
@@ -2058,9 +2056,9 @@ names a verified person or company, and Faraday publishes under a
 pseudonym (owner, 2026-10-12, for privacy). Windows shows "Windows
 protected your PC" on first run; *More info* → *Run anyway* opens it.
 The website, the README and About say this, and how to check the file
-with `SHA256SUMS` and its signature instead. Batch W runs the Starter
-under Microsoft Defender on a Windows computer and reports any
-detection.
+with `SHA256SUMS` and its signature instead. The Starter is run
+under Microsoft Defender on a Windows computer and any
+detection reported.
 
 A detection is likely at some point, not only at that run: an unsigned
 download that asks for elevation and writes raw disks matches
@@ -2090,7 +2088,7 @@ this Mac* takes back.
 
 ## 11. Tests
 
-Tests, by batch, state what a person sees or can do: the disks offered,
+Tests state what a person sees or can do: the disks offered,
 refused and their order (recorded udisks2 answers on Linux, as a
 stand-in `/sys` serves `faraday-grant`'s tests; recorded answers on
 Windows); no disk chosen until tapped; a stick that is not the
@@ -2123,7 +2121,7 @@ what moved.
   and mouse on the Pi, with the stick's new-keyboard approval code.
 - **D3 Boards:** Pi 3B, 3B+ and Zero 2 W first, Pi 4 next, Pi 5 later.
 - **D4 Windows Transfer:** Send and Receive; Receive reads the camera
-  through Media Foundation (§8, batch C).
+  through Media Foundation (§8).
 - **D5 Panel profiles (§9.3) and layout checks at other sizes (§9.1):**
   deferred until a second screen is tried.
 - **D6 Makers:** the general Windows and Linux pages, and maker pages
@@ -2138,7 +2136,7 @@ what moved.
   printed sheet.
 - **D8 The stick's power-off reminder:** yes, as §7.5; since F33 the
   backstop for turning Secure Boot back on.
-- **D9 Keeping Secure Boot on:** a later batch.
+- **D9 Keeping Secure Boot on:** not built yet.
 - **D10 Names:** "Faraday Starter" to people (F16, which changed v0.2's
   "Faraday"), "Faraday Demo" for the desktop app, which runs inside the
   Starter (F126); `faraday-starter` in the code.
@@ -2167,17 +2165,16 @@ what moved.
 - **D19 Acceptance for Windows Home:** on a Home computer of the
   owner's, with the owner, after Pro passes in a virtual machine.
   Superseded by F33 (`docs/history/BITLOCKER-ACCEPTANCE.md`'s header).
-- **D20 The desktop app on Windows:** yes, from batch C, carried by
-  the Windows Starter and offered by its Install (§2, §3.5). Built in
-  C1: the payload has a folder per system, each Starter offers only its
+- **D20 The desktop app on Windows:** yes, carried by
+  the Windows Starter and offered by its Install (§2, §3.5). Built: the payload has a folder per system, each Starter offers only its
   own system's desktop app, and Windows install, Try and uninstall
   mirror Linux's (§5.2, §5.3). Its Starter parts are superseded by F30
   (2026-10-14): the Starter carried, installed and ran no desktop app.
-  F83 (2026-10-23) brought C1's payload, Open and install back, without
-  the check box (§5.3, batch DS, built). F126 (2026-10-26) put Faraday
+  F83 (2026-10-23) brought the payload, Open and install back, without
+  the check box (§5.3, built). F126 (2026-10-26) put Faraday
   Demo inside the Starter's window: no payload file, no install.
 - **D21 tools/flash-stick:** removed once the Starter writes a
-  developer's own image (`--image`, §1.1), in batch L.
+  developer's own image (`--image`, §1.1).
 - **D22 The stick's version on Windows** (owner, 2026-10-19, option
   (e)): an elevated read when keep data is chosen, one
   administrator prompt, and "version not read" kept apart from "0.1.0 or

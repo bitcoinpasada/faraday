@@ -899,3 +899,19 @@ handles: **what goes into a vault and where a vault's sticks are kept.**
    shares (as today beside Its own share). With In shares, the slider
    **Keys left off each share** (0 to `min(m−1, n−1)`) and the shares
    table with the split's audit lines (`shares_card`, unchanged).
+
+## 18.6 Batches (from docs/BACKUP-FLOW.md, 2026-11-05)
+
+The labels in this log (A1 to A4) are the ones decisions and old commits use.
+
+**Batches** (after the structure pass's phase 7 touches `backups` and
+`glance`, so as not to fight its moves):
+
+| Batch | What | Model | Estimate |
+|---|---|---|---|
+| A1 | The dated checks: `today` on the checked clock, the checklist's notes with **Which copy was this?**, the pending notes, tests 2 to 7 | Sonnet | 1 day |
+| A2 | The ages: `age_text`, the nodes, sheets, strip, Backups, small panel; tests 1, 8, 11 | Sonnet | 1 day |
+| A3 | The paths: kept on `Wallet`, the card's group, the chart sheet, the wallet sheet and split sheets, the Starter's blank sheet's empty block; **I moved every coin** and a recovery wallet's interval; tests 9, 10, 12 | Sonnet | 1.5 days |
+| A4 | Learn's two sections, FLOWS and DESIGN as built, this section's plan to `docs/history/BACKUP-FLOW-LOG.md` | Sonnet | 0.5 day |
+
+About 4 days. A1 before A2; A3 after A2 (the interval for a recovery wallet's copies); A4 last.

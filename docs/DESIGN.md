@@ -779,7 +779,7 @@ of its own spends alone, its danger line, Cancel and **Hold to add this
 wallet**; F132), **Which account to load?** (`Account`: a Coldcard export
 holding a single-sig account and a silent payments account, the file's
 name, **Cancel**, **Single-sig · BIP-84** and **Silent payments ·
-BIP-352**, the two alike; `docs/INTEROP.md` §5 I9), the register sheet (the wallet a spend's PSBT defines,
+BIP-352**, the two alike; `docs/INTEROP.md` §5, BIP-392 sp()), the register sheet (the wallet a spend's PSBT defines,
 its shape, cosigners and name, Cancel and **Hold to register**; F135),
 the older-copy dialog an unlock stops at (the vault's name, what its seal
 count found, **Keep locked** and **Open**; `docs/VAULT-HARDENING.md`
@@ -792,7 +792,7 @@ records it only inside a vault and that nothing written for its backup
 says so, **OK**; once per wallet made; F166), the Sweep sheet (a WIF
 private key typed or scanned: the key's field, then its addresses with
 their QR codes, then its PSBT's review and **Hold to sign**, **Done**
-erasing the key; `docs/INTEROP.md` §5 I11, F171), and the question a
+erasing the key; `docs/INTEROP.md` §5, Sweeping a private key, F171), and the question a
 flow's Cancel asks (§4.13).
 
 In Faraday (`faraday-ui`) every page's working area is one colour, the

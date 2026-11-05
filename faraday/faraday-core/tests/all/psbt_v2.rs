@@ -1,4 +1,4 @@
-//! A version 2 PSBT (BIP-370, `docs/INTEROP.md` §5 I10) is read wherever
+//! A version 2 PSBT (BIP-370, `docs/INTEROP.md` §5, PSBT version 2) is read wherever
 //! a PSBT is: BIP-370's valid vectors read as the transaction they
 //! describe, with its locktime, and its invalid ones are refused; a
 //! wallet's spend offered as version 2 signs as its version 0 form does,

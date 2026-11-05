@@ -1,5 +1,5 @@
 //! A JSON value reader for the wallet files other wallets write
-//! (`docs/INTEROP.md` §5 I2): RFC 8259's grammar and every string escape
+//! (`docs/INTEROP.md` §5, Single-key JSON files): RFC 8259's grammar and every string escape
 //! (serde_json reads them), at most [`MAX_DEPTH`] arrays and objects deep
 //! and [`MAX_SIZE`] bytes long.
 //!

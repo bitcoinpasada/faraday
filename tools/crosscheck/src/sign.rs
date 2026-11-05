@@ -5,7 +5,7 @@
 //! past and no other danger accepted),
 //! then `faraday_psbt::finalize`, which builds each final scriptSig and
 //! witness and extracts the transaction; and `faraday_psbt::sweep::sign`,
-//! a sweep signed with a WIF key (`docs/INTEROP.md` §5 I11), as the Sweep
+//! a sweep signed with a WIF key (`docs/INTEROP.md` §5, Sweeping a private key), as the Sweep
 //! sheet's hold calls it with no wallet loaded.
 
 use core::str::FromStr;

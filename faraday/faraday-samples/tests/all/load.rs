@@ -1,4 +1,4 @@
-//! Load samples (`docs/MODES.md` §3, §10 M6): in Practice the pill opens a
+//! Load samples (`docs/MODES.md` §3): in Practice the pill opens a
 //! sheet that lists every sample, and Load ticked puts what is ticked in
 //! the session the way a typed or scanned key and wallet go in. The tests
 //! drive a `Faraday` with the real samples set, as the desktop does.

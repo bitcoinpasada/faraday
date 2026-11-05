@@ -1,4 +1,4 @@
-//! Use a sample (`docs/MODES.md` §6, §10 M7): in Practice, with samples set,
+//! Use a sample (`docs/MODES.md` §6): in Practice, with samples set,
 //! each step that takes a key hands Faraday Demo's strip (`host`) a
 //! button while its field is empty, and the scanner its sample, and a
 //! press puts a sample into the step through

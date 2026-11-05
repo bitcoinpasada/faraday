@@ -1,4 +1,4 @@
-//! Every passphrase is `faraday` in Practice (`docs/MODES.md` §6.2, §10 M8): a
+//! Every passphrase is `faraday` in Practice (`docs/MODES.md` §6.2): a
 //! passphrase field shows it in a code box, takes no typing, and the flow
 //! goes on with it; outside Practice every field is typed as before. The
 //! tests drive a `Faraday` with the real samples set, as the desktop does.

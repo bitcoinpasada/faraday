@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Not built, not scheduled (F27, amended by F34)
-**Open:** all of it, batch N1 (§11), built only when the owner says.
+**Open:** all of it (§11), built only when the owner says.
 
 The problem it solves: a Nostr identity is one secp256k1 key, and a
 person who loses it loses the identity. BIP-85 2.1.0 (2026-08-02) adds
@@ -98,7 +98,7 @@ key or a secret-taking primitive outside it: `NostrKey` and its
 derivation belong there, not in `faraday-core/src/nostr.rs`. "Not an
 edit to `core/`" was F65's soft-fork rule, which F72 replaced: `core/`
 is Faraday's own code, and a change there is fixed at its source. The
-text below is as specified; the placement is decided when N1 is built.
+text below is as specified; the placement is decided when the Nostr key is built.
 
 `faraday-bip`'s BIP-85 derivation (`derive`, its 64-byte `Bytes`) is
 private, and its public functions are the six applications. Faraday
@@ -308,7 +308,7 @@ Save into does today. The saved entry's page has the row **Backup**
 with **Continue the backup** until every place is written. Nothing waits
 for it: the key comes back from the seed's words and the two numbers,
 so **Export encrypted**, Show as QR and PNG work at once. Whichever of
-batch N1 and the flow's batch B1 is built second adds this.
+the Nostr key and the backup flow is built second adds this.
 
 ### 5.1 The saved entry's page
 
@@ -675,28 +675,28 @@ In faraday/faraday-core/tests/nostr.rs, unless named otherwise:
   Nostr key tile, six applications, and a Nostr entry's page with no
   Nostr actions;
 
-## 11. Batch
+## 11. What is built together
 
 Not scheduled. The owner says when it is built; nothing here puts it
 before any other work.
 
-- **N1, the Nostr key.** §2's `nostr.rs` files, in `faraday-core` and
-  `faraday-intake`; §3's application and tile; §4's cards, Find a pair
-  and the Value card; §5's vault entry, §5.1's page actions and Path
-  row, §5.2 and §5.3; §6's encrypted export, its prompt and the file's
-  exposure; §6.6's file kind; §7's rules for Faraday Demo and the
-  demo; §8's strings; §9's Learn page; §10's vectors and tests; the
-  Nostr rows of `docs/QR.md` (§7's table) brought to these file names.
-  Renders: the tile, the Identity and account card, Find a pair, the
-  Value card, the export prompt and a saved entry's page at `1280x800`
-  and `480x640`. It touches the device app.
+What is built together: §2's `nostr.rs` files, in `faraday-core` and
+`faraday-intake`; §3's application and tile; §4's cards, Find a pair
+and the Value card; §5's vault entry, §5.1's page actions and Path
+row, §5.2 and §5.3; §6's encrypted export, its prompt and the file's
+exposure; §6.6's file kind; §7's rules for Faraday Demo and the
+demo; §8's strings; §9's Learn page; §10's vectors and tests; the
+Nostr rows of `docs/QR.md` (§7's table) brought to these file names.
+Renders: the tile, the Identity and account card, Find a pair, the
+Value card, the export prompt and a saved entry's page at `1280x800`
+and `480x640`. It touches the device app.
 
 ## 12. Decided by the owner (2026-10-14)
 
 1. BIP-85 128002' only; no NIP-06.
 2. A BIP-85 application and a Tools tile.
 3. Identity and account start at 1/1, filled in.
-4. NIP-49 export is part of the batch.
+4. NIP-49 export is part of the Nostr key's build.
 5. Find a pair; its rows stay text.
 6. Specified now, built when the owner says.
 7. Superseded: moved to `docs/history/NOSTR-LOG.md`.

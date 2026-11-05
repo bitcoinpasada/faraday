@@ -545,7 +545,7 @@ fn the_keys_own_record_without_the_key_shows_its_address_marked_not_checked() {
     assert!(view.label.contains(&line), "{:?}", view.label);
 }
 
-// BIP-392's `sp()` descriptor, written and read (`docs/INTEROP.md` §5 I9).
+// BIP-392's `sp()` descriptor, written and read (`docs/INTEROP.md` §5, BIP-392 sp()).
 
 /// The test key's own silent payments wallet, its `sp()` descriptor
 /// taken through the secret sheet: the app, and the descriptor's text.

@@ -1,4 +1,4 @@
-//! Sweep a private key (`docs/INTEROP.md` §5 I11, F171): a WIF typed,
+//! Sweep a private key (`docs/INTEROP.md` §5, Sweeping a private key, F171): a WIF typed,
 //! scanned or pasted opens the Sweep sheet on its addresses and is never
 //! loaded as a key; the sweep's PSBT is reviewed against the loaded
 //! wallets and signed with a hold; the key is erased at Done and on

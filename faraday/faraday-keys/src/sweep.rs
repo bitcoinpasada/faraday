@@ -1,4 +1,4 @@
-//! A private key swept (`docs/INTEROP.md` §5 I11, F171): a WIF read
+//! A private key swept (`docs/INTEROP.md` §5, Sweeping a private key, F171): a WIF read
 //! from a scan or typed, held in memory for one sweep and never kept.
 //!
 //! [`SweepKey`] holds the key ([`faraday_bip::wif::SingleKey`]) and what

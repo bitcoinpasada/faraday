@@ -1,8 +1,8 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** W1 to W5 built (the worker, the shells' wake, the busy screen, the vault stretches, the aezeed read and the KeePass export); W6 built (signing a PSBT, a PSBT's read and inspection); W7 built (a wallet's public files, the backup's checklist and its Make the files as jobs); W8 and W9 specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
-**Open:** the rest of the jobs (§9): W8, held until a Pi shows it is needed; W9, the list of §2.1 confirmed on a Pi 3B+
+**Status:** The worker, the shells' wake, the busy screen, the vault stretches, the aezeed read, the KeePass export, signing a PSBT, a PSBT's read and inspection, and a wallet's public files, the backup's checklist and its Make the files as jobs are built; files written as storage requests and the list of §2.1 confirmed on a Pi are specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
+**Open:** the rest of the jobs (§9): files written as storage requests (§7.3), held until a Pi shows it is needed; the list of §2.1 confirmed on a Pi 3B+
 
 Touch and drawing run on each shell's own thread, the main thread. Work
 that takes longer than a tenth of a second on a Raspberry Pi 3B+ runs on
@@ -83,8 +83,8 @@ that grows with what it is given is judged at a large ordinary case: a
 
 **Until a Pi measures it.** No Pi has timed these presses yet, so a
 release build on a desktop PC stands in, at a tenth of the line (10 ms):
-SPEED's account of batch S2 found that "a Pi 3 is about ten times
-slower" (`docs/history/SPEED-LOG.md`, "§9 Batch S2"). The list below was
+SPEED's history found that "a Pi 3 is about ten times
+slower" (`docs/history/SPEED-LOG.md` §9). The list below was
 made that way.
 
 **How an item moves.** The dev card's `work` rows (`costly::label`),
@@ -101,12 +101,12 @@ table together and says in its message what was measured on what.
 | Argon2id for each key | Practice's samples loaded (`SamplesLoad`) | Job |
 | scrypt | An aezeed read (Lightning) | Job |
 | Signing | A PSBT signed, on the Spend tab or from a review | Job |
-| A PSBT's inspection | A PSBT parsed and inspected, from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`); the key references it is given are worked out on the main thread, and a scanned card's one-line fact (`read_psbt_fact`) still parses there, both left for W9's measurement on a Pi | Job |
-| A set of files | A wallet's public files (`PublicOut` 2, 4 and 14: the multisig config checked, the split shares, Specter's numbered pictures), the backup's checklist (`BChecklist`) and its Make the files (`BFilesMake`): jobs (W7); the backup stick's files made at Lock and write and the flow's writes (`Flow`), which write to a stick beside secret words | Job (the files made inside Lock and write stay with the write, §7.3) |
+| A PSBT's inspection | A PSBT parsed and inspected, from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`); the key references it is given are worked out on the main thread, and a scanned card's one-line fact (`read_psbt_fact`) still parses there, both left for the measurement on a Pi | Job |
+| A set of files | A wallet's public files (`PublicOut` 2, 4 and 14: the multisig config checked, the split shares, Specter's numbered pictures), the backup's checklist (`BChecklist`) and its Make the files (`BFilesMake`): jobs; the backup stick's files made at Lock and write and the flow's writes (`Flow`), which write to a stick beside secret words | Job (the files made inside Lock and write stay with the write, §7.3) |
 | PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered, Convert a seed's SLIP-39 set among them (a split and two read-backs: about the stand-in's line for 2 of 3 and for two groups, ten times it for the largest shape the card reaches, 13 of 16 groups of 2 of 16 each, which is no ordinary case) | Drawn first |
 | One picture or one PDF | A SeedQR picture, a seed's words or a paper form, one backup sheet | Drawn first |
 | The self-test | Run self-test (`SelfTestRun`) | Drawn first |
-| Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | Drawn first until W1 times them with the stand-in |
+| Not yet timed | codex32's new set, Vanity's Use, the Inbox's load, the Seeds tab's Make and Sample | Drawn first until timed with the stand-in |
 
 Files written to a stick are not a press's work but a wait on the disk
 process; whether they cross the line is the dev card's `file written`
@@ -178,7 +178,7 @@ Nothing that is drawn first. `Later`, `later_drawn`, `later_tick` and
 `later_now` stay, for the presses under the line (§2.1): their work is
 short, and the frame drawn first already shows the press. `slow`'s list
 is split in two, the presses that start a job and those drawn first, as
-§2.1's table says (W1), and the debug guard in `press_in` stays as it
+§2.1's table says, and the debug guard in `press_in` stays as it
 is: a press on neither list that stretches a key or makes more than one
 picture on the main thread panics, naming itself. What the worker
 replaces is the tick after for the jobs alone: a job's press is drawn at
@@ -226,7 +226,7 @@ none once it clears.
 | A scanned code | Taken by the scanner as today; a code that would start a job while one runs is held until the job ends, as a stick plugged in under the camera is held back |
 
 Strings: the working lines exist (`working_files` and the vault's);
-each new job's line is added to `faraday-strings/src/en.rs` in its batch,
+each new job's line is added to `faraday-strings/src/en.rs` with the job,
 a plain statement of what is being done ("Opening the vault").
 
 ## 5. The token on the worker
@@ -385,34 +385,105 @@ Each states what a person would notice, in the area's tests
 - **The panic chord during work** (`faraday/shells/stick`, its tests of
   `PanicTimer` and the loop): with a job held running, the chord held
   for `PANIC_HOLD` asks for power off at once.
-- **A write that is slow**, if W8 is built (`faraday-storage`'s tests, a
+- **A write that is slow**, if files written as storage requests are built (`faraday-storage`'s tests, a
   disk process that answers late): frames go on, and the file's toast
   comes with the answer; one that never answers ends as "not kept".
 - The budget tests (`work/budget/`), `slow_press.rs` and the snapshot
   tours pass unchanged, since scripted presses run inline and the counts
   come home.
 
-## 9. Batches
+## 9. Order of building
 
-Each about fifty agent turns, in order. **Review** marks a batch that
-touches keys, cryptography, signing or what the device takes in, and
-gets the reviewer before it lands.
+The worker, with the split of `slow`'s list into presses that start a job
+and presses drawn first (§2.1), comes first; everything else uses it. The
+shells' wake and the busy screen (§3, §4) follow. The vault stretches come
+before the other jobs that hold key material, because they build
+faraday-keys' `job.rs`, which the aezeed read, the KeePass export, signing
+and a PSBT's read use; a set of public files needs only the worker and the
+busy screen. Files written as storage requests (§7.3) needs only the
+worker, and is built only if a Pi's `file written` row crosses the line.
+Confirming the list of §2.1 on a Pi 3B+ needs a Pi dev card. A job that
+touches keys, cryptography, signing or what the device takes in gets the
+reviewer before it lands.
 
-| Batch | What | Files | Review |
-|---|---|---|---|
-| W1 (built) | The worker: `Worker`, `Job`, `Done`, generations, latest wins, inline mode, `work::absorb`, `busy`, the refusals of §4, the idle clock held, `testkit::settle`; the mint's row in COMPUTE §3 and `MINTS`; `slow`'s list split into jobs and drawn first as §2.1's table says, the presses not yet timed timed with the stand-in and put on their side. The first job: Practice's samples loaded (`SamplesLoad`, public data), with its tests | `faraday-core/src/worker.rs` (new), `lib.rs` (`press_in`, the drain), `slow.rs`, `idle.rs`, `work.rs`, `testkit.rs`, `tools/costs-lint/src/main.rs`, `docs/COMPUTE.md`, `docs/WORKERS.md` §2.1 | No (no key, no crypto); the mint is checked by the costs lint |
-| W2 (built) | The shells' wake and frames while busy: `Wake::Work`, the winit proxy for both windows, the snapshot tool inline; the panic chord test | `faraday/shells/stick/src/main.rs`, `faraday/shells/window/src/lib.rs`, `faraday/shells/desktop/src/main.rs`, `faraday/shells/starter/src/main.rs`, `faraday/shells/snapshot/src/main.rs` | No |
-| W3 (built) | The busy screen: the moving bar, determinate where counted, disabled actions, Back and Cancel stale-making; strings; DESIGN §4.14; one tour of a busy screen (`just faraday-snap 480x640 vault`) | `faraday-core/src/screens/parts.rs`, the sheets that use `working_bar`, `faraday-strings/src/en.rs`, `docs/DESIGN.md`, `faraday/shells/snapshot/src/tours` | No; a screen review against Material's Progress indicators |
-| W4 (built) | Vault stretches as jobs: Open (an older vault's, the boot import's and Spend's unlock included) and Make; `StretchJob` and `Stretched` in faraday-keys, the passphrase by move. Seal again runs no stretch; the samples' keys stay drawn first (PBKDF2) | faraday-keys (a new `job.rs` in its `src/`), `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`, `boot_import/`, `docs/KEYS.md` | **Yes**: keys, crypto |
-| W5 (built) | The other stretches on the list: an aezeed read, the KDBX export written and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay drawn first (§2.1) | faraday-keys' `job.rs` (W4), `faraday-core/src/lightning/`, the KDBX writer's call site (`faraday/faraday-keys/src/vault.rs`) | **Yes**: keys, crypto |
-| W6 (built) | Signing and checking: `SignJob` with the store's keys behind `Arc` (§10 question 1; `Keys::sign_job`, `faraday-core/src/signing.rs`); a PSBT's parse and inspection from a file or the last scanned part as a job (`faraday-core/src/signing/read.rs`: the Inbox file's bytes and the public key references, policies and network go by move, the answer brings back the PSBT, its version 2 form and the inspection; the key references are still worked out on the main thread, as the signing's are; the answer is dropped where the person is no longer on the screen and sheet they pressed on, and the inspection is made again on the main thread only where the session's inputs changed meanwhile). The Spend tab's signatures counted is read from the inspection the job made, with no second inspection. Left for W9's measurement on a Pi: the scanned card's one-line fact (`scan_key.rs`, `read_psbt_fact`) still parses on the main thread when the last part arrives | `faraday/faraday-keys/src/session.rs`, faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and sign areas | **Yes**: signing, keys, QR intake |
-| W7 (built) | Sets of files of public values as jobs: a wallet's files (`PublicOut`), the checklist's, the backup stick's and the flow's public files. A single picture or PDF, and those of secret words, stay drawn first (§2.1, §6) First half built: `public_files.rs` makes a wallet's files from owned public inputs (name, policy, network, the sheet's fingerprints, the slider's setting) in one `FilesWork` job; a press on the multisig config, the split shares or Specter DIY's pictures (`PublicOut` 2, 4, 14) and the checklist (`BChecklist`, whose account key files are worked out on the main thread from the keys held and go to the job made) start it, the files and the checklist open with the answer, dropped by Back, a lock, a moved screen or sheet, or a backup no longer on the wallet; the shares made again once a slider is let go start the same job. The checklist's Make the files (`BFilesMake`) starts the same job and brings the backup's screen up to date with the answer, dropped the same way. A descriptor picture (8), the backup sheet (3) and the text kinds stay on the thread that asked; the files made inside Lock and write (`backup_flow/`) and the vault's save are made with the write of a stick, beside secret words, and stay there (§6, §7.3). | `faraday-core/src/public_files.rs` (new), `wallet_backup.rs`, `picture.rs`, `pdf.rs`, `backup_flow/` | No (public values) |
-| W8 | Held: built only if a Pi's `file written` row crosses the line (§7.3). Files written as storage requests: `Sticks::write_later`, `StorageEvent::Written`, the stick's disk process answer, Faraday Demo's `Dirs` thread, the boot report's write | `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`, `files.rs`, `faraday-core/src/lib.rs` (the storage events), `faraday/shells/desktop/src/lib.rs` | No (no parser, no key); a backup's files are written as before |
-| W9 | The list confirmed on a Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or moved as §2.1 says; one late-flow session timed as SPEED §7 says, the numbers in the report; once W8 is built or dropped on the Pi's answer, this spec's plan moves to docs/history/WORKERS-LOG.md and it becomes a Reference. `Later` stays | `slow.rs`, `docs/WORKERS.md`, `docs/SPEED.md`, `docs/README.md` | No |
+What each piece is and changes:
 
-W4 and W5 can run in either order after W3; W6 and W7 after W4, which
-builds faraday-keys' `job.rs` (W7 needs only W1 to W3); W8 needs only W1
-and waits on a Pi; W9 needs a Pi dev card.
+- **The worker** (built): `Worker`, `Job`, `Done`, generations, latest
+  wins, inline mode, `work::absorb`, `busy`, the refusals of §4, the idle
+  clock held, `testkit::settle`; the mint's row in COMPUTE §3 and `MINTS`
+  (checked by the costs lint); `slow`'s list split as §2.1's table says,
+  the presses not yet timed timed with the stand-in and put on their side.
+  The first job is Practice's samples loaded (`SamplesLoad`, public data).
+  `faraday-core/src/worker.rs`, `lib.rs` (`press_in`, the drain), `slow.rs`,
+  `idle.rs`, `work.rs`, `testkit.rs`, `tools/costs-lint/src/main.rs`,
+  `docs/COMPUTE.md`.
+- **The shells' wake and frames while busy** (built): `Wake::Work`, the
+  winit proxy for both windows, the snapshot tool inline; the panic chord
+  test. `faraday/shells/stick/src/main.rs`, `window/src/lib.rs`,
+  `desktop/src/main.rs`, `starter/src/main.rs`, `snapshot/src/main.rs`.
+- **The busy screen** (built): the moving bar, determinate where counted,
+  disabled actions, Back and Cancel stale-making; strings; DESIGN §4.14; a
+  tour of a busy screen (`just faraday-snap 480x640 vault`), reviewed
+  against Material's Progress indicators. `faraday-core/src/screens/parts.rs`,
+  the sheets that use `working_bar`, `faraday-strings/src/en.rs`,
+  `faraday/shells/snapshot/src/tours`.
+- **Vault stretches** (built): Open (an older vault's, the boot import's
+  and Spend's unlock included) and Make as `StretchJob` and `Stretched` in
+  faraday-keys, the passphrase by move. Seal again runs no stretch; the
+  samples' keys stay drawn first (PBKDF2). faraday-keys' `job.rs`,
+  `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`,
+  `boot_import/`, `docs/KEYS.md`.
+- **The other stretches** (built): an aezeed read, the KDBX export written
+  and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay
+  drawn first (§2.1). `faraday-core/src/lightning/`, the KDBX writer's
+  call site (`faraday/faraday-keys/src/vault.rs`).
+- **Signing and checking** (built): `SignJob` with the store's keys behind
+  `Arc` (§10 question 1; `Keys::sign_job`, `faraday-core/src/signing.rs`);
+  a PSBT's parse and inspection from a file or the last scanned part as a
+  job (`faraday-core/src/signing/read.rs`): the Inbox file's bytes and the
+  public key references, policies and network go by move, and the answer
+  brings back the PSBT, its version 2 form and the inspection. The key
+  references are still worked out on the main thread, as the signing's
+  are. The answer is dropped where the person is no longer on the screen
+  and sheet they pressed on, and the inspection is made again on the main
+  thread only where the session's inputs changed meanwhile. The Spend
+  tab's signatures counted is read from the inspection the job made, with
+  no second inspection. The scanned card's one-line fact (`scan_key.rs`,
+  `read_psbt_fact`) still parses on the main thread when the last part
+  arrives, left for the measurement on a Pi. `faraday/faraday-keys/src/session.rs`,
+  faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and
+  sign areas.
+- **Sets of files of public values** (built in part): a wallet's files,
+  the checklist's, the backup stick's and the flow's public files. A single
+  picture or PDF, and those of secret words, stay drawn first (§2.1, §6).
+  Built: `public_files.rs` makes a wallet's files from owned public inputs
+  (name, policy, network, the sheet's fingerprints, the slider's setting)
+  in one `FilesWork` job. A press on the multisig config, the split shares
+  or Specter DIY's pictures (`PublicOut` 2, 4, 14) and the checklist
+  (`BChecklist`, whose account key files are worked out on the main thread
+  from the keys held and go to the job made) start it; the files and the
+  checklist open with the answer, dropped by Back, a lock, a moved screen
+  or sheet, or a backup no longer on the wallet; the shares made again
+  once a slider is let go start the same job. The checklist's Make the
+  files (`BFilesMake`) starts the same job and brings the backup's screen
+  up to date with the answer, dropped the same way. A descriptor picture
+  (8), the backup sheet (3) and the text kinds stay on the thread that
+  asked; the files made inside Lock and write (`backup_flow/`) and the
+  vault's save are made with the write of a stick, beside secret words,
+  and stay there (§6, §7.3). `faraday-core/src/public_files.rs`,
+  `wallet_backup.rs`, `picture.rs`, `pdf.rs`, `backup_flow/`.
+- **Files written as storage requests** (§7.3, held, not built):
+  `Sticks::write_later`, `StorageEvent::Written`, the stick's disk process
+  answer, Faraday Demo's `Dirs` thread, the boot report's write.
+  `faraday-storage/src/lib.rs`, `faraday/shells/stick/src/main.rs`,
+  `files.rs`, `faraday-core/src/lib.rs` (the storage events),
+  `faraday/shells/desktop/src/lib.rs`. A backup's files are written as
+  before; it has no parser and no key.
+- **The list confirmed on a Pi** (not built): the list of §2.1 on a
+  Pi 3B+ at 1400 MHz from the dev card's `work` rows, each item kept or
+  moved as §2.1 says; one late-flow session timed as SPEED §7 says. `Later`
+  stays. `slow.rs`, `docs/SPEED.md`.
+
 
 ## 10. For the owner
 
@@ -439,7 +510,7 @@ Decided by the owner, 2026-11-02, as below.
    its length (seconds on a Pi). Argon2 and PBKDF2 could look at a stop
    flag between passes or blocks, which changes no output but touches
    the crypto crates' loops. Not now; record it as later
-   work and decide once W4 is timed.
+   work and decide once the vault stretches are timed.
 6. **The decision** (§5): one new decision, F184.
 
 **The middle way** (owner, 2026-11-02, F184). Not every costly press is

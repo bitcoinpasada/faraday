@@ -119,11 +119,11 @@ public values work; only the actions in the table are disabled.
   (§5.4); **Load samples**,
   the pill beside the Practice pill, which loads ticked sample wallets and
   sample keys in every form, with the wallets' own keys (F81, `docs/MODES.md`
-  §3 and §10 M6); **Use a sample**, in the "Demo only" card (§14) of
+  §3); **Use a sample**, in the "Demo only" card (§14) of
   every step that takes a key (Add a key, New key's typed key, the Spend
   tab's words, a cosigner's account key) and of the scanner, which puts
   the next public sample in as if typed or scanned (§6 of
-  `docs/MODES.md`, §10 M7); Explore; Account key; the key's page.
+  `docs/MODES.md`); Explore; Account key; the key's page.
 - **Codex32** (`docs/CODEX32.md` §12): Type codex32 strings takes the
   strings of BIP 93's published sets (the samples, `docs/MODES.md` §7)
   and refuses a set that is not public as any key is; **Check a string**
@@ -230,7 +230,7 @@ any copy made away from the device is.
 | Case | Decision | Why |
 |---|---|---|
 | A password into a vault Entry; a TOTP secret | The password is typed, or `faraday` from its chip (§5.4); a TOTP secret is typed or scanned | The password field is a passphrase field of Practice; a TOTP secret is typed, and is the only way to try TOTP codes and KeePass export. Practice cannot tell a real secret from a made-up one; Practice's Learn page says to type nothing real |
-| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Practice, taking LND's published vector only (F81, `docs/MODES.md` §10 M7, M8), which **Use a sample** types in; its passphrase is none or `faraday` (§5.4), and the vector has none | Whatever else is typed would be someone's real node seed, so Practice refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
+| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Practice, taking LND's published vector only (F81, `docs/MODES.md` §6.2), which **Use a sample** types in; its passphrase is none or `faraday` (§5.4), and the vector has none | Whatever else is typed would be someone's real node seed, so Practice refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
 | Making a vault | Open, under `faraday`; **Generate with dice** open, its words replaced by `faraday` (§5.2) | It encrypts what Practice holds: public seeds and what was typed. Its keys are internal to the file and never shown. The rolled words are dropped, as New key's are, so the passphrase the vault takes is public |
 | BIP-85 outputs | Disabled, as the owner said | Derived from a public seed, so anyone can derive them, but they look like a fresh password or seed and would be used as one |
 | Lightning node private key, silent payments scan key | Disabled | Derived private keys for use in another program, as BIP-85's are |

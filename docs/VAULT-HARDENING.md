@@ -51,8 +51,8 @@ This spec does not specify the nonce. It assumes only:
   take different nonces.
 
 **The account of the construction** (`docs/CRYPTO-LEARN.md` §18) states
-each change here as planned until the batch that builds it lands, and
-that batch rewrites its sentences (§9.4).
+each change here as planned until the change that builds it lands, and
+that change rewrites its sentences (§9.4).
 
 ## 2. The file's name and its magic
 
@@ -425,7 +425,7 @@ earlier build reads an `FVLT` file at all (§9.3), so none meets one.
 `docs/learn/faraday/vaults.md` (Faraday's own page, read into
 `faraday/faraday-learn/src/lib.rs`'s `OWN` table by `include_str!`),
 gains a section **Older copies**, after **Slots and decoy passphrases**.
-It lands with batch 2b, since a Learn page says only what is built. Its
+It lands with the count in the app (§9.1), since a Learn page says only what is built. Its
 text:
 
 > ## Older copies
@@ -468,7 +468,7 @@ text:
 > something in the decoy now and then, so its count grows.
 
 The guide's pages that cover Unlock and the visit say the same in their
-own words and pictures, in batch 2b: `docs/guide/screens/vaults.md`
+own words and pictures, with the same change: `docs/guide/screens/vaults.md`
 ("Unlock": the Sealed line, the older-copy line and the older-copy
 dialog),
 `docs/guide/screens/stick-visit.md` (not changed: a visit reads no
@@ -483,29 +483,29 @@ Moved to `docs/history/VAULT-HARDENING-LOG.md`.
 
 ## 7. The other files
 
-| File | Change | Batch |
-|---|---|---|
-| `faraday/faraday-vault/src/lib.rs` | `Opened::position()` and a public `slot_range(slot_len, i)`, for the digest of §5.3 and §5.6 (a SHA-256 over up to 4 MiB: costly, counted as `FileHash`); `COMMIT_LEN`; `encrypt_slot` and `decrypt_slot` write and check the block; `Error::Commitment`; `create`, `open`, `derive` take `&str` and put it in NFC; `Opened` keeps the seal count and time, `seal(&mut self, …, now)`; the crate doc's list | 1 |
-| `faraday/faraday-vault/src/records.rs` | type 16; `Contents::encode` given *L* − 32; decode takes the seal record out | 1 |
-| `faraday/faraday-vault/Cargo.toml` | `unicode-normalization` (workspace, no default features), already vetted for `faraday-bip` | 1 |
-| `faraday/faraday-vault/src/tests.rs` | §3.3, §4.3, §5.5 | 1 |
-| `faraday/faraday-vault/examples/vectors.rs`, `faraday/faraday-vault/tests/open_py.rs`, `tools/vectors/vault/` (its README and `slots.json`) | the vectors made again; the two new vectors | 1 |
-| `tools/vault/open.py` | the magic, NFC, the block, type 16 | 1 |
-| `tools/crosscheck/area_vault.py` | §3.3's and §4.3's cases; its docstring's account of the format | 1 |
-| `faraday/faraday-keys/src/vault.rs` | `&str` passphrases; `sealed` passes the time; the copy-read of §5.3 (`OpenVaults::copy_seals`, costs one decryption) |2b |
-| `faraday/faraday-core/src/vault/mod.rs`, `area.rs`, `screen.rs` | the count shown; the highest seen kept on the summary; Unlock's lines |2b |
-| `faraday/faraday-core/src/visit_taken.rs` and the visit's writing | §5.3 items 2 and 3 |2b |
-| `faraday/faraday-core/src/memory.rs` | the summary's new fields under `vault-summaries` | 2b |
-| `faraday/faraday-core/src/plan/text.rs`, `faraday/faraday-core/src/plan/` and the backup flow's record writing | §5.6's lines: read past by the answers, written and read by the plan area | 2b |
-| `faraday/faraday-intake/src/lib.rs`, `faraday/faraday-files/src/lib.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/lib.rs`, `faraday/faraday-core/src/boot_import/mod.rs`, `faraday/faraday-core/src/stick/wipe.rs` | §2.1: a vault by its magic and size | 2a |
-| `faraday/faraday-strings/src/en.rs` | §5.2's strings |2b |
-| `docs/crypto/actions.toml` | vault-create, vault-unlock and vault-seal: their limits, own calls (NFC is Neutral; the commitment block Conservative; the seal count Neutral), tests and standards (Unicode UAX #15) added to the standards table; re-stamped by the recipe | 1, 2 |
-| `docs/SECURITY-MODEL.md` "Vault cryptography" | the passphrase in NFC, the commitment block and the seal count; its "random 24-byte nonce, drawn fresh every time the vault is sealed", which the in-flight nonce work makes true | 1, 2 |
-| `docs/learn/faraday/vaults.md` | the extension; its "Passphrase strength" section moves into the account (CRYPTO-LEARN §18.4), its facts kept | 0, 3 |
-| `docs/learn/faraday/vaults.md` | §5.7's section **Older copies**, after **Slots and decoy passphrases** | 2b |
-| `docs/guide/screens/vaults.md`, `docs/guide/screens/stick-visit.md`, `docs/guide/walk/vaults-and-passwords.md` | the Sealed line at Unlock, the older-copy line, a newer copy not written over at a visit; their pictures drawn again | 2b |
-| `docs/BACKUP-FLOW.md` §18.3 | the check's row: dated only for the highest count seen (§5.3 item 3) |2b |
-| `docs/AUDIT.md` §3 | generated: the commitment block is written here | 1 |
+| File | Change |
+|---|---|
+| `faraday/faraday-vault/src/lib.rs` | `Opened::position()` and a public `slot_range(slot_len, i)`, for the digest of §5.3 and §5.6 (a SHA-256 over up to 4 MiB: costly, counted as `FileHash`); `COMMIT_LEN`; `encrypt_slot` and `decrypt_slot` write and check the block; `Error::Commitment`; `create`, `open`, `derive` take `&str` and put it in NFC; `Opened` keeps the seal count and time, `seal(&mut self, …, now)`; the crate doc's list |
+| `faraday/faraday-vault/src/records.rs` | type 16; `Contents::encode` given *L* − 32; decode takes the seal record out |
+| `faraday/faraday-vault/Cargo.toml` | `unicode-normalization` (workspace, no default features), already vetted for `faraday-bip` |
+| `faraday/faraday-vault/src/tests.rs` | §3.3, §4.3, §5.5 |
+| `faraday/faraday-vault/examples/vectors.rs`, `faraday/faraday-vault/tests/open_py.rs`, `tools/vectors/vault/` (its README and `slots.json`) | the vectors made again; the two new vectors |
+| `tools/vault/open.py` | the magic, NFC, the block, type 16 |
+| `tools/crosscheck/area_vault.py` | §3.3's and §4.3's cases; its docstring's account of the format |
+| `faraday/faraday-keys/src/vault.rs` | `&str` passphrases; `sealed` passes the time; the copy-read of §5.3 (`OpenVaults::copy_seals`, costs one decryption) |
+| `faraday/faraday-core/src/vault/mod.rs`, `area.rs`, `screen.rs` | the count shown; the highest seen kept on the summary; Unlock's lines |
+| `faraday/faraday-core/src/visit_taken.rs` and the visit's writing | §5.3 items 2 and 3 |
+| `faraday/faraday-core/src/memory.rs` | the summary's new fields under `vault-summaries` |
+| `faraday/faraday-core/src/plan/text.rs`, `faraday/faraday-core/src/plan/` and the backup flow's record writing | §5.6's lines: read past by the answers, written and read by the plan area |
+| `faraday/faraday-intake/src/lib.rs`, `faraday/faraday-files/src/lib.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/lib.rs`, `faraday/faraday-core/src/boot_import/mod.rs`, `faraday/faraday-core/src/stick/wipe.rs` | §2.1: a vault by its magic and size |
+| `faraday/faraday-strings/src/en.rs` | §5.2's strings |
+| `docs/crypto/actions.toml` | vault-create, vault-unlock and vault-seal: their limits, own calls (NFC is Neutral; the commitment block Conservative; the seal count Neutral), tests and standards (Unicode UAX #15) added to the standards table; re-stamped by the recipe |
+| `docs/SECURITY-MODEL.md` "Vault cryptography" | the passphrase in NFC, the commitment block and the seal count; its "random 24-byte nonce, drawn fresh every time the vault is sealed", which the in-flight nonce work makes true |
+| `docs/learn/faraday/vaults.md` | the extension; its "Passphrase strength" section moves into the account (CRYPTO-LEARN §18.4), its facts kept |
+| `docs/learn/faraday/vaults.md` | §5.7's section **Older copies**, after **Slots and decoy passphrases** |
+| `docs/guide/screens/vaults.md`, `docs/guide/screens/stick-visit.md`, `docs/guide/walk/vaults-and-passwords.md` | the Sealed line at Unlock, the older-copy line, a newer copy not written over at a visit; their pictures drawn again |
+| `docs/BACKUP-FLOW.md` §18.3 | the check's row: dated only for the highest count seen (§5.3 item 3) |
+| `docs/AUDIT.md` §3 | generated: the commitment block is written here |
 
 ## 8. Tests that are not added
 
@@ -515,56 +515,39 @@ implementation Faraday's own authors wrote, not checked against an
 outside source, F160, F177) hold the bytes,
 and the tests above are what a person or a second reader notices.
 
-## 9. Order of work
+## 9. Order of building
 
-### 9.1 Batches
+### 9.1 What comes before what
 
-The vault work is to be built in one night (owner, 2026-10-28). Six
-batches, each passing `just` alone:
-
-0. **The rename** (Sonnet, mechanical): §2's list, `.ofv` to `.fvlt`
-   and `OFVT` to `FVLT`; the vectors made again by
-   `faraday/faraday-vault/examples/vectors.rs` with the new magic, the
-   cross-check stamp renewed with `just crosscheck`, and the pictures
-   drawn again.
-1. **The format** (Opus for the vault crate, its NFC and the two-key
-   vector; Sonnet for open.py, the area and the docs): §3, §4, §5.1 in
-   `faraday-vault`, `Opened::position` and `slot_range`, the vectors,
-   the reference reader, the cross-check, VAULT's §1, §3, §4, §7 and §10
-   edits, the manifest's entries re-stamped. One batch, since the
-   vectors are made once with all three changes.
-2. **The app**, in two parts:
-   - 2a, **a vault by its contents** (Sonnet): §2.1's sites and tests;
-   - 2b, **the count in the app** (Sonnet, from §5.2 to §5.6): the count
-     shown, the highest seen, the visit's comparisons, the plan's
-     `seals` lines, BACKUP-FLOW §18.3's row, VAULT §5, §6, §7's type 11
-     row, §9 and §11, the Learn page's **Older copies** and the guide's
-     pages (§5.7).
-3. **The account** (`docs/CRYPTO-LEARN.md` §18): its manifest form,
-   check.py's and gen.py's rules, faraday-learn's pages, the sentences
-   marked planned.
-4. **The outside review** (§10), after 1 and 2.
-
-**What runs together and what merges when:**
-
-- 0 and 3 start together; neither touches the other's files, and each
-  merges on its own.
-- 1 starts with them, on the same base. It merges after 0, rebased: the
-  only overlap is the magic, the vectors' names, `tools/vault/open.py`
-  and `tools/crosscheck/area_vault.py`, and its vectors are made again
-  after the rebase.
-- 2a starts after 0 has merged (it needs the new name and magic) and
-  merges on its own; it does not wait for 1.
-- 2b starts once 1's `faraday-vault` interface is in place
-  (`Opened::seals`, `Opened::seal(&mut self, …, now)`,
-  `Opened::position`, `slot_range`), and merges after 1.
-- The last to merge runs one `just` over the whole, and
-  `just crosscheck --fresh`, as for a release, since the format changed
-  (F79).
+- The rename (§2) comes first: `.ofv` to `.fvlt` and `OFVT` to `FVLT`,
+  with the vectors made again by `faraday/faraday-vault/examples/vectors.rs`
+  under the new magic, the cross-check stamp renewed with `just crosscheck`
+  and the pictures drawn again.
+- The format (§3, §4, §5.1) is built once, with all three changes, since
+  the vectors are made once: in `faraday-vault`, `Opened::position` and
+  `slot_range`, the vectors, the reference reader, the cross-check,
+  VAULT's §1, §3, §4, §7 and §10, and the manifest's entries re-stamped.
+  The rename and the format overlap only in the magic, the vectors'
+  names, `tools/vault/open.py` and `tools/crosscheck/area_vault.py`; the
+  vectors are made again after the two are together.
+- A vault by its contents (§2.1) needs the new name and magic, and does
+  not wait for the format.
+- The count in the app (§5.2 to §5.6) needs the format's `faraday-vault`
+  interface in place (`Opened::seals`, `Opened::seal(&mut self, …, now)`,
+  `Opened::position`, `slot_range`): the count shown, the highest seen,
+  the visit's comparisons, the plan's `seals` lines, BACKUP-FLOW §18.3's
+  row, VAULT §5, §6, §7's type 11 row, §9 and §11, the Learn page's
+  **Older copies** and the guide's pages (§5.7).
+- The account (`docs/CRYPTO-LEARN.md` §18) touches none of the other
+  files: its manifest form, check.py's and gen.py's rules,
+  faraday-learn's pages and the sentences marked planned.
+- The outside review (§10) comes after the format and the app.
+- The whole passes one full check and `just crosscheck --fresh`, as for a
+  release, since the format changed (F79).
 
 ### 9.2 Within the in-flight work
 
-Batch 1 lands after the fresh-nonce change, since both change
+The format lands after the fresh-nonce change, since both change
 `Opened::seal` and VAULT §5; it takes that change's signature as it
 lands.
 
@@ -573,13 +556,13 @@ lands.
 Every file this spec's builds write begins `FVLT`, which no earlier build
 reads (`Magic`); every earlier file begins `OFVT`, which this build does
 not read. Within `FVLT`, there is one format: the one this spec ends
-with. Batch 0 writes `FVLT` files of the old slot layout for the span of
-one commit; no build of that commit is released, and batch 1's vectors
+with. The rename writes `FVLT` files of the old slot layout for the span of
+one commit; no build of that commit is released, and the format's vectors
 replace them. The version byte stays 1.
 
 ### 9.4 The account's sentences
 
-Each batch that lands rewrites the account's planned sentences for its
+Each change that lands rewrites the account's planned sentences for its
 change from planned to built (CRYPTO-LEARN §18.3 marks which), and
 `docs/crypto/check.py` fails while a sentence is marked planned for an
 item this spec's Open line no longer names (CRYPTO-LEARN §18.6).

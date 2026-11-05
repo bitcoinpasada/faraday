@@ -37,3 +37,18 @@ scheduled: it is built only when the owner says so.
 
 7. Superseded by 13.
 10. Superseded: the Companion is gone (F34).
+
+## §11 Batch (from docs/NOSTR.md)
+
+The labels are the ones decisions and old commits use.
+
+- **N1, the Nostr key.** §2's `nostr.rs` files, in `faraday-core` and
+  `faraday-intake`; §3's application and tile; §4's cards, Find a pair
+  and the Value card; §5's vault entry, §5.1's page actions and Path
+  row, §5.2 and §5.3; §6's encrypted export, its prompt and the file's
+  exposure; §6.6's file kind; §7's rules for Faraday Demo and the
+  demo; §8's strings; §9's Learn page; §10's vectors and tests; the
+  Nostr rows of `docs/QR.md` (§7's table) brought to these file names.
+  Renders: the tile, the Identity and account card, Find a pair, the
+  Value card, the export prompt and a saved entry's page at `1280x800`
+  and `480x640`. It touches the device app.

@@ -1,4 +1,4 @@
-//! One account key in a JSON file of its own (`docs/INTEROP.md` §5 I2):
+//! One account key in a JSON file of its own (`docs/INTEROP.md` §5, Single-key JSON files):
 //! Cobo's and Keystone's `{"ExtPubKey","MasterFingerprint","AccountKeyPath"}`,
 //! and Coldcard's file for Wasabi,
 //! `{"MasterFingerprint","ExtPubKey","ColdCardFirmwareVersion"}`, which

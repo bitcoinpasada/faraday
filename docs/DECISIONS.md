@@ -228,3 +228,4 @@ Read this table, then only the decision you need.
 | [F211](decisions/F211.md) | The QR vault's judges: PyCA's primitives, sq reads only and shares Argon2, rPGP the only outside sealer | 2026-11-04 | Active | crypto |
 | [F212](decisions/F212.md) | GitHub's cache may hold compiled dependencies, never Faraday's own crates, written only by a push to main | 2026-11-04 | Active | repository |
 | [F213](decisions/F213.md) | quick-xml is a library the manifest names that is not established | 2026-11-05 | Active | security |
+| [F214](decisions/F214.md) | A Spec holds the design and whether it is built, and carries no work list | 2026-11-05 | Active | repository |

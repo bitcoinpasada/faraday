@@ -384,7 +384,7 @@ The cross-check fetches nothing, ever.
   built with `--offline --frozen`. Anything that tries to fetch fails
   instead of downloading.
 
-### 10.5 Order of work
+### 10.5 What is checked, by area
 
 1. Faraday's own Rust, which no other library checks: MuSig2 (BIP-327,
    328, 390), silent payments (BIP-352), BIP-85,
@@ -440,8 +440,8 @@ addresses and signatures first. Each step replaces a second
 implementation Faraday's authors wrote with code other people wrote,
 moves the action's `independence` to `outside`, and retires Faraday's
 implementation once nothing needs it. What each action is compared with
-once `docs/ESTABLISHED.md`'s switches are made, and the batches that
-build it, are ESTABLISHED §9 (F192).
+once `docs/ESTABLISHED.md`'s switches are made, and the order it is
+built in, are ESTABLISHED §9 (F192).
 
 1. **Bitcoin Core as a program**, required (§10.4). Built for `sign`
    (2026-10-29): `descriptorprocesspsbt` signs every PSBT of its vectors

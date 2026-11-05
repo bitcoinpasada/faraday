@@ -111,3 +111,24 @@ format (a magic `FPAP`, a version byte, each field with its length). It
 is never an Outbox file and is never written to a stick as one.
 Power-off and the panic key lose it, as they lose the Outbox; signing
 again needs the key's vault unlocked.
+
+## §12 Batches (from docs/LARGE-FILES.md)
+
+The labels are the ones decisions and old commits use.
+
+- **L1, any size.** The protocol of §8 (List and ListFiles, ReadPart
+  with its chain position, the write requests, ReadQr's bound, the
+  timeouts), vault files read and written back in parts; no cap; the
+  threshold; §9's names; the boot import's count; the sheet with Import
+  the whole file only; §4's rule with `vault_need_mib` shared with
+  Unlock, *F* kept from power-on, the ledger, the visit's total and
+  Unlock's Delete; §4.2's box saving; `faraday-pgp` signing from a hash
+  state; progress, Stop and the idle lock's wait; writes in parts, so an
+  Outbox file of any size is written. Its tests.
+- **L2, signing only.** §5 and §6: the single streamed pass, the
+  signing-only entry and its box, GPG over it; the 200 MiB fixture. Its
+  tests.
+
+Until L1, `README.md`, `docs/history/PLAN.md` and `docs/FLOWS.md` give
+today's 18 MiB and mark this spec's behaviour as not built; L1's
+completion report changes them.

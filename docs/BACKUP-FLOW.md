@@ -667,7 +667,7 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
      they were set up; the plan offers at least that many vaults, however
      many seeds there are, and shows each by its name. The checklist's
      vault item saves into the vault set up for it.
-  6. **The checklist and Write to sticks**, as batch B1b built them (`docs/history/BACKUP-FLOW-LOG.md`): one
+  6. **The checklist and Write to sticks**, as built (`docs/history/BACKUP-FLOW-LOG.md`): one
      lock, each stick by place. A plan that keeps a vault at more places
      than the one stick it was set up on writes the extra copies at the
      write step, to new sticks checked when they are inserted, as an
@@ -1183,8 +1183,7 @@ cards, keeping what each checked; none is deleted.
 
 `docs/WALLETS.md` §5 (the questions), `docs/history/NEW-WALLET.md` §5.2 (marked
 "Changed by BACKUP-FLOW §17", now §15), `docs/DESIGN.md` §4.2's "Used for".
-`docs/learn/04-backups.md` is not part of this batch: leave it, and say in the
-report what in it no longer matches.
+`docs/learn/04-backups.md` is not covered here.
 
 ### 15.6 A share in a vault
 
@@ -1710,8 +1709,8 @@ plans on the board, keeping what each checked; none is deleted.
 - `docs/DECISIONS.md` F37. §15.1 items 2, 3 and 5 are marked "Replaced
   by §17 on `wide`".
 - The board redraws on every pointer move while a chip is dragged: it
-  draws through the drawing memo of `docs/SPEED.md` §3.3, and its batch
-  is timed by SPEED §7. SPEED batch B goes first.
+  draws through the drawing memo of `docs/SPEED.md` §3.3, and its drawing
+  is timed by SPEED §7. The drawing memo is built first.
 
 ### 17.12 Further rules (owner, 2026-10-15)
 
@@ -1768,8 +1767,8 @@ plans on the board, keeping what each checked; none is deleted.
    vault zones and vault sticks change as §15.8 allows. This is not one
    of §17.5's warnings: after the lock no key is loaded, so nothing can
    be written to paper or a file.
-9. **Keyboard.** Placing by keyboard alone is not specified here; a
-   later batch.
+9. **Keyboard.** Placing by keyboard alone is not specified here and not
+   built.
 10. **Read back after the write** (owner, 2026-10-15). At the write step,
    each file written to a stick is read back from the stick at once and
    checked against what was meant: a text file's bytes; a SeedQR or QR
@@ -2815,7 +2814,7 @@ keep, on the sheet. Learn says why (below).
 - An absolute lock (`after`) gets no margin row: moving coins does not
   change it.
 
-### 18.6 Edit list, tests, batches
+### 18.6 Edit list, tests
 
 **Edit list.**
 
@@ -2870,17 +2869,17 @@ keep, on the sheet. Learn says why (below).
     reads "Coins last moved … ago" and turns `WARN` 328 days later; with
     no vault open the button reads "Open a vault to keep this".
 
-**Batches** (after the structure pass's phase 7 touches `backups` and
-`glance`, so as not to fight its moves):
-
-| Batch | What | Model | Estimate |
-|---|---|---|---|
-| A1 | The dated checks: `today` on the checked clock, the checklist's notes with **Which copy was this?**, the pending notes, tests 2 to 7 | Sonnet | 1 day |
-| A2 | The ages: `age_text`, the nodes, sheets, strip, Backups, small panel; tests 1, 8, 11 | Sonnet | 1 day |
-| A3 | The paths: kept on `Wallet`, the card's group, the chart sheet, the wallet sheet and split sheets, the Starter's blank sheet's empty block; **I moved every coin** and a recovery wallet's interval; tests 9, 10, 12 | Sonnet | 1.5 days |
-| A4 | Learn's two sections, FLOWS and DESIGN as built, this section's plan to `docs/history/BACKUP-FLOW-LOG.md` | Sonnet | 0.5 day |
-
-About 4 days. A1 before A2; A3 after A2 (the interval for a recovery wallet's copies); A4 last.
+**Order of building.** The work comes after the structure pass has moved
+the `backups` and `glance` code, so as not to fight its moves. The dated
+checks come first: `today` on the checked clock, the checklist's notes with
+**Which copy was this?**, the pending notes (tests 2 to 7). The ages follow:
+`age_text`, the nodes, sheets, strip, Backups and the small panel (tests 1,
+8, 11). The paths come after the ages, because a recovery wallet's copies
+use its interval: the paths kept on `Wallet`, the card's group, the chart
+sheet, the wallet sheet and the split sheets, the Starter's blank sheet's
+empty block, **I moved every coin** and a recovery wallet's interval (tests
+9, 10, 12). Learn's two sections, FLOWS and DESIGN as built come last, and
+this section's plan then moves to `docs/history/BACKUP-FLOW-LOG.md`.
 
 ### 18.7 Questions for the owner
 
@@ -2897,8 +2896,8 @@ Decided (owner, 2026-10-23), each as recommended:
 5. **Home.** Decided: no Home tile; the card and Backups are enough.
 6. **The margin.** Decided: 90 % of the shortest wait (§18.5).
 7. **Blank templates.** Decided: the Starter's blank wallet sheet
-   carries an empty Spend paths block (§18.4, batch A3).
+   carries an empty Spend paths block (§18.4).
 8. **Coins last moved.** Decided: yes, **I moved every coin**, a dated
-   vault note on a recovery wallet's card (§18.4, batch A3).
+   vault note on a recovery wallet's card (§18.4).
 9. **The two clocks together.** Decided: a recovery wallet's check
    interval is the shorter of 12 months and its margin (§18.3).

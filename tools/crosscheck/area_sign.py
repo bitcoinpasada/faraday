@@ -65,7 +65,7 @@ A witness script or leaf is read from the miniscript text it was
 compiled from (`miniscript_ref.Scripts`, python-bip380): the corpus keeps
 each text, and a fixture's are its wallet policy's.
 
-Sweeping (`faraday_psbt::sweep::sign`, `docs/INTEROP.md` §5 I11): a
+Sweeping (`faraday_psbt::sweep::sign`, `docs/INTEROP.md` §5, Sweeping a private key): a
 WIF private key, compressed or not, whose own outputs (P2PKH, and for a
 compressed key P2WPKH and P2SH-P2WPKH) a PSBT spends beside an output of
 another key, each funded on the node and carrying its previous
@@ -1813,7 +1813,7 @@ class Sign(Area):
         self.finals = {}
         self.sign(raw, [seed], [], "testnet", "low_r", {fp: master})
 
-    # ----- sweeping a WIF key (INTEROP §5 I11) ------------------------------------
+    # ----- sweeping a WIF key (INTEROP §5, Sweeping a private key) ------------------------------------
 
     def sweep_sign(self, raw, wif, core_wif, network, compressed, d):
         inputs = {"psbt": raw.hex(), "wif": wif, "network": network, "nonce": "low_r"}
