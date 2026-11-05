@@ -3,8 +3,10 @@
 //! [`classify`] looks at the bytes only; it parses nothing it does not
 //! need to. Order matters where formats overlap: a 48-digit string is a
 //! SeedQR before it is "text", `ur:` wins over everything, and the raw
-//! 16/32-byte CompactSeedQR check comes last because random bytes match
-//! nothing else.
+//! 16/32-byte CompactSeedQR check comes after the text kinds because
+//! random bytes match nothing else. A Krux encrypted code (KEF) has no magic number, so it is
+//! the last arm of all, asked only when nothing stricter claimed the
+//! payload and raw 16 or 32 bytes were not taken as a CompactSeedQR.
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -77,11 +79,20 @@ pub enum PayloadKind {
         /// `Language::ALL` order).
         language: Language,
     },
+    /// Krux's encrypted code (`docs/KEF.md` §8): an envelope that
+    /// parses, in one of the forms Krux reads. The weakest test here,
+    /// so it is the last arm; it names the kind only, and the card gets
+    /// the envelope from [`crate::kef::recognize`].
+    Kef,
     /// Nothing above.
     Unknown,
 }
 
-/// Classifies `bytes`.
+/// Costs what its parsers cost, the last arm as much as
+/// [`crate::kef::recognize`] (base43 text of up to
+/// [`crate::kef::BASE43_MAX`] characters, a time that grows with the
+/// square of the text): what kind of payload `bytes` is. It runs nothing
+/// beyond parsing.
 pub fn classify(bytes: &[u8]) -> PayloadKind {
     let trimmed = bytes.trim_ascii();
     if matches!(trimmed.len(), 48 | 96) && trimmed.iter().all(u8::is_ascii_digit) {
@@ -142,6 +153,9 @@ pub fn classify(bytes: &[u8]) -> PayloadKind {
         return PayloadKind::CompactSeedQr {
             words: (bytes.len() * 3 / 4) as u8,
         };
+    }
+    if crate::kef::recognize(bytes).is_some() {
+        return PayloadKind::Kef;
     }
     PayloadKind::Unknown
 }
@@ -457,5 +471,96 @@ mod tests {
         assert_eq!(classify(b"nothing(here"), PayloadKind::Unknown);
         assert_eq!(classify(b""), PayloadKind::Unknown);
         assert_eq!(classify(b"ur:"), PayloadKind::Unknown);
+    }
+
+    /// Krux's own codes, from `tools/vectors/kef/`.
+    const KRUX_CTR: &str = "07746573742049440f0000014f52a1936c3e3271209e9d64de442732247c37cb455d1b5410b25744dad4ac6fe4f2f4cf5c4de77bfc829682938298f0";
+    const KRUX_GCM: &str = "07746573742049441400000a4f52a1936c3e3271209e9d64bfb7766f5d5d8a4f908e86e738344c025d8fed54";
+    const KRUX_GRIND: &str = "08613165366337653405000001e3c3b2a72967a5711e54d8734bf1fdd02ddc80";
+
+    #[test]
+    fn a_krux_encrypted_code_is_kef_in_every_form() {
+        use crate::kef::{Form, encode};
+        for hex in [KRUX_CTR, KRUX_GCM, KRUX_GRIND] {
+            let raw = crate::encodings::from_hex(hex).unwrap();
+            // The grind code is exactly 32 raw bytes: KEF section 8's
+            // case, which stays a CompactSeedQR.
+            let expect = if raw.len() == 32 {
+                PayloadKind::CompactSeedQr { words: 24 }
+            } else {
+                PayloadKind::Kef
+            };
+            assert_eq!(classify(&raw), expect, "{hex}");
+            for form in [Form::Hex, Form::Base32, Form::Base43, Form::Base64] {
+                let text = encode(form, &raw).unwrap();
+                assert_eq!(classify(text.as_bytes()), PayloadKind::Kef, "{form:?}");
+            }
+            assert_eq!(classify(hex.as_bytes()), PayloadKind::Kef, "lower-case hex");
+        }
+    }
+
+    #[test]
+    fn raw_16_and_32_bytes_stay_a_compact_seedqr_even_when_they_parse_as_kef() {
+        // Version 5 with an 8-byte id and a payload that fills 32 bytes.
+        let mut found = 0;
+        for len in [16usize, 32] {
+            for lead in 0..=255u8 {
+                for v in [5u8, 6, 7, 10, 11, 12, 15, 16, 20, 21] {
+                    for tail in 0..=255u8 {
+                        let mut b = alloc::vec![tail; len];
+                        b[0] = lead;
+                        b[1 + usize::from(lead) % (len - 1)] = v;
+                        if crate::kef::recognize(&b).is_some() {
+                            found += 1;
+                            assert_eq!(
+                                classify(&b),
+                                PayloadKind::CompactSeedQr {
+                                    words: (len * 3 / 4) as u8
+                                }
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        assert!(found > 0, "no sample parsed as KEF, so nothing was checked");
+    }
+
+    #[test]
+    fn a_code_that_is_not_an_envelope_is_not_kef() {
+        use crate::kef::{Form, encode};
+        let mut over = alloc::vec![253u8];
+        over.extend_from_slice(&[b'x'; 253]);
+        over.extend_from_slice(&[5, 0, 0, 1]);
+        over.extend_from_slice(&[0u8; 40]);
+        let mut unknown = crate::encodings::from_hex(KRUX_GCM).unwrap();
+        let at = 1 + usize::from(unknown[0]);
+        unknown[at] = 99;
+        let mut zero = crate::encodings::from_hex(KRUX_GCM).unwrap();
+        zero[at + 1..at + 4].copy_from_slice(&[0, 0, 0]);
+        for bytes in [over, unknown, zero] {
+            assert_eq!(classify(&bytes), PayloadKind::Unknown);
+            let text = encode(Form::Base64, &bytes).unwrap();
+            assert_eq!(classify(text.as_bytes()), PayloadKind::Unknown);
+        }
+    }
+
+    #[test]
+    fn other_kinds_vectors_are_not_taken_as_kef() {
+        let v = include_str!("../../../tools/vectors/bip93/vectors.json");
+        for s in v.split('"').filter(|s| s.starts_with("ms1")) {
+            assert_ne!(classify(s.as_bytes()), PayloadKind::Kef, "{s}");
+        }
+        for file in [
+            &include_bytes!("../../../tools/vectors/bbqr/1in2out.psbt")[..],
+            include_bytes!("../../../tools/vectors/bbqr/devils-txn.txn"),
+            include_bytes!("../../../tools/vectors/bbqr/finalized-by-ckcc.txn"),
+            include_bytes!("../../../tools/vectors/bbqr/last.txn"),
+            include_bytes!("../../../tools/vectors/bbqr/nfc-result.txn"),
+            include_bytes!("../../../tools/vectors/bbqr/real-scan.txt"),
+            include_bytes!("../../../tools/vectors/bbqr/signed.txn"),
+        ] {
+            assert_ne!(classify(file), PayloadKind::Kef);
+        }
     }
 }
