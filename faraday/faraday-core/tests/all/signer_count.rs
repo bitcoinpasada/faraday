@@ -457,7 +457,8 @@ fn a_key_counts_only_if_it_signed_every_input_it_is_asked_on() {
 
 fn state_in(session: &Session, inner: &Inner) -> (Vec<Fingerprint>, Vec<Fingerprint>) {
     let c = faraday_core::testkit::compute();
-    let (mut s, mut t) = Spend::new(Psbt::from(inner.clone()), "t").signing(&c, session, None);
+    let got = Spend::new(Psbt::from(inner.clone()), "t").signing(&c, session, None, None);
+    let (mut s, mut t) = (got.signers, got.to_sign);
     s.sort_by_key(|f| format!("{f}"));
     t.sort_by_key(|f| format!("{f}"));
     (s, t)
@@ -832,14 +833,17 @@ fn musig_rounds_count_a_participant_from_its_partial_signature_and_not_its_nonce
         assert_eq!(state_with(&session, file.inner()), fps(&[]));
     }
     for (name, file) in &partials {
-        let got = state_with(&session, file.inner());
-        // The file carries the partial of the key that signed last as well.
+        // A cosigner's partial signature is the file's word: none counts.
+        assert_eq!(state_with(&session, file.inner()), fps(&[]), "{name}");
+        let c = faraday_core::testkit::compute();
+        let got = Spend::new(file.clone(), "t").signing(&c, &session, None, None);
         assert!(
-            got.iter()
+            got.in_file
+                .iter()
                 .any(|f| format!("{f}").to_lowercase() == name.to_lowercase()),
-            "{name}: {got:?}"
+            "{name}: {:?}",
+            got.in_file
         );
-        assert!(got.len() <= 2, "{name}: {got:?}");
     }
 }
 
@@ -1644,30 +1648,6 @@ fn the_rest(policy: &faraday_bip::policy::WalletPolicy, ns: &[usize]) -> Vec<Fin
     participants(policy, &rest)
 }
 
-#[test]
-fn a_partial_signature_counts_only_with_one_on_every_open_musig_input() {
-    let (session, inner, policy) = two_musig_inputs();
-    for (on0, on1, signed) in [
-        (true, false, vec![]),
-        (false, true, vec![]),
-        (true, true, vec![0usize]),
-        (false, false, vec![]),
-    ] {
-        let mut x = inner.clone();
-        if on0 {
-            add_partial(&policy, &mut x.inputs[0], 0);
-        }
-        if on1 {
-            add_partial(&policy, &mut x.inputs[1], 0);
-        }
-        assert_eq!(
-            state_in(&session, &x),
-            (participants(&policy, &signed), the_rest(&policy, &signed)),
-            "partial on 0: {on0}, on 1: {on1}"
-        );
-    }
-}
-
 /// Input 0 final: a true key-path spend of another key; input 1 the MuSig2
 /// wallet's, open.
 fn final_other_then_musig() -> (Session, Inner, faraday_bip::policy::WalletPolicy) {
@@ -1703,13 +1683,10 @@ fn a_partial_signature_on_a_final_input_counts_for_nobody() {
 }
 
 #[test]
-fn a_partial_signature_on_the_only_open_input_counts() {
+fn a_made_up_partial_signature_on_the_only_open_input_counts_nobody() {
     let (session, mut inner, policy) = final_other_then_musig();
     add_partial(&policy, &mut inner.inputs[1], 0);
-    assert_eq!(
-        state_in(&session, &inner),
-        (participants(&policy, &[0]), the_rest(&policy, &[0]))
-    );
+    assert_eq!(state_in(&session, &inner), (vec![], the_rest(&policy, &[])));
 }
 
 /// Test seed 0 signs the p2wpkh input `at` of its single-key wallet.
@@ -1737,7 +1714,9 @@ fn a_held_participant_is_offered_sign_on_a_musig_input_and_on_a_mixed_spend() {
     let offered = |session: &Session, inner: &Inner| {
         let p = Psbt::from(inner.clone());
         let ins = session.inspect(&c, &p);
-        let (_, to_sign) = Spend::new(p, "t").signing(&c, session, Some(&ins));
+        let to_sign = Spend::new(p, "t")
+            .signing(&c, session, Some(&ins), None)
+            .to_sign;
         ins.participating_keys
             .iter()
             .copied()
@@ -1752,12 +1731,12 @@ fn a_held_participant_is_offered_sign_on_a_musig_input_and_on_a_mixed_spend() {
         .unwrap();
     let seed0 = Fingerprint::from(master_fp(0, "m/86'/1'/0'"));
     assert_eq!(offered(&session, &inner), vec![seed0]);
-    // Seed 0 has a partial on one input only: still offered.
+    // Seed 0 has a made-up partial on one input: still offered.
     let mut x = inner.clone();
     add_partial(&policy, &mut x.inputs[0], 0);
     assert_eq!(offered(&session, &x), vec![seed0]);
     // Mixed: a p2wpkh input signed by seed 0 and a MuSig input with no
-    // partial of its own: offered; with a partial (counted on presence): not.
+    // partial of its own: offered; with a made-up one: offered too.
     let (session, mut mixed, seed0) = musig_beside_a_wpkh_of_a_held_seed();
     let kit = wpkh_kit(0, "One");
     let wp = faraday_bip::policy::WalletPolicy::parse_any(&c, &kit.descriptor).unwrap();
@@ -1768,8 +1747,868 @@ fn a_held_participant_is_offered_sign_on_a_musig_input_and_on_a_mixed_spend() {
     assert_eq!(state_in(&session, &mixed).0, vec![]);
     let mpol = faraday_core::testkit::musig_policy().unwrap();
     add_partial(&mpol, &mut mixed.inputs[0], 0);
-    // J34: the partial is a forgery; a partial counts on presence (later
-    // work), so seed 0 reads as signed.
-    assert_eq!(state_in(&session, &mixed).0, vec![seed0]);
-    assert_eq!(offered(&session, &mixed), vec![]);
+    assert_eq!(state_in(&session, &mixed).0, vec![]);
+    assert_eq!(offered(&session, &mixed), vec![seed0]);
+}
+
+// A MuSig2 partial signature counts its participant only when it verifies
+// (BIP-327 `PartialSigVerify`) on every input still open.
+
+mod musig_partials {
+    use super::*;
+    use faraday_bip::policy::WalletPolicy;
+    use faraday_psbt::musig;
+
+    const POLICY: &str = include_str!("../../../../tools/vectors/psbt/wallet-musig-regtest.policy");
+    const ABANDON_FP: &str = "73c5da0a";
+    const CORE_FP: &str = "5e8169da";
+
+    fn fixture(name: &str) -> Psbt {
+        let c = faraday_core::testkit::compute();
+        let path = format!(
+            "{}/../../tools/vectors/psbt/{name}.psbt",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let text = std::fs::read_to_string(path).unwrap();
+        Psbt::parse_base64(&c, text.trim()).unwrap()
+    }
+
+    fn core_session() -> Session {
+        let c = faraday_core::testkit::compute();
+        let mut session = Session::on(Network::Regtest);
+        session
+            .add_policy(
+                &c,
+                "Core",
+                WalletPolicy::parse(&c, POLICY).unwrap(),
+                "Test wallet",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        session
+    }
+
+    fn names(fps: Vec<Fingerprint>) -> Vec<String> {
+        let mut v: Vec<String> = fps.iter().map(|f| format!("{f}").to_lowercase()).collect();
+        v.sort();
+        v
+    }
+
+    /// Signers and masters still to sign of `psbt` in the Core wallet.
+    fn state(psbt: &Psbt) -> (Vec<String>, Vec<String>) {
+        let c = faraday_core::testkit::compute();
+        let got = Spend::new(psbt.clone(), "t").signing(&c, &core_session(), None, None);
+        (names(got.signers), names(got.to_sign))
+    }
+
+    fn strs(v: &[&str]) -> Vec<String> {
+        let mut v: Vec<String> = v.iter().map(|s| (*s).to_string()).collect();
+        v.sort();
+        v
+    }
+
+    /// The partial signatures on `psbt` for the participants whose master
+    /// is in `fps`, as this device having written them: what signing here
+    /// notes.
+    fn wrote(
+        policy: &WalletPolicy,
+        psbt: &Psbt,
+        fps: &[Fingerprint],
+    ) -> Vec<faraday_core::wallet::Written> {
+        let mut out = Vec::new();
+        for k in policy.keys() {
+            if !k.fingerprint().is_some_and(|f| fps.contains(&f)) {
+                continue;
+            }
+            for (i, x) in psbt.inner().inputs.iter().enumerate() {
+                for e in musig::partial_sigs(x).unwrap() {
+                    if e.participant == k.xpub().public_key {
+                        out.push(faraday_core::wallet::Written {
+                            input: i,
+                            participant: e.participant,
+                            partial: e.value,
+                        });
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// The (participant, aggregate) key of the first partial signature.
+    fn first_partial(psbt: &Psbt) -> musig::Entry<faraday_bip::musig::PartialSig> {
+        musig::partial_sigs(&psbt.inner().inputs[0])
+            .unwrap()
+            .remove(0)
+    }
+
+    /// What `signing` says of `psbt` in the Core wallet, with `here` the
+    /// masters this device signed for.
+    fn full(psbt: &Psbt, here: &[&str]) -> faraday_core::wallet::Signing {
+        use std::str::FromStr as _;
+        let c = faraday_core::testkit::compute();
+        let mut spend = Spend::new(psbt.clone(), "t");
+        let fps: Vec<Fingerprint> = here
+            .iter()
+            .map(|f| {
+                Fingerprint::from(faraday_bip::bitcoin::bip32::Fingerprint::from_str(f).unwrap())
+            })
+            .collect();
+        spend.wrote = wrote(&WalletPolicy::parse(&c, POLICY).unwrap(), psbt, &fps);
+        spend.signed_here = fps;
+        spend.signing(&c, &core_session(), None, None)
+    }
+
+    // F220: a partial signature in the file is the file's word.
+    #[test]
+    fn a_cosigners_true_partial_is_in_the_file_unconfirmed_and_one_signed_here_counts() {
+        for (file, signer, other) in [
+            ("wallet-musig-core-first-signed", ABANDON_FP, CORE_FP),
+            ("wallet-musig-device-first-core", CORE_FP, ABANDON_FP),
+        ] {
+            let psbt = fixture(file);
+            // Opened again: nobody here wrote it, so it is the file's word.
+            let got = full(&psbt, &[]);
+            assert_eq!(names(got.signers), strs(&[]), "{file}");
+            assert_eq!(names(got.in_file), strs(&[signer]), "{file}");
+            assert_eq!(names(got.to_sign), strs(&[other]), "{file}");
+            assert!(got.failed.is_empty(), "{file}");
+            // This device wrote it: it counts.
+            let got = full(&psbt, &[signer]);
+            assert_eq!(names(got.signers), strs(&[signer]), "{file}");
+            assert!(got.in_file.is_empty(), "{file}");
+            assert_eq!(names(got.to_sign), strs(&[other]), "{file}");
+        }
+    }
+
+    #[test]
+    fn an_entry_for_a_participant_whose_secret_nonce_is_held_is_still_to_sign() {
+        let c = faraday_core::testkit::compute();
+        let psbt = fixture("wallet-musig-core-first-signed");
+        let held = faraday_psbt::MusigSessionView {
+            txid: psbt.unsigned_tx().compute_txid(),
+            held: vec![(0, first_partial(&psbt).participant)],
+        };
+        let got = Spend::new(psbt, "t").signing(&c, &core_session(), None, Some(&held));
+        assert!(got.signers.is_empty() && got.in_file.is_empty());
+        assert_eq!(names(got.to_sign), strs(&[ABANDON_FP, CORE_FP]));
+    }
+
+    #[test]
+    fn a_partial_signature_with_a_flipped_byte_counts_nobody_and_its_master_is_offered_sign() {
+        let mut psbt = fixture("wallet-musig-device-first-core");
+        let e = first_partial(&psbt);
+        let mut bytes = e.value.serialize();
+        bytes[31] ^= 1;
+        let input = &mut psbt.inner_mut().inputs[0];
+        musig::clear_partial_sigs(input);
+        musig::write_partial_sig(
+            input,
+            &e.participant,
+            &e.aggregate,
+            &faraday_bip::musig::PartialSig::from_bytes(&bytes).unwrap(),
+        );
+        assert_eq!(state(&psbt), (vec![], strs(&[ABANDON_FP, CORE_FP])));
+        assert_eq!(names(full(&psbt, &[]).failed), strs(&[CORE_FP]));
+    }
+
+    #[test]
+    fn a_partial_signature_under_another_nonce_counts_nobody() {
+        let mut psbt = fixture("wallet-musig-device-first-core");
+        let e = first_partial(&psbt);
+        let nonces = musig::pub_nonces(&psbt.inner().inputs[0]).unwrap();
+        let other = nonces
+            .iter()
+            .find(|n| n.participant != e.participant)
+            .unwrap();
+        // The signer's nonce replaced by the other participant's.
+        musig::write_pub_nonce(
+            &mut psbt.inner_mut().inputs[0],
+            &e.participant,
+            &e.aggregate,
+            &other.value,
+        );
+        assert_eq!(state(&psbt), (vec![], strs(&[ABANDON_FP, CORE_FP])));
+    }
+
+    #[test]
+    fn a_partial_signature_over_another_message_counts_nobody() {
+        let mut psbt = fixture("wallet-musig-device-first-core");
+        psbt.inner_mut().unsigned_tx.lock_time = LockTime::from_consensus(1);
+        assert_eq!(state(&psbt), (vec![], strs(&[ABANDON_FP, CORE_FP])));
+    }
+
+    #[test]
+    fn a_partial_signature_with_its_nonce_field_gone_counts_nobody() {
+        let mut psbt = fixture("wallet-musig-device-first-core");
+        let e = first_partial(&psbt);
+        let input = &mut psbt.inner_mut().inputs[0];
+        input.unknown.retain(|k, _| {
+            k.type_value != musig::IN_PUB_NONCE || k.key[..33] != e.participant.serialize()
+        });
+        assert_eq!(state(&psbt), (vec![], strs(&[ABANDON_FP, CORE_FP])));
+    }
+
+    #[test]
+    fn a_true_partial_on_one_of_two_inputs_counts_nobody_and_on_both_counts() {
+        let (c, s) = (
+            faraday_core::testkit::compute(),
+            faraday_core::testkit::session(),
+        );
+        let (one, both) = faraday_core::testkit::musig_two_inputs().unwrap();
+        let fp = |n| format!("{}", faraday_core::testkit::seed_fingerprint(n)).to_lowercase();
+        let mut session = s;
+        session
+            .keys
+            .add_words(
+                &c,
+                &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0),
+                faraday_core::testkit::TEST_SEEDS[0].1,
+                None,
+            )
+            .unwrap();
+        let policy = faraday_core::testkit::musig_policy().unwrap();
+        session
+            .add_wallet(
+                &c,
+                "MuSig2",
+                &policy.to_descriptor_checksummed(),
+                "Test wallet",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        let of = |p: &Psbt| {
+            let mut spend = Spend::new(p.clone(), "t");
+            spend.signed_here = vec![faraday_core::testkit::seed_fingerprint(0)];
+            spend.wrote = wrote(&policy, p, &spend.signed_here);
+            let got = spend.signing(&c, &session, None, None);
+            (names(got.signers), names(got.to_sign), names(got.in_file))
+        };
+        // This device signed both inputs; test key 2's partial is on the
+        // first only, so it is still to sign, and on both it is the file's
+        // word.
+        assert_eq!(
+            of(&one),
+            (strs(&[&fp(0)]), strs(&[&fp(1), &fp(2)]), strs(&[]))
+        );
+        assert_eq!(
+            of(&both),
+            (strs(&[&fp(0)]), strs(&[&fp(2)]), strs(&[&fp(1)]))
+        );
+        // A partial on the second input only is still to sign.
+        let key2 = policy
+            .keys()
+            .iter()
+            .find(|k| k.fingerprint().map(|f| format!("{f}").to_lowercase()) == Some(fp(1)))
+            .unwrap()
+            .xpub()
+            .public_key;
+        let mut second = both.clone();
+        let input = &mut second.inner_mut().inputs[0];
+        let kept = musig::partial_sigs(input).unwrap();
+        musig::clear_partial_sigs(input);
+        for e in kept.iter().filter(|e| e.participant != key2) {
+            musig::write_partial_sig(input, &e.participant, &e.aggregate, &e.value);
+        }
+        assert_eq!(
+            of(&second),
+            (strs(&[&fp(0)]), strs(&[&fp(1), &fp(2)]), strs(&[]))
+        );
+    }
+
+    /// The three partial signatures of one round, all true, as the files
+    /// of [`faraday_core::testkit::musig_rounds`] give them, and a session
+    /// holding no key of the wallet.
+    fn all_partials() -> (Session, Psbt) {
+        all_partials_at(0)
+    }
+
+    /// [`all_partials`] for the wallet's output at `0/index`.
+    fn all_partials_at(index: u32) -> (Session, Psbt) {
+        let c = faraday_core::testkit::compute();
+        let policy = faraday_core::testkit::musig_policy().unwrap();
+        let mut session = faraday_core::testkit::session();
+        session
+            .add_wallet(
+                &c,
+                "MuSig2",
+                &policy.to_descriptor_checksummed(),
+                "Test wallet",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        let (_, _, files) = faraday_core::testkit::musig_rounds_at(index).unwrap();
+        let mut psbt = files[0].1.clone();
+        for e in musig::partial_sigs(&files[1].1.inner().inputs[0]).unwrap() {
+            musig::write_partial_sig(
+                &mut psbt.inner_mut().inputs[0],
+                &e.participant,
+                &e.aggregate,
+                &e.value,
+            );
+        }
+        assert_eq!(
+            musig::partial_sigs(&psbt.inner().inputs[0]).unwrap().len(),
+            3
+        );
+        (session, psbt)
+    }
+
+    #[test]
+    fn every_true_partial_in_the_file_aggregates_with_no_key_used() {
+        let c = faraday_core::testkit::compute();
+        let (session, psbt) = all_partials();
+        let mut spend = Spend::new(psbt, "t");
+        let seen = session.inspect(&c, &spend.psbt);
+        // Before: the file's word, nobody counted.
+        let before = spend.signing(&c, &session, Some(&seen), None);
+        assert!(before.signers.is_empty() && before.in_file.len() == 3);
+        assert!(spend.aggregate_musig(&c, &seen));
+        let now = spend.signing(&c, &session, None, None);
+        assert_eq!(
+            (now.signers.len(), now.in_file.len(), now.to_sign.len()),
+            (3, 0, 0)
+        );
+    }
+
+    #[test]
+    fn a_false_partial_among_the_rest_does_not_aggregate_and_the_spend_stays_open() {
+        let c = faraday_core::testkit::compute();
+        let (session, mut psbt) = all_partials();
+        let e = first_partial(&psbt);
+        let mut bytes = e.value.serialize();
+        bytes[31] ^= 1;
+        musig::write_partial_sig(
+            &mut psbt.inner_mut().inputs[0],
+            &e.participant,
+            &e.aggregate,
+            &faraday_bip::musig::PartialSig::from_bytes(&bytes).unwrap(),
+        );
+        let mut spend = Spend::new(psbt, "t");
+        let seen = session.inspect(&c, &spend.psbt);
+        assert!(!spend.aggregate_musig(&c, &seen));
+        assert!(spend.psbt.inner().inputs[0].tap_key_sig.is_none());
+        let now = spend.signing(&c, &session, None, None);
+        assert!(now.signers.is_empty() && now.failed.len() == 1 && now.in_file.len() == 2);
+        assert_eq!(now.to_sign, now.failed);
+    }
+
+    // The partials below are false and verify all the same: made from the
+    // file's public data with no key (`testkit::musig_forged`).
+
+    /// Test seed `n`'s participant key and master fingerprint in the
+    /// MuSig2 wallet.
+    fn who(n: usize) -> (faraday_bip::bitcoin::secp256k1::PublicKey, Fingerprint) {
+        let policy = faraday_core::testkit::musig_policy().unwrap();
+        let k = &policy.keys()[n];
+        (k.xpub().public_key, k.fingerprint().unwrap())
+    }
+
+    /// A session with the MuSig2 wallet, and test seed 0 when `hold`.
+    fn wallet_session(hold: bool) -> Session {
+        use faraday_core::testkit::{TEST_SEEDS, test_words};
+        let c = faraday_core::testkit::compute();
+        let mut session = faraday_core::testkit::session();
+        if hold {
+            session
+                .keys
+                .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
+                .unwrap();
+        }
+        session
+            .add_wallet(
+                &c,
+                "MuSig2",
+                &faraday_core::testkit::musig_policy()
+                    .unwrap()
+                    .to_descriptor_checksummed(),
+                "Test wallet",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        session
+    }
+
+    fn seed() -> faraday_crypto::Zeroizing<[u8; 32]> {
+        faraday_crypto::Zeroizing::new([7; 32])
+    }
+
+    /// Whether every partial of `forged` verifies, which the forgery is
+    /// worth nothing without.
+    fn forgery_verifies(session: &Session, psbt: &Psbt, forged: &[usize]) {
+        let c = faraday_core::testkit::compute();
+        let seen = session.inspect(&c, psbt);
+        let round = seen.inputs[0].musig.as_ref().unwrap();
+        let mut want: Vec<_> = forged.iter().map(|n| who(*n).0).collect();
+        want.sort();
+        let mut got = musig::verified_partials(&c, psbt, 0, round);
+        got.sort();
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn a_partial_forged_from_public_data_for_a_held_key_is_the_files_word_and_never_verified() {
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(true);
+        let psbt = faraday_core::testkit::musig_forged(&[0]).unwrap();
+        forgery_verifies(&session, &psbt, &[0]);
+        let seen = session.inspect(&c, &psbt);
+        let mut spend = Spend::new(psbt.clone(), "t");
+        let got = spend.signing(&c, &session, Some(&seen), None);
+        let fp0 = who(0).1;
+        assert!(got.signers.is_empty(), "not counted");
+        assert_eq!(got.in_file, vec![fp0], "In file, unconfirmed");
+        assert!(!got.to_sign.contains(&fp0), "no Sign offered");
+        assert!(got.failed.is_empty());
+        // Signing does nothing for it.
+        let mut again = psbt.clone();
+        session.sign(&c, &mut again, &seed(), &mut None).unwrap();
+        assert_eq!(again.to_bytes(), psbt.to_bytes());
+        // It aggregates to nothing, and the spend stays open.
+        let round = seen.inputs[0].musig.as_ref().unwrap();
+        assert!(musig::aggregate(&c, &psbt, 0, round).is_none());
+        assert!(!spend.aggregate_musig(&c, &seen));
+        assert!(spend.psbt.inner().inputs[0].tap_key_sig.is_none());
+        assert!(spend.finish().is_err());
+    }
+
+    #[test]
+    fn a_forged_partial_for_a_participant_whose_nonce_is_held_is_overwritten_by_sign() {
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(true);
+        // Round one: this device shares its nonce and holds the secret.
+        let mut round_one = faraday_core::testkit::musig_unsigned().unwrap();
+        let mut held = None;
+        session
+            .sign(&c, &mut round_one, &seed(), &mut held)
+            .unwrap();
+        let view = held.as_ref().unwrap().view();
+        let (pk0, fp0) = who(0);
+        let mine = musig::pub_nonces(&round_one.inner().inputs[0])
+            .unwrap()
+            .into_iter()
+            .find(|n| n.participant == pk0)
+            .unwrap()
+            .value;
+        // The file the online side hands back: a forged partial for it.
+        let mut psbt = faraday_core::testkit::musig_forged(&[0]).unwrap();
+        forgery_verifies(&session, &psbt, &[0]);
+        let seen = session.inspect(&c, &psbt);
+        let got = Spend::new(psbt.clone(), "t").signing(&c, &session, Some(&seen), Some(&view));
+        assert!(got.signers.is_empty() && got.in_file.is_empty());
+        assert!(got.to_sign.contains(&fp0), "Sign is offered");
+        let forged = first_in(&psbt, &pk0);
+        session.sign(&c, &mut psbt, &seed(), &mut held).unwrap();
+        assert!(held.as_ref().unwrap().is_empty(), "no nonce held after");
+        let after = first_in(&psbt, &pk0);
+        assert_ne!(after, forged, "overwritten");
+        let nonce = musig::pub_nonces(&psbt.inner().inputs[0])
+            .unwrap()
+            .into_iter()
+            .find(|n| n.participant == pk0)
+            .unwrap()
+            .value;
+        assert_eq!(nonce, mine, "under the nonce it held");
+        // The partial it wrote verifies and counts as signed here.
+        let seen = session.inspect(&c, &psbt);
+        let mut spend = Spend::new(psbt, "t");
+        spend.signed_here = vec![fp0];
+        spend.wrote = wrote(
+            &faraday_core::testkit::musig_policy().unwrap(),
+            &spend.psbt,
+            &[fp0],
+        );
+        let got = spend.signing(&c, &session, Some(&seen), None);
+        assert_eq!(got.signers, vec![fp0]);
+    }
+
+    fn first_in(
+        psbt: &Psbt,
+        pk: &faraday_bip::bitcoin::secp256k1::PublicKey,
+    ) -> faraday_bip::musig::PartialSig {
+        musig::partial_sigs(&psbt.inner().inputs[0])
+            .unwrap()
+            .into_iter()
+            .find(|e| e.participant == *pk)
+            .unwrap()
+            .value
+    }
+
+    #[test]
+    fn every_participant_but_one_forged_reads_in_file_unconfirmed_and_does_not_aggregate() {
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(false);
+        let mut psbt = faraday_core::testkit::musig_forged(&[0, 1]).unwrap();
+        forgery_verifies(&session, &psbt, &[0, 1]);
+        for with_last in [false, true] {
+            if with_last {
+                // The last one's entry is made up: all three are there.
+                let (pk2, _) = who(2);
+                let seen = session.inspect(&c, &psbt);
+                let key = seen.inputs[0].musig.as_ref().unwrap().output_key;
+                musig::write_partial_sig(
+                    &mut psbt.inner_mut().inputs[0],
+                    &pk2,
+                    &key,
+                    &faraday_bip::musig::PartialSig::from_bytes(&[1u8; 32]).unwrap(),
+                );
+            }
+            let seen = session.inspect(&c, &psbt);
+            let mut spend = Spend::new(psbt.clone(), "t");
+            let got = spend.signing(&c, &session, Some(&seen), None);
+            let mut forged = vec![who(0).1, who(1).1];
+            forged.sort_by_key(|f| format!("{f}"));
+            let mut in_file = got.in_file.clone();
+            in_file.sort_by_key(|f| format!("{f}"));
+            assert_eq!(in_file, forged);
+            assert!(got.signers.is_empty());
+            let round = seen.inputs[0].musig.as_ref().unwrap();
+            assert!(musig::aggregate(&c, &psbt, 0, round).is_none());
+            assert!(!spend.aggregate_musig(&c, &seen));
+            assert!(spend.finish().is_err());
+        }
+    }
+
+    #[test]
+    fn a_true_partial_beside_another_kind_of_input_is_signed_here_and_otherwise_the_files_word() {
+        let c = faraday_core::testkit::compute();
+        let (session, mut inner, _) = musig_beside_a_wpkh_of_a_held_seed();
+        inner.inputs[0].tap_key_sig = None;
+        // A fee that is not a danger: 1,000 of 100,000.
+        inner.unsigned_tx.output[0].value = Amount::from_sat(99_000);
+        let mut psbt = Psbt::from(inner);
+        let (pk0, fp0) = who(0);
+        // Round one, then arbitrary nonces for the cosigners (nobody
+        // signs for them here), then this device's partial.
+        let mut held = None;
+        session.sign(&c, &mut psbt, &seed(), &mut held).unwrap();
+        let key = session.inspect(&c, &psbt).inputs[0]
+            .musig
+            .as_ref()
+            .unwrap()
+            .output_key;
+        for (n, k) in [(1usize, 3u8), (2, 5)] {
+            let mut b = [0u8; 32];
+            b[31] = k;
+            let p = SecretKey::from_slice(&b)
+                .unwrap()
+                .public_key(&Secp256k1::new());
+            let nonce =
+                faraday_bip::musig::PubNonce::from_bytes(&[p.serialize(), p.serialize()].concat())
+                    .unwrap();
+            musig::write_pub_nonce(&mut psbt.inner_mut().inputs[0], &who(n).0, &key, &nonce);
+        }
+        session.sign(&c, &mut psbt, &seed(), &mut held).unwrap();
+        assert!(held.as_ref().unwrap().is_empty());
+        let seen = session.inspect(&c, &psbt);
+        let round = seen.inputs[0].musig.as_ref().unwrap();
+        assert_eq!(musig::verified_partials(&c, &psbt, 0, round), vec![pk0]);
+        let others = {
+            let mut v = vec![who(1).1, who(2).1];
+            v.sort_by_key(|f| format!("{f}"));
+            v
+        };
+        let sorted = |mut v: Vec<Fingerprint>| {
+            v.sort_by_key(|f| format!("{f}"));
+            v
+        };
+        // Written here: counted on both inputs; the cosigners still sign.
+        let mut spend = Spend::new(psbt.clone(), "t");
+        spend.signed_here = vec![fp0];
+        spend.wrote = wrote(
+            &faraday_core::testkit::musig_policy().unwrap(),
+            &psbt,
+            &[fp0],
+        );
+        let got = spend.signing(&c, &session, Some(&seen), None);
+        assert_eq!(got.signers, vec![fp0]);
+        assert_eq!(sorted(got.to_sign), others);
+        // Opened again: the file's word on the MuSig2 input, so not counted.
+        let got = Spend::new(psbt, "t").signing(&c, &session, Some(&seen), None);
+        assert!(got.signers.is_empty());
+        assert_eq!(got.in_file, vec![fp0]);
+        assert!(!got.to_sign.contains(&fp0));
+    }
+
+    #[test]
+    fn an_output_key_with_an_odd_y_aggregates_from_true_partials() {
+        use faraday_bip::bitcoin::secp256k1::Parity;
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(false);
+        let index = (0u32..40)
+            .find(|i| {
+                let p = faraday_core::testkit::musig_unsigned_at(*i).unwrap();
+                session.inspect(&c, &p).inputs[0]
+                    .musig
+                    .as_ref()
+                    .unwrap()
+                    .output_key
+                    .x_only_public_key()
+                    .1
+                    == Parity::Odd
+            })
+            .expect("an odd output key among forty");
+        let (session, psbt) = all_partials_at(index);
+        let mut spend = Spend::new(psbt, "t");
+        let seen = session.inspect(&c, &spend.psbt);
+        let round = seen.inputs[0].musig.as_ref().unwrap();
+        assert_eq!(round.index, index);
+        assert_eq!(musig::verified_partials(&c, &spend.psbt, 0, round).len(), 3);
+        assert!(spend.aggregate_musig(&c, &seen));
+        assert_eq!(spend.finish(), Ok(()));
+    }
+
+    #[test]
+    fn a_partial_this_device_did_not_write_reads_in_file_though_its_master_signed_another_input() {
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(true);
+        let (one, _) = faraday_core::testkit::musig_two_inputs().unwrap();
+        let (_, fp0) = who(0);
+        // This device wrote its partial on the first input; the second
+        // carries one for the same master that came in a file.
+        let mut spend = Spend::new(one.clone(), "t");
+        spend.signed_here = vec![fp0];
+        spend.wrote = wrote(
+            &faraday_core::testkit::musig_policy().unwrap(),
+            &one,
+            &[fp0],
+        )
+        .into_iter()
+        .filter(|w| w.input == 0)
+        .collect();
+        assert_eq!(spend.wrote.len(), 1);
+        let got = spend.signing(&c, &session, None, None);
+        assert!(!got.signers.contains(&fp0), "not signed on every input");
+        assert!(got.in_file.contains(&fp0), "In file, unconfirmed");
+        assert!(!got.to_sign.contains(&fp0));
+    }
+
+    #[test]
+    fn a_collect_that_replaces_this_devices_entry_with_a_forged_one_reads_in_file() {
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(true);
+        let psbt = faraday_core::testkit::musig_forged(&[0]).unwrap();
+        forgery_verifies(&session, &psbt, &[0]);
+        let (pk0, fp0) = who(0);
+        // What this device wrote is not what the file now holds.
+        let mut spend = Spend::new(psbt, "t");
+        spend.signed_here = vec![fp0];
+        spend.wrote = vec![faraday_core::wallet::Written {
+            input: 0,
+            participant: pk0,
+            partial: faraday_bip::musig::PartialSig::from_bytes(&[2u8; 32]).unwrap(),
+        }];
+        let got = spend.signing(&c, &session, None, None);
+        assert!(got.signers.is_empty());
+        assert_eq!(got.in_file, vec![fp0]);
+        assert!(!got.to_sign.contains(&fp0));
+    }
+
+    #[test]
+    fn a_false_key_path_signature_beside_every_true_partial_is_replaced_by_the_aggregate() {
+        let c = faraday_core::testkit::compute();
+        let (session, mut psbt) = all_partials();
+        psbt.inner_mut().inputs[0].tap_key_sig = Some(faraday_bip::bitcoin::taproot::Signature {
+            signature: faraday_bip::bitcoin::secp256k1::schnorr::Signature::from_slice(&[3u8; 64])
+                .unwrap(),
+            sighash_type: TapSighashType::Default,
+        });
+        let mut spend = Spend::new(psbt, "t");
+        let seen = session.inspect(&c, &spend.psbt);
+        assert!(spend.aggregate_musig(&c, &seen));
+        assert_eq!(spend.finish(), Ok(()));
+    }
+
+    #[test]
+    fn an_entry_under_a_foreign_aggregate_key_reads_as_none_and_its_master_is_offered_sign() {
+        let c = faraday_core::testkit::compute();
+        let (session, mut psbt) = all_partials();
+        let (pk1, fp1) = who(1);
+        let e = musig::partial_sigs(&psbt.inner().inputs[0])
+            .unwrap()
+            .into_iter()
+            .find(|e| e.participant == pk1)
+            .unwrap();
+        let input = &mut psbt.inner_mut().inputs[0];
+        let rest: Vec<_> = musig::partial_sigs(input)
+            .unwrap()
+            .into_iter()
+            .filter(|x| x.participant != pk1)
+            .collect();
+        musig::clear_partial_sigs(input);
+        for x in &rest {
+            musig::write_partial_sig(input, &x.participant, &x.aggregate, &x.value);
+        }
+        let foreign = who(2).0;
+        musig::write_partial_sig(input, &pk1, &foreign, &e.value);
+        let got = Spend::new(psbt, "t").signing(&c, &session, None, None);
+        assert!(got.failed.is_empty(), "no entry for it is read");
+        assert!(got.to_sign.contains(&fp1), "Sign is offered");
+        assert_eq!(got.in_file.len(), 2);
+    }
+
+    /// An app with no key and the files `files` in its Inbox.
+    fn app_with(files: Vec<(String, Vec<u8>)>) -> faraday_core::Faraday {
+        let mut app = faraday_core::testkit::started();
+        app.storage(faraday_core::StorageEvent::Restored {
+            inbox: files,
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        app
+    }
+
+    fn inbox_at(app: &faraday_core::Faraday, name: &str) -> usize {
+        app.inbox().iter().position(|i| i.name == name).unwrap()
+    }
+
+    fn wallet_file() -> (String, Vec<u8>) {
+        let policy = faraday_core::testkit::musig_policy().unwrap();
+        (
+            "wallet.txt".to_string(),
+            policy.to_descriptor_checksummed().into_bytes(),
+        )
+    }
+
+    #[test]
+    fn an_honest_file_opened_before_its_wallet_is_registered_completes_when_it_is() {
+        use faraday_core::Action;
+        let (_, psbt) = all_partials();
+        let mut app = app_with(vec![
+            ("all.psbt".to_string(), psbt.to_bytes()),
+            wallet_file(),
+        ]);
+        app.press(Action::StartSpend(inbox_at(&app, "all.psbt")));
+        assert!(!app.spend().unwrap().complete, "no wallet, no aggregate");
+        app.press(Action::LoadWallet(inbox_at(&app, "wallet.txt")));
+        let s = app.spend().unwrap();
+        assert!(s.complete, "aggregated once the wallet is known");
+        assert_eq!(
+            (s.in_file.len(), s.to_sign.len(), s.signers.len()),
+            (0, 0, 3)
+        );
+    }
+
+    #[test]
+    fn the_count_and_the_foot_read_what_is_in_the_file_and_what_is_still_to_come() {
+        use faraday_core::Action;
+        let forged = faraday_core::testkit::musig_forged(&[0, 1]).unwrap();
+        let mut app = app_with(vec![
+            ("two.psbt".to_string(), forged.to_bytes()),
+            wallet_file(),
+        ]);
+        app.press(Action::LoadWallet(inbox_at(&app, "wallet.txt")));
+        crate::common::add_key(&mut app, "bacon");
+        app.press(Action::StartSpend(inbox_at(&app, "two.psbt")));
+        for n in [1u8, 2, 3] {
+            app.press(Action::StepNext(n));
+        }
+        let drawn = app.drawn_texts().join("\n");
+        assert!(
+            drawn.contains("2 of 3 in the file · 1 more needed"),
+            "{drawn}"
+        );
+        assert!(drawn.contains("Collect 1 signature"), "{drawn}");
+    }
+
+    #[test]
+    fn a_collect_that_brings_the_round_in_uses_the_file_after_the_merge() {
+        use faraday_core::Action;
+        let (_, full) = all_partials();
+        // The spend as opened lacks the participants field; the file has it.
+        let mut bare = full.clone();
+        bare.inner_mut().inputs[0]
+            .unknown
+            .retain(|k, _| k.type_value != musig::IN_PARTICIPANT_PUBKEYS);
+        let mut app = app_with(vec![
+            ("bare.psbt".to_string(), bare.to_bytes()),
+            ("full.psbt".to_string(), full.to_bytes()),
+            wallet_file(),
+        ]);
+        app.press(Action::LoadWallet(inbox_at(&app, "wallet.txt")));
+        app.press(Action::StartSpend(inbox_at(&app, "bare.psbt")));
+        assert!(!app.spend().unwrap().complete);
+        app.press(Action::Collect(inbox_at(&app, "full.psbt")));
+        assert!(app.spend().unwrap().complete, "aggregated after the merge");
+    }
+
+    #[test]
+    fn collecting_a_cosigners_partial_names_whose_it_added_and_the_same_file_again_adds_nothing() {
+        let c = faraday_core::testkit::compute();
+        let session = wallet_session(false);
+        let (unsigned, _, partials) = faraday_core::testkit::musig_rounds().unwrap();
+        let mut spend = Spend::new(unsigned, "t");
+        let name = |f: &Fingerprint| format!("{f}").to_lowercase();
+        // Each file carries the last signer's partial and one cosigner's.
+        let first = spend
+            .collect(&c, &session, &partials[0].1.to_bytes(), "a.psbt")
+            .unwrap();
+        assert_eq!(first.len(), 2);
+        assert!(
+            first
+                .iter()
+                .any(|f| name(f) == partials[0].0.to_lowercase())
+        );
+        let again = spend
+            .collect(&c, &session, &partials[0].1.to_bytes(), "a.psbt")
+            .unwrap();
+        assert!(again.is_empty());
+        let second = spend
+            .collect(&c, &session, &partials[1].1.to_bytes(), "b.psbt")
+            .unwrap();
+        assert_eq!(second.len(), 1);
+        assert_eq!(name(&second[0]), partials[1].0.to_lowercase());
+    }
+
+    #[test]
+    fn two_forms_of_the_aggregate_key_for_one_participant_read_as_the_signer_reads() {
+        let c = faraday_core::testkit::compute();
+        let (session, psbt) = all_partials();
+        let seen = session.inspect(&c, &psbt);
+        let round = seen.inputs[0].musig.as_ref().unwrap();
+        let (pk1, fp1) = who(1);
+        let true_one = first_in(&psbt, &pk1);
+        let mut junk = true_one.serialize();
+        junk[31] ^= 1;
+        let junk = faraday_bip::musig::PartialSig::from_bytes(&junk).unwrap();
+        // A false entry under the root aggregate beside the true one under
+        // the output key: the output key's counts, the spend completes.
+        let mut beside = psbt.clone();
+        musig::write_partial_sig(
+            &mut beside.inner_mut().inputs[0],
+            &pk1,
+            &round.root_aggregate,
+            &junk,
+        );
+        let got = Spend::new(beside.clone(), "t").signing(&c, &session, None, None);
+        assert!(got.failed.is_empty() && got.in_file.len() == 3);
+        let mut spend = Spend::new(beside, "t");
+        assert!(spend.aggregate_musig(&c, &seen));
+        // The false one under the output key hides the true one under the
+        // root aggregate: it is the one that counts, and it fails.
+        let mut hidden = psbt.clone();
+        musig::write_partial_sig(
+            &mut hidden.inner_mut().inputs[0],
+            &pk1,
+            &round.root_aggregate,
+            &true_one,
+        );
+        musig::write_partial_sig(
+            &mut hidden.inner_mut().inputs[0],
+            &pk1,
+            &round.output_key,
+            &junk,
+        );
+        let got = Spend::new(hidden.clone(), "t").signing(&c, &session, None, None);
+        assert_eq!(got.failed, vec![fp1]);
+        assert!(got.to_sign.contains(&fp1));
+        assert!(!Spend::new(hidden, "t").aggregate_musig(&c, &seen));
+    }
+
+    #[test]
+    fn a_spend_with_every_input_final_has_nobody_to_sign() {
+        let mut psbt = fixture("wallet-musig-device-first-signed");
+        psbt.inner_mut().inputs[0].final_script_witness = Some(Witness::new());
+        assert_eq!(state(&psbt), (vec![], vec![]));
+    }
 }

@@ -2062,7 +2062,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         cy += 6.0;
     }
-    let cy = crate::screens::signers_count(ui, x, cy, w, here, needed);
+    let cy = crate::screens::signers_count(ui, x, cy, w, here, 0, needed);
     let drawn = next_button(
         ui,
         x,

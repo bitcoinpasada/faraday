@@ -1546,6 +1546,9 @@ pub struct Spend {
     pub txid: Txid,
     /// Keys of this session that signed it here.
     pub signed_here: Vec<Fingerprint>,
+    /// The MuSig2 partial signatures this device wrote in this session: the
+    /// only entries in the file it reads as its own (F220).
+    pub wrote: Vec<Written>,
     /// Fingerprints whose signatures arrived from other devices, with the
     /// file each came in.
     pub collected: Vec<(Fingerprint, String)>,
@@ -1557,6 +1560,96 @@ pub struct Spend {
     pub v2: Option<faraday_psbt::v2::PsbtV2>,
 }
 
+/// A MuSig2 partial signature this device wrote: the input, the
+/// participant's key and the partial's bytes, all public.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Written {
+    /// The input it is on.
+    pub input: usize,
+    /// The participant it is for.
+    pub participant: faraday_bip::bitcoin::secp256k1::PublicKey,
+    /// The partial signature.
+    pub partial: faraday_bip::musig::PartialSig,
+}
+
+/// What one participant of a MuSig2 wallet is on one open input
+/// ([`Spend::signing`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Partial {
+    /// The input carries the aggregate signature, verified under the
+    /// output key: everyone's.
+    Aggregate,
+    /// This device wrote the partial signature, and it verifies.
+    Here,
+    /// A partial signature that verifies is in the file and this device
+    /// cannot confirm it: the file's word.
+    Word,
+    /// A partial signature is in the file and does not verify.
+    Fails,
+    /// No partial signature is in the file, or this device holds the
+    /// participant's secret nonce, which proves any entry false: still to
+    /// sign.
+    Open,
+}
+
+/// The masters of one input, from its participants' [`Partial`]s: a master
+/// is only as far along as its worst key (two accounts of one master are
+/// two participants).
+#[derive(Debug, Clone, Default)]
+struct Tally {
+    counted: Vec<Fingerprint>,
+    to_sign: Vec<Fingerprint>,
+    in_file: Vec<Fingerprint>,
+    failed: Vec<Fingerprint>,
+}
+
+impl Tally {
+    fn of(states: &[(Fingerprint, Partial)]) -> Tally {
+        let mut t = Tally::default();
+        let mut seen: Vec<Fingerprint> = Vec::new();
+        for (fp, _) in states {
+            if seen.contains(fp) {
+                continue;
+            }
+            seen.push(*fp);
+            let own: Vec<Partial> = states
+                .iter()
+                .filter(|(f, _)| f == fp)
+                .map(|(_, p)| *p)
+                .collect();
+            if own.contains(&Partial::Fails) {
+                t.failed.push(*fp);
+            }
+            if own
+                .iter()
+                .any(|p| matches!(p, Partial::Open | Partial::Fails))
+            {
+                t.to_sign.push(*fp);
+            } else if own.contains(&Partial::Word) {
+                t.in_file.push(*fp);
+            } else {
+                t.counted.push(*fp);
+            }
+        }
+        t
+    }
+}
+
+/// What [`Spend::signing`] says of a spend.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Signing {
+    /// The masters with a signature counted on every open input.
+    pub signers: Vec<Fingerprint>,
+    /// The masters still to sign.
+    pub to_sign: Vec<Fingerprint>,
+    /// The masters whose partial signature is in the file, verifies, and
+    /// is not this device's own: the file's word, not counted.
+    pub in_file: Vec<Fingerprint>,
+    /// The masters, still to sign, with a partial signature in the file
+    /// that does not verify.
+    pub failed: Vec<Fingerprint>,
+}
+
 impl Spend {
     /// Starts a spend from a PSBT file.
     pub fn new(psbt: Psbt, source: &str) -> Spend {
@@ -1566,6 +1659,7 @@ impl Spend {
             source: source.to_string(),
             txid,
             signed_here: Vec::new(),
+            wrote: Vec::new(),
             collected: Vec::new(),
             finished: None,
             v2: None,
@@ -1574,7 +1668,8 @@ impl Spend {
 
     /// Costs an inspection of the PSBT, but for MuSig2. Fingerprints with a
     /// valid signature on the first input; for a MuSig2 wallet, the
-    /// participants whose partial signature is on it.
+    /// participants whose partial signature is confirmed on it (this
+    /// device's own, or the aggregate verifying).
     pub fn signers(&self, c: &Compute, session: &Session) -> Vec<Fingerprint> {
         self.signers_by(c, session, None)
     }
@@ -1593,7 +1688,7 @@ impl Spend {
         session: &Session,
         inspection: Option<&Inspection>,
     ) -> Vec<Fingerprint> {
-        self.signing(c, session, inspection).0
+        self.signing(c, session, inspection, None).signers
     }
 
     /// Costs a scan of the inspection's signatures. Whether input `i` carries
@@ -1625,74 +1720,138 @@ impl Spend {
             })
     }
 
-    /// The MuSig2 wallet's participants whose partial signature input `i`
-    /// carries: counted on its presence, the library does not check one
-    /// (BIP-327 needs the round's aggregate nonce).
-    fn musig_partial_signers(
-        inner: &faraday_bip::bitcoin::Psbt,
+    /// Costs a BIP-327 `PartialSigVerify` per partial signature of input
+    /// `i` and its round's aggregate nonce once
+    /// ([`faraday_psbt::musig::verified_partials`]), and a scan of the
+    /// inspection's signatures; nothing where the input carries no partial
+    /// signature. What each participant of the MuSig2 wallet `w` is on the
+    /// open input `i`, by participant key ([`Partial`]): a partial in the
+    /// file is the file's word, never proof, because the online side writes
+    /// every nonce and so can build one that verifies. Three things prove a
+    /// signature: the aggregate verifying, this device having written that
+    /// very partial on that input (`wrote`), and this device holding the participant's
+    /// secret nonce, which proves any entry for it false.
+    fn musig_states(
+        &self,
+        c: &Compute,
+        inspection: &Inspection,
+        view: Option<&faraday_psbt::MusigSessionView>,
         w: &Wallet,
         i: usize,
-    ) -> Vec<Fingerprint> {
-        let partials = inner
-            .inputs
-            .get(i)
-            .and_then(|i| faraday_psbt::musig::partial_sigs(i).ok())
-            .unwrap_or_default();
-        w.policy
-            .keys()
-            .iter()
-            .filter(|k| {
-                partials
-                    .iter()
-                    .any(|p| p.participant == k.xpub().public_key)
-            })
-            .filter_map(|k| k.fingerprint())
-            .collect()
-    }
-
-    /// Costs a scan of the inspection's signatures and of each open input's
-    /// partial signatures. What [`Spend::signing`] says of a spend whose
-    /// every open input is the MuSig2 wallet's `index`: the aggregate
-    /// signature is every participant's, once it verifies on every open
-    /// input; else a participant counts only with a partial signature (on
-    /// its presence) on every open input, and one on a final input counts
-    /// for nothing.
-    fn musig_signing(
-        &self,
-        session: &Session,
-        index: usize,
-        inspection: &Inspection,
-        open: &[usize],
-    ) -> (Vec<Fingerprint>, Vec<Fingerprint>) {
-        let inner = self.psbt.inner();
-        let w = &session.wallets[index];
-        let keys: Vec<Fingerprint> = w
+    ) -> Vec<(Fingerprint, Partial)> {
+        let keys = w
             .policy
             .keys()
             .iter()
-            .filter_map(|k| k.fingerprint())
-            .collect();
-        let signers = if !open.is_empty()
-            && open
-                .iter()
-                .all(|i| Self::musig_verified(inner, inspection, *i))
-        {
-            keys.clone()
-        } else {
-            let per_input: Vec<Vec<Fingerprint>> = open
-                .iter()
-                .map(|i| Self::musig_partial_signers(inner, w, *i))
-                .collect();
-            keys.iter()
-                .filter(|fp| per_input.iter().all(|p| p.contains(fp)))
-                .copied()
-                .collect()
+            .filter_map(|k| k.fingerprint().map(|fp| (fp, k.xpub().public_key)));
+        let inner = self.psbt.inner();
+        if Self::musig_verified(inner, inspection, i) {
+            return keys.map(|(fp, _)| (fp, Partial::Aggregate)).collect();
+        }
+        let round = inspection.inputs.get(i).and_then(|x| x.musig.as_ref());
+        // The entries the signer and the aggregation read: one per
+        // participant, under the form of the aggregate key they prefer.
+        let entries = match (inner.inputs.get(i), round) {
+            (Some(x), Some(round)) => faraday_psbt::musig::picked_partials(x, round),
+            _ => Vec::new(),
         };
-        let to_sign = keys
-            .into_iter()
-            .filter(|fp| !signers.contains(fp))
-            .collect();
-        (signers, to_sign)
+        let verified = match round {
+            Some(round) if !entries.is_empty() => {
+                faraday_psbt::musig::verified_partials(c, &self.psbt, i, round)
+            }
+            _ => Vec::new(),
+        };
+        keys.map(|(fp, pk)| {
+            let held = view.is_some_and(|v| v.holds(self.txid, i, &pk));
+            let entry = entries.iter().find(|(p, _)| *p == pk).map(|(_, v)| *v);
+            let state = if held {
+                Partial::Open
+            } else if verified.contains(&pk) {
+                // Here only for the very entry this device wrote.
+                let mine = entry.is_some_and(|v| {
+                    self.wrote
+                        .iter()
+                        .any(|w| w.input == i && w.participant == pk && w.partial == v)
+                });
+                if mine { Partial::Here } else { Partial::Word }
+            } else if entry.is_some() {
+                Partial::Fails
+            } else {
+                Partial::Open
+            };
+            (fp, state)
+        })
+        .collect()
+    }
+
+    /// Notes the MuSig2 partial signatures `now` holds that this spend's
+    /// PSBT does not hold as they are: what a signing here is about to
+    /// write. Call before `now` replaces the PSBT.
+    pub fn note_written(&mut self, now: &Psbt) {
+        for (i, input) in now.inner().inputs.iter().enumerate() {
+            let old = self
+                .psbt
+                .inner()
+                .inputs
+                .get(i)
+                .and_then(|x| faraday_psbt::musig::partial_sigs(x).ok())
+                .unwrap_or_default();
+            for e in faraday_psbt::musig::partial_sigs(input).unwrap_or_default() {
+                let known = old.iter().any(|o| {
+                    o.participant == e.participant
+                        && o.aggregate == e.aggregate
+                        && o.value == e.value
+                });
+                let w = Written {
+                    input: i,
+                    participant: e.participant,
+                    partial: e.value,
+                };
+                if !known && !self.wrote.contains(&w) {
+                    self.wrote.push(w);
+                }
+            }
+        }
+    }
+
+    /// Costs what `signers_by` and `wallet_for` cost. Aggregates the
+    /// partial signatures of every open input of a MuSig2 wallet that has
+    /// one from every participant ([`faraday_psbt::musig::aggregate`]),
+    /// whatever key this device holds: the signature is written only when
+    /// it verifies under the input's output key. Whether any input gained
+    /// its signature.
+    pub fn aggregate_musig(&mut self, c: &Compute, inspection: &Inspection) -> bool {
+        let mut changed = false;
+        for (i, x) in inspection.inputs.iter().enumerate() {
+            let Some(round) = x.musig.as_ref() else {
+                continue;
+            };
+            let Some(input) = self.psbt.inner().inputs.get(i) else {
+                continue;
+            };
+            // A signature already there stops the aggregate only if it
+            // verifies: a false one is replaced.
+            if (input.tap_key_sig.is_some()
+                && Self::musig_verified(self.psbt.inner(), inspection, i))
+                || input.final_script_sig.is_some()
+                || input.final_script_witness.is_some()
+            {
+                continue;
+            }
+            let entries = faraday_psbt::musig::partial_sigs(input).unwrap_or_default();
+            if !round
+                .participants
+                .iter()
+                .all(|p| entries.iter().any(|e| e.participant == *p))
+            {
+                continue;
+            }
+            if let Some(sig) = faraday_psbt::musig::aggregate(c, &self.psbt, i, round) {
+                self.psbt.inner_mut().inputs[i].tap_key_sig = Some(sig);
+                changed = true;
+            }
+        }
+        changed
     }
 
     /// Costs what `derives` costs per signature row. Adds to `per_input` the
@@ -1752,7 +1911,8 @@ impl Spend {
         }
     }
 
-    /// Costs what [`Spend::signers_by`] costs. The signers, and the masters
+    /// Costs what [`Spend::signers_by`] costs, and what `musig_states`
+    /// costs per open input of a MuSig2 wallet. The signers, and the masters
     /// still to sign: one the PSBT names on an input not yet final that
     /// has no signature counted there, per input (so two inputs of two
     /// owners leave neither owner "still to sign" once each has signed its
@@ -1763,12 +1923,20 @@ impl Spend {
     /// derives to the key that signed ([`Wallet::derives`]); else, for a
     /// master this device holds, the held master derives it at the stated
     /// place. A cosigner's master with no wallet found stays word-only.
+    ///
+    /// On a MuSig2 input a master counts, per participant key, for the
+    /// aggregate verifying or a partial this device wrote; one whose
+    /// partial is only in the file is in `in_file`, and one whose partial
+    /// does not verify is also `failed` and still to sign. `musig` is the
+    /// round this device holds, if any: a participant whose secret nonce it
+    /// holds is still to sign whatever the file carries for it.
     pub fn signing(
         &self,
         c: &Compute,
         session: &Session,
         inspection: Option<&Inspection>,
-    ) -> (Vec<Fingerprint>, Vec<Fingerprint>) {
+        musig: Option<&faraday_psbt::MusigSessionView>,
+    ) -> Signing {
         let own;
         let inspection = match inspection {
             Some(i) => i,
@@ -1795,31 +1963,16 @@ impl Spend {
             })
             .collect();
         let is_musig = |w: usize| Kind::of(&session.wallets[w].policy) == Kind::MuSig;
-        // A spend is the MuSig2 wallet's alone only when every input open
-        // is: an open input of another owner, or of none found, is not
-        // signed by the aggregate signature of another input.
-        if let Some(Some(w)) = open.first().map(|i| owners[*i])
-            && is_musig(w)
-            && open.iter().all(|i| owners[*i] == Some(w))
-        {
-            return self.musig_signing(session, w, inspection, &open);
-        }
         let mut per_input: Vec<Vec<Fingerprint>> = vec![Vec::new(); inner.inputs.len()];
+        let mut tallies: Vec<Option<Tally>> = vec![None; inner.inputs.len()];
         for i in &open {
             // An input of a MuSig2 wallet is signed by its participants,
-            // all or those with a partial signature, never by a row's
-            // stated key.
+            // each by its own key, never by a row's stated key.
             if let Some(w) = owners[*i].filter(|w| is_musig(*w)) {
-                per_input[*i] = if Self::musig_verified(inner, inspection, *i) {
-                    session.wallets[w]
-                        .policy
-                        .keys()
-                        .iter()
-                        .filter_map(|k| k.fingerprint())
-                        .collect()
-                } else {
-                    Self::musig_partial_signers(inner, &session.wallets[w], *i)
-                };
+                let t =
+                    Tally::of(&self.musig_states(c, inspection, musig, &session.wallets[w], *i));
+                per_input[*i] = t.counted.clone();
+                tallies[*i] = Some(t);
             }
         }
         self.count_rows(c, session, inspection, &open, &owners, &mut per_input);
@@ -1832,16 +1985,22 @@ impl Spend {
             None => Vec::new(),
         };
         let mut to_sign: Vec<Fingerprint> = Vec::new();
+        let mut in_file: Vec<Fingerprint> = Vec::new();
+        let mut failed: Vec<Fingerprint> = Vec::new();
         for i in &open {
             let input = &inner.inputs[*i];
-            if let Some(w) = owners[*i].filter(|w| is_musig(*w)) {
+            if let Some(t) = &tallies[*i] {
                 // The wallet's participants, not the aggregate key's origin.
-                for k in session.wallets[w].policy.keys() {
-                    if let Some(fp) = k.fingerprint()
-                        && !per_input[*i].contains(&fp)
-                        && !to_sign.contains(&fp)
-                    {
-                        to_sign.push(fp);
+                for fp in &t.to_sign {
+                    if !to_sign.contains(fp) {
+                        to_sign.push(*fp);
+                    }
+                }
+                for (from, into) in [(&t.in_file, &mut in_file), (&t.failed, &mut failed)] {
+                    for fp in from {
+                        if !into.contains(fp) {
+                            into.push(*fp);
+                        }
                     }
                 }
                 continue;
@@ -1862,7 +2021,29 @@ impl Spend {
                 }
             }
         }
-        (signers, to_sign)
+        // A master with a partial in the file on one input and still to
+        // sign on another is still to sign, not "in the file".
+        in_file.retain(|fp| !signers.contains(fp) && !to_sign.contains(fp));
+        failed.retain(|fp| !signers.contains(fp));
+        Signing {
+            signers,
+            to_sign,
+            in_file,
+            failed,
+        }
+    }
+
+    /// Costs what [`Spend::signing`] costs. The masters with a signature
+    /// counted or a partial in the file, which is what a file added.
+    fn counted(
+        &self,
+        c: &Compute,
+        session: &Session,
+        inspection: Option<&Inspection>,
+    ) -> Vec<Fingerprint> {
+        let mut s = self.signing(c, session, inspection, None);
+        s.signers.extend(s.in_file);
+        s.signers
     }
 
     /// Costs what `read_psbt`, `signers` and `inspect` cost, what
@@ -1919,7 +2100,7 @@ impl Spend {
         if let Some((i, bare)) = file_lies(self.psbt.inner(), other.inner()) {
             return Err(lie_refusal(source, i, bare));
         }
-        let before = self.signers(c, session);
+        let before = self.counted(c, session, None);
         let mut merged = self.psbt.inner().clone();
         let incoming = other.into_inner();
         let file_inputs = incoming.inputs.clone();
@@ -2001,7 +2182,7 @@ impl Spend {
         }
         self.psbt = merged;
         let added: Vec<Fingerprint> = self
-            .signers(c, session)
+            .counted(c, session, Some(&inspection))
             .into_iter()
             .filter(|fp| !before.contains(fp))
             .collect();
@@ -2638,6 +2819,12 @@ pub struct SpendState {
     /// The masters still to sign: named on an input not yet final with no
     /// signature counted there ([`Spend::signing`]).
     pub to_sign: Vec<[u8; 4]>,
+    /// The masters whose partial signature is in the file, verifies, and
+    /// that this device cannot confirm ([`Signing::in_file`]).
+    pub in_file: Vec<[u8; 4]>,
+    /// The masters whose partial signature in the file does not verify
+    /// ([`Signing::failed`]).
+    pub failed: Vec<[u8; 4]>,
     /// Which results went to the Outbox.
     pub out_signed: bool,
     /// The finished transaction went to the Outbox.
@@ -2675,6 +2862,17 @@ pub struct SpendState {
 }
 
 impl SpendState {
+    /// The keys this device has signed with that are not still to sign: the
+    /// ones the Sign card names as signed.
+    pub fn signed_keys(&self) -> Vec<Fingerprint> {
+        self.spend
+            .signed_here
+            .iter()
+            .filter(|f| !self.to_sign.contains(&f.0))
+            .copied()
+            .collect()
+    }
+
     /// A spend opened on `spend`, its `inspection` made with the
     /// session's `inputs`. Its open step
     /// is computed in `refresh_spend`, once Check's done state is known:
@@ -2699,6 +2897,8 @@ impl SpendState {
             inspected,
             signers: Vec::new(),
             to_sign: Vec::new(),
+            in_file: Vec::new(),
+            failed: Vec::new(),
             out_signed: false,
             out_tx: false,
             show_hex: false,
@@ -3014,7 +3214,7 @@ impl Faraday {
     }
 
     /// Costs an inspection when the PSBT or the session changed, and
-    /// what `signers_by` and `wallet_for` cost. Keeps the open spend in
+    /// what `aggregate_musig`, `signers_by` and `wallet_for` cost. Keeps the open spend in
     /// step with the session: its inspection, signers, wallet and steps.
     pub(crate) fn refresh_spend(&mut self) {
         let c = self.compute();
@@ -3027,13 +3227,26 @@ impl Faraday {
             let fresh = !s.inspected_for(&inputs);
             if fresh {
                 s.inspection = self.session.inspect(&c, &s.spend.psbt);
+                // Every participant's partial signature is in the file:
+                // aggregated whenever the spend is read anew, whichever
+                // way it came to be (a file opened before its wallet was
+                // registered, a Collect), and read again if it gained one.
+                if s.spend.aggregate_musig(&c, &s.inspection) {
+                    s.inspection = self.session.inspect(&c, &s.spend.psbt);
+                }
                 s.inspected = Some((s.spend.psbt.clone(), inputs));
                 s.refused = s.spend.refused();
             }
             if fresh || !s.opened {
-                let (signers, to_sign) = s.spend.signing(&c, &self.session, Some(&s.inspection));
-                s.signers = signers.iter().map(|f| f.0).collect();
-                s.to_sign = to_sign.iter().map(|f| f.0).collect();
+                let view = s.musig.as_ref().map(|m| m.view());
+                let now = s
+                    .spend
+                    .signing(&c, &self.session, Some(&s.inspection), view.as_ref());
+                let raw = |v: &[Fingerprint]| v.iter().map(|f| f.0).collect::<Vec<_>>();
+                s.signers = raw(&now.signers);
+                s.to_sign = raw(&now.to_sign);
+                s.in_file = raw(&now.in_file);
+                s.failed = raw(&now.failed);
             }
             s.wallet = self.session.wallet_for(&c, &s.spend.psbt);
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
@@ -3291,5 +3504,35 @@ impl Wallet {
     /// the caches.
     pub(crate) fn kept(&self) -> (usize, usize) {
         (self.addresses.borrow().len(), self.scripts.borrow().len())
+    }
+}
+
+#[cfg(test)]
+mod partial_tests {
+    use super::*;
+
+    fn fp(n: u8) -> Fingerprint {
+        Fingerprint([n, 0, 0, 0])
+    }
+
+    #[test]
+    fn a_master_with_two_accounts_counts_only_when_both_do() {
+        // The same master twice, as two participants of one wallet; the
+        // first signed here, the second not yet.
+        let first_only = Tally::of(&[
+            (fp(1), Partial::Here),
+            (fp(1), Partial::Open),
+            (fp(2), Partial::Open),
+        ]);
+        assert!(first_only.counted.is_empty());
+        assert_eq!(first_only.to_sign, vec![fp(1), fp(2)]);
+        let both = Tally::of(&[
+            (fp(1), Partial::Here),
+            (fp(1), Partial::Here),
+            (fp(2), Partial::Word),
+        ]);
+        assert_eq!(both.counted, vec![fp(1)]);
+        assert_eq!(both.in_file, vec![fp(2)]);
+        assert!(both.to_sign.is_empty());
     }
 }

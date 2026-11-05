@@ -40,8 +40,6 @@ pub(crate) struct Origin {
     pub(crate) input: Vec<u8>,
     /// The spend's PSBT before the press began.
     pub(crate) before: Vec<u8>,
-    /// Whether it is the MuSig2 aggregation after Collect, not Sign.
-    pub(crate) collect: bool,
 }
 
 impl SignWork {
@@ -119,29 +117,20 @@ pub(crate) fn sign_here(app: &mut Faraday) {
     let psbt = s.spend.psbt.clone();
     let before = s.spend.psbt.to_bytes();
     match app.session.sign_spend_job(&c, &psbt, &seed, s) {
-        Ok(job) => sign_start(app, job, before, false),
-        Err(e) => sign_end(app, &before, false, (psbt, Err(e))),
+        Ok(job) => sign_start(app, job, before),
+        Err(e) => sign_end(app, &before, (psbt, Err(e))),
     }
 }
 
 /// Starts `job`, the signing of the open spend, whose PSBT was
 /// `before` the press began.
-pub(crate) fn sign_start(
-    app: &mut Faraday,
-    job: faraday_keys::job::SignJob,
-    before: Vec<u8>,
-    collect: bool,
-) {
+pub(crate) fn sign_start(app: &mut Faraday, job: faraday_keys::job::SignJob, before: Vec<u8>) {
     let input = app
         .wallets
         .spend()
         .map(|s| s.spend.psbt.to_bytes())
         .unwrap_or_default();
-    let from = Origin {
-        input,
-        before,
-        collect,
-    };
+    let from = Origin { input, before };
     app.start(
         Job::Sign(Box::new(SignWork { job, from })),
         EN.working_signing,
@@ -159,17 +148,12 @@ pub(crate) fn signed_spend(app: &mut Faraday, done: SignDone) {
         return;
     }
     let result = crate::review::signed(&mut s.musig, signing);
-    sign_end(app, &from.before, from.collect, result);
+    sign_end(app, &from.before, result);
 }
 
 /// What a signing leaves on the open spend, as the press did when it
 /// signed in place.
-fn sign_end(
-    app: &mut Faraday,
-    before: &[u8],
-    collect: bool,
-    (psbt, signed): (Psbt, Result<Signed, String>),
-) {
+fn sign_end(app: &mut Faraday, before: &[u8], (psbt, signed): (Psbt, Result<Signed, String>)) {
     let mut remember: Option<Psbt> = None;
     let mut nonce_only = false;
     let Some(s) = app.wallets.spend_mut() else {
@@ -181,20 +165,6 @@ fn sign_end(
         s.musig = None;
     }
     let signed = signed.map(|out| out.by);
-    if collect {
-        if signed.is_ok() {
-            s.spend.psbt = psbt;
-        }
-        collect_end(app, before, None);
-        // The part file sent before the job is not the answer of a
-        // spend the aggregation completed.
-        if let Some(s) = app.wallets.spend().filter(|s| s.complete) {
-            let name = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
-            app.outbox.retain(|i| i.name != name);
-            app.save_boxes();
-        }
-        return;
-    }
     match signed {
         Ok(fps) if fps.is_empty() && s.musig.is_some() => {
             // MuSig2 round one: this device's nonce, and no signature.
@@ -204,8 +174,13 @@ fn sign_end(
         }
         Ok(fps) => {
             remember = Some(psbt.clone());
+            s.spend.note_written(&psbt);
             s.spend.psbt = psbt;
-            s.spend.signed_here.extend(fps);
+            for fp in fps {
+                if !s.spend.signed_here.contains(&fp) {
+                    s.spend.signed_here.push(fp);
+                }
+            }
             s.done[5] = true;
             s.error = None;
         }
@@ -246,20 +221,6 @@ fn sign_end(
     }
 }
 
-/// Collect's MuSig2 aggregation: the merged PSBT is refreshed and sent to
-/// the Outbox first, so a Back or a lock meanwhile leaves the spend as
-/// consistent as a Collect with nothing to aggregate; the answer then
-/// adds only what the aggregation changes.
-pub(crate) fn collect_aggregate(app: &mut Faraday, job: faraday_keys::job::SignJob, before: &[u8]) {
-    let merged = app
-        .wallets
-        .spend()
-        .map(|s| s.spend.psbt.to_bytes())
-        .unwrap_or_default();
-    collect_end(app, before, None);
-    sign_start(app, job, merged, true);
-}
-
 /// The end of Collect, once the MuSig2 aggregation after it (if any)
 /// is done.
 pub(crate) fn collect_end(app: &mut Faraday, before: &[u8], nothing: Option<&String>) {
@@ -281,4 +242,26 @@ pub(crate) fn collect_end(app: &mut Faraday, before: &[u8], nothing: Option<&Str
             s.open = Some(wallet::step::FINISH);
         }
     }
+}
+
+/// The PSBT with what this pass added, For the stick for the other
+/// signers while more are needed; once the spend is complete, the one sent
+/// before is taken back, as it is not the answer of a spend that needs no
+/// more.
+pub(crate) fn part_out(app: &mut Faraday) {
+    let Some(s) = app.wallets.spend() else {
+        return;
+    };
+    let name = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
+    if s.complete {
+        if app.outbox.iter().any(|i| i.name == name) {
+            app.outbox.retain(|i| i.name != name);
+            app.save_boxes();
+        }
+        return;
+    }
+    let Ok(bytes) = s.spend.out_bytes() else {
+        return app.toast(EN.spend_v2_not_written);
+    };
+    app.put_outbox(&name, bytes);
 }

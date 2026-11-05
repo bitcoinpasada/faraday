@@ -567,7 +567,7 @@ Built from the code at fa72a199: every caller of `Faraday::fresh`,
 | 11 | A wallet's paper backup: **Seed XOR, 2 parts** or **3 parts** | `fresh_bytes("seed xor")` | the random parts | `wallet_backup.rs` (`paper_xor`) |
 | 12 | A codex32 set's **Rotate the set**: **Make the new set** | `fresh_bytes("codex32 rotation")` | the new set's random shares | `backups/mod.rs` (`c32_make_new`) |
 | 13 | Spend, the Sign step: **Sign here**, when the PSBT opens a MuSig2 round | `sign_seed` | the round's secret nonces | `lib.rs` (`sign_here`) |
-| 14 | Spend, and a split wallet's Files: **Collect** a co-signer's PSBT, when a MuSig2 round is aggregated | `sign_seed` | a nonce shared again, never the one before | `lib.rs` (`collect`), `family/mod.rs` |
+| 14 | Spend, and a split wallet's Files: **Collect** a co-signer's PSBT | nothing | Collect draws nothing and signs nothing; a MuSig2 round's nonce is drawn only by **Sign here** (row 13) | - |
 | 15 | **Lock**, a vault's **Lock this vault**, the idle lock, and every seal of a changed vault | `Seed::draw` (`vault_draw`) | the seal's nonce | `vault/mod.rs` (`vault_draw`, `vault_sealed`) |
 | 16 | No press: a keyboard or touchscreen plugged in (F153) | `Seed::draw("faraday input code")` | its code and its target's place | `inputs.rs` (`input_code`) |
 | 17 | No press: the seed arriving, or an addition | `Seed::draw("faraday key blinding")` | the blinding of the session's keys | `fresh.rs` (`keys_reblind`) |

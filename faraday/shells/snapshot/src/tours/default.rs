@@ -526,6 +526,96 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         ));
     }
     println!("MuSig2 spend finished in the app");
+    // MuSig2 partial signatures the device cannot confirm, and one that
+    // does not verify, each opened from a stick.
+    let unconfirmed = testkit::musig_forged(&[0, 1])?;
+    let false_partial = testkit::musig_false_partial()?;
+    for (name, psbt, frame) in [
+        ("musig-unconfirmed.psbt", &unconfirmed, "musig-unconfirmed"),
+        ("musig-false.psbt", &false_partial, "musig-false"),
+    ] {
+        std::fs::write(t.kit.join(name), psbt.to_bytes()).map_err(|e| e.to_string())?;
+        t.sticks(true);
+        t.press(Action::Lock);
+        t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
+        t.pump();
+        let at = t
+            .stick()
+            .files
+            .iter()
+            .position(|(n, _)| n == name)
+            .ok_or(format!("{name} is not on the stick"))?;
+        t.press(Action::VisitInAll);
+        t.press(Action::VisitIn(at));
+        t.press(Action::VisitCopy);
+        t.sticks(false);
+        std::fs::remove_file(t.kit.join(name)).map_err(|e| e.to_string())?;
+        t.load_kit()?;
+        let i = t
+            .app
+            .inbox()
+            .iter()
+            .position(|it| it.name == name)
+            .ok_or(format!("no {name}"))?;
+        t.press(Action::StartSpend(i));
+        for n in [1u8, 2, 3] {
+            t.press(Action::StepNext(n));
+        }
+        crate::tour::scroll(t, 2000);
+        t.shot(&format!("{frame}-count"))?;
+        for n in [4u8, 9] {
+            t.press(Action::StepNext(n));
+        }
+        t.shot(&format!("{frame}-sign"))?;
+        t.press(Action::StepNext(5));
+        t.shot(&format!("{frame}-rows"))?;
+        crate::tour::scroll(t, 150);
+        t.shot(&format!("{frame}-rows-more"))?;
+    }
+    // A file with another nonce for this device than the one it holds, and
+    // a cosigner's partial that fails under the held one: Sign mends it.
+    let mend = "musig-mend.psbt";
+    let mend_psbt = testkit::musig_forged(&[1])?;
+    std::fs::write(t.kit.join(mend), mend_psbt.to_bytes()).map_err(|e| e.to_string())?;
+    t.sticks(true);
+    t.press(Action::Lock);
+    t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
+    t.pump();
+    t.press(Action::VisitInAll);
+    for name in ["musig-unsigned.psbt", mend] {
+        let at = t
+            .stick()
+            .files
+            .iter()
+            .position(|(n, _)| n == name)
+            .ok_or(format!("{name} is not on the stick"))?;
+        t.press(Action::VisitIn(at));
+    }
+    t.press(Action::VisitCopy);
+    t.sticks(false);
+    std::fs::remove_file(t.kit.join(mend)).map_err(|e| e.to_string())?;
+    t.load_kit()?;
+    let inbox_at = |t: &Tour, name: &str| {
+        t.app
+            .inbox()
+            .iter()
+            .position(|i| i.name == name)
+            .ok_or(format!("no {name}"))
+    };
+    let i = inbox_at(t, "musig-unsigned.psbt")?;
+    t.press(Action::StartSpend(i));
+    for n in [1u8, 2, 3, 4, 9] {
+        t.press(Action::StepNext(n));
+    }
+    t.press(Action::SignHere);
+    let i = inbox_at(t, mend)?;
+    t.press(Action::Collect(i));
+    t.press(Action::SignHere);
+    t.shot("musig-mended")?;
+    t.press(Action::StepNext(5));
+    t.shot("musig-mended-sign")?;
+    t.press(Action::SignHere);
+    t.shot("musig-mended-nonces")?;
     // Restore Savings from two of its three shares, then type test key 1.
     t.sticks(true);
     t.press(Action::Lock);

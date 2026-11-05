@@ -992,8 +992,102 @@ mod signing {
             assert!(app.spend().is_some(), "the spend stays open");
         }
 
+        /// The spend opened again from a cosigner's partial-signature file,
+        /// which also carries this device's own part.
+        fn reopened() -> (Faraday, Vec<usize>) {
+            let mut app = device(true);
+            app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            app.press(Action::SignHere);
+            let copies = nonce_copies(&app);
+            app.press(Action::Collect(copies[0]));
+            app.press(Action::Collect(copies[1]));
+            app.press(Action::SignHere);
+            let partials: Vec<usize> = app
+                .inbox()
+                .iter()
+                .enumerate()
+                .filter(|(_, i)| i.name.starts_with("musig-partial-"))
+                .map(|(i, _)| i)
+                .collect();
+            assert_eq!(partials.len(), 2);
+            (app, partials)
+        }
+
         #[test]
-        fn back_during_the_aggregation_leaves_the_spend_as_collect_made_it() {
+        fn this_devices_own_part_in_a_reopened_file_is_unconfirmed_and_not_signed_again() {
+            let (mut app, partials) = reopened();
+            app.press(Action::StartSpend(partials[0]));
+            let s = app.spend().expect("the spend is open");
+            let mine = testkit::seed_fingerprint(0).0;
+            assert!(s.signers.is_empty(), "nothing is confirmed");
+            assert!(s.in_file.contains(&mine), "this device's own part");
+            assert!(!s.to_sign.contains(&mine), "it is not offered to sign");
+            assert_eq!((s.in_file.len(), s.to_sign.len()), (2, 1));
+            assert!(!s.complete);
+        }
+
+        /// One file holding every part, made by merging this device's own
+        /// file with the two cosigners'.
+        fn every_part_in_one_file(app: &Faraday, partials: &[usize]) -> Vec<u8> {
+            let mut all = app.spend().unwrap().spend.psbt.to_bytes();
+            for i in partials {
+                all = merged(&all, &app.inbox()[*i].bytes);
+            }
+            all
+        }
+
+        #[test]
+        fn a_file_with_every_part_in_it_opens_aggregated() {
+            let (app, partials) = reopened();
+            let whole = every_part_in_one_file(&app, &partials);
+            // Opened by a device holding a key, and by one holding none.
+            for keyed in [true, false] {
+                let mut other = if keyed {
+                    device(true)
+                } else {
+                    let mut a = testkit::started();
+                    a.storage(faraday_core::StorageEvent::Restored {
+                        inbox: testkit::files()
+                            .unwrap()
+                            .into_iter()
+                            .filter(|(n, _)| n.starts_with("musig-"))
+                            .collect(),
+                        outbox: Vec::new(),
+                        kept: Vec::new(),
+                    });
+                    a.press(Action::LoadWallet(at(&a, "musig-wallet.txt")));
+                    a
+                };
+                let c = testkit::compute();
+                let kind = faraday_core::wallet::classify(&c, "whole.psbt", &whole);
+                testkit::inbox_push(
+                    &mut other,
+                    faraday_core::Item {
+                        name: "whole.psbt".to_string(),
+                        bytes: whole.clone(),
+                        kind,
+                        secret: false,
+                        picture: None,
+                        sha: None,
+                        facts: None,
+                        wallet: None,
+                        psbt: None,
+                    },
+                );
+                let at_whole = other.inbox().len() - 1;
+                other.press(Action::StartSpend(at_whole));
+                let s = other.spend().expect("the spend is open");
+                assert!(s.complete, "keyed {keyed}: opens complete");
+                assert_eq!(
+                    (s.signers.len(), s.in_file.len(), s.to_sign.len()),
+                    (3, 0, 0),
+                    "keyed {keyed}"
+                );
+            }
+        }
+
+        #[test]
+        fn collecting_the_last_partial_aggregates_at_once_and_takes_back_the_part_file() {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
             app.press(Action::SignHere);
@@ -1010,21 +1104,380 @@ mod signing {
                 .collect();
             assert_eq!(partials.len(), 2);
             app.press(Action::Collect(partials[0]));
-            testkit::hold_worker();
-            testkit::press_on_worker(&mut app, Action::Collect(partials[1]));
-            app.press(Action::Back);
-            testkit::release_worker();
-            testkit::settle_stale(&mut app);
-            let s = app.spend().expect("the spend stays open");
-            assert!(!s.complete);
-            assert_eq!(s.error, None);
+            assert!(!app.spend().unwrap().complete);
             assert!(
                 app.outbox.iter().any(|o| o.name == "musig-part.psbt"),
-                "the merged partial signatures are in the Outbox"
+                "the partial signatures so far are in the Outbox"
             );
-            // Pressed again, the aggregation completes.
             app.press(Action::Collect(partials[1]));
-            assert!(app.spend().unwrap().complete, "the aggregation completed");
+            let s = app.spend().expect("the spend stays open");
+            assert!(s.complete, "the aggregation completed");
+            assert_eq!(s.error, None);
+            assert!(
+                app.outbox.iter().all(|o| o.name != "musig-part.psbt"),
+                "a finished spend leaves no part file for more signers"
+            );
+        }
+
+        #[test]
+        fn collecting_the_cosigners_nonces_signs_nothing_until_sign_is_pressed() {
+            let mut app = device(true);
+            app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            app.press(Action::SignHere);
+            let shared = our_nonce(&app);
+            for i in nonce_copies(&app) {
+                app.press(Action::Collect(i));
+            }
+            let s = app.spend().unwrap();
+            assert!(s.spend.signed_here.is_empty(), "Collect signed");
+            assert!(s.musig.is_some(), "the nonce is still held for Sign");
+            assert!(!s.to_sign.is_empty(), "Sign is offered");
+            assert_eq!(our_nonce(&app), shared, "no new nonce was drawn");
+            app.press(Action::SignHere);
+            let s = app.spend().unwrap();
+            assert_eq!(s.spend.signed_here.len(), 1, "the press signed");
+            assert_eq!(s.error, None);
+        }
+
+        #[test]
+        fn collecting_a_copy_with_our_own_part_changed_offers_sign_and_signs_nothing() {
+            let (mut app, _) = reopened();
+            let mine = testkit::seed_fingerprint(0).0;
+            let own = app.spend().unwrap().spend.psbt.to_bytes();
+            let shared = our_nonce(&app);
+            let c = testkit::compute();
+            let mut copy = faraday_psbt::Psbt::parse_bytes(&c, &own).unwrap();
+            for (k, v) in copy.inner_mut().inputs[0].unknown.iter_mut() {
+                if k.type_value == faraday_psbt::musig::IN_PARTIAL_SIG
+                    && k.key[..33] == shared_key(&app)
+                {
+                    v[31] ^= 1;
+                }
+            }
+            let bytes = copy.to_bytes();
+            let kind = faraday_core::wallet::classify(&c, "copy.psbt", &bytes);
+            testkit::inbox_push(
+                &mut app,
+                faraday_core::Item {
+                    name: "copy.psbt".to_string(),
+                    bytes,
+                    kind,
+                    secret: false,
+                    picture: None,
+                    sha: None,
+                    facts: None,
+                    wallet: None,
+                    psbt: None,
+                },
+            );
+            let at_copy = app.inbox().len() - 1;
+            let outbox = app.outbox.len();
+            for _ in 0..2 {
+                app.press(Action::Collect(at_copy));
+                let s = app.spend().unwrap();
+                assert!(s.failed.contains(&mine), "reads Does not verify");
+                assert!(s.to_sign.contains(&mine), "Sign is offered");
+                assert!(s.musig.is_none(), "Collect drew a nonce");
+                assert_eq!(s.spend.signed_here.len(), 1, "Collect signed");
+                assert_eq!(our_nonce(&app), shared, "no new nonce");
+                assert!(app.outbox.len() <= outbox + 1);
+            }
+        }
+
+        /// This device's account key, as the first 33 bytes of an entry.
+        fn shared_key(app: &Faraday) -> [u8; 33] {
+            let c = testkit::compute();
+            app.session
+                .keys
+                .master_for_tests(0)
+                .derive(&c, &"m/86'/1'/0'".parse().unwrap())
+                .to_xpub(&c)
+                .public_key
+                .serialize()
+        }
+
+        /// Three devices (test keys 0, 1, 2) on the MuSig2 spend.
+        fn trio(n: usize, entropy: u8) -> Faraday {
+            let mut app = testkit::started();
+            app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+                [entropy; 32],
+            )));
+            app.storage(faraday_core::StorageEvent::Restored {
+                inbox: testkit::files()
+                    .unwrap()
+                    .into_iter()
+                    .filter(|(n, _)| n.starts_with("musig-"))
+                    .collect(),
+                outbox: Vec::new(),
+                kept: Vec::new(),
+            });
+            app.press(Action::LoadWallet(at(&app, "musig-wallet.txt")));
+            app.press(Action::Entry(None));
+            for c in testkit::test_words(testkit::TEST_SEEDS[n].0).chars() {
+                app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+            }
+            app.press(Action::EntryAdd);
+            app
+        }
+
+        fn file_of(app: &Faraday) -> Vec<u8> {
+            app.spend().unwrap().spend.psbt.to_bytes()
+        }
+
+        fn merged(a: &[u8], b: &[u8]) -> Vec<u8> {
+            let c = testkit::compute();
+            let mut x = faraday_psbt::Psbt::parse_bytes(&c, a).unwrap();
+            let y = faraday_psbt::Psbt::parse_bytes(&c, b).unwrap();
+            x.inner_mut().combine(y.inner().clone()).unwrap();
+            x.to_bytes()
+        }
+
+        fn give(app: &mut Faraday, bytes: Vec<u8>) {
+            let c = testkit::compute();
+            let kind = faraday_core::wallet::classify(&c, "next.psbt", &bytes);
+            testkit::inbox_push(
+                app,
+                faraday_core::Item {
+                    name: "next.psbt".to_string(),
+                    bytes,
+                    kind,
+                    secret: false,
+                    picture: None,
+                    sha: None,
+                    facts: None,
+                    wallet: None,
+                    psbt: None,
+                },
+            );
+            let last = app.inbox().len() - 1;
+            app.press(Action::Collect(last));
+        }
+
+        /// Nonces exchanged among three devices; nothing signed yet.
+        fn nonces_exchanged() -> Vec<Faraday> {
+            let mut all: Vec<Faraday> = (0..3).map(|n| trio(n, 5 + n as u8)).collect();
+            let mut shared = Vec::new();
+            for a in all.iter_mut() {
+                a.press(Action::StartSpend(at(a, "musig-unsigned.psbt")));
+                a.press(Action::SignHere);
+                shared.push(file_of(a));
+            }
+            let every = merged(&merged(&shared[0], &shared[1]), &shared[2]);
+            for a in all.iter_mut() {
+                give(a, every.clone());
+            }
+            all
+        }
+
+        /// Device 1 signs; device 2 locks, comes back and shares a new nonce.
+        /// The coordinator merges the two files in `new_first` order.
+        fn restarted_cosigner(new_first: bool) -> (Vec<Faraday>, Vec<u8>) {
+            let mut all = nonces_exchanged();
+            let every = file_of(&all[2]);
+            all[1].press(Action::SignHere);
+            let old = file_of(&all[1]);
+            let mut again = trio(2, 77);
+            give(&mut again, every);
+            let i = again.inbox().len() - 1;
+            again.press(Action::StartSpend(i));
+            again.press(Action::SignHere);
+            let new = file_of(&again);
+            all[2] = again;
+            let m = if new_first {
+                merged(&new, &old)
+            } else {
+                merged(&old, &new)
+            };
+            (all, m)
+        }
+
+        #[test]
+        fn a_cosigner_who_shared_a_new_nonce_is_not_refused_when_the_older_nonce_wins_the_merge() {
+            let (mut all, m) = restarted_cosigner(true);
+            let k1 = testkit::seed_fingerprint(1).0;
+            give(&mut all[2], m);
+            all[2].press(Action::SignHere);
+            let s = all[2].spend().unwrap();
+            assert_eq!(s.error, None, "Sign is not refused");
+            assert!(!s.in_file.contains(&k1), "the cosigner's old part is gone");
+            assert!(s.to_sign.contains(&k1), "the cosigner is asked again");
+            assert!(s.spend.signed_here.is_empty(), "nothing signed under it");
+            assert!(s.musig.is_some(), "the nonce stays held");
+        }
+
+        fn nonce_count(app: &Faraday) -> usize {
+            faraday_psbt::musig::pub_nonces(&app.spend().unwrap().spend.psbt.inner().inputs[0])
+                .unwrap()
+                .len()
+        }
+
+        #[test]
+        fn a_mend_sends_the_part_file_on_and_drops_the_nonce_of_the_partial_it_removed() {
+            let (mut all, m) = restarted_cosigner(true);
+            give(&mut all[2], m);
+            assert_eq!(nonce_count(&all[2]), 3);
+            let parts = all[2].outbox.len();
+            all[2].press(Action::SignHere);
+            let s = all[2].spend().unwrap();
+            assert_eq!(s.error, None);
+            assert_eq!(s.open, Some(9), "the screen moves on to the nonces");
+            assert_eq!(
+                nonce_count(&all[2]),
+                2,
+                "the spent nonce went with the partial"
+            );
+            assert!(s.spend.signed_here.is_empty());
+            let part = all[2]
+                .outbox
+                .iter()
+                .rev()
+                .find(|o| o.name.ends_with("part.psbt"))
+                .expect("the part file is in the Outbox");
+            assert_eq!(
+                part.bytes,
+                file_of(&all[2]),
+                "the file that goes out is the mended one"
+            );
+            assert!(all[2].outbox.len() >= parts);
+            let mended = file_of(&all[2]);
+            all[2].press(Action::SignHere);
+            assert_eq!(file_of(&all[2]), mended, "a second press signs nothing");
+            assert!(all[2].spend().unwrap().spend.signed_here.is_empty());
+        }
+
+        #[test]
+        fn a_round_mended_and_passed_on_completes() {
+            let (mut all, m) = restarted_cosigner(true);
+            give(&mut all[2], m);
+            all[2].press(Action::SignHere);
+            let mended = file_of(&all[2]);
+            for (at, a) in all.iter_mut().enumerate() {
+                if at != 2 {
+                    give(a, mended.clone());
+                }
+            }
+            for _ in 0..8 {
+                for at in 0..3 {
+                    all[at].press(Action::SignHere);
+                    let f = file_of(&all[at]);
+                    for (o, a) in all.iter_mut().enumerate() {
+                        if o != at {
+                            give(a, f.clone());
+                        }
+                    }
+                }
+                if all.iter().any(|a| a.spend().unwrap().complete) {
+                    return;
+                }
+            }
+            panic!("the round did not complete after the mend");
+        }
+
+        #[test]
+        fn collecting_a_new_nonce_on_a_device_that_has_signed_neither_signs_nor_draws_one() {
+            let (mut all, m) = restarted_cosigner(false);
+            let before = file_of(&all[1]);
+            assert_eq!(all[1].spend().unwrap().spend.signed_here.len(), 1);
+            give(&mut all[1], m);
+            let s = all[1].spend().unwrap();
+            assert_eq!(s.spend.signed_here.len(), 1, "Collect signed again");
+            assert_eq!(s.error, None);
+            assert!(s.musig.is_none(), "Collect drew a nonce");
+            let own = |b: &[u8]| {
+                let p = faraday_psbt::Psbt::parse_bytes(&testkit::compute(), b).unwrap();
+                faraday_psbt::musig::partial_sigs(&p.inner().inputs[0])
+                    .unwrap()
+                    .into_iter()
+                    .map(|e| (e.participant.serialize(), e.value.serialize()))
+                    .collect::<Vec<_>>()
+            };
+            let nonces = |b: &[u8]| {
+                let p = faraday_psbt::Psbt::parse_bytes(&testkit::compute(), b).unwrap();
+                faraday_psbt::musig::pub_nonces(&p.inner().inputs[0])
+                    .unwrap()
+                    .into_iter()
+                    .map(|e| (e.participant.serialize(), e.value.serialize()))
+                    .collect::<Vec<_>>()
+            };
+            let k1_key = faraday_psbt::musig::partial_sigs(
+                &faraday_psbt::Psbt::parse_bytes(&testkit::compute(), &before)
+                    .unwrap()
+                    .inner()
+                    .inputs[0],
+            )
+            .unwrap()[0]
+                .participant
+                .serialize();
+            assert_eq!(
+                nonces(&before).into_iter().find(|n| n.0 == k1_key),
+                nonces(&file_of(&all[1]))
+                    .into_iter()
+                    .find(|n| n.0 == k1_key),
+                "the device's own nonce is kept"
+            );
+            let was = own(&before);
+            let now = own(&file_of(&all[1]));
+            assert!(
+                was.iter().all(|w| now.contains(w)),
+                "the device's own partial signature is not replaced"
+            );
+        }
+
+        fn sign_card_text(app: &mut Faraday) -> Vec<String> {
+            let steps = app.spend().unwrap().steps.clone();
+            for n in steps {
+                if n == 5 {
+                    break;
+                }
+                app.press(Action::StepNext(n));
+            }
+            app.press(Action::Step(5));
+            app.drawn_texts()
+        }
+
+        #[test]
+        fn the_sign_card_names_no_key_as_signed_while_it_is_still_to_sign() {
+            let (mut all, m) = restarted_cosigner(false);
+            let signed = |t: &[String]| t.iter().any(|l| l.starts_with("Signed with"));
+            assert!(
+                signed(&sign_card_text(&mut all[1])),
+                "a key that signed is named"
+            );
+            give(&mut all[1], m);
+            let k1 = testkit::seed_fingerprint(1).0;
+            assert!(all[1].spend().unwrap().to_sign.contains(&k1));
+            let t = sign_card_text(&mut all[1]);
+            assert!(!signed(&t), "a key still to sign is named as signed: {t:?}");
+            assert!(
+                t.iter().any(|l| l.starts_with("Sign with")),
+                "the card offers Sign: {t:?}"
+            );
+        }
+
+        #[test]
+        fn a_round_where_the_new_nonce_wins_the_merge_completes_after_the_presses() {
+            let (mut all, m) = restarted_cosigner(false);
+            for a in all.iter_mut() {
+                give(a, m.clone());
+            }
+            for _ in 0..8 {
+                let mut files = Vec::new();
+                for a in all.iter_mut() {
+                    a.press(Action::SignHere);
+                    files.push(file_of(a));
+                }
+                for (at, a) in all.iter_mut().enumerate() {
+                    for (from, f) in files.iter().enumerate() {
+                        if from != at {
+                            give(a, f.clone());
+                        }
+                    }
+                }
+                if all.iter().any(|a| a.spend().unwrap().complete) {
+                    return;
+                }
+            }
+            panic!("the round did not complete");
         }
     }
 }

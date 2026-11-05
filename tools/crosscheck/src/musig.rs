@@ -83,6 +83,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             );
             Ok(json!({"valid": ok.is_ok()}))
         }
+        "psbt_partials" => psbt_partials(req),
+        "psbt_aggregate" => psbt_aggregate(req),
         "agg" => {
             let session = session(&secp, req)?;
             let psigs = bytes_list(req, "psigs")
@@ -116,6 +118,56 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         }
         _ => Err(format!("unknown musig op {name}")),
     }
+}
+
+/// The participants of input 0 whose partial signature Faraday counts on
+/// a spend: those that verify under the nonces and sighash the PSBT
+/// carries, for the registered wallet.
+fn psbt_partials(req: &Value) -> Answer {
+    let c = faraday_crypto::work::Compute::unchecked();
+    let psbt = faraday_psbt::Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
+    let wallets = [faraday_bip::policy::WalletPolicy::parse(&c, text(req, "wallet")).map_err(err)?];
+    let ctx = faraday_psbt::Context {
+        network: faraday_bip::keys::Network::Regtest,
+        keys: &[],
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = faraday_psbt::inspect(&c, &psbt, &ctx);
+    let round = insp
+        .inputs
+        .first()
+        .and_then(|i| i.musig.as_ref())
+        .ok_or("no MuSig2 input")?;
+    let mut keys: Vec<String> = faraday_psbt::musig::verified_partials(&c, &psbt, 0, round)
+        .iter()
+        .map(|k| hex(&k.serialize()))
+        .collect();
+    keys.sort();
+    Ok(json!({"signers": keys}))
+}
+
+/// The key-path signature `faraday_psbt::musig::aggregate` finishes
+/// input 0 with, or null when it does not finish.
+fn psbt_aggregate(req: &Value) -> Answer {
+    let c = faraday_crypto::work::Compute::unchecked();
+    let psbt = faraday_psbt::Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
+    let wallets = [faraday_bip::policy::WalletPolicy::parse(&c, text(req, "wallet")).map_err(err)?];
+    let ctx = faraday_psbt::Context {
+        network: faraday_bip::keys::Network::Regtest,
+        keys: &[],
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let insp = faraday_psbt::inspect(&c, &psbt, &ctx);
+    let round = insp
+        .inputs
+        .first()
+        .and_then(|i| i.musig.as_ref())
+        .ok_or("no MuSig2 input")?;
+    let sig =
+        faraday_psbt::musig::aggregate(&c, &psbt, 0, round).map(|s| hex(&s.signature.serialize()));
+    Ok(json!({"sig": sig}))
 }
 
 fn session(

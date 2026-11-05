@@ -4644,7 +4644,6 @@ strings! {
     /// Error in `collect`. `{}`: `name`.
     collect_has_nothing: "{} has nothing this copy lacks",
     /// Error in `collect`.
-    collect_no_randomness: "No randomness from the system yet. Try again",
     // ----- primary (faraday-core/src/lib.rs) -----
     /// Error in `primary`. `{}`: `pos + 1`.
     primary_finish_step: "Finish step {} first",
@@ -6054,6 +6053,11 @@ strings! {
     step_verified: "Verified",
     /// Text in `step_body`.
     step_not_needed: "Not needed",
+    /// Text in `step_body`: a partial signature that verifies and that
+    /// this device did not write, so cannot confirm.
+    step_in_file_unconfirmed: "In file, unconfirmed",
+    /// Text in `step_body`: a partial signature that does not verify.
+    step_does_not_verify: "Does not verify",
     /// Line in `step_body`.
     step_no_cosigner_s: "No cosigner's copy in Files",
     /// Text in `step_body`.
@@ -6301,6 +6305,9 @@ strings! {
     signers_count_of_signatures_here: "{} of {} signatures here",
     /// Text in `signers_count`. `{}`: `here`, `needed`, `needed - here`.
     signers_count_of_signatures: "{} of {} signatures here · {} more needed",
+    /// Text in `signers_count`. `{}`: the signatures in the file, `needed`,
+    /// how many more are needed.
+    signers_count_in_the_file: "{} of {} in the file · {} more needed",
     /// Text in `signers_count`.
     signers_count_can_spend: "Can spend",
     /// Line in `signers_count`.

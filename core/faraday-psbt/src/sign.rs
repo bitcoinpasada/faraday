@@ -40,9 +40,7 @@ use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use crate::classify::{Classified, ScriptKind, classify, legacy_code_separator, spent_output};
 use crate::context::Context;
 use crate::finalize::{is_complete, key_in_script};
-use crate::inspect::{
-    MusigRound, WarningKind, inspect, musig_keyed_here, musig_round, signed_through_wallet,
-};
+use crate::inspect::{MusigRound, WarningKind, inspect, musig_round, signed_through_wallet};
 use crate::musig::MusigSession;
 use crate::psbt::{Error, Psbt};
 use crate::reason::Reason;
@@ -292,6 +290,31 @@ pub fn sign(
     let mut cache = SighashCache::new(&tx);
     let mut signed_inputs = Vec::new();
     let mut nonces_shared = 0usize;
+
+    // A refusal on any MuSig2 input comes before any input takes a kept
+    // nonce, so a pass that refuses burns none, whatever input it
+    // refuses on.
+    for i in 0..psbt.inner().inputs.len() {
+        let input = &psbt.inner().inputs[i];
+        if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
+            continue;
+        }
+        let Some(musig) = inspection.inputs[i].musig.as_ref() else {
+            continue;
+        };
+        let mine: Vec<&crate::inspect::MusigParticipation> = musig
+            .ours
+            .iter()
+            .filter(|p| selected.iter().any(|(f, _)| *f == p.fingerprint))
+            .collect();
+        if mine.is_empty() {
+            continue;
+        }
+        let cl = classify(psbt.inner(), i);
+        if cl.kind == ScriptKind::P2trKey {
+            musig_precheck(c, psbt, &mut cache, i, &cl, musig, &mine, txid, session)?;
+        }
+    }
 
     for i in 0..psbt.inner().inputs.len() {
         let input = &psbt.inner().inputs[i];
@@ -843,32 +866,28 @@ fn sign_musig(
     // whichever of the three aggregate forms its key names.
     let input = &psbt.inner().inputs[index];
     let mut nonces: Vec<(secp256k1::PublicKey, faraday_bip::musig::PubNonce)> =
-        crate::musig::pub_nonces(input)
-            .map_err(|e| Error::Unsupported {
+        crate::musig::picked(
+            &crate::musig::pub_nonces(input).map_err(|e| Error::Unsupported {
                 input: index,
                 reason: Reason::Musig(e),
-            })?
-            .into_iter()
-            .filter(|e| musig_keyed_here(musig, &e.aggregate))
-            .map(|e| (e.participant, e.value))
-            .collect();
+            })?,
+            musig,
+        );
     let mut psigs: Vec<(secp256k1::PublicKey, faraday_bip::musig::PartialSig)> =
-        crate::musig::partial_sigs(input)
-            .map_err(|e| Error::Unsupported {
+        crate::musig::picked(
+            &crate::musig::partial_sigs(input).map_err(|e| Error::Unsupported {
                 input: index,
                 reason: Reason::Musig(e),
-            })?
-            .into_iter()
-            .filter(|e| musig_keyed_here(musig, &e.aggregate))
-            .map(|e| (e.participant, e.value))
-            .collect();
+            })?,
+            musig,
+        );
 
     // Which way each participant goes, read off the input before this
     // pass writes anything to it.
     let view = session.as_ref().map(|s| s.view());
     let rounds: Vec<MusigRound> = mine
         .iter()
-        .map(|p| musig_round(input, musig, p, view.as_ref(), txid, index))
+        .map(|p| musig_round(c, psbt, musig, p, view.as_ref(), txid, index))
         .collect();
     drop(view);
 
@@ -876,19 +895,69 @@ fn sign_musig(
     // they were made under the aggregate nonce it changes. The rounds
     // that share go first, so a signature this pass makes is made under
     // the nonces the input ends with and stays on it, and what the pass
-    // reports is what the PSBT holds.
-    let order = mine
+    // reports is what the PSBT holds. The deterministic signatures
+    // follow, then the check of the others' partial signatures, and only
+    // then the rounds that take a kept secret nonce: a pass that refuses
+    // burns none.
+    let phase = |r: &MusigRound| match r {
+        MusigRound::Share { .. } => 0,
+        MusigRound::SignLast => 1,
+        MusigRound::Sign => 2,
+        _ => 3,
+    };
+    let mut order: Vec<_> = mine.iter().zip(&rounds).collect();
+    order.sort_by_key(|(_, r)| phase(r));
+    let replaced: Vec<secp256k1::PublicKey> = mine
         .iter()
         .zip(&rounds)
-        .filter(|(_, r)| matches!(r, MusigRound::Share { .. }))
-        .chain(
-            mine.iter()
-                .zip(&rounds)
-                .filter(|(_, r)| !matches!(r, MusigRound::Share { .. })),
-        );
+        .filter(|(_, r)| matches!(r, MusigRound::Sign))
+        .map(|(p, _)| p.key)
+        .collect();
+    // A file that carries another nonce of this device's than the one it
+    // kept (an older copy won a merge) is mended, not signed: the kept
+    // nonce goes in, the partial signatures that cannot verify under it
+    // go out, and the cosigners sign again. Nothing signs under a nonce
+    // set a partial failed on.
+    if let Some((stale, unverified)) = mendable(
+        &secp, musig, &nonces, &psigs, &replaced, session, index, &msg,
+    ) {
+        let here = &mut psbt.inner_mut().inputs[index];
+        // A participant whose partial goes used its nonce for it, so the
+        // nonce is spent and goes too (a key of ours gets its kept one
+        // below): the round waits for a new share from that device.
+        here.unknown.retain(|k, _| {
+            !matches!(
+                k.type_value,
+                crate::musig::IN_PARTIAL_SIG | crate::musig::IN_PUB_NONCE
+            ) || !unverified
+                .iter()
+                .any(|pk| k.key.starts_with(&pk.serialize()))
+        });
+        for key in &stale {
+            let kept = session
+                .as_ref()
+                .and_then(|s| s.public_of(index, key))
+                .expect("the key was found among the kept nonces");
+            crate::musig::write_pub_nonce(here, key, &musig.output_key, &kept);
+        }
+        return Ok(MusigPass {
+            signatures: Vec::new(),
+            nonces_shared: 0,
+        });
+    }
+    // The public nonces this device kept are the ones that count for its
+    // own keys, whatever the file says for them.
+    hold_session_nonces(&mut nonces, &replaced, session, index);
+    let mut checked = false;
     let mut written = Vec::new();
     let mut nonces_shared = 0usize;
     for (participation, round) in order {
+        if matches!(round, MusigRound::Sign) && !checked {
+            check_others(
+                &secp, musig, index, &nonces, &psigs, &replaced, &msg, session,
+            )?;
+            checked = true;
+        }
         let (_, master) = selected
             .iter()
             .find(|(f, _)| *f == participation.fingerprint)
@@ -1046,7 +1115,9 @@ fn sign_musig(
                     &pubnonce,
                 );
                 crate::musig::write_partial_sig(here, &participation.key, &musig.output_key, &psig);
+                nonces.retain(|(pk, _)| *pk != participation.key);
                 nonces.push((participation.key, pubnonce));
+                psigs.retain(|(pk, _)| *pk != participation.key);
                 psigs.push((participation.key, psig));
                 written.push(InputSignature {
                     index,
@@ -1061,67 +1132,26 @@ fn sign_musig(
         }
     }
 
-    // Every partial signature on the input, this device's and the
-    // others', against the aggregate nonce they were all made under.
-    let all: Vec<faraday_bip::musig::PubNonce> = musig
+    // The others' partial signatures, against the aggregate nonce they
+    // were all made under, when no round took a nonce.
+    if !checked {
+        check_others(
+            &secp, musig, index, &nonces, &psigs, &replaced, &msg, session,
+        )?;
+    }
+    let complete = musig
         .participants
         .iter()
-        .filter_map(|p| nonces.iter().find(|(pk, _)| pk == p).map(|(_, n)| *n))
-        .collect();
-    if all.len() != musig.participants.len() {
+        .all(|p| psigs.iter().any(|(pk, _)| pk == p));
+    if !complete {
         return Ok(MusigPass {
             signatures: written,
             nonces_shared,
         });
     }
-    let aggnonce =
-        faraday_bip::musig::nonce_agg_with(&secp, &all).map_err(|_| Error::Unsupported {
-            input: index,
-            reason: Reason::MusigNonces,
-        })?;
-    let values = faraday_bip::musig::session_values(
-        &secp,
-        &musig.participants,
-        &musig.tweaks,
-        &aggnonce,
-        &msg,
-    )
-    .map_err(|_| Error::Sighash { input: index })?;
-    for (pk, psig) in &psigs {
-        let Some((_, nonce)) = nonces.iter().find(|(n, _)| n == pk) else {
-            continue;
-        };
-        if faraday_bip::musig::partial_sig_verify_internal(&secp, psig, nonce, pk, &values).is_err()
-        {
-            return Err(Error::MusigPartialSig {
-                input: index,
-                participant: hex33(pk),
-            });
-        }
-    }
-    if psigs.len() != musig.participants.len() {
-        return Ok(MusigPass {
-            signatures: written,
-            nonces_shared,
-        });
-    }
-
-    let ordered: Vec<faraday_bip::musig::PartialSig> = musig
-        .participants
-        .iter()
-        .filter_map(|p| psigs.iter().find(|(pk, _)| pk == p).map(|(_, s)| *s))
-        .collect();
-    let sig = faraday_bip::musig::partial_sig_agg(&ordered, &values)
-        .map_err(|_| Error::Sighash { input: index })?;
-    let signature = secp256k1::schnorr::Signature::from_slice(&sig)
-        .map_err(|_| Error::VerifyFailed { input: index })?;
-    let output_key = musig.output_key.x_only_public_key().0;
-    secp.verify_schnorr(&signature, &Message::from(sighash), &output_key)
-        .map_err(|_| Error::VerifyFailed { input: index })?;
-    let taproot_sig = taproot::Signature {
-        signature,
-        sighash_type,
-    };
+    let taproot_sig = crate::musig::aggregate(c, psbt, index, musig)
+        .ok_or(Error::VerifyFailed { input: index })?;
+    let sig = taproot_sig.signature.serialize();
     psbt.inner_mut().inputs[index].tap_key_sig = Some(taproot_sig);
     written.push(InputSignature {
         index,
@@ -1138,6 +1168,244 @@ fn sign_musig(
         signatures: written,
         nonces_shared,
     })
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature. Whether the pass mends input `index` instead of signing it,
+/// with the keys whose kept nonce the file does not carry and the
+/// participants whose partial signature cannot verify under the kept
+/// nonces: only where both exist. The partial signatures of `replaced`
+/// keys, which the pass overwrites, do not count.
+#[allow(clippy::too_many_arguments, reason = "one input's round state")]
+fn mendable<C: secp256k1::Verification>(
+    secp: &secp256k1::Secp256k1<C>,
+    musig: &crate::inspect::MusigInput,
+    nonces: &[(secp256k1::PublicKey, faraday_bip::musig::PubNonce)],
+    psigs: &[(secp256k1::PublicKey, faraday_bip::musig::PartialSig)],
+    replaced: &[secp256k1::PublicKey],
+    session: &Option<MusigSession>,
+    index: usize,
+    msg: &[u8],
+) -> Option<(Vec<secp256k1::PublicKey>, Vec<secp256k1::PublicKey>)> {
+    let stale = stale_own_nonces(nonces, replaced, session, index);
+    if stale.is_empty() {
+        return None;
+    }
+    let mut held = nonces.to_vec();
+    hold_session_nonces(&mut held, replaced, session, index);
+    let unverified = unverifiable_partials(secp, musig, &held, psigs, msg);
+    unverified
+        .iter()
+        .any(|pk| !replaced.contains(pk))
+        .then_some((stale, unverified))
+}
+
+/// The keys of `replaced` whose public nonce on the input is not the one
+/// the session kept for them.
+fn stale_own_nonces(
+    nonces: &[(secp256k1::PublicKey, faraday_bip::musig::PubNonce)],
+    replaced: &[secp256k1::PublicKey],
+    session: &Option<MusigSession>,
+    index: usize,
+) -> Vec<secp256k1::PublicKey> {
+    replaced
+        .iter()
+        .filter(|key| {
+            let kept = session.as_ref().and_then(|s| s.public_of(index, key));
+            kept.is_some() && nonces.iter().find(|(pk, _)| pk == *key).map(|(_, n)| *n) != kept
+        })
+        .copied()
+        .collect()
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature. The participants whose partial signature does not verify
+/// under `nonces`: all of them where a participant's nonce is missing.
+fn unverifiable_partials<C: secp256k1::Verification>(
+    secp: &secp256k1::Secp256k1<C>,
+    musig: &crate::inspect::MusigInput,
+    nonces: &[(secp256k1::PublicKey, faraday_bip::musig::PubNonce)],
+    psigs: &[(secp256k1::PublicKey, faraday_bip::musig::PartialSig)],
+    msg: &[u8],
+) -> Vec<secp256k1::PublicKey> {
+    let all: Option<Vec<_>> = musig
+        .participants
+        .iter()
+        .map(|p| nonces.iter().find(|(pk, _)| pk == p).map(|(_, n)| *n))
+        .collect();
+    let values = all.as_ref().and_then(|all| {
+        let agg = faraday_bip::musig::nonce_agg_with(secp, all).ok()?;
+        faraday_bip::musig::session_values(secp, &musig.participants, &musig.tweaks, &agg, msg).ok()
+    });
+    let (Some(all), Some(values)) = (all, values) else {
+        return psigs
+            .iter()
+            .filter(|(pk, _)| musig.participants.contains(pk))
+            .map(|(pk, _)| *pk)
+            .collect();
+    };
+    psigs
+        .iter()
+        .filter(|(pk, psig)| {
+            musig
+                .participants
+                .iter()
+                .position(|p| p == pk)
+                .is_some_and(|at| {
+                    faraday_bip::musig::partial_sig_verify_internal(
+                        secp, psig, &all[at], pk, &values,
+                    )
+                    .is_err()
+                })
+        })
+        .map(|(pk, _)| *pk)
+        .collect()
+}
+
+/// Puts the public nonce the session kept for each of `replaced` in
+/// `nonces` in place of any the file carries for that key.
+fn hold_session_nonces(
+    nonces: &mut Vec<(secp256k1::PublicKey, faraday_bip::musig::PubNonce)>,
+    replaced: &[secp256k1::PublicKey],
+    session: &Option<MusigSession>,
+    index: usize,
+) {
+    for key in replaced {
+        if let Some(kept) = session.as_ref().and_then(|s| s.public_of(index, key)) {
+            nonces.retain(|(pk, _)| pk != key);
+            nonces.push((*key, kept));
+        }
+    }
+}
+
+/// Costs what `musig_round` costs for each participant of ours, and a
+/// signature check (BIP-327 `PartialSigVerify`) per other partial
+/// signature. The refusal `sign_musig` would make on input
+/// `index` for another participant's partial signature that does not
+/// verify, or any refusal it makes before it takes a nonce (the sighash type,
+/// the sighash, an entry that cannot be read), found without taking a kept
+/// nonce.
+#[allow(clippy::too_many_arguments, reason = "one input's round state")]
+fn musig_precheck(
+    c: &Compute,
+    psbt: &Psbt,
+    cache: &mut SighashCache<&bitcoin::Transaction>,
+    index: usize,
+    cl: &Classified,
+    musig: &crate::inspect::MusigInput,
+    mine: &[&crate::inspect::MusigParticipation],
+    txid: bitcoin::Txid,
+    session: &Option<MusigSession>,
+) -> Result<(), Error> {
+    // The refusals `sign_musig` makes before it takes anything, with the
+    // same errors: a pass that will refuse takes no kept nonce.
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
+    if sighash_type != TapSighashType::Default {
+        return Err(Error::Unsupported {
+            input: index,
+            reason: Reason::MusigSighashDefault,
+        });
+    }
+    let sighash = cache
+        .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), sighash_type)
+        .map_err(|_| Error::Sighash { input: index })?;
+    let msg: [u8; 32] = sighash.to_byte_array();
+    let input = &psbt.inner().inputs[index];
+    let all_nonces = crate::musig::pub_nonces(input).map_err(|e| Error::Unsupported {
+        input: index,
+        reason: Reason::Musig(e),
+    })?;
+    let all_psigs = crate::musig::partial_sigs(input).map_err(|e| Error::Unsupported {
+        input: index,
+        reason: Reason::Musig(e),
+    })?;
+    let mut nonces = crate::musig::picked(&all_nonces, musig);
+    let psigs = crate::musig::picked(&all_psigs, musig);
+    let view = session.as_ref().map(|s| s.view());
+    let replaced: Vec<secp256k1::PublicKey> = mine
+        .iter()
+        .filter(|p| {
+            matches!(
+                musig_round(c, psbt, musig, p, view.as_ref(), txid, index),
+                MusigRound::Sign
+            )
+        })
+        .map(|p| p.key)
+        .collect();
+    let secp = secp256k1::Secp256k1::verification_only();
+    if replaced.is_empty()
+        || mendable(
+            &secp, musig, &nonces, &psigs, &replaced, session, index, &msg,
+        )
+        .is_some()
+    {
+        // Nothing to take, or a file the pass mends instead of signing.
+        return Ok(());
+    }
+    hold_session_nonces(&mut nonces, &replaced, session, index);
+    check_others(
+        &secp, musig, index, &nonces, &psigs, &replaced, &msg, session,
+    )
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature on the input. Refuses with the participant whose partial
+/// signature does not verify, leaving out the keys in `replaced`, whose
+/// entries this pass overwrites, and taking their nonces from the
+/// session. Nothing is checked while a participant's nonce is missing.
+#[allow(clippy::too_many_arguments, reason = "one input's round state")]
+fn check_others<C: secp256k1::Verification>(
+    secp: &secp256k1::Secp256k1<C>,
+    musig: &crate::inspect::MusigInput,
+    index: usize,
+    nonces: &[(secp256k1::PublicKey, faraday_bip::musig::PubNonce)],
+    psigs: &[(secp256k1::PublicKey, faraday_bip::musig::PartialSig)],
+    replaced: &[secp256k1::PublicKey],
+    msg: &[u8],
+    session: &Option<MusigSession>,
+) -> Result<(), Error> {
+    let nonce_of = |p: &secp256k1::PublicKey| {
+        if replaced.contains(p) {
+            session.as_ref().and_then(|s| s.public_of(index, p))
+        } else {
+            nonces.iter().find(|(pk, _)| pk == p).map(|(_, n)| *n)
+        }
+    };
+    let Some(all) = musig
+        .participants
+        .iter()
+        .map(nonce_of)
+        .collect::<Option<Vec<_>>>()
+    else {
+        return Ok(());
+    };
+    let aggnonce =
+        faraday_bip::musig::nonce_agg_with(secp, &all).map_err(|_| Error::Unsupported {
+            input: index,
+            reason: Reason::MusigNonces,
+        })?;
+    let values = faraday_bip::musig::session_values(
+        secp,
+        &musig.participants,
+        &musig.tweaks,
+        &aggnonce,
+        msg,
+    )
+    .map_err(|_| Error::Sighash { input: index })?;
+    for (pk, psig) in psigs.iter().filter(|(pk, _)| !replaced.contains(pk)) {
+        let Some(at) = musig.participants.iter().position(|p| p == pk) else {
+            continue;
+        };
+        if faraday_bip::musig::partial_sig_verify_internal(secp, psig, &all[at], pk, &values)
+            .is_err()
+        {
+            return Err(Error::MusigPartialSig {
+                input: index,
+                participant: hex33(pk),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// The session one partial signature is verified in: every nonce on the

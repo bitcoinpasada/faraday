@@ -1134,3 +1134,712 @@ fn a_pass_that_shares_and_signs_reports_what_the_psbt_holds() {
         assert!(!out.complete);
     }
 }
+
+// ---------------------------------------------------------------------
+// A partial signature in the file is the file's word
+// ---------------------------------------------------------------------
+
+/// Everything a partial-signature test needs after round 1: the device
+/// (abandon) has shared a nonce and holds the secret, and the other
+/// signer (zoo) has answered with its nonce and its true partial
+/// signature.
+struct Round {
+    psbt: Psbt,
+    session: Option<faraday_psbt::MusigSession>,
+    established: faraday_psbt::MusigInput,
+    abandon_key: PublicKey,
+    zoo_key: PublicKey,
+    zoo_psig: faraday_bip::musig::PartialSig,
+}
+
+fn after_round_one(abandon: &MasterKey, zoo: &MasterKey) -> Round {
+    let c = Compute::unchecked();
+    let secp = Secp256k1::new();
+    let policy = two_key_policy(abandon, zoo);
+    let mut psbt = two_key_psbt(&policy, abandon, zoo);
+    let keys = [KeyRef::from_master(&c, abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut session = None;
+    {
+        let ctx = context_with(&keys, &wallets, None);
+        pass(&mut psbt, &[abandon], &ctx, &mut session, 0x41);
+    }
+    let established = {
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&keys, &wallets, Some(&view));
+        inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap()
+    };
+    let msg = key_path_sighash(&psbt);
+    let (secnonce, pubnonce) = other_nonce(
+        zoo,
+        &established.output_key.x_only_public_key().0.serialize(),
+        &msg,
+        0x31,
+    );
+    let zoo_key = account_xpub(zoo).public_key;
+    faraday_psbt::musig::write_pub_nonce(
+        &mut psbt.inner_mut().inputs[0],
+        &zoo_key,
+        &established.output_key,
+        &pubnonce,
+    );
+    let nonces = faraday_psbt::musig::pub_nonces(&psbt.inner().inputs[0]).unwrap();
+    let all: Vec<PubNonce> = established
+        .participants
+        .iter()
+        .map(|p| nonces.iter().find(|n| n.participant == *p).unwrap().value)
+        .collect();
+    let values = musig::session_values(
+        &secp,
+        &established.participants,
+        &established.tweaks,
+        &musig::nonce_agg(&all).unwrap(),
+        &msg,
+    )
+    .unwrap();
+    let zoo_psig = musig::sign(&secp, secnonce, &account_secret(zoo), &values).unwrap();
+    faraday_psbt::musig::write_partial_sig(
+        &mut psbt.inner_mut().inputs[0],
+        &zoo_key,
+        &established.output_key,
+        &zoo_psig,
+    );
+    Round {
+        psbt,
+        session,
+        established,
+        abandon_key: account_xpub(abandon).public_key,
+        zoo_key,
+        zoo_psig,
+    }
+}
+
+fn write_partial(r: &mut Round, key: &PublicKey, psig: &faraday_bip::musig::PartialSig) {
+    faraday_psbt::musig::write_partial_sig(
+        &mut r.psbt.inner_mut().inputs[0],
+        key,
+        &r.established.output_key,
+        psig,
+    );
+}
+
+fn forged() -> faraday_bip::musig::PartialSig {
+    faraday_bip::musig::PartialSig::from_bytes(&[5u8; 32]).unwrap()
+}
+
+/// Whether the signature the finished input carries verifies as BIP-340
+/// under the output key.
+fn aggregate_verifies(psbt: &Psbt, r: &faraday_psbt::MusigInput) -> bool {
+    let secp = Secp256k1::verification_only();
+    let Some(sig) = psbt.inner().inputs[0].tap_key_sig else {
+        return false;
+    };
+    let msg = bitcoin::secp256k1::Message::from_digest(key_path_sighash(psbt));
+    secp.verify_schnorr(&sig.signature, &msg, &r.output_key.x_only_public_key().0)
+        .is_ok()
+}
+
+/// An entry for this participant in the file, while the device holds its
+/// secret nonce, is false whatever it says: Sign overwrites it with the
+/// kept nonce and the aggregate is a valid signature, with no nonce held
+/// after.
+#[test]
+fn a_made_up_entry_for_a_participant_whose_nonce_is_held_is_overwritten() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let key = r.abandon_key;
+    write_partial(&mut r, &key, &forged());
+
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    assert!(out.complete);
+    assert_eq!(out.nonces_shared, 0);
+    assert!(aggregate_verifies(&r.psbt, &r.established));
+    assert!(
+        r.session.as_ref().unwrap().is_empty(),
+        "no nonce held after"
+    );
+}
+
+/// An entry that does not verify, with no nonce held (the device was
+/// locked since round 1), is not the end of the round: Sign makes a new,
+/// different nonce and clears the partial signatures.
+#[test]
+fn a_failing_entry_without_a_held_nonce_gets_a_new_nonce() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let key = r.abandon_key;
+    write_partial(&mut r, &key, &forged());
+    let before = faraday_psbt::musig::pub_nonces(&r.psbt.inner().inputs[0])
+        .unwrap()
+        .into_iter()
+        .find(|n| n.participant == key)
+        .unwrap()
+        .value;
+    r.session = None;
+
+    let ctx = context_with(&keys, &wallets, None);
+    let insp = inspect(&c, &r.psbt, &ctx);
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::MusigNonceReplaced),
+        "{:?}",
+        insp.warnings
+    );
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x42);
+    assert_eq!(out.nonces_shared, 1);
+    let input = &r.psbt.inner().inputs[0];
+    assert!(faraday_psbt::musig::partial_sigs(input).unwrap().is_empty());
+    let after = faraday_psbt::musig::pub_nonces(input)
+        .unwrap()
+        .into_iter()
+        .find(|n| n.participant == key)
+        .unwrap()
+        .value;
+    assert_ne!(after, before);
+    assert_eq!(r.session.as_ref().unwrap().len(), 1);
+}
+
+/// A pass that refuses because another signer's partial signature does
+/// not verify takes no nonce: it is still held, and once the true
+/// partial signature is back the next Sign succeeds.
+#[test]
+fn a_refused_pass_leaves_the_nonce_held() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let (zoo_key, zoo_psig) = (r.zoo_key, r.zoo_psig);
+    write_partial(&mut r, &zoo_key, &forged());
+
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let err = sign(
+        &c,
+        &mut r.psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &[],
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut r.session,
+        &faraday_crypto::Zeroizing::new([0x41u8; 32]),
+    )
+    .unwrap_err();
+    assert!(matches!(err, Error::MusigPartialSig { .. }), "{err:?}");
+    assert_eq!(r.session.as_ref().unwrap().len(), 1, "the nonce is held");
+
+    write_partial(&mut r, &zoo_key, &zoo_psig);
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    assert!(out.complete);
+    assert!(aggregate_verifies(&r.psbt, &r.established));
+}
+
+/// `aggregate` finishes with a signature that verifies when every
+/// partial signature is true, and does not finish when one is made up.
+#[test]
+fn aggregate_finishes_on_true_partials_and_not_on_a_made_up_one() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+
+    let sig = faraday_psbt::musig::aggregate(&c, &r.psbt, 0, &r.established)
+        .expect("every partial signature is true");
+    let msg = bitcoin::secp256k1::Message::from_digest(key_path_sighash(&r.psbt));
+    Secp256k1::verification_only()
+        .verify_schnorr(
+            &sig.signature,
+            &msg,
+            &r.established.output_key.x_only_public_key().0,
+        )
+        .expect("a BIP-340 signature of the output key");
+
+    let key = r.abandon_key;
+    write_partial(&mut r, &key, &forged());
+    assert!(faraday_psbt::musig::aggregate(&c, &r.psbt, 0, &r.established).is_none());
+}
+
+// ---------------------------------------------------------------------
+// Passes over several inputs, and over several held keys
+// ---------------------------------------------------------------------
+
+/// The two-key spend with a second input of the same wallet.
+fn two_key_two_inputs(policy: &WalletPolicy, a: &MasterKey, b: &MasterKey) -> Psbt {
+    let mut psbt = two_key_psbt(policy, a, b);
+    let inner = psbt.inner_mut();
+    let mut again = inner.unsigned_tx.input[0].clone();
+    again.previous_output.vout = 1;
+    inner.unsigned_tx.input.push(again);
+    inner.unsigned_tx.output[0].value = Amount::from_sat(199_000);
+    let second = inner.inputs[0].clone();
+    inner.inputs.push(second);
+    psbt
+}
+
+fn sighash_at(psbt: &Psbt, index: usize) -> [u8; 32] {
+    let tx = psbt.inner().unsigned_tx.clone();
+    let prevouts: Vec<TxOut> = psbt
+        .inner()
+        .inputs
+        .iter()
+        .map(|i| i.witness_utxo.clone().unwrap())
+        .collect();
+    bitcoin::sighash::SighashCache::new(&tx)
+        .taproot_key_spend_signature_hash(
+            index,
+            &bitcoin::sighash::Prevouts::All(&prevouts),
+            bitcoin::sighash::TapSighashType::Default,
+        )
+        .unwrap()
+        .to_byte_array()
+}
+
+/// The other signer's answer on input `index`: its nonce and, true or made
+/// up, its partial signature. Needs every other nonce already on the input.
+fn other_signer_answers(
+    psbt: &mut Psbt,
+    established: &faraday_psbt::MusigInput,
+    zoo: &MasterKey,
+    index: usize,
+    true_partial: bool,
+) {
+    let secp = Secp256k1::new();
+    let msg = sighash_at(psbt, index);
+    let zoo_key = account_xpub(zoo).public_key;
+    let (secnonce, pubnonce) = other_nonce(
+        zoo,
+        &established.output_key.x_only_public_key().0.serialize(),
+        &msg,
+        0x31 + index as u8,
+    );
+    let input = &mut psbt.inner_mut().inputs[index];
+    faraday_psbt::musig::write_pub_nonce(input, &zoo_key, &established.output_key, &pubnonce);
+    let nonces = faraday_psbt::musig::pub_nonces(input).unwrap();
+    let all: Vec<PubNonce> = established
+        .participants
+        .iter()
+        .map(|p| nonces.iter().find(|n| n.participant == *p).unwrap().value)
+        .collect();
+    let values = musig::session_values(
+        &secp,
+        &established.participants,
+        &established.tweaks,
+        &musig::nonce_agg(&all).unwrap(),
+        &msg,
+    )
+    .unwrap();
+    let psig = if true_partial {
+        musig::sign(&secp, secnonce, &account_secret(zoo), &values).unwrap()
+    } else {
+        forged()
+    };
+    faraday_psbt::musig::write_partial_sig(input, &zoo_key, &established.output_key, &psig);
+}
+
+/// A pass over a spend of two inputs that refuses on the second takes no
+/// nonce on the first: both are held after, and with the second input's
+/// partial signature true the next pass finishes both.
+#[test]
+fn a_refused_pass_over_two_inputs_leaves_both_nonces_held() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy.clone()];
+    let mut psbt = two_key_two_inputs(&policy, &abandon, &zoo);
+    let mut session = None;
+    {
+        let ctx = context_with(&keys, &wallets, None);
+        pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x41);
+    }
+    assert_eq!(session.as_ref().unwrap().len(), 2);
+    let established: Vec<_> = {
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&keys, &wallets, Some(&view));
+        let insp = inspect(&c, &psbt, &ctx);
+        insp.inputs
+            .iter()
+            .map(|i| i.musig.clone().unwrap())
+            .collect()
+    };
+    other_signer_answers(&mut psbt, &established[0], &zoo, 0, true);
+    other_signer_answers(&mut psbt, &established[1], &zoo, 1, false);
+
+    let view = session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let err = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &[],
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut session,
+        &faraday_crypto::Zeroizing::new([0x41u8; 32]),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, Error::MusigPartialSig { input: 1, .. }),
+        "{err:?}"
+    );
+    assert_eq!(session.as_ref().unwrap().len(), 2, "both nonces are held");
+
+    other_signer_answers(&mut psbt, &established[1], &zoo, 1, true);
+    drop(view);
+    let view = session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x41);
+    assert!(out.complete);
+    assert!(psbt.inner().inputs.iter().all(|i| i.tap_key_sig.is_some()));
+}
+
+/// Two keys of one wallet held on one device, a made-up public nonce in
+/// the file for the later one: both partial signatures are made under the
+/// nonces the device kept, and the spend finishes.
+#[test]
+fn a_made_up_nonce_for_a_second_held_key_does_not_spoil_the_first_partial() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &zoo, 0).unwrap(),
+    ];
+    let wallets = [policy.clone()];
+    let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
+    let mut session = None;
+    {
+        let ctx = context_with(&keys, &wallets, None);
+        pass(&mut psbt, &[&abandon, &zoo], &ctx, &mut session, 0x41);
+    }
+    assert_eq!(session.as_ref().unwrap().len(), 2);
+    let established = {
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&keys, &wallets, Some(&view));
+        inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap()
+    };
+    let msg = sighash_at(&psbt, 0);
+    let zoo_key = account_xpub(&zoo).public_key;
+    let (_, made_up) = other_nonce(
+        &zoo,
+        &established.output_key.x_only_public_key().0.serialize(),
+        &msg,
+        0x77,
+    );
+    faraday_psbt::musig::write_pub_nonce(
+        &mut psbt.inner_mut().inputs[0],
+        &zoo_key,
+        &established.output_key,
+        &made_up,
+    );
+    let view = session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut psbt, &[&abandon, &zoo], &ctx, &mut session, 0x41);
+    assert!(out.complete);
+    assert!(aggregate_verifies(&psbt, &established));
+}
+
+// ---------------------------------------------------------------------
+// Entries under more than one form of the aggregate key
+// ---------------------------------------------------------------------
+
+/// A form of the aggregate key the input accepts that sorts before the
+/// output key, so a reader taking the first entry takes it.
+fn lower_form(r: &faraday_psbt::MusigInput) -> PublicKey {
+    let (x, _) = r
+        .internal_key
+        .public_key(bitcoin::secp256k1::Parity::Even)
+        .x_only_public_key();
+    let forms = [
+        r.root_aggregate,
+        PublicKey::from_x_only_public_key(x, bitcoin::secp256k1::Parity::Even),
+        PublicKey::from_x_only_public_key(x, bitcoin::secp256k1::Parity::Odd),
+    ];
+    forms
+        .into_iter()
+        .find(|f| *f != r.output_key && f.serialize() < r.output_key.serialize())
+        .expect("a form that sorts first")
+}
+
+/// A made-up nonce for the held key under another form of the aggregate,
+/// beside the true one: the true one is the one used, and the spend
+/// finishes.
+#[test]
+fn a_made_up_nonce_under_another_aggregate_form_is_not_the_one_used() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let msg = key_path_sighash(&r.psbt);
+    let (_, made_up) = other_nonce(&abandon, &[9u8; 32], &msg, 0x66);
+    let form = lower_form(&r.established);
+    faraday_psbt::musig::write_pub_nonce(
+        &mut r.psbt.inner_mut().inputs[0],
+        &r.abandon_key,
+        &form,
+        &made_up,
+    );
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    assert!(out.complete);
+    assert!(aggregate_verifies(&r.psbt, &r.established));
+}
+
+/// A made-up partial signature under another form of the aggregate first
+/// and the true one under the output key second: the screen and the
+/// aggregation read the same one, and the true one finishes.
+#[test]
+fn a_made_up_partial_under_another_aggregate_form_does_not_hide_the_true_one() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    let form = lower_form(&r.established);
+    faraday_psbt::musig::write_partial_sig(
+        &mut r.psbt.inner_mut().inputs[0],
+        &r.zoo_key,
+        &form,
+        &forged(),
+    );
+    let verified = faraday_psbt::musig::verified_partials(&c, &r.psbt, 0, &r.established);
+    let finished = faraday_psbt::musig::aggregate(&c, &r.psbt, 0, &r.established).is_some();
+    assert_eq!(
+        verified.contains(&r.zoo_key),
+        finished,
+        "the screen and the aggregation read the same entry"
+    );
+    assert!(finished, "the true partial signature finishes");
+}
+
+/// A sighash type the pass refuses on a later input is refused before the
+/// earlier input takes its kept nonce: both are held after, and the same
+/// nonce signs once the file is honest.
+#[test]
+fn a_sighash_refused_on_a_later_input_leaves_every_nonce_held() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy.clone()];
+    let mut psbt = two_key_two_inputs(&policy, &abandon, &zoo);
+    let mut session = None;
+    {
+        let ctx = context_with(&keys, &wallets, None);
+        pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x41);
+    }
+    let established: Vec<_> = {
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&keys, &wallets, Some(&view));
+        inspect(&c, &psbt, &ctx)
+            .inputs
+            .iter()
+            .map(|i| i.musig.clone().unwrap())
+            .collect()
+    };
+    other_signer_answers(&mut psbt, &established[0], &zoo, 0, true);
+    other_signer_answers(&mut psbt, &established[1], &zoo, 1, true);
+    let honest = psbt.clone();
+    let nonce_before = faraday_psbt::musig::pub_nonces(&psbt.inner().inputs[0]).unwrap();
+    psbt.inner_mut().inputs[1].sighash_type = Some(bitcoin::psbt::PsbtSighashType::from_u32(1));
+
+    let view = session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let err = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &[],
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut session,
+        &faraday_crypto::Zeroizing::new([0x41u8; 32]),
+    )
+    .unwrap_err();
+    assert!(
+        matches!(err, Error::Unsupported { input: 1, .. }),
+        "{err:?}"
+    );
+    assert_eq!(session.as_ref().unwrap().len(), 2, "both nonces are held");
+
+    let mut psbt = honest;
+    let view = session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x41);
+    assert!(out.complete);
+    let nonce_after = faraday_psbt::musig::pub_nonces(&psbt.inner().inputs[0]).unwrap();
+    assert_eq!(
+        nonce_before
+            .iter()
+            .find(|n| n.participant == account_xpub(&abandon).public_key)
+            .map(|n| n.value),
+        nonce_after
+            .iter()
+            .find(|n| n.participant == account_xpub(&abandon).public_key)
+            .map(|n| n.value),
+        "the nonce the next Sign used is the one kept"
+    );
+}
+
+/// A partial signature under a key that is none of the input's participants
+/// is no reason to mend: with an older nonce of ours in the file and no
+/// participant's partial failing, the pass signs.
+#[test]
+fn a_partial_of_a_non_participant_does_not_make_the_pass_mend() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let ours = r.abandon_key;
+    let (_, older) = other_nonce(
+        &abandon,
+        &r.established.output_key.x_only_public_key().0.serialize(),
+        &key_path_sighash(&r.psbt),
+        0x77,
+    );
+    faraday_psbt::musig::write_pub_nonce(
+        &mut r.psbt.inner_mut().inputs[0],
+        &ours,
+        &r.established.output_key,
+        &older,
+    );
+    let stranger = faraday_bip::bitcoin::secp256k1::SecretKey::from_slice(&[9u8; 32])
+        .unwrap()
+        .public_key(&faraday_bip::bitcoin::secp256k1::Secp256k1::new());
+    write_partial(&mut r, &stranger, &forged());
+
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    assert!(!out.signed_inputs.is_empty(), "the pass signed");
+}
+
+/// A file that carries another nonce of this device's than the one it
+/// kept (an older copy won a merge) is not signed and not refused: the
+/// kept nonce goes back in, the partial signature that cannot verify under
+/// it goes out, the secret stays held, and once the cosigner signs again
+/// the same nonce signs.
+#[test]
+fn a_file_with_an_older_nonce_of_ours_gets_the_kept_one_back_and_loses_the_partials_that_fail() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy];
+    let mut r = after_round_one(&abandon, &zoo);
+    let ours = r.abandon_key;
+    let kept = faraday_psbt::musig::pub_nonces(&r.psbt.inner().inputs[0])
+        .unwrap()
+        .into_iter()
+        .find(|n| n.participant == ours)
+        .unwrap()
+        .value;
+    let zoo_nonce = faraday_psbt::musig::pub_nonces(&r.psbt.inner().inputs[0])
+        .unwrap()
+        .into_iter()
+        .find(|n| n.participant == r.zoo_key)
+        .unwrap()
+        .value;
+    let (_, older) = other_nonce(
+        &abandon,
+        &r.established.output_key.x_only_public_key().0.serialize(),
+        &key_path_sighash(&r.psbt),
+        0x77,
+    );
+    assert_ne!(older, kept);
+    // The cosigner signed under the older nonce set.
+    let (zoo_key, zoo_psig) = (r.zoo_key, r.zoo_psig);
+    faraday_psbt::musig::write_pub_nonce(
+        &mut r.psbt.inner_mut().inputs[0],
+        &ours,
+        &r.established.output_key,
+        &older,
+    );
+    write_partial(&mut r, &zoo_key, &forged());
+
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    assert!(out.signed_inputs.is_empty(), "nothing is signed");
+    assert!(!out.complete);
+    assert_eq!(r.session.as_ref().unwrap().len(), 1, "the nonce is kept");
+    let input = &r.psbt.inner().inputs[0];
+    let now = faraday_psbt::musig::pub_nonces(input)
+        .unwrap()
+        .into_iter()
+        .find(|n| n.participant == ours)
+        .unwrap()
+        .value;
+    assert_eq!(now, kept, "the kept public nonce is in the file");
+    assert!(
+        faraday_psbt::musig::partial_sigs(input).unwrap().is_empty(),
+        "the partial that cannot verify is gone"
+    );
+    assert!(
+        faraday_psbt::musig::pub_nonces(input)
+            .unwrap()
+            .iter()
+            .all(|n| n.participant != zoo_key),
+        "the nonce of the cosigner whose partial went is spent and gone"
+    );
+
+    // The cosigner shares again and answers the kept nonce; the same
+    // nonce signs.
+    faraday_psbt::musig::write_pub_nonce(
+        &mut r.psbt.inner_mut().inputs[0],
+        &zoo_key,
+        &r.established.output_key,
+        &zoo_nonce,
+    );
+    write_partial(&mut r, &zoo_key, &zoo_psig);
+    let view = r.session.as_ref().unwrap().view();
+    let ctx = context_with(&keys, &wallets, Some(&view));
+    let out = pass(&mut r.psbt, &[&abandon], &ctx, &mut r.session, 0x41);
+    assert!(out.complete);
+    assert!(aggregate_verifies(&r.psbt, &r.established));
+}

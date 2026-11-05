@@ -298,6 +298,9 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
     } else {
         needed.saturating_sub(signed_count).max(1)
     };
+    // What is still to come: a partial in the file the device cannot
+    // confirm is not counted as signed, and is not asked for again.
+    let to_come = missing.saturating_sub(s.in_file.len()).max(1);
     let can_sign_here = i
         .participating_keys
         .iter()
@@ -314,15 +317,15 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
         fill(EN.spend_status_both_wait, &[app.medium.for_the()])
     } else if missing == 0 {
         EN.spend_status_complete.to_string()
-    } else if !can_sign_here.is_empty() && missing > 1 {
+    } else if !can_sign_here.is_empty() && to_come > 1 {
         fill(
             EN.spend_status_sign_and_collect,
-            &[&(missing - 1).to_string()],
+            &[&(to_come - 1).to_string()],
         )
     } else if !can_sign_here.is_empty() {
         EN.spend_status_sign_here.to_string()
     } else {
-        crate::wallet::collect_line(missing, count)
+        crate::wallet::collect_line(to_come, count)
     };
     let label = if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
@@ -339,7 +342,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
             &[&can_sign_here.join(", ").to_string()],
         )
     } else {
-        crate::wallet::collect_line(missing, count)
+        crate::wallet::collect_line(to_come, count)
     };
     // Two keys or more and Finish not reached: counted where named they
     // would not fit the button.
@@ -482,10 +485,11 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
             )
         }
         5 => {
-            if s.spend.signed_here.is_empty() {
+            let signed = s.signed_keys();
+            if signed.is_empty() {
                 EN.step_summary_not_signed.to_string()
             } else {
-                let fps: Vec<String> = s.spend.signed_here.iter().map(|f| fp_text(*f)).collect();
+                let fps: Vec<String> = signed.iter().map(|f| fp_text(*f)).collect();
                 fill(EN.step_summary_signed_keys, &[&fps.join(", ").to_string()])
             }
         }
@@ -1146,7 +1150,12 @@ pub(crate) fn step_body(
                 }
                 cy += 6.0;
             }
-            cy = signers_count(ui, x, cy, w, here, needed);
+            let in_the_file = if s.in_file.is_empty() {
+                0
+            } else {
+                s.signers.len() + s.in_file.len()
+            };
+            cy = signers_count(ui, x, cy, w, here, in_the_file, needed);
             next(ui, cy, EN.step_continue);
             cy += 44.0;
         }
@@ -1159,8 +1168,9 @@ pub(crate) fn step_body(
                 })
                 .map(|fp| fp_text(*fp))
                 .collect();
-            if !s.spend.signed_here.is_empty() {
-                let fps: Vec<String> = s.spend.signed_here.iter().map(|f| fp_text(*f)).collect();
+            let signed = s.signed_keys();
+            if !signed.is_empty() {
+                let fps: Vec<String> = signed.iter().map(|f| fp_text(*f)).collect();
                 let text = fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]);
                 ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, Role::Ok);
                 let tx = x + 26.0;
@@ -1173,12 +1183,16 @@ pub(crate) fn step_body(
                         + 2.0 * GAP;
                 }
             } else if mine.is_empty() {
-                ui.text_mid_as(
-                    (x, cy, 40.0),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    EN.step_no_signing_key,
-                );
+                // A key of this session whose partial signature is in the
+                // file is not "no key": it signed, and is not signed again.
+                let line = if i.participating_keys.iter().any(|fp| {
+                    app.session.keys.key_label(*fp).is_some() && s.in_file.contains(&fp.0)
+                }) {
+                    EN.step_in_file_unconfirmed
+                } else {
+                    EN.step_no_signing_key
+                };
+                ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, line);
                 cy += 44.0;
             } else {
                 let label = fill(EN.step_sign_with_keys, &[&mine.join(", ").to_string()]);
@@ -1248,12 +1262,17 @@ pub(crate) fn step_body(
                 let here = raw
                     .map(|r| s.spend.signed_here.iter().any(|f| f.0 == r))
                     .unwrap_or(false);
+                let listed = |v: &[[u8; 4]]| raw.is_some_and(|r| v.contains(&r));
                 let (t, c) = if signed && here {
                     (EN.step_signed_here, Role::Ok)
                 } else if signed {
                     (EN.step_verified, Role::Ok)
                 } else if complete {
                     (EN.step_not_needed, Role::OnSurfaceVariant)
+                } else if listed(&s.failed) {
+                    (EN.step_does_not_verify, Role::Warning)
+                } else if listed(&s.in_file) {
+                    (EN.step_in_file_unconfirmed, Role::OnSurfaceVariant)
                 } else {
                     (EN.step_waiting, Role::OnSurfaceVariant)
                 };
@@ -1844,10 +1863,23 @@ pub(crate) fn signers_count(
     y: f32,
     w: f32,
     here: usize,
+    in_the_file: usize,
     needed: usize,
 ) -> f32 {
     let enough = here >= needed;
-    let line = if enough {
+    let line = if !enough && in_the_file > 0 {
+        // With partial signatures this device cannot confirm, the count is
+        // of what the file holds rather than of the keys here.
+        let k = in_the_file;
+        fill(
+            EN.signers_count_in_the_file,
+            &[
+                &k.to_string(),
+                &needed.to_string(),
+                &needed.saturating_sub(k).to_string(),
+            ],
+        )
+    } else if enough {
         fill(
             EN.signers_count_of_signatures_here,
             &[&here.to_string(), &needed.to_string()],

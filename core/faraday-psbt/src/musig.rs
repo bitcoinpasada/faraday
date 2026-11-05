@@ -172,6 +172,205 @@ pub fn partial_sigs(input: &Input) -> Result<Vec<Entry<PartialSig>>, Error> {
     Ok(out)
 }
 
+/// What stops a round's partial signatures being checked on an input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Gap {
+    /// A participant's public nonce is not on the input, or one is unreadable.
+    Nonce,
+    /// The input's sighash cannot be worked out: no spent output, or a
+    /// sighash type taproot does not have.
+    Sighash,
+}
+
+/// One entry per participant: when a participant has entries under more
+/// than one form of the aggregate key, the one in the form
+/// `musig_form_rank` prefers. Every reader of the entries (the screen,
+/// the aggregation and the signer) goes through this, so they agree on
+/// which entry counts. Entries under a key that is none of the forms are
+/// left out.
+pub(crate) fn picked<T: Copy>(
+    entries: &[Entry<T>],
+    session: &crate::inspect::MusigInput,
+) -> Vec<(PublicKey, T)> {
+    // Lowest rank wins, the first of equal rank stays: one lookup per entry.
+    let mut best: alloc::collections::BTreeMap<PublicKey, (u8, T)> =
+        alloc::collections::BTreeMap::new();
+    for e in entries {
+        let Some(rank) = crate::inspect::musig_form_rank(session, &e.aggregate) else {
+            continue;
+        };
+        match best.get_mut(&e.participant) {
+            Some(held) if held.0 <= rank => {}
+            Some(held) => *held = (rank, e.value),
+            None => {
+                best.insert(e.participant, (rank, e.value));
+            }
+        }
+    }
+    best.into_iter().map(|(p, (_, v))| (p, v)).collect()
+}
+
+/// Costs a scan of the input's entries. The partial signature each
+/// participant of `session` counts for on `input`: its entry under the
+/// form of the aggregate key [`picked`] prefers, none for a participant
+/// whose entries are all under a key that is none of the forms. The
+/// screen's classifier reads entries through this, as the signer and the
+/// aggregation do.
+pub fn picked_partials(
+    input: &Input,
+    session: &crate::inspect::MusigInput,
+) -> Vec<(PublicKey, PartialSig)> {
+    picked(&partial_sigs(input).unwrap_or_default(), session)
+}
+
+/// The public nonces of every participant of `session` on input `index`,
+/// in the participants' order, and the BIP-341 key-path sighash the
+/// input asks for: what BIP-327's `PartialSigVerify` needs besides the key
+/// and the signature.
+pub(crate) fn round_of(
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Result<(Vec<PubNonce>, [u8; 32]), Gap> {
+    use bitcoin::sighash::{SighashCache, TapSighashType};
+    let input = psbt.inner().inputs.get(index).ok_or(Gap::Sighash)?;
+    let all = picked(&pub_nonces(input).map_err(|_| Gap::Nonce)?, session);
+    let nonces: Vec<PubNonce> = session
+        .participants
+        .iter()
+        .map(|p| all.iter().find(|(k, _)| k == p).map(|(_, v)| *v))
+        .collect::<Option<_>>()
+        .ok_or(Gap::Nonce)?;
+    let ty = match input.sighash_type {
+        Some(t) => t.taproot_hash_ty().map_err(|_| Gap::Sighash)?,
+        None => TapSighashType::Default,
+    };
+    let cl = crate::classify::classify(psbt.inner(), index);
+    if cl.utxo.is_none() {
+        return Err(Gap::Sighash);
+    }
+    let prevouts = crate::sign::tap_prevouts(psbt, &cl, index, ty).map_err(|_| Gap::Sighash)?;
+    let tx = psbt.unsigned_tx().clone();
+    let hash = SighashCache::new(&tx)
+        .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), ty)
+        .map_err(|_| Gap::Sighash)?;
+    Ok((nonces, hash.to_byte_array()))
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature, and the aggregate nonce and session once. The participants
+/// of `session` whose partial signature on input `index` verifies under
+/// the nonces on that input and the sighash the input asks for. A partial
+/// that does not verify, one for a key outside the session, or any
+/// partial where a participant's nonce is missing, is left out: this reads
+/// what the online side wrote and decides nothing about it.
+pub fn verified_partials(
+    c: &faraday_crypto::work::Compute,
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Vec<PublicKey> {
+    c.count(faraday_crypto::work::Work::Sign);
+    let Some(input) = psbt.inner().inputs.get(index) else {
+        return Vec::new();
+    };
+    let Ok(partials) = partial_sigs(input) else {
+        return Vec::new();
+    };
+    if partials.is_empty() {
+        return Vec::new();
+    }
+    let Ok((nonces, msg)) = round_of(psbt, index, session) else {
+        return Vec::new();
+    };
+    let secp = bitcoin::secp256k1::Secp256k1::verification_only();
+    let Ok(aggnonce) = faraday_bip::musig::nonce_agg_with(&secp, &nonces) else {
+        return Vec::new();
+    };
+    let Ok(values) = faraday_bip::musig::session_values(
+        &secp,
+        &session.participants,
+        &session.tweaks,
+        &aggnonce,
+        &msg,
+    ) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (participant, value) in picked(&partials, session) {
+        let Some(at) = session.participants.iter().position(|p| *p == participant) else {
+            continue;
+        };
+        if faraday_bip::musig::partial_sig_verify_internal(
+            &secp,
+            &value,
+            &nonces[at],
+            &participant,
+            &values,
+        )
+        .is_ok()
+        {
+            out.push(participant);
+        }
+    }
+    out
+}
+
+/// Costs a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature, the aggregation, and a BIP-340 verification. The key-path
+/// signature input `index` of `psbt` finishes with, when every participant
+/// of `session` has a partial signature on it that verifies under the
+/// nonces on it and the sighash it asks for, and their aggregate verifies
+/// as a BIP-340 signature of the output key. Otherwise `None`: a forged or
+/// missing partial, or a missing nonce, does not finish. It holds no
+/// secret, so a caller that only collects can call it.
+pub fn aggregate(
+    c: &faraday_crypto::work::Compute,
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Option<bitcoin::taproot::Signature> {
+    use bitcoin::sighash::TapSighashType;
+    c.count(faraday_crypto::work::Work::Sign);
+    let input = psbt.inner().inputs.get(index)?;
+    let partials = partial_sigs(input).ok()?;
+    let (nonces, msg) = round_of(psbt, index, session).ok()?;
+    let secp = bitcoin::secp256k1::Secp256k1::verification_only();
+    let aggnonce = faraday_bip::musig::nonce_agg_with(&secp, &nonces).ok()?;
+    let values = faraday_bip::musig::session_values(
+        &secp,
+        &session.participants,
+        &session.tweaks,
+        &aggnonce,
+        &msg,
+    )
+    .ok()?;
+    let partials = picked(&partials, session);
+    let mut ordered = Vec::with_capacity(session.participants.len());
+    for (at, p) in session.participants.iter().enumerate() {
+        let (_, value) = partials.iter().find(|(k, _)| k == p)?;
+        faraday_bip::musig::partial_sig_verify_internal(&secp, value, &nonces[at], p, &values)
+            .ok()?;
+        ordered.push(*value);
+    }
+    let sig = faraday_bip::musig::partial_sig_agg(&ordered, &values).ok()?;
+    let signature = bitcoin::secp256k1::schnorr::Signature::from_slice(&sig).ok()?;
+    let sighash_type = match input.sighash_type {
+        Some(t) => t.taproot_hash_ty().ok()?,
+        None => TapSighashType::Default,
+    };
+    secp.verify_schnorr(
+        &signature,
+        &bitcoin::secp256k1::Message::from_digest(msg),
+        &session.output_key.x_only_public_key().0,
+    )
+    .ok()?;
+    Some(bitcoin::taproot::Signature {
+        signature,
+        sighash_type,
+    })
+}
+
 fn entry_key(type_value: u8, participant: &PublicKey, aggregate: &PublicKey) -> raw::Key {
     let mut key = Vec::with_capacity(66);
     key.extend_from_slice(&participant.serialize());
@@ -308,6 +507,15 @@ impl MusigSession {
         self.held
             .iter()
             .any(|(i, pk, _, _)| *i == input && pk == participant)
+    }
+
+    /// The public nonce of the secret nonce held for `participant` on
+    /// input `input`.
+    pub(crate) fn public_of(&self, input: usize, participant: &PublicKey) -> Option<PubNonce> {
+        self.held
+            .iter()
+            .find(|(i, pk, _, _)| *i == input && pk == participant)
+            .map(|(_, _, public, _)| *public)
     }
 
     /// What the inspector is told about the session: the transaction and

@@ -23,11 +23,10 @@ use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use bitcoin::hashes::Hash;
 use bitcoin::key::TapTweak;
 use bitcoin::psbt::{Input, Output, raw};
 use bitcoin::secp256k1::{PublicKey, Secp256k1, XOnlyPublicKey};
-use bitcoin::sighash::{EcdsaSighashType, SighashCache, TapSighashType};
+use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
 use bitcoin::taproot::{self, TapLeafHash};
 use bitcoin::{OutPoint, ScriptBuf, Witness, ecdsa};
 use faraday_bip::keys::{Fingerprint, Network};
@@ -44,7 +43,7 @@ use crate::musig::{
     self, IN_PARTIAL_SIG, IN_PARTICIPANT_PUBKEYS, IN_PUB_NONCE, OUT_PARTICIPANT_PUBKEYS,
 };
 use crate::psbt::Psbt;
-use crate::sign::{SigKind, tap_prevouts};
+use crate::sign::SigKind;
 use crate::v2;
 use crate::verify::{
     Determinism, Field, SigKey, SignaturePresent, Unchecked, Verdict as SigVerdict, Where, compare,
@@ -1522,7 +1521,6 @@ impl Run<'_> {
         who: &PublicKey,
         value: &[u8],
     ) -> Result<(), Option<NotChecked>> {
-        let returned = &self.returned.inner().inputs[i];
         let session = self
             .returned_inspection
             .inputs
@@ -1534,27 +1532,12 @@ impl Run<'_> {
             .iter()
             .position(|p| p == who)
             .ok_or(Some(NotChecked::MusigWallet))?;
-        let all = musig::pub_nonces(returned).map_err(|_| Some(NotChecked::MusigNonce))?;
-        let nonces: Vec<_> = session
-            .participants
-            .iter()
-            .map(|p| all.iter().find(|e| e.participant == *p).map(|e| e.value))
-            .collect::<Option<_>>()
-            .ok_or(Some(NotChecked::MusigNonce))?;
         let no_prevout = Some(NotChecked::Signature(Unchecked::NoPrevout));
-        let ty = match returned.sighash_type {
-            Some(t) => t.taproot_hash_ty().map_err(|_| no_prevout)?,
-            None => TapSighashType::Default,
-        };
-        let cl = classify(self.returned.inner(), i);
-        if cl.utxo.is_none() {
-            return Err(no_prevout);
-        }
-        let prevouts = tap_prevouts(self.returned, &cl, i, ty).map_err(|_| no_prevout)?;
-        let tx = self.returned.unsigned_tx().clone();
-        let hash = SighashCache::new(&tx)
-            .taproot_key_spend_signature_hash(i, &prevouts.as_ref(), ty)
-            .map_err(|_| no_prevout)?;
+        let (nonces, hash) =
+            musig::round_of(self.returned, i, session).map_err(|gap| match gap {
+                musig::Gap::Nonce => Some(NotChecked::MusigNonce),
+                musig::Gap::Sighash => no_prevout,
+            })?;
         let partial =
             faraday_bip::musig::PartialSig::from_bytes(value).map_err(|_| None::<NotChecked>)?;
         faraday_bip::musig::partial_sig_verify(
@@ -1563,7 +1546,7 @@ impl Run<'_> {
             &nonces,
             &session.participants,
             &session.tweaks,
-            &hash.to_byte_array(),
+            &hash,
             index,
         )
         .map_err(|_| None)

@@ -502,9 +502,127 @@ class Musig(Area):
         sig = BP.partial_sigs_agg(psbt, 0, agg).serialize()
         need(sig == want, name, "finalizer", sig.hex(), want.hex())
 
+    def partial_signers(self):
+        """Which participants' partial signatures Faraday counts on a
+        spend, against btclib-wallet's `partial_sig_verify` of each one
+        on the same PSBT. The Bitcoin Core round trip's PSBTs, and each
+        with a partial signature changed (a byte flipped, the nonce of
+        the key it is under replaced by another's, the nonce field
+        dropped) or moved to another message (the transaction's version
+        changed)."""
+        wallet = (ROOT / "tools/vectors/psbt/wallet-musig-regtest.policy").read_text()
+
+        def judged(psbt):
+            psbt_in = psbt.inputs[0]
+            (agg, _), = psbt_in.musig2_participant_pub_keys.items()
+            out = []
+            for key_data in psbt_in.musig2_partial_sigs:
+                try:
+                    ok = BP.partial_sig_verify(psbt, 0, key_data[:33], agg)
+                except Exception:  # noqa: BLE001 - a missing nonce is a refusal
+                    ok = False
+                if ok:
+                    out.append(key_data[:33].hex())
+            return sorted(out)
+
+        def ask(case, psbt):
+            want = judged(psbt)
+            self.compare(
+                "musig.psbt_partials",
+                {"psbt": h(psbt.serialize(check_validity=False)), "wallet": wallet},
+                lambda: {"signers": want}, ("ok", {"signers": want}) if want else None)
+            return want
+
+        for name in ("wallet-musig-core-first-signed", "wallet-musig-device-first-core"):
+            text = (ROOT / "tools/vectors/psbt" / f"{name}.psbt").read_text()
+            ask(name, Psbt.b64decode(text))
+            psbt = Psbt.b64decode(text)
+            psbt_in = psbt.inputs[0]
+            if psbt_in.musig2_partial_sigs:
+                key_data = next(iter(psbt_in.musig2_partial_sigs))
+                psig = bytearray(psbt_in.musig2_partial_sigs[key_data])
+                psig[31] ^= 1
+                psbt_in.musig2_partial_sigs[key_data] = bytes(psig)
+                ask(name + " flipped", psbt)
+                psbt = Psbt.b64decode(text)
+                other = [v for k, v in psbt.inputs[0].musig2_pub_nonces.items()
+                         if k[:33] != key_data[:33]]
+                psbt.inputs[0].musig2_pub_nonces = {
+                    k: (other[0] if k[:33] == key_data[:33] else v)
+                    for k, v in psbt.inputs[0].musig2_pub_nonces.items()}
+                ask(name + " other nonce", psbt)
+                psbt = Psbt.b64decode(text)
+                psbt.inputs[0].musig2_pub_nonces = {}
+                ask(name + " no nonces", psbt)
+                psbt = Psbt.b64decode(text)
+                psbt.tx_version = 1 if psbt.tx_version != 1 else 3
+                ask(name + " other message", psbt)
+
+    def aggregated(self):
+        """The key-path signature Faraday finishes a spend with when every
+        participant has a partial signature, against BIP-327's
+        `reference.py` and btclib's `partial_sig_agg` on the same
+        session, each followed by a BIP-340 verification of the output
+        key (a sum of partial signatures is a signature only when they
+        are all true): the two Bitcoin Core round-trip PSBTs that hold
+        every partial signature, and each with a byte of one flipped or
+        moved to another message."""
+        wallet = (ROOT / "tools/vectors/psbt/wallet-musig-regtest.policy").read_text()
+
+        def judged(psbt, maker):
+            psbt_in = psbt.inputs[0]
+            (agg, keys), = psbt_in.musig2_participant_pub_keys.items()
+            sess = BP.session_context(psbt, 0, agg).context
+            by_key = {k[:33]: v for k, v in psbt_in.musig2_partial_sigs.items()}
+            nonces = {k[:33]: v for k, v in psbt_in.musig2_pub_nonces.items()}
+            try:
+                psigs = [by_key[k] for k in keys]
+                pubnonces = [nonces[k] for k in keys]
+                ctx = maker(R.nonce_agg(pubnonces), sess)
+                sig = (R if maker is self.ref_ctx else B).partial_sig_agg(psigs, ctx)
+                sig = sig if isinstance(sig, bytes) else sig.serialize()
+                out = R.get_xonly_pk(R.key_agg_and_tweak(
+                    list(sess.pub_keys), list(sess.tweaks), list(sess.is_xonly)))
+                return {"sig": h(sig) if R.schnorr_verify(sess.msg, out, sig) else None}
+            except Exception:  # noqa: BLE001 - a missing partial or nonce does not finish
+                return {"sig": None}
+
+        def ask(psbt):
+            self.compare(
+                "musig.psbt_aggregate",
+                {"psbt": h(psbt.serialize(check_validity=False)), "wallet": wallet},
+                lambda: judged(psbt, self.ref_ctx), None,
+                btc_fn=lambda: judged(psbt, self.btc_ctx))
+
+        for name in ("wallet-musig-core-first-signed", "wallet-musig-device-first-signed"):
+            text = (ROOT / "tools/vectors/psbt" / f"{name}.psbt").read_text()
+            ask(Psbt.b64decode(text))
+            psbt = Psbt.b64decode(text)
+            psbt_in = psbt.inputs[0]
+            key_data = next(iter(psbt_in.musig2_partial_sigs))
+            psig = bytearray(psbt_in.musig2_partial_sigs[key_data])
+            psig[31] ^= 1
+            psbt_in.musig2_partial_sigs[key_data] = bytes(psig)
+            ask(psbt)
+            psbt = Psbt.b64decode(text)
+            psbt.tx_version = 1 if psbt.tx_version != 1 else 3
+            ask(psbt)
+
+    @staticmethod
+    def ref_ctx(aggnonce, sess):
+        return R.SessionContext(aggnonce, list(sess.pub_keys), list(sess.tweaks),
+                                list(sess.is_xonly), sess.msg)
+
+    @staticmethod
+    def btc_ctx(aggnonce, sess):
+        return B.SessionContext(aggnonce, list(sess.pub_keys), list(sess.tweaks),
+                                list(sess.is_xonly), sess.msg)
+
     def prelude(self):
         self.published()
         self.bip373()
+        self.partial_signers()
+        self.aggregated()
         self.bip390()
 
     def case_session(self):

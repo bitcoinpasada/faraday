@@ -796,9 +796,13 @@ pub fn musig_policy() -> Result<WalletPolicy, String> {
 }
 
 fn taproot_account(n: usize) -> faraday_bip::bitcoin::bip32::Xpub {
+    taproot_account_n(n, 0)
+}
+
+fn taproot_account_n(n: usize, account: u32) -> faraday_bip::bitcoin::bip32::Xpub {
     let c = compute();
     *master(TEST_SEEDS[n].0)
-        .account_xpub(&c, faraday_bip::keys::ScriptType::Taproot, 0)
+        .account_xpub(&c, faraday_bip::keys::ScriptType::Taproot, account)
         .expect("account")
         .xpub()
 }
@@ -843,11 +847,25 @@ fn musig_tweaks(
 /// address, everything less the fee out to the recipient, with the fields
 /// a coordinator that speaks BIP-373 fills in.
 pub fn musig_unsigned() -> Result<Psbt, String> {
+    musig_unsigned_at(0)
+}
+
+/// [`musig_unsigned`] spending the wallet's output at `0/index`.
+pub fn musig_unsigned_at(index: u32) -> Result<Psbt, String> {
+    musig_spend(&musig_policy()?, &[(0, 0), (1, 0), (2, 0)], index)
+}
+
+/// [`musig_unsigned`] for `policy`, whose keys are the Taproot accounts
+/// `(seed, account)` of the test seeds, in order.
+pub fn musig_spend(
+    policy: &WalletPolicy,
+    accounts: &[(usize, u32)],
+    index: u32,
+) -> Result<Psbt, String> {
     let c = compute();
     use std::collections::BTreeMap;
-    let policy = musig_policy()?;
     let spk = policy
-        .script_at(&c, false, 0)
+        .script_at(&c, false, index)
         .map_err(|e| format!("{e:?}"))?;
     let fund = funding(spk);
     let recipient: Address = RECIPIENT
@@ -873,9 +891,12 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
     };
     let mut inner = faraday_bip::bitcoin::Psbt::from_unsigned_tx(tx).map_err(|e| e.to_string())?;
     inner.inputs[0].witness_utxo = Some(fund.output[0].clone());
-    let keys: Vec<_> = (0..3).map(|n| taproot_account(n).public_key).collect();
+    let keys: Vec<_> = accounts
+        .iter()
+        .map(|(n, a)| taproot_account_n(*n, *a).public_key)
+        .collect();
     let participants = faraday_bip::musig::sort_keys(&keys);
-    let (_, internal) = musig_tweaks(&participants, false, 0)?;
+    let (_, internal) = musig_tweaks(&participants, false, index)?;
     let internal = internal.x_only_public_key().0;
     inner.inputs[0].tap_internal_key = Some(internal);
     let aggregate =
@@ -889,20 +910,20 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
                 aggregate.fingerprint(),
                 DerivationPath::from(vec![
                     ChildNumber::from_normal_idx(0).map_err(|e| e.to_string())?,
-                    ChildNumber::from_normal_idx(0).map_err(|e| e.to_string())?,
+                    ChildNumber::from_normal_idx(index).map_err(|e| e.to_string())?,
                 ]),
             ),
         ),
     );
-    for (n, (word, _)) in TEST_SEEDS.iter().enumerate() {
-        let m = master(word);
+    for (n, a) in accounts {
+        let m = master(TEST_SEEDS[*n].0);
         origins.insert(
-            taproot_account(n).public_key.x_only_public_key().0,
+            taproot_account_n(*n, *a).public_key.x_only_public_key().0,
             (
                 Vec::new(),
                 (
                     faraday_bip::bitcoin::bip32::Fingerprint::from(m.fingerprint().0),
-                    on_net("m/86'/1'/0'")
+                    on_net(&format!("m/86'/1'/{a}'"))
                         .parse::<DerivationPath>()
                         .map_err(|e| format!("{e}"))?,
                 ),
@@ -944,10 +965,18 @@ fn key_path_sighash(psbt: &Psbt) -> Result<[u8; 32], String> {
 /// key 1 adds when it signs last. Test key 1's own pass is deterministic,
 /// so the partials made here fit the app's.
 #[allow(clippy::type_complexity)]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>), String> {
+    musig_rounds_at(0)
+}
+
+/// [`musig_rounds`] for the wallet's output at `0/index`.
+#[allow(clippy::type_complexity)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+pub fn musig_rounds_at(
+    index: u32,
+) -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>), String> {
     let c = compute();
-    let unsigned = musig_unsigned()?;
+    let unsigned = musig_unsigned_at(index)?;
     let policy = musig_policy()?;
     let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
     // What the inspector establishes: output key and tweaks.
@@ -1067,6 +1096,331 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
         ));
     }
     Ok((unsigned, nonce_files, partial_files))
+}
+
+/// The unsigned MuSig2 spend of [`musig_unsigned`] on which the partial
+/// signatures of the test seeds in `forged` are false and verify all the
+/// same, made from public data with no secret key, from BIP-327's
+/// formulas: fix the aggregate nonce, which fixes the nonce coefficient
+/// `b`, the nonce `R` and the challenge `e`; pick any `s`; set the
+/// victim's nonce so that `R1 + b*R2` is `s*G - e*a*g*P` (negated when `R`
+/// has an odd y), with `g` the product of the output key's parity factor
+/// and the tweaks'; give the last participant that is not forged the
+/// nonce that makes the nonces add up to the aggregate, and no partial
+/// signature. The others' nonces are made up. At most all but one
+/// participant can be forged: all would be a BIP-340 signature.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+pub fn musig_forged(forged: &[usize]) -> Result<Psbt, String> {
+    use faraday_bip::bitcoin::secp256k1::{Parity, PublicKey as Pk, Scalar, SecretKey};
+    let tagged = |tag: &str, parts: &[&[u8]]| -> Scalar {
+        let t = sha256::Hash::hash(tag.as_bytes()).to_byte_array();
+        let mut data = [t, t].concat();
+        for p in parts {
+            data.extend_from_slice(p);
+        }
+        Scalar::from_be_bytes(sha256::Hash::hash(&data).to_byte_array()).expect("below the order")
+    };
+    let c = compute();
+    let secp = Secp256k1::new();
+    let mut psbt = musig_unsigned()?;
+    let mut session = session();
+    session
+        .add_wallet(
+            &c,
+            "MuSig2",
+            &musig_policy()?.to_descriptor_checksummed(),
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
+        .map_err(|e| e.text())?;
+    let est = session.inspect(&c, &psbt).inputs[0]
+        .musig
+        .clone()
+        .ok_or("no MuSig2 input")?;
+    let msg = key_path_sighash(&psbt)?;
+    let times_g = |k: u8| -> Pk {
+        let mut b = [0u8; 32];
+        b[31] = k;
+        SecretKey::from_slice(&b).expect("small").public_key(&secp)
+    };
+    let (a1, a2) = (times_g(101), times_g(102));
+    let aggnonce = [a1.serialize(), a2.serialize()].concat();
+    let mut agg =
+        faraday_bip::musig::key_agg_with(&secp, &est.participants).map_err(|e| format!("{e:?}"))?;
+    for t in &est.tweaks {
+        agg = agg
+            .apply_tweak(&secp, &t.bytes, t.x_only)
+            .map_err(|e| format!("{e:?}"))?;
+    }
+    let q = agg.serialize_x_only();
+    let mut one = [0u8; 32];
+    one[31] = 1;
+    let negated = (agg.public_key().x_only_public_key().1 == Parity::Odd) != (agg.gacc() != one);
+    let b = tagged("MuSig/noncecoef", &[&aggnonce, &q, &msg]);
+    let r = a1
+        .combine(&a2.mul_tweak(&secp, &b).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let (r_x, r_parity) = r.x_only_public_key();
+    let e = tagged("BIP0340/challenge", &[&r_x.serialize(), &q, &msg]);
+    let list = tagged(
+        "KeyAgg list",
+        &[&est
+            .participants
+            .iter()
+            .flat_map(|k| k.serialize())
+            .collect::<Vec<u8>>()],
+    );
+    let second = est.participants.iter().find(|k| **k != est.participants[0]);
+    let is_forged = |pk: &Pk| forged.iter().any(|n| taproot_account(*n).public_key == *pk);
+    let filler = est
+        .participants
+        .iter()
+        .rfind(|k| !is_forged(k))
+        .copied()
+        .ok_or("every participant is forged")?;
+    let (mut sum1, mut sum2): (Option<Pk>, Option<Pk>) = (None, None);
+    let add = |sum: Option<Pk>, p: Pk| -> Result<Option<Pk>, String> {
+        Ok(Some(match sum {
+            None => p,
+            Some(x) => x.combine(&p).map_err(|e| e.to_string())?,
+        }))
+    };
+    let input = &mut psbt.inner_mut().inputs[0];
+    for (i, pk) in est.participants.iter().enumerate() {
+        if *pk == filler {
+            continue;
+        }
+        let i = u8::try_from(i).map_err(|e| e.to_string())?;
+        let (n1, n2) = if is_forged(pk) {
+            let a = if second == Some(pk) {
+                Scalar::ONE
+            } else {
+                tagged(
+                    "KeyAgg coefficient",
+                    &[&list.to_be_bytes(), &pk.serialize()],
+                )
+            };
+            let mut x = pk
+                .mul_tweak(&secp, &e)
+                .and_then(|x| x.mul_tweak(&secp, &a))
+                .map_err(|e| e.to_string())?;
+            if negated {
+                x = x.negate(&secp);
+            }
+            let mut sb = [0u8; 32];
+            sb[31] = 17 + i;
+            let s = SecretKey::from_slice(&sb).map_err(|e| e.to_string())?;
+            let target = s
+                .public_key(&secp)
+                .combine(&x.negate(&secp))
+                .map_err(|e| e.to_string())?;
+            let want = if r_parity == Parity::Even {
+                target
+            } else {
+                target.negate(&secp)
+            };
+            let n2 = times_g(30 + i);
+            let n1 = want
+                .combine(
+                    &n2.mul_tweak(&secp, &b)
+                        .map_err(|e| e.to_string())?
+                        .negate(&secp),
+                )
+                .map_err(|e| e.to_string())?;
+            faraday_psbt::musig::write_partial_sig(
+                input,
+                pk,
+                &est.output_key,
+                &faraday_bip::musig::PartialSig::from_bytes(&sb).map_err(|e| format!("{e:?}"))?,
+            );
+            (n1, n2)
+        } else {
+            (times_g(60 + i), times_g(80 + i))
+        };
+        sum1 = add(sum1, n1)?;
+        sum2 = add(sum2, n2)?;
+        let nonce =
+            faraday_bip::musig::PubNonce::from_bytes(&[n1.serialize(), n2.serialize()].concat())
+                .map_err(|e| format!("{e:?}"))?;
+        faraday_psbt::musig::write_pub_nonce(input, pk, &est.output_key, &nonce);
+    }
+    let rest = |total: Pk, sum: Option<Pk>| -> Result<Pk, String> {
+        match sum {
+            Some(x) => total.combine(&x.negate(&secp)).map_err(|e| e.to_string()),
+            None => Ok(total),
+        }
+    };
+    let nonce = faraday_bip::musig::PubNonce::from_bytes(
+        &[rest(a1, sum1)?.serialize(), rest(a2, sum2)?.serialize()].concat(),
+    )
+    .map_err(|e| format!("{e:?}"))?;
+    faraday_psbt::musig::write_pub_nonce(input, &filler, &est.output_key, &nonce);
+    Ok(psbt)
+}
+
+/// [`musig_forged`] for test seed 1, whose partial signature is then made
+/// false, so that it does not verify.
+pub fn musig_false_partial() -> Result<Psbt, String> {
+    let mut psbt = musig_forged(&[1])?;
+    let input = &mut psbt.inner_mut().inputs[0];
+    let entry = faraday_psbt::musig::partial_sigs(input)
+        .map_err(|e| format!("{e:?}"))?
+        .into_iter()
+        .next()
+        .ok_or("no partial signature")?;
+    let mut bytes = entry.value.serialize();
+    bytes[31] ^= 1;
+    let value = faraday_bip::musig::PartialSig::from_bytes(&bytes).map_err(|e| format!("{e:?}"))?;
+    faraday_psbt::musig::write_partial_sig(input, &entry.participant, &entry.aggregate, &value);
+    Ok(psbt)
+}
+
+/// The fingerprint of test seed `n`.
+pub fn seed_fingerprint(n: usize) -> faraday_bip::keys::Fingerprint {
+    master(TEST_SEEDS[n].0).fingerprint()
+}
+
+/// A spend of two inputs of the MuSig2 wallet, both with every
+/// participant's nonce, test key 1 (the one this device holds) signed on
+/// both, and test key 2's partial signature on the first input only in the
+/// first file and on both in the second. The nonces are fixed, so the
+/// files are the same each time.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+pub fn musig_two_inputs() -> Result<(Psbt, Psbt), String> {
+    use faraday_bip::bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
+    let c = compute();
+    let mut unsigned = musig_unsigned()?;
+    {
+        let inner = unsigned.inner_mut();
+        let mut again = inner.unsigned_tx.input[0].clone();
+        again.previous_output.vout = 1;
+        inner.unsigned_tx.input.push(again);
+        inner.unsigned_tx.output[0].value = Amount::from_sat(20_000_000 - 1_200);
+        let second = inner.inputs[0].clone();
+        inner.inputs.push(second);
+    }
+    let policy = musig_policy()?;
+    let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
+    let mut session = session();
+    session
+        .keys
+        .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
+        .map_err(|e| e.text())?;
+    session
+        .add_wallet(
+            &c,
+            "MuSig2",
+            &policy.to_descriptor_checksummed(),
+            "Test wallet",
+            crate::wallet::Origin::Named,
+        )
+        .map_err(|e| e.text())?;
+    let seen = session.inspect(&c, &unsigned);
+    let prevs: Vec<_> = unsigned
+        .inner()
+        .inputs
+        .iter()
+        .map(|i| i.witness_utxo.clone().ok_or("no witness utxo"))
+        .collect::<Result<_, _>>()?;
+    let msg_of = |input: usize| -> Result<[u8; 32], String> {
+        let mut cache = SighashCache::new(&unsigned.inner().unsigned_tx);
+        cache
+            .taproot_key_spend_signature_hash(
+                input,
+                &Prevouts::All(&prevs),
+                TapSighashType::Default,
+            )
+            .map(|h| h.to_byte_array())
+            .map_err(|e| e.to_string())
+    };
+    // Test keys 2 and 3: a nonce on each input.
+    let mut with_nonces = unsigned.clone();
+    let mut secnonces = Vec::new();
+    for n in [1usize, 2] {
+        let sk = *master(TEST_SEEDS[n].0)
+            .derive(
+                &c,
+                &on_net("m/86'/1'/0'").parse().map_err(|e| format!("{e}"))?,
+            )
+            .secret_key();
+        let pk = taproot_account(n).public_key;
+        for i in 0..2 {
+            let est = seen.inputs[i].musig.clone().ok_or("no MuSig2 input")?;
+            let agg32 = est.output_key.x_only_public_key().0.serialize();
+            let (sec, pubn) = faraday_bip::musig::nonce_gen(
+                &secp,
+                &[0x40 + (n * 2 + i) as u8; 32],
+                Some(&sk),
+                &pk,
+                Some(&agg32),
+                Some(&msg_of(i)?),
+                None,
+            )
+            .map_err(|e| format!("{e:?}"))?;
+            faraday_psbt::musig::write_pub_nonce(
+                &mut with_nonces.inner_mut().inputs[i],
+                &pk,
+                &est.output_key,
+                &pubn,
+            );
+            secnonces.push((n, i, sec, sk, pk));
+        }
+    }
+    // This device signs last on both inputs.
+    let mut device = with_nonces;
+    session.sign(
+        &c,
+        &mut device,
+        &faraday_crypto::Zeroizing::new([7; 32]),
+        &mut None,
+    )?;
+    let mut only_first = device.clone();
+    let mut both = device.clone();
+    for (n, i, sec, sk, pk) in secnonces {
+        if n != 1 {
+            continue;
+        }
+        let est = seen.inputs[i].musig.clone().ok_or("no MuSig2 input")?;
+        let nonces = faraday_psbt::musig::pub_nonces(&device.inner().inputs[i])
+            .map_err(|e| format!("{e:?}"))?;
+        let all: Vec<_> = est
+            .participants
+            .iter()
+            .map(|p| {
+                nonces
+                    .iter()
+                    .find(|x| x.participant == *p)
+                    .map(|x| x.value)
+                    .ok_or("a nonce is missing")
+            })
+            .collect::<Result<_, _>>()?;
+        let aggnonce = faraday_bip::musig::nonce_agg(&all).map_err(|e| format!("{e:?}"))?;
+        let values = faraday_bip::musig::session_values(
+            &secp,
+            &est.participants,
+            &est.tweaks,
+            &aggnonce,
+            &msg_of(i)?,
+        )
+        .map_err(|e| format!("{e:?}"))?;
+        let psig =
+            faraday_bip::musig::sign(&secp, sec, &sk, &values).map_err(|e| format!("{e:?}"))?;
+        if i == 0 {
+            faraday_psbt::musig::write_partial_sig(
+                &mut only_first.inner_mut().inputs[i],
+                &pk,
+                &est.output_key,
+                &psig,
+            );
+        }
+        faraday_psbt::musig::write_partial_sig(
+            &mut both.inner_mut().inputs[i],
+            &pk,
+            &est.output_key,
+            &psig,
+        );
+    }
+    Ok((only_first, both))
 }
 
 /// The backup test stick's vault passphrase.

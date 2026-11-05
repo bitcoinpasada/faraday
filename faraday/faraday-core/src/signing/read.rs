@@ -157,8 +157,9 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
 }
 
 /// Costs what `inspect` costs where the session's inputs are no longer the
-/// job's (the network it took, the keys, the wallets), nothing otherwise. Opens the spend
-/// the job read. Whether it opened.
+/// job's (the network it took, the keys, the wallets), and what
+/// `aggregate_musig` costs. Opens the spend the job read, a MuSig2 file
+/// holding every partial signature aggregated at once. Whether it opened.
 fn spend_opened(app: &mut Faraday, read: Option<Read>, name: &str) -> bool {
     let Some(Read {
         psbt,
@@ -176,13 +177,19 @@ fn spend_opened(app: &mut Faraday, read: Option<Read>, name: &str) -> bool {
     }
     let spend = Spend::new_kept(psbt, v2, name);
     let now = app.session.inspect_inputs();
+    let c = app.compute();
     let inspection = if now == inputs {
         inspection
     } else {
-        let c = app.compute();
         app.session.inspect(&c, &spend.psbt)
     };
     let mut state = SpendState::new(spend, inspection, now);
+    // The opening is the spend's first read: a file with every partial in
+    // it is aggregated, the signature kept only if it verifies.
+    if state.spend.aggregate_musig(&c, &state.inspection) {
+        state.inspection = app.session.inspect(&c, &state.spend.psbt);
+        state.inspected = Some((state.spend.psbt.clone(), app.session.inspect_inputs()));
+    }
     state.done[0] = true;
     app.wallets.set_spend(state);
     app.refresh_spend();

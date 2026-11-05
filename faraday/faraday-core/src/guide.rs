@@ -41,7 +41,7 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
             ),
         },
         step::SIGN => {
-            if !s.spend.signed_here.is_empty() {
+            if !s.signed_keys().is_empty() {
                 EN.guide_signed_each_signature.to_string()
             } else if kind == Some(Kind::MuSig) {
                 EN.guide_spend_round_two.to_string()
@@ -86,7 +86,7 @@ pub(crate) fn spend_topic(n: u8, kind: Option<Kind>, s: &SpendState) -> Option<T
             Some(_) => Some(Topic::Multisig),
             None => None,
         },
-        step::SIGN if !s.spend.signed_here.is_empty() => None,
+        step::SIGN if !s.signed_keys().is_empty() => None,
         step::SIGN => match kind {
             Some(Kind::MuSig) => Some(Topic::Nonces),
             Some(k) if k.has_cosigners() => Some(Topic::Multisig),

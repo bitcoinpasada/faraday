@@ -900,7 +900,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                             .ours
                             .iter()
                             .map(|p| {
-                                musig_round(input, &established, p, ctx.musig_session, txid, i)
+                                musig_round(c, psbt, &established, p, ctx.musig_session, txid, i)
                             })
                             .collect();
                         established.will_share_nonce = !rounds.is_empty()
@@ -2175,33 +2175,67 @@ pub enum MusigRound {
 /// aggregate derived at the sub-path, or the taproot output key. BIP-373
 /// reads as the first; Bitcoin Core writes the third.
 pub(crate) fn musig_keyed_here(musig: &MusigInput, aggregate: &PublicKey) -> bool {
-    *aggregate == musig.root_aggregate
-        || *aggregate == musig.output_key
-        || aggregate.x_only_public_key().0 == musig.internal_key
+    musig_form_rank(musig, aggregate).is_some()
 }
 
-/// Which way `participation` is handled on input `index` of the
-/// transaction `txid`, decided in §16.100's order.
+/// Which of the three aggregate forms an entry's key is, in the order a
+/// reader prefers when one participant has entries under more than one: the
+/// taproot output key (the form this device writes and Bitcoin Core
+/// writes), the root aggregate, the internal key. `None` for any other key.
+pub(crate) fn musig_form_rank(musig: &MusigInput, aggregate: &PublicKey) -> Option<u8> {
+    if *aggregate == musig.output_key {
+        Some(0)
+    } else if *aggregate == musig.root_aggregate {
+        Some(1)
+    } else if aggregate.x_only_public_key().0 == musig.internal_key {
+        Some(2)
+    } else {
+        None
+    }
+}
+
+/// Costs `verified_partials` (a sighash, the aggregate nonce and session
+/// once, and a signature check (BIP-327 `PartialSigVerify`) per partial
+/// signature on the input) when the input carries a partial signature for
+/// `participation` and this session does not hold its secret nonce, and
+/// nothing otherwise. A caller asks once per held key. Which way
+/// `participation` is handled on input `index` of the transaction `txid`,
+/// decided in §16.100's order.
+///
+/// A partial signature in the file is the file's word: the online side
+/// writes every nonce, so one that verifies can be built from public
+/// data. It ends the participant's round only when this device has no
+/// secret nonce for it and the entry verifies. A session that holds the
+/// participant's secret nonce proves any entry for it false, and round 2
+/// goes on with that nonce, which overwrites it. An entry that fails to
+/// verify falls through to a new nonce or a deterministic signature.
 pub(crate) fn musig_round(
-    input: &Input,
+    c: &Compute,
+    psbt: &Psbt,
     musig: &MusigInput,
     participation: &MusigParticipation,
     session: Option<&crate::musig::MusigSessionView>,
     txid: bitcoin::Txid,
     index: usize,
 ) -> MusigRound {
+    let input = &psbt.inner().inputs[index];
     let nonces = crate::musig::pub_nonces(input).unwrap_or_default();
     let here = |key: &PublicKey| {
         nonces
             .iter()
             .any(|n| n.participant == *key && musig_keyed_here(musig, &n.aggregate))
     };
-    let signed = crate::musig::partial_sigs(input)
-        .unwrap_or_default()
-        .iter()
-        .any(|e| e.participant == participation.key && musig_keyed_here(musig, &e.aggregate));
-    if signed {
-        return MusigRound::Done;
+    let held = session.is_some_and(|s| s.holds(txid, index, &participation.key));
+    if !held {
+        let has_entry = crate::musig::partial_sigs(input)
+            .unwrap_or_default()
+            .iter()
+            .any(|e| e.participant == participation.key && musig_keyed_here(musig, &e.aggregate));
+        if has_entry
+            && crate::musig::verified_partials(c, psbt, index, musig).contains(&participation.key)
+        {
+            return MusigRound::Done;
+        }
     }
     let ours = here(&participation.key);
     let others = musig
@@ -2209,7 +2243,6 @@ pub(crate) fn musig_round(
         .iter()
         .filter(|p| **p != participation.key)
         .all(here);
-    let held = session.is_some_and(|s| s.holds(txid, index, &participation.key));
     match (ours, held, others) {
         (true, true, true) => MusigRound::Sign,
         (true, true, false) => MusigRound::Wait,

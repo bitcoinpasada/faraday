@@ -2375,16 +2375,9 @@ impl Faraday {
     }
 
     /// The PSBT with what this pass added, For the stick for the other
-    /// signers while more are needed.
+    /// signers while more are needed (`signing::part_out`).
     fn part_out(&mut self) {
-        let Some(s) = self.wallets.spend().filter(|s| !s.complete) else {
-            return;
-        };
-        let name = format!("{}-part.psbt", result_stem(&s.spend.source));
-        let Ok(bytes) = s.spend.out_bytes() else {
-            return self.toast(EN.spend_v2_not_written);
-        };
-        self.put_outbox(&name, bytes);
+        signing::part_out(self);
     }
 
     /// Costs a hash of a whole file (through `vault_changed`). The session
@@ -4446,9 +4439,6 @@ impl Faraday {
         };
         let bytes = item.bytes.clone();
         let name = item.name.clone();
-        // Drawn before the spend is borrowed: a MuSig2 aggregation below
-        // may still share a nonce, and never the one shared before.
-        let seed = self.sign_seed();
         let Some(s) = self.wallets.spend_mut() else {
             return;
         };
@@ -4459,26 +4449,10 @@ impl Faraday {
             Ok(_) => s.error = None,
             Err(e) => s.error = Some(e),
         }
-        // A MuSig2 wallet: once every partial signature is in, this device
-        // aggregates them; until then the pass changes nothing.
-        let musig = self
-            .session
-            .wallet_for(&c, &s.spend.psbt)
-            .and_then(|i| self.session.wallets.get(i))
-            .is_some_and(|w| wallet::Kind::of(w.policy()) == wallet::Kind::MuSig);
-        let mut job = None;
-        if musig && !s.spend.signed_here.is_empty() && s.spend.finish().is_err() {
-            let psbt = s.spend.psbt.clone();
-            match &seed {
-                Some(seed) => job = self.session.sign_spend_job(&c, &psbt, seed, s).ok(),
-                None => s.error = Some(EN.collect_no_randomness.to_string()),
-            }
-        }
-        match job {
-            Some(job) => crate::signing::collect_aggregate(self, job, &before),
-            // With an aggregation to follow, the file is not "nothing".
-            None => crate::signing::collect_end(self, &before, nothing.then_some(&name)),
-        }
+        // MuSig2: every partial in the file is aggregated, no key needed,
+        // as the refresh in the end reads the merged file anew. Collect
+        // never draws a nonce or signs; only Sign does.
+        crate::signing::collect_end(self, &before, nothing.then_some(&name));
     }
 
     fn primary(&mut self) {

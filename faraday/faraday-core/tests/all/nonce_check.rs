@@ -725,7 +725,7 @@ fn a_signature_on_a_leaf_that_is_not_run_is_not_refused() {
             if !run {
                 assert!(merged.unwrap().is_empty(), "{what}: no key counted");
                 assert!(
-                    spend.signing(&c, &session, None).0.is_empty(),
+                    spend.signing(&c, &session, None, None).signers.is_empty(),
                     "{what}: no signer"
                 );
             }
@@ -3417,7 +3417,8 @@ mod leaf_rows {
         own.inner_mut().inputs[0].tap_script_sigs.clear();
         let mut spend = Spend::new(own, "own.psbt");
         let merged = spend.collect(&c, &session, &psbt.to_bytes(), "cosigner.psbt");
-        let (signers, to_sign) = spend.signing(&c, &session, None);
+        let got = spend.signing(&c, &session, None, None);
+        let (signers, to_sign) = (got.signers, got.to_sign);
         Seen {
             rows,
             taken: merged.is_ok(),
@@ -3747,13 +3748,13 @@ mod leaf_not_run {
         );
         let session = app(false);
         let mut spend = Spend::new(faraday_psbt::Psbt::from(t.psbt.clone()), "own.psbt");
-        let before = spend.signing(&c, &session.session, None);
+        let before = spend.signing(&c, &session.session, None, None);
         assert!(
             spend
                 .collect(&c, &session.session, &file.to_bytes(), "cosigner.psbt")
                 .is_ok()
         );
-        assert_eq!(spend.signing(&c, &session.session, None), before);
+        assert_eq!(spend.signing(&c, &session.session, None, None), before);
         spend.finish().unwrap();
         let tx = spend.finished.as_ref().unwrap();
         let w: Vec<Vec<u8>> = tx.input[0].witness.iter().map(|e| e.to_vec()).collect();
