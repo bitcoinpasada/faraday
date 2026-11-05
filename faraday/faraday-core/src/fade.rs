@@ -191,6 +191,16 @@ impl Fade {
         !reduce_motion && self.off.is_none()
     }
 
+    /// A step of the current fade came `gap` ms after the one before it.
+    /// A change of theme redraws every pixel and its first frames are
+    /// slow on a small machine; that says nothing about fades of
+    /// screens, so its steps are not timed into the gate.
+    fn step_of_fade(&mut self, now_ms: u64, gap: u16) {
+        if !self.theme_fade {
+            self.step_timed(now_ms, gap);
+        }
+    }
+
     /// A step of a fade came `gap` ms after the one before it, at
     /// `now_ms`: kept with the last few, and fades turned off where the
     /// median of those still fresh, once a few are known, is wider than
@@ -357,7 +367,7 @@ impl Faraday {
             && self.now_ms > last
         {
             let gap = (self.now_ms - last).min(1000) as u16;
-            self.fade.step_timed(self.now_ms, gap);
+            self.fade.step_of_fade(self.now_ms, gap);
         }
         let (Some(canvas), Some((before, at))) = (self.canvas.as_mut(), self.fade.from.as_ref())
         else {
@@ -652,6 +662,26 @@ mod tests {
             now += 400;
         }
         assert!(f.fades(false), "fades stay on");
+    }
+
+    #[test]
+    fn slow_theme_change_steps_leave_fades_on() {
+        let mut f = Fade::default();
+        f.theme_fade = true;
+        let mut now = 1_000;
+        for _ in 0..20 {
+            now += 70;
+            f.step_of_fade(now, 70);
+            f.shown(now);
+        }
+        assert!(f.fades(false), "slow theme steps are not timed");
+        f.theme_fade = false;
+        for _ in 0..9 {
+            now += 70;
+            f.step_of_fade(now, 70);
+            f.shown(now);
+        }
+        assert!(!f.fades(false), "slow screen steps still turn fades off");
     }
 
     #[test]

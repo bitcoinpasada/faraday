@@ -25,10 +25,6 @@ const KEEP: f64 = 1.25;
 /// much room, so the step does not flip at the boundary.
 const SHORTEN: f64 = 1.6;
 
-/// Whether a fade's steps are timed apart from frames drawn in full.
-/// On the PC stick only, for now: the Pi keeps one grid for both.
-const BLENDS_APART: bool = cfg!(target_arch = "x86_64");
-
 /// How many of a fade's recent steps the median of their cost is taken
 /// over.
 const BLENDS_KEPT: usize = 5;
@@ -80,14 +76,10 @@ impl Pace {
         }
     }
 
-    /// A pass whose frame was a fade's step took `took`. Where fades are
-    /// timed apart, the step after it holds the median of what the last
-    /// few such steps cost; elsewhere it counts as any pass that drew.
+    /// A pass whose frame was a fade's step took `took`. Fades are timed
+    /// apart on every stick: the step after it holds the median of what
+    /// the last few such steps cost, not what frames drawn in full cost.
     pub fn stepped_fade(&mut self, took: Duration) {
-        if !BLENDS_APART {
-            self.drew(took);
-            return;
-        }
         if self.blends.len() == BLENDS_KEPT {
             self.blends.remove(0);
         }
@@ -159,7 +151,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_arch = "x86_64")]
     fn a_fade_steps_at_what_its_steps_cost_not_at_the_frame_that_showed_it() {
         let mut pace = Pace::new();
         // Screens drawn in full at 20 ms a frame: a step of two frames.

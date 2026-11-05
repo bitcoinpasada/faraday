@@ -95,13 +95,15 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   period from the monitor the window is on). On Wayland the compositor
   settles the rate the same way by itself: a frame that misses a refresh
   is shown at the next, and the frame after is asked for from there.
-- **On the PC stick a fade's steps keep their own step.** A step that
+- **On every stick a fade's steps keep their own step.** A step that
   only blends the two kept frames is paced by the median of what the
   last five such steps cost, not by the frames drawn in full: the frame
   that shows a change is often the slowest there is, and one step held
   up does not stretch the ones after it
-  (`Pace::stepped_fade`, `faraday/shells/stick/src/pace.rs`). The Pi
-  keeps one grid for both.
+  (`Pace::stepped_fade`, `faraday/shells/stick/src/pace.rs`). On a Pi
+  3B+ a fade step's pass costs about 34 ms: on the 66 ms grid of the
+  frames drawn in full it was over the 55 ms limit below, timed apart it
+  steps at 50 ms.
 - **On the stick and the Pi the CPU's clock is up while something
   moves.** Both kernels' governor is schedutil, which raises a CPU's
   clock only once work has run a while; a fade starts from idle. On
@@ -351,7 +353,9 @@ extent; a motion left from another screen or sheet is stopped.
     in steps too far apart to read as one: the core times the gap
     between each two steps of a fade that follow one another (not the
     frame that shows the change, not a frame drawn in full, not any
-    other motion), keeps the last nine with when each was taken, and
+    other motion, and not the steps of a change of theme, whose first
+    frames are slow on a small machine: those still fade, but are not
+    timed towards turning fades off), keeps the last nine with when each was taken, and
     turns fades off when the median of those under 30 s old
     (`motion::FADE_GAPS_FRESH_MS`), once five are known, is over 55 ms
     (`motion::FADE_GAP_MS`, `Fade::step_timed`): the steps a fade can
