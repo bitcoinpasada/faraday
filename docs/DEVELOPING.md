@@ -278,6 +278,9 @@ Never use it for keys that matter.
   app and the next one carries on in the same file. With the boot medium
   out (a key is loaded with it out) the timings stay in memory: plug it
   back and wait 30 seconds, and the file holds them.
+- **When a file is written.** The panel's console says
+  `faraday-timings.txt written` and `faraday-boot-report.txt written`
+  each time one is, so you can see when it is safe to power off.
 
 The release image writes neither file: its app is started without
 those flags, its kernel log stays closed to the app, and

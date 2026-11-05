@@ -1219,34 +1219,29 @@ impl Shell {
             // boot stick through the disk process, whole, over the copy
             // before it, every `timings::WRITE_EVERY` and at exit.
             Some(disk) => match t.keep(&block, elapsed, last) {
-                None => Ok(()),
+                None => Ok(false),
                 // The boot medium may be out for now: a key is loaded with
                 // it out. What is kept goes at the next write with it back.
-                Some(text) => {
-                    if let Some(boot) = self.sticks.iter().find(|s| s.boot) {
-                        let _ = disk.write_copies(
-                            &boot.id,
-                            files::TIMINGS,
-                            text.as_bytes(),
-                            &[],
-                            true,
-                            false,
-                        );
-                    }
-                    Ok(())
-                }
+                Some(text) => Ok(self.sticks.iter().find(|s| s.boot).is_some_and(|boot| {
+                    disk.write_copies(&boot.id, files::TIMINGS, text.as_bytes(), &[], true, false)
+                        .is_ok()
+                })),
             },
-            None => self.files.append_timings(&block).map(drop),
+            None => self.files.append_timings(&block).map(|_| false),
         };
         if last && let Some(t) = self.timings.as_ref() {
             // The next process after a lock carries on from here.
             t.save(Path::new(BOXES));
         }
-        if let Err(reason) = wrote
-            && self.timings.take().is_some()
-        {
-            // The timings have nowhere to go; that is said once.
-            self.say(&format!("timings off: {reason}"));
+        match wrote {
+            Ok(true) => self.say(&format!("{} written", files::TIMINGS)),
+            Ok(false) => {}
+            Err(reason) => {
+                if self.timings.take().is_some() {
+                    // The timings have nowhere to go; that is said once.
+                    self.say(&format!("timings off: {reason}"));
+                }
+            }
         }
     }
 
@@ -1296,10 +1291,13 @@ impl Shell {
             return;
         };
         report.schedule.tried(elapsed, true);
-        if let Err(reason) = wrote
-            && !std::mem::replace(&mut report.said, true)
-        {
-            self.say(&format!("no boot report: {reason}"));
+        match wrote {
+            Ok(()) => self.say(&format!("{name} written")),
+            Err(reason) => {
+                if !std::mem::replace(&mut report.said, true) {
+                    self.say(&format!("no boot report: {reason}"));
+                }
+            }
         }
     }
 
