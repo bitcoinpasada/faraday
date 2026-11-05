@@ -1240,3 +1240,158 @@ from the type's own impls. The fixture crate of `selftest.rs` holds a
 check for each. `slip39` gained `Points::at`, `gf_mul` and `gf_inv`;
 `codex32-make` and `codex32-correct` no longer carry SLIP-39's `gf_mul`
 and `polymod`.
+
+## Sections 9.3, 9.4 and 9.6 with their labels
+
+These are §9.3, §9.4 and §9.6 of `docs/ESTABLISHED.md` as they stood before their labels were removed from that document, so the labels the decisions and old commits use stay explained.
+
+### 9.3 Collisions, and how each is cleared
+
+| Where | What is compared with itself | Cleared by | Batch |
+|---|---|---|---|
+| `sign-ecdsa`, `sign-schnorr`, `message-sign`, `message-verify` | Core's signatures and verification are libsecp256k1's, as the app's are | python-ecdsa and btclib's own curve, already beside Core (`tools/crosscheck/lineage.py`); the manifest names Core as sharing the curve maths | X13 (built) |
+| `sweep-sign`, `wif-read` | Core's signatures and the WIF's public key are libsecp256k1's | python-ecdsa's first-nonce signature byte for byte and btclib's signing and finalizing for sweeps; btclib's WIF decoding and public key | X13 (built) |
+| `vanity` | Core's `deriveaddresses` derives each candidate's child keys with libsecp256k1 | the child keys by btclib on its own curve; Core judges the script and the address text only | X13 (built) |
+| `sign-check` (new area) | Core's `finalizepsbt` checks signatures with libsecp256k1 | python-ecdsa and btclib verify every signature, partial ones too; Core judges script and consensus on complete inputs | X19 (built) |
+| `sign-musig`, after A1 | the Core round trip's partial signatures share libsecp256k1's scalar code with A1's | btclib's MuSig2 as a full reference beside BIP-327's; the round trip stays as a judge of BIP-373 and the descriptor, named as sharing the curve | X8 |
+| `musig-key` | Core's `musig()` aggregation is libsecp256k1's musig module | BIP-327's reference and btclib's key aggregation judge the maths; Core judges BIP-390's descriptors and addresses | X8 |
+| `qr`, `codex32qr`, `seedqr-make` | the app's encoder is a port of Nayuki's, compared with Nayuki's (rule 3) | segno, another encoder lineage (X21, built); zbar and zxing-cpp decode every picture (X21, built) | X21 |
+| `tools-hash` | `base58check_round_trips_through_bitcoins_own_encoder` in `core/faraday-codec/src/encodings.rs` compares `bitcoin::base58::encode_check` with itself | Built (X27): that assertion is replaced by a published Base58Check vector (the first valid address of Bitcoin Core's `key_io_valid.json`); the new `hash` area judges Base58Check with Core's framework | X27 |
+| `aezeed` | not a library: on a builder with AES-NI both sides run the processor's round, so the fixsliced round the Pi runs is never compared | a second pass with the aes crate's software round and LND's AEZ built without assembly (built: X29) | X29 |
+| btclib's ports of Core | `script/solver.py` and `script/spendability.py` are Core's logic | not counted as a second lineage beside Core; where only they cover a rule, Faraday's second version stays (rule 1) | X15, X18 |
+
+No switch of §5 makes an existing judge collide: C1, C5, C8, C9, C11,
+C12 and C13 move pieces onto RustCrypto crates, `serde_json`, `adler2`
+and miniscript, and their judges are Go's x/crypto, OpenSSL, GnuPG,
+Core's C++, CPython's `base64`, `binascii`, `json` and `zlib`, and
+pykeepass with its argon2-cffi (and, once F190's vault is judged,
+`keepassxc-cli` and Sequoia's `sq`). A1 and A7 put more of the app on
+libsecp256k1; the BIPs' references run over secp256k1lab and btclib on
+its own curve, neither libsecp256k1, so they stay valid.
+
+### 9.4 Each action
+
+Faraday's side is the code after §4 and §5. "Kept" is the judges in use
+today; "Added" names the batch; "Second version" is what of Faraday's
+second version is retired or kept under rule 1; "Class" is the
+`independence` class after the batch (none: no area, judged in tests or
+not at all).
+
+| Action | Faraday's side | Kept | Added | Second version | Class |
+|---|---|---|---|---|---|
+| words-read, words-make, seed | Own BIP-39 core, constant time (A5); pbkdf2, sha2, unicode-normalization | python-mnemonic | bip39_slip39 as a second reader (X11) | none | outside |
+| slip39 | Own; GF(256) and RS1024 without a branch (built) | python-shamir-mnemonic | bip39_slip39 (X11) | none | outside |
+| bip85 | bitcoin and Faraday's glue; base64ct (C8), base16ct (C9) | btclib-wallet's `bip85`, ethankosakovsky/bip85 | btclib's `bip85` run as written over bip39_slip39, python-mnemonic's stand-in removed (X11) | none | outside |
+| master | bitcoin and libsecp256k1; the strict decoder Faraday's | btclib-wallet's `bip32` | btcd's `hdkeychain` from btcd v0.27.0 (X14, built) | kept: `hdkeychain` does not refuse what Faraday refuses. It reads a key of any version, a version of the other kind than the key's data, and a depth-0 key with a parent fingerprint or an index; those three rules stay Faraday's second version, and `hdkeychain` is asked of every other refusal (the checksum, the length, a scalar of 0 or past n, a public key's prefix or a point off the curve) and of every valid key | outside-and-own |
+| derive, xprv-shown | bitcoin and libsecp256k1 | btclib-wallet's `bip32` | `hdkeychain` from btcd v0.27.0 (X14, built) | none | outside |
+| dice | Own specification; sha2 | Coldcard's `rolls.py`, `rolls12.py` | SeedSigner's `mnemonic_generation.py` over embit's BIP-39 (X22, built): the hashed procedure at 50 and 99 rolls, and direct selection's last word, from SeedSigner's `calculate_checksum` at 12 and 24 words and, where it has no step (it completes 12 and 24 words only, and cuts its dice hash to 16 bytes only at exactly 50 rolls), embit's checksum through `generate_mnemonic_from_bytes` at 15, 18 and 21, compared as the entropy embit reads back from the words, the checksum itself being area `bip39`'s; the wordlist indices from faces are Faraday's, SeedSigner has no dice selection | kept: six-as-zero, the cuts to 20, 24 and 28 bytes, the counts and refused faces, which no outside code has without Node | outside-and-own |
+| coins-hex | Own specification; hex through base16ct (C9) | Faraday's second version | CPython's `bytes.fromhex` named as the hex judge (X4, rule 5) | kept for the flips and the commitments | outside-and-own |
+| vanity | bitcoin and libsecp256k1 | python-mnemonic, btclib, Core | each candidate's child keys by btclib; Core for the script and address text only (X13, built) | kept: the counter, the prefix rules, the expected work, the search loop | outside-and-own |
+| aezeed | Own; aes (built), blake2 (C1) | LND's `aezeed` | a pass with the software AES round on both sides: the aes crate's `aes_backend="soft"` against Yawning Angel's AEZ built with the tags `noasm` and `purego` (X29, built) | none | outside |
+| silent-receive | Own; secret scalars through libsecp256k1 (A1), the label tweak through `ecmult_gen` (A7) | BIP-352's reference over secp256k1lab | btclib-wallet's `silent_payments.py` (X9) | none | outside |
+| silent-send | Own; A1, A7 | BIP-374's and BIP-375's references | btclib's `dleq.py`, BIP-375 roles and BIP-352 (X9) | none | outside |
+| musig-key | Own until bitcoin 0.33 (§6.1); point operations libsecp256k1's | BIP-327's reference; btclib verifies the aggregate | btclib's key aggregation and tweaks as a full reference; Core's `musig()` descriptors through `deriveaddresses` (X8) | none | outside |
+| sign-musig | Own; secret scalars through libsecp256k1 (A1) | BIP-327's reference; btclib verifies; Core's round trip (`other`) | btclib's MuSig2 signing and BIP-373's PSBT roles (X8) | none | outside |
+| codex32, seed-shown | Own; GF(32), checksum and alphabet without a branch (A4) | python-codex32 | rust-codex32 at a pinned commit, a program outside the workspace (X10) | the threshold rule (0 or 2 to 9) and threshold 0's share index `s` retired to rust-codex32; the seed's lengths and the share order kept | outside-and-own |
+| codex32-make | Own; A4 | python-codex32 | volvelle-website's `checksum_worksheet.rs` run as a program over every corpus worksheet of 48 and 74 characters; rust-codex32's `interpolate_at` for a fresh set's derived shares (X10) | the rows at 48 and 74 characters retired; at 127 kept | outside-and-own |
+| qr, codex32qr | Own encoder (Nayuki's, ported) and PNG writer, Adler-32 from adler2 (C12); rqrr reads | Nayuki's `qrcodegen.py` (same lineage, rule 3) | segno as a second encoder, module for module at a given mask and at its own mask choice; segno's and Nayuki's codes rendered and read by rqrr; zbar and zxing-cpp decode every picture (X21, built: area `seedqr`; segno 1.6 module for module at Faraday's mask and at another, and at its own choice as Faraday's code or the same data under the mask it reports, its zero pad codeword where the standard adds none modelled in Nayuki's code and counted; `qr_decode.py` for the Codex32QR pictures Faraday writes, the profile's 22 pictures, and each key's SeedQR and CompactSeedQR picture, payloads compared as bytes) | none | outside |
+| seedqr-make | Own | SeedSigner, Nayuki | each PNG read by Pillow and zlib (X6); segno (X21, built, with the QR rows above); zbar and zxing-cpp decode each picture Faraday writes of a key's SeedQR and CompactSeedQR, payloads compared as bytes (X21, built) | kept: CompactSeedQR at 15, 18 and 21 words, which no outside code defines | outside-and-own |
+| seedqr-read | Own; the comparison through subtle (A6) | SeedSigner's `DecodeQR` | zbar and zxing-cpp decode the pictures; Faraday's reader takes what they return and gives the key's words (X21, built) | kept: Faraday's reader rule, 15, 18 and 21 words | outside-and-own |
+| stick-write, outbox | Own text lines, FAT writer and PNG writer | FAT read by mtools and dosfstools in tests (required in `just crosscheck`, X1) | each PNG read by Pillow and zlib (X6); each picture decoded by zbar and zxing-cpp and its payload compared with the key's words (X21, built: the stick's labelled picture of the key's SeedQR and CompactSeedQR and of a codex32 share), in area `seedqr` | none | outside |
+| ur | Own; one CRC-32 and one CBOR (C15) | foundation-ur-py | `zlib.crc32` against the one CRC-32; cbor2 for the registry types' and the parts' CBOR (X12, built: `zlib.crc32` over random messages and the parts' checksum field; cbor2 reading the parts, the single-part payloads and the registry types built with it, `account_cbor`'s output, and random and mutated CBOR beside Faraday's reader, in `tools/crosscheck/ur_cbor.py`) | none | outside |
+| bbqr | Own; miniz_oxide; hex through base16ct (C9) | Coinkite's BBQr Python, SeedSigner's numbered-part reader | krux's `qr.py` and `bbqr.py` (v26.09.0) writing numbered parts and reading them; Coinkite's test files as vectors (X23, built: `tools/reference/krux/`, `tools/vectors/bbqr/`) | the writing of numbered parts retired to krux; the refusals and the capacity shim kept | outside-and-own |
+| hashes-macs | sha2, hmac, pbkdf2 | python-mnemonic, `hashlib` | Built (X27), in area `hash`: `hmac` and `hashlib.pbkdf2_hmac` over random HMAC and PBKDF2, each over SHA-256 and SHA-512, RFC 4231's first case for each hash and RFC 7914's PBKDF2 vector (rounds 1), HMAC keys of 0 to 300 bytes across both block sizes, PBKDF2 passwords and salts to 100 bytes, rounds to 50 and lengths to 200, asked only within the callers' domain (rounds and length at least 1) | none | outside |
+| hkdf | HKDF over SHA-256 Faraday's, one copy (C15) | PyCA's `cryptography` | PyCA's `HKDFExpand` over random keys, info and lengths up to 255 blocks, and PyCA's `HKDF` over random salts (none, empty and up to 100 bytes), keys and infos (X12, built, in area `hash`: RFC 5869's first case, then lengths from 0 to 255 blocks and one past, both refused) | none | outside |
+| scrypt | Own (§3.3) | LND, over Go's x/crypto | Built (X27), in area `hash`: `hashlib.scrypt` (OpenSSL) over random N from 2 to 4096, r, p and lengths, RFC 7914's two cheap vectors, and N not a power of two, N 0 or 1, r 0, p 0 and an empty output refused by both; LND's `aezeed` in area `lightning` stays beside it | none | outside |
+| tools-hash, file-hash | bitcoin (Base58, bech32, RIPEMD-160), sha2; hex through base16ct (C9) | none (published vectors in tests) | Built (X27): area `hash`: Core's framework's `ripemd160.py`, `address.py` and `segwit_addr.py`, `hashlib`, `bytes.fromhex`, SHA-256 of random files across block boundaries (the file hash reads no buffer: it hashes the whole slice); the self-comparing Base58Check assertion replaced. Two stated differences, for bech32 text that is not a segwit address: Faraday reads all its data groups and drops the bits left over, and reads it longer than 90 characters; plain Base58 is read by the area's own lines (X27) | none | outside |
+| address, descriptor | miniscript (its checksum, C10), bitcoin | Core, BIP-380's checksum code, python-bip380, btclib's keys | btclib-wallet's descriptors and miniscript: the script at an index, the parse, the type, the round trip (X18, built) | none | outside |
+| recovery | As descriptor | As descriptor | As descriptor, and btclib's satisfaction of each path under its lock times (X18, built) | none | outside |
+| tapmulti | bitcoin, miniscript | Core's framework for the trees | btclib's `check_output_pubkey` (X15, built); btcd v0.27.0's `ParseControlBlock` and `VerifyTaprootLeafCommitment` (X14, built); neither hashes a leaf of version 0x50 differently from any other, so that rule stays the area's own | retired but the rule that a leaf version is not 0x50: BIP-341's script-path check written in the area is gone, and Core's framework is no longer asked about a control block | outside-and-own |
+| psbt-read | bitcoin, base64ct (C8); the inspection Faraday's | Core, HWI | btclib-wallet's `Psbt.parse`, with its validity check (X15, built) | retired: the 65-byte signature with sighash byte 0 is refused by btclib, checked; btclib reads some PSBTs Core and Faraday refuse (a key with key data on a field that takes none), so it is not asked to refuse what Core refuses | outside |
+| psbt-v2 | Own (§6.4) | HWI, Core for both version 0 forms | btclib-wallet's version 2 reader and its conversions to and from version 0 (X15, built) | retired: the refusals of bytes after the last map, of a stream ending inside a map (checked: btclib refuses it) and of a 65-byte taproot signature with sighash byte 0; kept: the bridge's pair choice and the version 0 PSBT where HWI repairs a short value | outside-and-own |
+| sighash-review | bitcoin | Core's framework | btclib's `sig_hash` (`legacy`, `segwit_v0`, `taproot`), every hash beside the framework's (X15, built) | retired: BIP-341's refusals (SIGHASH_SINGLE without an output, a hash type it does not list) are btclib's, and the framework, which hashes those anyway, is not asked | outside |
+| tx-decode | bitcoin; hex through base16ct (C9) | Core's framework | btclib's `Tx.parse`; Core's `decoderawtransaction` on the regtest node, with the known difference where bytes also read as a legacy transaction of no inputs (X15, built) | retired but the refusal of a transaction with no inputs, which neither judge makes; the framework's reading and the exact-serialisation rule written for it are gone | outside-and-own |
+| psbt-review | bitcoin, miniscript; the change rule Faraday's | Core's `decodepsbt`, `analyzepsbt`, `deriveaddresses` | btclib's `update_psbt_output`, `index_of` and descriptor wallet (X16); Core's watch-only descriptor wallet, `getaddressinfo` and `walletprocesspsbt` (built, X17) | the change rule retired (built, X16); the registered-wallet rule kept | outside-and-own |
+| wallet-files | bitcoin; serde_json behind Faraday's visitor (C11); base64ct (C8) | Core, btclib | CPython's `json` reading every file the area writes and refusing a duplicate key and a depth over 32 (X5); every real wallet file the wallets' published test suites hold (X30, built: 93 files of Sparrow, BlueWallet, Coldcard, Caravan and Liana, each read by Faraday and by the area's reading of its format, judged by Core, or refused by both) | kept for the formats no outside reader covers; the refusing hook is Faraday's second version over CPython's parser | outside-and-own |
+| finalize | miniscript (C6), and Faraday's choice of the smallest witness | Core's `finalizepsbt`, `testmempoolaccept` | btclib's `psbt.finalize` with its miniscript solver, which also chooses among satisfactions (X3, built; the leaf of a taproot input and a plain multisig's signatures stay Core's to judge) | kept: the taproot `pkh` leaf left off, the fields BIP-174 keeps | outside-and-own |
+| sign-ecdsa, sign-schnorr | libsecp256k1, bitcoin; Faraday's refusals | Core, python-ecdsa, btclib, BIP-340's reference | Core named as sharing the curve maths (X13, built) | kept: F136's and F141's refusals, the inputs a wallet's rule leaves unsigned | outside-and-own |
+| message-sign, message-verify | libsecp256k1; BIP-322 own (§3.2); base64ct (C8) | Core, btclib, btcd's `bip322`, python-ecdsa | Core named as sharing the curve maths (X13, built) | none | outside |
+| sweep-sign | libsecp256k1, bitcoin, miniscript's finalizer (C6) | Core, BIP-143's example | python-ecdsa's first-nonce signature byte for byte; btclib's signing and finalizing (X13, built) | none | outside |
+| wif-read | libsecp256k1, bitcoin | Core | btclib's WIF decoding and public key (X13, built) | none | outside |
+| sign-check | libsecp256k1 (verification), bitcoin (sighash) | none | a new area (X19, built): python-ecdsa and btclib verify every signature on a PSBT, partial or in a finalized witness, over btclib's sighashes; btclib's script engine runs the complete inputs; Core's `finalizepsbt` and `testmempoolaccept` judge them and the transaction. Core's rules, as the area found them: a partial input names one sighash type, so its PSBT sighash-type field is written when its signatures share a non-ALL type, and an input with mixed types is not asked of Core; an input that arrives final is taken as it is, so its signatures are judged by `testmempoolaccept` on the extracted transaction, not by `finalizepsbt`'s `complete`. Known: a partial signature that is not well formed is refused by Faraday's reader where Core reads it and leaves the input unfinalized; and a bug in Faraday held until it is fixed: a finalized taproot signature of 65 bytes ending in 0x00 is called valid where BIP 341 and Core call it malformed | the report of a reused r or R, written from Faraday's own rule, failing closed (signatures that verify with one nonce, differing in key or in message) | outside-and-own |
+| compile | miniscript's policy compiler | none | a new area (X20, built): Core's `getdescriptorinfo` and `deriveaddresses` take the output; python-bip380 and btclib parse it; the policy and the parsed miniscript compared as boolean formulas over the keys and lock times. Known: a single key under `tr()` is refused by the compiler, and python-bip380's `v:multi_a` script differs from BIP 379's | the lift of a miniscript to a formula, written from the fragments' meanings, and the rules by which a policy is refused | outside-and-own |
+| sb-keys | rsa, sha2, chacha20 (C4), x509-cert and der (C5); CMS, signature lists and `.auth` Faraday's | OpenSSL (tests) | GnuTLS's `certtool` reads every certificate and verifies its self-signature (X2); the OVMF run (`faraday/tools/sb-ovmf-check.py`) named in `other` and run by `just crosscheck` (X1) | none | none (tests) |
+| sb-sign | rsa, sha2, x509-cert and der (C5); Authenticode and CMS Faraday's | sbverify, OpenSSL (tests) | the OVMF run (X1); pesign's `pesigcheck` (NSS) does not take the db certificate as a signer (§5.7), so it judges the real signed binaries (sb-check) and not the images made here | none | none (tests) |
+| sb-check | x509-cert (C5), der | sbverify; images signed by `sbsign` and `osslsigncode` | `pesigcheck` on two real signed binaries, each under 2 MiB, their signer and image hash named and compared with `pesign`'s (X2); the OVMF run (X1) | none | none (tests) |
+| starter-signed | rsa, sha2; the PE checksum and certificate table Faraday's | sbverify (tests) | python3-pefile's PE checksum field and certificate-table entry, compared with the image's header for every image signed, moved or real (X2) | none | none (tests) |
+| gpg-create, gpg-sign, gpg-verify | Own packets over ed25519-dalek; base64ct (C8) | GnuPG 2.4 (tests) | Sequoia's `sq` 1.3.1, built over Nettle (the tests and the cross-check's tools check fail unless `sq version` says so), inspects every certificate Faraday writes (both keys, the user ID, the expiry, the renewal), takes the revocation certificate and verifies each detached signature over SHA-256 and SHA-512, refusing one over other data; a signature `sq` makes (over SHA-512, the one hash `sq sign` offers) and its key are among gpg-verify's fixtures (`tools/vectors/release-sums/sequoia`) (X24, built) | none | none (tests) |
+| kdbx | The export is a one-entry vault, written by the vault's own container (`vault-kdbx`, F190 point 10); argon2 in one call (C13), chacha20, hmac, sha2 | pykeepass | area `vault`: the export's function (`file::create_holding`) and its vector are read by pykeepass, `keepassxc-cli` and keepass-rs, a changed byte refused | none | outside |
+| totp | Own (§3.4) | none (the RFCs' vectors in tests) | Built (X26, area `totp`): pyotp's `TOTP.at` and `generate_otp` over RFC 6238 Appendix B's vectors and random keys of 1 to 300 bytes, times from 0 to 2^64 - 1 with the edges of each period, digits 6 to 8, periods and the three hashes (the code, the seconds left, the period), and `parse_uri` over random and damaged otpauth URIs. Faraday's own rules are stated differences, each pinned one URI at a time and judged on the URI with the difference taken out: it reads what pyotp refuses (a scheme, type or algorithm in other case, a parameter name or a `counter` pyotp does not take, a label issuer the parameter does not repeat, Base32 with spaces, hyphens or misplaced `=`) and refuses what pyotp reads (a period over 3600 seconds, a parameter of the key URI written twice, in another case or with a percent-escape in its name, a parameter name with a tab or line break, a pair with no value, a type with no label slash, percent-escaped values, a fragment, a bare key under 16 characters, `encoder=steam`, which pyotp reads as Steam's five-character code); HOTP is named as HOTP by Faraday and a HOTP object by pyotp. `from_fields` and `normalise` have no pyotp reader and stay with the crate's tests | none | outside |
+| vault-create, vault-unlock, vault-seal | The file vault over the KDBX container (`vault-kdbx`); argon2 in one call (C13) | argon2-cffi for Argon2id, Python's `unicodedata` for NFC | the payload layouts of VAULT §7 are the area's own; area `vault` writes the file with Faraday and reads it with pykeepass and `keepassxc-cli` (every field, group, attachment and custom data item, a wrong passphrase and a changed byte refused), and has them write files Faraday opens and seals again (built), and keepass-rs reads the files Faraday writes and writes files Faraday opens, for the format only (built, F193) | `area_vault.py`, `tools/vault/open.py` over pykeepass | outside-and-own |
+| vault-kdbx | The KDBX 4 container written here (§3.4); argon2 in one call (C13), chacha20, aes, cbc, hmac, sha2, miniz_oxide | none: pykeepass's files read in tests | area `vault`: pykeepass and `keepassxc-cli` both ways, built, each opening the files Faraday made and Faraday opening theirs (F190 point 11, `docs/VAULT.md` §10); keepass-rs for the format only (F193, built: reads Faraday's files, and writes files Faraday opens and seals, with Twofish, AES-KDF and Salsa20 files refused as known differences); PyCA's Argon2id as a second Argon2 lineage (X7) | none | outside |
+| vault-qr-pgp | The RFC 9580 message written here (§3.4); argon2 in one call (C13), aes, ocb3; HKDF Faraday's, one copy (C15) | none: RFC 9580's vectors in tests | area `qrvault` (built): Debian's `sq`, over Nettle, judges the primitives except Argon2, which it shares with the app's lineage; rPGP judges the format only (F193); PyCA's Argon2id, HKDF-SHA-256 and AES-256-OCB over OpenSSL (X7) judge the primitives, under the area's own framing; `sq`, rPGP and PyCA open Faraday's seals and rPGP's and PyCA's seals are opened by Faraday (F190 point 11, VAULT §10); pysequoia once its backend is checked and OpenPGP.js when Node is taken stay out | the OpenPGP framing around PyCA's primitives and the QR TOML (`qr_toml`), both written in the area (`area_qrvault.py`) from RFC 9580 and `docs/VAULT.md` §1.2 and §2.1 | outside-and-own |
+| vault-contents | The TOML tree over toml_parser (§3.4) | none: toml-test's cases in tests | CPython's `tomllib` reads every vault's TOML tree beside Faraday's reader, in area `vault` (F193); area `qrvault` compares the QR form's writer byte for byte and its reader by item | none | outside |
+| starter-write | lzma-rust2, sha2, getrandom; GPT and MBR, the FAT32 formatter (E1), the plist reader, the UUID form and CRC-32 Faraday's | `sha256sum`, `xz` as encoder, `sfdisk` and dosfstools (tests; required in `just crosscheck`, X1) | built (X28, `faraday/shells/starter/tests/all/outside.rs`): `xz` decoding good and corrupted streams beside lzma-rust2, 7-Zip (`7zz` or `7z`, upstream 7-Zip, not p7zip) as a second decoder lineage, `sgdisk -v` beside `sfdisk --verify` on the GPT and MBR tables written, `plistlib` over the `diskutil` fixtures, `uuid` on the IDs drawn, `zlib.crc32` over the GPT header and partition array against their CRC fields (X12, built) | none | none (tests) |
+
+Unchanged:
+
+- Faraday's own specifications, checked by Faraday's second version
+  only, with no outside implementation: cards, camera, pointer-keys,
+  mix, device, fresh, booklet, roller (class `own`); vault-edit's
+  records, which run no primitive and take the vault's class (KeePass
+  entries).
+- Judged by others' code already, with nothing chosen to add:
+  multisig-account, xpub-spellings, wif-shown, address-read,
+  vault-load (`outside`); lightning-node (its ldk-node composition stays
+  Faraday's second version, since lightning.js needs Node), bsms,
+  codex32-correct, xor (`outside-and-own`); gpg-revoke, gpg-paperkey,
+  gpg-restore (GnuPG and paperkey in tests).
+- Nothing to compare with a second program: hold, words-shown,
+  system-random, diceware (the committed EFF files are the judge),
+  words-identity, selftest, envelope, inbox-secret, vault-reveal,
+  starter-recovery-key.
+
+After X1 to X30, 73 of the 94 actions of 2026-10-31 name an area: 37
+`outside`, 28 `outside-and-own` (master's version rule is kept, X14; tx-decode's no-inputs refusal, X15), 8 `own`; 21 name none, of
+which 11 are judged by outside programs in tests. The vault's actions are counted there as they were, four in
+area `vault` as `outside-and-own`; once F190's vault is built and judged
+(VAULT §10), vault-kdbx joins area `vault` as `outside`, vault-qr-pgp is in area
+`qrvault` as `outside-and-own` (the OpenPGP framing around PyCA's
+primitives is Faraday's second version), vault-contents is not cross-checked as an action (area `qrvault` compares the QR
+form's writer byte for byte and its reader by item, `tomllib` reading the canonical
+form the area writes), and
+the class of the KDBX ones is not checked until that build says what of
+Faraday's second version stays.
+
+### 9.6 Tools and packages
+
+No new toolchain: Python, Go, Rust and a C compiler are prerequisites
+already. Each item below is a prerequisite in `docs/DEVELOPING.md` §1,
+added by the batch named, and required by `just crosscheck` (rule 4).
+Package names are Debian's and Ubuntu's where they were read; where
+they were not, the batch checks them first.
+
+| Batch | Distribution packages | Vendored in `tools/reference/` (commit and SHA-256) |
+|---|---|---|
+| X1 | mtools, dosfstools, util-linux's `sfdisk`, QEMU and OVMF's Secure Boot firmware (for the OVMF run) | none |
+| X2 | `gnutls-bin` (`certtool`), `pesign` (`pesigcheck`), `python3-pefile` | two real signed EFI binaries, each under 2 MiB (`tools/reference/signed-efi/`: Ubuntu's shim-signed 1.59+15.8-0ubuntu2, with its source, licence and SHA-256) |
+| X6 | `python3-pil` (Pillow) | none |
+| X7 | `python3-cryptography` 44 or later, over OpenSSL 3.2 or later (checked on the build machine, 2026-11-03: 46.0.5 over OpenSSL 3.5.5) | none |
+| X10 | none | rust-codex32 at commit `3943cb52b2343333386fac0cd38b8ae5a4d6de02` (CC0 1.0; its `Cargo.toml` has no dependency), built offline outside the workspace; volvelle's worksheet program is in `tools/vectors/codex32-volvelle/` already (CC0 1.0) |
+| X11 | none | the bip39_slip39 wheel, 2026.10.24, beside btclib's |
+| X12 | `python3-cbor2`; PyCA's `cryptography`, already named for X7, judges the HKDF | none |
+| X14 | none | a released btcd's modules (`btcutil`, `txscript`, `btcec` and what they name; the root daemon module is not used), `go mod vendor`, in a folder of their own; built |
+| X21 | `python3-segno`, `zbar-tools`, `python3-zxing-cpp` | none |
+| X22 | none | SeedSigner's `helpers/mnemonic_generation.py`, at the commit `tools/reference/seedsigner/` has |
+| X23 | none | krux's `src/krux/qr.py` and `bbqr.py` at v26.09.0, with three shims (`tools/reference/krux/`); Coinkite's BBQr test files (`tools/vectors/bbqr/`) (built) |
+| X24 | `sq` (Sequoia), built over Nettle: the batch checks the build's backend (built: `tools/crosscheck/judges.py` and the GPG tests) | none |
+| X25 | (withdrawn: `keepassxc` comes with the vault's cross-check, `docs/VAULT.md` §10) | none |
+| X26 | `python3-pyotp` | none |
+| X28 | `xz-utils`, `7zip` (7-Zip's `7zz`, or `7z` where the system names it so; the banner must read 7-Zip, not p7zip), `gdisk` (`sgdisk`) | none |
+| X30 | none | real wallet files from the wallets' published test suites, as fixtures (built: `tools/vectors/wallet-files/`, with each file's repository, commit, licence and SHA-256) |
+
+The standard library covers the rest: `hashlib`, `hmac`, `json`,
+`zlib`, `plistlib`, `uuid`. btclib's wheels, Core's functional-test
+framework and its `crypto/ripemd160.py`, python-ecdsa, PyCA
+cryptography, Go and the volvelle harness are in place already.
+

@@ -151,12 +151,9 @@ def check_log(f, kind):
 WORK_WORD = re.compile(r"\bbatch(es)?\b", re.I)
 WORK_HEAD = re.compile(r"\bbatch(es)?\b|order of work", re.I)
 WORK_TABLE = re.compile(r"^\|\s*batch(es)?\s*\|", re.I)
-# Still to be done, after the move of its plan to history.
-WORK_LIST_LATER = {"docs/ESTABLISHED.md"}
-
 
 def check_work_list(f, kind):
-    if kind not in ("Spec", "Reference") or f in WORK_LIST_LATER:
+    if kind not in ("Spec", "Reference"):
         return
     lines = open(f, encoding="utf-8").read().split("\n")
     fenced = False
