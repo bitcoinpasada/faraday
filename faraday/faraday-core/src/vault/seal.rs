@@ -21,7 +21,7 @@ use faraday_keys::vault::{SEAL_RANDOM_LEN, VaultId};
 use zeroize::Zeroizing;
 
 use super::errors;
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::worker::Job;
 use crate::{Command, Faraday};
 
@@ -100,7 +100,9 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
     // A held key's record says so before the vault goes
     // (`docs/history/NEW-WALLET.md` §14.3).
     app.held_sweep();
-    let queue = app.vaults.open.iter().map(|o| o.id).collect();
+    // An original after the target its item was moved to.
+    let ids = app.vaults.open.iter().map(|o| o.id).collect();
+    let queue = app.vaults.state.moved_order(ids);
     app.vaults.state.sealing = Some(SealRun {
         queue,
         running: None,
@@ -131,6 +133,18 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
     if changed && !app.seeded() {
         app.out.command(faraday_shell_api::Command::RequestEntropy);
         app.toast(EN.seed_missing);
+        return false;
+    }
+    // The item moved out of it is in no sealed file until its target's.
+    let waits = app.vaults.state.moved_waits_for(id);
+    if let Some(&target) = waits.first() {
+        let name = app
+            .vaults
+            .open
+            .iter()
+            .find(|o| o.id == target)
+            .map_or_else(String::new, |o| o.label(app.vaults.store()));
+        app.toast(&fill(EN.vault_moved_lock_first, &[&name]));
         return false;
     }
     let c = app.compute();
@@ -169,6 +183,24 @@ fn seal_next(app: &mut Faraday) {
         let Some(i) = app.vaults.open.iter().position(|o| o.id == id) else {
             continue;
         };
+        // A target of an item moved out of this vault is still open (a
+        // sealed one is closed): it was let go unsealed. This vault goes
+        // with it when the lock may lose changes, its last sealed file
+        // still holding the item; else the lock stops and asks.
+        if all
+            && app
+                .vaults
+                .state
+                .moved_waits_for(id)
+                .iter()
+                .any(|t| app.vaults.open.iter().any(|o| o.id == *t))
+        {
+            if may_lose {
+                app.vaults.set_changes_lost();
+                continue;
+            }
+            return seal_stopped(app);
+        }
         // Its plans take the counts of the vaults sealed before it
         // (`docs/VAULT-HARDENING.md` §5.6).
         // A read-only vault is closed as it is: nothing written to it.

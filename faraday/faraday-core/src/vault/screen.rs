@@ -1246,9 +1246,22 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         vstep::SIZE => {
             let bw = (w - 18.0) / 4.0;
+            // An item waits to go in the vault: the sizes it does not fit
+            // are not offered.
+            let min = crate::vault::copy::min_size(app);
+            if let Some(min) = min.filter(|m| *m > SIZES_FILE[0]) {
+                let line = fill(EN.vault_create_item_needs, &[&size_text(min)]);
+                cy += ui.wrap_as((x, cy, w), BODY_S, muted, &line) + tokens::VAULT_ITEM_GAP;
+            }
             for (k, s) in SIZES_FILE.iter().enumerate() {
                 let on = *s == c.size;
-                let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
+                let off = min.is_some_and(|m| *s < m);
+                let (ink, muted) = if off {
+                    let dim = Role::OnSurface.at(tokens::DISABLED_CONTENT);
+                    (dim, dim)
+                } else {
+                    (on_selected(on, ink), on_selected(on, muted))
+                };
                 let bx = x + k as f32 * (bw + 6.0);
                 ui.fill(bx, cy, bw, 62.0, 8.0, selected_or(on, inset));
                 let edge = selected_or(on, Role::OutlineVariant);
@@ -1262,7 +1275,9 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let sw = ui.measure_as(BODY_S, &sub);
                 ui.text_as(bx + (bw - sw) / 2.0, cy + 36.0, BODY_S, muted, &sub);
-                ui.press_box(bx, cy, bw, 62.0, va(V::CSize(k)));
+                if !off {
+                    ui.press_box(bx, cy, bw, 62.0, va(V::CSize(k)));
+                }
             }
             cy += 80.0;
         }
@@ -2771,8 +2786,9 @@ fn detail(
     let (t, line, mono) = item_heading(app, r);
     ui.text_as(dx, dy, if mono { BODY_L.mono() } else { TITLE_M }, ink, &t);
     dy += ui.advance_as(if mono { BODY_L.mono() } else { TITLE_M }, 30.0);
-    ui.text_as(dx, dy, BODY_S, muted, &line);
-    dy += ui.advance_as(BODY_S, 34.0);
+    // The line wraps: a seed's label and its BIP-85 origin are long.
+    let wrapped = ui.wrap_as((dx, dy, dw), BODY_S, muted, &line);
+    dy += wrapped + ui.advance_as(BODY_S, 34.0) - ui.line_as(BODY_S);
     let mut secret_id = 0usize;
     // The secrets shown by their eyes here, read once for the page.
     let shown_fields = app.vaults.fields_shown(app.vault_secrets_on_page());
@@ -3127,6 +3143,19 @@ fn detail(
             actions.push((EN.vault_sign_or_check, va(V::SbImages)));
         }
         _ => {}
+    }
+    if r.kind() == kind::KEY && v.read_only().is_none() {
+        use faraday_vault::records::field;
+        if r.has(field::KEY_CODEX32) {
+            actions.push((EN.vault_trim_codex32, va(V::TrimAsk(field::KEY_CODEX32))));
+        }
+        if r.has(field::KEY_CHILD) {
+            actions.push((EN.vault_trim_child, va(V::TrimAsk(field::KEY_CHILD))));
+        }
+    }
+    actions.push((EN.vault_copy_to, va(V::CopyTo)));
+    if v.read_only().is_none() {
+        actions.push((EN.vault_move_to, va(V::MoveTo)));
     }
     dy += 6.0;
     let mut bx = dx;

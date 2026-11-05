@@ -395,13 +395,13 @@ fn the_vault_record_of_a_key_holds_its_words_and_passphrase_when_asked() {
     keys.add_words_with(&c, ABANDON, "TREZOR", "Key", None)
         .expect("the key loads");
     let plain = keys
-        .key_record(&c, 0, None, false, Reveal::VaultEntry(Part::Words))
+        .key_record(&c, 0, None, false, &[], Reveal::VaultEntry(Part::Words))
         .expect("a record");
     assert_eq!(plain.kind, kind::KEY);
     assert!(plain.field(field::KEY_PASSPHRASE).is_none());
     assert_eq!(plain.field(field::KEY_LABEL), Some(&b"Key"[..]));
     let with = keys
-        .key_record(&c, 0, Some(1), true, Reveal::VaultEntry(Part::Words))
+        .key_record(&c, 0, Some(1), true, &[], Reveal::VaultEntry(Part::Words))
         .expect("a record");
     assert_eq!(with.field(field::KEY_PASSPHRASE), Some(&b"TREZOR"[..]));
     assert_eq!(with.field(field::KEY_FLAGS), Some(&[1u8][..]));

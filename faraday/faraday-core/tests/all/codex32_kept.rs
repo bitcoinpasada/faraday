@@ -213,7 +213,7 @@ pub(crate) fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> 
 }
 
 /// Share `s` of vector 2's key, as a vault's share record.
-fn share_record(s: &str) -> Record {
+pub(crate) fn share_record(s: &str) -> Record {
     Record::new(kind::CODEX32_SHARE)
         .with(field::CODEX32_STRING, s.as_bytes())
         .with(field::CODEX32_KEY, &FP)
@@ -252,6 +252,147 @@ fn a_string_the_plan_keeps_in_a_vault_is_saved_as_a_share_record() {
     // Saved again, it is not kept twice.
     app.press(Action::BVaultSave(0));
     assert_eq!(share_records(&app, 0).len(), 1);
+}
+
+/// A share the person moved into a vault of the plan, then Back up's save:
+/// the share stays, as the original is sealed without it.
+#[test]
+fn a_share_moved_into_a_vault_is_kept_by_the_next_save_and_another_is_taken_out() {
+    let mut app = device(vec![
+        (
+            "home.kdbx".into(),
+            vault_of(PHRASE, vec![share_record(C)], 7),
+        ),
+        (
+            "other.kdbx".into(),
+            vault_of("other phrase", vec![share_record(D)], 9),
+        ),
+    ]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    unlock_on_vaults(&mut app, "other.kdbx", "other phrase");
+    key_from_strings(&mut app);
+    wallet_and_backup(&mut app);
+    // D moves from the second vault into the first.
+    testkit::vault_current(&mut app, 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    assert_eq!(share_records(&app, 0).len(), 2, "D arrived");
+    testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::Backup));
+    // The plan keeps A in the first vault: the save adds it, and D stays.
+    vault_at(&mut app, 0, 0, &[]);
+    into_vault(&mut app, 0, Thing::String(0, ix('a')));
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    app.press(Action::BVaultSave(0));
+    let held = share_records(&app, 0);
+    assert!(
+        held.iter().any(|(s, _)| s == D.as_bytes()),
+        "D was taken out"
+    );
+    assert!(
+        held.iter().any(|(s, _)| s == A.as_bytes()),
+        "A was not saved: {:?} {:?}",
+        app.toast_text(),
+        held
+    );
+    // The plan lists C in no vault: it is not the plan's own and stays.
+    assert!(
+        held.iter().any(|(s, _)| s == C.as_bytes()),
+        "C was taken out"
+    );
+}
+
+/// The files of every vault after a lock of all, the share D moved from
+/// the second vault into the first: a power cycle between.
+fn locked_after_a_move() -> Vec<(String, Vec<u8>)> {
+    let mut app = device(vec![
+        (
+            "home.kdbx".into(),
+            vault_of(PHRASE, vec![share_record(C)], 7),
+        ),
+        (
+            "other.kdbx".into(),
+            vault_of("other phrase", vec![share_record(D)], 9),
+        ),
+    ]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    unlock_on_vaults(&mut app, "other.kdbx", "other phrase");
+    testkit::vault_current(&mut app, 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    top_up(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let mut written = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { outbox, .. } = c {
+            written = outbox;
+        }
+    }
+    written
+}
+
+/// A share moved into a vault stays after the vaults are locked and
+/// opened again, through Back up's save, and the vault's item is done.
+#[test]
+fn a_share_moved_into_a_vault_stays_across_a_lock_and_the_next_save() {
+    let files = locked_after_a_move();
+    let home = files
+        .iter()
+        .find(|(n, _)| n.starts_with("home"))
+        .expect("the first vault was written")
+        .clone();
+    let mut app = device(vec![home]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    assert_eq!(share_records(&app, 0).len(), 2, "C and D were sealed");
+    key_from_strings(&mut app);
+    wallet_and_backup(&mut app);
+    vault_at(&mut app, 0, 0, &[]);
+    into_vault(&mut app, 0, Thing::String(0, ix('a')));
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    app.press(Action::BVaultSave(0));
+    let held = share_records(&app, 0);
+    for (name, s) in [("A", A), ("C", C), ("D", D)] {
+        assert!(held.iter().any(|(x, _)| x == s.as_bytes()), "{name} gone");
+    }
+    let c = testkit::compute();
+    assert!(app.backup_item_done_now(&c, plan::Item::Vault(0)));
+}
+
+/// A share the plan lists in another vault goes from this one at the save.
+#[test]
+fn a_share_the_plan_keeps_in_another_vault_goes_at_the_save() {
+    let mut app = device(vec![(
+        "home.kdbx".into(),
+        vault_of(PHRASE, vec![share_record(C), share_record(D)], 7),
+    )]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    key_from_strings(&mut app);
+    wallet_and_backup(&mut app);
+    vault_at(&mut app, 0, 0, &[]);
+    vault_at(&mut app, 0, 1, &[]);
+    into_vault(&mut app, 0, Thing::String(0, ix('a')));
+    into_vault(&mut app, 1, Thing::String(0, ix('c')));
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    app.press(Action::BVaultSave(0));
+    let held = share_records(&app, 0);
+    assert!(held.iter().any(|(s, _)| s == A.as_bytes()), "A not saved");
+    assert!(!held.iter().any(|(s, _)| s == C.as_bytes()), "C stayed");
+    assert!(
+        held.iter().any(|(s, _)| s == D.as_bytes()),
+        "D was taken out"
+    );
 }
 
 /// The checklist's vault item names the codex32 strings the plan keeps in

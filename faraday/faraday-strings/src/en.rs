@@ -9340,6 +9340,84 @@ strings! {
     vault_save_also_continue: "Continue",
     /// Button of that dialog.
     vault_save_also_cancel: "Cancel",
+    /// Button on an item's page, and title of the sheet it opens.
+    vault_copy_to: "Copy to another vault…",
+    /// Title of that sheet.
+    vault_copy_title: "Copy to another vault",
+    /// Reason a locked vault on that sheet is dimmed: nothing to unlock it from.
+    vault_copy_no_file: "Its file is not in Files",
+    /// Row of that sheet: Create a vault, the item in it from its first seal.
+    vault_copy_new: "New vault with this item",
+    /// Reason a waiting copy or move is not made: the original changed.
+    vault_copy_changed: "The original changed.",
+    /// Reason a waiting copy or move is not made: another sheet was open
+    /// when the vault opened.
+    vault_copy_sheet_up: "Another sheet was open.",
+    /// Toast when a copy waiting for an unlock cannot be made. `{}`: the
+    /// vault, then the reason.
+    vault_copy_refused: "Nothing was copied to {}. {}",
+    /// Toast when a move waiting for an unlock cannot be made. `{}`: the
+    /// vault, then the reason.
+    vault_move_refused: "Nothing was moved to {}. {}",
+    /// Line above Create a vault's sizes while an item waits to go into the
+    /// vault. `{}`: the smallest size it fits.
+    vault_create_item_needs: "The item needs a size of {} or more",
+    /// Reason a vault on that sheet is dimmed: it holds the item already.
+    vault_copy_holds: "Already holds this item",
+    /// Tick on that sheet for a seed that has a codex32 set.
+    vault_copy_keep_codex32: "Keep its codex32 set",
+    /// Tick on that sheet for a seed that has a BIP-85 origin.
+    vault_copy_keep_child: "Keep its BIP-85 origin",
+    /// Button of that sheet.
+    vault_copy_cancel: "Cancel",
+    /// Title of the dialog before a copy of an entry with data Faraday does not read.
+    vault_copy_unread_head: "Copy this entry?",
+    /// Line of that dialog. `{}`: the vault the copy goes to.
+    vault_copy_unread: "Its attachments and other data saved by a KeePass app stay in {}.",
+    /// Button of that dialog.
+    vault_copy_go: "Copy",
+    /// Toast after a copy. `{}`: the vault it went to.
+    vault_copied_to: "Copied to {}",
+    /// Button on an item's page, and title of the sheet it opens.
+    vault_move_to: "Move to another vault…",
+    /// Title of that sheet.
+    vault_move_title: "Move to another vault",
+    /// Button on a seed's page that has a codex32 set, and title of its dialog.
+    vault_trim_codex32: "Remove codex32 set",
+    /// Button on a seed's page that has a BIP-85 origin, and title of its dialog.
+    vault_trim_child: "Remove BIP-85 origin",
+    /// Line of the dialog before the codex32 set is removed from a seed.
+    /// `{}`: the vault.
+    vault_trim_codex32_line: "The codex32 set is removed from this seed in {} at the next seal. Its words and its other data stay. Copies of {} sealed before still hold the set.",
+    /// The same for the BIP-85 origin. `{}`: the vault.
+    vault_trim_child_line: "The BIP-85 origin is removed from this seed in {} at the next seal. Its words and its other data stay. Copies of {} sealed before still hold the origin.",
+    /// Button of those dialogs that removes.
+    vault_trim_go: "Remove",
+    /// Title of the dialog before a move.
+    vault_move_head: "Move this item?",
+    /// Line of that dialog. `{}`: the vault it goes to, the vault it is in,
+    /// the same vault again.
+    vault_move_line: "The item goes to {} and will be gone from {}. Copies of {} sealed before still hold it.",
+    /// Second line of that dialog for an entry with data Faraday does not
+    /// read. `{}`: the vault it is in.
+    vault_move_unread: "Its attachments and other data saved by a KeePass app do not go with it and are gone from {} too.",
+    /// Line of that dialog for a seed whose codex32 set is not kept. `{}`:
+    /// the vault it is in.
+    vault_move_no_codex32: "Its codex32 set does not go with it and is gone from {} too.",
+    /// Line of that dialog for a seed whose BIP-85 origin is not kept. `{}`:
+    /// the vault it is in.
+    vault_move_no_child: "Its BIP-85 origin does not go with it and is gone from {} too.",
+    /// Button of that dialog.
+    vault_move_go: "Move",
+    /// Reason a vault on the Move sheet is dimmed: the item would wait for
+    /// a seal of this vault and this vault for the item. `{}`: the vault the
+    /// item is in.
+    vault_move_ring: "Lock {} first",
+    /// Toast after a move. `{}`: the vault it went to.
+    vault_moved_to: "Moved to {}",
+    /// Toast when a vault is locked alone while an item moved out of it
+    /// is not yet sealed in its target. `{}`: the target.
+    vault_moved_lock_first: "Lock {} first, which holds an item moved from this vault",
     /// Fault of an item.
     vault_fault_unknown_kind: "Kind not known to this build",
     /// Fault of an item.
@@ -11798,6 +11876,8 @@ strings! {
     c32_vault_saved: "Share {} of {} saved",
     /// A string the plan keeps in a vault or a file that this session does not hold. `{}`: the index, the identifier.
     c32_vault_missing: "Share {} of {} is not here: type it in its Codex32 strings item first",
+    /// A save leaves a codex32 share the plan keeps in another vault: nothing else holds the string. `{}`: the index, the identifier.
+    c32_vault_left: "Share {} of {} stays in this vault: nothing else holds it",
     // ----- A codex32 string typed in the round after a lock (docs/CODEX32.md §9.5), faraday-core -----
     /// Make card of the round: a string a vault takes that is not here. `{}`: the index, the identifier.
     c32_round_not_here: "Share {} of {} is not here",

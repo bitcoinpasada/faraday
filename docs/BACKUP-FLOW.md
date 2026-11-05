@@ -683,7 +683,9 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
   holds what the plan puts in it, and its **Save into {vault}** puts
   there each seed, its passphrase where the plan puts it, and the wallet
   description where the plan puts it; `BNewVault` stays for a plan
-  changed part way.
+  changed part way. A seed to be saved that has a codex32 set or a BIP-85
+  origin first opens the Keep sheet (`docs/VAULT.md` §7), no step of its
+  own: Save carries on with the press, Cancel saves nothing.
 - **The sticks** of the plan, from its map, one per spot that is a
   stick, holding what the map puts there:
   - a stick per `VaultStick(v)` spot at a place (brought in at step 2),
@@ -2431,7 +2433,10 @@ would hold its 64-byte seed with the passphrase merged in and give back
 neither the words nor the passphrase (owner, 2026-10-26). A plan saved
 before, with a split the plan was to make, reads without that form and
 its strings. The plan keeps each seed's form (`plan::codex32::C32`, a `codex32` line in the plan's
-text: seed, k, length, indices, identifier) and each string is a thing
+text: seed, k, length, indices, identifier; a `rotated` line per set
+rotated away: seed, k, identifier, never a string; a plan whose `rotated` line
+is not a bech32 identifier or names the plan's own set for that seed is not
+read) and each string is a thing
 of the map, named by its share index.
 
 **The list.** Under Seeds, each seed here is a group: its head
@@ -2484,13 +2489,15 @@ checked or skipped. The strings go to no file and no stick from here.
 strings the plan keeps in that vault, worded as the board's place lines
 count them ("1 of 2 shares of 9a6a2580"), marked once the open vault holds
 each of them (`board::codex32::vault_lines`, from the plan's kept map).
-**A vault holds exactly the plan's strings of the plan's set**: a share
+**A vault holds the plan's strings of the plan's set**: a share
 record counts only where its header's threshold and identifier are the
-set's, so after **Rotate the set** a string of the old set in the vault
-is not the plan's and the item is not done; the item is not done either
-while the vault holds a string of the seed the plan does not keep there.
-Its save, and the flow's round after the lock (§15.8), take such a
-record out and put the plan's string in.
+set's; the item is not done while the vault lacks one, nor while it holds
+a string the plan keeps in another vault and not there. Its save, and the
+flow's round after the lock (§15.8), take such a record out and put the
+plan's string in. They also take out every share of a set the plan
+records as rotated away (**Rotate the set**), whatever the vault; a share
+the plan lists in no vault stays (owner, 2026-11-05), a second set of the
+seed the plan never made included.
 
 **The set's actions** (`docs/CODEX32.md` §9.7), under the item's list for
 a split set that exists, and from the chart's sheet on a string (its rows

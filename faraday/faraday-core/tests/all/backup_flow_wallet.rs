@@ -21,8 +21,8 @@ use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::kind;
 
 pub(crate) const PHRASE: &str = "first vault phrase";
-const PHRASE_2: &str = "second vault phrase";
-const PHRASE_3: &str = "third vault phrase";
+pub(crate) const PHRASE_2: &str = "second vault phrase";
+pub(crate) const PHRASE_3: &str = "third vault phrase";
 
 /// A row of the flow's Software card.
 #[allow(dead_code)]
@@ -90,7 +90,7 @@ pub(crate) fn flow_into_vault(shell: &mut Shell, app: &mut Faraday, v: usize, t:
 
 /// The whole description in vault `v`, or out of it where it is, on the
 /// flow's board.
-fn flow_whole_in_vault(shell: &mut Shell, app: &mut Faraday, v: usize) {
+pub(crate) fn flow_whole_in_vault(shell: &mut Shell, app: &mut Faraday, v: usize) {
     let z = flow_vault_zone(app, v);
     if plan::holds_at(&backup_map(app), At::Vault(v)).contains(&What::Wallet) {
         flow_board(shell, app, BoardPress::Off(z, Thing::Whole));
@@ -129,7 +129,7 @@ fn flow_vault_off_at(shell: &mut Shell, app: &mut Faraday, p: usize, v: usize) {
 }
 
 /// Seed `i` put into vault `v` too, on the vault's sheet in the flow.
-fn flow_vault_add(shell: &mut Shell, app: &mut Faraday, v: usize, i: usize) {
+pub(crate) fn flow_vault_add(shell: &mut Shell, app: &mut Faraday, v: usize, i: usize) {
     let p = flow_place_of(app, v);
     let mut seeds = {
         let wf = app.flow().unwrap().wallet.as_ref().unwrap();
@@ -148,7 +148,7 @@ fn backup_places(app: &Faraday) -> usize {
     app.backup().unwrap().answers.places
 }
 
-fn backup_shape(app: &Faraday) -> Shape {
+pub(crate) fn backup_shape(app: &Faraday) -> Shape {
     app.plan_shape_now(app.backup().unwrap().wallet)
 }
 
@@ -187,7 +187,7 @@ pub(crate) fn sticks(shell: &mut Shell, n: usize) {
     }
 }
 
-fn key_in(app: &mut Faraday, n: usize) -> [u8; 4] {
+pub(crate) fn key_in(app: &mut Faraday, n: usize) -> [u8; 4] {
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[n].0).chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -240,7 +240,7 @@ pub(crate) fn save_vaults(app: &mut Faraday) {
         })
         .collect();
     for v in vaults {
-        app.press(Action::BVaultSave(v as u8));
+        crate::backup_keep::save(app, v as u8);
         assert!(
             app.backup_item_done_now(&c, Item::Vault(v)),
             "Vault {} is saved",
@@ -719,7 +719,7 @@ pub(crate) fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     create_vault(shell, &mut app, 1, PHRASE_2);
     create_vault(shell, &mut app, 2, PHRASE_3);
     assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
-    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    let fps = crate::backup_keep::fps(&mut app);
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
         app.press(Action::CSlotHere(i as u8, *fp));
@@ -2007,7 +2007,7 @@ fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
 }
 
 /// [`two_of_three_ready`] with Key 1 typed in with a passphrase.
-fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
+pub(crate) fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
     sticks(shell, 4);
     let main = vault("Main", PHRASE, 0x41);
     {

@@ -2100,7 +2100,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let vault = app.vaults.open.get(v).map(|o| {
         let held = match out.keep {
             // The key itself, told by its master key's id (F65).
-            crate::secrets::Keep::Key { key, fp } => app
+            crate::secrets::Keep::Key { key, fp, .. } => app
                 .session
                 .keys
                 .info(key)
@@ -2134,11 +2134,10 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         fill(EN.secret_out_unprotected, &[app.medium.for_the()])
     };
     let to_vault = !matches!(out.keep, crate::secrets::Keep::None);
-    let title = (Icon::Lock.into(), Role::Warning.paint(), head);
     crate::compact::dialog(
         ui,
         (w, h, T::DIALOG_MAX),
-        title,
+        (Icon::Lock.into(), Role::Warning.paint(), head),
         &mut |ui, x, y, iw| {
             let mut cy = y;
             for (label, value) in [
@@ -2152,6 +2151,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if to_vault {
                 ui.text_as(x, cy, LABEL_L, Role::Ok, EN.secret_out_sealed);
                 cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
+                cy += secret_keeps(app, ui, (x, cy, iw), &out.keep);
             }
             match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
@@ -2197,6 +2197,27 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (EN.secret_out_cancel, Style::Ghost, Action::Cancel),
         ],
     );
+}
+
+/// **Keep its codex32 set** and **Keep its BIP-85 origin**, for a seed the
+/// sheet saves into a vault; the height they take, none for another secret.
+fn secret_keeps(
+    app: &View,
+    ui: &mut Ui,
+    place: (f32, f32, f32),
+    keep: &crate::secrets::Keep,
+) -> f32 {
+    let crate::secrets::Keep::Key { key, left, .. } = keep else {
+        return 0.0;
+    };
+    let key = *key;
+    let keeps = crate::vault::keep::ticks_of(&crate::vault::keep::fields_of(app, key), left);
+    let Some(fp) = app.session.keys.info(key).map(|i| i.fingerprint.0) else {
+        return 0.0;
+    };
+    crate::vault::copy_screen::ticks(ui, place, &keeps, &|_, n| {
+        Action::Vault(crate::vault::VaultAction::KeepTick(fp, n))
+    })
 }
 
 /// **Save without encryption?** (F129): a secret about to be saved as a

@@ -238,7 +238,8 @@ this pass came from, is on the board.
   `sheet_pan_mut` (the codex32 worksheet's pan, as the other offsets)
   Tools' `convert_mut` and Convert a seed's `scroll_mut`, Check a signer's
   `check_scroll_mut` (the decode area's, its column's scroll, as the other
-  offsets), and boot import's `state_mut`. These are to be narrowed into named methods
+  offsets), the backup flow's `keeps_mut` (a flow's Keep ticks of a seed),
+  the secret sheet's `out_mut`, and boot import's `state_mut`. These are to be narrowed into named methods
   (planned, not scheduled).
 
 ### 7.4 Phase 7's plan

@@ -12,6 +12,7 @@ use faraday_crypto::work::Compute;
 use faraday_keys::vault::{OpenVaults, RecordView, Records, VaultId};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{self as fv, Cost, Record};
+use std::collections::VecDeque;
 
 use crate::work::{self, VaultAct};
 use crate::{Action, Screen, flow};
@@ -221,7 +222,36 @@ impl VaultArea {
         self.state.open[o].changes += 1;
     }
 
-    /// Closes open vault `o` and shows the first.
+    /// Whether the record moved into open vault `o` that waits for its
+    /// seal is the backup subject `subject`: a flow does not take it out.
+    pub(crate) fn holds_moved_subject(&self, o: usize, subject: &str) -> bool {
+        self.state
+            .open
+            .get(o)
+            .is_some_and(|open| self.state.moved_subject_in(open.id, subject))
+    }
+
+    /// Whether an item moved into open vault `o` waits for its seal: the
+    /// vault is not closed unsealed.
+    pub(crate) fn holds_moved(&self, o: usize) -> bool {
+        self.state
+            .open
+            .get(o)
+            .is_some_and(|open| self.state.moved_target(open.id))
+    }
+
+    /// Whether an item moved out of open vault `o` waits for its target's
+    /// seal: the vault is not closed, or its last file would be taken
+    /// with the item only in the target's memory.
+    pub(crate) fn moved_from(&self, o: usize) -> bool {
+        self.state
+            .open
+            .get(o)
+            .is_some_and(|open| !self.state.moved_waits_for(open.id).is_empty())
+    }
+
+    /// Closes open vault `o` and shows the first. It does not seal: the
+    /// caller makes sure no item moved into it waits for its seal.
     pub(crate) fn close_at(&mut self, o: usize) {
         self.state.close(o);
         self.state.current = 0;
@@ -325,6 +355,8 @@ impl VaultArea {
     /// Create a vault opened on `form`, returning to `back`, typing at
     /// `focus`.
     pub(crate) fn begin_create(&mut self, form: CreateForm, back: Screen, focus: Option<Focus>) {
+        // A form started anew is no item's: a wait is of its own form.
+        self.state.copy_wait = None;
         self.state.create = Some(form);
         self.state.back_to = Some(back);
         self.state.just_made = None;
@@ -771,9 +803,12 @@ impl Described {
     }
 }
 
-/// The most key records' fingerprints kept ([`Vaults::fingerprints`]),
-/// far more than open vaults hold; the next one drops the oldest.
-pub(crate) const FINGERPRINTS_KEPT: usize = 256;
+/// The most key records' fingerprints kept ([`Vaults::fingerprints`]); the
+/// next one drops the oldest. More than the key records of the open vaults
+/// together, since every open vault's key records are worked out at its
+/// unlock and a copy or move that judges them would otherwise find one
+/// dropped and work it out again.
+pub(crate) const FINGERPRINTS_KEPT: usize = 1024;
 /// The most key records' account keys kept ([`Vaults::accounts`]); the
 /// next one drops the oldest.
 pub(crate) const ACCOUNTS_KEPT: usize = 256;
@@ -1623,6 +1658,24 @@ pub struct Vaults {
     pub load: Option<crate::vault::load::LoadSheet>,
     /// The sheet of seeds kept with no passphrase, while it is up (F62).
     pub pass_seeds: Option<crate::vault::load::PassSeeds>,
+    /// The sheet of vaults an item can be copied to, while it is up.
+    pub(super) copy_to: Option<Box<super::copy::CopyTo>>,
+    /// An item held for a vault to unlock or make, to go into it then.
+    pub(super) copy_wait: Option<Box<super::copy::CopyWait>>,
+    /// The save the Keep sheet waits to make.
+    pub(super) keep_save: Option<super::keep::KeepSave>,
+    /// The dialog before a codex32 set or a BIP-85 origin is dropped from a
+    /// seed, while it is up.
+    pub(super) trim: Option<super::trim::Trim>,
+    /// Items moved and not yet sealed in their target, as (original,
+    /// target): the original is not sealed before the target, or the item
+    /// would be in neither new file (`docs/VAULT.md` §7.2).
+    moved: Vec<(VaultId, VaultId)>,
+    /// The backup subject (a key's identity, as a flow knows it) of each
+    /// moved record that is one, as (target, subject): a flow dropping a
+    /// place spares that record in the target, which holds it for no one
+    /// else.
+    moved_subjects: Vec<(VaultId, String)>,
     /// What the search bars hold ([`super::search`]).
     pub(super) search: super::search::Searches,
 }
@@ -1780,10 +1833,114 @@ pub fn cost_text(cost: &Cost) -> String {
 
 impl Vaults {
     /// Closes open vault `i`: its slot key and records are wiped with it.
+    /// The pairs it is in are met and go, with what is recorded of the
+    /// moved records. Closed unsealed, a target would let go an item held
+    /// only in memory, and an original would lose the last file that holds
+    /// the item: so no caller closes an unsealed vault that a pair names,
+    /// as target or as original (the seal, which closes after its file is
+    /// written and after its targets'; the flow's `close_at` of a dropped
+    /// place and of `flow_bind_ids`, which skip such a vault or need no
+    /// change in it; `seal_close` of a vault with no change in a lock of
+    /// one; a hold's Keep locked, a vault with no pair yet). A person's
+    /// Lock without sealing closes every vault at once (`close_all`),
+    /// originals with their targets.
     pub fn close(&mut self, i: usize) {
         let gone = self.open.remove(i);
+        self.moved.retain(|&(o, t)| o != gone.id && t != gone.id);
+        // What is recorded of a moved record goes with its last pair.
+        let moved = &self.moved;
+        self.moved_subjects
+            .retain(|(t, _)| moved.iter().any(|p| p.1 == *t));
         self.store.close(gone.id);
         self.codes = None;
+    }
+
+    /// An item moved from `from` into `to` waits for `to`'s seal.
+    /// `subject` is the record's identity for a backup flow, if it is one.
+    pub(crate) fn moved_add(&mut self, from: VaultId, to: VaultId, subject: Option<String>) {
+        self.moved.push((from, to));
+        if let Some(s) = subject {
+            self.moved_subjects.push((to, s));
+        }
+    }
+
+    /// The record of backup subject `subject` left vault `id` (deleted, or
+    /// moved on): it is no longer one moved there.
+    pub(crate) fn moved_forget(&mut self, id: VaultId, subject: Option<String>) {
+        if let Some(s) = subject {
+            self.moved_subjects.retain(|(t, x)| !(*t == id && *x == s));
+        }
+    }
+
+    /// The vaults `id` must be sealed after: the targets of the items
+    /// moved out of it and not yet sealed in them.
+    pub(crate) fn moved_waits_for(&self, id: VaultId) -> Vec<VaultId> {
+        self.moved
+            .iter()
+            .filter(|p| p.0 == id)
+            .map(|p| p.1)
+            .collect()
+    }
+
+    /// Whether the record moved into vault `id` and waiting for its seal
+    /// is backup subject `subject`.
+    pub(crate) fn moved_subject_in(&self, id: VaultId, subject: &str) -> bool {
+        self.moved_subjects
+            .iter()
+            .any(|(t, s)| *t == id && s == subject)
+    }
+
+    /// Whether any item was moved into `id` and waits for its seal.
+    pub(crate) fn moved_target(&self, id: VaultId) -> bool {
+        self.moved.iter().any(|p| p.1 == id)
+    }
+
+    /// Whether moving an item from `from` into `to` would make a ring of
+    /// vaults each waiting for the next (no order seals them all safely):
+    /// whether `from` is reached from `to` by following every pair.
+    pub(crate) fn moved_ring(&self, from: VaultId, to: VaultId) -> bool {
+        let mut seen = vec![to];
+        let mut at = 0;
+        while let Some(&id) = seen.get(at) {
+            if id == from {
+                return true;
+            }
+            for next in self.moved_waits_for(id) {
+                if !seen.contains(&next) {
+                    seen.push(next);
+                }
+            }
+            at += 1;
+        }
+        false
+    }
+
+    /// `ids` with each vault after the ones it waits for.
+    pub(crate) fn moved_order(&self, ids: Vec<VaultId>) -> VecDeque<VaultId> {
+        fn visit(
+            v: &Vaults,
+            id: VaultId,
+            all: &[VaultId],
+            done: &mut Vec<VaultId>,
+            out: &mut VecDeque<VaultId>,
+        ) {
+            if done.contains(&id) {
+                return;
+            }
+            done.push(id);
+            for &(o, t) in &v.moved {
+                if o == id && all.contains(&t) {
+                    visit(v, t, all, done, out);
+                }
+            }
+            out.push_back(id);
+        }
+        let mut out = VecDeque::new();
+        let mut done = Vec::new();
+        for &id in &ids {
+            visit(self, id, &ids, &mut done, &mut out);
+        }
+        out
     }
 
     /// Drops the slot an unlock adopted and refused, its key and records
@@ -1806,6 +1963,8 @@ impl Vaults {
     pub fn close_all(&mut self) {
         self.drop_shown();
         self.codes = None;
+        self.moved.clear();
+        self.moved_subjects.clear();
         self.open.clear();
         self.store.clear();
         self.search = super::search::Searches::default();
@@ -2056,6 +2215,10 @@ pub(crate) fn wallet_name_in<'a>(
 
 /// Longest name a vault's file takes, before `.kdbx`.
 pub const NAME_MAX: usize = 40;
+
+/// Longest name written in a vault's document, in bytes: what the person
+/// typed, cut at a character boundary (`docs/VAULT.md` §7).
+pub const LABEL_MAX: usize = 64;
 
 /// The file name, less `.kdbx`, a vault named `typed` is written under:
 /// letters, digits, hyphens and underscores, spaces made hyphens,
@@ -2722,6 +2885,36 @@ pub enum VaultAction {
     SaveAlsoContinue,
     /// The same dialog's Cancel: nothing is saved.
     SaveAlsoCancel,
+    /// The item page's **Copy to another vault…**: the sheet of vaults.
+    CopyTo,
+    /// The item page's **Move to another vault…**: the same sheet, for a
+    /// move.
+    MoveTo,
+    /// The seed page's **Remove codex32 set** or **Remove BIP-85 origin**
+    /// (the field's number): the dialog before it.
+    TrimAsk(u8),
+    /// That dialog's **Remove**.
+    TrimGo,
+    /// That dialog's **Cancel**.
+    TrimCancel,
+    /// A vault on that sheet pressed, by its place in the list.
+    CopyPick(usize),
+    /// On that sheet: what a seed carries, its choice n, kept or left out.
+    CopyKeep(usize),
+    /// The dialog before a copy that leaves data behind, or a move:
+    /// **Copy**, **Move**.
+    CopyGo,
+    /// The Keep sheet: the seed with that fingerprint, its field `number`, ticked or unticked.
+    KeepTick([u8; 4], u8),
+    /// The Keep sheet's **Save**.
+    KeepSave,
+    /// The Keep sheet's **Cancel**: nothing is saved.
+    KeepCancel,
+    /// Session key `k` saved with the choices as they stand, with its
+    /// passphrase when `true`: the backup flow, after its own sheet.
+    SaveKeyKept(usize, bool, super::keep::Scope),
+    /// The sheet's or the dialog's Cancel: nothing is copied.
+    CopyCancel,
     /// The older-copy dialog's **Open**: the unlock goes on (§5.3).
     OlderOpen,
     /// Its **Keep locked**: the copy closes, nothing of it read.

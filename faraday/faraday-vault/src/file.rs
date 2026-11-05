@@ -244,11 +244,22 @@ fn applied(
 ) -> Result<Document, Error> {
     // The copy's buffers are wiping types, as the document's are.
     let mut copy = doc.clone();
+    // An entry no earlier change of the batch touched reads as it did
+    // before it: its readability is `read`'s, not worked out again from
+    // every entry of the copy.
+    let mut touched: Vec<[u8; 16]> = Vec::new();
+    let mut known = |uuid: &[u8; 16]| {
+        let first = !touched.contains(uuid);
+        touched.push(*uuid);
+        first.then_some(read)
+    };
     for change in changes {
         match change {
-            Change::Put { place, body } => items::put(c, &mut copy, place, body)?,
+            Change::Put { place, body } => {
+                items::put_known(c, &mut copy, place, body, known(&place.uuid))?
+            }
             Change::Remove(uuid) => {
-                items::remove(c, &mut copy, uuid)?;
+                items::remove_known(c, &mut copy, uuid, known(uuid))?;
             }
             Change::Plan { n, record } => items::put_plan(&mut copy, *n, record)?,
             Change::Signed(record) => items::put_signed(&mut copy, record)?,
@@ -360,6 +371,27 @@ impl Opened {
     fn sealed_binaries(&self, xml: &[u8]) -> kdbx::Binaries<'_> {
         kdbx::kept_binaries(&self.binaries, xml)
     }
+}
+
+/// Costs a document write and a read of each item put. The plaintext the
+/// first seal after [`create`] would take of a new vault named `label`
+/// once the `Put` changes in `changes` are applied, with the time of the
+/// seal counted: what says whether items fit a size before the vault is
+/// made. Any other change is refused.
+pub fn used_new(c: &Compute, label: &str, changes: &[Change<'_>]) -> Result<usize, Error> {
+    let mut doc = Document::new([0u8; 16], label);
+    for change in changes {
+        match change {
+            Change::Put { place, body } => items::put(c, &mut doc, place, body)?,
+            _ => return Err(Error::Unwritable(Unwritable::Unreadable)),
+        }
+    }
+    let time = items::utc_time(0);
+    items::stamp(&mut doc, 2, time.as_deref())?;
+    Ok(kdbx::plain_needs(
+        &kdbx::Binaries::all(&[]),
+        doc.write(&[0u8; 64]).len(),
+    ))
 }
 
 /// The smallest size that holds `plain` bytes, or the largest.

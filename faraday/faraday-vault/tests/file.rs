@@ -11,8 +11,8 @@ use faraday_crypto::work::{Compute, Work};
 use faraday_vault::file::{
     self, Change, DEFAULT_SIZE, Error, Facts, Opened, ReadOnly, Rekey, SIZES, STEPS_KIB, file_len,
 };
-use faraday_vault::kdbx::items::{Body, Format, Place};
-use faraday_vault::kdbx::xml::Document;
+use faraday_vault::kdbx::items::{Body, Format, Place, Unwritable};
+use faraday_vault::kdbx::xml::{Document, Entry};
 use faraday_vault::kdbx::{self, RANDOM_LEN, items};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{Cost, Record};
@@ -572,4 +572,92 @@ fn a_seal_refuses_an_empty_passphrase_and_a_step_that_is_none_and_can_be_retried
     };
     let sealed = file::seal_with(&compute(), &o, &[], retry, &random(2), None).unwrap();
     assert_eq!(open(&sealed, "new one").read().seals, 2);
+}
+
+/// The text of the entry titled `title` in a sealed file's document.
+fn entry_text(sealed: &[u8], passphrase: &str, title: &str) -> String {
+    let k = kdbx::open(&compute(), sealed, passphrase).expect("opens");
+    let doc = Document::read(&k.document, &k.inner_key).unwrap();
+    let text = String::from_utf8(doc.write(&[0; 64]).to_vec()).unwrap();
+    let at = text
+        .find(&format!("<Value>{title}</Value>"))
+        .expect("title");
+    let start = text[..at].rfind("<Entry>").unwrap();
+    let end = at + text[at..].find("</Entry>").unwrap() + "</Entry>".len();
+    text[start..end].to_string()
+}
+
+#[test]
+fn an_unreadable_entry_is_not_changed_among_readable_ones_and_is_kept_as_it_was() {
+    // A note, then an entry Faraday cannot read, then another note.
+    let mut doc = Document::new(ID, "Vault");
+    let (r, first) = note(1, "before");
+    let (r2, last) = note(3, "after");
+    for (r, u) in [(r, first), (r2, last)] {
+        items::put(&compute(), &mut doc, &place(u), &Body::Record(r)).unwrap();
+        if u == first {
+            let mut bad = Entry::new([2; 16]);
+            bad.set_field("Title", "unreadable one", false).unwrap();
+            bad.custom_mut().set("faraday.kind", "rocket").unwrap();
+            doc.root_mut().push_entry(bad).unwrap();
+        }
+    }
+    let sealed = sealed_document(&doc);
+    let o = open(&sealed, "p");
+    assert_eq!(o.read().items.len(), 2);
+    assert!(o.read().unreadable.iter().any(|u| u.uuid == Some([2; 16])));
+    let kept = entry_text(&sealed, "p", "unreadable one");
+
+    let (r, _) = note(2, "overwritten");
+    let (fine, _) = note(9, "a good change");
+    let body = Body::Record(r);
+    let fine = Body::Record(fine);
+    let refused = Some(Error::Unwritable(Unwritable::Unreadable));
+    let attempts: Vec<Vec<Change<'_>>> = vec![
+        vec![Change::Put {
+            place: place([2; 16]),
+            body: &body,
+        }],
+        vec![Change::Remove([2; 16])],
+        // A readable item is changed first, the unreadable one after it.
+        vec![
+            Change::Put {
+                place: place([3; 16]),
+                body: &fine,
+            },
+            Change::Put {
+                place: place([2; 16]),
+                body: &body,
+            },
+        ],
+        vec![
+            Change::Remove([1; 16]),
+            Change::Put {
+                place: place([9; 16]),
+                body: &fine,
+            },
+            Change::Remove([2; 16]),
+        ],
+    ];
+    for changes in &attempts {
+        assert_eq!(
+            file::seal(&compute(), &o, changes, &random(5), Some(NOW)).err(),
+            refused
+        );
+        assert_eq!(o.used(&compute(), changes).err(), refused);
+    }
+
+    // The readable ones around it change, and it comes out byte for byte.
+    let changes = [
+        Change::Put {
+            place: place(first),
+            body: &fine,
+        },
+        Change::Remove(last),
+    ];
+    let next = file::seal(&compute(), &o, &changes, &random(6), Some(NOW)).unwrap();
+    assert_eq!(entry_text(&next, "p", "unreadable one"), kept);
+    let o = open(&next, "p");
+    assert_eq!(o.read().items.len(), 1);
+    assert!(o.read().unreadable.iter().any(|u| u.uuid == Some([2; 16])));
 }

@@ -73,7 +73,10 @@ pub use text::{
     Unreadable, utc_time,
 };
 use text::{Name, Path, Sealed, damage, title_of};
-pub use write::{Place, Unwritable, put, put_plan, put_signed, remove, remove_custom, stamp};
+pub use write::{
+    Place, Unwritable, put, put_known, put_plan, put_signed, remove, remove_custom, remove_known,
+    stamp,
+};
 
 /// The `faraday.format` this build reads and writes.
 pub const FORMAT: &str = "1";

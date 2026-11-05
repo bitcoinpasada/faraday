@@ -202,8 +202,9 @@ impl Answers {
     }
 
     /// Sets seed `i`'s codex32 form, replacing the one it had, or takes
-    /// it off with `None`. Strings the map placed whose index the new form
-    /// lacks leave the map.
+    /// it off with `None`. It records nothing as rotated away: only a
+    /// rotation does ([`Answers::rotate_c32`]). Strings the map placed
+    /// whose index the new form lacks leave the map.
     pub fn set_c32(&mut self, shape: &Shape, i: usize, form: Option<C32>) {
         let keep: Vec<usize> = form.as_ref().map_or(Vec::new(), |f| f.indices.clone());
         self.codex32.retain(|f| f.seed != i);
@@ -220,6 +221,26 @@ impl Answers {
                 .retain(|(w, _)| string_of(*w).is_none_or(|(si, j)| si != i || keep.contains(&j)));
         }
         self.set_map(m);
+    }
+
+    /// Rotates seed `i` to the new set `form`: the set it had, if its
+    /// threshold or identifier differs, is recorded as rotated away
+    /// ([`Answers::rotated`], `docs/CODEX32.md` §9.7 step 5), then
+    /// [`Answers::set_c32`]. The only call that records a set.
+    pub fn rotate_c32(&mut self, shape: &Shape, i: usize, form: C32) {
+        if let Some(old) = self.c32(i).map(|o| (i, o.k, o.identifier))
+            && old != (i, form.k, form.identifier)
+            && !self.rotated.contains(&old)
+        {
+            self.rotated.push(old);
+        }
+        self.set_c32(shape, i, Some(form));
+    }
+
+    /// Whether seed `i`'s set named `id` was rotated away, whatever its
+    /// threshold: its strings are destroyed and its identifier refused.
+    pub fn rotated_id(&self, i: usize, id: [u8; 4]) -> bool {
+        self.rotated.iter().any(|&(x, _, r)| x == i && r == id)
     }
 }
 
@@ -339,7 +360,9 @@ pub fn standard_over(
 /// §9.4): a seed here whose key has a set takes that set as its form,
 /// fixed, in place of one the plan was to make or an older record of it.
 /// A plan saved before the set existed reads with it, its strings not
-/// placed yet.
+/// placed yet. It records nothing as rotated away (only a rotation does),
+/// and a set the plan lists as rotated away does not replace the form: the
+/// form stays, so its strings are still the plan's.
 pub fn sync(a: &mut Answers, shape: &Shape, sets: &[Option<SetFacts>]) {
     for (i, set) in sets.iter().enumerate() {
         let Some(set) = set else {
@@ -349,7 +372,7 @@ pub fn sync(a: &mut Answers, shape: &Shape, sets: &[Option<SetFacts>]) {
             continue;
         }
         let form = C32::of_set(i, set);
-        if a.c32(i) != Some(&form) {
+        if a.c32(i) != Some(&form) && !a.rotated_id(i, form.identifier) {
             a.set_c32(shape, i, Some(form));
         }
     }

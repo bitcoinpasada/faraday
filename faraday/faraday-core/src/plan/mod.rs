@@ -208,6 +208,11 @@ pub struct Answers {
     /// Each seed kept as codex32 strings: its form (`docs/CODEX32.md`
     /// §9.4).
     pub codex32: Vec<codex32::C32>,
+    /// The codex32 sets of a seed rotated away (**Rotate the set**,
+    /// `docs/CODEX32.md` §9.7), each as (seed, threshold, identifier): a
+    /// save takes the strings of these sets, and of no other, out of a
+    /// vault (§9.5).
+    pub rotated: Vec<(usize, u8, [u8; 4])>,
 }
 
 impl Default for Answers {
@@ -229,6 +234,7 @@ impl Default for Answers {
             custom: false,
             part: Vec::new(),
             codex32: Vec::new(),
+            rotated: Vec::new(),
         }
     }
 }
@@ -262,6 +268,7 @@ impl Answers {
             custom: false,
             part: Vec::new(),
             codex32: Vec::new(),
+            rotated: Vec::new(),
         };
         a.pass = shape
             .seeds

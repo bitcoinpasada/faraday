@@ -2048,3 +2048,22 @@ pub const DECODE_INDEX_W: f32 = 26.0;
 pub const DECODE_VALUE_ROOM: f32 = 220.0;
 /// Decode a transaction's table: from an output's kind to whose it is.
 pub const DECODE_KIND_GAP: f32 = 14.0;
+/// The Copy to another vault sheet on the small panel: its side inset,
+/// which is also the room above it.
+pub const COPY_SHEET_INSET: f32 = 8.0;
+/// The Copy to another vault sheet on the small panel: the room inside it.
+pub const COPY_SHEET_PAD: f32 = 16.0;
+/// The Copy to another vault sheet on a wide panel: the room left of it
+/// and right of it together.
+pub const COPY_SHEET_SIDES: f32 = 48.0;
+/// The Copy to another vault sheet on a wide panel: the room above it.
+pub const COPY_SHEET_TOP: f32 = 40.0;
+/// The Copy to another vault sheet on a wide panel: the room inside it.
+pub const COPY_SHEET_WIDE_PAD: f32 = 32.0;
+/// The Copy to another vault sheet on a wide panel: the title's row.
+pub const COPY_HEAD_H: f32 = 30.0;
+/// The Copy to another vault sheet on a wide panel: from the icon to the title.
+pub const COPY_HEAD_TEXT_X: f32 = 42.0;
+/// The Copy to another vault sheet on a wide panel: the title's row with
+/// the gap under it.
+pub const COPY_HEAD_BLOCK: f32 = 46.0;

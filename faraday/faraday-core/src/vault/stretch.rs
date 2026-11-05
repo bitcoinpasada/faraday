@@ -201,7 +201,7 @@ fn create_start(app: &mut Faraday) -> bool {
     let label = match form.name.text.trim() {
         "" => EN.vaults_vault,
         typed => {
-            let end = (0..=typed.len().min(64))
+            let end = (0..=typed.len().min(super::area::LABEL_MAX))
                 .rev()
                 .find(|&i| typed.is_char_boundary(i))
                 .unwrap_or(0);
@@ -348,6 +348,12 @@ fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str, id
                     name: name.clone(),
                     ..Default::default()
                 }]);
+            }
+            // Made for an item that waits to go in it: unlocked at once, the
+            // item put in when it is open.
+            if super::copy::made(app, &name, id, first) {
+                app.toast(EN.vaults_vault_created);
+                return;
             }
             // Made inside a backup flow: unlocked at once with the
             // passphrase just typed twice, never leaving the flow.

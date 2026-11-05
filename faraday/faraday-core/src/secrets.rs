@@ -111,6 +111,9 @@ pub enum Keep {
         key: usize,
         /// Its fingerprint, checked before it is saved.
         fp: faraday_bip::keys::Fingerprint,
+        /// The fields (codex32 set, BIP-85 origin) the person unticked on
+        /// the sheet: they hold for this secret's save and end with it.
+        left: Vec<u8>,
     },
     /// Nothing: a picture or a file Faraday does not read is not offered
     /// to a vault.
@@ -199,6 +202,11 @@ impl SecretsArea {
     /// The secret waiting, if one is.
     pub(crate) fn out(&self) -> Option<&SecretOut> {
         self.out.as_ref()
+    }
+
+    /// The secret waiting, to change its choices.
+    pub(crate) fn out_mut(&mut self) -> Option<&mut SecretOut> {
+        self.out.as_mut()
     }
 
     /// The secret about to be saved as a plain file, waiting for its
@@ -340,7 +348,11 @@ impl Faraday {
             bytes: first.bytes.clone(),
             what: EN.secrets_a_wallet_s.to_string(),
             gives,
-            keep: Keep::Key { key: k, fp },
+            keep: Keep::Key {
+                key: k,
+                fp,
+                left: Vec::new(),
+            },
             forms,
             form: 0,
             ack: Ack::Seed,
@@ -365,13 +377,13 @@ impl Faraday {
             Keep::Note => faraday_keys::vault::Staged::Made(
                 Record::new(kind::NOTE).with(field::NOTE, &out.bytes),
             ),
-            Keep::Key { key, fp } => {
+            Keep::Key { key, fp, left } => {
                 let same = self
                     .session
                     .keys
                     .info(*key)
                     .is_some_and(|k| k.fingerprint == *fp);
-                match same.then(|| self.key_record(*key, false)).flatten() {
+                match same.then(|| self.key_record(*key, false, left)).flatten() {
                     Some((r, _)) => faraday_keys::vault::Staged::Held(r),
                     None => {
                         self.sheet = None;

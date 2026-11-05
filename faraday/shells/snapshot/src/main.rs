@@ -79,7 +79,8 @@
 //! kept in the test vault and a new vault at three places: Where, the
 //! first stick with the vault choice, the place confirmed, two empty sticks
 //! read alike and the hold, Vaults, Make, the Lock card, each stick
-//! written and Done; with `vaultshow`, the test vault's key with its
+//! written and Done; with `vaultsheets`, a seed with a codex32 set and a
+//! BIP-85 origin copied, moved, kept at a save and trimmed; with `vaultshow`, the test vault's key with its
 //! SeedQR held (`docs/BACKUP-FLOW.md` §17.7), its Save to a stick, and a
 //! wallet's Save to a stick; with `guide`, the pictures of the guide's
 //! walkthroughs (`docs/guide/walk/`), one module for each, from a fresh
@@ -189,6 +190,7 @@ pub(crate) const TOURS: &[&str] = &[
     "demo",
     "modes",
     "vaultshow",
+    "vaultsheets",
     "addkey",
     "keygen",
     "codex32correct",
@@ -333,6 +335,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
         "demo" => tours::desktop::demo_tour(t),
         "modes" => tours::desktop::modes_tour(t),
         "vaultshow" => tours::vault_show::vault_show_tour(t),
+        "vaultsheets" => tours::vault_sheets::vault_sheets_tour(c, t),
         "addkey" => tours::add_key::add_key_tour(t),
         "keygen" => tours::keygen::keygen_tour(t),
         "codex32correct" => tours::codex32_correct::codex32_correct_tour(c, t),
@@ -418,7 +421,7 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| !TOURS.contains(&m)) {
         eprintln!(
-            "the tour is spend, devices, toasts, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, vaultstates, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, busy, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
+            "the tour is spend, devices, toasts, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, vaultstates, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, vaultsheets, addkey, keygen, codex32correct, createfrom, inprogress, cancel, busy, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
         return ExitCode::from(2);
     }

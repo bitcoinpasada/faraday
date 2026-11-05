@@ -14,4 +14,9 @@ pub struct SaveHold {
     pub(super) pending: Vec<(Staged, String)>,
     /// The lines the dialog says, one per kind held already.
     pub why: Vec<String>,
+    /// A move waiting on this answer: the vault the item is in, its place
+    /// there, and its place in `pending`. It leaves that vault only if
+    /// its record is saved and that vault is as it was: its version, the
+    /// last of the four, is the one the place was taken at.
+    pub(super) moved: Option<(VaultId, usize, usize, u64)>,
 }

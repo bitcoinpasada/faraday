@@ -16,6 +16,7 @@ use faraday_vault::records::kind;
 
 const PHRASE: &str = "first vault phrase";
 const PHRASE_2: &str = "second vault phrase";
+const PHRASE_3: &str = "third vault phrase";
 
 fn step(app: &Faraday) -> Step {
     app.flow().expect("a flow").step
@@ -1706,6 +1707,338 @@ fn a_new_vault_that_holds_other_entries_is_not_dropped_with_its_place() {
             .sum::<usize>(),
         1,
         "only this flow's key was taken out of it"
+    );
+}
+
+#[test]
+fn a_new_vault_an_item_was_moved_into_is_not_dropped_with_its_place() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 3);
+    shell.disks[2].serial = Some(33);
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(2, 1));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    // On Vaults the person moves the key from the first vault into the new
+    // one, which the flow has not put it in yet.
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    app.press(Action::Nav(Screen::BackupFlow));
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::RemovePlace(2));
+    let keys: usize = app
+        .vaults()
+        .open
+        .iter()
+        .map(|o| {
+            app.vaults()
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .count()
+        })
+        .sum();
+    assert_eq!(keys, 1, "the moved key is in no open vault");
+    assert_eq!(app.vaults().open.len(), 2, "the target was closed");
+}
+
+#[test]
+fn a_key_moved_into_an_added_vault_is_not_copied_there_a_second_time() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 3);
+    shell.disks[1].serial = Some(2);
+    shell.disks[2].serial = Some(33);
+    let mut app = started(Kind::Gpg);
+    shell.flow(&mut app, F::PlaceVault(1, 1));
+    through_where(&mut shell, &mut app);
+    bring_in(&mut shell, &mut app, "S1", false);
+    bring_in(&mut shell, &mut app, "S2", false);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(2, 2));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 2, PHRASE_3);
+    // The person moves the key from the first vault into the added one,
+    // which the flow has not copied it to yet.
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(1)));
+    app.press(Action::Vault(V::CopyGo));
+    app.press(Action::Nav(Screen::BackupFlow));
+    shell.flow(&mut app, F::CopyKey);
+    let in_vault = |o: usize| {
+        let id = app.vaults().open[o].id;
+        app.vaults()
+            .store()
+            .contents_for_tests(id)
+            .of(kind::GPG)
+            .count()
+    };
+    assert_eq!(in_vault(2), 1, "the added vault holds the key once");
+    assert_eq!(in_vault(1), 1, "the other vault still holds it");
+}
+
+/// The key moved from the only vault holding it into the added vault, then
+/// Copy the key: nothing is left to copy, and the step finishes.
+#[test]
+fn copy_the_key_finishes_when_the_added_vault_already_holds_it_by_a_move() {
+    let mut shell = Shell::new();
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(1, 1));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    assert!(app.flow().unwrap().adding);
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    app.press(Action::Nav(Screen::BackupFlow));
+    shell.flow(&mut app, F::CopyKey);
+    assert!(
+        !app.flow().unwrap().adding,
+        "Copy the key still waits: {:?}",
+        app.toast_text()
+    );
+    let in_vault = |o: usize| {
+        let id = app.vaults().open[o].id;
+        app.vaults()
+            .store()
+            .contents_for_tests(id)
+            .of(kind::GPG)
+            .count()
+    };
+    assert_eq!(in_vault(1), 1, "the added vault holds the key once");
+}
+
+/// The key moved into the added vault, which is then sealed, and the place
+/// of that vault dropped: the key is not lost with it, as no other vault
+/// holds it.
+#[test]
+fn dropping_the_place_of_a_sealed_vault_that_holds_the_moved_key_does_not_lose_it() {
+    let mut shell = Shell::new();
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(1, 1));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    app.press(Action::Nav(Screen::BackupFlow));
+    shell.flow(&mut app, F::CopyKey);
+    shell.flow(&mut app, F::MadeContinue);
+    let mut app = shell.lock(&mut app);
+    // Both vaults come back open from their sealed files.
+    open_vault(&mut shell, &mut app, 0, PHRASE);
+    open_vault(&mut shell, &mut app, 1, PHRASE_2);
+    assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::RemovePlace(1));
+    let keys: usize = app
+        .vaults()
+        .open
+        .iter()
+        .map(|o| {
+            app.vaults()
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .count()
+        })
+        .sum();
+    assert_eq!(keys, 1, "the key was lost with the dropped place");
+}
+
+#[test]
+fn a_key_moved_into_a_vault_and_deleted_there_is_taken_out_with_a_dropped_place() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 3);
+    shell.disks[1].serial = Some(2);
+    shell.disks[2].serial = Some(33);
+    let mut app = started(Kind::Gpg);
+    shell.flow(&mut app, F::PlaceVault(1, 1));
+    through_where(&mut shell, &mut app);
+    bring_in(&mut shell, &mut app, "S1", false);
+    bring_in(&mut shell, &mut app, "S2", false);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(2, 2));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 2, PHRASE_3);
+    // The key is moved into the added vault and deleted there; the flow's
+    // copy round then puts it there again.
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(1)));
+    app.press(Action::Vault(V::CopyGo));
+    faraday_core::testkit::vault_current(&mut app, 2);
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::HoldDelete));
+    app.press(Action::Nav(Screen::BackupFlow));
+    let keys = |app: &Faraday| -> usize {
+        app.vaults()
+            .open
+            .iter()
+            .map(|o| {
+                app.vaults()
+                    .store()
+                    .contents_for_tests(o.id)
+                    .of(kind::GPG)
+                    .count()
+            })
+            .sum()
+    };
+    assert_eq!(keys(&app), 1, "deleted in the added vault");
+    shell.flow(&mut app, F::CopyKey);
+    assert_eq!(keys(&app), 2, "copied there again");
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::RemovePlace(2));
+    assert_eq!(keys(&app), 1, "the dropped place does not keep the key");
+}
+
+#[test]
+fn an_unrelated_item_moved_into_a_dropped_place_does_not_keep_the_key_there() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 3);
+    shell.disks[2].serial = Some(33);
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(2, 1));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    shell.flow(&mut app, F::CopyKey);
+    // A password entry of the first vault is moved into the new one.
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| {
+        s.insert(
+            id,
+            faraday_vault::Record::new(kind::ENTRY)
+                .with(faraday_vault::records::field::TITLE, b"Mail")
+                .with(faraday_vault::records::field::PASSWORD, b"hunter2"),
+        )
+    });
+    faraday_core::testkit::vault_current(&mut app, 0);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    app.press(Action::Nav(Screen::BackupFlow));
+    let count = |app: &Faraday, o: usize, k: u8| {
+        let id = app.vaults().open[o].id;
+        app.vaults().store().contents_for_tests(id).of(k).count()
+    };
+    assert_eq!(count(&app, 0, kind::ENTRY), 0, "the entry did not move");
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::RemovePlace(2));
+    assert_eq!(
+        app.vaults().open.len(),
+        2,
+        "the vault with the moved item was closed"
+    );
+    assert_eq!(count(&app, 1, kind::ENTRY), 1, "the moved item is lost");
+    assert_eq!(
+        count(&app, 1, kind::GPG),
+        0,
+        "the key stays in a dropped place"
+    );
+    assert_eq!(count(&app, 0, kind::GPG), 1);
+}
+
+#[test]
+fn a_new_vault_emptied_by_a_move_is_not_closed_before_the_item_is_sealed_elsewhere() {
+    let mut shell = Shell::new();
+    empties(&mut shell, 3);
+    shell.disks[2].serial = Some(33);
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::AddPlace);
+    shell.flow(&mut app, F::PlaceVault(2, 1));
+    shell.flow(&mut app, F::Continue);
+    create_vault(&mut shell, &mut app, 1, PHRASE_2);
+    shell.flow(&mut app, F::CopyKey);
+    // An entry in the new vault is moved into the first: the new vault
+    // then holds only the key.
+    let id = app.vaults().open[1].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| {
+        s.insert(
+            id,
+            faraday_vault::Record::new(kind::ENTRY)
+                .with(faraday_vault::records::field::TITLE, b"Mail")
+                .with(faraday_vault::records::field::PASSWORD, b"hunter2"),
+        )
+    });
+    faraday_core::testkit::vault_current(&mut app, 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::MoveTo));
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    app.press(Action::Nav(Screen::BackupFlow));
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::RemovePlace(2));
+    let entries: usize = app
+        .vaults()
+        .open
+        .iter()
+        .map(|o| {
+            app.vaults()
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::ENTRY)
+                .count()
+        })
+        .sum();
+    assert_eq!(entries, 1, "the moved entry is in an open vault");
+    assert_eq!(
+        app.vaults().open.len(),
+        2,
+        "the original was closed with the moved item only in memory"
     );
 }
 

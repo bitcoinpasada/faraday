@@ -480,6 +480,7 @@ mod set {
                 0,
                 None,
                 false,
+                &[],
                 Reveal::VaultEntry(faraday_keys::Part::Words),
             )
             .expect("a seed key has a record");
@@ -518,6 +519,22 @@ mod set {
         assert_eq!(loaded, vec![keys[0].fingerprint]);
         assert_eq!(again[0].codex32, keys[0].codex32);
         assert!(again.holds_seed_bytes(0));
+    }
+
+    #[test]
+    fn a_key_record_left_without_its_set_is_the_seed_alone_and_the_key_keeps_the_set() {
+        let c = compute();
+        let keys = made_here(&c);
+        let reveal = Reveal::VaultEntry(faraday_keys::Part::Words);
+        let with = keys.key_record(&c, 0, None, false, &[], reveal).unwrap();
+        let reveal = Reveal::VaultEntry(faraday_keys::Part::Words);
+        let without = keys
+            .key_record(&c, 0, None, false, &[field::KEY_CODEX32], reveal)
+            .unwrap();
+        assert!(with.field(field::KEY_CODEX32).is_some());
+        assert!(without.field(field::KEY_CODEX32).is_none());
+        assert_eq!(with.field(field::KEY), without.field(field::KEY));
+        assert!(keys[0].codex32.is_some());
     }
 
     #[test]

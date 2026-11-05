@@ -615,3 +615,388 @@ fn a_seed_past_the_checklists_numbers_is_said_in_place_of_the_checklist() {
         "a checklist was made"
     );
 }
+
+// ---- Keep its codex32 set / Keep its BIP-85 origin at a save ----
+
+use faraday_vault::records::field;
+
+/// The key just added, marked as a BIP-85 child of test key 1.
+fn as_child(app: &mut Faraday) -> usize {
+    let k = app.session.keys.len() - 1;
+    let of = faraday_vault::child::ChildOf {
+        parent: [1, 2, 3, 4],
+        language: 0,
+        words: 24,
+        index: 7,
+    };
+    assert!(app.session.keys.set_child_of(k, Some(of)));
+    k
+}
+
+fn texts(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    app.drawn_texts()
+}
+
+/// The sheet's tick of key `k`'s field `number` pressed.
+fn tick(app: &mut Faraday, k: usize, number: u8) {
+    let fp = app.session.keys.info(k).unwrap().fingerprint.0;
+    app.press(Action::Vault(V::KeepTick(fp, number)));
+}
+
+/// How many key records of the open vault carry a BIP-85 origin.
+fn origins(app: &Faraday) -> usize {
+    let id = app.vaults().open[0].id;
+    app.vaults()
+        .records(id)
+        .of(kind::KEY)
+        .filter(|(_, r)| r.has(field::KEY_CHILD))
+        .count()
+}
+
+/// The lock, and the next power-on with the sealed vault unlocked.
+fn locked_and_opened(app: &mut Faraday) -> Faraday {
+    app.press(Action::Lock);
+    testkit::settle(app);
+    let vault = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "vault.kdbx")
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .expect("the lock sealed the vault into the Outbox");
+    let mut next = device(vec![vault]);
+    unlock(&mut next);
+    next
+}
+
+/// Test key 2 as a BIP-85 child, in an unlocked vault; returns its place.
+fn child_ready(with_passphrase: bool) -> (Faraday, usize) {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    backing_up(&mut app, with_passphrase);
+    unlock(&mut app);
+    let k = as_child(&mut app);
+    (app, k)
+}
+
+#[test]
+fn save_asks_which_of_its_facts_to_keep_and_unticked_the_vault_holds_the_words_alone() {
+    let (mut app, k) = child_ready(false);
+    let keys = keys_in_vault(&app);
+    app.press(Action::Vault(V::SaveKey(k)));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    assert_eq!(keys_in_vault(&app), keys, "saved before the question");
+    assert!(
+        texts(&mut app)
+            .iter()
+            .any(|t| t == "Keep its BIP-85 origin")
+    );
+    assert!(!texts(&mut app).iter().any(|t| t == "Keep its codex32 set"));
+    tick(&mut app, k, field::KEY_CHILD);
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys + 1);
+    assert_eq!(origins(&app), 0);
+    // The seed's own origin is as it was, and the vault counts as
+    // holding the seed.
+    assert!(app.session.keys.info(k).unwrap().child_of.is_some());
+    assert!(!app.offers(Action::Vault(V::SaveKey(k))));
+    let next = locked_and_opened(&mut app);
+    assert_eq!(keys_in_vault(&next), keys + 1);
+    assert_eq!(origins(&next), 0);
+}
+
+#[test]
+fn save_with_the_tick_left_keeps_the_origin_across_a_lock_and_cancel_saves_nothing() {
+    let (mut app, k) = child_ready(false);
+    let keys = keys_in_vault(&app);
+    app.press(Action::Vault(V::SaveKey(k)));
+    tick(&mut app, k, field::KEY_CHILD);
+    app.press(Action::Vault(V::KeepCancel));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys);
+    // Cancelled, the next save starts ticked again.
+    app.press(Action::Vault(V::SaveKey(k)));
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(origins(&app), 1);
+    let next = locked_and_opened(&mut app);
+    assert_eq!(origins(&next), 1);
+}
+
+#[test]
+fn a_seed_with_neither_fact_saves_at_once_with_no_question() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    backing_up(&mut app, false);
+    unlock(&mut app);
+    let k = app.session.keys.len() - 1;
+    app.press(Action::Vault(V::LoadNotNow));
+    let keys = keys_in_vault(&app);
+    app.press(Action::Vault(V::SaveKey(k)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys + 1);
+}
+
+#[test]
+fn the_secret_sheets_untick_is_gone_when_the_sheet_is_left_and_a_backup_asks_again_ticked() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    backing_up(&mut app, false);
+    let k = as_child(&mut app);
+    app.press(Action::BFile);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    tick(&mut app, k, field::KEY_CHILD);
+    // Left for the unlock and then the vault is open: the save the
+    // choice was for did not happen.
+    unlock(&mut app);
+    app.press(Action::Vault(V::LoadNotNow));
+    assert_eq!(app.sheet, None);
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(origins(&app), 1);
+}
+
+#[test]
+fn the_secret_sheets_untick_is_gone_when_the_sheet_is_cancelled() {
+    let (mut app, k) = child_ready(false);
+    app.press(Action::BFile);
+    tick(&mut app, k, field::KEY_CHILD);
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    app.press(Action::BVaultSave(0));
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(origins(&app), 1);
+}
+
+#[test]
+fn a_backup_with_a_seed_with_an_origin_asks_and_unticked_the_entry_has_no_origin() {
+    let (mut app, k) = child_ready(false);
+    let keys = keys_in_vault(&app);
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    assert_eq!(keys_in_vault(&app), keys, "saved before the question");
+    assert!(
+        texts(&mut app)
+            .iter()
+            .any(|t| t == "Keep its BIP-85 origin")
+    );
+    tick(&mut app, k, field::KEY_CHILD);
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys + 1);
+    assert_eq!(origins(&app), 0);
+    // The plan still counts the vault as holding the seed: pressed
+    // again, nothing is saved twice and nothing is asked.
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys + 1);
+    let next = locked_and_opened(&mut app);
+    assert_eq!(keys_in_vault(&next), keys + 1);
+    assert_eq!(origins(&next), 0);
+}
+
+#[test]
+fn a_backup_with_the_origin_ticked_keeps_it() {
+    let (mut app, _) = child_ready(false);
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(origins(&app), 1);
+}
+
+#[test]
+fn cancel_on_a_backups_sheet_saves_nothing_and_asks_again_ticked() {
+    let (mut app, k) = child_ready(false);
+    let keys = keys_in_vault(&app);
+    app.press(Action::BVaultSave(0));
+    tick(&mut app, k, field::KEY_CHILD);
+    app.press(Action::Vault(V::KeepCancel));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys);
+    assert!(app.backup().is_some(), "the flow is left where it was");
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(origins(&app), 1);
+}
+
+#[test]
+fn a_backup_of_a_seed_with_neither_fact_asks_nothing() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    backing_up(&mut app, false);
+    unlock(&mut app);
+    app.press(Action::Vault(V::LoadNotNow));
+    let keys = keys_in_vault(&app);
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys + 1);
+}
+
+#[test]
+fn the_secret_sheet_keeps_the_origin_when_left_ticked() {
+    let (mut app, _) = child_ready(false);
+    app.press(Action::BFile);
+    app.press(Action::SecretVault);
+    assert_eq!(origins(&app), 1);
+}
+
+/// The secret sheet's own way to the vault pressed (its Unlock or its
+/// Make a vault), as the button on the sheet offers it.
+fn sheets_own_way(app: &mut Faraday) {
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    let (_, way) = app.vault_way(app.screen).expect("the sheet offers a way");
+    app.press(way);
+}
+
+/// Ticks of the clock until `done`.
+fn wait_for(app: &mut Faraday, from: u64, done: &dyn Fn(&Faraday) -> bool) {
+    for t in from..from + 60 {
+        if done(app) {
+            return;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+}
+
+#[test]
+fn the_secret_sheets_untick_holds_through_its_own_unlock_and_the_load_sheet_that_comes_between() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    backing_up(&mut app, false);
+    let k = as_child(&mut app);
+    app.press(Action::BFile);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    tick(&mut app, k, field::KEY_CHILD);
+    sheets_own_way(&mut app);
+    assert_eq!(app.screen, Screen::Unlock);
+    type_text(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    wait_for(&mut app, 1, &|a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
+    // The vault holds a key; a Load sheet, if one comes between the unlock
+    // and the secret sheet, is passed.
+    if app.sheet == Some(Sheet::UnlockLoad) {
+        app.press(Action::Vault(V::LoadNotNow));
+    }
+    assert_eq!(app.sheet, Some(Sheet::SecretOut), "the sheet is back");
+    let keys = keys_in_vault(&app);
+    app.press(Action::SecretVault);
+    assert_eq!(app.sheet, None);
+    assert_eq!(keys_in_vault(&app), keys + 1);
+    assert_eq!(origins(&app), 0, "saved against the person's choice");
+    // The session's own origin reads as it did.
+    assert!(app.session.keys.info(k).unwrap().child_of.is_some());
+    let next = locked_and_opened(&mut app);
+    assert_eq!(keys_in_vault(&next), keys + 1);
+    assert_eq!(origins(&next), 0);
+}
+
+#[test]
+fn the_secret_sheets_untick_holds_through_the_sheets_make_a_vault() {
+    let mut app = device(Vec::new());
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    backing_up(&mut app, false);
+    let k = as_child(&mut app);
+    app.press(Action::BFile);
+    tick(&mut app, k, field::KEY_CHILD);
+    sheets_own_way(&mut app);
+    assert_eq!(app.screen, Screen::CreateVault);
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(&mut app, "a new vault phrase");
+    }
+    app.press(Action::Vault(V::CGo));
+    wait_for(&mut app, 1, &|a| a.screen == Screen::Unlock);
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, "a new vault phrase");
+    app.press(Action::Vault(V::Unlock));
+    wait_for(&mut app, 60, &|a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault was not made");
+    assert_eq!(app.sheet, Some(Sheet::SecretOut), "the sheet is back");
+    app.press(Action::SecretVault);
+    assert_eq!(keys_in_vault(&app), 1);
+    assert_eq!(origins(&app), 0);
+    assert!(app.session.keys.info(k).unwrap().child_of.is_some());
+}
+
+#[test]
+fn the_secret_sheets_untick_is_gone_when_the_unlock_is_backed_out_of() {
+    let mut app = device(vec![kit_file("vault.kdbx")]);
+    backing_up(&mut app, false);
+    let k = as_child(&mut app);
+    app.press(Action::BFile);
+    tick(&mut app, k, field::KEY_CHILD);
+    sheets_own_way(&mut app);
+    assert_eq!(app.screen, Screen::Unlock);
+    app.press(Action::Vault(V::Back));
+    assert!(app.vaults().open.is_empty());
+    unlock(&mut app);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps), "asked, and ticked");
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(origins(&app), 1);
+}
+
+/// How many key records, and how many with a BIP-85 origin, open vault
+/// `o` holds.
+fn keys_and_origins(app: &Faraday, o: usize) -> (usize, usize) {
+    let id = app.vaults().open[o].id;
+    let keys = app.vaults().records(id).of(kind::KEY).count();
+    let origins = app
+        .vaults()
+        .records(id)
+        .of(kind::KEY)
+        .filter(|(_, r)| r.has(field::KEY_CHILD))
+        .count();
+    (keys, origins)
+}
+
+#[test]
+fn a_seed_planned_in_two_vaults_is_asked_once_and_unticked_both_entries_lack_the_origin() {
+    let second = crate::common::vault_of("Second", "second vault phrase", 9, Vec::new());
+    let mut app = device(vec![kit_file("vault.kdbx"), ("second.kdbx".into(), second)]);
+    backing_up(&mut app, false);
+    let k = as_child(&mut app);
+    // The plan keeps the seed in a second vault too.
+    app.press(Action::BPlan);
+    let p = (0..crate::common::board_places(&app))
+        .find(|&p| vault_stick(&app, p, 0).is_some())
+        .unwrap();
+    crate::common::vault_at(&mut app, p, 1, &[0]);
+    app.press(Action::BChecklist);
+    unlock(&mut app);
+    // Both vaults open; the second is the one shown.
+    app.press(Action::Nav(Screen::Vaults));
+    let n = app
+        .vault_files()
+        .iter()
+        .position(|f| f.name == "second.kdbx")
+        .unwrap();
+    app.press(Action::Vault(V::Open(n)));
+    type_text(&mut app, "second vault phrase");
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if app.vaults().open.len() == 2 {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 2);
+    app.press(Action::Nav(Screen::Backup));
+    let (before_0, before_1) = (keys_and_origins(&app, 0).0, keys_and_origins(&app, 1).0);
+    testkit::vault_current(&mut app, 0);
+    app.press(Action::BVaultSave(0));
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    tick(&mut app, k, field::KEY_CHILD);
+    app.press(Action::Vault(V::KeepSave));
+    assert_eq!(keys_and_origins(&app, 0), (before_0 + 1, 0));
+    testkit::vault_current(&mut app, 1);
+    app.press(Action::BVaultSave(1));
+    assert_eq!(app.sheet, None, "asked once");
+    assert_eq!(
+        keys_and_origins(&app, 1),
+        (before_1 + 1, 0),
+        "the second entry lacks it too"
+    );
+}

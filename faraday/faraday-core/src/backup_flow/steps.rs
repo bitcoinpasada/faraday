@@ -559,9 +559,20 @@ impl Faraday {
                 dropped,
                 f.kind,
                 f.subject.as_ref().map(|s| s.id.clone()),
-                holders_left,
+                (holders_left, used_now),
             )
         };
+        // A locked vault does not count, as its file cannot be read: only an
+        // open vault of the plan that holds the record now keeps the key,
+        // whether or not it waits for its place's seal (`docs/VAULT.md`
+        // §7.2).
+        let holders_left = holders_left.0
+            && subject.as_deref().is_none_or(|id| {
+                holders_left.1.iter().any(|&w| {
+                    self.flow_open_index(i, w)
+                        .is_some_and(|o| super::record_in(&self.vaults, o, kind, id).is_some())
+                })
+            });
         for v in dropped {
             let vp = self.flows[i].plan.vaults[v].clone();
             let Some(salt) = vp.salt else {
@@ -573,10 +584,17 @@ impl Faraday {
             if !holders_left {
                 continue;
             }
+            // An item the person moved into this vault is in no sealed file
+            // until its own: the vault is never closed unsealed, and the
+            // flow does not take out the key itself when that is the item
+            // moved. Nor is a vault closed that an item was moved out of
+            // and waits for its target's seal: its last sealed file still
+            // holds the item (`docs/VAULT.md` §7.2).
             let only_key = subject
                 .as_deref()
                 .is_some_and(|id| self.flow_vault_holds_only(o, kind, id));
-            if only_key && !vp.existing {
+            if only_key && !vp.existing && !self.vaults.holds_moved(o) && !self.vaults.moved_from(o)
+            {
                 self.vaults.close_at(o);
                 let vaults = &self.vaults;
                 let same = |it: &Item| {
@@ -586,7 +604,9 @@ impl Faraday {
                 outbox.retain(|it| !same(it));
                 inbox.retain(|it| !same(it));
                 self.save_boxes();
-            } else if let Some(id) = subject.as_deref() {
+            } else if let Some(id) = subject.as_deref()
+                && !self.vaults.holds_moved_subject(o, id)
+            {
                 self.flow_remove_subject(o, kind, id);
             }
         }
@@ -2197,16 +2217,19 @@ impl Faraday {
             (f.kind, s.id.clone())
         };
         let used = self.flows[i].plan.used_vaults();
+        // Any vault of the plan that holds the record is a holder, one the
+        // person moved it into included.
         let holder = used
             .iter()
-            .filter(|v| self.flows[i].made_in.contains(v))
             .filter_map(|&v| self.flow_open_index(i, v))
             .find_map(|o| super::record_in(&self.vaults, o, kind_, &id).map(|at| (o, at)));
         let Some((holder_open, holder_at)) = holder else {
             return self.toast(FEN.backup_flow_unlock_first);
         };
         let from = self.vaults.open[holder_open].id;
-        let Some(copy) = self.vaults.store().copy_out(from, holder_at, None) else {
+        // A GPG key or a Secure Boot set is no seed: it has no codex32 set
+        // or BIP-85 origin to ask about, so nothing is left out.
+        let Some(copy) = self.vaults.store().copy_out(from, holder_at, &[]) else {
             return self.toast(FEN.backup_flow_unlock_first);
         };
         let c = self.compute();
@@ -2219,6 +2242,10 @@ impl Faraday {
             let Some(o) = self.flow_open_index(i, v) else {
                 return self.toast(FEN.backup_flow_unlock_first);
             };
+            // A vault that holds the record already needs no copy and no room.
+            if super::record_in(&self.vaults, o, kind_, &id).is_some() {
+                continue;
+            }
             let vid = self.vaults.open[o].id;
             if !self.vaults.store().fits(&c, vid, &[], &[&*copy]) {
                 let why = self.vault_no_room_text(&c, vid);
@@ -2227,9 +2254,14 @@ impl Faraday {
         }
         for &v in &added {
             if let Some(o) = self.flow_open_index(i, v) {
+                // A vault that holds the key already (one moved there) is
+                // not given a second record of it.
+                if super::record_in(&self.vaults, o, kind_, &id).is_some() {
+                    continue;
+                }
                 let to = self.vaults.open[o].id;
                 self.vaults
-                    .edit(to, |s| s.copy_record(from, holder_at, to, None));
+                    .edit(to, |s| s.copy_record(from, holder_at, to, &[]));
                 self.vaults.changed(to);
             }
         }

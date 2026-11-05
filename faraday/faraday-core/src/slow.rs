@@ -90,6 +90,8 @@ pub(crate) fn drawn_first(a: Action) -> bool {
                 V::AddFile(_)
                     | V::AddKind(_)
                     | V::Category(_)
+                    | V::CopyTo
+                    | V::MoveTo
                     | V::LoadAll(_)
                     | V::LoadChosen(_)
                     | V::LoadKeyOf(..)
@@ -101,6 +103,8 @@ pub(crate) fn drawn_first(a: Action) -> bool {
                     | V::PromptGo
                     | V::SaveKey(_)
                     | V::SaveKeyWithPassphrase(_)
+                    | V::SaveKeyKept(..)
+                    | V::KeepSave
                     | V::SaveWallet(_)
             )
     )

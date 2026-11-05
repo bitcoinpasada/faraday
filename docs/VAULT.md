@@ -757,15 +757,30 @@ seed's own word count; `index`, at most 2³¹ − 1. Public: a fingerprint
 and numbers. A seed held as `hex` takes none.
 
 **Each is the person's to keep or drop** (owner, 2026-11-02). Wherever a
-seed is saved into a vault (Save into {vault}, the backup flow, Create
-a vault with a key), a seed that has codex32 facts or a BIP-85 origin
+seed is saved into a vault (Save on Vaults, the secret sheet's Save into
+{vault}, and a backup flow's Save into {vault}) or copied or moved into one (§7.2: Copy, Move, an
+Unlock {vault} row, New vault with this item), a seed that has codex32 facts or a BIP-85 origin
 shows **Keep its codex32 set** and **Keep its BIP-85 origin**, each
 ticked; unticked, the vault's entry is written without it, and the seed's
-words are saved alone. A seed already in an open vault offers **Remove
-codex32 set** and **Remove BIP-85 origin** on its ⋮ while it has them:
-each drops that custom data from the entry, and nothing else, at the
-next seal, after a dialog saying that copies of the vault sealed before
-still hold it. What the app knows of the set or the origin elsewhere (a
+words are saved alone. Save on Vaults puts the ticks on a sheet of their own
+before the save, for a seed that has one; the secret sheet carries them
+beside Save into {vault}. A backup flow opens the same sheet at the press
+that would save seeds into a vault, with each such seed by its label (no
+label when there is one seed), then **Cancel**, which saves nothing and
+leaves the step, and **Save**, which goes on with the press. A seed is asked
+once in a flow, its choice holds for every vault of the flow it goes into
+(a copy from a vault that holds it leaves the same fields out) and ends
+with that flow and is used by no other. A choice holds for the save it was
+made for: one made on the secret sheet is kept with that secret, through the
+unlock or New vault it waits for, and ends with it; one made on Vaults ends
+with the sheet. Another save of the seed starts ticked and asks for itself. A seed the flow makes has the
+fields it has, no more. A seed already in an open vault offers **Remove
+codex32 set** and **Remove BIP-85 origin** among the buttons of its page
+while it has them and the vault can be written (a read-only vault offers
+neither): each drops that custom data from the entry, and nothing else, at
+the next seal, after a dialog saying that copies of the vault sealed before
+still hold it. A change to the vault while the dialog is up leaves the
+entry as it was. What the app knows of the set or the origin elsewhere (a
 backup plan, the session's own state) is not changed by either.
 
 What Faraday writes of an entry it makes is its UUID, its fields and its
@@ -932,6 +947,111 @@ What was edited is taken as the person's: an entry added or changed,
 an item's fields changed (and checked as §7 says; one that fails is
 Unreadable, not refused), the seal count read as written, and the next
 seal writes one more than it.
+
+### 7.2 Copy or move an item
+
+An item in an open vault offers **Copy to another vault…** and **Move to
+another vault…** among its actions: a seed, a wallet, an entry, a note, a
+recovery sheet, a GPG key, a Secure Boot set, a share or a passphrase. An
+Unreadable item offers neither (it is never used), and a read-only vault
+(F194) offers Copy alone.
+
+Either opens a sheet listing where it can go:
+
+- every other open vault, by name;
+- each vault this session knows and is locked (§11), **Unlock {vault}**:
+  the copy is made once it is open, and nothing is made if it stays locked.
+  A locked vault whose file is not in Files is dimmed, with that as the
+  reason;
+- **New vault with this item**: Create a vault (§8). Create seals the empty
+  vault as its first seal, as always; the vault then opens at once with
+  the passphrase just typed, the item goes in, and it is in the file from
+  the next seal (a Move's seal rule below covers it). Create offers only
+  the sizes the item fits, worked out as the seal would write it with a
+  name as long as the document takes (64 bytes) made of the character it
+  writes longest (`&`, five bytes), so a size offered holds
+  the item whatever name is typed; a size it does not fit is dimmed. The
+  item waits only while that form is shown: leaving it, whichever way,
+  ends the wait, and the form came back to through the in-progress row
+  makes an ordinary vault. A backup flow's own Create vault takes no item.
+  The Keep sheet's title names the vault the seed goes into as the press
+  that asked chose it (a wallet flow's, which can cover several vaults,
+  names them all).
+
+A seed that has a codex32 set or a BIP-85 origin shows the ticks above
+the list, each ticked; the rows are judged on what will be written, so a
+tick changes which vaults and sizes fit. A Move says in its dialog when a
+tick is off that the data is gone from the original too.
+
+A vault that cannot take the item is listed, dimmed, with the reason:
+it is read-only, it has no room at its size, or it already holds this
+item. An item is the same when every field is the same, and a key also
+when its fingerprint is. A second passphrase for a key, or a share of a
+set the vault holds, is not the same item: it goes in after the dialog
+every save of one has ("{vault} already holds a passphrase for this
+key", **Continue** and **Cancel**), and is never refused.
+
+A seed with codex32 facts or a BIP-85 origin shows §7's Keep ticks first.
+
+**What goes.** The copy is a new entry with a new UUID, in the group of
+its kind: its fields and Faraday's custom data. What a KeePass app wrote
+that Faraday does not read (§7.1: attachments, tags, an icon and the like)
+stays in the original vault. Where an entry has any, the dialog says so
+before it is copied or moved. A wallet's backup plan is the vault's
+(the database's custom data) and stays too: the copy reads "No backup
+plan in this vault".
+
+**Move** first says, in a dialog naming both vaults, that the item will be
+gone from the original, and that copies of the original sealed before
+still hold it. **Move** puts it in the target and removes it from the
+original as **Hold to delete from vault** does; **Cancel** does nothing.
+
+**The original is not sealed before the target** (the item would then be
+in neither new file). Until the target has been sealed with the item, a
+lock of the original alone stops and says to lock {vault} first, and a
+lock of all seals the target first. A lock that lets the target go
+unsealed lets the original go unsealed too, its changes lost and said so
+on the Locked sheet, so the original's last sealed file still holds the
+item.
+
+A vault can wait for several: each item moved out of it names its own
+target, and the original is sealed after every one of them (a chain, A to B
+to C, seals C, then B, then A). A lock of all that finds an original whose
+target is still open and unsealed stops and asks, as it does for a vault
+that cannot be sealed, and lets the original go only when the person chose
+Lock without sealing or an idle lock had no one to ask. A vault waiting for
+another's seal in this way, through any number of vaults between, is dimmed
+on the Move sheet of that other vault, "Lock {vault} first", since each
+would wait for the other and no order of sealing would keep the item. A
+backup flow never closes a vault an item was moved into while that item
+waits for the vault's seal, nor one an item was moved out of, whose last
+sealed file still holds the item (a dropped place of such a vault stays out
+of the plan and the vault stays open, sealed by the next lock like any
+other). A wallet flow's copy round takes out of an added vault only what
+the flow put there: a record that was moved there, of any kind (a seed, a
+passphrase record, a wallet description, a wallet share), is kept with what
+the vault held before the flow, which is saved with the flow, so it stays
+across a seal and a lock. A flow that copies a GPG key or a Secure Boot set
+does not write a second record into a vault that holds it, one moved there
+included. A flow that drops a place does not take out of a vault the GPG key
+or Secure Boot set that was moved there while that vault waits for its seal;
+once the record is deleted or moved on, that no longer holds. It takes the
+record out of the dropped place's vault, or closes that vault, only while
+another vault of the plan that is open really holds the record; where the
+only other holder is locked and cannot be read, the record stays. An item
+moved into a vault after the checklist's first save of it is kept with what
+the vault held before, as one moved after the lock is, so a later change of
+the plan does not take it out. Copy the key counts a vault added after the
+first that holds the record (one moved there) as a holder, and finishes
+where no added vault lacks it. It does not
+take out of a vault the flow's own key it moved there itself; the flow's
+own key, saved there before, it takes out when the place is dropped, and
+the moved item stays. A wallet backup's save takes out of a vault a codex32
+share of the plan's set only where the plan keeps that string in another
+vault and the string is held elsewhere (`docs/CODEX32.md` §9.5), or is of a set the plan records as rotated away; a codex32 share the plan keeps in no vault, one moved
+there included, stays, across a seal and a lock. A wallet backup's save
+replaces this wallet's share of the plan's number, told by the wallet and
+never by its name, with the plan's.
 
 ## 8. Creating
 

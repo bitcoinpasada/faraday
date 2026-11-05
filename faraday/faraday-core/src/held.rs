@@ -511,6 +511,18 @@ impl Faraday {
         if self.backup_vault_taken(&c, v, cur) {
             return;
         }
+        // A seed about to be saved with a codex32 set or a BIP-85 origin
+        // asks first; Save comes back here (`docs/VAULT.md` §7).
+        let (own, _) = self.backup_vault_seeds(v);
+        let unsaved: Vec<usize> = own
+            .iter()
+            .filter(|&&(k, with)| !self.vault_holds_seed(&c, cur, k, with))
+            .map(|&(k, _)| k)
+            .collect();
+        let asks = crate::vault::keep::asks_for(self, &unsaved);
+        if crate::vault::keep::gate(self, asks, crate::vault::keep::Then::Vault(v), &[cur]) {
+            return;
+        }
         self.vaults.set_current(cur);
         // What the vault held before this backup first saved into it.
         let salt = self.vaults.open[cur].vault_id();
@@ -527,14 +539,9 @@ impl Faraday {
         };
         let w = b.wallet;
         let wallet_too = b.answers.wallet_in_vault(v);
-        let (own, _) = self.backup_vault_seeds(v);
         for (k, with) in own {
             if !self.vault_holds_seed(&c, cur, k, with) {
-                self.vault_act(if with {
-                    V::SaveKeyWithPassphrase(k)
-                } else {
-                    V::SaveKey(k)
-                });
+                self.vault_act(V::SaveKeyKept(k, with, crate::vault::keep::Scope::Backup));
             }
         }
         let has = self
@@ -579,8 +586,8 @@ impl Faraday {
         // record (`docs/CODEX32.md` §9.5): once per key and index. A
         // string this session does not hold is named, to be typed in its
         // item first. A share record of a codex32 seed of the plan that the
-        // plan does not keep here, of another set or at another index,
-        // goes: the vault holds exactly the plan's strings.
+        // plan keeps in another vault and not here goes; one the plan lists
+        // in no vault stays.
         let gone = self.backup_vault_c32_strays(&c, cur, v);
         if !gone.is_empty()
             && let Some(id) = self.vaults.open.get(cur).map(|o| o.id)
@@ -596,24 +603,33 @@ impl Faraday {
             });
             self.vaults.changed(id);
         }
-        for (k, index, _) in self.backup_vault_strings(&c, v) {
+        for (k, index, place) in self.backup_vault_strings(&c, v) {
             if self.vault_holds_string(cur, k, index) {
                 continue;
             }
             let fp = self.session.keys.info(k).map(|i| i.fingerprint);
-            let id = self
-                .session
-                .keys
-                .info(k)
-                .and_then(|i| i.codex32.as_ref())
-                .map(|f| String::from_utf8_lossy(&f.identifier).into_owned())
-                .unwrap_or_default();
+            let Some(form) = self
+                .backup
+                .state()
+                .and_then(|b| b.answers.c32(place))
+                .map(|f| ((f.k, f.identifier), f.id_text()))
+            else {
+                continue;
+            };
             let share = char::from(index).to_ascii_uppercase().to_string();
-            match self.session.keys.codex32_share_record(
-                k,
-                index,
-                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Codex32),
-            ) {
+            // Only a string of the plan's set is written: a key loaded
+            // with another set holds strings that are not it.
+            let record = self
+                .session_holds_c32(k, form.0, index)
+                .then(|| {
+                    self.session.keys.codex32_share_record(
+                        k,
+                        index,
+                        faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Codex32),
+                    )
+                })
+                .flatten();
+            match record {
                 Some(record) => {
                     let said = fill(
                         EN.c32_vault_saved,
@@ -621,7 +637,7 @@ impl Faraday {
                     );
                     self.vault_push_in(cur, record, &said);
                 }
-                None => self.toast(&fill(EN.c32_vault_missing, &[&share, &id])),
+                None => self.toast(&fill(EN.c32_vault_missing, &[&share, &form.1])),
             }
         }
         let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
@@ -672,6 +688,9 @@ impl Faraday {
             self.vault_push_in(cur, record, &said);
         }
         self.plan_save();
+        for (share, id) in self.backup_vault_c32_left(&c, cur, v) {
+            self.toast(&fill(EN.c32_vault_left, &[&share.to_string(), &id]));
+        }
     }
 
     /// On Change the plan: the vaults the checklist has filled, by name,

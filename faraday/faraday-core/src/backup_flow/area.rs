@@ -59,6 +59,26 @@ impl std::ops::Deref for BackupFlowArea {
 }
 
 impl BackupFlowArea {
+    /// A record the person moved into the vault of file id `salt` is one
+    /// the vault held before every wallet flow that keeps what it held
+    /// (`WalletFlow::before`): `tokens` are added to that.
+    pub(crate) fn held_before_add(&mut self, salt: [u8; 32], tokens: &[String]) {
+        for f in self.all.iter_mut().filter_map(|f| f.wallet.as_mut()) {
+            if let Some((_, held)) = f.before.iter_mut().find(|(s, _)| *s == salt) {
+                for t in tokens {
+                    if !held.contains(t) {
+                        held.push(t.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    /// What the person unticked in flow `i`, to change.
+    pub(crate) fn keeps_mut(&mut self, i: usize) -> Option<&mut crate::vault::keep::Left> {
+        self.all.get_mut(i).map(|f| &mut f.keeps)
+    }
+
     /// The Sticks and vaults card of Make a new wallet or Restore `owner`.
     pub(crate) fn layout_of(&self, owner: u64) -> Option<&super::layout::SetupLayout> {
         self.layouts.iter().find(|l| l.owner() == owner)

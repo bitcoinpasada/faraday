@@ -893,6 +893,11 @@ item's page stacks the same nodes in that order, with no lines.
   skipped with the reason → choose the vault → import → Entries list.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
+- **Copy to another vault…** or **Move to another vault…** → the sheet of
+  open vaults, locked ones (**Unlock {vault}**) and **New vault with this
+  item**, one that cannot take it dimmed with why → Move's dialog that it
+  will be gone from this vault → a toast naming the vault (`docs/VAULT.md`
+  §7.2).
 - A Bitcoin key or wallet → **Open in Wallets** or **Don't load at unlock** / **Load at unlock** (F62: a wallet's, and a key's in no wallet of the vault; a key in one reads "Loads with {wallet}").
 - A GPG key → **Show as QR** under its masked paperkey (F215: the
   QR sheet marked Secret, no PNG, no file); **Export public key** with

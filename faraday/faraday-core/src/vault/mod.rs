@@ -11,9 +11,12 @@
 //! says it is working has been drawn.
 
 mod area;
+pub(crate) mod copy;
+pub(crate) mod copy_screen;
 pub(crate) mod dice;
 mod dice_screen;
 pub(crate) mod errors;
+pub(crate) mod keep;
 pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
@@ -27,6 +30,13 @@ mod search;
 mod strength;
 pub(crate) mod stretch;
 mod summaries;
+pub(crate) mod trim;
+
+/// What every press settles of the area: a copy waiting, the Keep
+/// choices. True when it dropped something.
+pub(crate) fn settle(app: &mut crate::Faraday) -> bool {
+    copy::settle(app) | keep::settle(app)
+}
 
 pub use area::*;
 pub(crate) use seal::{SealDone, SealRun, SealWork};
@@ -393,6 +403,8 @@ impl Faraday {
                 }
             }
             V::Create | V::CreateFrom(_) => {
+                // A form started anew is no item's: a wait is of its own form.
+                copy::drop_wait(self);
                 self.vaults.state.back_to = match a {
                     V::CreateFrom(s) => Some(s),
                     _ => None,
@@ -656,8 +668,10 @@ impl Faraday {
                 }
             }
             V::CSize(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.size = fv::file::SIZES[k.min(fv::file::SIZES.len() - 1)];
+                let size = fv::file::SIZES[k.min(fv::file::SIZES.len() - 1)];
+                let fits = copy::min_size(self).is_none_or(|min| size >= min);
+                if let Some(c) = self.vaults.state.create.as_mut().filter(|_| fits) {
+                    c.size = size;
                 }
             }
             V::CFocus(i, second) => {
@@ -746,6 +760,15 @@ impl Faraday {
             V::OlderOpen | V::OlderBack => self.vault_older_act(a),
             V::SaveAlsoContinue => self.vault_save_also_act(true),
             V::SaveAlsoCancel => self.vault_save_also_act(false),
+            V::CopyTo => copy::open(self, false),
+            V::MoveTo => copy::open(self, true),
+            V::CopyPick(n) => copy::pick(self, n),
+            V::CopyKeep(k) => copy::keep(self, k),
+            V::CopyGo => copy::go(self),
+            V::CopyCancel => copy::close(self),
+            V::TrimAsk(n) => trim::ask(self, n),
+            V::TrimGo => trim::go(self),
+            V::TrimCancel => trim::close(self),
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -800,7 +823,12 @@ impl Faraday {
                     self.vault_form(false);
                 }
             }
-            V::SaveKey(k) => self.vault_save_key(k),
+            V::SaveKey(k) => keep::asks(self, k, false),
+            V::SaveKeyKept(k, with, scope) => {
+                let left = keep::left_out(self, scope, k);
+                self.vault_save_key_with(k, with, &left);
+            }
+            V::KeepTick(..) | V::KeepSave | V::KeepCancel => keep::act(self, a),
             V::SaveWallet(k) => self.vault_save_wallet(k),
             V::FocusField(k) => stick::focus(self, Focus::Field(k)),
             V::FormSave => match self.vaults.form.as_ref().map(|f| f.kind) {
@@ -877,7 +905,7 @@ impl Faraday {
                 });
                 stick::focus(self, Focus::Prompt);
             }
-            V::SaveKeyWithPassphrase(k) => self.vault_save_key_with(k, true),
+            V::SaveKeyWithPassphrase(k) => keep::asks(self, k, true),
             V::FocusPrompt => stick::focus(self, Focus::Prompt),
             V::ExportKdbx => {
                 self.vaults.state.prompt = Some(Prompt {
@@ -1184,6 +1212,8 @@ impl Faraday {
             | dice::tick(self, now_ms)
             | self.vault_older_settle()
             | self.vault_save_also_settle()
+            | copy::settle(self)
+            | trim::settle(self)
     }
 
     fn vault_unlock_check(&mut self) {
@@ -1215,6 +1245,7 @@ impl Faraday {
             self.vaults.state.load = None;
             self.sheet = None;
         }
+        copy::unlocked(self);
     }
 
     /// Costs what `vault_gather_codex32` and the Load sheet cost. The rest
@@ -1601,6 +1632,11 @@ impl Faraday {
         (keys, wallets)
     }
 
+    /// The sheet of vaults the selected item can be copied to, if one is up.
+    pub(crate) fn vault_copy_sheet(&self) -> Option<&copy::CopyTo> {
+        copy::sheet(self)
+    }
+
     /// The position in the slot of the item selected in the kind shown.
     pub fn vault_selected_index(&self) -> Option<usize> {
         self.vaults.selected_place()
@@ -1611,7 +1647,10 @@ impl Faraday {
             return;
         };
         if let Some(id) = self.vaults.current_id() {
-            self.vaults.edit(id, |s| s.remove(id, at));
+            let subject = self.moved_subject_at(id, at);
+            if self.vaults.edit(id, |s| s.remove(id, at)) {
+                self.vaults.state.moved_forget(id, subject);
+            }
             self.vaults.changed(id);
             self.toast(EN.vaults_deleted_toast);
         }
@@ -1937,12 +1976,8 @@ impl Faraday {
         }
     }
 
-    fn vault_save_key(&mut self, k: usize) {
-        self.vault_save_key_with(k, false);
-    }
-
-    fn vault_save_key_with(&mut self, k: usize, with_passphrase: bool) {
-        if let Some((record, label)) = self.key_record(k, with_passphrase) {
+    fn vault_save_key_with(&mut self, k: usize, with_passphrase: bool, without: &[u8]) {
+        if let Some((record, label)) = self.key_record(k, with_passphrase, without) {
             self.vault_push(
                 record,
                 &fill(EN.vaults_is_in_the_vault, &[&label.to_string()]),
@@ -1952,11 +1987,14 @@ impl Faraday {
 
     /// Session key `k` as the vault's key record, ticked at unlock, and
     /// its label: what Save on Vaults writes, and the secret sheet for a
-    /// seed. With its BIP-39 passphrase only when `with_passphrase`.
+    /// seed. With its BIP-39 passphrase only when `with_passphrase`, and
+    /// without the fields in `without` (what the person unticked for this
+    /// save).
     pub(crate) fn key_record(
         &mut self,
         k: usize,
         with_passphrase: bool,
+        without: &[u8],
     ) -> Option<(faraday_keys::Held<Record>, String)> {
         let c = self.compute();
         let key = self.session.keys.info(k)?;
@@ -1978,6 +2016,7 @@ impl Faraday {
             k,
             pending,
             with_passphrase,
+            without,
             faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
         )?;
         Some((record, label))
@@ -3823,11 +3862,13 @@ impl Faraday {
                 id,
                 pending: Vec::new(),
                 why: Vec::new(),
+                moved: None,
             })
         });
         if hold.id != id {
             hold.pending.clear();
             hold.why.clear();
+            hold.moved = None;
             hold.id = id;
         }
         hold.pending.push((record, said.to_string()));
@@ -3852,9 +3893,117 @@ impl Faraday {
         let Some(v) = self.vaults.open.iter().position(|o| o.id == hold.id) else {
             return;
         };
-        for (record, said) in hold.pending {
-            self.vault_put_in(v, record, &said);
+        let target = hold.id;
+        // A move's item leaves the original only if that is as it was; if
+        // not, the record is a copy and is said to be one.
+        let leaves = hold.moved.is_some_and(|(from, _, _, version)| {
+            self.vaults.open.iter().any(|o| o.id == from)
+                && self.vaults.store().version(from) == version
+        });
+        // The key's id as it arrives, which a tick left unticked may change.
+        let arrived = hold
+            .moved
+            .and_then(|m| hold.pending.get(m.2))
+            .and_then(|(r, _)| moved_key_id(r.view()));
+        let mut saved = Vec::new();
+        for (k, (record, said)) in hold.pending.into_iter().enumerate() {
+            let stays = hold.moved.is_some_and(|m| m.2 == k) && !leaves;
+            let said = if stays {
+                let name = self.vaults.open[v].label(self.vaults.store());
+                fill(EN.vault_copied_to, &[&name])
+            } else {
+                said
+            };
+            saved.push(self.vault_put_in(v, record, &said));
         }
+        // A move's record is saved: only then does it leave the original.
+        if let Some((from, at, n, _)) = hold.moved
+            && leaves
+            && saved.get(n).copied().unwrap_or(false)
+        {
+            self.vault_moved(from, at, target, arrived);
+        }
+    }
+
+    /// The record of a move waits at the dialog just put up for vault `to`:
+    /// the item at place `at` of vault `from` leaves it when the dialog's
+    /// **Continue** saves the record.
+    pub(crate) fn vault_hold_move(&mut self, to: VaultId, from: VaultId, at: usize) {
+        let version = self.vaults.store().version(from);
+        if let Some(hold) = self.vaults.state.save_hold.as_mut()
+            && hold.id == to
+        {
+            let n = hold.pending.len().saturating_sub(1);
+            hold.moved = Some((from, at, n, version));
+        }
+    }
+
+    /// Costs what `record_tokens` costs. The item at place `at` of open
+    /// vault `from` was put into vault `to`: it leaves `from`, which is not
+    /// sealed before `to` is (`docs/VAULT.md` §7.2), and a wallet flow that
+    /// kept what `to` held before it keeps this record too. `arrived` is the id of the key record as it reached `to`, if it is
+    /// one (not the original's: a Keep tick unticked changes what is stored).
+    pub(crate) fn vault_moved(
+        &mut self,
+        from: VaultId,
+        at: usize,
+        to: VaultId,
+        arrived: Option<[u8; 32]>,
+    ) {
+        // What a backup flow knows the record by, if it is one it keeps.
+        let subject = self.moved_subject_at(from, at);
+        // What the record is, for a wallet flow that keeps what a vault held
+        // before it: worked out while it is still in `from`.
+        let c = self.compute();
+        let mut tokens: Vec<String> = self
+            .vaults
+            .records(from)
+            .get(at)
+            .map(|r| self.record_tokens(&c, r))
+            .unwrap_or_default();
+        // As it arrived (a Keep tick unticked changes what is stored).
+        if let Some(id) = arrived
+            && let Some(open) = self.vaults.open.iter().find(|o| o.id == to)
+        {
+            for (_, r) in self.vaults.records(open.id).iter() {
+                if moved_key_id(r) == Some(id) {
+                    tokens.extend(self.record_tokens(&c, r));
+                }
+            }
+        }
+        if !self.vaults.edit(from, |s| s.remove(from, at)) {
+            return;
+        }
+        self.vaults.changed(from);
+        // Gone from `from`: moved there no longer.
+        self.vaults.state.moved_forget(from, subject.clone());
+        self.vaults.state.moved_add(from, to, subject);
+        // The flows that keep what the target held before them keep this
+        // too: the record is the person's, not theirs to take out.
+        let salt = self
+            .vaults
+            .open
+            .iter()
+            .find(|o| o.id == to)
+            .map(|o| o.vault_id());
+        if let Some(salt) = salt {
+            self.flows.held_before_add(salt, &tokens);
+            self.backup.before_add(salt, &tokens);
+        }
+    }
+
+    /// What a backup flow knows the record at place `at` of vault `id` by,
+    /// if it is one it keeps.
+    fn moved_subject_at(&self, id: VaultId, at: usize) -> Option<String> {
+        self.vaults.store().records(id).get(at).and_then(|r| {
+            [
+                crate::backup_flow::Kind::Gpg,
+                crate::backup_flow::Kind::SecureBoot,
+            ]
+            .into_iter()
+            .find(|k| r.kind() == k.record_kind())
+            .and_then(|k| crate::backup_flow::subject_of(k, r))
+        })
     }
 
     /// The hold's dialog gone another way (a sheet over it, the vault
@@ -3976,5 +4125,16 @@ impl Faraday {
         ) {
             self.sheet = None;
         }
+    }
+}
+
+/// Costs a SHA-256. The id of a key record or a codex32 share record as it
+/// arrived in a vault (`None` for any other record): by it a wallet flow
+/// that keeps what the vault held knows a moved seed or share.
+pub(crate) fn moved_key_id(r: faraday_keys::vault::RecordView<'_>) -> Option<[u8; 32]> {
+    match r.kind() {
+        faraday_vault::records::kind::KEY => faraday_keys::vault::key_record_id(r),
+        faraday_vault::records::kind::CODEX32_SHARE => faraday_keys::vault::share_record_id(r),
+        _ => None,
     }
 }

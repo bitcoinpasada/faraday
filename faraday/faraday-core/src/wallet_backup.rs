@@ -624,6 +624,8 @@ pub struct BackupState {
     /// The open item, and whether it was done when last looked at: an
     /// item that becomes done moves on to the next.
     pub seen: Option<(u8, bool)>,
+    /// What the person unticked on the Keep sheet in this backup.
+    pub keeps: crate::vault::keep::Left,
 }
 
 /// The wallet backup checklist (`Screen::Backup`): the backup under way,
@@ -638,6 +640,16 @@ pub(crate) struct WalletBackupArea {
 }
 
 impl WalletBackupArea {
+    /// What the person unticked in the backup under way.
+    pub(crate) fn keeps(&self) -> Option<&crate::vault::keep::Left> {
+        self.state.as_ref().map(|s| &s.keeps)
+    }
+
+    /// The same, to change.
+    pub(crate) fn keeps_mut(&mut self) -> Option<&mut crate::vault::keep::Left> {
+        self.state.as_mut().map(|s| &mut s.keeps)
+    }
+
     /// The backup under way, while it is open.
     pub(crate) fn state(&self) -> Option<&BackupState> {
         self.state.as_ref()
@@ -1180,6 +1192,21 @@ impl WalletBackupArea {
     pub(crate) fn note_before(&mut self, salt: [u8; 32], held: Vec<String>) {
         if let Some(b) = self.state.as_mut() {
             b.before.push((salt, held));
+        }
+    }
+
+    /// `tokens`, moved into the vault of salt `salt` since this backup
+    /// saved into it, added to what that vault held before.
+    pub(crate) fn before_add(&mut self, salt: [u8; 32], tokens: &[String]) {
+        let Some(b) = self.state.as_mut() else {
+            return;
+        };
+        if let Some((_, held)) = b.before.iter_mut().find(|(s, _)| *s == salt) {
+            for t in tokens {
+                if !held.contains(t) {
+                    held.push(t.clone());
+                }
+            }
         }
     }
 
@@ -2272,8 +2299,9 @@ impl Faraday {
     /// Costs what `backup_vault_wanted`, `vault_holds_seed`,
     /// `vault_has_wallet` and the rest it calls cost. Whether open vault
     /// `o` holds what the plan puts in vault `v`, no seed only another
-    /// vault is to hold, and no codex32 string of the plan's seeds the plan
-    /// does not keep there (of another set, or at another index).
+    /// vault is to hold, and no codex32 string a save would take out (one
+    /// the plan keeps in another vault and nothing else holds, one it lists
+    /// in no vault, stays and does not count).
     pub(crate) fn backup_open_fits(&self, c: &Compute, v: usize, o: usize) -> bool {
         use crate::vault::screen::vault_has_wallet;
         let Some(b) = self.backup.state() else {

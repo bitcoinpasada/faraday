@@ -61,6 +61,14 @@ impl Answers {
         for f in &self.codex32 {
             out.push_str(&f.to_line());
         }
+        // The sets rotated away (`docs/CODEX32.md` §9.7): seed, threshold
+        // and identifier, never a string.
+        for (i, k, id) in &self.rotated {
+            out.push_str(&format!(
+                "rotated {i} {k} {}\n",
+                id.iter().map(|&b| char::from(b)).collect::<String>()
+            ));
+        }
         out
     }
 }
@@ -367,6 +375,20 @@ impl Answers {
                     a.codex32.push(f);
                     continue;
                 }
+                // A set of a seed rotated away (`docs/CODEX32.md` §9.7).
+                "rotated" => {
+                    let mut parts = value.split(' ');
+                    let seed: usize = parts.next()?.parse().ok()?;
+                    let k: u8 = parts.next()?.parse().ok()?;
+                    let id = <[u8; 4]>::try_from(parts.next()?.as_bytes()).ok()?;
+                    if seed >= shape.seeds.len() || k == 1 || k > 9 || parts.next().is_some() {
+                        return None;
+                    }
+                    if !a.rotated.contains(&(seed, k, id)) {
+                        a.rotated.push((seed, k, id));
+                    }
+                    continue;
+                }
                 // A SeedQR drawn in part (§14.7 item 3).
                 "part" => {
                     let (p, i) = value.split_once(' ')?;
@@ -529,6 +551,16 @@ impl Answers {
         // A set that exists stays.
         for i in unmade {
             a.set_c32(shape, i, None);
+        }
+        // A set rotated away is a real identifier and not the plan's own
+        // (its strings would be taken out at a save); the lines may come
+        // before the seed's `codex32` line, so this is checked last.
+        if a.rotated.iter().any(|&(i, _, id)| {
+            !id.iter().all(|c| codex32::CHARSET.contains(c))
+                || a.c32(i)
+                    .is_some_and(|f| f.identifier.eq_ignore_ascii_case(&id))
+        }) {
+            return None;
         }
         Some(a)
     }

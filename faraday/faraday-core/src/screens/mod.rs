@@ -375,6 +375,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::VaultPassphrase | Sheet::VaultMemory => {
                 Some(Action::Vault(crate::vault::VaultAction::FormCancel))
             }
+            Sheet::CopyTo => Some(Action::Vault(crate::vault::VaultAction::CopyCancel)),
+            Sheet::SaveKeeps => Some(Action::Vault(crate::vault::VaultAction::KeepCancel)),
+            Sheet::Trim => Some(Action::Vault(crate::vault::VaultAction::TrimCancel)),
             // A new touchscreen's sheet is the whole screen: only its
             // Ignore keeps the device out.
             Sheet::NewInput => app
@@ -435,6 +438,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::SaveAlso => crate::vault::load_screen::save_also(app, ui, w, h),
             Sheet::VaultPassphrase => crate::vault::rekey_screen::passphrase_dialog(app, ui, w, h),
             Sheet::VaultMemory => crate::vault::rekey_screen::memory_dialog(app, ui, w, h),
+            Sheet::CopyTo => crate::vault::copy_screen::draw(app, ui, w, h),
+            Sheet::SaveKeeps => crate::vault::copy_screen::draw_keep(app, ui, w, h),
+            Sheet::Trim => crate::vault::trim::draw(app, ui, w, h),
             Sheet::ChildRecord => crate::bip85::screen::record_dialog(app, ui, w, h),
             Sheet::ChildNotice => crate::screens::create::child_notice(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),

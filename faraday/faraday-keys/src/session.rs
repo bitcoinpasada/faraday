@@ -1115,13 +1115,16 @@ impl Keys {
     /// or the master seed of a key loaded from one, its label, `flags`
     /// when given, its BIP-39 passphrase when `with_passphrase`, and its
     /// codex32 set's plain facts when it has a set (`docs/CODEX32.md`
-    /// §9.4, no string). `None` for a key with neither words nor a seed.
+    /// §9.4, no string) and its BIP-85 origin when it has one, except the
+    /// fields numbered in `without`, which the person left out. `None` for
+    /// a key with neither words nor a seed.
     pub fn key_record(
         &self,
         c: &Compute,
         i: usize,
         flags: Option<u8>,
         with_passphrase: bool,
+        without: &[u8],
         _why: Reveal,
     ) -> Option<Held<faraday_vault::Record>> {
         use faraday_vault::records::{self, field, kind};
@@ -1143,20 +1146,22 @@ impl Keys {
         if with_passphrase && let Some(p) = e.key.passphrase.as_ref() {
             record.push(field::KEY_PASSPHRASE, p.as_bytes());
         }
-        if let Some(set) = e
-            .info
-            .codex32
-            .as_ref()
-            .and_then(faraday_vault::codex32::set_payload)
+        if !without.contains(&field::KEY_CODEX32)
+            && let Some(set) = e
+                .info
+                .codex32
+                .as_ref()
+                .and_then(faraday_vault::codex32::set_payload)
         {
             record.push(field::KEY_CODEX32, &set);
         }
         // Recorded as a BIP-85 child: only here, in the vault (F166).
-        if let Some(of) = e
-            .info
-            .child_of
-            .as_ref()
-            .and_then(faraday_vault::child::payload)
+        if !without.contains(&field::KEY_CHILD)
+            && let Some(of) = e
+                .info
+                .child_of
+                .as_ref()
+                .and_then(faraday_vault::child::payload)
         {
             record.push(field::KEY_CHILD, &of);
         }

@@ -619,13 +619,11 @@ pub enum Sheet {
     SeedRead,
     /// **Sweep a private key**: a WIF's addresses, its PSBT reviewed and signed (`seeds::sweep`).
     Sweep,
-    /// Delete files: chosen files, the free space or the whole files
-    /// partition, asked first (`stick_wipe`).
+    /// Delete files: chosen files, free space or the files partition, asked first (`stick_wipe`).
     Delete,
     /// Zeroing under way: how far, and Stop.
     Zeroing,
-    /// A stick visit's write would go over files already on the stick:
-    /// Replace, Keep both or Cancel (`visit_taken`).
+    /// A stick visit's write would go over files on the stick: Replace, Keep both or Cancel (`visit_taken`).
     Taken,
     /// A vault's write the disk process refused for its name, a file on
     /// the stick having it and nothing proving that file a copy: Hold to
@@ -643,23 +641,20 @@ pub enum Sheet {
     Account,
     /// The wallet a spend's PSBT defines, to register with a hold (F135).
     Register,
-    /// A vault record's Save to a stick: its files, to tick, and Save
-    /// (`docs/BACKUP-FLOW.md` §17.7).
+    /// A vault record's Save to a stick: files to tick (`docs/BACKUP-FLOW.md` §17.7).
     VaultSave,
     /// Cancel pressed in a flow whose ending loses something: what is
     /// lost, **Cancel the flow** and **Keep going** (F51).
     CancelFlow(in_progress::Going),
     /// The same in a key flow opened from Make a new wallet (`docs/FLOWS.md`, Cancel).
     CancelKey,
-    /// A file row's ⋮ menu (`docs/FLOWS.md` decision 61): a popup under
-    /// the ⋮ on `wide`, a sheet on the small panel.
+    /// A file row's ⋮ menu (`docs/FLOWS.md` decision 61): popup on `wide`, else a sheet.
     FileMenu,
     /// **Rename {name}**: a file For the stick, or one on the stick visited.
     Rename,
     /// A file's Details: name, kind, size and SHA-256.
     Details,
-    /// **Load from {vault}**, after an unlock from the boot sheet or the
-    /// Vaults tab: what to load, ticked (`vault_load`, F62).
+    /// **Load from {vault}**, after an unlock: what to load, ticked (F62).
     UnlockLoad,
     /// **Open this copy?**: an unlock held at an older copy (`vault::OpenHold`).
     OlderCopy,
@@ -669,6 +664,12 @@ pub enum Sheet {
     VaultPassphrase,
     /// **Memory** of the open vault.
     VaultMemory,
+    /// **Copy to another vault**: the open vaults an item can go to.
+    CopyTo,
+    /// **Save into {vault}**: what a seed keeps there.
+    SaveKeeps,
+    /// **Remove the codex32 set** or **the BIP-85 origin** of a seed in an open vault.
+    Trim,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
@@ -677,9 +678,7 @@ pub enum Sheet {
     /// one to load with a passphrase typed now, checked against the
     /// wallet (`vault_load`, F62).
     PassphraseSeeds,
-    /// **Sign with {key}**, from Sign a file's **Sign**: the files chosen,
-    /// the time the signatures will carry with **Set the time**, and the
-    /// hold that signs (F63).
+    /// **Sign with {key}**: the files, the time the signatures carry, the hold that signs (F63).
     GpgSign,
     /// **Mode**, from the pill or Settings' Mode row: the modes this app
     /// offers, the one in use marked (F81, `modes/screen.rs`).
@@ -5391,7 +5390,7 @@ impl Faraday {
     /// something is dropped.
     fn after_input(&mut self) {
         self.stick.note_visit(self.screen == Screen::Visit);
-        // The screen the input left goes on the trail (F77).
+        vault::settle(self);
         self.trail_note();
         // A vault being made or unlocked for another flow: the way back
         // ends when the person leaves for anything else, and a secret

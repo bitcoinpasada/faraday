@@ -1930,12 +1930,32 @@ the vault gains a record type, **15 Codex32 share** (1 the string; 2 the
 key's fingerprint; at most one per index per vault), beside type 13's
 wallet share, with a vector; a vault without it reads as today. A vault
 that holds the seed and also a string of it is allowed and warned
-(below). A vault holds exactly the plan's strings of the plan's set:
-the vault item's save and the backup flow's round put in each string the
-plan keeps there and take out each share record of the seed of another
-set (its header's threshold or identifier not the set's, as after
-**Rotate the set**, §9.7) or at an index the plan does not keep there;
-the item is done only then. A string added to or taken from a vault
+(below). A vault holds the plan's strings of the plan's set, and no
+other the plan keeps elsewhere (owner, 2026-11-05): the vault item's save
+and the backup flow's round put in each string the plan keeps there and
+take out each share record of the seed that the plan keeps in another
+vault and not in this one, and each share record of a set the plan
+records as rotated away (**Rotate the set**, §9.7: only a rotation records
+a set, never a key loaded with another set of the seed), whatever the vault;
+a share the plan lists in no vault stays, as one of another set of the
+seed that the plan never made (its header's threshold or identifier not
+the set's and not a rotated one's), one at an index the plan no longer
+lists (a lower count of shares) and one of a set the plan dropped; a
+share moved in by the person stays the same way. A share the plan
+keeps in another vault goes only where the string is held elsewhere, by
+this session or by another open vault; otherwise it stays as a kept extra,
+the save names the share and that it stays, and the vault's item is done
+without it. The vault the plan keeps the string in stays not done, which
+asks for the string there: its save names the string it lacks, and once
+the string is placed there, the next save of the first vault takes the share
+out. A share of a set recorded as rotated away goes whatever is held, where
+the plan has a made form of that seed with another identifier; a rotated
+line of a seed with no such form takes nothing out. A key loaded with a set the plan lists as rotated away
+leaves the plan's form as it is; the key's facts then name the old set and
+the form the new one. A vault rotated before
+the plan recorded the old set is not cleaned up. The item is done when
+each string the plan keeps there is held and no share a save would take
+out is. A string added to or taken from a vault
 after the lock sends that vault back to be filled and written
 (BACKUP-FLOW §15.8).
 
@@ -2054,14 +2074,19 @@ later one, not this.
      by the flow's doing.
   4. The new set: its k and n chosen again (the old ones ticked), its
      identifier typed again (a new one, so old and new strings cannot be
-     mixed by mistake; the old identifier is refused), its initial
+     mixed by mistake; the current identifier and any rotated away
+     before are refused), its initial
      shares from the person's dice (§5.1) or, since the seed already
      exists, from Faraday's randomness as §5.4 splits an existing seed.
      S is the seed, unchanged: the wallet, its addresses and its coins
      do not change.
   5. The checklist opens on the new strings to place and check (§9.4);
      the old chips show "Destroyed" and leave the board once the new set
-     is placed. The set's facts are replaced by the new set's.
+     is placed. The set's facts are replaced by the new set's, and the plan
+     records the old set, in the rotation and nowhere else (its threshold
+     and identifier, a `rotated` line of the plan's text) so that a save takes its strings, and no other
+     set's, out of every vault: the old set dies once every held string
+     is destroyed, a string kept in a vault included.
 
 A rotation is shown as a worksheet like any split (§6.4): the new set
 is S and k − 1 random strings, interpolated, and every cell opens.

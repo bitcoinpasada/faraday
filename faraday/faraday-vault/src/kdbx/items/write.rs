@@ -9,8 +9,8 @@ use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use super::{
-    Body, ENTRY_FIELDS, FORMAT, KEEPASS, KINDS, PEM_FIELDS, PLAN, SIGNED, STANDARD, count_uuid,
-    custom_record, find_mut, forms, has_same_field, named, named_custom, text,
+    Body, ENTRY_FIELDS, FORMAT, KEEPASS, KINDS, PEM_FIELDS, PLAN, Read, SIGNED, STANDARD,
+    count_uuid, custom_record, find_mut, forms, has_same_field, named, named_custom, text,
 };
 use crate::kdbx::xml::{Document, Entry, Group};
 use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kind};
@@ -252,20 +252,38 @@ fn locked(doc: &Document) -> Result<(), Unwritable> {
     Ok(())
 }
 
-/// Costs [`super::read`]: the entry with this UUID may be changed: it is
-/// not two, and `read` does not list it as unreadable. Gives how many
-/// entries have the UUID, and the document as `read` gives it.
-fn changeable(c: &Compute, doc: &Document, uuid: &[u8; 16]) -> Result<usize, Unwritable> {
+/// Costs [`super::read`] unless `known` is given: the entry with this UUID
+/// may be changed: it is not two, and `read` does not list it as
+/// unreadable. Gives how many entries have the UUID. `known` is what `read`
+/// gave for the document before the changes of one batch, for an entry no
+/// change of the batch touched before: its answer is the same, without
+/// reading every other entry again.
+fn changeable(
+    c: &Compute,
+    doc: &Document,
+    uuid: &[u8; 16],
+    known: Option<&Read>,
+) -> Result<usize, Unwritable> {
     let n = count_uuid(doc.root(), uuid);
-    let read = super::read(c, doc);
     if n > 1 {
         return Err(Unwritable::Unreadable);
     }
-    if n == 1
-        && read
-            .unreadable
-            .iter()
-            .any(|u| u.uuid.as_ref() == Some(uuid))
+    // An entry that is not there cannot be listed.
+    if n == 0 {
+        return Ok(n);
+    }
+    let owned;
+    let read = match known {
+        Some(r) => r,
+        None => {
+            owned = super::read(c, doc);
+            &owned
+        }
+    };
+    if read
+        .unreadable
+        .iter()
+        .any(|u| u.uuid.as_ref() == Some(uuid))
     {
         return Err(Unwritable::Unreadable);
     }
@@ -285,7 +303,8 @@ fn custom_readable(doc: &Document, key: &str) -> Result<(), Unwritable> {
 }
 
 /// Costs a parse of every seed's words and wallet's policy (it runs
-/// [`super::read`]) and of a wallet's text: writes `body` into the entry with
+/// [`super::read`], unless [`put_known`] is given what it read) and of a
+/// wallet's text: writes `body` into the entry with
 /// `place.uuid`, or into a new entry with that UUID in `place.group` (a
 /// person's entry in the root group). An existing entry keeps everything
 /// but the fields and the custom data its kind names, and its last
@@ -302,11 +321,26 @@ pub fn put(
     place: &Place<'_>,
     body: &Body,
 ) -> Result<(), Unwritable> {
+    put_known(c, doc, place, body, None)
+}
+
+/// Costs what [`put`] costs, less the read of the document when `known` is
+/// given: [`put`], reading the document for the entry's readability only when
+/// `known` is not given: the `read` of the document before the batch of
+/// changes this is one of, valid for an entry no earlier change of the
+/// batch touched.
+pub fn put_known(
+    c: &Compute,
+    doc: &mut Document,
+    place: &Place<'_>,
+    body: &Body,
+    known: Option<&Read>,
+) -> Result<(), Unwritable> {
     locked(doc)?;
     if doc.root().ambiguous().is_some() {
         return Err(Unwritable::Unreadable);
     }
-    changeable(c, doc, &place.uuid)?;
+    changeable(c, doc, &place.uuid, known)?;
     let (fl, cd) = fields_for(c, body, place.title)?;
     let k = body.kind();
     let name = KINDS.iter().find(|(_, n)| *n == k).map(|(n, _)| *n);
@@ -397,11 +431,22 @@ pub fn put(
 /// a read-only vault, when the UUID is in the document more than once and
 /// when `read` lists the entry as unreadable.
 pub fn remove(c: &Compute, doc: &mut Document, uuid: &[u8; 16]) -> Result<bool, Unwritable> {
+    remove_known(c, doc, uuid, None)
+}
+
+/// Costs what [`remove`] costs, less the read of the document when `known`
+/// is given. [`remove`], with `known` as for [`put_known`].
+pub fn remove_known(
+    c: &Compute,
+    doc: &mut Document,
+    uuid: &[u8; 16],
+    known: Option<&Read>,
+) -> Result<bool, Unwritable> {
     fn go(g: &mut Group, uuid: &[u8; 16]) -> bool {
         g.remove_entry(uuid).unwrap_or(false) || g.groups_mut().any(|s| go(s, uuid))
     }
     locked(doc)?;
-    if changeable(c, doc, uuid)? == 0 {
+    if changeable(c, doc, uuid, known)? == 0 {
         return Ok(false);
     }
     Ok(go(doc.root_mut(), uuid))

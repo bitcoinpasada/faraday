@@ -200,6 +200,14 @@ impl Carried {
         self.0.push(Piece::Secret(plain));
     }
 
+    /// Whether anything but XML whitespace was kept.
+    fn has_content(&self) -> bool {
+        self.0.iter().any(|p| match p {
+            Piece::Bytes(b) => b.iter().any(|c| !c.is_ascii_whitespace()),
+            Piece::Secret(_) => true,
+        })
+    }
+
     fn append(&mut self, other: Carried) {
         for piece in other.0 {
             match piece {
@@ -743,6 +751,21 @@ impl Entry {
     fn editable(&self) -> R<()> {
         self.ambiguous
             .map_or(Ok(()), |why| Err(Refused::Structure(why)))
+    }
+
+    /// Whether the entry holds elements Faraday does not read and keeps as
+    /// they were: attachments, tags, an icon, colours, AutoType and the
+    /// like, and custom data whose key does not begin `faraday.`. Its
+    /// times and its fields are not counted.
+    pub fn carries_unread(&self) -> bool {
+        self.frame
+            .parts
+            .iter()
+            .any(|p| matches!(p, EntryPart::Carried(c) if c.has_content()))
+            || self.custom.frame.parts.iter().any(|p| match p {
+                CdPart::Carried(c) => c.has_content(),
+                CdPart::Item(pair) => !pair.key.starts_with(b"faraday."),
+            })
     }
 
     /// The entry's custom data.

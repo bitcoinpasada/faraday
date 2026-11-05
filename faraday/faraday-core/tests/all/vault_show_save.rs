@@ -608,6 +608,9 @@ fn a_codex32_key_saved_by_bitcoin_key_reads_back_from_the_vault_as_itself() {
     assert!(vaults_page_save(&app), "the Vaults page offers Save");
     let (records, _) = vault_now(&app);
     app.press(save);
+    // A key with a codex32 set asks what to keep; both stay ticked.
+    assert_eq!(app.sheet, Some(Sheet::SaveKeeps));
+    app.press(Action::Vault(V::KeepSave));
     assert_eq!(vault_now(&app).0, records + 1, "one record more");
     assert!(
         !vaults_page_save(&app),

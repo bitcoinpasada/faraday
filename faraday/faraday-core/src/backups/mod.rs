@@ -521,6 +521,9 @@ impl Record {
     }
 }
 
+/// A codex32 string the plan keeps: its seed and its share index.
+type Pair = (usize, usize);
+
 impl Faraday {
     /// Costs what `backup_public_names_for_now` and `plan_mapped` cost. The
     /// map of wallet `wallet` under answers `a`, as a record keeps it. `wi`
@@ -1303,7 +1306,7 @@ impl Faraday {
             identifier: id,
             unknown: 0,
         };
-        answers.set_c32(&shape, i, Some(fixed.clone()));
+        answers.rotate_c32(&shape, i, fixed.clone());
         let mapped = plan::Mapped::of(c, &shape, &answers);
         let paper = plan::codex32::paper_strings(&answers, &mapped, i);
         let strings = fixed
@@ -1647,7 +1650,11 @@ impl Faraday {
             SetStep::Scheme(k, n) => {
                 let id = <[u8; 4]>::try_from(typed.as_bytes())
                     .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
-                if id == form.identifier {
+                let was = self
+                    .backup
+                    .state()
+                    .is_some_and(|b| b.answers.rotated_id(i, id));
+                if id == form.identifier || was {
                     return Err(Some(EN.c32_set_identifier_old.to_string()));
                 }
                 // A new set is a fresh secret: none in the demo.
@@ -1856,23 +1863,23 @@ impl Faraday {
             .find_map(|(i, j)| {
                 let k = list.get(i)?.1?;
                 let index = plan::codex32::CHARSET[j];
-                if self.session.keys.holds_codex32(k, index) {
+                let form = b.answers.c32(i)?;
+                if self.session_holds_c32(k, (form.k, form.identifier), index) {
                     return None;
                 }
-                let id = b.answers.c32(i)?.id_text();
+                let id = form.id_text();
                 Some((char::from(index).to_ascii_uppercase(), id))
             })
     }
 
     /// Costs a map of the plan, and a copy of each record staged. What the
     /// flow's round does to open vault `o`, its plan's vault `v`, so it
-    /// holds exactly the codex32 strings the plan `(shape, answers)` keeps
+    /// holds the codex32 strings the plan `(shape, answers)` keeps
     /// there, of the plan's set (`docs/CODEX32.md` §9.5): into `add`, each
     /// such string the vault and `add` lack, as a type 15 record, from an
     /// open vault's record of it or the string this session holds; into
     /// `out`, the places in `o` of the share records of the plan's codex32
-    /// seeds the plan does not keep there, of another set (its threshold or
-    /// identifier) or at another index. `Err`: the first string that is
+    /// seeds the plan keeps in another vault and not there. `Err`: the first string that is
     /// not here, to be typed in place (`Faraday::c32_round_type`).
     pub(crate) fn c32_round_records(
         &self,
@@ -1889,8 +1896,10 @@ impl Faraday {
                 .get(s)
                 .and_then(|x| read_hex4(&x.name.to_lowercase()))
         };
-        let strings = plan::Mapped::of(c, shape, answers).vault_strings(answers, v);
-        out.extend(self.c32_strays(answers, o, &fp_of, &strings));
+        let mapped = plan::Mapped::of(c, shape, answers);
+        let strings = mapped.vault_strings(answers, v);
+        let elsewhere = Self::c32_elsewhere(&mapped, shape, answers, v);
+        out.extend(self.c32_strays(answers, o, &fp_of, (&strings, &elsewhere)));
         for (s, j) in strings {
             let (Some(f), Some(form)) = (fp_of(s), answers.c32(s)) else {
                 continue;
@@ -1917,7 +1926,7 @@ impl Faraday {
                         .records(open.id)
                         .iter()
                         .find(|(_, r)| here(*r))?;
-                    self.vaults.store().stage(open.id, k, None)
+                    self.vaults.store().stage(open.id, k, &[])
                 })
                 .or_else(|| {
                     let k = self.session.keys.position_of(f)?;
@@ -2065,18 +2074,39 @@ impl Faraday {
 
     /// A lookup per record. The places in open vault `o` of the codex32
     /// share records of a seed with a codex32 form on the plan `answers`
-    /// (its key's fingerprint by `fp_of`) that are not among `strings`,
-    /// the (seed, index) the plan keeps in that vault, of the plan's set:
-    /// a string of another set of the seed, or at an index the plan does
-    /// not keep there (`docs/CODEX32.md` §9.5). A vault holds exactly the
-    /// plan's strings.
+    /// (its key's fingerprint by `fp_of`) that the save takes out
+    /// (`docs/CODEX32.md` §9.5): a string of `elsewhere`, the (seed,
+    /// index) the plan keeps in its other vaults, of the plan's set, that
+    /// is not among `strings`, the ones it keeps in this vault; and any
+    /// share of a set of the seed that the plan records as rotated away
+    /// (`answers.rotated`), whatever the vault. A share the plan lists in
+    /// no vault, of a set it never rotated away or at another index, is
+    /// not the plan's own and stays.
     pub(crate) fn c32_strays(
         &self,
         answers: &plan::Answers,
         o: usize,
         fp_of: &dyn Fn(usize) -> Option<[u8; 4]>,
-        strings: &[(usize, usize)],
+        sets: (&[Pair], &[Pair]),
     ) -> Vec<usize> {
+        self.c32_strays_all(answers, o, fp_of, sets)
+            .into_iter()
+            .filter_map(|(k, takes)| takes.then_some(k))
+            .collect()
+    }
+
+    /// A lookup per record. As [`Faraday::c32_strays`], each with whether
+    /// the save takes it out: a share of a set rotated away always goes;
+    /// one the plan keeps elsewhere goes only when this session holds the
+    /// string or another open vault holds it, so that the string is not
+    /// lost with the save (`docs/CODEX32.md` §9.5).
+    pub(crate) fn c32_strays_all(
+        &self,
+        answers: &plan::Answers,
+        o: usize,
+        fp_of: &dyn Fn(usize) -> Option<[u8; 4]>,
+        (strings, elsewhere): (&[Pair], &[Pair]),
+    ) -> Vec<(usize, bool)> {
         use faraday_keys::vault::codex32_share_is;
         let Some(open) = self.vaults.open.get(o) else {
             return Vec::new();
@@ -2084,20 +2114,69 @@ impl Faraday {
         self.vaults
             .records(open.id)
             .of(kind::CODEX32_SHARE)
-            .filter(|(_, r)| {
-                answers.codex32.iter().any(|f| {
-                    let Some(fp) = fp_of(f.seed) else {
-                        return false;
-                    };
-                    let set = (f.k, f.identifier);
-                    r.public(field::CODEX32_KEY) == Some(&fp[..])
-                        && !strings.iter().any(|&(x, j)| {
-                            x == f.seed
-                                && codex32_share_is(*r, fp, set, Some(plan::codex32::CHARSET[j]))
-                        })
+            .filter_map(|(k, r)| {
+                // A rotated set counts only where the plan has a made form of
+                // that seed with another identifier: a line naming a seed
+                // with no form is read, and takes nothing out.
+                let old = answers.rotated.iter().any(|&(x, k, id)| {
+                    answers
+                        .c32(x)
+                        .is_some_and(|f| !f.identifier.eq_ignore_ascii_case(&id))
+                        && fp_of(x).is_some_and(|fp| codex32_share_is(r, fp, (k, id), None))
+                });
+                if old {
+                    return Some((k, true));
+                }
+                elsewhere.iter().find_map(|&(x, j)| {
+                    if strings.contains(&(x, j)) {
+                        return None;
+                    }
+                    let (fp, f) = (fp_of(x)?, answers.c32(x)?);
+                    let index = plan::codex32::CHARSET[j];
+                    codex32_share_is(r, fp, (f.k, f.identifier), Some(index))
+                        .then(|| (k, self.c32_placeable(fp, (f.k, f.identifier), index, o)))
                 })
             })
-            .map(|(k, _)| k)
+            .collect()
+    }
+
+    /// A lookup. Whether this session holds the string at share index
+    /// `index` of the set `set` (threshold and identifier) of session key
+    /// `k`: the key's facts must name that set, as papers of another set
+    /// loaded as the key hold strings that are not it.
+    pub(crate) fn session_holds_c32(&self, k: usize, set: (u8, [u8; 4]), index: u8) -> bool {
+        self.session
+            .keys
+            .info(k)
+            .and_then(|i| i.codex32.as_ref())
+            .is_some_and(|f| (f.threshold, f.identifier) == set)
+            && self.session.keys.holds_codex32(k, index)
+    }
+
+    /// A lookup. Whether the codex32 string at share index `index` of the
+    /// set `set` of the key with fingerprint `fp` is held by this session
+    /// or by an open vault other than `o`.
+    fn c32_placeable(&self, fp: [u8; 4], set: (u8, [u8; 4]), index: u8, o: usize) -> bool {
+        self.session
+            .keys
+            .position_of(fp)
+            .is_some_and(|k| self.session_holds_c32(k, set, index))
+            || self.vaults.open.iter().enumerate().any(|(w, open)| {
+                w != o && self.vaults.store().holds_codex32(open.id, fp, set, index)
+            })
+    }
+
+    /// Costs what `vault_strings` costs. The codex32 strings of `mapped`
+    /// that the plan keeps in its vaults other than `v`.
+    pub(crate) fn c32_elsewhere(
+        mapped: &plan::Mapped,
+        shape: &plan::Shape,
+        answers: &plan::Answers,
+        v: usize,
+    ) -> Vec<(usize, usize)> {
+        (0..answers.vault_count(shape))
+            .filter(|&w| w != v)
+            .flat_map(|w| mapped.vault_strings(answers, w))
             .collect()
     }
 
@@ -2159,10 +2238,52 @@ impl Faraday {
     }
 
     /// Costs what `plan_mapped` costs. The places in open vault `o` of the
-    /// codex32 share records Back up's plan does not keep in its vault `v`
-    /// ([`Faraday::c32_strays`]): of a codex32 seed of the plan, of
-    /// another set or at an index the plan does not keep there.
+    /// codex32 share records Back up's plan keeps in another vault than
+    /// its vault `v` and not in `v`, and those of a set the plan records
+    /// as rotated away ([`Faraday::c32_strays`]).
     pub(crate) fn backup_vault_c32_strays(&self, c: &Compute, o: usize, v: usize) -> Vec<usize> {
+        self.backup_vault_c32_strays_all(c, o, v)
+            .into_iter()
+            .filter_map(|(k, takes)| takes.then_some(k))
+            .collect()
+    }
+
+    /// Costs what `backup_vault_c32_strays_all` costs. The share index
+    /// (upper case) and the set's identifier of each codex32 share record
+    /// in open vault `o` that the plan keeps in another vault and that a
+    /// save leaves, as nothing else holds the string.
+    pub(crate) fn backup_vault_c32_left(
+        &self,
+        c: &Compute,
+        o: usize,
+        v: usize,
+    ) -> Vec<(char, String)> {
+        let Some(open) = self.vaults.open.get(o) else {
+            return Vec::new();
+        };
+        let records = self.vaults.records(open.id);
+        self.backup_vault_c32_strays_all(c, o, v)
+            .into_iter()
+            .filter(|&(_, takes)| !takes)
+            .filter_map(|(k, _)| {
+                let (_, id, j) =
+                    faraday_keys::vault::codex32_share_header(records.iter().nth(k)?.1)?;
+                Some((
+                    char::from(j).to_ascii_uppercase(),
+                    String::from_utf8_lossy(&id).into_owned(),
+                ))
+            })
+            .collect()
+    }
+
+    /// Costs what `backup_vault_c32_strays` costs. Each of its places with
+    /// whether the save takes the record out ([`Faraday::c32_strays_all`]).
+    pub(crate) fn backup_vault_c32_strays_all(
+        &self,
+        c: &Compute,
+        o: usize,
+        v: usize,
+    ) -> Vec<(usize, bool)> {
         let Some(b) = self
             .backup
             .state()
@@ -2171,17 +2292,16 @@ impl Faraday {
             return Vec::new();
         };
         let shape = self.plan_shape_now(b.wallet);
-        let strings = self
-            .kept
-            .plan_mapped(c, &shape, &b.answers)
-            .vault_strings(&b.answers, v);
+        let mapped = self.kept.plan_mapped(c, &shape, &b.answers);
+        let strings = mapped.vault_strings(&b.answers, v);
+        let elsewhere = Self::c32_elsewhere(&mapped, &shape, &b.answers, v);
         let fp_of = |s: usize| {
             shape
                 .seeds
                 .get(s)
                 .and_then(|x| read_hex4(&x.name.to_lowercase()))
         };
-        self.c32_strays(&b.answers, o, &fp_of, &strings)
+        self.c32_strays_all(&b.answers, o, &fp_of, (&strings, &elsewhere))
     }
 
     /// Whether open vault `o` keeps the codex32 share record at index
@@ -2331,6 +2451,7 @@ impl Faraday {
         self.sheet = h.sheet;
         if a != crate::vault::VaultAction::OlderOpen {
             self.vaults.older_close(h);
+            crate::vault::copy::drop_wait(self);
             self.flow_unlock_given_up();
             return;
         }

@@ -1260,12 +1260,31 @@ impl Faraday {
                     let from = self.vaults.open.get(h)?.id;
                     find(self, h).into_iter().find_map(|at| {
                         let r = self.vaults.records(from).get(at)?;
+                        // The facts the person left out of this seed stay
+                        // out of the copy.
+                        // Looked up by the record as it will be written: the
+                        // Keep sheet asked about it so, without the passphrase
+                        // where the plan keeps that apart.
+                        let written = if has_pass(r) && !want_pass {
+                            Some(base.clone())
+                        } else {
+                            key_fingerprint(&c, self, r)
+                        };
+                        let mut left = written
+                            .and_then(|t| crate::vault::keep::fp_bytes(&t))
+                            .map(|fp| {
+                                crate::vault::keep::left_out_fp(
+                                    self,
+                                    crate::vault::keep::Scope::Flow(i),
+                                    fp,
+                                )
+                            })
+                            .unwrap_or_default();
                         if has_pass(r) == want_pass {
-                            self.vaults.store().stage(from, at, None)
+                            self.vaults.store().stage(from, at, &left)
                         } else if !want_pass {
-                            self.vaults
-                                .store()
-                                .stage(from, at, Some(field::KEY_PASSPHRASE))
+                            left.push(field::KEY_PASSPHRASE);
+                            self.vaults.store().stage(from, at, &left)
                         } else {
                             None
                         }
@@ -1458,7 +1477,7 @@ impl Faraday {
                 let found = self.vaults.open.iter().find_map(|open| {
                     self.vaults.records(open.id).iter().find_map(|(k, r)| {
                         if here(r) {
-                            return self.vaults.store().stage(open.id, k, None);
+                            return self.vaults.store().stage(open.id, k, &[]);
                         }
                         if !r.has(field::KEY_PASSPHRASE) {
                             return None;
@@ -1516,6 +1535,38 @@ impl Faraday {
             }
             work.push(w);
         }
+        // A seed to be written with a codex32 set or a BIP-85 origin,
+        // from a holder's copy or typed back, asks first; Save comes
+        // back here (`docs/VAULT.md` §7).
+        let mut asks = Vec::new();
+        for w in &work {
+            for r in &w.add {
+                let v = r.view();
+                let fields: Vec<u8> = [field::KEY_CODEX32, field::KEY_CHILD]
+                    .into_iter()
+                    .filter(|&n| v.has(n))
+                    .collect();
+                if v.kind() != rkind::KEY || fields.is_empty() {
+                    continue;
+                }
+                let Some(fp) =
+                    key_fingerprint(&c, self, v).and_then(|t| crate::vault::keep::fp_bytes(&t))
+                else {
+                    continue;
+                };
+                let label = v.public_text(field::KEY_LABEL).map_or_else(
+                    || fp.iter().map(|b| format!("{b:02x}")).collect(),
+                    str::to_string,
+                );
+                asks.push(crate::vault::keep::Ask { fp, label, fields });
+            }
+            let typed: Vec<usize> = w.typed.iter().map(|t| t.0).collect();
+            asks.extend(crate::vault::keep::asks_for(self, &typed));
+        }
+        let into: Vec<usize> = work.iter().map(|w| w.o).collect();
+        if crate::vault::keep::gate(self, asks, crate::vault::keep::Then::Wallet(i), &into) {
+            return;
+        }
         for w in work {
             let id = self.vaults.open[w.o].id;
             let mut gone = w.out.clone();
@@ -1537,11 +1588,7 @@ impl Faraday {
             }
             self.vaults.set_current(w.o);
             for (k, with) in w.typed {
-                self.vault_act(if with {
-                    V::SaveKeyWithPassphrase(k)
-                } else {
-                    V::SaveKey(k)
-                });
+                self.vault_act(V::SaveKeyKept(k, with, crate::vault::keep::Scope::Flow(i)));
             }
         }
         // The plan record of every vault of the wallet says the plan as it

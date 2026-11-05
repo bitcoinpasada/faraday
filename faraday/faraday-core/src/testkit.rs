@@ -1890,6 +1890,18 @@ pub fn vault_changed(app: &mut crate::Faraday, id: faraday_keys::vault::VaultId)
     app.vaults.changed(id);
 }
 
+/// Locks open vault `o` alone, as the backup flow does: true when it is
+/// closed now.
+pub fn vault_lock_one(app: &mut crate::Faraday, o: usize) -> bool {
+    app.vault_lock_one(o, crate::vault::seal::After::Nothing)
+}
+
+/// The fingerprints of the seeds the Keep sheet asks about.
+pub fn keep_sheet_seeds(app: &crate::Faraday) -> Vec<[u8; 4]> {
+    crate::vault::keep::pending(app)
+        .map_or_else(Vec::new, |s| s.asks.iter().map(|a| a.fp).collect())
+}
+
 /// Shows open vault `o` in the contents.
 pub fn vault_current(app: &mut crate::Faraday, o: usize) {
     app.vaults.set_current(o);

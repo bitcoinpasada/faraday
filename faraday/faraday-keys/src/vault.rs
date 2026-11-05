@@ -928,9 +928,10 @@ struct Slot {
     unreadable: Vec<Unreadable>,
     /// Moves with every edit of the records.
     version: u64,
-    /// What is worked out of each key record's words, by record place;
-    /// dropped by every edit.
-    facts: OnceCell<Vec<Option<Fact>>>,
+    /// What is worked out of each key record's words, by record place,
+    /// beside `records`; dropped for a record when it is changed, so an
+    /// edit of one record leaves the others read.
+    facts: Vec<OnceCell<Option<Fact>>>,
     /// The plaintext the next seal takes; dropped by every edit.
     used: OnceCell<usize>,
     /// How many bytes of UUIDs the next seal takes ([`OpenVaults::uuid_bytes`]),
@@ -951,7 +952,6 @@ impl Slot {
     /// the records is dropped.
     fn changed(&mut self) {
         self.version += 1;
-        self.facts = OnceCell::new();
         self.used = OnceCell::new();
         self.uuids = OnceCell::new();
     }
@@ -960,6 +960,9 @@ impl Slot {
     fn touch(&mut self, i: usize) {
         if let Some(d) = self.dirty.get_mut(i) {
             *d = true;
+        }
+        if let Some(f) = self.facts.get_mut(i) {
+            *f = OnceCell::new();
         }
         self.changed();
     }
@@ -977,24 +980,33 @@ impl Slot {
             .unwrap_or(fv::file::SIZES[fv::file::SIZES.len() - 1])
     }
 
-    /// Costs a parse of each key record's words and a hash of each, the
-    /// first time after a change.
-    fn facts(&self, c: &Compute) -> &Vec<Option<Fact>> {
-        self.facts.get_or_init(|| {
-            self.records
-                .iter()
-                .map(|r| {
-                    let m = (r.kind == kind::KEY)
-                        .then(|| record_words(c, r))
-                        .flatten()?;
-                    Some(Fact {
-                        words: m.word_count(),
-                        language: m.language(),
-                        id: words_id(c, &m),
-                    })
+    /// Costs a parse of key record `i`'s words and a hash, the first time
+    /// after that record is changed. What is worked out of them; `None`
+    /// for another record, or a key record that holds a seed rather than
+    /// words.
+    fn fact(&self, c: &Compute, i: usize) -> Option<&Fact> {
+        self.facts
+            .get(i)?
+            .get_or_init(|| {
+                let r = self.records.get(i)?;
+                let m = (r.kind == kind::KEY)
+                    .then(|| record_words(c, r))
+                    .flatten()?;
+                Some(Fact {
+                    words: m.word_count(),
+                    language: m.language(),
+                    id: words_id(c, &m),
                 })
-                .collect()
-        })
+            })
+            .as_ref()
+    }
+
+    /// Costs what `fact` costs for each record not read since it was
+    /// changed.
+    fn read_facts(&self, c: &Compute) {
+        for i in 0..self.records.len() {
+            self.fact(c, i);
+        }
     }
 
     /// The writes a seal makes: what changed, with the UUIDs new entries
@@ -1427,6 +1439,7 @@ impl OpenVaults {
             origin,
             unreadable,
         } = built;
+        let records_len = records.len();
         self.slots.push(Slot {
             id,
             file,
@@ -1437,7 +1450,7 @@ impl OpenVaults {
             removed: Vec::new(),
             unreadable,
             version: 0,
-            facts: OnceCell::new(),
+            facts: (0..records_len).map(|_| OnceCell::new()).collect(),
             used: OnceCell::new(),
             uuids: OnceCell::new(),
             sealing: false,
@@ -1738,6 +1751,57 @@ impl OpenVaults {
             .is_ok_and(|n| n <= s.limit())
     }
 
+    /// Costs a document write and a read of each item put. Whether a vault
+    /// about to be made, named `label` and `size` bytes of plaintext, has
+    /// room for the records `add` at its first seal after it is made: the
+    /// exact plaintext the seal would take. False for a record the seal
+    /// cannot write.
+    pub fn fits_new<R: Fit>(&self, c: &Compute, label: &str, size: usize, add: &[&R]) -> bool {
+        let mut ops = Vec::new();
+        let mut plan = None;
+        for r in add {
+            if fresh_op(r.record_of(Inside(())), &mut plan, &mut ops).is_err() {
+                return false;
+            }
+        }
+        // Each new entry and group takes a UUID of its own, as the seal's.
+        let mut n = 0u64;
+        let mut next = || {
+            n += 1;
+            let mut u = [0u8; 16];
+            u[..8].copy_from_slice(&n.to_le_bytes());
+            u
+        };
+        let mut groups: Vec<(u8, [u8; 16])> = Vec::new();
+        for op in &mut ops {
+            if let Op::Put {
+                uuid,
+                group_uuid,
+                new: true,
+                record,
+            } = op
+            {
+                *uuid = next();
+                if record.kind != kind::ENTRY {
+                    *group_uuid = match groups.iter().find(|(k, _)| *k == record.kind) {
+                        Some((_, u)) => *u,
+                        None => {
+                            let u = next();
+                            groups.push((record.kind, u));
+                            u
+                        }
+                    };
+                }
+            } else {
+                return false;
+            }
+        }
+        with_changes(c, &self.names, &ops, false, Some(0), |changes| {
+            fv::file::used_new(c, label, changes)
+        })
+        .is_ok_and(|used| used <= size)
+    }
+
     // ---- edits ----
 
     /// Puts `record` last in open vault `id`; its place. `None` for a
@@ -1747,6 +1811,7 @@ impl OpenVaults {
         s.records.push(record.into_record());
         s.origin.push(Origin::New);
         s.dirty.push(true);
+        s.facts.push(OnceCell::new());
         s.changed();
         Some(s.records.len() - 1)
     }
@@ -1761,6 +1826,7 @@ impl OpenVaults {
         s.records.insert(at, record.into_record());
         s.origin.insert(at, Origin::New);
         s.dirty.insert(at, true);
+        s.facts.insert(at, OnceCell::new());
         s.changed();
         true
     }
@@ -1778,6 +1844,31 @@ impl OpenVaults {
         true
     }
 
+    /// Takes the codex32 set (`field::KEY_CODEX32`) or the BIP-85 origin
+    /// (`field::KEY_CHILD`) off key record `i` of open vault `id`, and
+    /// nothing else of it; it is gone from the file at the next seal.
+    /// Does nothing, and says so with `false`, for another field, a record
+    /// that is not a key or lacks the field, a vault that may not be
+    /// changed, or one whose [`OpenVaults::version`] is not `version`
+    /// (something changed since the person was asked).
+    pub fn drop_custom(&mut self, id: VaultId, i: usize, number: u8, version: u64) -> bool {
+        if number != field::KEY_CODEX32 && number != field::KEY_CHILD {
+            return false;
+        }
+        let Some(s) = self.slot_mut(id).filter(|s| s.version == version) else {
+            return false;
+        };
+        let Some(r) = s.records.get_mut(i) else {
+            return false;
+        };
+        if r.kind != kind::KEY || r.field(number).is_none() {
+            return false;
+        }
+        r.set(number, &[]);
+        s.touch(i);
+        true
+    }
+
     /// Takes record `i` out of open vault `id`.
     pub fn remove(&mut self, id: VaultId, i: usize) -> bool {
         let Some(s) = self.slot_mut(id) else {
@@ -1788,6 +1879,7 @@ impl OpenVaults {
         }
         s.records.remove(i);
         s.dirty.remove(i);
+        s.facts.remove(i);
         s.removed.push(s.origin.remove(i));
         s.changed();
         true
@@ -1816,6 +1908,7 @@ impl OpenVaults {
             if gone(view) {
                 s.records.remove(at);
                 s.dirty.remove(at);
+                s.facts.remove(at);
                 s.removed.push(s.origin.remove(at));
                 n += 1;
             } else {
@@ -2075,6 +2168,7 @@ impl OpenVaults {
                 s.records.push(record);
                 s.origin.push(Origin::New);
                 s.dirty.push(true);
+                s.facts.push(OnceCell::new());
                 s.changed();
                 s.records.len() - 1
             }
@@ -2083,15 +2177,15 @@ impl OpenVaults {
     }
 
     /// Copies record `i` of open vault `from` into open vault `to`, last;
-    /// its place there. With `without`, the copy lacks that field (a
-    /// key's stored passphrase). The secrets are copied here, and are
+    /// its place there. With `without`, the copy lacks those fields (a
+    /// key's stored passphrase, its codex32 set or BIP-85 origin). The secrets are copied here, and are
     /// never in the caller's hands.
     pub fn copy_record(
         &mut self,
         from: VaultId,
         i: usize,
         to: VaultId,
-        without: Option<u8>,
+        without: &[u8],
     ) -> Option<usize> {
         let held = self.copy_out(from, i, without)?;
         self.insert(to, held)
@@ -2099,18 +2193,16 @@ impl OpenVaults {
 
     /// A copy of record `i` of open vault `id`, held until it is dropped:
     /// readable as a [`RecordView`], and put into a vault with
-    /// [`OpenVaults::insert`]. With `without`, the copy lacks that field.
-    pub fn copy_out(&self, id: VaultId, i: usize, without: Option<u8>) -> Option<Held<Record>> {
+    /// [`OpenVaults::insert`]. With `without`, the copy lacks those fields.
+    pub fn copy_out(&self, id: VaultId, i: usize, without: &[u8]) -> Option<Held<Record>> {
         let mut r = self.slot(id)?.records.get(i)?.clone();
-        if let Some(n) = without {
-            r.fields.retain(|f| f.number != n);
-        }
+        r.fields.retain(|f| !without.contains(&f.number));
         Some(Held::of(r))
     }
 
     /// A copy of record `i` of open vault `id`, staged to go into a vault
-    /// ([`OpenVaults::insert`]); with `without`, lacking that field.
-    pub fn stage(&self, id: VaultId, i: usize, without: Option<u8>) -> Option<Staged> {
+    /// ([`OpenVaults::insert`]); with `without`, lacking those fields.
+    pub fn stage(&self, id: VaultId, i: usize, without: &[u8]) -> Option<Staged> {
         self.copy_out(id, i, without).map(Staged::Held)
     }
 
@@ -2138,7 +2230,7 @@ impl OpenVaults {
     /// `word_count`, `words_id` and `uuid_bytes` answer.
     pub fn warm(&self, c: &Compute, id: VaultId) {
         if let Some(s) = self.slot(id) {
-            s.facts(c);
+            s.read_facts(c);
             let _ = self.uuid_bytes(id);
         }
     }
@@ -2147,7 +2239,7 @@ impl OpenVaults {
     /// record `i` has; `None` for another record, or a key record that
     /// holds a seed rather than words.
     pub fn word_count(&self, c: &Compute, id: VaultId, i: usize) -> Option<usize> {
-        self.slot(id)?.facts(c).get(i)?.as_ref().map(|f| f.words)
+        self.slot(id)?.fact(c, i).map(|f| f.words)
     }
 
     /// Costs what `word_count` costs. The word list key record `i`'s
@@ -2159,14 +2251,14 @@ impl OpenVaults {
         id: VaultId,
         i: usize,
     ) -> Option<faraday_bip::bip39::Language> {
-        self.slot(id)?.facts(c).get(i)?.as_ref().map(|f| f.language)
+        self.slot(id)?.fact(c, i).map(|f| f.language)
     }
 
     /// Costs what `word_count` costs. What tells key record `i`'s words
     /// from other words ([`WordsId`]); `None` as for `word_count`. A
     /// lookup once the vault's key records are read.
     pub fn words_id(&self, c: &Compute, id: VaultId, i: usize) -> Option<&[u8; 32]> {
-        self.slot(id)?.facts(c).get(i)?.as_ref().map(|f| &*f.id)
+        self.slot(id)?.fact(c, i).map(|f| &*f.id)
     }
 
     /// Costs what `word_count` costs for a record in an open vault, a
@@ -3107,6 +3199,72 @@ impl OpenVaults {
         held.then_some(kind)
     }
 
+    /// Costs `identity` for the source key record and for each key record
+    /// of the target whose fields differ, a PBKDF2 and two elliptic-curve
+    /// multiplications each unless `identity` kept them. Whether open vault
+    /// `to` holds the item record `i` of open vault `from`: a record of its
+    /// kind with every field the same or, for two key records, the same
+    /// identity (a key whose other fields differ). Compared here, so that
+    /// no secret passes the caller: `identity` is given a key record and
+    /// answers what tells its key from another (its fingerprint and master
+    /// id), `None` where its material cannot be read; two records with no
+    /// identity are not the same.
+    pub fn holds_same<I: PartialEq>(
+        &self,
+        from: VaultId,
+        i: usize,
+        to: VaultId,
+        identity: impl Fn(RecordView<'_>) -> Option<I>,
+    ) -> bool {
+        let (Some(a), Some(t)) = (
+            self.slot(from).and_then(|s| s.records.get(i)),
+            self.slot(to),
+        ) else {
+            return false;
+        };
+        let fields_same = |o: &Record| {
+            o.fields.len() == a.fields.len()
+                && o.fields
+                    .iter()
+                    .zip(&a.fields)
+                    .all(|(x, y)| x.number == y.number && *x.bytes == *y.bytes)
+        };
+        let id = |r: &Record| identity(RecordView::of(r));
+        let mut mine = None;
+        t.records.iter().filter(|o| o.kind == a.kind).any(|o| {
+            fields_same(o)
+                || (a.kind == kind::KEY && {
+                    let m = mine.get_or_insert_with(|| id(a));
+                    m.is_some() && id(o) == *m
+                })
+        })
+    }
+
+    /// A lookup. Whether record `i` of open vault `id` is an entry that
+    /// carries what Faraday does not read and keeps in its place in the
+    /// vault (§7.1: attachments, tags, an icon, a person's other fields and
+    /// custom data), which a copy of it elsewhere does not take. False for
+    /// a record made here, a plan, and a record not held.
+    pub fn carries_unread(&self, id: VaultId, i: usize) -> bool {
+        fn find<'a>(
+            g: &'a fv::kdbx::xml::Group,
+            uuid: &[u8; 16],
+        ) -> Option<&'a fv::kdbx::xml::Entry> {
+            g.entries()
+                .find(|e| e.uuid() == *uuid)
+                .or_else(|| g.groups().find_map(|s| find(s, uuid)))
+        }
+        let Some(s) = self.slot(id) else {
+            return false;
+        };
+        let Some(Origin::Entry { uuid, item, .. }) = s.origin.get(i) else {
+            return false;
+        };
+        let read = s.opened.read();
+        read.items.get(*item).is_some_and(|it| !it.extra.is_empty())
+            || find(s.opened.document().root(), uuid).is_some_and(|e| e.carries_unread())
+    }
+
     /// Costs what [`Records::passphrases_kept_for`] costs, and a parse of
     /// the record's words. The passphrase records the open vaults keep
     /// alone for key record `i` of open vault `id`: none where the record
@@ -3166,6 +3324,7 @@ impl OpenVaults {
             .expect("an open vault");
         s.changed();
         s.dirty.iter_mut().for_each(|d| *d = true);
+        s.facts.iter_mut().for_each(|f| *f = OnceCell::new());
         &mut s.records
     }
 }
@@ -3302,6 +3461,23 @@ pub fn key_record_id(r: RecordView<'_>) -> Option<[u8; 32]> {
         engine.input(&[0]);
         engine.input(p);
     }
+    Some(sha256::Hash::from_engine(engine).to_byte_array())
+}
+
+/// Costs a SHA-256 over the record's string and key. A codex32 share
+/// record's id: the SHA-256 of its string and the fingerprint it names, by
+/// which a share is known as it arrived. `None` for a record with no
+/// share.
+pub fn share_record_id(r: RecordView<'_>) -> Option<[u8; 32]> {
+    use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+    if r.kind() != kind::CODEX32_SHARE {
+        return None;
+    }
+    let r = r.raw();
+    let mut engine = sha256::Hash::engine();
+    engine.input(r.field(field::CODEX32_STRING)?);
+    engine.input(&[0]);
+    engine.input(r.field(field::CODEX32_KEY).unwrap_or_default());
     Some(sha256::Hash::from_engine(engine).to_byte_array())
 }
 

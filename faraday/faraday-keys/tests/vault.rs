@@ -427,6 +427,70 @@ fn what_is_read_of_the_words_follows_the_record_it_was_read_from() {
 }
 
 #[test]
+fn the_words_of_an_edited_key_are_judged_by_the_new_value_and_a_shifted_place_keeps_its_own() {
+    let c = compute();
+    let parse = |t: &str| Mnemonic::parse(&c, Language::English, t).expect("words");
+    let legal = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    let zoo24 = format!("{} vote", ["zoo"; 23].join(" "));
+    let key = |t: &str| {
+        Record::new(kind::KEY).with(
+            field::KEY,
+            &faraday_vault::records::words_payload(&parse(t)),
+        )
+    };
+    let file = made_with(&c, "pass", vec![key(ABANDON), key(&zoo24), key(legal)]);
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
+    let (a, b, k) = (AT, AT + 1, AT + 2);
+    store.warm(&c, id);
+    let words = |s: &OpenVaults, i: usize| s.word_count(&c, id, i);
+    let tell = |s: &OpenVaults, i: usize| s.words_id(&c, id, i).copied();
+    let (id_abandon, id_zoo, id_legal) = (tell(&store, a), tell(&store, b), tell(&store, k));
+    assert_eq!(
+        [words(&store, a), words(&store, b), words(&store, k)],
+        [Some(12), Some(24), Some(12)]
+    );
+    assert!(id_abandon != id_zoo && id_zoo != id_legal && id_abandon != id_legal);
+
+    // The 24 words are replaced by 12: the count and the id are the new
+    // words', the neighbours' are as they were.
+    store.replace(id, b, key(ABANDON));
+    assert_eq!(words(&store, b), Some(12));
+    assert_eq!(tell(&store, b), id_abandon);
+    assert_eq!((words(&store, a), tell(&store, a)), (Some(12), id_abandon));
+    assert_eq!((words(&store, k), tell(&store, k)), (Some(12), id_legal));
+
+    // Edited again, and then another field of it changed.
+    store.replace(id, b, key(&zoo24));
+    assert_eq!((words(&store, b), tell(&store, b)), (Some(24), id_zoo));
+    store.set_public(id, b, field::TITLE, b"Work");
+    assert_eq!((words(&store, b), tell(&store, b)), (Some(24), id_zoo));
+
+    // A record put in before them: each place answers for its own record.
+    assert!(store.insert_at(id, AT, Record::new(kind::NOTE).with(field::NOTE, b"n")));
+    assert_eq!(words(&store, AT), None);
+    assert_eq!(
+        (words(&store, a + 1), tell(&store, a + 1)),
+        (Some(12), id_abandon)
+    );
+    assert_eq!(
+        (words(&store, b + 1), tell(&store, b + 1)),
+        (Some(24), id_zoo)
+    );
+    assert_eq!(
+        (words(&store, k + 1), tell(&store, k + 1)),
+        (Some(12), id_legal)
+    );
+
+    // A record taken out before them, the note and then the first key.
+    assert!(store.remove(id, AT));
+    assert!(store.remove(id, a));
+    assert_eq!((words(&store, a), tell(&store, a)), (Some(24), id_zoo));
+    assert_eq!((words(&store, b), tell(&store, b)), (Some(12), id_legal));
+    assert_eq!(words(&store, k), None);
+}
+
+#[test]
 fn a_key_record_copied_between_vaults_is_the_same_key_there() {
     let c = compute();
     let from = made(&c, "first");
@@ -435,7 +499,7 @@ fn a_key_record_copied_between_vaults_is_the_same_key_there() {
     let (a, _) = store.unlock(&c, from, "first").expect("opens");
     let (b, _) = store.unlock(&c, to, "second").expect("opens");
     assert_eq!(store.records(b).len(), AT, "only the label");
-    store.copy_record(a, AT, b, None).expect("copied");
+    store.copy_record(a, AT, b, &[]).expect("copied");
     assert_eq!(store.records(b).len(), AT + 1);
     let mut keys = Keys::on(Network::Mainnet);
     let loaded = store.load_from_vault(
@@ -446,9 +510,7 @@ fn a_key_record_copied_between_vaults_is_the_same_key_there() {
         &Default::default(),
     );
     assert_eq!(loaded[0].0, [0x73, 0xc5, 0xda, 0x0a]);
-    let bare = store
-        .copy_out(a, AT, Some(field::KEY_LABEL))
-        .expect("a copy");
+    let bare = store.copy_out(a, AT, &[field::KEY_LABEL]).expect("a copy");
     assert!(
         !bare.view().has(field::KEY_LABEL),
         "lacking the field asked"
@@ -1092,7 +1154,7 @@ fn every_edit_is_refused_on_a_read_only_vault_for_either_reason() {
                 .is_err()
         );
         assert_eq!(open.remove_where(id, |_| true), 0);
-        assert!(open.copy_record(w, AT, id, None).is_none());
+        assert!(open.copy_record(w, AT, id, &[]).is_none());
         assert!(!open.fits(&c, id, &[], &[] as &[&Record]));
         assert!(
             open.seal_job(id, &[9u8; SEAL_RANDOM_LEN], &[0u8; 64], None)

@@ -921,6 +921,8 @@ pub struct BackupFlow {
     pub restore: Option<RestoreFrom>,
     /// The screen's state.
     pub live: Live,
+    /// What the person unticked on the Keep sheet in this flow.
+    pub keeps: crate::vault::keep::Left,
 }
 
 /// What a wallet's flow knows of the wallet (`docs/BACKUP-FLOW.md` §10).
@@ -1043,6 +1045,7 @@ impl BackupFlow {
             parked: Vec::new(),
             restore: None,
             live: Live::default(),
+            keeps: crate::vault::keep::Left::default(),
         };
         f.live.open = Some(Step::Where.n());
         f.sync_slots(c);
@@ -1809,6 +1812,7 @@ pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
                         parked: Vec::new(),
                         restore: None,
                         live: Live::default(),
+                        keeps: crate::vault::keep::Left::default(),
                     }),
             );
             continue;
