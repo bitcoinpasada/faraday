@@ -1195,8 +1195,11 @@ impl Shell {
     }
 
     /// Appends a block to the card if one is due, or the last one at
-    /// exit. A card that cannot be written is one line for `--verbose`:
-    /// the timings are a diagnostic and never worth stopping for.
+    /// exit. The boot medium out, or a write to it that fails, loses
+    /// nothing: what is kept goes at the next write. Where there is no
+    /// disk process, a file that cannot be written is one line for
+    /// `--verbose`: the timings are a diagnostic and never worth stopping
+    /// for.
     fn report(&mut self, last: bool) {
         let elapsed = self.epoch.elapsed();
         let Some(t) = self.timings.as_mut() else {
@@ -1217,12 +1220,21 @@ impl Shell {
             // before it, every `timings::WRITE_EVERY` and at exit.
             Some(disk) => match t.keep(&block, elapsed, last) {
                 None => Ok(()),
-                Some(text) => match self.sticks.iter().find(|s| s.boot) {
-                    Some(boot) => disk
-                        .write_copies(&boot.id, files::TIMINGS, text.as_bytes(), &[], true, false)
-                        .map(drop),
-                    None => Err(String::from("no boot stick is listed")),
-                },
+                // The boot medium may be out for now: a key is loaded with
+                // it out. What is kept goes at the next write with it back.
+                Some(text) => {
+                    if let Some(boot) = self.sticks.iter().find(|s| s.boot) {
+                        let _ = disk.write_copies(
+                            &boot.id,
+                            files::TIMINGS,
+                            text.as_bytes(),
+                            &[],
+                            true,
+                            false,
+                        );
+                    }
+                    Ok(())
+                }
             },
             None => self.files.append_timings(&block).map(drop),
         };

@@ -275,7 +275,9 @@ Never use it for keys that matter.
   to a stick or the card, and the rest of what the core counts
   (`faraday/image/README.md`, "The dev variant"). The file holds every
   run since boot, in order, each under a `run N` line: a lock ends the
-  app and the next one carries on in the same file.
+  app and the next one carries on in the same file. With the boot medium
+  out (a key is loaded with it out) the timings stay in memory: plug it
+  back and wait 30 seconds, and the file holds them.
 
 The release image writes neither file: its app is started without
 those flags, its kernel log stays closed to the app, and
