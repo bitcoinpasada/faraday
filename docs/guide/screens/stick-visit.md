@@ -94,6 +94,8 @@ not vaults; a vault's name taken is asked on its own sheet, below.*
 
 ## A vault's name is taken
 
+![vault.kdbx is already on the stick: Faraday cannot tell which vault the file is, Hold: overwrite vault.kdbx outlined, Cancel, Save as vault-2.kdbx filled](../pictures/stick-visit-name-taken.png)
+
 **Opened from:** "Write" on a visit, or the backup flow's write to an
 existing vault's stick, when a file on the stick has the vault's name,
 ignoring case, and nothing proves that file a copy of this vault. Its

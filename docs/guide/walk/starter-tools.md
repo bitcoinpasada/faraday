@@ -176,7 +176,7 @@ before.
 
 ## 6. A Pi card
 
-![Which card? with the boards and cameras lines, and an SD card reader of 32 GB listed](../pictures/starter-tools-pi-card.png)
+![Which card? with the boards and cameras lines, the Pi image to write ticked, and an SD card reader of 32 GB listed](../pictures/starter-tools-pi-card.png)
 
 On **Make**, the **Pi card** card shows the Pi image's **Version …**,
 or **No image found**, when **Make a Pi card** is grey.

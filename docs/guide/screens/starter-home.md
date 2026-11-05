@@ -102,7 +102,7 @@ stick](starter-learn-and-boot.md#start-this-computer-from-the-stick).
 
 | Card | Shown | Holds |
 |---|---|---|
-| **Faraday Demo** | on Windows and Linux | "Version 0.1.8", the Starter's own version; the reason in the warning tone when the Demo could not be opened; **Open Faraday Demo**, which shows [Faraday Demo](../walk/faraday-demo.md) in this window, under a top app bar that reads **Faraday Demo** with the way back to **Home** |
+| **Faraday Demo** | on Windows and Linux | "Version 0.1.10", the Starter's own version; the reason in the warning tone when the Demo could not be opened; **Open Faraday Demo**, which shows [Faraday Demo](../walk/faraday-demo.md) in this window, under a top app bar that reads **Faraday Demo** with the way back to **Home** |
 | **Update the installed Faraday** | while this copy is newer than the one installed | "Installed 0.1.7 · this copy 0.1.8" and **Update**, which opens [Install](starter-menu.md#install-and-update) as Update |
 | **Boot entry** | on Linux, while the Faraday stick's entry is in the firmware's boot list and no Faraday stick is attached | **In this computer's boot list**, **Removing** while the removal runs, or why it failed in the warning tone; **Remove the Faraday boot entry**, which removes the entry: the system asks for the password first (the removal runs through `pkexec`) |
 

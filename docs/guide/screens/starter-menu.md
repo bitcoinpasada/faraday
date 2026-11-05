@@ -101,7 +101,7 @@ On a narrow window each row's label is over its control.
 
 ![About: Text size and Version](../pictures/starter-about.png)
 
-*About: **Text size** on **Standard** and **Version** 0.1.8.*
+*About: **Text size** on **Standard** and **Version** 0.1.10.*
 
 | Control | What it does |
 |---|---|

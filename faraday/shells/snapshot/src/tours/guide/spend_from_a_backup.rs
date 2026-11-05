@@ -155,7 +155,17 @@ fn spend(t: &mut Tour) -> Result<(), String> {
     let psbt = faraday_core::testkit::unsigned(&super::kit_of(t, w, 1_850))?;
     t.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
     super::spend::show_psbt(t, &psbt.to_bytes(), None)?;
-    // Read it.
+    // Read it. The spend opens on the ticks after the scan; every step
+    // pressed before it is open does nothing.
+    for _ in 0..10 {
+        if t.app.spend().is_some() {
+            break;
+        }
+        t.tick();
+    }
+    if t.app.spend().is_none() {
+        return Err("the PSBT opened no spend".into());
+    }
     t.press(Action::Family(F::Next(page::BRING)));
     t.press(Action::StepNext(step::TRANSACTION));
     for at in [step::CHECK, step::SIGNERS] {

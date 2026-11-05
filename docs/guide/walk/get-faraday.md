@@ -75,7 +75,7 @@ Press **Make a Faraday stick**.
 Plug the stick in. Every USB disk attached is listed with its size and
 what is on it ([Which stick?](../screens/starter-make.md#which-stick-or-which-card)). Nothing is chosen for you.
 
-![Which stick? with two USB Flash Drives listed, the empty 32 GB one outlined](../pictures/1-2-which-stick.png)
+![Which stick? with the image to write ticked and two USB Flash Drives listed, the empty 32 GB one outlined](../pictures/1-2-which-stick.png)
 
 Press the stick to write. Check the size: a backup drive is listed the
 same way as a stick.

@@ -17,7 +17,7 @@ Starter carries two stick images), **Which stick?** or **Which card?**,
 written**. The walkthrough is [Get Faraday on a stick](../walk/get-faraday.md).
 
 The disks, versions and sums in the pictures are made up for them:
-the Starter that drew them is 0.1.8 and carries test images of 0.2.0.
+the Starter that drew them is 0.1.10 and carries test images of 0.2.0.
 
 ## Make
 
@@ -47,9 +47,9 @@ Shown only once the Starter carries both stick images.
 
 ### Which stick? or Which card?
 
-![Which stick? listing two USB Flash Drives, 32 GB empty and 64 GB with PHOTOS](../pictures/starter-make-which-stick.png)
+![Which stick? with the image to write ticked, over two USB Flash Drives, 32 GB empty and 64 GB with PHOTOS](../pictures/starter-make-which-stick.png)
 
-*Which stick? with two sticks: a 32 GB "USB Flash Drive" that is **Empty**, and a 64 GB one reading "PHOTOS, files on it".*
+*Which stick? with the **Image** to write, "faraday-stick-0.2.0-x86_64-uefi.img.xz" in /Downloads, build 0.2.0, ticked, over two sticks: a 32 GB "USB Flash Drive" that is **Empty**, and a 64 GB one reading "PHOTOS, files on it".*
 
 **Which stick?** for a stick, **Which card?** for a Pi card. Every disk
 attached is a row, Faraday sticks first, then the others by size,
@@ -58,6 +58,8 @@ pulled out. No disk is ever chosen for you.
 
 | Control | What it does |
 |---|---|
+| **Image** | above the disks: each release image found in Downloads, as its file name and "In /Downloads, build 0.2.0", with a radio; the one ticked is written. Shown only when one was found |
+| **Not found** | files of the release not found, each with "Download it, then put it in Downloads", and files found that are not offered: "Not the release's file", or "Needs version" and the version this Starter needs |
 | a disk's row | its maker and model (**Disk** when it reports neither), what is on it, and its size ("32 GB", "512 MB") at the right. A press opens What to write? for it. A USB disk has the stick's mark, the computer's SD card reader the card's, any other disk the drive's |
 | "Faraday stick · 0.1.8" | the disk holds Faraday, this version; on Windows "Faraday stick · version not read" until it is read |
 | **Empty** | nothing is on the disk |
@@ -68,9 +70,9 @@ pulled out. No disk is ever chosen for you.
 | **For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen** | on Which card?, the Pi and screen the card is for |
 | **Cameras: a USB webcam, or Camera Module v1 or v2** | on Which card?, the cameras Faraday reads on the Pi |
 
-![Which card? with the Pi and cameras lines over an SD card reader holding boot and rootfs](../pictures/starter-tools-pi-card.png)
+![Which card? with the Pi and cameras lines over the image to write, ticked, and an SD card reader holding boot and rootfs](../pictures/starter-tools-pi-card.png)
 
-*Which card?: **For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen**, **Cameras: a USB webcam, or Camera Module v1 or v2**, and the computer's "SD card reader" with "boot, rootfs, files on them".*
+*Which card?: **For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen**, **Cameras: a USB webcam, or Camera Module v1 or v2**, the **Image** "faraday-pi-0.2.0.img.xz" ticked, and the computer's "SD card reader" with "boot, rootfs, files on them".*
 
 | State | What the page shows |
 |---|---|
