@@ -1,8 +1,8 @@
 # Argon2id Compact Envelope (ACE)
 
 **Kind:** Spec
-**Status:** Draft for outside review. Own specification, not yet reviewed outside Faraday; no code exists and nothing is compiled into any app (`docs/STANDARDS.md` §0)
-**Open:** everything: no implementation, the test vectors (§11), an outside second implementation, an outside cryptographic review of the construction and its 4-byte and 8-byte tags (§13), public comment, and whether Faraday ever offers it
+**Status:** Draft for outside review. Own specification, not yet reviewed outside Faraday; the only code is the test vectors' two scripts, and nothing is compiled into any app (`docs/STANDARDS.md` §0)
+**Open:** a KEF envelope from Krux's own tests among the vectors (§11), an outside second implementation, an outside cryptographic review of the construction and its 4-byte and 8-byte tags (§13), public comment, and whether Faraday ever offers it
 
 The Argon2id Compact Envelope (ACE) is a proposed open format for one small
 secret encrypted under a passphrase with Argon2id, small enough for a 29 × 29
@@ -183,8 +183,8 @@ bits    3      1      5           20           5       5 × c
   case throughout, the identifier and the index included, so one bit keeps the
   exact string, and it recommends upper case for handwriting and for QR codes,
   so both occur. The checksum's values do not depend on case.
-- `threshold` is the value of `0` or of a digit from `2` to `9`; any other
-  value is refused. A threshold of `0` with an index other than `s` is refused,
+- `threshold` holds the BIP-173 value of the character `0` or of a digit from
+  `2` to `9` (`0` is 15, `2` is 10); any other value is refused. A threshold of `0` with an index other than `s` is refused,
   as BIP 93 requires.
 
 | `size` | Seed | `c` | String's characters | Threshold to payload, in bits | With the head, in bits | Item bytes | Small size |
@@ -212,7 +212,8 @@ checksum, a valid threshold and one of the five lengths, and refuses any other.
 
 **Reading.** A reader takes `size`, refuses it if the item does not fit the
 room, checks `threshold`, and makes `ms1` followed by the characters and the
-checksum BIP 93's `ms32_create_checksum` gives for them, in the stored case.
+checksum BIP 93's `ms32_create_checksum` gives for them (over the data
+characters alone: BIP 93 has no expansion of the prefix), in the stored case.
 Since the checksum is computed here, it always passes and shows nothing about
 the item (§7, §12).
 
@@ -503,14 +504,15 @@ code, not a BIP-39 passphrase held as an item (§3), which is stored as given.
 
 ## 11. Test vectors
 
-**To be filled:** no vectors exist yet, because no implementation exists.
-They will be a JSON file with a README, published with the document and
-computed with libraries the format's authors did not write (argon2-cffi
-for Argon2id; Python's `hmac` and `hashlib`; a published ChaCha20), so
-that they do not rest on a first implementation. Each will give every
-intermediate value (`pw`, `PRK`, `K_enc`, `K_mac`, the keystream, `C`,
-all nine tags) and the whole envelope. They will cover, at both sizes unless
-an item fits only one:
+The vectors are `tools/vectors/ace/ace.json`, with a README and the QR
+code of one vector at each size as a PNG. They are computed by
+`tools/vectors/ace/gen.py` with libraries the format's authors did not write
+(argon2-cffi for Argon2id; Python's `hmac` and `hashlib`; PyCA cryptography's
+ChaCha20), so that they do not rest on a first implementation. Each case gives
+every intermediate value (`pw`, `PRK`, `K_enc`, `K_mac`, the keystream, `C`,
+all nine tags) and the whole envelope, and says what a reader must do with it:
+open to given fields, not open, or not recognise it. They cover, at both sizes
+unless an item fits only one:
 
 - every defined step, each with a 24-word seed;
 - every kind, with its padding bytes given as input: all five lengths of
@@ -524,15 +526,20 @@ an item fits only one:
 - the all-zero and all-one seeds, to show padding and `kind`;
 - must-fail cases: a wrong passphrase; a bit changed in each field; a
   reserved step; 52, 54, 61 and 63 bytes; marker 0b11110; a 62-byte envelope
-  cut to 53, and a 53-byte tag placed on 62 bytes;
+  cut to 53, and on each size a tag made with the other size's `N`;
 - must-fail cases whose tag is right, made with the key: a `len` of 0 and one
   past the room; text that is not valid UTF-8; a codex32 `size` of 5 to 7 and
-  of 3 or 4 at the small size; a threshold of `1`; a threshold of `0` with
+  of 3 or 4 at the small size; a threshold field of value 1 (the character `p`); a threshold of `0` with
   an index other than `s`;
 - must-not-recognise cases: real KEF version 20 envelopes of 53 bytes with an
-  empty id and 62 bytes with a 9-byte id, and a KEF envelope from Krux's own
-  tests;
+  empty id and 62 bytes with a 9-byte id, built from `docs/KEF.md`'s layout;
 - the QR code of one vector at each size, as an image and as its module matrix.
+
+`tools/vectors/ace/check.py` is a second reader and writer, written from §2 to §10
+alone with other libraries (PyCA cryptography's Argon2id; ChaCha20 written out from
+RFC 8439), and it agrees with every case, the sealed envelopes and the QR pictures, which
+zxing-cpp and zbar also decode to the envelope's bytes. It was written by Faraday's authors,
+so it is not the outside implementation this section and the **Open:** line ask for.
 
 A vector where two tags agree is not offered: finding one takes about 2^29
 Argon2id runs at the small size and 2^61 at the large one, so that branch of
