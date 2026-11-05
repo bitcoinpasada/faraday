@@ -18,7 +18,7 @@ desktop_1280x800 Catalog WordList 1
 desktop_1280x800 Codes Resume 2
 desktop_1280x800 Create Resume 1
 desktop_1280x800 CreateVault Resume 3
-desktop_1280x800 CreateVault Vault 6
+desktop_1280x800 CreateVault Vault 2
 desktop_1280x800 CreateVault WordList 21
 desktop_1280x800 Entry EntryCandidate 17
 desktop_1280x800 Entry EntryKey 55
@@ -75,7 +75,7 @@ small_240x320 Bip85 PStep 1
 small_240x320 Catalog WordList 1
 small_240x320 Convert Convert 1
 small_240x320 Create CStep 4
-small_240x320 CreateVault Vault 2
+small_240x320 CreateVault Vault 1
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
 small_240x320 Family Family 1
@@ -104,7 +104,7 @@ small_480x640 Bip85 PStep 1
 small_480x640 Catalog WordList 1
 small_480x640 Convert Convert 1
 small_480x640 Create CStep 6
-small_480x640 CreateVault Vault 2
+small_480x640 CreateVault Vault 1
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
 small_480x640 Family Family 1
@@ -163,7 +163,7 @@ stick_1024x600 Convert Convert 4
 stick_1024x600 Convert Osk 38
 stick_1024x600 Create CStep 6
 stick_1024x600 CreateVault Osk 38
-stick_1024x600 CreateVault Vault 10
+stick_1024x600 CreateVault Vault 5
 stick_1024x600 CreateVault WordList 15
 stick_1024x600 Entry EntryCandidate 17
 stick_1024x600 Entry EntryKey 83

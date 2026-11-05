@@ -975,20 +975,20 @@ pub(super) fn machine_rows(
     acts: (Action, fn(usize) -> V),
 ) -> f32 {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
+    let (row, tick) = (tokens::TOUCH, tokens::ICON_GLYPH_BUTTON);
+    let one = |ui: &mut Ui, cy: f32, on: bool, label: &str, side: &str, act: Action| {
+        ui.checkbox(x, cy + (row - tick) / 2.0, on, true);
+        ui.text_mid_as((x + 32.0, cy, row), LABEL_L, ink, label);
+        ui.text_right_as((x + w, cy, row), BODY_S, muted, side);
+        ui.press_box(x, cy, w, row, act);
+        ui.rule(x, cy + row, w, Role::OutlineVariant);
+    };
     let mut cy = y;
-    ui.checkbox(x, cy + 12.0, ticks.0, true);
-    ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, EN.vault_this_computer);
-    ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, here);
-    ui.press_box(x, cy, w, 40.0, acts.0);
-    ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
-    cy += 46.0;
+    one(ui, cy, ticks.0, EN.vault_this_computer, here, acts.0);
+    cy += row + 2.0;
     for (k, m) in MACHINES.iter().enumerate() {
-        ui.checkbox(x, cy + 12.0, ticks.1[k], true);
-        ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, m.0);
-        ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, m.2);
-        ui.press_box(x, cy, w, 40.0, va(acts.1(k)));
-        ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
-        cy += 46.0;
+        one(ui, cy, ticks.1[k], m.0, m.2, va(acts.1(k)));
+        cy += row + 2.0;
     }
     cy
 }
