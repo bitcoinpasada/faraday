@@ -1515,3 +1515,21 @@ mod aezeed_source {
         assert!(keys.aezeed_birthday().is_none());
     }
 }
+
+/// A WIF is told from other text, and a text far longer than any key is
+/// not one.
+#[test]
+fn is_wif_reads_a_wif_and_refuses_a_very_long_text() {
+    for wif in [
+        "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
+        "L1aW4aubDFB7yfras2S1mN3bqg9nwySY8nkoLmJebSLD5BWv3ENZ",
+    ] {
+        assert!(identity::is_wif(wif), "{wif}");
+    }
+    assert!(!identity::is_wif("not a key"));
+    assert!(!identity::is_wif(&"5".repeat(16 << 20)));
+    assert!(!identity::is_wif(&format!(
+        "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ{}",
+        "1".repeat(16 << 20)
+    )));
+}

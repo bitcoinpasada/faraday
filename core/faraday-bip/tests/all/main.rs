@@ -19,6 +19,7 @@ mod descriptor;
 mod diceware;
 mod dleq;
 mod json;
+mod long_keys;
 mod miniscript;
 mod musig;
 mod policy_key_path;

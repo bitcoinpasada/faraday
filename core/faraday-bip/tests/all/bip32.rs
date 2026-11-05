@@ -311,3 +311,19 @@ fn a_child_key_is_not_a_master_key() {
         Some(ImportError::NotMaster)
     );
 }
+
+/// A key text longer than any key can be is refused as a bad key, at once,
+/// whatever it holds; the longest real key still reads.
+#[test]
+fn a_key_text_longer_than_any_key_is_refused_as_a_bad_key() {
+    let xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+    assert!(xkey::decode_xpub(xpub).is_ok());
+    for len in [112, 113, 1 << 20] {
+        let text = "1".repeat(len);
+        assert!(xkey::decode_xpub(&text).is_err());
+        assert!(xkey::decode_xpriv(&text).is_err());
+        assert!(faraday_bip::slip132::decode_xpub(&text).is_err());
+    }
+    let long = format!("{xpub}{}", "1".repeat(1 << 20));
+    assert_eq!(xkey::decode_xpub(&long).err(), Some(Error::Base58));
+}

@@ -34,6 +34,12 @@ use faraday_crypto::Zeroize;
 /// Serialized length of an extended key, without the checksum.
 pub(crate) const LEN: usize = 78;
 
+/// The most base58 characters a key can have: 82 bytes (the payload and its
+/// four-byte check) are at most 112 digits (82 * log58(256) = 111.98), and a
+/// leading zero byte is one digit, never more. The decoder is quadratic, so
+/// longer text is refused before it runs.
+pub(crate) const MAX_TEXT: usize = 112;
+
 /// `xprv`, mainnet private.
 pub const XPRV: [u8; 4] = [0x04, 0x88, 0xad, 0xe4];
 /// `tprv`, test-network private.
@@ -72,6 +78,9 @@ pub enum Error {
 /// The caller owns the buffer and must erase it when it may hold private
 /// material.
 pub(crate) fn payload(s: &str) -> Result<Vec<u8>, Error> {
+    if s.len() > MAX_TEXT {
+        return Err(Error::Base58);
+    }
     let bytes = base58::decode_check(s).map_err(|_| Error::Base58)?;
     if bytes.len() != LEN {
         return Err(Error::Length(bytes.len()));

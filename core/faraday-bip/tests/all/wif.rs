@@ -154,3 +154,11 @@ fn the_generators_key_pays_its_published_addresses() {
         ]
     );
 }
+
+/// A WIF text far longer than any key is refused as a bad key.
+#[test]
+fn a_wif_text_longer_than_any_key_is_refused_as_a_bad_key() {
+    for len in [113, 1 << 20] {
+        assert_eq!(read(&"5".repeat(len)).err(), Some(Error::Base58));
+    }
+}

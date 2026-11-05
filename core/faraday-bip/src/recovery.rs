@@ -170,6 +170,9 @@ impl Path {
             .iter()
             .map(|key| {
                 let text = alloc::format!("{key}{DESCRIPTOR_SUFFIX}");
+                if !crate::descriptor::token_fits(&text) {
+                    return Err(Error::Key);
+                }
                 DescriptorPublicKey::from_str(&text).map_err(|_| Error::Key)
             })
             .collect::<Result<_, _>>()?;

@@ -1157,6 +1157,9 @@ pub fn parse_script_descriptor<Pk: miniscript::FromStrKey>(
 /// refuses a descriptor that is not sane, and so does this. Uncounted,
 /// for the readers here that count once themselves.
 fn read_script_descriptor<Pk: miniscript::FromStrKey>(text: &str) -> Result<Descriptor<Pk>, Error> {
+    if !crate::descriptor::tokens_fit(text) {
+        return Err(Error::Template);
+    }
     let script = Descriptor::<Pk>::from_str(text).map_err(|_| Error::Template)?;
     script.sanity_check().map_err(|_| Error::Template)?;
     Ok(script)

@@ -82,6 +82,11 @@ impl SingleKey {
     /// white space is not part of it.
     pub fn decode(c: &Compute, text: &str) -> Result<Self, Error> {
         c.count(Work::KeyDerive);
+        // A WIF is at most 52 digits; the longest key text is allowed so a
+        // payload of the wrong length still reads as `Length`.
+        if text.len() > crate::xkey::MAX_TEXT {
+            return Err(Error::Base58);
+        }
         let mut bytes = base58::decode_check(text).map_err(|_| Error::Base58)?;
         let held = Self::from_payload(&bytes);
         bytes.zeroize();

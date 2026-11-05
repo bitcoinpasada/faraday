@@ -192,5 +192,6 @@ pub fn fp_text(fp: Fingerprint) -> String {
 /// Costs a base58 checksum. Whether `text` is a WIF private key: asked to
 /// refuse it where a secret may not go, and kept nowhere.
 pub fn is_wif(text: &str) -> bool {
-    faraday_bip::bitcoin::PrivateKey::from_wif(text).is_ok()
+    // A WIF is at most 52 characters; the decoder is quadratic in the text.
+    text.len() <= 64 && faraday_bip::bitcoin::PrivateKey::from_wif(text).is_ok()
 }

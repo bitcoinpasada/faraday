@@ -107,6 +107,33 @@ pub fn script_type(text: &str) -> Option<ScriptType> {
     }
 }
 
+/// Whether the part of one key text that reaches the base58 decoder is
+/// short enough to decode: what follows a leading `[origin]`, up to the
+/// first `/`. `miniscript` gives that part to the decoder, which is quadratic
+/// in its valid start and sizes its scratch from the whole part, so an
+/// outsized part costs far more than its length whatever it holds. The limit
+/// is well over the longest thing a descriptor's text holds there (`{` and
+/// wrappers, which the depth limit keeps to some hundreds of characters; an
+/// uncompressed key in hex, 130) and small enough to decode at once. A path
+/// never reaches the decoder, so it has no limit here.
+pub(crate) fn token_fits(leaf: &str) -> bool {
+    const LONGEST: usize = 1024;
+    let key = leaf
+        .strip_prefix('[')
+        .and_then(|rest| rest.split_once(']'))
+        .map_or(leaf, |(_, key)| key);
+    key.split_once('/').map_or(key, |(head, _)| head).len() <= LONGEST
+}
+
+/// [`token_fits`] for every leaf of a descriptor's text, split where
+/// `miniscript`'s tree reader splits it outside a `tr()` tree; a tree's `{`
+/// and `}` count as part of a leaf, since in a key they are not divisions.
+/// Every route that gives a whole descriptor to `miniscript` checks this
+/// first, on the text it gives.
+pub(crate) fn tokens_fit(text: &str) -> bool {
+    text.split(['(', ')', ',']).all(token_fits)
+}
+
 /// Costs a parse of the descriptor: whether `text` reads as one output
 /// descriptor of public keys, checksum and all, by `miniscript`'s own
 /// reader, whatever wallet it is or is not.
@@ -118,8 +145,10 @@ pub fn script_type(text: &str) -> Option<ScriptType> {
 pub fn reads_as_descriptor(c: &Compute, text: &str) -> bool {
     use core::str::FromStr;
     c.count(Work::DescriptorParse);
-    let read =
-        |t: &str| miniscript::Descriptor::<miniscript::DescriptorPublicKey>::from_str(t).is_ok();
+    let read = |t: &str| {
+        tokens_fit(t)
+            && miniscript::Descriptor::<miniscript::DescriptorPublicKey>::from_str(t).is_ok()
+    };
     let body = text.split_once('#').map_or(text, |(body, _)| body);
     match crate::tapmulti::unsorted_text(body) {
         Some(twin) => (body.len() == text.len() || verify_checksum(text)) && read(&twin),
