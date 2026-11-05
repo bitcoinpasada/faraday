@@ -2094,9 +2094,54 @@ refused so; a leaf that is no miniscript, or of another leaf version, or
 is exactly `DUP HASH160 <h> EQUALVERIFY CHECKSIG` spent with a key of an
 unknown type (neither empty nor 32 bytes, no element over 520 bytes) and a
 non-empty signature, is not run, so Finish does not refuse it, and a
-64-byte element on it is data there; but a Schnorr signature row of such
-a leaf that reads Invalid makes Collect refuse a cosigner's file holding
-it; a key of an unknown type inside a larger Tap miniscript leaf is
+64-byte element on it is data there. A Schnorr signature row of such a
+leaf that would read Invalid is rewritten as not checked and counts no
+key: a final one as an ECDSA final row of a script not run does, and one
+in `tap_script_sigs`
+under a leaf the input files with a control block that commits to the
+output and states the leaf version of the block, so Collect takes the
+file (an ECDSA partial row on a script not run is not so: forged or
+unverifiable it stays wrong and Collect refuses it). Under
+`OP_CODESEPARATOR` a signature that verifies reads as not run too, the
+message worked out being no true one. An element of 65 bytes ending in a
+sighash byte other than 00 and 01, and a true signature with 00 appended,
+are data to Finish on such a leaf but still refused by Collect, which
+cannot tell them from a signature. A true partial row reads Valid and
+counts no key; its headline is the count signed and sound ("valid") on a
+leaf that drops, and "not checked" (the unchecked count) on a leaf with
+`OP_CODESEPARATOR`; a forged one reads "not checked", a key loaded here or
+not, and never "a signature is wrong". A row's own text says its key is not
+counted because its script was not run, never that it has no origin. A
+partial row alone leaves the headline at "not checked", not "a script was
+not run". Collect takes no final witness that reads as not run for an input whose
+rows finish without it, whichever file brought the witness or the rows
+and in whatever order, each input judged alone; keeps an own row over a
+file's for the same key and leaf where the file's reads not checked and
+the own does not read wrong, an output being read (a separator leaf's
+included; on a run leaf a forged row is refused); and keeps an own script
+entry that commits to the output over a file's entry of the same control
+block that does not. A final witness the output judges true (a run leaf, the
+key path) stands over one for a leaf not run, in either order. Where the spend
+and a file differ and the device cannot judge between them, Collect refuses
+the file in either order and says so without calling the file wrong: two
+different final witnesses for leaves not run (or with no output stated to
+read them), two different rows for one key and leaf with no output stated on
+either side, and two different scripts for one control block with no output
+stated. A file that brings a row for a key and leaf the spend lacks, or
+holds differently, is refused too when neither the spend nor the file states
+the input's output (an honest signer needed the output to sign, so an honest
+file states it); a row equal to the spend's is no new row. Where a spend's own
+statement of the output is false (a previous transaction of another txid),
+that is the reason given, not that no output is stated. A file's wrong
+script at a control block the spend lacks is taken with no
+output stated, and a later true file repairs it. Two different final
+witnesses for leaves not run are refused unless rows that finish the input
+beat both, and the same refusal covers a `final_script_sig` on a non-taproot
+script not run. The filed leaves and the leaves holding `OP_CODESEPARATOR` of an
+input are worked out once per input, a control block check per entry and a
+script read per entry; a row then costs a signature check and a read of its
+leaf's script, so under a large leaf it costs a pass over that leaf for
+each row. A key of an unknown type inside a larger Tap miniscript leaf is
 refused, though consensus takes it), one
 error line per input; the headline says so when no signature that stands
 is wrong and no nonce repeats, an unread input or an unchecked row on
@@ -2127,7 +2172,10 @@ whatever the spend's own copy holds, when it states something false on
 its own (a `witness_utxo` against its previous transaction, a previous
 transaction of another txid or without the output) or when its
 `witness_utxo` differs from the output of a previous transaction of the
-right txid the spend holds; final or not, and the spend's PSBT stays as
+right txid the spend holds, or from the `witness_utxo` the spend states
+where neither holds such a previous transaction (a bare one proves nothing:
+the spend keeps its value, and the refusal says the two state different
+outputs and neither is proven); final or not, and the spend's PSBT stays as
 it was, a later clean file still collecting. Of two previous transactions
 the one of the right txid is kept, its hash proving it; a `witness_utxo`
 alone proves nothing and repairs nothing. Where the spend itself holds a

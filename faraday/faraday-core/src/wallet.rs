@@ -880,12 +880,21 @@ impl Session {
         let mut rows = Vec::new();
         for input in faraday_psbt::verify::verify_signatures(psbt, &ctx) {
             for sig in input.signatures {
+                // A row not checked, a leaf not run among them, gets no
+                // verdict from a recompute that cannot match.
                 let recomputed = made
                     .iter()
-                    .find(|d| d.input == input.index && d.key == sig.key)
-                    .map(|d| d.mode);
+                    .find(|d| {
+                        d.input == input.index
+                            && d.key == sig.key
+                            && d.leaf == sig.leaf
+                            && d.signature == sig.bytes
+                    })
+                    .map(|d| d.mode)
+                    .filter(|mode| mode.is_some() || !matches!(sig.verdict, Verdict::Unchecked(_)));
                 let unmatched = match (recomputed, sig.fingerprint) {
                     (Some(_), _) => None,
+                    (None, None) if sig.origin_left_out => Some(Unmatched::NotRun),
                     (None, None) => Some(Unmatched::NoOrigin),
                     (None, Some(_)) if sig.ours && sig.finalized => Some(Unmatched::Finalized),
                     (None, Some(_)) => None,
@@ -1855,8 +1864,9 @@ impl Spend {
         (signers, to_sign)
     }
 
-    /// Costs what `read_psbt`, `signers` and `inspect` cost, and what
-    /// [`Spend::refused`] costs for the file read. Adds the
+    /// Costs what `read_psbt`, `signers` and `inspect` cost, what
+    /// [`Spend::refused`] costs for the file read, and what
+    /// `keep_own_over_file` costs per input. Adds the
     /// signatures another device put on a copy of this transaction. A PSBT
     /// for any other transaction is refused, never merged, and so is one
     /// that asks another sighash of an input, or carries a signature made
@@ -1905,12 +1915,13 @@ impl Spend {
         // own, or a `witness_utxo` that differs from the output of a
         // previous transaction of the right txid the spend holds. The
         // spend's own PSBT stays as it was.
-        if let Some(i) = file_lies(self.psbt.inner(), other.inner()) {
-            return Err(fill(EN.wallet_file_states_false, &[source, &i.to_string()]));
+        if let Some((i, bare)) = file_lies(self.psbt.inner(), other.inner()) {
+            return Err(lie_refusal(source, i, bare));
         }
         let before = self.signers(c, session);
         let mut merged = self.psbt.inner().clone();
         let incoming = other.into_inner();
+        let file_inputs = incoming.inputs.clone();
         // `Input::combine` drops one of `non_witness_utxo` and
         // `witness_utxo` where it takes the other, which would let a file
         // replace the previous transaction by an amount of its own, or
@@ -1942,6 +1953,9 @@ impl Spend {
         let own_false: Vec<bool> = (0..merged.inputs.len())
             .map(|i| faraday_psbt::verify::states_false(&merged, i))
             .collect();
+        // The spend's own inputs as they were: what a file brings for a
+        // script not run must not replace what the spend holds.
+        let own_inputs = merged.inputs.clone();
         merged
             .combine(incoming)
             .map_err(|e| fill(EN.wallet_cannot_combine, &[&e.to_string()]))?;
@@ -1949,6 +1963,8 @@ impl Spend {
             input.non_witness_utxo = prev;
             input.witness_utxo = witness;
         }
+        keep_own_over_file(&mut merged, &own_inputs, &file_inputs)
+            .map_err(|c| c.refusal(source))?;
         // What is left of a false statement after the merge is the spend's
         // own: a file that lies was refused above, so this is an amount
         // of the spend's own that the honest file's previous transaction
@@ -2051,23 +2067,280 @@ impl Spend {
 }
 
 /// Costs a classify per input. The first input of `file` that lies to the
-/// spend `own`, whatever `own` holds there: it states something false on
+/// spend `own`, whatever `own` holds there, and whether it is a bare
+/// `witness_utxo` that differs (`true`): it states something false on
 /// its own, or its `witness_utxo` differs from the output of a previous
-/// transaction of the right txid that `own` holds.
-fn file_lies(own: &faraday_bip::bitcoin::Psbt, file: &faraday_bip::bitcoin::Psbt) -> Option<usize> {
-    (0..file.inputs.len().min(own.inputs.len())).find(|&i| {
+/// transaction of the right txid that `own` holds, or from the
+/// `witness_utxo` `own` states where neither side holds a previous
+/// transaction of the right txid (a bare one proves nothing: the spend
+/// keeps its value and the file is refused, neither proven).
+fn file_lies(
+    own: &faraday_bip::bitcoin::Psbt,
+    file: &faraday_bip::bitcoin::Psbt,
+) -> Option<(usize, bool)> {
+    (0..file.inputs.len().min(own.inputs.len())).find_map(|i| {
         let txin = &own.unsigned_tx.input[i];
+        // A previous transaction of the right txid proves the output.
+        let proven = |p: &faraday_bip::bitcoin::Psbt| {
+            p.inputs[i]
+                .non_witness_utxo
+                .as_ref()
+                .is_some_and(|t| t.compute_txid() == txin.previous_output.txid)
+        };
         let own_output = own.inputs[i]
             .non_witness_utxo
             .as_ref()
             .filter(|t| t.compute_txid() == txin.previous_output.txid)
             .and_then(|t| t.output.get(txin.previous_output.vout as usize));
-        faraday_psbt::verify::states_false(file, i)
+        if faraday_psbt::verify::states_false(file, i)
             || matches!(
                 (own_output, &file.inputs[i].witness_utxo),
                 (Some(o), Some(w)) if o != w
             )
+        {
+            return Some((i, false));
+        }
+        (!proven(own)
+            && !proven(file)
+            && matches!(
+                (&own.inputs[i].witness_utxo, &file.inputs[i].witness_utxo),
+                (Some(o), Some(w)) if o != w
+            ))
+        .then_some((i, true))
     })
+}
+
+/// Why a file is refused for an input it states different outputs for: a
+/// bare `witness_utxo` against the spend's, neither proven (`bare`), or a
+/// statement its previous transaction does not bear out.
+fn lie_refusal(source: &str, input: usize, bare: bool) -> String {
+    let why = if bare {
+        EN.wallet_outputs_differ_unproven
+    } else {
+        EN.wallet_file_states_false
+    };
+    fill(why, &[source, &input.to_string()])
+}
+
+/// Where `keep_own_over_file` finds the spend and a file at odds with no
+/// way to tell which is right: the input.
+enum Conflict {
+    /// Two different final witnesses, neither one the device can judge true.
+    Finals(usize),
+    /// A file's row for a key and leaf that the spend lacks or holds
+    /// differently, with no output stated by either.
+    Rows(usize),
+    /// Two different scripts for one control block, with no output stated.
+    Scripts(usize),
+    /// The spend's own statement of the output is false (a previous
+    /// transaction of another txid, or without the output): that is the
+    /// reason, not that no output is stated.
+    False(usize),
+}
+
+/// The refusal for input `i` where no output is read: the spend's own false
+/// statement of one when it makes one, else `otherwise`.
+fn no_output(merged: &faraday_bip::bitcoin::Psbt, i: usize, otherwise: Conflict) -> Conflict {
+    if faraday_psbt::verify::states_false(merged, i) {
+        Conflict::False(i)
+    } else {
+        otherwise
+    }
+}
+
+/// Costs, per input, a comparison of the file's rows and entries with the
+/// spend's; where the spend's rows differ from the merged file's and an
+/// output is read, two `script_row_verdicts` (a classify, a signature
+/// check per row, a control block check per script entry, and per row a
+/// read of its leaf's script); a `tap_entry_commits` (a control block
+/// check) per differing script entry, each a classify of the whole PSBT;
+/// and, for an input with a final, a `settle_finals` and a classify, a
+/// finalize of a copy of the input. After a merge, what the spend keeps of its own over what a
+/// file brought: a `tap_scripts` entry that commits to the output, over a
+/// file's entry of the same control block that does not; an own partial
+/// Schnorr row over the file's row for the same key and leaf where the
+/// file's reads not checked and the own does not read wrong; a final
+/// witness the output judges true (a run leaf, the key path), over one for a
+/// script not run, whichever came first; and, on an input whose final
+/// witness is for a script not run, no final witness at all where the rows
+/// the input holds finish it (from the spend or from any file, in any
+/// order). A file's row that reads wrong is not saved here: it is refused
+/// after. Where the two differ and the device cannot judge between them,
+/// the merge is refused in either order: two different rows for one key and
+/// leaf, or two different scripts for one control block, with no output
+/// stated on either side; two different finals for scripts not run, or with
+/// no output to read them against.
+fn keep_own_over_file(
+    merged: &mut faraday_bip::bitcoin::Psbt,
+    own_inputs: &[faraday_bip::bitcoin::psbt::Input],
+    file_inputs: &[faraday_bip::bitcoin::psbt::Input],
+) -> Result<(), Conflict> {
+    use faraday_psbt::verify::{
+        Verdict, not_evaluated, script_row_verdicts, spent_output_of, tap_entry_commits,
+    };
+    for (i, own) in own_inputs.iter().enumerate() {
+        let file = file_inputs.get(i);
+        let output_read = spent_output_of(merged, i).is_some();
+        for (control, entry) in &own.tap_scripts {
+            if merged.inputs[i].tap_scripts.get(control) == Some(entry) {
+                continue;
+            }
+            if !output_read {
+                return Err(no_output(merged, i, Conflict::Scripts(i)));
+            }
+            let (script, version) = entry;
+            let kept = tap_entry_commits(merged, i, control, script, *version);
+            let replaced = merged.inputs[i]
+                .tap_scripts
+                .get(control)
+                .is_some_and(|(s, v)| tap_entry_commits(merged, i, control, s, *v));
+            if kept && !replaced {
+                merged.inputs[i]
+                    .tap_scripts
+                    .insert(control.clone(), entry.clone());
+            }
+        }
+        // With no output stated by either side a file's row cannot be
+        // checked, and one the spend lacks or holds differently is refused;
+        // a row equal to the spend's is no new row.
+        if !output_read
+            && file.is_some_and(|f| {
+                f.tap_script_sigs
+                    .iter()
+                    .any(|(k, v)| own.tap_script_sigs.get(k) != Some(v))
+            })
+        {
+            return Err(no_output(merged, i, Conflict::Rows(i)));
+        }
+        // The own rows the file's differ from, read together.
+        let differ: Vec<_> = own
+            .tap_script_sigs
+            .iter()
+            .filter(|(k, mine)| merged.inputs[i].tap_script_sigs.get(k) != Some(mine))
+            .collect();
+        if output_read && !differ.is_empty() {
+            let theirs = script_row_verdicts(merged, i);
+            let mut swapped = Vec::new();
+            for (&(key, leaf), &mine) in differ {
+                let unchecked = theirs
+                    .iter()
+                    .any(|(k, l, v)| *k == key && *l == leaf && matches!(v, Verdict::Unchecked(_)));
+                if unchecked {
+                    let file_row = merged.inputs[i].tap_script_sigs.insert((key, leaf), mine);
+                    swapped.push(((key, leaf), file_row));
+                }
+            }
+            if !swapped.is_empty() {
+                let ours = script_row_verdicts(merged, i);
+                for (k, file_row) in swapped {
+                    let wrong = ours
+                        .iter()
+                        .any(|(key, leaf, v)| (*key, *leaf) == k && v.is_invalid());
+                    if let Some(row) = file_row
+                        && wrong
+                    {
+                        merged.inputs[i].tap_script_sigs.insert(k, row);
+                    }
+                }
+            }
+        }
+        if let Some(file) = file {
+            settle_finals(merged, own, file, i, output_read)?;
+        }
+        if has_final(&merged.inputs[i]) && not_evaluated(merged, i) {
+            let sig = merged.inputs[i].final_script_sig.take();
+            let witness = merged.inputs[i].final_script_witness.take();
+            if !faraday_psbt::input_finishes(merged, i) {
+                merged.inputs[i].final_script_sig = sig;
+                merged.inputs[i].final_script_witness = witness;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Costs a clone of the whole merged PSBT twice (and a third where two
+/// scripts are not run), a classify of the input in each, and a finalize of
+/// a copy of the input. Where the spend
+/// and a file hold different finals for input `i`: the one the output
+/// judges true over one for a script not run; two scripts not run, or no
+/// output to read them against, refused unless the rows finish.
+fn settle_finals(
+    merged: &mut faraday_bip::bitcoin::Psbt,
+    own: &faraday_bip::bitcoin::psbt::Input,
+    file: &faraday_bip::bitcoin::psbt::Input,
+    i: usize,
+    output_read: bool,
+) -> Result<(), Conflict> {
+    use faraday_psbt::verify::not_evaluated;
+    if !(differ_final(&own.final_script_witness, &file.final_script_witness)
+        || differ_final(&own.final_script_sig, &file.final_script_sig))
+    {
+        return Ok(());
+    }
+    if !output_read {
+        return Err(no_output(merged, i, Conflict::Finals(i)));
+    }
+    // Each final as the input would read it with that one in place.
+    let with = |first: &faraday_bip::bitcoin::psbt::Input,
+                second: &faraday_bip::bitcoin::psbt::Input| {
+        let mut m = merged.clone();
+        m.inputs[i].final_script_sig = first
+            .final_script_sig
+            .clone()
+            .or_else(|| second.final_script_sig.clone());
+        m.inputs[i].final_script_witness = first
+            .final_script_witness
+            .clone()
+            .or_else(|| second.final_script_witness.clone());
+        m
+    };
+    let (mine, theirs) = (with(own, file), with(file, own));
+    match (not_evaluated(&mine, i), not_evaluated(&theirs, i)) {
+        // The file's final is one the output judges: it stands over a
+        // script not run.
+        (true, false) => {
+            merged.inputs[i].final_script_sig = theirs.inputs[i].final_script_sig.clone();
+            merged.inputs[i].final_script_witness = theirs.inputs[i].final_script_witness.clone();
+        }
+        // Two scripts not run: rows that finish beat both, else neither
+        // can be checked.
+        (true, true) => {
+            let mut bare = merged.clone();
+            bare.inputs[i].final_script_sig = None;
+            bare.inputs[i].final_script_witness = None;
+            if !faraday_psbt::input_finishes(&bare, i) {
+                return Err(Conflict::Finals(i));
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+/// Whether the spend and a file each hold a value for one final field and
+/// the two are not the same.
+fn differ_final<T: PartialEq>(own: &Option<T>, file: &Option<T>) -> bool {
+    matches!((own, file), (Some(a), Some(b)) if a != b)
+}
+
+impl Conflict {
+    /// The refusal of the file `source`: the spend and it differ, and it is
+    /// not said to be the one that is wrong.
+    fn refusal(self, source: &str) -> String {
+        let (why, i) = match self {
+            Conflict::Finals(i) => (EN.wallet_finals_differ, i),
+            Conflict::Rows(i) => (EN.wallet_signature_unchecked, i),
+            Conflict::Scripts(i) => (EN.wallet_scripts_differ, i),
+            Conflict::False(i) => return fill(EN.psbt_final_prev_disagree, &[&i.to_string()]),
+        };
+        fill(why, &[source, &i.to_string()])
+    }
+}
+
+/// Whether an input holds a final scriptSig or witness.
+fn has_final(input: &faraday_bip::bitcoin::psbt::Input) -> bool {
+    input.final_script_sig.is_some() || input.final_script_witness.is_some()
 }
 
 /// Why a cosigner's file is refused for a final input that fails its

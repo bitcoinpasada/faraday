@@ -53,6 +53,7 @@ mod codex32_tracker;
 mod codex32_vault_set;
 mod codex32qr_copy;
 mod collect;
+mod collect_leaf_not_run;
 mod common;
 mod convert;
 mod create_musig;

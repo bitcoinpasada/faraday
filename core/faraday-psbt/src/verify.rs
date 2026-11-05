@@ -160,6 +160,9 @@ pub struct SignaturePresent {
     /// data and not a signature: its sighash byte is not compared with
     /// what the input asks.
     pub preimage: bool,
+    /// The input states a key origin for the key, and it is left out of
+    /// `fingerprint` because the leaf the signature is on is not run.
+    pub origin_left_out: bool,
 }
 
 impl SignaturePresent {
@@ -506,6 +509,8 @@ fn input_rows<C: secp256k1::Verification>(
 ) -> (Vec<SignaturePresent>, Judgement) {
     let c = classify(psbt.inner(), index);
     let input = &psbt.inner().inputs[index];
+    let filed = FiledLeaves::new();
+    let separators = core::cell::OnceCell::new();
     let present = collect(&c, input);
     let restored = restore(psbt, index, &c);
     let mismatch = hand_mismatch(&c, input, false);
@@ -564,7 +569,42 @@ fn input_rows<C: secp256k1::Verification>(
         if unrun && p.finalized && p.kind == SigKind::Ecdsa && verdict.is_invalid() {
             verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
         }
-        let (fingerprint, ours) = origin(secp, ctx, &c, input, &key, p.leaf);
+        // A Schnorr row of a script-path leaf that is not run: neither true
+        // nor false is said. A final input whose witness does not commit to
+        // the output is never `unrun`, so it stays as it reads.
+        let leaf_unrun = match p.leaf {
+            Some(leaf) if p.kind == SigKind::Schnorr && verdict.is_invalid() => {
+                if p.finalized {
+                    unrun
+                } else {
+                    filed_leaf_not_run(secp, &c, input, leaf, &filed)
+                }
+            }
+            _ => false,
+        };
+        if leaf_unrun {
+            verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
+        }
+        // Under `OP_CODESEPARATOR` the message worked out here is not the
+        // real one, so a signature that verifies against it is no true
+        // signature: it is not said to be true.
+        if let Some(leaf) = p.leaf
+            && p.kind == SigKind::Schnorr
+            && verdict == Verdict::Valid
+            && separator_leaves(input, &separators).contains(&leaf)
+        {
+            verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
+        }
+        let (fingerprint, ours) = origin(secp, ctx, &c, input, &key, p.leaf, &filed);
+        let origin_left_out = fingerprint.is_none()
+            && match (&key, p.leaf) {
+                (SigKey::Schnorr(xonly), Some(leaf)) => {
+                    input.tap_key_origins.contains_key(xonly)
+                        && in_leaf(secp, &c, input, leaf, xonly, &filed)
+                        && filed_leaf_not_run(secp, &c, input, leaf, &filed)
+                }
+                _ => false,
+            };
         out.push(SignaturePresent {
             input: index,
             sighash: sighash_of(&p),
@@ -577,6 +617,7 @@ fn input_rows<C: secp256k1::Verification>(
             ours,
             verdict,
             preimage,
+            origin_left_out,
         });
     }
     (out, judgement)
@@ -620,6 +661,60 @@ fn out_of_order(
         }
     }
     false
+}
+
+/// Costs a classify, a signature check per row of the input, a control
+/// block check per `tap_scripts` entry (once for the input), and per row a
+/// read of its leaf's script, which under a large committing leaf is a pass
+/// over that leaf for each row. The verdicts of the partial Schnorr rows of input `index`,
+/// each as the review reads it with no key loaded, by the key and leaf of
+/// the row; empty where the input is not there or has none.
+pub fn script_row_verdicts(
+    psbt: &bitcoin::Psbt,
+    index: usize,
+) -> Vec<(XOnlyPublicKey, TapLeafHash, Verdict)> {
+    if psbt.inputs.get(index).is_none() {
+        return Vec::new();
+    }
+    let own = Psbt::from(psbt.clone());
+    let ctx = Context {
+        network: faraday_bip::keys::Network::Mainnet,
+        keys: &[],
+        wallets: &[],
+        musig_session: None,
+    };
+    let secp = Secp256k1::verification_only();
+    input_rows(&secp, &own, &ctx, index)
+        .0
+        .into_iter()
+        .filter(|s| !s.finalized)
+        .filter_map(|s| match (s.key, s.leaf) {
+            (SigKey::Schnorr(key), Some(leaf)) => Some((key, leaf, s.verdict)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Costs a classify and a control block check. Whether a `tap_scripts`
+/// entry of input `index` commits to the output the input spends: its
+/// control block proves `script` a leaf of that output's key, at the
+/// leaf version the block states. `false` where no output is read.
+pub fn tap_entry_commits(
+    psbt: &bitcoin::Psbt,
+    index: usize,
+    control: &bitcoin::taproot::ControlBlock,
+    script: &Script,
+    version: bitcoin::taproot::LeafVersion,
+) -> bool {
+    let Some(paid) = classify(psbt, index)
+        .utxo
+        .as_ref()
+        .and_then(|u| output_key(&u.script_pubkey))
+    else {
+        return false;
+    };
+    control.leaf_version == version
+        && control.verify_taproot_commitment(&Secp256k1::verification_only(), paid, script)
 }
 
 /// Costs a classify, a verification per signature (up to a bound of 201
@@ -678,8 +773,7 @@ pub fn final_invalid(psbt: &bitcoin::Psbt, index: usize) -> bool {
         Judgement::Accepts => false,
         Judgement::Rejects => true,
         // A script not run is never refused here. Its ECDSA rows read
-        // Unchecked; a Schnorr row of a leaf not run can still read Invalid,
-        // which `Spend::collect` refuses in a file (this does not).
+        // Unchecked, and so do its Schnorr rows.
         Judgement::NotJudged if not_evaluated_of(&c, input) => false,
         Judgement::NotJudged => wrong(),
     }
@@ -800,13 +894,14 @@ fn final_script_names(c: &Classified, input: &bitcoin::psbt::Input, pk: &PublicK
 /// origin, when the previous output's key is that internal key tweaked
 /// with the input's merkle root (BIP-341). A key filed with an origin
 /// that is none of these reports none.
-fn origin<C: secp256k1::Verification>(
+fn origin<'a, C: secp256k1::Verification>(
     secp: &Secp256k1<C>,
     ctx: &Context,
     c: &Classified,
-    input: &bitcoin::psbt::Input,
+    input: &'a bitcoin::psbt::Input,
     key: &SigKey,
     leaf: Option<TapLeafHash>,
+    filed: &FiledLeaves<'a>,
 ) -> (Option<Fingerprint>, bool) {
     let fp = match key {
         SigKey::Ecdsa(pk) => (crate::finalize::key_in_script(c, input, pk)
@@ -814,9 +909,10 @@ fn origin<C: secp256k1::Verification>(
         .then(|| input.bip32_derivation.get(&pk.inner).map(|(fp, _)| *fp))
         .flatten(),
         SigKey::Schnorr(xonly) => match leaf {
-            Some(leaf) => in_leaf(secp, c, input, leaf, xonly)
-                .then(|| input.tap_key_origins.get(xonly).map(|(_, (fp, _))| *fp))
-                .flatten(),
+            Some(leaf) => (in_leaf(secp, c, input, leaf, xonly, filed)
+                && !filed_leaf_not_run(secp, c, input, leaf, filed))
+            .then(|| input.tap_key_origins.get(xonly).map(|(_, (fp, _))| *fp))
+            .flatten(),
             None => key_path_internal(secp, c, input, xonly)
                 .and_then(|internal| input.tap_key_origins.get(&internal))
                 .map(|(_, (fp, _))| *fp),
@@ -919,36 +1015,125 @@ fn key_path_internal<C: secp256k1::Verification>(
 /// The leaf counts only when its control block commits to the output key
 /// the previous p2tr output pays: a leaf filed in `tap_scripts` that the
 /// output does not hold names no signer.
-fn in_leaf<C: secp256k1::Verification>(
+fn in_leaf<'a, C: secp256k1::Verification>(
     secp: &Secp256k1<C>,
     c: &Classified,
-    input: &bitcoin::psbt::Input,
+    input: &'a bitcoin::psbt::Input,
     leaf: TapLeafHash,
     key: &XOnlyPublicKey,
+    filed: &FiledLeaves<'a>,
 ) -> bool {
-    let Some(paid) = c.utxo.as_ref().and_then(|u| output_key(&u.script_pubkey)) else {
+    let Some((script, _)) = filed_leaves(secp, c, input, filed).get(&leaf) else {
         return false;
     };
-    input
-        .tap_scripts
-        .iter()
-        .any(|(control, (script, version))| {
-            if TapLeafHash::from_script(script, *version) != leaf
+    if leaf_keys(script).contains(&SigKey::Schnorr(*key)) {
+        return true;
+    }
+    let h = <bitcoin::hashes::hash160::Hash as bitcoin::hashes::Hash>::hash(&key.serialize());
+    let h: &[u8] = h.as_ref();
+    LeafFacts::parse(script)
+        .pkh_hashes
+        .binary_search(&h)
+        .is_ok()
+}
+
+/// Costs a script read per `tap_scripts` entry and one for the final
+/// witness's leaf, worked out on first use and kept in `cell` (a later call
+/// is a lookup). The hashes of the leaves, filed in `tap_scripts` or the
+/// leaf of a final witness, whose script holds `OP_CODESEPARATOR`.
+fn separator_leaves<'c>(
+    input: &bitcoin::psbt::Input,
+    cell: &'c core::cell::OnceCell<BTreeSet<TapLeafHash>>,
+) -> &'c BTreeSet<TapLeafHash> {
+    cell.get_or_init(|| separator_leaves_of(input))
+}
+
+fn separator_leaves_of(input: &bitcoin::psbt::Input) -> BTreeSet<TapLeafHash> {
+    let separator = |s: &Script| {
+        s.instructions()
+            .any(|i| matches!(i, Ok(Instruction::Op(op)) if op == bitcoin::opcodes::all::OP_CODESEPARATOR))
+    };
+    let mut leaves = BTreeSet::new();
+    for (script, version) in input.tap_scripts.values() {
+        if separator(script) {
+            leaves.insert(TapLeafHash::from_script(script, *version));
+        }
+    }
+    let Some(witness) = input.final_script_witness.as_ref() else {
+        return leaves;
+    };
+    let mut elements: Vec<&[u8]> = witness.iter().collect();
+    if elements.len() >= 2 && elements.last().is_some_and(|e| e.first() == Some(&0x50)) {
+        elements.pop();
+    }
+    if elements.len() < 2 {
+        return leaves;
+    }
+    let script = Script::from_bytes(elements[elements.len() - 2]);
+    let version = elements[elements.len() - 1]
+        .first()
+        .copied()
+        .unwrap_or(0xc0)
+        & 0xfe;
+    if let Ok(v) = LeafVersion::from_consensus(version)
+        && separator(script)
+    {
+        leaves.insert(TapLeafHash::from_script(script, v));
+    }
+    leaves
+}
+
+/// Costs a control block check per `tap_scripts` entry, once per input
+/// (the map is kept in `filed`, and a later call is a lookup). The leaves
+/// the input files in `tap_scripts` under a control block that commits to
+/// the output key the previous p2tr output pays, each with its script and
+/// whether it is not run: another leaf version, or no Tap miniscript. A
+/// leaf not filed, or filed under a block that does not commit, is not
+/// among them. Entries of one leaf hash hold one script and version.
+fn filed_leaves<'a, 'f, C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
+    c: &Classified,
+    input: &'a bitcoin::psbt::Input,
+    filed: &'f FiledLeaves<'a>,
+) -> &'f BTreeMap<TapLeafHash, (&'a Script, bool)> {
+    filed.get_or_init(|| {
+        let mut leaves = BTreeMap::new();
+        let Some(paid) = c.utxo.as_ref().and_then(|u| output_key(&u.script_pubkey)) else {
+            return leaves;
+        };
+        for (control, (script, version)) in &input.tap_scripts {
+            let leaf = TapLeafHash::from_script(script, *version);
+            if leaves.contains_key(&leaf)
+                || control.leaf_version != *version
                 || !control.verify_taproot_commitment(secp, paid, script)
             {
-                return false;
+                continue;
             }
-            if leaf_keys(script).contains(&SigKey::Schnorr(*key)) {
-                return true;
-            }
-            let h =
-                <bitcoin::hashes::hash160::Hash as bitcoin::hashes::Hash>::hash(&key.serialize());
-            let h: &[u8] = h.as_ref();
-            LeafFacts::parse(script)
-                .pkh_hashes
-                .binary_search(&h)
-                .is_ok()
-        })
+            let not_run = *version != LeafVersion::TapScript || !finalize::tap_miniscript(script);
+            leaves.insert(leaf, (script.as_script(), not_run));
+        }
+        leaves
+    })
+}
+
+/// The leaves of one input filed under a committing control block, worked
+/// out on first use.
+type FiledLeaves<'a> = core::cell::OnceCell<BTreeMap<TapLeafHash, (&'a Script, bool)>>;
+
+/// Costs a control block check per `tap_scripts` entry, once per input.
+/// Whether leaf `leaf` is filed in the input's `tap_scripts` under a control
+/// block that commits to the output key, and is not run: another leaf
+/// version, or no Tap miniscript. A leaf not filed is not one not run.
+fn filed_leaf_not_run<'a, C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
+    c: &Classified,
+    input: &'a bitcoin::psbt::Input,
+    leaf: TapLeafHash,
+    filed: &FiledLeaves<'a>,
+) -> bool {
+    filed_leaves(secp, c, input, filed)
+        .get(&leaf)
+        .is_some_and(|(_, not_run)| *not_run)
 }
 
 /// Every signature one input carries, from the partial-signature fields

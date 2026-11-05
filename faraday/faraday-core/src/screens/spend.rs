@@ -150,6 +150,7 @@ fn row_verdict(r: &crate::wallet::NonceRow) -> (String, Role) {
             match r.unmatched {
                 Some(Unmatched::NoOrigin) => EN.nonce_check_no_origin,
                 Some(Unmatched::Finalized) => EN.nonce_check_finalized_here,
+                Some(Unmatched::NotRun) => EN.nonce_check_script_not_run_key,
                 None => EN.nonce_check_valid_signed,
             }
             .to_string(),

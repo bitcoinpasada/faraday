@@ -503,33 +503,33 @@ fn a_64_byte_preimage_in_a_finalized_script_path_witness_is_not_an_invalid_signa
     assert!(found.contains(&Verdict::Valid), "{found:?}");
     assert!(!found.contains(&Verdict::Invalid), "{found:?}");
 
-    // A bad signature beside the preimage is invalid, the preimage is not.
+    // The leaf is no Tap miniscript, so it is not run: a bad signature
+    // beside the preimage reads as not run, as the preimage does.
     let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| {
         vec![spoiled(sig), preimage.clone()]
     });
-    let mut found = verdicts(&psbt);
-    found.sort_by_key(|v| format!("{v:?}"));
+    let found = verdicts(&psbt);
     assert_eq!(
         found,
-        vec![
-            Verdict::Invalid,
-            Verdict::Unchecked(Unchecked::UnsupportedScript)
-        ],
+        vec![Verdict::Unchecked(Unchecked::UnsupportedScript); 2],
         "{found:?}"
     );
 
-    // The 65-byte form ending 0x00 is no signature either way: invalid.
+    // The 65-byte form ending 0x00 is no signature, and on a leaf not run
+    // it reads as not run, as any element there; Collect still refuses a
+    // file holding it for its sighash byte (it cannot be told from a
+    // signature).
     let psbt = leaf_spend(hashlock_leaf(&preimage), |mut sig| {
         sig.push(0);
         vec![sig, preimage.clone()]
     });
-    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+    assert!(!verdicts(&psbt).contains(&Verdict::Invalid));
 }
 
-/// The same for the other hash the leaf may push, and a 64-byte element
-/// whose hash is not the push is a bad signature as before.
+/// The same for the other hash the leaf may push; a 64-byte element whose
+/// hash is not the push reads as not run too, since the leaf is not run.
 #[test]
-fn a_preimage_is_data_for_each_hash_and_an_element_hashing_to_nothing_is_not() {
+fn a_preimage_is_data_for_each_hash_and_so_is_an_element_hashing_to_nothing_on_a_leaf_not_run() {
     let preimage = vec![0xab; 64];
     for kind in 0..4 {
         let psbt = leaf_spend(hashlock_leaf_of(kind, &preimage), |sig| {
@@ -548,9 +548,15 @@ fn a_preimage_is_data_for_each_hash_and_an_element_hashing_to_nothing_is_not() {
     // The leaf pushes the hash of one preimage, the witness gives another.
     let other = vec![0xac; 64];
     let psbt = leaf_spend(hashlock_leaf(&preimage), |sig| vec![sig, other.clone()]);
-    assert!(verdicts(&psbt).contains(&Verdict::Invalid));
+    // The leaf is not run, so a 64-byte element on it reads as not run.
+    assert!(!verdicts(&psbt).contains(&Verdict::Invalid));
     let insp = leaf_cards(psbt, PsbtSighashType::from_u32(0));
-    assert!(insp.refuses(), "{:?}", insp.warnings);
+    assert!(
+        !insp.warnings.iter().any(|w| w.level == Level::Blocked
+            || (w.level == Level::Danger && w.kind != WarningKind::NoParticipatingKey)),
+        "{:?}",
+        insp.warnings
+    );
 }
 
 /// A bad signature beside a 32-byte preimage is invalid.
@@ -757,8 +763,11 @@ fn a_real_none_signature_it_cannot_verify_stays_refused() {
             ]
         },
     );
-    // sha256(B) lies on the curve, so it reads as a candidate key.
-    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    // The leaf is no Tap miniscript, so its row reads as not run.
+    assert_eq!(
+        verdicts(&psbt),
+        vec![Verdict::Unchecked(Unchecked::UnsupportedScript)]
+    );
     assert_none_refused(psbt);
 
     // CODESEPARATOR <A> CHECKSIG with [sig_A] signed at position 0.
@@ -778,7 +787,11 @@ fn a_real_none_signature_it_cannot_verify_stays_refused() {
             ]
         },
     );
-    assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+    // The leaf holds OP_CODESEPARATOR, so its row reads as not run.
+    assert_eq!(
+        verdicts(&psbt),
+        vec![Verdict::Unchecked(Unchecked::UnsupportedScript)]
+    );
     assert_none_refused(psbt);
 
     // <A> CHECKSIG NOP with an annex, which the signature commits to.
@@ -880,7 +893,13 @@ fn a_hash_of_the_witness_key_outside_the_pkh_shape_makes_no_key() {
                 ]
             },
         );
-        assert_eq!(verdicts(&psbt), vec![Verdict::Invalid]);
+        // The size leaf is a Tap miniscript and is run; the drop leaf is not.
+        let row = if which == 0 {
+            Verdict::Invalid
+        } else {
+            Verdict::Unchecked(Unchecked::UnsupportedScript)
+        };
+        assert_eq!(verdicts(&psbt), vec![row]);
         let insp = leaf_cards(psbt, PsbtSighashType::from_u32(1));
         assert!(
             insp.warnings.iter().any(

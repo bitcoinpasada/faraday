@@ -69,6 +69,28 @@ pub fn is_complete(psbt: &Psbt) -> bool {
     })
 }
 
+/// Costs a classify and the finalizer's work on one input, as [`finalize`]
+/// does it. Whether input `index` of `psbt`, taken as it stands, has enough
+/// signatures to be finalized, whatever any other input needs: no input
+/// misses its spent output, the input states nothing false and a final
+/// witness is built for it. An input that is final already, or that the
+/// finalizer refuses, is not.
+pub fn input_finishes(psbt: &bitcoin::Psbt, index: usize) -> bool {
+    let Some(input) = psbt.inputs.get(index) else {
+        return false;
+    };
+    if prevout_missing(psbt).is_some()
+        || input.final_script_sig.is_some()
+        || input.final_script_witness.is_some()
+    {
+        return false;
+    }
+    let c = classify(psbt, index);
+    c.problems.is_empty()
+        && c.utxo.is_some()
+        && build_final(psbt, index, &c, input).is_ok_and(|f| f.is_some())
+}
+
 /// Finalizes every input that has enough signatures, and refuses an input
 /// that states a false output, final or not. Returns the
 /// extracted transaction when all inputs are final, `None` when some are

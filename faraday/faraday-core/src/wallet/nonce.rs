@@ -171,8 +171,8 @@ pub struct NonceRow {
     /// whose nonce cannot be recomputed without its private key.
     pub recomputed: Option<Option<faraday_psbt::verify::NonceMode>>,
     /// Why a signature not recomputed is not known to be another
-    /// device's: its key has no origin here, or it is finalized under a
-    /// key held here. `None` for every other.
+    /// device's: its key has no origin here, it is finalized under a
+    /// key held here, or its script was not run. `None` for every other.
     pub unmatched: Option<Unmatched>,
 }
 
@@ -186,6 +186,9 @@ pub enum Unmatched {
     /// Its master is held here, but the signature is in a final
     /// `scriptSig` or witness, which no nonce rule is run on.
     Finalized,
+    /// The file states a key origin, but the script the signature is on
+    /// was not run, so the key is not counted.
+    NotRun,
 }
 
 impl NonceRow {

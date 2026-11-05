@@ -20,7 +20,7 @@ use faraday_core::strings::EN;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::Unmatched;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
-use faraday_psbt::verify::{NonceMode, Verdict};
+use faraday_psbt::verify::{NonceMode, Unchecked, Verdict};
 use faraday_shell_api::{App, Event};
 
 fn kit(id: &str) -> Kit {
@@ -417,6 +417,7 @@ fn a_key_loaded_since_the_check_opened_is_counted_on_the_way_back() {
 }
 
 /// One input of a finalized taproot transaction.
+#[derive(Clone)]
 enum Tap {
     /// A key-path spend, signed over the whole transaction.
     Key,
@@ -427,6 +428,164 @@ enum Tap {
     /// control]` under a key-path output: a signature that is right, in
     /// a witness that confirms nowhere.
     Hidden,
+    /// A script-path spend of a leaf signed by key A, with a real signature
+    /// or a forged one, final or as a partial signature in the fields.
+    Leaf {
+        kind: LeafKind,
+        forged: bool,
+        partial: bool,
+    },
+}
+
+/// The leaf of a [`Tap::Leaf`].
+#[derive(Clone, Copy)]
+enum LeafKind {
+    /// `<A> CHECKSIG` of leaf version 0xc0: a Tap miniscript, run.
+    Run,
+    /// `OP_CODESEPARATOR <A> CHECKSIG`: signed over the script after it.
+    Separator,
+    /// `OP_DROP <A> CHECKSIG` spent with a data element.
+    Drop,
+    /// `<A> CHECKSIG` of leaf version 0xc2.
+    Future,
+}
+
+/// The leaf of one input made by [`taproot_psbt`], ready to sign.
+type LeafMade = (
+    Tap,
+    faraday_bip::bitcoin::ScriptBuf,
+    faraday_bip::bitcoin::taproot::LeafVersion,
+    faraday_bip::bitcoin::taproot::ControlBlock,
+);
+
+/// Signs a leaf with key A and files it as the final witness, or as a
+/// partial signature, on input `i`.
+fn sign_leaf(
+    inner: &mut faraday_bip::bitcoin::Psbt,
+    i: usize,
+    tx: &faraday_bip::bitcoin::Transaction,
+    prevouts: &[faraday_bip::bitcoin::TxOut],
+    pair: &faraday_bip::bitcoin::secp256k1::Keypair,
+    made: LeafMade,
+) {
+    use faraday_bip::bitcoin::Witness;
+    use faraday_bip::bitcoin::sighash::{Prevouts, TapSighashType};
+    let (
+        Tap::Leaf {
+            kind,
+            forged,
+            partial,
+        },
+        script,
+        version,
+        control,
+    ) = made
+    else {
+        return;
+    };
+    let leaf_hash = faraday_bip::bitcoin::taproot::TapLeafHash::from_script(&script, version);
+    let separator = matches!(kind, LeafKind::Separator).then_some(0);
+    let hash = SighashCache::new(tx)
+        .taproot_signature_hash(
+            i,
+            &Prevouts::All(prevouts),
+            None,
+            Some((leaf_hash, separator.unwrap_or(0xffff_ffff))),
+            TapSighashType::Default,
+        )
+        .unwrap();
+    let mut sig = Secp256k1::new()
+        .sign_schnorr_no_aux_rand(&Message::from_digest(hash.to_byte_array()), pair)
+        .serialize()
+        .to_vec();
+    if forged {
+        sig[5] ^= 1;
+    }
+    if partial {
+        let (a, _) = pair.x_only_public_key();
+        inner.inputs[i]
+            .tap_scripts
+            .insert(control, (script, version));
+        inner.inputs[i].tap_script_sigs.insert(
+            (a, leaf_hash),
+            faraday_bip::bitcoin::taproot::Signature::from_slice(&sig).unwrap(),
+        );
+    } else {
+        let mut elements = vec![sig];
+        if matches!(kind, LeafKind::Drop) {
+            elements.push(vec![0x42]);
+        }
+        elements.push(script.to_bytes());
+        elements.push(control.serialize());
+        inner.inputs[i].final_script_witness = Some(Witness::from_slice(&elements));
+    }
+}
+
+/// The output and the leaf of a [`Tap::Leaf`] of `kind`, under internal key `internal`.
+fn leaf_output(
+    secp: &Secp256k1<faraday_bip::bitcoin::secp256k1::All>,
+    pair: &faraday_bip::bitcoin::secp256k1::Keypair,
+    internal: faraday_bip::bitcoin::XOnlyPublicKey,
+    tap: Tap,
+    kind: LeafKind,
+) -> (faraday_bip::bitcoin::ScriptBuf, LeafMade) {
+    use faraday_bip::bitcoin::opcodes::all::{OP_CHECKSIG, OP_CODESEPARATOR, OP_DROP};
+    use faraday_bip::bitcoin::taproot::{LeafVersion, TaprootBuilder};
+    let (a, _) = pair.x_only_public_key();
+    let mut b = faraday_bip::bitcoin::script::Builder::new();
+    b = match kind {
+        LeafKind::Separator => b.push_opcode(OP_CODESEPARATOR),
+        LeafKind::Drop => b.push_opcode(OP_DROP),
+        _ => b,
+    };
+    let script = b.push_x_only_key(&a).push_opcode(OP_CHECKSIG).into_script();
+    let version = match kind {
+        LeafKind::Future => LeafVersion::from_consensus(0xc2).unwrap(),
+        _ => LeafVersion::TapScript,
+    };
+    let info = TaprootBuilder::new()
+        .add_leaf_with_ver(0, script.clone(), version)
+        .unwrap()
+        .finalize(secp, internal)
+        .unwrap();
+    let control = info.control_block(&(script.clone(), version)).unwrap();
+    let spk = faraday_bip::bitcoin::ScriptBuf::new_p2tr(secp, internal, info.merkle_root());
+    (spk, (tap, script, version, control))
+}
+
+/// The output and the final witness of a hash-lock leaf of [`Tap::Lock`].
+fn lock_output(
+    secp: &Secp256k1<faraday_bip::bitcoin::secp256k1::All>,
+    internal: faraday_bip::bitcoin::XOnlyPublicKey,
+    preimage: &[u8],
+    spoil: bool,
+) -> (
+    faraday_bip::bitcoin::ScriptBuf,
+    faraday_bip::bitcoin::Witness,
+) {
+    use faraday_bip::bitcoin::taproot::{LeafVersion, TaprootBuilder};
+    let hash = faraday_bip::bitcoin::hashes::sha256::Hash::hash(preimage);
+    let script = faraday_bip::bitcoin::script::Builder::new()
+        .push_opcode(faraday_bip::bitcoin::opcodes::all::OP_SHA256)
+        .push_slice(hash.to_byte_array())
+        .push_opcode(faraday_bip::bitcoin::opcodes::all::OP_EQUAL)
+        .into_script();
+    let info = TaprootBuilder::new()
+        .add_leaf(0, script.clone())
+        .unwrap()
+        .finalize(secp, internal)
+        .unwrap();
+    let mut control = info
+        .control_block(&(script.clone(), LeafVersion::TapScript))
+        .unwrap()
+        .serialize();
+    if spoil {
+        control[2] ^= 1;
+    }
+    let spk = faraday_bip::bitcoin::ScriptBuf::new_p2tr(secp, internal, info.merkle_root());
+    let witness =
+        faraday_bip::bitcoin::Witness::from_slice(&[preimage.to_vec(), script.to_bytes(), control]);
+    (spk, witness)
 }
 
 /// A PSBT whose inputs are finalized as `inputs` says, each spending a
@@ -435,7 +594,6 @@ fn taproot_psbt(inputs: &[Tap]) -> faraday_psbt::Psbt {
     use faraday_bip::bitcoin::key::TapTweak;
     use faraday_bip::bitcoin::secp256k1::Keypair;
     use faraday_bip::bitcoin::sighash::{Prevouts, TapSighashType};
-    use faraday_bip::bitcoin::taproot::{LeafVersion, TaprootBuilder};
     use faraday_bip::bitcoin::{
         Amount, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness, absolute::LockTime,
         transaction::Version,
@@ -448,36 +606,22 @@ fn taproot_psbt(inputs: &[Tap]) -> faraday_psbt::Psbt {
     let (other_key, _) = other.x_only_public_key();
     let mut prevouts = Vec::new();
     let mut leaves = Vec::new();
+    let mut pending: Vec<Option<LeafMade>> = Vec::new();
     for tap in inputs {
         let (spk, leaf) = match tap {
-            Tap::Key | Tap::Hidden => (ScriptBuf::new_p2tr(&secp, internal, None), None),
+            Tap::Leaf { kind, .. } => {
+                let (spk, made) = leaf_output(&secp, &pair, other_key, tap.clone(), *kind);
+                pending.push(Some(made));
+                (spk, None)
+            }
+            Tap::Key | Tap::Hidden => {
+                pending.push(None);
+                (ScriptBuf::new_p2tr(&secp, internal, None), None)
+            }
             Tap::Lock { preimage, spoil } => {
-                let hash = faraday_bip::bitcoin::hashes::sha256::Hash::hash(preimage);
-                let script = faraday_bip::bitcoin::script::Builder::new()
-                    .push_opcode(faraday_bip::bitcoin::opcodes::all::OP_SHA256)
-                    .push_slice(hash.to_byte_array())
-                    .push_opcode(faraday_bip::bitcoin::opcodes::all::OP_EQUAL)
-                    .into_script();
-                let info = TaprootBuilder::new()
-                    .add_leaf(0, script.clone())
-                    .unwrap()
-                    .finalize(&secp, other_key)
-                    .unwrap();
-                let mut control = info
-                    .control_block(&(script.clone(), LeafVersion::TapScript))
-                    .unwrap()
-                    .serialize();
-                if *spoil {
-                    control[2] ^= 1;
-                }
-                (
-                    ScriptBuf::new_p2tr(&secp, other_key, info.merkle_root()),
-                    Some(Witness::from_slice(&[
-                        preimage.clone(),
-                        script.to_bytes(),
-                        control,
-                    ])),
-                )
+                pending.push(None);
+                let (spk, witness) = lock_output(&secp, other_key, preimage, *spoil);
+                (spk, Some(witness))
             }
         };
         prevouts.push(TxOut {
@@ -509,6 +653,10 @@ fn taproot_psbt(inputs: &[Tap]) -> faraday_psbt::Psbt {
     let mut inner = faraday_bip::bitcoin::Psbt::from_unsigned_tx(tx.clone()).unwrap();
     for (i, leaf) in leaves.into_iter().enumerate() {
         inner.inputs[i].witness_utxo = Some(prevouts[i].clone());
+        if let Some(done) = pending[i].clone() {
+            sign_leaf(&mut inner, i, &tx, &prevouts, &pair, done);
+            continue;
+        }
         inner.inputs[i].final_script_witness = Some(leaf.unwrap_or_else(|| {
             let hash = SighashCache::new(&tx)
                 .taproot_key_spend_signature_hash(
@@ -529,6 +677,82 @@ fn taproot_psbt(inputs: &[Tap]) -> faraday_psbt::Psbt {
         }));
     }
     faraday_psbt::Psbt::from(inner)
+}
+
+fn leaf(kind: LeafKind, forged: bool, partial: bool) -> Tap {
+    Tap::Leaf {
+        kind,
+        forged,
+        partial,
+    }
+}
+
+/// A script-path signature on a leaf Faraday does not run, final or filed as
+/// a partial signature under a leaf the input files with a control block
+/// that commits, is not refused, true or forged (a forged one reads not
+/// checked, a true one valid): Review and Collect take the file, and no key
+/// counts as signed. A forged signature
+/// on a Tap miniscript leaf (which is run) is refused.
+#[test]
+fn a_signature_on_a_leaf_that_is_not_run_is_not_refused() {
+    use faraday_core::wallet::{Session, Spend};
+    let c = testkit::compute();
+    let session = Session::default();
+    for (what, kind, run) in [
+        ("a separator leaf", LeafKind::Separator, false),
+        ("a leaf with OP_DROP and data", LeafKind::Drop, false),
+        ("a future leaf version", LeafKind::Future, false),
+        ("a Tap miniscript leaf", LeafKind::Run, true),
+    ] {
+        for forged in [false, true] {
+            let what = format!("{what}, forged {forged}");
+            // Final: Review and finish.
+            let psbt = taproot_psbt(&[leaf(kind, forged, false)]);
+            let app = testkit::started();
+            let check = app.session.nonce_check(&c, &psbt);
+            let refused = run && forged;
+            assert_eq!(check.wrong(), refused, "{what}");
+            assert_eq!(check.not_evaluated.is_empty(), run, "{what}");
+            if !run {
+                assert!(!check.sound(), "{what}");
+            }
+            // Collect: a cosigner's file onto an unsigned own copy.
+            let mut own = psbt.clone();
+            own.inner_mut().inputs[0].final_script_witness = None;
+            let mut spend = Spend::new(own, "own.psbt");
+            let merged = spend.collect(&c, &session, &psbt.to_bytes(), "cosigner.psbt");
+            assert_eq!(merged.is_err(), refused, "{what}");
+            if !run {
+                assert!(merged.unwrap().is_empty(), "{what}: no key counted");
+                assert!(
+                    spend.signing(&c, &session, None).0.is_empty(),
+                    "{what}: no signer"
+                );
+            }
+            let mut spend = Spend::new(psbt, "t.psbt");
+            assert_eq!(spend.finish().is_err(), refused, "{what}");
+            // Partial: the signature in the fields, read by Review.
+            let psbt = taproot_psbt(&[leaf(kind, forged, true)]);
+            let rows: Vec<_> = faraday_psbt::verify::verify_signatures(
+                &psbt,
+                &faraday_psbt::Context {
+                    network: faraday_bip::keys::Network::Mainnet,
+                    keys: &[],
+                    wallets: &[],
+                    musig_session: None,
+                },
+            )
+            .into_iter()
+            .flat_map(|i| i.signatures)
+            .collect();
+            assert_eq!(rows.len(), 1, "{what}");
+            let invalid = rows[0].verdict.is_invalid();
+            assert_eq!(invalid, refused, "{what}");
+            if forged {
+                assert_ne!(rows[0].verdict, Verdict::Valid, "{what}");
+            }
+        }
+    }
 }
 
 fn lock(spoil: bool) -> Tap {
@@ -2938,4 +3162,689 @@ fn a_time_lock_the_transaction_does_not_meet_is_refused_in_the_words_of_the_fina
     assert_eq!(cards(&good), 0);
     assert_eq!(Spend::new(good.clone(), "t.psbt").refused(), None);
     assert!(Spend::new(good, "t.psbt").finish().is_ok());
+}
+
+/// Rows of a taproot leaf the output holds beside others, signed by key A
+/// whose origin the input states.
+mod leaf_rows {
+    use super::{Unchecked, Verdict};
+    use b::bip32::{DerivationPath, Fingerprint};
+    use b::hashes::Hash;
+    use b::opcodes::all::{OP_CHECKSIG, OP_CODESEPARATOR, OP_DROP};
+    use b::secp256k1::{Keypair, Message, Secp256k1, SecretKey};
+    use b::sighash::{Prevouts, SighashCache, TapSighashType};
+    use b::taproot::{ControlBlock, LeafVersion, TapLeafHash, TaprootBuilder};
+    use b::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness};
+    use faraday_bip::bitcoin as b;
+    use faraday_core::testkit;
+    use faraday_core::wallet::{Session, Spend};
+    use std::str::FromStr;
+
+    const NO: u32 = 0xffff_ffff;
+
+    #[derive(Clone, Copy, PartialEq)]
+    enum Leaf {
+        /// `<A> CHECKSIG`, a Tap miniscript: run.
+        Run,
+        /// `OP_DROP <A> CHECKSIG`: not run.
+        Drop,
+        /// `OP_CODESEPARATOR <A> CHECKSIG`: not run.
+        Separator,
+    }
+
+    #[derive(Clone, Copy, PartialEq)]
+    enum Filing {
+        Proper,
+        NotFiled,
+        /// The leaf's script with another leaf's control block.
+        OtherLeafBlock,
+        /// The leaf's script with a block committing to another output.
+        OtherOutputBlock,
+        /// The right block for the script, the entry stating version 0xc2.
+        FalseVersion,
+    }
+
+    fn pair(n: u8) -> Keypair {
+        Keypair::from_secret_key(&Secp256k1::new(), &SecretKey::from_slice(&[n; 32]).unwrap())
+    }
+
+    fn script(leaf: Leaf) -> ScriptBuf {
+        let a = pair(7).x_only_public_key().0;
+        let mut s = b::script::Builder::new();
+        s = match leaf {
+            Leaf::Run => s,
+            Leaf::Drop => s.push_opcode(OP_DROP),
+            Leaf::Separator => s.push_opcode(OP_CODESEPARATOR),
+        };
+        s.push_x_only_key(&a).push_opcode(OP_CHECKSIG).into_script()
+    }
+
+    /// The output holding the three leaves, and the control block of each.
+    fn output(internal: u8) -> (ScriptBuf, [ControlBlock; 3]) {
+        let secp = Secp256k1::new();
+        let leaves = [Leaf::Run, Leaf::Drop, Leaf::Separator].map(script);
+        let info = TaprootBuilder::new()
+            .add_leaf(1, leaves[0].clone())
+            .unwrap()
+            .add_leaf(2, leaves[1].clone())
+            .unwrap()
+            .add_leaf(2, leaves[2].clone())
+            .unwrap()
+            .finalize(&secp, pair(internal).x_only_public_key().0)
+            .unwrap();
+        let block = |i: usize| {
+            info.control_block(&(leaves[i].clone(), LeafVersion::TapScript))
+                .unwrap()
+        };
+        (
+            ScriptBuf::new_p2tr_tweaked(info.output_key()),
+            [block(0), block(1), block(2)],
+        )
+    }
+
+    fn index(leaf: Leaf) -> usize {
+        match leaf {
+            Leaf::Run => 0,
+            Leaf::Drop => 1,
+            Leaf::Separator => 2,
+        }
+    }
+
+    fn base() -> (b::Psbt, Transaction, Vec<TxOut>) {
+        let prev = TxOut {
+            value: Amount::from_sat(20_000),
+            script_pubkey: output(9).0,
+        };
+        let tx = Transaction {
+            version: b::transaction::Version::TWO,
+            lock_time: b::absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::new(b::Txid::from_byte_array([1; 32]), 0),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(10_000),
+                script_pubkey: prev.script_pubkey.clone(),
+            }],
+        };
+        let mut p = b::Psbt::from_unsigned_tx(tx.clone()).unwrap();
+        p.inputs[0].witness_utxo = Some(prev.clone());
+        (p, tx, vec![prev])
+    }
+
+    fn signature(
+        tx: &Transaction,
+        prev: &[TxOut],
+        hash: TapLeafHash,
+        sep: u32,
+        forged: bool,
+    ) -> Vec<u8> {
+        let h = SighashCache::new(tx)
+            .taproot_signature_hash(
+                0,
+                &Prevouts::All(prev),
+                None,
+                Some((hash, sep)),
+                TapSighashType::Default,
+            )
+            .unwrap();
+        let mut s = Secp256k1::new()
+            .sign_schnorr_no_aux_rand(&Message::from_digest(h.to_byte_array()), &pair(7))
+            .serialize()
+            .to_vec();
+        if forged {
+            s[5] ^= 1;
+        }
+        s
+    }
+
+    fn c0() -> LeafVersion {
+        LeafVersion::TapScript
+    }
+
+    fn c2() -> LeafVersion {
+        LeafVersion::from_consensus(0xc2).unwrap()
+    }
+
+    /// A partial signature of key A on `leaf`, filed as `filing` says, with
+    /// key A's origin stated. `sep` is the code separator position the
+    /// message is signed at.
+    fn partial(leaf: Leaf, filing: Filing, sep: u32, forged: bool) -> faraday_psbt::Psbt {
+        let (_, blocks) = output(9);
+        let (_, other_output) = output(8);
+        let s = script(leaf);
+        let version = if filing == Filing::FalseVersion {
+            c2()
+        } else {
+            c0()
+        };
+        let hash = TapLeafHash::from_script(&s, version);
+        let (mut p, tx, prev) = base();
+        let block = match filing {
+            Filing::NotFiled => None,
+            Filing::OtherLeafBlock => Some(blocks[index(Leaf::Run)].clone()),
+            Filing::OtherOutputBlock => Some(other_output[index(leaf)].clone()),
+            _ => Some(blocks[index(leaf)].clone()),
+        };
+        if let Some(block) = block {
+            p.inputs[0].tap_scripts.insert(block, (s, version));
+        }
+        let a = pair(7).x_only_public_key().0;
+        p.inputs[0].tap_key_origins.insert(
+            a,
+            (
+                vec![hash],
+                (
+                    Fingerprint::from_str("aabbccdd").unwrap(),
+                    DerivationPath::from_str("m/86'/0'/0'/0/0").unwrap(),
+                ),
+            ),
+        );
+        let sig = signature(&tx, &prev, hash, sep, forged);
+        p.inputs[0]
+            .tap_script_sigs
+            .insert((a, hash), b::taproot::Signature::from_slice(&sig).unwrap());
+        faraday_psbt::Psbt::from(p)
+    }
+
+    /// A final witness of `leaf`: the signature at `sep`, then `after` (the
+    /// signature made into the element it reads as), the script, the block.
+    fn finished(
+        leaf: Leaf,
+        sep: u32,
+        forged: bool,
+        make: impl Fn(Vec<u8>) -> Vec<Vec<u8>>,
+    ) -> faraday_psbt::Psbt {
+        let (_, blocks) = output(9);
+        let s = script(leaf);
+        let hash = TapLeafHash::from_script(&s, c0());
+        let (mut p, tx, prev) = base();
+        let mut w = make(signature(&tx, &prev, hash, sep, forged));
+        w.push(s.to_bytes());
+        w.push(blocks[index(leaf)].serialize());
+        p.inputs[0].final_script_witness = Some(Witness::from_slice(&w));
+        faraday_psbt::Psbt::from(p)
+    }
+
+    /// What a person sees of a file: its rows, whether Collect takes it
+    /// onto an unsigned copy and the keys it counts, the masters Signing
+    /// counts and the ones it still offers Sign, and whether Finish takes it.
+    struct Seen {
+        rows: Vec<Verdict>,
+        taken: bool,
+        counted: usize,
+        signers: usize,
+        to_sign: usize,
+        finish: bool,
+    }
+
+    fn see(psbt: &faraday_psbt::Psbt) -> Seen {
+        let c = testkit::compute();
+        let session = Session::default();
+        let rows = faraday_psbt::verify::verify_signatures(
+            psbt,
+            &faraday_psbt::Context {
+                network: faraday_bip::keys::Network::Mainnet,
+                keys: &[],
+                wallets: &[],
+                musig_session: None,
+            },
+        )
+        .into_iter()
+        .flat_map(|i| i.signatures)
+        .map(|r| r.verdict)
+        .collect();
+        let mut own = psbt.clone();
+        own.inner_mut().inputs[0].final_script_witness = None;
+        own.inner_mut().inputs[0].tap_script_sigs.clear();
+        let mut spend = Spend::new(own, "own.psbt");
+        let merged = spend.collect(&c, &session, &psbt.to_bytes(), "cosigner.psbt");
+        let (signers, to_sign) = spend.signing(&c, &session, None);
+        Seen {
+            rows,
+            taken: merged.is_ok(),
+            counted: merged.map(|m| m.len()).unwrap_or(0),
+            signers: signers.len(),
+            to_sign: to_sign.len(),
+            finish: Spend::new(psbt.clone(), "t.psbt").finish().is_ok(),
+        }
+    }
+
+    const NOT_RUN: Verdict = Verdict::Unchecked(Unchecked::UnsupportedScript);
+
+    /// A leaf is not run only as the output holds it: one not filed, filed
+    /// with another leaf's control block, or with a block committing to
+    /// another output is no leaf of this output, so a forged signature on it
+    /// is a wrong one and the file is refused.
+    #[test]
+    fn a_leaf_the_output_does_not_hold_is_not_a_leaf_not_run() {
+        for filing in [
+            Filing::NotFiled,
+            Filing::OtherLeafBlock,
+            Filing::OtherOutputBlock,
+        ] {
+            let seen = see(&partial(Leaf::Drop, filing, NO, true));
+            assert_eq!(seen.rows, vec![Verdict::Invalid]);
+            assert!(!seen.taken);
+        }
+        // Filed as the output holds it, the same row is not run and taken.
+        let seen = see(&partial(Leaf::Drop, Filing::Proper, NO, true));
+        assert_eq!(seen.rows, vec![NOT_RUN]);
+        assert!(seen.taken);
+    }
+
+    /// A partial signature on a leaf that is run: forged is refused, true
+    /// counts its key.
+    #[test]
+    fn a_partial_signature_on_a_run_leaf_counts_when_true_and_is_refused_when_forged() {
+        let seen = see(&partial(Leaf::Run, Filing::Proper, NO, true));
+        assert_eq!(seen.rows, vec![Verdict::Invalid]);
+        assert!(!seen.taken);
+        let seen = see(&partial(Leaf::Run, Filing::Proper, NO, false));
+        assert_eq!(seen.rows, vec![Verdict::Valid]);
+        assert!(seen.taken);
+        assert_eq!((seen.counted, seen.signers, seen.to_sign), (1, 1, 0));
+    }
+
+    /// A partial signature on a leaf not run is taken, true or forged, and
+    /// counts no key: the master is still offered Sign.
+    #[test]
+    fn a_partial_signature_on_a_leaf_not_run_is_taken_and_counts_no_key() {
+        let forged = see(&partial(Leaf::Drop, Filing::Proper, NO, true));
+        assert_eq!(forged.rows, vec![NOT_RUN]);
+        assert!(forged.taken);
+        assert_eq!((forged.counted, forged.signers, forged.to_sign), (0, 0, 1));
+
+        let seen = see(&partial(Leaf::Drop, Filing::Proper, NO, false));
+        assert_eq!(seen.rows, vec![Verdict::Valid]);
+        assert!(seen.taken);
+        assert_eq!((seen.counted, seen.signers, seen.to_sign), (0, 0, 1));
+        assert!(!seen.finish);
+        // A row read as not run is counted as not checked in the headline.
+        let app = testkit::started();
+        let check = app.session.nonce_check(
+            &testkit::compute(),
+            &partial(Leaf::Drop, Filing::Proper, NO, true),
+        );
+        assert!(check.headline().contains("1 of 1 signature not checked"));
+    }
+
+    /// Under OP_CODESEPARATOR the message worked out here is not the real
+    /// one, so a signature that verifies against it is no true signature:
+    /// final or partial it reads not run and counts no key.
+    #[test]
+    fn a_signature_that_verifies_on_a_separator_leaf_is_not_called_true() {
+        let seen = see(&partial(Leaf::Separator, Filing::Proper, NO, false));
+        assert_eq!(seen.rows, vec![NOT_RUN]);
+        assert!(seen.taken);
+        assert_eq!((seen.counted, seen.signers, seen.to_sign), (0, 0, 1));
+        let seen = see(&finished(Leaf::Separator, NO, false, |g| vec![g]));
+        assert_eq!(seen.rows, vec![NOT_RUN]);
+        assert!(seen.taken && seen.finish);
+    }
+
+    /// An entry that states another leaf version than its control block is
+    /// no leaf the input files: a forged signature under its hash is wrong,
+    /// and a true one counts no key.
+    #[test]
+    fn a_leaf_filed_with_another_version_than_its_control_block_is_not_filed() {
+        let seen = see(&partial(Leaf::Run, Filing::FalseVersion, NO, true));
+        assert_eq!(seen.rows, vec![Verdict::Invalid]);
+        assert!(!seen.taken);
+        let seen = see(&partial(Leaf::Run, Filing::FalseVersion, NO, false));
+        assert!(seen.taken);
+        assert_eq!((seen.counted, seen.signers), (0, 0));
+    }
+
+    /// An element of 65 bytes ending in a sighash byte other than 00 and
+    /// 01, and a true signature with 00 appended, on a leaf not run are
+    /// data to Finish and read as not run, but Collect refuses a file with
+    /// one: it cannot be told from a signature. A 64-byte element is taken.
+    #[test]
+    fn a_65_byte_element_on_a_leaf_not_run_is_refused_by_collect_though_finish_takes_it() {
+        for last in [0x02, 0x81, 0x83] {
+            let seen = see(&finished(Leaf::Drop, NO, false, |g| {
+                let mut data = vec![0xab; 64];
+                data.push(last);
+                vec![g, data]
+            }));
+            assert!(seen.finish, "{last:#x}");
+            assert!(!seen.taken, "{last:#x}");
+            assert!(!seen.rows.contains(&Verdict::Invalid), "{last:#x}");
+        }
+        let seen = see(&finished(Leaf::Drop, NO, false, |mut g| {
+            g.push(0);
+            vec![g, vec![0x42]]
+        }));
+        assert!(seen.finish && !seen.taken);
+        assert_eq!(seen.rows, vec![NOT_RUN]);
+        let seen = see(&finished(Leaf::Drop, NO, false, |g| {
+            vec![g, vec![0xab; 64]]
+        }));
+        assert!(seen.finish && seen.taken);
+    }
+}
+
+/// Taproot spends with a leaf run and a leaf not run, signed by a key
+/// outside the app, and a seed loaded here for the rows that name a key
+/// held.
+mod leaf_not_run {
+    use super::*;
+    use b::bip32::{DerivationPath, Fingerprint as BFp};
+    use b::key::TapTweak;
+    use b::opcodes::all::*;
+    use b::secp256k1::{Keypair, Secp256k1, SecretKey};
+    use b::sighash::{Prevouts, SighashCache, TapSighashType};
+    use b::taproot::{ControlBlock, LeafVersion, TapLeafHash, TaprootBuilder};
+    use b::{Amount, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness};
+    use faraday_bip::bitcoin as b;
+    use faraday_core::wallet::Spend;
+    use std::str::FromStr;
+
+    const NO: u32 = 0xffff_ffff;
+    const C0: LeafVersion = LeafVersion::TapScript;
+    const PATH: &str = "m/86'/0'/0'/0/0";
+
+    fn pair(n: u8) -> Keypair {
+        Keypair::from_secret_key(&Secp256k1::new(), &SecretKey::from_slice(&[n; 32]).unwrap())
+    }
+    fn x(k: &Keypair) -> b::XOnlyPublicKey {
+        k.x_only_public_key().0
+    }
+    fn key_script(k: &Keypair, first: Option<b::opcodes::Opcode>) -> ScriptBuf {
+        let mut s = b::script::Builder::new();
+        if let Some(op) = first {
+            s = s.push_opcode(op);
+        }
+        s.push_x_only_key(&x(k))
+            .push_opcode(OP_CHECKSIG)
+            .into_script()
+    }
+    /// The key at `PATH` of the seed "zebra", which a session holds after
+    /// `add_key`, and its master fingerprint.
+    fn held() -> (Keypair, BFp) {
+        let c = testkit::compute();
+        let m = faraday_bip::bip39::Mnemonic::parse(
+            &c,
+            faraday_bip::bip39::Language::English,
+            &testkit::test_words("zebra"),
+        )
+        .unwrap();
+        let z = faraday_bip::keys::MasterKey::from_seed(
+            &c,
+            &m.to_seed(&c, b"").unwrap(),
+            testkit::net(),
+        );
+        let d = z.derive(&c, &DerivationPath::from_str(PATH).unwrap());
+        (
+            Keypair::from_secret_key(&Secp256k1::new(), d.secret_key()),
+            BFp::from(z.fingerprint().0),
+        )
+    }
+    fn foreign() -> BFp {
+        BFp::from_str("aabbccdd").unwrap()
+    }
+    fn app(with_held: bool) -> Faraday {
+        let mut a = testkit::started();
+        if with_held {
+            add_key(&mut a, "zebra");
+        }
+        a
+    }
+
+    struct Tree {
+        psbt: b::Psbt,
+        tx: Transaction,
+        prev: Vec<TxOut>,
+        controls: Vec<ControlBlock>,
+    }
+
+    /// One input spending a tree of `leaves`, each filed.
+    fn tree(leaves: &[ScriptBuf]) -> Tree {
+        let secp = Secp256k1::new();
+        let mut t = TaprootBuilder::new();
+        let depths: &[u8] = if leaves.len() == 1 { &[0] } else { &[1, 1] };
+        for (s, d) in leaves.iter().zip(depths) {
+            t = t.add_leaf_with_ver(*d, s.clone(), C0).unwrap();
+        }
+        let info = t.finalize(&secp, x(&pair(9))).unwrap();
+        let spk = ScriptBuf::new_p2tr_tweaked(info.output_key());
+        let prev = TxOut {
+            value: Amount::from_sat(20_000),
+            script_pubkey: spk,
+        };
+        let tx = Transaction {
+            version: b::transaction::Version::TWO,
+            lock_time: b::absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::new(b::Txid::from_byte_array([1; 32]), 0),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new(),
+            }],
+            output: vec![TxOut {
+                value: Amount::from_sat(19_900),
+                script_pubkey: ScriptBuf::new_p2tr_tweaked(x(&pair(40)).dangerous_assume_tweaked()),
+            }],
+        };
+        let mut psbt = b::Psbt::from_unsigned_tx(tx.clone()).unwrap();
+        psbt.inputs[0].witness_utxo = Some(prev.clone());
+        let controls: Vec<_> = leaves
+            .iter()
+            .map(|s| info.control_block(&(s.clone(), C0)).unwrap())
+            .collect();
+        for (s, cb) in leaves.iter().zip(&controls) {
+            psbt.inputs[0]
+                .tap_scripts
+                .insert(cb.clone(), (s.clone(), C0));
+        }
+        Tree {
+            psbt,
+            tx,
+            prev: vec![prev],
+            controls,
+        }
+    }
+
+    impl Tree {
+        fn sig(&self, leaf: TapLeafHash, sep: u32, who: &Keypair, forged: bool) -> Vec<u8> {
+            let h = SighashCache::new(&self.tx)
+                .taproot_signature_hash(
+                    0,
+                    &Prevouts::All(&self.prev),
+                    None,
+                    Some((leaf, sep)),
+                    TapSighashType::Default,
+                )
+                .unwrap();
+            let mut s = Secp256k1::new()
+                .sign_schnorr_with_aux_rand(
+                    &b::secp256k1::Message::from_digest(h.to_byte_array()),
+                    who,
+                    &[0u8; 32],
+                )
+                .serialize()
+                .to_vec();
+            if forged {
+                s[5] ^= 1;
+            }
+            s
+        }
+        fn row(&mut self, who: &Keypair, leaf: TapLeafHash, sig: &[u8]) {
+            self.psbt.inputs[0].tap_script_sigs.insert(
+                (x(who), leaf),
+                b::taproot::Signature::from_slice(sig).unwrap(),
+            );
+        }
+        fn origin(&mut self, who: &Keypair, leaves: Vec<TapLeafHash>, fp: BFp) {
+            self.psbt.inputs[0].tap_key_origins.insert(
+                x(who),
+                (leaves, (fp, DerivationPath::from_str(PATH).unwrap())),
+            );
+        }
+    }
+
+    fn lh(s: &ScriptBuf) -> TapLeafHash {
+        TapLeafHash::from_script(s, C0)
+    }
+
+    /// A spend of a run leaf `<A> CHECKSIG` and a leaf not run
+    /// `OP_DROP <A> CHECKSIG`, both filed, and the leaves' hashes.
+    fn two_leaves(a: &Keypair) -> (Tree, ScriptBuf, ScriptBuf) {
+        let m = key_script(a, None);
+        let n = key_script(a, Some(OP_DROP));
+        let mut t = tree(&[m.clone(), n.clone()]);
+        t.origin(a, vec![lh(&m), lh(&n)], foreign());
+        (t, m, n)
+    }
+
+    /// A cosigner's file whose only input is the final witness `elements`.
+    fn final_file(t: &Tree, elements: &[Vec<u8>]) -> faraday_psbt::Psbt {
+        let mut other = b::Psbt::from_unsigned_tx(t.tx.clone()).unwrap();
+        other.inputs[0].witness_utxo = Some(t.prev[0].clone());
+        other.inputs[0].final_script_witness = Some(Witness::from_slice(elements));
+        faraday_psbt::Psbt::from(other)
+    }
+
+    /// Own spend: a true signature on the run leaf finishes it alone. The
+    /// file carries a forged final witness on the leaf not run. Collect
+    /// takes it, and the spend keeps its signature, its signer and its
+    /// finish.
+    #[test]
+    fn a_forged_final_witness_on_a_leaf_not_run_does_not_replace_a_spend_that_finishes() {
+        let c = testkit::compute();
+        let a = pair(7);
+        let (mut t, m, n) = two_leaves(&a);
+        let good = t.sig(lh(&m), NO, &a, false);
+        t.row(&a, lh(&m), &good);
+        let bad = t.sig(lh(&n), NO, &a, true);
+        let file = final_file(
+            &t,
+            &[
+                bad.clone(),
+                vec![0x42],
+                n.to_bytes(),
+                t.controls[1].serialize(),
+            ],
+        );
+        let session = app(false);
+        let mut spend = Spend::new(faraday_psbt::Psbt::from(t.psbt.clone()), "own.psbt");
+        let before = spend.signing(&c, &session.session, None);
+        assert!(
+            spend
+                .collect(&c, &session.session, &file.to_bytes(), "cosigner.psbt")
+                .is_ok()
+        );
+        assert_eq!(spend.signing(&c, &session.session, None), before);
+        spend.finish().unwrap();
+        let tx = spend.finished.as_ref().unwrap();
+        let w: Vec<Vec<u8>> = tx.input[0].witness.iter().map(|e| e.to_vec()).collect();
+        assert_eq!(w[0], good);
+        assert_eq!(w[1], m.to_bytes());
+        assert!(!w.contains(&bad));
+    }
+
+    /// Own spend: a true row on a leaf not run. The file's forged row for
+    /// the same key and leaf does not replace it. On a run leaf the
+    /// forged row is still refused.
+    #[test]
+    fn a_forged_row_on_a_leaf_not_run_does_not_replace_a_true_one() {
+        let c = testkit::compute();
+        let a = pair(7);
+        let (t, m, n) = two_leaves(&a);
+        let session = app(false);
+        for (leaf, run) in [(lh(&n), false), (lh(&m), true)] {
+            let good = t.sig(leaf, NO, &a, false);
+            let bad = t.sig(leaf, NO, &a, true);
+            let mut own = Tree {
+                psbt: t.psbt.clone(),
+                tx: t.tx.clone(),
+                prev: t.prev.clone(),
+                controls: vec![],
+            };
+            own.row(&a, leaf, &good);
+            let mut other = Tree {
+                psbt: t.psbt.clone(),
+                tx: t.tx.clone(),
+                prev: t.prev.clone(),
+                controls: vec![],
+            };
+            other.row(&a, leaf, &bad);
+            let mut spend = Spend::new(faraday_psbt::Psbt::from(own.psbt), "own.psbt");
+            let r = spend.collect(
+                &c,
+                &session.session,
+                &faraday_psbt::Psbt::from(other.psbt).to_bytes(),
+                "cosigner.psbt",
+            );
+            assert_eq!(r.is_err(), run);
+            let kept = spend.psbt.inner().inputs[0]
+                .tap_script_sigs
+                .get(&(x(&a), leaf))
+                .map(|s| s.to_vec());
+            assert_eq!(kept.as_deref(), Some(&good[..]));
+        }
+    }
+
+    /// Reads one partial row of `s` under `a` as the nonce check shows it.
+    fn read(
+        s: ScriptBuf,
+        sep: u32,
+        who: &Keypair,
+        fp: BFp,
+        forged: bool,
+        with_held: bool,
+    ) -> faraday_core::wallet::NonceCheck {
+        let c = testkit::compute();
+        let mut t = tree(std::slice::from_ref(&s));
+        t.origin(who, vec![lh(&s)], fp);
+        let g = t.sig(lh(&s), sep, who, forged);
+        t.row(who, lh(&s), &g);
+        app(with_held)
+            .session
+            .nonce_check(&c, &faraday_psbt::Psbt::from(t.psbt))
+    }
+
+    /// A signature on a leaf not run never reads wrong because the key is
+    /// loaded here: the headline is the count not checked, key loaded or
+    /// not. A true one on a leaf that drops reads valid.
+    #[test]
+    fn a_key_loaded_here_does_not_make_a_signature_on_a_leaf_not_run_wrong() {
+        let (h, hfp) = held();
+        let drop = key_script(&h, Some(OP_DROP));
+        let sep = key_script(&h, Some(OP_CODESEPARATOR));
+        let a1 = read(drop.clone(), NO, &h, hfp, false, true);
+        assert!(!a1.wrong() && a1.unchecked() == 0);
+        assert_eq!(a1.rows[0].recomputed.map(|m| m.is_some()), Some(true));
+        let a2 = read(drop.clone(), NO, &h, hfp, true, true);
+        let a3b = read(drop, NO, &h, foreign(), true, false);
+        assert!(!a2.wrong());
+        assert_eq!(a2.headline(), a3b.headline());
+        let a4 = read(sep.clone(), 0, &h, hfp, false, true);
+        let a4b = read(sep, 0, &h, foreign(), false, false);
+        assert!(!a4.wrong());
+        assert_eq!(a4.headline(), a4b.headline());
+        assert_eq!(a4.unchecked(), 1);
+    }
+
+    /// A row on a leaf not run, with a key origin in the file, is not said
+    /// to have no origin: its key is not counted because the script was
+    /// not run. A key with no origin in the file still has none.
+    #[test]
+    fn a_row_on_a_leaf_not_run_does_not_say_its_key_has_no_origin() {
+        let (h, _) = held();
+        let drop = key_script(&h, Some(OP_DROP));
+        let stated = read(drop.clone(), NO, &h, foreign(), false, false);
+        assert_eq!(stated.rows[0].unmatched, Some(Unmatched::NotRun));
+        let c = testkit::compute();
+        let mut t = tree(std::slice::from_ref(&drop));
+        let g = t.sig(lh(&drop), NO, &h, false);
+        t.row(&h, lh(&drop), &g);
+        let none = app(false)
+            .session
+            .nonce_check(&c, &faraday_psbt::Psbt::from(t.psbt));
+        assert_eq!(none.rows[0].unmatched, Some(Unmatched::NoOrigin));
+    }
 }

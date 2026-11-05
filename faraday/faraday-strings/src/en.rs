@@ -5268,6 +5268,8 @@ strings! {
     nonce_check_no_origin: "Valid · no key origin: its nonce is not recomputed",
     /// Text in `nonce_check`: a valid signature under a key held here, read from a final witness or scriptSig.
     nonce_check_finalized_here: "Valid · finalized: its nonce is not recomputed",
+    /// Text in `nonce_check`: a valid signature on a script that was not run, whose key is not counted.
+    nonce_check_script_not_run_key: "Valid · key not counted: its script was not run",
     /// Headline of `nonce_check` for a raw transaction whose inputs state no output they spend. `{}`: how many inputs.
     nonce_unread_head: "Nonce check · {} not checked: the outputs they spend are not here",
     /// Headline of `nonce_check` when inputs, final or not, state an output their previous transaction does not. `{}`: how many inputs.
@@ -5950,6 +5952,14 @@ strings! {
     psbt_prev_false: "input {}: its previous transaction is not the one it spends, or has no such output",
     /// Why a file is not collected (`Spend::collect`). `{}`: the file, the input; the file brings a previous transaction or a `witness_utxo` that states another output than what the spend holds.
     wallet_file_states_false: "{}: input {}: it states an output its previous transaction does not",
+    /// Why a file is not collected (`Spend::collect`). `{}`: the file, the input; the spend and the file state different outputs for it by a bare `witness_utxo` each, and no previous transaction proves either.
+    wallet_outputs_differ_unproven: "{}: input {}: the spend and this file state different outputs for it, and neither is proven",
+    /// Why a file is not collected (`Spend::collect`). `{}`: the file, the input; the spend and the file hold different final witnesses for it and the device cannot check either.
+    wallet_finals_differ: "{}: input {}: the spend and this file hold different final witnesses for it, and neither can be checked",
+    /// Why a file is not collected (`Spend::collect`). `{}`: the file, the input; the file holds a signature the spend lacks or holds differently, and no output is stated to check it.
+    wallet_signature_unchecked: "{}: input {}: it holds a signature and no output is stated to check it",
+    /// Why a file is not collected (`Spend::collect`). `{}`: the file, the input; the spend and the file hold different scripts for one control block and no output is stated to check them.
+    wallet_scripts_differ: "{}: input {}: the spend and this file hold different scripts for one control block, and no output is stated to check them",
     /// A warning on Review. `{}`: the input, why (a `nonce_unchecked_*`).
     psbt_warn_signature_unchecked: "input {}: a signature was not checked: {}",
     /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.

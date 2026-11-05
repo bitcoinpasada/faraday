@@ -110,7 +110,7 @@ pub mod verify;
 
 pub use classify::{Multisig, ScriptKind, Wrapper};
 pub use context::{Context, KeyRef};
-pub use finalize::{finalize, is_complete};
+pub use finalize::{finalize, input_finishes, is_complete};
 pub use inspect::{
     ABSURD_FEE_RATE_SAT_VB, Cosigner, Detail, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
     HIGH_FEE_DANGER_PCT, InputInfo, Inspection, KeyOrigin, Level, Locktime, LocktimeKind,
