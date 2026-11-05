@@ -176,9 +176,6 @@ fn header_field(file: &[u8], id: u8) -> &[u8] {
     }
 }
 
-/// The exported file read by pykeepass (tools/vectors/kdbx/reread.py): one
-/// entry, in the root group, with its password. Said and skipped where
-/// pykeepass is not installed.
 #[test]
 fn an_export_named_as_a_sealed_vault_waiting_goes_beside_it() {
     let c = testkit::compute();
@@ -197,6 +194,9 @@ fn an_export_named_as_a_sealed_vault_waiting_goes_beside_it() {
         .expect("the export opens under its own passphrase");
 }
 
+/// The exported file read by pykeepass (tools/vectors/kdbx/reread.py): one
+/// entry, in the root group, with its password. Said and skipped where
+/// pykeepass is not installed.
 fn pykeepass_reads_one_entry(file: &[u8]) {
     let dir = std::env::temp_dir().join(format!("faraday-export-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

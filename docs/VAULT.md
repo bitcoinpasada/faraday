@@ -549,12 +549,25 @@ S2K and every data packet.
   was made under, which checks its header, every block's HMAC, the
   decryption and the inner header, and the plaintext must be the one
   written. A file that fails is not given: nothing goes to the Outbox,
-  the Lock sheet says the vault was not sealed, and the vault stays open
-  with its changes (an idle lock loses them, as for any seal that
-  cannot be written). It does not run Argon2id a second time, so a key
+  a toast says the file did not read back (or, where the computer could
+  not hold the file to read it, that it lacks the memory), and the vault
+  stays open with its changes (an idle lock loses them, as for any seal
+  that cannot be written). It does not run Argon2id a second time, so a key
   derived from the passphrase is not derived again: a wrong derivation
   would not be seen here. It does not compare the file with what
   another KeePass app reads.
+- **A seal goes beside a file, never over one that is not its own.** The
+  file a seal makes takes the vault's file name. A file of that name
+  waiting in the Outbox is replaced only when it is an earlier copy of the
+  same vault, told by its SHA-256 being among the copies the session
+  remembers of that vault (§11); any other file of that name, such as a
+  KeePass export, stays, and the seal is put beside it as `name-2.kdbx`
+  (the first name free, or the earlier copy of this vault that holds it).
+  A file the app cannot tell is a copy of this vault is treated as not
+  one, and a vault opened from a copy older than one seen (§11), or sealed
+  as often as one with other changes, replaces only the file it was opened
+  from: the other copy stays, and the seal goes beside it. A name beside
+  also stays clear of the files in Files.
 - **The seal count is one higher** (§7, `faraday.seals`), with the time
   by this computer's clock when it is known, written by the vault crate
   alone. The app keeps the highest count it has seen of each vault
@@ -995,7 +1008,8 @@ passphrase typed for it (8 characters or more), as Create a vault makes
 one: its identifier, its seal and its entry's identifiers are drawn as a
 vault's are (`fresh_bytes`), and the seal is count 1. The file is named
 for the entry's title (`password.kdbx` for a BIP-85 password), goes beside
-any file of that name waiting (`password-2.kdbx`), never over it, and waits
+any file of that name waiting (`password-2.kdbx`), never over it (a seal's
+file does the same, §5), and waits
 in the Outbox sealed. The entry's title is its own, "Password" for a BIP-85 password,
 and a notes line that is a BIP-85 path is left out. A KeePass app reads
 it as a database of one entry; Faraday opens it as any vault. As

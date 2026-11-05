@@ -421,7 +421,7 @@ pub fn seal(
     let mut plain = Zeroizing::new(Vec::new());
     plain
         .try_reserve_exact(plain_len)
-        .map_err(|_| Error::TooLarge)?;
+        .map_err(|_| no_memory(plain_len))?;
     inner::write(inner_key_of(random), &contents.binaries, &mut plain);
     plain.extend_from_slice(contents.document);
     plain.resize(plain_len, b'\n');
@@ -438,8 +438,9 @@ pub fn seal(
     let head = header::write(master_seed, iv, salt, cost, contents.public_custom_data);
     let mut out = Vec::new();
     let frames = plain_len / blocks::BLOCK_LEN + 1;
-    out.try_reserve_exact(head.len() + 64 + plain_len + frames * blocks::BLOCK_OVERHEAD)
-        .map_err(|_| Error::TooLarge)?;
+    let file_len = head.len() + 64 + plain_len + frames * blocks::BLOCK_OVERHEAD;
+    out.try_reserve_exact(file_len)
+        .map_err(|_| no_memory(file_len))?;
     out.extend_from_slice(&head);
     out.extend_from_slice(&Sha256::digest(&head));
     out.extend_from_slice(&keys::hmac(
@@ -455,7 +456,9 @@ pub fn seal(
 /// inner header read, no Argon2id: opens the file `out` just made with the
 /// keys it was made under, and requires the plaintext to hash to `written`.
 /// [`Error::ReadBack`] when the header, a block, the cipher or the inner
-/// header does not read, or the plaintext is not the one written.
+/// header does not read, or the plaintext is not the one written;
+/// [`Error::Memory`] when the buffer to read into cannot be had, which says
+/// nothing of the file.
 fn read_back(out: &[u8], keys: &keys::Keys, written: &[u8]) -> Result<(), Error> {
     let read = || -> Result<(), Error> {
         let parsed = checked_header(out)?;
@@ -465,7 +468,16 @@ fn read_back(out: &[u8], keys: &keys::Keys, written: &[u8]) -> Result<(), Error>
         }
         read_body(body, parsed.header.compression).map(|_| ())
     };
-    read().map_err(|_| Error::ReadBack)
+    read().map_err(|e| match e {
+        Error::Memory(mib) => Error::Memory(mib),
+        _ => Error::ReadBack,
+    })
+}
+
+/// A buffer of `bytes` that cannot be had: the computer's memory, not a file
+/// too long. The MiB asked for, rounded up.
+fn no_memory(bytes: usize) -> Error {
+    Error::Memory(u32::try_from(bytes.div_ceil(1 << 20)).unwrap_or(u32::MAX))
 }
 
 #[cfg(test)]

@@ -29,9 +29,9 @@ pub(crate) mod stretch;
 mod summaries;
 
 pub use area::*;
-#[cfg(feature = "testkit")]
-pub(crate) use seal::fail_next_step_seal;
 pub(crate) use seal::{SealDone, SealRun, SealWork};
+#[cfg(feature = "testkit")]
+pub(crate) use seal::{fail_next_step_seal, fail_next_step_seal_and_retry};
 pub use seals::{OpenHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
 pub(crate) use stretch::{KdbxDone, KdbxWork, StretchDone, StretchWork};

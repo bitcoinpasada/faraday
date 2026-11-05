@@ -39,6 +39,9 @@ pub(crate) struct SealRun {
     may_lose: bool,
     /// What a lock of one goes on with when its vault is closed.
     after: After,
+    /// The vault whose new memory step was dropped for a retried seal; the
+    /// Locked sheet says so only once that seal has been made.
+    step_dropped: Option<VaultId>,
 }
 
 /// What waits for a lock of one vault to finish.
@@ -104,6 +107,7 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
         all: true,
         may_lose,
         after: After::Nothing,
+        step_dropped: None,
     });
     seal_next(app);
 }
@@ -142,6 +146,7 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
         all: false,
         may_lose: false,
         after,
+        step_dropped: None,
     });
     seal_next(app);
     !sealing(app)
@@ -381,6 +386,9 @@ fn seal_end(app: &mut Faraday) {
 /// pending fails as if the step could not be allocated.
 #[cfg(feature = "testkit")]
 static FAIL_STEP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// A test's wish that the seal retried without the step fails as well.
+#[cfg(feature = "testkit")]
+static FAIL_RETRY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 #[cfg(feature = "testkit")]
 use std::sync::atomic::Ordering;
 
@@ -389,6 +397,42 @@ use std::sync::atomic::Ordering;
 #[cfg(feature = "testkit")]
 pub(crate) fn fail_next_step_seal() {
     FAIL_STEP.store(true, Ordering::SeqCst);
+}
+
+/// [`fail_next_step_seal`], and the seal retried without the step fails too.
+#[cfg(feature = "testkit")]
+pub(crate) fn fail_next_step_seal_and_retry() {
+    FAIL_STEP.store(true, Ordering::SeqCst);
+    FAIL_RETRY.store(true, Ordering::SeqCst);
+}
+
+/// The name the seal of open vault `id` takes in the Outbox: `name`
+/// where no file waits under it or the file is an earlier copy of this same
+/// vault (told by its SHA-256 among the copies the session remembers), else
+/// the first name beside it that is free in Files too or held by such a copy.
+/// A file that cannot be told to be a copy of this vault is not one, and
+/// while the vault open is older than a copy seen, or sealed as often as
+/// one, only the file it was opened from is an earlier copy.
+fn seal_file_name(app: &Faraday, id: VaultId, name: &str) -> String {
+    let Some(open) = app.vaults.open.iter().find(|o| o.id == id) else {
+        return name.to_string();
+    };
+    let others_in = |files: &[crate::Item]| -> Vec<String> {
+        files
+            .iter()
+            .filter(|i| {
+                let copy = app.vaults.vault_id_of_file(i.sha) == Some(open.vault_id);
+                !copy || open.seal_warn.is_some() && i.sha != Some(open.seal_digest)
+            })
+            .map(|i| i.name.to_ascii_lowercase())
+            .collect()
+    };
+    let mut taken = others_in(&app.outbox);
+    if !taken.contains(&name.to_ascii_lowercase()) {
+        return name.to_string();
+    }
+    taken.extend(others_in(&app.inbox));
+    crate::visit_taken::free_name(&taken, name)
 }
 
 /// The back half: the file to the Outbox, and the next vault.
@@ -408,14 +452,33 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     };
     let result = sealed.into_file();
     #[cfg(feature = "testkit")]
-    let result = if app.vaults.store().has_step(id) && FAIL_STEP.swap(false, Ordering::SeqCst) {
+    let result = if if app.vaults.store().has_step(id) {
+        FAIL_STEP.swap(false, Ordering::SeqCst)
+    } else {
+        FAIL_RETRY.swap(false, Ordering::SeqCst)
+    } {
         Err(faraday_vault::file::Error::Memory(1))
     } else {
         result
     };
     match result {
         Ok(bytes) => {
+            // Over an earlier copy of this vault, else beside the file that
+            // has the name (`docs/VAULT.md` §5): the name really taken is
+            // the one the rest uses.
+            let name = seal_file_name(app, id, &name);
+            app.vaults.state.file_named(id, &name);
             app.put_outbox(&name, bytes.clone());
+            if app
+                .vaults
+                .state
+                .sealing
+                .as_ref()
+                .and_then(|r| r.step_dropped)
+                == Some(id)
+            {
+                app.vaults.set_step_dropped();
+            }
             if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
                 let c = app.compute();
                 app.vaults.seals_sealed(&c, i, &bytes);
@@ -436,8 +499,8 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
         {
             app.vaults.state.store.seal_ended(id, false);
             app.vaults.state.store.clear_step(id);
-            app.vaults.set_step_dropped();
             if let Some(run) = app.vaults.state.sealing.as_mut() {
+                run.step_dropped = Some(id);
                 run.queue.push_front(id);
             }
             return seal_next(app);

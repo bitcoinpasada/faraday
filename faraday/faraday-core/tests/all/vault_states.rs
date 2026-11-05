@@ -29,6 +29,19 @@ fn process_at(width: u16, height: u16, inbox: Files) -> Faraday {
 
 /// [`process_at`] with `free` MiB of memory free, or not told.
 fn process_with(width: u16, height: u16, free: Option<u32>, inbox: Files) -> Faraday {
+    process_boxes(width, height, free, inbox, Vec::new(), Vec::new())
+}
+
+/// [`process_with`] with files waiting in the Outbox and `kept` (what the
+/// last process remembered).
+fn process_boxes(
+    width: u16,
+    height: u16,
+    free: Option<u32>,
+    inbox: Files,
+    outbox: Files,
+    kept: Files,
+) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width,
@@ -51,8 +64,8 @@ fn process_with(width: u16, height: u16, free: Option<u32>, inbox: Files) -> Far
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox,
-        outbox: Vec::new(),
-        kept: Vec::new(),
+        outbox,
+        kept,
     });
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
@@ -392,6 +405,12 @@ fn an_idle_lock_of_a_vault_that_seals_says_nothing_of_lost_changes() {
 /// chosen, the seal of the new step failing when `fail`. Returns the
 /// process that locked and the memory step the vault was opened with.
 fn idle_locked_with_step(fail: bool) -> (Faraday, u32) {
+    idle_locked_step(fail, false)
+}
+
+/// [`idle_locked_with_step`], the seal retried at the old step failing too
+/// when `retry_fails`.
+fn idle_locked_step(fail: bool, retry_fails: bool) -> (Faraday, u32) {
     use faraday_vault::Record;
     use faraday_vault::records::{field, kind};
     let file = testkit::kdbx_vault("Step", PHRASE, 0x22, Vec::new()).unwrap();
@@ -408,7 +427,9 @@ fn idle_locked_with_step(fail: bool) -> (Faraday, u32) {
     testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
     testkit::vault_changed(&mut app, id);
     crate::common::top_up(&mut app);
-    if fail {
+    if retry_fails {
+        testkit::fail_next_step_seal_and_retry();
+    } else if fail {
         testkit::fail_next_step_seal();
     }
     app.event(Event::Tick { now_ms: 100_000 });
@@ -446,6 +467,16 @@ fn an_idle_lock_that_cannot_allocate_a_new_memory_step_seals_at_the_old_one_and_
         .of(faraday_vault::records::kind::ENTRY)
         .count();
     assert_eq!(held, 1, "the change was not kept");
+}
+
+#[test]
+fn an_idle_lock_whose_retried_seal_fails_too_says_the_changes_were_lost_and_not_a_sealed_vault() {
+    let (mut app, _) = idle_locked_step(true, true);
+    assert!(app.restart_requested(), "the idle lock restarts");
+    let (outbox, texts) = locked_page(&mut app);
+    assert!(outbox.is_empty(), "something was sealed");
+    assert!(texts.contains(EN.locked_changes_lost), "{texts}");
+    assert!(!texts.contains(EN.locked_step_dropped), "{texts}");
 }
 
 #[test]
@@ -907,4 +938,137 @@ fn escape_closes_change_passphrase_when_a_stick_leaves_no_field_focused() {
     let texts = page(&mut app);
     assert!(texts.contains(EN.vault_save), "no form");
     assert!(!texts.contains(TYPED), "typed text kept");
+}
+
+/// An open vault `main.kdbx` with a change, and `outbox` waiting.
+fn open_main_changed(inbox_main: Vec<u8>, outbox: Files, kept: Files) -> Faraday {
+    open_changed(vec![("main.kdbx".into(), inbox_main)], outbox, kept)
+}
+
+/// The vault under PHRASE of `inbox` open with a change, and `outbox` waiting.
+fn open_changed(inbox: Files, outbox: Files, kept: Files) -> Faraday {
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let mut app = process_boxes(480, 640, Some(15_000), inbox, outbox, kept);
+    // The list may hold the Outbox's file first: the place whose
+    // passphrase is PHRASE opens.
+    for place in 0..3 {
+        app.press(Action::Nav(Screen::Vaults));
+        app.press(Action::Vault(V::Open(place)));
+        let _ = app.frame();
+        app.press(Action::Vault(V::FocusPassphrase));
+        type_text(&mut app, PHRASE);
+        app.press(Action::Vault(V::Unlock));
+        for t in 1..60u64 {
+            if !app.vaults().open.is_empty() || app.sheet.is_some() {
+                break;
+            }
+            let _ = app.frame();
+            app.event(Event::Tick { now_ms: t * 1000 });
+        }
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        if app.sheet.is_some() {
+            app.press(Action::Cancel);
+        }
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+    let id = app.vaults().open[0].id;
+    let rec = Record::new(kind::ENTRY).with(field::TITLE, b"added");
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut app, id);
+    app
+}
+
+/// Locks `app` and returns the Outbox and the memory it kept.
+fn lock_boxes(app: &mut Faraday) -> (Files, Files) {
+    crate::common::top_up(app);
+    app.press(Action::Lock);
+    testkit::settle(app);
+    let (mut outbox, mut kept) = (Vec::new(), Vec::new());
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes {
+            outbox: o, kept: k, ..
+        } = c
+        {
+            (outbox, kept) = (o, k);
+        }
+    }
+    (outbox, kept)
+}
+
+#[test]
+fn a_sealed_vault_goes_beside_a_file_that_took_its_name_and_never_over_it() {
+    // A KeePass export took main.kdbx while the vault, also main.kdbx, was open.
+    let export = testkit::kdbx_vault("Export", "keepass passphrase", 0x52, Vec::new()).unwrap();
+    let main = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut app = open_main_changed(main, vec![("main.kdbx".into(), export.clone())], Vec::new());
+    let (outbox, _) = lock_boxes(&mut app);
+    let file = |name: &str| outbox.iter().find(|(n, _)| n == name).map(|(_, b)| b);
+    assert_eq!(
+        outbox.len(),
+        2,
+        "{:?}",
+        outbox.iter().map(|f| &f.0).collect::<Vec<_>>()
+    );
+    assert_eq!(file("main.kdbx"), Some(&export), "the export was replaced");
+    let mut next = process(vec![(
+        "main-2.kdbx".into(),
+        file("main-2.kdbx").cloned().unwrap(),
+    )]);
+    try_unlock(&mut next, PHRASE);
+    assert_eq!(
+        next.vaults().open.len(),
+        1,
+        "the seal is beside it, under its passphrase"
+    );
+}
+
+#[test]
+fn a_seal_put_beside_a_file_also_stays_clear_of_another_vault_in_files() {
+    let export = testkit::kdbx_vault("Export", "keepass passphrase", 0x52, Vec::new()).unwrap();
+    let main = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let other = testkit::kdbx_vault("Other", "another passphrase", 0x53, Vec::new()).unwrap();
+    let mut app = open_changed(
+        vec![
+            ("main.kdbx".into(), main),
+            ("main-2.kdbx".into(), other.clone()),
+        ],
+        vec![("main.kdbx".into(), export.clone())],
+        Vec::new(),
+    );
+    let (outbox, _) = lock_boxes(&mut app);
+    let mut names: Vec<&str> = outbox.iter().map(|f| f.0.as_str()).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["main-3.kdbx", "main.kdbx"]);
+    assert!(app.inbox().iter().any(|i| i.name == "main-2.kdbx"));
+}
+
+#[test]
+fn a_seal_replaces_the_earlier_copy_of_the_same_vault_waiting_across_a_lock() {
+    let main = testkit::kdbx_vault("Main", PHRASE, 0x31, Vec::new()).unwrap();
+    let mut first = open_main_changed(main, Vec::new(), Vec::new());
+    let (outbox, kept) = lock_boxes(&mut first);
+    assert_eq!(outbox.len(), 1);
+    let earlier = outbox[0].1.clone();
+    // The next power-on: the sealed copy waits in the Outbox and is opened from there.
+    let mut next = process_boxes(480, 640, Some(15_000), Vec::new(), outbox, kept);
+    try_unlock(&mut next, PHRASE);
+    assert_eq!(next.vaults().open.len(), 1);
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let id = next.vaults().open[0].id;
+    let rec = Record::new(kind::ENTRY).with(field::TITLE, b"second");
+    testkit::vault_edit(&mut next, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut next, id);
+    let (outbox, _) = lock_boxes(&mut next);
+    assert_eq!(
+        outbox.len(),
+        1,
+        "{:?}",
+        outbox.iter().map(|f| &f.0).collect::<Vec<_>>()
+    );
+    assert_eq!(outbox[0].0, "main.kdbx");
+    assert_ne!(outbox[0].1, earlier, "the earlier copy is still there");
 }

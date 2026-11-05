@@ -9221,8 +9221,8 @@ strings! {
     vault_error_contents: "The contents cannot be read here",
     /// Under Unlock and Lock: the contents do not fit the size.
     vault_error_full: "The contents do not fit in this vault's size",
-    /// Under Lock: the file a seal would write did not read back, so nothing was written.
-    vault_error_read_back: "The vault was not sealed: the file it would write does not read back. Your changes are still open.",
+    /// A toast at Lock, Create a vault and the KeePass export: the file made did not read back, so it was not given.
+    vault_error_read_back: "The vault file was not made, because it did not read back. Nothing was lost.",
     /// Under Lock: a change that cannot be written.
     vault_error_unwritable: "That change cannot be written to this vault",
     /// Under Lock: a vault opened to read only.

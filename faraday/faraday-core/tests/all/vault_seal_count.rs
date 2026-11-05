@@ -228,6 +228,51 @@ fn older_unlocked() -> Faraday {
 const OLDER: &str = "An older copy: sealed once.";
 
 #[test]
+fn a_seal_from_an_older_copy_goes_beside_the_newer_copy_waiting() {
+    let add_key = |app: &mut Faraday, seed: usize| {
+        app.press(Action::Entry(None));
+        type_text(app, &testkit::test_words(testkit::TEST_SEEDS[seed].0));
+        app.press(Action::EntryAdd);
+        app.press(Action::Vault(V::SaveKey(0)));
+        crate::common::top_up(app);
+    };
+    let original = made("Main", B, 1);
+    let mut app = process(
+        vec![("main.kdbx".into(), original.clone())],
+        Vec::new(),
+        Vec::new(),
+    );
+    unlock(&mut app, 0, B);
+    add_key(&mut app, 1);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let (_, newer, _) = saved(&mut app);
+    assert_eq!(newer.len(), 1);
+
+    // A process that has seen only the newer copy, waiting in the Outbox.
+    let mut app = process(Vec::new(), newer.clone(), Vec::new());
+    unlock(&mut app, 0, B);
+    crate::common::top_up(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let (_, _, kept) = saved(&mut app);
+
+    // The older copy read in: its own row, and it opens only on Open.
+    let mut app = process(vec![("main.kdbx".into(), original)], newer.clone(), kept);
+    unlock(&mut app, 1, B);
+    open_anyway(&mut app, OLDER);
+    add_key(&mut app, 2);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let (_, outbox, _) = saved(&mut app);
+    let mut names: Vec<&str> = outbox.iter().map(|f| f.0.as_str()).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["main-2.kdbx", "main.kdbx"]);
+    let waiting = outbox.iter().find(|f| f.0 == "main.kdbx").unwrap();
+    assert_eq!(waiting.1, newer[0].1, "the newer copy was replaced");
+}
+
+#[test]
 fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
     let mut app = older_unlocked();
     open_anyway(&mut app, OLDER);

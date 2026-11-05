@@ -2383,6 +2383,7 @@ impl Faraday {
             for v in f.plan.used_vaults() {
                 if f.plan.vaults[v].salt == Some(salt) && f.made_in.contains(&v) {
                     f.plan.vaults[v].len = bytes.len();
+                    f.plan.vaults[v].file = Some(name.to_string());
                     if !f.sealing.iter().any(|s| s.vault == v && s.sha == sha) {
                         f.sealing.push(Sealed {
                             vault: v,

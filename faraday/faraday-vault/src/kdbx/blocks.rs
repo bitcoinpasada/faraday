@@ -42,7 +42,8 @@ pub(super) fn join(
         return Err(Error::Damaged);
     }
     let mut out = Zeroizing::new(Vec::new());
-    out.try_reserve_exact(total).map_err(|_| Error::TooLarge)?;
+    out.try_reserve_exact(total)
+        .map_err(|_| super::no_memory(total))?;
     // Then each block's HMAC, before its bytes are taken.
     let (mut at, mut i) = (0usize, 0u64);
     loop {

@@ -72,7 +72,7 @@ pub(crate) fn is_vault(bytes: &[u8]) -> bool {
 
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`
 /// (lower case), as `faraday_files` names a file kept beside another.
-fn free_name(taken: &[String], name: &str) -> String {
+pub(crate) fn free_name(taken: &[String], name: &str) -> String {
     if !taken.contains(&name.to_ascii_lowercase()) {
         return name.to_string();
     }
@@ -80,10 +80,14 @@ fn free_name(taken: &[String], name: &str) -> String {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
         _ => (name, ""),
     };
-    (2..100)
-        .map(|n| format!("{stem}-{n}{ext}"))
-        .find(|c| !taken.contains(&c.to_ascii_lowercase()))
-        .unwrap_or_else(|| name.to_string())
+    let mut n = 2u32;
+    loop {
+        let beside = format!("{stem}-{n}{ext}");
+        if !taken.contains(&beside.to_ascii_lowercase()) {
+            return beside;
+        }
+        n += 1;
+    }
 }
 
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… that no file waiting

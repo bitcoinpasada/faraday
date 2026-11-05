@@ -60,7 +60,8 @@ pub(super) fn inflate(data: &[u8], limit: usize) -> Result<Zeroizing<Vec<u8>>, E
         return Err(Error::TooLarge);
     }
     let mut out = Zeroizing::new(Vec::new());
-    out.try_reserve_exact(size).map_err(|_| Error::TooLarge)?;
+    out.try_reserve_exact(size)
+        .map_err(|_| super::no_memory(size))?;
     out.resize(size, 0);
     let mut state = DecompressorOxide::new();
     let (status, used, written) = decompress(

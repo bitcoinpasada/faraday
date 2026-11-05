@@ -347,6 +347,19 @@ impl Vaults {
         self.changed(id);
     }
 
+    /// Open vault `id`'s file now goes by `name`, where its seal went beside
+    /// a file that held the old one: what the session calls it follows.
+    pub(crate) fn file_named(&mut self, id: VaultId, name: &str) {
+        let Some(o) = self.open.iter_mut().find(|o| o.id == id) else {
+            return;
+        };
+        o.name = name.to_string();
+        let vault_id = o.vault_id;
+        if let Some(s) = self.summaries.iter_mut().find(|s| s.id == vault_id) {
+            s.file = name.to_string();
+        }
+    }
+
     /// The file of the vault with identifier `id` is a copy of it the
     /// session has seen, whose SHA-256 is `digest`; a vault with no
     /// summary kept keeps nothing, as for [`Vaults::seals_raise`].

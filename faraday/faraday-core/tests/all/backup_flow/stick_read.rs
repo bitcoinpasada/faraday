@@ -63,10 +63,9 @@ fn a_vault_opened_from_files_is_not_the_copy_of_another_vault_sharing_its_name()
     write_all(&mut shell, &mut app, &[("S1", false)]);
     shell.plug(&mut app, "S2");
     shell.flow(&mut app, F::Hold);
-    // Alpha's copy is not one of Beta's: the stick asks, and Save beside
-    // writes it.
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::NameTaken));
-    shell.press(&mut app, Action::NameTakenBeside);
+    // Alpha's copy is not one of Beta's: Beta's seal went beside it in the
+    // Outbox, so it is written to the stick beside Alpha's too.
+    assert_eq!(app.sheet, None);
     shell.pull(&mut app, "S2");
     assert_eq!(step(&app), Step::Done);
     // Beta was written to both sticks; Alpha's copy stays as it was.
@@ -80,6 +79,13 @@ fn a_vault_opened_from_files_is_not_the_copy_of_another_vault_sharing_its_name()
             .count(),
         2,
         "Beta's copy is beside Alpha's"
+    );
+    assert!(
+        shell
+            .disk("S2")
+            .file("vault-2.kdbx")
+            .is_some_and(|f| f != &a),
+        "the file beside Alpha's is not Alpha's"
     );
 }
 

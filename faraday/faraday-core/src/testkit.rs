@@ -1836,6 +1836,12 @@ pub fn fail_next_step_seal() {
     crate::vault::fail_next_step_seal();
 }
 
+/// [`fail_next_step_seal`], and the seal retried at the file's own step
+/// fails as well.
+pub fn fail_next_step_seal_and_retry() {
+    crate::vault::fail_next_step_seal_and_retry();
+}
+
 /// How long one Argon2id pass over 64 MiB takes here, ms, set as if
 /// measured: the costs and waits shown are worked out from it.
 pub fn vault_speed(app: &mut crate::Faraday, ms: Option<u64>) {
