@@ -3163,7 +3163,7 @@ fn detail(
         let bw = ui.measure_as(LABEL_L, label) + 30.0;
         if bx > dx && (bx + bw > dx + dw || breaks.contains(&i)) {
             bx = dx;
-            dy += 44.0;
+            dy += faraday_draw::tokens::TOUCH;
         }
         ui.button(bx, dy, Some(bw), BUTTON_H, label, Style::Secondary, a);
         bx += bw + 8.0;
