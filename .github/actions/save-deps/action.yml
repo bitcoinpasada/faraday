@@ -1,0 +1,25 @@
+# After a job's own work has passed on a push to main: its compiled
+# dependencies, and nothing of Faraday's own, into GitHub's cache under the key
+# setup worked out (docs/decisions/F212.md). A key already there is left.
+name: save-deps
+description: The job's compiled dependencies into GitHub's cache
+runs:
+  using: composite
+  steps:
+    - id: there
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: target
+        key: ${{ env.DEPS_KEY }}
+        lookup-only: true
+
+    - name: Only the compiled dependencies
+      if: steps.there.outputs.cache-hit != 'true'
+      shell: bash
+      run: python3 "$GITHUB_ACTION_PATH/keep_dependencies.py" target
+
+    - if: steps.there.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: target
+        key: ${{ env.DEPS_KEY }}

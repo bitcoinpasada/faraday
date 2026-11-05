@@ -3,8 +3,9 @@
 # docs/DEVELOPING.md §2 calls the check and nothing else: no image, no app
 # for publishing, no release, no signature. It reads only: no secrets, the
 # checkout's token not kept, GitHub's own actions pinned by commit. Its
-# cache holds the downloaded crates and the installed tools, never build
-# output.
+# cache holds the downloaded crates, the installed tools and compiled
+# dependencies, never Faraday's own crates, written only by a push to main
+# (docs/decisions/F212.md).
 #
 # `just` is spread over twenty-one jobs: one compiles the tests once and
 # archives them, fourteen each run a fourteenth of them, and the doc tests
@@ -17,6 +18,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      uncached:
+        description: Compile everything, with no cached dependencies (a release commit's check)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -46,6 +52,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+        with:
+          deps: build-tests
       - name: Compile the tests and archive them
         run: cargo nextest archive --locked --workspace --archive-file nextest-archive.tar.zst
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -54,6 +62,8 @@ jobs:
           path: nextest-archive.tar.zst
           retention-days: 1
           compression-level: 0
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/save-deps
 
   tests:
     name: tests ${{ matrix.shard }}/14
@@ -95,7 +105,10 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           packages: "true"
+          deps: doc-tests
       - run: just test-doc
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/save-deps
 
   lint:
     name: ${{ matrix.part }}
@@ -118,7 +131,10 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           mac-targets: ${{ matrix.part == 'lint-macos' }}
+          deps: ${{ matrix.part }}
       - run: just ${{ matrix.part }}
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/save-deps
 
   check:
     name: check

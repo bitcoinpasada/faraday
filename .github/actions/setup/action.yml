@@ -2,7 +2,8 @@
 # (.github/workflows/check.yml): build output on the runner's larger disk,
 # the toolchain rust-toolchain.toml names, the tools DEVELOPING.md §1
 # names at the versions the workflow gives, and, where asked, the system
-# packages the tests run against and the two Mac targets.
+# packages the tests run against and the two Mac targets. A job that
+# compiles names its compiled dependencies, restored here (docs/decisions/F212.md).
 name: setup
 description: The check's toolchain and tools
 inputs:
@@ -12,6 +13,9 @@ inputs:
   mac-targets:
     description: Add the two Mac targets
     default: "false"
+  deps:
+    description: The name this job's compiled dependencies are cached under, if any
+    default: ""
 runs:
   using: composite
   steps:
@@ -57,6 +61,19 @@ runs:
         key: cargo-${{ runner.os }}-${{ env.TOOLS }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'faraday/fuzz/Cargo.lock') }}
         restore-keys: |
           cargo-${{ runner.os }}-${{ env.TOOLS }}-
+
+    - name: The key of this job's compiled dependencies
+      if: inputs.deps != ''
+      shell: bash
+      # Worked out here, while target/ is empty: save-deps uses the same one.
+      run: echo "DEPS_KEY=deps-${{ runner.os }}-${{ inputs.deps }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.toml', '**/Cargo.lock', '.github/actions/save-deps/*') }}" >> "$GITHUB_ENV"
+
+    - name: This job's compiled dependencies
+      if: inputs.deps != '' && github.event.inputs.uncached != 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: target
+        key: ${{ env.DEPS_KEY }}
 
     - name: The check's tools
       shell: bash

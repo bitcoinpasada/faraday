@@ -177,7 +177,9 @@ output, and the FAT serials derived from that date (README.md,
 "Reproducible builds"). To check a release:
 
 ```
-git tag -v vX.Y.Z                        the tag is signed by the release key
+gpg --verify SHA256SUMS.asc SHA256SUMS   the sums are signed by the release key
+head -n 1 SHA256SUMS                     names the release's commit
+git rev-parse 'vX.Y.Z^{commit}'          the same commit
 git checkout vX.Y.Z
 just release=1 faraday-stick-image
 just release=1 faraday-pi-image
