@@ -751,7 +751,9 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
   a file: its body reads "Print {n} from Faraday Starter: Blank
   templates, {words} words, {copy}", with one clause more per codex32
   length the plan places ("3 from Blank templates, codex32, 48
-  characters", `docs/CODEX32.md` §9.3, §17.23), and its foot is **Done**, a press,
+  characters", `docs/CODEX32.md` §9.3, §17.23) and, planned, one for a
+  Krux code on Paper ("1 from Blank templates, Krux code, 33 × 33",
+  `docs/KEF.md` §15.5), and its foot is **Done**, a press,
   as Envelopes' is. Both presses are kept with the wallet's backup
   record, as are the descriptor shown as a code and a passphrase typed
   back, so Write to sticks' lock and the unlock after it leave them
@@ -2319,9 +2321,10 @@ the board in Customize backup.
 13. **A key with a codex32 set** opens on its own standard way:
     one string per place, on paper, with the description (§17.23).
 14. **A Krux code of a seed** (planned): a form on the seed, one level down in
-    the seed list chip's ⋮, kept in a stick's files, adding no answer to the
-    question on vaults: `docs/KEF.md` §15.1 (the chip, `What::KefCode`, its
-    checklist item, what checked means).
+    the seed list chip's ⋮, kept in a stick's files or copied by hand on a
+    place's Paper, adding no answer to the question on vaults: `docs/KEF.md`
+    §15.1 (the chip, `What::KefCode` and `What::KefCodePaper`, its checklist
+    item, what checked means).
 
 **As built** (2026-10-20; the block as written is in `docs/history/BACKUP-FLOW-LOG.md`):
 
@@ -2583,6 +2586,10 @@ holds checks the string and closes the camera. Nothing scanned there is
 loaded or filed. Every blank sheet says so in its line (owner,
 2026-10-24): "Written by hand. Never photographed or scanned by any
 other device once filled in."
+
+**A Krux code drawn by hand** (planned) takes the same grid at 25 × 25,
+29 × 29, 33 × 33 or 37 × 37, on its own sheet, and is scanned back and
+opened with its passphrase: `docs/KEF.md` §15.1, §15.5.
 
 Tests: `tests/all/codex32qr_copy.rs` (the sheet named, the grid's
 blocks and rows, a copy drawn on the sheet's grid read back and

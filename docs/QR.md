@@ -76,7 +76,7 @@ open.
 | Text files from a stick as a way in | yes | yes, from the Inbox |
 | A scanned address or `bitcoin:` URI checked against the first 100 receive and change addresses of each loaded wallet, not filed | no | yes |
 | A descriptor scanned while Create waits goes into the flow | n/a | yes: a descriptor of one key with its origin, at the wallet's kind and on its network, fills the waiting slot as a cosigner's key does; one of several keys, or one that cannot be that key, stays in Files and the toast says why (`docs/FLOWS.md`, the Keys card) |
-| A code drawn by hand scanned back to check it, never loaded | n/a | yes: a SeedQR on its copy item (`CheckCopy`), a codex32 string's Codex32QR on its item (`CheckCodex32`, `docs/BACKUP-FLOW.md` §17.24); the grid to copy it from is marked block by block or row by row (owner, 2026-10-24) |
+| A code drawn by hand scanned back to check it, never loaded | n/a | yes: a SeedQR on its copy item (`CheckCopy`), a codex32 string's Codex32QR on its item (`CheckCodex32`, `docs/BACKUP-FLOW.md` §17.24); the grid to copy it from is marked block by block or row by row (owner, 2026-10-24). Not built: a Krux code on its item (`docs/KEF.md` §15.1) |
 
 ## 2. Routing
 

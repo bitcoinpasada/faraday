@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code, the fuzz target, the classifier's arm, the `Reveal` variant, the stoppable worker jobs and scanning one (the card, the passphrase sheet, the road after opening) are built; the making backend (`faraday-core/src/worker/kef_make.rs`: options, refusals in words, the code and its Outbox files) is built; the screens for making one are not.
-**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Also built: `Reveal::KefCode` and `Keys::kef_entropy` (a seed of 12 or 24 English words, nothing else), and the worker jobs `Kind::KefSeal` and `Kind::KefOpen` (`faraday-keys/src/kef.rs`, `faraday-core/src/worker/kef.rs`, `Faraday::kef_seal`, `Faraday::kef_open`), which draw the IV and the id from the session's fresh bytes and really stop on Cancel. Also built: scanning a code in every scanner, Paste and a picture's codes (`Kind::Kef` in `scan_read.rs`, `seeds/kef.rs`): the card with version, id, count and the time here, **Open**, **Not encrypted**, the question above 550,000, the passphrase sheet with **Enter as hex**, the bar with Cancel, and §6's road (a seed to the seed sheet with the id line, text through the intake, a note with **Use as a passphrase**, bytes as hex, a code inside a code offered with **Not encrypted** to a depth of 8); **Open as an encrypted code** on the seed sheet of a raw 16 or 32 byte code. Also built: `faraday-core/src/worker/kef_make.rs`, which the seed's form and the Tools tool both call: `Options` at §10's defaults, `Faraday::kef_make_seed` and `kef_make_text`, a refusal that names a version that works, the base43 code as a public labelled picture (`QrView::kef`) and the picture and file to the Outbox. Not built: the screens (the seed's form on Customize with its first step and Options, the tool in Tools), the dice passphrase step, Learn's text and Practice's sample, whose design is §15.1 to §15.4. A code too large for one is refused with the file saved, and stays so (§15.4). Questions a source could not settle are in §13.
+**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Also built: `Reveal::KefCode` and `Keys::kef_entropy` (a seed of 12 or 24 English words, nothing else), and the worker jobs `Kind::KefSeal` and `Kind::KefOpen` (`faraday-keys/src/kef.rs`, `faraday-core/src/worker/kef.rs`, `Faraday::kef_seal`, `Faraday::kef_open`), which draw the IV and the id from the session's fresh bytes and really stop on Cancel. Also built: scanning a code in every scanner, Paste and a picture's codes (`Kind::Kef` in `scan_read.rs`, `seeds/kef.rs`): the card with version, id, count and the time here, **Open**, **Not encrypted**, the question above 550,000, the passphrase sheet with **Enter as hex**, the bar with Cancel, and §6's road (a seed to the seed sheet with the id line, text through the intake, a note with **Use as a passphrase**, bytes as hex, a code inside a code offered with **Not encrypted** to a depth of 8); **Open as an encrypted code** on the seed sheet of a raw 16 or 32 byte code. Also built: `faraday-core/src/worker/kef_make.rs`, which the seed's form and the Tools tool both call: `Options` at §10's defaults, `Faraday::kef_make_seed` and `kef_make_text`, a refusal that names a version that works, the base43 code as a public labelled picture (`QrView::kef`) and the picture and file to the Outbox. Not built: the screens (the seed's form on Customize with its first step and Options, the tool in Tools), the code copied by hand onto Paper and checked by scanning it back, the Starter's blank template for it, the dice passphrase step, Learn's text and Practice's sample, whose design is §15.1 to §15.5. A code too large for one is refused with the file saved, and stays so (§15.4). Questions a source could not settle are in §13.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's
@@ -243,7 +243,8 @@ own checks. Faraday adds only:
 - **A plaintext that parses as KEF** is offered as one, to a depth of 8.
 
 Nothing decrypted is written to disk unless the person then saves it.
-Faraday Starter does not scan or print a KEF code.
+Faraday Starter does not scan or print a KEF code. It prints only a blank template to
+copy one onto, which holds nothing of any code (§15.5).
 
 ## 7. What comes from a scanned code
 
@@ -568,6 +569,11 @@ Behaviour a person or Krux would notice, and vectors:
   over 102,400 bytes, an empty ciphertext.
 - **Recognition:** every other kind's vectors are not taken as KEF; the 32-byte case of §8.
 - **Cancel:** a job at 100,000,000 stops at once, and the worker takes the next.
+- **A code copied by hand:** a code of each side, drawn on its blank template's grid, reads back
+  as that code and opens to the seed under its passphrase; a different code is named as not this
+  one, and nothing scanned there is loaded or filed.
+- **The Starter's template:** each size makes a PDF under its name, with the fixed squares of a
+  code of that side and no code on it.
 
 ## 15. Screens, in outline
 
@@ -576,9 +582,10 @@ Strings are not written here. Every string goes to `en.rs`; a screen review name
 - **Making one.** A seed: §15.1, a form on the seed on the backup board's Customize page,
   one level down, adding no answer to the question on vaults. Anything else §6 writes: §15.2,
   a tool in Tools. Both have the first step of §15.3, at §10's defaults. A code too large for
-  one QR: §15.4.
+  one QR, or to copy by hand: §15.4.
 - **The code.** A labelled PNG and a file to the Outbox; the label never
-  says what it holds. Not a secret under `docs/QR.md` §7.1.
+  says what it holds. Not a secret under `docs/QR.md` §7.1. A seed's code goes on a stick or on
+  Paper, where it is copied by hand onto a blank template (§15.5).
 - **Scanning one.** §8's card: version, id, count, time here. **Open** asks for the passphrase;
   **Enter as hex** is one level down. A bar with Cancel. Then §6's road, the fingerprint on
   the seed sheet. The card follows SCANNING §5's; the sheet is a Material 3 dialog (Dialogs, with
@@ -590,48 +597,54 @@ Strings are not written here. Every string goes to `en.rs`; a screen review name
 **On the board.** Customize backup, and only Back up's board: a wallet flow's own plan has no
 such form, since its keys are made after it (as codex32 strings, `docs/BACKUP-FLOW.md` §17.23).
 A seed's chip in the list has a ⋮ with **Add to…** (§17.20); under its boxes, past a divider,
-stands **Krux code…**. Pressed, the same menu lists **Krux code to…**: each stick's files, under
-its place's name, and **New stick** where + stick would take it. Never Paper, never a vault; the
-person prints the picture from the stick if they want it on paper, on any computer, since it is
-not a secret. A seed §6 refuses has the row dimmed, with `kef_not_offered` under it, worked out
+stands **Krux code…**. Pressed, the same menu lists **Krux code to…**: under each place's name its
+Paper and each stick's files, and **New stick** where + stick would take it. Never a vault. Decided
+(owner, 2026-11-05): a code goes on a stick or on Paper. On Paper means copied by hand onto a blank
+template (§15.5), which people will often prefer even though the code is encrypted. A person may
+also print the picture from a stick, on any computer, since it is not a secret; that is the
+stick's form, and the plan does not know of it. A seed §6 refuses has the row dimmed, with `kef_not_offered` under it, worked out
 when the menu opens (a lookup in `faraday-keys`, no words parsed). Material 3: Menus, a submenu;
 on the small panel the sheet's list changes in place.
 
-**Its box.** A chip of its own in the stick's files: `[ ◉ 9a6a2580 Krux code × │ ⋮ ]`, on the
-read-only board "9a6a2580 · Krux code", tagged sealed. It has no form toggles, so a person reads
-one more form of the seed, and nothing about it can turn into words: Move to… and Copy to… list
-only sticks' files, and Take off takes it off. A later seed form toggled on the same stick is its
-own chip beside it, with its own hold. Nothing is held for it at the drop, since no plain file
-is made. After the lock it takes no changes, as any file on a stick (§15.8 of the backup flow).
+**Its box.** A chip of its own in a stick's files or a place's Paper:
+`[ ◉ 9a6a2580 Krux code × │ ⋮ ]`, on the read-only board "9a6a2580 · Krux code", tagged sealed. It
+has no form toggles, so a person reads one more form of the seed, and nothing about it can turn
+into words: Move to… and Copy to… list only places' Paper and sticks' files, and Take off takes it
+off. A later seed form toggled on the same stick or Paper is its own chip beside it, with its own
+hold. Nothing is held for it at the drop, since no plain file is made. After the lock it takes no
+changes, as any file or paper (§15.8 of the backup flow).
 
-**In the plan.** One `plan::What`, `What::KefCode(i)`, tag Sealed, at `At::Stick` only, and one
-chip kind, `board::Thing::Kef(i)`, which the list does not show. A `What` because the map already
+**In the plan.** Two `plan::What`s, tag Sealed, as every form has one for its zone:
+`What::KefCode(i)` at `At::Stick` and `What::KefCodePaper(i)` at `At::Place`. One chip kind,
+`board::Thing::Kef(i)`, which the list does not show; the box it lands in says which `What`. A `What` because the map already
 gives what a form needs: place and stick renumbering, Move and Copy, the plan's text, the after-lock
 refusal. A table beside the map would redo each by hand. It costs far fewer of the sites SeedQR
 has, since it joins no list of copies:
 
-- It has arms in `plan/mod.rs` (`is_file`, `seed_index`, the shape check, its label),
-  `plan/text.rs` (code `kef{i}`), `board/mod.rs` (`forms_in`, `things_of`, the name, the menu),
+- They have arms in `plan/mod.rs` (`is_file`, `seed_index`, the shape check, their labels, and
+  for the paper form the Templates item's condition and its count),
+  `plan/text.rs` (codes `kef{i}` and `kefp{i}`), `board/mod.rs` (`forms_in`, `things_of`, the name, the menu),
   `board/lines.rs`, `glance/mod.rs` (its line), `backups/mod.rs` (a file, not a copy),
   `backup_flow/wallet.rs` and `bstep.rs`.
-- It has none in `seed_form`, `seed_spots`, the place's reach, `is_secret_file`, `scan_key.rs` or
-  `secrets.rs`.
+- They have none in `seed_form`, `seed_spots`, the place's reach, `is_secret_file` or `secrets.rs`,
+  and none in `scan_key.rs` beyond the scan of a drawn copy below, which reads no `What`.
 
-**What it counts for.** Nothing. It is an extra copy: `kept_nowhere`, `alone`, `lost_why`, how
+**What it counts for.** Decided (owner, 2026-11-05): a Krux code does not count as a backup, on a
+stick or on Paper. It is an extra copy: `kept_nowhere`, `alone`, `lost_why`, how
 near a place brings a spend, and the balance do not read it. The plan cannot hold its passphrase
 or say where it is, so a seed kept only as a Krux code still reads "Seed {} is kept nowhere" and
-holds The plan card (`docs/BACKUP-FLOW.md` §17.5), and a stick holding only codes may carry the
-public files.
+holds The plan card (`docs/BACKUP-FLOW.md` §17.5), a stick holding only codes may carry the
+public files, and a place holding only a drawn code keeps nothing of the seed.
 
 **The checklist step.** `Item::KefCode(i)`, one per seed with a code anywhere on the map, however
-many sticks. In order: after the copies on paper, the vaults and `Item::SeedFiles`, before the
+many sticks and places. In order: after the copies on paper, the vaults and `Item::SeedFiles`, before the
 sheets, the public files and the envelopes, so before **Lock and write**, while the key is
 loaded. `bstep.rs` numbers it from a range taken from the top of the passphrases' unused one. Its
 title is "Krux code of {seed}", its status **Not made**, **Not checked** or **Checked**. A step in
 the item's own card, not a sub-flow: the first step (§15.3), then the bar, then the code with
 **Check my code**. It leaves nothing behind when closed but a code already made.
 
-**Checked** means the code opens to this seed under a passphrase typed again: the field that made
+**Checked**, with no copy on Paper, means the code opens to this seed under a passphrase typed again: the field that made
 it was wiped by the job, **Check my code** opens one field and **Compare**, a `Faraday::kef_open`
 on the code's bytes with the bar and Cancel, and the plaintext is compared inside `faraday-keys`
 with the seed's entropy (a named call under `Reveal::KefCode`, giving a yes or a no). A wrong one
@@ -639,22 +652,55 @@ reads so and may be tried again; **Make another** goes back to the first step. A
 checked ends the item. Its stick's read-back is then §17.12 item 10's: the picture decoded and
 checked against the SHA-256 of its base43 text, and the file's bytes.
 
+**On Paper.** The road of a SeedQR on its copy item (F29, `docs/BACKUP-FLOW.md` §17.24), with the
+passphrase added to the check. Where the map holds `KefCodePaper(i)`, the Templates item names the
+sheet (§15.5) and the Code card shows, in place of the picture, these labels and `copy_grid`
+(`screens/parts.rs`), **Blocks** ticked · **Rows**, its blocks named by the index of their first
+row and column as on a SeedQR's sheet:
+
+| Code | **Size** reads | **By hand** reads | Under them |
+|---|---|---|---|
+| 25 × 25, 29 × 29, 33 × 33 or 37 × 37 | its side | **Sheet**: Faraday Starter, Blank templates, Krux code, its side | the grid, **Scan my copy**, **Make another** |
+| Larger, one QR | its side | **No**, and **Largest**: 37 × 37 | the picture, **Make another** |
+
+- **Scan my copy** opens the camera on the drawn copy (`ScanPurpose::CheckKef`), reading it as the
+  code's base43 text. Anything else reads "Not this code" on the scanner. Nothing scanned there is
+  loaded or filed. The copy that reads closes the camera and opens one field and **Compare**, as
+  **Check my code** does, but on the bytes scanned. It opens to the seed: **Checked**, for the code
+  and every stick's copy of it, since they are the same bytes. A wrong passphrase reads so and may
+  be tried again. As a SeedQR's, the scan is one per seed, not one per place.
+- **Not on Paper**, a ghost button on the item, takes the seed's `KefCodePaper(i)` off every place
+  and closes the grid, as **Keep the words only** does for a SeedQR, and the foot offers it after
+  three scans without a match. No copy stays marked drawn in part, since a code is not a secret.
+  With no copy left on a stick, the item goes too.
+- **With no camera** there is nothing to type back: a drawn code has no words. The card offers
+  **Check my code** on the code's own bytes and a label **Drawn copy**: **Not scanned**. That ends
+  the item, since a code counts for nothing and must not hold the lock. No **Scan my copy** shows.
+- **In Practice** the scanner offers the code made as its sample (`samples/put.rs`).
+
+Closed before it is checked, the item keeps the code: open again, it reads it from its `.kef` file
+under the names the backup record holds, with no passphrase asked, and shows the grid at the mark
+it had, so a long copy can be left and taken up.
+
 **What is written.** At the item, `Faraday::kef_save_made` puts `krux-v{version}-{id}.png` and
 `.kef` in the Outbox, under the names the Outbox gives them; no fingerprint is in either. Each
 stick holding `KefCode(i)` lists those two files, and `wallet_slot_files` takes them with the
-stick's other files at **Lock and write**. A seed's code always fits one QR (§5). The code is made
-once and copied to each stick, never made per stick.
+stick's other files at **Lock and write**. A plan with the code on Paper alone still has them in
+the Outbox, and no stick is asked to take them. A seed's code at §10's defaults fits one QR and
+each size of §15.5 (§5). The code is made once and copied to each stick and each Paper, never made
+per stick or per place.
 
-**Saved.** The plan's text holds `kef{i}` in the stick's line and nothing more: no version, count,
+**Saved.** The plan's text holds `kef{i}` in the stick's line, `kefp{i}` in the place's, and nothing more: no version, count,
 id or options, and never the passphrase. The wallet's backup record keeps, per seed, the two file
-names and the status, as it keeps the other marks, so the lock and the unlock after it leave the
+names and the status, whether a drawn copy was scanned among them, as it keeps the other marks, so the lock and the unlock after it leave the
 item done. A plan read back with its seed loaded and no such record has the item open, at the
 defaults, and makes a new code beside the old one. A plan naming a seed §6 refuses reads without
 that form, as a codex32 split that cannot be made does (§17.23).
 
 **What must come first:** the scanning card of this section, since every form the board keeps is
 read back by Restore (`docs/BACKUP-FLOW.md` §17.12 item 5), and a code is restored from one
-place's contents with its passphrase typed.
+place's contents with its passphrase typed. For the code on Paper, also the Starter's blank template
+(§15.5), since the Templates item names it.
 
 ### 15.2 The tool in Tools
 
@@ -680,7 +726,9 @@ and a toast names the file.
 
 The held sources wait because each opens a new way out of `faraday-keys`, and typing reaches the
 same code without one. **Check my code** compares against the text the flow still holds. The
-fingerprint as an id is offered only for **A loaded wallet**: typed text has none.
+fingerprint as an id is offered only for **A loaded wallet**: typed text has none. Its Code card
+has no grid: copying by hand is the seed's item (§15.1), and the tool's picture can be printed from
+a stick as any.
 
 ### 15.3 The first step
 
@@ -697,7 +745,11 @@ Shared by both. It reads, top to bottom:
   under it, **Legacy** one level further for 0 and 1; **Low error correction**, a switch, with
   version 5 only; **Rounds**, a number field from 10,000 to 500,000; **Id**, option buttons
   (Random 8 bytes, Random 16 bytes, A label with its field, The fingerprint), the last two with
-  `kef_public_id_line`. Nothing else.
+  `kef_public_id_line`. Nothing else. On a seed whose code is also on Paper, the line ends in the
+  code's side ("· 33 × 33") and the sheet has **Size** and **By hand** labels as in §15.1, so a
+  person can pick a smaller code before making it. They are worked out when an option is pressed,
+  by a lookup from the length §5's table comes from (`kef_make::side`), with no seal; a compressed
+  version's length is known only once sealed, and its **Size** reads so.
 - The Randomness row, since the press draws the IV and the id (DESIGN §4.1, F157), then **Make the
   code**. A refusal of §4.1 stands as a line above it and names the version that works.
 - While it works, Material 3's determinate progress indicator from the rounds done, with **Cancel**.
@@ -713,8 +765,8 @@ Shared by both. It reads, top to bottom:
   panel (`docs/LAYOUT.md` §16.3). `app.vaults.state` keeps which passphrase it is for and fills
   `CreateForm`; Create a vault looks and behaves as before.
 - `faraday-core/src/kef_form/` (`mod.rs`, `screen.rs`) is §15.3 and the code's card: `KefForm` holds
-  the passphrase, its `DiceEntry`, `kef_make::Options` and where it stands (entry, making, made,
-  checking, checked), and is wiped when dropped. `BackupState` owns one while a Krux item is open,
+  the passphrase, its `DiceEntry`, `kef_make::Options`, the grid's mark and where it stands (entry,
+  making, made, scanning, checking, checked), and is wiped when dropped. `BackupState` owns one while a Krux item is open,
   `ToolsArea` one for the tool; one job runs at a time, as the worker does already.
 - `worker/kef_make.rs` stays the backend. No new file holds an `impl Faraday`
   (`tools/lint-layout.counts`): the glue goes in `compute.rs`, as `kef_make_seed` does.
@@ -728,3 +780,53 @@ as a KEF is not known (§13), and a code that may open nowhere is what a refusal
 code is 117 × 117 (`QrView::kef`, QR version 25), about 1,440 base43 characters, or about 980 bytes
 of envelope. It can only happen in the tool, with a long note or a wallet of many keys. The Code
 card then has no picture: `kef_code_too_big`, the file's name, **Check my code** and **Make another**.
+
+**Too large to copy by hand** is a different thing, and not a refusal: 37 × 37 is the largest blank
+template (§15.5), and a larger code that fits one QR is made as any, its picture and file saved. A
+seed's code passes 37 × 37 only through Options: a label of 30 bytes or more on 24 words at
+version 20, or version 1 with a 16-byte id. On a seed with a copy on Paper, the labels of §15.1 say
+so, before it is made and on the Code card, and the item stays **Not checked** until **Make
+another** gives a code that fits or **Not on Paper** takes the copy off.
+
+### 15.5 The blank template for a code
+
+Decided (owner, 2026-11-05): Faraday Starter prints blank templates for a code. It still does not
+scan or print a code (F219): a blank holds nothing of any code, of any wallet or of the passphrase,
+and may go to any printer. **Blank templates** (`docs/STARTER.md` §3.8) gets a third **Form**,
+**Krux code**, whose rows are **Size** and **Places**. Each size is one sheet, named by its side:
+
+| **Size** | QR version | What §5 says fits it | File |
+|---|---|---|---|
+| 25 × 25 | 2 | 12 words, version 5 at low | `faraday-blank-template-krux-code-25x25.pdf` |
+| 29 × 29 | 3 | 24 words, version 5 at low; 12 words, version 5 | `faraday-blank-template-krux-code-29x29.pdf` |
+| 33 × 33, chosen | 4 | 12 or 24 words at the default, version 20; 24 words, version 5; 12 or 24 words, version 0; 12 words, version 1 | `faraday-blank-template-krux-code-33x33.pdf` |
+| 37 × 37 | 5 | 24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1 | `faraday-blank-template-krux-code-37x37.pdf` |
+
+Each option says on its line what the table says. The sizes stop at 37 × 37, which holds every row
+of §5; a seed's code passes it only through the Options §15.4 names.
+
+**One sheet per side, whatever the error correction.** A sheet prints only what every code of that
+side shares, by the SeedQR sheet's rule (`structural_fixed`, which holds through QR version 6, one
+alignment square): finders, separators, timing, alignment, in black. The format areas stay blank,
+since they differ with the error correction and the mask, and the person draws them. So 29 × 29
+serves medium and low alike.
+
+**The sheet.** A sheet file `kind: krux`, `side:` and `places:`, drawn by `faraday-starter`'s
+`sheets.rs`, which uses no `faraday-kef`. The grid is on a page of its own at true size, as the
+Codex32QR's: squares of 16 points at 25 and 29, 14 at 33, 12.5 at 37, the heavier lines every five
+and numbered as the SeedQR's, which make six blocks a side at 29, seven at 33 and eight at 37. Above
+it, lines to fill in for what the picture's label says (version, rounds, id). Its line says the
+passphrase is never written on it. It does not carry the other sheets' "Never photographed or scanned
+by any other device" (`docs/CODEX32.md` §1.1 item 35), which is about forms that hold a secret; a
+Krux code is made to be scanned by a Krux device. The places page and **Print**, **Save the PDF** are
+as for the other forms.
+
+**On the checklist.** The **Templates** item comes before the copies, and a plan keeps no options
+(§15.1), so its clause, "{n} from Blank templates, Krux code, 33 × 33", counts one per place and
+seed holding `KefCodePaper(i)`, at the side of the code if one is made and §10's default otherwise.
+A person who then picks another size in Options sees it named on the Code card before copying, and
+prints that sheet. A plan with only such copies reads only this clause.
+
+**Faraday itself offers no such file.** As for every other blank template (`docs/BACKUP-FLOW.md`
+§10.2), the checklist names the Starter's sheet and writes none to a stick, since the Starter runs
+on the computer with the printer.
