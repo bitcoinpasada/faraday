@@ -727,7 +727,7 @@ wallet, so a sheet can use it without saying what it holds.
 |---|---|
 | A neutral name | Argon2id Compact Envelope, proposed here, with the full name first. Web searches (2026-11-04) found no format of that name. The short form "ACE" does collide in cryptography: ACE Encrypt and ACE-KEM (Shoup, recommended by NESSIE), the ACE authenticated cipher (a NIST lightweight cryptography candidate), Access Control Encryption (Damgård, Haagh and Orlandi), and the IETF's ACE working group (authorization for constrained environments). None is a passphrase format, but the short form should not stand alone in a title or a search. To check again before public comment |
 | A written specification | This document, a draft |
-| Test vectors | §11, not made |
+| Test vectors | §11: made, and agreed by a second reader of the same authors, which is not an outside implementation |
 | An outside second implementation | None. Anyone who is not one of the authors may write one from this document alone |
 | An outside cryptographic review | None. §13 is what is asked; how a review is recorded is `docs/AUDIT-SUBMISSIONS.md` §10 |
 | Public comment | Not begun. KEF went to the Delving Bitcoin forum; a BIP or a SLIP is possible after a review |
