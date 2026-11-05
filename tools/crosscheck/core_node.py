@@ -355,16 +355,19 @@ def make_coins(count):
         tx.wit.vtxinwit = [w]
         out.append(tx.serialize().hex())
     fanned = submit(out)
-    node.generatetodescriptor(1, desc)
     return {"fanout": fanned, "per": PER, "value": value}
 
 
 def submit(hexes, chunk=500):
-    """Costs a request to the node a `chunk` transactions: each sent to
-    its mempool (no fee limit); their txids, in order."""
+    """Costs a request to the node a `chunk` transactions and a block
+    after each: each sent to its mempool (no fee limit); their txids, in
+    order. The node slows as its mempool grows, so each chunk is mined
+    before the next is sent."""
     out = []
+    desc = _op_true_descriptor()
     for at in range(0, len(hexes), chunk):
         out += batch([("sendrawtransaction", h, 0) for h in hexes[at:at + chunk]])
+        rpc().generatetodescriptor(1, desc)
     return out
 
 

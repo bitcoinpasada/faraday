@@ -158,7 +158,10 @@ done
 # The judged test files and the OVMF Secure Boot run (ESTABLISHED §9.2,
 # rule 4): the tests that skip without an outside tool under plain `just`
 # fail without it here, and QEMU boots OVMF's Secure Boot firmware over
-# faraday-sb's keys. Not for one area or the identity run.
+# faraday-sb's keys. Not for one area or the identity run. The judged tests
+# run first; the OVMF run starts beside the areas (below) and the run waits
+# for it before it ends.
+ovmf=
 case " $* " in
     *" --area "*|*" --area="*|*" --identity "*) ;;
     *)
@@ -172,15 +175,7 @@ case " $* " in
             exit 2
         fi
         say "judges: the judged tests done"
-        say "judges: Secure Boot in OVMF (faraday/tools/sb-ovmf-check.py)"
-        mkdir -p "$progress/sb-ovmf"
-        if ! python3 -I -B faraday/tools/sb-ovmf-check.py "$PWD/$progress/sb-ovmf" \
-                >"$progress/sb-ovmf.log" 2>&1; then
-            tail -n 40 "$progress/sb-ovmf.log" >&2
-            say "judges: FAILED: the OVMF Secure Boot run (out/crosscheck/sb-ovmf.log)"
-            exit 2
-        fi
-        say "judges: the OVMF run done"
+        ovmf=1
         ;;
 esac
 
@@ -198,5 +193,29 @@ if [ "${1:-}" = --identity ]; then
     exec unshare --user --map-root-user --net \
         python3 -I -B tools/crosscheck/identity.py --rust "$exe" "$@"
 fi
-exec unshare --user --map-root-user --net \
-    python3 -I -B tools/crosscheck/crosscheck.py --rust "$exe" --progress "$progress" "$@"
+ovmf_pid=
+if [ -n "$ovmf" ]; then
+    say "judges: Secure Boot in OVMF (faraday/tools/sb-ovmf-check.py), beside the areas"
+    mkdir -p "$progress/sb-ovmf"
+    python3 -I -B faraday/tools/sb-ovmf-check.py "$PWD/$progress/sb-ovmf" \
+        >"$progress/sb-ovmf.log" 2>&1 &
+    ovmf_pid=$!
+fi
+unshare --user --map-root-user --net \
+    python3 -I -B tools/crosscheck/crosscheck.py --rust "$exe" --progress "$progress" "$@" &
+check_pid=$!
+if [ -n "$ovmf_pid" ]; then
+    ovmf_rc=0
+    wait "$ovmf_pid" || ovmf_rc=$?
+    if [ "$ovmf_rc" -ne 0 ]; then
+        kill "$check_pid" 2>/dev/null || true
+        wait "$check_pid" 2>/dev/null || true
+        tail -n 40 "$progress/sb-ovmf.log" >&2
+        say "judges: FAILED: the OVMF Secure Boot run (out/crosscheck/sb-ovmf.log)"
+        exit 2
+    fi
+    say "judges: the OVMF run done"
+fi
+check_rc=0
+wait "$check_pid" || check_rc=$?
+exit "$check_rc"

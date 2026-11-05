@@ -29,6 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -43,6 +44,9 @@ SYSTEMD_BOOT = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 ENROLLED = b"successfully enrolled"
 DENIED = b"Access Denied"
 MENU = b"Reboot Into Firmware"
+# How long QEMU runs on after the log holds an answer, so that a second,
+# contradicting one (a menu after "Access Denied") is still seen.
+GRACE = 1.0
 
 
 def need(path_or_tool):
@@ -83,9 +87,10 @@ def put(image, src, dst):
     subprocess.check_call([need("mcopy"), "-o", "-i", image, src, "::" + dst])
 
 
-def boot(code, vars_, image, log, seconds):
+def boot(code, vars_, image, log, seconds, answers):
     """Boots once; the firmware's variables persist in `vars_`. A reboot
-    ends QEMU; otherwise it is stopped after `seconds`."""
+    ends QEMU. Otherwise QEMU is stopped `GRACE` seconds after the serial
+    log first holds one of `answers`, or after `seconds` if it never does."""
     cmd = [
         need("qemu-system-x86_64"),
         "-machine", "q35,smm=on",
@@ -98,12 +103,32 @@ def boot(code, vars_, image, log, seconds):
         "-no-reboot",
         "-serial", f"file:{log}",
     ]
+    def said():
+        try:
+            with open(log, "rb") as f:
+                return f.read()
+        except FileNotFoundError:
+            return b""
+
+    # An earlier boot's log under the same name must not be read as this one's.
+    if os.path.exists(log):
+        os.remove(log)
+    qemu = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    start = time.monotonic()
+    answered = None
     try:
-        subprocess.run(cmd, timeout=seconds, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except subprocess.TimeoutExpired:
-        pass
-    with open(log, "rb") as f:
-        return f.read()
+        while qemu.poll() is None and time.monotonic() - start < seconds:
+            now = time.monotonic()
+            if answered is None and any(a in said() for a in answers):
+                answered = now
+            if answered is not None and now - answered >= GRACE:
+                break
+            time.sleep(0.1)
+    finally:
+        if qemu.poll() is None:
+            qemu.kill()
+        qemu.wait()
+    return said()
 
 
 def run(policy, out, payload, code, vars_template):
@@ -123,11 +148,11 @@ def run(policy, out, payload, code, vars_template):
         results.append(ok)
         print(f"{'ok  ' if ok else 'FAIL'} {policy}: {what}")
 
-    said = boot(code, vars_, image, os.path.join(kit, "enrol.txt"), 120)
+    said = boot(code, vars_, image, os.path.join(kit, "enrol.txt"), 120, [ENROLLED])
     step("the firmware takes PK, KEK and db from the .auth updates", ENROLLED in said)
     for which, want_run in [("unsigned", False), ("altered", False), ("signed", True), ("unsigned", False)]:
         put(image, os.path.join(kit, which + ".efi"), "EFI/BOOT/BOOTX64.EFI")
-        said = boot(code, vars_, image, os.path.join(kit, f"boot-{which}.txt"), 30)
+        said = boot(code, vars_, image, os.path.join(kit, f"boot-{which}.txt"), 120, [DENIED, MENU])
         ran, denied = MENU in said, DENIED in said
         if want_run:
             step("the image signed with the db key runs", ran and not denied)

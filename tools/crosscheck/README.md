@@ -29,8 +29,10 @@ systemd-boot) and stops naming a missing one; their versions go into the
 stamp. A full run then runs the judged test files (faraday-fat's `judged`,
 `formatted`, faraday-files' `foreign`, the Starter's `ids`, `image_finish`,
 `outside` and `stick_layout`) with `FARADAY_JUDGES_REQUIRED=1`, under which a missing
-tool fails the test instead of skipping it, and the OVMF Secure Boot run
-(`faraday/tools/sb-ovmf-check.py`). Not with `--area` or `--identity`.
+tool fails the test instead of skipping it. The OVMF Secure Boot run
+(`faraday/tools/sb-ovmf-check.py`) runs beside the areas, and a failure of it
+stops the run; each boot ends once its serial log holds the answer, or fails
+at its timeout. Not with `--area` or `--identity`.
 `run.sh` builds the Rust command with `cargo build --frozen` and runs
 `crosscheck.py` in a network namespace of its own (`unshare --user
 --net`), so nothing can be fetched. `crosscheck.py` refuses to run with
