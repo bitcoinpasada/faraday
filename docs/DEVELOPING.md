@@ -351,7 +351,9 @@ fails when the crypto changed since it or an action's code changed since
 its fingerprint.
 
 `just crosscheck --fresh` also writes `out/crosscheck-record.txt`: the
-commit, seed, scale and UTC date; each area's cases, answers, known
+tree it checked without the fingerprints (`python3 -I -B
+tools/crosscheck/record.py tree <tag>` gives it for a release), seed, scale
+and UTC date; each area's cases, answers, known
 differences and result; each folder of `tools/reference/` with the commit
 its README names and the SHA-256 of its files; Bitcoin Core's tarball with
 its version and SHA-256; and "every answer agreed" or the first

@@ -3,8 +3,8 @@
 carries beside SHA256SUMS to say what was checked.
 
 A full `just crosscheck --fresh` writes `out/crosscheck-record.txt`, plain
-text in a stable order: the tree it checked, the seed, the scale and the UTC
-date;
+text in a stable order: the tree it checked without the fingerprints, the
+seed, the scale and the UTC date;
 each area with its corpus cases, answers compared, known differences and
 result; each reference under `tools/reference/` with the commit its README
 names and the SHA-256 of its files, and Bitcoin Core's tarball with its
@@ -12,6 +12,10 @@ version and SHA-256; and either "every answer agreed" or the first
 disagreement. Paths in it are relative to the repository. The release
 flow renames it `crosscheck-<version>.txt`
 (`tools/README.md`, "Before a release"). Standard library only.
+
+`record.py tree COMMIT` prints the tree a commit's record names, which is how
+staging and anyone reading a published record compare the two; with no commit,
+the tree of the files as they stand.
 """
 
 import datetime
@@ -20,11 +24,17 @@ import pathlib
 import re
 import os
 import subprocess
+import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 REFERENCES = ROOT / "tools" / "reference"
 NAME = "crosscheck-record.txt"
+# The fingerprints are stamped from a run's result, after it (`just
+# crypto-review-stale`), so the tree a record names leaves them out: the run
+# cannot have seen the ones its release commit holds, and reads neither file.
+FINGERPRINTS = ("docs/crypto/actions.toml", "docs/crypto/actions.lock")
+TREE_LINE = "tree without fingerprints"
 
 
 def git(*args):
@@ -34,11 +44,12 @@ def git(*args):
     return run.stdout.strip() if run.returncode == 0 else None
 
 
-def tree():
-    """Costs a git index of the working tree. The git tree of the files as
-    they stand (what git would commit, ignored files left out): the
-    commit a release is made at has this tree when the record is its
-    cross-check, whichever commit the run's checkout stood on."""
+def tree(commit=None):
+    """Costs a git index of the working tree, or of `commit`'s tree when one
+    is named. The git tree of the files as they stand (what git would commit,
+    ignored files left out) without `FINGERPRINTS`: the commit a release is
+    made at gives this tree when the record is its cross-check, whichever
+    commit the run's checkout stood on."""
     with tempfile.TemporaryDirectory() as d:
         env = dict(os.environ, GIT_INDEX_FILE=os.path.join(d, "index"))
 
@@ -46,7 +57,10 @@ def tree():
             r = subprocess.run(["git", "-c", f"safe.directory={ROOT}", "-C", str(ROOT), *args],
                                capture_output=True, text=True, env=env)
             return r.stdout.strip() if r.returncode == 0 else None
-        if run("read-tree", "--empty") is None or run("add", "-A") is None:
+        fill = [("read-tree", commit)] if commit else [("read-tree", "--empty"), ("add", "-A")]
+        if any(run(*step) is None for step in fill):
+            return "unknown"
+        if run("update-index", "--force-remove", "--", *FINGERPRINTS) is None:
             return "unknown"
         return run("write-tree") or "unknown"
 
@@ -83,7 +97,7 @@ def text(seed, scale, results, core, interpreters, jobs, allow_network=False, no
     """The record. `results` is each area's merged result, in the order run."""
     now = now or datetime.datetime.now(datetime.timezone.utc)
     out = ["Faraday crypto cross-check record",
-           f"tree {tree()}",
+           f"{TREE_LINE} {tree()}",
            f"seed {seed}",
            f"scale {scale}",
            f"date {now.strftime('%Y-%m-%d %H:%M:%S')} UTC",
@@ -112,3 +126,12 @@ def text(seed, scale, results, core, interpreters, jobs, allow_network=False, no
                    + (f" at case {first['case']}" if first.get("case") else ""))
         out += ["  " + line for line in first.get("report", "").splitlines()]
     return "\n".join(out) + "\n"
+
+
+if __name__ == "__main__":
+    if not 2 <= len(sys.argv) <= 3 or sys.argv[1] != "tree":
+        sys.exit("usage: record.py tree [COMMIT]")
+    named = tree(*sys.argv[2:])
+    if named == "unknown":
+        sys.exit("record.py: cannot read the tree")
+    print(named)

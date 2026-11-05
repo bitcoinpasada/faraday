@@ -638,6 +638,36 @@ class Pool(unittest.TestCase):
         quiet = self.run_crosscheck("--jobs", "2", "--python", "cpython")
         self.assertEqual(untimed(quiet.stdout), untimed(r.stdout))
 
+    def test_the_record_names_a_release_tree_stamped_after_the_run_and_no_other(self):
+        repo = self.tmp / "repo"
+        (repo / "tools/crosscheck").mkdir(parents=True)
+        (repo / "docs/crypto").mkdir(parents=True)
+        script = repo / "tools/crosscheck/record.py"
+        shutil.copy(HERE / "record.py", script)
+        lock, code = repo / "docs/crypto/actions.lock", repo / "code.rs"
+        lock.write_text("before\n")
+        code.write_text("code\n")
+
+        def git(*args):
+            return subprocess.run(["git", "-C", str(repo), *args],
+                                  check=True, capture_output=True, text=True).stdout.strip()
+
+        def named(*tree):
+            return subprocess.run([sys.executable, "-I", "-B", str(script), "tree", *tree],
+                                  capture_output=True, text=True)
+
+        def staged_tree():
+            git("add", "-A")
+            return git("write-tree")
+
+        git("init", "-q")
+        ran = named().stdout.strip()
+        lock.write_text("stamped\n")
+        self.assertEqual(named(staged_tree()).stdout.strip(), ran)
+        code.write_text("changed\n")
+        self.assertNotEqual(named(staged_tree()).stdout.strip(), ran)
+        self.assertNotEqual(named("no-such-commit").returncode, 0)
+
     def test_a_fresh_run_writes_the_release_record(self):
         folder = self.tmp / "record" / "crosscheck"
         # A fresh disagreement is kept beside the harness; this test's is not.
@@ -646,7 +676,7 @@ class Pool(unittest.TestCase):
                                 progress=folder)
         record = (folder.parent / "crosscheck-record.txt").read_text()
         self.assertEqual(r.returncode, 1)
-        for line in ("tree ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
+        for line in ("tree without fingerprints ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
                      "beta: mismatch", "tools/reference/bbqr  commit ",
                      "result: first disagreement in beta at case corpus:"):
             self.assertIn(line, record)
