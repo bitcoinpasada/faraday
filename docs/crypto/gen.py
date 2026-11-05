@@ -431,7 +431,7 @@ def gen_standards_written(data):
 # numbers are placeholders filled from the code here, and its tables, written
 # from the code here; nothing in them is typed by hand.
 
-PLANNED_LEAD = "Planned, not built: "
+PLANNED_LEAD = "Not in the app yet: "
 TABLE_KINDS = ("vault-sizes", "diceware-bits")
 VAULT = "faraday/faraday-vault/src/file.rs"
 ARGON2 = "core/faraday-crypto/src/argon2.rs"
@@ -756,6 +756,24 @@ def render_table(code, para):
     raise Unresolved(f"table `{kind}` is not one gen.py writes ({', '.join(TABLE_KINDS)})")
 
 
+PIECE_KEYS = ("piece", "does", "instead", "why")
+
+
+def para_source(p):
+    """A paragraph's text before its placeholders are filled: its `text`, or, for a
+    piece entry (`piece`, `does`, `instead`, `why`), the four as "Piece. What it does.
+    Could be replaced by X. Why it is not taken." (§18.2). None when it has neither."""
+    if "text" in p:
+        return str(p["text"])
+    if any(k in p for k in PIECE_KEYS):
+        if not all(isinstance(p.get(k), str) and p[k].strip() for k in PIECE_KEYS):
+            return None
+        a, b, c, d = (p[k].strip() for k in PIECE_KEYS)
+        a, b, c = (x.rstrip(".") for x in (a, b, c))
+        return f"{a}. {b}. Could be replaced by {c}. {d}"
+    return None
+
+
 def render_construction(root, con):
     """(sections, problems, lock lines): each section (heading, [item]), an item
     ("para", text) or ("table", head, rows)."""
@@ -772,7 +790,7 @@ def render_construction(root, con):
                     code.lines.add(f"table {p['table']} {digest}")
                 else:
                     planned = "planned" in p
-                    t = render_text(code, str(p.get("text", "")), planned)
+                    t = render_text(code, para_source(p) or "", planned)
                     items.append(("para", PLANNED_LEAD + t if planned else t))
             except Unresolved as e:
                 problems.append(f"{s.get('heading')}: {e}")

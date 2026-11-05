@@ -1483,13 +1483,22 @@ reason = "The function's name (RFC 9106)."
 - **`para.planned`** names an item of a Spec's Open line that the
   paragraph describes as not built, by its key in `[open_item]`, whose
   `names` are the words the Open line of `spec` names it with. The
-  generator draws the paragraph led by "Planned, not built:", so its
+  generator draws the paragraph led by "Not in the app yet:", so its
   text begins in lower case unless its first word is a name; a number of
   that work, which no constant holds yet, is `{planned:<n>}`, allowed only
   there. **`para.until`** marks a paragraph about today's behaviour that
   the item replaces. The change that builds the item drops its `until`
   paragraphs and its paragraphs' `planned` keys, rewording them as built,
   and the `[open_item]`.
+- **A piece entry**: in place of `text`, the four fields `piece`,
+  `does`, `instead` and `why` (all four, each held to the rules of
+  `text`, and an optional `planned` or `until`), for a piece of the
+  construction that is Faraday's own. Learn draws it as ordinary
+  paragraph text, in the form "What it does not promise" uses: "Piece.
+  What it does. Could be replaced by X. Why it is not taken." The
+  website, which has room for columns, may draw the four as a table's
+  columns. A paragraph holds `text`, `table` or the four, one of the
+  three.
 - **`para.table`**: in place of `text`, one of the tables gen.py writes
   from the code, drawn where the paragraph stands: `vault-sizes` (each of
   `SIZES` with its file size, by `file_len`'s formula over the
@@ -1520,6 +1529,16 @@ The account as it ships, by section: the manifest's `vault` construction
 holds it, and Learn draws it under the vault's page. Its sentences are
 as built; what the Spec still plans (`docs/VAULT.md`, its Open line) is
 not in it.
+
+**Two layers**
+
+A vault has two layers. The lock is the passphrase, Argon2id, ChaCha20 and HMAC. It is what keeps secrets safe. All of it is published, and each
+algorithm comes from an established library.
+
+The plumbing is the code that lays the file out, reads it back and
+decides which field holds what. Most of what is Faraday's own is here.
+A bug in the plumbing usually means a file that does not open. The
+exception is in writing, under Security.
 
 **The file**
 
@@ -1553,9 +1572,13 @@ header's salt, memory, passes and lanes to 32 bytes; SHA-256 and SHA-512
 over that and the header make the encryption key and the HMAC base, and
 each block has its own HMAC key.
 
+Create a vault offers five memory steps, from 64 MiB to 1 GiB, each at
+3 passes and 4 lanes. The lanes do not change the work a guess costs.
+
 **Sealing and opening**
 
-The body is the database's XML, gzipped and encrypted with ChaCha20, in
+The body is the database's XML, padded to the file's size with line
+feeds and encrypted with ChaCha20, in
 blocks of 1 MiB each with its own HMAC-SHA-256 over its length and
 bytes. The header carries its own SHA-256 and HMAC-SHA-256.
 
@@ -1592,12 +1615,65 @@ block's HMAC fail first.
   power-on, or when an open vault's backup plan records a newer one.
 - **What is in the clear.** The cost and salt are in the header, and the
   file's length says its size.
-- **Independent review.** Faraday's reader and writer are its own, read
-  back by pykeepass in tests; the full run against pykeepass,
-  `keepassxc-cli` and keepass-rs is later work.
+- **Independent review.** Faraday's reader and writer are its own and
+  have been read by pykeepass, `keepassxc-cli` and keepass-rs, in the
+  vault cross-check area, over the files they write and the files those
+  programs write.
 - **Availability.** A changed byte anywhere in the file fails its HMAC
   and the vault does not open; a backup is how a damaged vault is
   recovered.
+
+**What is Faraday's own, and why**
+
+The format and the algorithms are published. These pieces are not.
+For each: what it does, what could replace it, and why it is not taken.
+Each is a piece entry (§18.2), drawn in Learn as a paragraph.
+
+- **KDBX reader and writer.** Reads and writes the file vault. Could be
+  replaced by the keepass crate (keepass-rs). It drops the XML elements
+  it does not model and draws a save's randomness itself, and no audit
+  of it is one Faraday's dependency checks trust; the tests use it as an
+  outside reader and writer, never in what ships.
+- **Faraday's names inside the vault.** Which KeePass field holds a
+  seed's words, a wallet or a GPG key, and Faraday's settings in custom
+  data. Nothing could replace it: no standard puts a Bitcoin seed in
+  KeePass. An item the reader does not expect is named Unreadable and
+  never used.
+- **Padding after the XML.** Line feeds after the closing tag keep each
+  file at one of its sizes. Nothing could replace it: KDBX has no
+  padding. XML allows it, so a KeePass app reads the file as any other;
+  a KeePass app that saves it drops the padding.
+- **OpenPGP code for the QR vault, HKDF and QR vault contents**,
+  each led "Not in the app yet:", since the QR vault is not in the app.
+  The OpenPGP code could be replaced by rPGP or Sequoia, which bring
+  every algorithm OpenPGP has had; rPGP has been audited by outside
+  reviewers, but no audit of it is one Faraday's dependency checks
+  trust. HKDF could be the hkdf crate, which leaves its intermediate key
+  and output blocks unwiped. The contents have no standard.
+
+**Security**
+
+What protects secrets is all published. The main risk is parsing, with
+its guards: limits checked before any memory is asked for, every
+block's HMAC before its bytes, anything unexpected refused, an XML
+reader that refuses a DOCTYPE and an unknown entity, a fuzz target for
+each reader, and three outside programs reading what Faraday writes and
+writing what it reads. The one subtle risk is in writing: a reused
+nonce would leave a file that opens everywhere, so the cross-check would
+not notice; the guard is that every seal draws its bytes from one call
+for the session's randomness, which the specification counts. The
+library trade, key commitment (planned for the QR vault, where OCB does
+not commit) and, as later work, wiping freed memory and Argon2id's
+cache timing follow.
+
+**Opening it elsewhere**
+
+Only as proof the files are standard: the cross-check opens a file vault
+with pykeepass, keepassxc-cli and keepass-rs. For a QR vault the text
+is planned: GnuPG cannot read it, since it follows LibrePGP, not
+RFC 9580. The caution is in plain words: unlocking a vault on a computer
+that is online shows its seed there; it is a last resort; the funds move
+to a new seed afterwards.
 
 ### 18.4 Passphrase strength
 
@@ -1714,10 +1790,10 @@ What changes in §11.1:
   to its anchor.
 - **The actions:** each construction is drawn before the first block of
   the actions it names, in their group, with its headings, paragraphs
-  and tables, a planned paragraph led by "Planned, not built:", as in
+  and tables, a planned paragraph led by "Not in the app yet:", as in
   the app.
 - **Filters:** a construction shows whenever any of its actions shows; a
-  filter "Planned, not built" shows the constructions with a planned
+  filter "Not in the app yet" shows the constructions with a planned
   paragraph.
 - **Links:** "Where to learn more" links eff.org/dice,
   theworld.com/~reinhold/diceware.html and NIST SP 800-63B's page; the

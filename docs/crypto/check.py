@@ -97,7 +97,7 @@ VECTOR_SOURCES = {"published", "outside", "own"}
 # A construction (§18): how a format several actions share is built, drawn in Learn.
 CONSTRUCTION_KEYS = {"id", "title", "learn", "actions", "section", "review"}
 SECTION_KEYS = {"heading", "para"}
-PARA_KEYS = {"text", "table", "words", "planned", "until"}
+PARA_KEYS = {"text", "table", "words", "planned", "until", "piece", "does", "instead", "why"}
 OPEN_ITEM_KEYS = {"spec", "names"}
 NAME_DIGITS_KEYS = {"name", "pattern", "reason"}
 HOLD_KEYS = {"action", "check", "case", "decision"}
@@ -1792,9 +1792,16 @@ def check_para(c, g, i, h, p, items, used):
     e = c.errors
     where = f"section \"{h}\""
     unknown(e, f"construction {i}.para", p, PARA_KEYS, i)
-    if ("text" in p) == ("table" in p):
-        e.add("construction", f"{where}: a paragraph has `text` or `table`, one of the two", i)
+    piece = [k for k in ("piece", "does", "instead", "why") if k in p]
+    if sum(1 for x in (("text" in p), ("table" in p), bool(piece)) if x) != 1:
+        e.add("construction", f"{where}: a paragraph has `text`, `table` or the four of a piece "
+              "(`piece`, `does`, `instead`, `why`), one of the three", i)
         return
+    if piece:
+        for k in ("piece", "does", "instead", "why"):
+            if not str_ok(p.get(k)):
+                e.add("construction", f"{where}: a piece entry has no `{k}`", i)
+                return
     if "planned" in p and "until" in p:
         e.add("construction", f"{where}: a paragraph is `planned` or `until`, not both", i)
     for k in ("planned", "until"):
@@ -1811,7 +1818,7 @@ def check_para(c, g, i, h, p, items, used):
             e.add("construction", f"{where}: table `{p['table']}` is not one gen.py writes "
                   f"({', '.join(g.TABLE_KINDS)})", i)
         return
-    text = p.get("text")
+    text = g.para_source(p)
     if not str_ok(text):
         e.add("construction", f"{where}: an empty paragraph", i)
         return
@@ -2988,7 +2995,7 @@ def self_test():
             (root / MANIFEST).read_text())["construction"][0])
         expect(not probs and secs[0][1] == [
             ("para", "A die has 6 sides, six in words; SHA-256 (BIP 1) of 3 words is 3.6 bits."),
-            ("para", "Planned, not built: they are thrown 3 times.")],
+            ("para", "Not in the app yet: they are thrown 3 times.")],
             f"its placeholders are filled from the code, a planned paragraph led as planned {secs}")
         rc, out = review("dice", moved)
         c = check(moved)
@@ -3004,6 +3011,11 @@ def self_test():
             ("{c:src/k.rs::SIDES} sides", "6 sides", "`6` is a number typed",
              "a typed digit fails"),
             ("A die has", "A `die` has", "backticks", "a code name in backticks fails"),
+            ('planned = "dice"', 'planned = "dice"\n\n[[construction.section.para]]\npiece = "Die"\n'
+             'does = "Rolls"\ninstead = "a coin"', "no `why`", "a piece entry missing a field fails"),
+            ('planned = "dice"', 'planned = "dice"\n\n[[construction.section.para]]\npiece = "Die"\n'
+             'does = "Rolls 4"\ninstead = "a coin"\nwhy = "It is not fair."', "is a number typed",
+             "a piece entry's field holds the digit rule"),
             ('planned = "dice"', 'planned = "coins"', "names no [open_item.coins]",
              "a planned item that is no open item fails"),
             ('names = "the dice of §2"', 'names = "the dice of §9"', "no longer names",

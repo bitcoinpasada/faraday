@@ -32,7 +32,7 @@ pub struct Part {
 /// A paragraph or a table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Item {
-    /// A paragraph; one about work not built begins "Planned, not built:".
+    /// A paragraph; one about work not built begins "Not in the app yet:".
     Para(&'static str),
     /// A table written from the code.
     Table(Table),

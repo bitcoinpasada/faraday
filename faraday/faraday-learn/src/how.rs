@@ -29,7 +29,7 @@
 //! - `CONSTRUCTIONS` (`docs/CRYPTO-LEARN.md` §18), written by gen.py: a
 //!   `Construction` per `[[construction]]` in the manifest's order, its
 //!   paragraphs' placeholders filled from the code, one about work not
-//!   built led by "Planned, not built:", its tables written from the code;
+//!   built led by "Not in the app yet:", its tables written from the code;
 //! - only `BLOCKS`, `learn_page`, `CONSTRUCTIONS` and the area statics change between generations. The
 //!   lookups below the marker line are written once and the same in
 //!   every generation.
@@ -2137,6 +2137,13 @@ pub static CONSTRUCTIONS: &[Construction] = &[
         actions: &["vault-create", "vault-unlock", "vault-seal"],
         sections: &[
             Part {
+                heading: "Two layers",
+                items: &[
+                    Item::Para("A vault has two layers. The lock is the passphrase, Argon2id, ChaCha20 and HMAC. It is what keeps secrets safe. All of it is published, and each algorithm comes from an established library."),
+                    Item::Para("The plumbing is the code that lays the file out, reads it back and decides which field holds what. Most of what is Faraday's own is here. A bug in the plumbing usually means a file that does not open. The exception is in writing, under Security."),
+                ],
+            },
+            Part {
                 heading: "The file",
                 items: &[
                     Item::Para("A vault is one KDBX 4 file, the database format KeePass writes, under one passphrase. Faraday writes it in one shape and reads the shapes a KeePass app saves within limits."),
@@ -2158,12 +2165,13 @@ pub static CONSTRUCTIONS: &[Construction] = &[
                 items: &[
                     Item::Para("The passphrase is put in Unicode Normalization Form C (UAX #15), and its UTF-8 bytes are hashed with SHA-256 twice to make KDBX 4's composite key. Then \"é\" typed as one character (U+00E9) and as \"e\" with a combining accent (U+0065 U+0301) open the same vault."),
                     Item::Para("Argon2id version 1.3 (RFC 9106) stretches the composite key under the header's salt, memory, passes and lanes to 32 bytes; SHA-256 and SHA-512 over that and the header make the encryption key and the HMAC base, and each block has its own HMAC key."),
+                    Item::Para("Create a vault offers five memory steps, from 64 MiB to 1 GiB, each at 3 passes and 4 lanes. The lanes do not change the work a guess costs."),
                 ],
             },
             Part {
                 heading: "Sealing and opening",
                 items: &[
-                    Item::Para("The body is the database's XML, gzipped and encrypted with ChaCha20, in blocks of 1 048 576 bytes each with its own HMAC-SHA-256 over its length and bytes. The header carries its own SHA-256 and HMAC-SHA-256."),
+                    Item::Para("The body is the database's XML, padded to the file's size with line feeds and encrypted with ChaCha20, in blocks of 1 048 576 bytes each with its own HMAC-SHA-256 over its length and bytes. The header carries its own SHA-256 and HMAC-SHA-256."),
                     Item::Para("The reader checks the version, the header's fields, the cost against its limits and the file's length before any memory is asked for, then derives the keys once. Every block's HMAC is checked before its bytes are used; a missing or extra block, a changed byte and a cut file are refused."),
                     Item::Para("A seal writes the file again with a fresh salt, fresh IVs and a fresh inner key, all from one answer the caller draws, and a seal count one more than the last with the time."),
                     Item::Para("A file a KeePass app saved with another cipher or KDF the reader takes, or other settings, opens, and its next seal writes it in Faraday's shape; only a format mark other than the one this build writes or a Meta that reads ambiguously holds a vault read only."),
@@ -2183,6 +2191,39 @@ pub static CONSTRUCTIONS: &[Construction] = &[
                     Item::Para("A vault's size and its seal count are in the clear or can be read by whoever opens it; the cost and salt are in the header."),
                     Item::Para("Independent review. Faraday's reader and writer are its own and have been read by pykeepass, keepassxc-cli and keepass-rs, in the vault cross-check area, over the files they write and the files those programs write."),
                     Item::Para("Availability. A changed byte anywhere in the file fails its HMAC and the vault does not open; a backup is how a damaged vault is recovered."),
+                ],
+            },
+            Part {
+                heading: "What is Faraday's own, and why",
+                items: &[
+                    Item::Para("The format and the algorithms are published. These pieces are not. For each: what it does, what could replace it, and why it is not taken."),
+                    Item::Para("KDBX reader and writer. Reads and writes the file vault: the header, the block stream, the cipher steps and the XML. Could be replaced by the keepass crate (keepass-rs). It drops the XML elements it does not model, which would disturb what a KeePass app wrote into the file, and it draws a save's randomness itself, with no way to pass the session's in. No audit of it is one Faraday's dependency checks trust. It is used in the tests as an outside reader and writer, never in what ships."),
+                    Item::Para("Faraday's names inside the vault. Decides which KeePass field holds a seed's words, a wallet or a GPG key, and keeps Faraday's settings in custom data under names that start with faraday. Could be replaced by nothing, since no standard puts a Bitcoin seed in KeePass. Unavoidable. An item the reader does not expect is named Unreadable and never used."),
+                    Item::Para("Padding after the XML. Keeps each file at one of its sizes, by adding line feeds after the XML's closing tag. Could be replaced by nothing, since KDBX has no padding of its own. It uses what XML already allows after its last tag, so a KeePass app reads the padded file as any other. A KeePass app that saves the file drops the padding."),
+                    Item::Para("Not in the app yet: OpenPGP code for the QR vault. Writes and reads the three packets a QR vault is made of. Could be replaced by rPGP (pgp) or Sequoia. Each brings every algorithm OpenPGP has had, with all the libraries those need, for a message that uses AES and OCB alone. rPGP has been audited by outside reviewers, but none of those audits is one Faraday's dependency checks trust, so each library it brings would be Faraday's own to vet."),
+                    Item::Para("Not in the app yet: HKDF (RFC 5869). Turns one key into others; in the vault only the QR vault uses it. Could be replaced by the hkdf crate. It leaves the intermediate key and each output block in freed memory unwiped; Faraday's own wipes them."),
+                    Item::Para("Not in the app yet: QR vault contents. The short TOML inside the code, padded to one length, holding one seed, share, passphrase or note. Could be replaced by nothing, since no standard exists for an encrypted seed QR that other tools read. Unavoidable. The cross-check reads the contents with an outside TOML parser."),
+                ],
+            },
+            Part {
+                heading: "Security",
+                items: &[
+                    Item::Para("What protects secrets is all published. Someone with the file faces Argon2id at the vault's memory step, then the cipher. None of that is Faraday's design."),
+                    Item::Para("The main risk is parsing. The device reads files from outside, and a bug in a reader could crash it, hang it, or make it accept or refuse a file wrongly. The guards: a file's memory, passes and lanes are checked against limits before any memory is asked for; every block's HMAC is checked before its bytes are used; anything unexpected is refused, never guessed at; the XML reader refuses a DOCTYPE and an entity it does not know; each reader has a fuzz target; and pykeepass, keepassxc-cli and keepass-rs read what Faraday writes, and Faraday reads what they write."),
+                    Item::Para("Not in the app yet: the QR vault's reader checks the Argon2 cost against the same limits right after the key packet, before the data packet is read, and refuses every packet it does not use."),
+                    Item::Para("The one subtle risk is in writing. If Faraday's code reused a value it should draw fresh, a nonce for example, the file would still open everywhere, so the cross-check would not notice, but the encryption would be weaker. A library carries the same risk in its own code. The guard: every seal draws its bytes from one call for the session's randomness, and the specification counts every byte that call returns."),
+                    Item::Para("The library trade. A large audited library is more code that Faraday did not write and more to vet, looked at by others. A small piece of Faraday's own is less code and nothing extra to vet, looked at by Faraday, its tests and three outside programs. For one file format the small piece is taken, and keepass-rs would also give up two requirements of the file vault: that what a KeePass app wrote is kept, and that the session's randomness is the only source."),
+                    Item::Para("Key commitment. Every HMAC in a file vault is keyed from the key its passphrase makes, so no second passphrase opens the file to other contents."),
+                    Item::Para("Not in the app yet: OCB does not commit to its key. A QR vault someone else made could be built to open to two contents under two passphrases. Faraday makes every QR vault under one passphrase."),
+                    Item::Para("Later work. Faraday does not yet wipe every copy of a key left in freed memory, and Argon2id's later passes read memory at places the passphrase decides, which a program on the same computer could time. The device is offline and powered off after use, so both wait."),
+                ],
+            },
+            Part {
+                heading: "Opening it elsewhere",
+                items: &[
+                    Item::Para("This shows the file is standard, and is not the way to use a vault. The cross-check opens a file vault with pykeepass, keepassxc-cli and keepass-rs, and Faraday opens what they write."),
+                    Item::Para("Not in the app yet: a QR vault is read by Sequoia's sq and by rPGP in the cross-check. GnuPG cannot read a QR vault: it follows LibrePGP, not RFC 9580."),
+                    Item::Para("Unlocking a vault on a computer that is online shows its seed on that computer. It is a last resort, for when Faraday is gone and the seed is needed back. Move the funds to a new seed afterwards and treat the old seed as exposed. The way to open a vault is Faraday on the offline device."),
                 ],
             },
         ],
