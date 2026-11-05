@@ -23,6 +23,15 @@ impl Document {
         if text.chars().any(forbidden) {
             return Err(Refused::NotWellFormed);
         }
+        // The reader does not count a byte order mark in its positions, so
+        // the document is read without it and the prolog gets it back.
+        const BOM: &[u8] = b"\xEF\xBB\xBF";
+        let bom = if src.starts_with(BOM) { BOM } else { b"" };
+        let src = &src[bom.len()..];
+        // A second mark is counted by no one: refused, as before.
+        if src.starts_with(BOM) {
+            return Err(Refused::Structure("content before the root element"));
+        }
         let mut rd = Rd {
             src,
             r: Reader::from_reader(src),
@@ -88,7 +97,7 @@ impl Document {
         }
         let epilog = rd.epilog()?;
         let mut doc = Self {
-            prolog: src[..a].to_vec(),
+            prolog: [bom, &src[..a]].concat(),
             epilog,
             file,
             history: rd.history,

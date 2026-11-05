@@ -4,7 +4,7 @@
 //! hostile. The input is the document as the inner header leaves it; when
 //! it reads, it is written and read again and the two writes must agree,
 //! and Faraday's items are read from both and must agree. The seeds are
-//! documents of pykeepass and of Faraday.
+//! documents of pykeepass and of Faraday, and inputs that stopped the target.
 
 #![no_main]
 

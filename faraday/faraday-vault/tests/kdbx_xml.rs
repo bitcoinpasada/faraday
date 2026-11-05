@@ -1107,3 +1107,25 @@ fn a_bin_with_a_damaged_structure_is_still_refused() {
         );
     }
 }
+
+#[test]
+fn a_document_with_a_byte_order_mark_is_written_whole_and_read_again() {
+    const KEY: &[u8] = &[7; 64];
+    const NEW: &[u8] = &[9; 64];
+    let text = "\u{feff}<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n<KeePassFile><Meta><Generator>Faraday</Generator><DatabaseName>V</DatabaseName></Meta><Root><Group><UUID>AQEBAQEBAQEBAQEBAQEBAQ==</UUID><Name>V</Name><Entry><UUID>AgICAgICAgICAgICAgICAg==</UUID><String><Key>Title</Key><Value>Example</Value></String><Binary><Key>a.bin</Key><Value Ref=\"0\"/></Binary><History><Entry><UUID>AgICAgICAgICAgICAgICAg==</UUID></Entry></History></Entry></Group></Root></KeePassFile>\n\n";
+    let doc = Document::read(text.as_bytes(), KEY).expect("reads");
+    let written = doc.write(NEW);
+    assert_eq!(&written[..], text.trim_end().as_bytes());
+    let again = Document::read(&written, NEW).expect("a written document reads");
+    assert_eq!(&again.write(NEW)[..], &written[..]);
+    assert_eq!(
+        again
+            .root()
+            .entries()
+            .next()
+            .unwrap()
+            .field("Title")
+            .map(|p| p.value()),
+        Some("Example")
+    );
+}
