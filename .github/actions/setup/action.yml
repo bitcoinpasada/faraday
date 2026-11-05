@@ -36,9 +36,17 @@ runs:
       if: inputs.packages == 'true'
       shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install --yes --no-install-recommends \
-          gnupg sq paperkey openssl sbsigntool mtools dosfstools
+        # A mirror can stall with no error: each try has a limit, or the job
+        # waits out its own timeout.
+        for try in 1 2 3; do
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 update \
+            && timeout 300 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 \
+              install --yes --no-install-recommends \
+              gnupg sq paperkey openssl sbsigntool mtools dosfstools \
+            && exit 0
+          echo "apt: try $try did not finish"
+        done
+        exit 1
 
     - name: Rust toolchain
       shell: bash
