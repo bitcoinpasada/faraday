@@ -621,6 +621,7 @@ impl Faraday {
         match action {
             Action::InputUse(id) | Action::InputTarget(id, ..) => self.input_believe(id),
             Action::InputIgnore(id) => self.input_ignore(id),
+            Action::BootNoticeClose => self.boot_notice_close(),
             Action::Mode(m) => self.mode_act(m),
             Action::ModeSheet => self.mode_sheet_open(),
             Action::DevicesCheck => self.device_check(),

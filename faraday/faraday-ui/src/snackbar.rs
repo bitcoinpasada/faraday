@@ -6,11 +6,12 @@
 //! stands above the first ([`Ui::snackbar`] returns the room the first
 //! took).
 
-use crate::Ui;
 use crate::pal::Role;
+use crate::{Shape, Ui, W};
 use faraday_draw::tokens::{
-    ELEVATION_FAB, SHAPE_XS, TOAST_H, TOAST_MARGIN, TOAST_MAX_W, TOAST_MIN_W, TOAST_PAD,
-    TOAST_PAD_Y, TOAST_STACK_GAP, TOAST_TEXT, WINDOW_MEDIUM,
+    ELEVATION_FAB, ICON_BUTTON, ICON_GLYPH, SHAPE_XS, TOAST_H, TOAST_MARGIN, TOAST_MAX_W,
+    TOAST_MIN_W, TOAST_PAD, TOAST_PAD_Y, TOAST_STACK_GAP, TOAST_TEXT, TOUCH, WINDOW_MEDIUM,
+    shape_full,
 };
 
 /// The snackbar's container: inverse-surface.
@@ -35,19 +36,39 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// with the gap above it: how far above `foot` a second one's foot
     /// goes. Faded out (`shown` 0), nothing is drawn and it takes no
     /// room: its time has run out.
-    pub fn snackbar(
+    pub fn snackbar(&mut self, place: (f32, f32, f32), text: &str, shown: f32, rise: f32) -> f32 {
+        self.snackbar_with(place, text, (shown, rise), None)
+    }
+
+    /// Costs measuring and breaking `text`. [`snackbar`](Self::snackbar)
+    /// with Material's close affordance: an icon button at its end, a
+    /// [`TOUCH`] square in the snackbar's ink, whose press does `close`.
+    /// The text keeps the room left beside it. The button is drawn at
+    /// the end of the call, so its press target is the topmost there.
+    pub fn snackbar_closable(
+        &mut self,
+        place: (f32, f32, f32),
+        text: &str,
+        (shown, rise): (f32, f32),
+        close: A,
+    ) -> f32 {
+        self.snackbar_with(place, text, (shown, rise), Some(close))
+    }
+
+    fn snackbar_with(
         &mut self,
         (x, cw, foot): (f32, f32, f32),
         text: &str,
-        shown: f32,
-        rise: f32,
+        (shown, rise): (f32, f32),
+        close: Option<A>,
     ) -> f32 {
         if shown <= 0.0 {
             return 0.0;
         }
         let fade = |r: Role| r.at(shown);
-        let (w, lines, lh, h) = self.snackbar_size(cw, text);
-        let line = (w - 2.0 * TOAST_PAD).max(0.0);
+        let side = if close.is_some() { TOUCH } else { 0.0 };
+        let (w, lines, lh, h) = self.snackbar_size(cw, text, side);
+        let line = (w - 2.0 * TOAST_PAD - side).max(0.0);
         let tx = x + (cw - w) / 2.0;
         let lift = self.above_fab(tx, w, foot - TOAST_MARGIN);
         let ty = foot - TOAST_MARGIN - lift - h + rise;
@@ -57,25 +78,52 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let mut from = 0;
         while let Some((shown_line, next)) = self.snackbar_line(text, from, line) {
             let lw = self.measure_as(TOAST_TEXT, shown_line).min(line);
-            let at = (tx + (w - lw) / 2.0, y, lh);
+            let at = (tx + TOAST_PAD + (line - lw) / 2.0, y, lh);
             self.text_mid_as(at, TOAST_TEXT, fade(SNACKBAR_INK), shown_line);
             y += lh;
             from = next;
+        }
+        if let Some(action) = close {
+            // Material's standard icon button, centred on the end of the
+            // snackbar's height in a touch target; the × is the
+            // multiplication sign, as the Learn pane's close is.
+            let (bx, by) = (tx + w - TOUCH, ty + (h - TOUCH) / 2.0);
+            let edge = (TOUCH - ICON_BUTTON) / 2.0;
+            let ink = fade(SNACKBAR_INK);
+            let shape = Shape::new(
+                bx + edge,
+                by + edge,
+                ICON_BUTTON,
+                ICON_BUTTON,
+                shape_full(ICON_BUTTON),
+            );
+            self.press_to(shape, (bx, by, TOUCH, TOUCH), ink, action);
+            let mark = "\u{d7}";
+            let mw = self.measure(ICON_GLYPH, W::R, mark);
+            self.text_mid(
+                bx + edge + (ICON_BUTTON - mw) / 2.0,
+                by + edge,
+                ICON_BUTTON,
+                ICON_GLYPH,
+                W::R,
+                ink,
+                mark,
+            );
         }
         lift + h + TOAST_STACK_GAP
     }
 
     /// What a snackbar with `text` takes in a window `cw` wide: its
     /// width, its lines, a line's height and its own height. A lookup.
-    fn snackbar_size(&mut self, cw: f32, text: &str) -> (f32, usize, f32, f32) {
+    fn snackbar_size(&mut self, cw: f32, text: &str, side: f32) -> (f32, usize, f32, f32) {
         let room = (cw - 2.0 * TOAST_MARGIN).max(0.0);
         let w = if cw < WINDOW_MEDIUM {
             room
         } else {
-            let one = self.measure_as(TOAST_TEXT, text) + 2.0 * TOAST_PAD;
+            let one = self.measure_as(TOAST_TEXT, text) + 2.0 * TOAST_PAD + side;
             one.clamp(TOAST_MIN_W, TOAST_MAX_W).min(room)
         };
-        let line = (w - 2.0 * TOAST_PAD).max(0.0);
+        let line = (w - 2.0 * TOAST_PAD - side).max(0.0);
         let mut lines = 0usize;
         let mut from = 0;
         while let Some((_, next)) = self.snackbar_line(text, from, line) {
@@ -92,7 +140,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// its height and the gap, as [`snackbar`](Self::snackbar) returns
     /// them where no button lifts it. A lookup.
     pub fn snackbar_room(&mut self, cw: f32, text: &str) -> f32 {
-        self.snackbar_size(cw, text).3 + TOAST_STACK_GAP
+        self.snackbar_size(cw, text, 0.0).3 + TOAST_STACK_GAP
+    }
+
+    /// As [`snackbar_room`](Self::snackbar_room) for a snackbar with its
+    /// close button ([`snackbar_closable`](Self::snackbar_closable)). A
+    /// lookup.
+    pub fn snackbar_closable_room(&mut self, cw: f32, text: &str) -> f32 {
+        self.snackbar_size(cw, text, TOUCH).3 + TOAST_STACK_GAP
     }
 
     /// How far a snackbar `w` wide from `tx`, its foot at `bottom`,

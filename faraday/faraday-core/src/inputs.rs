@@ -197,7 +197,8 @@ pub(crate) struct InputsArea {
 }
 
 /// How long the list of what was plugged in at start shows, from the
-/// first frame that draws it, in milliseconds. Nothing dismisses it.
+/// first frame that draws it, in milliseconds, unless its × or Escape
+/// takes it away first.
 pub(crate) const BOOT_NOTICE_MS: u64 = 10_000;
 
 impl InputsArea {
@@ -594,8 +595,8 @@ impl Faraday {
     }
 
     /// What was plugged in when the shell's start window closed: one toast
-    /// lists it, which nothing dismisses and nothing replaces. It comes
-    /// once.
+    /// lists it, which only its × or Escape dismisses and nothing replaces.
+    /// It comes once.
     fn input_boot_usb(&mut self, names: &[String]) {
         if names.is_empty() || self.inputs.boot_notice.is_some() {
             return;
@@ -625,6 +626,34 @@ impl Faraday {
         if let Some((_, at @ None)) = self.inputs.boot_notice.as_mut() {
             *at = Some(self.now_ms);
         }
+    }
+
+    /// The × on the list (F218), once a frame has drawn it: it goes for
+    /// this power-on. A press before that counts nothing. The press is a
+    /// person's: a held-back device's presses and keys arrive as
+    /// `StorageEvent`s (`input_typed`, `input_tapped`) and reach neither
+    /// this nor [`Faraday::input_key`].
+    pub(crate) fn boot_notice_close(&mut self) {
+        if matches!(self.inputs.boot_notice, Some((_, Some(_)))) {
+            self.inputs.boot_notice = None;
+        }
+    }
+
+    /// Escape, before the screens see a key: it takes a tooltip off first,
+    /// then the list while it shows (drawn), and does nothing else.
+    /// Whether the key was taken.
+    pub(crate) fn input_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if key != faraday_shell_api::Key::Escape {
+            return false;
+        }
+        if self.pointer.tip_dismiss() {
+            return true;
+        }
+        let shows = matches!(self.inputs.boot_notice, Some((_, Some(_))));
+        if shows {
+            self.inputs.boot_notice = None;
+        }
+        shows
     }
 
     /// Takes the list away once its time is up. Whether it went.

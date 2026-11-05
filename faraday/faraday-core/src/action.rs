@@ -228,6 +228,9 @@ pub enum Action {
     InputUse(u32),
     /// Keep a new device out until it is unplugged.
     InputIgnore(u32),
+    /// The × on the list of what was plugged in at start: it goes, for this
+    /// power-on.
+    BootNoticeClose,
     /// The target a new touchscreen or pointer presses to be believed: the
     /// device, which target of the run it is (from 0), and how many there
     /// are. The press counts only if it is the one the device has reached;

@@ -2848,6 +2848,7 @@ impl Faraday {
             | Action::RegisterReading(_)) => self.register_act(a),
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
+            | Action::BootNoticeClose
             | Action::InputTarget(..)
             | Action::Mode(..)
             | Action::ModeSheet
@@ -4548,8 +4549,7 @@ impl Faraday {
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn key(&mut self, key: KeyIn) {
-        // Escape takes a tooltip off first, and does nothing else.
-        if key == KeyIn::Escape && self.pointer.tip_dismiss() {
+        if self.input_key(key) {
             return;
         }
         if self.selftest_failed() || self.key_refused_busy(key) || self.input_sheet_key(key) {

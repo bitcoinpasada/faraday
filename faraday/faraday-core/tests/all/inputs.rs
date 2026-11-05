@@ -1238,16 +1238,35 @@ fn nothing_plugged_in_at_start_shows_no_notice() {
     assert!(!said(&mut app).contains("Plugged in"));
 }
 
+/// The boot notice's × as drawn: where a press lands on it.
+fn notice_x(app: &mut Faraday) -> (u16, u16) {
+    let _ = app.frame();
+    app.where_offered(Action::BootNoticeClose)
+        .expect("the notice's × is on screen")
+}
+
+fn tap(app: &mut Faraday, (x, y): (u16, u16)) {
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: faraday_shell_api::TouchPhase::Down,
+    });
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: faraday_shell_api::TouchPhase::Up,
+    });
+}
+
 #[test]
-fn nothing_dismisses_the_start_notice_and_it_goes_after_ten_seconds() {
+fn the_start_notice_goes_after_ten_seconds_whatever_else_is_pressed_or_toasted() {
     use faraday_core::Screen;
     let mut app = on_screen(7);
     app.event(Event::Tick { now_ms: 1000 });
     boot_usb(&mut app, &["USB Receiver"]);
     assert!(said(&mut app).contains("Plugged in"));
-    // Keys, Escape, a press and another toast do not touch it, and a press
-    // reaches the page under it.
-    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    // Another key, and a press elsewhere, do not touch it; a press reaches
+    // the page under it.
     app.event(Event::Key(faraday_shell_api::Key::Enter));
     app.press(Action::Nav(Screen::Settings));
     assert_eq!(app.screen, Screen::Settings);
@@ -1270,6 +1289,97 @@ fn nothing_dismisses_the_start_notice_and_it_goes_after_ten_seconds() {
     );
     app.event(Event::Tick { now_ms: 11_100 });
     assert!(!said(&mut app).contains("Plugged in"));
+}
+
+#[test]
+fn pressing_the_start_notice_x_hides_it_for_good() {
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    boot_usb(&mut app, &["USB Receiver"]);
+    let at = notice_x(&mut app);
+    tap(&mut app, at);
+    assert!(!said(&mut app).contains("Plugged in"));
+    app.event(Event::Tick { now_ms: 3000 });
+    assert!(!said(&mut app).contains("Plugged in"));
+}
+
+#[test]
+fn escape_hides_the_start_notice_and_does_nothing_else() {
+    use faraday_core::Screen;
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    app.press(Action::Nav(Screen::Settings));
+    // No notice: Escape is as it was.
+    let before = app.screen;
+    boot_usb(&mut app, &["USB Receiver"]);
+    let _ = app.frame();
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    assert!(!said(&mut app).contains("Plugged in"));
+    assert_eq!(app.screen, before, "the screen did not go back");
+}
+
+#[test]
+fn a_press_on_the_x_does_not_reach_what_is_under_it() {
+    use faraday_core::Screen;
+    let mut app = on_size(7, (480, 640), 160);
+    app.event(Event::Tick { now_ms: 1000 });
+    app.press(Action::Nav(Screen::Files));
+    boot_usb(&mut app, &["USB Receiver"]);
+    let at = notice_x(&mut app);
+    let screen = app.screen;
+    // The bottom bar's buttons stand under the notice's end.
+    let (x, y) = (i32::from(at.0), i32::from(at.1));
+    let under = [
+        Screen::Home,
+        Screen::WalletsStart,
+        Screen::Files,
+        Screen::Vaults,
+        Screen::Catalog,
+        Screen::Visit,
+    ]
+    .into_iter()
+    .any(|s| {
+        app.hit_box(Action::Nav(s)).is_some_and(|(bx, by, bw, bh)| {
+            let (bx, by, bw, bh) = (i32::from(bx), i32::from(by), i32::from(bw), i32::from(bh));
+            (bx..bx + bw).contains(&x) && (by..by + bh).contains(&y)
+        })
+    });
+    assert!(under, "a navigation button is under the ×");
+    tap(&mut app, at);
+    assert_eq!(app.screen, screen);
+    assert!(!said(&mut app).contains("Plugged in"));
+}
+
+#[test]
+fn a_press_before_the_x_is_drawn_counts_nothing() {
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    boot_usb(&mut app, &["USB Receiver"]);
+    app.press(Action::BootNoticeClose);
+    assert!(said(&mut app).contains("Plugged in"));
+}
+
+#[test]
+fn a_held_back_device_cannot_dismiss_the_start_notice() {
+    let mut app = on_screen(7);
+    app.event(Event::Tick { now_ms: 1000 });
+    boot_usb(&mut app, &["USB Receiver"]);
+    let at = notice_x(&mut app);
+    app.storage(StorageEvent::NewInput {
+        id: 5,
+        name: "USB Keyboard".into(),
+        keyboard: true,
+        pointer: true,
+        touch: false,
+    });
+    app.storage(StorageEvent::InputUsed { id: 5 });
+    // Its Escape, and a press of its own on the ×.
+    app.storage(StorageEvent::InputTyped {
+        id: 5,
+        ch: '\u{1b}',
+    });
+    tap_held(&mut app, 5, at);
+    assert!(said(&mut app).contains("Plugged in"));
 }
 
 /// Add a key with "a" typed, a trusted keyboard, and a mouse's sheet over it.

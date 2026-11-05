@@ -216,7 +216,7 @@ Read this table, then only the decision you need.
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
 | [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
 | [F201](decisions/F201.md) | Convert a seed's limit of step titles under the touch floor on the stick is 4 | 2026-11-04 | Active | design |
-| [F202](decisions/F202.md) | A USB pointer approves itself by pressing targets in a row while nothing trusted can point, and tries at a target are counted for the session, and a device present at start is trusted | 2026-11-04 | Active | security |
+| [F202](decisions/F202.md) | A USB pointer approves itself by pressing targets in a row while nothing trusted can point, and tries at a target are counted for the session, and a device present at start is trusted | 2026-11-04 | Amended by F218 | security |
 | [F203](decisions/F203.md) | A vault's name taken by a file nothing proves is a question: overwrite or save beside | 2026-11-04 | Active | security |
 | [F204](decisions/F204.md) | SLIP-39's set actions are in Convert a seed; codex32's stay with the backup | 2026-11-04 | Active | keys |
 | [F205](decisions/F205.md) | One kernel patch of Faraday's own on the Pi: a failed read of a later EDID block keeps the blocks before it | 2026-11-04 | Active | security |
@@ -232,3 +232,4 @@ Read this table, then only the decision you need.
 | [F215](decisions/F215.md) | A GPG key's paperkey has a code, for moving the key to a vault on another machine | 2026-11-05 | Active | QR |
 | [F216](decisions/F216.md) | On the Pi, "card or stick" where the app says "stick" | 2026-11-05 | Active | stick |
 | [F217](decisions/F217.md) | A QR vault is a third form of a seed in the backup, with Open to test before the lock | 2026-11-05 | Active, the design decided and not built | backup |
+| [F218](decisions/F218.md) | The list of what was plugged in at start can be dismissed, by its × or Escape, never by a held device | 2026-11-05 | Active | security |

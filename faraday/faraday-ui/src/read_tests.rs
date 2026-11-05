@@ -614,6 +614,42 @@ fn a_toast_over_a_notice_stands_clear_of_it() {
     assert!(notice.bottom() <= 480);
 }
 
+/// A snackbar with its close button keeps its text clear of the button, on
+/// a small panel and a phone.
+#[test]
+fn a_closable_snackbar_keeps_its_text_beside_its_close_button() {
+    for (w, h) in [(320.0, 240.0), (480.0, 480.0)] {
+        let mut canvas = canvas();
+        canvas.record_ink(true);
+        let mut hits = Vec::new();
+        let close;
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.clear(Role::Surface);
+            ui.snackbar_closable(
+                (0.0, w, h),
+                "Plugged in: USB Receiver. Only your keyboard and mouse should be plugged in.",
+                (1.0, 0.0),
+                3,
+            );
+            close = ui.reach.iter().find(|r| r.action == 3).map(|r| r.target);
+        }
+        let close = close.expect("the button is a target");
+        assert!(close.w >= 48 && close.h >= 48, "{close:?}");
+        for i in canvas.ink() {
+            if let InkKind::Text { text, .. } = &i.kind
+                && text != "\u{d7}"
+            {
+                assert!(
+                    i.rect.right() <= close.x,
+                    "{text}: {:?} over {close:?}",
+                    i.rect
+                );
+            }
+        }
+    }
+}
+
 /// A toast that comes up while Home's Scan floats at the foot of a small
 /// panel leaves Scan in sight and pressable: the toast stands above it.
 #[test]

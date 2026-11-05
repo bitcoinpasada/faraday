@@ -488,7 +488,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     ui.ox = 0.0;
     ui.oy = 0.0;
     if let Some(t) = app.boot_notice_text() {
-        ui.snackbar((0.0, full_w, full_h), t, 1.0, 0.0);
+        ui.snackbar_closable(
+            (0.0, full_w, full_h),
+            t,
+            (1.0, 0.0),
+            Action::BootNoticeClose,
+        );
     }
     // Faraday Demo's host takes what the page and its sheet offered
     // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
@@ -752,7 +757,7 @@ fn toast(app: &View, ui: &mut Ui, x: f32, cw: f32, foot: f32) {
         let foot = foot
             - app
                 .boot_notice_text()
-                .map_or(0.0, |b| ui.snackbar_room(cw, b));
+                .map_or(0.0, |b| ui.snackbar_closable_room(cw, b));
         ui.snackbar((x, cw, foot), &t, shown, rise);
     }
 }
