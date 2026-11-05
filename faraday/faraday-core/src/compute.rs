@@ -10,6 +10,7 @@ use faraday_crypto::work::Compute;
 
 use crate::strings::EN;
 use crate::worker::kef::{KefId, KefStart};
+use crate::worker::kef_make;
 use crate::worker::{Answer, Busy, Done, Job};
 use crate::{Action, Command, Faraday, Later, motion};
 use faraday_keys::kef::{Envelope, OpenError, OpenJob, Opened, Progress, SealError, SealJob};
@@ -466,5 +467,95 @@ impl Faraday {
         if let Some(b) = self.worker.busy().copied() {
             self.worker.set_busy(Some(Busy { done, ..b }));
         }
+    }
+}
+
+/// Making a Krux encrypted code (`docs/KEF.md` §15): what the seed's form
+/// and the tool in Tools call. The options and the code are
+/// `worker::kef_make`'s.
+impl Faraday {
+    /// Starts making a code of seed `seed`'s entropy under `passphrase`
+    /// (`docs/KEF.md` §6). A seed of 15, 18 or 21 words, another list's,
+    /// or none gives [`kef_make::MakeStart::NotOffered`].
+    pub fn kef_make_seed(
+        &mut self,
+        seed: usize,
+        passphrase: Zeroizing<Vec<u8>>,
+        options: &kef_make::Options,
+    ) -> Result<(), kef_make::MakeStart> {
+        let c = self.compute();
+        let entropy = faraday_keys::kef::seed_plaintext(&self.session.keys, &c, seed)
+            .ok_or(kef_make::MakeStart::NotOffered)?;
+        self.kef_make(passphrase, entropy, options)
+    }
+
+    /// Starts making a code of `text`, as UTF-8 and nothing around it
+    /// (a passphrase, a codex32 share, a note, a wallet's text).
+    pub fn kef_make_text(
+        &mut self,
+        passphrase: Zeroizing<Vec<u8>>,
+        text: Zeroizing<String>,
+        options: &kef_make::Options,
+    ) -> Result<(), kef_make::MakeStart> {
+        self.kef_make(
+            passphrase,
+            Zeroizing::new(text.as_bytes().to_vec()),
+            options,
+        )
+    }
+
+    fn kef_make(
+        &mut self,
+        passphrase: Zeroizing<Vec<u8>>,
+        plaintext: Zeroizing<Vec<u8>>,
+        options: &kef_make::Options,
+    ) -> Result<(), kef_make::MakeStart> {
+        if let Some(p) = options.problem() {
+            return Err(kef_make::MakeStart::Refused(p));
+        }
+        let writable =
+            std::str::from_utf8(&passphrase).is_ok_and(faraday_keys::kef::writable_passphrase);
+        if !writable {
+            return Err(kef_make::MakeStart::Refused(EN.kef_refuse_passphrase));
+        }
+        self.kef_seal(
+            passphrase,
+            plaintext,
+            options.version,
+            options.kef_id(),
+            options.count,
+            EN.kef_making,
+        )
+        .map_err(|e| match e {
+            KefStart::Refused(r) => kef_make::MakeStart::Refused(kef_make::refusal_line(r)),
+            other => kef_make::MakeStart::Not(other),
+        })
+    }
+
+    /// Costs a QR encoding. Takes the
+    /// seal's answer: the code made, or what was refused, in words.
+    pub fn kef_take_made(
+        &mut self,
+        options: &kef_make::Options,
+    ) -> Option<Result<kef_make::Made, String>> {
+        let answer = self.kef_take_sealed()?;
+        let bytes = match answer {
+            Ok(b) => b,
+            Err(e) => return Some(Err(kef_make::refusal_text(e))),
+        };
+        let c = self.compute();
+        Some(Ok(kef_make::made(&c, bytes, options)))
+    }
+
+    /// Puts the code's picture (when it fits one code) and its file in
+    /// the Outbox. Neither is a secret (`docs/QR.md` §7.1).
+    pub fn kef_save_made(&mut self, made: &kef_make::Made) {
+        let c = self.compute();
+        if let Ok(view) = &made.view
+            && let Some((name, png)) = view.png(&c)
+        {
+            self.put_outbox(&name, png);
+        }
+        self.put_outbox(&made.file_name, made.bytes.clone());
     }
 }

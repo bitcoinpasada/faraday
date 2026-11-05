@@ -14,6 +14,7 @@ use faraday_crypto::work::Compute;
 use crate::work;
 
 pub mod kef;
+pub mod kef_make;
 
 /// What a job is, for the busy screen and for the rules between jobs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

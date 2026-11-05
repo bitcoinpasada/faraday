@@ -12604,4 +12604,42 @@ strings! {
     signer_swap: "Swap",
     /// The Result's button that opens the Returned card.
     signer_choose_again: "Choose again",
+    /// The working line while a Krux code's key is worked out.
+    kef_making: "Making the code",
+    /// The title of the Krux code's picture and of its sheet.
+    kef_code_title: "Krux encrypted code",
+    /// The sheet's line under the title.
+    kef_code_subtitle: "One code, base43 text",
+    /// A line under the code's picture: the version and the count. `{}`: the version; the count.
+    kef_code_label_version: "Version {} · {} rounds",
+    /// A line under the code's picture: the id, where it is text the person chose. `{}`: the id.
+    kef_code_label_id: "Id {}",
+    /// The file name of the code's picture. `{}`: the version; the id in hex.
+    kef_code_png_name: "krux-v{}-{}.png",
+    /// The file name of the code's bytes. `{}`: the version; the id in hex.
+    kef_code_file_name: "krux-v{}-{}.kef",
+    /// Said when the contents do not fit one code, and only the file is made.
+    kef_code_too_big: "Too large for one code. The file is saved.",
+    /// A refusal: two blocks of the contents are equal and the mode shows it. `{}`: a version that works.
+    kef_refuse_duplicate: "Two blocks are equal and this version would show it. Version {} works.",
+    /// A refusal: the end of the contents cannot be told from padding. `{}`: a version that works.
+    kef_refuse_nul_end: "The contents end in a zero byte, which this version's padding cannot keep. Version {} works.",
+    /// A refusal: the contents are too long for a compressed version.
+    kef_refuse_too_long: "Compressed versions take at most 1,024 bytes. Choose a version without compression.",
+    /// A refusal: the passphrase has a character the code's keypads do not.
+    kef_refuse_passphrase: "The passphrase is 1 to 200 printable ASCII characters.",
+    /// A refusal: nothing to seal.
+    kef_refuse_empty: "There is nothing to put in the code.",
+    /// A refusal: the count is outside what is offered.
+    kef_refuse_count: "The count is from 10,000 to 500,000.",
+    /// A refusal: the typed id is empty or longer than the code can hold.
+    kef_refuse_id: "The id is 1 to 252 bytes.",
+    /// A refusal: the version is not one of KEF's.
+    kef_refuse_version: "That version is not one the format has.",
+    /// Said when the seed cannot be put in a Krux code: only 12 and 24 words of the English list can.
+    kef_not_offered: "Only a seed of 12 or 24 words in the English list can be put in a Krux code.",
+    /// The line under the ECB versions in Options.
+    kef_ecb_line: "ECB writes equal blocks alike, so a code with two equal blocks is refused.",
+    /// The line on the passphrase step and Options about a typed id.
+    kef_public_id_line: "A typed id or the fingerprint is printed on the code and is not secret.",
 }

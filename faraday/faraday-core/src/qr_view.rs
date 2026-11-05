@@ -588,6 +588,42 @@ impl QrView {
         )
     }
 
+    /// Costs a QR encoding. A Krux encrypted code's base43 `text` as one
+    /// static code in alphanumeric mode, at low error correction when
+    /// `low` and medium otherwise (`docs/KEF.md` §5), public (`docs/QR.md`
+    /// §7.1): the picture is named `png_name` and has `lines` under it.
+    /// An error when it does not fit one code.
+    pub fn kef(
+        c: &Compute,
+        text: &str,
+        low: bool,
+        png_name: &str,
+        lines: Vec<String>,
+    ) -> Result<QrView, String> {
+        use faraday_codec::qr::{Ecc, Payload, encode_bounded};
+        /// The largest code written: a descriptor's (`docs/QR.md`).
+        const LARGEST: u8 = 25;
+        let ecc = if low { Ecc::Low } else { Ecc::Medium };
+        let code = encode_bounded(c, Payload::Alphanumeric(text.as_bytes()), ecc, LARGEST)
+            .map_err(|_| EN.kef_code_too_big.to_string())?;
+        Ok(QrView {
+            title: EN.kef_code_title.to_string(),
+            subtitle: EN.kef_code_subtitle.to_string(),
+            frames: vec![code],
+            frame: 0,
+            next_ms: 0,
+            source: QrSource::Text(text.to_string()),
+            format: QrFormat::Ur,
+            part: QR_PARTS[1],
+            secret: false,
+            public: true,
+            label: lines,
+            png_name: png_name.to_string(),
+            whole: Some(text.to_string()),
+            one_code: true,
+        })
+    }
+
     /// Costs what `text` costs. A secret as one plain-text code, the sheet
     /// marked Secret: it offers no picture (an entry's TOTP secret,
     /// `docs/QR.md` §7.1).

@@ -16,8 +16,9 @@ use zeroize::Zeroizing;
 
 pub use faraday_codec::kef::ID_MAX;
 pub use faraday_kef::{
-    Envelope, OpenError, Opened, Refusal, SealError, Sealing, count_with_change,
-    reading_passphrases, unwrap,
+    COMPRESS_MAX, COUNT_MIN, COUNT_SETTING_MAX, DEFAULT_COUNT, DEFAULT_ID_LEN, DEFAULT_VERSION,
+    Envelope, LONG_ID_LEN, OpenError, Opened, PASSPHRASE_MAX, Refusal, SealError, Sealing,
+    count_with_change, reading_passphrases, suggest_versions, unwrap, writable_passphrase,
 };
 
 /// How far a running job is, and whether it is told to stop: shared by
@@ -133,4 +134,12 @@ impl OpenJob {
             progress.between(n)
         })
     }
+}
+
+/// Costs what `Keys::kef_entropy` costs. A seed's entropy for a code (`Reveal::KefCode`, `docs/KEF.md` §6): 16 or
+/// 32 bytes, wiped when dropped, `None` for a seed of another length or
+/// list or none. It goes straight into a code's encryption.
+pub fn seed_plaintext(keys: &crate::Keys, c: &Compute, i: usize) -> Option<Zeroizing<Vec<u8>>> {
+    keys.kef_entropy(c, i, crate::Reveal::KefCode)
+        .map(|held| held.release())
 }
