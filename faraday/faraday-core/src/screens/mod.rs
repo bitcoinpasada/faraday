@@ -696,8 +696,14 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.pinning = !kb;
         ui.bar_tools_x = crate::compact::draws_own_bar(app.screen)
             .then(|| crate::compact::flow_bar_tools_x(app, ui, w));
+        ui.bar_pill_w = if ui.bar_tools_x.is_some() {
+            crate::compact::pill_room(app, ui)
+        } else {
+            0.0
+        };
         dispatch(app, ui, 0.0, w, page_h - top);
         ui.bar_tools_x = None;
+        ui.bar_pill_w = 0.0;
         ui.pinning = false;
         ui.oy = y0;
         ui.c.pop_clip();

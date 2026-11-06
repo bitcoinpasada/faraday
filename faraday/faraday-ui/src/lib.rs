@@ -461,6 +461,11 @@ pub struct Ui<'a, A> {
     /// eye, Cancel and the rest at its right end), set by the frame
     /// before the page is drawn so the bar's title ends before it.
     pub bar_tools_x: Option<f32>,
+    /// On a small panel, the room the mode pill takes on the bar's second
+    /// line, at the tools' left, beside where Back goes: its width and
+    /// a gap each side (0 where there is none). The top app bar keeps
+    /// that room from the line's text.
+    pub bar_pill_w: f32,
     /// A small panel's sheet keeps its buttons at its foot: they are
     /// handed to it rather than drawn in its body.
     pub sheet_pinning: bool,
@@ -664,6 +669,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             pinning: false,
             pin: None,
             bar_tools_x: None,
+            bar_pill_w: 0.0,
             sheet_pinning: false,
             sheet_pin: None,
             fab_at: None,

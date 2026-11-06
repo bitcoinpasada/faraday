@@ -244,10 +244,11 @@ each at the text size the person's system asks for.
   wraps or is shortened with an ellipsis; it never runs past its card,
   its sheet or the panel, and no line is drawn over another. A view
   that pans sideways (a codex32 worksheet) is scrolled there, not cut.
-  The small panel's bar holds Back, the page's name, Cancel, the eye,
-  the mode pill and the ?: the name is shortened, or left off where
-  they leave it no room, and the ? where they would reach Back's target
-  (DESIGN §4.1). Where the page offers a cryptographic action, **How
+  The small panel's bar holds Back, the page's name, Cancel, the eye and
+  the ?, and off mainnet the mode pill on its second line, left of them
+  and beside where Back goes, so the name keeps the first line: it is
+  shortened, or left off where the tools leave it no room, and the ?
+  where they and the pill would reach Back's target (DESIGN §4.1). Where the page offers a cryptographic action, **How
   Faraday does it** stands left of the ? and goes into the ⋮ first,
   before the ?, its row the menu's first (not built;
   `docs/CRYPTO-LEARN.md` §8.3). The test is `tests/all/pi_panel.rs`: on the stick's

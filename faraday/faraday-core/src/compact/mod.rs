@@ -20,8 +20,8 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{
-    APP_BAR_H, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT,
-    MODE_PILL_HEIGHT, SHAPE_M, SHAPE_XS,
+    APP_BAR_H, BODY_S, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT,
+    SHAPE_M, SHAPE_XS,
 };
 use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{
@@ -104,9 +104,21 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
         title: name,
         back_tip: EN.tip_back,
     };
+    ui.bar_pill_w = pill_room(app, ui);
     faraday_ui::nav::app_bar(ui, w, &head, title_end(right, w));
+    ui.bar_pill_w = 0.0;
     tools(app, ui, w);
     BAR_H
+}
+
+/// What the mode pill takes of the bar's second line, off mainnet: its
+/// width and a gap each side. Where it stands: [`tools`]. A lookup.
+pub(crate) fn pill_room(app: &View, ui: &Ui) -> f32 {
+    if crate::modes::screen::shows_pill(app) {
+        crate::modes::screen::pill_width(app, ui) + 2.0 * GAP_SMALL
+    } else {
+        0.0
+    }
 }
 
 /// Where the page's name ends before the tools that begin at `right`
@@ -133,8 +145,11 @@ pub(crate) fn flow_bar_tools_x(app: &View, ui: &mut Ui, w: f32) -> f32 {
 /// right end, over whatever of its name runs that far.
 pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
     let right = screen::measured(ui, |ui| tools(app, ui, w));
-    if right < w - GAP_SMALL {
-        ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, Role::Surface);
+    let pill = crate::modes::screen::shows_pill(app);
+    if right < w - GAP_SMALL || pill {
+        if right < w - GAP_SMALL {
+            ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, Role::Surface);
+        }
         tools(app, ui, w);
     }
 }
@@ -147,11 +162,12 @@ fn back_end(ui: &Ui) -> f32 {
 
 /// The tools at the bar's right end, each Material's icon button in a
 /// touch target or, for Cancel, its text button: the ? when the page has
-/// something in Learn, the mode pill off mainnet, the keyboard where the
-/// page types, the codex32 eye and Cancel. Returns where they begin.
+/// something in Learn, the keyboard where the page types, the codex32 eye
+/// and Cancel, and, on the bar's second line left of them, the mode pill
+/// off mainnet. Returns where the tools begin, not counting the pill.
 /// Where they would reach the Back button, the ?, then the keyboard, then
 /// the eye go into Material's overflow menu, a ⋮ where the ? stood;
-/// Cancel and the mode pill stay on the bar (`docs/DESIGN.md` §4.1).
+/// Cancel stays on the bar (`docs/DESIGN.md` §4.1).
 fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     let full = Overflow::default();
     let steps = [
@@ -176,7 +192,10 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     let mut out = steps[skip.min(steps.len() - 1)];
     for o in steps.into_iter().skip(skip) {
         out = o;
-        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) {
+        // The pill stands on the second line, left of the tools: they
+        // leave it its room before Back's target.
+        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) + pill_room(app, ui)
+        {
             break;
         }
     }
@@ -224,14 +243,6 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
             );
         }
     }
-    // The mode, off mainnet, beside the ?: centred on the bar, a gap
-    // either side. Pressed, it opens the mode sheet.
-    if crate::modes::screen::shows_pill(app) {
-        let pw = crate::modes::screen::pill_width(app, ui);
-        let px = right - GAP - pw;
-        crate::modes::screen::pill(app, ui, px, (BAR_H - MODE_PILL_HEIGHT) / 2.0);
-        right = px - GAP;
-    }
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
     if let Some((action, shown)) = keyboard.filter(|_| !held.keyboard) {
@@ -241,7 +252,17 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     if !held.eye {
         right = bar_eye(app, ui, right);
     }
-    bar_cancel(app, ui, right)
+    right = bar_cancel(app, ui, right);
+    // The mode, off mainnet, on the bar's second line beside where Back
+    // goes, left of the tools: the name keeps the first line whole.
+    // Pressed, it opens the mode sheet.
+    if crate::modes::screen::shows_pill(app) {
+        let pw = crate::modes::screen::pill_width(app, ui);
+        let end = title_end(right, w);
+        let px = end - GAP_SMALL - pw;
+        crate::modes::screen::pill(app, ui, px, faraday_ui::nav::pill_top(ui));
+    }
+    right
 }
 
 /// The eye on a top app bar, its target's right edge at `right`, while

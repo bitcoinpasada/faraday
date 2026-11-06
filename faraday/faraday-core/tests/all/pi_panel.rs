@@ -1322,6 +1322,36 @@ fn flow_bar_name(rig: &mut Rig) -> Option<(String, f32)> {
         .next()
 }
 
+/// Off mainnet the mode pill stands on the bar's second line beside where
+/// Back goes, so a page's name keeps the whole first line: it is drawn
+/// whole, and the pill is drawn whole and can be pressed.
+#[test]
+fn on_the_pi_the_mode_pill_leaves_a_pages_name_whole_on_the_bars_first_line() {
+    for (mode, pill) in [(Mode::Testnet, "Testnet"), (Mode::Practice, "Practice")] {
+        {
+            let (screen, name) = (Screen::Convert, "Convert a seed");
+            let mut rig = rig(On::Stick, mode, Vec::new());
+            rig.press(Action::Convert(faraday_core::convert::ConvertAction::Open));
+            rig.settle();
+            let _ = rig.frame();
+            let f = f32::from(rig.w) / rig.size().0;
+            let texts = rig.drawn_past_sides_and_text().1;
+            let label = format!("{mode:?}, {screen:?}");
+            let drawn = rig.drawn_texts();
+            assert!(
+                drawn.iter().any(|t| t == name),
+                "{label}: the name {name:?} is whole, drawn: {drawn:?}"
+            );
+            let (_, r) = texts
+                .iter()
+                .find(|(t, _)| t == pill)
+                .unwrap_or_else(|| panic!("{label}: the pill {pill:?} is drawn whole"));
+            assert!((r.1 as f32) >= 32.0 * f, "{label}: the pill is on the second line");
+            assert!(rig.offers(Action::ModeSheet), "{label}: the pill is pressed");
+        }
+    }
+}
+
 /// Sign a transaction with nothing loaded names itself on the bar beside
 /// Cancel: whole words or none, and never under Cancel.
 #[test]
@@ -1477,10 +1507,11 @@ fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_
     // On Mainnet the ? alone stands beside it: the bar's own size.
     let (text, roomy) = name(Mode::Mainnet);
     assert_eq!(text, "Add a key");
-    // On Testnet the mode pill leaves less room: whole, smaller.
+    // On Testnet the mode pill stands on the bar's second line, so the
+    // name has the first line to itself: whole, at the bar's own size.
     let (text, pi) = name(Mode::Testnet);
-    assert_eq!(text, "Add a key", "whole beside the pill");
-    assert!(pi < roomy, "{pi} dp beside the pill, {roomy} dp with room");
+    assert_eq!(text, "Add a key", "whole beside the ?");
+    assert_eq!(pi, roomy, "the name's size is the same with the pill");
     // Create vault's name beside Cancel and the ?: whole words or none,
     // never a piece of a word.
     let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());

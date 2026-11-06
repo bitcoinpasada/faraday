@@ -8,7 +8,7 @@
 use crate::pal::*;
 use crate::{Glyph, Shape, Ui, W};
 use faraday_draw::tokens::{
-    APP_BAR_H, GAP_SMALL, ICON_SMALL, LABEL, LABEL_M, MARGIN_COMPACT, NAV_ICON, TITLE_L, TITLE_M,
+    APP_BAR_H, GAP_SMALL, ICON_SMALL, LABEL, LABEL_M, MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON, TITLE_L, TITLE_M,
     TOUCH, TypeRole,
 };
 use faraday_draw::widgets::Icon;
@@ -57,10 +57,13 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         let (role, name) = bar_title(ui, bar.title, room(x));
         // "Back to Kind"; the name alone where that would be cut.
         let back_to = faraday_strings::fill(EN.bar_back_to, &[label]);
-        let label = if ui.measure_as(LABEL_M, &back_to) <= room(x) {
+        // The mode pill, where the page shows one, stands at the end of
+        // this line, left of the actions: the label keeps off it.
+        let line = (room(x) - ui.bar_pill_w).max(0.0);
+        let label = if ui.measure_as(LABEL_M, &back_to) <= line {
             back_to
         } else {
-            ui.fit_as(LABEL_M, label, room(x))
+            ui.fit_as(LABEL_M, label, line)
         };
         let (th, lh) = (ui.line_as(role), ui.line_as(LABEL_M));
         let top = (APP_BAR_H - th - lh) / 2.0;
@@ -70,6 +73,14 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         let (role, name) = bar_title(ui, bar.title, room(x));
         ui.text_mid_as((x, 0.0, APP_BAR_H), role, Role::OnSurface, &name);
     }
+}
+
+/// Where the top of the mode pill is on the bar's second line, level with
+/// where Back goes: the line's middle with the name in title large.
+pub fn pill_top<A: Copy + PartialEq>(ui: &Ui<A>) -> f32 {
+    let (th, lh) = (ui.line_as(TITLE_L), ui.line_as(LABEL_M));
+    let mid = (APP_BAR_H - th - lh) / 2.0 + th + lh / 2.0;
+    (mid - MODE_PILL_HEIGHT / 2.0).min(APP_BAR_H - MODE_PILL_HEIGHT)
 }
 
 /// The top app bar's container (`docs/THEMES.md` §7): surface, and
