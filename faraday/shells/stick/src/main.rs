@@ -111,6 +111,7 @@ mod camera;
 mod clock;
 mod costly;
 mod cursor;
+mod diskwork;
 #[cfg(test)]
 mod edid_screens;
 mod evdev;
@@ -793,7 +794,11 @@ struct Shell {
     /// file is written goes away again (`notice.rs`).
     notice_until: Option<Instant>,
     /// The disk process, when the image runs one.
-    disk: Option<DiskProcess>,
+    disk: Option<diskwork::Disk>,
+    /// The thread that makes the shell's own calls to the disk process
+    /// (`diskwork.rs`); `None` without a disk process, or when the thread
+    /// could not be started and the loop makes them itself.
+    work: Option<diskwork::Work>,
     /// Sticks that are folders, where the image runs no disk process.
     dirs: Dirs,
     /// What the clean marker last said: `None` before it was written.
@@ -1293,6 +1298,11 @@ impl Shell {
     /// for.
     fn report(&mut self, last: bool) {
         let elapsed = self.epoch.elapsed();
+        // The last write is still out to the thread: this one is made at
+        // the next pass, with more in it.
+        if self.work.as_ref().is_some_and(diskwork::Work::timings_out) && !last {
+            return;
+        }
         let Some(t) = self.timings.as_mut() else {
             return;
         };
@@ -1313,10 +1323,20 @@ impl Shell {
                 None => Ok(false),
                 // The boot medium may be out for now: a key is loaded with
                 // it out. What is kept goes at the next write with it back.
-                Some(text) => Ok(self.sticks.iter().find(|s| s.boot).is_some_and(|boot| {
-                    disk.write_copies(&boot.id, files::TIMINGS, text.as_bytes(), &[], true, false)
-                        .is_ok()
-                })),
+                Some(text) => match self.sticks.iter().find(|s| s.boot) {
+                    None => Ok(false),
+                    // The write is made by the thread, and told of when
+                    // it is done.
+                    Some(boot) if self.work.is_some() => {
+                        if let Some(work) = self.work.as_mut() {
+                            work.write_timings(boot.id.clone(), files::TIMINGS, text.to_string());
+                        }
+                        Ok(false)
+                    }
+                    Some(boot) => Ok(lock(disk)
+                        .write_copies(&boot.id, files::TIMINGS, text.as_bytes(), &[], true, false)
+                        .is_ok()),
+                },
             },
             None => self.files.append_timings(&block).map(|_| false),
         };
@@ -1353,6 +1373,16 @@ impl Shell {
         if !report.schedule.due(elapsed, last) {
             return;
         }
+        // The last write is still out to the thread: it is not due again
+        // for as long.
+        if !last
+            && self
+                .work
+                .as_ref()
+                .is_some_and(diskwork::Work::boot_report_out)
+        {
+            return;
+        }
         // Where it goes: the boot stick, or on a build box the exchange
         // directory. No boot stick listed yet is tried again in a second.
         let boot = match self.disk.as_ref() {
@@ -1365,14 +1395,27 @@ impl Shell {
             }
             return;
         }
+        if let (Some(work), Some(stick)) = (self.work.as_mut(), boot.as_ref()) {
+            // The kernel log is read, the report composed and written on
+            // the thread, from a copy of what the loop has seen.
+            work.write_boot_report(diskwork::BootReport {
+                stick: stick.clone(),
+                name: report.name.clone(),
+                inventory: report.inventory.clone(),
+                system: report.system.clone(),
+                elapsed,
+            });
+            report.schedule.tried(elapsed, true);
+            return;
+        }
         let kernel = bootreport::kernel_log(Path::new(bootreport::DMESG));
         let mut blocks = report.system.block(kernel.as_deref().ok());
         blocks.push_str(&radios::block(Path::new("/")));
         let text = bootreport::compose(&kernel, &report.inventory, &blocks, elapsed);
         let name = report.name.clone();
         let wrote = costly::timed(&mut self.timings, costly::DEV_FILE_WRITTEN, || {
-            match (self.disk.as_mut(), boot) {
-                (Some(disk), Some(id)) => disk
+            match (self.disk.as_ref(), boot) {
+                (Some(disk), Some(id)) => lock(disk)
                     .write_copies(&id, &name, text.as_bytes(), &[], true, false)
                     .map(drop),
                 _ => self.files.write_named(&name, text.as_bytes()).map(drop),
@@ -1389,6 +1432,52 @@ impl Shell {
                     self.say(&format!("no boot report: {reason}"));
                 }
             }
+        }
+    }
+
+    /// Acts on what the disk thread finished: a look at the sticks is
+    /// told to the app (not at exit, `last`), a write is said the way one
+    /// made on the loop is.
+    fn finish_work(&mut self, replies: Vec<diskwork::Reply>, last: bool) {
+        for reply in replies {
+            match reply {
+                diskwork::Reply::Listed(found) if !last => {
+                    let (now, problems) = self.listed(found);
+                    self.sticks_found(now, problems, false);
+                }
+                diskwork::Reply::Listed(_) => {}
+                diskwork::Reply::Timings(wrote) => {
+                    if wrote {
+                        self.written(files::TIMINGS, last);
+                    }
+                }
+                diskwork::Reply::BootReport { name, wrote, took } => {
+                    if let Some(t) = self.timings.as_mut() {
+                        t.work(costly::DEV_FILE_WRITTEN, took);
+                    }
+                    match wrote {
+                        Ok(()) => self.written(&name, last),
+                        Err(reason) => {
+                            let said = self
+                                .boot_report
+                                .as_mut()
+                                .is_some_and(|r| !std::mem::replace(&mut r.said, true));
+                            if said {
+                                self.say(&format!("no boot report: {reason}"));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Ends the disk thread, waiting for the write it is in the middle
+    /// of, so that the last writes of the run are the last.
+    fn end_work(&mut self) {
+        if let Some(mut work) = self.work.take() {
+            let done = work.finish();
+            self.finish_work(done, true);
         }
     }
 
@@ -1541,8 +1630,12 @@ impl Shell {
             if let Some(app) = self.app.as_mut() {
                 let locking = app.restart_requested();
                 let watch = costly::Watch::start(self.timings.as_ref());
+                // The disk process is one conversation: the thread that
+                // calls it for the shell waits its turn here, and the
+                // loop waits for no more than one of its calls.
+                let mut disk = self.disk.as_ref().map(|d| lock(d));
                 let mut sticks = costly::Timed {
-                    sticks: match self.disk.as_mut() {
+                    sticks: match disk.as_deref_mut() {
                         Some(disk) => disk as &mut dyn Sticks,
                         None => &mut self.dirs,
                     },
@@ -1776,30 +1869,28 @@ impl Shell {
         self.clean = Some(clean);
     }
 
+    /// What a look at the sticks found, as the sticks and the problems:
+    /// the sticks last reported when the disk process did not say.
+    fn listed(&mut self, found: diskwork::Listing) -> (Vec<StickInfo>, Vec<(String, bool)>) {
+        let sticks = match found.sticks {
+            Ok(s) => s,
+            Err(e) => {
+                if self.verbose {
+                    eprintln!("disk process: {e}");
+                }
+                self.sticks.clone()
+            }
+        };
+        (sticks, found.problems)
+    }
+
     /// The sticks: from the disk process when there is one, else the boot
     /// medium's data partition and every partition init mounted under
     /// `/mnt/usb`, as `/proc/mounts` lists them now.
-    fn mounted_sticks(&mut self) -> Vec<StickInfo> {
-        if let Some(disk) = self.disk.as_mut() {
-            return match disk.list() {
-                // A stick not handed out yet is kept from a clean app: the
-                // grant hands it over within half a second, and the app's
-                // first look at the boot stick (its settings, the boot
-                // import) then sees its files rather than an empty stick.
-                // A process that is not clean is told at once, to lock.
-                Ok(mut s) => {
-                    if self.clean != Some(false) {
-                        s.retain(|s| !disk.waiting().contains(&s.id));
-                    }
-                    s
-                }
-                Err(e) => {
-                    if self.verbose {
-                        eprintln!("disk process: {e}");
-                    }
-                    self.sticks.clone()
-                }
-            };
+    fn mounted_sticks(&mut self) -> (Vec<StickInfo>, Vec<(String, bool)>) {
+        if let Some(disk) = self.disk.clone() {
+            let found = diskwork::list(&mut lock(&disk), self.clean != Some(false));
+            return self.listed(found);
         }
         let mounts = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
         let mut sticks = Vec::new();
@@ -1843,11 +1934,19 @@ impl Shell {
                 ));
             }
         }
-        sticks
+        (sticks, Vec::new())
     }
 
-    /// Tells the app when the sticks or their files change.
+    /// Tells the app when the sticks or their files change. With a disk
+    /// process the look is asked of its thread and its answer taken on a
+    /// later pass; `force` looks now.
     fn scan_sticks(&mut self, force: bool) {
+        let found = self
+            .work
+            .as_mut()
+            .map(diskwork::Work::take)
+            .unwrap_or_default();
+        self.finish_work(found, false);
         if !force && Instant::now() < self.next_scan {
             return;
         }
@@ -1873,7 +1972,18 @@ impl Shell {
             self.boot_medium = found;
             app.storage(StorageEvent::BootMedium(found));
         }
-        let now = self.mounted_sticks();
+        if !force && let Some(work) = self.work.as_mut() {
+            let hide_waiting = self.clean != Some(false);
+            work.ask_list(hide_waiting);
+            return;
+        }
+        let (now, problems) = self.mounted_sticks();
+        self.sticks_found(now, problems, force);
+    }
+
+    /// Tells the app the sticks a look found, when they are not the ones
+    /// it was told of.
+    fn sticks_found(&mut self, now: Vec<StickInfo>, problems: Vec<(String, bool)>, force: bool) {
         if !force && now == self.sticks {
             return;
         }
@@ -1887,11 +1997,6 @@ impl Shell {
         self.sticks = now.clone();
         // The sticks the disk process found unusable, told to the app with
         // the listing: the backup flow says why at its second step.
-        let problems: Vec<(String, bool)> = self
-            .disk
-            .as_ref()
-            .map(|d| d.problems().to_vec())
-            .unwrap_or_default();
         if let Some(app) = self.app.as_mut() {
             app.storage(StorageEvent::Sticks(now));
             for (stick, read_only) in problems {
@@ -2068,6 +2173,14 @@ fn run(args: Args) -> Result<Exit, String> {
     // and a loop with no source left stops waiting on it.
     let (work_tx, tx) = (tx.clone(), watch.is_some().then_some(tx));
 
+    let disk = if Path::new(DISK_REQUESTS).exists() {
+        DiskProcess::open(Path::new(DISK_REQUESTS), Path::new(DISK_RESPONSES))
+            .ok()
+            .map(|d| Arc::new(Mutex::new(d)))
+    } else {
+        None
+    };
+    let work = disk.clone().and_then(diskwork::Work::start);
     let mut shell = Shell {
         app: Some({
             let mut app = Faraday::new();
@@ -2106,11 +2219,8 @@ fn run(args: Args) -> Result<Exit, String> {
         boot_medium: BootMedium::Known,
         next_scan: Instant::now(),
         notice_until: None,
-        disk: if Path::new(DISK_REQUESTS).exists() {
-            DiskProcess::open(Path::new(DISK_REQUESTS), Path::new(DISK_RESPONSES)).ok()
-        } else {
-            None
-        },
+        disk,
+        work,
         dirs: Dirs::default(),
         clean: None,
         clean_stuck: false,
@@ -2212,7 +2322,9 @@ fn run(args: Args) -> Result<Exit, String> {
     // The last screen the core asked for, if the loop ended on an event.
     shell.flush();
     shell.settle();
-    // Everything the last interval measured, before the machine goes.
+    // Everything the last interval measured, before the machine goes: the
+    // disk thread finishes the write it is in first.
+    shell.end_work();
     shell.report(true);
     shell.write_boot_report(true);
 

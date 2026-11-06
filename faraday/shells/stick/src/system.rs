@@ -47,6 +47,7 @@ impl Seen {
 }
 
 /// What the shell has seen of the board since it started.
+#[derive(Clone)]
 pub struct System {
     /// Where `/proc` and `/sys` are: `/` on the device, a folder in a
     /// test.

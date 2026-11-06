@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map, the signing page's text lines kept by file and the Backups screen's list and the wallet chart kept across moved frames, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the stick's look for input devices, off the main loop, timed on the dev card, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's list and the wallet chart, which a whole frame still works out, the first moved frame after it too). While the scanner sheet is open the stick asks its camera for 1920 × 1080 so that a dense QR reads, and the sheet's preview is the 640 × 360 reduction of it (three times the bytes of the 320 × 240 before), moved and wiped per frame; no other screen pays, and the cost of the sheet on a Pi is not measured
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map, the signing page's text lines kept by file, the Backups screen's list and the wallet chart kept across moved frames and the shell's calls to the disk process on a thread of their own, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the stick's look for input devices and its calls to the disk process, off the main loop, timed on the dev card, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's list and the wallet chart, which a whole frame still works out, the first moved frame after it too). While the scanner sheet is open the stick asks its camera for 1920 × 1080 so that a dense QR reads, and the sheet's preview is the 640 × 360 reduction of it (three times the bytes of the 320 × 240 before), moved and wiped per frame; no other screen pays, and the cost of the sheet on a Pi is not measured
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -613,11 +613,37 @@ same trust decision, made when the loop takes the result. At most one
 look is out at a time. A thread that ends without answering panics the
 loop. The `rescan` part in `--timings` is then the cost of asking and
 taking; a card with it is not yet taken. The readers close their own
-nodes on their own threads, so the loop closes none. `sticks` (worst 15
-ms) and `report` (worst 47 ms) in the same loop read and write files
-(`/sys` and the timings file) on the main thread and are not moved.
+nodes on their own threads, so the loop closes none.
 `--timings` also gives a `moved` and a `whole` line and a `by_screen`
 table per block, so a frame mean can be told by what was drawn.
+
+**The calls to the disk process.** Where the image runs a disk process,
+the loop made three kinds of call to it, each waiting on a stick: the
+look for plugged-in sticks (`sticks` in `--timings`), the timings file's
+write (`report`) and the boot report's composing and write (`bootreport`).
+On a Pi 3B+ (a card of the panel run, release) their worst figures in a
+block were 17, 31 and 50 ms, each held once in a while a frame of the
+loop. They now run on one thread of its own (`diskwork.rs`), which the
+first of them starts and `Work::finish` ends and joins. The disk
+process's handle is shared under a lock, held by the thread for one call
+at a time; the app's own file calls take the same lock, so one of them
+can still wait for a call that is under way, never for more than that one.
+The thread holds the list of sticks and the text of the two diagnostic
+files, and nothing of the app, a key or a vault. A look is asked on
+the pass it is due and its answer taken on a later pass, then told to the
+app as it was (a stick plugged in shows on the next frame after the
+look finds it); the first look at start is made in the loop. The boot
+report is composed from a copy of what the loop has seen (the kernel log
+is read on the thread) and the timings' text is cut by the loop; a write
+asked for while the last of its kind is out is made at the next pass.
+At exit the loop ends the thread, which finishes the write in progress,
+before it makes its own last writes, so the files end as the last text
+the loop made them. The panic chord does not wait for it: a write cut off
+there is the disk process's, which writes a new file and renames it over
+the old. A thread that ends without answering panics the loop. The three
+parts keep their names and now count what the loop still spends: asking
+and taking. A card with the figures is not yet taken; the writes and the
+look need a disk process, so they were not run off a Pi.
 
 ## 7. What a frame does beside its pixels
 

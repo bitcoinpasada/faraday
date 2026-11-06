@@ -19,6 +19,7 @@ holds a `Faraday` gets it with no code of its own but a wake.
 | Work | Stick and Pi | Faraday Demo |
 |---|---|---|
 | Input | Readers on threads of their own (`evdev.rs`, `touch.rs`, `pointer.rs`); the main loop takes their `Wake`s | winit's event loop, on the main thread; nothing costly |
+| The shell's own calls to the disk process (the look for sticks, the timings and boot report writes) | One thread (`diskwork.rs`), the handle shared under a lock; the loop asks and takes the answer on a later pass | Not run: no disk process |
 | Camera capture | A thread (`camera.rs`), which also reduces the frame | A thread (`faraday_window::camera`, `faraday_v4l2::spawn` on Linux, Media Foundation and AVFoundation elsewhere) |
 | QR codes in camera frames | **Off the main thread already**: `faraday_scanner::Scanner`, a worker that takes the newest frame offered and drops the one not taken (`ReadMode::Reduced`) | The same worker (`faraday/shells/window/src/lens.rs`, `ReadMode::Full`) |
 | What a scanned code leads to | On the main thread: `Event::Scanned` into `Faraday::scanned` (`scan_key.rs`): a UR or BBQr part joined, a PSBT parsed and inspected, a key or wallet read | The same |
