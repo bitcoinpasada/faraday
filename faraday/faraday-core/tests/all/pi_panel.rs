@@ -1412,3 +1412,347 @@ fn a_size_keeps_its_number_and_its_unit_together() {
     assert!(!faraday_core::vault::mib_text(14_950).contains(' '));
     assert!(!faraday_core::vault::size_text(262_144).contains(' '));
 }
+
+/// What a page drawn now, scrolled to each place, shows cut off or drawn
+/// over other text, as one message.
+fn drawn_clear(rig: &mut Rig, what: &str) {
+    let found = check(rig, what).0;
+    assert!(found.is_empty(), "{}", found.join("\n"));
+}
+
+#[test]
+fn on_the_small_panel_an_existing_vaults_line_on_the_layout_step_is_clear_of_the_choice_under_it() {
+    let mut rig = rig(
+        On::Stick,
+        Mode::Mainnet,
+        vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
+    );
+    let c = testkit::compute();
+    let i = testkit::flow_push(&mut rig, BackupFlow::new(&c, FlowKind::Gpg));
+    rig.press(Action::Flow(FlowAction::Show(i)));
+    rig.press(Action::Flow(FlowAction::AddPlace));
+    rig.press(Action::Flow(FlowAction::PlaceVault(1, 1)));
+    rig.press(Action::Flow(FlowAction::PlaceVault(2, 1)));
+    rig.press(Action::Flow(FlowAction::VaultExisting(0)));
+    rig.settle();
+    drawn_clear(&mut rig, "the layout step with an existing vault");
+    let under = text_under_control(&mut rig, Action::Flow(FlowAction::VaultExisting(0)));
+    assert!(under.is_empty(), "{}", under.join("\n"));
+    // Down at the vaults' lines, where the choice stands under them.
+    let (x, y) = (rig.w / 2, rig.h / 2);
+    for _ in 0..6 {
+        rig.event(Event::Scroll { x, y, dy: 160 });
+    }
+    rig.settle();
+    let texts = rig.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("an existing vault")),
+        "not the layout step: {texts:?}"
+    );
+}
+
+/// The lines of text that run under the touch target of `action`, at each
+/// place the page scrolls to: a line of text is inside the control (its
+/// label) or clear of it. `action` must be offered somewhere along the page.
+fn text_under_control(rig: &mut Rig, action: Action) -> Vec<String> {
+    let (x, y) = (rig.w / 2, rig.h / 2);
+    let mut found = Vec::new();
+    let mut offered = false;
+    let mut last = None;
+    for _ in 0..40 {
+        let texts = rig.drawn_past_sides_and_text().1;
+        if let Some(b) = rig.hit_box(action) {
+            offered = true;
+            let b = (
+                i32::from(b.0),
+                i32::from(b.1),
+                i32::from(b.2),
+                i32::from(b.3),
+            );
+            for (t, r) in &texts {
+                let w = (b.0 + b.2).min(r.0 + r.2) - b.0.max(r.0);
+                let h = (b.1 + b.3).min(r.1 + r.3) - b.1.max(r.1);
+                let inside = r.0 >= b.0 && r.0 + r.2 <= b.0 + b.2 && r.1 >= b.1 && r.1 + r.3 <= b.1 + b.3;
+                if w > 1 && h > 1 && !inside {
+                    found.push(format!("text {t:?} runs under {action:?} by {w} x {h} px"));
+                }
+            }
+        }
+        if last.as_ref() == Some(&texts) {
+            break;
+        }
+        last = Some(texts);
+        rig.event(Event::Scroll { x, y, dy: 160 });
+        rig.settle();
+    }
+    for _ in 0..40 {
+        rig.event(Event::Scroll { x, y, dy: -160 });
+    }
+    rig.settle();
+    assert!(offered, "{action:?} is never offered");
+    found.dedup();
+    found
+}
+
+/// Whether a text `want` holds is drawn anywhere along the page, from its
+/// top to its foot; the page is left at its top.
+fn scrolled_to_see(rig: &mut Rig, want: impl Fn(&str) -> bool) -> bool {
+    let (x, y) = (rig.w / 2, rig.h / 2);
+    let mut seen = false;
+    let mut last = None;
+    for _ in 0..40 {
+        let texts = rig.drawn_texts();
+        seen |= texts.iter().any(|t| want(t));
+        if last.as_ref() == Some(&texts) {
+            break;
+        }
+        last = Some(texts);
+        rig.event(Event::Scroll { x, y, dy: 160 });
+        rig.settle();
+    }
+    for _ in 0..40 {
+        rig.event(Event::Scroll { x, y, dy: -160 });
+    }
+    rig.settle();
+    seen
+}
+
+/// What the sheet drawn now, scrolled to each place, shows cut off at its
+/// sides or drawn over other text.
+///
+/// `page` is what the page under the sheet draws: its text is not the
+/// sheet's.
+fn sheet_clear(rig: &mut Rig, what: &str, page: &[DrawnText]) {
+    let (x, y) = (rig.w / 2, rig.h / 2);
+    let dy = (rig.h / 4) as i16;
+    let mut found: Vec<String> = Vec::new();
+    let mut last = None;
+    for _ in 0..40 {
+        let (past, texts) = rig.drawn_past_sides_and_text();
+        found.extend(past);
+        let own: Vec<DrawnText> = texts
+            .iter()
+            .filter(|t| !page.contains(t))
+            .cloned()
+            .collect();
+        found.extend(drawn_over(&own, None));
+        if last.as_ref() == Some(&texts) {
+            break;
+        }
+        last = Some(texts);
+        rig.event(Event::Scroll { x, y, dy });
+        rig.settle();
+    }
+    found.dedup();
+    assert!(found.is_empty(), "{what}: {}", found.join("\n"));
+}
+
+/// The test vault unlocked on the stick's panel.
+fn vault_open() -> Rig {
+    let mut rig = rig(
+        On::Stick,
+        Mode::Mainnet,
+        vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
+    );
+    rig.press(Action::Nav(Screen::Vaults));
+    rig.press(Action::Vault(V::Open(0)));
+    rig.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(&mut rig, testkit::VAULT_PASSPHRASE);
+    rig.press(Action::Vault(V::Unlock));
+    crate::common::settle(&mut rig, 100);
+    if rig.sheet == Some(Sheet::UnlockLoad) {
+        rig.press(Action::Vault(V::LoadTicked));
+    }
+    rig.press(Action::Nav(Screen::VaultContents));
+    rig.settle();
+    rig
+}
+
+#[test]
+fn on_the_small_panel_the_vault_memory_sheet_keeps_each_size_clear_of_its_label() {
+    let mut rig = vault_open();
+    rig.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    let page = rig.drawn_past_sides_and_text().1;
+    rig.press(Action::Vault(V::MemoryAsk));
+    rig.settle();
+    assert!(
+        rig.drawn_texts().iter().any(|t| t.contains("MiB") || t.contains("GiB")),
+        "no memory sizes on the sheet: {:?}",
+        rig.drawn_texts()
+    );
+    sheet_clear(&mut rig, "the memory sheet", &page);
+}
+
+#[test]
+fn on_the_small_panel_the_lock_sheets_randomness_line_is_clear_of_its_button() {
+    let mut rig = vault_open();
+    // The vault holds a change the lock will seal.
+    let id = rig.vaults().open[0].id;
+    testkit::vault_changed(&mut rig, id);
+    let page = rig.drawn_past_sides_and_text().1;
+    rig.sheet = Some(Sheet::LockAsk);
+    rig.settle();
+    // Down to the foot of the sheet, where the Randomness line is.
+    sheet_clear(&mut rig, "the lock sheet", &page);
+    let texts = rig.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Randomness"),
+        "the Randomness line is cut short: {texts:?}"
+    );
+}
+
+#[test]
+fn on_the_small_panel_restore_names_a_key_that_is_not_here_whole_beside_change() {
+    use faraday_core::rstep;
+    let k = kit("savings");
+    let mut rig = rig(
+        On::Stick,
+        Mode::Testnet,
+        vec![("savings-wallet.txt".to_string(), k.descriptor.into_bytes())],
+    );
+    rig.press(Action::RestoreWallet);
+    rig.press(Action::RKind(4));
+    rig.press(Action::RNext(rstep::KIND));
+    rig.press(Action::RUse(0));
+    rig.press(Action::RVaults(false));
+    rig.press(Action::RNext(rstep::WHERE));
+    let w = rig
+        .restore()
+        .and_then(|r| r.wallet)
+        .expect("the description made a wallet");
+    let empty: Vec<u8> = rig
+        .session
+        .slots(&rig.session.wallets[w])
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.held_by.is_none())
+        .map(|(k, _)| k as u8)
+        .collect();
+    assert!(!empty.is_empty());
+    for k in empty {
+        rig.press(Action::RAbsent(k));
+    }
+    rig.settle();
+    let texts = rig.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Not here"),
+        "Not here is not shown whole: {texts:?}"
+    );
+    drawn_clear(&mut rig, "restore's keys step");
+}
+
+#[test]
+fn on_the_small_panel_a_typed_messages_count_and_continue_do_not_share_a_line() {
+    let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
+    let c = testkit::compute();
+    let kit = kit("spending");
+    rig.session
+        .keys
+        .add_words(
+            &c,
+            &testkit::test_words(testkit::TEST_SEEDS[0].0),
+            "Bacon",
+            None,
+        )
+        .expect("the key");
+    rig.session
+        .add_wallet(
+            &c,
+            kit.name,
+            &kit.descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("the wallet");
+    rig.press(Action::SignMessage);
+    rig.press(Action::MWallet(0));
+    rig.press(Action::MNext(0));
+    if !testkit::message(&rig).unwrap().typing {
+        rig.press(Action::MType);
+    }
+    testkit::message_text(&mut rig, "I control this address.");
+    rig.settle();
+    assert!(
+        scrolled_to_see(&mut rig, |t| t == "23 characters"),
+        "the count of characters is not on the page: {:?}",
+        rig.drawn_texts()
+    );
+    drawn_clear(&mut rig, "the message's text step");
+}
+
+#[test]
+fn on_the_small_panel_a_found_vanity_address_offers_both_buttons_clear_of_each_other() {
+    use faraday_core::vanity::{VanityAction as Va, vstep};
+    let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
+    add_key(&mut rig, testkit::TEST_SEEDS[0].0);
+    rig.press(Action::Vanity(Va::Open));
+    let first = rig.session.keys[0].fingerprint.0;
+    rig.press(Action::Vanity(Va::Key(first)));
+    rig.press(Action::Vanity(Va::Next(vstep::DIAL)));
+    rig.press(Action::Vanity(Va::Next(vstep::SCRIPT)));
+    for c in "qq".chars() {
+        rig.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    rig.press(Action::Vanity(Va::Next(vstep::PREFIX)));
+    rig.press(Action::Vanity(Va::Start));
+    for t in 1..5000u64 {
+        rig.event(Event::Tick { now_ms: t * 100 });
+        if rig.vanity().is_some_and(|v| v.grind.find.is_some()) {
+            break;
+        }
+    }
+    rig.settle();
+    let (open, again) = (Action::Vanity(Va::Use), Action::Vanity(Va::Start));
+    let mut shown = false;
+    for _ in 0..20 {
+        let _ = rig.drawn_texts();
+        if rig.drawn_actions().contains(&open) && rig.drawn_actions().contains(&again) {
+            shown = true;
+            break;
+        }
+        let (x, y) = (rig.w / 2, rig.h / 2);
+        rig.event(Event::Scroll { x, y, dy: 160 });
+        rig.settle();
+    }
+    assert!(
+        shown,
+        "both buttons are never on the page: {:?} {:?}",
+        rig.drawn_texts(),
+        rig.screen
+    );
+    let (a, b) = (rig.hit_box(open).unwrap(), rig.hit_box(again).unwrap());
+    let apart = a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
+    assert!(apart, "the buttons overlap: {a:?} {b:?}");
+    // Neither crosses the page's margin at the right.
+    let right = u32::from(rig.w) - u32::from(a.0);
+    for (name, c) in [("Open this wallet", a), ("Search again", b)] {
+        assert!(
+            u32::from(c.0) + u32::from(c.2) <= right,
+            "{name} crosses the page's margin: {c:?}"
+        );
+    }
+}
+
+#[test]
+fn on_the_small_panel_the_scan_sheets_camera_buttons_leave_room_above_cancel() {
+    let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
+    rig.storage(StorageEvent::Cameras(vec![
+        ("/dev/video0".into(), "Integrated Camera".into()),
+        ("/dev/video2".into(), "USB Camera".into()),
+    ]));
+    testkit::open_scan(&mut rig, ScanPurpose::Seed);
+    rig.settle();
+    let _ = rig.drawn_texts();
+    let c = rig.hit_box(Action::Cancel).expect("Cancel is not offered");
+    for i in 0..2u8 {
+        let b = rig
+            .hit_box(Action::ScanCamera(i))
+            .expect("a camera button is not offered");
+        assert!(
+            b.1 + b.3 <= c.1,
+            "camera button {i} {b:?} runs into Cancel {c:?}"
+        );
+    }
+}
