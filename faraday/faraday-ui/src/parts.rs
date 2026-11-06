@@ -18,14 +18,33 @@ pub fn section_label<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, s: &st
     ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, s);
 }
 
-/// The room a button of `style` takes past its label and padding: the
-/// chosen one of a set has its tick.
-fn tick_room(style: Style) -> f32 {
-    if style == Style::Selected {
-        faraday_draw::tokens::ICON_GLYPH_BUTTON + faraday_draw::tokens::ICON_GAP
-    } else {
-        0.0
+/// How a set of equal chips (a keyboard's keys, a row of numbers) lays
+/// out in a width `w` with `gap` between them, each at most `max_w`
+/// wide: as columns and a width. A single row where every chip, chosen
+/// and with its check, has the room; else as many rows of equal length
+/// as that takes. The width is the same for every chip, so choosing one
+/// moves none.
+pub fn chip_grid<A: Copy + PartialEq>(
+    ui: &Ui<A>,
+    w: f32,
+    gap: f32,
+    max_w: f32,
+    labels: &[&str],
+) -> (usize, f32) {
+    let n = labels.len().max(1);
+    let need = labels
+        .iter()
+        .map(|l| ui.button_width(l, Style::Selected))
+        .fold(0.0, f32::max);
+    let one = ((w - gap * (n - 1) as f32) / n as f32).min(max_w);
+    if one >= need {
+        return (n, one);
     }
+    let fit = (((w + gap) / (need + gap)) as usize).max(1);
+    let rows = n.div_ceil(fit);
+    let cols = n.div_ceil(rows);
+    let bw = ((w - gap * (cols - 1) as f32) / cols as f32).min(max_w);
+    (cols, bw)
 }
 
 /// Buttons [`BUTTON_H`] tall laid left to right, wrapping to a new row
@@ -43,14 +62,17 @@ pub fn button_rows<A: Copy + PartialEq>(
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
         // No wider than the row; a long label is cut.
-        let tick = tick_room(*style);
-        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD + tick).min(w);
+        let bw = ui.button_width(label, *style).min(w);
+        let label = &ui.fit_as(
+            LABEL_L,
+            label,
+            bw - ui.button_width("", *style) + BUTTON_PAD,
+        );
         if bx > x && bx + bw > x + w {
             bx = x;
             by += bh + GAP;
         }
-        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD - tick);
-        bx += ui.button(bx, by, Some(bw), bh, &label, *style, *action) + GAP;
+        bx += ui.button(bx, by, Some(bw), bh, label, *style, *action) + GAP;
     }
     by - y + bh + GAP
 }
@@ -81,17 +103,20 @@ pub fn wrap_buttons_spaced<A: Copy + PartialEq>(
     row_gap: f32,
     items: &[(&str, Style, A)],
 ) -> f32 {
+    // No buttons, no row.
+    if items.is_empty() {
+        return 0.0;
+    }
     let h = ui.button_height(h);
     let (mut bx, mut by) = (x, y);
     for &(label, style, action) in items {
-        let tick = tick_room(style);
-        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD + tick).min(w);
+        let bw = ui.button_width(label, style).min(w);
+        let label = &ui.fit_as(LABEL_L, label, bw - ui.button_width("", style) + BUTTON_PAD);
         if bx > x && bx + bw > x + w {
             bx = x;
             by += h + row_gap;
         }
-        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD - tick);
-        bx += ui.button(bx, by, Some(bw), h, &label, style, action) + GAP;
+        bx += ui.button(bx, by, Some(bw), h, label, style, action) + GAP;
     }
     by - y + h + row_gap
 }
@@ -104,10 +129,13 @@ pub fn wrap_buttons_height<A: Copy + PartialEq>(
     h: f32,
     labels: &[&str],
 ) -> f32 {
+    if labels.is_empty() {
+        return 0.0;
+    }
     let h = ui.button_height(h);
     let (mut bx, mut by) = (0.0, 0.0);
     for label in labels {
-        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
+        let bw = ui.button_width(label, Style::Secondary).min(w);
         if bx > 0.0 && bx + bw > w {
             bx = 0.0;
             by += h + GAP;

@@ -982,17 +982,17 @@ pub(super) fn machine_rows(
         // A memory's number and unit stay together.
         let side = &side.replace(' ', "\u{a0}").replace("\u{a0}(", " (");
         ui.checkbox(x, cy + (row - tick) / 2.0, on, true);
-        let room = w - 32.0 - tokens::GAP;
+        let room = w - tokens::CHECK_LABEL_INDENT - tokens::GAP;
         if ui.measure_as(LABEL_L, label) + tokens::GAP + ui.measure_as(BODY_S, side) <= room {
-            ui.text_mid_as((x + 32.0, cy, row), LABEL_L, ink, label);
+            ui.text_mid_as((x + tokens::CHECK_LABEL_INDENT, cy, row), LABEL_L, ink, label);
             ui.text_right_as((x + w, cy, row), BODY_S, muted, side);
         } else {
             // Too wide for one line: the memory goes under the label.
             let (a, b) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
             let top = cy + (row - a - b) / 2.0;
-            ui.text_as(x + 32.0, top, LABEL_L, ink, label);
+            ui.text_as(x + tokens::CHECK_LABEL_INDENT, top, LABEL_L, ink, label);
             let side = ui.fit_as(BODY_S, side, room);
-            ui.text_as(x + 32.0, top + a, BODY_S, muted, &side);
+            ui.text_as(x + tokens::CHECK_LABEL_INDENT, top + a, BODY_S, muted, &side);
         }
         ui.press_box(x, cy, w, row, act);
         ui.rule(x, cy + row, w, Role::OutlineVariant);
@@ -2373,17 +2373,17 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += 52.0;
     if editable {
-        for (i, (label, a)) in [
-            (EN.vault_change_passphrase, V::ChangePassphrase),
-            (EN.vault_memory, V::MemoryAsk),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let bx = x + i as f32 * (half + tokens::GRID);
-            ui.button(bx, y, Some(half), BUTTON_H, label, Style::Secondary, va(a));
-        }
-        y += BUTTON_H + tokens::GAP;
+        // Each as wide as its label, wrapping, as a half of the row
+        // is narrower than "Change passphrase" on a small panel.
+        let items = [
+            (
+                EN.vault_change_passphrase,
+                Style::Secondary,
+                va(V::ChangePassphrase),
+            ),
+            (EN.vault_memory, Style::Secondary, va(V::MemoryAsk)),
+        ];
+        y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
     }
     if app.vaults.open.len() > 1 {
         let labels: Vec<String> = app

@@ -11,7 +11,7 @@ use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_S};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP_SMALL, LABEL_L, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
@@ -241,22 +241,33 @@ pub(crate) fn word_count_row(
         bx += ui.measure_as(LABEL_L, EN.word_count_row_words) + 14.0;
     }
     let counts = crate::EntryState::COUNTS;
-    let gap = 6.0;
-    let bw = ((x + w - bx - gap * (counts.len() - 1) as f32) / counts.len() as f32).min(64.0);
-    for n in counts {
+    let (gap, max) = (6.0, 64.0);
+    let row = BUTTON_H + GAP_SMALL;
+    let names: Vec<String> = counts.iter().map(|n| n.to_string()).collect();
+    let labels: Vec<&str> = names.iter().map(String::as_str).collect();
+    let room = x + w - bx;
+    let (cols, bw) = if ui.compact {
+        faraday_ui::parts::chip_grid(ui, room, gap, max, &labels)
+    } else {
+        (
+            counts.len(),
+            ((room - gap * (counts.len() - 1) as f32) / counts.len() as f32).min(max),
+        )
+    };
+    for (i, n) in counts.into_iter().enumerate() {
         let style = Style::chosen(usize::from(n) == chosen);
+        let (col, r) = ((i % cols) as f32, (i / cols) as f32);
         ui.button(
-            bx,
-            y,
+            bx + col * (bw + gap),
+            y + r * row,
             Some(bw),
             BUTTON_H,
-            &n.to_string(),
+            labels[i],
             style,
             Action::EntryWordCount(n),
         );
-        bx += bw + gap;
     }
-    44.0
+    row * counts.len().div_ceil(cols) as f32
 }
 
 /// Words typed on a list's own on-screen keyboard, through the

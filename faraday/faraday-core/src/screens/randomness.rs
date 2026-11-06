@@ -306,22 +306,36 @@ fn source_grid(
     on: Option<usize>,
 ) -> f32 {
     let bw = (w - GAP) / 2.0;
-    let mut rows = 0.0;
+    let (mut col, mut row) = (0, 0.0);
     for (i, &(label, action)) in sources.iter().enumerate() {
-        let (col, row) = ((i % 2) as f32, (i / 2) as f32);
         let style = Style::chosen(on == Some(i));
+        // A name that does not fit half the panel with its check when
+        // chosen takes a row to itself.
+        let alone = ui.button_width(label, Style::Selected) > bw;
+        if col == 1 && alone {
+            (col, row) = (0, row + 1.0);
+        }
         let at = y + row * (OWN_BUTTON + GAP);
+        let width = if alone { w } else { bw };
         ui.button(
-            x + col * (bw + GAP),
+            x + col as f32 * (bw + GAP),
             at,
-            Some(bw),
+            Some(width),
             OWN_BUTTON,
             label,
             style,
             action,
         );
-        rows = row + 1.0;
+        if alone || col == 1 {
+            (col, row) = (0, row + 1.0);
+        } else {
+            col = 1;
+        }
     }
+    if col == 1 {
+        row += 1.0;
+    }
+    let rows = row;
     rows * (OWN_BUTTON + GAP) - GAP
 }
 

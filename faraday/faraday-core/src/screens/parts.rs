@@ -1719,20 +1719,33 @@ pub(crate) fn card_pad(
     // do (`docs/TEXT-SIZE.md` §3).
     ui.fixed_text(|ui| {
         let mut cy = y;
-        let bw = ((w - 12.0 * 6.0) / 13.0).min(52.0);
-        for (r, ch) in faraday_entropy::RANKS.iter().enumerate() {
+        // On a small panel a chosen rank keeps its check, so the ranks
+        // wrap into as many rows as that room takes.
+        let (gap, max, row) = (6.0, 52.0, 52.0);
+        let names: Vec<String> = faraday_entropy::RANKS
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
+        let labels: Vec<&str> = names.iter().map(String::as_str).collect();
+        let (cols, bw) = if ui.compact {
+            faraday_ui::parts::chip_grid(ui, w, gap, max, &labels)
+        } else {
+            (13, ((w - 12.0 * gap) / 13.0).min(max))
+        };
+        for (r, label) in labels.iter().enumerate() {
             let on = rank == Some(r as u8);
+            let (col, line) = ((r % cols) as f32, (r / cols) as f32);
             ui.button(
-                x + r as f32 * (bw + 6.0),
-                cy,
+                x + col * (bw + gap),
+                cy + line * row,
                 Some(bw),
                 BUTTON_H,
-                &ch.to_string(),
+                label,
                 Style::chosen(on),
                 rank_press(r as u8),
             );
         }
-        cy += 52.0;
+        cy += row * labels.len().div_ceil(cols) as f32;
         for (s, ch) in faraday_entropy::SUITS.iter().enumerate() {
             let taken = rank
                 .and_then(|r| faraday_entropy::card_index(r, s as u8))

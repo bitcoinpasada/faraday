@@ -522,6 +522,8 @@ pub const CHART_PANE_KINDS: f32 = 128.0;
 pub const CHART_PANE_ITEMS: f32 = 176.0;
 /// Height in dp of a button inside a node.
 pub const CHART_BUTTON: f32 = 32.0;
+/// Distance in dp from a tick box's left edge to its label's.
+pub const CHECK_LABEL_INDENT: f32 = 32.0;
 /// Each key's dash pattern, in dp: on, off, on, off. The first is solid.
 /// With the line colours, which cycle with them, they tell the keys'
 /// lines apart where colour alone does not.

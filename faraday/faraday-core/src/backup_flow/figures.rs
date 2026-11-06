@@ -330,7 +330,11 @@ fn item_h(ui: &Ui, it: &Item, w: f32) -> f32 {
 }
 
 fn figure_h(ui: &Ui, fg: &Figure, w: f32) -> f32 {
-    let top = if fg.dots { TOUCH } else { BOARD_STICK_HEAD };
+    let top = if fg.dots {
+        TOUCH + BOARD_STICK_PAD
+    } else {
+        BOARD_STICK_HEAD
+    };
     let inner = w - 2.0 * BOARD_STICK_PAD;
     let body: f32 = fg
         .items
@@ -375,9 +379,17 @@ fn draw_one(ui: &mut Ui, fr: &board_screen::CardFrame, fg: &Figure, r: (f32, f32
     }
     let sp = BOARD_STICK_PAD;
     let inner = w - 2.0 * sp;
-    let mut cy = y + if fg.dots { TOUCH } else { head };
+    let mut cy = y + if fg.dots { TOUCH + sp } else { head };
     if fg.dots {
-        menu::button(ui, x + w - TOUCH, y, TOUCH, fa(F::FigMenu(fg.k)), false);
+        // Inside the card's edge, as its content is.
+        menu::button(
+            ui,
+            x + w - sp - TOUCH,
+            y + sp,
+            TOUCH,
+            fa(F::FigMenu(fg.k)),
+            false,
+        );
     }
     for it in &fg.items {
         let ih = item_h(ui, it, inner);

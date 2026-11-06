@@ -1923,6 +1923,20 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         })
     }
 
+    /// How wide [`Ui::button`] draws `label` in `style` when given no
+    /// width: its label as the button measures it, the padding and the
+    /// room for the tick.
+    pub fn button_width(&self, label: &str, style: Style) -> f32 {
+        use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
+        let tick = if style == Style::Selected {
+            ICON_GLYPH_BUTTON + ICON_GAP
+        } else {
+            0.0
+        };
+        let size = faraday_draw::tokens::LABEL_L.size;
+        self.measure(size, W::S, label) + 2.0 * BUTTON_PAD + tick
+    }
+
     /// A button or a key with its label at `size` in the medium face:
     /// [`Ui::button`] and [`Ui::button_in`].
     fn button_drawn(

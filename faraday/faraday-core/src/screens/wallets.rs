@@ -133,9 +133,9 @@ pub(crate) fn missing_keys_line(
             ) + 8.0;
         if let Some(i) = locked {
             ui.button(
-                x + 20.0,
+                x,
                 cy,
-                Some(w - 20.0),
+                Some(w),
                 BUTTON_H,
                 EN.missing_keys_line_unlock,
                 if app.may_load_keys() {

@@ -782,7 +782,14 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 EN.backup_seed_words,
             );
             let (mut bx, bw) = if ui.compact {
-                (x + w - 112.0, 52.0)
+                // Wide enough for a chosen count's check.
+                let bw = ui.button_width("24", Style::Selected);
+                let at = x + w - 2.0 * bw - T::GAP;
+                if at < x + ui.measure_as(BODY_S, EN.backup_seed_words) + T::GAP {
+                    // Not beside the label: under it.
+                    cy += BUTTON_H + T::GAP_SMALL;
+                }
+                (at, bw)
             } else {
                 (x + 140.0, 64.0)
             };

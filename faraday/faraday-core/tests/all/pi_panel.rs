@@ -1756,3 +1756,265 @@ fn on_the_small_panel_the_scan_sheets_camera_buttons_leave_room_above_cancel() {
         );
     }
 }
+
+/// Whether the ink at `r` lies inside `b`, both (x, y, w, h) in pixels.
+fn inside(r: (i32, i32, i32, i32), b: (u16, u16, u16, u16)) -> bool {
+    let (x, y, w, h) = (
+        i32::from(b.0),
+        i32::from(b.1),
+        i32::from(b.2),
+        i32::from(b.3),
+    );
+    r.0 >= x && r.1 >= y && r.0 + r.2 <= x + w && r.1 + r.3 <= y + h
+}
+
+/// What is wrong with the button `a`, a chip chosen when `chosen`: its
+/// label (whole) and, chosen, its check are each inside its box.
+fn chip_faults(rig: &mut Rig, a: Action, label: &str, chosen: bool) -> Vec<String> {
+    use faraday_draw::canvas::InkKind;
+    use faraday_draw::widgets::Icon;
+    // Down the page to where the chip is.
+    for _ in 0..20 {
+        let _ = rig.frame();
+        if rig
+            .hit_box(a)
+            .is_some_and(|b| u32::from(b.1) + u32::from(b.3) < 600)
+        {
+            break;
+        }
+        rig.event(Event::Scroll {
+            x: 240,
+            y: 320,
+            dy: 100,
+        });
+    }
+    let Some(b) = rig.hit_box(a) else {
+        return vec![format!("{label:?} is not offered")];
+    };
+    let centre = |r: (i32, i32, i32, i32)| (r.0 + r.2 / 2, r.1 + r.3 / 2);
+    let on_it = |r: (i32, i32, i32, i32)| {
+        let (cx, cy) = centre(r);
+        cx >= i32::from(b.0)
+            && cx < i32::from(b.0) + i32::from(b.2)
+            && cy >= i32::from(b.1)
+            && cy < i32::from(b.1) + i32::from(b.3)
+    };
+    let mut out = Vec::new();
+    let (mut text, mut ticks) = (0, 0);
+    for ink in rig.drawn_ink() {
+        let r = (ink.rect.x, ink.rect.y, ink.rect.w, ink.rect.h);
+        match ink.kind {
+            InkKind::Text { text: t, .. } if t == label && on_it(r) => {
+                text += 1;
+                if !inside(r, b) {
+                    out.push(format!("{label:?} runs outside its chip {b:?}: {r:?}"));
+                }
+            }
+            InkKind::Icon(Icon::Done) if on_it(r) => {
+                ticks += 1;
+                if !inside(r, b) {
+                    out.push(format!(
+                        "{label:?}'s check runs outside its chip {b:?}: {r:?}"
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+    if text == 0 {
+        out.push(format!(
+            "{label:?} is not drawn in its chip {b:?}: {:?}",
+            rig.drawn_text_boxes()
+        ));
+    }
+    if ticks != usize::from(chosen) {
+        out.push(format!("{label:?} has {ticks} checks, chosen {chosen}"));
+    }
+    out
+}
+
+/// The panel on Add randomness with `source` chosen.
+fn add_randomness(source: faraday_core::fresh::OwnSource) -> Rig {
+    use faraday_core::fresh::page::Act;
+    let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
+    rig.set_pointer_keys_offered(true);
+    rig.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut rig, "Randomness");
+    rig.press(Action::Own(Act::Open));
+    rig.press(Action::Own(Act::Source(source)));
+    let _ = rig.frame();
+    rig
+}
+
+#[test]
+fn on_the_pi_a_chosen_card_rank_keeps_its_check_clear_of_the_ranks_beside_it() {
+    use faraday_core::fresh::OwnSource;
+    use faraday_core::fresh::page::Act;
+    let mut rig = add_randomness(OwnSource::Cards);
+    for r in 0..13u8 {
+        rig.press(Action::Own(Act::Rank(r)));
+        let label = faraday_entropy::RANKS[usize::from(r)].to_string();
+        let found = chip_faults(&mut rig, Action::Own(Act::Rank(r)), &label, true);
+        assert!(found.is_empty(), "rank {label}: {found:?}");
+        let mine = rig.hit_box(Action::Own(Act::Rank(r))).unwrap();
+        for o in (0..13u8).filter(|&o| o != r) {
+            let Some(b) = rig.hit_box(Action::Own(Act::Rank(o))) else {
+                continue;
+            };
+            let apart = mine.0 + mine.2 <= b.0
+                || b.0 + b.2 <= mine.0
+                || mine.1 + mine.3 <= b.1
+                || b.1 + b.3 <= mine.1;
+            assert!(apart, "rank {r} and {o} overlap: {mine:?}, {b:?}");
+        }
+    }
+}
+
+#[test]
+fn on_the_pi_chosen_pointer_and_keys_keeps_its_check_inside_its_chip() {
+    use faraday_core::fresh::OwnSource;
+    use faraday_core::fresh::page::Act;
+    let mut rig = add_randomness(OwnSource::PointerKeys);
+    let a = Action::Own(Act::Source(OwnSource::PointerKeys));
+    let found = chip_faults(&mut rig, a, "Pointer and keys", true);
+    assert!(found.is_empty(), "{found:?}");
+}
+
+#[test]
+fn on_the_pi_change_passphrase_is_inside_its_button() {
+    let mut rig = rig(
+        On::Stick,
+        Mode::Mainnet,
+        vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
+    );
+    rig.press(Action::Nav(Screen::Vaults));
+    rig.press(Action::Vault(V::Open(0)));
+    rig.settle();
+    rig.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(&mut rig, testkit::VAULT_PASSPHRASE);
+    rig.press(Action::Vault(V::Unlock));
+    crate::common::settle(&mut rig, 100);
+    if rig.sheet == Some(Sheet::UnlockLoad) {
+        rig.settle();
+        rig.press(Action::Vault(V::LoadTicked));
+    }
+    rig.press(Action::Nav(Screen::VaultContents));
+    rig.settle();
+    let found = chip_faults(
+        &mut rig,
+        Action::Vault(V::ChangePassphrase),
+        "Change passphrase",
+        false,
+    );
+    assert!(found.is_empty(), "{found:?}");
+}
+
+/// The strings the frame draws, once the page is scrolled down far enough
+/// to draw every one of `want`.
+fn scrolled_to(rig: &mut Rig, want: &[&str]) -> Vec<DrawnText> {
+    for _ in 0..20 {
+        let _ = rig.frame();
+        let drawn = rig.drawn_text_boxes();
+        if want.iter().all(|w| drawn.iter().any(|(t, _)| t == w)) {
+            return drawn;
+        }
+        rig.event(Event::Scroll {
+            x: 240,
+            y: 320,
+            dy: 100,
+        });
+    }
+    panic!("{want:?} never shown together");
+}
+
+#[test]
+fn on_the_pi_unlock_on_a_wallet_is_lined_up_with_the_buttons_around_it() {
+    let k = kit("savings");
+    let mut rig = rig(
+        On::Stick,
+        Mode::Testnet,
+        vec![
+            ("vault.kdbx".into(), testkit::test_vault().unwrap()),
+            ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
+        ],
+    );
+    let w = rig
+        .inbox()
+        .iter()
+        .position(|i| i.name == "savings-wallet.txt")
+        .unwrap();
+    rig.press(Action::LoadWallet(w));
+    rig.press(Action::Nav(Screen::Wallets));
+    rig.settle();
+    let drawn = scrolled_to(&mut rig, &["Unlock", "Spend from this wallet"]);
+    let middle = |name: &str| {
+        let r = drawn.iter().find(|(t, _)| t == name).unwrap().1;
+        r.0 + r.2 / 2
+    };
+    let (unlock, spend) = (middle("Unlock"), middle("Spend from this wallet"));
+    assert!(
+        (unlock - spend).abs() <= 2,
+        "Unlock centred at {unlock}, Spend at {spend}"
+    );
+}
+
+#[test]
+fn on_the_pi_a_file_card_with_no_button_ends_under_its_text() {
+    let mut rig = rig(
+        On::Stick,
+        Mode::Mainnet,
+        vec![("a-qr.png".into(), vec![0x89, b'P', b'N', b'G', 1, 2, 3])],
+    );
+    rig.press(Action::Nav(Screen::Files));
+    rig.settle();
+    let drawn = scrolled_to(&mut rig, &["File · 7\u{a0}B", "For the stick"]);
+    let at = |name: &str| drawn.iter().find(|(t, _)| t == name).unwrap().1;
+    let (size, next) = (at("File · 7\u{a0}B"), at("For the stick"));
+    // The card's padding and the gap to the next heading, in pixels.
+    let gap = next.1 - (size.1 + size.3);
+    assert!(
+        gap < 80,
+        "{gap} px of card under the file's text and the next heading"
+    );
+}
+
+#[test]
+fn on_the_pi_a_sticks_menu_button_stands_inside_its_card() {
+    use faraday_core::StickInfo;
+    let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
+    rig.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        id: "boot".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        serial: Some(0x1234_5678),
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    rig.settle();
+    let tile = TILES
+        .iter()
+        .position(|x| x.go == faraday_core::catalog::Go::VaultCategory(FlowKind::Gpg.category()))
+        .unwrap() as u8;
+    rig.press(Action::Nav(Screen::Catalog));
+    rig.press(Action::Catalog(tile));
+    rig.press(Action::Flow(FlowAction::Continue));
+    rig.settle();
+    let _ = rig.frame();
+    let menu = (0..6)
+        .find_map(|k| rig.hit_box(Action::Flow(FlowAction::FigMenu(k))))
+        .expect("a card's menu");
+    let drawn = rig.drawn_text_boxes();
+    // The card's own text stands in from its left edge; the menu button
+    // stands as far in from its right edge.
+    let text = drawn
+        .iter()
+        .find(|(t, _)| t == "Waiting" || t.starts_with("Holds"))
+        .unwrap_or_else(|| panic!("no line of the card in {drawn:?}"))
+        .1;
+    let (from_right, from_left) = (480 - (u32::from(menu.0) + u32::from(menu.2)), text.0 as u32);
+    assert!(
+        from_right + 2 >= from_left,
+        "the menu button is {from_right} px from the right edge, the card's text {from_left} px from the left"
+    );
+}
