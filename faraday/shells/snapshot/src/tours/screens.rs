@@ -67,6 +67,7 @@ pub(crate) fn stick_session(t: &mut Tour) {
     t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
     let _ = faraday_core::testkit::move_to(&mut t.app.session, faraday_core::testkit::net());
     t.app.event(crate::tour::display(size, t.dpi));
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
 }

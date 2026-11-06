@@ -10,6 +10,7 @@ use faraday_core::{Action, Screen, StorageEvent};
 /// Every list screen with the test wallets, the test vault and the test
 /// stick's files.
 pub(crate) fn panes_tour(t: &mut Tour) -> Result<(), String> {
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     let vault = testkit::files()?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")

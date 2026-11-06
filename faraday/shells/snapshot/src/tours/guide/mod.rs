@@ -186,6 +186,7 @@ pub(crate) fn files_in(t: &mut Tour, files: &[(&str, Vec<u8>)], outbox: &[(&str,
 /// A fresh session with no stick in, on Wallets.
 fn fresh_session(t: &mut Tour) {
     t.restart();
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     t.press(Action::Nav(Screen::WalletsStart));

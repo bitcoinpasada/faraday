@@ -11,6 +11,7 @@ pub(crate) fn roller_tour(t: &mut Tour) -> Result<(), String> {
     t.app.set_roller_offered(true);
     // The roller is Practice's alone (`docs/DEMO.md` §14).
     faraday_core::testkit::into_demo(&mut t.app);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });

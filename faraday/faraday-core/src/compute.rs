@@ -188,12 +188,15 @@ impl Faraday {
     fn take_answer(&mut self, answer: Answer) {
         answer.absorb();
         if self.worker.take_quiet(answer.generation) {
-            let changed = match answer.done {
-                Ok(Done::KefTime(t)) => {
+            let Ok(done) = answer.done else {
+                panic!("a job panicked on the worker");
+            };
+            let changed = match done {
+                Done::KefTime(t) => {
                     self.worker.kef_mut().timing_done();
                     crate::seeds::kef::kef_timed(self, t.rate_ms)
                 }
-                Ok(Done::Measured(m)) => crate::vault::stretch::measured(self, *m),
+                Done::Measured(m) => crate::vault::stretch::measured(self, *m),
                 _ => false,
             };
             if changed {
