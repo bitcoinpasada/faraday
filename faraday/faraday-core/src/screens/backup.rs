@@ -380,6 +380,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             many.then_some(wallet.name.as_str())
         },
         chip_tap: (many && !b.from_create).then_some(Action::BWallets),
+        moves: crate::ui::Moves::Yes,
     };
     let scroll = b.scroll;
     ui.chip_at = None;

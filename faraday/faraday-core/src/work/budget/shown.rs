@@ -331,6 +331,44 @@ fn a_key_records_words_are_dropped_when_the_page_is_left_and_at_a_lock() {
     assert!(app.vaults.words.is_none(), "locked");
 }
 
+/// The vault item's kept pixels, its secret shown, with the page the
+/// region a scroll step would move.
+fn pixels_with_the_words_shown(app: &mut Faraday) -> Vec<u8> {
+    let _ = press_work(app, Action::Vault(V::Reveal(0)));
+    assert!(held(app).0);
+    app.scroll.went_to(crate::ui::Slot::VaultItem);
+    app.draw_whole_next();
+    let _ = app.frame();
+    let kept = kept_pixels(app);
+    assert!(!kept.is_empty(), "the region keeps its pixels");
+    kept
+}
+
+fn kept_pixels(app: &Faraday) -> Vec<u8> {
+    app.canvas
+        .as_ref()
+        .map_or(Vec::new(), |c| c.layer().to_vec())
+}
+
+#[test]
+fn a_shown_secrets_pixels_are_not_kept_once_it_is_hidden_left_or_locked() {
+    let mut app = vault_page(0);
+    let shown = pixels_with_the_words_shown(&mut app);
+    let _ = press_work(&mut app, Action::Vault(V::Reveal(0)));
+    assert_ne!(kept_pixels(&app), shown, "hidden");
+
+    let shown = pixels_with_the_words_shown(&mut app);
+    app.press(Action::Vault(V::ItemBack));
+    let _ = app.frame();
+    assert_ne!(kept_pixels(&app), shown, "left");
+
+    app.press(Action::Vault(V::Item(0)));
+    let shown = pixels_with_the_words_shown(&mut app);
+    lock(&mut app);
+    let _ = app.frame();
+    assert_ne!(kept_pixels(&app), shown, "locked");
+}
+
 #[test]
 fn a_gpg_paperkey_is_made_once_when_shown() {
     let mut app = vault_page(4);

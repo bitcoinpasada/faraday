@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the compact Settings page only), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the other long screens (Files, Wallets, a wallet's page, Vault contents, the backup checklist and board, the step column; Faraday Demo's desktop Settings among them, whose card's corner differs by one anti-aliased pixel between a moved row and a drawn one), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -95,7 +95,11 @@ the start of `Ui::region`'s close, before the stretch, the edge fades and
 the scrollbar. Its cost is a copy of the view (about 85 µs on the build machine at the
 Pi's size, measured on Settings; §3.5). The copy is taken only for a
 region that opts in (`Moves::Yes`), while `Ui::keep_content` is on,
-which the frame sets; any other region copies nothing.
+which the frame sets; any other region copies nothing. A secret on show
+is in the layer while it shows, as it is on the canvas. Hiding it is a
+whole frame, which takes the layer again, and a frame in which no region
+took one overwrites and empties it (`Canvas::drop_layer`), so its pixels
+do not outlast the page or a lock (F195).
 
 A moved frame, for the active region of the last frame, moving it `d`
 pixels:
@@ -137,7 +141,23 @@ place in it, if three things hold:
   tiny-skia's coverage of a pixel depends on the path and the pixel's
   own rows only; text and icons blit whole glyphs cut at the clip. The
   existing pixel-equality test of clipped shapes in `canvas.rs` is
-  extended to bands cut through a shape, a glyph and a shadow.
+  extended to bands cut through a shape, a glyph and a shadow. A rounded
+  shape is made about the origin, each point cut to the 1/256 pixel the
+  rasterizer cuts it to and moved by whole pixels as it is added to the
+  path (`canvas.rs`, `Builder`; a stroke's outline is cut and moved
+  after it is made), so it is the same pixels wherever on a long
+  page it stands (a circle likewise); made at its place, floating-point
+  rounding differed with how large the place's numbers were. The paths
+  are made in builders the canvas keeps from one shape to the next. The
+  canvas has hidden rows below the visible ones (`hidden_rows`, 64
+  units: a corner's 28 and a shadow's reach), which nothing reads and
+  a clear does not fill, so a path that
+  runs past the last visible row is drawn whole once, and its curves
+  there have the coverage they have anywhere else; tiny-skia cuts a
+  path at the end of its pixmap, and a curve crossing the cut comes out
+  differently. A shadow reaches past its
+  shape, so a moved frame paints `SHADOW_REACH` units of rows beside its
+  strip as well.
 - **Nothing in the content changed but the offset.** §3.4.
 
 **Held by** a test, `moved::tests::every_scroll_step_shows_what_a_whole_frame_shows`:
@@ -180,7 +200,9 @@ too.
   offset alone (`Moves::Yes`); the test of §3.2 runs over every screen
   that says so. The long ones first: Files, Wallets, a wallet's page,
   Vault contents, Settings, Learn, the backup checklist and board, the
-  step column. A screen that has not opted in draws whole, as today.
+  step column. A screen that has not opted in draws whole, as today. A
+  step column says so per flow (`flow::Column::moves`): Create, Spend,
+  the backup checklist and the backup flows, the ones the test walks.
 
 ### 3.4 What a frame is asked for
 
@@ -208,7 +230,12 @@ there on compact Settings, three runs, a step of 40 pixels, every step a
 moved frame: a scroll step 0.37 ms before the moved frame and 0.38 after, a frame drawn
 whole 0.32 before and 0.40 after. The two copies of the view cost about what
 the painting they save. What a Pi gains is not yet measured; it is read on
-the dev card, and more screens opt in only if it shows a gain.
+the dev card. Screens are opted in on the owner's decision without that figure.
+
+Measured on the build machine at 480x640 once Wallets, a wallet's page,
+Files and Vault contents were opted in: a frame drawn whole is about 7%
+slower on Wallets and Files, about 2% on Vault contents and no slower on
+Settings; a scroll step on them is about 20 to 30% under a whole frame.
 
 ### 3.6 Per shell
 
@@ -534,7 +561,8 @@ Pi's frame written as it is (§5, built) and the framebuffer write (§6
 points 1 to 3, built) need nothing before them. The shell after a moved
 frame (§3.7) and §6 point 4 need both the moved frame and the Pi's frame
 written as it is. Opting
-more screens in to the moved frame waits for its figure on a Pi (§3.5).
+more screens in to the moved frame does not wait for a figure on a Pi: the
+owner decides, and the gain on a Pi is still to be read on a dev card (§3.5).
 None of this touches keys, cryptography or what the device takes in.
 
 What each piece changes:

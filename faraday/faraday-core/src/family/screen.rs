@@ -106,6 +106,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: from.is_none().then_some(EN.family_this_page_takes),
         chip: None,
         chip_tap: None,
+        moves: crate::ui::Moves::No,
     };
     let scroll = app.family.state.scroll;
     let (next, again) = {

@@ -191,9 +191,9 @@ mod tests {
     use crate::work::budget::{DESKTOP, PI, Panel, walk_on};
     use crate::{Faraday, testkit};
 
-    /// Where the screen's page region is, in pixels, and how far it goes.
-    fn region(app: &Faraday) -> Option<(faraday_draw::Rect, f32)> {
-        let e = app.region_now()?;
+    /// Where the region in `slot` is, in pixels, and how far it goes.
+    fn region(app: &Faraday, slot: crate::ui::Slot) -> Option<(faraday_draw::Rect, f32)> {
+        let e = app.regions().find(|e| e.slot == slot)?;
         (e.max > 0.0).then_some((e.view, e.max * app.f))
     }
 
@@ -230,13 +230,44 @@ mod tests {
         took
     }
 
-    /// Every step size, to each end and past it, and back, on the screen
-    /// the app is on. Returns the moved frames taken.
-    fn scrolls(app: &mut Faraday, name: &str) -> u32 {
+    /// Every step size, to each end and past it, and back, on each
+    /// region of the screen the app is on, the wheel pointed at it as a
+    /// person would. Returns the moved frames taken, by region.
+    fn scrolls(app: &mut Faraday, name: &str) -> Vec<(String, u32)> {
         app.settle();
-        app.draw_whole_next();
-        let _ = app.frame();
-        let Some((view, max)) = region(app) else {
+        // A toast left from the walk's setup is a timer of its own: a
+        // screen is scrolled once it is gone.
+        app.out.toast = None;
+        // A page left past its end by the last screen is put back by the
+        // frame, which asks for another: both are drawn before a step.
+        for _ in 0..2 {
+            app.draw_whole_next();
+            let _ = app.frame();
+        }
+        // The walk's clock does not run a step card's opening to its end, and the
+        // frames just drawn may have begun it.
+        if let Some(d) = app.disclosed.as_mut() {
+            d.moving = false;
+            app.draw_whole_next();
+            let _ = app.frame();
+        }
+        let slots: Vec<crate::ui::Slot> = app.regions().map(|e| e.slot).collect();
+        let mut taken = Vec::new();
+        for slot in slots {
+            let label = format!("{name} {slot:?}");
+            let n = scroll_region(app, slot, &label);
+            if n > 0 {
+                taken.push((label, n));
+            }
+            app.settle();
+            app.draw_whole_next();
+            let _ = app.frame();
+        }
+        taken
+    }
+
+    fn scroll_region(app: &mut Faraday, slot: crate::ui::Slot, name: &str) -> u32 {
+        let Some((view, max)) = region(app, slot) else {
             return 0;
         };
         let at = (
@@ -244,7 +275,12 @@ mod tests {
             (view.y + view.h / 2).clamp(0, i32::from(u16::MAX)) as u16,
         );
         let start = app.out.kept.taken;
-        // A screen that takes no moved frame is drawn whole: nothing to
+        // The first wheel step into a region makes it the active one and is
+        // drawn whole; the moved frames come after it.
+        if app.slot() != slot {
+            step(app, at, 1, name);
+        }
+        // A region that takes no moved frame is drawn whole: nothing to
         // compare.
         if !step(app, at, 7, name) {
             return 0;
@@ -271,28 +307,54 @@ mod tests {
         app.out.kept.taken - start
     }
 
-    fn every_screen_on(panel: Panel, settings: bool) {
+    /// Walks every screen of `panel`, scrolling each region, and fails
+    /// when a region in `expected` took no moved frame.
+    fn every_screen_on(panel: Panel, expected: &[&str]) {
         let c = testkit::compute();
         let mut moving: Vec<(String, u32)> = Vec::new();
         let _ = walk_on(&c, panel, &mut |app, name| {
-            let n = scrolls(app, name);
-            if n > 0 {
-                moving.push((name.to_string(), n));
-            }
+            moving.extend(scrolls(app, name));
         });
-        assert!(
-            !settings || moving.iter().any(|(name, _)| name == "Settings"),
-            "Settings takes moved frames: {moving:?}"
-        );
+        for name in expected {
+            assert!(
+                moving.iter().any(|(n, _)| n == name),
+                "{name} takes moved frames: {moving:?}"
+            );
+        }
     }
 
     #[test]
     fn every_scroll_step_shows_what_a_whole_frame_shows() {
-        every_screen_on(PI, true);
-        // Faraday Demo's Settings is not opted in: a corner of a card
-        // differs by one anti-aliased pixel between a moved row and a
-        // drawn one.
-        every_screen_on(DESKTOP, false);
+        every_screen_on(
+            PI,
+            &[
+                "Create Page",
+                "Spend Page",
+                "GPG key flow Page",
+                "Settings Page",
+                "Wallets Page",
+                "Wallet chart Page",
+                "Files Page",
+                "Vault contents Page",
+                "Backup checklist Page",
+                "Backups Page",
+                "Backup board Page",
+            ],
+        );
+        every_screen_on(
+            DESKTOP,
+            &[
+                "Backup checklist Page",
+                "Wallets Card",
+                "Wallets ListPane",
+                "Vault contents VaultItem",
+                "Settings Page",
+                "Backup board Page",
+                "GPG key flow Page",
+                "Spend Page",
+                "Backup reopened Page",
+            ],
+        );
     }
 
     #[test]
@@ -307,7 +369,8 @@ mod tests {
                 app.settle();
                 app.draw_whole_next();
                 let _ = app.frame();
-                let mid = region(app).map(|(v, _)| (v.x + v.w / 2, v.y + v.h / 2));
+                let mid =
+                    region(app, crate::ui::Slot::Page).map(|(v, _)| (v.x + v.w / 2, v.y + v.h / 2));
                 let Some(mid) = mid else { return };
                 let at = (mid.0 as u16, mid.1 as u16);
                 let others = [

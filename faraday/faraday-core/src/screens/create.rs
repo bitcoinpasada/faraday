@@ -81,6 +81,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
+        moves: crate::ui::Moves::Yes,
     };
     let scroll = c.scroll;
     let (next, again) = {

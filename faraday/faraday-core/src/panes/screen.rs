@@ -3,7 +3,7 @@
 //! Material's two-line list items.
 
 use crate::drawing::View;
-use crate::ui::Region;
+use crate::ui::{Moves, Region};
 use crate::ui::{Paint, Ui};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{COLUMN_MAX, LIST_PANE, MARGIN_WIDE, PANE_TOP_BAR, SPACER};
@@ -98,11 +98,29 @@ pub(crate) struct ListPane {
 impl ListPane {
     /// Starts a list pane at `(x, top)`, `w` wide and `h` tall, clipped
     /// to it.
-    pub(crate) fn begin(app: &View, ui: &mut Ui, (x, top, w, h): (f32, f32, f32, f32)) -> Self {
+    pub(crate) fn begin(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) -> Self {
+        Self::begin_as(app, ui, rect, Moves::No)
+    }
+
+    /// [`ListPane::begin`] for a pane whose items depend on nothing but
+    /// their state and the pane's offset ([`Moves::Yes`]).
+    pub(crate) fn begin_moving(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) -> Self {
+        Self::begin_as(app, ui, rect, Moves::Yes)
+    }
+
+    fn begin_as(
+        app: &View,
+        ui: &mut Ui,
+        (x, top, w, h): (f32, f32, f32, f32),
+        moves: Moves,
+    ) -> Self {
         let clip = ui.rect(x, top, w, h);
         let offset = app.scroll.panes().list_offset();
-        let open = ui
-            .region_open(Region::beside(crate::ui::Slot::ListPane, clip, offset).from_zero(offset));
+        let open = ui.region_open(
+            Region::beside(crate::ui::Slot::ListPane, clip, offset)
+                .from_zero(offset)
+                .moves(moves),
+        );
         ListPane {
             x,
             w,

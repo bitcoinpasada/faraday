@@ -1712,6 +1712,9 @@ pub const ELEVATION_AMBIENT: [ElevationLayer; 5] = [
     layer(6.0, 10.0, 4.0),
     layer(8.0, 12.0, 6.0),
 ];
+/// The most rows a shadow's ink reaches past its shape, in units: the
+/// ambient layer of the highest level, blurred and moved down.
+pub const SHADOW_REACH: f32 = 24.0;
 /// Opacity (of 255) of the key layer: 30% black.
 pub const ELEVATION_KEY_OPACITY: u8 = 77;
 /// Opacity (of 255) of the ambient layer: 15% black.

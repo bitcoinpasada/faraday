@@ -11,7 +11,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::ui::Region;
+use crate::ui::{Moves, Region};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -93,6 +93,9 @@ pub struct Column<'a> {
     /// What a press on the chip does; where it was drawn is left in
     /// [`Ui::chip_at`].
     pub chip_tap: Option<Action>,
+    /// Whether a scroll step moves the rows already drawn: `Moves::Yes`
+    /// only for a flow the moved frame's test walks (`docs/FRAMES.md` §3.3).
+    pub moves: Moves,
 }
 
 /// Draws the cards. `body` draws the open card's controls at (x, y) in a
@@ -143,7 +146,7 @@ pub fn column_wide(
         return paged(ui, col, cards, scroll, body, foot);
     }
     let clip = ui.rect(col.area_x, 0.0, col.area_w, col.h);
-    let view_open = ui.region_open(Region::page(clip).from_zero(scroll.y));
+    let view_open = ui.region_open(Region::page(clip).from_zero(scroll.y).moves(col.moves));
     let top = tokens::PAGE_TOP_BAR;
     let mut y = top;
     let (x, w) = (col.x, col.w);
@@ -404,7 +407,7 @@ fn paged(
         next.y = 0.0;
     }
     let clip = ui.rect(0.0, BAR_H, w, col.h - BAR_H);
-    let view_open = ui.region_open(Region::page(clip).from_zero(next.y));
+    let view_open = ui.region_open(Region::page(clip).from_zero(next.y).moves(col.moves));
     let top = BAR_H;
     let mut y = top + 10.0;
     let inner = w - 2.0 * M;

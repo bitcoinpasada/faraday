@@ -1927,7 +1927,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return files_beside(app, ui, x0, cw, h);
     }
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    ui.page_begin((x0, cw, h), app.list_offset);
+    ui.moving_page_begin((x0, cw, h), app.list_offset);
     let top = 12.0;
     let mut y = top;
     y += compact_head(app, ui, (x, y, w));

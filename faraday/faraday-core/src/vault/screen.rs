@@ -4,7 +4,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::ui::Region;
+use crate::ui::{Moves, Region};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, TITLE_M,
@@ -857,6 +857,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: then.as_deref(),
         chip_tap: None,
+        moves: crate::ui::Moves::No,
     };
     let scroll = c.scroll;
     let (next, again) = {
@@ -2118,7 +2119,11 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let view_top = top - gap;
     let clip = ui.rect(detail_x - gap, view_top, detail_w + 2.0 * gap, h - view_top);
     let off = app.vaults.item_offset();
-    let open = ui.region_open(Region::scrolled(crate::ui::Slot::VaultItem, clip, off).own_bar());
+    let open = ui.region_open(
+        Region::scrolled(crate::ui::Slot::VaultItem, clip, off)
+            .own_bar()
+            .moves(Moves::Yes),
+    );
     let mut foot = detail(app, ui, v, &items, sel, detail_x, top, detail_w);
     foot += unread::section(app, ui, v, (detail_x, foot, detail_w));
     let content = foot - top;
@@ -2264,7 +2269,8 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::screen::{about, finish};
     use crate::screens::wrap_buttons;
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    let top = ui.page_top((x0, cw, h), app.list_offset, 12.0);
+    ui.moving_page_begin((x0, cw, h), app.list_offset);
+    let top = 12.0;
     let mut y = top;
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
         ui.text_as(x, y, BODY_M, muted, EN.vault_no_vault_is_open);

@@ -133,7 +133,7 @@ pub(crate) fn heading(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, iw) = (x0 + M, cw - 2.0 * M);
-    ui.page_begin((x0, cw, h), app.list_offset);
+    ui.moving_page_begin((x0, cw, h), app.list_offset);
     let top = 0.0;
     let mut cy = top + 12.0;
     let Some(wlt) = app.session.wallets.get(app.wallets.wallet()) else {

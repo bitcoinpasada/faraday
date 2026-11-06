@@ -502,6 +502,12 @@ impl Faraday {
     /// After a frame is drawn: what the next may move, and how this one
     /// moved the rows for the shell.
     pub(crate) fn moved_drew(&mut self, layer: &ui::Layer, stretch: i32, caret: bool) {
+        // No region kept its pixels: what an earlier page left goes.
+        if layer.of.is_none()
+            && let Some(c) = self.canvas.as_mut()
+        {
+            c.drop_layer();
+        }
         let Some(c) = self.canvas.as_ref() else {
             self.out.kept.keep(None);
             return;

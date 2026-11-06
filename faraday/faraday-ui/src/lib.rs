@@ -1072,13 +1072,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// Whether anything drawn in the band from `y` to `y + h`, design
-    /// units, can be seen: the band meets the clip, with a few pixels to
-    /// spare for a stroke's or a shadow's edge. A row of a long list out
+    /// units, can be seen: the band meets the clip, with the most a shadow
+    /// reaches past its shape (`SHADOW_REACH`) to spare, so a row's shadow
+    /// in view does not depend on the offset putting the row out of it. A row of a long list out
     /// of it is passed over, its height alone counted.
     pub fn shows(&self, y: f32, h: f32) -> bool {
         let band = self.rect(0.0, y, 1.0, h);
         let clip = self.seen_clip();
-        let spare = 4;
+        let spare = self.px(faraday_draw::tokens::SHADOW_REACH).max(4);
         band.y - spare < clip.bottom() && band.bottom() + spare > clip.y
     }
 

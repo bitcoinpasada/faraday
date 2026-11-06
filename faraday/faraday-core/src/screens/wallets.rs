@@ -3,9 +3,9 @@
 use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
-use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
+use crate::ui::{Moves, Region};
 use crate::ui::{Style, Ui, W};
 use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Screen};
@@ -234,7 +234,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
 /// in `(x, top, w, h)`, scrolled on its own.
 fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
     use faraday_draw::tokens::{BUTTON_H, GAP, LIST_PAD, TOUCH};
-    let mut pane = crate::panes::screen::ListPane::begin(app, ui, rect);
+    let mut pane = crate::panes::screen::ListPane::begin_moving(app, ui, rect);
     let (x, listw, _) = pane.at();
     let total = app.session.wallets.len();
     let none = total == 0;
@@ -607,7 +607,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
     let held_open = ui.region_open(
         Region::beside(crate::ui::Slot::Card, clip, app.wallets.card_offset())
-            .from_zero(app.wallets.card_offset()),
+            .from_zero(app.wallets.card_offset())
+            .moves(Moves::Yes),
     );
     let top = cy;
     // Where its backup is (§5.2): a press opens Backups on it.

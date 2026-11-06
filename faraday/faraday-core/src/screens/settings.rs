@@ -481,7 +481,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !ui.compact {
         super::bar_head(ui, None, EN.settings_settings);
     }
-    ui.page_begin((x0, cw, h), app.list_offset);
+    ui.moving_page_begin((x0, cw, h), app.list_offset);
     let mut top = PANE_TOP_BAR;
     top += guided_row(app, ui, x, top);
     let (mut left, mut right) = (top, top);

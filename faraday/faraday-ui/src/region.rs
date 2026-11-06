@@ -264,10 +264,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 // The whole view is seen for hits and for what a row
                 // skips; only the strip the move uncovered is painted.
                 self.seen = Some(self.c.clip().intersect(&region.view));
+                // The rows beside it are painted too: a shadow reaches past
+                // its shape into rows the move kept.
+                let m = self.strip_margin(&region.view, d);
                 clip = match d {
                     0 => Rect::new(clip.x, clip.y, clip.w, 0),
-                    d if d > 0 => Rect::new(clip.x, clip.bottom() - d, clip.w, d),
-                    d => Rect::new(clip.x, clip.y, clip.w, -d),
+                    d if d > 0 => Rect::new(clip.x, clip.bottom() - d - m, clip.w, d + m),
+                    d => Rect::new(clip.x, clip.y, clip.w, -d + m),
                 };
                 moved = Some(d);
             }
@@ -279,6 +282,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             moved,
             seen,
         }
+    }
+
+    /// The rows beside a moved frame's strip that are painted again, `d`
+    /// rows moved in `view`: the most a shadow reaches past its shape
+    /// (`docs/FRAMES.md` §3.2), as far as the view has rows left. None when
+    /// no row moved: there is no strip, and every row comes from the layer.
+    fn strip_margin(&self, view: &Rect, d: i32) -> i32 {
+        if d == 0 {
+            return 0;
+        }
+        self.px(faraday_draw::tokens::SHADOW_REACH)
+            .min(view.h - d.abs())
+            .max(0)
     }
 
     /// How many rows this frame's region moves the layer by, when it is
@@ -396,7 +412,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
         if slot == self.active {
             if let Some(d) = moved {
-                self.c.paste_layer(view, -d);
+                let m = self.strip_margin(&view, d);
+                self.c.paste_layer(view, -d, m);
                 self.content.moved = Some(d);
             }
             if self.keep_content && region.moves == Moves::Yes {

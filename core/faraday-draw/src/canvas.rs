@@ -15,14 +15,20 @@ use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Stro
 
 use crate::color::Color;
 use crate::fonts::{Coverage, GlyphCache, SizedFace};
-use crate::geom::{Rect, Scale, SizeClass};
+use crate::geom::{Dp, Rect, Scale, SizeClass};
 pub use crate::shapes::ShapeKey;
 use crate::shapes::{self, Shapes};
 use crate::text::{self, Font, TextAlign, TextMetrics};
 
 /// A drawing surface the size of the display.
 pub struct Canvas {
+    /// The visible rows, then [`hidden_rows`] below them that nothing
+    /// reads: a shape running past the last visible row is drawn whole
+    /// there, so its curves have the coverage the same shape has anywhere
+    /// else on a page.
     pixmap: Pixmap,
+    /// The visible rows.
+    rows: u32,
     scale: Scale,
     clips: Vec<Rect>,
     /// Glyph bitmaps filled from the outlines, kept between frames.
@@ -33,6 +39,10 @@ pub struct Canvas {
     /// The pixels outside the clip put aside while a shape is drawn
     /// across the clip's edge.
     scratch: Vec<u8>,
+    /// Emptied path builders kept for the next shape: a rounded shape or
+    /// a circle takes one and gives it back, so a frame drawn again
+    /// makes no path of its own.
+    paths: Vec<PathBuilder>,
     /// The strings drawn since the last [`Canvas::clear`] that ran past
     /// the side of their clip, so that some of their ink is not on the
     /// panel.
@@ -118,15 +128,18 @@ impl Canvas {
     /// part of a display, at that display's own scale (Faraday Demo's
     /// strip). Panics on a zero size, as [`Canvas::new`] does.
     pub fn part(width: u16, height: u16, scale: Scale) -> Self {
-        let pixmap =
-            Pixmap::new(u32::from(width), u32::from(height)).expect("display has non-zero size");
+        let hidden = hidden_rows(scale);
+        let pixmap = Pixmap::new(u32::from(width), u32::from(height) + hidden)
+            .expect("display has non-zero size");
         Canvas {
             pixmap,
+            rows: u32::from(height),
             scale,
             clips: Vec::new(),
             glyphs: GlyphCache::new(),
             shapes: Shapes::default(),
             scratch: Vec::new(),
+            paths: Vec::new(),
             cut: Vec::new(),
             ink: None,
             lines: 0,
@@ -170,6 +183,16 @@ impl Canvas {
         self.shapes.filled()
     }
 
+    /// The bytes of the visible rows, a prefix of the pixmap's.
+    fn visible(&self) -> &[u8] {
+        &self.pixmap.data()[..self.pixmap.width() as usize * self.rows as usize * 4]
+    }
+
+    fn visible_mut(&mut self) -> &mut [u8] {
+        let n = self.pixmap.width() as usize * self.rows as usize * 4;
+        &mut self.pixmap.data_mut()[..n]
+    }
+
     /// Width in pixels.
     pub fn width(&self) -> i32 {
         self.pixmap.width() as i32
@@ -177,7 +200,7 @@ impl Canvas {
 
     /// Height in pixels.
     pub fn height(&self) -> i32 {
-        self.pixmap.height() as i32
+        self.rows as i32
     }
 
     /// The whole canvas as a rectangle.
@@ -194,8 +217,8 @@ impl Canvas {
     pub fn frame(&self) -> Frame<'_> {
         Frame {
             width: self.pixmap.width() as u16,
-            height: self.pixmap.height() as u16,
-            rgba: self.pixmap.data(),
+            height: self.rows as u16,
+            rgba: self.visible(),
         }
     }
 
@@ -290,7 +313,15 @@ impl Canvas {
 
     /// Fills the whole canvas, ignoring the clip.
     pub fn clear(&mut self, color: Color) {
-        self.pixmap.fill(color.to_skia());
+        // The visible rows only: the hidden ones are drawn into and never
+        // read, as a shape's pixels there depend on its coverage and
+        // the colour it is blended over there, which nothing shows.
+        let c = color.to_skia().premultiply().to_color_u8();
+        let px = [c.red(), c.green(), c.blue(), c.alpha()];
+        let n = self.pixmap.width() as usize * self.rows as usize * 4;
+        for p in self.pixmap.data_mut()[..n].chunks_exact_mut(4) {
+            p.copy_from_slice(&px);
+        }
         self.damaged(self.bounds());
         self.cut.clear();
         if let Some(ink) = &mut self.ink {
@@ -640,7 +671,7 @@ impl Canvas {
     pub fn frost(&mut self, scale: u32, radius: u32, tint: Color) {
         (self.counter)(Work::Blur);
         self.damaged(self.bounds());
-        let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
+        let (w, h) = (self.pixmap.width() as usize, self.rows as usize);
         let s = scale.max(1) as usize;
         let (sw, sh) = (w.div_ceil(s), h.div_ceil(s));
         // Each small pixel the mean of the block it stands for, a block
@@ -651,7 +682,7 @@ impl Canvas {
         // the same to the eye, at a quarter of the reading.
         let step = if s >= 16 { 2 } else { 1 };
         let mut sums = alloc::vec![[0u32; 3]; sw * sh];
-        let data = self.pixmap.data();
+        let data = self.visible();
         for y in (0..h).step_by(step) {
             let line = &mut sums[(y / s) * sw..(y / s) * sw + sw];
             let row = &data[y * w * 4..(y + 1) * w * 4];
@@ -758,7 +789,7 @@ impl Canvas {
     /// are not changed in place.
     pub fn restore(&mut self, pixels: &[u8]) {
         (self.counter)(Work::FullCanvas);
-        if pixels.len() != self.pixmap.data().len() {
+        if pixels.len() != self.visible().len() {
             return;
         }
         let id = (pixels.as_ptr() as usize, pixels.len());
@@ -775,7 +806,7 @@ impl Canvas {
             }
             return;
         }
-        self.pixmap.data_mut().copy_from_slice(pixels);
+        self.visible_mut().copy_from_slice(pixels);
         self.kept = Some(id);
         self.damage = None;
     }
@@ -783,14 +814,14 @@ impl Canvas {
     /// A copy of every pixel, for [`Canvas::blend_between`] to fade from.
     pub fn snapshot(&self) -> Vec<u8> {
         (self.counter)(Work::FullCanvas);
-        self.pixmap.data().to_vec()
+        self.visible().to_vec()
     }
 
     /// The same copy into `into`, reusing its room.
     pub fn snapshot_into(&self, into: &mut Vec<u8>) {
         (self.counter)(Work::FullCanvas);
         into.clear();
-        into.extend_from_slice(self.pixmap.data());
+        into.extend_from_slice(self.visible());
     }
 
     /// Shows `t` (0 to 1) of the way from `before` to `after`, two
@@ -822,7 +853,7 @@ impl Canvas {
     ) {
         (self.counter)(Work::FullCanvas);
         bands.clear();
-        let n = self.pixmap.data().len();
+        let n = self.visible().len();
         if before.len() != n || after.len() != n {
             return;
         }
@@ -833,7 +864,7 @@ impl Canvas {
         // fade are blended.
         let t = (t.clamp(0.0, 1.0) * 256.0) as u16;
         self.damaged(self.bounds());
-        let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
+        let (w, h) = (self.pixmap.width() as usize, self.rows as usize);
         let ring = usize::try_from(inset.max(0))
             .unwrap_or(0)
             .min(w / 2)
@@ -869,7 +900,7 @@ impl Canvas {
     /// another size leave the canvas as it is.
     pub fn blend_within(&mut self, before: &[u8], after: &[u8], t: f32, bands: &[Rect]) {
         (self.counter)(Work::FullCanvas);
-        let n = self.pixmap.data().len();
+        let n = self.visible().len();
         if before.len() != n || after.len() != n {
             return;
         }
@@ -903,19 +934,24 @@ impl Canvas {
     /// drawn over. Pixels of another size leave both as they are.
     pub fn swap_pixels(&mut self, pixels: &mut Vec<u8>) {
         let (w, h) = (self.pixmap.width(), self.pixmap.height());
-        let n = self.pixmap.data().len();
-        let given = if pixels.len() == n {
+        let n = self.visible().len();
+        let total = w as usize * h as usize * 4;
+        let mut given = if pixels.len() == n {
             core::mem::take(pixels)
         } else if pixels.is_empty() {
             alloc::vec![0; n]
         } else {
             return;
         };
+        // The hidden rows go on the end, and come off the canvas's own
+        // pixels again before they are handed back.
+        given.resize(total, 0);
         let Some(next) = tiny_skia::IntSize::from_wh(w, h).and_then(|s| Pixmap::from_vec(given, s))
         else {
             return;
         };
         *pixels = core::mem::replace(&mut self.pixmap, next).take();
+        pixels.truncate(n);
         self.kept = None;
         self.damaged(self.bounds());
     }
@@ -942,8 +978,37 @@ impl Canvas {
     /// ([`Canvas::layer`]).
     pub fn keep_layer(&mut self, rect: Rect) {
         let mut layer = core::mem::take(&mut self.layer);
+        let r = rect.intersect(&self.bounds());
+        let held = layer.len();
+        let needs = if r.is_empty() {
+            0
+        } else {
+            (r.w * r.h * 4) as usize
+        };
+        // Room that grows moves: the room left behind holds nothing.
+        if needs > layer.capacity() {
+            layer.fill(0);
+        }
         self.copy_region(rect, &mut layer);
+        // A smaller region leaves nothing of the last one past its end.
+        if layer.len() < held {
+            let len = layer.len();
+            layer.resize(held, 0);
+            layer.truncate(len);
+        }
         self.layer = layer;
+    }
+
+    /// Costs a pass over the layer's pixels, when it holds any. Overwrites
+    /// the content layer and empties it, keeping the room: a frame that
+    /// took none leaves nothing of an earlier page, a secret shown on it
+    /// included (F195).
+    pub fn drop_layer(&mut self) {
+        if !self.layer.is_empty() {
+            self.layer.fill(0);
+            core::hint::black_box(&mut self.layer);
+            self.layer.clear();
+        }
     }
 
     /// The pixels [`Canvas::keep_layer`] kept, a row at a time.
@@ -957,7 +1022,10 @@ impl Canvas {
     /// the clip: the rows `dy` brought into `rect` hold what was there, for
     /// the caller to have drawn. A layer of another size puts nothing
     /// back.
-    pub fn paste_layer(&mut self, rect: Rect, dy: i32) {
+    ///
+    /// `margin` rows next to the rows `dy` brought in are left as they
+    /// are: the caller drew them again, for ink that reaches past its shape.
+    pub fn paste_layer(&mut self, rect: Rect, dy: i32, margin: i32) {
         let r = rect.intersect(&self.bounds());
         if r != rect
             || r.is_empty()
@@ -971,7 +1039,14 @@ impl Canvas {
         let n = r.w as usize * 4;
         let data = self.pixmap.data_mut();
         // Row `k` of the layer lands on row `k + dy` of the rectangle.
+        let margin = margin.max(0);
         let (from, to) = if dy >= 0 { (0, r.h - dy) } else { (-dy, r.h) };
+        // The rows `margin` away from the brought-in rows are kept as drawn.
+        let (from, to) = if dy >= 0 {
+            (from + margin, to)
+        } else {
+            (from, to - margin)
+        };
         for k in from..to {
             let at = (r.y + k + dy) as usize * stride + r.x as usize * 4;
             let src = k as usize * n;
@@ -1146,14 +1221,21 @@ impl Canvas {
         if color.a == 255 && rect.h - 2 * cap >= SPLIT_ROWS {
             let mid = Rect::new(rect.x, rect.y + cap, rect.w, rect.h - 2 * cap);
             for (cut, top) in [(mid.y, true), (mid.bottom(), false)] {
-                let ends = rounded_ends_path(rect, radius, (cut, top));
+                let ends = rounded_ends_path(&mut self.paths, rect, radius, (cut, top));
                 self.draw_path(&ends, &paint, None);
+                self.give_back(ends);
             }
             self.fill_rect(mid, color);
             return;
         }
-        let path = rounded_rect_path(rect, radius, 0.0);
+        let path = rounded_rect_path(&mut self.paths, rect, radius, None);
         self.draw_path(&path, &paint, None);
+        self.give_back(path);
+    }
+
+    /// Keeps `path`'s room for the next shape's path.
+    fn give_back(&mut self, path: tiny_skia::Path) {
+        give_back(&mut self.paths, path);
     }
 
     /// Strokes a rounded rectangle outline `width` pixels thick, inside
@@ -1166,8 +1248,9 @@ impl Canvas {
             width,
             ..Stroke::default()
         };
-        let path = rounded_rect_path(rect, radius, width / 2.0);
-        self.draw_path(&path, &Self::paint(color), Some(&stroke));
+        let path = rounded_rect_path(&mut self.paths, rect, radius, Some(&stroke));
+        self.draw_path(&path, &Self::paint(color), None);
+        self.give_back(path);
     }
 
     /// Draws a line `width` pixels thick between two points.
@@ -1225,10 +1308,20 @@ impl Canvas {
         {
             return;
         }
-        let Some(path) = PathBuilder::from_circle(cx, cy, radius) else {
+        // Built about its own whole pixel and placed, as a rounded
+        // rectangle is: a circle moved by whole pixels is the same pixels.
+        let down = |v: f32| (v as i32 - i32::from((v as i32 as f32) > v)) as f32;
+        let (ox, oy) = (down(cx), down(cy));
+        // Eight quadratic curves in one contour.
+        let mut local = take(&mut self.paths);
+        local.push_circle(cx - ox, cy - oy, radius);
+        let Some(local) = local.finish() else {
             return;
         };
+        let path = place(&mut self.paths, &local, (ox as i32, oy as i32));
+        self.give_back(local);
         self.draw_path(&path, &Self::paint(color), None);
+        self.give_back(path);
     }
 
     /// Fills a shape made of closed outlines through the given points, in
@@ -1317,7 +1410,7 @@ impl Canvas {
         {
             return;
         }
-        let (width, height) = (self.pixmap.width() as i32, self.pixmap.height() as i32);
+        let (width, height) = (self.pixmap.width() as i32, self.rows as i32);
         let (y0, y1) = (t.max(0), bo.min(height));
         let row = width as usize * 4;
         let region = Rect::new(l.max(0), y0, r.min(width) - l.max(0), y1 - y0);
@@ -1790,14 +1883,97 @@ fn skia_rect(r: Rect) -> tiny_skia::Rect {
         .expect("finite non-empty rect")
 }
 
-/// A rounded-rectangle path inset by `inset` pixels on every side.
-fn rounded_rect_path(rect: Rect, radius: f32, inset: f32) -> tiny_skia::Path {
-    let l = rect.x as f32 + inset;
-    let t = rect.y as f32 + inset;
-    let r = rect.right() as f32 - inset;
-    let b = rect.bottom() as f32 - inset;
+/// A path builder that cuts each point to the 1/256 pixel the
+/// rasterizer cuts them to and adds a whole-pixel place as it goes, so
+/// a shape built about its own origin and moved is made once, with no
+/// path in between. With no place it adds the points as given.
+struct Builder {
+    pb: PathBuilder,
+    at: Option<(i32, i32)>,
+}
+
+impl Builder {
+    fn new(pool: &mut Vec<PathBuilder>, at: Option<(i32, i32)>) -> Self {
+        Builder { pb: take(pool), at }
+    }
+
+    fn pt(&self, x: f32, y: f32) -> (f32, f32) {
+        match self.at {
+            Some((ox, oy)) => (cut(x, ox), cut(y, oy)),
+            None => (x, y),
+        }
+    }
+
+    fn move_to(&mut self, x: f32, y: f32) {
+        let (x, y) = self.pt(x, y);
+        self.pb.move_to(x, y);
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        let (x, y) = self.pt(x, y);
+        self.pb.line_to(x, y);
+    }
+
+    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        let (x1, y1) = self.pt(x1, y1);
+        let (x, y) = self.pt(x, y);
+        self.pb.quad_to(x1, y1, x, y);
+    }
+
+    fn cubic_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+        let (x1, y1) = self.pt(x1, y1);
+        let (x2, y2) = self.pt(x2, y2);
+        let (x, y) = self.pt(x, y);
+        self.pb.cubic_to(x1, y1, x2, y2, x, y);
+    }
+
+    fn close(&mut self) {
+        self.pb.close();
+    }
+
+    fn finish(self) -> tiny_skia::Path {
+        self.pb.finish().expect("non-degenerate path")
+    }
+}
+
+/// An emptied builder from `pool`, or a new one sized for a rounded
+/// shape or a circle: ten verbs and seventeen points.
+fn take(pool: &mut Vec<PathBuilder>) -> PathBuilder {
+    pool.pop()
+        .unwrap_or_else(|| PathBuilder::with_capacity(10, 17))
+}
+
+/// Keeps the room of `path` in `pool`, a few builders at most.
+fn give_back(pool: &mut Vec<PathBuilder>, path: tiny_skia::Path) {
+    if pool.len() < 4 {
+        pool.push(path.clear());
+    }
+}
+
+/// `v` cut down to a 1/256 pixel, after `o` whole pixels.
+fn cut(v: f32, o: i32) -> f32 {
+    let n = v * 256.0;
+    let down = n as i32 - i32::from((n as i32 as f32) > n);
+    o as f32 + down as f32 / 256.0
+}
+
+/// A rounded-rectangle path, or its outline when `stroke` is given (the
+/// path then inset by half the stroke's width), placed at `rect`.
+fn rounded_rect_path(
+    pool: &mut Vec<PathBuilder>,
+    rect: Rect,
+    radius: f32,
+    stroke: Option<&Stroke>,
+) -> tiny_skia::Path {
+    let inset = stroke.map_or(0.0, |s| s.width / 2.0);
+    let l = inset;
+    let t = inset;
+    let r = rect.w as f32 - inset;
+    let b = rect.h as f32 - inset;
     let radius = radius.min((r - l) / 2.0).min((b - t) / 2.0).max(0.0);
-    let mut pb = PathBuilder::with_capacity(10, 17);
+    // A fill is cut and placed as it is built; a stroke's outline is made
+    // from the path about the origin, then placed.
+    let mut pb = Builder::new(pool, stroke.is_none().then_some((rect.x, rect.y)));
     if radius <= 0.0 {
         pb.move_to(l, t);
         pb.line_to(r, t);
@@ -1818,7 +1994,13 @@ fn rounded_rect_path(rect: Rect, radius: f32, inset: f32) -> tiny_skia::Path {
         pb.cubic_to(l, t + radius - k, l + radius - k, t, l + radius, t);
         pb.close();
     }
-    pb.finish().expect("non-degenerate path")
+    let path = pb.finish();
+    let Some(s) = stroke else { return path };
+    let outline = path.stroke(s, 1.0).expect("a stroke has an outline");
+    give_back(pool, path);
+    let placed = place(pool, &outline, (rect.x, rect.y));
+    give_back(pool, outline);
+    placed
 }
 
 /// The top or the bottom of [`rounded_rect_path`]'s outline with no
@@ -1826,15 +2008,20 @@ fn rounded_rect_path(rect: Rect, radius: f32, inset: f32) -> tiny_skia::Path {
 /// row `cut.0` (`cut.1` true for the top) and closed straight across
 /// it. Within its rows its edges are the whole outline's, so it fills
 /// the same pixels there.
-fn rounded_ends_path(rect: Rect, radius: f32, (cut, top): (i32, bool)) -> tiny_skia::Path {
-    let l = rect.x as f32;
-    let t = rect.y as f32;
-    let r = rect.right() as f32;
-    let b = rect.bottom() as f32;
+fn rounded_ends_path(
+    pool: &mut Vec<PathBuilder>,
+    rect: Rect,
+    radius: f32,
+    (cut, top): (i32, bool),
+) -> tiny_skia::Path {
+    let l = 0.0;
+    let t = 0.0;
+    let r = rect.w as f32;
+    let b = rect.h as f32;
     let radius = radius.min((r - l) / 2.0).min((b - t) / 2.0).max(0.0);
     let k = 0.5523 * radius;
-    let c = cut as f32;
-    let mut pb = PathBuilder::with_capacity(8, 15);
+    let c = (cut - rect.y) as f32;
+    let mut pb = Builder::new(pool, Some((rect.x, rect.y)));
     if top {
         pb.move_to(l, c);
         pb.line_to(l, t + radius);
@@ -1851,7 +2038,40 @@ fn rounded_ends_path(rect: Rect, radius: f32, (cut, top): (i32, bool)) -> tiny_s
         pb.line_to(l, c);
     }
     pb.close();
-    pb.finish().expect("non-degenerate path")
+    pb.finish()
+}
+
+/// Rows below the visible ones that a canvas draws into and never shows
+/// (`docs/FRAMES.md` §3.2): the tallest curve a shape has, a corner of
+/// 28 dp (`SHAPE_XL`) or a shadow's 24 dp reach (`SHADOW_REACH`) beyond
+/// it, and a margin. A path the clip lets through that runs past the
+/// last visible row is drawn whole, not cut there, so a curve across
+/// that row has the coverage it has anywhere on a page.
+const HIDDEN_DP: f32 = 64.0;
+
+fn hidden_rows(scale: Scale) -> u32 {
+    scale.px(Dp(HIDDEN_DP)).max(0) as u32
+}
+
+/// `path` with every point cut to the 1/256 pixel the rasterizer cuts
+/// them to and moved by `at` whole pixels, which is exact: the same shape
+/// at another whole-pixel place is the same pixels, as the move of a
+/// scroll step needs (`docs/FRAMES.md` §3.2). Built and stroked at its
+/// place, floating-point rounding would differ with how large the place's
+/// numbers are, and a curve's edge pixel with it.
+fn place(pool: &mut Vec<PathBuilder>, path: &tiny_skia::Path, at: (i32, i32)) -> tiny_skia::Path {
+    use tiny_skia::PathSegment;
+    let mut pb = Builder::new(pool, Some(at));
+    for segment in path.segments() {
+        match segment {
+            PathSegment::MoveTo(p) => pb.move_to(p.x, p.y),
+            PathSegment::LineTo(p) => pb.line_to(p.x, p.y),
+            PathSegment::QuadTo(c, p) => pb.quad_to(c.x, c.y, p.x, p.y),
+            PathSegment::CubicTo(c1, c2, p) => pb.cubic_to(c1.x, c1.y, c2.x, c2.y, p.x, p.y),
+            PathSegment::Close => pb.close(),
+        }
+    }
+    pb.finish()
 }
 
 #[cfg(test)]
@@ -1918,15 +2138,15 @@ mod tests {
                     } else if fast {
                         c.stroke_rounded_rect(rect, radius, width, color);
                     } else if width == 0.0 {
-                        let path = rounded_rect_path(rect, radius, 0.0);
+                        let path = rounded_rect_path(&mut Vec::new(), rect, radius, None);
                         c.draw_path(&path, &Canvas::paint(color), None);
                     } else {
-                        let path = rounded_rect_path(rect, radius, width / 2.0);
                         let stroke = Stroke {
                             width,
                             ..Stroke::default()
                         };
-                        c.draw_path(&path, &Canvas::paint(color), Some(&stroke));
+                        let path = rounded_rect_path(&mut Vec::new(), rect, radius, Some(&stroke));
+                        c.draw_path(&path, &Canvas::paint(color), None);
                     }
                     c
                 };
@@ -2213,6 +2433,57 @@ mod tests {
         assert_eq!(c.frame().rgba, &before[..]);
         c.blend_between(&before, &after, 1.0);
         assert_eq!(c.frame().rgba, &drawn[..]);
+    }
+
+    /// A rounded shape drawn at another whole-pixel place is the same
+    /// pixels moved, wherever on a long page it stands, so a scroll step
+    /// can move the rows already drawn (`docs/FRAMES.md` §3.2).
+    #[test]
+    fn a_rounded_shape_moved_by_whole_pixels_is_the_same_pixels() {
+        let big = || {
+            Canvas::new(&DisplayInfo {
+                width: 200,
+                height: 1200,
+                dpi: 160,
+                inset_bottom: 0,
+                inset_top: 0,
+                buttons: 0,
+                camera_fixed: true,
+                secure: faraday_shell_api::SecureHardware::None,
+                boot: faraday_shell_api::BootState::Unknown,
+                memory_mib: None,
+            })
+        };
+        let draw = |c: &mut Canvas, y: i32| {
+            c.stroke_rounded_rect(Rect::new(20, y, 120, 44), 22.0, 2.0, Color::rgb(20, 40, 80));
+            c.fill_rounded_rect(
+                Rect::new(30, y + 100, 120, 70),
+                17.5,
+                Color::rgb(90, 160, 220),
+            );
+        };
+        let mut base = big();
+        base.clear(Color::WHITE);
+        draw(&mut base, 100);
+        let mut bad = Vec::new();
+        for y in 101..1000 {
+            let mut c = big();
+            c.clear(Color::WHITE);
+            draw(&mut c, y);
+            let d = y - 100;
+            let mut n = 0;
+            for yy in 90..300 {
+                for x in 0..200 {
+                    if yy + d < 1200 && pixel(&base, x, yy) != pixel(&c, x, yy + d) {
+                        n += 1;
+                    }
+                }
+            }
+            if n > 0 {
+                bad.push((y, n));
+            }
+        }
+        assert!(bad.is_empty(), "places where the pixels differ: {bad:?}");
     }
 
     #[test]

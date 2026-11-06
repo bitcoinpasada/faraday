@@ -54,7 +54,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !ui.compact {
         crate::screens::bar_head(ui, None, EN.backups_backups);
     }
-    let mut pane = ListPane::begin(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
+    let mut pane = ListPane::begin_moving(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
     for (k, e) in entries.iter().enumerate() {
         let item = Item {
             headline: &e.name,
@@ -183,7 +183,7 @@ fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
 fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Entry], pages: bool) {
     use crate::compact::M;
     let (x, w) = (x0 + M, cw - 2.0 * M);
-    ui.page_begin((x0, cw, h), app.list_offset);
+    ui.moving_page_begin((x0, cw, h), app.list_offset);
     let top = 12.0;
     let mut y = top;
     let n = entries.len();
