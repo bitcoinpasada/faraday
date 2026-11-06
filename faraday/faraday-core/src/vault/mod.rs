@@ -2891,6 +2891,7 @@ impl Faraday {
             });
         }
         *seen = keep;
+        gpg::SignWrap::keep_only(&self.vaults.sign_wraps, &out);
         out
     }
 

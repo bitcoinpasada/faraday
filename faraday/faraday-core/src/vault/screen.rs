@@ -2777,7 +2777,16 @@ fn detail(
             let hex: String = faraday_crypto::hex::encode_string(&f.hash);
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {
-                ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), ink, t) + 6.0;
+                // The lines are kept with the text and what they are
+                // broken from, so a page of files breaks each once.
+                let basis = ui.wrap_basis(BODY_S.mono(), dw - 30.0);
+                let lines =
+                    crate::gpg::SignWrap::lines_of(&app.vaults.sign_wraps, t, basis, || {
+                        ui.wrap_ranges(BODY_S.mono(), t, dw - 30.0)
+                    });
+                let laid = ui.wrapped_with(BODY_S.mono(), t, dw - 30.0, lines);
+                ui.draw_wrapped((dx + 30.0, ey), ink, &laid);
+                ey += laid.h + 6.0;
             }
             ui.rule(dx, ey, dw, Role::OutlineVariant);
             dy = ey + 8.0;

@@ -186,6 +186,50 @@ pub struct Seen {
     pub(crate) text: Option<String>,
 }
 
+/// A small text file's text broken into lines for the signing page, with
+/// what it was broken from: the text itself and the font, scale and width
+/// ([`faraday_ui::roles::WrapBasis`]). Used only while all of them are the
+/// same, so the lines are the ones breaking the text now would give.
+#[derive(Debug, Clone)]
+pub struct SignWrap {
+    text: String,
+    basis: faraday_ui::roles::WrapBasis,
+    lines: std::rc::Rc<[(usize, usize)]>,
+}
+
+impl SignWrap {
+    /// The lines of `text` for `basis`, from `kept` when it holds them,
+    /// else from `make`, which breaks the text, and then kept.
+    pub(crate) fn lines_of(
+        kept: &std::cell::RefCell<Vec<SignWrap>>,
+        text: &str,
+        basis: faraday_ui::roles::WrapBasis,
+        make: impl FnOnce() -> std::rc::Rc<[(usize, usize)]>,
+    ) -> std::rc::Rc<[(usize, usize)]> {
+        let mut kept = kept.borrow_mut();
+        if let Some(e) = kept.iter().find(|e| e.basis == basis && e.text == text) {
+            return e.lines.clone();
+        }
+        let lines = make();
+        kept.retain(|e| e.text != text);
+        kept.push(SignWrap {
+            text: text.to_string(),
+            basis,
+            lines: lines.clone(),
+        });
+        lines
+    }
+
+    /// Drops the entries of texts no file on the page has now.
+    pub(crate) fn keep_only(kept: &std::cell::RefCell<Vec<SignWrap>>, files: &[GpgFile]) {
+        kept.borrow_mut().retain(|e| {
+            files
+                .iter()
+                .any(|f| f.text.as_deref() == Some(e.text.as_str()))
+        });
+    }
+}
+
 pub(crate) fn probe_of(bytes: &[u8]) -> (usize, usize, Vec<u8>) {
     let mut ends = bytes[..bytes.len().min(32)].to_vec();
     ends.extend_from_slice(&bytes[bytes.len().saturating_sub(32)..]);

@@ -1616,6 +1616,9 @@ pub struct Vaults {
     pub sign_key: Option<[u8; 20]>,
     /// The files the signing page hashed, so that it hashes each once.
     pub sign_seen: std::cell::RefCell<Vec<crate::gpg::Seen>>,
+    /// The lines the signing page broke each small text file into, kept
+    /// with the text and what it was broken from (`docs/FRAMES.md` §7).
+    pub sign_wraps: std::cell::RefCell<Vec<crate::gpg::SignWrap>>,
     /// The term chosen to renew the selected GPG key for, in years; none
     /// until the person chooses.
     pub renew_years: Option<u32>,

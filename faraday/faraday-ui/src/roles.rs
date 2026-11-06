@@ -34,12 +34,34 @@ impl From<TypeFace> for W {
 pub struct Wrapped<'s> {
     s: &'s str,
     role: TypeRole,
-    lines: Vec<(usize, usize)>,
+    lines: Lines,
     /// The width it was broken at.
     width: f32,
     /// The lines times the role's line height, as [`Ui::wrap_as`] returns.
     pub h: f32,
 }
+
+/// The lines of a [`Wrapped`]: broken for it, or kept by the caller.
+enum Lines {
+    Own(Vec<(usize, usize)>),
+    Kept(std::rc::Rc<[(usize, usize)]>),
+}
+
+impl std::ops::Deref for Lines {
+    type Target = [(usize, usize)];
+    fn deref(&self) -> &[(usize, usize)] {
+        match self {
+            Lines::Own(v) => v,
+            Lines::Kept(r) => r,
+        }
+    }
+}
+
+/// Everything a text is broken into lines from besides the text itself:
+/// the font, the scale it is drawn at and the width in pixels. Two equal
+/// bases break a text into the same lines ([`Ui::wrap_basis`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WrapBasis(faraday_draw::text::Font, faraday_draw::Scale, i32);
 
 /// A text field's label kept outside it, above (`docs/LAYOUT.md` §8):
 /// Material's body small.
@@ -272,7 +294,45 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// in the same frame, so it is broken once.
     pub fn wrapped_as<'s>(&self, role: TypeRole, s: &'s str, width: f32) -> Wrapped<'s> {
         let face = self.face(role.size, role.face.into());
-        let lines = text::wrap(&face, s, self.px(width));
+        let lines = Lines::Own(text::wrap(&face, s, self.px(width)));
+        self.laid(role, s, width, lines)
+    }
+
+    /// What [`Ui::wrapped_as`] breaks a text into lines from, besides the
+    /// text: a caller that keeps the lines of a text between frames keeps
+    /// them with this and uses them while it is equal.
+    pub fn wrap_basis(&self, role: TypeRole, width: f32) -> WrapBasis {
+        WrapBasis(
+            self.font(role.size, role.face.into()),
+            self.c.scale(),
+            self.px(width),
+        )
+    }
+
+    /// The lines [`Ui::wrapped_as`] breaks `s` into at `width`.
+    pub fn wrap_ranges(
+        &self,
+        role: TypeRole,
+        s: &str,
+        width: f32,
+    ) -> std::rc::Rc<[(usize, usize)]> {
+        let face = self.face(role.size, role.face.into());
+        text::wrap(&face, s, self.px(width)).into()
+    }
+
+    /// `s` laid out in `lines`, which [`Ui::wrap_ranges`] gave for `s` at
+    /// the same `role` and `width` (equal [`Ui::wrap_basis`]).
+    pub fn wrapped_with<'s>(
+        &self,
+        role: TypeRole,
+        s: &'s str,
+        width: f32,
+        lines: std::rc::Rc<[(usize, usize)]>,
+    ) -> Wrapped<'s> {
+        self.laid(role, s, width, Lines::Kept(lines))
+    }
+
+    fn laid<'s>(&self, role: TypeRole, s: &'s str, width: f32, lines: Lines) -> Wrapped<'s> {
         let h = lines.len() as f32 * self.line_as(role);
         Wrapped {
             s,
@@ -335,7 +395,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         (focused, action): (bool, A),
     ) {
         let (text, role, width) = (laid.s, laid.role, laid.width);
-        let lines = &laid.lines;
+        let lines: &[(usize, usize)] = &laid.lines;
         let ink = self.ink(color.into());
         let selected_ink = self.ink(crate::SELECTION_INK.paint());
         let face = self.face(role.size, role.face.into());
