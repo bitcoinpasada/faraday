@@ -684,6 +684,12 @@ impl Timings {
             ));
         }
         out.push('\n');
+        self.start_block();
+        out
+    }
+
+    /// Clears what a block counted, for the next.
+    fn start_block(&mut self) {
         self.parts = [Tally::default(); PART_NAMES.len()];
         self.slowest = None;
         self.moved = KindTally::default();
@@ -699,7 +705,6 @@ impl Timings {
         self.clock = (0, 0, 0);
         self.raised = 0;
         self.fade_steps.clear();
-        out
     }
 }
 
