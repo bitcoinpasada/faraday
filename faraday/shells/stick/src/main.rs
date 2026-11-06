@@ -889,6 +889,15 @@ impl Shell {
     /// plugged into a machine that had none also brings the arrow with
     /// it: the cursor is made here rather than only at start-up.
     fn rescan_inputs(&mut self) {
+        // A look asked for earlier, once its thread has finished it.
+        if let Some(watch) = self.watch.as_mut() {
+            let window = &mut self.window;
+            let found = watch.take(&mut |sys| window.admit(sys));
+            if !found.is_empty() {
+                self.start_readers(found);
+                self.tell_trust();
+            }
+        }
         let every = if self.window.is_open() {
             evdev::RESCAN_AT_START
         } else {
@@ -898,17 +907,31 @@ impl Shell {
             return;
         }
         self.scanned = Instant::now();
-        self.rescan_now();
+        // The look is done on a thread of its own: the loop never waits
+        // on the kernel for it.
+        if let Some(watch) = self.watch.as_mut() {
+            watch.ask();
+        }
     }
 
     /// The listing itself: whatever is new is read, trusted while the
     /// start window is open and held after.
     fn rescan_now(&mut self) {
-        let (Some(watch), Some(tx)) = (self.watch.as_mut(), self.tx.as_ref()) else {
+        let Some(watch) = self.watch.as_mut() else {
             return;
         };
         let window = &mut self.window;
-        for (id, device) in watch.rescan(&mut |sys| window.admit(sys)) {
+        let found = watch.rescan(&mut |sys| window.admit(sys));
+        self.start_readers(found);
+        self.tell_trust();
+    }
+
+    /// Starts a reader for each device a look found.
+    fn start_readers(&mut self, found: Vec<(u32, evdev::Device)>) {
+        let Some(tx) = self.tx.clone() else {
+            return;
+        };
+        for (id, device) in found {
             if self.verbose {
                 eprintln!(
                     "input {} {:?}: {} (plugged in{})",
@@ -941,7 +964,6 @@ impl Shell {
                 },
             );
         }
-        self.tell_trust();
     }
 
     /// Watches the start window and closes it (F202): once the USB device

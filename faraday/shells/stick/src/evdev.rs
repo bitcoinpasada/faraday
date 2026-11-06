@@ -721,6 +721,21 @@ pub struct Watch {
     wanted: String,
     known: Vec<Known>,
     next_id: u32,
+    /// The thread that does the looks of [`ask`](Watch::ask), started by
+    /// the first one.
+    finder: Option<Finder>,
+}
+
+/// The thread that lists the directory and opens the nodes for
+/// [`Watch::ask`], so the main loop never waits on the kernel for it.
+#[derive(Debug)]
+struct Finder {
+    /// The nodes a reader holds, one list per look asked for.
+    request: std::sync::mpsc::Sender<Vec<PathBuf>>,
+    /// What each look found.
+    reply: std::sync::mpsc::Receiver<Vec<Device>>,
+    /// A look has been asked for and not yet taken.
+    pending: bool,
 }
 
 impl Watch {
@@ -734,6 +749,82 @@ impl Watch {
             wanted: wanted.to_string(),
             known: Vec::new(),
             next_id: 0,
+            finder: None,
+        }
+    }
+
+    /// The nodes a reader holds.
+    fn held(&self) -> Vec<PathBuf> {
+        self.known
+            .iter()
+            .filter(|k| k.live)
+            .map(|k| k.node.clone())
+            .collect()
+    }
+
+    /// Asks for a look at the directory on a thread of its own, unless
+    /// one is already out. The result comes from [`take`](Watch::take);
+    /// neither waits on the kernel. What is opened is what
+    /// [`rescan`](Watch::rescan) opens.
+    pub fn ask(&mut self) {
+        if self.finder.as_ref().is_some_and(|f| f.pending) {
+            return;
+        }
+        let held = self.held();
+        if self.finder.is_none() {
+            let (request, requests) = std::sync::mpsc::channel::<Vec<PathBuf>>();
+            let (replies, reply) = std::sync::mpsc::channel();
+            let (sys, dev, wanted) = (
+                self.sys_class_input.clone(),
+                self.dev_dir.clone(),
+                self.wanted.clone(),
+            );
+            let started = thread::Builder::new()
+                .name(String::from("input-look"))
+                .spawn(move || {
+                    for held in requests {
+                        let held: Vec<&Path> = held.iter().map(PathBuf::as_path).collect();
+                        let found = find_devices_holding(&sys, &dev, &wanted, &held);
+                        if replies.send(found).is_err() {
+                            return;
+                        }
+                    }
+                });
+            if started.is_err() {
+                return;
+            }
+            self.finder = Some(Finder {
+                request,
+                reply,
+                pending: false,
+            });
+        }
+        if let Some(f) = self.finder.as_mut() {
+            f.pending = f.request.send(held).is_ok();
+        }
+    }
+
+    /// The devices a look asked for by [`ask`](Watch::ask) found, once it
+    /// has finished; empty while it is out. Like [`rescan`](Watch::rescan)
+    /// in what it returns and in `admit`.
+    ///
+    /// # Panics
+    ///
+    /// When the thread ended without answering, which only a panic on it
+    /// does: the app does not go on without its input in silence.
+    pub fn take(&mut self, admit: &mut dyn FnMut(&Path) -> bool) -> Vec<(u32, Device)> {
+        let Some(f) = self.finder.as_mut().filter(|f| f.pending) else {
+            return Vec::new();
+        };
+        match f.reply.try_recv() {
+            Ok(found) => {
+                f.pending = false;
+                self.absorb(found, admit)
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => Vec::new(),
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                panic!("the thread that looks for input devices ended")
+            }
         }
     }
 
@@ -755,6 +846,15 @@ impl Watch {
             .map(|k| k.node.as_path())
             .collect();
         let found = find_devices_holding(&self.sys_class_input, &self.dev_dir, &self.wanted, &held);
+        self.absorb(found, admit)
+    }
+
+    /// What a look found, against what is known.
+    fn absorb(
+        &mut self,
+        found: Vec<Device>,
+        admit: &mut dyn FnMut(&Path) -> bool,
+    ) -> Vec<(u32, Device)> {
         self.known.retain(|k| {
             let replaced = found.iter().any(|d| d.node == k.node && d.sys != k.sys);
             k.live || (k.node.exists() && !replaced)
@@ -1057,6 +1157,38 @@ mod tests {
         }
         fs::create_dir_all(dev).expect("dev");
         fs::write(dev.join(&node), []).expect("node");
+    }
+
+    /// A look asked for returns at once and finds a device plugged in
+    /// later when it has finished; a device it already knows is not
+    /// returned again.
+    #[test]
+    fn an_asked_for_look_finds_a_new_device_without_waiting() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-ask-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "USB Keyboard", &keyboard_caps());
+        let mut watch = Watch::new(&sys, &dev, "");
+        assert_eq!(watch.rescan(&mut |_| true).len(), 1);
+
+        plug(&sys, &dev, 1, "Logitech Mouse", &mouse_caps());
+        watch.ask();
+        let mut found = Vec::new();
+        for _ in 0..500 {
+            found = watch.take(&mut |_| false);
+            if !found.is_empty() {
+                break;
+            }
+            thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(found.len(), 1);
+        assert!(found[0].1.mouse && !found[0].1.trusted);
+
+        watch.ask();
+        thread::sleep(std::time::Duration::from_millis(100));
+        assert!(watch.take(&mut |_| false).is_empty());
+
+        fs::remove_dir_all(&root).expect("clean up");
     }
 
     /// A keyboard and a mouse found while the start window is open are

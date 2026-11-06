@@ -262,7 +262,13 @@ the interval gives its count, mean and worst in ms and its name last:
 `rescan` (the look for input devices plugged in), `sticks` (the look at
 the storage plugged in), `report` and `bootreport` (those two files'
 own calls, as a whole), and `clockwrite` (one write of the CPU's lowest
-clock, made inside the pass). A `slowest`
+clock, made inside the pass). A `moved` and a `whole` line give, for the
+passes that drew a moved or a whole frame, their count, the mean and
+worst of their `frame` calls and the mean and worst of their `write`
+calls, in ms (a fade's step is on neither). A `by_screen` line for each
+screen the interval drew (at most 24, then one `other screens`) gives
+the passes that drew it, their mean `frame` and mean `write` in ms, the
+share of them that were moved frames, and the screen's name last. A `slowest`
 line gives the slowest pass that drew, from the end of its wait to its
 frame written, how much of it no bucket and no part explains, and what
 it was: the screen shown (its name only), whether the frame was whole,

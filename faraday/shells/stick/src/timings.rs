@@ -132,6 +132,38 @@ struct Tally {
     worst: Duration,
 }
 
+/// The most rows of the table by screen one block keeps; a block that
+/// drew more screens than this puts the rest on the last row.
+const SCREEN_ROWS: usize = 24;
+
+/// The row of the table by screen past [`SCREEN_ROWS`].
+const OTHER_SCREENS: &str = "other screens";
+
+/// The passes that drew one kind of frame since the last block: how
+/// many, and what their `frame` and `write` calls cost.
+#[derive(Clone, Copy, Default)]
+struct KindTally {
+    frame: Tally,
+    write: Tally,
+}
+
+impl KindTally {
+    fn add(&mut self, frame: Duration, write: Duration) {
+        for (tally, took) in [(&mut self.frame, frame), (&mut self.write, write)] {
+            tally.count += 1;
+            tally.total += took;
+            tally.worst = tally.worst.max(took);
+        }
+    }
+}
+
+/// The passes that drew one screen since the last block.
+struct ScreenTally {
+    name: String,
+    passes: KindTally,
+    moved: u64,
+}
+
 /// The buckets, the counters, and when the next block is due.
 pub struct Timings {
     tallies: [Tally; NAMES.len()],
@@ -175,6 +207,13 @@ pub struct Timings {
     /// The slowest pass that drew since the last block: its total, how
     /// much of it no bucket or part explains, and what it was.
     slowest: Option<(Duration, Duration, String)>,
+    /// The passes that drew a moved frame and a whole frame since the
+    /// last block.
+    moved: KindTally,
+    whole: KindTally,
+    /// The passes that drew, by screen name, in the order the screens
+    /// first came.
+    screens: Vec<ScreenTally>,
     /// What each bucket and each part timed in the pass now running.
     pass_buckets: [Duration; NAMES.len()],
     pass_parts: [Duration; PART_NAMES.len()],
@@ -215,6 +254,8 @@ impl Timings {
                  costly work columns: work count mean_ms worst_ms kind (the costliest an event did)\n\
                  cpu0 driver {} governor {} min_khz {} max_khz {}\n\
                  parts columns: part count mean_ms worst_ms name (calls outside the buckets; clockwrite is a write of the CPU's lowest clock, inside a pass)\n\
+                 moved and whole columns: kind count frame_mean_ms frame_worst_ms write_mean_ms write_worst_ms (passes that drew a moved or a whole frame)\n\
+                 by_screen columns: by_screen count frame_mean_ms write_mean_ms moved_percent name (passes that drew, by screen)\n\
                  slowest: the slowest pass that drew, how much of it no bucket or part explains, and what it was (the screen, the kind of frame, whether the screen changed since the last drawn pass, the largest bucket or part in it)",
                 cpufreq("scaling_driver"),
                 cpufreq("scaling_governor"),
@@ -228,6 +269,9 @@ impl Timings {
             parts: [Tally::default(); PART_NAMES.len()],
             explained: Duration::ZERO,
             slowest: None,
+            moved: KindTally::default(),
+            whole: KindTally::default(),
+            screens: Vec::new(),
             pass_buckets: [Duration::ZERO; NAMES.len()],
             pass_parts: [Duration::ZERO; PART_NAMES.len()],
             last_step: None,
@@ -321,8 +365,9 @@ impl Timings {
     /// written: kept if it is the slowest of the block, with what it
     /// was. `frame` is the kind of frame, `changed` whether the screen
     /// differs from the last pass that drew, and `screen` gives the
-    /// screen's name (nothing a person typed), called only when the pass
-    /// is kept.
+    /// screen's name (nothing a person typed). The pass is also counted
+    /// by its kind of frame and by screen, with what its `frame` and
+    /// `write` calls took.
     pub fn drawn_pass(
         &mut self,
         total: Duration,
@@ -330,6 +375,38 @@ impl Timings {
         changed: bool,
         screen: impl FnOnce() -> String,
     ) {
+        let frame_took = self.pass_buckets[Bucket::Frame as usize];
+        let write_took = self.pass_buckets[Bucket::Write as usize];
+        let moved = matches!(frame, Frame::Moved);
+        match frame {
+            Frame::Moved => self.moved.add(frame_took, write_took),
+            Frame::Whole => self.whole.add(frame_took, write_took),
+            Frame::Fade => {}
+        }
+        let name = screen();
+        let row = match self.screens.iter().position(|r| r.name == name) {
+            Some(i) => Some(i),
+            None if self.screens.len() < SCREEN_ROWS => {
+                self.screens.push(ScreenTally {
+                    name: name.clone(),
+                    passes: KindTally::default(),
+                    moved: 0,
+                });
+                Some(self.screens.len() - 1)
+            }
+            None => self.screens.iter().position(|r| r.name == OTHER_SCREENS),
+        };
+        // Past the rows, the screens go on one more row of their own.
+        let row = row.unwrap_or_else(|| {
+            self.screens.push(ScreenTally {
+                name: OTHER_SCREENS.to_owned(),
+                passes: KindTally::default(),
+                moved: 0,
+            });
+            self.screens.len() - 1
+        });
+        self.screens[row].passes.add(frame_took, write_took);
+        self.screens[row].moved += u64::from(moved);
         if self.slowest.as_ref().is_none_or(|(t, _, _)| total > *t) {
             let top = NAMES
                 .iter()
@@ -349,7 +426,7 @@ impl Timings {
             let after = if changed { "yes" } else { "no" };
             let what = format!(
                 "screen {} frame {frame} after_change {after} largest_ms {top}",
-                screen()
+                name
             );
             self.slowest = Some((total, total.saturating_sub(self.explained), what));
         }
@@ -443,6 +520,35 @@ impl Timings {
         self.block(elapsed, fade)
     }
 
+    /// The lines for the passes that drew: by kind of frame, then by
+    /// screen.
+    fn drawn_lines(&self) -> String {
+        let mut out = String::new();
+        for (name, kind) in [("moved", &self.moved), ("whole", &self.whole)] {
+            if kind.frame.count > 0 {
+                out.push_str(&format!(
+                    "{name:<8} {:>7} {:>9.2} {:>9.2} {:>9.2} {:>9.2}\n",
+                    kind.frame.count,
+                    mean_ms(kind.frame),
+                    ms(kind.frame.worst),
+                    mean_ms(kind.write),
+                    ms(kind.write.worst),
+                ));
+            }
+        }
+        for row in &self.screens {
+            let count = row.passes.frame.count;
+            out.push_str(&format!(
+                "by_screen {count:>6} {:>9.2} {:>9.2} {:>5.0}%  {}\n",
+                mean_ms(row.passes.frame),
+                mean_ms(row.passes.write),
+                row.moved as f64 * 100.0 / count.max(1) as f64,
+                row.name,
+            ));
+        }
+        out
+    }
+
     /// One block, and the buckets emptied behind it.
     fn block(&mut self, elapsed: Duration, fade: Option<FadeCounts>) -> String {
         let mut out = String::new();
@@ -518,6 +624,7 @@ impl Timings {
                 ));
             }
         }
+        out.push_str(&self.drawn_lines());
         if let Some((total, unexplained, what)) = &self.slowest {
             out.push_str(&format!(
                 "slowest  pass_ms {:.2} unexplained_ms {:.2} {what}\n",
@@ -528,6 +635,9 @@ impl Timings {
         out.push('\n');
         self.parts = [Tally::default(); PART_NAMES.len()];
         self.slowest = None;
+        self.moved = KindTally::default();
+        self.whole = KindTally::default();
+        self.screens.clear();
         self.tallies = [Tally::default(); NAMES.len()];
         self.work.clear();
         self.passes = 0;
@@ -676,6 +786,40 @@ mod tests {
         t.stepped(1, Duration::from_millis(10));
         let next = t.last(Duration::from_secs(10), None);
         assert!(next.contains("changes 0\n"), "{next}");
+    }
+
+    #[test]
+    fn a_block_counts_moved_and_whole_frames_and_each_screen() {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        for (frame, screen, took) in [
+            (Frame::Whole, "Home", 20),
+            (Frame::Moved, "Home", 4),
+            (Frame::Moved, "Home", 6),
+            (Frame::Whole, "Backup / Qr", 30),
+            (Frame::Fade, "Home", 9),
+        ] {
+            t.begin_pass();
+            t.add(Bucket::Frame, Duration::from_millis(took));
+            t.add(Bucket::Write, Duration::from_millis(2));
+            t.drawn_pass(Duration::from_millis(took + 2), frame, false, || {
+                screen.into()
+            });
+        }
+        let block = t.last(Duration::from_secs(5), None);
+        assert!(
+            block.contains("moved          2      5.00      6.00      2.00      2.00\n"),
+            "{block}"
+        );
+        assert!(
+            block.contains("whole          2     25.00     30.00      2.00      2.00\n"),
+            "{block}"
+        );
+        assert!(
+            block.contains("by_screen      4      9.75      2.00    50%  Home\n"),
+            "{block}"
+        );
+        let next = t.last(Duration::from_secs(10), None);
+        assert!(!next.contains("by_screen "), "{next}");
     }
 
     #[test]
