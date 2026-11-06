@@ -88,6 +88,13 @@ impl KeyInfo {
     pub fn has_words(&self) -> bool {
         self.word_count.is_some()
     }
+
+    /// Whether a Krux encrypted code can be made of the key (`docs/KEF.md`
+    /// §6): 12 or 24 words of the English list. A lookup of what is
+    /// kept beside the key; no word is parsed.
+    pub fn kef_offered(&self) -> bool {
+        self.language == Language::English && matches!(self.word_count, Some(12 | 24))
+    }
 }
 
 /// Why a key's secret leaves the store as text. The list is closed

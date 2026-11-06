@@ -1,7 +1,6 @@
 //! Generate with dice on Create a vault (`docs/FLOWS.md`, Create a vault):
 //! drawing only. What a press does is `dice_entry/mod.rs`.
 
-use crate::vault::screen::text_box;
 use crate::Action;
 use crate::dice_entry;
 use crate::drawing::View;
@@ -10,6 +9,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
+use crate::vault::screen::text_box;
 use crate::vault::{self, Focus, TextBox, VaultAction as V};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, LABEL_S};
 use faraday_draw::widgets::Icon;

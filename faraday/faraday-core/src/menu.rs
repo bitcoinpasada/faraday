@@ -24,6 +24,10 @@ pub(crate) enum Line {
     Head(String),
     /// A choice: what it reads, and the press it is.
     Item(String, Action),
+    /// A divider between groups of choices.
+    Divider,
+    /// A choice that is not available: what it reads, and why.
+    Off(String, String),
 }
 
 /// A menu as it is drawn: what the press that opened it worked out.
@@ -151,6 +155,8 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
         .map(|l| match l {
             Line::Head(name) => MenuLine::Head(name.as_str()),
             Line::Item(label, a) => MenuLine::Item(label.as_str(), *a, false),
+            Line::Divider => MenuLine::Divider,
+            Line::Off(label, why) => MenuLine::Off(label.as_str(), why.as_str()),
         })
         .collect();
     faraday_ui::menu::menu(

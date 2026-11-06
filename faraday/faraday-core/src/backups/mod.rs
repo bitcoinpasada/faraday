@@ -604,6 +604,10 @@ impl Faraday {
                         What::Codex32ShareFile(..) | What::Codex32QrFile(..) => out
                             .secret
                             .extend(crate::codex32_backup::stick_names(&shape, a, *what)),
+                        // A Krux code is an extra copy, not a copy of the
+                        // seed, and its files are named when made
+                        // (`docs/KEF.md` §15.1).
+                        What::KefCode(_) | What::KefCodePaper(_) => {}
                         What::Wallet if spot.at == At::Files => out.files.extend(public.clone()),
                         What::Wallet if spot.at == At::Software && a.form[plan::form::TEXT] => {
                             out.files.extend(public.clone())

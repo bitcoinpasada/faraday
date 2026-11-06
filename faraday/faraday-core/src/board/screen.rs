@@ -132,7 +132,7 @@ fn link(ui: &mut Ui, x: f32, cy: f32, color: crate::ui::Paint) {
 /// before its own, the closed lock before a vault's (§19.17 item 5).
 fn glyph(t: Thing) -> Option<Icon> {
     match t {
-        Thing::Seed(_) => Some(Icon::Fingerprint),
+        Thing::Seed(_) | Thing::Kef(_) => Some(Icon::Fingerprint),
         Thing::Pass(_) => Some(Icon::Passphrase),
         Thing::Vault(_) => Some(Icon::Lock),
         _ => None,
@@ -141,7 +141,7 @@ fn glyph(t: Thing) -> Option<Icon> {
 
 /// A chip's name is read character by character: a fingerprint.
 fn mono(t: Thing) -> bool {
-    matches!(t, Thing::Seed(_) | Thing::Pass(_))
+    matches!(t, Thing::Seed(_) | Thing::Pass(_) | Thing::Kef(_))
 }
 
 /// A placed chip inside a vault: it carries the lock mark.
@@ -2179,6 +2179,8 @@ pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .map(|r| match r {
             MenuRow::Head(name) => crate::menu::Line::Head(name.clone()),
             MenuRow::Item(label, p) => crate::menu::Line::Item(label.clone(), Action::Board(*p)),
+            MenuRow::Divider => crate::menu::Line::Divider,
+            MenuRow::Off(label, why) => crate::menu::Line::Off(label.clone(), why.clone()),
         })
         .collect();
     let icon = match menu.chip {

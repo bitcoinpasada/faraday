@@ -3430,7 +3430,7 @@ impl Faraday {
                     .public_all(field::PLAN_PLACE)
                     .map(|b| String::from_utf8_lossy(b).into_owned())
                     .collect();
-                Some((a, names))
+                Some((self.kef_dropped(wallet, a), names))
             })
     }
 

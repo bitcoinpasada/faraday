@@ -12666,10 +12666,22 @@ strings! {
     kef_refuse_id: "The id is 1 to 252 bytes.",
     /// A refusal: the version is not one of KEF's.
     kef_refuse_version: "That version is not one the format has.",
-    /// Said when the seed cannot be put in a Krux code: only 12 and 24 words of the English list can.
-    kef_not_offered: "Only a seed of 12 or 24 words in the English list can be put in a Krux code.",
+    /// Said under Krux code… when the seed cannot be put in a Krux code: only 12 and 24 words of the English list can.
+    kef_not_offered: "12 or 24 English words",
     /// The line under the ECB versions in Options.
     kef_ecb_line: "ECB writes equal blocks alike, so a code with two equal blocks is refused.",
     /// The line on the passphrase step and Options about a typed id.
     kef_public_id_line: "A typed id or the fingerprint is printed on the code and is not secret.",
+    /// Text in `label`: a seed's Krux code as files on a stick. `{}`: `seed(i)`.
+    plan_kef_code: "Seed {}: Krux code",
+    /// Text in `label`: a seed's Krux code copied by hand onto paper. `{}`: `seed(i)`.
+    plan_kef_code_paper: "Seed {}: Krux code, by hand",
+    /// A form on a chip: a seed's Krux encrypted code, on a stick or on paper.
+    board_kef_code: "Krux code",
+    /// The chart's name for a seed's Krux code. `{}`: the key's number.
+    glance_kef_code: "Key {} Krux code",
+    /// A row in a seed chip's menu: the boxes a Krux code can go to.
+    board_menu_kef: "Krux code…",
+    /// The title of the menu of boxes a seed's Krux code can go to.
+    board_menu_kef_to: "Krux code to…",
 }

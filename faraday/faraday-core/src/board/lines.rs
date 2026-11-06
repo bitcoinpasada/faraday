@@ -33,6 +33,8 @@ pub(super) fn form_label(w: What, software: &str) -> Option<String> {
         What::Codex32QrPaper(..) => EN.codex32_codex32qr.to_string(),
         What::Codex32ShareFile(..) => EN.board_text_file.to_string(),
         What::Codex32QrFile(..) => EN.board_qr_picture.to_string(),
+        // A Krux code, on a stick or drawn on paper (`docs/KEF.md` §15.1).
+        What::KefCode(_) | What::KefCodePaper(_) => EN.board_kef_code.to_string(),
         _ => return None,
     })
 }

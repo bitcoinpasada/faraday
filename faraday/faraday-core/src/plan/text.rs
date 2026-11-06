@@ -108,7 +108,8 @@ pub fn at_read(s: &str) -> Option<At> {
 /// A thing as a plan's `spot` line writes it: `w0` seed 0's words, `q0`
 /// its SeedQR, `p0` its passphrase, `sheet`, `share1`, `stick0` vault 0's
 /// stick, `seed0`, `seedp0` with its passphrase, `wallet`, `file0` its
-/// words file, `qrfile0` its SeedQR picture, `passfile0` its passphrase
+/// words file, `qrfile0` its SeedQR picture, `kef0` and `kefp0` its Krux code
+/// on a stick and on paper, `passfile0` its passphrase
 /// file, `wallettxt` and `walletqr` the description's text and picture,
 /// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's.
 pub fn what_code(w: What) -> String {
@@ -134,6 +135,8 @@ pub fn what_code(w: What) -> String {
         What::Codex32QrPaper(i, j) => format!("xq{i}.{j}"),
         What::Codex32ShareFile(i, j) => format!("xt{i}.{j}"),
         What::Codex32QrFile(i, j) => format!("xp{i}.{j}"),
+        What::KefCode(i) => format!("kef{i}"),
+        What::KefCodePaper(i) => format!("kefp{i}"),
     }
 }
 
@@ -158,6 +161,8 @@ pub fn what_read(s: &str) -> Option<What> {
         _ if s.starts_with("sharefile") => What::ShareFile(n("sharefile")?, form::QR),
         _ if s.starts_with("sharetxt") => What::ShareFile(n("sharetxt")?, form::TEXT),
         _ if s.starts_with("shareqr") => What::ShareFile(n("shareqr")?, form::QR),
+        _ if s.starts_with("kefp") => What::KefCodePaper(n("kefp")?),
+        _ if s.starts_with("kef") => What::KefCode(n("kef")?),
         _ if s.starts_with("xq") => two("xq").map(|(i, j)| What::Codex32QrPaper(i, j))?,
         _ if s.starts_with("xt") => two("xt").map(|(i, j)| What::Codex32ShareFile(i, j))?,
         _ if s.starts_with("xp") => two("xp").map(|(i, j)| What::Codex32QrFile(i, j))?,
@@ -183,6 +188,7 @@ pub fn what_read(s: &str) -> Option<What> {
 pub fn tag_of(at: At, what: What) -> Tag {
     match (at, what) {
         (At::Vault(_), _) | (_, What::VaultStick(_)) => Tag::Sealed,
+        (_, What::KefCode(_) | What::KefCodePaper(_)) => Tag::Sealed,
         (
             _,
             What::Sheet
@@ -509,7 +515,9 @@ impl Answers {
                 What::Codex32Share(i, _)
                 | What::Codex32QrPaper(i, _)
                 | What::Codex32ShareFile(i, _)
-                | What::Codex32QrFile(i, _) => i < shape.seeds.len(),
+                | What::Codex32QrFile(i, _)
+                | What::KefCode(i)
+                | What::KefCodePaper(i) => i < shape.seeds.len(),
                 _ => true,
             };
             let sticks_ok = edited.iter().all(|s| match s.at {
@@ -601,7 +609,9 @@ impl What {
             | What::Codex32Share(i, _)
             | What::Codex32QrPaper(i, _)
             | What::Codex32ShareFile(i, _)
-            | What::Codex32QrFile(i, _) => Some(i),
+            | What::Codex32QrFile(i, _)
+            | What::KefCode(i)
+            | What::KefCodePaper(i) => Some(i),
             _ => None,
         }
     }

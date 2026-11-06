@@ -1181,6 +1181,12 @@ pub enum What {
     Codex32ShareFile(usize, usize),
     /// That string's Codex32QR as a `.png` picture, on a stick at a place.
     Codex32QrFile(usize, usize),
+    /// Seed `i`'s Krux encrypted code as a picture and a `.kef` file, on a
+    /// stick at a place (`docs/KEF.md` §15.1): an extra copy that no
+    /// check counts.
+    KefCode(usize),
+    /// That code drawn by hand on paper at a place.
+    KefCodePaper(usize),
 }
 
 /// How what is kept may be read.
@@ -1249,6 +1255,8 @@ impl What {
             What::Wallet => EN.plan_wallet_description.to_string(),
             What::SeedFile(i) => fill(EN.plan_seed_file, &[&seed(i).to_string()]),
             What::SeedQrFile(i) => fill(EN.plan_seedqr_file, &[&seed(i).to_string()]),
+            What::KefCode(i) => fill(EN.plan_kef_code, &[&seed(i)]),
+            What::KefCodePaper(i) => fill(EN.plan_kef_code_paper, &[&seed(i)]),
             What::PassphraseFile(i) => fill(EN.plan_passphrase_file, &[&seed(i).to_string()]),
             What::WalletFile(f) => fill(EN.plan_wallet_file, &[form_name(f)]),
             What::ShareFile(j, f) => fill(
@@ -1729,7 +1737,9 @@ impl Have {
                     *s = true;
                 }
             }
-            What::VaultStick(_) => {}
+            // A Krux code is an extra copy that counts for nothing
+            // (`docs/KEF.md` §15.1).
+            What::VaultStick(_) | What::KefCode(_) | What::KefCodePaper(_) => {}
             What::Codex32Share(i, j)
             | What::Codex32QrPaper(i, j)
             | What::Codex32ShareFile(i, j)
@@ -2541,6 +2551,7 @@ pub fn is_file(w: What) -> bool {
             | What::SoftwareFile
             | What::Codex32ShareFile(..)
             | What::Codex32QrFile(..)
+            | What::KefCode(_)
     )
 }
 

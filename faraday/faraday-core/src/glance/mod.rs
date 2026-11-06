@@ -447,7 +447,8 @@ fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
         .records()
         .iter()
         .find(|r| r.sum == sum && !r.answers.is_empty())
-        .and_then(|r| plan::Answers::from_text(&shape, &r.answers));
+        .and_then(|r| plan::Answers::from_text(&shape, &r.answers))
+        .map(|a| app.kef_dropped(wallet, a));
     match (recorded, kept) {
         (Some(a), kept) => Some((a, kept.map(|(_, n)| n).unwrap_or_default())),
         (None, kept) => kept,
@@ -817,6 +818,9 @@ fn backup_nodes(
         | What::Codex32QrPaper(i, j)
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => c32_label(number(i), j),
+        What::KefCode(i) | What::KefCodePaper(i) => {
+            fill(EN.glance_kef_code, &[&number(i).to_string()])
+        }
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -2026,6 +2030,9 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
         | What::Codex32QrPaper(i, j)
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => c32_label(number(i), j),
+        What::KefCode(i) | What::KefCodePaper(i) => {
+            fill(EN.glance_kef_code, &[&number(i).to_string()])
+        }
     }
 }
 

@@ -4,10 +4,10 @@
 //! as this computer's, so that the passphrase's strength line says
 //! "simulated dice".
 
-use crate::vault::{Focus, TextBox, VaultAction as V};
-use crate::strings::{EN, fill};
 use crate::Faraday;
 use crate::fresh::roller::{Act, PerClick};
+use crate::strings::{EN, fill};
+use crate::vault::{Focus, TextBox, VaultAction as V};
 use faraday_shell_api::Key as K;
 use zeroize::Zeroizing;
 

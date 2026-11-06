@@ -51,6 +51,9 @@ pub enum Thing {
     /// Codex32 string `j` (its share index's bech32 value) of seed `i`
     /// (`docs/CODEX32.md` §9.5).
     String(usize, usize),
+    /// Seed `i`'s Krux encrypted code (`docs/KEF.md` §15.1): a chip the
+    /// list does not show, made by a seed chip's menu.
+    Kef(usize),
 }
 
 /// Where on the board a chip can be dropped.
@@ -180,6 +183,9 @@ pub enum Verb {
     /// **Copy to…**: a placed chip also kept in the box chosen, as a
     /// second drop from the list keeps it.
     Copy,
+    /// **Krux code…** in a seed chip's menu: the boxes the seed's Krux
+    /// code can go to (`docs/KEF.md` §15.1).
+    Kef,
 }
 
 /// One row of a chip's ⋮ menu.
@@ -189,6 +195,10 @@ pub enum MenuRow {
     Head(String),
     /// A choice: what it reads, and the press it is.
     Item(String, BoardPress),
+    /// A divider between groups of choices.
+    Divider,
+    /// A choice not available: what it reads, and why under it.
+    Off(String, String),
 }
 
 /// A chip's ⋮ menu while it is open: worked out on the press that opened
@@ -222,7 +232,7 @@ impl Menu {
             .iter()
             .filter_map(|r| match r {
                 MenuRow::Item(_, p) => Some(*p),
-                MenuRow::Head(_) => None,
+                MenuRow::Head(_) | MenuRow::Divider | MenuRow::Off(..) => None,
             })
             .collect()
     }
@@ -342,6 +352,8 @@ fn forms_in(k: Kind, t: Thing) -> Vec<What> {
         (Kind::Vault, Thing::Share(j)) => vec![What::Share(j)],
         (Kind::Scanned | Kind::Public, Thing::Whole) => vec![What::Wallet],
         (Kind::Public, Thing::Seed(i)) => vec![What::SeedFile(i)],
+        (Kind::Paper, Thing::Kef(i)) => vec![What::KefCodePaper(i)],
+        (Kind::Files, Thing::Kef(i)) => vec![What::KefCode(i)],
         _ => Vec::new(),
     }
 }
@@ -374,6 +386,7 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         | What::Codex32QrPaper(i, j)
         | What::Codex32ShareFile(i, j)
         | What::Codex32QrFile(i, j) => vec![Thing::String(i, j)],
+        What::KefCode(i) | What::KefCodePaper(i) => vec![Thing::Kef(i)],
     }
 }
 
@@ -443,7 +456,7 @@ pub fn target(z: Zone, t: Thing) -> Zone {
 pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
     let thing_ok = match t {
-        Thing::Seed(i) | Thing::String(i, _) => here(i),
+        Thing::Seed(i) | Thing::String(i, _) | Thing::Kef(i) => here(i),
         Thing::Pass(i) => shape.seeds.get(i).is_some_and(|s| s.here && s.passphrase),
         Thing::Share(j) => shape.splits && j < shape.keys,
         Thing::Whole | Thing::Vault(_) | Thing::Software => true,
@@ -459,6 +472,8 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
             Thing::Vault(_),
         ) => true,
         (_, Thing::Vault(_)) | (Zone::Card(_), _) => false,
+        // A code is no vault record: it goes on paper or a stick's files.
+        (Zone::Vault(..), Thing::Kef(_)) => false,
         (Zone::Vault(..), _) => true,
         _ if locked => false,
         (Zone::Scanned, _) => false,
@@ -926,7 +941,7 @@ impl Faraday {
     /// fingerprint, "Whole", "Share 1", the vault's title.
     fn board_thing_name(&self, shape: &Shape, t: Thing) -> String {
         match t {
-            Thing::Seed(i) | Thing::Pass(i) => shape
+            Thing::Seed(i) | Thing::Pass(i) | Thing::Kef(i) => shape
                 .seeds
                 .get(i)
                 .map_or_else(String::new, |s| s.name.clone()),
@@ -1574,7 +1589,9 @@ impl Faraday {
             return false;
         }
         match c.thing() {
-            Thing::Seed(i) | Thing::String(i, _) => shape.seeds.get(i).is_some_and(|s| s.here),
+            Thing::Seed(i) | Thing::String(i, _) | Thing::Kef(i) => {
+                shape.seeds.get(i).is_some_and(|s| s.here)
+            }
             _ => true,
         }
     }
@@ -1652,17 +1669,20 @@ impl Faraday {
                 let Some(menu) = state.menu else {
                     return;
                 };
-                let Chip::Placed(..) = menu.chip else {
-                    return;
-                };
                 if !menu.presses().contains(&press) {
                     return;
                 }
-                let rows = self.board_menu_boxes(menu.chip);
-                let title = match v {
-                    Verb::Copy => EN.board_menu_copy,
-                    _ => EN.board_menu_move,
+                // **Krux code…** is a list seed chip's; the others a
+                // placed chip's.
+                let (chip, title) = match (v, menu.chip) {
+                    (Verb::Kef, Chip::List(Thing::Seed(i))) => {
+                        (Chip::List(Thing::Kef(i)), EN.board_menu_kef_to)
+                    }
+                    (Verb::Kef, _) | (_, Chip::List(_)) => return,
+                    (Verb::Copy, c) => (c, EN.board_menu_copy),
+                    (_, c) => (c, EN.board_menu_move),
                 };
+                let rows = self.board_menu_boxes(chip);
                 if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
                     m.verb = Some(v);
                     m.title = title.to_string();
@@ -1683,7 +1703,10 @@ impl Faraday {
                 // The same edit a drop makes, with all that follows it
                 // (§19.20 item 2): from the list for Add to… and Copy to…
                 // (a second drop from the list), from its box for Move to….
-                let t = menu.chip.thing();
+                let t = match (menu.verb, menu.chip.thing()) {
+                    (Some(Verb::Kef), Thing::Seed(i)) => Thing::Kef(i),
+                    (_, t) => t,
+                };
                 match (menu.verb, menu.chip) {
                     (Some(Verb::Move), Chip::Placed(from, _)) => {
                         self.board_put(Chip::Placed(from, t), z);
@@ -1946,7 +1969,7 @@ impl Faraday {
             Chip::List(_) => (
                 Some(Verb::Add),
                 EN.board_menu_add.to_string(),
-                self.board_menu_boxes(c),
+                self.board_menu_add_rows(c),
             ),
             Chip::Placed(z, t) => (
                 None,
@@ -1970,6 +1993,80 @@ impl Faraday {
         }
         self.sheet = Some(crate::Sheet::BoardMenu);
         self.scroll.reset_sheet();
+    }
+
+    /// A list chip's first menu level: the boxes it can be added to, and
+    /// for a seed, past a divider, **Krux code…** (`docs/KEF.md` §15.1),
+    /// dimmed with the reason under it for a seed that cannot have one.
+    /// Only Back up's board, before the lock, has it: a wallet flow's own
+    /// plan has no seed's code, its keys being made after it.
+    fn board_menu_add_rows(&self, c: Chip) -> Vec<MenuRow> {
+        let mut rows = self.board_menu_boxes(c);
+        let Chip::List(Thing::Seed(i)) = c else {
+            return rows;
+        };
+        let Some((shape, a)) = self.board_plan() else {
+            return rows;
+        };
+        let backup = matches!(self.board_of(), Some(BoardOf::Backup));
+        if !backup
+            || !a.custom
+            || self.board_locked().is_some()
+            || !shape.seeds.get(i).is_some_and(|s| s.here)
+        {
+            return rows;
+        }
+        if !rows.is_empty() {
+            rows.push(MenuRow::Divider);
+        }
+        rows.push(if self.board_kef_offered(i) {
+            MenuRow::Item(
+                EN.board_menu_kef.to_string(),
+                BoardPress::MenuVerb(Verb::Kef),
+            )
+        } else {
+            MenuRow::Off(
+                EN.board_menu_kef.to_string(),
+                EN.kef_not_offered.to_string(),
+            )
+        });
+        rows
+    }
+
+    /// Whether a Krux code can be made of seed `i` of Back up's wallet:
+    /// 12 or 24 words of the English list, a lookup of what is kept beside
+    /// the key (`docs/KEF.md` §6).
+    fn board_kef_offered(&self, i: usize) -> bool {
+        let Some(b) = self.backup.state() else {
+            return false;
+        };
+        let Some(wallet) = self.session.wallets.get(b.wallet) else {
+            return false;
+        };
+        self.kef_offered_of(wallet, i)
+    }
+
+    /// Whether a Krux code can be made of seed `i` of `wallet`: 12 or 24
+    /// words of the English list, a lookup of what is kept beside the key
+    /// (`docs/KEF.md` §6).
+    fn kef_offered_of(&self, wallet: &crate::wallet::Wallet, i: usize) -> bool {
+        self.backup_seed_list_of(wallet)
+            .get(i)
+            .and_then(|(_, k)| *k)
+            .and_then(|k| self.session.keys.info(k))
+            .is_some_and(|info| info.kef_offered())
+    }
+
+    /// A plan `a` read back for `wallet`, without the Krux code of a seed
+    /// that cannot have one (a seed loaded another way since).
+    pub(crate) fn kef_dropped(&self, wallet: &crate::wallet::Wallet, mut a: Answers) -> Answers {
+        for spot in a.map.iter_mut().flatten() {
+            spot.holds.retain(|(w, _)| match w {
+                What::KefCode(i) | What::KefCodePaper(i) => self.kef_offered_of(wallet, *i),
+                _ => true,
+            });
+        }
+        a
     }
 
     /// The open menu closed, its sheet with it.
@@ -2174,6 +2271,15 @@ impl Faraday {
                         if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
                             m.verb = None;
                             m.title = title;
+                            m.rows = rows;
+                            m.at = 0;
+                            m.keys = true;
+                        }
+                    } else if let (Some(Verb::Kef), Chip::List(_)) = (menu.verb, menu.chip) {
+                        let rows = self.board_menu_add_rows(menu.chip);
+                        if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
+                            m.verb = Some(Verb::Add);
+                            m.title = EN.board_menu_add.to_string();
                             m.rows = rows;
                             m.at = 0;
                             m.keys = true;

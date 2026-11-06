@@ -11,9 +11,9 @@ use crate::pal::*;
 use crate::sheet;
 use crate::{Glyph, Plain, Region, Style, Ui};
 use faraday_draw::tokens::{
-    ELEVATION_MENU, FOCUS_RING, GAP, GRID, ICON_GAP, ICON_GLYPH_BUTTON, LABEL_L, LABEL_M,
-    LIST_PAD_V, MENU_HEAD_H, MENU_INDENT, MENU_ITEM_H, MENU_ITEM_PAD, MENU_MAX_W, MENU_MIN_W,
-    MENU_PAD_V, SHAPE_XS,
+    DISABLED_CONTENT, ELEVATION_MENU, FOCUS_RING, GAP, GAP_SMALL, GRID, ICON_GAP,
+    ICON_GLYPH_BUTTON, LABEL_L, LABEL_M, LIST_PAD_V, MENU_HEAD_H, MENU_INDENT, MENU_ITEM_H,
+    MENU_ITEM_PAD, MENU_MAX_W, MENU_MIN_W, MENU_PAD_V, SHAPE_XS,
 };
 use faraday_draw::widgets::Icon;
 
@@ -26,6 +26,11 @@ pub enum MenuLine<'s, A> {
     /// An item: what it reads, the press it is, and whether it is the
     /// one chosen now.
     Item(&'s str, A, bool),
+    /// A divider between groups of items (Material's menu divider).
+    Divider,
+    /// An item that is not available: what it reads and, under it, why.
+    /// Faint, it takes no press and the keyboard passes it.
+    Off(&'s str, &'s str),
 }
 
 /// A menu as it is drawn.
@@ -61,6 +66,16 @@ fn head_h<A: Copy + PartialEq>(ui: &Ui<A>) -> f32 {
     MENU_HEAD_H + ui.line_grown_as(LABEL_M)
 }
 
+/// A divider's height: the menu's own padding, the rule across its middle.
+fn divider_h() -> f32 {
+    2.0 * MENU_PAD_V
+}
+
+/// An unavailable item's height: an item's, and a line of its reason.
+fn off_h<A: Copy + PartialEq>(ui: &Ui<A>) -> f32 {
+    item_h(ui) + ui.line_as(LABEL_M)
+}
+
 /// The room a chosen item's tick takes at its end.
 const TICK: f32 = ICON_GLYPH_BUTTON + ICON_GAP;
 
@@ -78,6 +93,11 @@ pub fn menu_width<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>) -> f32 {
             MenuLine::Item(label, ..) => {
                 widest = widest.max(ui.measure_as(LABEL_L.regular(), label) + under + TICK);
             }
+            MenuLine::Off(label, why) => {
+                widest = widest.max(ui.measure_as(LABEL_L.regular(), label) + under + TICK);
+                widest = widest.max(ui.measure_as(LABEL_M, why) + under + TICK);
+            }
+            MenuLine::Divider => {}
         }
     }
     (widest + 2.0 * MENU_ITEM_PAD).clamp(MENU_MIN_W, MENU_MAX_W)
@@ -94,6 +114,8 @@ fn content_h<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>, titled: bool) -> f32 
         .map(|l| match l {
             MenuLine::Head(_) => hh,
             MenuLine::Item(..) => ih,
+            MenuLine::Off(..) => off_h(ui),
+            MenuLine::Divider => divider_h(),
         })
         .sum();
     title + lines + 2.0 * MENU_PAD_V
@@ -126,6 +148,19 @@ fn lines<A: Copy + PartialEq>(ui: &mut Ui<A>, m: &Menu<A>, (x, y, w): (f32, f32,
                 );
                 cy += ih;
                 k += 1;
+            }
+            MenuLine::Divider => {
+                ui.rule(x, cy + MENU_PAD_V, w, Role::OutlineVariant);
+                cy += divider_h();
+            }
+            MenuLine::Off(label, why) => {
+                let ix = x + MENU_ITEM_PAD + under;
+                let room = (x + w - MENU_ITEM_PAD - ix).max(0.0);
+                let fg = Role::OnSurface.at(DISABLED_CONTENT);
+                ui.text_fit_as((ix, cy, ih, room), LABEL_L.regular(), fg, label);
+                let sh = ui.line_as(LABEL_M);
+                ui.text_fit_as((ix, cy + ih - GAP_SMALL, sh, room), LABEL_M, fg, why);
+                cy += off_h(ui);
             }
         }
     }

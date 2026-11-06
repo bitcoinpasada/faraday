@@ -2703,3 +2703,129 @@ fn sorted(mut v: Vec<What>) -> Vec<String> {
     out.sort();
     out
 }
+
+// ---- A seed's Krux code (`docs/KEF.md` §15.1) ----
+
+/// Whether the plan on screen holds `w` anywhere.
+fn map_holds(app: &Faraday, w: What) -> bool {
+    the_map(app)
+        .iter()
+        .any(|s| s.holds.iter().any(|(h, _)| *h == w))
+}
+
+/// **Krux code…** in a seed's ⋮ opens **Krux code to…**, the boxes the
+/// code can go to, and a box chosen puts the code there: a chip named by
+/// the seed, reading "Krux code".
+#[test]
+fn a_krux_code_is_added_from_the_seeds_menu_and_shows_on_its_chip() {
+    let mut app = menu_board();
+    let s = vault_stick(&app, 0, 0).unwrap();
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    expect(&mut app, "Add to…");
+    expect(&mut app, "Krux code…");
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
+    expect(&mut app, "Krux code to…");
+    assert!(
+        offered(&mut app, Action::Board(BP::MenuTo(Zone::Files(0, s)))),
+        "a stick's files take it"
+    );
+    tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
+    assert_eq!(app.sheet, None, "the menu closes");
+    assert!(map_holds(&app, What::KefCode(0)));
+    let name = backup_shape(&app).seeds[0].name.clone();
+    expect(&mut app, &name);
+    expect(&mut app, "· Krux code");
+}
+
+/// A placed code moves between a stick's files and a place's paper, and
+/// is copied there: the file and the hand-copied code are two forms of
+/// the one chip.
+#[test]
+fn a_krux_code_moves_and_copies_between_a_sticks_files_and_paper() {
+    let mut app = menu_board();
+    let s = vault_stick(&app, 0, 0).unwrap();
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
+    tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
+    let chip = Chip::Placed(Zone::Files(0, s), Thing::Kef(0));
+    tap(&mut app, dots(chip));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Move));
+    tap(&mut app, BP::MenuTo(Zone::Paper(1)));
+    assert!(map_holds(&app, What::KefCodePaper(0)));
+    assert!(!map_holds(&app, What::KefCode(0)), "left the stick");
+    let chip = Chip::Placed(Zone::Paper(1), Thing::Kef(0));
+    tap(&mut app, dots(chip));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Copy));
+    tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
+    assert!(map_holds(&app, What::KefCodePaper(0)), "still on paper");
+    assert!(map_holds(&app, What::KefCode(0)), "and now on the stick");
+}
+
+/// A plan saved and read back holds the codes it had, as its text only.
+#[test]
+fn a_plan_with_a_krux_code_reads_back_with_it() {
+    let mut app = menu_board();
+    let s = vault_stick(&app, 0, 0).unwrap();
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
+    tap(&mut app, BP::MenuTo(Zone::Files(0, s)));
+    tap(&mut app, dots(Chip::List(Thing::Seed(1))));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
+    tap(&mut app, BP::MenuTo(Zone::Paper(1)));
+    let b = app.backup().unwrap();
+    let text = b.answers.to_text();
+    assert!(text.contains("kef0") && text.contains("kefp1"), "{text}");
+    let shape = backup_shape(&app);
+    let back = Answers::from_text(&shape, &text).expect("reads back");
+    let c = testkit::compute();
+    assert_eq!(plan::map(&c, &shape, &back), the_map(&app));
+}
+
+/// A seed kept only as a Krux code is kept nowhere: the code is an extra
+/// copy that no check counts.
+#[test]
+fn a_seed_kept_only_as_a_krux_code_is_still_kept_nowhere() {
+    let c = testkit::compute();
+    let mut app = passphrase_key_on_the_board();
+    for p in 0..backup_places(&app) {
+        for w in held(&the_map(&app), At::Place(p)) {
+            if let What::Words(_) = w {
+                tap(&mut app, BP::Off(Zone::Paper(p), Thing::Seed(0)));
+            }
+        }
+    }
+    assert!(app.backup_kept_nowhere(&c).is_some(), "nothing kept yet");
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
+    tap(&mut app, BP::MenuTo(Zone::Paper(0)));
+    assert!(map_holds(&app, What::KefCodePaper(0)));
+    let kept = app.backup_kept_nowhere(&c).expect("still kept nowhere");
+    let seed = backup_shape(&app).seeds[0].name.clone();
+    assert!(kept.contains(&seed), "{kept}");
+}
+
+/// A 15-word seed's **Krux code…** is there, dimmed, and does nothing.
+#[test]
+fn a_fifteen_word_seeds_krux_code_row_is_dimmed() {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    let words = format!("{} address", vec!["abandon"; 14].join(" "));
+    for c in words.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    let fp = app.session.keys.last().unwrap().fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    open_board(&mut app);
+    app.press(Action::Board(BP::Customize));
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    expect(&mut app, "Krux code…");
+    expect(&mut app, "12 or 24 English words");
+    assert!(!offered(
+        &mut app,
+        Action::Board(BP::MenuVerb(faraday_core::board::Verb::Kef))
+    ));
+}
