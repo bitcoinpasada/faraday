@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's and the wallet chart's entries, worked out at every frame)
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the framebuffer write's last point, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's and the wallet chart's entries, worked out at every frame)
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -477,7 +477,7 @@ in from the program a page at a time and then into the framebuffer.
 It writes only the bands of rows that changed (SPEED §11.1). After a
 scroll step that is the whole view, and must be (§3.7).
 
-The change (points 1 to 3 are built, point 4 is not):
+The change (all four points are built):
 
 1. **One comparison.** *(Built.)* The presenter knows which rows changed; it hands
    the panel those bands, and the panel writes them without comparing
@@ -488,8 +488,21 @@ The change (points 1 to 3 are built, point 4 is not):
    copied to draw it in.
 3. **Bands, not a span** *(Built.)* (§3.7): a caret and the clock are two writes,
    not the rows between them.
-4. With §5 the Pi's `shown` is the presenter's kept frame, one buffer
-   for both, moved under the lock.
+4. **One buffer on the Pi.** *(Built with §5.)* On the path where the frame is
+   written as it is, the presenter keeps no `last` and no converted copy
+   (it drops both), so `shown` is the only kept frame: a pass that
+   changes the whole view makes one copy into it (the rows written, from
+   the core's frame, which the core owns), and a moved frame is taken
+   whole there, as the framebuffer takes every row anyway (§3.7), so
+   there is no second buffer to move. Moving `shown` itself would copy
+   the same bytes the copy from the frame does. The copy that is left
+   (about 1.2 MB at 480 × 640 and 4.2 MB at 1366 × 768) goes only if the core
+   hands its frame over as a buffer the panel may keep. The converting
+   path (a PC's other byte orders or depth, a turned frame) keeps `last`,
+   the converted copy and `shown`, and the converted copy is copied into
+   `shown` row by row as written. Nothing wipes `shown` or `last`
+   (`Panel::blank` writes black to the framebuffer and marks the panel
+   stale).
 
 A write of the whole view then crosses the memory twice in the kernel,
 where it crossed three times and was compared twice. The Pi's write is

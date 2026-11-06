@@ -696,6 +696,60 @@ mod tests {
         assert_eq!(shown(), out);
     }
 
+    #[test]
+    fn a_red_first_panel_shows_the_frame_after_a_blanking_and_in_a_window() {
+        let mut frame = opaque(Turn::R0, 40);
+        frame
+            .chunks_exact_mut(4)
+            .for_each(|p| p[..3].copy_from_slice(&[200, 100, 10]));
+        let rows = u64::from(G32.height);
+
+        // A blanked panel takes the same frame whole.
+        let panel = Mutex::new(Panel::new(Vec::new(), G32));
+        let mut p = Presenter::default();
+        p.present(&frame, G32, Turn::R0, &panel, None)
+            .expect("written");
+        lock(&panel).blank();
+        assert!(lock(&panel).sink().iter().all(|&b| b == 0));
+        let before = p.counts(&panel);
+        p.present(&frame, G32, Turn::R0, &panel, None)
+            .expect("written");
+        assert_eq!(since(p.counts(&panel), before).written, rows);
+        assert_eq!(*lock(&panel).sink(), frame);
+
+        // In a window of a larger screen: the frame is inside, the rest
+        // of the screen black.
+        let screen = Geometry {
+            width: 600,
+            height: 700,
+            stride: 2400,
+            ..G32
+        };
+        let (inside, at) = screen.window((G32.width, G32.height)).expect("fits");
+        let panel = Mutex::new(Panel::new(Vec::new(), inside));
+        lock(&panel).window_in(screen, at);
+        let mut p = Presenter::default();
+        p.present(&frame, inside, Turn::R0, &panel, None)
+            .expect("written");
+        lock(&panel).move_arrow(Some((200, 300))).expect("moved");
+        lock(&panel).move_arrow(None).expect("moved");
+        let shown = lock(&panel).sink().clone();
+        let (x0, y0) = (usize::from(at.0), usize::from(at.1));
+        for y in 0..usize::from(screen.height) {
+            for x in 0..usize::from(screen.width) {
+                let i = y * screen.stride + x * 4;
+                let inside = (x0..x0 + 480).contains(&x) && (y0..y0 + 640).contains(&y);
+                let want = if inside {
+                    let f = ((y - y0) * 480 + x - x0) * 4;
+                    &frame[f..f + 4]
+                } else {
+                    &[0u8; 4][..]
+                };
+                assert_eq!(&shown[i..i + 4], want, "pixel {x},{y}");
+            }
+        }
+    }
+
     const SAID: &str = "faraday-timings.txt written";
 
     /// What a panel `g` should hold for an opaque grey frame at `turn`
