@@ -19,6 +19,7 @@ need. Each document's header says what kind it is:
 | Question | Look in |
 |---|---|
 | What runs on the device, as whom, and what can each part reach? | `docs/SECURITY-MODEL.md` |
+| Which kernel patches does each image carry, why, and at what cost? | `docs/KERNEL-PATCHES.md` |
 | Which standard does each wallet kind, key method, format and tool follow, how fully, and where did Faraday decide for itself? | `docs/STANDARDS.md` |
 | Which code computes cryptography, and what checks it? | `docs/AUDIT.md`, then each crypto crate's README (`core/faraday-bip/README.md` and the others) |
 | Why does Faraday write a piece of cryptography itself rather than take a library, and which libraries does it not establish? | `docs/ESTABLISHED.md` |
@@ -86,6 +87,7 @@ need. Each document's header says what kind it is:
 - `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, the order of work, and what the cross-check compares each action with after the switches. Built (F178, F180, F181, F190, F191, F192, F193, F213); how it was built is in `docs/history/ESTABLISHED-LOG.md`; §6 is the work kept for later.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey, and move a key to a vault on another machine by camera. Built (F169, F215).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
+- `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
 - `docs/ORIENTATION.md`: Panel orientation. Built (F100): a 7-inch or 10-inch panel starts in landscape, Rotation in Settings › Display turns it and its touch.

@@ -64,7 +64,7 @@ side through DRM with its framebuffer emulation, the sound core vc4 cannot
 build without (and no sound driver), the generic USB HID drivers, and USB
 storage and SCSI; the board's `kernel.required` and `kernel.forbidden`
 hold each of those to the PC's rules. It compiles the board's kernel
-source with one patch of Faraday's own, to the EDID read (F153, F205): vc4 binds the
+source with the patches `docs/KERNEL-PATCHES.md` lists (F153, F205): vc4 binds the
 Pi 3's V3D and creates a render node, which
 `common/rootfs-overlay/etc/mdev.conf` gives to root alone with
 `/dev/dri/card0`, and DRM selects `KCMP`, which the Pi allows while the
@@ -316,7 +316,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Piece | Choice |
 |---|---|
 | Buildroot | 2024.02 LTS, pinned to a release tag in the `justfile` |
-| Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins, with two patches to the EDID read and a third that makes vc4's framebuffer 32 bits, red first (`linux-patches/`, `docs/IMAGES.md` §3.2, `docs/FRAMES.md` §5), and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/DECISIONS.md` F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
+| Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins, with the patches `docs/KERNEL-PATCHES.md` lists (`linux-patches/`, `docs/IMAGES.md` §3.2), and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/KERNEL-PATCHES.md`, F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
 | C library | musl, static only. BusyBox is the one package Buildroot builds for the target, so there is no shared library in the image at all |
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
 | Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |

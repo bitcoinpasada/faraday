@@ -95,8 +95,9 @@ internal error rather than carrying on.
   driver will not build without it, and no sound driver: HDMI audio is
   turned off in the device tree, so no sound card exists. Its `/dev/snd`
   nodes, if any, are root's, as every node `mdev.conf` names no owner for.
-  It is the board's kernel source as it is, with no patch of Faraday's
-  own, so it also has `kcmp()`, which the kernel's DRM selects (F153):
+  It is the board's kernel source with only the patches
+  `docs/KERNEL-PATCHES.md` lists, none of which touches `KCMP`, so it also
+  has `kcmp()`, which the kernel's DRM selects (F153):
   it says only whether two processes share a kernel object, for
   processes that pass ptrace's read check against the caller, and each
   process on the device runs as a user of its own. The PC

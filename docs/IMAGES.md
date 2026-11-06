@@ -46,10 +46,12 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
 
 - **DRM, for the display only.** vc4's display side, the DPI panel's
   driver, and the 2.8-inch's I²C touch controller. The Pi
-  builds the board's kernel source with two kernel patches of Faraday's
-  own, one to the EDID read (owner, F153, F205) and one that makes vc4's
-  framebuffer 32 bits with red first, so the shell writes its frame
-  without a conversion (`docs/FRAMES.md` §5), and one mainline commit. vc4 also binds the GPU's 3D block,
+  builds the board's kernel source with the patches
+  `docs/KERNEL-PATCHES.md` lists: three of Faraday's own, one to the EDID
+  read (owner, F153, F205), one that makes vc4's framebuffer 32 bits with
+  red first, so the shell writes its frame without a conversion
+  (`docs/FRAMES.md` §5), and one that stops vc4's output polling on unbind,
+  and one mainline commit. vc4 also binds the GPU's 3D block,
   V3D, and creates a render node, `/dev/dri/renderD128`; Kconfig has no
   switch for either. **The render node is root's alone, no patch:**
   `faraday/image/common/rootfs-overlay/etc/mdev.conf` gives it and
