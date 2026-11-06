@@ -20,10 +20,10 @@ pub const FRAME: Duration = Duration::from_micros(16_667);
 const MOST: u32 = 4;
 /// A pass must fit the step with this much room before the step is kept;
 /// a step that no longer holds it is lengthened at once.
-const KEEP: f64 = 1.1;
+const KEEP: f64 = 1.15;
 /// The step is shortened only when a pass fits the shorter one with this
 /// much room, so the step does not flip at the boundary.
-const SHORTEN: f64 = 1.28;
+const SHORTEN: f64 = 1.4;
 
 /// How many of a fade's recent steps the median of their cost is taken
 /// over.
@@ -216,8 +216,8 @@ mod tests {
     #[test]
     fn a_cost_at_the_boundary_does_not_flip_the_step() {
         let mut pace = Pace::new();
-        // A pass moves down to one frame under about 13 ms and leaves it
-        // above about 15.2 ms; 14 ms is between, and keeps the step it
+        // A pass moves down to one frame under about 11.9 ms and leaves
+        // it above about 14.5 ms; 14 ms is between, and keeps the step it
         // is on, whichever side it came from.
         for _ in 0..20 {
             pace.drew(ms(20));
@@ -240,8 +240,8 @@ mod tests {
         }
         assert_eq!(pace.step(), FRAME * 2, "16 ms no longer fits one");
         for _ in 0..20 {
-            pace.drew(ms(12));
+            pace.drew(ms(11));
         }
-        assert_eq!(pace.step(), FRAME, "12 ms fits one again");
+        assert_eq!(pace.step(), FRAME, "11 ms fits one again");
     }
 }

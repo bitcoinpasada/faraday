@@ -89,14 +89,15 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   more than the coarsest step, since any longer one chooses the same
   step, so a stall does not keep the grid coarse for a second after it)
   and steps by the fewest
-  whole refreshes that hold it with a tenth's room: one at 60 Hz on a
+  whole refreshes that hold it with 15 % room: one at 60 Hz on a
   machine that draws in a few milliseconds, two (30 Hz) on one that
   takes twenty, up to four. A step is shortened again only when the
-  shorter one holds the cost with 28 % room, so a pass costing 13 ms or
-  less is on one refresh, one over about 15.2 ms is not, and one between
+  shorter one holds the cost with 40 % room, so a pass costing about
+  11.9 ms or less is on one refresh, one over about 14.5 ms is not, and one between
   keeps the step it is on, so it does not flip at the boundary (`faraday/shells/stick/src/pace.rs`, with tests;
   `Shell::drew` in the desktop shell, which also takes the refresh
-  period from the monitor the window is on). On Wayland the compositor
+  period from the monitor the window is on, and keeps with 25 % room and
+  shortens with 60 %). On Wayland the compositor
   settles the rate the same way by itself: a frame that misses a refresh
   is shown at the next, and the frame after is asked for from there.
 - **On every stick a fade's steps keep their own step.** A step that
