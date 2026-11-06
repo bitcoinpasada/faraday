@@ -1,7 +1,8 @@
 //! A vault's Argon2id runs as jobs on the worker (`docs/WORKERS.md` §6,
 //! `docs/KEYS.md` §2): opening a vault (an Unlock on the Vaults tab, the
 //! Spend tab, the boot import, a backup flow), making one, and writing a
-//! KeePass export. The front
+//! KeePass export. The one-pass measurement of this computer's speed
+//! runs there too, as a quiet job. The front
 //! half reads the state and builds the job, the passphrase moved into
 //! faraday-keys' [`StretchJob`]; the back half takes the answer, on the
 //! main thread, and the open vault joins the store there.
@@ -512,4 +513,76 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
             }
         }
     }
+}
+
+/// The one Argon2id pass over 64 MiB that tells the unlock estimates how
+/// fast this computer is, to run on the worker without a busy screen.
+pub(crate) struct MeasureWork;
+
+/// The measurement's answer: the milliseconds the pass took.
+pub(crate) struct MeasureDone {
+    ms: u64,
+}
+
+impl MeasureWork {
+    /// Costs an Argon2id run of one pass over 64 MiB, thrown away. The
+    /// figure is the run's own time, on the worker, and is noted for the
+    /// dev card ([`work::note_vault_took`]).
+    pub(crate) fn run(self, c: &Compute) -> MeasureDone {
+        let cost = Cost {
+            memory_kib: 64 * 1024,
+            passes: 1,
+            lanes: 1,
+        };
+        let facts = faraday_vault::file::Facts {
+            header: faraday_vault::kdbx::Header {
+                minor: 0,
+                cipher: faraday_vault::kdbx::Cipher::ChaCha20,
+                compression: faraday_vault::kdbx::Compression::None,
+                kdf: faraday_vault::kdbx::Kdf::Argon2id,
+                cost,
+                public_custom_data: None,
+            },
+            len: 0,
+            size: Some(faraday_vault::file::SIZES[0]),
+        };
+        let from = std::time::Instant::now();
+        faraday_keys::vault::measure(c, &facts);
+        let took = from.elapsed();
+        work::note_vault_took(
+            VaultAct::Measured,
+            cost,
+            VaultEnded::Ran,
+            work::vault_clock().map(|_| took),
+        );
+        MeasureDone {
+            ms: u64::try_from(took.as_millis()).unwrap_or(u64::MAX).max(1),
+        }
+    }
+}
+
+/// Sends the measurement to the worker, quiet: it has no busy screen, makes
+/// no job stale and is not lost or started again by a lock, a Back or
+/// another job, which waits its turn behind it. Inline it is run and
+/// applied at once.
+pub(crate) fn measure_start(app: &mut Faraday) {
+    app.vaults.state.measure = super::area::Measure::Out;
+    if app.worker.inline() {
+        let c = app.compute();
+        let done = MeasureWork.run(&c);
+        measured(app, done);
+    } else {
+        app.worker.send_quiet(Job::Measure(Box::new(MeasureWork)));
+    }
+}
+
+/// The back half: the figure goes in if none is yet (it is taken once).
+/// Returns whether anything changed.
+pub(crate) fn measured(app: &mut Faraday, done: MeasureDone) -> bool {
+    app.vaults.state.measure = super::area::Measure::Idle;
+    if app.vaults.state.ms_per_unit.is_some() {
+        return false;
+    }
+    app.vaults.state.ms_per_unit = Some(done.ms);
+    true
 }

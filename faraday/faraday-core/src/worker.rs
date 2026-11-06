@@ -27,6 +27,8 @@ pub enum Kind {
     AezeedRead,
     /// A KeePass database written: its Argon2id runs.
     KdbxWrite,
+    /// The one Argon2id pass that times this computer; it has no busy screen.
+    VaultMeasure,
     /// An open vault sealed at a lock: its Argon2id runs.
     VaultSeal,
     /// A PSBT signed.
@@ -52,6 +54,7 @@ impl Kind {
             | Kind::VaultStretch
             | Kind::AezeedRead
             | Kind::KdbxWrite
+            | Kind::VaultMeasure
             | Kind::VaultSeal
             | Kind::Signing
             | Kind::PsbtRead
@@ -86,6 +89,7 @@ pub(crate) enum Job {
     Stretch(Box<crate::vault::StretchWork>),
     Aezeed(Box<crate::lightning::ReadWork>),
     Kdbx(Box<crate::vault::KdbxWork>),
+    Measure(Box<crate::vault::MeasureWork>),
     Seal(Box<crate::vault::SealWork>),
     Sign(Box<crate::signing::SignWork>),
     SpendRead(Box<crate::signing::read::ReadWork>),
@@ -101,6 +105,7 @@ pub(crate) enum Done {
     Stretch(Box<crate::vault::StretchDone>),
     Aezeed(Box<crate::lightning::ReadDone>),
     Kdbx(Box<crate::vault::KdbxDone>),
+    Measured(Box<crate::vault::MeasureDone>),
     Seal(Box<crate::vault::SealDone>),
     Sign(Box<crate::signing::SignDone>),
     SpendRead(Box<crate::signing::read::ReadDone>),
@@ -117,6 +122,7 @@ impl Job {
             Job::Stretch(_) => Kind::VaultStretch,
             Job::Aezeed(_) => Kind::AezeedRead,
             Job::Kdbx(_) => Kind::KdbxWrite,
+            Job::Measure(_) => Kind::VaultMeasure,
             Job::Seal(_) => Kind::VaultSeal,
             Job::Sign(_) => Kind::Signing,
             Job::SpendRead(_) => Kind::PsbtRead,
@@ -134,6 +140,7 @@ impl Job {
             Job::Stretch(j) => Done::Stretch(Box::new(j.run(c))),
             Job::Aezeed(j) => Done::Aezeed(Box::new(j.run(c))),
             Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
+            Job::Measure(j) => Done::Measured(Box::new(j.run(c))),
             Job::Seal(j) => Done::Seal(Box::new(j.run(c))),
             Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
             Job::SpendRead(j) => Done::SpendRead(Box::new(j.run(c))),
@@ -189,9 +196,10 @@ pub(crate) struct Worker {
     drawn: bool,
     /// Krux's encrypted code: the running job's progress and the answers.
     kef: kef::KefArea,
-    /// The generation of the timed run that is out, which is no live job:
-    /// it has no busy screen and no other job makes it stale.
-    quiet: Option<u64>,
+    /// The generations of the quiet runs that are out (the Krux code's timed
+    /// run, the vault measurement), which are no live job: they have no
+    /// busy screen and no other job makes them stale.
+    quiet: Vec<u64>,
 }
 
 impl Worker {
@@ -206,7 +214,7 @@ impl Worker {
             origin: None,
             drawn: false,
             kef: kef::KefArea::default(),
-            quiet: None,
+            quiet: Vec::new(),
         }
     }
 
@@ -277,7 +285,7 @@ impl Worker {
     pub(crate) fn send_quiet(&mut self, job: Job) {
         self.generation += 1;
         let generation = self.generation;
-        self.quiet = Some(generation);
+        self.quiet.push(generation);
         let wake = Arc::clone(&self.wake);
         let link = self.link.get_or_insert_with(|| spawn(wake));
         let _ = link.ask.send(Asked { job, generation });
@@ -286,23 +294,20 @@ impl Worker {
     /// Whether the quiet job's answer is still to come.
     #[cfg(feature = "testkit")]
     pub(crate) fn quiet_out(&self) -> bool {
-        self.quiet.is_some()
+        !self.quiet.is_empty()
     }
 
     /// Whether `generation` is the quiet job's, leaving it.
     #[cfg(feature = "testkit")]
     pub(crate) fn quiet_out_for(&self, generation: u64) -> bool {
-        self.quiet == Some(generation)
+        self.quiet.contains(&generation)
     }
 
     /// Whether `generation` is the quiet job's; taking it ends it.
     pub(crate) fn take_quiet(&mut self, generation: u64) -> bool {
-        if self.quiet == Some(generation) {
-            self.quiet = None;
-            true
-        } else {
-            false
-        }
+        let before = self.quiet.len();
+        self.quiet.retain(|g| *g != generation);
+        self.quiet.len() != before
     }
 
     /// How many jobs have been asked of the worker.

@@ -42,7 +42,7 @@ pub(crate) use seal::{SealDone, SealRun, SealWork};
 pub(crate) use seal::{fail_next_step_seal, fail_next_step_seal_and_retry};
 pub use seals::{OpenHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
-pub(crate) use stretch::{KdbxDone, KdbxWork, StretchDone, StretchWork};
+pub(crate) use stretch::{KdbxDone, KdbxWork, MeasureDone, MeasureWork, StretchDone, StretchWork};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
 use crate::stick;
@@ -1151,8 +1151,10 @@ impl Faraday {
     pub(crate) fn vault_tick(&mut self, now_ms: u64) -> bool {
         let c = self.compute();
         let mut redraw = false;
-        if let Some(t0) = self.vaults.state.measure_from.take() {
-            self.vaults.state.ms_per_unit = Some(now_ms.saturating_sub(t0).max(1));
+        if self.vaults.state.measure == area::Measure::Asked
+            && (!self.worker.inline() || self.vaults.drawn)
+        {
+            stretch::measure_start(self);
             redraw = true;
         }
         // An unlock, a create and a KeePass export are jobs, started by
@@ -1163,28 +1165,6 @@ impl Faraday {
         {
             self.vaults.state.working = None;
             match work {
-                Work::Measure => {
-                    let cost = Cost {
-                        memory_kib: 64 * 1024,
-                        passes: 1,
-                        lanes: 1,
-                    };
-                    let facts = fv::file::Facts {
-                        header: fv::kdbx::Header {
-                            minor: 0,
-                            cipher: fv::kdbx::Cipher::ChaCha20,
-                            compression: fv::kdbx::Compression::None,
-                            kdf: fv::kdbx::Kdf::Argon2id,
-                            cost,
-                            public_custom_data: None,
-                        },
-                        len: 0,
-                        size: Some(fv::file::SIZES[0]),
-                    };
-                    self.vaults.state.measure_from = Some(now_ms);
-                    faraday_keys::vault::measure(&c, &facts);
-                    work::note_vault(VaultAct::Measured, cost, VaultEnded::Ran);
-                }
                 Work::Unlock | Work::Create | Work::Kdbx => {}
                 Work::FlowMake => self.flow_make_work(),
             }

@@ -20,13 +20,15 @@ fn rolling_ten_values_with_their_ticks_and_frames_does_no_costly_work() {
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::Dice(0)));
     app.press(Action::Vault(V::Roller(Act::Per(PerClick::Ten))));
-    // The vault's own Argon2id measure runs on the first ticks: let it.
+    // The vault's own Argon2id measure goes to the worker on the first
+    // ticks, and its work is counted when its answer is taken: let it.
     for i in 1..=4u64 {
         app.event(Event::Tick {
             now_ms: app.now_ms() + i * 16,
         });
         let _ = app.frame();
     }
+    testkit::settle_time(&mut app);
     let before = snapshot();
     app.press(Action::Vault(V::Roller(Act::Roll)));
     let start = app.now_ms();

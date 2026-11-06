@@ -7165,7 +7165,7 @@ novel_rank = 2
 
 [[action.screens_not]]
 screen = "Unlock"
-reason = "the vault module serves every vault screen; a press on this screen does not make a vault; it unlocks one vault, and its Work::Measure runs vault::measure to time one Argon2 pass"
+reason = "the vault module serves every vault screen; a press on this screen does not make a vault; it unlocks one vault, and it asks for vault::measure, run on the worker, to time one Argon2 pass"
 
 [[action.screens_not]]
 screen = "VaultContents"

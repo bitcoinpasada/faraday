@@ -188,10 +188,15 @@ impl Faraday {
     fn take_answer(&mut self, answer: Answer) {
         answer.absorb();
         if self.worker.take_quiet(answer.generation) {
-            self.worker.kef_mut().timing_done();
-            if let Ok(Done::KefTime(t)) = answer.done
-                && crate::seeds::kef::kef_timed(self, t.rate_ms)
-            {
+            let changed = match answer.done {
+                Ok(Done::KefTime(t)) => {
+                    self.worker.kef_mut().timing_done();
+                    crate::seeds::kef::kef_timed(self, t.rate_ms)
+                }
+                Ok(Done::Measured(m)) => crate::vault::stretch::measured(self, *m),
+                _ => false,
+            };
+            if changed {
                 self.out.redraw();
                 self.out.commands.push_back(crate::Command::Draw);
             }
@@ -226,7 +231,7 @@ impl Faraday {
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
             Done::KefSeal(d) => self.worker.kef_mut().sealed_done(*d),
-            Done::KefTime(_) => {}
+            Done::KefTime(_) | Done::Measured(_) => {}
             Done::KefOpen(d) => {
                 self.worker.kef_mut().opened_done(*d);
                 crate::seeds::kef::kef_opened_here(self);

@@ -78,11 +78,15 @@ impl VaultArea {
         self.item_offset = y;
     }
 
-    /// Asks for the one-pass measurement, once.
+    /// Asks for the one-pass measurement, once: it goes to the worker at
+    /// the next tick ([`Faraday::vault_tick`]), and is not asked again while
+    /// it is out or once its figure is in.
     pub(crate) fn measure(&mut self) {
-        if self.state.ms_per_unit.is_none() && self.state.working.is_none() {
-            self.state.working = Some(Work::Measure);
-            self.state.drawn = false;
+        if self.state.ms_per_unit.is_none() && self.state.measure == Measure::Idle {
+            self.state.measure = Measure::Asked;
+            if self.state.working.is_none() {
+                self.state.drawn = false;
+            }
         }
     }
 
@@ -1473,12 +1477,23 @@ pub enum Work {
     Unlock,
     /// Make the vault the form describes.
     Create,
-    /// Time one Argon2id pass over 64 MiB, for the unlock estimates.
-    Measure,
     /// Make the key the backup flow's form described.
     FlowMake,
     /// Write the KeePass export the prompt is for.
     Kdbx,
+}
+
+/// Where the one-pass measurement (one Argon2id pass over 64 MiB, for the
+/// unlock estimates) is: it is asked for once and runs once.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) enum Measure {
+    /// Not asked for, or its figure is in.
+    #[default]
+    Idle,
+    /// Asked for; it starts at the next tick.
+    Asked,
+    /// Out on the worker.
+    Out,
 }
 
 /// The machines ticked in an open vault's Memory dialog: this computer
@@ -1535,7 +1550,8 @@ pub struct Vaults {
     pub memory_free_mib: Option<u32>,
     /// One Argon2id pass over 64 MiB, ms, as measured here.
     pub ms_per_unit: Option<u64>,
-    pub(super) measure_from: Option<u64>,
+    /// Where the one-pass measurement is.
+    pub(super) measure: Measure,
     /// Work waiting for its frame.
     pub working: Option<Work>,
     /// The seals of a lock under way ([`super::SealRun`]).
