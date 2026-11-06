@@ -315,6 +315,21 @@ impl Faraday {
         self.worker.busy().is_some() && key != faraday_shell_api::Key::Escape
     }
 
+    /// A Krux code's sheet is let go while its key is worked out: the job
+    /// stops and its answer is dropped, not kept for the next job.
+    pub(crate) fn kef_job_drop(&mut self) {
+        if self.seed_read.kef().is_none() {
+            return;
+        }
+        if self.worker.busy().is_some() {
+            self.worker.stale();
+            self.worker.kef_mut().stop();
+            self.worker.set_busy(None);
+            crate::vault::stretch::ended(self);
+        }
+        self.worker.kef_mut().clear();
+    }
+
     /// A lock: the running job's answer has nowhere to go.
     pub(crate) fn job_locked(&mut self) {
         self.worker.locked();

@@ -361,10 +361,12 @@ impl SeedsArea {
         self.state.as_mut()
     }
 
-    /// Forgets the sheet, and the Krux code's contents with it.
+    /// Forgets the sheet, and the Krux code's contents and any passphrase
+    /// carried to the next seed with it.
     pub(crate) fn clear(&mut self) {
         self.state = None;
         self.kef = None;
+        self.carried_pass = None;
     }
 
     /// The Krux code sheet's state, while it is open.

@@ -4,8 +4,9 @@
 //! cryptographic and nothing here is costly; the keys and the ciphers are
 //! `faraday-kef`'s.
 //!
-//! [`recognize`] is not an arm of [`classify`](crate::classify): the
-//! application's intake does not reach it.
+//! [`recognize`] is the application's classifier's last arm (the
+//! application calls it after every other kind has declined a payload),
+//! and its intake reaches it there.
 
 use alloc::string::String;
 use alloc::vec::Vec;

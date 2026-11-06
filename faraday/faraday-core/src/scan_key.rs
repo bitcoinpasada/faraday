@@ -1400,7 +1400,7 @@ impl Faraday {
             drop(code);
             self.scan_close();
             if let Some(h) = kef {
-                crate::seeds::kef::kef_open_sheet(self, h.envelope, 0);
+                crate::seeds::kef::kef_open_sheet(self, h.envelope, 0, true);
             }
             return;
         }

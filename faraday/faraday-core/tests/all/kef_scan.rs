@@ -6,7 +6,7 @@
 use crate::common::{has, has_part, offered, texts, type_text};
 use faraday_codec::kef::{Form, encode, wrap};
 use faraday_core::seeds::kef::KefAct;
-use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
 use faraday_keys::kef::unwrap;
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 use zeroize::Zeroizing;
@@ -207,6 +207,17 @@ fn text_that_names_nothing_is_a_note_and_can_be_a_passphrase() {
 }
 
 #[test]
+fn sixteen_bytes_of_text_are_a_note_not_a_seed() {
+    let mut app = scanner();
+    let code = sealed(&mut app, b"sixteen byte txt");
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    assert!(has(&mut app, "Decrypted text"));
+}
+
+#[test]
 fn bytes_that_are_no_text_are_shown_as_hex_and_go_no_further() {
     let mut app = scanner();
     let code = sealed(&mut app, &[0xff, 0xfe, 0x01, 0x02, 0x03]);
@@ -334,4 +345,199 @@ fn a_code_inside_a_code_is_offered_as_one_and_can_be_said_not_to_be() {
     assert!(has(&mut app, "Passphrase"));
     open_with(&mut app, "note key");
     assert!(has(&mut app, "Decrypted text"));
+}
+
+const WORDS: &[u8] = b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+/// What the seed sheet shows for a seed scanned in a fresh scanner.
+fn seed_sheet_texts(app: &mut Faraday) -> Vec<String> {
+    read(app, WORDS);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    texts(app)
+}
+
+fn stick() -> StorageEvent {
+    StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "stick".into(),
+        label: "STICK".into(),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }])
+}
+
+#[test]
+fn a_note_used_as_a_passphrase_is_forgotten_when_the_scanner_is_cancelled() {
+    let mut plain = scanner();
+    let expected = seed_sheet_texts(&mut plain);
+    let mut app = scanner();
+    let code = sealed(&mut app, b"correct horse battery");
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    app.press(Action::KefRead(KefAct::UseAsPassphrase));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    app.press(Action::Cancel);
+    app.press(Action::Scan);
+    assert_eq!(seed_sheet_texts(&mut app), expected);
+}
+
+#[test]
+fn a_stick_plugged_in_while_the_passphrase_is_asked_keeps_a_seed_from_loading() {
+    let (code, pass) = vector("ctr");
+    let mut app = scanner();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    app.storage(stick());
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    assert!(
+        has(&mut app, "Remove the stick first."),
+        "{:?}",
+        texts(&mut app)
+    );
+}
+
+#[test]
+fn words_that_come_out_with_a_stick_plugged_in_wait_on_the_card_for_it() {
+    let mut app = scanner();
+    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let code = sealed(&mut app, words.as_bytes());
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    app.storage(stick());
+    open_with(&mut app, "note key");
+    assert_ne!(app.sheet, Some(Sheet::SeedRead));
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn a_code_that_holds_no_key_opens_with_a_stick_plugged_in() {
+    let mut app = scanner();
+    let totp = "otpauth://totp/Site:me?secret=JBSWY3DPEHPK3PXP&issuer=Site";
+    let code = sealed(&mut app, totp.as_bytes());
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    app.storage(stick());
+    open_with(&mut app, "note key");
+    assert!(
+        !has(&mut app, "Remove the stick first."),
+        "{:?}",
+        texts(&mut app)
+    );
+    assert_ne!(app.sheet, Some(Sheet::KefRead));
+}
+
+#[test]
+fn codes_inside_codes_stop_being_offered_at_the_depth_limit() {
+    let mut app = scanner();
+    // Raw layers, so the size stays small; the innermost code is text.
+    let text = sealed(&mut app, b"the note at the bottom");
+    let mut code = sealed_raw(&mut app, text.as_bytes());
+    for _ in 0..7 {
+        code = sealed_raw(&mut app, &code);
+    }
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    let mut opened = 1;
+    while app.sheet == Some(Sheet::KefRead) && offered(&mut app, Action::KefRead(KefAct::Open)) {
+        app.press(Action::KefRead(KefAct::Open));
+        open_with(&mut app, "note key");
+        opened += 1;
+        assert!(opened <= 8, "opened past the depth limit");
+    }
+    assert_eq!(opened, 8);
+    assert_ne!(app.sheet, Some(Sheet::KefRead));
+    assert!(!ways(&app).iter().any(|w| w == "Open"), "{:?}", ways(&app));
+}
+
+#[test]
+fn a_count_above_what_krux_writes_asks_again_on_open_as_an_encrypted_code() {
+    let mut app = scanner();
+    let mut code = None;
+    for len in 1..64 {
+        if let Ok(b) = wrap(b"", 20, 600_000, &vec![0xab; len])
+            && b.len() == 32
+        {
+            code = Some(b);
+            break;
+        }
+    }
+    read(&mut app, &code.expect("a 32-byte envelope"));
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Kef));
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    type_text(&mut app, "key");
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        app.busy().is_none(),
+        "the work started without the question"
+    );
+    assert!(has(&mut app, "Open anyway"), "{:?}", texts(&mut app));
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        app.busy().is_some(),
+        "the second press did not start the work"
+    );
+}
+
+#[test]
+fn text_that_is_a_code_after_not_encrypted_does_not_open_another_krux_card() {
+    let mut app = scanner();
+    let inner = sealed(&mut app, b"inner words");
+    let outer = sealed(&mut app, inner.as_bytes());
+    read(&mut app, outer.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    app.press(Action::KefRead(KefAct::NotEncrypted));
+    assert_ne!(app.sheet, Some(Sheet::KefRead));
+    assert!(!ways(&app).iter().any(|w| w == "Open"), "{:?}", ways(&app));
+}
+
+#[test]
+fn a_code_inside_a_code_that_is_seed_bytes_offers_to_open_as_a_code() {
+    // The inner raw code is 32 bytes: a seed and an envelope at once.
+    let mut app = scanner();
+    let mut inner = None;
+    for len in 1..64 {
+        if let Ok(b) = wrap(b"", 20, 10_000, &vec![0xab; len])
+            && b.len() == 32
+        {
+            inner = Some(b);
+            break;
+        }
+    }
+    let outer = sealed(&mut app, &inner.expect("a 32-byte envelope"));
+    read(&mut app, outer.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    // Offered as a code first (the contents parse as one); said not to be,
+    // they are a seed whose sheet offers the code again.
+    if app.sheet == Some(Sheet::KefRead) {
+        app.press(Action::KefRead(KefAct::NotEncrypted));
+    }
+    let shown = texts(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead), "{shown:?}");
+    assert!(has(&mut app, "Open as an encrypted code"));
+}
+
+#[test]
+fn cancel_on_a_lock_sheet_over_a_working_sheet_drops_the_answer() {
+    let code = rewrapped("ctr", 20_000_000);
+    let mut app = scanner();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    go(&mut app, "Open");
+    type_text(&mut app, "key");
+    app.event(Event::Key(Key::Enter));
+    assert!(app.busy().is_some());
+    app.press(Action::Lock);
+    app.press(Action::Cancel);
+    testkit::settle_stale(&mut app);
+    assert!(app.busy().is_none());
+    assert!(app.kef_opened().is_none());
 }

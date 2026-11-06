@@ -207,7 +207,7 @@ transcribe. A QR vault (`docs/VAULT.md` §2.1) is 77 × 77 for every contents.
 
 | Krux's path | Plaintext | Read back by |
 |---|---|---|
-| Encrypt mnemonic (`bip39.mnemonic_to_bytes`) | the entropy, 16 or 32 bytes | `mnemonic_from_bytes` from storage; from a code, the loader below |
+| Encrypt mnemonic (`bip39.mnemonic_to_bytes`) | the entropy, 16 or 32 bytes (read as entropy when not valid UTF-8) | `mnemonic_from_bytes` from storage; from a code, the loader below |
 | Wallet descriptor (`descriptor.to_string().encode()`) | descriptor text | wallet loader, decoded as UTF-8 |
 | Passphrase | UTF-8 text | `wallet_settings`, decoded as UTF-8 |
 | Datum tool | any bytes under about 50 KB | shown as text, or as `0x` hex |
@@ -234,8 +234,9 @@ read it. **So a code shows its contents' length**, and whether it is a
 `classify` and the existing intake (`docs/SCANNING.md` §4), each with its
 own checks. Faraday adds only:
 
-- **16 or 32 bytes** are entropy: they go to the seed sheet (`docs/FLOWS.md`)
-  with the fingerprint line of §7.3, as a CompactSeedQR's do.
+- **16 or 32 bytes that are not text** are entropy: they go to the seed sheet (`docs/FLOWS.md`)
+  with the fingerprint line of §7.3, as a CompactSeedQR's do. The same length of valid UTF-8 is text, and
+  goes on as a note.
 - **Text that names nothing** is a note, shown as a secret (DESIGN §4.10).
   It may be a passphrase, and nothing in the bytes says so: the card offers
   "Use as a passphrase".

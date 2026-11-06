@@ -2486,6 +2486,7 @@ impl Faraday {
                 self.vaults.clear_stick_save();
                 self.devices.cancel();
                 // A seed read and not loaded is wiped.
+                self.kef_job_drop();
                 self.seed_read.clear();
                 self.stick.clear_delete_ask();
                 self.visit.taken.clear();
