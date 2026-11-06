@@ -35,7 +35,7 @@ that as "no such cell":
 |---|---|
 | `create_capstone` (`src/detect.rs`) | `?`: no capstone at that position |
 | `measure_timing_pattern` (`src/identify/grid.rs`) | returns `Option<usize>`; `from_group` rejects the group |
-| `find_alignment_pattern` | `?`: no alignment pattern, so no grid |
+| `projected_module_area` (`src/identify/grid.rs`, for `find_alignment_pattern`) | `?`: no module size from the edges' point, so the second seed is tried; with that also failing, no alignment pattern and no grid |
 | `fitness_cell`, `fitness_ring`, `fitness_apat`, `fitness_capstone`, `fitness_all` | return `Option<i32>`: a sample that cannot be placed makes the score meaningless |
 | `jiggle_perspective` | returns `Option<Perspective>`; an adjustment whose score cannot be computed is not an improvement and the coefficient goes back |
 | `RefGridImage::bit` | reads as white, which is what an off-frame cell already reads as; error correction then decides the grid's fate |
@@ -139,15 +139,17 @@ modules.
   distances of a corner capstone differed by more than the quarter the
   grouping allows, so no group formed. The test now takes the capstone's
   ring as a parallelogram (`affine_offsets`: each axis the mean of the two
-  opposite edges) and uses the perspective only if that is degenerate.
-  The test only chooses which capstones are tried together; the timing
+  opposite edges) and uses the perspective where that is degenerate and
+  where the parallelogram test gives a capstone no viable pair, so a code
+  tilted 35 degrees or more and held close, whose parallelogram distances
+  disagree, forms the groups it formed before. The test only chooses which capstones are tried together; the timing
   pattern, the alignment pattern, the sampling and the error correction
   are as before.
 - **Alignment pattern search** (`src/identify/grid.rs`). The search
   spiralled out from the point where the edges of capstones A and C
   intersect, and on `continue` for a region that was not a plain black one
   (a capstone's own ring, say) it did not step, so the spiral stood still
-  for the rest of that side and its path was no longer a spiral. It
+  for the whole search and looked only at its first pixel. It
   steps on every pixel now. Where the search from the edges' point finds
   nothing, it is repeated from the point that completes the parallelogram
   of the three capstones' centres, with the module area the capstones

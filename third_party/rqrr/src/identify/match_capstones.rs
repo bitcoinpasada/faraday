@@ -16,7 +16,18 @@ struct Neighbor {
 pub fn find_and_rank_possible_neighbors(capstones: &[CapStone], idx: usize) -> Vec<(usize, usize)> {
     const VIABILITY_THRESHOLD: f64 = 0.25;
 
-    let (hlist, vlist) = find_possible_neighbors(capstones, idx);
+    // The parallelogram test first; only where it gives no viable pair,
+    // the capstone's perspective too, so a code seen at a steep angle
+    // forms the groups it formed before.
+    let res = rank_pairs(capstones, idx, true, VIABILITY_THRESHOLD);
+    if res.is_empty() {
+        return rank_pairs(capstones, idx, false, VIABILITY_THRESHOLD);
+    }
+    res
+}
+
+fn rank_pairs(capstones: &[CapStone], idx: usize, affine: bool, threshold: f64) -> Vec<(usize, usize)> {
+    let (hlist, vlist) = find_possible_neighbors(capstones, idx, affine);
     let mut res = Vec::new();
     struct NeighborSet {
         score: f64,
@@ -33,7 +44,7 @@ pub fn find_and_rank_possible_neighbors(capstones: &[CapStone], idx: usize) -> V
                     (1.0f64 - vn.distance / hn.distance).abs()
                 }
             };
-            if score < VIABILITY_THRESHOLD {
+            if score < threshold {
                 res.push(NeighborSet {
                     score,
                     h_index: hn.index,
@@ -51,7 +62,7 @@ pub fn find_and_rank_possible_neighbors(capstones: &[CapStone], idx: usize) -> V
     res.iter().map(|n| (n.h_index, n.v_index)).collect()
 }
 
-fn find_possible_neighbors(capstones: &[CapStone], idx: usize) -> (Vec<Neighbor>, Vec<Neighbor>) {
+fn find_possible_neighbors(capstones: &[CapStone], idx: usize, affine: bool) -> (Vec<Neighbor>, Vec<Neighbor>) {
     let cap = &capstones[idx];
     let mut hlist = Vec::new();
     let mut vlist = Vec::new();
@@ -72,9 +83,11 @@ fn find_possible_neighbors(capstones: &[CapStone], idx: usize) -> (Vec<Neighbor>
         // hundred modules away it can be off by tens of modules, and a
         // dense code's capstones are that far apart. The same corners fix
         // the axes' direction and the module size well enough for a
-        // neighbour test, so the perspective is only the fall-back.
-        let (mut u, mut v) = affine_offsets(cap, &cmp_cap.center)
-            .unwrap_or_else(|| cap.c.unmap(&cmp_cap.center));
+        // neighbour test, so the perspective is only the fall-back: for a
+        // ring that is not a parallelogram, and where the parallelogram
+        // finds no pair at all (a code tilted steeply).
+        let by_affine = if affine { affine_offsets(cap, &cmp_cap.center) } else { None };
+        let (mut u, mut v) = by_affine.unwrap_or_else(|| cap.c.unmap(&cmp_cap.center));
         u = (u - 3.5f64).abs();
         v = (v - 3.5f64).abs();
 

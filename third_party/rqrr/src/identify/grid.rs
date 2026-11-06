@@ -75,7 +75,7 @@ impl SkewedGridLocation {
             &group.2.corners[0],
             &group.2.corners[3],
         );
-        let mut align = edges_seed.unwrap_or(h0);
+        let mut align: Point;
 
         /* On V2+ grids, we should use the alignment pattern. */
         if grid_size > 21 {
@@ -84,7 +84,11 @@ impl SkewedGridLocation {
              * pixels they start from, and on a dense code it is a hundred
              * modules: where that estimate finds nothing, the point that
              * completes the parallelogram of the three capstones' centres
-             * is tried, at the module size the capstones show.
+             * is tried, at the module size the capstones show. (The point
+             * from the capstones' outer corners lands on the alignment
+             * pattern itself, but read only 5, 4 and 7 of 8 generated
+             * dense frames at 6, 7 and 8 pixels a module, where this one
+             * reads all 8.)
              */
             let by_edges = edges_seed.and_then(|seed| {
                 let size = projected_module_area(seed, &group.0, &group.2)?;
