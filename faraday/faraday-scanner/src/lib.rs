@@ -13,13 +13,14 @@
 //! yet taken, and a frame, a reduced copy and a payload are wiped when
 //! this crate lets go of them. What the worker reads of a frame is the
 //! shell's choice, a [`ReadMode`]: the stick and the Pi, whose
-//! processors read a 640 × 480 frame ten times a second only by reading
-//! a reduced copy, pass [`ReadMode::Reduced`] (the reduced copy every
-//! pass and the full frame on every [`FULL_FRAME_EVERY`]th miss); the
-//! desktop shells, whose cameras give 1280 × 720 for the dense codes
-//! that need every pixel, pass [`ReadMode::Full`] (the full frame every
-//! pass, paced by how long the pass takes, since the worker takes the
-//! newest frame each time it is free). Either way the worker reads every
+//! processors read a 1920 × 1080 frame only slowly, pass
+//! [`ReadMode::Reduced`] (the reduced copy every pass, the full frame
+//! on the pass after a code is seen in the copy and not read, and on
+//! every [`FULL_FRAME_EVERY`]th miss); the desktop shells, whose
+//! cameras give 1280 × 720 for the dense codes that need every pixel,
+//! pass [`ReadMode::Full`] (the full frame every pass, paced by how
+//! long the pass takes, since the worker takes the newest frame each
+//! time it is free). Either way the worker reads every
 //! other frame inverted, so a code printed light on dark reads too
 //! (`docs/QR.md` §1).
 
@@ -36,14 +37,16 @@ mod scan;
 pub use scan::{reduce, reduce_chroma, reduce_factor};
 
 /// How many frames the reduced copy may find nothing in before the full
-/// frame is read as well.
-const FULL_FRAME_EVERY: u32 = 4;
+/// frame is read as well. Odd, so that the full frame is read in both
+/// polarities: the worker reads every other frame inverted.
+const FULL_FRAME_EVERY: u32 = 3;
 
 /// What the worker reads of each frame it takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReadMode {
-    /// The reduced copy every pass, and the full frame on every
-    /// [`FULL_FRAME_EVERY`]th miss: the stick and the Pi.
+    /// The reduced copy every pass, the full frame after a code seen in
+    /// the copy and not read, and on every [`FULL_FRAME_EVERY`]th miss:
+    /// the stick and the Pi.
     Reduced,
     /// The full frame every pass: the desktop shells, which ask their
     /// cameras for 1280 × 720.
@@ -69,12 +72,17 @@ pub struct Seen {
     pub module_px: f32,
     /// The pass read it.
     pub read: bool,
+    /// The pass looked at the whole frame, not a reduced copy of it:
+    /// only then is `module_px` a measure of what the camera resolves.
+    pub whole: bool,
 }
 
 impl Seen {
-    /// Found but too fine for this camera to read.
+    /// Found, in the whole frame, but too fine for this camera to read.
+    /// A code seen only in the reduced copy is read whole on the next
+    /// pass, and that pass says.
     pub fn too_fine(&self) -> bool {
-        !self.read && self.module_px < TOO_FINE_PX
+        !self.read && self.whole && self.module_px < TOO_FINE_PX
     }
 }
 
@@ -237,8 +245,9 @@ impl Drop for Scanner {
 
 fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>, mode: ReadMode) {
     let (lock, wake) = pending;
-    let mut misses = 0u32;
+    let mut reading = Reading::default();
     let mut inverted = false;
+    let mut last = false;
     loop {
         let mut job = {
             let Ok(mut state) = lock.lock() else {
@@ -261,12 +270,18 @@ fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>, mode: ReadMode)
         // Every other frame the worker takes is read inverted. It counts
         // the frames it takes, not the ones offered: a pass slower than
         // the camera would otherwise take the same parity every time.
+        // The read of the whole frame that follows a code seen but not
+        // read keeps that pass's polarity, since it is the same code.
+        if reading.whole_next {
+            inverted = last;
+        }
         if inverted {
             job.luma.iter_mut().for_each(|b| *b = 255 - *b);
         }
+        last = inverted;
         inverted = !inverted;
         let began = Instant::now();
-        let (code, seen) = read(&job, mode, &mut misses);
+        let (code, seen) = read(&job, mode, &mut reading);
         if tx.send(Found::Took(began.elapsed())).is_err() {
             return;
         }
@@ -321,6 +336,7 @@ pub fn look(
             corners: [corner(0), corner(1), corner(2), corner(3)],
             module_px: (edge * scale as f64 / modules) as f32,
             read,
+            whole: scale <= 1,
         };
         if read {
             return (Some(bytes), Some(here));
@@ -331,32 +347,51 @@ pub fn look(
     (None, seen)
 }
 
+/// What the reduced mode carries from one pass to the next.
+#[derive(Default)]
+struct Reading {
+    /// Passes in a row that read nothing.
+    misses: u32,
+    /// The last pass saw a code in the reduced copy and could not read
+    /// it: the next reads the whole frame.
+    whole_next: bool,
+}
+
 /// One frame, read as `mode` says. Costs a decode of the frame: a
 /// reduced copy and, now and then, the full frame, or the full frame.
-fn read(job: &Job, mode: ReadMode, misses: &mut u32) -> (Option<Vec<u8>>, Option<Seen>) {
+fn read(job: &Job, mode: ReadMode, st: &mut Reading) -> (Option<Vec<u8>>, Option<Seen>) {
     let (w, h) = (job.width, job.height);
     let frame = (w as u16, h as u16);
     if mode == ReadMode::Full {
         return look(w, h, &job.luma, 1, frame);
+    }
+    if std::mem::take(&mut st.whole_next) {
+        let (code, whole) = look(w, h, &job.luma, 1, frame);
+        st.misses = if code.is_some() { 0 } else { st.misses + 1 };
+        return (code, whole);
     }
     let factor = scan::reduce_factor(w, h);
     let (rw, rh, reduced) = scan::reduce(w, h, &job.luma);
     let reduced = Zeroizing::new(reduced);
     let (code, seen) = look(usize::from(rw), usize::from(rh), &reduced, factor, frame);
     if code.is_some() {
-        *misses = 0;
+        st.misses = 0;
         return (code, seen);
     }
     if factor <= 1 {
         return (None, seen);
     }
-    *misses += 1;
-    if !(*misses).is_multiple_of(FULL_FRAME_EVERY) {
+    st.misses += 1;
+    if seen.is_some() {
+        st.whole_next = true;
+        return (None, seen);
+    }
+    if !st.misses.is_multiple_of(FULL_FRAME_EVERY) {
         return (None, seen);
     }
     let (code, full) = look(w, h, &job.luma, 1, frame);
     if code.is_some() {
-        *misses = 0;
+        st.misses = 0;
     }
     (code, full.or(seen))
 }
@@ -465,5 +500,88 @@ mod tests {
         // The pass that read it was timed, once.
         assert!(!scanner.take_pass_times().is_empty());
         assert!(scanner.take_pass_times().is_empty());
+    }
+
+    /// A version 23 code at error correction H (109 modules a side),
+    /// `scale` pixels a module and blurred as a lens blurs it, black on
+    /// white or inverted, in the middle of a `w` × `h` frame.
+    fn blurred_dense_frame(w: usize, h: usize, scale: usize, inverted: bool) -> (Vec<u8>, Vec<u8>) {
+        let c = compute();
+        let payload: Vec<u8> = (0..qr::byte_capacity(23, Ecc::High))
+            .map(|i| (i * 31 + i / 7 + 5) as u8)
+            .collect();
+        let m = qr::encode(&c, Payload::Bytes(&payload), Ecc::High).unwrap();
+        assert_eq!(m.version(), 23);
+        let (cw, ch, code) = m.to_luma(scale, QUIET_ZONE);
+        let mut px = vec![235f32; w * h];
+        let (x0, y0) = ((w - cw) / 2, (h - ch) / 2);
+        for y in 0..ch {
+            for x in 0..cw {
+                px[(y0 + y) * w + x0 + x] = if code[y * cw + x] < 128 { 25.0 } else { 235.0 };
+            }
+        }
+        // A Gaussian blur of one pixel's sigma, along rows then columns.
+        let k: Vec<f32> = (-3i32..=3).map(|i| (-(i * i) as f32 / 2.0).exp()).collect();
+        let t: f32 = k.iter().sum();
+        let pass = |src: &[f32], horizontal: bool| -> Vec<f32> {
+            let mut out = vec![0f32; w * h];
+            for y in 0..h {
+                for x in 0..w {
+                    let mut a = 0.0;
+                    for (i, kv) in k.iter().enumerate() {
+                        let d = i as isize - 3;
+                        let (xx, yy) = if horizontal {
+                            ((x as isize + d).clamp(0, w as isize - 1) as usize, y)
+                        } else {
+                            (x, (y as isize + d).clamp(0, h as isize - 1) as usize)
+                        };
+                        a += kv * src[yy * w + xx];
+                    }
+                    out[y * w + x] = a / t;
+                }
+            }
+            out
+        };
+        let blurred = pass(&pass(&px, true), false);
+        let luma = blurred
+            .iter()
+            .map(|&v| if inverted { 255 - v as u8 } else { v as u8 })
+            .collect();
+        (payload, luma)
+    }
+
+    #[test]
+    fn a_dense_code_reads_in_a_blurred_1080p_frame() {
+        for inverted in [false, true] {
+            let (payload, px) = blurred_dense_frame(1920, 1080, 8, inverted);
+            for mode in [ReadMode::Full, ReadMode::Reduced] {
+                assert_eq!(
+                    read_by_worker(mode, 1920, 1080, &px).as_deref(),
+                    Some(&payload[..]),
+                    "{mode:?}, inverted {inverted}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_code_seen_in_the_copy_and_not_read_is_read_whole_on_the_next_pass() {
+        // Four pixels a module in a 1080p frame: the copy, a third of
+        // that, sees the code and cannot read it, and the next pass is
+        // the whole frame's, whose verdict the sheet shows.
+        let (payload, px) = blurred_dense_frame(1920, 1080, 4, false);
+        let job = Job {
+            width: 1920,
+            height: 1080,
+            luma: Zeroizing::new(px),
+        };
+        let mut st = Reading::default();
+        let (code, seen) = read(&job, ReadMode::Reduced, &mut st);
+        if let (None, Some(seen)) = (code, seen) {
+            assert!(!seen.too_fine(), "the copy gives no verdict");
+            let (code, seen) = read(&job, ReadMode::Reduced, &mut st);
+            assert!(seen.is_none_or(|s| s.whole));
+            assert!(code.is_none_or(|c| c == payload));
+        }
     }
 }

@@ -5,12 +5,18 @@
 //! module is the shell's side of that channel: start, stop, and one
 //! frame at a time for the main loop to fold in between touches.
 //!
+//! The device is asked for 1920 × 1080 (`Size::FULL_HD`): a dense code,
+//! version 23 at error correction H, has too few pixels a module at
+//! 640 × 480 for the decoder to find. A camera without that mode gives
+//! the nearest it has, and the size and format it gave are printed once
+//! (the dev image's boot report holds them).
+//!
 //! Each frame is reduced here, on the capture thread, before it is
 //! queued: the core only wants the frame for the preview, so it is
-//! handed the 320 × 240 luma and chroma it would otherwise reduce
-//! itself, and the loop moves and wipes a quarter of the bytes. The
-//! full 640 × 480 luma rides beside it, because that is what the
-//! scanner decodes.
+//! handed the luma and chroma it would otherwise reduce itself (a short
+//! side of at most `PREVIEW_MAX`, so 640 × 360 from a 1080p frame), and
+//! the loop moves and wipes that rather than the full frame. The full
+//! luma rides beside it, because that is what the scanner decodes.
 //!
 //! The capture thread also posts a note on the shell's wake channel for
 //! each frame it queues, so the loop's wait ends on a frame as it ends
@@ -260,6 +266,15 @@ fn capture(
     };
     let opened = match opened {
         Ok(mut device) => {
+            let got = device.size();
+            eprintln!(
+                "camera gave {}x{} {} (asked {}x{})",
+                got.width,
+                got.height,
+                device.format(),
+                ASKED.width,
+                ASKED.height
+            );
             device.set_max_fps(FPS);
             device
         }
@@ -288,10 +303,13 @@ fn capture(
     let _ = inner.join();
 }
 
-/// Opens `path` at VGA, or says why not: the text for `--verbose` and
+/// The size asked of the device.
+const ASKED: Size = Size::FULL_HD;
+
+/// Opens `path` at [`ASKED`], or says why not: the text for `--verbose` and
 /// the reason the app has a line for, when the error gives one.
 fn open(path: &std::path::Path) -> Result<Device, (String, Option<CameraFailure>)> {
-    Device::open(path, Size::VGA).map_err(|e| {
+    Device::open(path, ASKED).map_err(|e| {
         (
             format!("cannot open {}: {e}", path.display()),
             Failure::of_io(&e).map(app_reason),

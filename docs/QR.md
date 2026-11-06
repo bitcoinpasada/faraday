@@ -416,7 +416,7 @@ the quiet zone: at 240 × 320 at 143 dpi, two pixels a module once it has
 the sheet's width (178 pixels wanted, the width 197), a code 29 mm across
 with modules of 0.36 mm, the size a 2-of-3 descriptor's code has there.
 A camera 1280 pixels wide and 60° across meets the scanner's 2.5 pixels
-a module from about 16 cm. A multisig descriptor on a recovery sheet may pass
+a module from about 16 cm (1920 wide, from about 11 cm). A multisig descriptor on a recovery sheet may pass
 version 25; the QR sheet then shows it animated, as any descriptor, and
 its PNG goes as parts.
 
@@ -461,8 +461,20 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
 2. **White-on-black QRs on the desktop.** The window shell's `Lens`
    offers every other frame inverted, as the stick does.
 3. **Resolution.** The desktop shells ask for about 1280×720, and the
-   scanner reads the full frame, paced by what a decode costs. The Pi
-   stays at 640×480.
+   scanner reads the full frame, paced by what a decode costs. The stick
+   and the Pi ask for 1920×1080 and read with `ReadMode::Reduced`: a
+   reduced copy every pass, the whole frame on the pass after a code is
+   seen in the copy and not read (in the same polarity), and on every
+   third miss. A code's "too fine" verdict is the whole frame's. A dense
+   code (version 23 at error correction H, 109 modules) is found in a
+   simulated frame at 4 pixels a module only now and then and at 9 pixels
+   a module about half the time (`rqrr` finds fewer finder patterns as
+   blur rises), against 640×480's 4 pixels at most with the code filling
+   the frame; the Pi's camera driver takes 1920×1080 on its video path
+   only with `bcm2835-v4l2.max_video_width` and `max_video_height` raised,
+   which the board's `cmdline.txt` does. A camera without the mode gives
+   the one it has. The pass on a Pi 3B+ over a 1080p frame is reasoned,
+   not measured, at about a second.
 4. **Viewfinder.** Corner brackets over the camera's picture: white
    (`pal::VIEWFINDER`) while looking, green (`pal::VIEWFINDER_READ`)
    while a read QR is in view (the ten preview frames the outline lasts).

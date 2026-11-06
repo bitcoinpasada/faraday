@@ -19,6 +19,13 @@ usbcore.authorized_default=2
 # removes it.
 loglevel=5
 
+# The camera driver (built in) takes any frame above 1280 x 720 through its
+# stills path, which is slow; the scanner asks for 1920 x 1080 so that a
+# dense QR has pixels enough to read, and these raise the driver's video
+# limits to it.
+bcm2835-v4l2.max_video_width=1920
+bcm2835-v4l2.max_video_height=1080
+
 # An HDMI screen larger than 11 inches gives no density the shell believes,
 # so dp are pixels, as on the stick (docs/ORIENTATION.md §2.1); a panel's
 # values from the boot script (--dpi) come first.

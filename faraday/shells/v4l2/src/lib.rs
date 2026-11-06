@@ -88,8 +88,9 @@ pub struct Size {
 }
 
 impl Size {
-    /// 640 × 480: what every shell asks for (§16.33). A driver may give
-    /// something else, and the shell takes what it gets.
+    /// 640 × 480: what a driver is probed with when looking for a
+    /// camera. A driver may give something else, and the shell takes
+    /// what it gets.
     pub const VGA: Size = Size {
         width: 640,
         height: 480,
@@ -101,6 +102,15 @@ impl Size {
     pub const HD: Size = Size {
         width: 1280,
         height: 720,
+    };
+
+    /// 1920 × 1080: what the stick and the Pi ask for, since a dense
+    /// code (version 23 at error correction H) reads reliably only with
+    /// several pixels a module. A camera without that mode gives the
+    /// nearest one it has, and the shell takes what it gets.
+    pub const FULL_HD: Size = Size {
+        width: 1920,
+        height: 1080,
     };
 }
 

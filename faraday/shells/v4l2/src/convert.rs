@@ -17,12 +17,10 @@
 use crate::abi;
 
 /// The widest frame we hand the core. Above this a frame is shrunk by an
-/// integer factor: `rqrr` needs no more than about 640 pixels across to
-/// find a code in a reduced copy, but a dense one needs the camera's own
-/// pixels, and the desktop shell asks for 1280 × 720, which passes
-/// whole. A 1296 × 972 sensor mode is still halved. Faraday raised this
-/// from 800 to 1280.
-pub const MAX_WIDTH: usize = 1280;
+/// integer factor: a dense code needs the camera's own pixels, so the
+/// 1920 × 1080 the shells ask for passes whole, and so does a 1296 × 972
+/// sensor mode. A 2592-wide still mode is halved.
+pub const MAX_WIDTH: usize = 1920;
 
 /// Bytes between neighbouring luma samples for a format we accept, or
 /// `None` for one we do not.
@@ -383,12 +381,11 @@ mod tests {
         assert_eq!(scale_factor(640), 1);
         assert_eq!(scale_factor(MAX_WIDTH), 1);
         assert_eq!(scale_factor(MAX_WIDTH + 1), 2);
-        // The Pi camera's 1296x972 mode halves to 648.
-        assert_eq!(scale_factor(1296), 2);
-        assert_eq!(1296 / scale_factor(1296), 648);
-        // A 2592-wide still mode thirds to 864, the smallest factor
-        // under the cap.
-        assert_eq!(scale_factor(2592), 3);
+        // A 1080p frame and the Pi camera's 1296x972 mode pass whole.
+        assert_eq!(scale_factor(1920), 1);
+        assert_eq!(scale_factor(1296), 1);
+        // A 2592-wide still mode halves to 1296.
+        assert_eq!(scale_factor(2592), 2);
         assert!(2592 / scale_factor(2592) <= MAX_WIDTH);
     }
 
