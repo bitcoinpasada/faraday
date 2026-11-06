@@ -741,3 +741,33 @@ fn on_the_pi_panel_the_boards_sticks_are_numbered_as_their_pills() {
     assert!(first("Place 1") < first("Stick 2") && first("Stick 2") < first("Stick 3"));
     assert!(first("Stick 3") < first("Place 2") && first("Place 2") < first("Stick 4"));
 }
+
+#[test]
+fn on_the_pi_panel_an_open_sheet_covers_the_pills_and_takes_their_presses() {
+    let mut shell = Shell::new();
+    let mut app = desktop(&mut shell);
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    assert!(app.is_compact());
+    let _ = drawn(&mut app);
+    let (x, y) = app
+        .where_offered(Action::StickPill(2))
+        .expect("the pill is on the page");
+    app.sheet = Some(faraday_core::Sheet::Power);
+    let _ = drawn(&mut app);
+    assert_eq!(app.where_offered(Action::StickPill(2)), None);
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    assert!(app.take_stick_toggles().is_empty(), "the pill acted");
+}

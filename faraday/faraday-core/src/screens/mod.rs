@@ -340,6 +340,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         notices(app, ui, 0.0, full_w, h);
     }
     let (w, h) = (full_w, full_h);
+    // A device's stick pills, pinned at the top over the page. A sheet
+    // covers them as it covers the page: they are in the copy it dims, and
+    // take no press while it is open.
+    if !frosted {
+        crate::stick::pills::draw(app, ui, full_w);
+        ui.fade_disabled();
+    }
     if let Some(s) = side {
         // Beside the page, which stays as it is and takes presses.
         crate::glance::sheet::draw_side(app, ui, s, w, h);
@@ -486,10 +493,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         }
     }
     drop_edge(app, ui, (full_w, full_h), kb > 0.0);
-    // A device's stick pills, pinned at the top over the page and any
-    // sheet; Faraday Demo's, in its top bar, again over a sheet, and
-    // its Sticks menu as it closes.
-    crate::stick::pills::draw(app, ui, full_w);
     ui.fade_disabled();
     // What was plugged in at start, over the page and any sheet.
     ui.ox = 0.0;
