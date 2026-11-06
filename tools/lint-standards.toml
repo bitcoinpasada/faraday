@@ -71,6 +71,10 @@ crate = "tools/fontbake"
 reason = "A build tool: SHA-256 checks the downloaded fonts against their pinned sums; in no shipped binary."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/worker/kef.rs"
+reason = "A short timed PBKDF2 over fixed bytes, to say how long a Krux code takes to open; its output is thrown away. Sealing and opening are faraday-keys', which the kef area cross-checks."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/vault/seal.rs"
 reason = "SHA-256 over a domain string, a fresh random answer and a counter, for the UUIDs of a seal's new entries and groups: they need to differ, not to be secret, and the hash is faraday-crypto's, cross-checked there."
 

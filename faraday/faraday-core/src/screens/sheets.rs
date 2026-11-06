@@ -780,10 +780,11 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     let y = y + keys_h;
     let (px, py) = (x + 32.0, y + top);
+    // The foot, from the sheet's own top.
+    let foot = y - keys_h + sh - 32.0 - 44.0;
     // Where a read card's ways stand on their own row, the card ends above it.
     let side_h = match sc.card.as_ref() {
         Some(card) if !read_card_foot_fits(ui, side_w, card) => {
-            let foot = y - keys_h + sh - 32.0 - 44.0;
             side_h.min(foot - ui.button_height(BUTTON_H) - T::GAP - T::GAP_SMALL - py)
         }
         _ => side_h,
@@ -866,8 +867,6 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             &row,
         );
     }
-    // The foot, from the sheet's own top.
-    let foot = y - keys_h + sh - 32.0 - 44.0;
     if let Some(card) = sc.card.as_ref() {
         read_card_foot(ui, (px, foot, side_w), card, !app.may_load_keys());
         return;

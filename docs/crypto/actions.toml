@@ -5962,6 +5962,8 @@ functions = [
   "faraday/faraday-kef/src/lib.rs::ctr",
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha256_block",
   "faraday/faraday-keys/src/session.rs::Keys::kef_entropy",
+  "faraday/faraday-keys/src/kef.rs::seed_plaintext",
+  "faraday/faraday-core/src/worker/kef.rs::TimeWork::run",
   "faraday/faraday-keys/src/kef.rs::SealJob::run",
   "faraday/faraday-keys/src/kef.rs::OpenJob::run",
 ]

@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/template.rs`, `faraday/faraday-starter/src/lib.rs`)
-**Starter page:** `Tools`, `Templates`, `TemplateForm`, `TemplateWords`, `TemplateLength`, `TemplateCopy`, `TemplateWorksheets`, `TemplatePlaces`
+**Starter page:** `Tools`, `Templates`, `TemplateForm`, `TemplateWords`, `TemplateLength`, `TemplateSize`, `TemplateCopy`, `TemplateWorksheets`, `TemplatePlaces`
 **Group:** Starter
 
 **Opened from:** **Tools** on the rail or the bar.

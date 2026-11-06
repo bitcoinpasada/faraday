@@ -1697,17 +1697,6 @@ impl Faraday {
             || self.wallets.spend().is_some()
     }
 
-    /// Ms without input at which the machine powers off, when it would:
-    /// nothing held, nothing in the Outbox, not the online app.
-    pub(crate) fn idle_off_at(&self) -> Option<u64> {
-        (self.idle_off_min() > 0
-            && !self.online
-            && !self.lockable()
-            && self.outbox.is_empty()
-            && !self.flow_screen())
-        .then(|| u64::from(self.idle_off_min()) * 60_000)
-    }
-
     /// The idle timers (`docs/history/PLAN.md` §12.3). Returns whether the screen
     /// changed.
     fn idle_tick(&mut self, now_ms: u64) -> bool {
@@ -1900,18 +1889,7 @@ impl Faraday {
         // A stick arrived. Only a clean process takes it; any other locks
         // first (`docs/history/PLAN.md` §5.4). No passphrase field takes typing while
         // it is attached.
-        // What was typed into a Krux code's sheet still counts, and the
-        // sheet closes: its job stops and its contents are dropped, a
-        // carried passphrase with them.
-        self.note_secrets();
-        drop(self.seed_read.take_carried_passphrase());
-        if self.seed_read.kef().is_some() {
-            self.kef_job_drop();
-            self.seed_read.set_kef(None);
-            if self.sheet == Some(Sheet::KefRead) {
-                self.sheet = None;
-            }
-        }
+        seeds::kef::kef_stick_arrived(self);
         if matches!(
             self.vaults.focus,
             Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)

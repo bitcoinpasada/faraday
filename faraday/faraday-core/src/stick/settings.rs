@@ -357,6 +357,17 @@ impl Faraday {
         self.sheet = Some(crate::Sheet::Locked);
     }
 
+    /// Ms without input at which the machine powers off, when it would:
+    /// nothing held, nothing in the Outbox, not the online app.
+    pub(crate) fn idle_off_at(&self) -> Option<u64> {
+        (self.idle_off_min() > 0
+            && !self.online
+            && !self.lockable()
+            && self.outbox.is_empty()
+            && !self.flow_screen())
+        .then(|| u64::from(self.idle_off_min()) * 60_000)
+    }
+
     /// Time without input so far, counted across an idle lock.
     pub(crate) fn idle_ms(&self) -> u64 {
         self.idle.ms(self.now_ms)

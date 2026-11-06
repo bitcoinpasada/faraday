@@ -554,6 +554,21 @@ fn kef_use_as_passphrase(app: &mut Faraday) {
     app.act(Action::ScanSeed);
 }
 
+/// A stick arrived: what was typed into a Krux code's sheet still counts,
+/// and the sheet closes: its job stops and its contents are dropped, a
+/// carried passphrase with them.
+pub(crate) fn kef_stick_arrived(app: &mut Faraday) {
+    app.note_secrets();
+    drop(app.seed_read.take_carried_passphrase());
+    if app.seed_read.kef().is_some() {
+        app.kef_job_drop();
+        app.seed_read.set_kef(None);
+        if app.sheet == Some(Sheet::KefRead) {
+            app.sheet = None;
+        }
+    }
+}
+
 /// Cancel on the sheet: while the key is worked out it stops the work
 /// and asks the passphrase again; anywhere else it closes the sheet.
 pub(crate) fn kef_cancel(app: &mut Faraday) {
