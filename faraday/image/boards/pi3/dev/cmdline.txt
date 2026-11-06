@@ -13,3 +13,8 @@ console=tty1
 # limits how many lines userspace writes there; on the dev variant every one
 # goes through.
 printk.devkmsg=on
+
+# Faraday: draw in a centred 1366x768 window of a larger screen, the rest black
+# (docs/FRAMES.md section 6). A screen that cannot hold it is drawn whole.
+# Take this word off the card's cmdline.txt to time the whole screen.
+faraday.window=1366x768

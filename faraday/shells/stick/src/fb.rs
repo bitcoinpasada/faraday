@@ -110,6 +110,22 @@ impl Geometry {
         usize::from(self.width) * self.depth.bytes_per_pixel()
     }
 
+    /// A centred window of `width` by `height` inside this screen, and the
+    /// screen pixel its top-left corner is at. `None` when it is empty or
+    /// does not fit. The window keeps the screen's stride.
+    pub fn window(self, (width, height): (u16, u16)) -> Option<(Geometry, (u16, u16))> {
+        if width == 0 || height == 0 || width > self.width || height > self.height {
+            return None;
+        }
+        let at = ((self.width - width) / 2, (self.height - height) / 2);
+        let inside = Geometry {
+            width,
+            height,
+            ..self
+        };
+        Some((inside, at))
+    }
+
     /// Reads `virtual_size`, `bits_per_pixel` and `stride` from a sysfs
     /// framebuffer directory (`/sys/class/graphics/fb0`).
     ///

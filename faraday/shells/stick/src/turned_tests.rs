@@ -65,7 +65,12 @@ fn red_on(panel: &Mutex<Panel<Vec<u8>>>, g: Geometry) -> (usize, usize, usize, u
 
 /// One touch down at the controller's raw `(x, y)`, as the parser makes
 /// it.
-fn tap(parser: &mut Parser, (x, y): (i32, i32)) -> Touch {
+fn tap(parser: &mut Parser, at: (i32, i32)) -> Touch {
+    try_tap(parser, at).expect("a touch")
+}
+
+/// The same, when the parser may make none.
+fn try_tap(parser: &mut Parser, (x, y): (i32, i32)) -> Option<Touch> {
     let ev = |kind, code, value| RawEvent {
         time_ms: 0,
         kind,
@@ -80,7 +85,6 @@ fn tap(parser: &mut Parser, (x, y): (i32, i32)) -> Touch {
     ]
     .into_iter()
     .find_map(|e| parser.feed(e))
-    .expect("a touch")
 }
 
 /// Draws a block on each panel at each turn and touches the controller
@@ -270,4 +274,95 @@ fn a_carets_blink_at_a_quarter_turn_writes_only_its_columns() {
         &mut want,
     );
     assert_eq!(*lock(&panel).sink(), want, "the panel shows the caret");
+}
+
+/// A 40 by 30 screen with a 16 by 10 window in it.
+fn windowed() -> (Geometry, Geometry, (u16, u16)) {
+    let screen = geometry((40, 30));
+    let (inside, at) = screen.window((16, 10)).expect("it fits");
+    (screen, inside, at)
+}
+
+/// The screen pixel `(x, y)` of the shown bytes.
+fn pixel(shown: &[u8], screen: Geometry, (x, y): (usize, usize)) -> [u8; 4] {
+    let at = y * screen.stride + x * 4;
+    shown[at..at + 4].try_into().expect("four bytes")
+}
+
+#[test]
+fn a_window_shows_each_frame_inside_it_and_leaves_the_border_black() {
+    let (screen, inside, at) = windowed();
+    let (ox, oy) = (usize::from(at.0), usize::from(at.1));
+    // The screen held a console's bytes before.
+    let panel = Mutex::new(Panel::new(vec![9u8; screen.stride * 30], inside));
+    lock(&panel).window_in(screen, at);
+    let mut red = [0u8; 4];
+    fb::convert_into(&RED, screen.depth, &mut red);
+    let mut ground = [0u8; 4];
+    fb::convert_into(&GROUND, screen.depth, &mut ground);
+    let mut p = Presenter::default();
+    // A whole frame, then a moved one: the block steps right.
+    for (u, v) in [(4, 3), (9, 3)] {
+        p.present(&frame((16, 10), (u, v), 2), inside, Turn::R0, &panel, None)
+            .expect("written");
+        let guard = lock(&panel);
+        let shown = guard.sink();
+        for y in 0..30usize {
+            for x in 0..40usize {
+                let (wx, wy) = (x.wrapping_sub(ox), y.wrapping_sub(oy));
+                let want = if wx >= 16 || wy >= 10 {
+                    [0; 4]
+                } else if (u..u + 2).contains(&wx) && (v..v + 2).contains(&wy) {
+                    red
+                } else {
+                    ground
+                };
+                assert_eq!(pixel(shown, screen, (x, y)), want, "pixel {x},{y}");
+            }
+        }
+    }
+    // Blanking leaves nothing of the frame.
+    lock(&panel).blank();
+    assert!(!lock(&panel).sink().chunks_exact(4).any(|px| px == red));
+}
+
+#[test]
+fn a_press_lands_where_the_window_drew_it_and_the_border_takes_none() {
+    let (screen, _, at) = windowed();
+    let window = crate::evdev::Window {
+        screen: (screen.width, screen.height),
+        at,
+    };
+    let mut parser = Parser::new(16, 10, (40, 30)).windowed(Some(window));
+    let raw = |x: u16, y: u16| (i32::from(x), i32::from(y));
+    // The window's pixel (4, 3) is the screen's (at + 4, at + 3).
+    let t = tap(&mut parser, raw(at.0 + 4, at.1 + 3));
+    assert_eq!((t.x, t.y, t.phase), (4, 3, TouchPhase::Down));
+    // A finger dragged out into the border is held at the window's edge.
+    let ev = |kind, code, value| RawEvent {
+        time_ms: 0,
+        kind,
+        code,
+        value,
+    };
+    let moved = [ev(EV_ABS, ABS_X, 0), ev(EV_SYN, SYN_REPORT, 0)]
+        .into_iter()
+        .find_map(|e| parser.feed(e))
+        .expect("moved");
+    assert_eq!((moved.x, moved.phase), (0, TouchPhase::Move));
+    let mut parser = Parser::new(16, 10, (40, 30)).windowed(Some(window));
+    assert_eq!(
+        try_tap(&mut parser, raw(1, 1)),
+        None,
+        "a press in the border"
+    );
+    assert_eq!(try_tap(&mut parser, raw(39, 29)), None);
+}
+
+#[test]
+fn a_window_larger_than_the_screen_is_the_whole_screen() {
+    let small = geometry((480, 640));
+    assert_eq!(small.window((1366, 768)), None);
+    assert_eq!(small.window((0, 0)), None);
+    assert_eq!(small.window((480, 640)).map(|w| w.1), Some((0, 0)));
 }

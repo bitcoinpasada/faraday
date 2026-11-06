@@ -85,6 +85,9 @@ pub struct Parser {
     /// How the frame is turned onto the panel: a touch is mapped back
     /// through it to the frame's pixels.
     turn: crate::orient::Shared,
+    /// The drawn panel is a window of a larger touch surface: the
+    /// screen's size and the window's top-left corner on it.
+    window: Option<crate::evdev::Window>,
     /// The slot the multitouch events that follow belong to.
     slot: i32,
     /// The device has reported a multitouch position: its single-touch
@@ -119,6 +122,7 @@ impl Parser {
             grid_height: i64::from(grid.1.max(1)),
             calibration: Calibration::default(),
             turn: crate::orient::Shared::default(),
+            window: None,
             slot: 0,
             multitouch: false,
             x: 0,
@@ -158,10 +162,17 @@ impl Parser {
         Parser { turn, ..self }
     }
 
+    /// The same parser for a panel that is a window of the screen the
+    /// controller covers: a touch is placed on the screen and then in the
+    /// window, and one in the border is no touch.
+    pub fn windowed(self, window: Option<crate::evdev::Window>) -> Parser {
+        Parser { window, ..self }
+    }
+
     /// Raw grid position → the frame's pixel: reversed and swapped as
     /// the calibration says, scaled and clamped to the panel, then
     /// mapped through the turn (`docs/ORIENTATION.md` §4).
-    fn transform(&self) -> (u16, u16) {
+    fn transform(&self) -> ((u16, u16), bool) {
         let c = self.calibration;
         let mut a = self.x - self.origin.0;
         let mut b = self.y - self.origin.1;
@@ -172,13 +183,29 @@ impl Parser {
             b = self.grid_height - 1 - b;
         }
         let (w, h) = (i64::from(self.width), i64::from(self.height));
-        let (x, y) = if c.swap {
-            (b * w / self.grid_height, a * h / self.grid_width)
-        } else {
-            (a * w / self.grid_width, b * h / self.grid_height)
+        // The controller spans the screen, which is the window when
+        // there is none.
+        let (sw, sh, ox, oy) = match self.window {
+            Some(win) => (
+                i64::from(win.screen.0),
+                i64::from(win.screen.1),
+                i64::from(win.at.0),
+                i64::from(win.at.1),
+            ),
+            None => (w, h, 0, 0),
         };
+        let (x, y) = if c.swap {
+            (b * sw / self.grid_height, a * sh / self.grid_width)
+        } else {
+            (a * sw / self.grid_width, b * sh / self.grid_height)
+        };
+        let (x, y) = (x.clamp(0, sw - 1) - ox, y.clamp(0, sh - 1) - oy);
+        let inside = (0..w).contains(&x) && (0..h).contains(&y);
         let panel = (x.clamp(0, w - 1) as u16, y.clamp(0, h - 1) as u16);
-        self.turn.get().to_frame((self.width, self.height), panel)
+        (
+            self.turn.get().to_frame((self.width, self.height), panel),
+            inside,
+        )
     }
 
     /// Feeds one raw event; returns a touch when the packet it closed
@@ -239,7 +266,7 @@ impl Parser {
             self.down = false;
             // A release reports no new position; it happens where the
             // contact last was.
-            let (x, y) = self.last.unwrap_or_else(|| self.transform());
+            let (x, y) = self.last.unwrap_or_else(|| self.transform().0);
             self.last = None;
             return Some(Touch {
                 x,
@@ -251,9 +278,14 @@ impl Parser {
         if !self.positioned {
             return None;
         }
-        let (x, y) = self.transform();
+        let ((x, y), inside) = self.transform();
 
         if contact && !self.down {
+            // A press in the border goes nowhere; a finger dragged out
+            // of the window is held at its edge.
+            if !inside {
+                return None;
+            }
             self.down = true;
             self.last = Some((x, y));
             return Some(Touch {

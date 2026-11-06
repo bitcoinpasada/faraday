@@ -517,6 +517,18 @@ pub struct TouchPanel {
     /// How the frame is turned onto the panel, shared with the main
     /// loop, which sets it.
     pub turn: crate::orient::Shared,
+    /// Set when the frame is drawn in a window of the screen the
+    /// controller covers.
+    pub window: Option<Window>,
+}
+
+/// A centred window of a larger screen, in screen pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Window {
+    /// The whole screen's width and height.
+    pub screen: (u16, u16),
+    /// The screen pixel the window's top-left corner is at.
+    pub at: (u16, u16),
 }
 
 /// The parsers one device needs, and the thread body that feeds them.
@@ -542,6 +554,7 @@ impl Readers {
                 }
                 .calibrated(panel.calibration)
                 .turned(panel.turn.clone())
+                .windowed(panel.window)
             }),
             pointer: (device.mouse || device.touchpad).then(|| {
                 Pointer::new(
@@ -946,6 +959,7 @@ mod tests {
                 grid: (0, 0),
                 calibration: touch::Calibration::default(),
                 turn: crate::orient::Shared::default(),
+                window: None,
             },
         );
         let mut out = Vec::new();

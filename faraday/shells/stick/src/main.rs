@@ -303,6 +303,9 @@ const DEFAULT_DPI: u16 = 160;
 /// The kernel command line key the stick sets to say what the screen's
 /// density is.
 const CMDLINE_DPI: &str = "faraday.dpi=";
+/// The kernel command line's word for drawing in a centred window of a
+/// larger screen, `WxH`: fewer pixels to convert and write.
+const CMDLINE_WINDOW: &str = "faraday.window=";
 
 /// The file the kernel command line is read from.
 const CMDLINE: &str = "/proc/cmdline";
@@ -694,6 +697,15 @@ fn dpi(args: &Args, cmdline: &str, edid: Option<faraday_core::edid::Size>, fb: (
     } else {
         dpi
     }
+}
+
+/// The window the kernel command line asks for, as `WxH`.
+fn window_asked(cmdline: &str) -> Option<(u16, u16)> {
+    let v = cmdline
+        .split_whitespace()
+        .find_map(|word| word.strip_prefix(CMDLINE_WINDOW))?;
+    let (w, h) = v.split_once('x')?;
+    Some((w.parse().ok()?, h.parse().ok()?))
 }
 
 /// `/dev/fb0` → `/sys/class/graphics/fb0`.
@@ -1868,7 +1880,14 @@ impl Shell {
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(args: Args) -> Result<Exit, String> {
-    let geometry = geometry(&args, probe(&args))?;
+    let screen = geometry(&args, probe(&args))?;
+    let cmdline = std::fs::read_to_string(CMDLINE).unwrap_or_default();
+    // Only a framebuffer's own stride can hold a window, so never with a
+    // size or a file given instead of one.
+    let inset = (!args.off_device && args.size.is_none())
+        .then(|| screen.window(window_asked(&cmdline)?))
+        .flatten();
+    let geometry = inset.map_or(screen, |(inside, _)| inside);
     // The firmware's EDID and the machine's names: on the device only.
     let boot_params = if args.off_device {
         Vec::new()
@@ -1883,14 +1902,13 @@ fn run(args: Args) -> Result<Exit, String> {
     };
     let edid_size = faraday_core::edid::from_boot_params(&boot_params)
         .or_else(|| (!drm_edid.is_empty()).then_some(drm_edid.as_slice()))
-        .and_then(faraday_core::edid::size);
+        .and_then(faraday_core::edid::size)
+        // The EDID gives the size of the whole screen, never of a window
+        // in it: a window is judged by its own pixels, so the page lays
+        // out as on a screen of that size.
+        .filter(|_| inset.is_none());
     let fb_size = (geometry.width, geometry.height);
-    let dpi = dpi(
-        &args,
-        &std::fs::read_to_string(CMDLINE).unwrap_or_default(),
-        edid_size,
-        fb_size,
-    );
+    let dpi = dpi(&args, &cmdline, edid_size, fb_size);
     let setup = match args.native_portrait {
         Some(portrait) => orient::Setup::stated(portrait, args.mount),
         None if args.off_device => orient::Setup::stated(fb_size.1 > fb_size.0, args.mount),
@@ -1952,6 +1970,9 @@ fn run(args: Args) -> Result<Exit, String> {
     let turn = orient::Shared::new(setup.at_start());
     let frame = turn.get().frame_size(fb_size);
     let mut panel = Panel::new(fb, geometry);
+    if let Some((_, at)) = inset {
+        panel.window_in(screen, at);
+    }
     panel.set_turn(turn.get());
     let panel = Arc::new(Mutex::new(panel));
     let cursor = pointing.then(|| {
@@ -1971,6 +1992,10 @@ fn run(args: Args) -> Result<Exit, String> {
         grid: args.touch_grid,
         calibration: args.calibration,
         turn: turn.clone(),
+        window: inset.map(|(_, at)| evdev::Window {
+            screen: (screen.width, screen.height),
+            at,
+        }),
     };
     let mut believed = std::collections::BTreeMap::new();
     for (id, device) in found {

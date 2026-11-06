@@ -163,6 +163,11 @@ HDMI.
   sets its preferred mode; no mode is named on the card (F150).
   `NATIVE` and `MOUNT` are not given: the screen's mode says which way
   it is.
+- **A window on the HDMI screen** is asked for by `faraday.window=WxH`
+  on the kernel command line (`docs/FRAMES.md` §6): the app draws in a
+  centred window of that size and the rest of the screen is black. A
+  screen that cannot hold it is drawn whole. The dev Pi image's line
+  carries `1366x768`; the regular image's does not.
 - **Both screens fit every Pi the image starts.**
 - **No DSI screen for now** (owner, F187). Raspberry Pi Touch Display 2
   and Waveshare's DSI (C) panels are not built: none would be tried, and

@@ -60,6 +60,9 @@ impl Sink for Vec<u8> {
 pub struct Panel<S: Sink = File> {
     fb: S,
     geometry: Geometry,
+    /// The byte of the framebuffer the frame's first pixel goes to: not
+    /// the first in a window inside a larger screen.
+    origin: u64,
     /// The converted frame the panel shows, without the arrow. Rows are
     /// kept in step with the panel as they are written.
     shown: Vec<u8>,
@@ -88,6 +91,7 @@ impl<S: Sink> Panel<S> {
         Panel {
             fb,
             geometry,
+            origin: 0,
             shown: Vec::new(),
             stale: true,
             arrow: None,
@@ -96,6 +100,30 @@ impl<S: Sink> Panel<S> {
             band: Vec::new(),
             written: 0,
         }
+    }
+
+    /// Costs a write of the border of `screen`: paints what is outside
+    /// the window black, once (the boot logo and the console go), and draws
+    /// from now on in the window `Geometry::window` gave, whose top-left
+    /// corner is the screen pixel `at`. Frames, bands, moved frames and the
+    /// arrow all go to the window; nothing writes the border again.
+    pub fn window_in(&mut self, screen: Geometry, at: (u16, u16)) {
+        let bytes = screen.depth.bytes_per_pixel();
+        let (x0, y0) = (usize::from(at.0), usize::from(at.1));
+        let inside = x0 * bytes..(x0 + usize::from(self.geometry.width)) * bytes;
+        let rows = y0..y0 + usize::from(self.geometry.height);
+        let row = vec![0u8; screen.row_bytes()];
+        for y in 0..usize::from(screen.height) {
+            let at = (y * screen.stride) as u64;
+            if rows.contains(&y) {
+                let _ = self.fb.write_at(&row[..inside.start], at);
+                let _ = self.fb.write_at(&row[inside.end..], at + inside.end as u64);
+            } else {
+                let _ = self.fb.write_at(&row, at);
+            }
+        }
+        self.origin = (y0 * screen.stride + x0 * bytes) as u64;
+        self.stale = true;
     }
 
     /// Whether the next frame must be written whole: nothing is known to
@@ -221,7 +249,7 @@ impl<S: Sink> Panel<S> {
             self.written += 1;
             if let Err(e) = self
                 .fb
-                .write_at(&self.band, (y * g.stride + cols.start) as u64)
+                .write_at(&self.band, self.origin + (y * g.stride + cols.start) as u64)
             {
                 self.stale = true;
                 return Err(e);
@@ -334,7 +362,7 @@ impl<S: Sink> Panel<S> {
         let g = self.geometry;
         let row = vec![0u8; g.row_bytes()];
         for y in 0..usize::from(g.height) {
-            let _ = self.fb.write_at(&row, (y * g.stride) as u64);
+            let _ = self.fb.write_at(&row, self.origin + (y * g.stride) as u64);
         }
         self.stale = true;
         self.arrow = None;
@@ -389,11 +417,13 @@ impl<S: Sink> Panel<S> {
         self.written += (last + 1 - first) as u64;
         let rows = (first - origin) * row..(last + 1 - origin) * row;
         if g.stride == row {
-            self.fb.write_at(&buf[rows], (first * row) as u64)
+            self.fb
+                .write_at(&buf[rows], self.origin + (first * row) as u64)
         } else {
             (first..=last).try_for_each(|y| {
                 let r = (y - origin) * row;
-                self.fb.write_at(&buf[r..r + row], (y * g.stride) as u64)
+                self.fb
+                    .write_at(&buf[r..r + row], self.origin + (y * g.stride) as u64)
             })
         }
     }
