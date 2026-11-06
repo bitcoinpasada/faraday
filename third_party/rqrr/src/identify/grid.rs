@@ -47,7 +47,7 @@ impl SkewedGridLocation {
         };
 
         /* Make sure A-B-C is clockwise */
-        if (group.1.center.x - h0.x) * -hd.y + (group.1.center.y - h0.y) * hd.x > 0 {
+        if side_of(&group.1.center, &h0, &hd) > 0 {
             mem::swap(&mut group.0, &mut group.2);
             hd.x = -hd.x;
             hd.y = -hd.y
@@ -105,7 +105,7 @@ impl SkewedGridLocation {
                     find_alignment_pattern(img, seed, area as usize)?
                 }
             };
-            let score = -hd.y * align.x + hd.x * align.y;
+            let score = -i64::from(hd.y) * i64::from(align.x) + i64::from(hd.x) * i64::from(align.y);
             let finder = LeftMostFinder {
                 line_p: hd,
                 best: align,
@@ -199,6 +199,14 @@ where
     jiggle_perspective(img, initial, grid_size)
 }
 
+/// Which side of the line from `h0` along `hd` the point `p` lies on, as
+/// a signed distance times the line's length. In `i64`, so no product of
+/// coordinates taken from the frame wraps.
+fn side_of(p: &Point, h0: &Point, hd: &Point) -> i64 {
+    let w = |v: i32| i64::from(v);
+    (w(p.x) - w(h0.x)) * -w(hd.y) + (w(p.y) - w(h0.y)) * w(hd.x)
+}
+
 /// Rotate a capstone's corners into their canonical order.
 ///
 /// Returns `None` when the rotated corners have no perspective
@@ -210,7 +218,7 @@ fn rotate_capstone(cap: &mut CapStone, h0: &Point, hd: &Point) -> Option<()> {
         .corners
         .iter()
         .enumerate()
-        .min_by_key(|(_, a)| (a.x - h0.x) * (-hd.y) + (a.y - h0.y) * hd.x)?;
+        .min_by_key(|(_, a)| side_of(a, h0, hd))?;
 
     /* Rotate the capstone */
     cap.corners.rotate_left(best_idx);
@@ -237,8 +245,8 @@ where
     let tpet1 = caps.1.c.map(US[1], VS[1])?;
     let tpet2 = caps.2.c.map(US[2], VS[2])?;
 
-    let hscan = timing_scan(img, &tpet1, &tpet2);
-    let vscan = timing_scan(img, &tpet1, &tpet0);
+    let hscan = timing_scan(img, &tpet1, &tpet2)?;
+    let vscan = timing_scan(img, &tpet1, &tpet0)?;
 
     let scan = cmp::max(hscan, vscan);
 
@@ -251,13 +259,13 @@ where
     Some(ver * 4 + 17)
 }
 
-fn timing_scan<S>(img: &PreparedImage<S>, p0: &Point, p1: &Point) -> usize
+fn timing_scan<S>(img: &PreparedImage<S>, p0: &Point, p1: &Point) -> Option<usize>
 where
     S: ImageBuffer,
 {
     let mut count = 0;
     let mut previous = None;
-    for p in geometry::BresenhamScan::new(p0, p1) {
+    for p in geometry::BresenhamScan::new(p0, p1)? {
         let pixel = img.get_pixel_at_point(p);
         if let Some(previous) = previous {
             if previous != pixel {
@@ -267,7 +275,7 @@ where
         previous = Some(pixel);
     }
 
-    count
+    Some(count)
 }
 
 /// The area, in pixels, one module of the grid covers around `seed`,
@@ -303,6 +311,13 @@ fn affine_module_area(cap: &CapStone) -> f64 {
     (ux * vy - uy * vx).abs()
 }
 
+/// The fewest modules a code with an alignment pattern spans, counted
+/// for the longest side of the frame: version 2 is 25 across, and 17
+/// leaves room for a code seen at an angle or filling the frame's
+/// diagonal. At 1920x1080 this bounds the search to about 1.3 million
+/// steps.
+const MIN_MODULES_ACROSS_FRAME: usize = 17;
+
 /// Looks outwards from `align_seed` for the alignment pattern's centre
 /// square, a region about `size_estimate` pixels in area.
 fn find_alignment_pattern<S>(
@@ -313,6 +328,17 @@ fn find_alignment_pattern<S>(
 where
     S: ImageBuffer,
 {
+    // The estimate comes from the capstones' perspective, which a crafted
+    // frame can make as large as 2^31 pixels; the spiral then takes about
+    // 100 times that many steps. A module of a code that has an alignment
+    // pattern (version 2 up, 25 modules or more across) is no wider than
+    // `MIN_MODULES_ACROSS_FRAME` of the frame's longer side: past that the
+    // frame has no such pattern, and the group is refused.
+    let side = img.width().max(img.height()) / MIN_MODULES_ACROSS_FRAME;
+    if size_estimate > side.saturating_mul(side) {
+        return None;
+    }
+
     /* Spiral outwards from the estimate point until we find something
      * roughly the right size. Don't look too far from the estimate
      * point.
@@ -358,13 +384,14 @@ where
 struct LeftMostFinder {
     line_p: Point,
     best: Point,
-    score: i32,
+    score: i64,
 }
 
 impl AreaFiller for LeftMostFinder {
     fn update(&mut self, row: Row) {
-        let left_d = -self.line_p.y * (row.left as i32) + self.line_p.x * row.y as i32;
-        let right_d = -self.line_p.y * (row.right as i32) + self.line_p.x * row.y as i32;
+        let (px, py) = (i64::from(self.line_p.x), i64::from(self.line_p.y));
+        let left_d = -py * row.left as i64 + px * row.y as i64;
+        let right_d = -py * row.right as i64 + px * row.y as i64;
 
         if left_d < self.score {
             self.score = left_d;

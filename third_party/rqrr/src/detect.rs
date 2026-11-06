@@ -24,6 +24,12 @@ pub struct CapStone {
     pub c: Perspective,
 }
 
+/// The most capstones one frame may hold before it is given up as no
+/// read. A code has three; a photograph of a sheet of codes a dozen or two
+/// (the pair lists are at most the square of this). A lattice of 1:1:3:1:1 squares seven pixels wide holds tens
+/// of thousands at 1920x1080.
+const MAX_CAPSTONES: usize = 256;
+
 /// Find all 'capstones' in a given image.
 ///
 /// A Capstones is the locator pattern of a QR code. Every QR code has 3 of
@@ -56,6 +62,9 @@ where
             };
 
             res.push(cap);
+            if res.len() > MAX_CAPSTONES {
+                return Vec::new();
+            }
         }
 
         // Insert a virtual white pixel at the end to trigger a re-check. Necessary when
@@ -71,6 +80,9 @@ where
             };
 
             res.push(cap);
+            if res.len() > MAX_CAPSTONES {
+                return Vec::new();
+            }
         }
     }
     res
@@ -269,6 +281,14 @@ where
     let c = Perspective::create(&corners, 7.0, 7.0)?;
     // A transform that cannot place its own centre is no capstone.
     let center = c.map(3.5, 3.5)?;
+    // A centre more than a frame's width or height outside the frame is
+    // no capstone of a code in it; and every product of centres taken
+    // later stays far from the coordinate type's limits.
+    let (w, h) = (img.width() as i64, img.height() as i64);
+    let (cx, cy) = (i64::from(center.x), i64::from(center.y));
+    if cx < -w || cx > 2 * w || cy < -h || cy > 2 * h {
+        return None;
+    }
 
     Some(CapStone { c, corners, center })
 }

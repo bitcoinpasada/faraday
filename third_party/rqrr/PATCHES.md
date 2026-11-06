@@ -158,6 +158,45 @@ modules.
 
 Tested against generated frames in `core/faraday-codec/tests/dense_codes.rs`.
 
+## Crafted frames: bounded work and checked arithmetic
+
+A camera frame is the untrusted side's. The fault to prevent is a scanner
+that stalls or ends, never a wrong payload; each change below makes a
+frame over a bound give no read, as any unreadable frame does.
+
+- **Capstone count** (`src/detect.rs`, `MAX_CAPSTONES` = 256). A lattice of
+  seven-pixel corner marks gives about 32,000 capstones at 1920x1080 and
+  the grouping then did not end (measured: still running after 60 s in a
+  release build; now 16 ms). More than 256 capstones in a frame is no
+  read. A code has three.
+- **Group tries** (`src/prepare.rs`, `MAX_PAIRS_PER_CAPSTONE` = 8,
+  `MAX_GROUP_TRIES` = 128). Each try copies the whole image. Pairs are
+  taken best-ranked first; a genuine code's pair ranks among the first
+  few. Past the budget the groups found so far are returned.
+- **Alignment search** (`src/identify/grid.rs`,
+  `MIN_MODULES_ACROSS_FRAME` = 17). The spiral's bound grew with the
+  module area read off the capstones' perspective, up to 2^31 pixels and
+  about 10^11 steps. An estimate over (longer side / 17) squared, 12,700
+  pixels at 1920x1080, is refused. That bounds the search to about 1.3
+  million steps. No frame reaching this was found: 4,000 warped version 2
+  codes at 1920x1080 all ended in under 150 ms. The bound stands because
+  nothing else limits the loop.
+- **Capstone centre** (`src/detect.rs`). A capstone whose centre lies more
+  than a frame's width or height outside the frame is no capstone. Later
+  scans (`BresenhamScan`) run between points derived from it. Not shown
+  to be reachable as a frame.
+- **Arithmetic** (`src/geometry.rs`, `src/identify/grid.rs`).
+  `line_intersect` works in `i128` and returns `None` for a crossing that
+  is not an `i32` (the `i32` products wrapped in release and panicked in
+  debug). `BresenhamScan::new` returns `None` for a span over 2^30 or a
+  difference that overflows (`i32::MIN` has no absolute value);
+  `timing_scan` passes that on and the group is rejected. The side-of-line
+  tests and `LeftMostFinder`'s score are in `i64`. Nothing is saturated: a
+  value out of range rejects the group.
+
+Tested in `core/faraday-codec/tests/crafted_frames.rs` (the lattice frame is
+generated) and in `src/geometry.rs`.
+
 ## Other panic sites, not yet changed
 
 Found by reading for `assert!`, `unwrap`, `expect`, `panic!` and indexing

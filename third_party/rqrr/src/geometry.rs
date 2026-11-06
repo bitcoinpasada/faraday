@@ -92,14 +92,15 @@ impl Perspective {
 
 pub fn line_intersect(p0: &Point, p1: &Point, q0: &Point, q1: &Point) -> Option<Point> {
     /* (a, b) is perpendicular to line p */
-    let a = -(p1.y - p0.y);
-    let b = p1.x - p0.x;
+    let w = |v: i32| i128::from(v);
+    let a = -(w(p1.y) - w(p0.y));
+    let b = w(p1.x) - w(p0.x);
     /* (c, d) is perpendicular to line q */
-    let c = -(q1.y - q0.y);
-    let d = q1.x - q0.x;
+    let c = -(w(q1.y) - w(q0.y));
+    let d = w(q1.x) - w(q0.x);
     /* e and f are dot products of the respective vectors with p and q */
-    let e = a * p1.x + b * p1.y;
-    let f = c * q1.x + d * q1.y;
+    let e = a * w(p1.x) + b * w(p1.y);
+    let f = c * w(q1.x) + d * w(q1.y);
     /* Now we need to solve:
      *     [a b] [rx]   [e]
      *     [c d] [ry] = [f]
@@ -110,13 +111,12 @@ pub fn line_intersect(p0: &Point, p1: &Point, q0: &Point, q1: &Point) -> Option<
      */
     let det = a * d - b * c;
     if det == 0 {
-        None
-    } else {
-        Some(Point {
-            x: (d * e - b * f) / det,
-            y: (-c * e + a * f) / det,
-        })
+        return None;
     }
+    Some(Point {
+        x: i32::try_from((d * e - b * f) / det).ok()?,
+        y: i32::try_from((-c * e + a * f) / det).ok()?,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -133,9 +133,16 @@ pub struct BresenhamScan {
 }
 
 impl BresenhamScan {
-    pub fn new(from: &Point, to: &Point) -> Self {
-        let n = to.x - from.x;
-        let d = to.y - from.y;
+    /// The scan from `from` to `to`, or `None` when either difference is
+    /// beyond `MAX_SCAN` (no frame is that wide, and the counters would
+    /// wrap).
+    pub fn new(from: &Point, to: &Point) -> Option<Self> {
+        const MAX_SCAN: i32 = 1 << 30;
+        let n = to.x.checked_sub(from.x)?;
+        let d = to.y.checked_sub(from.y)?;
+        if n.unsigned_abs() > MAX_SCAN as u32 || d.unsigned_abs() > MAX_SCAN as u32 {
+            return None;
+        }
         let x = from.x;
         let y = from.y;
 
@@ -149,7 +156,7 @@ impl BresenhamScan {
 
         let (d, dom_step) = if d < 0 { (-d, -1) } else { (d, 1) };
 
-        BresenhamScan {
+        Some(BresenhamScan {
             x,
             y,
             dom_step,
@@ -159,7 +166,7 @@ impl BresenhamScan {
             n,
             a: n,
             x_dom,
-        }
+        })
     }
 }
 
@@ -204,25 +211,25 @@ mod tests {
 
         let right = Point { x: 300, y: 100 };
 
-        let scan_up = BresenhamScan::new(&middle, &up);
+        let scan_up = BresenhamScan::new(&middle, &up).unwrap();
         for (i, p) in scan_up.enumerate() {
             assert_eq!(100 + i as i32, p.y);
             assert_eq!(100, p.x);
         }
 
-        let scan_down = BresenhamScan::new(&up, &middle);
+        let scan_down = BresenhamScan::new(&up, &middle).unwrap();
         for (i, p) in scan_down.enumerate() {
             assert_eq!(200 - i as i32, p.y);
             assert_eq!(100, p.x);
         }
 
-        let scan_right = BresenhamScan::new(&middle, &right);
+        let scan_right = BresenhamScan::new(&middle, &right).unwrap();
         for (i, p) in scan_right.enumerate() {
             assert_eq!(100, p.y);
             assert_eq!(100 + i as i32, p.x);
         }
 
-        let scan_right = BresenhamScan::new(&right, &middle);
+        let scan_right = BresenhamScan::new(&right, &middle).unwrap();
         for (i, p) in scan_right.enumerate() {
             assert_eq!(100, p.y);
             assert_eq!(300 - i as i32, p.x);
@@ -233,7 +240,7 @@ mod tests {
     fn test_bresenham_zero() {
         let start = Point { x: 37, y: 45 };
 
-        let mut scan = BresenhamScan::new(&start, &start);
+        let mut scan = BresenhamScan::new(&start, &start).unwrap();
         assert_eq!(scan.next(), Some(Point { x: 37, y: 45 }));
         assert_eq!(scan.next(), None)
     }
@@ -245,7 +252,7 @@ mod tests {
         let start = Point { x: 1, y: 1 };
         let end = Point { x: 11, y: 5 };
 
-        let mut scan = BresenhamScan::new(&start, &end);
+        let mut scan = BresenhamScan::new(&start, &end).unwrap();
 
         assert_eq!(scan.next(), Some(Point { x: 1, y: 1 }));
         assert_eq!(scan.next(), Some(Point { x: 2, y: 1 }));
@@ -268,7 +275,7 @@ mod tests {
         let start = Point { x: 5, y: 11 };
         let end = Point { x: 1, y: 1 };
 
-        let mut scan = BresenhamScan::new(&start, &end);
+        let mut scan = BresenhamScan::new(&start, &end).unwrap();
 
         assert_eq!(scan.next(), Some(Point { x: 5, y: 11 }));
         assert_eq!(scan.next(), Some(Point { x: 5, y: 10 }));
@@ -324,5 +331,31 @@ mod tests {
             line_intersect(&p1, &p0, &q1, &q0),
             Some(Point { x: 0, y: 2 })
         );
+    }
+
+    #[test]
+    fn crossing_of_far_corners_is_refused_not_wrapped() {
+        let p = |x, y| Point { x, y };
+        // Nearly parallel lines cross millions of pixels away.
+        assert_eq!(
+            line_intersect(&p(0, 0), &p(1900, 1), &p(0, 3), &p(1900, 1)),
+            Some(p(1900, 1))
+        );
+        assert_eq!(
+            line_intersect(&p(0, 0), &p(1900, 1), &p(0, 1000), &p(1900, 1000)),
+            Some(p(1_900_000, 1000))
+        );
+        assert_eq!(
+            line_intersect(&p(0, 0), &p(1900, 1), &p(0, 2_000_000_000), &p(1900, 2_000_000_000)),
+            None
+        );
+    }
+
+    #[test]
+    fn scan_of_a_span_the_counters_cannot_hold_is_refused() {
+        let p = |x, y| Point { x, y };
+        assert!(BresenhamScan::new(&p(i32::MIN, 0), &p(i32::MAX, 0)).is_none());
+        assert!(BresenhamScan::new(&p(0, 0), &p(i32::MIN, 0)).is_none());
+        assert!(BresenhamScan::new(&p(0, 0), &p(1900, 3)).is_some());
     }
 }

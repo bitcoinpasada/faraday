@@ -102,6 +102,16 @@ impl RegionTable {
     }
 }
 
+/// The best-ranked pairs of neighbours tried for one capstone. The right
+/// pair of a genuine code ranks among the first few; a crafted frame
+/// offers a capstone thousands.
+const MAX_PAIRS_PER_CAPSTONE: usize = 8;
+
+/// The groups tried in one frame, each of which copies the whole image.
+/// A frame holds a handful of codes, and a code takes one try when its
+/// capstones rank first.
+const MAX_GROUP_TRIES: usize = 128;
+
 impl<S> Clone for PreparedImage<S>
 where
     S: Clone,
@@ -350,15 +360,22 @@ where
     {
         let mut used_capstones = Vec::new();
         let mut groups = Vec::new();
+        let mut tries = 0;
         for idx in 0..capstones.len() {
             if used_capstones.contains(&idx) {
                 continue;
             }
             let pairs = crate::identify::find_and_rank_possible_neighbors(&capstones, idx);
-            for pair in pairs {
+            for pair in pairs.into_iter().take(MAX_PAIRS_PER_CAPSTONE) {
                 if used_capstones.contains(&pair.0) || used_capstones.contains(&pair.1) {
                     continue;
                 }
+                // Every try copies the image: a frame past the budget is
+                // given up, with the groups found so far.
+                if tries == MAX_GROUP_TRIES {
+                    return groups;
+                }
+                tries += 1;
                 let group_under_test = CapStoneGroup(
                     capstones[pair.0].clone(),
                     capstones[idx].clone(),
