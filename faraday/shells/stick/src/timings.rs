@@ -16,7 +16,7 @@
 //! here is worth a row per pass.
 
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use faraday_core::FadeCounts;
 
@@ -47,6 +47,39 @@ pub enum Bucket {
     Frame,
     /// The core's frame as a fade's step: two kept frames blended.
     Blend,
+}
+
+/// A call the loop makes outside the buckets, timed as a whole.
+#[derive(Clone, Copy)]
+pub enum Part {
+    /// `rescan_inputs`: a look for input devices plugged in.
+    Rescan,
+    /// `scan_sticks`: a look at the storage plugged in.
+    Sticks,
+    /// `report`: building the timings block and, when due, writing it.
+    Report,
+    /// `write_boot_report`: sampling the system and, when due, writing
+    /// the report.
+    BootReport,
+    /// One write of the CPU's lowest clock (`clock.rs`), made inside
+    /// the pass that raised or lowered it.
+    ClockWrite,
+}
+
+/// The names of the parts, in the order the block prints them.
+const PART_NAMES: [&str; 5] = ["rescan", "sticks", "report", "bootreport", "clockwrite"];
+
+/// The moment a call starts, when `--timings`
+/// asked for it (`stop` records it).
+pub fn start(t: &Option<Timings>) -> Option<Instant> {
+    t.is_some().then(Instant::now)
+}
+
+/// Records the call `start` began as `part`.
+pub fn stop(t: &mut Option<Timings>, part: Part, start: Option<Instant>) {
+    if let (Some(start), Some(t)) = (start, t.as_mut()) {
+        t.part(part, start.elapsed());
+    }
 }
 
 /// Where the kernel says how the first CPU's clock is driven.
@@ -134,6 +167,14 @@ pub struct Timings {
     wrote: Option<Duration>,
     /// This process's run number since boot, from 1.
     run: u32,
+    /// The calls outside the buckets since the last block.
+    parts: [Tally; PART_NAMES.len()],
+    /// What the buckets and parts timed on the loop's thread in the
+    /// pass now running: what the pass's total can be held against.
+    explained: Duration,
+    /// The slowest pass that drew since the last block: its total and
+    /// how much of it no bucket or part explains.
+    slowest: Option<(Duration, Duration)>,
 }
 
 impl Timings {
@@ -154,7 +195,9 @@ impl Timings {
                 "faraday {version} panel {width}x{height} \
                  columns: bucket count mean_ms worst_ms\n\
                  costly work columns: work count mean_ms worst_ms kind (the costliest an event did)\n\
-                 cpu0 driver {} governor {} min_khz {} max_khz {}",
+                 cpu0 driver {} governor {} min_khz {} max_khz {}\n\
+                 parts columns: part count mean_ms worst_ms name (calls outside the buckets; clockwrite is a write of the CPU's lowest clock, inside a pass)\n\
+                 slowest: the slowest pass that drew, and how much of it no bucket or part explains",
                 cpufreq("scaling_driver"),
                 cpufreq("scaling_governor"),
                 cpufreq("cpuinfo_min_freq"),
@@ -164,6 +207,9 @@ impl Timings {
             kept: String::new(),
             wrote: None,
             run: 1,
+            parts: [Tally::default(); PART_NAMES.len()],
+            explained: Duration::ZERO,
+            slowest: None,
         }
     }
 
@@ -218,6 +264,38 @@ impl Timings {
         tally.total += took;
         if took > tally.worst {
             tally.worst = took;
+        }
+        self.explained += took;
+    }
+
+    /// Records one call outside the buckets; it counts towards what the
+    /// pass it is in explains.
+    pub fn part(&mut self, part: Part, took: Duration) {
+        let tally = &mut self.parts[part as usize];
+        tally.count += 1;
+        tally.total += took;
+        tally.worst = tally.worst.max(took);
+        self.explained += took;
+    }
+
+    /// Records the clock writes made since the last call.
+    pub fn clock_writes(&mut self, took: impl IntoIterator<Item = Duration>) {
+        for d in took {
+            self.part(Part::ClockWrite, d);
+        }
+    }
+
+    /// A pass begins, at the end of its wait: what it explains starts
+    /// from nothing.
+    pub fn begin_pass(&mut self) {
+        self.explained = Duration::ZERO;
+    }
+
+    /// The pass that drew took `total` from its start to its frame
+    /// written: kept if it is the slowest of the block.
+    pub fn drawn_pass(&mut self, total: Duration) {
+        if self.slowest.is_none_or(|(t, _)| total > t) {
+            self.slowest = Some((total, total.saturating_sub(self.explained)));
         }
     }
 
@@ -369,7 +447,26 @@ impl Timings {
                 if f.on { "on" } else { "off" },
             ));
         }
+        for (name, tally) in PART_NAMES.iter().zip(&self.parts) {
+            if tally.count > 0 {
+                out.push_str(&format!(
+                    "part     {:>7} {:>9.2} {:>9.2}  {name}\n",
+                    tally.count,
+                    mean_ms(*tally),
+                    ms(tally.worst),
+                ));
+            }
+        }
+        if let Some((total, unexplained)) = self.slowest {
+            out.push_str(&format!(
+                "slowest  pass_ms {:.2} unexplained_ms {:.2}\n",
+                ms(total),
+                ms(unexplained),
+            ));
+        }
         out.push('\n');
+        self.parts = [Tally::default(); PART_NAMES.len()];
+        self.slowest = None;
         self.tallies = [Tally::default(); NAMES.len()];
         self.work.clear();
         self.passes = 0;
@@ -483,6 +580,46 @@ mod tests {
         assert_eq!(
             rows[WORK_ROWS - 1],
             "work           4      1.00      1.00  other work"
+        );
+    }
+
+    #[test]
+    fn a_block_says_what_the_calls_outside_the_buckets_cost() {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        t.part(Part::Rescan, Duration::from_millis(3));
+        t.part(Part::Rescan, Duration::from_millis(5));
+        t.clock_writes([Duration::from_millis(2)]);
+        let block = t.last(Duration::from_secs(5), None);
+        let rows: Vec<&str> = block.lines().filter(|l| l.starts_with("part ")).collect();
+        assert_eq!(
+            rows,
+            [
+                "part           2      4.00      5.00  rescan",
+                "part           1      2.00      2.00  clockwrite",
+            ]
+        );
+        assert!(!block.contains("slowest  "), "no pass drew");
+        let next = t.last(Duration::from_secs(10), None);
+        assert!(!next.contains("part  "));
+    }
+
+    #[test]
+    fn the_slowest_pass_that_drew_says_how_much_of_it_nothing_explains() {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        t.begin_pass();
+        t.add(Bucket::Tick, Duration::from_millis(4));
+        t.drawn_pass(Duration::from_millis(30));
+        t.begin_pass();
+        t.add(Bucket::Tick, Duration::from_millis(10));
+        t.part(Part::Rescan, Duration::from_millis(20));
+        t.clock_writes([Duration::from_millis(100)]);
+        t.drawn_pass(Duration::from_millis(500));
+        t.begin_pass();
+        t.drawn_pass(Duration::from_millis(40));
+        let block = t.last(Duration::from_secs(5), None);
+        assert!(
+            block.contains("slowest  pass_ms 500.00 unexplained_ms 370.00\n"),
+            "{block}"
         );
     }
 

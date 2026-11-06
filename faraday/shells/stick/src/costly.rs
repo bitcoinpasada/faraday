@@ -11,6 +11,13 @@
 //! keeps of it: what it was for, its strength's name, its Argon2id
 //! memory and passes, and how it ended. Nothing here comes from what a
 //! person typed or chose: no name, no passphrase, no file's name.
+//!
+//! A vault's stretch runs on the worker, so the main thread's time is only
+//! the answer being applied. With `--timings` the worker times the stretch
+//! itself, from its start to its end (`work::time_vaults`), and the note
+//! carries it back with the answer: a second row, the same name with
+//! [`ON_WORKER`] after it. A release card asks for nothing and the worker
+//! reads no clock.
 
 use std::time::{Duration, Instant};
 
@@ -44,6 +51,9 @@ const ORDER: [(Work, &str); 20] = [
     (Work::FileRead, "file head read"),
     (Work::TotpCode, "code made"),
 ];
+
+/// What follows a vault row's name on the row of the worker's own time.
+pub const ON_WORKER: &str = " (on the worker)";
 
 /// What a vault stretch's row is called: what it was for, the strength
 /// and its cost, and how it ended when it did not simply run.
@@ -103,6 +113,11 @@ impl Watch {
     pub fn end(self, timings: &mut Timings, suffix: &str) {
         let took = self.start.elapsed();
         let vaults = work::take_vault_work();
+        for v in &vaults {
+            if let Some(worker) = v.took {
+                timings.work(&format!("{}{ON_WORKER}", vault_label(v)), worker);
+            }
+        }
         if let Some(name) = label(&work::since(&self.before), &vaults) {
             timings.work(&format!("{name}{suffix}"), took);
         }
@@ -219,6 +234,7 @@ mod tests {
             memory_mib,
             passes,
             ended,
+            took: None,
         }
     }
 

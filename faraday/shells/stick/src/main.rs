@@ -161,7 +161,7 @@ use files::Files;
 use pace::Pace;
 use panel::{Panel, lock};
 use present::Presenter;
-use timings::{Bucket, Timings};
+use timings::{Bucket, Part, Timings};
 
 /// How long the main loop waits to be woken before sending a tick.
 const TICK: Duration = Duration::from_millis(50);
@@ -2064,6 +2064,7 @@ fn run(args: Args) -> Result<Exit, String> {
             bootreport::Report::new(bootreport::inventory(geometry, dpi, setup, &devices))
         }),
         timings: args.timings.then(|| {
+            faraday_core::work::time_vaults(true);
             let mut t = Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height);
             t.resume(Path::new(BOXES));
             t
@@ -2312,7 +2313,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // that does not (`pace.rs`).
     let mut next_frame: Option<Instant> = None;
     let mut pace = Pace::new();
-    let mut boost = clock::Boost::new();
+    let mut boost = clock::Boost::new(shell.timings.is_some());
     // When the last pass that drew began, if its frame was a fade's step.
     let mut last_fade_step: Option<Instant> = None;
     while !shell.done && !shell.enough() {
@@ -2356,6 +2357,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // What this pass costs, should it draw: everything from here to
         // the frame written.
         let began = Instant::now();
+        if let Some(t) = shell.timings.as_mut() {
+            t.begin_pass();
+        }
         for wake in wakes {
             match wake {
                 // The frame is taken below, from the camera's channel;
@@ -2371,7 +2375,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         }
         // Whatever has been plugged in since the last look, at most once
         // every couple of seconds.
+        let at = timings::start(&shell.timings);
         shell.rescan_inputs();
+        timings::stop(&mut shell.timings, Part::Rescan, at);
         shell.start_window_tick();
         collapse_moves(&mut batch);
         // Input raises the CPU's lowest clock before it is handled, so
@@ -2537,6 +2543,8 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             if let Some(timings) = shell.timings.as_mut() {
                 timings.stepped(pace.frames(), pace.cost());
                 timings.sample_clock(boost.raised());
+                timings.clock_writes(boost.take_writes());
+                timings.drawn_pass(began.elapsed());
                 if let (true, Some(last)) = (shell.last_blend, last_fade_step) {
                     timings.fade_step(began.duration_since(last), began.elapsed(), pace.step());
                 }
@@ -2562,6 +2570,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         }
         if let Some(timings) = shell.timings.as_mut() {
             timings.pass();
+            timings.clock_writes(boost.take_writes());
         }
         // The first page the kernel would not pin, said once and only
         // with --verbose: it is a machine configuration a developer can
@@ -2571,10 +2580,16 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         if faraday_crypto::pin_failure_to_report() {
             shell.say("the kernel would not lock secret pages into RAM (RLIMIT_MEMLOCK)");
         }
+        let at = timings::start(&shell.timings);
         shell.report(false);
+        timings::stop(&mut shell.timings, Part::Report, at);
+        let at = timings::start(&shell.timings);
         shell.write_boot_report(false);
+        timings::stop(&mut shell.timings, Part::BootReport, at);
         shell.expire_notice();
+        let at = timings::start(&shell.timings);
         shell.scan_sticks(false);
+        timings::stop(&mut shell.timings, Part::Sticks, at);
     }
 }
 

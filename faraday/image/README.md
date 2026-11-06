@@ -255,7 +255,15 @@ since it, what its pass cost and the step chosen after it, in ms, and a
 were drawn at once because the last fades' steps came too far apart
 (`skipped`) or because reduce motion is on (`reduced`), how many fade
 steps were blended, how many recent step gaps are known and their median,
-and whether the next change would fade (`docs/MOTION.md` §3.5). Then a
+and whether the next change would fade (`docs/MOTION.md` §3.5). A
+`part` row for each call the loop makes outside the buckets that ran in
+the interval gives its count, mean and worst in ms and its name last:
+`rescan` (the look for input devices plugged in), `sticks` (the look at
+the storage plugged in), `report` and `bootreport` (those two files'
+own calls, as a whole), and `clockwrite` (one write of the CPU's lowest
+clock, made inside the pass). A `slowest`
+line gives the slowest pass that drew, from the end of its wait to its
+frame written, and how much of it no bucket and no part explains. Then a
 `work` row for each kind of costly work the interval did, with its
 count, mean and worst in ms and its kind last: the shell reads the
 core's counts of costly work (`faraday_core::work`) around each event it

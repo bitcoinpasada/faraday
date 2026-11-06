@@ -111,7 +111,7 @@ and **Name and passphrase**, each with its answer or
 
 | Control | What it does |
 |---|---|
-| a warning | "This computer cannot allocate 4 GiB. A vault it could not open is never written." in the error tone; "Medium needs 512 MiB. Pi Zero 2 W gives a vault … at most." and "Unlocking takes about 14 s here." in the warning tone; **Raspberry Pi unlock times are not measured yet.** |
+| a warning | "This computer cannot allocate 4 GiB. A vault it could not open is never written." in the error tone; "Medium needs 512 MiB. Pi Zero 2 W gives a vault … at most." and "Unlocking takes about 14 s here." in the warning tone; **On a Raspberry Pi 3B+, about 2.5 s at 64 MiB and 20 s at 512 MiB, 3 passes.** |
 | **Will create** | **File**, **Size**, **Unlock memory**, **Unlock here**, **Unlock cost adds**, **Strength** and **Goes to** (**For the stick**) |
 | **Create vault** | makes the vault and puts it in Files, for the stick. Grey while a stick is attached. What stops it is named under **Will create**, and nothing is made: **Every passphrase needs a value**, **Each passphrase must be typed the same twice**, "Finish step 1 first" |
 

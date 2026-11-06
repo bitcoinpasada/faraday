@@ -85,7 +85,10 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   gives one step of one frame and the next of two, and the content
   stutters however exact its positions. The shell keeps a smoothed cost
   of the passes that drew (each pass moves it a fifth of the way, so the
-  40 ms frame a sheet opens on changes nothing) and steps by the fewest
+  40 ms frame a sheet opens on changes nothing; a pass counts for no
+  more than the coarsest step, since any longer one chooses the same
+  step, so a stall does not keep the grid coarse for a second after it)
+  and steps by the fewest
   whole refreshes that hold it with a quarter's room: one at 60 Hz on a
   machine that draws in a few milliseconds, two (30 Hz) on one that
   takes twenty, up to four. A step is shortened again only when the
@@ -110,7 +113,8 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   CPUs that run schedutil, init lets the app write each CPU group's
   `scaling_min_freq`, and the shell sets it to the highest clock at
   input and while frames are drawn, and back a second after the last
-  (`faraday/shells/stick/src/clock.rs`). A CPU whose driver sets its own
+  (`faraday/shells/stick/src/clock.rs`). The writes are made in the pass,
+  before the frame, so a frame drawn after input has the clock raised. A CPU whose driver sets its own
   clock (intel_pstate with HWP, amd-pstate) runs that driver's
   powersave and is left alone.
 - **A shape wholly outside the clip is not drawn** (`Canvas::draw_path`,
@@ -185,6 +189,10 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   and governor in the header (`clock`), and what fades did (`fade`: changes that faded, were drawn
   at once for slow steps or for reduce motion, the recent step gaps'
   median, and whether the next change fades; `Faraday::take_fade_counts`).
+  Where a pass's time goes beyond the buckets: a `part` row for the
+  input rescan, the stick scan, the timings and boot reports as whole
+  calls and each write of the clock, and a `slowest` line with
+  the slowest pass that drew and how much of it nothing explains.
 
 ### 3.3 Scroll physics (`faraday-core/src/motion.rs`)
 

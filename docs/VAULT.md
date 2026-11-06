@@ -378,10 +378,12 @@ reference hardware and published with each release:
 | Machine | 64 MiB | 128 MiB | 256 MiB | 512 MiB | 1 GiB |
 |---|---|---|---|---|---|
 | Raspberry Pi Zero 2 W | to be measured | to be measured | — | — | — |
-| Raspberry Pi 3B+ | to be measured | to be measured | to be measured | to be measured | — |
+| Raspberry Pi 3B+ | 2.1 s | to be measured | to be measured | 17.2 s | — |
 | Raspberry Pi 4 (4 GB) | to be measured | to be measured | to be measured | to be measured | to be measured |
 | Raspberry Pi 5 (8 GB) | to be measured | to be measured | to be measured | to be measured | to be measured |
 | Recent x86-64 laptop | to be measured | to be measured | to be measured | to be measured | to be measured |
+
+The Pi 3B+ figures are one unlock each, timed on the worker at 1400 MHz, 3 passes. The Zero 2 W, 4 and 5 stay to be measured.
 
 The Raspberry Pi rows come from the dev card's timings: a Pi booted from
 a `dev=1` image writes each vault made and unlocked into

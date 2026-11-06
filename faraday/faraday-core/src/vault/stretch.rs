@@ -59,9 +59,16 @@ pub(crate) struct StretchDone {
 impl StretchWork {
     /// Costs an Argon2id run at the job's cost, the stretch noted ([`work::note_vault`]).
     pub(crate) fn run(self, c: &Compute) -> StretchDone {
+        let from = work::vault_clock();
         let stretched = self.job.run(c);
+        let took = from.map(|t| t.elapsed());
         let error = stretched.error();
-        work::note_vault(self.act, self.cost, VaultEnded::of_error(error.as_ref()));
+        work::note_vault_took(
+            self.act,
+            self.cost,
+            VaultEnded::of_error(error.as_ref()),
+            took,
+        );
         StretchDone {
             stretched,
             plan: self.plan,

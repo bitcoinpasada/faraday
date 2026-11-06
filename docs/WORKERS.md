@@ -264,7 +264,10 @@ threads, so the doctests of COMPUTE §9 stand unchanged.
   for it, whether it ran inline or on the worker; the budget tests,
   `slow_press.rs` and the dev card's rows (`costly::label`) read the same
   counts as before. The vault notes (`work::note_vault`) travel the same
-  way.
+  way; with `--timings` a note also carries how long the stretch ran on
+  the worker (`work::time_vaults`, read from the stretch's start to its
+  end), which the dev card puts on a row of its own. A release card asks
+  for nothing, and the worker reads no clock.
 - `job.run(&c)` is a costly function: it takes `c: &Compute`, says
   "Costs …" on its doc's first line, and the costs lint holds it as any
   other.

@@ -345,8 +345,12 @@ impl Device {
 }
 
 /// How often [`Watch::rescan`] is worth doing. A person plugging a
-/// keyboard in waits this long at worst, and the listing is one
-/// `read_dir` of a directory with a handful of entries in it.
+/// keyboard in waits this long at worst. A look reads the directory and
+/// each device's files in `/sys`, and opens (and closes) the node of each
+/// device that is wanted and no reader holds yet; closing a node waits in
+/// the kernel, so a node a reader holds is not opened again, and one of a
+/// device nothing reads (a receiver's consumer or system control node) is
+/// not opened at all.
 pub const RESCAN: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// How often the list is read while the start window is open, so a device
@@ -359,7 +363,21 @@ pub const RESCAN_AT_START: std::time::Duration = std::time::Duration::from_milli
 /// machine whose name holds it is the touchscreen and no other device is.
 /// That is how the Pi's Goodix panel is found, and it is why a Pi's frames
 /// and events are what they were before a laptop was ever considered.
+#[cfg(test)]
 pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec<Device> {
+    find_devices_holding(sys_class_input, dev_dir, wanted, &[])
+}
+
+/// [`find_devices`], without the open check for the nodes in `held`: a
+/// reader has each of them open, so it is known to open, and opening it
+/// again costs a close the kernel waits on. Everything else is read as
+/// ever, so the list is the same.
+pub fn find_devices_holding(
+    sys_class_input: &Path,
+    dev_dir: &Path,
+    wanted: &str,
+    held: &[&Path],
+) -> Vec<Device> {
     let mut names: Vec<String> = match fs::read_dir(sys_class_input) {
         Ok(dir) => dir
             .filter_map(|e| e.ok())
@@ -375,12 +393,6 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
     for entry in names {
         let dir = sys_class_input.join(&entry);
         let node = dev_dir.join(&entry);
-        // A node this process cannot open yet is not found yet: a device
-        // that appeared after boot is root's until faraday-grant gives it
-        // the owner /etc/mdev.conf names, and the next look finds it.
-        if fs::File::open(&node).is_err() {
-            continue;
-        }
         let caps = Caps::read(&dir);
         let name = fs::read_to_string(dir.join("device").join("name"))
             .unwrap_or_default()
@@ -404,6 +416,21 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
             abs_single: caps.abs_single(),
         };
         if device.wanted() || !device.name.is_empty() {
+            // Only a candidate is opened: a wanted device, or one the panel
+            // rule below could make the touchscreen. The others are dropped
+            // by the filter at the end whatever the open says, and opening
+            // a node nothing reads costs a wait in the kernel at its close.
+            // A candidate this process cannot open yet is not found yet: a
+            // device that appeared after boot is root's until faraday-grant
+            // gives it the owner /etc/mdev.conf names, and the next look
+            // finds it.
+            let panel = !wanted.is_empty() && device.name.contains(wanted) && device.trusted;
+            if (device.wanted() || panel)
+                && !held.contains(&device.node.as_path())
+                && fs::File::open(&device.node).is_err()
+            {
+                continue;
+            }
             devices.push(device);
         }
     }
@@ -708,7 +735,13 @@ impl Watch {
     /// whether the start window trusts it, as it does one on the machine's
     /// own bus (F202).
     pub fn rescan(&mut self, admit: &mut dyn FnMut(&Path) -> bool) -> Vec<(u32, Device)> {
-        let found = find_devices(&self.sys_class_input, &self.dev_dir, &self.wanted);
+        let held: Vec<&Path> = self
+            .known
+            .iter()
+            .filter(|k| k.live)
+            .map(|k| k.node.as_path())
+            .collect();
+        let found = find_devices_holding(&self.sys_class_input, &self.dev_dir, &self.wanted, &held);
         self.known.retain(|k| {
             let replaced = found.iter().any(|d| d.node == k.node && d.sys != k.sys);
             k.live || (k.node.exists() && !replaced)
@@ -1118,6 +1151,72 @@ mod tests {
         assert!(watch.pointing());
         assert!(watch.rescan(&mut |_| false).is_empty());
 
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A node a live reader holds is not opened again at a look; a node
+    /// nobody reads is, and one that cannot be opened is not found yet.
+    #[test]
+    fn a_look_does_not_open_a_node_a_reader_holds() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-held-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());
+        let mut watch = Watch::new(&sys, &dev, "");
+        let first = watch.rescan(&mut |_| true);
+        assert_eq!(first.len(), 1);
+
+        // The node can no longer be opened: a link to nothing.
+        let node = dev.join("event0");
+        fs::remove_file(&node).expect("node");
+        std::os::unix::fs::symlink(root.join("nothing"), &node).expect("link");
+        // A new device behind it appears all the same.
+        plug(&sys, &dev, 1, "Logitech Keyboard", &keyboard_caps());
+        let found = watch.rescan(&mut |_| true);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].1.name, "Logitech Keyboard");
+        assert!(watch.pointing(), "the held mouse is still known");
+        assert!(
+            find_devices_holding(&sys, &dev, "", &[node.as_path()])
+                .iter()
+                .any(|d| d.node == node)
+        );
+
+        // With no reader on it the node is opened, and not found.
+        assert!(!find_devices(&sys, &dev, "").iter().any(|d| d.node == node));
+        watch.ended(first[0].0);
+        let _ = watch.rescan(&mut |_| false);
+        assert!(!watch.pointing());
+        fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// A node of a device nothing reads is not opened: a wanted device
+    /// behind an unopenable one still appears, and a new wanted device
+    /// whose node cannot be opened is not found yet.
+    #[test]
+    fn a_look_finds_a_wanted_device_beside_a_node_nothing_reads() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-unread-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        let none = Caps {
+            ev: bitmap(&[EV_SYN]),
+            key: String::new(),
+            rel: String::new(),
+            abs: String::new(),
+            props: String::new(),
+        };
+        plug(&sys, &dev, 0, "Receiver System Control", &none);
+        plug(&sys, &dev, 1, "Logitech Keyboard", &keyboard_caps());
+        plug(&sys, &dev, 2, "Logitech Mouse", &mouse_caps());
+        // The first and last nodes cannot be opened: links to nothing.
+        for n in [0, 2] {
+            let node = dev.join(format!("event{n}"));
+            fs::remove_file(&node).expect("node");
+            std::os::unix::fs::symlink(root.join("nothing"), &node).expect("link");
+        }
+        let found = find_devices(&sys, &dev, "");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].name, "Logitech Keyboard");
         fs::remove_dir_all(&root).expect("clean up");
     }
 

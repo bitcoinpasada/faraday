@@ -8772,8 +8772,9 @@ strings! {
     vault_memory_mismatch: "{} needs {}. {} gives a vault {} at most.",
     /// Text in `create_summary`. `{}`: `app.vaults.time_text(mem, passes)`.
     vault_unlocking_takes: "Unlocking takes {} here.",
-    /// Text in `create_summary`.
-    vault_raspberry_pi: "Raspberry Pi unlock times are not measured yet.",
+    /// Text in `create_summary`: the estimate for a Raspberry Pi 3B+
+    /// (`docs/VAULT.md`, the reference table).
+    vault_raspberry_pi: "On a Raspberry Pi 3B+, about 2.5 s at 64 MiB and 20 s at 512 MiB, 3 passes.",
     /// Line in `create_summary`.
     vault_will_create: "Will create",
     /// Text in `create_summary`.

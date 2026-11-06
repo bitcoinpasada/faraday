@@ -275,7 +275,8 @@ Never use it for keys that matter.
   frame, a camera frame, a fade) counted with its mean and worst in
   milliseconds, and a `work` row for each kind of costly work done in
   that time: a vault made, unlocked or its cost measured, named by its
-  strength, Argon2id memory and passes (and "failed: no memory" or "not
+  strength, Argon2id memory and passes (a vault made or unlocked has a
+  second row ending "(on the worker)" for the stretch itself; and "failed: no memory" or "not
   tried: too little memory free" where it did not fit), a key made, a
   transaction signed, a camera frame read for a QR code, a file written
   to a stick or the card, and the rest of what the core counts

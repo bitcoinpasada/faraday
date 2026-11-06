@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the Pi's heat with the frame drawn in bands across the cores, read after two minutes of dragging and changing screens (§4.5), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -399,10 +399,11 @@ recording, as now; the bands only paint.
 The Pi 3B+'s firmware lowers its clock from 1400 to 1200 MHz above its
 soft limit of 60 °C, and further near 85 °C. Four cores busy is a frame
 drawn whole, a few milliseconds at a time: a change of screen, not a
-scroll (§3). The dev card read 31 °C at rest. Building the
-bands includes reading the boot report's temperature line after two
-minutes of dragging and changing screens on the dev card, with and
-without bands.
+scroll (§3). The dev card read 31 °C at rest. In one pair of runs of
+dragging and changing screens, bands read about 2.7 °C more than no
+bands (42.9 °C), and about 9 MiB more of the app's memory; the runs were
+not identical, so the figure is thin. A later run of about four minutes
+read at most 46.6 °C, with no undervoltage: well under the soft limit.
 
 ### 4.6 Held by
 
@@ -501,6 +502,14 @@ kernel's two copies, but needs `unsafe` (or a dependency that holds
 it), which the workspace forbids but for one crate; it is the owner's
 call (§9 question 2), and is not needed if §5 and points 1 to 3 bring
 the pass inside a refresh.
+
+**What a look for input devices costs.** On a Pi 3B+ with 8 input nodes,
+opening and closing each node at each 2-second look stalled the main loop
+450 to 630 ms. Not reopening a node a reader holds brought the worst to
+240 to 330 ms per look, and opening only the nodes of devices that are
+candidates is what the stick's look now adds. The cause, reasoned and not measured separately, is that
+closing an evdev node waits for an RCU grace period in the kernel.
+With it, the worst look in a five-second block has a median of 7 ms.
 
 ## 7. What a frame does beside its pixels
 
@@ -639,12 +648,12 @@ What each piece changes:
 
 ## 9. For the owner
 
-1. **The bands (§4) after the rest, on a measurement.** They give 1.2 to
-   3 times on a frame drawn whole and next to nothing on a scroll step
-   once §3 is in, at the cost of a recording mode for every painting
-   call. Recommendation: build them last, after the moved frame and the
-   framebuffer write are measured on the Pi; if a change of screen on the
-   Pi then comes in inside two refreshes, ask again before building them.
+1. **The bands (§4) are built, on a measurement.** On a machine whose
+   whole frame takes about a millisecond they cost more than they save,
+   5 to 30 percent, about the same time on every screen. On the Pi 3B+,
+   whose whole frame takes tens of milliseconds, one pair of runs read a
+   mean frame of 9.5 ms against 13.1 and a slowest five seconds of 16.5 ms
+   against 36.0. A scroll step gains nothing: it makes no threads.
 2. **`mmap` for the framebuffer** (§6). Recommendation: no; the write
    after §6's changes is the kernel's two copies of the rows that
    changed, and `unsafe` in the stick shell is a larger change than the

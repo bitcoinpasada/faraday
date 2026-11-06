@@ -220,6 +220,7 @@ fn an_unlock_is_noted_for_the_dev_card_by_its_strength_and_memory() {
             memory_mib: 64,
             passes: 3,
             ended: work::VaultEnded::Ran,
+            took: None,
         }]
     );
     assert_eq!(noted[0].strength(), "Light");

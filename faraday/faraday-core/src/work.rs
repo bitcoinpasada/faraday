@@ -225,6 +225,9 @@ pub struct VaultWork {
     pub passes: u32,
     /// How it ended.
     pub ended: VaultEnded,
+    /// How long the stretch ran on the worker, from its start to its end,
+    /// when the shell asked for it ([`time_vaults`]); none otherwise.
+    pub took: Option<std::time::Duration>,
 }
 
 /// What a vault's key stretch was for.
@@ -300,9 +303,36 @@ thread_local! {
     static VAULTS: std::cell::RefCell<Vec<VaultWork>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
+static TIME_VAULTS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Asks for the worker's vault stretches to be timed (the dev card's
+/// `--timings`). Off, the worker reads no clock.
+pub fn time_vaults(on: bool) {
+    TIME_VAULTS.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The start of a vault stretch's clock, when it is asked for
+/// ([`time_vaults`]). Costs a load.
+pub fn vault_clock() -> Option<std::time::Instant> {
+    TIME_VAULTS
+        .load(std::sync::atomic::Ordering::Relaxed)
+        .then(std::time::Instant::now)
+}
+
 /// Notes a vault's key stretch, `act` at `cost`, ended `ended`, for the
 /// dev card's timings ([`take_vault_work`]). Costs a push.
 pub fn note_vault(act: VaultAct, cost: faraday_vault::Cost, ended: VaultEnded) {
+    note_vault_took(act, cost, ended, None);
+}
+
+/// [`note_vault`] with how long the stretch ran, from [`vault_clock`].
+/// Costs a push.
+pub fn note_vault_took(
+    act: VaultAct,
+    cost: faraday_vault::Cost,
+    ended: VaultEnded,
+    took: Option<std::time::Duration>,
+) {
     VAULTS.with(|v| {
         let mut v = v.borrow_mut();
         if v.len() < VAULT_NOTES {
@@ -311,6 +341,7 @@ pub fn note_vault(act: VaultAct, cost: faraday_vault::Cost, ended: VaultEnded) {
                 memory_mib: cost.memory_kib / 1024,
                 passes: cost.passes,
                 ended,
+                took,
             });
         }
     });

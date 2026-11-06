@@ -33,12 +33,15 @@ pub struct Boost {
     policies: Vec<Policy>,
     raised: bool,
     last: Option<Instant>,
+    /// How long each write took, when `--timings` asked for it.
+    took: Option<Vec<Duration>>,
 }
 
 impl Boost {
     /// Costs a read of each CPU group's files in sysfs, once at start:
-    /// the groups that run schedutil.
-    pub fn new() -> Boost {
+    /// the groups that run schedutil. `timed` keeps how long each write
+    /// takes, for `--timings` (`take_writes`).
+    pub fn new(timed: bool) -> Boost {
         let read = |p: &PathBuf, name: &str| {
             std::fs::read_to_string(p.join(name)).map(|s| s.trim().to_owned())
         };
@@ -67,6 +70,7 @@ impl Boost {
             policies,
             raised: false,
             last: None,
+            took: timed.then(Vec::new),
         }
     }
 
@@ -94,12 +98,22 @@ impl Boost {
         self.raised
     }
 
+    /// How long the writes since the last call took, for `--timings`;
+    /// empty unless `new` was asked to time them.
+    pub fn take_writes(&mut self) -> Vec<Duration> {
+        self.took.as_mut().map_or_else(Vec::new, std::mem::take)
+    }
+
     /// Sets each group's lowest clock to its highest, or back. A group
     /// that cannot be written is dropped: init did not hand it over.
     fn set(&mut self, high: bool) {
+        let start = self.took.is_some().then(Instant::now);
         self.policies.retain(|p| {
             let value = if high { &p.high } else { &p.low };
             std::fs::write(&p.min_file, value).is_ok()
         });
+        if let (Some(start), Some(took)) = (start, self.took.as_mut()) {
+            took.push(start.elapsed());
+        }
     }
 }

@@ -58,9 +58,13 @@ impl Pace {
     /// A pass that drew took `took`, from its deadline to its frame
     /// written. One slow pass, such as the frame a sheet opens on, moves
     /// the smoothed cost a fifth of the way, so a single late frame does
-    /// not change the step; a machine that is slow every frame does.
+    /// not change the step; a machine that is slow every frame does. A
+    /// pass counts for no more than the coarsest step holds: any longer
+    /// one chooses the same step, and counted in full it would keep the
+    /// grid coarse for a second after one stall.
     pub fn drew(&mut self, took: Duration) {
         self.blended = false;
+        let took = took.min(FRAME * MOST);
         let cost = match self.cost {
             None => took,
             Some(c) => (c * 4 + took) / 5,
@@ -148,6 +152,28 @@ mod tests {
             pace.drew(ms(4));
         }
         assert_eq!(pace.step(), FRAME, "quick again, the grid is fine again");
+    }
+
+    #[test]
+    fn one_stalled_pass_among_quick_ones_is_worked_off_within_a_few_frames() {
+        let mut pace = Pace::new();
+        for _ in 0..20 {
+            pace.drew(ms(4));
+        }
+        pace.drew(ms(500));
+        for _ in 0..5 {
+            pace.drew(ms(4));
+        }
+        assert_eq!(pace.step(), FRAME);
+    }
+
+    #[test]
+    fn a_machine_that_stalls_every_frame_still_goes_to_the_coarsest_step() {
+        let mut pace = Pace::new();
+        for _ in 0..20 {
+            pace.drew(ms(500));
+        }
+        assert_eq!(pace.step(), FRAME * 4);
     }
 
     #[test]
