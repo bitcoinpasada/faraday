@@ -172,9 +172,27 @@ pub struct Timings {
     /// What the buckets and parts timed on the loop's thread in the
     /// pass now running: what the pass's total can be held against.
     explained: Duration,
-    /// The slowest pass that drew since the last block: its total and
-    /// how much of it no bucket or part explains.
-    slowest: Option<(Duration, Duration)>,
+    /// The slowest pass that drew since the last block: its total, how
+    /// much of it no bucket or part explains, and what it was.
+    slowest: Option<(Duration, Duration, String)>,
+    /// What each bucket and each part timed in the pass now running.
+    pass_buckets: [Duration; NAMES.len()],
+    pass_parts: [Duration; PART_NAMES.len()],
+    /// The frame grid's step after the last pass that drew, in frames.
+    last_step: Option<u32>,
+    /// How many times the step changed since the last block.
+    step_changes: u64,
+}
+
+/// What kind of frame a pass drew.
+#[derive(Clone, Copy)]
+pub enum Frame {
+    /// Drawn in full.
+    Whole,
+    /// A frame whose moved strip was painted as it was called.
+    Moved,
+    /// A fade's step: two kept frames blended.
+    Fade,
 }
 
 impl Timings {
@@ -197,7 +215,7 @@ impl Timings {
                  costly work columns: work count mean_ms worst_ms kind (the costliest an event did)\n\
                  cpu0 driver {} governor {} min_khz {} max_khz {}\n\
                  parts columns: part count mean_ms worst_ms name (calls outside the buckets; clockwrite is a write of the CPU's lowest clock, inside a pass)\n\
-                 slowest: the slowest pass that drew, and how much of it no bucket or part explains",
+                 slowest: the slowest pass that drew, how much of it no bucket or part explains, and what it was (the screen, the kind of frame, whether the screen changed since the last drawn pass, the largest bucket or part in it)",
                 cpufreq("scaling_driver"),
                 cpufreq("scaling_governor"),
                 cpufreq("cpuinfo_min_freq"),
@@ -210,6 +228,10 @@ impl Timings {
             parts: [Tally::default(); PART_NAMES.len()],
             explained: Duration::ZERO,
             slowest: None,
+            pass_buckets: [Duration::ZERO; NAMES.len()],
+            pass_parts: [Duration::ZERO; PART_NAMES.len()],
+            last_step: None,
+            step_changes: 0,
         }
     }
 
@@ -266,6 +288,7 @@ impl Timings {
             tally.worst = took;
         }
         self.explained += took;
+        self.pass_buckets[bucket as usize] += took;
     }
 
     /// Records one call outside the buckets; it counts towards what the
@@ -276,6 +299,7 @@ impl Timings {
         tally.total += took;
         tally.worst = tally.worst.max(took);
         self.explained += took;
+        self.pass_parts[part as usize] += took;
     }
 
     /// Records the clock writes made since the last call.
@@ -289,13 +313,45 @@ impl Timings {
     /// from nothing.
     pub fn begin_pass(&mut self) {
         self.explained = Duration::ZERO;
+        self.pass_buckets = [Duration::ZERO; NAMES.len()];
+        self.pass_parts = [Duration::ZERO; PART_NAMES.len()];
     }
 
     /// The pass that drew took `total` from its start to its frame
-    /// written: kept if it is the slowest of the block.
-    pub fn drawn_pass(&mut self, total: Duration) {
-        if self.slowest.is_none_or(|(t, _)| total > t) {
-            self.slowest = Some((total, total.saturating_sub(self.explained)));
+    /// written: kept if it is the slowest of the block, with what it
+    /// was. `frame` is the kind of frame, `changed` whether the screen
+    /// differs from the last pass that drew, and `screen` gives the
+    /// screen's name (nothing a person typed), called only when the pass
+    /// is kept.
+    pub fn drawn_pass(
+        &mut self,
+        total: Duration,
+        frame: Frame,
+        changed: bool,
+        screen: impl FnOnce() -> String,
+    ) {
+        if self.slowest.as_ref().is_none_or(|(t, _, _)| total > *t) {
+            let top = NAMES
+                .iter()
+                .zip(&self.pass_buckets)
+                .chain(PART_NAMES.iter().zip(&self.pass_parts))
+                .filter(|(_, d)| !d.is_zero())
+                .max_by_key(|(_, d)| **d)
+                .map_or_else(
+                    || "-".to_owned(),
+                    |(name, d)| format!("{name} {:.2}", ms(*d)),
+                );
+            let frame = match frame {
+                Frame::Whole => "whole",
+                Frame::Moved => "moved",
+                Frame::Fade => "fade",
+            };
+            let after = if changed { "yes" } else { "no" };
+            let what = format!(
+                "screen {} frame {frame} after_change {after} largest_ms {top}",
+                screen()
+            );
+            self.slowest = Some((total, total.saturating_sub(self.explained), what));
         }
     }
 
@@ -333,6 +389,10 @@ impl Timings {
         let i = (frames.clamp(1, STEPS as u32) - 1) as usize;
         self.steps[i] += 1;
         self.pace_cost = cost;
+        if self.last_step.is_some_and(|s| s != frames) {
+            self.step_changes += 1;
+        }
+        self.last_step = Some(frames);
     }
 
     /// Costs a read of a sysfs file: samples the first CPU's clock, at
@@ -416,8 +476,9 @@ impl Timings {
         }
         let [s1, s2, s3, s4] = self.steps;
         out.push_str(&format!(
-            "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2}\n",
+            "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2} changes {}\n",
             ms(self.pace_cost),
+            self.step_changes,
         ));
         let (n, sum, top) = self.clock;
         out.push_str(&format!(
@@ -457,11 +518,11 @@ impl Timings {
                 ));
             }
         }
-        if let Some((total, unexplained)) = self.slowest {
+        if let Some((total, unexplained, what)) = &self.slowest {
             out.push_str(&format!(
-                "slowest  pass_ms {:.2} unexplained_ms {:.2}\n",
-                ms(total),
-                ms(unexplained),
+                "slowest  pass_ms {:.2} unexplained_ms {:.2} {what}\n",
+                ms(*total),
+                ms(*unexplained),
             ));
         }
         out.push('\n');
@@ -472,6 +533,7 @@ impl Timings {
         self.passes = 0;
         self.touches = 0;
         self.steps = [0; STEPS];
+        self.step_changes = 0;
         self.clock = (0, 0, 0);
         self.raised = 0;
         self.fade_steps.clear();
@@ -604,21 +666,43 @@ mod tests {
     }
 
     #[test]
+    fn the_grid_line_counts_how_often_the_step_changed_in_the_block() {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        for frames in [1, 1, 2, 2, 1] {
+            t.stepped(frames, Duration::from_millis(10));
+        }
+        let block = t.last(Duration::from_secs(5), None);
+        assert!(block.contains("cost 10.00 changes 2\n"), "{block}");
+        t.stepped(1, Duration::from_millis(10));
+        let next = t.last(Duration::from_secs(10), None);
+        assert!(next.contains("changes 0\n"), "{next}");
+    }
+
+    #[test]
     fn the_slowest_pass_that_drew_says_how_much_of_it_nothing_explains() {
         let mut t = Timings::new("0.0.0", 480, 640);
         t.begin_pass();
         t.add(Bucket::Tick, Duration::from_millis(4));
-        t.drawn_pass(Duration::from_millis(30));
+        t.drawn_pass(Duration::from_millis(30), Frame::Whole, false, || {
+            "Home".into()
+        });
         t.begin_pass();
         t.add(Bucket::Tick, Duration::from_millis(10));
         t.part(Part::Rescan, Duration::from_millis(20));
         t.clock_writes([Duration::from_millis(100)]);
-        t.drawn_pass(Duration::from_millis(500));
+        t.drawn_pass(Duration::from_millis(500), Frame::Fade, true, || {
+            "Backup / Qr".into()
+        });
         t.begin_pass();
-        t.drawn_pass(Duration::from_millis(40));
+        t.drawn_pass(Duration::from_millis(40), Frame::Moved, false, || {
+            "Home".into()
+        });
         let block = t.last(Duration::from_secs(5), None);
         assert!(
-            block.contains("slowest  pass_ms 500.00 unexplained_ms 370.00\n"),
+            block.contains(
+                "slowest  pass_ms 500.00 unexplained_ms 370.00 \
+                 screen Backup / Qr frame fade after_change yes largest_ms clockwrite 100.00\n"
+            ),
             "{block}"
         );
     }

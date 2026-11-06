@@ -247,7 +247,8 @@ framebuffer), `frame` (the core's frame drawn in full) and `blend` (the
 core's frame as a fade's step, two kept frames blended). After the
 buckets, a `grid` line counts the passes that drew at each step of the
 frame grid (16.7, 33.3, 50 and 66.7 ms) and gives the smoothed pass cost
-the step was chosen from, a `clock` line gives the first CPU's clock at
+the step was chosen from and how many times the step changed in the
+block (`changes`), a `clock` line gives the first CPU's clock at
 the passes that drew (the header names its cpufreq driver and governor),
 a `steps` line lists each fade step that followed another as the gap
 since it, what its pass cost and the step chosen after it, in ms, and a
@@ -263,7 +264,10 @@ the storage plugged in), `report` and `bootreport` (those two files'
 own calls, as a whole), and `clockwrite` (one write of the CPU's lowest
 clock, made inside the pass). A `slowest`
 line gives the slowest pass that drew, from the end of its wait to its
-frame written, and how much of it no bucket and no part explains. Then a
+frame written, how much of it no bucket and no part explains, and what
+it was: the screen shown (its name only), whether the frame was whole,
+moved or a fade's step, whether the screen changed since the last pass
+that drew, and the largest bucket or part in it with its ms. Then a
 `work` row for each kind of costly work the interval did, with its
 count, mean and worst in ms and its kind last: the shell reads the
 core's counts of costly work (`faraday_core::work`) around each event it

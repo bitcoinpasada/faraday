@@ -20,10 +20,10 @@ pub const FRAME: Duration = Duration::from_micros(16_667);
 const MOST: u32 = 4;
 /// A pass must fit the step with this much room before the step is kept;
 /// a step that no longer holds it is lengthened at once.
-const KEEP: f64 = 1.25;
+const KEEP: f64 = 1.1;
 /// The step is shortened only when a pass fits the shorter one with this
 /// much room, so the step does not flip at the boundary.
-const SHORTEN: f64 = 1.6;
+const SHORTEN: f64 = 1.28;
 
 /// How many of a fade's recent steps the median of their cost is taken
 /// over.
@@ -141,9 +141,9 @@ mod tests {
         }
         assert_eq!(pace.step(), FRAME * 2, "20 ms a frame needs two");
         for _ in 0..20 {
-            pace.drew(ms(45));
+            pace.drew(ms(55));
         }
-        assert_eq!(pace.step(), FRAME * 4, "45 ms a frame needs four");
+        assert_eq!(pace.step(), FRAME * 4, "55 ms a frame needs four");
         for _ in 0..20 {
             pace.drew(ms(200));
         }
@@ -216,23 +216,32 @@ mod tests {
     #[test]
     fn a_cost_at_the_boundary_does_not_flip_the_step() {
         let mut pace = Pace::new();
-        // 13 ms with the room asked for is just under one frame; 14 ms
-        // just over. A machine wavering between them keeps one step.
+        // A pass moves down to one frame under about 13 ms and leaves it
+        // above about 15.2 ms; 14 ms is between, and keeps the step it
+        // is on, whichever side it came from.
         for _ in 0..20 {
-            pace.drew(ms(14));
+            pace.drew(ms(20));
         }
         assert_eq!(pace.step(), FRAME * 2);
         for _ in 0..20 {
-            pace.drew(ms(13));
+            pace.drew(ms(14));
         }
-        assert_eq!(
-            pace.step(),
-            FRAME * 2,
-            "13 ms does not fit one frame with room to spare"
-        );
+        assert_eq!(pace.step(), FRAME * 2, "14 ms stays on two from above");
         for _ in 0..20 {
             pace.drew(ms(9));
         }
-        assert_eq!(pace.step(), FRAME, "9 ms does");
+        assert_eq!(pace.step(), FRAME, "9 ms fits one");
+        for _ in 0..20 {
+            pace.drew(ms(14));
+        }
+        assert_eq!(pace.step(), FRAME, "14 ms stays on one from below");
+        for _ in 0..20 {
+            pace.drew(ms(16));
+        }
+        assert_eq!(pace.step(), FRAME * 2, "16 ms no longer fits one");
+        for _ in 0..20 {
+            pace.drew(ms(12));
+        }
+        assert_eq!(pace.step(), FRAME, "12 ms fits one again");
     }
 }

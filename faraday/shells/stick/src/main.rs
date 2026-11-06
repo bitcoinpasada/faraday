@@ -823,6 +823,8 @@ struct Shell {
     drawn: u64,
     /// The last frame drawn was a fade's step, two kept frames blended.
     last_blend: bool,
+    /// The last frame drawn painted a moved strip as it was called.
+    last_moved: bool,
     /// `--frames N`, or `None` to run until the core exits.
     limit: Option<u64>,
     /// A `Draw` arrived since the last `flush`.
@@ -1151,6 +1153,7 @@ impl Shell {
         let start = self.timings.is_some().then(Instant::now);
         let parts = self.app.as_mut().map(App::parts);
         let moved = parts.as_ref().and_then(|p| p.moved);
+        self.last_moved = moved.is_some();
         let frame = parts.map(|p| p.base);
         if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
             let bucket = if blends { Bucket::Blend } else { Bucket::Frame };
@@ -2053,6 +2056,7 @@ fn run(args: Args) -> Result<Exit, String> {
         epoch: Instant::now(),
         drawn: 0,
         last_blend: false,
+        last_moved: false,
         limit: args.frames,
         done: false,
         dirty: false,
@@ -2283,6 +2287,16 @@ impl Arrow {
     }
 }
 
+/// The screen's name for `--timings`, the sheet's after it: the
+/// variants' names only, without anything a variant carries.
+fn screen_label(app: &Faraday) -> String {
+    app.screen_name()
+        .split(" / ")
+        .map(|part| part.split(['(', ' ']).next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join(" / ")
+}
+
 /// Waits to be woken, folds in the newest camera frame, ticks when
 /// nothing wakes it, and stops when the core exits or `--frames` is
 /// satisfied.
@@ -2316,6 +2330,8 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     let mut boost = clock::Boost::new(shell.timings.is_some());
     // When the last pass that drew began, if its frame was a fade's step.
     let mut last_fade_step: Option<Instant> = None;
+    // The screen the last pass that drew showed, kept only with `--timings`.
+    let mut last_screen = String::new();
     while !shell.done && !shell.enough() {
         // Everything the controller has reported since the last pass
         // goes in now. It reports a moving finger a hundred times a
@@ -2544,7 +2560,17 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 timings.stepped(pace.frames(), pace.cost());
                 timings.sample_clock(boost.raised());
                 timings.clock_writes(boost.take_writes());
-                timings.drawn_pass(began.elapsed());
+                let screen = shell.app.as_ref().map(screen_label).unwrap_or_default();
+                let frame = if shell.last_blend {
+                    timings::Frame::Fade
+                } else if shell.last_moved {
+                    timings::Frame::Moved
+                } else {
+                    timings::Frame::Whole
+                };
+                let changed = screen != last_screen;
+                timings.drawn_pass(began.elapsed(), frame, changed, || screen.clone());
+                last_screen = screen;
                 if let (true, Some(last)) = (shell.last_blend, last_fade_step) {
                     timings.fade_step(began.duration_since(last), began.elapsed(), pace.step());
                 }
