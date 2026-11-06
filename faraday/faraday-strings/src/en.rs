@@ -4211,6 +4211,8 @@ strings! {
     kef_bytes_title: "Decrypted bytes",
     /// The note's action: carry the text to the next seed's passphrase.
     kef_use_passphrase: "Use as a passphrase",
+    /// The note's action: its 16 or 32 bytes are read as a seed's entropy.
+    kef_read_as_seed: "Read as a seed",
     /// The sheet's close action.
     kef_done: "Done",
     /// A note the opening left: the check passed only after NULs were put back.

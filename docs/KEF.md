@@ -207,7 +207,7 @@ transcribe. A QR vault (`docs/VAULT.md` §2.1) is 77 × 77 for every contents.
 
 | Krux's path | Plaintext | Read back by |
 |---|---|---|
-| Encrypt mnemonic (`bip39.mnemonic_to_bytes`) | the entropy, 16 or 32 bytes (read as entropy when not valid UTF-8) | `mnemonic_from_bytes` from storage; from a code, the loader below |
+| Encrypt mnemonic (`bip39.mnemonic_to_bytes`) | the entropy, 16 or 32 bytes (read as entropy unless it is text, below) | `mnemonic_from_bytes` from storage; from a code, the loader below |
 | Wallet descriptor (`descriptor.to_string().encode()`) | descriptor text | wallet loader, decoded as UTF-8 |
 | Passphrase | UTF-8 text | `wallet_settings`, decoded as UTF-8 |
 | Datum tool | any bytes under about 50 KB | shown as text, or as `0x` hex |
@@ -235,8 +235,11 @@ read it. **So a code shows its contents' length**, and whether it is a
 own checks. Faraday adds only:
 
 - **16 or 32 bytes that are not text** are entropy: they go to the seed sheet (`docs/FLOWS.md`)
-  with the fingerprint line of §7.3, as a CompactSeedQR's do. The same length of valid UTF-8 is text, and
-  goes on as a note.
+  with the fingerprint line of §7.3, as a CompactSeedQR's do. Text here is valid UTF-8 holding
+  no control character other than tab, newline and carriage return; that length of text
+  goes on as a note. About one real 16-byte seed in 10,650 is also valid UTF-8; nearly all of those hold a control character and go to the seed sheet. The few that do not would show as a garbled note, so a
+  note of exactly 16 or 32 bytes also offers **Read as a seed**, which sends those same
+  bytes down this branch. A note of another length never offers it.
 - **Text that names nothing** is a note, shown as a secret (DESIGN §4.10).
   It may be a passphrase, and nothing in the bytes says so: the card offers
   "Use as a passphrase".

@@ -273,7 +273,7 @@ impl Worker {
     }
 
     /// Sends `job` to the worker as a quiet one: no job is made stale, and
-    /// its answer is told apart by [`Worker::is_quiet`].
+    /// its answer is told apart by [`Worker::take_quiet`].
     pub(crate) fn send_quiet(&mut self, job: Job) {
         self.generation += 1;
         let generation = self.generation;

@@ -112,7 +112,11 @@ fn rewrapped(name: &str, count: u32) -> Vec<u8> {
 fn a_krux_code_read_shows_its_version_id_and_count_and_asks_nothing_yet() {
     let (code, _) = vector("gcm");
     let mut app = scanner();
+    let before = testkit::jobs_asked(&app);
     read(&mut app, &code);
+    // Only the short timed run went out: no open has started.
+    assert_eq!(testkit::jobs_asked(&app), before + 1);
+    assert!(app.busy().is_none());
     let f = facts(&app).join(" | ");
     assert!(f.contains("Version 20"), "{f}");
     assert!(f.contains("Id test ID"), "{f}");
@@ -156,6 +160,29 @@ fn pressing_open_does_not_wait_for_the_time_nor_is_refused_by_it() {
     }
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    // The timed run was stopped when the open began, so no time was
+    // worked out: reading the code again sends a new timed run.
+    testkit::settle_time(&mut app);
+    app.press(Action::Cancel);
+    app.press(Action::Scan);
+    let before = testkit::jobs_asked(&app);
+    read(&mut app, &code);
+    assert_eq!(testkit::jobs_asked(&app), before + 1, "a rate was kept");
+}
+
+#[test]
+fn the_sheet_gains_the_time_when_it_comes_after_open() {
+    let (code, _) = vector("gcm");
+    let mut app = scanner();
+    testkit::hold_worker();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    assert!(has_part(&mut app, "100000 rounds"));
+    assert!(!has_part(&mut app, "under a second"));
+    testkit::release_worker();
+    testkit::settle_time(&mut app);
+    assert!(has_part(&mut app, "under a second"));
 }
 
 #[test]
@@ -215,6 +242,40 @@ fn sixteen_bytes_of_text_are_a_note_not_a_seed() {
     open_with(&mut app, "note key");
     assert_eq!(app.sheet, Some(Sheet::KefRead));
     assert!(has(&mut app, "Decrypted text"));
+}
+
+/// Opens a code sealed around `plain` to the sheet that shows it.
+fn opened_note(app: &mut Faraday, plain: &[u8]) {
+    let code = sealed(app, plain);
+    read(app, code.as_bytes());
+    go(app, "Open");
+    open_with(app, "note key");
+}
+
+#[test]
+fn sixteen_bytes_of_text_offer_to_be_read_as_a_seed() {
+    let mut app = scanner();
+    opened_note(&mut app, b"sixteen byte txt");
+    assert!(has(&mut app, "Decrypted text"));
+    assert!(offered(&mut app, Action::KefRead(KefAct::ReadAsSeed)));
+    assert!(has(&mut app, "Read as a seed"));
+    app.press(Action::KefRead(KefAct::ReadAsSeed));
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+}
+
+#[test]
+fn sixteen_bytes_with_a_control_character_go_to_the_seed_sheet() {
+    let mut app = scanner();
+    opened_note(&mut app, b"sixteen byte\x01txt");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+}
+
+#[test]
+fn a_note_of_another_length_does_not_offer_to_be_a_seed() {
+    let mut app = scanner();
+    opened_note(&mut app, b"twenty bytes of txt!");
+    assert!(has(&mut app, "Decrypted text"));
+    assert!(!offered(&mut app, Action::KefRead(KefAct::ReadAsSeed)));
 }
 
 #[test]

@@ -59,6 +59,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::Flow(F::CopyKey | F::LockWrite | F::WalletLock)
             | Action::Import(boot_import::ImportAction::Go)
             | Action::InboxLoad
+            | Action::KefRead(crate::seeds::kef::KefAct::ReadAsSeed)
             | Action::KLock
             | Action::KNext
             | Action::Own(crate::fresh::page::Act::Skip)

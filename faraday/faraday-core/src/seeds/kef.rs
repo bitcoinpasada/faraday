@@ -5,7 +5,8 @@
 //!
 //! The header (version, id, count, the time the count takes here) is
 //! worked out once, at the read; drawing reads it. A short timed run at
-//! the first read gives the time: its rate arrives with the next tick.
+//! the first read gives the time: its rate arrives when the run ends, and
+//! the card and a sheet still asking gain the time then.
 
 use crate::drawing::View;
 use crate::secret_text::SecretText;
@@ -73,6 +74,8 @@ pub enum KefAct {
     NotEncrypted,
     /// The note is carried to the next seed's passphrase.
     UseAsPassphrase,
+    /// A note of 16 or 32 bytes is read as a seed's entropy.
+    ReadAsSeed,
 }
 
 /// The sheet's state, wiped when it closes.
@@ -225,19 +228,26 @@ pub(crate) fn kef_header(app: &mut Faraday, code: &[u8]) -> Option<(Header, Vec<
 }
 
 /// The timed run's answer: its rate is known, and the card's count line
-/// gains the time. Returns whether the card changed.
+/// and the sheet's facts, while it asks or offers, gain the time. Returns
+/// whether anything changed.
 pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
     let Some(rate) = app.seed_read.finish_timing(rate_ms) else {
         return false;
     };
-    let Some(card) = app.camera.scan_mut().and_then(|s| s.card.as_mut()) else {
-        return false;
-    };
-    let Some(h) = card.kef.as_ref() else {
-        return false;
-    };
-    card.facts = facts(&h.envelope, Some(rate));
-    true
+    let mut changed = false;
+    if let Some(k) = app.seed_read.kef_mut()
+        && matches!(k.stage, Stage::Ask | Stage::Offer)
+    {
+        k.facts = facts(&k.envelope, Some(rate)).join(" · ");
+        changed = true;
+    }
+    if let Some(card) = app.camera.scan_mut().and_then(|s| s.card.as_mut())
+        && let Some(h) = card.kef.as_ref()
+    {
+        card.facts = facts(&h.envelope, Some(rate));
+        changed = true;
+    }
+    changed
 }
 
 /// The card's **Open**: the camera goes and the sheet asks the
@@ -281,6 +291,7 @@ pub(crate) fn kef_act(app: &mut Faraday, act: KefAct) {
         }
         KefAct::Open => kef_go(app),
         KefAct::UseAsPassphrase => kef_use_as_passphrase(app),
+        KefAct::ReadAsSeed => kef_read_as_seed(app),
     }
 }
 
@@ -380,41 +391,73 @@ fn kef_road_on(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) {
 }
 
 fn kef_road_from(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool) {
-    let Some(k) = app.seed_read.kef() else {
+    if app.seed_read.kef().is_none() {
         return;
-    };
-    let (depth, id) = (k.depth, k.envelope.id.clone());
-    let c = app.compute();
-    if matches!(plain.len(), 16 | 32) && std::str::from_utf8(&plain).is_err() {
-        let lang = faraday_bip::bip39::Language::English;
-        if let Ok(m) = faraday_keys::words::from_compact_seedqr(&plain, lang) {
-            if kef_stick_in(app) {
-                return;
-            }
-            // Raw bytes that are also a code: the seed sheet offers to open
-            // them as one (`docs/KEF.md` §8), within the depth.
-            let also = (depth + 1 < DEPTH_MAX)
-                .then(|| faraday_codec::kef::recognize(&plain))
-                .flatten();
-            let words = lang.words();
-            let mut typed = crate::secret_text::room();
-            for (n, &i) in m.indices().iter().enumerate() {
-                if n > 0 {
-                    typed.push(' ');
-                }
-                typed.push_str(words[usize::from(i)]);
-            }
-            drop(plain);
-            app.seed_read.set_kef(None);
-            app.sheet = None;
-            app.seed_scanned(&typed, scan_kind());
-            app.seed_read_kef_id(&id);
-            if let Some(found) = also {
-                app.seed_read_offer_kef(found.envelope);
-            }
-            return;
+    }
+    if matches!(plain.len(), 16 | 32) && !is_note_text(&plain) {
+        match kef_as_seed(app, plain) {
+            Ok(()) => return,
+            Err(back) => return kef_road_after_seed(app, back, offer),
         }
     }
+    kef_road_after_seed(app, plain, offer)
+}
+
+/// Whether bytes are text a person wrote: valid UTF-8 holding no control
+/// character other than tab, newline and carriage return (`docs/KEF.md` §6).
+fn is_note_text(bytes: &[u8]) -> bool {
+    std::str::from_utf8(bytes).is_ok_and(|t| {
+        !t.chars()
+            .any(|ch| ch.is_control() && !matches!(ch, '\t' | '\n' | '\r'))
+    })
+}
+
+/// Costs what the seed sheet's intake costs. The road's seed branch: 16 or
+/// 32 bytes as entropy to the seed sheet with the id line. Gives the bytes
+/// back when they did not go; a stick in the way counts as gone, the
+/// sheet asking again.
+fn kef_as_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) -> Result<(), Zeroizing<Vec<u8>>> {
+    let Some(k) = app.seed_read.kef() else {
+        return Err(plain);
+    };
+    let (depth, id) = (k.depth, k.envelope.id.clone());
+    let lang = faraday_bip::bip39::Language::English;
+    let Ok(m) = faraday_keys::words::from_compact_seedqr(&plain, lang) else {
+        return Err(plain);
+    };
+    if kef_stick_in(app) {
+        return Ok(());
+    }
+    // Raw bytes that are also a code: the seed sheet offers to open
+    // them as one (`docs/KEF.md` §8), within the depth.
+    let also = (depth + 1 < DEPTH_MAX)
+        .then(|| faraday_codec::kef::recognize(&plain))
+        .flatten();
+    let words = lang.words();
+    let mut typed = crate::secret_text::room();
+    for (n, &i) in m.indices().iter().enumerate() {
+        if n > 0 {
+            typed.push(' ');
+        }
+        typed.push_str(words[usize::from(i)]);
+    }
+    drop(plain);
+    app.seed_read.set_kef(None);
+    app.sheet = None;
+    app.seed_scanned(&typed, scan_kind());
+    app.seed_read_kef_id(&id);
+    if let Some(found) = also {
+        app.seed_read_offer_kef(found.envelope);
+    }
+    Ok(())
+}
+
+/// Costs what the intake costs. The rest of §6's road, past the seed branch.
+fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool) {
+    let Some(depth) = app.seed_read.kef().map(|k| k.depth) else {
+        return;
+    };
+    let c = app.compute();
     if offer
         && depth + 1 < DEPTH_MAX
         && let Some(found) = faraday_codec::kef::recognize(&plain)
@@ -487,6 +530,22 @@ fn kef_show(app: &mut Faraday, stage: Stage, shown: Zeroizing<String>) {
         k.shown = Some(shown);
         k.eye = false;
     }
+}
+
+/// The note's own bytes go down the road's seed branch, as raw bytes of
+/// that length do (`docs/KEF.md` §6).
+fn kef_read_as_seed(app: &mut Faraday) {
+    let Some(k) = app.seed_read.kef() else {
+        return;
+    };
+    if k.stage != Stage::Note {
+        return;
+    }
+    let Some(shown) = k.shown.as_ref().filter(|t| matches!(t.len(), 16 | 32)) else {
+        return;
+    };
+    let bytes = Zeroizing::new(shown.as_bytes().to_vec());
+    let _ = kef_as_seed(app, bytes);
 }
 
 /// The note is carried to the next seed read as its passphrase: the
@@ -595,6 +654,13 @@ fn sheet_items(k: &KefRead) -> Vec<(&'static str, Style, Action)> {
         Stage::Working => items.push((EN.kef_cancel, Style::Primary, Action::Cancel)),
         Stage::Note => {
             items.push((EN.kef_done, Style::Ghost, Action::Cancel));
+            if k.shown.as_ref().is_some_and(|t| matches!(t.len(), 16 | 32)) {
+                items.push((
+                    EN.kef_read_as_seed,
+                    Style::Secondary,
+                    Action::KefRead(KefAct::ReadAsSeed),
+                ));
+            }
             items.push((
                 EN.kef_use_passphrase,
                 Style::Primary,
