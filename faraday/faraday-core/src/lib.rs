@@ -5024,7 +5024,7 @@ impl Faraday {
             return;
         };
         // A change of screen or sheet fades in from the frame before it.
-        self.fade_begin(&canvas);
+        self.fade_begin(&mut canvas);
         // The keyboard's place, while the last frame offered it: read
         // before its hits are taken for this one.
         let focused = self.pointer.focused();
@@ -5041,7 +5041,7 @@ impl Faraday {
         // A scroll step may move the rows already drawn
         // (`docs/FRAMES.md` §3.3); drawn whole when the first pass does
         // not suit.
-        let mut plan = self.moved_plan(&canvas, only_moved, stretch);
+        let mut plan = self.moved_plan(&mut canvas, only_moved, stretch);
         let mut layer = ui::Layer::default();
         // The overlay scrollbar shows while the offset moves and fades
         // once it has rested a moment.

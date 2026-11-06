@@ -4,6 +4,8 @@
 //! drawing either again; and whether this machine shows a fade's steps
 //! close enough together for it to read as one.
 
+mod bands;
+
 use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::Command;
 
@@ -81,6 +83,8 @@ pub(crate) struct Fade {
     /// Whether the fade under way is a change of theme, which takes
     /// longer and is eased; set when a fade starts.
     theme_fade: bool,
+    /// How a whole frame is painted across the cores (`bands.rs`).
+    cores: bands::Bands,
 }
 
 impl Fade {
@@ -283,7 +287,7 @@ impl Faraday {
     /// pane's presence, or of the Learn tab, starts a fade from that frame. The first frame ever,
     /// and the first after a resize, have nothing to fade from. Costs a
     /// copy of the whole canvas when a fade starts.
-    pub(crate) fn fade_begin(&mut self, canvas: &Canvas) {
+    pub(crate) fn fade_begin(&mut self, canvas: &mut Canvas) {
         // The pane opening, closing or changing its tab is a change as a
         // sheet's is (`docs/MOTION.md` §3.5, Material's side sheets).
         let pane = self.learn_pane_shown();
@@ -335,6 +339,10 @@ impl Faraday {
     /// canvas while a fade is under way. The frame is timed for the gate
     /// (`Fade::shown`).
     pub(crate) fn fade_end(&mut self, canvas: &mut Canvas) {
+        // The frame is painted before it is kept aside or shown.
+        self.fade.cores.paint(canvas);
+        // Whatever draws on the canvas after the frame paints as it calls.
+        canvas.record_calls(false);
         self.fade.shown(self.now_ms);
         let Some((before, at)) = &self.fade.from else {
             return;
@@ -451,11 +459,48 @@ impl Faraday {
         self.out.redraw();
     }
 
+    /// The frames after this are drawn recorded, and painted in `n`
+    /// bands on real threads when `n` is over 1.
+    #[cfg(test)]
+    pub(crate) fn draw_banded(&mut self, n: usize) {
+        self.fade.cores.set_for_test(n);
+        self.out.redraw();
+    }
+
+    /// What the last frame painted from the list: its calls, and its
+    /// barriers for the bands it was painted in.
+    #[cfg(test)]
+    pub(crate) fn last_painted(&self) -> (usize, usize) {
+        self.fade.cores.seen()
+    }
+
+    /// The frames after this are drawn recorded into the canvas's list and
+    /// painted from it when `on`, or painted as each call is made.
+    #[cfg(test)]
+    pub(crate) fn draw_recorded(&mut self, on: bool) {
+        self.fade.cores.set_for_test(usize::from(on));
+        self.out.redraw();
+    }
+
     /// Whether the frame about to be drawn may be a moved frame
     /// (`docs/FRAMES.md` §3.3), and if so the region whose rows it moves.
     /// `only_moved`: nothing asked for the frame but the region's motion.
     /// `stretch`: the stretch this frame is drawn with, pixels.
+    /// A whole frame is then recorded and painted in bands by
+    /// [`Self::fade_end`]; a moved frame paints its strip as the calls
+    /// are made (`docs/FRAMES.md` §4.2).
     pub(crate) fn moved_plan(
+        &mut self,
+        c: &mut faraday_draw::Canvas,
+        only_moved: bool,
+        stretch: i32,
+    ) -> Option<ui::Plan> {
+        let plan = self.plan_moved(c, only_moved, stretch);
+        c.record_calls(plan.is_none() && self.fade.cores.records());
+        plan
+    }
+
+    fn plan_moved(
         &mut self,
         c: &faraday_draw::Canvas,
         only_moved: bool,

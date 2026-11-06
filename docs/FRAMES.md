@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the frame drawn in bands across the cores (§4), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size and `Ui::wrap_lines` linear in its words of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the Pi's heat with the frame drawn in bands across the cores, read after two minutes of dragging and changing screens (§4.5), the stick's moved frame timed on the dev card with `--timings` (§3.5), the framebuffer write's last point, one buffer for `shown` and `last` (§6 point 4), what a frame does beside its pixels that §7 has not yet found or fixed
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -311,18 +311,51 @@ the list is painted in bands:
   glyph cache and the shape cache are complete before any band paints
   and are only read while bands paint; nothing is evicted during a
   frame (SPEED §3.8).
-- The list is painted by `n` bands of rows, each into its own rows of
-  the pixmap (disjoint `&mut [u8]`), each band's calls in the order
-  recorded, each held to its rows as a clip. A pixel's value depends
-  only on the calls that touch it, in their order, so each band paints
-  the bytes one band would.
+- The list is painted by `n` bands of rows, each band's calls in the
+  order recorded, and a band writes only its own rows (disjoint
+  `&mut [u8]`). A pixel's value depends only on the calls that touch it,
+  in their order, but a path is not painted by clipping alone:
+  `canvas.rs` draws a path on the whole canvas and puts back the rows
+  outside the clip, because tiny-skia cuts a path at its pixmap's edge
+  and a curve crossing the cut has other coverage. So a band paints a
+  path at its own canvas coordinates, never moved, because tiny-skia
+  does not rasterize a path identically when it is moved by whole rows
+  (a stroked rounded card differs by a few anti-aliased pixels):
+  - A path wholly inside the first band, whose rows start at the
+    canvas's, is painted straight into the band's rows.
+  - Any other path is painted into the band's scratch, a buffer of the
+    whole canvas's width and rows, hidden rows included, that the band's
+    room keeps between frames. The band copies its own rows of the
+    path's ink (and the ink's columns) into the same rows of the
+    scratch, paints the path there through the call the direct canvas
+    makes, with no transform, and copies the same rows and columns back.
+    Painting a row reads only that row, so the scratch's other rows may
+    hold anything. A path wider than a band is rasterized by each band
+    it touches and written back for that band's rows only; the last
+    band holds the hidden rows. The scratch is allocated once and a
+    band allocates nothing after.
+  - A pixel of a secret on show must not stay in the scratch: the rows
+    a band wrote in it are zeroed when it has painted its run.
+  Calls are recorded with caches held (the damage of a call is noted
+  when it is recorded, and a path's may be a few pixels larger than its
+  ink).
+  Painting with a clip, the put-back of the rows outside the clip, stays,
+  inside the band. §4.6 is the proof: the bytes are equal for every band
+  count.
 - **Barriers.** A call that reads pixels other rows wrote ends a run:
-  `shift` (the stretch), `frost` (the blur under a sheet, once a
-  sheet), `snapshot` and `copy_region`, a shadow blurred where it is
-  drawn. At a barrier every band finishes the run before it, the call
-  runs on the main thread over the whole canvas, and the bands go on.
-  `restore`, `blend_*`, `fade_region` and `luma` read and write the same
-  pixel only and stay banded.
+  `shift` (the stretch) and `frost` (the blur under a sheet, once a
+  sheet) are recorded as barriers. At a barrier every band finishes the
+  run before it, the call runs on the main thread over the whole canvas,
+  and the bands go on. A shadow is worked out per pixel from its distance
+  to the shape and reads no other pixel, so it is banded, not a barrier.
+  `luma` reads and writes the same pixel only and stays banded.
+- **Calls that take pixels the caller holds** (`restore`, `blend_*`,
+  `swap_pixels`, `fade_region`, `fade_to_background`, `place`,
+  `place_scaled`, `snapshot`, `snapshot_into`, `keep_layer`,
+  `paste_layer`) are not recorded: each paints the calls waiting first
+  and then runs on the whole canvas, which is a barrier of its own. The
+  two readers that take `&self` (`copy_region`, `frame`) read a canvas
+  with nothing waiting, and the caller paints it first.
 - **Counts.** What the canvas counts (`Work::Blur`, `Work::FullCanvas`,
   the lines of text) is counted as the call is recorded, on the main
   thread, so the budget tests (SPEED §7) count what they count now. A
@@ -338,15 +371,16 @@ frame. A moved frame (§3) paints a strip, which bands barely help.
 
 ### 4.3 The pool
 
-- Made with the canvas in faraday-core (faraday-draw is `no_std`; the
-  bands' painting is there and the threads are not): `n − 1` threads,
-  parked between frames and woken once a frame, with the main thread
-  as the `n`th. No thread is made per frame (a thread's start costs
-  tens of microseconds on a Pi, a sizeable part of a strip).
+- Made with the canvas in faraday-core (`bands.rs`; faraday-draw is
+  `no_std`; the bands' painting is there and the threads are not):
+  `n − 1` threads, with the main thread as the `n`th, started with the
+  whole frame and joined before it returns (`std::thread::scope`, since
+  a band borrows the frame's rows and the workspace forbids `unsafe`).
+  A moved frame (§3) makes none: it paints its strip as it is called.
 - `n` from the machine: `std::thread::available_parallelism()`, at most
-  four, one band for each 64 rows at least, and one (no pool, painted
+  four, one band for each 64 rows at least, and one (no threads, painted
   as now) when it says one or the canvas is under 64 rows a band.
-- No new dependency: `std::thread`, a `Condvar` and a counter.
+- No new dependency: `std::thread` alone.
 
 ### 4.4 Beside the core's worker
 

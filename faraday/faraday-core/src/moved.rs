@@ -412,4 +412,80 @@ mod tests {
             assert!(checked, "Settings has a page that scrolls on {panel:?}");
         }
     }
+
+    /// A screen drawn into the canvas's list and painted from it is the
+    /// screen drawn call by call, on every screen of the walk.
+    #[test]
+    fn a_frame_recorded_then_replayed_is_the_frame_drawn() {
+        let c = testkit::compute();
+        for panel in [PI, DESKTOP] {
+            let mut screens = 0;
+            let _ = walk_on(&c, panel, &mut |app, name| {
+                app.settle();
+                app.out.toast = None;
+                for _ in 0..2 {
+                    app.draw_whole_next();
+                    let _ = app.frame();
+                }
+                let direct = app.frame().rgba.to_vec();
+                app.draw_whole_next();
+                let direct_again = app.frame().rgba.to_vec();
+                app.draw_recorded(true);
+                app.draw_whole_next();
+                let recorded = app.frame().rgba.to_vec();
+                let (calls, _) = app.last_painted();
+                app.draw_recorded(false);
+                assert!(
+                    calls > 0,
+                    "{name}: the frame recorded no calls on {panel:?}"
+                );
+                assert!(
+                    direct == direct_again,
+                    "{name}: a frame drawn twice differs on {panel:?}"
+                );
+                assert!(
+                    direct == recorded,
+                    "{name}: a recorded frame differs from the frame drawn on {panel:?}, {} bytes",
+                    direct.iter().zip(&recorded).filter(|(a, b)| a != b).count()
+                );
+                screens += 1;
+            });
+            assert!(screens > 10, "the walk reaches its screens on {panel:?}");
+        }
+    }
+
+    /// A screen drawn into the canvas's list and painted in bands, each
+    /// on a thread of its own, is the screen drawn call by call, on
+    /// every screen of the walk.
+    #[test]
+    fn a_frame_painted_in_bands_on_threads_is_the_frame_drawn() {
+        let c = testkit::compute();
+        for panel in [PI, DESKTOP] {
+            let mut screens = 0;
+            let _ = walk_on(&c, panel, &mut |app, name| {
+                app.settle();
+                app.out.toast = None;
+                for _ in 0..2 {
+                    app.draw_whole_next();
+                    let _ = app.frame();
+                }
+                let direct = app.frame().rgba.to_vec();
+                for n in [2, 3, 4] {
+                    app.draw_banded(n);
+                    app.draw_whole_next();
+                    let banded = app.frame().rgba.to_vec();
+                    let (calls, _) = app.last_painted();
+                    app.draw_banded(0);
+                    assert!(calls > 0, "{name}: no calls recorded on {panel:?}");
+                    assert!(
+                        direct == banded,
+                        "{name}: {n} bands differ from the frame drawn on {panel:?}, {} bytes",
+                        direct.iter().zip(&banded).filter(|(a, b)| a != b).count()
+                    );
+                }
+                screens += 1;
+            });
+            assert!(screens > 10, "the walk reaches its screens on {panel:?}");
+        }
+    }
 }

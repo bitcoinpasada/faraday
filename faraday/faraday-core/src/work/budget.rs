@@ -605,3 +605,23 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
 fn on_the_pis_panel_a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
     budgets_hold_on(PI, FRAME_COSTS_PI);
 }
+
+/// A frame painted in bands does the costly work, the blurs and the
+/// whole-canvas copies, that a frame painted as the calls are made does.
+#[test]
+fn a_frame_painted_in_bands_does_the_work_of_the_frame_drawn_whole() {
+    let c = crate::testkit::compute();
+    let mut screens = 0;
+    let _ = walk_on(&c, PI, &mut |app, name| {
+        app.draw_banded(0);
+        let direct = frame_work(app);
+        app.draw_banded(4);
+        let banded = frame_work(app);
+        app.draw_banded(0);
+        for w in [Work::Blur, Work::FullCanvas] {
+            assert_eq!(banded.of(w), direct.of(w), "{name}: {w:?} in bands");
+        }
+        screens += 1;
+    });
+    assert!(screens > 10, "the walk reaches its screens");
+}

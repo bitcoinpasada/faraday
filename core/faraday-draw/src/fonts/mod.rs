@@ -402,6 +402,10 @@ struct Entry {
 pub struct GlyphCache {
     entries: BTreeMap<Key, Entry>,
     bytes: usize,
+    /// Whether the cache keeps every glyph it is given, past its budget:
+    /// while calls are recorded for painting later
+    /// ([`GlyphCache::hold`]).
+    held: bool,
 }
 
 impl GlyphCache {
@@ -416,6 +420,36 @@ impl GlyphCache {
         self.bytes = 0;
     }
 
+    /// Keeps every glyph from now on, whatever the budget, until
+    /// [`GlyphCache::release`]: the glyphs a list of recorded calls will
+    /// paint are all there when it is painted, and nothing writes the cache
+    /// then.
+    pub fn hold(&mut self) {
+        self.held = true;
+    }
+
+    /// Lets the cache drop its glyphs at the budget again, and drops them
+    /// now if it holds more than the budget. Call it with no recorded call
+    /// waiting.
+    pub fn release(&mut self) {
+        self.held = false;
+        if self.bytes > CACHE_BUDGET {
+            self.clear();
+        }
+    }
+
+    /// The glyph for `c` in `face` if it is cached, and nothing else: a
+    /// read, for the bands that paint a recorded frame.
+    pub fn peek(&self, face: &SizedFace, c: char) -> Option<Glyph<'_>> {
+        let resolved = face.outlines.glyph_or_fallback(c)?;
+        let key = Key {
+            family: face.family,
+            px: face.px,
+            code_point: resolved.code_point,
+        };
+        Some(self.entries.get(&key)?.as_glyph())
+    }
+
     /// The glyph for `c` in `face`, filling and caching it on a miss.
     /// Falls back to `?` as the outlines do.
     pub fn glyph(&mut self, face: &SizedFace, c: char) -> Option<Glyph<'_>> {
@@ -427,21 +461,26 @@ impl GlyphCache {
         };
         if !self.entries.contains_key(&key) {
             let entry = rasterise(face, &resolved);
-            if self.bytes + entry.bitmap.len() > CACHE_BUDGET {
+            if !self.held && self.bytes + entry.bitmap.len() > CACHE_BUDGET {
                 self.clear();
             }
             self.bytes += entry.bitmap.len();
             self.entries.insert(key, entry);
         }
-        let e = self.entries.get(&key)?;
-        Some(Glyph {
-            advance_64: e.advance_64,
-            bearing_x: e.bearing_x,
-            bearing_y: e.bearing_y,
-            width: e.width,
-            height: e.height,
-            bitmap: Coverage { data: &e.bitmap },
-        })
+        Some(self.entries.get(&key)?.as_glyph())
+    }
+}
+
+impl Entry {
+    fn as_glyph(&self) -> Glyph<'_> {
+        Glyph {
+            advance_64: self.advance_64,
+            bearing_x: self.bearing_x,
+            bearing_y: self.bearing_y,
+            width: self.width,
+            height: self.height,
+            bitmap: Coverage { data: &self.bitmap },
+        }
     }
 }
 

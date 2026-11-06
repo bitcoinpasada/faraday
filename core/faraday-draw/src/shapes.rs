@@ -11,8 +11,9 @@
 
 use alloc::vec::Vec;
 
-use tiny_skia::{FillRule, Mask, PathBuilder, Pixmap, Transform};
+use tiny_skia::{FillRule, Mask, PathBuilder, Transform};
 
+use crate::canvas::Surface;
 use crate::color::Color;
 use crate::geom::Rect;
 
@@ -69,6 +70,9 @@ pub(crate) struct Shapes {
     bytes: usize,
     /// Shapes filled from their outlines, ever: a miss each.
     filled: u64,
+    /// Whether nothing is dropped, whatever the budget, while calls are
+    /// recorded for painting later ([`Shapes::hold`]).
+    held: bool,
 }
 
 impl Shapes {
@@ -76,6 +80,36 @@ impl Shapes {
     /// from the canvas's making. A lookup.
     pub(crate) fn filled(&self) -> u64 {
         self.filled
+    }
+
+    /// Drops nothing from now on, whatever the budget, until
+    /// [`Shapes::release`]: every shape a list of recorded calls will
+    /// paint is there when it is painted.
+    pub(crate) fn hold(&mut self) {
+        self.held = true;
+    }
+
+    /// Drops shapes at the budget again, and drops them now if more are
+    /// kept than the budget holds. Call it with no recorded call waiting.
+    pub(crate) fn release(&mut self) {
+        self.held = false;
+        if self.bytes > SHAPES_BUDGET || self.kept.len() > SHAPES_MOST {
+            self.kept.clear();
+            self.bytes = 0;
+        }
+    }
+
+    /// The box of pixels the shape under `key` covers, if it is kept. A
+    /// lookup.
+    pub(crate) fn area(&self, key: ShapeKey) -> Option<Rect> {
+        let k = self.kept.iter().find(|k| k.key == key)?;
+        Some(Rect::new(k.x, k.y, k.w as i32, k.h as i32))
+    }
+
+    /// Costs filling the outlines on a miss; a lookup on a hit. Has the
+    /// shape under `key` kept, as a draw would, without drawing it.
+    pub(crate) fn keep(&mut self, key: ShapeKey, outlines: impl FnOnce() -> Vec<Vec<(f32, f32)>>) {
+        let _ = self.get(key, outlines);
     }
 
     /// Costs filling the outlines on a miss; a lookup on a hit. The
@@ -91,7 +125,9 @@ impl Shapes {
         }
         self.filled += 1;
         let kept = fill(key, &outlines())?;
-        if self.bytes + kept.cover.len() > SHAPES_BUDGET || self.kept.len() >= SHAPES_MOST {
+        if !self.held
+            && (self.bytes + kept.cover.len() > SHAPES_BUDGET || self.kept.len() >= SHAPES_MOST)
+        {
             self.kept.clear();
             self.bytes = 0;
         }
@@ -151,17 +187,20 @@ fn ceil(v: f32) -> i32 {
 }
 
 /// Costs a pass over the shape's box. Blends the shape kept under `key`
-/// in `color` into `pixmap` inside `clip`, filling it from `outlines` on
-/// a miss; returns the pixels it may have written.
+/// in `color` into `surface` inside `clip`; returns the pixels it may
+/// have written, `None` when the shape is not kept or none of it is
+/// inside the clip. It only reads the shapes.
 pub(crate) fn draw(
-    shapes: &mut Shapes,
-    pixmap: &mut Pixmap,
+    shapes: &Shapes,
+    surface: &mut Surface<'_>,
     clip: Rect,
-    (key, outlines): (ShapeKey, impl FnOnce() -> Vec<Vec<(f32, f32)>>),
+    key: ShapeKey,
     color: Color,
 ) -> Option<Rect> {
-    let k = shapes.get(key, outlines)?;
-    let area = Rect::new(k.x, k.y, k.w as i32, k.h as i32).intersect(&clip);
+    let k = shapes.kept.iter().find(|k| k.key == key)?;
+    let area = Rect::new(k.x, k.y, k.w as i32, k.h as i32)
+        .intersect(&clip)
+        .intersect(&surface.rect());
     if area.is_empty() {
         return None;
     }
@@ -176,17 +215,15 @@ pub(crate) fn draw(
         byte(p.alpha()),
     ];
     let opaque = color.a == 255;
-    let stride = pixmap.width() as usize * 4;
-    let data = pixmap.data_mut();
     for y in area.y..area.bottom() {
         let row = &k.cover[(y - k.y) as usize * k.w..][..k.w];
-        let at = y as usize * stride;
+        let data = surface.row_mut(y);
         for x in area.x..area.right() {
             let c = u16::from(row[(x - k.x) as usize]);
             if c == 0 {
                 continue;
             }
-            let i = at + x as usize * 4;
+            let i = x as usize * 4;
             let d = &mut data[i..i + 4];
             if opaque {
                 // tiny-skia's opaque fill: Source, the coverage lerped.

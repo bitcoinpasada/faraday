@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 use faraday_crypto::work::Work;
 use faraday_shell_api::{DisplayInfo, Frame};
-use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Stroke, Transform};
+use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 use crate::color::Color;
 use crate::fonts::{Coverage, GlyphCache, SizedFace};
@@ -19,6 +19,12 @@ use crate::geom::{Dp, Rect, Scale, SizeClass};
 pub use crate::shapes::ShapeKey;
 use crate::shapes::{self, Shapes};
 use crate::text::{self, Font, TextAlign, TextMetrics};
+
+mod list;
+pub use list::Band;
+use list::{List, Mode};
+mod surface;
+pub(crate) use surface::Surface;
 
 /// A drawing surface the size of the display.
 pub struct Canvas {
@@ -69,6 +75,11 @@ pub struct Canvas {
     /// the application that budgets it ([`Canvas::set_counter`]); notes
     /// nothing until one is set.
     counter: fn(Work),
+    /// Whether the painting calls paint, or are appended to the list
+    /// ([`Canvas::record_calls`]).
+    mode: Mode,
+    /// The calls recorded and not yet painted.
+    list: List,
 }
 
 /// One thing a frame drew and the box its visible ink covers.
@@ -147,6 +158,8 @@ impl Canvas {
             layer: Vec::new(),
             damage: None,
             counter: |_| {},
+            mode: Mode::Direct,
+            list: List::default(),
         }
     }
 
@@ -215,6 +228,10 @@ impl Canvas {
 
     /// The pixels, for the shell.
     pub fn frame(&self) -> Frame<'_> {
+        debug_assert!(
+            self.list.is_empty(),
+            "calls recorded and not painted ([`Canvas::replay`])"
+        );
         Frame {
             width: self.pixmap.width() as u16,
             height: self.rows as u16,
@@ -227,6 +244,7 @@ impl Canvas {
     /// drawn inside another's (the Starter's held desktop app). A copy
     /// of its pixels, counted as a whole copy ([`Work::FullCanvas`]).
     pub fn place(&mut self, x: i32, y: i32, frame: &Frame<'_>) {
+        self.sync();
         (self.counter)(Work::FullCanvas);
         let (fw, fh) = (i32::from(frame.width), i32::from(frame.height));
         let r = Rect::new(x, y, fw, fh).intersect(&self.bounds());
@@ -251,6 +269,7 @@ impl Canvas {
     /// Where `w` and `h` are the frame's own, [`Canvas::place`]. Counted
     /// as a whole copy ([`Work::FullCanvas`]).
     pub fn place_scaled(&mut self, (x, y, w, h): (i32, i32, i32, i32), frame: &Frame<'_>) {
+        self.sync();
         let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
         if w as usize == fw && h as usize == fh {
             self.place(x, y, frame);
@@ -313,6 +332,17 @@ impl Canvas {
 
     /// Fills the whole canvas, ignoring the clip.
     pub fn clear(&mut self, color: Color) {
+        if !self.replaying() {
+            self.cut.clear();
+            if let Some(ink) = &mut self.ink {
+                ink.clear();
+            }
+        }
+        if self.recording() {
+            self.damaged(self.bounds());
+            self.record_clear(color);
+            return;
+        }
         // The visible rows only: the hidden ones are drawn into and never
         // read, as a shape's pixels there depend on its coverage and
         // the colour it is blended over there, which nothing shows.
@@ -323,10 +353,6 @@ impl Canvas {
             p.copy_from_slice(&px);
         }
         self.damaged(self.bounds());
-        self.cut.clear();
-        if let Some(ink) = &mut self.ink {
-            ink.clear();
-        }
     }
 
     /// Starts or stops recording where text and icons leave their ink
@@ -374,6 +400,9 @@ impl Canvas {
     }
 
     fn note_ink(&mut self, kind: impl FnOnce() -> InkKind, rect: Option<Rect>) {
+        if self.replaying() {
+            return;
+        }
         if let (Some(ink), Some(rect)) = (&mut self.ink, rect)
             && !rect.is_empty()
         {
@@ -395,33 +424,12 @@ impl Canvas {
             return;
         }
         self.damaged(r);
-        if color.a < 255 {
-            // Blended here, a whole pixel at a time: tiny-skia's blend of
-            // a translucent fill took twenty milliseconds over a 1080p
-            // panel, and a sheet's dim covers the whole of it every frame.
-            let a = u32::from(color.a);
-            let src = u32::from_le_bytes([
-                div255(u32::from(color.r) * a) as u8,
-                div255(u32::from(color.g) * a) as u8,
-                div255(u32::from(color.b) * a) as u8,
-                color.a,
-            ]);
-            let stride = self.pixmap.width() as usize * 4;
-            let data = self.pixmap.data_mut();
-            for y in r.y..r.bottom() {
-                let start = y as usize * stride + r.x as usize * 4;
-                let row = &mut data[start..start + r.w as usize * 4];
-                for p in row.chunks_exact_mut(4) {
-                    let d = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
-                    p.copy_from_slice(&over(src, d, 255 - a).to_le_bytes());
-                }
-            }
+        if self.recording() {
+            self.record_rect(rect, color);
             return;
         }
-        let mut paint = Self::paint(color);
-        paint.anti_alias = false;
-        self.pixmap
-            .fill_rect(skia_rect(r), &paint, Transform::identity(), None);
+        let clip = self.clip();
+        surface::fill_rect(&mut self.surface(), rect, clip, color);
     }
 
     /// Costs a write of each dark pixel. Fills in `color` the cells of an
@@ -441,57 +449,14 @@ impl Canvas {
         if area.is_empty() || cell <= 0 || color.a == 0 {
             return;
         }
-        // Each row's runs of dark cells, as columns of pixels in the area.
-        let runs_of = |row: usize, runs: &mut Vec<(usize, usize)>| {
-            runs.clear();
-            let mut col = 0;
-            while col < n {
-                if !dark(col, row) {
-                    col += 1;
-                    continue;
-                }
-                let start = col;
-                while col < n && dark(col, row) {
-                    col += 1;
-                }
-                let l = (at.0 + start as i32 * cell).max(area.x);
-                let r = (at.0 + col as i32 * cell).min(area.right());
-                if l < r {
-                    runs.push((l as usize, r as usize));
-                }
-            }
-        };
-        let mut runs = Vec::new();
-        if color.a < 255 {
-            for row in 0..n {
-                runs_of(row, &mut runs);
-                let top = at.1 + row as i32 * cell;
-                for &(l, r) in &runs {
-                    self.fill_rect(Rect::new(l as i32, top, (r - l) as i32, cell), color);
-                }
-            }
+        if self.recording() {
+            self.damaged(area);
+            self.record_cells(at, (n, cell), dark, color);
             return;
         }
-        self.damaged(area);
-        let px = [color.r, color.g, color.b, 255];
-        let stride = self.pixmap.width() as usize * 4;
-        for row in 0..n {
-            let top = (at.1 + row as i32 * cell).max(area.y);
-            let bottom = (at.1 + (row as i32 + 1) * cell).min(area.bottom());
-            if top >= bottom {
-                continue;
-            }
-            runs_of(row, &mut runs);
-            let data = self.pixmap.data_mut();
-            for y in top..bottom {
-                let line = y as usize * stride;
-                for &(l, r) in &runs {
-                    for p in data[line + l * 4..line + r * 4].chunks_exact_mut(4) {
-                        p.copy_from_slice(&px);
-                    }
-                }
-            }
-        }
+        let clip = self.clip();
+        let done = surface::fill_cells(&mut self.surface(), clip, (at, n, cell), dark, color);
+        self.damaged(done);
     }
 
     /// A soft shadow under a rounded rectangle that floats: `rect` with
@@ -517,106 +482,24 @@ impl Canvas {
         if rect.is_empty() || color.a == 0 || blur <= 0.0 {
             return;
         }
-        // The shape whose edge the fall starts from: the spread shape
-        // drawn in by half the blur, so the middle of the transition is
-        // on the spread shape's edge.
-        let grow = spread - blur / 2.0;
-        let g = (grow + 0.5 * if grow < 0.0 { -1.0 } else { 1.0 }) as i32;
-        let fall_len = blur * 1.2;
-        let shape = Rect::new(
-            rect.x - g,
-            rect.y + dy - g,
-            (rect.w + 2 * g).max(0),
-            (rect.h + 2 * g).max(0),
-        );
-        let reach = fall_len as i32 + 1;
-        let area = Rect::new(
-            shape.x - reach,
-            shape.y - reach,
-            shape.w + 2 * reach,
-            shape.h + 2 * reach,
-        )
-        .intersect(&self.clip());
+        let of = surface::ShadowOf {
+            rect,
+            radius,
+            blur,
+            spread,
+            dy,
+        };
+        let area = of.reach().1.intersect(&self.clip());
         if area.is_empty() {
             return;
         }
         self.damaged(area);
-        // Covered by what floats, whatever its corners.
-        let r = radius
-            .max(0.0)
-            .min(rect.w as f32 / 2.0)
-            .min(rect.h as f32 / 2.0);
-        let inset = r as i32 + 1;
-        let covered = Rect::new(
-            rect.x + inset,
-            rect.y + inset,
-            rect.w - 2 * inset,
-            rect.h - 2 * inset,
-        );
-        let (cx, cy) = (
-            shape.x as f32 + shape.w as f32 / 2.0,
-            shape.y as f32 + shape.h as f32 / 2.0,
-        );
-        // The shape's own corners follow the growth.
-        let sr = (r + grow)
-            .max(0.0)
-            .min(shape.w as f32 / 2.0)
-            .min(shape.h as f32 / 2.0);
-        let (hw, hh) = (shape.w as f32 / 2.0 - sr, shape.h as f32 / 2.0 - sr);
-        let (cr, cg, cb, ca) = (
-            u32::from(color.r),
-            u32::from(color.g),
-            u32::from(color.b),
-            u32::from(color.a),
-        );
-        // How dark the shadow is at each quarter pixel from the edge:
-        // smooth from full there to nothing at `blur`.
-        let steps_per_px = 4.0;
-        let fall: Vec<u32> = (0..=(fall_len * steps_per_px) as usize + 1)
-            .map(|i| {
-                let t = (i as f32 / steps_per_px / fall_len).min(1.0);
-                (ca as f32 * (1.0 - t) * (1.0 - t) * (1.0 + 2.0 * t)) as u32
-            })
-            .collect();
-        let stride = self.pixmap.width() as usize * 4;
-        let data = self.pixmap.data_mut();
-        for py in area.y..area.bottom() {
-            // The rows the covered middle spans are only walked at their
-            // two ends: the columns left of it, then those right of it.
-            let (from, to) = if py >= covered.y && py < covered.bottom() && !covered.is_empty() {
-                (
-                    covered.x.clamp(area.x, area.right()),
-                    covered.right().clamp(area.x, area.right()),
-                )
-            } else {
-                (area.right(), area.right())
-            };
-            for px in (area.x..from).chain(to..area.right()) {
-                // Distance outside the rounded rectangle: along a side
-                // it is one coordinate's, round a corner both.
-                let qx = ((px as f32 + 0.5 - cx).abs() - hw).max(0.0);
-                let qy = ((py as f32 + 0.5 - cy).abs() - hh).max(0.0);
-                let d = if qx == 0.0 {
-                    qy
-                } else if qy == 0.0 {
-                    qx
-                } else {
-                    sqrt(qx * qx + qy * qy)
-                } - sr;
-                let step = ((d.max(0.0) * steps_per_px) as usize).min(fall.len() - 1);
-                let a = fall[step];
-                if a == 0 {
-                    continue;
-                }
-                let inv = 255 - a;
-                let i = py as usize * stride + px as usize * 4;
-                let p = &mut data[i..i + 4];
-                p[0] = (div255(cr * a) + div255(u32::from(p[0]) * inv)) as u8;
-                p[1] = (div255(cg * a) + div255(u32::from(p[1]) * inv)) as u8;
-                p[2] = (div255(cb * a) + div255(u32::from(p[2]) * inv)) as u8;
-                p[3] = (a + div255(u32::from(p[3]) * inv)) as u8;
-            }
+        if self.recording() {
+            self.record_shadow((rect, radius, blur), spread, dy, color);
+            return;
         }
+        let clip = self.clip();
+        surface::shadow(&mut self.surface(), clip, of, color, &mut Vec::new());
     }
 
     /// Material 3's shadow of an elevation `level` (1 to 5) under a
@@ -669,7 +552,11 @@ impl Canvas {
     /// it is meant to be done once and kept ([`Canvas::snapshot`],
     /// [`Canvas::restore`]).
     pub fn frost(&mut self, scale: u32, radius: u32, tint: Color) {
-        (self.counter)(Work::Blur);
+        let _ = (!self.replaying()).then(|| (self.counter)(Work::Blur));
+        if self.recording() {
+            self.record_frost(scale, radius, tint);
+            return;
+        }
         self.damaged(self.bounds());
         let (w, h) = (self.pixmap.width() as usize, self.rows as usize);
         let s = scale.max(1) as usize;
@@ -788,6 +675,7 @@ impl Canvas {
     /// are copied only where something was drawn since: kept pixels
     /// are not changed in place.
     pub fn restore(&mut self, pixels: &[u8]) {
+        self.sync();
         (self.counter)(Work::FullCanvas);
         if pixels.len() != self.visible().len() {
             return;
@@ -812,13 +700,15 @@ impl Canvas {
     }
 
     /// A copy of every pixel, for [`Canvas::blend_between`] to fade from.
-    pub fn snapshot(&self) -> Vec<u8> {
+    pub fn snapshot(&mut self) -> Vec<u8> {
+        self.sync();
         (self.counter)(Work::FullCanvas);
         self.visible().to_vec()
     }
 
     /// The same copy into `into`, reusing its room.
-    pub fn snapshot_into(&self, into: &mut Vec<u8>) {
+    pub fn snapshot_into(&mut self, into: &mut Vec<u8>) {
+        self.sync();
         (self.counter)(Work::FullCanvas);
         into.clear();
         into.extend_from_slice(self.visible());
@@ -851,6 +741,7 @@ impl Canvas {
         inset: i32,
         bands: &mut Vec<Rect>,
     ) {
+        self.sync();
         (self.counter)(Work::FullCanvas);
         bands.clear();
         let n = self.visible().len();
@@ -899,6 +790,7 @@ impl Canvas {
     /// them (or the ring it left out, which is drawn over). Snapshots of
     /// another size leave the canvas as it is.
     pub fn blend_within(&mut self, before: &[u8], after: &[u8], t: f32, bands: &[Rect]) {
+        self.sync();
         (self.counter)(Work::FullCanvas);
         let n = self.visible().len();
         if before.len() != n || after.len() != n {
@@ -933,6 +825,7 @@ impl Canvas {
     /// held, or the page colour's zeros when it was empty, until it is
     /// drawn over. Pixels of another size leave both as they are.
     pub fn swap_pixels(&mut self, pixels: &mut Vec<u8>) {
+        self.sync();
         let (w, h) = (self.pixmap.width(), self.pixmap.height());
         let n = self.visible().len();
         let total = w as usize * h as usize * 4;
@@ -960,6 +853,10 @@ impl Canvas {
     /// cut at the canvas's edges, a row at a time into `into`, reusing its
     /// room: for [`Canvas::fade_region`] to fade from.
     pub fn copy_region(&self, rect: Rect, into: &mut Vec<u8>) {
+        debug_assert!(
+            self.list.is_empty(),
+            "calls recorded and not painted ([`Canvas::replay`])"
+        );
         into.clear();
         let r = rect.intersect(&self.bounds());
         if r.is_empty() {
@@ -977,6 +874,7 @@ impl Canvas {
     /// `rect` as the region's content layer, in room kept between frames
     /// ([`Canvas::layer`]).
     pub fn keep_layer(&mut self, rect: Rect) {
+        self.sync();
         let mut layer = core::mem::take(&mut self.layer);
         let r = rect.intersect(&self.bounds());
         let held = layer.len();
@@ -1026,6 +924,7 @@ impl Canvas {
     /// `margin` rows next to the rows `dy` brought in are left as they
     /// are: the caller drew them again, for ink that reaches past its shape.
     pub fn paste_layer(&mut self, rect: Rect, dy: i32, margin: i32) {
+        self.sync();
         let r = rect.intersect(&self.bounds());
         if r != rect
             || r.is_empty()
@@ -1060,6 +959,7 @@ impl Canvas {
     /// out over what it stands on. A `before` of another size leaves the
     /// canvas as it is.
     pub fn fade_region(&mut self, rect: Rect, before: &[u8], t: f32) {
+        self.sync();
         let r = rect.intersect(&self.bounds());
         if r.is_empty() || before.len() != (r.w * r.h * 4) as usize {
             return;
@@ -1085,6 +985,7 @@ impl Canvas {
     /// background the control stands on, toward what was drawn. The
     /// background itself, and a container the same colour, do not move.
     pub fn fade_to_background(&mut self, rect: Rect, (x, y): (i32, i32), keep: f32) {
+        self.sync();
         let r = rect.intersect(&self.bounds());
         if r.is_empty() || !self.bounds().contains(x, y) {
             return;
@@ -1114,6 +1015,10 @@ impl Canvas {
     pub fn shift(&mut self, rect: Rect, dy: i32) {
         let r = rect.intersect(&self.bounds());
         if r.is_empty() || dy == 0 || dy.abs() >= r.h {
+            return;
+        }
+        if self.recording() {
+            self.record_shift(rect, dy);
             return;
         }
         self.damaged(r);
@@ -1173,39 +1078,21 @@ impl Canvas {
         if scale <= 0.0 {
             return;
         }
-        // The source pixel at the rectangle's top-left corner: the crop
-        // takes the same amount off both sides of the longer axis.
-        let left = (sw as f32 - rect.w as f32 / scale) / 2.0;
-        let top = (sh as f32 - rect.h as f32 / scale) / 2.0;
         self.damaged(dst);
-        let stride = self.pixmap.width() as usize;
-        let data = self.pixmap.pixels_mut();
-        for y in dst.y..dst.bottom() {
-            let sy = ((top + ((y - rect.y) as f32 + 0.5) / scale) as usize).min(sh - 1);
-            let row = sy * sw;
-            let uv_row = (sy / 2) * cw;
-            let out = y as usize * stride;
-            for x in dst.x..dst.right() {
-                let sx = ((left + ((x - rect.x) as f32 + 0.5) / scale) as usize).min(sw - 1);
-                let luma = pixels[row + sx];
-                let (r, g, b) = match chroma {
-                    Some(uv) => {
-                        let at = (uv_row + sx / 2) * 2;
-                        yuv_to_rgb(luma, uv[at], uv[at + 1])
-                    }
-                    None => (luma, luma, luma),
-                };
-                // Alpha 255, so the premultiplied bytes are the colour
-                // itself.
-                data[out + x as usize] =
-                    PremultipliedColorU8::from_rgba(r, g, b, 255).expect("opaque pixel");
-            }
+        if self.recording() {
+            self.record_luma(rect, (width, height), pixels, chroma);
+            return;
         }
+        surface::luma(&mut self.surface(), (rect, dst), (sw, sh), pixels, chroma);
     }
 
     /// Fills a rectangle with rounded corners of `radius` pixels.
     pub fn fill_rounded_rect(&mut self, rect: Rect, radius: f32, color: Color) {
         if rect.is_empty() || color.a == 0 || rect.intersect(&self.clip()).is_empty() {
+            return;
+        }
+        if self.recording() {
+            self.record_rounded(rect, radius, color);
             return;
         }
         if radius <= 0.5 {
@@ -1244,6 +1131,10 @@ impl Canvas {
         if rect.is_empty() || color.a == 0 || rect.intersect(&self.clip()).is_empty() {
             return;
         }
+        if self.recording() {
+            self.record_stroke_rounded(rect, radius, width, color);
+            return;
+        }
         let stroke = Stroke {
             width,
             ..Stroke::default()
@@ -1258,39 +1149,33 @@ impl Canvas {
         if color.a == 0 {
             return;
         }
-        let mut pb = PathBuilder::new();
-        pb.move_to(x0, y0);
-        pb.line_to(x1, y1);
-        let Some(path) = pb.finish() else { return };
-        let stroke = Stroke {
-            width,
-            ..Stroke::default()
+        if self.recording() {
+            self.record_line([x0, y0, x1, y1], width, color);
+            return;
+        }
+        let Some(path) = line_path([x0, y0, x1, y1]) else {
+            return;
         };
-        self.draw_path(&path, &Self::paint(color), Some(&stroke));
+        self.draw_path(&path, &Self::paint(color), Some(&line_stroke(width)));
     }
 
     /// Strokes the closed outline through `points`, in pixels, `width`
     /// pixels thick, its corners rounded.
     pub fn stroke_closed(&mut self, points: &[(f32, f32)], width: f32, color: Color) {
-        let Some((&(x0, y0), rest)) = points.split_first() else {
+        if points.is_empty() || color.a == 0 {
             return;
-        };
+        }
         if color.a == 0 {
             return;
         }
-        let mut pb = PathBuilder::new();
-        pb.move_to(x0, y0);
-        for &(x, y) in rest {
-            pb.line_to(x, y);
+        if self.recording() {
+            self.record_stroke_closed(points, width, color);
+            return;
         }
-        pb.close();
-        let Some(path) = pb.finish() else { return };
-        let stroke = Stroke {
-            width,
-            line_join: tiny_skia::LineJoin::Round,
-            ..Stroke::default()
+        let Some(path) = closed_path(points) else {
+            return;
         };
-        self.draw_path(&path, &Self::paint(color), Some(&stroke));
+        self.draw_path(&path, &Self::paint(color), Some(&closed_stroke(width)));
     }
 
     /// Fills a circle.
@@ -1308,18 +1193,13 @@ impl Canvas {
         {
             return;
         }
-        // Built about its own whole pixel and placed, as a rounded
-        // rectangle is: a circle moved by whole pixels is the same pixels.
-        let down = |v: f32| (v as i32 - i32::from((v as i32 as f32) > v)) as f32;
-        let (ox, oy) = (down(cx), down(cy));
-        // Eight quadratic curves in one contour.
-        let mut local = take(&mut self.paths);
-        local.push_circle(cx - ox, cy - oy, radius);
-        let Some(local) = local.finish() else {
+        if self.recording() {
+            self.record_circle((cx, cy), radius, color);
+            return;
+        }
+        let Some(path) = circle_path(&mut self.paths, (cx, cy), radius) else {
             return;
         };
-        let path = place(&mut self.paths, &local, (ox as i32, oy as i32));
-        self.give_back(local);
         self.draw_path(&path, &Self::paint(color), None);
         self.give_back(path);
     }
@@ -1331,18 +1211,22 @@ impl Canvas {
         if color.a == 0 {
             return;
         }
-        let mut pb = PathBuilder::new();
-        for points in contours {
-            let Some((&(x0, y0), rest)) = points.split_first() else {
-                continue;
-            };
-            pb.move_to(x0, y0);
-            for &(x, y) in rest {
-                pb.line_to(x, y);
-            }
-            pb.close();
+        if self.recording() {
+            self.record_contours(contours, color);
+            return;
         }
-        let Some(path) = pb.finish() else { return };
+        self.fill_contours_of(contours.iter().copied(), color);
+    }
+
+    /// [`Canvas::fill_contours`] of contours given one at a time.
+    fn fill_contours_of<'a>(
+        &mut self,
+        contours: impl Iterator<Item = &'a [(f32, f32)]>,
+        color: Color,
+    ) {
+        let Some(path) = contours_path(contours) else {
+            return;
+        };
         self.draw_path(&path, &Self::paint(color), None);
     }
 
@@ -1363,89 +1247,44 @@ impl Canvas {
         if color.a == 0 {
             return;
         }
+        if self.recording() {
+            self.record_kept(key, outlines, color);
+            return;
+        }
+        if self.replaying() {
+            // Kept when it was recorded, and nothing is dropped between.
+            debug_assert!(
+                self.shapes.area(key).is_some(),
+                "a kept shape was dropped between record and replay"
+            );
+        } else {
+            self.shapes.keep(key, outlines);
+        }
         let clip = self.clip();
-        let drawn = shapes::draw(
-            &mut self.shapes,
-            &mut self.pixmap,
-            clip,
-            (key, outlines),
-            color,
-        );
+        let mut surface = Surface::new(self.pixmap.as_mut(), 0);
+        let drawn = shapes::draw(&self.shapes, &mut surface, clip, key, color);
         if let Some(r) = drawn {
             self.damaged(r);
         }
     }
 
-    /// Fills `path`, or strokes it with `stroke`, inside the clip.
-    ///
-    /// No mask: tiny-skia blends through one about thirty times slower
-    /// than without, and building a panel-sized one for each clip a frame
-    /// pushes (every segment of a segmented button) was most of a
-    /// frame's cost on a large display. A shape across an edge of the
-    /// clip is drawn whole and the pixels of its box outside the clip are
-    /// put back as they were: the same pixels as the whole shape cut by
-    /// the clip, which a scroll that copies rows and draws the strip it
-    /// uncovered depends on. A shape wholly outside the clip is not
-    /// drawn.
+    /// Fills `path`, or strokes it with `stroke`, inside the clip
+    /// (`surface::path`).
     fn draw_path(&mut self, path: &tiny_skia::Path, paint: &Paint, stroke: Option<&Stroke>) {
-        // Every pixel the shape's ink can reach: half a stroke's width
-        // beyond the path, one more for the anti-aliased edge, and one
-        // for the truncation to whole pixels.
-        let b = path.bounds();
-        let grow = stroke.map_or(0.0, |s| s.width / 2.0) + 1.0;
-        let (l, t) = ((b.left() - grow) as i32 - 1, (b.top() - grow) as i32 - 1);
-        let (r, bo) = (
-            (b.right() + grow) as i32 + 1,
-            (b.bottom() + grow) as i32 + 1,
-        );
+        let ink = surface::ink_box(path, stroke);
         let clip = self.clip();
-        self.damaged(Rect::new(l, t, r - l, bo - t).intersect(&clip));
-        // A shape wholly outside the clip reaches no pixel the clip
-        // keeps: a card scrolled off the page costs its layout and
-        // nothing more, however long the page.
-        if clip.is_empty()
-            || r <= clip.x
-            || l >= clip.right()
-            || t.max(clip.y) >= bo.min(clip.bottom())
-        {
-            return;
-        }
-        let (width, height) = (self.pixmap.width() as i32, self.rows as i32);
-        let (y0, y1) = (t.max(0), bo.min(height));
-        let row = width as usize * 4;
-        let region = Rect::new(l.max(0), y0, r.min(width) - l.max(0), y1 - y0);
-        let pieces = outside(region, clip);
-        let span = |y: i32, p: &Rect| {
-            let at = y as usize * row;
-            at + p.x as usize * 4..at + p.right() as usize * 4
-        };
-        let saved = &mut self.scratch;
-        saved.clear();
-        let data = self.pixmap.data();
-        for p in &pieces {
-            for y in p.y..p.bottom() {
-                saved.extend_from_slice(&data[span(y, p)]);
-            }
-        }
-        // Drawn on the whole canvas, which holds the whole shape: a
-        // shape cut where the clip crosses one of its curves would have
-        // other coverage there than the whole shape has.
-        let mut pixmap = self.pixmap.as_mut();
-        let ts = Transform::identity();
-        match stroke {
-            Some(s) => pixmap.stroke_path(path, paint, s, ts, None),
-            None => pixmap.fill_path(path, paint, FillRule::Winding, ts, None),
-        }
-        let data = self.pixmap.data_mut();
-        let mut at = 0;
-        for p in &pieces {
-            for y in p.y..p.bottom() {
-                let r = span(y, p);
-                let n = r.len();
-                data[r].copy_from_slice(&self.scratch[at..at + n]);
-                at += n;
-            }
-        }
+        self.damaged(ink.intersect(&clip));
+        let visible = self.rows as i32;
+        let mut s = Surface::new(self.pixmap.as_mut(), 0);
+        let args = (path, paint, stroke);
+        surface::path(
+            &mut s,
+            &mut self.scratch,
+            (clip, visible),
+            args,
+            ink,
+            Transform::identity(),
+        );
     }
 
     /// Single-line metrics of `text` in `font` on this display.
@@ -1485,7 +1324,10 @@ impl Canvas {
             }
             return ((pen + 32) >> 6) as i32 - x;
         }
-        self.lines += 1;
+        let rec = self.recording();
+        if !self.replaying() {
+            self.lines += 1;
+        }
         let start = pen;
         let mut cut = false;
         let mut bbox: Option<Rect> = None;
@@ -1504,25 +1346,28 @@ impl Canvas {
                     bbox = Some(bbox.map_or(r, |b| union(b, r)));
                 }
             }
-            blit_glyph(
-                &mut self.pixmap,
-                clip,
-                gx,
-                gy,
-                g.width,
-                g.height,
-                g.bitmap,
-                color,
-            );
+            if !rec {
+                let mut surface = Surface::new(self.pixmap.as_mut(), 0);
+                surface::blit_glyph(
+                    &mut surface,
+                    clip,
+                    (gx, gy, g.width, g.height),
+                    g.bitmap,
+                    color,
+                );
+            }
             pen += i64::from(g.advance_64);
         }
         // Every pixel its glyphs can reach: a line box above and below,
         // and a line's height either side for a mark past its advance.
         let (from, to) = (((start + 32) >> 6) as i32, ((pen + 32) >> 6) as i32);
         self.damaged(Rect::new(from - lh, y - lh, to - from + 2 * lh, 3 * lh).intersect(&clip));
+        if rec {
+            self.record_text(face, (x, y), s, color);
+        }
         // Once per string: a scroll draws the same strip again and
         // again without a clear in between.
-        if cut && !self.cut.iter().any(|t| t == s) {
+        if !self.replaying() && cut && !self.cut.iter().any(|t| t == s) {
             self.cut.push(String::from(s));
         }
         let family = face.family;
@@ -1543,22 +1388,25 @@ impl Canvas {
     pub fn icon(&mut self, rect: Rect, icon: crate::widgets::Icon, size_dp: f32, color: Color) {
         let face = Font::icon(size_dp).sized(self.scale);
         let clip = self.clip();
+        let rec = self.recording();
         let Some(g) = self.glyphs.glyph(&face, icon.code_point()) else {
             return;
         };
         let x = rect.x + (rect.w - g.width as i32) / 2;
         let y = rect.y + (rect.h - g.height as i32) / 2;
         let inked = Rect::new(x, y, g.width as i32, g.height as i32).intersect(&clip);
-        blit_glyph(
-            &mut self.pixmap,
-            clip,
-            x,
-            y,
-            g.width,
-            g.height,
-            g.bitmap,
-            color,
-        );
+        if rec {
+            self.record_icon(rect, icon, size_dp, color);
+        } else {
+            let mut surface = Surface::new(self.pixmap.as_mut(), 0);
+            surface::blit_glyph(
+                &mut surface,
+                clip,
+                (x, y, g.width, g.height),
+                g.bitmap,
+                color,
+            );
+        }
         self.damaged(inked);
         self.note_ink(|| InkKind::Icon(icon), Some(inked));
     }
@@ -1716,64 +1564,6 @@ fn union(a: Rect, b: Rect) -> Rect {
     )
 }
 
-/// Alpha-blends a coverage bitmap in `color` onto the premultiplied
-/// framebuffer, honouring `clip`.
-///
-/// A free function rather than a method: it takes the framebuffer alone,
-/// so a glyph can stay borrowed from the canvas's cache while it is
-/// blended.
-#[allow(
-    clippy::too_many_arguments,
-    reason = "a glyph's target pixmap, clip, position, size, coverage and colour, passed flat to avoid a per-glyph struct"
-)]
-fn blit_glyph(
-    pixmap: &mut Pixmap,
-    clip: Rect,
-    x: i32,
-    y: i32,
-    w: usize,
-    h: usize,
-    bitmap: Coverage,
-    color: Color,
-) {
-    {
-        if w == 0 || h == 0 || color.a == 0 {
-            return;
-        }
-        let clip = clip.intersect(&Rect::new(x, y, w as i32, h as i32));
-        if clip.is_empty() {
-            return;
-        }
-        let stride = pixmap.width() as usize * 4;
-        let data = pixmap.data_mut();
-        let (cr, cg, cb, ca) = (
-            u32::from(color.r),
-            u32::from(color.g),
-            u32::from(color.b),
-            u32::from(color.a),
-        );
-        for py in clip.y..clip.bottom() {
-            let row = (py - y) as usize;
-            let dst_row = py as usize * stride;
-            for px in clip.x..clip.right() {
-                let cov = u32::from(bitmap.get(row * w + (px - x) as usize));
-                if cov == 0 {
-                    continue;
-                }
-                // Source alpha after coverage, in 0..=255.
-                let a = div255(ca * cov);
-                let inv = 255 - a;
-                let i = dst_row + px as usize * 4;
-                let d = &mut data[i..i + 4];
-                d[0] = (div255(cr * a) + div255(u32::from(d[0]) * inv)) as u8;
-                d[1] = (div255(cg * a) + div255(u32::from(d[1]) * inv)) as u8;
-                d[2] = (div255(cb * a) + div255(u32::from(d[2]) * inv)) as u8;
-                d[3] = (a + div255(u32::from(d[3]) * inv)) as u8;
-            }
-        }
-    }
-}
-
 /// Whether a glyph at `(x, y)` has ink left or right of `clip` on a
 /// line the clip spans: the part of the glyph a side of the clip cuts
 /// off. Rows above and below the clip do not count.
@@ -1881,6 +1671,86 @@ fn div255(v: u32) -> u32 {
 fn skia_rect(r: Rect) -> tiny_skia::Rect {
     tiny_skia::Rect::from_xywh(r.x as f32, r.y as f32, r.w.max(1) as f32, r.h.max(1) as f32)
         .expect("finite non-empty rect")
+}
+
+impl Canvas {
+    /// The canvas's pixels as a surface.
+    fn surface(&mut self) -> Surface<'_> {
+        Surface::new(self.pixmap.as_mut(), 0)
+    }
+}
+
+/// The stroke of a line `width` pixels thick.
+fn line_stroke(width: f32) -> Stroke {
+    Stroke {
+        width,
+        ..Stroke::default()
+    }
+}
+
+/// The stroke of a closed outline `width` pixels thick, its corners
+/// rounded.
+fn closed_stroke(width: f32) -> Stroke {
+    Stroke {
+        width,
+        line_join: tiny_skia::LineJoin::Round,
+        ..Stroke::default()
+    }
+}
+
+/// The path of a line between two points.
+fn line_path([x0, y0, x1, y1]: [f32; 4]) -> Option<tiny_skia::Path> {
+    let mut pb = PathBuilder::new();
+    pb.move_to(x0, y0);
+    pb.line_to(x1, y1);
+    pb.finish()
+}
+
+/// The path of the closed outline through `points`.
+fn closed_path(points: &[(f32, f32)]) -> Option<tiny_skia::Path> {
+    let (&(x0, y0), rest) = points.split_first()?;
+    let mut pb = PathBuilder::new();
+    pb.move_to(x0, y0);
+    for &(x, y) in rest {
+        pb.line_to(x, y);
+    }
+    pb.close();
+    pb.finish()
+}
+
+/// The path of a shape made of closed outlines.
+fn contours_path<'a>(contours: impl Iterator<Item = &'a [(f32, f32)]>) -> Option<tiny_skia::Path> {
+    let mut pb = PathBuilder::new();
+    for points in contours {
+        let Some((&(x0, y0), rest)) = points.split_first() else {
+            continue;
+        };
+        pb.move_to(x0, y0);
+        for &(x, y) in rest {
+            pb.line_to(x, y);
+        }
+        pb.close();
+    }
+    pb.finish()
+}
+
+/// The path of a circle: built about its own whole pixel and placed, as a
+/// rounded rectangle is, so a circle moved by whole pixels is the same
+/// pixels.
+fn circle_path(
+    pool: &mut Vec<PathBuilder>,
+    (cx, cy): (f32, f32),
+    radius: f32,
+) -> Option<tiny_skia::Path> {
+    let down = |v: f32| (v as i32 - i32::from((v as i32 as f32) > v)) as f32;
+    let (ox, oy) = (down(cx), down(cy));
+    // Eight quadratic curves in one contour.
+    let mut local = take(pool);
+    local.push_circle(cx - ox, cy - oy, radius);
+    let local = local.finish()?;
+    let path = place(pool, &local, (ox as i32, oy as i32));
+    give_back(pool, local);
+    Some(path)
 }
 
 /// A path builder that cuts each point to the 1/256 pixel the
