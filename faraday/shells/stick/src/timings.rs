@@ -41,12 +41,20 @@ pub enum Bucket {
     Scanned,
     /// The core's frame converted to the panel's pixel format.
     Convert,
-    /// The `pwrite` of that frame to the framebuffer.
+    /// The `pwrite` of that frame to the framebuffer: its own time, on
+    /// whichever thread it ran. On a panel written by a thread of its
+    /// own (`writer.rs`) it overlaps the loop and is not in the pass.
     Write,
     /// The core's frame drawn in full.
     Frame,
     /// The core's frame as a fade's step: two kept frames blended.
     Blend,
+    /// The loop waiting for the write before to end, before the next
+    /// frame's rows are kept (`writer.rs`).
+    Wait,
+    /// A frame compared with the panel's kept copy and its changed rows
+    /// copied into it, for the writer thread to write.
+    Stage,
 }
 
 /// A call the loop makes outside the buckets, timed as a whole.
@@ -106,8 +114,8 @@ fn cpufreq(name: &str) -> String {
 }
 
 /// The bucket names, in the order the block prints them.
-const NAMES: [&str; 8] = [
-    "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend",
+const NAMES: [&str; 10] = [
+    "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend", "wait", "stage",
 ];
 
 /// The most rows of costly work one block keeps; an interval that did
@@ -335,6 +343,16 @@ impl Timings {
         self.pass_buckets[bucket as usize] += took;
     }
 
+    /// Records one call of a bucket that ran beside the loop on another
+    /// thread: counted in the bucket's line, not in what the pass
+    /// explains.
+    pub fn add_beside(&mut self, bucket: Bucket, took: Duration) {
+        let tally = &mut self.tallies[bucket as usize];
+        tally.count += 1;
+        tally.total += took;
+        tally.worst = tally.worst.max(took);
+    }
+
     /// Records one call outside the buckets; it counts towards what the
     /// pass it is in explains.
     pub fn part(&mut self, part: Part, took: Duration) {
@@ -376,7 +394,12 @@ impl Timings {
         screen: impl FnOnce() -> String,
     ) {
         let frame_took = self.pass_buckets[Bucket::Frame as usize];
-        let write_took = self.pass_buckets[Bucket::Write as usize];
+        // What the pass paid for the write: all of it on the loop's own
+        // thread, the keeping and the wait when a thread writes.
+        let write_took: Duration = [Bucket::Write, Bucket::Stage, Bucket::Wait]
+            .iter()
+            .map(|&b| self.pass_buckets[b as usize])
+            .sum();
         let moved = matches!(frame, Frame::Moved);
         match frame {
             Frame::Moved => self.moved.add(frame_took, write_took),

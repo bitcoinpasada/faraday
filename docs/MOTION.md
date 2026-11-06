@@ -84,7 +84,11 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   and the desktop under X11). A grid finer than the machine can keep
   gives one step of one frame and the next of two, and the content
   stutters however exact its positions. The shell keeps a smoothed cost
-  of the passes that drew (each pass moves it a fifth of the way, so the
+  of the passes that drew, from the start of the pass to the end of the
+  loop's own part of it: where the Pi's framebuffer is written by a thread
+  of its own (`docs/FRAMES.md` §6) that is the draw plus any wait for the
+  write before, so a write longer than a draw is the cost of each pass
+  once writes stack up, and a write shorter than a draw adds nothing (each pass moves it a fifth of the way, so the
   40 ms frame a sheet opens on changes nothing; a pass counts for no
   more than the coarsest step, since any longer one chooses the same
   step, so a stall does not keep the grid coarse for a second after it)

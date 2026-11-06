@@ -133,6 +133,7 @@ mod touch;
 mod turned_tests;
 mod usb;
 mod work;
+mod writer;
 
 use std::fs::{File, OpenOptions};
 use std::io::Read;
@@ -1150,6 +1151,8 @@ impl Shell {
 
     /// Paints the panel black: what was on it is gone before the power is.
     fn blank(&mut self) {
+        // A frame still being written must not land after the black.
+        let _ = self.presenter.settle(None);
         lock(&self.panel).blank();
     }
 
@@ -1234,6 +1237,14 @@ impl Shell {
             }
             Some(Err(e)) => self.say(&format!("framebuffer write failed: {e}")),
             None => {}
+        }
+    }
+
+    /// Waits for the frame being written, if one is, and says if it
+    /// failed.
+    fn settle(&mut self) {
+        if let Err(e) = self.presenter.settle(self.timings.as_mut()) {
+            self.say(&format!("framebuffer write failed: {e}"));
         }
     }
 
@@ -1997,6 +2008,8 @@ fn run(args: Args) -> Result<Exit, String> {
     }
     panel.set_turn(turn.get());
     let panel = Arc::new(Mutex::new(panel));
+    let mut presenter = Presenter::default();
+    presenter.write_on_thread(&panel);
     let cursor = pointing.then(|| {
         Arc::new(Mutex::new(Cursor::new(
             frame.0,
@@ -2097,7 +2110,7 @@ fn run(args: Args) -> Result<Exit, String> {
         setup,
         turn,
         dpi,
-        presenter: Presenter::default(),
+        presenter,
         cursor,
         believed,
         epoch: Instant::now(),
@@ -2183,6 +2196,7 @@ fn run(args: Args) -> Result<Exit, String> {
     }
     // The last screen the core asked for, if the loop ended on an event.
     shell.flush();
+    shell.settle();
     // Everything the last interval measured, before the machine goes.
     shell.report(true);
     shell.write_boot_report(true);

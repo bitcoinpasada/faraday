@@ -24,7 +24,7 @@
 //! goes to the panel, which compares it with its kept copy and writes
 //! what differs, and nothing is converted or kept here.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use faraday_shell_api::Moved;
@@ -33,6 +33,7 @@ use crate::fb::{self, Depth, Geometry};
 use crate::orient::Turn;
 use crate::panel::{CHUNK_ROWS, Panel, Sink, lock};
 use crate::timings::{Bucket, Timings};
+use crate::writer::{Done, Writer};
 
 /// What putting frames on the panel has cost, in rows: the counts the
 /// budget test reads.
@@ -58,6 +59,9 @@ pub struct Presenter {
     turn: Option<Turn>,
     /// Rows converted, ever.
     rows_converted: u64,
+    /// The thread that writes the panel, when the frame goes out as it
+    /// is ([`Presenter::write_on_thread`]).
+    writer: Option<Writer>,
 }
 
 impl Presenter {
@@ -80,6 +84,36 @@ impl Presenter {
         timings: Option<&mut Timings>,
     ) -> std::io::Result<()> {
         self.present_moved(rgba, None, g, turn, panel, timings)
+    }
+
+    /// From now on a frame that goes out as it is ([`Depth::Rgba8888`],
+    /// no turn) is written by a thread of its own while the loop goes on,
+    /// on a machine with more than one core (`docs/FRAMES.md` §6). The
+    /// thread writes `panel`, and only a call for `panel` uses it.
+    pub fn write_on_thread<S: Sink + Send + 'static>(&mut self, panel: &Arc<Mutex<Panel<S>>>) {
+        self.writer = Writer::start(panel);
+    }
+
+    /// Costs the wait for the write that is out: the panel shows the last
+    /// frame when it returns. How that write came to, for the caller to
+    /// say. Called before the panel is blanked or let go.
+    pub fn settle(&mut self, timings: Option<&mut Timings>) -> std::io::Result<()> {
+        self.collect(timings)
+    }
+
+    /// Waits for the write that is out and tallies it: the wait is the
+    /// loop's (`wait`), the write's own time is beside it (`write`).
+    fn collect(&mut self, timings: Option<&mut Timings>) -> std::io::Result<()> {
+        let Some(writer) = self.writer.as_mut().filter(|w| w.busy()) else {
+            return Ok(());
+        };
+        let start = timings.is_some().then(Instant::now);
+        let Done { took, result } = writer.wait().expect("a write was out");
+        if let (Some(start), Some(t)) = (start, timings) {
+            t.add(Bucket::Wait, start.elapsed());
+            t.add_beside(Bucket::Write, took);
+        }
+        result
     }
 
     /// Forgets the kept frame: the core gave a frame the shell did not
@@ -266,6 +300,9 @@ impl Presenter {
         self.last = Vec::new();
         self.converted = Vec::new();
         self.turn = None;
+        if self.writer.as_ref().is_some_and(|w| w.is_for(panel)) {
+            return self.present_staged(rgba, g, panel, timings);
+        }
         let start = timings.is_some().then(Instant::now);
         let rows = usize::from(g.height);
         let mut result = Ok(());
@@ -285,6 +322,66 @@ impl Presenter {
             t.add(Bucket::Write, start.elapsed());
         }
         result
+    }
+
+    /// Costs a comparison of `rgba` with what the panel shows, a copy of
+    /// the rows that differ into the panel's kept copy, and the wait for
+    /// the write before; the write of those rows is the writer thread's,
+    /// while the loop goes on. A frame with no row changed waits for
+    /// nothing. The error of the write before, if it failed, is this
+    /// call's: it comes a frame late, and the failure has left the panel
+    /// stale, so this frame goes out whole.
+    fn present_staged<S: Sink>(
+        &mut self,
+        rgba: &[u8],
+        g: Geometry,
+        panel: &Mutex<Panel<S>>,
+        mut timings: Option<&mut Timings>,
+    ) -> std::io::Result<()> {
+        let start = timings.is_some().then(Instant::now);
+        let rows = usize::from(g.height);
+        let whole = vec![(0, rows - 1)];
+        // Compared while the write before may still be out: both only
+        // read the panel's kept copy.
+        let mut bands = Vec::new();
+        if lock(panel).takes_whole(rgba.len()) {
+            bands.clone_from(&whole);
+        } else {
+            let mut first = 0;
+            while first < rows {
+                let last = (first + CHUNK_ROWS - 1).min(rows - 1);
+                lock(panel).changed_in(rgba, first, last, &mut bands);
+                first = last + 1;
+            }
+        }
+        if bands.is_empty() {
+            if let (Some(start), Some(t)) = (start, timings) {
+                t.add(Bucket::Stage, start.elapsed());
+            }
+            return Ok(());
+        }
+        let compared = start.map(|s| s.elapsed());
+        let before = self.collect(timings.as_deref_mut());
+        // A write that failed has left the panel stale.
+        if lock(panel).takes_whole(rgba.len()) {
+            bands.clone_from(&whole);
+        }
+        let start = timings.is_some().then(Instant::now);
+        for &(a, b) in &bands {
+            let mut first = a;
+            while first <= b {
+                let last = (first + CHUNK_ROWS - 1).min(b);
+                lock(panel).keep_rows(rgba, first, last);
+                first = last + 1;
+            }
+        }
+        if let (Some(compared), Some(start), Some(t)) = (compared, start, timings) {
+            t.add(Bucket::Stage, compared + start.elapsed());
+        }
+        if let Some(w) = self.writer.as_mut() {
+            w.send(bands, true);
+        }
+        before
     }
 
     /// What has been converted, and what `panel` has written.

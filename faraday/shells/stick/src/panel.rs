@@ -43,6 +43,32 @@ impl Sink for File {
     }
 }
 
+/// Costs a write of `bands` of the kept copy, which [`Panel::keep_rows`]
+/// filled, with the arrow and the text drawn in where they fall, then
+/// marks the panel whole if `complete`. The rows go in pieces of
+/// [`CHUNK_ROWS`], each under its own hold of the lock, so the arrow
+/// waits no longer than for a frame written on the main thread. Nothing
+/// may change the kept copy meanwhile but a thread that waits for this
+/// first (`writer.rs`).
+pub fn write_staged<S: Sink>(
+    panel: &Mutex<Panel<S>>,
+    bands: &[(usize, usize)],
+    complete: bool,
+) -> std::io::Result<()> {
+    for &(a, b) in bands {
+        let mut first = a;
+        while first <= b {
+            let last = (first + CHUNK_ROWS - 1).min(b);
+            lock(panel).rewrite(vec![(first, last)])?;
+            first = last + 1;
+        }
+    }
+    if complete {
+        lock(panel).complete();
+    }
+    Ok(())
+}
+
 /// A panel in memory, grown to whatever is written: what a test draws
 /// on.
 impl Sink for Vec<u8> {
@@ -181,6 +207,48 @@ impl<S: Sink> Panel<S> {
         bands
             .into_iter()
             .try_for_each(|(a, b)| self.put_rows(frame, a, b))
+    }
+
+    /// Whether the next frame must be taken whole: nothing known is on
+    /// the panel, or the frame is not the kept copy's size.
+    pub fn takes_whole(&self, frame_len: usize) -> bool {
+        self.stale || self.shown.len() != frame_len
+    }
+
+    /// Costs a comparison of rows `first..=last` of `frame` with the kept
+    /// copy: the bands of them that differ, merged with `into`'s last.
+    /// Changes nothing; the panel must not be [`Panel::takes_whole`].
+    pub fn changed_in(
+        &self,
+        frame: &[u8],
+        first: usize,
+        last: usize,
+        into: &mut Vec<(usize, usize)>,
+    ) {
+        let row = self.geometry.row_bytes();
+        let rows = first * row..(last + 1) * row;
+        for (a, b) in fb::changed_rows(&self.shown[rows.clone()], &frame[rows], row) {
+            let band = (first + a, first + b);
+            match into.last_mut() {
+                Some(l) if l.1 + 1 == band.0 => l.1 = band.1,
+                _ => into.push(band),
+            }
+        }
+    }
+
+    /// Costs a copy of rows `first..=last` of `frame` into the kept copy,
+    /// which a later [`write_staged`] puts on the panel. The panel does
+    /// not show them until then, and the arrow waits for them as it does
+    /// for a frame being written.
+    pub fn keep_rows(&mut self, frame: &[u8], first: usize, last: usize) {
+        let row = self.geometry.row_bytes();
+        if self.shown.len() != frame.len() {
+            self.shown.clear();
+            self.shown.resize(frame.len(), 0);
+            self.stale = true;
+        }
+        self.shown[first * row..(last + 1) * row]
+            .copy_from_slice(&frame[first * row..(last + 1) * row]);
     }
 
     /// Costs a write of rows `first..=last` of `frame`, which the caller has found

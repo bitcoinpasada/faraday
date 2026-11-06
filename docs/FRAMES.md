@@ -469,15 +469,18 @@ against 129); §3.7 is its gain.
 
 ## 6. The framebuffer write
 
-What a write does now (`panel.rs`): for each band of 64 rows under the
-lock, it compares the rows with its own kept copy (`shown`) a second
-time, copies the rows into a band buffer, draws the arrow in where it
-falls, and calls `pwrite`; the kernel's fbdev write copies the bytes
-in from the program a page at a time and then into the framebuffer.
-It writes only the bands of rows that changed (SPEED §11.1). After a
-scroll step that is the whole view, and must be (§3.7).
+What a write does (`panel.rs`, `writer.rs`): the rows of a frame that
+differ from the panel's own kept copy (`shown`) are found, and for each
+band of 64 rows under the lock the arrow is drawn in where it falls and
+`pwrite` is called. On vc4 the kernel's write is one `copy_from_user`
+straight into the write-combined framebuffer (`drm_fbdev_fb_write`, which
+calls `fb_write_screen_buffer`, in kernel 6.1's `drm_fb_helper.c`): no
+shadow buffer and no copy a page at a time. It is bounded by the memory
+bus and cannot be made much quicker. It writes only the bands of rows
+that changed (SPEED §11.1). After a scroll step that is the whole view,
+and must be (§3.7).
 
-The change (all four points are built):
+The change (all five points are built):
 
 1. **One comparison.** *(Built.)* The presenter knows which rows changed; it hands
    the panel those bands, and the panel writes them without comparing
@@ -503,18 +506,43 @@ The change (all four points are built):
    `shown` row by row as written. Nothing wipes `shown` or `last`
    (`Panel::blank` writes black to the framebuffer and marks the panel
    stale).
+5. **The write on a thread of its own.** *(Built; its figure on a card is
+   not yet taken.)* On the path of point 4, on a machine with more than
+   one core, the main thread compares the frame with `shown` and copies
+   the changed rows into it (`Panel::changed_in`, `Panel::keep_rows`),
+   and one long-lived thread (`writer.rs`) writes those rows from
+   `shown`, a band of 64 rows at a time under the panel's lock, as the
+   main thread did: the arrow's thread slips in between two bands and the
+   rows it draws are the same ones. The thread holds the panel and
+   nothing of the app (WORKERS §2 rule 1 is about the main thread's
+   work; this is a write, not a job). There is no second buffer: at most
+   one write is out, and the next frame waits for it before it copies
+   into `shown`, so the thread only ever reads `shown` and nothing
+   queues. A frame with no changed row waits for nothing. The loop pays
+   the draw, the compare and the copy, and any wait for the write
+   before; a pass is about the longer of the draw and the write. The
+   panel is blanked, locked, powered off or left only after the write
+   out has ended (`Presenter::settle`), so no row of a hidden screen
+   reaches the panel after the black, and the thread is joined when the
+   shell is let go. A write that fails is told by the next frame (a frame
+   late), the panel is stale, and that frame goes out whole; a thread that
+   ends without answering, or panics, ends the loop as a panic on the
+   main thread does. A machine with one core writes on the main thread as
+   before. `--timings` gives `write` as the `pwrite`s' own time (on the
+   thread, so not in the pass), `wait` as the loop's wait for it, and
+   `stage` as the compare and copy.
 
-A write of the whole view then crosses the memory twice in the kernel,
-where it crossed three times and was compared twice. The Pi's write is
-bounded by its memory bus, which does not follow the CPU's clock, so
-it is estimated, not run: about 2 ms for a whole 480 × 640 frame,
-to be measured on the dev card.
+A write of the whole view is then one copy in the kernel, from the
+frame's memory into the framebuffer's, and on the Pi it runs beside the
+next draw. The write is bounded by the memory bus, which does not follow
+the CPU's clock: about 2.3 ms for a whole 480 × 640 frame and 18.4 ms
+at 1920 × 1080 were measured before the thread, on the dev card.
 
-Not taken: writing the framebuffer through `mmap` would save the
-kernel's two copies, but needs `unsafe` (or a dependency that holds
-it), which the workspace forbids but for one crate; it is the owner's
-call (§9 question 2), and is not needed if §5 and points 1 to 3 bring
-the pass inside a refresh.
+Not taken: writing the framebuffer through `mmap`. The mapped buffer is
+the same write-combined memory the write copies into, so the gain over
+the one copy is expected to be small; it is not measured. It needs
+`unsafe` (or a dependency that holds it), which the workspace forbids
+but for one crate; it is the owner's call (§9 question 2).
 
 **A window on a larger screen** *(Built; its figure on a card is not yet
 taken)*. `faraday.window=WxH` on the kernel command line draws in a
@@ -726,10 +754,10 @@ What each piece changes:
    whose whole frame takes tens of milliseconds, one pair of runs read a
    mean frame of 9.5 ms against 13.1 and a slowest five seconds of 16.5 ms
    against 36.0. A scroll step gains nothing: it makes no threads.
-2. **`mmap` for the framebuffer** (§6). Recommendation: no; the write
-   after §6's changes is the kernel's two copies of the rows that
-   changed, and `unsafe` in the stick shell is a larger change than the
-   saving.
+2. **`mmap` for the framebuffer** (§6). The kernel's write is one copy
+   into the write-combined buffer, which is the memory a mapping would
+   write too, so the gain is expected to be small; it is not measured.
+   `unsafe` in the stick shell is a larger change. Open.
 3. **Snapshots moved by a pixel** (§3.2). Placing a region's content in
    whole pixels moves a few edges by one pixel, once. Recommendation:
    accept; the tours that changed were named when it was built.
