@@ -13,7 +13,7 @@ use crate::ui::{Style, Ui};
 use crate::vault::screen::{hold_button_in, stick_banner, stick_field, text_box};
 use crate::vault::{self, Focus, VaultAction as V};
 use crate::{Action, Faraday, flow};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, TITLE_M};
+use faraday_draw::tokens::{self, BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 /// A button, and the room it takes with the gap under it.
@@ -416,6 +416,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             Role::OnSurfaceVariant,
             &places.join(", "),
         );
+        let mut row_h = 50.0;
         if !vp.found() {
             let other = if vp.existing {
                 FEN.backup_flow_new_vault
@@ -423,9 +424,18 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 FEN.backup_flow_existing_vault
             };
             let bw = ui.measure_as(LABEL_L, other) + 32.0;
+            // Beside the text where the line leaves room for the button,
+            // else under the places.
+            let beside = ui.measure_as(LABEL_L, &line) + tokens::GAP + bw <= w;
+            let (bx, by) = if beside {
+                (x + w - bw, cy)
+            } else {
+                row_h += BUTTON_H + 6.0;
+                (x, cy + 48.0)
+            };
             ui.button(
-                x + w - bw,
-                cy,
+                bx,
+                by,
                 Some(bw),
                 BUTTON_H,
                 other,
@@ -433,7 +443,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 fa(F::VaultExisting(v)),
             );
         }
-        cy += 50.0;
+        cy += row_h;
     }
     if sticks < min {
         cy += ui.wrap_as(

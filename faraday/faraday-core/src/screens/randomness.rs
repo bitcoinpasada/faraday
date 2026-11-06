@@ -70,6 +70,25 @@ pub(crate) fn row_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), short:
     });
     let tw = (w - bw - GAP).max(0.0);
     let head = ui.line_as(BODY_L);
+    if ui.measure_as(BODY_L, EN.own_randomness) > tw {
+        // Too narrow for the name beside the button: the name and the
+        // status take the width, the button goes under them.
+        let sup = ui.wrap_height_as(BODY_M, &status, w);
+        let top = y + LIST_PAD_V;
+        ui.text_mid_as((x, top, head), BODY_L, Role::OnSurface, EN.own_randomness);
+        ui.wrap_as((x, top + head, w), BODY_M, Role::OnSurfaceVariant, &status);
+        let by = top + head + sup + LIST_PAD_V;
+        ui.button(
+            x + w - bw,
+            by,
+            Some(bw),
+            BUTTON_H,
+            label,
+            Style::Ghost,
+            open,
+        );
+        return by + BUTTON_H + LIST_PAD_V - y + GAP;
+    }
     let sup = ui.wrap_height_as(BODY_M, &status, tw);
     let h = (head + sup + 2.0 * LIST_PAD_V).max(LIST_2);
     let top = y + (h - head - sup) / 2.0;

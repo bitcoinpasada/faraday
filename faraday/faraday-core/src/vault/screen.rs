@@ -979,9 +979,21 @@ pub(super) fn machine_rows(
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let (row, tick) = (tokens::TOUCH, tokens::ICON_GLYPH_BUTTON);
     let one = |ui: &mut Ui, cy: f32, on: bool, label: &str, side: &str, act: Action| {
+        // A memory's number and unit stay together.
+        let side = &side.replace(' ', "\u{a0}").replace("\u{a0}(", " (");
         ui.checkbox(x, cy + (row - tick) / 2.0, on, true);
-        ui.text_mid_as((x + 32.0, cy, row), LABEL_L, ink, label);
-        ui.text_right_as((x + w, cy, row), BODY_S, muted, side);
+        let room = w - 32.0 - tokens::GAP;
+        if ui.measure_as(LABEL_L, label) + tokens::GAP + ui.measure_as(BODY_S, side) <= room {
+            ui.text_mid_as((x + 32.0, cy, row), LABEL_L, ink, label);
+            ui.text_right_as((x + w, cy, row), BODY_S, muted, side);
+        } else {
+            // Too wide for one line: the memory goes under the label.
+            let (a, b) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
+            let top = cy + (row - a - b) / 2.0;
+            ui.text_as(x + 32.0, top, LABEL_L, ink, label);
+            let side = ui.fit_as(BODY_S, side, room);
+            ui.text_as(x + 32.0, top + a, BODY_S, muted, &side);
+        }
         ui.press_box(x, cy, w, row, act);
         ui.rule(x, cy + row, w, Role::OutlineVariant);
     };

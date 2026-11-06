@@ -302,25 +302,18 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                         ) + 12.0;
                     }
                 }
-                let bw = ui.button(
+                // Side by side where they fit, else one under the other.
+                cy += crate::screens::wrap_buttons(
+                    ui,
                     x,
                     cy,
-                    None,
+                    w,
                     BUTTON_H,
-                    EN.vanity_open_this_wallet,
-                    Style::Primary,
-                    va(V::Use),
-                );
-                ui.button(
-                    x + bw + 8.0,
-                    cy,
-                    None,
-                    BUTTON_H,
-                    EN.vanity_search_again,
-                    Style::Secondary,
-                    va(V::Start),
-                );
-                cy += 52.0;
+                    &[
+                        (EN.vanity_open_this_wallet, Style::Primary, va(V::Use)),
+                        (EN.vanity_search_again, Style::Secondary, va(V::Start)),
+                    ],
+                ) + 4.0;
             }
             (None, true) => {
                 let rate = v

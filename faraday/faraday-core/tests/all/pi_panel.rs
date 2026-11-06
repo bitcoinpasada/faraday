@@ -1402,3 +1402,13 @@ fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_
         );
     }
 }
+
+#[test]
+fn a_size_keeps_its_number_and_its_unit_together() {
+    for bytes in [900_u64, 9_000, 9_000_000, 9_000_000_000] {
+        let text = faraday_core::vault::file_text(bytes as usize);
+        assert!(!text.contains(' '), "{text:?} can break between its parts");
+    }
+    assert!(!faraday_core::vault::mib_text(14_950).contains(' '));
+    assert!(!faraday_core::vault::size_text(262_144).contains(' '));
+}

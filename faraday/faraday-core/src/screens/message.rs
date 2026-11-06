@@ -6,7 +6,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::{Action, Code, Screen, flow, guide};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, TITLE_S};
 use faraday_ui::parts::wrap_buttons;
 
 pub(crate) const MSTEPS: [&str; 4] = [
@@ -216,15 +216,23 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 Style::Secondary,
                 Action::MType,
             );
+            let count = fill(
+                EN.message_characters,
+                &[&m.text.chars().count().to_string()],
+            );
             ui.text_mid_as(
                 (x + 120.0, cy, 38.0),
                 BODY_S,
                 Role::OnSurfaceVariant,
-                &fill(
-                    EN.message_characters,
-                    &[&m.text.chars().count().to_string()],
-                ),
+                &count,
             );
+            // Continue goes on a row of its own where the count and it
+            // do not share the line.
+            let next_w = ui.measure_as(TITLE_S, EN.message_continue) + 36.0;
+            let shared = 120.0 + ui.measure_as(BODY_S, &count) + 12.0 + next_w <= w;
+            if !shared && !ui.pinning {
+                cy += 48.0;
+            }
             if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
                 cy += 48.0;
             }

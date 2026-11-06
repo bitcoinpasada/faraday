@@ -674,7 +674,23 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let side_h = side_w * 0.75 + more;
     let sw = side_w + 2.0 * pad;
     let rows = if ui.compact && app.cameras().len() > 1 {
-        app.cameras().len() as f32 * 40.0
+        // The camera buttons wrap at the picture's width: the rows they
+        // take, measured, are kept clear of Cancel under them.
+        let chosen = app.camera();
+        let row: Vec<(String, Style, Action)> = app
+            .cameras()
+            .iter()
+            .enumerate()
+            .map(|(i, (id, name))| {
+                let on = chosen.map_or(i == 0, |c| c == id);
+                (
+                    ui.fit_as(LABEL_M, name, sw - 96.0),
+                    Style::chosen(on),
+                    Action::ScanCamera(i as u8),
+                )
+            })
+            .collect();
+        faraday_ui::parts::measured(ui, |ui| button_rows(ui, 0.0, 0.0, side_w, &row))
     } else {
         0.0
     };

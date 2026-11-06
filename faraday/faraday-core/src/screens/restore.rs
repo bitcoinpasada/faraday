@@ -9,7 +9,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::wallet::{FileKind, Session, fp_text};
 use crate::{Action, Screen, flow, guide};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP_SMALL, LABEL_L, LABEL_M};
 use faraday_ui::parts::wrap_buttons;
 
 /// The closed line of Restore's card of vaults: the answer.
@@ -420,6 +420,13 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let multi = r.kind().multi();
     let mut open_drawn = false;
+    // What fills a slot starts at 124 dp; on a panel too narrow for "Not
+    // here" between it and Change, it starts as far left as the
+    // fingerprint allows.
+    let change_w = ui.measure_as(LABEL_L, EN.restore_seeds_change) + 32.0;
+    let not_here_w = ui.measure_as(BODY_S, EN.restore_seeds_not_here);
+    let fp_end = 22.0 + ui.measure_as(BODY_M.mono(), "00000000") + 8.0;
+    let col = 124.0_f32.min(w - change_w - not_here_w - GAP_SMALL).max(fp_end);
     // One row: the slot's number, its fingerprint, what fills it.
     let row = |ui: &mut Ui, cy: f32, k: usize, fp: &str, line: &str, color| {
         ui.text_mid_as(
@@ -429,8 +436,8 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             &(k + 1).to_string(),
         );
         ui.text_mid_as((x + 22.0, cy, 40.0), BODY_M.mono(), Role::OnSurface, fp);
-        let line = ui.fit_as(BODY_S, line, w - 124.0);
-        ui.text_mid_as((x + 124.0, cy, 40.0), BODY_S, color, &line);
+        let line = ui.fit_as(BODY_S, line, w - col);
+        ui.text_mid_as((x + col, cy, 40.0), BODY_S, color, &line);
     };
     if r.described
         && let Some(wl) = r.wallet.and_then(|i| app.session.wallets.get(i))
@@ -452,7 +459,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else if absent {
                 let cw = ui.measure_as(LABEL_L, EN.restore_seeds_change) + 32.0;
                 // Its line stops short of Change beside it.
-                let line = ui.fit_as(BODY_S, EN.restore_seeds_not_here, w - 124.0 - cw);
+                let line = ui.fit_as(BODY_S, EN.restore_seeds_not_here, w - col - cw);
                 row(ui, cy, k, &fp, &line, Role::OnSurfaceVariant);
                 ui.button(
                     x + w - cw,

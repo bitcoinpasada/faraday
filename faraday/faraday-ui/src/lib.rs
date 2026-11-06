@@ -1535,7 +1535,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // The pen of the line so far, in 1/64 px: advances only add up, so
         // it is what measuring the whole line would sum.
         let mut cur: Option<u32> = None;
-        for word in s.split_whitespace() {
+        // A no-break space joins what it stands between, as drawing does.
+        for word in s
+            .split(|c: char| c.is_whitespace() && c != '\u{a0}')
+            .filter(|w| !w.is_empty())
+        {
             let adv: u32 = word.chars().map(|c| face.advance_64(c)).sum();
             match cur {
                 Some(pen) if fits(pen + space + adv) => cur = Some(pen + space + adv),

@@ -1021,7 +1021,7 @@ pub(crate) fn size_text(bytes: u64) -> String {
     } else if bytes >= 1000 {
         fill(EN.kind_line_kb, &[&format!("{:.1}", bytes as f64 / 1e3)])
     } else {
-        format!("{bytes} B")
+        format!("{bytes}\u{a0}B")
     }
 }
 

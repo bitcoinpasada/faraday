@@ -292,9 +292,9 @@ strings! {
     /// A computer that cannot write a disk from here.
     starter_no_writer: "This computer cannot write a stick from here",
     /// Which stick? with none attached.
-    starter_no_disks_stick: "No USB stick attached · 256 MB or larger",
+    starter_no_disks_stick: "No USB stick attached · 256 MB or larger",
     /// Which card? with none attached.
-    starter_no_disks_card: "No SD card or USB stick attached · 256 MB or larger",
+    starter_no_disks_card: "No SD card or USB stick attached · 256 MB or larger",
     /// A disk with no maker or model.
     starter_disk_unnamed: "Disk",
     /// What is on a disk: `{}` the version.
@@ -327,9 +327,9 @@ strings! {
     /// A disk too small: `{}` the size needed.
     starter_refused_small: "Smaller than the image: needs {}",
     /// A size: `{}` the number.
-    starter_size_gb: "{} GB",
+    starter_size_gb: "{} GB",
     /// A size: `{}` the number.
-    starter_size_mb: "{} MB",
+    starter_size_mb: "{} MB",
     /// Title: what to write.
     starter_mode_title: "What to write?",
     /// Option.
@@ -824,13 +824,13 @@ strings! {
     starter_fault_boot_small: "its boot partition ({}) is smaller than the image's ({})",
     /// Fault: the first partition is not where a Faraday stick's is
     /// (docs/STICK-IDENTITY.md §5.1).
-    starter_fault_boot_place: "its first partition is not 64 MiB at 1 MiB",
+    starter_fault_boot_place: "its first partition is not 64 MiB at 1 MiB",
     /// Fault: the second partition is not where a Faraday stick's is.
-    starter_fault_data_place: "its second partition is not at least 128 MiB at 65 MiB and inside it",
+    starter_fault_data_place: "its second partition is not at least 128 MiB at 65 MiB and inside it",
     /// Fault.
     starter_fault_boot_past_end: "its boot partition runs past its end",
     /// Fault: an image that is not a Pi card's.
-    starter_fault_card_layout: "it is not two FAT partitions of 64 MiB and 128 MiB in an MBR",
+    starter_fault_card_layout: "it is not two FAT partitions of 64 MiB and 128 MiB in an MBR",
     /// Fault: an image whose partition has no FAT volume serial to change.
     starter_fault_no_serial: "a partition holds no FAT volume serial",
     /// Fault.
@@ -3971,7 +3971,7 @@ strings! {
     /// What is wrong with a BBQr part.
     scan_bbqr_malformed_uneven: "its parts are of uneven length",
     /// What is wrong with a BBQr part.
-    scan_bbqr_malformed_inflate: "its compressed data does not inflate within 360 KiB",
+    scan_bbqr_malformed_inflate: "its compressed data does not inflate within 360 KiB",
     /// Under the scanner. `{}`: the BBQr file type, a letter.
     scan_refused_bbqr_type: "A BBQr file of type {}, which Faraday does not read",
     /// Under the scanner.
@@ -3979,13 +3979,13 @@ strings! {
     /// Under the scanner.
     scan_refused_bbqr_conflict: "A BBQr part arrived twice with different contents",
     /// Under the scanner.
-    scan_refused_bbqr_large: "The BBQr transfer is over 360 KiB",
+    scan_refused_bbqr_large: "The BBQr transfer is over 360 KiB",
     /// Under the scanner.
     scan_refused_numbered_other: "A numbered part of another set. Start again to read that one",
     /// Under the scanner.
     scan_refused_numbered_conflict: "A numbered part arrived twice with different text",
     /// Under the scanner.
-    scan_refused_numbered_large: "The numbered parts come to more than 360 KiB",
+    scan_refused_numbered_large: "The numbered parts come to more than 360 KiB",
     /// Under the scanner.
     scan_refused_bbqr_text: "A BBQr text that is not UTF-8",
     /// Under the scanner.
@@ -4019,13 +4019,13 @@ strings! {
     /// Under the scanner: a UR registry type refused.
     ur_registry_no_key_read: "The account in that code holds no key Faraday reads",
     /// A Faraday file envelope refused, scanned or to be sent.
-    envelope_size: "A file from 1 byte to 256 KiB",
+    envelope_size: "A file from 1 byte to 256 KiB",
     /// A Faraday file envelope refused.
     envelope_kind: "An envelope kind Faraday OS does not write",
     /// A Faraday file envelope refused.
     envelope_name: "A name of 1 to 128 letters, digits, dots, hyphens or underscores",
     /// A Faraday file envelope refused.
-    envelope_too_large: "The envelope is over 360 KiB",
+    envelope_too_large: "The envelope is over 360 KiB",
     /// A Faraday file envelope refused.
     envelope_not: "Not a Faraday file envelope",
     /// A Faraday file envelope refused.
@@ -6849,11 +6849,11 @@ strings! {
     restore_sources_copy: "Copy the vault in from its {}",
     // ----- kind_line (faraday-core/src/screens/parts.rs) -----
     /// Text in `kind_line`. `{}`: `bytes as f32 / 1e6`.
-    kind_line_mb: "{} MB",
+    kind_line_mb: "{} MB",
     /// A size in gigabytes, in `size_text`. `{}`: the number.
-    kind_line_gb: "{} GB",
+    kind_line_gb: "{} GB",
     /// Text in `kind_line`. `{}`: `bytes as f32 / 1e3`.
-    kind_line_kb: "{} KB",
+    kind_line_kb: "{} KB",
     // ----- kind_name (faraday-core/src/screens/parts.rs) -----
     /// Text in `kind_name`.
     kind_name_wallet_descriptor: "Wallet descriptor",
@@ -7156,7 +7156,7 @@ strings! {
     /// Text in `visit`. `{}`: `nout`, `if nout == 1 { EN.visit_file } else {…`.
     visit_write: "Write {} {}",
     /// Text in `visit`.
-    visit_file_too_large: "Larger than 18 MB: not read",
+    visit_file_too_large: "Larger than 18 MB: not read",
     /// Text in `visit`.
     visit_settings: "Settings",
     /// Text in `visit`: a file asked for and not yet read. `{}`: its size.
@@ -8654,9 +8654,9 @@ strings! {
     /// Text in `create_guide`.
     vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time; a machine without the memory cannot open the vault at all. The passphrase counts for more than the cost. The cost cannot be changed later.",
     /// Text in `create_guide`.
-    vault_every_passphrase: "The space is fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
+    vault_every_passphrase: "The space is fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
     /// Text in `create_guide`.
-    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines, the cost and the space one by one.",
+    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines, the cost and the space one by one.",
     /// Text in `create_guide`.
     vault_each_passphrase: "The passphrase is fixed now: a change later means a new vault. Six EFF words are out of reach at any cost.",
     /// Text in `create_summaries`.
@@ -9181,11 +9181,11 @@ strings! {
     /// Text in `dice_aim`. `{}`: `n`, `STRONG_BITS`.
     vaults_aim_for_words: "Aim for {} words or more on this list: the count turns green at {} bits, which this vault counts as strong. The lists and how to roll for them: eff.org/dice",
     /// Text in `mib_text`. `{}`: `f64::from(mib) / 1024.0`.
-    vaults_gib: "{} GiB",
+    vaults_gib: "{} GiB",
     /// Text in `size_text`. `{}`: `slot / 1_048_576`.
-    vaults_mib: "{} MiB",
+    vaults_mib: "{} MiB",
     /// Text in `size_text`. `{}`: `slot / 1024`.
-    vaults_kib: "{} KiB",
+    vaults_kib: "{} KiB",
     /// Text in `cost_text`.
     vaults_pass: "pass",
     /// Text in `cost_text`.
@@ -9336,7 +9336,7 @@ strings! {
     /// Under Unlock: the unlock cost is outside what is read.
     vault_error_cost: "Its unlock cost is outside what Faraday reads",
     /// Under Unlock. `{}`: the MiB it needs.
-    vault_error_memory: "Needs {} MiB, which this computer cannot spare",
+    vault_error_memory: "Needs {} MiB, which this computer cannot spare",
     /// Under Unlock: the wrong passphrase, or a file that needs more than one.
     vault_error_passphrase: "Wrong passphrase. A file that also needs a key file or a security key cannot be opened here.",
     /// Under Unlock and Create: an empty passphrase.
@@ -9411,7 +9411,7 @@ strings! {
     /// 4.1. `{}`: the minor version.
     vault_setting_version: "KDBX 4.{}",
     /// A file's size in KiB, in the unpadded-size line. `{}`: the number.
-    vault_kib: "{} KiB",
+    vault_kib: "{} KiB",
     /// The head and Unlock: a file Faraday never sealed.
     vault_not_sealed_yet: "Not sealed by Faraday yet",
     /// Unlock refused. `{}`: the vault, the file it is open from.
@@ -9604,7 +9604,7 @@ strings! {
     // ----- A stick's file refused (faraday-files, the disk process) -----
     /// Why a file was not read: it is over the largest Faraday reads.
     /// `{}`: that size in MB.
-    files_larger_than: "larger than {} MB",
+    files_larger_than: "larger than {} MB",
     /// Why a rename was refused. `{}`: the new name.
     files_already_there: "{} is already there",
     /// Why a name was refused. `{}`: the name.
@@ -10185,7 +10185,7 @@ strings! {
     /// Error in `read_wallet`. `{}`: `json::MAX_DEPTH`.
     wallet_json_too_deep: "JSON nested more than {} levels deep",
     /// Error in `read_wallet`.
-    wallet_json_too_large: "JSON longer than 1 MiB",
+    wallet_json_too_large: "JSON longer than 1 MiB",
     /// Text in `collect_line`. `{}`: `missing`, `if collected == 0 { "" } else { " mor…`, `if missing == 1 { EN.wallet_signature…`.
     wallet_collect: "Collect {}{} {}",
     /// Text in `collect_line`, after a space.
