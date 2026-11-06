@@ -1191,7 +1191,7 @@ impl Faraday {
                 facts.extend(scan_read::account_fact(&text));
                 vec![Way::Keep]
             }
-            Kind::Kef => match crate::seeds::kef::kef_header(self, c, &code) {
+            Kind::Kef => match crate::seeds::kef::kef_header(self, &code) {
                 Some((h, lines)) => {
                     facts.extend(lines);
                     kef = Some(h);

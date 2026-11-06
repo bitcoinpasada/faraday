@@ -13,7 +13,6 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, Sheet};
-use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{BODY_S, GAP as T_GAP, GAP_SMALL, LABEL_L};
 use faraday_draw::widgets::Icon;
 use faraday_keys::kef::Envelope;
@@ -31,8 +30,7 @@ const DEPTH_MAX: u8 = 8;
 /// may run to 252 bytes, and the field stays in view.
 const ID_SHOWN: usize = 24;
 
-/// The rounds of the short timed run.
-const TIMED_ROUNDS: u32 = 50_000;
+use crate::worker::kef::TIMED_ROUNDS;
 
 /// A code's header on the read card.
 pub(crate) struct Header {
@@ -203,20 +201,16 @@ fn facts(envelope: &Envelope, rate: Option<u64>) -> Vec<String> {
     ]
 }
 
-/// Costs a timed run of 50,000 PBKDF2 rounds the first time, none after.
 /// The read card's header and facts for the code `code` is, if it is
-/// one (`docs/KEF.md` §8): worked out once, at the read.
-pub(crate) fn kef_header(
-    app: &mut Faraday,
-    c: &Compute,
-    code: &[u8],
-) -> Option<(Header, Vec<String>)> {
+/// one (`docs/KEF.md` §8): worked out once, at the read. The first one in
+/// a session sends the short timed run to the worker; the card shows the
+/// count alone until its answer comes.
+pub(crate) fn kef_header(app: &mut Faraday, code: &[u8]) -> Option<(Header, Vec<String>)> {
     let found = faraday_codec::kef::recognize(code)?;
     let envelope = found.envelope;
     if app.seed_read.rate().is_none() && !app.seed_read.timing() {
-        let mut out = [0u8; 32];
-        faraday_crypto::pbkdf2_hmac_sha256(c, b"timing", b"run", TIMED_ROUNDS, &mut out);
-        app.seed_read.time_from(app.now_ms);
+        let out = app.kef_time_start();
+        app.seed_read.set_timing(out);
     }
     let facts = facts(&envelope, app.seed_read.rate());
     let high = envelope.count > COUNT_ASKED;
@@ -230,10 +224,10 @@ pub(crate) fn kef_header(
     ))
 }
 
-/// A tick: the timed run's rate is known, and the card's count line
+/// The timed run's answer: its rate is known, and the card's count line
 /// gains the time. Returns whether the card changed.
-pub(crate) fn kef_tick(app: &mut Faraday, now_ms: u64) -> bool {
-    let Some(rate) = app.seed_read.finish_timing(now_ms) else {
+pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
+    let Some(rate) = app.seed_read.finish_timing(rate_ms) else {
         return false;
     };
     let Some(card) = app.camera.scan_mut().and_then(|s| s.card.as_mut()) else {

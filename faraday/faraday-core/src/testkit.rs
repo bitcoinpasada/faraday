@@ -2322,6 +2322,12 @@ pub fn settle(app: &mut crate::Faraday) {
     app.settle_jobs();
 }
 
+/// Waits for the short timed run behind a Krux code's read card, if one
+/// is out, and takes its answer as the next event of a shell does.
+pub fn settle_time(app: &mut crate::Faraday) {
+    app.settle_time_job();
+}
+
 /// Waits for the answer of a job that Back, Escape or a lock made stale,
 /// and takes it as the next tick does, so a test can see it was dropped.
 /// Call it only with such a job outstanding (and the worker released).

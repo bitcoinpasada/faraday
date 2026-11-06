@@ -164,13 +164,39 @@ impl Faraday {
     /// tick does: for the tests of a dropped answer (`testkit::settle_stale`).
     #[cfg(feature = "testkit")]
     pub(crate) fn settle_stale_job(&mut self) {
-        let answer = self.worker.wait_answer().expect("no answer came");
-        self.take_answer(answer);
+        loop {
+            let answer = self.worker.wait_answer().expect("no answer came");
+            let quiet = self.worker.quiet_out_for(answer.generation);
+            self.take_answer(answer);
+            if !quiet {
+                break;
+            }
+        }
         self.drain_jobs();
+    }
+
+    /// Waits for the quiet timed run's answer, if one is out, and takes
+    /// it: for the tests of the read card's time (`testkit::settle_time`).
+    #[cfg(feature = "testkit")]
+    pub(crate) fn settle_time_job(&mut self) {
+        while self.worker.quiet_out() {
+            let answer = self.worker.wait_answer().expect("no answer came");
+            self.take_answer(answer);
+        }
     }
 
     fn take_answer(&mut self, answer: Answer) {
         answer.absorb();
+        if self.worker.take_quiet(answer.generation) {
+            self.worker.kef_mut().timing_done();
+            if let Ok(Done::KefTime(t)) = answer.done
+                && crate::seeds::kef::kef_timed(self, t.rate_ms)
+            {
+                self.out.redraw();
+                self.out.commands.push_back(crate::Command::Draw);
+            }
+            return;
+        }
         let Ok(done) = answer.done else {
             panic!("a job panicked on the worker");
         };
@@ -200,6 +226,7 @@ impl Faraday {
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
             Done::KefSeal(d) => self.worker.kef_mut().sealed_done(*d),
+            Done::KefTime(_) => {}
             Done::KefOpen(d) => {
                 self.worker.kef_mut().opened_done(*d);
                 crate::seeds::kef::kef_opened_here(self);
@@ -428,7 +455,23 @@ impl Faraday {
         self.kef_started(progress, count, line, job);
     }
 
+    /// Costs nothing here: sends the short timed run to the worker, for
+    /// the read card's time. It has no busy screen, and a seal or an open
+    /// stops it as it starts. Inline there is no time to measure. Returns
+    /// whether a run is out.
+    pub(crate) fn kef_time_start(&mut self) -> bool {
+        if self.worker.inline() {
+            return false;
+        }
+        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.worker.kef_mut().timing_started(Arc::clone(&stop));
+        let job = Job::KefTime(Box::new(crate::worker::kef::TimeWork { stop }));
+        self.worker.send_quiet(job);
+        true
+    }
+
     fn kef_started(&mut self, progress: Arc<Progress>, count: u32, line: &'static str, job: Job) {
+        self.worker.kef_mut().stop_timing();
         self.worker.kef_mut().started(progress);
         self.start(job, line);
         if let Some(b) = self.worker.busy().copied() {

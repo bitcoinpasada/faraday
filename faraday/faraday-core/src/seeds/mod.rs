@@ -341,10 +341,10 @@ pub(crate) struct SeedsArea {
     sweep: Option<sweep::Sweep>,
     /// A Krux encrypted code being opened (`seeds/kef`).
     kef: Option<crate::seeds::kef::KefRead>,
-    /// Milliseconds a short timed run of PBKDF2 took here, and when one
-    /// began and is not yet timed.
+    /// Milliseconds a short timed run of PBKDF2 took here, and whether one
+    /// is out.
     kef_rate: Option<u64>,
-    kef_from: Option<u64>,
+    kef_timing: bool,
     /// A note carried from an opened code to the next seed's passphrase.
     carried_pass: Option<crate::secret_text::SecretText>,
 }
@@ -385,19 +385,19 @@ impl SeedsArea {
         self.kef_rate
     }
 
-    /// Whether a timed run waits for the next tick.
+    /// Whether a timed run is out on the worker.
     pub(crate) fn timing(&self) -> bool {
-        self.kef_from.is_some()
+        self.kef_timing
     }
 
-    pub(crate) fn time_from(&mut self, now_ms: u64) {
-        self.kef_from = Some(now_ms);
+    pub(crate) fn set_timing(&mut self, on: bool) {
+        self.kef_timing = on;
     }
 
-    /// Ends a timed run at `now_ms`: its rate, the first time.
-    pub(crate) fn finish_timing(&mut self, now_ms: u64) -> Option<u64> {
-        let t0 = self.kef_from.take()?;
-        let rate = now_ms.saturating_sub(t0).max(1);
+    /// A timed run's answer: kept as the rate only if it ran to its end.
+    pub(crate) fn finish_timing(&mut self, rate_ms: Option<u64>) -> Option<u64> {
+        self.kef_timing = false;
+        let rate = rate_ms.filter(|r| *r > 0)?;
         self.kef_rate = Some(rate);
         Some(rate)
     }

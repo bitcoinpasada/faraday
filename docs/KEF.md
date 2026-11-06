@@ -277,7 +277,8 @@ passphrase is asked for. A hostile code can demand 100,000,000.
   one worker for minutes. The loop checks a cancel flag between steps and
   reports its count, so the bar is determinate.
 - The screen shows the count and the estimated time here, from a short timed
-  run. Over 550,000, the most Krux itself writes (§10), the card says so
+  run on the worker (`docs/WORKERS.md` §2.1): the count shows alone until
+  the time comes, and pressing **Open** never waits for it. Over 550,000, the most Krux itself writes (§10), the card says so
   and asks once more: a person who made this code on a Krux did not choose it.
 
 ### 7.3 A wrong passphrase that passes

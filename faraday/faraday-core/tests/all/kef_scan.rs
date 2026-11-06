@@ -112,15 +112,50 @@ fn rewrapped(name: &str, count: u32) -> Vec<u8> {
 fn a_krux_code_read_shows_its_version_id_and_count_and_asks_nothing_yet() {
     let (code, _) = vector("gcm");
     let mut app = scanner();
-    let asked = testkit::jobs_asked(&app);
     read(&mut app, &code);
     let f = facts(&app).join(" | ");
     assert!(f.contains("Version 20"), "{f}");
     assert!(f.contains("Id test ID"), "{f}");
     assert!(f.contains("100000 rounds"), "{f}");
     assert_eq!(ways(&app), ["Not encrypted", "Open"]);
-    assert_eq!(testkit::jobs_asked(&app), asked);
+    assert!(app.kef_opened().is_none());
     assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn the_read_card_shows_the_count_first_and_the_time_when_it_is_worked_out() {
+    let (code, _) = vector("gcm");
+    let mut app = scanner();
+    read(&mut app, &code);
+    let first = facts(&app).join(" | ");
+    assert!(first.contains("100000 rounds"), "{first}");
+    assert!(!first.contains("under a second"), "{first}");
+    testkit::settle_time(&mut app);
+    let later = facts(&app).join(" | ");
+    assert!(later.contains("100000 rounds"), "{later}");
+    assert!(later.contains("under a second"), "{later}");
+}
+
+#[test]
+fn pressing_open_does_not_wait_for_the_time_nor_is_refused_by_it() {
+    let (code, pass) = vector("gcm");
+    let mut app = scanner();
+    testkit::hold_worker();
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    type_text(&mut app, &pass);
+    app.event(Event::Key(Key::Enter));
+    assert!(app.busy().is_some(), "the open was refused");
+    testkit::release_worker();
+    for _ in 0..6 {
+        testkit::settle(&mut app);
+        if app.busy().is_none() {
+            break;
+        }
+    }
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
 }
 
 #[test]

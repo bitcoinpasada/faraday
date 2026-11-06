@@ -39,6 +39,8 @@ pub enum Kind {
     KefSeal,
     /// A Krux code opened: its PBKDF2 runs, and stops on Cancel.
     KefOpen,
+    /// The short timed run for a Krux code's time; it has no busy screen.
+    KefTime,
 }
 
 impl Kind {
@@ -55,7 +57,8 @@ impl Kind {
             | Kind::PsbtRead
             | Kind::PublicFiles
             | Kind::KefSeal
-            | Kind::KefOpen => false,
+            | Kind::KefOpen
+            | Kind::KefTime => false,
         }
     }
 }
@@ -89,6 +92,7 @@ pub(crate) enum Job {
     Files(Box<crate::public_files::FilesWork>),
     KefSeal(Box<kef::SealWork>),
     KefOpen(Box<kef::OpenWork>),
+    KefTime(Box<kef::TimeWork>),
 }
 
 /// What a job gives back.
@@ -103,6 +107,7 @@ pub(crate) enum Done {
     Files(Box<crate::public_files::FilesDone>),
     KefSeal(Box<kef::SealDone>),
     KefOpen(Box<kef::OpenDone>),
+    KefTime(Box<kef::TimeDone>),
 }
 
 impl Job {
@@ -118,6 +123,7 @@ impl Job {
             Job::Files(_) => Kind::PublicFiles,
             Job::KefSeal(_) => Kind::KefSeal,
             Job::KefOpen(_) => Kind::KefOpen,
+            Job::KefTime(_) => Kind::KefTime,
         }
     }
 
@@ -134,6 +140,7 @@ impl Job {
             Job::Files(j) => Done::Files(Box::new(j.run(c))),
             Job::KefSeal(j) => Done::KefSeal(Box::new(j.run(c))),
             Job::KefOpen(j) => Done::KefOpen(Box::new(j.run(c))),
+            Job::KefTime(j) => Done::KefTime(Box::new(j.run(c))),
         }
     }
 }
@@ -182,6 +189,9 @@ pub(crate) struct Worker {
     drawn: bool,
     /// Krux's encrypted code: the running job's progress and the answers.
     kef: kef::KefArea,
+    /// The generation of the timed run that is out, which is no live job:
+    /// it has no busy screen and no other job makes it stale.
+    quiet: Option<u64>,
 }
 
 impl Worker {
@@ -196,6 +206,7 @@ impl Worker {
             origin: None,
             drawn: false,
             kef: kef::KefArea::default(),
+            quiet: None,
         }
     }
 
@@ -259,6 +270,39 @@ impl Worker {
         let link = self.link.get_or_insert_with(|| spawn(wake));
         // The thread lives as long as this end does.
         let _ = link.ask.send(Asked { job, generation });
+    }
+
+    /// Sends `job` to the worker as a quiet one: no job is made stale, and
+    /// its answer is told apart by [`Worker::is_quiet`].
+    pub(crate) fn send_quiet(&mut self, job: Job) {
+        self.generation += 1;
+        let generation = self.generation;
+        self.quiet = Some(generation);
+        let wake = Arc::clone(&self.wake);
+        let link = self.link.get_or_insert_with(|| spawn(wake));
+        let _ = link.ask.send(Asked { job, generation });
+    }
+
+    /// Whether the quiet job's answer is still to come.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn quiet_out(&self) -> bool {
+        self.quiet.is_some()
+    }
+
+    /// Whether `generation` is the quiet job's, leaving it.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn quiet_out_for(&self, generation: u64) -> bool {
+        self.quiet == Some(generation)
+    }
+
+    /// Whether `generation` is the quiet job's; taking it ends it.
+    pub(crate) fn take_quiet(&mut self, generation: u64) -> bool {
+        if self.quiet == Some(generation) {
+            self.quiet = None;
+            true
+        } else {
+            false
+        }
     }
 
     /// How many jobs have been asked of the worker.

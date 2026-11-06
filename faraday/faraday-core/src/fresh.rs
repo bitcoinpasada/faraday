@@ -818,7 +818,7 @@ impl Faraday {
     /// The tick: see [`Fresh::tick`].
     pub(crate) fn seed_tick(&mut self) -> bool {
         let now = self.now_ms;
-        self.fresh.tick(self.canvas.is_some(), now) | crate::seeds::kef::kef_tick(self, now)
+        self.fresh.tick(self.canvas.is_some(), now)
     }
 
     /// The first display asks for the seed and fills the pool.
