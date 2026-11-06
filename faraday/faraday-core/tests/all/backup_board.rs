@@ -2781,6 +2781,39 @@ fn a_plan_with_a_krux_code_reads_back_with_it() {
     assert_eq!(plan::map(&c, &shape, &back), the_map(&app));
 }
 
+/// A plan read from the record shows a seed's Krux code with the key
+/// loaded, and still shows it when the key is not loaded (after a lock
+/// and an unlock that loaded nothing): a seed not here is not a seed
+/// refused.
+#[test]
+fn a_krux_code_stays_in_a_plan_read_while_its_key_is_not_loaded() {
+    let c = testkit::compute();
+    let mut app = fresh_three();
+    app.press(Action::BChecklist);
+    app.press(Action::BPlan);
+    app.press(Action::Board(BP::Customize));
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
+    tap(&mut app, BP::MenuTo(Zone::Paper(0)));
+    app.press(Action::BQNext(qstep::BOARD));
+    // The seeds are not in a vault, whose rows a key not loaded refuses.
+    for row in testkit::backup_answers_mut(&mut app).vaults.iter_mut() {
+        row.fill(false);
+    }
+    app.press(Action::BChecklist);
+    app.settle();
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
+    app.press(Action::BPlan);
+    let w = app.backup().unwrap().wallet;
+    let holds = |app: &Faraday| {
+        let (a, _) = faraday_core::glance::plan_of_now(&c, app, w).expect("a plan is read");
+        a.to_text().contains("kefp0")
+    };
+    assert!(holds(&app), "key loaded");
+    app.session.keys.remove(0);
+    assert!(holds(&app), "key not loaded");
+}
+
 /// A seed kept only as a Krux code is kept nowhere: the code is an extra
 /// copy that no check counts.
 #[test]

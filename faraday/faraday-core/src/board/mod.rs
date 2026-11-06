@@ -2057,12 +2057,24 @@ impl Faraday {
             .is_some_and(|info| info.kef_offered())
     }
 
+    /// Whether seed `i` of `wallet` is here and `docs/KEF.md` §6 refuses
+    /// it. A seed whose key is not loaded is not refused: nothing is known
+    /// of it, and its Krux code stays in the plan.
+    fn kef_refused_of(&self, wallet: &crate::wallet::Wallet, i: usize) -> bool {
+        self.backup_seed_list_of(wallet)
+            .get(i)
+            .and_then(|(_, k)| *k)
+            .and_then(|k| self.session.keys.info(k))
+            .is_some_and(|info| !info.kef_offered())
+    }
+
     /// A plan `a` read back for `wallet`, without the Krux code of a seed
-    /// that cannot have one (a seed loaded another way since).
+    /// that is here and cannot have one (a seed loaded another way since).
+    /// A seed not loaded keeps its code.
     pub(crate) fn kef_dropped(&self, wallet: &crate::wallet::Wallet, mut a: Answers) -> Answers {
         for spot in a.map.iter_mut().flatten() {
             spot.holds.retain(|(w, _)| match w {
-                What::KefCode(i) | What::KefCodePaper(i) => self.kef_offered_of(wallet, *i),
+                What::KefCode(i) | What::KefCodePaper(i) => !self.kef_refused_of(wallet, *i),
                 _ => true,
             });
         }
