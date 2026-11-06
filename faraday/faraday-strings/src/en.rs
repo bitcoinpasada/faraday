@@ -4197,8 +4197,6 @@ strings! {
     kef_enter_text: "Enter as text",
     /// The one message for every failure to open.
     kef_failed: "Could not open. Wrong passphrase or damaged code.",
-    /// The sheet, a key coming out of a code while a stick is attached.
-    kef_remove_stick: "Remove the stick first.",
     /// A hex field that is not whole bytes.
     kef_hex_bad: "Not whole bytes of hex.",
     /// The working line while the key is worked out.

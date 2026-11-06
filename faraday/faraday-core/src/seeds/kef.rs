@@ -102,6 +102,15 @@ pub(crate) struct KefRead {
 }
 
 impl KefRead {
+    /// Whether it holds a secret: a passphrase typed or still to try, the
+    /// contents shown or offered.
+    pub(crate) fn holds_secret(&self) -> bool {
+        !self.pass.is_empty()
+            || !self.forms.is_empty()
+            || self.shown.is_some()
+            || self.offered.is_some()
+    }
+
     pub(crate) fn new(envelope: Envelope, depth: u8, rate: Option<u64>) -> Self {
         Self {
             facts: facts(&envelope, rate).join(" · "),
@@ -414,8 +423,7 @@ fn is_note_text(bytes: &[u8]) -> bool {
 
 /// Costs what the seed sheet's intake costs. The road's seed branch: 16 or
 /// 32 bytes as entropy to the seed sheet with the id line. Gives the bytes
-/// back when they did not go; a stick in the way counts as gone, the
-/// sheet asking again.
+/// back when they did not go.
 fn kef_as_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) -> Result<(), Zeroizing<Vec<u8>>> {
     let Some(k) = app.seed_read.kef() else {
         return Err(plain);
@@ -425,9 +433,6 @@ fn kef_as_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>) -> Result<(), Zeroi
     let Ok(m) = faraday_keys::words::from_compact_seedqr(&plain, lang) else {
         return Err(plain);
     };
-    if kef_stick_in(app) {
-        return Ok(());
-    }
     // Raw bytes that are also a code: the seed sheet offers to open
     // them as one (`docs/KEF.md` §8), within the depth.
     let also = (depth + 1 < DEPTH_MAX)
@@ -507,21 +512,6 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
     let shown = Zeroizing::new(text.to_string());
     drop(plain);
     kef_show(app, Stage::Note, shown);
-}
-
-/// Whether a stick is attached, which keeps the seed sheet from opening:
-/// the sheet goes back to asking, with the reason. Everything else goes on
-/// through the scanner's card, whose ways wait for the stick themselves.
-fn kef_stick_in(app: &mut Faraday) -> bool {
-    if app.may_load_keys() {
-        return false;
-    }
-    if let Some(k) = app.seed_read.kef_mut() {
-        k.stage = Stage::Ask;
-        k.pass.clear();
-        k.error = Some(EN.kef_remove_stick.to_string());
-    }
-    true
 }
 
 fn kef_show(app: &mut Faraday, stage: Stage, shown: Zeroizing<String>) {

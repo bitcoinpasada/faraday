@@ -321,7 +321,11 @@ impl Faraday {
         if self.seed_read.kef().is_none() {
             return;
         }
-        if self.worker.busy().is_some() {
+        if self
+            .worker
+            .busy()
+            .is_some_and(|b| b.kind == crate::worker::Kind::KefOpen)
+        {
             self.worker.stale();
             self.worker.kef_mut().stop();
             self.worker.set_busy(None);

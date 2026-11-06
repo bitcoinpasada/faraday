@@ -1625,6 +1625,7 @@ impl Faraday {
                 .prompt
                 .as_ref()
                 .is_some_and(|p| !p.text.text.is_empty())
+            || self.seed_read.holds_secret()
             || self.vaults.create.as_ref().is_some_and(|c| {
                 c.phrases
                     .iter()
@@ -1899,6 +1900,16 @@ impl Faraday {
         // A stick arrived. Only a clean process takes it; any other locks
         // first (`docs/history/PLAN.md` §5.4). No passphrase field takes typing while
         // it is attached.
+        // What was typed into a Krux code's sheet still counts, and the
+        // sheet closes: its job stops and its contents are dropped.
+        self.note_secrets();
+        if self.seed_read.kef().is_some() {
+            self.kef_job_drop();
+            self.seed_read.set_kef(None);
+            if self.sheet == Some(Sheet::KefRead) {
+                self.sheet = None;
+            }
+        }
         if matches!(
             self.vaults.focus,
             Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
@@ -2001,6 +2012,7 @@ impl Faraday {
             | Action::ScanFor(_)
             | Action::BScan
             | Action::Vault(vault::VaultAction::ScanEntry)
+            | Action::ReadAgain
             | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
                 EN.pull_what_scan
             }

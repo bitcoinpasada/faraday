@@ -4,11 +4,12 @@
 //! carry the text and the bytes.
 
 use crate::common::{has, has_part, offered, texts, type_text};
+use crate::vault_seal::{device as vault_device, open_and_change};
 use faraday_codec::kef::{Form, encode, wrap};
 use faraday_core::seeds::kef::KefAct;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, testkit};
 use faraday_keys::kef::unwrap;
-use faraday_shell_api::{App, EntropyBytes, Event, Key};
+use faraday_shell_api::{App, Command, EntropyBytes, Event, Key};
 use zeroize::Zeroizing;
 
 fn vectors() -> serde_json::Value {
@@ -445,51 +446,126 @@ fn a_note_used_as_a_passphrase_is_forgotten_when_the_scanner_is_cancelled() {
     assert_eq!(seed_sheet_texts(&mut app), expected);
 }
 
-#[test]
-fn a_stick_plugged_in_while_the_passphrase_is_asked_keeps_a_seed_from_loading() {
-    let (code, pass) = vector("ctr");
-    let mut app = scanner();
-    read(&mut app, &code);
-    go(&mut app, "Open");
-    app.storage(stick());
+/// The sheet asking a passphrase for a Krux code, nothing typed.
+fn asking(app: &mut Faraday) {
+    let (code, _) = vector("ctr");
+    read(app, &code);
+    go(app, "Open");
     assert_eq!(app.sheet, Some(Sheet::KefRead));
-    open_with(&mut app, &pass);
-    assert_eq!(app.sheet, Some(Sheet::KefRead));
-    assert!(
-        has(&mut app, "Remove the stick first."),
-        "{:?}",
-        texts(&mut app)
-    );
 }
 
-#[test]
-fn words_that_come_out_with_a_stick_plugged_in_wait_on_the_card_for_it() {
-    let mut app = scanner();
-    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    let code = sealed(&mut app, words.as_bytes());
-    read(&mut app, code.as_bytes());
-    go(&mut app, "Open");
-    app.storage(stick());
-    open_with(&mut app, "note key");
-    assert_ne!(app.sheet, Some(Sheet::SeedRead));
+/// The sheet while the key of a slow code is worked out.
+fn working(app: &mut Faraday) {
+    let code = rewrapped("ctr", 20_000_000);
+    read(app, &code);
+    go(app, "Open");
+    go(app, "Open");
+    type_text(app, "key");
+    app.event(Event::Key(Key::Enter));
+    assert!(app.busy().is_some(), "the work did not start");
+}
+
+/// The sheet is gone, no job is left and nothing it held is kept.
+fn closed(app: &mut Faraday) {
+    assert_ne!(app.sheet, Some(Sheet::KefRead));
+    assert!(app.busy().is_none());
+    assert!(app.kef_opened().is_none());
     assert!(app.session.keys.is_empty());
 }
 
 #[test]
-fn a_code_that_holds_no_key_opens_with_a_stick_plugged_in() {
+fn a_stick_plugged_in_while_the_passphrase_is_asked_closes_the_sheet() {
     let mut app = scanner();
-    let totp = "otpauth://totp/Site:me?secret=JBSWY3DPEHPK3PXP&issuer=Site";
-    let code = sealed(&mut app, totp.as_bytes());
+    asking(&mut app);
+    app.storage(stick());
+    closed(&mut app);
+    assert_eq!(app.screen, Screen::Visit);
+}
+
+#[test]
+fn a_stick_plugged_in_after_a_passphrase_was_typed_locks_and_closes_the_sheet() {
+    let mut app = scanner();
+    asking(&mut app);
+    type_text(&mut app, "key");
+    app.storage(stick());
+    closed(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn a_stick_plugged_in_while_the_code_opens_stops_the_work_and_closes_the_sheet() {
+    let mut app = scanner();
+    working(&mut app);
+    app.storage(stick());
+    testkit::settle_stale(&mut app);
+    closed(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn a_passphrase_typed_and_cancelled_still_locks_when_a_stick_comes() {
+    let mut app = scanner();
+    asking(&mut app);
+    type_text(&mut app, "key");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    app.storage(stick());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn a_note_shown_and_closed_still_locks_when_a_stick_comes() {
+    let mut app = scanner();
+    let code = sealed(&mut app, b"correct horse battery");
     read(&mut app, code.as_bytes());
     go(&mut app, "Open");
-    app.storage(stick());
     open_with(&mut app, "note key");
-    assert!(
-        !has(&mut app, "Remove the stick first."),
-        "{:?}",
-        texts(&mut app)
-    );
-    assert_ne!(app.sheet, Some(Sheet::KefRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    app.storage(stick());
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
+
+#[test]
+fn open_waits_on_the_card_while_a_stick_is_plugged_in() {
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_some_and(|s| s.card.is_some()));
+}
+
+#[test]
+fn scan_again_on_a_card_does_not_turn_the_camera_on_with_a_stick_plugged_in() {
+    let mut app = scanner();
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    app.storage(stick());
+    while app.poll_command().is_some() {}
+    app.press(Action::ReadAgain);
+    assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+}
+
+#[test]
+fn a_passphrase_carried_from_a_note_is_not_filled_in_after_another_code_was_read() {
+    let mut plain = scanner();
+    let expected = seed_sheet_texts(&mut plain);
+    let mut app = scanner();
+    let code = sealed(&mut app, b"correct horse battery");
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    app.press(Action::KefRead(KefAct::UseAsPassphrase));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    // A code that is no seed, and its way over.
+    read(&mut app, b"some words that are no seed at all");
+    let way = ways(&app).into_iter().next().expect("a way over");
+    go(&mut app, &way);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    assert_eq!(seed_sheet_texts(&mut app), expected);
 }
 
 #[test]
@@ -576,11 +652,6 @@ fn a_code_inside_a_code_that_is_seed_bytes_offers_to_open_as_a_code() {
     read(&mut app, outer.as_bytes());
     go(&mut app, "Open");
     open_with(&mut app, "note key");
-    // Offered as a code first (the contents parse as one); said not to be,
-    // they are a seed whose sheet offers the code again.
-    if app.sheet == Some(Sheet::KefRead) {
-        app.press(Action::KefRead(KefAct::NotEncrypted));
-    }
     let shown = texts(&mut app);
     assert_eq!(app.sheet, Some(Sheet::SeedRead), "{shown:?}");
     assert!(has(&mut app, "Open as an encrypted code"));
@@ -588,17 +659,16 @@ fn a_code_inside_a_code_that_is_seed_bytes_offers_to_open_as_a_code() {
 
 #[test]
 fn cancel_on_a_lock_sheet_over_a_working_sheet_drops_the_answer() {
-    let code = rewrapped("ctr", 20_000_000);
-    let mut app = scanner();
-    read(&mut app, &code);
-    go(&mut app, "Open");
-    go(&mut app, "Open");
-    type_text(&mut app, "key");
-    app.event(Event::Key(Key::Enter));
-    assert!(app.busy().is_some());
+    let mut app = vault_device(crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7));
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    working(&mut app);
     app.press(Action::Lock);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
     app.press(Action::Cancel);
     testkit::settle_stale(&mut app);
     assert!(app.busy().is_none());
     assert!(app.kef_opened().is_none());
+    assert_eq!(app.vaults().open.len(), 1);
 }

@@ -1315,6 +1315,11 @@ impl Faraday {
         let Some(card) = self.camera.scan_mut().and_then(|s| s.card.take()) else {
             return;
         };
+        // A passphrase carried from a Krux code is for a seed read next:
+        // any way but the seed's own lets it go.
+        if way != Way::Key {
+            drop(self.seed_read.take_carried_passphrase());
+        }
         let scan_read::ReadCard {
             kind,
             code,

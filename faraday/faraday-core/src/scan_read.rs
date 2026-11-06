@@ -428,9 +428,10 @@ impl Way {
         }
     }
 
-    /// Whether it loads a key, and so waits for no stick.
+    /// Whether it loads a key or opens a passphrase field for one (a Krux
+    /// code), and so waits for the stick to be out.
     pub fn loads_a_key(&self) -> bool {
-        matches!(self, Way::Key | Way::Share | Way::Sweep)
+        matches!(self, Way::Key | Way::Share | Way::Sweep | Way::Open)
     }
 }
 

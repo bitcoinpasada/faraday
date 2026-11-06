@@ -241,6 +241,8 @@ impl Faraday {
     /// key as typed words, which says what is wrong with them.
     pub(crate) fn seed_read_open(&mut self, words: &str) {
         let c = self.compute();
+        // A carried passphrase is for this read alone, seed or not.
+        let carried = self.seed_read.take_carried_passphrase();
         self.camera.close();
         self.out
             .commands
@@ -250,7 +252,6 @@ impl Faraday {
             self.seed_read_load(words, "");
             return;
         };
-        let carried = self.seed_read.take_carried_passphrase();
         self.seed_read.state = Some(SeedRead {
             source: Source::Words(SecretText::of(words)),
             plain: Some(plain),
@@ -331,6 +332,10 @@ impl Faraday {
     }
 
     pub(crate) fn seed_read_act(&mut self, choice: Choice) {
+        // A passphrase field waits for the stick to be out.
+        if choice == Choice::Kef && !self.may_load_keys() {
+            return;
+        }
         let Some(s) = self.seed_read.state.as_mut() else {
             return;
         };

@@ -414,6 +414,14 @@ impl SeedsArea {
         self.carried_pass.take()
     }
 
+    /// Whether this holds a secret: a typed passphrase, a shown or offered
+    /// content of a Krux code, a carried passphrase, or the seed sheet.
+    pub(crate) fn holds_secret(&self) -> bool {
+        self.state.is_some()
+            || self.carried_pass.is_some()
+            || self.kef.as_ref().is_some_and(|k| k.holds_secret())
+    }
+
     /// The Sweep sheet's state, while it is open.
     pub(crate) fn sweep(&self) -> Option<&sweep::Sweep> {
         self.sweep.as_ref()
