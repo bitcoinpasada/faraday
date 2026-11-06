@@ -2012,7 +2012,6 @@ impl Faraday {
             | Action::ScanFor(_)
             | Action::BScan
             | Action::Vault(vault::VaultAction::ScanEntry)
-            | Action::ReadAgain
             | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
                 EN.pull_what_scan
             }
@@ -2411,6 +2410,7 @@ impl Faraday {
         self.vault_shown_tidy();
         self.sweep_tidy();
         self.read_carried_tidy();
+        self.seed_carried_tidy();
         self.key_path_after(asked, action);
         self.account_after(account_asked, action);
         self.osk_after(action);

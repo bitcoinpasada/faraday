@@ -959,7 +959,10 @@ impl Faraday {
             ScanPurpose::CheckCopy(fp) => self.copy_scanned(fp, bytes),
             ScanPurpose::CheckCodex32 => self.c32_copy_scanned(bytes),
             ScanPurpose::WalletKey(w) => self.wallet_key_code(w, bytes),
-            ScanPurpose::Seed => self.seed_code_scanned(bytes),
+            ScanPurpose::Seed => {
+                self.seed_code_scanned(bytes);
+                self.seed_carried_tidy();
+            }
             _ => self.files_scanned(bytes, camera),
         }
     }
@@ -1315,11 +1318,6 @@ impl Faraday {
         let Some(card) = self.camera.scan_mut().and_then(|s| s.card.take()) else {
             return;
         };
-        // A passphrase carried from a Krux code is for a seed read next:
-        // any way but the seed's own lets it go.
-        if way != Way::Key {
-            drop(self.seed_read.take_carried_passphrase());
-        }
         let scan_read::ReadCard {
             kind,
             code,
@@ -1563,11 +1561,24 @@ impl Faraday {
     /// The read card's Scan again: the code is wiped and the camera turns
     /// back on in the same scanner.
     fn read_again(&mut self) {
+        // It turns the camera on, which a stick in forbids: the card stays.
+        if !self.stick.is_empty() {
+            return;
+        }
         if let Some(scan) = self.camera.scan_mut()
             && scan.card.take().is_some()
         {
             scan.note = None;
             self.out.commands.push_back(Command::CameraOn);
+        }
+    }
+
+    /// A passphrase carried from a Krux code lives only while the seed
+    /// scanner, its card or the Krux sheet it leads to is up: anywhere
+    /// else, it is wiped. Run after every press and after a code read.
+    pub(crate) fn seed_carried_tidy(&mut self) {
+        if !matches!(self.sheet, Some(Sheet::Scan | Sheet::KefRead)) {
+            drop(self.seed_read.take_carried_passphrase());
         }
     }
 
@@ -1917,6 +1928,7 @@ impl Faraday {
         // New key's Scan a SeedQR: its Key card takes the words and asks
         // the passphrase there (`docs/history/NEW-WALLET.md` §15.2).
         if self.keygen_scanned(words) {
+            self.seed_carried_tidy();
             return;
         }
         self.seed_read_open(words);

@@ -962,7 +962,7 @@ fn read_card(
     if card.not_kept {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.read_not_kept) + T::GAP;
     }
-    if stick_in && card.ways.iter().any(crate::scan_read::Way::loads_a_key) {
+    if stick_in {
         ui.wrap_as(
             (x, cy, w),
             BODY_M,
@@ -1033,7 +1033,15 @@ fn read_card_foot(
         })
         .collect();
     let leave = [
-        (EN.read_again.to_string(), Style::Ghost, Action::ReadAgain),
+        (
+            EN.read_again.to_string(),
+            if stick_in {
+                Style::GhostOff
+            } else {
+                Style::Ghost
+            },
+            Action::ReadAgain,
+        ),
         (
             read_card_leave(card).to_string(),
             Style::Secondary,

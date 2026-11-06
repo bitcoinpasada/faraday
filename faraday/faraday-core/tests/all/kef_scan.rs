@@ -262,6 +262,21 @@ fn sixteen_bytes_of_text_offer_to_be_read_as_a_seed() {
     assert!(has(&mut app, "Read as a seed"));
     app.press(Action::KefRead(KefAct::ReadAsSeed));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    // The seed is the one those bytes are, not any seed.
+    let m = faraday_keys::words::from_compact_seedqr(
+        b"sixteen byte txt",
+        faraday_bip::bip39::Language::English,
+    )
+    .unwrap();
+    let mut shown = String::new();
+    for &i in m.indices() {
+        shown.push_str(faraday_bip::bip39::Language::English.words()[usize::from(i)]);
+        shown.push(' ');
+    }
+    let mut want = scanner();
+    read(&mut want, shown.trim().as_bytes());
+    // The same seed: the title names how it was read, the rest is equal.
+    assert_eq!(texts(&mut app)[1..], texts(&mut want)[1..]);
 }
 
 #[test]
@@ -538,7 +553,7 @@ fn open_waits_on_the_card_while_a_stick_is_plugged_in() {
 }
 
 #[test]
-fn scan_again_on_a_card_does_not_turn_the_camera_on_with_a_stick_plugged_in() {
+fn scan_again_waits_on_the_card_for_the_stick_to_be_out_then_turns_the_camera_on() {
     let mut app = scanner();
     let (code, _) = vector("ctr");
     read(&mut app, &code);
@@ -546,6 +561,57 @@ fn scan_again_on_a_card_does_not_turn_the_camera_on_with_a_stick_plugged_in() {
     while app.poll_command().is_some() {}
     app.press(Action::ReadAgain);
     assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_some_and(|s| s.card.is_some()));
+    assert!(has(&mut app, "Remove the stick first"));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    while app.poll_command().is_some() {}
+    app.press(Action::ReadAgain);
+    assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(app.scan().is_some_and(|s| s.card.is_none()));
+}
+
+/// A note carried as a passphrase, the seed scanner up.
+fn carried_note(app: &mut Faraday) {
+    let code = sealed(app, b"correct horse battery");
+    read(app, code.as_bytes());
+    go(app, "Open");
+    open_with(app, "note key");
+    app.press(Action::KefRead(KefAct::UseAsPassphrase));
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+}
+
+#[test]
+fn a_note_carried_is_filled_in_when_an_encrypted_seed_code_is_opened_next() {
+    let mut app = scanner();
+    carried_note(&mut app);
+    let (code, pass) = vector("ctr");
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    open_with(&mut app, &pass);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    let s = app.seed_read().expect("the seed sheet");
+    assert!(s.adding);
+    assert_eq!(s.pass.as_str(), "correct horse battery");
+}
+
+#[test]
+fn a_note_carried_is_not_filled_in_after_a_codex32_string_or_a_slip39_share_was_read() {
+    let mut plain = scanner();
+    let expected = seed_sheet_texts(&mut plain);
+    for other in [
+        "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw",
+        "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+    ] {
+        let mut app = scanner();
+        carried_note(&mut app);
+        read(&mut app, other.as_bytes());
+        assert_ne!(app.sheet, Some(Sheet::Scan), "{other}");
+        app.press(Action::Nav(Screen::Home));
+        app.press(Action::Scan);
+        assert_eq!(seed_sheet_texts(&mut app), expected, "{other}");
+    }
 }
 
 #[test]
@@ -671,4 +737,33 @@ fn cancel_on_a_lock_sheet_over_a_working_sheet_drops_the_answer() {
     assert!(app.busy().is_none());
     assert!(app.kef_opened().is_none());
     assert_eq!(app.vaults().open.len(), 1);
+}
+
+#[test]
+fn a_seal_running_is_not_stopped_by_a_cancel_while_a_krux_sheet_is_left_over() {
+    let mut app = vault_device(crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7));
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    asking(&mut app);
+    fresh(&mut app);
+    app.kef_seal(
+        Zeroizing::new(b"note key".to_vec()),
+        Zeroizing::new(b"plain".to_vec()),
+        20,
+        faraday_core::worker::kef::KefId::Random(8),
+        200_000,
+        "Working",
+    )
+    .expect("fresh bytes");
+    app.press(Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    app.press(Action::Cancel);
+    // The seal goes on: its work is not the Krux sheet's to stop.
+    assert!(
+        app.busy()
+            .is_some_and(|b| b.kind == faraday_core::worker::Kind::KefSeal)
+    );
+    testkit::settle(&mut app);
+    assert!(app.busy().is_none());
 }

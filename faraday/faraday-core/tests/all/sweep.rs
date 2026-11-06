@@ -423,3 +423,21 @@ fn two_sweeps_leave_both_signed_transactions_in_the_outbox() {
     assert!(names.contains(&"sweep-signed.psbt") && names.contains(&"sweep-signed-2.psbt"));
     assert!(names.contains(&"sweep-final.txn") && names.contains(&"sweep-final-2.txn"));
 }
+
+#[test]
+fn part_of_a_key_typed_on_the_sweep_sheet_counts_when_a_stick_comes() {
+    let mut app = app();
+    app.press(Action::Catalog(tile()));
+    assert_eq!(app.sheet, Some(Sheet::Sweep));
+    type_key(&mut app, &WIF[..10]);
+    app.storage(StorageEvent::Sticks(vec![faraday_core::StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "stick".into(),
+        label: "STICK".into(),
+        boot: false,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+}
