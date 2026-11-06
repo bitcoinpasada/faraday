@@ -67,7 +67,14 @@ fn find_possible_neighbors(capstones: &[CapStone], idx: usize) -> (Vec<Neighbor>
 
         let cmp_cap = &capstones[others_idx];
 
-        let (mut u, mut v) = cap.c.unmap(&cmp_cap.center);
+        // The capstone's own perspective is fitted to corners a few dozen
+        // pixels apart and rounded to whole pixels, so extrapolated a
+        // hundred modules away it can be off by tens of modules, and a
+        // dense code's capstones are that far apart. The same corners fix
+        // the axes' direction and the module size well enough for a
+        // neighbour test, so the perspective is only the fall-back.
+        let (mut u, mut v) = affine_offsets(cap, &cmp_cap.center)
+            .unwrap_or_else(|| cap.c.unmap(&cmp_cap.center));
         u = (u - 3.5f64).abs();
         v = (v - 3.5f64).abs();
 
@@ -87,4 +94,23 @@ fn find_possible_neighbors(capstones: &[CapStone], idx: usize) -> (Vec<Neighbor>
     }
 
     (hlist, vlist)
+}
+
+/// Where `p` lies in a capstone's own module coordinates, taking the
+/// capstone as a parallelogram (no perspective): its centre is at
+/// `(3.5, 3.5)` and each axis is the mean of the two opposite edges of
+/// its ring. `None` for a ring whose edges do not span a plane.
+pub(crate) fn affine_offsets(cap: &CapStone, p: &crate::identify::Point) -> Option<(f64, f64)> {
+    let c = &cap.corners;
+    let x = |i: usize| f64::from(c[i].x);
+    let y = |i: usize| f64::from(c[i].y);
+    // Per module along u (corner 0 to 1, 3 to 2) and along v (0 to 3, 1 to 2).
+    let (ux, uy) = (((x(1) - x(0)) + (x(2) - x(3))) / 14.0, ((y(1) - y(0)) + (y(2) - y(3))) / 14.0);
+    let (vx, vy) = (((x(3) - x(0)) + (x(2) - x(1))) / 14.0, ((y(3) - y(0)) + (y(2) - y(1))) / 14.0);
+    let det = ux * vy - uy * vx;
+    if det.abs() < 1e-6 {
+        return None;
+    }
+    let (dx, dy) = (f64::from(p.x) - f64::from(cap.center.x), f64::from(p.y) - f64::from(cap.center.y));
+    Some((3.5 + (dx * vy - dy * vx) / det, 3.5 + (ux * dy - uy * dx) / det))
 }

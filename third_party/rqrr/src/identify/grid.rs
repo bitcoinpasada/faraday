@@ -69,17 +69,38 @@ impl SkewedGridLocation {
          * lines from capstones A and C.
          */
 
-        let mut align = geometry::line_intersect(
+        let edges_seed = geometry::line_intersect(
             &group.0.corners[0],
             &group.0.corners[1],
             &group.2.corners[0],
             &group.2.corners[3],
-        )?;
+        );
+        let mut align = edges_seed.unwrap_or(h0);
 
         /* On V2+ grids, we should use the alignment pattern. */
         if grid_size > 21 {
-            /* Try to find the actual location of the alignment pattern. */
-            align = find_alignment_pattern(img, align, &group.0, &group.2)?;
+            /* Try to find the actual location of the alignment pattern.
+             * Extending the capstones' edges is only as good as the corner
+             * pixels they start from, and on a dense code it is a hundred
+             * modules: where that estimate finds nothing, the point that
+             * completes the parallelogram of the three capstones' centres
+             * is tried, at the module size the capstones show.
+             */
+            let by_edges = edges_seed.and_then(|seed| {
+                let size = projected_module_area(seed, &group.0, &group.2)?;
+                find_alignment_pattern(img, seed, size)
+            });
+            align = match by_edges {
+                Some(p) => p,
+                None => {
+                    let seed = Point {
+                        x: group.0.center.x + group.2.center.x - group.1.center.x,
+                        y: group.0.center.y + group.2.center.y - group.1.center.y,
+                    };
+                    let area = (affine_module_area(&group.0) + affine_module_area(&group.2)) / 2.0;
+                    find_alignment_pattern(img, seed, area as usize)?
+                }
+            };
             let score = -hd.y * align.x + hd.x * align.y;
             let finder = LeftMostFinder {
                 line_p: hd,
@@ -95,6 +116,8 @@ impl SkewedGridLocation {
                 finder,
             )?;
             align = found.best;
+        } else {
+            align = edges_seed?;
         }
 
         if version_from_grid_size(grid_size) >= VERSION_DATA_BASE.len() {
@@ -243,26 +266,49 @@ where
     count
 }
 
+/// The area, in pixels, one module of the grid covers around `seed`,
+/// taken from the perspective of capstones `c0` and `c2`.
+fn projected_module_area(seed: Point, c0: &CapStone, c2: &CapStone) -> Option<usize> {
+    /* Guess another two corners of the alignment pattern so that we
+     * can estimate its size.
+     */
+    let (u, v) = c0.c.unmap(&seed);
+    let a = c0.c.map(u, v + 1.0)?;
+    let (u, v) = c2.c.unmap(&seed);
+    let c = c2.c.map(u + 1.0, v)?;
+    Some(
+        ((a.x - seed.x) * -(c.y - seed.y) + (a.y - seed.y) * (c.x - seed.x)).unsigned_abs()
+            as usize,
+    )
+}
+
+/// The area, in pixels, of one module of the capstone, taking its ring
+/// as a parallelogram.
+fn affine_module_area(cap: &CapStone) -> f64 {
+    let c = &cap.corners;
+    let x = |i: usize| f64::from(c[i].x);
+    let y = |i: usize| f64::from(c[i].y);
+    let (ux, uy) = (
+        ((x(1) - x(0)) + (x(2) - x(3))) / 14.0,
+        ((y(1) - y(0)) + (y(2) - y(3))) / 14.0,
+    );
+    let (vx, vy) = (
+        ((x(3) - x(0)) + (x(2) - x(1))) / 14.0,
+        ((y(3) - y(0)) + (y(2) - y(1))) / 14.0,
+    );
+    (ux * vy - uy * vx).abs()
+}
+
+/// Looks outwards from `align_seed` for the alignment pattern's centre
+/// square, a region about `size_estimate` pixels in area.
 fn find_alignment_pattern<S>(
     img: &mut PreparedImage<S>,
     mut align_seed: Point,
-    c0: &CapStone,
-    c2: &CapStone,
+    size_estimate: usize,
 ) -> Option<Point>
 where
     S: ImageBuffer,
 {
-    /* Guess another two corners of the alignment pattern so that we
-     * can estimate its size.
-     */
-    let (u, v) = c0.c.unmap(&align_seed);
-    let a = c0.c.map(u, v + 1.0)?;
-    let (u, v) = c2.c.unmap(&align_seed);
-    let c = c2.c.map(u + 1.0, v)?;
-    let size_estimate = ((a.x - align_seed.x) * -(c.y - align_seed.y)
-        + (a.y - align_seed.y) * (c.x - align_seed.x))
-        .unsigned_abs() as usize;
-
     /* Spiral outwards from the estimate point until we find something
      * roughly the right size. Don't look too far from the estimate
      * point.
@@ -279,14 +325,16 @@ where
 
             // Alignment pattern should not be white
             if x < img.width() && y < img.height() && PixelColor::White != img.get_pixel_at(x, y) {
-                let count = match img.get_region((x, y)) {
-                    Some(ColoredRegion::Unclaimed { pixel_count, .. }) => pixel_count,
-                    _ => continue,
-                };
-
-                // Matches expected size of alignment pattern
-                if count >= size_estimate / 2 && count <= size_estimate * 2 {
-                    return Some(align_seed);
+                // A region that is not a plain black one (a capstone's, say)
+                // is not the pattern, and the spiral goes on to its next
+                // pixel all the same.
+                if let Some(ColoredRegion::Unclaimed { pixel_count, .. }) =
+                    img.get_region((x, y))
+                {
+                    // Matches expected size of alignment pattern
+                    if pixel_count >= size_estimate / 2 && pixel_count <= size_estimate * 2 {
+                        return Some(align_seed);
+                    }
                 }
             }
 

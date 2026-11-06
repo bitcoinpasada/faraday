@@ -122,6 +122,40 @@ error.
 | `correct_block` (`src/decode.rs`) | `assert!(ecc.bs > ecc.dw)` | `DeQRError::DataEcc` |
 | `mask_bit` (`src/decode.rs`) | `panic!("Unknown mask value")` | the match is on `mask & 7`, which the format information's three mask bits are |
 
+## Finding the grid of a dense code
+
+A version 23 symbol (109 modules a side) at 6 to 9 pixels a module in a
+1920x1080 frame found its three capstones every time and a grid in about
+half the frames. Both causes are distances read off a capstone's own
+geometry, which is fitted to corners a few dozen pixels apart and rounded
+to whole pixels, and which a dense code asks to be extrapolated a hundred
+modules.
+
+- **Neighbour test** (`src/identify/match_capstones.rs`). Whether another
+  capstone lies along a capstone's rows or columns, and how far, was read
+  through the capstone's perspective transform (`unmap`). Two corners a
+  pixel off make that transform's projective terms wrong enough that a
+  capstone a hundred modules away mapped to 80 or 160 modules and the two
+  distances of a corner capstone differed by more than the quarter the
+  grouping allows, so no group formed. The test now takes the capstone's
+  ring as a parallelogram (`affine_offsets`: each axis the mean of the two
+  opposite edges) and uses the perspective only if that is degenerate.
+  The test only chooses which capstones are tried together; the timing
+  pattern, the alignment pattern, the sampling and the error correction
+  are as before.
+- **Alignment pattern search** (`src/identify/grid.rs`). The search
+  spiralled out from the point where the edges of capstones A and C
+  intersect, and on `continue` for a region that was not a plain black one
+  (a capstone's own ring, say) it did not step, so the spiral stood still
+  for the rest of that side and its path was no longer a spiral. It
+  steps on every pixel now. Where the search from the edges' point finds
+  nothing, it is repeated from the point that completes the parallelogram
+  of the three capstones' centres, with the module area the capstones
+  show; the area of a module used to come only from the capstones'
+  perspective too.
+
+Tested against generated frames in `core/faraday-codec/tests/dense_codes.rs`.
+
 ## Other panic sites, not yet changed
 
 Found by reading for `assert!`, `unwrap`, `expect`, `panic!` and indexing
