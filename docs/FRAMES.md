@@ -771,6 +771,33 @@ Pixels are as before (the snapshot and budget tests pass).
   what is left after the wrapping. Measured on the build machine,
   release, 480 x 640, a one-row clip, the median of 41 frames, with
   section timers in a probe kept outside the repository.
+- **The first whole frame of a screen change** (read from the Pi logs of
+  the panel run, then timed on the build machine, release, 480 x 640 at
+  286 dpi, the app driven through `App::frame` after the press that opens
+  the screen, with a probe kept outside the repository). The slowest passes
+  on the panel were Home's Lock sheet (98 ms), BackupFlow (up to 62),
+  Home's Power sheet (58), Pull (55), Key lengths (49), Cancel flow (47),
+  and Settings, Wallets start and Visit (31 to 35). A screen's first frame
+  is no dearer than a later whole frame of it: Settings 35 ms on the Pi
+  with the screen unchanged, 32 ms when changed, and on the build machine
+  0.8 ms for Settings, 0.7 for Wallets start, 0.3 to 0.4 for Wallets, Visit
+  and Backups, 1.0 to 1.2 for BackupFlow, the same on the 2nd to 4th time
+  the screen is opened (only the first open in a process is dearer, 2.3
+  ms for Settings, from the glyphs and faces not yet kept). Nothing was
+  found that a screen works out again on its first frame, so no work is
+  kept or prepared ahead for these. A sheet is 2.0 to 3.5 ms where its
+  page is 0.3 to 0.9: 1.0 ms of it is the frost under the sheet
+  (`Canvas::frost`, a barrier in the recording, so it runs after the page is
+  painted and before the sheet is, on the main thread and not in bands), 0.9
+  ms the page painted under it. The frost is kept after the first frame
+  (`Ui::backdrop`), so it is one hitch at the sheet's opening. Its cost is
+  in proportion to the pixels at a block under 16 (scale 14 on this panel:
+  977 µs; scale 28, which reads a quarter of the pixels: 374 µs); the sum
+  of each block in two-lane words did not change it (1 039 against 1 040 µs
+  a frost), and a quarter-reading at a block under 16 would change the
+  pixels, so neither was taken. What would lower it is the frost run in
+  bands across the cores, which is not built; what a Pi does with it can
+  only be read on a Pi.
 
 ## 8. Order of building
 
