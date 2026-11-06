@@ -104,6 +104,20 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   shortens with 60 %). On Wayland the compositor
   settles the rate the same way by itself: a frame that misses a refresh
   is shown at the next, and the frame after is asked for from there.
+- **The grid on the Pi is the screen's own** (the stick, where the
+  framebuffer waits for the vblank, `docs/FRAMES.md` §6). The writer
+  thread waits for a vblank before it writes a frame and tells the loop
+  when it came; the loop takes the refresh's measured length for its
+  step (one refresh, two, ...: the logic above is unchanged) and puts
+  each deadline on the vblank's grid, early enough that the pass ends a
+  couple of milliseconds before a vblank, so a frame is written just
+  after one instead of at a moment of its own. A deadline is a whole
+  number of measured refreshes from the one before, so the grid does not
+  drift against the screen on one that is not exactly 60 Hz. Positions
+  still come from the clock. Where the call fails, or is not there (a
+  PC's firmware framebuffer), the wait is off for the run and the grid
+  is the 16.67 ms timer as before. `--timings` says how many refreshes
+  carried a new frame and how many were missed while something moved.
 - **On every stick a fade's steps keep their own step.** A step that
   only blends the two kept frames is paced by the median of what the
   last five such steps cost, not by the frames drawn in full: the frame

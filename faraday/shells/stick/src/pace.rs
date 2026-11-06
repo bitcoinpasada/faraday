@@ -1,8 +1,12 @@
 //! The step of the frame grid, chosen from what frames cost on this
 //! machine (`docs/MOTION.md` §3.2).
 //!
-//! The firmware framebuffer has no vsync to pace to, so while something
-//! moves the loop draws on a grid of its own. A grid finer than the
+//! A PC's firmware framebuffer has no vsync to pace to, so while
+//! something moves the loop draws on a grid of its own. The Pi's waits
+//! for the screen's vblank (`refresh.rs`): the writer thread measures
+//! the refresh, the frame below is that length, and the loop puts its
+//! deadlines on the vblank's grid; the step logic is the same. A grid
+//! finer than the
 //! machine can keep gives uneven frames: a step of one frame, then one
 //! of two when a pass runs late, and the content stutters however exact
 //! its positions. So the step is the fewest whole frames that hold a
@@ -35,6 +39,8 @@ pub struct Pace {
     /// `None` before the first.
     cost: Option<Duration>,
     frames: u32,
+    /// One refresh: [`FRAME`] until the writer measures the screen's.
+    frame: Duration,
     /// What the last few passes whose frame was a fade's step took, two
     /// kept frames blended, oldest first: a fade is paced by the median
     /// of what its steps cost, not by the frame that showed the change,
@@ -50,6 +56,7 @@ impl Pace {
         Pace {
             cost: None,
             frames: 1,
+            frame: FRAME,
             blends: Vec::new(),
             blended: false,
         }
@@ -64,13 +71,14 @@ impl Pace {
     /// grid coarse for a second after one stall.
     pub fn drew(&mut self, took: Duration) {
         self.blended = false;
-        let took = took.min(FRAME * MOST);
+        let took = took.min(self.frame * MOST);
         let cost = match self.cost {
             None => took,
             Some(c) => (c * 4 + took) / 5,
         };
         self.cost = Some(cost);
-        let holds = |frames: u32, room: f64| FRAME * frames >= cost.mul_f64(room);
+        let frame = self.frame;
+        let holds = |frames: u32, room: f64| frame * frames >= cost.mul_f64(room);
         if !holds(self.frames, KEEP) {
             self.frames = (self.frames + 1..=MOST)
                 .find(|&n| holds(n, KEEP))
@@ -100,7 +108,13 @@ impl Pace {
 
     /// The time from one frame's deadline to the next.
     pub fn step(&self) -> Duration {
-        FRAME * self.frames()
+        self.frame * self.frames()
+    }
+
+    /// The screen's refresh is `refresh`, as the writer thread measured
+    /// it: a step is whole refreshes of that length.
+    pub fn set_refresh(&mut self, refresh: Duration) {
+        self.frame = refresh;
     }
 
     /// The step in whole frames: after a fade's step, the fewest that
@@ -108,7 +122,7 @@ impl Pace {
     pub fn frames(&self) -> u32 {
         match self.blend_cost() {
             Some(cost) if self.blended => (1..=MOST)
-                .find(|&n| FRAME * n >= cost.mul_f64(KEEP))
+                .find(|&n| self.frame * n >= cost.mul_f64(KEEP))
                 .unwrap_or(MOST),
             _ => self.frames,
         }
@@ -198,6 +212,21 @@ mod tests {
         // The fade over, frames drawn in full keep their own step.
         pace.drew(ms(20));
         assert_eq!(pace.step(), FRAME * 2);
+    }
+
+    #[test]
+    fn a_screen_that_refreshes_slower_than_sixty_hertz_steps_in_its_own_refreshes() {
+        let mut pace = Pace::new();
+        let refresh = Duration::from_micros(20_000);
+        pace.set_refresh(refresh);
+        for _ in 0..20 {
+            pace.drew(ms(4));
+        }
+        assert_eq!(pace.step(), refresh);
+        for _ in 0..20 {
+            pace.drew(ms(25));
+        }
+        assert_eq!(pace.step(), refresh * 2);
     }
 
     #[test]

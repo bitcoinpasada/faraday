@@ -538,11 +538,41 @@ next draw. The write is bounded by the memory bus, which does not follow
 the CPU's clock: about 2.3 ms for a whole 480 × 640 frame and 18.4 ms
 at 1920 × 1080 were measured before the thread, on the dev card.
 
-Not taken: writing the framebuffer through `mmap`. The mapped buffer is
-the same write-combined memory the write copies into, so the gain over
-the one copy is expected to be small; it is not measured. It needs
-`unsafe` (or a dependency that holds it), which the workspace forbids
-but for one crate; it is the owner's call (§9 question 2).
+Not taken, by the owner's decision: writing the framebuffer through
+`mmap`. The mapped buffer is the same write-combined memory the write
+copies into, so the gain over the one copy is expected to be small. It
+needs `unsafe` (or a dependency that holds it), which the workspace
+forbids but for one crate.
+
+**The write after the vblank** *(Built; its figure on a card is not yet
+taken)*. A frame written at a moment of its own can tear, and a frame
+that misses a refresh shows a refresh late. On the Pi the framebuffer
+(vc4's fbdev) implements `FBIO_WAITFORVSYNC`: it waits for the next
+vertical blank of the first CRTC, gives up after 100 ms, and returns at
+once when the screen is off. The `fb-write` thread calls it
+(`faraday_v4l2::wait_vblank`, in the one crate that may use `unsafe`, on
+a handle of its own from `try_clone`) before it writes a frame's bands,
+outside the panel's lock: the main loop keeps drawing, the arrow's
+thread is not held, and a blank, a lock, a power-off or an exit waits for
+at most one wait. The thread tells `refresh.rs` when each wait returned;
+that gives the refresh length (smoothed over the waits that are a whole
+number of refreshes apart) and the last vblank, which the loop's grid is
+tied to (`docs/MOTION.md` §3.2). Any error from the call (`ENOTTY` on a
+framebuffer without it, a PC's firmware framebuffer; `EBUSY` while
+something holds the display), or eight waits in a row that do not fall on
+a grid of refreshes (the call returning at once), turns the wait off for
+the run and the shell goes on as before on its own timer. A write that
+takes longer than a refresh, as the whole of 1920 × 1080 does, still tears
+below the line the display is at; the wait times the start of the write,
+not its end. `--timings` gives, per block, a `vblank` line (the wait on or
+off and why, refreshes seen while frames were written, those that carried
+a new frame, those a frame was due on and none carried, and the
+percentage that carried), a `refresh` line (count, mean, least, most of
+the measured length in ms) and a `vb_write` line (count, mean and worst
+of the time from the vblank to the write's end). "X% of refreshes during
+motion carried a new frame" is `carried_pct` when the grid's step is one
+frame; at a step of two it is about 50 by design, and `missed` is the
+number to read.
 
 **A window on a larger screen** *(Built; its figure on a card is not yet
 taken)*. `faraday.window=WxH` on the kernel command line draws in a
@@ -754,10 +784,8 @@ What each piece changes:
    whose whole frame takes tens of milliseconds, one pair of runs read a
    mean frame of 9.5 ms against 13.1 and a slowest five seconds of 16.5 ms
    against 36.0. A scroll step gains nothing: it makes no threads.
-2. **`mmap` for the framebuffer** (§6). The kernel's write is one copy
-   into the write-combined buffer, which is the memory a mapping would
-   write too, so the gain is expected to be small; it is not measured.
-   `unsafe` in the stick shell is a larger change. Open.
+2. **`mmap` for the framebuffer** (§6) is decided, not taken: it is the
+   owner's decision, for the reason in §6. It is no longer open.
 3. **Snapshots moved by a pixel** (§3.2). Placing a region's content in
    whole pixels moves a few edges by one pixel, once. Recommendation:
    accept; the tours that changed were named when it was built.

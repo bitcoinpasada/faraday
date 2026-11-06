@@ -229,6 +229,9 @@ pub struct Timings {
     last_step: Option<u32>,
     /// How many times the step changed since the last block.
     step_changes: u64,
+    /// The screen's refresh as the writer thread measures it, when it
+    /// waits for one: its lines go in each block.
+    beat: Option<std::sync::Arc<crate::refresh::Beat>>,
 }
 
 /// What kind of frame a pass drew.
@@ -284,6 +287,7 @@ impl Timings {
             pass_parts: [Duration::ZERO; PART_NAMES.len()],
             last_step: None,
             step_changes: 0,
+            beat: None,
         }
     }
 
@@ -478,6 +482,12 @@ impl Timings {
         tally.worst = tally.worst.max(took);
     }
 
+    /// Adds the lines of the screen's refresh (`refresh.rs`) to each
+    /// block, when the writer thread waits for it.
+    pub fn watch_refresh(&mut self, beat: Option<std::sync::Arc<crate::refresh::Beat>>) {
+        self.beat = beat;
+    }
+
     /// Records one pass of the main loop.
     pub fn pass(&mut self) {
         self.passes += 1;
@@ -609,6 +619,9 @@ impl Timings {
             ms(self.pace_cost),
             self.step_changes,
         ));
+        if let Some(beat) = &self.beat {
+            out.push_str(&beat.report());
+        }
         let (n, sum, top) = self.clock;
         out.push_str(&format!(
             "clock    samples {n} mean_mhz {} max_mhz {} raised {}\n",

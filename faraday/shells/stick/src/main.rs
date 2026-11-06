@@ -125,6 +125,7 @@ mod panel;
 mod pointer;
 mod present;
 mod radios;
+mod refresh;
 mod start_window;
 mod system;
 mod timings;
@@ -166,6 +167,10 @@ use timings::{Bucket, Part, Timings};
 
 /// How long the main loop waits to be woken before sending a tick.
 const TICK: Duration = Duration::from_millis(50);
+
+/// How long before a vblank a pass is meant to end, beyond its cost, so
+/// its frame is ready when the writer thread comes back from the wait.
+const VBLANK_MARGIN: Duration = Duration::from_millis(2);
 
 /// How long the line saying a file was written stays over the screen.
 const NOTICE_FOR: Duration = Duration::from_secs(3);
@@ -2002,6 +2007,14 @@ fn run(args: Args) -> Result<Exit, String> {
     // choice turns it once the core has read it.
     let turn = orient::Shared::new(setup.at_start());
     let frame = turn.get().frame_size(fb_size);
+    // The writer thread's own handle on the framebuffer, for the wait
+    // for the screen's vblank; a framebuffer without it turns the wait
+    // off at the first try (`refresh.rs`).
+    let vblank = fb
+        .try_clone()
+        .ok()
+        .filter(|_| !args.off_device)
+        .map(|f| Box::new(refresh::FbVblank(f)) as Box<dyn refresh::Vblank>);
     let mut panel = Panel::new(fb, geometry);
     if let Some((_, at)) = inset {
         panel.window_in(screen, at);
@@ -2009,7 +2022,8 @@ fn run(args: Args) -> Result<Exit, String> {
     panel.set_turn(turn.get());
     let panel = Arc::new(Mutex::new(panel));
     let mut presenter = Presenter::default();
-    presenter.write_on_thread(&panel);
+    presenter.write_on_thread(&panel, vblank);
+    let beat = presenter.beat();
     let cursor = pointing.then(|| {
         Arc::new(Mutex::new(Cursor::new(
             frame.0,
@@ -2130,6 +2144,7 @@ fn run(args: Args) -> Result<Exit, String> {
         timings: args.timings.then(|| {
             faraday_core::work::time_vaults(true);
             let mut t = Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height);
+            t.watch_refresh(beat.clone());
             t.resume(Path::new(BOXES));
             t
         }),
@@ -2388,6 +2403,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // that does not (`pace.rs`).
     let mut next_frame: Option<Instant> = None;
     let mut pace = Pace::new();
+    // The screen's refresh as the writer thread measures it, where it
+    // waits for one: the grid is tied to it (`refresh.rs`).
+    let beat = shell.presenter.beat();
     let mut boost = clock::Boost::new(shell.timings.is_some());
     // When the last pass that drew began, if its frame was a fade's step.
     let mut last_fade_step: Option<Instant> = None;
@@ -2642,11 +2660,27 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         let working = work::running(shell.app.as_ref());
         next_frame = (contact || working || shell.drawn != drawn).then(|| {
             let now = Instant::now();
+            let grid = beat.as_ref().and_then(|b| {
+                b.set_step(pace.frames());
+                let grid = b.grid(now);
+                match grid {
+                    Some(g) => pace.set_refresh(g.refresh),
+                    None if !b.on() => pace.set_refresh(pace::FRAME),
+                    None => {}
+                }
+                grid
+            });
             let step = pace.step();
-            next_frame
+            let due = next_frame
                 .map(|d| d + step)
                 .filter(|d| *d > now)
-                .unwrap_or(now + step)
+                .unwrap_or(now + step);
+            // Tied to the screen: the pass starts early enough to end
+            // just before a vblank, so its frame is written after it.
+            match grid {
+                Some(g) => g.align(due, (pace.cost() + VBLANK_MARGIN).min(step), now),
+                None => due,
+            }
         });
         // The clock stays raised while frames are drawn on the grid, and
         // comes down a while after.

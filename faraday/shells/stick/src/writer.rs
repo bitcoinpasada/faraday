@@ -8,6 +8,12 @@
 //! kept copy, band by band under the panel's lock, while the loop draws
 //! the next frame.
 //!
+//! Where the machine has a vblank to wait for (`refresh.rs`), the thread
+//! waits for one before it writes a frame, on a handle of its own and
+//! outside the panel's lock, so the loop keeps drawing and the arrow's
+//! thread is never held by the wait. The wait is off for the run on its
+//! first error, or when its returns are not on a grid of refreshes.
+//!
 //! At most one write is out. The next frame waits for it before it
 //! touches the kept copy, so nothing queues, the loop pays what the write
 //! costs beyond the draw, and the pacer (`pace.rs`) sees it in the pass.
@@ -22,6 +28,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crate::panel::{Panel, Sink, write_staged};
+use crate::refresh::{Beat, Vblank};
 
 /// Rows of the kept copy to write, and whether that makes the panel whole.
 struct Job {
@@ -46,27 +53,49 @@ pub struct Writer {
     done: Receiver<Done>,
     thread: Option<JoinHandle<()>>,
     out: bool,
+    beat: Option<Arc<Beat>>,
 }
 
 impl Writer {
     /// Starts the thread, on a machine with more than one core. `None`
     /// when it has one, or the thread did not start: the caller writes
     /// on its own thread as before.
-    pub fn start<S: Sink + Send + 'static>(panel: &Arc<Mutex<Panel<S>>>) -> Option<Writer> {
+    pub fn start<S: Sink + Send + 'static>(
+        panel: &Arc<Mutex<Panel<S>>>,
+        mut vblank: Option<Box<dyn Vblank>>,
+    ) -> Option<Writer> {
         if std::thread::available_parallelism().map_or(1, |n| n.get()) < 2 {
             return None;
         }
         let (jobs, rx) = channel::<Job>();
         let (tx, done) = channel::<Done>();
         let id = Arc::as_ptr(panel) as usize;
+        let beat = vblank.is_some().then(|| Arc::new(Beat::new()));
+        let own_beat = beat.clone();
         let own = panel.clone();
         let thread = std::thread::Builder::new()
             .name("fb-write".into())
             .spawn(move || {
                 for job in rx {
+                    let mut waited = None;
+                    if let (Some(v), Some(b)) = (vblank.as_mut(), own_beat.as_ref())
+                        && b.on()
+                    {
+                        match v.wait() {
+                            Ok(()) => {
+                                let now = Instant::now();
+                                b.vblank(now);
+                                waited = Some(now);
+                            }
+                            Err(e) => b.off(&format!("error: {e}")),
+                        }
+                    }
                     let at = Instant::now();
                     let result = write_staged(&own, &job.bands, job.complete);
                     let took = at.elapsed();
+                    if let (Some(b), Some(v)) = (own_beat.as_ref(), waited) {
+                        b.written(v);
+                    }
                     if tx.send(Done { took, result }).is_err() {
                         break;
                     }
@@ -79,7 +108,13 @@ impl Writer {
             done,
             thread: Some(thread),
             out: false,
+            beat,
         })
+    }
+
+    /// The refresh as the thread measures it, when it waits for one.
+    pub fn beat(&self) -> Option<Arc<Beat>> {
+        self.beat.clone()
     }
 
     /// Whether this writes `panel`.
@@ -163,7 +198,7 @@ mod tests {
     fn rig() -> (Arc<Mutex<Panel<Vec<u8>>>>, Presenter) {
         let panel = Arc::new(Mutex::new(Panel::new(Vec::new(), G)));
         let mut p = Presenter::default();
-        p.write_on_thread(&panel);
+        p.write_on_thread(&panel, None);
         (panel, p)
     }
 
@@ -218,5 +253,74 @@ mod tests {
         let mut want = frame(0x30);
         crate::cursor::draw_rows(&mut want, G, Turn::R0, (4, 100), 0);
         assert_eq!(*lock(&panel).sink(), want);
+    }
+
+    /// A wait the test lets go of by hand.
+    struct Gate(std::sync::mpsc::Receiver<()>);
+
+    impl Vblank for Gate {
+        fn wait(&mut self) -> io::Result<()> {
+            self.0.recv().map_err(|_| io::Error::other("closed"))
+        }
+    }
+
+    /// A framebuffer without the call.
+    struct Refused;
+
+    impl Vblank for Refused {
+        fn wait(&mut self) -> io::Result<()> {
+            Err(io::Error::other("not a tty"))
+        }
+    }
+
+    type Rig = (Arc<Mutex<Panel<Vec<u8>>>>, Presenter);
+
+    fn rig_waiting(v: Box<dyn Vblank>) -> Option<Rig> {
+        let panel = Arc::new(Mutex::new(Panel::new(Vec::new(), G)));
+        let mut p = Presenter::default();
+        p.write_on_thread(&panel, Some(v));
+        // One core: the frame is written where it is drawn, with no wait.
+        p.beat().map(|_| (panel, p))
+    }
+
+    #[test]
+    fn a_frame_is_written_after_the_vblank_and_not_before() {
+        let (release, gate) = std::sync::mpsc::channel();
+        let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
+            return;
+        };
+        put(&mut p, &panel, &frame(0x42));
+        std::thread::sleep(Duration::from_millis(60));
+        assert_eq!(lock(&panel).rows_written(), 0, "written before the vblank");
+        release.send(()).expect("released");
+        p.settle(None).expect("written");
+        assert_eq!(*lock(&panel).sink(), frame(0x42));
+    }
+
+    #[test]
+    fn a_wait_that_fails_is_given_up_and_the_frames_still_go_out() {
+        let Some((panel, mut p)) = rig_waiting(Box::new(Refused)) else {
+            return;
+        };
+        for fill in [1, 2, 3] {
+            put(&mut p, &panel, &frame(fill));
+        }
+        p.settle(None).expect("written");
+        assert_eq!(*lock(&panel).sink(), frame(3));
+        assert!(!p.beat().expect("a beat").on());
+    }
+
+    #[test]
+    fn a_blank_does_not_wait_for_a_vblank_that_has_not_come() {
+        let (release, gate) = std::sync::mpsc::channel();
+        let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
+            return;
+        };
+        put(&mut p, &panel, &frame(0x77));
+        // The writer is waiting; the panel's lock is free.
+        lock(&panel).blank();
+        assert!(lock(&panel).sink().iter().all(|&b| b == 0));
+        release.send(()).expect("released");
+        p.settle(None).expect("written");
     }
 }

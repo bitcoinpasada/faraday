@@ -34,6 +34,14 @@
 //! [`Frame`], [`spawn`] — is entirely safe: no raw pointer, no file
 //! descriptor and no mapped buffer crosses it.
 //!
+//! The same crate holds one more call that is not the camera's:
+//! [`wait_vblank`], the framebuffer's `FBIO_WAITFORVSYNC`, which the
+//! stick shell's writer thread uses to write a frame just after a
+//! screen refresh (`docs/FRAMES.md` §6). It is an `ioctl` with a
+//! pointer argument, which `std` cannot make, and it lives here
+//! because this is the one crate that may; the shell keeps no `unsafe`
+//! of its own. It takes a borrowed `File` and returns an `io::Result`.
+//!
 //! # Shape
 //!
 //! ```no_run
@@ -625,6 +633,19 @@ fn ioctl<T>(fd: RawFd, request: u32, arg: *mut T) -> io::Result<()> {
         return Err(io::Error::last_os_error());
     }
     Ok(())
+}
+
+/// Waits for the next vertical blank of the screen a framebuffer
+/// device shows on (`FBIO_WAITFORVSYNC`), and returns when it comes.
+///
+/// The Pi's video driver gives up after a tenth of a second and returns
+/// at once when the screen is off; a framebuffer without the call (a PC's
+/// firmware framebuffer) fails with `ENOTTY`, and one a program holds the
+/// display of with `EBUSY`. The caller treats any error as "no vblank
+/// to wait for".
+pub fn wait_vblank(fb: &File) -> io::Result<()> {
+    let mut crtc: u32 = 0;
+    ioctl(fb.as_raw_fd(), abi::FBIO_WAITFORVSYNC, &raw mut crtc)
 }
 
 /// `VIDIOC_QUERYCAP`.

@@ -287,6 +287,13 @@ const fn ioc(dir: u32, nr: u32, size: usize) -> u32 {
     (dir << DIR_SHIFT) | ((size as u32) << SIZE_SHIFT) | (TYPE_V << TYPE_SHIFT) | nr
 }
 
+/// `FBIO_WAITFORVSYNC`: `_IOW('F', 0x20, __u32)`, the framebuffer's wait
+/// for the next vertical blank.
+pub const FBIO_WAITFORVSYNC: u32 = (IOC_WRITE << DIR_SHIFT)
+    | ((size_of::<u32>() as u32) << SIZE_SHIFT)
+    | ((b'F' as u32) << TYPE_SHIFT)
+    | 0x20;
+
 /// `VIDIOC_QUERYCAP`.
 pub const VIDIOC_QUERYCAP: u32 = ioc(IOC_READ, 0, size_of::<Capability>());
 /// `VIDIOC_S_FMT`.

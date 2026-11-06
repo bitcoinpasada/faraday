@@ -32,6 +32,7 @@ use faraday_shell_api::Moved;
 use crate::fb::{self, Depth, Geometry};
 use crate::orient::Turn;
 use crate::panel::{CHUNK_ROWS, Panel, Sink, lock};
+use crate::refresh::{Beat, Vblank};
 use crate::timings::{Bucket, Timings};
 use crate::writer::{Done, Writer};
 
@@ -90,8 +91,17 @@ impl Presenter {
     /// no turn) is written by a thread of its own while the loop goes on,
     /// on a machine with more than one core (`docs/FRAMES.md` §6). The
     /// thread writes `panel`, and only a call for `panel` uses it.
-    pub fn write_on_thread<S: Sink + Send + 'static>(&mut self, panel: &Arc<Mutex<Panel<S>>>) {
-        self.writer = Writer::start(panel);
+    pub fn write_on_thread<S: Sink + Send + 'static>(
+        &mut self,
+        panel: &Arc<Mutex<Panel<S>>>,
+        vblank: Option<Box<dyn Vblank>>,
+    ) {
+        self.writer = Writer::start(panel, vblank);
+    }
+
+    /// The refresh the writer thread waits for, when it does.
+    pub fn beat(&self) -> Option<Arc<Beat>> {
+        self.writer.as_ref().and_then(Writer::beat)
     }
 
     /// Costs the wait for the write that is out: the panel shows the last
