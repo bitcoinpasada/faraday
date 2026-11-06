@@ -433,3 +433,69 @@ fn preset_saved(app: &mut Faraday, k: u8) {
     *faraday_core::testkit::backup_answers_mut(app) =
         faraday_core::plan::Answers::preset_at(&shape, preset, base);
 }
+
+/// A page scrolled: the frames drawn are moved ones.
+fn scrolled(app: &mut Faraday) {
+    for _ in 0..3 {
+        app.event(Event::Wheel {
+            x: 960,
+            y: 540,
+            dy: 40,
+        });
+        let _ = app.frame();
+    }
+}
+
+/// The Backups screen and the wallet's chart keep their lists while a page
+/// scrolls; a plan made and a backup checked each show on the next frame.
+#[test]
+fn the_backups_screen_and_the_wallet_chart_follow_the_backup_while_a_page_scrolls() {
+    let mut app = with_a_wallet();
+    app.press(Action::Nav(Screen::Backups));
+    scrolled(&mut app);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "No backup plan"), "{texts:?}");
+    app.press(Action::Nav(Screen::Wallets));
+    scrolled(&mut app);
+    open_a_vault(&mut app);
+    app.press(Action::Backup(0));
+    preset_saved(&mut app, 2);
+    app.press(Action::BChecklist);
+    app.press(Action::Nav(Screen::Backups));
+    scrolled(&mut app);
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "No backup plan"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Place 1"), "{texts:?}");
+    app.press(Action::Nav(Screen::Wallets));
+    scrolled(&mut app);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t.starts_with("Backup: ")), "{texts:?}");
+}
+
+/// A copy checked while the Backups screen was scrolled shows as checked
+/// on the next frame.
+#[test]
+fn a_copy_checked_shows_on_the_backups_screen_after_it_was_scrolled() {
+    let mut app = backed_up(1);
+    app.press(Action::Nav(Screen::Backups));
+    scrolled(&mut app);
+    let texts = app.drawn_texts();
+    assert_eq!(
+        texts.iter().filter(|t| *t == "Checked").count(),
+        1,
+        "{texts:?}"
+    );
+    app.press(Action::Backup(0));
+    app.press(Action::BStep(bstep::COPY));
+    app.press(Action::BReveal);
+    app.press(Action::BCheck);
+    type_the_copy(&mut app);
+    app.press(Action::Nav(Screen::Backups));
+    scrolled(&mut app);
+    let texts = app.drawn_texts();
+    assert_eq!(
+        texts.iter().filter(|t| *t == "Checked").count(),
+        2,
+        "{texts:?}"
+    );
+}

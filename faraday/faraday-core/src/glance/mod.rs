@@ -47,7 +47,7 @@ pub(crate) trait Reads {
     fn held_keys(&self) -> Vec<faraday_bip::keys::Fingerprint>;
     /// Every wallet known and where its backup is
     /// ([`Faraday::backups_now`]).
-    fn backups(&self) -> Vec<crate::backups::Entry>;
+    fn backups(&self) -> std::rc::Rc<Vec<crate::backups::Entry>>;
     /// Whether open vaults keep a seed without a passphrase
     /// ([`Faraday::vault_passphrase_seeds_now`]).
     fn passphrase_seeds(&self) -> bool;
@@ -120,8 +120,8 @@ impl Reads for Now<'_> {
     fn held_keys(&self) -> Vec<faraday_bip::keys::Fingerprint> {
         self.app.held_keys_now(self.c)
     }
-    fn backups(&self) -> Vec<crate::backups::Entry> {
-        self.app.backups_now(self.c)
+    fn backups(&self) -> std::rc::Rc<Vec<crate::backups::Entry>> {
+        std::rc::Rc::new(self.app.backups_now(self.c))
     }
     fn passphrase_seeds(&self) -> bool {
         !self.app.vault_passphrase_seeds_now(self.c).is_empty()
@@ -840,9 +840,9 @@ fn backup_nodes(
     };
     let lines = r
         .backups()
-        .into_iter()
+        .iter()
         .find(|e| e.sum == sum)
-        .and_then(|e| e.lines)
+        .and_then(|e| e.lines.clone())
         .unwrap_or_default();
     let worst = |t: &[(What, Tag)]| {
         let rank = |t: Tag| match t {

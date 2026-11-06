@@ -87,7 +87,7 @@ pub(crate) struct Drawing {
     pub passphrase_seeds: OnceCell<std::rc::Rc<Vec<crate::vault::load::PassSeed>>>,
     /// Every wallet known and where its backup is
     /// ([`crate::Faraday::backups_now`]).
-    pub backups: OnceCell<Vec<crate::backups::Entry>>,
+    pub backups: OnceCell<std::rc::Rc<Vec<crate::backups::Entry>>>,
     /// How many wallets are known and how many have no map
     /// ([`crate::Faraday::backup_counts_now`]).
     pub backup_counts: OnceCell<(usize, usize)>,
@@ -504,6 +504,20 @@ impl Faraday {
                 .commands
                 .push_back(faraday_shell_api::Command::Draw);
         }
+    }
+
+    /// Draws the frame. Costs a full draw of the screen; the answers the
+    /// backup's cards share are worked out once and kept only until it
+    /// returns, by whatever way it returns. Each drawing pass reads a
+    /// [`drawing::View`]; what it noted for after it is written once it
+    /// is drawn ([`drawing::After`]). A whole frame empties the charts and
+    /// the backup list kept across moved frames ([`Kept::charts_frame`]).
+    pub(crate) fn render(&mut self, only_moved: bool) {
+        self.drawing.clear();
+        self.kept.charts_frame(!only_moved);
+        self.render_frame(only_moved);
+        self.kept.charts_done();
+        self.drawing.clear();
     }
 
     /// The strings the current frame draws, for a test to check what a

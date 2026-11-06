@@ -1,8 +1,8 @@
 # Frames at the panel's rate
 
 **Kind:** Spec
-**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map and the signing page's text lines kept by file, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the stick's look for input devices, off the main loop, timed on the dev card, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's and the wallet chart's entries, worked out at every frame). While the scanner sheet is open the stick asks its camera for 1920 × 1080 so that a dense QR reads, and the sheet's preview is the 640 × 360 reduction of it (three times the bytes of the 320 × 240 before), moved and wiped per frame; no other screen pays, and the cost of the sheet on a Pi is not measured
+**Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map, the signing page's text lines kept by file and the Backups screen's list and the wallet chart kept across moved frames, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the stick's look for input devices, off the main loop, timed on the dev card, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's list and the wallet chart, which a whole frame still works out, the first moved frame after it too). While the scanner sheet is open the stick asks its camera for 1920 × 1080 so that a dense QR reads, and the sheet's preview is the 640 × 360 reduction of it (three times the bytes of the 320 × 240 before), moved and wiped per frame; no other screen pays, and the cost of the sheet on a Pi is not measured
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -691,26 +691,44 @@ profiler).
   drawn again made 908 allocations on Home and 997 on Wallets before,
   and 670 and 391 after (the budget test's walk).
 
+- **The Backups screen's list and the wallet chart kept across moved
+  frames.** Both were worked out at every frame (`backups_now`, a line per
+  place for every wallet, and `glance::build`). They are now kept on the
+  state (`drawing/kept.rs`, `Kept::charts_frame`) only while the frames
+  drawn are moved ones: a frame that is asked for whole empties them
+  first, and a moved frame (a scroll or a wheel step, which write only the
+  region's offset) reads what the last frame worked out. The inputs
+  (the session's wallets and keys, the flows, the backup under way, the
+  backups area, open vaults' records, locked vaults' summaries, the
+  Outbox, the last visit's receipt, the medium and time zone) are plain
+  fields written from many places, and none of them is watched one by
+  one: any change to them comes from an event, a tick that does more than
+  move the region, a storage answer or a job's answer, each of which asks
+  for a whole frame (`Out::redraw`), so the first whole frame after it
+  empties what was kept. A moved frame never writes any of them. The
+  lock empties them as well (`lock_finish`). Nothing is kept outside a
+  frame being drawn (a view made by a test or by a decision reads
+  nothing kept). A debug build works the value out again at every hit and
+  compares (a panic names the list that went stale), so the whole test
+  suite checks it at every moved frame it draws; two tests scroll the
+  Backups screen and a wallet's page, then plan a backup and check a copy,
+  and show the screen follows. What is newly kept: the wallet chart
+  (names, shape, descriptor checksum, key fingerprints and labels, the
+  plan's answers and places' names) and the backup list (names, shapes,
+  checksums, the lines' texts); the same public text the frame already
+  held until it ended, now until the next whole frame or a lock. No key,
+  seed, passphrase, descriptor text or file path. Measured on the build
+  machine, release, 480 x 640 (the Pi's panel class, 286 dpi), the heavy
+  session of SPEED §7, the median of 41 moved frames (a wheel step and the
+  frame): Wallets 1 998 µs before, 1 394 µs after; Backups 1 548 µs
+  before, 1 057 µs after; Home, which uses neither, 1 631 and 1 632 µs.
+  The chart's work moved off no worker: it is under the 100 ms line and
+  needs none.
+
 Pixels are as before (the snapshot and budget tests pass).
 
 **Not yet found or fixed.**
 
-- **The whole backup list kept on the state: looked at and not built.** Home's tile and a wallet's card no longer need it; the Backups screen and the wallet chart still work it out at every frame. The entries read about ten groups of inputs (the session's wallets and keys, the flows, the backup under way, the backups area, open vaults, locked vaults' summaries, the boxes, the last visit, the words' medium and time zone), and only the vault records and the plan's answers have a generation. A key hashing the rest would be a second copy of what `backups_now` reads, with nothing tying the two together, and a list gone stale shows a wrong backup status, worse than a slow frame. Being complete by construction takes a change counter on each of those structures.
-
-- **The Backups screen and the wallet chart still work every wallet's
-  entry out at every frame** (`View::backups()`, `backups_now`: a line
-  per place, with the vault files, the outbox and the last visit's
-  receipt read for each). Keeping the entries on the state was weighed
-  and not built: `backups_now` reads the session's wallets and keys, the
-  backup flows, every open vault's records and versions, the locked
-  vaults' summaries, the backups area's records, the backup under way,
-  the vault files on the sticks, the outbox and the last visit's
-  receipt and the medium and time zone for the words it says, and the
-  outbox, the flows and the session are plain fields written from many
-  places, so a mark at each change could be forgotten and the answer
-  here is whether a wallet is backed up. No time passes in it (no age
-  is said). The way to keep them is a key made of every input, as the
-  kept lists of `drawing/kept.rs` have; it is not built.
 - The signing page (the spend of the session's test PSBT) has a floor of
   125 µs, 38 µs of it in its page, against 1.2 ms with its pixels: its
   wrapping is not what the floor holds here, so keeping its lines by file
@@ -718,10 +736,9 @@ Pixels are as before (the snapshot and budget tests pass).
 - Files, what is left: the vault card is still measured and then drawn
   (two walks of its rows); its wallets with seeds ask the vault's rows a
   second time inside the accessor; the Inbox's card about a fifth.
-- The wallet's page (the card of a wallet, whose chart is built at every
-  frame) is the largest single cost on that screen: 387 of its 657 µs
-  floor, in the chart's own build (`glance::build`), not split further.
-  Wallets: 274 µs, of which the chart 52 and the backup line 26.
+- The wallet's page's chart, 387 of its 657 µs floor on a whole frame,
+  is built once per run of moved frames (above); a whole frame still
+  builds it. Wallets: 274 µs, of which the chart 52 and the backup line 26.
   Files: the head 117 µs (73 of it the vault's wallets with seeds), the
   Inbox's card 34, the vault card measured and drawn 31. Vault contents:
   the file rows' text drawn outside the one-row clip is still most of

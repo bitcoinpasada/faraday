@@ -19,9 +19,10 @@ use faraday_keys::vault::{RecordView, VaultId};
 
 use super::View;
 use crate::WalletKey;
+use crate::backups::Entry;
 use crate::create::NewKind;
 use crate::explore::Reading;
-use crate::glance::Glance;
+use crate::glance::{Glance, Press};
 use crate::gpg::GpgFile;
 use crate::plan;
 use crate::seeds::SeedsState;
@@ -50,9 +51,26 @@ const FP_MEMO_KEPT: usize = 64;
 /// ([`Kept::seeds_address`]); the next one empties the list.
 const SEEDS_ADDRESSES_KEPT: usize = 16;
 
+/// The most wallet charts kept across moved frames ([`Kept::chart_get`]);
+/// the next one empties the list.
+const CHARTS_KEPT: usize = 8;
+
 /// The most silent payments records kept checked against the loaded keys
 /// ([`Kept::silent_check`]); the next one drops the oldest.
 const SILENT_CHECKS_KEPT: usize = 8;
+
+/// The wallet charts and the backup list kept from one moved frame to the
+/// next ([`Kept::charts_frame`]).
+#[derive(Default)]
+struct Charts {
+    /// A frame is being drawn: lookups and stores go on only then, so a
+    /// view made outside `render` never reads another frame's values.
+    open: bool,
+    /// Each chart drawn this run of moved frames, by where it is drawn.
+    glances: Vec<(Press, Option<Rc<Glance>>)>,
+    /// The backup list ([`crate::Faraday::backups_now`]).
+    backups: Option<Rc<Vec<Entry>>>,
+}
 
 /// A silent payments record checked, by the record and the ids of the
 /// loaded keys with its fingerprint ([`Kept::silent_check`]).
@@ -108,9 +126,72 @@ pub(crate) struct Kept {
     /// Silent payments records checked against the loaded keys, each by
     /// the record and the ids of the loaded keys with its fingerprint.
     silent_checks: RefCell<Vec<KeptSilentCheck>>,
+    /// The wallet charts and the backup list, kept only while the frames
+    /// drawn are moved ones (`docs/FRAMES.md` §7).
+    charts: RefCell<Charts>,
 }
 
 impl Kept {
+    /// A frame is about to be drawn: a whole one empties the charts and
+    /// the backup list, since anything may have changed since the frame
+    /// before; a moved one (only the region's offset changed, which writes
+    /// none of what they are worked out from) keeps them.
+    pub(crate) fn charts_frame(&self, whole: bool) {
+        let mut k = self.charts.borrow_mut();
+        if whole {
+            *k = Charts::default();
+        }
+        k.open = true;
+    }
+
+    /// The frame is drawn: lookups stop until the next one.
+    pub(crate) fn charts_done(&self) {
+        self.charts.borrow_mut().open = false;
+    }
+
+    /// Drops the charts and the backup list: a lock.
+    pub(crate) fn charts_drop(&self) {
+        *self.charts.borrow_mut() = Charts::default();
+    }
+
+    /// The chart kept for `press`, if a frame is being drawn and one was.
+    fn chart_get(&self, press: Press) -> Option<Option<Rc<Glance>>> {
+        let k = self.charts.borrow();
+        if !k.open {
+            return None;
+        }
+        k.glances
+            .iter()
+            .find(|(p, _)| *p == press)
+            .map(|(_, g)| g.clone())
+    }
+
+    /// Keeps the chart of `press` while frames are drawn.
+    fn chart_put(&self, press: Press, g: Option<Rc<Glance>>) {
+        let mut k = self.charts.borrow_mut();
+        if !k.open {
+            return;
+        }
+        if k.glances.len() >= CHARTS_KEPT {
+            k.glances.clear();
+        }
+        k.glances.push((press, g));
+    }
+
+    /// The backup list kept, if a frame is being drawn and one was.
+    pub(crate) fn backups_get(&self) -> Option<Rc<Vec<Entry>>> {
+        let k = self.charts.borrow();
+        k.open.then(|| k.backups.clone()).flatten()
+    }
+
+    /// Keeps the backup list while frames are drawn.
+    pub(crate) fn backups_put(&self, e: &Rc<Vec<Entry>>) {
+        let mut k = self.charts.borrow_mut();
+        if k.open {
+            k.backups = Some(e.clone());
+        }
+    }
+
     /// Each kept list with its name, its length and its bound.
     #[cfg(test)]
     pub(crate) fn sizes(&self) -> Vec<(&'static str, usize, usize)> {
@@ -154,6 +235,11 @@ impl Kept {
                 "silent payments records checked (silent_check)",
                 self.silent_checks.borrow().len(),
                 SILENT_CHECKS_KEPT,
+            ),
+            (
+                "wallet charts (chart_get)",
+                self.charts.borrow().glances.len(),
+                CHARTS_KEPT,
             ),
         ]
     }
@@ -686,8 +772,26 @@ impl View<'_> {
     /// ([`crate::glance::of_vault`]), from each key record's kept
     /// fingerprint. Costs a PBKDF2 and two elliptic-curve multiplications
     /// per key record the first time.
-    pub(crate) fn glance_of_vault(&self, v: usize, r: usize) -> Option<Glance> {
-        crate::glance::of_vault(self, v, r)
+    pub(crate) fn glance_of_vault(&self, v: usize, r: usize) -> Option<Rc<Glance>> {
+        self.chart_kept(Press::Vault(v, r), || crate::glance::of_vault(self, v, r))
+    }
+
+    /// The chart of `press`: worked out by `make` the first time a run of
+    /// moved frames asks, kept for the next (`Kept::charts_frame`).
+    /// In a debug build a value kept is worked out again and compared.
+    fn chart_kept(&self, press: Press, make: impl Fn() -> Option<Glance>) -> Option<Rc<Glance>> {
+        if let Some(g) = self.app.kept.chart_get(press) {
+            #[cfg(debug_assertions)]
+            assert_eq!(
+                g.as_deref(),
+                make().as_ref(),
+                "a wallet chart kept across moved frames went stale"
+            );
+            return g;
+        }
+        let g = make().map(Rc::new);
+        self.app.kept.chart_put(press, g.clone());
+        g
     }
 
     /// The account key in slot `slot` of wallet `i`
@@ -731,8 +835,8 @@ impl View<'_> {
     /// Loaded wallet `w` at a glance ([`crate::glance::of`]), from the
     /// memo and the values kept on the state. Costs what those cost the
     /// first time.
-    pub(crate) fn glance_of(&self, w: usize) -> Option<Glance> {
-        crate::glance::of(self, w)
+    pub(crate) fn glance_of(&self, w: usize) -> Option<Rc<Glance>> {
+        self.chart_kept(Press::Loaded(w), || crate::glance::of(self, w))
     }
 
     /// The sheet for `target` on the chart of `press`
@@ -861,7 +965,7 @@ impl crate::glance::Reads for View<'_> {
     fn held_keys(&self) -> Vec<Fingerprint> {
         View::held_keys(self)
     }
-    fn backups(&self) -> Vec<crate::backups::Entry> {
+    fn backups(&self) -> Rc<Vec<crate::backups::Entry>> {
         View::backups(self)
     }
     fn passphrase_seeds(&self) -> bool {

@@ -5007,17 +5007,6 @@ impl Faraday {
         self.learn_place();
     }
 
-    /// Draws the frame. Costs a full draw of the screen; the answers the
-    /// backup's cards share are worked out once and kept only until it
-    /// returns, by whatever way it returns. Each drawing pass reads a
-    /// [`drawing::View`]; what it noted for after it is written once it
-    /// is drawn ([`drawing::After`]).
-    fn render(&mut self, only_moved: bool) {
-        self.drawing.clear();
-        self.render_frame(only_moved);
-        self.drawing.clear();
-    }
-
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn render_frame(&mut self, only_moved: bool) {
         let Some(mut canvas) = self.canvas.take() else {

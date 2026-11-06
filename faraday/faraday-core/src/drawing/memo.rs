@@ -21,11 +21,26 @@ use crate::vault::{KeptWiped, VaultRow};
 
 impl View<'_> {
     /// Every wallet known and where its backup is
-    /// ([`crate::Faraday::backups_now`]), once a frame.
-    pub fn backups(&self) -> Vec<Entry> {
+    /// ([`crate::Faraday::backups_now`]), once a frame, and kept for the
+    /// next while the frames drawn are moved ones
+    /// ([`crate::drawing::Kept::charts_frame`]).
+    pub fn backups(&self) -> Rc<Vec<Entry>> {
         self.drawing
             .backups
-            .get_or_init(|| self.filled(|c| self.app.backups_now(c)))
+            .get_or_init(|| {
+                if let Some(e) = self.app.kept.backups_get() {
+                    #[cfg(debug_assertions)]
+                    assert_eq!(
+                        *e,
+                        self.filled(|c| self.app.backups_now(c)),
+                        "the backup list kept across moved frames went stale"
+                    );
+                    return e;
+                }
+                let e = Rc::new(self.filled(|c| self.app.backups_now(c)));
+                self.app.kept.backups_put(&e);
+                e
+            })
             .clone()
     }
 
