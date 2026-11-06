@@ -795,9 +795,21 @@ Pixels are as before (the snapshot and budget tests pass).
   977 µs; scale 28, which reads a quarter of the pixels: 374 µs); the sum
   of each block in two-lane words did not change it (1 039 against 1 040 µs
   a frost), and a quarter-reading at a block under 16 would change the
-  pixels, so neither was taken. What would lower it is the frost run in
-  bands across the cores, which is not built; what a Pi does with it can
-  only be read on a Pi.
+  pixels, so neither was taken. The frost run in bands across the cores
+  was built and measured and not kept: its two stages that touch every
+  pixel (the blocks' sums, the enlarging) split over the bands' rows with
+  bytes equal to the whole frost at 2, 3 and 4 bands, on opaque and
+  translucent pages, at block scales 1 to 33, but each stage is a round
+  of threads started and joined, 75 µs for 2 and 156 µs for 4 on the
+  build machine (release), against a frost of 565 µs. Frost alone, median
+  of 41: 565 µs whole, 508 at 2 bands, 623 at 4. The first frame of a
+  sheet at 480 x 640, median of 21: Lock 941 µs whole, 958 at 2 bands,
+  1 262 at 4; Power 5 963, 5 487, 5 328; Pull 4 929, 4 726, 5 086 (the
+  frame's other costs move more than the frost's share). Doing both
+  stages in one round of threads would save at most one such round, 75 to
+  156 µs, of a frame of 1 to 6 ms, and a Pi starts threads at a higher
+  share of its frame, so it was left. What a Pi does with it can only be
+  read on a Pi.
 
 ## 8. Order of building
 
