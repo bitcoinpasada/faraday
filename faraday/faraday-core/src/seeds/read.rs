@@ -241,8 +241,7 @@ impl Faraday {
     /// key as typed words, which says what is wrong with them.
     pub(crate) fn seed_read_open(&mut self, words: &str) {
         let c = self.compute();
-        // A carried passphrase is for this read alone, seed or not; it is
-        // taken here, before the press's tidy would let it go.
+        // A carried passphrase is for this read alone, seed or not.
         let carried = self.seed_read.take_carried_passphrase();
         self.camera.close();
         self.out

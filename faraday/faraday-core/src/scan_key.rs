@@ -926,6 +926,13 @@ impl Faraday {
     /// or Paste gave (`docs/SCANNING.md` §4): the scanner on screen takes
     /// what it is for, and names anything else (§4.6).
     pub(crate) fn scanned(&mut self, bytes: Vec<u8>) {
+        self.scanned_here(bytes);
+        self.seed_carried_tidy();
+    }
+
+    /// Costs what [`Faraday::scanned`] costs: the same code, on the scanner
+    /// on screen.
+    fn scanned_here(&mut self, bytes: Vec<u8>) {
         let bytes = zeroize::Zeroizing::new(bytes);
         if self.seed_scan_codex32(&bytes)
             || self.gpg_restore_scanned(&bytes)
@@ -959,10 +966,7 @@ impl Faraday {
             ScanPurpose::CheckCopy(fp) => self.copy_scanned(fp, bytes),
             ScanPurpose::CheckCodex32 => self.c32_copy_scanned(bytes),
             ScanPurpose::WalletKey(w) => self.wallet_key_code(w, bytes),
-            ScanPurpose::Seed => {
-                self.seed_code_scanned(bytes);
-                self.seed_carried_tidy();
-            }
+            ScanPurpose::Seed => self.seed_code_scanned(bytes),
             _ => self.files_scanned(bytes, camera),
         }
     }
@@ -1342,8 +1346,7 @@ impl Faraday {
                     .flatten();
                 if let Some(words) = seed_in_code(&c, &code) {
                     drop(code);
-                    self.act(Action::Entry(None));
-                    self.seed_scanned(&words, kind);
+                    self.seed_scanned_on_entry(&words, kind);
                     if let Some(found) = also {
                         self.seed_read_offer_kef(found.envelope);
                     }
@@ -1575,11 +1578,29 @@ impl Faraday {
 
     /// A passphrase carried from a Krux code lives only while the seed
     /// scanner, its card or the Krux sheet it leads to is up: anywhere
-    /// else, it is wiped. Run after every press and after a code read.
+    /// else, it is wiped. Run after every press, every code read and the
+    /// answer of a code opened.
     pub(crate) fn seed_carried_tidy(&mut self) {
-        if !matches!(self.sheet, Some(Sheet::Scan | Sheet::KefRead)) {
+        let seed_scanner = self.sheet == Some(Sheet::Scan)
+            && self
+                .camera
+                .scan()
+                .is_some_and(|s| s.purpose == ScanPurpose::Seed);
+        if !seed_scanner && self.sheet != Some(Sheet::KefRead) {
             drop(self.seed_read.take_carried_passphrase());
         }
+    }
+
+    /// Costs what [`Faraday::seed_scanned`] costs. A seed's words read on a
+    /// scanner, taken to Add a key first: a carried passphrase goes with
+    /// them, past that press's tidy.
+    fn seed_scanned_on_entry(&mut self, words: &str, kind: Kind) {
+        let carried = self.seed_read.take_carried_passphrase();
+        self.act(Action::Entry(None));
+        if let Some(note) = carried {
+            self.seed_read.carry_passphrase(note);
+        }
+        self.seed_scanned(words, kind);
     }
 
     /// A TOTP setup code carried through **Unlock {vault}**: once the vault
@@ -1816,8 +1837,7 @@ impl Faraday {
                 let also = (kind == Kind::CompactSeedQr)
                     .then(|| faraday_codec::kef::recognize(&bytes))
                     .flatten();
-                self.act(Action::Entry(None));
-                self.seed_scanned(&words, kind);
+                self.seed_scanned_on_entry(&words, kind);
                 if let Some(found) = also {
                     self.seed_read_offer_kef(found.envelope);
                 }

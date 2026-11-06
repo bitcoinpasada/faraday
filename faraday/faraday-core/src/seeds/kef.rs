@@ -549,7 +549,8 @@ fn kef_use_as_passphrase(app: &mut Faraday) {
     };
     app.seed_read.set_kef(None);
     app.sheet = None;
-    app.seed_read.carry_passphrase(&text);
+    app.seed_read
+        .carry_passphrase(crate::secret_text::SecretText::of(&text));
     app.act(Action::ScanSeed);
 }
 

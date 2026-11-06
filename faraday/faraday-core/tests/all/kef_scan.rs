@@ -608,10 +608,71 @@ fn a_note_carried_is_not_filled_in_after_a_codex32_string_or_a_slip39_share_was_
         carried_note(&mut app);
         read(&mut app, other.as_bytes());
         assert_ne!(app.sheet, Some(Sheet::Scan), "{other}");
-        app.press(Action::Nav(Screen::Home));
         app.press(Action::Scan);
         assert_eq!(seed_sheet_texts(&mut app), expected, "{other}");
     }
+}
+
+#[test]
+fn a_note_carried_is_forgotten_when_a_stick_comes_and_goes_over_the_krux_sheet() {
+    let mut plain = scanner();
+    let expected = seed_sheet_texts(&mut plain);
+    let mut app = scanner();
+    carried_note(&mut app);
+    let (code, _) = vector("ctr");
+    read(&mut app, &code);
+    go(&mut app, "Open");
+    assert_eq!(app.sheet, Some(Sheet::KefRead));
+    app.storage(stick());
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Scan);
+    assert_eq!(seed_sheet_texts(&mut app), expected);
+}
+
+#[test]
+fn a_note_carried_is_forgotten_when_the_next_krux_code_holds_something_public() {
+    let mut plain = scanner();
+    let expected = seed_sheet_texts(&mut plain);
+    let mut app = scanner();
+    carried_note(&mut app);
+    let code = sealed(&mut app, b"bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq");
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    assert_ne!(app.sheet, Some(Sheet::KefRead));
+    assert_ne!(app.sheet, Some(Sheet::SeedRead));
+    if app.sheet == Some(Sheet::Scan) {
+        app.press(Action::ReadAgain);
+    } else {
+        app.press(Action::Scan);
+    }
+    assert_eq!(seed_sheet_texts(&mut app), expected);
+}
+
+#[test]
+fn a_note_carried_is_filled_in_when_the_next_krux_code_holds_a_seed_as_words() {
+    let mut app = scanner();
+    carried_note(&mut app);
+    let code = sealed(&mut app, WORDS);
+    read(&mut app, code.as_bytes());
+    go(&mut app, "Open");
+    open_with(&mut app, "note key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    let s = app.seed_read().expect("the seed sheet");
+    assert_eq!(s.pass.as_str(), "correct horse battery");
+}
+
+#[test]
+fn a_note_carried_is_filled_in_when_a_seeds_card_adds_its_key() {
+    let mut app = scanner();
+    carried_note(&mut app);
+    let words = String::from_utf8_lossy(WORDS).replace(' ', "\n");
+    read(&mut app, words.as_bytes());
+    assert!(app.scan().is_some_and(|s| s.card.is_some()));
+    go(&mut app, "Add this key");
+    assert_eq!(app.sheet, Some(Sheet::SeedRead));
+    let s = app.seed_read().expect("the seed sheet");
+    assert_eq!(s.pass.as_str(), "correct horse battery");
 }
 
 #[test]

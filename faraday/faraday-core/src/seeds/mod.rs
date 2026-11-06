@@ -405,8 +405,8 @@ impl SeedsArea {
     }
 
     /// Keeps a note for the next seed's passphrase.
-    pub(crate) fn carry_passphrase(&mut self, text: &str) {
-        self.carried_pass = Some(crate::secret_text::SecretText::of(text));
+    pub(crate) fn carry_passphrase(&mut self, note: crate::secret_text::SecretText) {
+        self.carried_pass = Some(note);
     }
 
     /// The note kept, once.

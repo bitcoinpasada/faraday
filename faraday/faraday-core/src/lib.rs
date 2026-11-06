@@ -1901,8 +1901,10 @@ impl Faraday {
         // first (`docs/history/PLAN.md` §5.4). No passphrase field takes typing while
         // it is attached.
         // What was typed into a Krux code's sheet still counts, and the
-        // sheet closes: its job stops and its contents are dropped.
+        // sheet closes: its job stops and its contents are dropped, a
+        // carried passphrase with them.
         self.note_secrets();
+        drop(self.seed_read.take_carried_passphrase());
         if self.seed_read.kef().is_some() {
             self.kef_job_drop();
             self.seed_read.set_kef(None);

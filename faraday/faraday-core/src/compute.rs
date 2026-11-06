@@ -230,6 +230,7 @@ impl Faraday {
             Done::KefOpen(d) => {
                 self.worker.kef_mut().opened_done(*d);
                 crate::seeds::kef::kef_opened_here(self);
+                self.seed_carried_tidy();
             }
         }
     }
