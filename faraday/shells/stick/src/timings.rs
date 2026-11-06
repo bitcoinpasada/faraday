@@ -229,6 +229,9 @@ pub struct Timings {
     last_step: Option<u32>,
     /// How many times the step changed since the last block.
     step_changes: u64,
+    /// Why the step changed, and the passes shown late, with the refresh
+    /// wait on.
+    paced: crate::pace::Events,
     /// The screen's refresh as the writer thread measures it, when it
     /// waits for one: its lines go in each block.
     beat: Option<std::sync::Arc<crate::refresh::Beat>>,
@@ -287,6 +290,7 @@ impl Timings {
             pass_parts: [Duration::ZERO; PART_NAMES.len()],
             last_step: None,
             step_changes: 0,
+            paced: crate::pace::Events::default(),
             beat: None,
         }
     }
@@ -505,6 +509,14 @@ impl Timings {
         self.last_step = Some(frames);
     }
 
+    /// Adds what the pacer counted since the last pass that drew: frames
+    /// shown late against the vblank and why the step changed.
+    pub fn paced(&mut self, events: crate::pace::Events) {
+        self.paced.late += events.late;
+        self.paced.coarsened += events.coarsened;
+        self.paced.recovered += events.recovered;
+    }
+
     /// Costs a read of a sysfs file: samples the first CPU's clock, at
     /// a pass that drew, and whether the shell held it `raised`.
     pub fn sample_clock(&mut self, raised: bool) {
@@ -615,9 +627,12 @@ impl Timings {
         }
         let [s1, s2, s3, s4] = self.steps;
         out.push_str(&format!(
-            "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2} changes {}\n",
+            "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2} changes {} late {} coarsened {} recovered {}\n",
             ms(self.pace_cost),
             self.step_changes,
+            self.paced.late,
+            self.paced.coarsened,
+            self.paced.recovered,
         ));
         if let Some(beat) = &self.beat {
             out.push_str(&beat.report());
@@ -680,6 +695,7 @@ impl Timings {
         self.touches = 0;
         self.steps = [0; STEPS];
         self.step_changes = 0;
+        self.paced = crate::pace::Events::default();
         self.clock = (0, 0, 0);
         self.raised = 0;
         self.fade_steps.clear();
@@ -818,10 +834,13 @@ mod tests {
             t.stepped(frames, Duration::from_millis(10));
         }
         let block = t.last(Duration::from_secs(5), None);
-        assert!(block.contains("cost 10.00 changes 2\n"), "{block}");
+        assert!(
+            block.contains("cost 10.00 changes 2 late 0 coarsened 0 recovered 0\n"),
+            "{block}"
+        );
         t.stepped(1, Duration::from_millis(10));
         let next = t.last(Duration::from_secs(10), None);
-        assert!(next.contains("changes 0\n"), "{next}");
+        assert!(next.contains("changes 0 late 0"), "{next}");
     }
 
     #[test]

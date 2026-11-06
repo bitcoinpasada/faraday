@@ -82,6 +82,9 @@ struct State {
     /// The grid's step in frames, as the loop last set it.
     step: u32,
     bad: u32,
+    /// Frames written a vblank later than the step allowed, not yet
+    /// taken by the loop.
+    late: u64,
     /// Waits too far apart to learn the refresh from, before it was
     /// learned.
     unlearned: u32,
@@ -145,6 +148,7 @@ impl Beat {
             refresh: None,
             step: 1,
             bad: 0,
+            late: 0,
             unlearned: 0,
             tally: Tally::default(),
         }))
@@ -173,6 +177,19 @@ impl Beat {
     /// The loop's grid step in frames, for counting what was missed.
     pub fn set_step(&self, frames: u32) {
         self.state().step = frames.max(1);
+    }
+
+    /// Whether the wait is on and has measured the screen's refresh: only
+    /// then does a frame's lateness against the vblank say anything.
+    pub fn measured(&self) -> bool {
+        let st = self.state();
+        st.on && st.refresh.is_some()
+    }
+
+    /// How many frames were written a vblank later than the step allowed
+    /// since the last call.
+    pub fn take_late(&self) -> u64 {
+        std::mem::take(&mut self.state().late)
     }
 
     /// The last vblank and the refresh length, while the wait is on and
@@ -239,6 +256,7 @@ impl Beat {
         st.tally.seen += seen;
         st.tally.carried += 1;
         st.tally.missed += seen.saturating_sub(step);
+        st.late += u64::from(seen > step);
         st.last = Some(at);
     }
 

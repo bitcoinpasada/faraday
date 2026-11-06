@@ -6,7 +6,11 @@
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
-60 Hz, a frame and its way to the panel inside 16.7 ms. This spec
+60 Hz, a frame and its way to the panel inside 16.7 ms. With the
+refresh wait working the grid stays on one refresh while frames mostly
+fit and goes coarser only after repeated late frames, judged by the
+vblank rather than the cost (`docs/MOTION.md` §3.2; its figure on a Pi
+is not yet taken). This spec
 designs four speed-ups the owner asked for (2026-11-02), measures what
 each can give, and orders the work. Every shell gains from the parts in
 the core: the stick on a PC and on the Pi (`faraday/shells/stick`, one

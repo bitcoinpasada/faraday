@@ -2630,6 +2630,13 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // next deadline is a step after this one, or a step from now
         // when this pass ran past it.
         if shell.drawn != drawn {
+            // With the wait measured, lateness is the vblank's: a frame
+            // shown a refresh after the one its step allowed.
+            let waits = beat.as_ref().is_some_and(|b| b.measured());
+            pace.set_wait(waits);
+            if let Some(b) = beat.as_ref().filter(|_| waits) {
+                pace.saw(b.take_late() > 0);
+            }
             if shell.last_blend {
                 pace.stepped_fade(began.elapsed());
             } else {
@@ -2637,6 +2644,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             }
             if let Some(timings) = shell.timings.as_mut() {
                 timings.stepped(pace.frames(), pace.cost());
+                timings.paced(pace.take_events());
                 timings.sample_clock(boost.raised());
                 timings.clock_writes(boost.take_writes());
                 let screen = shell.app.as_ref().map(screen_label).unwrap_or_default();

@@ -118,6 +118,26 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   PC's firmware framebuffer), the wait is off for the run and the grid
   is the 16.67 ms timer as before. `--timings` says how many refreshes
   carried a new frame and how many were missed while something moved.
+- **With the wait working, the step follows the vblank, not the cost**
+  (the stick, once the writer has measured the refresh). The 15 % and
+  40 % margins above date from a path with no vblank, where a late frame
+  was a frame shown at a moment of its own; with the wait a late frame
+  costs one refresh and nothing else, and the margins kept about half
+  the frames of a Pi 3B+ panel on 30 Hz that fitted one refresh. So a
+  frame is late when the writer saw its vblank more refreshes after the
+  last than the step allowed (the same count as `missed` in the
+  `vblank` line), and the step is lengthened by one refresh only when
+  five of the last eight frames were late: one stall, a sheet opening or
+  a screen change, is one or two. It is shortened by one after twelve
+  frames in a row that were on time and whose smoothed cost holds the
+  shorter step with 15 % room, so a screen costing about one refresh
+  stays on the step it is on instead of alternating. A fade's steps have
+  a step of their own by the same rule. Without a measured refresh (a
+  PC's framebuffer, a vblank that never arrives, the wait failing) the
+  cost and the margins above choose the step, unchanged. The `grid` line
+  of `--timings` adds `late`, `coarsened` and `recovered` to the frames
+  by step and the changes: `grid 16.7ms 280 33.3ms 12 50.0ms 0 66.7ms 0
+  cost 11.80 changes 2 late 9 coarsened 1 recovered 1`.
 - **On every stick a fade's steps keep their own step.** A step that
   only blends the two kept frames is paced by the median of what the
   last five such steps cost, not by the frames drawn in full: the frame
